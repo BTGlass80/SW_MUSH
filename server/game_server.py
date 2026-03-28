@@ -484,3 +484,10 @@ class GameServer:
                         )
                     await session.close()
                     self.session_mgr.remove(session)
+
+            # ── NPC Space Crew auto-actions ──
+            try:
+                from engine.npc_space_crew import tick_npc_space_combat
+                await tick_npc_space_combat(self.db, self.session_mgr)
+            except Exception:
+                log.debug("NPC space crew tick skipped", exc_info=True)
