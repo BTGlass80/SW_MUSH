@@ -101,9 +101,6 @@ CREATE TABLE IF NOT EXISTS objects (
     created_at      TEXT DEFAULT (datetime('now'))
 );
 
--- Ships
-CREATE TABLE IF NOT EXISTS ships (
-
 -- Missions (auto-generated jobs)
 CREATE TABLE IF NOT EXISTS missions (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -505,17 +502,6 @@ class Database:
         )
         await self._db.commit()
         return cursor.lastrowid
-
-    async def update_room(self, room_id: int, **fields):
-        """Update arbitrary room fields (zone_id, properties, etc.)."""
-        if not fields:
-            return
-        set_clause = ", ".join(f"{k} = ?" for k in fields)
-        values = list(fields.values()) + [room_id]
-        await self._db.execute(
-            f"UPDATE rooms SET {set_clause} WHERE id = ?", values
-        )
-        await self._db.commit()
 
     async def get_room_property(self, room_id: int, prop_name: str, default=None):
         """
@@ -923,10 +909,9 @@ class Database:
                 credits -= wage
                 total_deducted += wage
             else:
-                # Can't pay — NPC leaves
+                # Can't pay — NPC quits (but stays in the world)
                 departed.append(npc["name"])
                 await self.dismiss_npc(npc["id"])
-                await self.delete_npc(npc["id"])
 
         if total_deducted > 0:
             await self.save_character(char_id, credits=credits)

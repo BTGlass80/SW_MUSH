@@ -29,6 +29,9 @@ class DicePool:
         if self.pips >= 3:
             self.dice += self.pips // 3
             self.pips = self.pips % 3
+        while self.pips < 0 and self.dice > 0:
+            self.dice -= 1
+            self.pips += 3
         self.dice = max(0, self.dice)
         self.pips = max(0, self.pips)
 

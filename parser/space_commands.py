@@ -1,23 +1,7 @@
 """
-Space commands — ship operations, crew, flight, and combat.
+Space commands — ship operations, crew stations, flight, and combat.
 
-Player commands:
-  ships                   - List available ship templates
-  shipinfo <n>         - View detailed stats for a ship type
-  board <ship>            - Board a docked ship
-  disembark               - Leave the ship back to the docking bay
-  pilot                   - Take the pilot seat
-  gunner                  - Take a gunner seat
-  launch                  - Take off (pilot only, must be docked)
-  land                    - Dock at a bay (pilot only, must be in space)
-  shipstatus / ss         - Show current ship status
-  fire <target>           - Fire a weapon (gunner station, in space)
-  evade                   - Evasive maneuvers (pilot only)
-  damcon <system>         - Damage control: repair a system mid-combat
-  scan                    - Scan for nearby ships
-
-Builder commands:
-  @spawn <template> <n> - Spawn a ship in the current docking bay
+32 commands: crew stations, cooperation, combat, navigation, economy.
 """
 import json
 from parser.commands import BaseCommand, CommandContext, AccessLevel
@@ -232,6 +216,348 @@ class GunnerCommand(BaseCommand):
             f"  You man gunner station #{len(gunners)}: "
             f"{weapon.name} ({weapon.damage} damage, {weapon.fire_arc} arc)"))
 
+
+class CopilotCommand(BaseCommand):
+    key = "copilot"
+    aliases = ["copiloting"]
+    help_text = "Take the copilot seat. Adds +1D to pilot's maneuver and fire control rolls."
+    usage = "copilot"
+    async def execute(self, ctx):
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        crew = _get_crew(ship)
+        char_id = ctx.session.character["id"]
+        if crew.get("copilot") == char_id:
+            await ctx.session.send_line("  You're already the copilot.")
+            return
+        if crew.get("copilot"):
+            await ctx.session.send_line("  The copilot seat is occupied.")
+            return
+        crew["copilot"] = char_id
+        await ctx.db.update_ship(ship["id"], crew=json.dumps(crew))
+        await ctx.session.send_line(ansi.success(
+            "  You take the copilot seat. Assisting with navigation and fire control."))
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ctx.session.character['name']} takes the copilot seat.",
+            exclude=ctx.session)
+
+
+class EngineerCommand(BaseCommand):
+    key = "engineer"
+    aliases = ["eng"]
+    help_text = "Take the engineer station. Enables damage control and power management."
+    usage = "engineer"
+    async def execute(self, ctx):
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        crew = _get_crew(ship)
+        char_id = ctx.session.character["id"]
+        if crew.get("engineer") == char_id:
+            await ctx.session.send_line("  You're already at the engineer station.")
+            return
+        if crew.get("engineer"):
+            await ctx.session.send_line("  The engineer station is occupied.")
+            return
+        crew["engineer"] = char_id
+        await ctx.db.update_ship(ship["id"], crew=json.dumps(crew))
+        await ctx.session.send_line(ansi.success(
+            "  You take the engineer station. Systems and damage control at your fingertips."))
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ctx.session.character['name']} takes the engineer station.",
+            exclude=ctx.session)
+
+
+class NavigatorCommand(BaseCommand):
+    key = "navigator"
+    aliases = ["nav"]
+    help_text = "Take the navigator station. Provides astrogation support for hyperspace jumps."
+    usage = "navigator"
+    async def execute(self, ctx):
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        crew = _get_crew(ship)
+        char_id = ctx.session.character["id"]
+        if crew.get("navigator") == char_id:
+            await ctx.session.send_line("  You're already the navigator.")
+            return
+        if crew.get("navigator"):
+            await ctx.session.send_line("  The navigator seat is occupied.")
+            return
+        crew["navigator"] = char_id
+        await ctx.db.update_ship(ship["id"], crew=json.dumps(crew))
+        await ctx.session.send_line(ansi.success(
+            "  You take the navigator station. Star charts online."))
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ctx.session.character['name']} takes the navigator station.",
+            exclude=ctx.session)
+
+
+class CommanderCommand(BaseCommand):
+    key = "commander"
+    aliases = ["command", "captain"]
+    help_text = "Take the commander seat. Enables the 'coordinate' action to boost crew rolls."
+    usage = "commander"
+    async def execute(self, ctx):
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        crew = _get_crew(ship)
+        char_id = ctx.session.character["id"]
+        if crew.get("commander") == char_id:
+            await ctx.session.send_line("  You're already in command.")
+            return
+        if crew.get("commander"):
+            await ctx.session.send_line("  The commander seat is occupied.")
+            return
+        crew["commander"] = char_id
+        await ctx.db.update_ship(ship["id"], crew=json.dumps(crew))
+        await ctx.session.send_line(ansi.success(
+            "  You take command. Your crew looks to you for leadership."))
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ctx.session.character['name']} takes command of the ship.",
+            exclude=ctx.session)
+
+
+class SensorsCommand(BaseCommand):
+    key = "sensors"
+    aliases = ["sensor"]
+    help_text = "Take the sensors station. Enhances scan results with detailed readouts."
+    usage = "sensors"
+    async def execute(self, ctx):
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        crew = _get_crew(ship)
+        char_id = ctx.session.character["id"]
+        if crew.get("sensors") == char_id:
+            await ctx.session.send_line("  You're already at the sensors station.")
+            return
+        if crew.get("sensors"):
+            await ctx.session.send_line("  The sensors station is occupied.")
+            return
+        crew["sensors"] = char_id
+        await ctx.db.update_ship(ship["id"], crew=json.dumps(crew))
+        await ctx.session.send_line(ansi.success(
+            "  You take the sensors station. Passive and active arrays online."))
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ctx.session.character['name']} takes the sensors station.",
+            exclude=ctx.session)
+
+
+# ── Station names for vacate/display ──
+_SINGLE_STATIONS = ["pilot", "copilot", "engineer", "navigator", "commander", "sensors"]
+
+
+class VacateCommand(BaseCommand):
+    key = "vacate"
+    aliases = ["leave_station", "unstation"]
+    help_text = "Leave your current crew station."
+    usage = "vacate"
+    async def execute(self, ctx):
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        crew = _get_crew(ship)
+        char_id = ctx.session.character["id"]
+        left = None
+        # Check single-seat stations
+        for station in _SINGLE_STATIONS:
+            if crew.get(station) == char_id:
+                crew[station] = None
+                left = station
+                break
+        # Check gunner list
+        if not left:
+            gunners = crew.get("gunners", [])
+            if char_id in gunners:
+                gunners.remove(char_id)
+                crew["gunners"] = gunners
+                left = "gunner"
+        if not left:
+            await ctx.session.send_line("  You're not at any crew station.")
+            return
+        await ctx.db.update_ship(ship["id"], crew=json.dumps(crew))
+        await ctx.session.send_line(ansi.success(
+            f"  You step away from the {left} station."))
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ctx.session.character['name']} vacates the {left} station.",
+            exclude=ctx.session)
+
+
+class AssistCommand(BaseCommand):
+    key = "assist"
+    aliases = []
+    help_text = (
+        "Assist another crew member with their next action. "
+        "Uses your relevant skill to add a bonus die to their roll."
+    )
+    usage = "assist <station>  (e.g. assist pilot, assist gunner)"
+    async def execute(self, ctx):
+        if not ctx.args:
+            await ctx.session.send_line("Usage: assist <station>  (pilot, gunner, engineer)")
+            return
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        crew = _get_crew(ship)
+        char_id = ctx.session.character["id"]
+        # Must be at a station to assist
+        at_station = False
+        for s in _SINGLE_STATIONS:
+            if crew.get(s) == char_id:
+                at_station = s
+                break
+        if not at_station:
+            gunners = crew.get("gunners", [])
+            if char_id in gunners:
+                at_station = "gunner"
+        if not at_station:
+            await ctx.session.send_line("  You must be at a crew station to assist.")
+            return
+        target = ctx.args.strip().lower()
+        # Validate target station has someone
+        if target == "gunner":
+            gunners = crew.get("gunners", [])
+            if not gunners:
+                await ctx.session.send_line("  No one is at a gunner station.")
+                return
+        elif target in _SINGLE_STATIONS:
+            if not crew.get(target):
+                await ctx.session.send_line(f"  No one is at the {target} station.")
+                return
+            if crew[target] == char_id:
+                await ctx.session.send_line("  You can't assist yourself.")
+                return
+        else:
+            await ctx.session.send_line(
+                f"  Unknown station '{target}'. Options: "
+                f"{', '.join(_SINGLE_STATIONS + ['gunner'])}")
+            return
+        # Record the assist in the crew JSON for the next action to pick up
+        assists = crew.get("_assists", {})
+        assists[target] = {
+            "from": at_station,
+            "char_id": char_id,
+            "name": ctx.session.character["name"],
+        }
+        crew["_assists"] = assists
+        await ctx.db.update_ship(ship["id"], crew=json.dumps(crew))
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ansi.BRIGHT_CYAN}[CREW]{ansi.RESET} "
+            f"{ctx.session.character['name']} assists the {target}! (+1D to next roll)")
+
+
+class CoordinateCommand(BaseCommand):
+    key = "coordinate"
+    aliases = ["coord"]
+    help_text = (
+        "Commander action: rally the crew. Makes a command skill check; "
+        "success gives all crew +1 to their next roll this round."
+    )
+    usage = "coordinate"
+    async def execute(self, ctx):
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        crew = _get_crew(ship)
+        char_id = ctx.session.character["id"]
+        if crew.get("commander") != char_id:
+            await ctx.session.send_line("  Only the commander can coordinate the crew.")
+            return
+        # Command skill check
+        from engine.character import Character, SkillRegistry
+        from engine.dice import roll_d6_pool
+        char_obj = Character.from_db_dict(ctx.session.character)
+        sr = SkillRegistry()
+        sr.load_file("data/skills.yaml")
+        cmd_pool = char_obj.get_skill_pool("command", sr)
+        roll = roll_d6_pool(cmd_pool)
+        difficulty = 12  # Moderate
+        if roll.total >= difficulty:
+            # Record coordination bonus
+            crew["_coordinated"] = True
+            await ctx.db.update_ship(ship["id"], crew=json.dumps(crew))
+            await ctx.session_mgr.broadcast_to_room(
+                ship["bridge_room_id"],
+                f"  {ansi.BRIGHT_GREEN}[COMMAND]{ansi.RESET} "
+                f"{ctx.session.character['name']} rallies the crew! "
+                f"(Command: {roll.total} vs {difficulty}) "
+                f"+1 to all crew rolls this round.")
+        else:
+            await ctx.session_mgr.broadcast_to_room(
+                ship["bridge_room_id"],
+                f"  {ansi.BRIGHT_YELLOW}[COMMAND]{ansi.RESET} "
+                f"{ctx.session.character['name']}'s coordination attempt falls flat. "
+                f"(Command: {roll.total} vs {difficulty})")
+
+
+class ShipRepairCommand(BaseCommand):
+    key = "shiprepair"
+    aliases = ["srepair"]
+    help_text = (
+        "Engineer action: attempt to repair a ship system in flight. "
+        "Uses your Technical skill. Identical to damcon but requires engineer station."
+    )
+    usage = "shiprepair <system>"
+    async def execute(self, ctx):
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        crew = _get_crew(ship)
+        char_id = ctx.session.character["id"]
+        if crew.get("engineer") != char_id:
+            await ctx.session.send_line(
+                "  Only the engineer can use shiprepair. Take the station with 'engineer' first.")
+            return
+        # Delegate to DamConCommand logic
+        damcon = DamConCommand()
+        await damcon.execute(ctx)
+
+
+class MyShipsCommand(BaseCommand):
+    key = "myships"
+    aliases = ["ownedships"]
+    help_text = "List ships you own."
+    usage = "myships"
+    async def execute(self, ctx):
+        char_id = ctx.session.character["id"]
+        ships = await ctx.db.get_ships_owned_by(char_id)
+        if not ships:
+            await ctx.session.send_line("  You don't own any ships.")
+            return
+        reg = get_ship_registry()
+        await ctx.session.send_line(f"  {ansi.BOLD}Your Ships:{ansi.RESET}")
+        for s in ships:
+            template = reg.get(s["template"])
+            tname = template.name if template else s["template"]
+            loc = "in space"
+            if s["docked_at"]:
+                bay = await ctx.db.get_room(s["docked_at"])
+                loc = f"docked at {bay['name']}" if bay else "docked"
+            hull_dmg = s.get("hull_damage", 0)
+            dmg_str = f"  {ansi.BRIGHT_RED}[{hull_dmg} hull damage]{ansi.RESET}" if hull_dmg else ""
+            await ctx.session.send_line(
+                f"    {s['name']} ({tname}) — {loc}{dmg_str}")
+        await ctx.session.send_line("")
 
 
 class LaunchCommand(BaseCommand):
@@ -888,7 +1214,7 @@ class DamConCommand(BaseCommand):
         "Uses Technical + repair skill. Systems: "
         "shields, sensors, engines, weapons, hyperdrive, hull."
     )
-    usage = "damcon [system]"
+    usage = "damcon <system>"
 
     async def execute(self, ctx):
         # ── Validate: aboard a ship ──
@@ -905,36 +1231,47 @@ class DamConCommand(BaseCommand):
 
         systems = _get_systems(ship)
 
-        # ── No args: show damage report ──
+        # ── No argument: show damage report ──
         if not ctx.args:
             damaged = []
             for sys_name in REPAIRABLE_SYSTEMS:
                 state = get_system_state(systems, sys_name)
                 if state == "damaged":
                     diff = REPAIR_DIFFICULTIES[sys_name]
-                    damaged.append(f"    {sys_name.title():15s}  DAMAGED     Difficulty: {diff}")
+                    damaged.append(
+                        f"    {ansi.BRIGHT_YELLOW}{sys_name:12s}{ansi.RESET} "
+                        f"DAMAGED  (Difficulty: {diff})"
+                    )
                 elif state == "destroyed":
                     damaged.append(
-                        f"    {sys_name.title():15s}  {ansi.BRIGHT_RED}DESTROYED{ansi.RESET}"
-                        f"   (beyond repair)")
+                        f"    {ansi.BRIGHT_RED}{sys_name:12s}{ansi.RESET} "
+                        f"DESTROYED — needs spacedock"
+                    )
             hull_dmg = ship.get("hull_damage", 0)
             if hull_dmg > 0:
                 diff = REPAIR_DIFFICULTIES["hull"]
                 damaged.append(
-                    f"    {'Hull':15s}  {hull_dmg} damage    Difficulty: {diff}")
-
+                    f"    {ansi.BRIGHT_YELLOW}{'hull':12s}{ansi.RESET} "
+                    f"{hull_dmg} damage  (Difficulty: {diff})"
+                )
             if not damaged:
-                await ctx.session.send_line("  All systems operational. Nothing to repair.")
-                return
-
-            await ctx.session.send_line(f"  {ansi.BOLD}═══ Damage Report ═══{ansi.RESET}")
-            for line in damaged:
-                await ctx.session.send_line(line)
-            await ctx.session.send_line(f"\n  Usage: damcon <system>")
+                await ctx.session.send_line(
+                    "  All systems operational. Nothing to repair."
+                )
+            else:
+                await ctx.session.send_line(
+                    f"  {ansi.BOLD}Damage Report:{ansi.RESET}"
+                )
+                for line in damaged:
+                    await ctx.session.send_line(line)
+                await ctx.session.send_line(
+                    f"\n  {ansi.DIM}Usage: damcon <system> to attempt repair{ansi.RESET}"
+                )
             return
 
-        # ── Parse system name (partial match) ──
+        # ── Parse system name ──
         target_sys = ctx.args.strip().lower()
+        # Allow partial matching
         matched = None
         for sys_name in REPAIRABLE_SYSTEMS:
             if sys_name == target_sys or sys_name.startswith(target_sys):
@@ -942,76 +1279,95 @@ class DamConCommand(BaseCommand):
                 break
         if not matched:
             await ctx.session.send_line(
-                f"  Unknown system: '{ctx.args}'. "
-                f"Options: {', '.join(REPAIRABLE_SYSTEMS)}")
+                f"  Unknown system '{ctx.args}'. "
+                f"Options: {', '.join(REPAIRABLE_SYSTEMS)}"
+            )
             return
 
-        # ── Validate system state ──
+        # ── Check system state ──
         if matched == "hull":
             hull_dmg = ship.get("hull_damage", 0)
             if hull_dmg <= 0:
-                await ctx.session.send_line("  Hull is intact. Nothing to patch.")
+                await ctx.session.send_line("  Hull integrity is fine.")
                 return
+            current_state = "damaged"
         else:
-            state = get_system_state(systems, matched)
-            if state == "working":
-                await ctx.session.send_line(
-                    f"  {matched.title()} is operational. No repair needed.")
-                return
-            if state == "destroyed":
-                await ctx.session.send_line(
-                    f"  {matched.title()} is destroyed beyond repair. "
-                    f"You'll need a spacedock.")
-                return
+            current_state = get_system_state(systems, matched)
 
-        # ── Determine repair skill ──
+        if current_state == "working":
+            await ctx.session.send_line(
+                f"  {matched.title()} are already operational!"
+            )
+            return
+
+        if current_state == "destroyed":
+            await ctx.session.send_line(
+                f"  {matched.title()} are damaged beyond repair. "
+                f"You'll need a spacedock for this."
+            )
+            return
+
+        # ── Look up repair skill ──
         from engine.character import Character, SkillRegistry
         char_obj = Character.from_db_dict(ctx.session.character)
         sr = SkillRegistry()
         sr.load_file("data/skills.yaml")
 
-        scale = template.scale if template else "starfighter"
         if matched == "weapons":
-            skill_name = get_weapon_repair_skill(scale)
+            skill_name = get_weapon_repair_skill()
         else:
-            skill_name = get_repair_skill_name(scale)
+            skill_name = get_repair_skill_name(template.scale)
 
-        repair_pool = char_obj.get_skill_pool(skill_name, sr)
-
-        # ── Determine if in combat (ship is in space = under fire) ──
-        in_combat = ship["docked_at"] is None
-
-        # ── Roll ──
-        result = resolve_damage_control(
-            repair_pool=repair_pool,
-            system_name=matched,
-            in_combat=in_combat,
+        repair_pool = char_obj.get_skill_pool(
+            skill_name.replace("_", " "), sr
         )
 
-        # ── Apply result ──
+        # Check if in combat (other ships in space nearby)
+        in_combat = not ship["docked_at"]
+
+        # ── Resolve the repair ──
+        result = resolve_damage_control(
+            repair_skill=repair_pool,
+            system_name=matched,
+            current_state=current_state,
+            ship_scale=template.scale,
+            in_combat=in_combat,
+            num_actions=1,
+        )
+
+        # ── Apply results to database ──
         if result.success:
             if matched == "hull":
-                new_hull = max(0, ship.get("hull_damage", 0) - result.hull_repaired)
-                await ctx.db.update_ship(ship["id"], hull_damage=new_hull)
+                new_dmg = max(0, ship.get("hull_damage", 0) - result.hull_repaired)
+                await ctx.db.update_ship(ship["id"], hull_damage=new_dmg)
             else:
                 systems[matched] = True
-                await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
-
-            await ctx.session_mgr.broadcast_to_room(
-                ship["bridge_room_id"],
-                f"  {ansi.BRIGHT_GREEN}[DAMCON]{ansi.RESET} {result.narrative}")
-
+                await ctx.db.update_ship(
+                    ship["id"], systems=json.dumps(systems)
+                )
         elif result.permanent_failure:
             systems[matched] = "destroyed"
-            await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
+            await ctx.db.update_ship(
+                ship["id"], systems=json.dumps(systems)
+            )
 
-            await ctx.session_mgr.broadcast_to_room(
-                ship["bridge_room_id"],
-                f"  {ansi.BRIGHT_RED}[DAMCON]{ansi.RESET} {result.narrative}")
+        # ── Broadcast result ──
+        if result.success:
+            color = ansi.BRIGHT_GREEN
+            tag = "REPAIR"
+        elif result.permanent_failure:
+            color = ansi.BRIGHT_RED
+            tag = "REPAIR CRITICAL"
         else:
-            await ctx.session_mgr.broadcast_to_room(
-                ship["bridge_room_id"],
-                f"  {ansi.BRIGHT_YELLOW}[DAMCON]{ansi.RESET} {result.narrative}")
+            color = ansi.BRIGHT_YELLOW
+            tag = "REPAIR"
+
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {color}[{tag}]{ansi.RESET} "
+            f"{ctx.session.character['name']} works on {matched}: "
+            f"{result.narrative.strip()}"
+        )
 
 
 class CreditsCommand(BaseCommand):
@@ -1029,6 +1385,11 @@ def register_space_commands(registry):
         ShipsCommand(), ShipInfoCommand(),
         BoardCommand(), DisembarkCommand(),
         PilotCommand(), GunnerCommand(),
+        CopilotCommand(), EngineerCommand(),
+        NavigatorCommand(), CommanderCommand(),
+        SensorsCommand(), VacateCommand(),
+        AssistCommand(), CoordinateCommand(),
+        ShipRepairCommand(), MyShipsCommand(),
         LaunchCommand(), LandCommand(),
         ShipStatusCommand(), ScanCommand(),
         FireCommand(), EvadeCommand(),
