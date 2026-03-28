@@ -21,6 +21,7 @@ from parser.building_tier2 import register_building_tier2
 from parser.combat_commands import register_combat_commands
 from parser.npc_commands import register_npc_commands
 from parser.space_commands import register_space_commands
+from parser.crew_commands import register_crew_commands
 from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
@@ -53,6 +54,7 @@ class GameServer:
         register_combat_commands(self.registry)
         register_npc_commands(self.registry)
         register_space_commands(self.registry)
+        register_crew_commands(self.registry)
 
         # AI system
         self.ai_manager = AIManager(AIConfig())
