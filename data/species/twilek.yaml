@@ -1,0 +1,30 @@
+name: "Twi'lek"
+description: >
+  Colorful, lekku-bearing humanoids from the harsh world of Ryloth.
+  Twi'leks are known for their grace, cunning, and a complex silent
+  language communicated through subtle lekku movements.
+homeworld: Ryloth
+
+attributes:
+  dexterity:     { min: "1D", max: "3D+2" }
+  knowledge:     { min: "1D", max: "4D" }
+  mechanical:    { min: "1D", max: "3D" }
+  perception:    { min: "2D", max: "4D+2" }
+  strength:      { min: "1D", max: "3D" }
+  technical:     { min: "1D", max: "3D+1" }
+
+attribute_dice: "18D"
+skill_dice: "7D"
+
+special_abilities:
+  - name: "Lekku Communication"
+    description: >
+      Twi'leks can silently communicate basic concepts to other Twi'leks
+      through lekku movements. This cannot be detected by non-Twi'leks
+      without a Difficult Perception check.
+
+move: 10
+
+story_factors:
+  - "Twi'leks are frequently targeted by slavers due to their perceived beauty."
+  - "Many Twi'leks are gifted negotiators and merchants."

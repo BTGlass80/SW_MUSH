@@ -1,0 +1,38 @@
+name: Trandoshan
+description: >
+  Large, reptilian predators from Trandosha. Trandoshans worship a
+  deity called the Scorekeeper, who awards points for kills. They are
+  natural rivals of the Wookiees and frequently raid Kashyyyk for slaves
+  and hunting trophies.
+homeworld: Trandosha
+
+attributes:
+  dexterity:     { min: "1D", max: "3D" }
+  knowledge:     { min: "1D", max: "2D+2" }
+  mechanical:    { min: "1D", max: "2D+2" }
+  perception:    { min: "1D", max: "3D" }
+  strength:      { min: "2D", max: "4D+2" }
+  technical:     { min: "1D", max: "2D+2" }
+
+attribute_dice: "18D"
+skill_dice: "7D"
+
+special_abilities:
+  - name: "Regeneration"
+    description: >
+      Trandoshans can regenerate lost limbs over time. Once per day,
+      they may attempt a Moderate Strength check to heal one wound
+      level naturally without medical aid.
+  - name: "Claws"
+    description: >
+      Trandoshan claws add +1D to brawling damage in melee combat.
+  - name: "Vision"
+    description: >
+      Trandoshans can see in the infrared spectrum, granting them
+      the ability to see in total darkness with no penalty.
+
+move: 10
+
+story_factors:
+  - "Trandoshans and Wookiees are ancestral enemies."
+  - "Their Scorekeeper religion drives many to become bounty hunters or slavers."

@@ -1,0 +1,30 @@
+name: Duros
+description: >
+  Tall, thin humanoids with blue-green skin, red eyes, and no nose.
+  The Duros were among the galaxy's first interstellar travelers and
+  remain legendary pilots and navigators. Their culture prizes
+  exploration and spacefaring above all else.
+homeworld: Duro
+
+attributes:
+  dexterity:     { min: "1D", max: "3D+2" }
+  knowledge:     { min: "1D+1", max: "4D" }
+  mechanical:    { min: "2D+1", max: "4D+2" }
+  perception:    { min: "1D", max: "3D+1" }
+  strength:      { min: "1D", max: "3D" }
+  technical:     { min: "1D+1", max: "4D" }
+
+attribute_dice: "18D"
+skill_dice: "7D"
+
+special_abilities:
+  - name: "Natural Pilots"
+    description: >
+      Duros gain +1D to Astrogation checks when plotting hyperspace
+      routes they have personally traveled before.
+
+move: 10
+
+story_factors:
+  - "Duros are among the most respected spacers in the galaxy."
+  - "Their homeworld has been heavily polluted, driving most Duros to live in orbital cities."

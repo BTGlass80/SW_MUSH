@@ -1,0 +1,88 @@
+# Star Wars D6 R&E - Skill Definitions by parent attribute
+
+dexterity:
+  - { name: Blaster, specializations: ["Heavy Blaster Pistol", "Blaster Rifle", "Hold-Out Blaster"] }
+  - { name: Bowcaster, specializations: [] }
+  - { name: Brawling Parry, specializations: [] }
+  - { name: Dodge, specializations: [] }
+  - { name: Firearms, specializations: ["Pistol", "Rifle"] }
+  - { name: Grenade, specializations: ["Thermal Detonator", "Frag Grenade"] }
+  - { name: Lightsaber, specializations: [] }
+  - { name: Melee Combat, specializations: ["Vibroblade", "Force Pike"] }
+  - { name: Melee Parry, specializations: [] }
+  - { name: Missile Weapons, specializations: [] }
+  - { name: Pick Pocket, specializations: [] }
+  - { name: Running, specializations: [] }
+  - { name: Thrown Weapons, specializations: [] }
+  - { name: Vehicle Blasters, specializations: [] }
+
+knowledge:
+  - { name: Alien Species, specializations: ["Wookiees", "Hutts", "Mon Calamari"] }
+  - { name: Bureaucracy, specializations: ["Imperial", "Rebel Alliance"] }
+  - { name: Business, specializations: [] }
+  - { name: Cultures, specializations: [] }
+  - { name: Intimidation, specializations: [] }
+  - { name: Languages, specializations: ["Shyriiwook", "Huttese", "Binary"] }
+  - { name: Law Enforcement, specializations: [] }
+  - { name: Planetary Systems, specializations: ["Tatooine", "Coruscant"] }
+  - { name: Scholar, specializations: ["History", "Physics", "Xenobiology"] }
+  - { name: Streetwise, specializations: ["Mos Eisley", "Nar Shaddaa"] }
+  - { name: Survival, specializations: ["Desert", "Forest", "Arctic", "Space"] }
+  - { name: Tactics, specializations: ["Ground", "Fleet", "Guerrilla"] }
+  - { name: Value, specializations: [] }
+  - { name: Willpower, specializations: [] }
+
+mechanical:
+  - { name: Astrogation, specializations: [] }
+  - { name: Beast Riding, specializations: ["Bantha", "Tauntaun"] }
+  - { name: Capital Ship Gunnery, specializations: ["Turbolaser", "Ion Cannon"] }
+  - { name: Capital Ship Piloting, specializations: ["Star Destroyer", "Corvette"] }
+  - { name: Capital Ship Shields, specializations: [] }
+  - { name: Communications, specializations: [] }
+  - { name: Ground Vehicle Operation, specializations: ["Landspeeder", "AT-ST"] }
+  - { name: Hover Vehicle Operation, specializations: [] }
+  - { name: Repulsorlift Operation, specializations: [] }
+  - { name: Sensors, specializations: [] }
+  - { name: Space Transports, specializations: ["YT-1300", "Lambda Shuttle"] }
+  - { name: Starfighter Piloting, specializations: ["X-Wing", "TIE Fighter", "A-Wing"] }
+  - { name: Starship Gunnery, specializations: ["Laser Cannon", "Proton Torpedo"] }
+  - { name: Starship Shields, specializations: [] }
+  - { name: Swoop Operation, specializations: [] }
+  - { name: Walker Operation, specializations: ["AT-AT", "AT-ST"] }
+
+perception:
+  - { name: Bargain, specializations: [] }
+  - { name: Command, specializations: ["Starship Crew", "Ground Troops"] }
+  - { name: Con, specializations: ["Disguise", "Fast Talk"] }
+  - { name: Forgery, specializations: [] }
+  - { name: Gambling, specializations: ["Sabacc"] }
+  - { name: Hide, specializations: [] }
+  - { name: Investigation, specializations: [] }
+  - { name: Persuasion, specializations: [] }
+  - { name: Search, specializations: [] }
+  - { name: Sneak, specializations: [] }
+
+strength:
+  - { name: Brawling, specializations: ["Martial Arts", "Wrestling"] }
+  - { name: Climbing/Jumping, specializations: [] }
+  - { name: Lifting, specializations: [] }
+  - { name: Stamina, specializations: [] }
+  - { name: Swimming, specializations: [] }
+
+technical:
+  - { name: Armor Repair, specializations: [] }
+  - { name: Blaster Repair, specializations: [] }
+  - { name: Capital Ship Repair, specializations: [] }
+  - { name: Capital Ship Weapon Repair, specializations: [] }
+  - { name: Computer Programming/Repair, specializations: ["Slicing"] }
+  - { name: Demolitions, specializations: [] }
+  - { name: Droid Programming, specializations: [] }
+  - { name: Droid Repair, specializations: [] }
+  - { name: First Aid, specializations: [] }
+  - { name: Ground Vehicle Repair, specializations: [] }
+  - { name: Medicine, specializations: ["Surgery", "Cybernetics"] }
+  - { name: Repulsorlift Repair, specializations: [] }
+  - { name: Security, specializations: [] }
+  - { name: Space Transport Repair, specializations: ["YT-1300"] }
+  - { name: Starfighter Repair, specializations: ["X-Wing"] }
+  - { name: Starship Weapon Repair, specializations: [] }

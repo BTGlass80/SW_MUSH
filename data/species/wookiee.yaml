@@ -1,0 +1,38 @@
+name: Wookiee
+description: >
+  Towering, fur-covered beings from the wroshyr-tree forests of Kashyyyk.
+  Wookiees are renowned for their strength, loyalty, and fearsome temper.
+  They speak Shyriiwook, a language of growls and roars that most other
+  species cannot reproduce but can learn to understand.
+homeworld: Kashyyyk
+
+attributes:
+  dexterity:     { min: "1D", max: "3D+2" }
+  knowledge:     { min: "1D", max: "2D+1" }
+  mechanical:    { min: "1D", max: "3D+2" }
+  perception:    { min: "1D", max: "2D+1" }
+  strength:      { min: "3D", max: "6D" }
+  technical:     { min: "1D", max: "3D+1" }
+
+attribute_dice: "18D"
+skill_dice: "7D"
+
+special_abilities:
+  - name: "Berserker Rage"
+    description: >
+      When a Wookiee becomes enraged (wounded or a companion is hurt),
+      they gain +2D to Strength for brawling damage. However, they
+      cannot perform any other action except attacking until they
+      succeed at a Moderate Perception check to calm down.
+  - name: "Climbing Claws"
+    description: >
+      Wookiees have retractable claws granting +2D to climbing checks.
+      Using claws in combat is considered dishonorable and results in
+      exile from Wookiee society.
+
+move: 11
+
+story_factors:
+  - "Wookiees cannot speak Basic, though they understand it fluently."
+  - "Imperial enslavement of Wookiees is widespread; many harbor deep resentment."
+  - "Wookiee life debts are sacred and unbreakable obligations."

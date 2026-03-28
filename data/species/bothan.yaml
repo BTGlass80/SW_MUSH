@@ -1,0 +1,27 @@
+name: Bothan
+description: >
+  Furred humanoids renowned throughout the galaxy as spies, information
+  brokers, and political schemers. Bothans operate the galaxy's most
+  extensive intelligence network. Many Bothans died to bring the
+  Rebellion the plans to the second Death Star.
+homeworld: Bothawui
+
+attributes:
+  dexterity:     { min: "1D+1", max: "3D+2" }
+  knowledge:     { min: "2D", max: "4D+1" }
+  mechanical:    { min: "1D", max: "3D" }
+  perception:    { min: "2D+1", max: "4D+2" }
+  strength:      { min: "1D", max: "2D+2" }
+  technical:     { min: "1D", max: "3D+1" }
+
+attribute_dice: "18D"
+skill_dice: "7D"
+
+special_abilities: []
+
+move: 10
+
+story_factors:
+  - "Bothans are naturally inclined toward politics, manipulation, and espionage."
+  - "The Bothan Spynet is one of the galaxy's premier intelligence organizations."
+  - "Other species sometimes distrust Bothans due to their reputation for scheming."

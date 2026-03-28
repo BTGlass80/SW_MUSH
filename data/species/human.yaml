@@ -1,0 +1,34 @@
+# Human - the most common species in the galaxy
+name: Human
+description: >
+  Humans are the galaxy's most numerous and politically dominant species.
+  Adaptable and ambitious, they can be found on nearly every inhabited world,
+  filling every conceivable role from farmer to senator to Jedi Knight.
+homeworld: Various (Coruscant is the political center)
+
+# Attribute ranges (minimum D - maximum D)
+# Humans get the standard 2D-4D range in everything
+attributes:
+  dexterity:     { min: "2D", max: "4D" }
+  knowledge:     { min: "2D", max: "4D" }
+  mechanical:    { min: "2D", max: "4D" }
+  perception:    { min: "2D", max: "4D" }
+  strength:      { min: "2D", max: "4D" }
+  technical:     { min: "2D", max: "4D" }
+
+# Total attribute dice to distribute at creation
+attribute_dice: "18D"
+
+# Bonus skill dice at creation
+skill_dice: "7D"
+
+# Special abilities
+special_abilities: []
+
+# Movement rate (meters per round)
+move: 10
+
+# Story notes for character creation
+story_factors:
+  - "Humans are the most common species and face no particular prejudice."
+  - "They are found in all walks of life across the galaxy."

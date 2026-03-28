@@ -1,0 +1,25 @@
+name: Rodian
+description: >
+  Green-skinned reptilian humanoids from Rodia, a world plagued by
+  violence and predators. Rodians are natural hunters with keen senses
+  and a cultural emphasis on martial prowess.
+homeworld: Rodia
+
+attributes:
+  dexterity:     { min: "1D+1", max: "4D" }
+  knowledge:     { min: "1D", max: "3D" }
+  mechanical:    { min: "1D", max: "3D+1" }
+  perception:    { min: "2D", max: "4D+1" }
+  strength:      { min: "1D", max: "3D" }
+  technical:     { min: "1D", max: "3D+1" }
+
+attribute_dice: "18D"
+skill_dice: "7D"
+
+special_abilities: []
+
+move: 10
+
+story_factors:
+  - "Rodian culture glorifies hunting; the most successful hunters hold great status."
+  - "Many Rodians work as bounty hunters throughout the galaxy."

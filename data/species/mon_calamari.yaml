@@ -1,0 +1,36 @@
+name: "Mon Calamari"
+description: >
+  Amphibious beings from the ocean world of Mon Cala. Known for their
+  brilliant engineering and leadership, Mon Calamari designed many of
+  the Rebel Alliance's finest capital ships. They are thoughtful,
+  artistic, and deeply committed to justice.
+homeworld: Mon Cala
+
+attributes:
+  dexterity:     { min: "1D", max: "3D" }
+  knowledge:     { min: "1D+1", max: "4D" }
+  mechanical:    { min: "1D+1", max: "3D+1" }
+  perception:    { min: "1D", max: "3D+1" }
+  strength:      { min: "1D", max: "3D" }
+  technical:     { min: "1D+1", max: "4D+1" }
+
+attribute_dice: "18D"
+skill_dice: "7D"
+
+special_abilities:
+  - name: "Amphibious"
+    description: >
+      Mon Calamari can breathe both air and water. They suffer no
+      penalties for underwater activity and can hold their breath
+      for extended periods on land.
+  - name: "Moist Environment"
+    description: >
+      When in very dry conditions for extended periods, Mon Calamari
+      suffer -1D to all actions until they can rehydrate.
+
+move: 9
+swim: 12
+
+story_factors:
+  - "Mon Calamari are among the Rebel Alliance's strongest supporters."
+  - "They share their homeworld with the Quarren, with whom relations are often tense."

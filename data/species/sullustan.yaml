@@ -1,0 +1,36 @@
+name: Sullustan
+description: >
+  Jowled, mouse-eared humanoids from the subterranean caverns of Sullust.
+  Sullustans possess an extraordinary sense of direction that makes them
+  superb navigators. The SoroSuub Corporation dominates their homeworld
+  and is a major galactic manufacturer.
+homeworld: Sullust
+
+attributes:
+  dexterity:     { min: "1D", max: "3D+1" }
+  knowledge:     { min: "1D", max: "3D" }
+  mechanical:    { min: "1D+2", max: "4D+1" }
+  perception:    { min: "1D", max: "3D+1" }
+  strength:      { min: "1D", max: "3D" }
+  technical:     { min: "1D+1", max: "3D+2" }
+
+attribute_dice: "18D"
+skill_dice: "7D"
+
+special_abilities:
+  - name: "Direction Sense"
+    description: >
+      Sullustans have an innate sense of direction. They always know which
+      way is north and can retrace any path they have traveled. They gain
+      +1D to Astrogation and Search checks related to navigation.
+  - name: "Enhanced Senses"
+    description: >
+      Sullustans have exceptional hearing and vision in low-light
+      conditions, granting +1D to Perception checks in darkness or
+      when relying on hearing.
+
+move: 10
+
+story_factors:
+  - "Sullustans are gregarious and dislike being alone for long periods."
+  - "Many serve as navigators and co-pilots throughout the galaxy."

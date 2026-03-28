@@ -1,0 +1,278 @@
+# Star Wars D6 R&E - Weapon Data
+# Ranges are in meters: [short_min, short_max, medium_max, long_max]
+# Difficulty by range: Short=Easy(10), Medium=Moderate(15), Long=Difficult(20)
+# Point-blank (< short_min): Very Easy(5) for most, Very Difficult for some
+#
+# All data from WEG Star Wars 2nd Edition, Chapter 8: Equipment
+
+# ═══════════════════════════════════════
+# BLASTERS (Energy weapons, can be set to stun)
+# ═══════════════════════════════════════
+
+hold_out_blaster:
+  name: "Hold-Out Blaster"
+  type: blaster
+  skill: "blaster"
+  damage: "3D+1"
+  ranges: [3, 4, 8, 12]
+  ammo: 6
+  cost: 275
+  scale: character
+  stun_capable: true
+  notes: "Easily concealed. Illegal or regulated in most systems."
+
+blaster_pistol:
+  name: "Blaster Pistol"
+  type: blaster
+  skill: "blaster"
+  damage: "4D"
+  ranges: [3, 10, 30, 120]
+  ammo: 100
+  cost: 500
+  scale: character
+  stun_capable: true
+  notes: "Standard sidearm throughout the galaxy."
+
+heavy_blaster_pistol:
+  name: "Heavy Blaster Pistol"
+  type: blaster
+  skill: "blaster"
+  damage: "5D"
+  ranges: [3, 7, 25, 50]
+  ammo: 25
+  cost: 750
+  scale: character
+  stun_capable: true
+  notes: "Powerful but shorter range than standard pistols."
+
+blaster_rifle:
+  name: "Blaster Rifle"
+  type: blaster
+  skill: "blaster"
+  damage: "5D"
+  ranges: [3, 30, 100, 300]
+  ammo: 100
+  cost: 1000
+  scale: character
+  stun_capable: true
+  notes: "Standard military longarm."
+
+sporting_blaster:
+  name: "Sporting Blaster"
+  type: blaster
+  skill: "blaster"
+  damage: "3D+1"
+  ranges: [3, 10, 30, 60]
+  ammo: 100
+  cost: 300
+  scale: character
+  stun_capable: true
+  notes: "Light civilian blaster, common on frontier worlds."
+
+light_repeating_blaster:
+  name: "Light Repeating Blaster"
+  type: blaster
+  skill: "blaster"
+  damage: "6D"
+  ranges: [3, 50, 120, 300]
+  ammo: 25
+  cost: 2000
+  scale: character
+  stun_capable: false
+  notes: "Infantry support weapon. No stun setting."
+
+heavy_repeating_blaster:
+  name: "Heavy Repeating Blaster (E-Web)"
+  type: blaster
+  skill: "blaster"
+  damage: "8D"
+  ranges: [3, 75, 200, 500]
+  ammo: 0  # power generator
+  cost: 5000
+  scale: character
+  stun_capable: false
+  fire_rate: "1/2"
+  notes: "Requires tripod and power generator. Two-crew weapon."
+
+sporting_blaster_rifle:
+  name: "Sporting Blaster Rifle"
+  type: blaster
+  skill: "blaster"
+  damage: "4D+1"
+  ranges: [3, 40, 120, 350]
+  ammo: 100
+  cost: 900
+  scale: character
+  stun_capable: true
+  notes: "Hunting rifle. +1D bonus with scope after 1 round aiming."
+
+# ═══════════════════════════════════════
+# BOWCASTER
+# ═══════════════════════════════════════
+
+bowcaster:
+  name: "Bowcaster"
+  type: bowcaster
+  skill: "bowcaster"
+  damage: "4D"
+  ranges: [3, 10, 30, 50]
+  ammo: 6
+  cost: 900
+  scale: character
+  stun_capable: false
+  notes: "Wookiee weapon. Requires STR 4D to cock without assistance."
+
+# ═══════════════════════════════════════
+# MELEE WEAPONS (damage based on STR + bonus)
+# ═══════════════════════════════════════
+
+knife:
+  name: "Knife"
+  type: melee
+  skill: "melee combat"
+  damage: "STR+1D"
+  difficulty: "easy"
+  cost: 25
+  scale: character
+  notes: "Common blade."
+
+vibroblade:
+  name: "Vibroblade"
+  type: melee
+  skill: "melee combat"
+  damage: "STR+3D"
+  difficulty: "moderate"
+  cost: 250
+  scale: character
+  notes: "Max damage 6D+2."
+
+vibroaxe:
+  name: "Vibroaxe"
+  type: melee
+  skill: "melee combat"
+  damage: "STR+3D+1"
+  difficulty: "moderate"
+  cost: 500
+  scale: character
+  notes: "Max damage 7D."
+
+force_pike:
+  name: "Force Pike"
+  type: melee
+  skill: "melee combat"
+  damage: "STR+2D"
+  difficulty: "moderate"
+  cost: 500
+  scale: character
+  notes: "Energy weapon used by Imperial guards."
+
+gaderffii:
+  name: "Gaderffii (Gaffi Stick)"
+  type: melee
+  skill: "melee combat"
+  damage: "STR+2D"
+  difficulty: "moderate"
+  cost: 0
+  scale: character
+  notes: "Tusken Raider weapon."
+
+stun_baton:
+  name: "Stun Baton"
+  type: melee
+  skill: "melee combat"
+  damage: "STR+1D"
+  difficulty: "easy"
+  cost: 200
+  scale: character
+  stun_only: true
+  notes: "Stun damage only."
+
+# ═══════════════════════════════════════
+# LIGHTSABER
+# ═══════════════════════════════════════
+
+lightsaber:
+  name: "Lightsaber"
+  type: lightsaber
+  skill: "lightsaber"
+  damage: "5D"
+  difficulty: "difficult"
+  cost: 0  # unavailable for sale
+  scale: character
+  notes: "If attacker misses difficulty by 10+, hits self with full damage."
+
+# ═══════════════════════════════════════
+# GRENADES & EXPLOSIVES
+# ═══════════════════════════════════════
+
+frag_grenade:
+  name: "Fragmentation Grenade"
+  type: grenade
+  skill: "grenade"
+  damage: "5D"
+  ranges: [3, 7, 20, 40]
+  blast_radius: [2, 4, 6, 10]
+  blast_damage: ["5D", "4D", "3D", "2D"]
+  cost: 200
+  scale: character
+
+thermal_detonator:
+  name: "Thermal Detonator"
+  type: grenade
+  skill: "grenade"
+  damage: "10D"
+  ranges: [3, 4, 7, 12]
+  blast_radius: [0, 2, 8, 12]
+  blast_damage: ["10D", "8D", "5D", "2D"]
+  cost: 2000
+  scale: character
+  notes: "Class A restricted item. Possession is a serious offense."
+
+# ═══════════════════════════════════════
+# ARMOR
+# ═══════════════════════════════════════
+
+blast_vest:
+  name: "Blast Vest"
+  type: armor
+  protection_energy: "+1D"
+  protection_physical: "+1D"
+  covers: ["torso"]
+  cost: 300
+
+blast_helmet:
+  name: "Blast Helmet"
+  type: armor
+  protection_energy: "+1D"
+  protection_physical: "+1D"
+  covers: ["head"]
+  cost: 100
+
+stormtrooper_armor:
+  name: "Stormtrooper Armor"
+  type: armor
+  protection_energy: "+1D"
+  protection_physical: "+2D"
+  covers: ["head", "torso", "arms", "legs"]
+  dexterity_penalty: "-1D"
+  cost: 0  # military issue
+  notes: "Includes comlink, filtermask. -1D Dexterity penalty."
+
+bounty_hunter_armor:
+  name: "Bounty Hunter Armor"
+  type: armor
+  protection_energy: "+2D"
+  protection_physical: "+3D"
+  covers: ["head", "torso", "arms", "legs"]
+  dexterity_penalty: "-1D"
+  cost: 3000
+  notes: "Custom fitted. -1D Dexterity penalty."
+
+# ═══════════════════════════════════════
+# RANGE DIFFICULTY TABLE
+# Per R&E 2nd Edition rules:
+#   Point-blank (< short min): Very Easy (5)
+#   Short range: Easy (10)
+#   Medium range: Moderate (15)
+#   Long range: Difficult (20)
+# ═══════════════════════════════════════
