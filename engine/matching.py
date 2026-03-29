@@ -1,5 +1,5 @@
 """
-Object Matching — Inspired by LambdaMOO match.c
+Object Matching -- Inspired by LambdaMOO match.c
 
 Centralized matching for all commands that reference game objects
 (characters, NPCs, items, rooms). Eliminates duplicate ad-hoc
@@ -19,9 +19,9 @@ Search scope priority:
   5. Room itself ("here")
 
 Special tokens:
-  "me" / "self" → the player's own character
-  "here"        → the current room
-  "#<id>"       → direct DB ID reference (builder/admin only)
+  "me" / "self" -> the player's own character
+  "here"        -> the current room
+  "#<id>"       -> direct DB ID reference (builder/admin only)
 """
 import logging
 from dataclasses import dataclass, field

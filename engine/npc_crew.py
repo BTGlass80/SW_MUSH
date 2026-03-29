@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-NPC Crew Engine — hiring board, wages, and crew skill resolution.
+NPC Crew Engine -- hiring board, wages, and crew skill resolution.
 
 Lets players hire NPC crew members from cantina/spaceport hiring boards
 and assign them to ship stations (pilot, copilot, gunner, engineer,
@@ -453,7 +454,7 @@ async def process_wage_tick(db, session_mgr) -> dict:
             if session:
                 for name in departed:
                     await session.send_line(
-                        f"  \033[1;33m{name} has left your crew — unpaid wages.\033[0m"
+                        f"  \033[1;33m{name} has left your crew -- unpaid wages.\033[0m"
                     )
         if total_paid > 0:
             session = session_mgr.get_session_for_character(char_id)

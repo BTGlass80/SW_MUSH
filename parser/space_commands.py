@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-Space commands — ship operations, crew stations, flight, and combat.
+Space commands -- ship operations, crew stations, flight, and combat.
 
 32 commands: crew stations, cooperation, combat, navigation, economy.
 """
@@ -556,7 +557,7 @@ class MyShipsCommand(BaseCommand):
             hull_dmg = s.get("hull_damage", 0)
             dmg_str = f"  {ansi.BRIGHT_RED}[{hull_dmg} hull damage]{ansi.RESET}" if hull_dmg else ""
             await ctx.session.send_line(
-                f"    {s['name']} ({tname}) — {loc}{dmg_str}")
+                f"    {s['name']} ({tname}) -- {loc}{dmg_str}")
         await ctx.session.send_line("")
 
 
@@ -703,7 +704,7 @@ class ShipStatusCommand(BaseCommand):
 class ScanCommand(BaseCommand):
     key = "scan"
     aliases = []
-    help_text = "Scan for nearby ships — shows range and position."
+    help_text = "Scan for nearby ships -- shows range and position."
     usage = "scan"
     async def execute(self, ctx):
         ship = await _get_ship_for_player(ctx)
@@ -830,7 +831,7 @@ class FireCommand(BaseCommand):
             else:
                 await ctx.session_mgr.broadcast_to_room(target_ship["bridge_room_id"],
                     f"  {ansi.BRIGHT_YELLOW}[SENSORS]{ansi.RESET} "
-                    f"Incoming fire from {ship['name']} — missed!")
+                    f"Incoming fire from {ship['name']} -- missed!")
 
 
 class CloseRangeCommand(BaseCommand):
@@ -938,7 +939,7 @@ class OutmaneuverCommand(BaseCommand):
 class EvadeCommand(BaseCommand):
     key = "evade"
     aliases = ["evasive"]
-    help_text = "Evasive maneuvers — broadcast to crew (pilot only)."
+    help_text = "Evasive maneuvers -- broadcast to crew (pilot only)."
     usage = "evade"
     async def execute(self, ctx):
         ship = await _get_ship_for_player(ctx)
@@ -1245,7 +1246,7 @@ class DamConCommand(BaseCommand):
                 elif state == "destroyed":
                     damaged.append(
                         f"    {ansi.BRIGHT_RED}{sys_name:12s}{ansi.RESET} "
-                        f"DESTROYED — needs spacedock"
+                        f"DESTROYED -- needs spacedock"
                     )
             hull_dmg = ship.get("hull_damage", 0)
             if hull_dmg > 0:

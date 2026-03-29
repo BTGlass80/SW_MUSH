@@ -1,5 +1,5 @@
 """
-Starship Engine — Star Wars D6 Revised & Expanded
+Starship Engine -- Star Wars D6 Revised & Expanded
 
 Ship data loading, instance management, and space combat resolution.
 
@@ -17,7 +17,7 @@ Damage Control (adapted from Star Warriors Section 17):
   - Crew action: repair a damaged system mid-combat
   - Uses Technical + repair skill vs difficulty per system type
   - Systems track three states: working / damaged / destroyed
-  - Destroyed systems are permanent — no further repair possible
+  - Destroyed systems are permanent -- no further repair possible
   - Hull patching reduces hull_damage incrementally
   - One repair attempt per system per round
 """
@@ -38,12 +38,12 @@ from engine.dice import (
 log = logging.getLogger(__name__)
 
 
-# ── Scale system (R&E p101) ──
+# -- Scale system (R&E p101) --
 SCALE_STARFIGHTER = 0
 SCALE_CAPITAL = 6
 
 
-# ── Space Range Bands ──
+# -- Space Range Bands --
 # R&E p101: range modifies attack difficulty
 
 class SpaceRange(IntEnum):
@@ -63,7 +63,7 @@ class SpaceRange(IntEnum):
         }[self.value]
 
 
-# ── Relative Position (for fire arcs) ──
+# -- Relative Position (for fire arcs) --
 
 class RelativePosition:
     """Where a target is relative to your ship."""
@@ -86,7 +86,7 @@ def can_weapon_fire(weapon_arc: str, relative_pos: str) -> bool:
     return "front" in arc  # Default: front-facing
 
 
-# ── Space Grid ──
+# -- Space Grid --
 # Tracks pairwise range and relative position between all ships in a sector
 
 class SpaceGrid:
@@ -249,7 +249,7 @@ class SpaceGrid:
             self.set_position(target_id, pilot_id, RelativePosition.REAR)
             return True, (
                 f"Got on their tail! Target is in your forward arc, "
-                f"you're behind them — their rear weapons only! "
+                f"you're behind them -- their rear weapons only! "
                 f"(Pilot: {result.attacker_roll.total} "
                 f"vs Evade: {result.defender_roll.total})"
             )
@@ -287,7 +287,7 @@ class SpaceGrid:
         return order[min(len(order) - 1, idx + 1)]
 
     def format_tactical(self, ship_id: int) -> list[str]:
-        """Format tactical display for a ship — ranges and positions to all contacts."""
+        """Format tactical display for a ship -- ranges and positions to all contacts."""
         lines = []
         for other_id in self._speeds:
             if other_id == ship_id:
@@ -488,7 +488,7 @@ def get_ship_registry() -> ShipRegistry:
     return _registry
 
 
-# ── Space Combat Resolution ──
+# -- Space Combat Resolution --
 
 @dataclass
 class SpaceCombatResult:
@@ -588,7 +588,7 @@ def resolve_space_attack(
         )
         return result
 
-    # ── Hit! Roll damage ──
+    # -- Hit! Roll damage --
     damage_pool = DicePool.parse(weapon.damage)
 
     # Scale modifier for damage
@@ -724,16 +724,16 @@ def format_ship_status(template: ShipTemplate, instance: ShipInstance = None) ->
     return lines
 
 
-# ── Damage Control (Star Warriors Section 17, adapted for D6 R&E) ──
+# -- Damage Control (Star Warriors Section 17, adapted for D6 R&E) --
 
 # Repairable systems and their base difficulties (R&E Technical skill check)
 REPAIR_DIFFICULTIES = {
-    "shields":    15,  # Moderate — reroute power, reset breakers
-    "sensors":    15,  # Moderate — recalibrate, swap modules
-    "engines":    20,  # Difficult — mechanical, dangerous
-    "weapons":    20,  # Difficult — realign, replace components
-    "hyperdrive": 25,  # Very Difficult — precision calibration
-    "hull":       20,  # Difficult — patch breaches under fire
+    "shields":    15,  # Moderate -- reroute power, reset breakers
+    "sensors":    15,  # Moderate -- recalibrate, swap modules
+    "engines":    20,  # Difficult -- mechanical, dangerous
+    "weapons":    20,  # Difficult -- realign, replace components
+    "hyperdrive": 25,  # Very Difficult -- precision calibration
+    "hull":       20,  # Difficult -- patch breaches under fire
 }
 
 # All systems that can be damaged (match keys in the ship systems JSON)
@@ -841,9 +841,9 @@ def resolve_damage_control(
                 f"(Roll: {roll.total} vs Difficulty: {total_diff})"
             )
     elif margin >= -8:
-        # Normal failure — can try again next round
+        # Normal failure -- can try again next round
         result.narrative = (
-            f"  Repair failed — {system_name} still offline. "
+            f"  Repair failed -- {system_name} still offline. "
             f"(Roll: {roll.total} vs Difficulty: {total_diff})"
         )
     else:

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Session - the protocol-agnostic connection abstraction.
 
@@ -139,8 +140,14 @@ class Session:
 
     @property
     def is_idle(self) -> bool:
-        """Check if this session has been idle too long."""
-        return (time.time() - self.last_activity) > 3600
+        """Check if this session has been idle too long (uses default 3600s).
+        Prefer is_idle_for(seconds) when you have a Config available.
+        """
+        return self.is_idle_for(3600)
+
+    def is_idle_for(self, timeout_seconds: int) -> bool:
+        """Check if this session has been idle longer than timeout_seconds."""
+        return (time.time() - self.last_activity) > timeout_seconds
 
     @property
     def is_authenticated(self) -> bool:

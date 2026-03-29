@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-NPC Space Crew Auto-Actions — Drop 4
+NPC Space Crew Auto-Actions -- Drop 4
 
 When combat starts in space, NPC crew members act automatically
 on their station each tick:
@@ -171,7 +172,7 @@ async def _npc_pilot_act(
     if not target:
         result.action = "idle"
         result.narrative = (
-            f"  {_tag('HELM')} {first_name} holds position — no contacts.")
+            f"  {_tag('HELM')} {first_name} holds position -- no contacts.")
         return result
 
     target_reg = get_ship_registry().get(target["template"])
@@ -209,7 +210,7 @@ async def _npc_pilot_act(
         result.success = True
         return result
 
-    # For close/flee/tail — use the grid's maneuver system
+    # For close/flee/tail -- use the grid's maneuver system
     target_pilot_pool = DicePool(2, 0)  # default
     if target.get("crew"):
         try:
@@ -275,7 +276,7 @@ async def _npc_gunner_act(
     if not target:
         result.action = "idle"
         result.narrative = (
-            f"  {_tag('WEAPONS', 'red')} {first_name} scans for targets — none in arc.")
+            f"  {_tag('WEAPONS', 'red')} {first_name} scans for targets -- none in arc.")
         return result
 
     target_reg = get_ship_registry().get(target["template"])
@@ -359,7 +360,7 @@ async def _npc_gunner_act(
             await _broadcast_safe(
                 session_mgr, target_bridge,
                 f"  {_tag('SENSORS', 'yellow')} Incoming fire from "
-                f"{ship['name']} — missed!")
+                f"{ship['name']} -- missed!")
 
     return result
 

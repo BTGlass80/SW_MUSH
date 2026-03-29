@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Built-in commands for Phase 1: navigation, communication, info, and admin.
 """
@@ -524,7 +525,7 @@ class HelpCommand(BaseCommand):
             await self._specific_help(ctx)
             return
 
-        await ctx.session.send_line(ansi.header("=== Star Wars D6 MUSH — Commands ==="))
+        await ctx.session.send_line(ansi.header("=== Star Wars D6 MUSH -- Commands ==="))
         await ctx.session.send_line("")
         for cat, cmds in self.CATEGORIES.items():
             cmd_str = ", ".join(f"{ansi.BRIGHT_CYAN}{c}{ansi.RESET}" for c in cmds)
@@ -651,15 +652,15 @@ class RespawnCommand(BaseCommand):
         # ── Bacta tank narration ──
         await ctx.session.send_line("")
         await ctx.session.send_line(
-            f"  {ansi.BRIGHT_CYAN}╔══════════════════════════════════════╗{ansi.RESET}"
+            f"  {ansi.BRIGHT_CYAN}+======================================+{ansi.RESET}"
         )
         await ctx.session.send_line(
-            f"  {ansi.BRIGHT_CYAN}║{ansi.RESET}     "
+            f"  {ansi.BRIGHT_CYAN}|{ansi.RESET}     "
             f"{ansi.BOLD}B A C T A   T A N K{ansi.RESET}          "
-            f"{ansi.BRIGHT_CYAN}║{ansi.RESET}"
+            f"{ansi.BRIGHT_CYAN}|{ansi.RESET}"
         )
         await ctx.session.send_line(
-            f"  {ansi.BRIGHT_CYAN}╚══════════════════════════════════════╝{ansi.RESET}"
+            f"  {ansi.BRIGHT_CYAN}+======================================+{ansi.RESET}"
         )
         await ctx.session.send_line("")
         await ctx.session.send_line(
@@ -802,10 +803,10 @@ class EquipCommand(BaseCommand):
                 wname = w.name if w else item.key
                 crafter = f" (crafted by {item.crafter})" if item.crafter else ""
                 await ctx.session.send_line(
-                    f"  Equipped: {wname} — {item.condition_bar}{crafter}")
+                    f"  Equipped: {wname} -- {item.condition_bar}{crafter}")
             elif item and item.is_broken:
                 await ctx.session.send_line(
-                    f"  Equipped: {item.key} — BROKEN. Type 'repair' to fix it.")
+                    f"  Equipped: {item.key} -- BROKEN. Type 'repair' to fix it.")
             else:
                 await ctx.session.send_line("  Nothing equipped. Type 'weapons' to see options.")
             return
@@ -883,7 +884,7 @@ class RepairCommand(BaseCommand):
         if item.max_condition <= 5:
             await ctx.session.send_line(
                 f"  Your {wname} is too degraded to repair further. "
-                f"It's worn out — time for a replacement.")
+                f"It's worn out -- time for a replacement.")
             return
 
         cost = item.repair_cost(base_cost)
@@ -975,7 +976,7 @@ class WeaponsListCommand(BaseCommand):
                 ranges = f"{w.ranges[1]:>5d} {w.ranges[2]:>5d} {w.ranges[3]:>5d}"
             else:
                 ranges = "Melee"
-            cost_str = f"{w.cost:,}cr" if w.cost else "—"
+            cost_str = f"{w.cost:,}cr" if w.cost else "--"
             await ctx.session.send_line(
                 f"  {w.name:<22s} {w.damage:>6s}  {w.skill:<14s} {ranges}  {cost_str:>8s}"
             )

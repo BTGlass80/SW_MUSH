@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 D6 Personal Combat Engine (R&E 2nd Edition Faithful).
 
@@ -389,7 +390,7 @@ class CombatInstance:
         if is_full and c.actions:
             return "Full dodge/parry must be your only action this round."
         if has_full:
-            return "You've declared a full defense — no other actions this round."
+            return "You've declared a full defense -- no other actions this round."
 
         # CP/FP mutual exclusion (R&E p55)
         if action.cp_spend > 0:
@@ -490,7 +491,7 @@ class CombatInstance:
         RANGED attacks (R&E p58-59):
           1. Base difficulty = weapon range band (PB:5, Short:10, Med:15, Long:20)
           2. If defender declared dodge: roll dodge, ADD to difficulty
-          3. Attacker rolls skill vs total difficulty → difficulty_check
+          3. Attacker rolls skill vs total difficulty -> difficulty_check
           This is NOT an opposed roll.
 
         MELEE attacks:
@@ -544,7 +545,7 @@ class CombatInstance:
                     break
 
         # ═══════════════════════════════════════
-        # RANGED ATTACK — Difficulty-based (R&E)
+        # RANGED ATTACK -- Difficulty-based (R&E)
         # ═══════════════════════════════════════
         if ranged:
             return self._resolve_ranged_attack(
@@ -552,7 +553,7 @@ class CombatInstance:
             )
 
         # ═══════════════════════════════════════
-        # MELEE ATTACK — Opposed roll
+        # MELEE ATTACK -- Opposed roll
         # ═══════════════════════════════════════
         return self._resolve_melee_attack(
             actor, target_c, action, attack_pool, defense_action, num_actions
@@ -584,17 +585,17 @@ class CombatInstance:
                 actor_id=actor.id, action=action, success=False,
                 narrative=(
                     f"  {actor.name} attacks {target_c.name} with {action.skill} "
-                    f"— target is OUT OF RANGE!"
+                    f"-- target is OUT OF RANGE!"
                 ),
             )
 
-        # Full cover check — can't be targeted directly
+        # Full cover check -- can't be targeted directly
         if target_c.cover_level >= COVER_FULL:
             return ActionResult(
                 actor_id=actor.id, action=action, success=False,
                 narrative=(
                     f"  {actor.name} fires at {target_c.name} but they're in "
-                    f"FULL COVER — must eliminate cover first!"
+                    f"FULL COVER -- must eliminate cover first!"
                 ),
             )
 
@@ -673,7 +674,7 @@ class CombatInstance:
         defense_action: Optional[CombatAction], num_actions: int,
     ) -> ActionResult:
         """
-        Melee attack resolution — opposed roll per R&E.
+        Melee attack resolution -- opposed roll per R&E.
         Attacker skill vs parry/brawling parry/lightsaber.
         """
         target = target_c.char

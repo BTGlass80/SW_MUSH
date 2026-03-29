@@ -1,5 +1,5 @@
 """
-NPC Combat AI — Behavioral action selection for NPC combatants.
+NPC Combat AI -- Behavioral action selection for NPC combatants.
 
 Handles:
   - Combat behavior profiles (aggressive, defensive, cowardly, berserk)
@@ -34,7 +34,7 @@ from engine.weapons import get_weapon_registry, WeaponData
 log = logging.getLogger(__name__)
 
 
-# ── Combat Behavior Profiles ──
+# -- Combat Behavior Profiles --
 
 class CombatBehavior(Enum):
     AGGRESSIVE = "aggressive"
@@ -51,7 +51,7 @@ class CombatBehavior(Enum):
             return cls.AGGRESSIVE
 
 
-# ── Default Archetype Mappings ──
+# -- Default Archetype Mappings --
 # Used by @npc generate to assign sensible defaults
 
 DEFAULT_ARCHETYPE_BEHAVIOR: dict[str, str] = {
@@ -91,7 +91,7 @@ DEFAULT_ARCHETYPE_WEAPONS: dict[str, str] = {
 }
 
 
-# ── Flee Thresholds by Behavior ──
+# -- Flee Thresholds by Behavior --
 # At or above this wound level, the NPC attempts to flee
 
 _FLEE_THRESHOLD: dict[CombatBehavior, WoundLevel] = {
@@ -103,7 +103,7 @@ _FLEE_THRESHOLD: dict[CombatBehavior, WoundLevel] = {
 }
 
 
-# ── NPC Character Builder ──
+# -- NPC Character Builder --
 
 def build_npc_character(npc_row: dict) -> Optional[Character]:
     """
@@ -169,7 +169,7 @@ def is_hostile(npc_row: dict) -> bool:
     return bool(ai_cfg.get("hostile", False))
 
 
-# ── Target Selection ──
+# -- Target Selection --
 
 def _select_target(
     npc_combatant: Combatant,
@@ -204,7 +204,7 @@ def _select_target(
     return random.choice(enemies)
 
 
-# ── Weapon Resolution ──
+# -- Weapon Resolution --
 
 def _get_npc_weapon(char: Character) -> tuple[str, str, str]:
     """
@@ -234,7 +234,7 @@ def _get_npc_weapon(char: Character) -> tuple[str, str, str]:
     return "brawling", str(char.strength), ""
 
 
-# ── Action Selection ──
+# -- Action Selection --
 
 def npc_choose_actions(
     npc_combatant: Combatant,
@@ -248,7 +248,7 @@ def npc_choose_actions(
     1-2 actions per round (attack + dodge, or just attack).
 
     Decision tree per behavior:
-      1. Check flee threshold → FLEE
+      1. Check flee threshold -> FLEE
       2. Check behavior-specific preferences
       3. Select target
       4. Build action list
@@ -259,7 +259,7 @@ def npc_choose_actions(
 
     actions: list[CombatAction] = []
 
-    # ── Step 1: Flee check ──
+    # -- Step 1: Flee check --
     flee_at = _FLEE_THRESHOLD.get(behavior, WoundLevel.MORTALLY_WOUNDED)
     if char.wound_level.value >= flee_at.value:
         actions.append(CombatAction(
@@ -268,7 +268,7 @@ def npc_choose_actions(
         ))
         return actions
 
-    # ── Step 2: Find a target ──
+    # -- Step 2: Find a target --
     target = _select_target(npc_combatant, combat, behavior)
     if not target:
         # No enemies, just pass
@@ -278,10 +278,10 @@ def npc_choose_actions(
         ))
         return actions
 
-    # ── Step 3: Get weapon info ──
+    # -- Step 3: Get weapon info --
     skill, damage, weapon_key = _get_npc_weapon(char)
 
-    # ── Step 4: Behavior-specific action selection ──
+    # -- Step 4: Behavior-specific action selection --
 
     if behavior == CombatBehavior.BERSERK:
         # All-out attack, no defense
@@ -362,7 +362,7 @@ def npc_choose_actions(
             ))
         return actions
 
-    # ── AGGRESSIVE (default) ──
+    # -- AGGRESSIVE (default) --
     # Healthy: just attack (no multi-action penalty)
     # Wounded: attack + dodge
     if char.wound_level >= WoundLevel.WOUNDED:
@@ -395,7 +395,7 @@ def npc_choose_actions(
     return actions
 
 
-# ── Auto-Declaration for all NPCs in a combat ──
+# -- Auto-Declaration for all NPCs in a combat --
 
 def auto_declare_npcs(
     combat: CombatInstance,
@@ -435,7 +435,7 @@ def auto_declare_npcs(
     return declared
 
 
-# ── Hostility Check ──
+# -- Hostility Check --
 
 async def check_room_hostiles(
     room_id: int,

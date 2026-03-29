@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Character sheet renderer - ANSI-colored, 78-char wide.
 Layout based on the official WEG Star Wars 2nd Edition character sheet:

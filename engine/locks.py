@@ -1,5 +1,5 @@
 """
-Lock Expression System — Inspired by TinyMUX boolexp.cpp
+Lock Expression System -- Inspired by TinyMUX boolexp.cpp
 
 Composable boolean lock expressions for exits, objects, and rooms.
 Supports AND/OR/NOT operations and various check types.
@@ -31,7 +31,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 
-# ── Lock Token Types ──
+# -- Lock Token Types --
 
 class LockNode:
     """Base class for lock expression AST nodes."""
@@ -220,7 +220,7 @@ class LockNot(LockNode):
         return f"!{self.child.describe()}"
 
 
-# ── Parser ──
+# -- Parser --
 
 def parse_lock(expr: str) -> LockNode:
     """
@@ -356,11 +356,11 @@ def _parse_atom(tokens: list[str], pos: list[int]) -> LockNode:
         except ValueError:
             pass
 
-    # Unknown token — treat as a flag check
+    # Unknown token -- treat as a flag check
     return LockFlag(t)
 
 
-# ── Public API ──
+# -- Public API --
 
 def eval_lock(lock_str: str, char: dict, context: dict = None) -> tuple[bool, str]:
     """

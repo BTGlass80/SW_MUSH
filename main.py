@@ -98,22 +98,27 @@ async def shutdown(server: GameServer):
     """Graceful shutdown sequence."""
     await server.stop()
 
-    # Cancel all remaining tasks
+    # Cancel all remaining tasks and AWAIT them so they can handle
+    # CancelledError and do any necessary cleanup before the process exits.
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
     for task in tasks:
         task.cancel()
+    # gather() waits for all cancellations to complete; return_exceptions
+    # prevents a single task's error from aborting the rest.
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 
 if __name__ == "__main__":
     print(r"""
-    ╔══════════════════════════════════════════════════╗
-    ║       ____  _                __    __            ║
-    ║      / ___|| |_ __ _ _ __  / / /\ \ \__ _ _ __  ║
-    ║      \___ \| __/ _` | '__| \ \/  \/ / _` | '__| ║
-    ║       ___) | || (_| | |     \  /\  / (_| | |    ║
-    ║      |____/ \__\__,_|_|      \/  \/ \__,_|_|    ║
-    ║                                                  ║
-    ║            D 6   M U S H   S E R V E R           ║
-    ╚══════════════════════════════════════════════════╝
+    +==================================================+
+    |       ____  _                __    __            |
+    |      / ___|| |_ __ _ _ __  / / /\ \ \__ _ _ __  |
+    |      \___ \| __/ _` | '__| \ \/  \/ / _` | '__| |
+    |       ___) | || (_| | |     \  /\  / (_| | |    |
+    |      |____/ \__\__,_|_|      \/  \/ \__,_|_|    |
+    |                                                  |
+    |            D 6   M U S H   S E R V E R           |
+    +==================================================+
     """)
     asyncio.run(main())

@@ -6,7 +6,7 @@ Per R&E 2nd Edition combat rules:
   - Dodge ADDS to that difficulty (not opposed roll)
   - Melee attacks use opposed rolls (attacker skill vs parry)
 
-Range Band → Difficulty:
+Range Band -> Difficulty:
   Point-blank (< short_min):  Very Easy (5)
   Short:                      Easy (10)
   Medium:                     Moderate (15)
@@ -210,7 +210,7 @@ class WeaponRegistry:
         return len(self._weapons)
 
 
-# ── Module-level convenience ──
+# -- Module-level convenience --
 
 _default_registry: Optional[WeaponRegistry] = None
 

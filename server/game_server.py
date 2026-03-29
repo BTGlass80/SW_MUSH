@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 GameServer - the central orchestrator.
 
@@ -169,6 +170,9 @@ class GameServer:
 
             parts = line.split()
             cmd = parts[0].lower()
+
+            # ── Never log raw input during pre-auth (passwords are in plaintext here) ──
+            # Only log the command verb, never the full line.
 
             if cmd == "quit":
                 await session.close()
@@ -354,31 +358,13 @@ class GameServer:
                 char_obj.room_id = self.config.starting_room_id
                 db_fields = char_obj.to_db_dict()
 
-                cursor = await self.db._db.execute(
-                    """INSERT INTO characters
-                       (account_id, name, species, template, attributes, skills,
-                        wound_level, character_points, force_points,
-                        dark_side_points, room_id, description)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        session.account["id"],
-                        db_fields["name"],
-                        db_fields["species"],
-                        db_fields.get("template", ""),
-                        db_fields["attributes"],
-                        db_fields["skills"],
-                        db_fields["wound_level"],
-                        db_fields["character_points"],
-                        db_fields["force_points"],
-                        db_fields["dark_side_points"],
-                        db_fields["room_id"],
-                        db_fields.get("description", ""),
-                    ),
+                char_id = await self.db.create_character(
+                    account_id=session.account["id"],
+                    fields=db_fields,
                 )
-                await self.db._db.commit()
 
                 # Fetch back as a dict
-                char = await self.db.get_character(cursor.lastrowid)
+                char = await self.db.get_character(char_id)
                 if not char:
                     await session.send_line(ansi.error("Failed to load character after save."))
                     return None
@@ -472,7 +458,8 @@ class GameServer:
 
             # Check for idle sessions
             for session in list(self.session_mgr.all):
-                if session.is_idle and session.state != SessionState.DISCONNECTING:
+                if (session.is_idle_for(self.config.idle_timeout)
+                        and session.state != SessionState.DISCONNECTING):
                     log.info("Idle disconnect: %s", session)
                     await session.send_line(
                         ansi.system_msg("Idle timeout. Disconnecting.")

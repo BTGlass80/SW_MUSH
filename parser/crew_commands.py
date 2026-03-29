@@ -1,5 +1,5 @@
 """
-NPC Crew Commands — hire, manage, and direct NPC crew members.
+NPC Crew Commands -- hire, manage, and direct NPC crew members.
 
 Player commands:
   hire                    - Browse available crew at this location
@@ -25,7 +25,7 @@ from server import ansi
 log = logging.getLogger(__name__)
 
 
-# ── Helpers ──
+# -- Helpers --
 
 def _match_npc_by_name(npcs: list[dict], query: str) -> dict | None:
     """Match an NPC from a list by name (partial, case-insensitive)."""
@@ -58,7 +58,7 @@ async def _get_ship_for_player(ctx):
     return await ctx.db.get_ship_by_bridge(room_id)
 
 
-# ── Commands ──
+# -- Commands --
 
 class HireCommand(BaseCommand):
     key = "hire"
@@ -74,7 +74,7 @@ class HireCommand(BaseCommand):
         char_id = char["id"]
         room_id = char["room_id"]
 
-        # ── No argument: show the hiring board ──
+        # -- No argument: show the hiring board --
         if not ctx.args:
             # Check for unhired NPCs already in this room (persistent board)
             available = await ctx.db.get_unhired_npcs_in_room(room_id)
@@ -114,7 +114,7 @@ class HireCommand(BaseCommand):
                 return
 
             await ctx.session.send_line(
-                f"  {ansi.BOLD}═══ Available Crew for Hire ═══{ansi.RESET}")
+                f"  {ansi.BOLD}=== Available Crew for Hire ==={ansi.RESET}")
             for i, npc in enumerate(available, 1):
                 sheet_json = npc.get("char_sheet_json", "{}")
                 if isinstance(sheet_json, str):
@@ -147,7 +147,7 @@ class HireCommand(BaseCommand):
                 f"'roster' to see your crew.{ansi.RESET}")
             return
 
-        # ── Hire a specific NPC ──
+        # -- Hire a specific NPC --
         available = await ctx.db.get_unhired_npcs_in_room(room_id)
         if not available:
             await ctx.session.send_line(
@@ -210,11 +210,11 @@ class RosterCommand(BaseCommand):
         credits = ctx.session.character.get("credits", 0)
 
         await ctx.session.send_line(
-            f"  {ansi.BOLD}═══ Your Crew ═══{ansi.RESET}")
+            f"  {ansi.BOLD}=== Your Crew ==={ansi.RESET}")
         await ctx.session.send_line(
             f"  {'Name':20s} {'Role':12s} {'Tier':10s} "
             f"{'Station':12s} {'Wage':>10s}")
-        await ctx.session.send_line(f"  {'─' * 68}")
+        await ctx.session.send_line(f"  {'-' * 68}")
 
         for npc in hired:
             line = format_roster_entry(npc)
@@ -415,12 +415,12 @@ class OrderCommand(BaseCommand):
     )
     usage = (
         "order <station> <action>\n"
-        "  order pilot close <target>    — close range to target\n"
-        "  order pilot flee              — break off and flee\n"
-        "  order pilot tail <target>     — get behind target\n"
-        "  order pilot evade             — evasive maneuvers\n"
-        "  order gunner fire <target>    — fire at specific target\n"
-        "  order engineer repair <system>— repair a system"
+        "  order pilot close <target>    -- close range to target\n"
+        "  order pilot flee              -- break off and flee\n"
+        "  order pilot tail <target>     -- get behind target\n"
+        "  order pilot evade             -- evasive maneuvers\n"
+        "  order gunner fire <target>    -- fire at specific target\n"
+        "  order engineer repair <system>-- repair a system"
     )
 
     async def execute(self, ctx: CommandContext):
@@ -491,21 +491,21 @@ def _order_flavor(station: str, action: str) -> str:
             return "Going for their six!"
         if "evade" in action_lower:
             return "Evasive action, aye!"
-        return f"Copy that — {action}."
+        return f"Copy that -- {action}."
     if station == "gunner":
         if "fire" in action_lower:
             target = action_lower.replace("fire", "").strip()
             return f"Targeting {target}!" if target else "Weapons hot!"
-        return f"Understood — {action}."
+        return f"Understood -- {action}."
     if station == "engineer":
         if "repair" in action_lower:
             system = action_lower.replace("repair", "").strip()
-            return f"On it — rerouting to {system}!" if system else "Starting repairs!"
-        return f"Roger — {action}."
-    return f"Acknowledged — {action}."
+            return f"On it -- rerouting to {system}!" if system else "Starting repairs!"
+        return f"Roger -- {action}."
+    return f"Acknowledged -- {action}."
 
 
-# ── Registration ──
+# -- Registration --
 
 def register_crew_commands(registry):
     """Register NPC crew management commands."""

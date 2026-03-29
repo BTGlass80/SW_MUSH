@@ -1,19 +1,19 @@
+# -*- coding: utf-8 -*-
 """
-Mos Eisley World Builder
-========================
-Run this ONCE against a fresh database to populate the full Mos Eisley
-from West End Games Galaxy Guide 7.
+Mos Eisley World Builder v2
+============================
+Populates the full Mos Eisley from Galaxy Guide 7 with:
+  - 40 interconnected rooms with zones
+  - Combat-ready NPCs (char_sheet_json + ai_config_json)
+  - Hostile NPCs (stormtroopers, thugs) that attack on sight
+  - Hireable crew NPCs at cantinas and spaceports
+  - Pre-spawned ships docked in bays with bridge rooms
 
 Usage:
-    python build_mos_eisley.py
-
-This will:
-  - Create ~40 interconnected rooms covering the central sector
-  - Link them with exits following the GG7 map layout
-  - Place NPCs with full AI personality configs at their canonical locations
-  - Set room descriptions drawn from the sourcebook's atmosphere
-
-Requires: the game's database module (run from the sw_mush directory)
+  1. Delete sw_mush.db
+  2. python main.py  (creates clean DB, Ctrl+C to stop)
+  3. python build_mos_eisley.py
+  4. python main.py  (full world ready)
 """
 import asyncio
 import json
@@ -23,955 +23,700 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 from db.database import Database
 
-
-# ══════════════════════════════════════════════════════════════
-#  ROOM DEFINITIONS
-# ══════════════════════════════════════════════════════════════
-# Each room: (name, short_desc, long_desc)
-# IDs will be assigned starting at 10 to avoid colliding with seed rooms.
-
+# ==============================================================
+# ROOM DEFINITIONS  (name, short_desc, long_desc)
+# IDs assigned starting at 10 to avoid seed room collisions.
+# ==============================================================
 ROOMS = [
-    # ── Spaceport District (South/Southeast) ──
-    (
-        "Docking Bay 94 - Entrance",
-        "The passenger entrance to one of Mos Eisley's most famous docking bays.",
-        "Cracked duracrete steps descend into the pit of Docking Bay 94, one of "
-        "the oldest independent bays in the spaceport. Beggars and flim-flam artists "
-        "cluster near the top of the stairs, playing simple shell games and sizing up "
-        "new arrivals. The bay floor lies ten meters below street level, scarred by "
-        "decades of engine backblast. A faded sign reads 'De Maal Docking Services' "
-        "in three languages. The hum of tractor beam generators echoes from below."
-    ),
-    (
-        "Docking Bay 94 - Pit Floor",
-        "The sunken pit floor of Docking Bay 94.",
-        "The reinforced duracrete floor of the bay is pitted and scorched from "
-        "countless landings. Eight landing lights ring the circle, two of them "
-        "flickering uncertainly. The maintenance garage is tucked into the south wall, "
-        "where a pair of binary load lifters stand idle. Fusion generators sit in a "
-        "cluster near the back wall, their charging cables snaking across the floor. "
-        "The office entrance is visible on the upper level, accessible by a powered ramp."
-    ),
-    (
-        "Spaceport Customs Office",
-        "A small, dingy customs office adjacent to the docking bays.",
-        "Dust has settled over everything in this cramped customs office. The "
-        "ventilators have clearly broken down, leaving each room with a stuffy, "
-        "stale smell. Desks are piled high with datadisks, confiscated goods, and "
-        "personal effects. Three doors lead out: one to a second-floor balcony "
-        "overlooking the street, one to the Mos Eisley streets, and one down a "
-        "stairwell corridor toward Docking Bay 94. The inspectors who work here "
-        "spend more time collecting bribes than confiscating goods."
-    ),
-    (
-        "Spaceport Speeders",
-        "An unassuming speeder shop southeast of the docking bays.",
-        "A motley collection of speeders in all shapes, sizes, and degrees of repair "
-        "fills this shop. The smell of lubricant and ozone hangs in the air. Tools and "
-        "equipment are scattered across workbenches, and a partially disassembled "
-        "SoroSuub XP-38 sits on a lift in the back. The Arconan proprietor, Unut Poll, "
-        "keeps a small apartment below the shop. A young Human mechanic named Geordi Hans "
-        "can usually be found here, tinkering with something."
-    ),
-    (
-        "Docking Bay 86",
-        "A round pit gouged in the soil, slightly smaller than most bays.",
-        "Old 86 is a utilitarian docking bay, its business consisting mostly of small "
-        "shuttles and personal transports. The pit is gouged deep in the hard-packed "
-        "soil, with a simple entrance ramp leading down. An ill-tempered administrative "
-        "Droid named BX-9T manages the bay with brusque efficiency. Its humanoid blue "
-        "and red form is easily recognized throughout the spaceport. Landing fees are "
-        "35 credits per day."
-    ),
-    (
-        "Docking Bay 87",
-        "One of the top ten favorite bays for smugglers and merchants.",
-        "Directly across the street from Docking Bay 86, Docking Bay 87 has been "
-        "continually modernized by its owners. The landing bay sits at ground level, "
-        "with a double blast door and forcefield that opens directly into the street. "
-        "The cheerful Ishi Tib owner, known as Drue, is easy going but uncompromising "
-        "about fees. A flat 25 credits avoids any 'bureaucratic hassles' like cargo "
-        "inspections. The bay charges 30 credits per day."
-    ),
-    (
-        "Docking Bay 92",
-        "A bay used almost exclusively for starship repairs.",
-        "The underground rooms of Docking Bay 92 are filled with starship repair tools, "
-        "labor and engineering Droids, and every piece of equipment a master mechanic "
-        "could need. The owner, Dom Antyll, distrusts most organics and prefers Droid "
-        "labor. He charges 125% of standard rates, but his work is first-class and "
-        "guaranteed. The smell of ion flux and coolant permeates everything."
-    ),
-
-    # ── Central Streets ──
-    (
-        "Mos Eisley Street - Spaceport Row",
-        "A wide, dusty street running between the major docking bays.",
-        "This broad street connects several of Mos Eisley's busiest docking bays. "
-        "Low-grade concrete and plastoid mounds line both sides, their domed roofs "
-        "designed to shed sand and resist the periodic sandstorms. Moisture vaporators "
-        "stand tucked into corners and alleys. The air shimmers with heat from the "
-        "twin suns, and the constant chatter of a dozen alien languages fills the "
-        "dusty thoroughfare. Beggars, Jawas, and street vendors compete for attention."
-    ),
-    (
-        "Mos Eisley Street - Market District",
-        "A bustling stretch of street near the market and cantina.",
-        "The streets grow more crowded here, near the heart of Mos Eisley's commercial "
-        "district. Speeders weave between pedestrians at alarming speed. The curved "
-        "walls of the cantina are visible to the west, and the open-air tents of the "
-        "market place sprawl to the south. A Dim-U monk stands on a crate, preaching "
-        "about the sacred nature of Banthas to an audience of exactly zero. The smell "
-        "of grilled meat drifts from somewhere nearby."
-    ),
-    (
-        "Mos Eisley Street - Government Quarter",
-        "A quieter section of street near the government offices and police station.",
-        "The crowds thin out in this part of town, near the regional government offices "
-        "and the newly expanded police station. The buildings here are slightly better "
-        "maintained, though that is not saying much. A few stormtroopers patrol in pairs, "
-        "their white armor already coated in a fine layer of Tatooine dust. The power "
-        "station's charging pylons are visible down a side alley."
-    ),
-    (
-        "Mos Eisley Street - North End",
-        "The northern edge of the central sector, near the factories.",
-        "The character of the city changes here at the northern edge. The buildings "
-        "become more industrial - warehouses, shipping offices, and factory compounds. "
-        "Notsub Shipping's corporate headquarters dominates the skyline, its two-story "
-        "structure dwarfing the surrounding buildings. The streets are wider to "
-        "accommodate cargo skiffs and heavy transports, but no less dusty."
-    ),
-    (
-        "Mos Eisley Street - South End",
-        "The southern residential area, quieter than the central sector.",
-        "The streets narrow and quiet here at the southern edge of the central sector. "
-        "Two-story white pourstone residential buildings line a cul-de-sac. Small "
-        "subterranean gardens, fed by private moisture vaporators, give this area an "
-        "almost peaceful quality. The House of Momaw Nadon sits at the end of the "
-        "street, its unusual humidity visible as condensation on the windows."
-    ),
-
-    # ── Key Locations ──
-    (
-        "Chalmun's Cantina - Entrance",
-        "The elevated entranceway of the most infamous cantina in the galaxy.",
-        "You step from the blinding glare of the twin suns into the dim, cool "
-        "entranceway of Chalmun's Cantina. The elevated entrance allows the bar's "
-        "patrons to size up newcomers while their eyes adjust to the darkness. A "
-        "Droid detector mounted on the wall emits a soft hum. A battered sign reads "
-        "'NO DROIDS' in Basic and three other languages. The sound of jizz-wailer "
-        "music and alien chatter washes over you from below."
-    ),
-    (
-        "Chalmun's Cantina - Main Bar",
-        "The main bar of the most notorious establishment in Mos Eisley.",
-        "The dimly lit cantina is a cavern of sound and shadow. A high-tech bar "
-        "stretches along one wall, capable of synthesizing virtually any drink in "
-        "the galaxy from its mixing computer. Booths of varying size and shape line "
-        "the curved walls, accommodating everything from intimate meetings to large "
-        "group negotiations. The seven-piece band on the bandstand fills the room "
-        "with an energetic jizz number. Smugglers, bounty hunters, and beings of "
-        "every description pack the room. The bartender, a scarred Wookiee named "
-        "Chalmun, keeps order with a bowcaster behind the bar."
-    ),
-    (
-        "Chalmun's Cantina - Back Hallway",
-        "A narrow hallway behind the bar, leading to the restrooms and cellar.",
-        "This rear corridor is left unlocked for those with the knowledge and need "
-        "of a quick escape. Three restroom doors line one side. The cellar access "
-        "is through a trapdoor, where the foodstuffs, liquor, and mixer ingredients "
-        "are stored in what was once a walk-in freezer. The bartender's office is "
-        "separated from the bar by a curtained wall, its trapdoor leading down to "
-        "the same basement."
-    ),
-    (
-        "Lup's General Store",
-        "A well-stocked general store run by a pair of friendly Shistavanen Wolfmen.",
-        "Despite the fierce, wolf-like appearance of its proprietors, Lup's General "
-        "Store is one of the friendlier establishments in Mos Eisley. The main "
-        "display room is about eight by five meters, with touch-screen monitors at "
-        "each seat along the counter for browsing merchandise. Twelve large monitors "
-        "on the left wall advertise daily specials, though the sound cuts in and out. "
-        "Provisions, supplies, machinery, medical equipment, and weaponry can all be "
-        "found here at reasonable prices."
-    ),
-    (
-        "Market Place - Gep's Grill",
-        "An open-air market with tents, food stalls, and a popular grill.",
-        "Less a proper market and more a sandy lot full of tents and improvised stalls, "
-        "Market Place is where free enterprise thrives on Tatooine. Solar energy "
-        "collectors power cooling generators and grill units under canvas awnings. "
-        "Farmers sell vegetables from underground agrofarms, hunters offer Dune Sea "
-        "game, and vendors hawk trinkets and homespun clothing. The smoky aroma of "
-        "Bantha burgers and Dewback ribs wafts from Gep's Grill, the busiest stall. "
-        "Today's specials are scrawled on a board in Basic and Huttese."
-    ),
-    (
-        "Mos Eisley Inn",
-        "A run-down building offering the bare necessities for 10 credits a night.",
-        "The Mos Eisley Inn offers exactly what its name suggests and nothing more. "
-        "A central lobby with a transparisteel canopy and several imported trees "
-        "provides the only aesthetic touch. The grumpy Human clerk will haggle for "
-        "a few extra credits, then provide a place to sleep, a shower, and access "
-        "to public communicators. The subterranean rooms are dark and cramped but "
-        "cool; the upper floor rooms are unbearably warm."
-    ),
-    (
-        "Jabba's Townhouse - Main Entrance",
-        "The intimidating entrance to Jabba the Hutt's Mos Eisley townhouse.",
-        "An obviously reinforced blast door, identical to the one at Jabba's palace "
-        "in the desert, dominates this entrance. A sole sensor eye stares out from "
-        "the wall. Two or three of the guards are always disguised as beggars and "
-        "loiterers in the narrow alley across the street, keeping tabs on who comes "
-        "calling. The building looks almost humble from outside, but the durasteel "
-        "doors and blast-shielded walls tell a different story."
-    ),
-    (
-        "Jabba's Townhouse - Audience Chamber",
-        "The audience chamber where Jabba the Hutt holds court.",
-        "This room was specially constructed to accommodate Jabba's massive power "
-        "sled. The dais provides space for contract negotiations, entertainment, "
-        "and anything else the Hutt might desire. A sophisticated weapon-detecting "
-        "Droid scans all visitors from its station near the heavy blast doors. A "
-        "massive wire mesh net is suspended near the domed ceiling, home to four "
-        "Kayven Whistlers that Jabba uses to discipline unruly guests. When the "
-        "Hutt is absent, his majordomo Bib Fortuna runs things."
-    ),
-    (
-        "Regional Government Offices",
-        "The cramped administrative center of Tatooine's government.",
-        "Tatooine's regional administration operates from this cramped building. "
-        "Prefect Eugene Talmont can often be found in his office, which was once "
-        "spacious but has become cluttered with datadisks and personal effects. "
-        "The building handles land deeds, weapon licenses, resident IDs, settlement "
-        "charters, taxation, and court appearances. Two small courtrooms occupy the "
-        "back corners, and court is held once per week at night. Three clerks sit "
-        "behind desks and computers, recording vital information."
-    ),
-    (
-        "Police Station - Main Floor",
-        "The newly expanded Mos Eisley police station.",
-        "New facilities and increased funding have given the police station a "
-        "slightly more professional appearance, though corruption runs deep. "
-        "A desk clerk monitors all four holding cells, building entrances, and "
-        "corridors from behind banks of monitors. The fines and permits office "
-        "handles minor violations. Patrol officers use personal datapads instead "
-        "of assigned desks. The roof has a marked landing pad for speeders and "
-        "cloud cars, accessible by ladder."
-    ),
-    (
-        "Tatooine Militia Headquarters",
-        "The militia building, now also housing the stormtrooper garrison.",
-        "This building houses Mos Eisley's militia and has become the permanent "
-        "base for the Imperial stormtrooper detachment. The militia used to have "
-        "four full-time members, but they have been transferred to the new police "
-        "force. The building contains a large weapons vault behind walls with a "
-        "Strength of 7D. Inside: blast vests, helmets, carbines, grenades, stun "
-        "batons, and three E-web blasters. The stormtroopers have begun storing "
-        "their speeder bikes here, making the garage fairly cramped."
-    ),
-    (
-        "Dewback Stables and Garage",
-        "An ancient stable converted to house militia vehicles and beasts.",
-        "Almost as old as the city itself, these stables were converted to house "
-        "the militia's vehicles alongside the traditional Dewback mounts. Three "
-        "armored landspeeders sit in the garage, maintained by a simple R3 unit. "
-        "Half a dozen patrol scooters are parked along one wall. The Dewbacks are "
-        "kept in a separate paddock, their musky smell permeating everything. The "
-        "heavy-duty blast doors are secured with a Difficult security lock."
-    ),
-    (
-        "Power Station",
-        "A bustling charging station where speeders and Droids come for power.",
-        "This station provides power to speeders, Droids, and other items of "
-        "machinery. Merchants, clerks, farmers, and others gather here in the "
-        "early morning and late afternoon to discuss business, politics, and the "
-        "weather. An unenthusiastic power Droid named 4-LB runs the station, "
-        "caring little for the comings and goings of customers. Speeder recharges "
-        "run about 15 credits; Droids require only 3-4 credits worth of power. "
-        "Rumors of all kinds circulate freely here."
-    ),
-    (
-        "Spaceport Hotel",
-        "An adequate, if uninspired, 40-room hotel near the spaceport.",
-        "The Spaceport Hotel is about as imaginative as its name suggests. Forty "
-        "small rooms are available at 15 credits per night. The beds are almost "
-        "comfortable, the sonic showers mostly work, and the air conditioning "
-        "functions at least some of the time. The Sullustan clerk does not ask "
-        "questions, and feels that customers should not ask for favors."
-    ),
-    (
-        "Mos Eisley Spaceport Control Tower",
-        "The five-story tower directing all incoming and outgoing traffic.",
-        "A single Sienar Observation Module juts five stories above the surrounding "
-        "buildings, its age confirmed by ID plates reading 'Republic Sienar Systems.' "
-        "The observation module is designed for up to six Droids, with accommodations "
-        "for Humans to take over in emergencies. A landing beacon provides incoming "
-        "ships with an instant fix on the city. Three stations are occupied at any "
-        "time: one by the J9-5 worker Droid and two by Human technicians."
-    ),
-    (
-        "Kayson's Weapon Shop",
-        "A well-stocked weapon shop with both legal and contraband inventory.",
-        "The interior walls are literally covered in weapons: new, used, ancient, "
-        "and modern, all kept empty and unloaded. Kayson is a grizzled alien with "
-        "atrocious manners and a sour disposition, but his knowledge of weapons "
-        "is encyclopedic. Almost anything of a personal nature can be found here, "
-        "though heavy artillery is unavailable. Off-duty police officers frequently "
-        "browse the wares. Black market weapons with obscured identification plates "
-        "are available for those who know how to ask."
-    ),
-    (
-        "Heff's Souvenirs",
-        "A junk shop masquerading as a souvenir store.",
-        "This cluttered shop offers an odd collection of battered trinkets and "
-        "curiosities: ancient Holovid players, cracked hallway mirrors, and decrepit "
-        "knick-knacks. Behind the counter, a collection of unique souvenirs depicts "
-        "local Tatooine sites: glass bubbles with Jundland Wastes dioramas, fused "
-        "purplish rock chips reading 'Mos Eisley,' and a mounted, glazed Womp Rat. "
-        "The current owner, Moplin, makes his real living through forgery."
-    ),
-    (
-        "Jawa Traders",
-        "A repair shop specializing in vehicle and starship Droids.",
-        "The oily, cluttered interior of Jawa Traders is packed with Droids in "
-        "various states of assembly and repair. The shop is owned by a Jawa named "
-        "Aguilae and co-managed by a Squib named Mace Windu. The Jawa's aversion "
-        "to bathing makes the air thick and pungent. Restraining bolts, circuit "
-        "boards, and motivator units fill shelves from floor to ceiling. Several "
-        "Droids stand motionless in a display line near the entrance, awaiting buyers."
-    ),
-    (
-        "Dockside Cafe",
-        "A dimly lit restaurant and bar popular with experienced spacers.",
-        "Adjacent to Docking Bay 92, this dimly lit cafe features many alcoves and "
-        "booths for private conversation. Unlike the cantina, there is no gambling "
-        "here, and several very attractive waitresses provide a morale boost for "
-        "tired spacers. A live band plays in the corner. The bartender is a pokey, "
-        "bitter Droid named CG-X2R who takes no notice of anything that happens. "
-        "Those newer to the smuggling business frequent this establishment."
-    ),
-    (
-        "Lucky Despot Hotel - Grand Staircase",
-        "The main entrance to the Lucky Despot, a decommissioned starship turned hotel.",
-        "A grand staircase and turbolift lead up from street level into this "
-        "converted cargo hauler that has been transformed into Mos Eisley's most "
-        "ambitious hotel. The carpet is worn and the transparisteel viewport canopy "
-        "has seen better days, but there is a faded grandeur to the place. The "
-        "front desk is staffed by a pair of identical Kiffu twins. Guards in bright "
-        "orange uniforms keep watch. The whole operation belongs to Valarian, a "
-        "young Whiphid crime boss who intends to rival Jabba himself."
-    ),
-    (
-        "Lucky Despot - Star Chamber Cafe",
-        "The hotel restaurant with its famous holographic starfield projector.",
-        "The Star Chamber Cafe serves meals during the day and transforms into "
-        "an illegal casino after Second Twilight. A holographic projector on the "
-        "ceiling portrays the galaxy as seen from Coruscant, though the display "
-        "only partly works these days. The walls are durasteel, riveted and kept "
-        "gleaming. Gambling tables appear as if by magic in the evenings, their "
-        "holographic projections overlaying existing furniture."
-    ),
-    (
-        "Zygian's Banking Concern",
-        "A bank that has slowly evolved into a pawn shop.",
-        "This branch of the Zygian savings and loan has seen better days. Items "
-        "left as collateral on failed loans clutter the vault area, and the bank "
-        "has taken to selling them off. A triple-lined vault with computer-controlled "
-        "timed entry dominates the back room. Two clerks work the front: Sylvet Depp, "
-        "brother of the late Prefect, and an attractive near-human named Debrelle. "
-        "Loan rates of 15% seem generous compared to the usual loan sharks."
-    ),
-    (
-        "Transport Depot",
-        "A decrepit building serving as Mos Eisley's transport terminal.",
-        "The west end of this large, dilapidated building has a cafe serving "
-        "overpriced, undercooked food to waiting passengers. The east end offers "
-        "a ticket booth and rest rooms. Rows of chairs face video monitors showing "
-        "prerecorded Tatooine broadcasts, only two of which work. A bank of lockers "
-        "lines the back wall. Near-orbit videophones stand by the front door. The "
-        "proprietor, Yvonne Targis, works for Jabba on the side."
-    ),
-    (
-        "The Cutting Edge Clinic",
-        "A nondescript clinic run by the infamous Dr. Evazan under a false name.",
-        "This four-room clinic specializes in cyborging, though the operations are "
-        "seldom successful. The reception room contains little more than four chairs "
-        "and a Devaronian receptionist named Jubel. The operating theater behind "
-        "the curtain is best not examined too closely. The doctor operating under "
-        "the name 'Cornelius' is in fact the notorious Dr. Evazan, wanted on 53 "
-        "planets with outstanding death sentences in 14 systems."
-    ),
-    (
-        "Dim-U Monastery - Main Gate",
-        "The entrance to an abandoned greenhouse converted into a monastery.",
-        "Huge doors, rarely opened, mark the main entrance to the Dim-U Monastery. "
-        "Visitors are guided through a smaller adjacent gate instead. The building "
-        "was once a greenhouse, and its origins are still visible in the massive "
-        "chambers and industrial equipment. Monks and nuns in plain robes move about "
-        "quietly. What visitors do not know is that the monastery is a front for a "
-        "criminal operation specializing in forging transponder codes for wanted ships."
-    ),
-    (
-        "Street Corner - Dowager Queen Wreckage",
-        "A historic corner near the remains of the colony ship Dowager Queen.",
-        "In the heart of the old section of Mos Eisley, the original blockhouses "
-        "built around the wreckage of the colony ship Dowager Queen still stand. "
-        "This is a constant hub of activity: Jawas scamper about examining Droids "
-        "and vehicles, con men set up impromptu card tables, and Dim-U monks preach "
-        "about the spiritual perfection of Banthas to disinterested crowds. If "
-        "something is happening in Mos Eisley, people will be discussing it here."
-    ),
-    (
-        "House of Momaw Nadon",
-        "A typical two-story pourstone house concealing an ecological paradise.",
-        "From the outside, this looks like any other Tatooine residence. Inside, "
-        "the humidity hits you immediately. The insulated walls drip with condensation. "
-        "An artificial pond feeds a lush interior garden that spills from the main "
-        "room down into a forested subterranean level. Wildlife inhabits the canopy "
-        "of imported trees. The windows are diffused to keep temperatures low. Few "
-        "have entered this place without invitation, and the Ithorian owner, Momaw "
-        "Nadon, prefers it that way."
-    ),
-    (
-        "Notsub Shipping - Lobby",
-        "The corporate lobby of Tatooine's largest company.",
-        "The two-story Notsub Shipping headquarters is the most professional-looking "
-        "building in Mos Eisley, which admittedly is not a high bar. The lobby features "
-        "actual polished floors and working climate control. Notsub employs almost 1,000 "
-        "beings and 300 Droids. The company's CEO, Armanda Durkin, leads a double life "
-        "as a pirate called the Duchess, though this is not common knowledge."
-    ),
+    # 0 -- Spaceport District --
+    ("Docking Bay 94 - Entrance",
+     "The entrance to one of Mos Eisley's most famous docking bays.",
+     "Cracked duracrete steps descend into the pit of Docking Bay 94. "
+     "Beggars and flim-flam artists cluster near the stairs, sizing up arrivals. "
+     "A faded sign reads 'De Maal Docking Services' in three languages."),
+    # 1
+    ("Docking Bay 94 - Pit Floor",
+     "The sunken pit floor of Docking Bay 94.",
+     "The reinforced floor is pitted and scorched from countless landings. "
+     "Eight landing lights ring the circle, two flickering. Binary load lifters "
+     "stand idle near the maintenance garage. Fuel cells cluster along the back wall."),
+    # 2
+    ("Spaceport Customs Office",
+     "A dingy customs office adjacent to the docking bays.",
+     "Dust covers everything in this cramped office. Desks pile high with datadisks "
+     "and confiscated goods. The inspectors spend more time collecting bribes than "
+     "actually inspecting cargo."),
+    # 3
+    ("Spaceport Speeders",
+     "An unassuming speeder shop southeast of the docking bays.",
+     "A motley collection of speeders fills this shop. The smell of lubricant and "
+     "ozone hangs in the air. A partially disassembled SoroSuub XP-38 sits on a lift."),
+    # 4
+    ("Docking Bay 86",
+     "A round pit gouged in the soil, slightly smaller than most bays.",
+     "Old 86 is utilitarian, mostly serving small shuttles and personal transports. "
+     "An ill-tempered admin Droid named BX-9T manages with brusque efficiency. "
+     "Landing fees are 35 credits per day."),
+    # 5
+    ("Docking Bay 87",
+     "One of the top favorite bays for smugglers and merchants.",
+     "Directly across from Bay 86, this bay has been continually modernized. "
+     "A double blast door and forcefield opens into the street. The Ishi Tib owner "
+     "Drue charges 30 credits per day, and 25 credits avoids cargo inspections."),
+    # 6
+    ("Docking Bay 92",
+     "A bay used almost exclusively for starship repairs.",
+     "Underground rooms filled with repair tools, labor Droids, and engineering "
+     "equipment. The owner Dom Antyll charges 125% of standard rates but his work "
+     "is first-class. The smell of ion flux permeates everything."),
+    # 7 -- Central Streets --
+    ("Mos Eisley Street - Spaceport Row",
+     "A wide, dusty street running between the major docking bays.",
+     "This broad street connects several of the busiest docking bays. Low-grade "
+     "concrete mounds line both sides. Moisture vaporators stand in corners. The air "
+     "shimmers with heat from the twin suns. Jawas and street vendors compete for attention."),
+    # 8
+    ("Mos Eisley Street - Market District",
+     "A bustling stretch of street near the market and cantina.",
+     "The streets grow crowded near the commercial heart. Speeders weave between "
+     "pedestrians. The cantina's curved walls are visible to the west. A Dim-U monk "
+     "preaches about sacred Banthas to an audience of zero."),
+    # 9
+    ("Mos Eisley Street - Government Quarter",
+     "A quieter section near the government offices and police station.",
+     "Crowds thin near the regional offices and the expanded police station. "
+     "Buildings are slightly better maintained. Stormtroopers patrol in pairs, "
+     "white armor already coated in Tatooine dust."),
+    # 10
+    ("Mos Eisley Street - North End",
+     "The northern edge of the central sector, near the factories.",
+     "The city becomes industrial here -- warehouses, shipping offices, factory "
+     "compounds. Notsub Shipping's headquarters dominates the skyline. Streets are "
+     "wider for cargo skiffs."),
+    # 11
+    ("Mos Eisley Street - South End",
+     "The southern residential area, quieter than the central sector.",
+     "Streets narrow and quiet at the southern edge. White pourstone residential "
+     "buildings line a cul-de-sac. Small subterranean gardens give this area an "
+     "almost peaceful quality."),
+    # 12 -- Cantina --
+    ("Chalmun's Cantina - Entrance",
+     "The elevated entranceway of the most infamous cantina in the galaxy.",
+     "You step from blinding glare into dim coolness. The elevated entrance lets "
+     "patrons size up newcomers. A Droid detector hums softly. A battered sign reads "
+     "'NO DROIDS' in four languages. Jizz music washes over you from below."),
+    # 13
+    ("Chalmun's Cantina - Main Bar",
+     "The main bar of the most notorious establishment in Mos Eisley.",
+     "The dimly lit cantina is a cavern of sound and shadow. A high-tech bar stretches "
+     "along one wall. Booths line the curved walls. The Modal Nodes play on the bandstand. "
+     "Smugglers, bounty hunters, and beings of every description pack the room."),
+    # 14
+    ("Chalmun's Cantina - Back Hallway",
+     "A narrow hallway behind the bar leading to restrooms and cellar.",
+     "This rear corridor provides a quick escape for those who know it. Three restroom "
+     "doors line one side. The cellar access is through a trapdoor. The bartender's "
+     "office is behind a curtained wall."),
+    # 15
+    ("Lup's General Store",
+     "A well-stocked general store run by friendly Shistavanen Wolfmen.",
+     "Despite the fierce wolf-like proprietors, this is one of the friendlier shops. "
+     "Touch-screen monitors line the counter. Twelve monitors advertise daily specials. "
+     "Provisions, supplies, machinery, and weaponry at reasonable prices."),
+    # 16
+    ("Market Place - Gep's Grill",
+     "An open-air market with tents, food stalls, and a popular grill.",
+     "A sandy lot full of tents and improvised stalls. Farmers sell underground "
+     "vegetables, hunters offer game, vendors hawk trinkets. Bantha burgers and "
+     "Dewback ribs smoke on Gep's Grill."),
+    # 17
+    ("Mos Eisley Inn",
+     "A run-down building offering bare necessities for 10 credits a night.",
+     "The Inn offers exactly what its name suggests. A central lobby with imported "
+     "trees provides the only aesthetic touch. Subterranean rooms are dark but cool; "
+     "upper rooms are unbearably warm."),
+    # 18
+    ("Jabba's Townhouse - Main Entrance",
+     "The intimidating entrance to Jabba the Hutt's Mos Eisley townhouse.",
+     "A reinforced blast door dominates this entrance. A sensor eye stares from the "
+     "wall. Guards disguised as beggars keep tabs on visitors. Durasteel doors and "
+     "blast-shielded walls tell the real story."),
+    # 19
+    ("Jabba's Townhouse - Audience Chamber",
+     "The audience chamber where Jabba the Hutt holds court.",
+     "Specially constructed to accommodate Jabba's massive power sled. A weapon-detecting "
+     "Droid scans all visitors. A wire mesh net near the ceiling houses Kayven Whistlers "
+     "for disciplining unruly guests."),
+    # 20
+    ("Regional Government Offices",
+     "The cramped administrative center of Tatooine's government.",
+     "Prefect Talmont's office is cluttered with datadisks. The building handles land "
+     "deeds, weapon licenses, and court appearances. Three clerks sit behind computers."),
+    # 21
+    ("Police Station - Main Floor",
+     "The newly expanded Mos Eisley police station.",
+     "New facilities give a slightly more professional appearance. A desk clerk monitors "
+     "holding cells and entrances from banks of monitors. Patrol officers use personal "
+     "datapads. The roof has a marked landing pad."),
+    # 22
+    ("Tatooine Militia Headquarters",
+     "The militia building, now also housing the stormtrooper garrison.",
+     "Home to the militia and the Imperial stormtrooper detachment. A large weapons "
+     "vault with Strength 7D walls holds carbines, grenades, stun batons, and three "
+     "E-web blasters. Speeder bikes crowd the garage."),
+    # 23
+    ("Dewback Stables and Garage",
+     "An ancient stable converted to house militia vehicles and beasts.",
+     "Three armored landspeeders sit in the garage. Half a dozen patrol scooters line "
+     "one wall. Dewbacks are kept in a separate paddock, their musky smell permeating "
+     "everything. Heavy blast doors secured with a Difficult lock."),
+    # 24
+    ("Power Station",
+     "A bustling charging station for speeders and Droids.",
+     "Merchants and farmers gather here to discuss business, politics, and weather. "
+     "An unenthusiastic power Droid named 4-LB runs the station. Speeder recharges "
+     "cost 15 credits; Droids need only 3-4 credits. Rumors circulate freely."),
+    # 25
+    ("Spaceport Hotel",
+     "An adequate 40-room hotel near the spaceport.",
+     "Forty small rooms at 15 credits per night. Beds are almost comfortable, sonic "
+     "showers mostly work, air conditioning functions some of the time. The Sullustan "
+     "clerk does not ask questions."),
+    # 26
+    ("Mos Eisley Spaceport Control Tower",
+     "The five-story tower directing all incoming and outgoing traffic.",
+     "A Sienar Observation Module juts five stories high. ID plates read 'Republic "
+     "Sienar Systems.' Three stations are occupied: one by a J9-5 worker Droid, two "
+     "by Human technicians."),
+    # 27
+    ("Kayson's Weapon Shop",
+     "A well-stocked weapon shop with both legal and contraband inventory.",
+     "Walls literally covered in weapons: new, used, ancient, modern, all kept empty "
+     "and unloaded. Kayson's knowledge of weapons is encyclopedic. Black market weapons "
+     "are available for those who know how to ask."),
+    # 28
+    ("Heff's Souvenirs",
+     "A junk shop masquerading as a souvenir store.",
+     "Battered trinkets and curiosities fill this cluttered shop. Behind the counter, "
+     "unique souvenirs depict local sites. The current owner Moplin makes his real "
+     "living through forgery."),
+    # 29
+    ("Jawa Traders",
+     "A repair shop specializing in vehicle and starship Droids.",
+     "The oily interior is packed with Droids in various states of assembly. Restraining "
+     "bolts, circuit boards, and motivator units fill shelves floor to ceiling. Several "
+     "Droids stand motionless in a display line near the entrance."),
+    # 30
+    ("Dockside Cafe",
+     "A dimly lit restaurant and bar popular with experienced spacers.",
+     "Adjacent to Bay 92, this cafe features alcoves and booths for private conversation. "
+     "No gambling here, unlike the cantina. A Droid bartender named CG-X2R takes no "
+     "notice of anything."),
+    # 31
+    ("Lucky Despot Hotel - Grand Staircase",
+     "The entrance to the Lucky Despot, a decommissioned starship turned hotel.",
+     "A grand staircase leads into this converted cargo hauler. Faded grandeur remains. "
+     "Guards in orange uniforms keep watch. The whole operation belongs to Valarian, "
+     "a Whiphid crime boss rivaling Jabba."),
+    # 32
+    ("Lucky Despot - Star Chamber Cafe",
+     "The hotel restaurant with its famous holographic starfield projector.",
+     "The Star Chamber serves meals by day and transforms into an illegal casino after "
+     "Second Twilight. A holographic projector portrays the galaxy from Coruscant. "
+     "Gambling tables appear as if by magic in the evenings."),
+    # 33
+    ("Zygian's Banking Concern",
+     "A bank that has slowly evolved into a pawn shop.",
+     "Items left as collateral clutter the vault area. A triple-lined vault with "
+     "computer-controlled timed entry dominates the back. Loan rates of 15% seem "
+     "generous compared to the usual loan sharks."),
+    # 34
+    ("Transport Depot",
+     "A decrepit building serving as Mos Eisley's transport terminal.",
+     "A cafe serves overpriced food to waiting passengers. Rows of chairs face monitors "
+     "showing prerecorded broadcasts. A bank of lockers lines the back wall. The "
+     "proprietor Yvonne Targis works for Jabba on the side."),
+    # 35
+    ("The Cutting Edge Clinic",
+     "A nondescript clinic run by the infamous Dr. Evazan under a false name.",
+     "Four rooms specializing in cyborging, though seldom successful. The 'doctor' "
+     "operating as 'Cornelius' is actually Dr. Evazan, wanted on 53 planets with "
+     "death sentences in 14 systems."),
+    # 36
+    ("Dim-U Monastery - Main Gate",
+     "The entrance to an abandoned greenhouse converted into a monastery.",
+     "Huge doors rarely opened. The building was once a greenhouse. Monks move about "
+     "quietly. What visitors don't know: the monastery is a front for forging "
+     "transponder codes for wanted ships."),
+    # 37
+    ("Street Corner - Dowager Queen Wreckage",
+     "A historic corner near the remains of the colony ship Dowager Queen.",
+     "The original blockhouses built around the wreckage still stand. Jawas examine "
+     "Droids, con men set up card tables, monks preach to disinterested crowds. If "
+     "something happens in Mos Eisley, people discuss it here."),
+    # 38
+    ("House of Momaw Nadon",
+     "A typical pourstone house concealing an ecological paradise.",
+     "Inside, humidity hits immediately. Insulated walls drip with condensation. An "
+     "artificial pond feeds a lush garden spilling into a forested subterranean level. "
+     "The Ithorian owner prefers privacy."),
+    # 39
+    ("Notsub Shipping - Lobby",
+     "The corporate lobby of Tatooine's largest company.",
+     "The most professional-looking building in Mos Eisley. Polished floors, working "
+     "climate control. Notsub employs almost 1,000 beings. CEO Armanda Durkin secretly "
+     "leads a double life as the pirate Duchess."),
 ]
 
-
-# ══════════════════════════════════════════════════════════════
-#  EXIT DEFINITIONS
-# ══════════════════════════════════════════════════════════════
-# (from_index, to_index, direction, reverse_direction)
-# Indices reference the ROOMS list above (0-based)
-
+# ==============================================================
+# EXITS  (from_idx, to_idx, direction, reverse_direction)
+# ==============================================================
 EXITS = [
-    # Docking Bay 94 entrance <-> pit
-    (0, 1, "down", "up"),
-    # DB94 entrance <-> Spaceport Row
-    (0, 7, "north", "south"),
-    # Customs <-> Spaceport Row
-    (2, 7, "east", "west"),
-    # Customs <-> DB94 entrance
-    (2, 0, "south", "north"),
-    # Spaceport Speeders <-> Spaceport Row
-    (3, 7, "northwest", "southeast"),
-    # DB86 <-> Spaceport Row
-    (4, 7, "west", "east"),
-    # DB87 <-> Spaceport Row (across the street from DB86)
-    (5, 7, "east", "west"),
-    # DB92 <-> North End
-    (6, 10, "east", "west"),
-
-    # Spaceport Row <-> Market District
-    (7, 8, "north", "south"),
-    # Market District <-> Government Quarter
-    (8, 9, "north", "south"),
-    # Government Quarter <-> North End
-    (9, 10, "north", "south"),
-    # Market District <-> South End
-    (8, 11, "south", "north"),
-
-    # Cantina entrance <-> Market District
-    (12, 8, "east", "west"),
-    # Cantina entrance <-> Main Bar
-    (12, 13, "down", "up"),
-    # Main Bar <-> Back Hallway
-    (13, 14, "west", "east"),
-
-    # Lup's <-> Market District
-    (15, 8, "north", "south"),
-    # Gep's Grill <-> Market District
-    (16, 8, "south", "north"),
-    # Mos Eisley Inn <-> Spaceport Row
-    (17, 7, "south", "north"),
-
-    # Jabba's entrance <-> Market District
-    (18, 8, "southeast", "northwest"),
-    # Jabba's entrance <-> Audience Chamber
-    (18, 19, "in", "out"),
-
-    # Gov offices <-> Government Quarter
-    (20, 9, "east", "west"),
-    # Police Station <-> Government Quarter
-    (21, 9, "west", "east"),
-    # Militia <-> Government Quarter
-    (22, 9, "south", "north"),
-    # Dewback Stables <-> Militia
-    (23, 22, "north", "south"),
-    # Power Station <-> Government Quarter
-    (24, 9, "northwest", "southeast"),
-
-    # Spaceport Hotel <-> Spaceport Row
-    (25, 7, "east", "west"),
-    # Control Tower <-> Spaceport Row
-    (26, 7, "north", "south"),
-
-    # Kayson's <-> Market District
-    (27, 8, "east", "west"),
-    # Heff's <-> Market District
-    (28, 8, "northeast", "southwest"),
-    # Jawa Traders <-> Market District
-    (29, 8, "west", "east"),
-
-    # Dockside Cafe <-> North End
-    (30, 10, "south", "north"),
-    # DB92 <-> Dockside Cafe
-    (6, 30, "south", "north"),
-
-    # Lucky Despot <-> South End
-    (31, 11, "north", "south"),
-    # Lucky Despot -> Star Chamber
-    (31, 32, "up", "down"),
-
-    # Zygian's <-> Market District
-    (33, 8, "north", "south"),
-    # Transport Depot <-> South End
-    (34, 11, "east", "west"),
-    # Cutting Edge <-> Government Quarter
-    (35, 9, "east", "west"),
-
-    # Dim-U Monastery <-> North End
-    (36, 10, "east", "west"),
-    # Street Corner Wreckage <-> Market District
-    (37, 8, "north", "south"),
-    # Momaw Nadon's House <-> South End
-    (38, 11, "west", "east"),
-    # Notsub <-> North End
+    (0, 1, "down", "up"),         (0, 7, "north", "south"),
+    (2, 7, "east", "west"),       (2, 0, "south", "north"),
+    (3, 7, "northwest", "southeast"), (4, 7, "west", "east"),
+    (5, 7, "east", "west"),       (6, 10, "east", "west"),
+    (7, 8, "north", "south"),     (8, 9, "north", "south"),
+    (9, 10, "north", "south"),    (8, 11, "south", "north"),
+    (12, 8, "east", "west"),      (12, 13, "down", "up"),
+    (13, 14, "west", "east"),     (15, 8, "north", "south"),
+    (16, 8, "south", "north"),    (17, 7, "south", "north"),
+    (18, 8, "southeast", "northwest"), (18, 19, "in", "out"),
+    (20, 9, "east", "west"),      (21, 9, "west", "east"),
+    (22, 9, "south", "north"),    (23, 22, "north", "south"),
+    (24, 9, "northwest", "southeast"), (25, 7, "east", "west"),
+    (26, 7, "north", "south"),    (27, 8, "east", "west"),
+    (28, 8, "northeast", "southwest"), (29, 8, "west", "east"),
+    (30, 10, "south", "north"),   (6, 30, "south", "north"),
+    (31, 11, "north", "south"),   (31, 32, "up", "down"),
+    (33, 8, "north", "south"),    (34, 11, "east", "west"),
+    (35, 9, "east", "west"),      (36, 10, "east", "west"),
+    (37, 8, "north", "south"),    (38, 11, "west", "east"),
     (39, 10, "north", "south"),
 ]
 
+# ==============================================================
+# ZONE MAPPING
+# ==============================================================
+ROOM_ZONES = {
+    0: "spaceport", 1: "spaceport", 2: "spaceport", 3: "spaceport",
+    4: "spaceport", 5: "spaceport", 6: "spaceport",
+    7: "streets", 8: "streets", 9: "streets", 10: "streets", 11: "streets",
+    12: "cantina", 13: "cantina", 14: "cantina",
+    15: "shops", 16: "shops", 17: "shops",
+    18: "jabba", 19: "jabba",
+    20: "government", 21: "government", 22: "government",
+    23: "spaceport", 24: "spaceport", 25: "shops", 26: "spaceport",
+    27: "shops", 28: "shops", 29: "shops", 30: "spaceport",
+    31: "shops", 32: "shops", 33: "shops", 34: "spaceport",
+    35: "shops", 36: "streets", 37: "streets", 38: "streets", 39: "spaceport",
+}
 
-# ══════════════════════════════════════════════════════════════
-#  NPC DEFINITIONS
-# ══════════════════════════════════════════════════════════════
-# (name, room_index, species, description, ai_config_dict)
+ROOM_OVERRIDES = {
+    1: {"cover_max": 4}, 13: {"cover_max": 2}, 14: {"cover_max": 1},
+    19: {"cover_max": 3}, 21: {"cover_max": 2}, 24: {"cover_max": 0},
+    26: {"cover_max": 3}, 37: {"cover_max": 0},
+}
 
+# ==============================================================
+# HELPER: Build a char_sheet_json for combat-ready NPCs
+# ==============================================================
+def _sheet(dex="3D", kno="2D", mec="2D", per="3D", stre="3D", tec="2D",
+           skills=None, weapon="", species="Human", wound_level=0):
+    """Build a char_sheet_json dict for an NPC."""
+    return {
+        "attributes": {
+            "dexterity": dex, "knowledge": kno, "mechanical": mec,
+            "perception": per, "strength": stre, "technical": tec,
+        },
+        "skills": skills or {},
+        "weapon": weapon,
+        "species": species,
+        "wound_level": wound_level,
+    }
+
+def _ai(personality="", knowledge=None, faction="Neutral", style="",
+        fallbacks=None, hostile=False, behavior="defensive",
+        model_tier=1, temperature=0.7, max_tokens=120,
+        # NPC crew fields for space combat
+        space_skills=None):
+    """Build an ai_config_json dict."""
+    cfg = {
+        "personality": personality,
+        "knowledge": knowledge or [],
+        "faction": faction,
+        "dialogue_style": style,
+        "fallback_lines": fallbacks or [],
+        "hostile": hostile,
+        "combat_behavior": behavior,
+        "model_tier": model_tier,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    if space_skills:
+        cfg["skills"] = space_skills
+    return cfg
+
+# ==============================================================
+# NPC DEFINITIONS -- COMBAT READY
+# (name, room_idx, species, description, char_sheet, ai_config)
+# ==============================================================
 NPCS = [
-    (
-        "Wuher", 13, "Human",
-        "A scarred, ill-tempered Human bartender polishing a glass with a dirty rag.",
-        {
-            "personality": (
-                "Wuher is a non-communicative, ill-tempered local who keeps his mouth shut. "
-                "He hates Droids with a passion and will refuse service to anyone accompanied by one. "
-                "He is gruff and terse, speaking in short sentences. He knows everything that happens "
-                "in the cantina but shares nothing unless there is profit in it. He has seen every "
-                "kind of scum pass through and is impossible to shock or impress."
-            ),
-            "knowledge": [
-                "The cantina is owned by a Wookiee named Chalmun who keeps a bowcaster behind the bar",
-                "Jabba the Hutt's organization controls most of the city's criminal activity",
-                "Imperial stormtroopers have recently been stationed in Mos Eisley",
-                "The cantina pays Jabba for protection",
-                "A new spice dealer has been trying to undercut Jabba's trade",
-                "No Droids are allowed in the cantina - the Droid detector at the door enforces this",
-                "The band is Figrin Da'n and the Modal Nodes, on a two-season contract",
-            ],
-            "faction": "Neutral. Serves anyone who pays.",
-            "dialogue_style": "Extremely terse. One or two sentences max. Grunts. Never volunteers information. Suspicious of strangers.",
-            "fallback_lines": [
-                "Wuher grunts and continues polishing a glass.",
-                "Wuher glances at you. 'What'll it be.'",
-                "Wuher ignores you pointedly.",
-                "'We don't serve their kind here.' Wuher nods toward the door.",
-                "'Keep your voice down. You want to start trouble, do it outside.'",
-            ],
-            "model_tier": 1,
-            "temperature": 0.6,
-            "max_tokens": 80,
-        }
-    ),
-    (
-        "Chalmun", 13, "Wookiee",
-        "A beige and gray Wookiee with a scar running diagonally across his chest, the cantina's owner.",
-        {
-            "personality": (
-                "Chalmun is the Wookiee owner of the cantina. He treats most beings like a "
-                "slightly dim older brother - he means well but gets frustrated and loses his temper. "
-                "He is warm to those who can handle his rough affection, but callous to strangers. "
-                "He speaks through growls that some can understand, or through a translation device. "
-                "He keeps a bowcaster behind the bar and is not afraid to use it."
-            ),
-            "knowledge": [
-                "He bought this cantina with gambling profits from Ord Mantell",
-                "The cantina pays Jabba protection money",
-                "He has a bowcaster behind the bar",
-                "He hates Droids and won't allow them inside",
-                "Business has been good lately with all the smuggling traffic",
-            ],
-            "faction": "Neutral. Loyal to himself and his business.",
-            "dialogue_style": "Speaks with growls and roars. Use *growls*, *barks*, and rough translated speech. Protective of the cantina.",
-            "fallback_lines": [
-                "*Chalmun growls a warning and gestures at the door.*",
-                "*The big Wookiee eyes you warily, one paw near the bowcaster.*",
-                "*Chalmun barks something unintelligible and turns away.*",
-            ],
-            "model_tier": 1,
-            "temperature": 0.7,
-            "max_tokens": 100,
-        }
-    ),
-    (
-        "Prefect Talmont", 20, "Human",
-        "A slight-built, wiry man with an obvious toupee and an air of self-importance.",
-        {
-            "personality": (
-                "Eugene Talmont is the Imperial Prefect of Mos Eisley, full of himself and "
-                "vastly overestimating his own importance. He is nearsighted but too vain for "
-                "corrective lenses. He is impatient with subordinates when tense but otherwise "
-                "treats them reasonably. He desperately wants a transfer off Tatooine and is "
-                "terrified of ending up like his predecessor, Orun Depp, who was killed by an "
-                "assassin Droid."
-            ),
-            "knowledge": [
-                "Governor Tour Aryon runs Tatooine from her palatial house in Bestine",
-                "Lieutenant Harburik is the Chief of Police and technically his subordinate",
-                "The previous Prefect, Orun Depp, was killed by an assassin Droid",
-                "Jabba the Hutt has far too much influence in this city",
-                "Imperial stormtroopers have been stationed here recently",
-                "He handles land deeds, weapon licenses, and resident IDs",
-            ],
-            "faction": "Imperial. Loyal to the Empire, mostly out of self-preservation.",
-            "dialogue_style": "Pompous and self-important. Uses formal language. Occasionally nervous. Tries to project authority he doesn't fully possess.",
-            "fallback_lines": [
-                "'I see! They think they can get away with it, but they have yet to deal with Prefect Talmont!'",
-                "Talmont adjusts his toupee nervously. 'Yes, well. I'm very busy.'",
-                "'This is a matter for the proper authorities. Which is to say, me.'",
-            ],
-            "model_tier": 2,
-            "temperature": 0.7,
-            "max_tokens": 150,
-        }
-    ),
-    (
-        "Lieutenant Harburik", 21, "Human",
-        "A large, well-muscled man with a vicious look in his eyes. The Chief of Police.",
-        {
-            "personality": (
-                "Harburik is crass, rude, and cruel. He represents everything reprehensible about "
-                "the New Order. He enjoys his position as Chief of Police because it lets him be a "
-                "big fish in a small pond. His biggest frustration is Prefect Talmont's pompous "
-                "incompetence. He has considered having Talmont removed, noting the trend of Prefects "
-                "dying to assassin Droids. He is well-armed and dangerous."
-            ),
-            "knowledge": [
-                "He commands the Mos Eisley police force of about 20 officers",
-                "The police outnumber the Imperial garrison",
-                "Prefect Talmont is an incompetent fool",
-                "The previous Prefect was killed by an assassin Droid",
-                "Jabba's influence extends into the local government through bribes",
-                "He has a heavy blaster pistol that does 5D damage",
-            ],
-            "faction": "Imperial. Loyal to himself and his power base.",
-            "dialogue_style": "Threatening and direct. Uses intimidation casually. Speaks with barely contained aggression.",
-            "fallback_lines": [
-                "'No problem. You don't want to tell me? I'll just take this weapon off stun.'",
-                "Harburik cracks his knuckles meaningfully. 'We were talking.'",
-                "'Let me see your identification. Now.'",
-            ],
-            "model_tier": 1,
-            "temperature": 0.6,
-            "max_tokens": 100,
-        }
-    ),
-    (
-        "Kal Lup", 15, "Shistavanen",
-        "A fierce-looking but friendly Shistavanen Wolfman behind the store counter.",
-        {
-            "personality": (
-                "Kal Lup is a Shistavanen Wolfman who, despite his fierce wolf-like appearance, "
-                "is genuinely friendly and helpful. He and his husband Tar run the general store "
-                "together. They are congenial but remember every slight and perceived rudeness. "
-                "They have an old blaster carbine hidden behind the counter. They charge fair "
-                "prices: 90-110% of standard, but 120% for medical equipment and weaponry."
-            ),
-            "knowledge": [
-                "He stocks provisions, supplies, machinery, medical equipment, and some weapons",
-                "Prices are reasonable: 90-110% of standard for most goods",
-                "Medical supplies and weapons are marked up to 120%",
-                "He and his husband Tar have been having trouble with Jabba over protection payments",
-                "He has a blaster carbine hidden behind the counter",
-            ],
-            "faction": "Neutral merchant. Serves everyone.",
-            "dialogue_style": "Friendly and welcoming despite fierce appearance. Good shopkeeper patter. Helpful but remembers if you're rude.",
-            "fallback_lines": [
-                "Kal Lup bares his fangs in what is apparently a smile. 'Welcome! What can I get you?'",
-                "'We have everything you need, friend. Name your price range.'",
-                "*The Wolfman's ears prick up with interest.*",
-            ],
-            "model_tier": 1,
-            "temperature": 0.7,
-            "max_tokens": 120,
-        }
-    ),
-    (
-        "Unut Poll", 3, "Arcona",
-        "An older Arconan with a careworn, gentle face. The speeder shop proprietor.",
-        {
-            "personality": (
-                "Unut Poll is a quirky old codger with a heart of gold. He is a gentle persuader "
-                "and relentless charmer. He is actually a refugee from the Galactic Civil War who "
-                "took over the identity of the original Unut. He secretly aids the Rebel Alliance "
-                "but is extremely cautious about it. He genuinely loves speeders and vehicles, and "
-                "will talk about them endlessly. He treats his young mechanic Geordi like family."
-            ),
-            "knowledge": [
-                "He has several speeders for sale including an XP-38, a T-16 Skyhopper, and a Starhawk",
-                "Geordi Hans is his young Human mechanic - talented but restless",
-                "He secretly supports the Rebel Alliance but tells no one",
-                "Speeder prices are 5-10% below what competitors charge",
-                "He has a holocube of a family he's trying to identify on his desk",
-                "The Ikas-Adno Starhawk is not for sale - it's priced high to discourage buyers",
-            ],
-            "faction": "Secretly Rebel Alliance. Presents as neutral merchant.",
-            "dialogue_style": "Charming, folksy, a bit eccentric. Loves to talk about vehicles. Deflects personal questions. Uses speeder metaphors.",
-            "fallback_lines": [
-                "'There are only three areas of legal commerce: antiques, used vehicles, and real estate. So, how much do you think this speeder is really worth?'",
-                "Unut peers at you with gentle Arconan eyes. 'Looking for transportation?'",
-                "'Ah, that XP-38? Fine machine. Let me tell you about the engine modifications...'",
-            ],
-            "model_tier": 1,
-            "temperature": 0.8,
-            "max_tokens": 150,
-        }
-    ),
-    (
-        "Moplin Jarron", 28, "Sullustan",
-        "A nervous little Sullustan with a perpetual squint and hunched back.",
-        {
-            "personality": (
-                "Moplin is a middle-aged Sullustan who runs the souvenir shop as a front for his "
-                "real trade: forgery. He can forge Tatooine township IDs for 100 credits, Tatooine "
-                "passports for 200, and off-world docucards for more. He laughs a lot for no apparent "
-                "reason. He is nervous and twitchy, always watching the door."
-            ),
-            "knowledge": [
-                "He can forge IDs and documents for the right price",
-                "Township IDs cost 100 credits, passports 200 credits",
-                "Off-world documents are more expensive and take longer",
-                "He bought the shop from Tebbi, the daughter of the original Heff",
-                "Heff was killed in a bounty hunter incident",
-            ],
-            "faction": "Neutral criminal. Works for whoever pays.",
-            "dialogue_style": "Nervous, twitchy. Laughs at odd moments. Speaks in a hushed, conspiratorial tone. Always watching the door.",
-            "fallback_lines": [
-                "'Hee! Well, yes. I can do the job. Only a hundred credits.' *He giggles nervously.*",
-                "Moplin squints at you and laughs for no reason. 'Just souvenirs here, friend. Just souvenirs.'",
-                "*The Sullustan hunches lower behind the counter, eyes darting.*",
-            ],
-            "model_tier": 1,
-            "temperature": 0.7,
-            "max_tokens": 100,
-        }
-    ),
-    (
-        "Kayson", 27, "Unknown",
-        "A grizzled alien weaponsmith with atrocious manners and a sour disposition.",
-        {
-            "personality": (
-                "Kayson is a grizzled alien arms dealer with terrible manners and a seemingly "
-                "permanent bad mood. His greatest asset is knowing when to keep his thoughts to "
-                "himself. He knows weapons intimately and maintains them with reverence. He can "
-                "acquire contraband weapons with obscured identification plates. He maintains an "
-                "appearance of legitimacy while running a thriving black market side business."
-            ),
-            "knowledge": [
-                "He stocks everything from hold-out blasters to light repeating blasters",
-                "Heavy blaster pistols run 1,500 credits, rifles 2,000",
-                "Black market weapons have obscured ID plates",
-                "Off-duty police officers shop here regularly",
-                "Heavy artillery is not available",
-                "Thermal detonators cost 4,000 credits",
-            ],
-            "faction": "Neutral arms dealer.",
-            "dialogue_style": "Gruff, sour, minimal words. Knows weapons and talks about them with grudging respect. Suspicious of new customers.",
-            "fallback_lines": [
-                "Kayson grunts and gestures at the wall of weapons. 'See anything you like? No touching.'",
-                "'Credits first. Then we talk.'",
-                "*The old alien eyes you with undisguised suspicion.*",
-            ],
-            "model_tier": 1,
-            "temperature": 0.6,
-            "max_tokens": 80,
-        }
-    ),
-    (
-        "Oxbell", 13, "Devaronian",
-        "A humanoid with razor-sharp teeth and a pair of horns, nursing a drink in a booth.",
-        {
-            "personality": (
-                "Oxbell is a Devaronian information broker, the brother of the more famous Labria. "
-                "He makes his living selling news and gossip to whoever wants to hear it. He lacks "
-                "his brother's talent and ambition, spending more time drinking than gathering "
-                "information. When drunk, which is most of the time, he becomes alternately morose "
-                "and chatty, babbling about public and private information without discrimination."
-            ),
-            "knowledge": [
-                "He knows most of the gossip in Mos Eisley",
-                "His brother Labria is a more successful information broker",
-                "He hangs out at Docking Bay 94 and the Lucky Despot as well",
-                "Jabba's people are always looking for information",
-                "He'll share rumors for the price of a drink",
-                "A new spice operation might be starting up to rival Jabba",
-            ],
-            "faction": "Neutral. Sells information to anyone.",
-            "dialogue_style": "Slurred speech, rambling. Alternates between morose and chatty. Easily bribed with drinks. Drops gossip carelessly.",
-            "fallback_lines": [
-                "'Damnable Gamorreans. Can't trust 'em. Hey! Spare a credit? I'll let you in on some information.'",
-                "*Oxbell takes a long swig and peers at you with bloodshot eyes.* 'Buy me a drink and I'll tell you something interesting.'",
-                "'You didn't hear this from me, but...' *He trails off, distracted by his empty glass.*",
-            ],
-            "model_tier": 1,
-            "temperature": 0.8,
-            "max_tokens": 120,
-        }
-    ),
-    (
-        "Ohwun De Maal", 1, "Duros",
-        "An unremarkable blue-skinned Duros in work clothes, co-owner of Docking Bay 94.",
-        {
-            "personality": (
-                "Ohwun De Maal is a devout Duros who follows the quiet traditions of his people. "
-                "He and his mate Chachi own Docking Bay 94. They are honest, hardworking beings who "
-                "want nothing more than to run a decent business. Their relationship with Jabba is "
-                "strained after a Corellian smuggler skipped on their bay. Ohwun speaks softly and "
-                "plays fairly, but is nobody's fool."
-            ),
-            "knowledge": [
-                "Docking Bay 94 charges 25 credits per day, recently raised from 20",
-                "Restocking consumables costs 8 credits per person per day",
-                "Fuel cells are replaced at 10 credits per cell",
-                "A Corellian smuggler recently stiffed them and defied the quarantine",
-                "They also own five other docking bays and eight warehouses",
-                "Jabba has been difficult since the smuggler incident",
-            ],
-            "faction": "Neutral. Honest businessman.",
-            "dialogue_style": "Quiet, polite, professional. Speaks in measured tones. Honest and fair. Duros accent.",
-            "fallback_lines": [
-                "'Sure, we can have you refueled in less than a day. Your fuel cells just need some topping off.'",
-                "Ohwun nods quietly. 'Welcome to Docking Bay 94. De Maal Docking Services.'",
-                "'We run an honest operation here. Always have.'",
-            ],
-            "model_tier": 1,
-            "temperature": 0.6,
-            "max_tokens": 120,
-        }
-    ),
+    # -- Cantina NPCs --
+    ("Wuher", 13, "Human",
+     "A scarred, ill-tempered Human bartender polishing a glass with a dirty rag.",
+     _sheet(dex="3D+1", per="3D+2", stre="3D+1",
+            skills={"blaster": "4D", "dodge": "4D", "brawling": "4D+2",
+                    "intimidation": "4D", "bargain": "3D+1"},
+            weapon="blaster_pistol"),
+     _ai(personality="Wuher is non-communicative and ill-tempered. He hates Droids. "
+         "Gruff, terse, speaks in short sentences. Knows everything but shares nothing.",
+         knowledge=["Chalmun owns the cantina and keeps a bowcaster behind the bar",
+                     "Jabba controls most criminal activity", "No Droids allowed",
+                     "The band is Figrin Da'n and the Modal Nodes"],
+         style="Extremely terse. Grunts. Never volunteers info.",
+         fallbacks=["Wuher grunts and continues polishing a glass.",
+                    "Wuher glances at you. 'What'll it be.'",
+                    "'We don't serve their kind here.'"],
+         behavior="defensive")),
+
+    ("Chalmun", 13, "Wookiee",
+     "A beige and gray Wookiee with a scar across his chest, the cantina's owner.",
+     _sheet(dex="2D+2", kno="2D+1", per="3D", stre="5D+2", tec="2D",
+            skills={"brawling": "6D+1", "intimidation": "4D", "bowcaster": "4D"},
+            weapon="bowcaster", species="Wookiee"),
+     _ai(personality="Chalmun is a rough-but-warm Wookiee owner. Protective of his bar. "
+         "Keeps a bowcaster behind the counter.",
+         knowledge=["Bought the cantina with gambling profits from Ord Mantell",
+                     "Pays Jabba protection money"],
+         style="Growls and roars. Use *growls*, rough translated speech.",
+         fallbacks=["*Chalmun growls a warning and gestures at the door.*",
+                    "*The big Wookiee eyes you warily, one paw near the bowcaster.*"],
+         behavior="aggressive")),
+
+    ("Oxbell", 13, "Devaronian",
+     "A horned humanoid with razor teeth, nursing a drink in a booth.",
+     _sheet(dex="2D+2", kno="3D+1", per="4D", stre="2D+1",
+            skills={"dodge": "3D+2", "streetwise": "5D", "bargain": "4D+1",
+                    "con": "4D", "blaster": "3D"},
+            weapon="hold_out_blaster"),
+     _ai(personality="Oxbell is a Devaronian info broker. Drunk most of the time. "
+         "Babbles gossip without discrimination. Will share rumors for a drink.",
+         knowledge=["Most gossip in Mos Eisley", "Jabba's people buy info",
+                     "A new spice operation might rival Jabba"],
+         style="Slurred, rambling. Morose then chatty. Bribed with drinks.",
+         fallbacks=["'Buy me a drink and I'll tell you something interesting.'",
+                    "*Oxbell takes a long swig and peers at you with bloodshot eyes.*"],
+         behavior="cowardly")),
+
+    # -- Cantina Thugs (HOSTILE) --
+    ("Ponda Baba's Associate", 13, "Aqualish",
+     "A scarred Aqualish thug hunched over a drink, watching the room with hostility.",
+     _sheet(dex="3D+2", per="2D+1", stre="4D",
+            skills={"blaster": "4D+2", "brawling": "5D", "dodge": "4D",
+                    "melee combat": "4D+1", "intimidation": "3D+2"},
+            weapon="vibroblade", species="Aqualish"),
+     _ai(personality="A violent thug looking for trouble. Quick to pick fights.",
+         style="Threatening grunts and snarls.",
+         fallbacks=["The Aqualish snarls at you menacingly.",
+                    "*He reaches for his weapon.*"],
+         hostile=True, behavior="aggressive")),
+
+    # -- Government NPCs --
+    ("Prefect Talmont", 20, "Human",
+     "A wiry man with an obvious toupee and an air of self-importance.",
+     _sheet(dex="2D", kno="3D+2", per="3D+1", stre="2D", tec="2D+1",
+            skills={"blaster": "2D+2", "bureaucracy": "5D", "law_enforcement": "4D",
+                    "command": "3D+2", "bargain": "4D"}),
+     _ai(personality="Eugene Talmont is the Imperial Prefect. Full of himself, "
+         "overestimates his importance. Nearsighted but too vain for lenses.",
+         knowledge=["Governor Tour Aryon runs Tatooine from Bestine",
+                     "Lieutenant Harburik is Chief of Police",
+                     "Previous Prefect Orun Depp killed by assassin Droid"],
+         faction="Imperial",
+         style="Pompous, formal. Projects authority he doesn't possess.",
+         fallbacks=["Talmont adjusts his toupee nervously. 'Yes, well. I'm very busy.'",
+                    "'This is a matter for the proper authorities. Which is to say, me.'"],
+         behavior="cowardly")),
+
+    ("Lieutenant Harburik", 21, "Human",
+     "A large, well-muscled man with a vicious look. The Chief of Police.",
+     _sheet(dex="3D+2", kno="2D+2", per="3D+2", stre="4D",
+            skills={"blaster": "5D+1", "brawling": "5D", "dodge": "4D+2",
+                    "intimidation": "5D", "law_enforcement": "4D+1",
+                    "melee combat": "4D+2"},
+            weapon="heavy_blaster_pistol"),
+     _ai(personality="Harburik is crass, rude, and cruel. Enjoys being a big fish. "
+         "Well-armed and dangerous.",
+         knowledge=["Commands about 20 police officers",
+                     "Prefect Talmont is an incompetent fool",
+                     "Considers having Talmont removed"],
+         faction="Imperial",
+         style="Threatening, direct. Barely contained aggression.",
+         fallbacks=["'Let me see your identification. Now.'",
+                    "Harburik cracks his knuckles meaningfully."],
+         behavior="aggressive")),
+
+    # -- Shops --
+    ("Kal Lup", 15, "Shistavanen",
+     "A fierce-looking but friendly Shistavanen Wolfman behind the counter.",
+     _sheet(dex="3D+1", per="3D", stre="4D",
+            skills={"blaster": "4D", "dodge": "3D+2", "brawling": "4D+1",
+                    "bargain": "4D+2"},
+            weapon="blaster_carbine", species="Shistavanen"),
+     _ai(personality="Kal Lup is genuinely friendly despite his fierce appearance. "
+         "Runs the general store with his husband Tar.",
+         knowledge=["Stocks provisions, supplies, machinery, medical equipment, weapons",
+                     "Prices 90-110% standard, medical/weapons 120%",
+                     "Has a blaster carbine hidden behind the counter"],
+         style="Friendly, welcoming. Good shopkeeper patter.",
+         fallbacks=["Kal Lup bares his fangs in what is apparently a smile. 'Welcome!'",
+                    "'We have everything you need, friend.'"],
+         behavior="defensive")),
+
+    ("Unut Poll", 3, "Arcona",
+     "An older Arconan with a gentle face. The speeder shop proprietor.",
+     _sheet(dex="2D+1", kno="3D", mec="4D+1", per="3D+2", stre="2D", tec="4D",
+            skills={"repulsorlift_operation": "5D+2", "repulsorlift_repair": "5D+1",
+                    "bargain": "4D+1", "con": "4D", "dodge": "3D"},
+            species="Arcona"),
+     _ai(personality="Unut Poll is a quirky old charmer. Loves speeders. Secretly "
+         "aids the Rebel Alliance but is extremely cautious.",
+         knowledge=["Has speeders for sale including an XP-38 and T-16 Skyhopper",
+                     "Secretly supports the Rebellion"],
+         faction="Secretly Rebel Alliance",
+         style="Charming, folksy, eccentric. Deflects personal questions.",
+         fallbacks=["'Looking for transportation?'",
+                    "'Ah, that XP-38? Fine machine. Let me tell you...'"],
+         behavior="cowardly")),
+
+    ("Moplin Jarron", 28, "Sullustan",
+     "A nervous little Sullustan with a perpetual squint.",
+     _sheet(dex="2D+2", kno="3D", per="3D+1", stre="2D",
+            skills={"forgery": "5D+2", "con": "4D+1", "dodge": "3D+1",
+                    "hide": "4D", "sneak": "4D"},
+            weapon="hold_out_blaster", species="Sullustan"),
+     _ai(personality="Moplin runs the souvenir shop as a front for forgery. "
+         "Laughs a lot for no reason. Nervous and twitchy.",
+         knowledge=["Can forge IDs: township 100 cr, passports 200 cr",
+                     "Bought the shop from Tebbi, daughter of original Heff"],
+         style="Nervous, twitchy. Laughs at odd moments. Conspiratorial tone.",
+         fallbacks=["'Hee! Just souvenirs here, friend. Just souvenirs.'",
+                    "*The Sullustan hunches lower behind the counter, eyes darting.*"],
+         behavior="cowardly")),
+
+    ("Kayson", 27, "Unknown",
+     "A grizzled alien weaponsmith with atrocious manners.",
+     _sheet(dex="3D+2", kno="3D", per="2D+2", stre="3D+1", tec="4D",
+            skills={"blaster": "5D", "blaster_repair": "5D+2",
+                    "melee combat": "4D", "dodge": "4D"},
+            weapon="heavy_blaster_pistol"),
+     _ai(personality="Grizzled arms dealer with terrible manners. Knows weapons "
+         "intimately. Maintains appearance of legitimacy while running black market.",
+         knowledge=["Heavy blaster pistols 1,500 cr, rifles 2,000",
+                     "Black market weapons available",
+                     "Thermal detonators 4,000 cr"],
+         style="Gruff, sour, minimal words. Suspicious of new customers.",
+         fallbacks=["'Credits first. Then we talk.'",
+                    "*The old alien eyes you with undisguised suspicion.*"],
+         behavior="aggressive")),
+
+    # -- Docking Bay --
+    ("Ohwun De Maal", 1, "Duros",
+     "An unremarkable blue-skinned Duros in work clothes, co-owner of Bay 94.",
+     _sheet(dex="2D+1", kno="3D", mec="3D+2", per="3D", stre="2D+1", tec="3D+1",
+            skills={"bargain": "4D", "space_transports": "4D+1",
+                    "starship_repair": "4D"},
+            species="Duros"),
+     _ai(personality="Ohwun is devout, honest, hardworking. Runs Bay 94 with his "
+         "mate Chachi. Nobody's fool.",
+         knowledge=["Bay 94 charges 25 cr/day", "Fuel cells 10 cr each",
+                     "Owns five other bays and eight warehouses"],
+         style="Quiet, polite, professional. Duros accent.",
+         fallbacks=["'Welcome to Docking Bay 94. De Maal Docking Services.'",
+                    "'We run an honest operation here. Always have.'"],
+         behavior="defensive")),
+
+    # -- Stormtroopers (HOSTILE) --
+    ("Imperial Stormtrooper", 9, "Human",
+     "A stormtrooper in scuffed white armor, blaster rifle at the ready.",
+     _sheet(dex="3D+1", kno="2D", mec="2D+1", per="2D+2", stre="3D", tec="2D",
+            skills={"blaster": "4D+1", "brawling": "4D", "dodge": "4D",
+                    "melee combat": "3D+2"}),
+     _ai(personality="Standard Imperial stormtrooper. Follows orders.",
+         hostile=True, behavior="aggressive",
+         style="Clipped military speech.",
+         fallbacks=["'Halt! Show me your identification.'",
+                    "'Move along. Move along.'"])),
+
+    ("Imperial Stormtrooper", 22, "Human",
+     "A stormtrooper standing guard at the militia headquarters.",
+     _sheet(dex="3D+1", kno="2D", mec="2D+1", per="2D+2", stre="3D", tec="2D",
+            skills={"blaster": "4D+1", "brawling": "4D", "dodge": "4D",
+                    "melee combat": "3D+2"}),
+     _ai(personality="Standard Imperial stormtrooper on guard duty.",
+         hostile=True, behavior="aggressive",
+         style="Military.",
+         fallbacks=["'This area is restricted.'",
+                    "'Move along.'"])),
+
+    # -- Jabba's Guard (HOSTILE) --
+    ("Gamorrean Guard", 19, "Gamorrean",
+     "A massive green-skinned Gamorrean guard in crude armor, wielding a vibro-ax.",
+     _sheet(dex="2D+1", kno="1D", per="1D+2", stre="5D", tec="1D",
+            skills={"melee combat": "5D+2", "brawling": "5D+1", "dodge": "3D"},
+            weapon="vibro_ax", species="Gamorrean"),
+     _ai(personality="A dim but loyal Gamorrean guard. Attacks intruders on sight.",
+         hostile=True, behavior="berserk",
+         fallbacks=["*The Gamorrean squeals and charges!*",
+                    "*A massive green fist swings toward you!*"])),
+
+    # -- Lucky Despot Bounty Hunter (HOSTILE) --
+    ("Valarian's Enforcer", 32, "Whiphid",
+     "A hulking Whiphid enforcer with cybernetic tusks, watching the casino floor.",
+     _sheet(dex="3D", kno="2D", per="3D+1", stre="5D+1", tec="2D",
+            skills={"blaster": "4D+2", "brawling": "6D", "dodge": "4D",
+                    "intimidation": "5D", "melee combat": "5D"},
+            weapon="vibroblade", species="Whiphid"),
+     _ai(personality="Valarian's personal enforcer. Watches for trouble.",
+         hostile=True, behavior="aggressive",
+         fallbacks=["*The Whiphid rises to its full height, cybernetic tusks gleaming.*",
+                    "'You shouldn't be here.'"])),
+]
+
+# ==============================================================
+# HIREABLE CREW NPCs -- Available at cantina/spaceport
+# These have space-relevant skills and are NOT hostile.
+# (name, room_idx, species, desc, char_sheet, ai_config)
+# ==============================================================
+HIREABLE_CREW = [
+    ("Kael Voss", 13, "Human",
+     "A lean Human pilot with quick eyes and a flight jacket covered in unit patches.",
+     _sheet(dex="3D+1", mec="4D+1", per="3D", stre="2D+2", tec="3D",
+            skills={"dodge": "4D", "blaster": "4D", "starfighter_piloting": "5D+1",
+                    "space_transports": "5D", "starship_gunnery": "4D+2",
+                    "astrogation": "4D"}),
+     _ai(personality="Kael is a former Republic Navy pilot turned freelancer. "
+         "Competent, confident, professional.",
+         style="Calm, professional. Military bearing.",
+         fallbacks=["'Need a pilot? I've flown worse than whatever you've got.'",
+                    "Kael checks instrument readings out of habit."],
+         space_skills={"space transports": "5D", "starfighter piloting": "5D+1",
+                       "starship gunnery": "4D+2", "astrogation": "4D"})),
+
+    ("Grek Duul", 13, "Rodian",
+     "A green-skinned Rodian with a modified targeting visor over one eye.",
+     _sheet(dex="4D", mec="3D+1", per="3D+2", stre="2D+1", tec="2D+2",
+            skills={"blaster": "5D", "dodge": "4D+2", "starship_gunnery": "5D+2",
+                    "sensors": "4D"},
+            species="Rodian"),
+     _ai(personality="Grek is a crack shot. Talks about weapons obsessively. "
+         "Former bounty hunter who decided shooting from a turret was safer.",
+         style="Eager, gun-obsessed. Speaks with Rodian accent.",
+         fallbacks=["Grek adjusts his targeting visor. 'I never miss. Almost never.'",
+                    "'Point me at a turret and watch the fireworks.'"],
+         space_skills={"starship gunnery": "5D+2", "sensors": "4D"})),
+
+    ("Mira Tann", 30, "Human",
+     "A wiry Human mechanic with grease-stained coveralls and a confident smile.",
+     _sheet(dex="2D+2", mec="3D", per="3D", stre="3D+1", tec="4D+2",
+            skills={"dodge": "3D+1", "space_transports_repair": "5D+1",
+                    "starship_weapon_repair": "4D+2", "droid_repair": "4D",
+                    "space_transports": "3D+2"}),
+     _ai(personality="Mira keeps ships running with baling wire and ingenuity. "
+         "Self-taught. Prefers machines to people.",
+         style="Practical, no-nonsense. Talks in technical jargon.",
+         fallbacks=["'What'd you do to this poor ship?'",
+                    "Mira peers into an access panel, already diagnosing."],
+         space_skills={"space transports repair": "5D+1",
+                       "starship weapon repair": "4D+2"})),
+
+    ("Tik-So", 30, "Sullustan",
+     "A bright-eyed Sullustan navigator with a datapad full of star charts.",
+     _sheet(dex="2D+1", kno="3D+2", mec="4D", per="3D", stre="2D", tec="3D+1",
+            skills={"astrogation": "5D+2", "space_transports": "4D+1",
+                    "sensors": "4D+2", "planetary_systems": "4D+1"},
+            species="Sullustan"),
+     _ai(personality="Tik-So has memorized half the known hyperlanes. Chatty. "
+         "Tells stories about every system he's visited.",
+         style="Enthusiastic, chatty. Lots of space trivia.",
+         fallbacks=["'I can plot a jump to Kessel in twelve parsecs! Well, fourteen.'",
+                    "Tik-So scrolls through star charts eagerly."],
+         space_skills={"astrogation": "5D+2", "sensors": "4D+2",
+                       "space transports": "4D+1"})),
+]
+
+# ==============================================================
+# PRE-SPAWNED SHIPS
+# (template_key, ship_name, docked_at_room_idx, bridge_desc)
+# ==============================================================
+SHIPS = [
+    # A beat-up YT-1300 in Bay 94 -- the "starter ship" players can buy
+    ("yt_1300", "Rusty Mynock", 1,
+     "The cockpit of this battered YT-1300 hums with mismatched instruments. "
+     "Half the warning lights are on. A co-pilot station sits to the right. "
+     "Gunner turret access is through the dorsal hatch."),
+
+    # A Z-95 Headhunter in Bay 86 -- cheap starter fighter
+    ("z_95", "Dusty Hawk", 4,
+     "The cramped cockpit of this old Z-95 Headhunter smells of coolant and "
+     "old sweat. Instruments flicker. The ejection seat looks questionable."),
+
+    # A Ghtroc 720 freighter in Bay 87 -- mid-tier freighter
+    ("ghtroc_720", "Krayt's Fortune", 5,
+     "The bridge of this Ghtroc 720 is surprisingly spacious for a light freighter. "
+     "The Corellian-style controls are worn smooth from years of use. A co-pilot "
+     "station and nav computer dominate the right side."),
+
+    # An Imperial Lambda shuttle in Bay 92 -- seized by customs, expensive
+    ("lambda_shuttle", "Imperial Surplus 7", 6,
+     "The bridge of this Lambda-class shuttle still bears Imperial insignia. "
+     "Three crew stations face forward. The controls are military-precise. "
+     "Someone has scratched 'SURPLUS - DO NOT REQUISITION' into the console."),
 ]
 
 
-# ══════════════════════════════════════════════════════════════
-#  BUILD SCRIPT
-# ══════════════════════════════════════════════════════════════
+# ==============================================================
+# BUILD FUNCTION
+# ==============================================================
 
 async def build():
     db = Database("sw_mush.db")
     await db.connect()
     await db.initialize()
 
-    print("Building Mos Eisley...")
+    print("+============================================+")
+    print("|    Building Mos Eisley v2 -- Full World      |")
+    print("+============================================+")
 
-    # ── Create Zones with default properties ──
-    # Zone properties are inherited by all rooms in the zone
-    # (rooms can override individual properties)
-    print("  Creating zones...")
+    # -- Zones --
+    print("\n  Creating zones...")
     zones = {}
-
     zones["mos_eisley"] = await db.create_zone(
-        "Mos Eisley", properties=json.dumps({
-            "environment": "desert_urban",
-            "lighting": "bright",
-            "gravity": "standard",
-        })
-    )
+        "Mos Eisley", properties=json.dumps({"environment": "desert_urban",
+                                              "lighting": "bright", "gravity": "standard"}))
     zones["spaceport"] = await db.create_zone(
         "Spaceport District", parent_id=zones["mos_eisley"],
-        properties=json.dumps({
-            "cover_max": 3,  # Cargo crates, landing gear, fuel cells
-            "environment": "industrial",
-        })
-    )
+        properties=json.dumps({"cover_max": 3, "environment": "industrial"}))
     zones["cantina"] = await db.create_zone(
         "Chalmun's Cantina", parent_id=zones["mos_eisley"],
-        properties=json.dumps({
-            "cover_max": 2,  # Tables, bar, booths
-            "lighting": "dim",
-            "environment": "cantina",
-        })
-    )
+        properties=json.dumps({"cover_max": 2, "lighting": "dim", "environment": "cantina"}))
     zones["streets"] = await db.create_zone(
         "Streets & Markets", parent_id=zones["mos_eisley"],
-        properties=json.dumps({
-            "cover_max": 1,  # Stalls, walls, doorways
-            "environment": "street",
-        })
-    )
+        properties=json.dumps({"cover_max": 1, "environment": "street"}))
     zones["government"] = await db.create_zone(
         "Government Quarter", parent_id=zones["mos_eisley"],
-        properties=json.dumps({
-            "cover_max": 1,
-            "environment": "official",
-        })
-    )
+        properties=json.dumps({"cover_max": 1, "environment": "official"}))
     zones["jabba"] = await db.create_zone(
         "Jabba's Townhouse", parent_id=zones["mos_eisley"],
-        properties=json.dumps({
-            "cover_max": 2,  # Columns, tapestries
-            "lighting": "dim",
-            "environment": "palatial",
-        })
-    )
+        properties=json.dumps({"cover_max": 2, "lighting": "dim", "environment": "palatial"}))
     zones["shops"] = await db.create_zone(
         "Commercial District", parent_id=zones["mos_eisley"],
-        properties=json.dumps({
-            "cover_max": 2,  # Shelves, display cases, counters
-            "environment": "commercial",
-        })
-    )
+        properties=json.dumps({"cover_max": 2, "environment": "commercial"}))
     print(f"    {len(zones)} zones created")
 
-    # Room index -> zone key mapping
-    ROOM_ZONES = {
-        0: "spaceport", 1: "spaceport", 2: "spaceport", 3: "spaceport",
-        4: "spaceport", 5: "spaceport", 6: "spaceport",
-        7: "streets", 8: "streets", 9: "streets", 10: "streets", 11: "streets",
-        12: "cantina", 13: "cantina", 14: "cantina",
-        15: "shops", 16: "shops",
-        17: "shops",
-        18: "jabba", 19: "jabba",
-        20: "government", 21: "government", 22: "government",
-        23: "spaceport", 24: "spaceport",
-        25: "shops", 26: "spaceport",
-        27: "shops", 28: "shops", 29: "shops",
-        30: "spaceport",
-        31: "shops", 32: "shops", 33: "shops",
-        34: "spaceport", 35: "shops",
-        36: "streets", 37: "streets", 38: "streets",
-        39: "spaceport",
-    }
-
-    # Room-specific property overrides (these override zone defaults)
-    ROOM_OVERRIDES = {
-        1:  {"cover_max": 4},   # Docking Bay 94 pit: full cover behind ship/gear
-        13: {"cover_max": 2},   # Cantina main bar: tables, bar counter
-        14: {"cover_max": 1},   # Back hallway: narrow, little cover
-        19: {"cover_max": 3},   # Jabba's audience chamber: columns, throne platform
-        21: {"cover_max": 2},   # Police station: desks, walls
-        24: {"cover_max": 0},   # Power station: open machinery, dangerous
-        26: {"cover_max": 3},   # Control tower: consoles, equipment
-        37: {"cover_max": 0},   # Dowager Queen wreckage: open rubble field
-    }
-
-    # ── Create Rooms ──
-    print(f"  Creating {len(ROOMS)} rooms...")
+    # -- Rooms --
+    print(f"\n  Creating {len(ROOMS)} rooms...")
     room_ids = []
     for i, (name, short, long) in enumerate(ROOMS):
         zone_key = ROOM_ZONES.get(i)
@@ -979,118 +724,96 @@ async def build():
         props = json.dumps(ROOM_OVERRIDES.get(i, {}))
         rid = await db.create_room(name, short, long, zone_id=zone_id, properties=props)
         room_ids.append(rid)
-        zone_tag = f" [{zone_key}]" if zone_key else ""
-        print(f"    [{rid:3d}] {name}{zone_tag}")
+        print(f"    [{rid:3d}] {name}")
 
+    # -- Exits --
     print(f"\n  Creating {len(EXITS)} exit pairs...")
     for from_idx, to_idx, direction, reverse in EXITS:
         from_id = room_ids[from_idx]
         to_id = room_ids[to_idx]
         await db.create_exit(from_id, to_id, direction)
         await db.create_exit(to_id, from_id, reverse)
-        from_name = ROOMS[from_idx][0].split(" - ")[0][:25]
-        to_name = ROOMS[to_idx][0].split(" - ")[0][:25]
-        print(f"    {from_name:25s} <--{direction:^12s}--> {to_name}")
 
-    # Connect to the existing seed rooms (1=Landing Pad, 2=Street, 3=Cantina)
-    # Link seed room 2 (Mos Eisley Street) to Spaceport Row
-    spaceport_row_id = room_ids[7]  # "Mos Eisley Street - Spaceport Row"
-    print(f"\n  Linking seed rooms to new Mos Eisley...")
-    # Seed room 1 (Landing Pad) -> Spaceport Row
+    # Connect to seed rooms (1=Landing Pad, 2=Mos Eisley Street, 3=Cantina)
+    print("\n  Linking seed rooms to new Mos Eisley...")
+    spaceport_row_id = room_ids[7]
+    market_id = room_ids[8]
+    cantina_entrance_id = room_ids[12]
+
     await db.create_exit(1, spaceport_row_id, "north")
     await db.create_exit(spaceport_row_id, 1, "south")
-    print(f"    Landing Pad (#1) <-> Spaceport Row (#{spaceport_row_id})")
+    await db.create_exit(2, market_id, "north")
+    await db.create_exit(market_id, 2, "south")
+    await db.create_exit(3, cantina_entrance_id, "east")
+    await db.create_exit(cantina_entrance_id, 3, "west")
+    print("    Seed rooms linked (Landing Pad, Street, Cantina)")
 
-    # Seed room 2 (Mos Eisley Street) -> Market District
-    market_id = room_ids[8]
-    await db.create_exit(2, market_id, "west")
-    await db.create_exit(market_id, 2, "east")
-    print(f"    Mos Eisley Street (#2) <-> Market District (#{market_id})")
-
-    # Seed room 3 (Chalmun's Cantina) -> Cantina Main Bar (replace with the new one)
-    # Link seed cantina to new cantina entrance
-    cantina_entrance_id = room_ids[12]
-    await db.create_exit(3, cantina_entrance_id, "north")
-    await db.create_exit(cantina_entrance_id, 3, "south")
-    print(f"    Seed Cantina (#3) <-> Cantina Entrance (#{cantina_entrance_id})")
-
-    # ── Lock some exits ──
-    print(f"\n  Setting exit locks...")
-
-    # Jabba's Townhouse: only the bold or connected get in
-    jabba_entrance_exits = await db.get_exits(room_ids[18])
-    # Lock the entrance from the street into Jabba's audience chamber
-    audience_exits = await db.get_exits(room_ids[19])
-    for ex in audience_exits:
-        # Lock the way INTO the audience chamber from the entrance
-        if ex["to_room_id"] == room_ids[19] and ex["from_room_id"] == room_ids[18]:
-            pass  # Entrance itself is open
-    # Find the exit from entrance -> audience chamber
-    for ex in await db.get_exits(room_ids[18]):
-        if ex["to_room_id"] == room_ids[19]:
-            await db.update_exit(ex["id"], lock_data="!wounded")
-            print(f"    Jabba's Audience Chamber: !wounded")
-            break
-
-    # Police Station: admin or builder only
-    for ex in await db.get_exits(room_ids[9]):  # Government Quarter street
-        if ex["to_room_id"] == room_ids[21]:
-            await db.update_exit(ex["id"], lock_data="admin | builder")
-            print(f"    Police Station (from street): admin | builder")
-            break
-
-    # Militia HQ: same
-    for ex in await db.get_exits(room_ids[9]):
-        if ex["to_room_id"] == room_ids[22]:
-            await db.update_exit(ex["id"], lock_data="admin | builder")
-            print(f"    Militia HQ (from street): admin | builder")
-            break
-
-    # Cantina back hallway: Wookiees have trouble fitting
-    for ex in await db.get_exits(room_ids[13]):
-        if ex["to_room_id"] == room_ids[14]:
-            await db.update_exit(ex["id"], lock_data="!species:wookiee")
-            print(f"    Cantina Back Hallway: !species:wookiee (too narrow)")
-            break
-
-    # Control Tower: restricted
-    for ex in await db.get_exits(room_ids[7]):
-        if ex["to_room_id"] == room_ids[26]:
-            await db.update_exit(ex["id"],
-                lock_data="admin | builder | skill:bureaucracy:3D")
-            print(f"    Control Tower: admin | builder | skill:bureaucracy:3D")
-            break
-
-    # Dim-U Monastery: force sensitive or high knowledge
-    for ex in await db.get_exits(room_ids[10]):
-        if ex["to_room_id"] == room_ids[36]:
-            await db.update_exit(ex["id"],
-                lock_data="force_sensitive | skill:scholar:2D")
-            print(f"    Dim-U Monastery: force_sensitive | skill:scholar:2D")
-            break
-
-    print(f"\n  Creating {len(NPCS)} NPCs...")
-    for name, room_idx, species, desc, ai_cfg in NPCS:
-        room_id = room_ids[room_idx]
+    # -- NPCs (combat-ready) --
+    print(f"\n  Creating {len(NPCS)} combat-ready NPCs...")
+    npc_count = 0
+    for name, room_idx, species, desc, sheet, ai_cfg in NPCS:
+        rid = room_ids[room_idx]
         npc_id = await db.create_npc(
-            name=name,
-            room_id=room_id,
-            species=species,
-            description=desc,
+            name=name, room_id=rid, species=species, description=desc,
+            char_sheet_json=json.dumps(sheet),
             ai_config_json=json.dumps(ai_cfg),
         )
-        print(f"    [{npc_id:3d}] {name:20s} -> {ROOMS[room_idx][0][:40]}")
+        hostile_tag = " [HOSTILE]" if ai_cfg.get("hostile") else ""
+        print(f"    #{npc_id:3d} {name:30s} in {ROOMS[room_idx][0][:25]}{hostile_tag}")
+        npc_count += 1
+
+    # -- Hireable Crew NPCs --
+    print(f"\n  Creating {len(HIREABLE_CREW)} hireable crew NPCs...")
+    for name, room_idx, species, desc, sheet, ai_cfg in HIREABLE_CREW:
+        rid = room_ids[room_idx]
+        npc_id = await db.create_npc(
+            name=name, room_id=rid, species=species, description=desc,
+            char_sheet_json=json.dumps(sheet),
+            ai_config_json=json.dumps(ai_cfg),
+        )
+        print(f"    #{npc_id:3d} {name:30s} [HIREABLE] in {ROOMS[room_idx][0][:25]}")
+        npc_count += 1
+
+    # -- Ships --
+    print(f"\n  Spawning {len(SHIPS)} ships in docking bays...")
+    for template_key, ship_name, bay_idx, bridge_desc in SHIPS:
+        bay_room_id = room_ids[bay_idx]
+        # Create bridge room
+        bridge_id = await db.create_room(
+            f"{ship_name} - Bridge",
+            f"The bridge of the {ship_name}.",
+            bridge_desc,
+        )
+        # Create the ship record
+        cursor = await db._db.execute(
+            """INSERT INTO ships (template, name, bridge_room_id, docked_at,
+               hull_damage, shield_damage, systems, crew, cargo)
+               VALUES (?, ?, ?, ?, 0, 0, '{}', '{}', '[]')""",
+            (template_key, ship_name, bridge_id, bay_room_id),
+        )
+        await db._db.commit()
+        ship_id = cursor.lastrowid
+
+        # Create exit from bay to bridge and back
+        await db.create_exit(bay_room_id, bridge_id, "board")
+        await db.create_exit(bridge_id, bay_room_id, "disembark")
+
+        bay_name = ROOMS[bay_idx][0]
+        print(f"    Ship #{ship_id:3d} '{ship_name}' ({template_key}) docked at {bay_name}")
+
+    # -- Summary --
+    total_rooms = len(ROOMS) + len(SHIPS)  # rooms + bridge rooms
+    total_exits = len(EXITS) * 2 + 6 + len(SHIPS) * 2  # pairs + seed links + ship exits
+    print(f"\n  +======================================+")
+    print(f"  |  BUILD COMPLETE                      |")
+    print(f"  |  Rooms:    {total_rooms:4d}                      |")
+    print(f"  |  Exits:    {total_exits:4d}                      |")
+    print(f"  |  NPCs:     {npc_count:4d} ({sum(1 for _,_,_,_,_,a in NPCS if a.get('hostile')):d} hostile)           |")
+    print(f"  |  Crew:     {len(HIREABLE_CREW):4d} (hireable)           |")
+    print(f"  |  Ships:    {len(SHIPS):4d} (docked)              |")
+    print(f"  +======================================+")
 
     await db.close()
-    total_rooms = len(ROOMS)
-    total_exits = len(EXITS) * 2
-    total_npcs = len(NPCS)
-    print(f"\nDone! Mos Eisley is built.")
-    print(f"  {total_rooms} rooms, {total_exits} exits, {total_npcs} NPCs")
-    print(f"  {len(zones)} zones with inherited properties")
-    print(f"  Zones provide default cover_max for all rooms in the zone")
-    print(f"  Rooms with overrides: {len(ROOM_OVERRIDES)}")
-    print(f"\nConnect and type 'look' to explore. The Landing Pad now connects north to the spaceport.")
 
 
 if __name__ == "__main__":

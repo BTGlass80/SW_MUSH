@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 D6 Dice Engine - Star Wars D6 Revised & Expanded
 
@@ -118,11 +119,11 @@ class RollResult:
     removed_die: Optional[int] = None
 
     def display(self) -> str:
-        """Formatted: '[4D+2] 3, 5, 2, W:6→4 (+2) = 22'"""
+        """Formatted: '[4D+2] 3, 5, 2, W:6->4 (+2) = 22'"""
         parts = [str(d) for d in self.normal_dice]
         if self.wild_die:
             if self.wild_die.exploded:
-                chain = "\u2192".join(str(r) for r in self.wild_die.rolls)
+                chain = "->".join(str(r) for r in self.wild_die.rolls)
                 parts.append(f"W:{chain}")
             elif self.wild_die.complication:
                 parts.append("W:1!")
@@ -144,7 +145,7 @@ class CheckResult:
 
     def display(self) -> str:
         outcome = "SUCCESS" if self.success else "FAILURE"
-        return f"{self.roll.display()} vs {self.target} \u2192 {outcome} (margin: {self.margin:+d})"
+        return f"{self.roll.display()} vs {self.target} -> {outcome} (margin: {self.margin:+d})"
 
 
 @dataclass
@@ -160,7 +161,7 @@ class OpposedResult:
         return (
             f"Attacker: {self.attacker_roll.display()}\n"
             f"Defender: {self.defender_roll.display()}\n"
-            f"\u2192 {winner} by {abs(self.margin)}"
+            f"-> {winner} by {abs(self.margin)}"
         )
 
 

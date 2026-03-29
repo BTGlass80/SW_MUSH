@@ -1,5 +1,5 @@
 """
-NPC Generator — Universe Standard (GM Handbook 2nd Edition).
+NPC Generator -- Universe Standard (GM Handbook 2nd Edition).
 
 Generates balanced NPC stat blocks using the official WEG dice
 budget system from the Gamemaster Handbook, Chapter 4.
@@ -56,7 +56,7 @@ class NPCArchetype:
     force_sensitive: bool = False
 
 
-# ── Pre-built Archetypes ──
+# -- Pre-built Archetypes --
 # Based on the character templates and NPC examples from the rulebooks
 
 ARCHETYPES: dict[str, NPCArchetype] = {
@@ -182,7 +182,7 @@ ARCHETYPES: dict[str, NPCArchetype] = {
 }
 
 
-# ── Tier Budget Tables ──
+# -- Tier Budget Tables --
 # These define attribute ranges and skill dice by tier.
 # Attribute dice = total pips across 6 attributes.
 # Skill dice = total extra pips in skills above attribute.
@@ -271,11 +271,11 @@ def generate_npc(
 
     budget = TIER_BUDGETS[tier]
 
-    # ── Distribute attribute pips ──
+    # -- Distribute attribute pips --
     total_attr_pips = random.randint(budget.attr_pips_min, budget.attr_pips_max)
     attrs = _distribute_attr_pips(total_attr_pips, arch)
 
-    # ── Distribute skill pips ──
+    # -- Distribute skill pips --
     total_skill_pips = random.randint(budget.skill_pips_min, budget.skill_pips_max)
     skills = _distribute_skill_pips(
         total_skill_pips, arch, budget.max_single_skill

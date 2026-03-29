@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Character model for the D6 system.
 

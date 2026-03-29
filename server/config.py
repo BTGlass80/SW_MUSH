@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Server configuration - all tunables in one place.
 """

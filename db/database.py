@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Database layer - SQLite with WAL mode, async via aiosqlite.
 Handles schema creation, migrations, and core CRUD operations.
@@ -6,12 +7,13 @@ import aiosqlite
 import bcrypt
 import logging
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 log = logging.getLogger(__name__)
 
-# ── Schema version ──
+# -- Schema version --
 SCHEMA_VERSION = 2
 
 SCHEMA_SQL = """
@@ -206,7 +208,7 @@ INSERT OR IGNORE INTO exits (id, from_room_id, to_room_id, direction) VALUES (3,
 INSERT OR IGNORE INTO exits (id, from_room_id, to_room_id, direction) VALUES (4, 3, 2, 'west');
 """
 
-# ── Migrations ──
+# -- Migrations --
 # Each key is the target version; value is a list of SQL statements to apply.
 # Migrations run in order for any version > current DB version.
 MIGRATIONS = {
@@ -270,7 +272,7 @@ class Database:
             stmts = MIGRATIONS.get(target, [])
             if not stmts:
                 continue
-            log.info("Applying migration v%d → v%d (%d statements)",
+            log.info("Applying migration v%d -> v%d (%d statements)",
                      target - 1, target, len(stmts))
             for sql in stmts:
                 try:
@@ -290,7 +292,7 @@ class Database:
             await self._db.close()
             log.info("Database closed.")
 
-    # ── Account Operations ──
+    # -- Account Operations --
 
     async def create_account(self, username: str, password: str) -> Optional[int]:
         """Create a new account. Returns account ID or None if username taken.
@@ -336,9 +338,12 @@ class Database:
 
         # Check lockout
         if account.get("locked_until"):
-            import datetime
-            locked = datetime.datetime.fromisoformat(account["locked_until"])
-            if datetime.datetime.utcnow() < locked:
+            # SQLite stores datetimes as naive UTC strings; parse and compare
+            # using timezone-aware datetimes (utcnow() is deprecated in 3.12+).
+            locked = datetime.fromisoformat(account["locked_until"]).replace(
+                tzinfo=timezone.utc
+            )
+            if datetime.now(timezone.utc) < locked:
                 return None  # Still locked out
 
         # Verify password
@@ -388,10 +393,54 @@ class Database:
         )
         return dict(rows[0]) if rows else None
 
+    async def create_character(self, account_id: int, fields: dict) -> int:
+        """
+        Insert a new character row. Returns the new character's ID.
+
+        `fields` must be a dict from Character.to_db_dict(). Raises
+        aiosqlite.IntegrityError on duplicate name (UNIQUE constraint).
+        """
+        cursor = await self._db.execute(
+            """INSERT INTO characters
+               (account_id, name, species, template, attributes, skills,
+                wound_level, character_points, force_points,
+                dark_side_points, room_id, description)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                account_id,
+                fields["name"],
+                fields.get("species", "Human"),
+                fields.get("template", ""),
+                fields.get("attributes", "{}"),
+                fields.get("skills", "{}"),
+                fields.get("wound_level", 0),
+                fields.get("character_points", 5),
+                fields.get("force_points", 1),
+                fields.get("dark_side_points", 0),
+                fields.get("room_id", 1),
+                fields.get("description", ""),
+            ),
+        )
+        await self._db.commit()
+        return cursor.lastrowid
+
+    # Allowlisted column names for save_character.
+    # Only these fields may be updated via save_character(**kwargs) to prevent
+    # f-string SQL injection if a caller ever passes attacker-controlled keys.
+    _CHARACTER_WRITABLE_COLUMNS = frozenset({
+        "name", "species", "template", "attributes", "skills",
+        "wound_level", "character_points", "force_points", "dark_side_points",
+        "credits", "resources", "room_id", "inventory", "equipment",
+        "description", "is_active",
+    })
+
     async def save_character(self, char_id: int, **fields):
-        """Update arbitrary character fields."""
+        """Update arbitrary character fields (allowlisted columns only)."""
         if not fields:
             return
+        bad = set(fields) - self._CHARACTER_WRITABLE_COLUMNS
+        if bad:
+            raise ValueError(f"save_character: unknown/disallowed columns: {bad}")
         set_clause = ", ".join(f"{k} = ?" for k in fields)
         values = list(fields.values()) + [char_id]
         await self._db.execute(
@@ -399,7 +448,7 @@ class Database:
         )
         await self._db.commit()
 
-    # ── Room Operations ──
+    # -- Room Operations --
 
     async def get_room(self, room_id: int) -> Optional[dict]:
         """Fetch a room by ID."""
@@ -423,7 +472,7 @@ class Database:
         )
         return [dict(r) for r in rows]
 
-    # ── Room Building Operations ──
+    # -- Room Building Operations --
 
     async def create_room(self, name: str, desc_short: str = "",
                           desc_long: str = "", zone_id: int = None,
@@ -437,10 +486,17 @@ class Database:
         await self._db.commit()
         return cursor.lastrowid
 
+    _ROOM_WRITABLE_COLUMNS = frozenset({
+        "name", "desc_short", "desc_long", "zone_id", "properties",
+    })
+
     async def update_room(self, room_id: int, **fields):
-        """Update room fields."""
+        """Update room fields (allowlisted columns only)."""
         if not fields:
             return
+        bad = set(fields) - self._ROOM_WRITABLE_COLUMNS
+        if bad:
+            raise ValueError(f"update_room: unknown/disallowed columns: {bad}")
         set_clause = ", ".join(f"{k} = ?" for k in fields)
         values = list(fields.values()) + [room_id]
         await self._db.execute(
@@ -483,7 +539,7 @@ class Database:
         rows = await self._db.execute_fetchall("SELECT COUNT(*) as cnt FROM rooms")
         return rows[0]["cnt"]
 
-    # ── Zone Operations ──
+    # -- Zone Operations --
 
     async def get_zone(self, zone_id: int) -> Optional[dict]:
         """Fetch a zone by ID."""
@@ -598,7 +654,7 @@ class Database:
 
         return merged
 
-    # ── Exit Building Operations ──
+    # -- Exit Building Operations --
 
     async def create_exit(self, from_room: int, to_room: int,
                           direction: str, name: str = "") -> int:
@@ -628,10 +684,17 @@ class Database:
         await self._db.commit()
         return cursor.rowcount > 0
 
+    _EXIT_WRITABLE_COLUMNS = frozenset({
+        "from_room_id", "to_room_id", "direction", "name", "lock_data", "is_hidden",
+    })
+
     async def update_exit(self, exit_id: int, **fields):
-        """Update exit fields."""
+        """Update exit fields (allowlisted columns only)."""
         if not fields:
             return
+        bad = set(fields) - self._EXIT_WRITABLE_COLUMNS
+        if bad:
+            raise ValueError(f"update_exit: unknown/disallowed columns: {bad}")
         set_clause = ", ".join(f"{k} = ?" for k in fields)
         values = list(fields.values()) + [exit_id]
         await self._db.execute(
@@ -664,7 +727,7 @@ class Database:
         )
         return dict(rows[0]) if rows else None
 
-    # ── Mission Operations ──
+    # -- Mission Operations --
 
     async def create_mission(self, **fields) -> int:
         cols = ", ".join(fields.keys())
@@ -719,7 +782,7 @@ class Database:
         )
         await self._db.commit()
 
-    # ── Ship Operations ──
+    # -- Ship Operations --
 
     async def create_ship(self, template: str, name: str, owner_id: int,
                           bridge_room_id: int, docked_at: int) -> int:
@@ -768,9 +831,18 @@ class Database:
         )
         return [dict(r) for r in rows]
 
+    _SHIP_WRITABLE_COLUMNS = frozenset({
+        "template", "name", "owner_id", "bridge_room_id", "docked_at",
+        "hull_damage", "shield_damage", "systems", "crew", "cargo",
+    })
+
     async def update_ship(self, ship_id: int, **fields):
+        """Update ship fields (allowlisted columns only)."""
         if not fields:
             return
+        bad = set(fields) - self._SHIP_WRITABLE_COLUMNS
+        if bad:
+            raise ValueError(f"update_ship: unknown/disallowed columns: {bad}")
         set_clause = ", ".join(f"{k} = ?" for k in fields)
         values = list(fields.values()) + [ship_id]
         await self._db.execute(
@@ -778,15 +850,16 @@ class Database:
         )
         await self._db.commit()
 
-    # ── NPC Operations ──
+    # -- NPC Operations --
 
     async def create_npc(self, name: str, room_id: int, species: str = "Human",
-                         description: str = "", ai_config_json: str = "{}") -> int:
+                         description: str = "", char_sheet_json: str = "{}",
+                         ai_config_json: str = "{}") -> int:
         """Create an NPC. Returns NPC ID."""
         cursor = await self._db.execute(
-            """INSERT INTO npcs (name, room_id, species, description, ai_config_json)
-               VALUES (?, ?, ?, ?, ?)""",
-            (name, room_id, species, description, ai_config_json),
+            """INSERT INTO npcs (name, room_id, species, description, char_sheet_json, ai_config_json)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (name, room_id, species, description, char_sheet_json, ai_config_json),
         )
         await self._db.commit()
         return cursor.lastrowid
@@ -803,9 +876,19 @@ class Database:
         )
         return [dict(r) for r in rows]
 
+    _NPC_WRITABLE_COLUMNS = frozenset({
+        "name", "room_id", "species", "description", "char_sheet_json",
+        "ai_config_json", "hired_by", "hire_wage", "assigned_ship",
+        "assigned_station", "hired_at",
+    })
+
     async def update_npc(self, npc_id: int, **fields):
+        """Update NPC fields (allowlisted columns only)."""
         if not fields:
             return
+        bad = set(fields) - self._NPC_WRITABLE_COLUMNS
+        if bad:
+            raise ValueError(f"update_npc: unknown/disallowed columns: {bad}")
         set_clause = ", ".join(f"{k} = ?" for k in fields)
         values = list(fields.values()) + [npc_id]
         await self._db.execute(
@@ -819,7 +902,7 @@ class Database:
         await self._db.commit()
         return cursor.rowcount > 0
 
-    # ── NPC Crew Operations ──
+    # -- NPC Crew Operations --
 
     async def hire_npc(self, npc_id: int, char_id: int, wage: int):
         """Mark an NPC as hired by a character."""
@@ -909,7 +992,7 @@ class Database:
                 credits -= wage
                 total_deducted += wage
             else:
-                # Can't pay — NPC quits (but stays in the world)
+                # Can't pay -- NPC quits (but stays in the world)
                 departed.append(npc["name"])
                 await self.dismiss_npc(npc["id"])
 

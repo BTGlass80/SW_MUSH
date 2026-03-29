@@ -1,5 +1,5 @@
 """
-Item Instance System — Star Wars D6 MUSH
+Item Instance System -- Star Wars D6 MUSH
 
 Tracks weapon condition, quality, and crafting provenance.
 Equipment is stored as a JSON blob on the character row.
@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
-# ── Condition display ──
+# -- Condition display --
 
 _BAR_WIDTH = 10  # characters in the visual bar
 
@@ -57,7 +57,7 @@ def _condition_label(current: int, maximum: int) -> str:
     return "Broken"
 
 
-# ── ItemInstance ──
+# -- ItemInstance --
 
 @dataclass
 class ItemInstance:
@@ -65,11 +65,11 @@ class ItemInstance:
 
     key: str                         # weapon registry key, e.g. "blaster_pistol"
     condition: int = 100             # current condition (0 = broken)
-    max_condition: int = 100         # ceiling — drops by 5 per repair
+    max_condition: int = 100         # ceiling -- drops by 5 per repair
     quality: int = 50                # 0-100; vendor = 50, crafted varies
     crafter: Optional[str] = None    # character name who crafted it, if any
 
-    # ── Properties ──
+    # -- Properties --
 
     @property
     def is_broken(self) -> bool:
@@ -83,7 +83,7 @@ class ItemInstance:
     def condition_label(self) -> str:
         return _condition_label(self.condition, self.max_condition)
 
-    # ── Wear & Repair ──
+    # -- Wear & Repair --
 
     def apply_wear(self, amount: int = 1) -> None:
         """Reduce condition by *amount* (clamped to 0)."""
@@ -106,7 +106,7 @@ class ItemInstance:
         cost = int(base_cost * (0.1 + damage_ratio * 0.4))
         return max(50, cost)
 
-    # ── Constructors ──
+    # -- Constructors --
 
     @classmethod
     def new_from_vendor(cls, key: str) -> "ItemInstance":
@@ -125,7 +125,7 @@ class ItemInstance:
             crafter=crafter,
         )
 
-    # ── Serialization ──
+    # -- Serialization --
 
     def to_dict(self) -> dict:
         d = {
@@ -149,7 +149,7 @@ class ItemInstance:
         )
 
 
-# ── Module-level helpers ──
+# -- Module-level helpers --
 
 def parse_equipment_json(raw: str) -> Optional[ItemInstance]:
     """Parse a character's equipment JSON into an ItemInstance, or None."""

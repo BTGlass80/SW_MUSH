@@ -1,0 +1,47 @@
+# ── Database ──────────────────────────────────────────────────
+# Never commit live game data. Delete sw_mush.db from tracking with:
+#   git rm --cached sw_mush.db && git commit -m "remove db from tracking"
+sw_mush.db
+sw_mush.db-shm
+sw_mush.db-wal
+*.db-shm
+*.db-wal
+
+# ── Python ────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual environment ───────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ── OS / Editor ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# ── Logs ─────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Secrets / Keys (never commit these) ──────────────────────
+*.key
+*.pem
+secrets.yaml
+config.local.yaml

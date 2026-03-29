@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tests for the D6 Dice Engine.
 

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Command framework - parsing, registration, and dispatch.
 

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Combat commands for in-game D6 personal combat.
 
@@ -452,7 +453,7 @@ class DodgeCommand(BaseCommand):
 class FullDodgeCommand(BaseCommand):
     key = "fulldodge"
     aliases = ["full dodge", "fdodge"]
-    help_text = "Full dodge — your entire round is spent dodging. Adds to difficulty for ALL incoming ranged attacks. No other actions allowed."
+    help_text = "Full dodge -- your entire round is spent dodging. Adds to difficulty for ALL incoming ranged attacks. No other actions allowed."
     usage = "fulldodge"
 
     async def execute(self, ctx: CommandContext):
@@ -500,7 +501,7 @@ class ParryCommand(BaseCommand):
 class FullParryCommand(BaseCommand):
     key = "fullparry"
     aliases = ["full parry", "fparry"]
-    help_text = "Full parry — your entire round is spent parrying. Adds to difficulty for ALL incoming melee attacks. No other actions allowed."
+    help_text = "Full parry -- your entire round is spent parrying. Adds to difficulty for ALL incoming melee attacks. No other actions allowed."
     usage = "fullparry"
 
     async def execute(self, ctx: CommandContext):

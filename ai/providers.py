@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 AI Provider abstraction layer.
 
@@ -18,6 +19,21 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 log = logging.getLogger(__name__)
+
+# aiohttp is required for Ollama communication. It is listed in requirements.txt.
+# If missing, the Ollama provider will be permanently unavailable and the server
+# will fall back to MockProvider (NPC AI disabled). Install with:
+#   pip install aiohttp
+try:
+    import aiohttp as _aiohttp
+    _AIOHTTP_AVAILABLE = True
+except ImportError:
+    _aiohttp = None  # type: ignore[assignment]
+    _AIOHTTP_AVAILABLE = False
+    log.error(
+        "aiohttp is not installed -- Ollama AI provider will be disabled. "
+        "Run: pip install aiohttp"
+    )
 
 
 # ── Configuration ──
@@ -106,16 +122,19 @@ class OllamaProvider(AIProvider):
 
     async def is_available(self) -> bool:
         """Check if Ollama is running (cached for 30 seconds)."""
+        if not _AIOHTTP_AVAILABLE:
+            self._available = False
+            return False
+
         now = time.time()
         if self._available is not None and (now - self._last_check) < 30:
             return self._available
 
         try:
-            import aiohttp
-            async with aiohttp.ClientSession() as session:
+            async with _aiohttp.ClientSession() as session:
                 async with session.get(
                     f"{self.host}/api/tags",
-                    timeout=aiohttp.ClientTimeout(total=3),
+                    timeout=_aiohttp.ClientTimeout(total=3),
                 ) as resp:
                     self._available = resp.status == 200
         except Exception:
@@ -137,6 +156,9 @@ class OllamaProvider(AIProvider):
         json_mode: bool = False,
         model: str = "",
     ) -> str:
+        if not _AIOHTTP_AVAILABLE:
+            return ""
+
         model = model or self.default_model
 
         # Build the Ollama API request
@@ -157,17 +179,15 @@ class OllamaProvider(AIProvider):
             payload["format"] = "json"
 
         try:
-            import aiohttp
-            async with aiohttp.ClientSession() as session:
+            async with _aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.host}/api/chat",
                     json=payload,
-                    timeout=aiohttp.ClientTimeout(total=self.timeout),
+                    timeout=_aiohttp.ClientTimeout(total=self.timeout),
                 ) as resp:
                     if resp.status != 200:
                         error_text = await resp.text()
-                        log.warning("Ollama error %d: %s", resp.status, error_text[:200])
-                        print(f"[AI] Ollama error {resp.status}: {error_text[:200]}")
+                        log.error("Ollama error %d: %s", resp.status, error_text[:200])
                         return ""
 
                     data = await resp.json()
@@ -175,22 +195,24 @@ class OllamaProvider(AIProvider):
                     return content.strip()
 
         except asyncio.TimeoutError:
-            log.warning("Ollama request timed out (%.1fs)", self.timeout)
-            print(f"[AI] Ollama request timed out ({self.timeout}s) - model may still be loading")
+            log.warning(
+                "Ollama request timed out (%.1fs) -- model may still be loading",
+                self.timeout,
+            )
             return ""
         except Exception as e:
             log.warning("Ollama request failed: %s", e)
-            print(f"[AI] Ollama request failed: {e}")
             return ""
 
     async def list_models(self) -> list[str]:
         """List models available in Ollama."""
+        if not _AIOHTTP_AVAILABLE:
+            return []
         try:
-            import aiohttp
-            async with aiohttp.ClientSession() as session:
+            async with _aiohttp.ClientSession() as session:
                 async with session.get(
                     f"{self.host}/api/tags",
-                    timeout=aiohttp.ClientTimeout(total=5),
+                    timeout=_aiohttp.ClientTimeout(total=5),
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
