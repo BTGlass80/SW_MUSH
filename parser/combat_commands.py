@@ -824,6 +824,172 @@ class ForcePointCommand(BaseCommand):
         )
 
 
+async def try_nl_combat_action(ctx, raw_input: str) -> bool:
+    """
+    Attempt to interpret `raw_input` as a natural language combat action.
+
+    Called by CommandParser when a command is unrecognised and the player
+    has a character.  Returns True if the input was handled (successfully
+    parsed and dispatched), False if the caller should fall through to the
+    normal "Unknown command" message.
+
+    Architecture notes:
+    - SceneContext is built from live DB + session state.
+    - IntentParser calls Ollama via AIManager (rate-limited, 10/min).
+    - BoundedContextValidator rejects hallucinated IDs before any action fires.
+    - On success, the result is dispatched as if the player typed the
+      canonical command (e.g. attack/dodge/flee).
+    - If Ollama is unavailable, this returns False immediately (< 1ms).
+    """
+    char = ctx.session.character
+    if not char:
+        return False
+
+    room_id = char.get("room_id")
+
+    # Only intercept if player is in active combat
+    combat = _active_combats.get(room_id)
+    if not combat:
+        return False
+
+    combatant = combat.get_combatant(char["id"])
+    if not combatant:
+        return False
+
+    # Get AIManager from session_mgr
+    ai_manager = getattr(ctx.session_mgr, "_ai_manager", None)
+    if ai_manager is None:
+        return False
+
+    # Check if Ollama is at all available (fast cached check)
+    provider = ai_manager.get_provider()
+    try:
+        available = await provider.is_available()
+    except Exception:
+        available = False
+    if not available:
+        return False
+
+    # Signal to the player that we're parsing their input
+    await ctx.session.send_line(
+        ansi.dim("  [Interpreting natural language command...]")
+    )
+
+    # Build SceneContext
+    from ai.scene_context import SceneContext
+    scene_ctx = await SceneContext.build(
+        room_id=room_id,
+        char_id=char["id"],
+        db=ctx.db,
+        session_mgr=ctx.session_mgr,
+        combat=combat,
+    )
+
+    # Parse intent
+    from ai.intent_parser import IntentParser
+    parser = IntentParser(ai_manager)
+    result = await parser.parse(
+        raw_text=raw_input,
+        scene_ctx=scene_ctx,
+        char_id=char["id"],
+    )
+
+    if result is None:
+        await ctx.session.send_line(
+            "  Couldn't parse that as a combat action. "
+            "Try: attack <target>, dodge, fulldodge, parry, aim, cover, flee, pass"
+        )
+        return True  # We handled it (with an error message)
+
+    action = result["action"]
+
+    # Dispatch to existing command infrastructure
+    from parser.commands import CommandContext
+
+    # Re-use current ctx but override command/args
+    dispatched_ctx = CommandContext(
+        session=ctx.session,
+        raw_input=raw_input,
+        command=action,
+        args="",
+        args_list=[],
+        db=ctx.db,
+        session_mgr=ctx.session_mgr,
+    )
+
+    if action == "attack":
+        # Build explicit attack args string so AttackCommand can parse normally
+        target_id = result.get("target_id", 0)
+        skill = result.get("skill", scene_ctx.default_skill)
+        damage = result.get("damage", scene_ctx.default_damage)
+        cp = result.get("cp", 0)
+
+        # Resolve target name from scene context
+        entity = scene_ctx.entities.get(target_id)
+        target_name = entity.name if entity else str(target_id)
+
+        # Build args string: "<name> with <skill> damage <damage> cp <cp>"
+        args_parts = [target_name, "with", skill, "damage", damage]
+        if cp:
+            args_parts += ["cp", str(cp)]
+        dispatched_ctx.args = " ".join(args_parts)
+        dispatched_ctx.args_list = dispatched_ctx.args.split()
+
+        await ctx.session.send_line(
+            ansi.dim(
+                f"  [Parsed: attack {target_name} with {skill} (damage {damage})"
+                + (f" cp {cp}" if cp else "") + "]"
+            )
+        )
+        cmd = AttackCommand()
+
+    elif action in ("dodge", "fulldodge", "parry", "fullparry"):
+        from parser import combat_commands as _cc
+        _cmd_map = {
+            "dodge": DodgeCommand,
+            "fulldodge": FullDodgeCommand,
+            "parry": ParryCommand,
+            "fullparry": FullParryCommand,
+        }
+        cmd_cls = _cmd_map.get(action, DodgeCommand)
+        cmd = cmd_cls()
+        await ctx.session.send_line(ansi.dim(f"  [Parsed: {action}]"))
+
+    elif action == "aim":
+        cmd = AimCommand()
+        await ctx.session.send_line(ansi.dim("  [Parsed: aim]"))
+
+    elif action == "cover":
+        cmd = CoverCommand()
+        await ctx.session.send_line(ansi.dim("  [Parsed: cover]"))
+
+    elif action == "flee":
+        cmd = FleeCommand()
+        await ctx.session.send_line(ansi.dim("  [Parsed: flee]"))
+
+    elif action == "pass":
+        cmd = PassCommand()
+        await ctx.session.send_line(ansi.dim("  [Parsed: pass]"))
+
+    else:
+        await ctx.session.send_line(
+            f"  Parsed action '{action}' is not yet dispatched. "
+            f"Please use the explicit command."
+        )
+        return True
+
+    # Execute
+    try:
+        await cmd.execute(dispatched_ctx)
+    except Exception as e:
+        log.exception("NL combat dispatch failed for action=%s: %s", action, e)
+        await ctx.session.send_line(
+            f"  Error executing parsed action '{action}': {e}"
+        )
+
+    return True
+
+
 def register_combat_commands(registry):
     """Register all combat commands."""
     cmds = [

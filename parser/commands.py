@@ -229,6 +229,15 @@ class CommandParser:
                     await self._execute(move_cmd, ctx)
                     return
 
+            # ── Natural Language Combat Intercept ──────────────────────────
+            # If the player is in active combat and types something that
+            # isn't a registered command, try the IntentParser before giving up.
+            if session.character:
+                from parser.combat_commands import try_nl_combat_action
+                handled = await try_nl_combat_action(ctx, raw_input)
+                if handled:
+                    return
+
             await session.send_line(f"Huh? Unknown command: '{cmd_name}'")
             await session.send_prompt()
             return
