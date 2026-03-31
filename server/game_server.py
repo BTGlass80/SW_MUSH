@@ -478,3 +478,10 @@ class GameServer:
                 await tick_npc_space_combat(self.db, self.session_mgr)
             except Exception:
                 log.debug("NPC space crew tick skipped", exc_info=True)
+
+            # -- NPC Space Traffic tick --
+            try:
+                from engine.npc_space_traffic import get_traffic_manager
+                await get_traffic_manager().tick(self.db, self.session_mgr)
+            except Exception:
+                log.debug("NPC space traffic tick skipped", exc_info=True)

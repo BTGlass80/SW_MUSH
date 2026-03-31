@@ -14,7 +14,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 # -- Schema version --
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -218,6 +218,9 @@ MIGRATIONS = {
         "ALTER TABLE npcs ADD COLUMN assigned_ship INTEGER REFERENCES ships(id)",
         "ALTER TABLE npcs ADD COLUMN assigned_station TEXT DEFAULT ''",
         "ALTER TABLE npcs ADD COLUMN hired_at TEXT DEFAULT ''",
+    ],
+    3: [
+        "ALTER TABLE characters ADD COLUMN bounty INTEGER DEFAULT 0",
     ],
 }
 
@@ -1000,3 +1003,82 @@ class Database:
             await self.save_character(char_id, credits=credits)
 
         return total_deducted, departed
+
+    # -- Traffic Ship Methods --
+
+    async def create_traffic_ship(self, name: str, template: str) -> int:
+        import json as _j
+        systems = _j.dumps({"traffic": {}})
+        cursor = await self._db.execute(
+            "INSERT INTO ships "
+            "(name, template, hull_damage, shield_damage, systems, crew, owner_id, docked_at) "
+            "VALUES (?, ?, 0, 0, ?, '{}', NULL, NULL)",
+            (name, template, systems),
+        )
+        await self._db.commit()
+        return cursor.lastrowid
+
+    async def create_traffic_npc(self, name: str, ship_id: int, skill: str) -> int:
+        import json as _j
+        char_sheet = _j.dumps({
+            "attributes": {
+                "DEX": skill, "MEC": skill, "STR": "2D",
+                "KNO": "2D",  "PER": "2D",  "TEC": "2D",
+            },
+            "skills": {
+                "starfighter_piloting": skill,
+                "space_transports":     skill,
+                "starship_gunnery":     skill,
+            },
+        })
+        cursor = await self._db.execute(
+            "INSERT INTO npcs "
+            "(name, species, room_id, char_sheet_json, ai_config_json, assigned_ship) "
+            "VALUES (?, 'Human', 1, ?, '{}', ?)",
+            (name, char_sheet, ship_id),
+        )
+        await self._db.commit()
+        return cursor.lastrowid
+
+    async def update_traffic_ship_state(self, ship_id: int, traffic_data: dict):
+        import json as _j
+        rows = await self._db.execute_fetchall(
+            "SELECT systems FROM ships WHERE id = ?", (ship_id,)
+        )
+        if not rows:
+            return
+        systems = _j.loads(rows[0]["systems"] or "{}")
+        systems["traffic"] = traffic_data
+        await self._db.execute(
+            "UPDATE ships SET systems = ? WHERE id = ?",
+            (_j.dumps(systems), ship_id),
+        )
+        await self._db.commit()
+
+    async def get_all_traffic_ships(self) -> list:
+        needle = '"traffic"'
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM ships WHERE systems LIKE ?",
+            (f"%{needle}%",),
+        )
+        return rows or []
+
+    async def delete_traffic_ship(self, ship_id: int):
+        await self._db.execute(
+            "DELETE FROM npcs WHERE assigned_ship = ?", (ship_id,)
+        )
+        await self._db.execute("DELETE FROM ships WHERE id = ?", (ship_id,))
+        await self._db.commit()
+
+    async def set_character_bounty(self, char_id: int, amount: int):
+        await self._db.execute(
+            "UPDATE characters SET bounty = ? WHERE id = ?",
+            (max(0, amount), char_id),
+        )
+        await self._db.commit()
+
+    async def get_character_bounty(self, char_id: int) -> int:
+        rows = await self._db.execute_fetchall(
+            "SELECT bounty FROM characters WHERE id = ?", (char_id,)
+        )
+        return rows[0]["bounty"] if rows else 0

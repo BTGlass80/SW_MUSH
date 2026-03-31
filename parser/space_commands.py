@@ -6,6 +6,8 @@ Space commands -- ship operations, crew stations, flight, and combat.
 """
 import json
 from parser.commands import BaseCommand, CommandContext, AccessLevel
+from engine.npc_space_traffic import get_orbit_zone_for_room, get_traffic_manager
+from engine.npc_space_traffic import get_orbit_zone_for_room, get_traffic_manager
 from engine.starships import (
     get_ship_registry, format_ship_status, resolve_space_attack,
     get_space_grid, SpaceRange, RelativePosition, can_weapon_fire,
@@ -600,6 +602,13 @@ class LaunchCommand(BaseCommand):
         bay_name = bay["name"] if bay else "the docking bay"
         await ctx.db.update_ship(ship["id"], docked_at=None)
         get_space_grid().add_ship(ship["id"], speed)
+        # Traffic: assign current_zone on launch
+        import json as _tj
+        _tsys = _tj.loads(ship.get("systems") or "{}")
+        _troom = await ctx.db.get_room(bay_id)
+        _troom_name = _troom["name"] if _troom else ""
+        _tsys["current_zone"] = get_orbit_zone_for_room(_troom_name)
+        await ctx.db.update_ship(ship["id"], systems=_tj.dumps(_tsys))
         await ctx.session_mgr.broadcast_to_room(
             bay_id, f"  The {ship['name']} lifts off with a roar of engines!")
         await ctx.session_mgr.broadcast_to_room(
@@ -643,6 +652,11 @@ class LandCommand(BaseCommand):
         await ctx.db.save_character(char["id"], credits=char["credits"])
         await ctx.db.update_ship(ship["id"], docked_at=bay["id"])
         get_space_grid().remove_ship(ship["id"])
+        # Traffic: clear current_zone on land
+        import json as _lj
+        _lsys = _lj.loads(ship.get("systems") or "{}")
+        _lsys.pop("current_zone", None)
+        await ctx.db.update_ship(ship["id"], systems=_lj.dumps(_lsys))
         await ctx.session_mgr.broadcast_to_room(
             ship["bridge_room_id"],
             ansi.success(
@@ -1152,6 +1166,10 @@ class HyperspaceCommand(BaseCommand):
         get_space_grid().remove_ship(ship["id"])
         # Store location on ship
         systems["location"] = dest_key
+        # Traffic: map dest_key to a zone id
+        from engine.npc_space_traffic import ZONES as _TZ
+        _hzone = dest_key + "_orbit" if (dest_key + "_orbit") in _TZ else "tatooine_orbit"
+        systems["current_zone"] = _hzone
         await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
         await ctx.session_mgr.broadcast_to_room(ship["bridge_room_id"],
             f"  {ansi.BRIGHT_CYAN}[HYPERSPACE]{ansi.RESET} "
