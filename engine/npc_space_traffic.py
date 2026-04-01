@@ -1,18 +1,20 @@
 """
 engine/npc_space_traffic.py
-NPC Space Traffic System — Drop 3
+NPC Space Traffic System — Drop 4
 Zone-based model: ships have a current_zone string, movement is tick-based transitions
 between named zones rather than room walking.
 
 Drop 1: Zone model, TrafficManager scaffold, Trader archetype.
 Drop 2: Smuggler + Imperial Patrol, comms intercept (hail/comms commands).
-Drop 3 additions:
-  - Pirate archetype: tails player ships, sends demand hail, attacks on refusal
-  - TAILING state tick handler
-  - Pirate demand hail + credit-demand escalation
-  - handle_pirate_payment() — player pays demand, pirate flees
-  - handle_traffic_ship_destroyed() — credit reward when pirate killed
-  - PayCommand wired via space_commands
+Drop 3: Pirate tailing, demand hail, credit reward on destroy, PayCommand.
+Drop 4 additions:
+  - Bounty Hunter archetype: event-driven spawn, navigates to target's zone
+  - Personalized hail naming the bounty target by character name
+  - Hunter-only tailing: only attacks the bounty target, ignores others
+  - Hunter respawn: 5-minute cooldown before re-spawning after flee/destroy
+  - NpcSpaceTrafficManager tracks pending respawns per char_id
+  - spawn_bounty_hunter() expanded: resolves target zone, sends entry hail
+  - @setbounty admin command in space_commands for testing
 """
 
 import asyncio
@@ -307,6 +309,9 @@ class TrafficShip:
     tailing_ship_id:          Optional[int] = None  # player ship_id being tailed
     pirate_demand_credits:    int = 0            # credit amount demanded from player
     pirate_paid:              bool = False       # True once player has paid
+    # Drop 4: bounty hunter
+    bounty_target_name:       str = ""          # character name of the bounty target
+    hunter_hail_sent:         bool = False      # True after personalized hail fired
     # display
     display_name:             str = "Unknown Ship"
     transponder_type:         str = "registered"
@@ -362,6 +367,8 @@ class TrafficShip:
             "tailing_ship_id":       self.tailing_ship_id,
             "pirate_demand_credits": self.pirate_demand_credits,
             "pirate_paid":           self.pirate_paid,
+            "bounty_target_name":    self.bounty_target_name,
+            "hunter_hail_sent":      self.hunter_hail_sent,
             "display_name":          self.display_name,
             "transponder_type":      self.transponder_type,
             "captain_name":          self.captain_name,
@@ -390,6 +397,8 @@ class TrafficShip:
             tailing_ship_id=data.get("tailing_ship_id"),
             pirate_demand_credits=data.get("pirate_demand_credits", 0),
             pirate_paid=data.get("pirate_paid", False),
+            bounty_target_name=data.get("bounty_target_name", ""),
+            hunter_hail_sent=data.get("hunter_hail_sent", False),
             display_name=data.get("display_name", "Unknown Ship"),
             transponder_type=data.get("transponder_type", "registered"),
             captain_name=data.get("captain_name", "Unknown"),
@@ -439,6 +448,8 @@ class NpcSpaceTrafficManager:
         self._ships: dict[int, TrafficShip] = {}   # ship_id → TrafficShip
         self._last_spawn_time: float = 0.0
         self._loaded: bool = False
+        # Drop 4: tracks when a hunter for a given char_id may respawn
+        self._hunter_respawns: dict[int, float] = {}  # char_id → earliest respawn time
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -457,15 +468,49 @@ class NpcSpaceTrafficManager:
                 return ship
         return None
 
-    async def spawn_bounty_hunter(self, char_id: int, db, session_mgr) -> Optional[TrafficShip]:
+    async def spawn_bounty_hunter(self, char_id: int, db, session_mgr,
+                                   target_name: str = "") -> Optional["TrafficShip"]:
         """
         Spawn a bounty hunter targeting char_id.
-        Called from game_server when a player acquires a bounty.
-        Bypasses MAX_TRAFFIC_SHIPS cap.
+        Called from game_server (or @setbounty admin command) when a player acquires a bounty.
+        Bypasses MAX_TRAFFIC_SHIPS cap. Respawn cooldown enforced.
         """
-        return await self._spawn(db, session_mgr,
-                                  archetype=TrafficArchetype.BOUNTY_HUNTER,
-                                  bounty_target=char_id)
+        now = time.time()
+        cooldown_until = self._hunter_respawns.get(char_id, 0.0)
+        if now < cooldown_until:
+            remaining = int(cooldown_until - now)
+            log.info(f"[traffic] bounty hunter for char {char_id} on cooldown ({remaining}s)")
+            return None
+
+        ts = await self._spawn(db, session_mgr,
+                               archetype=TrafficArchetype.BOUNTY_HUNTER,
+                               bounty_target=char_id)
+        if ts is None:
+            return None
+
+        ts.bounty_target_name = target_name
+        ts.bounty_target_char_id = char_id
+
+        # Navigate to the target's current zone if we can find them
+        target_zone = await self._find_char_zone(char_id, db)
+        if target_zone and target_zone != ts.current_zone:
+            path = find_path(ts.current_zone, target_zone)
+            if path:
+                ts.route = path
+                ts.enter_state(TrafficState.TRANSIT, duration=ZONE_TRANSIT_SECS)
+
+        # Announce entry to the target's zone (or spawn zone if target unknown)
+        announce_zone = target_zone or ts.current_zone
+        name_str = f" for {target_name}" if target_name else ""
+        await self._announce_to_zone(
+            announce_zone,
+            f"  {ansi_yellow}[SENSORS]{ansi_reset} A pursuit vessel drops out of hyperspace"
+            f"{name_str}. Its transponder reads: {ts.sensors_name()}.",
+            session_mgr, db,
+        )
+        log.info(f"[traffic] bounty hunter '{ts.display_name}' spawned targeting char {char_id}"
+                 f" ({target_name})")
+        return ts
 
     async def tick(self, db, session_mgr):
         """Called every second from game_server tick loop."""
@@ -480,6 +525,20 @@ class NpcSpaceTrafficManager:
             self._last_spawn_time = now
             if len(self._ships) < MAX_TRAFFIC_SHIPS:
                 await self._spawn(db, session_mgr)
+
+        # ── Bounty hunter respawn check ───────────────────────────────────────
+        for char_id, respawn_at in list(self._hunter_respawns.items()):
+            if now >= respawn_at:
+                del self._hunter_respawns[char_id]
+                # Check char still has a bounty (col added in schema v3)
+                try:
+                    char_row = await db.get_character(char_id)
+                    if char_row and dict(char_row).get("bounty", 0):
+                        target_name = dict(char_row).get("name", "")
+                        await self.spawn_bounty_hunter(char_id, db, session_mgr,
+                                                       target_name=target_name)
+                except Exception as e:
+                    log.error(f"[traffic] hunter respawn check error char {char_id}: {e}")
 
         # ── Tick each ship ────────────────────────────────────────────────────
         to_despawn = []
@@ -685,6 +744,23 @@ class NpcSpaceTrafficManager:
                     log.info(f"[traffic] pirate '{ship.display_name}' tailing ship {target_ship_id}")
                     return False
 
+        # Bounty hunter: navigate toward target's zone
+        if ship.archetype == TrafficArchetype.BOUNTY_HUNTER and ship.bounty_target_char_id:
+            target_zone = await self._find_char_zone(ship.bounty_target_char_id, db)
+            if target_zone and target_zone != ship.current_zone:
+                path = find_path(ship.current_zone, target_zone)
+                if path:
+                    ship.route = path
+                    ship.enter_state(TrafficState.TRANSIT, duration=ZONE_TRANSIT_SECS)
+                    return False
+            elif target_zone == ship.current_zone:
+                # Target is here — start tailing immediately
+                target_ship_id = await self._find_char_ship_id(ship.bounty_target_char_id, db)
+                if target_ship_id:
+                    ship.tailing_ship_id = target_ship_id
+                    ship.enter_state(TrafficState.TAILING, duration=0)
+                    return False
+
         if ship.state_duration > 0 and ship.state_age() >= ship.state_duration:
             self._plan_next_move(ship)
         return False
@@ -716,8 +792,30 @@ class NpcSpaceTrafficManager:
                     session_mgr, db,
                 )
                 log.info(f"[traffic] pirate '{ship.display_name}' demand refused — attacking")
-                # Pirate re-enters idle; full combat loop is Drop 4 / future
+                # Pirate re-enters idle; full combat loop is future work
                 ship.tailing_ship_id = None
+                idle_dur = random.uniform(IDLE_MIN_SECS, IDLE_MAX_SECS)
+                ship.enter_state(TrafficState.IDLE, duration=idle_dur)
+                ship.hail_sent = False
+                ship.hail_pending = False
+                return False
+            elif ship.archetype == TrafficArchetype.BOUNTY_HUNTER:
+                # No surrender → hunter attacks
+                await self._announce_to_zone(
+                    ship.current_zone,
+                    f"  {ansi_yellow}[COMMS]{ansi_reset} {ship.sensors_name()}: "
+                    f"\"Surrender refused. Lethal force authorized.\"",
+                    session_mgr, db,
+                )
+                await self._announce_to_zone(
+                    ship.current_zone,
+                    f"  {ansi_yellow}[ALERT]{ansi_reset} {ship.sensors_name()} "
+                    f"locks weapons on you! Use 'fire', 'flee', or 'evade'.",
+                    session_mgr, db,
+                )
+                log.info(f"[traffic] hunter '{ship.display_name}' attacking bounty target")
+                ship.tailing_ship_id = None
+                ship.hunter_hail_sent = False
                 idle_dur = random.uniform(IDLE_MIN_SECS, IDLE_MAX_SECS)
                 ship.enter_state(TrafficState.IDLE, duration=idle_dur)
                 ship.hail_sent = False
@@ -776,19 +874,37 @@ class NpcSpaceTrafficManager:
 
         # After tailing for HAIL_TIMEOUT_SECS, send demand
         if ship.state_age() >= HAIL_TIMEOUT_SECS and not ship.hail_sent:
-            demand = random.randint(PIRATE_CREDIT_MIN, PIRATE_CREDIT_MAX)
-            ship.pirate_demand_credits = demand
-            ship.pirate_paid = False
-            ship.hail_sent = True
-            ship.enter_state(TrafficState.HAILING, duration=HAIL_TIMEOUT_SECS)
-            await self._announce_to_zone(
-                ship.current_zone,
-                f"  {ansi_yellow}[COMMS]{ansi_reset} {ship.sensors_name()}: "
-                f"\"Cut your engines. Transfer {demand:,} credits or we start shooting. "
-                f"Use: pay {ship.sensors_name()} to comply.\"",
-                session_mgr, db,
-            )
-            log.info(f"[traffic] pirate '{ship.display_name}' demands {demand} cr")
+            if ship.archetype == TrafficArchetype.BOUNTY_HUNTER:
+                # Personalized hail naming the target
+                target_name_str = ship.bounty_target_name or "fugitive"
+                ship.hail_sent = True
+                ship.hunter_hail_sent = True
+                ship.enter_state(TrafficState.HAILING, duration=HAIL_TIMEOUT_SECS)
+                await self._announce_to_zone(
+                    ship.current_zone,
+                    f"  {ansi_yellow}[COMMS]{ansi_reset} {ship.sensors_name()}: "
+                    f"\"{target_name_str}. I've tracked you across three sectors. "
+                    f"Power down your engines and surrender — or I collect the bounty "
+                    f"from your wreckage.\"",
+                    session_mgr, db,
+                )
+                log.info(f"[traffic] hunter '{ship.display_name}' sent personalized hail "
+                         f"to '{target_name_str}'")
+            else:
+                # Pirate demand
+                demand = random.randint(PIRATE_CREDIT_MIN, PIRATE_CREDIT_MAX)
+                ship.pirate_demand_credits = demand
+                ship.pirate_paid = False
+                ship.hail_sent = True
+                ship.enter_state(TrafficState.HAILING, duration=HAIL_TIMEOUT_SECS)
+                await self._announce_to_zone(
+                    ship.current_zone,
+                    f"  {ansi_yellow}[COMMS]{ansi_reset} {ship.sensors_name()}: "
+                    f"\"Cut your engines. Transfer {demand:,} credits or we start shooting. "
+                    f"Use: pay {ship.sensors_name()} to comply.\"",
+                    session_mgr, db,
+                )
+                log.info(f"[traffic] pirate '{ship.display_name}' demands {demand} cr")
 
         return False
 
@@ -911,6 +1027,33 @@ class NpcSpaceTrafficManager:
         except Exception as e:
             log.error(f"[traffic] _get_players_in_zone error: {e}")
         return result
+
+    async def _find_char_zone(self, char_id: int, db) -> Optional[str]:
+        """Return the current_zone of the ship a character is aboard, or None."""
+        try:
+            ships = await db.get_ships_in_space()
+            for ship in ships:
+                ship = dict(ship)
+                crew = json.loads(ship.get("crew") or "{}")
+                if char_id in crew.values():
+                    systems = json.loads(ship.get("systems") or "{}")
+                    return systems.get("current_zone")
+        except Exception as e:
+            log.error(f"[traffic] _find_char_zone error: {e}")
+        return None
+
+    async def _find_char_ship_id(self, char_id: int, db) -> Optional[int]:
+        """Return the ship_id of the ship a character is aboard, or None."""
+        try:
+            ships = await db.get_ships_in_space()
+            for ship in ships:
+                ship = dict(ship)
+                crew = json.loads(ship.get("crew") or "{}")
+                if char_id in crew.values():
+                    return ship["id"]
+        except Exception as e:
+            log.error(f"[traffic] _find_char_ship_id error: {e}")
+        return None
 
     # ── Hail senders ─────────────────────────────────────────────────────────
 
@@ -1050,6 +1193,13 @@ class NpcSpaceTrafficManager:
         ship = self._ships.pop(ship_id, None)
         if not ship:
             return
+        # Bounty hunter: schedule respawn if target still has a bounty
+        if ship.archetype == TrafficArchetype.BOUNTY_HUNTER and ship.bounty_target_char_id:
+            self._hunter_respawns[ship.bounty_target_char_id] = (
+                time.time() + HUNTER_RESPAWN_DELAY
+            )
+            log.info(f"[traffic] hunter '{ship.display_name}' despawned — "
+                     f"respawn in {HUNTER_RESPAWN_DELAY}s for char {ship.bounty_target_char_id}")
         try:
             await db.delete_traffic_ship(ship_id)
         except Exception as e:
@@ -1164,6 +1314,12 @@ _PIRATE_REPLIES = [
     "The price just went up. Stop wasting our time.",
 ]
 
+_HUNTER_REPLIES = [
+    "The contract is clear. There is no negotiation.",
+    "I've tracked worse than you. Don't make this harder than it needs to be.",
+    "Surrender or don't. Either way, I collect.",
+]
+
 _GENERIC_HAIL = [
     "This frequency is monitored. State your business.",
     "Go ahead. We're listening.",
@@ -1185,6 +1341,10 @@ def _build_generic_hail_reply(ts: TrafficShip, player_ship_name: str) -> str:
             return (f"You owe us {ts.pirate_demand_credits:,} credits. "
                     f"Pay now or face the consequences.")
         return random.choice(_PIRATE_REPLIES)
+    elif ts.archetype == TrafficArchetype.BOUNTY_HUNTER:
+        name_str = ts.bounty_target_name or "fugitive"
+        return (f"This transmission is for {name_str}. "
+                f"The contract stands. {random.choice(_HUNTER_REPLIES)}")
     else:
         return random.choice(_GENERIC_HAIL)
 
@@ -1208,6 +1368,8 @@ def _build_comms_reply(ts: TrafficShip, player_ship_name: str, message: str) -> 
             return (f"Stop stalling. {ts.pirate_demand_credits:,} credits. "
                     f"Use 'pay {ts.sensors_name()}' to comply.")
         return random.choice(_PIRATE_REPLIES)
+    elif ts.archetype == TrafficArchetype.BOUNTY_HUNTER:
+        return random.choice(_HUNTER_REPLIES)
     else:
         return random.choice(_GENERIC_HAIL)
 

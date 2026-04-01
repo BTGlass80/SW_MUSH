@@ -1599,6 +1599,57 @@ class CreditsCommand(BaseCommand):
         await ctx.session.send_line(f"  Credits: {credits:,}")
 
 
+class SetBountyCommand(BaseCommand):
+    key = "@setbounty"
+    aliases = ["@bounty"]
+    help_text = (
+        "Admin: set a bounty on a character and spawn a bounty hunter. "
+        "Usage: @setbounty <character name>"
+    )
+    usage = "@setbounty <character name>"
+    access_level = AccessLevel.ADMIN
+
+    async def execute(self, ctx):
+        if not ctx.args:
+            await ctx.session.send_line("Usage: @setbounty <character name>")
+            return
+        target_name = ctx.args.strip()
+        # Find character by name
+        chars = await ctx.db.get_all_characters()
+        target = None
+        for c in chars:
+            if dict(c).get("name", "").lower() == target_name.lower():
+                target = dict(c)
+                break
+        if not target:
+            await ctx.session.send_line(f"  No character named '{target_name}' found.")
+            return
+        # Set bounty flag (integer column added in schema v3)
+        try:
+            await ctx.db.set_character_bounty(target["id"], 1)
+        except Exception as e:
+            await ctx.session.send_line(f"  DB error setting bounty: {e}")
+            return
+        await ctx.session.send_line(
+            ansi.success(f"  Bounty set on {target['name']} (id={target['id']}).")
+        )
+        # Spawn the hunter
+        ts = await get_traffic_manager().spawn_bounty_hunter(
+            char_id=target["id"],
+            db=ctx.db,
+            session_mgr=ctx.session_mgr,
+            target_name=target["name"],
+        )
+        if ts:
+            await ctx.session.send_line(
+                ansi.success(f"  Bounty hunter '{ts.display_name}' spawned.")
+            )
+        else:
+            await ctx.session.send_line(
+                "  Hunter on cooldown or spawn failed — will retry automatically."
+            )
+
+
 def register_space_commands(registry):
     cmds = [
         ShipsCommand(), ShipInfoCommand(),
@@ -1618,7 +1669,7 @@ def register_space_commands(registry):
         BuyCommand(), CreditsCommand(),
         DamConCommand(),
         PayCommand(), HailCommand(), CommsCommand(),
-        SpawnShipCommand(),
+        SpawnShipCommand(), SetBountyCommand(),
     ]
     for cmd in cmds:
         registry.register(cmd)
