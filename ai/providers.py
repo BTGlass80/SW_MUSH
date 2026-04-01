@@ -108,8 +108,8 @@ class OllamaProvider(AIProvider):
     """Local LLM via Ollama REST API."""
 
     def __init__(self, host: str = "http://localhost:11434",
-                 default_model: str = "mistral:7b",
-                 timeout: float = 15.0):
+             default_model: str = "mistral:7b",
+             timeout: float = 25.0):
         self.host = host.rstrip("/")
         self.default_model = default_model
         self.timeout = timeout

@@ -24,7 +24,8 @@ log = logging.getLogger(__name__)
 # Token bucket: refill RATE_LIMIT_REFILL tokens/sec up to RATE_LIMIT_BUCKET max
 RATE_LIMIT_BUCKET = 30      # Max burst
 RATE_LIMIT_REFILL = 5       # Tokens per second
-COMMAND_TIMEOUT = 10.0       # Seconds before a command is killed
+COMMAND_TIMEOUT = 30.0       # Seconds before a command is killed
+
 
 
 class AccessLevel:

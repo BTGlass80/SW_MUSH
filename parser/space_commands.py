@@ -728,24 +728,41 @@ class ScanCommand(BaseCommand):
         if ship["docked_at"]:
             await ctx.session.send_line("  Scanners work in space. Launch first.")
             return
+        systems = _get_systems(ship)
+        player_zone = systems.get("current_zone", "")
         reg = get_ship_registry()
         grid = get_space_grid()
         others = [s for s in await ctx.db.get_ships_in_space() if s["id"] != ship["id"]]
         await ctx.session.send_line(f"  {ansi.BRIGHT_CYAN}=== Sensor Scan ==={ansi.RESET}")
-        if not others:
+        if player_zone:
+            await ctx.session.send_line(
+                f"  {ansi.DIM}Zone: {player_zone}{ansi.RESET}")
+        any_contacts = False
+        for s in others:
+            t = reg.get(s["template"])
+            tname = t.name if t else s["template"]
+            rng = grid.get_range(ship["id"], s["id"])
+            pos = grid.get_position(ship["id"], s["id"])
+            dmg = s.get("hull_damage", 0)
+            status = "Active" if dmg == 0 else f"Damaged ({dmg} hits)"
+            await ctx.session.send_line(
+                f"  Contact: {ansi.BRIGHT_WHITE}{s['name']}{ansi.RESET} ({tname})")
+            await ctx.session.send_line(
+                f"    Range: {rng.label}  Position: {pos}  Status: {status}")
+            any_contacts = True
+        # ── NPC Traffic ships in same zone ────────────────────────────────────
+        if player_zone:
+            traffic_ships = get_traffic_manager().get_zone_ships(player_zone)
+            for ts in traffic_ships:
+                await ctx.session.send_line(
+                    f"  Contact: {ansi.BRIGHT_WHITE}{ts.sensors_name()}{ansi.RESET} "
+                    f"[NPC {ts.archetype.value.title()}]")
+                await ctx.session.send_line(
+                    f"    Zone: {player_zone}  Transponder: {ts.transponder_type}"
+                    f"  Captain: {ts.captain_name}")
+                any_contacts = True
+        if not any_contacts:
             await ctx.session.send_line("  No other ships detected.")
-        else:
-            for s in others:
-                t = reg.get(s["template"])
-                tname = t.name if t else s["template"]
-                rng = grid.get_range(ship["id"], s["id"])
-                pos = grid.get_position(ship["id"], s["id"])
-                dmg = s.get("hull_damage", 0)
-                status = "Active" if dmg == 0 else f"Damaged ({dmg} hits)"
-                await ctx.session.send_line(
-                    f"  Contact: {ansi.BRIGHT_WHITE}{s['name']}{ansi.RESET} ({tname})")
-                await ctx.session.send_line(
-                    f"    Range: {rng.label}  Position: {pos}  Status: {status}")
         await ctx.session.send_line("")
 
 
@@ -833,6 +850,27 @@ class FireCommand(BaseCommand):
                     systems[s] = False
                 updates["systems"] = json.dumps(systems)
             await ctx.db.update_ship(target_ship["id"], **updates)
+            # Check if this killed a traffic ship (hull_damage >= hull dice * 6 is a rough
+            # destroyed threshold; use template hull as proxy via reg)
+            target_tmpl_hull = target_template.hull  # string like "3D"
+            try:
+                hull_dice = int(target_tmpl_hull.split("D")[0]) if "D" in target_tmpl_hull else 3
+            except Exception:
+                hull_dice = 3
+            destroyed_threshold = hull_dice * 6
+            if new_dmg >= destroyed_threshold:
+                traffic_mgr = get_traffic_manager()
+                ts = traffic_mgr.get_ship(target_ship["id"])
+                if ts is not None:
+                    awarded = await traffic_mgr.handle_traffic_ship_destroyed(
+                        target_ship["id"], ctx.session.character,
+                        ctx.db, ctx.session_mgr,
+                    )
+                    if awarded:
+                        await ctx.session.send_line(
+                            f"  {ansi.BRIGHT_GREEN}[BOUNTY]{ansi.RESET} "
+                            f"Pirate destroyed! You recover {awarded:,} credits from the wreckage."
+                        )
         await ctx.session_mgr.broadcast_to_room(ship["bridge_room_id"],
             f"  {ansi.BRIGHT_RED}[WEAPONS]{ansi.RESET} "
             f"{ctx.session.character['name']} fires {weapon.name} at {target_ship['name']}! "
@@ -1389,6 +1427,168 @@ class DamConCommand(BaseCommand):
         )
 
 
+class PayCommand(BaseCommand):
+    key = "pay"
+    aliases = []
+    help_text = "Pay a pirate's credit demand to make them stand down."
+    usage = "pay <ship name>"
+    async def execute(self, ctx):
+        if not ctx.args:
+            await ctx.session.send_line("Usage: pay <ship name>")
+            return
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        if ship["docked_at"]:
+            await ctx.session.send_line("  You're docked — no one is demanding anything.")
+            return
+        systems = _get_systems(ship)
+        zone_id = systems.get("current_zone", "")
+        if not zone_id:
+            await ctx.session.send_line("  Cannot determine your zone.")
+            return
+        target_name = ctx.args.strip()
+        char = ctx.session.character
+        success, msg = await get_traffic_manager().handle_pirate_payment(
+            player_session=ctx.session,
+            player_char=char,
+            target_name=target_name,
+            zone_id=zone_id,
+            db=ctx.db,
+            session_mgr=ctx.session_mgr,
+        )
+        color = ansi.BRIGHT_GREEN if success else ansi.BRIGHT_RED
+        await ctx.session.send_line(f"  {color}{msg}{ansi.RESET}")
+        if success:
+            await ctx.session_mgr.broadcast_to_room(
+                ship["bridge_room_id"],
+                f"  {ansi.BRIGHT_YELLOW}[CREW]{ansi.RESET} "
+                f"{char['name']} transfers credits to the pirates.",
+                exclude=ctx.session,
+            )
+
+
+class HailCommand(BaseCommand):
+    key = "hail"
+    aliases = []
+    help_text = (
+        "Broadcast a hail to all ships in your zone. "
+        "Use 'comms <ship> <message>' to reply to a specific ship."
+    )
+    usage = "hail"
+    async def execute(self, ctx):
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        if ship["docked_at"]:
+            await ctx.session.send_line("  Comms work in space. Launch first.")
+            return
+        systems = _get_systems(ship)
+        zone_id = systems.get("current_zone", "")
+        if not zone_id:
+            await ctx.session.send_line("  Cannot determine your zone. Try launching again.")
+            return
+        # Announce the hail to the bridge
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ansi.BRIGHT_CYAN}[COMMS OUT]{ansi.RESET} "
+            f"{ship['name']} broadcasts: \"Any ships in the area, please respond.\""
+        )
+        # Let traffic manager handle NPC replies
+        replied = await get_traffic_manager().handle_player_hail(
+            player_session=ctx.session,
+            player_ship_name=ship["name"],
+            zone_id=zone_id,
+            db=ctx.db,
+            session_mgr=ctx.session_mgr,
+        )
+        if not replied:
+            await ctx.session.send_line(
+                f"  {ansi.DIM}[COMMS] No reply on open frequencies.{ansi.RESET}"
+            )
+
+
+class CommsCommand(BaseCommand):
+    key = "comms"
+    aliases = ["comm", "radio"]
+    help_text = (
+        "Send a comms message to a specific ship. "
+        "Usage: comms <ship name> <message>"
+    )
+    usage = "comms <ship name> <message>"
+    async def execute(self, ctx):
+        if not ctx.args or " " not in ctx.args.strip():
+            await ctx.session.send_line(
+                "  Usage: comms <ship name> <message>\n"
+                "  Example: comms 'Starlight Wanderer' We mean no harm.\n"
+                "  Tip: use 'hail' to broadcast to all ships in your zone."
+            )
+            return
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        if ship["docked_at"]:
+            await ctx.session.send_line("  Comms work in space. Launch first.")
+            return
+        systems = _get_systems(ship)
+        zone_id = systems.get("current_zone", "")
+        if not zone_id:
+            await ctx.session.send_line("  Cannot determine your zone. Try launching again.")
+            return
+        # Split first token (target) from rest (message)
+        parts = ctx.args.strip().split(None, 1)
+        target_name = parts[0]
+        message = parts[1] if len(parts) > 1 else ""
+        if not message:
+            await ctx.session.send_line("  Usage: comms <ship name> <message>")
+            return
+        # Echo outgoing to bridge
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ansi.BRIGHT_CYAN}[COMMS OUT]{ansi.RESET} "
+            f"{ship['name']} → {target_name}: \"{message}\""
+        )
+        # Try NPC traffic ship first
+        handled = await get_traffic_manager().handle_player_comms(
+            player_session=ctx.session,
+            player_ship_name=ship["name"],
+            target_name=target_name,
+            message=message,
+            zone_id=zone_id,
+            db=ctx.db,
+            session_mgr=ctx.session_mgr,
+        )
+        if not handled:
+            # Check if target is a player ship in space
+            all_ships = await ctx.db.get_ships_in_space()
+            target_ship = None
+            tname_lower = target_name.lower()
+            for s in all_ships:
+                if s["id"] != ship["id"] and (
+                    s["name"].lower() == tname_lower
+                    or s["name"].lower().startswith(tname_lower)
+                ):
+                    target_ship = s
+                    break
+            if target_ship and target_ship.get("bridge_room_id"):
+                await ctx.session_mgr.broadcast_to_room(
+                    target_ship["bridge_room_id"],
+                    f"  {ansi.BRIGHT_CYAN}[COMMS]{ansi.RESET} "
+                    f"{ship['name']}: \"{message}\""
+                )
+                await ctx.session.send_line(
+                    f"  {ansi.DIM}[COMMS] Message transmitted to {target_ship['name']}.{ansi.RESET}"
+                )
+            else:
+                await ctx.session.send_line(
+                    f"  {ansi.DIM}[COMMS] No response from '{target_name}'. "
+                    f"Check ship name or use 'hail' to broadcast.{ansi.RESET}"
+                )
+
+
 class CreditsCommand(BaseCommand):
     key = "credits"
     aliases = ["balance", "wallet"]
@@ -1417,6 +1617,7 @@ def register_space_commands(registry):
         ShieldsCommand(), HyperspaceCommand(),
         BuyCommand(), CreditsCommand(),
         DamConCommand(),
+        PayCommand(), HailCommand(), CommsCommand(),
         SpawnShipCommand(),
     ]
     for cmd in cmds:

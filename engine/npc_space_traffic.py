@@ -1,17 +1,18 @@
 """
 engine/npc_space_traffic.py
-NPC Space Traffic System — Drop 1
+NPC Space Traffic System — Drop 3
 Zone-based model: ships have a current_zone string, movement is tick-based transitions
 between named zones rather than room walking.
 
-Drop 1 content:
-  - Zone model (ZoneType, Zone, ZONES dict, SPAWN_ZONES)
-  - TrafficArchetype / TrafficState enums
-  - TrafficShip dataclass
-  - NpcSpaceTrafficManager: spawn, despawn, tick, get_zone_ships
-  - Trader archetype (TRANSIT, IDLE, DOCKING states)
-  - BAY_PLANET_MAP for launch/land zone lookup
-  - Schema v3 migration hook (bounty column) handled in db/database.py
+Drop 1: Zone model, TrafficManager scaffold, Trader archetype.
+Drop 2: Smuggler + Imperial Patrol, comms intercept (hail/comms commands).
+Drop 3 additions:
+  - Pirate archetype: tails player ships, sends demand hail, attacks on refusal
+  - TAILING state tick handler
+  - Pirate demand hail + credit-demand escalation
+  - handle_pirate_payment() — player pays demand, pirate flees
+  - handle_traffic_ship_destroyed() — credit reward when pirate killed
+  - PayCommand wired via space_commands
 """
 
 import asyncio
@@ -297,6 +298,15 @@ class TrafficShip:
     hail_sent:                bool = False
     hail_timeout:             float = 0.0
     bounty_target_char_id:    Optional[int] = None
+    # Drop 2: comms / hail state
+    hail_pending:             bool = False        # True while waiting for player reply
+    hail_source_char_id:      Optional[int] = None  # char_id that sent the hail we're waiting on
+    patrol_fight_rounds:      int = 0            # smuggler: count rounds of combat before fleeing
+    patrol_zone_index:        int = 0            # patrol: index into its circuit list
+    # Drop 3: pirate tailing
+    tailing_ship_id:          Optional[int] = None  # player ship_id being tailed
+    pirate_demand_credits:    int = 0            # credit amount demanded from player
+    pirate_paid:              bool = False       # True once player has paid
     # display
     display_name:             str = "Unknown Ship"
     transponder_type:         str = "registered"
@@ -345,6 +355,13 @@ class TrafficShip:
             "hail_sent":             self.hail_sent,
             "hail_timeout":          self.hail_timeout,
             "bounty_target_char_id": self.bounty_target_char_id,
+            "hail_pending":          self.hail_pending,
+            "hail_source_char_id":   self.hail_source_char_id,
+            "patrol_fight_rounds":   self.patrol_fight_rounds,
+            "patrol_zone_index":     self.patrol_zone_index,
+            "tailing_ship_id":       self.tailing_ship_id,
+            "pirate_demand_credits": self.pirate_demand_credits,
+            "pirate_paid":           self.pirate_paid,
             "display_name":          self.display_name,
             "transponder_type":      self.transponder_type,
             "captain_name":          self.captain_name,
@@ -366,6 +383,13 @@ class TrafficShip:
             hail_sent=data.get("hail_sent", False),
             hail_timeout=data.get("hail_timeout", 0.0),
             bounty_target_char_id=data.get("bounty_target_char_id"),
+            hail_pending=data.get("hail_pending", False),
+            hail_source_char_id=data.get("hail_source_char_id"),
+            patrol_fight_rounds=data.get("patrol_fight_rounds", 0),
+            patrol_zone_index=data.get("patrol_zone_index", 0),
+            tailing_ship_id=data.get("tailing_ship_id"),
+            pirate_demand_credits=data.get("pirate_demand_credits", 0),
+            pirate_paid=data.get("pirate_paid", False),
             display_name=data.get("display_name", "Unknown Ship"),
             transponder_type=data.get("transponder_type", "registered"),
             captain_name=data.get("captain_name", "Unknown"),
@@ -546,12 +570,19 @@ class NpcSpaceTrafficManager:
             ts.route = ["tatooine_orbit", "tatooine_dock"]
             ts.enter_state(TrafficState.TRANSIT, duration=ZONE_TRANSIT_SECS)
         elif ts.archetype == TrafficArchetype.SMUGGLER:
+            # Smugglers avoid ORBIT zones — go straight to DOCK via deep space
             ts.route = ["tatooine_deep_space", "tatooine_dock"]
             ts.enter_state(TrafficState.TRANSIT, duration=ZONE_TRANSIT_SECS)
         elif ts.archetype == TrafficArchetype.PATROL:
-            # Patrol circuit: orbit → deep_space → orbit → ...
-            ts.route = ["tatooine_orbit"]
-            ts.enter_state(TrafficState.TRANSIT, duration=ZONE_TRANSIT_SECS)
+            # Patrol circuit: deep_space → orbit → deep_space → ...
+            # Store circuit as a repeating list; patrol_zone_index tracks position
+            ts.route = _build_patrol_circuit()
+            ts.patrol_zone_index = 0
+            if ts.route:
+                ts.enter_state(TrafficState.TRANSIT, duration=ZONE_TRANSIT_SECS)
+            else:
+                idle_dur = random.uniform(IDLE_MIN_SECS, IDLE_MAX_SECS)
+                ts.enter_state(TrafficState.IDLE, duration=idle_dur)
         elif ts.archetype == TrafficArchetype.PIRATE:
             # Pirates start lurking in deep space
             if ts.current_zone != "tatooine_deep_space":
@@ -582,7 +613,11 @@ class NpcSpaceTrafficManager:
             return await self._tick_docking(ship, db, session_mgr)
         elif ship.state == TrafficState.FLEEING:
             return await self._tick_fleeing(ship, db, session_mgr)
-        # HAILING, TAILING, ATTACKING handled in later drops
+        elif ship.state == TrafficState.HAILING:
+            return await self._tick_hailing(ship, db, session_mgr)
+        elif ship.state == TrafficState.TAILING:
+            return await self._tick_tailing(ship, db, session_mgr)
+        # ATTACKING handled in later drops
         return False
 
     async def _tick_transit(self, ship: TrafficShip, db, session_mgr) -> bool:
@@ -624,9 +659,137 @@ class NpcSpaceTrafficManager:
         return False
 
     async def _tick_idle(self, ship: TrafficShip, db, session_mgr) -> bool:
+        # Patrol: scan for players in zone and hail them
+        if ship.archetype == TrafficArchetype.PATROL and not ship.hail_sent:
+            players_in_zone = await self._get_players_in_zone(ship.current_zone, db, session_mgr)
+            if players_in_zone:
+                player_session, player_ship_name = players_in_zone[0]
+                await self._send_patrol_hail(ship, player_session, player_ship_name, session_mgr, db)
+                return False
+
+        # Pirate: spot a player ship in zone → begin tailing
+        if ship.archetype == TrafficArchetype.PIRATE and ship.tailing_ship_id is None:
+            player_ships = await self._get_players_in_zone(ship.current_zone, db, session_mgr)
+            if player_ships:
+                player_session, player_ship_name = player_ships[0]
+                target_ship_id = await _get_player_ship_zone_ship_id(player_session, db)
+                if target_ship_id:
+                    ship.tailing_ship_id = target_ship_id
+                    ship.enter_state(TrafficState.TAILING, duration=0)
+                    await self._announce_to_zone(
+                        ship.current_zone,
+                        f"  {ansi_yellow}[SENSORS]{ansi_reset} {ship.sensors_name()} "
+                        f"adjusts course — it appears to be following you.",
+                        session_mgr, db,
+                    )
+                    log.info(f"[traffic] pirate '{ship.display_name}' tailing ship {target_ship_id}")
+                    return False
+
         if ship.state_duration > 0 and ship.state_age() >= ship.state_duration:
-            # Idle timer expired — decide next action
             self._plan_next_move(ship)
+        return False
+
+    async def _tick_hailing(self, ship: TrafficShip, db, session_mgr) -> bool:
+        """Waiting for a player reply. Time out after HAIL_TIMEOUT_SECS."""
+        if ship.state_age() >= HAIL_TIMEOUT_SECS:
+            # No reply — treat as refusal
+            if ship.archetype == TrafficArchetype.PATROL:
+                await self._announce_to_zone(
+                    ship.current_zone,
+                    f"  [COMMS] {ship.display_name}: \"Failure to respond is a violation."
+                    f" Prepare to be boarded.\"",
+                    session_mgr, db,
+                )
+                log.info(f"[traffic] patrol {ship.display_name} hail timeout — escalating")
+            elif ship.archetype == TrafficArchetype.PIRATE:
+                # Refusal → pirate attacks
+                await self._announce_to_zone(
+                    ship.current_zone,
+                    f"  {ansi_yellow}[COMMS]{ansi_reset} {ship.sensors_name()}: "
+                    f"\"You had your chance. Open fire!\"",
+                    session_mgr, db,
+                )
+                await self._announce_to_zone(
+                    ship.current_zone,
+                    f"  {ansi_yellow}[ALERT]{ansi_reset} {ship.sensors_name()} "
+                    f"is attacking! Use 'fire', 'flee', or 'evade'.",
+                    session_mgr, db,
+                )
+                log.info(f"[traffic] pirate '{ship.display_name}' demand refused — attacking")
+                # Pirate re-enters idle; full combat loop is Drop 4 / future
+                ship.tailing_ship_id = None
+                idle_dur = random.uniform(IDLE_MIN_SECS, IDLE_MAX_SECS)
+                ship.enter_state(TrafficState.IDLE, duration=idle_dur)
+                ship.hail_sent = False
+                ship.hail_pending = False
+                return False
+            elif ship.archetype == TrafficArchetype.SMUGGLER:
+                pass
+            ship.hail_sent = False
+            ship.hail_pending = False
+            ship.hail_source_char_id = None
+            self._plan_next_move(ship)
+        return False
+
+    async def _tick_tailing(self, ship: TrafficShip, db, session_mgr) -> bool:
+        """
+        Pirate is tailing a player ship. After HAIL_TIMEOUT_SECS of tailing,
+        send the credit demand. If the target ship changes zone, follow or give up.
+        """
+        if ship.tailing_ship_id is None:
+            # Lost target — go idle
+            idle_dur = random.uniform(IDLE_MIN_SECS, IDLE_MAX_SECS)
+            ship.enter_state(TrafficState.IDLE, duration=idle_dur)
+            return False
+
+        # Check whether target is still in the same zone
+        try:
+            target_row = await db.get_ship(ship.tailing_ship_id)
+        except Exception:
+            target_row = None
+
+        if target_row:
+            target_sys = json.loads(dict(target_row).get("systems") or "{}")
+            target_zone = target_sys.get("current_zone", "")
+            if target_zone and target_zone != ship.current_zone:
+                # Target moved — follow if adjacent, else give up
+                zone_obj = ZONES.get(ship.current_zone)
+                if zone_obj and target_zone in zone_obj.adjacent:
+                    ship.current_zone = target_zone
+                    await self._announce_to_zone(
+                        target_zone,
+                        f"  [SENSORS] {ship.sensors_name()} drops in behind you.",
+                        session_mgr, db,
+                    )
+                else:
+                    # Lost them
+                    ship.tailing_ship_id = None
+                    idle_dur = random.uniform(IDLE_MIN_SECS, IDLE_MAX_SECS)
+                    ship.enter_state(TrafficState.IDLE, duration=idle_dur)
+                    return False
+        else:
+            # Target ship gone (landed/destroyed)
+            ship.tailing_ship_id = None
+            idle_dur = random.uniform(IDLE_MIN_SECS, IDLE_MAX_SECS)
+            ship.enter_state(TrafficState.IDLE, duration=idle_dur)
+            return False
+
+        # After tailing for HAIL_TIMEOUT_SECS, send demand
+        if ship.state_age() >= HAIL_TIMEOUT_SECS and not ship.hail_sent:
+            demand = random.randint(PIRATE_CREDIT_MIN, PIRATE_CREDIT_MAX)
+            ship.pirate_demand_credits = demand
+            ship.pirate_paid = False
+            ship.hail_sent = True
+            ship.enter_state(TrafficState.HAILING, duration=HAIL_TIMEOUT_SECS)
+            await self._announce_to_zone(
+                ship.current_zone,
+                f"  {ansi_yellow}[COMMS]{ansi_reset} {ship.sensors_name()}: "
+                f"\"Cut your engines. Transfer {demand:,} credits or we start shooting. "
+                f"Use: pay {ship.sensors_name()} to comply.\"",
+                session_mgr, db,
+            )
+            log.info(f"[traffic] pirate '{ship.display_name}' demands {demand} cr")
+
         return False
 
     async def _tick_docking(self, ship: TrafficShip, db, session_mgr) -> bool:
@@ -676,6 +839,32 @@ class NpcSpaceTrafficManager:
                 # Head out
                 self._plan_departure(ship)
 
+        elif ship.archetype == TrafficArchetype.SMUGGLER:
+            # Smugglers avoid ORBIT zones — route through deep space only
+            if ship.current_zone == "tatooine_dock":
+                # Finished docking — head out via deep space, skip orbit
+                ship.route = ["tatooine_deep_space", "outer_rim_lane_1"]
+                ship.enter_state(TrafficState.TRANSIT, duration=ZONE_TRANSIT_SECS)
+            elif ship.current_zone in ("tatooine_deep_space", "outer_rim_lane_1"):
+                # Head to dock via deep space only (no orbit)
+                ship.route = ["tatooine_deep_space", "tatooine_dock"]
+                ship.enter_state(TrafficState.TRANSIT, duration=ZONE_TRANSIT_SECS)
+            else:
+                self._plan_departure(ship)
+
+        elif ship.archetype == TrafficArchetype.PATROL:
+            # Advance to next leg of the patrol circuit
+            circuit = _build_patrol_circuit()
+            if circuit:
+                ship.patrol_zone_index = (ship.patrol_zone_index + 1) % len(circuit)
+                next_zone = circuit[ship.patrol_zone_index]
+                path = find_path(ship.current_zone, next_zone)
+                ship.route = path if path else [next_zone]
+                ship.hail_sent = False  # reset so patrol can hail in next zone
+                ship.enter_state(TrafficState.TRANSIT, duration=ZONE_TRANSIT_SECS)
+            else:
+                self._plan_departure(ship)
+
         elif ship.archetype == TrafficArchetype.PIRATE:
             # Pirates just keep lurking
             idle_dur = random.uniform(IDLE_MIN_SECS, IDLE_MAX_SECS)
@@ -699,6 +888,161 @@ class NpcSpaceTrafficManager:
         """Start the departure sequence for a ship that's lived long enough."""
         if ship.state not in (TrafficState.FLEEING,):
             self._plan_departure(ship)
+
+    # ── Player zone helpers ───────────────────────────────────────────────────
+
+    async def _get_players_in_zone(self, zone_id: str, db, session_mgr) -> list:
+        """Return list of (session, ship_name) tuples for players in zone_id."""
+        result = []
+        try:
+            for session in list(session_mgr.all):
+                char = getattr(session, "character", None)
+                if not char:
+                    continue
+                ship_id = await _get_player_ship_zone_ship_id(session, db)
+                if ship_id is None:
+                    continue
+                ship_row = await db.get_ship(ship_id)
+                if not ship_row:
+                    continue
+                systems = json.loads(dict(ship_row).get("systems") or "{}")
+                if systems.get("current_zone") == zone_id:
+                    result.append((session, dict(ship_row).get("name", "your ship")))
+        except Exception as e:
+            log.error(f"[traffic] _get_players_in_zone error: {e}")
+        return result
+
+    # ── Hail senders ─────────────────────────────────────────────────────────
+
+    async def _send_patrol_hail(self, ship: TrafficShip, player_session,
+                                 player_ship_name: str, session_mgr, db):
+        """Send an Imperial Patrol hail to a player ship."""
+        ship.hail_sent = True
+        ship.enter_state(TrafficState.HAILING, duration=HAIL_TIMEOUT_SECS)
+        await self._announce_to_zone(
+            ship.current_zone,
+            f"  {ansi_yellow}[COMMS]{ansi_reset} {ship.display_name}: "
+            f"\"Attention {player_ship_name} — this is Imperial Sector Patrol. "
+            f"Transmit your identification codes and stand by for inspection. "
+            f"Respond with: comms {ship.sensors_name()} <message>\"",
+            session_mgr, db,
+        )
+        log.info(f"[traffic] patrol '{ship.display_name}' hailed player ship '{player_ship_name}'")
+
+    # ── Public comms API (called from space_commands) ─────────────────────────
+
+    async def handle_player_hail(self, player_session, player_ship_name: str,
+                                  zone_id: str, db, session_mgr) -> bool:
+        """
+        Player sent 'hail' with no target. Broadcast to all traffic ships in zone.
+        Returns True if any traffic ship was in zone.
+        """
+        ships_in_zone = self.get_zone_ships(zone_id)
+        if not ships_in_zone:
+            return False
+        for ts in ships_in_zone:
+            reply = _build_generic_hail_reply(ts, player_ship_name)
+            await player_session.send_line(
+                f"  {ansi_yellow}[COMMS]{ansi_reset} {ts.sensors_name()}: \"{reply}\""
+            )
+        return True
+
+    async def handle_player_comms(self, player_session, player_ship_name: str,
+                                   target_name: str, message: str,
+                                   zone_id: str, db, session_mgr) -> bool:
+        """
+        Player sent 'comms <target> <message>'. Find matching traffic ship and respond.
+        Returns True if a traffic ship was found and responded.
+        """
+        ts = self.get_ship_by_name(target_name)
+        if ts is None or ts.current_zone != zone_id:
+            return False
+
+        # Clear hailing state if they were waiting on this player
+        if ts.state == TrafficState.HAILING:
+            ts.hail_pending = False
+            ts.hail_source_char_id = None
+            # Move back to idle so patrol can continue circuit
+            idle_dur = random.uniform(IDLE_MIN_SECS, IDLE_MAX_SECS)
+            ts.enter_state(TrafficState.IDLE, duration=idle_dur)
+
+        reply = _build_comms_reply(ts, player_ship_name, message)
+        await player_session.send_line(
+            f"  {ansi_yellow}[COMMS]{ansi_reset} {ts.sensors_name()}: \"{reply}\""
+        )
+        # Also echo the player's outgoing message to the bridge
+        await session_mgr.broadcast_to_zone_bridge(
+            zone_id,
+            f"  {ansi_cyan}[COMMS OUT]{ansi_reset} {player_ship_name} → "
+            f"{ts.sensors_name()}: \"{message}\"",
+            exclude_session=player_session,
+            db=db,
+        ) if hasattr(session_mgr, "broadcast_to_zone_bridge") else None
+        log.info(f"[traffic] player '{player_ship_name}' comms → '{ts.display_name}': {message[:40]}")
+        return True
+
+    async def handle_pirate_payment(self, player_session, player_char,
+                                     target_name: str, zone_id: str,
+                                     db, session_mgr) -> tuple[bool, str]:
+        """
+        Player used 'pay <pirate>' to comply with a demand.
+        Returns (success, message) tuple.
+        """
+        ts = self.get_ship_by_name(target_name)
+        if ts is None or ts.current_zone != zone_id:
+            return False, f"No ship named '{target_name}' in your zone."
+        if ts.archetype != TrafficArchetype.PIRATE:
+            return False, f"{ts.sensors_name()} isn't demanding anything from you."
+        if ts.state != TrafficState.HAILING or ts.pirate_demand_credits <= 0:
+            return False, f"{ts.sensors_name()} hasn't made a demand yet."
+        if ts.pirate_paid:
+            return False, "You've already paid that demand."
+
+        demand = ts.pirate_demand_credits
+        credits = player_char.get("credits", 0)
+        if credits < demand:
+            return False, (f"You don't have enough credits. "
+                           f"Demand: {demand:,} cr, You have: {credits:,} cr.")
+
+        # Deduct credits
+        player_char["credits"] = credits - demand
+        await db.save_character(player_char["id"], credits=player_char["credits"])
+
+        ts.pirate_paid = True
+        ts.hail_sent = False
+        ts.hail_pending = False
+        ts.tailing_ship_id = None
+
+        # Pirate satisfied — flees
+        self._plan_departure(ts)
+
+        await self._announce_to_zone(
+            zone_id,
+            f"  {ansi_yellow}[COMMS]{ansi_reset} {ts.sensors_name()}: "
+            f"\"Smart move. Pleasure doing business.\"",
+            session_mgr, db,
+        )
+        log.info(f"[traffic] player paid pirate '{ts.display_name}' {demand} cr — fleeing")
+        return True, f"You transfer {demand:,} credits. {ts.sensors_name()} breaks off."
+
+    async def handle_traffic_ship_destroyed(self, traffic_ship_id: int,
+                                             player_char, db, session_mgr) -> int:
+        """
+        Called when a player kills a traffic ship. Awards credit bounty for pirates.
+        Returns credits awarded (0 if not a pirate).
+        """
+        ts = self._ships.get(traffic_ship_id)
+        if ts is None:
+            return 0
+        awarded = 0
+        if ts.archetype == TrafficArchetype.PIRATE:
+            awarded = random.randint(PIRATE_CREDIT_MIN, PIRATE_CREDIT_MAX)
+            new_credits = player_char.get("credits", 0) + awarded
+            player_char["credits"] = new_credits
+            await db.save_character(player_char["id"], credits=new_credits)
+            log.info(f"[traffic] player destroyed pirate '{ts.display_name}' — awarded {awarded} cr")
+        await self._despawn(traffic_ship_id, db, session_mgr)
+        return awarded
 
     # ── Despawn ───────────────────────────────────────────────────────────────
 
@@ -759,6 +1103,113 @@ class NpcSpaceTrafficManager:
                     await session.send_line(message)
         except Exception as e:
             log.error(f"[traffic] announce error: {e}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ANSI shortcuts (avoid importing full server.ansi to keep engine layer clean)
+# ─────────────────────────────────────────────────────────────────────────────
+try:
+    from server import ansi as _ansi
+    ansi_yellow = _ansi.BRIGHT_YELLOW
+    ansi_cyan   = _ansi.BRIGHT_CYAN
+    ansi_reset  = _ansi.RESET
+except Exception:
+    ansi_yellow = ansi_cyan = ansi_reset = ""
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATROL CIRCUIT
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _build_patrol_circuit() -> list[str]:
+    """Return the ordered patrol circuit for the current zone config."""
+    # tatooine circuit: deep_space → orbit → deep_space → ...
+    return ["tatooine_deep_space", "tatooine_orbit"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMMS REPLY BUILDERS
+# ─────────────────────────────────────────────────────────────────────────────
+
+_TRADER_REPLIES = [
+    "Safe travels. We're just passing through.",
+    "Nothing to declare. Manifest is clean.",
+    "Acknowledged. We're on a tight schedule — good day.",
+    "Cargo secured and accounted for. No trouble here.",
+]
+
+_SMUGGLER_REPLIES = [
+    "We're, uh, just doing routine cargo work. Nothing to see here.",
+    "Official business. Can't say more. You understand.",
+    "Keep moving, friend. We've got places to be.",
+    "Acknowledged. Carry on.",
+]
+
+_PATROL_REPLIES_COMPLIANT = [
+    "Identification received. You are cleared to proceed. Stay on course.",
+    "Codes verified. Move along — and keep your transponder active.",
+    "Acknowledged. You're in the clear. Don't make us stop you again.",
+]
+
+_PATROL_REPLIES_SUSPICIOUS = [
+    "Your codes are... irregular. We'll be watching you.",
+    "Technically compliant. Stay visible on our scans.",
+    "Noted. Any deviation from approved corridors will be logged.",
+]
+
+_PIRATE_REPLIES = [
+    "Credits or hull plating. Your choice.",
+    "We're not here to talk. Pay up.",
+    "Keep talking and we start shooting.",
+    "The price just went up. Stop wasting our time.",
+]
+
+_GENERIC_HAIL = [
+    "This frequency is monitored. State your business.",
+    "Go ahead. We're listening.",
+    "Received your hail. Keep it brief.",
+]
+
+
+def _build_generic_hail_reply(ts: TrafficShip, player_ship_name: str) -> str:
+    """Reply when a player broadcasts 'hail' with no specific target."""
+    if ts.archetype == TrafficArchetype.TRADER:
+        return random.choice(_TRADER_REPLIES)
+    elif ts.archetype == TrafficArchetype.SMUGGLER:
+        return random.choice(_SMUGGLER_REPLIES)
+    elif ts.archetype == TrafficArchetype.PATROL:
+        return (f"This is {ts.display_name}. Identify yourself and state your business, "
+                f"{player_ship_name}.")
+    elif ts.archetype == TrafficArchetype.PIRATE:
+        if ts.pirate_demand_credits > 0:
+            return (f"You owe us {ts.pirate_demand_credits:,} credits. "
+                    f"Pay now or face the consequences.")
+        return random.choice(_PIRATE_REPLIES)
+    else:
+        return random.choice(_GENERIC_HAIL)
+
+
+def _build_comms_reply(ts: TrafficShip, player_ship_name: str, message: str) -> str:
+    """Build an NPC reply to a targeted comms message."""
+    msg_lower = message.lower()
+    if ts.archetype == TrafficArchetype.TRADER:
+        return random.choice(_TRADER_REPLIES)
+    elif ts.archetype == TrafficArchetype.SMUGGLER:
+        return random.choice(_SMUGGLER_REPLIES)
+    elif ts.archetype == TrafficArchetype.PATROL:
+        compliance_words = ("id", "ident", "code", "clear", "acknowledged", "complying",
+                            "here", "transmit", "sending", "affirmative")
+        if any(w in msg_lower for w in compliance_words):
+            return random.choice(_PATROL_REPLIES_COMPLIANT)
+        else:
+            return random.choice(_PATROL_REPLIES_SUSPICIOUS)
+    elif ts.archetype == TrafficArchetype.PIRATE:
+        if ts.pirate_demand_credits > 0:
+            return (f"Stop stalling. {ts.pirate_demand_credits:,} credits. "
+                    f"Use 'pay {ts.sensors_name()}' to comply.")
+        return random.choice(_PIRATE_REPLIES)
+    else:
+        return random.choice(_GENERIC_HAIL)
 
 
 async def _get_player_ship_zone_ship_id(session, db) -> Optional[int]:
