@@ -20,6 +20,7 @@ from parser.d6_commands import register_d6_commands
 from parser.building_commands import register_building_commands
 from parser.building_tier2 import register_building_tier2
 from parser.combat_commands import register_combat_commands
+from parser.force_commands import register_force_commands
 from parser.npc_commands import register_npc_commands
 from parser.space_commands import register_space_commands
 from parser.crew_commands import register_crew_commands
