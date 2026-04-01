@@ -396,6 +396,14 @@ class Database:
         )
         return dict(rows[0]) if rows else None
 
+    async def get_character_by_name(self, name: str) -> Optional[dict]:
+        """Get a single active character by name (case-insensitive)."""
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM characters WHERE name = ? AND is_active = 1",
+            (name,)
+        )
+        return dict(rows[0]) if rows else None
+
     async def create_character(self, account_id: int, fields: dict) -> int:
         """
         Insert a new character row. Returns the new character's ID.

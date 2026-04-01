@@ -1614,15 +1614,9 @@ class SetBountyCommand(BaseCommand):
             await ctx.session.send_line("Usage: @setbounty <character name>")
             return
         target_name = ctx.args.strip()
-        # Find character by name
-        chars = await ctx.db.get_all_characters()
-        target = None
-        for c in chars:
-            if dict(c).get("name", "").lower() == target_name.lower():
-                target = dict(c)
-                break
+        target = await ctx.db.get_character_by_name(target_name)
         if not target:
-            await ctx.session.send_line(f"  No character named '{target_name}' found.")
+            await ctx.session.send_line(f"  No active character named '{target_name}' found.")
             return
         # Set bounty flag (integer column added in schema v3)
         try:
