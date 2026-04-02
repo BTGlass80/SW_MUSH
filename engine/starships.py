@@ -89,6 +89,82 @@ def can_weapon_fire(weapon_arc: str, relative_pos: str) -> bool:
 # -- Space Grid --
 # Tracks pairwise range and relative position between all ships in a sector
 
+# ── Evade Resolution ─────────────────────────────────────────────────────────
+
+@dataclass
+class EvadeResult:
+    """Result of an evasive maneuver attempt."""
+    success: bool = False
+    roll_total: int = 0
+    difficulty: int = 0
+    all_tails_broken: bool = False
+    narrative: str = ""
+
+
+def resolve_evade(
+    pilot_skill: DicePool,
+    maneuverability: DicePool,
+    engine_state: str = "working",
+    num_actions: int = 1,
+) -> EvadeResult:
+    """
+    Resolve an evasive maneuver roll (Persistent Tailing / Priority B).
+
+    The pilot throws the ship into violent evasive maneuvers, attempting to
+    break ALL tail locks simultaneously.  Uses pilot skill + ship maneuverability
+    vs a Moderate (10) base difficulty.
+
+    Engine damage modifiers (Star Warriors Section 17 adaptation):
+      - 'damaged'   → +5 difficulty
+      - 'destroyed' → impossible; auto-fail with flavour narrative
+
+    On success, all position pairs involving this ship are reset to FRONT by
+    the caller (EvadeCommand reads all_tails_broken and clears the SpaceGrid).
+    """
+    result = EvadeResult()
+
+    # Destroyed engines: cannot maneuver at all
+    if engine_state == "destroyed":
+        result.narrative = (
+            "  Engines destroyed — evasive maneuvers impossible! "
+            "You're a sitting duck."
+        )
+        return result
+
+    # Build difficulty
+    base_diff = 10
+    engine_penalty = 5 if engine_state == "damaged" else 0
+    result.difficulty = base_diff + engine_penalty
+
+    # Build pilot pool: skill + ship maneuverability
+    pool = DicePool(
+        pilot_skill.dice + maneuverability.dice,
+        pilot_skill.pips + maneuverability.pips,
+    )
+    pool = apply_multi_action_penalty(pool, num_actions)
+
+    roll = roll_d6_pool(pool)
+    result.roll_total = roll.total
+
+    engine_note = " (damaged engines +5)" if engine_penalty else ""
+    diff_display = f"{result.difficulty}{engine_note}"
+
+    if roll.total >= result.difficulty:
+        result.success = True
+        result.all_tails_broken = True
+        result.narrative = (
+            f"  Evasive maneuvers successful! All pursuit positions broken. "
+            f"(Roll: {roll.total} vs Diff: {diff_display})"
+        )
+    else:
+        result.narrative = (
+            f"  Evasive maneuvers failed — still being tailed! "
+            f"(Roll: {roll.total} vs Diff: {diff_display})"
+        )
+
+    return result
+
+
 class SpaceGrid:
     """
     Manages spatial relationships between ships in space.
@@ -108,6 +184,9 @@ class SpaceGrid:
         self._positions: dict[tuple[int, int], str] = {}
         # {ship_id: speed} for speed advantage calculations
         self._speeds: dict[int, int] = {}
+        # {ship_id: int} — evasive maneuver bonus added to attacker difficulty this round
+        # Consumed (zeroed) when first attack resolves against this ship
+        self._maneuver_bonuses: dict[int, int] = {}
 
     def add_ship(self, ship_id: int, speed: int, default_range: SpaceRange = SpaceRange.LONG):
         """Add a ship to the grid. New ships start at Long range from everyone."""
@@ -150,6 +229,14 @@ class SpaceGrid:
 
     def get_speed(self, ship_id: int) -> int:
         return self._speeds.get(ship_id, 5)
+
+    def set_maneuver_bonus(self, ship_id: int, bonus: int):
+        """Set an evasive maneuver difficulty bonus for this ship for the current round."""
+        self._maneuver_bonuses[ship_id] = bonus
+
+    def get_and_consume_maneuver_bonus(self, ship_id: int) -> int:
+        """Return the maneuver bonus for this ship and zero it (one-shot per round)."""
+        return self._maneuver_bonuses.pop(ship_id, 0)
 
     def resolve_maneuver(
         self,
@@ -519,6 +606,8 @@ def resolve_space_attack(
     num_actions: int = 1,
     range_band: SpaceRange = SpaceRange.SHORT,
     relative_position: str = RelativePosition.FRONT,
+    attacker_ship_id: int = None,
+    target_ship_id: int = None,
 ) -> SpaceCombatResult:
     """
     Resolve one space combat attack per R&E Chapter 10.
@@ -552,6 +641,17 @@ def resolve_space_attack(
     )
     attack_pool = apply_multi_action_penalty(attack_pool, num_actions)
 
+    # Tailing bonus: +1D attack when attacker is confirmed on target's tail.
+    # Requires both ship IDs so we can verify the symmetric position pair.
+    tailing_bonus = False
+    if (relative_position == RelativePosition.FRONT
+            and attacker_ship_id is not None
+            and target_ship_id is not None):
+        _grid = get_space_grid()
+        if _grid.get_position(target_ship_id, attacker_ship_id) == RelativePosition.REAR:
+            attack_pool = DicePool(attack_pool.dice + 1, attack_pool.pips)
+            tailing_bonus = True
+
     # Scale modifier for to-hit
     scale_diff = target_scale - attacker_scale
     if scale_diff > 0:
@@ -569,9 +669,12 @@ def resolve_space_attack(
     attack_roll = roll_d6_pool(attack_pool)
     defense_roll = roll_d6_pool(defense_pool)
 
-    # Total difficulty: range modifier + defense roll
+    # Total difficulty: range modifier + defense roll + evasive maneuver bonus
     range_mod = int(range_band)
-    total_difficulty = range_mod + defense_roll.total
+    maneuver_bonus = 0
+    if target_ship_id is not None:
+        maneuver_bonus = get_space_grid().get_and_consume_maneuver_bonus(target_ship_id)
+    total_difficulty = range_mod + defense_roll.total + maneuver_bonus
 
     result.attack_roll = attack_roll.total
     result.defense_roll = total_difficulty
@@ -580,11 +683,13 @@ def resolve_space_attack(
     range_label = range_band.label
 
     if not result.hit:
+        tail_tag = " [TAIL +1D]" if tailing_bonus else ""
+        evade_tag = f" + Evade({maneuver_bonus})" if maneuver_bonus else ""
         result.narrative = (
-            f"  Shot misses at {range_label} range! "
+            f"  Shot misses at {range_label} range!{tail_tag} "
             f"(Attack: {result.attack_roll} vs "
-            f"Diff: {range_label}({range_mod}) + Evade({defense_roll.total}) "
-            f"= {total_difficulty})"
+            f"Diff: {range_label}({range_mod}) + Evade({defense_roll.total})"
+            f"{evade_tag} = {total_difficulty})"
         )
         return result
 
@@ -678,6 +783,98 @@ def resolve_space_attack(
                 f"(Damage: {result.damage_roll} vs Soak: {result.soak_roll}, "
                 f"margin: {margin})"
             )
+
+    return result
+
+
+# -- Hazard Table (Star Warriors Section 7, adapted for D6 R&E) --
+
+@dataclass
+class HazardResult:
+    """Result of a hazard table roll after a bad maneuver."""
+    roll: int = 0                       # 2d6 result
+    systems_damaged: list = None        # Systems that become "damaged"
+    hull_damage: int = 0                # Direct hull damage points
+    narrative: str = ""                 # Broadcast message
+
+    def __post_init__(self):
+        if self.systems_damaged is None:
+            self.systems_damaged = []
+
+    @property
+    def has_effect(self) -> bool:
+        return bool(self.systems_damaged) or self.hull_damage > 0
+
+
+# Hazard table: 2d6 roll -> (primary_system, secondary_system_or_None, hull_damage, flavour)
+# Roll 7 is always no effect (Star Warriors 7.38).
+# Adapted from Star Warriors Hazard Table rows B-G, columns 2-12.
+_HAZARD_TABLE = {
+    2:  (["engines"],              "shields",   0, "Control systems surge — multiple failures!"),
+    3:  (["shields"],              "engines",   0, "Power coupling overloads!"),
+    4:  (["engines"],              "weapons",   0, "Structural stress tears at the drive!"),
+    5:  (["shields"],              None,        0, "Shield emitter overloads!"),
+    6:  (["engines"],              None,        0, "Gyro destabilizes — handling sluggish!"),
+    7:  ([],                       None,        0, "Close call — no serious damage!"),
+    8:  (["weapons"],              None,        0, "Fire control feedback — guns offline!"),
+    9:  (["sensors"],              None,        0, "Sensor array shaken loose!"),
+    10: (["engines"],              "shields",   0, "Drive stutters under the stress!"),
+    11: ([],                       None,        1, "Frame stress — hull integrity compromised!"),
+    12: (["hyperdrive", "engines"],None,        0, "Critical stress — drive systems hit!"),
+}
+
+
+def roll_hazard_table(systems: dict) -> HazardResult:
+    """
+    Roll on the Hazard Table (Star Warriors Section 7, adapted).
+
+    Called when a pilot fails an evasive maneuver roll by 5 or more.
+    Only damages systems that are currently 'working' — already-damaged
+    systems can't be made worse by a hazard (they're already failing).
+
+    Args:
+        systems: Current ship systems dict (from DB JSON).
+
+    Returns:
+        HazardResult with narrative and damage to apply.
+    """
+    import random
+    roll = random.randint(1, 6) + random.randint(1, 6)
+
+    entry = _HAZARD_TABLE.get(roll, _HAZARD_TABLE[7])
+    primary_list, secondary, hull_dmg, flavour = entry
+
+    result = HazardResult(roll=roll, hull_damage=hull_dmg, narrative="")
+
+    # Only damage working systems
+    def _is_working(sys_name: str) -> bool:
+        val = systems.get(sys_name, True)
+        return val is True or val == "working"
+
+    damaged = []
+    for sys_name in primary_list:
+        if _is_working(sys_name):
+            damaged.append(sys_name)
+
+    if secondary and _is_working(secondary):
+        damaged.append(secondary)
+
+    result.systems_damaged = damaged
+
+    # Build narrative
+    dmg_parts = []
+    if damaged:
+        dmg_parts.append(f"{', '.join(s.title() for s in damaged)} damaged")
+    if hull_dmg:
+        dmg_parts.append(f"+{hull_dmg} hull damage")
+    if not dmg_parts:
+        dmg_parts.append("no systems affected")
+
+    result.narrative = (
+        f"  {ansi.BRIGHT_RED}[HAZARD]{ansi.RESET} "
+        f"Roll {roll}: {flavour} "
+        f"({', '.join(dmg_parts)}.)"
+    )
 
     return result
 

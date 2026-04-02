@@ -57,7 +57,6 @@ class GameServer:
         register_npc_commands(self.registry)
         register_space_commands(self.registry)
         register_crew_commands(self.registry)
-        register_force_commands(self.registry)
 
         # AI system
         self.ai_manager = AIManager(AIConfig())

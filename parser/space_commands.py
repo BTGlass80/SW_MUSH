@@ -994,6 +994,9 @@ class EvadeCommand(BaseCommand):
     help_text = "Evasive maneuvers -- broadcast to crew (pilot only)."
     usage = "evade"
     async def execute(self, ctx):
+        from engine.starships import resolve_evade, roll_hazard_table
+        from engine.character import Character, SkillRegistry
+
         ship = await _get_ship_for_player(ctx)
         if not ship:
             await ctx.session.send_line("  You're not aboard a ship.")
@@ -1005,20 +1008,314 @@ class EvadeCommand(BaseCommand):
         if crew.get("pilot") != ctx.session.character["id"]:
             await ctx.session.send_line("  Only the pilot can evade.")
             return
+
         reg = get_ship_registry()
         template = reg.get(ship["template"])
-        maneuver = template.maneuverability if template else "1D"
-        await ctx.session_mgr.broadcast_to_room(ship["bridge_room_id"],
+        if not template:
+            await ctx.session.send_line("  Unknown ship template.")
+            return
+
+        # Build pilot pool
+        char_obj = Character.from_db_dict(ctx.session.character)
+        sr = SkillRegistry()
+        sr.load_file("data/skills.yaml")
+        pilot_pool = char_obj.get_skill_pool("starfighter piloting", sr)
+        maneuver_pool = DicePool.parse(template.maneuverability)
+
+        # Check engine state
+        systems = _get_systems(ship)
+        engine_state = systems.get("engines", "working")
+        if isinstance(engine_state, bool):
+            engine_state = "working" if engine_state else "damaged"
+
+        result = resolve_evade(
+            pilot_skill=pilot_pool,
+            maneuverability=maneuver_pool,
+            engine_state=engine_state,
+            num_actions=1,
+        )
+
+        # Broadcast roll result
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
             f"  {ansi.BRIGHT_YELLOW}[HELM]{ansi.RESET} "
             f"{ctx.session.character['name']} throws the ship into evasive maneuvers! "
-            f"(Maneuverability: {maneuver})")
+            f"{result.narrative.strip()}"
+        )
+
+        if result.all_tails_broken:
+            # Reset all position pairs involving this ship
+            grid = get_space_grid()
+            ship_id = ship["id"]
+            partners = list(
+                {k[1] for k in grid._positions if k[0] == ship_id}
+                | {k[0] for k in grid._positions if k[1] == ship_id}
+            )
+            for other_id in partners:
+                if other_id != ship_id:
+                    grid.set_position(ship_id, other_id, RelativePosition.FRONT)
+                    grid.set_position(other_id, ship_id, RelativePosition.FRONT)
+
+        elif not result.success and not result.narrative.startswith("  Engines"):
+            # Hazard check: miss by 5+ triggers hazard table
+            margin = result.difficulty - result.roll_total
+            if margin >= 5:
+                hazard = roll_hazard_table(systems)
+                await ctx.session_mgr.broadcast_to_room(
+                    ship["bridge_room_id"],
+                    hazard.narrative
+                )
+                if hazard.systems_damaged or hazard.hull_damage:
+                    updates = {}
+                    if hazard.hull_damage:
+                        updates["hull_damage"] = (
+                            ship.get("hull_damage", 0) + hazard.hull_damage
+                        )
+                    if hazard.systems_damaged:
+                        for s in hazard.systems_damaged:
+                            systems[s] = "damaged"
+                        updates["systems"] = json.dumps(systems)
+                    if updates:
+                        await ctx.db.update_ship(ship["id"], **updates)
+
+
+# ── Evasive Maneuver Commands (Priority C) ────────────────────────────────────
+#
+# Star Warriors maneuver adaptation for D6 R&E:
+#   Pilot rolls skill + maneuverability vs fixed difficulty.
+#   On success: sets a one-shot bonus on SpaceGrid that raises attacker difficulty
+#   for the FIRST attack resolved against this ship this round.
+#   Failure = wasted action, no bonus.
+#
+# Maneuver table (adapted from Star Warriors):
+#   jink        difficulty 10  +5 to attacker difficulty   single action
+#   barrelroll  difficulty 13  +8 to attacker difficulty   single action, higher risk
+#   loop        difficulty 15  +8 + breaks tail lock        double action
+#   slip        difficulty 17  +10 + repositions to flank   double action
+#
+# Engine state modifiers (same as evade):
+#   damaged   +5 to difficulty
+#   destroyed maneuver impossible
+
+async def _resolve_maneuver_cmd(ctx, maneuver_name: str, base_diff: int,
+                                 attacker_bonus: int, breaks_tail: bool,
+                                 repositions_flank: bool, num_actions: int):
+    """Shared implementation for all evasive maneuver commands."""
+    from engine.character import Character, SkillRegistry
+
+    ship = await _get_ship_for_player(ctx)
+    if not ship:
+        await ctx.session.send_line("  You're not aboard a ship.")
+        return
+    if ship["docked_at"]:
+        await ctx.session.send_line("  Can't maneuver while docked!")
+        return
+    crew = _get_crew(ship)
+    if crew.get("pilot") != ctx.session.character["id"]:
+        await ctx.session.send_line("  Only the pilot can execute evasive maneuvers.")
+        return
+
+    reg = get_ship_registry()
+    template = reg.get(ship["template"])
+    if not template:
+        await ctx.session.send_line("  Unknown ship template.")
+        return
+
+    # Check engine state
+    systems = _get_systems(ship)
+    engine_state = systems.get("engines", "working")
+    if isinstance(engine_state, bool):
+        engine_state = "working" if engine_state else "damaged"
+
+    if engine_state == "destroyed":
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_RED}[HELM]{ansi.RESET} Engines destroyed — "
+            f"{maneuver_name} impossible!")
+        return
+
+    engine_penalty = 5 if engine_state == "damaged" else 0
+    total_diff = base_diff + engine_penalty
+
+    # Build pilot pool
+    char_obj = Character.from_db_dict(ctx.session.character)
+    sr = SkillRegistry()
+    sr.load_file("data/skills.yaml")
+    pilot_pool = char_obj.get_skill_pool("starfighter piloting", sr)
+    maneuver_pool = DicePool.parse(template.maneuverability)
+
+    from engine.dice import apply_multi_action_penalty, roll_d6_pool
+    pool = DicePool(
+        pilot_pool.dice + maneuver_pool.dice,
+        pilot_pool.pips + maneuver_pool.pips,
+    )
+    pool = apply_multi_action_penalty(pool, num_actions)
+
+    from engine.dice import roll_d6_pool
+    roll = roll_d6_pool(pool)
+
+    engine_note = f" (damaged engines +5)" if engine_penalty else ""
+    diff_display = f"{total_diff}{engine_note}"
+    name_upper = maneuver_name.upper()
+    ship_id = ship["id"]
+    grid = get_space_grid()
+
+    if roll.total >= total_diff:
+        # Success — set the maneuver bonus on the grid
+        grid.set_maneuver_bonus(ship_id, attacker_bonus)
+
+        # Loop/slip additional effects
+        tail_note = ""
+        if breaks_tail:
+            # Clear all tail locks on this ship
+            partners = list({k[1] for k in grid._positions if k[0] == ship_id}
+                            | {k[0] for k in grid._positions if k[1] == ship_id})
+            for other_id in partners:
+                if other_id != ship_id:
+                    if grid.get_position(other_id, ship_id) == RelativePosition.FRONT:
+                        grid.set_position(other_id, ship_id, RelativePosition.FRONT)
+                    grid.set_position(ship_id, other_id, RelativePosition.FRONT)
+                    grid.set_position(other_id, ship_id, RelativePosition.FRONT)
+            tail_note = " Tail lock broken!"
+
+        flank_note = ""
+        if repositions_flank:
+            # Reposition this ship to the flank of all current pursuers
+            partners = list({k[1] for k in grid._positions if k[0] == ship_id}
+                            | {k[0] for k in grid._positions if k[1] == ship_id})
+            for other_id in partners:
+                if other_id != ship_id:
+                    grid.set_position(ship_id, other_id, RelativePosition.FLANK)
+                    grid.set_position(other_id, ship_id, RelativePosition.FLANK)
+            flank_note = " Slipped to flank position!"
+
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ansi.BRIGHT_YELLOW}[HELM]{ansi.RESET} "
+            f"{ctx.session.character['name']} executes a {maneuver_name}! "
+            f"+{attacker_bonus} to attacker difficulty this round.{tail_note}{flank_note} "
+            f"(Roll: {roll.total} vs Diff: {diff_display})"
+        )
+    else:
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ansi.BRIGHT_YELLOW}[HELM]{ansi.RESET} "
+            f"{ctx.session.character['name']} attempts a {maneuver_name} — failed! "
+            f"Wasted action. "
+            f"(Roll: {roll.total} vs Diff: {diff_display})"
+        )
+        # Hazard check: miss by 5+ triggers hazard table
+        margin = total_diff - roll.total
+        if margin >= 5:
+            from engine.starships import roll_hazard_table
+            systems = _get_systems(ship)
+            hazard = roll_hazard_table(systems)
+            await ctx.session_mgr.broadcast_to_room(
+                ship["bridge_room_id"],
+                hazard.narrative
+            )
+            if hazard.systems_damaged or hazard.hull_damage:
+                updates = {}
+                if hazard.hull_damage:
+                    updates["hull_damage"] = (
+                        ship.get("hull_damage", 0) + hazard.hull_damage
+                    )
+                if hazard.systems_damaged:
+                    for s in hazard.systems_damaged:
+                        systems[s] = "damaged"
+                    updates["systems"] = json.dumps(systems)
+                if updates:
+                    await ctx.db.update_ship(ship["id"], **updates)
+
+
+class JinkCommand(BaseCommand):
+    key = "jink"
+    aliases = []
+    help_text = (
+        "Execute a jink maneuver (pilot only). Raises attacker difficulty by +5 "
+        "for the next shot against you this round. Difficulty 10."
+    )
+    usage = "jink"
+
+    async def execute(self, ctx):
+        await _resolve_maneuver_cmd(
+            ctx,
+            maneuver_name="jink",
+            base_diff=10,
+            attacker_bonus=5,
+            breaks_tail=False,
+            repositions_flank=False,
+            num_actions=1,
+        )
+
+
+class BarrelRollCommand(BaseCommand):
+    key = "barrelroll"
+    aliases = ["broll"]
+    help_text = (
+        "Execute a barrel roll (pilot only). Raises attacker difficulty by +8 "
+        "for the next shot this round. Difficulty 13."
+    )
+    usage = "barrelroll"
+
+    async def execute(self, ctx):
+        await _resolve_maneuver_cmd(
+            ctx,
+            maneuver_name="barrel roll",
+            base_diff=13,
+            attacker_bonus=8,
+            breaks_tail=False,
+            repositions_flank=False,
+            num_actions=1,
+        )
+
+
+class LoopCommand(BaseCommand):
+    key = "loop"
+    aliases = ["immelmann"]
+    help_text = (
+        "Execute a full loop (pilot only). Raises attacker difficulty by +8 AND "
+        "breaks all tail locks. Double action — costs your pilot's turn. Difficulty 15."
+    )
+    usage = "loop"
+
+    async def execute(self, ctx):
+        await _resolve_maneuver_cmd(
+            ctx,
+            maneuver_name="loop",
+            base_diff=15,
+            attacker_bonus=8,
+            breaks_tail=True,
+            repositions_flank=False,
+            num_actions=2,
+        )
+
+
+class SlipCommand(BaseCommand):
+    key = "slip"
+    aliases = ["sideslip"]
+    help_text = (
+        "Execute a side-slip (pilot only). Raises attacker difficulty by +10 AND "
+        "repositions to their flank. Double action. Difficulty 17."
+    )
+    usage = "slip"
+
+    async def execute(self, ctx):
+        await _resolve_maneuver_cmd(
+            ctx,
+            maneuver_name="side-slip",
+            base_diff=17,
+            attacker_bonus=10,
+            breaks_tail=False,
+            repositions_flank=True,
+            num_actions=2,
+        )
 
 
 class SpawnShipCommand(BaseCommand):
     key = "@spawn"
     aliases = []
     access_level = AccessLevel.BUILDER
-    help_text = "Spawn a ship in the current room (docking bay)."
+    help_text = "Spawn a ship in the current docking bay."
     usage = "@spawn <template> <ship name>"
     async def execute(self, ctx):
         if not ctx.args or " " not in ctx.args:
