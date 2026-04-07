@@ -1,0 +1,333 @@
+# -*- coding: utf-8 -*-
+"""
+parser/mission_commands.py  --  Mission Board Commands
+SW_MUSH  |  Economy Phase 2
+
+Implements the four player-facing mission commands:
+  missions  -- view the board
+  accept    -- take a mission
+  mission   -- view active mission
+  complete  -- collect reward
+  abandon   -- return mission to board
+
+Register via: register_mission_commands(registry)
+Called from game_server.py alongside the other register_*() calls.
+"""
+
+import json
+import logging
+import time
+
+from server import ansi
+from parser.commands import BaseCommand, CommandContext
+
+log = logging.getLogger(__name__)
+
+
+# ── Shared helper ──────────────────────────────────────────────────────────────
+
+async def _get_board_and_rooms(db):
+    """Return (board, rooms) -- loading board from DB if needed."""
+    from engine.missions import get_mission_board
+    board = get_mission_board()
+    # Pull room list for destination matching (used during refresh)
+    try:
+        rooms = await db.get_all_rooms() if hasattr(db, "get_all_rooms") else []
+    except Exception:
+        rooms = []
+    await board.ensure_loaded(db, rooms)
+    return board, rooms
+
+
+# ── Commands ───────────────────────────────────────────────────────────────────
+
+class MissionsCommand(BaseCommand):
+    key = "missions"
+    aliases = ["mb", "jobs", "board"]
+    help_text = "View the Mission Board. Lists all available jobs."
+    usage = "missions"
+
+    async def execute(self, ctx: CommandContext):
+        board, rooms = await _get_board_and_rooms(ctx.db)
+
+        available = board.available_missions()
+
+        from engine.missions import format_board
+        for line in format_board(available):
+            await ctx.session.send_line(line)
+
+
+class AcceptMissionCommand(BaseCommand):
+    key = "accept"
+    aliases = ["takejob"]
+    help_text = "Accept a mission from the board. One active mission at a time."
+    usage = "accept <mission-id>"
+
+    async def execute(self, ctx: CommandContext):
+        if not ctx.args:
+            await ctx.session.send_line("  Usage: accept <mission-id>")
+            await ctx.session.send_line("  Type 'missions' to see available jobs.")
+            return
+
+        char = ctx.session.character
+        char_id = str(char["id"])
+
+        # Check for existing active mission
+        active_row = await ctx.db.get_character_active_mission(char_id)
+        if active_row:
+            try:
+                active_data = json.loads(active_row["data"])
+                active_dest = active_data.get("destination", "unknown")
+            except Exception:
+                active_dest = "unknown"
+            await ctx.session.send_line(
+                f"  You already have an active mission (destination: {active_dest}).")
+            await ctx.session.send_line(
+                "  Type 'mission' to see it, or 'abandon' to drop it first.")
+            return
+
+        mission_id = ctx.args.strip().lower()
+        board, rooms = await _get_board_and_rooms(ctx.db)
+
+        # Fuzzy match: allow partial id
+        target = board.get(mission_id)
+        if not target:
+            # Try prefix match
+            for mid, m in board._missions.items():
+                if mid.startswith(mission_id):
+                    target = m
+                    break
+
+        if not target:
+            await ctx.session.send_line(
+                f"  No mission '{mission_id}' on the board.")
+            await ctx.session.send_line("  Type 'missions' to see available jobs.")
+            return
+
+        from engine.missions import MissionStatus
+        if target.status != MissionStatus.AVAILABLE:
+            await ctx.session.send_line(
+                f"  That mission is no longer available.")
+            return
+
+        accepted = await board.accept(target.id, char_id, ctx.db)
+        if not accepted:
+            await ctx.session.send_line(
+                "  That mission was just taken. Try another.")
+            return
+
+        await ctx.session.send_line(
+            ansi.success(f"  Mission accepted: {accepted.title}"))
+        await ctx.session.send_line(
+            f"  {ansi.BOLD}Objective:{ansi.RESET} {accepted.objective}")
+        await ctx.session.send_line(
+            f"  {ansi.BOLD}Destination:{ansi.RESET} {accepted.destination}")
+        await ctx.session.send_line(
+            f"  {ansi.BOLD}Reward:{ansi.RESET} {accepted.reward:,} credits on completion.")
+        await ctx.session.send_line(
+            f"  Type 'mission' to review. 'complete' when you reach the destination.")
+
+
+class ActiveMissionCommand(BaseCommand):
+    key = "mission"
+    aliases = ["myjob", "activemission"]
+    help_text = "View your currently active mission."
+    usage = "mission"
+
+    async def execute(self, ctx: CommandContext):
+        char_id = str(ctx.session.character["id"])
+
+        # Check in-memory board first (faster)
+        from engine.missions import get_mission_board, MissionStatus, format_mission_detail
+        board = get_mission_board()
+        active = None
+        for m in board._missions.values():
+            if m.accepted_by == char_id and m.status == MissionStatus.ACCEPTED:
+                active = m
+                break
+
+        # Fallback to DB (e.g. after server restart)
+        if not active:
+            row = await ctx.db.get_character_active_mission(char_id)
+            if row:
+                try:
+                    data = json.loads(row["data"])
+                    from engine.missions import Mission
+                    active = Mission.from_dict(data)
+                    # Re-register in board memory
+                    board._missions[active.id] = active
+                except Exception as e:
+                    log.warning("Failed to deserialize active mission: %s", e)
+
+        if not active:
+            await ctx.session.send_line("  You have no active mission.")
+            await ctx.session.send_line("  Type 'missions' to see available jobs.")
+            return
+
+        for line in format_mission_detail(active):
+            await ctx.session.send_line(line)
+
+
+class CompleteMissionCommand(BaseCommand):
+    key = "complete"
+    aliases = ["finishjob", "turnin"]
+    help_text = "Complete your active mission and collect the reward. Must be at the destination."
+    usage = "complete"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        char_id = str(char["id"])
+        current_room = char.get("room_id")
+
+        from engine.missions import get_mission_board, MissionStatus
+        board = get_mission_board()
+
+        # Find active mission
+        active = None
+        for m in board._missions.values():
+            if m.accepted_by == char_id and m.status == MissionStatus.ACCEPTED:
+                active = m
+                break
+
+        # DB fallback
+        if not active:
+            row = await ctx.db.get_character_active_mission(char_id)
+            if row:
+                try:
+                    from engine.missions import Mission
+                    active = Mission.from_dict(json.loads(row["data"]))
+                    board._missions[active.id] = active
+                except Exception:
+                    pass
+
+        if not active:
+            await ctx.session.send_line("  You have no active mission.")
+            return
+
+        # Check expiry
+        if active.expires_at and time.time() > active.expires_at:
+            await board.abandon(active.id, ctx.db)
+            await ctx.session.send_line(
+                ansi.error("  Your mission has expired and has been returned to the board."))
+            return
+
+        # Check location -- match by room name or room id
+        at_destination = False
+        if active.destination_room_id:
+            at_destination = (str(current_room) == str(active.destination_room_id))
+        else:
+            # Match by room name
+            try:
+                room = await ctx.db.get_room(current_room)
+                if room:
+                    room_name = room.get("name", "")
+                    at_destination = (
+                        active.destination.lower() in room_name.lower()
+                        or room_name.lower() in active.destination.lower()
+                    )
+            except Exception:
+                pass
+
+        if not at_destination:
+            await ctx.session.send_line(
+                f"  You're not at the destination: {ansi.BOLD}{active.destination}{ansi.RESET}")
+            await ctx.session.send_line(
+                "  Travel there and type 'complete' again.")
+            return
+
+        # Complete and award credits
+        reward = active.reward
+        completed = await board.complete(active.id, ctx.db)
+        if not completed:
+            await ctx.session.send_line(
+                "  Something went wrong completing the mission. Try again.")
+            return
+
+        old_credits = char.get("credits", 0)
+        new_credits = old_credits + reward
+        char["credits"] = new_credits
+        await ctx.db.save_character(char["id"], credits=new_credits)
+
+        await ctx.session.send_line(
+            ansi.success(f"  Mission complete: {completed.title}"))
+        await ctx.session.send_line(
+            f"  {ansi.BOLD}Reward: +{reward:,} credits{ansi.RESET}  "
+            f"(Balance: {new_credits:,} cr)")
+        await ctx.session.send_line("")
+        await ctx.session.send_line(
+            f"  {ansi.DIM}Type 'missions' for your next job.{ansi.RESET}")
+
+        # Immediately replenish the board in the background
+        try:
+            rooms = await ctx.db.get_all_rooms() if hasattr(ctx.db, "get_all_rooms") else []
+            from engine.missions import generate_mission
+            new_m = generate_mission(destination_rooms=rooms)
+            board._missions[new_m.id] = new_m
+            await ctx.db.save_mission(new_m)
+            log.debug("[missions] Spawned replacement mission %s", new_m.id)
+        except Exception as e:
+            log.warning("[missions] Failed to spawn replacement: %s", e)
+
+        log.info(
+            "[missions] %s completed %s for %d cr",
+            char.get("name"), completed.id, reward,
+        )
+
+
+class AbandonMissionCommand(BaseCommand):
+    key = "abandon"
+    aliases = ["dropmission", "quitjob"]
+    help_text = "Abandon your active mission. Returns it to the board with no penalty."
+    usage = "abandon"
+
+    async def execute(self, ctx: CommandContext):
+        char_id = str(ctx.session.character["id"])
+
+        from engine.missions import get_mission_board, MissionStatus
+        board = get_mission_board()
+
+        active = None
+        for m in board._missions.values():
+            if m.accepted_by == char_id and m.status == MissionStatus.ACCEPTED:
+                active = m
+                break
+
+        if not active:
+            row = await ctx.db.get_character_active_mission(char_id)
+            if row:
+                try:
+                    from engine.missions import Mission
+                    active = Mission.from_dict(json.loads(row["data"]))
+                    board._missions[active.id] = active
+                except Exception:
+                    pass
+
+        if not active:
+            await ctx.session.send_line("  You have no active mission to abandon.")
+            return
+
+        abandoned = await board.abandon(active.id, ctx.db)
+        if not abandoned:
+            await ctx.session.send_line("  Failed to abandon mission. Try again.")
+            return
+
+        await ctx.session.send_line(
+            ansi.success(f"  Mission abandoned: {abandoned.title}"))
+        await ctx.session.send_line(
+            "  The job has been returned to the board.")
+        await ctx.session.send_line(
+            f"  {ansi.DIM}Type 'missions' to find a new job.{ansi.RESET}")
+
+
+# ── Registration ───────────────────────────────────────────────────────────────
+
+def register_mission_commands(registry) -> None:
+    """Register all mission commands. Call from game_server.py __init__."""
+    for cmd in [
+        MissionsCommand(),
+        AcceptMissionCommand(),
+        ActiveMissionCommand(),
+        CompleteMissionCommand(),
+        AbandonMissionCommand(),
+    ]:
+        registry.register(cmd)
