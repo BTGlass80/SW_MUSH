@@ -1,0 +1,1101 @@
+# Galaxy Guide 7: Mos Eisley — NPC Stat Blocks
+# Source: WEG40069, Star Wars D6 Second Edition
+# Extracted for SW_MUSH NPC generator and world population
+#
+# Format matches npc_generator.py expectations:
+#   6 attributes (dice code strings), skills as sub-keys,
+#   plus metadata for AI personality and world placement.
+#
+# ═══════════════════════════════════════════════════════════════════════
+# IMPERIAL / LAW ENFORCEMENT
+# ═══════════════════════════════════════════════════════════════════════
+
+prefect_eugene_talmont:
+  name: "Prefect Eugene Talmont"
+  species: Human
+  location: "Prefect's Office"
+  archetype: imperial_officer
+  description: "A slight-built wiry man with an obvious toupee."
+  personality: "Full of himself, impatient, nearsighted but too vain for corrective lenses."
+  quote: "I see! They think they can get away with it, but they have yet to deal with Prefect Talmont!"
+  dexterity: "3D+1"
+  knowledge: "4D"
+  mechanical: "2D+1"
+  perception: "3D"
+  strength: "2D+1"
+  technical: "3D"
+  skills:
+    bureaucracy: "6D+1"
+    languages: "4D+2"
+    law_enforcement: "3D+1"
+    beast_riding: "5D"
+    bargain: "4D+2"
+    command: "5D+1"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 2
+
+lieutenant_harburik:
+  name: "Lieutenant Harburik"
+  species: Human
+  location: "Police Station"
+  archetype: imperial_officer
+  description: "A large, well-muscled man. Devastatingly handsome except for the vicious look in his eyes."
+  personality: "Crass, rude, and cruel. Well known for abusing every subordinate."
+  quote: "No problem. You don't want to tell me who paid you off, so I'll just take this weapon off the stun setting."
+  dexterity: "4D+1"
+  knowledge: "3D"
+  mechanical: "2D"
+  perception: "3D+1"
+  strength: "2D+1"
+  technical: "2D"
+  skills:
+    blaster: "6D+1"
+    brawling_parry: "4D+1"
+    dodge: "6D+2"
+    grenade: "4D+2"
+    melee_combat: "5D"
+    beast_riding: "3D"
+    repulsorlift_operation: "4D"
+    gambling: "6D"
+    search: "5D+1"
+    brawling: "4D+2"
+    computer_programming_repair: "5D"
+    demolitions: "4D+2"
+    security: "5D"
+  force_sensitive: false
+  force_points: 1
+  dark_side_points: 0
+  character_points: 6
+  equipment:
+    - "Armored blast vest (+1D physical and energy, front)"
+    - "Heavy blaster pistol (5D damage)"
+    - "Comlink"
+
+typical_tatooine_stormtrooper:
+  name: "Typical Tatooine Stormtrooper"
+  species: Human
+  location: "Streets / Patrols"
+  archetype: stormtrooper
+  description: "Desert terrain stormtrooper in standard armor."
+  personality: "By the book. Follows orders. Suspicious of everyone."
+  quote: "Let me see your identification."
+  dexterity: "3D"
+  knowledge: "2D"
+  mechanical: "2D"
+  perception: "2D"
+  strength: "4D"
+  technical: "2D"
+  skills:
+    blaster: "4D"
+    blaster_rifle: "5D"
+    brawling_parry: "4D"
+    dodge: "3D+2"
+    melee_combat: "3D+1"
+    bureaucracy: "2D+1"
+    intimidation: "3D+2"
+    law_enforcement: "3D"
+    repulsorlift_operation: "2D+1"
+    search: "2D+2"
+    brawling: "4D+1"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 0
+  equipment:
+    - "Stormtrooper armor (+1D energy, +2D physical, -1D Dexterity)"
+    - "Blaster rifle (5D damage)"
+    - "Blaster pistol (4D damage)"
+    - "Comlink"
+
+# ═══════════════════════════════════════════════════════════════════════
+# DOCKING BAY OWNERS / MERCHANTS
+# ═══════════════════════════════════════════════════════════════════════
+
+chachi_de_maal:
+  name: "Chachi De Maal"
+  species: Duros
+  location: "Docking Bay 94"
+  archetype: merchant
+  description: "Female Duros docking bay co-owner."
+  personality: "Business-focused, competent pilot and mechanic."
+  quote: "Docking fees are standard. No exceptions."
+  dexterity: "3D"
+  knowledge: "2D+1"
+  mechanical: "2D"
+  perception: "2D+2"
+  strength: "3D"
+  technical: "3D"
+  skills:
+    blaster: "4D+1"
+    blaster_pistol: "5D+2"
+    alien_species: "3D+1"
+    alien_species_humans: "5D"
+    languages: "3D"
+    communications: "3D+2"
+    repulsorlift_operation: "4D+1"
+    space_transports: "6D"
+    bargain: "5D+2"
+    computer_programming_repair: "4D"
+    space_transports_repair: "7D+2"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 8
+
+ohwun_de_maal:
+  name: "Ohwun De Maal"
+  species: Duros
+  location: "Docking Bay 94"
+  archetype: merchant
+  description: "Male Duros docking bay co-owner."
+  personality: "Business-savvy, skilled pilot, good with droids."
+  dexterity: "3D"
+  knowledge: "2D+1"
+  mechanical: "3D"
+  perception: "2D+2"
+  strength: "2D+1"
+  technical: "3D"
+  skills:
+    blaster: "3D+2"
+    dodge: "5D+1"
+    alien_species: "3D"
+    alien_species_humans: "4D+1"
+    business: "4D+1"
+    astrogation: "4D"
+    repulsorlift_operation: "6D+1"
+    sensors: "3D+2"
+    space_transports: "5D"
+    space_transports_yt1300: "7D"
+    bargain: "5D+1"
+    droid_programming: "5D+1"
+    droid_repair: "5D"
+    medicine: "4D"
+    space_transports_repair: "7D+2"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 10
+
+unut_poll:
+  name: "Unut Poll"
+  species: Arcona
+  location: "Unut's Used Speeders"
+  archetype: merchant
+  description: "An older Arconan, careworn and gentle."
+  personality: "Quirky old codger with a heart of gold. Gentle persuader and relentless charmer."
+  quote: "There are only three areas of legal commerce — antiques, used vehicles, and real estate."
+  dexterity: "3D"
+  knowledge: "2D"
+  mechanical: "4D"
+  perception: "2D"
+  strength: "3D"
+  technical: "4D"
+  skills:
+    blaster: "3D+2"
+    dodge: "4D"
+    streetwise: "3D"
+    survival_desert: "4D+2"
+    repulsorlift_operation: "6D"
+    search: "3D+1"
+    computer_programming_repair: "5D+1"
+    droid_programming: "5D+2"
+    droid_repair: "5D+2"
+    repulsorlift_repair: "7D"
+    space_transports_repair: "4D+2"
+  force_sensitive: false
+  force_points: 2
+  dark_side_points: 0
+  character_points: 20
+
+geordi_hans:
+  name: "Geordi Hans"
+  species: Human
+  location: "Unut's Used Speeders"
+  archetype: mechanic
+  description: "Young man with black hair and alert brown eyes."
+  personality: "Hardworking, honest mechanic torn between loyalty and ambition."
+  quote: "The transcore gear is stripped. I'm afraid we'll have to take this entire engine apart."
+  dexterity: "3D"
+  knowledge: "2D"
+  mechanical: "4D"
+  perception: "2D"
+  strength: "3D"
+  technical: "4D"
+  skills:
+    blaster: "3D+2"
+    dodge: "4D"
+    streetwise: "3D"
+    survival_desert: "4D+2"
+    repulsorlift_operation: "6D"
+    search: "3D+1"
+    computer_programming_repair: "5D+1"
+    droid_programming: "5D+2"
+    droid_repair: "5D+2"
+    repulsorlift_repair: "7D"
+    space_transports_repair: "4D+2"
+  force_sensitive: false
+  force_points: 3
+  dark_side_points: 0
+  character_points: 2
+
+dom_antyll:
+  name: "Dom Antyll"
+  species: Human
+  location: "Docking Bay 92"
+  archetype: mechanic
+  description: "Covered in fluid and grease, always chewing on a cigarra."
+  personality: "Determined. Knows his business, doubles his price if questioned."
+  quote: "You don't think I can do it? That just doubled the fee."
+  dexterity: "1D+1"
+  knowledge: "1D+1"
+  mechanical: "2D+2"
+  perception: "2D"
+  strength: "2D"
+  technical: "4D+2"
+  skills:
+    blaster: "3D"
+    dodge: "4D"
+    repulsorlift_operation: "4D"
+    sensors: "5D"
+    space_transports: "4D+2"
+    starfighter_piloting: "5D+2"
+    bargain: "5D+1"
+    armor_repair: "5D"
+    blaster_repair: "5D+1"
+    capital_starship_repair: "6D"
+    capital_starship_weapon_repair: "6D+2"
+    repulsorlift_repair: "6D+1"
+    space_transports_repair: "9D"
+    starfighter_repair: "9D+1"
+    starship_weapon_repair: "9D"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 15
+
+# ═══════════════════════════════════════════════════════════════════════
+# JABBA'S ORGANIZATION
+# ═══════════════════════════════════════════════════════════════════════
+
+jabba_the_hutt:
+  name: "Jabba the Hutt"
+  species: Hutt
+  location: "Jabba's Town House"
+  archetype: crime_lord
+  description: "A hairless, bloated slug with quick, snakelike eyes, fetid breath, and a slobbering mouth."
+  personality: "Bloodthirsty, ruthless, and altogether foul, with no redeeming qualities."
+  quote: "Bo shudda."
+  dexterity: "2D"
+  knowledge: "3D"
+  mechanical: "3D"
+  perception: "4D"
+  strength: "3D"
+  technical: "3D"
+  skills:
+    alien_species: "5D"
+    bureaucracy: "7D"
+    bureaucracy_tatooine: "9D+1"
+    business: "6D+1"
+    cultures: "4D+2"
+    intimidation: "7D"
+    languages: "4D"
+    law_enforcement: "4D+1"
+    streetwise: "9D"
+    streetwise_jabbas_organization: "11D"
+    bargain: "8D"
+    command: "8D"
+    con: "7D+1"
+    gambling: "7D+2"
+    persuasion: "7D+2"
+    brawling: "6D"
+    lifting: "6D"
+    stamina: "7D"
+  force_sensitive: false
+  force_points: 5
+  dark_side_points: 6
+  character_points: 26
+  special_abilities:
+    force_resistance: "Hutts double Perception dice to resist Force-based mind manipulation."
+
+akkik:
+  name: "Akkik"
+  species: Jawa
+  location: "Jabba's Town House"
+  archetype: thug
+  description: "Short, smelly, and covered completely by a heavy, hooded cloak."
+  personality: "Covetous, nasty, tricky. Talks a lot."
+  quote: "Mop-lou dink dink hee, hee."
+  dexterity: "2D"
+  knowledge: "3D"
+  mechanical: "4D"
+  perception: "3D"
+  strength: "2D"
+  technical: "4D"
+  skills:
+    dodge: "4D"
+    streetwise: "5D"
+    con: "5D"
+    droid_programming: "5D+1"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 3
+
+gorrt:
+  name: "Gorrt"
+  species: Gamorrean
+  location: "Jabba's Town House"
+  archetype: thug
+  description: "Green-skinned, with a pig-like snout, small horns and tusks, and powerful muscles."
+  personality: "Protective of Akkik. Loves to beat on anything smaller than him."
+  quote: "Grunt!"
+  dexterity: "4D"
+  knowledge: "2D+1"
+  mechanical: "2D+2"
+  perception: "2D+1"
+  strength: "4D+1"
+  technical: "2D+1"
+  skills:
+    melee_combat: "4D+2"
+    melee_combat_vibroaxe: "6D"
+    intimidation: "5D+1"
+    brawling: "6D+1"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 1
+  equipment:
+    - "Vibroaxe (STR+3D+1 damage)"
+
+# ═══════════════════════════════════════════════════════════════════════
+# CANTINA
+# ═══════════════════════════════════════════════════════════════════════
+
+chalmun:
+  name: "Chalmun"
+  species: Wookiee
+  location: "Chalmun's Cantina"
+  archetype: merchant
+  description: "A beige and gray-colored Wookiee with a scar running diagonally across his left pectoral."
+  personality: "Warm to those who can handle his rough affection, callous to those he doesn't know."
+  quote: "I don't care who those guys are. Kick them out; last time they roughed up some of my regulars."
+  dexterity: "2D+1"
+  knowledge: "2D"
+  mechanical: "2D"
+  perception: "2D+1"
+  strength: "4D"
+  technical: "1D+1"
+  skills:
+    blaster: "3D+1"
+    bowcaster: "4D"
+    dodge: "3D+2"
+    melee_combat: "3D"
+    bureaucracy: "5D"
+    business: "3D+2"
+    intimidation: "6D"
+    streetwise: "3D"
+    beast_riding: "4D+1"
+    bargain: "4D+1"
+    command: "5D"
+    brawling: "6D"
+  force_sensitive: false
+  force_points: 2
+  dark_side_points: 1
+  character_points: 17
+  equipment:
+    - "Bowcaster (4D damage)"
+  special_abilities:
+    berserker_rage: "+2D to Strength"
+    climbing_claws: "+2D to climbing"
+
+wuher:
+  name: "Wuher"
+  species: Human
+  location: "Chalmun's Cantina"
+  archetype: bartender
+  description: "Surly, gruff bartender. Hates droids."
+  personality: "Rude to customers. Only tolerates regulars. Despises droids with a passion."
+  quote: "We don't serve their kind here."
+  dexterity: "2D+1"
+  knowledge: "3D"
+  mechanical: "1D+2"
+  perception: "3D+1"
+  strength: "3D"
+  technical: "2D"
+  skills:
+    blaster: "3D+2"
+    dodge: "4D"
+    melee_combat: "4D"
+    alien_species: "5D"
+    languages: "4D+2"
+    streetwise: "6D"
+    bargain: "5D"
+    con: "4D"
+    intimidation: "4D+1"
+    brawling: "5D"
+  force_sensitive: false
+  force_points: 1
+  dark_side_points: 0
+  character_points: 8
+
+# ═══════════════════════════════════════════════════════════════════════
+# CANTINA REGULARS
+# ═══════════════════════════════════════════════════════════════════════
+
+vareth:
+  name: "Vareth"
+  species: Human
+  location: "Chalmun's Cantina"
+  archetype: smuggler
+  description: "A slender Human in her early twenties."
+  personality: "Wise beyond her years. Loyal friend."
+  dexterity: "2D"
+  knowledge: "3D"
+  mechanical: "3D"
+  perception: "3D"
+  strength: "3D"
+  technical: "2D+1"
+  skills:
+    alien_species: "4D+1"
+    languages: "4D"
+    astrogation: "4D+1"
+    communications: "4D"
+    space_transports: "4D"
+    con: "5D+2"
+    search: "4D"
+    droid_programming: "5D"
+  force_sensitive: false
+  force_points: 3
+  dark_side_points: 0
+  character_points: 11
+
+garron:
+  name: "Garron"
+  species: Sullustan
+  location: "Chalmun's Cantina"
+  archetype: smuggler
+  description: "A Sullustan who won't reveal his age."
+  personality: "Unique sense of humor. Inseparable partner of Vareth."
+  dexterity: "3D"
+  knowledge: "2D"
+  mechanical: "3D"
+  perception: "3D"
+  strength: "2D"
+  technical: "2D"
+  skills:
+    blaster: "4D+1"
+    dodge: "3D+2"
+    astrogation: "4D+1"
+    starship_gunnery: "3D+1"
+    space_transports: "4D"
+    bargain: "7D"
+    computer_programming_repair: "4D+1"
+  force_sensitive: false
+  force_points: 2
+  dark_side_points: 0
+  character_points: 9
+
+sinthia_pulchatt:
+  name: "Sinthia Pulchatt"
+  species: Kibnon
+  location: "Chalmun's Cantina"
+  archetype: spice_dealer
+  description: "A 2.8-meter-tall insectoid. Green in color, looks like a Praying Mantis."
+  personality: "Kind and lofty attitude. Looking for new spice customers."
+  quote: "Here, try some. It's only a little — it can't hurt you."
+  dexterity: "5D"
+  knowledge: "2D+1"
+  mechanical: "3D"
+  perception: "3D"
+  strength: "1D"
+  technical: "3D+1"
+  skills:
+    blaster: "6D+1"
+    dodge: "5D+2"
+    planetary_systems: "4D"
+    streetwise: "3D+2"
+    astrogation: "4D"
+    starfighter_piloting: "4D+2"
+    bargain: "4D+1"
+    gambling: "5D"
+    climbing_jumping: "4D"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 1
+  character_points: 9
+
+oxbel:
+  name: "Oxbel"
+  species: Devaronian
+  location: "Chalmun's Cantina"
+  archetype: informant
+  description: "A typical Devaronian: humanoid with razor-sharp teeth and a pair of horns."
+  personality: "Alternately morose and chatty when drinking. Sells information."
+  quote: "Damnable Gamorreans. Can't trust 'em. Hey! Spare a credit? I'll let you in on some information."
+  dexterity: "2D+1"
+  knowledge: "3D"
+  mechanical: "2D"
+  perception: "4D"
+  strength: "2D"
+  technical: "3D"
+  skills:
+    dodge: "4D+1"
+    pick_pocket: "3D+2"
+    streetwise: "3D+2"
+    beast_riding: "4D+1"
+    bargain: "6D+1"
+    con: "4D+2"
+    gambling: "5D+1"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 4
+
+# ═══════════════════════════════════════════════════════════════════════
+# CRIME / UNDERWORLD
+# ═══════════════════════════════════════════════════════════════════════
+
+valarian:
+  name: "Valarian"
+  species: Whiphid
+  location: "Lucky Despot Hotel"
+  archetype: crime_lord
+  description: "A young Whiphid, towering and intimidating."
+  personality: "Positive attitude, always succeeds. Enjoys the company of Droids."
+  quote: "My goodness, stop blathering. This can be settled quietly."
+  dexterity: "2D+1"
+  knowledge: "1D+2"
+  mechanical: "1D"
+  perception: "3D"
+  strength: "3D"
+  technical: "1D"
+  skills:
+    blaster: "4D"
+    dodge: "3D+2"
+    business: "2D"
+    languages: "3D+1"
+    streetwise: "3D+2"
+    value: "3D"
+    repulsorlift_operation: "4D"
+    space_transports: "2D+2"
+    bargain: "4D+1"
+    command: "5D+1"
+    con: "4D"
+    investigation: "3D+2"
+    brawling: "5D+2"
+    first_aid: "5D"
+    medicine: "2D+1"
+  force_sensitive: false
+  force_points: 2
+  dark_side_points: 1
+  character_points: 12
+
+doctor_cornelius:
+  name: 'Doctor "Cornelius"'
+  species: Human
+  location: "The Cutting Edge Clinic"
+  archetype: doctor
+  description: "A medium-built man with a twisted, squinty-eyed face."
+  personality: "Very calm, plans far ahead. Gets excited at the thought of an unhappy customer."
+  quote: "The job will cost 5,000 credits."
+  dexterity: "3D+2"
+  knowledge: "2D+2"
+  mechanical: "2D+2"
+  perception: "2D+1"
+  strength: "3D+2"
+  technical: "2D"
+  skills:
+    blaster: "4D+2"
+    brawling_parry: "4D+2"
+    business: "3D"
+    languages: "4D"
+    streetwise: "4D+2"
+    repulsorlift_operation: "4D+2"
+    starfighter_piloting: "3D+2"
+    bargain: "3D+1"
+    con: "4D+1"
+    gambling: "3D+2"
+    brawling: "4D+2"
+    first_aid: "5D"
+    medicine: "1D"
+    medicine_cyborging: "2D+1"
+  force_sensitive: false
+  force_points: 1
+  dark_side_points: 2
+  character_points: 6
+
+drayk:
+  name: "Drayk"
+  species: Human
+  location: "Dim-U Monastery"
+  archetype: con_artist
+  description: "Uses a GoCorp hoverscooter. Penchant for clothes suggesting military style."
+  personality: "Very calm, plans far ahead. Uncharacteristic soft spot for victims of circumstance."
+  quote: "The job will cost 5,000 credits."
+  dexterity: "2D+1"
+  knowledge: "1D+1"
+  mechanical: "2D"
+  perception: "2D"
+  strength: "2D+2"
+  technical: "1D+2"
+  skills:
+    dodge: "3D+2"
+    bureaucracy: "4D"
+    business: "5D"
+    languages: "4D+2"
+    law_enforcement: "4D+1"
+    streetwise: "6D+2"
+    repulsorlift_operation: "4D+2"
+    bargain: "7D+1"
+    con: "6D"
+    forgery: "9D"
+    computer_programming_repair: "3D"
+    repulsorlift_repair: "2D"
+  force_sensitive: false
+  force_points: 2
+  dark_side_points: 2
+  character_points: 14
+
+# ═══════════════════════════════════════════════════════════════════════
+# GENERIC / TEMPLATE NPCS
+# ═══════════════════════════════════════════════════════════════════════
+
+typical_mos_eisley_police:
+  name: "Typical Mos Eisley Police Officer"
+  species: Human
+  location: "Streets / Patrols"
+  archetype: police
+  description: "Local police officer, underpaid and often corrupt."
+  personality: "Lazy, easily bribed, avoids confrontation with anyone dangerous."
+  quote: "All right, break it up. Both of you get out of here and I won't report this. Again."
+  dexterity: "3D"
+  knowledge: "2D+1"
+  mechanical: "2D"
+  perception: "2D+1"
+  strength: "3D"
+  technical: "2D"
+  skills:
+    blaster: "4D"
+    brawling_parry: "4D"
+    dodge: "3D+2"
+    melee_combat: "3D+2"
+    law_enforcement: "3D+1"
+    streetwise: "3D+2"
+    beast_riding: "3D"
+    repulsorlift_operation: "3D"
+    investigation: "3D"
+    search: "3D"
+    brawling: "4D"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 1
+  equipment:
+    - "Blaster pistol (4D damage)"
+    - "Force pike (4D damage)"
+    - "Comlink"
+
+typical_monastery_nun:
+  name: "Typical Dim-U Monastery Nun"
+  species: Human
+  location: "Dim-U Monastery / Streets"
+  archetype: priest
+  description: "Robed Dim-U priestess."
+  personality: "Serene, preachy about Bantha worship."
+  quote: "The way of the Bantha is one of majestic beauty and calm peace."
+  dexterity: "3D"
+  knowledge: "3D"
+  mechanical: "2D"
+  perception: "3D"
+  strength: "2D+2"
+  technical: "4D"
+  skills:
+    blaster: "4D"
+    dodge: "4D+2"
+    bureaucracy: "4D+1"
+    languages: "3D+2"
+    astrogation: "3D+1"
+    starfighter_piloting: "4D"
+    starship_shields: "2D+1"
+    con: "5D"
+    computer_programming_repair: "5D+2"
+    space_transports_repair: "6D"
+    starfighter_repair: "6D"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 3
+  equipment:
+    - "Hold-out blaster (3D+1 damage)"
+    - "Comlink"
+    - "Dim-U robes"
+
+wioslea:
+  name: "Wioslea"
+  species: Vuvria
+  location: "Unut's Used Speeders"
+  archetype: merchant
+  description: "A 1.9-meter tall female Vuvria salesperson."
+  personality: "Expert linguist and haggler. Works every angle."
+  dexterity: "2D+1"
+  knowledge: "3D"
+  mechanical: "1D"
+  perception: "3D"
+  strength: "1D"
+  technical: "3D+1"
+  skills:
+    dodge: "4D+1"
+    pick_pocket: "3D+2"
+    alien_species: "4D+2"
+    alien_species_humans: "6D"
+    business: "6D"
+    cultures: "4D+1"
+    languages: "6D"
+    languages_aqualish: "6D"
+    languages_huttese: "7D"
+    languages_rodian: "6D+1"
+    languages_sullustan: "7D"
+    planetary_systems: "7D"
+    streetwise: "5D"
+    repulsorlift_operation: "4D"
+    space_transports: "2D+2"
+    bargain: "4D+1"
+    command: "5D+1"
+    con: "4D+2"
+    gambling: "5D+1"
+    climbing_jumping: "4D"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 9
+
+# ═══════════════════════════════════════════════════════════════════════
+# BATCH 2: Additional NPCs
+# ═══════════════════════════════════════════════════════════════════════
+
+mos_eisley_militiaman:
+  name: "Mos Eisley Militiaman"
+  species: Human
+  location: "Militia HQ / Streets"
+  archetype: militia
+  description: "Part-time local militia member. Reluctant to fight."
+  personality: "Lazy, avoids action. Would rather arrest visitors than confront neighbors."
+  quote: "All right, break it up. Both of you get out of here and I won't report this."
+  dexterity: "2D"
+  knowledge: "2D"
+  mechanical: "2D"
+  perception: "2D"
+  strength: "2D"
+  technical: "2D"
+  skills:
+    blaster: "4D"
+    dodge: "5D"
+    melee_combat: "3D+2"
+    melee_parry: "3D+2"
+    intimidation: "3D"
+    beast_riding: "3D+1"
+    repulsorlift_operation: "3D+2"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 0
+  equipment:
+    - "Blaster carbine (5D damage)"
+    - "Stun baton (5D stun damage)"
+    - "Blast vest (+2 energy, +1D physical)"
+
+arjon_fmp:
+  name: "Arjon F.M.P."
+  species: Human
+  location: "Alley near Docking Bay 94"
+  archetype: gambler
+  description: "Golden-yellow skin and almond-shaped eyes. Dresses in Tatooine browns and tans."
+  personality: "Gregarious con artist. No scruples about deceiving naive passersby."
+  quote: "Step right up. Choose your card, let me guess which one it is. C'mon, place your bets."
+  dexterity: "4D"
+  knowledge: "3D"
+  mechanical: "2D"
+  perception: "3D"
+  strength: "2D"
+  technical: "2D+1"
+  skills:
+    blaster: "4D+2"
+    dodge: "5D+2"
+    languages: "4D+1"
+    planetary_systems: "5D"
+    astrogation: "3D+1"
+    space_transports: "4D"
+    con: "4D"
+    con_card_sharking: "5D+2"
+    gambling: "6D+1"
+    persuasion: "5D+2"
+    brawling: "5D+1"
+    computer_programming_repair: "3D"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 4
+  equipment:
+    - "Hold-out blaster (3D+1 damage)"
+    - "Comlink"
+    - "Card deck"
+
+beeyon_nace:
+  name: "Beeyon Nace"
+  species: Human
+  location: "Chalmun's Cantina"
+  archetype: bureaucrat
+  description: "A heavy man of medium height and pale complexion. Dark clothing of high society cut."
+  personality: "Perpetually depressed. Drowning his sorrows in drink."
+  quote: "It wasn't so bad that I got caught, but the fact that all I got to do was kiss her really bothers me."
+  dexterity: "3D+1"
+  knowledge: "3D"
+  mechanical: "3D"
+  perception: "3D+1"
+  strength: "2D"
+  technical: "3D"
+  skills:
+    blaster: "4D+2"
+    dodge: "3D+2"
+    bureaucracy: "5D+2"
+    languages: "4D"
+    streetwise: "3D+2"
+    astrogation: "4D"
+    repulsorlift_operation: "3D"
+    bargain: "3D"
+    gambling: "4D+1"
+    computer_programming_repair: "5D"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 4
+
+mace_windu_squib:
+  name: "Mace Windu"
+  species: Squib
+  location: "Jawa Traders"
+  archetype: merchant
+  description: "A tiny, gray-furred biped with tufted ears. Wears a small cap adorned with bits of metal."
+  personality: "Seems like an airhead. Actually a shrewd Squib transacting business."
+  quote: "No deal. Try that again, and I'll be on you like a Squib at a two-for-one sale."
+  dexterity: "4D"
+  knowledge: "4D"
+  mechanical: "3D"
+  perception: "4D"
+  strength: "2D"
+  technical: "2D"
+  skills:
+    dodge: "5D"
+    alien_species: "4D+1"
+    cultures: "5D"
+    languages: "4D"
+    value: "6D+2"
+    astrogation: "4D+1"
+    capital_ship_gunnery: "3D+2"
+    bargain: "7D"
+    con: "5D+2"
+    search: "4D"
+    computer_programming_repair: "5D"
+  force_sensitive: false
+  force_points: 1
+  dark_side_points: 0
+  character_points: 8
+
+aguilae:
+  name: "Aguilae"
+  species: Jawa
+  location: "Jawa Traders"
+  archetype: merchant
+  description: "Typical Jawa with a brown hooded cloak and an aversion to bathing."
+  personality: "Extremely suspicious of non-mechanicals. Filthy, ill-tempered, and miserly."
+  quote: "I guarantee that this Droid is in good working order and of worth as I represent it."
+  dexterity: "2D"
+  knowledge: "2D"
+  mechanical: "3D"
+  perception: "1D"
+  strength: "1D"
+  technical: "3D"
+  skills:
+    blaster: "3D+1"
+    dodge: "4D"
+    languages: "3D"
+    streetwise: "3D+2"
+    value: "4D+1"
+    ground_vehicle_operation_sandcrawlers: "5D"
+    bargain: "4D+2"
+    con: "4D+1"
+    computer_programming_repair: "5D"
+    droid_programming: "6D+1"
+    droid_repair: "6D"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 6
+
+moplin_jarron:
+  name: "Moplin Jarron"
+  species: Sullustan
+  location: "Heff's Souvenirs"
+  archetype: forger
+  description: "A middle-aged Sullustan with extreme wrinkles around the eyes and a distaste for cleanliness."
+  personality: "Nervous little being. Perpetual squint and hunched back. Laughs a lot for no reason."
+  quote: "Well (hee), yes. I can do the job. Only a hundred credits."
+  dexterity: "2D"
+  knowledge: "4D"
+  mechanical: "1D"
+  perception: "3D"
+  strength: "2D"
+  technical: "3D"
+  skills:
+    bureaucracy: "4D+1"
+    bureaucracy_tatooine: "5D+2"
+    business: "6D"
+    languages: "4D+1"
+    law_enforcement: "6D"
+    bargain: "4D+1"
+    forgery: "9D+2"
+    computer_programming_repair: "5D"
+    droid_programming: "5D+2"
+    security: "4D+1"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 8
+
+momaw_nadon:
+  name: "Momaw Nadon"
+  species: Ithorian
+  location: "Nadon Residence / Cantina"
+  archetype: rebel_sympathizer
+  description: "An Ithorian of some age and grace, sandy-brown color typical of those away from homeworld."
+  personality: "Lonely, in self-inflicted exile. Speaks softly, a very gentle being."
+  quote: "Sometimes one must turn the soil to save the garden."
+  dexterity: "3D"
+  knowledge: "3D+2"
+  mechanical: "2D+1"
+  perception: "3D+1"
+  strength: "3D"
+  technical: "2D+2"
+  skills:
+    dodge: "4D"
+    melee_combat: "3D+1"
+    melee_combat_powerstaff: "4D+2"
+    cultures: "4D+2"
+    survival: "3D+1"
+    survival_jungle: "5D"
+    repulsorlift_operation: "4D+1"
+    bargain: "4D+1"
+    lifting: "4D"
+    first_aid: "4D+2"
+  force_sensitive: false
+  force_points: 2
+  dark_side_points: 0
+  character_points: 8
+  equipment:
+    - "Agri-kit (+1D to survival)"
+    - "Powerstaff (STR+2D damage)"
+
+armanda_durkin:
+  name: "Armanda Durkin"
+  species: Human
+  location: "Notsub Shipping Company"
+  archetype: pirate
+  description: "Penchant for brocade and silks. Luxurious hair, often done up in complicated style."
+  personality: "Driven by tragedy. Cares for nothing more than money or success."
+  quote: "Please remain seated or we will be forced to knock you unconscious."
+  dexterity: "3D+1"
+  knowledge: "3D"
+  mechanical: "3D+1"
+  perception: "4D"
+  strength: "2D+1"
+  technical: "2D"
+  skills:
+    blaster: "4D+1"
+    dodge: "4D+2"
+    melee_combat: "5D"
+    bureaucracy: "4D"
+    planetary_systems: "3D+1"
+    planetary_systems_tatooine: "5D"
+    astrogation: "4D"
+    repulsorlift_operation: "3D+2"
+    space_transports: "5D+1"
+    command: "6D"
+    con: "7D+1"
+    brawling: "4D+2"
+    stamina: "6D+2"
+    computer_programming_repair: "3D"
+    security: "5D+2"
+    space_transports_repair: "2D+1"
+  force_sensitive: false
+  force_points: 3
+  dark_side_points: 2
+  character_points: 21
+
+thrung_alewune:
+  name: "Thrung Alewune"
+  species: "Ho'Din"
+  location: "Notsub Shipping (Pirate Crew)"
+  archetype: pirate
+  description: "A Ho'Din who has bound his ample violet locks to his head and wears a cap."
+  personality: "Exhibits none of his species' characteristic gentleness. Focused on tech and profit."
+  quote: "Look, I'm here just for the cargo. Don't try anything and we'll be out of here in no time."
+  dexterity: "4D"
+  knowledge: "3D"
+  mechanical: "2D+2"
+  perception: "2D"
+  strength: "3D"
+  technical: "3D+1"
+  skills:
+    blaster: "4D+2"
+    dodge: "5D"
+    melee_combat: "5D+1"
+    streetwise: "3D+1"
+    repulsorlift_operation: "3D"
+    starship_gunnery: "4D+1"
+    starship_shields: "3D+1"
+    gambling: "3D+2"
+    search: "4D"
+    sneak: "2D+1"
+    brawling: "4D+1"
+    lifting: "4D"
+    computer_programming_repair: "4D+1"
+    demolitions: "3D+2"
+    space_transports_repair: "4D+2"
+  force_sensitive: false
+  force_points: 3
+  dark_side_points: 3
+  character_points: 10
+  equipment:
+    - "Comlink"
+    - "Space suit"
+    - "Blaster carbine (5D damage)"
+
+jaynine_five:
+  name: "JayNine-Five"
+  species: Droid
+  location: "Spaceport Control Tower"
+  archetype: droid
+  description: "A Roche J9 Worker Drone. 1.9 meters tall, insectoid eyes, piston-like limbs."
+  personality: "Nervous, by-the-book, follows rules exactly. Despised by smugglers."
+  quote: "Millennium Falcon, you are cleared to land. Do not deviate from your present course. Welcome to Mos Eisley."
+  dexterity: "2D"
+  knowledge: "4D"
+  mechanical: "1D"
+  perception: "3D"
+  strength: "2D"
+  technical: "3D"
+  skills:
+    alien_species: "5D+1"
+    bureaucracy: "4D+2"
+    languages: "4D+1"
+    communications: "3D"
+    sensors: "2D+1"
+    bargain: "4D+2"
+    sneak: "4D"
+    security: "5D+1"
+  force_sensitive: false
+  force_points: 0
+  dark_side_points: 0
+  character_points: 2
