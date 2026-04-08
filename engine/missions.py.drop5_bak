@@ -295,29 +295,10 @@ def _generate_id() -> str:
 
 
 def _pick_type() -> MissionType:
-    """Weighted random mission type selection, biased by zone alert level."""
-    weights = dict(SPAWN_WEIGHTS)  # mutable local copy
-    # Bias weights based on Director zone alert level
-    try:
-        from engine.director import get_director, AlertLevel
-        director = get_director()
-        # Use the most dramatic alert level across all zones
-        alert_levels = [zs.alert_level for zs in director._zones.values()]
-        if AlertLevel.LOCKDOWN in alert_levels:
-            # Lockdown: smuggling pays more (risk premium)
-            weights[MissionType.SMUGGLING] = weights.get(MissionType.SMUGGLING, 5) + 10
-        elif AlertLevel.UNDERWORLD in alert_levels:
-            # Underworld: criminal jobs abundant
-            weights[MissionType.SMUGGLING] = weights.get(MissionType.SMUGGLING, 5) + 5
-            weights[MissionType.BOUNTY]    = weights.get(MissionType.BOUNTY, 5) + 5
-        elif AlertLevel.UNREST in alert_levels:
-            # Unrest: rebel-adjacent combat jobs
-            weights[MissionType.COMBAT] = weights.get(MissionType.COMBAT, 8) + 5
-    except Exception:
-        pass  # director not loaded yet — use base weights
-    types = list(weights.keys())
-    wlist = [weights[t] for t in types]
-    return random.choices(types, weights=wlist, k=1)[0]
+    """Weighted random mission type selection."""
+    types = list(SPAWN_WEIGHTS.keys())
+    weights = [SPAWN_WEIGHTS[t] for t in types]
+    return random.choices(types, weights=weights, k=1)[0]
 
 
 def _scale_reward(mission_type: MissionType, skill_level: int = 3) -> int:

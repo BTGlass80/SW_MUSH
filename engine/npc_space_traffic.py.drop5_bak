@@ -277,18 +277,6 @@ TRAFFIC_WEIGHTS = {
     TrafficArchetype.BOUNTY_HUNTER: 10,  # only used for random; hunters normally event-driven
 }
 
-def _pick_archetype() -> TrafficArchetype:
-    weights = dict(TRAFFIC_WEIGHTS)
-    try:
-        from engine.world_events import get_world_event_manager
-        mult = get_world_event_manager().get_effect('patrol_spawn_mult', 1.0)
-        if mult != 1.0:
-            weights[TrafficArchetype.PATROL] = int(weights[TrafficArchetype.PATROL] * mult)
-    except Exception:
-        pass
-    archetypes = list(weights.keys())
-    return random.choices(archetypes, weights=[weights[a] for a in archetypes], k=1)[0]
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TRAFFIC SHIP DATACLASS

@@ -640,17 +640,8 @@ class LandCommand(BaseCommand):
             await ctx.session.send_line("  No docking bays found!")
             return
         bay = rooms[0]
-        # Docking fee: 25cr base (per R&E GG7), modified by zone alert level
+        # Docking fee: 25cr (per R&E GG7)
         docking_fee = 25
-        try:
-            from engine.director import get_director, AlertLevel
-            _alert = get_director().get_alert_level('spaceport')
-            if _alert == AlertLevel.LOCKDOWN:
-                docking_fee = int(docking_fee * 1.5)  # +50% imperial surcharge
-            elif _alert == AlertLevel.LAX:
-                docking_fee = int(docking_fee * 0.75)  # -25% low security
-        except Exception:
-            pass
         char = ctx.session.character
         credits = char.get("credits", 0)
         if credits < docking_fee:

@@ -946,15 +946,6 @@ class SellCommand(BaseCommand):
         elif item.quality >= 60:
             sale_price = int(sale_price * 1.15)
 
-        # World event sell price multiplier (e.g. trade_boom: +25%)
-        try:
-            from engine.world_events import get_world_event_manager
-            _smult = get_world_event_manager().get_effect('sell_price_mult', 1.0)
-            if _smult != 1.0:
-                sale_price = int(sale_price * _smult)
-        except Exception:
-            pass
-
         credits = char.get("credits", 0)
         new_credits = credits + sale_price
 
