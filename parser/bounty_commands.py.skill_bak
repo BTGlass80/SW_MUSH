@@ -309,29 +309,13 @@ class BountyCollectCommand(BaseCommand):
                     )
                 return
 
-        # Collect it — skill check represents claim quality
+        # Collect it
         collected = await board.collect(contract.id, False, ctx.db)
         if not collected:
             await ctx.session.send_line("  Error collecting bounty. Try again.")
             return
 
-        base_reward = board.total_reward(collected, alive=False)
-        from engine.skill_checks import perform_skill_check
-        # Bounty hunters roll Streetwise; others roll Search
-        import json as _bj
-        _attrs = _bj.loads(char.get('attributes', '{}'))
-        _skills = _bj.loads(char.get('skills', '{}'))
-        _skill = 'streetwise' if _skills.get('streetwise') else 'search'
-        _diff = 8 if base_reward < 500 else (11 if base_reward < 1500 else 14)
-        _check = perform_skill_check(char, _skill, _diff)
-        if _check.success:
-            reward = base_reward
-            if _check.critical_success:
-                reward = int(base_reward * 1.20)
-        elif _check.margin >= -4:
-            reward = int(base_reward * 0.75)  # partial
-        else:
-            reward = int(base_reward * 0.50)  # poor paperwork
+        reward = board.total_reward(collected, alive=False)
         old_credits = char.get("credits", 0)
         new_credits = old_credits + reward
         char["credits"] = new_credits
@@ -347,15 +331,9 @@ class BountyCollectCommand(BaseCommand):
         await ctx.session.send_line(
             ansi.success(f"  Bounty collected: {collected.target_name}")
         )
-        _result_tag = " [EXCEPTIONAL +20%]" if _check.critical_success else (
-            " [PARTIAL]" if _check.margin >= -4 and not _check.success else "")
         await ctx.session.send_line(
-            f"  {ansi.BOLD}Reward: +{reward:,} credits{ansi.RESET}{_result_tag}  "
+            f"  {ansi.BOLD}Reward: +{reward:,} credits{ansi.RESET}  "
             f"(Balance: {new_credits:,} cr)"
-        )
-        await ctx.session.send_line(
-            f"  Claim quality: {_skill.title()} [{_check.pool_str}]  "
-            f"Roll {_check.roll} vs {_check.difficulty}"
         )
         await ctx.session.send_line(
             f"  Posted by: {collected.posting_org}"

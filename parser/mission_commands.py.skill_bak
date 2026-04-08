@@ -235,43 +235,24 @@ class CompleteMissionCommand(BaseCommand):
                 "  Travel there and type 'complete' again.")
             return
 
-        # Complete and resolve skill check
+        # Complete and award credits
+        reward = active.reward
         completed = await board.complete(active.id, ctx.db)
         if not completed:
             await ctx.session.send_line(
                 "  Something went wrong completing the mission. Try again.")
             return
 
-        from engine.skill_checks import resolve_mission_completion
-        check = resolve_mission_completion(
-            char,
-            completed.mission_type.value,
-            completed.reward,
-        )
-
-        earned = check["credits_earned"]
         old_credits = char.get("credits", 0)
-        new_credits = old_credits + earned
+        new_credits = old_credits + reward
         char["credits"] = new_credits
         await ctx.db.save_character(char["id"], credits=new_credits)
 
         await ctx.session.send_line(
             ansi.success(f"  Mission complete: {completed.title}"))
-        # Skill roll feedback
-        result_tag = ""
-        if check["critical"]:
-            result_tag = f" {ansi.BOLD}[EXCEPTIONAL +20%]{ansi.RESET}"
-        elif check["partial"]:
-            result_tag = f" {ansi.DIM}[PARTIAL PAY]{ansi.RESET}"
-        elif not check["success"]:
-            result_tag = f" {ansi.error('[FAILED]') if hasattr(ansi, 'error') else '[FAILED]'}"
         await ctx.session.send_line(
-            f"  {ansi.BOLD}Reward: +{earned:,} credits{ansi.RESET}{result_tag}  "
+            f"  {ansi.BOLD}Reward: +{reward:,} credits{ansi.RESET}  "
             f"(Balance: {new_credits:,} cr)")
-        await ctx.session.send_line(
-            f"  Skill: {check['skill'].title()} [{check['pool']}]  "
-            f"Roll: {check['roll']} vs Difficulty: {check['difficulty']}")
-        await ctx.session.send_line(f"  {check['message']}")
         await ctx.session.send_line("")
         await ctx.session.send_line(
             f"  {ansi.DIM}Type 'missions' for your next job.{ansi.RESET}")

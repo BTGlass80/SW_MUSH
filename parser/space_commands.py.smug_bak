@@ -611,13 +611,6 @@ class LaunchCommand(BaseCommand):
         await ctx.db.update_ship(ship["id"], systems=_tj.dumps(_tsys))
         await ctx.session_mgr.broadcast_to_room(
             bay_id, f"  The {ship['name']} lifts off with a roar of engines!")
-        # Patrol encounter check for active smuggling jobs
-        try:
-            from parser.smuggling_commands import check_patrol_on_launch
-            await check_patrol_on_launch(ctx)
-        except Exception:
-            pass
-
         await ctx.session_mgr.broadcast_to_room(
             ship["bridge_room_id"],
             ansi.success(

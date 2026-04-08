@@ -29,7 +29,6 @@ from parser.mission_commands import register_mission_commands
 from parser.bounty_commands import register_bounty_commands
 from parser.director_commands import register_director_commands
 from parser.news_commands import register_news_commands
-from parser.smuggling_commands import register_smuggling_commands
 from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
@@ -68,7 +67,6 @@ class GameServer:
         register_bounty_commands(self.registry)
         register_director_commands(self.registry)
         register_news_commands(self.registry)
-        register_smuggling_commands(self.registry)
         register_force_commands(self.registry)
 
         # AI system
@@ -527,13 +525,6 @@ class GameServer:
                 await bboard.ensure_loaded(self.db)
             except Exception:
                 log.debug("Bounty board tick skipped", exc_info=True)
-
-            # -- Smuggling board expiry cleanup --
-            try:
-                from engine.smuggling import get_smuggling_board
-                await get_smuggling_board().ensure_loaded(self.db)
-            except Exception:
-                log.debug('Smuggling board tick skipped', exc_info=True)
             # ── Ambient room events ──
             try:
                 from engine.ambient_events import get_ambient_manager
