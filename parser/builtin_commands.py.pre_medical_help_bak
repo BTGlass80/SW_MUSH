@@ -502,7 +502,6 @@ class HelpCommand(BaseCommand):
                      "missions", "accept", "mission", "complete", "abandon"],
         "Crafting": ["survey", "resources", "buyresource",
                       "schematics", "craft"],
-        "Medical": ["heal", "healaccept", "healrate"],
         "Space": ["ships", "shipinfo", "pilot", "gunner", "copilot",
                   "engineer", "navigator", "commander", "sensors",
                   "vacate", "assist", "coordinate", "shiprepair",

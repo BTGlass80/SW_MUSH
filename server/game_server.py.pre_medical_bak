@@ -30,7 +30,6 @@ from parser.bounty_commands import register_bounty_commands
 from parser.director_commands import register_director_commands
 from parser.news_commands import register_news_commands
 from parser.smuggling_commands import register_smuggling_commands
-from parser.medical_commands import register_medical_commands
 from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
@@ -71,7 +70,6 @@ class GameServer:
         register_news_commands(self.registry)
         register_smuggling_commands(self.registry)
         register_force_commands(self.registry)
-        register_medical_commands(self.registry)
 
         # AI system
         self.ai_manager = AIManager(AIConfig())
