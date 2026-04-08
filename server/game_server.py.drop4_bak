@@ -27,8 +27,6 @@ from parser.space_commands import register_space_commands
 from parser.crew_commands import register_crew_commands
 from parser.mission_commands import register_mission_commands
 from parser.bounty_commands import register_bounty_commands
-from parser.director_commands import register_director_commands
-from parser.news_commands import register_news_commands
 from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
@@ -65,8 +63,6 @@ class GameServer:
         register_crew_commands(self.registry)
         register_mission_commands(self.registry)
         register_bounty_commands(self.registry)
-        register_director_commands(self.registry)
-        register_news_commands(self.registry)
         register_force_commands(self.registry)
 
         # AI system

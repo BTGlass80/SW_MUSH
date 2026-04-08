@@ -36,9 +36,6 @@ except ImportError:
     )
 
 
-# ── Claude provider (optional, requires ANTHROPIC_API_KEY) ──
-from ai.claude_provider import make_claude_provider
-
 # ── Configuration ──
 
 @dataclass
@@ -329,11 +326,6 @@ class AIManager:
             )
         # Always have a mock as fallback
         self.providers["mock"] = MockProvider()
-        # Optional: Claude API provider (Director AI)
-        _claude = make_claude_provider()
-        if _claude is not None:
-            self.providers["claude"] = _claude
-            log.info("ClaudeProvider registered (Director AI).")
 
     def get_provider(self, name: str = "") -> AIProvider:
         """Get a provider by name, or the default."""

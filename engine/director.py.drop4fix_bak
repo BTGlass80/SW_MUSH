@@ -630,13 +630,13 @@ class DirectorAI:
         tok_in  = 0
         tok_out = 0
 
-        await self.log_event(
+        await self._write_log(
             db,
             event_type="faction_turn",
             summary=news_headline,
-            details=json.loads(details_json) if details_json else None,
-            input_tokens=tok_in,
-            output_tokens=tok_out,
+            details_json=details_json,
+            token_cost_input=tok_in,
+            token_cost_output=tok_out,
         )
 
         return True
@@ -695,16 +695,6 @@ class DirectorAI:
         an API call that returns intelligent adjustments.
         """
         await self.ensure_loaded(db)
-
-        # Attempt API-driven Faction Turn first
-        try:
-            _ai_mgr = getattr(session_mgr, '_ai_manager', None)
-            if _ai_mgr and await self._run_api_turn(db, session_mgr, _ai_mgr):
-                self._digest.reset()
-                self._last_turn_time = time.time()
-                return  # API turn handled everything
-        except Exception as _api_exc:
-            log.warning('[director] API turn error: %s — using local fallback', _api_exc)
 
         # Apply local deltas
         has_activity = self._digest.has_activity()
