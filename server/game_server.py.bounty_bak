@@ -25,7 +25,6 @@ from parser.npc_commands import register_npc_commands
 from parser.space_commands import register_space_commands
 from parser.crew_commands import register_crew_commands
 from parser.mission_commands import register_mission_commands
-from parser.bounty_commands import register_bounty_commands
 from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
@@ -60,7 +59,6 @@ class GameServer:
         register_space_commands(self.registry)
         register_crew_commands(self.registry)
         register_mission_commands(self.registry)
-        register_bounty_commands(self.registry)
         register_force_commands(self.registry)
 
         # AI system
@@ -491,19 +489,3 @@ class GameServer:
                 await get_traffic_manager().tick(self.db, self.session_mgr)
             except Exception:
                 log.debug("NPC space traffic tick skipped", exc_info=True)
-
-            # ── Mission & Bounty board expiry cleanup (every tick) ──
-            try:
-                from engine.missions import get_mission_board
-                board = get_mission_board()
-                await board.ensure_loaded(self.db)
-                await self.db.cleanup_expired_missions()
-            except Exception:
-                log.debug("Mission board tick skipped", exc_info=True)
-
-            try:
-                from engine.bounty_board import get_bounty_board
-                bboard = get_bounty_board()
-                await bboard.ensure_loaded(self.db)
-            except Exception:
-                log.debug("Bounty board tick skipped", exc_info=True)

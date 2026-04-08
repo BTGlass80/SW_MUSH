@@ -886,6 +886,71 @@ class FireCommand(BaseCommand):
                     f"Incoming fire from {ship['name']} -- missed!")
 
 
+class LockOnCommand(BaseCommand):
+    key = "lockon"
+    aliases = ["lock", "targetlock"]
+    help_text = (
+        "Spend a round locking your targeting computer on a target. "
+        "+1D to your next fire at that target per round of lock-on, max +3D. "
+        "Broken by target evasive maneuvers or switching targets."
+    )
+    usage = "lockon <target ship name>"
+
+    async def execute(self, ctx):
+        if not ctx.args:
+            await ctx.session.send_line("Usage: lockon <target ship name>")
+            return
+
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        if ship["docked_at"]:
+            await ctx.session.send_line("  Can't lock on while docked!")
+            return
+
+        crew = _get_crew(ship)
+        char_id = ctx.session.character["id"]
+        gunners = crew.get("gunners", [])
+        if char_id not in gunners:
+            await ctx.session.send_line(
+                "  You're not at a gunner station. Type 'gunner' first."
+            )
+            return
+
+        # Find target ship
+        target_name = ctx.args.strip().lower()
+        target_ship = None
+        for s in await ctx.db.get_ships_in_space():
+            if s["id"] != ship["id"] and (
+                s["name"].lower() == target_name
+                or s["name"].lower().startswith(target_name)
+            ):
+                target_ship = s
+                break
+        if not target_ship:
+            await ctx.session.send_line(f"  No ship '{ctx.args}' on scanners.")
+            return
+
+        # Range check — can't lock on to out-of-range targets
+        grid = get_space_grid()
+        rng = grid.get_range(ship["id"], target_ship["id"])
+        if rng == SpaceRange.OUT_OF_RANGE:
+            await ctx.session.send_line("  Target is out of range — cannot lock on.")
+            return
+
+        # Apply lock-on (clears any existing lock on a different target)
+        grid.clear_lockon_by_attacker(ship["id"])
+        new_bonus = grid.add_lockon(ship["id"], target_ship["id"])
+
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ansi.BRIGHT_YELLOW}[WEAPONS]{ansi.RESET} "
+            f"{ctx.session.character['name']} locks targeting computer on "
+            f"{target_ship['name']}... (+{new_bonus}D to next shot)"
+        )
+
+
 class CloseRangeCommand(BaseCommand):
     key = "close"
     aliases = ["approach"]
@@ -1162,6 +1227,9 @@ async def _resolve_maneuver_cmd(ctx, maneuver_name: str, base_diff: int,
     if roll.total >= total_diff:
         # Success — set the maneuver bonus on the grid
         grid.set_maneuver_bonus(ship_id, attacker_bonus)
+
+        # Clear all targeting lock-ons aimed at this ship
+        grid.clear_lockon_by_target(ship_id)
 
         # Loop/slip additional effects
         tail_note = ""
@@ -1954,6 +2022,7 @@ def register_space_commands(registry):
         LaunchCommand(), LandCommand(),
         ShipStatusCommand(), ScanCommand(),
         FireCommand(), EvadeCommand(),
+        LockOnCommand(),
         CloseRangeCommand(), FleeShipCommand(),
         TailCommand(), OutmaneuverCommand(),
         ShieldsCommand(), HyperspaceCommand(),

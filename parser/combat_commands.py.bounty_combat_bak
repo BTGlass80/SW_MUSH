@@ -175,64 +175,6 @@ async def _apply_combat_wear(combat, ctx):
                     await ctx.db.update_npc(
                         c.id, char_sheet_json=_json.dumps(cs)
                     )
-                    # ── Bounty kill hook ──────────────────────────────────
-                    # If this NPC is a bounty target and just died, auto-
-                    # collect the contract for the player who killed them.
-                    from engine.character import WoundLevel as _WL
-                    if c.char.wound_level.value >= _WL.DEAD.value:
-                        try:
-                            _ai_cfg = _json.loads(
-                                npc_row.get("ai_config_json", "{}")
-                            )
-                            if _ai_cfg.get("is_bounty_target"):
-                                from engine.bounty_board import get_bounty_board
-                                _board = get_bounty_board()
-                                # Find the player who dealt the killing blow
-                                # (first non-NPC attacker in this round)
-                                _killer_id = None
-                                for _ac in combat.combatants.values():
-                                    if not _ac.is_npc and any(
-                                        _a.action_type == ActionType.ATTACK
-                                        and _a.target_id == c.id
-                                        for _a in _ac.actions
-                                    ):
-                                        _killer_id = _ac.id
-                                        break
-                                if _killer_id:
-                                    _contract = await _board.notify_target_killed(
-                                        c.id, _killer_id, ctx.db
-                                    )
-                                    if _contract:
-                                        _reward = _board.total_reward(
-                                            _contract, alive=False
-                                        )
-                                        # Award credits
-                                        _sess = ctx.session_mgr.find_by_character(
-                                            _killer_id
-                                        )
-                                        if _sess and _sess.character:
-                                            _cr = _sess.character.get("credits", 0)
-                                            _sess.character["credits"] = _cr + _reward
-                                            await ctx.db.save_character(
-                                                _killer_id,
-                                                credits=_sess.character["credits"],
-                                            )
-                                            await _sess.send_line(
-                                                f"  \033[1;33m[BOUNTY COLLECTED]\033[0m "
-                                                f"{_contract.target_name} — "
-                                                f"+{_reward:,} credits awarded."
-                                            )
-                                            log.info(
-                                                "[bounty] Auto-collected %s for "
-                                                "char %s: %dcr",
-                                                _contract.id, _killer_id, _reward,
-                                            )
-                        except Exception as _be:
-                            log.warning(
-                                "Bounty kill hook error for NPC %s: %s",
-                                c.id, _be,
-                            )
-                    # ── End bounty kill hook ──────────────────────────────
             except Exception as e:
                 log.warning("Failed to save NPC %s wound: %s", c.name, e)
             continue

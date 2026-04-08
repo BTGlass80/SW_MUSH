@@ -187,6 +187,9 @@ class SpaceGrid:
         # {ship_id: int} — evasive maneuver bonus added to attacker difficulty this round
         # Consumed (zeroed) when first attack resolves against this ship
         self._maneuver_bonuses: dict[int, int] = {}
+        # {(attacker_ship_id, target_ship_id): int} — targeting lock-on bonus (max +3D)
+        # Consumed when fire resolves against the locked target
+        self._lockon_bonuses: dict[tuple[int, int], int] = {}
 
     def add_ship(self, ship_id: int, speed: int, default_range: SpaceRange = SpaceRange.LONG):
         """Add a ship to the grid. New ships start at Long range from everyone."""
@@ -209,6 +212,10 @@ class SpaceGrid:
         to_remove_pos = [k for k in self._positions if ship_id in k]
         for k in to_remove_pos:
             del self._positions[k]
+        # Clear any lock-on bonuses involving this ship
+        to_remove_lock = [k for k in self._lockon_bonuses if ship_id in k]
+        for k in to_remove_lock:
+            del self._lockon_bonuses[k]
 
     def get_range(self, id_a: int, id_b: int) -> SpaceRange:
         key = (min(id_a, id_b), max(id_a, id_b))
@@ -237,6 +244,36 @@ class SpaceGrid:
     def get_and_consume_maneuver_bonus(self, ship_id: int) -> int:
         """Return the maneuver bonus for this ship and zero it (one-shot per round)."""
         return self._maneuver_bonuses.pop(ship_id, 0)
+
+    # ── Targeting Lock-On ──
+
+    def add_lockon(self, attacker_ship_id: int, target_ship_id: int) -> int:
+        """Increment lock-on bonus for attacker→target pair. Max +3D. Returns new total."""
+        key = (attacker_ship_id, target_ship_id)
+        current = self._lockon_bonuses.get(key, 0)
+        new_val = min(current + 1, 3)
+        self._lockon_bonuses[key] = new_val
+        return new_val
+
+    def get_and_consume_lockon(self, attacker_ship_id: int, target_ship_id: int) -> int:
+        """Return lock-on bonus for attacker→target and consume it (one-shot)."""
+        return self._lockon_bonuses.pop((attacker_ship_id, target_ship_id), 0)
+
+    def get_lockon(self, attacker_ship_id: int, target_ship_id: int) -> int:
+        """Peek at current lock-on bonus without consuming."""
+        return self._lockon_bonuses.get((attacker_ship_id, target_ship_id), 0)
+
+    def clear_lockon_by_target(self, target_ship_id: int):
+        """Clear ALL lock-on bonuses aimed at this target (called on evasive maneuver)."""
+        to_remove = [k for k in self._lockon_bonuses if k[1] == target_ship_id]
+        for k in to_remove:
+            del self._lockon_bonuses[k]
+
+    def clear_lockon_by_attacker(self, attacker_ship_id: int):
+        """Clear all lock-on bonuses FROM this attacker (called when switching targets)."""
+        to_remove = [k for k in self._lockon_bonuses if k[0] == attacker_ship_id]
+        for k in to_remove:
+            del self._lockon_bonuses[k]
 
     def resolve_maneuver(
         self,
@@ -652,6 +689,13 @@ def resolve_space_attack(
             attack_pool = DicePool(attack_pool.dice + 1, attack_pool.pips)
             tailing_bonus = True
 
+    # Targeting lock-on bonus: consumed on fire
+    lockon_bonus = 0
+    if attacker_ship_id is not None and target_ship_id is not None:
+        lockon_bonus = get_space_grid().get_and_consume_lockon(attacker_ship_id, target_ship_id)
+        if lockon_bonus > 0:
+            attack_pool = DicePool(attack_pool.dice + lockon_bonus, attack_pool.pips)
+
     # Scale modifier for to-hit
     scale_diff = target_scale - attacker_scale
     if scale_diff > 0:
@@ -684,9 +728,10 @@ def resolve_space_attack(
 
     if not result.hit:
         tail_tag = " [TAIL +1D]" if tailing_bonus else ""
+        lock_tag = f" [LOCK +{lockon_bonus}D]" if lockon_bonus else ""
         evade_tag = f" + Evade({maneuver_bonus})" if maneuver_bonus else ""
         result.narrative = (
-            f"  Shot misses at {range_label} range!{tail_tag} "
+            f"  Shot misses at {range_label} range!{tail_tag}{lock_tag} "
             f"(Attack: {result.attack_roll} vs "
             f"Diff: {range_label}({range_mod}) + Evade({defense_roll.total})"
             f"{evade_tag} = {total_difficulty})"
