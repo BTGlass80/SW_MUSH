@@ -28,6 +28,9 @@ except ImportError:
     _AIOHTTP_AVAILABLE = False
     log.error("aiohttp not installed — ClaudeProvider will be permanently unavailable.")
 
+# Lazy import to avoid circular dependency at module load time.
+# AIProvider is imported inside the class body reference only.
+from ai.providers import AIProvider
 
 # ── Pricing constants ──────────────────────────────────────────────────────────
 # Cents per token (fractional)
@@ -35,7 +38,7 @@ _INPUT_CENTS_PER_TOKEN  = 1.0 / 1_000_000    # $1 / MTok
 _OUTPUT_CENTS_PER_TOKEN = 5.0 / 1_000_000    # $5 / MTok
 
 
-class ClaudeProvider:
+class ClaudeProvider(AIProvider):
     """
     Anthropic Claude API provider.
 
