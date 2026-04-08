@@ -45,6 +45,10 @@ def parse_args():
         help="WebSocket listen port (default: 4001)",
     )
     parser.add_argument(
+        "--web-port", type=int, default=8080,
+        help="Web client HTTP port (default: 8080)",
+    )
+    parser.add_argument(
         "--db", type=str, default="sw_mush.db",
         help="SQLite database path (default: sw_mush.db)",
     )
@@ -63,6 +67,7 @@ async def main():
     config = Config(
         telnet_port=args.telnet_port,
         websocket_port=args.ws_port,
+        web_client_port=args.web_port,
         db_path=args.db,
     )
 

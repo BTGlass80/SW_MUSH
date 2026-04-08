@@ -22,6 +22,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 from db.database import Database
+from engine.npc_loader import load_npcs_from_yaml
 
 # ==============================================================
 # ROOM DEFINITIONS  (name, short_desc, long_desc)
@@ -272,27 +273,74 @@ ROOMS = [
 # EXITS  (from_idx, to_idx, direction, reverse_direction)
 # ==============================================================
 EXITS = [
-    (0, 1, "down", "up"),         (0, 7, "north", "south"),
-    (2, 7, "east", "west"),       (2, 0, "south", "north"),
-    (3, 7, "northwest", "southeast"), (4, 7, "west", "east"),
-    (5, 7, "east", "west"),       (6, 10, "east", "west"),
-    (7, 8, "north", "south"),     (8, 9, "north", "south"),
-    (9, 10, "north", "south"),    (8, 11, "south", "north"),
-    (12, 8, "east", "west"),      (12, 13, "down", "up"),
-    (13, 14, "west", "east"),     (15, 8, "north", "south"),
-    (16, 8, "south", "north"),    (17, 7, "south", "north"),
-    (18, 8, "southeast", "northwest"), (18, 19, "in", "out"),
-    (20, 9, "east", "west"),      (21, 9, "west", "east"),
-    (22, 9, "south", "north"),    (23, 22, "north", "south"),
-    (24, 9, "northwest", "southeast"), (25, 7, "east", "west"),
-    (26, 7, "north", "south"),    (27, 8, "east", "west"),
-    (28, 8, "northeast", "southwest"), (29, 8, "west", "east"),
-    (30, 10, "south", "north"),   (6, 30, "south", "north"),
-    (31, 11, "north", "south"),   (31, 32, "up", "down"),
-    (33, 8, "north", "south"),    (34, 11, "east", "west"),
-    (35, 9, "east", "west"),      (36, 10, "east", "west"),
-    (37, 8, "north", "south"),    (38, 11, "west", "east"),
-    (39, 10, "north", "south"),
+    # -- Docking Bay 94 connections --
+    (0, 1, "down", "up"),
+    (0, 7, "north", "south to Bay 94"),
+    (2, 7, "east", "west to Bay 86"),
+    (2, 0, "south", "north to Bay 86"),
+    # -- Other bays to Spaceport Row --
+    (3, 7, "northwest", "southeast"),
+    (4, 7, "west", "east"),
+    (5, 7, "east", "west to Bay 91"),
+    # -- Bay 95 to Outer Curve --
+    (6, 10, "east", "west to Bay 95"),
+    # -- Spaceport Row <-> Market Row --
+    (7, 8, "north", "south to Spaceport"),
+    # -- Market Row <-> Inner Curve --
+    (8, 9, "north", "south to Market"),
+    # -- Inner Curve <-> Outer Curve --
+    (9, 10, "north", "south to Inner Curve"),
+    # -- Market Row <-> Kerner Plaza --
+    (8, 11, "south", "north"),
+    # -- Cantina --
+    (12, 8, "east", "west to Cantina"),
+    (12, 13, "down", "up"),
+    (13, 14, "west", "east"),
+    # -- General Store -> Market --
+    (15, 8, "north", "south to General Store"),
+    # -- Dim-U Monastery -> Market --
+    (16, 8, "south", "north to Monastery"),
+    # -- Spacers Quarters -> Spaceport Row --
+    (17, 7, "south", "north to Quarters"),
+    # -- Jabba's --
+    (18, 8, "southeast", "northwest"),
+    (18, 19, "in", "out"),
+    # -- Government District --
+    (20, 9, "east", "west to Prefect"),
+    (21, 9, "west", "east"),
+    (22, 9, "south", "north to Gov District"),
+    (23, 22, "north", "south to Bay 35"),
+    # -- Tower --
+    (24, 9, "northwest", "southeast"),
+    # -- Med Center -> Spaceport Row --
+    (25, 7, "east", "west to Med Center"),
+    # -- Warehouse Row -> Spaceport Row --
+    (26, 7, "north", "south to Warehouses"),
+    # -- Arms Dealer -> Market --
+    (27, 8, "east", "west to Arms Dealer"),
+    # -- Scrap Yard / Dewback Stable -> Market --
+    (28, 8, "northeast", "southwest"),
+    (29, 8, "west", "east"),
+    # -- Docking Bay 96 <-> Outer Curve --
+    (30, 10, "south", "north"),
+    (6, 30, "south", "north"),
+    # -- Lucky Despot -> Kerner Plaza --
+    (31, 11, "north", "south"),
+    (31, 32, "up", "down"),
+    # -- Repair Shop -> Market --
+    (33, 8, "north", "south to Repair Shop"),
+    # -- Bay 92 -> Kerner Plaza --
+    (34, 11, "east", "west"),
+    # -- Jawa Trader -> Inner Curve --
+    (35, 9, "east", "west to Jawa Trader"),
+    # -- Alley -> Outer Curve --
+    (36, 10, "east", "west to Alley"),
+    # -- Desert Edge -> Market --
+    (37, 8, "north", "south to Desert"),
+    # -- Ithorian Garden -> Kerner Plaza --
+    (38, 11, "west", "east"),
+    # -- Notsub Shipping -> Outer Curve --
+    (39, 10, "north", "south to Notsub"),
 ]
 
 # ==============================================================
@@ -358,231 +406,13 @@ def _ai(personality="", knowledge=None, faction="Neutral", style="",
     return cfg
 
 # ==============================================================
-# NPC DEFINITIONS -- COMBAT READY
-# (name, room_idx, species, description, char_sheet, ai_config)
+# NPC DEFINITIONS -- LOADED FROM YAML
+# All GG7 NPCs are now in data/npcs_gg7.yaml, loaded at build time
+# by engine/npc_loader.py. The YAML file contains 40 NPCs with full
+# stat blocks, AI configs, and room placements.
+#
+# To add/edit NPCs, modify data/npcs_gg7.yaml instead of this file.
 # ==============================================================
-NPCS = [
-    # -- Cantina NPCs --
-    ("Wuher", 13, "Human",
-     "A scarred, ill-tempered Human bartender polishing a glass with a dirty rag.",
-     _sheet(dex="3D+1", per="3D+2", stre="3D+1",
-            skills={"blaster": "4D", "dodge": "4D", "brawling": "4D+2",
-                    "intimidation": "4D", "bargain": "3D+1"},
-            weapon="blaster_pistol"),
-     _ai(personality="Wuher is non-communicative and ill-tempered. He hates Droids. "
-         "Gruff, terse, speaks in short sentences. Knows everything but shares nothing.",
-         knowledge=["Chalmun owns the cantina and keeps a bowcaster behind the bar",
-                     "Jabba controls most criminal activity", "No Droids allowed",
-                     "The band is Figrin Da'n and the Modal Nodes"],
-         style="Extremely terse. Grunts. Never volunteers info.",
-         fallbacks=["Wuher grunts and continues polishing a glass.",
-                    "Wuher glances at you. 'What'll it be.'",
-                    "'We don't serve their kind here.'"],
-         behavior="defensive")),
-
-    ("Chalmun", 13, "Wookiee",
-     "A beige and gray Wookiee with a scar across his chest, the cantina's owner.",
-     _sheet(dex="2D+2", kno="2D+1", per="3D", stre="5D+2", tec="2D",
-            skills={"brawling": "6D+1", "intimidation": "4D", "bowcaster": "4D"},
-            weapon="bowcaster", species="Wookiee"),
-     _ai(personality="Chalmun is a rough-but-warm Wookiee owner. Protective of his bar. "
-         "Keeps a bowcaster behind the counter.",
-         knowledge=["Bought the cantina with gambling profits from Ord Mantell",
-                     "Pays Jabba protection money"],
-         style="Growls and roars. Use *growls*, rough translated speech.",
-         fallbacks=["*Chalmun growls a warning and gestures at the door.*",
-                    "*The big Wookiee eyes you warily, one paw near the bowcaster.*"],
-         behavior="aggressive")),
-
-    ("Oxbell", 13, "Devaronian",
-     "A horned humanoid with razor teeth, nursing a drink in a booth.",
-     _sheet(dex="2D+2", kno="3D+1", per="4D", stre="2D+1",
-            skills={"dodge": "3D+2", "streetwise": "5D", "bargain": "4D+1",
-                    "con": "4D", "blaster": "3D"},
-            weapon="hold_out_blaster"),
-     _ai(personality="Oxbell is a Devaronian info broker. Drunk most of the time. "
-         "Babbles gossip without discrimination. Will share rumors for a drink.",
-         knowledge=["Most gossip in Mos Eisley", "Jabba's people buy info",
-                     "A new spice operation might rival Jabba"],
-         style="Slurred, rambling. Morose then chatty. Bribed with drinks.",
-         fallbacks=["'Buy me a drink and I'll tell you something interesting.'",
-                    "*Oxbell takes a long swig and peers at you with bloodshot eyes.*"],
-         behavior="cowardly")),
-
-    # -- Cantina Thugs (HOSTILE) --
-    ("Ponda Baba's Associate", 13, "Aqualish",
-     "A scarred Aqualish thug hunched over a drink, watching the room with hostility.",
-     _sheet(dex="3D+2", per="2D+1", stre="4D",
-            skills={"blaster": "4D+2", "brawling": "5D", "dodge": "4D",
-                    "melee combat": "4D+1", "intimidation": "3D+2"},
-            weapon="vibroblade", species="Aqualish"),
-     _ai(personality="A violent thug looking for trouble. Quick to pick fights.",
-         style="Threatening grunts and snarls.",
-         fallbacks=["The Aqualish snarls at you menacingly.",
-                    "*He reaches for his weapon.*"],
-         hostile=True, behavior="aggressive")),
-
-    # -- Government NPCs --
-    ("Prefect Talmont", 20, "Human",
-     "A wiry man with an obvious toupee and an air of self-importance.",
-     _sheet(dex="2D", kno="3D+2", per="3D+1", stre="2D", tec="2D+1",
-            skills={"blaster": "2D+2", "bureaucracy": "5D", "law_enforcement": "4D",
-                    "command": "3D+2", "bargain": "4D"}),
-     _ai(personality="Eugene Talmont is the Imperial Prefect. Full of himself, "
-         "overestimates his importance. Nearsighted but too vain for lenses.",
-         knowledge=["Governor Tour Aryon runs Tatooine from Bestine",
-                     "Lieutenant Harburik is Chief of Police",
-                     "Previous Prefect Orun Depp killed by assassin Droid"],
-         faction="Imperial",
-         style="Pompous, formal. Projects authority he doesn't possess.",
-         fallbacks=["Talmont adjusts his toupee nervously. 'Yes, well. I'm very busy.'",
-                    "'This is a matter for the proper authorities. Which is to say, me.'"],
-         behavior="cowardly")),
-
-    ("Lieutenant Harburik", 21, "Human",
-     "A large, well-muscled man with a vicious look. The Chief of Police.",
-     _sheet(dex="3D+2", kno="2D+2", per="3D+2", stre="4D",
-            skills={"blaster": "5D+1", "brawling": "5D", "dodge": "4D+2",
-                    "intimidation": "5D", "law_enforcement": "4D+1",
-                    "melee combat": "4D+2"},
-            weapon="heavy_blaster_pistol"),
-     _ai(personality="Harburik is crass, rude, and cruel. Enjoys being a big fish. "
-         "Well-armed and dangerous.",
-         knowledge=["Commands about 20 police officers",
-                     "Prefect Talmont is an incompetent fool",
-                     "Considers having Talmont removed"],
-         faction="Imperial",
-         style="Threatening, direct. Barely contained aggression.",
-         fallbacks=["'Let me see your identification. Now.'",
-                    "Harburik cracks his knuckles meaningfully."],
-         behavior="aggressive")),
-
-    # -- Shops --
-    ("Kal Lup", 15, "Shistavanen",
-     "A fierce-looking but friendly Shistavanen Wolfman behind the counter.",
-     _sheet(dex="3D+1", per="3D", stre="4D",
-            skills={"blaster": "4D", "dodge": "3D+2", "brawling": "4D+1",
-                    "bargain": "4D+2"},
-            weapon="blaster_carbine", species="Shistavanen"),
-     _ai(personality="Kal Lup is genuinely friendly despite his fierce appearance. "
-         "Runs the general store with his husband Tar.",
-         knowledge=["Stocks provisions, supplies, machinery, medical equipment, weapons",
-                     "Prices 90-110% standard, medical/weapons 120%",
-                     "Has a blaster carbine hidden behind the counter"],
-         style="Friendly, welcoming. Good shopkeeper patter.",
-         fallbacks=["Kal Lup bares his fangs in what is apparently a smile. 'Welcome!'",
-                    "'We have everything you need, friend.'"],
-         behavior="defensive")),
-
-    ("Unut Poll", 3, "Arcona",
-     "An older Arconan with a gentle face. The speeder shop proprietor.",
-     _sheet(dex="2D+1", kno="3D", mec="4D+1", per="3D+2", stre="2D", tec="4D",
-            skills={"repulsorlift_operation": "5D+2", "repulsorlift_repair": "5D+1",
-                    "bargain": "4D+1", "con": "4D", "dodge": "3D"},
-            species="Arcona"),
-     _ai(personality="Unut Poll is a quirky old charmer. Loves speeders. Secretly "
-         "aids the Rebel Alliance but is extremely cautious.",
-         knowledge=["Has speeders for sale including an XP-38 and T-16 Skyhopper",
-                     "Secretly supports the Rebellion"],
-         faction="Secretly Rebel Alliance",
-         style="Charming, folksy, eccentric. Deflects personal questions.",
-         fallbacks=["'Looking for transportation?'",
-                    "'Ah, that XP-38? Fine machine. Let me tell you...'"],
-         behavior="cowardly")),
-
-    ("Moplin Jarron", 28, "Sullustan",
-     "A nervous little Sullustan with a perpetual squint.",
-     _sheet(dex="2D+2", kno="3D", per="3D+1", stre="2D",
-            skills={"forgery": "5D+2", "con": "4D+1", "dodge": "3D+1",
-                    "hide": "4D", "sneak": "4D"},
-            weapon="hold_out_blaster", species="Sullustan"),
-     _ai(personality="Moplin runs the souvenir shop as a front for forgery. "
-         "Laughs a lot for no reason. Nervous and twitchy.",
-         knowledge=["Can forge IDs: township 100 cr, passports 200 cr",
-                     "Bought the shop from Tebbi, daughter of original Heff"],
-         style="Nervous, twitchy. Laughs at odd moments. Conspiratorial tone.",
-         fallbacks=["'Hee! Just souvenirs here, friend. Just souvenirs.'",
-                    "*The Sullustan hunches lower behind the counter, eyes darting.*"],
-         behavior="cowardly")),
-
-    ("Kayson", 27, "Unknown",
-     "A grizzled alien weaponsmith with atrocious manners.",
-     _sheet(dex="3D+2", kno="3D", per="2D+2", stre="3D+1", tec="4D",
-            skills={"blaster": "5D", "blaster_repair": "5D+2",
-                    "melee combat": "4D", "dodge": "4D"},
-            weapon="heavy_blaster_pistol"),
-     _ai(personality="Grizzled arms dealer with terrible manners. Knows weapons "
-         "intimately. Maintains appearance of legitimacy while running black market.",
-         knowledge=["Heavy blaster pistols 1,500 cr, rifles 2,000",
-                     "Black market weapons available",
-                     "Thermal detonators 4,000 cr"],
-         style="Gruff, sour, minimal words. Suspicious of new customers.",
-         fallbacks=["'Credits first. Then we talk.'",
-                    "*The old alien eyes you with undisguised suspicion.*"],
-         behavior="aggressive")),
-
-    # -- Docking Bay --
-    ("Ohwun De Maal", 1, "Duros",
-     "An unremarkable blue-skinned Duros in work clothes, co-owner of Bay 94.",
-     _sheet(dex="2D+1", kno="3D", mec="3D+2", per="3D", stre="2D+1", tec="3D+1",
-            skills={"bargain": "4D", "space_transports": "4D+1",
-                    "starship_repair": "4D"},
-            species="Duros"),
-     _ai(personality="Ohwun is devout, honest, hardworking. Runs Bay 94 with his "
-         "mate Chachi. Nobody's fool.",
-         knowledge=["Bay 94 charges 25 cr/day", "Fuel cells 10 cr each",
-                     "Owns five other bays and eight warehouses"],
-         style="Quiet, polite, professional. Duros accent.",
-         fallbacks=["'Welcome to Docking Bay 94. De Maal Docking Services.'",
-                    "'We run an honest operation here. Always have.'"],
-         behavior="defensive")),
-
-    # -- Stormtroopers (HOSTILE) --
-    ("Imperial Stormtrooper", 9, "Human",
-     "A stormtrooper in scuffed white armor, blaster rifle at the ready.",
-     _sheet(dex="3D+1", kno="2D", mec="2D+1", per="2D+2", stre="3D", tec="2D",
-            skills={"blaster": "4D+1", "brawling": "4D", "dodge": "4D",
-                    "melee combat": "3D+2"}),
-     _ai(personality="Standard Imperial stormtrooper. Follows orders.",
-         hostile=True, behavior="aggressive",
-         style="Clipped military speech.",
-         fallbacks=["'Halt! Show me your identification.'",
-                    "'Move along. Move along.'"])),
-
-    ("Imperial Stormtrooper", 22, "Human",
-     "A stormtrooper standing guard at the militia headquarters.",
-     _sheet(dex="3D+1", kno="2D", mec="2D+1", per="2D+2", stre="3D", tec="2D",
-            skills={"blaster": "4D+1", "brawling": "4D", "dodge": "4D",
-                    "melee combat": "3D+2"}),
-     _ai(personality="Standard Imperial stormtrooper on guard duty.",
-         hostile=True, behavior="aggressive",
-         style="Military.",
-         fallbacks=["'This area is restricted.'",
-                    "'Move along.'"])),
-
-    # -- Jabba's Guard (HOSTILE) --
-    ("Gamorrean Guard", 19, "Gamorrean",
-     "A massive green-skinned Gamorrean guard in crude armor, wielding a vibro-ax.",
-     _sheet(dex="2D+1", kno="1D", per="1D+2", stre="5D", tec="1D",
-            skills={"melee combat": "5D+2", "brawling": "5D+1", "dodge": "3D"},
-            weapon="vibro_ax", species="Gamorrean"),
-     _ai(personality="A dim but loyal Gamorrean guard. Attacks intruders on sight.",
-         hostile=True, behavior="berserk",
-         fallbacks=["*The Gamorrean squeals and charges!*",
-                    "*A massive green fist swings toward you!*"])),
-
-    # -- Lucky Despot Bounty Hunter (HOSTILE) --
-    ("Valarian's Enforcer", 32, "Whiphid",
-     "A hulking Whiphid enforcer with cybernetic tusks, watching the casino floor.",
-     _sheet(dex="3D", kno="2D", per="3D+1", stre="5D+1", tec="2D",
-            skills={"blaster": "4D+2", "brawling": "6D", "dodge": "4D",
-                    "intimidation": "5D", "melee combat": "5D"},
-            weapon="vibroblade", species="Whiphid"),
-     _ai(personality="Valarian's personal enforcer. Watches for trouble.",
-         hostile=True, behavior="aggressive",
-         fallbacks=["*The Whiphid rises to its full height, cybernetic tusks gleaming.*",
-                    "'You shouldn't be here.'"])),
-]
 
 # ==============================================================
 # HIREABLE CREW NPCs -- Available at cantina/spaceport
@@ -741,15 +571,20 @@ async def build():
     cantina_entrance_id = room_ids[12]
 
     await db.create_exit(1, spaceport_row_id, "north")
-    await db.create_exit(spaceport_row_id, 1, "south")
+    await db.create_exit(spaceport_row_id, 1, "south to Landing Pad")
     await db.create_exit(2, market_id, "north")
-    await db.create_exit(market_id, 2, "south")
+    await db.create_exit(market_id, 2, "south to Street")
     await db.create_exit(3, cantina_entrance_id, "east")
     await db.create_exit(cantina_entrance_id, 3, "west")
     print("    Seed rooms linked (Landing Pad, Street, Cantina)")
 
-    # -- NPCs (combat-ready) --
-    print(f"\n  Creating {len(NPCS)} combat-ready NPCs...")
+    # -- NPCs (from GG7 YAML) --
+    room_name_map = {ROOMS[i][0]: i for i in range(len(ROOMS))}
+    NPCS = load_npcs_from_yaml(
+        os.path.join(os.path.dirname(__file__), "data", "npcs_gg7.yaml"),
+        room_name_map,
+    )
+    print(f"\n  Creating {len(NPCS)} GG7 NPCs from data/npcs_gg7.yaml...")
     npc_count = 0
     for name, room_idx, species, desc, sheet, ai_cfg in NPCS:
         rid = room_ids[room_idx]

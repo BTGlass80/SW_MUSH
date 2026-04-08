@@ -277,10 +277,10 @@ async def generate_bounty(db, rooms: Optional[list[dict]] = None) -> Optional[Bo
             f"{target_name} edges toward the exit.",
             f"{target_name} says nothing, eyes darting around.",
         ],
-        hostile=True,
-        combat_behavior=behavior,
     )
     ai_cfg = config.to_dict()
+    ai_cfg["hostile"] = True
+    ai_cfg["combat_behavior"] = behavior
     ai_cfg["weapon"] = weapon_key
     ai_cfg["is_bounty_target"] = True   # Flag for cleanup on collection
 

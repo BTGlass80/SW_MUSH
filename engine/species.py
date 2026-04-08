@@ -183,7 +183,7 @@ class SpeciesRegistry:
             if filename.endswith((".yaml", ".yml")):
                 filepath = os.path.join(path, filename)
                 try:
-                    with open(filepath, "r") as f:
+                    with open(filepath, "r", encoding="utf-8") as f:
                         data = yaml.safe_load(f)
                     species = _parse_species(data)
                     self._species[species.name.lower()] = species

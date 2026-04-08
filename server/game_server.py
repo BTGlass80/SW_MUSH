@@ -13,6 +13,7 @@ from server.config import Config
 from server.session import Session, SessionState, SessionManager
 from server.telnet_handler import TelnetHandler
 from server.websocket_handler import WebSocketHandler
+from server.web_client import WebClient
 from server import ansi
 from parser.commands import CommandRegistry, CommandParser, CommandContext
 from parser.builtin_commands import register_all
@@ -30,6 +31,7 @@ from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
 from engine.character import SkillRegistry, Character
+from engine.tutorial import TutorialManager
 from engine.creation import CreationEngine
 
 log = logging.getLogger(__name__)
@@ -72,6 +74,11 @@ class GameServer:
         # Protocol handlers
         self.telnet = TelnetHandler(self)
         self.websocket = WebSocketHandler(self)
+        self.web_client = WebClient()
+
+
+        # Tutorial system
+        self.tutorial = TutorialManager()
 
         self._running = False
         self._tick_task: Optional[asyncio.Task] = None
@@ -100,15 +107,21 @@ class GameServer:
             self.config.websocket_host, self.config.websocket_port
         )
 
+        # Web client (browser UI)
+        await self.web_client.start(
+            self.config.web_client_host, self.config.web_client_port
+        )
+
         # Background tick (idle checks, NPC updates, etc.)
         self._running = True
         self._tick_task = asyncio.create_task(self._game_tick_loop())
 
         log.info(
-            "%s is running. Telnet:%d  WebSocket:%d",
+            "%s is running. Telnet:%d  WebSocket:%d  WebClient:%d",
             self.config.game_name,
             self.config.telnet_port,
             self.config.websocket_port,
+            self.config.web_client_port,
         )
 
     async def stop(self):
@@ -140,6 +153,7 @@ class GameServer:
 
         await self.telnet.stop()
         await self.websocket.stop()
+        await self.web_client.stop()
         await self.db.close()
         log.info("Shutdown complete.")
 

@@ -1,1101 +1,1819 @@
-# Galaxy Guide 7: Mos Eisley — NPC Stat Blocks
-# Source: WEG40069, Star Wars D6 Second Edition
-# Extracted for SW_MUSH NPC generator and world population
+# =============================================================================
+# Galaxy Guide 7: Mos Eisley — NPC Data (WEG40069)
+# =============================================================================
+# 33 NPCs extracted from the sourcebook with full WEG D6 R&E stat blocks.
 #
-# Format matches npc_generator.py expectations:
-#   6 attributes (dice code strings), skills as sub-keys,
-#   plus metadata for AI personality and world placement.
+# Each NPC entry contains:
+#   - room: Room name string (matched against ROOMS in build_mos_eisley.py)
+#   - char_sheet: attributes, skills, weapon, species, move, points
+#   - ai_config: personality, knowledge, faction, dialogue_style, hostile,
+#                combat_behavior, fallback_lines
 #
-# ═══════════════════════════════════════════════════════════════════════
-# IMPERIAL / LAW ENFORCEMENT
-# ═══════════════════════════════════════════════════════════════════════
+# Loaded by engine/npc_loader.py → consumed by build_mos_eisley.py
+# =============================================================================
 
-prefect_eugene_talmont:
-  name: "Prefect Eugene Talmont"
-  species: Human
-  location: "Prefect's Office"
-  archetype: imperial_officer
-  description: "A slight-built wiry man with an obvious toupee."
-  personality: "Full of himself, impatient, nearsighted but too vain for corrective lenses."
-  quote: "I see! They think they can get away with it, but they have yet to deal with Prefect Talmont!"
-  dexterity: "3D+1"
-  knowledge: "4D"
-  mechanical: "2D+1"
-  perception: "3D"
-  strength: "2D+1"
-  technical: "3D"
-  skills:
-    bureaucracy: "6D+1"
-    languages: "4D+2"
-    law_enforcement: "3D+1"
-    beast_riding: "5D"
-    bargain: "4D+2"
-    command: "5D+1"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 2
+npcs:
 
-lieutenant_harburik:
-  name: "Lieutenant Harburik"
-  species: Human
-  location: "Police Station"
-  archetype: imperial_officer
-  description: "A large, well-muscled man. Devastatingly handsome except for the vicious look in his eyes."
-  personality: "Crass, rude, and cruel. Well known for abusing every subordinate."
-  quote: "No problem. You don't want to tell me who paid you off, so I'll just take this weapon off the stun setting."
-  dexterity: "4D+1"
-  knowledge: "3D"
-  mechanical: "2D"
-  perception: "3D+1"
-  strength: "2D+1"
-  technical: "2D"
-  skills:
-    blaster: "6D+1"
-    brawling_parry: "4D+1"
-    dodge: "6D+2"
-    grenade: "4D+2"
-    melee_combat: "5D"
-    beast_riding: "3D"
-    repulsorlift_operation: "4D"
-    gambling: "6D"
-    search: "5D+1"
-    brawling: "4D+2"
-    computer_programming_repair: "5D"
-    demolitions: "4D+2"
-    security: "5D"
-  force_sensitive: false
-  force_points: 1
-  dark_side_points: 0
-  character_points: 6
-  equipment:
-    - "Armored blast vest (+1D physical and energy, front)"
-    - "Heavy blaster pistol (5D damage)"
-    - "Comlink"
+  # =========================================================================
+  # CANTINA NPCs (Room 13: Chalmun's Cantina - Main Room)
+  # =========================================================================
 
-typical_tatooine_stormtrooper:
-  name: "Typical Tatooine Stormtrooper"
-  species: Human
-  location: "Streets / Patrols"
-  archetype: stormtrooper
-  description: "Desert terrain stormtrooper in standard armor."
-  personality: "By the book. Follows orders. Suspicious of everyone."
-  quote: "Let me see your identification."
-  dexterity: "3D"
-  knowledge: "2D"
-  mechanical: "2D"
-  perception: "2D"
-  strength: "4D"
-  technical: "2D"
-  skills:
-    blaster: "4D"
-    blaster_rifle: "5D"
-    brawling_parry: "4D"
-    dodge: "3D+2"
-    melee_combat: "3D+1"
-    bureaucracy: "2D+1"
-    intimidation: "3D+2"
-    law_enforcement: "3D"
-    repulsorlift_operation: "2D+1"
-    search: "2D+2"
-    brawling: "4D+1"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 0
-  equipment:
-    - "Stormtrooper armor (+1D energy, +2D physical, -1D Dexterity)"
-    - "Blaster rifle (5D damage)"
-    - "Blaster pistol (4D damage)"
-    - "Comlink"
+  - name: "Wuher"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Human"
+    description: "A scarred, ill-tempered Human bartender polishing a glass with a dirty rag."
+    char_sheet:
+      attributes:
+        dexterity: "3D+1"
+        knowledge: "2D"
+        mechanical: "2D"
+        perception: "3D+2"
+        strength: "3D+1"
+        technical: "2D"
+      skills:
+        blaster: "4D"
+        dodge: "4D"
+        brawling: "4D+2"
+        intimidation: "4D"
+        bargain: "3D+1"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 1
+      character_points: 8
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Wuher is non-communicative and ill-tempered. He hates Droids with a
+        passion. Gruff, terse, speaks in short sentences. Knows everything
+        happening in Mos Eisley but shares nothing without good reason.
+      knowledge:
+        - "Chalmun owns the cantina and keeps a bowcaster behind the bar"
+        - "Jabba controls most criminal activity in Mos Eisley"
+        - "No Droids allowed in the cantina"
+        - "The band is Figrin Da'n and the Modal Nodes"
+        - "Wuher secretly experiments with exotic drink recipes"
+      faction: "Neutral"
+      dialogue_style: "Extremely terse. Grunts. Never volunteers info."
+      hostile: false
+      combat_behavior: "defensive"
+      fallback_lines:
+        - "Wuher grunts and continues polishing a glass."
+        - "Wuher glances at you. 'What'll it be.'"
+        - "'We don't serve their kind here.'"
 
-# ═══════════════════════════════════════════════════════════════════════
-# DOCKING BAY OWNERS / MERCHANTS
-# ═══════════════════════════════════════════════════════════════════════
+  - name: "Chalmun"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Wookiee"
+    description: "A beige and gray Wookiee with a scar across his chest, the cantina's owner."
+    char_sheet:
+      attributes:
+        dexterity: "2D+1"
+        knowledge: "2D"
+        mechanical: "2D"
+        perception: "2D+1"
+        strength: "4D"
+        technical: "1D+1"
+      skills:
+        blaster: "3D+1"
+        bowcaster: "4D"
+        dodge: "3D+2"
+        melee_combat: "3D"
+        brawling: "6D"
+        bureaucracy: "5D"
+        intimidation: "6D"
+        streetwise: "3D"
+        bargain: "4D+1"
+        command: "5D"
+      weapon: "bowcaster"
+      move: 12
+      force_points: 2
+      character_points: 17
+      dark_side_points: 1
+    ai_config:
+      personality: >
+        Chalmun is a rough-but-warm Wookiee bar owner. He was a street tough
+        who bought the cantina with gambling profits from Ord Mantell. Protective
+        of his establishment. Keeps a bowcaster behind the counter. Treats
+        regulars like a dim older brother — warm to those who can handle his
+        rough affection, callous to those he doesn't know.
+      knowledge:
+        - "Bought the cantina with gambling profits from Ord Mantell"
+        - "Pays Jabba protection money reluctantly"
+        - "Berserker Rage ability: +2D to Strength in combat"
+        - "Planning to retire eventually"
+      faction: "Neutral"
+      dialogue_style: "Growls and roars. Use *growls*, rough translated speech."
+      hostile: false
+      combat_behavior: "aggressive"
+      fallback_lines:
+        - "*Chalmun growls a warning and gestures at the door.*"
+        - "*The big Wookiee eyes you warily, one paw near the bowcaster.*"
 
-chachi_de_maal:
-  name: "Chachi De Maal"
-  species: Duros
-  location: "Docking Bay 94"
-  archetype: merchant
-  description: "Female Duros docking bay co-owner."
-  personality: "Business-focused, competent pilot and mechanic."
-  quote: "Docking fees are standard. No exceptions."
-  dexterity: "3D"
-  knowledge: "2D+1"
-  mechanical: "2D"
-  perception: "2D+2"
-  strength: "3D"
-  technical: "3D"
-  skills:
-    blaster: "4D+1"
-    blaster_pistol: "5D+2"
-    alien_species: "3D+1"
-    alien_species_humans: "5D"
-    languages: "3D"
-    communications: "3D+2"
-    repulsorlift_operation: "4D+1"
-    space_transports: "6D"
-    bargain: "5D+2"
-    computer_programming_repair: "4D"
-    space_transports_repair: "7D+2"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 8
+  - name: "Oxbell"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Devaronian"
+    description: "A horned humanoid with razor teeth, nursing a drink in a booth."
+    char_sheet:
+      attributes:
+        dexterity: "2D+2"
+        knowledge: "3D+1"
+        mechanical: "2D"
+        perception: "4D"
+        strength: "2D+1"
+        technical: "2D"
+      skills:
+        dodge: "3D+2"
+        streetwise: "5D"
+        bargain: "4D+1"
+        con: "4D"
+        blaster: "3D"
+      weapon: "hold_out_blaster"
+      move: 10
+      force_points: 1
+      character_points: 6
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Oxbell is a Devaronian info broker. Drunk most of the time. Babbles
+        gossip without discrimination. Will share rumors for a drink. Morose
+        then chatty, depending on alcohol level.
+      knowledge:
+        - "Most gossip in Mos Eisley passes through the cantina"
+        - "Jabba's people buy information regularly"
+        - "A new spice operation might rival Jabba's"
+        - "Imperial patrols have increased lately"
+      faction: "Neutral"
+      dialogue_style: "Slurred, rambling. Morose then chatty. Bribed with drinks."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'Buy me a drink and I'll tell you something interesting.'"
+        - "*Oxbell takes a long swig and peers at you with bloodshot eyes.*"
 
-ohwun_de_maal:
-  name: "Ohwun De Maal"
-  species: Duros
-  location: "Docking Bay 94"
-  archetype: merchant
-  description: "Male Duros docking bay co-owner."
-  personality: "Business-savvy, skilled pilot, good with droids."
-  dexterity: "3D"
-  knowledge: "2D+1"
-  mechanical: "3D"
-  perception: "2D+2"
-  strength: "2D+1"
-  technical: "3D"
-  skills:
-    blaster: "3D+2"
-    dodge: "5D+1"
-    alien_species: "3D"
-    alien_species_humans: "4D+1"
-    business: "4D+1"
-    astrogation: "4D"
-    repulsorlift_operation: "6D+1"
-    sensors: "3D+2"
-    space_transports: "5D"
-    space_transports_yt1300: "7D"
-    bargain: "5D+1"
-    droid_programming: "5D+1"
-    droid_repair: "5D"
-    medicine: "4D"
-    space_transports_repair: "7D+2"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 10
+  - name: "Vareth"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Human"
+    description: "A slender Human woman in her early twenties with wise-beyond-her-years eyes."
+    char_sheet:
+      attributes:
+        dexterity: "2D"
+        knowledge: "3D"
+        mechanical: "3D"
+        perception: "3D"
+        strength: "3D"
+        technical: "2D+1"
+      skills:
+        blaster: "3D+2"
+        dodge: "5D"
+        alien_species: "4D+1"
+        languages: "4D"
+        astrogation: "4D+1"
+        communications: "4D"
+        space_transports: "4D"
+        con: "5D+2"
+        search: "4D"
+        droid_programming: "5D"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 3
+      character_points: 11
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Vareth is an independent spacer who hangs out at the cantina between
+        jobs. She and her partner Garron are inseparable. Clever, resourceful,
+        and has a gift for languages and dealing with alien species. Taken in
+        Garron after his parents died in a shuttle crash.
+      knowledge:
+        - "Experienced spacer, knows trade routes well"
+        - "Best friends with Garron the Sullustan"
+        - "Good with droids and languages"
+      faction: "Independent"
+      dialogue_style: "Friendly, clever, streetwise. Quick wit."
+      hostile: false
+      combat_behavior: "defensive"
+      fallback_lines:
+        - "'Looking for a ride? Depends where you're headed.'"
+        - "Vareth glances at Garron and shrugs."
 
-unut_poll:
-  name: "Unut Poll"
-  species: Arcona
-  location: "Unut's Used Speeders"
-  archetype: merchant
-  description: "An older Arconan, careworn and gentle."
-  personality: "Quirky old codger with a heart of gold. Gentle persuader and relentless charmer."
-  quote: "There are only three areas of legal commerce — antiques, used vehicles, and real estate."
-  dexterity: "3D"
-  knowledge: "2D"
-  mechanical: "4D"
-  perception: "2D"
-  strength: "3D"
-  technical: "4D"
-  skills:
-    blaster: "3D+2"
-    dodge: "4D"
-    streetwise: "3D"
-    survival_desert: "4D+2"
-    repulsorlift_operation: "6D"
-    search: "3D+1"
-    computer_programming_repair: "5D+1"
-    droid_programming: "5D+2"
-    droid_repair: "5D+2"
-    repulsorlift_repair: "7D"
-    space_transports_repair: "4D+2"
-  force_sensitive: false
-  force_points: 2
-  dark_side_points: 0
-  character_points: 20
+  - name: "Garron"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Sullustan"
+    description: "A jowled Sullustan with large dark eyes, sitting with a Human woman."
+    char_sheet:
+      attributes:
+        dexterity: "3D"
+        knowledge: "2D"
+        mechanical: "3D"
+        perception: "3D"
+        strength: "2D"
+        technical: "2D"
+      skills:
+        blaster: "4D+1"
+        dodge: "3D+2"
+        astrogation: "4D+1"
+        starship_gunnery: "3D+1"
+        space_transports: "4D"
+        bargain: "7D"
+        computer_programming_repair: "4D+1"
+      weapon: "blaster_pistol"
+      move: 8
+      force_points: 2
+      character_points: 9
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Garron is a Sullustan spacer with an unusual sense of humor and a
+        legendary talent for bargaining. His parents died in a shuttle crash
+        and Vareth took him in. Loyal, funny, and an excellent negotiator.
+      knowledge:
+        - "Expert bargainer — best deals in the Outer Rim"
+        - "Best friends with Vareth"
+        - "Sullustan — excellent sense of direction, never gets lost"
+      faction: "Independent"
+      dialogue_style: "Cheerful, quick-witted, loves to haggle."
+      hostile: false
+      combat_behavior: "defensive"
+      fallback_lines:
+        - "'You want a deal? Talk to me. I'm the best there is.'"
+        - "*Garron's jowls twitch with amusement.*"
 
-geordi_hans:
-  name: "Geordi Hans"
-  species: Human
-  location: "Unut's Used Speeders"
-  archetype: mechanic
-  description: "Young man with black hair and alert brown eyes."
-  personality: "Hardworking, honest mechanic torn between loyalty and ambition."
-  quote: "The transcore gear is stripped. I'm afraid we'll have to take this entire engine apart."
-  dexterity: "3D"
-  knowledge: "2D"
-  mechanical: "4D"
-  perception: "2D"
-  strength: "3D"
-  technical: "4D"
-  skills:
-    blaster: "3D+2"
-    dodge: "4D"
-    streetwise: "3D"
-    survival_desert: "4D+2"
-    repulsorlift_operation: "6D"
-    search: "3D+1"
-    computer_programming_repair: "5D+1"
-    droid_programming: "5D+2"
-    droid_repair: "5D+2"
-    repulsorlift_repair: "7D"
-    space_transports_repair: "4D+2"
-  force_sensitive: false
-  force_points: 3
-  dark_side_points: 0
-  character_points: 2
+  - name: "Ponda Baba's Associate"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Aqualish"
+    description: "A scarred Aqualish thug hunched over a drink, watching the room with hostility."
+    char_sheet:
+      attributes:
+        dexterity: "3D+2"
+        knowledge: "2D"
+        mechanical: "2D"
+        perception: "2D+1"
+        strength: "4D"
+        technical: "2D"
+      skills:
+        blaster: "4D+2"
+        brawling: "5D"
+        dodge: "4D"
+        melee_combat: "4D+1"
+        intimidation: "3D+2"
+      weapon: "vibroblade"
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: "A violent thug looking for trouble. Quick to pick fights."
+      knowledge: []
+      faction: "Criminal"
+      dialogue_style: "Threatening grunts and snarls."
+      hostile: true
+      combat_behavior: "aggressive"
+      fallback_lines:
+        - "The Aqualish snarls at you menacingly."
+        - "*He reaches for his weapon.*"
 
-dom_antyll:
-  name: "Dom Antyll"
-  species: Human
-  location: "Docking Bay 92"
-  archetype: mechanic
-  description: "Covered in fluid and grease, always chewing on a cigarra."
-  personality: "Determined. Knows his business, doubles his price if questioned."
-  quote: "You don't think I can do it? That just doubled the fee."
-  dexterity: "1D+1"
-  knowledge: "1D+1"
-  mechanical: "2D+2"
-  perception: "2D"
-  strength: "2D"
-  technical: "4D+2"
-  skills:
-    blaster: "3D"
-    dodge: "4D"
-    repulsorlift_operation: "4D"
-    sensors: "5D"
-    space_transports: "4D+2"
-    starfighter_piloting: "5D+2"
-    bargain: "5D+1"
-    armor_repair: "5D"
-    blaster_repair: "5D+1"
-    capital_starship_repair: "6D"
-    capital_starship_weapon_repair: "6D+2"
-    repulsorlift_repair: "6D+1"
-    space_transports_repair: "9D"
-    starfighter_repair: "9D+1"
-    starship_weapon_repair: "9D"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 15
+  - name: "Muftak"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Talz"
+    description: "A large, fur-covered Talz with four eyes, hunched in a corner booth."
+    char_sheet:
+      attributes:
+        dexterity: "2D+2"
+        knowledge: "2D+1"
+        mechanical: "1D+2"
+        perception: "3D+1"
+        strength: "4D+2"
+        technical: "1D+1"
+      skills:
+        brawling: "5D+2"
+        dodge: "3D+1"
+        hide: "4D"
+        sneak: "4D"
+        search: "4D+2"
+        streetwise: "3D+2"
+      weapon: ""
+      move: 10
+      force_points: 1
+      character_points: 7
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Muftak is a gentle giant Talz who has lived in Mos Eisley for years.
+        He survives by scavenging and pickpocketing. Best friends with Kabe
+        the Chadra-Fan. Despite his size, he is kind and non-violent unless
+        threatened.
+      knowledge:
+        - "Has lived in Mos Eisley for years, knows every back alley"
+        - "Best friends with Kabe, a small Chadra-Fan"
+        - "Survives by scavenging and occasional pickpocketing"
+      faction: "Neutral"
+      dialogue_style: "Soft-spoken for his size. Speaks in broken Basic."
+      hostile: false
+      combat_behavior: "defensive"
+      fallback_lines:
+        - "*Muftak shifts his bulk and peers at you with four blinking eyes.*"
+        - "'Muftak no want trouble.'"
 
-# ═══════════════════════════════════════════════════════════════════════
-# JABBA'S ORGANIZATION
-# ═══════════════════════════════════════════════════════════════════════
+  - name: "Kabe"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Chadra-Fan"
+    description: "A tiny bat-faced alien perched on a stool, sipping from an oversized mug."
+    char_sheet:
+      attributes:
+        dexterity: "3D+1"
+        knowledge: "2D"
+        mechanical: "2D"
+        perception: "4D"
+        strength: "1D+1"
+        technical: "3D+1"
+      skills:
+        dodge: "4D+2"
+        pickpocket: "5D+1"
+        sneak: "5D+2"
+        hide: "5D"
+        search: "5D"
+        security: "4D+2"
+        con: "4D+1"
+      weapon: ""
+      move: 6
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Kabe is an orphaned Chadra-Fan who survives by stealing and
+        pickpocketing. She adores Juri Juice and gets drunk easily. Small
+        and mischievous. Best friends with Muftak who protects her.
+      knowledge:
+        - "Expert thief and pickpocket"
+        - "Adores Juri Juice — will do almost anything for a drink"
+        - "Muftak is her protector and best friend"
+      faction: "Neutral"
+      dialogue_style: "High-pitched squeaks. Mischievous. Easily distracted by drinks."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "*Kabe squeaks excitedly and clutches her mug.*"
+        - "'Juri Juice? You have Juri Juice?!'"
 
-jabba_the_hutt:
-  name: "Jabba the Hutt"
-  species: Hutt
-  location: "Jabba's Town House"
-  archetype: crime_lord
-  description: "A hairless, bloated slug with quick, snakelike eyes, fetid breath, and a slobbering mouth."
-  personality: "Bloodthirsty, ruthless, and altogether foul, with no redeeming qualities."
-  quote: "Bo shudda."
-  dexterity: "2D"
-  knowledge: "3D"
-  mechanical: "3D"
-  perception: "4D"
-  strength: "3D"
-  technical: "3D"
-  skills:
-    alien_species: "5D"
-    bureaucracy: "7D"
-    bureaucracy_tatooine: "9D+1"
-    business: "6D+1"
-    cultures: "4D+2"
-    intimidation: "7D"
-    languages: "4D"
-    law_enforcement: "4D+1"
-    streetwise: "9D"
-    streetwise_jabbas_organization: "11D"
-    bargain: "8D"
-    command: "8D"
-    con: "7D+1"
-    gambling: "7D+2"
-    persuasion: "7D+2"
-    brawling: "6D"
-    lifting: "6D"
-    stamina: "7D"
-  force_sensitive: false
-  force_points: 5
-  dark_side_points: 6
-  character_points: 26
-  special_abilities:
-    force_resistance: "Hutts double Perception dice to resist Force-based mind manipulation."
+  - name: "Djas Puhr"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Sakiyan"
+    description: "A dark-skinned humanoid with large eyes, sitting alone and watching everything."
+    char_sheet:
+      attributes:
+        dexterity: "4D"
+        knowledge: "2D+2"
+        mechanical: "2D+1"
+        perception: "4D+1"
+        strength: "3D+1"
+        technical: "2D"
+      skills:
+        blaster: "6D"
+        dodge: "5D+2"
+        melee_combat: "5D"
+        brawling: "4D+1"
+        sneak: "5D+1"
+        hide: "5D"
+        search: "6D"
+        investigation: "5D"
+        intimidation: "4D+2"
+        tracking: "5D+1"
+        streetwise: "4D"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 1
+      character_points: 12
+      dark_side_points: 3
+    ai_config:
+      personality: >
+        Djas Puhr is a Sakiyan bounty hunter with enhanced senses. Cold,
+        calculating, patient. He sits in the cantina watching everyone,
+        cataloging faces and movements. Professional killer who considers
+        himself an artist. Only takes contracts that interest him.
+      knowledge:
+        - "Professional bounty hunter, very dangerous"
+        - "Sakiyan enhanced senses — can see in near-total darkness"
+        - "Knows most of the bounty hunters who pass through Mos Eisley"
+        - "Has contacts in both Imperial and criminal circles"
+      faction: "Independent"
+      dialogue_style: "Quiet, measured, menacing. Every word chosen carefully."
+      hostile: false
+      combat_behavior: "tactical"
+      fallback_lines:
+        - "*Djas Puhr's large eyes track your movements without blinking.*"
+        - "'I see everything. Remember that.'"
 
-akkik:
-  name: "Akkik"
-  species: Jawa
-  location: "Jabba's Town House"
-  archetype: thug
-  description: "Short, smelly, and covered completely by a heavy, hooded cloak."
-  personality: "Covetous, nasty, tricky. Talks a lot."
-  quote: "Mop-lou dink dink hee, hee."
-  dexterity: "2D"
-  knowledge: "3D"
-  mechanical: "4D"
-  perception: "3D"
-  strength: "2D"
-  technical: "4D"
-  skills:
-    dodge: "4D"
-    streetwise: "5D"
-    con: "5D"
-    droid_programming: "5D+1"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 3
+  # =========================================================================
+  # CANTINA BACK ROOM (Room 14)
+  # =========================================================================
 
-gorrt:
-  name: "Gorrt"
-  species: Gamorrean
-  location: "Jabba's Town House"
-  archetype: thug
-  description: "Green-skinned, with a pig-like snout, small horns and tusks, and powerful muscles."
-  personality: "Protective of Akkik. Loves to beat on anything smaller than him."
-  quote: "Grunt!"
-  dexterity: "4D"
-  knowledge: "2D+1"
-  mechanical: "2D+2"
-  perception: "2D+1"
-  strength: "4D+1"
-  technical: "2D+1"
-  skills:
-    melee_combat: "4D+2"
-    melee_combat_vibroaxe: "6D"
-    intimidation: "5D+1"
-    brawling: "6D+1"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 1
-  equipment:
-    - "Vibroaxe (STR+3D+1 damage)"
+  - name: "Figrin Da'n"
+    room: "Chalmun's Cantina - Back Hallway"
+    species: "Bith"
+    description: "A large-headed Bith musician tuning a kloo horn between sets."
+    char_sheet:
+      attributes:
+        dexterity: "2D"
+        knowledge: "3D+2"
+        mechanical: "2D"
+        perception: "3D+1"
+        strength: "1D+2"
+        technical: "3D"
+      skills:
+        dodge: "3D"
+        bargain: "5D"
+        con: "4D"
+        gambling: "5D+2"
+        musical_instrument: "7D"
+        value: "4D+1"
+      weapon: ""
+      move: 8
+      force_points: 1
+      character_points: 8
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Figrin Da'n leads the Modal Nodes, the cantina's house band. Addicted
+        to gambling, especially sabacc. He owes money to various people and
+        uses the band's earnings to cover his debts. Slick, charming, always
+        looking for an angle. The band plays at Chalmun's because Figrin
+        lost a sabacc hand to the Wookiee.
+      knowledge:
+        - "Leader of the Modal Nodes band"
+        - "Addicted to sabacc gambling"
+        - "Lost a sabacc hand to Chalmun — that's why the band plays here"
+        - "Bith have photographic memory and perfect pitch"
+      faction: "Neutral"
+      dialogue_style: "Smooth, musical cadence. Always angling for a deal or a game."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'You want a request? That'll cost you. Tips go in the jar.'"
+        - "*Figrin Da'n absent-mindedly shuffles a sabacc deck.*"
 
-# ═══════════════════════════════════════════════════════════════════════
-# CANTINA
-# ═══════════════════════════════════════════════════════════════════════
+  # =========================================================================
+  # GOVERNMENT NPCs
+  # =========================================================================
 
-chalmun:
-  name: "Chalmun"
-  species: Wookiee
-  location: "Chalmun's Cantina"
-  archetype: merchant
-  description: "A beige and gray-colored Wookiee with a scar running diagonally across his left pectoral."
-  personality: "Warm to those who can handle his rough affection, callous to those he doesn't know."
-  quote: "I don't care who those guys are. Kick them out; last time they roughed up some of my regulars."
-  dexterity: "2D+1"
-  knowledge: "2D"
-  mechanical: "2D"
-  perception: "2D+1"
-  strength: "4D"
-  technical: "1D+1"
-  skills:
-    blaster: "3D+1"
-    bowcaster: "4D"
-    dodge: "3D+2"
-    melee_combat: "3D"
-    bureaucracy: "5D"
-    business: "3D+2"
-    intimidation: "6D"
-    streetwise: "3D"
-    beast_riding: "4D+1"
-    bargain: "4D+1"
-    command: "5D"
-    brawling: "6D"
-  force_sensitive: false
-  force_points: 2
-  dark_side_points: 1
-  character_points: 17
-  equipment:
-    - "Bowcaster (4D damage)"
-  special_abilities:
-    berserker_rage: "+2D to Strength"
-    climbing_claws: "+2D to climbing"
+  - name: "Prefect Talmont"
+    room: "Regional Government Offices"
+    species: "Human"
+    description: "A wiry man with an obvious toupee and an air of self-importance."
+    char_sheet:
+      attributes:
+        dexterity: "2D"
+        knowledge: "3D+2"
+        mechanical: "2D"
+        perception: "3D+1"
+        strength: "2D"
+        technical: "2D+1"
+      skills:
+        blaster: "2D+2"
+        bureaucracy: "5D"
+        law_enforcement: "4D"
+        command: "3D+2"
+        bargain: "4D"
+        con: "4D+1"
+        persuasion: "4D"
+      weapon: ""
+      move: 10
+      force_points: 0
+      character_points: 5
+      dark_side_points: 1
+    ai_config:
+      personality: >
+        Eugene Talmont is the Imperial Prefect of Mos Eisley. Full of himself,
+        overestimates his importance. Nearsighted but too vain for lenses.
+        Loves bureaucracy and regulations. Corrupt — takes bribes regularly.
+        Terrified of Jabba and the real powers in the city.
+      knowledge:
+        - "Imperial Prefect — technically the highest civil authority"
+        - "Takes bribes from almost everyone"
+        - "Afraid of Jabba the Hutt"
+        - "Reports to Moff Tarkin's regional administration"
+        - "Knows all the local regulations and uses them as leverage"
+      faction: "Imperial"
+      dialogue_style: "Pompous, self-important. Loves titles and formality."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'I am the Prefect! You will address me with proper respect!'"
+        - "'Do you have the proper permits for that? I thought not.'"
 
-wuher:
-  name: "Wuher"
-  species: Human
-  location: "Chalmun's Cantina"
-  archetype: bartender
-  description: "Surly, gruff bartender. Hates droids."
-  personality: "Rude to customers. Only tolerates regulars. Despises droids with a passion."
-  quote: "We don't serve their kind here."
-  dexterity: "2D+1"
-  knowledge: "3D"
-  mechanical: "1D+2"
-  perception: "3D+1"
-  strength: "3D"
-  technical: "2D"
-  skills:
-    blaster: "3D+2"
-    dodge: "4D"
-    melee_combat: "4D"
-    alien_species: "5D"
-    languages: "4D+2"
-    streetwise: "6D"
-    bargain: "5D"
-    con: "4D"
-    intimidation: "4D+1"
-    brawling: "5D"
-  force_sensitive: false
-  force_points: 1
-  dark_side_points: 0
-  character_points: 8
+  - name: "Lieutenant Harburik"
+    room: "Tatooine Militia Headquarters"
+    species: "Human"
+    description: "A tough-looking Human officer with a cybernetic eye and scarred hands."
+    char_sheet:
+      attributes:
+        dexterity: "3D+1"
+        knowledge: "2D+2"
+        mechanical: "3D"
+        perception: "3D+2"
+        strength: "3D"
+        technical: "2D+1"
+      skills:
+        blaster: "5D"
+        dodge: "4D+1"
+        brawling: "4D"
+        melee_combat: "4D"
+        law_enforcement: "4D+1"
+        streetwise: "4D"
+        command: "4D+2"
+        investigation: "4D"
+        search: "4D+1"
+        security: "3D+2"
+        repulsorlift_operation: "4D"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 1
+      character_points: 10
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Lieutenant Harburik is the Chief of Police in Mos Eisley. A hands-on
+        officer who prefers action to desk work. Carries a comlink at all
+        times. Pragmatic about law enforcement — he knows he can't stop
+        everything but tries to keep order. Reasonably honest by Mos Eisley
+        standards.
+      knowledge:
+        - "Chief of Police, runs the militia from HQ"
+        - "Has a cybernetic eye replacement"
+        - "Pragmatic — focuses on keeping the peace rather than enforcing every law"
+        - "Knows most of the criminal activity but picks his battles"
+      faction: "Imperial"
+      dialogue_style: "Direct, no-nonsense military speech. Efficient."
+      hostile: false
+      combat_behavior: "tactical"
+      fallback_lines:
+        - "'Keep your weapons holstered and we won't have problems.'"
+        - "'Move along. Move along.'"
 
-# ═══════════════════════════════════════════════════════════════════════
-# CANTINA REGULARS
-# ═══════════════════════════════════════════════════════════════════════
+  - name: "Imperial Stormtrooper"
+    room: "Tatooine Militia Headquarters"
+    species: "Human"
+    description: "A stormtrooper standing guard at the militia headquarters."
+    char_sheet:
+      attributes:
+        dexterity: "3D+1"
+        knowledge: "2D"
+        mechanical: "2D+1"
+        perception: "2D+2"
+        strength: "3D"
+        technical: "2D"
+      skills:
+        blaster: "4D+1"
+        brawling: "4D"
+        dodge: "4D"
+        melee_combat: "3D+2"
+      weapon: "blaster_rifle"
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: "Standard Imperial stormtrooper on guard duty."
+      knowledge: []
+      faction: "Imperial"
+      dialogue_style: "Military."
+      hostile: true
+      combat_behavior: "aggressive"
+      fallback_lines:
+        - "'This area is restricted.'"
+        - "'Move along.'"
 
-vareth:
-  name: "Vareth"
-  species: Human
-  location: "Chalmun's Cantina"
-  archetype: smuggler
-  description: "A slender Human in her early twenties."
-  personality: "Wise beyond her years. Loyal friend."
-  dexterity: "2D"
-  knowledge: "3D"
-  mechanical: "3D"
-  perception: "3D"
-  strength: "3D"
-  technical: "2D+1"
-  skills:
-    alien_species: "4D+1"
-    languages: "4D"
-    astrogation: "4D+1"
-    communications: "4D"
-    space_transports: "4D"
-    con: "5D+2"
-    search: "4D"
-    droid_programming: "5D"
-  force_sensitive: false
-  force_points: 3
-  dark_side_points: 0
-  character_points: 11
+  # =========================================================================
+  # JABBA'S COMPOUND (Rooms 18-19)
+  # =========================================================================
 
-garron:
-  name: "Garron"
-  species: Sullustan
-  location: "Chalmun's Cantina"
-  archetype: smuggler
-  description: "A Sullustan who won't reveal his age."
-  personality: "Unique sense of humor. Inseparable partner of Vareth."
-  dexterity: "3D"
-  knowledge: "2D"
-  mechanical: "3D"
-  perception: "3D"
-  strength: "2D"
-  technical: "2D"
-  skills:
-    blaster: "4D+1"
-    dodge: "3D+2"
-    astrogation: "4D+1"
-    starship_gunnery: "3D+1"
-    space_transports: "4D"
-    bargain: "7D"
-    computer_programming_repair: "4D+1"
-  force_sensitive: false
-  force_points: 2
-  dark_side_points: 0
-  character_points: 9
+  - name: "Gamorrean Guard"
+    room: "Jabba's Townhouse - Audience Chamber"
+    species: "Gamorrean"
+    description: "A massive green-skinned Gamorrean guard in crude armor, wielding a vibro-ax."
+    char_sheet:
+      attributes:
+        dexterity: "2D+1"
+        knowledge: "1D"
+        mechanical: "1D"
+        perception: "1D+2"
+        strength: "5D"
+        technical: "1D"
+      skills:
+        melee_combat: "5D+2"
+        brawling: "5D+1"
+        dodge: "3D"
+      weapon: "vibro_ax"
+      move: 8
+      force_points: 0
+      character_points: 0
+      dark_side_points: 1
+    ai_config:
+      personality: "A dim but loyal Gamorrean guard. Attacks intruders on sight."
+      knowledge: []
+      faction: "Hutt Cartel"
+      dialogue_style: "Squeals and grunts. Does not speak Basic."
+      hostile: true
+      combat_behavior: "berserker"
+      fallback_lines:
+        - "*The Gamorrean squeals and charges!*"
+        - "*A massive green fist swings toward you!*"
 
-sinthia_pulchatt:
-  name: "Sinthia Pulchatt"
-  species: Kibnon
-  location: "Chalmun's Cantina"
-  archetype: spice_dealer
-  description: "A 2.8-meter-tall insectoid. Green in color, looks like a Praying Mantis."
-  personality: "Kind and lofty attitude. Looking for new spice customers."
-  quote: "Here, try some. It's only a little — it can't hurt you."
-  dexterity: "5D"
-  knowledge: "2D+1"
-  mechanical: "3D"
-  perception: "3D"
-  strength: "1D"
-  technical: "3D+1"
-  skills:
-    blaster: "6D+1"
-    dodge: "5D+2"
-    planetary_systems: "4D"
-    streetwise: "3D+2"
-    astrogation: "4D"
-    starfighter_piloting: "4D+2"
-    bargain: "4D+1"
-    gambling: "5D"
-    climbing_jumping: "4D"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 1
-  character_points: 9
+  - name: "Bidlo Kwerve"
+    room: "Jabba's Townhouse - Audience Chamber"
+    species: "Human"
+    description: "A wiry Corellian pirate with a mean look and quick hands."
+    char_sheet:
+      attributes:
+        dexterity: "3D+2"
+        knowledge: "2D+1"
+        mechanical: "3D+1"
+        perception: "3D"
+        strength: "3D"
+        technical: "2D+2"
+      skills:
+        blaster: "5D"
+        dodge: "4D+2"
+        brawling: "4D"
+        melee_combat: "4D+1"
+        space_transports: "4D+2"
+        starship_gunnery: "4D"
+        streetwise: "4D"
+        intimidation: "4D"
+        con: "3D+2"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 1
+      character_points: 8
+      dark_side_points: 2
+    ai_config:
+      personality: >
+        Bidlo Kwerve is a Corellian pirate and one of Jabba's lieutenants.
+        Runs Jabba's Mos Eisley operations when the Hutt is away. Ruthless,
+        ambitious, and always scheming. Manages the town house and keeps
+        the other enforcers in line.
+      knowledge:
+        - "Jabba's lieutenant in Mos Eisley"
+        - "Corellian pirate, experienced spacer"
+        - "Manages Jabba's local operations"
+        - "Keeps the Gamorrean guards in line"
+      faction: "Hutt Cartel"
+      dialogue_style: "Corellian drawl. Confident, slightly mocking."
+      hostile: false
+      combat_behavior: "aggressive"
+      fallback_lines:
+        - "'You want to see Jabba? Jabba doesn't want to see you.'"
+        - "*Kwerve's hand rests casually on his blaster.*"
 
-oxbel:
-  name: "Oxbel"
-  species: Devaronian
-  location: "Chalmun's Cantina"
-  archetype: informant
-  description: "A typical Devaronian: humanoid with razor-sharp teeth and a pair of horns."
-  personality: "Alternately morose and chatty when drinking. Sells information."
-  quote: "Damnable Gamorreans. Can't trust 'em. Hey! Spare a credit? I'll let you in on some information."
-  dexterity: "2D+1"
-  knowledge: "3D"
-  mechanical: "2D"
-  perception: "4D"
-  strength: "2D"
-  technical: "3D"
-  skills:
-    dodge: "4D+1"
-    pick_pocket: "3D+2"
-    streetwise: "3D+2"
-    beast_riding: "4D+1"
-    bargain: "6D+1"
-    con: "4D+2"
-    gambling: "5D+1"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 4
+  # =========================================================================
+  # SPACEPORT NPCs
+  # =========================================================================
 
-# ═══════════════════════════════════════════════════════════════════════
-# CRIME / UNDERWORLD
-# ═══════════════════════════════════════════════════════════════════════
+  - name: "Geordi Hans"
+    room: "Spaceport Speeders"
+    species: "Human"
+    description: "A lanky Human mechanic covered in grease, tinkering with a speeder engine."
+    char_sheet:
+      attributes:
+        dexterity: "2D+1"
+        knowledge: "2D+2"
+        mechanical: "3D+2"
+        perception: "2D+1"
+        strength: "3D"
+        technical: "4D+1"
+      skills:
+        repulsorlift_repair: "6D"
+        repulsorlift_operation: "5D"
+        space_transports_repair: "5D"
+        ground_vehicle_repair: "5D+1"
+        blaster: "3D"
+        bargain: "3D+1"
+        value: "3D+2"
+      weapon: ""
+      move: 10
+      force_points: 1
+      character_points: 6
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Geordi Hans runs the speeder shop. Genius mechanic, talks endlessly
+        about engines. Happiest elbow-deep in a repulsorlift. Honest by Mos
+        Eisley standards but will overcharge tourists. Knows every ship
+        that's docked in the last ten years.
+      knowledge:
+        - "Expert mechanic, specializes in repulsorlifts and speeders"
+        - "Knows every ship and speeder in Mos Eisley"
+        - "Can get parts for almost anything, given time"
+        - "Has worked on the Millennium Falcon more than once"
+      faction: "Neutral"
+      dialogue_style: "Enthusiastic about machines. Technical jargon. Friendly."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'Nice speeder you got there. Want me to take a look?'"
+        - "*Geordi wipes his hands on an already-filthy rag.*"
 
-valarian:
-  name: "Valarian"
-  species: Whiphid
-  location: "Lucky Despot Hotel"
-  archetype: crime_lord
-  description: "A young Whiphid, towering and intimidating."
-  personality: "Positive attitude, always succeeds. Enjoys the company of Droids."
-  quote: "My goodness, stop blathering. This can be settled quietly."
-  dexterity: "2D+1"
-  knowledge: "1D+2"
-  mechanical: "1D"
-  perception: "3D"
-  strength: "3D"
-  technical: "1D"
-  skills:
-    blaster: "4D"
-    dodge: "3D+2"
-    business: "2D"
-    languages: "3D+1"
-    streetwise: "3D+2"
-    value: "3D"
-    repulsorlift_operation: "4D"
-    space_transports: "2D+2"
-    bargain: "4D+1"
-    command: "5D+1"
-    con: "4D"
-    investigation: "3D+2"
-    brawling: "5D+2"
-    first_aid: "5D"
-    medicine: "2D+1"
-  force_sensitive: false
-  force_points: 2
-  dark_side_points: 1
-  character_points: 12
+  - name: "Drue"
+    room: "Docking Bay 87"
+    species: "Ishi Tib"
+    description: "An amphibian Ishi Tib with green skin and star-shaped pupils, managing the bay."
+    char_sheet:
+      attributes:
+        dexterity: "2D"
+        knowledge: "3D"
+        mechanical: "2D+1"
+        perception: "3D+2"
+        strength: "2D+1"
+        technical: "3D"
+      skills:
+        bureaucracy: "4D+1"
+        bargain: "5D"
+        value: "4D+2"
+        con: "4D"
+        computer_programming_repair: "4D"
+        blaster: "2D+2"
+      weapon: ""
+      move: 10
+      force_points: 0
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Drue manages Docking Bay 87. A shrewd Ishi Tib businesswoman who
+        charges 30 credits per day for docking. For 25 credits extra, she'll
+        make sure cargo inspections don't happen. Efficient, businesslike,
+        not unfriendly but always about the bottom line.
+      knowledge:
+        - "Manages Docking Bay 87"
+        - "30 credits/day docking, 25 credits avoids cargo inspection"
+        - "Knows all the smugglers who pass through"
+        - "Keeps meticulous records — useful for blackmail"
+      faction: "Neutral"
+      dialogue_style: "Businesslike. Polite but everything has a price."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'Docking Bay 87. Thirty credits per day. Cargo inspection is... optional.'"
+        - "'I keep records of everything. Everything.'"
 
-doctor_cornelius:
-  name: 'Doctor "Cornelius"'
-  species: Human
-  location: "The Cutting Edge Clinic"
-  archetype: doctor
-  description: "A medium-built man with a twisted, squinty-eyed face."
-  personality: "Very calm, plans far ahead. Gets excited at the thought of an unhappy customer."
-  quote: "The job will cost 5,000 credits."
-  dexterity: "3D+2"
-  knowledge: "2D+2"
-  mechanical: "2D+2"
-  perception: "2D+1"
-  strength: "3D+2"
-  technical: "2D"
-  skills:
-    blaster: "4D+2"
-    brawling_parry: "4D+2"
-    business: "3D"
-    languages: "4D"
-    streetwise: "4D+2"
-    repulsorlift_operation: "4D+2"
-    starfighter_piloting: "3D+2"
-    bargain: "3D+1"
-    con: "4D+1"
-    gambling: "3D+2"
-    brawling: "4D+2"
-    first_aid: "5D"
-    medicine: "1D"
-    medicine_cyborging: "2D+1"
-  force_sensitive: false
-  force_points: 1
-  dark_side_points: 2
-  character_points: 6
+  - name: "De Maal"
+    room: "Docking Bay 94 - Entrance"
+    species: "Human"
+    description: "A heavyset Human docking manager with a datapad permanently in hand."
+    char_sheet:
+      attributes:
+        dexterity: "2D"
+        knowledge: "3D"
+        mechanical: "2D+2"
+        perception: "3D"
+        strength: "2D+2"
+        technical: "3D"
+      skills:
+        bureaucracy: "4D+2"
+        bargain: "4D"
+        value: "3D+2"
+        repulsorlift_repair: "3D+1"
+        space_transports_repair: "3D+2"
+        blaster: "2D+2"
+      weapon: ""
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        De Maal and his family run Docking Bay 94 and several others. The
+        De Maals employ three part-time assistants and an assortment of droids.
+        He's a straightforward businessman, not criminal, but looks the other
+        way when it's profitable. Charges fair rates but pads with extras.
+      knowledge:
+        - "Runs Docking Bay 94 and De Maal Docking Services"
+        - "Employs three assistants and various droids"
+        - "Knows the Millennium Falcon docked here"
+        - "Charges standard docking fees plus fuel cell charges"
+      faction: "Neutral"
+      dialogue_style: "Businesslike, slightly harried. Always checking his datapad."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'Docking bay fees are standard. Fuel cells extra.'"
+        - "*De Maal scrolls through his datapad without looking up.*"
 
-drayk:
-  name: "Drayk"
-  species: Human
-  location: "Dim-U Monastery"
-  archetype: con_artist
-  description: "Uses a GoCorp hoverscooter. Penchant for clothes suggesting military style."
-  personality: "Very calm, plans far ahead. Uncharacteristic soft spot for victims of circumstance."
-  quote: "The job will cost 5,000 credits."
-  dexterity: "2D+1"
-  knowledge: "1D+1"
-  mechanical: "2D"
-  perception: "2D"
-  strength: "2D+2"
-  technical: "1D+2"
-  skills:
-    dodge: "3D+2"
-    bureaucracy: "4D"
-    business: "5D"
-    languages: "4D+2"
-    law_enforcement: "4D+1"
-    streetwise: "6D+2"
-    repulsorlift_operation: "4D+2"
-    bargain: "7D+1"
-    con: "6D"
-    forgery: "9D"
-    computer_programming_repair: "3D"
-    repulsorlift_repair: "2D"
-  force_sensitive: false
-  force_points: 2
-  dark_side_points: 2
-  character_points: 14
+  # =========================================================================
+  # MARKET / SHOPS NPCs
+  # =========================================================================
 
-# ═══════════════════════════════════════════════════════════════════════
-# GENERIC / TEMPLATE NPCS
-# ═══════════════════════════════════════════════════════════════════════
+  - name: "Herat"
+    room: "Mos Eisley Street - Market District"
+    species: "Human"
+    description: "A weathered old woman selling dried meat and trinkets from a makeshift stall."
+    char_sheet:
+      attributes:
+        dexterity: "2D"
+        knowledge: "3D+1"
+        mechanical: "1D+2"
+        perception: "3D+2"
+        strength: "2D"
+        technical: "2D"
+      skills:
+        bargain: "5D+1"
+        con: "4D"
+        persuasion: "4D+2"
+        streetwise: "4D+1"
+        hide: "3D"
+        value: "4D"
+      weapon: ""
+      move: 8
+      force_points: 0
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Herat is an old market vendor who's been selling in Mos Eisley for
+        decades. She knows everyone and everything. A fierce bargainer who
+        marks up prices for offworlders. Watches the street from her stall
+        and collects information as a side business.
+      knowledge:
+        - "Has sold in Market Row for decades"
+        - "Knows most of the local residents by name"
+        - "Sells information on the side"
+        - "Can get almost anything through her contacts"
+      faction: "Neutral"
+      dialogue_style: "Haggling old woman. Sharp tongue. Knows everyone's business."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'Looking to buy? Best prices on the Row. For you, special deal.'"
+        - "*The old woman eyes your credit pouch with practiced assessment.*"
 
-typical_mos_eisley_police:
-  name: "Typical Mos Eisley Police Officer"
-  species: Human
-  location: "Streets / Patrols"
-  archetype: police
-  description: "Local police officer, underpaid and often corrupt."
-  personality: "Lazy, easily bribed, avoids confrontation with anyone dangerous."
-  quote: "All right, break it up. Both of you get out of here and I won't report this. Again."
-  dexterity: "3D"
-  knowledge: "2D+1"
-  mechanical: "2D"
-  perception: "2D+1"
-  strength: "3D"
-  technical: "2D"
-  skills:
-    blaster: "4D"
-    brawling_parry: "4D"
-    dodge: "3D+2"
-    melee_combat: "3D+2"
-    law_enforcement: "3D+1"
-    streetwise: "3D+2"
-    beast_riding: "3D"
-    repulsorlift_operation: "3D"
-    investigation: "3D"
-    search: "3D"
-    brawling: "4D"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 1
-  equipment:
-    - "Blaster pistol (4D damage)"
-    - "Force pike (4D damage)"
-    - "Comlink"
+  - name: "Swilla Corey"
+    room: "Mos Eisley Inn"
+    species: "Human"
+    description: "A perpetually drunk Human woman slumped at the bar, mumbling to herself."
+    char_sheet:
+      attributes:
+        dexterity: "2D+1"
+        knowledge: "2D"
+        mechanical: "3D+2"
+        perception: "2D+2"
+        strength: "2D"
+        technical: "2D+1"
+      skills:
+        dodge: "3D"
+        space_transports: "5D+1"
+        astrogation: "4D+2"
+        starship_gunnery: "4D"
+        con: "3D+1"
+        hide: "3D"
+        sneak: "3D"
+      weapon: ""
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Swilla Corey is a former pilot who turned to drink after losing her
+        ship. She's a skilled spacer when sober, which is rare. Desperate
+        for work but her reputation keeps most captains away. Still sharp
+        behind the booze — her piloting skills haven't fully faded.
+      knowledge:
+        - "Former pilot, lost her ship to debts"
+        - "Excellent pilot when sober"
+        - "Desperate for work but can't stay sober long enough"
+        - "Knows hyperspace routes through the Outer Rim"
+      faction: "Neutral"
+      dialogue_style: "Slurred speech. Alternately maudlin and boastful about past exploits."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'I ushed to be the best pilot on the Kessel Run... *hic*'"
+        - "*Swilla stares into her empty glass and signals for another.*"
 
-typical_monastery_nun:
-  name: "Typical Dim-U Monastery Nun"
-  species: Human
-  location: "Dim-U Monastery / Streets"
-  archetype: priest
-  description: "Robed Dim-U priestess."
-  personality: "Serene, preachy about Bantha worship."
-  quote: "The way of the Bantha is one of majestic beauty and calm peace."
-  dexterity: "3D"
-  knowledge: "3D"
-  mechanical: "2D"
-  perception: "3D"
-  strength: "2D+2"
-  technical: "4D"
-  skills:
-    blaster: "4D"
-    dodge: "4D+2"
-    bureaucracy: "4D+1"
-    languages: "3D+2"
-    astrogation: "3D+1"
-    starfighter_piloting: "4D"
-    starship_shields: "2D+1"
-    con: "5D"
-    computer_programming_repair: "5D+2"
-    space_transports_repair: "6D"
-    starfighter_repair: "6D"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 3
-  equipment:
-    - "Hold-out blaster (3D+1 damage)"
-    - "Comlink"
-    - "Dim-U robes"
+  # =========================================================================
+  # LUCKY DESPOT HOTEL/CASINO (Rooms 31-32)
+  # =========================================================================
 
-wioslea:
-  name: "Wioslea"
-  species: Vuvria
-  location: "Unut's Used Speeders"
-  archetype: merchant
-  description: "A 1.9-meter tall female Vuvria salesperson."
-  personality: "Expert linguist and haggler. Works every angle."
-  dexterity: "2D+1"
-  knowledge: "3D"
-  mechanical: "1D"
-  perception: "3D"
-  strength: "1D"
-  technical: "3D+1"
-  skills:
-    dodge: "4D+1"
-    pick_pocket: "3D+2"
-    alien_species: "4D+2"
-    alien_species_humans: "6D"
-    business: "6D"
-    cultures: "4D+1"
-    languages: "6D"
-    languages_aqualish: "6D"
-    languages_huttese: "7D"
-    languages_rodian: "6D+1"
-    languages_sullustan: "7D"
-    planetary_systems: "7D"
-    streetwise: "5D"
-    repulsorlift_operation: "4D"
-    space_transports: "2D+2"
-    bargain: "4D+1"
-    command: "5D+1"
-    con: "4D+2"
-    gambling: "5D+1"
-    climbing_jumping: "4D"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 9
+  - name: "Lady Valarian"
+    room: "Lucky Despot - Star Chamber Cafe"
+    species: "Whiphid"
+    description: "A massive female Whiphid in expensive robes, surveying her casino empire."
+    char_sheet:
+      attributes:
+        dexterity: "2D+2"
+        knowledge: "3D+1"
+        mechanical: "2D+1"
+        perception: "4D"
+        strength: "5D"
+        technical: "2D"
+      skills:
+        blaster: "3D+2"
+        brawling: "6D+1"
+        melee_combat: "4D"
+        dodge: "3D+2"
+        intimidation: "6D"
+        bargain: "5D+2"
+        command: "5D"
+        con: "4D+1"
+        streetwise: "5D"
+        value: "4D+2"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 2
+      character_points: 15
+      dark_side_points: 3
+    ai_config:
+      personality: >
+        Lady Valarian is the most powerful crime lord in Mos Eisley after
+        Jabba. She runs the Lucky Despot hotel and casino. Cunning,
+        ruthless, and ambitious — she constantly schemes to undermine
+        Jabba's operations. Married to a Human named Jodo Kast. Maintains
+        a facade of respectability while running smuggling, gambling, and
+        protection rackets.
+      knowledge:
+        - "Runs the Lucky Despot hotel and casino"
+        - "Jabba's main rival in Mos Eisley"
+        - "Married to a Human — unusual for a Whiphid"
+        - "Has her own network of enforcers and informants"
+        - "Controls significant smuggling operations"
+      faction: "Valarian Crime Syndicate"
+      dialogue_style: "Cultured, dangerous. Speaks softly but carries enormous threat."
+      hostile: false
+      combat_behavior: "tactical"
+      fallback_lines:
+        - "'Welcome to the Lucky Despot. The house always wins.'"
+        - "*Lady Valarian's eyes narrow as she studies you.*"
 
-# ═══════════════════════════════════════════════════════════════════════
-# BATCH 2: Additional NPCs
-# ═══════════════════════════════════════════════════════════════════════
+  - name: "Valarian's Enforcer"
+    room: "Lucky Despot - Star Chamber Cafe"
+    species: "Whiphid"
+    description: "A hulking Whiphid enforcer with cybernetic tusks, watching the casino floor."
+    char_sheet:
+      attributes:
+        dexterity: "3D"
+        knowledge: "2D"
+        mechanical: "2D"
+        perception: "3D+1"
+        strength: "5D+1"
+        technical: "2D"
+      skills:
+        blaster: "4D+2"
+        brawling: "6D"
+        dodge: "4D"
+        intimidation: "5D"
+        melee_combat: "5D"
+      weapon: "vibroblade"
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: "Valarian's personal enforcer. Watches for trouble."
+      knowledge: []
+      faction: "Valarian Crime Syndicate"
+      dialogue_style: "Grunts. Lets his size do the talking."
+      hostile: true
+      combat_behavior: "aggressive"
+      fallback_lines:
+        - "*The Whiphid rises to its full height, cybernetic tusks gleaming.*"
+        - "'You shouldn't be here.'"
 
-mos_eisley_militiaman:
-  name: "Mos Eisley Militiaman"
-  species: Human
-  location: "Militia HQ / Streets"
-  archetype: militia
-  description: "Part-time local militia member. Reluctant to fight."
-  personality: "Lazy, avoids action. Would rather arrest visitors than confront neighbors."
-  quote: "All right, break it up. Both of you get out of here and I won't report this."
-  dexterity: "2D"
-  knowledge: "2D"
-  mechanical: "2D"
-  perception: "2D"
-  strength: "2D"
-  technical: "2D"
-  skills:
-    blaster: "4D"
-    dodge: "5D"
-    melee_combat: "3D+2"
-    melee_parry: "3D+2"
-    intimidation: "3D"
-    beast_riding: "3D+1"
-    repulsorlift_operation: "3D+2"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 0
-  equipment:
-    - "Blaster carbine (5D damage)"
-    - "Stun baton (5D stun damage)"
-    - "Blast vest (+2 energy, +1D physical)"
+  # =========================================================================
+  # STREET / RESIDENTIAL NPCs
+  # =========================================================================
 
-arjon_fmp:
-  name: "Arjon F.M.P."
-  species: Human
-  location: "Alley near Docking Bay 94"
-  archetype: gambler
-  description: "Golden-yellow skin and almond-shaped eyes. Dresses in Tatooine browns and tans."
-  personality: "Gregarious con artist. No scruples about deceiving naive passersby."
-  quote: "Step right up. Choose your card, let me guess which one it is. C'mon, place your bets."
-  dexterity: "4D"
-  knowledge: "3D"
-  mechanical: "2D"
-  perception: "3D"
-  strength: "2D"
-  technical: "2D+1"
-  skills:
-    blaster: "4D+2"
-    dodge: "5D+2"
-    languages: "4D+1"
-    planetary_systems: "5D"
-    astrogation: "3D+1"
-    space_transports: "4D"
-    con: "4D"
-    con_card_sharking: "5D+2"
-    gambling: "6D+1"
-    persuasion: "5D+2"
-    brawling: "5D+1"
-    computer_programming_repair: "3D"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 4
-  equipment:
-    - "Hold-out blaster (3D+1 damage)"
-    - "Comlink"
-    - "Card deck"
+  - name: "Momaw Nadon"
+    room: "House of Momaw Nadon"
+    species: "Ithorian"
+    description: "A tall Ithorian with a hammerhead profile, tending to exotic plants."
+    char_sheet:
+      attributes:
+        dexterity: "3D"
+        knowledge: "3D+2"
+        mechanical: "2D+1"
+        perception: "3D"
+        strength: "3D+1"
+        technical: "3D"
+      skills:
+        dodge: "4D"
+        melee_combat: "3D+1"
+        cultures: "4D+2"
+        survival: "3D+1"
+        "survival:jungle": "5D"
+        languages: "4D+1"
+        alien_species: "4D"
+        repulsorlift_operation: "4D+1"
+        search: "4D"
+        bargain: "4D"
+        first_aid: "4D+2"
+        "melee_combat:powerstaff": "4D+2"
+      weapon: ""
+      move: 10
+      force_points: 2
+      character_points: 14
+      dark_side_points: 0
+      force_sensitive: true
+    ai_config:
+      personality: >
+        Momaw Nadon is an Ithorian exile living in Mos Eisley. He was
+        banished from Ithor for sharing agricultural secrets with the
+        Empire under duress. He is deeply ashamed and dedicates himself
+        to maintaining a garden sanctuary in his home. Secretly aids
+        the Rebel Alliance. Gentle and wise but carries deep guilt.
+      knowledge:
+        - "Exiled Ithorian — banished for sharing secrets with the Empire"
+        - "Maintains a hidden garden sanctuary in his home"
+        - "Secretly aids the Rebel Alliance"
+        - "Has a Vesuvague Hanging Tree that guards his home"
+        - "Deeply knowledgeable about botany and agriculture"
+      faction: "Rebel Alliance (secret)"
+      dialogue_style: "Gentle, thoughtful. Speaks with stereo Ithorian voice. Philosophical."
+      hostile: false
+      combat_behavior: "defensive"
+      fallback_lines:
+        - "'The garden teaches patience. All things grow in time.'"
+        - "*Momaw Nadon gently adjusts a plant's position in the light.*"
 
-beeyon_nace:
-  name: "Beeyon Nace"
-  species: Human
-  location: "Chalmun's Cantina"
-  archetype: bureaucrat
-  description: "A heavy man of medium height and pale complexion. Dark clothing of high society cut."
-  personality: "Perpetually depressed. Drowning his sorrows in drink."
-  quote: "It wasn't so bad that I got caught, but the fact that all I got to do was kiss her really bothers me."
-  dexterity: "3D+1"
-  knowledge: "3D"
-  mechanical: "3D"
-  perception: "3D+1"
-  strength: "2D"
-  technical: "3D"
-  skills:
-    blaster: "4D+2"
-    dodge: "3D+2"
-    bureaucracy: "5D+2"
-    languages: "4D"
-    streetwise: "3D+2"
-    astrogation: "4D"
-    repulsorlift_operation: "3D"
-    bargain: "3D"
-    gambling: "4D+1"
-    computer_programming_repair: "5D"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 4
+  - name: "Armanda Durkin"
+    room: "Notsub Shipping - Lobby"
+    species: "Human"
+    description: "A polished Human businesswoman in corporate attire, radiating authority."
+    char_sheet:
+      attributes:
+        dexterity: "3D"
+        knowledge: "3D+1"
+        mechanical: "3D+2"
+        perception: "4D"
+        strength: "2D+2"
+        technical: "2D+2"
+      skills:
+        blaster: "4D+1"
+        dodge: "4D"
+        bureaucracy: "4D+2"
+        business: "5D+1"
+        bargain: "5D"
+        command: "5D+2"
+        con: "5D"
+        persuasion: "5D"
+        space_transports: "5D"
+        starship_gunnery: "4D+1"
+        astrogation: "4D+2"
+        streetwise: "4D+1"
+      weapon: "hold_out_blaster"
+      move: 10
+      force_points: 2
+      character_points: 12
+      dark_side_points: 2
+    ai_config:
+      personality: >
+        Armanda Durkin is CEO of Notsub Shipping, Tatooine's largest company.
+        She employs nearly 1000 beings. But she leads a double life — she is
+        secretly the pirate known as "the Duchess," raiding competitors and
+        Imperial convoys. Cool, intelligent, and utterly ruthless beneath
+        a veneer of corporate professionalism.
+      knowledge:
+        - "CEO of Notsub Shipping, largest company on Tatooine"
+        - "Employs nearly 1000 beings"
+        - "Secret identity: the pirate 'Duchess'"
+        - "Raids competitor shipping and Imperial convoys"
+        - "Maintains a perfect corporate facade"
+      faction: "Neutral (secretly pirate)"
+      dialogue_style: "Professional, polished. Corporate speak. Never breaks character."
+      hostile: false
+      combat_behavior: "tactical"
+      fallback_lines:
+        - "'Notsub Shipping — reliable transport across the Outer Rim.'"
+        - "'My schedule is quite full. Is this regarding a shipping contract?'"
 
-mace_windu_squib:
-  name: "Mace Windu"
-  species: Squib
-  location: "Jawa Traders"
-  archetype: merchant
-  description: "A tiny, gray-furred biped with tufted ears. Wears a small cap adorned with bits of metal."
-  personality: "Seems like an airhead. Actually a shrewd Squib transacting business."
-  quote: "No deal. Try that again, and I'll be on you like a Squib at a two-for-one sale."
-  dexterity: "4D"
-  knowledge: "4D"
-  mechanical: "3D"
-  perception: "4D"
-  strength: "2D"
-  technical: "2D"
-  skills:
-    dodge: "5D"
-    alien_species: "4D+1"
-    cultures: "5D"
-    languages: "4D"
-    value: "6D+2"
-    astrogation: "4D+1"
-    capital_ship_gunnery: "3D+2"
-    bargain: "7D"
-    con: "5D+2"
-    search: "4D"
-    computer_programming_repair: "5D"
-  force_sensitive: false
-  force_points: 1
-  dark_side_points: 0
-  character_points: 8
+  # =========================================================================
+  # ADDITIONAL CANTINA / STREET CHARACTERS
+  # =========================================================================
 
-aguilae:
-  name: "Aguilae"
-  species: Jawa
-  location: "Jawa Traders"
-  archetype: merchant
-  description: "Typical Jawa with a brown hooded cloak and an aversion to bathing."
-  personality: "Extremely suspicious of non-mechanicals. Filthy, ill-tempered, and miserly."
-  quote: "I guarantee that this Droid is in good working order and of worth as I represent it."
-  dexterity: "2D"
-  knowledge: "2D"
-  mechanical: "3D"
-  perception: "1D"
-  strength: "1D"
-  technical: "3D"
-  skills:
-    blaster: "3D+1"
-    dodge: "4D"
-    languages: "3D"
-    streetwise: "3D+2"
-    value: "4D+1"
-    ground_vehicle_operation_sandcrawlers: "5D"
-    bargain: "4D+2"
-    con: "4D+1"
-    computer_programming_repair: "5D"
-    droid_programming: "6D+1"
-    droid_repair: "6D"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 6
+  - name: "BoShek"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Human"
+    description: "A dark-haired Human smuggler in a worn flight jacket, scanning the room."
+    char_sheet:
+      attributes:
+        dexterity: "3D+1"
+        knowledge: "2D+2"
+        mechanical: "4D+1"
+        perception: "3D"
+        strength: "2D+2"
+        technical: "3D+1"
+      skills:
+        blaster: "4D+2"
+        dodge: "4D"
+        space_transports: "6D"
+        starship_gunnery: "5D"
+        astrogation: "5D+1"
+        starfighter_piloting: "5D"
+        sensors: "4D+2"
+        con: "3D+2"
+        streetwise: "3D+2"
+        space_transports_repair: "4D+2"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 2
+      character_points: 10
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        BoShek is one of the best pilots on Tatooine. He's the one who
+        introduced Chewbacca to Obi-Wan Kenobi. Restless, always looking
+        for the next job or the next thrill. A loner who doesn't like
+        attachments. Recently became more introspective after sensing
+        something strange — possibly Force sensitivity.
+      knowledge:
+        - "One of the best pilots on Tatooine"
+        - "Introduced Chewbacca to Ben Kenobi"
+        - "May be Force-sensitive but doesn't understand it"
+        - "Takes any piloting job if the pay is right"
+      faction: "Independent"
+      dialogue_style: "Cool, laconic. Pilot talk. Brief answers."
+      hostile: false
+      combat_behavior: "defensive"
+      fallback_lines:
+        - "'I fly. That's what I do. You need a ride, we talk.'"
+        - "*BoShek stares out the window as if calculating hyperspace vectors in his head.*"
 
-moplin_jarron:
-  name: "Moplin Jarron"
-  species: Sullustan
-  location: "Heff's Souvenirs"
-  archetype: forger
-  description: "A middle-aged Sullustan with extreme wrinkles around the eyes and a distaste for cleanliness."
-  personality: "Nervous little being. Perpetual squint and hunched back. Laughs a lot for no reason."
-  quote: "Well (hee), yes. I can do the job. Only a hundred credits."
-  dexterity: "2D"
-  knowledge: "4D"
-  mechanical: "1D"
-  perception: "3D"
-  strength: "2D"
-  technical: "3D"
-  skills:
-    bureaucracy: "4D+1"
-    bureaucracy_tatooine: "5D+2"
-    business: "6D"
-    languages: "4D+1"
-    law_enforcement: "6D"
-    bargain: "4D+1"
-    forgery: "9D+2"
-    computer_programming_repair: "5D"
-    droid_programming: "5D+2"
-    security: "4D+1"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 8
+  - name: "Hem Dazon"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Arcona"
+    description: "A reptilian Arcona with flat, anvil-shaped head and golden eyes clouded by salt addiction."
+    char_sheet:
+      attributes:
+        dexterity: "2D+1"
+        knowledge: "2D+2"
+        mechanical: "3D"
+        perception: "3D+1"
+        strength: "2D"
+        technical: "2D+1"
+      skills:
+        dodge: "3D"
+        planetary_systems: "3D+2"
+        astrogation: "4D+1"
+        space_transports: "3D+2"
+        sensors: "3D+2"
+        con: "4D"
+        search: "4D"
+        sneak: "3D+2"
+      weapon: ""
+      move: 10
+      force_points: 0
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Hem Dazon is an Arcona stranded on Tatooine after his salt addiction
+        rendered him unable to pilot. Salt is a narcotic to Arconas, and
+        Hem Dazon has it bad. He spends his days in the cantina, watching
+        ships come and go, dreaming of the stars he can no longer reach.
+      knowledge:
+        - "Stranded on Tatooine by salt addiction"
+        - "Salt is a narcotic to Arconas — Hem's eyes are clouded gold from it"
+        - "Former pilot, now too addicted to fly safely"
+        - "Dreams of leaving but can't stop using"
+      faction: "Neutral"
+      dialogue_style: "Dreamy, distracted. Talks about ships and stars longingly."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'That ship... she has good lines. I used to fly one like her...'"
+        - "*Hem Dazon's golden eyes follow a ship lifting off, full of longing.*"
 
-momaw_nadon:
-  name: "Momaw Nadon"
-  species: Ithorian
-  location: "Nadon Residence / Cantina"
-  archetype: rebel_sympathizer
-  description: "An Ithorian of some age and grace, sandy-brown color typical of those away from homeworld."
-  personality: "Lonely, in self-inflicted exile. Speaks softly, a very gentle being."
-  quote: "Sometimes one must turn the soil to save the garden."
-  dexterity: "3D"
-  knowledge: "3D+2"
-  mechanical: "2D+1"
-  perception: "3D+1"
-  strength: "3D"
-  technical: "2D+2"
-  skills:
-    dodge: "4D"
-    melee_combat: "3D+1"
-    melee_combat_powerstaff: "4D+2"
-    cultures: "4D+2"
-    survival: "3D+1"
-    survival_jungle: "5D"
-    repulsorlift_operation: "4D+1"
-    bargain: "4D+1"
-    lifting: "4D"
-    first_aid: "4D+2"
-  force_sensitive: false
-  force_points: 2
-  dark_side_points: 0
-  character_points: 8
-  equipment:
-    - "Agri-kit (+1D to survival)"
-    - "Powerstaff (STR+2D damage)"
+  - name: "Bom Vimdin"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Advozse"
+    description: "A dark-skinned humanoid with a single horn and an irritable expression."
+    char_sheet:
+      attributes:
+        dexterity: "2D+2"
+        knowledge: "3D"
+        mechanical: "2D+1"
+        perception: "3D+2"
+        strength: "3D"
+        technical: "2D"
+      skills:
+        blaster: "3D+2"
+        dodge: "3D+1"
+        bargain: "4D+1"
+        con: "4D+2"
+        persuasion: "3D+2"
+        value: "4D"
+        streetwise: "4D"
+        investigation: "4D"
+      weapon: "hold_out_blaster"
+      move: 10
+      force_points: 0
+      character_points: 6
+      dark_side_points: 1
+    ai_config:
+      personality: >
+        Bom Vimdin is an Advozse smuggler and petty criminal. Pessimistic
+        and self-serving, typical of his species' dour worldview. He's
+        always looking out for number one and will sell anyone out for the
+        right price. Not particularly dangerous but thoroughly untrustworthy.
+      knowledge:
+        - "Small-time smuggler and informant"
+        - "Advozse — naturally pessimistic species"
+        - "Will sell information to anyone who pays"
+        - "Knows the black market scene"
+      faction: "Criminal"
+      dialogue_style: "Pessimistic, complaining. Everything is terrible. Self-pitying."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'Nothing good ever happens here. Or anywhere.'"
+        - "*Bom Vimdin scowls at his drink as if it personally offended him.*"
 
-armanda_durkin:
-  name: "Armanda Durkin"
-  species: Human
-  location: "Notsub Shipping Company"
-  archetype: pirate
-  description: "Penchant for brocade and silks. Luxurious hair, often done up in complicated style."
-  personality: "Driven by tragedy. Cares for nothing more than money or success."
-  quote: "Please remain seated or we will be forced to knock you unconscious."
-  dexterity: "3D+1"
-  knowledge: "3D"
-  mechanical: "3D+1"
-  perception: "4D"
-  strength: "2D+1"
-  technical: "2D"
-  skills:
-    blaster: "4D+1"
-    dodge: "4D+2"
-    melee_combat: "5D"
-    bureaucracy: "4D"
-    planetary_systems: "3D+1"
-    planetary_systems_tatooine: "5D"
-    astrogation: "4D"
-    repulsorlift_operation: "3D+2"
-    space_transports: "5D+1"
-    command: "6D"
-    con: "7D+1"
-    brawling: "4D+2"
-    stamina: "6D+2"
-    computer_programming_repair: "3D"
-    security: "5D+2"
-    space_transports_repair: "2D+1"
-  force_sensitive: false
-  force_points: 3
-  dark_side_points: 2
-  character_points: 21
+  - name: "Lirin Car'n"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Bith"
+    description: "A Bith musician polishing a bandfill during a break between sets."
+    char_sheet:
+      attributes:
+        dexterity: "1D+2"
+        knowledge: "3D+1"
+        mechanical: "2D"
+        perception: "3D"
+        strength: "1D+2"
+        technical: "3D"
+      skills:
+        dodge: "2D+2"
+        musical_instrument: "6D+2"
+        value: "4D"
+        languages: "4D"
+        cultures: "4D+1"
+        bargain: "3D+2"
+      weapon: ""
+      move: 8
+      force_points: 0
+      character_points: 6
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Lirin Car'n is a member of the Modal Nodes band. Unlike Figrin Da'n,
+        he's a serious musician who genuinely loves performing. He also has
+        an excellent memory and observes everything from the bandstand. Quiet
+        and thoughtful compared to his bandleader.
+      knowledge:
+        - "Member of the Modal Nodes"
+        - "Bith photographic memory — remembers everything he sees"
+        - "Has been watching the cantina crowd for years"
+      faction: "Neutral"
+      dialogue_style: "Quiet, observant. Speaks thoughtfully. Musical metaphors."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'From up on the bandstand, you see everything. Everything.'"
+        - "*Lirin Car'n tunes his instrument with meticulous care.*"
 
-thrung_alewune:
-  name: "Thrung Alewune"
-  species: "Ho'Din"
-  location: "Notsub Shipping (Pirate Crew)"
-  archetype: pirate
-  description: "A Ho'Din who has bound his ample violet locks to his head and wears a cap."
-  personality: "Exhibits none of his species' characteristic gentleness. Focused on tech and profit."
-  quote: "Look, I'm here just for the cargo. Don't try anything and we'll be out of here in no time."
-  dexterity: "4D"
-  knowledge: "3D"
-  mechanical: "2D+2"
-  perception: "2D"
-  strength: "3D"
-  technical: "3D+1"
-  skills:
-    blaster: "4D+2"
-    dodge: "5D"
-    melee_combat: "5D+1"
-    streetwise: "3D+1"
-    repulsorlift_operation: "3D"
-    starship_gunnery: "4D+1"
-    starship_shields: "3D+1"
-    gambling: "3D+2"
-    search: "4D"
-    sneak: "2D+1"
-    brawling: "4D+1"
-    lifting: "4D"
-    computer_programming_repair: "4D+1"
-    demolitions: "3D+2"
-    space_transports_repair: "4D+2"
-  force_sensitive: false
-  force_points: 3
-  dark_side_points: 3
-  character_points: 10
-  equipment:
-    - "Comlink"
-    - "Space suit"
-    - "Blaster carbine (5D damage)"
+  # =========================================================================
+  # MEDICAL / SERVICE NPCs
+  # =========================================================================
 
-jaynine_five:
-  name: "JayNine-Five"
-  species: Droid
-  location: "Spaceport Control Tower"
-  archetype: droid
-  description: "A Roche J9 Worker Drone. 1.9 meters tall, insectoid eyes, piston-like limbs."
-  personality: "Nervous, by-the-book, follows rules exactly. Despised by smugglers."
-  quote: "Millennium Falcon, you are cleared to land. Do not deviate from your present course. Welcome to Mos Eisley."
-  dexterity: "2D"
-  knowledge: "4D"
-  mechanical: "1D"
-  perception: "3D"
-  strength: "2D"
-  technical: "3D"
-  skills:
-    alien_species: "5D+1"
-    bureaucracy: "4D+2"
-    languages: "4D+1"
-    communications: "3D"
-    sensors: "2D+1"
-    bargain: "4D+2"
-    sneak: "4D"
-    security: "5D+1"
-  force_sensitive: false
-  force_points: 0
-  dark_side_points: 0
-  character_points: 2
+  - name: "Evazan"
+    room: "Mos Eisley Street - Government Quarter"
+    species: "Human"
+    description: "A scarred, disfigured Human with wild eyes and a disturbing grin."
+    char_sheet:
+      attributes:
+        dexterity: "3D+2"
+        knowledge: "3D"
+        mechanical: "2D+1"
+        perception: "2D+2"
+        strength: "3D+1"
+        technical: "4D"
+      skills:
+        blaster: "5D"
+        dodge: "4D+1"
+        brawling: "4D"
+        melee_combat: "4D+2"
+        first_aid: "5D+1"
+        medicine: "5D"
+        con: "3D+2"
+        intimidation: "4D+1"
+        alien_species: "4D"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 1
+      character_points: 9
+      dark_side_points: 6
+    ai_config:
+      personality: >
+        Doctor Cornelius Evazan is a former surgeon turned criminal. His
+        medical experiments have left him disfigured and several planets
+        want him dead. He has a death sentence in twelve systems. Completely
+        unhinged, dangerous, and unpredictable. Travels with Ponda Baba.
+      knowledge:
+        - "Former surgeon, wanted in twelve systems"
+        - "Medical experiments disfigured him"
+        - "Travels with Ponda Baba the Aqualish"
+        - "Genuinely dangerous — kills without hesitation"
+      faction: "Criminal"
+      dialogue_style: "Unhinged. Veers between false charm and open threat."
+      hostile: true
+      combat_behavior: "berserker"
+      fallback_lines:
+        - "'I have the death sentence in twelve systems!'"
+        - "'I don't like you either. You just watch yourself.'"
+
+  # =========================================================================
+  # IMPERIAL NPCs
+  # =========================================================================
+
+  - name: "Imperial Customs Inspector"
+    room: "Spaceport Customs Office"
+    species: "Human"
+    description: "A bored Imperial inspector in a rumpled uniform, barely looking up from his desk."
+    char_sheet:
+      attributes:
+        dexterity: "2D+1"
+        knowledge: "3D"
+        mechanical: "2D"
+        perception: "3D"
+        strength: "2D+1"
+        technical: "2D+2"
+      skills:
+        blaster: "3D"
+        bureaucracy: "4D+2"
+        law_enforcement: "3D+2"
+        search: "4D"
+        investigation: "3D+2"
+        bargain: "3D+1"
+        con: "3D"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        A bored Imperial customs inspector who takes bribes as a matter of
+        course. He'll wave anything through for the right amount of credits.
+        Too lazy to actually inspect cargo most of the time. Does enough work
+        to avoid getting fired.
+      knowledge:
+        - "Takes bribes regularly — standard rate is 50-100 credits"
+        - "Barely inspects cargo"
+        - "Reports to Prefect Talmont"
+        - "Knows the smuggling routes into and out of Mos Eisley"
+      faction: "Imperial"
+      dialogue_style: "Bored, monotone. Perks up at the mention of credits."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'Cargo manifest. Landing permits. Identification... *sigh*'"
+        - "'Perhaps we can come to an... arrangement regarding the inspection.'"
+
+  - name: "Imperial Patrol Trooper"
+    room: "Mos Eisley Street - Spaceport Row"
+    species: "Human"
+    description: "A stormtrooper on patrol, scanning the crowds with practiced suspicion."
+    char_sheet:
+      attributes:
+        dexterity: "3D"
+        knowledge: "2D"
+        mechanical: "2D+1"
+        perception: "2D+2"
+        strength: "3D"
+        technical: "2D"
+      skills:
+        blaster: "4D"
+        brawling: "3D+2"
+        dodge: "3D+2"
+        search: "3D"
+      weapon: "blaster_rifle"
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: "Standard stormtrooper on street patrol. Stops suspicious characters."
+      knowledge: []
+      faction: "Imperial"
+      dialogue_style: "Clipped military speech."
+      hostile: true
+      combat_behavior: "aggressive"
+      fallback_lines:
+        - "'Let me see your identification.'"
+        - "'This is a restricted area. Move along.'"
+
+  # =========================================================================
+  # CRIME / UNDERWORLD
+  # =========================================================================
+
+  - name: "Feltipern Trevagg"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Gotal"
+    description: "A horned Gotal with sensitive cones atop his head, sitting alone nursing anger."
+    char_sheet:
+      attributes:
+        dexterity: "3D"
+        knowledge: "3D+1"
+        mechanical: "2D"
+        perception: "4D+2"
+        strength: "3D+2"
+        technical: "2D"
+      skills:
+        blaster: "4D"
+        dodge: "3D+2"
+        brawling: "4D+1"
+        law_enforcement: "4D"
+        streetwise: "4D+2"
+        search: "6D"
+        investigation: "5D"
+        intimidation: "5D"
+        bargain: "4D+1"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 0
+      character_points: 8
+      dark_side_points: 3
+    ai_config:
+      personality: >
+        Feltipern Trevagg is a corrupt Imperial tax collector and part-time
+        bounty hunter. His Gotal head cones give him empathic abilities —
+        he can sense emotions, making him an excellent interrogator. Greedy,
+        violent, and perpetually angry. He collects taxes for the Empire
+        but skims heavily off the top.
+      knowledge:
+        - "Imperial tax collector — corrupt, skims heavily"
+        - "Gotal head cones sense emotions"
+        - "Part-time bounty hunter"
+        - "Can sense lies through emotional read"
+      faction: "Imperial"
+      dialogue_style: "Angry, threatening. Radiates menace. Short temper."
+      hostile: false
+      combat_behavior: "aggressive"
+      fallback_lines:
+        - "'You owe taxes. Everyone owes taxes. Pay now or pay later.'"
+        - "*Trevagg's head cones twitch, reading your emotional state.*"
+
+  - name: "Takeel"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Snivvian"
+    description: "A short, snout-faced Snivvian hunched over a drink, looking shifty."
+    char_sheet:
+      attributes:
+        dexterity: "3D+1"
+        knowledge: "2D+1"
+        mechanical: "2D+2"
+        perception: "3D"
+        strength: "2D+2"
+        technical: "2D"
+      skills:
+        blaster: "4D+1"
+        dodge: "4D"
+        brawling: "3D+2"
+        sneak: "4D"
+        hide: "3D+2"
+        con: "3D+2"
+        pickpocket: "4D"
+        streetwise: "4D"
+        forgery: "3D"
+      weapon: "hold_out_blaster"
+      move: 10
+      force_points: 0
+      character_points: 5
+      dark_side_points: 1
+    ai_config:
+      personality: >
+        Takeel is a Snivvian petty criminal — a pickpocket, con artist,
+        and small-time spice dealer. Not particularly brave or skilled,
+        but persistent and sneaky. His brother Zutton is an artist who
+        considers Takeel an embarrassment.
+      knowledge:
+        - "Petty criminal — pickpocket, con artist, spice dealer"
+        - "Brother Zutton is an artist and hunter"
+        - "Knows the small-time criminal scene"
+      faction: "Criminal"
+      dialogue_style: "Shifty, nervous. Looks for angles. Wheedling."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'Pssst. Hey. You need anything? I can get it. Cheap.'"
+        - "*Takeel glances around nervously and slides closer.*"
+
+  - name: "Zutton"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Snivvian"
+    description: "A Snivvian with paint-stained fingers, sketching on a datapad."
+    char_sheet:
+      attributes:
+        dexterity: "3D+2"
+        knowledge: "3D"
+        mechanical: "2D+2"
+        perception: "3D+1"
+        strength: "3D"
+        technical: "2D"
+      skills:
+        blaster: "4D+2"
+        dodge: "4D+1"
+        melee_combat: "4D"
+        brawling: "4D"
+        survival: "4D+1"
+        tracking: "4D"
+        sneak: "4D+2"
+        search: "4D"
+        value: "4D"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 1
+      character_points: 7
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Zutton, known as "Snaggletooth," is a Snivvian artist and big game
+        hunter. Unlike his criminal brother Takeel, Zutton is artistic and
+        adventurous. He paints portraits of alien species and hunts dangerous
+        creatures across the Outer Rim. Currently in Mos Eisley between hunts.
+      knowledge:
+        - "Artist and big game hunter — the 'Snaggletooth'"
+        - "Brother Takeel is a petty criminal"
+        - "Paints alien portraits and landscapes"
+        - "Hunts dangerous creatures across the Outer Rim"
+      faction: "Independent"
+      dialogue_style: "Artistic, adventurous. Talks about hunts and art with equal passion."
+      hostile: false
+      combat_behavior: "defensive"
+      fallback_lines:
+        - "'Hold still — the light on your face is perfect for a sketch.'"
+        - "*Zutton's fingers dance across his datapad, sketching something.*"
+
+  # =========================================================================
+  # REMAINING STREET / MISC NPCs
+  # =========================================================================
+
+  - name: "Garindan"
+    room: "Mos Eisley Street - Spaceport Row"
+    species: "Kubaz"
+    description: "A cloaked figure with a long insectoid snout, lurking in the shadows."
+    char_sheet:
+      attributes:
+        dexterity: "2D+2"
+        knowledge: "2D+1"
+        mechanical: "2D"
+        perception: "4D+1"
+        strength: "2D"
+        technical: "2D"
+      skills:
+        dodge: "3D+2"
+        sneak: "5D+2"
+        hide: "5D"
+        search: "6D"
+        investigation: "5D+1"
+        tracking: "5D"
+        streetwise: "5D"
+        con: "4D"
+        bargain: "4D+2"
+      weapon: ""
+      move: 10
+      force_points: 0
+      character_points: 8
+      dark_side_points: 2
+    ai_config:
+      personality: >
+        Garindan, known as "Long Snout," is Mos Eisley's most notorious
+        informant. He works for the highest bidder — Imperial, criminal,
+        it doesn't matter. He followed Luke and Obi-Wan to Docking Bay 94
+        and reported to the stormtroopers. Utterly amoral but professional.
+        Always watching, always lurking.
+      knowledge:
+        - "Mos Eisley's most notorious informant"
+        - "Works for the highest bidder — Imperial or criminal"
+        - "Followed Luke and Obi-Wan to Docking Bay 94"
+        - "Kubaz — enhanced sense of smell, sees in ultraviolet"
+        - "Knows every back alley and hiding spot in the city"
+      faction: "Highest bidder"
+      dialogue_style: "Whispered. Cryptic. Speaks through his cloak. Information has a price."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "*A pair of dark goggles peer at you from beneath a heavy cloak.*"
+        - "'Information... is a commodity. What can you afford?'"
+
+  - name: "Wioslea"
+    room: "Spaceport Speeders"
+    species: "Vuvrian"
+    description: "A many-eyed Vuvrian used-speeder dealer with an oily salesperson manner."
+    char_sheet:
+      attributes:
+        dexterity: "2D"
+        knowledge: "3D"
+        mechanical: "3D+1"
+        perception: "3D+2"
+        strength: "2D"
+        technical: "3D+1"
+      skills:
+        bargain: "5D+2"
+        con: "5D"
+        persuasion: "5D"
+        value: "5D+1"
+        repulsorlift_repair: "4D"
+        repulsorlift_operation: "4D+2"
+        ground_vehicle_repair: "4D"
+      weapon: ""
+      move: 10
+      force_points: 0
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Wioslea is a Vuvrian used-speeder dealer. She bought Luke's
+        landspeeder. A natural salesperson with an eye for value — she
+        can appraise any vehicle at a glance. Charming in a slippery way.
+        Always looking to make a deal.
+      knowledge:
+        - "Bought Luke Skywalker's X-34 landspeeder"
+        - "Expert vehicle appraiser"
+        - "Can get any speeder model, given time and credits"
+        - "Knows every mechanic and dealer in the district"
+      faction: "Neutral"
+      dialogue_style: "Oily salesperson. Enthusiastic. Everything is 'a great deal.'"
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'Looking for a speeder? I've got just the thing. Great deal.'"
+        - "'I once bought a speeder from a farm boy. Made a tidy profit.'"
+
+  - name: "M'iiyoom Onith"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "H'nemthe"
+    description: "A beautiful humanoid woman with silver-blue skin and delicate features."
+    char_sheet:
+      attributes:
+        dexterity: "3D"
+        knowledge: "2D+2"
+        mechanical: "2D"
+        perception: "3D+2"
+        strength: "2D+1"
+        technical: "2D"
+      skills:
+        dodge: "3D+2"
+        melee_combat: "4D"
+        persuasion: "5D"
+        con: "4D+1"
+        search: "4D"
+        sneak: "3D+2"
+        languages: "3D+2"
+        alien_species: "3D+1"
+      weapon: ""
+      move: 10
+      force_points: 1
+      character_points: 4
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        M'iiyoom Onith is an H'nemthe woman — a species where females
+        ritually kill their mates after coupling. She is beautiful and
+        lonely, drawn to Feltipern Trevagg. Despite her species' lethal
+        customs, she is genuinely kind and romantic. She doesn't want to
+        follow tradition but is biologically compelled.
+      knowledge:
+        - "H'nemthe — females ritually kill mates after mating"
+        - "Drawn to Feltipern Trevagg despite the danger"
+        - "Lonely traveler far from home"
+      faction: "Neutral"
+      dialogue_style: "Soft, romantic, slightly melancholy. Beautiful but tragic."
+      hostile: false
+      combat_behavior: "defensive"
+      fallback_lines:
+        - "'Everyone is alone in this place. Even surrounded by others.'"
+        - "*M'iiyoom watches the Gotal across the room with sad intensity.*"
+
+  - name: "Kal'Falnl C'ndros"
+    room: "Docking Bay 92"
+    species: "Quor'sav"
+    description: "A tall, crane-like avian being with brilliant plumage, negotiating cargo rates."
+    char_sheet:
+      attributes:
+        dexterity: "2D+1"
+        knowledge: "3D+2"
+        mechanical: "3D+1"
+        perception: "3D"
+        strength: "2D+2"
+        technical: "2D+2"
+      skills:
+        bargain: "5D"
+        bureaucracy: "4D+2"
+        value: "5D+1"
+        space_transports: "4D+2"
+        astrogation: "4D"
+        languages: "4D+1"
+        planetary_systems: "4D"
+        dodge: "3D"
+      weapon: ""
+      move: 12
+      force_points: 1
+      character_points: 7
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Kal'Falnl C'ndros is a Quor'sav freighter captain and trader.
+        She runs a legitimate shipping operation and is one of the more
+        honest business beings in Mos Eisley. Proud, dignified, and
+        impatient with criminals and con artists. Her ship is always
+        in perfect condition.
+      knowledge:
+        - "Freighter captain, runs legitimate trade"
+        - "One of the more honest traders in Mos Eisley"
+        - "Knows trade routes across the Outer Rim"
+        - "Impatient with criminals and scam artists"
+      faction: "Independent"
+      dialogue_style: "Dignified, precise. No patience for nonsense."
+      hostile: false
+      combat_behavior: "defensive"
+      fallback_lines:
+        - "'My rates are fair and my cargo arrives on time. That is all.'"
+        - "*Kal'Falnl's plumage ruffles with impatience.*"
+
+  - name: "Het Nkik"
+    room: "Mos Eisley Street - North End"
+    species: "Jawa"
+    description: "A tiny cloaked Jawa clutching a blaster far too large for its frame."
+    char_sheet:
+      attributes:
+        dexterity: "3D+1"
+        knowledge: "2D"
+        mechanical: "2D+2"
+        perception: "3D"
+        strength: "1D+1"
+        technical: "4D"
+      skills:
+        blaster: "4D"
+        dodge: "4D+2"
+        sneak: "5D"
+        hide: "5D+2"
+        search: "4D+1"
+        droid_repair: "5D+1"
+        droid_programming: "5D"
+        value: "4D"
+        bargain: "3D+2"
+      weapon: "blaster_pistol"
+      move: 8
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Het Nkik is a young Jawa who dreams of striking a blow against the
+        Empire. He carries a DL-44 blaster he found but can barely aim it.
+        Brave beyond his abilities, he's determined to prove Jawas can be
+        warriors. Tragically idealistic.
+      knowledge:
+        - "Young Jawa with anti-Imperial sentiments"
+        - "Found a DL-44 blaster and carries it everywhere"
+        - "Wants to be a warrior despite being tiny"
+        - "Expert droid mechanic like all Jawas"
+      faction: "Anti-Imperial"
+      dialogue_style: "Excited chittering in Jawaese. Brave squeaks."
+      hostile: false
+      combat_behavior: "aggressive"
+      fallback_lines:
+        - "*Het Nkik brandishes his oversized blaster with fierce determination.*"
+        - "'Utinni! Utinni!'"
+
+  - name: "Jawa Trader"
+    room: "Mos Eisley Street - North End"
+    species: "Jawa"
+    description: "A Jawa in tattered robes dragging a hover-sled of salvaged droid parts."
+    char_sheet:
+      attributes:
+        dexterity: "2D+1"
+        knowledge: "2D"
+        mechanical: "2D+2"
+        perception: "3D+1"
+        strength: "1D"
+        technical: "4D+2"
+      skills:
+        bargain: "4D+2"
+        con: "4D"
+        hide: "4D"
+        sneak: "4D+1"
+        droid_repair: "6D"
+        droid_programming: "5D+2"
+        value: "4D+1"
+        repulsorlift_repair: "5D"
+      weapon: ""
+      move: 8
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        A typical Jawa trader selling salvaged droid parts and scavenged
+        technology. Drives a hard bargain. Everything is negotiable.
+        Will trade for almost anything mechanical.
+      knowledge:
+        - "Expert in droid parts and salvaged technology"
+        - "Trades regularly in Mos Eisley's streets"
+        - "Part of a Jawa sandcrawler clan"
+      faction: "Neutral"
+      dialogue_style: "Jawaese with excited gestures. Points at merchandise frantically."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'Utinni! *gestures at droid parts excitedly*'"
+        - "*The Jawa holds up a suspiciously clean motivator.*"

@@ -139,7 +139,7 @@ class WeaponRegistry:
             log.warning("Weapon data file not found: %s", path)
             return
 
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         if not data:

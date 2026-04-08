@@ -306,7 +306,7 @@ class CombatInstance:
                 c.initiative = 0
                 continue
 
-            pool = c.char.get_skill_pool("perception", self.skill_reg)
+            pool = c.char.get_attribute("perception")
             pool = apply_wound_penalty(pool, c.char.wound_level.penalty_dice)
             result = roll_d6_pool(pool)
             c.initiative = result.total

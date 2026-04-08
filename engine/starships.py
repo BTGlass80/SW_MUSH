@@ -535,7 +535,7 @@ class ShipRegistry:
         if not os.path.exists(path):
             log.warning("Starship data not found: %s", path)
             return
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         if not data:
             return

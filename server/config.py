@@ -14,6 +14,8 @@ class Config:
     telnet_port: int = 4000
     websocket_host: str = "0.0.0.0"
     websocket_port: int = 4001
+    web_client_host: str = "0.0.0.0"
+    web_client_port: int = 8080
 
     # ── Database ──
     db_path: str = "sw_mush.db"

@@ -96,7 +96,7 @@ class SkillRegistry:
 
     def load_file(self, path: str):
         """Load skills from a YAML file."""
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         count = 0

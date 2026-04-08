@@ -236,6 +236,9 @@ MIGRATIONS = {
     3: [
         "ALTER TABLE characters ADD COLUMN bounty INTEGER DEFAULT 0",
     ],
+    4: [
+        "ALTER TABLE characters ADD COLUMN tutorial_step INTEGER DEFAULT 0",
+    ],
 }
 
 
@@ -683,7 +686,13 @@ class Database:
 
     async def create_exit(self, from_room: int, to_room: int,
                           direction: str, name: str = "") -> int:
-        """Create an exit between two rooms. Returns exit ID."""
+        """Create an exit between two rooms. Returns exit ID.
+        Skips silently if an exit in that direction already exists."""
+        existing = await self.find_exit_by_dir(from_room, direction)
+        if existing:
+            log.debug("Duplicate exit skipped: room %d %s already exists (exit #%d)",
+                      from_room, direction, existing["id"])
+            return existing["id"]
         cursor = await self._db.execute(
             """INSERT INTO exits (from_room_id, to_room_id, direction, name)
                VALUES (?, ?, ?, ?)""",
