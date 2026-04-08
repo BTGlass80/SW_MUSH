@@ -14,7 +14,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 # -- Schema version --
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 3
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -238,24 +238,6 @@ MIGRATIONS = {
     ],
     4: [
         "ALTER TABLE characters ADD COLUMN tutorial_step INTEGER DEFAULT 0",
-    ],
-    5: [
-        """CREATE TABLE IF NOT EXISTS zone_influence (
-            zone_id TEXT NOT NULL,
-            faction TEXT NOT NULL,
-            score INTEGER DEFAULT 0,
-            last_updated TEXT DEFAULT (datetime('now')),
-            PRIMARY KEY (zone_id, faction)
-        )""",
-        """CREATE TABLE IF NOT EXISTS director_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT DEFAULT (datetime('now')),
-            event_type TEXT NOT NULL,
-            summary TEXT,
-            details_json TEXT,
-            token_cost_input INTEGER DEFAULT 0,
-            token_cost_output INTEGER DEFAULT 0
-        )""",
     ],
 }
 

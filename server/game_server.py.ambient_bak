@@ -521,21 +521,3 @@ class GameServer:
                 await bboard.ensure_loaded(self.db)
             except Exception:
                 log.debug("Bounty board tick skipped", exc_info=True)
-            # ── Ambient room events ──
-            try:
-                from engine.ambient_events import get_ambient_manager
-                await get_ambient_manager().tick(self.db, self.session_mgr)
-            except Exception:
-                log.debug("Ambient events tick skipped", exc_info=True)
-            # ── World events lifecycle ──
-            try:
-                from engine.world_events import get_world_event_manager
-                await get_world_event_manager().tick(self.db, self.session_mgr)
-            except Exception:
-                log.debug("World events tick skipped", exc_info=True)
-            # ── Director AI tick ──
-            try:
-                from engine.director import get_director
-                await get_director().tick(self.db, self.session_mgr)
-            except Exception:
-                log.debug("Director tick skipped", exc_info=True)
