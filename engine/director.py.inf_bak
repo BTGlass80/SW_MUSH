@@ -525,7 +525,7 @@ class DirectorAI:
             return False
 
         # ── Validate & apply influence adjustments ─────────────────────────
-        VALID_ZONES    = frozenset(self._zones.keys())
+        VALID_ZONES    = frozenset(self._influence.keys())
         VALID_FACTIONS = frozenset({"imperial", "rebel", "criminal", "independent"})
         EVENT_TYPES    = frozenset({
             "imperial_crackdown", "imperial_checkpoint", "bounty_surge",
