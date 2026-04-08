@@ -191,6 +191,9 @@ def _skill_to_attr(skill_name: str, skill_registry) -> str:
         "stamina": "strength", "lifting": "strength", "brawling parry": "strength",
         "intimidation": "perception", "command": "perception",
         "willpower": "knowledge", "scholar": "knowledge",
+        "starfighter repair": "technical", "capital ship repair": "technical",
+        "starship weapon repair": "technical",
+        "musical instrument": "perception",
     }
     return _FALLBACK.get(skill_name, "perception")
 
@@ -317,5 +320,325 @@ def resolve_mission_completion(
         "pool": result.pool_str,
         "fumble": result.fumble,
         "critical": result.critical_success,
+        "message": msg,
+    }
+
+
+# ── Bargain / Haggle check ───────────────────────────────────────────────────
+#
+# WEG D6 R&E Bargain Table (Galaxy Guide 6, p77):
+# Player and NPC each roll Bargain.  The difference in rolls maps to a
+# price modifier.  Simplified for MUSH: each 4 points of margin = ±2%,
+# capped at ±10%.  A critical doubles the modifier.  A fumble inverts it.
+#
+# Usage:
+#   from engine.skill_checks import resolve_bargain_check
+#   result = resolve_bargain_check(char, npc_bargain_dice=3, npc_bargain_pips=0,
+#                                  base_price=500)
+#   final_price = result["adjusted_price"]
+# ─────────────────────────────────────────────────────────────────────────────
+
+def resolve_bargain_check(
+    char: dict,
+    base_price: int,
+    npc_bargain_dice: int = 3,
+    npc_bargain_pips: int = 0,
+    is_buying: bool = True,
+    skill_registry=None,
+) -> dict:
+    """
+    Resolve a Bargain opposed roll for buy/sell transactions.
+
+    The player rolls Bargain (or raw Perception if untrained).
+    The NPC rolls a fixed Bargain pool.
+    Margin maps to price shift: ±2% per 4 points, capped ±10%.
+    Critical success: modifier is doubled (up to ±10% cap).
+    Fumble: modifier is inverted (player gets worse deal).
+
+    Args:
+        char: Player character dict.
+        base_price: The base sticker price before haggling.
+        npc_bargain_dice: NPC's Bargain skill dice.
+        npc_bargain_pips: NPC's Bargain skill pips.
+        is_buying: True if player is buying (lower = better for player).
+                   False if player is selling (higher = better for player).
+        skill_registry: Optional SkillRegistry.
+
+    Returns:
+        {
+          "adjusted_price": int,
+          "price_modifier_pct": int,   # e.g. -4 means 4% cheaper
+          "player_roll": int,
+          "npc_roll": int,
+          "player_pool": str,
+          "npc_pool": str,
+          "margin": int,               # player_roll - npc_roll
+          "critical": bool,
+          "fumble": bool,
+          "message": str,              # narrative line
+        }
+    """
+    # Player roll
+    if skill_registry is None:
+        try:
+            from engine.character import SkillRegistry
+            skill_registry = SkillRegistry()
+            skill_registry.load_default()
+        except Exception:
+            skill_registry = None
+
+    player_dice, player_pips = _get_skill_pool(char, "bargain", skill_registry)
+    player_pool_str = _pool_to_str(player_dice, player_pips)
+
+    player_total, player_crit, player_fumble = _roll_wild_die_pool(
+        player_dice, player_pips
+    )
+
+    # NPC roll (no Wild Die — NPCs use flat rolls for simplicity)
+    npc_total = sum(
+        random.randint(1, 6) for _ in range(max(1, npc_bargain_dice))
+    ) + npc_bargain_pips
+    npc_pool_str = _pool_to_str(npc_bargain_dice, npc_bargain_pips)
+
+    # Margin: positive = player wins the haggle
+    margin = player_total - npc_total
+
+    # Map margin to price modifier: ±2% per 4 points, capped ±10%
+    raw_pct = (margin // 4) * 2  # e.g. margin 8 → +4%, margin -4 → -2%
+    raw_pct = max(-10, min(10, raw_pct))
+
+    # Critical doubles the modifier (still capped)
+    if player_crit and margin > 0:
+        raw_pct = max(-10, min(10, raw_pct * 2))
+
+    # Fumble inverts the modifier (player gets worse deal)
+    if player_fumble:
+        raw_pct = -abs(raw_pct) if raw_pct >= 0 else abs(raw_pct)
+        # Fumble always hurts: minimum -2% swing against player
+        if is_buying and raw_pct <= 0:
+            raw_pct = 2
+        elif not is_buying and raw_pct >= 0:
+            raw_pct = -2
+
+    # Apply modifier: for buying, negative % = cheaper (good for player)
+    # For selling, positive % = higher sell price (good for player)
+    if is_buying:
+        # Player wants to pay LESS. If they win, price decreases.
+        # raw_pct positive = player wins = price goes DOWN
+        modifier = -raw_pct
+    else:
+        # Player wants to get MORE. If they win, price goes UP.
+        # raw_pct positive = player wins = price goes UP
+        modifier = raw_pct
+
+    adjusted = max(1, int(base_price * (1 + modifier / 100)))
+
+    # Build narrative
+    if modifier < 0:
+        # Player pays more (buying) or gets less (selling)
+        if is_buying:
+            msg = f"  The vendor holds firm. You pay a bit extra."
+        else:
+            msg = f"  The vendor low-balls you. Not your best deal."
+    elif modifier > 0:
+        if is_buying:
+            msg = f"  You haggle the price down. Nice deal."
+        else:
+            msg = f"  You talk the vendor up. Good negotiating."
+    else:
+        msg = f"  Standard price. No advantage either way."
+
+    if player_crit and margin > 0:
+        msg = f"  Masterful negotiation! The vendor is impressed."
+    if player_fumble:
+        msg = f"  Your haggling backfires. The vendor smirks."
+
+    return {
+        "adjusted_price": adjusted,
+        "price_modifier_pct": modifier,
+        "player_roll": player_total,
+        "npc_roll": npc_total,
+        "player_pool": player_pool_str,
+        "npc_pool": npc_pool_str,
+        "margin": margin,
+        "critical": player_crit,
+        "fumble": player_fumble,
+        "message": msg,
+    }
+
+
+# ── Ship repair skill check ──────────────────────────────────────────────────
+#
+# Wraps perform_skill_check for damcon / shiprepair with repair-specific
+# outputs: hull_repaired scaled by margin, fumble → catastrophic failure.
+#
+# Usage:
+#   from engine.skill_checks import resolve_repair_check
+#   result = resolve_repair_check(char, "space transports repair", difficulty=20)
+#   if result["success"]:
+#       hull_repaired = result["hull_repaired"]
+# ─────────────────────────────────────────────────────────────────────────────
+
+def resolve_repair_check(
+    char: dict,
+    skill_name: str,
+    difficulty: int,
+    is_hull: bool = False,
+    skill_registry=None,
+) -> dict:
+    """
+    Resolve a ship repair skill check via perform_skill_check.
+
+    Args:
+        char: Player character dict.
+        skill_name: e.g. "space transports repair", "starfighter repair"
+        difficulty: Target number (from REPAIR_DIFFICULTIES + combat penalty).
+        is_hull: If True, success restores hull points scaled by margin.
+        skill_registry: Optional SkillRegistry.
+
+    Returns:
+        {
+          "success": bool,
+          "partial": bool,          # margin >= -4, system stabilised but not fixed
+          "catastrophic": bool,     # fumble or margin <= -9, system destroyed
+          "hull_repaired": int,     # 0 for non-hull, 1 normal, 2 on crit
+          "roll": int,
+          "difficulty": int,
+          "margin": int,
+          "skill": str,
+          "pool": str,
+          "critical": bool,
+          "fumble": bool,
+          "message": str,
+        }
+    """
+    result = perform_skill_check(char, skill_name, difficulty, skill_registry)
+
+    hull_repaired = 0
+    catastrophic = False
+    partial = False
+
+    if result.success:
+        if is_hull:
+            hull_repaired = 2 if result.critical_success else 1
+            if result.critical_success:
+                msg = (
+                    f"  Outstanding work! Two hull breaches patched. "
+                    f"({result.pool_str}: {result.roll} vs {difficulty})"
+                )
+            else:
+                msg = (
+                    f"  Repair successful. Hull breach sealed. "
+                    f"({result.pool_str}: {result.roll} vs {difficulty})"
+                )
+        else:
+            if result.critical_success:
+                msg = (
+                    f"  Expert repair! System restored and running clean. "
+                    f"({result.pool_str}: {result.roll} vs {difficulty})"
+                )
+            else:
+                msg = (
+                    f"  Repair successful. System back online. "
+                    f"({result.pool_str}: {result.roll} vs {difficulty})"
+                )
+    elif result.fumble or result.margin <= -9:
+        # Catastrophic failure — system destroyed beyond repair
+        catastrophic = True
+        msg = (
+            f"  Catastrophic failure! Components fused together — "
+            f"needs a spacedock. "
+            f"({result.pool_str}: {result.roll} vs {difficulty}, "
+            f"margin: {result.margin})"
+        )
+    elif result.margin >= -4:
+        # Near-miss: system not fixed but stabilised (no worsening)
+        partial = True
+        msg = (
+            f"  Almost had it — system stabilised but still offline. "
+            f"({result.pool_str}: {result.roll} vs {difficulty})"
+        )
+    else:
+        msg = (
+            f"  Repair failed. System remains offline. "
+            f"({result.pool_str}: {result.roll} vs {difficulty})"
+        )
+
+    return {
+        "success": result.success,
+        "partial": partial,
+        "catastrophic": catastrophic,
+        "hull_repaired": hull_repaired,
+        "roll": result.roll,
+        "difficulty": difficulty,
+        "margin": result.margin,
+        "skill": skill_name,
+        "pool": result.pool_str,
+        "critical": result.critical_success,
+        "fumble": result.fumble,
+        "message": msg,
+    }
+
+
+# ── Coordinate (Command skill) check ────────────────────────────────────────
+#
+# Used by CoordinateCommand in space_commands.py.
+# Simple wrapper so space_commands doesn't roll dice directly.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def resolve_coordinate_check(
+    char: dict,
+    difficulty: int = 12,
+    skill_registry=None,
+) -> dict:
+    """
+    Resolve a Command skill check for crew coordination.
+
+    Returns:
+        {
+          "success": bool,
+          "critical": bool,     # crit = +2 bonus to crew instead of +1
+          "fumble": bool,       # fumble = -1 penalty to crew
+          "roll": int,
+          "difficulty": int,
+          "pool": str,
+          "message": str,
+        }
+    """
+    result = perform_skill_check(char, "command", difficulty, skill_registry)
+
+    if result.success:
+        if result.critical_success:
+            msg = (
+                f"Brilliant coordination! The crew acts as one. "
+                f"(Command {result.pool_str}: {result.roll} vs {difficulty}) "
+                f"+2 to all crew rolls this round."
+            )
+        else:
+            msg = (
+                f"The crew rallies! "
+                f"(Command {result.pool_str}: {result.roll} vs {difficulty}) "
+                f"+1 to all crew rolls this round."
+            )
+    else:
+        if result.fumble:
+            msg = (
+                f"Confusing orders! The crew hesitates. "
+                f"(Command {result.pool_str}: {result.roll} vs {difficulty}) "
+                f"-1 to crew rolls this round."
+            )
+        else:
+            msg = (
+                f"The coordination attempt falls flat. "
+                f"(Command {result.pool_str}: {result.roll} vs {difficulty})"
+            )
+
+    return {
+        "success": result.success,
+        "critical": result.critical_success,
+        "fumble": result.fumble,
+        "roll": result.roll,
+        "difficulty": difficulty,
+        "pool": result.pool_str,
         "message": msg,
     }

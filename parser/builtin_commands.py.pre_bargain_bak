@@ -938,46 +938,22 @@ class SellCommand(BaseCommand):
         # Sale price: 25-50% based on condition
         condition_factor = item.condition / max(item.max_condition, 1)
         sale_pct = 0.25 + (condition_factor * 0.25)  # 25% at broken, 50% at new
-        base_sale_price = max(10, int(base_cost * sale_pct))
+        sale_price = max(10, int(base_cost * sale_pct))
 
         # Quality bonus for crafted items
         if item.quality >= 80:
-            base_sale_price = int(base_sale_price * 1.3)
+            sale_price = int(sale_price * 1.3)
         elif item.quality >= 60:
-            base_sale_price = int(base_sale_price * 1.15)
+            sale_price = int(sale_price * 1.15)
 
         # World event sell price multiplier (e.g. trade_boom: +25%)
         try:
             from engine.world_events import get_world_event_manager
             _smult = get_world_event_manager().get_effect('sell_price_mult', 1.0)
             if _smult != 1.0:
-                base_sale_price = int(base_sale_price * _smult)
+                sale_price = int(sale_price * _smult)
         except Exception:
             pass
-
-        # ── Bargain haggle: player vs vendor ──
-        npc_dice, npc_pips = 3, 0  # Default generic vendor: 3D Bargain
-        try:
-            import json as _json
-            npcs = await ctx.db.get_npcs_in_room(char["room_id"])
-            for npc in npcs:
-                sheet = _json.loads(npc.get("char_sheet_json", "{}"))
-                npc_skills = sheet.get("skills", {})
-                bargain_str = npc_skills.get("bargain", "")
-                if bargain_str:
-                    from engine.skill_checks import _parse_dice_str
-                    npc_dice, npc_pips = _parse_dice_str(bargain_str)
-                    break  # Use first vendor NPC with Bargain skill
-        except Exception:
-            pass
-
-        from engine.skill_checks import resolve_bargain_check
-        haggle = resolve_bargain_check(
-            char, base_sale_price,
-            npc_bargain_dice=npc_dice, npc_bargain_pips=npc_pips,
-            is_buying=False,
-        )
-        sale_price = haggle["adjusted_price"]
 
         credits = char.get("credits", 0)
         new_credits = credits + sale_price
@@ -986,17 +962,6 @@ class SellCommand(BaseCommand):
         char["equipment"] = serialize_equipment(None)
         await ctx.db.save_character(
             char["id"], credits=new_credits, equipment=char["equipment"])
-
-        # Show haggle result
-        pct = haggle["price_modifier_pct"]
-        if pct != 0:
-            direction = "bonus" if pct > 0 else "penalty"
-            await ctx.session.send_line(
-                f"  {ansi.DIM}Bargain {haggle['player_pool']}:"
-                f" {haggle['player_roll']} vs vendor {haggle['npc_pool']}:"
-                f" {haggle['npc_roll']}"
-                f" → {abs(pct)}% {direction}{ansi.RESET}")
-        await ctx.session.send_line(haggle["message"])
         await ctx.session.send_line(
             ansi.success(
                 f"  Sold {wname} ({item.condition_label}) for {sale_price:,} credits. "

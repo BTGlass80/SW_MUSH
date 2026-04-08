@@ -1619,57 +1619,21 @@ class BuyCommand(BaseCommand):
         if weapon.is_armor:
             await ctx.session.send_line("  Armor purchases coming soon.")
             return
-        base_price = weapon.cost
-        if base_price <= 0:
-            base_price = 500
+        price = weapon.cost
+        if price <= 0:
+            price = 500
         char = ctx.session.character
-
-        # ── Bargain haggle: player vs vendor ──
-        npc_dice, npc_pips = 3, 0  # Default generic vendor: 3D Bargain
-        try:
-            import json as _json
-            npcs = await ctx.db.get_npcs_in_room(char["room_id"])
-            for npc in npcs:
-                sheet = _json.loads(npc.get("char_sheet_json", "{}"))
-                npc_skills = sheet.get("skills", {})
-                bargain_str = npc_skills.get("bargain", "")
-                if bargain_str:
-                    from engine.skill_checks import _parse_dice_str
-                    npc_dice, npc_pips = _parse_dice_str(bargain_str)
-                    break  # Use first vendor NPC with Bargain skill
-        except Exception:
-            pass
-
-        from engine.skill_checks import resolve_bargain_check
-        haggle = resolve_bargain_check(
-            char, base_price,
-            npc_bargain_dice=npc_dice, npc_bargain_pips=npc_pips,
-            is_buying=True,
-        )
-        price = haggle["adjusted_price"]
-
         current_credits = char.get("credits", 1000)
         if current_credits < price:
             await ctx.session.send_line(
-                f"  Not enough credits! {weapon.name} costs {price:,} credits "
-                f"(base {base_price:,}), you have {current_credits:,}.")
+                f"  Not enough credits! {weapon.name} costs {price:,} credits, "
+                f"you have {current_credits:,}.")
             return
         new_credits = current_credits - price
         item = ItemInstance.new_from_vendor(weapon.key)
         char["credits"] = new_credits
         char["equipment"] = serialize_equipment(item)
         await ctx.db.save_character(char["id"], credits=new_credits, equipment=char["equipment"])
-
-        # Show haggle result
-        pct = haggle["price_modifier_pct"]
-        if pct != 0:
-            direction = "discount" if pct < 0 else "markup"
-            await ctx.session.send_line(
-                f"  {ansi.DIM}Bargain {haggle['player_pool']}:"
-                f" {haggle['player_roll']} vs vendor {haggle['npc_pool']}:"
-                f" {haggle['npc_roll']}"
-                f" → {abs(pct)}% {direction}{ansi.RESET}")
-        await ctx.session.send_line(haggle["message"])
         await ctx.session.send_line(
             ansi.success(
                 f"  Purchased and equipped {weapon.name} for {price:,} credits. "
