@@ -110,7 +110,8 @@ class NPCBrain:
 
     def _build_system_prompt(self, room_desc: str = "",
                              player_name: str = "",
-                             player_memory: str = "") -> str:
+                             player_memory: str = "",
+                             persuasion_context: str = "") -> str:
         """Assemble the full system prompt for this NPC."""
         cfg = self.npc.ai_config
         parts = []
@@ -153,6 +154,10 @@ class NPCBrain:
         if player_memory:
             parts.append(f"Your history with {player_name}: {player_memory}")
 
+        # Persuasion context (injected by skill check in TalkCommand)
+        if persuasion_context:
+            parts.append(persuasion_context)
+
         # Constraints
         parts.append(
             "RULES: Stay in character at all times. Do not reference game mechanics, "
@@ -188,6 +193,7 @@ class NPCBrain:
         player_char_id: int = 0,
         room_desc: str = "",
         db=None,
+        persuasion_context: str = "",
     ) -> str:
         """
         Generate an NPC dialogue response.
@@ -198,6 +204,8 @@ class NPCBrain:
             player_char_id: For rate limiting and memory lookup.
             room_desc: Current room description for context.
             db: Database reference for memory lookup/save.
+            persuasion_context: Hint injected by Persuasion skill check.
+                Empty string = no check was run (casual greeting).
 
         Returns:
             NPC's spoken response as a string.
@@ -215,6 +223,7 @@ class NPCBrain:
             room_desc=room_desc,
             player_name=player_name,
             player_memory=player_memory,
+            persuasion_context=persuasion_context,
         )
 
         # Add to conversation history

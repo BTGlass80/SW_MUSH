@@ -746,6 +746,81 @@ class ScanCommand(BaseCommand):
         player_zone = systems.get("current_zone", "")
         reg = get_ship_registry()
         grid = get_space_grid()
+        char = ctx.session.character
+        crew = _get_crew(ship)
+
+        # ── Sensors skill check ───────────────────────────────────────────────
+        # Sensors station operator gets +2D bonus.
+        # Difficulty 8 (Easy) — space signals are loud, but reading them takes skill.
+        from engine.skill_checks import perform_skill_check
+        from engine.character import SkillRegistry, Character, DicePool
+        _SCAN_DIFFICULTY = 8
+        try:
+            char_obj = Character.from_db_dict(char)
+            sr = SkillRegistry()
+            sr.load_default()
+            base_pool = char_obj.get_skill_pool("sensors", sr)
+            # Station bonus: +2D if sitting at sensors
+            if crew.get("sensors") == char["id"]:
+                bonus = DicePool(2, 0)
+                boosted = base_pool + bonus
+                # Temporarily write boosted pool into char for perform_skill_check
+                import json as _json
+                _skills = _json.loads(char.get("skills", "{}"))
+                _orig = _skills.get("sensors")
+                _skills["sensors"] = str(boosted)
+                char["skills"] = _json.dumps(_skills)
+                scan_result = perform_skill_check(char, "sensors", _SCAN_DIFFICULTY, sr)
+                # Restore
+                if _orig is None:
+                    _skills.pop("sensors", None)
+                else:
+                    _skills["sensors"] = _orig
+                char["skills"] = _json.dumps(_skills)
+            else:
+                scan_result = perform_skill_check(char, "sensors", _SCAN_DIFFICULTY, sr)
+        except Exception:
+            scan_result = None  # Graceful-drop: show full scan on error
+
+        # Determine info tier from result
+        # fumble -> nothing; fail -> basic; success -> standard; crit -> deep
+        if scan_result is None:
+            scan_tier = "success"   # error fallback
+        elif scan_result.fumble:
+            scan_tier = "fumble"
+        elif not scan_result.success:
+            scan_tier = "fail"
+        elif scan_result.critical_success:
+            scan_tier = "critical"
+        else:
+            scan_tier = "success"
+
+        # Show skill roll feedback to the scanner
+        if scan_result is not None:
+            tier_label = {
+                "fumble":   f"{ansi.BRIGHT_RED}SENSOR FAILURE{ansi.RESET}",
+                "fail":     f"{ansi.DIM}Basic read{ansi.RESET}",
+                "success":  f"{ansi.BRIGHT_CYAN}Standard sweep{ansi.RESET}",
+                "critical": f"{ansi.BRIGHT_GREEN}Deep scan{ansi.RESET}",
+            }[scan_tier]
+            station_note = " [+2D station]" if crew.get("sensors") == char["id"] else ""
+            await ctx.session.send_line(
+                f"  {ansi.DIM}[Sensors: {scan_result.pool_str} vs {_SCAN_DIFFICULTY} "
+                f"— roll {scan_result.roll}]{ansi.RESET}  {tier_label}{station_note}"
+            )
+
+        if scan_tier == "fumble":
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_CYAN}=== Sensor Scan ==={ansi.RESET}"
+            )
+            if player_zone:
+                await ctx.session.send_line(f"  {ansi.DIM}Zone: {player_zone}{ansi.RESET}")
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}Sensor array offline — interference or calibration error.{ansi.RESET}"
+            )
+            await ctx.session.send_line("")
+            return
+
         others = [s for s in await ctx.db.get_ships_in_space() if s["id"] != ship["id"]]
         await ctx.session.send_line(f"  {ansi.BRIGHT_CYAN}=== Sensor Scan ==={ansi.RESET}")
         if player_zone:
@@ -758,22 +833,61 @@ class ScanCommand(BaseCommand):
             rng = grid.get_range(ship["id"], s["id"])
             pos = grid.get_position(ship["id"], s["id"])
             dmg = s.get("hull_damage", 0)
-            status = "Active" if dmg == 0 else f"Damaged ({dmg} hits)"
-            await ctx.session.send_line(
-                f"  Contact: {ansi.BRIGHT_WHITE}{s['name']}{ansi.RESET} ({tname})")
-            await ctx.session.send_line(
-                f"    Range: {rng.label}  Position: {pos}  Status: {status}")
+            if scan_tier == "fail":
+                # Basic: name + range only
+                await ctx.session.send_line(
+                    f"  Contact: {ansi.BRIGHT_WHITE}{s['name']}{ansi.RESET} — "
+                    f"Range: {rng.label}")
+            elif scan_tier == "critical":
+                # Deep: full data + hull % + cargo flag
+                hull_pct = max(0, 100 - dmg * 10)
+                status = f"Hull {hull_pct}%" if dmg > 0 else "Undamaged"
+                sys_json = s.get("systems", "{}")
+                try:
+                    import json as _j; _sys = _j.loads(sys_json) if isinstance(sys_json, str) else sys_json
+                except Exception:
+                    _sys = {}
+                cargo_flag = ""
+                if _sys.get("smuggling_job"):
+                    cargo_flag = f"  {ansi.BRIGHT_YELLOW}[CARGO ANOMALY DETECTED]{ansi.RESET}"
+                await ctx.session.send_line(
+                    f"  Contact: {ansi.BRIGHT_WHITE}{s['name']}{ansi.RESET} ({tname})")
+                await ctx.session.send_line(
+                    f"    Range: {rng.label}  Position: {pos}  Status: {status}{cargo_flag}")
+            else:
+                # Standard: name, type, range, position, status
+                status = "Active" if dmg == 0 else f"Damaged ({dmg} hits)"
+                await ctx.session.send_line(
+                    f"  Contact: {ansi.BRIGHT_WHITE}{s['name']}{ansi.RESET} ({tname})")
+                await ctx.session.send_line(
+                    f"    Range: {rng.label}  Position: {pos}  Status: {status}")
             any_contacts = True
         # ── NPC Traffic ships in same zone ────────────────────────────────────
         if player_zone:
             traffic_ships = get_traffic_manager().get_zone_ships(player_zone)
             for ts in traffic_ships:
-                await ctx.session.send_line(
-                    f"  Contact: {ansi.BRIGHT_WHITE}{ts.sensors_name()}{ansi.RESET} "
-                    f"[NPC {ts.archetype.value.title()}]")
-                await ctx.session.send_line(
-                    f"    Zone: {player_zone}  Transponder: {ts.transponder_type}"
-                    f"  Captain: {ts.captain_name}")
+                if scan_tier == "fail":
+                    await ctx.session.send_line(
+                        f"  Contact: {ansi.BRIGHT_WHITE}{ts.sensors_name()}{ansi.RESET} "
+                        f"— Range: local zone")
+                elif scan_tier == "critical":
+                    archetype_label = ts.archetype.value.title()
+                    cargo_flag = ""
+                    if ts.archetype.value.lower() == "smuggler":
+                        cargo_flag = f"  {ansi.BRIGHT_YELLOW}[IRREGULAR POWER SIGNATURE]{ansi.RESET}"
+                    await ctx.session.send_line(
+                        f"  Contact: {ansi.BRIGHT_WHITE}{ts.sensors_name()}{ansi.RESET} "
+                        f"[NPC {archetype_label}]{cargo_flag}")
+                    await ctx.session.send_line(
+                        f"    Zone: {player_zone}  Transponder: {ts.transponder_type}"
+                        f"  Captain: {ts.captain_name}")
+                else:
+                    await ctx.session.send_line(
+                        f"  Contact: {ansi.BRIGHT_WHITE}{ts.sensors_name()}{ansi.RESET} "
+                        f"[NPC {ts.archetype.value.title()}]")
+                    await ctx.session.send_line(
+                        f"    Zone: {player_zone}  Transponder: {ts.transponder_type}"
+                        f"  Captain: {ts.captain_name}")
                 any_contacts = True
         if not any_contacts:
             await ctx.session.send_line("  No other ships detected.")
@@ -1561,21 +1675,98 @@ class HyperspaceCommand(BaseCommand):
                 f"  Not enough credits for hyperspace fuel! "
                 f"Need {fuel_cost:,}cr, have {credits:,}cr.")
             return
-        # Astrogation roll
-        from engine.character import Character, SkillRegistry
-        char_obj = Character.from_db_dict(ctx.session.character)
-        sr = SkillRegistry()
-        sr.load_file("data/skills.yaml")
-        from engine.dice import roll_d6_pool, DicePool as DP
-        astro_pool = char_obj.get_skill_pool("astrogation", sr)
-        roll = roll_d6_pool(astro_pool)
-        difficulty = 10  # Easy for known routes
-        if roll.total < difficulty:
-            await ctx.session_mgr.broadcast_to_room(ship["bridge_room_id"],
-                f"  {ansi.BRIGHT_RED}[NAV]{ansi.RESET} Astrogation calculation failed! "
-                f"(Roll: {roll.total} vs {difficulty}) "
-                f"Cannot make the jump safely. (Fuel not consumed.)")
+        # ── Astrogation skill check (through skill engine) ───────────────────
+        # Navigator at sensors station grants +1D.
+        # Fumble = misjump (random zone + hazard table).
+        # Critical = clean jump, fuel cost halved.
+        from engine.skill_checks import perform_skill_check
+        from engine.character import Character, SkillRegistry, DicePool
+        difficulty = 10  # Easy for known Outer Rim routes
+        try:
+            char_obj = Character.from_db_dict(char)
+            sr = SkillRegistry()
+            sr.load_default()
+            crew = _get_crew(ship)
+            # Navigator bonus: +1D if someone is at sensors station
+            if crew.get("sensors"):
+                import json as _jj
+                _skills = _jj.loads(char.get("skills", "{}"))
+                base_pool = char_obj.get_skill_pool("astrogation", sr)
+                boosted = base_pool + DicePool(1, 0)
+                _orig = _skills.get("astrogation")
+                _skills["astrogation"] = str(boosted)
+                char["skills"] = _jj.dumps(_skills)
+                nav_result = perform_skill_check(char, "astrogation", difficulty, sr)
+                if _orig is None:
+                    _skills.pop("astrogation", None)
+                else:
+                    _skills["astrogation"] = _orig
+                char["skills"] = _jj.dumps(_skills)
+                nav_note = " [+1D navigator]"
+            else:
+                nav_result = perform_skill_check(char, "astrogation", difficulty, sr)
+                nav_note = ""
+        except Exception:
+            # Graceful fallback: treat as plain success
+            nav_result = None
+            nav_note = ""
+
+        # ── Fumble: misjump ───────────────────────────────────────────────────
+        if nav_result is not None and nav_result.fumble:
+            import random as _rnd
+            from engine.starships import roll_hazard_table
+            from engine.npc_space_traffic import ZONES as _TZ
+            misjump_zones = [z for z in _TZ if "deep_space" in z or "orbit" in z]
+            misjump_zone = _rnd.choice(misjump_zones) if misjump_zones else "tatooine_deep_space"
+            # Charge full fuel for the botched jump
+            char["credits"] = credits - fuel_cost
+            await ctx.db.save_character(char["id"], credits=char["credits"])
+            # Move ship to random zone
+            get_space_grid().remove_ship(ship["id"])
+            systems["current_zone"] = misjump_zone
+            systems["location"] = misjump_zone.split("_")[0]
+            # Fire hazard table
+            hazard = roll_hazard_table(systems)
+            if hazard.hull_damage:
+                existing_dmg = ship.get("hull_damage", 0)
+                await ctx.db.update_ship(
+                    ship["id"], hull_damage=existing_dmg + hazard.hull_damage
+                )
+            if hazard.systems_damaged:
+                for _sys_name in hazard.systems_damaged:
+                    systems[_sys_name] = False
+            await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
+            speed = template.speed if template else 5
+            get_space_grid().add_ship(ship["id"], speed)
+            await ctx.session_mgr.broadcast_to_room(
+                ship["bridge_room_id"],
+                f"  {ansi.BRIGHT_RED}[MISJUMP]{ansi.RESET} "
+                f"Astrogation catastrophically failed! "
+                f"(Roll: {nav_result.roll} vs {difficulty} — FUMBLE{nav_note})\n"
+                f"  Hyperspace vortex tears open — the ship lurches out of control!\n"
+                f"  {hazard.narrative}\n"
+                f"  Reverting to realspace in unknown region: {misjump_zone}."
+            )
             return
+
+        # ── Failure: calculation aborted ──────────────────────────────────────
+        if nav_result is not None and not nav_result.success:
+            await ctx.session_mgr.broadcast_to_room(
+                ship["bridge_room_id"],
+                f"  {ansi.BRIGHT_RED}[NAV]{ansi.RESET} Astrogation calculation failed! "
+                f"(Roll: {nav_result.roll} vs {difficulty}{nav_note}) "
+                f"Cannot make the jump safely. (Fuel not consumed.)"
+            )
+            return
+
+        # ── Success or graceful-drop ──────────────────────────────────────────
+        # Critical: halve fuel cost
+        if nav_result is not None and nav_result.critical_success:
+            fuel_cost = max(50, fuel_cost // 2)
+        roll_str = f"Roll: {nav_result.roll} vs {difficulty}{nav_note}" if nav_result else "auto"
+        crit_note = " (critical — efficient jump!)" if (
+            nav_result and nav_result.critical_success) else ""
+
         # Charge fuel
         char["credits"] = credits - fuel_cost
         await ctx.db.save_character(char["id"], credits=char["credits"])
@@ -1588,12 +1779,14 @@ class HyperspaceCommand(BaseCommand):
         _hzone = dest_key + "_orbit" if (dest_key + "_orbit") in _TZ else "tatooine_orbit"
         systems["current_zone"] = _hzone
         await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
-        await ctx.session_mgr.broadcast_to_room(ship["bridge_room_id"],
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
             f"  {ansi.BRIGHT_CYAN}[HYPERSPACE]{ansi.RESET} "
-            f"Astrogation plotted. (Roll: {roll.total} vs {difficulty})\n"
+            f"Astrogation plotted. ({roll_str}){crit_note}\n"
             f"  Stars stretch into lines as the {ship['name']} jumps to lightspeed!\n"
             f"  ...\n"
-            f"  Arriving at {dest['name']}. Reverting to realspace.")
+            f"  Arriving at {dest['name']}. Reverting to realspace."
+        )
         # Re-add to grid at new location
         speed = template.speed if template else 5
         get_space_grid().add_ship(ship["id"], speed)

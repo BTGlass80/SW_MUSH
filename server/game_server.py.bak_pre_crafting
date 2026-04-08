@@ -34,7 +34,6 @@ from parser.medical_commands import register_medical_commands
 from parser.entertainer_commands import register_entertainer_commands
 from parser.cp_commands import register_cp_commands
 from parser.sabacc_commands import register_sabacc_commands
-from parser.crafting_commands import register_crafting_commands
 from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry

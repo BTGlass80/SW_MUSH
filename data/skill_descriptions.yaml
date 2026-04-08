@@ -1,0 +1,1122 @@
+# Star Wars D6 R&E - Skill Descriptions for Character Creation
+# Sourced from WEG40120 Chapter Two: Attributes and Skills
+# Each skill has: description (from R&E), game_use (what it does in THIS game),
+# and relevance tags for chargen guidance.
+#
+# Attribute descriptions are also included for the guided creation flow.
+
+attributes:
+  dexterity:
+    description: >
+      Dexterity is a measure of your character's eye-hand coordination and
+      balance. Characters with a high Dexterity are good shots, can dodge
+      blaster bolts, can walk balance beams with ease and even make good
+      pick-pockets. Characters with a low Dexterity are clumsy.
+    short: "Shooting, dodging, melee combat, reflexes."
+    icon: "blaster"
+    gameplay_note: >
+      Dexterity is your combat attribute. It governs both your accuracy
+      with ranged weapons and your ability to dodge incoming fire. If you
+      plan to get into firefights — and in Mos Eisley, you will — this
+      is your most important attribute.
+
+  knowledge:
+    description: >
+      Knowledge is a measure of your character's common sense and academic
+      knowledge. Characters with a high Knowledge have good memory for
+      details, and have learned a lot about different aliens and planets.
+      They often have a flair for languages, and they know how to get
+      things done in bureaucracies.
+    short: "Education, streetwise, languages, survival."
+    icon: "datapad"
+    gameplay_note: >
+      Knowledge covers what your character knows about the galaxy. It
+      includes Streetwise — critical for bounty collection and underworld
+      contacts — and Survival for harsh environments. Intimidation also
+      lives here.
+
+  mechanical:
+    description: >
+      Mechanical stands for mechanical aptitude and represents how well a
+      character can pilot vehicles and starships and operate the various
+      systems on board. A character with a high Mechanical attribute is
+      going to take naturally to driving landspeeders, flying cloud cars
+      and piloting ships like the Millennium Falcon.
+    short: "Piloting, gunnery, sensors, astrogation."
+    icon: "starship"
+    gameplay_note: >
+      Mechanical is your spacefaring attribute. Piloting, astrogation,
+      sensors, gunnery — everything that happens in the cockpit runs
+      through Mechanical. Essential for pilots and smugglers. A fumbled
+      astrogation roll means a misjump to a random system.
+
+  perception:
+    description: >
+      Perception is the character's ability to notice things about his
+      surroundings and other characters. Those with a high Perception are
+      quick to spot concealed objects or people hiding behind a corner.
+      They're also good at convincing other people to do favors for them,
+      tricking or conning others, and bargaining to get good prices for
+      goods or services. Characters with a low Perception get lost a lot.
+    short: "Awareness, persuasion, con, bargain, search."
+    icon: "eye"
+    gameplay_note: >
+      Perception is the social and awareness attribute. Bargain directly
+      affects buy/sell prices at shops. Con and Persuasion gate NPC
+      interactions. Search is used for bounty collection, crafting
+      surveys, and finding hidden things. Perception also sets your
+      initiative order in combat.
+
+  strength:
+    description: >
+      Strength represents a character's physical strength, endurance and
+      health. Characters with a high Strength can lift heavy objects,
+      push themselves for days without rest and are good at resisting
+      disease and injury. A character with a low Strength gets winded
+      very easily.
+    short: "Brawling, toughness, stamina, climbing."
+    icon: "fist"
+    gameplay_note: >
+      Strength is your damage resistance in combat — when you get shot,
+      you roll Strength to resist the damage. It also governs brawling
+      (unarmed combat) and Stamina, which is used for delivery missions.
+      Even non-fighters want some Strength to survive getting hit.
+
+  technical:
+    description: >
+      Technical stands for technical aptitude and represents a character's
+      innate knowledge of how to take apart, repair and modify things. A
+      character with a high Technical attribute can take apart a droid,
+      fix a busted drive system on a landspeeder, and modify a blaster to
+      have a longer range. Technical also reflects a character's knowledge
+      of healing and medicine, his skill at setting explosives, and his
+      ability to figure out electronic security systems.
+    short: "Repair, medicine, security, demolitions, crafting."
+    icon: "wrench"
+    gameplay_note: >
+      Technical is the crafter and medic attribute. Repair skills fix
+      ships and equipment. First Aid and Medicine let you heal other
+      players for credits. Security bypasses locks. Blaster Repair is
+      the key crafting skill for weapons — high Technical makes you a
+      better weaponsmith.
+
+# Skill descriptions by attribute
+# Tags: combat, piloting, social, economy, exploration, crafting, medical, force
+
+skills:
+  dexterity:
+    blaster:
+      description: >
+        Blaster is the ranged combat skill used to shoot blaster weapons
+        that can be held and carried by a character. Blaster covers
+        everything from tiny hold-out blasters to large repeating blasters.
+      game_use: "Primary ranged combat skill. Used for all personal blaster attacks."
+      tags: [combat]
+      priority: high
+      tip: "If you plan to fight at range — and most fights in Mos Eisley are at range — invest here."
+
+    bowcaster:
+      description: >
+        Bowcaster covers the Wookiee crossbow-like weapon that fires
+        explosive quarrels. Primarily used by Wookiees, though other
+        species can learn to use them.
+      game_use: "Ranged combat with bowcasters. Primarily for Wookiee characters."
+      tags: [combat]
+      priority: low
+      tip: "Only relevant if you're playing a Wookiee or plan to use a bowcaster."
+
+    brawling_parry:
+      description: >
+        Brawling parry is a reaction skill used to block or deflect
+        unarmed brawling attacks in melee combat.
+      game_use: "Defensive reaction against brawling attacks."
+      tags: [combat]
+      priority: medium
+      tip: "Useful if you expect to get into fistfights."
+
+    dodge:
+      description: >
+        Dodge is a reaction skill used to avoid any ranged attack,
+        including blaster fire, grenades, bullets and thrown weapons.
+        When a character dodges, it makes them harder to hit.
+      game_use: "Your main defense against ranged attacks in combat."
+      tags: [combat]
+      priority: high
+      tip: "Dodge keeps you alive. Every character benefits from some Dodge skill."
+
+    firearms:
+      description: >
+        Firearms is the ranged combat skill used for all guns which fire
+        bullets, including pistols, rifles, machine guns and assault rifles.
+        Normally only found on primitive-technology worlds.
+      game_use: "Ranged combat with slug-throwing weapons."
+      tags: [combat]
+      priority: low
+      tip: "Rarely used in the Star Wars galaxy. Blaster is almost always more relevant."
+
+    grenade:
+      description: >
+        Grenade is the ranged combat skill to throw grenades. Success
+        means the grenade hits the location it was thrown to. This skill
+        also covers throwing other objects like rocks.
+      game_use: "Throwing grenades and other objects in combat."
+      tags: [combat]
+      priority: medium
+      tip: "Situational but devastating. Thermal detonators do serious damage."
+
+    lightsaber:
+      description: >
+        Lightsaber is the melee combat skill used for the lightsaber, the
+        weapon of the famed Jedi Knights. While a very powerful weapon, a
+        lightsaber is dangerous to an unskilled user — if you miss the
+        difficulty number by 10 or more, you injure yourself.
+      game_use: "Melee combat with lightsabers. Can parry brawling and melee attacks."
+      tags: [combat, force]
+      priority: low
+      tip: "Only invest here if you're building a Force-sensitive character."
+
+    melee_combat:
+      description: >
+        Melee combat covers fighting with any hand-to-hand weapon:
+        knives, clubs, axes, vibroblades, force pikes. Melee parry is
+        a separate reaction skill for defending against such attacks.
+      game_use: "Attacking with melee weapons like vibroblades and force pikes."
+      tags: [combat]
+      priority: medium
+      tip: "A backup option if you like getting up close, but blasters dominate most fights."
+
+    melee_parry:
+      description: >
+        Melee parry is a reaction skill used when a character is attacked
+        by someone with a melee weapon, a brawling attack, or a lightsaber
+        attack. It cannot be used to parry blaster attacks — that's dodge.
+      game_use: "Defensive reaction against melee weapon attacks."
+      tags: [combat]
+      priority: low
+      tip: "Only needed if you expect melee combat. Dodge is more universally useful."
+
+    missile_weapons:
+      description: >
+        Missile weapons is the ranged combat skill used to fire all types
+        of missile weapons, including grappling hooks, grenade launchers,
+        and personal proton torpedo launchers.
+      game_use: "Firing missile launchers and similar heavy ordnance."
+      tags: [combat]
+      priority: low
+      tip: "Very specialized. Most characters won't need this."
+
+    pick_pocket:
+      description: >
+        Characters use pick pocket to pick the pockets of others, or to
+        palm objects without being noticed. The victim makes an opposed
+        search or Perception roll to detect the attempt.
+      game_use: "Stealing items from NPCs without being noticed."
+      tags: [social]
+      priority: low
+      tip: "Fun for a scoundrel concept but rarely mechanically necessary."
+
+    running:
+      description: >
+        Running is the character's ability to run and keep balance,
+        especially in dangerous terrain. The difficulty is based on the
+        kind of terrain being crossed and how fast the character moves.
+      game_use: "Chasing or fleeing on foot. Terrain traversal."
+      tags: [exploration]
+      priority: low
+      tip: "Rarely rolled in typical gameplay. Your Move rate matters more."
+
+    thrown_weapons:
+      description: >
+        Thrown weapons is the ranged combat skill used whenever a character
+        employs a primitive thrown weapon, including throwing knives,
+        slings, throwing spears and javelins.
+      game_use: "Throwing knives, spears and similar primitive ranged weapons."
+      tags: [combat]
+      priority: low
+      tip: "Very niche. Blaster or grenade will serve you better."
+
+    vehicle_blasters:
+      description: >
+        Vehicle blasters is the ranged combat skill used to fire
+        vehicle-mounted energy weapons, especially those on speeders
+        and walkers. The weapon's description will list which skill it uses.
+      game_use: "Firing weapons mounted on ground vehicles and walkers."
+      tags: [combat]
+      priority: low
+      tip: "Only relevant if you plan to operate armed ground vehicles."
+
+  knowledge:
+    alien_species:
+      description: >
+        Alien species involves knowledge of the customs, societies,
+        physical appearance, attitudes, philosophy, history, art,
+        politics, and special abilities of various alien species.
+      game_use: "Recalling lore about alien species you encounter."
+      tags: [social, exploration]
+      priority: low
+      tip: "Flavorful for roleplay but rarely mechanically required."
+
+    bureaucracy:
+      description: >
+        This skill reflects a character's familiarity with bureaucracies
+        and their procedures. It can be used to determine what forms and
+        identification are needed, who to talk to, and what shortcuts
+        might exist to expedite the process.
+      game_use: "Navigating Imperial bureaucracy. Finding the right official to bribe."
+      tags: [social]
+      priority: low
+      tip: "Situational. Useful for certain mission types."
+
+    business:
+      description: >
+        Business reflects a character's knowledge of business practices,
+        including economics, marketing, accounting and general corporate
+        culture. It can be used to evaluate business ventures and
+        understand commercial transactions.
+      game_use: "Understanding trade deals and evaluating business opportunities."
+      tags: [economy]
+      priority: low
+      tip: "Bargain is more directly useful for actual transactions."
+
+    cultures:
+      description: >
+        Cultures reflects knowledge of particular cultures and common
+        cultural traits. This skill can be used to determine how a
+        character should act in a given cultural setting to avoid
+        offending locals.
+      game_use: "Understanding local customs and avoiding social missteps."
+      tags: [social]
+      priority: low
+      tip: "Good for roleplay flavor but rarely mechanically gated."
+
+    intimidation:
+      description: >
+        Intimidation is a character's ability to scare or frighten others
+        into doing what they want. It's an opposed skill — the target
+        resists with willpower or Perception. Intimidation can supplement
+        or replace other social skills in threatening situations.
+      game_use: "Threatening NPCs into compliance. Social coercion."
+      tags: [social]
+      priority: medium
+      tip: "An alternative to Persuasion for characters who prefer threats over charm."
+
+    languages:
+      description: >
+        Languages reflects the character's knowledge of various galactic
+        languages. Basic is the common tongue, but many species speak
+        their own languages. A character who has dice in this skill is
+        a polyglot with a natural gift for communication.
+      game_use: "Understanding and speaking alien languages."
+      tags: [social]
+      priority: low
+      tip: "Most NPCs speak Basic. Useful for niche roleplay situations."
+
+    law_enforcement:
+      description: >
+        Law enforcement reflects a character's familiarity with law
+        enforcement techniques, procedures and methods. It can be used to
+        anticipate what law enforcement will do in a given situation.
+      game_use: "Predicting Imperial patrol behavior. Understanding legal procedures."
+      tags: [exploration]
+      priority: low
+      tip: "Niche. Streetwise is usually more useful for the same situations."
+
+    planetary_systems:
+      description: >
+        Planetary systems reflects a character's general knowledge of
+        geography, weather, life forms, trade products, settlements,
+        technology and general information about different star systems.
+      game_use: "Recalling information about planets and star systems."
+      tags: [exploration]
+      priority: low
+      tip: "Background knowledge skill. Rarely the difference between success and failure."
+
+    scholar:
+      description: >
+        Scholar reflects a character's knowledge of a particular academic
+        field — history, physics, xenobiology, or other specialized
+        domains that require formal study.
+      game_use: "Academic research. Specialized knowledge checks."
+      tags: [exploration]
+      priority: low
+      tip: "Very specialized. Only relevant if your character concept demands it."
+
+    streetwise:
+      description: >
+        Streetwise reflects a character's familiarity with underworld
+        organizations and their operation. It can be used to make contacts
+        in the criminal underworld, purchase illegal goods or services,
+        or find someone to do something illegal. It also covers knowledge
+        of specific crime bosses like Jabba the Hutt and their operations.
+      game_use: "Bounty collection skill checks. Finding black market goods. Criminal contacts."
+      tags: [economy, social]
+      priority: high
+      tip: >
+        Critical for bounty hunters — Streetwise is one of the two skills
+        (with Search) used to collect bounties. Also useful for anyone
+        dealing with Mos Eisley's underworld, which is most people.
+
+    survival:
+      description: >
+        Survival represents a character's knowledge and ability to
+        survive in harsh natural environments — deserts, forests,
+        frozen wastelands, oceans — including finding shelter, food
+        and water, and avoiding natural hazards.
+      game_use: "Surviving in wilderness environments. Desert survival on Tatooine."
+      tags: [exploration]
+      priority: low
+      tip: "Relevant for exploration missions but not essential for daily Mos Eisley life."
+
+    tactics:
+      description: >
+        Tactics represents a character's knowledge of military tactics
+        and strategy, including ground combat, fleet operations and
+        guerrilla warfare. It can be used to plan attacks, set ambushes,
+        and coordinate military operations.
+      game_use: "Planning combat operations. Coordinating group tactics."
+      tags: [combat]
+      priority: low
+      tip: "More useful for military characters. Most players won't need it at creation."
+
+    value:
+      description: >
+        Value reflects a character's ability to gauge the fair market value
+        of goods and services. It can detect forgeries, identify stolen
+        goods, and evaluate the quality of merchandise.
+      game_use: "Appraising items. Detecting forgeries and damaged goods."
+      tags: [economy]
+      priority: low
+      tip: "Complements Bargain — use Value to know what something's worth, Bargain to negotiate."
+
+    willpower:
+      description: >
+        Willpower is a character's mental fortitude and determination. It
+        is used to resist intimidation, con attempts, and the influence
+        of the Force. Characters with strong willpower are not easily
+        swayed from their convictions.
+      game_use: "Resisting Intimidation, Con, and Force influence attempts."
+      tags: [social, force]
+      priority: medium
+      tip: "Good defensive social skill. Useful against NPCs who try to intimidate or trick you."
+
+  mechanical:
+    astrogation:
+      description: >
+        Starship pilots use astrogation to plot a course from one star
+        system to another. Without precise calculations, you could fly
+        right through a star or bounce too close to a supernova.
+      game_use: >
+        Plotting hyperspace jumps. Fumbles cause misjumps to random
+        systems with full fuel cost and hazard table rolls. Critical
+        successes halve fuel cost.
+      tags: [piloting]
+      priority: high
+      tip: >
+        Essential for any pilot. A fumbled astrogation roll is one of the
+        most dangerous things that can happen to your ship.
+
+    beast_riding:
+      description: >
+        Beast riding represents a character's ability to ride any live
+        mount. Unlike vehicles, animals sometimes resist orders from
+        their riders. Each animal has an orneriness code that must be
+        beaten on an opposed roll.
+      game_use: "Riding banthas, dewbacks and other mounts."
+      tags: [exploration]
+      priority: low
+      tip: "Rarely used in the current game. Mos Eisley has speeders, not stables."
+
+    capital_ship_gunnery:
+      description: >
+        Capital ship gunnery covers the operation of weapons mounted on
+        capital-scale starships — turbolasers, ion cannons, concussion
+        missile launchers, and tractor beam projectors.
+      game_use: "Firing weapons on capital-class ships."
+      tags: [combat, piloting]
+      priority: low
+      tip: "Only relevant if you crew a capital ship. Most starting characters fly freighters."
+
+    capital_ship_piloting:
+      description: >
+        Capital ship piloting covers the operation of large military and
+        civilian capital-scale starships, from corvettes to Star Destroyers.
+      game_use: "Piloting capital-class vessels."
+      tags: [piloting]
+      priority: low
+      tip: "Capital ships require full crews. Very specialized."
+
+    capital_ship_shields:
+      description: >
+        Capital ship shields covers the operation of shield systems on
+        capital-scale vessels, adjusting shield arcs and managing power
+        distribution to deflectors.
+      game_use: "Operating shields on capital-class ships."
+      tags: [piloting]
+      priority: low
+      tip: "Very specialized capital ship crew role."
+
+    communications:
+      description: >
+        Communications covers the operation of subspace radios,
+        comlinks, and other communication devices. It can also be used
+        to descramble encrypted transmissions and jam enemy communications.
+      game_use: "Operating ship communication systems. Jamming and descrambling."
+      tags: [piloting]
+      priority: low
+      tip: "Situational. Most communication just works without a roll."
+
+    ground_vehicle_operation:
+      description: >
+        Ground vehicle operation covers the piloting of all ground-based
+        vehicles, including landspeeders, AT-STs, and other tracked or
+        wheeled vehicles.
+      game_use: "Driving landspeeders and ground vehicles."
+      tags: [piloting]
+      priority: low
+      tip: "Rarely needed unless you're planning vehicle chases on the surface."
+
+    hover_vehicle_operation:
+      description: >
+        Hover vehicle operation covers vehicles that hover above the
+        ground using repulsorlift or similar technology but are designed
+        for very low-altitude operation.
+      game_use: "Operating hover vehicles."
+      tags: [piloting]
+      priority: low
+      tip: "Very niche. Repulsorlift Operation covers most common hover craft."
+
+    repulsorlift_operation:
+      description: >
+        Repulsorlift operation covers the piloting of all common
+        repulsorlift vehicles — landspeeders, airspeeders, cloud cars,
+        skiffs and other civilian repulsorlift craft.
+      game_use: "Piloting landspeeders, airspeeders and civilian repulsorlift craft."
+      tags: [piloting]
+      priority: medium
+      tip: "Useful for ground-level vehicle chases and surface travel."
+
+    sensors:
+      description: >
+        Characters with this skill can operate various kinds of sensors,
+        including those that detect lifeforms, identify vehicles, pick
+        up energy readings, and make long-distance visual readings.
+        Sensors covers everything from portable hand scanners to the
+        huge sensor arrays used on capital ships.
+      game_use: >
+        Ship scanning in space. Four information tiers based on roll.
+        Station bonus +2D when at the sensors console.
+      tags: [piloting, exploration]
+      priority: high
+      tip: >
+        Critical crew role on a starship. Good sensor operators detect
+        threats before they become problems, and identify ships at range.
+
+    space_transports:
+      description: >
+        Space transports is used to pilot all space transports — any
+        non-combat starship, from small light freighters like the
+        Millennium Falcon to passenger liners, cargo haulers and
+        super transports.
+      game_use: >
+        Piloting freighters and transport ships. Used for starship
+        dodge (your main defense in space combat). Essential for
+        smuggling runs.
+      tags: [piloting]
+      priority: high
+      tip: >
+        THE piloting skill for most characters. If you have a ship, you
+        need this. It's also your dodge in space — when someone shoots
+        at your freighter, you roll Space Transports to evade.
+
+    starfighter_piloting:
+      description: >
+        Starfighter piloting is used for all combat starfighters,
+        including X-wings, Y-wings, A-wings, and TIE fighters.
+        Can be used for starship dodge to avoid enemy fire.
+      game_use: "Piloting combat starfighters. Starship dodge in fighter-scale combat."
+      tags: [piloting, combat]
+      priority: medium
+      tip: "Essential for fighter pilots. Not needed if you stick to freighters."
+
+    starship_gunnery:
+      description: >
+        Starship gunnery covers the operation of weapons mounted on
+        starfighter-scale ships — laser cannons, proton torpedo
+        launchers, concussion missiles, and similar armaments.
+      game_use: "Firing weapons on your starship. Hitting enemy ships in space combat."
+      tags: [combat, piloting]
+      priority: high
+      tip: >
+        Someone on the crew needs to shoot. If you're a solo pilot,
+        you need both Space Transports AND Starship Gunnery.
+
+    starship_shields:
+      description: >
+        Starship shields covers the operation of deflector shield systems
+        on starfighter-scale vessels. Adjusting shield strength and arcs
+        during combat is covered by this skill.
+      game_use: "Operating your ship's deflector shields during space combat."
+      tags: [piloting]
+      priority: medium
+      tip: "Important crew role. Shields are the difference between a scratch and a hull breach."
+
+    swoop_operation:
+      description: >
+        Swoop operation covers the riding and racing of high-speed
+        repulsorlift swoops — essentially turbocharged speeder bikes
+        used for racing and quick transport.
+      game_use: "Riding swoops. Swoop racing."
+      tags: [piloting]
+      priority: low
+      tip: "Very specialized. Fun for a swoop racer concept."
+
+    walker_operation:
+      description: >
+        Walker operation covers the piloting of all types of walkers,
+        including AT-ATs, AT-STs, and other Imperial walking vehicles.
+      game_use: "Piloting walkers."
+      tags: [piloting]
+      priority: low
+      tip: "Extremely specialized. Imperial military characters only."
+
+  perception:
+    bargain:
+      description: >
+        Characters use bargain to haggle over prices for goods they want
+        to purchase or sell. The difficulty is often an opposed roll
+        against the merchant's bargain skill. This skill is designed to
+        be roleplayed rather than simply rolled. Bargain can also be used
+        for bribery — gaining someone's confidence and offering credits
+        or favors in exchange for cooperation.
+      game_use: >
+        Directly affects buy/sell prices at all NPC vendors. Opposed
+        roll vs. NPC Bargain skill determines final price. Higher rolls
+        mean better deals.
+      tags: [economy, social]
+      priority: high
+      tip: >
+        One of the most consistently useful skills in the game. Every
+        time you buy or sell anything, Bargain determines how much you
+        pay or receive. Strongly recommended for any character.
+
+    command:
+      description: >
+        Command represents a character's ability to direct, lead and
+        rally others — troops in battle, crew on a starship, or any
+        organized group that needs coordination.
+      game_use: "Coordinating NPC crew on your starship. Rallying allies."
+      tags: [social, piloting]
+      priority: medium
+      tip: "Useful if you captain a crewed ship. Less essential for solo operators."
+
+    con:
+      description: >
+        Con is used to trick and deceive characters, or otherwise
+        convince them to do something that isn't in their best interest.
+        The difficulty depends on who is being conned and how outrageous
+        the deception is.
+      game_use: >
+        Deceiving NPCs. Used in smuggling checks to talk your way past
+        patrols. One of the two skills (with Sneak) for smuggling job
+        encounters.
+      tags: [social, economy]
+      priority: high
+      tip: >
+        Essential for smugglers — Con is one of the skills checked during
+        patrol encounters when running contraband. Also useful for any
+        character who prefers deception over persuasion.
+
+    forgery:
+      description: >
+        Forgery covers the creation of fake documents, identification,
+        currency, and other forged items. It also covers detecting
+        forgeries made by others.
+      game_use: "Creating fake IDs and documents. Detecting forgeries."
+      tags: [social]
+      priority: low
+      tip: "Very situational. Most characters won't need this."
+
+    gambling:
+      description: >
+        Gambling covers a character's skill at various games of chance.
+        It increases their odds of winning in games with an element of
+        strategy, like sabacc. It can also be used to cheat or detect
+        others who are cheating.
+      game_use: >
+        Used for the sabacc gambling system in cantinas. Opposed roll
+        vs. dealer determines win/loss. Higher skill means better odds
+        and bigger payouts.
+      tags: [economy]
+      priority: medium
+      tip: >
+        Makes the sabacc table profitable instead of risky. A gambler
+        character with high Gambling can earn steady credits in cantinas.
+
+    hide:
+      description: >
+        Hide represents a character's ability to conceal objects from
+        view — weapons on one's person, goods within luggage, or
+        planting objects in a room. Can also be used for camouflage
+        of larger objects like grounded starfighters.
+      game_use: "Concealing weapons and contraband. Hiding objects."
+      tags: [exploration]
+      priority: low
+      tip: "Useful for smugglers hiding cargo, but Sneak is more commonly rolled."
+
+    investigation:
+      description: >
+        Investigation covers a character's ability to find and analyze
+        clues, follow trails, and piece together information from
+        various sources to solve mysteries or track targets.
+      game_use: "Analyzing clues and investigating events."
+      tags: [exploration]
+      priority: low
+      tip: "Good for detective-type characters but rarely mechanically gated."
+
+    persuasion:
+      description: >
+        Persuasion is used when a character tries to convince someone to
+        go along with them without deception (that's Con) or payment
+        (that's Bargain). It relies on charm, logic, and genuine appeal
+        rather than trickery.
+      game_use: >
+        Talking to NPCs. Persuasion skill checks gate NPC dialogue — your
+        roll determines whether NPCs are hostile, guarded, cooperative or
+        forthcoming. Critical successes unlock hints and discounts.
+      tags: [social]
+      priority: high
+      tip: >
+        Every NPC conversation runs through a Persuasion gate. This skill
+        literally determines how helpful NPCs are to you. Strongly
+        recommended for all characters.
+
+    search:
+      description: >
+        Search represents a character's ability to notice hidden objects,
+        find clues, spot concealed people, and generally locate things
+        that aren't immediately obvious. Used for both active searching
+        and passive awareness.
+      game_use: >
+        Bounty collection checks (with Streetwise). Crafting surveys
+        to find resources. General awareness. One of the most frequently
+        rolled skills in the game.
+      tags: [exploration, economy, combat]
+      priority: high
+      tip: >
+        Incredibly versatile. Search is used for bounty collection,
+        resource surveying for crafting, and general exploration. One
+        of the best skill investments for any character.
+
+    sneak:
+      description: >
+        Sneak represents the character's ability to move silently and
+        avoid detection. It's opposed by the watcher's search or
+        Perception roll. Useful for approaching enemies undetected,
+        slipping past guards, and avoiding patrols.
+      game_use: >
+        Smuggling patrol encounters (with Con). Avoiding detection.
+        Stealth approaches.
+      tags: [exploration, economy]
+      priority: medium
+      tip: >
+        Important for smugglers — Sneak is one of the two skills checked
+        during patrol encounters. Also useful for sneaky approaches in
+        general.
+
+  strength:
+    brawling:
+      description: >
+        Brawling is the melee combat skill used for fighting hand-to-hand
+        without any weapons. Most creatures also use brawling to attack.
+        Brawling damage is based on your Strength.
+      game_use: "Unarmed combat. Punching, kicking, wrestling."
+      tags: [combat]
+      priority: medium
+      tip: "Good backup combat skill. Your damage is based on your Strength attribute."
+
+    climbing_jumping:
+      description: >
+        Climbing/Jumping reflects a character's ability to climb walls,
+        trees, and cliffs, and to make standing and running jumps. The
+        difficulty depends on the surface and height.
+      game_use: "Climbing obstacles and jumping gaps."
+      tags: [exploration]
+      priority: low
+      tip: "Rarely needed in Mos Eisley's flat urban terrain."
+
+    lifting:
+      description: >
+        Lifting represents a character's ability to lift and carry heavy
+        objects. Used for dead lifts, sustained carrying, and feats
+        of raw physical strength.
+      game_use: "Lifting heavy objects. Feats of strength."
+      tags: [exploration]
+      priority: low
+      tip: "Very situational. Your raw Strength attribute covers most lifting situations."
+
+    stamina:
+      description: >
+        Stamina reflects a character's physical endurance — the ability
+        to sustain prolonged physical activity, resist fatigue, and push
+        through exhaustion. It can also be used to resist disease and
+        harsh environmental conditions.
+      game_use: >
+        Delivery mission completion checks (Easy difficulty, always
+        accessible). Endurance in harsh conditions. Resisting disease.
+      tags: [exploration, economy]
+      priority: medium
+      tip: >
+        Stamina is used for delivery missions — the most accessible
+        income source in the game. Everyone can do deliveries, and
+        Stamina makes sure you succeed.
+
+    swimming:
+      description: >
+        Swimming reflects a character's ability to stay afloat and
+        move through water. The difficulty depends on the conditions —
+        calm water is easier, storms and currents are harder.
+      game_use: "Swimming in water. Rarely relevant on desert Tatooine."
+      tags: [exploration]
+      priority: low
+      tip: "Tatooine is a desert. This skill is almost never needed."
+
+  technical:
+    armor_repair:
+      description: >
+        Armor repair reflects a character's ability to fix and maintain
+        personal body armor, including stormtrooper armor, bounty
+        hunter armor, and personal energy shields.
+      game_use: "Repairing personal armor."
+      tags: [crafting]
+      priority: low
+      tip: "Very specialized. Most characters repair blasters, not armor."
+
+    blaster_repair:
+      description: >
+        Blaster repair reflects a character's ability to fix, maintain,
+        and modify blaster weapons. A character with a high skill can
+        repair damaged weapons, improve a weapon's performance, or even
+        build custom blasters from components.
+      game_use: >
+        THE weapon crafting skill. Used for crafting assembly checks
+        on blaster schematics. Higher skill produces better quality
+        weapons worth more credits. Also used to repair damaged weapons.
+      tags: [crafting, economy]
+      priority: high
+      tip: >
+        Essential for weapon crafters. This is the skill that determines
+        the quality of weapons you build. High Blaster Repair + the right
+        schematics = profitable weapon crafting.
+
+    capital_ship_repair:
+      description: >
+        Capital ship repair covers the repair and maintenance of
+        capital-scale starship systems — hull, engines, shields,
+        life support, and other large-scale systems.
+      game_use: "Repairing capital ship systems. DamCon on large vessels."
+      tags: [crafting, piloting]
+      priority: low
+      tip: "Only relevant if you crew a capital ship."
+
+    capital_ship_weapon_repair:
+      description: >
+        Capital ship weapon repair covers the maintenance and repair of
+        capital-scale weapons systems — turbolasers, ion cannons, and
+        other heavy armaments.
+      game_use: "Repairing capital ship weapons."
+      tags: [crafting, piloting]
+      priority: low
+      tip: "Extremely specialized."
+
+    computer_programming_repair:
+      description: >
+        Computer programming/repair represents a character's ability
+        to program, operate, and repair computer systems. It can be
+        used to retrieve data, bypass security programs, and repair
+        damaged computer systems. Slicing (hacking) is a specialization.
+      game_use: "Hacking terminals. Bypassing electronic security. Data retrieval."
+      tags: [crafting, exploration]
+      priority: medium
+      tip: "The hacker skill. Useful for breaking into systems and retrieving data."
+
+    demolitions:
+      description: >
+        Demolitions covers a character's ability to set, disarm, and
+        detect explosives. It includes knowledge of different explosive
+        types and their proper application for maximum effect.
+      game_use: "Setting and disarming explosives."
+      tags: [combat]
+      priority: low
+      tip: "Very specialized. Only for characters who work with explosives regularly."
+
+    droid_programming:
+      description: >
+        Droid programming represents a character's ability to program
+        and reprogram droids — installing new skills, modifying behavior,
+        and debugging droid software.
+      game_use: "Programming and reprogramming droids."
+      tags: [crafting]
+      priority: low
+      tip: "Niche skill for droid technicians."
+
+    droid_repair:
+      description: >
+        Droid repair covers the mechanical repair and maintenance of
+        droids — fixing damaged components, replacing parts, and
+        performing routine maintenance.
+      game_use: "Repairing damaged droids."
+      tags: [crafting]
+      priority: low
+      tip: "Only needed if you regularly work with droids."
+
+    first_aid:
+      description: >
+        First aid reflects a character's ability to perform emergency
+        life-saving procedures in the field. It is less effective than
+        the Medicine skill but can be performed quickly without
+        specialized equipment.
+      game_use: >
+        Healing other players for credits. First Aid is the primary
+        medical skill for field treatment. Used in the heal/healaccept
+        consent flow. Difficulty scales with wound severity.
+      tags: [medical, economy]
+      priority: high
+      tip: >
+        The medic skill. Healing other players is a viable income source.
+        First Aid is easier to use than Medicine and works in the field.
+        Every group benefits from someone with medical skills.
+
+    ground_vehicle_repair:
+      description: >
+        Ground vehicle repair represents a character's familiarity with
+        the workings of ground vehicles and the ability to repair them.
+      game_use: "Repairing ground vehicles."
+      tags: [crafting]
+      priority: low
+      tip: "Rarely needed unless you heavily use ground vehicles."
+
+    medicine:
+      description: >
+        Medicine represents a character's knowledge of advanced medical
+        procedures — surgery, diagnosis of complex conditions, and
+        treatment using full medical facilities. Medicine is an advanced
+        skill requiring prerequisite First Aid at 5D.
+      game_use: >
+        Advanced healing. Medicine checks can treat more severe wounds
+        than First Aid. Used in the medical income lane.
+      tags: [medical, economy]
+      priority: low
+      tip: >
+        Advanced skill — requires First Aid at 5D first. Powerful but a
+        long-term investment. Start with First Aid and work toward Medicine.
+
+    repulsorlift_repair:
+      description: >
+        Repulsorlift repair covers the maintenance and repair of
+        repulsorlift vehicles — landspeeders, airspeeders, and
+        similar civilian craft.
+      game_use: "Repairing repulsorlift vehicles."
+      tags: [crafting]
+      priority: low
+      tip: "Niche repair skill for repulsorlift mechanics."
+
+    security:
+      description: >
+        Security represents a character's knowledge of physical and
+        electronic security systems — locks, alarms, security cameras,
+        and anti-intrusion systems. It can be used both to set up
+        security and to bypass it.
+      game_use: "Picking locks. Bypassing security systems. Breaking into things."
+      tags: [exploration]
+      priority: medium
+      tip: "Useful for breaking into places you're not supposed to be."
+
+    space_transport_repair:
+      description: >
+        Space transport repair covers the maintenance and repair of
+        transport-class starships — freighters, shuttles, and similar
+        vessels. Used for damage control during and after space combat.
+      game_use: >
+        DamCon (damage control) on your freighter. Repairing hull,
+        engines, shields and other ship systems after combat damage.
+        Routes through the skill check engine.
+      tags: [crafting, piloting]
+      priority: high
+      tip: >
+        If you own a ship, you need someone who can fix it. Damage
+        control in combat uses this skill. Essential for any ship crew.
+
+    starfighter_repair:
+      description: >
+        Starfighter repair covers the maintenance and repair of
+        starfighter-class vessels — X-wings, TIE fighters, and
+        similar combat craft.
+      game_use: "Repairing starfighter systems."
+      tags: [crafting, piloting]
+      priority: low
+      tip: "Only needed for starfighter mechanics. Space Transport Repair is more common."
+
+    starship_weapon_repair:
+      description: >
+        Starship weapon repair covers the maintenance and repair of
+        starfighter-scale weapons systems — laser cannons, torpedo
+        launchers, and other armaments.
+      game_use: "Repairing ship weapons after combat damage."
+      tags: [crafting, piloting]
+      priority: low
+      tip: "Useful if your ship guns get damaged, but Space Transport Repair covers more systems."
+
+
+# Template descriptions for guided character creation
+# These expand on the basic templates in creation.py with R&E-sourced flavor
+
+templates:
+  smuggler:
+    label: "Smuggler"
+    tagline: "Free trader, blockade runner, scoundrel with a ship."
+    description: >
+      Your parents called it "gallivanting around the galaxy," but
+      as far as you're concerned there's no better life than a
+      free-trader's. Travelling as your fancy takes you, trading a
+      little here and a little there, looking for a sharp deal...
+      new worlds to see, always a new planet at the end of the journey.
+
+      But the Empire is more and more restrictive by the day. Goods
+      that used to be legal are now contraband. To keep operating,
+      you had to borrow money from a crime boss. You're pretty deep
+      in debt now. Your ship is home, transportation and freedom, all
+      in one package. The idea of losing it kills you.
+    gameplay: >
+      High Mechanical for piloting, solid Dexterity for firefights,
+      enough Perception to talk your way past customs. You'll make
+      money running smuggling jobs, trading cargo, and dodging Imperial
+      patrols. Your ship is your lifeline — Space Transports, Astrogation
+      and Starship Gunnery are your bread and butter.
+    key_skills: ["space transports", "astrogation", "starship gunnery", "bargain", "con", "blaster"]
+
+  bounty_hunter:
+    label: "Bounty Hunter"
+    tagline: "Blaster for hire. A contract is a contract."
+    description: >
+      Blaster for hire. That's you. You're still young at this game,
+      but you've already built a reputation. Some say you've got no
+      morals at all. That's not true. You live by a strict code. A
+      contract is a contract. You do your job. When someone hires you,
+      you keep up your side of the bargain — no matter what it takes.
+
+      The Empire hired you once. You did the job. A good man died. You
+      fulfilled your side of the deal. The Empire didn't. They laughed
+      at you. But not for long.
+    gameplay: >
+      Combat-focused with strong Dexterity and Strength. You'll hunt
+      bounties from the bounty board — Streetwise and Search are your
+      collection skills. Good at tracking, fighting, and surviving. High
+      Blaster and Dodge keep you alive in firefights.
+    key_skills: ["blaster", "dodge", "brawling", "search", "streetwise", "sneak"]
+
+  rebel_pilot:
+    label: "Rebel Pilot"
+    tagline: "Born to fly. The Rebellion needs your wings."
+    description: >
+      For as long as you can remember, you've wanted to be a fighter
+      pilot. The stars called to you every night, and you spent your
+      youth learning to fly anything with an engine. When the Rebellion
+      offered you a chance to make a difference from the cockpit,
+      you didn't hesitate.
+
+      Sometimes things look pretty grim out there. The Empire has more
+      ships, more guns, more everything. But they don't have pilots
+      like you. And they don't have a cause worth dying for.
+    gameplay: >
+      Maximum Mechanical for piloting and gunnery. You live in the
+      cockpit. Starfighter Piloting and Starship Gunnery are your
+      primary skills. Astrogation gets you home. Sensors keep you
+      aware. You're not as strong in ground combat, but you can hold
+      your own with a blaster.
+    key_skills: ["starfighter piloting", "starship gunnery", "astrogation", "sensors", "blaster", "dodge"]
+
+  scoundrel:
+    label: "Scoundrel"
+    tagline: "Smooth talker. Sharp dealer. Never met a rule worth following."
+    description: >
+      You've always had a silver tongue and quick wits. Where others
+      see problems, you see opportunities. Where others see locked
+      doors, you see puzzles waiting to be solved. The galaxy is full
+      of marks and angles, and you know how to work them all.
+
+      Laws are suggestions. Rules are for other people. You're not
+      evil — you just have a flexible relationship with the truth.
+      And if people are foolish enough to believe you, well, that's
+      really their problem, isn't it?
+    gameplay: >
+      Maximum Perception for social skills. You talk, charm, trick and
+      bargain your way through everything. Con and Persuasion open doors
+      that blasters can't. Gambling earns you credits at the sabacc
+      table. You're not the best fighter, but Dodge and Sneak keep
+      you out of trouble.
+    key_skills: ["con", "persuasion", "bargain", "gambling", "dodge", "sneak"]
+
+  technician:
+    label: "Technician"
+    tagline: "If it's broken, you can fix it. If it works, you can make it better."
+    description: >
+      Machines make sense to you in a way that people never have.
+      Give you a hydrospanner and a diagnostic kit and you can fix
+      anything from a busted power coupling to a shot-up hyperdrive.
+      You've always been the one everyone turns to when something
+      breaks, and you take quiet pride in keeping everything running.
+
+      In Mos Eisley, a good mechanic is worth their weight in credits.
+      Ships need repairs, weapons need maintenance, and droids need
+      debugging. Your skills are always in demand.
+    gameplay: >
+      Maximum Technical for repair and crafting. You're the crew's
+      lifeline — you fix the ship, repair weapons, patch up the wounded.
+      Blaster Repair lets you craft weapons for profit. First Aid keeps
+      allies alive. Space Transport Repair handles damage control.
+      You're the backbone of any ship crew.
+    key_skills: ["computer programming/repair", "space transport repair", "blaster repair", "first aid", "security", "droid repair"]
+
+  jedi_apprentice:
+    label: "Jedi Apprentice"
+    tagline: "The Force is strong with you. But the path is perilous."
+    description: >
+      You feel it — a presence, a connection to all living things. The
+      Force flows through you, granting glimpses of things beyond
+      normal perception. Perhaps a mentor found you and began your
+      training before the Empire's purges scattered the remaining Jedi
+      into hiding. Perhaps you discovered your gift on your own.
+
+      The dark side tempts every Force user. You must be careful — be
+      moral, honest and honorable, or risk being forever corrupted.
+      Force-sensitive characters can't be mercenaries like Han Solo
+      at the start. They must have a code.
+    gameplay: >
+      Balanced attributes with a Force-sensitive build. You start with
+      two Force Points instead of one. Lightsaber skill for your weapon,
+      Dodge and Willpower for defense. Control, Sense and Alter powers
+      grow over time. Be warned: the dark side tracks your actions.
+      Dark Side Points accumulate, and at 6 DSP you risk falling.
+    key_skills: ["lightsaber", "dodge", "scholar", "willpower", "sneak", "climbing/jumping"]
+
+  soldier:
+    label: "Soldier"
+    tagline: "Professional warrior. You fight so others don't have to."
+    description: >
+      War is your trade. You've been trained to fight, to survive,
+      and to follow orders — or give them. Whether you served the
+      Empire, the Rebellion, or some local militia, you know how to
+      handle a weapon, move under fire, and stay alive when blaster
+      bolts start flying.
+
+      Now you're in Mos Eisley, using those skills to make a living.
+      Mercenary work, bodyguard gigs, bounty hunting — there's always
+      someone willing to pay for a professional with a steady hand
+      and nerves of durasteel.
+    gameplay: >
+      High Dexterity and Strength for combat effectiveness. Blaster
+      and Dodge are your core combat skills. Brawling for close quarters.
+      Stamina and Grenade round out the military toolkit. You're the
+      hardest fighter in the group — the one everyone hides behind when
+      the shooting starts.
+    key_skills: ["blaster", "dodge", "brawling", "grenade", "tactics", "stamina"]

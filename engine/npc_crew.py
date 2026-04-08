@@ -21,6 +21,10 @@ from engine.npc_generator import generate_npc, NPCTier, ARCHETYPES
 
 log = logging.getLogger(__name__)
 
+# How often wages fire in the tick loop (1 tick = 1 second).
+# 14400 ticks = 4 real hours.  Six deductions per real day.
+WAGE_TICK_INTERVAL = 14400
+
 
 # ── Crew Roles ──
 # Maps station names to the primary skill used and archetype preferences.
@@ -450,14 +454,14 @@ async def process_wage_tick(db, session_mgr) -> dict:
 
         # Notify the player if they're online
         if departed:
-            session = session_mgr.get_session_for_character(char_id)
+            session = session_mgr.find_by_character(char_id)
             if session:
                 for name in departed:
                     await session.send_line(
                         f"  \033[1;33m{name} has left your crew -- unpaid wages.\033[0m"
                     )
         if total_paid > 0:
-            session = session_mgr.get_session_for_character(char_id)
+            session = session_mgr.find_by_character(char_id)
             if session:
                 await session.send_line(
                     f"  \033[0;36mCrew wages paid: {total_paid:,} credits.\033[0m"

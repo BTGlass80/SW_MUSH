@@ -25,7 +25,6 @@ Admin commands:
 """
 import json
 from parser.commands import BaseCommand, CommandContext, AccessLevel
-from parser.crafting_commands import handle_trainer_teach
 from ai.npc_brain import NPCBrain, NPCData, NPCConfig
 from engine.npc_generator import (
     generate_npc, list_archetypes, get_archetype_info,
@@ -193,10 +192,6 @@ class TalkCommand(BaseCommand):
         room_desc = room.get("desc_short", "") if room else ""
 
         # Generate response
-        # Crafting trainer hook — fires before Persuasion gate
-        # If this NPC is a schematic trainer, teach and return immediately.
-        if await handle_trainer_teach(ctx, npc_name):
-            return
         response = await brain.dialogue(
             player_input=message,
             player_name=char["name"],
