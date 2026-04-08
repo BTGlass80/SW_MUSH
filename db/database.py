@@ -14,7 +14,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 # -- Schema version --
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -263,6 +263,27 @@ MIGRATIONS = {
             status TEXT DEFAULT 'available',
             accepted_by INTEGER,
             data TEXT NOT NULL
+        )""",
+    ],
+
+    7: [
+        """CREATE TABLE IF NOT EXISTS cp_ticks (
+            char_id         INTEGER PRIMARY KEY REFERENCES characters(id),
+            ticks_total     INTEGER DEFAULT 0,
+            ticks_this_week INTEGER DEFAULT 0,
+            week_start_ts   REAL    DEFAULT 0,
+            cap_hit_streak  INTEGER DEFAULT 0,
+            last_passive_ts REAL    DEFAULT 0,
+            last_scene_ts   REAL    DEFAULT 0,
+            last_award_ts   REAL    DEFAULT 0,
+            last_source     TEXT    DEFAULT ''
+        )""",
+        """CREATE TABLE IF NOT EXISTS kudos_log (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            giver_id    INTEGER NOT NULL REFERENCES characters(id),
+            target_id   INTEGER NOT NULL REFERENCES characters(id),
+            ticks       INTEGER DEFAULT 0,
+            awarded_at  REAL    NOT NULL
         )""",
     ],
 
@@ -1199,4 +1220,67 @@ class Database:
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("DELETE FROM npcs WHERE id = ?", (npc_id,))
             await db.commit()
+
+    # ── CP Progression DB methods ─────────────────────────────────────────────
+
+    async def cp_get_row(self, char_id: int):
+        """Return the cp_ticks row for a character, or None."""
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM cp_ticks WHERE char_id = ?", (char_id,)
+        )
+        return dict(rows[0]) if rows else None
+
+    async def cp_ensure_row(self, char_id: int) -> None:
+        """Insert a default cp_ticks row if one does not exist."""
+        await self._db.execute(
+            "INSERT OR IGNORE INTO cp_ticks (char_id) VALUES (?)", (char_id,)
+        )
+        await self._db.commit()
+
+    async def cp_update_row(self, char_id: int, **fields) -> None:
+        """Update arbitrary fields on a cp_ticks row."""
+        if not fields:
+            return
+        set_clause = ", ".join(f"{k} = ?" for k in fields)
+        values = list(fields.values()) + [char_id]
+        await self._db.execute(
+            f"UPDATE cp_ticks SET {set_clause} WHERE char_id = ?", values
+        )
+        await self._db.commit()
+
+    async def cp_add_character_points(self, char_id: int, amount: int) -> None:
+        """Add CP to characters.character_points (floor at 0)."""
+        await self._db.execute(
+            "UPDATE characters SET character_points = MAX(0, character_points + ?) WHERE id = ?",
+            (amount, char_id),
+        )
+        await self._db.commit()
+
+    async def kudos_log(self, giver_id: int, target_id: int, ticks: int, ts: float) -> None:
+        """Record a kudos event."""
+        await self._db.execute(
+            "INSERT INTO kudos_log (giver_id, target_id, ticks, awarded_at) VALUES (?, ?, ?, ?)",
+            (giver_id, target_id, ticks, ts),
+        )
+        await self._db.commit()
+
+    async def kudos_last_given(self, giver_id: int, target_id: int):
+        """Return timestamp of last kudos given from giver to target, or None."""
+        rows = await self._db.execute_fetchall(
+            "SELECT MAX(awarded_at) as ts FROM kudos_log WHERE giver_id = ? AND target_id = ?",
+            (giver_id, target_id),
+        )
+        if rows:
+            return rows[0]["ts"]
+        return None
+
+    async def kudos_count_received_this_week(self, target_id: int) -> int:
+        """Count kudos received by target in the rolling 7-day window."""
+        import time as _time
+        cutoff = _time.time() - (7 * 24 * 3600)
+        rows = await self._db.execute_fetchall(
+            "SELECT COUNT(*) as cnt FROM kudos_log WHERE target_id = ? AND awarded_at >= ?",
+            (target_id, cutoff),
+        )
+        return rows[0]["cnt"] if rows else 0
 

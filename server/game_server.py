@@ -31,6 +31,8 @@ from parser.director_commands import register_director_commands
 from parser.news_commands import register_news_commands
 from parser.smuggling_commands import register_smuggling_commands
 from parser.medical_commands import register_medical_commands
+from parser.entertainer_commands import register_entertainer_commands
+from parser.cp_commands import register_cp_commands
 from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
@@ -72,6 +74,8 @@ class GameServer:
         register_smuggling_commands(self.registry)
         register_force_commands(self.registry)
         register_medical_commands(self.registry)
+        register_entertainer_commands(self.registry)
+        register_cp_commands(self.registry)
 
         # AI system
         self.ai_manager = AIManager(AIConfig())
@@ -554,3 +558,9 @@ class GameServer:
                 await get_director().tick(self.db, self.session_mgr)
             except Exception:
                 log.debug("Director tick skipped", exc_info=True)
+            # ── CP Progression tick ──
+            try:
+                from engine.cp_engine import get_cp_engine
+                await get_cp_engine().tick(self.db, self.session_mgr)
+            except Exception:
+                log.debug("CP engine tick skipped", exc_info=True)
