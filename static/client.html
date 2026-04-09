@@ -534,6 +534,35 @@
     font-style: italic;
   }
 
+  .combat-pose-timer {
+    margin-top: 6px; padding: 4px 6px;
+    background: rgba(229,83,75,0.07); border: 1px solid rgba(229,83,75,0.2);
+    border-radius: 3px; font-size: 10px; color: var(--accent-red);
+    text-align: center; font-family: var(--font-mono);
+    display: none;
+  }
+  .combat-pose-timer.active { display: block; }
+  .combat-pose-timer.urgent {
+    animation: pulse 1s infinite;
+    border-color: var(--accent-red);
+    color: var(--accent-red);
+    font-weight: bold;
+  }
+
+  .cb-pose-status {
+    font-size: 8px; padding: 1px 4px; border-radius: 2px;
+    white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .cb-pose-status.pending {
+    color: var(--accent-amber); border: 1px solid rgba(218,173,40,0.3);
+  }
+  .cb-pose-status.ready {
+    color: var(--accent-green); border: 1px solid rgba(75,229,83,0.3);
+  }
+  .cb-pose-status.passed {
+    color: var(--text-dim); border: 1px solid var(--border-dim);
+  }
+
   .quick-pill.combat-pill {
     background: rgba(229,83,75,0.1); border-color: rgba(229,83,75,0.3);
     color: var(--accent-red);
@@ -924,6 +953,7 @@
       </div>
       <div id="cb-combatants"></div>
       <div class="combat-your-action" id="cb-your-action" style="display:none;"></div>
+      <div class="combat-pose-timer" id="cb-pose-timer"></div>
       <div class="combat-waiting" id="cb-waiting"></div>
     </div>
 
@@ -1128,6 +1158,32 @@
     return '<div class="cb-wound">' + html + '</div>';
   }
 
+  var poseTimerInterval = null;  // setInterval handle for countdown
+
+  function clearPoseTimer() {
+    if (poseTimerInterval) { clearInterval(poseTimerInterval); poseTimerInterval = null; }
+    var el = document.getElementById('cb-pose-timer');
+    if (el) { el.classList.remove('active','urgent'); el.textContent = ''; }
+  }
+
+  function startPoseTimer(deadlineISO) {
+    clearPoseTimer();
+    var el = document.getElementById('cb-pose-timer');
+    if (!el || !deadlineISO) return;
+    var deadline = new Date(deadlineISO).getTime();
+    el.classList.add('active');
+    function tick() {
+      var remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+      var mins = Math.floor(remaining / 60);
+      var secs = remaining % 60;
+      el.textContent = 'POSE TIMER  ' + mins + ':' + (secs < 10 ? '0' : '') + secs;
+      if (remaining <= 30) { el.classList.add('urgent'); }
+      if (remaining <= 0) { clearPoseTimer(); el.textContent = 'TIME UP'; el.classList.add('active'); }
+    }
+    tick();
+    poseTimerInterval = setInterval(tick, 1000);
+  }
+
   function handleCombatState(m) {
     var sec     = document.getElementById('sec-combat');
     var pillBox = document.getElementById('quick-pills');
@@ -1136,6 +1192,7 @@
       // Combat over — hide panel, restore mood + pills
       sec.classList.remove('combat-active');
       combatActive = false;
+      clearPoseTimer();
       if (preCombatMood) { setMood(preCombatMood); preCombatMood = ''; }
       if (normalPills !== null) { pillBox.innerHTML = normalPills; normalPills = null; }
       return;
@@ -1146,16 +1203,25 @@
       combatActive = true;
       preCombatMood = mood || '';
       setMood('combat');
-      // Save normal pills and swap in combat buttons
       if (normalPills === null) {
         normalPills = pillBox.innerHTML;
-        pillBox.innerHTML =
-          '<button class="quick-pill combat-pill" onclick="sendCmd(\'dodge\')">dodge</button>' +
-          '<button class="quick-pill combat-pill" onclick="sendCmd(\'aim\')">aim</button>' +
-          '<button class="quick-pill combat-pill" onclick="sendCmd(\'flee\')">flee</button>' +
-          '<button class="quick-pill combat-pill" onclick="sendCmd(\'pass\')">pass</button>' +
-          '<button class="quick-pill combat-pill" onclick="sendCmd(\'combat\')">status</button>';
       }
+    }
+
+    var isPosingPhase = (m.phase === 'posing');
+
+    // Swap quick pills based on phase
+    if (isPosingPhase) {
+      pillBox.innerHTML =
+        '<button class="quick-pill combat-pill" onclick="sendCmd(\'pass\')">auto-pose</button>' +
+        '<button class="quick-pill combat-pill" onclick="sendCmd(\'combat\')">status</button>';
+    } else {
+      pillBox.innerHTML =
+        '<button class="quick-pill combat-pill" onclick="sendCmd(\'dodge\')">dodge</button>' +
+        '<button class="quick-pill combat-pill" onclick="sendCmd(\'aim\')">aim</button>' +
+        '<button class="quick-pill combat-pill" onclick="sendCmd(\'flee\')">flee</button>' +
+        '<button class="quick-pill combat-pill" onclick="sendCmd(\'pass\')">pass</button>' +
+        '<button class="quick-pill combat-pill" onclick="sendCmd(\'combat\')">status</button>';
     }
 
     sec.classList.add('combat-active');
@@ -1163,13 +1229,19 @@
     // Round + phase header
     document.getElementById('cb-round').textContent = 'ROUND ' + (m.round || 1);
     var phase = (m.phase || 'declaration').toUpperCase();
+    if (phase === 'POSING') phase = 'WRITE YOUR POSE';
     document.getElementById('cb-phase').textContent = phase;
+
+    // Pose timer
+    if (isPosingPhase && m.pose_deadline) {
+      startPoseTimer(m.pose_deadline);
+    } else {
+      clearPoseTimer();
+    }
 
     // Combatant list
     var combatants = m.combatants || [];
     var myId = null;
-    // Identify viewer by finding the is_player combatant with a declared action
-    // (or just the first is_player if ambiguous)
     for (var i = 0; i < combatants.length; i++) {
       if (combatants[i].is_player) { myId = combatants[i].id; break; }
     }
@@ -1181,20 +1253,32 @@
       var displayName = c.is_player ? 'You' : esc(c.name);
       var init = c.initiative > 0 ? c.initiative : '?';
       var pips = makePips(c.wound_level || 0);
-      var declText, declClass;
-      if (c.declared) {
-        declText  = c.action_summary ? esc(c.action_summary) : 'ready';
-        declClass = 'cb-decl declared';
+
+      // Right-side status: show pose status during posing, declaration status otherwise
+      var statusHtml;
+      if (isPosingPhase && c.pose_status) {
+        var psClass = 'cb-pose-status ' + c.pose_status;
+        var psLabel = c.pose_status === 'ready' ? '✓ posed' :
+                      c.pose_status === 'passed' ? '⊘ auto' : '… writing';
+        statusHtml = '<span class="' + psClass + '">' + psLabel + '</span>';
       } else {
-        declText  = 'waiting…';
-        declClass = 'cb-decl waiting';
+        var declText, declClass;
+        if (c.declared) {
+          declText  = c.action_summary ? esc(c.action_summary) : 'ready';
+          declClass = 'cb-decl declared';
+        } else {
+          declText  = 'waiting…';
+          declClass = 'cb-decl waiting';
+        }
+        statusHtml = '<span class="' + declClass + '">' + declText + '</span>';
       }
+
       rows +=
         '<div class="cb-row">' +
           '<span class="' + nameClass + '" title="' + esc(c.name) + '">' + displayName + '</span>' +
           pips +
           '<span class="cb-init">' + init + '</span>' +
-          '<span class="' + declClass + '">' + declText + '</span>' +
+          statusHtml +
         '</div>';
     }
     document.getElementById('cb-combatants').innerHTML = rows;
@@ -1210,7 +1294,29 @@
 
     // Waiting for
     var waitEl = document.getElementById('cb-waiting');
-    if (m.waiting_for && m.waiting_for.length > 0) {
+    if (isPosingPhase) {
+      // During posing, show who we're waiting on for poses
+      var pendingPosers = [];
+      for (var k = 0; k < combatants.length; k++) {
+        if (combatants[k].pose_status === 'pending' && !combatants[k].is_player) {
+          pendingPosers.push(combatants[k].name);
+        }
+      }
+      // Check if the viewer is still pending
+      var viewerPending = false;
+      for (var vi = 0; vi < combatants.length; vi++) {
+        if (combatants[vi].is_player && combatants[vi].pose_status === 'pending') {
+          viewerPending = true; break;
+        }
+      }
+      if (viewerPending) {
+        waitEl.textContent = 'Type cpose <text> or pass to auto-pose';
+      } else if (pendingPosers.length > 0) {
+        waitEl.textContent = 'Waiting for poses: ' + pendingPosers.join(', ');
+      } else {
+        waitEl.textContent = 'All poses in — flushing action log…';
+      }
+    } else if (m.waiting_for && m.waiting_for.length > 0) {
       waitEl.textContent = 'Waiting for: ' + m.waiting_for.join(', ');
     } else {
       waitEl.textContent = '';
