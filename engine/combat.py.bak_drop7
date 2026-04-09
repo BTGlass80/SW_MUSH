@@ -184,7 +184,6 @@ class ActionResult:
     wound_inflicted: str = ""   # Wound level name (if any)
     margin: int = 0
     narrative: str = ""         # Human-readable summary
-    targets: list = None        # Character IDs of targets (for per-session delivery)
 
 
 # ── Combatant State ──
@@ -462,12 +461,7 @@ class CombatInstance:
             action_summary = None
             if c.actions:
                 first = c.actions[0]
-                if first.action_type == ActionType.ATTACK and first.target_id:
-                    tgt = self.combatants.get(first.target_id)
-                    tgt_name = tgt.name if tgt else "target"
-                    action_summary = f"attack {tgt_name}"
-                else:
-                    action_summary = first.description or first.action_type.name.lower()
+                action_summary = first.description or first.action_type.name.lower()
             combatants_data.append({
                 "id": cid,
                 "name": c.name,
@@ -508,16 +502,10 @@ class CombatInstance:
         if viewer_id is not None:
             vc = self.combatants.get(viewer_id)
             if vc:
-                for a in vc.actions:
-                    if a.action_type == ActionType.ATTACK and a.target_id:
-                        tgt = self.combatants.get(a.target_id)
-                        tgt_name = tgt.name if tgt else "target"
-                        skill = a.skill or "blaster"
-                        your_actions.append(f"attack {tgt_name} with {skill}")
-                    elif a.description:
-                        your_actions.append(a.description)
-                    else:
-                        your_actions.append(a.action_type.name.lower().replace("_", " "))
+                your_actions = [
+                    a.description or a.action_type.name.lower()
+                    for a in vc.actions
+                ]
 
         for c in self.undeclared_combatants():
             if c.id != viewer_id:

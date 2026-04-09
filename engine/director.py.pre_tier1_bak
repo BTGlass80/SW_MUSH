@@ -729,20 +729,6 @@ class DirectorAI:
 
         log.info("[director] Faction Turn complete: %s", headline)
 
-        # Broadcast headline to web clients as news_event
-        try:
-            import json as _json
-            for _s in session_mgr.all:
-                if (_s.is_in_game and hasattr(_s, 'protocol')
-                        and _s.protocol.value == 'websocket'):
-                    await _s._send(_json.dumps({
-                        "type": "news_event",
-                        "tag": "event",
-                        "text": headline,
-                    }))
-        except Exception:
-            pass  # Non-critical — news just won't appear in feed
-
     def _generate_local_headline(self) -> str:
         """
         Generate a simple headline from current zone states.

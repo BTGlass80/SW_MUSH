@@ -33,17 +33,16 @@ from server.ansi import (
     BRIGHT_WHITE, BRIGHT_CYAN, BRIGHT_YELLOW, BRIGHT_GREEN,
     BRIGHT_RED, BRIGHT_BLUE, BRIGHT_MAGENTA,
 )
-from engine.text_format import Fmt
 
 log = logging.getLogger(__name__)
 
-DEFAULT_WIDTH = 72  # Fallback; actual width comes from Fmt
+W = 78  # Display width
 
 
 # ── Helpers ──
 
-def _bar(char="=", color=BRIGHT_CYAN, width=DEFAULT_WIDTH):
-    return f"{color}{char * width}{RESET}"
+def _bar(char="=", color=BRIGHT_CYAN):
+    return f"{color}{char * W}{RESET}"
 
 def _hdr(text):
     return f"{BOLD}{BRIGHT_WHITE}{text}{RESET}"
@@ -66,7 +65,7 @@ def _mg(text):
 def _bl(text):
     return f"{BRIGHT_BLUE}{text}{RESET}"
 
-def _wrap(text, indent=2, width=DEFAULT_WIDTH-4):
+def _wrap(text, indent=2, width=W-4):
     """Word-wrap text with consistent indent."""
     lines = []
     for para in text.strip().split("\n"):
@@ -123,7 +122,7 @@ class CreationWizard:
     """
 
     def __init__(self, species_reg: SpeciesRegistry, skill_reg: SkillRegistry,
-                 data_dir: str = "data", width: int = DEFAULT_WIDTH):
+                 data_dir: str = "data"):
         self.species_reg = species_reg
         self.skill_reg = skill_reg
         self.engine = CreationEngine(species_reg, skill_reg)
@@ -132,7 +131,6 @@ class CreationWizard:
         self.path = "undecided"  # "template" or "scratch"
         self.background = ""
         self._force_sensitive = False
-        self.fmt = Fmt(width=width)
 
     # ══════════════════════════════════════════════
     #  PUBLIC API
@@ -227,21 +225,21 @@ class CreationWizard:
     def _render_welcome(self):
         lines = [
             "",
-            self.fmt.bar("="),
+            _bar("="),
             "",
             f"  {_hdr('S T A R   W A R S')}",
             f"  {_dim('The Roleplaying Game — Character Creation')}",
             "",
-            self.fmt.bar("-", DIM),
+            _bar("-", DIM),
             "",
         ]
-        lines.extend(self.fmt.wrap(
+        lines.extend(_wrap(
             "Welcome to Mos Eisley, the most wretched hive of scum and "
             "villainy in the galaxy. Before you step into its dusty streets, "
             "you need a character — someone to BE in this world."
         ))
         lines.append("")
-        lines.extend(self.fmt.wrap(
+        lines.extend(_wrap(
             "You have two paths:"
         ))
         lines.append("")
@@ -254,19 +252,19 @@ class CreationWizard:
                      f"{_yl('2')} {_dim('to choose, or')} "
                      f"{_yl('help')} {_dim('for navigation commands.')}")
         lines.append("")
-        lines.append(self.fmt.bar("="))
+        lines.append(_bar("="))
         lines.append("")
         return "\n".join(lines)
 
     def _render_template_select(self):
         lines = [
             "",
-            self.fmt.bar("="),
+            _bar("="),
             f"  {_hdr('STEP 1: Choose a Template')}",
-            self.fmt.bar("-", DIM),
+            _bar("-", DIM),
             "",
         ]
-        lines.extend(self.fmt.wrap(
+        lines.extend(_wrap(
             "Templates are pre-built archetypes — a starting point you can "
             "customize. Each one has attributes, skills and a backstory "
             "already set. You can change anything after selecting."
@@ -285,7 +283,7 @@ class CreationWizard:
             if gameplay:
                 # Show first two sentences of gameplay desc
                 gp_short = ". ".join(gameplay.strip().split(".")[:2]) + "."
-                for gl in self.fmt.wrap(gp_short, indent=5, width=self.fmt.prose_width - 4):
+                for gl in _wrap(gp_short, indent=5, width=W-8):
                     lines.append(gl)
 
             if key_skills:
@@ -296,18 +294,18 @@ class CreationWizard:
         lines.append(f"  {_dim('Type a number (1-'+ str(len(TEMPLATES)) +') or template name to select.')}")
         lines.append(f"  {_dim('Type')} {_yl('back')} {_dim('to return to the previous step.')}")
         lines.append("")
-        lines.append(self.fmt.bar("="))
+        lines.append(_bar("="))
         return "\n".join(lines)
 
     def _render_species(self):
         lines = [
             "",
-            self.fmt.bar("="),
+            _bar("="),
             f"  {_hdr('STEP 1: Choose Your Species')}",
-            self.fmt.bar("-", DIM),
+            _bar("-", DIM),
             "",
         ]
-        lines.extend(self.fmt.wrap(
+        lines.extend(_wrap(
             "Your species determines your attribute ranges — the minimum "
             "and maximum you can set each attribute to — as well as any "
             "special abilities. Most species get 18D to distribute among "
@@ -319,10 +317,10 @@ class CreationWizard:
             lines.append(f"  {_hdr(sp.name)} — {_dim(sp.homeworld)}")
             # One-line description
             desc_text = sp.description.strip()
-            # Show full first sentence, word-wrapped (no truncation)
             first_sentence = desc_text.split(".")[0] + "."
-            for dl in self.fmt.wrap(first_sentence, indent=4):
-                lines.append(f"{_cy('')}{dl}")
+            if len(first_sentence) > 72:
+                first_sentence = first_sentence[:69] + "..."
+            lines.append(f"    {_cy(first_sentence)}")
 
             # Attribute range summary (compact)
             ranges = []
@@ -345,15 +343,15 @@ class CreationWizard:
                      f"{_dim('for full details.')}")
         lines.append(f"  {_dim('Then type')} {_yl('next')} {_dim('to proceed to attributes.')}")
         lines.append("")
-        lines.append(self.fmt.bar("="))
+        lines.append(_bar("="))
         return "\n".join(lines)
 
     def _render_attributes(self):
         lines = [
             "",
-            self.fmt.bar("="),
+            _bar("="),
             f"  {_hdr('STEP 2: Set Your Attributes')}",
-            self.fmt.bar("-", DIM),
+            _bar("-", DIM),
             "",
         ]
 
@@ -364,7 +362,7 @@ class CreationWizard:
         attr_left = attr_total - attr_spent
         pips_str = self._pips_display(attr_left)
 
-        lines.extend(self.fmt.wrap(
+        lines.extend(_wrap(
             f"As a {sp_name}, you have {self._pips_to_dice(attr_total)} to distribute "
             f"among six attributes. Each has a minimum and maximum set by your "
             f"species. You have {self._pips_to_dice(attr_left)} remaining."
@@ -398,15 +396,15 @@ class CreationWizard:
         lines.append(f"  {_dim('Type')} {_yl('next')} {_dim('when done, or')} "
                      f"{_yl('back')} {_dim('to change species.')}")
         lines.append("")
-        lines.append(self.fmt.bar("="))
+        lines.append(_bar("="))
         return "\n".join(lines)
 
     def _render_skills(self):
         lines = [
             "",
-            self.fmt.bar("="),
+            _bar("="),
             f"  {_hdr('STEP 3: Choose Your Skills')}",
-            self.fmt.bar("-", DIM),
+            _bar("-", DIM),
             "",
         ]
 
@@ -415,7 +413,7 @@ class CreationWizard:
         skill_left = skill_total - skill_spent
         pips_str = self._pips_display(skill_left)
 
-        lines.extend(self.fmt.wrap(
+        lines.extend(_wrap(
             f"You have {self._pips_to_dice(skill_total)} to spend on skills. "
             f"Skills are a bonus on top of your attribute — if your Dexterity "
             f"is 3D and you put +1D in Blaster, you roll 4D to shoot. "
@@ -446,6 +444,8 @@ class CreationWizard:
                     # Show recommended unallocated skills with short hint
                     game_use = sk_desc.get("game_use", "")
                     hint = game_use.strip().split(".")[0] + "." if game_use else ""
+                    if len(hint) > 45:
+                        hint = hint[:42] + "..."
                     lines.append(f"    {_dim(sd.name):27s} {_dim(hint)}{star}")
 
             lines.append("")
@@ -460,24 +460,24 @@ class CreationWizard:
         lines.append(f"  {_dim('Type')} {_yl('next')} {_dim('when done, or')} "
                      f"{_yl('back')} {_dim('to change attributes.')}")
         lines.append("")
-        lines.append(self.fmt.bar("="))
+        lines.append(_bar("="))
         return "\n".join(lines)
 
     def _render_force(self):
         lines = [
             "",
-            self.fmt.bar("="),
+            _bar("="),
             f"  {_hdr('STEP 4: The Force')}",
-            self.fmt.bar("-", DIM),
+            _bar("-", DIM),
             "",
         ]
-        lines.extend(self.fmt.wrap(
+        lines.extend(_wrap(
             '"The Force is what gives a Jedi his power. It\'s an energy field '
             'created by all living things. It surrounds us and penetrates us. '
             'It binds the galaxy together." — Obi-Wan Kenobi'
         ))
         lines.append("")
-        lines.extend(self.fmt.wrap(
+        lines.extend(_wrap(
             "Only a rare few are sensitive to the Force. This choice affects "
             "your starting Force Points and whether you can learn Force "
             "powers (Control, Sense, Alter) during play."
@@ -498,24 +498,24 @@ class CreationWizard:
         lines.append(f"  {_dim('Type')} {_yl('yes')} {_dim('or')} "
                      f"{_yl('no')}{_dim(', or')} {_yl('next')} {_dim('to default to No.')}")
         lines.append("")
-        lines.append(self.fmt.bar("="))
+        lines.append(_bar("="))
         return "\n".join(lines)
 
     def _render_background(self):
         lines = [
             "",
-            self.fmt.bar("="),
+            _bar("="),
             f"  {_hdr('STEP 5: Name & Background')}",
-            self.fmt.bar("-", DIM),
+            _bar("-", DIM),
             "",
         ]
-        lines.extend(self.fmt.wrap(
+        lines.extend(_wrap(
             "Every character has a story. What brings you to Mos Eisley? "
             "Are you running from something? Looking for work? Chasing a "
             "bounty? Hiding from the Empire?"
         ))
         lines.append("")
-        lines.extend(self.fmt.wrap(
+        lines.extend(_wrap(
             "Write a sentence or two about your character's history and "
             "personality. This helps other players understand who you are "
             "and gives depth to roleplay interactions."
@@ -526,22 +526,22 @@ class CreationWizard:
         lines.append(f"  {_dim('Name:')} {_yl(name or '(not set)')}")
         if self.background:
             lines.append(f"  {_dim('Background:')}")
-            for bl in self.fmt.wrap(self.background, indent=4):
+            for bl in _wrap(self.background, indent=4):
                 lines.append(bl)
         lines.append("")
         lines.append(f"  {_yl('name <n>')} {_dim('— set your character name')}")
         lines.append(f"  {_dim('Just type your background text to set it.')}")
         lines.append(f"  {_dim('Type')} {_yl('next')} {_dim('to proceed to final review.')}")
         lines.append("")
-        lines.append(self.fmt.bar("="))
+        lines.append(_bar("="))
         return "\n".join(lines)
 
     def _render_review(self):
         lines = [
             "",
-            self.fmt.bar("="),
+            _bar("="),
             f"  {_hdr('FINAL REVIEW')}",
-            self.fmt.bar("-", DIM),
+            _bar("-", DIM),
             "",
         ]
         sheet_lines = self.engine._sheet_lines()
@@ -554,7 +554,7 @@ class CreationWizard:
 
         if self.background:
             lines.append(f"  {_hdr('Background:')}")
-            for bl in self.fmt.wrap(self.background, indent=4):
+            for bl in _wrap(self.background, indent=4):
                 lines.append(bl)
         lines.append("")
 
@@ -575,7 +575,7 @@ class CreationWizard:
                          f"{_yl('back')} {_dim('to make changes.')}")
 
         lines.append("")
-        lines.append(self.fmt.bar("="))
+        lines.append(_bar("="))
         return "\n".join(lines)
 
     # ══════════════════════════════════════════════
@@ -631,7 +631,7 @@ class CreationWizard:
                             f"{_hdr(TEMPLATES[selected_key]['label'])}",
                             ""]
             if description:
-                result_lines.extend(self.fmt.wrap(description, indent=2))
+                result_lines.extend(_wrap(description, indent=2))
                 result_lines.append("")
             result_lines.append(f"  {_dim('You can edit any attribute or skill from here.')}")
             result_lines.append("")
@@ -862,17 +862,17 @@ class CreationWizard:
                     lines.append("")
                     desc = sk_data.get("description", "")
                     if desc:
-                        lines.extend(self.fmt.wrap(desc))
+                        lines.extend(_wrap(desc))
                         lines.append("")
                     game_use = sk_data.get("game_use", "")
                     if game_use:
                         lines.append(f"  {_hdr('In this game:')}")
-                        lines.extend(self.fmt.wrap(game_use, indent=4))
+                        lines.extend(_wrap(game_use, indent=4))
                         lines.append("")
                     tip = sk_data.get("tip", "")
                     if tip:
                         lines.append(f"  {_mg('Tip:')} ")
-                        lines.extend(self.fmt.wrap(tip, indent=4))
+                        lines.extend(_wrap(tip, indent=4))
                         lines.append("")
                     return "\n".join(lines)
 

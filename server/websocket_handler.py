@@ -52,7 +52,7 @@ class WebSocketHandler:
             protocol=Protocol.WEBSOCKET,
             send_callback=send_text,
             close_callback=close_conn,
-            width=120,  # WebSocket clients typically have wider viewports
+            width=72,   # Conservative default; client sends resize on connect
             height=50,
         )
 
@@ -85,6 +85,14 @@ class WebSocketHandler:
             async for message in websocket:
                 try:
                     data = json.loads(message)
+
+                    # Handle resize messages (client reports its char width)
+                    if data.get("type") == "resize":
+                        w = data.get("width", 78)
+                        if isinstance(w, int) and 40 <= w <= 250:
+                            session.width = w
+                        continue
+
                     text = data.get("input", data.get("text", ""))
                 except (json.JSONDecodeError, AttributeError):
                     text = str(message)

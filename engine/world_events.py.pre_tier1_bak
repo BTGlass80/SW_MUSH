@@ -454,21 +454,6 @@ class WorldEventManager:
         zone_name = ", ".join(_zone_display(z) for z in event.zones_affected) if event.zones_affected else "Mos Eisley"
         text = edef.announce_text.replace("{zone_name}", zone_name)
         await session_mgr.broadcast(f"\n  {text}")
-        # Send structured world_event to web clients
-        try:
-            import json as _json
-            for _s in session_mgr.all:
-                if (_s.is_in_game and hasattr(_s, 'protocol')
-                        and _s.protocol.value == 'websocket'):
-                    await _s._send(_json.dumps({
-                        "type": "world_event",
-                        "action": "start",
-                        "title": edef.name,
-                        "effects": edef.effect_text,
-                        "event_type": event.event_type,
-                    }))
-        except Exception:
-            pass  # Non-critical
 
     async def _broadcast_expiry(self, event: ActiveEvent, session_mgr):
         """Broadcast event expiry announcement."""
@@ -476,20 +461,6 @@ class WorldEventManager:
         zone_name = ", ".join(_zone_display(z) for z in event.zones_affected) if event.zones_affected else "Mos Eisley"
         text = edef.expire_text.replace("{zone_name}", zone_name)
         await session_mgr.broadcast(f"\n  {text}")
-        # Send structured world_event end to web clients
-        try:
-            import json as _json
-            for _s in session_mgr.all:
-                if (_s.is_in_game and hasattr(_s, 'protocol')
-                        and _s.protocol.value == 'websocket'):
-                    await _s._send(_json.dumps({
-                        "type": "world_event",
-                        "action": "end",
-                        "title": edef.name,
-                        "event_type": event.event_type,
-                    }))
-        except Exception:
-            pass  # Non-critical
 
     async def tick(self, db, session_mgr):
         """

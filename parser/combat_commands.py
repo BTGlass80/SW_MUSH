@@ -16,6 +16,8 @@ Commands:
   disengage         - leave combat (only if no opponents or combat is over)
 """
 import os
+import asyncio
+import json as _json
 import logging
 from parser.commands import BaseCommand, CommandContext, AccessLevel
 from engine.combat import (
@@ -71,9 +73,60 @@ def _ensure_in_combat(char: dict, room_id: int) -> tuple:
 
 
 async def _broadcast_events(events, session_mgr, room_id, exclude=None):
-    """Send combat events to the room."""
+    """Send combat events to the room (immediate, no pacing)."""
     for event in events:
         await session_mgr.broadcast_to_room(room_id, event.text, exclude=exclude)
+
+
+def _extract_actor_name(text: str):
+    """Return the first name-token from a narrative line, or None for headers."""
+    stripped = text.lstrip()
+    if not stripped or stripped.startswith(("---", "─", "[COMBAT]", "Turn order")):
+        return None
+    stripped = stripped.lstrip("▸◆ ")
+    parts = stripped.split()
+    return parts[0] if parts else None
+
+
+async def _broadcast_separator(session_mgr, room_id):
+    """Emit a visual phase-separator line."""
+    await session_mgr.broadcast_to_room(
+        room_id, "  " + "─" * 45, exclude=None
+    )
+
+
+async def _broadcast_events_paced(events, session_mgr, room_id,
+                                   delay: float = 0.6, exclude=None):
+    """Send combat events with a short delay between each actor's block."""
+    current_actor = None
+    for event in events:
+        actor = _extract_actor_name(event.text)
+        if actor and actor != current_actor and current_actor is not None:
+            await asyncio.sleep(delay)
+        if actor:
+            current_actor = actor
+        await session_mgr.broadcast_to_room(room_id, event.text, exclude=exclude)
+
+
+async def _send_combat_state(combat, session_mgr):
+    """Send combat_state JSON to all WebSocket sessions in the combat room.
+
+    Telnet sessions receive nothing (send_json is a no-op for them).
+    Each player gets a personalised payload with viewer_id set.
+    """
+    room_id = combat.room_id
+    sessions = session_mgr.sessions_in_room(room_id)
+    for sess in sessions:
+        char = getattr(sess, "character", None)
+        viewer_id = char["id"] if char else None
+        payload = combat.to_hud_dict(viewer_id=viewer_id)
+        await sess.send_json("combat_state", payload)
+
+
+async def _send_combat_ended(room_id, session_mgr):
+    """Notify WebSocket clients that combat is over."""
+    for sess in session_mgr.sessions_in_room(room_id):
+        await sess.send_json("combat_state", {"active": False})
 
 
 async def _try_auto_resolve(combat, ctx):
@@ -86,18 +139,28 @@ async def _try_auto_resolve(combat, ctx):
 
     if combat.all_declared():
         events = combat.resolve_round()
-        await _broadcast_events(events, ctx.session_mgr, combat.room_id)
+        await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id)
 
         # Apply weapon wear to all attackers' equipped weapons
         await _apply_combat_wear(combat, ctx)
 
         if combat.is_over:
+            # Send ended signal — do NOT send active state first
+            await _send_combat_ended(combat.room_id, ctx.session_mgr)
             _remove_combat(combat.room_id)
             return
 
+        # Combat continues — update web panel with new wound states
+        await _send_combat_state(combat, ctx.session_mgr)
+
+        # Phase separator: resolution → initiative
+        await asyncio.sleep(1.1)
+        await _broadcast_separator(ctx.session_mgr, combat.room_id)
+
         # Auto-roll next initiative
         events = combat.roll_initiative()
-        await _broadcast_events(events, ctx.session_mgr, combat.room_id)
+        await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id, delay=0.3)
+        await _send_combat_state(combat, ctx.session_mgr)
 
         # Auto-declare NPCs for the new round
         await _auto_declare_npc_actions(combat, ctx)
@@ -114,46 +177,75 @@ async def _try_auto_resolve(combat, ctx):
 
 
 async def _auto_declare_npc_actions(combat, ctx):
-    """Auto-declare actions for all undeclared NPC combatants."""
+    """Auto-declare actions for all undeclared NPC combatants.
+
+    Emits a single grouped summary line instead of one line per NPC.
+    Per-session delivery substitutes the player's name with "you".
+    """
     from engine.npc_combat_ai import auto_declare_npcs
 
     declared = auto_declare_npcs(combat, _npc_behaviors)
+    if not declared:
+        return
 
-    # Narrate NPC declarations to the room
+    # Build per-NPC summaries, then emit one grouped line
+    parts = []
     for npc_id, actions in declared.items():
         c = combat.get_combatant(npc_id)
-        if not c:
+        if not c or not actions:
             continue
+
+        action_descs = []
         for action in actions:
             if action.action_type == ActionType.ATTACK:
                 target_c = combat.get_combatant(action.target_id)
                 target_name = target_c.name if target_c else "someone"
-                await ctx.session_mgr.broadcast_to_room(
-                    combat.room_id,
-                    ansi.combat_msg(
-                        f"{c.name} prepares to attack {target_name}!"
-                    ),
-                )
+                action_descs.append(f"attacking {target_name}")
             elif action.action_type == ActionType.FLEE:
-                await ctx.session_mgr.broadcast_to_room(
-                    combat.room_id,
-                    ansi.combat_msg(f"{c.name} tries to flee!"),
-                )
+                action_descs.append("fleeing")
             elif action.action_type in (ActionType.DODGE, ActionType.FULL_DODGE):
-                await ctx.session_mgr.broadcast_to_room(
-                    combat.room_id,
-                    ansi.combat_msg(f"{c.name} takes a defensive stance."),
-                )
+                action_descs.append("dodging")
             elif action.action_type == ActionType.AIM:
-                await ctx.session_mgr.broadcast_to_room(
-                    combat.room_id,
-                    ansi.combat_msg(f"{c.name} takes careful aim..."),
-                )
+                action_descs.append("aiming")
             elif action.action_type == ActionType.COVER:
-                await ctx.session_mgr.broadcast_to_room(
-                    combat.room_id,
-                    ansi.combat_msg(f"{c.name} dives for cover!"),
-                )
+                action_descs.append("taking cover")
+            else:
+                action_descs.append("waiting")
+
+        if action_descs:
+            parts.append(f"{c.name}: {', '.join(action_descs)}")
+
+    if not parts:
+        return
+
+    # Per-session delivery: substitute player name -> "you" in target refs
+    summary_generic = " | ".join(parts)
+    generic_line = ansi.combat_msg(f"Enemies readying: {summary_generic}")
+
+    # Send personalised version to each player session in the room
+    player_combatants = [
+        c for c in combat.combatants.values() if not c.is_npc
+    ]
+    notified = set()
+    for pc in player_combatants:
+        sess = ctx.session_mgr.find_by_character(pc.id)
+        if not sess:
+            continue
+        notified.add(pc.id)
+        personal = summary_generic.replace(
+            f"attacking {pc.name}", "attacking you"
+        )
+        await sess.send_line(
+            ansi.combat_msg(f"Enemies readying: {personal}")
+        )
+
+    # Broadcast to any remaining sessions (observers, etc.) not yet notified
+    # Only send the generic line to sessions that were not individually notified
+    for sess in ctx.session_mgr.sessions_in_room(combat.room_id):
+        char = getattr(sess, "character", None)
+        if char and char["id"] in notified:
+            continue
+        await sess.send_line(generic_line)
 
 
 async def _apply_combat_wear(combat, ctx):
@@ -314,7 +406,7 @@ class AttackCommand(BaseCommand):
                 equip_data = _json.loads(equip_data)
             except Exception:
                 equip_data = {}
-        weapon_key = equip_data.get("weapon", "") if isinstance(equip_data, dict) else ""
+        weapon_key = equip_data.get("key", "") if isinstance(equip_data, dict) else ""
         if weapon_key:
             from engine.weapons import get_weapon_registry
             wr = get_weapon_registry()
@@ -443,7 +535,8 @@ class AttackCommand(BaseCommand):
         # Roll initiative if new combat
         if new_combat:
             events = combat.roll_initiative()
-            await _broadcast_events(events, ctx.session_mgr, room_id)
+            await _broadcast_events_paced(events, ctx.session_mgr, room_id, delay=0.3)
+            await _send_combat_state(combat, ctx.session_mgr)
 
         # Declare the attack
         action = CombatAction(
@@ -482,6 +575,7 @@ class AttackCommand(BaseCommand):
                 )
             )
 
+        await _send_combat_state(combat, ctx.session_mgr)
         await _try_auto_resolve(combat, ctx)
 
 
@@ -505,6 +599,7 @@ class DodgeCommand(BaseCommand):
             return
 
         await ctx.session.send_line(ansi.combat_msg("You declare: Dodge"))
+        await _send_combat_state(combat, ctx.session_mgr)
         await _try_auto_resolve(combat, ctx)
 
 
@@ -530,6 +625,7 @@ class FullDodgeCommand(BaseCommand):
         await ctx.session.send_line(ansi.combat_msg(
             "You declare: FULL DODGE (no other actions this round)"
         ))
+        await _send_combat_state(combat, ctx.session_mgr)
         await _try_auto_resolve(combat, ctx)
 
 
@@ -553,6 +649,7 @@ class ParryCommand(BaseCommand):
             return
 
         await ctx.session.send_line(ansi.combat_msg("You declare: Parry"))
+        await _send_combat_state(combat, ctx.session_mgr)
         await _try_auto_resolve(combat, ctx)
 
 
@@ -578,6 +675,7 @@ class FullParryCommand(BaseCommand):
         await ctx.session.send_line(ansi.combat_msg(
             "You declare: FULL PARRY (no other actions this round)"
         ))
+        await _send_combat_state(combat, ctx.session_mgr)
         await _try_auto_resolve(combat, ctx)
 
 
@@ -601,6 +699,7 @@ class AimCommand(BaseCommand):
             return
 
         await ctx.session.send_line(ansi.combat_msg("You declare: Aim"))
+        await _send_combat_state(combat, ctx.session_mgr)
         await _try_auto_resolve(combat, ctx)
 
 
@@ -629,6 +728,7 @@ class FleeCommand(BaseCommand):
             ansi.combat_msg(f"{char['name']} is trying to run!"),
             exclude=ctx.session,
         )
+        await _send_combat_state(combat, ctx.session_mgr)
         await _try_auto_resolve(combat, ctx)
 
 
@@ -652,6 +752,7 @@ class PassCommand(BaseCommand):
             return
 
         await ctx.session.send_line(ansi.combat_msg("You pass this round."))
+        await _send_combat_state(combat, ctx.session_mgr)
         await _try_auto_resolve(combat, ctx)
 
 
@@ -694,14 +795,22 @@ class ResolveCommand(BaseCommand):
             ))
 
         events = combat.resolve_round()
-        await _broadcast_events(events, ctx.session_mgr, combat.room_id)
+        await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id)
 
         if combat.is_over:
+            await _send_combat_ended(combat.room_id, ctx.session_mgr)
             _remove_combat(combat.room_id)
             return
 
+        await _send_combat_state(combat, ctx.session_mgr)
+
+        # Phase separator: resolution → initiative
+        await asyncio.sleep(1.1)
+        await _broadcast_separator(ctx.session_mgr, combat.room_id)
+
         events = combat.roll_initiative()
-        await _broadcast_events(events, ctx.session_mgr, combat.room_id)
+        await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id, delay=0.3)
+        await _send_combat_state(combat, ctx.session_mgr)
 
 
 class DisengageCommand(BaseCommand):
@@ -845,6 +954,7 @@ class CoverCommand(BaseCommand):
         await ctx.session.send_line(
             ansi.combat_msg(f"You take {COVER_NAMES.get(actual, 'cover')}!")
         )
+        await _send_combat_state(combat, ctx.session_mgr)
         await _try_auto_resolve(combat, ctx)
 
 

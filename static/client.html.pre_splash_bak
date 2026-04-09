@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Wars D6 MUSH</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
+
+  :root {
+    --bg-deep: #0a0c10;
+    --bg-panel: #0d1117;
+    --bg-input: #161b22;
+    --bg-hud: #0d1117;
+    --border-dim: #1c2433;
+    --border-glow: #2d4a22;
+    --text-primary: #c9d1d9;
+    --text-dim: #6e7681;
+    --text-bright: #e6edf3;
+    --accent-green: #3fb950;
+    --accent-amber: #d29922;
+    --accent-red: #f85149;
+    --accent-blue: #58a6ff;
+    --accent-cyan: #56d4dd;
+    --accent-purple: #bc8cff;
+    --scrollbar-track: #161b22;
+    --scrollbar-thumb: #30363d;
+    --glow-green: rgba(63, 185, 80, 0.15);
+    --glow-amber: rgba(210, 153, 34, 0.1);
+    --glow-red: rgba(248, 81, 73, 0.15);
+    --font-mono: 'Share Tech Mono', 'Consolas', 'Courier New', monospace;
+    --font-display: 'Orbitron', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px
+    );
+    z-index: 9999;
+  }
+
+  /* ── Layout ── */
+  .app {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+    gap: 0;
+  }
+
+  /* ── Header ── */
+  .header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 16px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border-dim);
+  }
+
+  .header-title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent-amber);
+    text-shadow: 0 0 20px var(--glow-amber);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .conn-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .conn-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent-red);
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .conn-dot.connected { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+  .conn-dot.connecting { background: var(--accent-amber); box-shadow: 0 0 8px var(--accent-amber); animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .conn-btn {
+    padding: 3px 10px;
+    font-family: var(--font-display);
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: 1px solid var(--border-dim);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: transparent;
+  }
+  .conn-btn.disconnect { color: var(--accent-red); border-color: rgba(248,81,73,0.3); }
+  .conn-btn.disconnect:hover { background: var(--glow-red); border-color: var(--accent-red); }
+  .conn-btn.reconnect { color: var(--accent-green); border-color: rgba(63,185,80,0.3); }
+  .conn-btn.reconnect:hover { background: var(--glow-green); border-color: var(--accent-green); }
+
+  /* ── Output Area ── */
+  .output-wrap {
+    grid-column: 1;
+    grid-row: 2;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg-deep);
+  }
+
+  #output {
+    height: 100%;
+    overflow-y: auto;
+    padding: 12px 16px;
+    scroll-behavior: smooth;
+  }
+
+  #output::-webkit-scrollbar { width: 6px; }
+  #output::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+  #output::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+  #output::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+  .output-line {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin-bottom: 1px;
+    font-size: 14px;
+    max-width: 100ch;
+  }
+
+  .output-line:empty::before { content: '\200b'; }
+  .output-line.fresh { animation: lineIn 0.15s ease-out; }
+  @keyframes lineIn { from { opacity: 0.5; } to { opacity: 1; } }
+
+  /* ── HUD Sidebar ── */
+  .hud {
+    grid-column: 2;
+    grid-row: 2 / 4;
+    background: var(--bg-hud);
+    border-left: 1px solid var(--border-dim);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow-y: auto;
+  }
+  .hud::-webkit-scrollbar { width: 4px; }
+  .hud::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+  .hud::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+
+  .hud-section {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-dim);
+  }
+
+  .hud-label {
+    font-family: var(--font-display);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .hud-value { font-size: 14px; color: var(--text-bright); }
+  .hud-value.name { color: var(--accent-amber); font-weight: bold; }
+  .hud-value.room { color: var(--accent-cyan); font-size: 13px; }
+  .hud-value.credits { color: var(--accent-amber); }
+  .hud-value.fp { color: var(--accent-blue); }
+
+  .wound-bar { display: flex; gap: 3px; margin-top: 4px; }
+  .wound-seg {
+    flex: 1; height: 6px; border-radius: 2px;
+    background: var(--border-dim); transition: background 0.3s;
+  }
+  .wound-seg.healthy { background: var(--accent-green); box-shadow: 0 0 4px rgba(63,185,80,0.4); }
+  .wound-seg.stunned { background: var(--accent-amber); }
+  .wound-seg.wounded { background: #da6d28; }
+  .wound-seg.incap   { background: var(--accent-red); }
+  .wound-seg.mortal  { background: #8b0000; box-shadow: 0 0 6px rgba(139,0,0,0.6); }
+
+  .quick-cmds { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .quick-cmd {
+    padding: 3px 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-dim);
+    border-radius: 3px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .quick-cmd:hover { color: var(--accent-green); border-color: var(--accent-green); background: rgba(63,185,80,0.05); }
+
+  .exit-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .exit-btn {
+    padding: 3px 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-dim);
+    border-radius: 3px;
+    color: var(--accent-cyan);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .exit-btn:hover { border-color: var(--accent-cyan); background: rgba(86,212,221,0.08); }
+
+  /* ── News/Comlink Feed ── */
+  .news-panel {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-dim);
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .news-panel::-webkit-scrollbar { width: 3px; }
+  .news-panel::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+
+  .news-item {
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(28,36,51,0.5);
+    line-height: 1.4;
+  }
+  .news-item:last-child { border-bottom: none; }
+  .news-tag {
+    font-family: var(--font-display);
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 1px 4px;
+    border-radius: 2px;
+    margin-right: 4px;
+  }
+  .news-tag.combat { color: var(--accent-red); border: 1px solid rgba(248,81,73,0.3); }
+  .news-tag.system { color: var(--accent-amber); border: 1px solid rgba(210,153,34,0.3); }
+  .news-tag.event  { color: var(--accent-purple); border: 1px solid rgba(188,140,255,0.3); }
+  .news-tag.space  { color: var(--accent-cyan); border: 1px solid rgba(86,212,221,0.3); }
+
+  /* ── Input Area ── */
+  .input-area {
+    grid-column: 1;
+    grid-row: 3;
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border-dim);
+    gap: 8px;
+  }
+
+  .input-prompt {
+    font-size: 14px;
+    color: var(--accent-green);
+    text-shadow: 0 0 8px var(--glow-green);
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  #cmd-input {
+    flex: 1;
+    background: var(--bg-input);
+    border: 1px solid var(--border-dim);
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--text-bright);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  #cmd-input:focus { border-color: var(--accent-green); box-shadow: 0 0 0 2px var(--glow-green); }
+  #cmd-input::placeholder { color: var(--text-dim); font-style: italic; }
+
+  .send-btn {
+    padding: 8px 16px;
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: rgba(63,185,80,0.1);
+    border: 1px solid var(--accent-green);
+    border-radius: 4px;
+    color: var(--accent-green);
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .send-btn:hover { background: rgba(63,185,80,0.2); box-shadow: 0 0 12px var(--glow-green); }
+
+  /* ── ANSI Colors ── */
+  .ansi-bold { font-weight: bold; }
+  .ansi-dim { opacity: 0.6; }
+  .ansi-italic { font-style: italic; }
+  .ansi-underline { text-decoration: underline; }
+  .ansi-blink { animation: blink 1s step-end infinite; }
+  .ansi-strikethrough { text-decoration: line-through; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .ansi-fg-30 { color: #4d4d4d; } .ansi-fg-31 { color: #f85149; }
+  .ansi-fg-32 { color: #3fb950; } .ansi-fg-33 { color: #d29922; }
+  .ansi-fg-34 { color: #58a6ff; } .ansi-fg-35 { color: #bc8cff; }
+  .ansi-fg-36 { color: #56d4dd; } .ansi-fg-37 { color: #e6edf3; }
+  .ansi-fg-90 { color: #6e7681; } .ansi-fg-91 { color: #ff7b72; }
+  .ansi-fg-92 { color: #7ee787; } .ansi-fg-93 { color: #e3b341; }
+  .ansi-fg-94 { color: #79c0ff; } .ansi-fg-95 { color: #d2a8ff; }
+  .ansi-fg-96 { color: #76e4ed; } .ansi-fg-97 { color: #ffffff; }
+
+  .ansi-bg-40 { background: #4d4d4d; } .ansi-bg-41 { background: #8b2520; }
+  .ansi-bg-42 { background: #1a4d2e; } .ansi-bg-43 { background: #6b4e14; }
+  .ansi-bg-44 { background: #1a3a6b; } .ansi-bg-45 { background: #5a3d7a; }
+  .ansi-bg-46 { background: #1a5c5f; } .ansi-bg-47 { background: #cccccc; color: #000; }
+
+  /* ── Mobile ── */
+  @media (max-width: 700px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto auto; }
+    .hud {
+      grid-column: 1; grid-row: 4;
+      flex-direction: row; flex-wrap: wrap;
+      border-left: none; border-top: 1px solid var(--border-dim);
+      padding: 4px; gap: 4px;
+      max-height: 140px; overflow-y: auto;
+    }
+    .hud-section { flex: 1; min-width: 100px; padding: 6px 8px; }
+    .hud-label { font-size: 8px; margin-bottom: 3px; }
+    .hud-value { font-size: 12px; }
+    .header-title { font-size: 11px; letter-spacing: 2px; }
+    #cmd-input { font-size: 16px; }
+    .news-panel { max-height: 80px; }
+    .output-line { max-width: none; }
+  }
+
+  .splash { color: var(--accent-amber); text-shadow: 0 0 10px var(--glow-amber); margin-bottom: 8px; }
+  .system-msg { color: var(--text-dim); font-style: italic; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="header">
+    <div class="header-title">Star Wars D6 MUSH</div>
+    <div class="header-right">
+      <div class="conn-status">
+        <div class="conn-dot" id="conn-dot"></div>
+        <span id="conn-label">Disconnected</span>
+      </div>
+      <button class="conn-btn disconnect" id="conn-btn" title="Disconnect">Disconnect</button>
+    </div>
+  </div>
+
+  <div class="output-wrap">
+    <div id="output"></div>
+  </div>
+
+  <div class="input-area">
+    <span class="input-prompt">&gt;</span>
+    <input type="text" id="cmd-input" placeholder="Enter command..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <button class="send-btn" id="send-btn">Send</button>
+  </div>
+
+  <div class="hud">
+    <div class="hud-section">
+      <div class="hud-label">Character</div>
+      <div class="hud-value name" id="hud-name">&mdash;</div>
+    </div>
+    <div class="hud-section">
+      <div class="hud-label">Condition</div>
+      <div class="hud-value" id="hud-wound">Healthy</div>
+      <div class="wound-bar" id="wound-bar">
+        <div class="wound-seg healthy"></div>
+        <div class="wound-seg healthy"></div>
+        <div class="wound-seg healthy"></div>
+        <div class="wound-seg healthy"></div>
+        <div class="wound-seg healthy"></div>
+      </div>
+    </div>
+    <div class="hud-section">
+      <div class="hud-label">Credits</div>
+      <div class="hud-value credits" id="hud-credits">&mdash;</div>
+    </div>
+    <div class="hud-section">
+      <div class="hud-label">Force / Points</div>
+      <div class="hud-value fp" id="hud-fp">&mdash;</div>
+    </div>
+    <div class="hud-section">
+      <div class="hud-label">Location</div>
+      <div class="hud-value room" id="hud-room">&mdash;</div>
+    </div>
+    <div class="hud-section">
+      <div class="hud-label">Exits</div>
+      <div class="exit-list" id="hud-exits">
+        <span style="color:var(--text-dim); font-size:12px;">&mdash;</span>
+      </div>
+    </div>
+
+    <div class="news-panel" id="news-panel">
+      <div class="hud-label">Comlink Feed</div>
+      <div id="news-items">
+        <div class="news-item" style="color:var(--text-dim); font-style:italic;">Scanning frequencies...</div>
+      </div>
+    </div>
+
+    <div class="hud-section">
+      <div class="hud-label">Quick</div>
+      <div class="quick-cmds">
+        <button class="quick-cmd" onclick="sendCmd('look')">look</button>
+        <button class="quick-cmd" onclick="sendCmd('inventory')">inv</button>
+        <button class="quick-cmd" onclick="sendCmd('score')">score</button>
+        <button class="quick-cmd" onclick="sendCmd('sheet')">sheet</button>
+        <button class="quick-cmd" onclick="sendCmd('missions')">jobs</button>
+        <button class="quick-cmd" onclick="sendCmd('who')">who</button>
+        <button class="quick-cmd" onclick="sendCmd('news')">news</button>
+        <button class="quick-cmd" onclick="sendCmd('help')">help</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const WS_PORT = 4001;
+  const MAX_OUTPUT_LINES = 2000;
+  const RECONNECT_DELAY_MS = 3000;
+  const MAX_HISTORY = 100;
+  const MAX_NEWS_ITEMS = 20;
+
+  const output    = document.getElementById('output');
+  const cmdInput  = document.getElementById('cmd-input');
+  const sendBtn   = document.getElementById('send-btn');
+  const connDot   = document.getElementById('conn-dot');
+  const connLabel = document.getElementById('conn-label');
+  const connBtn   = document.getElementById('conn-btn');
+
+  const hudName    = document.getElementById('hud-name');
+  const hudWound   = document.getElementById('hud-wound');
+  const woundBar   = document.getElementById('wound-bar');
+  const hudCredits = document.getElementById('hud-credits');
+  const hudFp      = document.getElementById('hud-fp');
+  const hudRoom    = document.getElementById('hud-room');
+  const hudExits   = document.getElementById('hud-exits');
+  const newsItems  = document.getElementById('news-items');
+
+  let ws = null;
+  let reconnectTimer = null;
+  let history = [];
+  let historyIdx = -1;
+  let tempInput = '';
+  let intentionalDisconnect = false;
+
+  // ═══════════ ANSI Parser ═══════════
+
+  function ansiToHtml(text) {
+    let result = '';
+    let lastIdx = 0;
+    let fg = null, bg = null;
+    let bold = false, dimOn = false, italic = false;
+    let underline = false, blinkOn = false, strike = false;
+    let openCount = 0;
+
+    function closeSpans() { while (openCount > 0) { result += '</span>'; openCount--; } }
+
+    function openSpan() {
+      let classes = [];
+      if (bold) classes.push('ansi-bold');
+      if (dimOn) classes.push('ansi-dim');
+      if (italic) classes.push('ansi-italic');
+      if (underline) classes.push('ansi-underline');
+      if (blinkOn) classes.push('ansi-blink');
+      if (strike) classes.push('ansi-strikethrough');
+      if (fg !== null) classes.push('ansi-fg-' + fg);
+      if (bg !== null) classes.push('ansi-bg-' + bg);
+      if (classes.length > 0) {
+        closeSpans();
+        result += '<span class="' + classes.join(' ') + '">';
+        openCount++;
+      }
+    }
+
+    const regex = /\x1b\[([0-9;]*)m/g;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      result += text.substring(lastIdx, match.index);
+      lastIdx = match.index + match[0].length;
+      const codes = match[1] ? match[1].split(';').map(Number) : [0];
+      for (const code of codes) {
+        if (code === 0) { closeSpans(); fg = bg = null; bold = dimOn = italic = underline = blinkOn = strike = false; continue; }
+        if (code === 1) bold = true;
+        else if (code === 2) dimOn = true;
+        else if (code === 3) italic = true;
+        else if (code === 4) underline = true;
+        else if (code === 5) blinkOn = true;
+        else if (code === 9) strike = true;
+        else if (code === 22) { bold = false; dimOn = false; }
+        else if (code === 23) italic = false;
+        else if (code === 24) underline = false;
+        else if (code === 25) blinkOn = false;
+        else if (code === 29) strike = false;
+        else if (code >= 30 && code <= 37) fg = code;
+        else if (code === 39) fg = null;
+        else if (code >= 40 && code <= 47) bg = code;
+        else if (code === 49) bg = null;
+        else if (code >= 90 && code <= 97) fg = code;
+      }
+      openSpan();
+    }
+    result += text.substring(lastIdx);
+    closeSpans();
+    return result;
+  }
+
+  // ═══════════ Output ═══════════
+
+  function appendOutput(text, cssClass) {
+    const lines = text.split(/\r?\n/);
+    for (const line of lines) {
+      const div = document.createElement('div');
+      div.className = 'output-line fresh';
+      if (cssClass) div.classList.add(cssClass);
+      div.innerHTML = ansiToHtml(line);
+      output.appendChild(div);
+    }
+    while (output.children.length > MAX_OUTPUT_LINES) output.removeChild(output.firstChild);
+    output.scrollTop = output.scrollHeight;
+    extractNewsFromText(text);
+  }
+
+  function systemMsg(text) { appendOutput(text, 'system-msg'); }
+
+  // ═══════════ Structured HUD ═══════════
+
+  function handleHudUpdate(data) {
+    if (data.name) hudName.textContent = data.name;
+    if (data.wound_name !== undefined) updateWoundDisplay(data.wound_name);
+    if (data.credits !== undefined) hudCredits.textContent = Number(data.credits).toLocaleString() + ' cr';
+    if (data.force_points !== undefined) {
+      let fpText = data.force_points + ' FP';
+      if (data.character_points !== undefined) fpText += ' / ' + data.character_points + ' CP';
+      if (data.dark_side_points > 0) fpText += ' / ' + data.dark_side_points + ' DSP';
+      hudFp.textContent = fpText;
+    }
+    if (data.room_name) hudRoom.textContent = data.room_name;
+    if (data.exits && Array.isArray(data.exits)) {
+      hudExits.innerHTML = '';
+      if (data.exits.length === 0) {
+        hudExits.innerHTML = '<span style="color:var(--text-dim); font-size:12px;">None</span>';
+      } else {
+        data.exits.forEach(function(ex) {
+          const btn = document.createElement('button');
+          btn.className = 'exit-btn';
+          btn.textContent = ex;
+          btn.addEventListener('click', function() { sendCmd(ex); });
+          hudExits.appendChild(btn);
+        });
+      }
+    }
+  }
+
+  function updateWoundDisplay(level) {
+    const levels = {
+      'healthy':           { label: 'Healthy',           segs: ['healthy','healthy','healthy','healthy','healthy'] },
+      'stunned':           { label: 'Stunned',           segs: ['stunned','stunned','stunned','stunned',''] },
+      'wounded':           { label: 'Wounded',           segs: ['wounded','wounded','wounded','',''] },
+      'wounded twice':     { label: 'Wounded Twice',     segs: ['wounded','wounded','','',''] },
+      'incapacitated':     { label: 'Incapacitated',     segs: ['incap','incap','','',''] },
+      'mortally wounded':  { label: 'Mortally Wounded',  segs: ['mortal','','','',''] },
+      'dead':              { label: 'DEAD',              segs: ['','','','',''] },
+    };
+    const key = level.toLowerCase();
+    const info = levels[key] || levels['healthy'];
+    hudWound.textContent = info.label;
+    const segs = woundBar.children;
+    for (let i = 0; i < 5; i++) {
+      segs[i].className = 'wound-seg';
+      if (info.segs[i]) segs[i].classList.add(info.segs[i]);
+    }
+  }
+
+  // ═══════════ News / Comlink Feed ═══════════
+
+  function extractNewsFromText(raw) {
+    const clean = raw.replace(/\x1b\[[0-9;]*m/g, '');
+    const lines = clean.split(/\r?\n/);
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t) continue;
+      if (t.startsWith('[SYSTEM]')) addNewsItem('system', t.replace('[SYSTEM] ', ''));
+      else if (t.startsWith('[COMBAT]')) addNewsItem('combat', t.replace('[COMBAT] ', ''));
+      else if (t.startsWith('[THE FORCE]')) addNewsItem('event', t.replace('[THE FORCE] ', ''));
+      else if (t.includes('GNN') || t.includes('BULLETIN')) addNewsItem('event', t);
+      else if (t.includes('has connected') || t.includes('has disconnected')) addNewsItem('system', t);
+    }
+  }
+
+  function addNewsItem(tag, text) {
+    const placeholder = newsItems.querySelector('[style]');
+    if (placeholder) placeholder.remove();
+    const item = document.createElement('div');
+    item.className = 'news-item';
+    item.innerHTML = '<span class="news-tag ' + tag + '">' + tag + '</span>' + text.substring(0, 120);
+    newsItems.insertBefore(item, newsItems.firstChild);
+    while (newsItems.children.length > MAX_NEWS_ITEMS) newsItems.removeChild(newsItems.lastChild);
+  }
+
+  // ═══════════ WebSocket ═══════════
+
+  function getWsUrl() {
+    const host = window.location.hostname || 'localhost';
+    return 'ws://' + host + ':' + WS_PORT;
+  }
+
+  function connect() {
+    if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
+    intentionalDisconnect = false;
+    const url = getWsUrl();
+    setConnStatus('connecting');
+    systemMsg('[Connecting to ' + url + '...]');
+    ws = new WebSocket(url);
+
+    ws.onopen = function() {
+      setConnStatus('connected');
+      systemMsg('[Connected]');
+      cmdInput.focus();
+    };
+
+    ws.onmessage = function(evt) {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg.type === 'hud_update') { handleHudUpdate(msg); return; }
+        if (msg.type === 'text' && typeof msg.data === 'string') { appendOutput(msg.data); }
+        else if (msg.type === 'news_event') {
+          if (msg.tag && msg.text) addNewsItem(msg.tag, msg.text);
+          if (msg.data) appendOutput(msg.data);
+        }
+        else { appendOutput(msg.data || msg.text || JSON.stringify(msg)); }
+      } catch (e) { appendOutput(evt.data); }
+    };
+
+    ws.onclose = function() {
+      setConnStatus('disconnected');
+      if (intentionalDisconnect) { systemMsg('[Disconnected]'); }
+      else {
+        systemMsg('[Connection lost — reconnecting in ' + (RECONNECT_DELAY_MS / 1000) + 's...]');
+        scheduleReconnect();
+      }
+    };
+
+    ws.onerror = function() {};
+  }
+
+  function disconnect() {
+    intentionalDisconnect = true;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ input: 'quit' }));
+      setTimeout(function() { if (ws) ws.close(); }, 200);
+    } else if (ws) { ws.close(); }
+    setConnStatus('disconnected');
+  }
+
+  function scheduleReconnect() {
+    if (intentionalDisconnect) return;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
+  }
+
+  function setConnStatus(state) {
+    connDot.className = 'conn-dot';
+    if (state === 'connected') {
+      connDot.classList.add('connected');
+      connLabel.textContent = 'Connected';
+      connBtn.textContent = 'Disconnect';
+      connBtn.className = 'conn-btn disconnect';
+    } else if (state === 'connecting') {
+      connDot.classList.add('connecting');
+      connLabel.textContent = 'Connecting...';
+      connBtn.textContent = 'Cancel';
+      connBtn.className = 'conn-btn disconnect';
+    } else {
+      connLabel.textContent = 'Disconnected';
+      connBtn.textContent = 'Reconnect';
+      connBtn.className = 'conn-btn reconnect';
+    }
+  }
+
+  connBtn.addEventListener('click', function() {
+    if (connBtn.textContent === 'Reconnect') { intentionalDisconnect = false; connect(); }
+    else { disconnect(); }
+  });
+
+  // ═══════════ Input ═══════════
+
+  function sendCmd(text) {
+    if (!text || !text.trim()) return;
+    text = text.trim();
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      systemMsg('[Not connected]');
+      if (!intentionalDisconnect) connect();
+      return;
+    }
+    ws.send(JSON.stringify({ input: text }));
+    if (history.length === 0 || history[0] !== text) {
+      history.unshift(text);
+      if (history.length > MAX_HISTORY) history.pop();
+    }
+    historyIdx = -1;
+    tempInput = '';
+    cmdInput.value = '';
+    cmdInput.focus();
+  }
+
+  window.sendCmd = sendCmd;
+
+  cmdInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); sendCmd(cmdInput.value); }
+    else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (history.length === 0) return;
+      if (historyIdx === -1) tempInput = cmdInput.value;
+      if (historyIdx < history.length - 1) { historyIdx++; cmdInput.value = history[historyIdx]; }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIdx > 0) { historyIdx--; cmdInput.value = history[historyIdx]; }
+      else if (historyIdx === 0) { historyIdx = -1; cmdInput.value = tempInput; }
+    }
+  });
+
+  sendBtn.addEventListener('click', function() { sendCmd(cmdInput.value); });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.target === cmdInput) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key.length === 1) cmdInput.focus();
+  });
+
+  // ═══════════ Splash ═══════════
+
+  function showSplash() {
+    const splash = [
+      '    ╔══════════════════════════════════════════════════╗',
+      '    ║       ____  _                __    __            ║',
+      '    ║      / ___|| |_ __ _ _ __  / / /\\ \\ \\__ _ _ __  ║',
+      '    ║      \\___ \\| __/ _` | \'__| \\ \\/  \\/ / _` | \'__| ║',
+      '    ║       ___) | || (_| | |     \\  /\\  / (_| | |    ║',
+      '    ║      |____/ \\__\\__,_|_|      \\/  \\/ \\__,_|_|    ║',
+      '    ║                                                  ║',
+      '    ║          D 6   M U S H   C L I E N T   v2       ║',
+      '    ╚══════════════════════════════════════════════════╝',
+    ];
+    appendOutput(splash.join('\n'), 'splash');
+    systemMsg('Browser client v2.0 — Connecting...');
+  }
+
+  showSplash();
+  connect();
+
+})();
+</script>
+</body>
+</html>

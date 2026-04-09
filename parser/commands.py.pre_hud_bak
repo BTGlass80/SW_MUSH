@@ -284,25 +284,4 @@ class CommandParser:
             await ctx.session.send_line(
                 f"An error occurred processing your command. ({e})"
             )
-
-        # ── HUD update for WebSocket clients ──
-        # Send structured state after every command so the browser
-        # sidebar stays current without regex-parsing output text.
-        if ctx.session.is_in_game:
-            # Refresh character data from DB to catch any mutations
-            if ctx.session.character:
-                try:
-                    fresh = await ctx.db.get_character(
-                        ctx.session.character["id"]
-                    )
-                    if fresh:
-                        # Preserve room_name cache
-                        rn = ctx.session.character.get("_room_name", "")
-                        ctx.session.character.update(fresh)
-                        if rn:
-                            ctx.session.character["_room_name"] = rn
-                except Exception:
-                    pass  # Non-critical
-            await ctx.session.send_hud_update(db=ctx.db)
-
         await ctx.session.send_prompt()

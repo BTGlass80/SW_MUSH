@@ -41,7 +41,6 @@ from engine.species import SpeciesRegistry
 from engine.character import SkillRegistry, Character
 from engine.tutorial import TutorialManager
 from engine.creation import CreationEngine
-from engine.creation_wizard import CreationWizard
 
 log = logging.getLogger(__name__)
 
@@ -358,10 +357,10 @@ class GameServer:
         Run the full interactive character creation flow.
         Returns a DB character dict on success, None on disconnect.
         """
-        wizard = CreationWizard(self.species_reg, self.skill_reg, width=session.width)
+        engine = CreationEngine(self.species_reg, self.skill_reg)
 
         # Show initial screen
-        display, prompt = wizard.get_initial_display()
+        display, prompt = engine.get_initial_display()
         await session.send_line(display)
         await session.send_prompt(prompt)
 
@@ -377,10 +376,7 @@ class GameServer:
             if line.lower() == "quit":
                 return None
 
-            # Keep formatter width synced with session (resize messages)
-            wizard.fmt.width = max(40, session.width)
-
-            display, prompt, done = wizard.process_input(line)
+            display, prompt, done = engine.process_input(line)
 
             if display:
                 await session.send_line(display)
@@ -394,7 +390,7 @@ class GameServer:
         # Build Character object and save to DB
         while True:
             try:
-                char_obj = wizard.get_character()
+                char_obj = engine.get_character()
                 char_obj.room_id = self.config.starting_room_id
                 db_fields = char_obj.to_db_dict()
 
@@ -429,7 +425,7 @@ class GameServer:
                         line = line.strip()
                         if line.lower() == "quit":
                             return None
-                        display, prompt, done = wizard.process_input(line)
+                        display, prompt, done = engine.process_input(line)
                         if display:
                             await session.send_line(display)
                         if done:

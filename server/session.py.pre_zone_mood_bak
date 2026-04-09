@@ -32,23 +32,6 @@ class SessionState(enum.Enum):
     DISCONNECTING = "disconnecting"
 
 
-# ── Wound level → display name ──
-
-_WOUND_NAMES = {
-    0: "healthy",
-    1: "stunned",
-    2: "wounded",
-    3: "wounded twice",
-    4: "incapacitated",
-    5: "mortally wounded",
-    6: "dead",
-}
-
-def _wound_name(level: int) -> str:
-    """Convert numeric wound level to display name for HUD."""
-    return _WOUND_NAMES.get(level, "healthy")
-
-
 class Session:
     """
     Unified session wrapping either a Telnet or WebSocket connection.
@@ -124,14 +107,11 @@ class Session:
             except Exception as e:
                 log.warning("JSON send failed on %s: %s", self, e)
         else:
-            # Telnet fallback: render as text (or silently drop structured messages)
+            # Telnet fallback: render as text
             if msg_type == "room_description":
                 await self.send_line(data.get("text", ""))
             elif msg_type == "combat_log":
                 await self.send_line(data.get("text", ""))
-            elif msg_type in ("combat_state", "hud_update", "world_event",
-                              "news_event", "space_state"):
-                pass  # Telnet clients ignore structured JSON messages
             else:
                 await self.send_line(str(data))
 
@@ -163,10 +143,6 @@ class Session:
             "dark_side_points": char.get("dark_side_points", 0),
             "force_sensitive": bool(char.get("force_sensitive", False)),
             "exits": [],
-            "zone_name": "",
-            "zone_type": "",
-            "alert_level": "",
-            "alert_faction": "",
         }
 
         # Fetch exits if we have a DB handle
@@ -181,44 +157,6 @@ class Session:
                         hud["room_name"] = room.get("name", "")
             except Exception:
                 pass  # Non-critical — HUD just won't show exits
-
-        # Resolve zone name and type for ambient mood
-        if db and room_id:
-            try:
-                room = await db.get_room(room_id)
-                if room and room.get("zone_id"):
-                    zone = await db.get_zone(room["zone_id"])
-                    if zone:
-                        hud["zone_name"] = zone.get("name", "")
-                        # Zone type from properties.environment
-                        props = zone.get("properties", "{}")
-                        if isinstance(props, str):
-                            import json as _json
-                            try:
-                                props = _json.loads(props)
-                            except Exception:
-                                props = {}
-                        hud["zone_type"] = props.get("environment", "")
-            except Exception:
-                pass  # Non-critical — mood just stays default — HUD just won't show exits
-
-
-        # Resolve alert level from Director AI
-        try:
-            from engine.director import get_director
-            director = get_director()
-            zone_key = hud.get("zone_type", "")
-            if zone_key:
-                alert = director.get_alert_level(zone_key)
-                hud["alert_level"] = alert.value if alert else ""
-                # Determine dominant faction
-                zs = director.get_zone_state(zone_key)
-                if zs:
-                    factions = {"imperial": zs.imperial, "rebel": zs.rebel,
-                                "criminal": zs.criminal, "independent": zs.independent}
-                    hud["alert_faction"] = max(factions, key=factions.get)
-        except Exception:
-            pass  # Non-critical — alert badge just won't show
 
         try:
             await self._send(json.dumps({"type": "hud_update", **hud}))
@@ -324,35 +262,9 @@ class SessionManager:
                 await s.send_line(text)
 
     async def broadcast_to_room(
-        self, room_id: int, text: str,
-        exclude=None,
+        self, room_id: int, text: str, exclude: Optional[Session] = None
     ):
-        """Send text to all sessions in a room.
-
-        Args:
-            exclude: Session object, list of character IDs to skip, or None.
-        """
-        excluded_ids: set[int] = set()
-        excluded_sess: Optional["Session"] = None
-        if isinstance(exclude, list):
-            excluded_ids = set(exclude)
-        elif exclude is not None:
-            excluded_sess = exclude
-
+        """Send a message to all sessions in a specific room."""
         for s in self.sessions_in_room(room_id):
-            if excluded_sess is not None and s is excluded_sess:
-                continue
-            if s.character and s.character.get("id") in excluded_ids:
-                continue
-            await s.send_line(text)
-
-    async def broadcast_json_to_room(
-        self, room_id: int, msg_type: str, data: dict
-    ):
-        """Send a typed JSON message to all WebSocket sessions in a room.
-
-        Telnet sessions silently ignore this call.
-        Used for combat_state, space_state, and other structured updates.
-        """
-        for s in self.sessions_in_room(room_id):
-            await s.send_json(msg_type, data)
+            if s is not exclude:
+                await s.send_line(text)

@@ -12,7 +12,6 @@ import re
 from engine.dice import DicePool
 from engine.character import Character, SkillRegistry, ATTRIBUTE_NAMES, WoundLevel
 from engine.species import Species
-from engine.text_format import Fmt
 from server.ansi import (
     BOLD, RESET, CYAN, YELLOW, GREEN, RED, DIM, WHITE,
     BRIGHT_WHITE, BRIGHT_CYAN, BRIGHT_YELLOW, BRIGHT_GREEN, BRIGHT_RED,
@@ -134,7 +133,7 @@ def _dsp_pips(dsp):
 #  PUBLIC API
 # ═══════════════════════════════════════════
 
-def render_game_sheet(char_dict, skill_reg, width=W):
+def render_game_sheet(char_dict, skill_reg):
     """Render in-game character sheet (R&E layout)."""
     from engine.character import Character
     char = Character.from_db_dict(char_dict)
@@ -246,7 +245,6 @@ def render_game_sheet(char_dict, skill_reg, width=W):
 def render_creation_sheet(
     name, species, attributes, skills, skill_reg,
     attr_pips_total, attr_pips_spent, skill_pips_total, skill_pips_spent,
-    width=W,
 ):
     """Render sheet during character creation with budget tracking."""
     lines = []
@@ -305,7 +303,7 @@ def render_creation_sheet(
         lines.append(_bar("-", DIM))
         lines.append(f"  {BOLD}Special Abilities:{RESET}")
         for ab in species.special_abilities:
-            desc = ab.description  # Full description, no truncation
+            desc = ab.description[:50] + "..." if len(ab.description) > 50 else ab.description
             lines.append(f"    {BRIGHT_MAGENTA}{ab.name}{RESET}: {DIM}{desc}{RESET}")
 
     if species:
