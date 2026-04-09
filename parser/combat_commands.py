@@ -132,48 +132,201 @@ async def _send_combat_ended(room_id, session_mgr):
 async def _try_auto_resolve(combat, ctx):
     """
     Auto-declare NPC actions, then if all combatants have declared,
-    resolve the round.
+    resolve the round and open the posing window.
+
+    v2 lifecycle:
+      1. Resolve round (batch)
+      2. Send private briefings to each player
+      3. Auto-generate NPC poses via FLAVOR_MATRIX
+      4. Open posing window with grace timer
+      5. When all poses in (or timer expires) → flush Action Log
+      6. Advance to next round
     """
     # Auto-declare for any undeclared NPCs
     await _auto_declare_npc_actions(combat, ctx)
 
     if combat.all_declared():
         events = combat.resolve_round()
-        await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id)
-
-        # Apply weapon wear to all attackers' equipped weapons
+        # Don't broadcast events to room yet — they go in the Action Log
+        # But we DO need to apply wear and persist wounds immediately
         await _apply_combat_wear(combat, ctx)
 
         if combat.is_over:
-            # Send ended signal — do NOT send active state first
+            # Combat ended — broadcast final events directly, no posing
+            await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id)
             await _send_combat_ended(combat.room_id, ctx.session_mgr)
             _remove_combat(combat.room_id)
             return
 
-        # Combat continues — update web panel with new wound states
+        # Combat continues — send private briefings + open posing window
         await _send_combat_state(combat, ctx.session_mgr)
+        await _send_private_briefings(combat, ctx)
+        await _auto_generate_npc_poses(combat)
+        await _start_posing_window(combat, ctx)
 
-        # Phase separator: resolution → initiative
-        await asyncio.sleep(1.1)
-        await _broadcast_separator(ctx.session_mgr, combat.room_id)
 
-        # Auto-roll next initiative
-        events = combat.roll_initiative()
-        await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id, delay=0.3)
-        await _send_combat_state(combat, ctx.session_mgr)
+async def _send_private_briefings(combat, ctx):
+    """Send each player their personal briefing after resolution."""
+    for c in combat.combatants.values():
+        if c.is_npc:
+            continue
+        sess = ctx.session_mgr.find_by_character(c.id)
+        if not sess:
+            continue
+        briefing = combat.build_private_briefing(c.id)
+        if briefing:
+            await sess.send_line(briefing)
 
-        # Auto-declare NPCs for the new round
-        await _auto_declare_npc_actions(combat, ctx)
 
-        # Prompt undeclared players
-        for c in combat.undeclared_combatants():
-            if c.is_npc:
-                continue
-            sess = ctx.session_mgr.find_by_character(c.id)
-            if sess:
-                await sess.send_line(
-                    ansi.combat_msg("Your turn! Declare: attack/dodge/aim/flee")
+async def _auto_generate_npc_poses(combat):
+    """Generate and store auto-poses for all NPC combatants."""
+    for c in combat.combatants.values():
+        if not c.is_npc:
+            continue
+        if c.id not in combat._pose_state:
+            continue
+        auto_pose = combat.generate_auto_pose(c.id)
+        combat.set_pose_status(c.id, "passed", text=auto_pose)
+
+
+async def _start_posing_window(combat, ctx):
+    """Open the posing window and start the grace timer.
+
+    If no player combatants are pending (solo-NPC fight edge case),
+    flush immediately.
+    """
+    from engine.combat import CombatPhase
+    combat.phase = CombatPhase.POSING
+
+    # Set the deadline timestamp for web client countdown
+    from datetime import datetime, timezone, timedelta
+    deadline = datetime.now(timezone.utc) + timedelta(seconds=180)
+    combat.pose_deadline = deadline.isoformat()
+
+    await _send_combat_state(combat, ctx.session_mgr)
+
+    # Check if all poses are already in (all NPCs, no players)
+    if combat.all_poses_in():
+        await _flush_action_log(combat, ctx)
+        return
+
+    # Spawn the grace timer as a background task
+    loop = asyncio.get_event_loop()
+    combat._grace_timer_handle = loop.create_task(
+        _pose_grace_timer(combat, ctx)
+    )
+
+
+async def _pose_grace_timer(combat, ctx, timeout=180, nudge_at=90):
+    """Background task: nudge idle posers, auto-pass on timeout."""
+    try:
+        await asyncio.sleep(nudge_at)
+        pending = combat.get_pending_posers()
+        if pending:
+            names = ", ".join(p.name for p in pending if not p.is_npc)
+            if names:
+                await ctx.session_mgr.broadcast_to_room(
+                    combat.room_id,
+                    ansi.combat_msg(
+                        f"Still waiting for narrative poses from: {names}."
+                    ),
                 )
+
+        await asyncio.sleep(timeout - nudge_at)
+
+        # Force-pass anyone still pending
+        for char_id in combat.get_pending_poser_ids():
+            c = combat.get_combatant(char_id)
+            if c and not c.is_npc:
+                auto_pose = combat.generate_auto_pose(char_id)
+                combat.set_pose_status(char_id, "passed", text=auto_pose)
+                sess = ctx.session_mgr.find_by_character(char_id)
+                if sess:
+                    await sess.send_line(
+                        ansi.combat_msg(
+                            "Time's up! The engine narrates your actions."
+                        )
+                    )
+
+        # Flush the Action Log
+        await _flush_action_log(combat, ctx)
+
+    except asyncio.CancelledError:
+        pass  # All poses came in early; normal exit
+
+
+async def _on_pose_submitted(combat, ctx):
+    """Called after a player submits a pose or passes.
+
+    Checks if all poses are in; if so, cancels the timer and flushes.
+    """
+    await _send_combat_state(combat, ctx.session_mgr)
+
+    if combat.all_poses_in():
+        # Cancel the grace timer
+        if combat._grace_timer_handle and not combat._grace_timer_handle.done():
+            combat._grace_timer_handle.cancel()
+        await _flush_action_log(combat, ctx)
+
+
+async def _flush_action_log(combat, ctx):
+    """Assemble and broadcast the cinematic Action Log, then advance."""
+    sorted_poses = combat.get_sorted_poses()
+
+    # Build the Action Log block
+    header = (
+        ansi.BOLD
+        + f"─── ROUND {combat.round_num} : ACTION LOG "
+        + "─" * 40
+        + ansi.RESET
+    )
+    footer = ansi.BOLD + "─" * 70 + ansi.RESET
+
+    await ctx.session_mgr.broadcast_to_room(combat.room_id, header)
+
+    for init_val, char_id, text in sorted_poses:
+        c = combat.get_combatant(char_id)
+        name = c.name if c else "Unknown"
+        if text:
+            line = f"  (Init {init_val:2d}) [{name}] {text}"
+        else:
+            line = f"  (Init {init_val:2d}) [{name}] hesitates, doing nothing."
+        await ctx.session_mgr.broadcast_to_room(combat.room_id, line)
+        await asyncio.sleep(0.5)  # Pacing between combatant poses
+
+    await ctx.session_mgr.broadcast_to_room(combat.room_id, footer)
+
+    # Clear pose state
+    combat._pose_state = {}
+    combat.pose_deadline = None
+
+    # Advance to next round
+    await _advance_to_next_round(combat, ctx)
+
+
+async def _advance_to_next_round(combat, ctx):
+    """Roll initiative, auto-declare NPCs, prompt players."""
+    # Phase separator
+    await asyncio.sleep(1.1)
+    await _broadcast_separator(ctx.session_mgr, combat.room_id)
+
+    # Auto-roll next initiative
+    events = combat.roll_initiative()
+    await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id, delay=0.3)
+    await _send_combat_state(combat, ctx.session_mgr)
+
+    # Auto-declare NPCs for the new round
+    await _auto_declare_npc_actions(combat, ctx)
+
+    # Prompt undeclared players
+    for c in combat.undeclared_combatants():
+        if c.is_npc:
+            continue
+        sess = ctx.session_mgr.find_by_character(c.id)
+        if sess:
+            await sess.send_line(
+                ansi.combat_msg("Your turn! Declare: attack/dodge/aim/flee")
+            )
 
 
 async def _auto_declare_npc_actions(combat, ctx):
@@ -735,7 +888,7 @@ class FleeCommand(BaseCommand):
 class PassCommand(BaseCommand):
     key = "pass"
     aliases = []
-    help_text = "Take no action this round (skip your turn)."
+    help_text = "Declaration phase: take no action. Posing phase: use auto-generated pose."
     usage = "pass"
 
     async def execute(self, ctx: CommandContext):
@@ -745,6 +898,31 @@ class PassCommand(BaseCommand):
             await ctx.session.send_line("  You're not in combat.")
             return
 
+        from engine.combat import CombatPhase
+
+        # ── Posing phase: submit an auto-generated pose ──
+        if combat.phase == CombatPhase.POSING:
+            pose_state = combat._pose_state.get(char["id"])
+            if not pose_state:
+                await ctx.session.send_line("  You have no pose pending.")
+                return
+            if pose_state["status"] != "pending":
+                await ctx.session.send_line(
+                    ansi.combat_msg("You've already submitted your pose.")
+                )
+                return
+
+            auto_pose = combat.generate_auto_pose(char["id"])
+            combat.set_pose_status(char["id"], "passed", text=auto_pose)
+            await ctx.session.send_line(
+                ansi.combat_msg(
+                    "You pass. The engine will narrate your actions this round."
+                )
+            )
+            await _on_pose_submitted(combat, ctx)
+            return
+
+        # ── Declaration phase: take no action this round ──
         action = CombatAction(action_type=ActionType.OTHER, description="passes")
         err = combat.declare_action(char["id"], action)
         if err:
@@ -778,7 +956,7 @@ class ResolveCommand(BaseCommand):
     key = "resolve"
     aliases = []
     access_level = AccessLevel.BUILDER
-    help_text = "Force-resolve the combat round (builder/admin)."
+    help_text = "Force-resolve the combat round (builder/admin). Skips posing window."
     usage = "resolve"
 
     async def execute(self, ctx: CommandContext):
@@ -795,22 +973,22 @@ class ResolveCommand(BaseCommand):
             ))
 
         events = combat.resolve_round()
-        await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id)
+
+        # Admin resolve skips posing — auto-generate all poses and flush
+        await _apply_combat_wear(combat, ctx)
 
         if combat.is_over:
+            await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id)
             await _send_combat_ended(combat.room_id, ctx.session_mgr)
             _remove_combat(combat.room_id)
             return
 
-        await _send_combat_state(combat, ctx.session_mgr)
+        # Auto-generate poses for everyone and flush immediately
+        for cid in list(combat._pose_state.keys()):
+            auto_pose = combat.generate_auto_pose(cid)
+            combat.set_pose_status(cid, "passed", text=auto_pose)
 
-        # Phase separator: resolution → initiative
-        await asyncio.sleep(1.1)
-        await _broadcast_separator(ctx.session_mgr, combat.room_id)
-
-        events = combat.roll_initiative()
-        await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id, delay=0.3)
-        await _send_combat_state(combat, ctx.session_mgr)
+        await _flush_action_log(combat, ctx)
 
 
 class DisengageCommand(BaseCommand):
@@ -1166,6 +1344,81 @@ def register_combat_commands(registry):
         AimCommand(), FleeCommand(), PassCommand(),
         CombatStatusCommand(), ResolveCommand(), DisengageCommand(),
         RangeCommand(), CoverCommand(), ForcePointCommand(),
+        CombatPoseCommand(), CombatRollsCommand(),
     ]
     for cmd in cmds:
         registry.register(cmd)
+
+
+class CombatPoseCommand(BaseCommand):
+    key = "cpose"
+    aliases = ["combatpose"]
+    help_text = "Submit your narrative pose during the posing window."
+    usage = "cpose <your narrative text>"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        combat, combatant = _ensure_in_combat(char, char["room_id"])
+        if not combat:
+            await ctx.session.send_line("  You're not in combat.")
+            return
+
+        from engine.combat import CombatPhase
+        if combat.phase != CombatPhase.POSING:
+            await ctx.session.send_line(
+                "  Not in the posing phase right now. "
+                "Wait until after resolution to write your pose."
+            )
+            return
+
+        pose_state = combat._pose_state.get(char["id"])
+        if not pose_state:
+            await ctx.session.send_line("  You have no pose pending.")
+            return
+        if pose_state["status"] != "pending":
+            await ctx.session.send_line(
+                ansi.combat_msg("You've already submitted your pose this round.")
+            )
+            return
+
+        if not ctx.args or not ctx.args.strip():
+            await ctx.session.send_line(
+                "  Usage: cpose <your narrative text>"
+            )
+            await ctx.session.send_line(
+                "  Example: cpose Tundra dives behind the crate, "
+                "firing two quick shots at the stormtrooper."
+            )
+            return
+
+        pose_text = ctx.args.strip()
+        combat.set_pose_status(char["id"], "ready", text=pose_text)
+        await ctx.session.send_line(
+            ansi.combat_msg("Pose submitted! Waiting for other combatants...")
+        )
+        await _on_pose_submitted(combat, ctx)
+
+
+class CombatRollsCommand(BaseCommand):
+    key = "combat rolls"
+    aliases = ["crolls"]
+    help_text = "Show the detailed initiative roll breakdown for this round."
+    usage = "combat rolls"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        combat = _active_combats.get(char["room_id"])
+        if not combat:
+            await ctx.session.send_line("  No active combat here.")
+            return
+
+        rolls = getattr(combat, "_last_initiative_rolls", {})
+        if not rolls:
+            await ctx.session.send_line("  No initiative rolls recorded yet.")
+            return
+
+        await ctx.session.send_line(
+            ansi.combat_msg(f"Initiative rolls — Round {combat.round_num}:")
+        )
+        for name, display in rolls.items():
+            await ctx.session.send_line(f"  {name}: {display}")

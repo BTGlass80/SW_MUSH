@@ -310,6 +310,7 @@ class CombatPhase(Enum):
     INITIATIVE = auto()
     DECLARATION = auto()
     RESOLUTION = auto()
+    POSING = auto()       # Players writing narrative poses (post-resolution)
     CLEANUP = auto()
     ENDED = auto()
 
@@ -350,6 +351,17 @@ class CombatInstance:
         self._range_overrides: dict[tuple[int, int], RangeBand] = {}
         # Cover: max level available in this room (set by builder)
         self.cover_max = cover_max
+        # ── Pose-state tracking (v2 posing system) ──
+        # Populated by resolve_round(), keyed by char_id
+        self._round_results: dict[int, list[ActionResult]] = {}
+        # Populated when posing window opens, keyed by char_id
+        # Each value: {"status": "pending"|"ready"|"passed",
+        #              "text": str|None, "initiative": int}
+        self._pose_state: dict[int, dict] = {}
+        # Handle for the async grace-timer task (set by command layer)
+        self._grace_timer_handle = None
+        # ISO timestamp deadline for pose window (set by command layer)
+        self.pose_deadline: Optional[str] = None
 
     def set_range(self, id_a: int, id_b: int, band: RangeBand):
         """Set the range band between two combatants."""
@@ -477,6 +489,7 @@ class CombatInstance:
                 "initiative": c.initiative,
                 "declared": bool(c.actions),
                 "action_summary": action_summary,
+                "pose_status": self._pose_state.get(cid, {}).get("status"),
                 "cover": c.cover_level,
                 "aim_bonus": c.aim_bonus,
                 "is_fleeing": c.is_fleeing,
@@ -530,6 +543,7 @@ class CombatInstance:
             "combatants": combatants_data,
             "your_actions": your_actions,
             "waiting_for": waiting_for,
+            "pose_deadline": self.pose_deadline,
         }
 
     # ── Declaration ──
@@ -623,9 +637,17 @@ class CombatInstance:
         """
         Resolve all declared actions in initiative order.
         Returns narration events.
+
+        Side effects:
+          - Populates self._round_results with per-combatant ActionResult lists
+          - Initialises self._pose_state for the posing window
         """
         self.phase = CombatPhase.RESOLUTION
         events = []
+        self._round_results = {}
+
+        # Also track incoming actions per target for briefings
+        self._incoming_results: dict[int, list[ActionResult]] = {}
 
         for char_id in self.initiative_order:
             c = self.combatants.get(char_id)
@@ -638,25 +660,45 @@ class CombatInstance:
             if num_actions == 0:
                 continue
 
+            actor_results = []
             for action in c.actions:
                 result = self._resolve_action(c, action, num_actions)
+                actor_results.append(result)
                 events.append(CombatEvent(
                     text=result.narrative,
                     targets=list(self.combatants.keys()),
                 ))
+                # Track as incoming for the target
+                if action.target_id and action.target_id in self.combatants:
+                    self._incoming_results.setdefault(
+                        action.target_id, []
+                    ).append(result)
 
+            self._round_results[char_id] = actor_results
             c.has_acted = True
 
         # Cleanup phase
         cleanup_events = self._cleanup()
         events.extend(cleanup_events)
 
+        # Initialise pose state for all active combatants
+        self._pose_state = {}
+        for c in self.combatants.values():
+            if c.char and c.char.wound_level.can_act and not c.is_fleeing:
+                self._pose_state[c.id] = {
+                    "status": "pending",
+                    "text": None,
+                    "initiative": c.initiative,
+                }
+
         # Check if combat is over
         if self.is_over:
             events.append(CombatEvent(text="--- COMBAT ENDED ---"))
             self.phase = CombatPhase.ENDED
         else:
-            self.phase = CombatPhase.INITIATIVE
+            # Don't advance to INITIATIVE yet — command layer drives
+            # the posing window before the next round starts
+            self.phase = CombatPhase.POSING
 
         return events
 
@@ -1240,6 +1282,268 @@ class CombatInstance:
             self.remove_combatant(c.id)
 
         return events
+
+    # ── Pose-State Management (v2 Posing System) ──
+
+    def set_pose_status(self, char_id: int, status: str,
+                        text: Optional[str] = None):
+        """Set a combatant's pose status.
+
+        Args:
+            char_id: Character DB id
+            status:  "pending", "ready", or "passed"
+            text:    The pose text (custom or auto-generated)
+        """
+        if char_id in self._pose_state:
+            self._pose_state[char_id]["status"] = status
+            if text is not None:
+                self._pose_state[char_id]["text"] = text
+
+    def get_pending_posers(self) -> list[Combatant]:
+        """Return combatants still in 'pending' pose status."""
+        result = []
+        for cid, state in self._pose_state.items():
+            if state["status"] == "pending":
+                c = self.combatants.get(cid)
+                if c:
+                    result.append(c)
+        return result
+
+    def get_pending_poser_ids(self) -> list[int]:
+        """Return character IDs of combatants still pending."""
+        return [cid for cid, s in self._pose_state.items()
+                if s["status"] == "pending"]
+
+    def all_poses_in(self) -> bool:
+        """True if no combatants are still 'pending'."""
+        return all(
+            s["status"] != "pending"
+            for s in self._pose_state.values()
+        )
+
+    def get_sorted_poses(self) -> list[tuple[int, int, str]]:
+        """Return (initiative, char_id, text) sorted by initiative desc.
+
+        Used by _flush_action_log() in the command layer to emit the
+        cinematic Action Log.
+        """
+        entries = []
+        for cid, state in self._pose_state.items():
+            text = state.get("text") or ""
+            init = state.get("initiative", 0)
+            entries.append((init, cid, text))
+        entries.sort(key=lambda e: e[0], reverse=True)
+        return entries
+
+    def generate_auto_pose(self, char_id: int) -> str:
+        """Generate a FLAVOR_MATRIX auto-pose for a combatant.
+
+        Uses stored _round_results to pick the right verb/margin/wound.
+        Falls back to a generic 'hesitates' pose if no results stored.
+        """
+        from engine.combat_flavor import (
+            generate_auto_pose as _gen_pose,
+            generate_pass_pose,
+            generate_compound_npc_pose,
+        )
+
+        c = self.combatants.get(char_id)
+        if not c:
+            return "Someone acts."
+
+        results = self._round_results.get(char_id, [])
+        if not results:
+            return generate_pass_pose(c.name)
+
+        # Build one pose fragment per action result
+        fragments = []
+        for r in results:
+            if r.action.action_type == ActionType.ATTACK:
+                target_c = self.combatants.get(r.action.target_id)
+                target_name = target_c.name if target_c else "the target"
+                frag = _gen_pose(
+                    char_name=c.name,
+                    weapon_skill=r.action.skill,
+                    target_name=target_name,
+                    margin=r.margin if r.success else -abs(r.margin),
+                    wound_result=r.wound_inflicted,
+                    round_num=self.round_num,
+                    combatant_id=char_id,
+                )
+                fragments.append(frag)
+            elif r.action.action_type in (
+                ActionType.DODGE, ActionType.FULL_DODGE
+            ):
+                fragments.append(f"{c.name} dodges incoming fire.")
+            elif r.action.action_type in (
+                ActionType.PARRY, ActionType.FULL_PARRY
+            ):
+                fragments.append(
+                    f"{c.name} braces, parrying with {r.action.skill or 'melee parry'}."
+                )
+            elif r.action.action_type == ActionType.FLEE:
+                if r.success:
+                    fragments.append(f"{c.name} breaks away and flees!")
+                else:
+                    fragments.append(f"{c.name} tries to run but can't escape!")
+            elif r.action.action_type == ActionType.AIM:
+                fragments.append(f"{c.name} takes careful aim.")
+            elif r.action.action_type == ActionType.COVER:
+                fragments.append(f"{c.name} ducks behind cover.")
+            else:
+                fragments.append(f"{c.name} hesitates.")
+
+        if len(fragments) == 1:
+            return fragments[0]
+        return generate_compound_npc_pose(c.name, fragments)
+
+    def build_private_briefing(self, char_id: int) -> str:
+        """Build a private briefing string for a player.
+
+        Shows:
+          - All of their declared actions and outcomes
+          - All incoming actions targeting them
+          - A prompt to write their pose
+
+        Returns a multi-line string ready to send to the player session.
+        """
+        c = self.combatants.get(char_id)
+        if not c:
+            return ""
+
+        lines = []
+        lines.append("=" * 70)
+        lines.append(f"{'ROUND ' + str(self.round_num) + ' : PRIVATE BRIEFING':^70}")
+        lines.append("=" * 70)
+        lines.append("")
+
+        # ── YOUR ACTIONS ──
+        my_results = self._round_results.get(char_id, [])
+        num_actions = len(c.actions)
+        penalty_note = ""
+        if num_actions > 1:
+            penalty_dice = num_actions - 1
+            penalty_note = f" (Multi-Action Penalty: -{penalty_dice}D applied)"
+
+        lines.append(f"▸ YOUR ACTIONS{penalty_note}:")
+        if my_results:
+            for i, r in enumerate(my_results, 1):
+                action = r.action
+                atype = action.action_type
+
+                if atype == ActionType.ATTACK:
+                    target_c = self.combatants.get(action.target_id)
+                    tname = target_c.name if target_c else "target"
+                    if r.success:
+                        wound_info = r.wound_inflicted or "No Damage"
+                        lines.append(
+                            f"  {i}. Attack {tname} → "
+                            + _ansi.BOLD + "HIT!" + _ansi.RESET
+                            + f" (Rolled {r.roll_display} vs {r.defense_display})"
+                        )
+                        if wound_info != "No Damage":
+                            lines.append(
+                                f"     Result: Inflicted {wound_info}."
+                            )
+                        else:
+                            lines.append(
+                                f"     Result: No damage dealt."
+                            )
+                    else:
+                        lines.append(
+                            f"  {i}. Attack {tname} → MISS"
+                            f" (Rolled {r.roll_display} vs {r.defense_display})"
+                        )
+
+                elif atype in (ActionType.DODGE, ActionType.FULL_DODGE):
+                    label = "Full Dodge" if atype == ActionType.FULL_DODGE else "Dodge"
+                    lines.append(
+                        f"  {i}. {label} → Applied against incoming attacks"
+                    )
+
+                elif atype in (ActionType.PARRY, ActionType.FULL_PARRY):
+                    label = "Full Parry" if atype == ActionType.FULL_PARRY else "Parry"
+                    lines.append(
+                        f"  {i}. {label} → Applied against melee attacks"
+                    )
+
+                elif atype == ActionType.AIM:
+                    lines.append(
+                        f"  {i}. Aim → +{c.aim_bonus}D to next attack"
+                    )
+
+                elif atype == ActionType.FLEE:
+                    if r.success:
+                        lines.append(f"  {i}. Flee → SUCCESS")
+                    else:
+                        lines.append(f"  {i}. Flee → BLOCKED")
+
+                elif atype == ActionType.COVER:
+                    lines.append(f"  {i}. Take cover → {action.description}")
+
+                else:
+                    lines.append(f"  {i}. {action.description or 'Pass'}")
+        else:
+            lines.append("  (No actions resolved)")
+
+        # ── INCOMING ACTIONS ──
+        incoming = self._incoming_results.get(char_id, [])
+        lines.append("")
+        lines.append("▸ INCOMING ACTIONS:")
+        if incoming:
+            for r in incoming:
+                attacker_c = self.combatants.get(r.actor_id)
+                aname = attacker_c.name if attacker_c else "Someone"
+                if r.success:
+                    wound = r.wound_inflicted or "No Damage"
+                    lines.append(
+                        f"  - {aname} attacked you → "
+                        + _ansi.BOLD + "HIT" + _ansi.RESET
+                    )
+                    if wound != "No Damage":
+                        lines.append(f"     You take: {wound}")
+                else:
+                    # Check if our dodge/parry helped
+                    lines.append(f"  - {aname} attacked you → MISSED")
+        else:
+            lines.append("  - No attacks targeted you this round.")
+
+        # ── PROMPT ──
+        lines.append("")
+        lines.append("-" * 70)
+
+        # Build a hint for what to cover in their pose
+        action_types = [a.action_type for a in c.actions]
+        action_words = []
+        for at in action_types:
+            if at == ActionType.ATTACK:
+                action_words.append("your attack")
+            elif at in (ActionType.DODGE, ActionType.FULL_DODGE):
+                action_words.append("your dodge")
+            elif at in (ActionType.PARRY, ActionType.FULL_PARRY):
+                action_words.append("your parry")
+            elif at == ActionType.FLEE:
+                action_words.append("your escape attempt")
+            elif at == ActionType.AIM:
+                action_words.append("taking aim")
+            elif at == ActionType.COVER:
+                action_words.append("taking cover")
+        if action_words:
+            hint = " and ".join(action_words)
+            lines.append(
+                _ansi.combat_msg(f"Write your pose covering {hint}.")
+            )
+        else:
+            lines.append(_ansi.combat_msg("Write your pose for this round."))
+
+        lines.append(
+            _ansi.combat_msg(
+                "Type 'pass' to use an auto-generated pose."
+            )
+        )
+        lines.append("=" * 70)
+
+        return "\n".join(lines)
 
     def get_status(self) -> list[str]:
         """Get a status summary of all combatants."""
