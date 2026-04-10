@@ -146,6 +146,14 @@ class TrainCommand(BaseCommand):
         total_pool = attr_pool + current_bonus
         cost = total_pool.dice  # advance_skill cost formula
 
+        # Guild training bonus: 20% discount for guild members
+        try:
+            from engine.organizations import get_guild_cp_multiplier
+            multiplier = await get_guild_cp_multiplier(char, ctx.db)
+            cost = max(1, int(cost * multiplier))
+        except Exception:
+            pass
+
         if cp_available < cost:
             await ctx.session.send_line(
                 ansi.error(
@@ -160,8 +168,9 @@ class TrainCommand(BaseCommand):
             return
 
         # Commit the advance
-        actual_cost = character.advance_skill(skill_name, skill_reg)
-        character.character_points -= actual_cost
+        character.advance_skill(skill_name, skill_reg)
+        character.character_points -= cost
+        actual_cost = cost
 
         # Save updated skills + CP
         await ctx.db.save_character(
@@ -179,6 +188,15 @@ class TrainCommand(BaseCommand):
             f"{skill_name.title()} trained: {attr_pool + current_bonus} → {new_pool}  "
             f"({actual_cost} CP spent, {character.character_points} CP remaining)"
         )
+
+        # Narrative: log skill training
+        try:
+            from engine.narrative import log_action, ActionType as NT
+            await log_action(ctx.db, char["id"], NT.SKILL_TRAIN,
+                             f"Trained {skill_name.title()} to {new_pool} ({actual_cost} CP)",
+                             {"skill": skill_name, "new_pool": str(new_pool), "cost": actual_cost})
+        except Exception:
+            pass
 
 
 # ── kudos ─────────────────────────────────────────────────────────────────────

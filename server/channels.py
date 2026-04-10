@@ -120,6 +120,7 @@ class ChannelManager:
         for sess in session_mgr.all:
             if sess.character:
                 await sess.send_line(line)
+                await sess.send_json("chat", {"channel": "ooc", "from": sender_name, "text": message})
                 count += 1
         log.debug("[ooc] %s: %s  (%d recipients)", sender_name, message[:60], count)
         return count
@@ -138,6 +139,7 @@ class ChannelManager:
         for sess in session_mgr.all:
             if sess.character:
                 await sess.send_line(line)
+                await sess.send_json("chat", {"channel": "ic", "from": sender_name, "text": f"[COMLINK] {message}"})
                 count += 1
         log.debug("[comlink] %s: %s  (%d recipients)", sender_name, message[:60], count)
         return count

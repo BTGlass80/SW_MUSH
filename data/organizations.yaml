@@ -1,0 +1,199 @@
+# data/organizations.yaml
+# Seed data for SW_MUSH organizations system.
+# Loaded by engine/organizations.py on first startup.
+
+factions:
+  - code: empire
+    name: "Galactic Empire"
+    director_managed: true
+    properties:
+      color: "\033[1;34m"
+      axis: imperial
+      hq_room_name: "Kessel - Garrison Checkpoint"
+    ranks:
+      - level: 0
+        title: "Recruit"
+        min_rep: 0
+        equipment: ["imperial_uniform", "se_14c_pistol"]
+      - level: 1
+        title: "Private"
+        min_rep: 10
+        equipment: ["e11_blaster_rifle", "stormtrooper_armor"]
+        permissions: ["faction_comms"]
+      - level: 2
+        title: "Corporal"
+        min_rep: 25
+        equipment: ["improved_armor"]
+        permissions: ["faction_comms"]
+      - level: 3
+        title: "Sergeant"
+        min_rep: 40
+        permissions: ["faction_comms", "lead_npc_squad"]
+      - level: 4
+        title: "Lieutenant"
+        min_rep: 60
+        equipment: ["officers_sidearm"]
+        permissions: ["faction_comms", "lead_npc_squad", "issue_orders", "restricted_access"]
+      - level: 5
+        title: "Captain"
+        min_rep: 75
+        permissions: ["faction_comms", "lead_npc_squad", "issue_orders", "restricted_access", "create_missions", "promote_sergeant"]
+      - level: 6
+        title: "Commander"
+        min_rep: 90
+        permissions: ["faction_admin"]
+
+  - code: rebel
+    name: "Rebel Alliance"
+    director_managed: true
+    properties:
+      color: "\033[1;31m"
+      axis: rebel
+      hq_room_name: "Nar Shaddaa - Corellian Promenade"
+    ranks:
+      - level: 0
+        title: "Sympathizer"
+        min_rep: 0
+        equipment: ["encrypted_comlink"]
+      - level: 1
+        title: "Operative"
+        min_rep: 15
+        equipment: ["blaster_pistol", "flight_suit"]
+        permissions: ["faction_comms", "cell_missions"]
+      - level: 2
+        title: "Sergeant"
+        min_rep: 30
+        equipment: ["heavy_blaster_pistol"]
+        permissions: ["faction_comms", "cell_missions"]
+      - level: 3
+        title: "Lieutenant"
+        min_rep: 50
+        permissions: ["faction_comms", "cell_missions", "lead_npc_squad"]
+      - level: 4
+        title: "Cell Leader"
+        min_rep: 70
+        permissions: ["faction_comms", "cell_missions", "lead_npc_squad", "create_missions", "recruit"]
+      - level: 5
+        title: "Commander"
+        min_rep: 90
+        permissions: ["faction_admin"]
+
+  - code: hutt
+    name: "Hutt Cartel"
+    director_managed: true
+    properties:
+      color: "\033[1;33m"
+      axis: criminal
+      hq_room_name: "Jabba's Townhouse"
+    ranks:
+      - level: 0
+        title: "Associate"
+        min_rep: 0
+      - level: 1
+        title: "Soldier"
+        min_rep: 15
+        permissions: ["faction_comms", "smuggling_routes"]
+      - level: 2
+        title: "Enforcer"
+        min_rep: 35
+        permissions: ["faction_comms", "smuggling_routes", "debt_collection"]
+      - level: 3
+        title: "Lieutenant"
+        min_rep: 55
+        permissions: ["faction_comms", "smuggling_routes", "debt_collection", "lead_npc_squad"]
+      - level: 4
+        title: "Underboss"
+        min_rep: 75
+        permissions: ["faction_comms", "smuggling_routes", "debt_collection", "lead_npc_squad", "create_missions", "territory"]
+      - level: 5
+        title: "Vigo"
+        min_rep: 90
+        permissions: ["faction_admin"]
+
+  - code: bh_guild
+    name: "Bounty Hunters' Guild"
+    director_managed: true
+    properties:
+      color: "\033[1;35m"
+      axis: independent
+      hq_room_name: "Nar Shaddaa - Bounty Hunters' Quarter"
+    ranks:
+      - level: 0
+        title: "Novice"
+        min_rep: 0
+        equipment: ["binder_cuffs", "guild_license"]
+      - level: 1
+        title: "Journeyman"
+        min_rep: 15
+        equipment: ["tracking_fob"]
+        permissions: ["guild_bounty_board"]
+      - level: 2
+        title: "Hunter"
+        min_rep: 35
+        permissions: ["guild_bounty_board"]
+      - level: 3
+        title: "Senior Hunter"
+        min_rep: 55
+        permissions: ["guild_bounty_board", "post_player_bounties"]
+      - level: 4
+        title: "Veteran"
+        min_rep: 75
+        permissions: ["guild_bounty_board", "post_player_bounties", "guild_vote"]
+      - level: 5
+        title: "Guildmaster"
+        min_rep: 90
+        permissions: ["faction_admin"]
+
+  - code: independent
+    name: "Independent"
+    director_managed: false
+    properties:
+      color: "\033[0m"
+      axis: independent
+    ranks:
+      - level: 0
+        title: "Freelancer"
+        min_rep: 0
+
+guilds:
+  - code: mechanics_guild
+    name: "Mechanics' Guild"
+    properties:
+      cp_discount: 0.20
+      description: "Ship and equipment repair specialists."
+    dues_weekly: 50
+
+  - code: shipwrights_guild
+    name: "Shipwrights' Guild"
+    properties:
+      cp_discount: 0.20
+      description: "Ship modification and construction experts."
+    dues_weekly: 75
+
+  - code: medics_guild
+    name: "Medics' Guild"
+    properties:
+      cp_discount: 0.20
+      description: "Healers, bacta specialists, combat medics."
+    dues_weekly: 50
+
+  - code: slicers_guild
+    name: "Slicers' Collective"
+    properties:
+      cp_discount: 0.20
+      description: "Computer intrusion and electronic warfare."
+    dues_weekly: 60
+
+  - code: entertainers_guild
+    name: "Entertainers' Guild"
+    properties:
+      cp_discount: 0.20
+      description: "Performers, musicians, and social operators."
+    dues_weekly: 25
+
+  - code: scouts_guild
+    name: "Scouts' Guild"
+    properties:
+      cp_discount: 0.20
+      description: "Surveyors, pathfinders, wilderness experts."
+    dues_weekly: 40

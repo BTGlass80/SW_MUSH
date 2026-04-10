@@ -1281,6 +1281,12 @@ class CombatInstance:
             events.append(CombatEvent(text=f"  {c.name} has fled the area."))
             self.remove_combatant(c.id)
 
+        # Remove dead combatants
+        dead = [c for c in self.combatants.values()
+                if c.char and c.char.wound_level == WoundLevel.DEAD]
+        for c in dead:
+            self.remove_combatant(c.id)
+
         return events
 
     # ── Pose-State Management (v2 Posing System) ──

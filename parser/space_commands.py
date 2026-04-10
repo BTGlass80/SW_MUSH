@@ -14,7 +14,7 @@ from engine.starships import (
     ShipInstance, SCALE_STARFIGHTER, SCALE_CAPITAL,
     REPAIRABLE_SYSTEMS, REPAIR_DIFFICULTIES,
     get_system_state, get_repair_skill_name, get_weapon_repair_skill,
-    resolve_damage_control,
+    resolve_damage_control, get_effective_stats,
 )
 from engine.dice import DicePool
 from server import ansi
@@ -47,6 +47,19 @@ def _get_systems(ship):
     return systems or {}
 
 
+def _get_effective_for_ship(ship: dict) -> dict | None:
+    """Return get_effective_stats() result for a ship, or None on error.
+
+    Used by combat, maneuvering, and HUD code so that mods, power
+    allocation, and captain's orders actually affect gameplay.
+    """
+    reg = get_ship_registry()
+    template = reg.get(ship.get("template", ""))
+    if not template:
+        return None
+    systems = _get_systems(ship)
+    return get_effective_stats(template, systems)
+
 
 # ── Space HUD: build_space_state() + broadcast_space_state() ─────────────────
 # Drop 8 — Phase 4a
@@ -62,6 +75,7 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
     )
     from engine.npc_space_traffic import ZONES, get_traffic_manager
     from engine.space_anomalies import get_anomalies_for_zone
+    from engine.starships import is_silent_running
 
     reg     = get_ship_registry()
     grid    = get_space_grid()
@@ -90,8 +104,10 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
                 })
 
     # ── Hull & shields ────────────────────────────────────────────────────────
-    hull_pool    = DicePool.parse(tmpl.hull)    if tmpl else DicePool(4, 0)
-    shield_pool  = DicePool.parse(tmpl.shields) if tmpl else DicePool(0, 0)
+    # Use effective stats so mods, power allocation, and orders are reflected
+    eff = get_effective_stats(tmpl, systems) if tmpl else None
+    hull_pool    = DicePool.parse(eff["hull"])    if eff else (DicePool.parse(tmpl.hull) if tmpl else DicePool(4, 0))
+    shield_pool  = DicePool.parse(eff["shields"]) if eff else (DicePool.parse(tmpl.shields) if tmpl else DicePool(0, 0))
     hull_max     = hull_pool.total_pips()
     hull_damage  = systems.get("hull_damage", ship.get("hull_damage", 0))
     hull_current = max(0, hull_max - hull_damage)
@@ -165,6 +181,8 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
     gunner_stations_raw = crew.get("gunner_stations", {})
     gunner_out = {}
     weapons_list = []
+    # Effective weapon fire control from mods + power + orders
+    eff_wfc = eff.get("weapon_fc", {}) if eff else {}
     if tmpl:
         for i, wpn in enumerate(tmpl.weapons):
             gid = gunner_stations_raw.get(str(i), 0)
@@ -172,11 +190,21 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
             gunner_out[str(i)] = gunner_stub
             if gid == char_id:
                 my_station = "gunner"
+            # Apply effective fire control bonus from mods/power/orders
+            fc_display = wpn.fire_control
+            fc_extra = eff_wfc.get(i, eff_wfc.get(-1, 0)) if eff_wfc else 0
+            if isinstance(fc_extra, int) and fc_extra > 0:
+                base_fc = DicePool.parse(wpn.fire_control)
+                boosted = DicePool(base_fc.dice, base_fc.pips + fc_extra)
+                # Normalise pips → dice
+                boosted = DicePool(boosted.dice + boosted.pips // 3,
+                                   boosted.pips % 3)
+                fc_display = str(boosted)
             weapons_list.append({
                 "index":       i,
                 "name":        wpn.name,
                 "damage":      wpn.damage,
-                "fire_control":wpn.fire_control,
+                "fire_control":fc_display,
                 "arc":         wpn.arc,
                 "ion":         getattr(wpn, "ion", False),
                 "tractor":     getattr(wpn, "tractor", False),
@@ -290,6 +318,13 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
         "contacts":         contacts,
         "anomalies":        anomalies_out,
         "station_buttons":  station_buttons,
+        "power_state":      _eff.get("power_state", {}),
+        "reactor_power":    tmpl.reactor_power if tmpl else 10,
+        "silent_running":   is_silent_running(systems) if tmpl else False,
+        "active_order":     systems.get("active_order"),
+        "order_flags":      _eff.get("order_flags", {}),
+        "stealth_bonus":    _eff.get("stealth_bonus", 0),
+        "false_transponder":_eff.get("false_transponder"),
     }
 
 
@@ -712,6 +747,11 @@ class VacateCommand(BaseCommand):
         if not left:
             await ctx.session.send_line("  You're not at any crew station.")
             return
+        if left == "commander":
+            _v_sys = _get_systems(ship)
+            if _v_sys.get("active_order"):
+                _v_sys.pop("active_order", None)
+                await ctx.db.update_ship(ship["id"], systems=json.dumps(_v_sys))
         await ctx.db.update_ship(ship["id"], crew=json.dumps(crew))
         await ctx.session.send_line(ansi.success(
             f"  You step away from the {left} station."))
@@ -1004,6 +1044,37 @@ class LandCommand(BaseCommand):
         except Exception:
             pass
 
+        # ── Customs check (Drop 18) ─────────────────────────────────────────
+        # Imperial presence at Tatooine orbit and Corellia
+        _IMPERIAL_PLANETS = {"tatooine", "corellia"}
+        if _land_planet in _IMPERIAL_PLANETS:
+            await _run_customs_check(ctx, ship, _land_planet)
+
+        # Ship's log: planet landed
+        if _land_planet:
+            try:
+                from engine.ships_log import log_event as _log_ev
+                char = ctx.session.character
+                _milestones = await _log_ev(ctx.db, char, "planets_landed", _land_planet)
+                for _ms in _milestones:
+                    await ctx.session.send_line(
+                        f"  {ansi.BRIGHT_GREEN}[SHIP LOG]{ansi.RESET} "
+                        f"{_ms['msg']}  "
+                        + (f"+{_ms['cp']} CP" if _ms.get('cp') else "")
+                        + (f"  Title: {ansi.BRIGHT_YELLOW}{_ms['title']}{ansi.RESET}"
+                           if _ms.get('title') else "")
+                    )
+            except Exception:
+                pass
+
+        # Discovery quest: fire first-visit trigger for this planet
+        if _land_planet and _land_planet != "tatooine":
+            try:
+                from engine.tutorial_v2 import on_planet_land
+                await on_planet_land(ctx.session, ctx.db, _land_planet)
+            except Exception:
+                pass
+
 
 class ShipCommand(BaseCommand):
     key = "+ship"
@@ -1020,6 +1091,8 @@ class ShipCommand(BaseCommand):
         "  /mods           -- view installed ship modifications\n"
         "  /install <item> -- install a crafted ship component\n"
         "  /uninstall <#>  -- remove a mod by slot number\n"
+        "  /log            -- view ship's log and milestones\n"
+        "  /quirks         -- view installed ship quirks\n"
         "\n"
         "EXAMPLES:\n"
         "  +ship              -- your ship's status\n"
@@ -1031,7 +1104,8 @@ class ShipCommand(BaseCommand):
         "  +ship/uninstall 0  -- remove mod in slot 0"
     )
     usage = "+ship [/status|/info|/list|/mine|/repair|/mods|/install|/uninstall]"
-    valid_switches = ["status", "info", "list", "mine", "repair", "mods", "install", "uninstall"]
+    valid_switches = ["status", "info", "list", "mine", "repair", "mods",
+                      "install", "uninstall", "log", "quirks"]
 
     async def execute(self, ctx):
         if "list" in ctx.switches:
@@ -1048,6 +1122,10 @@ class ShipCommand(BaseCommand):
             return await self._install_mod(ctx)
         if "uninstall" in ctx.switches:
             return await self._uninstall_mod(ctx)
+        if "log" in ctx.switches:
+            return await self._show_log(ctx)
+        if "quirks" in ctx.switches:
+            return await self._show_quirks(ctx)
         # Default: status
         return await self._show_status(ctx)
 
@@ -1085,8 +1163,10 @@ class ShipCommand(BaseCommand):
                 sc = await ctx.db.get_character(sid)
                 await ctx.session.send_line(
                     f"  {station.title()}: {sc['name'] if sc else f'#{sid}'}")
-        # Weapons
+        # Weapons — show effective fire control from mods/power/orders
         stations = crew.get("gunner_stations", {})
+        status_eff = _get_effective_for_ship(ship) or {}
+        status_wfc = status_eff.get("weapon_fc", {})
         if template.weapons:
             await ctx.session.send_line(f"  {ansi.BOLD}Weapons:{ansi.RESET}")
             for i, w in enumerate(template.weapons):
@@ -1101,9 +1181,17 @@ class ShipCommand(BaseCommand):
                     flags += f"  {ansi.BRIGHT_YELLOW}TRACTOR{ansi.RESET}"
                 if w.ion:
                     flags += f"  {ansi.BRIGHT_BLUE}ION{ansi.RESET}"
+                # Effective fire control
+                fc_display = w.fire_control
+                fc_extra = status_wfc.get(i, status_wfc.get(-1, 0)) if status_wfc else 0
+                if isinstance(fc_extra, int) and fc_extra > 0 and fc_extra != -99:
+                    base_fc = DicePool.parse(w.fire_control)
+                    boosted = DicePool(base_fc.dice + (base_fc.pips + fc_extra) // 3,
+                                       (base_fc.pips + fc_extra) % 3)
+                    fc_display = f"{ansi.BRIGHT_GREEN}{boosted}{ansi.RESET}"
                 await ctx.session.send_line(
                     f"    {i+1}. {crew_str:14s} {w.name:30s} "
-                    f"{w.damage:>5s}  FC:{w.fire_control}  {w.fire_arc}{flags}")
+                    f"{w.damage:>5s}  FC:{fc_display}  {w.fire_arc}{flags}")
         # Ion/tractor status
         if systems.get("ion_penalty", 0) > 0:
             await ctx.session.send_line(
@@ -1325,6 +1413,22 @@ class ShipCommand(BaseCommand):
             f"  +{eff_boost} {stat_target} effective boost applied. "
             f"Slots used: {len(mods)}/{template.mod_slots}.")
 
+        # Quirk roll: 25% chance on success, 50% on failed install (not reached here)
+        import random as _qr
+        quirk_chance = 0.25
+        if _qr.random() < quirk_chance:
+            from engine.starships import roll_quirk
+            existing_quirk_keys = [q["key"] for q in mods if "key" in q]
+            quirk = roll_quirk(existing_quirk_keys)
+            if quirk:
+                _qsys = _get_systems(ship)
+                _qsys.setdefault("quirks", []).append(quirk)
+                await ctx.db.update_ship(ship["id"], systems=json.dumps(_qsys))
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_YELLOW}[QUIRK]{ansi.RESET} "
+                    f"The modification introduced a quirk: {quirk['desc']}"
+                )
+
     async def _uninstall_mod(self, ctx):
         """Remove a mod by slot index. (+ship/uninstall <slot#>)"""
         ship = await _get_ship_for_player(ctx)
@@ -1395,6 +1499,28 @@ class ShipCommand(BaseCommand):
             if (reg := get_ship_registry()) and (t := reg.get(ship["template"]))
             else ""
         )
+
+    async def _show_log(self, ctx):
+        from engine.ships_log import get_ships_log, format_ships_log
+        char = ctx.session.character
+        ships_log = get_ships_log(char)
+        lines = format_ships_log(ships_log)
+        for line in lines:
+            await ctx.session.send_line(line)
+
+    async def _show_quirks(self, ctx):
+        from engine.starships import format_quirks_display
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        systems = _get_systems(ship)
+        lines = format_quirks_display(systems)
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_CYAN}Ship Quirks — {ship['name']}{ansi.RESET}"
+        )
+        for line in lines:
+            await ctx.session.send_line(line)
 
     async def _show_list(self, ctx):
         reg = get_ship_registry()
@@ -1506,6 +1632,11 @@ class ScanCommand(BaseCommand):
             sr.load_default()
             base_pool = char_obj.get_skill_pool("sensors", sr)
             # Station bonus: +2D if sitting at sensors
+            # Stealth bonus: target ship harder to detect (sensor_mask, silent running)
+            _scan_diff = _SCAN_DIFFICULTY
+            _scan_target = _get_systems(ship)  # ship is the scanning ship
+            # Scan all ships in zone and apply per-target stealth
+
             if crew.get("sensors") == char["id"]:
                 bonus = DicePool(2, 0)
                 boosted = base_pool + bonus
@@ -1915,8 +2046,11 @@ class FireCommand(BaseCommand):
                 # Route piloting skill by target scale
                 tp_pilot_skill = "capital ship piloting" if target_template.scale == "capital" else "starfighter piloting"
                 target_pilot_pool = tp_char.get_skill_pool(tp_pilot_skill, sr)
-        # Determine arc-specific shields
+        # Determine arc-specific shields — use effective shields as base
         target_systems = _get_systems(target_ship)
+        target_eff = _get_effective_for_ship(target_ship) or {}
+        attacker_eff = _get_effective_for_ship(ship) or {}
+        eff_shields_str = target_eff.get("shields", target_template.shields)
         _arc_map = {"front": "shield_front", "rear": "shield_rear",
                     "left": "shield_left", "right": "shield_right"}
         arc_key = _arc_map.get(rel_pos, "shield_front")
@@ -1924,15 +2058,32 @@ class FireCommand(BaseCommand):
         if arc_dice is not None:
             target_shields_pool = DicePool(int(arc_dice), 0)
         else:
-            target_shields_pool = DicePool.parse(target_template.shields)
+            target_shields_pool = DicePool.parse(eff_shields_str)
+
+        # Effective hull and maneuverability for target
+        eff_target_hull = DicePool.parse(target_eff.get("hull", target_template.hull))
+        eff_target_maneuver = DicePool.parse(target_eff.get("maneuverability", target_template.maneuverability))
+
+        # Effective fire control for attacker weapon
+        eff_weapon = weapon
+        atk_wfc = attacker_eff.get("weapon_fc", {})
+        fc_extra_pips = atk_wfc.get(gunner_idx, atk_wfc.get(-1, 0)) if atk_wfc else 0
+        if isinstance(fc_extra_pips, int) and fc_extra_pips > 0 and fc_extra_pips != -99:
+            # Build a modified weapon with boosted fire_control
+            base_fc = DicePool.parse(weapon.fire_control)
+            boosted_fc = DicePool(base_fc.dice + (base_fc.pips + fc_extra_pips) // 3,
+                                  (base_fc.pips + fc_extra_pips) % 3)
+            from copy import copy as _copy
+            eff_weapon = _copy(weapon)
+            eff_weapon.fire_control = str(boosted_fc)
 
         # ── Tractor beam dispatch ──
         if weapon.tractor:
             from engine.starships import resolve_tractor_attack
             tresult = resolve_tractor_attack(
-                attacker_skill=gunnery_pool, weapon=weapon,
+                attacker_skill=gunnery_pool, weapon=eff_weapon,
                 attacker_scale=template.scale_value,
-                target_hull=DicePool.parse(target_template.hull),
+                target_hull=eff_target_hull,
                 target_scale=target_template.scale_value,
                 range_band=rng,
             )
@@ -1971,11 +2122,11 @@ class FireCommand(BaseCommand):
 
         # ── Standard / ion attack ──
         result = resolve_space_attack(
-            attacker_skill=gunnery_pool, weapon=weapon,
+            attacker_skill=gunnery_pool, weapon=eff_weapon,
             attacker_scale=template.scale_value,
             target_pilot_skill=target_pilot_pool,
-            target_maneuverability=DicePool.parse(target_template.maneuverability),
-            target_hull=DicePool.parse(target_template.hull),
+            target_maneuverability=eff_target_maneuver,
+            target_hull=eff_target_hull,
             target_shields=target_shields_pool,
             target_scale=target_template.scale_value,
             range_band=rng,
@@ -1991,11 +2142,10 @@ class FireCommand(BaseCommand):
                     systems[s] = False
                 updates["systems"] = json.dumps(systems)
             await ctx.db.update_ship(target_ship["id"], **updates)
-            # Check if this killed a traffic ship (hull_damage >= hull dice * 6 is a rough
-            # destroyed threshold; use template hull as proxy via reg)
-            target_tmpl_hull = target_template.hull  # string like "3D"
+            # Check if this killed a traffic ship — use effective hull
+            eff_hull_str = target_eff.get("hull", target_template.hull)
             try:
-                hull_dice = int(target_tmpl_hull.split("D")[0]) if "D" in target_tmpl_hull else 3
+                hull_dice = int(eff_hull_str.split("D")[0]) if "D" in eff_hull_str else 3
             except Exception:
                 hull_dice = 3
             destroyed_threshold = hull_dice * 6
@@ -2038,7 +2188,8 @@ class FireCommand(BaseCommand):
                 old_penalty = t_systems.get("ion_penalty", 0)
                 t_systems["ion_penalty"] = old_penalty + ion_count
                 # Check for controls frozen (ionized >= maneuverability dice)
-                maneuver_dice = DicePool.parse(target_template.maneuverability).dice
+                eff_maneuver_str = target_eff.get("maneuverability", target_template.maneuverability)
+                maneuver_dice = DicePool.parse(eff_maneuver_str).dice
                 if t_systems["ion_penalty"] >= maneuver_dice and maneuver_dice > 0:
                     t_systems["controls_frozen"] = True
             await ctx.db.update_ship(target_ship["id"],
@@ -2185,15 +2336,18 @@ class CloseRangeCommand(BaseCommand):
                 tp_char = Character.from_db_dict(tp)
                 target_pilot_pool = tp_char.get_skill_pool("starfighter piloting", sr)
         grid = get_space_grid()
+        # Use effective stats for maneuverability and speed
+        my_eff = _get_effective_for_ship(ship) or {}
+        tgt_eff = _get_effective_for_ship(target_ship) or {}
         success, narrative = grid.resolve_maneuver(
             pilot_id=ship["id"],
             pilot_skill=pilot_pool,
-            pilot_maneuverability=DicePool.parse(template.maneuverability),
-            pilot_speed=template.speed,
+            pilot_maneuverability=DicePool.parse(my_eff.get("maneuverability", template.maneuverability)),
+            pilot_speed=my_eff.get("speed", template.speed),
             target_id=target_ship["id"],
             target_pilot_skill=target_pilot_pool,
-            target_maneuverability=DicePool.parse(target_template.maneuverability),
-            target_speed=target_template.speed,
+            target_maneuverability=DicePool.parse(tgt_eff.get("maneuverability", target_template.maneuverability)),
+            target_speed=tgt_eff.get("speed", target_template.speed),
             action=action)
         color = ansi.BRIGHT_GREEN if success else ansi.BRIGHT_YELLOW
         await ctx.session_mgr.broadcast_to_room(ship["bridge_room_id"],
@@ -2262,12 +2416,13 @@ class EvadeCommand(BaseCommand):
             await ctx.session.send_line("  Unknown ship template.")
             return
 
-        # Build pilot pool
+        # Build pilot pool — use effective maneuverability
         char_obj = Character.from_db_dict(ctx.session.character)
         sr = SkillRegistry()
         sr.load_file("data/skills.yaml")
         pilot_pool = char_obj.get_skill_pool("starfighter piloting", sr)
-        maneuver_pool = DicePool.parse(template.maneuverability)
+        my_eff = _get_effective_for_ship(ship) or {}
+        maneuver_pool = DicePool.parse(my_eff.get("maneuverability", template.maneuverability))
 
         # Check engine state
         systems = _get_systems(ship)
@@ -2383,12 +2538,13 @@ async def _resolve_maneuver_cmd(ctx, maneuver_name: str, base_diff: int,
     engine_penalty = 5 if engine_state == "damaged" else 0
     total_diff = base_diff + engine_penalty
 
-    # Build pilot pool
+    # Build pilot pool — use effective maneuverability
     char_obj = Character.from_db_dict(ctx.session.character)
     sr = SkillRegistry()
     sr.load_file("data/skills.yaml")
     pilot_pool = char_obj.get_skill_pool("starfighter piloting", sr)
-    maneuver_pool = DicePool.parse(template.maneuverability)
+    my_eff = _get_effective_for_ship(ship) or {}
+    maneuver_pool = DicePool.parse(my_eff.get("maneuverability", template.maneuverability))
 
     from engine.dice import apply_multi_action_penalty, roll_d6_pool
     pool = DicePool(
@@ -3192,9 +3348,12 @@ class BuyCommand(BaseCommand):
     usage = "buy <weapon name>"
     async def execute(self, ctx):
         if not ctx.args:
-            await ctx.session.send_line("Usage: buy <weapon name>")
-            await ctx.session.send_line("  Type 'weapons' to see available weapons and prices.")
+            await ctx.session.send_line("Usage: buy <weapon name>  or  buy cargo <good> <tons>")
+            await ctx.session.send_line("  Type 'weapons' for weapons, 'market' for trade goods.")
             return
+        # Route cargo purchases to trade handler
+        if ctx.args.strip().lower().startswith("cargo "):
+            return await _handle_buy_cargo(ctx)
         from engine.weapons import get_weapon_registry
         from engine.items import ItemInstance, serialize_equipment
         wr = get_weapon_registry()
@@ -3735,6 +3894,850 @@ class ResistTractorCommand(BaseCommand):
 
 
 
+
+class OrderCommand(BaseCommand):
+    """Issue a tactical order as Commander. Requires Command skill check (diff 8).
+
+    Usage:
+      order               -- show current order and available orders
+      order <number>      -- issue order by number (1-8)
+      order cancel        -- cancel current order
+    """
+    key = "order"
+    aliases = ["orders"]
+    help_text = "Issue a tactical order (Commander station required)."
+    usage = "order [<number> | cancel]"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        if ship.get("docked_at"):
+            await ctx.session.send_line("  Cannot issue orders while docked.")
+            return
+        crew = _get_crew(ship)
+        char_id = ctx.session.character["id"]
+        if crew.get("commander") != char_id:
+            await ctx.session.send_line(
+                "  Only the Commander can issue tactical orders. "
+                "Take the commander station first ('commander')."
+            )
+            return
+
+        from engine.starships import ORDER_DEFINITIONS, ORDER_LIST, get_active_order
+        systems = _get_systems(ship)
+        active  = get_active_order(systems)
+        args    = (ctx.args or "").strip().lower()
+
+        # ── Show status ──────────────────────────────────────────────────────
+        if not args:
+            if active:
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_CYAN}[COMMAND]{ansi.RESET} "
+                    f"Active: {ansi.BRIGHT_WHITE}{active['name']}{ansi.RESET}  "
+                    f"| {active['bonus']}  | Cost: {active['tradeoff']}"
+                )
+            else:
+                await ctx.session.send_line(
+                    f"  {ansi.DIM}No tactical order active.{ansi.RESET}"
+                )
+            await ctx.session.send_line("")
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_WHITE}Available orders:{ansi.RESET}"
+            )
+            for o in ORDER_LIST:
+                marker = (
+                    f" {ansi.BRIGHT_GREEN}[ACTIVE]{ansi.RESET}"
+                    if active and active["number"] == o["number"] else ""
+                )
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_CYAN}{o['number']}.{ansi.RESET} "
+                    f"{ansi.BRIGHT_WHITE}{o['name']:<22}{ansi.RESET}"
+                    f"  {o['bonus']:<40}  Cost: {o['tradeoff']}{marker}"
+                )
+            await ctx.session.send_line(
+                f"\n  {ansi.DIM}Use 'order <number>' to issue, "
+                f"'order cancel' to stand down.{ansi.RESET}"
+            )
+            return
+
+        # ── Cancel ───────────────────────────────────────────────────────────
+        if args == "cancel":
+            if not active:
+                await ctx.session.send_line("  No order is active.")
+                return
+            systems.pop("active_order", None)
+            await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
+            await ctx.session_mgr.broadcast_to_room(
+                ship["bridge_room_id"],
+                f"  {ansi.BRIGHT_YELLOW}[COMMAND]{ansi.RESET} "
+                f"{ctx.session.character['name']} stands down: {active['name']}."
+            )
+            return
+
+        # ── Issue by number ──────────────────────────────────────────────────
+        if not args.isdigit():
+            await ctx.session.send_line(
+                "  Usage: order <number>  (1-8)  or  order cancel"
+            )
+            return
+
+        order_num = int(args)
+        target = next((o for o in ORDER_LIST if o["number"] == order_num), None)
+        if not target:
+            await ctx.session.send_line(
+                f"  Unknown order '{order_num}'. Type 'order' to see the list."
+            )
+            return
+
+        # Command skill check (Easy difficulty 8)
+        from engine.skill_checks import perform_skill_check
+        from engine.character import SkillRegistry
+        sr = SkillRegistry()
+        sr.load_default()
+        result = perform_skill_check(ctx.session.character, "command", 8, sr)
+
+        if result.fumble:
+            import random as _rnd
+            chaos = _rnd.choice(ORDER_LIST)
+            systems["active_order"] = next(
+                k for k, v in ORDER_DEFINITIONS.items()
+                if v["number"] == chaos["number"]
+            )
+            await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
+            await ctx.session_mgr.broadcast_to_room(
+                ship["bridge_room_id"],
+                f"  {ansi.BRIGHT_RED}[COMMAND]{ansi.RESET} "
+                f"Order backfires! Crew scrambles to execute: {chaos['name']}! "
+                f"(roll: {result.roll} vs 8 — fumble)"
+            )
+            return
+
+        if not result.success:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_YELLOW}[COMMAND]{ansi.RESET} "
+                f"Crew hesitates — order not acknowledged. "
+                f"(roll: {result.roll} vs 8) Try again."
+            )
+            return
+
+        # Success
+        order_key = next(
+            k for k, v in ORDER_DEFINITIONS.items() if v["number"] == order_num
+        )
+        systems["active_order"] = order_key
+        await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
+        crit = " (critical!)" if result.critical_success else ""
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ansi.BRIGHT_GREEN}[COMMAND]{ansi.RESET} "
+            f"{ctx.session.character['name']}: {target['name'].upper()}{crit}! "
+            f"{target['bonus']}. Cost: {target['tradeoff']}."
+        )
+
+
+class PowerCommand(BaseCommand):
+    """
+    Manage reactor power allocation. Engineer station required.
+
+    Usage:
+      power                    -- show current allocation and budget
+      power engines <n>        -- set engines power (0-6)
+      power shields <n>        -- set shields power (0-6)
+      power weapons <n>        -- set weapons power (0-6)
+      power sensors <n>        -- set sensors power (0-4)
+      power life_support <n>   -- set life support power (0-2)
+      power combat             -- preset: standard combat allocation
+      power silent             -- preset: silent running (stealth mode)
+      power emergency          -- preset: engines + shields, weapons offline
+    """
+    key = "power"
+    aliases = ["pwr"]
+    help_text = "Manage reactor power allocation. Engineer station required."
+    usage = "power [system <n> | combat | silent | emergency]"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        if ship.get("docked_at"):
+            await ctx.session.send_line("  Power management unavailable while docked.")
+            return
+
+        crew = _get_crew(ship)
+        char_id = ctx.session.character["id"]
+
+        # Engineer gate
+        if crew.get("engineer") != char_id:
+            await ctx.session.send_line(
+                f"  {ansi.DIM}No one at the engineering console. "
+                f"Take the engineer station first ('engineer').{ansi.RESET}"
+                if not crew.get("engineer") else
+                f"  Only the engineer can manage power allocation."
+            )
+            return
+
+        from engine.starships import (
+            get_ship_registry, POWER_DEFAULTS, POWER_PRESETS,
+            get_power_state, get_power_budget_used, is_silent_running,
+        )
+        reg = get_ship_registry()
+        tmpl = reg.get(ship.get("template", ""))
+        if not tmpl:
+            await ctx.session.send_line("  Ship data error.")
+            return
+
+        systems = _get_systems(ship)
+        reactor_max = tmpl.reactor_power
+
+        args = (ctx.args or "").strip().lower().split()
+
+        # ── Show current allocation ──────────────────────────────────────────
+        if not args:
+            ps = get_power_state(systems)
+            used = get_power_budget_used(ps)
+            remaining = reactor_max - used
+            silent = is_silent_running(systems)
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_CYAN}[ENGINEERING]{ansi.RESET} "
+                f"Reactor: {used}/{reactor_max} power"
+                + (f"  {ansi.BRIGHT_YELLOW}[SILENT RUNNING]{ansi.RESET}" if silent else "")
+            )
+            await ctx.session.send_line("")
+            sys_order = ["engines", "shields", "weapons", "sensors", "life_support"]
+            sys_labels = {
+                "engines":      "Engines      ",
+                "shields":      "Shields      ",
+                "weapons":      "Weapons      ",
+                "sensors":      "Sensors      ",
+                "life_support": "Life Support ",
+            }
+            overcharge_notes = {
+                "engines": "+1 speed/pt",
+                "shields": "+1 pip/pt",
+                "weapons": "+1 pip FC/pt",
+                "sensors": "+1D scan/pt",
+            }
+            for s in sys_order:
+                cur  = ps[s]
+                dflt = POWER_DEFAULTS[s]
+                note = ""
+                if cur > dflt:
+                    note = f"  {ansi.BRIGHT_GREEN}+{cur-dflt} overcharge ({overcharge_notes.get(s,'')}){ansi.RESET}"
+                elif cur == 0 and dflt > 0:
+                    note = f"  {ansi.RED}OFFLINE{ansi.RESET}"
+                bar = "█" * cur + "░" * max(0, dflt - cur)
+                color = ansi.BRIGHT_GREEN if cur > dflt else (ansi.RED if cur == 0 and dflt > 0 else ansi.DIM)
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_WHITE}{sys_labels[s]}{ansi.RESET}"
+                    f"  {color}{bar}{ansi.RESET}  {cur} pw{note}"
+                )
+            await ctx.session.send_line("")
+            await ctx.session.send_line(
+                f"  {ansi.DIM}Budget: {remaining} power free. "
+                f"Presets: power combat | power silent | power emergency{ansi.RESET}"
+            )
+            return
+
+        # ── Presets ──────────────────────────────────────────────────────────
+        preset_name = args[0]
+        if preset_name in POWER_PRESETS:
+            preset = POWER_PRESETS[preset_name]
+            total = sum(preset.values())
+            if total > reactor_max:
+                await ctx.session.send_line(
+                    f"  Preset '{preset_name}' requires {total} power "
+                    f"but reactor capacity is {reactor_max}."
+                )
+                return
+            systems["power_allocation"] = preset
+            await ctx.db.update_ship(ship["id"], systems=import_json().dumps(systems))
+            if preset_name == "silent":
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_CYAN}[ENGINEERING]{ansi.RESET} "
+                    f"Silent running engaged. Engines at drift speed, shields and weapons offline. "
+                    f"Sensor detection difficulty +9."
+                )
+            elif preset_name == "emergency":
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_YELLOW}[ENGINEERING]{ansi.RESET} "
+                    f"Emergency power: engines and shields at maximum. Weapons offline."
+                )
+            else:
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_GREEN}[ENGINEERING]{ansi.RESET} "
+                    f"Standard combat allocation restored."
+                )
+            await _broadcast_space_state_for_ship(ship, ctx.db, ctx.session_mgr)
+            return
+
+        # ── Set individual system ─────────────────────────────────────────────
+        if len(args) < 2 or not args[1].isdigit():
+            await ctx.session.send_line(
+                "  Usage: power <s> <value>  or  power <preset>\n"
+                "  Systems: engines shields weapons sensors life_support\n"
+                "  Presets: combat silent emergency"
+            )
+            return
+
+        sys_name = args[0]
+        if sys_name not in POWER_DEFAULTS:
+            await ctx.session.send_line(
+                f"  Unknown system '{sys_name}'. "
+                f"Valid: engines shields weapons sensors life_support"
+            )
+            return
+
+        new_val = int(args[1])
+        if new_val < 0 or new_val > 8:
+            await ctx.session.send_line("  Power value must be 0–8.")
+            return
+
+        ps = get_power_state(systems)
+        ps[sys_name] = new_val
+        new_total = get_power_budget_used(ps)
+        if new_total > reactor_max:
+            over = new_total - reactor_max
+            await ctx.session.send_line(
+                f"  Over budget by {over} power (reactor max: {reactor_max}). "
+                f"Reduce another system first."
+            )
+            return
+
+        systems["power_allocation"] = ps
+        await ctx.db.update_ship(ship["id"], systems=import_json().dumps(systems))
+
+        dflt = POWER_DEFAULTS[sys_name]
+        if new_val == 0 and dflt > 0:
+            note = f"{ansi.RED}OFFLINE{ansi.RESET}"
+        elif new_val > dflt:
+            note = f"{ansi.BRIGHT_GREEN}overcharge +{new_val - dflt}{ansi.RESET}"
+        else:
+            note = "nominal"
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_CYAN}[ENGINEERING]{ansi.RESET} "
+            f"{sys_name.replace('_', ' ').title()} set to {new_val} power. "
+            f"Status: {note}. Budget used: {new_total}/{reactor_max}."
+        )
+        await _broadcast_space_state_for_ship(ship, ctx.db, ctx.session_mgr)
+
+
+def import_json():
+    import json
+    return json
+
+
+async def _broadcast_space_state_for_ship(ship, db, session_mgr):
+    """Re-broadcast space state after power change so HUD updates immediately."""
+    try:
+        from parser.space_commands import broadcast_space_state
+        await broadcast_space_state(ship, db, session_mgr)
+    except Exception:
+        pass
+
+
+# ── Transponder Codes & Customs (Drop 18) ───────────────────────────────────
+
+# Infraction classes (Platt's Smugglers Guide p.42-43)
+_INFRACTION_CLASSES = {
+    5: {"name": "Class Five",  "desc": "Safety violation / expired permit",  "fine": (100, 500),    "arrest_chance": 0.0},
+    4: {"name": "Class Four",  "desc": "Minor contraband / unlicensed goods","fine": (1000, 5000),  "arrest_chance": 0.05},
+    3: {"name": "Class Three", "desc": "Weapons trafficking / restricted",   "fine": (2500, 5000),  "arrest_chance": 0.20},
+    2: {"name": "Class Two",   "desc": "False transponder / stolen ship",    "fine": (5000, 10000), "arrest_chance": 0.40},
+    1: {"name": "Class One",   "desc": "Espionage / capital crime",          "fine": (0, 0),        "arrest_chance": 1.0},
+}
+
+_IMPERIAL_CUSTOMS_PLANETS = {"tatooine", "corellia"}
+
+
+async def _run_customs_check(ctx, ship, planet: str) -> None:
+    """
+    Imperial customs inspection on landing at Tatooine or Corellia.
+    Checks for:
+      - Active smuggling run cargo -> Class 3-4
+      - False transponder -> Class 2
+      - Sensor mask mod -> suspicious, Con check to avoid deeper scan
+    Fine modified by Bargain/Con check (bribery opportunity).
+    Graceful-drop: never prevents landing.
+    """
+    import random as _r
+    try:
+        char = ctx.session.character
+        systems = _get_systems(ship)
+        reg = get_ship_registry()
+        tmpl = reg.get(ship.get("template", ""))
+
+        # Base customs roll: Perception 3D for customs officer
+        from engine.skill_checks import perform_skill_check
+        from engine.character import SkillRegistry
+        sr = SkillRegistry()
+        sr.load_default()
+
+        infraction_class = None
+        infraction_reason = ""
+
+        # Check false transponder
+        false_tp = systems.get("false_transponder")
+        if false_tp:
+            # Con check vs customs officer Perception (3D = diff 10)
+            con_result = perform_skill_check(char, "con", 10, sr)
+            if not con_result.success:
+                infraction_class = 2
+                infraction_reason = f"False transponder detected ({false_tp['alias']})"
+            elif con_result.critical_success:
+                await ctx.session.send_line(
+                    f"  {ansi.DIM}[CUSTOMS] Credentials checked... cleared. "
+                    f"(Critical con roll){ansi.RESET}"
+                )
+                return
+            else:
+                await ctx.session.send_line(
+                    f"  {ansi.DIM}[CUSTOMS] Credentials checked... cleared.{ansi.RESET}"
+                )
+
+        # Check active smuggling run with cargo
+        if infraction_class is None:
+            try:
+                from engine.smuggling import get_smuggling_board
+                board = get_smuggling_board()
+                job = board.get_active_job(str(char["id"]))
+                if job and job.destination_planet:
+                    # Customs sniffs the cargo
+                    sniff = perform_skill_check(char, "con", 12, sr)
+                    if not sniff.success:
+                        infraction_class = 3 if job.cargo_tier >= 2 else 4
+                        infraction_reason = f"Suspicious cargo: {job.cargo_type}"
+            except Exception:
+                pass
+
+        if infraction_class is None:
+            # Routine check — passed
+            if _r.random() < 0.3:
+                await ctx.session.send_line(
+                    f"  {ansi.DIM}[CUSTOMS] Routine inspection. Papers in order.{ansi.RESET}"
+                )
+            return
+
+        # ── Infraction detected ──────────────────────────────────────────────
+        inf = _INFRACTION_CLASSES[infraction_class]
+        fine_lo, fine_hi = inf["fine"]
+        base_fine = _r.randint(fine_lo, fine_hi)
+
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_RED}[IMPERIAL CUSTOMS]{ansi.RESET} "
+            f"{inf['name']} infraction: {infraction_reason}."
+        )
+
+        # Bribery / Bargain check to reduce fine
+        from engine.skill_checks import resolve_bargain_check
+        haggle = resolve_bargain_check(
+            char, base_fine,
+            npc_bargain_dice=3, npc_bargain_pips=0,
+            is_buying=False,
+        )
+        final_fine = haggle["adjusted_price"]
+
+        pct = haggle["price_modifier_pct"]
+        if pct < 0:
+            await ctx.session.send_line(
+                f"  {ansi.DIM}[CUSTOMS] A... personal benefit fee. "
+                f"Fine reduced to {final_fine:,}cr.{ansi.RESET}"
+            )
+        else:
+            await ctx.session.send_line(
+                f"  Fine: {final_fine:,}cr."
+            )
+
+        # Deduct fine
+        credits = char.get("credits", 0)
+        paid = min(credits, final_fine)
+        char["credits"] = credits - paid
+        await ctx.db.save_character(char["id"], credits=char["credits"])
+
+        if paid < final_fine:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}Insufficient credits — partial payment of {paid:,}cr. "
+                f"Ship impound risk elevated.{ansi.RESET}"
+            )
+        else:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_YELLOW}Fine paid: {paid:,}cr. Balance: {char['credits']:,}cr.{ansi.RESET}"
+            )
+
+        # Arrest check (rare)
+        if _r.random() < inf["arrest_chance"] * 0.3:  # dampened for playability
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}[CUSTOMS] You're being detained for further questioning. "
+                f"(Roleplay with staff or wait for release.){ansi.RESET}"
+            )
+
+    except Exception:
+        pass  # customs never blocks landing
+
+
+class TransponderCommand(BaseCommand):
+    """
+    Manage your ship's transponder code.
+
+    Usage:
+      transponder              -- show current transponder status
+      transponder false <name> -- set false ID (Con check vs scanners)
+      transponder reset        -- restore real transponder
+    """
+    key = "transponder"
+    aliases = ["transp"]
+    help_text = "Manage ship transponder codes. False ID risks Class Two customs infraction."
+    usage = "transponder [false <alias> | reset]"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+
+        systems = _get_systems(ship)
+        args = (ctx.args or "").strip().lower()
+
+        # ── Show status ──────────────────────────────────────────────────────
+        if not args:
+            false_tp = systems.get("false_transponder")
+            real_name = ship.get("name", "Unknown")
+            reg = get_ship_registry()
+            tmpl = reg.get(ship.get("template", ""))
+            real_type = tmpl.name if tmpl else "Unknown"
+
+            if false_tp:
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_YELLOW}[TRANSPONDER]{ansi.RESET} "
+                    f"FALSE ID ACTIVE"
+                )
+                await ctx.session.send_line(
+                    f"  Real:  {ansi.BRIGHT_WHITE}{real_name}{ansi.RESET} ({real_type})"
+                )
+                await ctx.session.send_line(
+                    f"  Alias: {ansi.BRIGHT_CYAN}{false_tp['alias']}{ansi.RESET} "
+                    f"({false_tp.get('type', 'Unknown')})"
+                )
+                await ctx.session.send_line(
+                    f"  {ansi.DIM}Detected by sensors on failed Con check. "
+                    f"Class Two infraction if caught.{ansi.RESET}"
+                )
+            else:
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_GREEN}[TRANSPONDER]{ansi.RESET} "
+                    f"Real ID broadcasting: "
+                    f"{ansi.BRIGHT_WHITE}{real_name}{ansi.RESET} ({real_type})"
+                )
+            return
+
+        # ── Reset ────────────────────────────────────────────────────────────
+        if args == "reset":
+            if not systems.get("false_transponder"):
+                await ctx.session.send_line("  No false transponder active.")
+                return
+            systems.pop("false_transponder", None)
+            await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_GREEN}[TRANSPONDER]{ansi.RESET} "
+                f"Real transponder restored."
+            )
+            return
+
+        # ── Set false transponder ────────────────────────────────────────────
+        if args.startswith("false "):
+            alias = ctx.args.strip()[6:].strip()
+            if not alias:
+                await ctx.session.send_line(
+                    "  Usage: transponder false <alias name>"
+                )
+                return
+
+            # Must be docked to set up false ID
+            if not ship.get("docked_at"):
+                await ctx.session.send_line(
+                    "  Must be docked to configure transponder codes."
+                )
+                return
+
+            # Con or Forgery skill check (Easy 8)
+            from engine.skill_checks import perform_skill_check
+            from engine.character import SkillRegistry
+            sr = SkillRegistry()
+            sr.load_default()
+            char = ctx.session.character
+            # Use whichever is higher: con or forgery
+            con_r    = perform_skill_check(char, "con",      8, sr)
+            forge_r  = perform_skill_check(char, "forgery",  8, sr)
+            result   = con_r if (con_r.roll >= forge_r.roll) else forge_r
+            skill_used = "Con" if (con_r.roll >= forge_r.roll) else "Forgery"
+
+            if result.fumble:
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_RED}[TRANSPONDER]{ansi.RESET} "
+                    f"Setup botched! Local customs flagged the attempt. "
+                    f"({skill_used}: {result.roll} vs 8 — fumble)"
+                )
+                return
+
+            if not result.success:
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_YELLOW}[TRANSPONDER]{ansi.RESET} "
+                    f"Code didn't take — transponder rejected the sequence. "
+                    f"({skill_used}: {result.roll} vs 8) Try again."
+                )
+                return
+
+            reg = get_ship_registry()
+            tmpl = reg.get(ship.get("template", ""))
+            systems["false_transponder"] = {
+                "alias":   alias,
+                "type":    tmpl.name if tmpl else "Unknown Vessel",
+                "set_by":  char.get("name", "Unknown"),
+            }
+            await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
+            crit = " (critical — very convincing)" if result.critical_success else ""
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_CYAN}[TRANSPONDER]{ansi.RESET} "
+                f"False ID set: {ansi.BRIGHT_WHITE}{alias}{ansi.RESET}{crit}. "
+                f"({skill_used}: {result.roll} vs 8)"
+            )
+            await ctx.session.send_line(
+                f"  {ansi.DIM}Class Two infraction if detected by customs. "
+                f"Use 'transponder reset' to restore real ID.{ansi.RESET}"
+            )
+            return
+
+        await ctx.session.send_line(
+            "  Usage: transponder  |  transponder false <name>  |  transponder reset"
+        )
+
+
+class MarketCommand(BaseCommand):
+    """
+    Show trade good prices at current port. Must be docked.
+
+    Usage:
+      market              -- prices at current planet
+      market <planet>     -- prices at another planet (for planning)
+    """
+    key = "market"
+    aliases = ["goods", "tradegoods"]
+    help_text = "Show trade good prices at current port (must be docked)."
+    usage = "market [<planet>]"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        from engine.trading import TRADE_GOODS, get_market_at_planet
+
+        args = (ctx.args or "").strip().lower()
+
+        # Determine planet to display
+        if args:
+            # Manual planet lookup for planning
+            planet = args.replace(" ", "_").replace("-", "_")
+            # Normalise common aliases
+            aliases = {
+                "tatooine": "tatooine",
+                "nar_shaddaa": "nar_shaddaa",
+                "nar shaddaa": "nar_shaddaa",
+                "smugglers moon": "nar_shaddaa",
+                "kessel": "kessel",
+                "corellia": "corellia",
+            }
+            planet = aliases.get(planet, planet)
+            planet_display = planet.replace("_", " ").title()
+        else:
+            # Current planet from docked ship
+            ship = await _get_ship_for_player(ctx)
+            if not ship or not ship.get("docked_at"):
+                await ctx.session.send_line(
+                    "  You must be docked at a port to check local prices. "
+                    "Use 'market <planet>' to check another planet's prices."
+                )
+                return
+            systems = _get_systems(ship)
+            zone_id = systems.get("current_zone", "")
+            from engine.npc_space_traffic import ZONES
+            zone_obj = ZONES.get(zone_id)
+            planet = zone_obj.planet if zone_obj else None
+            if not planet:
+                await ctx.session.send_line(
+                    "  Cannot determine current planet. "
+                    "Use 'market <planet>' to check prices by name."
+                )
+                return
+            planet_display = planet.replace("_", " ").title()
+
+        market = get_market_at_planet(planet)
+
+        # Header
+        await ctx.session.send_line("")
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_CYAN}Trade Market — {planet_display}{ansi.RESET}"
+        )
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_WHITE}{'Good':<24} {'Price/ton':>10}  {'Tier':<8}  Description{ansi.RESET}"
+        )
+        await ctx.session.send_line("  " + "─" * 72)
+
+        tier_colors = {
+            "source": ansi.BRIGHT_GREEN,
+            "demand": ansi.BRIGHT_RED,
+            "normal": ansi.DIM,
+        }
+        tier_labels = {
+            "source": "SOURCE ↓",
+            "demand": "DEMAND ↑",
+            "normal": "normal",
+        }
+
+        for row in market:
+            col = tier_colors[row["tier"]]
+            tier_str = tier_labels[row["tier"]]
+            desc = row["description"][:35] + ("…" if len(row["description"]) > 35 else "")
+            await ctx.session.send_line(
+                f"  {col}{row['name']:<24}{ansi.RESET}"
+                f"  {col}{row['planet_price']:>8,}cr{ansi.RESET}"
+                f"  {col}{tier_str:<8}{ansi.RESET}"
+                f"  {ansi.DIM}{desc}{ansi.RESET}"
+            )
+
+        await ctx.session.send_line("")
+        await ctx.session.send_line(
+            f"  {ansi.DIM}SOURCE = cheap here (buy). DEMAND = scarce here (sell). "
+            f"Use 'buy cargo <good> <tons>' / 'sell cargo <good> <tons>'.{ansi.RESET}"
+        )
+
+        # Show current hold if docked
+        ship = await _get_ship_for_player(ctx)
+        if ship:
+            from engine.trading import (
+                get_ship_cargo, get_cargo_tons, cargo_free, TRADE_GOODS as TG
+            )
+            from engine.starships import get_ship_registry
+            tmpl = get_ship_registry().get(ship.get("template", ""))
+            cargo = get_ship_cargo(ship)
+            if cargo:
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_WHITE}Current hold "
+                    f"({get_cargo_tons(ship)}/{(tmpl.cargo if tmpl else '?')}t):{ansi.RESET}"
+                )
+                for item in cargo:
+                    gname = TG[item["good"]].name if item["good"] in TG else item["good"]
+                    await ctx.session.send_line(
+                        f"    {gname:<24}  {item['quantity']:>4}t  "
+                        f"(paid {item['purchase_price']:,}cr/t)"
+                    )
+
+
+async def _handle_buy_cargo(ctx) -> None:
+    """Handle 'buy cargo <good> <tons>'."""
+    from engine.trading import (
+        TRADE_GOODS, get_planet_price, get_ship_cargo,
+        cargo_free, add_cargo,
+    )
+    from engine.starships import get_ship_registry
+    from engine.skill_checks import resolve_bargain_check
+
+    args = ctx.args.strip()[len("cargo "):].strip().lower().split()
+    if len(args) < 2:
+        await ctx.session.send_line(
+            "  Usage: buy cargo <good key> <tons>\n"
+            "  Example: buy cargo raw_ore 20\n"
+            "  Type 'market' to see available goods and keys."
+        )
+        return
+
+    # Last arg is quantity, rest is good name/key
+    try:
+        quantity = int(args[-1])
+    except ValueError:
+        await ctx.session.send_line("  Quantity must be a number.")
+        return
+    good_query = " ".join(args[:-1]).replace(" ", "_")
+
+    # Match by key or partial name
+    good = TRADE_GOODS.get(good_query)
+    if not good:
+        good = next(
+            (g for g in TRADE_GOODS.values()
+             if good_query in g.name.lower().replace(" ", "_")),
+            None,
+        )
+    if not good:
+        await ctx.session.send_line(
+            f"  Unknown trade good '{good_query}'. Type 'market' to see options."
+        )
+        return
+
+    if quantity < 1:
+        await ctx.session.send_line("  Quantity must be at least 1 ton.")
+        return
+
+    ship = await _get_ship_for_player(ctx)
+    if not ship or not ship.get("docked_at"):
+        await ctx.session.send_line("  You must be docked to buy cargo.")
+        return
+
+    tmpl = get_ship_registry().get(ship.get("template", ""))
+    free = cargo_free(ship, tmpl)
+    if quantity > free:
+        await ctx.session.send_line(
+            f"  Not enough cargo space. Need {quantity}t, only {free}t free."
+        )
+        return
+
+    # Get planet price
+    systems = _get_systems(ship)
+    zone_id = systems.get("current_zone", "")
+    from engine.npc_space_traffic import ZONES
+    zone_obj = ZONES.get(zone_id)
+    planet = zone_obj.planet if zone_obj else ""
+    base_price = get_planet_price(good, planet)
+
+    # Bargain check
+    char = ctx.session.character
+    haggle = resolve_bargain_check(
+        char, base_price * quantity,
+        npc_bargain_dice=3, npc_bargain_pips=0,
+        is_buying=True,
+    )
+    total_price = haggle["adjusted_price"]
+    per_ton = max(1, total_price // quantity)
+
+    current_credits = char.get("credits", 0)
+    if current_credits < total_price:
+        await ctx.session.send_line(
+            f"  Not enough credits. {quantity}t of {good.name} costs "
+            f"{total_price:,}cr, you have {current_credits:,}cr."
+        )
+        return
+
+    # Commit
+    import json as _j
+    cargo = get_ship_cargo(ship)
+    cargo = add_cargo(cargo, good.key, quantity, per_ton)
+    await ctx.db.update_ship(ship["id"], cargo=_j.dumps(cargo))
+
+    char["credits"] = current_credits - total_price
+    await ctx.db.save_character(char["id"], credits=char["credits"])
+
+    pct = haggle["price_modifier_pct"]
+    if pct != 0:
+        direction = "discount" if pct < 0 else "markup"
+        await ctx.session.send_line(
+            f"  {ansi.DIM}Bargain: {abs(pct)}% {direction}{ansi.RESET}"
+        )
+    await ctx.session.send_line(
+        ansi.success(
+            f"  Purchased {quantity}t of {good.name} for {total_price:,}cr "
+            f"({per_ton:,}cr/t). Hold: "
+            f"{get_cargo_tons(ship) + quantity}t used."
+        )
+    )
+
+
 class SalvageCommand(BaseCommand):
     key = "salvage"
     aliases = []
@@ -3887,6 +4890,10 @@ def register_space_commands(registry):
         ShipRepairCommand(), MyShipsCommand(),
         LaunchCommand(), LandCommand(),
         ShipCommand(), ScanCommand(), DeepScanCommand(), SalvageCommand(),
+        MarketCommand(),
+        TransponderCommand(),
+        OrderCommand(),
+        PowerCommand(),
         FireCommand(), EvadeCommand(),
         LockOnCommand(),
         CloseRangeCommand(), FleeShipCommand(),

@@ -690,25 +690,38 @@ TYPICAL ADVANCEMENT TIME
         see_also=["spacecombat", "crew", "hyperdrive", "+ship"],
         body="""\
 Space travel in SW_MUSH uses a zone-based model. Ships move between
-named zones (e.g., "Tatooine Orbit", "Deep Space", "Mos Eisley Approach")
-rather than tracking exact coordinates.
+named zones rather than tracking exact coordinates. Four planets are
+connected by three hyperspace lanes across 16 zones.
 
 BASIC OPERATIONS
-  board <ship>     Board a docked ship
-  launch           Take off (pilot only)
-  land             Land at a docking bay (pilot only)
-  hyperspace <dest> Jump to hyperspace (pilot only, requires hyperdrive)
-  disembark        Leave a docked ship
+  board              Board a docked ship
+  launch             Take off from a docking bay (pilot only)
+  land               Land at the planet below (pilot only, orbit/dock zone)
+  disembark          Leave a docked ship
+  course <zone>      Navigate to an adjacent zone (pilot only)
+  hyperspace <dest>  Jump to another star system (pilot only)
+
+THE GALAXY
+  4 planets: Tatooine, Nar Shaddaa, Kessel, Corellia
+  16 zones connected by 3 hyperspace lanes
+  Type '+help zonemap' for the full zone graph.
 
 CREW STATIONS
-Ships have up to 7 crew stations. Each grants different abilities.
+Ships have 7 crew stations. Each grants different abilities.
 Type '+help crew' for details on each station.
 
 SHIP STATUS
-  +ship             Your current ship's status and crew
-  +ship/info <n>    Detailed stats on a ship type
-  +ship/list        Browse all available ship types
-  +ship/mine        Ships you own""",
+  +ship/status (ss)  Your current ship's status and crew
+  +ship/info <n>     Detailed stats on a ship type
+  +ships             Browse all ships in the zone
+  +myships           Ships you own
+
+SPACE ACTIVITIES
+  Combat: fire, evade, close, flee, tail — see '+help spacecombat'
+  Scanning: scan, deepscan — see '+help sensors' and '+help anomalies'
+  Salvage: salvage wreckage for crafting resources — '+help salvage'
+  Smuggling: run contraband between planets — '+help smuggling'
+  Customization: craft and install ship mods — '+help shipmod'""",
     ),
 
     HelpEntry(
@@ -761,7 +774,7 @@ a specific weapon. '+ship' shows all stations and their crew.""",
         title="Crew Stations",
         category="Rules: Space",
         aliases=["stations", "crewstations"],
-        see_also=["space", "spacecombat"],
+        see_also=["space", "spacecombat", "npccrew"],
         body="""\
 Ships have up to 7 crew stations. Take a station with its command.
 
@@ -787,7 +800,9 @@ dedicated shields operator can be assigned. Use 'shields front',
 
 NPC CREW
 You can hire NPC crew members with the 'hire' command. They auto-act
-each tick based on their assigned station. Type '+roster' to view.""",
+each tick based on their assigned station — NPC pilots maneuver, gunners
+fire, and engineers repair damage automatically during combat. Type
+'+roster' to view your crew, or '+help npccrew' for full details.""",
     ),
 
     HelpEntry(
@@ -1166,6 +1181,455 @@ MANAGING CHANNELS
 CUSTOM FREQUENCIES
   You can set up private frequencies for crew or group communication.
   Anyone tuned to the same frequency can hear transmissions.""",
+    ),
+
+
+    # ── Rules: Space (v16 additions) ─────────────────────────────────
+
+    HelpEntry(
+        key="shields",
+        title="Shield Management",
+        category="Rules: Space",
+        aliases=["shieldmgmt", "shieldarcs"],
+        see_also=["spacecombat", "crew", "capital"],
+        body="""\
+Shields absorb incoming damage before it reaches the hull.
+
+BASIC SHIELD USE
+On starfighter-scale ships, shields add their full dice pool to your
+hull roll when resisting damage. No management needed — they just work.
+
+CAPITAL SHIP SHIELD ARCS
+Capital-scale ships can distribute shield dice between four arcs:
+  front, rear, left, right
+
+  shields                    Show current shield distribution
+  shields front 3 rear 1     Put 3 dice forward, 1 aft
+  shields front              All shields forward
+  shields even               Distribute evenly
+
+TACTICS
+  - Stack shields toward incoming fire (most common use)
+  - Going nose-first into a fight? Shields front
+  - Running away? Shields rear
+  - Shield dice are finite — redistribution is zero-sum
+
+DAMAGE & SHIELDS
+When shields absorb ion damage, the shield generator can be knocked
+offline. A destroyed shield system means 0D shields until repaired.""",
+    ),
+
+    HelpEntry(
+        key="capital",
+        title="Capital Ships",
+        category="Rules: Space",
+        aliases=["capitalships", "capitalscale"],
+        see_also=["spacecombat", "scale", "shields", "crew"],
+        body="""\
+Capital ships (corvettes, frigates, Star Destroyers) play by different
+rules than starfighters.
+
+SCALE DIFFERENCE
+A 6D modifier separates starfighter and capital scale:
+  Starfighter vs. Capital: +6D to hit, -6D to damage
+  Capital vs. Starfighter: -6D to hit, +6D to damage
+
+This means starfighters are nearly impossible for turbolasers to hit,
+but capital ships shrug off laser cannon fire.
+
+MULTIPLE GUNNER STATIONS
+Capital ships have multiple weapon groups. Each gunner mans a specific
+weapon station:
+  gunner             Take weapon station 1 (default)
+  gunner 2           Take weapon station 2
+  fire <target>      Fire your assigned weapon
+  fire <target> 2    Fire weapon #2 (if assigned)
+
+SHIELD ARCS
+Capital ships distribute shields across four arcs (front/rear/left/right).
+See '+help shields' for redistribution commands.
+
+ION CANNONS
+Capital-scale ion weapons disable rather than destroy. Ion damage imposes
+penalties (-1D to -3D) to all ship actions. Penalties decay over time.
+
+TRACTOR BEAMS
+Large ships use tractor beams to capture smaller vessels. A captured ship
+is reeled in one range band every 10 seconds. Use 'resist' to break free.
+
+SKILLS
+Capital ships use different skills than starfighters:
+  Capital Ship Piloting (not Starfighter Piloting)
+  Capital Ship Gunnery (not Starship Gunnery)
+  Capital Ship Shields (not Starship Shields)
+  Capital Ship Repair (not Space Transports Repair)""",
+    ),
+
+    HelpEntry(
+        key="navigation",
+        title="Sublight Navigation",
+        category="Rules: Space",
+        aliases=["course", "sublight", "navigate"],
+        see_also=["space", "zonemap", "hyperdrive"],
+        body="""\
+Sublight navigation moves your ship between adjacent zones.
+
+USAGE (pilot only)
+  course                     Show current zone and neighbors
+  course <zone name>         Set course for an adjacent zone
+  course cancel              Cancel current transit
+
+TRANSIT TIMES
+  Dock <-> Orbit:           15 seconds
+  Orbit <-> Deep Space:     20 seconds
+  Deep Space <-> Lane:      25 seconds
+
+DURING TRANSIT
+Your ship is removed from the combat grid — you cannot fire or be fired
+upon. You'll see an ETA countdown. On arrival, a piloting skill check
+determines entry quality:
+  Critical: brief +1D sensors bonus in the new zone
+  Success:  clean entry
+  Failure:  minor hazard table roll (you still arrive)
+
+ZONE ADJACENCY
+You can only set course to zones adjacent to your current zone. Use
+'course' with no arguments to see what's connected.
+
+ANOMALY INVESTIGATION
+If the sensors operator has resolved an anomaly via 'deepscan', the
+pilot can navigate to it: course anomaly <id>. Transit is only 10s.""",
+    ),
+
+    HelpEntry(
+        key="zonemap",
+        title="Galaxy Zone Map",
+        category="Rules: Space",
+        aliases=["zones", "galaxymap", "map"],
+        see_also=["navigation", "space", "hyperdrive"],
+        body="""\
+The galaxy is organized into zones connected in a graph. Four planets
+are currently accessible, linked by three hyperspace lanes.
+
+ZONE MAP
+  Corellian Trade Spine --- Corellia Deep Space -- Corellia Orbit -- Corellia Dock
+          |
+  Outer Rim Lane 1 ------- Tatooine Deep Space -- Tatooine Orbit -- Tatooine Dock
+          |
+  Outer Rim Lane 2 ------- Nar Shaddaa Deep Space -- Nar Shaddaa Orbit -- Nar Shaddaa Dock
+          |
+  Outer Rim Lane 3 ------- Kessel Approach [HAZARD] -- Kessel Orbit -- Kessel Dock
+
+ZONE TYPES
+  Dock:            Safe harbor. Land and launch here.
+  Orbit:           Low planetary orbit. Transition zone.
+  Deep Space:      Open void. NPC traffic spawns. Anomalies appear.
+  Hyperspace Lane: Major spacelanes connecting systems.
+
+HAZARDOUS ZONES
+Kessel Approach is tagged HEAVY HAZARD (dense asteroids). Ships in
+heavy asteroid zones take periodic hull damage (Easy piloting check
+every 30 seconds; failure = 1 hull damage). Sensor penalties and
+increased astrogation difficulty also apply.
+
+HYPERSPACE LANES
+Travel between planets requires hyperspace jumps. Use 'hyperspace' to
+jump, 'course' for sublight zone-to-zone movement within a system.""",
+    ),
+
+    HelpEntry(
+        key="anomalies",
+        title="Space Anomaly Scanning",
+        category="Rules: Space",
+        aliases=["anomaly", "deepscan", "deepscanning"],
+        see_also=["sensors", "salvage", "navigation"],
+        body="""\
+Anomalies are hidden points of interest in space — derelict ships,
+distress signals, pirate nests, and more. Finding them is the sensors
+station's primary non-combat purpose.
+
+SCANNING FOR ANOMALIES
+  deepscan                   Scan for anomalies in current zone
+  deepscan <id>              Focus on a specific detected anomaly
+
+Anomaly resolution is iterative — like detective work, not a button press:
+  1st scan: Detect something is there (33% resolved)
+  2nd scan: Learn the general type (66% resolved)
+  3rd scan: Fully resolved — navigate to investigate
+
+Critical success on any scan skips one step. Fumble garbles the signal
+for 60 seconds.
+
+ANOMALY TYPES (7 total)
+  Derelict Ship (30%)     Salvageable components, credits
+  Distress Signal (20%)   Rescue opportunity — or pirate ambush
+  Hidden Cache (15%)      Credits, rare resources, schematics
+  Pirate Nest (15%)       2-3 hostile pirates, good salvage
+  Mineral Vein (10%)      High-quality crafting resources
+  Imperial Dead Drop (5%) Big credits, but Imperial patrol risk
+  Mynock Colony (5%)      Hull parasites — nuisance only
+
+INVESTIGATING
+Once resolved, the pilot types 'course anomaly <id>' to navigate there
+(10-second transit). The encounter auto-triggers on arrival.
+
+SPAWNING
+Anomalies spawn every 5 minutes in zones with player ships present.
+Deep space zones: 15% chance. Orbit: 10%. Hyperspace lanes: 5%.
+Dock zones: never. Max 2 anomalies per zone.""",
+    ),
+
+    HelpEntry(
+        key="salvage",
+        title="Salvage & Space Loot",
+        category="Rules: Space",
+        aliases=["salvaging", "spaceloot", "wreck"],
+        see_also=["anomalies", "crafting"],
+        body="""\
+After destroying an NPC ship or finding a derelict anomaly, you can
+salvage the wreckage for crafting resources.
+
+USAGE
+  salvage                    Salvage components from nearby wreckage
+
+REQUIREMENTS
+  - Ship must be in the same zone as a wreck or derelict anomaly
+  - Anyone aboard can salvage (no station requirement)
+  - Uses Technical attribute check (Easy for wrecks, Moderate for
+    combat debris)
+
+LOOT TYPES
+  Metal scrap, energy cells, composite plating, rare components,
+  and sometimes loose credits. Resources go into your inventory
+  and feed directly into the crafting pipeline.
+
+SALVAGE WINDOW
+  Destroyed NPC ships leave wrecks for 2 minutes before dispersing.
+  Derelict anomalies persist for 30 minutes.
+
+THE PIPELINE
+  Hunt pirates -> Salvage wrecks -> Craft ship components -> Install
+  on your ship. Exploration and combat feed directly into progression.""",
+    ),
+
+    HelpEntry(
+        key="shipmod",
+        title="Ship Customization",
+        category="Rules: Space",
+        aliases=["shipmods", "components", "modifications", "modslots"],
+        see_also=["salvage", "crafting", "shipmod"],
+        body="""\
+Ships can be customized with craftable components that improve stats.
+
+MOD SLOTS
+Every ship has a limited number of modification slots:
+  Freighters: 4-5 slots (room to tinker)
+  Fighters:   1-2 slots (already optimized)
+  Capital:    6-10 slots (lots of space)
+
+Installed components also consume cargo capacity.
+
+COMPONENT TYPES (7)
+  Engine Booster        Speed +1 per mod (max +2)
+  Shield Generator      Shields +1 pip per mod (max +1D+2)
+  Weapon Upgrade        Fire Control +1 pip (max +1D+2)
+  Armor Plating         Hull +1 pip per mod (max +1D+2)
+  Sensor Suite          Sensors +1 pip (max +1D)
+  Hyperdrive Tuning     Multiplier -0.5 per mod (max -1.0)
+  Maneuver Thrusters    Maneuverability +1 pip (max +1D+2)
+
+CRAFTING COMPONENTS
+Components use the standard crafting pipeline: survey for resources,
+gather materials, then craft with a skill check. Quality affects the
+stat boost. Capital ships use Capital Ship Repair instead of Space
+Transports Repair.
+
+INSTALLATION
+Each mod costs a slot and some cargo capacity. Engine boosters and
+armor plating are heaviest (20 tons each). Sensor suites are lightest
+(5 tons).""",
+    ),
+
+    HelpEntry(
+        key="poweralloc",
+        title="Power Allocation",
+        category="Rules: Space",
+        aliases=["power", "reactor", "engineering", "silentrunning"],
+        see_also=["crew", "shields", "spacecombat"],
+        body="""\
+The engineer controls power distribution across ship systems.
+
+USAGE (engineer station only)
+  power                      Show current power allocation
+  power engines +1           Shift power to engines
+  power silent               Enter silent running mode
+
+SYSTEMS
+Each ship has a reactor budget. The engineer allocates power to:
+  Engines:   +1 speed per extra point
+  Shields:   +1 pip shields per extra point (max +1D)
+  Weapons:   +1 pip fire control per extra point (max +1D)
+  Sensors:   +1D to scan/deepscan per extra point (max +2D)
+
+Power is zero-sum — boosting one system means starving another.
+Systems at 0 power go offline entirely.
+
+SILENT RUNNING
+  power silent — engines at minimum (speed 1), shields/weapons/sensors
+  all offline. Your ship becomes very difficult to detect (+3D to sensor
+  detection difficulty against you). Essential for smugglers and spies.
+
+WITHOUT AN ENGINEER
+If no one is at the engineer station, default power allocation applies.
+The 'power' command returns: "No one at the engineering console."
+
+REACTOR DAMAGE
+Hazard table 'power failure' or ion hits can reduce available power.
+The engineer must shed systems to stay within the reduced budget.""",
+    ),
+
+    HelpEntry(
+        key="captainorders",
+        title="Captain's Orders",
+        category="Rules: Space",
+        aliases=["orders", "order", "tacticalorders"],
+        see_also=["crew", "spacecombat"],
+        body="""\
+The Commander station can issue tactical orders that apply ship-wide
+bonuses with meaningful tradeoffs.
+
+USAGE (commander station only)
+  order                      Show current order
+  order <name>               Issue a tactical order
+  order cancel               Cancel current order
+
+ORDERS
+  Battle Stations     +1D fire control (all gunners)  / -1D maneuverability
+  Evasive Pattern     +2D maneuverability (pilot)     / -1D fire control
+  All Power Forward   +2 speed                        / -1D shields, no rear fire
+  Hold the Line       +2D shields                     / -2 speed, can't flee
+  Silent Running      +3D sensor stealth              / No weapons, shields off
+  Boarding Action     +1D melee/brawl (boarding crew) / -1D piloting
+  Concentrate Fire    +2D damage (one weapon)         / Other weapons offline
+  Coordinate          +1D all crew checks             / No tradeoff
+
+SKILL CHECK
+Issuing an order requires a Command skill check (Easy, difficulty 8).
+Failure: order not issued. Fumble: random order takes effect for 30s.
+
+Orders take effect immediately and persist until changed, cancelled,
+or the Commander vacates the station.""",
+    ),
+
+    HelpEntry(
+        key="transponder",
+        title="Transponder Codes",
+        category="Rules: Space",
+        aliases=["transponders", "falseid", "customsinfractions"],
+        see_also=["smuggling", "sensors"],
+        body="""\
+Every ship broadcasts a transponder code identifying its name and type.
+Not every code tells the truth.
+
+USAGE
+  transponder                Show current transponder status
+  transponder false <name>   Set a false transponder (requires Con check)
+  transponder reset          Restore real transponder
+
+DETECTION
+When another ship scans you, their Sensors roll contests your Con roll.
+If they win, the forgery is detected. Critical scan success reveals your
+real identity.
+
+IMPERIAL CUSTOMS INFRACTIONS
+  Class 5:  Safety violations, expired permits (100-500cr fine)
+  Class 4:  Minor contraband (1,000-5,000cr fine)
+  Class 3:  Weapons trafficking (up to 5,000cr + impound risk)
+  Class 2:  False transponder, stolen ship (up to 10,000cr + seizure)
+  Class 1:  Espionage, capital crimes (execution)
+
+False transponders are a Class 2 offense. Fines can be reduced with a
+Bargain or Con check ('personal benefit fee' — i.e., bribing the customs
+officer). Very Star Wars.
+
+COUNTERMEASURES (craftable/purchasable)
+  Sensor Mask:     +2D to detection difficulty (passive, mod slot)
+  Sensor Decoy:    Scanners show 2 ships (consumable, max 5)
+  Comm Jammer:     Blocks target comms, +1D-4D sensor penalty (mod slot)
+  Baffled Drive:   +5-15 detection difficulty, silent at speed 2 (illegal)""",
+    ),
+
+
+    # ── NPC Crew ──────────────────────────────────────────────────────
+
+    HelpEntry(
+        key="npccrew",
+        title="NPC Crew Members",
+        category="Rules: Space",
+        aliases=["hirecrew", "npchire", "npcpilot", "npcgunner", "crewwages"],
+        see_also=["crew", "spacecombat", "+roster"],
+        body="""\
+You can hire NPC crew members to fill stations on your ship. They act
+autonomously during space combat and draw a regular wage.
+
+HIRING
+  hire                       View the hiring board at a cantina/spaceport
+  assign <npc> <station>     Assign a hired NPC to a crew station
+  unassign <npc>             Remove an NPC from their station
+  dismiss <npc>              Fire an NPC crew member
+  +roster                    View your hired crew and their assignments
+
+WHAT NPC CREW DO IN COMBAT
+NPC crew auto-act every tick when enemies are in sensor range:
+
+  NPC Pilot:    Maneuvers based on behavior profile (aggressive = close/tail,
+                defensive = evade, cowardly = flee). Rolls their actual Space
+                Transports skill vs. enemy pilot.
+  NPC Gunner:   Fires their assigned weapon at the nearest enemy in arc and
+                range. Full attack resolution — damage, hull rolls, system
+                hits. Multiple gunners fire independently.
+  NPC Engineer: Auto-repairs damaged systems in priority order: engines,
+                shields, weapons, sensors, hyperdrive. If all systems are
+                fine, repairs hull damage instead. Rolls repair skill.
+  NPC Copilot:  Provides a passive +1D assist bonus to pilot actions.
+
+PLAYER ORDERS
+You can override NPC behavior with the 'order' command:
+  order pilot close          Tell NPC pilot to close range
+  order pilot flee           Tell NPC pilot to break away
+  order engineer repair shields  Prioritize shield repair
+
+Orders are consumed after execution — the NPC reverts to default behavior
+the next tick unless you issue another order.
+
+BEHAVIOR PROFILES
+NPC pilots have a behavior profile set in their AI config:
+  Aggressive: closes range, tries to tail
+  Defensive:  evades and holds position
+  Cowardly:   flees from combat
+  Berserk:    charges in recklessly
+  Sniper:     evades while letting gunners do the work
+
+WAGES
+NPC crew cost credits. Four wage tiers exist. Wages fire every 14,400
+ticks (roughly 4 hours). If you can't cover wages, you risk losing crew.
+
+  +roster shows each NPC's station and daily wage.
+
+LIMITATIONS
+NPC crew do NOT currently handle:
+  - Deep scanning for anomalies (sensors station)
+  - Sublight navigation via 'course' (pilot station)
+  - Power allocation (engineer station)
+  - Captain's orders (commander station)
+These systems require a human crew member. A player crew is always more
+effective than NPCs, but hired crew makes solo spaceflight viable.
+
+NARRATIVE OUTPUT
+NPC actions broadcast to the bridge with colored station tags:
+  [HELM]        Pilot maneuvers
+  [WEAPONS]     Gunner attacks
+  [ENGINEERING] Engineer repairs""",
     ),
 
     HelpEntry(

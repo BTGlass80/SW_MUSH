@@ -4,9 +4,9 @@ SW_MUSH World Builder v3
 ============================
 Populates the full game world across four planets:
   - Mos Eisley (Tatooine) — 40 rooms, 7 zones  [original GG7 content]
-  - Nar Shaddaa            — 15 rooms, 4 zones  [Dark Empire Sourcebook]
-  - Kessel                 — 10 rooms, 3 zones  [WEG sourcebooks / canon]
-  - Corellia (Coronet City) — 12 rooms, 3 zones [general SW lore]
+  - Nar Shaddaa              — 25 rooms, 4 zones  [Dark Empire / EU]
+  - Kessel                   — 18 rooms, 3 zones  [WEG sourcebooks / canon]
+  - Corellia (Coronet City)  — 20 rooms, 3 zones  [general SW lore]
 
 Also creates:
   - Combat-ready NPCs (char_sheet_json + ai_config_json)
@@ -41,9 +41,9 @@ from engine.npc_loader import load_npcs_from_yaml
 # IDs assigned starting at 10 to avoid seed room collisions.
 #
 # Indices 0-39:  Mos Eisley (Tatooine) — original build
-# Indices 40-54: Nar Shaddaa
-# Indices 55-64: Kessel
-# Indices 65-76: Corellia (Coronet City)
+# Indices 40-64: Nar Shaddaa  (25 rooms)
+# Indices 65-82: Kessel       (18 rooms)
+# Indices 83-102: Corellia    (20 rooms)
 # ================================================================
 ROOMS = [
     # ==============================================================
@@ -289,7 +289,7 @@ ROOMS = [
      "leads a double life as the pirate Duchess."),
 
     # ==============================================================
-    # NAR SHADDAA — rooms 40-54
+    # NAR SHADDAA — rooms 40-64  (25 rooms)
     # ==============================================================
     # 40
     ("Nar Shaddaa - Docking Bay Aurek",
@@ -394,9 +394,80 @@ ROOMS = [
      "Mag-clamps secure ships against the constant gale. The view of Nar Shaddaa's "
      "endless cityscape stretches to every horizon, spire after spire vanishing into "
      "atmospheric haze. Nal Hutta looms in the sky above."),
+    # 55  NEW
+    ("Nar Shaddaa - Black Market Medcenter",
+     "An unlicensed medical facility hidden behind a scrap metal front.",
+     "Behind a rust-streaked door lies a surprisingly functional operating room. "
+     "Recycled bacta tanks line one wall, half-full. Stolen medical equipment fills "
+     "surgical bays. The doctor charges double the legal rate but asks no questions "
+     "and files no reports. A Twi'lek nurse monitors the waiting area."),
+    # 56  NEW
+    ("Nar Shaddaa - Weapons Cache",
+     "A fortified room in the Bounty Hunters' Quarter, selling military hardware.",
+     "Security shutters and a Durasteel door protect this arsenal. The proprietor, "
+     "an armless Duros who lost both limbs on a bad contract, operates the shop via "
+     "waldos. Every weapon type is represented — blasters, melee, explosives, even "
+     "restricted military stock if the price is right."),
+    # 57  NEW
+    ("Nar Shaddaa - Ship Parts Emporium",
+     "A multi-deck shop selling salvaged and black-market starship components.",
+     "Seven levels of shelving hold hyperdrive motivators, sensor arrays, shield "
+     "generators, and ion cannon components. The stock is eighty percent stolen, "
+     "twenty percent salvage. The Sullustan owner maintains meticulous inventory "
+     "and competitive pricing. Rare parts available on order."),
+    # 58  NEW
+    ("Nar Shaddaa - The Undercity Clinic",
+     "A charity clinic operated by a disgraced Rebel-aligned medic.",
+     "Sparse but functional. Dr. Voss Tresk lost his medical license on Coruscant "
+     "for treating Rebel sympathizers. He now treats the Refugee Sector's sick for "
+     "whatever they can pay — sometimes nothing. His diagnostic skills remain sharp "
+     "despite outdated equipment. A hand-painted sign reads 'All Welcome.'"),
+    # 59  NEW
+    ("Nar Shaddaa - The Grid",
+     "An information broker's den in the upper levels, accessible by coded lift.",
+     "Banks of screens show feeds from across the Smuggler's Moon — dock cameras, "
+     "comm intercepts, Imperial patrol schedules. The broker, a blind Miralukan, "
+     "trades exclusively in information. No physical goods. No violence permitted "
+     "on premises. This rule is enforced by three heavily armed Gamorrean sentinels."),
+    # 60  NEW
+    ("Nar Shaddaa - Old Corellian Quarter",
+     "A weathered residential block, home to longtime Corellian expatriates.",
+     "Older than the rest of the Corellian Sector, this block predates the Imperial "
+     "era. Residents have lived here for generations, maintaining Corellian customs "
+     "in exile. A communal kitchen serves as social center. Graffiti in Corellian "
+     "script covers the entry archway: 'Never tell me the odds.'"),
+    # 61  NEW
+    ("Nar Shaddaa - Renna Dox's Workshop",
+     "A cluttered mechanical workshop run by a master shipwright.",
+     "Every surface is covered with ship components in various states of assembly "
+     "or disassembly. Diagrams and schematics paper the walls. Renna Dox — a broad-"
+     "shouldered Zabrak woman with engine grease permanently under her fingernails — "
+     "builds custom ship modifications and teaches Technical skills to those willing "
+     "to work for the knowledge."),
+    # 62  NEW
+    ("Nar Shaddaa - The Floating Market",
+     "Repulsorlift platforms drifting between towers, forming an open-air market.",
+     "A dozen hovering platforms connected by gangways form this unusual marketplace. "
+     "The platforms drift slowly in the thermal currents between towers, requiring "
+     "some agility to navigate between them. Food, cheap goods, and stolen Imperial "
+     "surplus are the primary offerings. The market has no fixed address — it moves."),
+    # 63  NEW
+    ("Nar Shaddaa - Enforcer Alley",
+     "A narrow passage controlled by Hutt enforcers collecting protection money.",
+     "This passage connects the Corellian Sector to the upper docks. Hutt-affiliated "
+     "enforcers demand a 'transit toll' from everyone passing through. Refusing is "
+     "inadvisable. The alley smells of spilled Corellian ale and old fear. Graffiti "
+     "marks which gangs claim what territory."),
+    # 64  NEW
+    ("Nar Shaddaa - Upper Dock Observation Level",
+     "A windswept observation level above the main docking platforms.",
+     "The view from here is staggering — Nar Shaddaa's cityscape in every direction, "
+     "stretching to the curved horizon. Ships arrive and depart in constant streams. "
+     "Nal Hutta hangs enormous in the sky above. Sensor equipment here monitors "
+     "traffic for the dock authority — which is actually a Hutt front company."),
 
     # ==============================================================
-    # KESSEL — rooms 55-64
+    # KESSEL — rooms 65-82  (18 rooms)
     # ==============================================================
     # 55
     ("Kessel - Spaceport Landing Field",
@@ -700,6 +771,21 @@ EXITS = [
     (70, 73, "north", "south to Gov District"),
     # Warehouses -> Hotel
     (75, 76, "south", "north to Warehouses"),
+
+    # =========================================
+    # NAR SHADDAA EXPANDED (rooms 77-86)
+    # =========================================
+    (77, 45, "out", "medcenter"),           # Black Market Medcenter -> Undercity Market
+    (78, 53, "out", "weapons cache"),        # Weapons Cache -> Bounty Hunters Quarter
+    (79, 50, "out", "ship parts"),           # Ship Parts Emporium -> Vertical Bazaar
+    (80, 46, "out", "clinic"),               # Undercity Clinic -> Undercity Depths
+    (81, 48, "coded lift", "down"),          # The Grid -> Hutt Tower upper
+    (82, 41, "southeast", "northwest to Old Quarter"),  # Old Corellian Quarter -> Promenade
+    (83, 82, "out", "workshop"),             # Renna Dox's Workshop -> Old Quarter
+    (84, 45, "up", "down to Floating Market"),          # Floating Market -> Undercity
+    (85, 41, "south", "north through Enforcer Alley"),  # Enforcer Alley -> Promenade
+    (85, 54, "north", "south through Enforcer Alley"),  # Enforcer Alley -> Landing Platform
+    (86, 54, "down", "up to Observation Level"),        # Observation Level -> Platform Besh
 ]
 
 # ==============================================================
@@ -734,6 +820,17 @@ ROOM_ZONES = {
     68: "coronet_city", 69: "coronet_gov", 70: "coronet_gov",
     71: "coronet_city", 72: "coronet_city", 73: "coronet_city",
     74: "coronet_city", 75: "coronet_port", 76: "coronet_port",
+    # -- Nar Shaddaa expanded (rooms 77-86, physically appended to ROOMS list) --
+    77: "ns_undercity",   # Black Market Medcenter
+    78: "ns_undercity",   # Weapons Cache
+    79: "ns_corellian",   # Ship Parts Emporium
+    80: "ns_undercity",   # The Undercity Clinic
+    81: "ns_upper",       # The Grid
+    82: "ns_corellian",   # Old Corellian Quarter
+    83: "ns_corellian",   # Renna Dox's Workshop
+    84: "ns_undercity",   # The Floating Market
+    85: "ns_undercity",   # Enforcer Alley
+    86: "ns_upper",       # Upper Dock Observation Level
 }
 
 ROOM_OVERRIDES = {
@@ -772,7 +869,9 @@ def _ai(personality="", knowledge=None, faction="Neutral", style="",
         fallbacks=None, hostile=False, behavior="defensive",
         model_tier=1, temperature=0.7, max_tokens=120,
         # NPC crew fields for space combat
-        space_skills=None):
+        space_skills=None,
+        # Skill trainer fields
+        trainer=False, train_skills=None):
     """Build an ai_config_json dict."""
     cfg = {
         "personality": personality,
@@ -788,6 +887,9 @@ def _ai(personality="", knowledge=None, faction="Neutral", style="",
     }
     if space_skills:
         cfg["skills"] = space_skills
+    if trainer:
+        cfg["trainer"] = True
+        cfg["train_skills"] = train_skills or []
     return cfg
 
 # ==============================================================
@@ -1010,11 +1112,150 @@ PLANET_NPCS = [
      _ai(hostile=True, behavior="cowardly",
          fallbacks=["The pickpocket tries to blend into the crowd.",
                     "'I didn't take nothing! You can't prove it!'"])),
-]
 
-# ==============================================================
-# PRE-SPAWNED SHIPS
-# (template_key, ship_name, docked_at_room_idx, bridge_desc)
+    # --- Nar Shaddaa Expanded (rooms 77-86) ---
+    ("Doc Myrra", 77, "Twi'lek",
+     "A calm Twi'lek doctor working in the black market medcenter.",
+     _sheet(kno="4D", per="3D+2", tec="5D",
+            skills={"first_aid": "6D+1", "medicine": "6D", "bargain": "4D+2"},
+            species="Twi'lek"),
+     _ai(personality="Doc Myrra trained at a Coruscant hospital before her license was "
+         "revoked for treating Rebel fugitives. She's pragmatic — charges double, delivers "
+         "triple. No questions asked, no records kept.",
+         style="Calm, professional. Slightly detached manner.",
+         fallbacks=["'Cash in advance. I don't run a charity.'",
+                    "Doc Myrra prepares a hypo without looking up."])),
+
+    ("Duros Arms Dealer", 78, "Duros",
+     "An armless Duros operating his weapons shop through a pair of mechanical waldos.",
+     _sheet(dex="2D", kno="4D", per="3D+2", tec="4D+1",
+            skills={"value": "6D", "repair_weapons": "5D+2", "bargain": "5D",
+                    "streetwise": "5D+1"},
+            species="Duros"),
+     _ai(personality="Lost both arms on a bad bounty contract. Sells everything — "
+         "blasters, melee, explosives, Imperial military surplus. No questions if you can pay.",
+         style="Flat affect, mechanical precision. The waldos move constantly.",
+         fallbacks=["The waldos sort inventory while he watches you.",
+                    "'What caliber? What range? Budget?'"])),
+
+    ("Suvvel", 79, "Sullustan",
+     "A meticulous Sullustan running a seven-deck ship parts emporium.",
+     _sheet(kno="4D", per="3D", mec="4D+2", tec="5D",
+            skills={"value": "6D+2", "bargain": "5D", "starship_repair": "5D+1"},
+            species="Sullustan"),
+     _ai(personality="Suvvel tracks every part in his inventory by memory. "
+         "Eighty percent of his stock is stolen or salvaged. Knows where to find "
+         "rare components if standard stock doesn't cover it.",
+         style="Rapid speech, high-pitched. Excited about specifications.",
+         fallbacks=["Suvvel cross-references your request against three separate databases.",
+                    "'I have seventeen motivator types in stock. Which grade?'"])),
+
+    ("Dr. Voss Tresk", 80, "Human",
+     "A gaunt human doctor with kind eyes and outdated equipment.",
+     _sheet(kno="4D+2", per="3D+1", tec="5D",
+            skills={"first_aid": "7D", "medicine": "6D+2", "persuasion": "4D"},
+            species="Human"),
+     _ai(personality="Tresk lost his medical license treating Rebel wounded. "
+         "Runs a charity clinic in the undercity. Treats anyone, charges what they can pay.",
+         style="Tired but warm. Gentle. Moves with care.",
+         fallbacks=["'Sit down. Let me take a look at you.'",
+                    "Dr. Tresk washes his hands before examining you."])),
+
+    ("The Miralukan", 81, "Miralukan",
+     "A blind information broker who sees more than most sighted people.",
+     _sheet(kno="5D", per="5D+2",
+            skills={"investigation": "7D", "streetwise": "6D+2", "con": "5D+1",
+                    "forgery": "5D", "value": "5D+2"},
+            species="Miralukan"),
+     _ai(personality="Trades exclusively in information. Force-sighted rather than "
+         "visually sighted. Her price is always information in return.",
+         style="Serene, unsettling. Refers to things she shouldn't be able to see.",
+         fallbacks=["'I know why you're here. What will you trade for the answer?'",
+                    "She turns toward you despite facing away."])),
+
+    ("Renna Dox", 83, "Zabrak",
+     "A broad-shouldered Zabrak shipwright with permanent engine grease under her fingernails.",
+     _sheet(kno="3D+1", mec="4D+2", tec="6D",
+            skills={"starship_repair": "7D", "space_transports_repair": "6D+2",
+                    "computer_prog": "5D+1", "value": "5D"},
+            species="Zabrak"),
+     _ai(personality="Renna Dox builds the best ship modifications in the Smuggler's Moon. "
+         "Teaches what she knows to those who earn it. Blunt, perfectionist.",
+         style="Blunt, technical. Evaluates everything for structural integrity.",
+         fallbacks=["'You break it in my shop, you pay double to fix it.'",
+                    "Renna studies your ship specs before saying anything."],
+         trainer=True,
+         train_skills=["starship_repair", "space_transports_repair"])),
+
+    ("Hutt Toll Enforcer", 85, "Nikto",
+     "A scarred Nikto enforcer blocking the alley, hand resting on his blaster.",
+     _sheet(dex="3D+2", stre="4D",
+            skills={"blaster": "4D+2", "intimidation": "5D+1", "brawling": "4D+1"},
+            species="Nikto", weapon="heavy_blaster_pistol"),
+     _ai(personality="Collects the Hutt clan transit toll. Not creative. "
+         "Either you pay or you don't pass.",
+         hostile=False, behavior="defensive",
+         fallbacks=["'Twenty credits. Everyone pays.'",
+                    "The Nikto taps his blaster meaningfully."])),
+
+    # --- Kessel additions ---
+    ("Mine Foreman Dreck", 58, "Human",
+     "A thick-necked Imperial overseer supervising the mine entrance.",
+     _sheet(dex="3D", stre="3D+1", per="3D",
+            skills={"intimidation": "5D+1", "command": "4D+1", "blaster": "4D"},
+            species="Human"),
+     _ai(personality="Career Imperial. Efficient, brutal, indifferent to prisoner "
+         "suffering. Tracks output quotas obsessively.",
+         faction="Empire", style="Barking commands. Short sentences.",
+         fallbacks=["'Quota's short. Get back to work.'",
+                    "Dreck checks a work report, scowling."])),
+
+    ("Prisoner 4477", 60, "Wookiee",
+     "A massive Wookiee prisoner, chains on his wrists, pride still intact.",
+     _sheet(dex="2D+2", stre="6D",
+            skills={"brawling": "7D", "intimidation": "4D+2", "survival": "4D"},
+            species="Wookiee"),
+     _ai(personality="Enslaved for resisting Imperial conscription of his homeworld. "
+         "Speaks no Basic but understands it. Helps those who show respect.",
+         style="Growls, gestures. Shyriiwook only.",
+         fallbacks=["The Wookiee studies you with orange eyes, measuring trust.",
+                    "[ROAAR] (He's assessing whether you're worth talking to.)"])),
+
+    ("Bith Chemist", 59, "Bith",
+     "A Bith chemist supervising spice refinement in a contamination suit.",
+     _sheet(kno="5D+1", tec="5D",
+            skills={"medicine": "4D+2", "value": "5D"},
+            species="Bith"),
+     _ai(personality="Recruited for his chemistry expertise. Cooperates because "
+         "the alternative was worse. Knows everything about spice refinement.",
+         style="Precise, clinical. Avoids eye contact.",
+         fallbacks=["'Glitterstim is particularly dangerous raw. Don't touch anything.'",
+                    "The Bith checks contamination readings before responding."])),
+
+    # --- Corellia additions ---
+    ("Cala Wren", 74, "Human",
+     "A Corellian market vendor selling fresh produce and local gossip.",
+     _sheet(kno="3D", per="4D",
+            skills={"bargain": "5D", "streetwise": "4D+2", "persuasion": "4D+1"},
+            species="Human"),
+     _ai(personality="Cala's family has worked this market for four generations. "
+         "Knows everyone in the Old Quarter by name and most of their business.",
+         style="Warm, rapid-fire. Always selling something.",
+         fallbacks=["'Fresh from the coast this morning! Best price in Coronet!'",
+                    "Cala arranges produce while eyeing you thoughtfully."])),
+
+    ("Sergeant Bryn", 67, "Human",
+     "A veteran CorSec sergeant walking the Treasure Ship Row beat.",
+     _sheet(dex="3D+1", kno="3D+1", per="3D+2",
+            skills={"blaster": "5D", "dodge": "4D+2", "investigation": "5D+1",
+                    "law_enforcement": "6D", "streetwise": "5D"},
+            species="Human"),
+     _ai(personality="Twenty years on the Row. Fair but firm — Corellia's law, "
+         "not the Empire's. Quietly routes info to the Rebellion when it costs him nothing.",
+         faction="Corellia", style="Steady, measured. Corellian pragmatism.",
+         fallbacks=["'Keep it legal. Or at least quiet.'",
+                    "Bryn watches you with the patience of someone who's learned to wait."])),
+]
 # ==============================================================
 SHIPS = [
     # -- Tatooine --
@@ -1080,64 +1321,81 @@ async def build(db_path="sw_mush.db"):
     # Mos Eisley zones
     zones["mos_eisley"] = await db.create_zone(
         "Mos Eisley", properties=json.dumps({"environment": "desert_urban",
-                                              "lighting": "bright", "gravity": "standard"}))
+                                              "lighting": "bright", "gravity": "standard",
+                                              "security": "secured"}))
     zones["spaceport"] = await db.create_zone(
         "Spaceport District", parent_id=zones["mos_eisley"],
-        properties=json.dumps({"cover_max": 3, "environment": "industrial"}))
+        properties=json.dumps({"cover_max": 3, "environment": "industrial",
+                                "security": "contested"}))
     zones["cantina"] = await db.create_zone(
         "Chalmun's Cantina", parent_id=zones["mos_eisley"],
-        properties=json.dumps({"cover_max": 2, "lighting": "dim", "environment": "cantina"}))
+        properties=json.dumps({"cover_max": 2, "lighting": "dim", "environment": "cantina",
+                                "security": "contested"}))
     zones["streets"] = await db.create_zone(
         "Streets & Markets", parent_id=zones["mos_eisley"],
-        properties=json.dumps({"cover_max": 1, "environment": "street"}))
+        properties=json.dumps({"cover_max": 1, "environment": "street",
+                                "security": "secured"}))
     zones["government"] = await db.create_zone(
         "Government Quarter", parent_id=zones["mos_eisley"],
-        properties=json.dumps({"cover_max": 1, "environment": "official"}))
+        properties=json.dumps({"cover_max": 1, "environment": "official",
+                                "security": "secured"}))
     zones["jabba"] = await db.create_zone(
         "Jabba's Townhouse", parent_id=zones["mos_eisley"],
-        properties=json.dumps({"cover_max": 2, "lighting": "dim", "environment": "palatial"}))
+        properties=json.dumps({"cover_max": 2, "lighting": "dim", "environment": "palatial",
+                                "security": "contested"}))
     zones["shops"] = await db.create_zone(
         "Commercial District", parent_id=zones["mos_eisley"],
-        properties=json.dumps({"cover_max": 2, "environment": "commercial"}))
+        properties=json.dumps({"cover_max": 2, "environment": "commercial",
+                                "security": "secured"}))
 
     # Nar Shaddaa zones
     zones["ns_docks"] = await db.create_zone(
         "Nar Shaddaa Docks",
         properties=json.dumps({"environment": "urban_industrial",
-                               "lighting": "dim", "gravity": "standard"}))
+                               "lighting": "dim", "gravity": "standard",
+                               "security": "contested"}))
     zones["ns_corellian"] = await db.create_zone(
         "Corellian Sector", parent_id=zones["ns_docks"],
-        properties=json.dumps({"cover_max": 2, "environment": "urban_commercial"}))
+        properties=json.dumps({"cover_max": 2, "environment": "urban_commercial",
+                                "security": "contested"}))
     zones["ns_undercity"] = await db.create_zone(
         "Nar Shaddaa Undercity", parent_id=zones["ns_docks"],
-        properties=json.dumps({"cover_max": 1, "lighting": "dark", "environment": "urban_slum"}))
+        properties=json.dumps({"cover_max": 1, "lighting": "dark", "environment": "urban_slum",
+                                "security": "lawless"}))
     zones["ns_upper"] = await db.create_zone(
         "Nar Shaddaa Upper Levels", parent_id=zones["ns_docks"],
-        properties=json.dumps({"cover_max": 3, "lighting": "bright", "environment": "palatial"}))
+        properties=json.dumps({"cover_max": 3, "lighting": "bright", "environment": "palatial",
+                                "security": "contested"}))
 
     # Kessel zones
     zones["kessel_surface"] = await db.create_zone(
         "Kessel Surface",
         properties=json.dumps({"environment": "barren", "lighting": "bright",
-                               "gravity": "light", "atmosphere": "thin"}))
+                               "gravity": "light", "atmosphere": "thin",
+                               "security": "contested"}))
     zones["kessel_garrison"] = await db.create_zone(
         "Kessel Imperial Garrison", parent_id=zones["kessel_surface"],
-        properties=json.dumps({"cover_max": 2, "environment": "military"}))
+        properties=json.dumps({"cover_max": 2, "environment": "military",
+                                "security": "secured"}))
     zones["kessel_mines"] = await db.create_zone(
         "Kessel Spice Mines", parent_id=zones["kessel_surface"],
-        properties=json.dumps({"cover_max": 1, "lighting": "dim", "environment": "underground"}))
+        properties=json.dumps({"cover_max": 1, "lighting": "dim", "environment": "underground",
+                                "security": "lawless"}))
 
     # Corellia zones
     zones["coronet_port"] = await db.create_zone(
         "Coronet Starport",
         properties=json.dumps({"environment": "urban_modern",
-                               "lighting": "bright", "gravity": "standard"}))
+                               "lighting": "bright", "gravity": "standard",
+                               "security": "secured"}))
     zones["coronet_city"] = await db.create_zone(
         "Coronet City", parent_id=zones["coronet_port"],
-        properties=json.dumps({"cover_max": 2, "environment": "urban_commercial"}))
+        properties=json.dumps({"cover_max": 2, "environment": "urban_commercial",
+                                "security": "contested"}))
     zones["coronet_gov"] = await db.create_zone(
         "Coronet Government District", parent_id=zones["coronet_port"],
-        properties=json.dumps({"cover_max": 2, "environment": "official"}))
+        properties=json.dumps({"cover_max": 2, "environment": "official",
+                                "security": "secured"}))
 
     print(f"    {len(zones)} zones created")
 

@@ -37,6 +37,15 @@ _active_combats: dict[int, CombatInstance] = {}
 from engine.npc_combat_ai import CombatBehavior
 _npc_behaviors: dict[int, CombatBehavior] = {}
 
+# ── PvP consent tracking ──
+# Maps (attacker_id, target_id) → timestamp of challenge issued.
+# Both parties must consent before open PvP is allowed in CONTESTED zones.
+# LAWLESS zones bypass this entirely. TTL: 10 minutes.
+import time as _time
+_pvp_consent: dict[tuple, float] = {}   # pending challenges
+_pvp_active:  dict[tuple, float] = {}   # accepted PvP pairs (either direction)
+_PVP_CHALLENGE_TTL = 600                # 10 minutes
+
 
 def _get_skill_reg() -> SkillRegistry:
     reg = SkillRegistry()
@@ -478,6 +487,14 @@ async def _apply_combat_wear(combat, ctx):
                                 c.id, _be,
                             )
                     # ── End bounty kill hook ──────────────────────────────
+                    # ── Dead NPC combatant cleanup ───────────────────────
+                    from engine.character import WoundLevel as _WL2
+                    if c.char.wound_level.value >= _WL2.DEAD.value:
+                        try:
+                            combat.remove_combatant(c.id)
+                        except Exception:
+                            pass
+                    # ── End dead NPC cleanup ─────────────────────────────
             except Exception as e:
                 log.warning("Failed to save NPC %s wound: %s", c.name, e)
             continue
@@ -494,6 +511,27 @@ async def _apply_combat_wear(combat, ctx):
             await ctx.db.save_character(
                 c.id, wound_level=c.char.wound_level.value
             )
+
+            # Narrative: log combat outcome
+            try:
+                from engine.narrative import log_action, ActionType as NT
+                from engine.character import WoundLevel as _WLN
+                wl = c.char.wound_level.value
+                if wl >= _WLN.INCAPACITATED.value:
+                    await log_action(ctx.db, c.id, NT.COMBAT_DEFEAT,
+                                     f"Incapacitated in combat in room {combat.room_id}")
+                elif wl == 0:
+                    # Check if any opponent was beaten
+                    beaten = [
+                        oc.name for oc in combat.combatants.values()
+                        if oc.id != c.id and oc.char and
+                        oc.char.wound_level.value >= _WLN.INCAPACITATED.value
+                    ]
+                    if beaten:
+                        await log_action(ctx.db, c.id, NT.COMBAT_VICTORY,
+                                         f"Defeated {', '.join(beaten)} in combat")
+            except Exception:
+                pass
 
         if not attacked:
             continue
@@ -559,6 +597,14 @@ class AttackCommand(BaseCommand):
 
         char = ctx.session.character
         room_id = char["room_id"]
+
+        # ── Security zone check ──────────────────────────────────────────────
+        from engine.security import get_effective_security, SecurityLevel, security_refuse_msg
+        _sec = await get_effective_security(room_id, ctx.db)
+        if _sec == SecurityLevel.SECURED:
+            await ctx.session.send_line(security_refuse_msg(_sec, target_is_npc=True))
+            return
+        # ── End security check ───────────────────────────────────────────────
 
         # ── Determine defaults from equipped weapon ──
         default_skill = "blaster"
@@ -665,7 +711,29 @@ class AttackCommand(BaseCommand):
             await ctx.session.send_line("  You can't attack yourself.")
             return
 
-        # Get or create combat — read cover_max via inherited room properties
+        # ── PvP consent check (CONTESTED zones only) ─────────────────────────
+        if not target_is_npc:
+            from engine.security import SecurityLevel
+            if _sec == SecurityLevel.CONTESTED:
+                now = _time.time()
+                # Purge stale entries
+                for k in list(_pvp_active.keys()):
+                    if now - _pvp_active[k] > _PVP_CHALLENGE_TTL:
+                        _pvp_active.pop(k, None)
+                # Check mutual consent (either (a,b) or (b,a) works)
+                a_id, t_id = char["id"], target_char["id"]
+                consented = (
+                    _pvp_active.get((a_id, t_id), 0) > now - _PVP_CHALLENGE_TTL or
+                    _pvp_active.get((t_id, a_id), 0) > now - _PVP_CHALLENGE_TTL
+                )
+                if not consented:
+                    await ctx.session.send_line(
+                        f"  \033[1;33mImperial law prohibits unprovoked assault here.\033[0m\n"
+                        f"  Use \033[1;37mchallenge {target_name}\033[0m to issue a formal challenge.\n"
+                        f"  (Or find a lawless zone where Imperial law doesn't reach.)"
+                    )
+                    return
+        # ── End PvP consent check ─────────────────────────────────────────────
         cover_max = 0
         if room_id not in _active_combats:
             cover_max = await ctx.db.get_room_property(room_id, "cover_max", 0)
@@ -1412,6 +1480,7 @@ def register_combat_commands(registry):
         CombatStatusCommand(), ResolveCommand(), DisengageCommand(),
         RangeCommand(), CoverCommand(), ForcePointCommand(),
         CombatPoseCommand(), CombatRollsCommand(),
+        ChallengeCommand(), AcceptCommand(),
     ]
     for cmd in cmds:
         registry.register(cmd)
@@ -1476,3 +1545,140 @@ class CombatRollsCommand(BaseCommand):
         ctx.switches = ["rolls"]
         cmd = CombatStatusCommand()
         await cmd.execute(ctx)
+
+class ChallengeCommand(BaseCommand):
+    key = "challenge"
+    aliases = ["duel"]
+    help_text = (
+        "Challenge another player to combat in a contested zone.\n"
+        "The target must 'accept <your name>' within 10 minutes to consent.\n"
+        "Both parties may then freely attack each other.\n"
+        "Challenges expire after 10 minutes."
+    )
+    usage = "challenge <player>"
+
+    async def execute(self, ctx: CommandContext):
+        if not ctx.args:
+            await ctx.session.send_line("Usage: challenge <player name>")
+            return
+
+        char = ctx.session.character
+        room_id = char["room_id"]
+
+        # Must be in contested or lawless zone to bother
+        from engine.security import get_effective_security, SecurityLevel
+        sec = await get_effective_security(room_id, ctx.db)
+        if sec == SecurityLevel.SECURED:
+            await ctx.session.send_line(
+                "  \033[1;33mImperial security would immediately stop any duel here.\033[0m"
+            )
+            return
+
+        # Find target player
+        from engine.matching import match_in_room, MatchResult
+        match = await match_in_room(
+            ctx.args.strip(), room_id, char["id"], ctx.db,
+            session_mgr=ctx.session_mgr,
+        )
+        if not match.found or match.candidate.obj_type != "character":
+            await ctx.session.send_line(f"  No player named '{ctx.args.strip()}' here.")
+            return
+
+        target_id = match.id
+        target_name = match.candidate.data.get("name", "Unknown")
+        a_id = char["id"]
+
+        # Already have active consent?
+        now = _time.time()
+        if (
+            _pvp_active.get((a_id, target_id), 0) > now - _PVP_CHALLENGE_TTL or
+            _pvp_active.get((target_id, a_id), 0) > now - _PVP_CHALLENGE_TTL
+        ):
+            await ctx.session.send_line(
+                f"  You already have active combat consent with {target_name}."
+            )
+            return
+
+        # Record pending challenge
+        _pvp_consent[(a_id, target_id)] = now
+
+        await ctx.session.send_line(
+            f"  \033[1;37mYou challenge {target_name} to combat.\033[0m "
+            f"They must type '\033[1;33maccept {char['name']}\033[0m' to consent."
+        )
+
+        # Notify target
+        target_sess = None
+        for s in ctx.session_mgr.sessions_in_room(room_id):
+            if s.character and s.character["id"] == target_id:
+                target_sess = s
+                break
+        if target_sess:
+            await target_sess.send_line(
+                f"\n  \033[1;31m{char['name']} challenges you to combat!\033[0m\n"
+                f"  Type '\033[1;33maccept {char['name']}\033[0m' to consent. "
+                f"(Expires in 10 minutes.)\n"
+            )
+
+
+class AcceptCommand(BaseCommand):
+    key = "accept"
+    help_text = "Accept a combat challenge from another player."
+    usage = "accept <challenger name>"
+
+    async def execute(self, ctx: CommandContext):
+        if not ctx.args:
+            await ctx.session.send_line("Usage: accept <challenger name>")
+            return
+
+        char = ctx.session.character
+        room_id = char["room_id"]
+
+        from engine.matching import match_in_room
+        match = await match_in_room(
+            ctx.args.strip(), room_id, char["id"], ctx.db,
+            session_mgr=ctx.session_mgr,
+        )
+        if not match.found or match.candidate.obj_type != "character":
+            await ctx.session.send_line(f"  No player named '{ctx.args.strip()}' here.")
+            return
+
+        challenger_id = match.id
+        challenger_name = match.candidate.data.get("name", "Unknown")
+        t_id = char["id"]
+        now = _time.time()
+
+        # Check pending challenge from them to us
+        pending_ts = _pvp_consent.get((challenger_id, t_id), 0)
+        if not pending_ts or now - pending_ts > _PVP_CHALLENGE_TTL:
+            await ctx.session.send_line(
+                f"  {challenger_name} hasn't challenged you, "
+                f"or the challenge has expired."
+            )
+            return
+
+        # Activate consent (both directions)
+        _pvp_active[(challenger_id, t_id)] = now
+        _pvp_consent.pop((challenger_id, t_id), None)
+
+        await ctx.session.send_line(
+            f"  \033[1;31mYou accept {challenger_name}'s challenge.\033[0m "
+            f"Combat consent is active for 10 minutes."
+        )
+
+        # Notify challenger
+        for s in ctx.session_mgr.sessions_in_room(room_id):
+            if s.character and s.character["id"] == challenger_id:
+                await s.send_line(
+                    f"\n  \033[1;31m{char['name']} accepts your challenge!\033[0m "
+                    f"Combat consent is active.\n"
+                )
+                break
+
+        # Broadcast to room
+        await ctx.session_mgr.broadcast_to_room(
+            room_id,
+            f"\033[1;33m{challenger_name} and {char['name']} have agreed to settle "
+            f"their differences the old-fashioned way.\033[0m",
+            exclude=[challenger_id, t_id],
+        )

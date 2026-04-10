@@ -401,6 +401,25 @@
     flex: 1; height: 5px; border-radius: 2px;
     background: var(--border-dim); transition: all 0.4s;
   }
+
+  /* Room contents panel */
+  .rc-entry {
+    display: flex; align-items: center; gap: 4px;
+    padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .rc-entry:last-child { border-bottom: none; }
+  .rc-name {
+    flex: 1; font-size: 11px; color: var(--text-main);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rc-name.npc  { color: var(--accent-amber); }
+  .rc-name.player { color: var(--accent-cyan); }
+  .rc-btn {
+    font-size: 9px; padding: 1px 4px; border-radius: 2px; cursor: pointer;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border-dim);
+    color: var(--text-dim); font-family: var(--font-mono);
+  }
+  .rc-btn:hover { background: rgba(255,255,255,0.12); color: var(--text-main); }
   .wound-seg.healthy  { background: var(--accent-green); box-shadow: 0 0 4px rgba(63,185,80,0.3); }
   .wound-seg.stunned  { background: var(--accent-amber); }
   .wound-seg.wounded  { background: #da6d28; }
@@ -971,32 +990,143 @@
   .radar-anomaly-text { fill: var(--accent-purple); font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 700; }
   .radar-anomaly-text.resolved { fill: var(--accent-green); }
 
-  @media (max-width: 700px) {
+  /* Power bar (Drop 15) */
+  .power-bar-wrap { padding: 6px 10px 8px; border-bottom: 1px solid var(--border-dim); }
+  .power-bar-label { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .power-bar-label span { font-family: 'Share Tech Mono',monospace; font-size: 10px; color: var(--text-dim); }
+  .power-bar-label .pwr-used { color: var(--accent-cyan); font-weight: bold; }
+  .power-bar-label .pwr-silent { color: var(--accent-amber); font-size: 9px; animation: pulse 1.5s ease-in-out infinite; }
+  .power-bar-track { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--bg-tertiary); gap: 1px; }
+  .pwr-seg { height: 100%; transition: width 0.3s ease; }
+  .pwr-seg.engines      { background: var(--accent-green); }
+  .pwr-seg.shields      { background: var(--accent-blue); }
+  .pwr-seg.weapons      { background: var(--accent-red); }
+  .pwr-seg.sensors      { background: var(--accent-cyan); }
+  .pwr-seg.life_support { background: var(--text-dim); }
+  .pwr-seg.free         { background: transparent; }
+  .pwr-offline { opacity: 0.25; }
+
+  /* Captain's Order badge (Drop 16) */
+  .order-badge { display: flex; align-items: center; gap: 6px;
+                 padding: 4px 10px; border-bottom: 1px solid var(--border-dim);
+                 font-family: 'Share Tech Mono',monospace; font-size: 10px; }
+  .order-badge .ob-label { color: var(--text-dim); }
+  .order-badge .ob-name  { color: var(--accent-amber); font-weight: bold;
+                           animation: pulse 2s ease-in-out infinite; }
+  .order-badge .ob-bonus { color: var(--accent-green); font-size: 9px; }
+  .order-badge .ob-cost  { color: var(--accent-red);   font-size: 9px; }
+  .power-sys-row { display: flex; justify-content: space-between; font-size: 9px;
+                   font-family: 'Share Tech Mono',monospace; color: var(--text-dim);
+                   margin-top: 3px; }
+  .power-sys-row .pwr-sys-name { color: var(--text-secondary); }
+  .power-sys-row .pwr-sys-val  { color: var(--accent-cyan); }
+  .power-sys-row .pwr-sys-over { color: var(--accent-green); }
+  .power-sys-row .pwr-sys-off  { color: var(--accent-red); }
+
+  /* Power bar (Drop 15) */
+  .power-bar-wrap { padding: 6px 10px 8px; border-bottom: 1px solid var(--border-dim); }
+  .power-bar-label { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .power-bar-label span { font-family: 'Share Tech Mono',monospace; font-size: 10px; color: var(--text-dim); }
+  .power-bar-label .pwr-used { color: var(--accent-cyan); font-weight: bold; }
+  .power-bar-label .pwr-silent { color: var(--accent-amber); font-size: 9px; animation: pulse 1.5s ease-in-out infinite; }
+  .power-bar-track { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--bg-tertiary); gap: 1px; }
+  .pwr-seg { height: 100%; transition: width 0.3s ease; }
+  .pwr-seg.engines      { background: var(--accent-green); }
+  .pwr-seg.shields      { background: var(--accent-blue); }
+  .pwr-seg.weapons      { background: var(--accent-red); }
+  .pwr-seg.sensors      { background: var(--accent-cyan); }
+  .pwr-seg.life_support { background: var(--text-dim); }
+  .pwr-seg.free         { background: transparent; }
+  .pwr-offline { opacity: 0.25; }
+  .power-sys-row { display: flex; justify-content: space-between; font-size: 9px;
+                   font-family: 'Share Tech Mono',monospace; color: var(--text-dim);
+                   margin-top: 3px; }
+  .power-sys-row .pwr-sys-name { color: var(--text-secondary); }
+  .power-sys-row .pwr-sys-val  { color: var(--accent-cyan); }
+  .power-sys-row .pwr-sys-over { color: var(--accent-green); }
+  .power-sys-row .pwr-sys-off  { color: var(--accent-red); }
+
+  /* ── Mobile sidebar toggle button ── */
+  #sidebar-toggle {
+    display: none;
+    position: fixed; bottom: calc(var(--input-h) + 8px); right: 8px;
+    z-index: 200; width: 44px; height: 44px; border-radius: 50%;
+    background: var(--bg-panel); border: 1px solid var(--border-mid);
+    color: var(--accent-cyan); font-size: 18px; cursor: pointer;
+    align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  #sidebar-toggle.open { background: var(--accent-cyan); color: var(--bg-deep); }
+
+  /* ── Mobile slide-over HUD ── */
+  @media (max-width: 768px) {
+    #sidebar-toggle { display: flex; }
     .app {
       grid-template-columns: 1fr;
-      grid-template-rows: var(--header-h) 1fr var(--input-h) auto;
+      grid-template-rows: var(--header-h) 1fr var(--input-h);
     }
     .hud {
-      grid-column: 1; grid-row: 4;
-      flex-direction: row; flex-wrap: wrap;
-      border-left: none; border-top: 1px solid var(--border-dim);
-      padding: 4px; gap: 4px;
-      max-height: 130px; overflow-y: auto;
+      position: fixed; top: 0; right: -100%; width: 80%; max-width: 280px;
+      height: 100vh; z-index: 150; transition: right 0.25s ease;
+      border-left: 1px solid var(--border-mid);
+      overflow-y: auto; padding-top: var(--header-h);
+      background: var(--bg-panel);
     }
-    .hud-section { flex: 1; min-width: 100px; padding: 6px 8px; }
-    .hud-label { font-size: 7px; margin-bottom: 2px; }
+    .hud.open { right: 0; }
+    .hud-overlay {
+      display: none; position: fixed; inset: 0; z-index: 140;
+      background: rgba(0,0,0,0.5);
+    }
+    .hud-overlay.open { display: block; }
+    .hud-label { font-size: 8px; margin-bottom: 3px; }
     .hud-value { font-size: 13px; }
     .header-sub { display: none; }
     .header-logo { font-size: 10px; letter-spacing: 2px; }
     #cmd-input { font-size: 16px; }
     .terminal-wrap { padding: 4px; }
-    .news-panel { max-height: 70px; }
+    /* Mobile exits as compass rose */
+    .exit-list { display: grid; grid-template-columns: repeat(3, 44px); gap: 2px; }
+    .exit-btn { min-height: 36px; font-size: 11px; }
+    /* Quick buttons — larger tap targets */
+    .quick-cmd { min-height: 36px; font-size: 11px; padding: 6px 8px; }
+    /* Room contents — bigger touch targets */
+    .rc-btn { min-height: 30px; font-size: 10px; padding: 4px 6px; }
   }
+
+  /* ── Tablet: icon-rail sidebar ── */
+  @media (min-width: 769px) and (max-width: 1024px) {
+    .hud { width: 180px; }
+    .hud-label { font-size: 7px; }
+    .news-panel { max-height: 100px; }
+  }
+
+  /* ── Comms panel tabs ── */
+  .comms-tabs {
+    display: flex; gap: 2px; padding: 4px 4px 0;
+    border-bottom: 1px solid var(--border-dim);
+  }
+  .comms-tab {
+    font-size: 8px; padding: 2px 6px; cursor: pointer; border-radius: 2px 2px 0 0;
+    color: var(--text-dim); background: none; border: none;
+    font-family: var(--font-mono); letter-spacing: 0.5px; position: relative;
+  }
+  .comms-tab:hover { color: var(--text-main); }
+  .comms-tab.active { color: var(--accent-cyan); border-bottom: 2px solid var(--accent-cyan); }
+  .comms-tab .tab-badge {
+    position: absolute; top: 0; right: 2px;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent-amber); display: none;
+  }
+  .comms-tab .tab-badge.show { display: block; }
 </style>
 </head>
 <body>
 
 <div class="app" id="app">
+
+  <!-- Mobile sidebar toggle -->
+  <button id="sidebar-toggle" title="Toggle sidebar">☰</button>
+  <div class="hud-overlay" id="hud-overlay"></div>
 
   <!-- HEADER -->
   <div class="header">
@@ -1131,6 +1261,36 @@
         <div class="space-quick-cmds" id="sp-quick-cmds"></div>
       </div>
 
+      <!-- POWER BAR (Drop 15) -->
+      <div class="power-bar-wrap" id="sp-power-wrap" style="display:none">
+        <div class="power-bar-label">
+          <span>Reactor</span>
+          <span><span class="pwr-used" id="sp-pwr-used">10</span>/<span id="sp-pwr-max">10</span> pw</span>
+          <span class="pwr-silent" id="sp-pwr-silent" style="display:none">SILENT</span>
+        </div>
+        <div class="power-bar-track" id="sp-pwr-track"></div>
+        <div class="power-sys-row" id="sp-pwr-detail"></div>
+      </div>
+
+      <!-- POWER BAR (Drop 15) -->
+      <div class="power-bar-wrap" id="sp-power-wrap" style="display:none">
+        <div class="power-bar-label">
+          <span>Reactor</span>
+          <span><span class="pwr-used" id="sp-pwr-used">10</span>/<span id="sp-pwr-max">10</span> pw</span>
+          <span class="pwr-silent" id="sp-pwr-silent" style="display:none">SILENT</span>
+        </div>
+        <div class="power-bar-track" id="sp-pwr-track"></div>
+        <div class="power-sys-row" id="sp-pwr-detail"></div>
+      </div>
+
+      <!-- CAPTAIN'S ORDER (Drop 16) -->
+      <div class="order-badge" id="sp-order-badge" style="display:none">
+        <span class="ob-label">ORDER:</span>
+        <span class="ob-name"  id="sp-order-name"></span>
+        <span class="ob-bonus" id="sp-order-bonus"></span>
+        <span class="ob-cost"  id="sp-order-cost"></span>
+      </div>
+
       <!-- ZONE MAP -->
       <div class="svg-panel-wrap" id="zm-wrap">
         <div class="svg-panel-toggle" id="zm-toggle">
@@ -1234,8 +1394,20 @@
     </div>
     </div><!-- /g-exits -->
 
+    <div class="ground-only" id="g-room-contents" style="display:none;">
+    <div class="hud-section">
+      <div class="hud-label">Here</div>
+      <div id="room-contents-list"></div>
+    </div>
+    </div><!-- /g-room-contents -->
+
     <div class="news-panel" id="news-panel">
-      <div class="hud-label">Comlink Feed</div>
+      <div class="comms-tabs">
+        <button class="comms-tab active" data-tab="all">All</button>
+        <button class="comms-tab" data-tab="ic">IC <span class="tab-badge" id="badge-ic"></span></button>
+        <button class="comms-tab" data-tab="ooc">OOC <span class="tab-badge" id="badge-ooc"></span></button>
+        <button class="comms-tab" data-tab="sys">Sys <span class="tab-badge" id="badge-sys"></span></button>
+      </div>
       <div id="news-items">
         <div class="news-item" style="color:var(--text-dim); font-style:italic;">Scanning frequencies...</div>
       </div>
@@ -1418,6 +1590,107 @@
     }
   }
 
+  // ═══════════ Security Zone Badge ═══════════
+
+  var SEC_LABELS = {
+    'secured':   { text: '\u25CF SECURED',   color: '#4fc3f7' },
+    'contested': { text: '\u25CF CONTESTED', color: '#ffd54f' },
+    'lawless':   { text: '\u25CF LAWLESS',   color: '#ef5350' },
+  };
+
+  function updateSecurityBadge(level) {
+    var zone = document.getElementById('hud-zone');
+    if (!zone) return;
+    var info = SEC_LABELS[level] || SEC_LABELS['contested'];
+    // Append security badge after zone name or replace existing badge
+    var badge = document.getElementById('sec-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.id = 'sec-badge';
+      badge.style.cssText = 'font-size:9px; margin-left:6px; letter-spacing:1px;';
+      zone.parentNode.insertBefore(badge, zone.nextSibling);
+    }
+    badge.textContent = info.text;
+    badge.style.color = info.color;
+    badge.style.display = '';
+  }
+
+  // ═══════════ Room Contents (clickable NPCs/players) ═══════════
+
+  function updateRoomContents(contents) {
+    var panel  = document.getElementById('g-room-contents');
+    var list   = document.getElementById('room-contents-list');
+    if (!panel || !list) return;
+
+    var npcs    = contents.npcs    || [];
+    var players = contents.players || [];
+    var total   = npcs.length + players.length;
+
+    if (total === 0) {
+      panel.style.display = 'none';
+      return;
+    }
+    panel.style.display = '';
+    list.innerHTML = '';
+
+    // NPCs
+    for (var i = 0; i < npcs.length; i++) {
+      (function(npc) {
+        var row = document.createElement('div');
+        row.className = 'rc-entry';
+
+        var name = document.createElement('span');
+        name.className = 'rc-name npc';
+        name.textContent = npc.name;
+        row.appendChild(name);
+
+        var btnLook = document.createElement('button');
+        btnLook.className = 'rc-btn';
+        btnLook.textContent = 'look';
+        btnLook.addEventListener('click', function() { sendCmd('look ' + npc.name); });
+        row.appendChild(btnLook);
+
+        var btnTalk = document.createElement('button');
+        btnTalk.className = 'rc-btn';
+        btnTalk.textContent = 'talk';
+        btnTalk.addEventListener('click', function() { sendCmd('talk ' + npc.name); });
+        row.appendChild(btnTalk);
+
+        if (!combatActive) {
+          var btnAtk = document.createElement('button');
+          btnAtk.className = 'rc-btn';
+          btnAtk.textContent = 'atk';
+          btnAtk.style.color = 'var(--accent-red)';
+          btnAtk.addEventListener('click', function() { sendCmd('attack ' + npc.name); });
+          row.appendChild(btnAtk);
+        }
+
+        list.appendChild(row);
+      })(npcs[i]);
+    }
+
+    // Other players
+    for (var j = 0; j < players.length; j++) {
+      (function(pc) {
+        var row = document.createElement('div');
+        row.className = 'rc-entry';
+
+        var name = document.createElement('span');
+        name.className = 'rc-name player';
+        name.textContent = pc.name;
+        row.appendChild(name);
+
+        var btnLook = document.createElement('button');
+        btnLook.className = 'rc-btn';
+        btnLook.textContent = 'look';
+        btnLook.addEventListener('click', function() { sendCmd('look ' + pc.name); });
+        row.appendChild(btnLook);
+
+        list.appendChild(row);
+      })(players[j]);
+    }
+  }
+
   // ═══════════ Structured HUD ═══════════
 
   function handleHudUpdate(data) {
@@ -1449,6 +1722,9 @@
     if (data.zone_type) {
       setMood(data.zone_type);
     }
+    if (data.security_level !== undefined) {
+      updateSecurityBadge(data.security_level);
+    }
 
     if (data.exits && Array.isArray(data.exits)) {
       hudExits.innerHTML = '';
@@ -1463,6 +1739,112 @@
           hudExits.appendChild(btn);
         }
       }
+    }
+
+    if (data.room_contents) {
+      updateRoomContents(data.room_contents);
+    }
+  }
+
+  // ═══════════ Chat Message Handler (comms tabs) ═══════════
+
+  function handleChatMsg(msg) {
+    var channel = msg.channel || 'sys';
+    var from    = msg.from    || '';
+    var text    = msg.text    || '';
+    var tag     = channel === 'ooc' ? 'ooc' : channel === 'ic' ? 'ic' : 'system';
+    var display = from ? from + ': ' + text : text;
+    addNewsItem(tag, display, channel);
+  }
+
+  // ═══════════ Combat State ═══════════
+
+  var combatActive = false;
+
+  function handleCombatState(data) {
+    combatActive = !!(data && data.active);
+    updateQuickButtons();
+
+    var gQuick = document.getElementById('g-quick');
+    if (!gQuick) return;
+
+    // Show a combat-mode indicator in the quick panel label
+    var label = gQuick.querySelector('.hud-label');
+    if (label) {
+      label.textContent = combatActive ? 'Quick \u2022 Combat' : 'Quick';
+      label.style.color = combatActive ? 'var(--accent-red)' : '';
+    }
+  }
+
+  // ═══════════ Context-Sensitive Quick Buttons ═══════════
+
+  var QUICK_MODES = {
+    commander: [
+      { label: 'order',    cmd: 'order'           },
+      { label: '1-btl',    cmd: 'order 1'         },
+      { label: '2-eva',    cmd: 'order 2'         },
+      { label: '3-fwd',    cmd: 'order 3'         },
+      { label: '4-hold',   cmd: 'order 4'         },
+      { label: '5-sil',    cmd: 'order 5'         },
+      { label: 'cancel',   cmd: 'order cancel'    },
+      { label: 'coord',    cmd: 'coordinate'      },
+    ],
+    engineer: [
+      { label: 'power',    cmd: 'power'           },
+      { label: 'combat',   cmd: 'power combat'    },
+      { label: 'silent',   cmd: 'power silent'    },
+      { label: 'emergency',cmd: 'power emergency' },
+      { label: 'damcon',   cmd: 'damcon'          },
+      { label: 'status',   cmd: 'status'          },
+      { label: 'look',     cmd: 'look'            },
+      { label: 'vacate',   cmd: 'vacate'          },
+    ],
+    engineer: [
+      { label: 'power',    cmd: 'power'           },
+      { label: 'combat',   cmd: 'power combat'    },
+      { label: 'silent',   cmd: 'power silent'    },
+      { label: 'emergency',cmd: 'power emergency' },
+      { label: 'damcon',   cmd: 'damcon'          },
+      { label: 'status',   cmd: 'status'          },
+      { label: 'look',     cmd: 'look'            },
+      { label: 'vacate',   cmd: 'vacate'          },
+    ],
+    explore: [
+      { label: 'look',  cmd: 'look'      },
+      { label: 'inv',   cmd: 'inventory' },
+      { label: 'score', cmd: 'score'     },
+      { label: 'sheet', cmd: 'sheet'     },
+      { label: 'jobs',  cmd: 'missions'  },
+      { label: 'who',   cmd: 'who'       },
+      { label: 'news',  cmd: 'news'      },
+      { label: 'help',  cmd: 'help'      },
+    ],
+    combat: [
+      { label: 'attack',  cmd: 'attack'   },
+      { label: 'defend',  cmd: 'defend'   },
+      { label: 'dodge',   cmd: 'dodge'    },
+      { label: 'parry',   cmd: 'parry'    },
+      { label: 'status',  cmd: 'status'   },
+      { label: 'flee',    cmd: 'flee'     },
+      { label: 'pose',    cmd: 'pose'     },
+      { label: 'look',    cmd: 'look'     },
+    ],
+  };
+
+  function updateQuickButtons() {
+    var container = document.querySelector('#g-quick .quick-cmds');
+    if (!container) return;
+    var mode = combatActive ? 'combat' : 'explore';
+    var btns = QUICK_MODES[mode];
+    container.innerHTML = '';
+    for (var i = 0; i < btns.length; i++) {
+      (function(b) {
+        var el = document.createElement('button');
+        el.className = 'quick-cmd' + (mode === 'combat' ? ' combat-mode' : '');
+        el.textContent = b.label;
+        el.addEventListener('click', function() { sendCmd(b.cmd); });
+        container.appendChild(el);
+      })(btns[i]);
     }
   }
 
@@ -1488,28 +1870,30 @@
 
   // ═══════════ News / Comlink Feed ═══════════
 
+  function addNewsItem(tag, text, channel) {
+    if (!channel) {
+      if (tag === 'system' || tag === 'space' || tag === 'event' || tag === 'combat') channel = 'sys';
+      else if (tag === 'ic') channel = 'ic';
+      else if (tag === 'ooc') channel = 'ooc';
+      else channel = 'sys';
+    }
+    addNewsItemChanneled(tag, text, channel);
+  }
+
   function extractNewsFromText(raw) {
     var clean = raw.replace(/\x1b\[[0-9;]*m/g, '');
     var lines = clean.split(/\r?\n/);
     for (var i = 0; i < lines.length; i++) {
       var t = lines[i].trim();
       if (!t) continue;
-      if (t.startsWith('[SYSTEM]')) addNewsItem('system', t.replace('[SYSTEM] ', ''));
-      else if (t.startsWith('[COMBAT]')) addNewsItem('combat', t.replace('[COMBAT] ', ''));
-      else if (t.startsWith('[THE FORCE]')) addNewsItem('event', t.replace('[THE FORCE] ', ''));
-      else if (t.indexOf('GNN') !== -1 || t.indexOf('BULLETIN') !== -1) addNewsItem('event', t);
-      else if (t.indexOf('has connected') !== -1 || t.indexOf('has disconnected') !== -1) addNewsItem('system', t);
+      if (t.startsWith('[SYSTEM]')) addNewsItem('system', t.replace('[SYSTEM] ', ''), 'sys');
+      else if (t.startsWith('[COMBAT]')) addNewsItem('combat', t.replace('[COMBAT] ', ''), 'sys');
+      else if (t.startsWith('[THE FORCE]')) addNewsItem('event', t.replace('[THE FORCE] ', ''), 'sys');
+      else if (t.indexOf('GNN') !== -1 || t.indexOf('BULLETIN') !== -1) addNewsItem('event', t, 'sys');
+      else if (t.indexOf('has connected') !== -1 || t.indexOf('has disconnected') !== -1) addNewsItem('system', t, 'sys');
+      else if (t.startsWith('[OOC]') || t.startsWith('OOC:')) addNewsItem('ooc', t, 'ooc');
+      else if (t.indexOf(' says,') !== -1 || t.indexOf(' emotes') !== -1) addNewsItem('ic', t, 'ic');
     }
-  }
-
-  function addNewsItem(tag, text) {
-    var placeholder = newsItems.querySelector('[style]');
-    if (placeholder) placeholder.remove();
-    var item = document.createElement('div');
-    item.className = 'news-item';
-    item.innerHTML = '<span class="news-tag ' + tag + '">' + escapeHtml(tag) + '</span>' + escapeHtml(text.substring(0, 120));
-    newsItems.insertBefore(item, newsItems.firstChild);
-    while (newsItems.children.length > MAX_NEWS_ITEMS) newsItems.removeChild(newsItems.lastChild);
   }
 
   // ═══════════ Terminal Width ═══════════
@@ -1541,6 +1925,71 @@
     resizeTimer = setTimeout(sendResize, 300);
   });
 
+  // ═══════════ Mobile Sidebar Toggle ═══════════
+
+  var sidebarToggle = document.getElementById('sidebar-toggle');
+  var hudOverlay    = document.getElementById('hud-overlay');
+  var hud           = document.querySelector('.hud');
+
+  function openSidebar() {
+    hud.classList.add('open');
+    hudOverlay.classList.add('open');
+    sidebarToggle.classList.add('open');
+    sidebarToggle.textContent = '✕';
+  }
+  function closeSidebar() {
+    hud.classList.remove('open');
+    hudOverlay.classList.remove('open');
+    sidebarToggle.classList.remove('open');
+    sidebarToggle.textContent = '☰';
+  }
+  sidebarToggle.addEventListener('click', function() {
+    hud.classList.contains('open') ? closeSidebar() : openSidebar();
+  });
+  hudOverlay.addEventListener('click', closeSidebar);
+
+  // ═══════════ Comms Tabs ═══════════
+
+  var currentCommsTab = 'all';
+  // item metadata: [{el, channel}]
+  var commsItems = [];
+
+  document.querySelectorAll('.comms-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.comms-tab').forEach(function(t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      currentCommsTab = tab.dataset.tab;
+      // Clear badge
+      var badge = document.getElementById('badge-' + currentCommsTab);
+      if (badge) badge.classList.remove('show');
+      // Filter visible items
+      commsItems.forEach(function(item) {
+        item.el.style.display = (currentCommsTab === 'all' || item.channel === currentCommsTab) ? '' : 'none';
+      });
+    });
+  });
+
+  function addNewsItemChanneled(tag, text, channel) {
+    var placeholder = newsItems.querySelector('[style]');
+    if (placeholder && placeholder.style.fontStyle === 'italic') placeholder.remove();
+    var item = document.createElement('div');
+    item.className = 'news-item';
+    item.innerHTML = '<span class="news-tag ' + tag + '">' + escapeHtml(tag) + '</span>' + escapeHtml(text.substring(0, 120));
+    // Hide if not matching current tab
+    if (currentCommsTab !== 'all' && channel !== currentCommsTab) {
+      item.style.display = 'none';
+      // Show unread badge
+      var badge = document.getElementById('badge-' + channel);
+      if (badge) badge.classList.add('show');
+    }
+    newsItems.insertBefore(item, newsItems.firstChild);
+    commsItems.unshift({el: item, channel: channel});
+    while (commsItems.length > MAX_NEWS_ITEMS) {
+      var old = commsItems.pop();
+      if (old.el.parentNode) old.el.parentNode.removeChild(old.el);
+    }
+  }
+
   // ═══════════ WebSocket ═══════════
 
   function getWsUrl() {
@@ -1568,12 +2017,14 @@
         var msg = JSON.parse(evt.data);
         if (msg.type === 'hud_update') { handleHudUpdate(msg); return; }
         if (msg.type === 'space_state') { handleSpaceState(msg); return; }
+        if (msg.type === 'combat_state') { handleCombatState(msg); return; }
+        if (msg.type === 'chat') { handleChatMsg(msg); return; }
         if (msg.type === 'text' && typeof msg.data === 'string') { appendOutput(msg.data); }
         else if (msg.type === 'news_event') {
           if (msg.tag && msg.text) addNewsItem(msg.tag, msg.text);
           if (msg.data) appendOutput(msg.data);
         }
-        else { appendOutput(msg.data || msg.text || JSON.stringify(msg)); }
+        else { appendOutput(msg.data || msg.text || ''); }
       } catch (e) { appendOutput(evt.data); }
     };
 
@@ -1922,6 +2373,15 @@
       }
     }
 
+    // Power bar (Drop 15)
+    renderPowerBar(data.power_state, data.reactor_power, data.silent_running);
+
+    // Captain's Order badge (Drop 16)
+    updateOrderBadge(data.active_order);
+
+    // Power bar (Drop 15)
+    renderPowerBar(data.power_state, data.reactor_power, data.silent_running);
+
     // Zone map + tactical radar (Drop 10)
     renderZoneMap(data.zone_id, data.adjacent_zones);
     renderRadar(data.contacts, data.anomalies);
@@ -2180,6 +2640,160 @@
         svg.appendChild(aTxt);
       }
     }
+  }
+
+  // ═══════════ Power Bar (Drop 15) ═══════════
+
+  function renderPowerBar(powerState, reactorMax, silentRunning) {
+    var wrap   = document.getElementById('sp-power-wrap');
+    var track  = document.getElementById('sp-pwr-track');
+    var detail = document.getElementById('sp-pwr-detail');
+    var used_el  = document.getElementById('sp-pwr-used');
+    var max_el   = document.getElementById('sp-pwr-max');
+    var silent_el = document.getElementById('sp-pwr-silent');
+    if (!wrap || !track) return;
+
+    if (!powerState || !reactorMax) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+
+    var systems = ['engines','shields','weapons','sensors','life_support'];
+    var colors  = { engines:'engines', shields:'shields', weapons:'weapons',
+                    sensors:'sensors', life_support:'life_support' };
+    var defaults = { engines:3, shields:3, weapons:2, sensors:1, life_support:1 };
+    var labels   = { engines:'ENG', shields:'SHD', weapons:'WPN',
+                     sensors:'SNS', life_support:'LSP' };
+
+    var totalUsed = 0;
+    for (var s in powerState) { if (powerState.hasOwnProperty(s)) totalUsed += (powerState[s]||0); }
+    var free = Math.max(0, reactorMax - totalUsed);
+
+    used_el.textContent = totalUsed;
+    max_el.textContent  = reactorMax;
+    silent_el.style.display = silentRunning ? '' : 'none';
+
+    // Build track segments
+    track.innerHTML = '';
+    systems.forEach(function(s) {
+      var val = powerState[s] || 0;
+      if (val <= 0) return;
+      var pct = (val / reactorMax) * 100;
+      var seg = document.createElement('div');
+      seg.className = 'pwr-seg ' + (colors[s] || '');
+      seg.style.width = pct + '%';
+      if (val === 0) seg.classList.add('pwr-offline');
+      track.appendChild(seg);
+    });
+    if (free > 0) {
+      var seg = document.createElement('div');
+      seg.className = 'pwr-seg free';
+      seg.style.width = ((free / reactorMax) * 100) + '%';
+      track.appendChild(seg);
+    }
+
+    // Detail row
+    detail.innerHTML = '';
+    systems.forEach(function(s) {
+      var val = powerState[s] !== undefined ? powerState[s] : defaults[s];
+      var dflt = defaults[s];
+      var span = document.createElement('span');
+      var cls = val > dflt ? 'pwr-sys-over' : (val === 0 && dflt > 0 ? 'pwr-sys-off' : 'pwr-sys-val');
+      span.innerHTML = '<span class="pwr-sys-name">' + labels[s] + '</span>'
+                     + '<span class="' + cls + '">' + val + '</span>';
+      detail.appendChild(span);
+    });
+  }
+
+  // ═══════════ Power Bar (Drop 15) ═══════════
+
+  function renderPowerBar(powerState, reactorMax, silentRunning) {
+    var wrap   = document.getElementById('sp-power-wrap');
+    var track  = document.getElementById('sp-pwr-track');
+    var detail = document.getElementById('sp-pwr-detail');
+    var used_el  = document.getElementById('sp-pwr-used');
+    var max_el   = document.getElementById('sp-pwr-max');
+    var silent_el = document.getElementById('sp-pwr-silent');
+    if (!wrap || !track) return;
+
+    if (!powerState || !reactorMax) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+
+    var systems = ['engines','shields','weapons','sensors','life_support'];
+    var colors  = { engines:'engines', shields:'shields', weapons:'weapons',
+                    sensors:'sensors', life_support:'life_support' };
+    var defaults = { engines:3, shields:3, weapons:2, sensors:1, life_support:1 };
+    var labels   = { engines:'ENG', shields:'SHD', weapons:'WPN',
+                     sensors:'SNS', life_support:'LSP' };
+
+    var totalUsed = 0;
+    for (var s in powerState) { if (powerState.hasOwnProperty(s)) totalUsed += (powerState[s]||0); }
+    var free = Math.max(0, reactorMax - totalUsed);
+
+    used_el.textContent = totalUsed;
+    max_el.textContent  = reactorMax;
+    silent_el.style.display = silentRunning ? '' : 'none';
+
+    // Build track segments
+    track.innerHTML = '';
+    systems.forEach(function(s) {
+      var val = powerState[s] || 0;
+      if (val <= 0) return;
+      var pct = (val / reactorMax) * 100;
+      var seg = document.createElement('div');
+      seg.className = 'pwr-seg ' + (colors[s] || '');
+      seg.style.width = pct + '%';
+      if (val === 0) seg.classList.add('pwr-offline');
+      track.appendChild(seg);
+    });
+    if (free > 0) {
+      var seg = document.createElement('div');
+      seg.className = 'pwr-seg free';
+      seg.style.width = ((free / reactorMax) * 100) + '%';
+      track.appendChild(seg);
+    }
+
+    // Detail row
+    detail.innerHTML = '';
+    systems.forEach(function(s) {
+      var val = powerState[s] !== undefined ? powerState[s] : defaults[s];
+      var dflt = defaults[s];
+      var span = document.createElement('span');
+      var cls = val > dflt ? 'pwr-sys-over' : (val === 0 && dflt > 0 ? 'pwr-sys-off' : 'pwr-sys-val');
+      span.innerHTML = '<span class="pwr-sys-name">' + labels[s] + '</span>'
+                     + '<span class="' + cls + '">' + val + '</span>';
+      detail.appendChild(span);
+    });
+  }
+
+  // ═══════════ Captain's Order Badge (Drop 16) ═══════════
+
+  // Order metadata indexed by key (matches engine ORDER_DEFINITIONS)
+  var ORDER_META = {
+    battle_stations:    { name: 'Battle Stations',   bonus: '+1D FC',       cost: '-1D manvr' },
+    evasive_pattern:    { name: 'Evasive Pattern',   bonus: '+2D manvr',    cost: '-1D FC'    },
+    all_power_forward:  { name: 'All Power Fwd',     bonus: '+2 speed',     cost: '-1D shld'  },
+    hold_the_line:      { name: 'Hold the Line',     bonus: '+2D shields',  cost: '-2 spd'    },
+    silent_running:     { name: 'Silent Running',    bonus: '+3D stealth',  cost: 'wpn/shld off' },
+    boarding_action:    { name: 'Boarding Action',   bonus: '+1D melee',    cost: '-1D pilot' },
+    concentrate_fire:   { name: 'Concentrate Fire',  bonus: '+2D damage',   cost: 'one wpn only' },
+    coordinate:         { name: 'Coordinate',        bonus: '+1D all crew', cost: 'none'      },
+  };
+
+  function updateOrderBadge(activeOrder) {
+    var badge  = document.getElementById('sp-order-badge');
+    var name   = document.getElementById('sp-order-name');
+    var bonus  = document.getElementById('sp-order-bonus');
+    var cost   = document.getElementById('sp-order-cost');
+    if (!badge) return;
+    if (!activeOrder) {
+      badge.style.display = 'none';
+      return;
+    }
+    var meta = ORDER_META[activeOrder];
+    if (!meta) { badge.style.display = 'none'; return; }
+    badge.style.display = 'flex';
+    name.textContent  = meta.name;
+    bonus.textContent = meta.bonus;
+    cost.textContent  = '/ ' + meta.cost;
   }
 
   // ═══════════ SVG Panel Toggles ═══════════

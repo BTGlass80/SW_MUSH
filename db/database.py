@@ -14,7 +14,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 # -- Schema version --
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -287,6 +287,121 @@ MIGRATIONS = {
         )""",
     ],
 
+    8: [],  # placeholder (was already applied)
+
+    9: [
+        # Faction column on characters
+        "ALTER TABLE characters ADD COLUMN faction_id TEXT DEFAULT 'independent'",
+
+        # Organizations master table (factions + guilds)
+        """CREATE TABLE IF NOT EXISTS organizations (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            code            TEXT UNIQUE NOT NULL,
+            name            TEXT NOT NULL,
+            org_type        TEXT NOT NULL DEFAULT 'faction',
+            director_managed INTEGER DEFAULT 1,
+            leader_id       INTEGER REFERENCES characters(id),
+            hq_room_id      INTEGER REFERENCES rooms(id),
+            treasury        INTEGER DEFAULT 0,
+            properties      TEXT DEFAULT '{}'
+        )""",
+
+        # Rank definitions per organization
+        """CREATE TABLE IF NOT EXISTS org_ranks (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            org_id          INTEGER NOT NULL REFERENCES organizations(id),
+            rank_level      INTEGER NOT NULL,
+            title           TEXT NOT NULL,
+            min_rep         INTEGER DEFAULT 0,
+            permissions     TEXT DEFAULT '[]',
+            equipment       TEXT DEFAULT '[]',
+            UNIQUE(org_id, rank_level)
+        )""",
+
+        # PC membership in organizations
+        """CREATE TABLE IF NOT EXISTS org_memberships (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id         INTEGER NOT NULL REFERENCES characters(id),
+            org_id          INTEGER NOT NULL REFERENCES organizations(id),
+            rank_level      INTEGER DEFAULT 0,
+            standing        TEXT DEFAULT 'good',
+            rep_score       INTEGER DEFAULT 0,
+            specialization  TEXT DEFAULT '',
+            joined_at       TEXT DEFAULT (datetime('now')),
+            UNIQUE(char_id, org_id)
+        )""",
+
+        # Faction-issued equipment tracking
+        """CREATE TABLE IF NOT EXISTS issued_equipment (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id         INTEGER NOT NULL REFERENCES characters(id),
+            org_id          INTEGER NOT NULL REFERENCES organizations(id),
+            item_key        TEXT NOT NULL,
+            item_name       TEXT NOT NULL,
+            issued_at       TEXT DEFAULT (datetime('now')),
+            reclaimed       INTEGER DEFAULT 0
+        )""",
+
+        # Faction-issued ships
+        """CREATE TABLE IF NOT EXISTS issued_ships (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id         INTEGER NOT NULL REFERENCES characters(id),
+            org_id          INTEGER NOT NULL REFERENCES organizations(id),
+            ship_id         INTEGER REFERENCES ships(id),
+            issued_at       TEXT DEFAULT (datetime('now')),
+            returned        INTEGER DEFAULT 0
+        )""",
+
+        # Guild dues log
+        """CREATE TABLE IF NOT EXISTS guild_dues (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id         INTEGER NOT NULL REFERENCES characters(id),
+            org_id          INTEGER NOT NULL REFERENCES organizations(id),
+            amount          INTEGER DEFAULT 0,
+            paid_at         TEXT DEFAULT (datetime('now'))
+        )""",
+
+        # Faction event / action log
+        """CREATE TABLE IF NOT EXISTS faction_log (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id         INTEGER REFERENCES characters(id),
+            org_id          INTEGER REFERENCES organizations(id),
+            action_type     TEXT NOT NULL,
+            details         TEXT DEFAULT '',
+            logged_at       TEXT DEFAULT (datetime('now'))
+        )""",
+
+        # PC narrative memory (two-tier: short for NPC brain, long for Director)
+        """CREATE TABLE IF NOT EXISTS pc_narrative (
+            char_id         INTEGER PRIMARY KEY REFERENCES characters(id),
+            background      TEXT DEFAULT '',
+            short_record    TEXT DEFAULT '',
+            long_record     TEXT DEFAULT '',
+            last_summarized TEXT DEFAULT ''
+        )""",
+
+        # PC action log (raw events, summarized nightly into pc_narrative)
+        """CREATE TABLE IF NOT EXISTS pc_action_log (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id         INTEGER NOT NULL REFERENCES characters(id),
+            action_type     TEXT NOT NULL,
+            summary         TEXT NOT NULL,
+            details         TEXT DEFAULT '{}',
+            logged_at       TEXT DEFAULT (datetime('now'))
+        )""",
+
+        # Personal quests (Director-generated, player-tracked)
+        """CREATE TABLE IF NOT EXISTS personal_quests (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id         INTEGER NOT NULL REFERENCES characters(id),
+            title           TEXT NOT NULL,
+            description     TEXT DEFAULT '',
+            status          TEXT DEFAULT 'active',
+            created_at      TEXT DEFAULT (datetime('now')),
+            completed_at    TEXT DEFAULT ''
+        )""",
+    ],
+
 }
 
 
@@ -507,7 +622,7 @@ class Database:
         "name", "species", "template", "attributes", "skills",
         "wound_level", "character_points", "force_points", "dark_side_points",
         "credits", "resources", "room_id", "inventory", "equipment",
-        "description", "is_active",
+        "description", "is_active", "faction_id", "bounty",
     })
 
     async def save_character(self, char_id: int, **fields):
@@ -937,7 +1052,14 @@ class Database:
     async def create_npc(self, name: str, room_id: int, species: str = "Human",
                          description: str = "", char_sheet_json: str = "{}",
                          ai_config_json: str = "{}") -> int:
-        """Create an NPC. Returns NPC ID."""
+        """Create an NPC. Returns NPC ID. Skips creation if NPC with same name
+        already exists in the room (duplicate guard for idempotent build scripts)."""
+        existing = await self._db.execute_fetchall(
+            "SELECT id FROM npcs WHERE name = ? AND room_id = ?",
+            (name, room_id),
+        )
+        if existing:
+            return existing[0]["id"]
         cursor = await self._db.execute(
             """INSERT INTO npcs (name, room_id, species, description, char_sheet_json, ai_config_json)
                VALUES (?, ?, ?, ?, ?, ?)""",
@@ -1284,3 +1406,290 @@ class Database:
         )
         return rows[0]["cnt"] if rows else 0
 
+    # -- Organization Operations --
+
+    async def get_organization(self, code: str) -> Optional[dict]:
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM organizations WHERE code = ?", (code,)
+        )
+        return dict(rows[0]) if rows else None
+
+    async def get_all_organizations(self) -> list:
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM organizations ORDER BY org_type, name"
+        )
+        return [dict(r) for r in rows]
+
+    async def create_organization(self, code: str, name: str, org_type: str = "faction",
+                                   director_managed: bool = True, hq_room_id: int = None,
+                                   properties: str = "{}") -> int:
+        existing = await self._db.execute_fetchall(
+            "SELECT id FROM organizations WHERE code = ?", (code,)
+        )
+        if existing:
+            return existing[0]["id"]
+        cursor = await self._db.execute(
+            """INSERT INTO organizations (code, name, org_type, director_managed,
+               hq_room_id, properties)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (code, name, org_type, 1 if director_managed else 0, hq_room_id, properties),
+        )
+        await self._db.commit()
+        return cursor.lastrowid
+
+    async def create_org_rank(self, org_id: int, rank_level: int, title: str,
+                               min_rep: int = 0, permissions: str = "[]",
+                               equipment: str = "[]"):
+        await self._db.execute(
+            """INSERT OR IGNORE INTO org_ranks
+               (org_id, rank_level, title, min_rep, permissions, equipment)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (org_id, rank_level, title, min_rep, permissions, equipment),
+        )
+        await self._db.commit()
+
+    async def get_org_ranks(self, org_id: int) -> list:
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM org_ranks WHERE org_id = ? ORDER BY rank_level",
+            (org_id,)
+        )
+        return [dict(r) for r in rows]
+
+    async def get_membership(self, char_id: int, org_id: int) -> Optional[dict]:
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM org_memberships WHERE char_id = ? AND org_id = ?",
+            (char_id, org_id)
+        )
+        return dict(rows[0]) if rows else None
+
+    async def get_memberships_for_char(self, char_id: int) -> list:
+        rows = await self._db.execute_fetchall(
+            """SELECT m.*, o.code, o.name, o.org_type,
+                      r.title, r.permissions, r.equipment
+               FROM org_memberships m
+               JOIN organizations o ON o.id = m.org_id
+               LEFT JOIN org_ranks r ON r.org_id = m.org_id AND r.rank_level = m.rank_level
+               WHERE m.char_id = ?""",
+            (char_id,)
+        )
+        return [dict(r) for r in rows]
+
+    async def join_organization(self, char_id: int, org_id: int,
+                                 specialization: str = "") -> bool:
+        existing = await self.get_membership(char_id, org_id)
+        if existing:
+            return False
+        await self._db.execute(
+            """INSERT INTO org_memberships (char_id, org_id, specialization)
+               VALUES (?, ?, ?)""",
+            (char_id, org_id, specialization),
+        )
+        await self._db.commit()
+        return True
+
+    async def leave_organization(self, char_id: int, org_id: int) -> bool:
+        cursor = await self._db.execute(
+            "DELETE FROM org_memberships WHERE char_id = ? AND org_id = ?",
+            (char_id, org_id)
+        )
+        await self._db.commit()
+        return cursor.rowcount > 0
+
+    async def update_membership(self, char_id: int, org_id: int, **fields):
+        allowed = {"rank_level", "standing", "rep_score", "specialization"}
+        bad = set(fields) - allowed
+        if bad:
+            raise ValueError(f"update_membership: unknown fields {bad}")
+        set_clause = ", ".join(f"{k} = ?" for k in fields)
+        vals = list(fields.values()) + [char_id, org_id]
+        await self._db.execute(
+            f"UPDATE org_memberships SET {set_clause} WHERE char_id = ? AND org_id = ?",
+            vals
+        )
+        await self._db.commit()
+
+    async def adjust_rep(self, char_id: int, org_code: str, delta: int):
+        org = await self.get_organization(org_code)
+        if not org:
+            return
+        mem = await self.get_membership(char_id, org["id"])
+        if not mem:
+            return
+        new_rep = max(0, min(100, mem["rep_score"] + delta))
+        await self.update_membership(char_id, org["id"], rep_score=new_rep)
+
+    async def log_faction_action(self, char_id: int, org_id: int,
+                                  action_type: str, details: str = ""):
+        await self._db.execute(
+            """INSERT INTO faction_log (char_id, org_id, action_type, details)
+               VALUES (?, ?, ?, ?)""",
+            (char_id, org_id, action_type, details)
+        )
+        await self._db.commit()
+
+    # -- Issued Equipment Operations --
+
+    async def issue_equipment(self, char_id: int, org_id: int,
+                               item_key: str, item_name: str) -> int:
+        """Record a faction-issued item. Returns row id."""
+        cursor = await self._db.execute(
+            """INSERT INTO issued_equipment (char_id, org_id, item_key, item_name)
+               VALUES (?, ?, ?, ?)""",
+            (char_id, org_id, item_key, item_name),
+        )
+        await self._db.commit()
+        return cursor.lastrowid
+
+    async def get_issued_equipment(self, char_id: int,
+                                    org_id: int = None) -> list:
+        """Return all un-reclaimed issued equipment for a character."""
+        if org_id:
+            rows = await self._db.execute_fetchall(
+                """SELECT * FROM issued_equipment
+                   WHERE char_id = ? AND org_id = ? AND reclaimed = 0""",
+                (char_id, org_id),
+            )
+        else:
+            rows = await self._db.execute_fetchall(
+                "SELECT * FROM issued_equipment WHERE char_id = ? AND reclaimed = 0",
+                (char_id,),
+            )
+        return [dict(r) for r in rows]
+
+    async def reclaim_equipment(self, char_id: int, org_id: int) -> int:
+        """Mark all un-reclaimed issued equipment for an org as reclaimed.
+        Returns count of rows updated."""
+        cursor = await self._db.execute(
+            """UPDATE issued_equipment SET reclaimed = 1
+               WHERE char_id = ? AND org_id = ? AND reclaimed = 0""",
+            (char_id, org_id),
+        )
+        await self._db.commit()
+        return cursor.rowcount
+
+    # -- Inventory Operations --
+
+    async def get_inventory(self, char_id: int) -> list:
+        """Return character inventory as a list of item dicts."""
+        import json as _j
+        rows = await self._db.execute_fetchall(
+            "SELECT inventory FROM characters WHERE id = ?", (char_id,)
+        )
+        if not rows:
+            return []
+        raw = rows[0]["inventory"] or "[]"
+        try:
+            return _j.loads(raw) if isinstance(raw, str) else raw
+        except Exception:
+            return []
+
+    async def add_to_inventory(self, char_id: int, item: dict):
+        """Append an item dict to character inventory and persist."""
+        import json as _j
+        inv = await self.get_inventory(char_id)
+        inv.append(item)
+        await self._db.execute(
+            "UPDATE characters SET inventory = ? WHERE id = ?",
+            (_j.dumps(inv), char_id),
+        )
+        await self._db.commit()
+
+    async def remove_from_inventory(self, char_id: int,
+                                     item_key: str) -> bool:
+        """Remove the first inventory item matching item_key.
+        Returns True if removed."""
+        import json as _j
+        inv = await self.get_inventory(char_id)
+        new_inv = []
+        removed = False
+        for item in inv:
+            if not removed and item.get("key") == item_key:
+                removed = True
+            else:
+                new_inv.append(item)
+        if removed:
+            await self._db.execute(
+                "UPDATE characters SET inventory = ? WHERE id = ?",
+                (_j.dumps(new_inv), char_id),
+            )
+            await self._db.commit()
+        return removed
+
+
+    # -- Narrative Memory Operations --
+
+    async def get_narrative(self, char_id: int) -> Optional[dict]:
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM pc_narrative WHERE char_id = ?", (char_id,)
+        )
+        return dict(rows[0]) if rows else None
+
+    async def upsert_narrative(self, char_id: int, **fields):
+        allowed = {"background", "short_record", "long_record", "last_summarized"}
+        bad = set(fields) - allowed
+        if bad:
+            raise ValueError(f"upsert_narrative: unknown fields {bad}")
+        existing = await self.get_narrative(char_id)
+        if existing:
+            if fields:
+                set_clause = ", ".join(f"{k} = ?" for k in fields)
+                vals = list(fields.values()) + [char_id]
+                await self._db.execute(
+                    f"UPDATE pc_narrative SET {set_clause} WHERE char_id = ?", vals
+                )
+        else:
+            await self._db.execute(
+                "INSERT INTO pc_narrative (char_id) VALUES (?)", (char_id,)
+            )
+            if fields:
+                set_clause = ", ".join(f"{k} = ?" for k in fields)
+                vals = list(fields.values()) + [char_id]
+                await self._db.execute(
+                    f"UPDATE pc_narrative SET {set_clause} WHERE char_id = ?", vals
+                )
+        await self._db.commit()
+
+    async def log_action(self, char_id: int, action_type: str,
+                          summary: str, details: str = "{}"):
+        await self._db.execute(
+            """INSERT INTO pc_action_log (char_id, action_type, summary, details)
+               VALUES (?, ?, ?, ?)""",
+            (char_id, action_type, summary, details)
+        )
+        await self._db.commit()
+
+    async def get_recent_actions(self, char_id: int, limit: int = 20) -> list:
+        rows = await self._db.execute_fetchall(
+            """SELECT * FROM pc_action_log WHERE char_id = ?
+               ORDER BY logged_at DESC LIMIT ?""",
+            (char_id, limit)
+        )
+        return [dict(r) for r in rows]
+
+    async def get_personal_quests(self, char_id: int,
+                                   status: str = "active") -> list:
+        rows = await self._db.execute_fetchall(
+            """SELECT * FROM personal_quests WHERE char_id = ? AND status = ?
+               ORDER BY created_at DESC""",
+            (char_id, status)
+        )
+        return [dict(r) for r in rows]
+
+    async def create_personal_quest(self, char_id: int, title: str,
+                                     description: str = "") -> int:
+        cursor = await self._db.execute(
+            """INSERT INTO personal_quests (char_id, title, description)
+               VALUES (?, ?, ?)""",
+            (char_id, title, description)
+        )
+        await self._db.commit()
+        return cursor.lastrowid
+
+    async def complete_personal_quest(self, quest_id: int):
+        import time as _t
+        await self._db.execute(
+            """UPDATE personal_quests SET status = 'complete',
+               completed_at = ? WHERE id = ?""",
+            (_t.strftime("%Y-%m-%d %H:%M:%S"), quest_id)
+        )
+        await self._db.commit()

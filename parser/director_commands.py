@@ -46,8 +46,8 @@ class DirectorCommand(BaseCommand):
     key = "@director"
     aliases = []
     access_level = AccessLevel.ADMIN
-    help_text = "Manage the Director AI system. Sub-commands: status enable disable trigger budget influence log reset"
-    usage = "@director status|enable|disable|trigger|budget|influence|log [n]|reset"
+    help_text = "Manage the Director AI system. Sub-commands: status enable disable trigger budget influence log reset narrative"
+    usage = "@director status|enable|disable|trigger|budget|influence|log [n]|reset|narrative [enable|disable|status]"
 
     async def execute(self, ctx: CommandContext) -> None:
         args = (ctx.args or "").strip().lower()
@@ -64,6 +64,7 @@ class DirectorCommand(BaseCommand):
             "influence": self._influence_cmd,
             "log":       self._log,
             "reset":     self._reset,
+            "narrative": self._narrative,
         }
         handler = dispatch.get(subcmd)
         if handler is None:
@@ -100,6 +101,14 @@ class DirectorCommand(BaseCommand):
         except Exception:
             api_str = ansi.yellow("UNKNOWN")
         await ctx.session.send_line(f"  Claude API:  {api_str}")
+
+        # Narrative AI status
+        try:
+            from engine.narrative import is_narrative_ai_enabled
+            narr_str = ansi.green("ENABLED") if is_narrative_ai_enabled() else ansi.yellow("DISABLED")
+            await ctx.session.send_line(f"  Narrative AI:{narr_str}  (logging: always on)")
+        except Exception:
+            pass
 
         # Last / next turn
         last = director._last_turn_time
@@ -285,6 +294,57 @@ class DirectorCommand(BaseCommand):
             log.info("[director] Influence reset by admin %s.", ctx.session.char_name)
         except Exception as exc:
             await ctx.session.send_line(ansi.error(f"  Reset failed: {exc}"))
+
+    async def _narrative(self, ctx: CommandContext, args: str) -> None:
+        """
+        @director narrative [enable|disable|status]
+
+        Toggles the narrative AI feature set:
+          - short_record injection into NPC brain prompts
+          - nightly Haiku summarization pipeline (Phase 3)
+
+        Action *logging* is always on regardless of this flag — it's just
+        DB writes with zero API cost and should always be collecting data.
+
+        Default: DISABLED during development.
+        """
+        from engine.narrative import set_narrative_ai, is_narrative_ai_enabled
+
+        sub = args.strip().lower()
+
+        if sub in ("enable", "on"):
+            set_narrative_ai(True)
+            await ctx.session.send_line(
+                ansi.success(
+                    "  Narrative AI: ENABLED\n"
+                    "  NPC brain prompts will now include player short_record.\n"
+                    "  Action logging was already running."
+                )
+            )
+            log.info("[director] Narrative AI enabled by %s", ctx.session.char_name)
+
+        elif sub in ("disable", "off"):
+            set_narrative_ai(False)
+            await ctx.session.send_line(
+                ansi.success(
+                    "  Narrative AI: DISABLED\n"
+                    "  NPC prompts revert to per-NPC memory only.\n"
+                    "  Action logging continues (zero cost)."
+                )
+            )
+            log.info("[director] Narrative AI disabled by %s", ctx.session.char_name)
+
+        else:
+            # status (default)
+            enabled = is_narrative_ai_enabled()
+            state = ansi.green("ENABLED") if enabled else ansi.yellow("DISABLED (default)")
+            await ctx.session.send_line(
+                f"\n  Narrative AI:     {state}\n"
+                f"  Action logging:   {ansi.green('ALWAYS ON')} (zero API cost)\n"
+                f"  NPC short_record: {'injected into prompts' if enabled else 'suppressed'}\n"
+                f"  Summarization:    {'active (Phase 3 pending)' if enabled else 'suppressed'}\n\n"
+                f"  Usage: @director narrative enable|disable"
+            )
 
 
 def register_director_commands(registry) -> None:

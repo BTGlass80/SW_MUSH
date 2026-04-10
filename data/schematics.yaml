@@ -355,3 +355,42 @@ schematics:
     cargo_weight: 10
     base_cost: 4500
 
+  # ── Sensor Countermeasures (Drop 18) ────────────────────────────────────────
+
+  - key: sensor_mask
+    name: "Sensor Masking Array"
+    skill_required: computer_prog
+    difficulty: 22
+    trainer_npc: Renna Dox
+    components:
+      - type: electronic
+        quantity: 3
+        min_quality: 70
+      - type: rare
+        quantity: 2
+        min_quality: 60
+    output_type: component
+    output_key: sensor_mask
+    stat_target: stealth
+    stat_boost: 6
+    cargo_weight: 8
+    base_cost: 5000
+
+  - key: comm_jammer
+    name: "Comm Jammer"
+    skill_required: computer_prog
+    difficulty: 24
+    trainer_npc: Renna Dox
+    components:
+      - type: electronic
+        quantity: 4
+        min_quality: 70
+      - type: rare
+        quantity: 3
+        min_quality: 65
+    output_type: component
+    output_key: comm_jammer
+    stat_target: comm_jam
+    stat_boost: 3
+    cargo_weight: 5
+    base_cost: 5000

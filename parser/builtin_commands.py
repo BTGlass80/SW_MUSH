@@ -26,6 +26,13 @@ async def _check_hostile_npcs(ctx: CommandContext, room_id: int):
     if not char:
         return
 
+    # ── Security zone — no NPC aggro in SECURED areas ───────────────────────
+    from engine.security import get_effective_security, SecurityLevel
+    _sec = await get_effective_security(room_id, ctx.db)
+    if _sec == SecurityLevel.SECURED:
+        return
+    # ── End security check ───────────────────────────────────────────────────
+
     hostiles = await check_room_hostiles(room_id, char["id"], ctx.db)
     if not hostiles:
         return
@@ -361,6 +368,67 @@ class MoveCommand(BaseCommand):
         # Check for hostile NPCs in the new room
         await _check_hostile_npcs(ctx, new_room_id)
 
+        # Tutorial: start hint timer if in tutorial zone; check starter + discovery quests
+        try:
+            from engine.tutorial_v2 import (
+                start_hint_timer, check_starter_quest, check_discovery_quest,
+                check_core_tutorial_step, check_elective_progress,
+                is_tutorial_zone, set_tutorial_core,
+                start_starter_quest, get_tutorial_state
+            )
+            new_room = await ctx.db.get_room(new_room_id)
+            if new_room:
+                import json as _tj
+                rprops = new_room.get("properties", "{}")
+                if isinstance(rprops, str):
+                    try:
+                        rprops = _tj.loads(rprops)
+                    except Exception:
+                        rprops = {}
+
+                ts = get_tutorial_state(char)
+
+                if is_tutorial_zone(rprops):
+                    # Player is in tutorial — mark as in_progress if not yet started
+                    if ts["core"] == "not_started":
+                        set_tutorial_core(char, "in_progress", step=-1)
+                        await ctx.db.save_character(
+                            char["id"], attributes=char.get("attributes", "{}")
+                        )
+                    start_hint_timer(session, new_room.get("name", ""))
+                    # Advance step counter + show per-room guidance [v21]
+                    await check_core_tutorial_step(
+                        session, ctx.db, new_room.get("name", "")
+                    )
+                else:
+                    # Player just left tutorial zone into the live world
+                    if ts["core"] == "in_progress":
+                        set_tutorial_core(char, "complete")
+                        start_starter_quest(char)
+                        await ctx.db.save_character(
+                            char["id"], attributes=char.get("attributes", "{}")
+                        )
+                        await session.send_line(
+                            "\n  \033[1;32m[TUTORIAL COMPLETE]\033[0m "
+                            "You've arrived in Mos Eisley. "
+                            "Find Kessa Dray in the cantina for your next steps.\n"
+                            "  Type \033[1;33mtraining list\033[0m to track your progress "
+                            "or \033[1;33mtraining\033[0m to return for advanced training.\n"
+                        )
+
+                # Starter quest room-entry check
+                await check_starter_quest(
+                    session, ctx.db,
+                    trigger="enter",
+                    room_name=new_room.get("name", ""),
+                )
+                # Discovery quest room-entry check
+                await check_discovery_quest(session, ctx.db, new_room.get("name", ""))
+                # Elective module step advancement [v25]
+                await check_elective_progress(session, ctx.db, new_room.get("name", ""))
+        except Exception:
+            pass  # Non-critical
+
 
 class SayCommand(BaseCommand):
     key = "say"
@@ -387,6 +455,11 @@ class SayCommand(BaseCommand):
             char["room_id"],
             f'{name} says, "{ctx.args}"',
             exclude=ctx.session,
+        )
+        # Chat tag for WebSocket comms panel
+        await ctx.session_mgr.broadcast_chat(
+            "ic", char["name"], ctx.args,
+            room_id=char["room_id"],
         )
 
 
@@ -1035,6 +1108,9 @@ class UnequipCommand(BaseCommand):
     usage = "unequip"
 
     async def execute(self, ctx: CommandContext):
+        # Route cargo sales to trade handler
+        if ctx.args and ctx.args.strip().lower().startswith("cargo"):
+            return await _handle_sell_cargo(ctx)
         from engine.items import parse_equipment_json, serialize_equipment
         from engine.weapons import get_weapon_registry
 
@@ -1278,6 +1354,440 @@ def register_all(registry):
         WeaponsListCommand(),
         RespawnCommand(),
         SemiposeCommand(),
+        TradeCommand(),
     ]
     for cmd in commands:
         registry.register(cmd)
+
+# ── Trade (player-to-player) ───────────────────────────────────────────────────
+
+import time as _trade_time
+
+# Pending trade offers: {(offerer_id, target_id): {offer_dict, timestamp}}
+_pending_trades: dict = {}
+_TRADE_TTL = 120  # 2 minutes
+
+
+def _purge_trade_offers():
+    now = _trade_time.time()
+    stale = [k for k, v in _pending_trades.items() if now - v["ts"] > _TRADE_TTL]
+    for k in stale:
+        _pending_trades.pop(k, None)
+
+
+async def _handle_sell_cargo(ctx) -> None:
+    """Handle 'sell cargo <good> <tons>'."""
+    from engine.trading import (
+        TRADE_GOODS, get_planet_price, get_ship_cargo,
+        cargo_quantity, remove_cargo, get_cargo_tons,
+    )
+    from engine.starships import get_ship_registry
+    from engine.skill_checks import resolve_bargain_check
+    from parser.space_commands import _get_ship_for_player, _get_systems
+
+    # Parse args: "cargo <good> <tons>"  or  "cargo <good>" for all
+    raw = (ctx.args or "").strip()
+    parts = raw[len("cargo"):].strip().lower().split()
+    if not parts:
+        await ctx.session.send_line(
+            "  Usage: sell cargo <good key> <tons>\n"
+            "  Example: sell cargo raw_ore 20\n"
+            "  Type 'market' to see goods in your hold."
+        )
+        return
+
+    # Last token is quantity if numeric
+    if len(parts) > 1 and parts[-1].isdigit():
+        quantity = int(parts[-1])
+        good_query = " ".join(parts[:-1]).replace(" ", "_")
+    else:
+        quantity = None  # sell all
+        good_query = " ".join(parts).replace(" ", "_")
+
+    good = TRADE_GOODS.get(good_query)
+    if not good:
+        good = next(
+            (g for g in TRADE_GOODS.values()
+             if good_query in g.name.lower().replace(" ", "_")),
+            None,
+        )
+    if not good:
+        await ctx.session.send_line(
+            f"  Unknown trade good '{good_query}'. Type 'market' to see your hold."
+        )
+        return
+
+    ship = await _get_ship_for_player(ctx)
+    if not ship or not ship.get("docked_at"):
+        await ctx.session.send_line("  You must be docked to sell cargo.")
+        return
+
+    import json as _j
+    cargo = get_ship_cargo(ship)
+    held = cargo_quantity(cargo, good.key)
+    if held == 0:
+        await ctx.session.send_line(
+            f"  You have no {good.name} in the cargo hold."
+        )
+        return
+
+    if quantity is None:
+        quantity = held
+    elif quantity > held:
+        await ctx.session.send_line(
+            f"  Only {held}t of {good.name} in hold. "
+            f"Use 'sell cargo {good.key}' to sell all."
+        )
+        return
+
+    # Planet price
+    systems = _get_systems(ship)
+    zone_id = systems.get("current_zone", "")
+    from engine.npc_space_traffic import ZONES
+    zone_obj = ZONES.get(zone_id)
+    planet = zone_obj.planet if zone_obj else ""
+    base_price = get_planet_price(good, planet)
+
+    # Bargain check
+    char = ctx.session.character
+    haggle = resolve_bargain_check(
+        char, base_price * quantity,
+        npc_bargain_dice=3, npc_bargain_pips=0,
+        is_buying=False,
+    )
+    total_revenue = haggle["adjusted_price"]
+    per_ton = max(1, total_revenue // quantity)
+
+    # Remove cargo and compute profit
+    new_cargo, avg_cost = remove_cargo(cargo, good.key, quantity)
+    profit_per_ton = per_ton - avg_cost
+    total_profit = profit_per_ton * quantity
+
+    await ctx.db.update_ship(ship["id"], cargo=_j.dumps(new_cargo))
+
+    new_credits = char.get("credits", 0) + total_revenue
+    char["credits"] = new_credits
+    await ctx.db.save_character(char["id"], credits=new_credits)
+
+    pct = haggle["price_modifier_pct"]
+    if pct != 0:
+        direction = "bonus" if pct > 0 else "penalty"
+        await ctx.session.send_line(
+            f"  {ansi.DIM}Bargain: {abs(pct)}% {direction}{ansi.RESET}"
+        )
+
+    # Ship's log: trade run if profitable (Drop 19)
+    if total_profit >= 0:
+        try:
+            from engine.ships_log import log_event as _tlog
+            await _tlog(ctx.db, char, "trade_runs")
+        except Exception:
+            pass
+
+    profit_color = ansi.BRIGHT_GREEN if total_profit >= 0 else ansi.BRIGHT_RED
+    profit_sign  = "+" if total_profit >= 0 else ""
+    await ctx.session.send_line(
+        ansi.success(
+            f"  Sold {quantity}t of {good.name} for {total_revenue:,}cr "
+            f"({per_ton:,}cr/t)."
+        )
+    )
+    await ctx.session.send_line(
+        f"  {profit_color}Profit: {profit_sign}{total_profit:,}cr "
+        f"(paid {avg_cost:,}/t, sold {per_ton:,}/t){ansi.RESET}"
+        f"  Balance: {new_credits:,}cr"
+    )
+
+
+class TradeCommand(BaseCommand):
+    key = "trade"
+    aliases = ["offer", "+trade"]
+    help_text = (
+        "Trade credits or items with another player in the same room.\n"
+        "\n"
+        "USAGE:\n"
+        "  trade <player> <amount> credits    — offer credits\n"
+        "  trade accept <player>              — accept a pending offer\n"
+        "  trade decline <player>             — decline a pending offer\n"
+        "  trade cancel                       — cancel your outgoing offer\n"
+        "  trade list                         — show pending offers\n"
+        "\n"
+        "Both parties must be in the same room. The target must 'trade accept'\n"
+        "within 2 minutes or the offer expires.\n"
+        "\n"
+        "EXAMPLES:\n"
+        "  trade Tundra 500 credits\n"
+        "  trade accept Jex"
+    )
+    usage = "trade <player> <amount> credits  |  trade accept|decline|cancel|list"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        args = (ctx.args or "").strip()
+        parts = args.split()
+
+        if not parts:
+            await ctx.session.send_line(
+                "  Usage: trade <player> <amount> credits\n"
+                "         trade accept|decline|cancel|list"
+            )
+            return
+
+        sub = parts[0].lower()
+
+        if sub == "list":
+            await self._list(ctx, char)
+        elif sub == "cancel":
+            await self._cancel(ctx, char)
+        elif sub == "accept":
+            target_name = parts[1] if len(parts) > 1 else ""
+            await self._accept(ctx, char, target_name)
+        elif sub == "decline":
+            target_name = parts[1] if len(parts) > 1 else ""
+            await self._decline(ctx, char, target_name)
+        else:
+            # trade <player> <amount> credits
+            await self._offer(ctx, char, parts)
+
+    async def _offer(self, ctx, char, parts):
+        _purge_trade_offers()
+        # Expect: <player_name> <amount> credits
+        if len(parts) < 3:
+            await ctx.session.send_line(
+                "  Usage: trade <player> <amount> credits\n"
+                "  Example: trade Tundra 500 credits"
+            )
+            return
+
+        target_name = parts[0]
+        amount_str = parts[1]
+        kind = parts[2].lower() if len(parts) > 2 else ""
+
+        if kind != "credits":
+            await ctx.session.send_line(
+                "  Only credit trades are supported right now.\n"
+                "  Usage: trade <player> <amount> credits"
+            )
+            return
+
+        try:
+            amount = int(amount_str.replace(",", ""))
+        except ValueError:
+            await ctx.session.send_line(f"  '{amount_str}' isn't a valid amount.")
+            return
+
+        if amount <= 0:
+            await ctx.session.send_line("  Amount must be positive.")
+            return
+
+        if char.get("credits", 0) < amount:
+            await ctx.session.send_line(
+                f"  You don't have enough credits. "
+                f"(You have {char.get('credits', 0):,} cr)"
+            )
+            return
+
+        # Find target in same room
+        target_sess = None
+        for s in ctx.session_mgr.sessions_in_room(char["room_id"]):
+            if (s.character and
+                    s.character["name"].lower().startswith(target_name.lower()) and
+                    s.character["id"] != char["id"]):
+                target_sess = s
+                break
+
+        if not target_sess:
+            await ctx.session.send_line(f"  '{target_name}' isn't here.")
+            return
+
+        target = target_sess.character
+        offer_key = (char["id"], target["id"])
+
+        _pending_trades[offer_key] = {
+            "offerer_id":   char["id"],
+            "offerer_name": char["name"],
+            "target_id":    target["id"],
+            "target_name":  target["name"],
+            "amount":       amount,
+            "kind":         "credits",
+            "ts":           _trade_time.time(),
+        }
+
+        await ctx.session.send_line(
+            f"  \033[1;33mTrade offer sent:\033[0m {amount:,} credits → {target['name']}.\n"
+            f"  Waiting for them to 'trade accept {char['name']}'."
+        )
+        await target_sess.send_line(
+            f"\n  \033[1;33m[TRADE OFFER]\033[0m {char['name']} offers you "
+            f"\033[1;32m{amount:,} credits\033[0m.\n"
+            f"  Type '\033[1;37mtrade accept {char['name']}\033[0m' to accept "
+            f"or '\033[1;37mtrade decline {char['name']}\033[0m' to decline. "
+            f"(Expires in 2 minutes.)\n"
+        )
+
+    async def _accept(self, ctx, char, offerer_name):
+        _purge_trade_offers()
+        if not offerer_name:
+            await ctx.session.send_line("  Usage: trade accept <player name>")
+            return
+
+        # Find matching offer
+        offer = None
+        offer_key = None
+        for k, v in _pending_trades.items():
+            if (v["target_id"] == char["id"] and
+                    v["offerer_name"].lower().startswith(offerer_name.lower())):
+                offer = v
+                offer_key = k
+                break
+
+        if not offer:
+            await ctx.session.send_line(
+                f"  No pending trade offer from '{offerer_name}'."
+            )
+            return
+
+        # Find offerer session
+        offerer_sess = ctx.session_mgr.find_by_character(offer["offerer_id"])
+        if not offerer_sess or not offerer_sess.character:
+            _pending_trades.pop(offer_key, None)
+            await ctx.session.send_line("  The other player has gone offline. Trade cancelled.")
+            return
+
+        # Verify same room
+        if offerer_sess.character["room_id"] != char["room_id"]:
+            _pending_trades.pop(offer_key, None)
+            await ctx.session.send_line(
+                "  They've left the room. Trade cancelled."
+            )
+            return
+
+        offerer = offerer_sess.character
+        amount = offer["amount"]
+
+        # Check offerer still has the credits
+        if offerer.get("credits", 0) < amount:
+            _pending_trades.pop(offer_key, None)
+            await ctx.session.send_line(
+                f"  {offerer['name']} no longer has enough credits. Trade cancelled."
+            )
+            await offerer_sess.send_line(
+                f"  Trade with {char['name']} cancelled — insufficient credits."
+            )
+            return
+
+        # Execute transfer
+        offerer["credits"] = offerer.get("credits", 0) - amount
+        char["credits"] = char.get("credits", 0) + amount
+
+        await ctx.db.save_character(offerer["id"], credits=offerer["credits"])
+        await ctx.db.save_character(char["id"], credits=char["credits"])
+
+        _pending_trades.pop(offer_key, None)
+
+        await ctx.session.send_line(
+            f"  \033[1;32m[TRADE COMPLETE]\033[0m Received {amount:,} credits "
+            f"from {offerer['name']}. Balance: {char['credits']:,} cr."
+        )
+        await offerer_sess.send_line(
+            f"  \033[1;32m[TRADE COMPLETE]\033[0m {char['name']} accepted. "
+            f"-{amount:,} credits. Balance: {offerer['credits']:,} cr."
+        )
+
+        # Broadcast to room (brief)
+        await ctx.session_mgr.broadcast_to_room(
+            char["room_id"],
+            f"  {offerer['name']} and {char['name']} exchange credits.",
+            exclude=[offerer["id"], char["id"]],
+        )
+
+        # Narrative log
+        try:
+            from engine.narrative import log_action, ActionType as NT
+            await log_action(ctx.db, char["id"], NT.PURCHASE,
+                             f"Received {amount:,} credits from {offerer['name']} via trade",
+                             {"amount": amount, "counterpart": offerer["name"]})
+            await log_action(ctx.db, offerer["id"], NT.PURCHASE,
+                             f"Paid {amount:,} credits to {char['name']} via trade",
+                             {"amount": -amount, "counterpart": char["name"]})
+        except Exception:
+            pass
+
+    async def _decline(self, ctx, char, offerer_name):
+        _purge_trade_offers()
+        if not offerer_name:
+            await ctx.session.send_line("  Usage: trade decline <player name>")
+            return
+
+        offer = None
+        offer_key = None
+        for k, v in _pending_trades.items():
+            if (v["target_id"] == char["id"] and
+                    v["offerer_name"].lower().startswith(offerer_name.lower())):
+                offer = v
+                offer_key = k
+                break
+
+        if not offer:
+            await ctx.session.send_line(f"  No pending offer from '{offerer_name}'.")
+            return
+
+        _pending_trades.pop(offer_key, None)
+        await ctx.session.send_line(f"  You decline {offer['offerer_name']}'s offer.")
+
+        offerer_sess = ctx.session_mgr.find_by_character(offer["offerer_id"])
+        if offerer_sess:
+            await offerer_sess.send_line(
+                f"  {char['name']} declined your trade offer."
+            )
+
+    async def _cancel(self, ctx, char):
+        _purge_trade_offers()
+        cancelled = []
+        for k in list(_pending_trades.keys()):
+            if _pending_trades[k]["offerer_id"] == char["id"]:
+                target_name = _pending_trades[k]["target_name"]
+                target_id = _pending_trades[k]["target_id"]
+                cancelled.append((k, target_name, target_id))
+
+        if not cancelled:
+            await ctx.session.send_line("  You have no pending trade offers.")
+            return
+
+        for k, tname, tid in cancelled:
+            _pending_trades.pop(k, None)
+            target_sess = ctx.session_mgr.find_by_character(tid)
+            if target_sess:
+                await target_sess.send_line(
+                    f"  {char['name']} cancelled their trade offer to you."
+                )
+
+        await ctx.session.send_line(
+            f"  Cancelled {len(cancelled)} trade offer(s)."
+        )
+
+    async def _list(self, ctx, char):
+        _purge_trade_offers()
+        incoming = [v for v in _pending_trades.values() if v["target_id"] == char["id"]]
+        outgoing = [v for v in _pending_trades.values() if v["offerer_id"] == char["id"]]
+
+        if not incoming and not outgoing:
+            await ctx.session.send_line("  No pending trade offers.")
+            return
+
+        lines = ["\033[1;36m── Pending Trades ──────────────────\033[0m"]
+        for v in incoming:
+            age = int(_trade_time.time() - v["ts"])
+            lines.append(
+                f"  \033[1;33mINBOUND\033[0m  {v['offerer_name']} offers "
+                f"{v['amount']:,} credits  \033[2m({age}s ago)\033[0m"
+            )
+            lines.append(f"           → 'trade accept {v['offerer_name']}'")
+        for v in outgoing:
+            age = int(_trade_time.time() - v["ts"])
+            lines.append(
+                f"  \033[2mOUTBOUND\033[0m → {v['target_name']}:  "
+                f"{v['amount']:,} credits  \033[2m({age}s ago)\033[0m"
+            )
+        lines.append("\033[1;36m────────────────────────────────────\033[0m")
+        await ctx.session.send_line("\n".join(lines))

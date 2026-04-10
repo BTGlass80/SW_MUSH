@@ -33,6 +33,8 @@ from engine.npc_generator import (
 )
 from server import ansi
 from engine.skill_checks import perform_skill_check
+from engine.character import Character
+from engine.dice import DicePool
 
 # Persuasion difficulty for NPC dialogue
 _PERSUASION_DIFFICULTY = 10
@@ -54,6 +56,77 @@ def _get_brain(npc_data: NPCData, ai_manager) -> NPCBrain:
     if npc_data.id not in _npc_brains:
         _npc_brains[npc_data.id] = NPCBrain(npc_data, ai_manager)
     return _npc_brains[npc_data.id]
+
+
+async def _handle_skill_trainer(ctx, npc_data, char) -> bool:
+    """
+    If this NPC is a skill trainer (ai_config has trainer=True + train_skills),
+    display the skills they teach with current values and CP costs, then return True.
+    Cost formula matches TrainCommand exactly: total_pool.dice (with guild discount).
+    """
+    try:
+        ai_cfg = (json.loads(npc_data.ai_config_json)
+                  if isinstance(npc_data.ai_config_json, str)
+                  else npc_data.ai_config_json) or {}
+    except Exception:
+        return False
+
+    if not ai_cfg.get("trainer") or not ai_cfg.get("train_skills"):
+        return False
+
+    train_skills = ai_cfg["train_skills"]
+
+    from parser.cp_commands import _get_skill_reg
+
+    char_row = await ctx.db.get_character(char["id"])
+    if not char_row:
+        return False
+    character = Character.from_db_row(char_row)
+    skill_reg = _get_skill_reg()
+    cp = character.character_points
+
+    # Guild multiplier (matches TrainCommand)
+    guild_mult = 1.0
+    try:
+        from engine.organizations import get_guild_cp_multiplier
+        guild_mult = await get_guild_cp_multiplier(char, ctx.db)
+    except Exception:
+        pass
+
+    await ctx.session.send_line(
+        f"  {ansi.BRIGHT_CYAN}{npc_data.name}{ansi.RESET} "
+        f"{ansi.DIM}offers training in:{ansi.RESET}"
+    )
+    await ctx.session.send_line("")
+
+    for skill_name in train_skills:
+        skill_def = skill_reg.get(skill_name.lower())
+        if not skill_def:
+            continue
+        key = skill_name.lower()
+        current_bonus = character.skills.get(key, DicePool(0, 0))
+        attr_pool = character.get_attribute(skill_def.attribute)
+        total_pool = attr_pool + current_bonus
+        cost = max(1, int(total_pool.dice * guild_mult))
+        current_str = str(total_pool)
+        next_str = str(attr_pool + DicePool(current_bonus.dice, current_bonus.pips + 1))
+        affordable = cp >= cost
+        status = (f"{ansi.BRIGHT_GREEN}\u2713 can afford{ansi.RESET}"
+                  if affordable
+                  else f"{ansi.RED}need {cost} CP{ansi.RESET}")
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_WHITE}{skill_name.replace('_', ' ').title():<32}{ansi.RESET}"
+            f"  {current_str:<8} {ansi.DIM}\u2192{ansi.RESET} {next_str:<8}"
+            f"  {ansi.BRIGHT_YELLOW}{cost} CP{ansi.RESET}  [{status}]"
+        )
+
+    await ctx.session.send_line("")
+    await ctx.session.send_line(
+        f"  {ansi.DIM}You have {ansi.RESET}{ansi.BRIGHT_YELLOW}{cp} CP{ansi.RESET}"
+        f"{ansi.DIM}.  Use {ansi.RESET}{ansi.BRIGHT_CYAN}train <skill>{ansi.RESET}"
+        f"{ansi.DIM} to spend CP and advance a skill.{ansi.RESET}"
+    )
+    return True
 
 
 async def _find_npc_in_room(ctx, name: str):
@@ -127,6 +200,123 @@ class TalkCommand(BaseCommand):
             f'  {ansi.player_name(char["name"])} says to {ansi.npc_name(npc_data.name)}, "{message}"',
         )
 
+        # ── Tutorial NPC fast path ────────────────────────────────────
+        # Tutorial NPCs bypass persuasion and get a scripted first-contact
+        # line prepended to the AI response so new players get immediate
+        # actionable guidance without waiting on Ollama.
+        ai_cfg_raw = npc_row.get("ai_config_json", "{}")
+        ai_cfg_dict = (json.loads(ai_cfg_raw)
+                       if isinstance(ai_cfg_raw, str) else ai_cfg_raw) or {}
+        is_tutorial_npc = ai_cfg_dict.get("tutorial_npc", False)
+
+        if is_tutorial_npc:
+            persuasion_context = ""  # no persuasion gate for tutorial NPCs
+            tutorial_role = ai_cfg_dict.get("tutorial_role", "guide")
+            tutorial_module = ai_cfg_dict.get("tutorial_module", "")
+
+            # Scripted first-contact lines by role+module
+            _TUTORIAL_GREETINGS = {
+                ("guide", "core"): (
+                    "Good -- you made it. "
+                    "I'm Kessa. Walk east with me and I'll show you how things work out here. "
+                    "Ask me anything: \033[1;33mtalk kessa <question>\033[0m"
+                ),
+                ("guide", "space"): (
+                    "Glad you came. Sit down. "
+                    "We're starting with the basics -- ship types, zones, what kills you first. "
+                    "When you're ready to move to the simulator, head \033[1;33mforward\033[0m."
+                ),
+                ("guide", "combat"): (
+                    "You want to fight. Good. "
+                    "First thing: forget everything you think you know. "
+                    "We do this right or we do it again."
+                ),
+                ("guide", "economy"): (
+                    "Credits! You've come to the right place. "
+                    "I'm going to show you how money actually moves in this sector. "
+                    "Ask me anything -- I love talking about this."
+                ),
+                ("guide", "crafting"): (
+                    "Good. Follow the process, don't skip steps. "
+                    "That's the only rule here. "
+                    "Tell me what you want to make and we'll start."
+                ),
+                ("guide", "bounty"): (
+                    "You're here to learn the trade. Smart. "
+                    "Most hunters don't last because they didn't do their homework. "
+                    "Ask your questions."
+                ),
+                ("guide", "crew"): (
+                    "Pull up a chair. I've been running crews for forty years "
+                    "and I've got opinions. "
+                    "What do you want to know?"
+                ),
+                ("guide", "factions"): (
+                    "Welcome. I am programmed to provide impartial information "
+                    "on all major factions operating in this sector. "
+                    "Which faction would you like to learn about first?"
+                ),
+                ("guide", "hub"): (
+                    "Welcome to the Training Grounds. "
+                    "I can direct you to any module. "
+                    "Type \033[1;33mtraining list\033[0m to see your progress, "
+                    "or ask me about any module."
+                ),
+                ("opponent", "core"): None,   # Raiders don't talk
+                ("opponent", "space"): None,  # Sim drone doesn't talk
+            }
+            greeting = _TUTORIAL_GREETINGS.get(
+                (tutorial_role, tutorial_module),
+                _TUTORIAL_GREETINGS.get(("guide", "hub"), None),
+            )
+
+            # Only show greeting on first contact (message is default "Hello.")
+            if greeting and message.strip().lower() in ("hello.", "hello", "hi",
+                                                         "hey", "greetings", ""):
+                await ctx.session.send_line(
+                    f'  {ansi.npc_name(npc_data.name)} says, "{greeting}"'
+                )
+                # Fire tutorial quest hook then return -- no AI call needed for hello
+                try:
+                    from engine.tutorial_v2 import check_starter_quest
+                    await check_starter_quest(
+                        ctx.session, ctx.db, trigger="talk",
+                        npc_name=npc_row["name"],
+                    )
+                except Exception:
+                    pass
+                return
+
+            # For substantive questions, let AI handle it but skip persuasion roll
+            if ai_manager.config.npc_thinking_emote:
+                await ctx.session.send_line(
+                    f"  {ansi.dim(f'{npc_data.name} considers...')}"
+                )
+            room = await ctx.db.get_room(char["room_id"])
+            room_desc = room.get("desc_short", "") if room else ""
+            response = await brain.dialogue(
+                player_input=message,
+                player_name=char["name"],
+                player_char_id=char["id"],
+                room_desc=room_desc,
+                db=ctx.db,
+                persuasion_context="",
+            )
+            await ctx.session_mgr.broadcast_to_room(
+                char["room_id"],
+                f'  {ansi.npc_name(npc_data.name)} says, "{response}"',
+            )
+            try:
+                from engine.tutorial_v2 import check_starter_quest
+                await check_starter_quest(
+                    ctx.session, ctx.db, trigger="talk",
+                    npc_name=npc_row["name"],
+                )
+            except Exception:
+                pass
+            return
+        # ── End tutorial NPC fast path ────────────────────────────────
+
         # ── Persuasion skill gate ──────────────────────────────────────
         # Casual greetings skip the check; substantive questions do not.
         persuasion_context = ""
@@ -197,6 +387,11 @@ class TalkCommand(BaseCommand):
         # If this NPC is a schematic trainer, teach and return immediately.
         if await handle_trainer_teach(ctx, npc_name):
             return
+
+        # Skill trainer hook — fires before Persuasion gate
+        # If this NPC has trainer=True in ai_config, show available skills.
+        if await _handle_skill_trainer(ctx, npc_data, char):
+            return
         response = await brain.dialogue(
             player_input=message,
             player_name=char["name"],
@@ -211,6 +406,17 @@ class TalkCommand(BaseCommand):
             char["room_id"],
             f'  {ansi.npc_name(npc_data.name)} says, "{response}"',
         )
+
+        # Tutorial starter quest: talking to an NPC
+        try:
+            from engine.tutorial_v2 import check_starter_quest
+            await check_starter_quest(
+                ctx.session, ctx.db,
+                trigger="talk",
+                npc_name=npc_row["name"],
+            )
+        except Exception:
+            pass
 
 
 class AskCommand(BaseCommand):

@@ -247,6 +247,14 @@ class CraftCommand(BaseCommand):
 
         if craft_result["success"]:
             await _deliver_item(ctx, schematic, craft_result)
+            try:
+                from engine.narrative import log_action, ActionType as NT
+                _q = craft_result.get("quality", 0)
+                await log_action(ctx.db, char["id"], NT.CRAFT_COMPLETE,
+                                 f"Crafted {schematic['name']} (quality {_q:.0f})",
+                                 {"schematic": schematic["name"], "quality": _q})
+            except Exception:
+                pass
 
         await _save_char(ctx)
 
@@ -313,6 +321,14 @@ class ExperimentCommand(BaseCommand):
 
         if craft_result["success"]:
             await _deliver_item(ctx, schematic, craft_result)
+            try:
+                from engine.narrative import log_action, ActionType as NT
+                _q = craft_result.get("quality", 0)
+                await log_action(ctx.db, char["id"], NT.CRAFT_COMPLETE,
+                                 f"Crafted {schematic['name']} (quality {_q:.0f}) [experiment]",
+                                 {"schematic": schematic["name"], "quality": _q})
+            except Exception:
+                pass
 
         await _save_char(ctx)
 

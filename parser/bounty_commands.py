@@ -369,6 +369,24 @@ class BountyCollectCommand(BaseCommand):
             char.get("name"), collected.id, reward,
         )
 
+        # Narrative + faction rep hooks
+        try:
+            from engine.narrative import log_action, ActionType as NT
+            await log_action(ctx.db, char["id"], NT.BOUNTY_COLLECT,
+                             f"Collected bounty on {collected.target_name} for {reward:,} credits",
+                             {"target": collected.target_name, "reward": reward,
+                              "org": collected.posting_org})
+        except Exception:
+            pass
+        try:
+            from engine.organizations import REP_GAINS
+            faction_id = char.get("faction_id", "independent")
+            if faction_id == "bh_guild":
+                await ctx.db.adjust_rep(char["id"], "bh_guild",
+                                         REP_GAINS["complete_bounty"])
+        except Exception:
+            pass
+
 
 # ── Registration ───────────────────────────────────────────────────────────────
 

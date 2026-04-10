@@ -606,6 +606,10 @@ def generate_board(
     combat.required_skill = random.choice(REQUIRED_SKILLS[MissionType.COMBAT])
     missions.append(combat)
 
+    # Guarantee one space mission (requires a ship; higher reward tier)
+    space_m = generate_space_mission(skill_level=skill_level)
+    missions.append(space_m)
+
     # Fill the rest
     attempts = 0
     while len(missions) < count and attempts < count * 4:

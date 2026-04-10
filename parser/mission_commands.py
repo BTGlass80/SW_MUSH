@@ -469,6 +469,26 @@ class CompleteMissionCommand(BaseCommand):
             char.get("name"), completed.id, reward,
         )
 
+        # Faction rep: +3 to character's primary faction on mission complete
+        try:
+            from engine.organizations import REP_GAINS
+            faction_id = char.get("faction_id", "independent")
+            if faction_id and faction_id != "independent":
+                await ctx.db.adjust_rep(
+                    char["id"], faction_id, REP_GAINS["complete_faction_mission"]
+                )
+        except Exception:
+            pass
+
+        # Narrative: log mission completion
+        try:
+            from engine.narrative import log_action, ActionType as NT
+            await log_action(ctx.db, char["id"], NT.MISSION_COMPLETE,
+                             f"Completed mission '{completed.title}' for {reward:,} credits",
+                             {"mission_type": completed.mission_type.value, "reward": reward})
+        except Exception:
+            pass
+
 
 class AbandonMissionCommand(BaseCommand):
     key = "abandon"

@@ -35,6 +35,9 @@ from parser.entertainer_commands import register_entertainer_commands
 from parser.cp_commands import register_cp_commands
 from parser.sabacc_commands import register_sabacc_commands
 from parser.crafting_commands import register_crafting_commands
+from parser.tutorial_commands import register_tutorial_commands
+from parser.faction_commands import register_faction_commands
+from parser.narrative_commands import register_narrative_commands
 from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
@@ -81,6 +84,9 @@ class GameServer:
         register_cp_commands(self.registry)
         register_sabacc_commands(self.registry)
         register_crafting_commands(self.registry)
+        register_tutorial_commands(self.registry)
+        register_faction_commands(self.registry)
+        register_narrative_commands(self.registry)
 
         # ── Help System Init ──
         from data.help_topics import HelpManager
@@ -112,6 +118,7 @@ class GameServer:
         self._wage_tick_counter: int = 0
         self._asteroid_tick_counter: int = 0
         self._anomaly_tick_counter: int = 0
+        self._faction_payroll_counter: int = 0
 
     async def start(self):
         """Initialize database, load game data, and start all listeners."""
@@ -120,6 +127,13 @@ class GameServer:
         # Database
         await self.db.connect()
         await self.db.initialize()
+
+        # Seed organizations (factions + guilds) — idempotent
+        try:
+            from engine.organizations import seed_organizations
+            await seed_organizations(self.db)
+        except Exception as _org_err:
+            log.warning("Organization seed skipped: %s", _org_err)
 
         # Load game data
         import os
@@ -132,6 +146,7 @@ class GameServer:
                  self.species_reg.count, self.skill_reg.count)
 
         # Auto-build world if only seed rooms exist
+        built = False
         try:
             from build_mos_eisley import auto_build_if_needed
             built = await auto_build_if_needed(self.config.db_path)
@@ -139,6 +154,18 @@ class GameServer:
                 log.info("World auto-build completed successfully.")
         except Exception as _build_err:
             log.warning("World auto-build skipped: %s", _build_err)
+
+        # Auto-build tutorial zones if not yet present.
+        # If the world was just built above, wait 1s to let the DB flush cleanly.
+        try:
+            from build_tutorial import auto_build_if_needed as tutorial_build_if_needed
+            if built:
+                await asyncio.sleep(1)
+            tbuilt = await tutorial_build_if_needed(self.config.db_path)
+            if tbuilt:
+                log.info("Tutorial auto-build completed successfully.")
+        except Exception as _tbuild_err:
+            log.warning("Tutorial auto-build skipped: %s", _tbuild_err)
 
         # Network listeners
         await self.telnet.start(self.config.telnet_host, self.config.telnet_port)
@@ -373,6 +400,44 @@ class GameServer:
             )
             await look_cmd.execute(ctx)
 
+        # Tutorial init: if player is in a tutorial zone, seed state and show
+        # Landing Pad guidance immediately (movement hook never fires for spawn room)
+        try:
+            room_row = await self.db.get_room(room_id)
+            if room_row:
+                import json as _tj
+                rprops = room_row.get("properties", "{}")
+                if isinstance(rprops, str):
+                    try:
+                        rprops = _tj.loads(rprops)
+                    except Exception:
+                        rprops = {}
+                from engine.tutorial_v2 import (
+                    is_tutorial_zone, get_tutorial_state, set_tutorial_core,
+                    check_core_tutorial_step, start_hint_timer,
+                )
+                if is_tutorial_zone(rprops):
+                    ts = get_tutorial_state(char)
+                    if ts["core"] == "not_started":
+                        set_tutorial_core(char, "in_progress", step=-1)
+                        await self.db.save_character(
+                            char["id"], attributes=char.get("attributes", "{}")
+                        )
+                    # Show immediate guidance for current room (Landing Pad on first login)
+                    await check_core_tutorial_step(
+                        session, self.db, room_row.get("name", "")
+                    )
+                    start_hint_timer(session, room_row.get("name", ""))
+        except Exception:
+            pass  # Non-critical
+
+        # Faction intent migration: auto-join if tutorial stored a faction_intent
+        try:
+            from engine.organizations import faction_intent_migration
+            await faction_intent_migration(char, self.db, session)
+        except Exception:
+            pass  # Non-critical
+
         await session.send_prompt()
 
     async def _run_character_creation(self, session: Session) -> Optional[dict]:
@@ -417,7 +482,21 @@ class GameServer:
         while True:
             try:
                 char_obj = wizard.get_character()
-                char_obj.room_id = self.config.starting_room_id
+
+                # Place new characters in tutorial Landing Pad if it exists,
+                # otherwise fall back to the configured starting room
+                tutorial_start_room = self.config.starting_room_id
+                try:
+                    landing_pad_rows = await self.db._db.execute_fetchall(
+                        "SELECT id FROM rooms WHERE name = 'Landing Pad' "
+                        "AND properties LIKE '%tutorial_zone%' ORDER BY id LIMIT 1"
+                    )
+                    if landing_pad_rows:
+                        tutorial_start_room = landing_pad_rows[0]["id"]
+                except Exception:
+                    pass
+                char_obj.room_id = tutorial_start_room
+
                 db_fields = char_obj.to_db_dict()
 
                 char_id = await self.db.create_character(
@@ -735,6 +814,19 @@ class GameServer:
                                 await broadcast_space_state(_hs_fresh, self.db, self.session_mgr)
                         except Exception:
                             pass
+                        # Ship's log: zone visited (Drop 19)
+                        try:
+                            from engine.ships_log import log_event as _zlog
+                            _log_sessions = self.session_mgr.sessions_in_room(
+                                _hs_ship["bridge_room_id"]
+                            )
+                            for _ls in (_log_sessions or []):
+                                if _ls.character:
+                                    await _zlog(self.db, _ls.character,
+                                                "zones_visited", _arr_zone)
+                        except Exception:
+                            pass
+
                         # Patrol-on-arrival check for smuggling runs (Drop 11)
                         try:
                             from parser.smuggling_commands import check_patrol_on_arrival
@@ -898,3 +990,14 @@ class GameServer:
                     await process_wage_tick(self.db, self.session_mgr)
             except Exception:
                 log.debug("Crew wage tick skipped", exc_info=True)
+
+            # ── Faction payroll (every 86400 ticks = once per game-day) ──
+            self._faction_payroll_counter += 1
+            if self._faction_payroll_counter % 86400 == 0:
+                try:
+                    from engine.organizations import faction_payroll_tick
+                    paid = await faction_payroll_tick(self.db)
+                    if paid:
+                        log.info("[orgs] Faction payroll: %dcr disbursed.", paid)
+                except Exception:
+                    log.debug("Faction payroll tick skipped", exc_info=True)

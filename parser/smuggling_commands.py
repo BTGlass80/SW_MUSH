@@ -236,6 +236,12 @@ class SmugDeliverCommand(BaseCommand):
                 f"to {completed.dropoff_name}."
             )
         )
+        # Ship's log: smuggling run completed (Drop 19)
+        try:
+            from engine.ships_log import log_event as _smlog
+            await _smlog(ctx.db, char, "smuggling_runs")
+        except Exception:
+            pass
         await ctx.session.send_line(
             f"  Payment received: {reward:,} credits. Balance: {new_credits:,} credits."
         )
@@ -244,6 +250,25 @@ class SmugDeliverCommand(BaseCommand):
         try:
             from engine.director import get_director
             get_director().digest.record_contraband_sale()
+        except Exception:
+            pass
+
+        # Narrative + faction rep hooks
+        try:
+            from engine.narrative import log_action, ActionType as NT
+            await log_action(ctx.db, char["id"], NT.SMUGGLE_DELIVER,
+                             f"Delivered {completed.cargo_type} to {completed.dropoff_name} "
+                             f"for {reward:,} credits",
+                             {"cargo": completed.cargo_type, "dropoff": completed.dropoff_name,
+                              "reward": reward})
+        except Exception:
+            pass
+        try:
+            from engine.organizations import REP_GAINS
+            faction_id = char.get("faction_id", "independent")
+            if faction_id == "hutt":
+                await ctx.db.adjust_rep(char["id"], "hutt",
+                                         REP_GAINS["deliver_contraband"])
         except Exception:
             pass
 

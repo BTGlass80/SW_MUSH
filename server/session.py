@@ -140,7 +140,7 @@ class Session:
             else:
                 await self.send_line(str(data))
 
-    async def send_hud_update(self, db=None):
+    async def send_hud_update(self, db=None, session_mgr=None):
         """
         Send structured HUD data to WebSocket clients.
 
@@ -224,6 +224,33 @@ class Session:
                     hud["alert_faction"] = max(factions, key=factions.get)
         except Exception:
             pass  # Non-critical — alert badge just won't show
+
+        # Resolve security level
+        if db and room_id:
+            try:
+                from engine.security import get_effective_security
+                sec = await get_effective_security(room_id, db)
+                hud["security_level"] = sec.value
+            except Exception:
+                hud["security_level"] = "contested"
+
+        # Room contents for clickable sidebar panel
+        if db and room_id:
+            try:
+                npcs = await db.get_npcs_in_room(room_id)
+                hud["room_contents"] = {
+                    "npcs": [
+                        {"id": n["id"], "name": n["name"]}
+                        for n in npcs
+                    ],
+                    "players": [
+                        {"id": s.character["id"], "name": s.character["name"]}
+                        for s in session_mgr.sessions_in_room(room_id)
+                        if s.character and s.character.get("id") != char.get("id")
+                    ] if session_mgr else [],
+                }
+            except Exception:
+                pass  # Non-critical
 
         try:
             await self._send(json.dumps({"type": "hud_update", **hud}))
@@ -361,3 +388,35 @@ class SessionManager:
         """
         for s in self.sessions_in_room(room_id):
             await s.send_json(msg_type, data)
+
+    async def broadcast_chat(
+        self, channel: str, from_name: str, text: str,
+        room_id: int = None, exclude=None,
+    ):
+        """Send a structured chat message to WebSocket clients.
+
+        Sends a parallel 'chat' JSON message alongside normal text output.
+        WebSocket clients route this to the appropriate comms tab.
+        Telnet clients ignore it entirely (they already got the text via
+        broadcast_to_room or send_line).
+
+        channel: 'ic' | 'ooc' | 'sys'
+        """
+        payload = {"channel": channel, "from": from_name, "text": text}
+        if room_id is not None:
+            excluded_ids: set[int] = set()
+            excluded_sess = None
+            if isinstance(exclude, list):
+                excluded_ids = set(exclude)
+            elif exclude is not None:
+                excluded_sess = exclude
+            for s in self.sessions_in_room(room_id):
+                if excluded_sess is not None and s is excluded_sess:
+                    continue
+                if s.character and s.character.get("id") in excluded_ids:
+                    continue
+                await s.send_json("chat", payload)
+        else:
+            # Broadcast to all connected sessions
+            for s in self._sessions:
+                await s.send_json("chat", payload)

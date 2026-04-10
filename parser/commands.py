@@ -188,6 +188,13 @@ class CommandParser:
             await session.send_prompt()
             return
 
+        # Cancel any active tutorial hint timer on player activity
+        try:
+            from engine.tutorial_v2 import on_player_input
+            on_player_input(session)
+        except Exception:
+            pass
+
         # Rate limit check
         if not self._check_rate_limit(session):
             await session.send_line("  Slow down! Too many commands.")
@@ -346,6 +353,6 @@ class CommandParser:
                             ctx.session.character["_room_name"] = rn
                 except Exception:
                     pass  # Non-critical
-            await ctx.session.send_hud_update(db=ctx.db)
+            await ctx.session.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
 
         await ctx.session.send_prompt()

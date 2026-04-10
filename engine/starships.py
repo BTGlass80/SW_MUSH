@@ -468,7 +468,8 @@ class ShipTemplate:
     hyperdrive_backup: int = 0
     cost: int = 0
     weapons: list[ShipWeapon] = field(default_factory=list)
-    mod_slots: int = 3  # Number of available modification slots (Drop 12)
+    mod_slots: int = 3       # Number of available modification slots (Drop 12)
+    reactor_power: int = 10  # Total reactor power budget (Drop 15)
 
     @property
     def scale_value(self) -> int:
@@ -573,6 +574,7 @@ class ShipRegistry:
                 cost=entry.get("cost", 0),
                 weapons=weapons,
                 mod_slots=entry.get("mod_slots", 3),
+                reactor_power=entry.get("reactor_power", 10),
             )
             self._templates[key] = template
         log.info("Loaded %d ship templates from %s", len(self._templates), path)
@@ -1252,6 +1254,117 @@ def _quality_factor(quality: int) -> float:
     return 0.5
 
 
+# ── Power Allocation (Drop 15) ───────────────────────────────────────────────
+
+# Default power draw per system (cost at "normal" operation)
+POWER_DEFAULTS: dict[str, int] = {
+    "engines":      3,
+    "shields":      3,
+    "weapons":      2,
+    "sensors":      1,
+    "life_support": 1,
+    "hyperdrive":   0,  # only draws when charging
+    "comms":        0,  # only draws when active
+}
+
+# Presets: name -> {system: power_level}
+POWER_PRESETS: dict[str, dict[str, int]] = {
+    "combat":    {"engines": 3, "shields": 3, "weapons": 2, "sensors": 1, "life_support": 1},
+    "silent":    {"engines": 1, "shields": 0, "weapons": 0, "sensors": 0, "life_support": 1},
+    "emergency": {"engines": 4, "shields": 4, "weapons": 0, "sensors": 0, "life_support": 1},
+}
+
+# Power bonus caps per system
+POWER_BONUS_CAP: dict[str, int] = {
+    "engines": 3,   # +1 speed per extra point, max +3
+    "shields": 3,   # +1 pip per extra, max +1D (3 pips)
+    "weapons": 3,   # +1 pip FC per extra, max +1D
+    "sensors": 2,   # +1D scan per extra, max +2D (6 pips)
+}
+
+# Silent running sensor detection difficulty bonus
+SILENT_RUNNING_SENSOR_BONUS = 9  # adds to scan difficulty when target is silent
+
+
+def get_power_state(systems: dict) -> dict[str, int]:
+    """
+    Return current power allocation from systems dict.
+    Falls back to defaults for any missing key.
+    """
+    stored = systems.get("power_allocation", {})
+    if isinstance(stored, str):
+        import json as _j
+        try:
+            stored = _j.loads(stored)
+        except Exception:
+            stored = {}
+    return {sys: stored.get(sys, POWER_DEFAULTS[sys]) for sys in POWER_DEFAULTS}
+
+
+def get_power_budget_used(power_state: dict[str, int]) -> int:
+    """Sum of all current power allocations."""
+    return sum(power_state.values())
+
+
+def is_silent_running(systems: dict) -> bool:
+    """True if ship is in silent running mode (matches silent preset)."""
+    ps = get_power_state(systems)
+    silent = POWER_PRESETS["silent"]
+    return all(ps.get(k, 0) == v for k, v in silent.items())
+
+
+def apply_power_bonuses(
+    template: "ShipTemplate",
+    systems: dict,
+    base_speed: int,
+    base_maneuver_pips: int,
+    base_shield_pips: int,
+    sensors_bonus: int,
+    weapon_fc: dict,
+) -> tuple[int, int, int, int, dict]:
+    """
+    Apply power allocation overcharge bonuses on top of mod-derived stats.
+    Returns (speed, maneuver_pips, shield_pips, sensors_bonus, weapon_fc).
+    All bonuses are relative to the default allocation.
+    """
+    ps = get_power_state(systems)
+    defaults = POWER_DEFAULTS
+
+    # Engines overcharge: each point above default = +1 speed
+    eng_extra = max(0, ps["engines"] - defaults["engines"])
+    speed = base_speed + min(eng_extra, POWER_BONUS_CAP["engines"])
+
+    # Engines underpower: 0 = halve speed, no maneuvers
+    if ps["engines"] == 0:
+        speed = max(1, base_speed // 2)
+
+    # Shields overcharge: +1 pip per extra point
+    sh_extra = max(0, ps["shields"] - defaults["shields"])
+    shield_pips = base_shield_pips + min(sh_extra, POWER_BONUS_CAP["shields"])
+    if ps["shields"] == 0:
+        shield_pips = 0
+
+    # Weapons overcharge: +1 pip fire control per extra point (all weapons)
+    wp_extra = max(0, ps["weapons"] - defaults["weapons"])
+    wp_bonus = min(wp_extra, POWER_BONUS_CAP["weapons"])
+    if ps["weapons"] == 0:
+        # weapons offline — can't fire (flagged via weapon_fc sentinel -99)
+        weapon_fc = {k: -99 for k in weapon_fc} if weapon_fc else {-1: -99}
+    elif wp_bonus > 0:
+        # Apply to all weapon slots present, or add a global sentinel slot -1
+        if weapon_fc:
+            weapon_fc = {k: v + wp_bonus for k, v in weapon_fc.items()}
+        else:
+            weapon_fc = {-1: wp_bonus}  # sentinel: all weapons get bonus
+
+    # Sensors overcharge: +1D (3 pips) per extra point
+    sens_extra = max(0, ps["sensors"] - defaults["sensors"])
+    sensors_bonus = sensors_bonus + min(sens_extra * 3, POWER_BONUS_CAP["sensors"] * 3)
+    if ps["sensors"] == 0:
+        sensors_bonus = -6  # sentinel: auto-fumble passive, -2D scan
+
+    return speed, base_maneuver_pips, shield_pips, sensors_bonus, weapon_fc
+
 def get_effective_stats(template: "ShipTemplate", systems: dict) -> dict:
     """
     Compute effective ship stats by applying installed modifications.
@@ -1291,6 +1404,7 @@ def get_effective_stats(template: "ShipTemplate", systems: dict) -> dict:
     shield_pips    = _pip_count(template.shields)
     hyperdrive_f   = float(template.hyperdrive) if template.hyperdrive else 0.0
     sensors_bonus  = 0
+    stealth_bonus  = 0   # difficulty penalty for scanners targeting this ship
     weapon_fc      = {}  # weapon_slot_index → extra pips
     cargo_used     = 0
 
@@ -1338,6 +1452,9 @@ def get_effective_stats(template: "ShipTemplate", systems: dict) -> dict:
         elif stat_target == "sensors":
             sensors_bonus = min(3, sensors_bonus + effective_boost)
 
+        elif stat_target == "stealth":
+            stealth_bonus += effective_boost
+
         elif stat_target == "hyperdrive" and hyperdrive_f > 0:
             # Boost reduces hyperdrive multiplier (lower = faster)
             # stat_boost stored as pips; each pip = -0.25 multiplier
@@ -1356,6 +1473,20 @@ def get_effective_stats(template: "ShipTemplate", systems: dict) -> dict:
         if extra > 0
     }
 
+    # Apply power allocation overcharge bonuses (Drop 15)
+    speed, maneuver_pips, shield_pips, sensors_bonus, weapon_fc_str = \
+        apply_power_bonuses(
+            template, systems,
+            speed, maneuver_pips, shield_pips, sensors_bonus, weapon_fc_str,
+        )
+
+    # Apply Captain's Order modifiers (Drop 16)
+    speed, maneuver_pips, shield_pips, sensors_bonus, weapon_fc_str, order_flags = \
+        apply_order_modifiers(
+            systems, speed, maneuver_pips, shield_pips,
+            sensors_bonus, weapon_fc_str,
+        )
+
     return {
         "speed":              speed,
         "maneuverability":    _pips_to_dice_str(maneuver_pips),
@@ -1369,8 +1500,241 @@ def get_effective_stats(template: "ShipTemplate", systems: dict) -> dict:
         "slots_used":         len(mods),
         "slots_total":        template.mod_slots,
         "cargo_used_by_mods": cargo_used,
+        "power_state":        get_power_state(systems),
+        "reactor_power":      template.reactor_power,
+        "active_order":       systems.get("active_order"),
+        "order_flags":        order_flags,
+        "stealth_bonus":      stealth_bonus,
+        "false_transponder":  systems.get("false_transponder"),
     }
 
+
+# ── Captain's Orders (Drop 16) ───────────────────────────────────────────────
+#
+# Each order: (bonus_desc, tradeoff_desc, stat_deltas_dict)
+# stat_deltas keys match get_effective_stats() output keys:
+#   speed_delta, maneuver_pip_delta, shield_pip_delta,
+#   fc_pip_delta (all weapons), damage_pip_delta (designated weapon only),
+#   weapons_offline (bool), sensors_stealth_bonus (int)
+#
+ORDER_DEFINITIONS: dict[str, dict] = {
+    "battle_stations": {
+        "name":       "Battle Stations",
+        "number":     1,
+        "bonus":      "+1D fire control (all gunners)",
+        "tradeoff":   "-1D maneuverability",
+        "deltas":     {"fc_pip_delta": 3, "maneuver_pip_delta": -3},
+    },
+    "evasive_pattern": {
+        "name":       "Evasive Pattern",
+        "number":     2,
+        "bonus":      "+2D maneuverability (pilot)",
+        "tradeoff":   "-1D fire control (all gunners)",
+        "deltas":     {"maneuver_pip_delta": 6, "fc_pip_delta": -3},
+    },
+    "all_power_forward": {
+        "name":       "All Power Forward",
+        "number":     3,
+        "bonus":      "+2 speed",
+        "tradeoff":   "-1D shields, rear weapons offline",
+        "deltas":     {"speed_delta": 2, "shield_pip_delta": -3},
+        "rear_weapons_offline": True,
+    },
+    "hold_the_line": {
+        "name":       "Hold the Line",
+        "number":     4,
+        "bonus":      "+2D shields",
+        "tradeoff":   "-2 speed (cannot flee)",
+        "deltas":     {"shield_pip_delta": 6, "speed_delta": -2},
+        "no_flee":    True,
+    },
+    "silent_running": {
+        "name":       "Silent Running",
+        "number":     5,
+        "bonus":      "+3D sensor stealth vs detection",
+        "tradeoff":   "Weapons offline, shields off",
+        "deltas":     {"shield_pip_delta": -99, "sensors_stealth_bonus": 9},
+        "weapons_offline": True,
+    },
+    "boarding_action": {
+        "name":       "Boarding Action",
+        "number":     6,
+        "bonus":      "+1D melee/brawl for boarding crew",
+        "tradeoff":   "-1D piloting",
+        "deltas":     {"maneuver_pip_delta": -3, "boarding_bonus": 3},
+    },
+    "concentrate_fire": {
+        "name":       "Concentrate Fire",
+        "number":     7,
+        "bonus":      "+2D damage on designated weapon",
+        "tradeoff":   "Other weapons cannot fire",
+        "deltas":     {"damage_pip_delta": 6},
+        "concentrate": True,
+    },
+    "coordinate": {
+        "name":       "Coordinate",
+        "number":     8,
+        "bonus":      "+1D to all crew checks",
+        "tradeoff":   "None",
+        "deltas":     {"crew_bonus": 3},
+    },
+}
+
+# Sorted order list for display
+ORDER_LIST = sorted(ORDER_DEFINITIONS.values(), key=lambda o: o["number"])
+
+
+def get_active_order(systems: dict) -> dict | None:
+    """Return the active order dict, or None if no order is set."""
+    key = systems.get("active_order")
+    if not key:
+        return None
+    return ORDER_DEFINITIONS.get(key)
+
+
+def apply_order_modifiers(
+    systems: dict,
+    speed: int,
+    maneuver_pips: int,
+    shield_pips: int,
+    sensors_bonus: int,
+    weapon_fc_str: dict,
+) -> tuple[int, int, int, int, dict, dict]:
+    """
+    Apply active Captain's Order modifiers on top of power-adjusted stats.
+    Returns (speed, maneuver_pips, shield_pips, sensors_bonus,
+             weapon_fc_str, order_flags).
+    order_flags: dict with boolean flags consumed by commands
+                 (weapons_offline, rear_weapons_offline, no_flee,
+                  concentrate, boarding_bonus, crew_bonus).
+    """
+    order = get_active_order(systems)
+    flags: dict = {}
+    if not order:
+        return speed, maneuver_pips, shield_pips, sensors_bonus, weapon_fc_str, flags
+
+    d = order.get("deltas", {})
+
+    speed          = max(1, speed          + d.get("speed_delta",          0))
+    maneuver_pips  = max(0, maneuver_pips  + d.get("maneuver_pip_delta",   0))
+    shield_pips    = max(0, shield_pips    + d.get("shield_pip_delta",     0))
+    sensors_bonus  =        sensors_bonus  + d.get("sensors_stealth_bonus", 0)
+
+    fc_delta = d.get("fc_pip_delta", 0)
+    if fc_delta != 0:
+        if weapon_fc_str:
+            weapon_fc_str = {k: v + fc_delta for k, v in weapon_fc_str.items()}
+        else:
+            weapon_fc_str = {-1: fc_delta}  # sentinel: applies to all slots
+
+    # Pass through boolean flags for commands to check
+    for flag in ("weapons_offline", "rear_weapons_offline", "no_flee",
+                 "concentrate", "boarding_bonus", "crew_bonus"):
+        if order.get(flag) or d.get(flag):
+            flags[flag] = order.get(flag) or d.get(flag, True)
+
+    return speed, maneuver_pips, shield_pips, sensors_bonus, weapon_fc_str, flags
+
+
+# ── Ship Quirks (Drop 19) ────────────────────────────────────────────────────
+# Source: Platt's Smugglers Guide p.32 "Starship Quirks"
+# Categories: cosmetic (70%), annoying (15%), beneficial (5%),
+#             dangerous (5%), endearing (5%)
+
+QUIRK_POOL: list[dict] = [
+    # Cosmetic (no mechanical effect)
+    {"key": "blinking_light",       "category": "cosmetic",    "effect": None,
+     "desc": "An insignificant red light on the command console keeps blinking."},
+    {"key": "alien_labels",         "category": "cosmetic",    "effect": None,
+     "desc": "Maintenance labels and interior markings are in a strange alien language."},
+    {"key": "forward_strobes",      "category": "cosmetic",    "effect": None,
+     "desc": "Forward strobe lamps are always lit when the ship is in operation."},
+    {"key": "hatches_seal",         "category": "cosmetic",    "effect": None,
+     "desc": "All interior hatches seal automatically when the guns are operational."},
+    {"key": "hyperspace_groans",    "category": "endearing",   "effect": None,
+     "desc": "The ship groans and creaks entering hyperspace, sounds almost alive."},
+    {"key": "lumpy_chair",          "category": "cosmetic",    "effect": None,
+     "desc": "The pilot's seat padding is lumpy and uncomfortable. Long flights are unpleasant."},
+    {"key": "mysterious_squeak",    "category": "cosmetic",    "effect": None,
+     "desc": "A mysterious squeaking comes from beneath the deckplates in the bunk cabin."},
+    {"key": "engine_rattle",        "category": "cosmetic",    "effect": None,
+     "desc": "The sublight engines rattle at speeds above 7. Nothing seems to fix it."},
+    {"key": "nav_glitch",           "category": "cosmetic",    "effect": None,
+     "desc": "The navicomputer displays Huttese numerals no matter what you set it to."},
+    {"key": "landing_lights",       "category": "cosmetic",    "effect": None,
+     "desc": "Landing lights flicker once at random intervals. Spooky."},
+    # Annoying (-1 pip to relevant skill)
+    {"key": "comm_static",          "category": "annoying",    "effect": {"skill": "communications", "pip_mod": -1},
+     "desc": "The comm system is plagued with occasional static. -1 pip to Communications."},
+    {"key": "sensor_drift",         "category": "annoying",    "effect": {"skill": "sensors", "pip_mod": -1},
+     "desc": "Sensor array drifts out of alignment. -1 pip to Sensor checks."},
+    {"key": "sluggish_controls",    "category": "annoying",    "effect": {"stat": "speed", "mod": -1},
+     "desc": "Controls feel sluggish below speed 5. -1 to effective speed."},
+    {"key": "landing_gear_stuck",   "category": "annoying",    "effect": None,
+     "desc": "Landing gear refuses to retract until the third try. Adds 30s to launch."},
+    # Beneficial
+    {"key": "hidden_compartment",   "category": "beneficial",  "effect": {"customs_stealth": 3},
+     "desc": "A loose deck plate conceals a hidden compartment. +1D to hiding cargo from customs."},
+    {"key": "overclocked_sensors",  "category": "beneficial",  "effect": {"skill": "sensors", "pip_mod": 1},
+     "desc": "Previous owner overclocked the sensors. +1 pip to Sensor checks."},
+    # Dangerous
+    {"key": "weapons_drain_shields","category": "dangerous",   "effect": {"power_drain": 1},
+     "desc": "Powering weapons drains energy from shields. Weapons draw +1 extra power."},
+    {"key": "hyperdrive_stutter",   "category": "dangerous",   "effect": {"hyperspace_risk": 0.1},
+     "desc": "The hyperdrive stutters on 10% of jumps, adding 1D6 minutes to transit time."},
+]
+
+# Weighted selection: cosmetic 70%, annoying 15%, beneficial 5%, dangerous 5%, endearing 5%
+_QUIRK_WEIGHTS = {
+    "cosmetic": 70,
+    "annoying": 15,
+    "beneficial": 5,
+    "dangerous": 5,
+    "endearing": 5,
+}
+
+
+def roll_quirk(existing_keys: list[str] | None = None) -> dict | None:
+    """
+    Randomly select a quirk from the pool.
+    Won't duplicate an already-installed quirk.
+    Returns None if pool exhausted.
+    """
+    import random as _r
+    existing = set(existing_keys or [])
+    available = [q for q in QUIRK_POOL if q["key"] not in existing]
+    if not available:
+        return None
+    # Weighted by category
+    weights = [_QUIRK_WEIGHTS.get(q["category"], 5) for q in available]
+    return _r.choices(available, weights=weights, k=1)[0]
+
+
+def get_quirks(systems: dict) -> list[dict]:
+    """Return list of installed quirks from ship systems."""
+    return systems.get("quirks", [])
+
+
+def format_quirks_display(systems: dict) -> list[str]:
+    """Return ANSI lines for +ship quirks display."""
+    quirks = get_quirks(systems)
+    if not quirks:
+        return ["  No quirks detected. Suspiciously well-behaved ship."]
+    lines = []
+    cat_colors = {
+        "cosmetic":   "[2m",
+        "annoying":   "[1;33m",
+        "beneficial": "[1;32m",
+        "dangerous":  "[1;31m",
+        "endearing":  "[0;36m",
+    }
+    RESET = "[0m"
+    for q in quirks:
+        col = cat_colors.get(q.get("category", "cosmetic"), "")
+        cat = q.get("category", "cosmetic").title()
+        desc = q.get("desc", q.get("key", "Unknown"))
+        lines.append(f"  {col}[{cat}]{RESET}  {desc}")
+    return lines
 
 def format_mods_display(template: "ShipTemplate", systems: dict) -> list:
     """

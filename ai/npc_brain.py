@@ -35,13 +35,17 @@ class NPCConfig:
     def from_dict(cls, data: dict) -> "NPCConfig":
         if not data:
             return cls()
+        # knowledge may be stored as a plain string (tutorial NPCs) or list
+        raw_knowledge = data.get("knowledge", [])
+        if isinstance(raw_knowledge, str):
+            raw_knowledge = [raw_knowledge] if raw_knowledge else []
         return cls(
             enabled=data.get("enabled", True),
             model_tier=data.get("model_tier", 1),
             model_override=data.get("model_override", ""),
             provider_override=data.get("provider_override", ""),
             personality=data.get("personality", ""),
-            knowledge=data.get("knowledge", []),
+            knowledge=raw_knowledge,
             faction=data.get("faction", ""),
             dialogue_style=data.get("dialogue_style", ""),
             temperature=data.get("temperature", 0.7),
@@ -218,11 +222,20 @@ class NPCBrain:
         if db and player_char_id:
             player_memory = await self._load_memory(db, player_char_id)
 
+        # Inject narrative short_record if AI feature is enabled
+        player_narrative = ""
+        if db and player_char_id:
+            try:
+                from engine.narrative import get_short_record
+                player_narrative = await get_short_record(db, player_char_id, player_name)
+            except Exception:
+                pass
+
         # Build prompt
         system_prompt = self._build_system_prompt(
             room_desc=room_desc,
             player_name=player_name,
-            player_memory=player_memory,
+            player_memory=player_memory if player_memory else player_narrative,
             persuasion_context=persuasion_context,
         )
 
