@@ -37,7 +37,9 @@ from parser.sabacc_commands import register_sabacc_commands
 from parser.crafting_commands import register_crafting_commands
 from parser.tutorial_commands import register_tutorial_commands
 from parser.faction_commands import register_faction_commands
+from parser.faction_leader_commands import register_faction_leader_commands
 from parser.narrative_commands import register_narrative_commands
+from parser.shop_commands import register_shop_commands
 from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
@@ -86,7 +88,9 @@ class GameServer:
         register_crafting_commands(self.registry)
         register_tutorial_commands(self.registry)
         register_faction_commands(self.registry)
+        register_faction_leader_commands(self.registry)
         register_narrative_commands(self.registry)
+        register_shop_commands(self.registry)
 
         # ── Help System Init ──
         from data.help_topics import HelpManager
@@ -166,6 +170,13 @@ class GameServer:
                 log.info("Tutorial auto-build completed successfully.")
         except Exception as _tbuild_err:
             log.warning("Tutorial auto-build skipped: %s", _tbuild_err)
+
+        # Narrative memory nightly summarization scheduler (03:00 daily).
+        try:
+            from engine.narrative import schedule_nightly_job
+            schedule_nightly_job(self.db, self.session_mgr)
+        except Exception as _narr_err:
+            log.warning("Narrative scheduler skipped: %s", _narr_err)
 
         # Network listeners
         await self.telnet.start(self.config.telnet_host, self.config.telnet_port)

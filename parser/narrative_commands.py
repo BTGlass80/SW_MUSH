@@ -5,14 +5,20 @@ parser/narrative_commands.py — PC narrative memory commands.
 Commands:
   +background         — show your background
   +background <text>  — set your background (player-written)
-  +recap              — show your narrative recap (recent actions + background)
-  +quests             — show your active personal quests
+  +recap              — show your narrative recap
+  +quests             — list personal quests
+  questaccept <id>    — accept a personal quest
+  questcomplete <id>  — mark a quest complete
+  questabandon <id>   — abandon a personal quest
+  @narrative ...      — admin: status / view / update / reset / log
 """
 import logging
-from parser.commands import BaseCommand, CommandContext
+from parser.commands import BaseCommand, CommandContext, AccessLevel
 
 log = logging.getLogger(__name__)
 
+
+# ── +background ───────────────────────────────────────────────────────────────
 
 class BackgroundCommand(BaseCommand):
     key = "+background"
@@ -61,11 +67,13 @@ class BackgroundCommand(BaseCommand):
         )
 
 
+# ── +recap ────────────────────────────────────────────────────────────────────
+
 class RecapCommand(BaseCommand):
     key = "+recap"
     aliases = ["recap", "+history"]
     help_text = (
-        "Show your narrative recap — recent actions, background, and personal quests.\n"
+        "Show your narrative recap — background, recent actions, and personal quests.\n"
         "The Director AI uses this information to generate story hooks tailored to you."
     )
     usage = "+recap"
@@ -75,6 +83,8 @@ class RecapCommand(BaseCommand):
         char = ctx.session.character
         await ctx.session.send_line(await format_recap(ctx.db, char))
 
+
+# ── +quests ───────────────────────────────────────────────────────────────────
 
 class QuestsCommand(BaseCommand):
     key = "+quests"
@@ -87,7 +97,7 @@ class QuestsCommand(BaseCommand):
         "  +quests              — show active quests\n"
         "  +quests completed    — show completed quests\n"
         "  questaccept <id>     — accept a pending quest\n"
-        "  questcomplete <id>   — mark a quest complete (Director verifies)\n"
+        "  questcomplete <id>   — mark a quest complete\n"
         "  questabandon <id>    — abandon a quest"
     )
     usage = "+quests [completed]"
@@ -114,15 +124,281 @@ class QuestsCommand(BaseCommand):
             "\033[1;36m──────────────────────────────────────────\033[0m",
         ]
         for q in quests:
-            status_icon = "\033[1;32m✓\033[0m" if q["status"] == "complete" else "\033[1;35m▸\033[0m"
-            lines.append(f"  {status_icon} [{q['id']}] \033[1;37m{q['title']}\033[0m")
+            icon = "\033[1;32m✓\033[0m" if q["status"] == "complete" else "\033[1;35m▸\033[0m"
+            lines.append(f"  {icon} [{q['id']}] \033[1;37m{q['title']}\033[0m")
             if q.get("description"):
                 lines.append(f"    \033[2m{q['description'][:120]}\033[0m")
         lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
         await ctx.session.send_line("\n".join(lines))
 
 
+# ── questaccept ───────────────────────────────────────────────────────────────
+
+class QuestAcceptCommand(BaseCommand):
+    key = "questaccept"
+    aliases = ["acceptquest", "pqaccept"]
+    help_text = "Accept a personal quest by its ID number.\n  questaccept <id>"
+    usage = "questaccept <id>"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        arg = (ctx.args or "").strip()
+
+        if not arg.isdigit():
+            await ctx.session.send_line("  Usage: questaccept <quest id>")
+            return
+
+        quest_id = int(arg)
+        quest = await ctx.db.get_quest_by_id(quest_id)
+
+        if not quest or quest["char_id"] != char["id"]:
+            await ctx.session.send_line("  Quest not found.")
+            return
+
+        if quest["status"] != "active":
+            await ctx.session.send_line(
+                f"  That quest is already {quest['status']}."
+            )
+            return
+
+        # Quest is already active when created — accepting just acknowledges
+        await ctx.session.send_line(
+            f"  \033[1;32mQuest accepted:\033[0m \033[1;37m{quest['title']}\033[0m\n"
+            f"  {quest.get('description', '')[:200]}"
+        )
+
+
+# ── questcomplete ─────────────────────────────────────────────────────────────
+
+class QuestCompleteCommand(BaseCommand):
+    key = "questcomplete"
+    aliases = ["finishquest", "pqcomplete", "completequest"]
+    help_text = (
+        "Mark a personal quest as complete.\n"
+        "The Director will verify your progress.\n"
+        "  questcomplete <id>"
+    )
+    usage = "questcomplete <id>"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        arg = (ctx.args or "").strip()
+
+        if not arg.isdigit():
+            await ctx.session.send_line("  Usage: questcomplete <quest id>")
+            return
+
+        quest_id = int(arg)
+        quest = await ctx.db.get_quest_by_id(quest_id)
+
+        if not quest or quest["char_id"] != char["id"]:
+            await ctx.session.send_line("  Quest not found.")
+            return
+
+        if quest["status"] == "complete":
+            await ctx.session.send_line("  That quest is already complete.")
+            return
+
+        if quest["status"] != "active":
+            await ctx.session.send_line(
+                f"  That quest cannot be completed (status: {quest['status']})."
+            )
+            return
+
+        await ctx.db.update_quest_status(quest_id, "complete")
+        await ctx.session.send_line(
+            f"  \033[1;32mQuest complete:\033[0m \033[1;37m{quest['title']}\033[0m\n"
+            f"  The Director takes note of your accomplishment."
+        )
+
+        # Fire on-demand narrative update for quest completion
+        try:
+            from engine.narrative import trigger_on_demand_summarization
+            import asyncio
+            asyncio.get_event_loop().create_task(
+                trigger_on_demand_summarization(ctx.db, char["id"], "quest_complete")
+            )
+        except Exception:
+            pass  # Non-critical
+
+
+# ── questabandon ──────────────────────────────────────────────────────────────
+
+class QuestAbandonCommand(BaseCommand):
+    key = "questabandon"
+    aliases = ["abandonquest", "pqdrop"]
+    help_text = "Abandon a personal quest.\n  questabandon <id>"
+    usage = "questabandon <id>"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        arg = (ctx.args or "").strip()
+
+        if not arg.isdigit():
+            await ctx.session.send_line("  Usage: questabandon <quest id>")
+            return
+
+        quest_id = int(arg)
+        quest = await ctx.db.get_quest_by_id(quest_id)
+
+        if not quest or quest["char_id"] != char["id"]:
+            await ctx.session.send_line("  Quest not found.")
+            return
+
+        if quest["status"] in ("complete", "abandoned"):
+            await ctx.session.send_line(
+                f"  That quest is already {quest['status']}."
+            )
+            return
+
+        await ctx.db.update_quest_status(quest_id, "abandoned")
+        await ctx.session.send_line(
+            f"  Quest abandoned: \033[2m{quest['title']}\033[0m\n"
+            f"  Some stories are left unfinished."
+        )
+
+
+# ── @narrative (admin) ────────────────────────────────────────────────────────
+
+class AdminNarrativeCommand(BaseCommand):
+    key = "@narrative"
+    aliases = ["@narr"]
+    access_level = AccessLevel.ADMIN
+    help_text = (
+        "Admin: manage the PC narrative memory system.\n"
+        "\n"
+        "USAGE:\n"
+        "  @narrative status          — system stats (PCs, log size, last batch)\n"
+        "  @narrative view <player>   — view a PC's full narrative records\n"
+        "  @narrative update <player> — force immediate summarization\n"
+        "  @narrative reset <player>  — clear narrative records (keeps background)\n"
+        "  @narrative log <player>    — view raw action log entries\n"
+        "  @narrative enable          — enable AI narrative features\n"
+        "  @narrative disable         — disable AI narrative features\n"
+        "  @narrative runnow          — run nightly summarization immediately"
+    )
+    usage = "@narrative <sub-command> [args]"
+
+    async def execute(self, ctx: CommandContext):
+        from engine.narrative import (
+            is_narrative_ai_enabled, set_narrative_ai,
+            run_nightly_summarization,
+        )
+
+        args = (ctx.args or "").strip().split(None, 1)
+        sub  = args[0].lower() if args else "status"
+        rest = args[1].strip() if len(args) > 1 else ""
+
+        # ── status ──
+        if sub == "status":
+            enabled = is_narrative_ai_enabled()
+            chars = await ctx.db.get_chars_with_new_actions()
+            await ctx.session.send_line(
+                f"\n  \033[1;33mNarrative System Status\033[0m\n"
+                f"  AI enabled : {'YES' if enabled else 'NO'}\n"
+                f"  PCs pending: {len(chars)}\n"
+                f"  Use @narrative enable/disable to toggle AI features.\n"
+                f"  Use @narrative runnow to force a batch run."
+            )
+            return
+
+        # ── enable / disable ──
+        if sub == "enable":
+            set_narrative_ai(True)
+            await ctx.session.send_line("  Narrative AI features ENABLED.")
+            return
+        if sub == "disable":
+            set_narrative_ai(False)
+            await ctx.session.send_line("  Narrative AI features DISABLED.")
+            return
+
+        # ── runnow ──
+        if sub == "runnow":
+            await ctx.session.send_line("  Running nightly summarization batch...")
+            stats = await run_nightly_summarization(ctx.db)
+            await ctx.session.send_line(
+                f"  Done — processed={stats['processed']} "
+                f"ok={stats['succeeded']} failed={stats['failed']}"
+            )
+            return
+
+        # ── commands needing a player name ──
+        if not rest:
+            await ctx.session.send_line(f"  Usage: @narrative {sub} <player>")
+            return
+
+        # Find character by name
+        rows = await ctx.db._db.execute_fetchall(
+            "SELECT id, name FROM characters WHERE LOWER(name) = LOWER(?)",
+            (rest,),
+        )
+        if not rows:
+            await ctx.session.send_line(f"  Character '{rest}' not found.")
+            return
+        target_id   = rows[0]["id"]
+        target_name = rows[0]["name"]
+
+        # ── view ──
+        if sub == "view":
+            rec = await ctx.db.get_narrative(target_id)
+            if not rec:
+                await ctx.session.send_line(f"  {target_name} has no narrative record yet.")
+                return
+            lines = [
+                f"\n  \033[1;33mNarrative — {target_name}\033[0m",
+                f"  Background    : {(rec.get('background','') or '(none)')[:200]}",
+                f"  Short record  : {(rec.get('short_record','') or '(none)')[:200]}",
+                f"  Long record   : {(rec.get('long_record','') or '(none)')[:400]}",
+                f"  Last summarized: {rec.get('last_summarized','never')}",
+            ]
+            await ctx.session.send_line("\n".join(lines))
+            return
+
+        # ── log ──
+        if sub == "log":
+            actions = await ctx.db.get_recent_actions(target_id, limit=20)
+            if not actions:
+                await ctx.session.send_line(f"  No action log entries for {target_name}.")
+                return
+            lines = [f"\n  \033[1;33mAction Log — {target_name}\033[0m"]
+            for a in actions:
+                lines.append(
+                    f"  {a.get('logged_at','')[:16]}  [{a['action_type']}]  {a['summary']}"
+                )
+            await ctx.session.send_line("\n".join(lines))
+            return
+
+        # ── update ──
+        if sub == "update":
+            from engine.narrative import trigger_on_demand_summarization
+            await ctx.session.send_line(f"  Triggering summarization for {target_name}...")
+            ok = await trigger_on_demand_summarization(ctx.db, target_id, "admin_update")
+            await ctx.session.send_line("  Done." if ok else "  Failed (AI disabled or unavailable?).")
+            return
+
+        # ── reset ──
+        if sub == "reset":
+            await ctx.db.upsert_narrative(
+                target_id,
+                short_record="",
+                long_record="",
+                last_summarized="",
+            )
+            await ctx.session.send_line(
+                f"  Narrative records cleared for {target_name}. Background preserved."
+            )
+            return
+
+        await ctx.session.send_line(f"  Unknown sub-command: {sub}")
+
+
+# ── Registration ──────────────────────────────────────────────────────────────
+
 def register_narrative_commands(registry):
     registry.register(BackgroundCommand())
     registry.register(RecapCommand())
     registry.register(QuestsCommand())
+    registry.register(QuestAcceptCommand())
+    registry.register(QuestCompleteCommand())
+    registry.register(QuestAbandonCommand())
+    registry.register(AdminNarrativeCommand())

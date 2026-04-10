@@ -402,6 +402,28 @@ MIGRATIONS = {
         )""",
     ],
 
+    10: [
+        # Tag missions to a specific faction (NULL = public mission board)
+        "ALTER TABLE missions ADD COLUMN faction_id TEXT DEFAULT NULL",
+
+        # Shop transaction log for vendor droids
+        """CREATE TABLE IF NOT EXISTS shop_transactions (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            droid_id    INTEGER NOT NULL REFERENCES objects(id),
+            seller_id   INTEGER NOT NULL REFERENCES characters(id),
+            buyer_id    INTEGER NOT NULL REFERENCES characters(id),
+            item_key    TEXT    NOT NULL,
+            item_name   TEXT    NOT NULL,
+            quality     INTEGER DEFAULT 0,
+            quantity    INTEGER DEFAULT 1,
+            unit_price  INTEGER NOT NULL,
+            total_price INTEGER NOT NULL,
+            listing_fee INTEGER DEFAULT 0,
+            txn_type    TEXT    DEFAULT 'sale',
+            created_at  REAL    NOT NULL
+        )""",
+    ],
+
 }
 
 
@@ -1693,3 +1715,241 @@ class Database:
             (_t.strftime("%Y-%m-%d %H:%M:%S"), quest_id)
         )
         await self._db.commit()
+
+    # ── Narrative summarization helpers ──────────────────────────────────────
+
+    async def get_chars_with_new_actions(self) -> list[dict]:
+        """Return character rows that have action log entries newer than their
+        last_summarized timestamp (or any entries if never summarized)."""
+        rows = await self._db.execute_fetchall(
+            """SELECT c.id, c.name, c.room_id, c.credits,
+                      COALESCE(n.last_summarized, '') AS last_summarized,
+                      COALESCE(n.background, '')      AS background,
+                      COALESCE(n.long_record, '')     AS long_record,
+                      COALESCE(n.short_record, '')    AS short_record
+               FROM characters c
+               LEFT JOIN pc_narrative n ON n.char_id = c.id
+               WHERE EXISTS (
+                   SELECT 1 FROM pc_action_log a
+                   WHERE a.char_id = c.id
+                     AND (n.last_summarized IS NULL
+                          OR n.last_summarized = ''
+                          OR a.logged_at > n.last_summarized)
+               )""",
+        )
+        return [dict(r) for r in rows]
+
+    async def get_actions_since(self, char_id: int, since_ts: str,
+                                 limit: int = 50) -> list[dict]:
+        """Return action log entries newer than since_ts (empty = all)."""
+        if since_ts:
+            rows = await self._db.execute_fetchall(
+                """SELECT * FROM pc_action_log
+                   WHERE char_id = ? AND logged_at > ?
+                   ORDER BY logged_at ASC LIMIT ?""",
+                (char_id, since_ts, limit),
+            )
+        else:
+            rows = await self._db.execute_fetchall(
+                """SELECT * FROM pc_action_log
+                   WHERE char_id = ?
+                   ORDER BY logged_at ASC LIMIT ?""",
+                (char_id, limit),
+            )
+        return [dict(r) for r in rows]
+
+    async def get_quest_by_id(self, quest_id: int) -> Optional[dict]:
+        """Fetch a single personal quest by id."""
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM personal_quests WHERE id = ?", (quest_id,)
+        )
+        return dict(rows[0]) if rows else None
+
+    async def update_quest_status(self, quest_id: int, status: str) -> None:
+        """Update personal quest status (active / abandoned / complete)."""
+        import time as _t
+        ts = _t.strftime("%Y-%m-%d %H:%M:%S")
+        if status == "complete":
+            await self._db.execute(
+                "UPDATE personal_quests SET status = ?, completed_at = ? WHERE id = ?",
+                (status, ts, quest_id),
+            )
+        else:
+            await self._db.execute(
+                "UPDATE personal_quests SET status = ? WHERE id = ?",
+                (status, quest_id),
+            )
+        await self._db.commit()
+
+    # ── Faction missions ──────────────────────────────────────────────────────
+
+    async def get_faction_missions(self, faction_id: str,
+                                    limit: int = 10) -> list:
+        """Return available missions tagged to a specific faction code."""
+        rows = await self._db.execute_fetchall(
+            """SELECT * FROM missions
+               WHERE status = 'available' AND faction_id = ?
+               ORDER BY reward DESC LIMIT ?""",
+            (faction_id, limit),
+        )
+        return [dict(r) for r in rows]
+
+    async def post_faction_mission(self, faction_id: str, **fields) -> int:
+        """Create a faction-tagged mission. Returns mission id."""
+        allowed = {
+            "mission_type", "title", "description", "reward",
+            "difficulty", "skill_required", "expires_at",
+        }
+        fields = {k: v for k, v in fields.items() if k in allowed}
+        fields["faction_id"] = faction_id
+        fields["status"] = "available"
+        cols = ", ".join(fields.keys())
+        placeholders = ", ".join("?" for _ in fields)
+        cursor = await self._db.execute(
+            f"INSERT INTO missions ({cols}) VALUES ({placeholders})",
+            list(fields.values()),
+        )
+        await self._db.commit()
+        return cursor.lastrowid
+
+    # ── Org roster + treasury ─────────────────────────────────────────────────
+
+    async def get_org_members(self, org_id: int) -> list:
+        """Return all active members of an organization with their rank."""
+        rows = await self._db.execute_fetchall(
+            """SELECT m.char_id, m.rank_level, m.standing, m.rep_score,
+                      m.specialization, m.joined_at,
+                      c.name AS char_name
+               FROM org_memberships m
+               JOIN characters c ON c.id = m.char_id
+               WHERE m.org_id = ?
+               ORDER BY m.rank_level DESC, c.name ASC""",
+            (org_id,),
+        )
+        return [dict(r) for r in rows]
+
+    async def adjust_org_treasury(self, org_id: int, delta: int) -> int:
+        """Add delta credits to an org's treasury. Returns new balance."""
+        await self._db.execute(
+            "UPDATE organizations SET treasury = MAX(0, treasury + ?) WHERE id = ?",
+            (delta, org_id),
+        )
+        await self._db.commit()
+        rows = await self._db.execute_fetchall(
+            "SELECT treasury FROM organizations WHERE id = ?", (org_id,)
+        )
+        return rows[0]["treasury"] if rows else 0
+
+    async def update_member_standing(self, char_id: int, org_id: int,
+                                      standing: str) -> None:
+        """Set a member's standing (good / probation / expelled)."""
+        await self._db.execute(
+            "UPDATE org_memberships SET standing = ? WHERE char_id = ? AND org_id = ?",
+            (standing, char_id, org_id),
+        )
+        await self._db.commit()
+
+    # ── Objects (vendor droids, placed items) ─────────────────────────────────
+
+    async def create_object(self, type: str, name: str, owner_id: int,
+                             room_id: int = None, description: str = "",
+                             data: str = "{}") -> int:
+        """Create an object row. Returns new id."""
+        cursor = await self._db.execute(
+            """INSERT INTO objects (type, name, owner_id, room_id, description, data)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (type, name, owner_id, room_id, description, data),
+        )
+        await self._db.commit()
+        return cursor.lastrowid
+
+    async def get_object(self, object_id: int) -> Optional[dict]:
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM objects WHERE id = ?", (object_id,)
+        )
+        return dict(rows[0]) if rows else None
+
+    async def get_objects_in_room(self, room_id: int,
+                                   obj_type: str = None) -> list:
+        if obj_type:
+            rows = await self._db.execute_fetchall(
+                "SELECT * FROM objects WHERE room_id = ? AND type = ? ORDER BY id",
+                (room_id, obj_type),
+            )
+        else:
+            rows = await self._db.execute_fetchall(
+                "SELECT * FROM objects WHERE room_id = ? ORDER BY id", (room_id,)
+            )
+        return [dict(r) for r in rows]
+
+    async def get_objects_owned_by(self, owner_id: int,
+                                    obj_type: str = None) -> list:
+        if obj_type:
+            rows = await self._db.execute_fetchall(
+                "SELECT * FROM objects WHERE owner_id = ? AND type = ? ORDER BY id",
+                (owner_id, obj_type),
+            )
+        else:
+            rows = await self._db.execute_fetchall(
+                "SELECT * FROM objects WHERE owner_id = ? ORDER BY id", (owner_id,)
+            )
+        return [dict(r) for r in rows]
+
+    async def update_object(self, object_id: int, **fields) -> None:
+        allowed = {"name", "description", "room_id", "owner_id", "data", "type"}
+        bad = set(fields) - allowed
+        if bad:
+            raise ValueError(f"update_object: unknown fields {bad}")
+        set_clause = ", ".join(f"{k} = ?" for k in fields)
+        vals = list(fields.values()) + [object_id]
+        await self._db.execute(
+            f"UPDATE objects SET {set_clause} WHERE id = ?", vals
+        )
+        await self._db.commit()
+
+    async def delete_object(self, object_id: int) -> None:
+        await self._db.execute("DELETE FROM objects WHERE id = ?", (object_id,))
+        await self._db.commit()
+
+    # ── Shop transactions ─────────────────────────────────────────────────────
+
+    async def log_shop_transaction(
+        self, droid_id: int, seller_id: int, buyer_id: int,
+        item_key: str, item_name: str, quality: int, quantity: int,
+        unit_price: int, listing_fee: int, txn_type: str = "sale",
+    ) -> int:
+        import time as _t
+        total_price = unit_price * quantity
+        cursor = await self._db.execute(
+            """INSERT INTO shop_transactions
+               (droid_id, seller_id, buyer_id, item_key, item_name, quality,
+                quantity, unit_price, total_price, listing_fee, txn_type, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (droid_id, seller_id, buyer_id, item_key, item_name, quality,
+             quantity, unit_price, total_price, listing_fee, txn_type, _t.time()),
+        )
+        await self._db.commit()
+        return cursor.lastrowid
+
+    async def get_shop_transactions(self, seller_id: int,
+                                     droid_id: int = None,
+                                     limit: int = 20) -> list:
+        if droid_id:
+            rows = await self._db.execute_fetchall(
+                """SELECT st.*, c.name AS buyer_name
+                   FROM shop_transactions st
+                   JOIN characters c ON c.id = st.buyer_id
+                   WHERE st.seller_id = ? AND st.droid_id = ?
+                   ORDER BY st.id DESC LIMIT ?""",
+                (seller_id, droid_id, limit),
+            )
+        else:
+            rows = await self._db.execute_fetchall(
+                """SELECT st.*, c.name AS buyer_name
+                   FROM shop_transactions st
+                   JOIN characters c ON c.id = st.buyer_id
+                   WHERE st.seller_id = ?
+                   ORDER BY st.id DESC LIMIT ?""",
+                (seller_id, limit),
+            )
+        return [dict(r) for r in rows]

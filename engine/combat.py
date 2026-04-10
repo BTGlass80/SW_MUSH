@@ -184,6 +184,7 @@ class ActionResult:
     wound_inflicted: str = ""   # Wound level name (if any)
     margin: int = 0
     narrative: str = ""         # Human-readable summary
+    you_narrative: str = ""     # Per-session variant for the target (◆ YOU got hit)
     targets: list = None        # Character IDs of targets (for per-session delivery)
 
 
@@ -320,6 +321,7 @@ class CombatEvent:
     """A log entry for combat narration."""
     text: str
     targets: list[int] = field(default_factory=list)  # Character IDs who should see this
+    you_text: str = ""  # Per-session variant shown to the target (◆ YOU got hit format)
 
 
 class CombatInstance:
@@ -666,6 +668,7 @@ class CombatInstance:
                 actor_results.append(result)
                 events.append(CombatEvent(
                     text=result.narrative,
+                    you_text=result.you_narrative,
                     targets=list(self.combatants.keys()),
                 ))
                 # Track as incoming for the target
@@ -1084,6 +1087,24 @@ class CombatInstance:
             )
             narrative += "\n" + incap_line
 
+        # Per-session YOU variant — shown only to the target player
+        you_story = (
+            _ansi.BOLD + _ansi.BRIGHT_RED
+            + f"  ◆ YOU take a hit from {actor.name}"
+            + f" with {action.skill} — {outcome_tag}"
+            + fp_tag
+            + _ansi.RESET
+        )
+        you_narrative = you_story + "\n" + mech_line
+        if drama:
+            you_narrative += "\n" + _ansi.color(drama, _ansi.DIM)
+        if not target.wound_level.can_act:
+            you_narrative += "\n" + (
+                _ansi.BOLD + _ansi.BRIGHT_RED
+                + "  YOU are " + wound.display_name.upper() + "!"
+                + _ansi.RESET
+            )
+
         return ActionResult(
             actor_id=actor.id, action=action, success=True,
             roll_display=str(attack_total),
@@ -1093,6 +1114,7 @@ class CombatInstance:
             wound_inflicted=wound_text,
             margin=damage_margin,
             narrative=narrative,
+            you_narrative=you_narrative,
             targets=[target_c.id],
         )
 

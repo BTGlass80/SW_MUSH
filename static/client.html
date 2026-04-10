@@ -426,6 +426,91 @@
   .wound-seg.incap    { background: var(--accent-red); box-shadow: 0 0 4px rgba(248,81,73,0.3); }
   .wound-seg.mortal   { background: #8b0000; box-shadow: 0 0 6px rgba(139,0,0,0.5); animation: pulse 1.5s infinite; }
 
+  /* ── Combat Panel ── */
+  #g-combat { display: none; }
+  #g-combat.combat-active { display: block; }
+
+  .combat-round-badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent-red);
+    background: rgba(248,81,73,0.12);
+    border: 1px solid rgba(248,81,73,0.3);
+    border-radius: 3px;
+    padding: 1px 5px;
+    letter-spacing: 1px;
+    margin-left: 6px;
+  }
+  .combat-phase-tag {
+    font-family: var(--font-body);
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-top: 2px;
+  }
+  .combatant-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 11px;
+  }
+  .combatant-row:last-child { border-bottom: none; }
+  .combatant-init {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    min-width: 20px;
+    text-align: right;
+  }
+  .combatant-name {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .combatant-name.is-player { color: var(--accent-cyan); }
+  .combatant-name.is-npc    { color: var(--text-main); }
+  .combatant-name.is-you    { color: var(--accent-amber); font-weight: 700; }
+  .combatant-pip {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .combatant-pip.healthy  { background: var(--accent-green); }
+  .combatant-pip.stunned  { background: var(--accent-amber); }
+  .combatant-pip.wounded  { background: #da6d28; }
+  .combatant-pip.incap    { background: var(--accent-red); }
+  .combatant-pip.mortal   { background: #8b0000; animation: pulse 1.5s infinite; }
+  .combatant-pip.dead     { background: var(--text-dim); }
+  .combatant-declared {
+    font-size: 9px;
+    color: var(--accent-green);
+    flex-shrink: 0;
+  }
+  .combatant-declared.waiting { color: var(--text-dim); }
+  .combat-action-summary {
+    font-family: var(--font-body);
+    font-size: 10px;
+    color: var(--accent-amber);
+    font-style: italic;
+    margin-top: 4px;
+    min-height: 14px;
+  }
+  .combat-waiting-line {
+    font-family: var(--font-body);
+    font-size: 10px;
+    color: var(--text-dim);
+    font-style: italic;
+    margin-top: 3px;
+  }
+
   /* Stat rows */
   .stat-row {
     display: flex;
@@ -1413,6 +1498,19 @@
       </div>
     </div>
 
+    <div class="ground-only" id="g-combat">
+    <div class="hud-section">
+      <div class="hud-label">
+        Combat
+        <span class="combat-round-badge" id="combat-round-badge">R1</span>
+      </div>
+      <div class="combat-phase-tag" id="combat-phase-tag">declaration</div>
+      <div id="combat-combatants-list"></div>
+      <div class="combat-action-summary" id="combat-action-summary"></div>
+      <div class="combat-waiting-line" id="combat-waiting-line"></div>
+    </div>
+    </div><!-- /g-combat -->
+
     <div class="ground-only" id="g-quick">
     <div class="hud-section">
       <div class="hud-label">Quick</div>
@@ -1694,6 +1792,7 @@
   // ═══════════ Structured HUD ═══════════
 
   function handleHudUpdate(data) {
+    if (data.character_id !== undefined) combatViewerId = data.character_id;
     if (data.name) hudName.textContent = data.name;
     if (data.wound_name !== undefined) updateWoundDisplay(data.wound_name);
 
@@ -1760,19 +1859,154 @@
   // ═══════════ Combat State ═══════════
 
   var combatActive = false;
+  var combatViewerId = null;  // Set from character data on login
+
+  var WOUND_PIP_CLASS = {
+    'healthy':         'healthy',
+    'stunned':         'stunned',
+    'wounded':         'wounded',
+    'wounded twice':   'wounded',
+    'incapacitated':   'incap',
+    'mortally wounded':'mortal',
+    'dead':            'dead',
+  };
 
   function handleCombatState(data) {
     combatActive = !!(data && data.active);
     updateQuickButtons();
 
-    var gQuick = document.getElementById('g-quick');
-    if (!gQuick) return;
+    var panel = document.getElementById('g-combat');
+    if (!panel) return;
 
-    // Show a combat-mode indicator in the quick panel label
-    var label = gQuick.querySelector('.hud-label');
-    if (label) {
-      label.textContent = combatActive ? 'Quick \u2022 Combat' : 'Quick';
-      label.style.color = combatActive ? 'var(--accent-red)' : '';
+    if (!combatActive) {
+      panel.classList.remove('combat-active');
+      // Reset g-quick label
+      var gQuickReset = document.getElementById('g-quick');
+      if (gQuickReset) {
+        var ql = gQuickReset.querySelector('.hud-label');
+        if (ql) { ql.textContent = 'Quick'; ql.style.color = ''; }
+      }
+      // Reset ambient mood away from combat if needed
+      if (typeof setMood === 'function') setMood(currentMood || 'default');
+      return;
+    }
+
+    panel.classList.add('combat-active');
+
+    // Pulse the ambient to combat red
+    if (typeof setMood === 'function') setMood('combat');
+
+    // Round badge
+    var badge = document.getElementById('combat-round-badge');
+    if (badge) badge.textContent = 'R' + (data.round || 1);
+
+    // Phase tag
+    var phaseEl = document.getElementById('combat-phase-tag');
+    if (phaseEl) {
+      var phase = (data.phase || 'declaration').toLowerCase();
+      var phaseLabels = {
+        'initiative':  'rolling initiative',
+        'declaration': 'declare actions',
+        'resolution':  'resolving...',
+        'posing':      'posing window',
+        'ended':       'combat ended',
+      };
+      phaseEl.textContent = phaseLabels[phase] || phase;
+    }
+
+    // Combatants list
+    var list = document.getElementById('combat-combatants-list');
+    if (list) {
+      list.innerHTML = '';
+      var combatants = data.combatants || [];
+      for (var i = 0; i < combatants.length; i++) {
+        var c = combatants[i];
+        var row = document.createElement('div');
+        row.className = 'combatant-row';
+
+        // Initiative number
+        var initEl = document.createElement('span');
+        initEl.className = 'combatant-init';
+        initEl.textContent = c.initiative > 0 ? c.initiative : '—';
+        row.appendChild(initEl);
+
+        // Wound pip
+        var pip = document.createElement('span');
+        var woundKey = (c.wound_name || 'healthy').toLowerCase();
+        pip.className = 'combatant-pip ' + (WOUND_PIP_CLASS[woundKey] || 'healthy');
+        pip.title = c.wound_name || 'Healthy';
+        row.appendChild(pip);
+
+        // Name
+        var nameEl = document.createElement('span');
+        var isYou = combatViewerId && c.id === combatViewerId;
+        if (isYou) {
+          nameEl.className = 'combatant-name is-you';
+          nameEl.textContent = c.name + ' ★';
+        } else if (c.is_player) {
+          nameEl.className = 'combatant-name is-player';
+          nameEl.textContent = c.name;
+        } else {
+          nameEl.className = 'combatant-name is-npc';
+          nameEl.textContent = c.name;
+        }
+        row.appendChild(nameEl);
+
+        // Declared checkmark
+        var declEl = document.createElement('span');
+        if (c.declared) {
+          declEl.className = 'combatant-declared';
+          declEl.textContent = '✓';
+        } else {
+          declEl.className = 'combatant-declared waiting';
+          declEl.textContent = '…';
+        }
+        row.appendChild(declEl);
+
+        list.appendChild(row);
+      }
+    }
+
+    // Your declared action summary
+    var actionEl = document.getElementById('combat-action-summary');
+    if (actionEl) {
+      var actions = data.your_actions || [];
+      if (actions.length > 0) {
+        actionEl.textContent = '▸ ' + actions.join(' + ');
+        actionEl.style.color = 'var(--accent-amber)';
+      } else {
+        actionEl.textContent = 'Awaiting your declaration...';
+        actionEl.style.color = 'var(--text-dim)';
+      }
+    }
+
+    // Waiting-for line
+    var waitEl = document.getElementById('combat-waiting-line');
+    if (waitEl) {
+      var waiting = data.waiting_for || [];
+      waitEl.textContent = waiting.length > 0
+        ? 'Waiting: ' + waiting.join(', ')
+        : '';
+    }
+
+    // Update g-quick label
+    var gQuick = document.getElementById('g-quick');
+    if (gQuick) {
+      var label = gQuick.querySelector('.hud-label');
+      if (label) {
+        label.textContent = 'Quick \u2022 Combat';
+        label.style.color = 'var(--accent-red)';
+      }
+    }
+  }
+
+  function resetCombatPanel() {
+    var panel = document.getElementById('g-combat');
+    if (panel) panel.classList.remove('combat-active');
+    var gQuick = document.getElementById('g-quick');
+    if (gQuick) {
+      var label = gQuick.querySelector('.hud-label');
+      if (label) { label.textContent = 'Quick'; label.style.color = ''; }
     }
   }
 

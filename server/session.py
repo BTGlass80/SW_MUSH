@@ -157,6 +157,7 @@ class Session:
 
         # Build HUD payload
         hud = {
+            "character_id": char.get("id"),
             "name": char.get("name", ""),
             "wound_level": char.get("wound_level", 0),
             "wound_name": _wound_name(char.get("wound_level", 0)),

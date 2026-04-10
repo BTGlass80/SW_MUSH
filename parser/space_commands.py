@@ -3354,6 +3354,16 @@ class BuyCommand(BaseCommand):
         # Route cargo purchases to trade handler
         if ctx.args.strip().lower().startswith("cargo "):
             return await _handle_buy_cargo(ctx)
+
+        # ── Route 'buy <item> from <shop name>' to vendor droid ──
+        arg_lower = ctx.args.strip().lower()
+        if " from " in arg_lower:
+            idx = arg_lower.index(" from ")
+            item_part = ctx.args.strip()[:idx].strip()
+            shop_part = ctx.args.strip()[idx + 6:].strip()
+            if shop_part:
+                return await _handle_buy_from_droid(ctx, item_part, shop_part)
+
         from engine.weapons import get_weapon_registry
         from engine.items import ItemInstance, serialize_equipment
         wr = get_weapon_registry()
@@ -4629,6 +4639,34 @@ class MarketCommand(BaseCommand):
                         f"    {gname:<24}  {item['quantity']:>4}t  "
                         f"(paid {item['purchase_price']:,}cr/t)"
                     )
+
+
+async def _handle_buy_from_droid(ctx, item_arg: str, shop_arg: str) -> None:
+    """Handle 'buy <item> from <shop name>' — routes to vendor droid system."""
+    from engine.vendor_droids import buy_from_droid, find_droid_by_name
+
+    char   = ctx.session.character
+    droids = await ctx.db.get_objects_in_room(char["room_id"], "vendor_droid")
+
+    if not droids:
+        await ctx.session.send_line(
+            "  No vendor droids in this area. "
+            "Use 'buy <weapon>' to purchase from NPC vendors."
+        )
+        return
+
+    droid = find_droid_by_name(droids, shop_arg)
+    if not droid:
+        await ctx.session.send_line(
+            f"  No vendor droid named '{shop_arg}' here. "
+            f"Use 'browse' to see available shops."
+        )
+        return
+
+    ok, msg = await buy_from_droid(
+        char, droid["id"], item_arg, ctx.db, ctx.session_mgr
+    )
+    await ctx.session.send_line(f"  {msg}")
 
 
 async def _handle_buy_cargo(ctx) -> None:

@@ -1255,6 +1255,68 @@ PLANET_NPCS = [
          faction="Corellia", style="Steady, measured. Corellian pragmatism.",
          fallbacks=["'Keep it legal. Or at least quiet.'",
                     "Bryn watches you with the patience of someone who's learned to wait."])),
+
+    # ── Droid Dealers (Player Shop System) ──────────────────────────────────
+
+    # Tatooine: Mos Eisley Market Place (room 16)
+    ("Rik Tano", 16, "Jawa",
+     "A small Jawa in a stained brown robe, tinkering with a GN-4 vendor unit. "
+     "Droid parts are piled around his stall in improbable towers.",
+     _sheet(dex="3D+1", kno="4D", tec="4D+2",
+            skills={"bargain": "5D", "droid_programming": "5D+1",
+                    "droid_repair": "6D", "value": "5D+2"},
+            species="Jawa"),
+     _ai(personality="Rik Tano sells and upgrades vendor droids. Speaks in heavily "
+         "accented Basic. Very enthusiastic about droids. Will quote specs unprompted. "
+         "Handles purchases ('shop buy droid') and tier upgrades at this stall. "
+         "Available tiers: gn4 (2,000cr), gn7 (5,000cr), gn12 (12,000cr). "
+         "Upgrades: gn4->gn7 costs 3,000cr, gn7->gn12 costs 7,000cr. "
+         "Inventory carries over on upgrade. Droid must be recalled (not placed) to upgrade.",
+         faction="Independent",
+         style="Excitable, rapid speech. Speaks in broken Basic. 'Utinni!' when excited.",
+         knowledge=["vendor droids", "droid upgrades", "player shops", "GN-4", "GN-7", "GN-12"],
+         fallbacks=["Rik Tano holds up a droid component, examining it with huge orange eyes.",
+                    "'Utinni! You want droid? Rik Tano has best droids on Tatooine!'"])),
+
+    # Nar Shaddaa: Vertical Bazaar (room 50)
+    ("Unit-77", 50, "Droid",
+     "A battered GN-7 unit that has apparently gone into business selling its own "
+     "kind. A holographic sign reads: UNIT-77 COMMERCE SOLUTIONS.",
+     _sheet(dex="2D", kno="5D", mec="2D", per="4D", tec="5D",
+            skills={"bargain": "6D+1", "value": "6D", "droid_programming": "5D+2"},
+            species="Droid"),
+     _ai(personality="Unit-77 is a self-aware vendor droid that achieved financial "
+         "independence and now sells droids to other beings. Deeply ironic about the "
+         "situation. Extremely knowledgeable about droid specifications and commerce. "
+         "Handles purchases ('shop buy droid') and tier upgrades on Nar Shaddaa. "
+         "Available tiers: gn4 (2,000cr), gn7 (5,000cr), gn12 (12,000cr). "
+         "Upgrades: gn4->gn7 costs 3,000cr, gn7->gn12 costs 7,000cr.",
+         faction="Independent",
+         style="Dry, sardonic. Speaks in perfect clipped Basic. References the irony of "
+               "droids selling droids.",
+         knowledge=["vendor droids", "droid upgrades", "player shops", "commerce", "Nar Shaddaa"],
+         fallbacks=["Unit-77 swivels its photoreceptors toward you with mechanical precision.",
+                    "'Droid commerce. The galaxy's most reliable transaction. Unlike organics.'"])),
+
+    # Corellia: Old Quarter Market (room 74)
+    ("Fen Solari", 74, "Human",
+     "A trim Corellian woman in a merchant's vest, surrounded by three gleaming "
+     "vendor droids on display pedestals.",
+     _sheet(dex="3D", kno="4D+1", per="4D+2",
+            skills={"bargain": "6D", "business": "5D+2", "value": "5D+1",
+                    "con": "4D+2", "streetwise": "4D"},
+            species="Human"),
+     _ai(personality="Fen Solari runs the largest vendor droid dealership in Coronet City. "
+         "Professional, charming, and knowledgeable. She handles purchases and upgrades. "
+         "Handles purchases ('shop buy droid') and tier upgrades on Corellia. "
+         "Available tiers: gn4 (2,000cr), gn7 (5,000cr), gn12 (12,000cr). "
+         "Upgrades: gn4->gn7 costs 3,000cr, gn7->gn12 costs 7,000cr. "
+         "She prides herself on after-sale support and will answer any droid question.",
+         faction="Traders' Coalition",
+         style="Warm, professional. Classic Corellian merchant patter.",
+         knowledge=["vendor droids", "droid upgrades", "player shops", "Coronet City", "commerce"],
+         fallbacks=["Fen Solari smiles and gestures at the gleaming droids on display.",
+                    "'The GN-12 is our top seller. Pays for itself in three months — guaranteed.'"])),
 ]
 # ==============================================================
 SHIPS = [

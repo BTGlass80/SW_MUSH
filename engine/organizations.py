@@ -786,3 +786,154 @@ async def format_guild_list(db) -> str:
         "\033[1;36m==========================================\033[0m",
     ]
     return "\n".join(lines)
+
+
+# ── Drop 5: Leader / admin engine functions ───────────────────────────────────
+
+async def demote(char: dict, org_code: str, db,
+                  promoter_char: dict = None, to_rank: int = None) -> tuple[bool, str]:
+    """Demote a character one rank (or to to_rank if specified)."""
+    org = await db.get_organization(org_code)
+    if not org:
+        return False, f"Unknown organization: '{org_code}'."
+
+    mem = await db.get_membership(char["id"], org["id"])
+    if not mem:
+        return False, f"{char['name']} is not a member of {org['name']}."
+
+    current_level = mem["rank_level"]
+    target_level  = to_rank if to_rank is not None else max(0, current_level - 1)
+
+    if target_level >= current_level:
+        return False, f"{char['name']} is already at rank {current_level}."
+
+    ranks = await db.get_org_ranks(org["id"])
+    target_rank = next((r for r in ranks if r["rank_level"] == target_level), None)
+    rank_title = target_rank["title"] if target_rank else f"Rank {target_level}"
+
+    await db.update_membership(char["id"], org["id"], rank_level=target_level)
+
+    details = f"Demoted to {rank_title}"
+    if promoter_char:
+        details += f" by {promoter_char['name']}"
+    await db.log_faction_action(char["id"], org["id"], "demote", details)
+
+    return True, (
+        f"{char['name']} has been demoted to "
+        f"\033[2m{rank_title}\033[0m in {org['name']}."
+    )
+
+
+async def set_standing(char: dict, org_code: str, standing: str, db,
+                        actor_char: dict = None, reason: str = "") -> tuple[bool, str]:
+    """
+    Set a member's standing: good / probation / expelled.
+    On expel: reclaims all faction-issued equipment.
+    """
+    VALID = {"good", "probation", "expelled"}
+    if standing not in VALID:
+        return False, f"Invalid standing '{standing}'. Must be: good, probation, expelled."
+
+    org = await db.get_organization(org_code)
+    if not org:
+        return False, f"Unknown organization: '{org_code}'."
+
+    mem = await db.get_membership(char["id"], org["id"])
+    if not mem:
+        return False, f"{char['name']} is not a member of {org['name']}."
+
+    await db.update_membership(char["id"], org["id"], standing=standing)
+
+    action_map = {
+        "good":       "pardon",
+        "probation":  "probation",
+        "expelled":   "expel",
+    }
+    action = action_map[standing]
+    detail = reason or f"Set to {standing}"
+    if actor_char:
+        detail += f" by {actor_char['name']}"
+    await db.log_faction_action(char["id"], org["id"], action, detail)
+
+    # On expulsion: reclaim equipment and force-leave
+    if standing == "expelled":
+        try:
+            await reclaim_equipment(char, org_code, db)
+        except Exception:
+            pass
+
+    standing_labels = {
+        "good":      "\033[1;32mGood Standing\033[0m",
+        "probation": "\033[1;33mProbation\033[0m",
+        "expelled":  "\033[1;31mExpelled\033[0m",
+    }
+    return True, (
+        f"{char['name']} standing in {org['name']} set to "
+        f"{standing_labels[standing]}."
+    )
+
+
+async def update_org(org_code: str, db, **fields) -> bool:
+    """Update arbitrary fields on an organization row."""
+    ALLOWED = {"name", "leader_id", "director_managed", "hq_room_id",
+               "treasury", "properties"}
+    bad = set(fields) - ALLOWED
+    if bad:
+        return False
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    vals = list(fields.values())
+    await db._db.execute(
+        f"UPDATE organizations SET {set_clause} WHERE code = ?",
+        vals + [org_code],
+    )
+    await db._db.commit()
+    return True
+
+
+async def handoff_faction_leadership(org_code: str, new_leader: dict, db,
+                                      session_mgr=None) -> tuple[bool, str]:
+    """
+    Transfer faction leadership from Director to a PC.
+
+    Requires new_leader to be rank 5+ with good standing.
+    Sets director_managed=0 and leader_id on the organizations row.
+    Broadcasts the announcement if session_mgr is provided.
+    """
+    org = await db.get_organization(org_code)
+    if not org:
+        return False, f"Unknown organization: '{org_code}'."
+
+    mem = await db.get_membership(new_leader["id"], org["id"])
+    if not mem:
+        return False, f"{new_leader['name']} is not a member of {org['name']}."
+    if mem["rank_level"] < 5:
+        return False, (
+            f"{new_leader['name']} must be rank 5 or higher to lead {org['name']}. "
+            f"(current: rank {mem['rank_level']})"
+        )
+    if mem["standing"] != "good":
+        return False, f"{new_leader['name']} must have Good Standing to assume command."
+
+    await update_org(org_code, db,
+                     leader_id=new_leader["id"],
+                     director_managed=0)
+    await db.log_faction_action(
+        new_leader["id"], org["id"], "leadership_handoff",
+        f"{new_leader['name']} assumed command. Director management disabled."
+    )
+
+    announcement = (
+        f"\033[1;37m{new_leader['name']}\033[0m has assumed command of "
+        f"\033[1;36m{org['name']}\033[0m."
+    )
+    if session_mgr:
+        try:
+            from server.channels import get_channel_manager
+            cm = get_channel_manager()
+            await cm.broadcast_fcomm(
+                session_mgr, f"{org['name']} Command", org_code, announcement
+            )
+        except Exception:
+            pass
+
+    return True, announcement

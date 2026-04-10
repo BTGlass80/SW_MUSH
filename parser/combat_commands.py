@@ -106,7 +106,12 @@ async def _broadcast_separator(session_mgr, room_id):
 
 async def _broadcast_events_paced(events, session_mgr, room_id,
                                    delay: float = 0.6, exclude=None):
-    """Send combat events with a short delay between each actor's block."""
+    """Send combat events with a short delay between each actor's block.
+
+    For damage events (event.you_text set, event.targets non-empty), the
+    target session receives the personalised ◆ YOU variant; all others see
+    the standard room narrative.
+    """
     current_actor = None
     for event in events:
         actor = _extract_actor_name(event.text)
@@ -114,7 +119,27 @@ async def _broadcast_events_paced(events, session_mgr, room_id,
             await asyncio.sleep(delay)
         if actor:
             current_actor = actor
-        await session_mgr.broadcast_to_room(room_id, event.text, exclude=exclude)
+
+        # Per-session delivery: target sees YOU variant, everyone else sees room text
+        if event.you_text and event.targets:
+            target_ids = set(event.targets)
+            for sess in session_mgr.sessions_in_room(room_id):
+                char = getattr(sess, "character", None)
+                if not char:
+                    continue
+                # Check exclude list
+                if isinstance(exclude, list) and char.get("id") in set(exclude):
+                    continue
+                if exclude is not None and not isinstance(exclude, list) and sess is exclude:
+                    continue
+                # Target sees YOU variant; attacker + bystanders see room text
+                char_id = char.get("id")
+                if char_id in target_ids:
+                    await sess.send_line(event.you_text)
+                else:
+                    await sess.send_line(event.text)
+        else:
+            await session_mgr.broadcast_to_room(room_id, event.text, exclude=exclude)
 
 
 async def _send_combat_state(combat, session_mgr):
@@ -530,6 +555,17 @@ async def _apply_combat_wear(combat, ctx):
                     if beaten:
                         await log_action(ctx.db, c.id, NT.COMBAT_VICTORY,
                                          f"Defeated {', '.join(beaten)} in combat")
+                        # Drop 6: award faction rep for combat victory
+                        try:
+                            from engine.organizations import adjust_rep
+                            await adjust_rep(
+                                sess.character,
+                                sess.character.get("faction_id", "independent"),
+                                ctx.db,
+                                "kill_enemy_faction_npc",
+                            )
+                        except Exception:
+                            pass  # graceful-drop
             except Exception:
                 pass
 

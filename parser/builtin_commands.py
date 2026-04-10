@@ -226,6 +226,22 @@ class LookCommand(BaseCommand):
 
         await session.send_line("")
 
+        # Vendor droids in the room (player shops)
+        try:
+            from engine.vendor_droids import _load_data
+            v_droids = await ctx.db.get_objects_in_room(char["room_id"], "vendor_droid")
+            for vd in v_droids:
+                vd_data  = _load_data(vd)
+                shop_name = vd_data.get("shop_name", vd["name"])
+                item_count = len(vd_data.get("inventory", []))
+                await session.send_line(
+                    f"  \033[1;36m[SHOP]\033[0m \033[1;37m{shop_name}\033[0m "
+                    f"\033[2m({item_count} item{'s' if item_count != 1 else ''} — "
+                    f"browse {shop_name})\033[0m"
+                )
+        except Exception:
+            pass
+
     async def _look_at(self, ctx: CommandContext):
         """Look at a specific target (character, NPC, or object)."""
         from engine.matching import match_in_room, MatchResult
@@ -1193,6 +1209,19 @@ class SellCommand(BaseCommand):
     usage = "sell"
 
     async def execute(self, ctx: CommandContext):
+        # Route 'sell <resource> to <shop>' to vendor droid buy-order system
+        if ctx.args:
+            arg_lower = ctx.args.strip().lower()
+            if " to " in arg_lower:
+                idx = arg_lower.index(" to ")
+                resource_part = ctx.args.strip()[:idx].strip()
+                shop_part     = ctx.args.strip()[idx + 4:].strip()
+                if shop_part:
+                    return await _handle_sell_to_droid(ctx, resource_part, shop_part)
+            # Route 'sell cargo' to trade handler
+            if arg_lower.startswith("cargo"):
+                return await _handle_sell_cargo(ctx)
+
         from engine.items import parse_equipment_json, serialize_equipment
         from engine.weapons import get_weapon_registry
 
@@ -1373,6 +1402,34 @@ def _purge_trade_offers():
     stale = [k for k, v in _pending_trades.items() if now - v["ts"] > _TRADE_TTL]
     for k in stale:
         _pending_trades.pop(k, None)
+
+
+async def _handle_sell_to_droid(ctx, resource_arg: str, shop_arg: str) -> None:
+    """Handle 'sell <resource> to <shop name>' — routes to vendor droid buy-order fill."""
+    from engine.vendor_droids import sell_to_droid, find_droid_by_name
+
+    char   = ctx.session.character
+    droids = await ctx.db.get_objects_in_room(char["room_id"], "vendor_droid")
+
+    if not droids:
+        await ctx.session.send_line(
+            "  No vendor droids in this area. "
+            "Use 'sell' to sell your equipped weapon to an NPC vendor."
+        )
+        return
+
+    droid = find_droid_by_name(droids, shop_arg)
+    if not droid:
+        await ctx.session.send_line(
+            f"  No vendor droid named '{shop_arg}' here. "
+            f"Use 'browse' to see available shops."
+        )
+        return
+
+    # Ask quantity if not specified in resource_arg
+    resource_type = resource_arg.lower().replace(" ", "_")
+    ok, msg = await sell_to_droid(char, droid["id"], resource_type, 999, ctx.db)
+    await ctx.session.send_line(f"  {msg}")
 
 
 async def _handle_sell_cargo(ctx) -> None:

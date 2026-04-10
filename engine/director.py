@@ -363,7 +363,7 @@ class DirectorAI:
 
     # ── Digest Compilation ──
 
-    def compile_digest(self, session_mgr) -> dict:
+    async def compile_digest(self, session_mgr, db=None) -> dict:
         """
         Compile the full world-state digest for the API payload.
         This is what gets sent to Claude in the Faction Turn.
@@ -402,6 +402,125 @@ class DirectorAI:
             "player_count": player_count,
         }
         digest.update(self._digest.to_digest_dict())
+
+        # ── Online PC short records (narrative AI, gated) ──────────────────
+        # Inject short_record for each online player so the Director can
+        # generate personalised pc_hooks. Only included when narrative AI
+        # is enabled and at least one record exists.
+        try:
+            from engine.narrative import is_narrative_ai_enabled
+            if is_narrative_ai_enabled() and db is not None:
+                online_pcs = []
+                for sess in session_mgr.all:
+                    if not sess.is_in_game:
+                        continue
+                    char = getattr(sess, "character", None)
+                    if not char:
+                        continue
+                    char_id = char.get("id")
+                    char_name = char.get("name", "unknown")
+                    rec = await db.get_narrative(char_id)
+                    short = rec.get("short_record", "") if rec else ""
+                    if short:
+                        online_pcs.append({
+                            "char_id": char_id,
+                            "name": char_name,
+                            "short_record": short[:300],  # cap at 300 chars
+                        })
+                if online_pcs:
+                    digest["online_pcs"] = online_pcs
+        except Exception as _narr_exc:
+            log.debug("[director] PC digest skipped: %s", _narr_exc)
+
+        # ── Faction status for Director-managed orgs ───────────────────────
+        # Provides member counts, pending promotions, treasury, violations
+        # so the Director can issue meaningful faction_orders.
+        try:
+            if db is not None:
+                faction_status = {}
+                # Only director-managed factions
+                rows = await db._db.execute_fetchall(
+                    "SELECT id, code, name, treasury FROM organizations "
+                    "WHERE org_type = 'faction' AND director_managed = 1"
+                )
+                for org_row in rows:
+                    org_id   = org_row["id"]
+                    org_code = org_row["code"]
+                    members  = await db.get_org_members(org_id)
+
+                    # Recent activity: members active in last 24h via action log
+                    import time as _t
+                    cutoff = _t.strftime(
+                        "%Y-%m-%d %H:%M:%S",
+                        _t.gmtime(_t.time() - 86400),
+                    )
+                    active_rows = await db._db.execute_fetchall(
+                        """SELECT DISTINCT char_id FROM pc_action_log
+                           WHERE logged_at > ?
+                             AND char_id IN (
+                               SELECT char_id FROM org_memberships
+                               WHERE org_id = ?
+                             )""",
+                        (cutoff, org_id),
+                    )
+                    active_24h = len(active_rows)
+
+                    # Pending promotions: good standing, rep meets next rank
+                    ranks = await db.get_org_ranks(org_id)
+                    rank_map = {r["rank_level"]: r for r in ranks}
+                    pending_promotions = []
+                    for m in members:
+                        if m.get("standing") != "good":
+                            continue
+                        next_level = m["rank_level"] + 1
+                        next_rank  = rank_map.get(next_level)
+                        if next_rank and m.get("rep_score", 0) >= next_rank["min_rep"]:
+                            pending_promotions.append(m["char_id"])
+
+                    # Recent violations: probation/expelled in faction_log
+                    viol_rows = await db._db.execute_fetchall(
+                        """SELECT m.char_id, c.name
+                           FROM org_memberships m
+                           JOIN characters c ON c.id = m.char_id
+                           WHERE m.org_id = ? AND m.standing != 'good'""",
+                        (org_id,),
+                    )
+                    violations = [r["name"] for r in viol_rows]
+
+                    # Open requisitions from faction_log
+                    req_rows = await db._db.execute_fetchall(
+                        """SELECT c.name || ': ' || fl.details AS req
+                           FROM faction_log fl
+                           JOIN characters c ON c.id = fl.char_id
+                           WHERE fl.org_id = ?
+                             AND fl.action_type = 'requisition_request'
+                             AND fl.logged_at > ?""",
+                        (org_id, cutoff),
+                    )
+                    open_requisitions = [r["req"][:60] for r in req_rows]
+
+                    # Unassigned faction missions
+                    unassigned = await db._db.execute_fetchall(
+                        "SELECT COUNT(*) AS cnt FROM missions "
+                        "WHERE faction_id = ? AND status = 'available'",
+                        (org_code,),
+                    )
+                    unassigned_count = unassigned[0]["cnt"] if unassigned else 0
+
+                    faction_status[org_code] = {
+                        "member_count":        len(members),
+                        "active_last_24h":     active_24h,
+                        "treasury":            org_row["treasury"],
+                        "pending_promotions":  pending_promotions,
+                        "recent_violations":   violations,
+                        "unassigned_missions": unassigned_count,
+                        "open_requisitions":   open_requisitions[:3],
+                    }
+                if faction_status:
+                    digest["faction_status"] = faction_status
+        except Exception as _fac_exc:
+            log.debug("[director] faction_status skipped: %s", _fac_exc)
+
         return digest
 
     # ── Director Log ──
@@ -473,6 +592,19 @@ class DirectorAI:
             "  The Hutts care about profit. Neither wants open war here.\n"
             "- Events should create OPPORTUNITIES for players, never OBLIGATIONS.\n"
             "- Consequences should feel proportional and narratively logical.\n\n"
+            "FACTION MANAGEMENT:\n"
+            "If the digest includes 'faction_status', you manage those factions.\n"
+            "You may issue up to 3 faction_orders total per turn. Guidelines:\n"
+            "- Promote conservatively. Players must EARN rank.\n"
+            "- Post missions that reflect current world state, not random jobs.\n"
+            "- Discipline escalates: warn → probation → expel. Never skip steps.\n"
+            "- Approve requisitions unless the member negligently caused the loss.\n"
+            "- Never promote past pending_promotions list — only promote listed chars.\n\n"
+            "PC HOOKS:\n"
+            "If the digest includes 'online_pcs', you may generate up to 2\n"
+            "personalised story hooks for specific players based on their short_record.\n"
+            "Hooks must be brief (1-2 sentences), in-universe, and create opportunity\n"
+            "not obligation. Deliver via comlink_message unless NPC context warrants whisper.\n\n"
             "Respond with ONLY a JSON object in this exact format:\n"
             "{\n"
             "  \"influence_adjustments\": [\n"
@@ -486,12 +618,35 @@ class DirectorAI:
             "    \"mechanical_effects\": {\"...\": \"...\"}\n"
             "  } OR null,\n"
             "  \"ambient_pool\": [\"line1\", \"line2\", \"line3\"] OR null,\n"
-            "  \"news_headline\": \"One-sentence summary for the world events board.\"\n"
+            "  \"news_headline\": \"One-sentence summary for the world events board.\",\n"
+            "  \"faction_orders\": [\n"
+            "    {\n"
+            "      \"faction\": \"empire\" | \"rebel\" | \"cartel\" | \"bhg\" | \"traders\",\n"
+            "      \"action\": \"promote\" | \"warn\" | \"probation\" | \"expel\" | \"pardon\"\n"
+            "               | \"post_mission\" | \"faction_announcement\",\n"
+            "      \"target_char_id\": <int> | null,\n"
+            "      \"new_rank\": <int> | null,\n"
+            "      \"reason\": \"...\",\n"
+            "      \"mission_type\": \"patrol\" | \"delivery\" | \"combat\" | \"investigation\" | null,\n"
+            "      \"zone\": \"...\" | null,\n"
+            "      \"reward\": <int 100-5000> | null,\n"
+            "      \"description\": \"...\" | null,\n"
+            "      \"message\": \"...\" | null\n"
+            "    }\n"
+            "  ] OR null,\n"
+            "  \"pc_hooks\": [\n"
+            "    {\n"
+            "      \"char_id\": <int>,\n"
+            "      \"hook_type\": \"rumor\" | \"opportunity\" | \"encounter\",\n"
+            "      \"content\": \"Brief in-universe message (1-2 sentences max)\",\n"
+            "      \"delivery\": \"comlink_message\" | \"npc_whisper\" | \"news_item\" | \"ambient\"\n"
+            "    }\n"
+            "  ] OR null\n"
             "}"
         )
 
         # Compile digest
-        digest = await self.compile_digest(session_mgr)
+        digest = await self.compile_digest(session_mgr, db=db)
         user_message = _json.dumps(digest, ensure_ascii=False)
 
         # Call API
@@ -618,6 +773,84 @@ class DirectorAI:
                 except Exception as exc:
                     log.warning("[director] Failed to update ambient pool: %s", exc)
 
+        # ── Parse and execute faction_orders ──────────────────────────────
+        faction_orders = resp.get("faction_orders")
+        if isinstance(faction_orders, list) and faction_orders:
+            VALID_FACTION_ACTIONS = frozenset({
+                "promote", "warn", "probation", "expel", "pardon",
+                "post_mission", "faction_announcement",
+            })
+            VALID_MISSION_TYPES = frozenset({
+                "patrol", "delivery", "combat", "investigation",
+                "bounty", "smuggling", "social",
+            })
+            VALID_FACTION_CODES = frozenset({
+                "empire", "rebel", "cartel", "bhg", "traders",
+            })
+            orders_applied = 0
+            for order in faction_orders[:3]:  # Hard cap: 3 orders per turn
+                if not isinstance(order, dict):
+                    continue
+                faction_code = order.get("faction", "")
+                action       = order.get("action", "")
+                if faction_code not in VALID_FACTION_CODES:
+                    log.debug("[director] faction_order: invalid faction '%s'", faction_code)
+                    continue
+                if action not in VALID_FACTION_ACTIONS:
+                    log.debug("[director] faction_order: invalid action '%s'", action)
+                    continue
+
+                try:
+                    await self._apply_faction_order(
+                        db, session_mgr, faction_code, action, order
+                    )
+                    orders_applied += 1
+                except Exception as _ord_exc:
+                    log.warning("[director] faction_order failed: %s", _ord_exc)
+
+            if orders_applied:
+                log.info("[director] Applied %d faction_order(s).", orders_applied)
+
+        # ── Parse and deliver pc_hooks ─────────────────────────────────────
+        pc_hooks = resp.get("pc_hooks")
+        if isinstance(pc_hooks, list) and pc_hooks:
+            VALID_DELIVERIES = frozenset({
+                "comlink_message", "npc_whisper", "news_item", "ambient"
+            })
+            VALID_HOOK_TYPES = frozenset({
+                "rumor", "opportunity", "encounter", "personal_quest"
+            })
+            delivered = 0
+            for hook in pc_hooks[:2]:  # Hard cap: max 2 hooks per turn
+                if not isinstance(hook, dict):
+                    continue
+                char_id   = hook.get("char_id")
+                content   = str(hook.get("content", "")).strip()[:300]
+                delivery  = hook.get("delivery", "comlink_message")
+                hook_type = hook.get("hook_type", "opportunity")
+
+                if not char_id or not content:
+                    continue
+                if delivery not in VALID_DELIVERIES:
+                    delivery = "comlink_message"
+                if hook_type not in VALID_HOOK_TYPES:
+                    hook_type = "opportunity"
+
+                try:
+                    await self._deliver_pc_hook(
+                        db, session_mgr,
+                        char_id=int(char_id),
+                        content=content,
+                        delivery=delivery,
+                        hook_type=hook_type,
+                    )
+                    delivered += 1
+                except Exception as _hook_exc:
+                    log.warning("[director] pc_hook delivery failed: %s", _hook_exc)
+
+            if delivered:
+                log.info("[director] Delivered %d pc_hook(s) this turn.", delivered)
+
         # ── Write director log ─────────────────────────────────────────────
         news_headline = str(resp.get("news_headline", "Faction Turn complete."))[:200]
         details_json  = _json.dumps(resp, ensure_ascii=False)[:4000]
@@ -640,6 +873,246 @@ class DirectorAI:
         )
 
         return True
+
+    async def _apply_faction_order(
+        self, db, session_mgr,
+        faction_code: str, action: str, order: dict,
+    ) -> None:
+        """
+        Execute one Director faction_order.
+
+        Handles: promote, warn, probation, expel, pardon,
+                 post_mission, faction_announcement.
+        All state changes are logged to faction_log.
+        Invalid targets are silently skipped.
+        """
+        from server import ansi
+        from server.channels import get_channel_manager
+
+        org = await db.get_organization(faction_code)
+        if not org:
+            return
+
+        reason  = str(order.get("reason", "Director directive"))[:200]
+        message = str(order.get("message", ""))[:300]
+
+        # ── promote ────────────────────────────────────────────────────────
+        if action == "promote":
+            char_id  = order.get("target_char_id")
+            new_rank = order.get("new_rank")
+            if not char_id:
+                return
+            rows = await db._db.execute_fetchall(
+                "SELECT id, name FROM characters WHERE id = ?", (int(char_id),)
+            )
+            if not rows:
+                return
+            char_row = dict(rows[0])
+            mem = await db.get_membership(char_row["id"], org["id"])
+            if not mem:
+                return
+            # Validate: cannot skip more than 1 rank
+            current = mem["rank_level"]
+            target  = new_rank if new_rank else current + 1
+            if target > current + 1:
+                log.debug("[director] promote skipped: rank skip %d→%d", current, target)
+                return
+            await db.update_membership(char_row["id"], org["id"], rank_level=target)
+            await db.log_faction_action(
+                char_row["id"], org["id"], "promote",
+                f"Promoted to rank {target} by Director. {reason}"
+            )
+            # Notify the PC if online
+            sess = session_mgr.find_by_character(char_row["id"])
+            if sess:
+                await sess.send_line(
+                    f"  {ansi.color('[FACTION]', ansi.BRIGHT_CYAN)} "
+                    f"You have been promoted to rank {target} in {org['name']}. "
+                    f"{reason}"
+                )
+            log.info("[director] Promoted char %d to rank %d in %s",
+                     char_row["id"], target, faction_code)
+
+        # ── warn ───────────────────────────────────────────────────────────
+        elif action == "warn":
+            char_id = order.get("target_char_id")
+            if not char_id:
+                return
+            await db.log_faction_action(
+                int(char_id), org["id"], "warn", reason
+            )
+            sess = session_mgr.find_by_character(int(char_id))
+            if sess:
+                await sess.send_line(
+                    f"  {ansi.color('[FACTION WARNING]', ansi.BRIGHT_YELLOW)} "
+                    f"{org['name']}: {reason}"
+                )
+
+        # ── probation ──────────────────────────────────────────────────────
+        elif action == "probation":
+            char_id = order.get("target_char_id")
+            if not char_id:
+                return
+            await db.update_member_standing(int(char_id), org["id"], "probation")
+            await db.log_faction_action(
+                int(char_id), org["id"], "probation", reason
+            )
+            sess = session_mgr.find_by_character(int(char_id))
+            if sess:
+                await sess.send_line(
+                    f"  {ansi.color('[FACTION]', ansi.BRIGHT_RED)} "
+                    f"You have been placed on probation in {org['name']}. {reason}"
+                )
+
+        # ── expel ──────────────────────────────────────────────────────────
+        elif action == "expel":
+            char_id = order.get("target_char_id")
+            if not char_id:
+                return
+            await db.update_member_standing(int(char_id), org["id"], "expelled")
+            await db.log_faction_action(
+                int(char_id), org["id"], "expel", reason
+            )
+            sess = session_mgr.find_by_character(int(char_id))
+            if sess:
+                await sess.send_line(
+                    f"  {ansi.color('[FACTION]', ansi.BRIGHT_RED)} "
+                    f"You have been expelled from {org['name']}. {reason}"
+                )
+
+        # ── pardon ─────────────────────────────────────────────────────────
+        elif action == "pardon":
+            char_id = order.get("target_char_id")
+            if not char_id:
+                return
+            await db.update_member_standing(int(char_id), org["id"], "good")
+            await db.log_faction_action(
+                int(char_id), org["id"], "pardon", reason
+            )
+            sess = session_mgr.find_by_character(int(char_id))
+            if sess:
+                await sess.send_line(
+                    f"  {ansi.color('[FACTION]', ansi.BRIGHT_GREEN)} "
+                    f"Your probation in {org['name']} has been lifted. {reason}"
+                )
+
+        # ── post_mission ───────────────────────────────────────────────────
+        elif action == "post_mission":
+            mission_type = order.get("mission_type", "patrol")
+            zone         = str(order.get("zone", ""))[:60]
+            reward       = max(100, min(5000, int(order.get("reward", 500))))
+            desc         = str(order.get("description", ""))[:200]
+            title        = f"{faction_code.title()} Directive: {mission_type.title()}"
+            if zone:
+                title += f" ({zone})"
+            mission_id = await db.post_faction_mission(
+                faction_code,
+                mission_type=mission_type,
+                title=title,
+                description=desc,
+                reward=reward,
+                difficulty="moderate",
+                skill_required="",
+            )
+            await db.log_faction_action(
+                None, org["id"], "post_mission",
+                f"Posted mission #{mission_id}: {title} ({reward}cr)"
+            )
+            log.info("[director] Posted faction mission #%d for %s",
+                     mission_id, faction_code)
+
+        # ── faction_announcement ───────────────────────────────────────────
+        elif action == "faction_announcement":
+            if not message:
+                return
+            try:
+                cm = get_channel_manager()
+                sender = f"{org['name']} Command"
+                await cm.broadcast_fcomm(session_mgr, sender, faction_code, message)
+            except Exception as exc:
+                log.warning("[director] faction_announcement failed: %s", exc)
+
+    async def _deliver_pc_hook(
+        self, db, session_mgr,
+        char_id: int, content: str,
+        delivery: str, hook_type: str,
+    ) -> None:
+        """
+        Deliver a Director-generated story hook to a specific online PC.
+
+        delivery options:
+          comlink_message  — private IC message to the player's session
+          npc_whisper      — if PC is in a room with any NPC, that NPC
+                             delivers it; otherwise downgrades to comlink
+          news_item        — broadcast to all via world_events news channel
+          ambient          — injected into the ambient pool for the PC's zone
+        """
+        from server import ansi
+
+        # Validate content — no raw game commands, no player names
+        BAD_WORDS = frozenset({"roll ", "attack ", "/attack", "skill check"})
+        if any(bw in content.lower() for bw in BAD_WORDS):
+            log.debug("[director] pc_hook content rejected (bad words): %.80s", content)
+            return
+
+        # Find the target session (must be online)
+        sess = session_mgr.find_by_character(char_id)
+
+        # ── comlink_message ────────────────────────────────────────────────
+        if delivery == "comlink_message" or sess is None:
+            if sess is None:
+                log.debug("[director] pc_hook char %d offline — dropped.", char_id)
+                return
+            prefix = ansi.color("[COMLINK] ", ansi.BRIGHT_CYAN)
+            await sess.send_line(f"{prefix}{content}")
+            return
+
+        # ── npc_whisper ───────────────────────────────────────────────────
+        if delivery == "npc_whisper":
+            char = getattr(sess, "character", None)
+            room_id = char.get("room_id") if char else None
+            whispered = False
+            if room_id:
+                try:
+                    npcs = await db.get_npcs_in_room(room_id)
+                    if npcs:
+                        npc = npcs[0]
+                        prefix = ansi.color(
+                            f"{npc['name']} whispers to you: ", ansi.BRIGHT_YELLOW
+                        )
+                        await sess.send_line(f"{prefix}\"{content}\"")
+                        whispered = True
+                except Exception:
+                    pass
+            if not whispered:
+                # Downgrade to comlink
+                prefix = ansi.color("[COMLINK] ", ansi.BRIGHT_CYAN)
+                await sess.send_line(f"{prefix}{content}")
+            return
+
+        # ── news_item ─────────────────────────────────────────────────────
+        if delivery == "news_item":
+            try:
+                from engine.world_events import get_world_event_manager
+                wem = get_world_event_manager()
+                await wem.broadcast_news(db, session_mgr, content, source="director")
+            except Exception as exc:
+                log.debug("[director] news_item fallback to comlink: %s", exc)
+                if sess:
+                    prefix = ansi.color("[COMLINK] ", ansi.BRIGHT_CYAN)
+                    await sess.send_line(f"{prefix}{content}")
+            return
+
+        # ── ambient ───────────────────────────────────────────────────────
+        if delivery == "ambient":
+            try:
+                from engine.ambient_events import get_ambient_manager
+                get_ambient_manager().inject_once(content)
+            except Exception as exc:
+                log.debug("[director] ambient fallback to comlink: %s", exc)
+                if sess:
+                    prefix = ansi.color("[COMLINK] ", ansi.BRIGHT_CYAN)
+                    await sess.send_line(f"{prefix}{content}")
 
     async def get_recent_log(self, db, limit: int = 10) -> list[dict]:
         """Fetch recent director_log entries (for news command)."""
@@ -720,7 +1193,7 @@ class DirectorAI:
             db,
             event_type="faction_turn",
             summary=headline,
-            details=self.compile_digest(session_mgr),
+            details=await self.compile_digest(session_mgr),
         )
 
         # Reset digest for next cycle
