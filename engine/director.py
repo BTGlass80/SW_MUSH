@@ -785,7 +785,7 @@ class DirectorAI:
                 "bounty", "smuggling", "social",
             })
             VALID_FACTION_CODES = frozenset({
-                "empire", "rebel", "cartel", "bhg", "traders",
+                "empire", "rebel", "hutt", "bh_guild",
             })
             orders_applied = 0
             for order in faction_orders[:3]:  # Hard cap: 3 orders per turn

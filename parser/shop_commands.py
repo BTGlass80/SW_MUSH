@@ -168,7 +168,7 @@ class ShopCommand(BaseCommand):
                 return
 
             # Find item in character inventory (equipment or resources)
-            item_key, actual_name, quality, crafter = _find_in_inventory(
+            item_key, actual_name, quality, crafter, source_type = _find_in_inventory(
                 char, item_name
             )
             if not item_key:
@@ -181,7 +181,7 @@ class ShopCommand(BaseCommand):
             ok, msg = await stock_droid(
                 char, droid["id"],
                 item_key, actual_name, quality, price, qty, crafter,
-                ctx.db,
+                ctx.db, source_type=source_type,
             )
             await ctx.session.send_line(f"  {msg}")
             return
@@ -482,7 +482,10 @@ async def _get_owner_droid(ctx: CommandContext, id_or_name: str,
 def _find_in_inventory(char: dict, name_arg: str):
     """
     Search character inventory for an item matching name_arg.
-    Returns (item_key, item_name, quality, crafter) or (None, None, 0, "").
+    Returns (item_key, item_name, quality, crafter, source_type) or
+    (None, None, 0, "", None).
+
+    source_type is one of: "equipment", "resource", "item"
 
     Checks:
       1. Equipped weapon (engine/items.py ItemInstance)
@@ -505,6 +508,7 @@ def _find_in_inventory(char: dict, name_arg: str):
                 return (
                     item.key, wname, item.quality,
                     getattr(item, "crafter", "") or "",
+                    "equipment",
                 )
     except Exception:
         pass
@@ -523,6 +527,7 @@ def _find_in_inventory(char: dict, name_arg: str):
                     rtype.replace("_", " ").title(),
                     int(stack.get("quality", 0)),
                     "",
+                    "resource",
                 )
     except Exception:
         pass
@@ -543,11 +548,12 @@ def _find_in_inventory(char: dict, name_arg: str):
                     iname,
                     it.get("quality", 50),
                     it.get("crafter", "") or "",
+                    "item",
                 )
     except Exception:
         pass
 
-    return None, None, 0, ""
+    return None, None, 0, "", None
 
 
 def register_shop_commands(registry):

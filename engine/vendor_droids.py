@@ -285,29 +285,19 @@ async def set_shop_desc(char: dict, droid_id: int, desc: str,
 
 # ── Drop 2: Inventory management ─────────────────────────────────────────────
 
-async def stock_item(char: dict, droid_id: int,
-                      item_key: str, item_name: str, quality: int,
-                      price: int, quantity: int = 1,
-                      crafter: str = "") -> tuple[bool, str]:
-    """This is a pure-data helper; the DB write is done by the caller after."""
-    # Validation only — returns (ok, error) or (ok, slot_index)
-    return True, ""
-
-
 async def stock_droid(char: dict, droid_id: int,
                        item_key: str, item_name: str, quality: int,
                        price: int, quantity: int, crafter: str,
-                       db) -> tuple[bool, str]:
+                       db, source_type: str = "item") -> tuple[bool, str]:
     """
     Move item(s) from character inventory into droid stock.
-    For now: requires the item to be in character.inventory.items list
-    (faction-issued items are blocked).
+    source_type: "equipment", "resource", or "item" — controls how
+    the item is removed from the character.
+    Faction-issued items are blocked.
     """
     obj = await db.get_object(droid_id)
     if not obj or obj["owner_id"] != char["id"]:
         return False, "You don't own that vendor droid."
-    if not obj["room_id"] and True:  # Allow stocking from inventory even unplaced
-        pass
 
     data   = _load_data(obj)
     tier   = get_tier(data.get("tier_key", "gn4")) or {}
@@ -322,6 +312,54 @@ async def stock_droid(char: dict, droid_id: int,
     # Faction-issued items blocked
     if _is_faction_issued(char, item_key):
         return False, "Faction-issued equipment cannot be sold in player shops."
+
+    # ── Remove the item from character BEFORE adding to droid ──
+    try:
+        if source_type == "equipment":
+            # Unequip the weapon
+            char["equipment"] = "{}"
+            await db.save_character(char["id"], equipment="{}")
+            # Equipment is always qty 1
+            quantity = 1
+        elif source_type == "resource":
+            # Decrement resource stack in inventory JSON
+            char_inv = char.get("inventory", "{}")
+            if isinstance(char_inv, str):
+                char_inv = json.loads(char_inv) if char_inv else {}
+            resources = char_inv.get("resources", [])
+            stack = next((r for r in resources if r.get("type") == item_key), None)
+            if not stack:
+                return False, f"'{item_name}' no longer in your inventory."
+            have = int(stack.get("quantity", 1))
+            if quantity > have:
+                quantity = have  # Cap at what they actually have
+            stack["quantity"] = have - quantity
+            if stack["quantity"] <= 0:
+                char_inv["resources"] = [r for r in resources if r is not stack]
+            char["inventory"] = json.dumps(char_inv)
+            await db.save_character(char["id"], inventory=char["inventory"])
+        else:  # "item"
+            # Remove from items list in inventory JSON
+            char_inv = char.get("inventory", "{}")
+            if isinstance(char_inv, str):
+                char_inv = json.loads(char_inv) if char_inv else {}
+            items = char_inv.get("items", [])
+            found = False
+            new_items = []
+            for it in items:
+                if not found and it.get("key", it.get("name", "")) == item_key:
+                    found = True
+                    continue  # Remove this one
+                new_items.append(it)
+            if not found:
+                return False, f"'{item_name}' no longer in your inventory."
+            char_inv["items"] = new_items
+            char["inventory"] = json.dumps(char_inv)
+            await db.save_character(char["id"], inventory=char["inventory"])
+            quantity = 1  # General items are 1-at-a-time
+    except Exception as e:
+        log.warning("[shops] Failed to remove item from char inventory: %s", e)
+        return False, "Failed to remove item from your inventory."
 
     # Check slot limit — try to merge into existing slot first
     for slot in inv:
@@ -370,7 +408,7 @@ async def stock_droid(char: dict, droid_id: int,
 async def unstock_droid(char: dict, droid_id: int,
                          slot_num: int, quantity: int,
                          db) -> tuple[bool, str]:
-    """Remove item(s) from a droid slot back to owner's inventory (stub)."""
+    """Remove item(s) from a droid slot back to owner's inventory."""
     obj = await db.get_object(droid_id)
     if not obj or obj["owner_id"] != char["id"]:
         return False, "You don't own that vendor droid."
@@ -383,6 +421,61 @@ async def unstock_droid(char: dict, droid_id: int,
         return False, f"No item in slot {slot_num}."
 
     qty_to_remove = min(quantity, slot["quantity"])
+    item_key  = slot.get("item_key", "")
+    item_name = slot.get("item_name", item_key)
+    quality   = slot.get("quality", 50)
+    crafter   = slot.get("crafter", "")
+
+    # ── Return item(s) to character inventory ──
+    try:
+        char_inv = char.get("inventory", "{}")
+        if isinstance(char_inv, str):
+            char_inv = json.loads(char_inv) if char_inv else {}
+        if not isinstance(char_inv, dict):
+            char_inv = {}
+
+        # Determine if this is a resource (check crafting RESOURCE_TYPES)
+        is_resource = False
+        try:
+            from engine.crafting import RESOURCE_TYPES
+            if hasattr(RESOURCE_TYPES, "keys"):
+                is_resource = item_key in RESOURCE_TYPES
+            elif isinstance(RESOURCE_TYPES, (set, frozenset, list)):
+                is_resource = item_key in RESOURCE_TYPES
+        except Exception:
+            pass
+
+        if is_resource:
+            resources = char_inv.get("resources", [])
+            # Try to merge into existing stack
+            existing = next((r for r in resources if r.get("type") == item_key), None)
+            if existing:
+                existing["quantity"] = int(existing.get("quantity", 0)) + qty_to_remove
+            else:
+                resources.append({
+                    "type": item_key,
+                    "quality": quality,
+                    "quantity": qty_to_remove,
+                })
+            char_inv["resources"] = resources
+        else:
+            items = char_inv.get("items", [])
+            for _ in range(qty_to_remove):
+                items.append({
+                    "key":     item_key,
+                    "name":    item_name,
+                    "quality": quality,
+                    "crafter": crafter,
+                })
+            char_inv["items"] = items
+
+        char["inventory"] = json.dumps(char_inv)
+        await db.save_character(char["id"], inventory=char["inventory"])
+    except Exception as e:
+        log.warning("[shops] Failed to return item to char inventory: %s", e)
+        return False, "Failed to return item to your inventory."
+
+    # ── Update droid inventory ──
     slot["quantity"] -= qty_to_remove
     if slot["quantity"] <= 0:
         inv = [s for s in inv if s.get("slot") != slot_num]
@@ -393,9 +486,8 @@ async def unstock_droid(char: dict, droid_id: int,
     data["last_owner_ts"] = time.time()
     await db.update_object(droid_id, data=_dump_data(data))
     return True, (
-        f"Removed {qty_to_remove}x {slot['item_name']} from slot {slot_num}. "
-        f"(Items returned to your inventory — not yet implemented; "
-        f"use this to manage listings.)"
+        f"Removed {qty_to_remove}x {item_name} from slot {slot_num}. "
+        f"Items returned to your inventory."
     )
 
 
@@ -509,6 +601,28 @@ async def buy_from_droid(buyer: dict, droid_id: int,
     # Deduct buyer credits
     buyer["credits"] -= final_price
     await db.save_character(buyer["id"], credits=buyer["credits"])
+
+    # ── Add purchased item to buyer's inventory ──
+    try:
+        buyer_inv = buyer.get("inventory", "{}")
+        if isinstance(buyer_inv, str):
+            buyer_inv = json.loads(buyer_inv) if buyer_inv else {}
+        if not isinstance(buyer_inv, dict):
+            buyer_inv = {}
+        items = buyer_inv.get("items", [])
+        items.append({
+            "key":     slot.get("item_key", ""),
+            "name":    slot["item_name"],
+            "quality": slot.get("quality", 50),
+            "crafter": slot.get("crafter", ""),
+        })
+        buyer_inv["items"] = items
+        buyer["inventory"] = json.dumps(buyer_inv)
+        await db.save_character(buyer["id"], inventory=buyer["inventory"])
+    except Exception as e:
+        log.warning("[shops] Failed to add item to buyer inventory: %s", e)
+        # Credits already deducted — log but don't fail silently.
+        # The transaction log will show the purchase for admin recovery.
 
     # Add to droid escrow
     data["escrow_credits"] = data.get("escrow_credits", 0) + net_payout

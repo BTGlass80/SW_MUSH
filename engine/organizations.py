@@ -431,6 +431,14 @@ async def leave_faction(char: dict, db, session=None) -> tuple[bool, str]:
     await db.save_character(char["id"], faction_id="independent",
                              attributes=char.get("attributes", "{}"))
 
+    # Narrative hook
+    try:
+        from engine.narrative import log_action, ActionType as NT
+        await log_action(db, char["id"], NT.FACTION_LEAVE,
+                         f"Left {org['name']}" if org else "Left faction")
+    except Exception:
+        pass
+
     return True, (
         f"You have left {org['name'] if org else 'the faction'}. "
         "You are now \033[2mIndependent\033[0m."
@@ -586,6 +594,7 @@ async def faction_payroll_tick(db) -> int:
             if treasury <= 0:
                 continue
 
+            org_paid = 0  # Track per-org disbursement for treasury debit
             members = await db.get_org_members(org["id"])
             for mem in members:
                 if mem.get("standing", "good") not in ("good",):
@@ -595,13 +604,19 @@ async def faction_payroll_tick(db) -> int:
                 stipend = STIPEND_TABLE.get((org_code, rank_level), 0)
                 if stipend <= 0:
                     continue
-                if treasury < stipend:
+                if treasury - org_paid < stipend:
                     break  # Treasury depleted
+
+                # Fetch the character's ACTUAL current credits before updating
+                char_row = await db.get_character(mem["char_id"])
+                if not char_row:
+                    continue
+                current_credits = char_row.get("credits", 0)
 
                 # Pay the stipend
                 await db.save_character(mem["char_id"],
-                                         credits=mem.get("credits", 0) + stipend)
-                treasury -= stipend
+                                         credits=current_credits + stipend)
+                org_paid += stipend
                 total_paid += stipend
 
                 # Log
@@ -613,12 +628,13 @@ async def faction_payroll_tick(db) -> int:
                 except Exception:
                     pass
 
-            # Update treasury
-            if total_paid > 0:
+            # Update treasury — method is adjust_org_treasury
+            if org_paid > 0:
                 try:
-                    await db.update_org_treasury(org["id"], -total_paid)
-                except Exception:
-                    pass  # Method may not exist yet; graceful-drop
+                    await db.adjust_org_treasury(org["id"], -org_paid)
+                except Exception as _te:
+                    log.warning("[orgs] Treasury debit failed for %s: %s",
+                                org_code, _te)
 
     except Exception as e:
         log.exception("[orgs] faction_payroll_tick failed: %s", e)
