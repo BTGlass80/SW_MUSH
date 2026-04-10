@@ -47,8 +47,8 @@ def _find_online(ctx: CommandContext, name: str):
 # ── Commands ───────────────────────────────────────────────────────────────────
 
 class PartyInviteCommand(BaseCommand):
-    key = "party"
-    aliases = ["p"]
+    key = "+party"
+    aliases = ["party", "p"]
     help_text = (
         "Party system commands.\n"
         "  party invite <player>  -- invite a player\n"

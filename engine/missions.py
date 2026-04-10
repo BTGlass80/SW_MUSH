@@ -54,6 +54,45 @@ class MissionType(str, Enum):
     BOUNTY        = "bounty"
     SLICING       = "slicing"
     SALVAGE       = "salvage"
+    # ── Space mission types (Drop 14) ────────────────────────────────────────
+    PATROL        = "patrol"        # Hold a zone for 120 ticks
+    ESCORT        = "escort"        # Protect NPC trader to destination zone
+    INTERCEPT     = "intercept"     # Destroy N hostile ships in a zone
+    SURVEY_ZONE   = "survey_zone"   # Resolve at least 1 anomaly in a zone
+
+# Space mission type set — used for routing in complete/accept logic
+SPACE_MISSION_TYPES = {
+    MissionType.PATROL, MissionType.ESCORT,
+    MissionType.INTERCEPT, MissionType.SURVEY_ZONE,
+}
+
+# Zone targets for space missions (cycles; new zones can be added freely)
+_PATROL_ZONES = [
+    "tatooine_orbit", "tatooine_deep_space",
+    "nar_shaddaa_orbit", "nar_shaddaa_deep_space",
+    "kessel_approach", "kessel_orbit",
+    "corellia_orbit", "corellia_deep_space",
+    "outer_rim_lane_1", "outer_rim_lane_2",
+]
+_SURVEY_ZONES = [
+    "tatooine_deep_space", "tatooine_orbit",
+    "nar_shaddaa_deep_space", "kessel_approach",
+    "corellia_deep_space", "outer_rim_lane_1",
+]
+_INTERCEPT_ZONES = [
+    "tatooine_deep_space", "nar_shaddaa_deep_space",
+    "kessel_approach", "outer_rim_lane_3",
+    "corellia_deep_space",
+]
+# Escort: origin zone → destination zone pairs
+_ESCORT_ROUTES = [
+    ("tatooine_orbit",      "nar_shaddaa_orbit"),
+    ("nar_shaddaa_orbit",   "tatooine_orbit"),
+    ("tatooine_orbit",      "corellia_orbit"),
+    ("corellia_orbit",      "tatooine_orbit"),
+    ("nar_shaddaa_orbit",   "kessel_orbit"),
+    ("outer_rim_lane_1",    "corellia_orbit"),
+]
 
 
 class MissionStatus(str, Enum):
@@ -78,6 +117,11 @@ PAY_RANGES: dict[MissionType, tuple[int, int]] = {
     MissionType.BOUNTY:        (300, 3000),
     MissionType.SLICING:       (400, 2000),
     MissionType.SALVAGE:       (200, 1000),
+    # Space missions (Drop 14)
+    MissionType.PATROL:        (600,  1000),
+    MissionType.ESCORT:        (1500, 2500),
+    MissionType.INTERCEPT:     (2000, 3000),
+    MissionType.SURVEY_ZONE:   (1200, 1800),
 }
 
 # Relative spawn weight: delivery is always available, social and slicing are rare.
@@ -92,6 +136,11 @@ SPAWN_WEIGHTS: dict[MissionType, int] = {
     MissionType.BOUNTY:         5,
     MissionType.SLICING:        2,
     MissionType.SALVAGE:        6,
+    # Space missions — intentionally lower weight (need a ship to take these)
+    MissionType.PATROL:         4,
+    MissionType.ESCORT:         3,
+    MissionType.INTERCEPT:      3,
+    MissionType.SURVEY_ZONE:    3,
 }
 
 # Primary skills required for each type (used for flavor and difficulty scaling).
@@ -106,6 +155,11 @@ REQUIRED_SKILLS: dict[MissionType, list[str]] = {
     MissionType.BOUNTY:        ["search", "tracking", "blaster"],
     MissionType.SLICING:       ["computer programming/repair", "security"],
     MissionType.SALVAGE:       ["search", "perception", "survival"],
+    # Space missions
+    MissionType.PATROL:        ["sensors", "space transports"],
+    MissionType.ESCORT:        ["space transports", "starship gunnery"],
+    MissionType.INTERCEPT:     ["starship gunnery", "space transports"],
+    MissionType.SURVEY_ZONE:   ["sensors", "search"],
 }
 
 
@@ -192,6 +246,28 @@ _SALVAGE_OBJECTIVES = [
     "Recover the black box from the crashed shuttle near {dest}.",
 ]
 
+# Space mission objective templates (zone filled at generation time)
+_PATROL_OBJECTIVES = [
+    "Establish sensor presence in {dest}. Hold position for 2 minutes.",
+    "Run a patrol sweep through {dest}. Maintain position for 120 seconds.",
+    "Provide deterrence in {dest}. Any pirate activity must be reported.",
+]
+_ESCORT_OBJECTIVES = [
+    "Escort the freighter {escort_ship} from {origin} to {dest}. Keep it alive.",
+    "Protect {escort_ship} on the run from {origin} to {dest}. Pirates are likely.",
+    "Shepherd {escort_ship} safely through hostile space to {dest}.",
+]
+_INTERCEPT_OBJECTIVES = [
+    "Eliminate {count} pirate ships operating in {dest}.",
+    "Clear the hostile traffic from {dest}. Destroy {count} targets.",
+    "Take out {count} armed ships raiding shipping lanes near {dest}.",
+]
+_SURVEY_OBJECTIVES = [
+    "Probe {dest} for anomalies. Resolve at least one contact.",
+    "Conduct a survey sweep of {dest}. Report anything unusual.",
+    "Run deep-space sensors over {dest} and document what you find.",
+]
+
 _OBJECTIVE_TABLES: dict[MissionType, list[str]] = {
     MissionType.DELIVERY:      _DELIVERY_OBJECTIVES,
     MissionType.COMBAT:        _COMBAT_OBJECTIVES,
@@ -203,6 +279,10 @@ _OBJECTIVE_TABLES: dict[MissionType, list[str]] = {
     MissionType.BOUNTY:        _BOUNTY_OBJECTIVES,
     MissionType.SLICING:       _SLICING_OBJECTIVES,
     MissionType.SALVAGE:       _SALVAGE_OBJECTIVES,
+    MissionType.PATROL:        _PATROL_OBJECTIVES,
+    MissionType.ESCORT:        _ESCORT_OBJECTIVES,
+    MissionType.INTERCEPT:     _INTERCEPT_OBJECTIVES,
+    MissionType.SURVEY_ZONE:   _SURVEY_OBJECTIVES,
 }
 
 # ── Destination rooms (static fallback; generator also uses live room graph) ───
@@ -247,6 +327,8 @@ class Mission:
     created_at: float = field(default_factory=time.time)
     accepted_at: Optional[float] = None
     expires_at: Optional[float] = None
+    # Space mission state (Drop 14): zone ID, kill counts, escort NPC ship ID, etc.
+    mission_data: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -264,6 +346,7 @@ class Mission:
             "created_at": self.created_at,
             "accepted_at": self.accepted_at,
             "expires_at": self.expires_at,
+            "mission_data": self.mission_data,
         }
 
     @classmethod
@@ -283,6 +366,7 @@ class Mission:
             created_at=d.get("created_at", time.time()),
             accepted_at=d.get("accepted_at"),
             expires_at=d.get("expires_at"),
+            mission_data=d.get("mission_data", {}),
         )
 
 
@@ -389,6 +473,100 @@ def generate_mission(
         destination_room_id=dest_room_id,
         reward=reward,
         required_skill=skill_hint,
+        created_at=now,
+        expires_at=now + MISSION_TTL,
+    )
+
+
+def generate_space_mission(skill_level: int = 3) -> Mission:
+    """
+    Generate a single space mission (PATROL / ESCORT / INTERCEPT / SURVEY_ZONE).
+    These missions require the player to be in a ship and in the correct zone.
+    mission_data holds zone IDs, kill counts, escort ship name, etc.
+    """
+    import random as _r
+    mtype = _r.choice([
+        MissionType.PATROL, MissionType.ESCORT,
+        MissionType.INTERCEPT, MissionType.SURVEY_ZONE,
+    ])
+    giver = _r.choice(_GIVERS)
+    reward = _scale_reward(mtype, skill_level)
+    skill_hint = _r.choice(REQUIRED_SKILLS[mtype])
+    now = time.time()
+    mission_data: dict = {}
+
+    if mtype == MissionType.PATROL:
+        zone_id = _r.choice(_PATROL_ZONES)
+        zone_display = zone_id.replace("_", " ").title()
+        obj_tmpl = _r.choice(_PATROL_OBJECTIVES)
+        objective = obj_tmpl.format(dest=zone_display)
+        title = f"[SPACE] Patrol: {zone_display}"
+        mission_data = {
+            "target_zone": zone_id,
+            "patrol_ticks_required": 120,
+            "patrol_ticks_done": 0,
+        }
+        destination = zone_display
+
+    elif mtype == MissionType.ESCORT:
+        route = _r.choice(_ESCORT_ROUTES)
+        origin_zone, dest_zone = route
+        origin_display = origin_zone.replace("_", " ").title()
+        dest_display   = dest_zone.replace("_", " ").title()
+        # Escort ship name generated at accept time (when NPC is spawned)
+        escort_ship_name = "the convoy freighter"
+        obj_tmpl = _r.choice(_ESCORT_OBJECTIVES)
+        objective = obj_tmpl.format(
+            escort_ship=escort_ship_name,
+            origin=origin_display,
+            dest=dest_display,
+        )
+        title = f"[SPACE] Escort to {dest_display}"
+        mission_data = {
+            "origin_zone":    origin_zone,
+            "target_zone":    dest_zone,
+            "escort_ship_id": None,   # filled on accept when NPC spawns
+        }
+        destination = dest_display
+
+    elif mtype == MissionType.INTERCEPT:
+        zone_id = _r.choice(_INTERCEPT_ZONES)
+        zone_display = zone_id.replace("_", " ").title()
+        kills_needed = _r.randint(2, 4)
+        obj_tmpl = _r.choice(_INTERCEPT_OBJECTIVES)
+        objective = obj_tmpl.format(dest=zone_display, count=kills_needed)
+        title = f"[SPACE] Intercept: {zone_display}"
+        mission_data = {
+            "target_zone":  zone_id,
+            "kills_needed": kills_needed,
+            "kills_done":   0,
+        }
+        destination = zone_display
+
+    else:  # SURVEY_ZONE
+        zone_id = _r.choice(_SURVEY_ZONES)
+        zone_display = zone_id.replace("_", " ").title()
+        obj_tmpl = _r.choice(_SURVEY_OBJECTIVES)
+        objective = obj_tmpl.format(dest=zone_display)
+        title = f"[SPACE] Survey: {zone_display}"
+        mission_data = {
+            "target_zone":       zone_id,
+            "anomalies_required": 1,
+            "anomalies_resolved": 0,
+        }
+        destination = zone_display
+
+    return Mission(
+        id=_generate_id(),
+        mission_type=mtype,
+        title=title,
+        giver=giver,
+        objective=objective,
+        destination=destination,
+        destination_room_id=None,
+        reward=reward,
+        required_skill=skill_hint,
+        mission_data=mission_data,
         created_at=now,
         expires_at=now + MISSION_TTL,
     )
@@ -611,6 +789,9 @@ _TYPE_COLORS = {
 _RESET = "\033[0m"
 _BOLD  = "\033[1m"
 _DIM   = "\033[2m"
+
+
+_SPACE_MISSION_TAG = "[0;36m[SPACE][0m"
 
 
 def format_board(missions: list[Mission]) -> list[str]:

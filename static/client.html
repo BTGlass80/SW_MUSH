@@ -8,77 +8,76 @@
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
 
   :root {
-    --bg-void: #030508;
-    --bg-deep: #060910;
-    --bg-panel: #0a0e16;
-    --bg-surface: #0e1320;
-    --bg-input: #111827;
-    --bg-terminal: #070a0f;
-    --border-dim: #141d2b;
-    --border-mid: #1c2940;
-    --border-bright: #263550;
-    --text-primary: #a0aab8;
-    --text-dim: #4a5568;
-    --text-bright: #d8e0ea;
-    --text-white: #edf2f7;
-    --accent-green: #38b249;
+    --bg-deep: #06080c;
+    --bg-panel: #0b0e14;
+    --bg-input: #10141c;
+    --bg-hud: #0a0d13;
+    --bg-terminal: #080b10;
+    --border-dim: #151c28;
+    --border-mid: #1e2838;
+    --text-primary: #b8c0cc;
+    --text-dim: #566070;
+    --text-bright: #dce3ed;
+    --accent-green: #3fb950;
     --accent-amber: #d4a020;
-    --accent-red: #e5534b;
+    --accent-red: #f85149;
     --accent-blue: #4d9eff;
-    --accent-cyan: #2ec4b6;
-    --accent-purple: #a78bfa;
-    --accent-gold: #c8a84e;
-    --scrollbar-track: #0a0e16;
-    --scrollbar-thumb: #1c2940;
+    --accent-cyan: #40c8d0;
+    --accent-purple: #b07cff;
+    --scrollbar-track: #0e1218;
+    --scrollbar-thumb: #252d3a;
 
-    --mood-glow: rgba(46, 196, 182, 0.03);
-    --mood-accent: #2ec4b6;
-    --mood-border: rgba(46, 196, 182, 0.1);
-    --mood-edge: rgba(46, 196, 182, 0.15);
+    /* Ambient mood — defaults (neutral/street) */
+    --mood-glow: rgba(63, 185, 80, 0.04);
+    --mood-accent: var(--accent-green);
+    --mood-border: rgba(63, 185, 80, 0.12);
+    --mood-scanline: rgba(63, 185, 80, 0.015);
 
     --font-mono: 'Share Tech Mono', 'Consolas', 'Courier New', monospace;
     --font-display: 'Orbitron', sans-serif;
-    --font-ui: 'Rajdhani', sans-serif;
+    --font-body: 'Rajdhani', sans-serif;
 
-    --sidebar-w: 240px;
+    --sidebar-w: 250px;
+    --header-h: 42px;
+    --input-h: 52px;
   }
 
-  /* ── Ambient Mood Themes ── */
+  /* ── Mood Themes ── */
   [data-mood="cantina"] {
-    --mood-glow: rgba(210, 153, 34, 0.04);
+    --mood-glow: rgba(210, 153, 34, 0.06);
     --mood-accent: #d4a020;
-    --mood-border: rgba(210, 153, 34, 0.12);
-    --mood-edge: rgba(210, 153, 34, 0.2);
+    --mood-border: rgba(210, 153, 34, 0.15);
+    --mood-scanline: rgba(210, 153, 34, 0.01);
   }
   [data-mood="spaceport"], [data-mood="industrial"] {
-    --mood-glow: rgba(77, 158, 255, 0.04);
+    --mood-glow: rgba(77, 158, 255, 0.05);
     --mood-accent: #4d9eff;
-    --mood-border: rgba(77, 158, 255, 0.1);
-    --mood-edge: rgba(77, 158, 255, 0.18);
+    --mood-border: rgba(77, 158, 255, 0.12);
+    --mood-scanline: rgba(77, 158, 255, 0.012);
   }
   [data-mood="jabba"], [data-mood="palatial"] {
-    --mood-glow: rgba(167, 139, 250, 0.05);
-    --mood-accent: #a78bfa;
-    --mood-border: rgba(167, 139, 250, 0.12);
-    --mood-edge: rgba(167, 139, 250, 0.18);
+    --mood-glow: rgba(176, 124, 255, 0.06);
+    --mood-accent: #b07cff;
+    --mood-border: rgba(176, 124, 255, 0.14);
+    --mood-scanline: rgba(176, 124, 255, 0.015);
   }
   [data-mood="government"], [data-mood="official"] {
-    --mood-glow: rgba(229, 83, 75, 0.03);
-    --mood-accent: #e5534b;
-    --mood-border: rgba(229, 83, 75, 0.1);
-    --mood-edge: rgba(229, 83, 75, 0.15);
+    --mood-glow: rgba(248, 81, 73, 0.04);
+    --mood-accent: #e06050;
+    --mood-border: rgba(248, 81, 73, 0.12);
+    --mood-scanline: rgba(248, 81, 73, 0.01);
   }
   [data-mood="shops"], [data-mood="commercial"] {
-    --mood-glow: rgba(56, 178, 73, 0.04);
-    --mood-accent: #38b249;
-    --mood-border: rgba(56, 178, 73, 0.12);
-    --mood-edge: rgba(56, 178, 73, 0.18);
+    --mood-glow: rgba(63, 185, 80, 0.05);
+    --mood-accent: #50cc60;
+    --mood-border: rgba(63, 185, 80, 0.15);
+    --mood-scanline: rgba(63, 185, 80, 0.012);
   }
   [data-mood="combat"] {
-    --mood-glow: rgba(229, 83, 75, 0.06);
-    --mood-accent: #e5534b;
-    --mood-border: rgba(229, 83, 75, 0.18);
-    --mood-edge: rgba(229, 83, 75, 0.3);
+    --mood-glow: rgba(248, 81, 73, 0.08);
+    --mood-accent: #f85149;
+    --mood-border: rgba(248, 81, 73, 0.2);
+    --mood-scanline: rgba(248, 81, 73, 0.02);
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -86,134 +85,131 @@
   html, body {
     height: 100%;
     overflow: hidden;
-    background: var(--bg-void);
+    background: var(--bg-deep);
     color: var(--text-primary);
     font-family: var(--font-mono);
     font-size: 14px;
     line-height: 1.5;
   }
 
-  /* ══════════════════════════════════════
-     APP SHELL
-     ══════════════════════════════════════ */
+  /* ── App Layout ── */
   .app {
     display: grid;
     grid-template-columns: 1fr var(--sidebar-w);
-    grid-template-rows: 38px 1fr 46px;
+    grid-template-rows: var(--header-h) 1fr var(--input-h);
     height: 100vh;
-    transition: grid-template-columns 0.3s ease;
   }
 
-  /* ══════════════════════════════════════
-     HEADER BAR
-     ══════════════════════════════════════ */
+  /* ══════════════════════════════════════════
+     HEADER
+     ══════════════════════════════════════════ */
   .header {
     grid-column: 1 / -1;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 14px 0 16px;
+    padding: 0 16px;
     background: var(--bg-panel);
     border-bottom: 1px solid var(--border-dim);
     position: relative;
+    z-index: 10;
   }
+
   .header::after {
     content: '';
     position: absolute;
-    bottom: -1px; left: 0; right: 0;
+    bottom: 0; left: 0; right: 0;
     height: 1px;
-    background: linear-gradient(90deg,
-      transparent 5%, var(--mood-edge) 30%,
-      var(--mood-accent) 50%,
-      var(--mood-edge) 70%, transparent 95%);
-    opacity: 0.4;
-    transition: all 2s ease;
+    background: linear-gradient(90deg, transparent, var(--mood-accent), transparent);
+    opacity: 0.3;
+    transition: background 1.5s ease;
   }
 
   .header-brand {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 10px;
   }
+
   .header-logo {
     font-family: var(--font-display);
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 900;
-    letter-spacing: 5px;
+    letter-spacing: 4px;
     text-transform: uppercase;
-    color: var(--accent-gold);
-    text-shadow: 0 0 30px rgba(200, 168, 78, 0.25);
+    color: var(--accent-amber);
+    text-shadow: 0 0 24px rgba(212, 160, 32, 0.3);
   }
-  .header-sep {
-    width: 1px;
-    height: 14px;
-    background: var(--border-mid);
-  }
+
   .header-sub {
-    font-family: var(--font-ui);
+    font-family: var(--font-body);
     font-size: 11px;
     font-weight: 500;
     color: var(--text-dim);
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
+    padding-left: 10px;
+    border-left: 1px solid var(--border-dim);
   }
 
   .header-right {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
   }
+
   .conn-status {
     display: flex;
     align-items: center;
-    gap: 5px;
-  }
-  .conn-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--accent-red);
-    transition: all 0.4s;
-  }
-  .conn-dot.connected { background: var(--accent-green); box-shadow: 0 0 6px rgba(56,178,73,0.5); }
-  .conn-dot.connecting { background: var(--accent-amber); animation: pulse 1s infinite; }
-  @keyframes pulse { 50% { opacity: 0.3; } }
-
-  .conn-label {
-    font-family: var(--font-ui);
-    font-size: 10px;
+    gap: 6px;
+    font-family: var(--font-body);
+    font-size: 11px;
     font-weight: 600;
     letter-spacing: 1px;
     text-transform: uppercase;
     color: var(--text-dim);
   }
+
+  .conn-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent-red);
+    transition: all 0.4s;
+    flex-shrink: 0;
+  }
+  .conn-dot.connected { background: var(--accent-green); box-shadow: 0 0 8px rgba(63,185,80,0.5); }
+  .conn-dot.connecting { background: var(--accent-amber); animation: pulse 1.2s ease-in-out infinite; }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
   .conn-btn {
-    font-family: var(--font-ui);
+    padding: 2px 10px;
+    font-family: var(--font-body);
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
     text-transform: uppercase;
-    padding: 2px 8px;
-    border: 1px solid var(--border-mid);
+    border: 1px solid var(--border-dim);
     border-radius: 3px;
-    background: transparent;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.2s;
+    background: transparent;
   }
-  .conn-btn.disconnect { color: var(--text-dim); }
-  .conn-btn.disconnect:hover { color: var(--accent-red); border-color: var(--accent-red); }
-  .conn-btn.reconnect { color: var(--accent-green); border-color: rgba(56,178,73,0.3); }
-  .conn-btn.reconnect:hover { border-color: var(--accent-green); background: rgba(56,178,73,0.06); }
+  .conn-btn.disconnect { color: var(--accent-red); border-color: rgba(248,81,73,0.25); }
+  .conn-btn.disconnect:hover { background: rgba(248,81,73,0.08); border-color: var(--accent-red); }
+  .conn-btn.reconnect { color: var(--accent-green); border-color: rgba(63,185,80,0.25); }
+  .conn-btn.reconnect:hover { background: rgba(63,185,80,0.08); border-color: var(--accent-green); }
 
-  /* ══════════════════════════════════════
-     TERMINAL AREA
-     ══════════════════════════════════════ */
-  .main-area {
+  /* ══════════════════════════════════════════
+     TERMINAL / GAME TEXT BOX
+     ══════════════════════════════════════════ */
+  .terminal-wrap {
     grid-column: 1;
     grid-row: 2;
+    padding: 8px;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding: 6px 6px 4px 6px;
     background: var(--bg-deep);
-    overflow: hidden;
   }
 
   .terminal {
@@ -221,397 +217,172 @@
     display: flex;
     flex-direction: column;
     border: 1px solid var(--border-mid);
-    border-radius: 5px;
+    border-radius: 6px;
     overflow: hidden;
     position: relative;
     background: var(--bg-terminal);
     box-shadow:
-      inset 0 2px 6px rgba(0,0,0,0.5),
-      0 0 1px var(--border-bright),
-      0 0 30px var(--mood-glow),
-      0 0 80px var(--mood-glow);
-    transition: box-shadow 2s ease;
+      inset 0 1px 3px rgba(0,0,0,0.4),
+      0 0 20px var(--mood-glow),
+      0 0 60px var(--mood-glow);
+    transition: box-shadow 1.5s ease;
   }
 
-  /* Thin accent edge — left */
-  .terminal::before {
-    content: '';
-    position: absolute;
-    top: 0; bottom: 0; left: 0;
-    width: 2px;
-    background: linear-gradient(180deg, var(--mood-accent), transparent 80%);
-    opacity: 0.3;
-    z-index: 3;
-    transition: all 2s ease;
+  /* Top bezel with indicator dots */
+  .terminal-bezel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 10px;
+    background: linear-gradient(180deg, rgba(20,26,36,0.9), rgba(14,18,26,0.95));
+    border-bottom: 1px solid var(--border-dim);
+    flex-shrink: 0;
   }
 
-  /* Subtle scanlines */
+  .bezel-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .bezel-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--border-mid);
+    transition: all 0.6s;
+  }
+  .bezel-dot.active { background: var(--mood-accent); box-shadow: 0 0 4px var(--mood-accent); }
+
+  .bezel-label {
+    font-family: var(--font-display);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    opacity: 0.6;
+  }
+
+  .bezel-right {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    opacity: 0.4;
+  }
+
+  /* Scanline overlay */
   .terminal::after {
     content: '';
     position: absolute;
     inset: 0;
     pointer-events: none;
     background: repeating-linear-gradient(
-      0deg, transparent, transparent 3px,
-      rgba(0,0,0,0.02) 3px, rgba(0,0,0,0.02) 4px
+      0deg, transparent, transparent 2px,
+      var(--mood-scanline) 2px, var(--mood-scanline) 4px
     );
     z-index: 2;
+    border-radius: 6px;
+    transition: background 1.5s ease;
   }
 
-  /* Terminal top bar */
-  .term-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 3px 10px;
-    background: var(--bg-panel);
-    border-bottom: 1px solid var(--border-dim);
-    flex-shrink: 0;
-    min-height: 22px;
-  }
-  .term-bar-left {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .term-dot {
-    width: 4px; height: 4px;
-    border-radius: 50%;
-    background: var(--border-mid);
-    transition: all 0.8s;
-  }
-  .term-dot.on {
-    background: var(--mood-accent);
-    box-shadow: 0 0 4px var(--mood-accent);
-  }
-  .term-title {
-    font-family: var(--font-display);
-    font-size: 7px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    opacity: 0.5;
-    margin-left: 4px;
-  }
-  .term-meta {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--text-dim);
-    opacity: 0.35;
+  /* Mood glow on left edge */
+  .terminal::before {
+    content: '';
+    position: absolute;
+    top: 24px; bottom: 0; left: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--mood-accent), transparent);
+    opacity: 0.25;
+    z-index: 3;
+    transition: all 1.5s ease;
   }
 
-  /* Output scroll area */
   #output {
     flex: 1;
     overflow-y: auto;
-    overflow-x: hidden;
-    padding: 8px 12px 8px 12px;
+    padding: 10px 14px;
     position: relative;
     z-index: 1;
   }
-  #output::-webkit-scrollbar { width: 4px; }
+
+  #output::-webkit-scrollbar { width: 5px; }
   #output::-webkit-scrollbar-track { background: transparent; }
-  #output::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
-  #output::-webkit-scrollbar-thumb:hover { background: var(--border-bright); }
+  #output::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+  #output::-webkit-scrollbar-thumb:hover { background: #3a4450; }
 
   .output-line {
     white-space: pre-wrap;
     word-wrap: break-word;
+    margin-bottom: 1px;
     font-size: 14px;
-    line-height: 1.4;
-    min-height: 1.4em;
+    line-height: 1.45;
   }
+
   .output-line:empty::before { content: '\200b'; }
-  .output-line.fresh { animation: lineIn 0.1s ease-out; }
-  @keyframes lineIn { from { opacity: 0.3; } to { opacity: 1; } }
+  .output-line.fresh { animation: lineIn 0.12s ease-out; }
+  @keyframes lineIn { from { opacity: 0.4; transform: translateY(1px); } to { opacity: 1; transform: none; } }
 
   .system-msg {
     color: var(--text-dim);
+    font-style: italic;
     font-size: 12px;
-    opacity: 0.7;
   }
 
-  /* ══════════════════════════════════════
-     INPUT BAR
-     ══════════════════════════════════════ */
-  .input-area {
-    grid-column: 1;
-    grid-row: 3;
-    display: flex;
-    align-items: center;
-    padding: 4px 6px;
-    gap: 0;
-    background: var(--bg-deep);
-  }
-
-  .input-shell {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    background: var(--bg-input);
-    border: 1px solid var(--border-mid);
-    border-radius: 4px;
-    padding: 0 10px;
-    transition: border-color 0.2s;
-  }
-  .input-shell:focus-within {
-    border-color: var(--mood-accent);
-  }
-
-  .input-caret {
-    font-size: 13px;
-    color: var(--mood-accent);
-    user-select: none;
-    margin-right: 8px;
-    transition: color 2s;
-    opacity: 0.8;
-  }
-
-  #cmd-input {
-    flex: 1;
-    background: transparent;
-    border: none;
-    padding: 8px 0;
-    font-family: var(--font-mono);
-    font-size: 14px;
-    color: var(--text-bright);
-    outline: none;
-    min-width: 0;
-  }
-  #cmd-input::placeholder { color: var(--text-dim); opacity: 0.5; }
-
-  /* Send button — minimal, keyboard users dominate */
-  #send-btn {
-    font-family: var(--font-display);
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    padding: 6px 10px;
-    margin-left: 4px;
-    background: transparent;
-    border: 1px solid var(--border-dim);
-    border-radius: 3px;
-    color: var(--text-dim);
-    cursor: pointer;
-    transition: all 0.15s;
-    flex-shrink: 0;
-  }
-  #send-btn:hover {
-    color: var(--accent-green);
-    border-color: rgba(56,178,73,0.3);
-  }
-
-  /* ══════════════════════════════════════
-     SIDEBAR
-     ══════════════════════════════════════ */
-  .sidebar {
+  /* ══════════════════════════════════════════
+     HUD SIDEBAR
+     ══════════════════════════════════════════ */
+  .hud {
     grid-column: 2;
     grid-row: 2 / 4;
-    background: var(--bg-panel);
+    background: var(--bg-hud);
     border-left: 1px solid var(--border-dim);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
     overflow-x: hidden;
   }
-  .sidebar::-webkit-scrollbar { width: 3px; }
-  .sidebar::-webkit-scrollbar-track { background: transparent; }
-  .sidebar::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+  .hud::-webkit-scrollbar { width: 3px; }
+  .hud::-webkit-scrollbar-track { background: transparent; }
+  .hud::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
 
-  .sb-section {
+  .hud-section {
     padding: 10px 12px;
     border-bottom: 1px solid var(--border-dim);
   }
 
-  .sb-label {
+  .hud-label {
     font-family: var(--font-display);
-    font-size: 7px;
+    font-size: 8px;
     font-weight: 700;
     letter-spacing: 2px;
     text-transform: uppercase;
     color: var(--text-dim);
-    margin-bottom: 4px;
+    margin-bottom: 5px;
   }
 
-  /* ── Character Identity ── */
-  .char-name {
-    font-family: var(--font-ui);
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--accent-gold);
-    line-height: 1.2;
-    text-shadow: 0 0 16px rgba(200,168,78,0.12);
-  }
-  .char-name.empty { color: var(--text-dim); font-size: 13px; font-weight: 500; }
-
-  /* ── Wound bar ── */
-  .wound-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .wound-label {
-    font-family: var(--font-ui);
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-dim);
-    min-width: 44px;
-  }
-  .wound-bar { display: flex; gap: 2px; flex: 1; }
-  .wound-seg {
-    flex: 1; height: 4px; border-radius: 1px;
-    background: var(--border-dim);
-    transition: all 0.3s;
-  }
-  .wound-seg.healthy  { background: var(--accent-green); }
-  .wound-seg.stunned  { background: var(--accent-amber); }
-  .wound-seg.wounded  { background: #da6d28; }
-  .wound-seg.incap    { background: var(--accent-red); }
-  .wound-seg.mortal   { background: #8b0000; animation: pulse 1.2s infinite; }
-
-  /* ── Combat Panel ── */
-  #sec-combat { display: none; }
-  #sec-combat.combat-active { display: block; }
-
-  .combat-header {
-    display: flex; justify-content: space-between; align-items: baseline;
-    margin-bottom: 6px;
-  }
-  .combat-round {
-    font-family: var(--font-display); font-size: 9px; letter-spacing: 0.12em;
-    color: var(--accent-red); text-transform: uppercase;
-  }
-  .combat-phase {
-    font-size: 9px; color: var(--text-dim); text-transform: uppercase;
-  }
-
-  .cb-row {
-    display: flex; align-items: center; gap: 6px;
-    padding: 3px 0; border-bottom: 1px solid var(--border-dim);
-  }
-  .cb-row:last-child { border-bottom: none; }
-  .cb-name {
-    flex: 1; font-size: 11px; color: var(--text-primary);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .cb-name.is-you { color: var(--accent-cyan); font-weight: bold; }
-  .cb-init {
-    font-size: 9px; color: var(--text-dim); min-width: 20px; text-align: right;
-  }
-  .cb-wound {
-    display: flex; gap: 1px;
-  }
-  .cb-wound-pip {
-    width: 5px; height: 5px; border-radius: 1px;
-    background: var(--border-dim);
-  }
-  .cb-wound-pip.healthy  { background: var(--accent-green); }
-  .cb-wound-pip.stunned  { background: var(--accent-amber); }
-  .cb-wound-pip.wounded  { background: #da6d28; }
-  .cb-wound-pip.wounded2 { background: #c0391b; }
-  .cb-wound-pip.incap    { background: var(--accent-red); }
-  .cb-wound-pip.mortal   { background: #8b0000; animation: pulse 1.2s infinite; }
-  .cb-wound-pip.dead     { background: #3a0000; }
-
-  .cb-decl {
-    font-size: 9px; color: var(--text-dim);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    max-width: 70px;
-  }
-  .cb-decl.declared { color: var(--accent-green); }
-  .cb-decl.waiting  { color: var(--accent-amber); }
-
-  .combat-your-action {
-    margin-top: 6px; padding: 4px 6px;
-    background: rgba(229,83,75,0.07); border: 1px solid rgba(229,83,75,0.2);
-    border-radius: 3px; font-size: 10px; color: var(--text-primary);
-    line-height: 1.4;
-  }
-  .combat-waiting {
-    margin-top: 4px; font-size: 9px; color: var(--text-dim);
-    font-style: italic;
-  }
-
-  .combat-pose-timer {
-    margin-top: 6px; padding: 4px 6px;
-    background: rgba(229,83,75,0.07); border: 1px solid rgba(229,83,75,0.2);
-    border-radius: 3px; font-size: 10px; color: var(--accent-red);
-    text-align: center; font-family: var(--font-mono);
-    display: none;
-  }
-  .combat-pose-timer.active { display: block; }
-  .combat-pose-timer.urgent {
-    animation: pulse 1s infinite;
-    border-color: var(--accent-red);
-    color: var(--accent-red);
-    font-weight: bold;
-  }
-
-  .cb-pose-status {
-    font-size: 8px; padding: 1px 4px; border-radius: 2px;
-    white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em;
-  }
-  .cb-pose-status.pending {
-    color: var(--accent-amber); border: 1px solid rgba(218,173,40,0.3);
-  }
-  .cb-pose-status.ready {
-    color: var(--accent-green); border: 1px solid rgba(75,229,83,0.3);
-  }
-  .cb-pose-status.passed {
-    color: var(--text-dim); border: 1px solid var(--border-dim);
-  }
-
-  .quick-pill.combat-pill {
-    background: rgba(229,83,75,0.1); border-color: rgba(229,83,75,0.3);
-    color: var(--accent-red);
-  }
-  .quick-pill.combat-pill:hover {
-    background: rgba(229,83,75,0.2); border-color: var(--accent-red);
-  }
-
-  /* ── Stats ── */
-  .stat-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-  }
-  .stat-cell {
-    padding: 4px 0;
-  }
-  .stat-num {
-    font-family: var(--font-mono);
+  .hud-value {
+    font-family: var(--font-body);
     font-size: 15px;
-    font-weight: 400;
-    line-height: 1;
-  }
-  .stat-num.credits { color: var(--accent-amber); }
-  .stat-num.fp { color: var(--accent-blue); }
-  .stat-num.cp { color: var(--accent-green); }
-  .stat-num.dsp { color: var(--accent-red); }
-  .stat-sub {
-    font-family: var(--font-ui);
-    font-size: 9px;
     font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-top: 1px;
+    color: var(--text-bright);
+    line-height: 1.3;
+  }
+  .hud-value.name {
+    color: var(--accent-amber);
+    font-size: 16px;
+    font-weight: 700;
+    text-shadow: 0 0 12px rgba(212, 160, 32, 0.15);
+  }
+  .hud-value.room {
+    color: var(--accent-cyan);
+    font-size: 13px;
   }
 
-  /* ── Location ── */
-  .loc-name {
-    font-family: var(--font-ui);
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--accent-cyan);
-    line-height: 1.2;
-  }
-  .loc-zone {
+  /* Zone badge */
+  .zone-badge {
     display: inline-block;
     font-family: var(--font-display);
-    font-size: 7px;
+    font-size: 8px;
     font-weight: 700;
     letter-spacing: 1px;
     text-transform: uppercase;
@@ -621,160 +392,178 @@
     border: 1px solid var(--mood-border);
     background: var(--mood-glow);
     margin-top: 3px;
-    transition: all 1.5s;
+    transition: all 1s ease;
   }
 
-  /* ── Exits ── */
-  .exit-pills { display: flex; flex-wrap: wrap; gap: 3px; }
-  .exit-pill {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    padding: 2px 7px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-dim);
-    border-radius: 3px;
-    color: var(--accent-cyan);
-    cursor: pointer;
-    transition: all 0.12s;
+  /* Wound bar */
+  .wound-bar { display: flex; gap: 3px; margin-top: 4px; }
+  .wound-seg {
+    flex: 1; height: 5px; border-radius: 2px;
+    background: var(--border-dim); transition: all 0.4s;
   }
-  .exit-pill:hover {
-    border-color: var(--accent-cyan);
-    background: rgba(46,196,182,0.05);
-  }
+  .wound-seg.healthy  { background: var(--accent-green); box-shadow: 0 0 4px rgba(63,185,80,0.3); }
+  .wound-seg.stunned  { background: var(--accent-amber); }
+  .wound-seg.wounded  { background: #da6d28; }
+  .wound-seg.incap    { background: var(--accent-red); box-shadow: 0 0 4px rgba(248,81,73,0.3); }
+  .wound-seg.mortal   { background: #8b0000; box-shadow: 0 0 6px rgba(139,0,0,0.5); animation: pulse 1.5s infinite; }
 
-  /* ── Quick Commands ── */
-  .quick-pills { display: flex; flex-wrap: wrap; gap: 3px; }
-  .quick-pill {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    padding: 2px 6px;
-    background: transparent;
-    border: 1px solid var(--border-dim);
-    border-radius: 3px;
-    color: var(--text-dim);
-    cursor: pointer;
-    transition: all 0.12s;
+  /* Stat rows */
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 2px 0;
   }
-  .quick-pill:hover {
-    color: var(--accent-green);
-    border-color: rgba(56,178,73,0.3);
-  }
-
-  /* ── Comlink Feed ── */
-  .news-scroll {
-    max-height: 140px;
-    overflow-y: auto;
-  }
-  .news-scroll::-webkit-scrollbar { width: 2px; }
-  .news-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
-
-  .news-item {
-    font-family: var(--font-ui);
+  .stat-label {
+    font-family: var(--font-body);
     font-size: 11px;
     font-weight: 500;
     color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .stat-val {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .stat-val.credits { color: var(--accent-amber); }
+  .stat-val.fp { color: var(--accent-blue); }
+  .stat-val.cp { color: var(--accent-green); }
+  .stat-val.dsp { color: var(--accent-red); }
+
+  /* Quick commands & exit buttons */
+  .quick-cmds, .exit-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+
+  .quick-cmd, .exit-btn {
+    padding: 3px 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-dim);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .quick-cmd { color: var(--text-dim); }
+  .quick-cmd:hover {
+    color: var(--accent-green);
+    border-color: rgba(63,185,80,0.4);
+    background: rgba(63,185,80,0.05);
+  }
+  .exit-btn { color: var(--accent-cyan); }
+  .exit-btn:hover {
+    border-color: rgba(64,200,208,0.4);
+    background: rgba(64,200,208,0.06);
+  }
+
+  /* ── News / Comlink Feed ── */
+  .news-panel {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-dim);
+    max-height: 160px;
+    overflow-y: auto;
+  }
+  .news-panel::-webkit-scrollbar { width: 3px; }
+  .news-panel::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+
+  .news-item {
+    font-size: 11px;
+    color: var(--text-dim);
     padding: 3px 0;
-    border-bottom: 1px solid rgba(20,29,43,0.5);
-    line-height: 1.3;
+    border-bottom: 1px solid rgba(21,28,40,0.5);
+    line-height: 1.35;
+    font-family: var(--font-body);
+    font-weight: 500;
   }
   .news-item:last-child { border-bottom: none; }
   .news-tag {
     font-family: var(--font-display);
-    font-size: 6px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    padding: 0px 3px;
-    border-radius: 2px;
-    margin-right: 3px;
-    vertical-align: 1px;
-  }
-  .news-tag.combat { color: var(--accent-red); border: 1px solid rgba(229,83,75,0.3); }
-  .news-tag.system { color: var(--accent-amber); border: 1px solid rgba(212,160,32,0.3); }
-  .news-tag.event  { color: var(--accent-purple); border: 1px solid rgba(167,139,250,0.3); }
-  .news-tag.space  { color: var(--accent-cyan); border: 1px solid rgba(46,196,182,0.3); }
-
-  /* ── Alert Level Badge ── */
-  .alert-badge {
-    display: inline-block;
-    font-family: var(--font-display);
     font-size: 7px;
-    font-weight: 700;
     letter-spacing: 1px;
     text-transform: uppercase;
-    padding: 1px 6px;
+    padding: 1px 4px;
     border-radius: 2px;
-    margin-top: 3px;
-    margin-left: 4px;
-    transition: all 0.5s;
+    margin-right: 4px;
     vertical-align: 1px;
   }
-  .alert-badge.lockdown  { color: #e5534b; border: 1px solid rgba(229,83,75,0.4); background: rgba(229,83,75,0.08); }
-  .alert-badge.high_alert { color: #d4a020; border: 1px solid rgba(212,160,32,0.4); background: rgba(212,160,32,0.08); }
-  .alert-badge.standard  { color: var(--text-dim); border: 1px solid var(--border-dim); background: transparent; }
-  .alert-badge.lax       { color: #38b249; border: 1px solid rgba(56,178,73,0.3); background: rgba(56,178,73,0.06); }
-  .alert-badge.underworld { color: #a78bfa; border: 1px solid rgba(167,139,250,0.4); background: rgba(167,139,250,0.08); }
-  .alert-badge.unrest    { color: #4d9eff; border: 1px solid rgba(77,158,255,0.4); background: rgba(77,158,255,0.08); }
+  .news-tag.combat { color: var(--accent-red); border: 1px solid rgba(248,81,73,0.3); }
+  .news-tag.system { color: var(--accent-amber); border: 1px solid rgba(210,153,34,0.3); }
+  .news-tag.event  { color: var(--accent-purple); border: 1px solid rgba(176,124,255,0.3); }
+  .news-tag.space  { color: var(--accent-cyan); border: 1px solid rgba(64,200,208,0.3); }
 
-  /* ── World Event Banner ── */
-  .event-banner {
-    display: none;
-    padding: 4px 12px;
-    font-family: var(--font-ui);
-    font-size: 12px;
-    font-weight: 600;
-    text-align: center;
-    border-bottom: 1px solid var(--border-dim);
-    animation: bannerIn 0.4s ease-out;
+  /* ══════════════════════════════════════════
+     INPUT AREA
+     ══════════════════════════════════════════ */
+  .input-area {
+    grid-column: 1;
+    grid-row: 3;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 6px;
+    background: var(--bg-deep);
+  }
+
+  .input-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-mid);
+    border-radius: 5px;
+    padding: 0 12px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input-box:focus-within {
+    border-color: var(--mood-accent);
+    box-shadow: 0 0 0 2px rgba(63,185,80,0.08);
+  }
+
+  .input-prompt {
+    font-size: 14px;
+    color: var(--mood-accent);
+    user-select: none;
     flex-shrink: 0;
-    z-index: 4;
-    position: relative;
+    transition: color 1.5s ease;
   }
-  .event-banner.active { display: block; }
-  .event-banner.alert-imperial {
-    background: linear-gradient(90deg, rgba(229,83,75,0.08), rgba(229,83,75,0.15), rgba(229,83,75,0.08));
-    color: #e5534b;
-    border-bottom-color: rgba(229,83,75,0.2);
-  }
-  .event-banner.alert-neutral {
-    background: linear-gradient(90deg, rgba(212,160,32,0.06), rgba(212,160,32,0.12), rgba(212,160,32,0.06));
-    color: var(--accent-amber);
-    border-bottom-color: rgba(212,160,32,0.2);
-  }
-  .event-banner.alert-criminal {
-    background: linear-gradient(90deg, rgba(167,139,250,0.06), rgba(167,139,250,0.12), rgba(167,139,250,0.06));
-    color: var(--accent-purple);
-    border-bottom-color: rgba(167,139,250,0.2);
-  }
-  .event-banner .banner-dismiss {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 12px;
-    color: var(--text-dim);
-    cursor: pointer;
-    background: none;
+
+  #cmd-input {
+    flex: 1;
+    background: transparent;
     border: none;
-    padding: 2px 4px;
-    opacity: 0.5;
+    padding: 10px 0;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--text-bright);
+    outline: none;
   }
-  .event-banner .banner-dismiss:hover { opacity: 1; }
-  @keyframes bannerIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
+  #cmd-input::placeholder { color: var(--text-dim); font-style: italic; opacity: 0.6; }
 
-  /* ── Pre-login sidebar state ── */
-  .sb-section.needs-char {
-    opacity: 0.3;
-    pointer-events: none;
-    transition: opacity 0.5s;
+  .send-btn {
+    padding: 8px 14px;
+    font-family: var(--font-display);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: rgba(63,185,80,0.06);
+    border: 1px solid rgba(63,185,80,0.25);
+    border-radius: 4px;
+    color: var(--accent-green);
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
   }
-  .app.logged-in .sb-section.needs-char {
-    opacity: 1;
-    pointer-events: auto;
+  .send-btn:hover {
+    background: rgba(63,185,80,0.12);
+    border-color: var(--accent-green);
+    box-shadow: 0 0 10px rgba(63,185,80,0.1);
   }
 
-  /* ══════════════════════════════════════
-     ANSI COLORS
-     ══════════════════════════════════════ */
+  /* ══════════════════════════════════════════
+     ANSI Colors
+     ══════════════════════════════════════════ */
   .ansi-bold { font-weight: bold; }
   .ansi-dim { opacity: 0.6; }
   .ansi-italic { font-style: italic; }
@@ -783,42 +572,425 @@
   .ansi-strikethrough { text-decoration: line-through; }
   @keyframes blink { 50% { opacity: 0; } }
 
-  .ansi-fg-30 { color: #4d4d4d; } .ansi-fg-31 { color: #e5534b; }
-  .ansi-fg-32 { color: #38b249; } .ansi-fg-33 { color: #d29922; }
-  .ansi-fg-34 { color: #4d9eff; } .ansi-fg-35 { color: #a78bfa; }
-  .ansi-fg-36 { color: #2ec4b6; } .ansi-fg-37 { color: #d8e0ea; }
-  .ansi-fg-90 { color: #5a6577; } .ansi-fg-91 { color: #ff7b72; }
-  .ansi-fg-92 { color: #6ee07a; } .ansi-fg-93 { color: #e3b341; }
-  .ansi-fg-94 { color: #79c0ff; } .ansi-fg-95 { color: #c4a8ff; }
-  .ansi-fg-96 { color: #5ee8d8; } .ansi-fg-97 { color: #f0f4f8; }
+  .ansi-fg-30 { color: #4d4d4d; } .ansi-fg-31 { color: #f85149; }
+  .ansi-fg-32 { color: #3fb950; } .ansi-fg-33 { color: #d29922; }
+  .ansi-fg-34 { color: #58a6ff; } .ansi-fg-35 { color: #bc8cff; }
+  .ansi-fg-36 { color: #56d4dd; } .ansi-fg-37 { color: #e6edf3; }
+  .ansi-fg-90 { color: #6e7681; } .ansi-fg-91 { color: #ff7b72; }
+  .ansi-fg-92 { color: #7ee787; } .ansi-fg-93 { color: #e3b341; }
+  .ansi-fg-94 { color: #79c0ff; } .ansi-fg-95 { color: #d2a8ff; }
+  .ansi-fg-96 { color: #76e4ed; } .ansi-fg-97 { color: #ffffff; }
 
-  .ansi-bg-40 { background: #4d4d4d; } .ansi-bg-41 { background: #7a2420; }
+  .ansi-bg-40 { background: #4d4d4d; } .ansi-bg-41 { background: #8b2520; }
   .ansi-bg-42 { background: #1a4d2e; } .ansi-bg-43 { background: #6b4e14; }
-  .ansi-bg-44 { background: #1a3a6b; } .ansi-bg-45 { background: #4a3070; }
-  .ansi-bg-46 { background: #145550; } .ansi-bg-47 { background: #c0c0c0; color: #000; }
+  .ansi-bg-44 { background: #1a3a6b; } .ansi-bg-45 { background: #5a3d7a; }
+  .ansi-bg-46 { background: #1a5c5f; } .ansi-bg-47 { background: #cccccc; color: #000; }
 
-  /* ══════════════════════════════════════
-     MOBILE
-     ══════════════════════════════════════ */
+  /* ══════════════════════════════════════════
+     Mobile
+     ══════════════════════════════════════════ */
+  /* ══════════════════════════════════════════
+     SPACE HUD PANEL
+     ══════════════════════════════════════════ */
+
+  /* Space panel hidden by default, shown when active */
+  #space-panel { display: none; }
+  #space-panel.space-active { display: block; }
+
+  /* Ground sections hidden while in space */
+  .ground-only { transition: opacity 0.3s; }
+  .ground-only.space-hidden { display: none; }
+
+  /* Ship name / class header */
+  .space-ship-name {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    text-shadow: 0 0 10px rgba(64,200,208,0.25);
+    letter-spacing: 1px;
+  }
+  .space-ship-class {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 1px;
+  }
+
+  /* Zone display */
+  .space-zone-name {
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-blue);
+  }
+  .space-zone-type {
+    font-family: var(--font-display);
+    font-size: 7px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* Hull bar — color shifts green→yellow→red */
+  .hull-bar-wrap { margin-top: 5px; }
+  .hull-bar-track {
+    width: 100%; height: 7px;
+    background: var(--border-dim);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  .hull-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease, background 0.5s ease;
+    background: var(--accent-green);
+  }
+  .hull-bar-fill.hull-good   { background: var(--accent-green); box-shadow: 0 0 4px rgba(63,185,80,0.4); }
+  .hull-bar-fill.hull-warn   { background: var(--accent-amber); box-shadow: 0 0 4px rgba(212,160,32,0.4); }
+  .hull-bar-fill.hull-crit   { background: var(--accent-red);   box-shadow: 0 0 6px rgba(248,81,73,0.5); animation: pulse 1.2s ease-in-out infinite; }
+  .hull-label-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 3px;
+  }
+  .hull-condition {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .hull-numbers {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* Shield arcs — 2×2 compass rose */
+  .shield-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 2px;
+    margin-top: 6px;
+    align-items: center;
+    justify-items: center;
+  }
+  .shield-arc {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--border-dim);
+    min-width: 28px;
+    text-align: center;
+    transition: all 0.3s;
+  }
+  .shield-arc.has-shields {
+    color: var(--accent-blue);
+    border-color: rgba(77,158,255,0.3);
+    background: rgba(77,158,255,0.06);
+    text-shadow: 0 0 6px rgba(77,158,255,0.4);
+  }
+  .shield-arc.no-shields {
+    color: var(--text-dim);
+    border-color: var(--border-dim);
+  }
+  .shield-dir {
+    font-family: var(--font-display);
+    font-size: 7px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .shield-center {
+    font-family: var(--font-display);
+    font-size: 7px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    text-align: center;
+    padding: 0 4px;
+  }
+
+  /* Speed / scale row */
+  .space-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 2px 0;
+  }
+  .space-stat-label {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .space-stat-val {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--accent-cyan);
+  }
+  .space-stat-val.speed-val { color: var(--accent-green); }
+
+  /* System damage indicators */
+  .sys-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 5px;
+  }
+  .sys-chip {
+    font-family: var(--font-display);
+    font-size: 7px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 2px 5px;
+    border-radius: 2px;
+    border: 1px solid var(--border-dim);
+    transition: all 0.3s;
+  }
+  .sys-chip.sys-ok      { color: var(--accent-green); border-color: rgba(63,185,80,0.25); background: rgba(63,185,80,0.04); }
+  .sys-chip.sys-damaged { color: var(--accent-red);   border-color: rgba(248,81,73,0.3);  background: rgba(248,81,73,0.06); animation: pulse 1.5s ease-in-out infinite; }
+
+  /* Status warnings (ion/tractor/frozen) */
+  .space-warning {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--accent-red);
+    padding: 3px 6px;
+    border-radius: 3px;
+    border: 1px solid rgba(248,81,73,0.35);
+    background: rgba(248,81,73,0.07);
+    margin-top: 3px;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .space-warning.warn-ion   { color: var(--accent-blue); border-color: rgba(77,158,255,0.35); background: rgba(77,158,255,0.07); }
+  .space-warning.warn-tractor { color: var(--accent-amber); border-color: rgba(212,160,32,0.35); background: rgba(212,160,32,0.07); }
+
+  /* Transit countdown */
+  .transit-banner {
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--accent-purple);
+    text-align: center;
+    padding: 5px 8px;
+    border: 1px solid rgba(176,124,255,0.25);
+    border-radius: 4px;
+    background: rgba(176,124,255,0.05);
+    margin-top: 4px;
+  }
+  .transit-dest {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--accent-cyan);
+    margin-top: 2px;
+    text-align: center;
+  }
+  .transit-eta {
+    font-family: var(--font-mono);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent-purple);
+    text-align: center;
+    text-shadow: 0 0 12px rgba(176,124,255,0.4);
+    margin-top: 2px;
+    letter-spacing: 2px;
+  }
+
+  /* Crew roster */
+  .crew-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(21,28,40,0.4);
+  }
+  .crew-row:last-child { border-bottom: none; }
+  .crew-station {
+    font-family: var(--font-display);
+    font-size: 7px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    min-width: 60px;
+  }
+  .crew-station.my-station { color: var(--accent-amber); }
+  .crew-name {
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-bright);
+    flex: 1;
+    text-align: right;
+  }
+  .crew-name.npc { color: var(--text-dim); font-style: italic; }
+  .crew-name.empty { color: var(--border-mid); font-style: italic; font-size: 11px; }
+
+  /* Contacts list */
+  .contact-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(21,28,40,0.4);
+  }
+  .contact-row:last-child { border-bottom: none; }
+  .contact-name {
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-bright);
+    flex: 1;
+  }
+  .contact-range {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-left: 6px;
+  }
+  .contact-range.range-close  { color: var(--accent-red); }
+  .contact-range.range-medium { color: var(--accent-amber); }
+  .contact-range.range-long   { color: var(--accent-green); }
+
+  /* Station quick buttons (space mode) */
+  .space-quick-cmds { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .space-quick-btn {
+    padding: 3px 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--bg-input);
+    border: 1px solid rgba(64,200,208,0.2);
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--accent-cyan);
+    transition: all 0.15s;
+  }
+  .space-quick-btn:hover {
+    color: var(--accent-blue);
+    border-color: rgba(77,158,255,0.4);
+    background: rgba(77,158,255,0.07);
+  }
+
+  /* Station badge on quick section header */
+  .station-badge {
+    display: inline-block;
+    font-family: var(--font-display);
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 2px;
+    color: var(--accent-amber);
+    border: 1px solid rgba(212,160,32,0.3);
+    background: rgba(212,160,32,0.06);
+    margin-left: 5px;
+    vertical-align: 1px;
+  }
+
+  /* ══════════════════════════════════════════
+     ZONE MAP & TACTICAL RADAR (Drop 10)
+     ══════════════════════════════════════════ */
+
+  .svg-panel-wrap {
+    padding: 8px 10px 10px;
+    border-bottom: 1px solid var(--border-dim);
+  }
+  .svg-panel-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 6px;
+  }
+  .svg-panel-toggle .hud-label { margin-bottom: 0; }
+  .svg-toggle-arrow {
+    font-size: 9px;
+    color: var(--text-dim);
+    transition: transform 0.2s;
+  }
+  .svg-panel-toggle.collapsed .svg-toggle-arrow { transform: rotate(-90deg); }
+
+  .zone-map-svg, .radar-svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+  }
+
+  /* Zone map node styles (applied via SVG class) */
+  .zm-node-current { fill: var(--accent-cyan); filter: drop-shadow(0 0 5px rgba(64,200,208,0.7)); }
+  .zm-node-current-pulse { animation: zmPulse 1.5s ease-in-out infinite; }
+  @keyframes zmPulse {
+    0%, 100% { opacity: 1; r: 6; }
+    50%       { opacity: 0.6; r: 8; }
+  }
+  .zm-node-adjacent { fill: var(--accent-blue); cursor: pointer; }
+  .zm-node-adjacent:hover { fill: var(--accent-cyan); filter: drop-shadow(0 0 3px rgba(64,200,208,0.5)); }
+  .zm-node-distant   { fill: var(--border-mid); }
+  .zm-edge           { stroke: var(--border-mid); stroke-width: 1; opacity: 0.5; }
+  .zm-edge-active    { stroke: rgba(64,200,208,0.4); stroke-width: 1.5; stroke-dasharray: 4 3; animation: zmFlow 1.2s linear infinite; }
+  @keyframes zmFlow  { to { stroke-dashoffset: -14; } }
+  .zm-label          { fill: var(--text-dim); font-family: 'Share Tech Mono', monospace; font-size: 7px; }
+  .zm-label-current  { fill: var(--accent-cyan); font-size: 8px; }
+  .zm-label-adjacent { fill: var(--accent-blue); cursor: pointer; }
+  .zm-hazard-badge   { fill: rgba(248,81,73,0.15); stroke: rgba(248,81,73,0.4); stroke-width: 1; }
+  .zm-hazard-text    { fill: var(--accent-red); font-family: 'Orbitron', sans-serif; font-size: 6px; font-weight: 700; letter-spacing: 0.5px; }
+
+  /* Radar styles */
+  .radar-bg          { fill: rgba(10,13,19,0.9); }
+  .radar-ring        { fill: none; stroke: var(--border-dim); stroke-width: 1; }
+  .radar-ring-label  { fill: var(--text-dim); font-family: 'Share Tech Mono', monospace; font-size: 7px; }
+  .radar-crosshair   { stroke: var(--border-dim); stroke-width: 0.5; opacity: 0.4; }
+  .radar-sweep       { fill: none; stroke: rgba(64,200,208,0.15); stroke-width: 40; stroke-dasharray: 20 360; transform-origin: center; animation: radarSweep 4s linear infinite; }
+  @keyframes radarSweep { to { stroke-dashoffset: -380; } }
+  .radar-self        { fill: var(--accent-cyan); }
+  .radar-contact-player  { fill: var(--accent-blue); cursor: pointer; }
+  .radar-contact-npc     { fill: var(--accent-amber); cursor: default; }
+  .radar-contact-hostile { fill: var(--accent-red); animation: pulse 1s ease-in-out infinite; }
+  .radar-contact-label   { fill: var(--text-dim); font-family: 'Share Tech Mono', monospace; font-size: 7px; pointer-events: none; }
+  .radar-anomaly     { fill: none; stroke: var(--accent-purple); stroke-width: 1.5; animation: pulse 1.8s ease-in-out infinite; cursor: pointer; }
+  .radar-anomaly-resolved { stroke: var(--accent-green); animation: none; }
+  .radar-anomaly-text { fill: var(--accent-purple); font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 700; }
+  .radar-anomaly-text.resolved { fill: var(--accent-green); }
+
   @media (max-width: 700px) {
     .app {
       grid-template-columns: 1fr;
-      grid-template-rows: 38px 1fr 46px auto;
+      grid-template-rows: var(--header-h) 1fr var(--input-h) auto;
     }
-    .sidebar {
+    .hud {
       grid-column: 1; grid-row: 4;
       flex-direction: row; flex-wrap: wrap;
       border-left: none; border-top: 1px solid var(--border-dim);
       padding: 4px; gap: 4px;
-      max-height: 120px;
+      max-height: 130px; overflow-y: auto;
     }
-    .sb-section { flex: 1; min-width: 90px; padding: 6px; }
-    .sb-label { font-size: 6px; }
-    .header-sub, .header-sep { display: none; }
-    .header-logo { font-size: 9px; letter-spacing: 3px; }
+    .hud-section { flex: 1; min-width: 100px; padding: 6px 8px; }
+    .hud-label { font-size: 7px; margin-bottom: 2px; }
+    .hud-value { font-size: 13px; }
+    .header-sub { display: none; }
+    .header-logo { font-size: 10px; letter-spacing: 2px; }
     #cmd-input { font-size: 16px; }
-    .main-area { padding: 3px; }
-    .news-scroll { max-height: 60px; }
+    .terminal-wrap { padding: 4px; }
+    .news-panel { max-height: 70px; }
   }
 </style>
 </head>
@@ -827,36 +999,31 @@
 <div class="app" id="app">
 
   <!-- HEADER -->
-  <header class="header">
+  <div class="header">
     <div class="header-brand">
-      <span class="header-logo">Star Wars</span>
-      <div class="header-sep"></div>
-      <span class="header-sub">D6 Revised &amp; Expanded</span>
+      <div class="header-logo">Star Wars</div>
+      <div class="header-sub">D6 Revised &amp; Expanded</div>
     </div>
     <div class="header-right">
       <div class="conn-status">
         <div class="conn-dot" id="conn-dot"></div>
-        <span class="conn-label" id="conn-label">Offline</span>
+        <span id="conn-label">Disconnected</span>
       </div>
       <button class="conn-btn disconnect" id="conn-btn">Disconnect</button>
     </div>
-  </header>
+  </div>
 
-  <!-- TERMINAL -->
-  <div class="main-area">
+  <!-- TERMINAL / GAME TEXT -->
+  <div class="terminal-wrap">
     <div class="terminal" id="terminal">
-      <div class="term-bar">
-        <div class="term-bar-left">
-          <div class="term-dot" id="td0"></div>
-          <div class="term-dot" id="td1"></div>
-          <div class="term-dot" id="td2"></div>
-          <span class="term-title">Terminal</span>
+      <div class="terminal-bezel">
+        <div class="bezel-left">
+          <div class="bezel-dot" id="bezel-dot-1"></div>
+          <div class="bezel-dot" id="bezel-dot-2"></div>
+          <div class="bezel-dot" id="bezel-dot-3"></div>
+          <span class="bezel-label">Terminal</span>
         </div>
-        <span class="term-meta" id="term-meta"></span>
-      </div>
-      <div class="event-banner" id="event-banner">
-        <span id="event-banner-text"></span>
-        <button class="banner-dismiss" id="event-dismiss">&times;</button>
+        <div class="bezel-right" id="bezel-info"></div>
       </div>
       <div id="output"></div>
     </div>
@@ -864,114 +1031,232 @@
 
   <!-- INPUT -->
   <div class="input-area">
-    <div class="input-shell">
-      <span class="input-caret">&gt;</span>
+    <div class="input-box">
+      <span class="input-prompt">&gt;</span>
       <input type="text" id="cmd-input" placeholder="Enter command..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     </div>
-    <button id="send-btn">Send</button>
+    <button class="send-btn" id="send-btn">Send</button>
   </div>
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <!-- Character -->
-    <div class="sb-section">
-      <div class="sb-label">Character</div>
-      <div class="char-name empty" id="hud-name">Not logged in</div>
-    </div>
+  <!-- HUD SIDEBAR -->
+  <!-- HUD SIDEBAR -->
+  <div class="hud">
 
-    <!-- Condition -->
-    <div class="sb-section needs-char" id="sec-condition">
-      <div class="sb-label">Condition</div>
-      <div class="wound-row">
-        <span class="wound-label" id="hud-wound">OK</span>
-        <div class="wound-bar" id="wound-bar">
-          <div class="wound-seg healthy"></div>
-          <div class="wound-seg healthy"></div>
-          <div class="wound-seg healthy"></div>
-          <div class="wound-seg healthy"></div>
-          <div class="wound-seg healthy"></div>
+    <!-- SPACE HUD PANEL (hidden until space_state.active = true) -->
+    <div id="space-panel">
+
+      <div class="hud-section">
+        <div class="hud-label">Vessel</div>
+        <div class="space-ship-name" id="sp-ship-name">—</div>
+        <div class="space-ship-class" id="sp-ship-class"></div>
+      </div>
+
+      <div class="hud-section">
+        <div class="hud-label">Zone</div>
+        <div class="space-zone-name" id="sp-zone-name">—</div>
+        <div class="space-zone-type" id="sp-zone-type"></div>
+      </div>
+
+      <div class="hud-section">
+        <div class="hud-label">Hull Integrity</div>
+        <div class="hull-bar-wrap">
+          <div class="hull-bar-track">
+            <div class="hull-bar-fill hull-good" id="sp-hull-bar" style="width:100%;"></div>
+          </div>
+          <div class="hull-label-row">
+            <span class="hull-condition" id="sp-hull-condition">Pristine</span>
+            <span class="hull-numbers" id="sp-hull-numbers">—/—</span>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Stats -->
-    <div class="sb-section needs-char" id="sec-stats">
-      <div class="sb-label">Stats</div>
-      <div class="stat-grid">
-        <div class="stat-cell">
-          <div class="stat-num credits" id="hud-credits">—</div>
-          <div class="stat-sub">Credits</div>
-        </div>
-        <div class="stat-cell">
-          <div class="stat-num fp" id="hud-fp">—</div>
-          <div class="stat-sub">Force</div>
-        </div>
-        <div class="stat-cell">
-          <div class="stat-num cp" id="hud-cp">—</div>
-          <div class="stat-sub">Char Pts</div>
-        </div>
-        <div class="stat-cell" id="dsp-cell" style="display:none;">
-          <div class="stat-num dsp" id="hud-dsp">0</div>
-          <div class="stat-sub">Dark Side</div>
+      <div class="hud-section" id="sp-shields-section">
+        <div class="hud-label">Shields</div>
+        <div class="shield-grid" id="sp-shield-grid">
+          <div></div>
+          <div class="shield-arc no-shields" id="sp-arc-front">0D</div>
+          <div></div>
+          <div class="shield-arc no-shields" id="sp-arc-left">0D</div>
+          <div class="shield-center">SHD</div>
+          <div class="shield-arc no-shields" id="sp-arc-right">0D</div>
+          <div></div>
+          <div class="shield-arc no-shields" id="sp-arc-rear">0D</div>
+          <div></div>
         </div>
       </div>
-    </div>
 
-    <!-- Location -->
-    <div class="sb-section needs-char">
-      <div class="sb-label">Location</div>
-      <div class="loc-name" id="hud-room">—</div>
-      <div>
-        <span class="loc-zone" id="hud-zone" style="display:none;"></span>
-        <span class="alert-badge" id="hud-alert" style="display:none;"></span>
-      </div>
-    </div>
-
-    <!-- Exits -->
-    <div class="sb-section needs-char">
-      <div class="sb-label">Exits</div>
-      <div class="exit-pills" id="hud-exits">
-        <span style="color:var(--text-dim);font-size:11px;">—</span>
-      </div>
-    </div>
-
-    <!-- Comlink -->
-    <div class="sb-section">
-      <div class="sb-label">Comlink Feed</div>
-      <div class="news-scroll" id="news-scroll">
-        <div id="news-items">
-          <div class="news-item" style="font-style:italic;opacity:0.5;">Scanning frequencies...</div>
+      <div class="hud-section">
+        <div class="space-stat-row">
+          <span class="space-stat-label">Speed</span>
+          <span class="space-stat-val speed-val" id="sp-speed">—</span>
+        </div>
+        <div class="space-stat-row">
+          <span class="space-stat-label">Scale</span>
+          <span class="space-stat-val" id="sp-scale">—</span>
+        </div>
+        <div class="space-stat-row" id="sp-ion-row" style="display:none;">
+          <span class="space-stat-label">Ion Penalty</span>
+          <span class="space-stat-val" style="color:var(--accent-red);" id="sp-ion-pen">0</span>
         </div>
       </div>
+
+      <div class="hud-section" id="sp-warnings-section" style="display:none;">
+        <div class="hud-label">Warnings</div>
+        <div id="sp-warnings"></div>
+      </div>
+
+      <div class="hud-section" id="sp-transit-section" style="display:none;">
+        <div class="transit-banner" id="sp-transit-label">Hyperspace Transit</div>
+        <div class="transit-dest" id="sp-transit-dest"></div>
+        <div class="transit-eta" id="sp-transit-eta"></div>
+      </div>
+
+      <div class="hud-section" id="sp-systems-section">
+        <div class="hud-label">Systems</div>
+        <div class="sys-grid" id="sp-sys-grid"></div>
+      </div>
+
+      <div class="hud-section" id="sp-crew-section">
+        <div class="hud-label">Crew</div>
+        <div id="sp-crew-list"></div>
+      </div>
+
+      <div class="hud-section" id="sp-contacts-section" style="display:none;">
+        <div class="hud-label">Contacts</div>
+        <div id="sp-contacts-list"></div>
+      </div>
+
+      <div class="hud-section">
+        <div class="hud-label">Station <span class="station-badge" id="sp-station-badge">—</span></div>
+        <div class="space-quick-cmds" id="sp-quick-cmds"></div>
+      </div>
+
+      <!-- ZONE MAP -->
+      <div class="svg-panel-wrap" id="zm-wrap">
+        <div class="svg-panel-toggle" id="zm-toggle">
+          <div class="hud-label">Zone Map</div>
+          <span class="svg-toggle-arrow">▾</span>
+        </div>
+        <div id="zm-body">
+          <svg class="zone-map-svg" id="zone-map-svg" viewBox="0 0 226 180" xmlns="http://www.w3.org/2000/svg">
+            <text x="113" y="90" text-anchor="middle" style="fill:var(--text-dim);font-size:10px;font-family:Share Tech Mono,monospace;">No data</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- TACTICAL RADAR -->
+      <div class="svg-panel-wrap" id="radar-wrap">
+        <div class="svg-panel-toggle" id="radar-toggle">
+          <div class="hud-label">Tactical Radar</div>
+          <span class="svg-toggle-arrow">▾</span>
+        </div>
+        <div id="radar-body">
+          <svg class="radar-svg" id="radar-svg" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="90" cy="90" r="88" class="radar-bg"/>
+            <circle cx="90" cy="90" r="22"  class="radar-ring"/>
+            <circle cx="90" cy="90" r="44"  class="radar-ring"/>
+            <circle cx="90" cy="90" r="66"  class="radar-ring"/>
+            <circle cx="90" cy="90" r="88"  class="radar-ring"/>
+            <line x1="90" y1="2"  x2="90"  y2="178" class="radar-crosshair"/>
+            <line x1="2"  y1="90" x2="178" y2="90"  class="radar-crosshair"/>
+            <text x="91" y="71"   class="radar-ring-label">Close</text>
+            <text x="91" y="49"   class="radar-ring-label">Short</text>
+            <text x="91" y="27"   class="radar-ring-label">Med</text>
+            <text x="91" y="6"    class="radar-ring-label">Long</text>
+            <circle cx="90" cy="90" r="84" class="radar-sweep"/>
+            <circle cx="90" cy="90" r="4"  class="radar-self"/>
+          </svg>
+        </div>
+      </div>
+
+    </div><!-- /space-panel -->
+
+    <!-- GROUND SECTIONS (hidden while in space) -->
+    <div class="ground-only" id="g-character">
+    <div class="hud-section">
+      <div class="hud-label">Character</div>
+      <div class="hud-value name" id="hud-name">&mdash;</div>
+    </div>
+    </div><!-- /g-character -->
+
+    <div class="ground-only" id="g-condition">
+    <div class="hud-section">
+      <div class="hud-label">Condition</div>
+      <div class="hud-value" id="hud-wound" style="font-size:13px;">Healthy</div>
+      <div class="wound-bar" id="wound-bar">
+        <div class="wound-seg healthy"></div>
+        <div class="wound-seg healthy"></div>
+        <div class="wound-seg healthy"></div>
+        <div class="wound-seg healthy"></div>
+        <div class="wound-seg healthy"></div>
+      </div>
+    </div>
+    </div><!-- /g-condition -->
+
+    <div class="ground-only" id="g-stats">
+
+    <div class="hud-section">
+      <div class="hud-label">Stats</div>
+      <div class="stat-row">
+        <span class="stat-label">Credits</span>
+        <span class="stat-val credits" id="hud-credits">&mdash;</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Force</span>
+        <span class="stat-val fp" id="hud-fp">&mdash;</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Char Pts</span>
+        <span class="stat-val cp" id="hud-cp">&mdash;</span>
+      </div>
+      <div class="stat-row" id="dsp-row" style="display:none;">
+        <span class="stat-label">Dark Side</span>
+        <span class="stat-val dsp" id="hud-dsp">0</span>
+      </div>
     </div>
 
-    <!-- Combat Panel (shown only during active combat) -->
-    <div class="sb-section needs-char" id="sec-combat">
-      <div class="combat-header">
-        <span class="combat-round" id="cb-round">ROUND 1</span>
-        <span class="combat-phase" id="cb-phase">DECLARATION</span>
+    </div><!-- /g-stats -->
+
+    <div class="ground-only" id="g-location">
+    <div class="hud-section">
+      <div class="hud-label">Location</div>
+      <div class="hud-value room" id="hud-room">&mdash;</div>
+      <div class="zone-badge" id="hud-zone" style="display:none;"></div>
+    </div>
+    </div><!-- /g-location -->
+
+    <div class="ground-only" id="g-exits">
+    <div class="hud-section">
+      <div class="hud-label">Exits</div>
+      <div class="exit-list" id="hud-exits">
+        <span style="color:var(--text-dim); font-size:12px;">&mdash;</span>
       </div>
-      <div id="cb-combatants"></div>
-      <div class="combat-your-action" id="cb-your-action" style="display:none;"></div>
-      <div class="combat-pose-timer" id="cb-pose-timer"></div>
-      <div class="combat-waiting" id="cb-waiting"></div>
+    </div>
+    </div><!-- /g-exits -->
+
+    <div class="news-panel" id="news-panel">
+      <div class="hud-label">Comlink Feed</div>
+      <div id="news-items">
+        <div class="news-item" style="color:var(--text-dim); font-style:italic;">Scanning frequencies...</div>
+      </div>
     </div>
 
-    <!-- Quick Commands -->
-    <div class="sb-section needs-char">
-      <div class="sb-label">Quick</div>
-      <div class="quick-pills" id="quick-pills">
-        <button class="quick-pill" onclick="sendCmd('look')">look</button>
-        <button class="quick-pill" onclick="sendCmd('inventory')">inv</button>
-        <button class="quick-pill" onclick="sendCmd('score')">score</button>
-        <button class="quick-pill" onclick="sendCmd('sheet')">sheet</button>
-        <button class="quick-pill" onclick="sendCmd('missions')">jobs</button>
-        <button class="quick-pill" onclick="sendCmd('who')">who</button>
-        <button class="quick-pill" onclick="sendCmd('news')">news</button>
-        <button class="quick-pill" onclick="sendCmd('help')">help</button>
+    <div class="ground-only" id="g-quick">
+    <div class="hud-section">
+      <div class="hud-label">Quick</div>
+      <div class="quick-cmds">
+        <button class="quick-cmd" onclick="sendCmd('look')">look</button>
+        <button class="quick-cmd" onclick="sendCmd('inventory')">inv</button>
+        <button class="quick-cmd" onclick="sendCmd('score')">score</button>
+        <button class="quick-cmd" onclick="sendCmd('sheet')">sheet</button>
+        <button class="quick-cmd" onclick="sendCmd('missions')">jobs</button>
+        <button class="quick-cmd" onclick="sendCmd('who')">who</button>
+        <button class="quick-cmd" onclick="sendCmd('news')">news</button>
+        <button class="quick-cmd" onclick="sendCmd('help')">help</button>
       </div>
     </div>
-  </aside>
+    </div><!-- /g-quick -->
+  </div><!-- /hud -->
 
 </div>
 
@@ -980,20 +1265,18 @@
   'use strict';
 
   var WS_PORT = 4001;
-  var MAX_LINES = 2000;
-  var RECONNECT_MS = 3000;
-  var MAX_HIST = 100;
-  var MAX_NEWS = 20;
+  var MAX_OUTPUT_LINES = 2000;
+  var RECONNECT_DELAY_MS = 3000;
+  var MAX_HISTORY = 100;
+  var MAX_NEWS_ITEMS = 20;
 
-  // DOM refs
   var app       = document.getElementById('app');
   var output    = document.getElementById('output');
   var cmdInput  = document.getElementById('cmd-input');
+  var sendBtn   = document.getElementById('send-btn');
   var connDot   = document.getElementById('conn-dot');
   var connLabel = document.getElementById('conn-label');
   var connBtn   = document.getElementById('conn-btn');
-  var termMeta  = document.getElementById('term-meta');
-  var termDots  = [document.getElementById('td0'), document.getElementById('td1'), document.getElementById('td2')];
 
   var hudName    = document.getElementById('hud-name');
   var hudWound   = document.getElementById('hud-wound');
@@ -1002,515 +1285,334 @@
   var hudFp      = document.getElementById('hud-fp');
   var hudCp      = document.getElementById('hud-cp');
   var hudDsp     = document.getElementById('hud-dsp');
-  var dspCell    = document.getElementById('dsp-cell');
+  var dspRow     = document.getElementById('dsp-row');
   var hudRoom    = document.getElementById('hud-room');
   var hudZone    = document.getElementById('hud-zone');
   var hudExits   = document.getElementById('hud-exits');
-  var hudAlert   = document.getElementById('hud-alert');
-  var eventBanner = document.getElementById('event-banner');
-  var eventBannerText = document.getElementById('event-banner-text');
-  var eventDismiss = document.getElementById('event-dismiss');
   var newsItems  = document.getElementById('news-items');
+  var bezelDots  = [
+    document.getElementById('bezel-dot-1'),
+    document.getElementById('bezel-dot-2'),
+    document.getElementById('bezel-dot-3')
+  ];
+  var bezelInfo  = document.getElementById('bezel-info');
 
-  var ws = null, reconnTimer = null;
-  var hist = [], histIdx = -1, tmpInput = '';
-  var intentDC = false;
-  var mood = '', lines = 0, loggedIn = false;
+  var ws = null;
+  var reconnectTimer = null;
+  var history = [];
+  var historyIdx = -1;
+  var tempInput = '';
+  var intentionalDisconnect = false;
+  var currentMood = '';
+  var lineCount = 0;
 
-  // ═══════════ Helpers ═══════════
+  // ═══════════ ANSI Parser ═══════════
 
-  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
 
-  // ═══════════ ANSI → HTML ═══════════
+  function ansiToHtml(text) {
+    var result = '';
+    var lastIdx = 0;
+    var fg = null, bg = null;
+    var bold = false, dimOn = false, italic = false;
+    var underline = false, blinkOn = false, strike = false;
+    var openCount = 0;
 
-  function ansi(text) {
-    var r = '', li = 0, fg = null, bg = null;
-    var b = false, d = false, it = false, ul = false, bl = false, st = false;
-    var oc = 0;
-    function cls() { while (oc > 0) { r += '</span>'; oc--; } }
-    function opn() {
-      var c = [];
-      if (b) c.push('ansi-bold');  if (d) c.push('ansi-dim');
-      if (it) c.push('ansi-italic'); if (ul) c.push('ansi-underline');
-      if (bl) c.push('ansi-blink');  if (st) c.push('ansi-strikethrough');
-      if (fg !== null) c.push('ansi-fg-'+fg);
-      if (bg !== null) c.push('ansi-bg-'+bg);
-      if (c.length) { cls(); r += '<span class="'+c.join(' ')+'">'; oc++; }
-    }
-    var rx = /\x1b\[([0-9;]*)m/g, m;
-    while ((m = rx.exec(text)) !== null) {
-      r += esc(text.substring(li, m.index));
-      li = m.index + m[0].length;
-      var codes = m[1] ? m[1].split(';').map(Number) : [0];
-      for (var i = 0; i < codes.length; i++) {
-        var c = codes[i];
-        if (c===0){cls();fg=bg=null;b=d=it=ul=bl=st=false;continue;}
-        if (c===1) b=true; else if (c===2) d=true; else if (c===3) it=true;
-        else if (c===4) ul=true; else if (c===5) bl=true; else if (c===9) st=true;
-        else if (c===22){b=d=false;} else if (c===23) it=false;
-        else if (c===24) ul=false; else if (c===25) bl=false; else if (c===29) st=false;
-        else if (c>=30&&c<=37) fg=c; else if (c===39) fg=null;
-        else if (c>=40&&c<=47) bg=c; else if (c===49) bg=null;
-        else if (c>=90&&c<=97) fg=c;
+    function closeSpans() { while (openCount > 0) { result += '</span>'; openCount--; } }
+
+    function openSpan() {
+      var classes = [];
+      if (bold) classes.push('ansi-bold');
+      if (dimOn) classes.push('ansi-dim');
+      if (italic) classes.push('ansi-italic');
+      if (underline) classes.push('ansi-underline');
+      if (blinkOn) classes.push('ansi-blink');
+      if (strike) classes.push('ansi-strikethrough');
+      if (fg !== null) classes.push('ansi-fg-' + fg);
+      if (bg !== null) classes.push('ansi-bg-' + bg);
+      if (classes.length > 0) {
+        closeSpans();
+        result += '<span class="' + classes.join(' ') + '">';
+        openCount++;
       }
-      opn();
     }
-    r += esc(text.substring(li));
-    cls();
-    return r;
+
+    var regex = /\x1b\[([0-9;]*)m/g;
+    var match;
+    while ((match = regex.exec(text)) !== null) {
+      result += escapeHtml(text.substring(lastIdx, match.index));
+      lastIdx = match.index + match[0].length;
+      var codes = match[1] ? match[1].split(';').map(Number) : [0];
+      for (var ci = 0; ci < codes.length; ci++) {
+        var code = codes[ci];
+        if (code === 0) { closeSpans(); fg = bg = null; bold = dimOn = italic = underline = blinkOn = strike = false; continue; }
+        if (code === 1) bold = true;
+        else if (code === 2) dimOn = true;
+        else if (code === 3) italic = true;
+        else if (code === 4) underline = true;
+        else if (code === 5) blinkOn = true;
+        else if (code === 9) strike = true;
+        else if (code === 22) { bold = false; dimOn = false; }
+        else if (code === 23) italic = false;
+        else if (code === 24) underline = false;
+        else if (code === 25) blinkOn = false;
+        else if (code === 29) strike = false;
+        else if (code >= 30 && code <= 37) fg = code;
+        else if (code === 39) fg = null;
+        else if (code >= 40 && code <= 47) bg = code;
+        else if (code === 49) bg = null;
+        else if (code >= 90 && code <= 97) fg = code;
+      }
+      openSpan();
+    }
+    result += escapeHtml(text.substring(lastIdx));
+    closeSpans();
+    return result;
   }
 
   // ═══════════ Output ═══════════
 
-  function addOutput(text, cls) {
-    var ls = text.split(/\r?\n/);
-    for (var i = 0; i < ls.length; i++) {
-      var el = document.createElement('div');
-      el.className = 'output-line fresh';
-      if (cls) el.classList.add(cls);
-      el.innerHTML = ansi(ls[i]);
-      output.appendChild(el);
-      lines++;
+  function appendOutput(text, cssClass) {
+    var lines = text.split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var div = document.createElement('div');
+      div.className = 'output-line fresh';
+      if (cssClass) div.classList.add(cssClass);
+      div.innerHTML = ansiToHtml(lines[i]);
+      output.appendChild(div);
+      lineCount++;
     }
-    while (output.children.length > MAX_LINES) output.removeChild(output.firstChild);
+    while (output.children.length > MAX_OUTPUT_LINES) { output.removeChild(output.firstChild); }
     output.scrollTop = output.scrollHeight;
-    parseNews(text);
-    termMeta.textContent = lines + ' lines';
+    extractNewsFromText(text);
+    bezelInfo.textContent = lineCount + ' lines';
   }
 
-  function sysMsg(t) { addOutput(t, 'system-msg'); }
+  function systemMsg(text) { appendOutput(text, 'system-msg'); }
 
-  // ═══════════ Mood ═══════════
+  // ═══════════ Ambient Mood ═══════════
 
-  function setMood(m) {
-    if (!m || m === mood) return;
-    mood = m;
-    app.setAttribute('data-mood', m);
-    var p = {cantina:[1,1,0],spaceport:[1,0,1],industrial:[1,0,1],
-      streets:[0,1,0],street:[0,1,0],shops:[1,1,1],commercial:[1,1,1],
-      jabba:[1,0,0],palatial:[1,0,0],government:[0,0,1],official:[0,0,1],
-      combat:[1,1,1]}[m] || [0,1,0];
-    for (var i=0;i<3;i++) termDots[i].className = 'term-dot'+(p[i]?' on':'');
-  }
-
-  // ═══════════ Login State ═══════════
-
-  function setLoggedIn(yes) {
-    if (loggedIn === yes) return;
-    loggedIn = yes;
-    if (yes) { app.classList.add('logged-in'); }
-    else { app.classList.remove('logged-in'); }
-  }
-
-  // ═══════════ World Event Banner ═══════════
-
-  function handleWorldEvent(m) {
-    if (m.action === 'start') {
-      var title = m.title || 'World Event';
-      var effects = m.effects || '';
-      var display = title.toUpperCase();
-      if (effects) display += ' — ' + effects;
-      eventBannerText.textContent = display;
-      // Pick banner style based on event type
-      var etype = (m.event_type || '').toLowerCase();
-      var bclass = 'event-banner active ';
-      if (etype.indexOf('imperial') !== -1 || etype.indexOf('checkpoint') !== -1) {
-        bclass += 'alert-imperial';
-      } else if (etype.indexOf('criminal') !== -1 || etype.indexOf('pirate') !== -1
-                 || etype.indexOf('hutt') !== -1 || etype.indexOf('bounty') !== -1) {
-        bclass += 'alert-criminal';
-      } else {
-        bclass += 'alert-neutral';
-      }
-      eventBanner.className = bclass;
-      addNews('event', title + (effects ? ' — ' + effects : ''));
-    } else if (m.action === 'end') {
-      eventBanner.className = 'event-banner';
-      if (m.title) addNews('system', m.title + ' has ended.');
-    }
-  }
-
-  eventDismiss.addEventListener('click', function() {
-    eventBanner.className = 'event-banner';
-  });
-
-  // ═══════════ HUD ═══════════
-
-  /* ─── Combat State Handler ─── */
-  var preCombatMood = '';
-  var combatActive = false;
-  var normalPills = null;  // saved inner HTML of #quick-pills
-
-  var WOUND_PIP_CLASS = [
-    'healthy','stunned','wounded','wounded2','incap','mortal','dead'
-  ];
-  // Number of filled pips per wound level
-  var WOUND_PIPS_FILLED = [0, 1, 2, 3, 4, 5, 5];
-
-  function makePips(woundLevel) {
-    var total = 5;
-    var filled = WOUND_PIPS_FILLED[Math.min(woundLevel, 6)] || 0;
-    var cls    = WOUND_PIP_CLASS[Math.min(woundLevel, 6)] || 'healthy';
-    var html   = '';
-    for (var i = 0; i < total; i++) {
-      html += '<div class="cb-wound-pip ' + (i < filled ? cls : '') + '"></div>';
-    }
-    return '<div class="cb-wound">' + html + '</div>';
-  }
-
-  var poseTimerInterval = null;  // setInterval handle for countdown
-
-  function clearPoseTimer() {
-    if (poseTimerInterval) { clearInterval(poseTimerInterval); poseTimerInterval = null; }
-    var el = document.getElementById('cb-pose-timer');
-    if (el) { el.classList.remove('active','urgent'); el.textContent = ''; }
-  }
-
-  function startPoseTimer(deadlineISO) {
-    clearPoseTimer();
-    var el = document.getElementById('cb-pose-timer');
-    if (!el || !deadlineISO) return;
-    var deadline = new Date(deadlineISO).getTime();
-    el.classList.add('active');
-    function tick() {
-      var remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
-      var mins = Math.floor(remaining / 60);
-      var secs = remaining % 60;
-      el.textContent = 'POSE TIMER  ' + mins + ':' + (secs < 10 ? '0' : '') + secs;
-      if (remaining <= 30) { el.classList.add('urgent'); }
-      if (remaining <= 0) { clearPoseTimer(); el.textContent = 'TIME UP'; el.classList.add('active'); }
-    }
-    tick();
-    poseTimerInterval = setInterval(tick, 1000);
-  }
-
-  function handleCombatState(m) {
-    var sec     = document.getElementById('sec-combat');
-    var pillBox = document.getElementById('quick-pills');
-
-    if (!m.active) {
-      // Combat over — hide panel, restore mood + pills
-      sec.classList.remove('combat-active');
-      combatActive = false;
-      clearPoseTimer();
-      if (preCombatMood) { setMood(preCombatMood); preCombatMood = ''; }
-      if (normalPills !== null) { pillBox.innerHTML = normalPills; normalPills = null; }
-      return;
-    }
-
-    // Activate panel
-    if (!combatActive) {
-      combatActive = true;
-      preCombatMood = mood || '';
-      setMood('combat');
-      if (normalPills === null) {
-        normalPills = pillBox.innerHTML;
-      }
-    }
-
-    var isPosingPhase = (m.phase === 'posing');
-
-    // Swap quick pills based on phase
-    if (isPosingPhase) {
-      pillBox.innerHTML =
-        '<button class="quick-pill combat-pill" onclick="sendCmd(\'pass\')">auto-pose</button>' +
-        '<button class="quick-pill combat-pill" onclick="sendCmd(\'combat\')">status</button>';
-    } else {
-      pillBox.innerHTML =
-        '<button class="quick-pill combat-pill" onclick="sendCmd(\'dodge\')">dodge</button>' +
-        '<button class="quick-pill combat-pill" onclick="sendCmd(\'aim\')">aim</button>' +
-        '<button class="quick-pill combat-pill" onclick="sendCmd(\'flee\')">flee</button>' +
-        '<button class="quick-pill combat-pill" onclick="sendCmd(\'pass\')">pass</button>' +
-        '<button class="quick-pill combat-pill" onclick="sendCmd(\'combat\')">status</button>';
-    }
-
-    sec.classList.add('combat-active');
-
-    // Round + phase header
-    document.getElementById('cb-round').textContent = 'ROUND ' + (m.round || 1);
-    var phase = (m.phase || 'declaration').toUpperCase();
-    if (phase === 'POSING') phase = 'WRITE YOUR POSE';
-    document.getElementById('cb-phase').textContent = phase;
-
-    // Pose timer
-    if (isPosingPhase && m.pose_deadline) {
-      startPoseTimer(m.pose_deadline);
-    } else {
-      clearPoseTimer();
-    }
-
-    // Combatant list
-    var combatants = m.combatants || [];
-    var myId = null;
-    for (var i = 0; i < combatants.length; i++) {
-      if (combatants[i].is_player) { myId = combatants[i].id; break; }
-    }
-
-    var rows = '';
-    for (var j = 0; j < combatants.length; j++) {
-      var c = combatants[j];
-      var nameClass = 'cb-name' + (c.is_player ? ' is-you' : '');
-      var displayName = c.is_player ? 'You' : esc(c.name);
-      var init = c.initiative > 0 ? c.initiative : '?';
-      var pips = makePips(c.wound_level || 0);
-
-      // Right-side status: show pose status during posing, declaration status otherwise
-      var statusHtml;
-      if (isPosingPhase && c.pose_status) {
-        var psClass = 'cb-pose-status ' + c.pose_status;
-        var psLabel = c.pose_status === 'ready' ? '✓ posed' :
-                      c.pose_status === 'passed' ? '⊘ auto' : '… writing';
-        statusHtml = '<span class="' + psClass + '">' + psLabel + '</span>';
-      } else {
-        var declText, declClass;
-        if (c.declared) {
-          declText  = c.action_summary ? esc(c.action_summary) : 'ready';
-          declClass = 'cb-decl declared';
-        } else {
-          declText  = 'waiting…';
-          declClass = 'cb-decl waiting';
-        }
-        statusHtml = '<span class="' + declClass + '">' + declText + '</span>';
-      }
-
-      rows +=
-        '<div class="cb-row">' +
-          '<span class="' + nameClass + '" title="' + esc(c.name) + '">' + displayName + '</span>' +
-          pips +
-          '<span class="cb-init">' + init + '</span>' +
-          statusHtml +
-        '</div>';
-    }
-    document.getElementById('cb-combatants').innerHTML = rows;
-
-    // Your declared actions
-    var yourActEl = document.getElementById('cb-your-action');
-    if (m.your_actions && m.your_actions.length > 0) {
-      yourActEl.textContent = '▸ ' + m.your_actions.join(', ');
-      yourActEl.style.display = '';
-    } else {
-      yourActEl.style.display = 'none';
-    }
-
-    // Waiting for
-    var waitEl = document.getElementById('cb-waiting');
-    if (isPosingPhase) {
-      // During posing, show who we're waiting on for poses
-      var pendingPosers = [];
-      for (var k = 0; k < combatants.length; k++) {
-        if (combatants[k].pose_status === 'pending' && !combatants[k].is_player) {
-          pendingPosers.push(combatants[k].name);
-        }
-      }
-      // Check if the viewer is still pending
-      var viewerPending = false;
-      for (var vi = 0; vi < combatants.length; vi++) {
-        if (combatants[vi].is_player && combatants[vi].pose_status === 'pending') {
-          viewerPending = true; break;
-        }
-      }
-      if (viewerPending) {
-        waitEl.textContent = 'Type cpose <text> or pass to auto-pose';
-      } else if (pendingPosers.length > 0) {
-        waitEl.textContent = 'Waiting for poses: ' + pendingPosers.join(', ');
-      } else {
-        waitEl.textContent = 'All poses in — flushing action log…';
-      }
-    } else if (m.waiting_for && m.waiting_for.length > 0) {
-      waitEl.textContent = 'Waiting for: ' + m.waiting_for.join(', ');
-    } else {
-      waitEl.textContent = '';
-    }
-  }
-
-  function handleHud(d) {
-    if (d.name) {
-      hudName.textContent = d.name;
-      hudName.classList.remove('empty');
-      setLoggedIn(true);
-    }
-    if (d.wound_name !== undefined) setWound(d.wound_name);
-    if (d.credits !== undefined) hudCredits.textContent = Number(d.credits).toLocaleString();
-    if (d.force_points !== undefined) hudFp.textContent = d.force_points;
-    if (d.character_points !== undefined) hudCp.textContent = d.character_points;
-    if (d.dark_side_points !== undefined) {
-      if (d.dark_side_points > 0) { dspCell.style.display = ''; hudDsp.textContent = d.dark_side_points; }
-      else { dspCell.style.display = 'none'; }
-    }
-    if (d.room_name) hudRoom.textContent = d.room_name;
-    if (d.zone_name) { hudZone.textContent = d.zone_name; hudZone.style.display = ''; }
-    if (d.zone_type) setMood(d.zone_type);
-    if (d.alert_level && d.alert_level !== 'standard') {
-      hudAlert.textContent = d.alert_level.replace(/_/g,' ');
-      hudAlert.className = 'alert-badge ' + d.alert_level;
-      hudAlert.style.display = '';
-    } else if (d.alert_level === 'standard') {
-      hudAlert.style.display = 'none';
-    }
-    if (d.exits && Array.isArray(d.exits)) {
-      hudExits.innerHTML = '';
-      if (d.exits.length === 0) {
-        hudExits.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">None</span>';
-      } else {
-        for (var i = 0; i < d.exits.length; i++) {
-          var b = document.createElement('button');
-          b.className = 'exit-pill';
-          b.textContent = d.exits[i];
-          b.addEventListener('click', (function(dir){return function(){sendCmd(dir);};})(d.exits[i]));
-          hudExits.appendChild(b);
-        }
-      }
-    }
-  }
-
-  function setWound(level) {
-    var W = {
-      'healthy':          {l:'OK',       s:['healthy','healthy','healthy','healthy','healthy']},
-      'stunned':          {l:'Stunned',  s:['stunned','stunned','stunned','stunned','']},
-      'wounded':          {l:'Wounded',  s:['wounded','wounded','wounded','','']},
-      'wounded twice':    {l:'Wnd x2',   s:['wounded','wounded','','','']},
-      'incapacitated':    {l:'Incap',    s:['incap','incap','','','']},
-      'mortally wounded': {l:'Mortal',   s:['mortal','','','','']},
-      'dead':             {l:'DEAD',     s:['','','','','']},
+  function setMood(mood) {
+    if (!mood || mood === currentMood) return;
+    currentMood = mood;
+    app.setAttribute('data-mood', mood);
+    var moodPatterns = {
+      'cantina': [true, true, false],
+      'spaceport': [true, false, true],
+      'industrial': [true, false, true],
+      'streets': [false, true, false],
+      'street': [false, true, false],
+      'shops': [true, true, true],
+      'commercial': [true, true, true],
+      'jabba': [true, false, false],
+      'palatial': [true, false, false],
+      'government': [false, false, true],
+      'official': [false, false, true],
+      'combat': [true, true, true],
     };
-    var info = W[level.toLowerCase()] || W['healthy'];
-    hudWound.textContent = info.l;
+    var pattern = moodPatterns[mood] || [false, true, false];
+    for (var d = 0; d < 3; d++) {
+      bezelDots[d].className = 'bezel-dot' + (pattern[d] ? ' active' : '');
+    }
+  }
+
+  // ═══════════ Structured HUD ═══════════
+
+  function handleHudUpdate(data) {
+    if (data.name) hudName.textContent = data.name;
+    if (data.wound_name !== undefined) updateWoundDisplay(data.wound_name);
+
+    if (data.credits !== undefined) {
+      hudCredits.textContent = Number(data.credits).toLocaleString();
+    }
+
+    if (data.force_points !== undefined) hudFp.textContent = data.force_points;
+    if (data.character_points !== undefined) hudCp.textContent = data.character_points;
+    if (data.dark_side_points !== undefined) {
+      if (data.dark_side_points > 0) {
+        dspRow.style.display = '';
+        hudDsp.textContent = data.dark_side_points;
+      } else {
+        dspRow.style.display = 'none';
+      }
+    }
+
+    if (data.room_name) hudRoom.textContent = data.room_name;
+
+    // Zone info for ambient mood
+    if (data.zone_name) {
+      hudZone.textContent = data.zone_name;
+      hudZone.style.display = '';
+    }
+    if (data.zone_type) {
+      setMood(data.zone_type);
+    }
+
+    if (data.exits && Array.isArray(data.exits)) {
+      hudExits.innerHTML = '';
+      if (data.exits.length === 0) {
+        hudExits.innerHTML = '<span style="color:var(--text-dim); font-size:12px;">None</span>';
+      } else {
+        for (var i = 0; i < data.exits.length; i++) {
+          var btn = document.createElement('button');
+          btn.className = 'exit-btn';
+          btn.textContent = data.exits[i];
+          btn.addEventListener('click', (function(dir) { return function() { sendCmd(dir); }; })(data.exits[i]));
+          hudExits.appendChild(btn);
+        }
+      }
+    }
+  }
+
+  function updateWoundDisplay(level) {
+    var levels = {
+      'healthy':           { label: 'Healthy',           segs: ['healthy','healthy','healthy','healthy','healthy'] },
+      'stunned':           { label: 'Stunned',           segs: ['stunned','stunned','stunned','stunned',''] },
+      'wounded':           { label: 'Wounded',           segs: ['wounded','wounded','wounded','',''] },
+      'wounded twice':     { label: 'Wounded Twice',     segs: ['wounded','wounded','','',''] },
+      'incapacitated':     { label: 'Incapacitated',     segs: ['incap','incap','','',''] },
+      'mortally wounded':  { label: 'Mortally Wounded',  segs: ['mortal','','','',''] },
+      'dead':              { label: 'DEAD',              segs: ['','','','',''] },
+    };
+    var key = level.toLowerCase();
+    var info = levels[key] || levels['healthy'];
+    hudWound.textContent = info.label;
     var segs = woundBar.children;
     for (var i = 0; i < 5; i++) {
       segs[i].className = 'wound-seg';
-      if (info.s[i]) segs[i].classList.add(info.s[i]);
+      if (info.segs[i]) segs[i].classList.add(info.segs[i]);
     }
   }
 
-  // ═══════════ News ═══════════
+  // ═══════════ News / Comlink Feed ═══════════
 
-  function parseNews(raw) {
-    var c = raw.replace(/\x1b\[[0-9;]*m/g, '');
-    var ls = c.split(/\r?\n/);
-    for (var i = 0; i < ls.length; i++) {
-      var t = ls[i].trim();
+  function extractNewsFromText(raw) {
+    var clean = raw.replace(/\x1b\[[0-9;]*m/g, '');
+    var lines = clean.split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var t = lines[i].trim();
       if (!t) continue;
-      if (t.startsWith('[SYSTEM]')) addNews('system', t.replace('[SYSTEM] ',''));
-      else if (t.startsWith('[COMBAT]')) addNews('combat', t.replace('[COMBAT] ',''));
-      else if (t.startsWith('[THE FORCE]')) addNews('event', t.replace('[THE FORCE] ',''));
-      else if (t.indexOf('GNN')!==-1 || t.indexOf('BULLETIN')!==-1) addNews('event', t);
-      else if (t.indexOf('has connected')!==-1 || t.indexOf('has disconnected')!==-1) addNews('system', t);
+      if (t.startsWith('[SYSTEM]')) addNewsItem('system', t.replace('[SYSTEM] ', ''));
+      else if (t.startsWith('[COMBAT]')) addNewsItem('combat', t.replace('[COMBAT] ', ''));
+      else if (t.startsWith('[THE FORCE]')) addNewsItem('event', t.replace('[THE FORCE] ', ''));
+      else if (t.indexOf('GNN') !== -1 || t.indexOf('BULLETIN') !== -1) addNewsItem('event', t);
+      else if (t.indexOf('has connected') !== -1 || t.indexOf('has disconnected') !== -1) addNewsItem('system', t);
     }
   }
 
-  function addNews(tag, text) {
-    var ph = newsItems.querySelector('[style]');
-    if (ph) ph.remove();
-    var el = document.createElement('div');
-    el.className = 'news-item';
-    el.innerHTML = '<span class="news-tag '+tag+'">'+esc(tag)+'</span>'+esc(text.substring(0,120));
-    newsItems.insertBefore(el, newsItems.firstChild);
-    while (newsItems.children.length > MAX_NEWS) newsItems.removeChild(newsItems.lastChild);
+  function addNewsItem(tag, text) {
+    var placeholder = newsItems.querySelector('[style]');
+    if (placeholder) placeholder.remove();
+    var item = document.createElement('div');
+    item.className = 'news-item';
+    item.innerHTML = '<span class="news-tag ' + tag + '">' + escapeHtml(tag) + '</span>' + escapeHtml(text.substring(0, 120));
+    newsItems.insertBefore(item, newsItems.firstChild);
+    while (newsItems.children.length > MAX_NEWS_ITEMS) newsItems.removeChild(newsItems.lastChild);
   }
 
-  // ═══════════ Width ═══════════
+  // ═══════════ Terminal Width ═══════════
 
-  function measureW() {
-    var t = document.createElement('span');
-    t.style.cssText = 'font-family:'+getComputedStyle(output).fontFamily+';font-size:14px;position:absolute;visibility:hidden;white-space:pre;';
-    t.textContent = 'M';
-    document.body.appendChild(t);
-    var cw = t.getBoundingClientRect().width;
-    document.body.removeChild(t);
-    if (cw < 1) cw = 8.4;
-    var pw = output.clientWidth - 24; // 12px padding each side
-    return Math.max(40, Math.min(200, Math.floor(pw / cw)));
+  function measureCharWidth() {
+    var testEl = document.createElement('span');
+    testEl.style.cssText = 'font-family:' + getComputedStyle(output).fontFamily +
+      ';font-size:14px;position:absolute;visibility:hidden;white-space:pre;';
+    testEl.textContent = 'M';
+    document.body.appendChild(testEl);
+    var charW = testEl.getBoundingClientRect().width;
+    document.body.removeChild(testEl);
+    if (charW < 1) charW = 8.4;
+    // Terminal inner width minus padding (14px each side = 28px)
+    var paneW = output.clientWidth - 28;
+    return Math.max(40, Math.min(200, Math.floor(paneW / charW)));
   }
 
   function sendResize() {
-    if (ws && ws.readyState === 1) ws.send(JSON.stringify({type:'resize',width:measureW()}));
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      var w = measureCharWidth();
+      ws.send(JSON.stringify({ type: 'resize', width: w }));
+    }
   }
 
-  var rzT = null;
+  var resizeTimer = null;
   window.addEventListener('resize', function() {
-    if (rzT) clearTimeout(rzT);
-    rzT = setTimeout(sendResize, 300);
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(sendResize, 300);
   });
 
   // ═══════════ WebSocket ═══════════
 
-  function wsUrl() {
-    return 'ws://'+(window.location.hostname||'localhost')+':'+WS_PORT;
+  function getWsUrl() {
+    var host = window.location.hostname || 'localhost';
+    return 'ws://' + host + ':' + WS_PORT;
   }
 
   function connect() {
-    if (ws && (ws.readyState===0||ws.readyState===1)) return;
-    intentDC = false;
-    setConn('connecting');
-    sysMsg('[Connecting to '+wsUrl()+'...]');
-    ws = new WebSocket(wsUrl());
+    if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
+    intentionalDisconnect = false;
+    var url = getWsUrl();
+    setConnStatus('connecting');
+    systemMsg('[Connecting to ' + url + '...]');
+    ws = new WebSocket(url);
 
     ws.onopen = function() {
-      setConn('connected');
+      setConnStatus('connected');
       sendResize();
-      sysMsg('[Connected]');
+      systemMsg('[Connected]');
       cmdInput.focus();
     };
 
-    ws.onmessage = function(e) {
+    ws.onmessage = function(evt) {
       try {
-        var m = JSON.parse(e.data);
-        if (m.type==='hud_update') { handleHud(m); return; }
-        if (m.type==='combat_state') { handleCombatState(m); return; }
-        if (m.type==='text' && typeof m.data==='string') { addOutput(m.data); }
-        else if (m.type==='news_event') {
-          if (m.tag && m.text) addNews(m.tag, m.text);
-          if (m.data) addOutput(m.data);
+        var msg = JSON.parse(evt.data);
+        if (msg.type === 'hud_update') { handleHudUpdate(msg); return; }
+        if (msg.type === 'space_state') { handleSpaceState(msg); return; }
+        if (msg.type === 'text' && typeof msg.data === 'string') { appendOutput(msg.data); }
+        else if (msg.type === 'news_event') {
+          if (msg.tag && msg.text) addNewsItem(msg.tag, msg.text);
+          if (msg.data) appendOutput(msg.data);
         }
-        else if (m.type==='world_event') {
-          handleWorldEvent(m);
-        }
-        else if (m.type==='space_state' || m.type==='room_description' || m.type==='combat_log') {
-          /* structured types without a client handler yet — silently ignore */
-        }
-        else if (m.data || m.text) { addOutput(m.data||m.text); }
-        /* else: unknown structured message with no text — drop silently */
-      } catch(x) {
-        /* Log the actual error so we can diagnose instead of silently dumping JSON */
-        console.error('WS message error:', x, 'raw:', e.data && e.data.substring(0, 200));
-        if (e.data && e.data.charAt(0) !== '{') { addOutput(e.data); }
-        /* JSON messages that threw an error are NOT printed to terminal */
-      }
+        else { appendOutput(msg.data || msg.text || JSON.stringify(msg)); }
+      } catch (e) { appendOutput(evt.data); }
     };
 
     ws.onclose = function() {
-      setConn('disconnected');
-      if (intentDC) sysMsg('[Disconnected]');
-      else { sysMsg('[Connection lost — reconnecting in '+(RECONNECT_MS/1000)+'s...]'); schedReconn(); }
+      setConnStatus('disconnected');
+      if (intentionalDisconnect) { systemMsg('[Disconnected]'); }
+      else {
+        systemMsg('[Connection lost — reconnecting in ' + (RECONNECT_DELAY_MS / 1000) + 's...]');
+        scheduleReconnect();
+      }
     };
-    ws.onerror = function(){};
+
+    ws.onerror = function() {};
   }
 
   function disconnect() {
-    intentDC = true;
-    if (reconnTimer) { clearTimeout(reconnTimer); reconnTimer = null; }
-    if (ws && ws.readyState===1) { ws.send(JSON.stringify({input:'quit'})); setTimeout(function(){if(ws)ws.close();},200); }
-    else if (ws) ws.close();
-    setConn('disconnected');
-    setLoggedIn(false);
-    hudName.textContent = 'Not logged in';
-    hudName.classList.add('empty');
+    intentionalDisconnect = true;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ input: 'quit' }));
+      setTimeout(function() { if (ws) ws.close(); }, 200);
+    } else if (ws) { ws.close(); }
+    setConnStatus('disconnected');
   }
 
-  function schedReconn() {
-    if (intentDC) return;
-    if (reconnTimer) clearTimeout(reconnTimer);
-    reconnTimer = setTimeout(connect, RECONNECT_MS);
+  function scheduleReconnect() {
+    if (intentionalDisconnect) return;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
   }
 
-  function setConn(s) {
+  function setConnStatus(state) {
     connDot.className = 'conn-dot';
-    if (s==='connected') {
+    if (state === 'connected') {
       connDot.classList.add('connected');
       connLabel.textContent = 'Online';
       connBtn.textContent = 'Disconnect';
       connBtn.className = 'conn-btn disconnect';
-    } else if (s==='connecting') {
+    } else if (state === 'connecting') {
       connDot.classList.add('connecting');
       connLabel.textContent = 'Connecting';
       connBtn.textContent = 'Cancel';
@@ -1523,49 +1625,587 @@
   }
 
   connBtn.addEventListener('click', function() {
-    if (connBtn.textContent==='Reconnect') { intentDC=false; connect(); }
-    else disconnect();
+    if (connBtn.textContent === 'Reconnect') { intentionalDisconnect = false; connect(); }
+    else { disconnect(); }
   });
 
   // ═══════════ Input ═══════════
 
-  function sendCmd(t) {
-    if (!t||!t.trim()) return;
-    t = t.trim();
-    if (!ws||ws.readyState!==1) { sysMsg('[Not connected]'); if(!intentDC) connect(); return; }
-    ws.send(JSON.stringify({input:t}));
-    if (hist.length===0||hist[0]!==t) { hist.unshift(t); if(hist.length>MAX_HIST) hist.pop(); }
-    histIdx = -1; tmpInput = '';
+  function sendCmd(text) {
+    if (!text || !text.trim()) return;
+    text = text.trim();
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      systemMsg('[Not connected]');
+      if (!intentionalDisconnect) connect();
+      return;
+    }
+    ws.send(JSON.stringify({ input: text }));
+    if (history.length === 0 || history[0] !== text) {
+      history.unshift(text);
+      if (history.length > MAX_HISTORY) history.pop();
+    }
+    historyIdx = -1;
+    tempInput = '';
     cmdInput.value = '';
     cmdInput.focus();
   }
+
   window.sendCmd = sendCmd;
 
   cmdInput.addEventListener('keydown', function(e) {
-    if (e.key==='Enter') { e.preventDefault(); sendCmd(cmdInput.value); }
-    else if (e.key==='ArrowUp') {
+    if (e.key === 'Enter') { e.preventDefault(); sendCmd(cmdInput.value); }
+    else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (!hist.length) return;
-      if (histIdx===-1) tmpInput = cmdInput.value;
-      if (histIdx<hist.length-1) { histIdx++; cmdInput.value = hist[histIdx]; }
-    } else if (e.key==='ArrowDown') {
+      if (history.length === 0) return;
+      if (historyIdx === -1) tempInput = cmdInput.value;
+      if (historyIdx < history.length - 1) { historyIdx++; cmdInput.value = history[historyIdx]; }
+    } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (histIdx>0) { histIdx--; cmdInput.value = hist[histIdx]; }
-      else if (histIdx===0) { histIdx=-1; cmdInput.value = tmpInput; }
+      if (historyIdx > 0) { historyIdx--; cmdInput.value = history[historyIdx]; }
+      else if (historyIdx === 0) { historyIdx = -1; cmdInput.value = tempInput; }
     }
   });
 
-  document.getElementById('send-btn').addEventListener('click', function(){ sendCmd(cmdInput.value); });
+  sendBtn.addEventListener('click', function() { sendCmd(cmdInput.value); });
 
-  // Focus on any key
   document.addEventListener('keydown', function(e) {
-    if (e.target===cmdInput) return;
-    if (e.ctrlKey||e.metaKey||e.altKey) return;
-    if (e.key.length===1) cmdInput.focus();
+    if (e.target === cmdInput) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key.length === 1) cmdInput.focus();
   });
 
+  // ═══════════ Space HUD ═══════════
+
+  var spaceActive = false;
+
+  // DOM refs — space panel
+  var spPanel        = document.getElementById('space-panel');
+  var spShipName     = document.getElementById('sp-ship-name');
+  var spShipClass    = document.getElementById('sp-ship-class');
+  var spZoneName     = document.getElementById('sp-zone-name');
+  var spZoneType     = document.getElementById('sp-zone-type');
+  var spHullBar      = document.getElementById('sp-hull-bar');
+  var spHullCond     = document.getElementById('sp-hull-condition');
+  var spHullNums     = document.getElementById('sp-hull-numbers');
+  var spArcFront     = document.getElementById('sp-arc-front');
+  var spArcRear      = document.getElementById('sp-arc-rear');
+  var spArcLeft      = document.getElementById('sp-arc-left');
+  var spArcRight     = document.getElementById('sp-arc-right');
+  var spSpeed        = document.getElementById('sp-speed');
+  var spScale        = document.getElementById('sp-scale');
+  var spIonRow       = document.getElementById('sp-ion-row');
+  var spIonPen       = document.getElementById('sp-ion-pen');
+  var spWarnSection  = document.getElementById('sp-warnings-section');
+  var spWarnings     = document.getElementById('sp-warnings');
+  var spTransitSec   = document.getElementById('sp-transit-section');
+  var spTransitLabel = document.getElementById('sp-transit-label');
+  var spTransitDest  = document.getElementById('sp-transit-dest');
+  var spTransitEta   = document.getElementById('sp-transit-eta');
+  var spSysGrid      = document.getElementById('sp-sys-grid');
+  var spCrewList     = document.getElementById('sp-crew-list');
+  var spContactsSec  = document.getElementById('sp-contacts-section');
+  var spContactsList = document.getElementById('sp-contacts-list');
+  var spQuickCmds    = document.getElementById('sp-quick-cmds');
+  var spStationBadge = document.getElementById('sp-station-badge');
+
+  // Ground-only wrappers
+  var groundSections = document.querySelectorAll('.ground-only');
+
+  function setSpaceMode(active) {
+    if (active === spaceActive) return;
+    spaceActive = active;
+    if (active) {
+      spPanel.classList.add('space-active');
+      setMood('combat'); // space uses combat red-glow
+      for (var i = 0; i < groundSections.length; i++) {
+        groundSections[i].classList.add('space-hidden');
+      }
+    } else {
+      spPanel.classList.remove('space-active');
+      for (var i = 0; i < groundSections.length; i++) {
+        groundSections[i].classList.remove('space-hidden');
+      }
+    }
+  }
+
+  function setArc(el, val) {
+    if (val === undefined || val === null) val = 0;
+    var label = (val > 0) ? val + 'D' : '—';
+    el.textContent = label;
+    el.className = 'shield-arc ' + (val > 0 ? 'has-shields' : 'no-shields');
+  }
+
+  function updateHullBar(cur, max) {
+    if (!max || max === 0) { spHullBar.style.width = '100%'; return; }
+    var pct = Math.max(0, Math.min(100, Math.round((cur / max) * 100)));
+    spHullBar.style.width = pct + '%';
+    spHullBar.className = 'hull-bar-fill';
+    if (pct > 66)      spHullBar.classList.add('hull-good');
+    else if (pct > 33) spHullBar.classList.add('hull-warn');
+    else               spHullBar.classList.add('hull-crit');
+  }
+
+  function formatEta(ticks) {
+    if (ticks === null || ticks === undefined) return '—';
+    // Each tick is 1 game-second; display as mm:ss or just seconds
+    if (ticks < 60) return ticks + 's';
+    var m = Math.floor(ticks / 60);
+    var s = ticks % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function handleSpaceState(data) {
+    // Toggle ground/space layout
+    setSpaceMode(!!data.active);
+    if (!data.active) return;
+
+    // Ship
+    if (data.ship_name)  spShipName.textContent  = data.ship_name;
+    if (data.ship_class) spShipClass.textContent  = data.ship_class;
+
+    // Zone
+    if (data.zone_name) spZoneName.textContent = data.zone_name;
+    if (data.zone_type) spZoneType.textContent  = data.zone_type.replace(/_/g, ' ').toUpperCase();
+
+    // Hull
+    if (data.hull_current !== undefined && data.hull_max !== undefined) {
+      updateHullBar(data.hull_current, data.hull_max);
+      spHullNums.textContent  = data.hull_current + '/' + data.hull_max;
+    }
+    if (data.hull_condition) spHullCond.textContent = data.hull_condition;
+
+    // Shields
+    if (data.shield_arcs) {
+      setArc(spArcFront,  data.shield_arcs.front  !== undefined ? data.shield_arcs.front  : 0);
+      setArc(spArcRear,   data.shield_arcs.rear   !== undefined ? data.shield_arcs.rear   : 0);
+      setArc(spArcLeft,   data.shield_arcs.left   !== undefined ? data.shield_arcs.left   : 0);
+      setArc(spArcRight,  data.shield_arcs.right  !== undefined ? data.shield_arcs.right  : 0);
+    }
+
+    // Speed / scale
+    if (data.speed  !== undefined) spSpeed.textContent = data.speed;
+    if (data.scale)                spScale.textContent = data.scale;
+
+    // Ion penalty
+    if (data.ion_penalty !== undefined && data.ion_penalty > 0) {
+      spIonRow.style.display = '';
+      spIonPen.textContent = data.ion_penalty + 'D';
+    } else {
+      spIonRow.style.display = 'none';
+    }
+
+    // Warnings block
+    spWarnings.innerHTML = '';
+    var warnCount = 0;
+    if (data.controls_frozen) {
+      var w = document.createElement('div');
+      w.className = 'space-warning';
+      w.textContent = '⚠ Controls Frozen';
+      spWarnings.appendChild(w);
+      warnCount++;
+    }
+    if (data.ion_penalty && data.ion_penalty > 0) {
+      var w = document.createElement('div');
+      w.className = 'space-warning warn-ion';
+      w.textContent = '⚡ Ion Damaged (-' + data.ion_penalty + 'D)';
+      spWarnings.appendChild(w);
+      warnCount++;
+    }
+    if (data.tractor_held) {
+      var w = document.createElement('div');
+      w.className = 'space-warning warn-tractor';
+      w.textContent = '⚓ Tractor Locked';
+      spWarnings.appendChild(w);
+      warnCount++;
+    }
+    spWarnSection.style.display = warnCount > 0 ? '' : 'none';
+
+    // Transit (hyperspace or sublight)
+    if (data.in_hyperspace && data.hyperspace_dest) {
+      spTransitSec.style.display = '';
+      spTransitLabel.textContent = '— Hyperspace Transit —';
+      spTransitDest.textContent  = data.hyperspace_dest;
+      spTransitEta.textContent   = formatEta(data.hyperspace_eta);
+    } else if (data.in_sublight_transit && data.transit_dest) {
+      spTransitSec.style.display = '';
+      spTransitLabel.textContent = '— Sublight Course —';
+      spTransitDest.textContent  = data.transit_dest;
+      spTransitEta.textContent   = formatEta(data.transit_eta);
+    } else {
+      spTransitSec.style.display = 'none';
+    }
+
+    // Systems
+    spSysGrid.innerHTML = '';
+    if (data.systems) {
+      var sysNames = { engines:'Engines', weapons:'Weapons', shields:'Shields', sensors:'Sensors', hyperdrive:'Hyperdrive', life_support:'Life Sup' };
+      for (var key in sysNames) {
+        if (!sysNames.hasOwnProperty(key)) continue;
+        var chip = document.createElement('div');
+        chip.className = 'sys-chip ' + (data.systems[key] ? 'sys-ok' : 'sys-damaged');
+        chip.textContent = sysNames[key];
+        spSysGrid.appendChild(chip);
+      }
+    }
+
+    // Crew roster
+    spCrewList.innerHTML = '';
+    if (data.crew) {
+      var stationOrder = ['pilot','co-pilot','navigator','gunner','engineer','commander','sensors'];
+      for (var s = 0; s < stationOrder.length; s++) {
+        var st = stationOrder[s];
+        var member = data.crew[st];
+        if (!member && (!data.my_station || data.my_station !== st)) continue; // skip empty non-relevant
+        var row = document.createElement('div');
+        row.className = 'crew-row';
+        var stLabel = document.createElement('span');
+        stLabel.className = 'crew-station' + (data.my_station === st ? ' my-station' : '');
+        stLabel.textContent = st;
+        var nameEl = document.createElement('span');
+        if (!member) {
+          nameEl.className = 'crew-name empty';
+          nameEl.textContent = 'vacant';
+        } else {
+          nameEl.className = 'crew-name' + (member.is_npc ? ' npc' : '');
+          nameEl.textContent = member.name || '—';
+        }
+        row.appendChild(stLabel);
+        row.appendChild(nameEl);
+        spCrewList.appendChild(row);
+      }
+    }
+
+    // Contacts
+    spContactsList.innerHTML = '';
+    if (data.contacts && data.contacts.length > 0) {
+      spContactsSec.style.display = '';
+      for (var ci = 0; ci < data.contacts.length; ci++) {
+        var c = data.contacts[ci];
+        var row = document.createElement('div');
+        row.className = 'contact-row';
+        var nameEl = document.createElement('span');
+        nameEl.className = 'contact-name';
+        nameEl.textContent = c.name || ('Ship #' + c.ship_id);
+        var rangeEl = document.createElement('span');
+        var rng = (c.range || 'long').toLowerCase();
+        rangeEl.className = 'contact-range range-' + rng;
+        rangeEl.textContent = rng;
+        row.appendChild(nameEl);
+        row.appendChild(rangeEl);
+        spContactsList.appendChild(row);
+      }
+    } else {
+      spContactsSec.style.display = 'none';
+    }
+
+    // Station badge + quick buttons
+    if (data.my_station) {
+      spStationBadge.textContent = data.my_station.toUpperCase();
+    }
+    spQuickCmds.innerHTML = '';
+    var btns = data.station_buttons || ['status', 'scan', 'look'];
+    for (var bi = 0; bi < btns.length; bi++) {
+      var btn = document.createElement('button');
+      btn.className = 'space-quick-btn';
+      btn.textContent = btns[bi];
+      (function(cmd) {
+        btn.addEventListener('click', function() { sendCmd(cmd); });
+      })(btns[bi]);
+      spQuickCmds.appendChild(btn);
+    }
+
+    // Also add anomaly count to news feed if any present
+    if (data.anomalies && data.anomalies.length > 0) {
+      var unresolved = data.anomalies.filter(function(a) { return !a.resolved; }).length;
+      if (unresolved > 0) {
+        addNewsItem('space', unresolved + ' anomal' + (unresolved === 1 ? 'y' : 'ies') + ' on sensors');
+      }
+    }
+
+    // Zone map + tactical radar (Drop 10)
+    renderZoneMap(data.zone_id, data.adjacent_zones);
+    renderRadar(data.contacts, data.anomalies);
+  }
+
+  // ═══════════ Zone Map (Drop 10) ═══════════
+
+  // Hardcoded node positions (x,y) in the 226×180 SVG viewport.
+  // Graph topology from Drop 2: 16 zones across 4 planet clusters + 3 hyperspace lanes.
+  var ZONE_POSITIONS = {
+    // Hyperspace lanes (top backbone)
+    'corellian_trade_spine':  [113, 18],
+    'outer_rim_lane_1':       [113, 48],
+    'outer_rim_lane_2':       [113, 78],
+    'outer_rim_lane_3':       [113, 108],
+    // Corellia cluster (left)
+    'corellia_deep_space':    [30,  18],
+    'corellia_orbit':         [12,  36],
+    'corellia_dock':          [12,  54],
+    // Tatooine cluster (right of lane_1)
+    'tatooine_deep_space':    [196, 48],
+    'tatooine_orbit':         [214, 64],
+    'tatooine_dock':          [214, 82],
+    // Nar Shaddaa cluster (right of lane_2)
+    'nar_shaddaa_deep_space': [196, 78],
+    'nar_shaddaa_orbit':      [214, 94],
+    'nar_shaddaa_dock':       [214, 112],
+    // Kessel cluster (right of lane_3, hazardous)
+    'kessel_approach':        [196, 108],
+    'kessel_orbit':           [214, 124],
+    'kessel_dock':            [214, 142],
+  };
+
+  // Adjacency edges for drawing lines
+  var ZONE_EDGES = [
+    ['corellian_trade_spine','outer_rim_lane_1'],
+    ['outer_rim_lane_1','outer_rim_lane_2'],
+    ['outer_rim_lane_2','outer_rim_lane_3'],
+    ['corellian_trade_spine','corellia_deep_space'],
+    ['corellia_deep_space','corellia_orbit'],
+    ['corellia_orbit','corellia_dock'],
+    ['outer_rim_lane_1','tatooine_deep_space'],
+    ['tatooine_deep_space','tatooine_orbit'],
+    ['tatooine_orbit','tatooine_dock'],
+    ['outer_rim_lane_2','nar_shaddaa_deep_space'],
+    ['nar_shaddaa_deep_space','nar_shaddaa_orbit'],
+    ['nar_shaddaa_orbit','nar_shaddaa_dock'],
+    ['outer_rim_lane_3','kessel_approach'],
+    ['kessel_approach','kessel_orbit'],
+    ['kessel_orbit','kessel_dock'],
+  ];
+
+  // Display labels (short enough to fit at 7px)
+  var ZONE_LABELS = {
+    'corellian_trade_spine':  'CTS',
+    'outer_rim_lane_1':       'ORL-1',
+    'outer_rim_lane_2':       'ORL-2',
+    'outer_rim_lane_3':       'ORL-3',
+    'corellia_deep_space':    'COR-D',
+    'corellia_orbit':         'COR-O',
+    'corellia_dock':          'COR',
+    'tatooine_deep_space':    'TAT-D',
+    'tatooine_orbit':         'TAT-O',
+    'tatooine_dock':          'TAT',
+    'nar_shaddaa_deep_space': 'NAR-D',
+    'nar_shaddaa_orbit':      'NAR-O',
+    'nar_shaddaa_dock':       'NAR',
+    'kessel_approach':        'KES-A',
+    'kessel_orbit':           'KES-O',
+    'kessel_dock':            'KES',
+  };
+
+  var HAZARD_ZONES = { 'kessel_approach': true };
+
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (var k in attrs) if (attrs.hasOwnProperty(k)) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  function renderZoneMap(currentZone, adjacentZones) {
+    var svg = document.getElementById('zone-map-svg');
+    // Clear previous dynamic content (keep nothing — full redraw)
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    var adjSet = {};
+    if (adjacentZones) {
+      for (var i = 0; i < adjacentZones.length; i++) adjSet[adjacentZones[i].id] = true;
+    }
+
+    // Draw edges
+    for (var e = 0; e < ZONE_EDGES.length; e++) {
+      var a = ZONE_EDGES[e][0], b = ZONE_EDGES[e][1];
+      var pa = ZONE_POSITIONS[a], pb = ZONE_POSITIONS[b];
+      if (!pa || !pb) continue;
+      var isActive = (a === currentZone || b === currentZone);
+      var line = svgEl('line', {
+        x1: pa[0], y1: pa[1], x2: pb[0], y2: pb[1],
+        'class': isActive ? 'zm-edge zm-edge-active' : 'zm-edge'
+      });
+      svg.appendChild(line);
+    }
+
+    // Draw nodes + labels
+    for (var zid in ZONE_POSITIONS) {
+      if (!ZONE_POSITIONS.hasOwnProperty(zid)) continue;
+      var pos = ZONE_POSITIONS[zid];
+      var isCurrent  = (zid === currentZone);
+      var isAdjacent = !!adjSet[zid];
+      var isHazard   = !!HAZARD_ZONES[zid];
+
+      // Hazard badge (background rect)
+      if (isHazard) {
+        var badge = svgEl('rect', { x: pos[0]-8, y: pos[1]-8, width: 16, height: 10, rx: 2, 'class': 'zm-hazard-badge' });
+        svg.appendChild(badge);
+      }
+
+      // Node circle
+      var nodeClass = isCurrent ? 'zm-node-current' : isAdjacent ? 'zm-node-adjacent' : 'zm-node-distant';
+      var r = isCurrent ? 6 : isAdjacent ? 4 : 3;
+      var circle = svgEl('circle', { cx: pos[0], cy: pos[1], r: r, 'class': nodeClass });
+      if (isCurrent) circle.classList && (circle.setAttribute('class', nodeClass + ' zm-node-current-pulse'));
+
+      // Adjacent nodes are clickable — send course command
+      if (isAdjacent) {
+        (function(zoneId) {
+          circle.addEventListener('click', function() { sendCmd('course ' + zoneId); });
+        })(zid);
+      }
+      svg.appendChild(circle);
+
+      // Label
+      var labelClass = isCurrent ? 'zm-label zm-label-current' : isAdjacent ? 'zm-label zm-label-adjacent' : 'zm-label';
+      var label = svgEl('text', {
+        x: pos[0], y: pos[1] - 8,
+        'text-anchor': 'middle',
+        'class': labelClass
+      });
+      label.textContent = ZONE_LABELS[zid] || zid;
+      if (isAdjacent) {
+        (function(zoneId) {
+          label.addEventListener('click', function() { sendCmd('course ' + zoneId); });
+        })(zid);
+      }
+      svg.appendChild(label);
+
+      // Hazard text
+      if (isHazard) {
+        var ht = svgEl('text', { x: pos[0], y: pos[1] + 2, 'text-anchor': 'middle', 'class': 'zm-hazard-text' });
+        ht.textContent = '!';
+        svg.appendChild(ht);
+      }
+    }
+  }
+
+  // ═══════════ Tactical Radar (Drop 10) ═══════════
+
+  // Range band → radius in the 180×180 SVG (cx=cy=90, max r=88)
+  var RANGE_RADII = { 'close': 22, 'short': 44, 'medium': 66, 'long': 84 };
+
+  // Spread contacts evenly around the ring to avoid overlap.
+  // Returns {x, y} in SVG coords.
+  function radarXY(rangeBand, index, total) {
+    var r = RANGE_RADII[rangeBand] || 66;
+    // Offset angle per slot; start at top (-π/2) and spread
+    var slice = total > 0 ? (2 * Math.PI / total) : 0;
+    var angle  = -Math.PI / 2 + slice * index;
+    return {
+      x: Math.round(90 + r * Math.cos(angle)),
+      y: Math.round(90 + r * Math.sin(angle))
+    };
+  }
+
+  function radarContactClass(contact) {
+    if (contact.is_player) return 'radar-contact-player';
+    if (contact.hostile)   return 'radar-contact-hostile';
+    return 'radar-contact-npc';
+  }
+
+  // Anomaly scatter positions (fixed per id so they don't jump on redraw)
+  function anomalyXY(anomalyId) {
+    // deterministic scatter using id as seed, within medium-range ring
+    var seed  = (anomalyId * 137 + 42) % 360;
+    var angle = (seed / 360) * 2 * Math.PI;
+    var r     = 50 + (anomalyId % 3) * 10;
+    return { x: Math.round(90 + r * Math.cos(angle)), y: Math.round(90 + r * Math.sin(angle)) };
+  }
+
+  function renderRadar(contacts, anomalies) {
+    var svg = document.getElementById('radar-svg');
+    // Remove only dynamic layer (everything after the sweep circle)
+    var staticCount = 10; // bg + 4 rings + 2 crosshairs + 4 labels + sweep + self = we count precisely
+    // Simpler: remove elements with class starting in radar-contact or radar-anomaly
+    var toRemove = svg.querySelectorAll('.radar-contact-player,.radar-contact-npc,.radar-contact-hostile,.radar-contact-label,.radar-anomaly,.radar-anomaly-text');
+    for (var i = 0; i < toRemove.length; i++) svg.removeChild(toRemove[i]);
+
+    // Group contacts by range band to space them evenly
+    var byRange = {};
+    if (contacts) {
+      for (var ci = 0; ci < contacts.length; ci++) {
+        var rng = (contacts[ci].range || 'medium').toLowerCase();
+        if (!byRange[rng]) byRange[rng] = [];
+        byRange[rng].push(contacts[ci]);
+      }
+    }
+
+    // Draw contacts
+    for (var band in byRange) {
+      if (!byRange.hasOwnProperty(band)) continue;
+      var group = byRange[band];
+      for (var gi = 0; gi < group.length; gi++) {
+        var c = group[gi];
+        var pos = radarXY(band, gi, group.length);
+        var dot = svgEl('circle', { cx: pos.x, cy: pos.y, r: 4, 'class': radarContactClass(c) });
+        // Players clickable — send hail
+        if (c.is_player) {
+          (function(shipId) {
+            dot.addEventListener('click', function() { sendCmd('hail ' + shipId); });
+          })(c.ship_id);
+        }
+        svg.appendChild(dot);
+        // Label
+        var lbl = svgEl('text', { x: pos.x + 6, y: pos.y + 3, 'class': 'radar-contact-label' });
+        lbl.textContent = (c.name || '?').substring(0, 8);
+        svg.appendChild(lbl);
+      }
+    }
+
+    // Draw anomaly pings
+    if (anomalies) {
+      for (var ai = 0; ai < anomalies.length; ai++) {
+        var anom = anomalies[ai];
+        var apos = anomalyXY(anom.id);
+        var isResolved = !!anom.resolved;
+        // Draw as diamond (rotated square)
+        var aCls = 'radar-anomaly' + (isResolved ? ' radar-anomaly-resolved' : '');
+        var diamond = svgEl('rect', {
+          x: apos.x - 5, y: apos.y - 5,
+          width: 10, height: 10,
+          transform: 'rotate(45,' + apos.x + ',' + apos.y + ')',
+          'class': aCls
+        });
+        if (isResolved) {
+          (function(anomId) {
+            diamond.addEventListener('click', function() { sendCmd('course anomaly ' + anomId); });
+          })(anom.id);
+        }
+        svg.appendChild(diamond);
+        // Text label: ? or type hint initial
+        var aTxt = svgEl('text', {
+          x: apos.x, y: apos.y + 4,
+          'text-anchor': 'middle',
+          'class': 'radar-anomaly-text' + (isResolved ? ' resolved' : '')
+        });
+        aTxt.textContent = isResolved ? '✦' : '?';
+        svg.appendChild(aTxt);
+      }
+    }
+  }
+
+  // ═══════════ SVG Panel Toggles ═══════════
+
+  function initSvgToggle(toggleId, bodyId) {
+    var toggle = document.getElementById(toggleId);
+    var body   = document.getElementById(bodyId);
+    if (!toggle || !body) return;
+    toggle.addEventListener('click', function() {
+      var collapsed = toggle.classList.contains('collapsed');
+      if (collapsed) {
+        toggle.classList.remove('collapsed');
+        body.style.display = '';
+      } else {
+        toggle.classList.add('collapsed');
+        body.style.display = 'none';
+      }
+    });
+  }
+
+  initSvgToggle('zm-toggle',    'zm-body');
+  initSvgToggle('radar-toggle', 'radar-body');
+
   // ═══════════ Boot ═══════════
-  sysMsg('Connecting to Mos Eisley...');
+
+  systemMsg('Connecting to Mos Eisley...');
   connect();
 
 })();

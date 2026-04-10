@@ -135,8 +135,8 @@ class FcommCommand(BaseCommand):
 # ── Faction Management ────────────────────────────────────────────────────────
 
 class FactionCommand(BaseCommand):
-    key = "faction"
-    aliases = ["affiliation"]
+    key = "+faction"
+    aliases = ["faction", "affiliation"]
     help_text = (
         "View or set your faction affiliation.\n"
         "  Valid factions: Imperial, Rebel, Criminal, Independent\n"
@@ -242,8 +242,8 @@ class UntuneCommand(BaseCommand):
 
 
 class FreqsCommand(BaseCommand):
-    key = "freqs"
-    aliases = ["frequencies", "myfreqs"]
+    key = "+freqs"
+    aliases = ["freqs", "frequencies", "myfreqs"]
     help_text = "List the custom frequencies you are currently tuned to."
     usage = "freqs"
 
@@ -310,8 +310,8 @@ class CommFreqCommand(BaseCommand):
 # ── Channel Overview ──────────────────────────────────────────────────────────
 
 class ChannelsCommand(BaseCommand):
-    key = "channels"
-    aliases = ["chan", "channellist"]
+    key = "+channels"
+    aliases = ["channels", "chan", "channellist"]
     help_text = "Show available communication channels and your current settings."
     usage = "channels"
 

@@ -19,7 +19,7 @@ from server import ansi
 
 class SetCommand(BaseCommand):
     key = "@set"
-    aliases = []
+    aliases = ["@succ"]
     access_level = AccessLevel.BUILDER
     help_text = "Set a property on the current room or an exit."
     usage = "@set <property> = <value>  |  @set [here] to show all"

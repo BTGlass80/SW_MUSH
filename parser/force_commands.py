@@ -89,7 +89,7 @@ async def _save_target_after_force(ctx: CommandContext,
 
 class ForceCommand(BaseCommand):
     key = "force"
-    aliases = ["useforce", "fp_use"]
+    aliases = ["useforce"]
     help_text = (
         "Use a Force power. Usage: force <power name> [target]\n"
         "Examples: force control_pain\n"
@@ -229,8 +229,8 @@ def _build_room_broadcast(char_name: str, power: ForcePower,
 
 
 class PowersCommand(BaseCommand):
-    key = "powers"
-    aliases = ["forcepowers", "listpowers"]
+    key = "+powers"
+    aliases = ["powers", "forcepowers", "listpowers"]
     help_text = "List available Force powers for your character."
     usage = "powers"
 
@@ -272,8 +272,8 @@ class PowersCommand(BaseCommand):
 
 
 class ForceStatusCommand(BaseCommand):
-    key = "forcestatus"
-    aliases = ["fstatus", "forcesheet"]
+    key = "+forcestatus"
+    aliases = ["forcestatus", "fstatus", "forcesheet", "+fstatus"]
     help_text = "Display your Force attributes, points, and Dark Side status."
     usage = "forcestatus"
 

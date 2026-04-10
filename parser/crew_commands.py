@@ -191,8 +191,8 @@ class HireCommand(BaseCommand):
 
 
 class RosterCommand(BaseCommand):
-    key = "roster"
-    aliases = ["crew", "mycrew"]
+    key = "+roster"
+    aliases = ["roster", "crew", "mycrew", "+crew", "+mycrew"]
     help_text = "View your hired NPC crew and their station assignments."
     usage = "roster"
 

@@ -81,7 +81,15 @@ async def _check_hostile_npcs(ctx: CommandContext, room_id: int):
 class LookCommand(BaseCommand):
     key = "look"
     aliases = ["l"]
-    help_text = "Look at your surroundings, an object, or a character."
+    help_text = (
+        "Look at your surroundings, an object, or a character.\n"
+        "With no argument, shows the room, exits, NPCs, and players.\n"
+        "\n"
+        "EXAMPLES:\n"
+        "  look            -- the current room\n"
+        "  look bartender  -- an NPC or object\n"
+        "  look Tundra     -- another player"
+    )
     usage = "look [target]"
 
     async def execute(self, ctx: CommandContext):
@@ -124,11 +132,9 @@ class LookCommand(BaseCommand):
                 f"  {ansi.DIM}{' '.join(flavor_parts)}{ansi.RESET}"
             )
 
-        await session.send_line("")
-
         # Room description (word-wrapped)
         desc = room["desc_long"] or room["desc_short"] or "You see nothing special."
-        for line in textwrap.wrap(desc, width=session.width - 2):
+        for line in textwrap.wrap(desc, width=session.wrap_width - 2):
             await session.send_line(f"  {line}")
 
         # Exits (show locks)
@@ -144,7 +150,6 @@ class LookCommand(BaseCommand):
                     )
                 else:
                     exit_parts.append(ansi.exit_color(e["direction"]))
-            await session.send_line("")
             await session.send_line(f"  Exits: {', '.join(exit_parts)}")
 
         # Other characters in the room
@@ -153,8 +158,6 @@ class LookCommand(BaseCommand):
         for other in others:
             if other["id"] != char["id"]:
                 present.append(other)
-        if present:
-            await session.send_line("")
         for other in present:
             equip_str = ""
             import json as _json
@@ -173,18 +176,46 @@ class LookCommand(BaseCommand):
 
         # NPCs in the room
         npcs = await ctx.db.get_npcs_in_room(char["room_id"])
-        if npcs and not present:
-            await session.send_line("")
-        for npc in npcs:
-            desc = npc.get("description", "")
-            if desc and not desc.startswith("["):
+        if npcs:
+            NPC_CONDENSE_THRESHOLD = 5
+            if len(npcs) >= NPC_CONDENSE_THRESHOLD:
+                # Condensed: group NPC names into wrapped lines
+                npc_names = [ansi.npc_name(n["name"]) for n in npcs]
+                # Build a comma-separated string and wrap it
+                # We need to estimate ANSI-free width for wrapping
+                plain_names = [n["name"] for n in npcs]
+                # Wrap the plain version, then rebuild with ANSI
+                name_str = ", ".join(plain_names)
+                indent = "  Also here: "
+                subsequent = " " * len("  Also here: ")
+                wrapped = textwrap.wrap(
+                    name_str, width=session.wrap_width - 2,
+                    initial_indent=indent,
+                    subsequent_indent=subsequent,
+                )
+                # Re-inject ANSI coloring into the wrapped output
+                for wline in wrapped:
+                    for pn in plain_names:
+                        wline = wline.replace(
+                            pn, ansi.npc_name(pn), 1)
+                    await session.send_line(wline)
                 await session.send_line(
-                    f"  {ansi.npc_name(npc['name'])} is here. {desc}"
+                    f"  {ansi.DIM}(Type 'look <name>' to examine someone.)"
+                    f"{ansi.RESET}"
                 )
             else:
-                await session.send_line(
-                    f"  {ansi.npc_name(npc['name'])} is here."
-                )
+                # Few NPCs: show full descriptions
+                for npc in npcs:
+                    desc = npc.get("description", "")
+                    if desc and not desc.startswith("["):
+                        await session.send_line(
+                            f"  {ansi.npc_name(npc['name'])} is here."
+                            f" {desc}"
+                        )
+                    else:
+                        await session.send_line(
+                            f"  {ansi.npc_name(npc['name'])} is here."
+                        )
 
         await session.send_line("")
 
@@ -213,7 +244,7 @@ class LookCommand(BaseCommand):
             await ctx.session.send_line(f"  {ansi.npc_name(c.name)}")
             desc = c.data.get("description", "")
             if desc:
-                for line in textwrap.wrap(desc, width=ctx.session.width - 4):
+                for line in textwrap.wrap(desc, width=ctx.session.wrap_width - 4):
                     await ctx.session.send_line(f"    {line}")
             species = c.data.get("species", "Unknown")
             await ctx.session.send_line(f"    Species: {species}")
@@ -223,7 +254,7 @@ class LookCommand(BaseCommand):
             await ctx.session.send_line(f"  {ansi.player_name(c.name)}")
             desc = c.data.get("description", "")
             if desc:
-                for line in textwrap.wrap(desc, width=ctx.session.width - 4):
+                for line in textwrap.wrap(desc, width=ctx.session.wrap_width - 4):
                     await ctx.session.send_line(f"    {line}")
             species = c.data.get("species", "Human")
             await ctx.session.send_line(f"    Species: {species}")
@@ -254,7 +285,7 @@ class LookCommand(BaseCommand):
 
 class MoveCommand(BaseCommand):
     key = "move"
-    aliases = []
+    aliases = ["repair"]
     help_text = "Move in a direction."
     usage = "north/south/east/west/up/down (or abbreviations)"
 
@@ -333,8 +364,14 @@ class MoveCommand(BaseCommand):
 
 class SayCommand(BaseCommand):
     key = "say"
-    aliases = ["'"]
-    help_text = "Say something to the room."
+    aliases = ["'", '"']
+    help_text = (
+        "Say something aloud. Everyone in the room hears it.\n"
+        "Shortcut: type a single-quote then your message.\n"
+        "\n"
+        "EXAMPLE: say Nice ship. She yours?\n"
+        "Output:  You say, \"Nice ship. She yours?\""
+    )
     usage = "say <message>"
 
     async def execute(self, ctx: CommandContext):
@@ -355,8 +392,13 @@ class SayCommand(BaseCommand):
 
 class WhisperCommand(BaseCommand):
     key = "whisper"
-    aliases = ["wh"]
-    help_text = "Whisper to a specific player in the room."
+    aliases = ["wh", "page", "tell"]
+    help_text = (
+        "Private message to someone in the same room.\n"
+        "Only you and the target see it.\n"
+        "\n"
+        "EXAMPLE: whisper Tundra = Meet me at bay 94."
+    )
     usage = "whisper <player> = <message>"
 
     async def execute(self, ctx: CommandContext):
@@ -396,8 +438,17 @@ class WhisperCommand(BaseCommand):
 
 class EmoteCommand(BaseCommand):
     key = "emote"
-    aliases = [":"]
-    help_text = "Perform an emote/pose."
+    aliases = [":", "pose", "em"]
+    help_text = (
+        "Describe an action your character performs.\n"
+        "Shows as your name followed by the text.\n"
+        "\n"
+        "SHORTCUTS:\n"
+        "  :draws a blaster  -- Tundra draws a blaster\n"
+        "  ;'s hand shakes   -- Tundra's hand shakes (semipose)\n"
+        "\n"
+        "Write in third person present tense."
+    )
     usage = "emote <action>"
 
     async def execute(self, ctx: CommandContext):
@@ -416,8 +467,8 @@ class EmoteCommand(BaseCommand):
 
 
 class WhoCommand(BaseCommand):
-    key = "who"
-    aliases = ["online"]
+    key = "+who"
+    aliases = ["who", "online", "+online"]
     help_text = "See who is online."
     usage = "who"
 
@@ -445,8 +496,8 @@ class WhoCommand(BaseCommand):
 
 
 class InventoryCommand(BaseCommand):
-    key = "inventory"
-    aliases = ["inv", "i"]
+    key = "+inv"
+    aliases = ["inventory", "inv", "i", "+inventory"]
     help_text = "View your inventory."
     usage = "inventory"
 
@@ -458,17 +509,17 @@ class InventoryCommand(BaseCommand):
 
 
 class SheetCommand(BaseCommand):
-    key = "sheet"
-    aliases = ["score", "stats"]
+    key = "+sheet"
+    aliases = ["sheet", "score", "stats", "+score", "+stats", "sc"]
     help_text = "View your character sheet."
-    usage = "sheet"
+    usage = "+sheet [/brief|/skills|/combat]"
+    valid_switches = ["brief", "skills", "combat"]
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
         if not char:
             return
 
-        from engine.sheet_renderer import render_game_sheet
         import os
         from engine.character import SkillRegistry
         skill_reg = SkillRegistry()
@@ -477,117 +528,261 @@ class SheetCommand(BaseCommand):
         if os.path.exists(skills_path):
             skill_reg.load_file(skills_path)
 
-        lines = render_game_sheet(char, skill_reg)
+        # Dispatch by switch
+        if "brief" in ctx.switches:
+            from engine.sheet_renderer import render_brief_sheet
+            lines = render_brief_sheet(char, skill_reg)
+        elif "skills" in ctx.switches:
+            from engine.sheet_renderer import render_skills_sheet
+            lines = render_skills_sheet(char, skill_reg)
+        elif "combat" in ctx.switches:
+            from engine.sheet_renderer import render_combat_sheet
+            lines = render_combat_sheet(char, skill_reg)
+        else:
+            from engine.sheet_renderer import render_game_sheet
+            lines = render_game_sheet(char, skill_reg)
+
         for line in lines:
             await ctx.session.send_line(line)
 
 
 class HelpCommand(BaseCommand):
-    key = "help"
-    aliases = ["?", "commands"]
-    help_text = "Show available commands."
-    usage = "help [command]"
+    key = "+help"
+    aliases = ["help", "?", "commands", "+commands"]
+    help_text = "Show available commands and help topics."
+    usage = "+help [topic|command]  |  +help/search <keyword>"
+    valid_switches = ["search"]
+    access_level = AccessLevel.ANYONE
+
+    # HelpManager is injected at boot by game_server.py
+    _help_mgr = None
 
     CATEGORIES = {
         "Navigation": ["look", "move", "board", "disembark"],
-        "Communication": ["say", "whisper", "emote", "@ooc"],
-        "Character": ["sheet", "inventory", "equip", "unequip",
-                       "weapons", "credits", "repair", "sell", "@desc"],
-        "D6 Dice": ["roll", "check", "opposed"],
+        "Communication": ["say", "whisper", "emote", ";", "+ooc",
+                          "comlink", "fcomm"],
+        "Character": ["+sheet", "+inv", "equip", "unequip",
+                       "+weapons", "+credits", "+repair", "sell", "@desc"],
+        "D6 Dice": ["+roll", "+check", "+opposed"],
         "Combat": ["attack", "dodge", "fulldodge", "parry", "fullparry",
                     "aim", "cover", "flee", "forcepoint", "range",
-                    "combat", "resolve", "pass", "disengage", "respawn"],
-        "Force": ["force", "powers", "forcestatus"],
-        "Economy": ["buy", "sell", "repair", "credits",
-                     "missions", "accept", "mission", "complete", "abandon"],
+                    "+combat", "resolve", "pass", "disengage", "respawn"],
+        "Force": ["force", "+powers", "+forcestatus"],
+        "Advancement": ["+cpstatus", "train", "+kudos", "+scenebonus"],
+        "Economy": ["buy", "sell", "+credits",
+                     "+missions", "accept", "+mission", "complete",
+                     "abandon"],
+        "Smuggling": ["+smugjobs", "smugaccept", "+smugjob",
+                       "smugdeliver", "smugdump"],
+        "Bounty": ["+bounties", "bountyclaim", "+mybounty",
+                    "bountytrack", "bountycollect"],
         "Crafting": ["survey", "resources", "buyresource",
                       "schematics", "craft"],
-        "Medical": ["heal", "healaccept", "healrate"],
-        "Space": ["ships", "shipinfo", "pilot", "gunner", "copilot",
+        "Medical": ["heal", "healaccept", "+healrate"],
+        "Space": ["+ship", "pilot", "gunner", "copilot",
                   "engineer", "navigator", "commander", "sensors",
-                  "vacate", "assist", "coordinate", "shiprepair",
-                  "myships", "launch", "land", "scan", "fire", "evade",
-                  "shipstatus", "close", "fleeship", "tail",
+                  "vacate", "assist", "coordinate",
+                  "launch", "land", "scan", "fire", "evade",
+                  "close", "fleeship", "tail", "resist",
                   "outmaneuver", "shields", "hyperspace", "damcon"],
-        "NPC Crew": ["hire", "roster", "assign", "unassign",
+        "NPC Crew": ["hire", "+roster", "assign", "unassign",
                       "dismiss", "order"],
         "NPCs": ["talk", "ask"],
+        "Channels": ["+channels", "comlink", "fcomm", "+faction",
+                      "tune", "untune", "+freqs", "commfreq"],
+        "Social": ["+party", "sabacc", "perform", "+news"],
         "Building": ["@dig", "@tunnel", "@open", "@rdesc", "@rname",
                      "@destroy", "@link", "@unlink", "@examine",
                      "@rooms", "@teleport", "@set", "@lock",
-                     "@entrances", "@roominfo", "@find", "@zone",
+                     "@entrances", "@find", "@zone",
                      "@create", "@npc", "@spawn"],
-        "Admin": ["@grant", "@ai"],
-        "Info": ["who", "help", "quit"],
+        "Admin": ["@grant", "@ai", "@director", "@setbounty"],
+        "Info": ["+who", "+help", "quit"],
+    }
+
+    # Topic keywords — these map to help_topics entries, not commands
+    TOPIC_KEYWORDS = {
+        "dice", "d6", "wilddie", "attributes", "skills", "difficulty",
+        "combat", "ranged", "melee", "wounds", "dodge", "cover",
+        "multiaction", "armor", "scale", "force", "forcepoints",
+        "darkside", "lightsaber", "cp", "advancement", "space",
+        "spacecombat", "crew", "hyperdrive", "sensors", "moseisley",
+        "cantina", "tatooine", "trading", "smuggling", "bounty",
+        "species", "rp", "newbie", "commands", "channels", "building",
     }
 
     async def execute(self, ctx: CommandContext):
+        # Handle /search switch
+        if "search" in ctx.switches:
+            if not ctx.args:
+                await ctx.session.send_line("  Usage: +help/search <keyword>")
+                return
+            await self._search_help(ctx, ctx.args.strip())
+            return
+
         if ctx.args:
             await self._specific_help(ctx)
             return
 
-        await ctx.session.send_line(ansi.header("=== Star Wars D6 MUSH -- Commands ==="))
-        await ctx.session.send_line("")
-        for cat, cmds in self.CATEGORIES.items():
-            cmd_str = ", ".join(f"{ansi.BRIGHT_CYAN}{c}{ansi.RESET}" for c in cmds)
-            await ctx.session.send_line(f"  {ansi.BOLD}{cat:14s}{ansi.RESET} {cmd_str}")
+        # Default: show category overview
+        await self._show_categories(ctx)
+
+    async def _show_categories(self, ctx):
+        """Show the command category overview."""
         await ctx.session.send_line("")
         await ctx.session.send_line(
-            f"  {ansi.DIM}Type 'help <command>' for usage details.{ansi.RESET}")
+            ansi.header("═" * 70))
+        await ctx.session.send_line(
+            ansi.header("  STAR WARS D6 MUSH — Command Reference"))
+        await ctx.session.send_line(
+            ansi.header("═" * 70))
+        await ctx.session.send_line("")
+
+        for cat, cmds in self.CATEGORIES.items():
+            # Skip admin categories for non-admins
+            if cat in ("Building", "Admin"):
+                if not (ctx.session.account
+                        and ctx.session.account.get("is_admin", 0)):
+                    continue
+            # Word-wrap the command list at terminal width
+            plain_str = ", ".join(cmds)
+            label = f"  {cat:14s} "
+            indent = " " * 17  # align continuation under first cmd
+            wrapped = textwrap.wrap(
+                plain_str, width=ctx.session.wrap_width - 2,
+                initial_indent=label,
+                subsequent_indent=indent,
+            )
+            for i, wline in enumerate(wrapped):
+                # Re-inject ANSI coloring on command names
+                for c in cmds:
+                    wline = wline.replace(
+                        c, f"{ansi.BRIGHT_CYAN}{c}{ansi.RESET}", 1)
+                # Bold the category label on first line
+                if i == 0:
+                    wline = wline.replace(
+                        label, f"  {ansi.BOLD}{cat:14s}{ansi.RESET} ", 1)
+                await ctx.session.send_line(wline)
+
+        await ctx.session.send_line("")
+        await ctx.session.send_line(
+            f"  {ansi.DIM}Type '+help <command>' for command details.{ansi.RESET}")
+        await ctx.session.send_line(
+            f"  {ansi.DIM}Type '+help <topic>' for rules help "
+            f"(combat, dice, wounds, force, space...){ansi.RESET}")
+        await ctx.session.send_line(
+            f"  {ansi.DIM}Type '+help/search <keyword>' to search "
+            f"all help files.{ansi.RESET}")
         await ctx.session.send_line("")
 
     async def _specific_help(self, ctx):
-        """Show help for a specific command."""
-        # Find the command in the registry by checking all registered commands
+        """Show help for a specific command or topic."""
         name = ctx.args.strip().lower()
-        # Try to find matching registered command
+        mgr = self.__class__._help_mgr
+
+        # Try HelpManager first (covers both topics and commands)
+        if mgr:
+            entry = mgr.get(name)
+            if entry:
+                await self._render_entry(ctx, entry)
+                return
+
+        # Fallback: check if it's a command in CATEGORIES
         all_cmds = {}
         for cat, cmd_names in self.CATEGORIES.items():
             for cn in cmd_names:
                 all_cmds[cn.lower()] = cat
-        if name not in all_cmds:
-            await ctx.session.send_line(f"  No help found for '{name}'.")
+
+        if name in all_cmds:
+            await ctx.session.send_line(
+                f"  {ansi.BOLD}{name}{ansi.RESET} "
+                f"(Category: {all_cmds[name]})")
+            await ctx.session.send_line(
+                f"  {ansi.DIM}No detailed help available yet.{ansi.RESET}")
+            await ctx.session.send_line("")
             return
-        # Try to get the actual command object for usage/help text
-        from parser.commands import CommandRegistry
-        # We don't have direct registry access, so just show category
-        await ctx.session.send_line(f"  {ansi.BOLD}{name}{ansi.RESET} (Category: {all_cmds[name]})")
-        # Quick reference for common commands
-        QUICK_HELP = {
-            "attack": "attack <target> [with <skill>] [damage <dice>] [cp <N>]\n  Uses equipped weapon if no skill/damage specified.",
-            "force": "force <power> [target]\n  Use a Force power. Type 'powers' to see available.",
-            "equip": "equip <weapon name>\n  Equip a weapon. Type 'weapons' for the list.",
-            "buy": "buy <weapon name>\n  Buy and equip a weapon. Costs credits.",
-            "board": "board <ship name>\n  Board a docked ship. Just 'board' to list ships.",
-            "launch": "launch\n  Pilot only. Take off from docking bay.",
-            "fire": "fire <target ship>\n  Gunner only. Checks range and fire arc.",
-            "close": "close <target ship>\n  Pilot only. Opposed piloting to reduce range. Speed advantage matters.",
-            "hyperspace": "hyperspace <destination>  |  hyperspace list\n  Pilot only. Requires hyperdrive and astrogation roll.",
-            "shields": "shields <front> <rear>\n  Redistribute shield dice between arcs.",
-            "@spawn": "@spawn <template> <ship name>\n  Builder: spawn a ship in current docking bay.",
-            "@lock": "@lock <direction> = <expression>\n  Composable: has:keycard & !wounded | admin",
-            "@set": "@set <property> = <value>\n  Room properties with zone inheritance. '@set' to view.",
-            "@roominfo": "@roominfo\n  Builder: shows zone chain, inherited properties, exit locks.",
-            "@npc": "@npc gen <tier> <archetype> [name]\n  Tiers: extra/average/novice/veteran/superior",
-            "cover": "cover [quarter|half|3/4|full]\n  Take cover. Costs an action. Clamped to room's cover_max.",
-            "range": "range [target] [band]\n  View/set range: pointblank, short, medium, long.",
-            "missions": "missions\n  View the mission board. Lists available jobs across all types.",
-            "accept": "accept <mission id>\n  Accept a mission. One active mission at a time.",
-            "mission": "mission\n  View your current active mission and destination.",
-            "complete": "complete\n  Complete your active mission. Must be at the destination.",
-            "abandon": "abandon\n  Abandon your current mission. Returns it to the board.",
-            "repair": "repair\n  Repair your equipped weapon. Costs credits, max condition drops by 5.",
-            "sell": "sell\n  Sell your equipped weapon to NPC vendor at 25-50% value.",
-            "credits": "credits\n  Check your credit balance.",
-            "survey": "survey\n  Survey for resources. Uses Search skill. Planet affects resource types.",
-            "craft": "craft <schematic> [experiments N]\n  Craft an item. More experiments = better quality but risk mishaps.",
-            "schematics": "schematics\n  List all crafting recipes with skill requirements and materials.",
-            "buyresource": "buyresource <type> [qty]\n  Buy resources from NPC vendor (quality 40). Default qty: 5.",
-        }
-        if name in QUICK_HELP:
-            for line in QUICK_HELP[name].split("\n"):
-                await ctx.session.send_line(f"  {line}")
+
+        # Try without + prefix
+        if not name.startswith("+") and ("+" + name) in all_cmds:
+            await ctx.session.send_line(
+                f"  {ansi.BOLD}+{name}{ansi.RESET} "
+                f"(Category: {all_cmds['+' + name]})")
+            await ctx.session.send_line(
+                f"  {ansi.DIM}No detailed help available yet.{ansi.RESET}")
+            await ctx.session.send_line("")
+            return
+
+        await ctx.session.send_line(f"  No help found for '{name}'.")
+        await ctx.session.send_line(
+            f"  {ansi.DIM}Try '+help/search {name}' to search.{ansi.RESET}")
         await ctx.session.send_line("")
+
+    async def _search_help(self, ctx, keyword):
+        """Search all help entries by keyword."""
+        mgr = self.__class__._help_mgr
+        if not mgr:
+            await ctx.session.send_line("  Help system not initialized.")
+            return
+
+        results = mgr.search(keyword)
+        if not results:
+            await ctx.session.send_line(
+                f"  No help entries found matching '{keyword}'.")
+            return
+
+        await ctx.session.send_line("")
+        await ctx.session.send_line(
+            ansi.header(f"  Search results for '{keyword}':"))
+        await ctx.session.send_line("")
+        for entry in results[:15]:  # Cap at 15 results
+            title = entry.title
+            cat = entry.category
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_CYAN}{entry.key:20s}{ansi.RESET} "
+                f"{title:30s} {ansi.DIM}[{cat}]{ansi.RESET}")
+        if len(results) > 15:
+            await ctx.session.send_line(
+                f"  {ansi.DIM}...and {len(results) - 15} more.{ansi.RESET}")
+        await ctx.session.send_line("")
+        await ctx.session.send_line(
+            f"  {ansi.DIM}Type '+help <name>' for details.{ansi.RESET}")
+        await ctx.session.send_line("")
+
+    async def _render_entry(self, ctx, entry):
+        """Render a single HelpEntry with ANSI formatting."""
+        send = ctx.session.send_line
+        w = 70  # display width
+
+        await send("")
+        await send(ansi.header("═" * w))
+
+        # Title line with category right-aligned
+        title = f"  {entry.title}"
+        cat_tag = f"[{entry.category}]"
+        padding = w - len(title) - len(cat_tag) - 1
+        if padding < 1:
+            padding = 1
+        await send(ansi.header(
+            f"{title}{' ' * padding}{cat_tag}"))
+
+        await send(ansi.header("═" * w))
+        await send("")
+
+        # Body text — send line by line
+        for line in entry.body.split("\n"):
+            await send(f"  {line}")
+
+        # See also
+        if entry.see_also:
+            await send("")
+            refs = ", ".join(
+                f"{ansi.BRIGHT_CYAN}{s}{ansi.RESET}"
+                for s in entry.see_also)
+            await send(f"  {ansi.DIM}SEE ALSO:{ansi.RESET} {refs}")
+
+        await send("")
+        await send(ansi.header("═" * w))
+        await send("")
 
 
 class RespawnCommand(BaseCommand):
@@ -720,7 +915,7 @@ class RespawnCommand(BaseCommand):
 
 class QuitCommand(BaseCommand):
     key = "quit"
-    aliases = ["@quit", "logout"]
+    aliases = ["@quit", "logout", "QUIT"]
     access_level = AccessLevel.ANYONE
     help_text = "Disconnect from the game."
     usage = "quit"
@@ -744,8 +939,8 @@ class QuitCommand(BaseCommand):
 
 
 class OocCommand(BaseCommand):
-    key = "@ooc"
-    aliases = ["ooc"]
+    key = "+ooc"
+    aliases = ["ooc", "@ooc"]
     help_text = "Send an out-of-character message to the room."
     usage = "@ooc <message>"
 
@@ -858,7 +1053,7 @@ class UnequipCommand(BaseCommand):
 
 
 class RepairCommand(BaseCommand):
-    key = "repair"
+    key = "+repair"
     aliases = []
     help_text = "Repair your equipped weapon. Costs credits at NPC shops, or use Technical skill for cheaper."
     usage = "repair"
@@ -1005,8 +1200,8 @@ class SellCommand(BaseCommand):
 
 
 class WeaponsListCommand(BaseCommand):
-    key = "weapons"
-    aliases = ["weaponlist", "armory"]
+    key = "+weapons"
+    aliases = ["weapons", "weaponlist", "armory", "+armory"]
     help_text = "List all known weapons in the game."
     usage = "weapons"
 
@@ -1037,6 +1232,30 @@ class WeaponsListCommand(BaseCommand):
                 f"{item.condition_bar}")
 
 
+
+
+class SemiposeCommand(BaseCommand):
+    key = ";"
+    aliases = ["semipose"]
+    help_text = "Emote with your name glued to the text (no space)."
+    usage = ";'s lightsaber hums.  →  Tundra's lightsaber hums."
+
+    async def execute(self, ctx: CommandContext):
+        if not ctx.args:
+            await ctx.session.send_line("Semipose what?")
+            return
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line("You must be in the game to do that.")
+            return
+        name = ansi.player_name(char["name"])
+        # No space between name and args — that's the whole point
+        text = f"{name}{ctx.args}"
+        room_id = char["room_id"]
+        for s in ctx.session_mgr.sessions_in_room(room_id):
+            await s.send_line(text)
+
+
 def register_all(registry):
     """Register all built-in commands with the registry."""
     commands = [
@@ -1058,6 +1277,7 @@ def register_all(registry):
         SellCommand(),
         WeaponsListCommand(),
         RespawnCommand(),
+        SemiposeCommand(),
     ]
     for cmd in commands:
         registry.register(cmd)

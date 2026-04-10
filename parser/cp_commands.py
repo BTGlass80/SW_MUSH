@@ -39,8 +39,8 @@ def _get_skill_reg() -> SkillRegistry:
 # ── cpstatus ──────────────────────────────────────────────────────────────────
 
 class CPStatusCommand(BaseCommand):
-    key = "cpstatus"
-    aliases = ["cpinfo", "advancement"]
+    key = "+cpstatus"
+    aliases = ["cpstatus", "cpinfo", "advancement", "+cp", "+advancement"]
     help_text = "Show your Character Point progression status."
     usage = "cpstatus"
 
@@ -98,7 +98,16 @@ class CPStatusCommand(BaseCommand):
 class TrainCommand(BaseCommand):
     key = "train"
     aliases = []
-    help_text = "Spend Character Points to advance a skill by 1 pip."
+    help_text = (
+        "Spend CP to advance a skill by one pip.\n"
+        "Cost = number of dice in total pool.\n"
+        "\n"
+        "EXAMPLE: train blaster\n"
+        "  Blaster at 5D costs 5 CP per pip.\n"
+        "  Three pips = one die: 5D > 5D+1 > 5D+2 > 6D.\n"
+        "\n"
+        "Type +cpstatus to check your CP balance."
+    )
     usage = "train <skill name>"
 
     async def execute(self, ctx: CommandContext) -> None:
@@ -175,9 +184,15 @@ class TrainCommand(BaseCommand):
 # ── kudos ─────────────────────────────────────────────────────────────────────
 
 class KudosCommand(BaseCommand):
-    key = "kudos"
-    aliases = ["givekudos"]
-    help_text = "Give a roleplay kudos to another player in the same room."
+    key = "+kudos"
+    aliases = ["kudos", "givekudos", "+givekudos"]
+    help_text = (
+        "Award kudos to a player for great RP. Grants 35 ticks\n"
+        "toward their CP. You can give 3/week (7-day lockout\n"
+        "per recipient).\n"
+        "\n"
+        "EXAMPLE: +kudos Tundra Great scene at the cantina!"
+    )
     usage = "kudos <player name>"
 
     async def execute(self, ctx: CommandContext) -> None:
@@ -240,8 +255,8 @@ class KudosCommand(BaseCommand):
 # ── scenebonus ────────────────────────────────────────────────────────────────
 
 class SceneBonusCommand(BaseCommand):
-    key = "scenebonus"
-    aliases = ["endscene", "closescene"]
+    key = "+scenebonus"
+    aliases = ["scenebonus", "endscene", "closescene", "+endscene"]
     help_text = "Claim a scene completion bonus based on your pose count."
     usage = "scenebonus [pose_count]"
 

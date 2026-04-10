@@ -47,6 +47,7 @@ class CommandContext:
     command: str             # The matched command name
     args: str                # Everything after the command name
     args_list: list[str]     # Args split by whitespace
+    switches: list[str] = field(default_factory=list)  # /switch flags
     db: object = None        # Database reference
     session_mgr: object = None  # SessionManager reference
 
@@ -62,6 +63,7 @@ class BaseCommand:
     access_level: int = AccessLevel.PLAYER
     help_text: str = ""              # Short help description
     usage: str = ""                  # Usage string (e.g., "look [target]")
+    valid_switches: list[str] = []   # Accepted /switch names (empty = no validation)
 
     async def execute(self, ctx: CommandContext):
         """Override this to implement the command logic."""
@@ -191,29 +193,54 @@ class CommandParser:
             await session.send_line("  Slow down! Too many commands.")
             return
 
-        # Expand direction aliases
-        first_word = raw_input.split()[0].lower()
-        if first_word in DIRECTION_ALIASES:
-            raw_input = DIRECTION_ALIASES[first_word] + raw_input[len(first_word):]
+        # ── Prefix extraction ──────────────────────────────────────────
+        # Single-char prefixes that glue to their arguments with no space:
+        #   'hello  →  command "'", args "hello"
+        #   :waves  →  command ":", args "waves"
+        #   ;'s     →  command ";", args "'s"
+        # The + and @ prefixes are part of the command word and need no
+        # special extraction — "+sheet" splits normally on whitespace.
+        GLUED_PREFIXES = {"'", '"', ":", ";"}
+        first_char = raw_input[0]
+
+        if first_char in GLUED_PREFIXES:
+            cmd_name = first_char
+            args_str = raw_input[1:].strip()
+        else:
+            # Expand direction aliases before splitting
             first_word = raw_input.split()[0].lower()
+            if first_word in DIRECTION_ALIASES:
+                raw_input = (DIRECTION_ALIASES[first_word]
+                             + raw_input[len(first_word):])
 
-        # Split into command and arguments
-        parts = raw_input.split(None, 1)
-        cmd_name = parts[0].lower()
-        args_str = parts[1] if len(parts) > 1 else ""
+            # Split into command and arguments
+            parts = raw_input.split(None, 1)
+            cmd_name = parts[0].lower()
+            args_str = parts[1] if len(parts) > 1 else ""
 
-        # Build context
+        # ── Switch extraction ──────────────────────────────────────────
+        # "+sheet/brief"  →  cmd_name="+sheet", switches=["brief"]
+        # "+help/search"  →  cmd_name="+help",  switches=["search"]
+        # Glued prefixes never have switches (no such thing as ":/foo").
+        switches = []
+        if "/" in cmd_name and first_char not in GLUED_PREFIXES:
+            switch_parts = cmd_name.split("/")
+            cmd_name = switch_parts[0]
+            switches = [s.lower() for s in switch_parts[1:] if s]
+
+        # ── Build context ──────────────────────────────────────────────
         ctx = CommandContext(
             session=session,
             raw_input=raw_input,
             command=cmd_name,
             args=args_str,
             args_list=args_str.split() if args_str else [],
+            switches=switches,
             db=self.db,
             session_mgr=self.session_mgr,
         )
 
-        # Look up command
+        # ── Look up command ────────────────────────────────────────────
         cmd = self.registry.get(cmd_name)
 
         if cmd is None:
@@ -230,9 +257,10 @@ class CommandParser:
                     await self._execute(move_cmd, ctx)
                     return
 
-            # ── Natural Language Combat Intercept ──────────────────────────
+            # ── Natural Language Combat Intercept ──────────────────────
             # If the player is in active combat and types something that
-            # isn't a registered command, try the IntentParser before giving up.
+            # isn't a registered command, try the IntentParser before
+            # giving up.
             if session.character:
                 from parser.combat_commands import try_nl_combat_action
                 handled = await try_nl_combat_action(ctx, raw_input)
@@ -246,7 +274,11 @@ class CommandParser:
         await self._execute(cmd, ctx)
 
     # Commands allowed when the character is dead
-    DEAD_ALLOWED = {"respawn", "look", "l", "help", "?", "commands", "who", "quit"}
+    DEAD_ALLOWED = {
+        "respawn", "look", "l",
+        "help", "+help", "?", "commands", "+commands",
+        "who", "+who", "quit", "@quit", "logout",
+    }
 
     async def _execute(self, cmd: BaseCommand, ctx: CommandContext):
         """Check access, dead-state, and run the command with timeout."""
@@ -254,6 +286,17 @@ class CommandParser:
             await ctx.session.send_line("You don't have permission to do that.")
             await ctx.session.send_prompt()
             return
+
+        # ── Switch validation ──
+        if cmd.valid_switches and ctx.switches:
+            bad = [s for s in ctx.switches if s not in cmd.valid_switches]
+            if bad:
+                valid_str = ", ".join("/" + s for s in cmd.valid_switches)
+                await ctx.session.send_line(
+                    f"  Unknown switch: /{bad[0]}. Valid: {valid_str}"
+                )
+                await ctx.session.send_prompt()
+                return
 
         # ── Dead-state intercept ──
         # If the character is dead, only allow whitelisted commands

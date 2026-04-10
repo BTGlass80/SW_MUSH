@@ -468,6 +468,7 @@ class ShipTemplate:
     hyperdrive_backup: int = 0
     cost: int = 0
     weapons: list[ShipWeapon] = field(default_factory=list)
+    mod_slots: int = 3  # Number of available modification slots (Drop 12)
 
     @property
     def scale_value(self) -> int:
@@ -571,6 +572,7 @@ class ShipRegistry:
                 hyperdrive_backup=entry.get("hyperdrive_backup", 0),
                 cost=entry.get("cost", 0),
                 weapons=weapons,
+                mod_slots=entry.get("mod_slots", 3),
             )
             self._templates[key] = template
         log.info("Loaded %d ship templates from %s", len(self._templates), path)
@@ -749,11 +751,14 @@ def resolve_space_attack(
         # Capital hitting starfighter: +6D damage (but harder to hit)
         damage_pool = DicePool(damage_pool.dice + abs(scale_diff), damage_pool.pips)
 
-    # Soak: hull + shields
-    soak_pool = DicePool(
-        target_hull.dice + target_shields.dice,
-        target_hull.pips + target_shields.pips,
-    )
+    # Soak: hull + shields (ion bypasses shields per R&E p.110)
+    if weapon.ion:
+        soak_pool = DicePool(target_hull.dice, target_hull.pips)
+    else:
+        soak_pool = DicePool(
+            target_hull.dice + target_shields.dice,
+            target_hull.pips + target_shields.pips,
+        )
 
     damage_roll = roll_d6_pool(damage_pool)
     soak_roll = roll_d6_pool(soak_pool)
@@ -763,30 +768,41 @@ def resolve_space_attack(
     margin = damage_roll.total - soak_roll.total
 
     if weapon.ion:
-        # Ion damage disables systems
-        if margin > 0:
-            if margin <= 5:
-                result.ion_disabled = "controls_ionized"
-                result.narrative = (
-                    f"  Ion hit! Controls ionized for 1 round. "
-                    f"(Damage: {result.damage_roll} vs Soak: {result.soak_roll})"
-                )
-            elif margin <= 10:
-                result.ion_disabled = "dead_in_space"
-                result.narrative = (
-                    f"  Ion hit! Ship is dead in space! "
-                    f"(Damage: {result.damage_roll} vs Soak: {result.soak_roll})"
-                )
-            else:
-                result.ion_disabled = "systems_overloaded"
-                result.narrative = (
-                    f"  Massive ion hit! All systems overloaded! "
-                    f"(Damage: {result.damage_roll} vs Soak: {result.soak_roll})"
-                )
-        else:
+        # Ion damage table per R&E p.110 — ionizes controls, no hull damage
+        if margin < 0:
             result.narrative = (
                 f"  Ion shot absorbed by hull. "
-                f"(Damage: {result.damage_roll} vs Soak: {result.soak_roll})"
+                f"(Damage: {result.damage_roll} vs Hull: {result.soak_roll})"
+            )
+        elif margin <= 3:
+            result.ion_disabled = "1"
+            result.narrative = (
+                f"  Ion hit! 1 control ionized (-1D for 2 rounds). "
+                f"(Damage: {result.damage_roll} vs Hull: {result.soak_roll})"
+            )
+        elif margin <= 8:
+            result.ion_disabled = "2"
+            result.narrative = (
+                f"  Ion hit! 2 controls ionized (-2D for 2 rounds). "
+                f"(Damage: {result.damage_roll} vs Hull: {result.soak_roll})"
+            )
+        elif margin <= 12:
+            result.ion_disabled = "3"
+            result.narrative = (
+                f"  Heavy ion hit! 3 controls ionized (-3D for 2 rounds)! "
+                f"(Damage: {result.damage_roll} vs Hull: {result.soak_roll})"
+            )
+        elif margin <= 15:
+            result.ion_disabled = "4"
+            result.narrative = (
+                f"  Massive ion hit! 4 controls ionized (-4D for 2 rounds)! "
+                f"(Damage: {result.damage_roll} vs Hull: {result.soak_roll})"
+            )
+        else:
+            result.ion_disabled = "dead"
+            result.narrative = (
+                f"  Devastating ion blast! Controls DEAD — ship is disabled! "
+                f"(Damage: {result.damage_roll} vs Hull: {result.soak_roll})"
             )
     else:
         # Physical damage
@@ -828,6 +844,163 @@ def resolve_space_attack(
                 f"(Damage: {result.damage_roll} vs Soak: {result.soak_roll}, "
                 f"margin: {margin})"
             )
+
+    return result
+
+
+# -- Tractor Beam Resolution (R&E p.110-111) --
+
+@dataclass
+class TractorResult:
+    """Result of a tractor beam attack or resist attempt."""
+    hit: bool = False
+    captured: bool = False
+    reeled_in: int = 0           # space units pulled toward attacker
+    drive_damage: int = 0        # Move reduction on target
+    broke_free: bool = False
+    narrative: str = ""
+    attack_roll: int = 0
+    difficulty: int = 0
+    tractor_roll: int = 0
+    hull_roll: int = 0
+
+
+def resolve_tractor_attack(
+    attacker_skill: DicePool,
+    weapon: ShipWeapon,
+    attacker_scale: int,
+    target_hull: DicePool,
+    target_scale: int,
+    range_band: SpaceRange = SpaceRange.SHORT,
+    num_actions: int = 1,
+) -> TractorResult:
+    """
+    Resolve a tractor beam attack per R&E p.110-111.
+
+    To-hit: same as normal attack (gunnery + FC vs range difficulty).
+    On hit: tractor "damage" vs target hull (no shields, no scale mod on damage).
+    If tractor >= hull: target is captured.
+    """
+    result = TractorResult()
+
+    # To-hit roll
+    fire_control = DicePool.parse(weapon.fire_control)
+    attack_pool = DicePool(
+        attacker_skill.dice + fire_control.dice,
+        attacker_skill.pips + fire_control.pips,
+    )
+    attack_pool = apply_multi_action_penalty(attack_pool, num_actions)
+
+    range_mod = RANGE_DIFFICULTY.get(range_band, 10)
+    attack_result = roll_d6_pool(attack_pool)
+    result.attack_roll = attack_result.total
+    result.difficulty = range_mod
+
+    if attack_result.total < range_mod:
+        result.narrative = (
+            f"  Tractor beam misses! "
+            f"(Attack: {result.attack_roll} vs Diff: {range_mod})"
+        )
+        return result
+
+    result.hit = True
+
+    # Tractor "damage" vs hull (no shields, no scale modifier on tractor damage)
+    tractor_pool = DicePool.parse(weapon.damage)
+    # Scale modifier applies to tractor strength
+    scale_diff = target_scale - attacker_scale
+    if scale_diff < 0:
+        tractor_pool = DicePool(tractor_pool.dice + abs(scale_diff), tractor_pool.pips)
+
+    tractor_roll = roll_d6_pool(tractor_pool)
+    hull_roll = roll_d6_pool(target_hull)
+    result.tractor_roll = tractor_roll.total
+    result.hull_roll = hull_roll.total
+
+    if tractor_roll.total < hull_roll.total:
+        result.narrative = (
+            f"  Tractor beam hits but target breaks free! "
+            f"(Tractor: {result.tractor_roll} vs Hull: {result.hull_roll})"
+        )
+        return result
+
+    result.captured = True
+    result.narrative = (
+        f"  Tractor beam locks on! Target captured! "
+        f"(Tractor: {result.tractor_roll} vs Hull: {result.hull_roll})"
+    )
+    return result
+
+
+def resolve_tractor_resist(
+    tractor_damage: DicePool,
+    target_hull: DicePool,
+    attacker_scale: int,
+    target_scale: int,
+) -> TractorResult:
+    """
+    Resolve a captured ship's attempt to break free of a tractor beam.
+
+    Per R&E p.111: tractor damage vs hull. If hull wins, ship breaks free.
+    If tractor wins, ship is reeled in and may take drive damage.
+    """
+    result = TractorResult()
+
+    # Scale modifier on tractor strength
+    scale_diff = target_scale - attacker_scale
+    effective_tractor = tractor_damage
+    if scale_diff < 0:
+        effective_tractor = DicePool(
+            tractor_damage.dice + abs(scale_diff), tractor_damage.pips)
+
+    tractor_roll = roll_d6_pool(effective_tractor)
+    hull_roll = roll_d6_pool(target_hull)
+    result.tractor_roll = tractor_roll.total
+    result.hull_roll = hull_roll.total
+
+    if hull_roll.total > tractor_roll.total:
+        result.broke_free = True
+        result.narrative = (
+            f"  Breaks free of the tractor beam! "
+            f"(Hull: {result.hull_roll} vs Tractor: {result.tractor_roll})"
+        )
+        return result
+
+    margin = tractor_roll.total - hull_roll.total
+    if margin <= 3:
+        result.reeled_in = 0
+        result.narrative = (
+            f"  Struggles against the tractor beam but can't break free. "
+            f"(Tractor: {result.tractor_roll} vs Hull: {result.hull_roll})"
+        )
+    elif margin <= 8:
+        result.reeled_in = 1
+        result.drive_damage = 1
+        result.narrative = (
+            f"  Reeled in 1 unit! Drives strained (-1 Move). "
+            f"(Tractor: {result.tractor_roll} vs Hull: {result.hull_roll})"
+        )
+    elif margin <= 12:
+        result.reeled_in = 2
+        result.drive_damage = 2
+        result.narrative = (
+            f"  Reeled in 2 units! Drives damaged (-2 Move)! "
+            f"(Tractor: {result.tractor_roll} vs Hull: {result.hull_roll})"
+        )
+    elif margin <= 15:
+        result.reeled_in = 3
+        result.drive_damage = 3
+        result.narrative = (
+            f"  Reeled in 3 units! Drives heavily damaged (-3 Move)! "
+            f"(Tractor: {result.tractor_roll} vs Hull: {result.hull_roll})"
+        )
+    else:
+        result.reeled_in = 4
+        result.drive_damage = 4
+        result.narrative = (
+            f"  Reeled in 4 units! Drives destroyed (-4 Move)! "
+            f"(Tractor: {result.tractor_roll} vs Hull: {result.hull_roll})"
+        )
 
     return result
 
@@ -1010,6 +1183,259 @@ def get_weapon_repair_skill(scale: str) -> str:
     if scale == "capital":
         return "capital ship weapon repair"
     return "starship weapon repair"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Ship Modification Engine  (Drop 12)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Maximum pip boosts per stat (WEG R&E p88-90: max +1D+2 = 5 pips).
+# Speed is measured in integer units, hyperdrive as a float multiplier.
+_MOD_MAX_PIPS = {
+    "maneuverability": 5,
+    "hull":            5,
+    "shields":         5,
+    "fire_control":    5,  # per weapon slot
+    "sensors":         3,  # +1D max
+}
+_MOD_MAX_SPEED      = 2    # +2 speed max
+_MOD_MIN_HYPERDRIVE = 0.5  # halved at most
+
+
+def _pip_count(dice_str: str) -> int:
+    """Convert a dice string like '2D+1' to total pips (D=3 pips)."""
+    if not dice_str:
+        return 0
+    s = dice_str.strip().upper()
+    dice, pips = 0, 0
+    if "D" in s:
+        parts = s.split("D")
+        try:
+            dice = int(parts[0]) if parts[0] else 0
+        except ValueError:
+            dice = 0
+        pip_part = parts[1].replace("+", "").replace(" ", "") if len(parts) > 1 else ""
+        try:
+            pips = int(pip_part) if pip_part else 0
+        except ValueError:
+            pips = 0
+    else:
+        try:
+            pips = int(s)
+        except ValueError:
+            pips = 0
+    return dice * 3 + pips
+
+
+def _pips_to_dice_str(total_pips: int) -> str:
+    """Convert total pips back to a dice string like '2D+1'."""
+    if total_pips <= 0:
+        return "0D"
+    d = total_pips // 3
+    p = total_pips % 3
+    if p == 0:
+        return f"{d}D"
+    return f"{d}D+{p}"
+
+
+def _quality_factor(quality: int) -> float:
+    """
+    Convert component quality to a stat boost multiplier.
+    Quality 80+ → 1.0 (full boost)
+    Quality 60-79 → 0.75
+    Quality <60  → 0.5
+    """
+    if quality >= 80:
+        return 1.0
+    if quality >= 60:
+        return 0.75
+    return 0.5
+
+
+def get_effective_stats(template: "ShipTemplate", systems: dict) -> dict:
+    """
+    Compute effective ship stats by applying installed modifications.
+
+    Returns a dict with the same keys as ShipTemplate fields that
+    can be modified (speed, maneuverability, hull, shields, hyperdrive,
+    and per-weapon fire_control overrides).
+
+    Callers should fall back to template values for any key not present.
+
+    Args:
+        template: The base ShipTemplate from the registry.
+        systems:  The ship's parsed systems JSON dict.
+
+    Returns:
+        {
+            "speed":            int,
+            "maneuverability":  str,   e.g. "2D+1"
+            "hull":             str,
+            "shields":          str,
+            "hyperdrive":       int,   (effective multiplier, min 1 due to int floor)
+            "hyperdrive_float": float, (fractional effective multiplier)
+            "weapon_fc":        dict[int, str],  # weapon index → effective fire_control
+            "sensors_bonus":    int,   # additional sensor pips
+            "mods_installed":   int,
+            "slots_used":       int,
+            "slots_total":      int,
+            "cargo_used_by_mods": int, # tons consumed by mods
+        }
+    """
+    mods: list = systems.get("modifications", [])
+
+    # Start from template base values
+    speed          = template.speed
+    maneuver_pips  = _pip_count(template.maneuverability)
+    hull_pips      = _pip_count(template.hull)
+    shield_pips    = _pip_count(template.shields)
+    hyperdrive_f   = float(template.hyperdrive) if template.hyperdrive else 0.0
+    sensors_bonus  = 0
+    weapon_fc      = {}  # weapon_slot_index → extra pips
+    cargo_used     = 0
+
+    for mod in mods:
+        if not isinstance(mod, dict):
+            continue
+        stat_target  = mod.get("stat_target", "")
+        stat_boost   = mod.get("stat_boost", 1)    # pips or speed units
+        quality      = mod.get("quality", 80)
+        cargo_weight = mod.get("cargo_weight", 10)
+        weapon_slot  = mod.get("weapon_slot", None)
+
+        effective_boost = max(1, round(stat_boost * _quality_factor(quality)))
+        cargo_used += cargo_weight
+
+        if stat_target == "speed":
+            speed = min(template.speed + _MOD_MAX_SPEED,
+                        speed + effective_boost)
+
+        elif stat_target == "maneuverability":
+            cap = _pip_count(template.maneuverability) + _MOD_MAX_PIPS["maneuverability"]
+            maneuver_pips = min(cap, maneuver_pips + effective_boost)
+
+        elif stat_target == "hull":
+            cap = _pip_count(template.hull) + _MOD_MAX_PIPS["hull"]
+            hull_pips = min(cap, hull_pips + effective_boost)
+
+        elif stat_target == "shields":
+            cap = _pip_count(template.shields) + _MOD_MAX_PIPS["shields"]
+            shield_pips = min(cap, shield_pips + effective_boost)
+
+        elif stat_target == "fire_control":
+            slot = int(weapon_slot) if weapon_slot is not None else 0
+            current = weapon_fc.get(slot, 0)
+            cap = _pip_count(
+                template.weapons[slot].fire_control
+                if slot < len(template.weapons) else "0D"
+            ) + _MOD_MAX_PIPS["fire_control"]
+            base_fc = _pip_count(
+                template.weapons[slot].fire_control
+                if slot < len(template.weapons) else "0D"
+            )
+            weapon_fc[slot] = min(cap - base_fc, current + effective_boost)
+
+        elif stat_target == "sensors":
+            sensors_bonus = min(3, sensors_bonus + effective_boost)
+
+        elif stat_target == "hyperdrive" and hyperdrive_f > 0:
+            # Boost reduces hyperdrive multiplier (lower = faster)
+            # stat_boost stored as pips; each pip = -0.25 multiplier
+            reduction = effective_boost * 0.25
+            hyperdrive_f = max(_MOD_MIN_HYPERDRIVE, hyperdrive_f - reduction)
+
+    # Clamp maneuverability/hull/shields to base (no negative mods reduce below base)
+    maneuver_pips = max(_pip_count(template.maneuverability), maneuver_pips)
+    hull_pips     = max(_pip_count(template.hull), hull_pips)
+    shield_pips   = max(_pip_count(template.shields), shield_pips)
+
+    # Build weapon_fc strings (extra pips only, applied in combat code)
+    weapon_fc_str = {
+        slot: _pips_to_dice_str(extra)
+        for slot, extra in weapon_fc.items()
+        if extra > 0
+    }
+
+    return {
+        "speed":              speed,
+        "maneuverability":    _pips_to_dice_str(maneuver_pips),
+        "hull":               _pips_to_dice_str(hull_pips),
+        "shields":            _pips_to_dice_str(shield_pips),
+        "hyperdrive":         max(1, int(round(hyperdrive_f))) if hyperdrive_f > 0 else 0,
+        "hyperdrive_float":   hyperdrive_f,
+        "weapon_fc":          weapon_fc_str,
+        "sensors_bonus":      sensors_bonus,
+        "mods_installed":     len(mods),
+        "slots_used":         len(mods),
+        "slots_total":        template.mod_slots,
+        "cargo_used_by_mods": cargo_used,
+    }
+
+
+def format_mods_display(template: "ShipTemplate", systems: dict) -> list:
+    """
+    Return ANSI-formatted lines for +ship/mods output.
+    """
+    _BOLD  = "\033[1m"
+    _DIM   = "\033[2m"
+    _CYAN  = "\033[0;36m"
+    _GREEN = "\033[1;32m"
+    _RESET = "\033[0m"
+
+    mods: list = systems.get("modifications", [])
+    effective = get_effective_stats(template, systems)
+    slots_used  = effective["slots_used"]
+    slots_total = effective["slots_total"]
+    cargo_used  = effective["cargo_used_by_mods"]
+
+    lines = [
+        f"{_BOLD}{'=' * 56}{_RESET}",
+        f"  {_BOLD}INSTALLED MODIFICATIONS{_RESET}  —  {template.name}",
+        f"  {_DIM}Slots: {slots_used}/{slots_total}   "
+        f"Cargo consumed: {cargo_used}t{_RESET}",
+        f"  {_DIM}{'-' * 54}{_RESET}",
+    ]
+
+    if not mods:
+        lines.append(f"  {_DIM}No modifications installed.{_RESET}")
+    else:
+        for i, mod in enumerate(mods):
+            if not isinstance(mod, dict):
+                continue
+            q = mod.get("quality", 0)
+            name  = mod.get("component_name", mod.get("component_key", "Unknown"))
+            stat  = mod.get("stat_target", "?")
+            boost = mod.get("stat_boost", 1)
+            cw    = mod.get("cargo_weight", 0)
+            inst  = mod.get("installed_by", "?")
+            qcolor = _GREEN if q >= 80 else _DIM
+            factor = _quality_factor(q)
+            eff = max(1, round(boost * factor))
+            lines.append(
+                f"  [{i}] {_BOLD}{name}{_RESET}  "
+                f"{_CYAN}+{eff} {stat}{_RESET}  "
+                f"{qcolor}Q:{q}%{_RESET}  "
+                f"{_DIM}{cw}t  by {inst}{_RESET}"
+            )
+
+    # Show effective stat summary
+    lines += [
+        f"  {_DIM}{'-' * 54}{_RESET}",
+        f"  {_BOLD}Effective Stats:{_RESET}",
+        f"    Speed {effective['speed']}  "
+        f"Maneuver {effective['maneuverability']}  "
+        f"Hull {effective['hull']}  "
+        f"Shields {effective['shields']}",
+    ]
+    if effective["sensors_bonus"] > 0:
+        lines.append(f"    Sensors bonus: +{effective['sensors_bonus']} pips")
+    if effective["hyperdrive_float"] > 0 and effective["hyperdrive_float"] != template.hyperdrive:
+        lines.append(
+            f"    Hyperdrive: x{effective['hyperdrive_float']:.2f} "
+            f"(base x{template.hyperdrive})"
+        )
+    lines.append(f"{_BOLD}{'=' * 56}{_RESET}")
+    return lines
 
 
 @dataclass

@@ -27,9 +27,16 @@ def _get_skill_reg(ctx) -> SkillRegistry:
 
 
 class RollCommand(BaseCommand):
-    key = "roll"
-    aliases = []
-    help_text = "Roll dice. Use a pool (4D+2) or a skill name."
+    key = "+roll"
+    aliases = ["roll"]
+    help_text = (
+        "Roll dice using D6 notation. Includes the Wild Die.\n"
+        "\n"
+        "EXAMPLES:\n"
+        "  +roll 4D         -- roll 4 dice\n"
+        "  +roll 3D+2       -- roll 3 dice, add 2\n"
+        "  +roll 5D blaster -- labeled roll"
+    )
     usage = "roll <dice|skill> [modifier]"
 
     async def execute(self, ctx: CommandContext):
@@ -113,9 +120,16 @@ class RollCommand(BaseCommand):
 
 
 class CheckCommand(BaseCommand):
-    key = "check"
-    aliases = []
-    help_text = "Roll a skill check against a difficulty."
+    key = "+check"
+    aliases = ["check"]
+    help_text = (
+        "Roll your skill against a difficulty number.\n"
+        "Uses full skill pool (attribute + skill ranks).\n"
+        "\n"
+        "EXAMPLES:\n"
+        "  +check blaster 15    -- blaster vs diff 15\n"
+        "  +check persuasion 10 -- persuasion vs diff 10"
+    )
     usage = "check <skill> <difficulty|number>"
 
     async def execute(self, ctx: CommandContext):
@@ -194,8 +208,8 @@ class CheckCommand(BaseCommand):
 
 
 class OpposedCommand(BaseCommand):
-    key = "opposed"
-    aliases = ["vs"]
+    key = "+opposed"
+    aliases = ["opposed", "vs"]
     help_text = "Roll an opposed check (your skill vs a target number or pool)."
     usage = "opposed <your_skill> <target_dice>"
 

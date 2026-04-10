@@ -1,0 +1,384 @@
+# -*- coding: utf-8 -*-
+"""
+parser/smuggling_commands.py  --  Smuggling Job Board Commands
+
+Commands:
+  smugjobs   — View available smuggling contacts (must be in eligible room)
+  smugaccept <id> — Take a smuggling job
+  smugjob    — View your active run
+  smugdeliver — Deliver cargo at destination (must be docked)
+  smugdump   — Jettison cargo (no fine, no pay)
+
+Eligible rooms for viewing the board:
+  Any room whose name contains "Jabba", "Cantina", or "Docking Bay"
+  (or has zone key "jabba" or "cantina"). This keeps it in-world.
+
+Patrol encounter:
+  Triggered at launch (LandCommand/LaunchCommand hook — Drop 2).
+  Resolved here for on-foot delivery.
+
+Registration:
+  from parser.smuggling_commands import register_smuggling_commands
+  register_smuggling_commands(registry)
+"""
+import logging
+import random
+
+from parser.commands import BaseCommand, CommandContext, AccessLevel
+from server import ansi
+
+log = logging.getLogger(__name__)
+
+# Rooms where the smuggling board is accessible (substring match on room name)
+_BOARD_ROOM_KEYWORDS = ["jabba", "cantina", "docking bay", "docking", "spaceport"]
+
+
+def _in_board_room(ctx: CommandContext) -> bool:
+    """True if the player's current room gives access to the board."""
+    room = ctx.session.current_room
+    if not room:
+        return False
+    name = room.get("name", "").lower()
+    return any(kw in name for kw in _BOARD_ROOM_KEYWORDS)
+
+
+async def _get_board(ctx: CommandContext):
+    from engine.smuggling import get_smuggling_board
+    board = get_smuggling_board()
+    await board.ensure_loaded(ctx.db)
+    return board
+
+
+class SmugJobsCommand(BaseCommand):
+    key = "+smugjobs"
+    aliases = ["smugjobs", "smugboard", "smugcontacts", "underworld", "+underworld"]
+    access_level = AccessLevel.ANYONE
+    help_text = "View available smuggling runs from your current location."
+    usage = "smugjobs"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        if not _in_board_room(ctx):
+            await ctx.session.send_line(
+                "  You need to be near a cantina, docking bay, or Jabba's contacts "
+                "to access the underground job board."
+            )
+            return
+
+        board = await _get_board(ctx)
+        jobs = board.available_jobs()
+
+        from engine.smuggling import format_board
+        for line in format_board(jobs):
+            await ctx.session.send_line(line)
+
+
+class SmugAcceptCommand(BaseCommand):
+    key = "smugaccept"
+    aliases = ["takesmug", "takerun"]
+    access_level = AccessLevel.ANYONE
+    help_text = "Accept a smuggling job. Usage: smugaccept <id>"
+    usage = "smugaccept <id>"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        if not _in_board_room(ctx):
+            await ctx.session.send_line(
+                "  You need to be near a contact to accept a job."
+            )
+            return
+
+        job_id = (ctx.args or "").strip().lower()
+        if not job_id:
+            await ctx.session.send_line("  Usage: smugaccept <job id>")
+            await ctx.session.send_line("  Type 'smugjobs' to see available runs.")
+            return
+
+        char_id = ctx.session.character["id"]
+        board = await _get_board(ctx)
+
+        # Check not already carrying cargo
+        if board.get_active_job(char_id):
+            await ctx.session.send_line(
+                "  You already have an active run. Deliver or dump it first."
+            )
+            return
+
+        # Fuzzy prefix match
+        job = None
+        for j in board.available_jobs():
+            if j.id == job_id or j.id.startswith(job_id):
+                job = j
+                break
+
+        if not job:
+            await ctx.session.send_line(
+                f"  No job '{job_id}' available. Type 'smugjobs' to see current listings."
+            )
+            return
+
+        accepted = await board.accept(job.id, char_id, ctx.db)
+        if not accepted:
+            await ctx.session.send_line(
+                "  That job is no longer available. Someone got there first."
+            )
+            return
+
+        from engine.smuggling import TIER_NAMES, _BOLD, _RESET, _RED
+        await ctx.session.send_line(
+            ansi.success(f"  Job accepted: {TIER_NAMES[accepted.tier]} — {accepted.cargo_type}")
+        )
+        await ctx.session.send_line(
+            f"  {_BOLD}Reward:{_RESET} {accepted.reward:,} credits on delivery."
+        )
+        await ctx.session.send_line(
+            f"  {_BOLD}Risk:{_RESET}   Fine of {_RED}{accepted.fine:,} credits{_RESET} if caught."
+        )
+        await ctx.session.send_line(
+            f"  Contact: {accepted.contact_name}. Deliver to: {accepted.dropoff_name}."
+        )
+        await ctx.session.send_line(
+            "  Launch when ready. Type 'smugjob' to review your run."
+        )
+
+
+class SmugJobCommand(BaseCommand):
+    key = "+smugjob"
+    aliases = ["smugjob", "myrun", "activerun", "cargo", "+cargo"]
+    access_level = AccessLevel.ANYONE
+    help_text = "View your active smuggling run."
+    usage = "smugjob"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        char_id = ctx.session.character["id"]
+        board = await _get_board(ctx)
+        job = board.get_active_job(char_id)
+
+        if not job:
+            await ctx.session.send_line(
+                "  You have no active smuggling run. Type 'smugjobs' near a contact."
+            )
+            return
+
+        from engine.smuggling import format_job_detail
+        for line in format_job_detail(job):
+            await ctx.session.send_line(line)
+
+
+class SmugDeliverCommand(BaseCommand):
+    key = "smugdeliver"
+    aliases = ["deliver", "dropoff"]
+    access_level = AccessLevel.ANYONE
+    help_text = "Deliver your smuggled cargo. Must be docked in a ship."
+    usage = "smugdeliver"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        char_id = ctx.session.character["id"]
+        board = await _get_board(ctx)
+        job = board.get_active_job(char_id)
+
+        if not job:
+            await ctx.session.send_line(
+                "  You have no active smuggling run."
+            )
+            return
+
+        # Must be docked (not in space)
+        char = ctx.session.character
+        # Check if the player is on a ship that is docked
+        # We check for current_room being a ship bridge room
+        ship = await _get_player_ship(ctx)
+        if not ship:
+            await ctx.session.send_line(
+                "  You need to be aboard a docked ship to make a delivery."
+            )
+            return
+        if not ship.get("docked_at"):
+            await ctx.session.send_line(
+                "  You need to be docked first. Land your ship at a docking bay."
+            )
+            return
+
+        # ── Destination planet check (Drop 11) ─────────────────────────────
+        if job.destination_planet:
+            # Verify ship is in the correct planet's zone
+            import json as _smj
+            _ship_sys = _smj.loads(ship.get("systems") or "{}")
+            _current_zone = _ship_sys.get("current_zone", "")
+            from engine.smuggling import PLANET_DOCK_ZONES
+            _valid_zones = PLANET_DOCK_ZONES.get(job.destination_planet, [])
+            if not _current_zone or not any(
+                _current_zone.startswith(z) or z.startswith(_current_zone)
+                for z in _valid_zones
+            ):
+                _planet_name = job.destination_planet.replace("_", " ").title()
+                await ctx.session.send_line(
+                    f"  This cargo is bound for {_planet_name}. "
+                    f"You need to be docked there to make the delivery."
+                )
+                return
+
+        # Run the patrol check (retroactively on delivery for ground-only runs)
+        # For simplicity: patrol check happens here for non-space runs
+        # (space runs get checked in the launch hook — Drop 2 patch)
+        # If they made it to delivery without a space run, they're clean.
+        completed = await board.complete(char_id, ctx.db)
+        if not completed:
+            await ctx.session.send_line("  Delivery failed — job no longer active.")
+            return
+
+        reward = completed.reward
+        new_credits = char.get("credits", 0) + reward
+        char["credits"] = new_credits
+        await ctx.db.save_character(char_id, credits=new_credits)
+
+        await ctx.session.send_line(
+            ansi.success(
+                f"  Delivery complete. {completed.cargo_type.title()} delivered "
+                f"to {completed.dropoff_name}."
+            )
+        )
+        await ctx.session.send_line(
+            f"  Payment received: {reward:,} credits. Balance: {new_credits:,} credits."
+        )
+
+        # Director integration: record contraband sale
+        try:
+            from engine.director import get_director
+            get_director().digest.record_contraband_sale()
+        except Exception:
+            pass
+
+
+class SmugDumpCommand(BaseCommand):
+    key = "smugdump"
+    aliases = ["dumpcargo", "jettison"]
+    access_level = AccessLevel.ANYONE
+    help_text = "Jettison your smuggled cargo. No fine, no pay."
+    usage = "smugdump"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        char_id = ctx.session.character["id"]
+        board = await _get_board(ctx)
+        job = board.get_active_job(char_id)
+
+        if not job:
+            await ctx.session.send_line("  You're not carrying any cargo.")
+            return
+
+        from engine.smuggling import TIER_NAMES
+        dumped = await board.dump_cargo(char_id, ctx.db)
+        if dumped:
+            await ctx.session.send_line(
+                ansi.success(
+                    f"  The {dumped.cargo_type} tumbles out the airlock. "
+                    f"Job abandoned — no pay, no fine."
+                )
+            )
+        else:
+            await ctx.session.send_line("  Failed to dump cargo.")
+
+
+# ── Patrol encounter helper (called from space launch hook) ───────────────────
+
+async def check_patrol_on_launch(ctx: CommandContext) -> bool:
+    """
+    Check for an Imperial patrol encounter when launching.
+    Call this from the LaunchCommand or hyperspace hook.
+
+    Returns True if the player was caught (cargo confiscated, fine applied).
+    """
+    char_id = ctx.session.character["id"]
+
+    from engine.smuggling import get_smuggling_board, resolve_patrol_encounter
+    board = get_smuggling_board()
+    job = board.get_active_job(char_id)
+    if not job:
+        return False  # No cargo, no problem
+
+    # Check for lockdown
+    lockdown_active = False
+    try:
+        from engine.director import get_director, AlertLevel
+        lockdown_active = (
+            get_director().get_alert_level("spaceport") == AlertLevel.LOCKDOWN
+        )
+    except Exception:
+        pass
+
+    # Player rolls Con or Sneak (use the higher of the two)
+    char = ctx.session.character
+    from engine.character import Character, SkillRegistry
+    from engine.dice import roll_d6_pool
+    skill_reg = SkillRegistry()
+    skill_reg.load_default()
+
+    try:
+        from engine.character import Character as Char
+        c = Char.from_dict(char)
+        con_pool   = c.get_skill_pool("con", skill_reg)
+        sneak_pool = c.get_skill_pool("sneak", skill_reg)
+        # Use higher pool
+        pool = con_pool if con_pool.total_pips() >= sneak_pool.total_pips() else sneak_pool
+        roll_result = roll_d6_pool(pool)
+        roll_total = roll_result.total
+        skill_name = "Con" if con_pool.total_pips() >= sneak_pool.total_pips() else "Sneak"
+    except Exception:
+        # Fallback: flat 2D roll
+        import random as _r
+        roll_total = sum(_r.randint(1, 6) for _ in range(2))
+        skill_name = "Con"
+
+    outcome = resolve_patrol_encounter(job, roll_total, lockdown_active)
+
+    if not outcome["intercepted"]:
+        return False
+
+    await ctx.session.send_line(f"\n  {outcome['message']}")
+
+    if outcome["caught"]:
+        # Confiscate cargo and apply fine
+        fine = job.fine
+        char = ctx.session.character
+        credits = char.get("credits", 0)
+        new_credits = max(0, credits - fine)
+        char["credits"] = new_credits
+        await ctx.db.save_character(char_id, credits=new_credits)
+        await board.fail(char_id, ctx.db)
+        await ctx.session.send_line(
+            f"  Fine deducted: {fine:,} credits. Balance: {new_credits:,} credits."
+        )
+        return True
+    else:
+        await ctx.session.send_line(
+            f"  ({skill_name} roll: {roll_total} vs difficulty {outcome['difficulty']})"
+        )
+        return False
+
+
+async def _get_player_ship(ctx: CommandContext):
+    """Get the ship the player is currently aboard, or None."""
+    char_id = ctx.session.character["id"]
+    try:
+        ships = await ctx.db.get_ships_with_character(char_id)
+        if ships:
+            return ships[0]
+        # Fallback: check ships owned by char that are docked
+        owned = await ctx.db.get_ships_owned_by(char_id)
+        if owned:
+            return owned[0]
+    except Exception:
+        pass
+    return None
+
+
+# ── Registration ──────────────────────────────────────────────────────────────
+
+def register_smuggling_commands(registry) -> None:
+    """Register all smuggling commands."""
+    for cmd in [
+        SmugJobsCommand(),
+        SmugAcceptCommand(),
+        SmugJobCommand(),
+        SmugDeliverCommand(),
+        SmugDumpCommand(),
+    ]:
+        registry.register(cmd)

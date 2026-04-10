@@ -1,0 +1,210 @@
+# SW_MUSH Crafting Schematics — Phase 3 (SWG-Lite)
+# Each entry: key, name, skill_required, difficulty, components, output_type, output_key
+# trainer_npc: which NPC teaches this schematic
+# components: list of {type, quantity, min_quality}
+# output_type: weapon | consumable
+# output_key: maps to key in weapons.yaml (for weapons) or a consumable key
+
+schematics:
+
+  # ──────────────────────────────────────────────────────────────
+  # WEAPONS — Taught by Kayson at the Weapon Shop
+  # ──────────────────────────────────────────────────────────────
+
+  - key: blaster_pistol_basic
+    name: "Blaster Pistol (Basic)"
+    skill_required: blaster_repair
+    difficulty: 12
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 2
+        min_quality: 25
+      - type: energy
+        quantity: 1
+        min_quality: 20
+    output_type: weapon
+    output_key: blaster_pistol
+    base_cost: 500
+
+  - key: blaster_pistol_sporting
+    name: "Sporting Blaster Pistol"
+    skill_required: blaster_repair
+    difficulty: 14
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 2
+        min_quality: 35
+      - type: energy
+        quantity: 1
+        min_quality: 30
+      - type: composite
+        quantity: 1
+        min_quality: 25
+    output_type: weapon
+    output_key: sporting_blaster
+    base_cost: 500
+
+  - key: blaster_rifle_standard
+    name: "Blaster Rifle"
+    skill_required: blaster_repair
+    difficulty: 16
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 3
+        min_quality: 40
+      - type: energy
+        quantity: 2
+        min_quality: 35
+      - type: composite
+        quantity: 1
+        min_quality: 30
+    output_type: weapon
+    output_key: blaster_rifle
+    base_cost: 1000
+
+  - key: hold_out_blaster
+    name: "Hold-Out Blaster"
+    skill_required: blaster_repair
+    difficulty: 13
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 1
+        min_quality: 30
+      - type: energy
+        quantity: 1
+        min_quality: 25
+      - type: composite
+        quantity: 1
+        min_quality: 20
+    output_type: weapon
+    output_key: hold_out_blaster
+    base_cost: 300
+
+  - key: vibroblade_standard
+    name: "Vibroblade"
+    skill_required: melee_combat
+    difficulty: 11
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 2
+        min_quality: 30
+      - type: composite
+        quantity: 1
+        min_quality: 20
+    output_type: weapon
+    output_key: vibroblade
+    base_cost: 250
+
+  - key: vibroblade_heavy
+    name: "Heavy Vibroblade"
+    skill_required: melee_combat
+    difficulty: 14
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 3
+        min_quality: 40
+      - type: composite
+        quantity: 2
+        min_quality: 35
+    output_type: weapon
+    output_key: vibroaxe
+    base_cost: 500
+
+  - key: stun_pistol_basic
+    name: "Stun Pistol"
+    skill_required: blaster_repair
+    difficulty: 15
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 2
+        min_quality: 30
+      - type: energy
+        quantity: 2
+        min_quality: 40
+      - type: chemical
+        quantity: 1
+        min_quality: 25
+    output_type: weapon
+    output_key: stun_pistol
+    base_cost: 200
+
+  - key: blaster_carbine_custom
+    name: "Blaster Carbine"
+    skill_required: blaster_repair
+    difficulty: 17
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 3
+        min_quality: 45
+      - type: energy
+        quantity: 2
+        min_quality: 40
+      - type: composite
+        quantity: 2
+        min_quality: 35
+    output_type: weapon
+    output_key: blaster_carbine
+    base_cost: 900
+
+  # ──────────────────────────────────────────────────────────────
+  # CONSUMABLES — Taught by Heist at the Clinic
+  # ──────────────────────────────────────────────────────────────
+
+  - key: medpac_basic
+    name: "Medpac (Basic)"
+    skill_required: first_aid
+    difficulty: 10
+    trainer_npc: Heist
+    components:
+      - type: chemical
+        quantity: 2
+        min_quality: 25
+      - type: organic
+        quantity: 1
+        min_quality: 20
+    output_type: consumable
+    output_key: medpac
+    base_cost: 100
+
+  - key: medpac_advanced
+    name: "Medpac (Advanced)"
+    skill_required: medicine
+    difficulty: 14
+    trainer_npc: Heist
+    components:
+      - type: chemical
+        quantity: 3
+        min_quality: 40
+      - type: organic
+        quantity: 2
+        min_quality: 35
+      - type: rare
+        quantity: 1
+        min_quality: 30
+    output_type: consumable
+    output_key: medpac_advanced
+    base_cost: 300
+
+  - key: stimpack_field
+    name: "Field Stimpack"
+    skill_required: first_aid
+    difficulty: 11
+    trainer_npc: Heist
+    components:
+      - type: chemical
+        quantity: 2
+        min_quality: 30
+      - type: organic
+        quantity: 1
+        min_quality: 25
+    output_type: consumable
+    output_key: stimpack
+    base_cost: 150

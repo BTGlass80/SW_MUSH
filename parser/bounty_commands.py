@@ -49,8 +49,8 @@ async def _get_active_contract(char_id: str, board):
 # ── Commands ───────────────────────────────────────────────────────────────────
 
 class BountiesCommand(BaseCommand):
-    key = "bounties"
-    aliases = ["bboard", "bountyboard"]
+    key = "+bounties"
+    aliases = ["bounties", "bboard", "bountyboard", "+bboard"]
     help_text = "View the Bounty Board. Lists active contracts."
     usage = "bounties"
 
@@ -120,8 +120,8 @@ class BountyClaimCommand(BaseCommand):
 
 
 class MyBountyCommand(BaseCommand):
-    key = "mybounty"
-    aliases = ["activebounty", "myhunt"]
+    key = "+mybounty"
+    aliases = ["mybounty", "activebounty", "myhunt", "+myhunt"]
     help_text = "View your currently active bounty contract."
     usage = "mybounty"
 

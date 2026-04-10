@@ -90,6 +90,11 @@ class Session:
         # Input queue - protocol handlers push lines here
         self._input_queue: asyncio.Queue[str] = asyncio.Queue()
 
+    @property
+    def wrap_width(self) -> int:
+        """Text wrapping width — capped at 78 for readability."""
+        return min(self.width, 78)
+
     def __repr__(self):
         name = self.character["name"] if self.character else "anonymous"
         return f"<Session #{self.id} {self.protocol.value} {name}>"

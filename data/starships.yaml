@@ -29,6 +29,7 @@ yt_1300:
   hyperdrive: 2
   hyperdrive_backup: 12
   cost: 100000
+  mod_slots: 5
   weapons:
     - name: "Laser Cannon"
       fire_arc: turret
@@ -61,6 +62,7 @@ yt1300:
 
 ghtroc_720:
   name: "Ghtroc 720 Freighter"
+  mod_slots: 4
   nickname: "Ghtroc 720"
   scale: starfighter
   hull: "4D"
@@ -83,6 +85,7 @@ ghtroc_720:
 
 yt_2400:
   name: "YT-2400 Transport"
+  mod_slots: 5
   nickname: "YT-2400"
   scale: starfighter
   hull: "4D+2"
@@ -114,6 +117,7 @@ yt_2400:
 
 x_wing:
   name: "X-Wing Starfighter"
+  mod_slots: 2
   nickname: "X-Wing"
   scale: starfighter
   hull: "4D"
@@ -142,6 +146,7 @@ x_wing:
 
 y_wing:
   name: "Y-Wing Starfighter"
+  mod_slots: 2
   nickname: "Y-Wing"
   scale: starfighter
   hull: "4D"
@@ -176,6 +181,7 @@ y_wing:
 
 a_wing:
   name: "A-Wing Interceptor"
+  mod_slots: 1
   nickname: "A-Wing"
   scale: starfighter
   hull: "2D+2"
@@ -204,6 +210,7 @@ a_wing:
 
 b_wing:
   name: "B-Wing Heavy Assault Fighter"
+  mod_slots: 2
   nickname: "B-Wing"
   scale: starfighter
   hull: "3D"
@@ -247,6 +254,7 @@ b_wing:
 
 tie_fighter:
   name: "TIE/ln Fighter"
+  mod_slots: 1
   nickname: "TIE Fighter"
   scale: starfighter
   hull: "2D"
@@ -269,6 +277,7 @@ tie_fighter:
 
 tie_interceptor:
   name: "TIE Interceptor"
+  mod_slots: 1
   nickname: "TIE Interceptor"
   scale: starfighter
   hull: "3D"
@@ -291,6 +300,7 @@ tie_interceptor:
 
 tie_bomber:
   name: "TIE Bomber"
+  mod_slots: 2
   nickname: "TIE Bomber"
   scale: starfighter
   hull: "4D"
@@ -329,6 +339,7 @@ tie_bomber:
 
 z_95:
   name: "Z-95 Headhunter"
+  mod_slots: 2
   nickname: "Headhunter"
   scale: starfighter
   hull: "3D"
@@ -390,6 +401,7 @@ z95:
 
 firespray:
   name: "Firespray Patrol Craft"
+  mod_slots: 3
   nickname: "Firespray"
   scale: starfighter
   hull: "5D"
@@ -428,6 +440,7 @@ firespray:
 
 lambda_shuttle:
   name: "Lambda-class Shuttle"
+  mod_slots: 3
   nickname: "Lambda Shuttle"
   scale: starfighter
   hull: "5D"
@@ -455,6 +468,7 @@ lambda_shuttle:
 
 sentinel_shuttle:
   name: "Sentinel-class Landing Craft"
+  mod_slots: 2
   nickname: "Sentinel Shuttle"
   scale: starfighter
   hull: "5D"
@@ -492,6 +506,7 @@ sentinel_shuttle:
 
 corellian_corvette:
   name: "Corellian Corvette"
+  mod_slots: 6
   nickname: "CR90 Corvette"
   scale: capital
   hull: "4D"
@@ -514,6 +529,7 @@ corellian_corvette:
 
 nebulon_b:
   name: "Nebulon-B Escort Frigate"
+  mod_slots: 8
   nickname: "Nebulon-B"
   scale: capital
   hull: "5D+1"
@@ -547,6 +563,7 @@ nebulon_b:
 
 imperial_star_destroyer:
   name: "Imperial-class Star Destroyer"
+  mod_slots: 10
   nickname: "Star Destroyer"
   scale: capital
   hull: "7D"

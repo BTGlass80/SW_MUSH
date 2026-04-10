@@ -361,8 +361,8 @@ class HealAcceptCommand(BaseCommand):
 
 
 class HealRateCommand(BaseCommand):
-    key = "healrate"
-    aliases = ["hrate"]
+    key = "+healrate"
+    aliases = ["healrate", "hrate"]
     help_text = "Set your healing rate in credits."
     usage = "healrate <credits>"
 

@@ -68,6 +68,11 @@ class Zone:
     adjacent: list          # list of zone id strings
     planet:   Optional[str] = None
     desc:     str = ""
+    hazards:  dict = None   # e.g. {"asteroid_density": "heavy", "nav_modifier": 5, "sensor_penalty": 2}
+
+    def __post_init__(self):
+        if self.hazards is None:
+            self.hazards = {}
 
 
 # All zones in the galaxy. Adding a new planet = add entries here, nothing else.
@@ -105,18 +110,131 @@ ZONES: dict[str, Zone] = {
         id="outer_rim_lane_1",
         name="Outer Rim Lane — Tatooine Corridor",
         type=ZoneType.HYPERSPACE_LANE,
-        adjacent=["tatooine_deep_space"],
+        adjacent=["tatooine_deep_space", "outer_rim_lane_2"],
         desc="A well-traveled hyperspace corridor along the Outer Rim. "
              "Ships streak past in blue-white flashes.",
     ),
-    # ── Future planets (add here when ready) ─────────────────────────────────
-    # "nar_shaddaa_dock":       Zone(..., adjacent=["nar_shaddaa_orbit"]),
-    # "nar_shaddaa_orbit":      Zone(..., adjacent=["nar_shaddaa_dock", "nar_shaddaa_deep_space"]),
-    # "nar_shaddaa_deep_space": Zone(..., adjacent=["nar_shaddaa_orbit", "outer_rim_lane_1"]),
+    # ── Nar Shaddaa — Smuggler's Moon ────────────────────────────────────────
+    "nar_shaddaa_dock": Zone(
+        id="nar_shaddaa_dock",
+        name="Nar Shaddaa Landing Platform",
+        type=ZoneType.DOCK,
+        planet="nar_shaddaa",
+        adjacent=["nar_shaddaa_orbit"],
+        desc="The grimy docking platforms of Nar Shaddaa. Neon advertisements "
+             "flicker over stacked landing pads. Everyone here has a price.",
+    ),
+    "nar_shaddaa_orbit": Zone(
+        id="nar_shaddaa_orbit",
+        name="Nar Shaddaa Orbit",
+        type=ZoneType.ORBIT,
+        planet="nar_shaddaa",
+        adjacent=["nar_shaddaa_dock", "nar_shaddaa_deep_space"],
+        desc="Tight orbital lanes above the Smuggler's Moon. Freighters jostle "
+             "for position. Hutt patrol barges enforce their own kind of order.",
+    ),
+    "nar_shaddaa_deep_space": Zone(
+        id="nar_shaddaa_deep_space",
+        name="Nar Shaddaa Deep Space",
+        type=ZoneType.DEEP_SPACE,
+        planet="nar_shaddaa",
+        adjacent=["nar_shaddaa_orbit", "outer_rim_lane_2"],
+        desc="The open space beyond Nar Shaddaa's gravity well. "
+             "Hutt space sprawls in every direction.",
+    ),
+    # ── Kessel — Spice Mines ─────────────────────────────────────────────────
+    "kessel_dock": Zone(
+        id="kessel_dock",
+        name="Kessel Spaceport",
+        type=ZoneType.DOCK,
+        planet="kessel",
+        adjacent=["kessel_orbit"],
+        desc="A rough-hewn spaceport carved into Kessel's dark surface. "
+             "Imperial garrison towers overlook every pad. "
+             "Spice processing plants hum in the distance.",
+    ),
+    "kessel_orbit": Zone(
+        id="kessel_orbit",
+        name="Kessel Orbit",
+        type=ZoneType.ORBIT,
+        planet="kessel",
+        adjacent=["kessel_dock", "kessel_approach"],
+        desc="Thin orbit over Kessel's dark surface. The Maw Cluster glows "
+             "ominously to port — a wall of swirling gas and gravitational anomalies.",
+    ),
+    "kessel_approach": Zone(
+        id="kessel_approach",
+        name="Kessel Approach — The Maw Corridor",
+        type=ZoneType.DEEP_SPACE,
+        planet="kessel",
+        adjacent=["kessel_orbit", "outer_rim_lane_3"],
+        desc="The treacherous corridor between Kessel and open space. "
+             "Asteroid debris and gravitational eddies from the Maw "
+             "make navigation a white-knuckle affair.",
+        hazards={"asteroid_density": "heavy", "nav_modifier": 5, "sensor_penalty": 2},
+    ),
+    # ── Corellia — Shipyard Capital ──────────────────────────────────────────
+    "corellia_dock": Zone(
+        id="corellia_dock",
+        name="Coronet City Spaceport",
+        type=ZoneType.DOCK,
+        planet="corellia",
+        adjacent=["corellia_orbit"],
+        desc="One of the galaxy's great spaceports. CEC shipyard gantries frame "
+             "the skyline. CorSec patrols keep a firm but negotiable order.",
+    ),
+    "corellia_orbit": Zone(
+        id="corellia_orbit",
+        name="Corellia Orbit",
+        type=ZoneType.ORBIT,
+        planet="corellia",
+        adjacent=["corellia_dock", "corellia_deep_space"],
+        desc="Busy orbital lanes around the shipbuilding capital. "
+             "CEC drydocks and orbital stations dot the view.",
+    ),
+    "corellia_deep_space": Zone(
+        id="corellia_deep_space",
+        name="Corellian System — Deep Space",
+        type=ZoneType.DEEP_SPACE,
+        planet="corellia",
+        adjacent=["corellia_orbit", "corellian_trade_spine"],
+        desc="Open space at the edge of the Corellian system. "
+             "The Corellian Trade Spine beckons toward the Core.",
+    ),
+    # ── Hyperspace lanes (expanded) ──────────────────────────────────────────
+    "outer_rim_lane_2": Zone(
+        id="outer_rim_lane_2",
+        name="Outer Rim Lane — Hutt Space Corridor",
+        type=ZoneType.HYPERSPACE_LANE,
+        adjacent=["outer_rim_lane_1", "nar_shaddaa_deep_space", "outer_rim_lane_3"],
+        desc="The hyperspace corridor linking the Outer Rim to Hutt Space. "
+             "Smuggler traffic is heavy. Navigation beacons are unreliable.",
+    ),
+    "outer_rim_lane_3": Zone(
+        id="outer_rim_lane_3",
+        name="Outer Rim Lane — Kessel Run Approach",
+        type=ZoneType.HYPERSPACE_LANE,
+        adjacent=["outer_rim_lane_2", "kessel_approach"],
+        desc="The notorious approach corridor toward the Kessel system. "
+             "The Maw's gravity shadows make this stretch genuinely dangerous.",
+        hazards={"asteroid_density": "light", "nav_modifier": 2},
+    ),
+    "corellian_trade_spine": Zone(
+        id="corellian_trade_spine",
+        name="Corellian Trade Spine",
+        type=ZoneType.HYPERSPACE_LANE,
+        adjacent=["corellia_deep_space", "outer_rim_lane_1"],
+        desc="One of the galaxy's major trade arteries. Heavy freighter traffic "
+             "and Imperial customs interdiction make this a busy corridor.",
+    ),
 }
 
 # Zones eligible for random traffic spawn
-SPAWN_ZONES = ["tatooine_deep_space", "outer_rim_lane_1"]
+SPAWN_ZONES = [
+    "tatooine_deep_space", "outer_rim_lane_1",
+    "nar_shaddaa_deep_space", "outer_rim_lane_2",
+    "kessel_approach", "corellia_deep_space",
+]
 
 # Maps docking bay room names (lowercase substrings) → planet orbit zone id.
 # Used by launch command to assign current_zone without hardcoding.
@@ -125,6 +243,11 @@ BAY_PLANET_MAP = {
     "tatooine": "tatooine_orbit",
     "mos eisley": "tatooine_orbit",
     "docking bay": "tatooine_orbit",   # default fallback for Mos Eisley bays
+    "nar shaddaa": "nar_shaddaa_orbit",
+    "smuggler": "nar_shaddaa_orbit",
+    "kessel": "kessel_orbit",
+    "coronet": "corellia_orbit",
+    "corellia": "corellia_orbit",
 }
 
 def get_orbit_zone_for_room(room_name: str) -> str:

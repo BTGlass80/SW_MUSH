@@ -50,8 +50,8 @@ async def _get_board(ctx: CommandContext):
 
 
 class SmugJobsCommand(BaseCommand):
-    key = "smugjobs"
-    aliases = ["smugboard", "smugcontacts", "underworld"]
+    key = "+smugjobs"
+    aliases = ["smugjobs", "smugboard", "smugcontacts", "underworld", "+underworld"]
     access_level = AccessLevel.ANYONE
     help_text = "View available smuggling runs from your current location."
     usage = "smugjobs"
@@ -141,8 +141,8 @@ class SmugAcceptCommand(BaseCommand):
 
 
 class SmugJobCommand(BaseCommand):
-    key = "smugjob"
-    aliases = ["myrun", "activerun", "cargo"]
+    key = "+smugjob"
+    aliases = ["smugjob", "myrun", "activerun", "cargo", "+cargo"]
     access_level = AccessLevel.ANYONE
     help_text = "View your active smuggling run."
     usage = "smugjob"
@@ -196,6 +196,25 @@ class SmugDeliverCommand(BaseCommand):
                 "  You need to be docked first. Land your ship at a docking bay."
             )
             return
+
+        # ── Destination planet check (Drop 11) ─────────────────────────────
+        if job.destination_planet:
+            # Verify ship is in the correct planet's zone
+            import json as _smj
+            _ship_sys = _smj.loads(ship.get("systems") or "{}")
+            _current_zone = _ship_sys.get("current_zone", "")
+            from engine.smuggling import PLANET_DOCK_ZONES
+            _valid_zones = PLANET_DOCK_ZONES.get(job.destination_planet, [])
+            if not _current_zone or not any(
+                _current_zone.startswith(z) or z.startswith(_current_zone)
+                for z in _valid_zones
+            ):
+                _planet_name = job.destination_planet.replace("_", " ").title()
+                await ctx.session.send_line(
+                    f"  This cargo is bound for {_planet_name}. "
+                    f"You need to be docked there to make the delivery."
+                )
+                return
 
         # Run the patrol check (retroactively on delivery for ground-only runs)
         # For simplicity: patrol check happens here for non-space runs
@@ -331,6 +350,95 @@ async def check_patrol_on_launch(ctx: CommandContext) -> bool:
     else:
         await ctx.session.send_line(
             f"  ({skill_name} roll: {roll_total} vs difficulty {outcome['difficulty']})"
+        )
+        return False
+
+
+async def check_patrol_on_arrival(ctx: CommandContext, dest_planet: str) -> bool:
+    """
+    Check for an Imperial patrol encounter on hyperspace arrival.
+    Call this from the hyperspace arrival tick in game_server.py.
+
+    dest_planet: e.g. "corellia", "kessel", "nar_shaddaa", "tatooine"
+    Returns True if the player was caught (cargo confiscated, fine applied).
+
+    Only triggers if the character has an active smuggling run with a
+    matching destination_planet. Gracefully no-ops if no run active.
+    """
+    char_id = ctx.session.character["id"]
+
+    from engine.smuggling import (
+        get_smuggling_board, resolve_patrol_encounter,
+        PLANET_PATROL_FREQUENCY,
+    )
+    board = get_smuggling_board()
+    job = board.get_active_job(char_id)
+    if not job:
+        return False
+    if job.destination_planet != dest_planet:
+        return False  # Different destination — not their stop
+
+    # Roll whether patrol intercepts at this planet
+    arrival_chance = PLANET_PATROL_FREQUENCY.get(dest_planet, 0.0)
+    import random as _arr_r
+    if _arr_r.random() > arrival_chance:
+        return False
+
+    # Reuse launch patrol logic (same skill check, same outcome)
+    lockdown_active = False
+    try:
+        from engine.director import get_director, AlertLevel
+        lockdown_active = (
+            get_director().get_alert_level("spaceport") == AlertLevel.LOCKDOWN
+        )
+    except Exception:
+        pass
+
+    char = ctx.session.character
+    from engine.character import Character, SkillRegistry
+    from engine.dice import roll_d6_pool
+    skill_reg = SkillRegistry()
+    skill_reg.load_default()
+    try:
+        from engine.character import Character as Char
+        c = Char.from_dict(char)
+        con_pool   = c.get_skill_pool("con", skill_reg)
+        sneak_pool = c.get_skill_pool("sneak", skill_reg)
+        pool = con_pool if con_pool.total_pips() >= sneak_pool.total_pips() else sneak_pool
+        roll_result = roll_d6_pool(pool)
+        roll_total = roll_result.total
+        skill_name = "Con" if con_pool.total_pips() >= sneak_pool.total_pips() else "Sneak"
+    except Exception:
+        import random as _r
+        roll_total = sum(_r.randint(1, 6) for _ in range(2))
+        skill_name = "Con"
+
+    outcome = resolve_patrol_encounter(job, roll_total, lockdown_active)
+
+    if not outcome["intercepted"]:
+        return False
+
+    planet_name = dest_planet.replace("_", " ").title()
+    _CUSTOMS_BOLD_RED = "[1;31m"
+    _CUSTOMS_RESET    = "[0m"
+    _customs_msg = _CUSTOMS_BOLD_RED + "[CUSTOMS]" + _CUSTOMS_RESET + " Imperial customs intercepts your ship on arrival at " + planet_name + "!"
+    await ctx.session.send_line("  " + _customs_msg)
+    await ctx.session.send_line(f"  {outcome['message']}")
+
+    if outcome["caught"]:
+        fine = job.fine
+        credits = char.get("credits", 0)
+        new_credits = max(0, credits - fine)
+        char["credits"] = new_credits
+        await ctx.db.save_character(char_id, credits=new_credits)
+        await board.fail(char_id, ctx.db)
+        await ctx.session.send_line(
+            f"  Fine deducted: {fine:,} credits. Balance: {new_credits:,} credits."
+        )
+        return True
+    else:
+        await ctx.session.send_line(
+            f"  ({skill_name} roll: {roll_total} vs difficulty {outcome['difficulty']} — cleared)"
         )
         return False
 

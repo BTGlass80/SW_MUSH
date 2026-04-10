@@ -42,9 +42,18 @@ async def _get_board_and_rooms(db):
 # ── Commands ───────────────────────────────────────────────────────────────────
 
 class MissionsCommand(BaseCommand):
-    key = "missions"
-    aliases = ["mb", "jobs", "board"]
-    help_text = "View the Mission Board. Lists all available jobs."
+    key = "+missions"
+    aliases = ["missions", "mb", "jobs", "+jobs", "+mb"]
+    help_text = (
+        "Browse available missions for credits.\n"
+        "\n"
+        "WORKFLOW:\n"
+        "  +missions      -- browse available jobs\n"
+        "  accept <id>    -- take a mission\n"
+        "  +mission       -- check active mission\n"
+        "  complete       -- turn in at destination\n"
+        "  abandon        -- give up (returns to board)"
+    )
     usage = "missions"
 
     async def execute(self, ctx: CommandContext):
@@ -127,10 +136,46 @@ class AcceptMissionCommand(BaseCommand):
         await ctx.session.send_line(
             f"  Type 'mission' to review. 'complete' when you reach the destination.")
 
+        # Space mission post-accept setup (Drop 14)
+        from engine.missions import SPACE_MISSION_TYPES, MissionType
+        if accepted.mission_type in SPACE_MISSION_TYPES:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_CYAN}[SPACE MISSION]{ansi.RESET} "
+                f"You need a ship and must be in the target zone to complete this.")
+            if accepted.mission_type == MissionType.ESCORT:
+                # Spawn escort NPC trader at the origin zone
+                try:
+                    from engine.npc_space_traffic import (
+                        get_traffic_manager, TrafficArchetype,
+                    )
+                    tm = get_traffic_manager()
+                    escort_ts = await tm._spawn(
+                        ctx.db, ctx.session_mgr,
+                        archetype=TrafficArchetype.TRADER,
+                    )
+                    if escort_ts:
+                        # Override spawn zone to mission origin
+                        origin = accepted.mission_data.get("origin_zone", "")
+                        if origin:
+                            escort_ts.current_zone = origin
+                        accepted.mission_data["escort_ship_id"] = escort_ts.ship_id
+                        accepted.mission_data["escort_ship_name"] = escort_ts.display_name
+                        # Re-save mission with escort ID
+                        from engine.missions import get_mission_board
+                        board2 = get_mission_board()
+                        if accepted.id in board2._missions:
+                            board2._missions[accepted.id].mission_data = accepted.mission_data
+                        await ctx.db.save_mission(accepted)
+                        await ctx.session.send_line(
+                            f"  Escort vessel {ansi.BOLD}{escort_ts.display_name}{ansi.RESET} "
+                            f"is waiting at {origin.replace('_', ' ').title()}.")
+                except Exception as _e:
+                    log.warning("[missions] escort spawn failed: %s", _e)
+
 
 class ActiveMissionCommand(BaseCommand):
-    key = "mission"
-    aliases = ["myjob", "activemission"]
+    key = "+mission"
+    aliases = ["mission", "myjob", "activemission", "+myjob"]
     help_text = "View your currently active mission."
     usage = "mission"
 
@@ -166,6 +211,106 @@ class ActiveMissionCommand(BaseCommand):
 
         for line in format_mission_detail(active):
             await ctx.session.send_line(line)
+
+
+async def _complete_space_mission(ctx, active) -> bool:
+    # Handle space mission completion checks.
+    # Called from CompleteMissionCommand when mission is a space type.
+    # Returns True if the mission passes its completion condition and
+    # should be resolved; False to deny completion (with message sent).
+    # Returns the string "partial" for escort destroyed (partial pay).
+    from engine.missions import MissionType
+    mtype = active.mission_type
+    md = active.mission_data or {}
+
+    # All space missions require the player to be aboard a launched ship
+    try:
+        from parser.space_commands import _get_ship_for_player
+        ship = await _get_ship_for_player(ctx)
+    except Exception:
+        ship = None
+
+    if not ship or ship.get("docked_at"):
+        await ctx.session.send_line(
+            f"  {ansi.error('You need to be aboard a launched ship to complete a space mission.')}")
+        return False
+
+    import json as _j
+    systems = _j.loads(ship.get("systems") or "{}")
+    current_zone = systems.get("current_zone", "")
+    target_zone  = md.get("target_zone", "")
+
+    if mtype == MissionType.PATROL:
+        if current_zone != target_zone:
+            await ctx.session.send_line(
+                f"  You need to be in {target_zone.replace('_', ' ').title()}. "
+                f"Currently in: {current_zone.replace('_', ' ').title() or 'unknown'}.")
+            return False
+        ticks_done     = md.get("patrol_ticks_done", 0)
+        ticks_required = md.get("patrol_ticks_required", 120)
+        if ticks_done < ticks_required:
+            remaining = ticks_required - ticks_done
+            await ctx.session.send_line(
+                f"  Patrol not complete. Hold position for {remaining} more seconds.")
+            return False
+        return True
+
+    elif mtype == MissionType.ESCORT:
+        if current_zone != target_zone:
+            await ctx.session.send_line(
+                f"  Escort not delivered. Reach {target_zone.replace('_', ' ').title()} first.")
+            return False
+        escort_id = md.get("escort_ship_id")
+        if escort_id is not None:
+            # Check escort is still alive (still in traffic manager)
+            try:
+                from engine.npc_space_traffic import get_traffic_manager
+                alive = escort_id in get_traffic_manager()._ships
+            except Exception:
+                alive = True  # graceful-drop: assume alive if can't check
+            if not alive:
+                # Escort was destroyed — partial pay (25%)
+                return "partial"
+        return True
+
+    elif mtype == MissionType.INTERCEPT:
+        if current_zone != target_zone:
+            await ctx.session.send_line(
+                f"  Intercept zone is {target_zone.replace('_', ' ').title()}. "
+                f"You are not there.")
+            return False
+        kills_done   = md.get("kills_done", 0)
+        kills_needed = md.get("kills_needed", 3)
+        if kills_done < kills_needed:
+            await ctx.session.send_line(
+                f"  Need {kills_needed - kills_done} more kill(s) in this zone. "
+                f"({kills_done}/{kills_needed} eliminated)")
+            return False
+        return True
+
+    elif mtype == MissionType.SURVEY_ZONE:
+        if current_zone != target_zone:
+            await ctx.session.send_line(
+                f"  Survey zone is {target_zone.replace('_', ' ').title()}. Fly there first.")
+            return False
+        # Check live anomaly state for this zone
+        resolved_count = 0
+        try:
+            from engine.space_anomalies import get_anomalies_for_zone
+            for anom in get_anomalies_for_zone(target_zone):
+                if getattr(anom, "resolved", False):
+                    resolved_count += 1
+        except Exception:
+            pass
+        required = md.get("anomalies_required", 1)
+        if resolved_count < required:
+            await ctx.session.send_line(
+                f"  Need {required} resolved anomaly in {target_zone.replace('_', ' ').title()}. "
+                f"Use 'deepscan' and investigate.")
+            return False
+        return True
+
+    return False
 
 
 class CompleteMissionCommand(BaseCommand):
@@ -211,6 +356,38 @@ class CompleteMissionCommand(BaseCommand):
                 ansi.error("  Your mission has expired and has been returned to the board."))
             return
 
+        # ── Space mission routing (Drop 14) ────────────────────────────────
+        from engine.missions import SPACE_MISSION_TYPES
+        if active.mission_type in SPACE_MISSION_TYPES:
+            space_ok = await _complete_space_mission(ctx, active)
+            if space_ok is False:
+                return
+            partial_escort = (space_ok == "partial")
+            completed = await board.complete(active.id, ctx.db)
+            if not completed:
+                await ctx.session.send_line("  Something went wrong. Try again.")
+                return
+            base_reward = completed.reward
+            if partial_escort:
+                earned = max(50, int(base_reward * 0.25))
+                await ctx.session.send_line(
+                    ansi.success(f"  Escort mission complete — but the freighter was lost."))
+                await ctx.session.send_line(
+                    f"  Partial payment: {earned:,} credits (25%).")
+            else:
+                earned = base_reward
+                await ctx.session.send_line(
+                    ansi.success(f"  Space mission complete: {completed.title}"))
+                await ctx.session.send_line(
+                    f"  {ansi.BOLD}Reward: +{earned:,} credits{ansi.RESET}  "
+                    f"(Balance: {ctx.session.character.get('credits', 0) + earned:,} cr)")
+            old_credits = ctx.session.character.get("credits", 0)
+            ctx.session.character["credits"] = old_credits + earned
+            await ctx.db.save_character(ctx.session.character["id"],
+                                        credits=old_credits + earned)
+            return
+
+        # ── Ground mission location check ─────────────────────────────────────
         # Check location -- match by room name or room id
         at_destination = False
         if active.destination_room_id:

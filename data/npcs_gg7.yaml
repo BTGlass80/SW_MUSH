@@ -1822,6 +1822,49 @@ npcs:
   # ORIGINAL NPCS -- Hand-authored for rooms not covered by GG7 sourcebook
   # =========================================================================
 
+
+  - name: "Venn Kator"
+    room: "Docking Bay 94 - Pit Floor"
+    species: "Corellian Human"
+    description: |
+      A stocky Corellian man in his fifties, oil-stained coveralls rolled to the
+      elbows. Calloused hands move with practiced economy across the hull plating
+      of whatever ship he happens to be working on. A battered tool harness is
+      strapped across his chest, each pocket packed with specialized instruments.
+      His eyes are sharp — he notices exactly what needs fixing and exactly what
+      someone's trying to hide.
+    char_sheet:
+      Dexterity: 2D
+      Knowledge: 3D
+      Mechanical: 4D
+      Perception: 3D
+      Strength: 2D+2
+      Technical: 5D
+      skills:
+        space_transports_repair: "7D"
+        starship_weapon_repair: "5D+2"
+        capital_ship_repair: "5D"
+        astrogation: "4D"
+        bargain: "4D"
+    ai_config:
+      personality: gruff_expert
+      trainer: true
+      sell_items: false
+      hostile: false
+      dialog:
+        - "Venn wipes his hands on a rag. 'You need something fixed or you just           here to watch?'"
+        - "Venn squints at your ship. 'Whoever installed that motivator did it           wrong. I can see it from here.'"
+        - "Venn crosses his arms. 'I've been modding ships since before the           Clone Wars. Talk to me when you have real parts.'"
+        - "'Corellian Engineering — best in the galaxy. Everything else is           catching up.' He returns to his work."
+        - "Venn taps the hull plating with a knuckle. 'You hear that? That's           a resonance problem. Costs you half a point of speed. Easy fix if           you've got the parts.'"
+      teach_message: |
+        Venn sets down his hydrospanner and studies you for a long moment.
+        'All right. You've got the look of someone who actually wants to learn,
+        not just someone who wants to watch. Pull up a crate.'
+        He walks you through the schematics over the next hour — ship systems,
+        modification tolerances, what fails first and why. You come away knowing
+        things you didn't know you didn't know.
+
   - name: "Kayson"
     room: "Kayson's Weapon Shop"
     species: "Human"

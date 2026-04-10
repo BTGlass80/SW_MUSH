@@ -80,6 +80,17 @@ class GameServer:
         register_entertainer_commands(self.registry)
         register_cp_commands(self.registry)
         register_sabacc_commands(self.registry)
+        register_crafting_commands(self.registry)
+
+        # ── Help System Init ──
+        from data.help_topics import HelpManager
+        help_mgr = HelpManager()
+        help_mgr.auto_register_commands(self.registry)
+        help_mgr.register_topics()
+        from parser.builtin_commands import HelpCommand
+        HelpCommand._help_mgr = help_mgr
+        log.info("Help system initialized: %d entries",
+                 len(help_mgr._entries))
 
         # AI system
         self.ai_manager = AIManager(AIConfig())
@@ -99,6 +110,8 @@ class GameServer:
         self._running = False
         self._tick_task: Optional[asyncio.Task] = None
         self._wage_tick_counter: int = 0
+        self._asteroid_tick_counter: int = 0
+        self._anomaly_tick_counter: int = 0
 
     async def start(self):
         """Initialize database, load game data, and start all listeners."""
@@ -117,6 +130,15 @@ class GameServer:
             self.skill_reg.load_file(skills_path)
         log.info("Game data loaded: %d species, %d skills",
                  self.species_reg.count, self.skill_reg.count)
+
+        # Auto-build world if only seed rooms exist
+        try:
+            from build_mos_eisley import auto_build_if_needed
+            built = await auto_build_if_needed(self.config.db_path)
+            if built:
+                log.info("World auto-build completed successfully.")
+        except Exception as _build_err:
+            log.warning("World auto-build skipped: %s", _build_err)
 
         # Network listeners
         await self.telnet.start(self.config.telnet_host, self.config.telnet_port)
@@ -519,12 +541,308 @@ class GameServer:
             except Exception:
                 log.debug("NPC space crew tick skipped", exc_info=True)
 
+
+            # ── Ion decay & tractor hold tick ──
+            try:
+                from parser.space_commands import _get_systems
+                import json as _gsj
+                ships = await self.db.get_all_ships()
+                for _ship in (ships or []):
+                    if _ship.get("docked_at"):
+                        continue
+                    _sys = _gsj.loads(_ship.get("systems") or "{}")
+                    _dirty = False
+                    # Ion decay: R&E p.108 — ion wears off in 2 rounds
+                    _ion = _sys.get("ion_penalty", 0)
+                    if _ion and _ion != 99:
+                        _sys["ion_penalty"] = max(0, _ion - 1)
+                        if _sys["ion_penalty"] == 0:
+                            _sys.pop("controls_frozen", None)
+                        _dirty = True
+                    elif _ion == 99:
+                        # Fully frozen: decay to half maneuver then clear
+                        _sys["ion_penalty"] = 0
+                        _sys.pop("controls_frozen", None)
+                        _dirty = True
+                    # Tractor auto-reel: notify held ship every tick
+                    _held_by = _sys.get("tractor_held_by", 0)
+                    if _held_by:
+                        _holder = await self.db.get_ship(_held_by)
+                        if _holder and _holder.get("bridge_room_id"):
+                            await self.session_mgr.broadcast_to_room(
+                                _ship["bridge_room_id"],
+                                "  [TRACTOR] You are being reeled in. Use 'resist' to break free."
+                            )
+                        else:
+                            # Holder gone — release
+                            _sys["tractor_held_by"] = 0
+                            _dirty = True
+                    if _dirty:
+                        await self.db.update_ship(_ship["id"], systems=_gsj.dumps(_sys))
+            except Exception:
+                log.debug("Ion/tractor tick skipped", exc_info=True)
+
+
+
+
+            # ── Asteroid collision tick (every 30 ticks = ~30s) ──
+            self._asteroid_tick_counter += 1
+            if self._asteroid_tick_counter % 30 == 0:
+                try:
+                    import json as _asj
+                    from server import ansi as _asa
+                    from engine.npc_space_traffic import ZONES as _ASZ
+                    from engine.starships import roll_hazard_table as _aht
+                    _as_ships = await self.db.get_all_ships()
+                    for _as_ship in (_as_ships or []):
+                        if _as_ship.get("docked_at"):
+                            continue
+                        _as_sys = _asj.loads(_as_ship.get("systems") or "{}")
+                        # Skip ships in any transit
+                        if _as_sys.get("in_hyperspace") or _as_sys.get("sublight_transit"):
+                            continue
+                        _as_zone = _ASZ.get(_as_sys.get("current_zone", ""))
+                        if not _as_zone:
+                            continue
+                        _density = (_as_zone.hazards or {}).get("asteroid_density", "")
+                        if _density != "heavy":
+                            continue
+                        # Heavy asteroid field: Easy piloting check (diff 5)
+                        # to avoid collision. Failure = 1 hull damage (light scrape)
+                        import random as _asr
+                        _pilot_dice = _as_sys.get("_cached_pilot_dice", 2)
+                        _roll = sum(_asr.randint(1, 6) for _ in range(max(1, _pilot_dice)))
+                        if _roll >= 5:
+                            continue  # Avoided
+                        # Collision — light hull scrape
+                        _existing = _as_ship.get("hull_damage", 0)
+                        await self.db.update_ship(
+                            _as_ship["id"], hull_damage=_existing + 1)
+                        if _as_ship.get("bridge_room_id"):
+                            await self.session_mgr.broadcast_to_room(
+                                _as_ship["bridge_room_id"],
+                                f"  {_asa.BRIGHT_RED}[ASTEROID]{_asa.RESET} "
+                                f"A chunk of rock scrapes the hull! "
+                                f"(+1 hull damage) Transit through this zone quickly."
+                            )
+                except Exception:
+                    log.debug("Asteroid collision tick skipped", exc_info=True)
+
+            # ── Sublight zone transit arrival tick ──
+            try:
+                import json as _slj
+                from server import ansi as _sla
+                from engine.npc_space_traffic import ZONES as _SLZ
+                _sl_ships = await self.db.get_all_ships()
+                for _sl_ship in (_sl_ships or []):
+                    if _sl_ship.get("docked_at"):
+                        continue
+                    _sl_sys = _slj.loads(_sl_ship.get("systems") or "{}")
+                    if not _sl_sys.get("sublight_transit"):
+                        continue
+                    _sl_ticks = _sl_sys.get("sublight_ticks_remaining", 0)
+                    if _sl_ticks > 1:
+                        _sl_sys["sublight_ticks_remaining"] = _sl_ticks - 1
+                        await self.db.update_ship(
+                            _sl_ship["id"], systems=_slj.dumps(_sl_sys))
+                        continue
+                    # ── Arrival ──────────────────────────────────────────────
+                    _dest_id = _sl_sys.get("sublight_dest", "")
+                    _dest_zone = _SLZ.get(_dest_id)
+                    _dest_name = (
+                        _dest_zone.name if _dest_zone
+                        else _dest_id.replace("_", " ").title()
+                    )
+                    _dest_desc = _dest_zone.desc if _dest_zone else ""
+                    _sl_sys["sublight_transit"] = False
+                    _sl_sys["current_zone"] = _dest_id
+                    _sl_sys.pop("sublight_dest", None)
+                    _sl_sys.pop("sublight_ticks_remaining", None)
+                    await self.db.update_ship(
+                        _sl_ship["id"], systems=_slj.dumps(_sl_sys))
+                    if _sl_ship.get("bridge_room_id"):
+                        _desc_line = (
+                            f"\n  {_dest_desc}" if _dest_desc else ""
+                        )
+                        await self.session_mgr.broadcast_to_room(
+                            _sl_ship["bridge_room_id"],
+                            f"  {_sla.BRIGHT_CYAN}[HELM]{_sla.RESET} "
+                            f"Arrived: {_dest_name}."
+                            f"{_desc_line}"
+                        )
+                        # Space HUD update on arrival
+                        try:
+                            from parser.space_commands import broadcast_space_state
+                            _sl_fresh = await self.db.get_ship_by_bridge(_sl_ship["bridge_room_id"])
+                            if _sl_fresh:
+                                await broadcast_space_state(_sl_fresh, self.db, self.session_mgr)
+                        except Exception:
+                            pass
+            except Exception:
+                log.debug("Sublight transit tick skipped", exc_info=True)
+
+            # ── Hyperspace transit arrival tick ──
+            try:
+                import json as _hsj
+                from server import ansi as _ha
+                from engine.starships import get_ship_registry as _hsr
+                from parser.space_commands import get_space_grid as _hsg
+                _hs_ships = await self.db.get_all_ships()
+                for _hs_ship in (_hs_ships or []):
+                    if _hs_ship.get("docked_at"):
+                        continue
+                    _hs_sys = _hsj.loads(_hs_ship.get("systems") or "{}")
+                    if not _hs_sys.get("in_hyperspace"):
+                        continue
+                    _ticks = _hs_sys.get("hyperspace_ticks_remaining", 0)
+                    if _ticks > 1:
+                        _hs_sys["hyperspace_ticks_remaining"] = _ticks - 1
+                        await self.db.update_ship(_hs_ship["id"], systems=_hsj.dumps(_hs_sys))
+                        continue
+                    # ── Arrival ──────────────────────────────────────────────
+                    _dest_key = _hs_sys.get("hyperspace_dest", "tatooine")
+                    _dest_name = _hs_sys.get("hyperspace_dest_name", _dest_key.title())
+                    from engine.npc_space_traffic import ZONES as _HTZ
+                    _arr_zone = (_dest_key + "_orbit"
+                                 if (_dest_key + "_orbit") in _HTZ
+                                 else "tatooine_orbit")
+                    _hs_sys["in_hyperspace"] = False
+                    _hs_sys["current_zone"] = _arr_zone
+                    _hs_sys["location"] = _dest_key
+                    _hs_sys.pop("hyperspace_dest", None)
+                    _hs_sys.pop("hyperspace_dest_name", None)
+                    _hs_sys.pop("hyperspace_ticks_remaining", None)
+                    _hs_sys.pop("hyperspace_roll_str", None)
+                    await self.db.update_ship(_hs_ship["id"], systems=_hsj.dumps(_hs_sys))
+                    # Re-add to space grid
+                    _hs_tmpl = _hsr().get(_hs_ship["template"])
+                    _hs_spd = _hs_tmpl.speed if _hs_tmpl else 5
+                    _hsg().add_ship(_hs_ship["id"], _hs_spd)
+                    # Notify bridge crew
+                    if _hs_ship.get("bridge_room_id"):
+                        await self.session_mgr.broadcast_to_room(
+                            _hs_ship["bridge_room_id"],
+                            f"  {_ha.BRIGHT_CYAN}[HYPERSPACE]{_ha.RESET} "
+                            f"Reverting to realspace — arriving at {_dest_name}.\n"
+                            f"  The star lines collapse back into points. "
+                            f"You are in {_arr_zone.replace('_', ' ').title()}."
+                        )
+                        # Space HUD update for all crew on arrival
+                        try:
+                            from parser.space_commands import broadcast_space_state
+                            _hs_fresh = await self.db.get_ship_by_bridge(_hs_ship["bridge_room_id"])
+                            if _hs_fresh:
+                                await broadcast_space_state(_hs_fresh, self.db, self.session_mgr)
+                        except Exception:
+                            pass
+                        # Patrol-on-arrival check for smuggling runs (Drop 11)
+                        try:
+                            from parser.smuggling_commands import check_patrol_on_arrival
+                            from parser.commands import CommandContext
+                            _arr_sessions = self.session_mgr.sessions_in_room(
+                                _hs_ship["bridge_room_id"]
+                            )
+                            for _arr_sess in (_arr_sessions or []):
+                                if not _arr_sess.character:
+                                    continue
+                                _arr_ctx = CommandContext(
+                                    session=_arr_sess,
+                                    db=self.db,
+                                    session_mgr=self.session_mgr,
+                                    args="",
+                                )
+                                await check_patrol_on_arrival(_arr_ctx, _dest_key)
+                        except Exception:
+                            pass
+            except Exception:
+                log.debug("Hyperspace arrival tick skipped", exc_info=True)
+
             # -- NPC Space Traffic tick --
             try:
                 from engine.npc_space_traffic import get_traffic_manager
                 await get_traffic_manager().tick(self.db, self.session_mgr)
             except Exception:
                 log.debug("NPC space traffic tick skipped", exc_info=True)
+
+            # ── Space Anomaly spawn & expiry tick (every 300 ticks) ──
+            self._anomaly_tick_counter += 1
+            if self._anomaly_tick_counter % 300 == 0:
+                try:
+                    from engine.npc_space_traffic import ZONES as _AZONES
+                    from engine.space_anomalies import (
+                        spawn_anomalies_for_zone, tick_anomaly_expiry
+                    )
+                    # Collect all zones that have at least one player ship present
+                    _active_zones: set = set()
+                    _all_ships = await self.db.get_all_ships()
+                    for _az_ship in _all_ships:
+                        _az_sys_raw = _az_ship.get("systems", "{}")
+                        try:
+                            import json as _azj
+                            _az_sys = _azj.loads(_az_sys_raw) if isinstance(_az_sys_raw, str) else _az_sys_raw
+                        except Exception:
+                            continue
+                        if _az_sys.get("current_zone"):
+                            _active_zones.add(_az_sys["current_zone"])
+                    # Tick expiry for all known zones, spawn for active ones
+                    for _az_zid in list(_active_zones):
+                        tick_anomaly_expiry(_az_zid)
+                        _az_zone = _AZONES.get(_az_zid)
+                        if _az_zone:
+                            spawn_anomalies_for_zone(_az_zid, _az_zone.type.value)
+                except Exception:
+                    log.debug("Anomaly spawn tick skipped", exc_info=True)
+
+            # ── Space mission patrol timer tick (Drop 14) ─────────────────
+            try:
+                import json as _smj
+                from engine.missions import (
+                    get_mission_board, MissionType, MissionStatus, SPACE_MISSION_TYPES
+                )
+                _sm_board = get_mission_board()
+                _sm_ships = await self.db.get_all_ships()
+                for _sm_ship in (_sm_ships or []):
+                    if _sm_ship.get("docked_at"):
+                        continue
+                    _sm_sys = _smj.loads(_sm_ship.get("systems") or "{}")
+                    _sm_zone = _sm_sys.get("current_zone", "")
+                    if not _sm_zone:
+                        continue
+                    # Find the pilot's char_id
+                    try:
+                        _sm_crew = _smj.loads(_sm_ship.get("crew") or "{}")
+                        _sm_pilot_id = str(_sm_crew.get("pilot", ""))
+                    except Exception:
+                        continue
+                    if not _sm_pilot_id:
+                        continue
+                    # Check if pilot has an active space mission
+                    for _sm_m in list(_sm_board._missions.values()):
+                        if (_sm_m.accepted_by != _sm_pilot_id or
+                                _sm_m.status != MissionStatus.ACCEPTED or
+                                _sm_m.mission_type not in SPACE_MISSION_TYPES):
+                            continue
+                        md = _sm_m.mission_data or {}
+                        if _sm_m.mission_type == MissionType.PATROL:
+                            target = md.get("target_zone", "")
+                            if _sm_zone == target:
+                                md["patrol_ticks_done"] = md.get("patrol_ticks_done", 0) + 1
+                                _sm_m.mission_data = md
+                                # Notify at milestones
+                                done = md["patrol_ticks_done"]
+                                req  = md.get("patrol_ticks_required", 120)
+                                if done == req // 2:
+                                    await self.session_mgr.broadcast_to_room(
+                                        _sm_ship["bridge_room_id"],
+                                        f"  [PATROL] Halfway through patrol. Hold position.",
+                                    )
+                                elif done >= req:
+                                    await self.session_mgr.broadcast_to_room(
+                                        _sm_ship["bridge_room_id"],
+                                        f"  [PATROL] Patrol complete! Type 'complete' to turn in.",
+                                    )
+            except Exception:
+                log.debug("Space mission patrol tick skipped", exc_info=True)
 
             # ── Mission & Bounty board expiry cleanup (every tick) ──
             try:

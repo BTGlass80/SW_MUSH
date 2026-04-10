@@ -81,8 +81,8 @@ def _wrap_summary(summary: str, width: int = 60) -> list[str]:
 
 
 class NewsCommand(BaseCommand):
-    key = "news"
-    aliases = ["worldnews", "galacticnews"]
+    key = "+news"
+    aliases = ["news", "worldnews", "galacticnews"]
     access_level = AccessLevel.ANYONE
     help_text = "Display the Galactic News Network world events board."
     usage = "news"

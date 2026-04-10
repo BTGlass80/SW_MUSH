@@ -134,8 +134,9 @@ def _dsp_pips(dsp):
 #  PUBLIC API
 # ═══════════════════════════════════════════
 
-def render_game_sheet(char_dict, skill_reg, width=W):
-    """Render in-game character sheet (R&E layout)."""
+
+def render_brief_sheet(char_dict, skill_reg, width=W):
+    """Condensed one-line-per-attribute view."""
     from engine.character import Character
     char = Character.from_db_dict(char_dict)
     wound = WoundLevel(char_dict.get("wound_level", 0))
@@ -144,78 +145,267 @@ def render_game_sheet(char_dict, skill_reg, width=W):
     lines.append("")
     lines.append(_bar("=", BRIGHT_CYAN))
     lines.append(_center(
-        f"{BOLD}{BRIGHT_WHITE}STAR WARS{RESET} {DIM}Character Sheet{RESET}"
+        f"{BOLD}{BRIGHT_WHITE}{char.name}{RESET}"
+        f"  {DIM}({char.species_name}){RESET}"
     ))
     lines.append(_bar("-", DIM))
 
-    # ── Identity ──
-    template_str = ""
-    if char_dict.get("template"):
-        template_str = f"  {DIM}({char_dict['template']}){RESET}"
-    lines.append(
-        f"  Name: {BOLD}{BRIGHT_WHITE}{char.name}{RESET}"
-        f"    Species: {BRIGHT_YELLOW}{char.species_name}{RESET}"
-        f"{template_str}"
-    )
-
-    # ── Points row ──
-    cp = char_dict.get("character_points", 0)
-    fp = char_dict.get("force_points", 0)
-    dsp = char_dict.get("dark_side_points", 0)
-    fs = "Yes" if char.force_sensitive else "No"
-    lines.append(
-        f"  Move: {BRIGHT_WHITE}{char.move}{RESET}"
-        f"   Force Pts: {BRIGHT_BLUE}{fp}{RESET}"
-        f"   Char Pts: {BRIGHT_GREEN}{cp}{RESET}"
-        f"   Force Sensitive: {BRIGHT_BLUE}{fs}{RESET}"
-    )
-    lines.append(f"  Dark Side: {_dsp_pips(dsp)}")
-    lines.append(_bar("-", DIM))
-
-    # ── Attribute Grid ──
-    left_lines = []
-    for attr in LEFT_ATTRS:
-        left_lines.extend(_build_attr_block(attr, char, skill_reg, COL))
-        left_lines.append("")
-
-    right_lines = []
-    for attr in RIGHT_ATTRS:
-        right_lines.extend(_build_attr_block(attr, char, skill_reg, COL))
-        right_lines.append("")
-
-    lines.extend(_merge_columns(left_lines, right_lines))
-
-    # ── Force (if sensitive) ──
-    if char.force_sensitive:
-        lines.append(_bar("-", DIM))
+    # One line per attribute: DEXTERITY 3D+2 [Blaster 5D+1, Dodge 4D+2]
+    for attr_name in LEFT_ATTRS + RIGHT_ATTRS:
+        pool = char.get_attribute(attr_name)
+        # Gather trained skills
+        skill_parts = []
+        for sd in skill_reg.skills_for_attribute(attr_name):
+            bonus = char.skills.get(sd.key)
+            if bonus:
+                total = pool + bonus
+                skill_parts.append(f"{CYAN}{sd.name}{RESET} {BRIGHT_GREEN}{total}{RESET}")
+        skill_str = ""
+        if skill_parts:
+            skill_str = f"  [{', '.join(skill_parts)}]"
         lines.append(
-            f"  {BOLD}{BRIGHT_BLUE}THE FORCE{RESET}"
-            f"    Control: {BRIGHT_YELLOW}{char.control}{RESET}"
-            f"    Sense: {BRIGHT_YELLOW}{char.sense}{RESET}"
-            f"    Alter: {BRIGHT_YELLOW}{char.alter}{RESET}"
+            f"  {BOLD}{BRIGHT_WHITE}{attr_name.upper():<14s}{RESET}"
+            f" {BRIGHT_YELLOW}{str(pool):>5s}{RESET}"
+            f"{skill_str}"
         )
 
-    # ── Wound Status ──
-    lines.append(_bar("-", DIM))
-    lines.append(f"  {_wound_display(wound)}")
+    # Force (if sensitive)
+    if char.force_sensitive:
+        lines.append(
+            f"  {BRIGHT_BLUE}Force{RESET}"
+            f"  C:{BRIGHT_YELLOW}{char.control}{RESET}"
+            f"  S:{BRIGHT_YELLOW}{char.sense}{RESET}"
+            f"  A:{BRIGHT_YELLOW}{char.alter}{RESET}"
+        )
 
-    # ── Weapons Table ──
-    lines.append(_bar("-", DIM))
+    # Footer: wound + points
+    cp = char_dict.get("character_points", 0)
+    fp = char_dict.get("force_points", 0)
     lines.append(
-        f"  {BOLD}{'Weapon':<22s}{'Dmg':>5s}"
-        f"  {'Short':>6s} {'Med':>6s} {'Long':>6s}{RESET}"
+        f"  {_wound_display(wound)}"
+        f"  CP:{BRIGHT_GREEN}{cp}{RESET}"
+        f"  FP:{BRIGHT_BLUE}{fp}{RESET}"
     )
-    lines.append(f"  {DIM}{'-'*22}{'-'*5}  {'-'*6} {'-'*6} {'-'*6}{RESET}")
+    lines.append(_bar("=", BRIGHT_CYAN))
+    lines.append("")
+    return lines
 
-    # Show equipped weapon from character data
+
+def render_skills_sheet(char_dict, skill_reg, width=W):
+    """Skills-only view grouped by attribute."""
+    from engine.character import Character
+    char = Character.from_db_dict(char_dict)
+
+    lines = []
+    lines.append("")
+    lines.append(_bar("=", BRIGHT_CYAN))
+    lines.append(_center(
+        f"{BOLD}{BRIGHT_WHITE}{char.name}{RESET}"
+        f" {DIM}— Skills{RESET}"
+    ))
+    lines.append(_bar("-", DIM))
+
+    any_skills = False
+    for attr_name in LEFT_ATTRS + RIGHT_ATTRS:
+        pool = char.get_attribute(attr_name)
+        attr_skills = []
+        for sd in skill_reg.skills_for_attribute(attr_name):
+            bonus = char.skills.get(sd.key)
+            if bonus:
+                total = pool + bonus
+                attr_skills.append((sd.name, str(total)))
+        if attr_skills:
+            any_skills = True
+            lines.append(
+                f"  {BOLD}{BRIGHT_WHITE}{attr_name.upper()}{RESET}"
+                f" {DIM}({pool}){RESET}"
+            )
+            for sname, sval in attr_skills:
+                gap = max(1, 30 - len(sname))
+                lines.append(
+                    f"    {CYAN}{sname}{RESET}"
+                    f"{' ' * gap}{BRIGHT_GREEN}{sval}{RESET}"
+                )
+            lines.append("")
+
+    if not any_skills:
+        lines.append(f"  {DIM}No trained skills.{RESET}")
+
+    lines.append(_bar("=", BRIGHT_CYAN))
+    lines.append("")
+    return lines
+
+
+def render_combat_sheet(char_dict, skill_reg, width=W):
+    """Combat-relevant stats: wounds, weapon, soak, combat skills."""
+    from engine.character import Character
     import json as _json
+    char = Character.from_db_dict(char_dict)
+    wound = WoundLevel(char_dict.get("wound_level", 0))
+
+    lines = []
+    lines.append("")
+    lines.append(_bar("=", BRIGHT_CYAN))
+    lines.append(_center(
+        f"{BOLD}{BRIGHT_WHITE}{char.name}{RESET}"
+        f" {DIM}— Combat Stats{RESET}"
+    ))
+    lines.append(_bar("-", DIM))
+
+    # Wound status
+    lines.append(f"  {_wound_display(wound)}")
+    lines.append("")
+
+    # Soak (Strength)
+    str_pool = char.get_attribute("strength")
+    lines.append(
+        f"  {BOLD}Soak:{RESET}  {BRIGHT_YELLOW}{str_pool}{RESET}"
+        f"  {DIM}(Strength){RESET}"
+    )
+
+    # Combat skills
+    dex_pool = char.get_attribute("dexterity")
+    combat_skills = ["blaster", "dodge", "brawling_parry", "melee_combat",
+                     "melee_parry", "grenade", "missile_weapons",
+                     "vehicle_blasters", "starship_gunnery", "lightsaber"]
+    found = []
+    for sk_key in combat_skills:
+        bonus = char.skills.get(sk_key)
+        if bonus:
+            sd = skill_reg.get(sk_key) if hasattr(skill_reg, 'get') else None
+            name = sd.name if sd else sk_key.replace("_", " ").title()
+            attr_for = skill_reg.get_attribute_for(sk_key) if hasattr(skill_reg, 'get_attribute_for') else "dexterity"
+            base = char.get_attribute(attr_for) if attr_for else dex_pool
+            total = base + bonus
+            found.append((name, str(total)))
+
+    if found:
+        lines.append("")
+        lines.append(f"  {BOLD}Combat Skills:{RESET}")
+        for sname, sval in found:
+            gap = max(1, 28 - len(sname))
+            lines.append(
+                f"    {CYAN}{sname}{RESET}"
+                f"{' ' * gap}{BRIGHT_GREEN}{sval}{RESET}"
+            )
+
+    # Equipped weapon
+    lines.append("")
     equip_data = char_dict.get("equipment", "{}")
     if isinstance(equip_data, str):
         try:
             equip_data = _json.loads(equip_data)
         except Exception:
             equip_data = {}
-    weapon_key = equip_data.get("weapon", "") if isinstance(equip_data, dict) else ""
+    weapon_key = equip_data.get("key", "") if isinstance(equip_data, dict) else ""
+    if weapon_key:
+        from engine.weapons import get_weapon_registry
+        wr = get_weapon_registry()
+        w = wr.get(weapon_key)
+        if w:
+            range_str = ""
+            if w.is_ranged and w.ranges:
+                range_str = (f"  S:{w.ranges[1]}  M:{w.ranges[2]}  L:{w.ranges[3]}")
+            else:
+                range_str = "  Melee"
+            lines.append(
+                f"  {BOLD}Weapon:{RESET}  {BRIGHT_WHITE}{w.name}{RESET}"
+                f"  Dmg:{BRIGHT_YELLOW}{w.damage}{RESET}"
+                f"{range_str}"
+            )
+        else:
+            lines.append(f"  {BOLD}Weapon:{RESET}  {weapon_key}")
+    else:
+        lines.append(f"  {BOLD}Weapon:{RESET}  {DIM}(none equipped){RESET}")
+
+    # Move
+    lines.append(f"  {BOLD}Move:{RESET}   {BRIGHT_WHITE}{char.move}{RESET}")
+
+    # Force Points
+    fp = char_dict.get("force_points", 0)
+    if fp:
+        lines.append(f"  {BOLD}Force Pts:{RESET} {BRIGHT_BLUE}{fp}{RESET}")
+
+    lines.append(_bar("=", BRIGHT_CYAN))
+    lines.append("")
+    return lines
+
+def render_game_sheet(char_dict, skill_reg, width=W):
+    """Render in-game character sheet — compact, box-drawn layout."""
+    from engine.character import Character
+    import json as _json
+    char = Character.from_db_dict(char_dict)
+    wound = WoundLevel(char_dict.get("wound_level", 0))
+
+    H = "\u2500"   # ─
+    SEP = f"{BRIGHT_CYAN}{H * W}{RESET}"
+    THIN = f"{DIM}{H * W}{RESET}"
+
+    lines = []
+    lines.append(SEP)
+
+    # ── Title ──
+    lines.append(_center(
+        f"{BOLD}{BRIGHT_WHITE}STAR WARS{RESET} {DIM}D6 Character Sheet{RESET}"
+    ))
+    lines.append(THIN)
+
+    # ── Identity & points — two dense lines ──
+    template_str = ""
+    if char_dict.get("template"):
+        template_str = f"  {DIM}({char_dict['template']}){RESET}"
+    cp = char_dict.get("character_points", 0)
+    fp = char_dict.get("force_points", 0)
+    dsp = char_dict.get("dark_side_points", 0)
+    fs = f"{BRIGHT_BLUE}Yes{RESET}" if char.force_sensitive else f"{DIM}No{RESET}"
+
+    lines.append(
+        f"  {BOLD}{BRIGHT_WHITE}{char.name}{RESET}"
+        f"  {BRIGHT_YELLOW}{char.species_name}{RESET}"
+        f"{template_str}"
+        f"    Move:{BRIGHT_WHITE}{char.move}{RESET}"
+        f"  FP:{BRIGHT_BLUE}{fp}{RESET}"
+        f"  CP:{BRIGHT_GREEN}{cp}{RESET}"
+        f"  Force:{fs}"
+    )
+    if dsp > 0:
+        lines.append(f"  Dark Side: {_dsp_pips(dsp)}")
+
+    # ── Attribute Grid — no blank-line separators ──
+    lines.append(THIN)
+
+    left_lines = []
+    for attr in LEFT_ATTRS:
+        left_lines.extend(_build_attr_block(attr, char, skill_reg, COL))
+
+    right_lines = []
+    for attr in RIGHT_ATTRS:
+        right_lines.extend(_build_attr_block(attr, char, skill_reg, COL))
+
+    lines.extend(_merge_columns(left_lines, right_lines))
+
+    # ── Force (if sensitive) ──
+    if char.force_sensitive:
+        lines.append(THIN)
+        lines.append(
+            f"  {BOLD}{BRIGHT_BLUE}FORCE{RESET}"
+            f"   Control:{BRIGHT_YELLOW}{char.control}{RESET}"
+            f"   Sense:{BRIGHT_YELLOW}{char.sense}{RESET}"
+            f"   Alter:{BRIGHT_YELLOW}{char.alter}{RESET}"
+        )
+
+    # ── Wound Status ──
+    lines.append(THIN)
+    lines.append(f"  {_wound_display(wound)}")
+
+    # ── Equipped Weapon ──
+    equip_data = char_dict.get("equipment", "{}")
+    if isinstance(equip_data, str):
+        try:
+            equip_data = _json.loads(equip_data)
+        except Exception:
+            equip_data = {}
+    weapon_key = equip_data.get("key", "") if isinstance(equip_data, dict) else ""
     if weapon_key:
         from engine.weapons import get_weapon_registry
         wr = get_weapon_registry()
@@ -223,23 +413,23 @@ def render_game_sheet(char_dict, skill_reg, width=W):
         if w:
             if w.is_ranged and w.ranges:
                 lines.append(
-                    f"  {BRIGHT_WHITE}{w.name:<22s}{RESET}"
-                    f"{BRIGHT_YELLOW}{w.damage:>5s}{RESET}"
-                    f"  {w.ranges[1]:>6d} {w.ranges[2]:>6d} {w.ranges[3]:>6d}"
+                    f"  {BOLD}Weapon:{RESET} {BRIGHT_WHITE}{w.name}{RESET}"
+                    f"  {BRIGHT_YELLOW}{w.damage}{RESET}"
+                    f"  {DIM}S:{RESET}{w.ranges[1]}"
+                    f" {DIM}M:{RESET}{w.ranges[2]}"
+                    f" {DIM}L:{RESET}{w.ranges[3]}"
                 )
             else:
                 lines.append(
-                    f"  {BRIGHT_WHITE}{w.name:<22s}{RESET}"
-                    f"{BRIGHT_YELLOW}{w.damage:>5s}{RESET}"
-                    f"  {'Melee':>6s}"
+                    f"  {BOLD}Weapon:{RESET} {BRIGHT_WHITE}{w.name}{RESET}"
+                    f"  {BRIGHT_YELLOW}{w.damage}{RESET}  Melee"
                 )
         else:
-            lines.append(f"  {weapon_key}")
+            lines.append(f"  {BOLD}Weapon:{RESET} {weapon_key}")
     else:
-        lines.append(f"  {DIM}(no weapons equipped){RESET}")
+        lines.append(f"  {BOLD}Weapon:{RESET} {DIM}(none){RESET}")
 
-    lines.append(_bar("=", BRIGHT_CYAN))
-    lines.append("")
+    lines.append(SEP)
     return lines
 
 

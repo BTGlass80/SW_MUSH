@@ -208,3 +208,150 @@ schematics:
     output_type: consumable
     output_key: stimpack
     base_cost: 150
+
+  # ──────────────────────────────────────────────────────────────
+  # SHIP COMPONENTS — Taught by Venn Kator at Docking Bay 94
+  # Requires ship customization engine (Drop 12).
+  # output_type: component produces a ship_component inventory item.
+  # stat_target / stat_boost / cargo_weight feed get_effective_stats().
+  # ──────────────────────────────────────────────────────────────
+
+  - key: engine_booster_basic
+    name: "Engine Booster (Basic)"
+    skill_required: space_transports_repair
+    difficulty: 16
+    trainer_npc: Venn Kator
+    components:
+      - type: metal
+        quantity: 4
+        min_quality: 40
+      - type: energy
+        quantity: 3
+        min_quality: 35
+    output_type: component
+    output_key: engine_booster_basic
+    stat_target: speed
+    stat_boost: 1
+    cargo_weight: 20
+    base_cost: 2000
+
+  - key: shield_generator_mk2
+    name: "Shield Generator Mk.II"
+    skill_required: space_transports_repair
+    difficulty: 18
+    trainer_npc: Venn Kator
+    components:
+      - type: metal
+        quantity: 3
+        min_quality: 45
+      - type: energy
+        quantity: 4
+        min_quality: 40
+      - type: rare
+        quantity: 1
+        min_quality: 50
+    output_type: component
+    output_key: shield_generator_mk2
+    stat_target: shields
+    stat_boost: 1
+    cargo_weight: 15
+    base_cost: 3500
+
+  - key: armor_plating_durasteel
+    name: "Durasteel Armor Plating"
+    skill_required: space_transports_repair
+    difficulty: 14
+    trainer_npc: Venn Kator
+    components:
+      - type: metal
+        quantity: 6
+        min_quality: 35
+      - type: composite
+        quantity: 2
+        min_quality: 40
+    output_type: component
+    output_key: armor_plating_durasteel
+    stat_target: hull
+    stat_boost: 1
+    cargo_weight: 20
+    base_cost: 1800
+
+  - key: sensor_suite_enhanced
+    name: "Enhanced Sensor Suite"
+    skill_required: space_transports_repair
+    difficulty: 16
+    trainer_npc: Venn Kator
+    components:
+      - type: energy
+        quantity: 3
+        min_quality: 45
+      - type: rare
+        quantity: 1
+        min_quality: 55
+    output_type: component
+    output_key: sensor_suite_enhanced
+    stat_target: sensors
+    stat_boost: 1
+    cargo_weight: 5
+    base_cost: 2500
+
+  - key: maneuvering_thrusters
+    name: "Aftermarket Maneuvering Thrusters"
+    skill_required: space_transports_repair
+    difficulty: 18
+    trainer_npc: Venn Kator
+    components:
+      - type: metal
+        quantity: 3
+        min_quality: 45
+      - type: energy
+        quantity: 3
+        min_quality: 40
+      - type: composite
+        quantity: 1
+        min_quality: 50
+    output_type: component
+    output_key: maneuvering_thrusters
+    stat_target: maneuverability
+    stat_boost: 1
+    cargo_weight: 10
+    base_cost: 3000
+
+  - key: weapon_upgrade_fc
+    name: "Weapon Fire Control Upgrade"
+    skill_required: starship_weapon_repair
+    difficulty: 18
+    trainer_npc: Venn Kator
+    components:
+      - type: energy
+        quantity: 2
+        min_quality: 50
+      - type: rare
+        quantity: 1
+        min_quality: 60
+    output_type: component
+    output_key: weapon_upgrade_fc
+    stat_target: fire_control
+    stat_boost: 1
+    cargo_weight: 5
+    base_cost: 3000
+
+  - key: hyperdrive_tuning
+    name: "Hyperdrive Tuning Kit"
+    skill_required: space_transports_repair
+    difficulty: 20
+    trainer_npc: Venn Kator
+    components:
+      - type: energy
+        quantity: 4
+        min_quality: 50
+      - type: rare
+        quantity: 2
+        min_quality: 60
+    output_type: component
+    output_key: hyperdrive_tuning
+    stat_target: hyperdrive
+    stat_boost: 1
+    cargo_weight: 10
+    base_cost: 4500
+

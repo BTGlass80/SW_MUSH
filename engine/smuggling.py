@@ -61,6 +61,42 @@ PATROL_DIFFICULTY = {0: 0, 1: 10, 2: 15, 3: 20}
 # Fine = this fraction of the job's reward
 FINE_FRACTION = 0.50
 
+# ── Multi-planet route tiers (Drop 11) ────────────────────────────────────────
+# destination_planet=None means local Tatooine run (original behaviour).
+# Routes are assigned per tier:
+#   Tier 1 (local)     — Tatooine only, same as before
+#   Tier 2 (short)     — Tatooine → Nar Shaddaa
+#   Tier 3 (spice run) — Nar Shaddaa → Kessel  (or Tatooine → Kessel)
+#   Tier 4 (core run)  — Any outer rim → Corellia
+
+ROUTE_TIERS = {
+    # (cargo_tier, destination_planet, pay_override, patrol_chance_override)
+    # destination_planet=None  → local run, planet check skipped on deliver
+    "local":     (CargoTier.GREY_MARKET,  None,         (200,  500),  0.00),
+    "blackmkt":  (CargoTier.BLACK_MARKET, None,         (500,  1500), 0.20),
+    "interplan": (CargoTier.BLACK_MARKET, "nar_shaddaa",(1500, 3000), 0.30),
+    "spicerun":  (CargoTier.CONTRABAND,   "kessel",     (3000, 6000), 0.55),
+    "corerun":   (CargoTier.SPICE,        "corellia",   (4000, 8000), 0.65),
+}
+
+# How often Imperial patrols intercept at arrival by planet
+# (extra check on hyperspace arrival; stacks with launch check)
+PLANET_PATROL_FREQUENCY = {
+    None:          0.00,   # local — no arrival check
+    "tatooine":    0.10,   # Outer Rim — light presence
+    "nar_shaddaa": 0.15,   # Hutt space — occasional
+    "kessel":      0.40,   # Maw vicinity — heavy
+    "corellia":    0.60,   # Core World — very heavy
+}
+
+# Dock zone suffixes per planet (orbit / dock zone IDs for arrive check)
+PLANET_DOCK_ZONES = {
+    "tatooine":    ["tatooine_dock",      "tatooine_orbit"],
+    "nar_shaddaa": ["nar_shaddaa_dock",   "nar_shaddaa_orbit"],
+    "kessel":      ["kessel_dock",        "kessel_orbit"],
+    "corellia":    ["corellia_dock",      "corellia_orbit"],
+}
+
 # ── Cargo tiers ──────────────────────────────────────────────────────────────
 
 class CargoTier(int, Enum):
@@ -147,6 +183,7 @@ class SmugglingJob:
     patrol_chance: float  # 0.0 - 1.0
     status: JobStatus = JobStatus.AVAILABLE
     accepted_by: Optional[int] = None   # character id
+    destination_planet: Optional[str] = None   # None = local Tatooine run
     created_at: float = field(default_factory=time.time)
     expires_at: Optional[float] = None
 
@@ -162,6 +199,7 @@ class SmugglingJob:
             "patrol_chance": self.patrol_chance,
             "status": self.status.value,
             "accepted_by": self.accepted_by,
+            "destination_planet": self.destination_planet,
             "created_at": self.created_at,
             "expires_at": self.expires_at,
         }
@@ -179,6 +217,7 @@ class SmugglingJob:
             patrol_chance=d["patrol_chance"],
             status=JobStatus(d.get("status", "available")),
             accepted_by=d.get("accepted_by"),
+            destination_planet=d.get("destination_planet"),
             created_at=d.get("created_at", time.time()),
             expires_at=d.get("expires_at"),
         )
@@ -190,17 +229,34 @@ def _generate_id() -> str:
     return "smug-" + str(uuid.uuid4())[:6]
 
 
-def generate_job(tier: Optional[CargoTier] = None) -> SmugglingJob:
-    """Generate a single smuggling job."""
-    if tier is None:
-        # Weight toward lower tiers: 4/3/2/1
-        tier = random.choices(
-            list(CargoTier),
-            weights=[4, 3, 2, 1],
+def generate_job(
+    tier: Optional[CargoTier] = None,
+    route_key: Optional[str] = None,
+) -> SmugglingJob:
+    """Generate a single smuggling job.
+
+    route_key selects from ROUTE_TIERS (e.g. 'spicerun', 'corerun').
+    If None, falls back to weighted random including multi-planet routes.
+    """
+    destination_planet: Optional[str] = None
+
+    if route_key and route_key in ROUTE_TIERS:
+        tier, destination_planet, pay_range, patrol = ROUTE_TIERS[route_key]
+        lo, hi = pay_range
+    elif tier is not None:
+        lo, hi = TIER_PAY_RANGE[tier]
+        patrol = TIER_PATROL_CHANCE[tier]
+    else:
+        # Weighted random: 40% local, 25% black market, 20% interplanetary,
+        # 10% spice run, 5% core run
+        route_key = random.choices(
+            list(ROUTE_TIERS.keys()),
+            weights=[40, 25, 20, 10, 5],
             k=1,
         )[0]
+        tier, destination_planet, pay_range, patrol = ROUTE_TIERS[route_key]
+        lo, hi = pay_range
 
-    lo, hi = TIER_PAY_RANGE[tier]
     reward = random.randint(lo, hi)
     # Round to nearest 50cr
     reward = int(round(reward / 50) * 50)
@@ -208,8 +264,28 @@ def generate_job(tier: Optional[CargoTier] = None) -> SmugglingJob:
 
     cargo = random.choice(CARGO_TYPES[tier])
     contact = random.choice(CONTACT_NAMES)
-    dropoff = random.choice(DROPOFF_NAMES)
-    patrol = TIER_PATROL_CHANCE[tier]
+
+    # Dropoff description varies by destination
+    if destination_planet == "nar_shaddaa":
+        dropoff = random.choice([
+            "a Hutt factor in Nar Shaddaa's Lower Promenade",
+            "a Rodian broker at the Smuggler's Moon docks",
+            "a Besadii clan representative",
+        ])
+    elif destination_planet == "kessel":
+        dropoff = random.choice([
+            "a Pyke Syndicate collector at Kessel Station",
+            "an independent spice processor at the Maw approach",
+            "a masked buyer near the Kessel mining complex",
+        ])
+    elif destination_planet == "corellia":
+        dropoff = random.choice([
+            "a CorSec-connected fence in Coronet City",
+            "a corporate buyer at the Corellian Trade Spine exit",
+            "a well-dressed human contact at Corellia Orbital",
+        ])
+    else:
+        dropoff = random.choice(DROPOFF_NAMES)
 
     now = time.time()
     return SmugglingJob(
@@ -221,6 +297,7 @@ def generate_job(tier: Optional[CargoTier] = None) -> SmugglingJob:
         reward=reward,
         fine=fine,
         patrol_chance=patrol,
+        destination_planet=destination_planet,
         created_at=now,
         expires_at=now + JOB_TTL,
     )
@@ -480,12 +557,20 @@ _RISK_DISPLAY = {
 }
 
 
+_DEST_DISPLAY = {
+    None:          f"{_DIM}Tatooine (local){_RESET}",
+    "nar_shaddaa": f"{_YELLOW}Nar Shaddaa{_RESET}",
+    "kessel":      f"{_RED}Kessel{_RESET}",
+    "corellia":    f"[1;35mCorellia{_RESET}",
+}
+
+
 def format_board(jobs: list[SmugglingJob]) -> list[str]:
     lines = [
-        f"{_BOLD}{'=' * 58}{_RESET}",
+        f"{_BOLD}{'=' * 66}{_RESET}",
         f"{_BOLD}  SMUGGLING CONTACTS  --  Mos Eisley Underground{_RESET}",
-        f"{_DIM}  {'ID':<10} {'Tier':<14} {'Reward':>8}  {'Risk':<14}  Cargo{_RESET}",
-        f"{_DIM}  {'-' * 56}{_RESET}",
+        f"{_DIM}  {'ID':<10} {'Tier':<14} {'Reward':>8}  {'Destination':<16}  Cargo{_RESET}",
+        f"{_DIM}  {'-' * 64}{_RESET}",
     ]
     if not jobs:
         lines.append("  No contacts available. Come back later.")
@@ -493,18 +578,18 @@ def format_board(jobs: list[SmugglingJob]) -> list[str]:
         for j in jobs:
             color = _TIER_COLOR.get(j.tier, "")
             tier_label = TIER_NAMES[j.tier]
-            risk = _RISK_DISPLAY.get(j.tier, "Unknown")
+            dest = _DEST_DISPLAY.get(j.destination_planet, j.destination_planet or "Local")
             lines.append(
                 f"  {_BOLD}{j.id:<10}{_RESET} "
                 f"{color}{tier_label:<14}{_RESET} "
                 f"{_BOLD}{j.reward:>7,}cr{_RESET}  "
-                f"{risk:<22}  {j.cargo_type}"
+                f"{dest:<26}  {j.cargo_type}"
             )
     lines.append(
         f"{_DIM}  Type 'smugaccept <id>' to take the job. "
         f"'smugjob' to see your active run.{_RESET}"
     )
-    lines.append(f"{_BOLD}{'=' * 58}{_RESET}")
+    lines.append(f"{_BOLD}{'=' * 66}{_RESET}")
     return lines
 
 
@@ -526,6 +611,8 @@ def format_job_detail(j: SmugglingJob) -> list[str]:
         f"  {_BOLD}Contact:{_RESET}  {j.contact_name}",
         f"  {_BOLD}Cargo:{_RESET}    {j.cargo_type}",
         f"  {_BOLD}Deliver to:{_RESET} {j.dropoff_name}",
+        f"  {_BOLD}Destination:{_RESET} "
+        + (_DEST_DISPLAY.get(j.destination_planet, j.destination_planet or "Local")),
         f"  {_BOLD}Risk:{_RESET}     {_RISK_DISPLAY.get(j.tier, 'Unknown')}",
         remaining,
         "",
