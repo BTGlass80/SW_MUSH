@@ -14,7 +14,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 # -- Schema version --
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -406,6 +406,9 @@ MIGRATIONS = {
         # Tag missions to a specific faction (NULL = public mission board)
         "ALTER TABLE missions ADD COLUMN faction_id TEXT DEFAULT NULL",
 
+        # Mission type-specific payload (required by engine/missions.py)
+        "ALTER TABLE missions ADD COLUMN data TEXT DEFAULT '{}'",
+
         # Shop transaction log for vendor droids
         """CREATE TABLE IF NOT EXISTS shop_transactions (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -440,7 +443,14 @@ class Database:
         self._db.row_factory = aiosqlite.Row
         await self._db.execute("PRAGMA journal_mode=WAL")
         await self._db.execute("PRAGMA foreign_keys=ON")
-        log.info("Database connected: %s (WAL mode)", self.db_path)
+        # Review fix: prevent SQLITE_BUSY under write contention from the
+        # 1 Hz tick loop racing interactive command writes.
+        await self._db.execute("PRAGMA busy_timeout=5000")
+        # v22 audit S13: synchronous=NORMAL is the recommended setting for WAL.
+        # Near-FULL durability (only crash-during-checkpoint can lose data).
+        # 2–10× write throughput improvement over default FULL.
+        await self._db.execute("PRAGMA synchronous=NORMAL")
+        log.info("Database connected: %s (WAL mode, busy_timeout=5000ms, synchronous=NORMAL)", self.db_path)
 
     async def initialize(self):
         """Create tables if they don't exist, apply migrations, and seed data."""
@@ -760,6 +770,11 @@ class Database:
             "SELECT * FROM zones WHERE id = ?", (zone_id,)
         )
         return dict(rows[0]) if rows else None
+
+    async def get_all_zones(self) -> list[dict]:
+        """Return all zones."""
+        rows = await self._db.execute_fetchall("SELECT * FROM zones")
+        return [dict(r) for r in rows]
 
     async def create_zone(self, name: str, parent_id: int = None,
                           properties: str = "{}") -> int:
@@ -1231,6 +1246,14 @@ class Database:
 
     async def create_traffic_ship(self, name: str, template: str) -> int:
         import json as _j
+        # Deduplicate: if a traffic ship with this name already exists in DB
+        # (from a previous server run that was not cleaned up), reuse it.
+        existing = await self._db.execute_fetchall(
+            "SELECT id FROM ships WHERE name = ? AND owner_id IS NULL",
+            (name,),
+        )
+        if existing:
+            return existing[0]["id"]
         systems = _j.dumps({"traffic": {}})
         cursor = await self._db.execute(
             "INSERT INTO ships "
@@ -1310,13 +1333,10 @@ class Database:
 
     async def get_posted_bounties(self) -> list[dict]:
         """Return all bounty contracts with status posted or claimed."""
-        async with aiosqlite.connect(self.db_path) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute(
-                "SELECT * FROM bounties WHERE status IN ('posted','claimed') "
-                "ORDER BY posted_at DESC"
-            ) as cur:
-                rows = await cur.fetchall()
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM bounties WHERE status IN ('posted','claimed') "
+            "ORDER BY posted_at DESC"
+        )
         return [dict(r) for r in rows]
 
     async def save_bounty(self, contract) -> None:
@@ -1324,46 +1344,43 @@ class Database:
         import json as _json
         import time as _time
         d = contract.to_dict() if hasattr(contract, "to_dict") else contract
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute(
-                """INSERT OR REPLACE INTO bounties
-                   (id, status, tier, target_npc_id, claimed_by,
-                    posted_at, expires_at, reward, data)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    d["id"], d["status"], d["tier"],
-                    d.get("target_npc_id"), d.get("claimed_by"),
-                    d.get("posted_at", _time.time()),
-                    d.get("expires_at"),
-                    d["reward"],
-                    _json.dumps(d),
-                ),
-            )
-            await db.commit()
+        await self._db.execute(
+            """INSERT OR REPLACE INTO bounties
+               (id, status, tier, target_npc_id, claimed_by,
+                posted_at, expires_at, reward, data)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                d["id"], d["status"], d["tier"],
+                d.get("target_npc_id"), d.get("claimed_by"),
+                d.get("posted_at", _time.time()),
+                d.get("expires_at"),
+                d["reward"],
+                _json.dumps(d),
+            ),
+        )
+        await self._db.commit()
 
     async def update_bounty(self, contract_id: str, data: dict) -> None:
         """Update a bounty contract's data and status fields."""
         import json as _json
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute(
-                """UPDATE bounties SET
-                   status = ?, claimed_by = ?, expires_at = ?, data = ?
-                   WHERE id = ?""",
-                (
-                    data.get("status", "posted"),
-                    data.get("claimed_by"),
-                    data.get("expires_at"),
-                    _json.dumps(data),
-                    contract_id,
-                ),
-            )
-            await db.commit()
+        await self._db.execute(
+            """UPDATE bounties SET
+               status = ?, claimed_by = ?, expires_at = ?, data = ?
+               WHERE id = ?""",
+            (
+                data.get("status", "posted"),
+                data.get("claimed_by"),
+                data.get("expires_at"),
+                _json.dumps(data),
+                contract_id,
+            ),
+        )
+        await self._db.commit()
 
     async def delete_npc(self, npc_id: int) -> None:
         """Delete an NPC record by ID (used for bounty target cleanup)."""
-        async with aiosqlite.connect(self.db_path) as db:
-            await db.execute("DELETE FROM npcs WHERE id = ?", (npc_id,))
-            await db.commit()
+        await self._db.execute("DELETE FROM npcs WHERE id = ?", (npc_id,))
+        await self._db.commit()
 
     # ── CP Progression DB methods ─────────────────────────────────────────────
 
@@ -1603,6 +1620,7 @@ class Database:
         try:
             return _j.loads(raw) if isinstance(raw, str) else raw
         except Exception:
+            log.warning("get_inventory: unhandled exception", exc_info=True)
             return []
 
     async def add_to_inventory(self, char_id: int, item: dict):

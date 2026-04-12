@@ -79,6 +79,7 @@ async def _get_zone_name(ctx) -> str:
         zone = await ctx.db.get_zone(room["zone_id"])
         return (zone.get("name") or "").lower() if zone else ""
     except Exception:
+        log.warning("_get_zone_name: unhandled exception", exc_info=True)
         return ""
 
 
@@ -88,6 +89,7 @@ def _get_last_sabacc(char: dict) -> float:
         attrs = json.loads(char.get("attributes", "{}") or "{}")
         return float(attrs.get("last_sabacc", 0))
     except Exception:
+        log.warning("get_last_sabacc failed", exc_info=True)
         return 0.0
 
 
@@ -129,6 +131,7 @@ async def _get_dealer_pool(ctx, char) -> tuple[int, int]:
                 if d > 0:
                     return d, p
     except Exception:
+        log.warning("_get_dealer_pool: unhandled exception", exc_info=True)
         pass
     return DEALER_DICE, DEALER_PIPS
 
@@ -166,6 +169,7 @@ class SabaccCommand(BaseCommand):
             if get_world_event_manager().is_active("cantina_brawl"):
                 bet_max = BET_MAX_DEFAULT * 2
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
         arg = (ctx.args or "").strip()
@@ -304,6 +308,12 @@ class SabaccCommand(BaseCommand):
             f"plays a hand of Sabacc and {broadcast_outcome}.",
             exclude=ctx.session,
         )
+        # Spacer quest: sabacc played
+        try:
+            from engine.spacer_quest import check_spacer_quest
+            await check_spacer_quest(ctx.session, ctx.db, "sabacc")
+        except Exception:
+            pass
 
 
 # ── Registration ──────────────────────────────────────────────────────────────

@@ -246,6 +246,7 @@ class PartyManager:
                 )
                 await db._db.commit()
             except Exception:
+                log.warning("leave: unhandled exception", exc_info=True)
                 pass
             # We return the new leader id — caller resolves the name
             new_leader_name = str(party.leader_id)
@@ -284,6 +285,7 @@ class PartyManager:
             )
             await db._db.commit()
         except Exception:
+            log.warning("kick: unhandled exception", exc_info=True)
             pass
 
         # If only leader left, disband
@@ -346,6 +348,7 @@ class PartyManager:
             await db._db.execute("DELETE FROM parties WHERE id = ?", (party_id,))
             await db._db.commit()
         except Exception:
+            log.warning("_delete_party: unhandled exception", exc_info=True)
             pass
 
         log.info("[party] Disbanded party #%d", party_id)

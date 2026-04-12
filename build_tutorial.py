@@ -776,6 +776,14 @@ async def build_training_grounds(db):
                     wound_level=0, species="Droid",
                 ),
                 (
+                    "C-4PO is a silver protocol droid programmed for absolute "
+                    "political neutrality. Precise, measured, and encyclopedic. "
+                    "Speaks with the cadence of a librarian reading from a reference "
+                    "manual. Never expresses personal preference, never recommends "
+                    "one faction over another. Occasionally apologises for the "
+                    "complexity of galactic politics."
+                ),
+                (
                     "C-4PO is programmed to provide impartial information about "
                     "the six major factions (Galactic Empire, Rebel Alliance, "
                     "Hutt Cartel, Traders' Coalition, Bounty Hunters Guild, "

@@ -78,6 +78,10 @@ class Session:
         self.state = SessionState.CONNECTED
         self.account: Optional[dict] = None
         self.character: Optional[dict] = None
+        # v22 audit S15: parsed Character object cache.
+        # Lazily populated on first access via get_char_obj().
+        # Invalidated on save_character() by setting to None.
+        self._char_obj = None
         self.width = width
         self.height = height
         self.connected_at = time.time()
@@ -92,12 +96,40 @@ class Session:
 
     @property
     def wrap_width(self) -> int:
-        """Text wrapping width — capped at 78 for readability."""
+        """Text wrapping width.
+
+        Telnet: capped at 78 for classic terminal readability.
+        WebSocket: uses full reported width (Fmt.prose_width caps at
+        MAX_PROSE_WIDTH=100 for readability on ultra-wide viewports).
+        """
+        if self.protocol == Protocol.WEBSOCKET:
+            return self.width   # Client sends resize; Fmt caps prose at 100
         return min(self.width, 78)
 
     def __repr__(self):
         name = self.character["name"] if self.character else "anonymous"
         return f"<Session #{self.id} {self.protocol.value} {name}>"
+
+    def get_char_obj(self):
+        """
+        Get a parsed Character object from the raw character dict.
+
+        v22 audit S15: lazily cached — parsed once, reused until
+        invalidated by invalidate_char_obj() (called after save_character).
+        Eliminates repeated json.loads() of attributes/skills/equipment.
+
+        Returns None if no character is attached.
+        """
+        if self.character is None:
+            return None
+        if self._char_obj is None:
+            from engine.character import Character
+            self._char_obj = Character.from_db_dict(self.character)
+        return self._char_obj
+
+    def invalidate_char_obj(self):
+        """Clear the cached Character object. Call after save_character()."""
+        self._char_obj = None
 
     # ── Output ──
 
@@ -175,11 +207,39 @@ class Session:
             "alert_faction": "",
         }
 
+        # Equipped weapon for sidebar display
+        try:
+            equip = char.get("equipment")
+            if equip:
+                if isinstance(equip, str):
+                    import json as _json
+                    equip = _json.loads(equip)
+                weapon_data = equip.get("weapon")
+                if weapon_data and isinstance(weapon_data, dict):
+                    hud["equipped_weapon"] = weapon_data.get("name", "")
+        except Exception:
+            log.warning("send_hud_update: unhandled exception", exc_info=True)
+            pass
+
         # Fetch exits if we have a DB handle
         if db and room_id:
             try:
                 exits = await db.get_exits(room_id)
-                hud["exits"] = [e["direction"] for e in exits]
+                # Filter hidden faction exits (e.g. Rebel safehouse doors)
+                try:
+                    from engine.housing import is_exit_visible
+                    exits = [e for e in exits
+                             if await is_exit_visible(db, e, char)]
+                except Exception:
+                    log.warning("send_hud_update: unhandled exception", exc_info=True)
+                    pass
+                hud["exits"] = [
+                    {
+                        "dir": e["direction"],
+                        "label": (e.get("name") or "").strip() or e["direction"],
+                    }
+                    for e in exits
+                ]
                 # Also grab room name from DB if not cached
                 if not hud["room_name"]:
                     room = await db.get_room(room_id)
@@ -230,15 +290,80 @@ class Session:
         if db and room_id:
             try:
                 from engine.security import get_effective_security
-                sec = await get_effective_security(room_id, db)
+                sec = await get_effective_security(room_id, db, character=char)
                 hud["security_level"] = sec.value
             except Exception:
                 hud["security_level"] = "contested"
+
+        # Check if this is a housing room owned by the character
+        hud["is_housing"] = False
+        if db and room_id:
+            try:
+                from engine.housing import get_housing_for_room
+                h = await get_housing_for_room(db, room_id)
+                if h and h.get("char_id") == char.get("id"):
+                    hud["is_housing"] = True
+            except Exception:
+                log.warning("send_hud_update: unhandled exception", exc_info=True)
+                pass
+
+        # Territory claim badge (Drop 6E)
+        hud["territory_claim"] = None
+        hud["contest_active"] = False
+        if db and room_id:
+            try:
+                from engine.territory import get_claim, get_active_contest, get_room_zone_id
+                _tc = await get_claim(db, room_id)
+                if _tc:
+                    hud["territory_claim"] = {
+                        "org_code": _tc["org_code"],
+                        "org_name": _tc["org_code"].replace("_", " ").title(),
+                        "has_guard": bool(_tc.get("guard_npc_id")),
+                    }
+                    _zone_id = await get_room_zone_id(db, room_id)
+                    if _zone_id:
+                        _contest = await get_active_contest(db, _zone_id)
+                        if _contest:
+                            import time as _time
+                            hud["contest_active"] = True
+                            hud["contest_challenger"] = _contest["challenger_org_code"].replace("_", " ").title()
+                            hud["contest_ends"] = max(0, int(_contest["ends_at"] - _time.time()))
+            except Exception:
+                pass  # Non-critical — territory badge just won't show
 
         # Room contents for clickable sidebar panel
         if db and room_id:
             try:
                 npcs = await db.get_npcs_in_room(room_id)
+                # Vendor droids in room — for shop browse sidebar panel
+                vendor_droids = []
+                try:
+                    raw_droids = await db.get_objects_in_room(room_id, "vendor_droid")
+                    from engine.vendor_droids import _load_data
+                    for d in raw_droids:
+                        data = _load_data(d)
+                        inventory = data.get("inventory", [])
+                        vendor_droids.append({
+                            "id": d["id"],
+                            "name": data.get("shop_name") or d.get("name", "Vendor Droid"),
+                            "desc": data.get("shop_desc", ""),
+                            "tier": data.get("tier_key", "gn4"),
+                            "item_count": len(inventory),
+                            "inventory": [
+                                {
+                                    "slot": i + 1,
+                                    "name": slot.get("item_name", "Unknown"),
+                                    "price": slot.get("price", 0),
+                                    "qty": slot.get("quantity", 1),
+                                    "quality": slot.get("quality", 0),
+                                    "crafter": slot.get("crafter", ""),
+                                }
+                                for i, slot in enumerate(inventory)
+                                if slot.get("quantity", 0) > 0
+                            ],
+                        })
+                except Exception:
+                    pass  # Non-critical, just omit droids
                 hud["room_contents"] = {
                     "npcs": [
                         {"id": n["id"], "name": n["name"]}
@@ -249,6 +374,7 @@ class Session:
                         for s in session_mgr.sessions_in_room(room_id)
                         if s.character and s.character.get("id") != char.get("id")
                     ] if session_mgr else [],
+                    "vendor_droids": vendor_droids,
                 }
             except Exception:
                 pass  # Non-critical
@@ -278,6 +404,7 @@ class Session:
             await self.send_line("Disconnecting. May the Force be with you.")
             await self._close()
         except Exception:
+            log.warning("close: unhandled exception", exc_info=True)
             pass
         log.info("Session closed: %s", self)
 
@@ -364,6 +491,9 @@ class SessionManager:
 
         Args:
             exclude: Session object, list of character IDs to skip, or None.
+
+        v22 audit S16: asyncio.gather isolates slow telnet clients so one
+        backed-up send queue can't stall the broadcast for everyone.
         """
         excluded_ids: set[int] = set()
         excluded_sess: Optional["Session"] = None
@@ -372,12 +502,16 @@ class SessionManager:
         elif exclude is not None:
             excluded_sess = exclude
 
+        targets = []
         for s in self.sessions_in_room(room_id):
             if excluded_sess is not None and s is excluded_sess:
                 continue
             if s.character and s.character.get("id") in excluded_ids:
                 continue
-            await s.send_line(text)
+            targets.append(s.send_line(text))
+
+        if targets:
+            await asyncio.gather(*targets, return_exceptions=True)
 
     async def broadcast_json_to_room(
         self, room_id: int, msg_type: str, data: dict
@@ -387,8 +521,9 @@ class SessionManager:
         Telnet sessions silently ignore this call.
         Used for combat_state, space_state, and other structured updates.
         """
-        for s in self.sessions_in_room(room_id):
-            await s.send_json(msg_type, data)
+        targets = [s.send_json(msg_type, data) for s in self.sessions_in_room(room_id)]
+        if targets:
+            await asyncio.gather(*targets, return_exceptions=True)
 
     async def broadcast_chat(
         self, channel: str, from_name: str, text: str,

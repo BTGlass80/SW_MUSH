@@ -39,6 +39,7 @@ def _time_ago(ts_val) -> str:
         d = secs // 86400
         return f"{d} day{'s' if d != 1 else ''} ago"
     except Exception:
+        log.warning("format_ts failed", exc_info=True)
         return str(ts_val)
 
 
@@ -108,6 +109,7 @@ class DirectorCommand(BaseCommand):
             narr_str = ansi.green("ENABLED") if is_narrative_ai_enabled() else ansi.yellow("DISABLED")
             await ctx.session.send_line(f"  Narrative AI:{narr_str}  (logging: always on)")
         except Exception:
+            log.warning("_status: unhandled exception", exc_info=True)
             pass
 
         # Last / next turn
@@ -347,5 +349,138 @@ class DirectorCommand(BaseCommand):
             )
 
 
+class EconomyCommand(BaseCommand):
+    """@economy — Admin economy dashboard: shop stats, credit flow, zone prices."""
+    key = "@economy"
+    aliases = ["@econ"]
+    access_level = AccessLevel.ADMIN
+    help_text = (
+        "Admin economy dashboard.\n"
+        "  @economy shops     — active vendor droids, total escrow, top earners\n"
+        "  @economy credits   — credit distribution across active characters\n"
+        "  @economy zones     — Director zone influence + alert levels\n"
+        "  @economy           — all of the above"
+    )
+    usage = "@economy [shops|credits|zones]"
+
+    async def execute(self, ctx: CommandContext):
+        parts = (ctx.args or "").split()
+        sub   = parts[0].lower() if parts else "all"
+
+        lines = ["\033[1;36m══════════════════════════════════════════\033[0m",
+                 "  \033[1;37m@ECONOMY DASHBOARD\033[0m",
+                 "\033[1;36m──────────────────────────────────────────\033[0m"]
+
+        show_shops   = sub in ("all", "shops")
+        show_credits = sub in ("all", "credits")
+        show_zones   = sub in ("all", "zones")
+
+        # ── Shop stats ────────────────────────────────────────────────────
+        if show_shops:
+            try:
+                rows = await ctx.db._db.execute_fetchall(
+                    "SELECT * FROM objects WHERE type = 'vendor_droid'"
+                )
+                from engine.vendor_droids import _load_data
+                total = len(rows)
+                placed = sum(1 for r in rows if r["room_id"])
+                total_escrow = 0
+                total_items  = 0
+                top = []
+                for r in rows:
+                    d = _load_data(dict(r))
+                    esc = d.get("escrow_credits", 0)
+                    inv = len([s for s in d.get("inventory", [])
+                               if s.get("quantity", 0) > 0])
+                    total_escrow += esc
+                    total_items  += inv
+                    top.append((esc, d.get("shop_name") or r["name"]))
+                top.sort(reverse=True)
+                lines += [
+                    "  \033[1;33mSHOPS\033[0m",
+                    f"  Active droids : {placed}/{total} placed",
+                    f"  Total items   : {total_items}",
+                    f"  Total escrow  : {total_escrow:,} cr (uncollected)",
+                ]
+                if top[:5]:
+                    lines.append("  Top earners:")
+                    for esc, name in top[:5]:
+                        lines.append(f"    {name:<28}  {esc:>8,} cr pending")
+
+                # Recent sales volume (last 24h)
+                import time as _t
+                cutoff = _t.time() - 86400
+                try:
+                    sale_rows = await ctx.db._db.execute_fetchall(
+                        "SELECT SUM(total_price) as vol, COUNT(*) as cnt "
+                        "FROM shop_transactions WHERE created_at > ?", (cutoff,)
+                    )
+                    if sale_rows and sale_rows[0]["vol"]:
+                        lines.append(
+                            f"  Sales (24h)   : "
+                            f"{sale_rows[0]['cnt']} txns / "
+                            f"{int(sale_rows[0]['vol']):,} cr volume"
+                        )
+                except Exception:
+                    log.warning("execute: unhandled exception", exc_info=True)
+                    pass
+            except Exception as e:
+                lines.append(f"  Shop stats error: {e}")
+
+        # ── Credit distribution ───────────────────────────────────────────
+        if show_credits:
+            try:
+                lines.append("  \033[1;33mCREDITS\033[0m")
+                rows = await ctx.db._db.execute_fetchall(
+                    "SELECT credits FROM characters WHERE is_active = 1 ORDER BY credits DESC"
+                )
+                if rows:
+                    vals = [r["credits"] for r in rows]
+                    total = sum(vals)
+                    avg   = total // len(vals)
+                    lines += [
+                        f"  Active chars  : {len(vals)}",
+                        f"  Total credits : {total:,} cr",
+                        f"  Average       : {avg:,} cr",
+                        f"  Richest       : {vals[0]:,} cr",
+                        f"  Poorest       : {vals[-1]:,} cr",
+                    ]
+            except Exception as e:
+                lines.append(f"  Credit stats error: {e}")
+
+        # ── Zone influence ────────────────────────────────────────────────
+        if show_zones:
+            try:
+                from engine.director import get_director
+                director = get_director()
+                states   = director.get_all_zone_states()
+                lines.append("  \033[1;33mZONE INFLUENCE\033[0m")
+                lines.append(
+                    f"  {'Zone':<14} {'Imp':>4} {'Reb':>4} {'Cri':>4} {'Ind':>4}  Alert"
+                )
+                for zk, zs in sorted(states.items()):
+                    alert = zs.get("alert_level", "standard")
+                    alert_color = {
+                        "lockdown":   "\033[1;31m",
+                        "underworld": "\033[1;35m",
+                        "unrest":     "\033[1;33m",
+                        "lax":        "\033[2m",
+                    }.get(alert, "")
+                    lines.append(
+                        f"  {zk:<14} "
+                        f"{zs['imperial']:>4} "
+                        f"{zs['rebel']:>4} "
+                        f"{zs['criminal']:>4} "
+                        f"{zs['independent']:>4}  "
+                        f"{alert_color}{alert}\033[0m"
+                    )
+            except Exception as e:
+                lines.append(f"  Zone stats error: {e}")
+
+        lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
+        await ctx.session.send_line("\n".join(lines))
+
+
 def register_director_commands(registry) -> None:
     registry.register(DirectorCommand())
+    registry.register(EconomyCommand())

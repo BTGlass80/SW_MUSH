@@ -303,7 +303,80 @@
     padding: 10px 14px;
     position: relative;
     z-index: 1;
+    min-height: 0;
+    min-width: 0;
   }
+
+  /* ── Terminal main area: text + context panel ── */
+  .terminal-main {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ── Context panel (fills dead space right of text) ── */
+  .context-panel {
+    width: 280px;
+    min-width: 220px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border-dim);
+    overflow-y: auto;
+    padding: 0;
+    background: rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+  }
+  .context-panel::-webkit-scrollbar { width: 3px; }
+  .context-panel::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+
+  .ctx-section { padding: 10px 12px; }
+  .ctx-label {
+    font-family: var(--font-display);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .ctx-room-name {
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent-cyan);
+    margin-bottom: 6px;
+  }
+  .ctx-room-desc {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  /* Hide context panel on narrow viewports */
+  @media (max-width: 1100px) {
+    .context-panel { display: none; }
+  }
+
+  /* ── Comms split pane (bottom of terminal) ── */
+  .comms-pane {
+    flex-shrink: 0;
+    height: 28%;
+    min-height: 60px;
+    max-height: 40%;
+    border-top: 1px solid var(--border-dim);
+    overflow-y: auto;
+    background: rgba(0,0,0,0.12);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 1;
+  }
+  .comms-pane::-webkit-scrollbar { width: 4px; }
+  .comms-pane::-webkit-scrollbar-track { background: transparent; }
+  .comms-pane::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
 
   #output::-webkit-scrollbar { width: 5px; }
   #output::-webkit-scrollbar-track { background: transparent; }
@@ -420,6 +493,83 @@
     color: var(--text-dim); font-family: var(--font-mono);
   }
   .rc-btn:hover { background: rgba(255,255,255,0.12); color: var(--text-main); }
+
+  /* ── Shop Browse / Dashboard Panel ── */
+  .shop-droid-tab {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 3px;
+    padding: 2px 7px;
+    margin: 0 3px 4px 0;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .shop-droid-tab:hover { background: rgba(255,255,255,0.1); color: var(--text-main); }
+  .shop-droid-tab.active {
+    background: rgba(var(--accent-amber-rgb, 210,153,34), 0.15);
+    border-color: var(--accent-amber);
+    color: var(--accent-amber);
+  }
+  .shop-item-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 6px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 11px;
+  }
+  .shop-item-row:last-child { border-bottom: none; }
+  .shop-item-name { color: var(--text-main); font-family: var(--font-mono); }
+  .shop-item-meta { color: var(--text-dim); font-size: 10px; }
+  .shop-item-price {
+    color: var(--accent-amber);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-align: right;
+  }
+  .shop-item-qty { color: var(--text-dim); font-size: 10px; text-align: right; }
+  .shop-buy-btn {
+    grid-column: 1 / -1;
+    margin-top: 2px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    background: rgba(var(--accent-amber-rgb, 210,153,34), 0.12);
+    border: 1px solid rgba(var(--accent-amber-rgb, 210,153,34), 0.35);
+    color: var(--accent-amber);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .shop-buy-btn:hover { background: rgba(var(--accent-amber-rgb, 210,153,34), 0.25); }
+  .shop-empty-msg { color: var(--text-dim); font-size: 11px; font-style: italic; padding: 6px 0; }
+  /* Dashboard mode */
+  .shop-dash-escrow {
+    color: var(--accent-green);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  .shop-dash-droid-header {
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    margin: 8px 0 3px;
+  }
+  .shop-sale-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0 6px;
+    font-size: 10px;
+    padding: 2px 0;
+    color: var(--text-dim);
+  }
+  .shop-sale-net { color: var(--accent-amber); font-family: var(--font-mono); }
   .wound-seg.healthy  { background: var(--accent-green); box-shadow: 0 0 4px rgba(63,185,80,0.3); }
   .wound-seg.stunned  { background: var(--accent-amber); }
   .wound-seg.wounded  { background: #da6d28; }
@@ -560,15 +710,71 @@
     background: rgba(64,200,208,0.06);
   }
 
+  /* Combat-mode quick buttons (red accent) */
+  .quick-cmd.combat-mode { color: var(--accent-red); border-color: rgba(248,81,73,0.2); }
+  .quick-cmd.combat-mode:hover {
+    color: #ff6b63;
+    border-color: rgba(248,81,73,0.5);
+    background: rgba(248,81,73,0.06);
+  }
+
+  /* Security badge (inline next to zone badge) */
+  .sec-badge {
+    display: inline-block;
+    font-family: var(--font-display);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 2px;
+    margin-left: 4px;
+    margin-top: 3px;
+    vertical-align: middle;
+  }
+
+  /* Territory claim badge (Drop 6E) — inline next to security badge */
+  .claim-badge {
+    display: inline-block;
+    font-family: var(--font-display);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 2px;
+    margin-left: 4px;
+    margin-top: 3px;
+    vertical-align: middle;
+    cursor: default;
+  }
+  .claim-badge.empire   { color:#6699ff; border:1px solid rgba(102,153,255,0.3); background:rgba(102,153,255,0.06); }
+  .claim-badge.rebel    { color:#ff6655; border:1px solid rgba(255,102,85,0.3);  background:rgba(255,102,85,0.06);  }
+  .claim-badge.hutt     { color:#d4a020; border:1px solid rgba(212,160,32,0.3);  background:rgba(212,160,32,0.06);  }
+  .claim-badge.bh_guild { color:#cc88ff; border:1px solid rgba(204,136,255,0.3); background:rgba(204,136,255,0.06); }
+  .claim-badge.default  { color:#aaaaaa; border:1px solid rgba(170,170,170,0.3); background:rgba(170,170,170,0.06); }
+  .claim-badge.contested-glow { animation: claimPulse 2s ease-in-out infinite; }
+  @keyframes claimPulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
+  }
+  /* Territory news items */
+  .news-item.territory { border-left: 2px solid #ff4444; }
+  .news-item.territory .ni-tag { color: #ff4444; }
+
   /* ── News / Comlink Feed ── */
   .news-panel {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border-dim);
-    max-height: 160px;
+    padding: 0;
+    flex: 1;
     overflow-y: auto;
+    min-height: 0;
   }
   .news-panel::-webkit-scrollbar { width: 3px; }
   .news-panel::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
+
+  #news-items {
+    padding: 4px 10px;
+  }
 
   .news-item {
     font-size: 11px;
@@ -1075,6 +1281,29 @@
   .radar-anomaly-text { fill: var(--accent-purple); font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 700; }
   .radar-anomaly-text.resolved { fill: var(--accent-green); }
 
+  /* Ship Schematic (replaces sidebar radar) */
+  .schematic-svg { display: block; width: 100%; overflow: visible; }
+  .sch-hull         { fill: none; stroke: var(--border-mid); stroke-width: 1.2; }
+  .sch-hull-fill    { fill: rgba(64,200,208,0.04); }
+  .sch-hull-ok      { stroke: rgba(64,200,208,0.5); }
+  .sch-hull-warn    { stroke: rgba(212,160,32,0.6); }
+  .sch-hull-crit    { stroke: rgba(248,81,73,0.6); animation: pulse 1.2s ease-in-out infinite; }
+  .sch-sys-dot      { r: 5; transition: fill 0.3s; }
+  .sch-sys-ok       { fill: var(--accent-green); filter: drop-shadow(0 0 3px rgba(63,185,80,0.5)); }
+  .sch-sys-damaged  { fill: var(--accent-red); animation: pulse 1s ease-in-out infinite; }
+  .sch-sys-offline  { fill: var(--text-dim); opacity: 0.3; }
+  .sch-sys-label    { fill: var(--text-dim); font-family: 'Share Tech Mono', monospace; font-size: 7px; }
+  .sch-shield-arc   { fill: none; stroke-width: 2; opacity: 0.6; }
+  .sch-shield-front { stroke: var(--accent-blue); }
+  .sch-shield-rear  { stroke: var(--accent-blue); opacity: 0.4; }
+  .sch-speed-line   { stroke: rgba(64,200,208,0.3); stroke-width: 1; stroke-dasharray: 3 3; }
+  .sch-speed-active { stroke: var(--accent-cyan); stroke-width: 1.5; stroke-dasharray: none; opacity: 0.6; }
+  .sch-wpn-pip      { fill: var(--accent-amber); opacity: 0.7; }
+  .sch-wpn-pip-off  { fill: var(--text-dim); opacity: 0.2; }
+  .sch-class-label  { fill: var(--text-dim); font-family: 'Orbitron', sans-serif; font-size: 7px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .sch-stat-label   { fill: var(--text-dim); font-family: 'Share Tech Mono', monospace; font-size: 7px; }
+  .sch-stat-val     { fill: var(--accent-cyan); font-family: 'Share Tech Mono', monospace; font-size: 8px; font-weight: bold; }
+
   /* Power bar (Drop 15) */
   .power-bar-wrap { padding: 6px 10px 8px; border-bottom: 1px solid var(--border-dim); }
   .power-bar-label { display: flex; justify-content: space-between; margin-bottom: 4px; }
@@ -1100,29 +1329,6 @@
                            animation: pulse 2s ease-in-out infinite; }
   .order-badge .ob-bonus { color: var(--accent-green); font-size: 9px; }
   .order-badge .ob-cost  { color: var(--accent-red);   font-size: 9px; }
-  .power-sys-row { display: flex; justify-content: space-between; font-size: 9px;
-                   font-family: 'Share Tech Mono',monospace; color: var(--text-dim);
-                   margin-top: 3px; }
-  .power-sys-row .pwr-sys-name { color: var(--text-secondary); }
-  .power-sys-row .pwr-sys-val  { color: var(--accent-cyan); }
-  .power-sys-row .pwr-sys-over { color: var(--accent-green); }
-  .power-sys-row .pwr-sys-off  { color: var(--accent-red); }
-
-  /* Power bar (Drop 15) */
-  .power-bar-wrap { padding: 6px 10px 8px; border-bottom: 1px solid var(--border-dim); }
-  .power-bar-label { display: flex; justify-content: space-between; margin-bottom: 4px; }
-  .power-bar-label span { font-family: 'Share Tech Mono',monospace; font-size: 10px; color: var(--text-dim); }
-  .power-bar-label .pwr-used { color: var(--accent-cyan); font-weight: bold; }
-  .power-bar-label .pwr-silent { color: var(--accent-amber); font-size: 9px; animation: pulse 1.5s ease-in-out infinite; }
-  .power-bar-track { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--bg-tertiary); gap: 1px; }
-  .pwr-seg { height: 100%; transition: width 0.3s ease; }
-  .pwr-seg.engines      { background: var(--accent-green); }
-  .pwr-seg.shields      { background: var(--accent-blue); }
-  .pwr-seg.weapons      { background: var(--accent-red); }
-  .pwr-seg.sensors      { background: var(--accent-cyan); }
-  .pwr-seg.life_support { background: var(--text-dim); }
-  .pwr-seg.free         { background: transparent; }
-  .pwr-offline { opacity: 0.25; }
   .power-sys-row { display: flex; justify-content: space-between; font-size: 9px;
                    font-family: 'Share Tech Mono',monospace; color: var(--text-dim);
                    margin-top: 3px; }
@@ -1176,6 +1382,8 @@
     .quick-cmd { min-height: 36px; font-size: 11px; padding: 6px 8px; }
     /* Room contents — bigger touch targets */
     .rc-btn { min-height: 30px; font-size: 10px; padding: 4px 6px; }
+    /* Comms pane — shorter on mobile */
+    .comms-pane { height: 20%; min-height: 40px; }
   }
 
   /* ── Tablet: icon-rail sidebar ── */
@@ -1240,7 +1448,58 @@
         </div>
         <div class="bezel-right" id="bezel-info"></div>
       </div>
-      <div id="output"></div>
+      <!-- Main area: text + context panel side by side -->
+      <div class="terminal-main" id="terminal-main">
+        <div id="output"></div>
+        <!-- Context panel: fills dead space to right of text -->
+        <div class="context-panel" id="context-panel">
+          <div class="ctx-section" id="ctx-ground">
+            <div class="ctx-label">Location</div>
+            <div class="ctx-room-name" id="ctx-room-name">&mdash;</div>
+            <div class="ctx-room-desc" id="ctx-room-desc"></div>
+          </div>
+          <div class="ctx-section" id="ctx-space" style="display:none;">
+            <div class="ctx-label">Zone Map</div>
+            <div id="ctx-zone-map-slot">
+              <svg class="zone-map-svg" id="ctx-zone-map-svg" viewBox="0 0 226 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+                <text x="113" y="90" text-anchor="middle" style="fill:var(--text-dim);font-size:10px;font-family:Share Tech Mono,monospace;">No data</text>
+              </svg>
+            </div>
+            <div class="ctx-label" style="margin-top:10px;">Tactical Radar</div>
+            <div id="ctx-radar-slot">
+              <svg class="radar-svg" id="ctx-radar-svg" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+                <circle cx="120" cy="120" r="118" class="radar-bg"/>
+                <circle cx="120" cy="120" r="30"  class="radar-ring"/>
+                <circle cx="120" cy="120" r="60"  class="radar-ring"/>
+                <circle cx="120" cy="120" r="90"  class="radar-ring"/>
+                <circle cx="120" cy="120" r="118" class="radar-ring"/>
+                <line x1="120" y1="2"  x2="120" y2="238" class="radar-crosshair"/>
+                <line x1="2"  y1="120" x2="238" y2="120" class="radar-crosshair"/>
+                <text x="122" y="93"  class="radar-ring-label">Close</text>
+                <text x="122" y="63"  class="radar-ring-label">Short</text>
+                <text x="122" y="33"  class="radar-ring-label">Med</text>
+                <text x="122" y="8"   class="radar-ring-label">Long</text>
+                <circle cx="120" cy="120" r="114" class="radar-sweep"/>
+                <circle cx="120" cy="120" r="4"  class="radar-self"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Comms split pane -->
+      <div class="comms-pane" id="comms-pane">
+        <div class="news-panel" id="news-panel">
+          <div class="comms-tabs">
+            <button class="comms-tab active" data-tab="all">All</button>
+            <button class="comms-tab" data-tab="ic">IC <span class="tab-badge" id="badge-ic"></span></button>
+            <button class="comms-tab" data-tab="ooc">OOC <span class="tab-badge" id="badge-ooc"></span></button>
+            <button class="comms-tab" data-tab="sys">Sys <span class="tab-badge" id="badge-sys"></span></button>
+          </div>
+          <div id="news-items">
+            <div class="news-item" style="color:var(--text-dim); font-style:italic;">Scanning frequencies...</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1254,7 +1513,6 @@
   </div>
 
   <!-- HUD SIDEBAR -->
-  <!-- HUD SIDEBAR -->
   <div class="hud">
 
     <!-- SPACE HUD PANEL (hidden until space_state.active = true) -->
@@ -1267,13 +1525,13 @@
       </div>
 
       <div class="hud-section">
-        <div class="hud-label">Zone</div>
+        <div class="hud-label" title="Your current space zone — determines available actions and hazards">Zone</div>
         <div class="space-zone-name" id="sp-zone-name">—</div>
         <div class="space-zone-type" id="sp-zone-type"></div>
       </div>
 
       <div class="hud-section">
-        <div class="hud-label">Hull Integrity</div>
+        <div class="hud-label" title="Ship hull strength — reaches 0 and the ship is destroyed">Hull Integrity</div>
         <div class="hull-bar-wrap">
           <div class="hull-bar-track">
             <div class="hull-bar-fill hull-good" id="sp-hull-bar" style="width:100%;"></div>
@@ -1286,27 +1544,27 @@
       </div>
 
       <div class="hud-section" id="sp-shields-section">
-        <div class="hud-label">Shields</div>
+        <div class="hud-label" title="Deflector shield dice by arc — absorb damage before hull">Shields</div>
         <div class="shield-grid" id="sp-shield-grid">
           <div></div>
-          <div class="shield-arc no-shields" id="sp-arc-front">0D</div>
+          <div class="shield-arc no-shields" id="sp-arc-front" title="Front shield arc — absorbs damage from attacks ahead">0D</div>
           <div></div>
-          <div class="shield-arc no-shields" id="sp-arc-left">0D</div>
-          <div class="shield-center">SHD</div>
-          <div class="shield-arc no-shields" id="sp-arc-right">0D</div>
+          <div class="shield-arc no-shields" id="sp-arc-left" title="Left shield arc">0D</div>
+          <div class="shield-center" title="Shield dice allocation — use 'shields' to redistribute">SHD</div>
+          <div class="shield-arc no-shields" id="sp-arc-right" title="Right shield arc">0D</div>
           <div></div>
-          <div class="shield-arc no-shields" id="sp-arc-rear">0D</div>
+          <div class="shield-arc no-shields" id="sp-arc-rear" title="Rear shield arc — absorbs damage from attacks behind">0D</div>
           <div></div>
         </div>
       </div>
 
       <div class="hud-section">
         <div class="space-stat-row">
-          <span class="space-stat-label">Speed</span>
+          <span class="space-stat-label" title="Current sublight speed setting — higher = faster but harder to maneuver">Speed</span>
           <span class="space-stat-val speed-val" id="sp-speed">—</span>
         </div>
         <div class="space-stat-row">
-          <span class="space-stat-label">Scale</span>
+          <span class="space-stat-label" title="Ship scale — starfighter, transport, capital. Affects damage calculations.">Scale</span>
           <span class="space-stat-val" id="sp-scale">—</span>
         </div>
         <div class="space-stat-row" id="sp-ion-row" style="display:none;">
@@ -1327,34 +1585,23 @@
       </div>
 
       <div class="hud-section" id="sp-systems-section">
-        <div class="hud-label">Systems</div>
+        <div class="hud-label" title="Ship subsystems — green = operational, red = damaged. Use 'damcon' to repair.">Systems</div>
         <div class="sys-grid" id="sp-sys-grid"></div>
       </div>
 
       <div class="hud-section" id="sp-crew-section">
-        <div class="hud-label">Crew</div>
+        <div class="hud-label" title="Crew stations — each station grants skill bonuses. Use 'man <station>' to take a seat.">Crew</div>
         <div id="sp-crew-list"></div>
       </div>
 
       <div class="hud-section" id="sp-contacts-section" style="display:none;">
-        <div class="hud-label">Contacts</div>
+        <div class="hud-label" title="Ships detected on sensors in your zone. Use 'scan' to refresh.">Contacts</div>
         <div id="sp-contacts-list"></div>
       </div>
 
       <div class="hud-section">
-        <div class="hud-label">Station <span class="station-badge" id="sp-station-badge">—</span></div>
+        <div class="hud-label" title="Your crew station — determines which commands are available">Station <span class="station-badge" id="sp-station-badge">—</span></div>
         <div class="space-quick-cmds" id="sp-quick-cmds"></div>
-      </div>
-
-      <!-- POWER BAR (Drop 15) -->
-      <div class="power-bar-wrap" id="sp-power-wrap" style="display:none">
-        <div class="power-bar-label">
-          <span>Reactor</span>
-          <span><span class="pwr-used" id="sp-pwr-used">10</span>/<span id="sp-pwr-max">10</span> pw</span>
-          <span class="pwr-silent" id="sp-pwr-silent" style="display:none">SILENT</span>
-        </div>
-        <div class="power-bar-track" id="sp-pwr-track"></div>
-        <div class="power-sys-row" id="sp-pwr-detail"></div>
       </div>
 
       <!-- POWER BAR (Drop 15) -->
@@ -1376,40 +1623,15 @@
         <span class="ob-cost"  id="sp-order-cost"></span>
       </div>
 
-      <!-- ZONE MAP -->
-      <div class="svg-panel-wrap" id="zm-wrap">
-        <div class="svg-panel-toggle" id="zm-toggle">
-          <div class="hud-label">Zone Map</div>
+      <!-- SHIP STATUS SCHEMATIC -->
+      <div class="svg-panel-wrap" id="schematic-wrap">
+        <div class="svg-panel-toggle" id="schematic-toggle">
+          <div class="hud-label">Ship Schematic</div>
           <span class="svg-toggle-arrow">▾</span>
         </div>
-        <div id="zm-body">
-          <svg class="zone-map-svg" id="zone-map-svg" viewBox="0 0 226 180" xmlns="http://www.w3.org/2000/svg">
-            <text x="113" y="90" text-anchor="middle" style="fill:var(--text-dim);font-size:10px;font-family:Share Tech Mono,monospace;">No data</text>
-          </svg>
-        </div>
-      </div>
-
-      <!-- TACTICAL RADAR -->
-      <div class="svg-panel-wrap" id="radar-wrap">
-        <div class="svg-panel-toggle" id="radar-toggle">
-          <div class="hud-label">Tactical Radar</div>
-          <span class="svg-toggle-arrow">▾</span>
-        </div>
-        <div id="radar-body">
-          <svg class="radar-svg" id="radar-svg" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="90" cy="90" r="88" class="radar-bg"/>
-            <circle cx="90" cy="90" r="22"  class="radar-ring"/>
-            <circle cx="90" cy="90" r="44"  class="radar-ring"/>
-            <circle cx="90" cy="90" r="66"  class="radar-ring"/>
-            <circle cx="90" cy="90" r="88"  class="radar-ring"/>
-            <line x1="90" y1="2"  x2="90"  y2="178" class="radar-crosshair"/>
-            <line x1="2"  y1="90" x2="178" y2="90"  class="radar-crosshair"/>
-            <text x="91" y="71"   class="radar-ring-label">Close</text>
-            <text x="91" y="49"   class="radar-ring-label">Short</text>
-            <text x="91" y="27"   class="radar-ring-label">Med</text>
-            <text x="91" y="6"    class="radar-ring-label">Long</text>
-            <circle cx="90" cy="90" r="84" class="radar-sweep"/>
-            <circle cx="90" cy="90" r="4"  class="radar-self"/>
+        <div id="schematic-body">
+          <svg class="schematic-svg" id="schematic-svg" viewBox="0 0 230 200" xmlns="http://www.w3.org/2000/svg">
+            <text x="115" y="100" text-anchor="middle" style="fill:var(--text-dim);font-size:10px;font-family:Share Tech Mono,monospace;">No ship data</text>
           </svg>
         </div>
       </div>
@@ -1426,9 +1648,9 @@
 
     <div class="ground-only" id="g-condition">
     <div class="hud-section">
-      <div class="hud-label">Condition</div>
-      <div class="hud-value" id="hud-wound" style="font-size:13px;">Healthy</div>
-      <div class="wound-bar" id="wound-bar">
+      <div class="hud-label" title="Your physical condition — take damage in combat to worsen">Condition</div>
+      <div class="hud-value" id="hud-wound" style="font-size:13px;" title="Wound levels: Healthy → Stunned → Wounded → Incapacitated → Mortally Wounded → Dead">Healthy</div>
+      <div class="wound-bar" id="wound-bar" title="Each segment represents one wound level">
         <div class="wound-seg healthy"></div>
         <div class="wound-seg healthy"></div>
         <div class="wound-seg healthy"></div>
@@ -1441,22 +1663,26 @@
     <div class="ground-only" id="g-stats">
 
     <div class="hud-section">
-      <div class="hud-label">Stats</div>
+      <div class="hud-label" title="Key character statistics">Stats</div>
       <div class="stat-row">
-        <span class="stat-label">Credits</span>
+        <span class="stat-label" title="Galactic credits — earn from missions, bounties, trading">Credits</span>
         <span class="stat-val credits" id="hud-credits">&mdash;</span>
       </div>
       <div class="stat-row">
-        <span class="stat-label">Force</span>
+        <span class="stat-label" title="Force Points — spend to double all dice for one round">Force</span>
         <span class="stat-val fp" id="hud-fp">&mdash;</span>
       </div>
       <div class="stat-row">
-        <span class="stat-label">Char Pts</span>
+        <span class="stat-label" title="Character Points — spend to improve skills with the 'train' command">Char Pts</span>
         <span class="stat-val cp" id="hud-cp">&mdash;</span>
       </div>
       <div class="stat-row" id="dsp-row" style="display:none;">
-        <span class="stat-label">Dark Side</span>
+        <span class="stat-label" title="Dark Side Points — gained from dark actions, affects Force use">Dark Side</span>
         <span class="stat-val dsp" id="hud-dsp">0</span>
+      </div>
+      <div class="stat-row" id="weapon-row" style="display:none;">
+        <span class="stat-label" title="Currently equipped weapon — used when you type 'attack'">Weapon</span>
+        <span class="stat-val" id="hud-weapon" style="color:var(--accent-amber); font-size:11px;">&mdash;</span>
       </div>
     </div>
 
@@ -1464,7 +1690,7 @@
 
     <div class="ground-only" id="g-location">
     <div class="hud-section">
-      <div class="hud-label">Location</div>
+      <div class="hud-label" title="Your current room and zone">Location</div>
       <div class="hud-value room" id="hud-room">&mdash;</div>
       <div class="zone-badge" id="hud-zone" style="display:none;"></div>
     </div>
@@ -1472,7 +1698,7 @@
 
     <div class="ground-only" id="g-exits">
     <div class="hud-section">
-      <div class="hud-label">Exits</div>
+      <div class="hud-label" title="Available directions — click to move">Exits</div>
       <div class="exit-list" id="hud-exits">
         <span style="color:var(--text-dim); font-size:12px;">&mdash;</span>
       </div>
@@ -1481,22 +1707,19 @@
 
     <div class="ground-only" id="g-room-contents" style="display:none;">
     <div class="hud-section">
-      <div class="hud-label">Here</div>
+      <div class="hud-label" title="NPCs and other players in this room — click names to interact">Here</div>
       <div id="room-contents-list"></div>
     </div>
     </div><!-- /g-room-contents -->
 
-    <div class="news-panel" id="news-panel">
-      <div class="comms-tabs">
-        <button class="comms-tab active" data-tab="all">All</button>
-        <button class="comms-tab" data-tab="ic">IC <span class="tab-badge" id="badge-ic"></span></button>
-        <button class="comms-tab" data-tab="ooc">OOC <span class="tab-badge" id="badge-ooc"></span></button>
-        <button class="comms-tab" data-tab="sys">Sys <span class="tab-badge" id="badge-sys"></span></button>
-      </div>
-      <div id="news-items">
-        <div class="news-item" style="color:var(--text-dim); font-style:italic;">Scanning frequencies...</div>
-      </div>
+    <!-- SHOP BROWSE PANEL (shown when vendor droids in room or +shop) -->
+    <div class="ground-only" id="g-shops" style="display:none;">
+    <div class="hud-section">
+      <div class="hud-label" id="shops-panel-label" title="Vendor droids in this room — browse and buy items">Shops</div>
+      <div id="shops-droid-tabs"></div>
+      <div id="shops-panel-body"></div>
     </div>
+    </div><!-- /g-shops -->
 
     <div class="ground-only" id="g-combat">
     <div class="hud-section">
@@ -1511,10 +1734,12 @@
     </div>
     </div><!-- /g-combat -->
 
+    <div style="flex:1;"></div>
+
     <div class="ground-only" id="g-quick">
     <div class="hud-section">
       <div class="hud-label">Quick</div>
-      <div class="quick-cmds">
+      <div class="quick-cmds" id="quick-cmds-container">
         <button class="quick-cmd" onclick="sendCmd('look')">look</button>
         <button class="quick-cmd" onclick="sendCmd('inventory')">inv</button>
         <button class="quick-cmd" onclick="sendCmd('score')">score</button>
@@ -1691,25 +1916,27 @@
   // ═══════════ Security Zone Badge ═══════════
 
   var SEC_LABELS = {
-    'secured':   { text: '\u25CF SECURED',   color: '#4fc3f7' },
-    'contested': { text: '\u25CF CONTESTED', color: '#ffd54f' },
-    'lawless':   { text: '\u25CF LAWLESS',   color: '#ef5350' },
+    'secured':   { text: 'SECURED',   color: '#3fb950', border: 'rgba(63,185,80,0.3)',   bg: 'rgba(63,185,80,0.06)'   },
+    'contested': { text: 'CONTESTED', color: '#d4a020', border: 'rgba(212,160,32,0.3)',  bg: 'rgba(212,160,32,0.06)'  },
+    'lawless':   { text: 'LAWLESS',   color: '#f85149', border: 'rgba(248,81,73,0.3)',   bg: 'rgba(248,81,73,0.06)'   },
   };
 
   function updateSecurityBadge(level) {
     var zone = document.getElementById('hud-zone');
     if (!zone) return;
     var info = SEC_LABELS[level] || SEC_LABELS['contested'];
-    // Append security badge after zone name or replace existing badge
     var badge = document.getElementById('sec-badge');
     if (!badge) {
       badge = document.createElement('span');
       badge.id = 'sec-badge';
-      badge.style.cssText = 'font-size:9px; margin-left:6px; letter-spacing:1px;';
+      badge.className = 'sec-badge';
       zone.parentNode.insertBefore(badge, zone.nextSibling);
     }
-    badge.textContent = info.text;
+    badge.textContent = '\u25CF ' + info.text;
     badge.style.color = info.color;
+    badge.style.borderColor = info.border;
+    badge.style.background = info.bg;
+    badge.style.border = '1px solid ' + info.border;
     badge.style.display = '';
   }
 
@@ -1811,12 +2038,24 @@
       }
     }
 
-    if (data.room_name) hudRoom.textContent = data.room_name;
+    if (data.room_name) {
+      hudRoom.textContent = data.room_name;
+      // Mirror to context panel
+      var ctxRoomName = document.getElementById('ctx-room-name');
+      if (ctxRoomName) ctxRoomName.textContent = data.room_name;
+    }
 
     // Zone info for ambient mood
     if (data.zone_name) {
       hudZone.textContent = data.zone_name;
       hudZone.style.display = '';
+      // Mirror to context panel
+      var ctxDesc = document.getElementById('ctx-room-desc');
+      if (ctxDesc) {
+        var zoneText = data.zone_name;
+        if (data.security_level) zoneText += ' \u2022 ' + (data.security_level.charAt(0).toUpperCase() + data.security_level.slice(1));
+        ctxDesc.textContent = zoneText;
+      }
     }
     if (data.zone_type) {
       setMood(data.zone_type);
@@ -1831,10 +2070,15 @@
         hudExits.innerHTML = '<span style="color:var(--text-dim); font-size:12px;">None</span>';
       } else {
         for (var i = 0; i < data.exits.length; i++) {
+          var exitEntry = data.exits[i];
+          // Support both old string format and new {dir, label} object
+          var dirCmd   = (typeof exitEntry === 'object' && exitEntry !== null) ? (exitEntry.dir || '') : String(exitEntry);
+          var dirLabel = (typeof exitEntry === 'object' && exitEntry !== null) ? (exitEntry.label || exitEntry.dir || String(exitEntry)) : String(exitEntry);
           var btn = document.createElement('button');
           btn.className = 'exit-btn';
-          btn.textContent = data.exits[i];
-          btn.addEventListener('click', (function(dir) { return function() { sendCmd(dir); }; })(data.exits[i]));
+          btn.title = dirCmd;  // Show cardinal on hover
+          btn.textContent = dirLabel;
+          btn.addEventListener('click', (function(cmd) { return function() { sendCmd(cmd); }; })(dirCmd));
           hudExits.appendChild(btn);
         }
       }
@@ -1842,7 +2086,72 @@
 
     if (data.room_contents) {
       updateRoomContents(data.room_contents);
+      // Detect trade context — vendor droids present in room
+      var vd = data.room_contents.vendor_droids;
+      roomHasVendors = !!(vd && vd.length > 0);
+
+      // Equipped weapon display
+      var weaponRow = document.getElementById('weapon-row');
+      var weaponVal = document.getElementById('hud-weapon');
+      if (weaponRow && weaponVal) {
+        if (data.equipped_weapon) {
+          weaponVal.textContent = data.equipped_weapon;
+          weaponRow.style.display = '';
+        } else {
+          weaponRow.style.display = 'none';
+        }
+      }
+      if (vd !== undefined) {
+        renderShopBrowse(vd, null);
+      }
+    } else {
+      roomHasVendors = false;
     }
+
+    // Detect housing context — server sends is_housing flag
+    roomIsHousing = !!(data.is_housing);
+
+    // Territory claim badge (Drop 6E)
+    (function() {
+      var existing = document.getElementById('claim-badge');
+      if (existing) existing.remove();
+      if (data.territory_claim) {
+        var tc = data.territory_claim;
+        var badge = document.createElement('span');
+        badge.id = 'claim-badge';
+        badge.className = 'claim-badge ' + (tc.org_code || 'default');
+        var guardSymbol = tc.has_guard ? ' ■' : '';  // filled square = guard present
+        badge.textContent = '◆ ' + tc.org_name + guardSymbol;
+        badge.title = 'Claimed by ' + tc.org_name + (tc.has_guard ? ' (guarded)' : '') +
+                      '
+Use: faction territory';
+        if (data.contest_active) {
+          badge.classList.add('contested-glow');
+          badge.title += '
+⚠ CONTESTED — ' + (data.contest_challenger || '') + ' is challenging';
+        }
+        // Insert after sec-badge if present, else after hud-zone
+        var anchor = document.getElementById('sec-badge') || document.getElementById('hud-zone');
+        if (anchor) {
+          anchor.parentNode.insertBefore(badge, anchor.nextSibling);
+        }
+      }
+      // Contest alert in news feed — only fire once per contest (track by ends_at)
+      if (data.contest_active && data.contest_ends) {
+        var contestKey = 'contest_alerted_' + (data.contest_ends || 0);
+        if (!window[contestKey]) {
+          window[contestKey] = true;
+          var daysLeft = Math.floor(data.contest_ends / 86400);
+          var hrsLeft  = Math.floor((data.contest_ends % 86400) / 3600);
+          addNewsItem('territory',
+            '⚠ TERRITORY CONTESTED — ' + (data.contest_challenger || 'a rival faction') +
+            ' is challenging control here. ' + daysLeft + 'd ' + hrsLeft + 'h remaining.');
+        }
+      }
+    })();
+
+    // Update quick buttons based on new room context
+    updateQuickButtons();
   }
 
   // ═══════════ Chat Message Handler (comms tabs) ═══════════
@@ -1856,7 +2165,194 @@
     addNewsItem(tag, display, channel);
   }
 
-  // ═══════════ Combat State ═══════════
+  // ═══════════ Shop State ═══════════
+
+  var shopPanel      = document.getElementById('g-shops');
+  var shopLabel      = document.getElementById('shops-panel-label');
+  var shopTabs       = document.getElementById('shops-droid-tabs');
+  var shopBody       = document.getElementById('shops-panel-body');
+  var _shopDroids    = [];   // cached droid list from last shop_state
+  var _shopFocusedId = null;
+
+  function renderShopBrowse(droids, focusedId) {
+    if (!shopPanel || !shopBody) return;
+    if (!droids || droids.length === 0) {
+      shopPanel.style.display = 'none';
+      return;
+    }
+    shopPanel.style.display = '';
+    shopLabel.textContent = 'Shops';
+    _shopDroids = droids;
+
+    // Build tabs if multiple droids
+    shopTabs.innerHTML = '';
+    if (droids.length > 1) {
+      droids.forEach(function(d) {
+        var tab = document.createElement('button');
+        tab.className = 'shop-droid-tab' + (d.id === focusedId ? ' active' : '');
+        tab.textContent = d.name;
+        tab.addEventListener('click', function() {
+          renderShopItems(d, droids);
+          document.querySelectorAll('.shop-droid-tab').forEach(function(t) {
+            t.classList.remove('active');
+          });
+          tab.classList.add('active');
+        });
+        shopTabs.appendChild(tab);
+      });
+    }
+
+    // Show focused droid or first
+    var target = focusedId
+      ? droids.find(function(d) { return d.id === focusedId; }) || droids[0]
+      : droids[0];
+    renderShopItems(target, droids);
+  }
+
+  function renderShopItems(droid, allDroids) {
+    shopBody.innerHTML = '';
+    if (!droid) return;
+
+    // Shop name header
+    var header = document.createElement('div');
+    header.style.cssText = 'font-size:11px;color:var(--text-dim);margin-bottom:5px;';
+    header.textContent = droid.desc || droid.name;
+    shopBody.appendChild(header);
+
+    if (!droid.inventory || droid.inventory.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'shop-empty-msg';
+      empty.textContent = 'No items for sale.';
+      shopBody.appendChild(empty);
+      return;
+    }
+
+    droid.inventory.forEach(function(item) {
+      var row = document.createElement('div');
+      row.className = 'shop-item-row';
+
+      var nameEl = document.createElement('div');
+      nameEl.className = 'shop-item-name';
+      nameEl.textContent = item.name;
+
+      var metaEl = document.createElement('div');
+      metaEl.className = 'shop-item-meta';
+      var metaParts = [];
+      if (item.quality) metaParts.push('Q' + item.quality);
+      if (item.crafter) metaParts.push('by ' + item.crafter);
+      metaEl.textContent = metaParts.join(' · ');
+
+      var priceEl = document.createElement('div');
+      priceEl.className = 'shop-item-price';
+      priceEl.textContent = item.price.toLocaleString() + ' cr';
+
+      var qtyEl = document.createElement('div');
+      qtyEl.className = 'shop-item-qty';
+      qtyEl.textContent = 'x' + item.qty;
+
+      var buyBtn = document.createElement('button');
+      buyBtn.className = 'shop-buy-btn';
+      buyBtn.textContent = 'buy ' + item.slot + ' from ' + droid.name;
+      buyBtn.addEventListener('click', (function(cmd) {
+        return function() { sendCmd(cmd); };
+      })('buy ' + item.slot + ' from ' + droid.name));
+
+      row.appendChild(nameEl);
+      row.appendChild(priceEl);
+      row.appendChild(metaEl);
+      row.appendChild(qtyEl);
+      row.appendChild(buyBtn);
+      shopBody.appendChild(row);
+    });
+  }
+
+  function renderShopDashboard(data) {
+    if (!shopPanel || !shopBody) return;
+    shopPanel.style.display = '';
+    shopLabel.textContent = 'My Shops';
+    shopTabs.innerHTML = '';
+    shopBody.innerHTML = '';
+
+    // Total escrow
+    var escrowEl = document.createElement('div');
+    escrowEl.className = 'shop-dash-escrow';
+    escrowEl.textContent = '⬡ Pending revenue: ' + (data.total_escrow || 0).toLocaleString() + ' cr';
+    shopBody.appendChild(escrowEl);
+
+    if (!data.droids || data.droids.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'shop-empty-msg';
+      empty.textContent = 'No vendor droids owned.';
+      shopBody.appendChild(empty);
+      return;
+    }
+
+    data.droids.forEach(function(d) {
+      var hdr = document.createElement('div');
+      hdr.className = 'shop-dash-droid-header';
+      var statusDot = d.placed ? '● ' : '○ ';
+      hdr.textContent = statusDot + d.name + '  [' + d.tier.toUpperCase() + ']  ' +
+        d.item_count + ' items  · ' + d.escrow.toLocaleString() + ' cr pending';
+      shopBody.appendChild(hdr);
+
+      // Quick action buttons
+      var actions = document.createElement('div');
+      actions.style.cssText = 'margin-bottom:4px;';
+      if (d.placed) {
+        var recallBtn = document.createElement('button');
+        recallBtn.className = 'shop-buy-btn';
+        recallBtn.style.marginRight = '4px';
+        recallBtn.textContent = 'recall';
+        recallBtn.addEventListener('click', function() { sendCmd('shop recall'); });
+        actions.appendChild(recallBtn);
+      } else {
+        var placeBtn = document.createElement('button');
+        placeBtn.className = 'shop-buy-btn';
+        placeBtn.style.marginRight = '4px';
+        placeBtn.textContent = 'place';
+        placeBtn.addEventListener('click', function() { sendCmd('shop place'); });
+        actions.appendChild(placeBtn);
+      }
+      if (d.escrow > 0) {
+        var collectBtn = document.createElement('button');
+        collectBtn.className = 'shop-buy-btn';
+        collectBtn.textContent = 'collect';
+        collectBtn.addEventListener('click', function() { sendCmd('shop collect'); });
+        actions.appendChild(collectBtn);
+      }
+      shopBody.appendChild(actions);
+
+      // Recent sales
+      if (d.sales && d.sales.length > 0) {
+        var salesHdr = document.createElement('div');
+        salesHdr.style.cssText = 'font-size:10px;color:var(--text-dim);margin:4px 0 2px;';
+        salesHdr.textContent = 'Recent sales:';
+        shopBody.appendChild(salesHdr);
+        d.sales.forEach(function(s) {
+          var row = document.createElement('div');
+          row.className = 'shop-sale-row';
+          row.innerHTML =
+            '<span>' + s.ts + '</span>' +
+            '<span>' + s.item + ' ×' + s.qty + '</span>' +
+            '<span class="shop-sale-net">' + s.net.toLocaleString() + ' cr</span>';
+          shopBody.appendChild(row);
+        });
+      }
+    });
+  }
+
+  function handleShopState(data) {
+    if (!shopPanel) return;
+    if (data.mode === 'dashboard') {
+      renderShopDashboard(data);
+    } else {
+      // browse mode (or room HUD update with vendor_droids)
+      renderShopBrowse(data.droids || [], data.focused_id || null);
+    }
+  }
+
+  // Also update shop panel from hud_update vendor_droids field
+  var _origHandleHudUpdate = null;  // patch applied below after handleHudUpdate defined
 
   var combatActive = false;
   var combatViewerId = null;  // Set from character data on login
@@ -2014,71 +2510,126 @@
 
   var QUICK_MODES = {
     commander: [
-      { label: 'order',    cmd: 'order'           },
-      { label: '1-btl',    cmd: 'order 1'         },
-      { label: '2-eva',    cmd: 'order 2'         },
-      { label: '3-fwd',    cmd: 'order 3'         },
-      { label: '4-hold',   cmd: 'order 4'         },
-      { label: '5-sil',    cmd: 'order 5'         },
-      { label: 'cancel',   cmd: 'order cancel'    },
-      { label: 'coord',    cmd: 'coordinate'      },
+      { label: 'order',    cmd: 'order',           tip: 'Issue a tactical order to the crew — affects the whole ship' },
+      { label: '1-btl',    cmd: 'order 1',         tip: 'Battle Stations: +1D fire control, -1D maneuverability' },
+      { label: '2-eva',    cmd: 'order 2',         tip: 'Evasive Action: +1D maneuverability, -1D fire control' },
+      { label: '3-fwd',    cmd: 'order 3',         tip: 'Full Ahead: +2 speed, -1D shields' },
+      { label: '4-hold',   cmd: 'order 4',         tip: 'Hold Position: +1D shields, speed locked to 0' },
+      { label: '5-sil',    cmd: 'order 5',         tip: 'Silent Running: reduce sensor signature, -1 speed' },
+      { label: 'cancel',   cmd: 'order cancel',    tip: 'Cancel the current tactical order' },
+      { label: 'coord',    cmd: 'coordinate',      tip: 'Coordinate crew actions for a bonus next round' },
     ],
     engineer: [
-      { label: 'power',    cmd: 'power'           },
-      { label: 'combat',   cmd: 'power combat'    },
-      { label: 'silent',   cmd: 'power silent'    },
-      { label: 'emergency',cmd: 'power emergency' },
-      { label: 'damcon',   cmd: 'damcon'          },
-      { label: 'status',   cmd: 'status'          },
-      { label: 'look',     cmd: 'look'            },
-      { label: 'vacate',   cmd: 'vacate'          },
+      { label: 'power',    cmd: 'power',           tip: 'View current power allocation across ship systems' },
+      { label: 'combat',   cmd: 'power combat',    tip: 'Combat mode: boost weapons and shields, reduce sensors' },
+      { label: 'silent',   cmd: 'power silent',    tip: 'Silent running: minimize emissions, reduce speed' },
+      { label: 'emergency',cmd: 'power emergency', tip: 'Emergency power: overcharge one system at risk of burnout' },
+      { label: 'damcon',   cmd: 'damcon',          tip: 'Damage control: repair a damaged system (Technical skill)' },
+      { label: 'status',   cmd: 'status',          tip: 'Ship status: hull, systems, cargo, and crew' },
+      { label: 'look',     cmd: 'look',            tip: 'Look around the current room' },
+      { label: 'vacate',   cmd: 'vacate',          tip: 'Leave your crew station' },
     ],
-    engineer: [
-      { label: 'power',    cmd: 'power'           },
-      { label: 'combat',   cmd: 'power combat'    },
-      { label: 'silent',   cmd: 'power silent'    },
-      { label: 'emergency',cmd: 'power emergency' },
-      { label: 'damcon',   cmd: 'damcon'          },
-      { label: 'status',   cmd: 'status'          },
-      { label: 'look',     cmd: 'look'            },
-      { label: 'vacate',   cmd: 'vacate'          },
+    docked: [
+      { label: 'launch',  cmd: 'launch',        tip: 'Launch from the docking bay into orbit' },
+      { label: 'status',  cmd: 'status',        tip: 'Ship status: hull, systems, cargo, and crew' },
+      { label: 'crew',    cmd: 'crew',          tip: 'View or manage your crew roster' },
+      { label: 'repair',  cmd: 'repair status', tip: 'Check repair costs and begin hull/system repairs' },
+      { label: 'cargo',   cmd: 'cargo',         tip: 'View your ship\'s cargo hold' },
+      { label: 'look',    cmd: 'look',          tip: 'Look around the current room' },
     ],
     explore: [
-      { label: 'look',  cmd: 'look'      },
-      { label: 'inv',   cmd: 'inventory' },
-      { label: 'score', cmd: 'score'     },
-      { label: 'sheet', cmd: 'sheet'     },
-      { label: 'jobs',  cmd: 'missions'  },
-      { label: 'who',   cmd: 'who'       },
-      { label: 'news',  cmd: 'news'      },
-      { label: 'help',  cmd: 'help'      },
+      { label: 'look',    cmd: 'look',      tip: 'Look around — see the room, exits, NPCs, and other players' },
+      { label: 'inv',     cmd: 'inventory',  tip: 'View everything you\'re carrying' },
+      { label: 'score',   cmd: 'score',      tip: 'Character summary: credits, stats, faction, rank' },
+      { label: 'who',     cmd: 'who',        tip: 'See who else is online right now' },
+      { label: 'housing', cmd: 'housing',    tip: 'View your home, rent a room, or check available lots' },
+      { label: 'territory', cmd: 'faction influence', tip: 'View your faction\'s territorial influence and claimed rooms' },
+      { label: 'jobs',    cmd: 'missions',   tip: 'Check the mission board for available work' },
+      { label: 'news',    cmd: 'news',       tip: 'Read the latest galactic news bulletins' },
+      { label: 'help',    cmd: 'help',       tip: 'Command help — type "help <topic>" for details' },
     ],
     combat: [
-      { label: 'attack',  cmd: 'attack'   },
-      { label: 'defend',  cmd: 'defend'   },
-      { label: 'dodge',   cmd: 'dodge'    },
-      { label: 'parry',   cmd: 'parry'    },
-      { label: 'status',  cmd: 'status'   },
-      { label: 'flee',    cmd: 'flee'     },
-      { label: 'pose',    cmd: 'pose'     },
-      { label: 'look',    cmd: 'look'     },
+      { label: 'attack',  cmd: 'attack',   tip: 'Attack your target with your equipped weapon' },
+      { label: 'defend',  cmd: 'defend',    tip: 'Full defense — add dodge/parry to your defense this round' },
+      { label: 'dodge',   cmd: 'dodge',     tip: 'Dodge incoming attacks this round (uses Dodge skill)' },
+      { label: 'parry',   cmd: 'parry',     tip: 'Parry melee attacks this round (uses melee combat skill)' },
+      { label: 'status',  cmd: 'status',    tip: 'View combat status: wounds, initiative, actions' },
+      { label: 'flee',    cmd: 'flee',      tip: 'Attempt to disengage and run — opposed by enemy' },
+      { label: 'pose',    cmd: 'pose',      tip: 'Add a roleplay pose to your next combat action' },
+      { label: 'look',    cmd: 'look',      tip: 'Look around — see combatants, cover, and terrain' },
+    ],
+    trade: [
+      { label: 'browse',  cmd: 'browse',    tip: 'Browse the vendor droid\'s inventory and prices' },
+      { label: 'buy',     cmd: 'buy',       tip: 'Buy an item: "buy <item> from <vendor>"' },
+      { label: 'sell',    cmd: 'sell',      tip: 'Sell an item to a vendor droid' },
+      { label: 'haggle',  cmd: 'haggle',    tip: 'Negotiate a better price (uses Bargain skill)' },
+      { label: 'inv',     cmd: 'inventory',  tip: 'View everything you\'re carrying' },
+      { label: 'look',    cmd: 'look',      tip: 'Look around — see vendors and items' },
+      { label: 'score',   cmd: 'score',     tip: 'Check your credit balance' },
+      { label: 'help',    cmd: 'help',      tip: 'Command help — type "help trade" for details' },
+    ],
+    housing: [
+      { label: 'storage', cmd: 'housing storage',   tip: 'View items stored in your home locker' },
+      { label: 'store',   cmd: 'housing store',     tip: 'Store an inventory item in your home locker' },
+      { label: 'trophy',  cmd: 'housing trophy',    tip: 'Mount an item as a wall trophy (visible to visitors)' },
+      { label: 'describe',cmd: 'housing describe',  tip: 'Write or edit your room\'s description' },
+      { label: 'name',    cmd: 'housing name',      tip: 'Rename this room (first rename free, then 1,000cr)' },
+      { label: 'guest',   cmd: 'housing guest list', tip: 'Manage your guest access list' },
+      { label: 'look',    cmd: 'look',              tip: 'Look around your home' },
+      { label: 'inv',     cmd: 'inventory',         tip: 'View everything you\'re carrying' },
     ],
   };
 
+  // ── Mode labels (shown in the Quick section header) ──
+  var MODE_LABELS = {
+    explore:  'Quick',
+    combat:   '\u2694 COMBAT',
+    docked:   '\u2693 DOCKED',
+    trade:    '\u{1F4B0} TRADE',
+    housing:  '\u{1F3E0} HOME',
+    engineer: '\u2699 ENGINEER',
+  };
+
+  // Track docked state (set from space_state with active=false but on a ship bridge)
+  var dockedOnShip = false;
+  // Track room context for trade/housing modes
+  var roomHasVendors = false;
+  var roomIsHousing  = false;
+
+  function getQuickMode() {
+    if (combatActive) return 'combat';
+    if (dockedOnShip) return 'docked';
+    if (roomHasVendors) return 'trade';
+    if (roomIsHousing) return 'housing';
+    return 'explore';
+  }
+
   function updateQuickButtons() {
-    var container = document.querySelector('#g-quick .quick-cmds');
+    var container = document.getElementById('quick-cmds-container');
     if (!container) return;
-    var mode = combatActive ? 'combat' : 'explore';
-    var btns = QUICK_MODES[mode];
+    var mode = getQuickMode();
+    var btns = QUICK_MODES[mode] || QUICK_MODES.explore;
     container.innerHTML = '';
     for (var i = 0; i < btns.length; i++) {
       (function(b) {
         var el = document.createElement('button');
         el.className = 'quick-cmd' + (mode === 'combat' ? ' combat-mode' : '');
         el.textContent = b.label;
+        if (b.tip) el.title = b.tip;
         el.addEventListener('click', function() { sendCmd(b.cmd); });
         container.appendChild(el);
       })(btns[i]);
+    }
+    // Update the section label
+    var gQuick = document.getElementById('g-quick');
+    if (gQuick) {
+      var ql = gQuick.querySelector('.hud-label');
+      if (ql) {
+        ql.textContent = MODE_LABELS[mode] || 'Quick';
+        ql.style.color = (mode === 'combat') ? 'var(--accent-red)' :
+                         (mode === 'trade')  ? 'var(--accent-amber)' :
+                         (mode === 'housing')? 'var(--accent-cyan)' : '';
+      }
     }
   }
 
@@ -2125,6 +2676,7 @@
       else if (t.startsWith('[THE FORCE]')) addNewsItem('event', t.replace('[THE FORCE] ', ''), 'sys');
       else if (t.indexOf('GNN') !== -1 || t.indexOf('BULLETIN') !== -1) addNewsItem('event', t, 'sys');
       else if (t.indexOf('has connected') !== -1 || t.indexOf('has disconnected') !== -1) addNewsItem('system', t, 'sys');
+      else if (t.startsWith('[TERRITORY')) addNewsItem('territory', t, 'sys');
       else if (t.startsWith('[OOC]') || t.startsWith('OOC:')) addNewsItem('ooc', t, 'ooc');
       else if (t.indexOf(' says,') !== -1 || t.indexOf(' emotes') !== -1) addNewsItem('ic', t, 'ic');
     }
@@ -2252,6 +2804,7 @@
         if (msg.type === 'hud_update') { handleHudUpdate(msg); return; }
         if (msg.type === 'space_state') { handleSpaceState(msg); return; }
         if (msg.type === 'combat_state') { handleCombatState(msg); return; }
+        if (msg.type === 'shop_state') { handleShopState(msg); return; }
         if (msg.type === 'chat') { handleChatMsg(msg); return; }
         if (msg.type === 'text' && typeof msg.data === 'string') { appendOutput(msg.data); }
         else if (msg.type === 'news_event') {
@@ -2399,17 +2952,23 @@
   function setSpaceMode(active) {
     if (active === spaceActive) return;
     spaceActive = active;
+    var ctxGround = document.getElementById('ctx-ground');
+    var ctxSpace  = document.getElementById('ctx-space');
     if (active) {
       spPanel.classList.add('space-active');
-      setMood('combat'); // space uses combat red-glow
+      setMood('combat');
       for (var i = 0; i < groundSections.length; i++) {
         groundSections[i].classList.add('space-hidden');
       }
+      if (ctxGround) ctxGround.style.display = 'none';
+      if (ctxSpace)  ctxSpace.style.display = '';
     } else {
       spPanel.classList.remove('space-active');
       for (var i = 0; i < groundSections.length; i++) {
         groundSections[i].classList.remove('space-hidden');
       }
+      if (ctxGround) ctxGround.style.display = '';
+      if (ctxSpace)  ctxSpace.style.display = 'none';
     }
   }
 
@@ -2442,6 +3001,19 @@
   function handleSpaceState(data) {
     // Toggle ground/space layout
     setSpaceMode(!!data.active);
+
+    // Track docked-on-ship state for context-sensitive quick buttons
+    // If space_state arrives with active=false, we're on a docked ship bridge
+    // If no space_state at all, we're on the ground
+    if (data.active === false && data.ship_name) {
+      dockedOnShip = true;
+    } else if (data.active) {
+      dockedOnShip = false;
+    } else {
+      dockedOnShip = false;
+    }
+    updateQuickButtons();
+
     if (!data.active) return;
 
     // Ship
@@ -2524,11 +3096,21 @@
     spSysGrid.innerHTML = '';
     if (data.systems) {
       var sysNames = { engines:'Engines', weapons:'Weapons', shields:'Shields', sensors:'Sensors', hyperdrive:'Hyperdrive', life_support:'Life Sup' };
+      var sysTips = {
+        engines: 'Sublight propulsion — when damaged, speed is reduced',
+        weapons: 'Weapon systems — when damaged, fire control suffers penalties',
+        shields: 'Deflector shields — when damaged, shield dice are halved',
+        sensors: 'Sensor array — when damaged, scan and detection range reduced',
+        hyperdrive: 'Hyperdrive motivator — when damaged, no hyperspace jumps',
+        life_support: 'Life support — keeps the crew alive; critical system'
+      };
       for (var key in sysNames) {
         if (!sysNames.hasOwnProperty(key)) continue;
         var chip = document.createElement('div');
-        chip.className = 'sys-chip ' + (data.systems[key] ? 'sys-ok' : 'sys-damaged');
+        var isOk = !!data.systems[key];
+        chip.className = 'sys-chip ' + (isOk ? 'sys-ok' : 'sys-damaged');
         chip.textContent = sysNames[key];
+        chip.title = sysNames[key] + ': ' + (isOk ? 'Operational' : 'DAMAGED') + ' — ' + (sysTips[key] || '');
         spSysGrid.appendChild(chip);
       }
     }
@@ -2613,134 +3195,253 @@
     // Captain's Order badge (Drop 16)
     updateOrderBadge(data.active_order);
 
-    // Power bar (Drop 15)
-    renderPowerBar(data.power_state, data.reactor_power, data.silent_running);
-
     // Zone map + tactical radar (Drop 10)
+    mapContacts = data.contacts || [];
+    mapAnomalies = data.anomalies || [];
     renderZoneMap(data.zone_id, data.adjacent_zones);
     renderRadar(data.contacts, data.anomalies);
+
+    // Ship status schematic
+    renderSchematic(data);
   }
 
   // ═══════════ Zone Map (Drop 10) ═══════════
 
   // Hardcoded node positions (x,y) in the 226×180 SVG viewport.
-  // Graph topology from Drop 2: 16 zones across 4 planet clusters + 3 hyperspace lanes.
-  var ZONE_POSITIONS = {
-    // Hyperspace lanes (top backbone)
-    'corellian_trade_spine':  [113, 18],
-    'outer_rim_lane_1':       [113, 48],
-    'outer_rim_lane_2':       [113, 78],
-    'outer_rim_lane_3':       [113, 108],
-    // Corellia cluster (left)
-    'corellia_deep_space':    [30,  18],
-    'corellia_orbit':         [12,  36],
-    'corellia_dock':          [12,  54],
-    // Tatooine cluster (right of lane_1)
-    'tatooine_deep_space':    [196, 48],
-    'tatooine_orbit':         [214, 64],
-    'tatooine_dock':          [214, 82],
-    // Nar Shaddaa cluster (right of lane_2)
-    'nar_shaddaa_deep_space': [196, 78],
-    'nar_shaddaa_orbit':      [214, 94],
-    'nar_shaddaa_dock':       [214, 112],
-    // Kessel cluster (right of lane_3, hazardous)
-    'kessel_approach':        [196, 108],
-    'kessel_orbit':           [214, 124],
-    'kessel_dock':            [214, 142],
-  };
+  // ═══════════ Zone Map (Drop 10 — Zoomable v2) ═══════════
 
-  // Adjacency edges for drawing lines
-  var ZONE_EDGES = [
-    ['corellian_trade_spine','outer_rim_lane_1'],
-    ['outer_rim_lane_1','outer_rim_lane_2'],
-    ['outer_rim_lane_2','outer_rim_lane_3'],
-    ['corellian_trade_spine','corellia_deep_space'],
-    ['corellia_deep_space','corellia_orbit'],
-    ['corellia_orbit','corellia_dock'],
-    ['outer_rim_lane_1','tatooine_deep_space'],
-    ['tatooine_deep_space','tatooine_orbit'],
-    ['tatooine_orbit','tatooine_dock'],
-    ['outer_rim_lane_2','nar_shaddaa_deep_space'],
-    ['nar_shaddaa_deep_space','nar_shaddaa_orbit'],
-    ['nar_shaddaa_orbit','nar_shaddaa_dock'],
-    ['outer_rim_lane_3','kessel_approach'],
-    ['kessel_approach','kessel_orbit'],
-    ['kessel_orbit','kessel_dock'],
+  // Planet clusters — galaxy-level topology
+  var PLANETS = {
+    'corellia':    { label: 'Corellia',     x: 40,  y: 35,  zones: ['corellia_deep_space','corellia_orbit','corellia_dock'] },
+    'tatooine':    { label: 'Tatooine',     x: 186, y: 55,  zones: ['tatooine_deep_space','tatooine_orbit','tatooine_dock'] },
+    'nar_shaddaa': { label: 'Nar Shaddaa',  x: 186, y: 105, zones: ['nar_shaddaa_deep_space','nar_shaddaa_orbit','nar_shaddaa_dock'] },
+    'kessel':      { label: 'Kessel',       x: 186, y: 155, zones: ['kessel_approach','kessel_orbit','kessel_dock'] },
+  };
+  var HYPERSPACE_LANES = [
+    { from: 'corellia', to: 'tatooine',    via: ['corellian_trade_spine','outer_rim_lane_1'] },
+    { from: 'tatooine', to: 'nar_shaddaa', via: ['outer_rim_lane_1','outer_rim_lane_2'] },
+    { from: 'nar_shaddaa', to: 'kessel',   via: ['outer_rim_lane_2','outer_rim_lane_3'] },
   ];
 
-  // Display labels (short enough to fit at 7px)
-  var ZONE_LABELS = {
-    'corellian_trade_spine':  'CTS',
-    'outer_rim_lane_1':       'ORL-1',
-    'outer_rim_lane_2':       'ORL-2',
-    'outer_rim_lane_3':       'ORL-3',
-    'corellia_deep_space':    'COR-D',
-    'corellia_orbit':         'COR-O',
-    'corellia_dock':          'COR',
-    'tatooine_deep_space':    'TAT-D',
-    'tatooine_orbit':         'TAT-O',
-    'tatooine_dock':          'TAT',
-    'nar_shaddaa_deep_space': 'NAR-D',
-    'nar_shaddaa_orbit':      'NAR-O',
-    'nar_shaddaa_dock':       'NAR',
-    'kessel_approach':        'KES-A',
-    'kessel_orbit':           'KES-O',
-    'kessel_dock':            'KES',
+  // Zone positions within a planet cluster (relative, for planet-zoom view)
+  var ZONE_LOCAL = {
+    'corellia_deep_space':    { label: 'Deep Space',  x: 40,  y: 30 },
+    'corellia_orbit':         { label: 'Orbit',       x: 113, y: 90 },
+    'corellia_dock':          { label: 'Docking',     x: 186, y: 150 },
+    'tatooine_deep_space':    { label: 'Deep Space',  x: 40,  y: 30 },
+    'tatooine_orbit':         { label: 'Orbit',       x: 113, y: 90 },
+    'tatooine_dock':          { label: 'Mos Eisley',  x: 186, y: 150 },
+    'nar_shaddaa_deep_space': { label: 'Deep Space',  x: 40,  y: 30 },
+    'nar_shaddaa_orbit':      { label: 'Orbit',       x: 113, y: 90 },
+    'nar_shaddaa_dock':       { label: 'Docking',     x: 186, y: 150 },
+    'kessel_approach':        { label: 'Approach',     x: 40,  y: 30,  hazard: true },
+    'kessel_orbit':           { label: 'Orbit',       x: 113, y: 90 },
+    'kessel_dock':            { label: 'Spice Mines', x: 186, y: 150 },
   };
+  var ZONE_LOCAL_EDGES = [
+    ['corellia_deep_space','corellia_orbit'], ['corellia_orbit','corellia_dock'],
+    ['tatooine_deep_space','tatooine_orbit'], ['tatooine_orbit','tatooine_dock'],
+    ['nar_shaddaa_deep_space','nar_shaddaa_orbit'], ['nar_shaddaa_orbit','nar_shaddaa_dock'],
+    ['kessel_approach','kessel_orbit'], ['kessel_orbit','kessel_dock'],
+  ];
 
-  var HAZARD_ZONES = { 'kessel_approach': true };
+  // Map zoom state
+  var mapZoom = 0;       // 0=galaxy, 1=planet, 2=zone detail
+  var mapFocus = null;   // planet key when zoomed to level 1
+  var mapCurrentZone = '';
+  var mapAdjacentSet = {};
+  var mapContacts = [];
+  var mapAnomalies = [];
 
-  function svgEl(tag, attrs) {
-    var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
-    for (var k in attrs) if (attrs.hasOwnProperty(k)) el.setAttribute(k, attrs[k]);
-    return el;
+  function getPlanetForZone(zoneId) {
+    for (var pk in PLANETS) {
+      if (PLANETS[pk].zones.indexOf(zoneId) >= 0) return pk;
+    }
+    return null;
   }
 
   function renderZoneMap(currentZone, adjacentZones) {
-    var svg = document.getElementById('zone-map-svg');
-    // Clear previous dynamic content (keep nothing — full redraw)
+    mapCurrentZone = currentZone || '';
+    mapAdjacentSet = {};
+    if (adjacentZones) {
+      for (var i = 0; i < adjacentZones.length; i++) mapAdjacentSet[adjacentZones[i].id] = true;
+    }
+    // Auto-zoom to planet level when we have a current zone
+    var planet = getPlanetForZone(mapCurrentZone);
+    if (planet && mapZoom === 0) {
+      mapZoom = 1;
+      mapFocus = planet;
+    } else if (planet && mapZoom === 1 && mapFocus !== planet) {
+      mapFocus = planet;
+    }
+    drawZoneMap();
+  }
+
+  // Use context panel SVG when available, fall back to sidebar SVG
+  function getZoneMapSvg() {
+    return document.getElementById('ctx-zone-map-svg');
+  }
+
+  var mapFocusZone = null; // zone id when zoomed to level 2
+
+  function drawZoneMap() {
+    var svg = getZoneMapSvg();
+    if (!svg) return;
     while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-    var adjSet = {};
-    if (adjacentZones) {
-      for (var i = 0; i < adjacentZones.length; i++) adjSet[adjacentZones[i].id] = true;
+    // Breadcrumb bar at top
+    var breadcrumb = svgEl('text', { x: 5, y: 12, style: 'font-family:Share Tech Mono,monospace;font-size:8px;cursor:pointer;' });
+    if (mapZoom === 0) {
+      breadcrumb.textContent = 'Galaxy';
+      breadcrumb.setAttribute('fill', 'var(--text-dim)');
+    } else if (mapZoom === 1) {
+      breadcrumb.textContent = '\u25C0 Galaxy / ' + (PLANETS[mapFocus] ? PLANETS[mapFocus].label : mapFocus);
+      breadcrumb.addEventListener('click', function() { mapZoom = 0; mapFocus = null; drawZoneMap(); });
+      breadcrumb.setAttribute('fill', 'var(--accent-cyan)');
+    } else if (mapZoom === 2) {
+      var pLabel = PLANETS[mapFocus] ? PLANETS[mapFocus].label : mapFocus;
+      var zLabel = ZONE_LOCAL[mapFocusZone] ? ZONE_LOCAL[mapFocusZone].label : mapFocusZone;
+      breadcrumb.textContent = '\u25C0 ' + pLabel + ' / ' + zLabel;
+      breadcrumb.addEventListener('click', function() { mapZoom = 1; mapFocusZone = null; drawZoneMap(); });
+      breadcrumb.setAttribute('fill', 'var(--accent-cyan)');
     }
+    svg.appendChild(breadcrumb);
 
-    // Draw edges
-    for (var e = 0; e < ZONE_EDGES.length; e++) {
-      var a = ZONE_EDGES[e][0], b = ZONE_EDGES[e][1];
-      var pa = ZONE_POSITIONS[a], pb = ZONE_POSITIONS[b];
-      if (!pa || !pb) continue;
-      var isActive = (a === currentZone || b === currentZone);
+    if (mapZoom === 0) {
+      drawGalaxyView(svg);
+    } else if (mapZoom === 1) {
+      drawPlanetView(svg, mapFocus);
+    } else if (mapZoom === 2) {
+      drawZoneDetailView(svg, mapFocusZone);
+    }
+  }
+
+  function drawGalaxyView(svg) {
+    var currentPlanet = getPlanetForZone(mapCurrentZone);
+
+    // Draw hyperspace lane connections
+    for (var li = 0; li < HYPERSPACE_LANES.length; li++) {
+      var lane = HYPERSPACE_LANES[li];
+      var pA = PLANETS[lane.from], pB = PLANETS[lane.to];
+      if (!pA || !pB) continue;
       var line = svgEl('line', {
-        x1: pa[0], y1: pa[1], x2: pb[0], y2: pb[1],
-        'class': isActive ? 'zm-edge zm-edge-active' : 'zm-edge'
+        x1: pA.x, y1: pA.y, x2: pB.x, y2: pB.y,
+        stroke: 'var(--border-mid)', 'stroke-width': 1, opacity: 0.5,
+        'stroke-dasharray': '4 3'
       });
       svg.appendChild(line);
     }
 
-    // Draw nodes + labels
-    for (var zid in ZONE_POSITIONS) {
-      if (!ZONE_POSITIONS.hasOwnProperty(zid)) continue;
-      var pos = ZONE_POSITIONS[zid];
-      var isCurrent  = (zid === currentZone);
-      var isAdjacent = !!adjSet[zid];
-      var isHazard   = !!HAZARD_ZONES[zid];
+    // Draw planet nodes
+    for (var pk in PLANETS) {
+      if (!PLANETS.hasOwnProperty(pk)) continue;
+      var p = PLANETS[pk];
+      var isCurrent = (pk === currentPlanet);
+      var r = isCurrent ? 10 : 7;
 
-      // Hazard badge (background rect)
-      if (isHazard) {
-        var badge = svgEl('rect', { x: pos[0]-8, y: pos[1]-8, width: 16, height: 10, rx: 2, 'class': 'zm-hazard-badge' });
-        svg.appendChild(badge);
+      // Glow for current planet
+      if (isCurrent) {
+        var glow = svgEl('circle', { cx: p.x, cy: p.y, r: 14, fill: 'none', stroke: 'var(--accent-cyan)', 'stroke-width': 1, opacity: 0.3 });
+        svg.appendChild(glow);
       }
 
-      // Node circle
-      var nodeClass = isCurrent ? 'zm-node-current' : isAdjacent ? 'zm-node-adjacent' : 'zm-node-distant';
-      var r = isCurrent ? 6 : isAdjacent ? 4 : 3;
-      var circle = svgEl('circle', { cx: pos[0], cy: pos[1], r: r, 'class': nodeClass });
-      if (isCurrent) circle.classList && (circle.setAttribute('class', nodeClass + ' zm-node-current-pulse'));
+      var circle = svgEl('circle', {
+        cx: p.x, cy: p.y, r: r,
+        fill: isCurrent ? 'var(--accent-cyan)' : 'var(--accent-blue)',
+        style: 'cursor:pointer;'
+      });
+      (function(planetKey) {
+        circle.addEventListener('click', function() {
+          mapZoom = 1; mapFocus = planetKey; drawZoneMap();
+        });
+      })(pk);
+      svg.appendChild(circle);
 
-      // Adjacent nodes are clickable — send course command
-      if (isAdjacent) {
+      // Label
+      var lbl = svgEl('text', {
+        x: p.x, y: p.y - r - 4,
+        'text-anchor': 'middle',
+        fill: isCurrent ? 'var(--accent-cyan)' : 'var(--text-dim)',
+        style: 'font-family:Share Tech Mono,monospace;font-size:9px;cursor:pointer;'
+      });
+      lbl.textContent = p.label;
+      (function(planetKey) {
+        lbl.addEventListener('click', function() {
+          mapZoom = 1; mapFocus = planetKey; drawZoneMap();
+        });
+      })(pk);
+      svg.appendChild(lbl);
+    }
+  }
+
+  function drawPlanetView(svg, planetKey) {
+    var planet = PLANETS[planetKey];
+    if (!planet) return;
+    var zones = planet.zones;
+
+    // Draw edges between zones
+    for (var ei = 0; ei < ZONE_LOCAL_EDGES.length; ei++) {
+      var a = ZONE_LOCAL_EDGES[ei][0], b = ZONE_LOCAL_EDGES[ei][1];
+      if (zones.indexOf(a) < 0 || zones.indexOf(b) < 0) continue;
+      var posA = ZONE_LOCAL[a], posB = ZONE_LOCAL[b];
+      if (!posA || !posB) continue;
+      var isActive = (a === mapCurrentZone || b === mapCurrentZone);
+      var line = svgEl('line', {
+        x1: posA.x, y1: posA.y, x2: posB.x, y2: posB.y,
+        stroke: isActive ? 'rgba(64,200,208,0.5)' : 'var(--border-mid)',
+        'stroke-width': isActive ? 2 : 1,
+        'stroke-dasharray': isActive ? '4 3' : 'none',
+        opacity: isActive ? 1 : 0.5
+      });
+      svg.appendChild(line);
+    }
+
+    // Draw zone nodes
+    for (var zi = 0; zi < zones.length; zi++) {
+      var zid = zones[zi];
+      var zl = ZONE_LOCAL[zid];
+      if (!zl) continue;
+      var isCurrent = (zid === mapCurrentZone);
+      var isAdj = !!mapAdjacentSet[zid];
+      var r = isCurrent ? 8 : isAdj ? 6 : 4;
+
+      // Hazard background
+      if (zl.hazard) {
+        var hbg = svgEl('rect', {
+          x: zl.x - 14, y: zl.y - 10, width: 28, height: 14, rx: 3,
+          fill: 'rgba(248,81,73,0.1)', stroke: 'rgba(248,81,73,0.3)', 'stroke-width': 1
+        });
+        svg.appendChild(hbg);
+      }
+
+      // Current zone pulse
+      if (isCurrent) {
+        var pulse = svgEl('circle', { cx: zl.x, cy: zl.y, r: 12, fill: 'none', stroke: 'var(--accent-cyan)', 'stroke-width': 1, opacity: 0.4 });
+        var anim = svgEl('animate', { attributeName: 'r', values: '8;14;8', dur: '2s', repeatCount: 'indefinite' });
+        pulse.appendChild(anim);
+        var anim2 = svgEl('animate', { attributeName: 'opacity', values: '0.4;0.1;0.4', dur: '2s', repeatCount: 'indefinite' });
+        pulse.appendChild(anim2);
+        svg.appendChild(pulse);
+      }
+
+      var nodeColor = isCurrent ? 'var(--accent-cyan)' : isAdj ? 'var(--accent-blue)' : 'var(--border-mid)';
+      var circle = svgEl('circle', {
+        cx: zl.x, cy: zl.y, r: r,
+        fill: nodeColor,
+        style: (isAdj || isCurrent) ? 'cursor:pointer;' : ''
+      });
+      // Zone node tooltip
+      var zoneTipText = zl.label;
+      if (isCurrent) zoneTipText += ' (you are here) — click to zoom in';
+      else if (isAdj) zoneTipText += ' — click to set course';
+      var zoneTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      zoneTitle.textContent = zoneTipText;
+      circle.appendChild(zoneTitle);
+      if (isCurrent) {
+        (function(zoneId) {
+          circle.addEventListener('click', function() { mapZoom = 2; mapFocusZone = zoneId; drawZoneMap(); });
+        })(zid);
+      } else if (isAdj) {
         (function(zoneId) {
           circle.addEventListener('click', function() { sendCmd('course ' + zoneId); });
         })(zid);
@@ -2748,44 +3449,244 @@
       svg.appendChild(circle);
 
       // Label
-      var labelClass = isCurrent ? 'zm-label zm-label-current' : isAdjacent ? 'zm-label zm-label-adjacent' : 'zm-label';
+      var lblColor = isCurrent ? 'var(--accent-cyan)' : isAdj ? 'var(--accent-blue)' : 'var(--text-dim)';
       var label = svgEl('text', {
-        x: pos[0], y: pos[1] - 8,
+        x: zl.x, y: zl.y + r + 12,
         'text-anchor': 'middle',
-        'class': labelClass
+        fill: lblColor,
+        style: 'font-family:Share Tech Mono,monospace;font-size:9px;' + ((isAdj || isCurrent) ? 'cursor:pointer;' : '')
       });
-      label.textContent = ZONE_LABELS[zid] || zid;
-      if (isAdjacent) {
+      label.textContent = zl.label + (isCurrent ? ' \u25B6' : '');
+      if (isCurrent) {
+        (function(zoneId) {
+          label.addEventListener('click', function() { mapZoom = 2; mapFocusZone = zoneId; drawZoneMap(); });
+        })(zid);
+      } else if (isAdj) {
         (function(zoneId) {
           label.addEventListener('click', function() { sendCmd('course ' + zoneId); });
         })(zid);
       }
       svg.appendChild(label);
 
-      // Hazard text
-      if (isHazard) {
-        var ht = svgEl('text', { x: pos[0], y: pos[1] + 2, 'text-anchor': 'middle', 'class': 'zm-hazard-text' });
+      // Contact count badge (if any contacts in this zone)
+      if (isCurrent && mapContacts && mapContacts.length > 0) {
+        var badge = svgEl('text', {
+          x: zl.x + r + 4, y: zl.y - r,
+          fill: 'var(--accent-amber)',
+          style: 'font-family:Share Tech Mono,monospace;font-size:8px;'
+        });
+        badge.textContent = mapContacts.length + ' ships';
+        svg.appendChild(badge);
+      }
+
+      // Hazard icon
+      if (zl.hazard) {
+        var ht = svgEl('text', {
+          x: zl.x, y: zl.y - r - 4,
+          'text-anchor': 'middle',
+          fill: 'var(--accent-red)',
+          style: 'font-family:Orbitron,sans-serif;font-size:8px;font-weight:bold;'
+        });
         ht.textContent = '!';
         svg.appendChild(ht);
       }
     }
+
+    // Hyperspace connection indicator to other planets
+    var adjPlanets = [];
+    for (var hli = 0; hli < HYPERSPACE_LANES.length; hli++) {
+      var hl = HYPERSPACE_LANES[hli];
+      if (hl.from === planetKey) adjPlanets.push(hl.to);
+      if (hl.to === planetKey) adjPlanets.push(hl.from);
+    }
+    if (adjPlanets.length > 0) {
+      var hypTxt = svgEl('text', {
+        x: 113, y: 175,
+        'text-anchor': 'middle',
+        fill: 'var(--text-dim)',
+        style: 'font-family:Share Tech Mono,monospace;font-size:8px;'
+      });
+      hypTxt.textContent = 'Hyperspace: ' + adjPlanets.map(function(pk) { return PLANETS[pk] ? PLANETS[pk].label : pk; }).join(', ');
+      svg.appendChild(hypTxt);
+    }
+  }
+
+  function drawZoneDetailView(svg, zoneId) {
+    var zl = ZONE_LOCAL[zoneId];
+    var zoneName = zl ? zl.label : zoneId;
+    var cx = 113, cy = 90;
+
+    // Zone name header
+    var title = svgEl('text', {
+      x: cx, y: 28, 'text-anchor': 'middle',
+      fill: 'var(--accent-cyan)',
+      style: 'font-family:Share Tech Mono,monospace;font-size:11px;font-weight:bold;'
+    });
+    title.textContent = zoneName;
+    svg.appendChild(title);
+
+    // Hazard warning
+    if (zl && zl.hazard) {
+      var hw = svgEl('text', {
+        x: cx, y: 40, 'text-anchor': 'middle',
+        fill: 'var(--accent-red)',
+        style: 'font-family:Share Tech Mono,monospace;font-size:8px;'
+      });
+      hw.textContent = '! HAZARDOUS ZONE !';
+      svg.appendChild(hw);
+    }
+
+    // Your ship at center
+    var selfDot = svgEl('circle', { cx: cx, cy: cy, r: 5, fill: 'var(--accent-cyan)' });
+    svg.appendChild(selfDot);
+    var selfPulse = svgEl('circle', { cx: cx, cy: cy, r: 5, fill: 'none', stroke: 'var(--accent-cyan)', 'stroke-width': 1 });
+    var pa1 = svgEl('animate', { attributeName: 'r', values: '5;12;5', dur: '2s', repeatCount: 'indefinite' });
+    var pa2 = svgEl('animate', { attributeName: 'opacity', values: '0.6;0;0.6', dur: '2s', repeatCount: 'indefinite' });
+    selfPulse.appendChild(pa1); selfPulse.appendChild(pa2);
+    svg.appendChild(selfPulse);
+    var selfLbl = svgEl('text', {
+      x: cx, y: cy + 14, 'text-anchor': 'middle',
+      fill: 'var(--accent-cyan)',
+      style: 'font-family:Share Tech Mono,monospace;font-size:7px;'
+    });
+    selfLbl.textContent = 'YOU';
+    svg.appendChild(selfLbl);
+
+    // Draw contacts around the center
+    var contacts = mapContacts || [];
+    if (contacts.length === 0) {
+      var noC = svgEl('text', {
+        x: cx, y: 160, 'text-anchor': 'middle',
+        fill: 'var(--text-dim)',
+        style: 'font-family:Share Tech Mono,monospace;font-size:8px;font-style:italic;'
+      });
+      noC.textContent = 'No contacts on sensors';
+      svg.appendChild(noC);
+    } else {
+      for (var i = 0; i < contacts.length; i++) {
+        var c = contacts[i];
+        // Spread contacts in a ring around center
+        var angle = -Math.PI / 2 + (2 * Math.PI / contacts.length) * i;
+        var dist = 50; // fixed distance from center for readability
+        var px = Math.round(cx + dist * Math.cos(angle));
+        var py = Math.round(cy + dist * Math.sin(angle));
+
+        // Contact dot
+        var dotColor = c.hostile ? 'var(--accent-red)' : c.is_npc ? 'var(--accent-amber)' : 'var(--accent-blue)';
+        var dot = svgEl('circle', { cx: px, cy: py, r: 4, fill: dotColor, style: 'cursor:pointer;' });
+        (function(contact) {
+          dot.addEventListener('click', function() { sendCmd('scan ' + contact.name); });
+        })(c);
+        svg.appendChild(dot);
+
+        // Hostile pulse
+        if (c.hostile) {
+          var hp = svgEl('circle', { cx: px, cy: py, r: 4, fill: 'none', stroke: 'var(--accent-red)', 'stroke-width': 1 });
+          var hpa = svgEl('animate', { attributeName: 'r', values: '4;8;4', dur: '1s', repeatCount: 'indefinite' });
+          var hpa2 = svgEl('animate', { attributeName: 'opacity', values: '0.6;0;0.6', dur: '1s', repeatCount: 'indefinite' });
+          hp.appendChild(hpa); hp.appendChild(hpa2);
+          svg.appendChild(hp);
+        }
+
+        // Name label — position based on angle to avoid center overlap
+        var labelAnchor = (px > cx + 10) ? 'start' : (px < cx - 10) ? 'end' : 'middle';
+        var labelX = (px > cx + 10) ? px + 7 : (px < cx - 10) ? px - 7 : px;
+        var labelY = (py > cy) ? py + 12 : py - 6;
+        var lbl = svgEl('text', {
+          x: labelX, y: labelY, 'text-anchor': labelAnchor,
+          fill: dotColor,
+          style: 'font-family:Share Tech Mono,monospace;font-size:7px;cursor:pointer;'
+        });
+        lbl.textContent = c.name || '?';
+        (function(contact) {
+          lbl.addEventListener('click', function() { sendCmd('scan ' + contact.name); });
+        })(c);
+        svg.appendChild(lbl);
+
+        // Range tag
+        var rngLbl = svgEl('text', {
+          x: labelX, y: labelY + 8, 'text-anchor': labelAnchor,
+          fill: 'var(--text-dim)',
+          style: 'font-family:Share Tech Mono,monospace;font-size:6px;'
+        });
+        rngLbl.textContent = (c.range || 'long') + ' / ' + (c.position || 'front');
+        svg.appendChild(rngLbl);
+      }
+    }
+
+    // Draw anomalies
+    var anomalies = mapAnomalies || [];
+    for (var ai = 0; ai < anomalies.length; ai++) {
+      var a = anomalies[ai];
+      // Place anomalies in outer ring
+      var aAngle = Math.PI / 4 + (2 * Math.PI / Math.max(anomalies.length, 1)) * ai;
+      var aDist = 75;
+      var ax = Math.round(cx + aDist * Math.cos(aAngle));
+      var ay = Math.round(cy + aDist * Math.sin(aAngle));
+
+      var isResolved = !!a.resolved;
+      var aColor = isResolved ? 'var(--accent-green)' : 'var(--accent-purple)';
+      var diamond = svgEl('rect', {
+        x: ax - 5, y: ay - 5, width: 10, height: 10,
+        transform: 'rotate(45,' + ax + ',' + ay + ')',
+        fill: 'none', stroke: aColor, 'stroke-width': 1.5,
+        style: isResolved ? 'cursor:pointer;' : ''
+      });
+      if (!isResolved) {
+        var apulse = svgEl('animate', { attributeName: 'opacity', values: '1;0.3;1', dur: '1.8s', repeatCount: 'indefinite' });
+        diamond.appendChild(apulse);
+      }
+      if (isResolved) {
+        (function(anomId) {
+          diamond.addEventListener('click', function() { sendCmd('course anomaly ' + anomId); });
+        })(a.id);
+      }
+      svg.appendChild(diamond);
+
+      var aText = svgEl('text', {
+        x: ax, y: ay + 14, 'text-anchor': 'middle',
+        fill: aColor,
+        style: 'font-family:Share Tech Mono,monospace;font-size:7px;'
+      });
+      aText.textContent = isResolved ? (a.type_hint || 'Resolved') : 'Anomaly ?';
+      svg.appendChild(aText);
+    }
+
+    // Stats footer
+    var footer = svgEl('text', {
+      x: cx, y: 175, 'text-anchor': 'middle',
+      fill: 'var(--text-dim)',
+      style: 'font-family:Share Tech Mono,monospace;font-size:7px;'
+    });
+    footer.textContent = contacts.length + ' contact' + (contacts.length !== 1 ? 's' : '') +
+      (anomalies.length > 0 ? ' \u2022 ' + anomalies.length + ' anomal' + (anomalies.length !== 1 ? 'ies' : 'y') : '');
+    svg.appendChild(footer);
   }
 
   // ═══════════ Tactical Radar (Drop 10) ═══════════
 
-  // Range band → radius in the 180×180 SVG (cx=cy=90, max r=88)
-  var RANGE_RADII = { 'close': 22, 'short': 44, 'medium': 66, 'long': 84 };
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (var k in attrs) if (attrs.hasOwnProperty(k)) el.setAttribute(k, attrs[k]);
+    return el;
+  }
 
-  // Spread contacts evenly around the ring to avoid overlap.
-  // Returns {x, y} in SVG coords.
-  function radarXY(rangeBand, index, total) {
-    var r = RANGE_RADII[rangeBand] || 66;
-    // Offset angle per slot; start at top (-π/2) and spread
+  // Range band → radius ratios (fraction of max radius)
+  var RANGE_RATIOS = { 'close': 0.25, 'short': 0.50, 'medium': 0.75, 'long': 0.95 };
+
+  function getRadarSvg() {
+    var ctx = document.getElementById('ctx-radar-svg');
+    return ctx ? { svg: ctx, cx: 120, cy: 120, maxR: 114 } : null;
+  }
+
+  function radarXY(rangeBand, index, total, cx, cy, maxR) {
+    var ratio = RANGE_RATIOS[rangeBand] || 0.75;
+    var r = Math.round(maxR * ratio);
     var slice = total > 0 ? (2 * Math.PI / total) : 0;
     var angle  = -Math.PI / 2 + slice * index;
     return {
-      x: Math.round(90 + r * Math.cos(angle)),
-      y: Math.round(90 + r * Math.sin(angle))
+      x: Math.round(cx + r * Math.cos(angle)),
+      y: Math.round(cy + r * Math.sin(angle))
     };
   }
 
@@ -2805,14 +3706,14 @@
   }
 
   function renderRadar(contacts, anomalies) {
-    var svg = document.getElementById('radar-svg');
-    // Remove only dynamic layer (everything after the sweep circle)
-    var staticCount = 10; // bg + 4 rings + 2 crosshairs + 4 labels + sweep + self = we count precisely
-    // Simpler: remove elements with class starting in radar-contact or radar-anomaly
+    var info = getRadarSvg();
+    if (!info) return;
+    var svg = info.svg, cx = info.cx, cy = info.cy, maxR = info.maxR;
+    // Remove dynamic elements
     var toRemove = svg.querySelectorAll('.radar-contact-player,.radar-contact-npc,.radar-contact-hostile,.radar-contact-label,.radar-anomaly,.radar-anomaly-text');
     for (var i = 0; i < toRemove.length; i++) svg.removeChild(toRemove[i]);
 
-    // Group contacts by range band to space them evenly
+    // Group contacts by range band
     var byRange = {};
     if (contacts) {
       for (var ci = 0; ci < contacts.length; ci++) {
@@ -2828,18 +3729,25 @@
       var group = byRange[band];
       for (var gi = 0; gi < group.length; gi++) {
         var c = group[gi];
-        var pos = radarXY(band, gi, group.length);
+        var pos = radarXY(band, gi, group.length, cx, cy, maxR);
         var dot = svgEl('circle', { cx: pos.x, cy: pos.y, r: 4, 'class': radarContactClass(c) });
-        // Players clickable — send hail
+        // SVG tooltip — shows on hover
+        var tipText = (c.name || 'Unknown') + ' (' + (c.ship_class || '?') + ') — Range: ' + band;
+        if (c.hostile) tipText += ' [HOSTILE]';
+        if (c.is_player) tipText += ' — click to hail';
+        var svgTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        svgTitle.textContent = tipText;
+        dot.appendChild(svgTitle);
         if (c.is_player) {
           (function(shipId) {
             dot.addEventListener('click', function() { sendCmd('hail ' + shipId); });
           })(c.ship_id);
         }
         svg.appendChild(dot);
-        // Label
+        // Label — full name in context panel (larger), truncated in sidebar
+        var maxLen = (maxR > 100) ? 16 : 8;
         var lbl = svgEl('text', { x: pos.x + 6, y: pos.y + 3, 'class': 'radar-contact-label' });
-        lbl.textContent = (c.name || '?').substring(0, 8);
+        lbl.textContent = (c.name || '?').substring(0, maxLen);
         svg.appendChild(lbl);
       }
     }
@@ -2848,13 +3756,14 @@
     if (anomalies) {
       for (var ai = 0; ai < anomalies.length; ai++) {
         var anom = anomalies[ai];
-        var apos = anomalyXY(anom.id);
+        var seed  = (anom.id * 137 + 42) % 360;
+        var angle = (seed / 360) * 2 * Math.PI;
+        var ar = Math.round(maxR * 0.6 + (anom.id % 3) * maxR * 0.1);
+        var apos = { x: Math.round(cx + ar * Math.cos(angle)), y: Math.round(cy + ar * Math.sin(angle)) };
         var isResolved = !!anom.resolved;
-        // Draw as diamond (rotated square)
         var aCls = 'radar-anomaly' + (isResolved ? ' radar-anomaly-resolved' : '');
         var diamond = svgEl('rect', {
-          x: apos.x - 5, y: apos.y - 5,
-          width: 10, height: 10,
+          x: apos.x - 5, y: apos.y - 5, width: 10, height: 10,
           transform: 'rotate(45,' + apos.x + ',' + apos.y + ')',
           'class': aCls
         });
@@ -2864,77 +3773,295 @@
           })(anom.id);
         }
         svg.appendChild(diamond);
-        // Text label: ? or type hint initial
         var aTxt = svgEl('text', {
-          x: apos.x, y: apos.y + 4,
-          'text-anchor': 'middle',
+          x: apos.x, y: apos.y + 14, 'text-anchor': 'middle',
           'class': 'radar-anomaly-text' + (isResolved ? ' resolved' : '')
         });
-        aTxt.textContent = isResolved ? '✦' : '?';
+        aTxt.textContent = isResolved ? '\u2726' : '?';
         svg.appendChild(aTxt);
       }
     }
   }
 
-  // ═══════════ Power Bar (Drop 15) ═══════════
+  // ═══════════ Ship Status Schematic ═══════════
 
-  function renderPowerBar(powerState, reactorMax, silentRunning) {
-    var wrap   = document.getElementById('sp-power-wrap');
-    var track  = document.getElementById('sp-pwr-track');
-    var detail = document.getElementById('sp-pwr-detail');
-    var used_el  = document.getElementById('sp-pwr-used');
-    var max_el   = document.getElementById('sp-pwr-max');
-    var silent_el = document.getElementById('sp-pwr-silent');
-    if (!wrap || !track) return;
+  // Top-down SVG silhouettes per ship class family. Each is a path centered
+  // at (115,95) fitting inside the 230×200 viewBox, plus named system anchor
+  // points for overlay dots.
+  var SHIP_SILHOUETTES = {
+    'yt-1300': {
+      hull: 'M115,30 C145,30 175,45 180,75 C185,100 180,125 165,140 C155,150 140,155 115,155 C90,155 75,150 65,140 C50,125 45,100 50,75 C55,45 85,30 115,30 Z',
+      cockpit: 'M165,140 L185,160 L180,165 L160,148 Z',
+      details: [
+        'M90,50 L140,50', 'M80,70 L150,70', 'M75,90 L155,90',
+        'M85,110 L145,110', 'M95,130 L135,130'
+      ],
+      systems: {
+        engines:    { x: 115, y: 152, label: 'ENG' },
+        shields:    { x: 60,  y: 90,  label: 'SHD' },
+        weapons:    { x: 155, y: 60,  label: 'WPN' },
+        sensors:    { x: 175, y: 155, label: 'SNS' },
+        hyperdrive: { x: 115, y: 100, label: 'HYP' },
+      },
+      shield_front_arc: 'M70,40 A60,60 0 0,1 160,40',
+      shield_rear_arc:  'M70,150 A60,60 0 0,0 160,150',
+    },
+    'ghtroc': {
+      hull: 'M95,35 L135,35 L145,50 L150,80 L150,140 L140,155 L90,155 L80,140 L80,80 L85,50 Z',
+      cockpit: 'M100,35 L130,35 L125,25 L105,25 Z',
+      details: ['M90,60 L140,60', 'M85,90 L145,90', 'M85,120 L145,120'],
+      systems: {
+        engines:    { x: 115, y: 150, label: 'ENG' },
+        shields:    { x: 83,  y: 100, label: 'SHD' },
+        weapons:    { x: 147, y: 70,  label: 'WPN' },
+        sensors:    { x: 115, y: 28,  label: 'SNS' },
+        hyperdrive: { x: 115, y: 110, label: 'HYP' },
+      },
+      shield_front_arc: 'M80,38 L115,20 L150,38',
+      shield_rear_arc:  'M85,155 L115,168 L145,155',
+    },
+    'fighter': {
+      hull: 'M115,25 L125,40 L125,70 L145,75 L155,80 L155,95 L145,95 L125,90 L125,140 L140,150 L140,160 L120,155 L115,158 L110,155 L90,160 L90,150 L105,140 L105,90 L85,95 L75,95 L75,80 L85,75 L105,70 L105,40 Z',
+      cockpit: 'M108,45 L122,45 L122,65 L108,65 Z',
+      details: ['M105,80 L125,80', 'M100,100 L130,100'],
+      systems: {
+        engines:    { x: 115, y: 148, label: 'ENG' },
+        shields:    { x: 100, y: 80,  label: 'SHD' },
+        weapons:    { x: 150, y: 87,  label: 'WPN' },
+        sensors:    { x: 115, y: 32,  label: 'SNS' },
+        hyperdrive: { x: 115, y: 115, label: 'HYP' },
+      },
+      shield_front_arc: 'M85,30 L115,12 L145,30',
+      shield_rear_arc:  'M90,155 L115,170 L140,155',
+    },
+    'tie': {
+      hull: 'M115,55 A20,20 0 1,1 115.01,55',
+      cockpit: 'M108,85 L122,85 L122,90 L108,90 Z',
+      details: [
+        'M95,50 L65,30 L65,150 L95,130',
+        'M135,50 L165,30 L165,150 L135,130',
+        'M70,30 L70,150', 'M160,30 L160,150'
+      ],
+      systems: {
+        engines:    { x: 115, y: 115, label: 'ENG' },
+        shields:    { x: 68,  y: 90,  label: 'SHD' },
+        weapons:    { x: 115, y: 58,  label: 'WPN' },
+        sensors:    { x: 162, y: 90,  label: 'SNS' },
+        hyperdrive: { x: 115, y: 90,  label: 'HYP' },
+      },
+      shield_front_arc: 'M90,45 L115,30 L140,45',
+      shield_rear_arc:  'M90,125 L115,140 L140,125',
+    },
+    'shuttle': {
+      hull: 'M115,30 L130,50 L130,140 L120,155 L110,155 L100,140 L100,50 Z',
+      cockpit: 'M105,35 L125,35 L128,48 L102,48 Z',
+      details: [
+        'M100,60 L70,45 L65,140',
+        'M130,60 L160,45 L165,140',
+        'M100,80 L130,80', 'M100,110 L130,110'
+      ],
+      systems: {
+        engines:    { x: 115, y: 150, label: 'ENG' },
+        shields:    { x: 95,  y: 90,  label: 'SHD' },
+        weapons:    { x: 140, y: 60,  label: 'WPN' },
+        sensors:    { x: 115, y: 35,  label: 'SNS' },
+        hyperdrive: { x: 115, y: 120, label: 'HYP' },
+      },
+      shield_front_arc: 'M85,35 L115,18 L145,35',
+      shield_rear_arc:  'M95,152 L115,168 L135,152',
+    },
+    'corvette': {
+      hull: 'M115,20 L125,30 L130,60 L132,100 L130,140 L125,160 L115,168 L105,160 L100,140 L98,100 L100,60 L105,30 Z',
+      cockpit: 'M108,25 L122,25 L124,35 L106,35 Z',
+      details: ['M103,50 L127,50', 'M100,80 L130,80', 'M100,110 L130,110', 'M102,140 L128,140'],
+      systems: {
+        engines:    { x: 115, y: 162, label: 'ENG' },
+        shields:    { x: 96,  y: 90,  label: 'SHD' },
+        weapons:    { x: 134, y: 70,  label: 'WPN' },
+        sensors:    { x: 115, y: 25,  label: 'SNS' },
+        hyperdrive: { x: 115, y: 125, label: 'HYP' },
+      },
+      shield_front_arc: 'M95,25 L115,8 L135,25',
+      shield_rear_arc:  'M100,162 L115,178 L130,162',
+    }
+  };
 
-    if (!powerState || !reactorMax) { wrap.style.display = 'none'; return; }
-    wrap.style.display = '';
+  function getShipSilhouetteKey(shipClass) {
+    if (!shipClass) return 'fighter';
+    var lc = shipClass.toLowerCase();
+    if (lc.indexOf('yt-1300') >= 0 || lc.indexOf('yt-2400') >= 0) return 'yt-1300';
+    if (lc.indexOf('ghtroc') >= 0) return 'ghtroc';
+    if (lc.indexOf('tie') >= 0) return 'tie';
+    if (lc.indexOf('lambda') >= 0 || lc.indexOf('sentinel') >= 0 || lc.indexOf('shuttle') >= 0) return 'shuttle';
+    if (lc.indexOf('corvette') >= 0 || lc.indexOf('frigate') >= 0 || lc.indexOf('destroyer') >= 0 || lc.indexOf('cruiser') >= 0) return 'corvette';
+    if (lc.indexOf('firespray') >= 0) return 'ghtroc';
+    return 'fighter';
+  }
 
-    var systems = ['engines','shields','weapons','sensors','life_support'];
-    var colors  = { engines:'engines', shields:'shields', weapons:'weapons',
-                    sensors:'sensors', life_support:'life_support' };
-    var defaults = { engines:3, shields:3, weapons:2, sensors:1, life_support:1 };
-    var labels   = { engines:'ENG', shields:'SHD', weapons:'WPN',
-                     sensors:'SNS', life_support:'LSP' };
+  function renderSchematic(spaceData) {
+    var svg = document.getElementById('schematic-svg');
+    if (!svg) return;
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-    var totalUsed = 0;
-    for (var s in powerState) { if (powerState.hasOwnProperty(s)) totalUsed += (powerState[s]||0); }
-    var free = Math.max(0, reactorMax - totalUsed);
-
-    used_el.textContent = totalUsed;
-    max_el.textContent  = reactorMax;
-    silent_el.style.display = silentRunning ? '' : 'none';
-
-    // Build track segments
-    track.innerHTML = '';
-    systems.forEach(function(s) {
-      var val = powerState[s] || 0;
-      if (val <= 0) return;
-      var pct = (val / reactorMax) * 100;
-      var seg = document.createElement('div');
-      seg.className = 'pwr-seg ' + (colors[s] || '');
-      seg.style.width = pct + '%';
-      if (val === 0) seg.classList.add('pwr-offline');
-      track.appendChild(seg);
-    });
-    if (free > 0) {
-      var seg = document.createElement('div');
-      seg.className = 'pwr-seg free';
-      seg.style.width = ((free / reactorMax) * 100) + '%';
-      track.appendChild(seg);
+    if (!spaceData || !spaceData.active) {
+      var noData = svgEl('text', {
+        x: 115, y: 100, 'text-anchor': 'middle',
+        style: 'fill:var(--text-dim);font-size:10px;font-family:Share Tech Mono,monospace;'
+      });
+      noData.textContent = 'No ship data';
+      svg.appendChild(noData);
+      return;
     }
 
-    // Detail row
-    detail.innerHTML = '';
-    systems.forEach(function(s) {
-      var val = powerState[s] !== undefined ? powerState[s] : defaults[s];
-      var dflt = defaults[s];
-      var span = document.createElement('span');
-      var cls = val > dflt ? 'pwr-sys-over' : (val === 0 && dflt > 0 ? 'pwr-sys-off' : 'pwr-sys-val');
-      span.innerHTML = '<span class="pwr-sys-name">' + labels[s] + '</span>'
-                     + '<span class="' + cls + '">' + val + '</span>';
-      detail.appendChild(span);
+    var silKey = getShipSilhouetteKey(spaceData.ship_class);
+    var sil = SHIP_SILHOUETTES[silKey] || SHIP_SILHOUETTES['fighter'];
+
+    // Hull damage fraction
+    var hullFrac = 0;
+    if (spaceData.hull_max > 0) {
+      hullFrac = (spaceData.hull_max - (spaceData.hull_current || 0)) / spaceData.hull_max;
+    }
+    var hullStroke = 'sch-hull-ok';
+    if (hullFrac >= 0.75) hullStroke = 'sch-hull-crit';
+    else if (hullFrac >= 0.35) hullStroke = 'sch-hull-warn';
+
+    // Background glow
+    var glowColor = hullFrac >= 0.75 ? 'rgba(248,81,73,0.06)' :
+                    hullFrac >= 0.35 ? 'rgba(212,160,32,0.04)' : 'rgba(64,200,208,0.03)';
+    svg.appendChild(svgEl('ellipse', {
+      cx: 115, cy: 95, rx: 90, ry: 75, style: 'fill:' + glowColor + ';'
+    }));
+
+    // Hull fill
+    svg.appendChild(svgEl('path', { d: sil.hull, 'class': 'sch-hull-fill' }));
+
+    // Detail lines
+    if (sil.details) {
+      for (var di = 0; di < sil.details.length; di++) {
+        svg.appendChild(svgEl('path', {
+          d: sil.details[di],
+          style: 'fill:none;stroke:var(--border-dim);stroke-width:0.5;opacity:0.4;'
+        }));
+      }
+    }
+
+    // Hull outline
+    svg.appendChild(svgEl('path', { d: sil.hull, 'class': 'sch-hull ' + hullStroke }));
+
+    // Cockpit
+    if (sil.cockpit) {
+      svg.appendChild(svgEl('path', {
+        d: sil.cockpit,
+        style: 'fill:rgba(64,200,208,0.08);stroke:rgba(64,200,208,0.3);stroke-width:0.8;'
+      }));
+    }
+
+    // Shield arcs
+    if (spaceData.shield_arcs) {
+      var frontShd = spaceData.shield_arcs.front || 0;
+      var rearShd  = spaceData.shield_arcs.rear || 0;
+      if (frontShd > 0 && sil.shield_front_arc) {
+        svg.appendChild(svgEl('path', {
+          d: sil.shield_front_arc,
+          'class': 'sch-shield-arc sch-shield-front',
+          'stroke-dasharray': frontShd > 2 ? 'none' : '4 3',
+          'stroke-width': Math.min(3, 1 + frontShd * 0.5)
+        }));
+      }
+      if (rearShd > 0 && sil.shield_rear_arc) {
+        svg.appendChild(svgEl('path', {
+          d: sil.shield_rear_arc,
+          'class': 'sch-shield-arc sch-shield-rear',
+          'stroke-dasharray': rearShd > 1 ? 'none' : '4 3',
+          'stroke-width': Math.min(3, 1 + rearShd * 0.5)
+        }));
+      }
+    }
+
+    // Speed exhaust trails
+    var speed = spaceData.speed || 0;
+    var engSys = sil.systems.engines;
+    if (engSys) {
+      for (var si = 0; si < 7; si++) {
+        var trailY = engSys.y + 8 + si * 4;
+        var halfW = 6 + si * 1;
+        var active = si < speed;
+        svg.appendChild(svgEl('line', {
+          x1: engSys.x - halfW, y1: trailY,
+          x2: engSys.x + halfW, y2: trailY,
+          'class': active ? 'sch-speed-active' : 'sch-speed-line',
+          style: active ? 'opacity:' + (0.8 - si * 0.08) + ';' : ''
+        }));
+      }
+    }
+
+    // System status dots
+    var sysDefs = sil.systems;
+    var sysData = spaceData.systems || {};
+    var sysKeys = ['engines', 'shields', 'weapons', 'sensors', 'hyperdrive'];
+    var schSysTips = {
+      engines: 'Sublight engines — damage reduces speed',
+      shields: 'Deflector shields — damage halves shield dice',
+      weapons: 'Weapon systems — damage reduces fire control',
+      sensors: 'Sensor array — damage reduces scan range',
+      hyperdrive: 'Hyperdrive — damage prevents hyperspace jumps'
+    };
+    for (var ski = 0; ski < sysKeys.length; ski++) {
+      var sk = sysKeys[ski];
+      var pos = sysDefs[sk];
+      if (!pos) continue;
+      var isOk = sysData[sk] !== false;
+      var sysDot = svgEl('circle', {
+        cx: pos.x, cy: pos.y, r: 5,
+        'class': 'sch-sys-dot ' + (isOk ? 'sch-sys-ok' : 'sch-sys-damaged')
+      });
+      var sysDotTip = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      sysDotTip.textContent = (pos.label || sk) + ': ' + (isOk ? 'Operational' : 'DAMAGED') + ' — ' + (schSysTips[sk] || '');
+      sysDot.appendChild(sysDotTip);
+      svg.appendChild(sysDot);
+      var lbl = svgEl('text', {
+        x: pos.x, y: pos.y - 8, 'text-anchor': 'middle', 'class': 'sch-sys-label'
+      });
+      lbl.textContent = pos.label;
+      svg.appendChild(lbl);
+    }
+
+    // Weapon pips
+    if (spaceData.weapons && spaceData.weapons.length > 0) {
+      var wpnPos = sysDefs.weapons;
+      if (wpnPos) {
+        for (var wi = 0; wi < Math.min(spaceData.weapons.length, 6); wi++) {
+          var pipX = wpnPos.x + (wi % 2 === 0 ? -8 : 8);
+          var pipY = wpnPos.y + 12 + Math.floor(wi / 2) * 8;
+          svg.appendChild(svgEl('circle', {
+            cx: pipX, cy: pipY, r: 2.5,
+            'class': (sysData.weapons !== false) ? 'sch-wpn-pip' : 'sch-wpn-pip-off'
+          }));
+        }
+      }
+    }
+
+    // Ship class label at bottom
+    var classLabel = svgEl('text', {
+      x: 115, y: 192, 'text-anchor': 'middle', 'class': 'sch-class-label'
     });
+    classLabel.textContent = (spaceData.ship_class || 'Unknown').toUpperCase();
+    svg.appendChild(classLabel);
+
+    // Hull % at top
+    var hullPct = spaceData.hull_max > 0 ? Math.round((spaceData.hull_current || 0) / spaceData.hull_max * 100) : 100;
+    var hullColor = hullFrac >= 0.75 ? 'var(--accent-red)' :
+                    hullFrac >= 0.35 ? 'var(--accent-amber)' : 'var(--accent-cyan)';
+    var hullText = svgEl('text', {
+      x: 115, y: 12, 'text-anchor': 'middle', 'class': 'sch-stat-label'
+    });
+    var hullLbl = svgEl('tspan', { style: 'fill:var(--text-dim);' });
+    hullLbl.textContent = 'HULL ';
+    hullText.appendChild(hullLbl);
+    var hullVal = svgEl('tspan', { style: 'fill:' + hullColor + ';font-weight:bold;' });
+    hullVal.textContent = hullPct + '%';
+    hullText.appendChild(hullVal);
+    svg.appendChild(hullText);
   }
 
   // ═══════════ Power Bar (Drop 15) ═══════════
@@ -3048,8 +4175,7 @@
     });
   }
 
-  initSvgToggle('zm-toggle',    'zm-body');
-  initSvgToggle('radar-toggle', 'radar-body');
+  initSvgToggle('schematic-toggle', 'schematic-body');
 
   // ═══════════ Boot ═══════════
 

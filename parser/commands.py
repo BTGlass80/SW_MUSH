@@ -184,6 +184,20 @@ class CommandParser:
     async def parse_and_dispatch(self, session: Session, raw_input: str):
         """Parse a line of input and execute the matching command."""
         raw_input = raw_input.strip()
+
+        # ── Input intercept (e.g. description editor) ─────────────────────
+        # If session has a pending input handler, route this line to it
+        # instead of normal command dispatch.
+        _intercept = getattr(session, "_input_intercept", None)
+        if _intercept is not None:
+            try:
+                await _intercept(raw_input)
+            except Exception as _ie:
+                import logging as _ilog
+                _ilog.getLogger(__name__).warning("Input intercept error: %s", _ie)
+                session._input_intercept = None
+            return
+
         if not raw_input:
             await session.send_prompt()
             return
@@ -193,6 +207,7 @@ class CommandParser:
             from engine.tutorial_v2 import on_player_input
             on_player_input(session)
         except Exception:
+            log.warning("parse_and_dispatch: unhandled exception", exc_info=True)
             pass
 
         # Rate limit check

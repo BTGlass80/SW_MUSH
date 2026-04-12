@@ -53,6 +53,9 @@ class ShopCommand(BaseCommand):
         "  shop collect [id]    — collect accumulated revenue\n"
         "  shop sales [id]      — view recent sales\n"
         "\n"
+        "UPGRADE:\n"
+        "  shop upgrade [tier]  — upgrade droid tier (must be recalled)\n"
+        "\n"
         "  +shop                — view your droid status dashboard\n"
         "\n"
         "Tiers: gn4 (2,000cr/10 slots), gn7 (5,000cr/25 slots), "
@@ -80,6 +83,8 @@ class ShopCommand(BaseCommand):
         if not sub or sub in ("+shop", "shopinfo", "info", "status"):
             droids = await ctx.db.get_objects_owned_by(char["id"], "vendor_droid")
             await ctx.session.send_line(format_shop_status(droids))
+            # Emit structured shop_state for web dashboard
+            await _send_shop_dashboard(ctx.session, droids, char, ctx.db)
             return
 
         # ── shop buy droid <tier> ──
@@ -302,10 +307,127 @@ class ShopCommand(BaseCommand):
             await ctx.session.send_line(f"  {msg}")
             return
 
+        # ── shop upgrade <tier> ──
+        if sub == "upgrade":
+            from engine.vendor_droids import (
+                get_tier, get_tier_by_number, _load_data, _dump_data,
+            )
+            droid = await _get_owner_droid(ctx, "")
+            if droid is None:
+                return
+
+            obj = await ctx.db.get_object(droid["id"])
+            if not obj:
+                await ctx.session.send_line("  Droid data error.")
+                return
+
+            data = _load_data(obj)
+            current_tier_key = data.get("tier_key", "gn4")
+            current_tier = get_tier(current_tier_key) or {}
+            current_num = current_tier.get("tier", 1)
+
+            if current_num >= 3:
+                await ctx.session.send_line(
+                    "  Your droid is already at maximum tier (GN-12)."
+                )
+                return
+
+            # Must be recalled (not placed)
+            if obj.get("room_id"):
+                await ctx.session.send_line(
+                    "  Your droid must be recalled before upgrading.\n"
+                    "  Use \033[1;33mshop recall\033[0m first."
+                )
+                return
+
+            # Determine target tier
+            target_num = current_num + 1
+            if rest:
+                # Allow explicit tier: "shop upgrade gn7" or "shop upgrade 2"
+                if rest.lower().startswith("gn"):
+                    target = get_tier(rest.lower())
+                    if target:
+                        target_num = target["tier"]
+                elif rest.isdigit():
+                    target_num = int(rest)
+
+            target_result = get_tier_by_number(target_num)
+            if not target_result:
+                await ctx.session.send_line(
+                    f"  Unknown tier '{rest}'. Valid tiers: gn4 (1), gn7 (2), gn12 (3)."
+                )
+                return
+
+            target_key, target_tier = target_result
+
+            if target_num <= current_num:
+                await ctx.session.send_line(
+                    f"  Your droid is already tier {current_num}. "
+                    f"Can only upgrade to a higher tier."
+                )
+                return
+
+            # Upgrade cost: difference between tier costs
+            upgrade_cost = target_tier["cost"] - current_tier.get("cost", 0)
+            if upgrade_cost < 1000:
+                upgrade_cost = 1000  # Minimum floor
+
+            # Pricing from NPC dealer personality text:
+            # gn4->gn7 = 3,000cr, gn7->gn12 = 7,000cr
+            UPGRADE_PRICES = {
+                (1, 2): 3000,   # gn4 -> gn7
+                (1, 3): 10000,  # gn4 -> gn12 (skip tier)
+                (2, 3): 7000,   # gn7 -> gn12
+            }
+            upgrade_cost = UPGRADE_PRICES.get(
+                (current_num, target_num), upgrade_cost
+            )
+
+            if char.get("credits", 0) < upgrade_cost:
+                await ctx.session.send_line(
+                    f"  Insufficient credits. Upgrade to {target_tier['name']} "
+                    f"costs {upgrade_cost:,} cr "
+                    f"(you have {char.get('credits', 0):,})."
+                )
+                return
+
+            # Deduct credits
+            char["credits"] -= upgrade_cost
+            await ctx.db.save_character(char["id"], credits=char["credits"])
+
+            # Update droid tier (inventory carries over)
+            data["tier"] = target_num
+            data["tier_key"] = target_key
+            import time as _time
+            data["last_owner_ts"] = _time.time()
+            await ctx.db.update_object(
+                droid["id"],
+                name=target_tier["name"],
+                data=_dump_data(data),
+            )
+
+            old_slots = current_tier.get("slots", 10)
+            new_slots = target_tier.get("slots", 25)
+            await ctx.session.send_line(
+                f"  \033[1;32mUpgrade complete!\033[0m "
+                f"{current_tier.get('name', current_tier_key)} → "
+                f"\033[1;37m{target_tier['name']}\033[0m\n"
+                f"  Cost: {upgrade_cost:,} cr "
+                f"(Balance: {char['credits']:,} cr)\n"
+                f"  Inventory slots: {old_slots} → {new_slots}\n"
+                f"  All stocked items have been preserved."
+            )
+            if target_tier.get("buy_orders"):
+                await ctx.session.send_line(
+                    f"  \033[1;33mBuy orders now available!\033[0m "
+                    f"Use \033[1;33mshop order\033[0m to post wanted listings."
+                )
+            return
+
         await ctx.session.send_line(
             f"  Unknown shop command '{sub}'.\n"
             f"  Try: buy, place, recall, name, desc, stock, unstock, price, "
-            f"collect, sales, order, cancel"
+            f"collect, sales, order, cancel, upgrade"
         )
 
 
@@ -346,6 +468,8 @@ class BrowseCommand(BaseCommand):
         if not arg:
             room_name = room["name"] if room else ""
             await ctx.session.send_line(format_droid_list(droids, room_name))
+            # Emit shop_state so web panel shows room droids
+            await _send_shop_browse(ctx.session, droids, focused_id=None)
             return
 
         droid = find_droid_by_name(droids, arg)
@@ -359,6 +483,8 @@ class BrowseCommand(BaseCommand):
         await ctx.session.send_line(
             format_droid_inventory(droid, viewer_id=char["id"])
         )
+        # Emit shop_state for web browse panel
+        await _send_shop_browse(ctx.session, droids, focused_id=droid["id"])
 
 
 # ── Admin @shop command ────────────────────────────────────────────────────────
@@ -511,6 +637,7 @@ def _find_in_inventory(char: dict, name_arg: str):
                     "equipment",
                 )
     except Exception:
+        log.warning("_find_in_inventory: unhandled exception", exc_info=True)
         pass
 
     # Check crafting resources
@@ -530,6 +657,7 @@ def _find_in_inventory(char: dict, name_arg: str):
                     "resource",
                 )
     except Exception:
+        log.warning("_find_in_inventory: unhandled exception", exc_info=True)
         pass
 
     # Check general inventory items
@@ -551,12 +679,238 @@ def _find_in_inventory(char: dict, name_arg: str):
                     "item",
                 )
     except Exception:
+        log.warning("_find_in_inventory: unhandled exception", exc_info=True)
         pass
 
     return None, None, 0, "", None
+
+
+# ── Web JSON helpers ───────────────────────────────────────────────────────────
+
+def _droid_to_dict(droid: dict) -> dict:
+    """Serialize a vendor droid object to a JSON-safe dict for shop_state."""
+    from engine.vendor_droids import _load_data
+    data = _load_data(droid)
+    inventory = data.get("inventory", [])
+    return {
+        "id": droid["id"],
+        "name": data.get("shop_name") or droid.get("name", "Vendor Droid"),
+        "desc": data.get("shop_desc", ""),
+        "tier": data.get("tier_key", "gn4"),
+        "placed": bool(droid.get("room_id")),
+        "escrow": data.get("escrow_credits", 0),
+        "item_count": len([s for s in inventory if s.get("quantity", 0) > 0]),
+        "inventory": [
+            {
+                "slot": i + 1,
+                "name": slot.get("item_name", "Unknown"),
+                "price": slot.get("price", 0),
+                "qty": slot.get("quantity", 1),
+                "quality": slot.get("quality", 0),
+                "crafter": slot.get("crafter", ""),
+            }
+            for i, slot in enumerate(inventory)
+            if slot.get("quantity", 0) > 0
+        ],
+    }
+
+
+async def _get_sales_summary(db, owner_id: int, droid_id: int) -> list:
+    """Fetch recent sales for the dashboard (last 10 per droid)."""
+    try:
+        txns = await db.get_shop_transactions(owner_id, droid_id=droid_id, limit=10)
+        import datetime as _dt
+        result = []
+        for t in txns:
+            ts = _dt.datetime.fromtimestamp(
+                float(t.get("created_at", 0))
+            ).strftime("%m/%d %H:%M")
+            net = t["total_price"] - t.get("listing_fee", 0)
+            result.append({
+                "ts": ts,
+                "item": t["item_name"],
+                "qty": t.get("quantity", 1),
+                "net": net,
+                "buyer": t.get("buyer_name", "?"),
+            })
+        return result
+    except Exception:
+        log.warning("_get_sales_summary: unhandled exception", exc_info=True)
+        return []
+
+
+async def _send_shop_dashboard(session, droids: list, char: dict, db) -> None:
+    """
+    Send a shop_state JSON message for the +shop owner dashboard.
+    WebSocket only — Telnet clients ignore it.
+    """
+    try:
+        from server.session import Protocol
+        if session.protocol != Protocol.WEBSOCKET:
+            return
+
+        droid_list = []
+        total_escrow = 0
+        for d in droids:
+            entry = _droid_to_dict(d)
+            entry["sales"] = await _get_sales_summary(db, char["id"], d["id"])
+            total_escrow += entry["escrow"]
+            droid_list.append(entry)
+
+        await session.send_json("shop_state", {
+            "mode": "dashboard",
+            "owner_name": char.get("name", ""),
+            "total_escrow": total_escrow,
+            "droids": droid_list,
+        })
+    except Exception:
+        pass  # Non-critical — text output already sent
+
+
+async def _send_shop_browse(session, droids: list, focused_id=None) -> None:
+    """
+    Send a shop_state JSON message for the buyer browse panel.
+    WebSocket only — Telnet clients ignore it.
+    """
+    try:
+        from server.session import Protocol
+        if session.protocol != Protocol.WEBSOCKET:
+            return
+
+        droid_list = [_droid_to_dict(d) for d in droids]
+
+        await session.send_json("shop_state", {
+            "mode": "browse",
+            "focused_id": focused_id,
+            "droids": droid_list,
+        })
+    except Exception:
+        pass  # Non-critical — text output already sent
 
 
 def register_shop_commands(registry):
     registry.register(ShopCommand())
     registry.register(BrowseCommand())
     registry.register(AdminShopCommand())
+    registry.register(MarketSearchCommand())
+
+
+class MarketSearchCommand(BaseCommand):
+    """
+    market search [planet]  — Search the planet-wide shopfront directory.
+    Lists all vendor droids in player-owned shopfront residences.
+    Drop 5: Housing Shopfronts.
+    """
+    key = "market"
+    aliases = ["mkt"]
+    help_text = (
+        "Search the planetary market directory for player-run shops.\n"
+        "\n"
+        "USAGE:\n"
+        "  market search           — list all shopfronts on the current planet\n"
+        "  market search <planet>  — list shopfronts on a specific planet\n"
+        "  market search all       — list all shopfronts across all planets\n"
+        "\n"
+        "Only vendor droids placed in player-owned shopfront residences appear here.\n"
+        "Use 'browse <shop name>' to browse a specific shop's inventory."
+    )
+    usage = "market search [planet | all]"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        from engine.housing import get_market_directory
+
+        char    = ctx.session.character
+        args    = (ctx.args or "").strip().lower()
+        parts   = args.split(None, 1)
+        sub     = parts[0] if parts else ""
+        planet  = parts[1].strip() if len(parts) > 1 else None
+
+        if sub not in ("search", ""):
+            await ctx.session.send_line(
+                "  Usage: market search [planet | all]\n"
+                "  Example: market search tatooine"
+            )
+            return
+
+        # Determine planet filter: default to current room's planet
+        if not planet or planet == "all":
+            filter_planet = None
+            if not planet:
+                # Infer from current room's zone
+                try:
+                    room_id = char.get("room_id")
+                    if room_id:
+                        room = await ctx.db.get_room(room_id)
+                        if room and room.get("zone_id"):
+                            zone = await ctx.db.get_zone(room["zone_id"])
+                            if zone:
+                                props = zone.get("properties", "{}")
+                                import json as _j
+                                if isinstance(props, str):
+                                    props = _j.loads(props)
+                                filter_planet = props.get("planet", "").lower() or None
+                except Exception:
+                    log.warning("execute: unhandled exception", exc_info=True)
+                    pass
+        else:
+            filter_planet = planet
+
+        shops = await get_market_directory(ctx.db, filter_planet)
+
+        planet_label = filter_planet.title() if filter_planet else "All Planets"
+        lines = [
+            f"\033[1;37m── Market Directory — {planet_label} ──\033[0m",
+        ]
+
+        if not shops:
+            lines.append(
+                f"  No player shopfronts found"
+                + (f" on {planet_label}" if filter_planet else "") + "."
+            )
+            lines.append(
+                "  Players can open shopfronts with: \033[1;37mhousing shopfront\033[0m"
+            )
+            for line in lines:
+                await ctx.session.send_line(line)
+            return
+
+        # Group by planet
+        by_planet: dict[str, list] = {}
+        for s in shops:
+            by_planet.setdefault(s["planet"], []).append(s)
+
+        tier_labels = {"gn4": "GN-4", "gn7": "GN-7", "gn12": "GN-12"}
+        TIER_COLORS = {
+            "gn4":  "\033[2m",
+            "gn7":  "\033[1;36m",
+            "gn12": "\033[1;33m",
+        }
+
+        for p_name, p_shops in sorted(by_planet.items()):
+            lines.append(f"")
+            lines.append(f"  \033[1;36m{p_name.title()}\033[0m")
+            lines.append(f"  {'Shop Name':<28} {'Owner':<18} {'Items':>5}  {'Tier':<8}  Location")
+            lines.append("  " + "─" * 74)
+            for s in sorted(p_shops, key=lambda x: x["shop_name"].lower()):
+                tier_color = TIER_COLORS.get(s["tier_key"], "")
+                tier_str   = tier_labels.get(s["tier_key"], s["tier_key"])
+                items_str  = str(s["item_count"]) if s["item_count"] > 0 else "—"
+                lines.append(
+                    f"  \033[1;37m{s['shop_name']:<28}\033[0m "
+                    f"\033[2m{s['owner_name']:<18}\033[0m "
+                    f"{items_str:>5}  "
+                    f"{tier_color}{tier_str:<8}\033[0m  "
+                    f"\033[2m{s['room_name']}\033[0m"
+                )
+                if s.get("shop_desc"):
+                    lines.append(f"    \033[2m{s['shop_desc'][:70]}\033[0m")
+
+        lines += [
+            "",
+            "  Use \033[1;37mbrowse <shop name>\033[0m to see a shop's inventory.",
+            "  Use \033[1;37mhousing shopfront\033[0m to open your own shop.",
+        ]
+
+        for line in lines:
+            await ctx.session.send_line(line)
+

@@ -221,6 +221,7 @@ class OllamaProvider(AIProvider):
                         data = await resp.json()
                         return [m["name"] for m in data.get("models", [])]
         except Exception:
+            log.debug("providers: model list fetch failed", exc_info=True)
             pass
         return []
 

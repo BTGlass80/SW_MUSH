@@ -301,6 +301,7 @@ async def _complete_space_mission(ctx, active) -> bool:
                 if getattr(anom, "resolved", False):
                     resolved_count += 1
         except Exception:
+            log.warning("_complete_space_mission: unhandled exception", exc_info=True)
             pass
         required = md.get("anomalies_required", 1)
         if resolved_count < required:
@@ -343,6 +344,7 @@ class CompleteMissionCommand(BaseCommand):
                     active = Mission.from_dict(json.loads(row["data"]))
                     board._missions[active.id] = active
                 except Exception:
+                    log.warning("execute: unhandled exception", exc_info=True)
                     pass
 
         if not active:
@@ -403,6 +405,7 @@ class CompleteMissionCommand(BaseCommand):
                         or room_name.lower() in active.destination.lower()
                     )
             except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
                 pass
 
         if not at_destination:
@@ -478,6 +481,7 @@ class CompleteMissionCommand(BaseCommand):
                     char["id"], faction_id, REP_GAINS["complete_faction_mission"]
                 )
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
         # Narrative: log mission completion
@@ -486,6 +490,38 @@ class CompleteMissionCommand(BaseCommand):
             await log_action(ctx.db, char["id"], NT.MISSION_COMPLETE,
                              f"Completed mission '{completed.title}' for {reward:,} credits",
                              {"mission_type": completed.mission_type.value, "reward": reward})
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        try:
+            from engine.ships_log import log_event as _mlog
+            await _mlog(ctx.db, char, "missions_complete")
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        try:
+            from engine.tutorial_v2 import check_profession_chains
+            await check_profession_chains(
+                ctx.session, ctx.db, "mission_complete",
+                mission_type=getattr(completed, "mission_type", None),
+            )
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        # Territory influence: mission complete in zone
+        try:
+            from engine.territory import on_mission_complete
+            await on_mission_complete(ctx.db, char, char.get("room_id", 0))
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        # Spacer quest: mission complete
+        try:
+            from engine.spacer_quest import check_spacer_quest
+            await check_spacer_quest(
+                ctx.session, ctx.db, "mission",
+                mission_type=getattr(completed, "mission_type", None),
+            )
         except Exception:
             pass
 
@@ -516,6 +552,7 @@ class AbandonMissionCommand(BaseCommand):
                     active = Mission.from_dict(json.loads(row["data"]))
                     board._missions[active.id] = active
                 except Exception:
+                    log.warning("execute: unhandled exception", exc_info=True)
                     pass
 
         if not active:

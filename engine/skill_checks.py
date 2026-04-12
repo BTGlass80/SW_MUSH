@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 engine/skill_checks.py  --  Out-of-combat skill check helpers
-SW_MUSH  |  Economy Phase 2
+SW_MUSH  |  Economy Phase 2  |  v22 dice-unified
 
 Centralised helpers for non-combat skill checks used across
 the mission, bounty, and smuggling systems.
@@ -11,22 +11,49 @@ Design principles:
   - Untrained use is allowed — you roll the raw attribute
   - Results produce: success/fail, margin, narrative flavour
   - Partial success possible on a near-miss (margin >= -4)
-  - Wild Die applies (exploding 6, mishap on 1)
+  - Wild Die applies (exploding 6, complication on 1)
+  - ALL rolls delegate to engine.dice.roll_d6_pool — ONE dice engine
 
-Difficulty scale (WEG D6 R&E p82):
-  Very Easy   6
-  Easy        8  (also floor for trivial tasks)
-  Moderate   11
-  Difficult  16
-  Very Diff  21
-  Heroic     26+
+Difficulty scale (WEG D6 R&E p82 — canonical ladder):
+  Very Easy    5
+  Easy        10
+  Moderate    15
+  Difficult   20
+  Very Diff   25
+  Heroic      30+
+
+Note: mission_difficulty() uses intermediate values (8, 11, 14, etc.)
+for game-specific reward scaling. These are deliberate tuning, not a
+divergent ladder.
 """
 import logging
-import random
 from dataclasses import dataclass
+
+from engine.dice import DicePool, roll_d6_pool
 
 log = logging.getLogger(__name__)
 
+
+# ── Module-level SkillRegistry singleton ──────────────────────────────────────
+# Loaded once on first use, not per call.  Eliminates S1 from the audit.
+
+_default_registry = None
+
+
+def _get_default_registry():
+    global _default_registry
+    if _default_registry is None:
+        try:
+            from engine.character import SkillRegistry
+            _default_registry = SkillRegistry()
+            _default_registry.load_default()
+        except Exception:
+            log.warning("Failed to load default SkillRegistry", exc_info=True)
+            _default_registry = None
+    return _default_registry
+
+
+# ── Result dataclass ─────────────────────────────────────────────────────────
 
 @dataclass
 class SkillCheckResult:
@@ -35,53 +62,12 @@ class SkillCheckResult:
     success: bool       # roll >= difficulty
     margin: int         # roll - difficulty (negative = failure margin)
     critical_success: bool  # Wild Die exploded at least once AND succeeded
-    fumble: bool        # Wild Die came up 1 (mishap)
+    fumble: bool        # Wild Die came up 1 (complication)
     skill_used: str
     pool_str: str       # e.g. "4D+2"
 
 
-def _pool_to_str(dice: int, pips: int) -> str:
-    if pips == 0:
-        return f"{dice}D"
-    return f"{dice}D+{pips}"
-
-
-def _roll_wild_die_pool(dice: int, pips: int) -> tuple[int, bool, bool]:
-    """
-    Roll a WEG D6 pool with Wild Die.
-    Returns (total, critical_success, fumble).
-    The last die is the Wild Die.
-    """
-    if dice <= 0:
-        # Attribute-less character: 2D default floor
-        dice = 2
-        pips = 0
-
-    # Regular dice
-    regular = sum(random.randint(1, 6) for _ in range(max(0, dice - 1)))
-
-    # Wild Die
-    wild = random.randint(1, 6)
-    fumble = (wild == 1)
-    exploded = False
-
-    if wild == 6:
-        exploded = True
-        while True:
-            extra = random.randint(1, 6)
-            wild += extra
-            if extra != 6:
-                break
-
-    if fumble:
-        # Mishap: subtract highest regular die result (min 0)
-        # Simple approximation: subtract Wild Die result (just 1)
-        total = max(0, regular + pips)
-    else:
-        total = regular + wild + pips
-
-    return total, (exploded and not fumble), fumble
-
+# ── Core skill check ─────────────────────────────────────────────────────────
 
 def perform_skill_check(
     char: dict,
@@ -96,39 +82,38 @@ def perform_skill_check(
         char: Character dict from session (has 'attributes', 'skills' keys).
         skill_name: Lowercase skill name e.g. "con", "search", "blaster".
         difficulty: Target number.
-        skill_registry: SkillRegistry instance (loaded lazily if None).
+        skill_registry: SkillRegistry instance (uses module singleton if None).
 
     Returns:
         SkillCheckResult
     """
-    # Lazy-load skill registry
     if skill_registry is None:
-        try:
-            from engine.character import SkillRegistry
-            skill_registry = SkillRegistry()
-            skill_registry.load_default()
-        except Exception:
-            skill_registry = None
+        skill_registry = _get_default_registry()
 
     # Parse character's skill pool
     dice, pips = _get_skill_pool(char, skill_name, skill_registry)
-    pool_str = _pool_to_str(dice, pips)
+    pool = DicePool(dice, pips)
+    pool_str = str(pool)
 
-    total, crit, fumble = _roll_wild_die_pool(dice, pips)
-    success = total >= difficulty
-    margin = total - difficulty
+    # Roll through the ONE canonical dice engine
+    roll = roll_d6_pool(pool)
+
+    success = roll.total >= difficulty
+    margin = roll.total - difficulty
 
     return SkillCheckResult(
-        roll=total,
+        roll=roll.total,
         difficulty=difficulty,
         success=success,
         margin=margin,
-        critical_success=crit and success,
-        fumble=fumble,
+        critical_success=roll.exploded and success,
+        fumble=roll.complication,
         skill_used=skill_name,
         pool_str=pool_str,
     )
 
+
+# ── Skill pool extraction ────────────────────────────────────────────────────
 
 def _get_skill_pool(char: dict, skill_name: str, skill_registry) -> tuple[int, int]:
     """
@@ -147,8 +132,8 @@ def _get_skill_pool(char: dict, skill_name: str, skill_registry) -> tuple[int, i
     except Exception:
         attrs = {}
 
-    attr_pool = _parse_dice_str(attrs.get(attr_name, "2D"))
-    attr_dice, attr_pips = attr_pool
+    attr_pool = DicePool.parse(attrs.get(attr_name, "2D"))
+    attr_dice, attr_pips = attr_pool.dice, attr_pool.pips
 
     # Parse skills JSON for bonus
     try:
@@ -161,8 +146,8 @@ def _get_skill_pool(char: dict, skill_name: str, skill_registry) -> tuple[int, i
         # Untrained: roll raw attribute
         return attr_dice, attr_pips
 
-    bonus_dice, bonus_pips = _parse_dice_str(bonus_str)
-    total_pips = (attr_dice * 3 + attr_pips) + (bonus_dice * 3 + bonus_pips)
+    bonus_pool = DicePool.parse(bonus_str)
+    total_pips = (attr_dice * 3 + attr_pips) + (bonus_pool.dice * 3 + bonus_pool.pips)
     return total_pips // 3, total_pips % 3
 
 
@@ -174,7 +159,7 @@ def _skill_to_attr(skill_name: str, skill_registry) -> str:
             if skill_def:
                 return skill_def.attribute.lower()
         except Exception:
-            pass
+            log.warning("_skill_to_attr: unhandled exception", exc_info=True)
 
     # Hardcoded fallback for common skills
     _FALLBACK = {
@@ -188,7 +173,7 @@ def _skill_to_attr(skill_name: str, skill_registry) -> str:
         "blaster repair": "technical", "space transports repair": "technical",
         "space transports": "mechanical", "starship piloting": "mechanical",
         "astrogation": "mechanical", "repulsorlift operation": "mechanical",
-        "stamina": "strength", "lifting": "strength", "brawling parry": "strength",
+        "stamina": "strength", "lifting": "strength", "brawling parry": "dexterity",
         "intimidation": "perception", "command": "perception",
         "willpower": "knowledge", "scholar": "knowledge",
         "starfighter repair": "technical", "capital ship repair": "technical",
@@ -196,25 +181,6 @@ def _skill_to_attr(skill_name: str, skill_registry) -> str:
         "musical instrument": "perception",
     }
     return _FALLBACK.get(skill_name, "perception")
-
-
-def _parse_dice_str(s: str) -> tuple[int, int]:
-    """Parse '3D+2', '4D', '2D+1' etc into (dice, pips)."""
-    if not s:
-        return 2, 0
-    s = s.strip().upper()
-    try:
-        if "D" in s:
-            parts = s.split("D")
-            dice = int(parts[0]) if parts[0] else 0
-            pip_part = parts[1] if len(parts) > 1 else "0"
-            pip_part = pip_part.replace("+", "").strip()
-            pips = int(pip_part) if pip_part else 0
-            return dice, pips
-        else:
-            return int(s) // 3, int(s) % 3
-    except Exception:
-        return 2, 0
 
 
 # ── Mission completion skill check ────────────────────────────────────────────
@@ -235,16 +201,17 @@ MISSION_SKILL_MAP = {
 }
 
 # Difficulty scaling: reward band -> difficulty
+# These are game-tuning intermediate values, not the R&E canonical ladder.
 def mission_difficulty(reward: int) -> int:
     """Scale difficulty by reward amount."""
     if reward < 300:
-        return 8    # Easy
+        return 8    # Easy-
     if reward < 600:
-        return 11   # Moderate
+        return 11   # Moderate-
     if reward < 1200:
         return 14   # Moderate+
     if reward < 2500:
-        return 16   # Difficult
+        return 16   # Difficult-
     if reward < 5000:
         return 19   # Very Difficult-
     return 21       # Very Difficult
@@ -331,6 +298,8 @@ def resolve_mission_completion(
 # price modifier.  Simplified for MUSH: each 4 points of margin = ±2%,
 # capped at ±10%.  A critical doubles the modifier.  A fumble inverts it.
 #
+# v22: NPC now rolls through roll_d6_pool (gets Wild Die per audit #3).
+#
 # Usage:
 #   from engine.skill_checks import resolve_bargain_check
 #   result = resolve_bargain_check(char, npc_bargain_dice=3, npc_bargain_pips=0,
@@ -350,7 +319,7 @@ def resolve_bargain_check(
     Resolve a Bargain opposed roll for buy/sell transactions.
 
     The player rolls Bargain (or raw Perception if untrained).
-    The NPC rolls a fixed Bargain pool.
+    The NPC rolls a Bargain pool (now with Wild Die per audit #3).
     Margin maps to price shift: ±2% per 4 points, capped ±10%.
     Critical success: modifier is doubled (up to ±10% cap).
     Fumble: modifier is inverted (player gets worse deal).
@@ -378,27 +347,24 @@ def resolve_bargain_check(
           "message": str,              # narrative line
         }
     """
-    # Player roll
+    # Player roll — through the canonical dice engine
     if skill_registry is None:
-        try:
-            from engine.character import SkillRegistry
-            skill_registry = SkillRegistry()
-            skill_registry.load_default()
-        except Exception:
-            skill_registry = None
+        skill_registry = _get_default_registry()
 
     player_dice, player_pips = _get_skill_pool(char, "bargain", skill_registry)
-    player_pool_str = _pool_to_str(player_dice, player_pips)
+    player_pool = DicePool(player_dice, player_pips)
+    player_pool_str = str(player_pool)
 
-    player_total, player_crit, player_fumble = _roll_wild_die_pool(
-        player_dice, player_pips
-    )
+    player_roll = roll_d6_pool(player_pool)
+    player_total = player_roll.total
+    player_crit = player_roll.exploded and not player_roll.complication
+    player_fumble = player_roll.complication
 
-    # NPC roll (no Wild Die — NPCs use flat rolls for simplicity)
-    npc_total = sum(
-        random.randint(1, 6) for _ in range(max(1, npc_bargain_dice))
-    ) + npc_bargain_pips
-    npc_pool_str = _pool_to_str(npc_bargain_dice, npc_bargain_pips)
+    # NPC roll — also through roll_d6_pool now (audit fix #3: NPCs get Wild Die)
+    npc_pool = DicePool(max(1, npc_bargain_dice), npc_bargain_pips)
+    npc_pool_str = str(npc_pool)
+    npc_roll = roll_d6_pool(npc_pool)
+    npc_total = npc_roll.total
 
     # Margin: positive = player wins the haggle
     margin = player_total - npc_total
@@ -423,19 +389,14 @@ def resolve_bargain_check(
     # Apply modifier: for buying, negative % = cheaper (good for player)
     # For selling, positive % = higher sell price (good for player)
     if is_buying:
-        # Player wants to pay LESS. If they win, price decreases.
-        # raw_pct positive = player wins = price goes DOWN
         modifier = -raw_pct
     else:
-        # Player wants to get MORE. If they win, price goes UP.
-        # raw_pct positive = player wins = price goes UP
         modifier = raw_pct
 
     adjusted = max(1, int(base_price * (1 + modifier / 100)))
 
     # Build narrative
     if modifier < 0:
-        # Player pays more (buying) or gets less (selling)
         if is_buying:
             msg = f"  The vendor holds firm. You pay a bit extra."
         else:
@@ -468,16 +429,6 @@ def resolve_bargain_check(
 
 
 # ── Ship repair skill check ──────────────────────────────────────────────────
-#
-# Wraps perform_skill_check for damcon / shiprepair with repair-specific
-# outputs: hull_repaired scaled by margin, fumble → catastrophic failure.
-#
-# Usage:
-#   from engine.skill_checks import resolve_repair_check
-#   result = resolve_repair_check(char, "space transports repair", difficulty=20)
-#   if result["success"]:
-#       hull_repaired = result["hull_repaired"]
-# ─────────────────────────────────────────────────────────────────────────────
 
 def resolve_repair_check(
     char: dict,
@@ -543,7 +494,6 @@ def resolve_repair_check(
                     f"({result.pool_str}: {result.roll} vs {difficulty})"
                 )
     elif result.fumble or result.margin <= -9:
-        # Catastrophic failure — system destroyed beyond repair
         catastrophic = True
         msg = (
             f"  Catastrophic failure! Components fused together — "
@@ -552,7 +502,6 @@ def resolve_repair_check(
             f"margin: {result.margin})"
         )
     elif result.margin >= -4:
-        # Near-miss: system not fixed but stabilised (no worsening)
         partial = True
         msg = (
             f"  Almost had it — system stabilised but still offline. "
@@ -581,10 +530,6 @@ def resolve_repair_check(
 
 
 # ── Coordinate (Command skill) check ────────────────────────────────────────
-#
-# Used by CoordinateCommand in space_commands.py.
-# Simple wrapper so space_commands doesn't roll dice directly.
-# ─────────────────────────────────────────────────────────────────────────────
 
 def resolve_coordinate_check(
     char: dict,

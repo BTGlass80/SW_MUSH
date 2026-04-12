@@ -397,4 +397,5 @@ def describe_lock(lock_str: str) -> str:
         lock = parse_lock(lock_str)
         return lock.describe()
     except Exception:
+        log.warning("lock describe failed", exc_info=True)
         return lock_str

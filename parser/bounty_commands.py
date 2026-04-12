@@ -204,6 +204,7 @@ class BountyTrackCommand(BaseCommand):
                     best_pool = pool
                     best_skill = sk
             except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
                 continue
 
         if best_pool is None:
@@ -291,6 +292,7 @@ class BountyCollectCommand(BaseCommand):
                 if wound >= 5:
                     target_down = True
             except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
                 pass
 
             # Also check: are we in the same room?
@@ -342,6 +344,7 @@ class BountyCollectCommand(BaseCommand):
             try:
                 await ctx.db.delete_npc(contract.target_npc_id)
             except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
                 pass
 
         await ctx.session.send_line(
@@ -377,6 +380,7 @@ class BountyCollectCommand(BaseCommand):
                              {"target": collected.target_name, "reward": reward,
                               "org": collected.posting_org})
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
         try:
             from engine.organizations import REP_GAINS
@@ -385,6 +389,36 @@ class BountyCollectCommand(BaseCommand):
                 await ctx.db.adjust_rep(char["id"], "bh_guild",
                                          REP_GAINS["complete_bounty"])
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        # Ships log + profession chain hook
+        try:
+            from engine.ships_log import log_event as _blog
+            await _blog(ctx.db, char, "bounties_collected")
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        try:
+            from engine.tutorial_v2 import check_profession_chains
+            await check_profession_chains(ctx.session, ctx.db, "bounty_collected")
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        # Spacer quest: bounty collected
+        try:
+            from engine.spacer_quest import check_spacer_quest
+            await check_spacer_quest(
+                ctx.session, ctx.db, "bounty",
+                tier=getattr(collected, "tier", 0),
+            )
+        except Exception:
+            pass
+        # Territory influence: mission complete in zone
+        try:
+            from engine.territory import on_mission_complete
+            await on_mission_complete(ctx.db, char, char.get("room_id", 0))
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
 

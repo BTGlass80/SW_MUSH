@@ -241,6 +241,26 @@ class SmugDeliverCommand(BaseCommand):
             from engine.ships_log import log_event as _smlog
             await _smlog(ctx.db, char, "smuggling_runs")
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        try:
+            from engine.tutorial_v2 import check_profession_chains
+            _smug_job_data = completed.__dict__ if hasattr(completed, "__dict__") else {}
+            _dest_p = getattr(completed, "dropoff_planet", "") or getattr(completed, "dropoff_name", "")
+            _orig_p = getattr(completed, "pickup_planet", "") or getattr(completed, "pickup_name", "")
+            await check_profession_chains(
+                ctx.session, ctx.db, "smuggling_complete",
+                dest_planet=str(_dest_p), origin_planet=str(_orig_p),
+            )
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        # Territory influence: mission complete in zone
+        try:
+            from engine.territory import on_mission_complete
+            await on_mission_complete(ctx.db, char, char.get("room_id", 0))
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
         await ctx.session.send_line(
             f"  Payment received: {reward:,} credits. Balance: {new_credits:,} credits."
@@ -251,6 +271,7 @@ class SmugDeliverCommand(BaseCommand):
             from engine.director import get_director
             get_director().digest.record_contraband_sale()
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
         # Narrative + faction rep hooks
@@ -262,6 +283,7 @@ class SmugDeliverCommand(BaseCommand):
                              {"cargo": completed.cargo_type, "dropoff": completed.dropoff_name,
                               "reward": reward})
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
         try:
             from engine.organizations import REP_GAINS
@@ -269,6 +291,16 @@ class SmugDeliverCommand(BaseCommand):
             if faction_id == "hutt":
                 await ctx.db.adjust_rep(char["id"], "hutt",
                                          REP_GAINS["deliver_contraband"])
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        # Spacer quest: smuggling job delivered
+        try:
+            from engine.spacer_quest import check_spacer_quest
+            await check_spacer_quest(
+                ctx.session, ctx.db, "smuggling",
+                tier=getattr(completed, "tier", 0),
+            )
         except Exception:
             pass
 
@@ -327,6 +359,7 @@ async def check_patrol_on_launch(ctx: CommandContext) -> bool:
             get_director().get_alert_level("spaceport") == AlertLevel.LOCKDOWN
         )
     except Exception:
+        log.warning("check_patrol_on_launch: unhandled exception", exc_info=True)
         pass
 
     # Player rolls Con or Sneak (use the higher of the two)
@@ -417,6 +450,7 @@ async def check_patrol_on_arrival(ctx: CommandContext, dest_planet: str) -> bool
             get_director().get_alert_level("spaceport") == AlertLevel.LOCKDOWN
         )
     except Exception:
+        log.warning("check_patrol_on_arrival: unhandled exception", exc_info=True)
         pass
 
     char = ctx.session.character
@@ -480,6 +514,7 @@ async def _get_player_ship(ctx: CommandContext):
         if owned:
             return owned[0]
     except Exception:
+        log.warning("_get_player_ship: unhandled exception", exc_info=True)
         pass
     return None
 

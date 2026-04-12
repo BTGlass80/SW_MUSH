@@ -50,6 +50,7 @@ def _time_ago(ts_str: str) -> str:
         d = secs // 86400
         return f"{d} days ago"
     except Exception:
+        log.warning("format_ts failed", exc_info=True)
         return ts_str
 
 

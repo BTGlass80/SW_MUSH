@@ -65,6 +65,15 @@ class BackgroundCommand(BaseCommand):
             f"  \033[1;32mBackground saved.\033[0m "
             f"({len(text)} chars)  NPCs and the Director will take note."
         )
+        # Spacer quest: background written
+        try:
+            from engine.spacer_quest import check_spacer_quest
+            await check_spacer_quest(
+                ctx.session, ctx.db, "use_command",
+                command="+background", text_length=len(text),
+            )
+        except Exception:
+            pass
 
 
 # ── +recap ────────────────────────────────────────────────────────────────────

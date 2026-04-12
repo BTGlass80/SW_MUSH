@@ -310,6 +310,7 @@ async def trigger_on_demand_summarization(db, char_id: int,
         if not claude or not await claude.is_available():
             return False
     except Exception:
+        log.warning("trigger_on_demand_summarization: unhandled exception", exc_info=True)
         return False
 
     rec = await db.get_narrative(char_id)

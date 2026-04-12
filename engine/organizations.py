@@ -119,6 +119,7 @@ def _get_attrs(char: dict) -> dict:
         try:
             return json.loads(raw)
         except Exception:
+            log.warning("_get_attrs: unhandled exception", exc_info=True)
             return {}
     return raw if isinstance(raw, dict) else {}
 
@@ -405,7 +406,18 @@ async def join_faction(char: dict, faction_code: str, db,
         from engine.narrative import log_action, ActionType as NT
         await log_action(db, char["id"], NT.FACTION_JOIN, f"Joined {org['name']}")
     except Exception:
+        log.warning("join_faction: unhandled exception", exc_info=True)
         pass
+
+    # Housing hook: assign faction quarters if qualifying rank
+    try:
+        from engine.housing import assign_faction_quarters
+        mem = await db.get_membership(char["id"], org["id"])
+        rank_level = mem["rank_level"] if mem else 0
+        await assign_faction_quarters(db, char, faction_code, rank_level,
+                                       session=session)
+    except Exception as e:
+        log.warning("[organizations] housing hook on join error: %s", e)
 
     return True, f"You have joined the \033[1;37m{org['name']}\033[0m."
 
@@ -437,7 +449,15 @@ async def leave_faction(char: dict, db, session=None) -> tuple[bool, str]:
         await log_action(db, char["id"], NT.FACTION_LEAVE,
                          f"Left {org['name']}" if org else "Left faction")
     except Exception:
+        log.warning("leave_faction: unhandled exception", exc_info=True)
         pass
+
+    # Housing hook: revoke faction quarters
+    try:
+        from engine.housing import revoke_faction_quarters
+        await revoke_faction_quarters(db, char, current, session=session)
+    except Exception as e:
+        log.warning("[organizations] housing hook on leave error: %s", e)
 
     return True, (
         f"You have left {org['name'] if org else 'the faction'}. "
@@ -566,15 +586,22 @@ async def promote(char: dict, org_code: str, db,
             if not a.get("faction", {}).get("specialization"):
                 pass  # Handled separately via SpecializeCommand
     except Exception:
+        log.warning("promote: unhandled exception", exc_info=True)
         pass
+
+    # Housing hook: assign/upgrade faction quarters on promotion
+    try:
+        from engine.housing import check_faction_quarters_on_rank_change
+        await check_faction_quarters_on_rank_change(
+            db, char, org_code, next_level, session=None)
+    except Exception as e:
+        log.warning("[organizations] housing hook on promote error: %s", e)
 
     return True, (
         f"{char['name']} has been promoted to "
         f"\033[1;37m{next_rank['title']}\033[0m in {org['name']}."
     )
 
-
-# ── Payroll tick ──────────────────────────────────────────────────────────────
 
 async def faction_payroll_tick(db) -> int:
     """
@@ -626,6 +653,7 @@ async def faction_payroll_tick(db) -> int:
                         f"Weekly stipend: {stipend}cr"
                     )
                 except Exception:
+                    log.warning("faction_payroll_tick: unhandled exception", exc_info=True)
                     pass
 
             # Update treasury — method is adjust_org_treasury
@@ -652,6 +680,7 @@ async def get_guild_cp_multiplier(char: dict, db) -> float:
                     and m.get("standing", "good") != "expelled"):
                 return 1.0 - GUILD_CP_DISCOUNT
     except Exception:
+        log.warning("get_guild_cp_multiplier: unhandled exception", exc_info=True)
         pass
     return 1.0
 
@@ -732,6 +761,7 @@ async def format_faction_status(char: dict, db) -> str:
                         names += f" (+{len(issued)-4} more)"
                     lines.append(f"  Issued:   \033[2m{names}\033[0m")
         except Exception:
+            log.warning("format_faction_status: unhandled exception", exc_info=True)
             pass
     else:
         lines.append("  Faction:  \033[2mIndependent\033[0m")
@@ -834,6 +864,14 @@ async def demote(char: dict, org_code: str, db,
         details += f" by {promoter_char['name']}"
     await db.log_faction_action(char["id"], org["id"], "demote", details)
 
+    # Housing hook: downgrade or revoke faction quarters on demotion
+    try:
+        from engine.housing import check_faction_quarters_on_rank_change
+        await check_faction_quarters_on_rank_change(
+            db, char, org_code, target_level, session=None)
+    except Exception as e:
+        log.warning("[organizations] housing hook on demote error: %s", e)
+
     return True, (
         f"{char['name']} has been demoted to "
         f"\033[2m{rank_title}\033[0m in {org['name']}."
@@ -876,6 +914,7 @@ async def set_standing(char: dict, org_code: str, standing: str, db,
         try:
             await reclaim_equipment(char, org_code, db)
         except Exception:
+            log.warning("set_standing: unhandled exception", exc_info=True)
             pass
 
     standing_labels = {
@@ -950,6 +989,7 @@ async def handoff_faction_leadership(org_code: str, new_leader: dict, db,
                 session_mgr, f"{org['name']} Command", org_code, announcement
             )
         except Exception:
+            log.warning("handoff_faction_leadership: unhandled exception", exc_info=True)
             pass
 
     return True, announcement

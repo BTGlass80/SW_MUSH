@@ -64,6 +64,7 @@ def _get_heal_rate(char: dict) -> int:
         attrs = json.loads(char.get("attributes", "{}"))
         return int(attrs.get("heal_rate", _DEFAULT_HEAL_RATE))
     except Exception:
+        log.warning("get_heal_rate failed", exc_info=True)
         return _DEFAULT_HEAL_RATE
 
 
@@ -227,6 +228,7 @@ def _get_pool_str(char: dict, skill_name: str) -> str:
         dice, pips = _get_skill_pool(char, skill_name, None)
         return _pool_to_str(dice, pips)
     except Exception:
+        log.warning("get_skill_str failed", exc_info=True)
         return "?"
 
 

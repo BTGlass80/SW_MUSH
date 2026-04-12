@@ -69,6 +69,7 @@ async def _handle_skill_trainer(ctx, npc_data, char) -> bool:
                   if isinstance(npc_data.ai_config_json, str)
                   else npc_data.ai_config_json) or {}
     except Exception:
+        log.warning("_handle_skill_trainer: unhandled exception", exc_info=True)
         return False
 
     if not ai_cfg.get("trainer") or not ai_cfg.get("train_skills"):
@@ -91,6 +92,7 @@ async def _handle_skill_trainer(ctx, npc_data, char) -> bool:
         from engine.organizations import get_guild_cp_multiplier
         guild_mult = await get_guild_cp_multiplier(char, ctx.db)
     except Exception:
+        log.warning("_handle_skill_trainer: unhandled exception", exc_info=True)
         pass
 
     await ctx.session.send_line(
@@ -284,6 +286,27 @@ class TalkCommand(BaseCommand):
                         npc_name=npc_row["name"],
                     )
                 except Exception:
+                    log.warning("execute: unhandled exception", exc_info=True)
+                    pass
+                try:
+                    from engine.tutorial_v2 import check_profession_chains
+                    _nname = npc_row["name"].lower()
+                    if "kessa" in _nname:
+                        await check_profession_chains(ctx.session, ctx.db, "talk_kessa")
+                    elif "dash" in _nname:
+                        await check_profession_chains(ctx.session, ctx.db, "talk_dash")
+                    elif "ssk" in _nname:
+                        await check_profession_chains(ctx.session, ctx.db, "talk_sskrath")
+                    elif "vek" in _nname or "nurren" in _nname:
+                        await check_profession_chains(ctx.session, ctx.db, "talk_vek")
+                    elif "gep" in _nname:
+                        await check_profession_chains(ctx.session, ctx.db, "talk_gep")
+                    elif "kreel" in _nname:
+                        await check_profession_chains(ctx.session, ctx.db, "talk_kreel")
+                    elif "rebel" in _nname or "fulcrum" in _nname or "contact" in _nname:
+                        await check_profession_chains(ctx.session, ctx.db, "talk_rebel_contact")
+                except Exception:
+                    log.warning("execute: unhandled exception", exc_info=True)
                     pass
                 return
 
@@ -313,6 +336,27 @@ class TalkCommand(BaseCommand):
                     npc_name=npc_row["name"],
                 )
             except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
+                pass
+            try:
+                from engine.tutorial_v2 import check_profession_chains
+                _nname2 = npc_row["name"].lower()
+                if "kessa" in _nname2:
+                    await check_profession_chains(ctx.session, ctx.db, "talk_kessa")
+                elif "dash" in _nname2:
+                    await check_profession_chains(ctx.session, ctx.db, "talk_dash")
+                elif "ssk" in _nname2:
+                    await check_profession_chains(ctx.session, ctx.db, "talk_sskrath")
+                elif "vek" in _nname2 or "nurren" in _nname2:
+                    await check_profession_chains(ctx.session, ctx.db, "talk_vek")
+                elif "gep" in _nname2:
+                    await check_profession_chains(ctx.session, ctx.db, "talk_gep")
+                elif "kreel" in _nname2:
+                    await check_profession_chains(ctx.session, ctx.db, "talk_kreel")
+                elif "rebel" in _nname2 or "fulcrum" in _nname2 or "contact" in _nname2:
+                    await check_profession_chains(ctx.session, ctx.db, "talk_rebel_contact")
+            except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
                 pass
             return
         # ── End tutorial NPC fast path ────────────────────────────────
@@ -414,6 +458,19 @@ class TalkCommand(BaseCommand):
                 ctx.session, ctx.db,
                 trigger="talk",
                 npc_name=npc_row["name"],
+            )
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        # Spacer quest: talking to an NPC
+        try:
+            from engine.spacer_quest import check_spacer_quest
+            _nroom = await ctx.db.get_room(ctx.session.character.get("room_id", 0))
+            await check_spacer_quest(
+                ctx.session, ctx.db, "talk",
+                npc_name=npc_row["name"],
+                room_name=_nroom.get("name", "") if _nroom else "",
+                room_id=ctx.session.character.get("room_id", 0),
             )
         except Exception:
             pass

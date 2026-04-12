@@ -429,6 +429,21 @@ def render_game_sheet(char_dict, skill_reg, width=W):
     else:
         lines.append(f"  {BOLD}Weapon:{RESET} {DIM}(none){RESET}")
 
+    # ── Worn Armor (v22) ──
+    armor_key = equip_data.get("armor", "") if isinstance(equip_data, dict) else ""
+    if armor_key:
+        from engine.weapons import get_weapon_registry as _wr_get
+        wr2 = _wr_get()
+        a = wr2.get(armor_key)
+        if a and a.is_armor:
+            dex_note = f"  {DIM}DEX {a.dexterity_penalty}{RESET}" if a.dexterity_penalty else ""
+            lines.append(
+                f"  {BOLD}Armor:{RESET}  {BRIGHT_WHITE}{a.name}{RESET}"
+                f"  E:{a.protection_energy} P:{a.protection_physical}{dex_note}"
+            )
+        else:
+            lines.append(f"  {BOLD}Armor:{RESET}  {armor_key}")
+
     lines.append(SEP)
     return lines
 

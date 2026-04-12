@@ -93,6 +93,7 @@ def _load_data(obj: dict) -> dict:
         try:
             return json.loads(raw)
         except Exception:
+            log.warning("_load_data: unhandled exception", exc_info=True)
             return {}
     return raw or {}
 
@@ -114,10 +115,29 @@ FORBIDDEN_ROOM_TYPES = frozenset({
 
 async def check_placement_allowed(room_id: int, owner_id: int, db) -> tuple[bool, str]:
     """Return (ok, error_msg). Check room and owner limits."""
-    # Room droid count
+    # Shopfront rooms bypass the per-room cap (the room IS the shop)
+    # and have their own droid_slots limit stored in room properties.
+    _is_shopfront = False
+    _shopfront_slots = MAX_DROIDS_PER_ROOM
+    try:
+        _room = await db.get_room(room_id)
+        if _room:
+            from engine.housing import is_shopfront_room_props
+            _props_raw = _room.get("properties", "{}")
+            _is_shopfront = is_shopfront_room_props(_props_raw)
+            if _is_shopfront:
+                import json as _j
+                _props = _j.loads(_props_raw) if isinstance(_props_raw, str) else (_props_raw or {})
+                _shopfront_slots = _props.get("droid_slots", MAX_DROIDS_PER_ROOM)
+    except Exception:
+        log.warning("check_placement_allowed: unhandled exception", exc_info=True)
+        pass
+
+    # Room droid count — shopfront uses its own slot count
     existing = await db.get_objects_in_room(room_id, "vendor_droid")
-    if len(existing) >= MAX_DROIDS_PER_ROOM:
-        return False, f"This room already has {MAX_DROIDS_PER_ROOM} vendor droids (maximum)."
+    _room_limit = _shopfront_slots if _is_shopfront else MAX_DROIDS_PER_ROOM
+    if len(existing) >= _room_limit:
+        return False, f"This room already has {_room_limit} vendor droids (maximum)."
 
     # Room type check
     room = await db.get_room(room_id)
@@ -136,14 +156,27 @@ async def check_placement_allowed(room_id: int, owner_id: int, db) -> tuple[bool
                     if props.get("no_commerce"):
                         return False, "Commerce is not permitted in this area."
             except Exception:
+                log.warning("check_placement_allowed: unhandled exception", exc_info=True)
                 pass
 
-    # Owner limit — count placed droids
+    # Owner limit — use effective cap (base + 1 per shopfront owned)
     owner_droids = await db.get_objects_owned_by(owner_id, "vendor_droid")
     placed = [d for d in owner_droids if d.get("room_id")]
-    if len(placed) >= MAX_DROIDS_PER_OWNER:
+    try:
+        from engine.housing import get_effective_droid_cap
+        sf_rows = await db._db.execute_fetchall(
+            "SELECT COUNT(*) as cnt FROM player_housing WHERE char_id = ? AND tier = 4",
+            (owner_id,),
+        )
+        sf_count = sf_rows[0]["cnt"] if sf_rows else 0
+        # get_effective_droid_cap needs a char dict; build minimal one
+        _eff_cap = get_effective_droid_cap({"id": owner_id}, sf_count)
+    except Exception:
+        _eff_cap = MAX_DROIDS_PER_OWNER
+    if len(placed) >= _eff_cap:
         return False, (
-            f"You already have {MAX_DROIDS_PER_OWNER} placed vendor droids (maximum)."
+            f"You already have {_eff_cap} placed vendor droids (maximum). "
+            f"Own a shopfront to increase this limit."
         )
 
     return True, ""
@@ -167,12 +200,22 @@ async def purchase_droid(char: dict, tier_key: str, db) -> tuple[bool, str]:
             f"(you have {char.get('credits', 0):,})."
         )
 
-    # Check owner limit (including unplaced)
+    # Check owner limit (including unplaced) — effective cap includes shopfront bonus
     all_droids = await db.get_objects_owned_by(char["id"], "vendor_droid")
-    if len(all_droids) >= MAX_DROIDS_PER_OWNER:
+    try:
+        from engine.housing import get_effective_droid_cap
+        sf_rows = await db._db.execute_fetchall(
+            "SELECT COUNT(*) as cnt FROM player_housing WHERE char_id = ? AND tier = 4",
+            (char["id"],),
+        )
+        sf_count = sf_rows[0]["cnt"] if sf_rows else 0
+        _eff_cap = get_effective_droid_cap(char, sf_count)
+    except Exception:
+        _eff_cap = MAX_DROIDS_PER_OWNER
+    if len(all_droids) >= _eff_cap:
         return False, (
-            f"You already own {MAX_DROIDS_PER_OWNER} vendor droids (maximum). "
-            f"Recall and sell one before buying another."
+            f"You already own {_eff_cap} vendor droids (maximum). "
+            f"Own a shopfront to increase this limit."
         )
 
     # Deduct credits
@@ -443,6 +486,7 @@ async def unstock_droid(char: dict, droid_id: int,
             elif isinstance(RESOURCE_TYPES, (set, frozenset, list)):
                 is_resource = item_key in RESOURCE_TYPES
         except Exception:
+            log.warning("unstock_droid: unhandled exception", exc_info=True)
             pass
 
         if is_resource:
@@ -837,6 +881,7 @@ def _is_faction_issued(char: dict, item_key: str) -> bool:
             if item.get("key") == item_key and item.get("faction_issued"):
                 return True
     except Exception:
+        log.warning("_is_faction_issued: unhandled exception", exc_info=True)
         pass
     return False
 
@@ -1135,3 +1180,107 @@ def format_buy_orders(orders: list) -> list[str]:
             f"\033[1;33m{o['price_per']:,} cr/unit\033[0m"
         )
     return lines
+
+
+# ── Auto-recall tick ──────────────────────────────────────────────────────────
+
+_WARN_DAYS   = 30   # Notify owner after this many days of inactivity
+_RECALL_DAYS = 60   # Auto-recall after this many days
+
+async def tick_auto_recall(db, session_mgr) -> None:
+    """
+    Daily maintenance tick for vendor droids.
+
+    - Placed droids idle > 30 days with no owner interaction → warn owner once.
+    - Placed droids idle > 60 days → auto-recall to owner inventory + notify.
+
+    "Idle" = max(last_owner_ts, last_sale_ts) is older than the threshold.
+    A sale resets the clock, so active shops are never recalled.
+    """
+    import time as _time
+    now = _time.time()
+    warn_cutoff   = now - (_WARN_DAYS   * 86400)
+    recall_cutoff = now - (_RECALL_DAYS * 86400)
+
+    try:
+        # Fetch all placed droids
+        rows = await db._db.execute_fetchall(
+            "SELECT * FROM objects WHERE type = 'vendor_droid' AND room_id IS NOT NULL"
+        )
+    except Exception:
+        log.warning("tick_auto_recall: unhandled exception", exc_info=True)
+        return
+
+    for row in (rows or []):
+        droid = dict(row)
+        data  = _load_data(droid)
+
+        last_active = max(
+            float(data.get("last_owner_ts", 0) or 0),
+            float(data.get("last_sale_ts",  0) or 0),
+        )
+        if last_active <= 0:
+            # No timestamp set — treat as just placed
+            continue
+
+        owner_id   = droid.get("owner_id")
+        shop_name  = data.get("shop_name") or droid.get("name", "Vendor Droid")
+
+        # ── Auto-recall (60 days) ──────────────────────────────────────────
+        if last_active < recall_cutoff and droid.get("room_id"):
+            try:
+                # Pull owner character to do a proper recall
+                owner_rows = await db._db.execute_fetchall(
+                    "SELECT * FROM characters WHERE id = ? AND is_active = 1",
+                    (owner_id,),
+                )
+                if owner_rows:
+                    owner = dict(owner_rows[0])
+                    await recall_droid(owner, droid["id"], db)
+                else:
+                    # Owner deleted or inactive — just clear room_id
+                    await db.update_object(droid["id"], room_id=None)
+                # Notify owner if online
+                if owner_id and session_mgr:
+                    sess = session_mgr.find_by_character(owner_id)
+                    if sess:
+                        await sess.send_line(
+                            f"  \033[1;33m[SHOP]\033[0m \033[1;37m{shop_name}\033[0m "
+                            f"has been \033[1;31mauto-recalled\033[0m — "
+                            f"inactive for {_RECALL_DAYS}+ days."
+                        )
+                import logging as _log
+                _log.getLogger(__name__).info(
+                    "[shops] Auto-recalled droid %d (%s) — idle >%d days",
+                    droid["id"], shop_name, _RECALL_DAYS,
+                )
+            except Exception:
+                log.warning("tick_auto_recall: unhandled exception", exc_info=True)
+                pass
+            continue  # Skip warn check for recalled droids
+
+        # ── Idle warning (30 days, send once) ─────────────────────────────
+        if last_active < warn_cutoff and not data.get("idle_warned"):
+            try:
+                data["idle_warned"] = True
+                await db.update_object(droid["id"], data=_dump_data(data))
+                if owner_id and session_mgr:
+                    sess = session_mgr.find_by_character(owner_id)
+                    if sess:
+                        await sess.send_line(
+                            f"  \033[1;33m[SHOP]\033[0m \033[1;37m{shop_name}\033[0m "
+                            f"has had no activity for {_WARN_DAYS} days. "
+                            f"It will be auto-recalled in "
+                            f"{_RECALL_DAYS - _WARN_DAYS} more days if idle."
+                        )
+            except Exception:
+                log.warning("tick_auto_recall: unhandled exception", exc_info=True)
+                pass
+        elif last_active >= warn_cutoff and data.get("idle_warned"):
+            # Activity reset the clock — clear the warning flag
+            try:
+                data["idle_warned"] = False
+                await db.update_object(droid["id"], data=_dump_data(data))
+            except Exception:
+                log.warning("tick_auto_recall: unhandled exception", exc_info=True)
+                pass

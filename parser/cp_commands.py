@@ -91,6 +91,12 @@ class CPStatusCommand(BaseCommand):
 
         for line in lines:
             await ctx.session.send_line(line)
+        # Spacer quest: cpstatus viewed
+        try:
+            from engine.spacer_quest import check_spacer_quest
+            await check_spacer_quest(ctx.session, ctx.db, "use_command", command="cpstatus")
+        except Exception:
+            pass
 
 
 # ── train ─────────────────────────────────────────────────────────────────────
@@ -152,6 +158,7 @@ class TrainCommand(BaseCommand):
             multiplier = await get_guild_cp_multiplier(char, ctx.db)
             cost = max(1, int(cost * multiplier))
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
         if cp_available < cost:
@@ -196,6 +203,7 @@ class TrainCommand(BaseCommand):
                              f"Trained {skill_name.title()} to {new_pool} ({actual_cost} CP)",
                              {"skill": skill_name, "new_pool": str(new_pool), "cost": actual_cost})
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
 

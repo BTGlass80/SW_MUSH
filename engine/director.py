@@ -393,6 +393,7 @@ class DirectorAI:
                 if s.is_in_game
             ])
         except Exception:
+            log.warning("compile_digest: unhandled exception", exc_info=True)
             pass
 
         digest = {
@@ -747,6 +748,7 @@ class DirectorAI:
                     if getattr(s, "char_name", None)
                 }
             except Exception:
+                log.warning("_run_api_turn: unhandled exception", exc_info=True)
                 pass
             BAD_KEYWORDS = frozenset({"roll", "attack", "skill check", "dice"})
             valid_lines = []
@@ -871,6 +873,12 @@ class DirectorAI:
             input_tokens=tok_in,
             output_tokens=tok_out,
         )
+
+        # Apply security overlays after API turn too
+        try:
+            await self._apply_security_overlays(db, session_mgr)
+        except Exception:
+            pass  # Non-critical
 
         return True
 
@@ -1083,6 +1091,7 @@ class DirectorAI:
                         await sess.send_line(f"{prefix}\"{content}\"")
                         whispered = True
                 except Exception:
+                    log.warning("_deliver_pc_hook: unhandled exception", exc_info=True)
                     pass
             if not whispered:
                 # Downgrade to comlink
@@ -1125,6 +1134,7 @@ class DirectorAI:
             )
             return [dict(r) for r in rows]
         except Exception:
+            log.warning("get_recent_log: unhandled exception", exc_info=True)
             return []
 
     async def get_budget_stats(self, db) -> dict:
@@ -1147,6 +1157,7 @@ class DirectorAI:
                 r["estimated_cost_usd"] = round(cost_input + cost_output, 4)
                 return r
         except Exception:
+            log.warning("get_budget_stats: unhandled exception", exc_info=True)
             pass
         return {"total_input": 0, "total_output": 0, "call_count": 0,
                 "estimated_cost_usd": 0.0}
@@ -1202,6 +1213,12 @@ class DirectorAI:
 
         log.info("[director] Faction Turn complete: %s", headline)
 
+        # ── Apply security zone overlays based on influence ──────────────
+        try:
+            await self._apply_security_overlays(db, session_mgr)
+        except Exception as _sec_exc:
+            log.warning("[director] Security overlay update failed: %s", _sec_exc)
+
         # Broadcast headline to web clients as news_event
         try:
             import json as _json
@@ -1215,6 +1232,152 @@ class DirectorAI:
                     }))
         except Exception:
             pass  # Non-critical — news just won't appear in feed
+
+    # ── Dynamic security overlays (design doc §6) ───────────────────────
+
+    # Maps Director zone keys to DB zone name substrings for matching.
+    # Director tracks 6 Mos Eisley zones; outer planets retain their
+    # base security level (no Director influence tracking yet).
+    _DIRECTOR_ZONE_TO_DB_NAME = {
+        "spaceport":  "Spaceport",
+        "streets":    "Streets",     # matches "Streets & Markets"
+        "cantina":    "Cantina",     # matches "Chalmun's Cantina"
+        "shops":      "Commercial",  # matches "Residential & Commercial"
+        "jabba":      "Civic",       # Jabba's + Government share civic zone
+        "government": "Civic",
+    }
+
+    # Base security for each Director zone (matches build_mos_eisley.py)
+    _BASE_SECURITY = {
+        "spaceport":  "secured",
+        "streets":    "secured",
+        "cantina":    "secured",
+        "shops":      "secured",
+        "jabba":      "secured",     # but has faction_override: hutt
+        "government": "secured",
+    }
+
+    async def _apply_security_overlays(self, db, session_mgr) -> int:
+        """
+        Apply transient security overrides based on Director zone influence.
+
+        Rules (from security_zones_design_v1.md §6):
+          - Criminal influence ≥ 80: downgrade one tier
+              secured → contested, contested → lawless
+          - Imperial crackdown event active: upgrade contested → secured
+          - Imperial influence < 30 (LAX alert): downgrade secured → contested
+
+        Overlay is transient (in-memory via set_security_override).
+        Cleared and recomputed each faction turn.
+
+        Returns count of zones that had their security shifted.
+        """
+        from engine.security import SecurityLevel, set_security_override
+
+        # Load all DB zones for name→id mapping
+        all_zones = await db.get_all_zones()
+        # Build a lookup: lowercase zone name → zone_id
+        zone_name_to_id: dict[str, int] = {}
+        for z in all_zones:
+            zone_name_to_id[z["name"].lower()] = z["id"]
+
+        # Check for active Imperial crackdown events
+        crackdown_zones: set[str] = set()
+        try:
+            from engine.world_events import get_world_event_manager, EventType
+            wem = get_world_event_manager()
+            for evt in wem.active_events:
+                if evt.event_type == EventType.IMPERIAL_CRACKDOWN:
+                    crackdown_zones.update(evt.zones_affected)
+        except Exception:
+            log.warning("_apply_security_overlays: unhandled exception", exc_info=True)
+            pass
+
+        changes = 0
+
+        for dir_zone_key, zs in self._zones.items():
+            # Find the DB zone ID(s) that match this Director zone
+            db_name_substr = self._DIRECTOR_ZONE_TO_DB_NAME.get(dir_zone_key, "")
+            if not db_name_substr:
+                continue
+
+            # Find all DB zones whose name contains the substring
+            matched_zone_ids = [
+                zid for zname, zid in zone_name_to_id.items()
+                if db_name_substr.lower() in zname
+            ]
+            if not matched_zone_ids:
+                continue
+
+            # Determine the base security level
+            base_str = self._BASE_SECURITY.get(dir_zone_key, "contested")
+            base = SecurityLevel(base_str)
+
+            # Compute effective security from influence
+            effective = base
+
+            # Rule 1: Criminal surge (criminal ≥ 80) → downgrade one tier
+            if zs.criminal >= 80:
+                if effective == SecurityLevel.SECURED:
+                    effective = SecurityLevel.CONTESTED
+                elif effective == SecurityLevel.CONTESTED:
+                    effective = SecurityLevel.LAWLESS
+
+            # Rule 2: Imperial collapse (imperial < 30, LAX) → downgrade one tier
+            elif zs.alert_level == AlertLevel.LAX:
+                if effective == SecurityLevel.SECURED:
+                    effective = SecurityLevel.CONTESTED
+
+            # Rule 3: Imperial crackdown event → upgrade contested to secured
+            if dir_zone_key in crackdown_zones:
+                if effective == SecurityLevel.CONTESTED:
+                    effective = SecurityLevel.SECURED
+
+            # Apply or clear the override on all matched DB zones
+            for zid in matched_zone_ids:
+                if effective != base:
+                    set_security_override(zid, effective)
+                    changes += 1
+                else:
+                    # Clear any previous override — security returns to base
+                    set_security_override(zid, None)
+
+        if changes:
+            log.info("[director] Applied %d security overlay(s) this turn.", changes)
+
+            # Notify online players about security shifts
+            try:
+                shifted_names = []
+                for dir_zone_key, zs in self._zones.items():
+                    base_str = self._BASE_SECURITY.get(dir_zone_key, "contested")
+                    base = SecurityLevel(base_str)
+                    if zs.criminal >= 80:
+                        shifted_names.append(
+                            f"{_zone_display(dir_zone_key)} "
+                            f"(\033[1;31mdowngraded — criminal surge\033[0m)"
+                        )
+                    elif zs.alert_level == AlertLevel.LAX:
+                        if base == SecurityLevel.SECURED:
+                            shifted_names.append(
+                                f"{_zone_display(dir_zone_key)} "
+                                f"(\033[1;33mdowngraded — weak Imperial presence\033[0m)"
+                            )
+                if shifted_names and session_mgr:
+                    msg = (
+                        "\033[1;33m[SECURITY SHIFT]\033[0m "
+                        + "; ".join(shifted_names)
+                    )
+                    for s in session_mgr.all:
+                        if s.is_in_game:
+                            try:
+                                await s.send_line(msg)
+                            except Exception:
+                                log.warning("_apply_security_overlays: unhandled exception", exc_info=True)
+                                pass
+            except Exception:
+                pass  # Notification is non-critical
+
+        return changes
 
     def _generate_local_headline(self) -> str:
         """
@@ -1243,6 +1406,11 @@ class DirectorAI:
         - Ensures zone influence is loaded
         - Increments the Faction Turn timer
         - Fires a Faction Turn when the interval elapses
+
+        v22 audit S18: faction_turn is spawned as asyncio.create_task so
+        the Claude API roundtrip (up to several seconds) doesn't block the
+        entire tick loop.  _last_turn_time is set immediately to prevent
+        re-firing while the task is still running.
         """
         if not self._enabled:
             return
@@ -1252,13 +1420,18 @@ class DirectorAI:
         self._tick_counter += 1
         now = time.time()
 
-        # Faction Turn check
+        # Faction Turn check — spawn as background task, don't await
         if now - self._last_turn_time >= self._turn_interval:
-            try:
-                await self.faction_turn(db, session_mgr)
-            except Exception:
-                log.exception("[director] Faction Turn failed")
-                self._last_turn_time = now  # Don't retry immediately
+            self._last_turn_time = now  # Set immediately to prevent re-fire
+            import asyncio
+            asyncio.create_task(self._safe_faction_turn(db, session_mgr))
+
+    async def _safe_faction_turn(self, db, session_mgr):
+        """Wrapper for faction_turn that catches and logs all errors."""
+        try:
+            await self.faction_turn(db, session_mgr)
+        except Exception:
+            log.exception("[director] Faction Turn failed")
 
     # ── Query API ──
 

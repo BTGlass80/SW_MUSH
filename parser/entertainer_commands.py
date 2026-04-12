@@ -81,6 +81,7 @@ async def _get_room_zone_name(ctx) -> str:
             return ""
         return (zone.get("name") or "").lower()
     except Exception:
+        log.warning("_get_room_zone_name: unhandled exception", exc_info=True)
         return ""
 
 
@@ -90,6 +91,7 @@ def _get_last_perform(char: dict) -> float:
         attrs = json.loads(char.get("attributes", "{}"))
         return float(attrs.get("last_perform", 0))
     except Exception:
+        log.warning("get_last_perform failed", exc_info=True)
         return 0
 
 
@@ -109,6 +111,7 @@ def _has_musical_instrument(char: dict) -> bool:
         skills = json.loads(char.get("skills", "{}"))
         return bool(skills.get("musical instrument") or skills.get("musical_instrument"))
     except Exception:
+        log.warning("_has_musical_instrument: unhandled exception", exc_info=True)
         return False
 
 
@@ -174,6 +177,7 @@ class PerformCommand(BaseCommand):
                     brawl_mult = 2.0
                     break
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
         room_id = char["room_id"]

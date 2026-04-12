@@ -385,6 +385,7 @@ def _get_player_status(sess, char_id: int) -> str:
             if combat.get_combatant(char_id):
                 return "In Combat"
     except (ImportError, Exception):
+        log.debug("get_char_status: combat check failed", exc_info=True)
         pass
     return "Online"
 

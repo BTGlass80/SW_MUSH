@@ -416,6 +416,7 @@ async def _get_cp(db, char_id: int) -> int:
         char = await db.get_character(char_id)
         return char.get("character_points", 0) if char else 0
     except Exception:
+        log.warning("get_character_points failed", exc_info=True)
         return 0
 
 

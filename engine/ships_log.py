@@ -26,6 +26,9 @@ DEFAULT_LOG: dict = {
     "pirate_kills":        0,
     "smuggling_runs":      0,
     "trade_runs":          0,
+    "bounties_collected":  0,   # profession chain entry gate
+    "missions_complete":   0,   # profession chain entry gate
+    "crafting_complete":   0,   # profession chain entry gate
     "titles_earned":       [],
 }
 
@@ -159,6 +162,7 @@ async def log_event(
                         reason=f"Ship's Log milestone: {m['msg']}",
                     )
                 except Exception:
+                    log.warning("log_event: unhandled exception", exc_info=True)
                     pass
 
         return triggered

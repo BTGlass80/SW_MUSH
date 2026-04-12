@@ -353,4 +353,5 @@ class TutorialManager:
             try:
                 await db.delete_npc(npc_id)
             except Exception:
+                log.warning("_cleanup_training_npc: unhandled exception", exc_info=True)
                 pass

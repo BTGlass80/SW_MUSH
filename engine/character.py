@@ -41,10 +41,11 @@ class WoundLevel(IntEnum):
 
     @property
     def penalty_dice(self) -> int:
-        """Dice penalty from this wound level."""
+        """Dice penalty from this wound level (excludes stun — tracked separately)."""
         return {
-            0: 0, 1: 1, 2: 1, 3: 2, 4: 0, 5: 0, 6: 0
+            0: 0, 1: 0, 2: 1, 3: 2, 4: 0, 5: 0, 6: 0
         }.get(self.value, 0)
+        # STUNNED penalty now comes from len(stun_timers) on Character
         # Incap/mortal/dead can't act so penalty is moot
 
     @property
@@ -167,8 +168,11 @@ class Character:
 
     # Status
     wound_level: WoundLevel = WoundLevel.HEALTHY
-    stun_count: int = 0       # Total stuns accumulated (for unconscious threshold)
-    stun_rounds: int = 0      # Rounds of -1D stun penalty remaining
+    # v22 audit #13/#21: per-stun expiry timers.
+    # Each entry is the number of rounds remaining for that stun.
+    # The stun penalty = -len(active_stuns)D.
+    # Stun knockout threshold: len(active_stuns) >= STR dice → unconscious.
+    stun_timers: list = field(default_factory=list)  # list[int] — rounds remaining per stun
     mortally_wounded_rounds: int = 0  # Rounds spent mortally wounded (for death roll)
     character_points: int = 5
     force_points: int = 1
@@ -185,9 +189,20 @@ class Character:
     room_id: int = 1
     description: str = ""
     equipped_weapon: str = ""  # weapon key from weapons.yaml (e.g. "blaster_pistol")
+    worn_armor: str = ""       # v22: armor key from weapons.yaml (e.g. "blast_vest")
 
     # Movement
     move: int = 10
+
+    @property
+    def active_stun_count(self) -> int:
+        """Number of currently active stuns (each gives -1D)."""
+        return len(self.stun_timers)
+
+    @property
+    def total_penalty_dice(self) -> int:
+        """Total dice penalty from wounds + active stuns."""
+        return self.wound_level.penalty_dice + self.active_stun_count
 
     def get_attribute(self, name: str) -> DicePool:
         """Get an attribute pool by name."""
@@ -239,6 +254,50 @@ class Character:
         """Set a skill bonus (dice above the parent attribute)."""
         self.skills[skill_name.lower()] = bonus
 
+    def get_armor_protection(self, energy: bool = True) -> DicePool:
+        """
+        Get the worn armor's protection dice pool.
+
+        v22: Armor adds to Strength for soak per R&E p83.
+        Energy weapons (blasters) use protection_energy.
+        Physical attacks (melee/brawling) use protection_physical.
+
+        Returns DicePool(0,0) if no armor worn.
+        """
+        if not self.worn_armor:
+            return DicePool(0, 0)
+        try:
+            from engine.weapons import get_weapon_registry
+            wr = get_weapon_registry()
+            armor = wr.get(self.worn_armor)
+            if not armor or not armor.is_armor:
+                return DicePool(0, 0)
+            prot_str = armor.protection_energy if energy else armor.protection_physical
+            if prot_str:
+                return DicePool.parse(prot_str)
+        except Exception:
+            pass
+        return DicePool(0, 0)
+
+    def get_armor_dex_penalty(self) -> DicePool:
+        """
+        Get the worn armor's Dexterity penalty.
+
+        Returns DicePool(0,0) if no armor or no penalty.
+        """
+        if not self.worn_armor:
+            return DicePool(0, 0)
+        try:
+            from engine.weapons import get_weapon_registry
+            wr = get_weapon_registry()
+            armor = wr.get(self.worn_armor)
+            if not armor or not armor.is_armor or not armor.dexterity_penalty:
+                return DicePool(0, 0)
+            return DicePool.parse(armor.dexterity_penalty)
+        except Exception:
+            pass
+        return DicePool(0, 0)
+
     def advance_skill(self, skill_name: str, skill_registry: SkillRegistry) -> int:
         """
         Advance a skill by 1 pip. Returns CP cost.
@@ -286,12 +345,12 @@ class Character:
             return self.wound_level
 
         if incoming == WoundLevel.STUNNED:
-            self.stun_count += 1
-            self.stun_rounds = 2  # Rest of current round + next round
+            # v22 audit #13: each stun has its own 2-round timer
+            self.stun_timers.append(2)  # Rest of current round + next round
 
-            # Check stun knockout: stuns >= STR dice = unconscious (R&E p59)
+            # Check stun knockout: active stuns >= STR dice = unconscious (R&E p83)
             str_dice = self.strength.dice
-            if str_dice > 0 and self.stun_count >= str_dice:
+            if str_dice > 0 and len(self.stun_timers) >= str_dice:
                 self.wound_level = max(self.wound_level, WoundLevel.INCAPACITATED)
                 return self.wound_level
 
@@ -356,6 +415,8 @@ class Character:
         equipment = {}
         if self.equipped_weapon:
             equipment["weapon"] = self.equipped_weapon
+        if self.worn_armor:
+            equipment["armor"] = self.worn_armor
 
         return {
             "name": self.name,
@@ -478,6 +539,7 @@ class Character:
                 equip = {}
         if isinstance(equip, dict):
             char.equipped_weapon = equip.get("weapon", "")
+            char.worn_armor = equip.get("armor", "")
 
         return char
 

@@ -130,6 +130,7 @@ def _get_attrs(char: dict) -> dict:
         try:
             return json.loads(raw)
         except Exception:
+            log.warning("_get_attrs: unhandled exception", exc_info=True)
             return {}
     return raw if isinstance(raw, dict) else {}
 
@@ -259,6 +260,7 @@ async def check_core_tutorial_step(session, db, room_name: str):
     try:
         await db.save_character(char["id"], attributes=char.get("attributes", "{}"))
     except Exception:
+        log.warning("check_core_tutorial_step: unhandled exception", exc_info=True)
         pass
 
     msg = CORE_ROOM_MESSAGES.get(CORE_TUTORIAL_ROOMS[step_index])
@@ -266,6 +268,7 @@ async def check_core_tutorial_step(session, db, room_name: str):
         try:
             await session.send_line(msg)
         except Exception:
+            log.warning("check_core_tutorial_step: unhandled exception", exc_info=True)
             pass
 
 
@@ -309,6 +312,7 @@ async def check_all_electives_complete(session, db):
         await log_action(db, char["id"], NT.TUTORIAL_COMPLETE,
                          "Completed all training modules")
     except Exception:
+        log.warning("check_all_electives_complete: unhandled exception", exc_info=True)
         pass
 
 
@@ -796,6 +800,7 @@ async def on_planet_land(session, db, planet_key: str):
         await log_action(db, char["id"], NT.PLANET_VISIT,
                          f"First landing on {planet_key.replace('_', ' ').title()}")
     except Exception:
+        log.warning("on_planet_land: unhandled exception", exc_info=True)
         pass
 
 
@@ -1215,3 +1220,915 @@ async def check_elective_progress(session, db, room_name: str):
 
     except Exception:
         pass  # Non-critical
+
+
+# ── Profession Quest Chains ───────────────────────────────────────────────────
+#
+# Tracked in attributes["profession_quests"] = {
+#     "smugglers_run": 0,   # 0=not started, 1-6=active step, 7=complete
+#     "hunters_mark":  0,   # 0=not started, 1-5=active step, 6=complete
+# }
+#
+# Entry requirements:
+#   Smuggler's Run  — ships_log["smuggling_runs"] >= 1 AND owns a ship
+#   Hunter's Mark   — ships_log["bounties_collected"] >= 3
+
+CHAIN_STATE_KEY = "profession_quests"
+
+def get_profession_quests(char: dict) -> dict:
+    """Return the profession_quests dict, initializing if absent."""
+    import json as _j
+    attrs = char.get("attributes", "{}")
+    if isinstance(attrs, str):
+        try:
+            attrs = _j.loads(attrs)
+        except Exception:
+            attrs = {}
+    pq = attrs.get(CHAIN_STATE_KEY, {})
+    if "smugglers_run" not in pq:
+        pq["smugglers_run"] = 0
+    if "hunters_mark" not in pq:
+        pq["hunters_mark"] = 0
+    return pq
+
+
+def _save_profession_quests(char: dict, pq: dict) -> None:
+    """Write updated pq back into char attributes dict (in-memory only)."""
+    import json as _j
+    attrs = char.get("attributes", "{}")
+    if isinstance(attrs, str):
+        try:
+            attrs = _j.loads(attrs)
+        except Exception:
+            attrs = {}
+    attrs[CHAIN_STATE_KEY] = pq
+    char["attributes"] = _j.dumps(attrs)
+
+
+# ── Smuggler's Run — 6 steps ──────────────────────────────────────────────────
+# Contact: Kessa Dray (Chalmun's Cantina, room 3)
+# Entry: own a ship + >=1 smuggling run
+
+SMUGGLERS_RUN = [
+    {   # Step 1 — triggered by talking to Kessa after entry req met
+        "trigger": "talk_kessa",
+        "msg": (
+            "\n  \033[1;33m[SMUGGLER'S RUN — Step 1/6]\033[0m\n"
+            "  Kessa leans in close. \033[3m\"I've got a friend in trouble — Twi'lek pilot named Dash.\n"
+            "  He owes credits to the wrong people and needs a runner he can trust.\n"
+            "  First job: Grey Market goods, Tatooine to Nar Shaddaa. Simple run, good pay.\n"
+            "  Pick up the cargo from the Mos Eisley docks and get moving.\"\033[0m\n"
+            "  \033[2mTask: Complete a smuggling delivery to Nar Shaddaa. Reward: 500cr.\033[0m"
+        ),
+        "reward_credits": 0,
+    },
+    {   # Step 2 — triggered by smuggling_complete while on step 1 and dest=nar_shaddaa
+        "trigger": "smuggling_complete",
+        "msg": (
+            "\n  \033[1;33m[SMUGGLER'S RUN — Step 2/6]\033[0m\n"
+            "  Your comlink chirps. Kessa's voice: \033[3m\"Nice work. Dash says you didn't\n"
+            "  get spotted. Next job's hotter — contraband, patrol route runs right through\n"
+            "  your corridor. You'll need to time your jump or talk your way through.\n"
+            "  Pick up the next package from the same docks.\"\033[0m\n"
+            "  \033[2mTask: Complete a smuggling delivery while evading an Imperial patrol. Reward: 800cr on delivery.\033[0m"
+        ),
+        "reward_credits": 500,
+    },
+    {   # Step 3 — triggered by landing on Nar Shaddaa (planet_land trigger)
+        "trigger": "planet_land_nar_shaddaa",
+        "msg": (
+            "\n  \033[1;33m[SMUGGLER'S RUN — Step 3/6]\033[0m\n"
+            "  A scraggly Twi'lek approaches you the moment you dock — Dash.\n"
+            "  \033[3m\"You're the one Kessa sent. Good. We've got a problem — someone's been\n"
+            "  following me. Patrol ship, no markings. I need you to run interference\n"
+            "  while I make a transfer. Meet me in the docking bay.\"\033[0m\n"
+            "  \033[2mTask: Talk to Dash on Nar Shaddaa. Use 'talk dash' in the docking area.\033[0m"
+        ),
+        "reward_credits": 800,
+    },
+    {   # Step 4 — triggered by talking to Dash on Nar Shaddaa
+        "trigger": "talk_dash",
+        "msg": (
+            "\n  \033[1;33m[SMUGGLER'S RUN — Step 4/6]\033[0m\n"
+            "  Dash grips your arm. \033[3m\"The real debt — it's spice. Hutt money.\n"
+            "  I need a Kessel run to square it. Kessel to Nar Shaddaa, one cargo,\n"
+            "  no stops. The asteroid approach will rattle your teeth but the pay\n"
+            "  is worth it. Two thousand credits if you make it clean.\"\033[0m\n"
+            "  \033[2mTask: Complete a smuggling run from Kessel to Nar Shaddaa. The Kessel Approach "
+            "has asteroid hazards — fly carefully. Reward: 2,000cr.\033[0m"
+        ),
+        "reward_credits": 0,
+    },
+    {   # Step 5 — triggered by smuggling_complete from Kessel
+        "trigger": "smuggling_complete_kessel",
+        "msg": (
+            "\n  \033[1;33m[SMUGGLER'S RUN — Step 5/6]\033[0m\n"
+            "  The payment clears. Almost immediately your sensors scream —\n"
+            "  Dash's creditors have found you both. Two ships drop out of hyperspace.\n"
+            "  \033[3m\"They found us! Can't dump the cargo — it's already logged.\n"
+            "  We have to fight or run. Your call.\"\033[0m\n"
+            "  \033[2mTask: Survive — fight the pursuers or flee the system. "
+            "Use 'fire', 'flee', or 'evade'. Reward: 1,500cr once clear.\033[0m"
+        ),
+        "reward_credits": 2000,
+    },
+    {   # Step 6 — triggered by landing on Nar Shaddaa OR surviving combat (flee/dock)
+        "trigger": "docked_nar_shaddaa",
+        "msg": (
+            "\n  \033[1;33m[SMUGGLER'S RUN — COMPLETE]\033[0m\n"
+            "  Dash meets you at the dock, looking ten years older but alive.\n"
+            "  \033[3m\"The Hutt rep took the payment. Grumbled about the delay but took it.\n"
+            "  We're square. You did good work — better than good. Here's your cut.\n"
+            "  Word gets around in this business. You'll hear from us again.\"\033[0m\n"
+            "  \033[1;32mSmugglers's Run complete!\033[0m +1,000cr, title: (Veteran Smuggler)."
+        ),
+        "reward_credits": 1500,
+        "reward_title": "Veteran Smuggler",
+        "reward_bonus": 1000,
+    },
+]
+
+SMUGGLERS_RUN_TOTAL = 6
+
+# ── Hunter's Mark — 5 steps ───────────────────────────────────────────────────
+# Contact: Ssk'rath (Bounty Office, room 143)
+# Entry: ships_log["bounties_collected"] >= 3
+
+HUNTERS_MARK = [
+    {   # Step 1 — triggered by talking to Ssk'rath after entry req met
+        "trigger": "talk_sskrath",
+        "msg": (
+            "\n  \033[1;33m[HUNTER'S MARK — Step 1/5]\033[0m\n"
+            "  Ssk'rath slides a data chip across the counter.\n"
+            "  \033[3m\"Special contract. Target has been avoiding Guild hunters for three weeks\n"
+            "  across four systems. We want them brought in — alive preferred.\n"
+            "  Start with the last known contact: a cantina on Nar Shaddaa.\n"
+            "  Someone there saw them. Find out what they know.\"\033[0m\n"
+            "  \033[2mTask: Travel to Nar Shaddaa and talk to an informant. Reward: 300cr on first lead.\033[0m"
+        ),
+        "reward_credits": 0,
+    },
+    {   # Step 2 — triggered by landing on Nar Shaddaa
+        "trigger": "planet_land_nar_shaddaa",
+        "msg": (
+            "\n  \033[1;33m[HUNTER'S MARK — Step 2/5]\033[0m\n"
+            "  Your contact on Nar Shaddaa is a nervous Sullustan named Ebrel.\n"
+            "  \033[3m\"The one you're looking for — I saw them two days ago.\n"
+            "  Bought passage to Kessel. Said something about a job in the mines.\n"
+            "  Watch yourself out there — they don't travel alone.\"\033[0m\n"
+            "  +300cr informant fee.\n"
+            "  \033[2mTask: Travel to Kessel to continue the hunt.\033[0m"
+        ),
+        "reward_credits": 300,
+    },
+    {   # Step 3 — triggered by landing on Kessel
+        "trigger": "planet_land_kessel",
+        "msg": (
+            "\n  \033[1;33m[HUNTER'S MARK — Step 3/5]\033[0m\n"
+            "  The spice mines foreman eyes you sideways.\n"
+            "  \033[3m\"Bounty hunter, huh. Yeah, someone like that came through.\n"
+            "  Picked up a job running security for a cargo transfer — Corellia bound.\n"
+            "  Left yesterday. You're close.\"\033[0m\n"
+            "  \033[2mTask: Travel to Corellia to close the gap.\033[0m"
+        ),
+        "reward_credits": 0,
+    },
+    {   # Step 4 — triggered by landing on Corellia
+        "trigger": "planet_land_corellia",
+        "msg": (
+            "\n  \033[1;33m[HUNTER'S MARK — Step 4/5]\033[0m\n"
+            "  CorSec has a flag on your target — minor warrant, nothing serious.\n"
+            "  Your Guild credentials get you a location: warehouse district, Coronet City.\n"
+            "  \033[3m\"They're holed up in Bay 7. Armed. Probably expecting trouble.\n"
+            "  You'll want to go in fast or not at all.\"\033[0m\n"
+            "  \033[2mTask: Hunt and defeat the target. Claim the bounty with 'bountycollect'. Reward: 1,500cr.\033[0m"
+        ),
+        "reward_credits": 0,
+    },
+    {   # Step 5 — triggered by bounty_collected while on step 4
+        "trigger": "bounty_collected",
+        "msg": (
+            "\n  \033[1;33m[HUNTER'S MARK — COMPLETE]\033[0m\n"
+            "  Ssk'rath examines the capture documentation and hisses approvingly.\n"
+            "  \033[3m\"Three weeks. Four systems. You ran them down.\n"
+            "  The Guild is watching, hunter. This is the kind of work\n"
+            "  that builds a reputation. Contract bonus: 1,500 credits.\n"
+            "  And a title — you've earned it.\"\033[0m\n"
+            "  \033[1;32mHunter's Mark complete!\033[0m +1,500cr, title: (Guild Hunter)."
+        ),
+        "reward_credits": 1500,
+        "reward_title": "Guild Hunter",
+    },
+]
+
+HUNTERS_MARK_TOTAL = 5
+
+
+
+# ── Drop 10: Artisan's Forge — 5 steps ───────────────────────────────────────
+# Contact: Vek Nurren (Crafter's Workshop, room 141)
+# Entry: crafting_complete >= 3
+
+ARTISANS_FORGE = [
+    {   # Step 1 — talk to Vek after entry req met
+        "trigger": "talk_vek",
+        "msg": (
+            "\n  \033[1;33m[ARTISAN'S FORGE — Step 1/5]\033[0m\n"
+            "  Vek Nurren looks up from a half-assembled stabilizer.\n"
+            "  \033[3m\"Good timing. I've got a commission from a Corellian merchant —\n"
+            "  a custom nav-comp housing, top-grade alloys. Client wants quality 85 minimum.\n"
+            "  Problem: the minerals I need are deep in the Jundland Wastes.\n"
+            "  High-risk survey, but the Traders' Coalition is paying well.\n"
+            "  You'll need to survey the Wastes. Bring back what you find.\"\033[0m\n"
+            "  \033[2mTask: Survey the Jundland Wastes (Mos Eisley Outskirts area). "
+            "Use 'survey' — difficulty is high. Bring back rare minerals.\033[0m"
+        ),
+        "reward_credits": 0,
+    },
+    {   # Step 2 — triggered by craft_complete (the survey minerals get crafted into component)
+        "trigger": "craft_complete",
+        "msg": (
+            "\n  \033[1;33m[ARTISAN'S FORGE — Step 2/5]\033[0m\n"
+            "  Vek examines the minerals and nods slowly.\n"
+            "  \033[3m\"Good quality. But we still need energy cells — the high-efficiency type.\n"
+            "  There's a derelict freighter in the Tatooine deep space zone.\n"
+            "  Salvage what you can from it. The anomaly scanner will find it.\"\033[0m\n"
+            "  \033[2mTask: Use 'deepscan' in Tatooine Deep Space to find and resolve the derelict anomaly.\033[0m"
+        ),
+        "reward_credits": 0,
+    },
+    {   # Step 3 — triggered by planet_land_tatooine after step 2 (returned from space)
+        "trigger": "planet_land_tatooine",
+        "msg": (
+            "\n  \033[1;33m[ARTISAN'S FORGE — Step 3/5]\033[0m\n"
+            "  Vek takes the salvaged cells and starts assembly immediately.\n"
+            "  \033[3m\"Now the real work. This component needs to be perfect.\n"
+            "  Watch the tolerances — this is quality 85 or I don't get paid.\n"
+            "  And if I don't get paid, neither do you.\"\033[0m\n"
+            "  \033[2mTask: Craft a ship component using your schematics. "
+            "Quality 70+ required (higher skill = higher quality). Reward: 500cr.\033[0m"
+        ),
+        "reward_credits": 0,
+    },
+    {   # Step 4 — triggered by craft_complete at step 3
+        "trigger": "craft_complete",
+        "msg": (
+            "\n  \033[1;33m[ARTISAN'S FORGE — Step 4/5]\033[0m\n"
+            "  Vek wraps the component carefully.\n"
+            "  \033[3m\"Beautiful work. Now deliver it to the client on Corellia.\n"
+            "  His name is Aldric Torren — he'll be at the main docking complex.\n"
+            "  Bargain hard. He lowballs everyone on first offer.\"\033[0m\n"
+            "  \033[2mTask: Fly to Corellia and deliver the component. "
+            "Use 'talk aldric' at the Coronet City docks. Reward: 2,000cr.\033[0m"
+        ),
+        "reward_credits": 500,
+    },
+    {   # Step 5 — triggered by planet_land_corellia at step 4
+        "trigger": "planet_land_corellia",
+        "msg": (
+            "\n  \033[1;33m[ARTISAN'S FORGE — COMPLETE]\033[0m\n"
+            "  The Corellian merchant inspects the component and breaks into a rare smile.\n"
+            "  \033[3m\"Exactly what I wanted. Better, actually.\n"
+            "  I'm commissioning a second piece — tell Vek I want him on retainer.\n"
+            "  And you — the Traders' Coalition keeps a list of reliable operators.\n"
+            "  You're on it now.\"\033[0m\n"
+            "  +1,500cr delivery fee, +500cr bonus. Title: (Master Artisan).\n"
+            "  \033[1;32mArtisan's Forge complete!\033[0m"
+        ),
+        "reward_credits": 2000,
+        "reward_bonus": 500,
+        "reward_title": "Master Artisan",
+    },
+]
+ARTISANS_FORGE_TOTAL = 5
+
+
+# ── Drop 11A: Rebel Cell — 5 steps ───────────────────────────────────────────
+# Contact: "Fulcrum" comlink (auto-fires after 2+ missions completed)
+# No specific NPC needed — comlink message
+
+REBEL_CELL = [
+    {   # Step 1 — auto-fires via mission_complete after entry req met
+        "trigger": "mission_complete",
+        "msg": (
+            "\n  \033[1;33m[REBEL CELL — Step 1/5]\033[0m\n"
+            "  Your comlink crackles with an encrypted signal.\n"
+            "  \033[3m\"This is Fulcrum. The Rebel Alliance has been watching your work.\n"
+            "  You have skills we need — and a low enough profile the Empire hasn't\n"
+            "  noticed you yet. Complete this operation and the Alliance considers\n"
+            "  you a friend. That means Rebel-only missions, covert supply drops,\n"
+            "  and allies who'll watch your back.\n"
+            "  Meet my contact in the back room of Chalmun's Cantina.\n"
+            "  Ask for 'the starbird.' They'll know.\"\033[0m\n"
+            "  \033[2mTask: Go to Chalmun's Cantina and 'talk' to the Rebel contact there.\033[0m"
+        ),
+        "reward_credits": 0,
+    },
+    {   # Step 2 — triggered by talk at cantina (talk trigger, cantina room)
+        "trigger": "talk_rebel_contact",
+        "msg": (
+            "\n  \033[1;33m[REBEL CELL — Step 2/5]\033[0m\n"
+            "  The hooded figure slides a datapad across the table.\n"
+            "  \033[3m\"There's a cell on Nar Shaddaa that needs supplies. Imperial\n"
+            "  customs is watching the docks. We need someone who can move cargo\n"
+            "  quietly. Take the datapad to our contact there.\n"
+            "  Don't get scanned.\"\033[0m\n"
+            "  +200cr operating expenses.\n"
+            "  \033[2mTask: Complete a smuggling delivery to Nar Shaddaa without getting caught.\033[0m"
+        ),
+        "reward_credits": 200,
+    },
+    {   # Step 3 — triggered by smuggling_complete to nar_shaddaa
+        "trigger": "smuggling_complete",
+        "msg": (
+            "\n  \033[1;33m[REBEL CELL — Step 3/5]\033[0m\n"
+            "  Fulcrum's voice on the comlink: \033[3m\"The datapad arrived. Good work.\n"
+            "  Next task: intelligence. We need patrol patterns.\n"
+            "  Scan three Imperial patrol ships in Tatooine space.\n"
+            "  Don't engage — just scan and pull their routing data.\"\033[0m\n"
+            "  +500cr.\n"
+            "  \033[2mTask: Use 'scan' in Tatooine orbit or deep space on 3 Imperial patrol contacts.\033[0m"
+        ),
+        "reward_credits": 500,
+    },
+    {   # Step 4 — triggered after 3 scans of patrol ships (scan_patrols trigger)
+        "trigger": "scan_patrols_complete",
+        "msg": (
+            "\n  \033[1;33m[REBEL CELL — Step 4/5]\033[0m\n"
+            "  \033[3m\"The patrol data is exactly what we needed. One more op.\n"
+            "  An Imperial supply convoy is making a run through the Outer Rim Lane.\n"
+            "  Intercept it. You don't need to destroy them — just disrupt the delivery.\n"
+            "  One hit and break off. Don't get caught.\"\033[0m\n"
+            "  +800cr.\n"
+            "  \033[2mTask: Attack and break off from an Imperial ship in deep space. "
+            "Use 'fire' then 'flee'. Reward: 1,000cr on extraction.\033[0m"
+        ),
+        "reward_credits": 800,
+    },
+    {   # Step 5 — triggered by docking after combat (planet_land after space combat)
+        "trigger": "mission_complete",
+        "msg": (
+            "\n  \033[1;33m[REBEL CELL — COMPLETE]\033[0m\n"
+            "  Fulcrum's signal comes through clearer than before.\n"
+            "  \033[3m\"You've proven yourself. The Alliance is in your debt.\n"
+            "  From here, Rebel-flagged missions will appear on your job board.\n"
+            "  When the time comes, and it will — we'll be in touch.\n"
+            "  May the Force be with you.\"\033[0m\n"
+            "  +1,500cr. Title: (Rebel Sympathizer).\n"
+            "  \033[1;32mRebel Cell complete!\033[0m"
+        ),
+        "reward_credits": 1500,
+        "reward_title": "Rebel Sympathizer",
+    },
+]
+REBEL_CELL_TOTAL = 5
+
+
+# ── Drop 11B: Imperial Service — 5 steps ─────────────────────────────────────
+# Contact: Sergeant Kreel (Police Station, room 25)
+# Entry: missions_complete >= 2
+
+IMPERIAL_SERVICE = [
+    {   # Step 1 — talk to Kreel after entry req met
+        "trigger": "talk_kreel",
+        "msg": (
+            "\n  \033[1;33m[IMPERIAL SERVICE — Step 1/5]\033[0m\n"
+            "  Sergeant Kreel looks you over with cold appraisal.\n"
+            "  \033[3m\"The garrison is... short-handed on certain off-the-books matters.\n"
+            "  Complete this assignment and the Empire remembers its friends.\n"
+            "  You'll have Imperial standing — military contracts, garrison discounts,\n"
+            "  a name that opens doors at every checkpoint in the sector.\n"
+            "  First task: there's a suspected smuggler operating in Mos Eisley.\n"
+            "  Find them. Use Investigation. Bring me a name.\"\033[0m\n"
+            "  \033[2mTask: Use Investigation/Streetwise in Mos Eisley to find the smuggler. "
+            "Type 'investigate' in the Market or Cantina area.\033[0m"
+        ),
+        "reward_credits": 300,
+    },
+    {   # Step 2 — triggered by mission_complete (any)
+        "trigger": "mission_complete",
+        "msg": (
+            "\n  \033[1;33m[IMPERIAL SERVICE — Step 2/5]\033[0m\n"
+            "  Kreel reviews your report and grants a thin smile.\n"
+            "  \033[3m\"Good work. Now something more visible.\n"
+            "  An Imperial convoy needs an escort through the Outer Rim Lane.\n"
+            "  Unauthorized ships in that corridor are to be discouraged.\n"
+            "  You have authorization to fire first if approached.\"\033[0m\n"
+            "  +800cr advance.\n"
+            "  \033[2mTask: Complete a space ESCORT or PATROL mission. Reward: 1,200cr.\033[0m"
+        ),
+        "reward_credits": 800,
+    },
+    {   # Step 3 — triggered by mission_complete (space mission)
+        "trigger": "mission_complete",
+        "msg": (
+            "\n  \033[1;33m[IMPERIAL SERVICE — Step 3/5]\033[0m\n"
+            "  Kreel meets you at the docks personally.\n"
+            "  \033[3m\"The convoy arrived intact. The Admiral is pleased.\n"
+            "  There's a merchant in the Coronet City district who has been\n"
+            "  avoiding his Imperial tax obligations. Persuade him to reconsider.\n"
+            "  Diplomacy preferred. Results required.\"\033[0m\n"
+            "  +1,200cr.\n"
+            "  \033[2mTask: Fly to Corellia and 'talk' to the merchant in Coronet City. "
+            "A Persuasion or Intimidation check will determine outcome.\033[0m"
+        ),
+        "reward_credits": 1200,
+    },
+    {   # Step 4 — triggered by planet_land_corellia at step 3
+        "trigger": "planet_land_corellia",
+        "msg": (
+            "\n  \033[1;33m[IMPERIAL SERVICE — Step 4/5]\033[0m\n"
+            "  Kreel's message awaits you on return.\n"
+            "  \033[3m\"The tax situation resolved itself. Interesting.\n"
+            "  Final assignment: Rebel supply ship has been spotted near the\n"
+            "  Outer Rim Lane. Intercept and destroy it. This one is official —\n"
+            "  you'll have Imperial cover if local authorities ask questions.\"\033[0m\n"
+            "  +1,000cr.\n"
+            "  \033[2mTask: Destroy a Rebel-flagged NPC ship in space. Any deep space zone. Reward: 2,000cr.\033[0m"
+        ),
+        "reward_credits": 1000,
+    },
+    {   # Step 5 — triggered by mission_complete (intercept type)
+        "trigger": "mission_complete",
+        "msg": (
+            "\n  \033[1;33m[IMPERIAL SERVICE — COMPLETE]\033[0m\n"
+            "  Kreel hands you a data chip with the Imperial seal.\n"
+            "  \033[3m\"This identifies you as an Imperial Associate — a friend of order.\n"
+            "  The garrison mission board is open to you. Military contracts,\n"
+            "  supply runs, and the occasional off-the-books job.\n"
+            "  The Empire remembers its debts, freelancer. Don't forget ours.\"\033[0m\n"
+            "  +2,000cr. Title: (Imperial Associate).\n"
+            "  \033[1;32mImperial Service complete!\033[0m"
+        ),
+        "reward_credits": 2000,
+        "reward_title": "Imperial Associate",
+    },
+]
+IMPERIAL_SERVICE_TOTAL = 5
+
+
+# ── Drop 11C: Underworld — 5 steps ───────────────────────────────────────────
+# Contact: Gep (Gep's Grill, room 20)
+# Entry: smuggling_runs >= 3
+
+UNDERWORLD = [
+    {   # Step 1 — talk to Gep after entry req met
+        "trigger": "talk_gep",
+        "msg": (
+            "\n  \033[1;33m[UNDERWORLD — Step 1/5]\033[0m\n"
+            "  Gep leans across the bar and drops his voice.\n"
+            "  \033[3m\"You've been running jobs for a while. I've noticed.\n"
+            "  I have friends — the serious kind — who are looking for someone reliable.\n"
+            "  Do this, and you're in with the Cartel. Hutt patronage.\n"
+            "  Protection. Contracts that make your current work look like tip income.\n"
+            "  First: there's a delinquent spice dealer who owes my friends money.\n"
+            "  Collect it. Persuasion or... other methods. Your call.\"\033[0m\n"
+            "  \033[2mTask: Find the spice dealer in the Market District and collect the debt. "
+            "Use 'talk' or 'attack' — both resolve the step.\033[0m"
+        ),
+        "reward_credits": 0,
+    },
+    {   # Step 2 — triggered by either talk or combat complete in market area
+        "trigger": "mission_complete",
+        "msg": (
+            "\n  \033[1;33m[UNDERWORLD — Step 2/5]\033[0m\n"
+            "  Gep counts the credits and slides you your cut.\n"
+            "  \033[3m\"Clean. My friends are impressed. Next job's bigger.\n"
+            "  We've got stolen goods — luxury items, no questions asked.\n"
+            "  Move them through your contact on Nar Shaddaa.\n"
+            "  The buyer's name is on the datapad. Don't lose it.\"\033[0m\n"
+            "  +1,000cr.\n"
+            "  \033[2mTask: Complete a smuggling delivery to Nar Shaddaa. Reward: 1,500cr.\033[0m"
+        ),
+        "reward_credits": 1000,
+    },
+    {   # Step 3 — triggered by smuggling_complete to nar_shaddaa
+        "trigger": "smuggling_complete",
+        "msg": (
+            "\n  \033[1;33m[UNDERWORLD — Step 3/5]\033[0m\n"
+            "  The Hutt representative sends a brief message: \033[3m\"Satisfactory.\"\033[0m\n"
+            "  Gep grins. \033[3m\"High praise from a Hutt. You're doing well.\n"
+            "  This next one is lucrative but risky. There's a trader ship\n"
+            "  running cargo through the Outer Rim. We want that cargo.\n"
+            "  Hail them. Make a demand. If they refuse — well.\n"
+            "  The cargo's worth more than their feelings about it.\"\033[0m\n"
+            "  +1,500cr.\n"
+            "  \033[2mTask: In space, hail an NPC ship with 'comms <ship> <demand>' and collect. "
+            "Or attack and claim salvage. Reward: 2,000cr.\033[0m"
+        ),
+        "reward_credits": 1500,
+    },
+    {   # Step 4 — triggered by docking after space activity
+        "trigger": "planet_land_tatooine",
+        "msg": (
+            "\n  \033[1;33m[UNDERWORLD — Step 4/5]\033[0m\n"
+            "  Gep meets you at the docking bay, unusually serious.\n"
+            "  \033[3m\"My employers have a problem. A rival crime boss on Corellia\n"
+            "  has been cutting into their business. They want a message delivered.\n"
+            "  The persuasive kind. You'll find him at his warehouse in Coronet City.\n"
+            "  Come back with confirmation he understands the situation.\"\033[0m\n"
+            "  +2,000cr.\n"
+            "  \033[2mTask: Fly to Corellia and confront the crime boss in Coronet City. "
+            "Combat or Persuasion resolves it. Reward: 2,500cr.\033[0m"
+        ),
+        "reward_credits": 2000,
+    },
+    {   # Step 5 — triggered by planet_land_tatooine after corellia trip
+        "trigger": "planet_land_corellia",
+        "msg": (
+            "\n  \033[1;33m[UNDERWORLD — COMPLETE]\033[0m\n"
+            "  Gep pours you a drink without being asked.\n"
+            "  \033[3m\"Word came back from Corellia. The boss got the message.\n"
+            "  My employers are very pleased. You're in.\n"
+            "  Cartel-exclusive contracts are open to you now — check your job board.\n"
+            "  Hutt ports give you docking priority. And if someone gives you trouble...\n"
+            "  well. You know who to call.\"\033[0m\n"
+            "  +2,500cr. Title: (Made Man).\n"
+            "  \033[1;32mUnderworld complete!\033[0m"
+        ),
+        "reward_credits": 2500,
+        "reward_title": "Made Man",
+    },
+]
+UNDERWORLD_TOTAL = 5
+
+
+def _can_start_artisans_forge(char: dict) -> bool:
+    from engine.ships_log import get_ships_log
+    return get_ships_log(char).get("crafting_complete", 0) >= 3
+
+
+def _can_start_rebel_cell(char: dict) -> bool:
+    from engine.ships_log import get_ships_log
+    return get_ships_log(char).get("missions_complete", 0) >= 2
+
+
+def _can_start_imperial_service(char: dict) -> bool:
+    from engine.ships_log import get_ships_log
+    return get_ships_log(char).get("missions_complete", 0) >= 2
+
+
+def _can_start_underworld(char: dict) -> bool:
+    from engine.ships_log import get_ships_log
+    return get_ships_log(char).get("smuggling_runs", 0) >= 3
+
+
+
+
+def _can_start_smugglers_run(char: dict) -> bool:
+    """Check entry requirements for Smuggler's Run."""
+    from engine.ships_log import get_ships_log
+    sl = get_ships_log(char)
+    return sl.get("smuggling_runs", 0) >= 1
+
+
+def _can_start_hunters_mark(char: dict) -> bool:
+    """Check entry requirements for Hunter's Mark."""
+    from engine.ships_log import get_ships_log
+    sl = get_ships_log(char)
+    return sl.get("bounties_collected", 0) >= 3
+
+
+async def check_profession_chains(session, db, trigger: str, **kwargs) -> None:
+    """
+    Central dispatcher for profession chain progression.
+
+    Call from:
+      TalkCommand         — trigger="talk_kessa", trigger="talk_dash", trigger="talk_sskrath"
+      SmugDeliverCommand  — trigger="smuggling_complete", kwargs: dest_planet=str
+      BountyCollectCmd    — trigger="bounty_collected"
+      LandCommand         — trigger="planet_land_<planet>" e.g. "planet_land_nar_shaddaa"
+    """
+    try:
+        char = session.character
+        if not char:
+            return
+        pq = get_profession_quests(char)
+        changed = False
+
+        # ── Smuggler's Run ────────────────────────────────────────────────────
+        sr = pq.get("smugglers_run", 0)
+
+        # Offer the chain when entry reqs are met and Kessa is talked to
+        if trigger == "talk_kessa" and sr == 0 and _can_start_smugglers_run(char):
+            step = SMUGGLERS_RUN[0]
+            await session.send_line(step["msg"])
+            pq["smugglers_run"] = 1
+            changed = True
+
+        elif sr == 1 and trigger == "smuggling_complete":
+            dest = kwargs.get("dest_planet", "")
+            if "nar_shaddaa" in dest.lower():
+                step = SMUGGLERS_RUN[1]
+                await session.send_line(step["msg"])
+                await _grant_chain_reward(session, db, char, step)
+                pq["smugglers_run"] = 2
+                changed = True
+
+        elif sr == 2 and trigger == "planet_land_nar_shaddaa":
+            step = SMUGGLERS_RUN[2]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            pq["smugglers_run"] = 3
+            changed = True
+
+        elif sr == 3 and trigger == "talk_dash":
+            step = SMUGGLERS_RUN[3]
+            await session.send_line(step["msg"])
+            pq["smugglers_run"] = 4
+            changed = True
+
+        elif sr == 4 and trigger == "smuggling_complete":
+            dest = kwargs.get("dest_planet", "")
+            if "kessel" in kwargs.get("origin_planet", "").lower() or "kessel" in dest.lower():
+                step = SMUGGLERS_RUN[4]
+                await session.send_line(step["msg"])
+                await _grant_chain_reward(session, db, char, step)
+                pq["smugglers_run"] = 5
+                changed = True
+
+        elif sr == 5 and trigger in ("docked_nar_shaddaa", "planet_land_nar_shaddaa"):
+            step = SMUGGLERS_RUN[5]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            if step.get("reward_bonus"):
+                await _award_credits(session, db, char, step["reward_bonus"])
+            if step.get("reward_title"):
+                await grant_reward(session, db, credits=0,
+                                   title=step["reward_title"], message="")
+            pq["smugglers_run"] = 7  # complete
+            changed = True
+
+        # ── Hunter's Mark ─────────────────────────────────────────────────────
+        hm = pq.get("hunters_mark", 0)
+
+        if trigger == "talk_sskrath" and hm == 0 and _can_start_hunters_mark(char):
+            step = HUNTERS_MARK[0]
+            await session.send_line(step["msg"])
+            pq["hunters_mark"] = 1
+            changed = True
+
+        elif hm == 1 and trigger == "planet_land_nar_shaddaa":
+            step = HUNTERS_MARK[1]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            pq["hunters_mark"] = 2
+            changed = True
+
+        elif hm == 2 and trigger == "planet_land_kessel":
+            step = HUNTERS_MARK[2]
+            await session.send_line(step["msg"])
+            pq["hunters_mark"] = 3
+            changed = True
+
+        elif hm == 3 and trigger == "planet_land_corellia":
+            step = HUNTERS_MARK[3]
+            await session.send_line(step["msg"])
+            pq["hunters_mark"] = 4
+            changed = True
+
+        elif hm == 4 and trigger == "bounty_collected":
+            step = HUNTERS_MARK[4]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            if step.get("reward_title"):
+                await grant_reward(session, db, credits=0,
+                                   title=step["reward_title"], message="")
+            pq["hunters_mark"] = 6  # complete
+            changed = True
+
+        # ── Artisan's Forge ──────────────────────────────────────────────────
+        af = pq.get("artisans_forge", 0)
+
+        if trigger == "talk_vek" and af == 0 and _can_start_artisans_forge(char):
+            await session.send_line(ARTISANS_FORGE[0]["msg"])
+            pq["artisans_forge"] = 1
+            changed = True
+
+        elif af == 1 and trigger == "craft_complete":
+            await session.send_line(ARTISANS_FORGE[1]["msg"])
+            pq["artisans_forge"] = 2
+            changed = True
+
+        elif af == 2 and trigger == "planet_land_tatooine":
+            await session.send_line(ARTISANS_FORGE[2]["msg"])
+            pq["artisans_forge"] = 3
+            changed = True
+
+        elif af == 3 and trigger == "craft_complete":
+            step = ARTISANS_FORGE[3]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            pq["artisans_forge"] = 4
+            changed = True
+
+        elif af == 4 and trigger == "planet_land_corellia":
+            step = ARTISANS_FORGE[4]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            if step.get("reward_bonus"):
+                await _award_credits(session, db, char, step["reward_bonus"])
+            if step.get("reward_title"):
+                await grant_reward(session, db, credits=0,
+                                   title=step["reward_title"], message="")
+            pq["artisans_forge"] = 6
+            changed = True
+
+        # ── Rebel Cell ───────────────────────────────────────────────────────
+        rc = pq.get("rebel_cell", 0)
+
+        if rc == 0 and trigger == "mission_complete" and _can_start_rebel_cell(char):
+            await session.send_line(REBEL_CELL[0]["msg"])
+            pq["rebel_cell"] = 1
+            changed = True
+
+        elif rc == 1 and trigger == "talk_rebel_contact":
+            step = REBEL_CELL[1]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            pq["rebel_cell"] = 2
+            changed = True
+
+        elif rc == 2 and trigger == "smuggling_complete":
+            dest = kwargs.get("dest_planet", "")
+            if "nar_shaddaa" in dest.lower():
+                step = REBEL_CELL[2]
+                await session.send_line(step["msg"])
+                await _grant_chain_reward(session, db, char, step)
+                pq["rebel_cell"] = 3
+                changed = True
+
+        elif rc == 3 and trigger == "scan_patrols_complete":
+            step = REBEL_CELL[3]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            pq["rebel_cell"] = 4
+            changed = True
+
+        elif rc == 4 and trigger == "mission_complete":
+            step = REBEL_CELL[4]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            if step.get("reward_title"):
+                await grant_reward(session, db, credits=0,
+                                   title=step["reward_title"], message="")
+            pq["rebel_cell"] = 6
+            changed = True
+
+        # ── Imperial Service ─────────────────────────────────────────────────
+        ims = pq.get("imperial_service", 0)
+
+        if trigger == "talk_kreel" and ims == 0 and _can_start_imperial_service(char):
+            step = IMPERIAL_SERVICE[0]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            pq["imperial_service"] = 1
+            changed = True
+
+        elif ims == 1 and trigger == "mission_complete":
+            step = IMPERIAL_SERVICE[1]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            pq["imperial_service"] = 2
+            changed = True
+
+        elif ims == 2 and trigger == "mission_complete":
+            step = IMPERIAL_SERVICE[2]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            pq["imperial_service"] = 3
+            changed = True
+
+        elif ims == 3 and trigger == "planet_land_corellia":
+            step = IMPERIAL_SERVICE[3]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            pq["imperial_service"] = 4
+            changed = True
+
+        elif ims == 4 and trigger == "mission_complete":
+            step = IMPERIAL_SERVICE[4]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            if step.get("reward_title"):
+                await grant_reward(session, db, credits=0,
+                                   title=step["reward_title"], message="")
+            pq["imperial_service"] = 6
+            changed = True
+
+        # ── Underworld ───────────────────────────────────────────────────────
+        uw = pq.get("underworld", 0)
+
+        if trigger == "talk_gep" and uw == 0 and _can_start_underworld(char):
+            await session.send_line(UNDERWORLD[0]["msg"])
+            pq["underworld"] = 1
+            changed = True
+
+        elif uw == 1 and trigger == "mission_complete":
+            step = UNDERWORLD[1]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            pq["underworld"] = 2
+            changed = True
+
+        elif uw == 2 and trigger == "smuggling_complete":
+            dest = kwargs.get("dest_planet", "")
+            if "nar_shaddaa" in dest.lower():
+                step = UNDERWORLD[2]
+                await session.send_line(step["msg"])
+                await _grant_chain_reward(session, db, char, step)
+                pq["underworld"] = 3
+                changed = True
+
+        elif uw == 3 and trigger == "planet_land_tatooine":
+            step = UNDERWORLD[3]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            pq["underworld"] = 4
+            changed = True
+
+        elif uw == 4 and trigger == "planet_land_corellia":
+            step = UNDERWORLD[4]
+            await session.send_line(step["msg"])
+            await _grant_chain_reward(session, db, char, step)
+            if step.get("reward_title"):
+                await grant_reward(session, db, credits=0,
+                                   title=step["reward_title"], message="")
+            pq["underworld"] = 6
+            changed = True
+
+        if changed:
+            _save_profession_quests(char, pq)
+            await db.save_character(char["id"], attributes=char.get("attributes", "{}"))
+
+    except Exception:
+        pass  # Non-critical — never block gameplay
+
+
+async def _grant_chain_reward(session, db, char: dict, step: dict) -> None:
+    credits = step.get("reward_credits", 0)
+    if credits > 0:
+        await _award_credits(session, db, char, credits)
+
+
+async def _award_credits(session, db, char: dict, amount: int) -> None:
+    new_bal = char.get("credits", 0) + amount
+    char["credits"] = new_bal
+    await db.save_character(char["id"], credits=new_bal)
+    session.character["credits"] = new_bal
+
+
+def get_chain_status_lines(char: dict) -> list:
+    """Return display lines for +cpstatus / training command showing chain progress."""
+    pq = get_profession_quests(char)
+    lines = []
+    sr  = pq.get("smugglers_run",    0)
+    hm  = pq.get("hunters_mark",     0)
+    af  = pq.get("artisans_forge",   0)
+    rc  = pq.get("rebel_cell",       0)
+    ims = pq.get("imperial_service", 0)
+    uw  = pq.get("underworld",       0)
+
+    def _bar(step, total, complete_val):
+        if step == 0:
+            return "\033[2mnot started\033[0m"
+        if step >= complete_val:
+            return "\033[1;32mcomplete\033[0m"
+        return f"\033[1;33mstep {step}/{total}\033[0m"
+
+    can_sr  = _can_start_smugglers_run(char)
+    can_hm  = _can_start_hunters_mark(char)
+    can_af  = _can_start_artisans_forge(char)
+    can_rc  = _can_start_rebel_cell(char)
+    can_ims = _can_start_imperial_service(char)
+    can_uw  = _can_start_underworld(char)
+
+    lines.append("  \033[1;36mProfession Chains:\033[0m")
+
+    sr_bar  = _bar(sr,  SMUGGLERS_RUN_TOTAL,    7)
+    sr_hint = "" if (sr  > 0 or can_sr)  else "  \033[2m(req: 1 smuggling run + ship)\033[0m"
+    lines.append(f"    Smuggler's Run    [{sr_bar}]{sr_hint}")
+
+    hm_bar  = _bar(hm,  HUNTERS_MARK_TOTAL,     6)
+    hm_hint = "" if (hm  > 0 or can_hm)  else "  \033[2m(req: 3 bounties collected)\033[0m"
+    lines.append(f"    Hunter's Mark     [{hm_bar}]{hm_hint}")
+
+    af_bar  = _bar(af,  ARTISANS_FORGE_TOTAL,   6)
+    af_hint = "" if (af  > 0 or can_af)  else "  \033[2m(req: 3 items crafted)\033[0m"
+    lines.append(f"    Artisan's Forge   [{af_bar}]{af_hint}")
+
+    rc_bar  = _bar(rc,  REBEL_CELL_TOTAL,       6)
+    rc_hint = "" if (rc  > 0 or can_rc)  else "  \033[2m(req: 2 missions complete)\033[0m"
+    lines.append(f"    Rebel Cell        [{rc_bar}]{rc_hint}")
+
+    ims_bar = _bar(ims, IMPERIAL_SERVICE_TOTAL, 6)
+    ims_hint= "" if (ims > 0 or can_ims) else "  \033[2m(req: 2 missions complete)\033[0m"
+    lines.append(f"    Imperial Service  [{ims_bar}]{ims_hint}")
+
+    uw_bar  = _bar(uw,  UNDERWORLD_TOTAL,       6)
+    uw_hint = "" if (uw  > 0 or can_uw)  else "  \033[2m(req: 3 smuggling runs)\033[0m"
+    lines.append(f"    Underworld        [{uw_bar}]{uw_hint}")
+
+    return lines
+
+

@@ -5,8 +5,8 @@ Space commands -- ship operations, crew stations, flight, and combat.
 32 commands: crew stations, cooperation, combat, navigation, economy.
 """
 import json
+import logging
 from parser.commands import BaseCommand, CommandContext, AccessLevel
-from engine.npc_space_traffic import get_orbit_zone_for_room, get_traffic_manager
 from engine.npc_space_traffic import get_orbit_zone_for_room, get_traffic_manager
 from engine.starships import (
     get_ship_registry, format_ship_status, resolve_space_attack,
@@ -18,6 +18,8 @@ from engine.starships import (
 )
 from engine.dice import DicePool
 from server import ansi
+
+log = logging.getLogger(__name__)
 
 
 async def _get_ship_for_player(ctx):
@@ -42,8 +44,11 @@ def _get_crew(ship):
 def _get_systems(ship):
     systems = ship.get("systems", "{}")
     if isinstance(systems, str):
-        try: return json.loads(systems)
-        except Exception: return {}
+        try:
+            return json.loads(systems)
+        except Exception:
+            log.warning("parse_systems failed for ship %s", ship.get("id"), exc_info=True)
+            return {}
     return systems or {}
 
 
@@ -135,7 +140,7 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
     # ── System states ─────────────────────────────────────────────────────────
     damaged_systems = systems.get("systems_damaged", [])
     sys_states = {}
-    for sname in ("engines", "weapons", "shields", "hyperdrive", "sensors"):
+    for sname in ("engines", "weapons", "shields", "hyperdrive", "sensors", "life_support"):
         sys_states[sname] = sname not in damaged_systems
 
     # ── Crew roster ───────────────────────────────────────────────────────────
@@ -150,6 +155,7 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
             if c:
                 return {"id": c["id"], "name": c["name"], "is_npc": bool(c.get("is_npc"))}
         except Exception:
+            log.warning("_char_stub: unhandled exception", exc_info=True)
             pass
         return {"id": cid, "name": f"Crew#{cid}", "is_npc": False}
 
@@ -205,7 +211,7 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
                 "name":        wpn.name,
                 "damage":      wpn.damage,
                 "fire_control":fc_display,
-                "arc":         wpn.arc,
+                "arc":         wpn.fire_arc,
                 "ion":         getattr(wpn, "ion", False),
                 "tractor":     getattr(wpn, "tractor", False),
                 "manned_by":   gunner_stub["name"] if gunner_stub else None,
@@ -214,25 +220,88 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
 
     # ── Contacts (nearby ships in same zone) ──────────────────────────────────
     contacts = []
+    seen_ids = {ship["id"]}  # Skip self
     traffic_mgr = get_traffic_manager()
-    all_ships_in_zone = []
+
+    # Player/DB ships in space (same source as ScanCommand uses)
     try:
-        # NPC traffic ships
-        for ts in traffic_mgr._ships.values():
-            ts_zone = ts.current_zone if hasattr(ts, "current_zone") else ""
-            if ts_zone == zone_id and ts.ship_id != ship["id"]:
+        db_ships = await db.get_ships_in_space()
+        for s in db_ships:
+            if s["id"] in seen_ids:
+                continue
+            # Check same zone BEFORE adding to seen_ids.
+            # NPC traffic ships exist in DB with docked_at=None but store
+            # zone="" — the traffic manager holds their real zone in memory.
+            # Adding them to seen_ids here would block the traffic manager
+            # loop from adding them as contacts, emptying the radar.
+            s_sys = s.get("systems", "{}")
+            if isinstance(s_sys, str):
+                try: s_sys = json.loads(s_sys)
+                except Exception: s_sys = {}
+            s_zone = s_sys.get("current_zone", "")
+            if s_zone != zone_id:
+                continue
+            seen_ids.add(s["id"])
+            # Get range/position from grid (may not be registered)
+            try:
+                rng = grid.get_range(ship["id"], s["id"])
+                rng_str = rng.name.lower() if rng else "long"
+            except Exception:
+                rng_str = "long"
+            try:
+                pos = grid.get_relative_position(ship["id"], s["id"])
+                pos_str = pos.name.lower() if pos else "front"
+            except Exception:
+                pos_str = "front"
+            s_tmpl = reg.get(s.get("template", ""))
+            contacts.append({
+                "ship_id":   s["id"],
+                "name":      s.get("name", f"Ship #{s['id']}"),
+                "ship_class":s_tmpl.name if s_tmpl else s.get("template", ""),
+                "range":     rng_str,
+                "position":  pos_str,
+                "is_npc":    False,
+                "is_player": True,
+                "hostile":   False,
+                "archetype": "",
+            })
+    except Exception as e:
+        log.warning("build_space_state: DB ship contacts failed: %s", e)
+
+    # NPC traffic ships in same zone
+    try:
+        traffic_ships = traffic_mgr.get_zone_ships(zone_id)
+        for ts in traffic_ships:
+            if ts.ship_id in seen_ids:
+                continue
+            seen_ids.add(ts.ship_id)
+            try:
                 rng = grid.get_range(ship["id"], ts.ship_id)
+                rng_str = rng.name.lower() if rng else "long"
+            except Exception:
+                rng_str = "long"
+            try:
                 pos = grid.get_relative_position(ship["id"], ts.ship_id)
-                contacts.append({
-                    "ship_id":   ts.ship_id,
-                    "name":      ts.name,
-                    "range":     rng.name.lower() if rng else "long",
-                    "position":  pos.name.lower() if pos else "front",
-                    "is_npc":    True,
-                    "archetype": getattr(ts, "archetype", ""),
-                })
-    except Exception:
-        pass
+                pos_str = pos.name.lower() if pos else "front"
+            except Exception:
+                pos_str = "front"
+            archetype = getattr(ts, "archetype", "")
+            if hasattr(archetype, "value"):
+                archetype = archetype.value
+            hostile = archetype in ("imperial_patrol", "pirate", "bounty_hunter")
+            contacts.append({
+                "ship_id":   ts.ship_id,
+                "name":      ts.sensors_name(),   # respects transponder spoofing
+                "ship_class":ts.display_name,     # TrafficShip has no .template field
+                "range":     rng_str,
+                "position":  pos_str,
+                "is_npc":    True,
+                "is_player": False,
+                "hostile":   hostile,
+                "archetype": archetype,
+            })
+    except Exception as e:
+        log.warning("build_space_state: NPC traffic contacts failed: %s", e)
 
     # ── Transit state ─────────────────────────────────────────────────────────
     in_hyperspace        = bool(systems.get("in_hyperspace"))
@@ -258,6 +327,7 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
                     "is_wreck":   a.is_wreck,
                 })
     except Exception:
+        log.warning("_char_stub: unhandled exception", exc_info=True)
         pass
 
     # ── Station-aware quick buttons ───────────────────────────────────────────
@@ -318,13 +388,13 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
         "contacts":         contacts,
         "anomalies":        anomalies_out,
         "station_buttons":  station_buttons,
-        "power_state":      _eff.get("power_state", {}),
+        "power_state":      (eff or {}).get("power_state", {}),
         "reactor_power":    tmpl.reactor_power if tmpl else 10,
         "silent_running":   is_silent_running(systems) if tmpl else False,
         "active_order":     systems.get("active_order"),
-        "order_flags":      _eff.get("order_flags", {}),
-        "stealth_bonus":    _eff.get("stealth_bonus", 0),
-        "false_transponder":_eff.get("false_transponder"),
+        "order_flags":      (eff or {}).get("order_flags", {}),
+        "stealth_bonus":    (eff or {}).get("stealth_bonus", 0),
+        "false_transponder":(eff or {}).get("false_transponder"),
     }
 
 
@@ -340,6 +410,7 @@ async def broadcast_space_state(ship: dict, db, session_mgr) -> None:
     try:
         sessions = session_mgr.sessions_in_room(bridge_room)
     except Exception:
+        log.warning("broadcast_space_state: unhandled exception", exc_info=True)
         return
 
     for sess in sessions:
@@ -347,9 +418,54 @@ async def broadcast_space_state(ship: dict, db, session_mgr) -> None:
             char_id = sess.character["id"] if sess.character else 0
             payload = await build_space_state(ship, char_id, db, session_mgr)
             await sess.send_json("space_state", payload)
-        except Exception:
-            pass  # graceful-drop per session
+        except Exception as e:
+            log.warning("broadcast_space_state failed for %s: %s", sess, e)
 
+
+
+async def _resolve_target_ship(ctx, ship: dict) -> "Optional[dict]":
+    """
+    Resolve a target ship name (from ctx.args) for any space combat command.
+
+    Searches:
+      1. DB ships in space by name (handles player ships)
+      2. Traffic manager ships in same zone by sensors_name()
+         (handles "Unregistered fighter", "Unknown freighter" etc.)
+
+    Returns the DB ship dict, or None if not found.
+    If multiple traffic ships share the same sensor name, sends an
+    ambiguity message to the session and returns the sentinel value False
+    so callers can distinguish "not found" from "ambiguous".
+    """
+    from engine.npc_space_traffic import get_traffic_manager as _gtm2
+    target_name = ctx.args.strip().lower()
+    my_zone = _get_systems(ship).get("current_zone", "")
+
+    # 1. DB ships
+    for s in await ctx.db.get_ships_in_space():
+        if s["id"] == ship["id"]:
+            continue
+        sn = s["name"].lower()
+        if sn == target_name or sn.startswith(target_name):
+            return s
+
+    # 2. Traffic manager ships in same zone by sensors_name()
+    zone_ships = _gtm2().get_zone_ships(my_zone)
+    matches = [
+        ts for ts in zone_ships
+        if ts.sensors_name().lower() == target_name
+        or ts.sensors_name().lower().startswith(target_name)
+    ]
+    if len(matches) > 1:
+        await ctx.session.send_line(
+            f"  {len(matches)} ships matching '{ctx.args}' in sensor range. "
+            f"Use 'lockon <name>' then 'fire', or be more specific."
+        )
+        return False  # sentinel: ambiguous
+    if matches:
+        return await ctx.db.get_ship(matches[0].ship_id)
+
+    return None
 
 
 class ShipsCommand(BaseCommand):
@@ -942,6 +1058,7 @@ class LaunchCommand(BaseCommand):
             from parser.smuggling_commands import check_patrol_on_launch
             await check_patrol_on_launch(ctx)
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
         await ctx.session_mgr.broadcast_to_room(
@@ -954,6 +1071,12 @@ class LaunchCommand(BaseCommand):
             ship = await ctx.db.get_ship_by_bridge(ship["bridge_room_id"])
             if ship:
                 await broadcast_space_state(ship, ctx.db, ctx.session_mgr)
+        except Exception as e:
+            log.warning("LaunchCommand space_state broadcast failed: %s", e)
+        # Spacer quest: launched
+        try:
+            from engine.spacer_quest import check_spacer_quest
+            await check_spacer_quest(ctx.session, ctx.db, "space_action", action="launch")
         except Exception:
             pass
 
@@ -986,6 +1109,7 @@ class LandCommand(BaseCommand):
             if _land_zone and _land_zone.planet:
                 _land_planet = _land_zone.planet
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
         # Search for planet-specific bay, fall back to any "Docking Bay"
         _BAY_SEARCH = {
@@ -1013,6 +1137,7 @@ class LandCommand(BaseCommand):
             elif _alert == AlertLevel.LAX:
                 docking_fee = int(docking_fee * 0.75)  # -25% low security
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
         char = ctx.session.character
         credits = char.get("credits", 0)
@@ -1042,6 +1167,7 @@ class LandCommand(BaseCommand):
             if ship_refreshed:
                 await broadcast_space_state(ship_refreshed, ctx.db, ctx.session_mgr)
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
         # ── Customs check (Drop 18) ─────────────────────────────────────────
@@ -1065,6 +1191,7 @@ class LandCommand(BaseCommand):
                            if _ms.get('title') else "")
                     )
             except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
                 pass
 
         # Discovery quest: fire first-visit trigger for this planet
@@ -1073,7 +1200,33 @@ class LandCommand(BaseCommand):
                 from engine.tutorial_v2 import on_planet_land
                 await on_planet_land(ctx.session, ctx.db, _land_planet)
             except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
                 pass
+        # Profession chain: planet arrival trigger
+        if _land_planet:
+            try:
+                from engine.tutorial_v2 import check_profession_chains
+                await check_profession_chains(
+                    ctx.session, ctx.db,
+                    f"planet_land_{_land_planet}",
+                )
+                # Smuggler's Run step 5 completion: docked on Nar Shaddaa
+                if _land_planet == "nar_shaddaa":
+                    await check_profession_chains(
+                        ctx.session, ctx.db, "docked_nar_shaddaa"
+                    )
+            except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
+                pass
+        # Spacer quest: landed
+        try:
+            from engine.spacer_quest import check_spacer_quest
+            await check_spacer_quest(
+                ctx.session, ctx.db, "space_action",
+                action="land", planet=_land_planet or "",
+            )
+        except Exception:
+            pass
 
 
 class ShipCommand(BaseCommand):
@@ -1625,6 +1778,7 @@ class ScanCommand(BaseCommand):
             if _scan_zone and _scan_zone.hazards.get("sensor_penalty"):
                 _SCAN_DIFFICULTY += _scan_zone.hazards["sensor_penalty"]
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
         try:
             char_obj = Character.from_db_dict(char)
@@ -1703,7 +1857,23 @@ class ScanCommand(BaseCommand):
             await ctx.session.send_line(
                 f"  {ansi.DIM}Zone: {player_zone}{ansi.RESET}")
         any_contacts = False
+        scan_seen_ids = {ship["id"]}  # track to avoid double-listing traffic ships
         for s in others:
+            # Zone filter: only show ships in same zone (or all if zone unknown)
+            if player_zone:
+                s_sys = s.get("systems", "{}")
+                if isinstance(s_sys, str):
+                    try: s_sys = json.loads(s_sys)
+                    except Exception: s_sys = {}
+                s_zone = s_sys.get("current_zone", "")
+                if s_zone and s_zone != player_zone:
+                    continue
+                if not s_zone:
+                    # Zone empty in DB — this is likely a traffic ship managed
+                    # in memory. Skip it here; the traffic manager loop below
+                    # will show it with the correct NPC label.
+                    continue
+            scan_seen_ids.add(s["id"])
             t = reg.get(s["template"])
             tname = t.name if t else s["template"]
             rng = grid.get_range(ship["id"], s["id"])
@@ -1742,6 +1912,9 @@ class ScanCommand(BaseCommand):
         if player_zone:
             traffic_ships = get_traffic_manager().get_zone_ships(player_zone)
             for ts in traffic_ships:
+                if ts.ship_id in scan_seen_ids:
+                    continue  # Already shown via DB ships loop
+                scan_seen_ids.add(ts.ship_id)
                 if scan_tier == "fail":
                     await ctx.session.send_line(
                         f"  Contact: {ansi.BRIGHT_WHITE}{ts.sensors_name()}{ansi.RESET} "
@@ -1768,6 +1941,12 @@ class ScanCommand(BaseCommand):
         if not any_contacts:
             await ctx.session.send_line("  No other ships detected.")
         await ctx.session.send_line("")
+
+        # Update space HUD (populates radar with contacts)
+        try:
+            await broadcast_space_state(ship, ctx.db, ctx.session_mgr)
+        except Exception:
+            log.warning("ScanCommand: broadcast_space_state failed", exc_info=True)
 
 
 class DeepScanCommand(BaseCommand):
@@ -1945,6 +2124,34 @@ class FireCommand(BaseCommand):
         if ship["docked_at"]:
             await ctx.session.send_line("  Can't fire while docked!")
             return
+
+        # ── Space security gate (design doc §8) ──────────────────────────
+        # DOCK zones = secured (no fire — already blocked by docked_at check)
+        # ORBIT / HYPERSPACE_LANE = contested (PvP requires consent)
+        # DEEP_SPACE = lawless (unrestricted)
+        _space_sec = "lawless"  # safe default — fail-open for space
+        try:
+            systems_chk = _get_systems(ship)
+            zone_id_chk = systems_chk.get("current_zone", "")
+            from engine.npc_space_traffic import ZONES as _SZONES, ZoneType
+            zone_chk = _SZONES.get(zone_id_chk)
+            if zone_chk:
+                if zone_chk.type == ZoneType.DOCK:
+                    _space_sec = "secured"
+                elif zone_chk.type in (ZoneType.ORBIT, ZoneType.HYPERSPACE_LANE):
+                    _space_sec = "contested"
+                elif zone_chk.type == ZoneType.DEEP_SPACE:
+                    _space_sec = "lawless"
+
+            if _space_sec == "secured":
+                await ctx.session.send_line(
+                    "  \033[1;33mPort authority sensors would detect weapons fire "
+                    "immediately. You'd be vaporized by the defense grid.\033[0m"
+                )
+                return
+        except Exception:
+            pass  # If we can't determine zone, allow fire (fail-open for space)
+        # ── End space security gate ──────────────────────────────────────
         crew = _get_crew(ship)
         char_id = ctx.session.character["id"]
         stations = crew.get("gunner_stations", {})
@@ -2008,11 +2215,41 @@ class FireCommand(BaseCommand):
         weapon = template.weapons[gunner_idx]
         target_name = raw_args.lower()
         target_ship = None
+
+        # Search DB ships first (player ships + traffic ships stored in DB)
+        _systems_self = _get_systems(ship)
+        _my_zone = _systems_self.get("current_zone", "")
         for s in await ctx.db.get_ships_in_space():
-            if s["id"] != ship["id"] and (
-                s["name"].lower() == target_name or s["name"].lower().startswith(target_name)):
+            if s["id"] == ship["id"]:
+                continue
+            # Match by DB name or sensor name
+            _sname = s["name"].lower()
+            if _sname == target_name or _sname.startswith(target_name):
                 target_ship = s
                 break
+
+        # If not found in DB, search traffic manager by sensors_name()
+        # This handles "Unregistered fighter", "Unknown freighter" etc.
+        if not target_ship:
+            from engine.npc_space_traffic import get_traffic_manager as _gtm
+            _zone_ships = _gtm().get_zone_ships(_my_zone)
+            _tm_matches = [
+                ts for ts in _zone_ships
+                if ts.sensors_name().lower() == target_name
+                or ts.sensors_name().lower().startswith(target_name)
+            ]
+            if len(_tm_matches) > 1:
+                # Ambiguous — tell the player how many and ask to use lockon
+                await ctx.session.send_line(
+                    f"  {len(_tm_matches)} ships matching '{ctx.args}' on scanners. "
+                    f"Use 'lockon <name>' to designate one, then 'fire'."
+                )
+                return
+            elif _tm_matches:
+                # Found exactly one traffic ship — fetch its DB row
+                _ts_match = _tm_matches[0]
+                target_ship = await ctx.db.get_ship(_ts_match.ship_id)
+
         if not target_ship:
             await ctx.session.send_line(f"  No ship '{ctx.args}' on scanners.")
             return
@@ -2020,6 +2257,41 @@ class FireCommand(BaseCommand):
         if not target_template:
             await ctx.session.send_line("  Target data error.")
             return
+
+        # ── Space PvP consent check (contested zones only) ───────────────
+        # Determine if target is a player-controlled ship
+        try:
+            _target_crew_chk = _get_crew(target_ship)
+            _target_pilot_id = _target_crew_chk.get("pilot")
+            _target_is_player_ship = False
+            if _target_pilot_id:
+                _tp_row = await ctx.db.get_character(_target_pilot_id)
+                if _tp_row and _tp_row.get("account_id"):
+                    _target_is_player_ship = True
+
+            if _target_is_player_ship and _space_sec == "contested":
+                # Check PvP consent using the ground combat consent system
+                from parser.combat_commands import _pvp_active, _PVP_CHALLENGE_TTL
+                import time as _fire_time
+                _now = _fire_time.time()
+                _my_id = ctx.session.character["id"]
+                _their_id = _target_pilot_id
+                _consented = (
+                    _pvp_active.get((_my_id, _their_id), 0) > _now - _PVP_CHALLENGE_TTL or
+                    _pvp_active.get((_their_id, _my_id), 0) > _now - _PVP_CHALLENGE_TTL
+                )
+                if not _consented:
+                    await ctx.session.send_line(
+                        f"  \033[1;33mOpening fire on a civilian vessel in patrolled "
+                        f"space would bring every patrol in the sector down on you.\033[0m\n"
+                        f"  Issue a \033[1;37mchallenge\033[0m on the ground first, or "
+                        f"engage them in deep space where no one's watching."
+                    )
+                    return
+        except Exception:
+            pass  # Fail-open — if we can't check, allow fire
+        # ── End space PvP consent check ──────────────────────────────────
+
         # Get range and position from grid
         grid = get_space_grid()
         rng = grid.get_range(ship["id"], target_ship["id"])
@@ -2211,11 +2483,13 @@ class FireCommand(BaseCommand):
         try:
             await broadcast_space_state(ship, ctx.db, ctx.session_mgr)
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
         if target_ship.get("bridge_room_id"):
             try:
                 await broadcast_space_state(target_ship, ctx.db, ctx.session_mgr)
             except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
                 pass
 
 
@@ -2251,16 +2525,10 @@ class LockOnCommand(BaseCommand):
             )
             return
 
-        # Find target ship
-        target_name = ctx.args.strip().lower()
-        target_ship = None
-        for s in await ctx.db.get_ships_in_space():
-            if s["id"] != ship["id"] and (
-                s["name"].lower() == target_name
-                or s["name"].lower().startswith(target_name)
-            ):
-                target_ship = s
-                break
+        # Find target ship (DB + traffic manager sensor names)
+        target_ship = await _resolve_target_ship(ctx, ship)
+        if target_ship is False:
+            return  # ambiguous — message already sent
         if not target_ship:
             await ctx.session.send_line(f"  No ship '{ctx.args}' on scanners.")
             return
@@ -2307,13 +2575,10 @@ class CloseRangeCommand(BaseCommand):
         if not ctx.args:
             await ctx.session.send_line(f"  Usage: {action} <target ship>")
             return
-        target_name = ctx.args.strip().lower()
-        target_ship = None
-        for s in await ctx.db.get_ships_in_space():
-            if s["id"] != ship["id"] and (
-                s["name"].lower() == target_name or s["name"].lower().startswith(target_name)):
-                target_ship = s
-                break
+        # Find target ship (DB + traffic manager sensor names)
+        target_ship = await _resolve_target_ship(ctx, ship)
+        if target_ship is False:
+            return  # ambiguous — message already sent
         if not target_ship:
             await ctx.session.send_line(f"  No ship '{ctx.args}' on scanners.")
             return
@@ -2880,6 +3145,7 @@ class CourseCommand(BaseCommand):
             sr.load_file("data/skills.yaml")
             result = perform_skill_check(char, "starfighter piloting", difficulty, sr)
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
         if result is not None and result.fumble:
@@ -2918,7 +3184,7 @@ class CourseCommand(BaseCommand):
 
         roll_str = f"Roll: {result.roll} vs {difficulty}" if result else "auto"
         crit_note = " (critical)" if result and result.critical_success else ""
-        eta = transit_ticks * 10
+        eta = transit_ticks  # 1 tick = 1 second
 
         hazard_warn = ""
         if _asteroid_density == "heavy":
@@ -3135,6 +3401,7 @@ class ShieldsCommand(BaseCommand):
         try:
             await broadcast_space_state(ship, ctx.db, ctx.session_mgr)
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
 
@@ -3223,6 +3490,7 @@ class HyperspaceCommand(BaseCommand):
             if _hyp_zone and _hyp_zone.hazards.get("nav_modifier"):
                 difficulty += _hyp_zone.hazards["nav_modifier"]
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
         try:
             char_obj = Character.from_db_dict(char)
@@ -3339,6 +3607,12 @@ class HyperspaceCommand(BaseCommand):
             f"  Stars stretch into lines as the {ship['name']} jumps to lightspeed!\n"
             f"  Destination: {dest['name']} — ETA ~{eta_secs}s."
         )
+        # Spacer quest: hyperspace jump initiated
+        try:
+            from engine.spacer_quest import check_spacer_quest
+            await check_spacer_quest(ctx.session, ctx.db, "space_action", action="hyperspace")
+        except Exception:
+            pass
 
 
 class BuyCommand(BaseCommand):
@@ -3393,6 +3667,7 @@ class BuyCommand(BaseCommand):
                     npc_dice, npc_pips = _parse_dice_str(bargain_str)
                     break  # Use first vendor NPC with Bargain skill
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
         from engine.skill_checks import resolve_bargain_check
@@ -3593,6 +3868,12 @@ class DamConCommand(BaseCommand):
             f"{ctx.session.character['name']} works on {matched}: "
             f"{result['message'].strip()}"
         )
+        # From Dust to Stars: damcon hook (Step 19)
+        try:
+            from engine.spacer_quest import check_spacer_quest
+            await check_spacer_quest(ctx.session, ctx.db, "use_command", command="damcon")
+        except Exception:
+            pass  # graceful-drop
 
 
 class PayCommand(BaseCommand):
@@ -4245,6 +4526,7 @@ async def _broadcast_space_state_for_ship(ship, db, session_mgr):
         from parser.space_commands import broadcast_space_state
         await broadcast_space_state(ship, db, session_mgr)
     except Exception:
+        log.warning("_broadcast_space_state_for_ship: unhandled exception", exc_info=True)
         pass
 
 
@@ -4320,6 +4602,7 @@ async def _run_customs_check(ctx, ship, planet: str) -> None:
                         infraction_class = 3 if job.cargo_tier >= 2 else 4
                         infraction_reason = f"Suspicious cargo: {job.cargo_type}"
             except Exception:
+                log.warning("_run_customs_check: unhandled exception", exc_info=True)
                 pass
 
         if infraction_class is None:
@@ -4587,9 +4870,9 @@ class MarketCommand(BaseCommand):
             f"  {ansi.BRIGHT_CYAN}Trade Market — {planet_display}{ansi.RESET}"
         )
         await ctx.session.send_line(
-            f"  {ansi.BRIGHT_WHITE}{'Good':<24} {'Price/ton':>10}  {'Tier':<8}  Description{ansi.RESET}"
+            f"  {ansi.BRIGHT_WHITE}{'Good':<24} {'Price/ton':>10}  {'Tier':<8}  {'Avail':>6}  Description{ansi.RESET}"
         )
-        await ctx.session.send_line("  " + "─" * 72)
+        await ctx.session.send_line("  " + "─" * 80)
 
         tier_colors = {
             "source": ansi.BRIGHT_GREEN,
@@ -4602,14 +4885,19 @@ class MarketCommand(BaseCommand):
             "normal": "normal",
         }
 
+        from engine.trading import SUPPLY_POOL
         for row in market:
             col = tier_colors[row["tier"]]
             tier_str = tier_labels[row["tier"]]
-            desc = row["description"][:35] + ("…" if len(row["description"]) > 35 else "")
+            desc = row["description"][:30] + ("…" if len(row["description"]) > 30 else "")
+            avail = SUPPLY_POOL.available(planet, row["key"])
+            avail_str = f"{avail}t" if avail > 0 else "OUT"
+            avail_col = col if avail > 0 else ansi.DIM
             await ctx.session.send_line(
                 f"  {col}{row['name']:<24}{ansi.RESET}"
                 f"  {col}{row['planet_price']:>8,}cr{ansi.RESET}"
                 f"  {col}{tier_str:<8}{ansi.RESET}"
+                f"  {avail_col}{avail_str:>6}{ansi.RESET}"
                 f"  {ansi.DIM}{desc}{ansi.RESET}"
             )
 
@@ -4673,7 +4961,7 @@ async def _handle_buy_cargo(ctx) -> None:
     """Handle 'buy cargo <good> <tons>'."""
     from engine.trading import (
         TRADE_GOODS, get_planet_price, get_ship_cargo,
-        cargo_free, add_cargo,
+        cargo_free, add_cargo, SUPPLY_POOL,
     )
     from engine.starships import get_ship_registry
     from engine.skill_checks import resolve_bargain_check
@@ -4734,6 +5022,25 @@ async def _handle_buy_cargo(ctx) -> None:
     planet = zone_obj.planet if zone_obj else ""
     base_price = get_planet_price(good, planet)
 
+    # Supply pool cap (review fix v1) — prevents the unlimited-trade
+    # exploit that let a YT-1300 loop generate ~240,000 cr/hr.
+    if planet:
+        avail = SUPPLY_POOL.available(planet, good.key)
+        if avail <= 0:
+            wait = SUPPLY_POOL.seconds_until_refresh(planet, good.key)
+            await ctx.session.send_line(
+                f"  The {good.name} market on {planet.title()} is picked "
+                f"clean. Check back in ~{max(1, wait // 60)} min."
+            )
+            return
+        if quantity > avail:
+            await ctx.session.send_line(
+                f"  Only {avail}t of {good.name} available on "
+                f"{planet.title()} right now. "
+                f"(Local supply refills every 45 min.)"
+            )
+            return
+
     # Bargain check
     char = ctx.session.character
     haggle = resolve_bargain_check(
@@ -4760,6 +5067,11 @@ async def _handle_buy_cargo(ctx) -> None:
 
     char["credits"] = current_credits - total_price
     await ctx.db.save_character(char["id"], credits=char["credits"])
+
+    # Drain supply pool AFTER commit so a DB failure doesn't burn
+    # supply. (Review fix v1)
+    if planet:
+        SUPPLY_POOL.consume(planet, good.key, quantity)
 
     pct = haggle["price_modifier_pct"]
     if pct != 0:

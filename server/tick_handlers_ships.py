@@ -1,0 +1,302 @@
+"""
+Ship tick handlers — ion decay, tractor reel, asteroid collision,
+hyperspace arrival.
+
+Ported from the inline blocks in game_server._game_tick_loop as part of
+the review-fixes refactor (design doc §3.2). These used to each call
+`db.get_ships_in_space()` independently; they now share the list via
+TickContext.ships_in_space.
+"""
+from __future__ import annotations
+
+import json
+import logging
+import random
+
+from server.tick_scheduler import TickContext
+
+log = logging.getLogger(__name__)
+
+
+async def ion_and_tractor_tick(ctx: TickContext) -> None:
+    """Decay ion penalties and notify tractor-held ships.
+
+    R&E p.108: ion wears off over ~2 rounds. 99 = full freeze and needs
+    a special clear path.
+    """
+    for ship in ctx.ships_in_space:
+        if ship.get("docked_at"):
+            continue
+        sys = json.loads(ship.get("systems") or "{}")
+        dirty = False
+
+        # ── Ion decay ────────────────────────────────────────────────
+        ion = sys.get("ion_penalty", 0)
+        if ion and ion != 99:
+            sys["ion_penalty"] = max(0, ion - 1)
+            if sys["ion_penalty"] == 0:
+                sys.pop("controls_frozen", None)
+            dirty = True
+        elif ion == 99:
+            sys["ion_penalty"] = 0
+            sys.pop("controls_frozen", None)
+            dirty = True
+
+        # ── Tractor auto-reel ────────────────────────────────────────
+        held_by = sys.get("tractor_held_by", 0)
+        if held_by:
+            holder = await ctx.db.get_ship(held_by)
+            if holder and holder.get("bridge_room_id"):
+                bridge = ship.get("bridge_room_id")
+                if bridge:
+                    await ctx.session_mgr.broadcast_to_room(
+                        bridge,
+                        "  [TRACTOR] You are being reeled in. "
+                        "Use 'resist' to break free."
+                    )
+            else:
+                # Holder gone — release
+                sys["tractor_held_by"] = 0
+                dirty = True
+
+        if dirty:
+            await ctx.db.update_ship(ship["id"], systems=json.dumps(sys))
+            # Keep the shared list in sync for later handlers this tick
+            ship["systems"] = json.dumps(sys)
+
+
+async def sublight_transit_tick(ctx: TickContext) -> None:
+    """Advance sublight-transit ships and arrive them at their destination.
+
+    Ported from the inline block in _game_tick_loop. Preserves the
+    HUD broadcast on arrival via broadcast_space_state().
+    """
+    from engine.npc_space_traffic import ZONES
+    from server import ansi
+
+    for ship in ctx.ships_in_space:
+        if ship.get("docked_at"):
+            continue
+        sys = json.loads(ship.get("systems") or "{}")
+        if not sys.get("sublight_transit"):
+            continue
+
+        ticks_remaining = sys.get("sublight_ticks_remaining", 0)
+        if ticks_remaining > 1:
+            sys["sublight_ticks_remaining"] = ticks_remaining - 1
+            await ctx.db.update_ship(ship["id"], systems=json.dumps(sys))
+            ship["systems"] = json.dumps(sys)
+            continue
+
+        # ── Arrival ──────────────────────────────────────────────────
+        dest_id = sys.get("sublight_dest", "")
+        dest_zone = ZONES.get(dest_id)
+        dest_name = (dest_zone.name if dest_zone
+                     else dest_id.replace("_", " ").title())
+        dest_desc = dest_zone.desc if dest_zone else ""
+
+        sys["sublight_transit"] = False
+        sys["current_zone"] = dest_id
+        sys.pop("sublight_dest", None)
+        sys.pop("sublight_ticks_remaining", None)
+        await ctx.db.update_ship(ship["id"], systems=json.dumps(sys))
+        ship["systems"] = json.dumps(sys)
+        ship["current_zone"] = dest_id  # keep shared dict fresh
+
+        bridge = ship.get("bridge_room_id")
+        if bridge:
+            desc_line = f"\n  {dest_desc}" if dest_desc else ""
+            await ctx.session_mgr.broadcast_to_room(
+                bridge,
+                f"  {ansi.BRIGHT_CYAN}[HELM]{ansi.RESET} "
+                f"Arrived: {dest_name}.{desc_line}"
+            )
+            # Space HUD update on arrival — fetch fresh ship row so the
+            # HUD broadcast doesn't use our stale in-memory dict.
+            try:
+                from parser.space_commands import broadcast_space_state
+                fresh = await ctx.db.get_ship_by_bridge(bridge)
+                if fresh:
+                    await broadcast_space_state(fresh, ctx.db, ctx.session_mgr)
+            except Exception:
+                log.warning("sublight arrival HUD broadcast failed",
+                            exc_info=True)
+
+
+async def asteroid_collision_tick(ctx: TickContext) -> None:
+    """Light hull scrape check for ships in heavy asteroid fields.
+
+    Runs every 30 ticks (~30s). Easy piloting check (difficulty 5);
+    failure = +1 hull damage with bridge notification.
+
+    Ported from the inline block in _game_tick_loop (review fix v2).
+    Uses ctx.ships_in_space — no extra DB fetch.
+    """
+    from server import ansi
+    from engine.npc_space_traffic import ZONES
+
+    for ship in ctx.ships_in_space:
+        if ship.get("docked_at"):
+            continue
+        sys = json.loads(ship.get("systems") or "{}")
+        # Skip transiting ships — they're not stationary in the field
+        if sys.get("in_hyperspace") or sys.get("sublight_transit"):
+            continue
+        zone = ZONES.get(sys.get("current_zone", ""))
+        if not zone:
+            continue
+        density = (zone.hazards or {}).get("asteroid_density", "")
+        if density != "heavy":
+            continue
+
+        # Easy piloting check: diff 5, use cached pilot dice if available
+        pilot_dice = max(1, sys.get("_cached_pilot_dice", 2))
+        roll = sum(random.randint(1, 6) for _ in range(pilot_dice))
+        if roll >= 5:
+            continue  # avoided
+
+        # Collision — light hull scrape
+        existing = ship.get("hull_damage", 0)
+        await ctx.db.update_ship(ship["id"], hull_damage=existing + 1)
+        ship["hull_damage"] = existing + 1  # keep shared dict fresh
+        bridge = ship.get("bridge_room_id")
+        if bridge:
+            await ctx.session_mgr.broadcast_to_room(
+                bridge,
+                f"  {ansi.BRIGHT_RED}[ASTEROID]{ansi.RESET} "
+                f"A chunk of rock scrapes the hull! "
+                f"(+1 hull damage) Transit through this zone quickly."
+            )
+
+
+async def hyperspace_arrival_tick(ctx: TickContext) -> None:
+    """Advance hyperspace-transiting ships and arrive them at their destination.
+
+    Runs every tick. Decrements the countdown and — on final tick — reverts
+    to realspace, re-adds the ship to the space grid, notifies bridge crew,
+    broadcasts the space HUD, logs the zone visit, and runs the smuggling
+    patrol check.
+
+    Ported from the inline block in _game_tick_loop (review fix v2).
+    Uses ctx.ships_in_space — no extra DB fetch.
+    """
+    from server import ansi
+    from engine.npc_space_traffic import ZONES
+    from engine.starships import get_ship_registry
+    from parser.space_commands import get_space_grid
+
+    for ship in ctx.ships_in_space:
+        if ship.get("docked_at"):
+            continue
+        sys = json.loads(ship.get("systems") or "{}")
+        if not sys.get("in_hyperspace"):
+            continue
+
+        ticks = sys.get("hyperspace_ticks_remaining", 0)
+        if ticks > 1:
+            sys["hyperspace_ticks_remaining"] = ticks - 1
+            await ctx.db.update_ship(ship["id"], systems=json.dumps(sys))
+            ship["systems"] = json.dumps(sys)
+            continue
+
+        # ── Arrival ──────────────────────────────────────────────────────────
+        dest_key = sys.get("hyperspace_dest", "tatooine")
+        dest_name = sys.get("hyperspace_dest_name", dest_key.title())
+        arr_zone = (
+            dest_key + "_orbit"
+            if (dest_key + "_orbit") in ZONES
+            else "tatooine_orbit"
+        )
+
+        sys["in_hyperspace"] = False
+        sys["current_zone"] = arr_zone
+        sys["location"] = dest_key
+        sys.pop("hyperspace_dest", None)
+        sys.pop("hyperspace_dest_name", None)
+        sys.pop("hyperspace_ticks_remaining", None)
+        sys.pop("hyperspace_roll_str", None)
+        await ctx.db.update_ship(ship["id"], systems=json.dumps(sys))
+        ship["systems"] = json.dumps(sys)
+        ship["current_zone"] = arr_zone  # keep shared dict fresh
+
+        # Re-add to space grid
+        tmpl = get_ship_registry().get(ship["template"])
+        spd = tmpl.speed if tmpl else 5
+        get_space_grid().add_ship(ship["id"], spd)
+
+        bridge = ship.get("bridge_room_id")
+        if not bridge:
+            continue
+
+        await ctx.session_mgr.broadcast_to_room(
+            bridge,
+            f"  {ansi.BRIGHT_CYAN}[HYPERSPACE]{ansi.RESET} "
+            f"Reverting to realspace — arriving at {dest_name}.\n"
+            f"  The star lines collapse back into points. "
+            f"You are in {arr_zone.replace('_', ' ').title()}."
+        )
+
+        # Space HUD broadcast on arrival
+        try:
+            from parser.space_commands import broadcast_space_state
+            fresh = await ctx.db.get_ship_by_bridge(bridge)
+            if fresh:
+                await broadcast_space_state(fresh, ctx.db, ctx.session_mgr)
+        except Exception:
+            log.warning("hyperspace arrival HUD broadcast failed", exc_info=True)
+
+        # Ship's log: zone visited
+        try:
+            from engine.ships_log import log_event as _zlog
+            for sess in (ctx.session_mgr.sessions_in_room(bridge) or []):
+                if sess.character:
+                    await _zlog(ctx.db, sess.character, "zones_visited", arr_zone)
+        except Exception:
+            log.warning("hyperspace arrival zone-log failed", exc_info=True)
+
+        # Patrol-on-arrival check for smuggling runs
+        try:
+            from parser.smuggling_commands import check_patrol_on_arrival
+            from parser.commands import CommandContext
+            for sess in (ctx.session_mgr.sessions_in_room(bridge) or []):
+                if not sess.character:
+                    continue
+                arr_ctx = CommandContext(
+                    session=sess,
+                    db=ctx.db,
+                    session_mgr=ctx.session_mgr,
+                    args="",
+                )
+                await check_patrol_on_arrival(arr_ctx, dest_key)
+        except Exception:
+            log.warning("hyperspace arrival patrol check failed", exc_info=True)
+
+
+async def space_anomaly_tick(ctx: TickContext) -> None:
+    """Spawn and expire space anomalies in zones occupied by player ships.
+
+    Runs every 300 ticks (~5 min). Uses ctx.ships_in_space to determine
+    which zones are active — no extra DB fetch.
+
+    Ported from the inline block in _game_tick_loop (review fix v2).
+    """
+    from engine.npc_space_traffic import ZONES
+    from engine.space_anomalies import spawn_anomalies_for_zone, tick_anomaly_expiry
+
+    active_zones: set[str] = set()
+    for ship in ctx.ships_in_space:
+        sys_raw = ship.get("systems", "{}")
+        try:
+            sys = json.loads(sys_raw) if isinstance(sys_raw, str) else sys_raw
+        except Exception:
+            log.warning("anomaly tick: bad systems JSON on ship %s", ship.get("id"), exc_info=True)
+            continue
+        zone = sys.get("current_zone")
+        if zone:
+            active_zones.add(zone)
+
+    for zone_id in active_zones:
+        tick_anomaly_expiry(zone_id)
+        zone = ZONES.get(zone_id)
+        if zone:
+            spawn_anomalies_for_zone(zone_id, zone.type.value)

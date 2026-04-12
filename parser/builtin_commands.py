@@ -2,9 +2,12 @@
 """
 Built-in commands for Phase 1: navigation, communication, info, and admin.
 """
+import logging
 import textwrap
 from parser.commands import BaseCommand, CommandContext, AccessLevel
 from server import ansi
+
+log = logging.getLogger(__name__)
 
 
 async def _check_hostile_npcs(ctx: CommandContext, room_id: int):
@@ -28,7 +31,7 @@ async def _check_hostile_npcs(ctx: CommandContext, room_id: int):
 
     # ── Security zone — no NPC aggro in SECURED areas ───────────────────────
     from engine.security import get_effective_security, SecurityLevel
-    _sec = await get_effective_security(room_id, ctx.db)
+    _sec = await get_effective_security(room_id, ctx.db, character=char)
     if _sec == SecurityLevel.SECURED:
         return
     # ── End security check ───────────────────────────────────────────────────
@@ -116,8 +119,36 @@ class LookCommand(BaseCommand):
             await session.send_line("You are in a void. Something has gone wrong.")
             return
 
-        # Room name
-        await session.send_line(ansi.room_name(room["name"]))
+        # Room name + security tag
+        _sec_tag = ""
+        try:
+            from engine.security import get_effective_security, security_label
+            _room_sec = await get_effective_security(char["room_id"], ctx.db, character=char)
+            _sec_tag = " " + security_label(_room_sec)
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        # Housing tag: [PRIVATE] + owner label for player-owned rooms
+        _housing_tag = ""
+        try:
+            from engine.housing import get_room_housing_display
+            _hdisp = await get_room_housing_display(ctx.db, char["room_id"])
+            if _hdisp:
+                _housing_tag = f" \033[2m[PRIVATE — {_hdisp['owner_name']}]\033[0m"
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        # Territory claim tag: [CLAIMED — Org Name]
+        _claim_tag = ""
+        try:
+            from engine.territory import get_claim_display_tag
+            _ct = await get_claim_display_tag(ctx.db, char["room_id"])
+            if _ct:
+                _claim_tag = _ct
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+        await session.send_line(ansi.room_name(room["name"]) + _sec_tag + _housing_tag + _claim_tag)
 
         # Environment flavor line (from inherited properties)
         props = await ctx.db.get_all_room_properties(char["room_id"])
@@ -144,19 +175,81 @@ class LookCommand(BaseCommand):
         for line in textwrap.wrap(desc, width=session.wrap_width - 2):
             await session.send_line(f"  {line}")
 
-        # Exits (show locks)
+        # Trophy display for player-owned rooms
+        try:
+            from engine.housing import get_room_housing_display, _trophies
+            _hd2 = await get_room_housing_display(ctx.db, char["room_id"])
+            if _hd2 and _hd2["trophies"]:
+                await session.send_line(
+                    f"  \033[2m[Mounted on the wall]\033[0m"
+                )
+                for _trophy in _hd2["trophies"]:
+                    _tname = _trophy.get("name") or _trophy.get("key") or "Item"
+                    _tqual = f"  (Q{_trophy['quality']})" if _trophy.get("quality") else ""
+                    await session.send_line(
+                        f"   \033[1;33m◆\033[0m {_tname}{_tqual}"
+                    )
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+
+        # Territory influence presence (Drop 6A)
+        try:
+            from engine.territory import get_zone_influence_line, get_room_zone_id
+            _tz_id = await get_room_zone_id(ctx.db, char["room_id"])
+            if _tz_id is not None:
+                _tz_line = await get_zone_influence_line(ctx.db, _tz_id)
+                if _tz_line:
+                    await session.send_line(_tz_line)
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
+
+        # Exits (show locks, use name label when available)
         exits = await ctx.db.get_exits(char["room_id"])
         if exits:
+            # Filter hidden exits (e.g. Rebel safehouse doors)
+            try:
+                from engine.housing import is_exit_visible
+                visible_exits = []
+                for e in exits:
+                    if await is_exit_visible(ctx.db, e, char):
+                        visible_exits.append(e)
+                exits = visible_exits
+            except Exception:
+                pass  # Graceful fallback: show all exits
+
             exit_parts = []
+            seen_dirs = {}  # direction → list of labels (for dedup display)
             for e in exits:
-                lock = e.get("lock_data", "")
-                if lock and lock not in ("{}", "", "open"):
-                    exit_parts.append(
-                        f"{ansi.exit_color(e['direction'])}"
-                        f"{ansi.DIM}[locked]{ansi.RESET}"
-                    )
-                else:
-                    exit_parts.append(ansi.exit_color(e["direction"]))
+                dir_key = e["direction"]
+                label = (e.get("name") or "").strip()
+                if not label:
+                    # Auto-fetch destination room name as fallback label
+                    try:
+                        dest = await ctx.db.get_room(e["to_room_id"])
+                        if dest:
+                            label = dest["name"]
+                    except Exception:
+                        log.warning("execute: unhandled exception", exc_info=True)
+                        pass
+                seen_dirs.setdefault(dir_key, []).append((label, e))
+
+            for dir_key, entries in seen_dirs.items():
+                # If multiple exits share a direction (shouldn't happen with fixed build,
+                # but handle gracefully): show each with its label
+                for label, e in entries:
+                    lock = e.get("lock_data", "")
+                    locked = lock and lock not in ("{}", "", "open")
+                    # Build display string: "north (Inn)" or just "north"
+                    if label and label.lower() != dir_key.lower():
+                        display = f"{ansi.exit_color(dir_key)} ({label})"
+                    else:
+                        display = ansi.exit_color(dir_key)
+                    if locked:
+                        display += f"{ansi.DIM}[locked]{ansi.RESET}"
+                    exit_parts.append(display)
+
             await session.send_line(f"  Exits: {', '.join(exit_parts)}")
 
         # Other characters in the room
@@ -176,6 +269,7 @@ class LookCommand(BaseCommand):
                     if w:
                         equip_str = f", wielding a {w.name}"
             except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
                 pass
             await session.send_line(
                 f"  {ansi.player_name(other['name'])} is here{equip_str}."
@@ -240,7 +334,32 @@ class LookCommand(BaseCommand):
                     f"browse {shop_name})\033[0m"
                 )
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
+
+        # ── Web HUD: sync space panel state on every look ────────────────
+        # This ensures the sidebar switches correctly on board/disembark/look.
+        try:
+            if session.protocol.value == "websocket":
+                from parser.space_commands import build_space_state, broadcast_space_state
+                ship = await ctx.db.get_ship_by_bridge(char["room_id"])
+                if ship and not ship.get("docked_at"):
+                    # In space — activate space panel
+                    payload = await build_space_state(ship, char["id"], ctx.db, ctx.session_mgr)
+                    await session.send_json("space_state", payload)
+                elif ship and ship.get("docked_at"):
+                    # Docked — send inactive with ship name so client knows we're aboard
+                    await session.send_json("space_state", {
+                        "active": False,
+                        "ship_name": ship.get("name", ""),
+                    })
+                else:
+                    # On ground — deactivate space panel
+                    await session.send_json("space_state", {"active": False})
+                # Always send HUD update so sidebar reflects current room
+                await session.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
+        except Exception as e:
+            log.warning("LookCommand space_state sync failed: %s", e)
 
     async def _look_at(self, ctx: CommandContext):
         """Look at a specific target (character, NPC, or object)."""
@@ -290,6 +409,7 @@ class LookCommand(BaseCommand):
                     if w:
                         await ctx.session.send_line(f"    Wielding: {w.name}")
             except Exception:
+                log.warning("_look_at: unhandled exception", exc_info=True)
                 pass
             # Wound status
             wl = c.data.get("wound_level", 0)
@@ -324,7 +444,30 @@ class MoveCommand(BaseCommand):
             return
 
         exits = await ctx.db.get_exits(char["room_id"])
+
+        # Filter hidden exits (e.g. Rebel safehouse doors)
+        try:
+            from engine.housing import is_exit_visible
+            exits = [e for e in exits if await is_exit_visible(ctx.db, e, char)]
+        except Exception:
+            pass  # Graceful fallback: allow all exits
+
+        # Match priority:
+        # 1. Exact direction key match (e.g. "north")
+        # 2. Direction key prefix match (e.g. "no" → "north")
+        # 3. Exit name partial match (e.g. "inn" → exit with name="Inn")
+        # 4. Legacy: direction field contains the input (old "north to Inn" style)
         matching = [e for e in exits if e["direction"].lower() == direction]
+        if not matching:
+            matching = [e for e in exits if e["direction"].lower().startswith(direction)]
+        if not matching:
+            matching = [
+                e for e in exits
+                if e.get("name") and direction in e["name"].lower()
+            ]
+        if not matching:
+            # Legacy fallback: old DB has "north to Inn" stored as direction
+            matching = [e for e in exits if direction in e["direction"].lower()]
 
         if not matching:
             await session.send_line(f"You can't go {direction}.")
@@ -349,6 +492,19 @@ class MoveCommand(BaseCommand):
 
         old_room_id = char["room_id"]
         new_room_id = exit_data["to_room_id"]
+
+        # Housing private room gate (Drop 7) — check guest list / ownership
+        try:
+            from engine.housing import can_enter_housing_room
+            _allowed, _reason = await can_enter_housing_room(ctx.db, char, new_room_id)
+            if not _allowed:
+                await session.send_line(
+                    f"  [1;33m{_reason}[0m\n"
+                    "  Use [1;37mlockpick[0m to attempt entry."
+                )
+                return
+        except Exception:
+            pass  # Graceful fallback — allow movement
 
         # Notify the old room
         await ctx.session_mgr.broadcast_to_room(
@@ -380,6 +536,22 @@ class MoveCommand(BaseCommand):
             session_mgr=ctx.session_mgr,
         )
         await look_cmd.execute(look_ctx)
+
+        # ── Lawless zone entry warning (one-time per session) ────────────
+        try:
+            from engine.security import get_effective_security, SecurityLevel
+            _move_sec = await get_effective_security(new_room_id, ctx.db, character=char)
+            if _move_sec == SecurityLevel.LAWLESS:
+                if not getattr(session, "_lawless_warned", False):
+                    session._lawless_warned = True
+                    await session.send_line(
+                        "\n  \033[1;31m*** WARNING: You are entering LAWLESS territory. ***\033[0m\n"
+                        "  \033[1;31m*** Players and NPCs can attack you freely here. ***\033[0m\n"
+                        "  \033[2mHigher risk, higher rewards. Watch your back.\033[0m\n"
+                    )
+        except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
+            pass
 
         # Check for hostile NPCs in the new room
         await _check_hostile_npcs(ctx, new_room_id)
@@ -442,6 +614,16 @@ class MoveCommand(BaseCommand):
                 await check_discovery_quest(session, ctx.db, new_room.get("name", ""))
                 # Elective module step advancement [v25]
                 await check_elective_progress(session, ctx.db, new_room.get("name", ""))
+                # Spacer quest room-entry check
+                try:
+                    from engine.spacer_quest import check_spacer_quest
+                    await check_spacer_quest(
+                        session, ctx.db, "room_enter",
+                        room_id=new_room_id,
+                        room_name=new_room.get("name", ""),
+                    )
+                except Exception:
+                    pass
         except Exception:
             pass  # Non-critical
 
@@ -1144,6 +1326,111 @@ class UnequipCommand(BaseCommand):
         await ctx.session.send_line(ansi.success(f"  You put away your {wname}."))
 
 
+class WearCommand(BaseCommand):
+    """v22: Wear armor. Armor adds to Strength for soak per R&E p83."""
+    key = "wear"
+    aliases = ["don"]
+    help_text = "Wear armor. Use 'armor' to see available armor. Armor adds to soak in combat."
+    usage = "wear <armor name>"
+
+    async def execute(self, ctx: CommandContext):
+        from engine.weapons import get_weapon_registry
+        import json as _json
+
+        if not ctx.args:
+            # Show currently worn armor
+            char = ctx.session.character
+            try:
+                equip = _json.loads(char.get("equipment", "{}")) if isinstance(
+                    char.get("equipment"), str) else char.get("equipment", {})
+            except Exception:
+                equip = {}
+            armor_key = equip.get("armor", "")
+            if armor_key:
+                wr = get_weapon_registry()
+                a = wr.get(armor_key)
+                aname = a.name if a else armor_key
+                prot_e = a.protection_energy if a else "?"
+                prot_p = a.protection_physical if a else "?"
+                dex_pen = a.dexterity_penalty if a and a.dexterity_penalty else "none"
+                await ctx.session.send_line(
+                    f"  Wearing: {aname}\n"
+                    f"  Energy protection: {prot_e}  |  Physical: {prot_p}\n"
+                    f"  Dexterity penalty: {dex_pen}")
+            else:
+                await ctx.session.send_line("  No armor worn. Type 'armor' to see available armor.")
+            return
+
+        wr = get_weapon_registry()
+        armor = wr.find_by_name(ctx.args.strip())
+        if not armor:
+            await ctx.session.send_line(f"  Unknown armor '{ctx.args}'. Type 'armor' to see options.")
+            return
+        if not armor.is_armor:
+            await ctx.session.send_line(f"  {armor.name} is a weapon, not armor. Use 'equip' instead.")
+            return
+
+        # Update equipment JSON, preserving weapon
+        char = ctx.session.character
+        try:
+            equip = _json.loads(char.get("equipment", "{}")) if isinstance(
+                char.get("equipment"), str) else char.get("equipment", {})
+        except Exception:
+            equip = {}
+        equip["armor"] = armor.key
+        char["equipment"] = _json.dumps(equip)
+        await ctx.db.save_character(char["id"], equipment=char["equipment"])
+
+        dex_note = ""
+        if armor.dexterity_penalty:
+            dex_note = f" ({armor.dexterity_penalty} Dexterity penalty)"
+        await ctx.session.send_line(
+            ansi.success(
+                f"  You put on {armor.name}. "
+                f"(Energy: {armor.protection_energy}, Physical: {armor.protection_physical})"
+                f"{dex_note}"
+            )
+        )
+
+
+class RemoveArmorCommand(BaseCommand):
+    """v22: Remove worn armor."""
+    key = "remove"
+    aliases = ["doff"]
+    help_text = "Remove your worn armor."
+    usage = "remove armor"
+
+    async def execute(self, ctx: CommandContext):
+        from engine.weapons import get_weapon_registry
+        import json as _json
+
+        # Only handle "remove armor" — other remove targets can be added later
+        if not ctx.args or ctx.args.strip().lower() != "armor":
+            await ctx.session.send_line("  Usage: remove armor")
+            return
+
+        char = ctx.session.character
+        try:
+            equip = _json.loads(char.get("equipment", "{}")) if isinstance(
+                char.get("equipment"), str) else char.get("equipment", {})
+        except Exception:
+            equip = {}
+
+        armor_key = equip.get("armor", "")
+        if not armor_key:
+            await ctx.session.send_line("  You're not wearing any armor.")
+            return
+
+        wr = get_weapon_registry()
+        a = wr.get(armor_key)
+        aname = a.name if a else armor_key
+
+        del equip["armor"]
+        char["equipment"] = _json.dumps(equip)
+        await ctx.db.save_character(char["id"], equipment=char["equipment"])
+        await ctx.session.send_line(ansi.success(f"  You remove your {aname}."))
+
+
 class RepairCommand(BaseCommand):
     key = "+repair"
     aliases = []
@@ -1254,6 +1541,7 @@ class SellCommand(BaseCommand):
             if _smult != 1.0:
                 base_sale_price = int(base_sale_price * _smult)
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
         # ── Bargain haggle: player vs vendor ──
@@ -1270,6 +1558,7 @@ class SellCommand(BaseCommand):
                     npc_dice, npc_pips = _parse_dice_str(bargain_str)
                     break  # Use first vendor NPC with Bargain skill
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
         from engine.skill_checks import resolve_bargain_check
@@ -1339,6 +1628,44 @@ class WeaponsListCommand(BaseCommand):
 
 
 
+class ArmorListCommand(BaseCommand):
+    """v22: List available armor."""
+    key = "+armor"
+    aliases = ["armor", "armorlist"]
+    help_text = "List all armor in the game. Use 'wear <name>' to put armor on."
+    usage = "armor"
+
+    async def execute(self, ctx: CommandContext):
+        from engine.weapons import get_weapon_registry
+        import json as _json
+        wr = get_weapon_registry()
+
+        await ctx.session.send_line(
+            f"  {'Armor':<28s} {'Energy':>8s} {'Physical':>10s} {'DEX Pen':>8s} {'Cost':>8s}")
+        await ctx.session.send_line(
+            f"  {'-'*28} {'-'*8} {'-'*10} {'-'*8} {'-'*8}")
+        for a in wr.all_armor():
+            dex = a.dexterity_penalty if a.dexterity_penalty else "--"
+            cost_str = f"{a.cost:,}cr" if a.cost else "--"
+            await ctx.session.send_line(
+                f"  {a.name:<28s} {a.protection_energy:>8s} "
+                f"{a.protection_physical:>10s} {dex:>8s} {cost_str:>8s}")
+
+        # Show currently worn
+        char = ctx.session.character
+        try:
+            equip = _json.loads(char.get("equipment", "{}")) if isinstance(
+                char.get("equipment"), str) else char.get("equipment", {})
+        except Exception:
+            equip = {}
+        armor_key = equip.get("armor", "")
+        if armor_key:
+            a = wr.get(armor_key)
+            aname = a.name if a else armor_key
+            await ctx.session.send_line(
+                f"\n  Wearing: {ansi.BRIGHT_WHITE}{aname}{ansi.RESET}")
+
+
 class SemiposeCommand(BaseCommand):
     key = ";"
     aliases = ["semipose"]
@@ -1361,11 +1688,190 @@ class SemiposeCommand(BaseCommand):
             await s.send_line(text)
 
 
+
+
+class PicklockCommand(BaseCommand):
+    """
+    lockpick  — Attempt to pick the lock on a private housing door.
+    Uses Security skill. Difficulty varies by zone security level.
+    Drop 7: Housing Security & Intrusion.
+    """
+    key = "lockpick"
+    aliases = ["pick"]
+    help_text = (
+        "Attempt to pick the lock on a private housing room door.\n"
+        "\n"
+        "USAGE:\n"
+        "  lockpick  — attempt to pick the lock on the door you just tried to enter\n"
+        "\n"
+        "Difficulties:\n"
+        "  Contested zone: Very Difficult (25)\n"
+        "  Lawless zone:   Difficult (20)\n"
+        "  Secured zone:   Impossible (Imperial security seals)\n"
+        "\n"
+        "Failed attempts may alert the owner. A critical failure jams the lock."
+    )
+    usage = "lockpick"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        char = ctx.session.character
+        if not char:
+            return
+        # Target: the private housing room reachable from current room
+        room_id = char.get("room_id")
+        exits = await ctx.db.get_exits(room_id)
+        # Find the first adjacent private housing room
+        target_room_id = None
+        for e in exits:
+            from engine.housing import get_housing_for_private_room
+            h_check = await get_housing_for_private_room(ctx.db, e["to_room_id"])
+            if h_check:
+                target_room_id = e["to_room_id"]
+                break
+
+        if not target_room_id:
+            await ctx.session.send_line(
+                "  There's no locked housing door here to pick."
+            )
+            return
+
+        from engine.housing import attempt_lockpick, can_enter_housing_room
+        result = await attempt_lockpick(
+            ctx.db, char, target_room_id, ctx.session_mgr
+        )
+        await ctx.session.send_line(result["msg"])
+
+        if result.get("entered"):
+            # Move the character into the room
+            old_room_id = char["room_id"]
+            char["room_id"] = target_room_id
+            await ctx.db.save_character(char["id"], room_id=target_room_id)
+            await ctx.session_mgr.broadcast_to_room(
+                old_room_id,
+                f"  {char['name']} slips through a door.",
+                exclude=ctx.session,
+            )
+            await ctx.session_mgr.broadcast_to_room(
+                target_room_id,
+                f"  {char['name']} enters.",
+                exclude=ctx.session,
+            )
+            # Auto-look
+            look_cmd = LookCommand()
+            look_ctx = CommandContext(
+                session=ctx.session, raw_input="look",
+                command="look", args="",
+                db=ctx.db, session_mgr=ctx.session_mgr,
+            )
+            await look_cmd.execute(look_ctx)
+
+
+class ForceDoorCommand(BaseCommand):
+    """
+    forcedoor  — Attempt to force a housing door open with brute Strength.
+    Only works in lawless zones. Loud — always alerts owner.
+    Drop 7: Housing Security & Intrusion.
+    """
+    key = "forcedoor"
+    aliases = ["breakin", "force door"]
+    help_text = (
+        "Force a housing door open with brute strength.\n"
+        "Only possible in lawless zones. Always alerts the owner.\n"
+        "Difficulty: Moderate Strength (15)."
+    )
+    usage = "forcedoor"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        char = ctx.session.character
+        if not char:
+            return
+        room_id = char.get("room_id")
+        exits = await ctx.db.get_exits(room_id)
+        target_room_id = None
+        for e in exits:
+            from engine.housing import get_housing_for_private_room
+            h_check = await get_housing_for_private_room(ctx.db, e["to_room_id"])
+            if h_check:
+                target_room_id = e["to_room_id"]
+                break
+
+        if not target_room_id:
+            await ctx.session.send_line("  There's no housing door here to force.")
+            return
+
+        from engine.housing import attempt_force_door
+        result = await attempt_force_door(
+            ctx.db, char, target_room_id, ctx.session_mgr
+        )
+        await ctx.session.send_line(result["msg"])
+
+        if result.get("entered"):
+            old_room_id = char["room_id"]
+            char["room_id"] = target_room_id
+            await ctx.db.save_character(char["id"], room_id=target_room_id)
+            await ctx.session_mgr.broadcast_to_room(
+                old_room_id,
+                f"  [1;31m{char['name']} smashes through a door![0m",
+                exclude=ctx.session,
+            )
+            await ctx.session_mgr.broadcast_to_room(
+                target_room_id,
+                f"  [1;31m{char['name']} breaks in![0m",
+                exclude=ctx.session,
+            )
+            look_cmd = LookCommand()
+            look_ctx = CommandContext(
+                session=ctx.session, raw_input="look",
+                command="look", args="",
+                db=ctx.db, session_mgr=ctx.session_mgr,
+            )
+            await look_cmd.execute(look_ctx)
+
+
+class StealCommand(BaseCommand):
+    """
+    steal <item>  — Attempt to steal a displayed item from a housing room.
+    Requires being inside the housing room first (via lockpick or invite).
+    Drop 7: Housing Security & Intrusion.
+    """
+    key = "steal"
+    aliases = ["pilfer", "swipe"]
+    help_text = (
+        "Attempt to steal a displayed trophy item from a housing room.\n"
+        "\n"
+        "USAGE:\n"
+        "  steal <item name>\n"
+        "\n"
+        "You must already be inside the housing room.\n"
+        "Difficulties vary by zone: contested needs Sneak+Security (30),\n"
+        "lawless needs Sneak only (15). Secured zones: impossible."
+    )
+    usage = "steal <item name>"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        char = ctx.session.character
+        if not char:
+            return
+        item_name = (ctx.args or "").strip()
+        if not item_name:
+            await ctx.session.send_line("  Steal what? Usage: steal <item name>")
+            return
+
+        room_id = char.get("room_id")
+        from engine.housing import attempt_theft
+        result = await attempt_theft(
+            ctx.db, char, room_id, item_name, ctx.session_mgr
+        )
+        await ctx.session.send_line(result["msg"])
+
 def register_all(registry):
     """Register all built-in commands with the registry."""
     commands = [
         LookCommand(),
         MoveCommand(),
+        PicklockCommand(),
+        ForceDoorCommand(),
+        StealCommand(),
         SayCommand(),
         WhisperCommand(),
         EmoteCommand(),
@@ -1378,6 +1884,9 @@ def register_all(registry):
         DescCommand(),
         EquipCommand(),
         UnequipCommand(),
+        WearCommand(),
+        RemoveArmorCommand(),
+        ArmorListCommand(),
         RepairCommand(),
         SellCommand(),
         WeaponsListCommand(),
@@ -1539,6 +2048,7 @@ async def _handle_sell_cargo(ctx) -> None:
             from engine.ships_log import log_event as _tlog
             await _tlog(ctx.db, char, "trade_runs")
         except Exception:
+            log.warning("_handle_sell_cargo: unhandled exception", exc_info=True)
             pass
 
     profit_color = ansi.BRIGHT_GREEN if total_profit >= 0 else ansi.BRIGHT_RED
@@ -1768,6 +2278,7 @@ class TradeCommand(BaseCommand):
                              f"Paid {amount:,} credits to {char['name']} via trade",
                              {"amount": -amount, "counterpart": char["name"]})
         except Exception:
+            log.warning("_accept: unhandled exception", exc_info=True)
             pass
 
     async def _decline(self, ctx, char, offerer_name):

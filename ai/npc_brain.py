@@ -229,6 +229,7 @@ class NPCBrain:
                 from engine.narrative import get_short_record
                 player_narrative = await get_short_record(db, player_char_id, player_name)
             except Exception:
+                log.debug("npc_brain: narrative fetch failed", exc_info=True)
                 pass
 
         # Build prompt
@@ -289,8 +290,8 @@ class NPCBrain:
                 data = json.loads(dict(rows[0])["memory_json"])
                 return data.get("summary", "")
         except Exception:
+            log.debug("npc_brain: memory read failed", exc_info=True)
             pass
-        return ""
 
     async def _save_memory(self, db, char_id: int,
                            player_input: str, npc_response: str):

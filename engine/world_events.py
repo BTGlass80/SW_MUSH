@@ -507,7 +507,7 @@ class WorldEventManager:
             try:
                 await self._broadcast_expiry(event, session_mgr)
             except Exception:
-                log.debug("[events] Failed to broadcast expiry", exc_info=True)
+                log.warning("[events] Failed to broadcast expiry", exc_info=True)
             log.info("[events] Expired: %s", event.event_def.name)
 
         # ── Timer-based random events (only when Director is not active) ──

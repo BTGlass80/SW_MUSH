@@ -168,6 +168,7 @@ class CombatAction:
     weapon_damage: str = ""   # Weapon damage dice (e.g. "4D")
     weapon_key: str = ""      # Key into WeaponRegistry (e.g. "blaster_pistol")
     cp_spend: int = 0         # Character Points to spend on this action
+    stun_mode: bool = False   # v22: weapon set to stun — caps result at unconscious
     description: str = ""     # Flavor text
 
 
@@ -203,6 +204,15 @@ class Combatant:
     has_acted: bool = False
     force_point_active: bool = False  # R&E p52: doubles all dice this round
     cover_level: int = 0         # 0=none, 1=quarter, 2=half, 3=three_quarter, 4=full
+
+    # v22 audit #8: dodge rolled once per round, cached here.
+    # None = not yet rolled this round.  Cleared at round start.
+    dodge_roll_cached: Optional[int] = None
+
+    # v22 audit #12: defender pre-declares CP to spend on soak.
+    # If hit, these CP dice are added to the soak roll.
+    # If not hit, CP are not spent.  Max 5 per R&E.
+    soak_cp: int = 0
 
     # Cached character data for the combat
     char: Optional[Character] = None
@@ -427,11 +437,13 @@ class CombatInstance:
                 continue
 
             pool = c.char.get_attribute("perception")
-            pool = apply_wound_penalty(pool, c.char.wound_level.penalty_dice)
+            pool = apply_wound_penalty(pool, c.char.total_penalty_dice)
             result = roll_d6_pool(pool)
             c.initiative = result.total
             c.actions = []
             c.has_acted = False
+            c.dodge_roll_cached = None  # v22: clear dodge cache for new round
+            c.soak_cp = 0              # v22: clear soak CP for new round
             self._last_initiative_rolls[c.name] = result.display()
 
         # Sort by initiative (highest first)
@@ -621,6 +633,7 @@ class CombatInstance:
         c = self.combatants.get(char_id)
         if c:
             c.actions = []
+            c.dodge_roll_cached = None  # v22: re-declare means re-roll
 
     def all_declared(self) -> bool:
         """Check if all active combatants have declared at least one action."""
@@ -733,7 +746,9 @@ class CombatInstance:
 
         RANGED attacks (R&E p58-59):
           1. Base difficulty = weapon range band (PB:5, Short:10, Med:15, Long:20)
-          2. If defender declared dodge: roll dodge, ADD to difficulty
+          2. If defender declared normal dodge: dodge roll REPLACES base difficulty
+             If defender declared full dodge: dodge roll ADDS to base difficulty
+             Dodge is rolled ONCE per round, cached on Combatant (v22)
           3. Attacker rolls skill vs total difficulty -> difficulty_check
           This is NOT an opposed roll.
 
@@ -760,8 +775,13 @@ class CombatInstance:
 
         # Build attacker's pool
         attack_pool = char.get_skill_pool(action.skill, self.skill_reg)
-        attack_pool = apply_wound_penalty(attack_pool, char.wound_level.penalty_dice)
+        attack_pool = apply_wound_penalty(attack_pool, char.total_penalty_dice)
         attack_pool = apply_multi_action_penalty(attack_pool, num_actions)
+
+        # v22: armor Dexterity penalty applies to all combat skills
+        armor_dex_pen = char.get_armor_dex_penalty()
+        if not armor_dex_pen.is_zero():
+            attack_pool = apply_wound_penalty(attack_pool, armor_dex_pen.dice)
 
         # Force Point: double all dice (R&E p52)
         if actor.force_point_active:
@@ -846,23 +866,55 @@ class CombatInstance:
         if actor.cover_level > COVER_QUARTER:
             actor.cover_level = COVER_QUARTER
 
-        # Calculate dodge bonus
+        # Calculate dodge effect (v22 audit #7, #8)
+        #
+        # R&E rules:
+        #   Normal dodge: dodge roll REPLACES the base difficulty.
+        #     "The roll is the attacker's new difficulty number."
+        #     A bad roll can make you easier to hit.
+        #   Full dodge:   dodge roll ADDS to the base difficulty.
+        #     "The character can also add the dodge roll to the
+        #      difficulty of being hit."
+        #   Both: rolled ONCE, applies to all attacks of that type
+        #     for the rest of the round (cached on Combatant).
+        #
         dodge_bonus = 0
+        dodge_replaces = False  # True for normal dodge (replaces base)
         dodge_text = ""
         if defense_action:
             is_full = defense_action.action_type == ActionType.FULL_DODGE
-            dodge_pool = target.get_skill_pool("dodge", self.skill_reg)
-            dodge_pool = apply_wound_penalty(dodge_pool, target.wound_level.penalty_dice)
-            if not is_full:
-                dodge_pool = apply_multi_action_penalty(dodge_pool, len(target_c.actions))
 
-            # Force Point doubles dodge too
-            if target_c.force_point_active:
-                dodge_pool = apply_force_point(dodge_pool)
+            # Use cached dodge roll if already rolled this round
+            if target_c.dodge_roll_cached is not None:
+                dodge_value = target_c.dodge_roll_cached
+            else:
+                # Roll dodge once for the round
+                dodge_pool = target.get_skill_pool("dodge", self.skill_reg)
+                dodge_pool = apply_wound_penalty(dodge_pool, target.total_penalty_dice)
+                if not is_full:
+                    dodge_pool = apply_multi_action_penalty(dodge_pool, len(target_c.actions))
 
-            dodge_roll = roll_d6_pool(dodge_pool)
-            dodge_bonus = dodge_roll.total
-            dodge_text = f" + Dodge {dodge_bonus}"
+                # v22: armor Dexterity penalty
+                armor_dex_pen = target.get_armor_dex_penalty()
+                if not armor_dex_pen.is_zero():
+                    dodge_pool = apply_wound_penalty(dodge_pool, armor_dex_pen.dice)
+
+                # Force Point doubles dodge too
+                if target_c.force_point_active:
+                    dodge_pool = apply_force_point(dodge_pool)
+
+                dodge_roll = roll_d6_pool(dodge_pool)
+                dodge_value = dodge_roll.total
+                target_c.dodge_roll_cached = dodge_value
+
+            if is_full:
+                # Full dodge: ADDS to base difficulty
+                dodge_bonus = dodge_value
+                dodge_text = f" + FullDodge {dodge_value}"
+            else:
+                # Normal dodge: REPLACES base difficulty
+                dodge_replaces = True
+                dodge_text = f" → Dodge {dodge_value}"
 
         # Calculate cover bonus (R&E p60)
         cover_bonus = 0
@@ -874,7 +926,14 @@ class CombatInstance:
                 cover_bonus = cover_roll.total
                 cover_text = f" + Cover({COVER_NAMES[target_c.cover_level]}) {cover_bonus}"
 
-        total_difficulty = base_difficulty + dodge_bonus + cover_bonus
+        # Compute total difficulty
+        # Normal dodge: dodge_value REPLACES base_difficulty, then cover adds
+        # Full dodge: dodge_bonus ADDS to base_difficulty, then cover adds
+        # No dodge: just base_difficulty + cover
+        if dodge_replaces:
+            total_difficulty = dodge_value + cover_bonus
+        else:
+            total_difficulty = base_difficulty + dodge_bonus + cover_bonus
 
         # Roll attack vs difficulty
         attack_roll = roll_d6_pool(attack_pool)
@@ -937,35 +996,73 @@ class CombatInstance:
         def_skill_name = ""
         def_pool = DicePool(0, 0)
         melee_modifier = 0
+        melee_def_modifier = 0
 
         if defense_action:
             is_full = defense_action.action_type == ActionType.FULL_PARRY
             def_skill_name, def_pool = get_defense_skill(
                 atk_skill, target, self.skill_reg
             )
-            def_pool = apply_wound_penalty(def_pool, target.wound_level.penalty_dice)
+            def_pool = apply_wound_penalty(def_pool, target.total_penalty_dice)
             if not is_full:
                 def_pool = apply_multi_action_penalty(def_pool, len(target_c.actions))
 
-            # R&E melee modifiers
+            # v22: armor Dexterity penalty on parry
+            armor_dex_pen = target.get_armor_dex_penalty()
+            if not armor_dex_pen.is_zero():
+                def_pool = apply_wound_penalty(def_pool, armor_dex_pen.dice)
+
+            # R&E melee modifiers — these are FLAT bonuses to the roll
+            # total, NOT pips added to the DicePool (which normalizes pips
+            # into dice: +10 pips → +3D+1, which is wrong).
+            # v22 audit #15 fix.
             atk_is_armed = atk_skill in ("melee combat", "lightsaber")
             def_is_armed = def_skill_name in ("melee parry", "lightsaber")
 
             if not def_is_armed and atk_is_armed:
-                melee_modifier = 10  # +10 to attacker vs unarmed defender
+                melee_modifier = 10  # +10 flat to attacker vs unarmed defender
             elif def_is_armed and atk_skill == "brawling":
-                def_pool = DicePool(def_pool.dice, def_pool.pips + 5)  # +5 to armed parry vs unarmed
+                melee_def_modifier = 5  # +5 flat to armed parry vs unarmed attacker
         else:
-            def_pool = target.get_attribute("dexterity")
+            # v22 audit #16: no declared defense → attacker rolls against
+            # the weapon's listed difficulty, NOT opposed Dexterity.
+            # R&E p82: "Each melee weapon has a different difficulty number."
+            def_pool = None  # Signal: use difficulty check, not opposed roll
+            _weapon_diff_str = ""
+            if action.weapon_key:
+                from engine.weapons import get_weapon_registry
+                _wr = get_weapon_registry()
+                _wpn = _wr.get(action.weapon_key)
+                if _wpn:
+                    _weapon_diff_str = _wpn.melee_difficulty
+            # Map difficulty name to number (R&E canonical)
+            _DIFF_MAP = {"very easy": 5, "easy": 10, "moderate": 15,
+                         "difficult": 20, "very difficult": 25, "heroic": 30}
+            melee_base_difficulty = _DIFF_MAP.get(_weapon_diff_str.lower(), 15)  # default Moderate
 
-        if melee_modifier > 0:
-            attack_pool = DicePool(attack_pool.dice, attack_pool.pips + melee_modifier)
+        if def_pool is not None:
+            # Opposed roll (defender declared parry)
+            result = opposed_roll(attack_pool, def_pool)
+            def_label = def_skill_name.title() if def_skill_name else "DEX"
 
-        result = opposed_roll(attack_pool, def_pool)
-        def_label = def_skill_name.title() if def_skill_name else "DEX"
-
-        # Character Point spending (R&E p55): add dice after seeing roll
-        attack_total = result.attacker_roll.total
+            # Apply flat melee modifiers to roll totals (NOT to pools)
+            attack_total = result.attacker_roll.total + melee_modifier
+            def_total = result.defender_roll.total + melee_def_modifier
+        else:
+            # Difficulty check (no declared defense)
+            from engine.dice import difficulty_check
+            check = difficulty_check(attack_pool, melee_base_difficulty)
+            def_label = f"Diff({_weapon_diff_str.title() or 'Moderate'})"
+            attack_total = check.roll.total
+            def_total = melee_base_difficulty
+            # Create a fake opposed result for downstream code compatibility
+            result = type('OpposedFake', (), {
+                'attacker_roll': check.roll,
+                'defender_roll': type('FakeRoll', (), {
+                    'total': melee_base_difficulty,
+                    'display': lambda self: f"[{melee_base_difficulty}]",
+                })(),
+            })()
         cp_text = ""
         if action.cp_spend > 0 and actor.char:
             cp_bonus, cp_rolls = roll_cp_dice(action.cp_spend)
@@ -973,10 +1070,10 @@ class CombatInstance:
             actor.char.character_points -= action.cp_spend
             cp_text = f" +CP({'+'.join(str(r) for r in cp_rolls)}={cp_bonus})"
 
-        attacker_wins = attack_total > result.defender_roll.total
+        attacker_wins = attack_total > def_total
 
         if not attacker_wins:
-            _miss_margin = result.defender_roll.total - attack_total
+            _miss_margin = def_total - attack_total
             _mseed = (getattr(self, "round_num", 0) * 31 + actor.id) & 0xFFFF
             _mverb = _pick_verb(action.skill, _mseed)
             fp_tag = " [FORCE POINT]" if actor.force_point_active else ""
@@ -989,7 +1086,7 @@ class CombatInstance:
             )
             mech = _ansi.color(
                 f"    (Attack: {attack_total}{cp_text} vs"
-                f" {def_label}: {result.defender_roll.total})",
+                f" {def_label}: {def_total})",
                 _ansi.DIM,
             )
             return ActionResult(
@@ -1004,7 +1101,7 @@ class CombatInstance:
         return self._apply_damage(
             actor, target_c, action,
             attack_total,
-            f"{def_label}: {result.defender_roll.total}",
+            f"{def_label}: {def_total}",
             cp_text,
         )
 
@@ -1042,13 +1139,50 @@ class CombatInstance:
                 damage_pool = apply_force_point(damage_pool)
 
         soak_pool = target.get_attribute("strength")
+        # v22 audit #9: armor adds to Strength for soak per R&E p83
+        is_energy = not damage_str.upper().startswith("STR")  # ranged = energy, melee = physical
+        armor_pool = target.get_armor_protection(energy=is_energy)
+        if not armor_pool.is_zero():
+            soak_pool = soak_pool + armor_pool
+        # v22 audit #10: wound penalty applies to soak roll per R&E
+        soak_pool = apply_wound_penalty(soak_pool, target.total_penalty_dice)
 
         damage_roll = roll_d6_pool(damage_pool)
         soak_roll = roll_d6_pool(soak_pool)
-        damage_margin = damage_roll.total - soak_roll.total
+        soak_total = soak_roll.total
 
-        wound = target.apply_wound(damage_margin)
-        wound_text = wound.display_name if damage_margin > 0 else "No Damage"
+        # v22 audit #12: defender CP spending on soak per R&E p55
+        # "Five to increase a Strength roll to resist damage."
+        # CP declared at action time via `dodge cp 3` / `soak 2`.
+        # Only spent if actually hit. Dice explode on 6, no mishap on 1.
+        soak_cp_text = ""
+        if target_c.soak_cp > 0 and target_c.char:
+            cp_to_spend = min(target_c.soak_cp, target_c.char.character_points, 5)
+            if cp_to_spend > 0:
+                from engine.dice import roll_cp_dice
+                soak_cp_bonus, soak_cp_rolls = roll_cp_dice(cp_to_spend)
+                soak_total += soak_cp_bonus
+                target_c.char.character_points -= cp_to_spend
+                soak_cp_text = f" +CP({'+'.join(str(r) for r in soak_cp_rolls)}={soak_cp_bonus})"
+
+        damage_margin = damage_roll.total - soak_total
+
+        # v22 audit #11: stun damage routing per R&E p83
+        # "Weapons set for stun roll damage normally, but treat any result
+        #  more serious than 'stunned' as 'unconscious for 2D minutes.'"
+        stun_knocked_out = False
+        if action.stun_mode and damage_margin > 3:
+            # Margin > 3 would normally be wounded or worse;
+            # stun caps it at "unconscious for 2D minutes"
+            stun_knocked_out = True
+            # Apply as STUNNED wound level but set incapacitated state
+            target.apply_wound(1)  # Apply a stun (margin 1 = stunned)
+            wound_text = "Stunned — Unconscious!"
+        elif damage_margin > 0:
+            wound = target.apply_wound(damage_margin)
+            wound_text = wound.display_name
+        else:
+            wound_text = "No Damage"
 
         # Verb variety seeded on round + actor id for reproducibility
         _seed = (getattr(self, "round_num", 0) * 31 + actor.id) & 0xFFFF
@@ -1068,7 +1202,7 @@ class CombatInstance:
         )
         mech_line = _ansi.color(
             f"    (Roll: {attack_total}{cp_text} vs {defense_display}"
-            f" · Damage {damage_roll.total} vs Soak {soak_roll.total}"
+            f" · Damage {damage_roll.total} vs Soak {soak_total}{soak_cp_text}"
             f" → {wound_text})",
             _ansi.DIM,
         )
@@ -1222,11 +1356,11 @@ class CombatInstance:
         blocker = max(opponents, key=lambda c: c.initiative)
 
         flee_pool = actor.char.get_skill_pool("running", self.skill_reg)
-        flee_pool = apply_wound_penalty(flee_pool, actor.char.wound_level.penalty_dice)
+        flee_pool = apply_wound_penalty(flee_pool, actor.char.total_penalty_dice)
         flee_pool = apply_multi_action_penalty(flee_pool, num_actions)
 
         block_pool = blocker.char.get_skill_pool("running", self.skill_reg)
-        block_pool = apply_wound_penalty(block_pool, blocker.char.wound_level.penalty_dice)
+        block_pool = apply_wound_penalty(block_pool, blocker.char.total_penalty_dice)
 
         result = opposed_roll(flee_pool, block_pool)
 
@@ -1261,18 +1395,25 @@ class CombatInstance:
             if c.force_point_active:
                 c.force_point_active = False
 
-        # Tick stun timers (R&E p59: -1D for rest of round + next round)
+        # Tick stun timers — v22 audit #13: per-stun expiry
+        # Each stun has its own countdown. Remove expired ones individually.
         for c in self.combatants.values():
-            if c.char and c.char.stun_rounds > 0:
-                c.char.stun_rounds -= 1
-                if c.char.stun_rounds <= 0:
-                    # Stun penalty expired
+            if c.char and c.char.stun_timers:
+                c.char.stun_timers = [t - 1 for t in c.char.stun_timers]
+                expired = c.char.stun_timers.count(0) + sum(1 for t in c.char.stun_timers if t < 0)
+                c.char.stun_timers = [t for t in c.char.stun_timers if t > 0]
+                if expired > 0 and not c.char.stun_timers:
+                    # All stuns expired — clear STUNNED wound level
                     if c.char.wound_level == WoundLevel.STUNNED:
                         c.char.wound_level = WoundLevel.HEALTHY
-                        c.char.stun_count = 0
                         events.append(CombatEvent(
                             text=f"  {c.name} shakes off the stun."
                         ))
+                elif expired > 0 and c.char.stun_timers:
+                    remaining = len(c.char.stun_timers)
+                    events.append(CombatEvent(
+                        text=f"  {c.name}'s oldest stun fades ({remaining} stun{'s' if remaining != 1 else ''} still active)."
+                    ))
 
         # Mortally wounded death rolls (R&E p59)
         for c in list(self.combatants.values()):

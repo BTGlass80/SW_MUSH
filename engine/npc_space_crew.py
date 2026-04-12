@@ -223,6 +223,7 @@ async def _npc_pilot_act(
                     sr = SkillRegistry()
                     target_pilot_pool = tp_char.get_skill_pool("space transports", sr)
         except Exception:
+            log.warning("_npc_pilot_act: unhandled exception", exc_info=True)
             pass
 
     success, narrative = grid.resolve_maneuver(
@@ -309,6 +310,7 @@ async def _npc_gunner_act(
                 tp_char = Character.from_db_dict(tp)
                 target_pilot_pool = tp_char.get_skill_pool("starfighter piloting", SkillRegistry())
     except Exception:
+        log.warning("_npc_gunner_act: unhandled exception", exc_info=True)
         pass
 
     # Resolve the attack
@@ -530,14 +532,18 @@ async def _broadcast_safe(session_mgr, room_id: int, message: str):
 
 # ── Integration hook for game tick ──
 
-async def tick_npc_space_combat(db, session_mgr):
+async def tick_npc_space_combat(db, session_mgr, ships_in_space=None):
     """
     Called from the game tick loop. Processes NPC crew auto-actions
     for all ships in space that have NPC crew assigned.
 
     Only acts if there are enemies in range (avoids spam in empty space).
+
+    `ships_in_space` may be passed in from TickContext to avoid a
+    redundant DB fetch (review fix v3). If None, fetches fresh.
     """
-    ships_in_space = await db.get_ships_in_space()
+    if ships_in_space is None:
+        ships_in_space = await db.get_ships_in_space()
     if not ships_in_space:
         return
 

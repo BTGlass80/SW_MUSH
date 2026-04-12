@@ -15,6 +15,34 @@ from server.telnet_handler import TelnetHandler
 from server.websocket_handler import WebSocketHandler
 from server.web_client import WebClient
 from server import ansi
+from server.tick_scheduler import TickScheduler, TickContext
+from server.tick_handlers_ships import (
+    ion_and_tractor_tick,
+    sublight_transit_tick,
+    asteroid_collision_tick,
+    hyperspace_arrival_tick,
+    space_anomaly_tick,
+)
+from server.tick_handlers_economy import (
+    npc_space_crew_tick,
+    npc_space_traffic_tick,
+    space_mission_patrol_tick,
+    board_housekeeping_tick,
+    ambient_events_tick,
+    world_events_tick,
+    director_tick,
+    cp_engine_tick,
+    crew_wages_tick,
+    faction_payroll_tick,
+    vendor_recall_tick,
+    housing_rent_tick,
+    debt_payment_tick,
+    territory_presence_tick,
+    territory_decay_tick,
+    territory_claim_tick,
+    territory_resources_tick,
+    territory_contests_tick,
+)
 from parser.commands import CommandRegistry, CommandParser, CommandContext
 from parser.builtin_commands import register_all
 from parser.d6_commands import register_d6_commands
@@ -40,6 +68,8 @@ from parser.faction_commands import register_faction_commands
 from parser.faction_leader_commands import register_faction_leader_commands
 from parser.narrative_commands import register_narrative_commands
 from parser.shop_commands import register_shop_commands
+from parser.housing_commands import register_housing_commands
+from parser.spacer_quest_commands import register_spacer_quest_commands
 from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
@@ -91,6 +121,8 @@ class GameServer:
         register_faction_leader_commands(self.registry)
         register_narrative_commands(self.registry)
         register_shop_commands(self.registry)
+        register_housing_commands(self.registry)
+        register_spacer_quest_commands(self.registry)
 
         # ── Help System Init ──
         from data.help_topics import HelpManager
@@ -119,10 +151,47 @@ class GameServer:
 
         self._running = False
         self._tick_task: Optional[asyncio.Task] = None
-        self._wage_tick_counter: int = 0
-        self._asteroid_tick_counter: int = 0
-        self._anomaly_tick_counter: int = 0
-        self._faction_payroll_counter: int = 0
+        self._tick_count: int = 0  # monotonic tick counter, drives the scheduler
+
+        # ── Tick scheduler (review fix — full migration) ──────────────────────
+        # All tick sub-systems are registered here. Intervals are in ticks
+        # (1 tick ≈ 1 s). Offsets spread load so nothing piles up at tick 0.
+        # Handler isolation: one failing handler never blocks the others.
+        # See server/tick_handlers_ships.py and server/tick_handlers_economy.py
+        # for implementations.
+        from engine.npc_crew import WAGE_TICK_INTERVAL
+        self._tick_scheduler = TickScheduler()
+        # ── NPC behaviour (every tick, before ship physics) ──
+        self._tick_scheduler.register("npc_space_crew",    npc_space_crew_tick,    interval=1)
+        self._tick_scheduler.register("npc_space_traffic", npc_space_traffic_tick, interval=1)
+        # ── ship physics (every tick) ──
+        self._tick_scheduler.register("ion_and_tractor",   ion_and_tractor_tick,   interval=1)
+        self._tick_scheduler.register("sublight_transit",  sublight_transit_tick,  interval=1)
+        self._tick_scheduler.register("hyperspace_arrival", hyperspace_arrival_tick, interval=1)
+        # ── ship hazards (every 30 ticks ≈ 30 s) ──
+        self._tick_scheduler.register("asteroid_collision", asteroid_collision_tick, interval=30)
+        # ── environment (every 300 ticks ≈ 5 min) ──
+        self._tick_scheduler.register("space_anomaly",     space_anomaly_tick,      interval=300)
+        # ── missions & boards (every tick) ──
+        self._tick_scheduler.register("space_mission_patrol", space_mission_patrol_tick, interval=1)
+        self._tick_scheduler.register("board_housekeeping",   board_housekeeping_tick,   interval=1)
+        # ── world simulation (every tick) ──
+        self._tick_scheduler.register("ambient_events",    ambient_events_tick,    interval=1)
+        self._tick_scheduler.register("world_events",      world_events_tick,      interval=1)
+        self._tick_scheduler.register("director",          director_tick,          interval=1)
+        self._tick_scheduler.register("cp_engine",         cp_engine_tick,         interval=1)
+        # ── economy / admin (infrequent, offset to spread load) ──
+        self._tick_scheduler.register("crew_wages",        crew_wages_tick,        interval=WAGE_TICK_INTERVAL)
+        self._tick_scheduler.register("faction_payroll",   faction_payroll_tick,   interval=86400)
+        self._tick_scheduler.register("vendor_recall",     vendor_recall_tick,     interval=86400, offset=1)
+        self._tick_scheduler.register("housing_rent",      housing_rent_tick,      interval=604800, offset=432000)
+        # ── territory (hourly / daily / weekly) ──
+        self._tick_scheduler.register("territory_presence",  territory_presence_tick,  interval=3600,   offset=1800)
+        self._tick_scheduler.register("territory_decay",     territory_decay_tick,     interval=86400,  offset=43200)
+        self._tick_scheduler.register("territory_claim",     territory_claim_tick,     interval=604800, offset=518400)
+        self._tick_scheduler.register("debt_payment",        debt_payment_tick,        interval=604800, offset=345600)
+        self._tick_scheduler.register("territory_resources", territory_resources_tick, interval=86400,  offset=64800)
+        self._tick_scheduler.register("territory_contests",  territory_contests_tick,  interval=3600,   offset=2700)
 
     async def start(self):
         """Initialize database, load game data, and start all listeners."""
@@ -158,6 +227,20 @@ class GameServer:
                 log.info("World auto-build completed successfully.")
         except Exception as _build_err:
             log.warning("World auto-build skipped: %s", _build_err)
+        # Housing schema + lot seeding
+        try:
+            from engine.housing import ensure_schema as _hs_schema, seed_lots as _hs_lots
+            await _hs_schema(self.db)
+            await _hs_lots(self.db)
+        except Exception as _hs_err:
+            log.warning("Housing init skipped: %s", _hs_err)
+
+        # Territory control schema
+        try:
+            from engine.territory import ensure_territory_schema
+            await ensure_territory_schema(self.db)
+        except Exception as _terr_err:
+            log.warning("Territory init skipped: %s", _terr_err)
 
         # Auto-build tutorial zones if not yet present.
         # If the world was just built above, wait 1s to let the DB flush cleanly.
@@ -226,6 +309,7 @@ class GameServer:
                     )
                 await session.close()
             except Exception:
+                log.warning("stop: unhandled exception", exc_info=True)
                 pass
 
         await self.telnet.stop()
@@ -390,6 +474,7 @@ class GameServer:
 
         # Enter the game
         session.character = char
+        session.invalidate_char_obj()  # v22: clear cached Character object
         session.state = SessionState.IN_GAME
 
         # Announce arrival
@@ -451,6 +536,17 @@ class GameServer:
 
         await session.send_prompt()
 
+        # If player is aboard a ship bridge in space, send initial space_state
+        # so the radar and zone map populate without requiring a zone transition.
+        try:
+            from parser.space_commands import broadcast_space_state
+            from db.database import Database as _DB
+            _login_ship = await self.db.get_ship_by_bridge(char.get("room_id", -1))
+            if _login_ship and not _login_ship.get("docked_at"):
+                await broadcast_space_state(_login_ship, self.db, self.session_mgr)
+        except Exception:
+            pass  # Non-critical — ground players have no ship bridge
+
     async def _run_character_creation(self, session: Session) -> Optional[dict]:
         """
         Run the full interactive character creation flow.
@@ -505,6 +601,7 @@ class GameServer:
                     if landing_pad_rows:
                         tutorial_start_room = landing_pad_rows[0]["id"]
                 except Exception:
+                    log.warning("_run_character_creation: unhandled exception", exc_info=True)
                     pass
                 char_obj.room_id = tutorial_start_room
 
@@ -602,13 +699,42 @@ class GameServer:
 
     async def _game_tick_loop(self):
         """
-        Background game tick. Runs once per tick_interval.
-        Used for: idle disconnects, NPC AI, weather, regen, etc.
-        """
-        while self._running:
-            await asyncio.sleep(self.config.tick_interval)
+        Background game tick. Runs once per tick_interval (~1 s).
 
-            # Check for idle sessions
+        Structure (fully migrated — review fix v3):
+          1. Idle disconnect check — touches session objects directly; stays
+             inline so it runs even if the scheduler itself errors.
+          2. Scheduler dispatch — fetches ships_in_space once, then runs all
+             22 registered handlers via TickScheduler.run_tick(). Each handler
+             is isolated: one failure never blocks the others, and every failure
+             is logged at WARNING/EXCEPTION level (not silently swallowed).
+
+        All subsystems are registered in GameServer.__init__ and implemented in:
+          server/tick_handlers_ships.py   — ship physics, hazards, transit
+          server/tick_handlers_economy.py — NPC AI, boards, economy, territory
+        """
+        import time as _time
+        _next_deadline = _time.monotonic() + self.config.tick_interval
+
+        while self._running:
+            # v22 audit S10: deadline-based tick scheduling.
+            # If a tick takes 600ms, the next fires at t+1.0s, not t+1.6s.
+            # Prevents game time from drifting behind real time under load.
+            _now = _time.monotonic()
+            _sleep_for = max(0, _next_deadline - _now)
+            if _sleep_for > 0:
+                await asyncio.sleep(_sleep_for)
+            _next_deadline += self.config.tick_interval
+
+            # If we've fallen behind by more than 5 ticks, skip ahead
+            # rather than trying to catch up (which would make things worse)
+            _now2 = _time.monotonic()
+            if _now2 - _next_deadline > self.config.tick_interval * 5:
+                _skipped = int((_now2 - _next_deadline) / self.config.tick_interval)
+                log.warning("Tick loop fell behind by %d ticks — skipping ahead", _skipped)
+                _next_deadline = _now2 + self.config.tick_interval
+
+            # ── Idle session disconnect ───────────────────────────────────────
             for session in list(self.session_mgr.all):
                 if (session.is_idle_for(self.config.idle_timeout)
                         and session.state != SessionState.DISCONNECTING):
@@ -624,391 +750,17 @@ class GameServer:
                     await session.close()
                     self.session_mgr.remove(session)
 
-            # ── NPC Space Crew auto-actions ──
+            # ── Scheduler dispatch ────────────────────────────────────────────
             try:
-                from engine.npc_space_crew import tick_npc_space_combat
-                await tick_npc_space_combat(self.db, self.session_mgr)
-            except Exception:
-                log.debug("NPC space crew tick skipped", exc_info=True)
-
-
-            # ── Ion decay & tractor hold tick ──
-            try:
-                from parser.space_commands import _get_systems
-                import json as _gsj
-                ships = await self.db.get_all_ships()
-                for _ship in (ships or []):
-                    if _ship.get("docked_at"):
-                        continue
-                    _sys = _gsj.loads(_ship.get("systems") or "{}")
-                    _dirty = False
-                    # Ion decay: R&E p.108 — ion wears off in 2 rounds
-                    _ion = _sys.get("ion_penalty", 0)
-                    if _ion and _ion != 99:
-                        _sys["ion_penalty"] = max(0, _ion - 1)
-                        if _sys["ion_penalty"] == 0:
-                            _sys.pop("controls_frozen", None)
-                        _dirty = True
-                    elif _ion == 99:
-                        # Fully frozen: decay to half maneuver then clear
-                        _sys["ion_penalty"] = 0
-                        _sys.pop("controls_frozen", None)
-                        _dirty = True
-                    # Tractor auto-reel: notify held ship every tick
-                    _held_by = _sys.get("tractor_held_by", 0)
-                    if _held_by:
-                        _holder = await self.db.get_ship(_held_by)
-                        if _holder and _holder.get("bridge_room_id"):
-                            await self.session_mgr.broadcast_to_room(
-                                _ship["bridge_room_id"],
-                                "  [TRACTOR] You are being reeled in. Use 'resist' to break free."
-                            )
-                        else:
-                            # Holder gone — release
-                            _sys["tractor_held_by"] = 0
-                            _dirty = True
-                    if _dirty:
-                        await self.db.update_ship(_ship["id"], systems=_gsj.dumps(_sys))
-            except Exception:
-                log.debug("Ion/tractor tick skipped", exc_info=True)
-
-
-
-
-            # ── Asteroid collision tick (every 30 ticks = ~30s) ──
-            self._asteroid_tick_counter += 1
-            if self._asteroid_tick_counter % 30 == 0:
-                try:
-                    import json as _asj
-                    from server import ansi as _asa
-                    from engine.npc_space_traffic import ZONES as _ASZ
-                    from engine.starships import roll_hazard_table as _aht
-                    _as_ships = await self.db.get_all_ships()
-                    for _as_ship in (_as_ships or []):
-                        if _as_ship.get("docked_at"):
-                            continue
-                        _as_sys = _asj.loads(_as_ship.get("systems") or "{}")
-                        # Skip ships in any transit
-                        if _as_sys.get("in_hyperspace") or _as_sys.get("sublight_transit"):
-                            continue
-                        _as_zone = _ASZ.get(_as_sys.get("current_zone", ""))
-                        if not _as_zone:
-                            continue
-                        _density = (_as_zone.hazards or {}).get("asteroid_density", "")
-                        if _density != "heavy":
-                            continue
-                        # Heavy asteroid field: Easy piloting check (diff 5)
-                        # to avoid collision. Failure = 1 hull damage (light scrape)
-                        import random as _asr
-                        _pilot_dice = _as_sys.get("_cached_pilot_dice", 2)
-                        _roll = sum(_asr.randint(1, 6) for _ in range(max(1, _pilot_dice)))
-                        if _roll >= 5:
-                            continue  # Avoided
-                        # Collision — light hull scrape
-                        _existing = _as_ship.get("hull_damage", 0)
-                        await self.db.update_ship(
-                            _as_ship["id"], hull_damage=_existing + 1)
-                        if _as_ship.get("bridge_room_id"):
-                            await self.session_mgr.broadcast_to_room(
-                                _as_ship["bridge_room_id"],
-                                f"  {_asa.BRIGHT_RED}[ASTEROID]{_asa.RESET} "
-                                f"A chunk of rock scrapes the hull! "
-                                f"(+1 hull damage) Transit through this zone quickly."
-                            )
-                except Exception:
-                    log.debug("Asteroid collision tick skipped", exc_info=True)
-
-            # ── Sublight zone transit arrival tick ──
-            try:
-                import json as _slj
-                from server import ansi as _sla
-                from engine.npc_space_traffic import ZONES as _SLZ
-                _sl_ships = await self.db.get_all_ships()
-                for _sl_ship in (_sl_ships or []):
-                    if _sl_ship.get("docked_at"):
-                        continue
-                    _sl_sys = _slj.loads(_sl_ship.get("systems") or "{}")
-                    if not _sl_sys.get("sublight_transit"):
-                        continue
-                    _sl_ticks = _sl_sys.get("sublight_ticks_remaining", 0)
-                    if _sl_ticks > 1:
-                        _sl_sys["sublight_ticks_remaining"] = _sl_ticks - 1
-                        await self.db.update_ship(
-                            _sl_ship["id"], systems=_slj.dumps(_sl_sys))
-                        continue
-                    # ── Arrival ──────────────────────────────────────────────
-                    _dest_id = _sl_sys.get("sublight_dest", "")
-                    _dest_zone = _SLZ.get(_dest_id)
-                    _dest_name = (
-                        _dest_zone.name if _dest_zone
-                        else _dest_id.replace("_", " ").title()
-                    )
-                    _dest_desc = _dest_zone.desc if _dest_zone else ""
-                    _sl_sys["sublight_transit"] = False
-                    _sl_sys["current_zone"] = _dest_id
-                    _sl_sys.pop("sublight_dest", None)
-                    _sl_sys.pop("sublight_ticks_remaining", None)
-                    await self.db.update_ship(
-                        _sl_ship["id"], systems=_slj.dumps(_sl_sys))
-                    if _sl_ship.get("bridge_room_id"):
-                        _desc_line = (
-                            f"\n  {_dest_desc}" if _dest_desc else ""
-                        )
-                        await self.session_mgr.broadcast_to_room(
-                            _sl_ship["bridge_room_id"],
-                            f"  {_sla.BRIGHT_CYAN}[HELM]{_sla.RESET} "
-                            f"Arrived: {_dest_name}."
-                            f"{_desc_line}"
-                        )
-                        # Space HUD update on arrival
-                        try:
-                            from parser.space_commands import broadcast_space_state
-                            _sl_fresh = await self.db.get_ship_by_bridge(_sl_ship["bridge_room_id"])
-                            if _sl_fresh:
-                                await broadcast_space_state(_sl_fresh, self.db, self.session_mgr)
-                        except Exception:
-                            pass
-            except Exception:
-                log.debug("Sublight transit tick skipped", exc_info=True)
-
-            # ── Hyperspace transit arrival tick ──
-            try:
-                import json as _hsj
-                from server import ansi as _ha
-                from engine.starships import get_ship_registry as _hsr
-                from parser.space_commands import get_space_grid as _hsg
-                _hs_ships = await self.db.get_all_ships()
-                for _hs_ship in (_hs_ships or []):
-                    if _hs_ship.get("docked_at"):
-                        continue
-                    _hs_sys = _hsj.loads(_hs_ship.get("systems") or "{}")
-                    if not _hs_sys.get("in_hyperspace"):
-                        continue
-                    _ticks = _hs_sys.get("hyperspace_ticks_remaining", 0)
-                    if _ticks > 1:
-                        _hs_sys["hyperspace_ticks_remaining"] = _ticks - 1
-                        await self.db.update_ship(_hs_ship["id"], systems=_hsj.dumps(_hs_sys))
-                        continue
-                    # ── Arrival ──────────────────────────────────────────────
-                    _dest_key = _hs_sys.get("hyperspace_dest", "tatooine")
-                    _dest_name = _hs_sys.get("hyperspace_dest_name", _dest_key.title())
-                    from engine.npc_space_traffic import ZONES as _HTZ
-                    _arr_zone = (_dest_key + "_orbit"
-                                 if (_dest_key + "_orbit") in _HTZ
-                                 else "tatooine_orbit")
-                    _hs_sys["in_hyperspace"] = False
-                    _hs_sys["current_zone"] = _arr_zone
-                    _hs_sys["location"] = _dest_key
-                    _hs_sys.pop("hyperspace_dest", None)
-                    _hs_sys.pop("hyperspace_dest_name", None)
-                    _hs_sys.pop("hyperspace_ticks_remaining", None)
-                    _hs_sys.pop("hyperspace_roll_str", None)
-                    await self.db.update_ship(_hs_ship["id"], systems=_hsj.dumps(_hs_sys))
-                    # Re-add to space grid
-                    _hs_tmpl = _hsr().get(_hs_ship["template"])
-                    _hs_spd = _hs_tmpl.speed if _hs_tmpl else 5
-                    _hsg().add_ship(_hs_ship["id"], _hs_spd)
-                    # Notify bridge crew
-                    if _hs_ship.get("bridge_room_id"):
-                        await self.session_mgr.broadcast_to_room(
-                            _hs_ship["bridge_room_id"],
-                            f"  {_ha.BRIGHT_CYAN}[HYPERSPACE]{_ha.RESET} "
-                            f"Reverting to realspace — arriving at {_dest_name}.\n"
-                            f"  The star lines collapse back into points. "
-                            f"You are in {_arr_zone.replace('_', ' ').title()}."
-                        )
-                        # Space HUD update for all crew on arrival
-                        try:
-                            from parser.space_commands import broadcast_space_state
-                            _hs_fresh = await self.db.get_ship_by_bridge(_hs_ship["bridge_room_id"])
-                            if _hs_fresh:
-                                await broadcast_space_state(_hs_fresh, self.db, self.session_mgr)
-                        except Exception:
-                            pass
-                        # Ship's log: zone visited (Drop 19)
-                        try:
-                            from engine.ships_log import log_event as _zlog
-                            _log_sessions = self.session_mgr.sessions_in_room(
-                                _hs_ship["bridge_room_id"]
-                            )
-                            for _ls in (_log_sessions or []):
-                                if _ls.character:
-                                    await _zlog(self.db, _ls.character,
-                                                "zones_visited", _arr_zone)
-                        except Exception:
-                            pass
-
-                        # Patrol-on-arrival check for smuggling runs (Drop 11)
-                        try:
-                            from parser.smuggling_commands import check_patrol_on_arrival
-                            from parser.commands import CommandContext
-                            _arr_sessions = self.session_mgr.sessions_in_room(
-                                _hs_ship["bridge_room_id"]
-                            )
-                            for _arr_sess in (_arr_sessions or []):
-                                if not _arr_sess.character:
-                                    continue
-                                _arr_ctx = CommandContext(
-                                    session=_arr_sess,
-                                    db=self.db,
-                                    session_mgr=self.session_mgr,
-                                    args="",
-                                )
-                                await check_patrol_on_arrival(_arr_ctx, _dest_key)
-                        except Exception:
-                            pass
-            except Exception:
-                log.debug("Hyperspace arrival tick skipped", exc_info=True)
-
-            # -- NPC Space Traffic tick --
-            try:
-                from engine.npc_space_traffic import get_traffic_manager
-                await get_traffic_manager().tick(self.db, self.session_mgr)
-            except Exception:
-                log.debug("NPC space traffic tick skipped", exc_info=True)
-
-            # ── Space Anomaly spawn & expiry tick (every 300 ticks) ──
-            self._anomaly_tick_counter += 1
-            if self._anomaly_tick_counter % 300 == 0:
-                try:
-                    from engine.npc_space_traffic import ZONES as _AZONES
-                    from engine.space_anomalies import (
-                        spawn_anomalies_for_zone, tick_anomaly_expiry
-                    )
-                    # Collect all zones that have at least one player ship present
-                    _active_zones: set = set()
-                    _all_ships = await self.db.get_all_ships()
-                    for _az_ship in _all_ships:
-                        _az_sys_raw = _az_ship.get("systems", "{}")
-                        try:
-                            import json as _azj
-                            _az_sys = _azj.loads(_az_sys_raw) if isinstance(_az_sys_raw, str) else _az_sys_raw
-                        except Exception:
-                            continue
-                        if _az_sys.get("current_zone"):
-                            _active_zones.add(_az_sys["current_zone"])
-                    # Tick expiry for all known zones, spawn for active ones
-                    for _az_zid in list(_active_zones):
-                        tick_anomaly_expiry(_az_zid)
-                        _az_zone = _AZONES.get(_az_zid)
-                        if _az_zone:
-                            spawn_anomalies_for_zone(_az_zid, _az_zone.type.value)
-                except Exception:
-                    log.debug("Anomaly spawn tick skipped", exc_info=True)
-
-            # ── Space mission patrol timer tick (Drop 14) ─────────────────
-            try:
-                import json as _smj
-                from engine.missions import (
-                    get_mission_board, MissionType, MissionStatus, SPACE_MISSION_TYPES
+                self._tick_count += 1
+                _sched_ships = await self.db.get_ships_in_space()
+                _sched_ctx = TickContext(
+                    server=self,
+                    db=self.db,
+                    session_mgr=self.session_mgr,
+                    tick_count=self._tick_count,
+                    ships_in_space=list(_sched_ships or []),
                 )
-                _sm_board = get_mission_board()
-                _sm_ships = await self.db.get_all_ships()
-                for _sm_ship in (_sm_ships or []):
-                    if _sm_ship.get("docked_at"):
-                        continue
-                    _sm_sys = _smj.loads(_sm_ship.get("systems") or "{}")
-                    _sm_zone = _sm_sys.get("current_zone", "")
-                    if not _sm_zone:
-                        continue
-                    # Find the pilot's char_id
-                    try:
-                        _sm_crew = _smj.loads(_sm_ship.get("crew") or "{}")
-                        _sm_pilot_id = str(_sm_crew.get("pilot", ""))
-                    except Exception:
-                        continue
-                    if not _sm_pilot_id:
-                        continue
-                    # Check if pilot has an active space mission
-                    for _sm_m in list(_sm_board._missions.values()):
-                        if (_sm_m.accepted_by != _sm_pilot_id or
-                                _sm_m.status != MissionStatus.ACCEPTED or
-                                _sm_m.mission_type not in SPACE_MISSION_TYPES):
-                            continue
-                        md = _sm_m.mission_data or {}
-                        if _sm_m.mission_type == MissionType.PATROL:
-                            target = md.get("target_zone", "")
-                            if _sm_zone == target:
-                                md["patrol_ticks_done"] = md.get("patrol_ticks_done", 0) + 1
-                                _sm_m.mission_data = md
-                                # Notify at milestones
-                                done = md["patrol_ticks_done"]
-                                req  = md.get("patrol_ticks_required", 120)
-                                if done == req // 2:
-                                    await self.session_mgr.broadcast_to_room(
-                                        _sm_ship["bridge_room_id"],
-                                        f"  [PATROL] Halfway through patrol. Hold position.",
-                                    )
-                                elif done >= req:
-                                    await self.session_mgr.broadcast_to_room(
-                                        _sm_ship["bridge_room_id"],
-                                        f"  [PATROL] Patrol complete! Type 'complete' to turn in.",
-                                    )
+                await self._tick_scheduler.run_tick(_sched_ctx)
             except Exception:
-                log.debug("Space mission patrol tick skipped", exc_info=True)
-
-            # ── Mission & Bounty board expiry cleanup (every tick) ──
-            try:
-                from engine.missions import get_mission_board
-                board = get_mission_board()
-                await board.ensure_loaded(self.db)
-                await self.db.cleanup_expired_missions()
-            except Exception:
-                log.debug("Mission board tick skipped", exc_info=True)
-
-            try:
-                from engine.bounty_board import get_bounty_board
-                bboard = get_bounty_board()
-                await bboard.ensure_loaded(self.db)
-            except Exception:
-                log.debug("Bounty board tick skipped", exc_info=True)
-
-            # -- Smuggling board expiry cleanup --
-            try:
-                from engine.smuggling import get_smuggling_board
-                await get_smuggling_board().ensure_loaded(self.db)
-            except Exception:
-                log.debug('Smuggling board tick skipped', exc_info=True)
-            # ── Ambient room events ──
-            try:
-                from engine.ambient_events import get_ambient_manager
-                await get_ambient_manager().tick(self.db, self.session_mgr)
-            except Exception:
-                log.debug("Ambient events tick skipped", exc_info=True)
-            # ── World events lifecycle ──
-            try:
-                from engine.world_events import get_world_event_manager
-                await get_world_event_manager().tick(self.db, self.session_mgr)
-            except Exception:
-                log.debug("World events tick skipped", exc_info=True)
-            # ── Director AI tick ──
-            try:
-                from engine.director import get_director
-                await get_director().tick(self.db, self.session_mgr)
-            except Exception:
-                log.debug("Director tick skipped", exc_info=True)
-            # ── CP Progression tick ──
-            try:
-                from engine.cp_engine import get_cp_engine
-                await get_cp_engine().tick(self.db, self.session_mgr)
-            except Exception:
-                log.debug("CP engine tick skipped", exc_info=True)
-            # ── NPC crew wages (every 4 real hours) ──
-            self._wage_tick_counter += 1
-            try:
-                from engine.npc_crew import process_wage_tick, WAGE_TICK_INTERVAL
-                if self._wage_tick_counter % WAGE_TICK_INTERVAL == 0:
-                    await process_wage_tick(self.db, self.session_mgr)
-            except Exception:
-                log.debug("Crew wage tick skipped", exc_info=True)
-
-            # ── Faction payroll (every 86400 ticks = once per game-day) ──
-            self._faction_payroll_counter += 1
-            if self._faction_payroll_counter % 86400 == 0:
-                try:
-                    from engine.organizations import faction_payroll_tick
-                    paid = await faction_payroll_tick(self.db)
-                    if paid:
-                        log.info("[orgs] Faction payroll: %dcr disbursed.", paid)
-                except Exception:
-                    log.debug("Faction payroll tick skipped", exc_info=True)
+                log.exception("Tick scheduler dispatch failed")

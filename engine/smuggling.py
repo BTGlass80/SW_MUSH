@@ -61,42 +61,6 @@ PATROL_DIFFICULTY = {0: 0, 1: 10, 2: 15, 3: 20}
 # Fine = this fraction of the job's reward
 FINE_FRACTION = 0.50
 
-# ── Multi-planet route tiers (Drop 11) ────────────────────────────────────────
-# destination_planet=None means local Tatooine run (original behaviour).
-# Routes are assigned per tier:
-#   Tier 1 (local)     — Tatooine only, same as before
-#   Tier 2 (short)     — Tatooine → Nar Shaddaa
-#   Tier 3 (spice run) — Nar Shaddaa → Kessel  (or Tatooine → Kessel)
-#   Tier 4 (core run)  — Any outer rim → Corellia
-
-ROUTE_TIERS = {
-    # (cargo_tier, destination_planet, pay_override, patrol_chance_override)
-    # destination_planet=None  → local run, planet check skipped on deliver
-    "local":     (CargoTier.GREY_MARKET,  None,         (200,  500),  0.00),
-    "blackmkt":  (CargoTier.BLACK_MARKET, None,         (500,  1500), 0.20),
-    "interplan": (CargoTier.BLACK_MARKET, "nar_shaddaa",(1500, 3000), 0.30),
-    "spicerun":  (CargoTier.CONTRABAND,   "kessel",     (3000, 6000), 0.55),
-    "corerun":   (CargoTier.SPICE,        "corellia",   (4000, 8000), 0.65),
-}
-
-# How often Imperial patrols intercept at arrival by planet
-# (extra check on hyperspace arrival; stacks with launch check)
-PLANET_PATROL_FREQUENCY = {
-    None:          0.00,   # local — no arrival check
-    "tatooine":    0.10,   # Outer Rim — light presence
-    "nar_shaddaa": 0.15,   # Hutt space — occasional
-    "kessel":      0.40,   # Maw vicinity — heavy
-    "corellia":    0.60,   # Core World — very heavy
-}
-
-# Dock zone suffixes per planet (orbit / dock zone IDs for arrive check)
-PLANET_DOCK_ZONES = {
-    "tatooine":    ["tatooine_dock",      "tatooine_orbit"],
-    "nar_shaddaa": ["nar_shaddaa_dock",   "nar_shaddaa_orbit"],
-    "kessel":      ["kessel_dock",        "kessel_orbit"],
-    "corellia":    ["corellia_dock",      "corellia_orbit"],
-}
-
 # ── Cargo tiers ──────────────────────────────────────────────────────────────
 
 class CargoTier(int, Enum):
@@ -143,6 +107,42 @@ CARGO_TYPES = {
         "raw Kessel spice", "unrefined glitterstim", "bulk ryll",
         "processed andris", "syndicate-grade spice",
     ],
+}
+
+# ── Multi-planet route tiers (Drop 11) ────────────────────────────────────────
+# destination_planet=None means local Tatooine run (original behaviour).
+# Routes are assigned per tier:
+#   Tier 1 (local)     — Tatooine only, same as before
+#   Tier 2 (short)     — Tatooine → Nar Shaddaa
+#   Tier 3 (spice run) — Nar Shaddaa → Kessel  (or Tatooine → Kessel)
+#   Tier 4 (core run)  — Any outer rim → Corellia
+
+ROUTE_TIERS = {
+    # (cargo_tier, destination_planet, pay_override, patrol_chance_override)
+    # destination_planet=None  → local run, planet check skipped on deliver
+    "local":     (CargoTier.GREY_MARKET,  None,         (200,  500),  0.00),
+    "blackmkt":  (CargoTier.BLACK_MARKET, None,         (500,  1500), 0.20),
+    "interplan": (CargoTier.BLACK_MARKET, "nar_shaddaa",(1500, 3000), 0.30),
+    "spicerun":  (CargoTier.CONTRABAND,   "kessel",     (3000, 6000), 0.55),
+    "corerun":   (CargoTier.SPICE,        "corellia",   (4000, 8000), 0.65),
+}
+
+# How often Imperial patrols intercept at arrival by planet
+# (extra check on hyperspace arrival; stacks with launch check)
+PLANET_PATROL_FREQUENCY = {
+    None:          0.00,   # local — no arrival check
+    "tatooine":    0.10,   # Outer Rim — light presence
+    "nar_shaddaa": 0.15,   # Hutt space — occasional
+    "kessel":      0.40,   # Maw vicinity — heavy
+    "corellia":    0.60,   # Core World — very heavy
+}
+
+# Dock zone suffixes per planet (orbit / dock zone IDs for arrive check)
+PLANET_DOCK_ZONES = {
+    "tatooine":    ["tatooine_dock",      "tatooine_orbit"],
+    "nar_shaddaa": ["nar_shaddaa_dock",   "nar_shaddaa_orbit"],
+    "kessel":      ["kessel_dock",        "kessel_orbit"],
+    "corellia":    ["corellia_dock",      "corellia_orbit"],
 }
 
 CONTACT_NAMES = [
@@ -495,6 +495,7 @@ class SmugglingBoard:
             from engine.director import get_director
             get_director().digest.record_mission("smuggling", "spaceport")
         except Exception:
+            log.warning("complete: unhandled exception", exc_info=True)
             pass
 
         return job

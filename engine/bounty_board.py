@@ -376,6 +376,7 @@ class BountyBoard:
                     try:
                         await db.delete_npc(c.target_npc_id)
                     except Exception:
+                        log.warning("refresh: unhandled exception", exc_info=True)
                         pass
 
         # Fill

@@ -518,6 +518,7 @@ async def _apply_combat_wear(combat, ctx):
                         try:
                             combat.remove_combatant(c.id)
                         except Exception:
+                            log.warning("_apply_combat_wear: unhandled exception", exc_info=True)
                             pass
                     # ── End dead NPC cleanup ─────────────────────────────
             except Exception as e:
@@ -566,7 +567,59 @@ async def _apply_combat_wear(combat, ctx):
                             )
                         except Exception:
                             pass  # graceful-drop
+                        # Drop 6A: territory influence for NPC kill
+                        try:
+                            from engine.territory import on_npc_kill
+                            await on_npc_kill(ctx.db, sess.character,
+                                              combat.room_id)
+                        except Exception:
+                            pass  # graceful-drop
+                        # Drop 6D: hostile takeover check — if the killed NPC
+                        # was a territory guard, the killer's org can seize the room.
+                        try:
+                            from engine.territory import (
+                                get_claim, get_room_zone_id,
+                                get_zone_security, hostile_takeover_claim,
+                            )
+                            _room_id = combat.room_id
+                            _claim = await get_claim(ctx.db, _room_id)
+                            if _claim and _claim.get("guard_npc_id"):
+                                # Check if the NPC that died is the guard
+                                _dead_guard = False
+                                for _oc in combat.combatants.values():
+                                    if (_oc.is_npc and _oc.id == _claim["guard_npc_id"]
+                                            and _oc.char
+                                            and _oc.char.wound_level.value >= 5):
+                                        _dead_guard = True
+                                        break
+                                if _dead_guard:
+                                    _zone_id = await get_room_zone_id(
+                                        ctx.db, _room_id)
+                                    _sec = await get_zone_security(
+                                        ctx.db, _zone_id) if _zone_id else ""
+                                    if _sec == "lawless":
+                                        # Notify the killer they can seize
+                                        _atk_org = sess.character.get(
+                                            "faction_id", "independent")
+                                        if (_atk_org
+                                                and _atk_org != "independent"
+                                                and _atk_org != _claim["org_code"]):
+                                            await sess.send_line(
+                                                f"  \033[1;31m[TERRITORY]\033[0m The guard"
+                                                f" is down. Use "
+                                                f"\033[1;37mfaction seize\033[0m to"
+                                                f" claim this room for your faction."
+                                            )
+                        except Exception:
+                            pass  # graceful-drop
+                        # From Dust to Stars: combat kill hook
+                        try:
+                            from engine.spacer_quest import check_spacer_quest
+                            await check_spacer_quest(sess.session, ctx.db, "combat_kill")
+                        except Exception:
+                            pass  # graceful-drop
             except Exception:
+                log.warning("_apply_combat_wear: unhandled exception", exc_info=True)
                 pass
 
         if not attacked:
@@ -614,13 +667,15 @@ class AttackCommand(BaseCommand):
         "  with <skill>  -- override weapon skill\n"
         "  damage <dice> -- override damage dice\n"
         "  cp <N>        -- spend N Character Points on the roll\n"
+        "  stun          -- fire in stun mode (blasters only)\n"
         "\n"
         "EXAMPLES:\n"
         "  attack stormtrooper\n"
         "  attack thug with brawling\n"
-        "  attack bounty hunter cp 2"
+        "  attack bounty hunter cp 2\n"
+        "  attack guard stun"
     )
-    usage = "attack <target> [with <skill>] [damage <dice>] [cp <N>]"
+    usage = "attack <target> [with <skill>] [damage <dice>] [cp <N>] [stun]"
 
     async def execute(self, ctx: CommandContext):
         if not ctx.args:
@@ -636,7 +691,7 @@ class AttackCommand(BaseCommand):
 
         # ── Security zone check ──────────────────────────────────────────────
         from engine.security import get_effective_security, SecurityLevel, security_refuse_msg
-        _sec = await get_effective_security(room_id, ctx.db)
+        _sec = await get_effective_security(room_id, ctx.db, character=char)
         if _sec == SecurityLevel.SECURED:
             await ctx.session.send_line(security_refuse_msg(_sec, target_is_npc=True))
             return
@@ -677,6 +732,12 @@ class AttackCommand(BaseCommand):
             ctx_args_clean = ctx.args[:cp_match.start()] + ctx.args[cp_match.end():]
         else:
             ctx_args_clean = ctx.args
+
+        # v22: Extract "stun" keyword from args
+        stun_mode = False
+        if re.search(r'\bstun\b', ctx_args_clean.lower()):
+            stun_mode = True
+            ctx_args_clean = re.sub(r'\bstun\b', '', ctx_args_clean, flags=re.IGNORECASE).strip()
 
         args_lower = ctx_args_clean.lower().strip()
 
@@ -763,12 +824,63 @@ class AttackCommand(BaseCommand):
                     _pvp_active.get((t_id, a_id), 0) > now - _PVP_CHALLENGE_TTL
                 )
                 if not consented:
-                    await ctx.session.send_line(
-                        f"  \033[1;33mImperial law prohibits unprovoked assault here.\033[0m\n"
-                        f"  Use \033[1;37mchallenge {target_name}\033[0m to issue a formal challenge.\n"
-                        f"  (Or find a lawless zone where Imperial law doesn't reach.)"
-                    )
-                    return
+                    # ── Bounty Hunter Override (Security Drop 5) ────────
+                    # A BH guild member with an active claimed contract may
+                    # attack any player in a contested zone without prior
+                    # challenge — the bounty is the consent.
+                    _bh_override = False
+                    try:
+                        if char.get("faction_id") == "bh_guild":
+                            from parser.bounty_commands import _get_active_contract, _load_board
+                            _brd = await _load_board(ctx.db)
+                            _bh_contract = await _get_active_contract(str(char["id"]), _brd)
+                            if _bh_contract and _bh_contract.status.value == "claimed":
+                                _bh_override = True
+                                await ctx.session_mgr.broadcast_to_room(
+                                    room_id,
+                                    f"  \033[1;31m[BOUNTY HUNTER]\033[0m "
+                                    f"{char['name']} draws on {target_name}!"
+                                    f" [Contract: {_bh_contract.id}]"
+                                )
+                    except Exception:
+                        log.warning("execute: unhandled exception", exc_info=True)
+                        pass
+                    # ── Territory Contest Override (Security Drop 6D) ────
+                    # Members of two orgs in an active territory contest may
+                    # attack each other without consent in that zone.
+                    _contest_override = False
+                    try:
+                        _atk_org = char.get("faction_id", "independent")
+                        _def_org = target_char.get("faction_id", "independent")
+                        if (_atk_org and _def_org
+                                and _atk_org != "independent"
+                                and _def_org != "independent"
+                                and _atk_org != _def_org):
+                            from engine.territory import (
+                                get_room_zone_id, is_in_active_contest)
+                            _zone_id = await get_room_zone_id(ctx.db, room_id)
+                            if _zone_id:
+                                _contest_override = await is_in_active_contest(
+                                    ctx.db, _zone_id, _atk_org, _def_org
+                                )
+                                if _contest_override:
+                                    await ctx.session_mgr.broadcast_to_room(
+                                        room_id,
+                                        f"  \033[1;31m[TERRITORY WAR]\033[0m "
+                                        f"{char['name']} attacks {target_name}! "
+                                        f"[{_atk_org.replace('_', ' ').title()} vs "
+                                        f"{_def_org.replace('_', ' ').title()}]",
+                                    )
+                    except Exception:
+                        log.warning("execute: unhandled exception", exc_info=True)
+                        pass
+                    if not _bh_override and not _contest_override:
+                        await ctx.session.send_line(
+                            f"  \033[1;33mImperial law prohibits unprovoked assault here.\033[0m\n"
+                            f"  Use \033[1;37mchallenge {target_name}\033[0m to issue a formal challenge.\n"
+                            f"  (Or find a lawless zone where Imperial law doesn't reach.)"
+                        )
+                        return
         # ── End PvP consent check ─────────────────────────────────────────────
         cover_max = 0
         if room_id not in _active_combats:
@@ -777,7 +889,8 @@ class AttackCommand(BaseCommand):
         new_combat = combat.round_num == 0
 
         # Add combatants if not already in
-        char_obj = Character.from_db_dict(char)
+        # v22 S15: use cached Character object when available
+        char_obj = ctx.session.get_char_obj() or Character.from_db_dict(char)
         if not combat.get_combatant(char["id"]):
             combat.add_combatant(char_obj)
 
@@ -809,12 +922,18 @@ class AttackCommand(BaseCommand):
             await _send_combat_state(combat, ctx.session_mgr)
 
         # Declare the attack
+        # v22: validate stun mode against weapon capability
+        if stun_mode and equipped_weapon and not equipped_weapon.stun_capable:
+            await ctx.session.send_line(
+                f"  {equipped_weapon.name} cannot be set to stun.")
+            stun_mode = False
         action = CombatAction(
             action_type=ActionType.ATTACK,
             skill=skill,
             target_id=target_char["id"],
             weapon_damage=damage,
             cp_spend=cp_spend,
+            stun_mode=stun_mode,
         )
         err = combat.declare_action(char["id"], action)
         if err:
@@ -822,12 +941,13 @@ class AttackCommand(BaseCommand):
             return
 
         cp_msg = f", spending {cp_spend} CP" if cp_spend > 0 else ""
+        stun_msg = " [STUN]" if stun_mode else ""
         weapon_name = equipped_weapon.name if equipped_weapon and damage == default_damage else ""
         weapon_msg = f" [{weapon_name}]" if weapon_name else ""
         await ctx.session.send_line(
             ansi.combat_msg(
                 f"You declare: Attack {target_char['name']} "
-                f"with {skill} (damage {damage}){weapon_msg}{cp_msg}"
+                f"with {skill} (damage {damage}){weapon_msg}{stun_msg}{cp_msg}"
             )
         )
         await ctx.session_mgr.broadcast_to_room(
@@ -947,6 +1067,52 @@ class FullParryCommand(BaseCommand):
         ))
         await _send_combat_state(combat, ctx.session_mgr)
         await _try_auto_resolve(combat, ctx)
+
+
+class SoakCommand(BaseCommand):
+    """v22 audit #12: Pre-declare CP spending on soak (Strength to resist damage).
+
+    Per R&E p55: 'Five to increase a Strength roll to resist damage.'
+    CP are only spent if the character is actually hit. Max 5 per round.
+    """
+    key = "+soak"
+    aliases = ["soak"]
+    help_text = (
+        "Pre-declare Character Points to spend on soak if you get hit.\n"
+        "CP are only spent if you take damage. Max 5 per R&E.\n"
+        "Use during declaration phase alongside dodge/parry."
+    )
+    usage = "soak <1-5>"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        combat, combatant = _ensure_in_combat(char, char["room_id"])
+        if not combat:
+            await ctx.session.send_line("  You're not in combat.")
+            return
+
+        if not ctx.args or not ctx.args.strip().isdigit():
+            await ctx.session.send_line("  Usage: soak <1-5>  (CP to spend on damage resistance)")
+            return
+
+        cp_amount = int(ctx.args.strip())
+        if cp_amount < 1 or cp_amount > 5:
+            await ctx.session.send_line("  R&E limit: 1-5 CP on soak.")
+            return
+
+        available = combatant.char.character_points if combatant.char else 0
+        if cp_amount > available:
+            await ctx.session.send_line(
+                f"  Not enough CP (have {available}, want {cp_amount}).")
+            return
+
+        combatant.soak_cp = cp_amount
+        await ctx.session.send_line(
+            ansi.combat_msg(
+                f"You set {cp_amount} CP for soak. "
+                f"(Will be spent only if you take a hit.)"
+            )
+        )
 
 
 class AimCommand(BaseCommand):
@@ -1511,12 +1677,12 @@ def register_combat_commands(registry):
     """Register all combat commands."""
     cmds = [
         AttackCommand(), DodgeCommand(), FullDodgeCommand(),
-        ParryCommand(), FullParryCommand(),
+        ParryCommand(), FullParryCommand(), SoakCommand(),
         AimCommand(), FleeCommand(), PassCommand(),
         CombatStatusCommand(), ResolveCommand(), DisengageCommand(),
         RangeCommand(), CoverCommand(), ForcePointCommand(),
         CombatPoseCommand(), CombatRollsCommand(),
-        ChallengeCommand(), AcceptCommand(),
+        ChallengeCommand(), AcceptCommand(), DeclineCommand(),
     ]
     for cmd in cmds:
         registry.register(cmd)
@@ -1603,7 +1769,7 @@ class ChallengeCommand(BaseCommand):
 
         # Must be in contested or lawless zone to bother
         from engine.security import get_effective_security, SecurityLevel
-        sec = await get_effective_security(room_id, ctx.db)
+        sec = await get_effective_security(room_id, ctx.db, character=char)
         if sec == SecurityLevel.SECURED:
             await ctx.session.send_line(
                 "  \033[1;33mImperial security would immediately stop any duel here.\033[0m"
@@ -1718,3 +1884,76 @@ class AcceptCommand(BaseCommand):
             f"their differences the old-fashioned way.\033[0m",
             exclude=[challenger_id, t_id],
         )
+
+
+class DeclineCommand(BaseCommand):
+    key = "decline"
+    aliases = ["refuse"]
+    help_text = "Decline a combat challenge from another player."
+    usage = "decline [challenger name]"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        t_id = char["id"]
+        now = _time.time()
+
+        # Find any pending challenge targeting this player
+        pending = []
+        for (a_id, b_id), ts in list(_pvp_consent.items()):
+            if b_id == t_id and now - ts <= _PVP_CHALLENGE_TTL:
+                pending.append((a_id, ts))
+
+        if not pending:
+            await ctx.session.send_line("  No pending challenges to decline.")
+            return
+
+        # If a name was given, match it; otherwise decline the most recent
+        challenger_id = None
+        challenger_name = "someone"
+        if ctx.args:
+            from engine.matching import match_in_room
+            match = await match_in_room(
+                ctx.args.strip(), char["room_id"], char["id"], ctx.db,
+                session_mgr=ctx.session_mgr,
+            )
+            if match.found and match.candidate.obj_type == "character":
+                challenger_id = match.id
+                challenger_name = match.candidate.data.get("name", "Unknown")
+        else:
+            # Most recent pending challenge
+            pending.sort(key=lambda x: x[1], reverse=True)
+            challenger_id = pending[0][0]
+
+        if not challenger_id:
+            await ctx.session.send_line("  No matching challenge found.")
+            return
+
+        # Remove the pending challenge
+        removed = _pvp_consent.pop((challenger_id, t_id), None)
+        if not removed:
+            await ctx.session.send_line("  No pending challenge from that player.")
+            return
+
+        # Look up challenger name if we don't have it
+        if challenger_name == "someone":
+            try:
+                rows = await ctx.db._db.execute_fetchall(
+                    "SELECT name FROM characters WHERE id = ?", (challenger_id,)
+                )
+                if rows:
+                    challenger_name = rows[0]["name"]
+            except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
+                pass
+
+        await ctx.session.send_line(
+            f"  You decline {challenger_name}'s challenge."
+        )
+
+        # Notify challenger
+        for s in ctx.session_mgr.sessions_in_room(char["room_id"]):
+            if s.character and s.character["id"] == challenger_id:
+                await s.send_line(
+                    f"  \033[2m{char['name']} declines your challenge.\033[0m"
+                )
+                break

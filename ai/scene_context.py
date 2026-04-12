@@ -153,6 +153,7 @@ class SceneContext:
                     skills_dict = skills_raw or {}
                 ctx.trained_skills = list(skills_dict.keys())
             except Exception:
+                log.debug("scene_context: skills fetch failed", exc_info=True)
                 pass
 
         # ── Entities in room ───────────────────────────────────────────────

@@ -48,10 +48,24 @@ class FactionCommand(BaseCommand):
         "  faction channel <m>  — send message on faction comms channel\n"
         "  faction requisition <item> — request replacement equipment\n"
         "\n"
+        "TERRITORY:\n"
+        "  faction invest <cr>  — invest treasury credits into zone influence\n"
+        "  faction influence    — show territorial influence and claimed rooms\n"
+        "  faction claim        — claim the current room (rank 3+, costs 5,000cr)\n"
+        "  faction unclaim      — release the current room claim\n"
+        "  faction guard        — show guard status in current claimed room\n"
+        "  faction guard station — station a guard (500cr + 100cr/wk)\n"
+        "  faction guard remove  — dismiss the guard from this room\n"
+        "  faction armory       — view shared faction armory (claimed rooms only)\n"
+        "  faction armory deposit <item>      — deposit item into armory\n"
+        "  faction armory withdraw <item>     — withdraw item from armory\n"
+        "  faction armory withdraw <res> <n>  — withdraw crafting resources\n"
+        "  faction seize             — seize rival room after killing its guard (lawless only)\n"
+        "\n"
         "You can only belong to ONE faction at a time.\n"
         "Switching factions has a 7-day cooldown."
     )
-    usage = "faction [list | join <code> | leave | info <code> | roster | missions | channel <msg> | requisition <item>]"
+    usage = "faction [list|join|leave|info|roster|missions|channel|invest|influence|claim|unclaim|guard|armory]"
 
     async def execute(self, ctx: CommandContext):
         from engine.organizations import (
@@ -74,6 +88,12 @@ class FactionCommand(BaseCommand):
                 await check_starter_quest(ctx.session, ctx.db,
                                           trigger="command", command="faction")
             except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
+                pass
+            try:
+                from engine.spacer_quest import check_spacer_quest
+                await check_spacer_quest(ctx.session, ctx.db, "use_command", command="faction")
+            except Exception:
                 pass
             return
 
@@ -84,6 +104,12 @@ class FactionCommand(BaseCommand):
                 from engine.tutorial_v2 import check_starter_quest
                 await check_starter_quest(ctx.session, ctx.db,
                                           trigger="command", command="faction")
+            except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
+                pass
+            try:
+                from engine.spacer_quest import check_spacer_quest
+                await check_spacer_quest(ctx.session, ctx.db, "use_command", command="faction")
             except Exception:
                 pass
             return
@@ -292,6 +318,245 @@ class FactionCommand(BaseCommand):
             )
             return
 
+        # ── faction invest <amount> ──
+        if sub == "invest":
+            faction_id = char.get("faction_id", "independent")
+            if not faction_id or faction_id == "independent":
+                await ctx.session.send_line("  You're not in a faction.")
+                return
+            if not rest or not rest.isdigit():
+                await ctx.session.send_line(
+                    "  Usage: faction invest <amount>\n"
+                    "  Invest credits from your faction treasury to build territorial influence.\n"
+                    "  Minimum 1,000cr, maximum 10,000cr per investment. Requires rank 3+."
+                )
+                return
+            from engine.territory import invest_influence
+            result = await invest_influence(ctx.db, char, faction_id, int(rest))
+            await ctx.session.send_line(
+                f"  \033[1;36m{result['msg']}\033[0m" if result["ok"]
+                else f"  \033[1;33m{result['msg']}\033[0m"
+            )
+            return
+
+        # ── faction influence ──
+        if sub in ("influence", "territory", "terr"):
+            faction_id = char.get("faction_id", "independent")
+            if not faction_id or faction_id == "independent":
+                await ctx.session.send_line("  You're not in a faction.")
+                return
+            from engine.territory import get_influence_status_lines, get_claims_status_lines
+            lines = await get_influence_status_lines(ctx.db, faction_id)
+            for line in lines:
+                await ctx.session.send_line(line)
+            await ctx.session.send_line("")
+            claim_lines = await get_claims_status_lines(ctx.db, faction_id)
+            for line in claim_lines:
+                await ctx.session.send_line(line)
+            return
+
+        # ── faction claim ──
+        if sub == "claim":
+            faction_id = char.get("faction_id", "independent")
+            if not faction_id or faction_id == "independent":
+                await ctx.session.send_line("  You're not in a faction.")
+                return
+            from engine.territory import claim_room
+            room_id = char.get("room_id")
+            result = await claim_room(ctx.db, char, faction_id, room_id)
+            await ctx.session.send_line(
+                f"  \033[1;36m{result['msg']}\033[0m" if result["ok"]
+                else f"  \033[1;33m{result['msg']}\033[0m"
+            )
+            if result["ok"]:
+                await ctx.session_mgr.broadcast_to_room(
+                    room_id,
+                    f"  \033[1;37m{char['name']} plants a marker — "
+                    f"this room is now claimed by {faction_id.replace('_', ' ').title()}.\033[0m",
+                    exclude=ctx.session,
+                )
+            return
+
+        # ── faction unclaim ──
+        if sub == "unclaim":
+            faction_id = char.get("faction_id", "independent")
+            if not faction_id or faction_id == "independent":
+                await ctx.session.send_line("  You're not in a faction.")
+                return
+            from engine.territory import unclaim_room
+            room_id = char.get("room_id")
+            result = await unclaim_room(ctx.db, char, faction_id, room_id)
+            await ctx.session.send_line(
+                f"  \033[1;36m{result['msg']}\033[0m" if result["ok"]
+                else f"  \033[1;33m{result['msg']}\033[0m"
+            )
+            return
+
+        # ── faction guard ──
+        # faction guard          — show guard status in current room
+        # faction guard station  — station a guard in the current claimed room
+        # faction guard remove   — dismiss the guard from the current claimed room
+        if sub == "guard":
+            faction_id = char.get("faction_id", "independent")
+            if not faction_id or faction_id == "independent":
+                await ctx.session.send_line("  You're not in a faction.")
+                return
+            room_id = char.get("room_id")
+            from engine.territory import (
+                get_claim, spawn_guard_npc, remove_guard_npc,
+                GUARD_COST, GUARD_WEEKLY_UPKEEP,
+            )
+            guard_sub = rest.lower() if rest else ""
+
+            if guard_sub == "station":
+                result = await spawn_guard_npc(ctx.db, faction_id, room_id, char["id"])
+                await ctx.session.send_line(
+                    f"  \033[1;36m{result['msg']}\033[0m" if result["ok"]
+                    else f"  \033[1;33m{result['msg']}\033[0m"
+                )
+                if result["ok"]:
+                    await ctx.session_mgr.broadcast_to_room(
+                        room_id,
+                        f"  \033[2mA guard takes up position, eyes scanning the room.\033[0m",
+                        exclude=ctx.session,
+                    )
+            elif guard_sub == "remove":
+                result = await remove_guard_npc(ctx.db, faction_id, room_id, char["id"])
+                await ctx.session.send_line(
+                    f"  \033[1;36m{result['msg']}\033[0m" if result["ok"]
+                    else f"  \033[1;33m{result['msg']}\033[0m"
+                )
+                if result["ok"]:
+                    await ctx.session_mgr.broadcast_to_room(
+                        room_id,
+                        f"  \033[2mThe guard is dismissed and departs without a word.\033[0m",
+                        exclude=ctx.session,
+                    )
+            else:
+                # Show guard status for this room
+                claim = await get_claim(ctx.db, room_id)
+                if not claim or claim["org_code"] != faction_id:
+                    await ctx.session.send_line(
+                        "  This room is not claimed by your faction.\n"
+                        f"  Cost to station a guard: {GUARD_COST:,}cr (one-time) + "
+                        f"{GUARD_WEEKLY_UPKEEP}cr/week upkeep.\n"
+                        "  Usage: faction guard station | faction guard remove"
+                    )
+                    return
+                if claim.get("guard_npc_id"):
+                    npc = await ctx.db.get_npc(claim["guard_npc_id"])
+                    npc_name = npc["name"] if npc else "Unknown Guard"
+                    await ctx.session.send_line(
+                        f"  \033[1;32mGuard stationed:\033[0m {npc_name}\n"
+                        f"  Weekly upkeep: +{GUARD_WEEKLY_UPKEEP}cr/wk\n"
+                        f"  Use \033[1;37mfaction guard remove\033[0m to dismiss."
+                    )
+                else:
+                    await ctx.session.send_line(
+                        "  No guard stationed in this room.\n"
+                        f"  Cost to station: {GUARD_COST:,}cr (one-time) + "
+                        f"{GUARD_WEEKLY_UPKEEP}cr/wk upkeep.\n"
+                        "  Use \033[1;37mfaction guard station\033[0m to station one."
+                    )
+            return
+
+        # ── faction armory ──
+        # faction armory                    — show armory contents
+        # faction armory deposit <item>     — deposit item from inventory
+        # faction armory withdraw <item>    — withdraw item to inventory
+        # faction armory withdraw <type> <qty>  — withdraw crafting resources
+        if sub == "armory":
+            faction_id = char.get("faction_id", "independent")
+            if not faction_id or faction_id == "independent":
+                await ctx.session.send_line("  You're not in a faction.")
+                return
+            room_id = char.get("room_id")
+            from engine.territory import (
+                is_room_claimed_by, get_armory_lines,
+                armory_deposit_item, armory_withdraw_item,
+                armory_withdraw_resources,
+            )
+
+            # Must be in a claimed room for this faction
+            if not await is_room_claimed_by(ctx.db, room_id, faction_id):
+                await ctx.session.send_line(
+                    "  You must be standing in one of your faction's claimed rooms "
+                    "to access the armory.\n"
+                    "  Use \033[1;37mfaction territory\033[0m to see your claimed rooms."
+                )
+                return
+
+            armory_parts = rest.split(None, 1) if rest else []
+            armory_sub = armory_parts[0].lower() if armory_parts else ""
+            armory_arg = armory_parts[1].strip() if len(armory_parts) > 1 else ""
+
+            if armory_sub == "deposit":
+                if not armory_arg:
+                    await ctx.session.send_line(
+                        "  Usage: faction armory deposit <item name>"
+                    )
+                    return
+                result = await armory_deposit_item(ctx.db, char, faction_id, armory_arg)
+                await ctx.session.send_line(
+                    f"  \033[1;36m{result['msg']}\033[0m" if result["ok"]
+                    else f"  \033[1;33m{result['msg']}\033[0m"
+                )
+
+            elif armory_sub == "withdraw":
+                if not armory_arg:
+                    await ctx.session.send_line(
+                        "  Usage: faction armory withdraw <item name>\n"
+                        "         faction armory withdraw <resource type> <quantity>"
+                    )
+                    return
+                # Check if this looks like "resource_type quantity"
+                withdraw_parts = armory_arg.split()
+                if len(withdraw_parts) == 2 and withdraw_parts[1].isdigit():
+                    res_type = withdraw_parts[0]
+                    qty = int(withdraw_parts[1])
+                    result = await armory_withdraw_resources(
+                        ctx.db, char, faction_id, res_type, qty
+                    )
+                else:
+                    result = await armory_withdraw_item(ctx.db, char, faction_id, armory_arg)
+                await ctx.session.send_line(
+                    f"  \033[1;36m{result['msg']}\033[0m" if result["ok"]
+                    else f"  \033[1;33m{result['msg']}\033[0m"
+                )
+
+            else:
+                # Show armory contents
+                lines = await get_armory_lines(ctx.db, faction_id)
+                for line in lines:
+                    await ctx.session.send_line(line)
+
+            return
+
+        # ── faction seize ──
+        # Hostile takeover of a rival-claimed room after killing its guard.
+        # Lawless zones only. Requires 50+ influence and 5,000cr treasury.
+        if sub == "seize":
+            faction_id = char.get("faction_id", "independent")
+            if not faction_id or faction_id == "independent":
+                await ctx.session.send_line("  You're not in a faction.")
+                return
+            from engine.territory import hostile_takeover_claim
+            room_id = char.get("room_id")
+            result = await hostile_takeover_claim(ctx.db, char, faction_id, room_id)
+            await ctx.session.send_line(
+                f"  [1;31m{result['msg']}[0m" if result["ok"]
+                else f"  [1;33m{result['msg']}[0m"
+            )
+            if result["ok"]:
+                await ctx.session_mgr.broadcast_to_room(
+                    room_id,
+                    f"  [1;31m[TERRITORY SEIZED][0m "
+                    f"{char['name']} claims this room for "
+                    f"{faction_id.replace('_', ' ').title()}!",
+                    exclude=ctx.session,
+                )
+            return
+
         # ── faction leader sub-commands (rank 5+) ──
         if sub in _LEADER_SUBS:
             from parser.faction_leader_commands import FactionLeaderCommand
@@ -301,7 +566,7 @@ class FactionCommand(BaseCommand):
 
         await ctx.session.send_line(
             f"  Unknown faction subcommand '{sub}'.\n"
-            f"  Try: list, join, leave, info, roster, missions, channel, requisition"
+            f"  Try: list, join, leave, info, roster, missions, channel, requisition, invest, influence, claim, unclaim, guard, armory, seize"
         )
 # Import and delegate to faction_leader_commands for rank-5+ sub-commands.
 # This wrapper is inserted here so FactionCommand stays as the single

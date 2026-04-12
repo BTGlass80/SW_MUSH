@@ -254,7 +254,26 @@ class CraftCommand(BaseCommand):
                                  f"Crafted {schematic['name']} (quality {_q:.0f})",
                                  {"schematic": schematic["name"], "quality": _q})
             except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
                 pass
+            try:
+                from engine.ships_log import log_event as _clog
+                await _clog(ctx.db, char, "crafting_complete")
+            except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
+                pass
+            try:
+                from engine.tutorial_v2 import check_profession_chains
+                await check_profession_chains(ctx.session, ctx.db, "craft_complete")
+            except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
+                pass
+            # From Dust to Stars: craft hook
+            try:
+                from engine.spacer_quest import check_spacer_quest
+                await check_spacer_quest(ctx.session, ctx.db, "craft")
+            except Exception:
+                pass  # graceful-drop
 
         await _save_char(ctx)
 
@@ -328,6 +347,7 @@ class ExperimentCommand(BaseCommand):
                                  f"Crafted {schematic['name']} (quality {_q:.0f}) [experiment]",
                                  {"schematic": schematic["name"], "quality": _q})
             except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
                 pass
 
         await _save_char(ctx)
@@ -404,12 +424,14 @@ class TeachCommand(BaseCommand):
                 f"[Added to your known schematics]"
             )
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
         # Save target character
         try:
             await ctx.db.save_character(target_char["id"])
         except Exception:
+            log.warning("execute: unhandled exception", exc_info=True)
             pass
 
         await _save_char(ctx)
@@ -604,6 +626,7 @@ async def _save_char(ctx: CommandContext):
         if char:
             await ctx.db.save_character(char["id"])
     except Exception:
+        log.warning("_save_char: unhandled exception", exc_info=True)
         pass
 
 

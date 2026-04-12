@@ -146,6 +146,97 @@ def get_market_at_planet(planet: str) -> list[dict]:
     return rows
 
 
+# ── Supply pool (review fix v1) ──────────────────────────────────────────────
+#
+# Caps available units of each good on each planet. Pools refill every
+# SUPPLY_REFRESH_SECONDS up to MAX_UNITS_PER_REFRESH[good]. Fixes the
+# exploit where trade goods could be bought in unlimited quantity and
+# generated ~120x the design target income rate. See §6 of the review
+# fixes design doc.
+#
+# Unused supply carries over up to 2x the refill amount so occasional
+# traders don't feel rationed; only veteran grinders hit the cap.
+
+import time
+
+SUPPLY_REFRESH_SECONDS = 2700  # 45 minutes
+SUPPLY_CARRYOVER_MULT = 2      # pool caps at 2x refill amount
+
+# Default per-good cap per refresh. Tuned so a YT-1300 (~100 tons cargo)
+# cannot fill its hold on a single-planet stop — forces route hopping,
+# forces players to actually travel the galaxy.
+DEFAULT_MAX_UNITS_PER_REFRESH = 15
+MAX_UNITS_PER_REFRESH = {
+    "luxury_goods": 10,   # tightest cap: the worst offender in the exploit
+    "spice":        10,
+    "weapons":      10,
+    "medical":      20,
+    "foodstuffs":   30,   # loosest: bulk/cheap/legal
+    "textiles":     25,
+    "machinery":    15,
+    "raw_ore":      25,
+}
+
+
+def _max_units(good_key: str) -> int:
+    return MAX_UNITS_PER_REFRESH.get(good_key, DEFAULT_MAX_UNITS_PER_REFRESH)
+
+
+class SupplyPool:
+    """Per-planet, per-good supply tracker. Process-memory only — the pool
+    resets on restart, which is fine: it's a rate limiter, not game state.
+    """
+
+    def __init__(self) -> None:
+        # (planet, good_key) -> (units_remaining, last_refresh_ts)
+        self._pools: dict[tuple[str, str], tuple[int, float]] = {}
+
+    def _refreshed(self, planet: str, good_key: str) -> int:
+        """Return current units after applying any pending refresh."""
+        now = time.time()
+        max_units = _max_units(good_key)
+        cap = max_units * SUPPLY_CARRYOVER_MULT
+        key = (planet, good_key)
+        if key not in self._pools:
+            # First touch: seed at full supply with current timestamp.
+            self._pools[key] = (max_units, now)
+            return max_units
+        units, last = self._pools[key]
+        elapsed = now - last
+        if elapsed >= SUPPLY_REFRESH_SECONDS:
+            refreshes = int(elapsed // SUPPLY_REFRESH_SECONDS)
+            units = min(cap, units + refreshes * max_units)
+            last = last + refreshes * SUPPLY_REFRESH_SECONDS
+            self._pools[key] = (units, last)
+        return units
+
+    def available(self, planet: str, good_key: str) -> int:
+        return self._refreshed(planet, good_key)
+
+    def consume(self, planet: str, good_key: str, units: int) -> bool:
+        """Try to consume `units`. Returns False if insufficient supply."""
+        avail = self._refreshed(planet, good_key)
+        if units > avail:
+            return False
+        key = (planet, good_key)
+        _, last = self._pools[key]
+        self._pools[key] = (avail - units, last)
+        return True
+
+    def seconds_until_refresh(self, planet: str, good_key: str) -> int:
+        """Rough countdown used for 'check back later' messaging."""
+        key = (planet, good_key)
+        if key not in self._pools:
+            return 0
+        _, last = self._pools[key]
+        remaining = SUPPLY_REFRESH_SECONDS - (time.time() - last)
+        return max(0, int(remaining))
+
+
+# Module-level singleton. Import as: `from engine.trading import SUPPLY_POOL`
+SUPPLY_POOL = SupplyPool()
+
+
 # ── Cargo hold helpers ────────────────────────────────────────────────────────
 
 def get_ship_cargo(ship: dict) -> list[dict]:
@@ -156,6 +247,7 @@ def get_ship_cargo(ship: dict) -> list[dict]:
     try:
         return json.loads(raw)
     except Exception:
+        log.warning("get_ship_cargo: unhandled exception", exc_info=True)
         return []
 
 
@@ -179,6 +271,7 @@ def get_cargo_capacity(ship: dict, template) -> int:
         eff = get_effective_stats(template, systems)
         base -= eff.get("cargo_used_by_mods", 0)
     except Exception:
+        log.warning("get_cargo_capacity: unhandled exception", exc_info=True)
         pass
     return max(0, base)
 

@@ -408,6 +408,7 @@ def _pick_archetype() -> TrafficArchetype:
         if mult != 1.0:
             weights[TrafficArchetype.PATROL] = int(weights[TrafficArchetype.PATROL] * mult)
     except Exception:
+        log.warning("_pick_archetype: unhandled exception", exc_info=True)
         pass
     archetypes = list(weights.keys())
     return random.choices(archetypes, weights=[weights[a] for a in archetypes], k=1)[0]
@@ -862,8 +863,18 @@ class NpcSpaceTrafficManager:
                 return False
 
         # Pirate: spot a player ship in zone → begin tailing
+        # Cap: at most 1 pirate actively tailing/hailing per zone.
         if ship.archetype == TrafficArchetype.PIRATE and ship.tailing_ship_id is None:
-            player_ships = await self._get_players_in_zone(ship.current_zone, db, session_mgr)
+            _active_pirates = sum(
+                1 for _ts in self._ships.values()
+                if _ts.ship_id != ship.ship_id
+                and _ts.archetype == TrafficArchetype.PIRATE
+                and _ts.current_zone == ship.current_zone
+                and _ts.state in (TrafficState.TAILING, TrafficState.HAILING)
+            )
+            player_ships = [] if _active_pirates >= 1 else (
+                await self._get_players_in_zone(ship.current_zone, db, session_mgr)
+            )
             if player_ships:
                 player_session, player_ship_name = player_ships[0]
                 target_ship_id = await _get_player_ship_zone_ship_id(player_session, db)
@@ -911,7 +922,11 @@ class NpcSpaceTrafficManager:
                     f" Prepare to be boarded.\"",
                     session_mgr, db,
                 )
-                log.info(f"[traffic] patrol {ship.display_name} hail timeout — escalating")
+                log.info(
+                    "[traffic] patrol %s hail timeout — boarding inspection",
+                    ship.display_name,
+                )
+                await self._run_boarding_inspection(ship, db, session_mgr)
             elif ship.archetype == TrafficArchetype.PIRATE:
                 # Refusal → pirate attacks
                 await self._announce_to_zone(
@@ -963,6 +978,124 @@ class NpcSpaceTrafficManager:
             ship.hail_source_char_id = None
             self._plan_next_move(ship)
         return False
+
+    async def _run_boarding_inspection(
+        self, ship: TrafficShip, db, session_mgr
+    ) -> None:
+        """Imperial patrol boarding inspection after failed hail.
+
+        Finds all player ships in the patrol zone, checks each for
+        contraband / false transponder, and applies a WEG40141 infraction
+        fine.  Falls back to a Class-5 non-compliance fine on a clean ship.
+        """
+        import random as _rand
+        INFRACTION = {
+            5: {"name": "Class Five",  "fine": (100,  500),   "arrest": 0.00},
+            4: {"name": "Class Four",  "fine": (1000, 5000),  "arrest": 0.05},
+            3: {"name": "Class Three", "fine": (2500, 5000),  "arrest": 0.20},
+            2: {"name": "Class Two",   "fine": (5000, 10000), "arrest": 0.40},
+            1: {"name": "Class One",   "fine": (0,    0),     "arrest": 1.00},
+        }
+        RED   = "\033[1;31m"
+        AMBER = "\033[1;33m"
+        DIM   = "\033[2m"
+        RST   = "\033[0m"
+
+        try:
+            players = await self._get_players_in_zone(
+                ship.current_zone, db, session_mgr
+            )
+        except Exception as exc:
+            log.warning("[traffic] boarding _get_players_in_zone: %s", exc)
+            return
+
+        for sess, ship_name in players:
+            try:
+                char = getattr(sess, "character", None)
+                if not char:
+                    continue
+
+                sid = await _get_player_ship_zone_ship_id(sess, db)
+                ship_row = await db.get_ship(sid) if sid else None
+                sys_data = (
+                    json.loads(dict(ship_row).get("systems") or "{}")
+                    if ship_row else {}
+                )
+
+                inf_class = 5
+                inf_reason = "Failure to respond to Imperial hail"
+                false_tp = sys_data.get("false_transponder")
+                smug_job = sys_data.get("smuggling_job")
+
+                if false_tp and isinstance(false_tp, dict):
+                    inf_class = 2
+                    alias = false_tp.get("alias", "unknown ID")
+                    inf_reason = "False transponder detected (" + alias + ")"
+                elif smug_job:
+                    tier = (
+                        smug_job.get("cargo_tier", 1)
+                        if isinstance(smug_job, dict) else 1
+                    )
+                    inf_class = 3 if tier >= 2 else 4
+                    inf_reason = "Contraband detected in cargo hold"
+
+                inf = INFRACTION[inf_class]
+                fine_lo, fine_hi = inf["fine"]
+                fine = _rand.randint(fine_lo, fine_hi)
+
+                await sess.send_line(
+                    "\n  " + RED + "[IMPERIAL BOARDING]" + RST
+                    + " Stormtroopers board " + ship_name + " for inspection."
+                )
+                await sess.send_line(
+                    "  " + RED + "[IMPERIAL CUSTOMS]" + RST
+                    + " " + inf["name"] + " infraction: " + inf_reason + "."
+                )
+
+                if fine == 0:
+                    await sess.send_line(
+                        "  " + RED + "[IMPERIAL CUSTOMS]" + RST
+                        + " You are being detained."
+                        + " (Roleplay with staff or wait for release.)"
+                    )
+                    log.info(
+                        "[traffic] boarding: char %s detained (%s)",
+                        char.get("id"), inf_reason,
+                    )
+                    continue
+
+                credits = char.get("credits", 0)
+                paid = min(credits, fine)
+                char["credits"] = credits - paid
+                await db.save_character(char["id"], credits=char["credits"])
+
+                if paid < fine:
+                    await sess.send_line(
+                        "  " + AMBER + "Fine: " + str(fine) + "cr"
+                        + " — insufficient credits."
+                        + " Partial payment of " + str(paid) + "cr accepted."
+                        + RST
+                    )
+                else:
+                    await sess.send_line(
+                        "  " + AMBER + "Fine: " + str(fine) + "cr paid."
+                        + " Balance: " + str(char["credits"]) + "cr." + RST
+                    )
+
+                await sess.send_line(
+                    "  " + DIM + "[IMPERIAL BOARDING]"
+                    + " Troops withdraw. You are cleared to proceed." + RST
+                )
+                log.info(
+                    "[traffic] boarding: char %s fined %dcr (%s)",
+                    char.get("id"), paid, inf_reason,
+                )
+
+            except Exception as exc:
+                log.warning(
+                    "[traffic] boarding player error: %s", exc
+                )
+
 
     async def _tick_tailing(self, ship: TrafficShip, db, session_mgr) -> bool:
         """
