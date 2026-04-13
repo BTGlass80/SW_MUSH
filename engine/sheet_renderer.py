@@ -136,38 +136,80 @@ def _dsp_pips(dsp):
 
 
 def render_brief_sheet(char_dict, skill_reg, width=W):
-    """Condensed one-line-per-attribute view."""
+    """Condensed view: attribute + skills wrapped to width."""
     from engine.character import Character
     char = Character.from_db_dict(char_dict)
     wound = WoundLevel(char_dict.get("wound_level", 0))
 
     lines = []
     lines.append("")
-    lines.append(_bar("=", BRIGHT_CYAN))
+    lines.append(_bar("=", BRIGHT_CYAN, width))
     lines.append(_center(
         f"{BOLD}{BRIGHT_WHITE}{char.name}{RESET}"
-        f"  {DIM}({char.species_name}){RESET}"
+        f"  {DIM}({char.species_name}){RESET}",
+        width,
     ))
-    lines.append(_bar("-", DIM))
+    lines.append(_bar("-", DIM, width))
 
-    # One line per attribute: DEXTERITY 3D+2 [Blaster 5D+1, Dodge 4D+2]
+    ATTR_COL = 14   # "DEXTERITY     "
+    POOL_COL = 6    # " 3D+1 "
+    INDENT = " " * (ATTR_COL + POOL_COL + 2)   # indent for skill wrap continuation
+
     for attr_name in LEFT_ATTRS + RIGHT_ATTRS:
         pool = char.get_attribute(attr_name)
-        # Gather trained skills
+
+        # Gather trained skills as short tokens
         skill_parts = []
         for sd in skill_reg.skills_for_attribute(attr_name):
             bonus = char.skills.get(sd.key)
             if bonus:
                 total = pool + bonus
-                skill_parts.append(f"{CYAN}{sd.name}{RESET} {BRIGHT_GREEN}{total}{RESET}")
-        skill_str = ""
-        if skill_parts:
-            skill_str = f"  [{', '.join(skill_parts)}]"
-        lines.append(
-            f"  {BOLD}{BRIGHT_WHITE}{attr_name.upper():<14s}{RESET}"
-            f" {BRIGHT_YELLOW}{str(pool):>5s}{RESET}"
-            f"{skill_str}"
+                # Plain-text length for wrapping calculations
+                skill_parts.append(
+                    (f"{CYAN}{sd.name}{RESET} {BRIGHT_GREEN}{total}{RESET}",
+                     f"{sd.name} {total}")  # (colored, plain) pair
+                )
+
+        attr_prefix = (
+            f"  {BOLD}{BRIGHT_WHITE}{attr_name.upper():<{ATTR_COL}}{RESET}"
+            f" {BRIGHT_YELLOW}{str(pool):>{POOL_COL - 1}}{RESET} "
         )
+        prefix_plain_len = 2 + ATTR_COL + 1 + POOL_COL  # "  DEXTERITY      3D+1 "
+
+        if not skill_parts:
+            lines.append(attr_prefix)
+            continue
+
+        # Wrap skill tokens so no line exceeds `width`
+        # First line starts after the attr prefix; continuation lines use INDENT
+        current_line_colored = []
+        current_line_len = prefix_plain_len + 1  # +1 for "["
+        first_line = True
+
+        for colored, plain in skill_parts:
+            token_len = len(plain) + 2  # ", " separator
+            if current_line_colored and current_line_len + token_len > width - 1:
+                # Flush current line
+                sep = f"{DIM},{RESET} "
+                joined = sep.join(current_line_colored)
+                if first_line:
+                    lines.append(f"{attr_prefix}[{joined}")
+                    first_line = False
+                else:
+                    lines.append(f"{INDENT} {joined}")
+                current_line_colored = [colored]
+                current_line_len = len(INDENT) + 1 + len(plain)
+            else:
+                current_line_colored.append(colored)
+                current_line_len += token_len
+
+        # Flush last line
+        sep = f"{DIM},{RESET} "
+        joined = sep.join(current_line_colored)
+        if first_line:
+            lines.append(f"{attr_prefix}[{joined}]")
+        else:
+            lines.append(f"{INDENT} {joined}]")
 
     # Force (if sensitive)
     if char.force_sensitive:
@@ -186,7 +228,7 @@ def render_brief_sheet(char_dict, skill_reg, width=W):
         f"  CP:{BRIGHT_GREEN}{cp}{RESET}"
         f"  FP:{BRIGHT_BLUE}{fp}{RESET}"
     )
-    lines.append(_bar("=", BRIGHT_CYAN))
+    lines.append(_bar("=", BRIGHT_CYAN, width))
     lines.append("")
     return lines
 
@@ -195,15 +237,17 @@ def render_skills_sheet(char_dict, skill_reg, width=W):
     """Skills-only view grouped by attribute."""
     from engine.character import Character
     char = Character.from_db_dict(char_dict)
+    w = min(width, W)
 
     lines = []
     lines.append("")
-    lines.append(_bar("=", BRIGHT_CYAN))
+    lines.append(_bar("=", BRIGHT_CYAN, w))
     lines.append(_center(
         f"{BOLD}{BRIGHT_WHITE}{char.name}{RESET}"
-        f" {DIM}— Skills{RESET}"
+        f" {DIM}— Skills{RESET}",
+        w,
     ))
-    lines.append(_bar("-", DIM))
+    lines.append(_bar("-", DIM, w))
 
     any_skills = False
     for attr_name in LEFT_ATTRS + RIGHT_ATTRS:
@@ -231,7 +275,7 @@ def render_skills_sheet(char_dict, skill_reg, width=W):
     if not any_skills:
         lines.append(f"  {DIM}No trained skills.{RESET}")
 
-    lines.append(_bar("=", BRIGHT_CYAN))
+    lines.append(_bar("=", BRIGHT_CYAN, w))
     lines.append("")
     return lines
 
@@ -242,15 +286,17 @@ def render_combat_sheet(char_dict, skill_reg, width=W):
     import json as _json
     char = Character.from_db_dict(char_dict)
     wound = WoundLevel(char_dict.get("wound_level", 0))
+    w = width
 
     lines = []
     lines.append("")
-    lines.append(_bar("=", BRIGHT_CYAN))
+    lines.append(_bar("=", BRIGHT_CYAN, w))
     lines.append(_center(
         f"{BOLD}{BRIGHT_WHITE}{char.name}{RESET}"
-        f" {DIM}— Combat Stats{RESET}"
+        f" {DIM}— Combat Stats{RESET}",
+        w,
     ))
-    lines.append(_bar("-", DIM))
+    lines.append(_bar("-", DIM, w))
 
     # Wound status
     lines.append(f"  {_wound_display(wound)}")
@@ -326,7 +372,7 @@ def render_combat_sheet(char_dict, skill_reg, width=W):
     if fp:
         lines.append(f"  {BOLD}Force Pts:{RESET} {BRIGHT_BLUE}{fp}{RESET}")
 
-    lines.append(_bar("=", BRIGHT_CYAN))
+    lines.append(_bar("=", BRIGHT_CYAN, w))
     lines.append("")
     return lines
 
@@ -337,20 +383,23 @@ def render_game_sheet(char_dict, skill_reg, width=W):
     char = Character.from_db_dict(char_dict)
     wound = WoundLevel(char_dict.get("wound_level", 0))
 
+    w = width
+    col = (w - 2) // 2  # two columns with 2-char gutter
+
     H = "\u2500"   # ─
-    SEP = f"{BRIGHT_CYAN}{H * W}{RESET}"
-    THIN = f"{DIM}{H * W}{RESET}"
+    SEP  = f"{BRIGHT_CYAN}{H * w}{RESET}"
+    THIN = f"{DIM}{H * w}{RESET}"
 
     lines = []
     lines.append(SEP)
 
     # ── Title ──
     lines.append(_center(
-        f"{BOLD}{BRIGHT_WHITE}STAR WARS{RESET} {DIM}D6 Character Sheet{RESET}"
+        f"{BOLD}{BRIGHT_WHITE}STAR WARS{RESET} {DIM}D6 Character Sheet{RESET}", w
     ))
     lines.append(THIN)
 
-    # ── Identity & points — two dense lines ──
+    # ── Identity & points ──
     template_str = ""
     if char_dict.get("template"):
         template_str = f"  {DIM}({char_dict['template']}){RESET}"
@@ -371,18 +420,18 @@ def render_game_sheet(char_dict, skill_reg, width=W):
     if dsp > 0:
         lines.append(f"  Dark Side: {_dsp_pips(dsp)}")
 
-    # ── Attribute Grid — no blank-line separators ──
+    # ── Attribute Grid ──
     lines.append(THIN)
 
     left_lines = []
     for attr in LEFT_ATTRS:
-        left_lines.extend(_build_attr_block(attr, char, skill_reg, COL))
+        left_lines.extend(_build_attr_block(attr, char, skill_reg, col))
 
     right_lines = []
     for attr in RIGHT_ATTRS:
-        right_lines.extend(_build_attr_block(attr, char, skill_reg, COL))
+        right_lines.extend(_build_attr_block(attr, char, skill_reg, col))
 
-    lines.extend(_merge_columns(left_lines, right_lines))
+    lines.extend(_merge_columns(left_lines, right_lines, col_width=col))
 
     # ── Force (if sensitive) ──
     if char.force_sensitive:
@@ -409,27 +458,27 @@ def render_game_sheet(char_dict, skill_reg, width=W):
     if weapon_key:
         from engine.weapons import get_weapon_registry
         wr = get_weapon_registry()
-        w = wr.get(weapon_key)
-        if w:
-            if w.is_ranged and w.ranges:
+        w_obj = wr.get(weapon_key)
+        if w_obj:
+            if w_obj.is_ranged and w_obj.ranges:
                 lines.append(
-                    f"  {BOLD}Weapon:{RESET} {BRIGHT_WHITE}{w.name}{RESET}"
-                    f"  {BRIGHT_YELLOW}{w.damage}{RESET}"
-                    f"  {DIM}S:{RESET}{w.ranges[1]}"
-                    f" {DIM}M:{RESET}{w.ranges[2]}"
-                    f" {DIM}L:{RESET}{w.ranges[3]}"
+                    f"  {BOLD}Weapon:{RESET} {BRIGHT_WHITE}{w_obj.name}{RESET}"
+                    f"  {BRIGHT_YELLOW}{w_obj.damage}{RESET}"
+                    f"  {DIM}S:{RESET}{w_obj.ranges[1]}"
+                    f" {DIM}M:{RESET}{w_obj.ranges[2]}"
+                    f" {DIM}L:{RESET}{w_obj.ranges[3]}"
                 )
             else:
                 lines.append(
-                    f"  {BOLD}Weapon:{RESET} {BRIGHT_WHITE}{w.name}{RESET}"
-                    f"  {BRIGHT_YELLOW}{w.damage}{RESET}  Melee"
+                    f"  {BOLD}Weapon:{RESET} {BRIGHT_WHITE}{w_obj.name}{RESET}"
+                    f"  {BRIGHT_YELLOW}{w_obj.damage}{RESET}  Melee"
                 )
         else:
             lines.append(f"  {BOLD}Weapon:{RESET} {weapon_key}")
     else:
         lines.append(f"  {BOLD}Weapon:{RESET} {DIM}(none){RESET}")
 
-    # ── Worn Armor (v22) ──
+    # ── Worn Armor ──
     armor_key = equip_data.get("armor", "") if isinstance(equip_data, dict) else ""
     if armor_key:
         from engine.weapons import get_weapon_registry as _wr_get

@@ -44,9 +44,13 @@ def _get_default_registry():
     global _default_registry
     if _default_registry is None:
         try:
+            import os as _os
             from engine.character import SkillRegistry
             _default_registry = SkillRegistry()
-            _default_registry.load_default()
+            _here = _os.path.dirname(_os.path.abspath(__file__))
+            _root = _os.path.dirname(_here)
+            _path = _os.path.join(_root, "data", "skills.yaml")
+            _default_registry.load_file(_path)
         except Exception:
             log.warning("Failed to load default SkillRegistry", exc_info=True)
             _default_registry = None

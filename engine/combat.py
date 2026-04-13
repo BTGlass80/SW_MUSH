@@ -679,10 +679,14 @@ class CombatInstance:
             for action in c.actions:
                 result = self._resolve_action(c, action, num_actions)
                 actor_results.append(result)
+                # targets: only the actual hit target sees the ◆ YOU variant.
+                # Using all combatants was causing the attacker to see their
+                # own strike as "YOU take a hit from yourself".
+                hit_targets = result.targets if result.targets else []
                 events.append(CombatEvent(
                     text=result.narrative,
                     you_text=result.you_narrative,
-                    targets=list(self.combatants.keys()),
+                    targets=hit_targets,
                 ))
                 # Track as incoming for the target
                 if action.target_id and action.target_id in self.combatants:

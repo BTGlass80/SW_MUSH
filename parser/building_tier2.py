@@ -472,7 +472,74 @@ def register_building_tier2(registry):
         SetCommand(), LockCommand(), EntrancesCommand(),
         FindCommand(), ZoneCommand(), CreateObjCommand(),
         SuccessCommand(), FailCommand(), EmitCommand(),
-        GrantCommand(),
+        GrantCommand(), SetAttrCommand(), GetAttrCommand(),
     ]
     for cmd in cmds:
         registry.register(cmd)
+
+
+class GetAttrCommand(BaseCommand):
+    """@getattr — show character attribute JSON keys (admin)."""
+    key = "@getattr"
+    aliases = ["@ga"]
+    access_level = AccessLevel.ADMIN
+    help_text = "Show character attributes. Usage: @getattr [key]"
+    usage = "@getattr [key]"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        a = json.loads(char.get("attributes", "{}") or "{}")
+        key = ctx.args.strip() if ctx.args else None
+        if key:
+            val = a.get(key, "<not set>")
+            await ctx.session.send_line(
+                f"  {key} = {json.dumps(val, indent=2)}"
+            )
+        else:
+            await ctx.session.send_line("  Attribute keys:")
+            for k, v in sorted(a.items()):
+                snippet = str(v)[:60]
+                await ctx.session.send_line(f"    {k}: {snippet}")
+
+
+class SetAttrCommand(BaseCommand):
+    """@setattr — set a character attribute value (admin, for testing)."""
+    key = "@setattr"
+    aliases = ["@sa"]
+    access_level = AccessLevel.ADMIN
+    help_text = "Set a character attribute. Usage: @setattr <key> = <json_value>"
+    usage = "@setattr <key> = <value>"
+
+    async def execute(self, ctx: CommandContext):
+        import json as _json
+        if not ctx.args or "=" not in ctx.args:
+            await ctx.session.send_line("Usage: @setattr <key> = <json_value>")
+            await ctx.session.send_line("  e.g. @setattr starter_quest = 10")
+            await ctx.session.send_line("  e.g. @setattr spacer_quest = null")
+            return
+
+        key, raw = ctx.args.split("=", 1)
+        key = key.strip()
+        raw = raw.strip()
+
+        try:
+            val = _json.loads(raw)
+        except _json.JSONDecodeError:
+            # Treat as bare string if not valid JSON
+            val = raw
+
+        char = ctx.session.character
+        a = _json.loads(char.get("attributes", "{}") or "{}")
+
+        if val is None:
+            a.pop(key, None)
+            await ctx.session.send_line(f"  Removed attribute: {key}")
+        else:
+            a[key] = val
+            await ctx.session.send_line(
+                f"  Set {key} = {_json.dumps(val)[:80]}"
+            )
+
+        char["attributes"] = _json.dumps(a)
+        await ctx.db.save_character(char["id"], attributes=char["attributes"])
+        await ctx.session.send_line(ansi.success("  Saved."))

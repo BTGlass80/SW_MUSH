@@ -1093,7 +1093,7 @@ EXITS = [
     # TATOOINE OUTSKIRTS EXITS (contested)
     # =========================================
     # Eastern Gate -> from Market District
-    (40, 8, "west", "east to Outskirts"),
+    (40, 8, "west", "outskirts"),
     # Scavenger Market -> from Eastern Gate
     (41, 40, "west", "east to Scavenger Market"),
     # Abandoned Farm -> from Eastern Gate
@@ -1232,7 +1232,7 @@ EXITS = [
     (100, 105, "northeast", "southwest to Treasure Ship Row"),
     # Government area
     (107, 106, "east", "west to Gov District"),
-    (107, 108, "north", "south to Gov District"),
+    (107, 108, "northeast", "southwest to Gov District"),
     # Entertainment / Blue Sector
     (101, 103, "south", "north to Cantina"),
     (103, 117, "east", "west to Blue Sector"),

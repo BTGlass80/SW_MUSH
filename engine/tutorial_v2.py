@@ -374,6 +374,24 @@ async def grant_reward(session, db, credits: int = 0, item_key: str = None,
         char["credits"] = char.get("credits", 0) + credits
         await db.save_character(char["id"], credits=char["credits"])
 
+    if item_key:
+        # Look up item name from weapons registry or use key as fallback
+        item_name = item_key
+        item_slot = "misc"
+        try:
+            from engine.weapons import get_weapon_registry
+            w = get_weapon_registry().get(item_key)
+            if w:
+                item_name = w.name
+                item_slot = "weapon"
+        except Exception:
+            pass
+        await db.add_to_inventory(char["id"], {
+            "key":  item_key,
+            "name": item_name,
+            "slot": item_slot,
+        })
+
     if title:
         grant_title(char, title)
 
@@ -381,6 +399,16 @@ async def grant_reward(session, db, credits: int = 0, item_key: str = None,
         await session.send_line(f"\n  \033[1;33m{message}\033[0m")
     if credits > 0:
         await session.send_line(f"  \033[1;32m+{credits:,} credits.\033[0m")
+    if item_key:
+        item_display = item_key
+        try:
+            from engine.weapons import get_weapon_registry
+            w = get_weapon_registry().get(item_key)
+            if w:
+                item_display = w.name
+        except Exception:
+            pass
+        await session.send_line(f"  \033[1;33mReceived: {item_display}\033[0m")
     if title:
         await session.send_line(f"  \033[1;36mTitle earned: {title}\033[0m")
 
@@ -533,7 +561,7 @@ STARTER_QUEST_STEPS = [
             "Kessa: \"Now that you know where the work is -- "
             "you should know who's hiring. "
             "The major factions all run their own job boards. "
-            "Type \033[1;33mfactions\033[0m to see who's operating in this sector. "
+            "Type \033[1;33mfaction\033[0m to see who's operating in this sector. "
             "Knowing who to work for can double your pay.\""
         ),
     },

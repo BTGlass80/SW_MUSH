@@ -12,7 +12,6 @@ from typing import Optional
 from server.config import Config
 from server.session import Session, SessionState, SessionManager
 from server.telnet_handler import TelnetHandler
-from server.websocket_handler import WebSocketHandler
 from server.web_client import WebClient
 from server import ansi
 from server.tick_scheduler import TickScheduler, TickContext
@@ -142,8 +141,8 @@ class GameServer:
 
         # Protocol handlers
         self.telnet = TelnetHandler(self)
-        self.websocket = WebSocketHandler(self)
         self.web_client = WebClient()
+        self.web_client.set_game(self)
 
 
         # Tutorial system
@@ -263,11 +262,9 @@ class GameServer:
 
         # Network listeners
         await self.telnet.start(self.config.telnet_host, self.config.telnet_port)
-        await self.websocket.start(
-            self.config.websocket_host, self.config.websocket_port
-        )
 
-        # Web client (browser UI)
+        # Web client serves both HTTP (/) and WebSocket (/ws) on one port.
+        # The separate websockets-library server (port 4001) is no longer used.
         await self.web_client.start(
             self.config.web_client_host, self.config.web_client_port
         )
@@ -277,10 +274,10 @@ class GameServer:
         self._tick_task = asyncio.create_task(self._game_tick_loop())
 
         log.info(
-            "%s is running. Telnet:%d  WebSocket:%d  WebClient:%d",
+            "%s is running. Telnet:%d  WebClient:%d  (WebSocket at ws://host:%d/ws)",
             self.config.game_name,
             self.config.telnet_port,
-            self.config.websocket_port,
+            self.config.web_client_port,
             self.config.web_client_port,
         )
 
@@ -313,7 +310,6 @@ class GameServer:
                 pass
 
         await self.telnet.stop()
-        await self.websocket.stop()
         await self.web_client.stop()
         await self.db.close()
         log.info("Shutdown complete.")
@@ -552,7 +548,7 @@ class GameServer:
         Run the full interactive character creation flow.
         Returns a DB character dict on success, None on disconnect.
         """
-        wizard = CreationWizard(self.species_reg, self.skill_reg, width=session.width)
+        wizard = CreationWizard(self.species_reg, self.skill_reg, width=session.wrap_width)
 
         # Show initial screen
         display, prompt = wizard.get_initial_display()

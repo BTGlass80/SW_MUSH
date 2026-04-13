@@ -170,10 +170,9 @@ class LookCommand(BaseCommand):
                 f"  {ansi.DIM}{' '.join(flavor_parts)}{ansi.RESET}"
             )
 
-        # Room description (word-wrapped)
+        # Room description — single paragraph, no server-side line breaks for web
         desc = room["desc_long"] or room["desc_short"] or "You see nothing special."
-        for line in textwrap.wrap(desc, width=session.wrap_width - 2):
-            await session.send_line(f"  {line}")
+        await session.send_prose(desc, indent="  ")
 
         # Trophy display for player-owned rooms
         try:
@@ -377,6 +376,52 @@ class LookCommand(BaseCommand):
             return
 
         if not match.found:
+            # Check room_details in room properties before giving up
+            room = await ctx.db.get_room(char["room_id"])
+            if room:
+                try:
+                    props = _json.loads(room.get("properties", "{}") or "{}")
+                    details = props.get("room_details", {})
+                    # Find matching detail by keyword (partial match ok)
+                    search_lower = ctx.args.lower().strip()
+                    found_detail = None
+                    for kw, detail in details.items():
+                        if search_lower == kw.lower() or kw.lower() in search_lower or search_lower in kw.lower():
+                            found_detail = detail
+                            break
+                    if found_detail:
+                        # Show the detail description
+                        desc = found_detail.get("desc", "You see nothing special.")
+                        await ctx.session.send_line(f"  {desc}")
+                        # Grant item if present and not already granted this session
+                        grants = found_detail.get("grants_item")
+                        if grants:
+                            if not char.get(f"_found_{grants}", False):
+                                # Grant item to inventory
+                                item_name = found_detail.get("item_name", grants)
+                                item_slot = found_detail.get("item_slot", "misc")
+                                await ctx.db.add_to_inventory(char["id"], {
+                                    "key": grants,
+                                    "name": item_name,
+                                    "slot": item_slot,
+                                })
+                                await ctx.session.send_line(
+                                    f"  {ansi.color(f'You pick up the {item_name}.', ansi.YELLOW)}"
+                                )
+                                # Mark as found so it's not granted again this session
+                                char[f"_found_{grants}"] = True
+                                # Tutorial hook if applicable
+                                try:
+                                    from engine.tutorial_v2 import check_profession_chains
+                                    await check_profession_chains(
+                                        ctx.session, ctx.db, "find_item",
+                                        item_key=grants,
+                                    )
+                                except Exception:
+                                    pass
+                        return
+                except Exception:
+                    log.warning("_look_at: room_details lookup failed", exc_info=True)
             await ctx.session.send_line(f"  You don't see '{ctx.args}' here.")
             return
 
@@ -386,8 +431,7 @@ class LookCommand(BaseCommand):
             await ctx.session.send_line(f"  {ansi.npc_name(c.name)}")
             desc = c.data.get("description", "")
             if desc:
-                for line in textwrap.wrap(desc, width=ctx.session.wrap_width - 4):
-                    await ctx.session.send_line(f"    {line}")
+                await ctx.session.send_prose(desc, indent="    ")
             species = c.data.get("species", "Unknown")
             await ctx.session.send_line(f"    Species: {species}")
 
@@ -396,8 +440,7 @@ class LookCommand(BaseCommand):
             await ctx.session.send_line(f"  {ansi.player_name(c.name)}")
             desc = c.data.get("description", "")
             if desc:
-                for line in textwrap.wrap(desc, width=ctx.session.wrap_width - 4):
-                    await ctx.session.send_line(f"    {line}")
+                await ctx.session.send_prose(desc, indent="    ")
             species = c.data.get("species", "Human")
             await ctx.session.send_line(f"    Species: {species}")
             # Show equipped weapon
@@ -773,9 +816,75 @@ class InventoryCommand(BaseCommand):
     usage = "inventory"
 
     async def execute(self, ctx: CommandContext):
+        import json as _json
+        char = ctx.session.character
+        if not char:
+            return
+
         await ctx.session.send_line(ansi.header("=== Inventory ==="))
-        await ctx.session.send_line("  Your inventory is empty.")
-        await ctx.session.send_line("  (Inventory system coming in Phase 3+)")
+
+        # ── Equipped items from equipment JSON ───────────────────────────────
+        eq = {}
+        try:
+            eq = _json.loads(char.get("equipment", "{}") or "{}")
+        except Exception:
+            pass
+        weapon_key  = eq.get("weapon", "")
+        armor_key   = eq.get("armor", "")
+
+        if weapon_key or armor_key:
+            await ctx.session.send_line(f"  {ansi.BOLD}Equipped:{ansi.RESET}")
+            if weapon_key:
+                try:
+                    from engine.weapons import get_weapon_registry
+                    w = get_weapon_registry().get(weapon_key)
+                    wname = w.name if w else weapon_key
+                    wdmg  = f"  dmg {w.damage}" if w else ""
+                    await ctx.session.send_line(
+                        f"    {ansi.color('⚔', ansi.YELLOW)}  {wname}{ansi.DIM}{wdmg}{ansi.RESET}"
+                    )
+                except Exception:
+                    await ctx.session.send_line(f"    ⚔  {weapon_key}")
+            if armor_key:
+                try:
+                    from engine.weapons import get_weapon_registry
+                    a = get_weapon_registry().get(armor_key)
+                    aname = a.name if a else armor_key
+                    await ctx.session.send_line(
+                        f"    {ansi.color('🛡', ansi.CYAN)}  {aname}{ansi.RESET}"
+                    )
+                except Exception:
+                    await ctx.session.send_line(f"    🛡  {armor_key}")
+            await ctx.session.send_line("")
+
+        # ── Carried inventory ─────────────────────────────────────────────────
+        inv = []
+        try:
+            inv = await ctx.db.get_inventory(char["id"])
+        except Exception:
+            log.warning("InventoryCommand: get_inventory failed", exc_info=True)
+
+        if inv:
+            await ctx.session.send_line(f"  {ansi.BOLD}Carried:{ansi.RESET}")
+            for item in inv:
+                name = item.get("name") or item.get("key") or "Unknown item"
+                qty  = item.get("qty", item.get("quantity", 1))
+                qty_str = f" x{qty}" if qty and int(qty) > 1 else ""
+                slot = item.get("slot", "")
+                slot_str = f"  [{slot}]" if slot and slot != "misc" else ""
+                await ctx.session.send_line(
+                    f"    {ansi.color('◆', ansi.DIM)}  {name}{qty_str}"
+                    f"{ansi.DIM}{slot_str}{ansi.RESET}"
+                )
+        elif not weapon_key and not armor_key:
+            await ctx.session.send_line("  You're not carrying anything.")
+
+        # ── Credits ──────────────────────────────────────────────────────────
+        credits = char.get("credits", 0)
+        await ctx.session.send_line("")
+        await ctx.session.send_line(
+            f"  {ansi.BOLD}Credits:{ansi.RESET} {ansi.color(f'{credits:,} cr', ansi.YELLOW)}"
+        )
         await ctx.session.send_line("")
 
 
@@ -800,18 +909,19 @@ class SheetCommand(BaseCommand):
             skill_reg.load_file(skills_path)
 
         # Dispatch by switch
+        w = min(ctx.session.wrap_width, 100)
         if "brief" in ctx.switches:
             from engine.sheet_renderer import render_brief_sheet
-            lines = render_brief_sheet(char, skill_reg)
+            lines = render_brief_sheet(char, skill_reg, width=w)
         elif "skills" in ctx.switches:
             from engine.sheet_renderer import render_skills_sheet
-            lines = render_skills_sheet(char, skill_reg)
+            lines = render_skills_sheet(char, skill_reg, width=w)
         elif "combat" in ctx.switches:
             from engine.sheet_renderer import render_combat_sheet
-            lines = render_combat_sheet(char, skill_reg)
+            lines = render_combat_sheet(char, skill_reg, width=w)
         else:
             from engine.sheet_renderer import render_game_sheet
-            lines = render_game_sheet(char, skill_reg)
+            lines = render_game_sheet(char, skill_reg, width=w)
 
         for line in lines:
             await ctx.session.send_line(line)
@@ -900,13 +1010,13 @@ class HelpCommand(BaseCommand):
 
     async def _show_categories(self, ctx):
         """Show the command category overview."""
+        w = ctx.session.wrap_width
+        bar = "═" * w
         await ctx.session.send_line("")
-        await ctx.session.send_line(
-            ansi.header("═" * 70))
+        await ctx.session.send_line(ansi.header(bar))
         await ctx.session.send_line(
             ansi.header("  STAR WARS D6 MUSH — Command Reference"))
-        await ctx.session.send_line(
-            ansi.header("═" * 70))
+        await ctx.session.send_line(ansi.header(bar))
         await ctx.session.send_line("")
 
         for cat, cmds in self.CATEGORIES.items():

@@ -24,6 +24,7 @@ Admin commands:
   @ai enable / @ai disable     - Toggle AI system
 """
 import json
+import logging
 from parser.commands import BaseCommand, CommandContext, AccessLevel
 from parser.crafting_commands import handle_trainer_teach
 from ai.npc_brain import NPCBrain, NPCData, NPCConfig
@@ -35,6 +36,8 @@ from server import ansi
 from engine.skill_checks import perform_skill_check
 from engine.character import Character
 from engine.dice import DicePool
+
+log = logging.getLogger(__name__)
 
 # Persuasion difficulty for NPC dialogue
 _PERSUASION_DIFFICULTY = 10
@@ -65,9 +68,9 @@ async def _handle_skill_trainer(ctx, npc_data, char) -> bool:
     Cost formula matches TrainCommand exactly: total_pool.dice (with guild discount).
     """
     try:
-        ai_cfg = (json.loads(npc_data.ai_config_json)
-                  if isinstance(npc_data.ai_config_json, str)
-                  else npc_data.ai_config_json) or {}
+        raw = npc_data.ai_config
+        ai_cfg = (json.loads(raw) if isinstance(raw, str) else
+                  (raw.__dict__ if hasattr(raw, '__dict__') else {})) or {}
     except Exception:
         log.warning("_handle_skill_trainer: unhandled exception", exc_info=True)
         return False

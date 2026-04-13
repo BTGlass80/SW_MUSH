@@ -49,6 +49,202 @@ def _wound_name(level: int) -> str:
     return _WOUND_NAMES.get(level, "healthy")
 
 
+# ── NPC role classification (Ground UX Drop 1) ──
+
+def _classify_npc_role(npc_row: dict) -> str:
+    """Determine the display role of an NPC from its ai_config_json.
+
+    Returns one of: 'hostile', 'guard', 'trainer', 'vendor', 'quest',
+    'mechanic', 'bartender', 'neutral'.
+    """
+    ai_cfg = npc_row.get("ai_config_json", "{}")
+    if isinstance(ai_cfg, str):
+        try:
+            ai_cfg = json.loads(ai_cfg)
+        except Exception:
+            ai_cfg = {}
+
+    # Check explicit hostile flag first
+    if ai_cfg.get("hostile"):
+        return "hostile"
+
+    # Check for trainer
+    if ai_cfg.get("trainer"):
+        return "trainer"
+
+    # Check faction-based roles
+    name_lower = npc_row.get("name", "").lower()
+
+    # Guard / patrol detection
+    if any(kw in name_lower for kw in ("guard", "patrol", "trooper", "sentry",
+                                        "soldier", "enforcer")):
+        return "guard"
+
+    # Mechanic / shipwright detection
+    if any(kw in name_lower for kw in ("mechanic", "shipwright", "technician",
+                                        "engineer")):
+        return "mechanic"
+
+    # Bartender / cantina staff
+    if any(kw in name_lower for kw in ("bartender", "barkeep", "wuher")):
+        return "bartender"
+
+    # Combat behavior suggests guard role
+    combat_beh = (ai_cfg.get("combat_behavior") or "").lower()
+    if combat_beh in ("aggressive", "patrol"):
+        return "guard"
+
+    return "neutral"
+
+
+def _npc_actions(role: str, hostile: bool, in_combat: bool,
+                 security_level: str) -> list:
+    """Return list of valid action command strings for an NPC based on context."""
+    actions = ["look"]
+
+    if role == "hostile":
+        actions.append("talk")
+        if not in_combat:
+            actions.append("attack")
+    elif role == "guard":
+        actions.append("talk")
+        if not in_combat and security_level != "secured":
+            actions.append("attack")
+    elif role == "trainer":
+        actions.extend(["talk", "train"])
+    elif role == "vendor":
+        actions.extend(["talk", "buy"])
+    elif role == "mechanic":
+        actions.extend(["talk", "repair"])
+    elif role == "bartender":
+        actions.append("talk")
+    else:
+        actions.append("talk")
+        if not in_combat and security_level != "secured":
+            actions.append("attack")
+
+    return actions
+
+
+def _derive_room_services(npcs: list, vendor_droids: list,
+                          room_props: dict) -> list:
+    """Derive service type tags available in the current room.
+
+    Returns a list of strings like ['vendor', 'trainer', 'cantina'].
+    """
+    services = []
+
+    if vendor_droids:
+        services.append("vendor")
+
+    roles_present = set()
+    for npc in npcs:
+        role = _classify_npc_role(npc)
+        roles_present.add(role)
+
+    if "trainer" in roles_present:
+        services.append("trainer")
+    if "mechanic" in roles_present:
+        services.append("mechanic")
+    if "bartender" in roles_present:
+        services.append("cantina")
+
+    env = (room_props.get("environment") or "").lower()
+    if env in ("cantina", "bar", "tavern") and "cantina" not in services:
+        services.append("cantina")
+    if env in ("medical", "medbay", "hospital"):
+        services.append("medical")
+    if env in ("docking", "hangar", "spaceport", "bay"):
+        services.append("docking")
+    if env in ("workshop", "forge", "crafting"):
+        services.append("crafting")
+
+    return services
+
+
+def _build_loadout(char: dict) -> dict:
+    """Build loadout summary from character equipment and inventory.
+
+    Returns dict with weapon, armor, and consumables fields.
+    """
+    loadout = {
+        "weapon": None,
+        "armor": None,
+        "consumables": [],
+    }
+
+    try:
+        equip = char.get("equipment")
+        if equip:
+            if isinstance(equip, str):
+                equip = json.loads(equip)
+
+            weapon_data = equip.get("weapon")
+            if weapon_data and isinstance(weapon_data, dict):
+                loadout["weapon"] = {
+                    "name": weapon_data.get("name", ""),
+                    "damage": weapon_data.get("damage", ""),
+                    "type": weapon_data.get("type", ""),
+                }
+
+            armor_data = equip.get("armor")
+            if armor_data and isinstance(armor_data, dict):
+                loadout["armor"] = {
+                    "name": armor_data.get("name", ""),
+                    "location": armor_data.get("location", ""),
+                    "bonus": armor_data.get("bonus", ""),
+                }
+    except Exception:
+        pass
+
+    try:
+        inv = char.get("inventory")
+        if inv:
+            if isinstance(inv, str):
+                inv = json.loads(inv)
+            if isinstance(inv, list):
+                consumable_types = {}
+                for item in inv:
+                    if isinstance(item, dict):
+                        itype = (item.get("type") or "").lower()
+                        iname = item.get("name", "Unknown")
+                        if itype in ("healing", "medical", "stim", "grenade",
+                                     "consumable", "tool"):
+                            key = iname
+                            if key not in consumable_types:
+                                consumable_types[key] = {
+                                    "name": iname, "count": 0, "type": itype
+                                }
+                            consumable_types[key]["count"] += 1
+                        elif any(kw in iname.lower() for kw in
+                                 ("medpac", "stim", "grenade", "bacta",
+                                  "ration", "tool kit")):
+                            key = iname
+                            if key not in consumable_types:
+                                ctype = ("healing"
+                                         if "med" in iname.lower()
+                                            or "bacta" in iname.lower()
+                                         else "consumable")
+                                consumable_types[key] = {
+                                    "name": iname, "count": 0, "type": ctype
+                                }
+                            consumable_types[key]["count"] += 1
+                sorted_consumables = sorted(
+                    consumable_types.values(),
+                    key=lambda c: (
+                        0 if c["type"] == "healing" else
+                        1 if c["type"] == "stim" else
+                        2 if c["type"] == "grenade" else 3,
+                        -c["count"]
+                    )
+                )
+                loadout["consumables"] = sorted_consumables[:4]
+    except Exception:
+        pass
+
+    return loadout
+
+
 class Session:
     """
     Unified session wrapping either a Telnet or WebSocket connection.
@@ -98,13 +294,11 @@ class Session:
     def wrap_width(self) -> int:
         """Text wrapping width.
 
-        Telnet: capped at 78 for classic terminal readability.
-        WebSocket: uses full reported width (Fmt.prose_width caps at
-        MAX_PROSE_WIDTH=100 for readability on ultra-wide viewports).
+        Capped at 80 for both Telnet and WebSocket — classic MUSH terminal
+        width. This ensures decorative bars, prose, and sheet output all
+        line up consistently regardless of browser window size.
         """
-        if self.protocol == Protocol.WEBSOCKET:
-            return self.width   # Client sends resize; Fmt caps prose at 100
-        return min(self.width, 78)
+        return min(self.width, 80)
 
     def __repr__(self):
         name = self.character["name"] if self.character else "anonymous"
@@ -149,9 +343,28 @@ class Session:
         """Send text followed by a newline."""
         await self.send(text + "\r\n")
 
+    async def send_prose(self, text: str, indent: str = "  "):
+        """Send a prose paragraph.
+
+        WebSocket: send as a single line with indent prefix — the browser
+        reflows the text naturally, giving a true paragraph with no
+        artificial mid-sentence line breaks.
+
+        Telnet: server-side word-wrap at wrap_width, one send_line per
+        wrapped chunk (classic terminal behaviour).
+        """
+        import textwrap as _tw
+        if self.protocol == Protocol.WEBSOCKET:
+            await self.send_line(f"{indent}{text}")
+        else:
+            w = self.wrap_width - len(indent)
+            for chunk in _tw.wrap(text, width=max(20, w)):
+                await self.send_line(f"{indent}{chunk}")
+
     async def send_prompt(self, prompt: str = "> "):
         """Send a prompt string (no trailing newline)."""
         await self.send(prompt)
+
 
     async def send_json(self, msg_type: str, data: dict):
         """Send a typed JSON message (primarily for WebSocket clients)."""
@@ -178,6 +391,9 @@ class Session:
 
         Reads current character state from self.character dict and
         optionally fetches exits from DB. Telnet clients ignore this.
+
+        Ground UX Drop 1: adds room_description, room_services,
+        enhanced NPC entries with role/hostile/actions, and loadout.
         """
         if self.protocol != Protocol.WEBSOCKET:
             return
@@ -205,6 +421,10 @@ class Session:
             "zone_type": "",
             "alert_level": "",
             "alert_faction": "",
+            # Ground UX Drop 1 — new fields
+            "room_description": "",
+            "room_services": [],
+            "loadout": None,
         }
 
         # Equipped weapon for sidebar display
@@ -220,6 +440,24 @@ class Session:
         except Exception:
             log.warning("send_hud_update: unhandled exception", exc_info=True)
             pass
+
+        # Build loadout for sidebar (Ground UX Drop 1)
+        try:
+            hud["loadout"] = _build_loadout(char)
+        except Exception:
+            log.warning("send_hud_update: loadout build failed", exc_info=True)
+
+        # ── Room data (exits, description, zone, services) ──
+
+        # Cache the room row — we read it in multiple blocks below
+        _room_row = None
+        _room_props = {}
+
+        if db and room_id:
+            try:
+                _room_row = await db.get_room(room_id)
+            except Exception:
+                pass
 
         # Fetch exits if we have a DB handle
         if db and room_id:
@@ -241,33 +479,44 @@ class Session:
                     for e in exits
                 ]
                 # Also grab room name from DB if not cached
-                if not hud["room_name"]:
-                    room = await db.get_room(room_id)
-                    if room:
-                        hud["room_name"] = room.get("name", "")
+                if not hud["room_name"] and _room_row:
+                    hud["room_name"] = _room_row.get("name", "")
             except Exception:
                 pass  # Non-critical — HUD just won't show exits
 
+        # Room description for context panel (Ground UX Drop 1)
+        if _room_row:
+            desc = _room_row.get("desc_long") or _room_row.get("desc_short") or ""
+            hud["room_description"] = desc
+
         # Resolve zone name and type for ambient mood
-        if db and room_id:
+        if db and room_id and _room_row:
             try:
-                room = await db.get_room(room_id)
-                if room and room.get("zone_id"):
-                    zone = await db.get_zone(room["zone_id"])
+                if _room_row.get("zone_id"):
+                    zone = await db.get_zone(_room_row["zone_id"])
                     if zone:
                         hud["zone_name"] = zone.get("name", "")
                         # Zone type from properties.environment
                         props = zone.get("properties", "{}")
                         if isinstance(props, str):
-                            import json as _json
                             try:
-                                props = _json.loads(props)
+                                props = json.loads(props)
                             except Exception:
                                 props = {}
                         hud["zone_type"] = props.get("environment", "")
             except Exception:
-                pass  # Non-critical — mood just stays default — HUD just won't show exits
+                pass  # Non-critical — mood just stays default
 
+        # Parse room properties for service detection
+        if _room_row:
+            raw_props = _room_row.get("properties", "{}")
+            if isinstance(raw_props, str):
+                try:
+                    _room_props = json.loads(raw_props)
+                except Exception:
+                    _room_props = {}
+            elif isinstance(raw_props, dict):
+                _room_props = raw_props
 
         # Resolve alert level from Director AI
         try:
@@ -287,11 +536,13 @@ class Session:
             pass  # Non-critical — alert badge just won't show
 
         # Resolve security level
+        security_level = "contested"
         if db and room_id:
             try:
                 from engine.security import get_effective_security
                 sec = await get_effective_security(room_id, db, character=char)
-                hud["security_level"] = sec.value
+                security_level = sec.value
+                hud["security_level"] = security_level
             except Exception:
                 hud["security_level"] = "contested"
 
@@ -332,6 +583,8 @@ class Session:
                 pass  # Non-critical — territory badge just won't show
 
         # Room contents for clickable sidebar panel
+        # Ground UX Drop 1: enhanced with NPC roles, hostile flags, and
+        # context-sensitive action lists
         if db and room_id:
             try:
                 npcs = await db.get_npcs_in_room(room_id)
@@ -364,11 +617,38 @@ class Session:
                         })
                 except Exception:
                     pass  # Non-critical, just omit droids
+
+                # Detect if combat is active in this room
+                _in_combat = False
+                try:
+                    from engine.combat import get_combat
+                    _in_combat = get_combat(room_id) is not None
+                except Exception:
+                    pass
+
+                # Build enhanced NPC entries (Ground UX Drop 1)
+                npc_entries = []
+                for n in npcs:
+                    role = _classify_npc_role(n)
+                    ai_cfg = n.get("ai_config_json", "{}")
+                    if isinstance(ai_cfg, str):
+                        try:
+                            ai_cfg = json.loads(ai_cfg)
+                        except Exception:
+                            ai_cfg = {}
+                    is_hostile = ai_cfg.get("hostile", False)
+                    actions = _npc_actions(role, is_hostile, _in_combat,
+                                          security_level)
+                    npc_entries.append({
+                        "id": n["id"],
+                        "name": n["name"],
+                        "role": role,
+                        "hostile": is_hostile,
+                        "actions": actions,
+                    })
+
                 hud["room_contents"] = {
-                    "npcs": [
-                        {"id": n["id"], "name": n["name"]}
-                        for n in npcs
-                    ],
+                    "npcs": npc_entries,
                     "players": [
                         {"id": s.character["id"], "name": s.character["name"]}
                         for s in session_mgr.sessions_in_room(room_id)
@@ -376,8 +656,22 @@ class Session:
                     ] if session_mgr else [],
                     "vendor_droids": vendor_droids,
                 }
+
+                # Derive room services (Ground UX Drop 1)
+                hud["room_services"] = _derive_room_services(
+                    npcs, vendor_droids, _room_props)
+
             except Exception:
                 pass  # Non-critical
+
+        # Area map for context panel minimap (Ground UX Drop 2)
+        if db and room_id:
+            try:
+                from engine.area_map import build_area_map
+                hud["area_map"] = await build_area_map(room_id, db, depth=2)
+            except Exception:
+                log.warning("send_hud_update: area_map build failed",
+                            exc_info=True)
 
         try:
             await self._send(json.dumps({"type": "hud_update", **hud}))

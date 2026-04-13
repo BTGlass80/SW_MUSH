@@ -47,8 +47,22 @@ def _tprops(**extra):
     return json.dumps(d)
 
 
-def _sheet(**attrs):
-    return json.dumps(attrs)
+_ATTR_KEYS = frozenset({
+    "dexterity", "knowledge", "mechanical",
+    "perception", "strength", "technical",
+})
+
+
+def _sheet(**kwargs):
+    """
+    Build a char_sheet_json string in the format expected by
+    Character.from_npc_sheet() and build_npc_character():
+      {"attributes": {"dexterity": "2D", ...}, "skills": {...}, ...}
+    Attribute keys are separated from other keys automatically.
+    """
+    attrs = {k: v for k, v in kwargs.items() if k in _ATTR_KEYS}
+    rest  = {k: v for k, v in kwargs.items() if k not in _ATTR_KEYS}
+    return json.dumps({"attributes": attrs, **rest})
 
 
 def _ai(personality, knowledge, role="guide", module="hub", hostile=False, aggression=0):
@@ -182,10 +196,31 @@ async def build_core_tutorial(db):
     ]
 
     room_ids = []
-    for name, short, long in rooms_data:
+    # Rocky Pass gets room_details for the "look south wall" tutorial interaction
+    _rocky_pass_props = _tprops(room_details={
+        "south wall": {
+            "desc": (
+                "Half-buried in the sand near the south wall, you find a battered "
+                "blaster pistol -- worn but functional. Someone must have dropped it "
+                "in a hurry. It's yours now."
+            ),
+            "grants_item": "blaster_pistol",
+            "item_name":   "Blaster Pistol",
+            "item_slot":   "weapon",
+        }
+    })
+    _room_props = [
+        _tprops(),          # 0 Landing Pad
+        _tprops(),          # 1 Desert Trail
+        _rocky_pass_props,  # 2 Rocky Pass
+        _tprops(),          # 3 Ambush Point
+        _tprops(),          # 4 Desert Road
+        _tprops(),          # 5 Mos Eisley Gate
+    ]
+    for i, (name, short, long) in enumerate(rooms_data):
         rid = await db.create_room(
             name=name, desc_short=short, desc_long=long,
-            zone_id=zone_id, properties=_tprops(),
+            zone_id=zone_id, properties=_room_props[i],
         )
         room_ids.append(rid)
         print(f"  Room {rid}: {name}")

@@ -680,6 +680,13 @@ class Database:
         )
         return dict(rows[0]) if rows else None
 
+    async def get_all_rooms(self) -> list:
+        """Fetch all rooms (id and name only) for mission destination selection."""
+        rows = await self._db.execute_fetchall(
+            "SELECT id, name FROM rooms ORDER BY id"
+        )
+        return [dict(r) for r in rows]
+
     async def get_exits(self, room_id: int) -> list:
         """Get all exits from a room."""
         rows = await self._db.execute_fetchall(
@@ -1001,6 +1008,67 @@ class Database:
         await self._db.execute(
             f"UPDATE missions SET {set_clause} WHERE id = ?", values
         )
+        await self._db.commit()
+
+    async def accept_mission(self, mission_id, character_id, expires_at, data: dict):
+        """Mark a mission accepted by a character."""
+        import json as _json
+        await self._db.execute(
+            "UPDATE missions SET status='accepted', accepted_by=?, expires_at=?, data=? WHERE id=?",
+            (character_id, expires_at, _json.dumps(data), mission_id),
+        )
+        await self._db.commit()
+
+    async def complete_mission(self, mission_id, data: dict):
+        """Mark a mission complete."""
+        import json as _json
+        await self._db.execute(
+            "UPDATE missions SET status='completed', data=? WHERE id=?",
+            (_json.dumps(data), mission_id),
+        )
+        await self._db.commit()
+
+    async def abandon_mission(self, mission_id, data: dict):
+        """Return an accepted mission to available status."""
+        import json as _json
+        await self._db.execute(
+            "UPDATE missions SET status='available', accepted_by=NULL, data=? WHERE id=?",
+            (_json.dumps(data), mission_id),
+        )
+        await self._db.commit()
+
+    async def save_mission(self, mission) -> None:
+        """Upsert a Mission object into the DB (insert or replace by string id)."""
+        import json as _json
+        d = mission.to_dict()
+        # missions table uses INTEGER PK autoincrement, but mission IDs are strings.
+        # We store by matching on the JSON id field inside the data column,
+        # OR use the string id as a lookup in the data column.
+        # Simplest: try UPDATE first, INSERT if no rows affected.
+        cur = await self._db.execute(
+            "UPDATE missions SET status=?, accepted_by=?, expires_at=?, "
+            "mission_type=?, title=?, reward=?, skill_required=?, data=? "
+            "WHERE data LIKE ?",
+            (
+                d["status"], d["accepted_by"], d["expires_at"],
+                d["mission_type"], d["title"], d["reward"],
+                d.get("required_skill", ""),
+                _json.dumps(d),
+                f'%"id": "{mission.id}"%',
+            ),
+        )
+        if cur.rowcount == 0:
+            await self._db.execute(
+                "INSERT INTO missions (mission_type, title, description, reward, "
+                "skill_required, accepted_by, status, expires_at, data) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    d["mission_type"], d["title"], d.get("objective", ""),
+                    d["reward"], d.get("required_skill", ""),
+                    d["accepted_by"], d["status"], d["expires_at"],
+                    _json.dumps(d),
+                ),
+            )
         await self._db.commit()
 
     async def count_available_missions(self) -> int:

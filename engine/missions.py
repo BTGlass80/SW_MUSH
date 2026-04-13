@@ -286,16 +286,16 @@ _OBJECTIVE_TABLES: dict[MissionType, list[str]] = {
 # ── Destination rooms (static fallback; generator also uses live room graph) ───
 
 _FALLBACK_DESTINATIONS = [
-    "Chalmun's Cantina",
-    "Docking Bay 94",
+    "Chalmun's Cantina - Main Bar",
+    "Docking Bay 94 - Pit Floor",
     "Docking Bay 86",
-    "Mos Eisley Market",
-    "Lucky Despot Hotel",
-    "Jabba's Townhouse",
-    "Mos Eisley Police Station",
-    "Industrial District",
-    "Residential Quarter",
-    "Mos Eisley Outskirts",
+    "Market Place - Gep's Grill",
+    "Lucky Despot - Star Chamber Cafe",
+    "Jabba's Townhouse - Audience Chamber",
+    "Police Station - Main Floor",
+    "Dockside Cafe",
+    "Mos Eisley Inn",
+    "Mos Eisley Spaceport Control Tower",
 ]
 
 

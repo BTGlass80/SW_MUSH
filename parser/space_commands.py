@@ -151,7 +151,7 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
         if not cid:
             return None
         try:
-            c = await db.get_character_by_id(cid)
+            c = await db.get_character(cid)
             if c:
                 return {"id": c["id"], "name": c["name"], "is_npc": bool(c.get("is_npc"))}
         except Exception:
@@ -5228,6 +5228,79 @@ class SalvageCommand(BaseCommand):
         )
 
 
+class ShipNameCommand(BaseCommand):
+    key = "shipname"
+    aliases = ["+shipname"]
+    help_text = (
+        "Rename your ship. You must be the owner.\n"
+        "\n"
+        "Usage: shipname <new name>\n"
+        "\n"
+        "The name must be 2–40 characters and contain only letters,\n"
+        "numbers, spaces, hyphens, and apostrophes."
+    )
+    usage = "shipname <new name>"
+
+    async def execute(self, ctx: CommandContext):
+        import re as _re
+        char = ctx.session.character
+        char_id = str(char["id"])
+
+        if not ctx.args:
+            await ctx.session.send_line("  Usage: shipname <new name>")
+            return
+
+        new_name = ctx.args.strip()
+
+        # Validate length
+        if len(new_name) < 2 or len(new_name) > 40:
+            await ctx.session.send_line("  Ship name must be 2–40 characters.")
+            return
+
+        # Validate characters
+        if not _re.match(r"^[A-Za-z0-9 '\-]+$", new_name):
+            await ctx.session.send_line(
+                "  Invalid characters. Use letters, numbers, spaces, hyphens, apostrophes."
+            )
+            return
+
+        # Find a ship this character owns
+        try:
+            ships = await ctx.db.get_ships_owned_by(int(char_id))
+        except Exception:
+            ships = []
+
+        if not ships:
+            await ctx.session.send_line("  You don't own a ship.")
+            return
+
+        # Use the first owned ship (most players only own one)
+        ship = ships[0]
+        old_name = ship.get("name", "Unknown")
+
+        try:
+            await ctx.db.update_ship(ship["id"], name=new_name)
+        except Exception as e:
+            log.warning("[shipname] update_ship failed: %s", e)
+            await ctx.session.send_line("  Failed to save ship name. Try again.")
+            return
+
+        await ctx.session.send_line(
+            f"  Ship renamed: {old_name} → {new_name}"
+        )
+        log.info("[shipname] %s renamed ship %s → '%s'",
+                 char.get("name"), ship.get("id"), new_name)
+
+        # FDTS hook: shipname command used
+        try:
+            from engine.spacer_quest import check_spacer_quest
+            await check_spacer_quest(
+                ctx.session, ctx.db, "use_command", command="shipname"
+            )
+        except Exception:
+            log.exception("[shipname] spacer_quest hook failed")
+
+
 def register_space_commands(registry):
     cmds = [
         ShipsCommand(), ShipInfoCommand(),
@@ -5257,6 +5330,7 @@ def register_space_commands(registry):
         CourseCommand(),
         JinkCommand(), BarrelRollCommand(),
         LoopCommand(), SlipCommand(),
+        ShipNameCommand(),
     ]
     for cmd in cmds:
         registry.register(cmd)

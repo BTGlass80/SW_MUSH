@@ -82,7 +82,7 @@ class AcceptMissionCommand(BaseCommand):
         char_id = str(char["id"])
 
         # Check for existing active mission
-        active_row = await ctx.db.get_character_active_mission(char_id)
+        active_row = await ctx.db.get_active_mission(char_id)
         if active_row:
             try:
                 active_data = json.loads(active_row["data"])
@@ -193,7 +193,7 @@ class ActiveMissionCommand(BaseCommand):
 
         # Fallback to DB (e.g. after server restart)
         if not active:
-            row = await ctx.db.get_character_active_mission(char_id)
+            row = await ctx.db.get_active_mission(char_id)
             if row:
                 try:
                     data = json.loads(row["data"])
@@ -337,7 +337,7 @@ class CompleteMissionCommand(BaseCommand):
 
         # DB fallback
         if not active:
-            row = await ctx.db.get_character_active_mission(char_id)
+            row = await ctx.db.get_active_mission(char_id)
             if row:
                 try:
                     from engine.missions import Mission
@@ -469,7 +469,7 @@ class CompleteMissionCommand(BaseCommand):
 
         log.info(
             "[missions] %s completed %s for %d cr",
-            char.get("name"), completed.id, reward,
+            char.get("name"), completed.id, earned,
         )
 
         # Faction rep: +3 to character's primary faction on mission complete
@@ -481,24 +481,21 @@ class CompleteMissionCommand(BaseCommand):
                     char["id"], faction_id, REP_GAINS["complete_faction_mission"]
                 )
         except Exception:
-            log.warning("execute: unhandled exception", exc_info=True)
-            pass
+            log.exception("[missions] faction rep hook failed")
 
         # Narrative: log mission completion
         try:
             from engine.narrative import log_action, ActionType as NT
             await log_action(ctx.db, char["id"], NT.MISSION_COMPLETE,
-                             f"Completed mission '{completed.title}' for {reward:,} credits",
-                             {"mission_type": completed.mission_type.value, "reward": reward})
+                             f"Completed mission '{completed.title}' for {earned:,} credits",
+                             {"mission_type": completed.mission_type.value, "reward": earned})
         except Exception:
-            log.warning("execute: unhandled exception", exc_info=True)
-            pass
+            log.exception("[missions] narrative hook failed")
         try:
             from engine.ships_log import log_event as _mlog
             await _mlog(ctx.db, char, "missions_complete")
         except Exception:
-            log.warning("execute: unhandled exception", exc_info=True)
-            pass
+            log.exception("[missions] ships_log hook failed")
         try:
             from engine.tutorial_v2 import check_profession_chains
             await check_profession_chains(
@@ -506,15 +503,13 @@ class CompleteMissionCommand(BaseCommand):
                 mission_type=getattr(completed, "mission_type", None),
             )
         except Exception:
-            log.warning("execute: unhandled exception", exc_info=True)
-            pass
+            log.exception("[missions] profession_chains hook failed")
         # Territory influence: mission complete in zone
         try:
             from engine.territory import on_mission_complete
             await on_mission_complete(ctx.db, char, char.get("room_id", 0))
         except Exception:
-            log.warning("execute: unhandled exception", exc_info=True)
-            pass
+            log.exception("[missions] territory hook failed")
         # Spacer quest: mission complete
         try:
             from engine.spacer_quest import check_spacer_quest
@@ -523,7 +518,7 @@ class CompleteMissionCommand(BaseCommand):
                 mission_type=getattr(completed, "mission_type", None),
             )
         except Exception:
-            pass
+            log.exception("[missions] spacer_quest hook failed")
 
 
 class AbandonMissionCommand(BaseCommand):
@@ -545,7 +540,7 @@ class AbandonMissionCommand(BaseCommand):
                 break
 
         if not active:
-            row = await ctx.db.get_character_active_mission(char_id)
+            row = await ctx.db.get_active_mission(char_id)
             if row:
                 try:
                     from engine.missions import Mission

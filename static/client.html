@@ -89,7 +89,7 @@
     color: var(--text-primary);
     font-family: var(--font-mono);
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.2;
   }
 
   /* ── App Layout ── */
@@ -355,6 +355,188 @@
     line-height: 1.5;
   }
 
+  /* ── Ground UX Drop 1: Room Detail Card ── */
+  .ctx-room-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border-dim);
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin: 0 12px 8px 12px;
+    border-left: 2px solid var(--mood-accent, var(--accent-cyan));
+    transition: border-left-color 1.5s ease;
+  }
+  .ctx-room-card .ctx-room-name { margin-bottom: 4px; }
+  .ctx-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .ctx-badge {
+    font-family: var(--font-display);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--border-dim);
+    background: rgba(255,255,255,0.04);
+  }
+  .ctx-badge.sec-secured  { color: var(--accent-green); border-color: rgba(63,185,80,0.3); }
+  .ctx-badge.sec-contested { color: var(--accent-amber); border-color: rgba(210,153,34,0.3); }
+  .ctx-badge.sec-lawless   { color: var(--accent-red); border-color: rgba(248,81,73,0.3); }
+  .ctx-badge.zone-badge    { color: var(--text-dim); }
+  .ctx-desc-text {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    max-height: 4.8em; /* ~3 lines */
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .ctx-desc-text.expanded { max-height: 40em; }
+  .ctx-desc-toggle {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent-cyan);
+    cursor: pointer;
+    margin-top: 4px;
+    opacity: 0.7;
+  }
+  .ctx-desc-toggle:hover { opacity: 1; }
+  .ctx-services {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-dim);
+  }
+  .ctx-svc {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .ctx-svc-icon {
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  /* ── Ground UX Drop 1: NPC role icons ── */
+  .rc-role-icon {
+    font-size: 11px;
+    margin-right: 3px;
+    line-height: 1;
+  }
+  .rc-name.hostile { color: var(--accent-red); }
+  .rc-name.guard   { color: #8b9cc7; }
+  .rc-name.trainer  { color: var(--accent-green); }
+  .rc-name.mechanic { color: var(--accent-amber); }
+  .rc-name.bartender { color: #c49b5a; }
+
+  /* ── Ground UX Drop 1: Loadout section ── */
+  .loadout-section { margin-bottom: 2px; }
+  .loadout-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-mid);
+  }
+  .loadout-icon { font-size: 11px; opacity: 0.7; }
+  .loadout-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .loadout-name.weapon { color: var(--accent-amber); }
+  .loadout-name.armor  { color: #6b8aad; }
+  .loadout-count {
+    font-size: 10px;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.06);
+    padding: 0 5px;
+    border-radius: 2px;
+  }
+
+  /* ── Ground UX Drop 2: Area Map (floating overlay in terminal) ── */
+  .area-map-float {
+    position: sticky;
+    top: 6px;
+    float: right;
+    width: 340px;
+    max-width: 45%;
+    margin: 0 0 10px 14px;
+    background: rgba(8,11,16,0.92);
+    border: 1px solid var(--border-mid);
+    border-radius: 5px;
+    z-index: 5;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    overflow: hidden;
+  }
+  .area-map-float-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border-dim);
+    background: rgba(255,255,255,0.02);
+    cursor: default;
+  }
+  .area-map-toggle {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 10px;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+  }
+  .area-map-toggle:hover { color: var(--text-primary); }
+  .area-map-float-body {
+    padding: 4px;
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+    max-height: 350px;
+    overflow: hidden;
+  }
+  .area-map-float-body.collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding: 0 4px;
+  }
+  .area-map-svg {
+    width: 100%;
+    display: block;
+    background: rgba(0,0,0,0.3);
+    border-radius: 3px;
+  }
+  .area-map-svg .map-edge {
+    stroke: var(--border-mid);
+    stroke-width: 1;
+    fill: none;
+  }
+  .area-map-svg .map-node-label {
+    font-family: var(--font-mono);
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+  }
+  .area-map-svg .map-dir-label {
+    fill: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 7px;
+    text-anchor: middle;
+    opacity: 0.6;
+  }
+  /* Hide map overlay on narrow viewports and in space mode */
+  @media (max-width: 900px) {
+    .area-map-float { display: none !important; }
+  }
+
   /* Hide context panel on narrow viewports */
   @media (max-width: 1100px) {
     .context-panel { display: none; }
@@ -386,12 +568,15 @@
   .output-line {
     white-space: pre-wrap;
     word-wrap: break-word;
-    margin-bottom: 1px;
+    margin-bottom: 0;
     font-size: 14px;
-    line-height: 1.45;
+    line-height: 1.2;
   }
 
-  .output-line:empty::before { content: '\200b'; }
+  /* Empty lines (from send_line("")) are half-height spacers, not full lines */
+  .output-line:empty,
+  .output-line:not(:empty) + .output-line:empty { height: 0.6em; }
+  .output-line:empty::before { content: none; }
   .output-line.fresh { animation: lineIn 0.12s ease-out; }
   @keyframes lineIn { from { opacity: 0.4; transform: translateY(1px); } to { opacity: 1; transform: none; } }
 
@@ -578,7 +763,12 @@
 
   /* ── Combat Panel ── */
   #g-combat { display: none; }
-  #g-combat.combat-active { display: block; }
+  #g-combat.combat-active {
+    display: block;
+    border-left: 2px solid var(--accent-red);
+    margin-left: -2px;
+    padding-left: 2px;
+  }
 
   .combat-round-badge {
     display: inline-block;
@@ -604,17 +794,23 @@
   .combatant-row {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 0;
+    gap: 4px;
+    padding: 4px 0;
     border-bottom: 1px solid rgba(255,255,255,0.04);
     font-size: 11px;
   }
   .combatant-row:last-child { border-bottom: none; }
+  .combatant-row.is-current-turn {
+    background: rgba(248,81,73,0.06);
+    margin: 0 -4px;
+    padding: 4px;
+    border-radius: 3px;
+  }
   .combatant-init {
     font-family: var(--font-mono);
     font-size: 10px;
     color: var(--text-dim);
-    min-width: 20px;
+    min-width: 18px;
     text-align: right;
   }
   .combatant-name {
@@ -626,8 +822,27 @@
     text-overflow: ellipsis;
   }
   .combatant-name.is-player { color: var(--accent-cyan); }
-  .combatant-name.is-npc    { color: var(--text-main); }
+  .combatant-name.is-npc    { color: var(--text-primary); }
   .combatant-name.is-you    { color: var(--accent-amber); font-weight: 700; }
+
+  /* Health bar (5-segment, replaces single pip) */
+  .combatant-health {
+    display: flex;
+    gap: 1px;
+    flex-shrink: 0;
+  }
+  .combatant-hseg {
+    width: 5px; height: 8px;
+    border-radius: 1px;
+    background: rgba(255,255,255,0.08);
+  }
+  .combatant-hseg.filled { background: var(--accent-green); }
+  .combatant-hseg.stunned { background: var(--accent-amber); }
+  .combatant-hseg.wounded { background: #da6d28; }
+  .combatant-hseg.incap   { background: var(--accent-red); }
+  .combatant-hseg.mortal  { background: #8b0000; animation: pulse 1.5s infinite; }
+
+  /* Legacy pip (keep for compat) */
   .combatant-pip {
     width: 6px; height: 6px;
     border-radius: 50%;
@@ -639,6 +854,33 @@
   .combatant-pip.incap    { background: var(--accent-red); }
   .combatant-pip.mortal   { background: #8b0000; animation: pulse 1.5s infinite; }
   .combatant-pip.dead     { background: var(--text-dim); }
+
+  /* Cover & aim badges */
+  .combatant-badges {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .combatant-badge {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    padding: 0 3px;
+    border-radius: 2px;
+    line-height: 14px;
+  }
+  .combatant-badge.cover {
+    color: var(--accent-blue);
+    background: rgba(77,158,255,0.12);
+  }
+  .combatant-badge.aim {
+    color: var(--accent-red);
+    background: rgba(248,81,73,0.12);
+  }
+  .combatant-badge.flee {
+    color: var(--accent-amber);
+    background: rgba(210,153,34,0.12);
+  }
+
   .combatant-declared {
     font-size: 9px;
     color: var(--accent-green);
@@ -659,6 +901,50 @@
     color: var(--text-dim);
     font-style: italic;
     margin-top: 3px;
+  }
+
+  /* Action prompt bar */
+  .combat-action-prompt {
+    margin-top: 6px;
+    padding: 5px 6px;
+    background: rgba(248,81,73,0.06);
+    border: 1px solid rgba(248,81,73,0.2);
+    border-radius: 3px;
+  }
+  .combat-prompt-label {
+    font-family: var(--font-display);
+    font-size: 7px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent-red);
+    margin-bottom: 4px;
+  }
+  .combat-prompt-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+  .combat-prompt-btn {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border: 1px solid rgba(248,81,73,0.3);
+    border-radius: 3px;
+    background: rgba(248,81,73,0.08);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .combat-prompt-btn:hover {
+    background: rgba(248,81,73,0.2);
+    color: var(--text-bright);
+  }
+  @keyframes prompt-pulse {
+    0%, 100% { border-color: rgba(248,81,73,0.2); }
+    50% { border-color: rgba(248,81,73,0.5); }
+  }
+  .combat-action-prompt.your-turn {
+    animation: prompt-pulse 2s ease-in-out infinite;
   }
 
   /* Stat rows */
@@ -1450,13 +1736,30 @@
       </div>
       <!-- Main area: text + context panel side by side -->
       <div class="terminal-main" id="terminal-main">
-        <div id="output"></div>
+        <div id="output">
+          <!-- Area Map: floating overlay in terminal dead space -->
+          <div class="area-map-float" id="ctx-area-map-wrap" style="display:none;">
+            <div class="area-map-float-header">
+              <span class="ctx-label" style="margin:0;">Area Map</span>
+              <button class="area-map-toggle" id="area-map-toggle-btn" title="Collapse/expand map">&#9660;</button>
+            </div>
+            <div class="area-map-float-body" id="area-map-float-body">
+              <svg class="area-map-svg" id="ctx-area-map-svg" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+                <text x="200" y="150" text-anchor="middle" style="fill:var(--text-dim);font-size:11px;font-family:Share Tech Mono,monospace;">No map data</text>
+              </svg>
+            </div>
+          </div>
+        </div>
         <!-- Context panel: fills dead space to right of text -->
         <div class="context-panel" id="context-panel">
-          <div class="ctx-section" id="ctx-ground">
-            <div class="ctx-label">Location</div>
-            <div class="ctx-room-name" id="ctx-room-name">&mdash;</div>
-            <div class="ctx-room-desc" id="ctx-room-desc"></div>
+          <div id="ctx-ground">
+            <div class="ctx-room-card" id="ctx-room-card">
+              <div class="ctx-room-name" id="ctx-room-name">&mdash;</div>
+              <div class="ctx-badges" id="ctx-badges"></div>
+              <div class="ctx-desc-text" id="ctx-desc-text"></div>
+              <div class="ctx-desc-toggle" id="ctx-desc-toggle" style="display:none;">&#9662; show more</div>
+              <div class="ctx-services" id="ctx-services" style="display:none;"></div>
+            </div>
           </div>
           <div class="ctx-section" id="ctx-space" style="display:none;">
             <div class="ctx-label">Zone Map</div>
@@ -1688,6 +1991,13 @@
 
     </div><!-- /g-stats -->
 
+    <div class="ground-only" id="g-loadout" style="display:none;">
+    <div class="hud-section loadout-section">
+      <div class="hud-label" title="Equipped gear and consumable items">Loadout</div>
+      <div id="loadout-body"></div>
+    </div>
+    </div><!-- /g-loadout -->
+
     <div class="ground-only" id="g-location">
     <div class="hud-section">
       <div class="hud-label" title="Your current room and zone">Location</div>
@@ -1731,6 +2041,10 @@
       <div id="combat-combatants-list"></div>
       <div class="combat-action-summary" id="combat-action-summary"></div>
       <div class="combat-waiting-line" id="combat-waiting-line"></div>
+      <div class="combat-action-prompt" id="combat-action-prompt" style="display:none;">
+        <div class="combat-prompt-label">Your Turn</div>
+        <div class="combat-prompt-buttons" id="combat-prompt-buttons"></div>
+      </div>
     </div>
     </div><!-- /g-combat -->
 
@@ -1759,7 +2073,7 @@
 (function() {
   'use strict';
 
-  var WS_PORT = 4001;
+  var WS_PORT = 8080;
   var MAX_OUTPUT_LINES = 2000;
   var RECONNECT_DELAY_MS = 3000;
   var MAX_HISTORY = 100;
@@ -1941,6 +2255,17 @@
   }
 
   // ═══════════ Room Contents (clickable NPCs/players) ═══════════
+  // Ground UX Drop 1: NPC role icons + server-driven action buttons
+
+  var _ROLE_ICONS = {
+    hostile:   '\u2694\uFE0F',
+    guard:     '\uD83D\uDEE1',
+    trainer:   '\uD83C\uDF93',
+    vendor:    '\uD83D\uDED2',
+    mechanic:  '\u2699',
+    bartender: '\uD83C\uDF7A',
+    neutral:   '\uD83D\uDCAC',
+  };
 
   function updateRoomContents(contents) {
     var panel  = document.getElementById('g-room-contents');
@@ -1958,36 +2283,55 @@
     panel.style.display = '';
     list.innerHTML = '';
 
-    // NPCs
+    // NPCs — with role icons and smart actions
     for (var i = 0; i < npcs.length; i++) {
       (function(npc) {
         var row = document.createElement('div');
         row.className = 'rc-entry';
 
+        // Role icon
+        var role = npc.role || 'neutral';
+        var icon = document.createElement('span');
+        icon.className = 'rc-role-icon';
+        icon.textContent = _ROLE_ICONS[role] || '\u25CB';
+        icon.title = role.charAt(0).toUpperCase() + role.slice(1);
+        row.appendChild(icon);
+
+        // Name — colored by role
         var name = document.createElement('span');
         name.className = 'rc-name npc';
+        if (role === 'hostile' || npc.hostile) name.className += ' hostile';
+        else if (role === 'guard')    name.className += ' guard';
+        else if (role === 'trainer')  name.className += ' trainer';
+        else if (role === 'mechanic') name.className += ' mechanic';
+        else if (role === 'bartender') name.className += ' bartender';
         name.textContent = npc.name;
         row.appendChild(name);
 
-        var btnLook = document.createElement('button');
-        btnLook.className = 'rc-btn';
-        btnLook.textContent = 'look';
-        btnLook.addEventListener('click', function() { sendCmd('look ' + npc.name); });
-        row.appendChild(btnLook);
-
-        var btnTalk = document.createElement('button');
-        btnTalk.className = 'rc-btn';
-        btnTalk.textContent = 'talk';
-        btnTalk.addEventListener('click', function() { sendCmd('talk ' + npc.name); });
-        row.appendChild(btnTalk);
-
-        if (!combatActive) {
-          var btnAtk = document.createElement('button');
-          btnAtk.className = 'rc-btn';
-          btnAtk.textContent = 'atk';
-          btnAtk.style.color = 'var(--accent-red)';
-          btnAtk.addEventListener('click', function() { sendCmd('attack ' + npc.name); });
-          row.appendChild(btnAtk);
+        // Action buttons — driven by server-provided actions list
+        var actions = npc.actions || ['look', 'talk'];
+        for (var ai = 0; ai < actions.length; ai++) {
+          (function(action) {
+            var btn = document.createElement('button');
+            btn.className = 'rc-btn';
+            btn.textContent = action;
+            if (action === 'attack') {
+              btn.style.color = 'var(--accent-red)';
+              btn.title = 'Attack ' + npc.name;
+            } else if (action === 'train') {
+              btn.style.color = 'var(--accent-green)';
+              btn.title = 'Train skills with ' + npc.name;
+            } else if (action === 'buy') {
+              btn.style.color = 'var(--accent-amber)';
+              btn.title = 'Browse ' + npc.name + '\'s wares';
+            } else if (action === 'repair') {
+              btn.title = 'Request repairs from ' + npc.name;
+            }
+            btn.addEventListener('click', function() {
+              sendCmd(action + ' ' + npc.name);
+            });
+            row.appendChild(btn);
+          })(actions[ai]);
         }
 
         list.appendChild(row);
@@ -1999,6 +2343,11 @@
       (function(pc) {
         var row = document.createElement('div');
         row.className = 'rc-entry';
+
+        var icon = document.createElement('span');
+        icon.className = 'rc-role-icon';
+        icon.textContent = '\uD83D\uDC64';
+        row.appendChild(icon);
 
         var name = document.createElement('span');
         name.className = 'rc-name player';
@@ -2016,12 +2365,309 @@
     }
   }
 
+  // ═══════════ Area Map (Ground UX Drop 2) ═══════════
+
+  var _lastMapRoomId = null;  // Track room to avoid redundant re-renders
+
+  function renderAreaMap(mapData) {
+    var wrap = document.getElementById('ctx-area-map-wrap');
+    var svg  = document.getElementById('ctx-area-map-svg');
+    if (!wrap || !svg) return;
+
+    if (!mapData || !mapData.rooms || mapData.rooms.length === 0) {
+      wrap.style.display = 'none';
+      return;
+    }
+
+    // Only re-render if room changed
+    if (mapData.current === _lastMapRoomId) return;
+    _lastMapRoomId = mapData.current;
+
+    wrap.style.display = '';
+
+    var rooms = mapData.rooms;
+    var edges = mapData.edges || [];
+    var services = mapData.services || {};
+    var currentId = mapData.current;
+
+    // ── Layout constants ──
+    var PAD = 60;          // padding around content
+    var NODE_RX = 4;       // corner radius
+    var FONT_SIZE = 9;     // label font size in SVG units
+    var CHAR_W = 5.4;      // approximate width per char at 9px
+    var LINE_H = 12;       // line height for labels
+
+    // Build room lookup
+    var byId = {};
+    for (var i = 0; i < rooms.length; i++) byId[rooms[i].id] = rooms[i];
+
+    // Build adjacency for click-to-navigate
+    var adjacent = {};
+    for (var ei = 0; ei < edges.length; ei++) {
+      var e = edges[ei];
+      if (e.from === currentId) adjacent[e.to] = e.dir;
+      if (e.to === currentId) {
+        var rev = {north:'south',south:'north',east:'west',west:'east',
+                   northeast:'southwest',southwest:'northeast',
+                   northwest:'southeast',southeast:'northwest',
+                   up:'down',down:'up','in':'out','out':'in'};
+        adjacent[e.from] = rev[e.dir] || e.dir;
+      }
+    }
+
+    // ── Compute pixel positions from normalized coords ──
+    // First pass: find bounds of normalized coords
+    var minNx = 1, maxNx = 0, minNy = 1, maxNy = 0;
+    for (var ri = 0; ri < rooms.length; ri++) {
+      var r = rooms[ri];
+      if (r.x < minNx) minNx = r.x;
+      if (r.x > maxNx) maxNx = r.x;
+      if (r.y < minNy) minNy = r.y;
+      if (r.y > maxNy) maxNy = r.y;
+    }
+    var rangeX = maxNx - minNx || 0.01;
+    var rangeY = maxNy - minNy || 0.01;
+
+    // Determine node sizes based on label lengths
+    // Pre-compute label lines for each room
+    var roomLabels = {};
+    var maxNodeW = 0;
+    for (var li = 0; li < rooms.length; li++) {
+      var rm = rooms[li];
+      var lines = _splitLabel(rm.name, rm.id === currentId ? 18 : 14);
+      roomLabels[rm.id] = lines;
+      var longestLine = 0;
+      for (var ll = 0; ll < lines.length; ll++) {
+        if (lines[ll].length > longestLine) longestLine = lines[ll].length;
+      }
+      var nw = longestLine * CHAR_W + 16;
+      if (nw > maxNodeW) maxNodeW = nw;
+    }
+    var NODE_W = Math.min(maxNodeW, 120);
+
+    // Content area dimensions — scale to fit nodes with good spacing
+    var spacingX = Math.max(NODE_W + 30, 110);
+    var spacingY = 55;
+    var contentW = rangeX > 0.01 ? (spacingX * rooms.length * 0.6) : spacingX;
+    var contentH = rangeY > 0.01 ? (spacingY * rooms.length * 0.5) : spacingY;
+    // Clamp to reasonable range
+    contentW = Math.max(contentW, 200);
+    contentH = Math.max(contentH, 80);
+    contentW = Math.min(contentW, 500);
+    contentH = Math.min(contentH, 400);
+
+    var totalW = contentW + PAD * 2;
+    var totalH = contentH + PAD * 2;
+
+    // Map normalized coords to pixel coords
+    for (var pi = 0; pi < rooms.length; pi++) {
+      var pr = rooms[pi];
+      pr._px = PAD + ((pr.x - minNx) / rangeX) * contentW;
+      pr._py = PAD + ((pr.y - minNy) / rangeY) * contentH;
+      // For single-room or single-axis cases, center it
+      if (rangeX < 0.02) pr._px = totalW / 2;
+      if (rangeY < 0.02) pr._py = totalH / 2;
+    }
+
+    // Set dynamic viewBox
+    svg.setAttribute('viewBox', '0 0 ' + totalW + ' ' + totalH);
+
+    // Clear SVG
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    // ── Background grid ──
+    var grid = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    grid.setAttribute('opacity', '0.12');
+    var gridStep = 30;
+    for (var gx = 0; gx <= totalW; gx += gridStep) {
+      var gl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      gl.setAttribute('x1', gx); gl.setAttribute('y1', 0);
+      gl.setAttribute('x2', gx); gl.setAttribute('y2', totalH);
+      gl.setAttribute('stroke', 'var(--border-dim)'); gl.setAttribute('stroke-width', '0.5');
+      grid.appendChild(gl);
+    }
+    for (var gy = 0; gy <= totalH; gy += gridStep) {
+      var gh = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      gh.setAttribute('x1', 0); gh.setAttribute('y1', gy);
+      gh.setAttribute('x2', totalW); gh.setAttribute('y2', gy);
+      gh.setAttribute('stroke', 'var(--border-dim)'); gh.setAttribute('stroke-width', '0.5');
+      grid.appendChild(gh);
+    }
+    svg.appendChild(grid);
+
+    // ── Draw edges ──
+    var edgeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    for (var j = 0; j < edges.length; j++) {
+      var edge = edges[j];
+      var fromRoom = byId[edge.from];
+      var toRoom = byId[edge.to];
+      if (!fromRoom || !toRoom) continue;
+
+      var x1 = fromRoom._px, y1 = fromRoom._py;
+      var x2 = toRoom._px,   y2 = toRoom._py;
+      var isConnected = (edge.from === currentId || edge.to === currentId);
+
+      var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+      line.setAttribute('class', 'map-edge');
+      if (isConnected) {
+        line.setAttribute('stroke', 'var(--accent-cyan)');
+        line.setAttribute('stroke-opacity', '0.5');
+        line.setAttribute('stroke-width', '1.5');
+      }
+      edgeGroup.appendChild(line);
+
+      // Direction label at midpoint
+      if (edge.dir) {
+        var mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+        var ddx = x2 - x1, ddy = y2 - y1;
+        var dlen = Math.sqrt(ddx*ddx + ddy*ddy) || 1;
+        var offx = -(ddy/dlen) * 7;
+        var offy = (ddx/dlen) * 7;
+        var dirAbbr = {north:'N',south:'S',east:'E',west:'W',
+                       northeast:'NE',northwest:'NW',southeast:'SE',southwest:'SW',
+                       up:'\u2191',down:'\u2193','in':'\u25B6','out':'\u25C0'};
+        var dlabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        dlabel.setAttribute('x', mx + offx);
+        dlabel.setAttribute('y', my + offy);
+        dlabel.setAttribute('class', 'map-dir-label');
+        dlabel.textContent = dirAbbr[edge.dir] || edge.dir.charAt(0).toUpperCase();
+        edgeGroup.appendChild(dlabel);
+      }
+    }
+    svg.appendChild(edgeGroup);
+
+    // ── Draw nodes ──
+    var nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    for (var k = 0; k < rooms.length; k++) {
+      var room = rooms[k];
+      var cx = room._px, cy = room._py;
+      var depth = room.depth || 0;
+      var isCurrent = room.id === currentId;
+      var isAdjacent = !!adjacent[room.id];
+      var lines = roomLabels[room.id] || [room.name];
+
+      var nodeH = Math.max(lines.length * LINE_H + 8, 24);
+      var longestLen = 0;
+      for (var lk = 0; lk < lines.length; lk++)
+        if (lines[lk].length > longestLen) longestLen = lines[lk].length;
+      var nodeW = Math.max(longestLen * CHAR_W + 16, 50);
+
+      var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('class', 'map-node depth-' + depth);
+      g.setAttribute('transform', 'translate(' + cx + ',' + cy + ')');
+
+      // Node rectangle
+      var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', -nodeW/2); rect.setAttribute('y', -nodeH/2);
+      rect.setAttribute('width', nodeW); rect.setAttribute('height', nodeH);
+      rect.setAttribute('rx', NODE_RX); rect.setAttribute('ry', NODE_RX);
+
+      // Current room: strong fill and border
+      if (isCurrent) {
+        rect.setAttribute('fill', 'rgba(64,200,208,0.15)');
+        rect.setAttribute('stroke', 'var(--accent-cyan)');
+        rect.setAttribute('stroke-width', '2');
+      } else if (isAdjacent) {
+        rect.setAttribute('fill', 'rgba(255,255,255,0.05)');
+        rect.setAttribute('stroke', 'var(--accent-cyan)');
+        rect.setAttribute('stroke-width', '0.8');
+        rect.setAttribute('stroke-opacity', '0.5');
+      } else {
+        rect.setAttribute('fill', 'rgba(255,255,255,0.025)');
+        rect.setAttribute('stroke', 'var(--border-mid)');
+        rect.setAttribute('stroke-width', '0.5');
+      }
+      g.appendChild(rect);
+
+      // "You are here" dot on current room
+      if (isCurrent) {
+        var dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('cx', -nodeW/2 + 7); dot.setAttribute('cy', 0);
+        dot.setAttribute('r', 3);
+        dot.setAttribute('fill', 'var(--accent-cyan)');
+        g.appendChild(dot);
+      }
+
+      // Room name label — multi-line
+      for (var ti = 0; ti < lines.length; ti++) {
+        var tspan = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        var textY = -((lines.length - 1) * LINE_H / 2) + ti * LINE_H;
+        tspan.setAttribute('x', isCurrent ? 4 : 0);
+        tspan.setAttribute('y', textY + 1);
+        tspan.setAttribute('class', 'map-node-label');
+        if (isCurrent) {
+          tspan.setAttribute('fill', 'var(--text-bright)');
+          tspan.setAttribute('font-size', '10');
+          tspan.setAttribute('font-weight', '600');
+        } else if (depth === 1) {
+          tspan.setAttribute('fill', 'var(--text-primary)');
+          tspan.setAttribute('font-size', '9');
+        } else {
+          tspan.setAttribute('fill', 'var(--text-dim)');
+          tspan.setAttribute('font-size', '8');
+        }
+        tspan.textContent = lines[ti];
+        g.appendChild(tspan);
+      }
+
+      // Tooltip
+      var title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      title.textContent = room.name;
+      if (isCurrent) title.textContent += ' (you are here)';
+      else if (isAdjacent) title.textContent += ' \u2014 click to go ' + adjacent[room.id];
+      g.appendChild(title);
+
+      // Click handler for adjacent rooms
+      if (isAdjacent) {
+        (function(dir) {
+          g.style.cursor = 'pointer';
+          g.addEventListener('click', function() { sendCmd(dir); });
+        })(adjacent[room.id]);
+      }
+
+      nodeGroup.appendChild(g);
+    }
+    svg.appendChild(nodeGroup);
+  }
+
+  // Helper: split a room name into lines for multi-line labels
+  function _splitLabel(name, maxChars) {
+    if (name.length <= maxChars) return [name];
+    // Try splitting at common separators
+    var sep = name.indexOf(' - ');
+    if (sep > 0 && sep < name.length - 3) {
+      return [name.substring(0, sep), name.substring(sep + 3)];
+    }
+    // Split at last space before maxChars
+    var cut = name.lastIndexOf(' ', maxChars);
+    if (cut > maxChars * 0.3) {
+      return [name.substring(0, cut), name.substring(cut + 1)];
+    }
+    // Hard truncate
+    return [name.substring(0, maxChars - 1) + '\u2026'];
+  }
+
+  // Area map collapse/expand toggle
+  (function() {
+    var toggleBtn = document.getElementById('area-map-toggle-btn');
+    var body = document.getElementById('area-map-float-body');
+    if (toggleBtn && body) {
+      toggleBtn.addEventListener('click', function() {
+        body.classList.toggle('collapsed');
+        toggleBtn.textContent = body.classList.contains('collapsed') ? '\u25B6' : '\u25BC';
+      });
+    }
+  })();
+
   // ═══════════ Structured HUD ═══════════
 
   function handleHudUpdate(data) {
     if (data.character_id !== undefined) combatViewerId = data.character_id;
     if (data.name) hudName.textContent = data.name;
     if (data.wound_name !== undefined) updateWoundDisplay(data.wound_name);
+    if (data.wound_level !== undefined) _lastWoundLevel = data.wound_level;
 
     if (data.credits !== undefined) {
       hudCredits.textContent = Number(data.credits).toLocaleString();
@@ -2040,22 +2686,140 @@
 
     if (data.room_name) {
       hudRoom.textContent = data.room_name;
-      // Mirror to context panel
+      // Mirror to context panel room card
       var ctxRoomName = document.getElementById('ctx-room-name');
       if (ctxRoomName) ctxRoomName.textContent = data.room_name;
+    }
+
+    // Context panel badges (zone + security)
+    (function() {
+      var badgeRow = document.getElementById('ctx-badges');
+      if (!badgeRow) return;
+      badgeRow.innerHTML = '';
+      if (data.zone_name) {
+        var zb = document.createElement('span');
+        zb.className = 'ctx-badge zone-badge';
+        zb.textContent = data.zone_name;
+        badgeRow.appendChild(zb);
+      }
+      if (data.security_level) {
+        var sb = document.createElement('span');
+        sb.className = 'ctx-badge sec-' + data.security_level;
+        sb.textContent = data.security_level.charAt(0).toUpperCase() + data.security_level.slice(1);
+        badgeRow.appendChild(sb);
+      }
+    })();
+
+    // Context panel room description (Ground UX Drop 1)
+    if (data.room_description !== undefined) {
+      var descEl = document.getElementById('ctx-desc-text');
+      var toggleEl = document.getElementById('ctx-desc-toggle');
+      if (descEl) {
+        descEl.textContent = data.room_description;
+        descEl.classList.remove('expanded');
+        // Show toggle if text overflows 3 lines
+        if (toggleEl) {
+          if (descEl.scrollHeight > descEl.clientHeight + 2) {
+            toggleEl.style.display = '';
+            toggleEl.innerHTML = '&#9662; show more';
+            toggleEl.onclick = function() {
+              if (descEl.classList.contains('expanded')) {
+                descEl.classList.remove('expanded');
+                toggleEl.innerHTML = '&#9662; show more';
+              } else {
+                descEl.classList.add('expanded');
+                toggleEl.innerHTML = '&#9652; show less';
+              }
+            };
+          } else {
+            toggleEl.style.display = 'none';
+          }
+        }
+      }
+    }
+
+    // Context panel services (Ground UX Drop 1)
+    if (data.room_services !== undefined) {
+      var svcEl = document.getElementById('ctx-services');
+      if (svcEl) {
+        svcEl.innerHTML = '';
+        var svcIcons = {
+          vendor: '\uD83D\uDED2', trainer: '\uD83C\uDF93', cantina: '\uD83C\uDF7A',
+          medical: '\u2695', docking: '\uD83D\uDE80', crafting: '\uD83D\uDD27',
+          mechanic: '\u2699'
+        };
+        if (data.room_services.length > 0) {
+          svcEl.style.display = '';
+          for (var si = 0; si < data.room_services.length; si++) {
+            var svc = data.room_services[si];
+            var svcSpan = document.createElement('span');
+            svcSpan.className = 'ctx-svc';
+            svcSpan.innerHTML = '<span class="ctx-svc-icon">' +
+              (svcIcons[svc] || '\u25CB') + '</span>' +
+              svc.charAt(0).toUpperCase() + svc.slice(1);
+            svcEl.appendChild(svcSpan);
+          }
+        } else {
+          svcEl.style.display = 'none';
+        }
+      }
+    }
+
+    // Loadout section (Ground UX Drop 1)
+    if (data.loadout) {
+      var loadoutPanel = document.getElementById('g-loadout');
+      var loadoutBody = document.getElementById('loadout-body');
+      if (loadoutPanel && loadoutBody) {
+        var lo = data.loadout;
+        var hasContent = lo.weapon || lo.armor || (lo.consumables && lo.consumables.length > 0);
+        if (hasContent) {
+          loadoutPanel.style.display = '';
+          loadoutBody.innerHTML = '';
+          if (lo.weapon) {
+            var wr = document.createElement('div');
+            wr.className = 'loadout-row';
+            wr.innerHTML = '<span class="loadout-icon">\u2694</span>' +
+              '<span class="loadout-name weapon" title="' + (lo.weapon.damage || '') + '">' +
+              escapeHtml(lo.weapon.name) + '</span>';
+            loadoutBody.appendChild(wr);
+          }
+          if (lo.armor) {
+            var ar = document.createElement('div');
+            ar.className = 'loadout-row';
+            ar.innerHTML = '<span class="loadout-icon">\uD83D\uDEE1</span>' +
+              '<span class="loadout-name armor" title="' + (lo.armor.location || '') + ' ' + (lo.armor.bonus || '') + '">' +
+              escapeHtml(lo.armor.name) + '</span>';
+            loadoutBody.appendChild(ar);
+          }
+          if (lo.consumables) {
+            for (var ci = 0; ci < lo.consumables.length; ci++) {
+              var c = lo.consumables[ci];
+              var cr = document.createElement('div');
+              cr.className = 'loadout-row';
+              var cIcon = c.type === 'healing' ? '\uD83D\uDC8A' :
+                          c.type === 'grenade' ? '\uD83D\uDCA3' :
+                          c.type === 'stim'    ? '\uD83E\uDDEA' : '\u25AA';
+              cr.innerHTML = '<span class="loadout-icon">' + cIcon + '</span>' +
+                '<span class="loadout-name">' + escapeHtml(c.name) + '</span>' +
+                '<span class="loadout-count">\u00D7' + c.count + '</span>';
+              loadoutBody.appendChild(cr);
+            }
+          }
+        } else {
+          loadoutPanel.style.display = 'none';
+        }
+      }
+    }
+
+    // Area map for context panel (Ground UX Drop 2)
+    if (data.area_map) {
+      renderAreaMap(data.area_map);
     }
 
     // Zone info for ambient mood
     if (data.zone_name) {
       hudZone.textContent = data.zone_name;
       hudZone.style.display = '';
-      // Mirror to context panel
-      var ctxDesc = document.getElementById('ctx-room-desc');
-      if (ctxDesc) {
-        var zoneText = data.zone_name;
-        if (data.security_level) zoneText += ' \u2022 ' + (data.security_level.charAt(0).toUpperCase() + data.security_level.slice(1));
-        ctxDesc.textContent = zoneText;
-      }
     }
     if (data.zone_type) {
       setMood(data.zone_type);
@@ -2123,12 +2887,10 @@
         var guardSymbol = tc.has_guard ? ' ■' : '';  // filled square = guard present
         badge.textContent = '◆ ' + tc.org_name + guardSymbol;
         badge.title = 'Claimed by ' + tc.org_name + (tc.has_guard ? ' (guarded)' : '') +
-                      '
-Use: faction territory';
+                      '\nUse: faction territory';
         if (data.contest_active) {
           badge.classList.add('contested-glow');
-          badge.title += '
-⚠ CONTESTED — ' + (data.contest_challenger || '') + ' is challenging';
+          badge.title += '\n⚠ CONTESTED — ' + (data.contest_challenger || '') + ' is challenging';
         }
         // Insert after sec-badge if present, else after hud-zone
         var anchor = document.getElementById('sec-badge') || document.getElementById('hud-zone');
@@ -2368,6 +3130,7 @@ Use: faction territory';
   };
 
   function handleCombatState(data) {
+    var wasActive = combatActive;
     combatActive = !!(data && data.active);
     updateQuickButtons();
 
@@ -2376,12 +3139,19 @@ Use: faction territory';
 
     if (!combatActive) {
       panel.classList.remove('combat-active');
+      // Trigger post-combat mode if combat just ended
+      if (wasActive) {
+        enterPostCombatMode();
+      }
       // Reset g-quick label
       var gQuickReset = document.getElementById('g-quick');
       if (gQuickReset) {
         var ql = gQuickReset.querySelector('.hud-label');
         if (ql) { ql.textContent = 'Quick'; ql.style.color = ''; }
       }
+      // Hide action prompt
+      var prompt = document.getElementById('combat-action-prompt');
+      if (prompt) prompt.style.display = 'none';
       // Reset ambient mood away from combat if needed
       if (typeof setMood === 'function') setMood(currentMood || 'default');
       return;
@@ -2410,35 +3180,63 @@ Use: faction territory';
       phaseEl.textContent = phaseLabels[phase] || phase;
     }
 
-    // Combatants list
+    // Determine if it's the viewer's turn to declare
+    var viewerDeclared = false;
+    var viewerInCombat = false;
+    var combatants = data.combatants || [];
+    for (var ci = 0; ci < combatants.length; ci++) {
+      if (combatViewerId && combatants[ci].id === combatViewerId) {
+        viewerInCombat = true;
+        viewerDeclared = combatants[ci].declared;
+        break;
+      }
+    }
+    var isYourTurn = viewerInCombat && !viewerDeclared && phase === 'declaration';
+
+    // Combatants list — enhanced with health bars and badges
     var list = document.getElementById('combat-combatants-list');
     if (list) {
       list.innerHTML = '';
-      var combatants = data.combatants || [];
       for (var i = 0; i < combatants.length; i++) {
         var c = combatants[i];
         var row = document.createElement('div');
         row.className = 'combatant-row';
+        // Highlight the current resolver (first undeclared in declaration, or first in resolution)
+        var isYou = combatViewerId && c.id === combatViewerId;
 
         // Initiative number
         var initEl = document.createElement('span');
         initEl.className = 'combatant-init';
-        initEl.textContent = c.initiative > 0 ? c.initiative : '—';
+        initEl.textContent = c.initiative > 0 ? c.initiative : '\u2014';
         row.appendChild(initEl);
 
-        // Wound pip
-        var pip = document.createElement('span');
-        var woundKey = (c.wound_name || 'healthy').toLowerCase();
-        pip.className = 'combatant-pip ' + (WOUND_PIP_CLASS[woundKey] || 'healthy');
-        pip.title = c.wound_name || 'Healthy';
-        row.appendChild(pip);
+        // Health bar (5-segment wound bar)
+        var healthBar = document.createElement('span');
+        healthBar.className = 'combatant-health';
+        var wk = (c.wound_name || 'healthy').toLowerCase();
+        // Map wound levels to segment fills
+        // healthy=5 filled, stunned=4, wounded=3, wounded twice=2, incap=1, mortal=1(red), dead=0
+        var segCount = 5;
+        var filled = wk === 'healthy' ? 5 : wk === 'stunned' ? 4 :
+                     wk === 'wounded' ? 3 : wk === 'wounded twice' ? 2 :
+                     wk === 'incapacitated' ? 1 : wk === 'mortally wounded' ? 1 : 0;
+        var segClass = wk === 'stunned' ? 'stunned' :
+                       (wk === 'wounded' || wk === 'wounded twice') ? 'wounded' :
+                       wk === 'incapacitated' ? 'incap' :
+                       wk === 'mortally wounded' ? 'mortal' : 'filled';
+        for (var si = 0; si < segCount; si++) {
+          var seg = document.createElement('span');
+          seg.className = 'combatant-hseg' + (si < filled ? ' ' + segClass : '');
+          healthBar.appendChild(seg);
+        }
+        healthBar.title = c.wound_name || 'Healthy';
+        row.appendChild(healthBar);
 
         // Name
         var nameEl = document.createElement('span');
-        var isYou = combatViewerId && c.id === combatViewerId;
         if (isYou) {
           nameEl.className = 'combatant-name is-you';
-          nameEl.textContent = c.name + ' ★';
+          nameEl.textContent = c.name + ' \u2605';
         } else if (c.is_player) {
           nameEl.className = 'combatant-name is-player';
           nameEl.textContent = c.name;
@@ -2448,14 +3246,42 @@ Use: faction territory';
         }
         row.appendChild(nameEl);
 
+        // Cover / Aim / Flee badges
+        var badges = document.createElement('span');
+        badges.className = 'combatant-badges';
+        if (c.cover > 0) {
+          var cb = document.createElement('span');
+          cb.className = 'combatant-badge cover';
+          cb.textContent = '\u25A0' + c.cover;
+          cb.title = 'Cover level ' + c.cover;
+          badges.appendChild(cb);
+        }
+        if (c.aim_bonus > 0) {
+          var ab = document.createElement('span');
+          ab.className = 'combatant-badge aim';
+          ab.textContent = '\u25CE';
+          ab.title = 'Aiming (+1D)';
+          badges.appendChild(ab);
+        }
+        if (c.is_fleeing) {
+          var fb = document.createElement('span');
+          fb.className = 'combatant-badge flee';
+          fb.textContent = '\u2192';
+          fb.title = 'Fleeing';
+          badges.appendChild(fb);
+        }
+        if (badges.children.length > 0) row.appendChild(badges);
+
         // Declared checkmark
         var declEl = document.createElement('span');
         if (c.declared) {
           declEl.className = 'combatant-declared';
-          declEl.textContent = '✓';
+          declEl.textContent = '\u2713';
+          declEl.title = c.action_summary || 'Declared';
         } else {
           declEl.className = 'combatant-declared waiting';
-          declEl.textContent = '…';
+          declEl.textContent = '\u2026';
+          declEl.title = 'Not yet declared';
         }
         row.appendChild(declEl);
 
@@ -2468,10 +3294,13 @@ Use: faction territory';
     if (actionEl) {
       var actions = data.your_actions || [];
       if (actions.length > 0) {
-        actionEl.textContent = '▸ ' + actions.join(' + ');
+        actionEl.textContent = '\u25B8 ' + actions.join(' + ');
         actionEl.style.color = 'var(--accent-amber)';
+      } else if (isYourTurn) {
+        actionEl.textContent = '';
+        actionEl.style.color = '';
       } else {
-        actionEl.textContent = 'Awaiting your declaration...';
+        actionEl.textContent = viewerInCombat ? 'Awaiting your declaration...' : '';
         actionEl.style.color = 'var(--text-dim)';
       }
     }
@@ -2483,6 +3312,38 @@ Use: faction territory';
       waitEl.textContent = waiting.length > 0
         ? 'Waiting: ' + waiting.join(', ')
         : '';
+    }
+
+    // Action prompt — shown when it's the viewer's turn
+    var promptEl = document.getElementById('combat-action-prompt');
+    var promptBtns = document.getElementById('combat-prompt-buttons');
+    if (promptEl && promptBtns) {
+      if (isYourTurn) {
+        promptEl.style.display = '';
+        promptEl.classList.add('your-turn');
+        promptBtns.innerHTML = '';
+        var promptActions = [
+          {label: 'Attack', cmd: 'attack', tip: 'Attack the nearest enemy'},
+          {label: 'Dodge', cmd: 'dodge', tip: 'Dodge incoming attacks (+dodge dice to defense)'},
+          {label: 'Aim', cmd: 'aim', tip: 'Aim for +1D on next attack'},
+          {label: 'Cover', cmd: 'cover 1', tip: 'Take cover (+1D to defense)'},
+          {label: 'Flee', cmd: 'flee', tip: 'Attempt to flee combat'},
+          {label: 'Pass', cmd: 'pass', tip: 'Take no action this round'},
+        ];
+        for (var pi = 0; pi < promptActions.length; pi++) {
+          (function(pa) {
+            var btn = document.createElement('button');
+            btn.className = 'combat-prompt-btn';
+            btn.textContent = pa.label;
+            btn.title = pa.tip;
+            btn.addEventListener('click', function() { sendCmd(pa.cmd); });
+            promptBtns.appendChild(btn);
+          })(promptActions[pi]);
+        }
+      } else {
+        promptEl.style.display = 'none';
+        promptEl.classList.remove('your-turn');
+      }
     }
 
     // Update g-quick label
@@ -2582,12 +3443,13 @@ Use: faction territory';
 
   // ── Mode labels (shown in the Quick section header) ──
   var MODE_LABELS = {
-    explore:  'Quick',
-    combat:   '\u2694 COMBAT',
-    docked:   '\u2693 DOCKED',
-    trade:    '\u{1F4B0} TRADE',
-    housing:  '\u{1F3E0} HOME',
-    engineer: '\u2699 ENGINEER',
+    explore:     'Quick',
+    combat:      '\u2694 COMBAT',
+    postcombat:  '\u2694 POST-COMBAT',
+    docked:      '\u2693 DOCKED',
+    trade:       '\u{1F4B0} TRADE',
+    housing:     '\u{1F3E0} HOME',
+    engineer:    '\u2699 ENGINEER',
   };
 
   // Track docked state (set from space_state with active=false but on a ship bridge)
@@ -2595,13 +3457,41 @@ Use: faction territory';
   // Track room context for trade/housing modes
   var roomHasVendors = false;
   var roomIsHousing  = false;
+  // Ground UX Drop 1: post-combat mode tracking
+  var _postCombatMode = false;
+  var _postCombatTimer = null;
+  var _lastWoundLevel = 0;
 
   function getQuickMode() {
     if (combatActive) return 'combat';
+    if (_postCombatMode) return 'postcombat';
     if (dockedOnShip) return 'docked';
     if (roomHasVendors) return 'trade';
     if (roomIsHousing) return 'housing';
     return 'explore';
+  }
+
+  // Ground UX Drop 1: enter post-combat mode for 30s after combat ends
+  function enterPostCombatMode() {
+    _postCombatMode = true;
+    if (_postCombatTimer) clearTimeout(_postCombatTimer);
+    _postCombatTimer = setTimeout(function() {
+      _postCombatMode = false;
+      _postCombatTimer = null;
+      updateQuickButtons();
+    }, 30000);
+    // Build post-combat buttons dynamically based on wound state
+    var pcBtns = [
+      { label: 'look', cmd: 'look', tip: 'Look around the room after combat' },
+      { label: 'inv',  cmd: 'inventory', tip: 'Check your inventory' },
+      { label: 'score', cmd: 'score', tip: 'Check your condition' },
+    ];
+    // Add heal button if wounded and have medpacs
+    if (_lastWoundLevel > 0) {
+      pcBtns.unshift({ label: '\u{1F48A} heal', cmd: 'heal', tip: 'Use a medpac to treat your wounds' });
+    }
+    QUICK_MODES.postcombat = pcBtns;
+    updateQuickButtons();
   }
 
   function updateQuickButtons() {
@@ -2780,7 +3670,10 @@ Use: faction territory';
 
   function getWsUrl() {
     var host = window.location.hostname || 'localhost';
-    return 'ws://' + host + ':' + WS_PORT;
+    // Same port as HTTP — WebSocket is served at /ws on the aiohttp server.
+    // No separate port needed; avoids all Windows firewall issues.
+    if (host === 'localhost' || host === '::1') host = '127.0.0.1';
+    return 'ws://' + host + ':' + WS_PORT + '/ws';
   }
 
   function connect() {
@@ -2954,6 +3847,7 @@ Use: faction territory';
     spaceActive = active;
     var ctxGround = document.getElementById('ctx-ground');
     var ctxSpace  = document.getElementById('ctx-space');
+    var areaMap   = document.getElementById('ctx-area-map-wrap');
     if (active) {
       spPanel.classList.add('space-active');
       setMood('combat');
@@ -2962,6 +3856,7 @@ Use: faction territory';
       }
       if (ctxGround) ctxGround.style.display = 'none';
       if (ctxSpace)  ctxSpace.style.display = '';
+      if (areaMap)   areaMap.style.display = 'none';
     } else {
       spPanel.classList.remove('space-active');
       for (var i = 0; i < groundSections.length; i++) {
@@ -2969,6 +3864,7 @@ Use: faction territory';
       }
       if (ctxGround) ctxGround.style.display = '';
       if (ctxSpace)  ctxSpace.style.display = 'none';
+      // areaMap visibility is controlled by renderAreaMap
     }
   }
 
