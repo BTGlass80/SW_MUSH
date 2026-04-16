@@ -90,16 +90,24 @@ CONNECTION_TEXT: dict[str, list[str]] = {
         "but the shot goes completely wide.",
         "missing by a mile.",
         "but the attack sails past harmlessly.",
+        "the shot hitting nothing but air.",
+        "firing wide into the dust.",
+        "missing entirely.",
     ],
     "miss_close": [
         "but the attack is barely deflected.",
         "scoring the surface but doing no real harm.",
         "the strike narrowly missing its mark.",
+        "but the shot skips off armor plating.",
+        "barely grazing past.",
+        "deflected at the last instant.",
     ],
     "hit_glancing": [
         "landing a glancing blow.",
         "clipping them just enough to stagger.",
         "catching them with a grazing strike.",
+        "nicking them with a shallow hit.",
+        "tagging them with a partial hit.",
     ],
     "hit_solid": [
         "connecting dead center!",
@@ -261,7 +269,7 @@ def generate_compound_npc_pose(
         name_lower = npc_name.lower()
         if lower.startswith(name_lower):
             extra = extra[len(npc_name):].lstrip(" ,")
-        combined += f", then {extra}"
+        combined = combined.rstrip(".!") + f", then {extra}"
 
     return combined
 

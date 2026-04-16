@@ -1024,11 +1024,11 @@ EXITS = [
     (0, 1, "down", "up"),
     (0, 7, "north", "south to Bay 94"),
     (2, 7, "east", "west to Bay 86"),
-    (2, 0, "south", "north to Bay 86"),
+    (2, 0, "south", "east to Bay 86"),
     # -- Other bays to Spaceport Row --
     (3, 7, "northwest", "southeast"),
     (4, 7, "west", "east"),
-    (5, 7, "east", "west to Bay 91"),
+    (5, 7, "east", "northwest to Bay 91"),
     # -- Bay 92 to North End --
     (6, 10, "east", "west to Bay 95"),
     # -- Spaceport Row <-> Market Row --
@@ -1038,36 +1038,36 @@ EXITS = [
     # -- Inner Curve <-> Outer Curve --
     (9, 10, "north", "south to Inner Curve"),
     # -- Market Row <-> Kerner Plaza --
-    (8, 11, "south", "north"),
+    (8, 11, "southeast", "northwest"),
     # -- Cantina --
     (12, 8, "east", "west to Cantina"),
     (12, 13, "down", "up"),
     (13, 14, "west", "east"),
     # -- General Store -> Market --
-    (15, 8, "north", "south to General Store"),
+    (15, 8, "north", "up to General Store"),
     # -- Market Place -> Market --
-    (16, 8, "south", "north to Market Place"),
+    (16, 8, "south", "grill"),
     # -- Inn -> Spaceport Row --
-    (17, 7, "south", "north to Inn"),
+    (17, 7, "south", "northeast to Inn"),
     # -- Jabba's --
     (18, 8, "southeast", "northwest"),
     (18, 19, "in", "out"),
     # -- Government District --
     (20, 9, "east", "west to Prefect"),
     (21, 9, "west", "east"),
-    (22, 9, "south", "north to Gov District"),
-    (23, 22, "north", "south to Stables"),
+    (22, 9, "south", "northeast to Militia HQ"),
+    (23, 22, "north", "east to Stables"),
     # -- Power Station --
     (24, 9, "northwest", "southeast"),
     # -- Hotel -> Spaceport Row --
-    (25, 7, "east", "west to Hotel"),
+    (25, 7, "east", "up to Hotel"),
     # -- Control Tower -> Spaceport Row --
-    (26, 7, "north", "south to Tower"),
+    (26, 7, "north", "southwest to Tower"),
     # -- Weapon Shop -> Market --
-    (27, 8, "east", "west to Weapon Shop"),
+    (27, 8, "east", "down to Weapon Shop"),
     # -- Souvenirs / Jawa -> Market --
     (28, 8, "northeast", "southwest"),
-    (29, 8, "west", "east"),
+    (29, 8, "west", "northeast to Jawa Traders"),
     # -- Dockside Cafe --
     (30, 10, "south", "north"),
     (6, 30, "south", "north"),
@@ -1075,33 +1075,33 @@ EXITS = [
     (31, 11, "north", "south"),
     (31, 32, "up", "down"),
     # -- Banking -> Market --
-    (33, 8, "north", "south to Bank"),
+    (33, 8, "north", "bank"),
     # -- Transport Depot -> South End --
     (34, 11, "east", "west"),
     # -- Clinic -> Inner Curve --
-    (35, 9, "east", "west to Clinic"),
+    (35, 9, "east", "northwest to Clinic"),
     # -- Monastery -> North End --
-    (36, 10, "east", "west to Monastery"),
+    (36, 10, "east", "northwest to Monastery"),
     # -- Dowager Queen -> Market --
-    (37, 8, "north", "south to Wreckage"),
+    (37, 8, "north", "wreckage"),
     # -- Momaw Nadon -> South End --
     (38, 11, "west", "east"),
     # -- Notsub -> North End --
-    (39, 10, "north", "south to Notsub"),
+    (39, 10, "north", "southeast to Notsub"),
 
     # =========================================
     # TATOOINE OUTSKIRTS EXITS (contested)
     # =========================================
     # Eastern Gate -> from Market District
-    (40, 8, "west", "outskirts"),
+    (40, 8, "west", "east to Eastern Gate"),
     # Scavenger Market -> from Eastern Gate
     (41, 40, "west", "east to Scavenger Market"),
     # Abandoned Farm -> from Eastern Gate
     (42, 40, "south", "north to Farm"),
     # Speeder Track -> from Scavenger Market
-    (43, 41, "east", "west to Track"),
+    (43, 41, "east", "north to Track"),
     # Checkpoint -> from Eastern Gate
-    (44, 40, "east", "west to Checkpoint"),
+    (44, 40, "east", "south to Checkpoint"),
     # Wrecked Sandcrawler -> from Scavenger Market
     (45, 41, "north", "south to Sandcrawler"),
     # Hermit's Ridge -> from Abandoned Farm
@@ -1161,9 +1161,9 @@ EXITS = [
     # Renna Dox -> Old Quarter
     (74, 62, "out", "workshop"),
     # Floating Market -> Undercity
-    (75, 64, "up", "down to Floating Market"),
+    (75, 64, "up", "west to Floating Market"),
     # Enforcer Alley connections
-    (76, 56, "south", "north through Enforcer Alley"),
+    (76, 56, "south", "east through Enforcer Alley"),
     (76, 55, "north", "south through Enforcer Alley"),
     # Weapons Cache -> Bounty Hunters Quarter
     (77, 61, "out", "weapons cache"),
@@ -1176,7 +1176,7 @@ EXITS = [
     # NAR SHADDAA WARRENS EXITS (lawless deep)
     # =========================================
     # Entry Shaft -> from Undercity Depths
-    (79, 65, "down", "up to Warrens"),
+    (79, 65, "down", "north to Warrens"),
     # Fungal Cavern -> from Entry Shaft
     (80, 79, "east", "west to Shaft"),
     # Reactor Core -> from Entry Shaft
@@ -1209,7 +1209,7 @@ EXITS = [
     # KESSEL DEEP MINES EXITS (lawless)
     # =========================================
     # Shaft Junction -> from Mine Entrance
-    (92, 87, "down", "up to Shaft Junction"),
+    (92, 87, "down", "down to Shaft Junction"),
     # Energy Spider Caverns -> from Shaft Junction
     (93, 92, "east", "west to Caverns"),
     # Collapsed Gallery -> from Shaft Junction
@@ -1228,7 +1228,7 @@ EXITS = [
     (100, 101, "south", "north to Treasure Ship Row"),
     (100, 107, "north", "south to Treasure Ship Row"),
     (100, 102, "east", "west to Treasure Ship Row"),
-    (100, 113, "west", "east to Treasure Ship Row"),
+    (100, 113, "southwest", "northeast to Treasure Ship Row"),
     (100, 105, "northeast", "southwest to Treasure Ship Row"),
     # Government area
     (107, 106, "east", "west to Gov District"),
@@ -1250,8 +1250,7 @@ EXITS = [
     # Mechanics Guild / Venn Kator
     (118, 109, "out", "guild hall"),
     (119, 118, "back", "forge"),
-    # Casino -> Blue Sector
-    (117, 103, "west", "east to Casino"),
+    # Casino <-> Blue Sector: handled by (103, 117) entry above
     # Coastal -> Old Quarter
     (116, 114, "north", "south to Coast"),
 ]
@@ -1328,23 +1327,54 @@ ROOM_OVERRIDES = {
     42: {"cover_max": 0}, 44: {"cover_max": 2},
     45: {"cover_max": 3, "lighting": "dim"},
     46: {"cover_max": 2},
-    # Wastes
-    48: {"cover_max": 3, "lighting": "dim"},
-    49: {"cover_max": 0}, 50: {"cover_max": 3},
-    51: {"cover_max": 0, "lighting": "bright"},
-    52: {"cover_max": 2, "lighting": "dark"},
-    53: {"cover_max": 0, "lighting": "bright"},
+    # Wastes — extreme_heat (mitigated by water_canteen or cooling_unit)
+    48: {"cover_max": 3, "lighting": "dim",
+         "environment_hazard": {"type": "extreme_heat", "severity": 1, "difficulty": 10}},
+    49: {"cover_max": 0,
+         "environment_hazard": {"type": "extreme_heat", "severity": 2, "difficulty": 13}},
+    50: {"cover_max": 3,
+         "environment_hazard": {"type": "extreme_heat", "severity": 1, "difficulty": 10}},
+    51: {"cover_max": 0, "lighting": "bright",
+         "environment_hazard": {"type": "extreme_heat", "severity": 2, "difficulty": 13}},
+    52: {"cover_max": 2, "lighting": "dark"},  # cave — sheltered from heat
+    53: {"cover_max": 0, "lighting": "bright",
+         "environment_hazard": {"type": "extreme_heat", "severity": 3, "difficulty": 16}},
     # Nar Shaddaa
     58: {"cover_max": 1}, 65: {"cover_max": 0, "lighting": "dark"},
     66: {"lighting": "dim"}, 69: {"cover_max": 0},
     71: {"cover_max": 3},
-    79: {"lighting": "dark"}, 80: {"lighting": "dark"},
-    81: {"lighting": "dim"}, 82: {"cover_max": 2, "lighting": "dark"},
-    83: {"lighting": "dark"},
-    # Kessel
-    87: {"lighting": "dim"}, 89: {"cover_max": 0},
-    92: {"lighting": "dark"}, 93: {"lighting": "dark", "cover_max": 0},
-    95: {"lighting": "dark"},
+    # Undercity — urban_danger (pickpocket attempts)
+    64: {"environment_hazard": {"type": "urban_danger", "severity": 1, "difficulty": 10}},
+    65: {"cover_max": 0, "lighting": "dark",
+         "environment_hazard": {"type": "urban_danger", "severity": 2, "difficulty": 13}},
+    67: {"environment_hazard": {"type": "urban_danger", "severity": 1, "difficulty": 10}},
+    # Warrens — urban_danger (more severe)
+    79: {"lighting": "dark",
+         "environment_hazard": {"type": "urban_danger", "severity": 2, "difficulty": 13}},
+    80: {"lighting": "dark",
+         "environment_hazard": {"type": "urban_danger", "severity": 3, "difficulty": 16}},
+    81: {"lighting": "dim",
+         "environment_hazard": {"type": "urban_danger", "severity": 2, "difficulty": 13}},
+    82: {"cover_max": 2, "lighting": "dark",
+         "environment_hazard": {"type": "urban_danger", "severity": 2, "difficulty": 13}},
+    83: {"lighting": "dark",
+         "environment_hazard": {"type": "urban_danger", "severity": 3, "difficulty": 16}},
+    # Kessel — Mines: toxic_atmosphere (mitigated by breath_mask)
+    87: {"lighting": "dim",
+         "environment_hazard": {"type": "toxic_atmosphere", "severity": 1, "difficulty": 12}},
+    88: {"environment_hazard": {"type": "toxic_atmosphere", "severity": 1, "difficulty": 12}},
+    89: {"cover_max": 0,
+         "environment_hazard": {"type": "toxic_atmosphere", "severity": 2, "difficulty": 15}},
+    90: {"environment_hazard": {"type": "toxic_atmosphere", "severity": 1, "difficulty": 12}},
+    91: {"environment_hazard": {"type": "toxic_atmosphere", "severity": 2, "difficulty": 15}},
+    # Kessel Deep Mines: radiation (mitigated by radiation_suit)
+    92: {"lighting": "dark",
+         "environment_hazard": {"type": "radiation", "severity": 1, "difficulty": 15}},
+    93: {"lighting": "dark", "cover_max": 0,
+         "environment_hazard": {"type": "radiation", "severity": 2, "difficulty": 18}},
+    94: {"environment_hazard": {"type": "radiation", "severity": 1, "difficulty": 15}},
+    95: {"lighting": "dark",
+         "environment_hazard": {"type": "radiation", "severity": 2, "difficulty": 18}},
     # Corellia
     106: {"cover_max": 2}, 103: {"lighting": "dim"},
     114: {"cover_max": 1, "lighting": "dim"},
@@ -1539,6 +1569,27 @@ PLANET_NPCS = [
                     "The old man squints at the horizon, reading the sand."],
          trainer=True,
          train_skills=["survival", "search"])),
+
+    # Survival gear trainer — teaches crafting schematics for hazard mitigation
+    ("Vek Nurren", 45, "Nikto",
+     "A weathered Nikto tinkerer surrounded by tools and half-finished survival gear. "
+     "A breath mask hangs from his belt and a cooling unit hums on his workbench.",
+     _sheet(dex="2D+1", kno="3D+2", per="3D", stre="3D+1", tec="5D",
+            skills={"survival": "5D", "first_aid": "4D+2", "armor_repair": "5D+1",
+                    "security": "4D+2", "droid_repair": "4D+1",
+                    "value": "4D"},
+            species="Nikto"),
+     _ai(personality="Vek Nurren has been outfitting expeditions into the Wastes and "
+         "the Kessel mines for decades. He crafts survival gear — cooling units, "
+         "breath masks, radiation suits — that keeps beings alive in hostile "
+         "environments. Practical, no-nonsense. Willing to teach crafters who "
+         "bring him materials.",
+         style="Practical, measured. Speaks with authority on survival topics. "
+         "Evaluates newcomers by their gear.",
+         fallbacks=["Vek tests a cooling unit seal, grunting approvingly.",
+                    "'You heading into the Wastes without gear? Bold. Or stupid.'"],
+         trainer=True,
+         train_skills=["survival", "first_aid", "armor_repair", "security"])),
 
     # ── Nar Shaddaa ────────────────────────────────────────────────
     ("Vreego", 57, "Weequay",
@@ -2198,6 +2249,205 @@ async def build(db_path="sw_mush.db"):
     await db.create_exit(cantina_entrance_id, 3, "west", "")
     print("    Seed rooms linked (Landing Pad, Street, Cantina)")
 
+    # -- Hand-tuned map coordinates for all planets --
+    # Normalized 0.0-1.0. Y increases downward (north = lower y).
+    # Each planet occupies its own coordinate space (BFS never crosses planets).
+    # Layout based on exit connectivity and source material geography.
+    MAP_COORDS = {
+        # ══════════════════════════════════════════════════════════════
+        # TATOOINE — MOS EISLEY (rooms 0-53)
+        # West: Spaceport.  Center: Market hub.  East: Outskirts→Wastes.
+        # ══════════════════════════════════════════════════════════════
+
+        # Spaceport District — west side
+        0:  (0.15, 0.48),  # Docking Bay 94 - Entrance
+        1:  (0.15, 0.55),  # Docking Bay 94 - Pit Floor
+        2:  (0.08, 0.40),  # Customs Office
+        3:  (0.22, 0.55),  # Spaceport Speeders
+        4:  (0.08, 0.48),  # Docking Bay 86
+        5:  (0.22, 0.48),  # Docking Bay 87
+        6:  (0.08, 0.25),  # Docking Bay 92
+
+        # Main Streets — central spine running north-south
+        7:  (0.30, 0.48),  # Spaceport Row (major hub)
+        8:  (0.45, 0.40),  # Market District (biggest hub)
+        9:  (0.50, 0.30),  # Government Quarter
+        10: (0.45, 0.20),  # North End
+        11: (0.38, 0.58),  # South End
+
+        # Cantina — west of Market
+        12: (0.35, 0.35),  # Cantina Entrance
+        13: (0.30, 0.32),  # Cantina Main Bar
+        14: (0.25, 0.30),  # Cantina Back Hallway
+
+        # Commercial — around Market District
+        15: (0.40, 0.45),  # Lup's General Store
+        16: (0.50, 0.45),  # Market Place - Gep's Grill
+        17: (0.30, 0.42),  # Mos Eisley Inn
+
+        # Jabba's — northeast of Market
+        18: (0.55, 0.35),  # Jabba's Entrance
+        19: (0.60, 0.33),  # Jabba's Audience Chamber
+
+        # Government / Civic
+        20: (0.42, 0.28),  # Regional Government
+        21: (0.58, 0.30),  # Police Station
+        22: (0.55, 0.24),  # Militia HQ
+        23: (0.55, 0.18),  # Dewback Stables
+
+        # Misc commercial
+        24: (0.42, 0.35),  # Power Station
+        25: (0.30, 0.54),  # Spaceport Hotel
+        26: (0.25, 0.42),  # Control Tower
+        27: (0.38, 0.35),  # Kayson's Weapon Shop
+        28: (0.50, 0.36),  # Heff's Souvenirs
+        29: (0.52, 0.40),  # Jawa Traders
+        30: (0.15, 0.20),  # Dockside Cafe
+        31: (0.35, 0.62),  # Lucky Despot
+        32: (0.35, 0.68),  # Lucky Despot - Star Chamber
+        33: (0.48, 0.48),  # Zygian's Banking
+        34: (0.45, 0.58),  # Transport Depot
+        35: (0.58, 0.25),  # Cutting Edge Clinic
+        36: (0.38, 0.15),  # Dim-U Monastery
+        37: (0.52, 0.44),  # Dowager Queen Wreckage
+        38: (0.32, 0.62),  # House of Momaw Nadon
+        39: (0.48, 0.14),  # Notsub Shipping
+
+        # Outskirts — east side, spreading out
+        40: (0.65, 0.40),  # Eastern Gate
+        41: (0.72, 0.40),  # Scavenger Market
+        42: (0.65, 0.50),  # Abandoned Moisture Farm
+        43: (0.80, 0.40),  # Speeder Track
+        44: (0.75, 0.35),  # Imperial Checkpoint
+        45: (0.72, 0.32),  # Wrecked Sandcrawler
+        46: (0.65, 0.58),  # Hermit's Ridge
+        47: (0.82, 0.30),  # Desert Trail Junction
+
+        # Jundland Wastes — far east
+        48: (0.88, 0.30),  # Canyon Mouth
+        49: (0.88, 0.38),  # Beggar's Canyon
+        50: (0.94, 0.28),  # Tusken Camp Overlook
+        51: (0.97, 0.25),  # Krayt Dragon Graveyard
+        52: (0.90, 0.22),  # Hidden Cave
+        53: (0.97, 0.32),  # Dune Sea Edge
+
+        # ══════════════════════════════════════════════════════════════
+        # NAR SHADDAA (rooms 54-83)
+        # Vertical layout: Upper levels (top) → Undercity → Warrens (bottom).
+        # Promenade is the central hub. Left/right spread for branches.
+        # ══════════════════════════════════════════════════════════════
+
+        # Landing pads — top
+        54: (0.35, 0.08),  # Docking Bay Aurek
+        55: (0.55, 0.08),  # Landing Platform Besh
+
+        # Promenade / Corellian Sector — upper-center hub
+        56: (0.45, 0.22),  # Corellian Sector Promenade (main hub)
+        57: (0.30, 0.22),  # Burning Deck Cantina
+        58: (0.22, 0.22),  # Burning Deck Back Room
+        59: (0.45, 0.14),  # Smugglers' Guild Hall
+        60: (0.58, 0.25),  # Vertical Bazaar
+        61: (0.45, 0.32),  # Bounty Hunters' Quarter
+        62: (0.32, 0.30),  # Old Corellian Quarter
+        63: (0.55, 0.30),  # Refugee Sector
+
+        # Undercity — middle layer
+        64: (0.45, 0.45),  # Undercity Market
+        65: (0.45, 0.55),  # Undercity Depths
+        66: (0.55, 0.45),  # Spice Den
+        67: (0.65, 0.32),  # Droid Junkyard
+        68: (0.40, 0.52),  # Black Market Medcenter
+        69: (0.55, 0.55),  # Fighting Pits
+
+        # Upper levels — top
+        70: (0.45, 0.10),  # Hutt Emissary Tower - Lobby
+        71: (0.45, 0.05),  # Hutt Tower - Audience Chamber
+        72: (0.52, 0.05),  # The Grid
+
+        # Expanded areas — scattered
+        73: (0.68, 0.25),  # Ship Parts Emporium
+        74: (0.25, 0.30),  # Renna Dox's Workshop
+        75: (0.38, 0.40),  # Floating Market
+        76: (0.50, 0.15),  # Enforcer Alley
+        77: (0.52, 0.35),  # Weapons Cache
+        78: (0.60, 0.08),  # Upper Dock Observation Level
+
+        # Warrens — bottom (deep)
+        79: (0.45, 0.65),  # Warrens - Entry Shaft
+        80: (0.55, 0.68),  # Warrens - Fungal Cavern
+        81: (0.42, 0.75),  # Warrens - Reactor Core Access
+        82: (0.65, 0.72),  # Warrens - Scavenger Den
+        83: (0.38, 0.82),  # Warrens - Collapsed Plaza
+
+        # ══════════════════════════════════════════════════════════════
+        # KESSEL (rooms 84-95)
+        # Top: Surface/Station.  Middle: Mines.  Bottom: Deep Mines.
+        # Linear vertical descent with branches.
+        # ══════════════════════════════════════════════════════════════
+
+        84: (0.45, 0.10),  # Spaceport Landing Field
+        85: (0.45, 0.25),  # Garrison Checkpoint (hub)
+        86: (0.60, 0.25),  # Administration Block
+        87: (0.45, 0.40),  # Mine Entrance - Level 1
+        88: (0.60, 0.40),  # Spice Processing Facility
+        89: (0.45, 0.18),  # Prisoner Barracks
+        90: (0.55, 0.18),  # Black Market Tunnel (hidden from barracks)
+        91: (0.68, 0.20),  # Observation Deck
+        92: (0.45, 0.55),  # Deep Mines - Shaft Junction
+        93: (0.58, 0.58),  # Deep Mines - Energy Spider Caverns
+        94: (0.30, 0.10),  # Smuggler's Contact Point (behind hangars)
+        95: (0.40, 0.65),  # Deep Mines - Collapsed Gallery
+
+        # ══════════════════════════════════════════════════════════════
+        # CORELLIA — CORONET CITY (rooms 96-119)
+        # West: Port District.  Center: Treasure Ship Row (hub).
+        # North: Government.  East: Industrial/CEC.  South: Old Quarter.
+        # ══════════════════════════════════════════════════════════════
+
+        # Port District — west
+        96: (0.12, 0.35),  # Starport Docking Bay
+        97: (0.22, 0.35),  # Starport Concourse (port hub)
+        98: (0.22, 0.45),  # Dockside Warehouses
+        99: (0.22, 0.52),  # Spacers' Rest Hotel
+
+        # City Center — center
+        100: (0.40, 0.35),  # Treasure Ship Row (main hub)
+        101: (0.40, 0.45),  # Corellian Slice Cantina
+        102: (0.55, 0.35),  # CEC Visitor Center
+        103: (0.40, 0.55),  # Blue Sector
+        104: (0.45, 0.18),  # Residential Quarter
+        105: (0.48, 0.28),  # Central Plaza
+
+        # Government — north-center
+        106: (0.55, 0.22),  # CorSec Headquarters
+        107: (0.42, 0.25),  # Government District (gov hub)
+        108: (0.52, 0.18),  # Hall of Justice
+
+        # Industrial / Shipyards — east
+        109: (0.65, 0.35),  # CEC Worker District
+        110: (0.75, 0.35),  # Shipyard Ground Facility
+        111: (0.65, 0.45),  # Drall Quarter
+        112: (0.75, 0.45),  # Selonian Tunnels - Entry
+
+        # Old Quarter — southwest
+        113: (0.30, 0.35),  # Old Quarter Market
+        114: (0.28, 0.45),  # Old Quarter Back Streets
+        115: (0.22, 0.35),  # Spearhead Tavern
+        116: (0.22, 0.52),  # Coastal Promenade
+
+        # Blue Sector Overflow
+        117: (0.50, 0.55),  # Golden Orbit Casino
+        118: (0.72, 0.30),  # Mechanics' Guild Hall
+        119: (0.78, 0.28),  # Venn Kator's Forge
+    }
+
+    print(f"\n  Setting map coordinates for {len(MAP_COORDS)} rooms across all planets...")
+    for room_idx, (mx, my) in MAP_COORDS.items():
+        if room_idx < len(room_ids):
+            rid = room_ids[room_idx]
+            await db.set_room_map_coords(rid, mx, my)
+    print("    Map coordinates set.")
+
     # -- NPCs (from GG7 YAML) --
     room_name_map = {ROOMS[i][0]: i for i in range(len(ROOMS))}
     NPCS = load_npcs_from_yaml(
@@ -2253,13 +2503,13 @@ async def build(db_path="sw_mush.db"):
             bridge_desc,
         )
         # Create the ship record
-        cursor = await db._db.execute(
+        cursor = await db.execute(
             """INSERT INTO ships (template, name, bridge_room_id, docked_at,
                hull_damage, shield_damage, systems, crew, cargo)
                VALUES (?, ?, ?, ?, 0, 0, '{}', '{}', '[]')""",
             (template_key, ship_name, bridge_id, bay_room_id),
         )
-        await db._db.commit()
+        await db.commit()
         ship_id = cursor.lastrowid
 
         # Create exit from bay to bridge and back
@@ -2275,14 +2525,14 @@ async def build(db_path="sw_mush.db"):
     try:
         import bcrypt
         test_pw_hash = bcrypt.hashpw(b"testpass", bcrypt.gensalt()).decode("utf-8")
-        await db._db.execute(
+        await db.execute(
             """INSERT OR IGNORE INTO accounts
                (username, password_hash, is_admin, is_builder)
                VALUES (?, ?, 1, 1)""",
             ("testuser", test_pw_hash),
         )
-        await db._db.commit()
-        acct_rows = await db._db.execute_fetchall(
+        await db.commit()
+        acct_rows = await db.fetchall(
             "SELECT id FROM accounts WHERE username = 'testuser'"
         )
         test_acct_id = acct_rows[0]["id"]
@@ -2385,7 +2635,7 @@ async def build(db_path="sw_mush.db"):
         # Start in Docking Bay 94 Entrance (room index 0)
         start_room = room_ids[0]
 
-        cursor = await db._db.execute(
+        cursor = await db.execute(
             """INSERT OR IGNORE INTO characters
                (account_id, name, species, template, attributes, skills,
                 wound_level, character_points, force_points,
@@ -2413,7 +2663,7 @@ async def build(db_path="sw_mush.db"):
                 "independent",          # faction_id
             ),
         )
-        await db._db.commit()
+        await db.commit()
         test_char_id = cursor.lastrowid
         if test_char_id:
             print(f"    Test character 'Test Jedi' (id={test_char_id}) created.")

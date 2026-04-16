@@ -82,8 +82,8 @@ class QuestCommand(BaseCommand):
         try:
             from engine.spacer_quest import return_borrowed_ship
             await return_borrowed_ship(ctx.db, char)
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in parser/spacer_quest_commands.py:85: %s", _e, exc_info=True)
 
         # Reset quest state
         del attrs["spacer_quest"]
@@ -277,8 +277,8 @@ async def _find_room_id_by_name(db, name_fragment: str):
         rooms = await db.find_rooms(name_fragment)
         if rooms:
             return rooms[0]["id"]
-    except Exception:
-        pass
+    except Exception as _e:
+        log.debug("silent except in parser/spacer_quest_commands.py:280: %s", _e, exc_info=True)
     return None
 
 async def _player_in_docking_area(db, char, planet: str) -> bool:

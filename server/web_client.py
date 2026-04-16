@@ -2,9 +2,12 @@
 Web Client — serves the browser UI and handles WebSocket connections.
 
 Runs a single aiohttp HTTP server on port 8080 (default).
-  GET /        → client.html
-  GET /ws      → WebSocket upgrade (game connection)
-  GET /static/ → static files
+  GET /           → client.html
+  GET /chargen    → chargen.html (web character creation)
+  GET /ws         → WebSocket upgrade (game connection)
+  GET /static/    → static files
+  /api/chargen/*  → REST API for web character creation
+  /api/auth/*     → Token-based auth for post-chargen auto-login
 
 Using aiohttp's built-in WebSocket support eliminates the separate
 websockets-library server on port 4001, removing all second-port
@@ -63,9 +66,69 @@ class WebClient:
             resp.headers["Expires"] = "0"
             return resp
 
-        self._app.router.add_get("/", serve_client)
+        # Serve portal.html at / (landing page)
+        portal_html = os.path.join(static_dir, "portal.html")
+
+        async def serve_portal(request):
+            if not os.path.isfile(portal_html):
+                # Fall back to client.html if portal not yet built
+                return await serve_client(request)
+            resp = web.FileResponse(portal_html)
+            resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+            return resp
+
+        # Serve chargen.html at /chargen
+        chargen_html = os.path.join(static_dir, "chargen.html")
+
+        async def serve_chargen(request):
+            if not os.path.isfile(chargen_html):
+                return web.Response(text="Chargen page not found", status=404)
+            resp = web.FileResponse(chargen_html)
+            resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+            return resp
+
+        self._app.router.add_get("/", serve_portal)
+        self._app.router.add_get("/play", serve_client)
+        self._app.router.add_get("/client.html", serve_client)
+        self._app.router.add_get("/chargen", serve_chargen)
         self._app.router.add_get("/ws", self._ws_handler)
         self._app.router.add_static("/static/", static_dir, show_index=False)
+
+        # Register chargen REST API if game is wired up
+        if self._game is not None:
+            try:
+                from server.api import ChargenAPI
+                self._chargen_api = ChargenAPI(
+                    species_reg=self._game.species_reg,
+                    skill_reg=self._game.skill_reg,
+                    db=self._game.db,
+                )
+                self._chargen_api.register_routes(self._app)
+                log.info("Chargen API: %d species, %d skills available",
+                         self._game.species_reg.count,
+                         self._game.skill_reg.count)
+            except Exception as e:
+                log.error("Chargen API registration failed: %s", e,
+                          exc_info=True)
+
+            # Register portal REST API
+            try:
+                from server.web_portal import PortalAPI
+                self._portal_api = PortalAPI(
+                    db=self._game.db,
+                    session_mgr=self._game.session_mgr,
+                    game=self._game,
+                )
+                self._portal_api.register_routes(self._app)
+            except Exception as e:
+                log.error("Portal API registration failed: %s", e,
+                          exc_info=True)
+        else:
+            log.warning("Chargen API: game not wired up, API routes skipped")
 
         self._runner = web.AppRunner(self._app)
         await self._runner.setup()
@@ -83,8 +146,8 @@ class WebClient:
             if not ws.closed:
                 try:
                     await ws.send_str(text)
-                except Exception:
-                    pass
+                except Exception as _e:
+                    log.debug("silent except in server/web_client.py:149: %s", _e, exc_info=True)
 
         async def close_conn() -> None:
             if not ws.closed:
@@ -118,6 +181,25 @@ class WebClient:
                             if isinstance(w, int) and 40 <= w <= 250:
                                 session.width = w
                             continue
+                        if data.get("type") == "token_auth":
+                            # Auto-login from web chargen redirect
+                            token = data.get("token", "")
+                            try:
+                                from server.api import verify_login_token
+                                account_id = verify_login_token(token)
+                                if account_id and self._game:
+                                    account = await self._game.db.get_account(account_id)
+                                    if account:
+                                        # Feed a synthetic "connect" command
+                                        # that the login loop will process
+                                        session.feed_input(
+                                            f"__token_auth__ {account_id}"
+                                        )
+                                        continue
+                            except Exception as e:
+                                log.warning("Token auth failed: %s", e)
+                            # If token auth fails, just continue normally
+                            continue
                         text = data.get("input", data.get("text", ""))
                     except (json.JSONDecodeError, AttributeError):
                         text = msg.data
@@ -132,8 +214,8 @@ class WebClient:
             game_task.cancel()
             try:
                 await game_task
-            except (asyncio.CancelledError, Exception):
-                pass
+            except (asyncio.CancelledError, Exception) as _e:
+                log.debug("silent except in server/web_client.py:217: %s", _e, exc_info=True)
             self._game.session_mgr.remove(session)
 
         return ws

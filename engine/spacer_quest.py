@@ -1182,7 +1182,7 @@ async def _create_borrowed_ship(session, db) -> int:
     })
 
     try:
-        cursor = await db._db.execute(
+        cursor = await db.execute(
             """INSERT INTO ships
                (template, name, owner_id, bridge_room_id, docked_at,
                 hull_damage, shield_damage, systems, crew, cargo)
@@ -1190,7 +1190,7 @@ async def _create_borrowed_ship(session, db) -> int:
             ("ghtroc_720", "The Rusty Mynock", char["id"],
              bridge_id, bay_room_id, 2, 0, systems, "{}", "[]"),
         )
-        await db._db.commit()
+        await db.commit()
         ship_id = cursor.lastrowid
     except Exception as e:
         import logging as _log
@@ -1200,8 +1200,8 @@ async def _create_borrowed_ship(session, db) -> int:
     try:
         await db.create_exit(bay_room_id, bridge_id, "board", "Board ship")
         await db.create_exit(bridge_id, bay_room_id, "disembark", "Disembark")
-    except Exception:
-        pass
+    except Exception as _e:
+        log.debug("silent except in engine/spacer_quest.py:1203: %s", _e, exc_info=True)
 
     qs = _get_quest_state(char)
     if qs:
@@ -1254,14 +1254,14 @@ async def return_borrowed_ship(db, char) -> None:
         if not systems.get("quest_ship"):
             return  # already transferred — don't delete player's ship
         bridge_id = ship.get("bridge_room_id")
-        await db._db.execute("DELETE FROM ships WHERE id = ?", (ship_id,))
+        await db.execute("DELETE FROM ships WHERE id = ?", (ship_id,))
         if bridge_id:
-            await db._db.execute(
+            await db.execute(
                 "DELETE FROM exits WHERE from_room_id = ? OR to_room_id = ?",
                 (bridge_id, bridge_id)
             )
-            await db._db.execute("DELETE FROM rooms WHERE id = ?", (bridge_id,))
-        await db._db.commit()
+            await db.execute("DELETE FROM rooms WHERE id = ?", (bridge_id,))
+        await db.commit()
         qs["flags"]["borrowed_ship_id"] = None
         _set_quest_state(char, qs)
     except Exception as e:
@@ -1282,8 +1282,8 @@ async def check_quest_ship_sale(session, db, ship_id: int) -> bool:
                     "Finish the quest chain first."
                 )
                 return True
-    except Exception:
-        pass
+    except Exception as _e:
+        log.debug("silent except in engine/spacer_quest.py:1285: %s", _e, exc_info=True)
     return False
 
 

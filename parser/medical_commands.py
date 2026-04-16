@@ -21,8 +21,11 @@ Design (from handoff):
 """
 import json
 import time
+import logging
 from parser.commands import BaseCommand, CommandContext
 from server import ansi
+
+log = logging.getLogger(__name__)
 
 # In-memory pending heal offers: target_char_id -> offer_dict
 # Offers expire after 60 seconds.

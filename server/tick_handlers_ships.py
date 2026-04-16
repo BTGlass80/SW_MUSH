@@ -18,6 +18,19 @@ from server.tick_scheduler import TickContext
 log = logging.getLogger(__name__)
 
 
+def _safe_json_loads(value, default=None):
+    """Parse JSON from a string, returning `default` on malformed input."""
+    if value is None:
+        return default
+    if not isinstance(value, str):
+        return value
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError) as _e:
+        log.warning("Malformed ship systems JSON: %s", _e)
+        return default
+
+
 async def ion_and_tractor_tick(ctx: TickContext) -> None:
     """Decay ion penalties and notify tractor-held ships.
 
@@ -27,7 +40,7 @@ async def ion_and_tractor_tick(ctx: TickContext) -> None:
     for ship in ctx.ships_in_space:
         if ship.get("docked_at"):
             continue
-        sys = json.loads(ship.get("systems") or "{}")
+        sys = _safe_json_loads(ship.get("systems"), default={}) or {}
         dirty = False
 
         # ── Ion decay ────────────────────────────────────────────────
@@ -77,7 +90,7 @@ async def sublight_transit_tick(ctx: TickContext) -> None:
     for ship in ctx.ships_in_space:
         if ship.get("docked_at"):
             continue
-        sys = json.loads(ship.get("systems") or "{}")
+        sys = _safe_json_loads(ship.get("systems"), default={}) or {}
         if not sys.get("sublight_transit"):
             continue
 
@@ -138,7 +151,7 @@ async def asteroid_collision_tick(ctx: TickContext) -> None:
     for ship in ctx.ships_in_space:
         if ship.get("docked_at"):
             continue
-        sys = json.loads(ship.get("systems") or "{}")
+        sys = _safe_json_loads(ship.get("systems"), default={}) or {}
         # Skip transiting ships — they're not stationary in the field
         if sys.get("in_hyperspace") or sys.get("sublight_transit"):
             continue
@@ -188,7 +201,7 @@ async def hyperspace_arrival_tick(ctx: TickContext) -> None:
     for ship in ctx.ships_in_space:
         if ship.get("docked_at"):
             continue
-        sys = json.loads(ship.get("systems") or "{}")
+        sys = _safe_json_loads(ship.get("systems"), default={}) or {}
         if not sys.get("in_hyperspace"):
             continue
 
@@ -253,6 +266,15 @@ async def hyperspace_arrival_tick(ctx: TickContext) -> None:
                     await _zlog(ctx.db, sess.character, "zones_visited", arr_zone)
         except Exception:
             log.warning("hyperspace arrival zone-log failed", exc_info=True)
+
+        # Achievement: hyperspace_complete
+        try:
+            from engine.achievements import on_hyperspace_complete
+            for sess in (ctx.session_mgr.sessions_in_room(bridge) or []):
+                if sess.character:
+                    await on_hyperspace_complete(ctx.db, sess.character["id"], session=sess)
+        except Exception:
+            pass
 
         # Patrol-on-arrival check for smuggling runs
         try:

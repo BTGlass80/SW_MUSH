@@ -220,6 +220,15 @@ def render_brief_sheet(char_dict, skill_reg, width=W):
             f"  A:{BRIGHT_YELLOW}{char.alter}{RESET}"
         )
 
+    # Scars (if any)
+    try:
+        from engine.scars import format_scars_display
+        scar_lines = format_scars_display(char_dict)
+        if scar_lines:
+            lines.extend(scar_lines)
+    except Exception:
+        pass  # graceful-drop if scars module not available
+
     # Footer: wound + points
     cp = char_dict.get("character_points", 0)
     fp = char_dict.get("force_points", 0)

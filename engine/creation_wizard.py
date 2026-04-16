@@ -607,8 +607,8 @@ class CreationWizard:
             idx = int(low) - 1
             if 0 <= idx < len(template_keys):
                 selected_key = template_keys[idx]
-        except ValueError:
-            pass
+        except ValueError as _e:
+            log.debug("silent except in engine/creation_wizard.py:610: %s", _e, exc_info=True)
 
         # Try name match
         if not selected_key:

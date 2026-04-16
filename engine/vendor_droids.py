@@ -164,7 +164,7 @@ async def check_placement_allowed(room_id: int, owner_id: int, db) -> tuple[bool
     placed = [d for d in owner_droids if d.get("room_id")]
     try:
         from engine.housing import get_effective_droid_cap
-        sf_rows = await db._db.execute_fetchall(
+        sf_rows = await db.fetchall(
             "SELECT COUNT(*) as cnt FROM player_housing WHERE char_id = ? AND tier = 4",
             (owner_id,),
         )
@@ -204,7 +204,7 @@ async def purchase_droid(char: dict, tier_key: str, db) -> tuple[bool, str]:
     all_droids = await db.get_objects_owned_by(char["id"], "vendor_droid")
     try:
         from engine.housing import get_effective_droid_cap
-        sf_rows = await db._db.execute_fetchall(
+        sf_rows = await db.fetchall(
             "SELECT COUNT(*) as cnt FROM player_housing WHERE char_id = ? AND tier = 4",
             (char["id"],),
         )
@@ -696,6 +696,21 @@ async def buy_from_droid(buyer: dict, droid_id: int,
         unit_price=final_price,
         listing_fee=fee,
     )
+
+    # Faction rep: seller gets crafting_sale rep for vendor droid sale
+    try:
+        seller_char = await db.get_character(obj["owner_id"])
+        if seller_char:
+            seller_faction = seller_char.get("faction_id", "independent")
+            if seller_faction and seller_faction != "independent":
+                from engine.organizations import adjust_rep
+                await adjust_rep(
+                    seller_char, seller_faction, db,
+                    action_key="crafting_sale",
+                    reason=f"Vendor sale: {slot['item_name']}",
+                )
+    except Exception:
+        log.warning("[shops] crafting_sale rep hook failed", exc_info=True)
 
     shop_name = data.get("shop_name", obj["name"])
     crafter   = slot.get("crafter", "")
@@ -1204,7 +1219,7 @@ async def tick_auto_recall(db, session_mgr) -> None:
 
     try:
         # Fetch all placed droids
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT * FROM objects WHERE type = 'vendor_droid' AND room_id IS NOT NULL"
         )
     except Exception:
@@ -1230,7 +1245,7 @@ async def tick_auto_recall(db, session_mgr) -> None:
         if last_active < recall_cutoff and droid.get("room_id"):
             try:
                 # Pull owner character to do a proper recall
-                owner_rows = await db._db.execute_fetchall(
+                owner_rows = await db.fetchall(
                     "SELECT * FROM characters WHERE id = ? AND is_active = 1",
                     (owner_id,),
                 )

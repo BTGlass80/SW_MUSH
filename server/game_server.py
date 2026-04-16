@@ -10,7 +10,7 @@ import logging
 from typing import Optional
 
 from server.config import Config
-from server.session import Session, SessionState, SessionManager
+from server.session import Session, SessionState, SessionManager, Protocol
 from server.telnet_handler import TelnetHandler
 from server.web_client import WebClient
 from server import ansi
@@ -35,12 +35,18 @@ from server.tick_handlers_economy import (
     faction_payroll_tick,
     vendor_recall_tick,
     housing_rent_tick,
+    hq_maintenance_tick,
     debt_payment_tick,
     territory_presence_tick,
     territory_decay_tick,
     territory_claim_tick,
     territory_resources_tick,
     territory_contests_tick,
+    docking_fee_tick,
+    idle_queue_tick,
+    bark_seed_tick,
+    buff_expiry_tick,
+    hazard_tick,
 )
 from parser.commands import CommandRegistry, CommandParser, CommandContext
 from parser.builtin_commands import register_all
@@ -69,6 +75,15 @@ from parser.narrative_commands import register_narrative_commands
 from parser.shop_commands import register_shop_commands
 from parser.housing_commands import register_housing_commands
 from parser.spacer_quest_commands import register_spacer_quest_commands
+from parser.mux_commands import register_mux_commands
+from parser.places_commands import register_places_commands
+from parser.attr_commands import register_attr_commands
+from parser.scene_commands import register_scene_commands
+from parser.espionage_commands import register_espionage_commands
+from parser.achievement_commands import register_achievement_commands
+from parser.event_commands import register_event_commands
+from parser.plot_commands import register_plot_commands
+from parser.mail_commands import register_mail_commands
 from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
@@ -122,6 +137,20 @@ class GameServer:
         register_shop_commands(self.registry)
         register_housing_commands(self.registry)
         register_spacer_quest_commands(self.registry)
+        register_mux_commands(self.registry)
+        register_places_commands(self.registry)
+        register_attr_commands(self.registry)
+        register_scene_commands(self.registry)
+        register_mail_commands(self.registry)
+        register_espionage_commands(self.registry)
+        register_achievement_commands(self.registry)
+        register_event_commands(self.registry)
+        register_plot_commands(self.registry)
+
+        # ── Achievement System Init ──
+        from engine.achievements import load_achievements
+        _ach_count = load_achievements()
+        log.info("Loaded %d achievements", _ach_count)
 
         # ── Help System Init ──
         from data.help_topics import HelpManager
@@ -137,6 +166,13 @@ class GameServer:
         self.ai_manager = AIManager(AIConfig())
         # Attach to session_mgr so commands can reach it
         self.session_mgr._ai_manager = self.ai_manager
+
+        # Ollama idle queue — GPU utilization for ambient barks, scene summaries
+        from engine.idle_queue import IdleQueue
+        self._idle_queue = IdleQueue(self.ai_manager)
+        self.session_mgr._idle_queue = self._idle_queue
+        self.ai_manager._idle_queue = self._idle_queue
+
         self.parser = CommandParser(self.registry, self.db, self.session_mgr)
 
         # Protocol handlers
@@ -173,7 +209,7 @@ class GameServer:
         self._tick_scheduler.register("space_anomaly",     space_anomaly_tick,      interval=300)
         # ── missions & boards (every tick) ──
         self._tick_scheduler.register("space_mission_patrol", space_mission_patrol_tick, interval=1)
-        self._tick_scheduler.register("board_housekeeping",   board_housekeeping_tick,   interval=1)
+        self._tick_scheduler.register("board_housekeeping",   board_housekeeping_tick,   interval=60)
         # ── world simulation (every tick) ──
         self._tick_scheduler.register("ambient_events",    ambient_events_tick,    interval=1)
         self._tick_scheduler.register("world_events",      world_events_tick,      interval=1)
@@ -184,6 +220,7 @@ class GameServer:
         self._tick_scheduler.register("faction_payroll",   faction_payroll_tick,   interval=86400)
         self._tick_scheduler.register("vendor_recall",     vendor_recall_tick,     interval=86400, offset=1)
         self._tick_scheduler.register("housing_rent",      housing_rent_tick,      interval=604800, offset=432000)
+        self._tick_scheduler.register("hq_maintenance",    hq_maintenance_tick,    interval=604800, offset=460000)
         # ── territory (hourly / daily / weekly) ──
         self._tick_scheduler.register("territory_presence",  territory_presence_tick,  interval=3600,   offset=1800)
         self._tick_scheduler.register("territory_decay",     territory_decay_tick,     interval=86400,  offset=43200)
@@ -191,6 +228,14 @@ class GameServer:
         self._tick_scheduler.register("debt_payment",        debt_payment_tick,        interval=604800, offset=345600)
         self._tick_scheduler.register("territory_resources", territory_resources_tick, interval=86400,  offset=64800)
         self._tick_scheduler.register("territory_contests",  territory_contests_tick,  interval=3600,   offset=2700)
+        self._tick_scheduler.register("docking_fee",         docking_fee_tick,         interval=86400,  offset=21600)
+        # ── Ollama idle queue (every 30s, offset 15 to avoid pile-up) ──
+        self._tick_scheduler.register("idle_queue",           idle_queue_tick,          interval=30,     offset=15)
+        self._tick_scheduler.register("bark_seed",            bark_seed_tick,           interval=14400,  offset=60)
+        # ── Buff expiry (every 60s) ──
+        self._tick_scheduler.register("buff_expiry",          buff_expiry_tick,         interval=60,     offset=45)
+        # ── Environmental hazards (every 5 min) ──
+        self._tick_scheduler.register("hazard_check",          hazard_tick,             interval=300,    offset=120)
 
     async def start(self):
         """Initialize database, load game data, and start all listeners."""
@@ -241,6 +286,16 @@ class GameServer:
         except Exception as _terr_err:
             log.warning("Territory init skipped: %s", _terr_err)
 
+        # World lore schema + seed data
+        try:
+            from engine.world_lore import ensure_lore_schema, seed_lore
+            await ensure_lore_schema(self.db)
+            _lore_seeded = await seed_lore(self.db)
+            if _lore_seeded:
+                log.info("World lore: seeded %d entries", _lore_seeded)
+        except Exception as _lore_err:
+            log.warning("World lore init skipped: %s", _lore_err)
+
         # Auto-build tutorial zones if not yet present.
         # If the world was just built above, wait 1s to let the DB flush cleanly.
         try:
@@ -290,8 +345,8 @@ class GameServer:
             self._tick_task.cancel()
             try:
                 await self._tick_task
-            except asyncio.CancelledError:
-                pass
+            except asyncio.CancelledError as _e:
+                log.debug("silent except in server/game_server.py:348: %s", _e, exc_info=True)
 
         # Disconnect all sessions
         for session in list(self.session_mgr.all):
@@ -354,6 +409,28 @@ class GameServer:
             if cmd == "quit":
                 await session.close()
                 return
+
+            elif cmd == "__token_auth__" and len(parts) >= 2:
+                # Auto-login from web chargen — account already verified
+                # by token in web_client.py before this synthetic command
+                try:
+                    account_id = int(parts[1])
+                    account = await self.db.get_account(account_id)
+                    if account:
+                        existing = self.session_mgr.find_by_account(account["id"])
+                        if existing:
+                            await existing.close()
+                            self.session_mgr.remove(existing)
+                        session.account = account
+                        session.state = SessionState.AUTHENTICATED
+                        await session.send_line(
+                            ansi.success(f"Welcome, {account['username']}!")
+                        )
+                        await self._character_select(session)
+                    else:
+                        await session.send_prompt()
+                except (ValueError, Exception):
+                    await session.send_prompt()
 
             elif cmd == "connect" and len(parts) >= 3:
                 username = parts[1]
@@ -430,43 +507,131 @@ class GameServer:
     async def _character_select(self, session: Session):
         """
         Character selection or full D6 character creation.
+        Supports up to max_characters_per_account alts.
         """
         characters = await self.db.get_characters(session.account["id"])
+        max_chars = self.config.max_characters_per_account
+        can_create = len(characters) < max_chars
 
         if not characters:
-            # ── Full Character Creation ──
-            char = await self._run_character_creation(session)
+            # ── First character — go straight to creation ──
+            if session.protocol == Protocol.WEBSOCKET:
+                char = await self._run_web_chargen(session)
+            else:
+                char = await self._run_character_creation(session)
             if char is None:
                 await session.close()
                 return
-        elif len(characters) == 1:
+        elif len(characters) == 1 and not can_create:
+            # Single char at cap — just enter
             char = characters[0]
             await session.send_line(
                 f"Entering the game as {ansi.player_name(char['name'])}..."
             )
         else:
-            # Multiple characters - let them pick
-            await session.send_line("")
-            await session.send_line(ansi.header("=== Select a Character ==="))
-            for i, c in enumerate(characters, 1):
-                await session.send_line(f"  {i}. {c['name']} ({c['species']})")
-            await session.send_line("")
-            await session.send_line("Enter a number:")
-            await session.send_prompt()
+            # Multiple characters or can create more — show picker
+            if session.protocol == Protocol.WEBSOCKET:
+                # Web client: send JSON character picker
+                char_list = [
+                    {"id": c["id"], "name": c["name"], "species": c.get("species", "Human"),
+                     "template": c.get("template", "")}
+                    for c in characters
+                ]
+                await session.send_json("char_select", {
+                    "characters": char_list,
+                    "can_create": can_create,
+                    "max_characters": max_chars,
+                })
+                # Wait for selection
+                while True:
+                    try:
+                        line = await asyncio.wait_for(session.receive(), timeout=300)
+                    except asyncio.TimeoutError:
+                        await session.send_line("Selection timed out.")
+                        await session.close()
+                        return
+                    line = line.strip()
+                    if line.lower() == "quit":
+                        await session.close()
+                        return
+                    if line == "__chargen_done__":
+                        # New character created via web chargen
+                        characters = await self.db.get_characters(session.account["id"])
+                        if characters:
+                            char = characters[-1]
+                            await session.send_line(
+                                ansi.success(f"Welcome to the galaxy, {char['name']}!")
+                            )
+                            break
+                        continue
+                    if line.startswith("__char_select__"):
+                        try:
+                            char_id = int(line.split("__")[-1])
+                            char = None
+                            for c in characters:
+                                if c["id"] == char_id:
+                                    char = c
+                                    break
+                            if char:
+                                await session.send_line(
+                                    f"Entering the game as {ansi.player_name(char['name'])}..."
+                                )
+                                break
+                        except (ValueError, IndexError) as _e:
+                            log.debug("silent except in server/game_server.py:580: %s", _e, exc_info=True)
+                    if line == "__request_chargen__" and can_create:
+                        # Launch web chargen for new alt
+                        from server.api import create_login_token
+                        token = create_login_token(session.account["id"], ttl=1800)
+                        await session.send_json("chargen_start", {
+                            "account_id": session.account["id"],
+                            "token": token,
+                        })
+                        continue
+                    # Ignore other input during selection
+            else:
+                # Telnet: text menu
+                await session.send_line("")
+                await session.send_line(ansi.header("=== Select a Character ==="))
+                for i, c in enumerate(characters, 1):
+                    await session.send_line(f"  {i}. {c['name']} ({c['species']})")
+                if can_create:
+                    await session.send_line(
+                        f"  {len(characters) + 1}. \033[92mCreate New Character\033[0m"
+                        f" ({len(characters)}/{max_chars})"
+                    )
+                await session.send_line("")
+                await session.send_line("Enter a number:")
+                await session.send_prompt()
 
-            choice = await session.receive()
-            try:
-                idx = int(choice.strip()) - 1
-                if 0 <= idx < len(characters):
-                    char = characters[idx]
-                else:
-                    char = characters[0]
-            except ValueError:
-                char = characters[0]
+                choice = await session.receive()
+                try:
+                    idx = int(choice.strip())
+                    if can_create and idx == len(characters) + 1:
+                        # Create new character
+                        new_char = await self._run_character_creation(session)
+                        if new_char is None:
+                            await session.close()
+                            return
+                        char = new_char
+                    elif 1 <= idx <= len(characters):
+                        char = characters[idx - 1]
+                    else:
+                        char = characters[0]
+                except ValueError:
+                    # Try matching by name
+                    name_input = choice.strip().lower()
+                    char = None
+                    for c in characters:
+                        if c["name"].lower().startswith(name_input):
+                            char = c
+                            break
+                    if char is None:
+                        char = characters[0]
 
-            await session.send_line(
-                f"Entering the game as {ansi.player_name(char['name'])}..."
-            )
+                await session.send_line(
+                    f"Entering the game as {ansi.player_name(char['name'])}..."
+                )
 
         # Enter the game
         session.character = char
@@ -475,6 +640,29 @@ class GameServer:
 
         # Announce arrival
         room_id = char.get("room_id", self.config.starting_room_id)
+
+        # Clear sleeping flag and report theft events (Tier 3 Feature #16)
+        try:
+            from engine.sleeping import clear_sleeping
+            theft_events = await clear_sleeping(char, self.db)
+            if theft_events:
+                await session.send_line(
+                    "\n  \033[1;31m⚠ While you were asleep...\033[0m")
+                total_stolen = 0
+                for evt in theft_events:
+                    total_stolen += evt.get("credits_stolen", 0)
+                    await session.send_line(
+                        f"  \033[0;31m  {evt.get('thief_name', 'Someone')} "
+                        f"stole {evt['credits_stolen']:,} credits from you."
+                        f"\033[0m")
+                await session.send_line(
+                    f"  \033[1;31mTotal stolen: {total_stolen:,} credits."
+                    f"\033[0m\n"
+                    f"  \033[2mRent an apartment in a secured zone to "
+                    f"sleep safely.\033[0m\n")
+        except Exception:
+            pass  # Non-critical
+
         await self.session_mgr.broadcast_to_room(
             room_id,
             ansi.system_msg(f"{char['name']} has connected."),
@@ -530,6 +718,13 @@ class GameServer:
         except Exception:
             pass  # Non-critical
 
+        # Notify unread mail on login
+        try:
+            from parser.mail_commands import notify_unread_mail
+            await notify_unread_mail(self.db, session)
+        except Exception:
+            pass  # Non-critical
+
         await session.send_prompt()
 
         # If player is aboard a ship bridge in space, send initial space_state
@@ -542,6 +737,55 @@ class GameServer:
                 await broadcast_space_state(_login_ship, self.db, self.session_mgr)
         except Exception:
             pass  # Non-critical — ground players have no ship bridge
+
+    async def _run_web_chargen(self, session: Session) -> Optional[dict]:
+        """
+        Web chargen flow for WebSocket clients.
+
+        Sends a chargen_start message to the client, which shows an
+        embedded chargen UI. Waits for a __chargen_done__ signal
+        indicating the character has been created via the REST API.
+        Returns the DB character dict, or None on timeout/disconnect.
+        """
+        from server.api import create_login_token
+
+        # Generate a session token so the embedded chargen can create
+        # the character under this account via the REST API
+        token = create_login_token(session.account["id"], ttl=1800)  # 30 min
+
+        await session.send_json("chargen_start", {
+            "account_id": session.account["id"],
+            "token": token,
+        })
+
+        # Wait for the client to signal completion
+        while True:
+            try:
+                line = await asyncio.wait_for(session.receive(), timeout=1800)
+            except asyncio.TimeoutError:
+                await session.send_line("Character creation timed out.")
+                return None
+
+            line = line.strip()
+            if line.lower() == "quit":
+                return None
+
+            if line == "__chargen_done__":
+                # Character was created via REST API — load it
+                characters = await self.db.get_characters(session.account["id"])
+                if characters:
+                    char = characters[-1]  # Most recently created
+                    await session.send_line(
+                        ansi.success(f"Welcome to the galaxy, {char['name']}!")
+                    )
+                    return char
+                else:
+                    await session.send_line(
+                        ansi.error("Character creation failed. Please try again.")
+                    )
+                    return None
+
+            # Ignore any other input while chargen is active
 
     async def _run_character_creation(self, session: Session) -> Optional[dict]:
         """
@@ -590,7 +834,7 @@ class GameServer:
                 # otherwise fall back to the configured starting room
                 tutorial_start_room = self.config.starting_room_id
                 try:
-                    landing_pad_rows = await self.db._db.execute_fetchall(
+                    landing_pad_rows = await self.db.fetchall(
                         "SELECT id FROM rooms WHERE name = 'Landing Pad' "
                         "AND properties LIKE '%tutorial_zone%' ORDER BY id LIMIT 1"
                     )
@@ -686,8 +930,8 @@ class GameServer:
                     break
                 line = line.strip()
                 session.feed_input(line)
-        except (ConnectionError, asyncio.CancelledError):
-            pass
+        except (ConnectionError, asyncio.CancelledError) as _e:
+            log.debug("silent except in server/game_server.py:933: %s", _e, exc_info=True)
         finally:
             # Signal quit if the connection dropped
             if session.state != SessionState.DISCONNECTING:
@@ -739,10 +983,27 @@ class GameServer:
                         ansi.system_msg("Idle timeout. Disconnecting.")
                     )
                     if session.character:
+                        _idle_room = session.character.get("room_id")
                         await self.db.save_character(
                             session.character["id"],
-                            room_id=session.character.get("room_id"),
+                            room_id=_idle_room,
                         )
+                        # Flag as sleeping (Tier 3 Feature #16)
+                        if _idle_room:
+                            try:
+                                from engine.sleeping import set_sleeping
+                                _slept = await set_sleeping(
+                                    session.character, self.db, _idle_room)
+                                if _slept:
+                                    await self.session_mgr.broadcast_to_room(
+                                        _idle_room,
+                                        ansi.system_msg(
+                                            f"{session.character['name']} "
+                                            f"falls asleep here."),
+                                        exclude=session,
+                                    )
+                            except Exception as _e:
+                                log.debug("silent except in server/game_server.py:1005: %s", _e, exc_info=True)
                     await session.close()
                     self.session_mgr.remove(session)
 

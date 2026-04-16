@@ -231,8 +231,8 @@ def _extract_json(text: str) -> Optional[dict]:
         result = json.loads(text)
         if isinstance(result, dict):
             return result
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as _e:
+        log.debug("silent except in ai/intent_parser.py:234: %s", _e, exc_info=True)
 
     # Try to find the first {...} block
     brace_match = re.search(r'\{[^{}]*\}', text, re.DOTALL)
@@ -241,7 +241,7 @@ def _extract_json(text: str) -> Optional[dict]:
             result = json.loads(brace_match.group())
             if isinstance(result, dict):
                 return result
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as _e:
+            log.debug("silent except in ai/intent_parser.py:244: %s", _e, exc_info=True)
 
     return None

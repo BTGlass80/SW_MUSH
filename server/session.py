@@ -194,8 +194,8 @@ def _build_loadout(char: dict) -> dict:
                     "location": armor_data.get("location", ""),
                     "bonus": armor_data.get("bonus", ""),
                 }
-    except Exception:
-        pass
+    except Exception as _e:
+        log.debug("silent except in server/session.py:197: %s", _e, exc_info=True)
 
     try:
         inv = char.get("inventory")
@@ -239,8 +239,8 @@ def _build_loadout(char: dict) -> dict:
                     )
                 )
                 loadout["consumables"] = sorted_consumables[:4]
-    except Exception:
-        pass
+    except Exception as _e:
+        log.debug("silent except in server/session.py:242: %s", _e, exc_info=True)
 
     return loadout
 
@@ -289,6 +289,9 @@ class Session:
 
         # Input queue - protocol handlers push lines here
         self._input_queue: asyncio.Queue[str] = asyncio.Queue()
+
+        # Track last sent credits value to detect changes for credit_event (Drop 9)
+        self._last_sent_credits: Optional[int] = None
 
     @property
     def wrap_width(self) -> int:
@@ -344,22 +347,16 @@ class Session:
         await self.send(text + "\r\n")
 
     async def send_prose(self, text: str, indent: str = "  "):
-        """Send a prose paragraph.
+        """Send a prose paragraph with word-wrapping.
 
-        WebSocket: send as a single line with indent prefix — the browser
-        reflows the text naturally, giving a true paragraph with no
-        artificial mid-sentence line breaks.
-
-        Telnet: server-side word-wrap at wrap_width, one send_line per
-        wrapped chunk (classic terminal behaviour).
+        Both Telnet and WebSocket get server-side word-wrap so that
+        room descriptions display as readable paragraphs in the
+        terminal output pane (not one enormous line).
         """
         import textwrap as _tw
-        if self.protocol == Protocol.WEBSOCKET:
-            await self.send_line(f"{indent}{text}")
-        else:
-            w = self.wrap_width - len(indent)
-            for chunk in _tw.wrap(text, width=max(20, w)):
-                await self.send_line(f"{indent}{chunk}")
+        w = self.wrap_width - len(indent)
+        for chunk in _tw.wrap(text, width=max(20, w)):
+            await self.send_line(f"{indent}{chunk}")
 
     async def send_prompt(self, prompt: str = "> "):
         """Send a prompt string (no trailing newline)."""
@@ -379,39 +376,31 @@ class Session:
                 await self.send_line(data.get("text", ""))
             elif msg_type == "combat_log":
                 await self.send_line(data.get("text", ""))
+            elif msg_type == "ambient_bark":
+                # Telnet gets the bark as plain styled text
+                text = data.get("text", "")
+                if text:
+                    await self.send_line(text)
             elif msg_type in ("combat_state", "hud_update", "world_event",
-                              "news_event", "space_state"):
+                              "news_event", "space_state", "rep_change",
+                              "rank_up", "chargen_start"):
                 pass  # Telnet clients ignore structured JSON messages
             else:
                 await self.send_line(str(data))
 
-    async def send_hud_update(self, db=None, session_mgr=None):
-        """
-        Send structured HUD data to WebSocket clients.
+    # ── HUD helper methods (Phase 3 C2: decomposed from send_hud_update) ────
 
-        Reads current character state from self.character dict and
-        optionally fetches exits from DB. Telnet clients ignore this.
-
-        Ground UX Drop 1: adds room_description, room_services,
-        enhanced NPC entries with role/hostile/actions, and loadout.
-        """
-        if self.protocol != Protocol.WEBSOCKET:
-            return
-        if not self.character:
-            return
-
+    def _hud_base(self) -> dict:
+        """Build the base HUD payload from character state. No DB needed."""
         char = self.character
-        room_id = char.get("room_id")
-
-        # Build HUD payload
-        hud = {
+        return {
             "character_id": char.get("id"),
             "name": char.get("name", ""),
             "wound_level": char.get("wound_level", 0),
             "wound_name": _wound_name(char.get("wound_level", 0)),
             "credits": char.get("credits", 0),
             "room_name": char.get("_room_name", ""),
-            "room_id": room_id,
+            "room_id": char.get("room_id"),
             "force_points": char.get("force_points", 0),
             "character_points": char.get("character_points", 0),
             "dark_side_points": char.get("dark_side_points", 0),
@@ -421,262 +410,605 @@ class Session:
             "zone_type": "",
             "alert_level": "",
             "alert_faction": "",
-            # Ground UX Drop 1 — new fields
             "room_description": "",
             "room_services": [],
             "loadout": None,
         }
 
-        # Equipped weapon for sidebar display
-        try:
-            equip = char.get("equipment")
-            if equip:
-                if isinstance(equip, str):
-                    import json as _json
-                    equip = _json.loads(equip)
-                weapon_data = equip.get("weapon")
-                if weapon_data and isinstance(weapon_data, dict):
-                    hud["equipped_weapon"] = weapon_data.get("name", "")
-        except Exception:
-            log.warning("send_hud_update: unhandled exception", exc_info=True)
-            pass
+    def _hud_equipped_weapon(self, hud: dict) -> None:
+        """Add equipped weapon name to HUD from character equipment."""
+        equip = self.character.get("equipment")
+        if equip:
+            if isinstance(equip, str):
+                equip = json.loads(equip)
+            weapon_data = equip.get("weapon")
+            if weapon_data and isinstance(weapon_data, dict):
+                hud["equipped_weapon"] = weapon_data.get("name", "")
 
-        # Build loadout for sidebar (Ground UX Drop 1)
-        try:
-            hud["loadout"] = _build_loadout(char)
-        except Exception:
-            log.warning("send_hud_update: loadout build failed", exc_info=True)
+    def _hud_loadout(self, hud: dict) -> None:
+        """Build loadout summary for sidebar display."""
+        hud["loadout"] = _build_loadout(self.character)
 
-        # ── Room data (exits, description, zone, services) ──
-
-        # Cache the room row — we read it in multiple blocks below
-        _room_row = None
-        _room_props = {}
-
+    async def _hud_room_row(self, db, room_id) -> tuple:
+        """Fetch and cache the room row + parsed properties. Returns (row, props)."""
+        room_row = None
+        room_props = {}
         if db and room_id:
-            try:
-                _room_row = await db.get_room(room_id)
-            except Exception:
-                pass
-
-        # Fetch exits if we have a DB handle
-        if db and room_id:
-            try:
-                exits = await db.get_exits(room_id)
-                # Filter hidden faction exits (e.g. Rebel safehouse doors)
-                try:
-                    from engine.housing import is_exit_visible
-                    exits = [e for e in exits
-                             if await is_exit_visible(db, e, char)]
-                except Exception:
-                    log.warning("send_hud_update: unhandled exception", exc_info=True)
-                    pass
-                hud["exits"] = [
-                    {
-                        "dir": e["direction"],
-                        "label": (e.get("name") or "").strip() or e["direction"],
-                    }
-                    for e in exits
-                ]
-                # Also grab room name from DB if not cached
-                if not hud["room_name"] and _room_row:
-                    hud["room_name"] = _room_row.get("name", "")
-            except Exception:
-                pass  # Non-critical — HUD just won't show exits
-
-        # Room description for context panel (Ground UX Drop 1)
-        if _room_row:
-            desc = _room_row.get("desc_long") or _room_row.get("desc_short") or ""
-            hud["room_description"] = desc
-
-        # Resolve zone name and type for ambient mood
-        if db and room_id and _room_row:
-            try:
-                if _room_row.get("zone_id"):
-                    zone = await db.get_zone(_room_row["zone_id"])
-                    if zone:
-                        hud["zone_name"] = zone.get("name", "")
-                        # Zone type from properties.environment
-                        props = zone.get("properties", "{}")
-                        if isinstance(props, str):
-                            try:
-                                props = json.loads(props)
-                            except Exception:
-                                props = {}
-                        hud["zone_type"] = props.get("environment", "")
-            except Exception:
-                pass  # Non-critical — mood just stays default
-
-        # Parse room properties for service detection
-        if _room_row:
-            raw_props = _room_row.get("properties", "{}")
+            room_row = await db.get_room(room_id)
+        if room_row:
+            raw_props = room_row.get("properties", "{}")
             if isinstance(raw_props, str):
                 try:
-                    _room_props = json.loads(raw_props)
+                    room_props = json.loads(raw_props)
                 except Exception:
-                    _room_props = {}
+                    room_props = {}
             elif isinstance(raw_props, dict):
-                _room_props = raw_props
+                room_props = raw_props
+        return room_row, room_props
 
-        # Resolve alert level from Director AI
+    async def _hud_exits(self, hud: dict, db, room_id, room_row) -> None:
+        """Fetch exits, filter hidden faction doors, populate HUD."""
+        exits = await db.get_exits(room_id)
         try:
-            from engine.director import get_director
-            director = get_director()
-            zone_key = hud.get("zone_type", "")
-            if zone_key:
-                alert = director.get_alert_level(zone_key)
-                hud["alert_level"] = alert.value if alert else ""
-                # Determine dominant faction
-                zs = director.get_zone_state(zone_key)
-                if zs:
-                    factions = {"imperial": zs.imperial, "rebel": zs.rebel,
-                                "criminal": zs.criminal, "independent": zs.independent}
-                    hud["alert_faction"] = max(factions, key=factions.get)
+            from engine.housing import is_exit_visible
+            exits = [e for e in exits
+                     if await is_exit_visible(db, e, self.character)]
         except Exception:
-            pass  # Non-critical — alert badge just won't show
+            log.warning("_hud_exits: exit visibility filter failed", exc_info=True)
+        hud["exits"] = [
+            {
+                "dir": e["direction"],
+                "label": (e.get("name") or "").strip() or e["direction"],
+            }
+            for e in exits
+        ]
+        if not hud["room_name"] and room_row:
+            hud["room_name"] = room_row.get("name", "")
 
-        # Resolve security level
+    async def _hud_zone(self, hud: dict, db, room_row) -> None:
+        """Resolve zone name, type, and environment from room's zone."""
+        zone_id = room_row.get("zone_id") if room_row else None
+        if not zone_id:
+            return
+        zone = await db.get_zone(zone_id)
+        if zone:
+            hud["zone_name"] = zone.get("name", "")
+            props = zone.get("properties", "{}")
+            if isinstance(props, str):
+                try:
+                    props = json.loads(props)
+                except Exception:
+                    props = {}
+            hud["zone_type"] = props.get("environment", "")
+
+    def _hud_room_description(self, hud: dict, room_row) -> None:
+        """Set room description from the room row."""
+        if room_row:
+            desc = room_row.get("desc_long") or room_row.get("desc_short") or ""
+            hud["room_description"] = desc
+
+    def _hud_alert_level(self, hud: dict) -> None:
+        """Resolve Director AI alert level and dominant faction."""
+        from engine.director import get_director
+        director = get_director()
+        zone_key = hud.get("zone_type", "")
+        if zone_key:
+            alert = director.get_alert_level(zone_key)
+            hud["alert_level"] = alert.value if alert else ""
+            zs = director.get_zone_state(zone_key)
+            if zs:
+                factions = {"imperial": zs.imperial, "rebel": zs.rebel,
+                            "criminal": zs.criminal, "independent": zs.independent}
+                hud["alert_faction"] = max(factions, key=factions.get)
+
+    async def _hud_security(self, hud: dict, db, room_id) -> str:
+        """Resolve effective security level. Returns the level string."""
         security_level = "contested"
         if db and room_id:
-            try:
-                from engine.security import get_effective_security
-                sec = await get_effective_security(room_id, db, character=char)
-                security_level = sec.value
-                hud["security_level"] = security_level
-            except Exception:
-                hud["security_level"] = "contested"
+            from engine.security import get_effective_security
+            sec = await get_effective_security(room_id, db, character=self.character)
+            security_level = sec.value
+        hud["security_level"] = security_level
+        return security_level
 
-        # Check if this is a housing room owned by the character
+    async def _hud_housing(self, hud: dict, db, room_id, room_row) -> None:
+        """Add housing panel data if current room is a housing room."""
         hud["is_housing"] = False
-        if db and room_id:
-            try:
-                from engine.housing import get_housing_for_room
-                h = await get_housing_for_room(db, room_id)
-                if h and h.get("char_id") == char.get("id"):
-                    hud["is_housing"] = True
-            except Exception:
-                log.warning("send_hud_update: unhandled exception", exc_info=True)
-                pass
+        hud["housing_info"] = None
+        if not (db and room_id and room_row and room_row.get("housing_id")):
+            return
+        from engine.housing import get_housing_for_room, get_housing_hud_info
+        h = await get_housing_for_room(db, room_id)
+        if h:
+            hud["is_housing"] = (h.get("char_id") == self.character.get("id"))
+            hi = await get_housing_hud_info(db, self.character, room_id)
+            if hi:
+                hud["housing_info"] = hi
 
-        # Territory claim badge (Drop 6E)
+    async def _hud_territory(self, hud: dict, db, room_id) -> None:
+        """Add territory claim badge and contest status."""
         hud["territory_claim"] = None
         hud["contest_active"] = False
-        if db and room_id:
-            try:
-                from engine.territory import get_claim, get_active_contest, get_room_zone_id
-                _tc = await get_claim(db, room_id)
-                if _tc:
-                    hud["territory_claim"] = {
-                        "org_code": _tc["org_code"],
-                        "org_name": _tc["org_code"].replace("_", " ").title(),
-                        "has_guard": bool(_tc.get("guard_npc_id")),
-                    }
-                    _zone_id = await get_room_zone_id(db, room_id)
-                    if _zone_id:
-                        _contest = await get_active_contest(db, _zone_id)
-                        if _contest:
-                            import time as _time
-                            hud["contest_active"] = True
-                            hud["contest_challenger"] = _contest["challenger_org_code"].replace("_", " ").title()
-                            hud["contest_ends"] = max(0, int(_contest["ends_at"] - _time.time()))
-            except Exception:
-                pass  # Non-critical — territory badge just won't show
+        if not (db and room_id):
+            return
+        from engine.territory import get_claim, get_active_contest, get_room_zone_id
+        tc = await get_claim(db, room_id)
+        if tc:
+            hud["territory_claim"] = {
+                "org_code": tc["org_code"],
+                "org_name": tc["org_code"].replace("_", " ").title(),
+                "has_guard": bool(tc.get("guard_npc_id")),
+            }
+            zone_id = await get_room_zone_id(db, room_id)
+            if zone_id:
+                contest = await get_active_contest(db, zone_id)
+                if contest:
+                    hud["contest_active"] = True
+                    hud["contest_challenger"] = contest["challenger_org_code"].replace("_", " ").title()
+                    hud["contest_ends"] = max(0, int(contest["ends_at"] - time.time()))
 
-        # Room contents for clickable sidebar panel
-        # Ground UX Drop 1: enhanced with NPC roles, hostile flags, and
-        # context-sensitive action lists
-        if db and room_id:
-            try:
-                npcs = await db.get_npcs_in_room(room_id)
-                # Vendor droids in room — for shop browse sidebar panel
-                vendor_droids = []
+    async def _hud_cp_progress(self, hud: dict, db, char_id) -> None:
+        """Add CP progression data for sidebar progress bar."""
+        hud["cp_progress"] = None
+        if not (db and char_id):
+            return
+        from engine.cp_engine import get_cp_engine, TICKS_PER_CP, WEEKLY_CAP_TICKS
+        cp_eng = get_cp_engine()
+        status = await cp_eng.get_status(db, char_id)
+        ticks_to_next = status.get("ticks_to_next_cp", TICKS_PER_CP)
+        hud["cp_progress"] = {
+            "ticks_to_next": ticks_to_next,
+            "ticks_per_cp": TICKS_PER_CP,
+            "ticks_this_week": status.get("ticks_this_week", 0),
+            "weekly_cap": WEEKLY_CAP_TICKS,
+            "pct": round(
+                (TICKS_PER_CP - ticks_to_next) / TICKS_PER_CP * 100
+            ) if ticks_to_next < TICKS_PER_CP else 0,
+        }
+
+    async def _hud_reputation(self, hud: dict, db, char) -> None:
+        """Add faction reputation overview for sidebar panel."""
+        hud["reputation"] = {}
+        if not (db and char.get("id")):
+            return
+        from engine.organizations import get_all_faction_reps
+        hud["reputation"] = await get_all_faction_reps(char, db)
+
+    async def _hud_zone_influence(self, hud: dict, db, room_row) -> None:
+        """Add zone influence percentages for territory context panel."""
+        hud["zone_influence"] = {}
+        if not room_row:
+            return
+        zone_id = room_row.get("zone_id")
+        if not zone_id:
+            return
+        from engine.territory import get_zone_territory_all
+        inf = await get_zone_territory_all(db, zone_id)
+        total = sum(inf.values()) or 1
+        hud["zone_influence"] = {
+            org: round(score / total * 100)
+            for org, score in sorted(inf.items(), key=lambda x: -x[1])
+            if score > 0
+        }
+
+    async def _hud_room_contents(self, hud: dict, db, room_id,
+                                  room_props: dict, security_level: str,
+                                  session_mgr) -> None:
+        """Build room contents: NPCs, players, vendor droids, services."""
+        char = self.character
+        npcs = await db.get_npcs_in_room(room_id)
+
+        # Vendor droids
+        vendor_droids = []
+        try:
+            raw_droids = await db.get_objects_in_room(room_id, "vendor_droid")
+            from engine.vendor_droids import _load_data
+            for d in raw_droids:
+                data = _load_data(d)
+                inventory = data.get("inventory", [])
+                vendor_droids.append({
+                    "id": d["id"],
+                    "name": data.get("shop_name") or d.get("name", "Vendor Droid"),
+                    "desc": data.get("shop_desc", ""),
+                    "tier": data.get("tier_key", "gn4"),
+                    "item_count": len(inventory),
+                    "inventory": [
+                        {
+                            "slot": i + 1,
+                            "name": slot.get("item_name", "Unknown"),
+                            "price": slot.get("price", 0),
+                            "qty": slot.get("quantity", 1),
+                            "quality": slot.get("quality", 0),
+                            "crafter": slot.get("crafter", ""),
+                        }
+                        for i, slot in enumerate(inventory)
+                        if slot.get("quantity", 0) > 0
+                    ],
+                })
+        except Exception:
+            log.debug("_hud_room_contents: vendor droid load failed", exc_info=True)
+
+        # Detect combat
+        in_combat = False
+        try:
+            from engine.combat import get_combat
+            in_combat = get_combat(room_id) is not None
+        except Exception as e:
+            log.debug("_hud_room_contents: combat check failed: %s", e)
+
+        # Enhanced NPC entries
+        npc_entries = []
+        for n in npcs:
+            role = _classify_npc_role(n)
+            ai_cfg = n.get("ai_config_json", "{}")
+            if isinstance(ai_cfg, str):
                 try:
-                    raw_droids = await db.get_objects_in_room(room_id, "vendor_droid")
-                    from engine.vendor_droids import _load_data
-                    for d in raw_droids:
-                        data = _load_data(d)
-                        inventory = data.get("inventory", [])
-                        vendor_droids.append({
-                            "id": d["id"],
-                            "name": data.get("shop_name") or d.get("name", "Vendor Droid"),
-                            "desc": data.get("shop_desc", ""),
-                            "tier": data.get("tier_key", "gn4"),
-                            "item_count": len(inventory),
-                            "inventory": [
-                                {
-                                    "slot": i + 1,
-                                    "name": slot.get("item_name", "Unknown"),
-                                    "price": slot.get("price", 0),
-                                    "qty": slot.get("quantity", 1),
-                                    "quality": slot.get("quality", 0),
-                                    "crafter": slot.get("crafter", ""),
-                                }
-                                for i, slot in enumerate(inventory)
-                                if slot.get("quantity", 0) > 0
-                            ],
-                        })
+                    ai_cfg = json.loads(ai_cfg)
                 except Exception:
-                    pass  # Non-critical, just omit droids
+                    ai_cfg = {}
+            is_hostile = ai_cfg.get("hostile", False)
+            actions = _npc_actions(role, is_hostile, in_combat, security_level)
+            npc_entries.append({
+                "id": n["id"],
+                "name": n["name"],
+                "role": role,
+                "hostile": is_hostile,
+                "actions": actions,
+            })
 
-                # Detect if combat is active in this room
-                _in_combat = False
-                try:
-                    from engine.combat import get_combat
-                    _in_combat = get_combat(room_id) is not None
-                except Exception:
-                    pass
+        hud["room_contents"] = {
+            "npcs": npc_entries,
+            "players": [
+                {"id": s.character["id"], "name": s.character["name"]}
+                for s in session_mgr.sessions_in_room(room_id)
+                if s.character and s.character.get("id") != char.get("id")
+            ] if session_mgr else [],
+            "vendor_droids": vendor_droids,
+        }
+        hud["room_services"] = _derive_room_services(npcs, vendor_droids, room_props)
 
-                # Build enhanced NPC entries (Ground UX Drop 1)
-                npc_entries = []
-                for n in npcs:
-                    role = _classify_npc_role(n)
-                    ai_cfg = n.get("ai_config_json", "{}")
-                    if isinstance(ai_cfg, str):
-                        try:
-                            ai_cfg = json.loads(ai_cfg)
-                        except Exception:
-                            ai_cfg = {}
-                    is_hostile = ai_cfg.get("hostile", False)
-                    actions = _npc_actions(role, is_hostile, _in_combat,
-                                          security_level)
-                    npc_entries.append({
-                        "id": n["id"],
-                        "name": n["name"],
-                        "role": role,
-                        "hostile": is_hostile,
-                        "actions": actions,
+    async def _hud_area_map(self, hud: dict, db, room_id) -> None:
+        """Build area map for minimap context panel."""
+        from engine.area_map import build_area_map
+        hud["area_map"] = await build_area_map(room_id, db, depth=2)
+
+    async def _hud_nearby_services(self, hud: dict, db, room_id) -> None:
+        """BFS for nearby services within 4 rooms."""
+        from engine.area_map import find_nearby_services
+        hud["nearby_services"] = await find_nearby_services(
+            room_id, db, depth=4, max_results=8)
+
+    async def _hud_active_jobs(self, hud: dict, char) -> None:
+        """Gather active mission, bounty, smuggling, and quest jobs."""
+        jobs = []
+        char_id_str = str(char["id"])
+
+        # Active mission
+        try:
+            from engine.missions import get_mission_board, MissionStatus
+            board = get_mission_board()
+            for m in board._missions.values():
+                if (m.accepted_by == char_id_str and
+                        m.status == MissionStatus.ACCEPTED):
+                    jobs.append({
+                        "type": "mission",
+                        "label": m.title,
+                        "objective": m.destination or "",
+                        "reward": m.reward,
                     })
+                    break
+        except Exception:
+            log.debug("_hud_active_jobs: mission lookup failed", exc_info=True)
 
-                hud["room_contents"] = {
-                    "npcs": npc_entries,
-                    "players": [
-                        {"id": s.character["id"], "name": s.character["name"]}
-                        for s in session_mgr.sessions_in_room(room_id)
-                        if s.character and s.character.get("id") != char.get("id")
-                    ] if session_mgr else [],
-                    "vendor_droids": vendor_droids,
+        # Active bounty
+        try:
+            from engine.bounty_board import get_bounty_board
+            bboard = get_bounty_board()
+            for c in bboard._contracts.values():
+                if (getattr(c, "accepted_by", None) == char_id_str and
+                        getattr(c, "status", "") == "accepted"):
+                    jobs.append({
+                        "type": "bounty",
+                        "label": f"Bounty: {c.target_name}",
+                        "target": getattr(c, "target_name", "Unknown"),
+                        "reward": getattr(c, "reward", 0),
+                    })
+                    break
+        except Exception:
+            log.debug("_hud_active_jobs: bounty lookup failed", exc_info=True)
+
+        # Active smuggling job
+        try:
+            from engine.smuggling import get_smuggling_board
+            sboard = get_smuggling_board()
+            for j in sboard._jobs.values():
+                if (getattr(j, "accepted_by", None) == char_id_str and
+                        getattr(j, "status", "") == "accepted"):
+                    cargo = getattr(j, "cargo_type", "cargo")
+                    dropoff = getattr(j, "dropoff_name", "?")
+                    jobs.append({
+                        "type": "smuggle",
+                        "label": f"{cargo.title()} → {dropoff}",
+                        "reward": getattr(j, "reward", 0),
+                    })
+                    break
+        except Exception:
+            log.debug("_hud_active_jobs: smuggling lookup failed", exc_info=True)
+
+        # Active spacer quest step
+        try:
+            from engine.spacer_quest import get_step
+            attrs = char.get("attributes", "{}")
+            if isinstance(attrs, str):
+                attrs = json.loads(attrs)
+            qs = attrs.get("spacer_quest")
+            if qs and isinstance(qs, dict):
+                step_id = qs.get("step", 0)
+                if 1 <= step_id <= 30:
+                    step = get_step(step_id)
+                    if step:
+                        jobs.append({
+                            "type": "quest",
+                            "label": step.get("title", "Quest"),
+                            "objective": step.get("objective_desc", ""),
+                        })
+        except Exception:
+            log.debug("_hud_active_jobs: spacer quest lookup failed", exc_info=True)
+
+        hud["active_jobs"] = jobs
+
+    async def _hud_send_credit_event(self, hud: dict) -> None:
+        """Send credit_event message if credits changed since last tick."""
+        new_credits = hud.get("credits")
+        if (new_credits is not None
+                and self._last_sent_credits is not None
+                and new_credits != self._last_sent_credits):
+            delta = new_credits - self._last_sent_credits
+            await self._send(json.dumps({
+                "type": "credit_event",
+                "credits": new_credits,
+                "delta": delta,
+            }))
+        if new_credits is not None:
+            self._last_sent_credits = new_credits
+
+    async def _hud_sidebar_mail(self, db, char_id) -> None:
+        """Send mail_status sidebar message."""
+        mail_rows = await db.fetchall(
+            """SELECT m.id, m.subject, m.sender_name as from_name,
+                      mr.is_read
+               FROM mail_recipients mr
+               JOIN mail_messages m ON m.id = mr.message_id
+               WHERE mr.char_id = ? AND mr.is_deleted = 0
+               ORDER BY mr.is_read ASC, m.sent_at DESC
+               LIMIT 5""",
+            (char_id,)
+        )
+        unread_rows = await db.fetchall(
+            "SELECT COUNT(*) as c FROM mail_recipients "
+            "WHERE char_id = ? AND is_read = 0 AND is_deleted = 0",
+            (char_id,)
+        )
+        unread = unread_rows[0]["c"] if unread_rows else 0
+        await self._send(json.dumps({
+            "type": "mail_status",
+            "unread": unread,
+            "messages": [
+                {
+                    "id": r["id"],
+                    "subject": r["subject"] or "",
+                    "from_name": r["from_name"] or "",
+                    "is_read": bool(r["is_read"]),
                 }
+                for r in mail_rows
+            ],
+        }))
 
-                # Derive room services (Ground UX Drop 1)
-                hud["room_services"] = _derive_room_services(
-                    npcs, vendor_droids, _room_props)
+    async def _hud_sidebar_achievements(self, db, char_id) -> None:
+        """Send achievements_status sidebar message."""
+        from engine.achievements import get_achievements_status
+        ach = await get_achievements_status(db, char_id)
+        await self._send(json.dumps({
+            "type": "achievements_status",
+            "completed": ach.get("completed", 0),
+            "total": ach.get("total", 0),
+            "achievements": [
+                {
+                    "key": a["key"],
+                    "name": a["name"],
+                    "icon": a.get("icon", ""),
+                    "progress": a.get("progress", 0),
+                    "target": a.get("target", 1),
+                    "completed": bool(a.get("completed")),
+                    "locked": bool(a.get("locked")),
+                }
+                for a in ach.get("achievements", [])
+            ],
+        }))
 
+    async def _hud_sidebar_places(self, db, room_id) -> None:
+        """Send places_status sidebar message."""
+        place_rows = await db.fetchall(
+            "SELECT id, name FROM room_places WHERE room_id = ? ORDER BY id",
+            (room_id,)
+        )
+        if not place_rows:
+            return
+        places_out = []
+        for pr in place_rows:
+            occ_rows = await db.fetchall(
+                """SELECT c.name FROM place_occupants po
+                   JOIN characters c ON c.id = po.char_id
+                   WHERE po.place_id = ?""",
+                (pr["id"],)
+            )
+            places_out.append({
+                "id": pr["id"],
+                "name": pr["name"],
+                "occupants": [o["name"] for o in occ_rows],
+            })
+        await self._send(json.dumps({
+            "type": "places_status",
+            "places": places_out,
+        }))
+
+    # ── Main HUD orchestrator ─────────────────────────────────────────────
+
+    async def send_hud_update(self, db=None, session_mgr=None):
+        """
+        Send structured HUD data to WebSocket clients.
+
+        Phase 3 C2: decomposed into ~20 helper methods. Each block is
+        independently try/except guarded so one failure doesn't break
+        the entire HUD update.
+        """
+        if self.protocol != Protocol.WEBSOCKET:
+            return
+        if not self.character:
+            return
+
+        char = self.character
+        room_id = char.get("room_id")
+        char_id = char.get("id")
+
+        # ── 1. Base payload (no DB) ──
+        hud = self._hud_base()
+
+        # ── 2. Equipment & loadout (no DB) ──
+        try:
+            self._hud_equipped_weapon(hud)
+        except Exception:
+            log.warning("send_hud_update: equipped_weapon failed", exc_info=True)
+
+        try:
+            self._hud_loadout(hud)
+        except Exception:
+            log.warning("send_hud_update: loadout failed", exc_info=True)
+
+        # ── 3. Room row + properties (single DB fetch, reused below) ──
+        room_row = None
+        room_props = {}
+        try:
+            room_row, room_props = await self._hud_room_row(db, room_id)
+        except Exception:
+            log.debug("send_hud_update: room_row fetch failed", exc_info=True)
+
+        # ── 4. Exits ──
+        if db and room_id:
+            try:
+                await self._hud_exits(hud, db, room_id, room_row)
+            except Exception:
+                pass  # Non-critical — exits just won't show
+
+        # ── 5. Room description ──
+        self._hud_room_description(hud, room_row)
+
+        # ── 6. Zone name + type ──
+        if db and room_row:
+            try:
+                await self._hud_zone(hud, db, room_row)
+            except Exception:
+                pass  # Non-critical — mood stays default
+
+        # ── 7. Director alert level ──
+        try:
+            self._hud_alert_level(hud)
+        except Exception:
+            pass  # Non-critical — alert badge won't show
+
+        # ── 8. Security level ──
+        security_level = "contested"
+        try:
+            security_level = await self._hud_security(hud, db, room_id)
+        except Exception:
+            hud["security_level"] = "contested"
+
+        # ── 9. Housing ──
+        try:
+            await self._hud_housing(hud, db, room_id, room_row)
+        except Exception:
+            log.warning("send_hud_update: housing failed", exc_info=True)
+
+        # ── 10. Territory ──
+        try:
+            await self._hud_territory(hud, db, room_id)
+        except Exception:
+            pass  # Non-critical
+
+        # ── 11. CP progress ──
+        try:
+            await self._hud_cp_progress(hud, db, char_id)
+        except Exception:
+            log.warning("send_hud_update: cp_progress failed", exc_info=True)
+
+        # ── 12. Reputation ──
+        try:
+            await self._hud_reputation(hud, db, char)
+        except Exception:
+            log.warning("send_hud_update: reputation failed", exc_info=True)
+
+        # ── 13. Zone influence ──
+        if db and room_row:
+            try:
+                await self._hud_zone_influence(hud, db, room_row)
             except Exception:
                 pass  # Non-critical
 
-        # Area map for context panel minimap (Ground UX Drop 2)
+        # ── 14. Room contents (NPCs, players, droids, services) ──
         if db and room_id:
             try:
-                from engine.area_map import build_area_map
-                hud["area_map"] = await build_area_map(room_id, db, depth=2)
+                await self._hud_room_contents(
+                    hud, db, room_id, room_props, security_level, session_mgr)
             except Exception:
-                log.warning("send_hud_update: area_map build failed",
-                            exc_info=True)
+                pass  # Non-critical
 
+        # ── 15. Area map ──
+        if db and room_id:
+            try:
+                await self._hud_area_map(hud, db, room_id)
+            except Exception:
+                log.warning("send_hud_update: area_map failed", exc_info=True)
+
+        # ── 16. Nearby services ──
+        if db and room_id:
+            try:
+                await self._hud_nearby_services(hud, db, room_id)
+            except Exception:
+                log.warning("send_hud_update: nearby_services failed", exc_info=True)
+                hud["nearby_services"] = []
+
+        # ── 17. Active jobs ──
+        if char_id:
+            try:
+                await self._hud_active_jobs(hud, char)
+            except Exception:
+                log.debug("send_hud_update: active_jobs failed", exc_info=True)
+
+        # ── 18. Send main HUD + credit event ──
         try:
+            await self._hud_send_credit_event(hud)
             await self._send(json.dumps({"type": "hud_update", **hud}))
         except Exception as e:
             log.warning("HUD update failed on %s: %s", self, e)
+            return  # Don't attempt sidebar panels if main HUD failed
+
+        # ── 19. Sidebar panels (separate lightweight messages) ──
+        if db and char_id:
+            try:
+                await self._hud_sidebar_mail(db, char_id)
+            except Exception:
+                pass  # Mail table may not exist
+
+            try:
+                await self._hud_sidebar_achievements(db, char_id)
+            except Exception:
+                pass  # Achievements may not be initialized
+
+        if db and room_id:
+            try:
+                await self._hud_sidebar_places(db, room_id)
+            except Exception:
+                pass  # Places tables may not exist
 
     # ── Input ──
 

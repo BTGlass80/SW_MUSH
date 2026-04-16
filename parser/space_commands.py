@@ -19,6 +19,15 @@ from engine.starships import (
 from engine.dice import DicePool
 from server import ansi
 
+# Achievement hooks (graceful-drop)
+async def _ach_space_hook(db, char_id, event, session=None):
+    try:
+        from engine.achievements import check_achievement
+        await check_achievement(db, char_id, event, session=session)
+    except Exception as _e:
+        log.debug("silent except in parser/space_commands.py:27: %s", _e, exc_info=True)
+
+
 log = logging.getLogger(__name__)
 
 
@@ -1077,8 +1086,8 @@ class LaunchCommand(BaseCommand):
         try:
             from engine.spacer_quest import check_spacer_quest
             await check_spacer_quest(ctx.session, ctx.db, "space_action", action="launch")
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in parser/space_commands.py:1089: %s", _e, exc_info=True)
 
 
 class LandCommand(BaseCommand):
@@ -1147,6 +1156,11 @@ class LandCommand(BaseCommand):
             return
         char["credits"] = credits - docking_fee
         await ctx.db.save_character(char["id"], credits=char["credits"])
+        try:
+            await ctx.db.log_credit(char["id"], -docking_fee, "docking_fee",
+                                     char["credits"])
+        except Exception as _e:
+            log.debug("silent except in parser/space_commands.py:1162: %s", _e, exc_info=True)
         await ctx.db.update_ship(ship["id"], docked_at=bay["id"])
         get_space_grid().remove_ship(ship["id"])
         # Traffic: clear current_zone on land
@@ -1225,8 +1239,8 @@ class LandCommand(BaseCommand):
                 ctx.session, ctx.db, "space_action",
                 action="land", planet=_land_planet or "",
             )
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in parser/space_commands.py:1242: %s", _e, exc_info=True)
 
 
 class ShipCommand(BaseCommand):
@@ -2113,6 +2127,8 @@ class FireCommand(BaseCommand):
     aliases = []
     help_text = "Fire your weapon at a target (gunner station, in space). Checks range and fire arc."
     usage = "fire <target ship name>"
+
+    # ── Pipeline orchestrator ────────────────────────────────────────
     async def execute(self, ctx):
         if not ctx.args:
             await ctx.session.send_line("Usage: fire <target ship name>")
@@ -2125,11 +2141,59 @@ class FireCommand(BaseCommand):
             await ctx.session.send_line("  Can't fire while docked!")
             return
 
-        # ── Space security gate (design doc §8) ──────────────────────────
-        # DOCK zones = secured (no fire — already blocked by docked_at check)
-        # ORBIT / HYPERSPACE_LANE = contested (PvP requires consent)
-        # DEEP_SPACE = lawless (unrestricted)
-        _space_sec = "lawless"  # safe default — fail-open for space
+        # Phase 1: Space security gate
+        space_sec = await self._check_space_security(ctx, ship)
+        if space_sec is None:
+            return  # secured zone — blocked
+
+        # Phase 2: Gunner station + weapon + target-name parsing
+        parsed = await self._parse_station_weapon_target(ctx, ship)
+        if parsed is None:
+            return
+        template, weapon, gunner_idx, target_name = parsed
+
+        # Phase 3: Target resolution (DB + traffic)
+        target_ship = await self._resolve_target(ctx, ship, target_name)
+        if target_ship is None:
+            return
+        reg = get_ship_registry()
+        target_template = reg.get(target_ship["template"])
+        if not target_template:
+            await ctx.session.send_line("  Target data error.")
+            return
+
+        # Phase 4: PvP consent check (contested zones only)
+        if not await self._check_pvp_consent(ctx, target_ship, space_sec):
+            return
+
+        # Phase 5: Arc check + build combat pools
+        pools = await self._build_combat_pools(
+            ctx, ship, template, target_ship, target_template,
+            weapon, gunner_idx)
+        if pools is None:
+            return
+
+        # Phase 6: Dispatch by weapon type
+        if weapon.tractor:
+            await self._handle_tractor_fire(ctx, ship, target_ship, pools)
+        else:
+            await self._handle_standard_fire(
+                ctx, ship, target_ship, target_template, pools)
+
+        # Phase 7: Broadcast HUD updates to both crews
+        await self._broadcast_space_hud(ctx, ship, target_ship)
+
+    # ── Phase helpers ────────────────────────────────────────────────
+
+    async def _check_space_security(self, ctx, ship):
+        """Return 'secured' | 'contested' | 'lawless' — or None if blocked.
+
+        Design doc §8:
+          DOCK zones = secured (no fire)
+          ORBIT / HYPERSPACE_LANE = contested (PvP needs consent)
+          DEEP_SPACE = lawless (unrestricted)
+        """
+        space_sec = "lawless"  # fail-open default
         try:
             systems_chk = _get_systems(ship)
             zone_id_chk = systems_chk.get("current_zone", "")
@@ -2137,47 +2201,52 @@ class FireCommand(BaseCommand):
             zone_chk = _SZONES.get(zone_id_chk)
             if zone_chk:
                 if zone_chk.type == ZoneType.DOCK:
-                    _space_sec = "secured"
+                    space_sec = "secured"
                 elif zone_chk.type in (ZoneType.ORBIT, ZoneType.HYPERSPACE_LANE):
-                    _space_sec = "contested"
+                    space_sec = "contested"
                 elif zone_chk.type == ZoneType.DEEP_SPACE:
-                    _space_sec = "lawless"
+                    space_sec = "lawless"
 
-            if _space_sec == "secured":
+            if space_sec == "secured":
                 await ctx.session.send_line(
                     "  \033[1;33mPort authority sensors would detect weapons fire "
                     "immediately. You'd be vaporized by the defense grid.\033[0m"
                 )
-                return
+                return None
         except Exception:
-            pass  # If we can't determine zone, allow fire (fail-open for space)
-        # ── End space security gate ──────────────────────────────────────
+            log.warning("_check_space_security: zone lookup failed", exc_info=True)
+            # fail-open: allow fire
+        return space_sec
+
+    async def _parse_station_weapon_target(self, ctx, ship):
+        """Resolve gunner station, parse 'with <weapon>' / trailing N, return
+        (template, weapon, gunner_idx, target_name) or None on error."""
         crew = _get_crew(ship)
         char_id = ctx.session.character["id"]
         stations = crew.get("gunner_stations", {})
-        # Find which station(s) this player occupies
         my_station = None
         for idx_s, gid in stations.items():
             if gid == char_id:
                 my_station = int(idx_s)
                 break
         if my_station is None:
-            await ctx.session.send_line("  You're not at a gunner station. Type 'gunner' first.")
-            return
+            await ctx.session.send_line(
+                "  You're not at a gunner station. Type 'gunner' first.")
+            return None
         reg = get_ship_registry()
         template = reg.get(ship["template"])
         if not template:
             await ctx.session.send_line("  Ship data error.")
-            return
-        # Parse: "fire <target>" or "fire <target> with <weapon>" or "fire <target> <N>"
+            return None
+
         raw_args = ctx.args.strip()
         weapon_override = None
-        # Check for "with <weapon>" suffix
+
+        # "fire <target> with <weapon>"
         if " with " in raw_args.lower():
             parts = raw_args.lower().rsplit(" with ", 1)
             raw_args = parts[0].strip()
             weapon_search = parts[1].strip()
-            # Match by name
             for i, w in enumerate(template.weapons):
                 if weapon_search in w.name.lower():
                     weapon_override = i
@@ -2185,8 +2254,8 @@ class FireCommand(BaseCommand):
             if weapon_override is None:
                 await ctx.session.send_line(
                     f"  No weapon matching '{weapon_search}'.")
-                return
-        # Check for trailing number: "fire target 2"
+                return None
+        # "fire <target> <N>" (trailing number)
         elif raw_args and raw_args.split()[-1].isdigit():
             parts = raw_args.rsplit(None, 1)
             if len(parts) == 2:
@@ -2194,303 +2263,381 @@ class FireCommand(BaseCommand):
                 if 1 <= n <= len(template.weapons):
                     weapon_override = n - 1
                     raw_args = parts[0].strip()
-        # Resolve weapon index
+
+        # Resolve weapon index with station-occupancy enforcement
         if weapon_override is not None:
-            # Verify this player is assigned to that station
-            # (or it's their station)
             if weapon_override != my_station:
-                # On capital ships, allow firing any unoccupied weapon too
-                if str(weapon_override) in stations and stations[str(weapon_override)] != char_id:
+                if (str(weapon_override) in stations
+                        and stations[str(weapon_override)] != char_id):
                     occ = await ctx.db.get_character(stations[str(weapon_override)])
                     await ctx.session.send_line(
                         f"  Weapon #{weapon_override+1} is manned by "
                         f"{occ['name'] if occ else '?'}. Use your own station.")
-                    return
+                    return None
             gunner_idx = weapon_override
         else:
             gunner_idx = my_station
+
         if gunner_idx >= len(template.weapons):
             await ctx.session.send_line("  Weapon station error.")
-            return
+            return None
+
         weapon = template.weapons[gunner_idx]
         target_name = raw_args.lower()
-        target_ship = None
+        return (template, weapon, gunner_idx, target_name)
 
-        # Search DB ships first (player ships + traffic ships stored in DB)
-        _systems_self = _get_systems(ship)
-        _my_zone = _systems_self.get("current_zone", "")
+    async def _resolve_target(self, ctx, ship, target_name):
+        """Find target ship: DB ships first, then traffic manager by sensor name.
+
+        Returns target_ship dict, or None on miss/ambiguity (error already sent).
+        """
+        # DB ships (player ships + traffic ships stored in DB)
+        systems_self = _get_systems(ship)
+        my_zone = systems_self.get("current_zone", "")
         for s in await ctx.db.get_ships_in_space():
             if s["id"] == ship["id"]:
                 continue
-            # Match by DB name or sensor name
-            _sname = s["name"].lower()
-            if _sname == target_name or _sname.startswith(target_name):
-                target_ship = s
-                break
+            sname = s["name"].lower()
+            if sname == target_name or sname.startswith(target_name):
+                return s
 
-        # If not found in DB, search traffic manager by sensors_name()
-        # This handles "Unregistered fighter", "Unknown freighter" etc.
-        if not target_ship:
-            from engine.npc_space_traffic import get_traffic_manager as _gtm
-            _zone_ships = _gtm().get_zone_ships(_my_zone)
-            _tm_matches = [
-                ts for ts in _zone_ships
-                if ts.sensors_name().lower() == target_name
-                or ts.sensors_name().lower().startswith(target_name)
-            ]
-            if len(_tm_matches) > 1:
-                # Ambiguous — tell the player how many and ask to use lockon
-                await ctx.session.send_line(
-                    f"  {len(_tm_matches)} ships matching '{ctx.args}' on scanners. "
-                    f"Use 'lockon <name>' to designate one, then 'fire'."
-                )
-                return
-            elif _tm_matches:
-                # Found exactly one traffic ship — fetch its DB row
-                _ts_match = _tm_matches[0]
-                target_ship = await ctx.db.get_ship(_ts_match.ship_id)
+        # Traffic manager sensors-name search (handles "Unregistered fighter" etc.)
+        from engine.npc_space_traffic import get_traffic_manager as _gtm
+        zone_ships = _gtm().get_zone_ships(my_zone)
+        matches = [
+            ts for ts in zone_ships
+            if ts.sensors_name().lower() == target_name
+            or ts.sensors_name().lower().startswith(target_name)
+        ]
+        if len(matches) > 1:
+            await ctx.session.send_line(
+                f"  {len(matches)} ships matching '{ctx.args}' on scanners. "
+                f"Use 'lockon <n>' to designate one, then 'fire'."
+            )
+            return None
+        if matches:
+            return await ctx.db.get_ship(matches[0].ship_id)
 
-        if not target_ship:
-            await ctx.session.send_line(f"  No ship '{ctx.args}' on scanners.")
-            return
-        target_template = reg.get(target_ship["template"])
-        if not target_template:
-            await ctx.session.send_line("  Target data error.")
-            return
+        await ctx.session.send_line(f"  No ship '{ctx.args}' on scanners.")
+        return None
 
-        # ── Space PvP consent check (contested zones only) ───────────────
-        # Determine if target is a player-controlled ship
+    async def _check_pvp_consent(self, ctx, target_ship, space_sec):
+        """Return False and send message if firing on a player ship in a
+        contested zone without prior challenge. True otherwise (fail-open)."""
         try:
-            _target_crew_chk = _get_crew(target_ship)
-            _target_pilot_id = _target_crew_chk.get("pilot")
-            _target_is_player_ship = False
-            if _target_pilot_id:
-                _tp_row = await ctx.db.get_character(_target_pilot_id)
-                if _tp_row and _tp_row.get("account_id"):
-                    _target_is_player_ship = True
+            target_crew_chk = _get_crew(target_ship)
+            target_pilot_id = target_crew_chk.get("pilot")
+            target_is_player_ship = False
+            if target_pilot_id:
+                tp_row = await ctx.db.get_character(target_pilot_id)
+                if tp_row and tp_row.get("account_id"):
+                    target_is_player_ship = True
 
-            if _target_is_player_ship and _space_sec == "contested":
-                # Check PvP consent using the ground combat consent system
+            if target_is_player_ship and space_sec == "contested":
                 from parser.combat_commands import _pvp_active, _PVP_CHALLENGE_TTL
                 import time as _fire_time
-                _now = _fire_time.time()
-                _my_id = ctx.session.character["id"]
-                _their_id = _target_pilot_id
-                _consented = (
-                    _pvp_active.get((_my_id, _their_id), 0) > _now - _PVP_CHALLENGE_TTL or
-                    _pvp_active.get((_their_id, _my_id), 0) > _now - _PVP_CHALLENGE_TTL
+                now = _fire_time.time()
+                my_id = ctx.session.character["id"]
+                their_id = target_pilot_id
+                consented = (
+                    _pvp_active.get((my_id, their_id), 0) > now - _PVP_CHALLENGE_TTL or
+                    _pvp_active.get((their_id, my_id), 0) > now - _PVP_CHALLENGE_TTL
                 )
-                if not _consented:
+                if not consented:
                     await ctx.session.send_line(
                         f"  \033[1;33mOpening fire on a civilian vessel in patrolled "
                         f"space would bring every patrol in the sector down on you.\033[0m\n"
                         f"  Issue a \033[1;37mchallenge\033[0m on the ground first, or "
                         f"engage them in deep space where no one's watching."
                     )
-                    return
+                    return False
         except Exception:
-            pass  # Fail-open — if we can't check, allow fire
-        # ── End space PvP consent check ──────────────────────────────────
+            log.warning("_check_pvp_consent: check failed", exc_info=True)
+            # fail-open — allow fire on exception
+        return True
 
-        # Get range and position from grid
+    async def _build_combat_pools(self, ctx, ship, template,
+                                  target_ship, target_template,
+                                  weapon, gunner_idx):
+        """Build the bundle of dice pools and effective values needed for
+        attack resolution. Returns dict, or None if arc check fails.
+
+        Keys: rng, rel_pos, gunnery_pool, target_pilot_pool,
+              target_shields_pool, eff_target_hull, eff_target_maneuver,
+              eff_weapon, target_systems, target_eff
+        """
         grid = get_space_grid()
         rng = grid.get_range(ship["id"], target_ship["id"])
         rel_pos = grid.get_position(ship["id"], target_ship["id"])
-        # Arc check before rolling
+
+        # Arc check — short-circuit if weapon can't fire at this position
         if not can_weapon_fire(weapon.fire_arc, rel_pos):
             await ctx.session.send_line(
                 f"  {weapon.name} cannot fire at targets to your {rel_pos}! "
                 f"(Weapon arc: {weapon.fire_arc})")
-            return
+            return None
+
         from engine.character import Character, SkillRegistry
         char_obj = Character.from_db_dict(ctx.session.character)
         sr = SkillRegistry()
         sr.load_file("data/skills.yaml")
-        # Route skill by weapon type
+
+        # Gunnery skill — routed by weapon type
         gunnery_skill = weapon.skill.replace("_", " ") if weapon.skill else "starship gunnery"
         gunnery_pool = char_obj.get_skill_pool(gunnery_skill, sr)
+
+        # Target piloting — routed by target scale
         target_crew = _get_crew(target_ship)
         target_pilot_pool = DicePool(2, 0)
         if target_crew.get("pilot"):
             tp = await ctx.db.get_character(target_crew["pilot"])
             if tp:
                 tp_char = Character.from_db_dict(tp)
-                # Route piloting skill by target scale
-                tp_pilot_skill = "capital ship piloting" if target_template.scale == "capital" else "starfighter piloting"
+                tp_pilot_skill = (
+                    "capital ship piloting" if target_template.scale == "capital"
+                    else "starfighter piloting")
                 target_pilot_pool = tp_char.get_skill_pool(tp_pilot_skill, sr)
-        # Determine arc-specific shields — use effective shields as base
+
+        # Arc-specific shields — prefer damaged per-arc dice over full template
         target_systems = _get_systems(target_ship)
         target_eff = _get_effective_for_ship(target_ship) or {}
         attacker_eff = _get_effective_for_ship(ship) or {}
         eff_shields_str = target_eff.get("shields", target_template.shields)
-        _arc_map = {"front": "shield_front", "rear": "shield_rear",
-                    "left": "shield_left", "right": "shield_right"}
-        arc_key = _arc_map.get(rel_pos, "shield_front")
+        arc_map = {"front": "shield_front", "rear": "shield_rear",
+                   "left": "shield_left", "right": "shield_right"}
+        arc_key = arc_map.get(rel_pos, "shield_front")
         arc_dice = target_systems.get(arc_key)
         if arc_dice is not None:
             target_shields_pool = DicePool(int(arc_dice), 0)
         else:
             target_shields_pool = DicePool.parse(eff_shields_str)
 
-        # Effective hull and maneuverability for target
-        eff_target_hull = DicePool.parse(target_eff.get("hull", target_template.hull))
-        eff_target_maneuver = DicePool.parse(target_eff.get("maneuverability", target_template.maneuverability))
+        eff_target_hull = DicePool.parse(
+            target_eff.get("hull", target_template.hull))
+        eff_target_maneuver = DicePool.parse(
+            target_eff.get("maneuverability", target_template.maneuverability))
 
         # Effective fire control for attacker weapon
         eff_weapon = weapon
         atk_wfc = attacker_eff.get("weapon_fc", {})
         fc_extra_pips = atk_wfc.get(gunner_idx, atk_wfc.get(-1, 0)) if atk_wfc else 0
         if isinstance(fc_extra_pips, int) and fc_extra_pips > 0 and fc_extra_pips != -99:
-            # Build a modified weapon with boosted fire_control
             base_fc = DicePool.parse(weapon.fire_control)
-            boosted_fc = DicePool(base_fc.dice + (base_fc.pips + fc_extra_pips) // 3,
-                                  (base_fc.pips + fc_extra_pips) % 3)
+            boosted_fc = DicePool(
+                base_fc.dice + (base_fc.pips + fc_extra_pips) // 3,
+                (base_fc.pips + fc_extra_pips) % 3)
             from copy import copy as _copy
             eff_weapon = _copy(weapon)
             eff_weapon.fire_control = str(boosted_fc)
 
-        # ── Tractor beam dispatch ──
-        if weapon.tractor:
-            from engine.starships import resolve_tractor_attack
-            tresult = resolve_tractor_attack(
-                attacker_skill=gunnery_pool, weapon=eff_weapon,
-                attacker_scale=template.scale_value,
-                target_hull=eff_target_hull,
-                target_scale=target_template.scale_value,
-                range_band=rng,
-            )
-            if tresult.captured:
-                # Mark both ships
-                t_sys = _get_systems(target_ship)
-                t_sys["tractor_held_by"] = ship["id"]
-                await ctx.db.update_ship(target_ship["id"],
-                                         systems=json.dumps(t_sys))
-                a_sys = _get_systems(ship)
-                a_sys["tractor_holding"] = target_ship["id"]
-                await ctx.db.update_ship(ship["id"],
-                                         systems=json.dumps(a_sys))
-            await ctx.session_mgr.broadcast_to_room(ship["bridge_room_id"],
-                f"  {ansi.BRIGHT_YELLOW}[TRACTOR]{ansi.RESET} "
-                f"{ctx.session.character['name']} fires {weapon.name} at "
-                f"{target_ship['name']}! {tresult.narrative.strip()}")
-            if target_ship.get("bridge_room_id"):
-                if tresult.captured:
-                    await ctx.session_mgr.broadcast_to_room(
-                        target_ship["bridge_room_id"],
-                        f"  {ansi.BRIGHT_RED}[ALERT]{ansi.RESET} "
-                        f"Caught in tractor beam from {ship['name']}! "
-                        f"Type 'resist' to break free.")
-                elif tresult.hit:
-                    await ctx.session_mgr.broadcast_to_room(
-                        target_ship["bridge_room_id"],
-                        f"  {ansi.BRIGHT_YELLOW}[SENSORS]{ansi.RESET} "
-                        f"Tractor beam from {ship['name']} — broke free!")
-                else:
-                    await ctx.session_mgr.broadcast_to_room(
-                        target_ship["bridge_room_id"],
-                        f"  {ansi.BRIGHT_YELLOW}[SENSORS]{ansi.RESET} "
-                        f"Tractor beam from {ship['name']} — missed!")
-            return
+        return {
+            "rng": rng,
+            "rel_pos": rel_pos,
+            "gunnery_pool": gunnery_pool,
+            "target_pilot_pool": target_pilot_pool,
+            "target_shields_pool": target_shields_pool,
+            "eff_target_hull": eff_target_hull,
+            "eff_target_maneuver": eff_target_maneuver,
+            "eff_weapon": eff_weapon,
+            "weapon": weapon,
+            "template": template,
+            "target_template": target_template,
+            "target_systems": target_systems,
+            "target_eff": target_eff,
+        }
 
-        # ── Standard / ion attack ──
+    async def _handle_tractor_fire(self, ctx, ship, target_ship, pools):
+        """Tractor beam resolution + capture side-effects + broadcasts."""
+        from engine.starships import resolve_tractor_attack
+        weapon = pools["weapon"]
+        tresult = resolve_tractor_attack(
+            attacker_skill=pools["gunnery_pool"],
+            weapon=pools["eff_weapon"],
+            attacker_scale=pools["template"].scale_value,
+            target_hull=pools["eff_target_hull"],
+            target_scale=pools["target_template"].scale_value,
+            range_band=pools["rng"],
+        )
+        if tresult.captured:
+            t_sys = _get_systems(target_ship)
+            t_sys["tractor_held_by"] = ship["id"]
+            await ctx.db.update_ship(target_ship["id"],
+                                     systems=json.dumps(t_sys))
+            a_sys = _get_systems(ship)
+            a_sys["tractor_holding"] = target_ship["id"]
+            await ctx.db.update_ship(ship["id"],
+                                     systems=json.dumps(a_sys))
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ansi.BRIGHT_YELLOW}[TRACTOR]{ansi.RESET} "
+            f"{ctx.session.character['name']} fires {weapon.name} at "
+            f"{target_ship['name']}! {tresult.narrative.strip()}")
+        if target_ship.get("bridge_room_id"):
+            if tresult.captured:
+                await ctx.session_mgr.broadcast_to_room(
+                    target_ship["bridge_room_id"],
+                    f"  {ansi.BRIGHT_RED}[ALERT]{ansi.RESET} "
+                    f"Caught in tractor beam from {ship['name']}! "
+                    f"Type 'resist' to break free.")
+            elif tresult.hit:
+                await ctx.session_mgr.broadcast_to_room(
+                    target_ship["bridge_room_id"],
+                    f"  {ansi.BRIGHT_YELLOW}[SENSORS]{ansi.RESET} "
+                    f"Tractor beam from {ship['name']} — broke free!")
+            else:
+                await ctx.session_mgr.broadcast_to_room(
+                    target_ship["bridge_room_id"],
+                    f"  {ansi.BRIGHT_YELLOW}[SENSORS]{ansi.RESET} "
+                    f"Tractor beam from {ship['name']} — missed!")
+
+    async def _handle_standard_fire(self, ctx, ship, target_ship,
+                                    target_template, pools):
+        """Standard / ion attack resolution + damage / ion application +
+        hit-or-miss broadcasts to both bridges."""
+        weapon = pools["weapon"]
         result = resolve_space_attack(
-            attacker_skill=gunnery_pool, weapon=eff_weapon,
-            attacker_scale=template.scale_value,
-            target_pilot_skill=target_pilot_pool,
-            target_maneuverability=eff_target_maneuver,
-            target_hull=eff_target_hull,
-            target_shields=target_shields_pool,
+            attacker_skill=pools["gunnery_pool"],
+            weapon=pools["eff_weapon"],
+            attacker_scale=pools["template"].scale_value,
+            target_pilot_skill=pools["target_pilot_pool"],
+            target_maneuverability=pools["eff_target_maneuver"],
+            target_hull=pools["eff_target_hull"],
+            target_shields=pools["target_shields_pool"],
             target_scale=target_template.scale_value,
-            range_band=rng,
-            relative_position=rel_pos,
+            range_band=pools["rng"],
+            relative_position=pools["rel_pos"],
             attacker_ship_id=ship["id"],
             target_ship_id=target_ship["id"])
-        if result.hull_damage > 0:
-            new_dmg = target_ship.get("hull_damage", 0) + result.hull_damage
-            updates = {"hull_damage": new_dmg}
-            if result.systems_hit:
-                systems = _get_systems(target_ship)
-                for s in result.systems_hit:
-                    systems[s] = False
-                updates["systems"] = json.dumps(systems)
-            await ctx.db.update_ship(target_ship["id"], **updates)
-            # Check if this killed a traffic ship — use effective hull
-            eff_hull_str = target_eff.get("hull", target_template.hull)
-            try:
-                hull_dice = int(eff_hull_str.split("D")[0]) if "D" in eff_hull_str else 3
-            except Exception:
-                hull_dice = 3
-            destroyed_threshold = hull_dice * 6
-            if new_dmg >= destroyed_threshold:
-                traffic_mgr = get_traffic_manager()
-                ts = traffic_mgr.get_ship(target_ship["id"])
-                if ts is not None:
-                    awarded = await traffic_mgr.handle_traffic_ship_destroyed(
-                        target_ship["id"], ctx.session.character,
-                        ctx.db, ctx.session_mgr,
-                    )
-                    if awarded:
-                        await ctx.session.send_line(
-                            f"  {ansi.BRIGHT_GREEN}[BOUNTY]{ansi.RESET} "
-                            f"Pirate destroyed! You recover {awarded:,} credits from the wreckage."
-                        )
-                    # ── Spawn salvageable wreck anomaly ──
-                    try:
-                        from engine.space_anomalies import add_wreck_anomaly
-                        _wreck_zone = _get_systems(ship).get("current_zone", "")
-                        if _wreck_zone:
-                            add_wreck_anomaly(_wreck_zone, target_ship.get("name", "Unknown Vessel"))
-                            await ctx.session.send_line(
-                                f"  {ansi.BRIGHT_CYAN}[SALVAGE]{ansi.RESET} "
-                                f"Wreckage detected. Type 'salvage' to recover components (2 min window)."
-                            )
-                    except Exception:
-                        pass  # graceful-drop
-        # ── Ion effect application ──
-        if result.ion_disabled and result.ion_disabled != "":
-            t_systems = _get_systems(target_ship)
-            if result.ion_disabled == "dead":
-                t_systems["controls_dead"] = True
-                t_systems["ion_penalty"] = 99
-            else:
-                try:
-                    ion_count = int(result.ion_disabled)
-                except ValueError:
-                    ion_count = 1
-                old_penalty = t_systems.get("ion_penalty", 0)
-                t_systems["ion_penalty"] = old_penalty + ion_count
-                # Check for controls frozen (ionized >= maneuverability dice)
-                eff_maneuver_str = target_eff.get("maneuverability", target_template.maneuverability)
-                maneuver_dice = DicePool.parse(eff_maneuver_str).dice
-                if t_systems["ion_penalty"] >= maneuver_dice and maneuver_dice > 0:
-                    t_systems["controls_frozen"] = True
-            await ctx.db.update_ship(target_ship["id"],
-                                     systems=json.dumps(t_systems))
-        await ctx.session_mgr.broadcast_to_room(ship["bridge_room_id"],
+
+        await self._apply_hull_damage(
+            ctx, ship, target_ship, target_template, pools, result)
+        await self._apply_ion_effect(
+            ctx, target_ship, target_template, pools, result)
+
+        # Attacker bridge broadcast
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
             f"  {ansi.BRIGHT_RED}[WEAPONS]{ansi.RESET} "
-            f"{ctx.session.character['name']} fires {weapon.name} at {target_ship['name']}! "
-            f"{result.narrative.strip()}")
+            f"{ctx.session.character['name']} fires {weapon.name} at "
+            f"{target_ship['name']}! {result.narrative.strip()}")
+        # Target bridge broadcast
         if target_ship.get("bridge_room_id"):
             if result.hit:
-                await ctx.session_mgr.broadcast_to_room(target_ship["bridge_room_id"],
+                await ctx.session_mgr.broadcast_to_room(
+                    target_ship["bridge_room_id"],
                     f"  {ansi.BRIGHT_RED}[ALERT]{ansi.RESET} "
-                    f"Hit by {weapon.name} from {ship['name']}! {result.narrative.strip()}")
+                    f"Hit by {weapon.name} from {ship['name']}! "
+                    f"{result.narrative.strip()}")
             else:
-                await ctx.session_mgr.broadcast_to_room(target_ship["bridge_room_id"],
+                await ctx.session_mgr.broadcast_to_room(
+                    target_ship["bridge_room_id"],
                     f"  {ansi.BRIGHT_YELLOW}[SENSORS]{ansi.RESET} "
                     f"Incoming fire from {ship['name']} -- missed!")
-        # Space HUD: update both ships' crews after combat exchange
+
+    async def _apply_hull_damage(self, ctx, ship, target_ship,
+                                 target_template, pools, result):
+        """Write hull damage + system hits to DB. Handle traffic-ship kills:
+        bounty award, salvage wreck spawn, achievement."""
+        if result.hull_damage <= 0:
+            return
+        new_dmg = target_ship.get("hull_damage", 0) + result.hull_damage
+        updates = {"hull_damage": new_dmg}
+        if result.systems_hit:
+            systems = _get_systems(target_ship)
+            for s in result.systems_hit:
+                systems[s] = False
+            updates["systems"] = json.dumps(systems)
+        await ctx.db.update_ship(target_ship["id"], **updates)
+
+        # Kill detection — use effective hull
+        eff_hull_str = pools["target_eff"].get("hull", target_template.hull)
+        try:
+            hull_dice = int(eff_hull_str.split("D")[0]) if "D" in eff_hull_str else 3
+        except Exception:
+            hull_dice = 3
+        destroyed_threshold = hull_dice * 6
+        if new_dmg < destroyed_threshold:
+            return
+
+        traffic_mgr = get_traffic_manager()
+        ts = traffic_mgr.get_ship(target_ship["id"])
+        if ts is None:
+            return
+
+        awarded = await traffic_mgr.handle_traffic_ship_destroyed(
+            target_ship["id"], ctx.session.character,
+            ctx.db, ctx.session_mgr,
+        )
+        if awarded:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_GREEN}[BOUNTY]{ansi.RESET} "
+                f"Pirate destroyed! You recover {awarded:,} credits from the wreckage."
+            )
+        # Salvageable wreck anomaly
+        try:
+            from engine.space_anomalies import add_wreck_anomaly
+            wreck_zone = _get_systems(ship).get("current_zone", "")
+            if wreck_zone:
+                add_wreck_anomaly(wreck_zone,
+                                  target_ship.get("name", "Unknown Vessel"))
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_CYAN}[SALVAGE]{ansi.RESET} "
+                    f"Wreckage detected. Type 'salvage' to recover components (2 min window)."
+                )
+        except Exception:
+            log.warning("_apply_hull_damage: salvage spawn failed",
+                        exc_info=True)
+        # Achievement: ship_destroyed
+        # FIX: previous version referenced undefined `char` — use session.character
+        try:
+            from engine.achievements import on_ship_destroyed
+            await on_ship_destroyed(
+                ctx.db, ctx.session.character["id"], session=ctx.session)
+        except Exception as _e:
+            log.debug(
+                "silent except in _apply_hull_damage (on_ship_destroyed): %s",
+                _e, exc_info=True)
+
+    async def _apply_ion_effect(self, ctx, target_ship, target_template,
+                                pools, result):
+        """Apply ion-weapon effect: controls_dead, ion_penalty stacking,
+        controls_frozen threshold check."""
+        if not result.ion_disabled or result.ion_disabled == "":
+            return
+        t_systems = _get_systems(target_ship)
+        if result.ion_disabled == "dead":
+            t_systems["controls_dead"] = True
+            t_systems["ion_penalty"] = 99
+        else:
+            try:
+                ion_count = int(result.ion_disabled)
+            except ValueError:
+                ion_count = 1
+            old_penalty = t_systems.get("ion_penalty", 0)
+            t_systems["ion_penalty"] = old_penalty + ion_count
+            eff_maneuver_str = pools["target_eff"].get(
+                "maneuverability", target_template.maneuverability)
+            maneuver_dice = DicePool.parse(eff_maneuver_str).dice
+            if (t_systems["ion_penalty"] >= maneuver_dice
+                    and maneuver_dice > 0):
+                t_systems["controls_frozen"] = True
+        await ctx.db.update_ship(target_ship["id"],
+                                 systems=json.dumps(t_systems))
+
+    async def _broadcast_space_hud(self, ctx, ship, target_ship):
+        """Refresh space HUD for both ships' crews after an exchange."""
         try:
             await broadcast_space_state(ship, ctx.db, ctx.session_mgr)
         except Exception:
-            log.warning("execute: unhandled exception", exc_info=True)
-            pass
+            log.warning("_broadcast_space_hud: attacker ship update failed",
+                        exc_info=True)
         if target_ship.get("bridge_room_id"):
             try:
-                await broadcast_space_state(target_ship, ctx.db, ctx.session_mgr)
+                await broadcast_space_state(target_ship, ctx.db,
+                                            ctx.session_mgr)
             except Exception:
-                log.warning("execute: unhandled exception", exc_info=True)
-                pass
+                log.warning("_broadcast_space_hud: target ship update failed",
+                            exc_info=True)
 
 
 class LockOnCommand(BaseCommand):
@@ -3004,100 +3151,130 @@ class CourseCommand(BaseCommand):
     usage = "course [<zone name> | cancel]"
 
     async def execute(self, ctx):
-        from engine.npc_space_traffic import ZONES, ZoneType
-        from engine.character import Character, SkillRegistry
-        from engine.skill_checks import perform_skill_check
+        """Orchestrator: validate → dispatch cancel/show/plot-course."""
+        ship, systems, zone, arg = await self._validate_helm(ctx)
+        if ship is None:
+            return
+
+        if arg == "cancel":
+            await self._cancel_course(ctx, ship, systems)
+            return
+
+        if not arg:
+            await self._show_zone_status(ctx, systems, zone)
+            return
+
+        if systems.get("sublight_transit"):
+            await ctx.session.send_line(
+                "  Already in transit. Use 'course cancel' to abort.")
+            return
+
+        current_zone_id = systems.get("current_zone", "")
+        if not zone:
+            await ctx.session.send_line(
+                f"  Navigation error — unknown zone '{current_zone_id}'.")
+            return
+
+        dest_zone = self._match_destination(zone, arg)
+        if not dest_zone:
+            await ctx.session.send_line(
+                f"  '{ctx.args}' is not an adjacent zone. "
+                f"Type 'course' to see options.")
+            return
+
+        result, difficulty = self._pilot_check(ctx, dest_zone, systems)
+        blocked = await self._announce_pilot_result(
+            ctx, ship, result, difficulty)
+        if blocked:
+            return
+
+        await self._set_transit(ctx, ship, systems, dest_zone, result, difficulty)
+
+    # ── Helpers ────────────────────────────────────────────────────────────
+
+    async def _validate_helm(self, ctx):
+        """Check ship, pilot seat, hyperspace, ion — return (ship, systems, zone, arg) or (None,)*4."""
+        from engine.npc_space_traffic import ZONES
 
         ship = await _get_ship_for_player(ctx)
         if not ship:
-            await ctx.session.send_line("  You\'re not aboard a ship.")
-            return
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return None, None, None, None
         if ship["docked_at"]:
-            await ctx.session.send_line("  You\'re docked. Launch first.")
-            return
+            await ctx.session.send_line("  You're docked. Launch first.")
+            return None, None, None, None
         crew = _get_crew(ship)
         if crew.get("pilot") != ctx.session.character["id"]:
             await ctx.session.send_line("  Only the pilot can plot a course.")
-            return
+            return None, None, None, None
 
         systems = _get_systems(ship)
-
         if systems.get("in_hyperspace"):
             await ctx.session.send_line(
                 "  Already in hyperspace. Cannot plot sublight course.")
-            return
-
+            return None, None, None, None
         if systems.get("controls_frozen"):
             await ctx.session.send_line(
                 f"  {ansi.BRIGHT_RED}[ION]{ansi.RESET} Controls are ionized — "
                 f"helm is frozen!")
-            return
+            return None, None, None, None
 
         current_zone_id = systems.get("current_zone", "")
         zone = ZONES.get(current_zone_id)
         arg = (ctx.args or "").strip().lower()
+        return ship, systems, zone, arg
 
-        # ── cancel ───────────────────────────────────────────────────────────
-        if arg == "cancel":
-            if not systems.get("sublight_transit"):
-                await ctx.session.send_line("  No course plotted.")
-                return
-            dest_id = systems.pop("sublight_dest", "unknown")
-            systems.pop("sublight_ticks_remaining", None)
-            systems["sublight_transit"] = False
-            await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
-            dest_z = ZONES.get(dest_id)
-            dest_name = dest_z.name if dest_z else dest_id.replace("_", " ").title()
-            await ctx.session_mgr.broadcast_to_room(
-                ship["bridge_room_id"],
-                f"  {ansi.BRIGHT_YELLOW}[HELM]{ansi.RESET} "
-                f"Course to {dest_name} cancelled."
-            )
+    async def _cancel_course(self, ctx, ship, systems):
+        """Cancel current sublight transit."""
+        from engine.npc_space_traffic import ZONES
+
+        if not systems.get("sublight_transit"):
+            await ctx.session.send_line("  No course plotted.")
             return
+        dest_id = systems.pop("sublight_dest", "unknown")
+        systems.pop("sublight_ticks_remaining", None)
+        systems["sublight_transit"] = False
+        await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
+        dest_z = ZONES.get(dest_id)
+        dest_name = dest_z.name if dest_z else dest_id.replace("_", " ").title()
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ansi.BRIGHT_YELLOW}[HELM]{ansi.RESET} "
+            f"Course to {dest_name} cancelled."
+        )
 
-        # ── no arg: show zone status ──────────────────────────────────────────
-        if not arg:
-            if not zone:
-                await ctx.session.send_line(
-                    f"  Current position: {current_zone_id or 'unknown'}")
-                return
-            await ctx.session.send_line(
-                f"  {ansi.BOLD}Current Zone:{ansi.RESET} "
-                f"{zone.name} [{zone.type.value}]"
-            )
-            if systems.get("sublight_transit"):
-                dest_id = systems.get("sublight_dest", "")
-                ticks = systems.get("sublight_ticks_remaining", 0)
-                dest_z = ZONES.get(dest_id)
-                dname = dest_z.name if dest_z else dest_id.replace("_", " ").title()
-                await ctx.session.send_line(
-                    f"  {ansi.BRIGHT_CYAN}In transit to:{ansi.RESET} "
-                    f"{dname} (~{ticks * 10}s remaining)"
-                )
-            await ctx.session.send_line(
-                f"  {ansi.BOLD}Adjacent zones:{ansi.RESET}"
-            )
-            for adj_id in (zone.adjacent or []):
-                adj = ZONES.get(adj_id)
-                if adj:
-                    await ctx.session.send_line(
-                        f"    {adj.name} [{adj.type.value}]  — course {adj.id}"
-                    )
-            return
+    async def _show_zone_status(self, ctx, systems, zone):
+        """Display current zone and adjacent zones."""
+        from engine.npc_space_traffic import ZONES
 
-        # ── already in sublight transit ───────────────────────────────────────
-        if systems.get("sublight_transit"):
-            await ctx.session.send_line(
-                "  Already in transit. Use \'course cancel\' to abort.")
-            return
-
-        # ── match destination ─────────────────────────────────────────────────
         if not zone:
+            current_zone_id = systems.get("current_zone", "")
             await ctx.session.send_line(
-                f"  Navigation error — unknown zone \'{current_zone_id}\'.")
+                f"  Current position: {current_zone_id or 'unknown'}")
             return
+        await ctx.session.send_line(
+            f"  {ansi.BOLD}Current Zone:{ansi.RESET} "
+            f"{zone.name} [{zone.type.value}]")
+        if systems.get("sublight_transit"):
+            dest_id = systems.get("sublight_dest", "")
+            ticks = systems.get("sublight_ticks_remaining", 0)
+            dest_z = ZONES.get(dest_id)
+            dname = dest_z.name if dest_z else dest_id.replace("_", " ").title()
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_CYAN}In transit to:{ansi.RESET} "
+                f"{dname} (~{ticks * 10}s remaining)")
+        await ctx.session.send_line(
+            f"  {ansi.BOLD}Adjacent zones:{ansi.RESET}")
+        for adj_id in (zone.adjacent or []):
+            adj = ZONES.get(adj_id)
+            if adj:
+                await ctx.session.send_line(
+                    f"    {adj.name} [{adj.type.value}]  — course {adj.id}")
 
-        dest_id = None
+    def _match_destination(self, zone, arg):
+        """Match user input to an adjacent zone. Returns zone object or None."""
+        from engine.npc_space_traffic import ZONES
+
         for adj_id in (zone.adjacent or []):
             adj_zone = ZONES.get(adj_id)
             if not adj_zone:
@@ -3105,24 +3282,17 @@ class CourseCommand(BaseCommand):
             if (arg == adj_id
                     or arg in adj_id.replace("_", " ")
                     or arg in adj_zone.name.lower()):
-                dest_id = adj_id
-                break
+                return adj_zone
+        return None
 
-        if not dest_id:
-            await ctx.session.send_line(
-                f"  \'{ctx.args}\' is not an adjacent zone. "
-                f"Type \'course\' to see options."
-            )
-            return
+    def _pilot_check(self, ctx, dest_zone, systems):
+        """Run piloting skill check. Returns (result, difficulty)."""
+        from engine.npc_space_traffic import ZoneType
+        from engine.skill_checks import perform_skill_check
 
-        dest_zone = ZONES[dest_id]
-
-        # ── Hazard warning on entry ───────────────────────────────────────────
         _entry_hazards = dest_zone.hazards or {}
-        _asteroid_density = _entry_hazards.get("asteroid_density", "")
         _nav_mod = _entry_hazards.get("nav_modifier", 0)
 
-        # ── Piloting check ────────────────────────────────────────────────────
         diff_map = {
             ZoneType.DOCK: 12,
             ZoneType.ORBIT: 8,
@@ -3130,43 +3300,43 @@ class CourseCommand(BaseCommand):
             ZoneType.HYPERSPACE_LANE: 5,
         }
         difficulty = diff_map.get(dest_zone.type, 8)
-        # Zone hazard raises nav difficulty
         if _nav_mod:
             difficulty += _nav_mod
         ion_penalty = systems.get("ion_penalty", 0)
         if ion_penalty:
             difficulty += ion_penalty
 
-        char = ctx.session.character
         result = None
         try:
-            char_obj = Character.from_db_dict(char)
-            sr = SkillRegistry()
-            sr.load_file("data/skills.yaml")
-            result = perform_skill_check(char, "starfighter piloting", difficulty, sr)
+            result = perform_skill_check(
+                ctx.session.character, "starfighter piloting", difficulty)
         except Exception:
-            log.warning("execute: unhandled exception", exc_info=True)
-            pass
+            log.warning("_pilot_check: skill check failed", exc_info=True)
 
+        return result, difficulty
+
+    async def _announce_pilot_result(self, ctx, ship, result, difficulty):
+        """Broadcast fumble/failure. Returns True if course is blocked."""
         if result is not None and result.fumble:
             await ctx.session_mgr.broadcast_to_room(
                 ship["bridge_room_id"],
                 f"  {ansi.BRIGHT_RED}[HELM]{ansi.RESET} "
                 f"Piloting fumble! (Roll: {result.roll} vs {difficulty}) "
-                f"Helm locks up — course aborted."
-            )
-            return
-
+                f"Helm locks up — course aborted.")
+            return True
         if result is not None and not result.success:
             await ctx.session_mgr.broadcast_to_room(
                 ship["bridge_room_id"],
                 f"  {ansi.BRIGHT_YELLOW}[HELM]{ansi.RESET} "
                 f"Piloting check failed. (Roll: {result.roll} vs {difficulty}) "
-                f"Cannot plot safe transit. Try again."
-            )
-            return
+                f"Cannot plot safe transit. Try again.")
+            return True
+        return False
 
-        # ── Set transit state ─────────────────────────────────────────────────
+    async def _set_transit(self, ctx, ship, systems, dest_zone, result, difficulty):
+        """Commit transit state and broadcast course confirmation + hazard warnings."""
+        from engine.npc_space_traffic import ZoneType
+
         ticks_map = {
             ZoneType.DOCK: 3,
             ZoneType.ORBIT: 2,
@@ -3178,31 +3348,31 @@ class CourseCommand(BaseCommand):
             transit_ticks = max(1, transit_ticks - 1)
 
         systems["sublight_transit"] = True
-        systems["sublight_dest"] = dest_id
+        systems["sublight_dest"] = dest_zone.id
         systems["sublight_ticks_remaining"] = transit_ticks
         await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
 
         roll_str = f"Roll: {result.roll} vs {difficulty}" if result else "auto"
         crit_note = " (critical)" if result and result.critical_success else ""
-        eta = transit_ticks  # 1 tick = 1 second
 
+        _entry_hazards = dest_zone.hazards or {}
+        _asteroid_density = _entry_hazards.get("asteroid_density", "")
         hazard_warn = ""
         if _asteroid_density == "heavy":
             hazard_warn = (
                 f"\n  {ansi.BRIGHT_RED}[HAZARD]{ansi.RESET} "
                 f"WARNING: Heavy asteroid field ahead. "
-                f"Collision risk — transit through quickly."
-            )
+                f"Collision risk — transit through quickly.")
         elif _asteroid_density == "light":
             hazard_warn = (
                 f"\n  {ansi.BRIGHT_YELLOW}[HAZARD]{ansi.RESET} "
-                f"Caution: Scattered debris in destination zone."
-            )
+                f"Caution: Scattered debris in destination zone.")
+
         await ctx.session_mgr.broadcast_to_room(
             ship["bridge_room_id"],
             f"  {ansi.BRIGHT_CYAN}[HELM]{ansi.RESET} "
             f"Course laid in for {dest_zone.name}. ({roll_str}{crit_note})\n"
-            f"  Engaging sublight drive. ETA ~{eta}s."
+            f"  Engaging sublight drive. ETA ~{transit_ticks}s."
             f"{hazard_warn}"
         )
 
@@ -3611,8 +3781,8 @@ class HyperspaceCommand(BaseCommand):
         try:
             from engine.spacer_quest import check_spacer_quest
             await check_spacer_quest(ctx.session, ctx.db, "space_action", action="hyperspace")
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in parser/space_commands.py:3634: %s", _e, exc_info=True)
 
 
 class BuyCommand(BaseCommand):
@@ -3678,6 +3848,58 @@ class BuyCommand(BaseCommand):
         )
         price = haggle["adjusted_price"]
 
+        # ── Faction rep discount/markup (Drop 4) ──
+        faction_msg = ""
+        try:
+            import json as _json2
+            # Detect shop NPC's faction
+            npcs2 = await ctx.db.get_npcs_in_room(char["room_id"])
+            vendor_faction = ""
+            for npc2 in npcs2:
+                ai_cfg = npc2.get("ai_config_json", "{}")
+                if isinstance(ai_cfg, str):
+                    ai_cfg = _json2.loads(ai_cfg) if ai_cfg else {}
+                npc_fac = (ai_cfg.get("faction", "") or "").lower()
+                # Map faction names to codes
+                fac_map = {
+                    "imperial": "empire", "empire": "empire",
+                    "galactic empire": "empire",
+                    "rebel": "rebel", "rebel alliance": "rebel",
+                    "hutt": "hutt", "hutt cartel": "hutt",
+                    "bounty hunter": "bh_guild", "bounty hunters": "bh_guild",
+                    "bounty hunters' guild": "bh_guild",
+                }
+                vendor_faction = fac_map.get(npc_fac, "")
+                if vendor_faction:
+                    break
+
+            if vendor_faction:
+                from engine.organizations import get_faction_shop_modifier
+                allowed, mod, tier_name = await get_faction_shop_modifier(
+                    char, vendor_faction, ctx.db)
+                if not allowed:
+                    await ctx.session.send_line(
+                        f"  \033[1;31mThe vendor refuses to serve you.\033[0m "
+                        f"Your standing with this faction is {tier_name}. "
+                        f"Improve your reputation before shopping here."
+                    )
+                    return
+                if mod != 0.0:
+                    faction_adj = int(price * mod)
+                    price = max(1, price + faction_adj)
+                    if mod < 0:
+                        faction_msg = (
+                            f"\n  \033[2m[{tier_name} standing: "
+                            f"{abs(int(mod*100))}% faction discount]\033[0m"
+                        )
+                    else:
+                        faction_msg = (
+                            f"\n  \033[0;31m[{tier_name} standing: "
+                            f"+{int(mod*100)}% price markup]\033[0m"
+                        )
+        except Exception:
+            log.warning("execute: faction shop modifier failed", exc_info=True)
+
         current_credits = char.get("credits", 1000)
         if current_credits < price:
             await ctx.session.send_line(
@@ -3705,6 +3927,8 @@ class BuyCommand(BaseCommand):
                 f"  Purchased and equipped {weapon.name} for {price:,} credits. "
                 f"({new_credits:,} remaining)")
         )
+        if faction_msg:
+            await ctx.session.send_line(faction_msg)
         await ctx.session.send_line(f"  Condition: {item.condition_bar}")
 
 
@@ -5067,6 +5291,11 @@ async def _handle_buy_cargo(ctx) -> None:
 
     char["credits"] = current_credits - total_price
     await ctx.db.save_character(char["id"], credits=char["credits"])
+    try:
+        await ctx.db.log_credit(char["id"], -total_price, "trade_goods",
+                                 char["credits"])
+    except Exception as _e:
+        log.debug("silent except in parser/space_commands.py:5147: %s", _e, exc_info=True)
 
     # Drain supply pool AFTER commit so a DB failure doesn't burn
     # supply. (Review fix v1)

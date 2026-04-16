@@ -20,8 +20,11 @@ Design (from handoff):
 import json
 import time
 import random
+import logging
 from parser.commands import BaseCommand, CommandContext
 from server import ansi
+
+log = logging.getLogger(__name__)
 
 # Cooldown durations (seconds)
 _SUCCESS_COOLDOWN = 600    # 10 minutes after success

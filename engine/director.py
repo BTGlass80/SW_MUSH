@@ -5,6 +5,14 @@ Director AI — macro-level storytelling engine.
 Manages the faction influence model, compiles world-state digests,
 computes zone alert levels, and orchestrates the Faction Turn cycle.
 
+v31 additions (Reputation Drop 6 + Era Progression)
+====================================================
+- compile_digest() includes player_faction_standings for online PCs
+- System prompt updated with FACTION STANDINGS guidance
+- Era-progression milestone system: ERA_MILESTONES, _check_era_milestones()
+  Tracks average faction influence; fires one-time events at thresholds
+  (imperial_grip, martial_law, underworld_rising, rebel_uprising, etc.)
+
 This file contains all LOCAL logic (no API calls). The Claude API
 integration is in ai/claude_provider.py (Drop 4).
 
@@ -61,6 +69,40 @@ MAX_INFLUENCE = 100
 
 # Max delta per Director adjustment
 MAX_DELTA = 5
+
+
+# ── Era Progression (Tier 3 Feature #15) ─────────────────────────────────
+# Tracks cumulative faction dominance across all zones. When average
+# influence crosses a threshold, the Director fires a one-time era event
+# that shifts the narrative arc of the game world.
+#
+# Each era milestone fires once (stored in DB director_log with
+# event_type='era_milestone'). Checked after every Faction Turn.
+
+ERA_MILESTONES = [
+    # (faction, avg_threshold, era_key, headline, event_type, duration_min)
+    ("imperial", 70, "imperial_grip",
+     "The Empire tightens its grip on Mos Eisley. Stormtrooper patrols double.",
+     "imperial_crackdown", 120),
+    ("imperial", 85, "imperial_martial_law",
+     "Martial law declared! Imperial forces seize all docking bays.",
+     "imperial_crackdown", 240),
+    ("criminal", 70, "underworld_rising",
+     "The criminal underworld surges. Hutts openly challenge Imperial authority.",
+     None, 0),
+    ("criminal", 85, "hutt_takeover",
+     "Jabba's enforcers patrol the streets. The Empire has lost control.",
+     None, 0),
+    ("rebel", 35, "rebel_whispers",
+     "Rebel propaganda appears on cantina walls. Something is stirring.",
+     None, 0),
+    ("rebel", 50, "rebel_uprising",
+     "Open revolt! Rebel cells coordinate strikes across the spaceport district.",
+     None, 0),
+    ("imperial", 30, "imperial_retreat",  # avg below 30 = milestone
+     "Imperial forces withdraw to the Government Quarter. The streets belong to no one.",
+     None, 0),
+]
 
 
 # ── Alert Levels ──
@@ -226,6 +268,8 @@ class DirectorAI:
         self._tick_counter = 0
         self._last_turn_time = 0.0
         self._turn_interval = FACTION_TURN_INTERVAL
+        # Era progression: set of era_key strings already fired
+        self._fired_eras: set[str] = set()
 
     @property
     def enabled(self) -> bool:
@@ -274,10 +318,28 @@ class DirectorAI:
             "[director] Loaded %d zones from DB", len(self._zones)
         )
 
+        # Load previously fired era milestones from director_log
+        try:
+            rows = await db.fetchall(
+                "SELECT details FROM director_log WHERE event_type = 'era_milestone'"
+            )
+            for r in rows:
+                try:
+                    d = json.loads(r["details"]) if r["details"] else {}
+                    era_key = d.get("era_key", "")
+                    if era_key:
+                        self._fired_eras.add(era_key)
+                except Exception as _e:
+                    log.debug("silent except in engine/director.py:332: %s", _e, exc_info=True)
+            if self._fired_eras:
+                log.info("[director] Loaded %d fired era milestones", len(self._fired_eras))
+        except Exception:
+            log.debug("[director] Era milestone load failed", exc_info=True)
+
     async def _get_influence(self, db, zone_id: str, faction: str) -> Optional[int]:
         """Read a single influence score from DB."""
         try:
-            rows = await db._db.execute_fetchall(
+            rows = await db.fetchall(
                 "SELECT score FROM zone_influence WHERE zone_id = ? AND faction = ?",
                 (zone_id, faction),
             )
@@ -290,7 +352,7 @@ class DirectorAI:
     async def _set_influence(self, db, zone_id: str, faction: str, score: int):
         """Write a single influence score to DB (upsert)."""
         try:
-            await db._db.execute(
+            await db.execute(
                 """INSERT INTO zone_influence (zone_id, faction, score, last_updated)
                    VALUES (?, ?, ?, datetime('now'))
                    ON CONFLICT(zone_id, faction) DO UPDATE SET
@@ -298,7 +360,7 @@ class DirectorAI:
                      last_updated = excluded.last_updated""",
                 (zone_id, faction, score),
             )
-            await db._db.commit()
+            await db.commit()
         except Exception as e:
             log.debug("[director] Failed to write influence: %s", e)
 
@@ -433,6 +495,42 @@ class DirectorAI:
         except Exception as _narr_exc:
             log.debug("[director] PC digest skipped: %s", _narr_exc)
 
+        # ── Online player faction standings (Drop 6) ─────────────────────
+        # Provides player reputation tiers so the Director can target
+        # faction-specific events at players with appropriate standing.
+        try:
+            if db is not None:
+                from engine.organizations import get_all_faction_reps
+                player_standings = []
+                for sess in session_mgr.all:
+                    if not sess.is_in_game:
+                        continue
+                    char = getattr(sess, "character", None)
+                    if not char:
+                        continue
+                    reps = await get_all_faction_reps(char, db)
+                    if reps:
+                        # Compact format: only include factions with non-zero rep
+                        standing_str_parts = []
+                        for fc, info in reps.items():
+                            if info["rep"] != 0 or info["is_member"]:
+                                label = info["tier_name"]
+                                if info["rank"]:
+                                    label += f" ({info['rank']})"
+                                standing_str_parts.append(
+                                    f"{fc.replace('_', ' ').title()}: {label}"
+                                )
+                        if standing_str_parts:
+                            player_standings.append({
+                                "char_id": char.get("id"),
+                                "name": char.get("name", "unknown"),
+                                "standings": ", ".join(standing_str_parts),
+                            })
+                if player_standings:
+                    digest["player_faction_standings"] = player_standings
+        except Exception as _rep_exc:
+            log.debug("[director] player_faction_standings skipped: %s", _rep_exc)
+
         # ── Faction status for Director-managed orgs ───────────────────────
         # Provides member counts, pending promotions, treasury, violations
         # so the Director can issue meaningful faction_orders.
@@ -440,7 +538,7 @@ class DirectorAI:
             if db is not None:
                 faction_status = {}
                 # Only director-managed factions
-                rows = await db._db.execute_fetchall(
+                rows = await db.fetchall(
                     "SELECT id, code, name, treasury FROM organizations "
                     "WHERE org_type = 'faction' AND director_managed = 1"
                 )
@@ -455,7 +553,7 @@ class DirectorAI:
                         "%Y-%m-%d %H:%M:%S",
                         _t.gmtime(_t.time() - 86400),
                     )
-                    active_rows = await db._db.execute_fetchall(
+                    active_rows = await db.fetchall(
                         """SELECT DISTINCT char_id FROM pc_action_log
                            WHERE logged_at > ?
                              AND char_id IN (
@@ -479,7 +577,7 @@ class DirectorAI:
                             pending_promotions.append(m["char_id"])
 
                     # Recent violations: probation/expelled in faction_log
-                    viol_rows = await db._db.execute_fetchall(
+                    viol_rows = await db.fetchall(
                         """SELECT m.char_id, c.name
                            FROM org_memberships m
                            JOIN characters c ON c.id = m.char_id
@@ -489,7 +587,7 @@ class DirectorAI:
                     violations = [r["name"] for r in viol_rows]
 
                     # Open requisitions from faction_log
-                    req_rows = await db._db.execute_fetchall(
+                    req_rows = await db.fetchall(
                         """SELECT c.name || ': ' || fl.details AS req
                            FROM faction_log fl
                            JOIN characters c ON c.id = fl.char_id
@@ -501,7 +599,7 @@ class DirectorAI:
                     open_requisitions = [r["req"][:60] for r in req_rows]
 
                     # Unassigned faction missions
-                    unassigned = await db._db.execute_fetchall(
+                    unassigned = await db.fetchall(
                         "SELECT COUNT(*) AS cnt FROM missions "
                         "WHERE faction_id = ? AND status = 'available'",
                         (org_code,),
@@ -531,7 +629,7 @@ class DirectorAI:
                         input_tokens: int = 0, output_tokens: int = 0):
         """Write an entry to the director_log table."""
         try:
-            await db._db.execute(
+            await db.execute(
                 """INSERT INTO director_log
                    (event_type, summary, details_json,
                     token_cost_input, token_cost_output)
@@ -544,7 +642,7 @@ class DirectorAI:
                     output_tokens,
                 ),
             )
-            await db._db.commit()
+            await db.commit()
         except Exception as e:
             log.debug("[director] Failed to write log: %s", e)
 
@@ -606,6 +704,12 @@ class DirectorAI:
             "personalised story hooks for specific players based on their short_record.\n"
             "Hooks must be brief (1-2 sentences), in-universe, and create opportunity\n"
             "not obligation. Deliver via comlink_message unless NPC context warrants whisper.\n\n"
+            "FACTION STANDINGS:\n"
+            "If the digest includes 'player_faction_standings', use them to target\n"
+            "hooks and events appropriately. A player who is Revered with the Rebel\n"
+            "Alliance should receive Rebel-themed opportunities. A player who is\n"
+            "Hostile with the Empire might attract Imperial attention or bounty hunters.\n"
+            "Never target faction content at players with Unknown/Wary standing.\n\n"
             "Respond with ONLY a JSON object in this exact format:\n"
             "{\n"
             "  \"influence_adjustments\": [\n"
@@ -648,6 +752,34 @@ class DirectorAI:
 
         # Compile digest
         digest = await self.compile_digest(session_mgr, db=db)
+
+        # Inject zone narrative tones into the digest
+        try:
+            from engine.zone_tones import get_all_tones
+            _tones = get_all_tones()
+            if _tones:
+                digest["zone_narrative_tones"] = _tones
+        except Exception:
+            log.debug("[director] Zone tone injection failed", exc_info=True)
+
+        # Inject relevant world lore into the digest
+        try:
+            from engine.world_lore import get_relevant_lore, format_lore_block
+            # Build context from zone names + faction names + recent events
+            _lore_ctx_parts = list(digest.get("zone_states", {}).keys())
+            for _zs_val in digest.get("zone_states", {}).values():
+                if isinstance(_zs_val, dict):
+                    _lore_ctx_parts.extend(str(v) for v in _zs_val.values())
+            _lore_ctx = " ".join(_lore_ctx_parts)
+            _lore = await get_relevant_lore(db, _lore_ctx, max_entries=5, max_chars=800)
+            if _lore:
+                digest["world_lore"] = [
+                    {"title": e["title"], "category": e["category"], "content": e["content"]}
+                    for e in _lore
+                ]
+        except Exception:
+            log.debug("[director] World lore injection failed", exc_info=True)
+
         user_message = _json.dumps(digest, ensure_ascii=False)
 
         # Call API
@@ -732,6 +864,34 @@ class DirectorAI:
                             "[director] Narrative event activated: %s (zones: %s)",
                             evt_type, zones,
                         )
+                        # Apply room states for visual feedback
+                        _EVENT_TO_STATE = {
+                            "imperial_crackdown": "imperial_crackdown",
+                            "rebel_propaganda": "rebel_propaganda",
+                            "trade_boom": "trade_boom",
+                            "bounty_surge": "bounty_surge",
+                            "sandstorm": "sandstorm",
+                            "pirate_surge": "pirate_alert",
+                            "merchant_arrival": "merchant_arrival",
+                        }
+                        _state_key = _EVENT_TO_STATE.get(evt_type)
+                        if _state_key and zones:
+                            try:
+                                from engine.room_states import set_zone_state
+                                for _zn in zones:
+                                    # Resolve zone name → zone_id
+                                    _zrows = await db.fetchall(
+                                        "SELECT id FROM zones WHERE LOWER(name) LIKE ?",
+                                        (f"%{_zn.lower()}%",),
+                                    )
+                                    for _zr in _zrows:
+                                        await set_zone_state(
+                                            db, _zr["id"], _state_key,
+                                            set_by="director",
+                                        )
+                            except Exception:
+                                log.debug("[director] Room state application failed",
+                                          exc_info=True)
                 except Exception as exc:
                     log.warning("[director] Failed to activate narrative event: %s", exc)
             else:
@@ -910,7 +1070,7 @@ class DirectorAI:
             new_rank = order.get("new_rank")
             if not char_id:
                 return
-            rows = await db._db.execute_fetchall(
+            rows = await db.fetchall(
                 "SELECT id, name FROM characters WHERE id = ?", (int(char_id),)
             )
             if not rows:
@@ -1126,7 +1286,7 @@ class DirectorAI:
     async def get_recent_log(self, db, limit: int = 10) -> list[dict]:
         """Fetch recent director_log entries (for news command)."""
         try:
-            rows = await db._db.execute_fetchall(
+            rows = await db.fetchall(
                 """SELECT timestamp, event_type, summary
                    FROM director_log
                    ORDER BY id DESC LIMIT ?""",
@@ -1140,7 +1300,7 @@ class DirectorAI:
     async def get_budget_stats(self, db) -> dict:
         """Get current month's API token usage from director_log."""
         try:
-            rows = await db._db.execute_fetchall(
+            rows = await db.fetchall(
                 """SELECT
                      COALESCE(SUM(token_cost_input), 0) as total_input,
                      COALESCE(SUM(token_cost_output), 0) as total_output,
@@ -1163,6 +1323,95 @@ class DirectorAI:
                 "estimated_cost_usd": 0.0}
 
     # ── Faction Turn ──
+
+    # ── Era Progression (Tier 3 Feature #15) ─────────────────────────────
+
+    def _compute_faction_averages(self) -> dict[str, float]:
+        """Compute average influence across all zones per faction."""
+        if not self._zones:
+            return {}
+        totals: dict[str, float] = {}
+        for faction in VALID_FACTIONS:
+            total = sum(zs.get_faction(faction) for zs in self._zones.values())
+            totals[faction] = total / len(self._zones)
+        return totals
+
+    async def _check_era_milestones(self, db, session_mgr):
+        """
+        Check if any era-progression milestones have been crossed.
+        Fires once per milestone (tracked in _fired_eras + director_log).
+        Called after every Faction Turn.
+        """
+        avgs = self._compute_faction_averages()
+        if not avgs:
+            return
+
+        for faction, threshold, era_key, headline, evt_type, duration in ERA_MILESTONES:
+            if era_key in self._fired_eras:
+                continue  # Already fired
+
+            avg = avgs.get(faction, 0)
+
+            # Special case: "imperial_retreat" fires when avg is BELOW threshold
+            if era_key == "imperial_retreat":
+                if avg >= threshold:
+                    continue  # Not below threshold yet
+            else:
+                if avg < threshold:
+                    continue  # Not above threshold yet
+
+            # Milestone crossed!
+            self._fired_eras.add(era_key)
+            log.info("[director] Era milestone fired: %s (avg %.1f)", era_key, avg)
+
+            # Log to director_log
+            await self.log_event(
+                db,
+                event_type="era_milestone",
+                summary=headline,
+                details={
+                    "era_key": era_key,
+                    "faction": faction,
+                    "threshold": threshold,
+                    "actual_avg": round(avg, 1),
+                },
+            )
+
+            # Fire a world event if specified
+            if evt_type and duration > 0:
+                try:
+                    from engine.world_events import get_world_event_manager
+                    wem = get_world_event_manager()
+                    await wem.create_event(
+                        db, evt_type,
+                        duration_minutes=duration,
+                        zones_affected=list(VALID_ZONES),
+                        headline=headline,
+                    )
+                except Exception:
+                    log.warning("[director] Era world event creation failed",
+                                exc_info=True)
+
+            # Broadcast to all online players
+            try:
+                era_msg = (
+                    f"\n  \033[1;35m═══ ERA EVENT ═══\033[0m\n"
+                    f"  \033[1;37m{headline}\033[0m\n"
+                    f"  \033[1;35m═════════════════\033[0m\n"
+                )
+                for s in session_mgr.all:
+                    if s.is_in_game:
+                        await s.send_line(era_msg)
+                        # Web client event
+                        try:
+                            await s.send_json("news_event", {
+                                "tag": "era",
+                                "text": headline,
+                            })
+                        except Exception as _e:
+                            log.debug("silent except in engine/director.py:1411: %s", _e, exc_info=True)
+            except Exception:
+                log.warning("[director] Era broadcast failed", exc_info=True)
 
     async def faction_turn(self, db, session_mgr):
         """
@@ -1207,6 +1456,38 @@ class DirectorAI:
             details=await self.compile_digest(session_mgr),
         )
 
+        # Queue idle Ollama rewrite for more atmospheric headline
+        try:
+            _iq = getattr(session_mgr, '_idle_queue', None)
+            if _iq:
+                # Get the event_id we just logged
+                _last = await db.fetchall(
+                    "SELECT id FROM director_log ORDER BY id DESC LIMIT 1"
+                )
+                _eid = _last[0]["id"] if _last else 0
+                if _eid:
+                    # Find dominant zone for tone lookup
+                    _zone_name = ""
+                    _zone_tone = ""
+                    for _zs in self._zones.values():
+                        if _zs.alert_level.value != "normal":
+                            _zone_name = _zone_display(_zs.zone_key)
+                            break
+                    if _zone_name:
+                        try:
+                            from engine.zone_tones import get_zone_tone_by_name
+                            _zone_tone = get_zone_tone_by_name(_zone_name)
+                        except Exception as _e:
+                            log.debug("silent except in engine/director.py:1480: %s", _e, exc_info=True)
+                    _iq.enqueue_event_rewrite(
+                        event_id=_eid, headline=headline,
+                        zone_name=_zone_name or "Mos Eisley",
+                        zone_tone=_zone_tone,
+                        session_mgr=session_mgr,
+                    )
+        except Exception:
+            pass  # Non-critical
+
         # Reset digest for next cycle
         self._digest.reset()
         self._last_turn_time = time.time()
@@ -1218,6 +1499,12 @@ class DirectorAI:
             await self._apply_security_overlays(db, session_mgr)
         except Exception as _sec_exc:
             log.warning("[director] Security overlay update failed: %s", _sec_exc)
+
+        # ── Check era-progression milestones (Tier 3 Feature #15) ────────
+        try:
+            await self._check_era_milestones(db, session_mgr)
+        except Exception as _era_exc:
+            log.warning("[director] Era milestone check failed: %s", _era_exc)
 
         # Broadcast headline to web clients as news_event
         try:

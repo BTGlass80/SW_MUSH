@@ -321,98 +321,21 @@ class CompleteMissionCommand(BaseCommand):
     usage = "complete"
 
     async def execute(self, ctx: CommandContext):
-        char = ctx.session.character
-        char_id = str(char["id"])
-        current_room = char.get("room_id")
-
-        from engine.missions import get_mission_board, MissionStatus
+        """Orchestrator: find mission → route space/ground → reward → hooks."""
+        from engine.missions import get_mission_board, SPACE_MISSION_TYPES
         board = get_mission_board()
 
-        # Find active mission
-        active = None
-        for m in board._missions.values():
-            if m.accepted_by == char_id and m.status == MissionStatus.ACCEPTED:
-                active = m
-                break
-
-        # DB fallback
+        active = await self._find_active_mission(ctx, board)
         if not active:
-            row = await ctx.db.get_active_mission(char_id)
-            if row:
-                try:
-                    from engine.missions import Mission
-                    active = Mission.from_dict(json.loads(row["data"]))
-                    board._missions[active.id] = active
-                except Exception:
-                    log.warning("execute: unhandled exception", exc_info=True)
-                    pass
-
-        if not active:
-            await ctx.session.send_line("  You have no active mission.")
             return
 
-        # Check expiry
-        if active.expires_at and time.time() > active.expires_at:
-            await board.abandon(active.id, ctx.db)
-            await ctx.session.send_line(
-                ansi.error("  Your mission has expired and has been returned to the board."))
-            return
-
-        # ── Space mission routing (Drop 14) ────────────────────────────────
-        from engine.missions import SPACE_MISSION_TYPES
+        # Space missions have their own completion path
         if active.mission_type in SPACE_MISSION_TYPES:
-            space_ok = await _complete_space_mission(ctx, active)
-            if space_ok is False:
-                return
-            partial_escort = (space_ok == "partial")
-            completed = await board.complete(active.id, ctx.db)
-            if not completed:
-                await ctx.session.send_line("  Something went wrong. Try again.")
-                return
-            base_reward = completed.reward
-            if partial_escort:
-                earned = max(50, int(base_reward * 0.25))
-                await ctx.session.send_line(
-                    ansi.success(f"  Escort mission complete — but the freighter was lost."))
-                await ctx.session.send_line(
-                    f"  Partial payment: {earned:,} credits (25%).")
-            else:
-                earned = base_reward
-                await ctx.session.send_line(
-                    ansi.success(f"  Space mission complete: {completed.title}"))
-                await ctx.session.send_line(
-                    f"  {ansi.BOLD}Reward: +{earned:,} credits{ansi.RESET}  "
-                    f"(Balance: {ctx.session.character.get('credits', 0) + earned:,} cr)")
-            old_credits = ctx.session.character.get("credits", 0)
-            ctx.session.character["credits"] = old_credits + earned
-            await ctx.db.save_character(ctx.session.character["id"],
-                                        credits=old_credits + earned)
+            await self._complete_space_branch(ctx, board, active)
             return
 
-        # ── Ground mission location check ─────────────────────────────────────
-        # Check location -- match by room name or room id
-        at_destination = False
-        if active.destination_room_id:
-            at_destination = (str(current_room) == str(active.destination_room_id))
-        else:
-            # Match by room name
-            try:
-                room = await ctx.db.get_room(current_room)
-                if room:
-                    room_name = room.get("name", "")
-                    at_destination = (
-                        active.destination.lower() in room_name.lower()
-                        or room_name.lower() in active.destination.lower()
-                    )
-            except Exception:
-                log.warning("execute: unhandled exception", exc_info=True)
-                pass
-
-        if not at_destination:
-            await ctx.session.send_line(
-                f"  You're not at the destination: {ansi.BOLD}{active.destination}{ansi.RESET}")
-            await ctx.session.send_line(
-                "  Travel there and type 'complete' again.")
+        # Ground mission: verify location
+        if not await self._check_ground_destination(ctx, active):
             return
 
         # Complete and resolve skill check
@@ -422,12 +345,109 @@ class CompleteMissionCommand(BaseCommand):
                 "  Something went wrong completing the mission. Try again.")
             return
 
+        earned = await self._resolve_ground_reward(ctx, completed)
+        await self._finalize_completion(ctx, board, completed, earned)
+
+    # ── Helpers ────────────────────────────────────────────────────────────
+
+    async def _find_active_mission(self, ctx, board):
+        """Find the character's active mission from board or DB. Returns mission or None."""
+        from engine.missions import MissionStatus
+        char = ctx.session.character
+        char_id = str(char["id"])
+
+        active = None
+        for m in board._missions.values():
+            if m.accepted_by == char_id and m.status == MissionStatus.ACCEPTED:
+                active = m
+                break
+
+        if not active:
+            row = await ctx.db.get_active_mission(char_id)
+            if row:
+                try:
+                    from engine.missions import Mission
+                    active = Mission.from_dict(json.loads(row["data"]))
+                    board._missions[active.id] = active
+                except Exception:
+                    log.warning("_find_active_mission: failed to load from DB", exc_info=True)
+
+        if not active:
+            await ctx.session.send_line("  You have no active mission.")
+            return None
+
+        if active.expires_at and time.time() > active.expires_at:
+            await board.abandon(active.id, ctx.db)
+            await ctx.session.send_line(
+                ansi.error("  Your mission has expired and has been returned to the board."))
+            return None
+
+        return active
+
+    async def _complete_space_branch(self, ctx, board, active):
+        """Handle space mission completion: validation, reward, credits, achievements."""
+        space_ok = await _complete_space_mission(ctx, active)
+        if space_ok is False:
+            return
+        partial_escort = (space_ok == "partial")
+        completed = await board.complete(active.id, ctx.db)
+        if not completed:
+            await ctx.session.send_line("  Something went wrong. Try again.")
+            return
+
+        base_reward = completed.reward
+        if partial_escort:
+            earned = max(50, int(base_reward * 0.25))
+            await ctx.session.send_line(
+                ansi.success(f"  Escort mission complete — but the freighter was lost."))
+            await ctx.session.send_line(
+                f"  Partial payment: {earned:,} credits (25%).")
+        else:
+            earned = base_reward
+            await ctx.session.send_line(
+                ansi.success(f"  Space mission complete: {completed.title}"))
+            await ctx.session.send_line(
+                f"  {ansi.BOLD}Reward: +{earned:,} credits{ansi.RESET}  "
+                f"(Balance: {ctx.session.character.get('credits', 0) + earned:,} cr)")
+
+        await self._award_credits(ctx, earned)
+        await self._fire_achievements(ctx, earned)
+
+    async def _check_ground_destination(self, ctx, active):
+        """Check if the player is at the mission destination. Returns True/False."""
+        char = ctx.session.character
+        current_room = char.get("room_id")
+        at_destination = False
+
+        if active.destination_room_id:
+            at_destination = (str(current_room) == str(active.destination_room_id))
+        else:
+            try:
+                room = await ctx.db.get_room(current_room)
+                if room:
+                    room_name = room.get("name", "")
+                    at_destination = (
+                        active.destination.lower() in room_name.lower()
+                        or room_name.lower() in active.destination.lower()
+                    )
+            except Exception:
+                log.warning("_check_ground_destination: room lookup failed", exc_info=True)
+
+        if not at_destination:
+            await ctx.session.send_line(
+                f"  You're not at the destination: {ansi.BOLD}{active.destination}{ansi.RESET}")
+            await ctx.session.send_line(
+                "  Travel there and type 'complete' again.")
+            return False
+        return True
+
+    async def _resolve_ground_reward(self, ctx, completed):
+        """Run skill check and award credits for ground mission. Returns earned amount."""
         from engine.skill_checks import resolve_mission_completion
+        char = ctx.session.character
+
         check = resolve_mission_completion(
-            char,
-            completed.mission_type.value,
-            completed.reward,
-        )
+            char, completed.mission_type.value, completed.reward)
 
         earned = check["credits_earned"]
         old_credits = char.get("credits", 0)
@@ -435,9 +455,15 @@ class CompleteMissionCommand(BaseCommand):
         char["credits"] = new_credits
         await ctx.db.save_character(char["id"], credits=new_credits)
 
+        if earned > 0:
+            try:
+                await ctx.db.log_credit(char["id"], earned, "mission", new_credits)
+            except Exception as _e:
+                log.debug("_resolve_ground_reward credit log: %s", _e, exc_info=True)
+
+        # Display results
         await ctx.session.send_line(
             ansi.success(f"  Mission complete: {completed.title}"))
-        # Skill roll feedback
         result_tag = ""
         if check["critical"]:
             result_tag = f" {ansi.BOLD}[EXCEPTIONAL +20%]{ansi.RESET}"
@@ -456,7 +482,36 @@ class CompleteMissionCommand(BaseCommand):
         await ctx.session.send_line(
             f"  {ansi.DIM}Type 'missions' for your next job.{ansi.RESET}")
 
-        # Immediately replenish the board in the background
+        return earned
+
+    async def _award_credits(self, ctx, earned):
+        """Award credits and log the transaction."""
+        char = ctx.session.character
+        old_credits = char.get("credits", 0)
+        char["credits"] = old_credits + earned
+        await ctx.db.save_character(char["id"], credits=old_credits + earned)
+        try:
+            await ctx.db.log_credit(char["id"], earned, "mission", old_credits + earned)
+        except Exception as _e:
+            log.debug("_award_credits credit log: %s", _e, exc_info=True)
+
+    async def _fire_achievements(self, ctx, earned):
+        """Fire mission completion + credits earned achievements."""
+        try:
+            from engine.achievements import on_mission_complete, on_mission_credits_earned
+            await on_mission_complete(ctx.db, ctx.session.character["id"], session=ctx.session)
+            if earned > 0:
+                await on_mission_credits_earned(
+                    ctx.db, ctx.session.character["id"], earned, session=ctx.session)
+        except Exception as _e:
+            log.debug("_fire_achievements: %s", _e, exc_info=True)
+
+    async def _finalize_completion(self, ctx, board, completed, earned):
+        """Fire achievements, replenish board, log, and run post-complete hooks."""
+        char = ctx.session.character
+        await self._fire_achievements(ctx, earned)
+
+        # Replenish the board
         try:
             rooms = await ctx.db.get_all_rooms() if hasattr(ctx.db, "get_all_rooms") else []
             from engine.missions import generate_mission
@@ -472,53 +527,68 @@ class CompleteMissionCommand(BaseCommand):
             char.get("name"), completed.id, earned,
         )
 
-        # Faction rep: +3 to character's primary faction on mission complete
-        try:
-            from engine.organizations import REP_GAINS
-            faction_id = char.get("faction_id", "independent")
-            if faction_id and faction_id != "independent":
-                await ctx.db.adjust_rep(
-                    char["id"], faction_id, REP_GAINS["complete_faction_mission"]
-                )
-        except Exception:
-            log.exception("[missions] faction rep hook failed")
+        await self._post_complete_hooks(ctx, char, completed, earned)
 
-        # Narrative: log mission completion
+    async def _post_complete_hooks(self, ctx, char, completed, earned):
+        """Post-completion effects: faction rep, narrative, achievements, quests."""
+        # ── Post-completion hooks (all non-critical) ──────────────────
+        # Outer safety net: if anything leaks past the per-hook guards,
+        # catch it here so the player never sees an error after a
+        # successful completion.
         try:
-            from engine.narrative import log_action, ActionType as NT
-            await log_action(ctx.db, char["id"], NT.MISSION_COMPLETE,
-                             f"Completed mission '{completed.title}' for {earned:,} credits",
-                             {"mission_type": completed.mission_type.value, "reward": earned})
+            # Faction rep: +3 to character's primary faction on mission complete
+            try:
+                from engine.organizations import adjust_rep
+                faction_id = char.get("faction_id", "independent")
+                if faction_id and faction_id != "independent":
+                    await adjust_rep(
+                        char, faction_id, ctx.db,
+                        action_key="complete_faction_mission",
+                        reason=f"Mission: {completed.title}",
+                        session=ctx.session,
+                    )
+            except Exception:
+                log.exception("[missions] HOOK-1 faction rep failed")
+
+            # Narrative: log mission completion
+            try:
+                from engine.narrative import log_action, ActionType as NT
+                await log_action(ctx.db, char["id"], NT.MISSION_COMPLETE,
+                                 f"Completed mission '{completed.title}' for {earned:,} credits",
+                                 {"mission_type": completed.mission_type.value, "reward": earned})
+            except Exception:
+                log.exception("[missions] HOOK-2 narrative failed")
+            try:
+                from engine.ships_log import log_event as _mlog
+                await _mlog(ctx.db, char, "missions_complete")
+            except Exception:
+                log.exception("[missions] HOOK-3 ships_log failed")
+            try:
+                from engine.tutorial_v2 import check_profession_chains
+                await check_profession_chains(
+                    ctx.session, ctx.db, "mission_complete",
+                    mission_type=getattr(completed, "mission_type", None),
+                )
+            except Exception:
+                log.exception("[missions] HOOK-4 profession_chains failed")
+            # Territory influence: mission complete in zone
+            try:
+                from engine.territory import on_mission_complete
+                await on_mission_complete(ctx.db, char, char.get("room_id", 0))
+            except Exception:
+                log.exception("[missions] HOOK-5 territory failed")
+            # Spacer quest: mission complete
+            try:
+                from engine.spacer_quest import check_spacer_quest
+                await check_spacer_quest(
+                    ctx.session, ctx.db, "mission",
+                    mission_type=getattr(completed, "mission_type", None),
+                )
+            except Exception:
+                log.exception("[missions] HOOK-6 spacer_quest failed")
         except Exception:
-            log.exception("[missions] narrative hook failed")
-        try:
-            from engine.ships_log import log_event as _mlog
-            await _mlog(ctx.db, char, "missions_complete")
-        except Exception:
-            log.exception("[missions] ships_log hook failed")
-        try:
-            from engine.tutorial_v2 import check_profession_chains
-            await check_profession_chains(
-                ctx.session, ctx.db, "mission_complete",
-                mission_type=getattr(completed, "mission_type", None),
-            )
-        except Exception:
-            log.exception("[missions] profession_chains hook failed")
-        # Territory influence: mission complete in zone
-        try:
-            from engine.territory import on_mission_complete
-            await on_mission_complete(ctx.db, char, char.get("room_id", 0))
-        except Exception:
-            log.exception("[missions] territory hook failed")
-        # Spacer quest: mission complete
-        try:
-            from engine.spacer_quest import check_spacer_quest
-            await check_spacer_quest(
-                ctx.session, ctx.db, "mission",
-                mission_type=getattr(completed, "mission_type", None),
-            )
-        except Exception:
-            log.exception("[missions] spacer_quest hook failed")
+            log.exception("[missions] OUTER post-completion safety net caught")
+
 
 
 class AbandonMissionCommand(BaseCommand):

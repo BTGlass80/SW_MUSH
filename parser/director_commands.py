@@ -262,8 +262,8 @@ class DirectorCommand(BaseCommand):
         if args:
             try:
                 n = max(1, min(20, int(args)))
-            except ValueError:
-                pass
+            except ValueError as _e:
+                log.debug("silent except in parser/director_commands.py:265: %s", _e, exc_info=True)
         try:
             entries = await get_director().get_recent_log(ctx.db, limit=n)
         except Exception as exc:
@@ -359,9 +359,10 @@ class EconomyCommand(BaseCommand):
         "  @economy shops     — active vendor droids, total escrow, top earners\n"
         "  @economy credits   — credit distribution across active characters\n"
         "  @economy zones     — Director zone influence + alert levels\n"
+        "  @economy velocity  — credit faucet/sink flow (1h, 24h, 7d)\n"
         "  @economy           — all of the above"
     )
-    usage = "@economy [shops|credits|zones]"
+    usage = "@economy [shops|credits|zones|velocity]"
 
     async def execute(self, ctx: CommandContext):
         parts = (ctx.args or "").split()
@@ -371,14 +372,15 @@ class EconomyCommand(BaseCommand):
                  "  \033[1;37m@ECONOMY DASHBOARD\033[0m",
                  "\033[1;36m──────────────────────────────────────────\033[0m"]
 
-        show_shops   = sub in ("all", "shops")
-        show_credits = sub in ("all", "credits")
-        show_zones   = sub in ("all", "zones")
+        show_shops    = sub in ("all", "shops")
+        show_credits  = sub in ("all", "credits")
+        show_zones    = sub in ("all", "zones")
+        show_velocity = sub in ("all", "velocity")
 
         # ── Shop stats ────────────────────────────────────────────────────
         if show_shops:
             try:
-                rows = await ctx.db._db.execute_fetchall(
+                rows = await ctx.db.fetchall(
                     "SELECT * FROM objects WHERE type = 'vendor_droid'"
                 )
                 from engine.vendor_droids import _load_data
@@ -411,7 +413,7 @@ class EconomyCommand(BaseCommand):
                 import time as _t
                 cutoff = _t.time() - 86400
                 try:
-                    sale_rows = await ctx.db._db.execute_fetchall(
+                    sale_rows = await ctx.db.fetchall(
                         "SELECT SUM(total_price) as vol, COUNT(*) as cnt "
                         "FROM shop_transactions WHERE created_at > ?", (cutoff,)
                     )
@@ -431,7 +433,7 @@ class EconomyCommand(BaseCommand):
         if show_credits:
             try:
                 lines.append("  \033[1;33mCREDITS\033[0m")
-                rows = await ctx.db._db.execute_fetchall(
+                rows = await ctx.db.fetchall(
                     "SELECT credits FROM characters WHERE is_active = 1 ORDER BY credits DESC"
                 )
                 if rows:
@@ -477,10 +479,444 @@ class EconomyCommand(BaseCommand):
             except Exception as e:
                 lines.append(f"  Zone stats error: {e}")
 
+        # ── Credit velocity (economy hardening v23) ─────────────────────
+        if show_velocity:
+            try:
+                lines.append("  \033[1;33mCREDIT VELOCITY\033[0m")
+                for label, secs in [("1 hour", 3600), ("24 hours", 86400), ("7 days", 604800)]:
+                    v = await ctx.db.get_credit_velocity(secs)
+                    lines.append(f"  \033[1m{label}:\033[0m  "
+                                 f"Faucets: +{v['faucet_total']:,} cr  "
+                                 f"Sinks: {v['sink_total']:,} cr  "
+                                 f"Net: {v['net']:,} cr  "
+                                 f"({v['txn_count']} txns)")
+                # Show top faucets/sinks for 24h
+                v24 = await ctx.db.get_credit_velocity(86400)
+                if v24["top_faucets"]:
+                    lines.append("  Top faucets (24h):")
+                    for src, total in v24["top_faucets"]:
+                        lines.append(f"    {src:<20}  +{total:>10,} cr")
+                if v24["top_sinks"]:
+                    lines.append("  Top sinks (24h):")
+                    for src, total in v24["top_sinks"]:
+                        lines.append(f"    {src:<20}  {total:>10,} cr")
+                if v24["top_earners"]:
+                    lines.append("  Top earners (24h):")
+                    for cid, total in v24["top_earners"][:5]:
+                        try:
+                            ch = await ctx.db.get_character(cid)
+                            name = ch["name"] if ch else f"char#{cid}"
+                        except Exception:
+                            name = f"char#{cid}"
+                        lines.append(f"    {name:<20}  {total:>+10,} cr")
+            except Exception as e:
+                lines.append(f"  Velocity stats error: {e}")
+
         lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
+        await ctx.session.send_line("\n".join(lines))
+
+
+class LoreCommand(BaseCommand):
+    """@lore — Admin world lore management."""
+    key = "@lore"
+    aliases = ["@worldlore"]
+    access_level = AccessLevel.ADMIN
+    help_text = (
+        "@lore — Manage world lore entries.\n"
+        "\n"
+        "  @lore                     — list all active entries\n"
+        "  @lore/search <query>      — search by title or keyword\n"
+        "  @lore/add                 — add a new entry (interactive)\n"
+        "  @lore/disable <id>        — deactivate an entry\n"
+        "  @lore/enable <id>         — reactivate an entry\n"
+    )
+    usage = "@lore [/search|/add|/disable|/enable] [args]"
+
+    async def execute(self, ctx: CommandContext):
+        from engine.world_lore import (
+            get_all_lore, search_lore, add_lore, edit_lore, disable_lore,
+        )
+
+        args = (ctx.args or "").strip()
+        B, DIM, CYAN, RST = "\033[1m", "\033[2m", "\033[1;36m", "\033[0m"
+        w = 60
+
+        # @lore/add title=X keywords=Y category=Z content=C
+        if args.lower().startswith("add ") or args.lower().startswith("add="):
+            rest = args[4:].strip()
+            # Parse key=value pairs
+            params = {}
+            for part in rest.split("|"):
+                if "=" in part:
+                    k, v = part.split("=", 1)
+                    params[k.strip().lower()] = v.strip()
+            if not params.get("title") or not params.get("keywords") or not params.get("content"):
+                await ctx.session.send_line(
+                    "  Usage: @lore/add title=X | keywords=a,b,c | content=Text | category=faction | priority=7\n"
+                    "  Separate fields with | character. Title, keywords, and content are required."
+                )
+                return
+            result = await add_lore(
+                ctx.db,
+                title=params["title"],
+                keywords=params["keywords"],
+                content=params["content"],
+                category=params.get("category", "general"),
+                zone_scope=params.get("zone_scope", ""),
+                priority=int(params.get("priority", "5")),
+            )
+            await ctx.session.send_line(
+                ansi.success(f"  {result['msg']}") if result["ok"]
+                else ansi.error(f"  {result['msg']}")
+            )
+            return
+
+        # @lore/search <query>
+        if args.lower().startswith("search "):
+            query = args[7:].strip()
+            results = await search_lore(ctx.db, query, include_inactive=True)
+            if not results:
+                await ctx.session.send_line(f"  No lore entries matching '{query}'.")
+                return
+            await ctx.session.send_line(f"\n  {CYAN}{'═' * w}{RST}")
+            await ctx.session.send_line(f"  {B}World Lore — Search: {query}{RST}")
+            await ctx.session.send_line(f"  {CYAN}{'─' * w}{RST}")
+            for e in results:
+                status = "" if e.get("active", 1) else f" {DIM}[DISABLED]{RST}"
+                await ctx.session.send_line(
+                    f"  [{e['id']:>3}] {B}{e['title']}{RST}{status}  "
+                    f"{DIM}({e['category']}, p{e['priority']}){RST}"
+                )
+                await ctx.session.send_line(f"       {DIM}kw: {e['keywords']}{RST}")
+            await ctx.session.send_line(f"  {CYAN}{'═' * w}{RST}\n")
+            return
+
+        # @lore/disable <id>
+        if args.lower().startswith("disable "):
+            try:
+                lore_id = int(args[8:].strip())
+            except ValueError:
+                await ctx.session.send_line("  Usage: @lore/disable <id>")
+                return
+            result = await disable_lore(ctx.db, lore_id)
+            await ctx.session.send_line(
+                ansi.success(f"  {result['msg']}") if result["ok"]
+                else ansi.error(f"  {result['msg']}")
+            )
+            return
+
+        # @lore/enable <id>
+        if args.lower().startswith("enable "):
+            try:
+                lore_id = int(args[7:].strip())
+            except ValueError:
+                await ctx.session.send_line("  Usage: @lore/enable <id>")
+                return
+            result = await edit_lore(ctx.db, lore_id, active=1)
+            await ctx.session.send_line(
+                ansi.success(f"  {result['msg']}") if result["ok"]
+                else ansi.error(f"  {result['msg']}")
+            )
+            return
+
+        # Default: list all
+        entries = await get_all_lore(ctx.db)
+        await ctx.session.send_line(f"\n  {CYAN}{'═' * w}{RST}")
+        await ctx.session.send_line(f"  {B}World Lore — {len(entries)} active entries{RST}")
+        await ctx.session.send_line(f"  {CYAN}{'─' * w}{RST}")
+        for e in entries:
+            scope = f" [{e['zone_scope']}]" if e.get("zone_scope") else ""
+            await ctx.session.send_line(
+                f"  [{e['id']:>3}] {B}{e['title']}{RST}  "
+                f"{DIM}({e['category']}, p{e['priority']}{scope}){RST}"
+            )
+        await ctx.session.send_line(f"  {CYAN}{'─' * w}{RST}")
+        await ctx.session.send_line(f"  {DIM}@lore/search <q> · @lore/add · @lore/disable <id>{RST}")
+        await ctx.session.send_line(f"  {CYAN}{'═' * w}{RST}\n")
+
+
+class HazardCommand(BaseCommand):
+    """@hazard — Set or clear environmental hazards on the current room."""
+    key = "@hazard"
+    access_level = AccessLevel.ADMIN
+    help_text = (
+        "@hazard — Manage room environmental hazards.\n"
+        "\n"
+        "  @hazard <type> [severity]  — set hazard on current room (severity 1-5)\n"
+        "  @hazard clear              — remove hazard from current room\n"
+        "  @hazard list               — show available hazard types\n"
+        "\n"
+        "Types: extreme_heat, toxic_atmosphere, urban_danger, radiation"
+    )
+    usage = "@hazard <type> [severity]  |  @hazard clear  |  @hazard list"
+
+    async def execute(self, ctx: CommandContext):
+        from engine.hazards import (
+            set_room_hazard, clear_room_hazard, HAZARD_TYPES,
+        )
+        char = ctx.session.character
+        if not char:
+            return
+        room_id = char.get("room_id")
+        args = (ctx.args or "").strip()
+
+        if not args or args.lower() == "list":
+            lines = ["  \033[1;37mAvailable Hazard Types:\033[0m"]
+            for hk, hv in HAZARD_TYPES.items():
+                envs = ", ".join(hv["environments"]) if hv["environments"] else "manual only"
+                lines.append(
+                    f"    \033[1m{hk}\033[0m — {hv['display_name']} "
+                    f"(skill: {hv['skill']}, base diff: {hv['base_difficulty']}, "
+                    f"envs: {envs})"
+                )
+            lines.append("  \033[2mUsage: @hazard <type> [severity 1-5]\033[0m")
+            for line in lines:
+                await ctx.session.send_line(line)
+            return
+
+        if args.lower() == "clear":
+            result = await clear_room_hazard(ctx.db, room_id)
+            await ctx.session.send_line(
+                ansi.success(f"  {result['msg']}") if result["ok"]
+                else ansi.error(f"  {result['msg']}")
+            )
+            return
+
+        parts = args.split()
+        hazard_type = parts[0].lower()
+        severity = 1
+        if len(parts) > 1:
+            try:
+                severity = int(parts[1])
+            except ValueError:
+                await ctx.session.send_line("  Severity must be a number 1-5.")
+                return
+
+        result = await set_room_hazard(ctx.db, room_id, hazard_type, severity)
+        await ctx.session.send_line(
+            ansi.success(f"  {result['msg']}") if result["ok"]
+            else ansi.error(f"  {result['msg']}")
+        )
+
+
+class RoomStateCommand(BaseCommand):
+    """@roomstate — Set or clear dynamic room state descriptions."""
+    key = "@roomstate"
+    access_level = AccessLevel.ADMIN
+    help_text = (
+        "@roomstate — Manage dynamic state overlays on the current room.\n"
+        "\n"
+        "  @roomstate <state>           — apply a predefined state\n"
+        "  @roomstate <state> = <text>  — apply with custom description\n"
+        "  @roomstate clear <state>     — remove a specific state\n"
+        "  @roomstate clear             — remove all states\n"
+        "  @roomstate list              — show available predefined states\n"
+        "\n"
+        "States appear as italic atmospheric text after the room description."
+    )
+    usage = "@roomstate <state> [= text]  |  @roomstate clear [state]  |  @roomstate list"
+
+    async def execute(self, ctx: CommandContext):
+        from engine.room_states import (
+            set_room_state, clear_room_state, clear_all_states,
+            get_room_states, STATE_DESCRIPTIONS,
+        )
+        char = ctx.session.character
+        if not char:
+            return
+        room_id = char.get("room_id")
+        args = (ctx.args or "").strip()
+
+        if not args or args.lower() == "list":
+            lines = ["  \033[1;37mPredefined Room States:\033[0m"]
+            for sk in sorted(STATE_DESCRIPTIONS.keys()):
+                preview = STATE_DESCRIPTIONS[sk][:60] + "..."
+                lines.append(f"    \033[1m{sk}\033[0m — \033[2m{preview}\033[0m")
+            lines.append("")
+            # Show current states on this room
+            room = await ctx.db.get_room(room_id)
+            if room:
+                current = get_room_states(room)
+                if current:
+                    lines.append(f"  \033[1;37mCurrent states on this room:\033[0m")
+                    for ck in current:
+                        lines.append(f"    \033[1;33m• {ck}\033[0m")
+                else:
+                    lines.append(f"  \033[2mNo states set on this room.\033[0m")
+            for line in lines:
+                await ctx.session.send_line(line)
+            return
+
+        if args.lower() == "clear":
+            result = await clear_all_states(ctx.db, room_id)
+            await ctx.session.send_line(
+                ansi.success(f"  {result['msg']}") if result["ok"]
+                else ansi.error(f"  {result['msg']}")
+            )
+            return
+
+        if args.lower().startswith("clear "):
+            state_key = args[6:].strip().lower().replace(" ", "_")
+            result = await clear_room_state(ctx.db, room_id, state_key)
+            await ctx.session.send_line(
+                ansi.success(f"  {result['msg']}") if result["ok"]
+                else ansi.error(f"  {result['msg']}")
+            )
+            return
+
+        # @roomstate <state> = <custom text>  or  @roomstate <state>
+        custom_text = ""
+        state_key = args
+        if "=" in args:
+            state_key, custom_text = args.split("=", 1)
+            custom_text = custom_text.strip()
+        state_key = state_key.strip().lower().replace(" ", "_")
+
+        result = await set_room_state(
+            ctx.db, room_id, state_key,
+            custom_text=custom_text, set_by="admin",
+        )
+        await ctx.session.send_line(
+            ansi.success(f"  {result['msg']}") if result["ok"]
+            else ansi.error(f"  {result['msg']}")
+        )
+
+
+class AIStatusCommand(BaseCommand):
+    """@ai — Admin AI status dashboard: Ollama, idle queue, bark cache."""
+    key = "@ai"
+    aliases = ["@ollama", "@idle"]
+    access_level = AccessLevel.ADMIN
+    help_text = (
+        "AI subsystem status dashboard.\n"
+        "  @ai          — full dashboard (Ollama + idle queue + barks)\n"
+        "  @ai queue    — pending idle queue tasks\n"
+        "  @ai barks    — bark cache inventory\n"
+        "  @ai flush    — clear bark cache (forces regeneration)"
+    )
+    usage = "@ai [queue|barks|flush]"
+
+    async def execute(self, ctx: CommandContext):
+        parts = (ctx.args or "").split()
+        sub = parts[0].lower() if parts else "all"
+
+        CYAN = "\033[1;36m"
+        WHITE = "\033[1;37m"
+        YELLOW = "\033[1;33m"
+        GREEN = "\033[1;32m"
+        RED = "\033[1;31m"
+        DIM = "\033[2m"
+        RST = "\033[0m"
+
+        lines = [f"{CYAN}══════════════════════════════════════════{RST}",
+                 f"  {WHITE}@AI STATUS DASHBOARD{RST}",
+                 f"{CYAN}──────────────────────────────────────────{RST}"]
+
+        show_providers = sub in ("all", "providers", "ollama")
+        show_queue = sub in ("all", "queue")
+        show_barks = sub in ("all", "barks")
+        do_flush = sub == "flush"
+
+        # ── Flush bark cache ────────────────────────────────────────
+        if do_flush:
+            try:
+                from engine.idle_queue import _bark_cache
+                count = len(_bark_cache)
+                _bark_cache.clear()
+                lines.append(f"  {GREEN}Bark cache cleared.{RST} {count} entries removed.")
+                lines.append(f"  Barks will regenerate on next seed tick or room entry.")
+            except Exception as e:
+                lines.append(f"  {RED}Flush failed: {e}{RST}")
+            lines.append(f"{CYAN}══════════════════════════════════════════{RST}")
+            await ctx.session.send_line("\n".join(lines))
+            return
+
+        # ── Provider status ─────────────────────────────────────────
+        if show_providers:
+            lines.append(f"  {YELLOW}AI PROVIDERS{RST}")
+            try:
+                ai_mgr = getattr(ctx.session_mgr, '_ai_manager', None)
+                if ai_mgr:
+                    status = await ai_mgr.check_status()
+                    for pname, pinfo in status.items():
+                        avail = pinfo.get("available", False)
+                        icon = f"{GREEN}●{RST}" if avail else f"{RED}●{RST}"
+                        line = f"  {icon} {pname:<12}"
+                        models = pinfo.get("models", [])
+                        if models:
+                            line += f"  models: {', '.join(models[:5])}"
+                        lines.append(line)
+                else:
+                    lines.append(f"  {RED}AI manager not found{RST}")
+            except Exception as e:
+                lines.append(f"  Provider status error: {e}")
+
+        # ── Idle queue stats ────────────────────────────────────────
+        if show_queue:
+            lines.append(f"  {YELLOW}IDLE QUEUE{RST}")
+            try:
+                _iq = getattr(ctx.server, '_idle_queue', None)
+                if not _iq:
+                    _iq = getattr(ctx.session_mgr, '_idle_queue', None)
+                if _iq:
+                    st = _iq.stats
+                    lines.append(f"  Pending     : {st['pending']}")
+                    lines.append(f"  Completed   : {st['completed']}")
+                    lines.append(f"  Failed      : {st['failed']}")
+                    busy_str = f"{GREEN}processing{RST}" if st['busy'] else f"{DIM}idle{RST}"
+                    lines.append(f"  Status      : {busy_str}")
+                    backoff = st.get('backoff_remaining', 0)
+                    if backoff > 0:
+                        lines.append(f"  Backoff     : {backoff:.1f}s remaining")
+                    # Show pending task breakdown
+                    if st['pending'] > 0:
+                        types = {}
+                        for t in _iq._queue:
+                            types[t.task_type] = types.get(t.task_type, 0) + 1
+                        breakdown = ", ".join(f"{k}: {v}" for k, v in sorted(types.items()))
+                        lines.append(f"  Breakdown   : {breakdown}")
+                else:
+                    lines.append(f"  {RED}Idle queue not initialized{RST}")
+            except Exception as e:
+                lines.append(f"  Queue stats error: {e}")
+
+        # ── Bark cache ──────────────────────────────────────────────
+        if show_barks:
+            lines.append(f"  {YELLOW}BARK CACHE{RST}")
+            try:
+                from engine.idle_queue import _bark_cache, BARK_REFRESH_HOURS
+                total_npcs = len(_bark_cache)
+                total_barks = sum(len(e.get("barks", [])) for e in _bark_cache.values())
+                lines.append(f"  NPCs cached : {total_npcs}")
+                lines.append(f"  Total barks : {total_barks}")
+                lines.append(f"  Refresh     : every {BARK_REFRESH_HOURS}h")
+                if _bark_cache:
+                    lines.append(f"  {'NPC':<22} {'Barks':>5}  {'Age':>8}")
+                    now = time.time()
+                    for npc_id, entry in sorted(
+                        _bark_cache.items(),
+                        key=lambda x: x[1].get("generated_at", 0),
+                        reverse=True,
+                    )[:10]:
+                        name = entry.get("npc_name", f"#{npc_id}")[:20]
+                        bcount = len(entry.get("barks", []))
+                        age_s = now - entry.get("generated_at", 0)
+                        if age_s < 3600:
+                            age_str = f"{age_s / 60:.0f}m"
+                        else:
+                            age_str = f"{age_s / 3600:.1f}h"
+                        lines.append(f"    {name:<22} {bcount:>5}  {age_str:>8}")
+            except Exception as e:
+                lines.append(f"  Bark cache error: {e}")
+
+        lines.append(f"{CYAN}══════════════════════════════════════════{RST}")
         await ctx.session.send_line("\n".join(lines))
 
 
 def register_director_commands(registry) -> None:
     registry.register(DirectorCommand())
     registry.register(EconomyCommand())
+    registry.register(LoreCommand())
+    registry.register(HazardCommand())
+    registry.register(RoomStateCommand())
+    registry.register(AIStatusCommand())

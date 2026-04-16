@@ -20,9 +20,12 @@ Design:
 import json
 import time
 import random
+import logging
 from parser.commands import BaseCommand, CommandContext
 from server import ansi
 from engine.skill_checks import perform_skill_check
+
+log = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -312,8 +315,15 @@ class SabaccCommand(BaseCommand):
         try:
             from engine.spacer_quest import check_spacer_quest
             await check_spacer_quest(ctx.session, ctx.db, "sabacc")
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in parser/sabacc_commands.py:318: %s", _e, exc_info=True)
+        # Achievement: sabacc_win
+        if outcome in ("win", "critical"):
+            try:
+                from engine.achievements import on_sabacc_win
+                await on_sabacc_win(ctx.db, char["id"], session=ctx.session)
+            except Exception as _e:
+                log.debug("silent except in parser/sabacc_commands.py:325: %s", _e, exc_info=True)
 
 
 # ── Registration ──────────────────────────────────────────────────────────────

@@ -5,6 +5,11 @@ Area Map — local neighborhood graph for the web client context panel.
 Ground UX Drop 2: BFS from the player's current room (depth 2) returning
 a compact node-link graph that the client renders as an SVG minimap.
 
+v2 additions (Session 15):
+  - Each room node now includes `env` (environment type) and `sec`
+    (security level) for client-side theming and icon rendering.
+  - Services dict augmented with NPC-derived services from the room.
+
 Usage:
     from engine.area_map import build_area_map
     map_data = await build_area_map(room_id, db, depth=2)
@@ -14,8 +19,10 @@ The client SVG renderer expects:
     {
         "current": 17,
         "rooms": [
-            {"id": 17, "name": "Inn", "x": 0.5, "y": 0.5, "depth": 0},
-            {"id": 7, "name": "Spaceport Row", "x": 0.5, "y": 0.8, "depth": 1},
+            {"id": 17, "name": "Inn", "x": 0.5, "y": 0.5, "depth": 0,
+             "env": "cantina", "sec": "secured"},
+            {"id": 7, "name": "Spaceport Row", "x": 0.5, "y": 0.8,
+             "depth": 1, "env": "industrial", "sec": "contested"},
             ...
         ],
         "edges": [
@@ -23,7 +30,7 @@ The client SVG renderer expects:
             ...
         ],
         "services": {
-            17: ["vendor"],
+            17: ["vendor", "cantina"],
             7: ["docking"],
         }
     }
@@ -57,7 +64,6 @@ _DIR_VECTORS = {
 }
 
 # Service derivation from NPC roles and room environment
-# (imported from session.py helpers when available, fallback inline)
 _SERVICE_ENVIRONMENTS = {
     "cantina": "cantina", "bar": "cantina", "tavern": "cantina",
     "medical": "medical", "medbay": "medical", "hospital": "medical",
@@ -65,6 +71,18 @@ _SERVICE_ENVIRONMENTS = {
     "bay": "docking",
     "workshop": "crafting", "forge": "crafting", "crafting": "crafting",
 }
+
+
+def _parse_room_props(row: dict) -> dict:
+    """Extract properties dict from a room row, handling string JSON."""
+    props_raw = row.get("properties", "{}")
+    if isinstance(props_raw, str):
+        try:
+            import json
+            return json.loads(props_raw)
+        except Exception:
+            return {}
+    return props_raw or {}
 
 
 async def build_area_map(room_id: int, db, depth: int = 2,
@@ -142,12 +160,40 @@ async def build_area_map(room_id: int, db, depth: int = 2,
                         tr = await db.get_room(target)
                         if tr:
                             room_cache[target] = tr
-                    except Exception:
-                        pass
+                    except Exception as _e:
+                        log.debug("silent except in engine/area_map.py:163: %s", _e, exc_info=True)
 
     # Build room node list
     rooms = []
     has_coords = False  # Track if any room has hand-tuned coordinates
+
+    # Cache zone data so we only fetch each zone once
+    zone_cache = {}  # zone_id -> parsed properties dict
+
+    async def _resolve_zone_prop(zone_id, prop_name, default=""):
+        """Walk zone hierarchy to find a property value."""
+        depth = 0
+        zid = zone_id
+        while zid and depth < 10:
+            if zid not in zone_cache:
+                try:
+                    zrow = await db.get_zone(zid)
+                    if zrow:
+                        zone_cache[zid] = (
+                            _parse_room_props(zrow),
+                            zrow.get("parent_id"),
+                        )
+                    else:
+                        break
+                except Exception:
+                    break
+            zprops, parent_id = zone_cache[zid]
+            val = zprops.get(prop_name)
+            if val:
+                return val
+            zid = parent_id
+            depth += 1
+        return default
 
     for rid, d in visited.items():
         row = room_cache.get(rid, {})
@@ -161,12 +207,34 @@ async def build_area_map(room_id: int, db, depth: int = 2,
         if mx is not None and my is not None:
             has_coords = True
 
+        # Extract environment and security — room overrides zone
+        props = _parse_room_props(row)
+        env = (props.get("environment") or "").lower()
+        sec = (props.get("security") or "").lower()
+
+        # Fall back to zone properties if room doesn't have them
+        zone_id = row.get("zone_id")
+        if not env and zone_id:
+            try:
+                env = (await _resolve_zone_prop(zone_id, "environment", "")).lower()
+            except Exception as _e:
+                log.debug("silent except in engine/area_map.py:220: %s", _e, exc_info=True)
+        if not sec and zone_id:
+            try:
+                sec = (await _resolve_zone_prop(zone_id, "security", "contested")).lower()
+            except Exception:
+                sec = "contested"
+        if not sec:
+            sec = "contested"
+
         rooms.append({
             "id": rid,
             "name": name,
             "x": float(mx) if mx is not None else None,
             "y": float(my) if my is not None else None,
             "depth": d,
+            "env": env,
+            "sec": sec,
         })
 
     # If we don't have hand-tuned coordinates, compute auto-layout
@@ -185,23 +253,56 @@ async def build_area_map(room_id: int, db, depth: int = 2,
             seen_edges.add(key)
             unique_edges.append(e)
 
-    # Derive services per room (lightweight — just check environment)
+    # Derive services per room — from environment type, room name, AND NPC presence
+    # Room name keywords for service detection
+    _NAME_SERVICES = {
+        "docking": "docking", "bay": "docking", "hangar": "docking",
+        "spaceport": "docking", "landing": "docking",
+        "cantina": "cantina", "bar": "cantina", "tavern": "cantina",
+        "clinic": "medical", "hospital": "medical", "medbay": "medical",
+        "workshop": "crafting", "forge": "crafting", "foundry": "crafting",
+    }
     services = {}
     for rid in visited:
         row = room_cache.get(rid, {})
-        props_raw = row.get("properties", "{}")
-        if isinstance(props_raw, str):
-            try:
-                import json
-                props = json.loads(props_raw)
-            except Exception:
-                props = {}
-        else:
-            props = props_raw or {}
-        env = (props.get("environment") or "").lower()
-        svc_tag = _SERVICE_ENVIRONMENTS.get(env)
+        svc_list = []
+
+        # Check zone-resolved environment (from the rooms list we already built)
+        resolved_env = ""
+        for rm in rooms:
+            if rm["id"] == rid:
+                resolved_env = rm.get("env", "")
+                break
+        svc_tag = _SERVICE_ENVIRONMENTS.get(resolved_env)
         if svc_tag:
-            services[rid] = [svc_tag]
+            svc_list.append(svc_tag)
+
+        # Check room name keywords
+        room_name_lower = (row.get("name") or "").lower()
+        for keyword, svc in _NAME_SERVICES.items():
+            if keyword in room_name_lower and svc not in svc_list:
+                svc_list.append(svc)
+
+        # Also check for NPC-derived services in this room
+        try:
+            npcs = await db.get_npcs_in_room(rid)
+            for npc in (npcs or []):
+                npc_name = (npc.get("name") or "").lower()
+                npc_role = (npc.get("role") or "").lower()
+                if "vendor" in npc_role or "merchant" in npc_role or "shop" in npc_name:
+                    if "vendor" not in svc_list:
+                        svc_list.append("vendor")
+                if "trainer" in npc_role or "trainer" in npc_name:
+                    if "trainer" not in svc_list:
+                        svc_list.append("trainer")
+                if "medic" in npc_role or "doctor" in npc_name or "medical" in npc_role:
+                    if "medical" not in svc_list:
+                        svc_list.append("medical")
+        except Exception:
+            pass  # NPC lookup is best-effort
+
+        if svc_list:
+            services[rid] = svc_list
 
     return {
         "current": room_id,
@@ -209,6 +310,150 @@ async def build_area_map(room_id: int, db, depth: int = 2,
         "edges": unique_edges,
         "services": services,
     }
+
+
+async def find_nearby_services(room_id: int, db, depth: int = 4,
+                                max_results: int = 8) -> list:
+    """BFS from room_id to find rooms offering services within `depth` hops.
+
+    Returns a list of dicts (sorted by distance, capped at max_results):
+        [{"name": "Chalmun's Cantina", "room_id": 5,
+          "type": "cantina", "distance": 2, "direction": "west"}, ...]
+
+    `direction` is the first-hop direction from the current room.
+    The current room itself is excluded (its services are in room_services).
+    """
+    if not room_id or not db:
+        return []
+
+    # BFS — track (room_id, distance, first_hop_direction)
+    visited = {room_id: 0}
+    first_dir = {}       # room_id -> direction of first hop from origin
+    queue = deque([(room_id, 0, None)])
+    room_cache = {}
+    results = []
+
+    while queue:
+        current_id, dist, origin_dir = queue.popleft()
+
+        if dist > depth:
+            break
+
+        # Fetch room data
+        if current_id not in room_cache:
+            try:
+                row = await db.get_room(current_id)
+                if row:
+                    room_cache[current_id] = row
+            except Exception:
+                continue
+
+        row = room_cache.get(current_id, {})
+
+        # Detect services in this room (skip origin room)
+        if current_id != room_id and dist > 0:
+            svc_list = _detect_room_services(row)
+
+            # Also check NPC roles for service detection
+            try:
+                npcs = await db.get_npcs_in_room(current_id)
+                for npc in (npcs or []):
+                    npc_role = (npc.get("role") or "").lower()
+                    npc_name = (npc.get("name") or "").lower()
+                    if ("vendor" in npc_role or "merchant" in npc_role
+                            or "shop" in npc_name):
+                        if "vendor" not in svc_list:
+                            svc_list.append("vendor")
+                    if "trainer" in npc_role or "trainer" in npc_name:
+                        if "trainer" not in svc_list:
+                            svc_list.append("trainer")
+                    if ("medic" in npc_role or "doctor" in npc_name
+                            or "medical" in npc_role):
+                        if "medical" not in svc_list:
+                            svc_list.append("medical")
+            except Exception as _e:
+                log.debug("silent except in engine/area_map.py:374: %s", _e, exc_info=True)
+
+            room_name = row.get("name", f"Room #{current_id}")
+            for svc in svc_list:
+                results.append({
+                    "name": room_name,
+                    "room_id": current_id,
+                    "type": svc,
+                    "distance": dist,
+                    "direction": first_dir.get(current_id, ""),
+                })
+
+        if dist >= depth:
+            continue
+
+        # Expand exits
+        try:
+            exits = await db.get_exits(current_id)
+        except Exception:
+            exits = []
+
+        for ex in exits:
+            target = ex.get("to_room_id")
+            if not target or ex.get("is_hidden"):
+                continue
+            if target not in visited:
+                visited[target] = dist + 1
+                direction = ex.get("direction", "")
+                # First-hop direction: inherit from parent or use this exit
+                first_dir[target] = (first_dir.get(current_id)
+                                     if current_id != room_id
+                                     else direction)
+                queue.append((target, dist + 1,
+                              first_dir.get(current_id) if current_id != room_id
+                              else direction))
+
+    # Sort by distance, then deduplicate: keep closest instance per (room_id, type)
+    results.sort(key=lambda r: r["distance"])
+    seen = set()
+    deduped = []
+    for r in results:
+        key = (r["room_id"], r["type"])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(r)
+        if len(deduped) >= max_results:
+            break
+
+    return deduped
+
+
+def _detect_room_services(row: dict) -> list:
+    """Detect service types for a room row from environment and name keywords."""
+    svc_list = []
+    props_raw = row.get("properties", "{}")
+    if isinstance(props_raw, str):
+        try:
+            import json as _json
+            props = _json.loads(props_raw)
+        except Exception:
+            props = {}
+    else:
+        props = props_raw or {}
+
+    env = (props.get("environment") or "").lower()
+    svc_tag = _SERVICE_ENVIRONMENTS.get(env)
+    if svc_tag:
+        svc_list.append(svc_tag)
+
+    _NAME_SVCS = {
+        "docking": "docking", "bay": "docking", "hangar": "docking",
+        "spaceport": "docking", "landing": "docking",
+        "cantina": "cantina", "bar": "cantina", "tavern": "cantina",
+        "clinic": "medical", "hospital": "medical", "medbay": "medical",
+        "workshop": "crafting", "forge": "crafting", "foundry": "crafting",
+    }
+    room_name_lower = (row.get("name") or "").lower()
+    for keyword, svc in _NAME_SVCS.items():
+        if keyword in room_name_lower and svc not in svc_list:
+            svc_list.append(svc)
+
+    return svc_list
 
 
 def _auto_layout(rooms: list, edges: list, center_id: int):

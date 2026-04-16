@@ -72,8 +72,8 @@ class BackgroundCommand(BaseCommand):
                 ctx.session, ctx.db, "use_command",
                 command="+background", text_length=len(text),
             )
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in parser/narrative_commands.py:75: %s", _e, exc_info=True)
 
 
 # ── +recap ────────────────────────────────────────────────────────────────────
@@ -337,7 +337,7 @@ class AdminNarrativeCommand(BaseCommand):
             return
 
         # Find character by name
-        rows = await ctx.db._db.execute_fetchall(
+        rows = await ctx.db.fetchall(
             "SELECT id, name FROM characters WHERE LOWER(name) = LOWER(?)",
             (rest,),
         )

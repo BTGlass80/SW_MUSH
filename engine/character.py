@@ -275,8 +275,8 @@ class Character:
             prot_str = armor.protection_energy if energy else armor.protection_physical
             if prot_str:
                 return DicePool.parse(prot_str)
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in engine/character.py:278: %s", _e, exc_info=True)
         return DicePool(0, 0)
 
     def get_armor_dex_penalty(self) -> DicePool:
@@ -294,8 +294,8 @@ class Character:
             if not armor or not armor.is_armor or not armor.dexterity_penalty:
                 return DicePool(0, 0)
             return DicePool.parse(armor.dexterity_penalty)
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in engine/character.py:297: %s", _e, exc_info=True)
         return DicePool(0, 0)
 
     def advance_skill(self, skill_name: str, skill_registry: SkillRegistry) -> int:
@@ -514,7 +514,12 @@ class Character:
         # Parse attributes
         attrs = data.get("attributes", "{}")
         if isinstance(attrs, str):
-            attrs = json.loads(attrs)
+            try:
+                attrs = json.loads(attrs)
+            except (json.JSONDecodeError, TypeError) as _e:
+                log.warning("Malformed attributes JSON for char %s: %s",
+                            data.get("id", "?"), _e)
+                attrs = {}
         for attr_name in ATTRIBUTE_NAMES:
             if attr_name in attrs:
                 char.set_attribute(attr_name, DicePool.parse(attrs[attr_name]))
@@ -526,7 +531,12 @@ class Character:
         # Parse skills
         skills = data.get("skills", "{}")
         if isinstance(skills, str):
-            skills = json.loads(skills)
+            try:
+                skills = json.loads(skills)
+            except (json.JSONDecodeError, TypeError) as _e:
+                log.warning("Malformed skills JSON for char %s: %s",
+                            data.get("id", "?"), _e)
+                skills = {}
         for skill_name, pool_str in skills.items():
             char.skills[skill_name.lower()] = DicePool.parse(pool_str)
 

@@ -85,45 +85,54 @@ async def build_core_tutorial(db):
     print("\n[1/2] Core tutorial zone...")
 
     # Zone — skip if already exists
-    existing_zones = await db._db.execute_fetchall(
+    existing_zones = await db.fetchall(
         "SELECT id FROM zones WHERE name = ? LIMIT 1",
         ("Tutorial -- The Arrival",),
     )
     if existing_zones:
         zone_id = existing_zones[0]["id"]
-        print(f"  Zone already exists: id={zone_id} (skipping room creation)")
-        # Still re-check/create the Mos Eisley Gate exit in case it's missing
-        _gate_rows = await db._db.execute_fetchall(
-            "SELECT id FROM rooms WHERE name = 'Mos Eisley Gate' "
-            "AND properties LIKE '%tutorial_zone%' ORDER BY id LIMIT 1"
+        # Check if rooms actually exist in this zone
+        _room_check = await db.fetchall(
+            "SELECT COUNT(*) as cnt FROM rooms WHERE zone_id = ?",
+            (zone_id,),
         )
-        if _gate_rows:
-            gate_id = _gate_rows[0]["id"]
-            me_entry_rows = await db._db.execute_fetchall(
-                "SELECT id FROM rooms WHERE name = ? ORDER BY id LIMIT 1",
-                ("Docking Bay Entrance",),
+        rooms_exist = _room_check[0]["cnt"] > 0 if _room_check else False
+        if rooms_exist:
+            print(f"  Zone already exists: id={zone_id} (rooms present, skipping)")
+            # Still re-check/create the Mos Eisley Gate exit in case it's missing
+            _gate_rows = await db.fetchall(
+                "SELECT id FROM rooms WHERE name = 'Mos Eisley Gate' "
+                "AND properties LIKE '%tutorial_zone%' ORDER BY id LIMIT 1"
             )
-            if not me_entry_rows:
-                me_entry_rows = await db._db.execute_fetchall(
-                    "SELECT id FROM rooms WHERE properties NOT LIKE '%tutorial_zone%' "
-                    "ORDER BY id LIMIT 1"
+            if _gate_rows:
+                gate_id = _gate_rows[0]["id"]
+                me_entry_rows = await db.fetchall(
+                    "SELECT id FROM rooms WHERE name = ? ORDER BY id LIMIT 1",
+                    ("Docking Bay Entrance",),
                 )
-            if me_entry_rows:
-                me_entry_id = me_entry_rows[0]["id"]
-                await db.create_exit(gate_id, me_entry_id, "north")
-        return  # rooms/NPCs already built
-
-    zone_id = await db.create_zone(
-        "Tutorial -- The Arrival",
-        properties=json.dumps({
-            "environment":   "desert",
-            "security":      "contested",
-            "tutorial_zone": True,
-            "lighting":      "bright",
-            "gravity":       "standard",
-        }),
-    )
-    print(f"  Zone created: id={zone_id}")
+                if not me_entry_rows:
+                    me_entry_rows = await db.fetchall(
+                        "SELECT id FROM rooms WHERE properties NOT LIKE '%tutorial_zone%' "
+                        "ORDER BY id LIMIT 1"
+                    )
+                if me_entry_rows:
+                    me_entry_id = me_entry_rows[0]["id"]
+                    await db.create_exit(gate_id, me_entry_id, "north")
+            return  # rooms/NPCs already built
+        else:
+            print(f"  Zone exists (id={zone_id}) but has no rooms — building rooms...")
+    else:
+        zone_id = await db.create_zone(
+            "Tutorial -- The Arrival",
+            properties=json.dumps({
+                "environment":   "desert",
+                "security":      "contested",
+                "tutorial_zone": True,
+                "lighting":      "bright",
+                "gravity":       "standard",
+            }),
+        )
+        print(f"  Zone created: id={zone_id}")
 
     rooms_data = [
         (
@@ -235,12 +244,12 @@ async def build_core_tutorial(db):
     await db.create_exit(room_ids[4], room_ids[5], "east")
 
     # Gate -> live world
-    me_entry_rows = await db._db.execute_fetchall(
+    me_entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? ORDER BY id LIMIT 1",
         ("Docking Bay Entrance",),
     )
     if not me_entry_rows:
-        me_entry_rows = await db._db.execute_fetchall(
+        me_entry_rows = await db.fetchall(
             "SELECT id FROM rooms WHERE properties NOT LIKE '%tutorial_zone%' "
             "ORDER BY id LIMIT 1"
         )
@@ -286,7 +295,7 @@ async def build_core_tutorial(db):
     )
     print(f"  NPC {kessa_id}: Kessa Dray (Desert Trail)")
 
-    cantina_rows = await db._db.execute_fetchall(
+    cantina_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name LIKE ? ORDER BY id LIMIT 1",
         ("%Cantina%",),
     )
@@ -336,7 +345,7 @@ async def build_training_grounds(db):
     print("\n[2/2] Training Grounds hub + elective entry rooms...")
 
     # Zone
-    existing = await db._db.execute_fetchall(
+    existing = await db.fetchall(
         "SELECT id FROM zones WHERE name = ? LIMIT 1",
         ("Training Grounds",),
     )
@@ -884,12 +893,12 @@ async def build_training_grounds(db):
     # ------------------------------------------------------------------
     # Training Grounds hub -> Mos Eisley exit
     # ------------------------------------------------------------------
-    me_exit_rows = await db._db.execute_fetchall(
+    me_exit_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? ORDER BY id LIMIT 1",
         ("Docking Bay Entrance",),
     )
     if not me_exit_rows:
-        me_exit_rows = await db._db.execute_fetchall(
+        me_exit_rows = await db.fetchall(
             "SELECT id FROM rooms WHERE properties NOT LIKE '%tutorial_zone%' "
             "ORDER BY id LIMIT 1"
         )
@@ -914,7 +923,7 @@ async def build_training_grounds(db):
 async def build_space_academy(db):
     print("\n[3/3] Space Academy rooms...")
 
-    zone_rows = await db._db.execute_fetchall(
+    zone_rows = await db.fetchall(
         "SELECT id FROM zones WHERE name = ? LIMIT 1",
         ("Training Grounds",),
     )
@@ -924,7 +933,7 @@ async def build_space_academy(db):
     tg_zone_id = zone_rows[0]["id"]
     tg_props = _tprops(environment="interior", security="safe")
 
-    entry_rows = await db._db.execute_fetchall(
+    entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1",
         ("Space Academy",),
     )
@@ -1037,7 +1046,7 @@ async def build_space_academy(db):
     print(f"  Exits: linear chain forward/back")
 
     # Graduation -> hub "out"
-    hub_rows = await db._db.execute_fetchall(
+    hub_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = 'Training Grounds' "
         "AND properties LIKE '%tutorial_zone%' LIMIT 1"
     )
@@ -1140,7 +1149,7 @@ async def build_space_academy(db):
 async def build_combat_arena(db):
     print("\n[4/4] Combat Arena rooms...")
 
-    zone_rows = await db._db.execute_fetchall(
+    zone_rows = await db.fetchall(
         "SELECT id FROM zones WHERE name = ? LIMIT 1", ("Training Grounds",),
     )
     if not zone_rows:
@@ -1149,7 +1158,7 @@ async def build_combat_arena(db):
     tg_zone_id = zone_rows[0]["id"]
     tg_props = _tprops(environment="interior", security="safe")
 
-    entry_rows = await db._db.execute_fetchall(
+    entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1", ("Combat Arena",),
     )
     if not entry_rows:
@@ -1239,7 +1248,7 @@ async def build_combat_arena(db):
         await db.create_exit(room_ids[i + 1], room_ids[i], "back")
     print("  Exits: linear chain forward/back")
 
-    hub_rows = await db._db.execute_fetchall(
+    hub_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = 'Training Grounds' "
         "AND properties LIKE '%tutorial_zone%' LIMIT 1"
     )
@@ -1356,7 +1365,7 @@ async def build_combat_arena(db):
 async def build_traders_hall(db):
     print("\n[5/5] Trader\'s Hall rooms...")
 
-    zone_rows = await db._db.execute_fetchall(
+    zone_rows = await db.fetchall(
         "SELECT id FROM zones WHERE name = ? LIMIT 1", ("Training Grounds",),
     )
     if not zone_rows:
@@ -1365,7 +1374,7 @@ async def build_traders_hall(db):
     tg_zone_id = zone_rows[0]["id"]
     tg_props = _tprops(environment="interior", security="safe")
 
-    entry_rows = await db._db.execute_fetchall(
+    entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1", ("Trader\'s Hall",),
     )
     if not entry_rows:
@@ -1472,7 +1481,7 @@ async def build_traders_hall(db):
         await db.create_exit(room_ids[i + 1], room_ids[i], "back")
     print("  Exits: linear chain forward/back")
 
-    hub_rows = await db._db.execute_fetchall(
+    hub_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = \'Training Grounds\' "
         "AND properties LIKE \'%tutorial_zone%\' LIMIT 1"
     )
@@ -1571,14 +1580,14 @@ async def build_traders_hall(db):
 
 async def build_crafters_workshop(db):
     print("\n[6] Crafter's Workshop rooms...")
-    zone_rows = await db._db.execute_fetchall(
+    zone_rows = await db.fetchall(
         "SELECT id FROM zones WHERE name = ? LIMIT 1", ("Training Grounds",),
     )
     if not zone_rows:
         print("  ERROR: Training Grounds zone not found."); return
     tg_zone_id = zone_rows[0]["id"]
     tg_props = _tprops(environment="interior", security="safe")
-    entry_rows = await db._db.execute_fetchall(
+    entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1", ("Crafter's Workshop",),
     )
     if not entry_rows:
@@ -1663,7 +1672,7 @@ async def build_crafters_workshop(db):
     for i in range(len(room_ids) - 1):
         await db.create_exit(room_ids[i], room_ids[i+1], "forward")
         await db.create_exit(room_ids[i+1], room_ids[i], "back")
-    hub_rows = await db._db.execute_fetchall(
+    hub_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = 'Training Grounds' "
         "AND properties LIKE '%tutorial_zone%' LIMIT 1"
     )
@@ -1727,14 +1736,14 @@ async def build_crafters_workshop(db):
 
 async def build_bounty_office(db):
     print("\n[7] Bounty Office rooms...")
-    zone_rows = await db._db.execute_fetchall(
+    zone_rows = await db.fetchall(
         "SELECT id FROM zones WHERE name = ? LIMIT 1", ("Training Grounds",),
     )
     if not zone_rows:
         print("  ERROR: Training Grounds zone not found."); return
     tg_zone_id = zone_rows[0]["id"]
     tg_props = _tprops(environment="interior", security="safe")
-    entry_rows = await db._db.execute_fetchall(
+    entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1", ("Bounty Office",),
     )
     if not entry_rows:
@@ -1811,7 +1820,7 @@ async def build_bounty_office(db):
     for i in range(len(room_ids) - 1):
         await db.create_exit(room_ids[i], room_ids[i+1], "forward")
         await db.create_exit(room_ids[i+1], room_ids[i], "back")
-    hub_rows = await db._db.execute_fetchall(
+    hub_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = 'Training Grounds' "
         "AND properties LIKE '%tutorial_zone%' LIMIT 1"
     )
@@ -1886,14 +1895,14 @@ async def build_bounty_office(db):
 
 async def build_crew_quarters(db):
     print("\n[8] Crew Quarters rooms...")
-    zone_rows = await db._db.execute_fetchall(
+    zone_rows = await db.fetchall(
         "SELECT id FROM zones WHERE name = ? LIMIT 1", ("Training Grounds",),
     )
     if not zone_rows:
         print("  ERROR: Training Grounds zone not found."); return
     tg_zone_id = zone_rows[0]["id"]
     tg_props = _tprops(environment="interior", security="safe")
-    entry_rows = await db._db.execute_fetchall(
+    entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1", ("Crew Quarters",),
     )
     if not entry_rows:
@@ -1957,7 +1966,7 @@ async def build_crew_quarters(db):
     for i in range(len(room_ids) - 1):
         await db.create_exit(room_ids[i], room_ids[i+1], "forward")
         await db.create_exit(room_ids[i+1], room_ids[i], "back")
-    hub_rows = await db._db.execute_fetchall(
+    hub_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = 'Training Grounds' "
         "AND properties LIKE '%tutorial_zone%' LIMIT 1"
     )
@@ -2014,14 +2023,14 @@ async def build_crew_quarters(db):
 
 async def build_factions_briefing(db):
     print("\n[9] Galactic Factions Briefing rooms...")
-    zone_rows = await db._db.execute_fetchall(
+    zone_rows = await db.fetchall(
         "SELECT id FROM zones WHERE name = ? LIMIT 1", ("Training Grounds",),
     )
     if not zone_rows:
         print("  ERROR: Training Grounds zone not found."); return
     tg_zone_id = zone_rows[0]["id"]
     tg_props = _tprops(environment="interior", security="safe")
-    entry_rows = await db._db.execute_fetchall(
+    entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1",
         ("Galactic Factions Briefing Room",),
     )
@@ -2070,7 +2079,7 @@ async def build_factions_briefing(db):
 
     await db.create_exit(entry_id, board_room_id, "forward")
     await db.create_exit(board_room_id, entry_id, "back")
-    hub_rows = await db._db.execute_fetchall(
+    hub_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = 'Training Grounds' "
         "AND properties LIKE '%tutorial_zone%' LIMIT 1"
     )
@@ -2169,7 +2178,7 @@ async def auto_build_if_needed(db_path="sw_mush.db"):
     await db.connect()
     await db.initialize()
 
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = 'Training Grounds' "
         "AND properties LIKE '%tutorial_zone%' LIMIT 1"
     )

@@ -94,7 +94,7 @@ class PartyManager:
     async def _load_from_db(self, db) -> None:
         """Pull all parties from DB into memory."""
         try:
-            rows = await db._db.execute_fetchall(
+            rows = await db.fetchall(
                 "SELECT * FROM parties"
             )
         except Exception:
@@ -110,7 +110,7 @@ class PartyManager:
             )
 
             # Load members
-            member_rows = await db._db.execute_fetchall(
+            member_rows = await db.fetchall(
                 "SELECT char_id FROM party_members WHERE party_id = ?",
                 (party.id,)
             )
@@ -125,8 +125,8 @@ class PartyManager:
     async def ensure_tables(self, db) -> None:
         """Create party tables if they don't exist."""
         try:
-            await db._db.executescript(self.SCHEMA)
-            await db._db.commit()
+            await db.executescript(self.SCHEMA)
+            await db.commit()
         except Exception as e:
             log.warning("[party] Table creation: %s", e)
 
@@ -199,11 +199,11 @@ class PartyManager:
 
         # Persist
         try:
-            await db._db.execute(
+            await db.execute(
                 "INSERT INTO party_members (party_id, char_id, joined_at) VALUES (?, ?, ?)",
                 (party.id, invitee_id, time.time())
             )
-            await db._db.commit()
+            await db.commit()
         except Exception as e:
             log.warning("[party] Failed to persist member: %s", e)
 
@@ -223,11 +223,11 @@ class PartyManager:
 
         # Persist removal
         try:
-            await db._db.execute(
+            await db.execute(
                 "DELETE FROM party_members WHERE party_id = ? AND char_id = ?",
                 (party.id, char_id)
             )
-            await db._db.commit()
+            await db.commit()
         except Exception as e:
             log.warning("[party] Failed to remove member: %s", e)
 
@@ -240,11 +240,11 @@ class PartyManager:
             # Transfer leadership
             party.leader_id = party.members[0]
             try:
-                await db._db.execute(
+                await db.execute(
                     "UPDATE parties SET leader_id = ? WHERE id = ?",
                     (party.leader_id, party.id)
                 )
-                await db._db.commit()
+                await db.commit()
             except Exception:
                 log.warning("leave: unhandled exception", exc_info=True)
                 pass
@@ -279,11 +279,11 @@ class PartyManager:
         self._char_party.pop(target_id, None)
 
         try:
-            await db._db.execute(
+            await db.execute(
                 "DELETE FROM party_members WHERE party_id = ? AND char_id = ?",
                 (party.id, target_id)
             )
-            await db._db.commit()
+            await db.commit()
         except Exception:
             log.warning("kick: unhandled exception", exc_info=True)
             pass
@@ -310,19 +310,19 @@ class PartyManager:
         now = time.time()
         try:
             await self.ensure_tables(db)
-            cursor = await db._db.execute(
+            cursor = await db.execute(
                 "INSERT INTO parties (leader_id, created_at) VALUES (?, ?)",
                 (leader_id, now)
             )
-            await db._db.commit()
+            await db.commit()
             party_id = cursor.lastrowid
 
             # Add leader as first member
-            await db._db.execute(
+            await db.execute(
                 "INSERT INTO party_members (party_id, char_id, joined_at) VALUES (?, ?, ?)",
                 (party_id, leader_id, now)
             )
-            await db._db.commit()
+            await db.commit()
         except Exception as e:
             log.error("[party] Failed to create party: %s", e)
             # Fallback: in-memory only
@@ -344,9 +344,9 @@ class PartyManager:
                 self._char_party.pop(cid, None)
 
         try:
-            await db._db.execute("DELETE FROM party_members WHERE party_id = ?", (party_id,))
-            await db._db.execute("DELETE FROM parties WHERE id = ?", (party_id,))
-            await db._db.commit()
+            await db.execute("DELETE FROM party_members WHERE party_id = ?", (party_id,))
+            await db.execute("DELETE FROM parties WHERE id = ?", (party_id,))
+            await db.commit()
         except Exception:
             log.warning("_delete_party: unhandled exception", exc_info=True)
             pass

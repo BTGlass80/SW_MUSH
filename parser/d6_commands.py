@@ -9,6 +9,9 @@ from engine.dice import (
 )
 from engine.character import Character, SkillRegistry
 from server import ansi
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def _get_skill_reg(ctx) -> SkillRegistry:
@@ -60,8 +63,8 @@ class RollCommand(BaseCommand):
                     else:
                         modifier = mod_val
                     parts = parts[:-1]
-                except (ValueError, IndexError):
-                    pass
+                except (ValueError, IndexError) as _e:
+                    log.debug("silent except in parser/d6_commands.py:66: %s", _e, exc_info=True)
 
         pool_str = " ".join(parts)
 
@@ -79,8 +82,8 @@ class RollCommand(BaseCommand):
                     exclude=ctx.session,
                 )
                 return
-        except (ValueError, IndexError):
-            pass
+        except (ValueError, IndexError) as _e:
+            log.debug("silent except in parser/d6_commands.py:85: %s", _e, exc_info=True)
 
         # Try as a skill name
         skill_reg = _get_skill_reg(ctx)

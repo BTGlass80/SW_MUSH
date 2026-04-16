@@ -64,6 +64,7 @@ class ShopCommand(BaseCommand):
     usage = "shop <sub-command> [args]"
 
     async def execute(self, ctx: CommandContext):
+        """Dispatch to sub-command handlers. Phase 3 C4 refactor."""
         from engine.vendor_droids import (
             purchase_droid, place_droid, recall_droid,
             set_shop_name, set_shop_desc,
@@ -88,347 +89,385 @@ class ShopCommand(BaseCommand):
             return
 
         # ── shop buy droid <tier> ──
-        if sub == "buy":
-            bparts = rest.split(None, 1)
-            if not bparts or bparts[0].lower() != "droid":
-                await ctx.session.send_line(
-                    "  Usage: shop buy droid <tier>  (tiers: gn4, gn7, gn12)\n"
-                    "  Visit a droid dealer NPC to purchase, or use this command."
-                )
-                return
-            tier_arg = bparts[1].strip().lower() if len(bparts) > 1 else ""
-            if not tier_arg:
-                await ctx.session.send_line(
-                    "  Specify a tier: gn4 (2,000cr), gn7 (5,000cr), gn12 (12,000cr)"
-                )
-                return
-            ok, msg = await purchase_droid(char, tier_arg, ctx.db)
-            await ctx.session.send_line(f"  {msg}")
+
+        if not sub:
+            return await self._cmd_status(ctx, char, rest)
+
+        _dispatch = {
+            "buy": self._cmd_buy,
+            "place": self._cmd_place,
+            "recall": self._cmd_recall,
+            "name": self._cmd_name,
+            "desc": self._cmd_desc,
+            "stock": self._cmd_stock,
+            "unstock": self._cmd_unstock,
+            "price": self._cmd_price,
+            "collect": self._cmd_collect,
+            "sales": self._cmd_sales,
+            "order": self._cmd_order,
+            "cancel": self._cmd_cancel,
+            "upgrade": self._cmd_upgrade,
+        }
+        handler = _dispatch.get(sub)
+        if handler:
+            return await handler(ctx, char, rest)
+
+        await ctx.session.send_line(f"  Unknown subcommand '{sub}'.")
+
+    async def _cmd_buy(self, ctx, char, rest):
+        bparts = rest.split(None, 1)
+        if not bparts or bparts[0].lower() != "droid":
+            await ctx.session.send_line(
+                "  Usage: shop buy droid <tier>  (tiers: gn4, gn7, gn12)\n"
+                "  Visit a droid dealer NPC to purchase, or use this command."
+            )
             return
+        tier_arg = bparts[1].strip().lower() if len(bparts) > 1 else ""
+        if not tier_arg:
+            await ctx.session.send_line(
+                "  Specify a tier: gn4 (2,000cr), gn7 (5,000cr), gn12 (12,000cr)"
+            )
+            return
+        ok, msg = await purchase_droid(char, tier_arg, ctx.db)
+        await ctx.session.send_line(f"  {msg}")
+        return
 
         # ── shop place [id] ──
-        if sub in ("place", "deploy"):
-            droid = await _get_owner_droid(ctx, rest, unplaced_only=True)
-            if droid is None:
-                return
-            ok, msg = await place_droid(char, droid["id"], char["room_id"], ctx.db)
-            await ctx.session.send_line(f"  {msg}")
+
+    async def _cmd_place(self, ctx, char, rest):
+        droid = await _get_owner_droid(ctx, rest, unplaced_only=True)
+        if droid is None:
             return
+        ok, msg = await place_droid(char, droid["id"], char["room_id"], ctx.db)
+        await ctx.session.send_line(f"  {msg}")
+        return
 
         # ── shop recall [id] ──
-        if sub in ("recall", "pickup"):
-            droid = await _get_owner_droid(ctx, rest, placed_only=True)
-            if droid is None:
-                return
-            ok, msg = await recall_droid(char, droid["id"], ctx.db)
-            await ctx.session.send_line(f"  {msg}")
+
+    async def _cmd_recall(self, ctx, char, rest):
+        droid = await _get_owner_droid(ctx, rest, placed_only=True)
+        if droid is None:
             return
+        ok, msg = await recall_droid(char, droid["id"], ctx.db)
+        await ctx.session.send_line(f"  {msg}")
+        return
 
         # ── shop name <text> ──
-        if sub == "name":
-            droid = await _get_owner_droid(ctx, "")
-            if droid is None:
-                return
-            ok, msg = await set_shop_name(char, droid["id"], rest, ctx.db)
-            await ctx.session.send_line(f"  {msg}")
+
+    async def _cmd_name(self, ctx, char, rest):
+        droid = await _get_owner_droid(ctx, "")
+        if droid is None:
             return
+        ok, msg = await set_shop_name(char, droid["id"], rest, ctx.db)
+        await ctx.session.send_line(f"  {msg}")
+        return
 
         # ── shop desc <text> ──
-        if sub == "desc":
-            droid = await _get_owner_droid(ctx, "")
-            if droid is None:
-                return
-            ok, msg = await set_shop_desc(char, droid["id"], rest, ctx.db)
-            await ctx.session.send_line(f"  {msg}")
+
+    async def _cmd_desc(self, ctx, char, rest):
+        droid = await _get_owner_droid(ctx, "")
+        if droid is None:
             return
+        ok, msg = await set_shop_desc(char, droid["id"], rest, ctx.db)
+        await ctx.session.send_line(f"  {msg}")
+        return
 
         # ── shop stock <item_name> <price> [qty] ──
-        if sub in ("stock", "add"):
-            # Parse: last token is qty (optional), second-to-last is price
-            rparts = rest.rsplit(None, 2)
-            if len(rparts) < 2:
-                await ctx.session.send_line(
-                    "  Usage: shop stock <item name> <price> [quantity]"
-                )
-                return
-            # Detect if last token is a qty or price
-            qty = 1
-            if len(rparts) == 3 and rparts[2].isdigit():
-                qty = int(rparts[2])
-                price_str = rparts[1]
-                item_name = rparts[0]
-            else:
-                price_str = rparts[-1]
-                item_name = " ".join(rparts[:-1])
 
-            if not price_str.isdigit():
-                await ctx.session.send_line(
-                    "  Usage: shop stock <item name> <price> [quantity]"
-                )
-                return
-
-            price = int(price_str)
-            droid = await _get_owner_droid(ctx, "")
-            if droid is None:
-                return
-
-            # Find item in character inventory (equipment or resources)
-            item_key, actual_name, quality, crafter, source_type = _find_in_inventory(
-                char, item_name
+    async def _cmd_stock(self, ctx, char, rest):
+        # Parse: last token is qty (optional), second-to-last is price
+        rparts = rest.rsplit(None, 2)
+        if len(rparts) < 2:
+            await ctx.session.send_line(
+                "  Usage: shop stock <item name> <price> [quantity]"
             )
-            if not item_key:
-                await ctx.session.send_line(
-                    f"  '{item_name}' not found in your inventory.\n"
-                    f"  Use 'inventory' to see your items."
-                )
-                return
-
-            ok, msg = await stock_droid(
-                char, droid["id"],
-                item_key, actual_name, quality, price, qty, crafter,
-                ctx.db, source_type=source_type,
-            )
-            await ctx.session.send_line(f"  {msg}")
             return
+        # Detect if last token is a qty or price
+        qty = 1
+        if len(rparts) == 3 and rparts[2].isdigit():
+            qty = int(rparts[2])
+            price_str = rparts[1]
+            item_name = rparts[0]
+        else:
+            price_str = rparts[-1]
+            item_name = " ".join(rparts[:-1])
+
+        if not price_str.isdigit():
+            await ctx.session.send_line(
+                "  Usage: shop stock <item name> <price> [quantity]"
+            )
+            return
+
+        price = int(price_str)
+        droid = await _get_owner_droid(ctx, "")
+        if droid is None:
+            return
+
+        # Find item in character inventory (equipment or resources)
+        item_key, actual_name, quality, crafter, source_type = _find_in_inventory(
+            char, item_name
+        )
+        if not item_key:
+            await ctx.session.send_line(
+                f"  '{item_name}' not found in your inventory.\n"
+                f"  Use 'inventory' to see your items."
+            )
+            return
+
+        ok, msg = await stock_droid(
+            char, droid["id"],
+            item_key, actual_name, quality, price, qty, crafter,
+            ctx.db, source_type=source_type,
+        )
+        await ctx.session.send_line(f"  {msg}")
+        return
 
         # ── shop unstock <slot> [qty] ──
-        if sub in ("unstock", "remove"):
-            uparts = rest.split()
-            if not uparts or not uparts[0].isdigit():
-                await ctx.session.send_line("  Usage: shop unstock <slot#> [quantity]")
-                return
-            slot_num = int(uparts[0])
-            qty      = int(uparts[1]) if len(uparts) > 1 and uparts[1].isdigit() else 999
-            droid = await _get_owner_droid(ctx, "")
-            if droid is None:
-                return
-            ok, msg = await unstock_droid(char, droid["id"], slot_num, qty, ctx.db)
-            await ctx.session.send_line(f"  {msg}")
+
+    async def _cmd_unstock(self, ctx, char, rest):
+        uparts = rest.split()
+        if not uparts or not uparts[0].isdigit():
+            await ctx.session.send_line("  Usage: shop unstock <slot#> [quantity]")
             return
+        slot_num = int(uparts[0])
+        qty      = int(uparts[1]) if len(uparts) > 1 and uparts[1].isdigit() else 999
+        droid = await _get_owner_droid(ctx, "")
+        if droid is None:
+            return
+        ok, msg = await unstock_droid(char, droid["id"], slot_num, qty, ctx.db)
+        await ctx.session.send_line(f"  {msg}")
+        return
 
         # ── shop price <slot> <price> ──
-        if sub == "price":
-            pparts = rest.split()
-            if len(pparts) < 2 or not pparts[0].isdigit() or not pparts[1].isdigit():
-                await ctx.session.send_line("  Usage: shop price <slot#> <new_price>")
-                return
-            droid = await _get_owner_droid(ctx, "")
-            if droid is None:
-                return
-            ok, msg = await set_slot_price(
-                char, droid["id"], int(pparts[0]), int(pparts[1]), ctx.db
-            )
-            await ctx.session.send_line(f"  {msg}")
+
+    async def _cmd_price(self, ctx, char, rest):
+        pparts = rest.split()
+        if len(pparts) < 2 or not pparts[0].isdigit() or not pparts[1].isdigit():
+            await ctx.session.send_line("  Usage: shop price <slot#> <new_price>")
             return
+        droid = await _get_owner_droid(ctx, "")
+        if droid is None:
+            return
+        ok, msg = await set_slot_price(
+            char, droid["id"], int(pparts[0]), int(pparts[1]), ctx.db
+        )
+        await ctx.session.send_line(f"  {msg}")
+        return
 
         # ── shop collect [id] ──
-        if sub in ("collect", "withdraw"):
-            droid = await _get_owner_droid(ctx, rest)
-            if droid is None:
-                return
-            ok, msg = await collect_escrow(char, droid["id"], ctx.db)
-            await ctx.session.send_line(f"  {msg}")
+
+    async def _cmd_collect(self, ctx, char, rest):
+        droid = await _get_owner_droid(ctx, rest)
+        if droid is None:
             return
+        ok, msg = await collect_escrow(char, droid["id"], ctx.db)
+        await ctx.session.send_line(f"  {msg}")
+        return
 
         # ── shop sales [id] ──
-        if sub in ("sales", "log"):
-            droids = await ctx.db.get_objects_owned_by(char["id"], "vendor_droid")
-            if not droids:
-                await ctx.session.send_line("  You don't own any vendor droids.")
-                return
-            droid_id = None
-            if rest.isdigit():
-                droid_id = int(rest)
-            txns = await ctx.db.get_shop_transactions(
-                char["id"], droid_id=droid_id, limit=20
-            )
-            if not txns:
-                await ctx.session.send_line("  No sales recorded yet.")
-                return
-            lines = [
-                "\033[1;36m══════════════════════════════════════════\033[0m",
-                "  \033[1;37mRECENT SALES\033[0m",
-                "\033[1;36m──────────────────────────────────────────\033[0m",
-            ]
-            for t in txns:
-                import datetime
-                ts = datetime.datetime.fromtimestamp(
-                    float(t.get("created_at", 0))
-                ).strftime("%m/%d %H:%M")
-                net = t["total_price"] - t.get("listing_fee", 0)
-                lines.append(
-                    f"  \033[2m{ts}\033[0m  {t['item_name']:<24} "
-                    f"x{t.get('quantity',1)}  "
-                    f"\033[1;33m{net:,}cr net\033[0m  "
-                    f"\033[2m→ {t.get('buyer_name','?')}\033[0m"
-                )
-            lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
-            await ctx.session.send_line("\n".join(lines))
+
+    async def _cmd_sales(self, ctx, char, rest):
+        droids = await ctx.db.get_objects_owned_by(char["id"], "vendor_droid")
+        if not droids:
+            await ctx.session.send_line("  You don't own any vendor droids.")
             return
+        droid_id = None
+        if rest.isdigit():
+            droid_id = int(rest)
+        txns = await ctx.db.get_shop_transactions(
+            char["id"], droid_id=droid_id, limit=20
+        )
+        if not txns:
+            await ctx.session.send_line("  No sales recorded yet.")
+            return
+        lines = [
+            "\033[1;36m══════════════════════════════════════════\033[0m",
+            "  \033[1;37mRECENT SALES\033[0m",
+            "\033[1;36m──────────────────────────────────────────\033[0m",
+        ]
+        for t in txns:
+            import datetime
+            ts = datetime.datetime.fromtimestamp(
+                float(t.get("created_at", 0))
+            ).strftime("%m/%d %H:%M")
+            net = t["total_price"] - t.get("listing_fee", 0)
+            lines.append(
+                f"  \033[2m{ts}\033[0m  {t['item_name']:<24} "
+                f"x{t.get('quantity',1)}  "
+                f"\033[1;33m{net:,}cr net\033[0m  "
+                f"\033[2m→ {t.get('buyer_name','?')}\033[0m"
+            )
+        lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
+        await ctx.session.send_line("\n".join(lines))
+        return
 
         # ── shop order <resource> <min_quality> <qty> <price> (Tier 3) ──
-        if sub == "order":
-            oparts = rest.split()
-            if len(oparts) < 4:
-                await ctx.session.send_line(
-                    "  Usage: shop order <resource> <min_quality> <qty> <price_per>\n"
-                    "  Example: shop order durasteel 60 10 80\n"
-                    "  (Tier 3 GN-12 Commerce Droids only)"
-                )
-                return
-            resource_type = oparts[0].lower()
-            if not all(p.isdigit() for p in oparts[1:4]):
-                await ctx.session.send_line(
-                    "  Usage: shop order <resource> <min_quality> <qty> <price_per>"
-                )
-                return
-            droid = await _get_owner_droid(ctx, "")
-            if droid is None:
-                return
-            from engine.vendor_droids import post_buy_order
-            ok, msg = await post_buy_order(
-                char, droid["id"], resource_type,
-                int(oparts[1]), int(oparts[2]), int(oparts[3]),
-                ctx.db,
+
+    async def _cmd_order(self, ctx, char, rest):
+        oparts = rest.split()
+        if len(oparts) < 4:
+            await ctx.session.send_line(
+                "  Usage: shop order <resource> <min_quality> <qty> <price_per>\n"
+                "  Example: shop order durasteel 60 10 80\n"
+                "  (Tier 3 GN-12 Commerce Droids only)"
             )
-            await ctx.session.send_line(f"  {msg}")
             return
+        resource_type = oparts[0].lower()
+        if not all(p.isdigit() for p in oparts[1:4]):
+            await ctx.session.send_line(
+                "  Usage: shop order <resource> <min_quality> <qty> <price_per>"
+            )
+            return
+        droid = await _get_owner_droid(ctx, "")
+        if droid is None:
+            return
+        from engine.vendor_droids import post_buy_order
+        ok, msg = await post_buy_order(
+            char, droid["id"], resource_type,
+            int(oparts[1]), int(oparts[2]), int(oparts[3]),
+            ctx.db,
+        )
+        await ctx.session.send_line(f"  {msg}")
+        return
 
         # ── shop cancel <order_id> ──
-        if sub == "cancel":
-            if not rest.isdigit():
-                await ctx.session.send_line("  Usage: shop cancel <order_id>")
-                return
-            droid = await _get_owner_droid(ctx, "")
-            if droid is None:
-                return
-            from engine.vendor_droids import cancel_buy_order
-            ok, msg = await cancel_buy_order(char, droid["id"], int(rest), ctx.db)
-            await ctx.session.send_line(f"  {msg}")
+
+    async def _cmd_cancel(self, ctx, char, rest):
+        if not rest.isdigit():
+            await ctx.session.send_line("  Usage: shop cancel <order_id>")
             return
+        droid = await _get_owner_droid(ctx, "")
+        if droid is None:
+            return
+        from engine.vendor_droids import cancel_buy_order
+        ok, msg = await cancel_buy_order(char, droid["id"], int(rest), ctx.db)
+        await ctx.session.send_line(f"  {msg}")
+        return
 
         # ── shop upgrade <tier> ──
-        if sub == "upgrade":
-            from engine.vendor_droids import (
-                get_tier, get_tier_by_number, _load_data, _dump_data,
-            )
-            droid = await _get_owner_droid(ctx, "")
-            if droid is None:
-                return
 
-            obj = await ctx.db.get_object(droid["id"])
-            if not obj:
-                await ctx.session.send_line("  Droid data error.")
-                return
-
-            data = _load_data(obj)
-            current_tier_key = data.get("tier_key", "gn4")
-            current_tier = get_tier(current_tier_key) or {}
-            current_num = current_tier.get("tier", 1)
-
-            if current_num >= 3:
-                await ctx.session.send_line(
-                    "  Your droid is already at maximum tier (GN-12)."
-                )
-                return
-
-            # Must be recalled (not placed)
-            if obj.get("room_id"):
-                await ctx.session.send_line(
-                    "  Your droid must be recalled before upgrading.\n"
-                    "  Use \033[1;33mshop recall\033[0m first."
-                )
-                return
-
-            # Determine target tier
-            target_num = current_num + 1
-            if rest:
-                # Allow explicit tier: "shop upgrade gn7" or "shop upgrade 2"
-                if rest.lower().startswith("gn"):
-                    target = get_tier(rest.lower())
-                    if target:
-                        target_num = target["tier"]
-                elif rest.isdigit():
-                    target_num = int(rest)
-
-            target_result = get_tier_by_number(target_num)
-            if not target_result:
-                await ctx.session.send_line(
-                    f"  Unknown tier '{rest}'. Valid tiers: gn4 (1), gn7 (2), gn12 (3)."
-                )
-                return
-
-            target_key, target_tier = target_result
-
-            if target_num <= current_num:
-                await ctx.session.send_line(
-                    f"  Your droid is already tier {current_num}. "
-                    f"Can only upgrade to a higher tier."
-                )
-                return
-
-            # Upgrade cost: difference between tier costs
-            upgrade_cost = target_tier["cost"] - current_tier.get("cost", 0)
-            if upgrade_cost < 1000:
-                upgrade_cost = 1000  # Minimum floor
-
-            # Pricing from NPC dealer personality text:
-            # gn4->gn7 = 3,000cr, gn7->gn12 = 7,000cr
-            UPGRADE_PRICES = {
-                (1, 2): 3000,   # gn4 -> gn7
-                (1, 3): 10000,  # gn4 -> gn12 (skip tier)
-                (2, 3): 7000,   # gn7 -> gn12
-            }
-            upgrade_cost = UPGRADE_PRICES.get(
-                (current_num, target_num), upgrade_cost
-            )
-
-            if char.get("credits", 0) < upgrade_cost:
-                await ctx.session.send_line(
-                    f"  Insufficient credits. Upgrade to {target_tier['name']} "
-                    f"costs {upgrade_cost:,} cr "
-                    f"(you have {char.get('credits', 0):,})."
-                )
-                return
-
-            # Deduct credits
-            char["credits"] -= upgrade_cost
-            await ctx.db.save_character(char["id"], credits=char["credits"])
-
-            # Update droid tier (inventory carries over)
-            data["tier"] = target_num
-            data["tier_key"] = target_key
-            import time as _time
-            data["last_owner_ts"] = _time.time()
-            await ctx.db.update_object(
-                droid["id"],
-                name=target_tier["name"],
-                data=_dump_data(data),
-            )
-
-            old_slots = current_tier.get("slots", 10)
-            new_slots = target_tier.get("slots", 25)
-            await ctx.session.send_line(
-                f"  \033[1;32mUpgrade complete!\033[0m "
-                f"{current_tier.get('name', current_tier_key)} → "
-                f"\033[1;37m{target_tier['name']}\033[0m\n"
-                f"  Cost: {upgrade_cost:,} cr "
-                f"(Balance: {char['credits']:,} cr)\n"
-                f"  Inventory slots: {old_slots} → {new_slots}\n"
-                f"  All stocked items have been preserved."
-            )
-            if target_tier.get("buy_orders"):
-                await ctx.session.send_line(
-                    f"  \033[1;33mBuy orders now available!\033[0m "
-                    f"Use \033[1;33mshop order\033[0m to post wanted listings."
-                )
+    async def _cmd_upgrade(self, ctx, char, rest):
+        from engine.vendor_droids import (
+            get_tier, get_tier_by_number, _load_data, _dump_data,
+        )
+        droid = await _get_owner_droid(ctx, "")
+        if droid is None:
             return
 
-        await ctx.session.send_line(
-            f"  Unknown shop command '{sub}'.\n"
-            f"  Try: buy, place, recall, name, desc, stock, unstock, price, "
-            f"collect, sales, order, cancel, upgrade"
+        obj = await ctx.db.get_object(droid["id"])
+        if not obj:
+            await ctx.session.send_line("  Droid data error.")
+            return
+
+        data = _load_data(obj)
+        current_tier_key = data.get("tier_key", "gn4")
+        current_tier = get_tier(current_tier_key) or {}
+        current_num = current_tier.get("tier", 1)
+
+        if current_num >= 3:
+            await ctx.session.send_line(
+                "  Your droid is already at maximum tier (GN-12)."
+            )
+            return
+
+        # Must be recalled (not placed)
+        if obj.get("room_id"):
+            await ctx.session.send_line(
+                "  Your droid must be recalled before upgrading.\n"
+                "  Use \033[1;33mshop recall\033[0m first."
+            )
+            return
+
+        # Determine target tier
+        target_num = current_num + 1
+        if rest:
+            # Allow explicit tier: "shop upgrade gn7" or "shop upgrade 2"
+            if rest.lower().startswith("gn"):
+                target = get_tier(rest.lower())
+                if target:
+                    target_num = target["tier"]
+            elif rest.isdigit():
+                target_num = int(rest)
+
+        target_result = get_tier_by_number(target_num)
+        if not target_result:
+            await ctx.session.send_line(
+                f"  Unknown tier '{rest}'. Valid tiers: gn4 (1), gn7 (2), gn12 (3)."
+            )
+            return
+
+        target_key, target_tier = target_result
+
+        if target_num <= current_num:
+            await ctx.session.send_line(
+                f"  Your droid is already tier {current_num}. "
+                f"Can only upgrade to a higher tier."
+            )
+            return
+
+        # Upgrade cost: difference between tier costs
+        upgrade_cost = target_tier["cost"] - current_tier.get("cost", 0)
+        if upgrade_cost < 1000:
+            upgrade_cost = 1000  # Minimum floor
+
+        # Pricing from NPC dealer personality text:
+        # gn4->gn7 = 3,000cr, gn7->gn12 = 7,000cr
+        UPGRADE_PRICES = {
+            (1, 2): 3000,   # gn4 -> gn7
+            (1, 3): 10000,  # gn4 -> gn12 (skip tier)
+            (2, 3): 7000,   # gn7 -> gn12
+        }
+        upgrade_cost = UPGRADE_PRICES.get(
+            (current_num, target_num), upgrade_cost
         )
+
+        if char.get("credits", 0) < upgrade_cost:
+            await ctx.session.send_line(
+                f"  Insufficient credits. Upgrade to {target_tier['name']} "
+                f"costs {upgrade_cost:,} cr "
+                f"(you have {char.get('credits', 0):,})."
+            )
+            return
+
+        # Deduct credits
+        char["credits"] -= upgrade_cost
+        await ctx.db.save_character(char["id"], credits=char["credits"])
+
+        # Update droid tier (inventory carries over)
+        data["tier"] = target_num
+        data["tier_key"] = target_key
+        import time as _time
+        data["last_owner_ts"] = _time.time()
+        await ctx.db.update_object(
+            droid["id"],
+            name=target_tier["name"],
+            data=_dump_data(data),
+        )
+
+        old_slots = current_tier.get("slots", 10)
+        new_slots = target_tier.get("slots", 25)
+        await ctx.session.send_line(
+            f"  \033[1;32mUpgrade complete!\033[0m "
+            f"{current_tier.get('name', current_tier_key)} → "
+            f"\033[1;37m{target_tier['name']}\033[0m\n"
+            f"  Cost: {upgrade_cost:,} cr "
+            f"(Balance: {char['credits']:,} cr)\n"
+            f"  Inventory slots: {old_slots} → {new_slots}\n"
+            f"  All stocked items have been preserved."
+        )
+        if target_tier.get("buy_orders"):
+            await ctx.session.send_line(
+                f"  \033[1;33mBuy orders now available!\033[0m "
+                f"Use \033[1;33mshop order\033[0m to post wanted listings."
+            )
+        return
+
+        await ctx.session.send_line(
+        f"  Unknown shop command '{sub}'.\n"
+        f"  Try: buy, place, recall, name, desc, stock, unstock, price, "
+        f"collect, sales, order, cancel, upgrade"
+        )
+
 
 
 # ── Browse command ─────────────────────────────────────────────────────────────
@@ -510,7 +549,7 @@ class AdminShopCommand(BaseCommand):
 
         if sub == "list":
             # List all placed droids
-            rows = await ctx.db._db.execute_fetchall(
+            rows = await ctx.db.fetchall(
                 """SELECT o.*, c.name AS owner_name
                    FROM objects o
                    JOIN characters c ON c.id = o.owner_id
@@ -532,7 +571,7 @@ class AdminShopCommand(BaseCommand):
             return
 
         if sub == "inspect":
-            rows = await ctx.db._db.execute_fetchall(
+            rows = await ctx.db.fetchall(
                 "SELECT id, name FROM characters WHERE LOWER(name) = LOWER(?)",
                 (rest,),
             )

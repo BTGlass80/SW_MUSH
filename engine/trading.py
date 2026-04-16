@@ -18,6 +18,9 @@ Planet price tiers:
 from __future__ import annotations
 from dataclasses import dataclass, field
 import json
+import logging
+
+log = logging.getLogger(__name__)
 
 # ── Trade good definitions ────────────────────────────────────────────────────
 

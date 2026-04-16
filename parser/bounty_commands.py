@@ -338,6 +338,10 @@ class BountyCollectCommand(BaseCommand):
         new_credits = old_credits + reward
         char["credits"] = new_credits
         await ctx.db.save_character(char["id"], credits=new_credits)
+        try:
+            await ctx.db.log_credit(char["id"], reward, "bounty", new_credits)
+        except Exception as _e:
+            log.debug("silent except in parser/bounty_commands.py:343: %s", _e, exc_info=True)
 
         # Clean up NPC if it still exists
         if npc and contract.target_npc_id:
@@ -383,11 +387,15 @@ class BountyCollectCommand(BaseCommand):
             log.warning("execute: unhandled exception", exc_info=True)
             pass
         try:
-            from engine.organizations import REP_GAINS
+            from engine.organizations import adjust_rep
             faction_id = char.get("faction_id", "independent")
-            if faction_id == "bh_guild":
-                await ctx.db.adjust_rep(char["id"], "bh_guild",
-                                         REP_GAINS["complete_bounty"])
+            if faction_id and faction_id != "independent":
+                await adjust_rep(
+                    char, faction_id, ctx.db,
+                    action_key="complete_bounty",
+                    reason=f"Bounty collected: {collected.target_name}",
+                    session=ctx.session,
+                )
         except Exception:
             log.warning("execute: unhandled exception", exc_info=True)
             pass
@@ -411,8 +419,8 @@ class BountyCollectCommand(BaseCommand):
                 ctx.session, ctx.db, "bounty",
                 tier=getattr(collected, "tier", 0),
             )
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in parser/bounty_commands.py:422: %s", _e, exc_info=True)
         # Territory influence: mission complete in zone
         try:
             from engine.territory import on_mission_complete

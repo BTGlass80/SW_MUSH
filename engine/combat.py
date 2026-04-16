@@ -1551,8 +1551,14 @@ class CombatInstance:
             elif r.action.action_type in (
                 ActionType.PARRY, ActionType.FULL_PARRY
             ):
+                _parry_skill = (r.action.skill or "melee parry").lower()
+                _parry_display = {
+                    "melee parry": "a melee guard",
+                    "brawling parry": "bare hands",
+                    "lightsaber": "their lightsaber",
+                }.get(_parry_skill, r.action.skill or "melee parry")
                 fragments.append(
-                    f"{c.name} braces, parrying with {r.action.skill or 'melee parry'}."
+                    f"{c.name} braces, parrying with {_parry_display}."
                 )
             elif r.action.action_type == ActionType.FLEE:
                 if r.success:

@@ -159,8 +159,8 @@ async def _npc_pilot_act(
     ai_cfg = {}
     try:
         ai_cfg = json.loads(npc_row.get("ai_config_json", "{}"))
-    except (json.JSONDecodeError, TypeError):
-        pass
+    except (json.JSONDecodeError, TypeError) as _e:
+        log.debug("silent except in engine/npc_space_crew.py:162: %s", _e, exc_info=True)
     behavior = ai_cfg.get("combat_behavior", "defensive")
 
     # Check for player order

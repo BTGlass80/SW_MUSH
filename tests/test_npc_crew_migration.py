@@ -25,7 +25,7 @@ async def test_fresh_install():
         rows = await db._db.execute_fetchall(
             "SELECT MAX(version) as v FROM schema_version"
         )
-        assert rows[0]["v"] == 2, f"Expected schema v2, got {rows[0]['v']}"
+        assert rows[0]["v"] == SCHEMA_VERSION, f"Expected schema v{SCHEMA_VERSION}, got {rows[0]['v']}"
 
         cols = await db._db.execute_fetchall("PRAGMA table_info(npcs)")
         col_names = {c["name"] for c in cols}
@@ -157,7 +157,7 @@ async def test_v1_upgrade():
         rows = await db._db.execute_fetchall(
             "SELECT MAX(version) as v FROM schema_version"
         )
-        assert rows[0]["v"] == 2, f"Expected schema v2 after migration, got {rows[0]['v']}"
+        assert rows[0]["v"] == SCHEMA_VERSION, f"Expected schema v{SCHEMA_VERSION} after migration, got {rows[0]['v']}"
 
         cols = await db._db.execute_fetchall("PRAGMA table_info(npcs)")
         col_names = {c["name"] for c in cols}
@@ -287,7 +287,8 @@ async def test_wage_deduction():
         assert char["credits"] == 120
 
         npc2 = await db.get_npc(npc2_id)
-        assert npc2 is None  # Deleted (dismissed)
+        assert npc2 is not None  # NPC still exists in world
+        assert npc2["hired_by"] is None  # But no longer employed
 
         print("  PASS: wage deduction -- pays who it can, fires who it can't")
     finally:

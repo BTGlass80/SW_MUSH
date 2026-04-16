@@ -36,7 +36,7 @@ _HUB_ROOM_NAME = "Training Grounds"
 
 async def _find_room_by_name(db, name: str):
     """Find a room ID by exact name match (case-insensitive)."""
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT id FROM rooms WHERE LOWER(name) = LOWER(?) LIMIT 1",
         (name,),
     )

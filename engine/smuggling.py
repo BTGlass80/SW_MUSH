@@ -403,7 +403,7 @@ class SmugglingBoard:
 
     async def _load_from_db(self, db) -> None:
         try:
-            rows = await db._db.execute_fetchall(
+            rows = await db.fetchall(
                 "SELECT data FROM smuggling_jobs WHERE status IN ('available','accepted')"
             )
             for row in rows:
@@ -442,13 +442,13 @@ class SmugglingBoard:
 
     async def _save_job(self, db, job: SmugglingJob) -> None:
         try:
-            await db._db.execute(
+            await db.execute(
                 """INSERT OR REPLACE INTO smuggling_jobs
                    (id, status, accepted_by, data)
                    VALUES (?, ?, ?, ?)""",
                 (job.id, job.status.value, job.accepted_by, json.dumps(job.to_dict()))
             )
-            await db._db.commit()
+            await db.commit()
         except Exception as e:
             log.warning("[smuggling] Failed to save job %s: %s", job.id, e)
 

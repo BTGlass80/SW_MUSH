@@ -35,9 +35,10 @@ class TestDicePoolParse:
         assert p.dice == 5 and p.pips == 1
 
     def test_negative_pips(self):
-        # Negative pips get floored to 0 in __post_init__
+        # Negative pips borrow from dice: 3D-1 → 2D+2
+        # (1 die = 3 pips, so -1 pip borrows a die and adds 3: -1+3 = 2 pips)
         p = DicePool.parse("3D-1")
-        assert p.dice == 3 and p.pips == 0  # pips clamped to 0
+        assert p.dice == 2 and p.pips == 2  # borrowed, not clamped
 
     def test_pip_overflow(self):
         """3 pips should roll into +1D."""

@@ -2304,3 +2304,224 @@ npcs:
         - "Dispatch holds up one finger without looking at you. 'One minute.'"
         - "'Mos Espa run departs at 0800. Seats available. Credits up front.'"
         - "She slaps a printed schedule on the counter. 'Pick a route.'"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # BUREAU OF SHIPS AND SERVICES (BoSS) — Cracken's Rebel Field Guide WEG40046
+  # ──────────────────────────────────────────────────────────────────────────
+
+  - template_key: boss_agent
+    name: "BoSS Agent"
+    species: "Human"
+    description: >
+      A nondescript individual with sharp eyes and a datapad that never leaves
+      their hand. They blend into any starport crowd with practiced ease.
+    placement: []
+    stats:
+      attributes:
+        dexterity: "3D"
+        knowledge: "4D"
+        mechanical: "2D"
+        perception: "4D"
+        strength: "3D"
+        technical: "3D"
+      skills:
+        blaster: "4D+2"
+        dodge: "3D+2"
+        alien_races: "5D"
+        cultures: "4D+2"
+        languages: "4D+1"
+        planetary_systems: "4D+1"
+        streetwise: "5D"
+        beast_riding: "3D"
+        repulsorlift_operation: "3D+1"
+        starship_piloting: "3D+1"
+        con: "4D+2"
+        gambling: "4D+1"
+        hide_sneak: "5D"
+        search: "4D+2"
+        computer_programming_repair: "4D+1"
+        demolition: "3D+2"
+        security: "4D+2"
+        starship_repair: "5D"
+      weapon: "Heavy blaster pistol (5D)"
+      move: 10
+      force_points: 0
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        A BoSS Gatherer — one of the Bureau's field operatives who collects
+        data on ship registrations and transponder codes. Polite but observant.
+        Asks casual questions that are actually pointed intelligence gathering.
+      knowledge:
+        - "Works for the Bureau of Ships and Services, the galaxy's ship registry"
+        - "Can look up any ship's registration, owner, and modification history"
+        - "Notices discrepancies in transponder codes and registration papers"
+        - "BoSS is independent of the Empire but cooperates with Imperial authorities"
+      faction: "Neutral"
+      dialogue_style: "Conversational and friendly, with an undertone of professional appraisal."
+      hostile: false
+      combat_behavior: "defensive"
+      fallback_lines:
+        - "The agent glances at a datapad. 'Just routine registration checks.'"
+        - "'Interesting ship you have there. Mind if I verify the transponder?'"
+        - "They smile blandly. 'BoSS keeps the spacelanes honest.'"
+
+  - template_key: boss_enforcer
+    name: "BoSS Enforcer"
+    species: "Human"
+    description: >
+      A physically imposing individual in unmarked combat gear. No insignia,
+      no uniform — just quiet competence and a well-maintained blaster rifle.
+    placement: []
+    stats:
+      attributes:
+        dexterity: "4D"
+        knowledge: "2D"
+        mechanical: "3D"
+        perception: "3D"
+        strength: "4D"
+        technical: "2D"
+      skills:
+        blaster: "5D"
+        brawling_parry: "4D+2"
+        dodge: "4D+1"
+        grenade: "4D+1"
+        survival: "3D+1"
+        beast_riding: "3D+1"
+        starship_piloting: "3D+1"
+        starship_gunnery: "3D+2"
+        hide_sneak: "3D+1"
+        brawling: "4D+1"
+        climbing_jumping: "4D+2"
+        stamina: "5D"
+        security: "4D"
+        starship_repair: "2D+2"
+      weapon: "Blaster rifle (5D)"
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        BoSS enforcement — sent when someone has been falsifying ship records.
+        Professional, direct, and not interested in conversation.
+      knowledge:
+        - "Enforces BoSS regulations on ship registration and transponder integrity"
+        - "Authorized to detain individuals suspected of registration fraud"
+        - "Works in pairs or small teams, often with a BoSS Agent for intel"
+      faction: "Neutral"
+      dialogue_style: "Terse. Professional. Says what needs to be said and nothing more."
+      hostile: false
+      combat_behavior: "aggressive"
+      fallback_lines:
+        - "The enforcer rests a hand on the blaster rifle. 'Registration papers.'"
+        - "'This can go easy or hard. Your choice.'"
+        - "They step forward. 'BoSS business. Stand aside.'"
+
+  - template_key: boss_bureaucrat
+    name: "BoSS Clerk"
+    species: "Human"
+    description: >
+      A middle-aged clerk behind a counter stacked with datapads and
+      registration forms. Takes genuine pleasure in proper documentation.
+    placement: []
+    stats:
+      attributes:
+        dexterity: "2D"
+        knowledge: "4D"
+        mechanical: "2D"
+        perception: "4D"
+        strength: "2D"
+        technical: "4D"
+      skills:
+        alien_races: "5D"
+        cultures: "5D"
+        languages: "4D+1"
+        planetary_systems: "5D"
+        bargain: "4D+2"
+        command: "4D+1"
+        computer_programming_repair: "5D"
+        security: "5D+1"
+        starship_repair: "5D+2"
+      weapon: ""
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        A career BoSS bureaucrat. Lives for proper documentation and the
+        satisfaction of a well-maintained registry. Helpful if you have
+        legitimate business, impenetrable if you don't.
+      knowledge:
+        - "Maintains the local BoSS registration office"
+        - "Can register ship sales, ownership transfers, and name changes"
+        - "Charges standard fees for registration services (500 credits)"
+        - "Has encyclopedic knowledge of ship types and manufacturers"
+      faction: "Neutral"
+      dialogue_style: "Pedantic but not unkind. Speaks in regulations and form numbers."
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'Form 27-B stroke 6. Fill it out completely. Both sides.'"
+        - "The clerk adjusts spectacles. 'That transponder code doesn't match our records.'"
+        - "'Registration is a privilege, not a right. Next in line, please.'"
+
+  - template_key: general_cracken
+    name: "General Cracken"
+    species: "Human"
+    description: >
+      A weathered man in his fifties with calloused mechanic's hands that
+      contrast with his general's insignia. His eyes constantly assess
+      everything in the room — exits, sightlines, who's carrying what.
+    placement: []
+    stats:
+      attributes:
+        dexterity: "3D"
+        knowledge: "3D"
+        mechanical: "3D"
+        perception: "3D"
+        strength: "2D"
+        technical: "4D"
+      skills:
+        blaster: "5D+1"
+        brawling_parry: "4D"
+        heavy_weapons: "3D+2"
+        alien_races: "3D+2"
+        bureaucracy: "4D"
+        technology: "6D"
+        starship_gunnery: "5D"
+        command: "5D+2"
+        hide_sneak: "4D+2"
+        search: "5D+1"
+        brawling: "3D+1"
+        computer_programming_repair: "6D"
+        demolition: "5D+1"
+        repulsorlift_repair: "5D"
+        security: "6D+1"
+        starship_repair: "5D+2"
+      weapon: "Heavy blaster pistol (5D)"
+      move: 10
+      force_points: 2
+      character_points: 15
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        General Airen Cracken, chief intelligence officer of the Rebel Alliance.
+        A former mechanic from Contruum who organized a guerrilla sabotage force
+        against the Empire. Brilliant with machinery and unconventional tactics.
+        Warm but direct — wastes no words.
+      knowledge:
+        - "Chief of Alliance Intelligence — coordinates spy networks galaxy-wide"
+        - "Expert in mechanical sabotage, jury-rigging, and field improvisation"
+        - "Led the famous 'Cracken's Crew' sabotage unit on Contruum"
+        - "Twice received the Nebula for bravery"
+      faction: "Rebel Alliance"
+      dialogue_style: "Warm but no-nonsense. Speaks like a mechanic who happens to be a general."
+      hostile: false
+      combat_behavior: "tactical"
+      fallback_lines:
+        - "Cracken examines something on the workbench. 'Technology. Learn to use it or be used by it.'"
+        - "'The best weapon in the galaxy is a sharp mind and a hydrospanner.'"
+        - "He nods approvingly. 'Good. We need people who think on their feet.'"

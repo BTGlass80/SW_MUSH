@@ -205,8 +205,8 @@ async def match_in_room(
                         obj_type="npc", data=dict(npc),
                     ),
                 )
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as _e:
+            log.debug("silent except in engine/matching.py:208: %s", _e, exc_info=True)
 
     # Build candidate list from room contents
     candidates = []

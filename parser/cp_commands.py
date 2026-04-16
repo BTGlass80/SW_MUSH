@@ -19,7 +19,10 @@ Design:
 
 import os
 import json
+import logging
 from parser.commands import BaseCommand, CommandContext
+
+log = logging.getLogger(__name__)
 from server import ansi
 from engine.character import Character, SkillRegistry, DicePool
 from engine.cp_engine import get_cp_engine, TICKS_PER_CP, WEEKLY_CAP_TICKS, KUDOS_PER_WEEK
@@ -95,8 +98,8 @@ class CPStatusCommand(BaseCommand):
         try:
             from engine.spacer_quest import check_spacer_quest
             await check_spacer_quest(ctx.session, ctx.db, "use_command", command="cpstatus")
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in parser/cp_commands.py:101: %s", _e, exc_info=True)
 
 
 # ── train ─────────────────────────────────────────────────────────────────────
@@ -235,19 +238,20 @@ class KudosCommand(BaseCommand):
             )
             return
 
-        # Find target in the same room
-        room_id = char.get("room_id")
-        chars_in_room = await ctx.db.get_characters_in_room(room_id)
+        # Find target — any online player (v23: removed same-room requirement
+        # to reduce bottleneck at small population sizes)
         target = None
         tl = target_name.lower()
-        for c in chars_in_room:
-            if c["name"].lower().startswith(tl) and c["id"] != char["id"]:
-                target = c
+        for s in ctx.session_mgr._sessions.values():
+            if (s.character and
+                    s.character["name"].lower().startswith(tl) and
+                    s.character["id"] != char["id"]):
+                target = s.character
                 break
 
         if not target:
             await ctx.session.send_line(
-                ansi.error(f"No player named '{target_name}' found in this room.")
+                ansi.error(f"No online player named '{target_name}' found.")
             )
             return
 
@@ -274,6 +278,15 @@ class KudosCommand(BaseCommand):
                     f"{ansi.player_name(giver_name)} recognised your RP with kudos! "
                     f"+{ticks} ticks."
                 )
+
+            # Achievement: kudos_received (for target)
+            try:
+                from engine.achievements import on_kudos_received
+                total_kudos = await ctx.db.kudos_count_received_this_week(target["id"])
+                await on_kudos_received(ctx.db, target["id"], total_kudos,
+                                        session=target_sess)
+            except Exception as _e:
+                log.debug("silent except in parser/cp_commands.py:288: %s", _e, exc_info=True)
         else:
             await ctx.session.send_line(ansi.error(result["message"]))
 

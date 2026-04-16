@@ -47,8 +47,8 @@ def _match_npc_by_index(npcs: list[dict], query: str) -> dict | None:
         idx = int(query) - 1
         if 0 <= idx < len(npcs):
             return npcs[idx]
-    except (ValueError, IndexError):
-        pass
+    except (ValueError, IndexError) as _e:
+        log.debug("silent except in parser/crew_commands.py:50: %s", _e, exc_info=True)
     return None
 
 
@@ -86,8 +86,8 @@ class HireCommand(BaseCommand):
                 if room:
                     try:
                         props = json.loads(room.get("properties", "{}"))
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                    except (json.JSONDecodeError, TypeError) as _e:
+                        log.debug("silent except in parser/crew_commands.py:89: %s", _e, exc_info=True)
                 profile = props.get("hiring_profile", "default")
                 board = generate_hiring_board(profile)
 

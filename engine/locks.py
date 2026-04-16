@@ -341,8 +341,8 @@ def _parse_atom(tokens: list[str], pos: list[int]) -> LockNode:
         if len(parts) > 1:
             try:
                 min_dice = int(parts[1].upper().replace("D", ""))
-            except ValueError:
-                pass
+            except ValueError as _e:
+                log.debug("silent except in engine/locks.py:344: %s", _e, exc_info=True)
         return LockSkill(skill, min_dice)
 
     # has:X
@@ -353,8 +353,8 @@ def _parse_atom(tokens: list[str], pos: list[int]) -> LockNode:
     if t.startswith("#"):
         try:
             return LockCharId(int(t[1:]))
-        except ValueError:
-            pass
+        except ValueError as _e:
+            log.debug("silent except in engine/locks.py:356: %s", _e, exc_info=True)
 
     # Unknown token -- treat as a flag check
     return LockFlag(t)

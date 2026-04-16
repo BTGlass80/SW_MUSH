@@ -154,7 +154,7 @@ async def _handle_promote(ctx: CommandContext, rest: str):
         return
 
     # Load the target character dict (needed by promote())
-    rows = await ctx.db._db.execute_fetchall(
+    rows = await ctx.db.fetchall(
         "SELECT * FROM characters WHERE id = ?", (target["char_id"],)
     )
     if not rows:
@@ -191,7 +191,7 @@ async def _handle_demote(ctx: CommandContext, rest: str):
     if not target:
         return
 
-    rows = await ctx.db._db.execute_fetchall(
+    rows = await ctx.db.fetchall(
         "SELECT * FROM characters WHERE id = ?", (target["char_id"],)
     )
     if not rows:
@@ -257,7 +257,7 @@ async def _handle_probation(ctx: CommandContext, rest: str):
     if not target:
         return
 
-    rows = await ctx.db._db.execute_fetchall(
+    rows = await ctx.db.fetchall(
         "SELECT * FROM characters WHERE id = ?", (target["char_id"],)
     )
     if not rows:
@@ -293,7 +293,7 @@ async def _handle_pardon(ctx: CommandContext, rest: str):
     if not target:
         return
 
-    rows = await ctx.db._db.execute_fetchall(
+    rows = await ctx.db.fetchall(
         "SELECT * FROM characters WHERE id = ?", (target["char_id"],)
     )
     if not rows:
@@ -338,7 +338,7 @@ async def _handle_expel(ctx: CommandContext, rest: str):
         )
         return
 
-    rows = await ctx.db._db.execute_fetchall(
+    rows = await ctx.db.fetchall(
         "SELECT * FROM characters WHERE id = ?", (target["char_id"],)
     )
     if not rows:
@@ -447,7 +447,7 @@ async def _handle_log(ctx: CommandContext, rest: str):
     if rest.isdigit():
         limit = min(50, max(1, int(rest)))
 
-    rows = await ctx.db._db.execute_fetchall(
+    rows = await ctx.db.fetchall(
         """SELECT fl.logged_at, fl.action_type, fl.details,
                   COALESCE(c.name, 'System') AS char_name
            FROM faction_log fl
@@ -575,7 +575,7 @@ class AdminFactionLeaderCommand(BaseCommand):
                     "  Usage: @faction leader <code> <player>"
                 )
                 return
-            rows = await ctx.db._db.execute_fetchall(
+            rows = await ctx.db.fetchall(
                 "SELECT * FROM characters WHERE LOWER(name) = LOWER(?)", (rest2,)
             )
             if not rows:

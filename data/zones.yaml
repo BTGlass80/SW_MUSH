@@ -1,0 +1,124 @@
+# data/zones.yaml — Zone configuration for SW_MUSH
+#
+# Each zone has a narrative_tone string that influences Director AI
+# event generation and NPC dialogue style.  The tone is injected into
+# AI prompts as an ATMOSPHERE directive.
+#
+# Zone names must match the zone names in the database.
+# Matching is case-insensitive, prefix-matched.
+
+zones:
+
+  # ── Tatooine ────────────────────────────────────────────────────────
+  tatooine_mos_eisley:
+    name_match: "mos eisley"
+    narrative_tone: >
+      Dangerous and lawless. Deals happen in whispered conversations.
+      Everyone is armed. Trust is the scarcest resource. The heat is
+      oppressive and the twin suns bleach everything white. Strangers
+      are watched carefully. The Empire's grip is loose here — the Hutts
+      and local crime lords hold the real power.
+
+  tatooine_jundland:
+    name_match: "jundland"
+    narrative_tone: >
+      Desolate and hostile. The twin suns beat down mercilessly on
+      cracked hardpan and wind-carved mesas. Tusken Raider attacks are
+      common. Only the desperate or the brave travel here. Ancient
+      ruins and krayt dragon bones dot the landscape.
+
+  tatooine_dune_sea:
+    name_match: "dune sea"
+    narrative_tone: >
+      Endless golden dunes stretching to every horizon. The silence
+      is broken only by wind and the distant howl of krayt dragons.
+      Jawas scavenge the wastes in their sandcrawlers. Getting lost
+      here means death.
+
+  tatooine_anchorhead:
+    name_match: "anchorhead"
+    narrative_tone: >
+      A sleepy moisture-farming settlement. People are honest but
+      guarded. Imperial patrols are infrequent. Everyone knows
+      everyone else's business. Life is hard but predictable.
+
+  # ── Nar Shaddaa ─────────────────────────────────────────────────────
+  nar_shaddaa_upper:
+    name_match: "upper nar shaddaa"
+    narrative_tone: >
+      Glittering casino towers and luxury penthouses above the smog
+      line. The wealthy and powerful play their games here while the
+      masses suffer below. Hutt palace guards are everywhere. Credits
+      buy anything — loyalty, silence, people.
+
+  nar_shaddaa_lower:
+    name_match: "lower nar shaddaa"
+    narrative_tone: >
+      Neon-lit squalor. The Smugglers' Moon never sleeps. Every shadow
+      hides a deal or a danger. Credits talk, morality is a luxury,
+      and the Hutts control everything that matters. The air stinks of
+      chemical runoff and cheap spice. Down here, nobody asks questions.
+
+  nar_shaddaa_undercity:
+    name_match: "undercity"
+    narrative_tone: >
+      Pitch dark except for flickering jury-rigged lights. The lowest
+      levels where even the Hutts don't bother to send enforcers.
+      Desperate people, dangerous creatures, and forgotten technology.
+      The only law is survival.
+
+  # ── Kessel ──────────────────────────────────────────────────────────
+  kessel_mines:
+    name_match: "kessel"
+    narrative_tone: >
+      Claustrophobic and toxic. The spice mines are a death sentence
+      for prisoners. The air burns with chemical particulates. Imperial
+      guards are brutal and bored. Escape seems impossible. Hope is
+      the most dangerous commodity here — it keeps people alive just
+      long enough to suffer more.
+
+  # ── Corellia ────────────────────────────────────────────────────────
+  corellia_coronet:
+    name_match: "coronet"
+    narrative_tone: >
+      Orderly and proud. Corellians value independence, craftsmanship,
+      and a stiff drink. The Empire maintains a visible but carefully
+      calibrated presence — push too hard and the locals push back.
+      Shipyards dominate the skyline. CorSec keeps the peace with
+      professional efficiency. People are direct and no-nonsense.
+
+  corellia_outskirts:
+    name_match: "corellian outskirts"
+    narrative_tone: >
+      Rolling green hills and industrial outskirts. Smuggler hideouts
+      dot the countryside alongside legitimate farms. CorSec patrols
+      are thin out here. A good place to disappear — or be disappeared.
+
+  # ── Space zones ─────────────────────────────────────────────────────
+  space_tatooine:
+    name_match: "tatooine system"
+    narrative_tone: >
+      Sparse traffic. Imperial patrols are rare but deadly when they
+      appear. Smugglers run spice through here regularly. The twin
+      suns create brutal sensor interference near the planet.
+
+  space_nar_shaddaa:
+    name_match: "nar shaddaa system"
+    narrative_tone: >
+      Congested shipping lanes and sensor-jamming smog. Every other
+      ship is running contraband. Imperial customs is overwhelmed
+      and corrupt. Hutt cartel frigates enforce their own laws.
+
+  space_kessel:
+    name_match: "kessel system"
+    narrative_tone: >
+      The Maw's gravity wells make navigation treacherous. Imperial
+      presence is heavy — prison transports and patrol corvettes.
+      The Kessel Run is legendary. Only the best pilots attempt it.
+
+  space_corellia:
+    name_match: "corellia system"
+    narrative_tone: >
+      Busy, legitimate traffic — freighters, passenger liners, and
+      military vessels. CEC shipyards orbit overhead. Imperial Star
+      Destroyers are a common sight. CorSec monitors everything.

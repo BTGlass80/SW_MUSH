@@ -440,7 +440,7 @@ async def process_wage_tick(db, session_mgr) -> dict:
     """
     # Find all characters who have hired NPCs
     # We query all NPCs with a non-null hired_by
-    all_hired = await db._db.execute_fetchall(
+    all_hired = await db.fetchall(
         "SELECT DISTINCT hired_by FROM npcs WHERE hired_by IS NOT NULL"
     )
     if not all_hired:

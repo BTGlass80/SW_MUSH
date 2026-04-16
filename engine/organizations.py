@@ -1,19 +1,27 @@
 # -*- coding: utf-8 -*-
 """
-engine/organizations.py — Organizations & Factions system.  [v29]
+engine/organizations.py — Organizations & Factions system.  [v31]
 
 Handles: join, leave, promote, rep adjustment, equipment issuance/reclamation,
          guild CP bonus, payroll tick, faction_intent migration, seed loading.
 
-v29 additions
-=============
-- EQUIPMENT_CATALOG: item_key -> {name, description, slot}
-- issue_equipment(): issues rank-appropriate gear on join/promote
-- reclaim_equipment(): strips issued gear on leave/expulsion
-- faction_intent_migration(): auto-joins on login if intent stored in attributes
-- faction_payroll_tick(): weekly stipend distribution from treasury
-- Imperial specialization prompt wired into join_faction()
-- STIPEND_TABLE for weekly payroll
+v31 additions (Faction Reputation Drop 4-6)
+============================================
+- get_char_faction_rep(): unified rep lookup (member or attributes)
+- get_all_faction_reps(): all factions overview for HUD/web panel
+- get_shop_price_modifier() / get_faction_shop_modifier(): shop discounts/blocks
+- get_faction_standing_context(): NPC dialogue injection by rep tier
+- Fixed send_json_event → await session.send_json (was silently failing)
+
+v30 additions (Faction Reputation Drop 1-3)
+============================================
+- adjust_rep() refactored: optional delta, reason, session; rep history; cross-faction
+- check_auto_promote(): fires on rep threshold crossing, multi-rank support
+- format_reputation_overview(): +reputation display
+- format_reputation_detail(): +reputation <faction> detail view
+- REP_TIERS / REP_TIER_NAMES / CROSS_FACTION_PENALTIES
+- Non-member rep range expanded to -100..+100
+- _log_rep_change(): appends to rep_history (capped at 10 per faction)
 """
 
 import json
@@ -32,12 +40,50 @@ GUILD_CP_DISCOUNT       = 0.20            # 20% off skill training
 REP_GAINS = {
     "complete_faction_mission":     3,
     "complete_profession_chain_step": 5,
+    "complete_chain_final":        15,
     "kill_enemy_faction_npc":       1,
     "complete_bounty":              2,
     "deliver_contraband":           2,
     "crafting_sale":                1,
     "faction_event_attendance":     1,
     "rule_violation":              -5,
+    "territory_claim":              3,
+    "territory_defense":            2,
+    "trade_with_faction_vendor":    1,
+    "hostile_action":              -5,
+    "defection":                  -30,
+    "cross_faction_kill":           2,
+}
+
+# Cross-faction penalties: gaining rep with key triggers penalty for values
+CROSS_FACTION_PENALTIES = {
+    "empire": {"rebel": -0.5},
+    "rebel":  {"empire": -0.5},
+}
+
+# Rep tier thresholds and names
+REP_TIERS = [
+    (-100, -50, "hostile",     "\033[1;31m"),
+    (-49,  -25, "unfriendly",  "\033[0;31m"),
+    (-24,   -1, "wary",        "\033[33m"),
+    (0,      9, "unknown",     "\033[2m"),
+    (10,    24, "recognized",  "\033[0m"),
+    (25,    49, "trusted",     "\033[1;33m"),
+    (50,    74, "honored",     "\033[1;36m"),
+    (75,    89, "revered",     "\033[1;32m"),
+    (90,   100, "exalted",     "\033[1;35m"),
+]
+
+REP_TIER_NAMES = {
+    "hostile":    "Hostile",
+    "unfriendly": "Unfriendly",
+    "wary":       "Wary",
+    "unknown":    "Unknown",
+    "recognized": "Recognized",
+    "trusted":    "Trusted",
+    "honored":    "Honored",
+    "revered":    "Revered",
+    "exalted":    "Exalted",
 }
 
 # Weekly stipend in credits (faction_code, rank_level) -> amount
@@ -53,37 +99,46 @@ STIPEND_TABLE = {
     ("rebel",    3): 100,
     ("rebel",    4): 200,
     ("rebel",    5): 300,
-    ("hutt",     3): 100,
-    ("hutt",     4): 250,
-    ("hutt",     5): 500,
-    # bh_guild: no stipends — bounty income only
+    ("rebel",    6): 300,
+    ("hutt",     1): 75,
+    ("hutt",     2): 150,
+    ("hutt",     3): 300,
+    ("hutt",     4): 500,
+    ("hutt",     5): 750,
+    ("bh_guild", 1): 25,
+    ("bh_guild", 2): 75,
+    ("bh_guild", 3): 150,
+    ("bh_guild", 4): 300,
+    ("bh_guild", 5): 500,
 }
 
-# Equipment catalog: item_key -> display info
+# ── Equipment catalog ────────────────────────────────────────────────────────
+
 EQUIPMENT_CATALOG = {
     # Imperial
-    "imperial_uniform":      {"name": "Imperial Uniform",       "slot": "armor",  "description": "Standard grey Imperial uniform with rank insignia."},
-    "se_14c_pistol":         {"name": "SE-14C Blaster Pistol",  "slot": "weapon", "description": "Imperial sidearm. Damage: 3D+2. Range: 10/30/60."},
-    "e11_blaster_rifle":     {"name": "E-11 Blaster Rifle",     "slot": "weapon", "description": "Standard stormtrooper rifle. Damage: 5D. Range: 30/100/300."},
-    "stormtrooper_armor":    {"name": "Stormtrooper Armor",     "slot": "armor",  "description": "White plastoid composite. +2D physical, +1D energy vs small arms."},
-    "improved_armor":        {"name": "Improved Stormtrooper Armor", "slot": "armor", "description": "+2D+2 physical, +1D+2 energy."},
-    "officers_sidearm":      {"name": "Officer's Blaster Pistol", "slot": "weapon", "description": "Compact officer's sidearm. Damage: 4D. Range: 10/25/50."},
-    "officers_uniform":      {"name": "Imperial Officer Uniform", "slot": "armor", "description": "Grey uniform with rank cylinders. Status item."},
-    "flight_suit_imperial":  {"name": "TIE Pilot Flight Suit",  "slot": "armor",  "description": "Sealed pressurized suit. Life support 10 min, +1D vs vacuum."},
-    "datapad_imperial":      {"name": "Imperial Datapad",       "slot": "misc",   "description": "Encrypted datapad with Imperial codes. Access to Imperial mission board."},
-    "slicing_kit":           {"name": "Intelligence Slicing Kit", "slot": "misc",  "description": "Tools for slicer operations. +1D to Computer Programming/Repair when slicing."},
-    "civilian_cover":        {"name": "Civilian Cover Package", "slot": "misc",   "description": "False ID docs, civilian clothing. Makes Imperial affiliation non-obvious."},
+    "imperial_uniform":      {"name": "Imperial Officer's Uniform", "slot": "armor", "description": "Standard grey-green Imperial uniform."},
+    "se_14c_pistol":         {"name": "SE-14C Blaster Pistol",      "slot": "weapon", "description": "Standard Imperial sidearm. 4D damage."},
+    "e11_blaster_rifle":     {"name": "E-11 Blaster Rifle",         "slot": "weapon", "description": "Standard stormtrooper weapon. 5D damage."},
+    "stormtrooper_armor":    {"name": "Stormtrooper Armor",         "slot": "armor", "description": "Full plastoid composite. +2D physical, +1D energy soak."},
+    "improved_armor":        {"name": "Improved Body Armor",        "slot": "armor", "description": "Officer-grade composite. +2D+1 physical, +1D+2 energy soak."},
+    "officers_sidearm":      {"name": "Officer's Blaster Pistol",   "slot": "weapon", "description": "DL-44 variant issued to Imperial officers. 5D damage."},
+    "officers_uniform":      {"name": "Naval Officer's Uniform",    "slot": "armor", "description": "Crisp black Imperial Navy dress uniform."},
+    "datapad_imperial":      {"name": "Imperial Datapad",           "slot": "misc",   "description": "Encrypted military datapad with logistics software."},
+    "flight_suit_imperial":  {"name": "TIE Pilot Flight Suit",      "slot": "armor", "description": "Pressure suit with life support. +1D physical soak."},
+    "civilian_cover":        {"name": "Civilian Cover Identity",    "slot": "misc",   "description": "Forged credentials and civilian wardrobe for intelligence ops."},
+    "slicing_kit":           {"name": "Slicing Kit",                "slot": "misc",   "description": "Electronic intrusion toolkit. +1D to computer slicing."},
     # Rebel
-    "encrypted_comlink":     {"name": "Encrypted Comlink",      "slot": "misc",   "description": "Rebel-encrypted comlink. Access to Rebel comms channel."},
-    "blaster_pistol":        {"name": "BlasTech DL-18 Pistol",  "slot": "weapon", "description": "Rebel standard sidearm. Damage: 4D. Range: 10/30/60."},
-    "flight_suit":           {"name": "Rebel Flight Suit",      "slot": "armor",  "description": "Orange X-Wing pilot suit. Life support 10 min."},
-    "heavy_blaster_pistol":  {"name": "DL-44 Heavy Blaster",    "slot": "weapon", "description": "Han Solo's favorite. Damage: 5D. Range: 10/25/50."},
-    # Bounty Hunters Guild
-    "binder_cuffs":          {"name": "Binder Cuffs",           "slot": "misc",   "description": "Restraint device. Required for live captures. Strength 6D to break."},
-    "guild_license":         {"name": "BH Guild License",       "slot": "misc",   "description": "Legal hunting license. Reduces Imperial harassment in most zones."},
-    "tracking_fob":          {"name": "Guild Tracking Fob",     "slot": "misc",   "description": "+1D to bountytrack rolls. Requires active bounty contract."},
+    "encrypted_comlink":     {"name": "Encrypted Comlink",          "slot": "misc",   "description": "Rebel-coded comlink. Secure channel access."},
+    "blaster_pistol":        {"name": "DH-17 Blaster Pistol",      "slot": "weapon", "description": "Reliable Rebel sidearm. 4D damage."},
+    "flight_suit":           {"name": "Rebel Flight Suit",          "slot": "armor", "description": "Pilot flight suit with survival pack. +1D physical soak."},
+    "rebel_combat_vest":     {"name": "Combat Vest",                "slot": "armor", "description": "Reinforced vest. +1D+2 physical soak."},
+    "a280_rifle":            {"name": "A280 Blaster Rifle",         "slot": "weapon", "description": "Standard Rebel long arm. 5D+1 damage."},
+    # Bounty Hunters
+    "binder_cuffs":          {"name": "Binder Cuffs",               "slot": "misc",   "description": "Durasteel restraints. Required for live capture."},
+    "guild_license":         {"name": "Guild License",              "slot": "misc",   "description": "Official Bounty Hunters' Guild authorization."},
+    "tracking_fob":          {"name": "Tracking Fob",               "slot": "misc",   "description": "Short-range biometric tracker. +1D to Search for targets."},
     # Generic
-    "medpac":                {"name": "Medpac",                 "slot": "misc",   "description": "Standard medpac. Heals 1D Stun damage when applied."},
+    "medpac":                {"name": "Medpac",                     "slot": "misc",   "description": "Standard medpac. Heals 1D Stun damage when applied."},
 }
 
 # Rank-0 equipment per faction
@@ -126,6 +181,35 @@ def _get_attrs(char: dict) -> dict:
 
 def _set_attrs(char: dict, attrs: dict):
     char["attributes"] = json.dumps(attrs)
+
+
+# ── Rep tier helpers ──────────────────────────────────────────────────────────
+
+def get_rep_tier(rep: int) -> tuple:
+    """Return (tier_key, tier_name, color_code) for a rep value."""
+    for lo, hi, key, color in REP_TIERS:
+        if lo <= rep <= hi:
+            return key, REP_TIER_NAMES[key], color
+    if rep >= 90:
+        return "exalted", "Exalted", "\033[1;35m"
+    return "hostile", "Hostile", "\033[1;31m"
+
+
+def _rep_bar(rep: int, width: int = 10) -> str:
+    """Render a simple ASCII progress bar for rep (0-100 scale)."""
+    clamped = max(0, min(100, rep))
+    filled = int(clamped / 100 * width)
+    return "\033[1;33m" + "█" * filled + "\033[2m" + "░" * (width - filled) + "\033[0m"
+
+
+def _rep_bar_signed(rep: int, width: int = 10) -> str:
+    """Render a bar for -100..+100 range (non-members)."""
+    if rep >= 0:
+        return _rep_bar(rep, width)
+    # Negative: show red fill from right to left
+    clamped = max(-100, rep)
+    filled = int(abs(clamped) / 100 * width)
+    return "\033[2m" + "░" * (width - filled) + "\033[1;31m" + "█" * filled + "\033[0m"
 
 
 # ── Equipment issuance ────────────────────────────────────────────────────────
@@ -323,7 +407,8 @@ async def seed_organizations(db) -> None:
 
     for guild in data.get("guilds", []):
         props = guild.get("properties", {})
-        props["dues_weekly"] = guild.get("dues_weekly", 0)
+        if "dues_weekly" in guild:
+            props["dues_weekly"] = guild["dues_weekly"]
         await db.create_organization(
             code=guild["code"],
             name=guild["name"],
@@ -332,10 +417,10 @@ async def seed_organizations(db) -> None:
             properties=json.dumps(props),
         )
 
-    log.info("[orgs] Seed complete.")
+    log.info("[orgs] Organizations seeded from YAML")
 
 
-# ── Faction join / leave ──────────────────────────────────────────────────────
+# ── Join / leave ─────────────────────────────────────────────────────────────
 
 async def join_faction(char: dict, faction_code: str, db,
                         session=None) -> tuple[bool, str]:
@@ -371,6 +456,13 @@ async def join_faction(char: dict, faction_code: str, db,
             await db.leave_organization(char["id"], current_org["id"])
             await db.log_faction_action(char["id"], current_org["id"], "leave",
                                          f"Left to join {org['name']}")
+            # Defection rep penalty to old faction
+            try:
+                await adjust_rep(char, current, db,
+                                 action_key="defection",
+                                 reason=f"Left {current_org['name']}")
+            except Exception:
+                log.warning("[orgs] defection rep failed", exc_info=True)
 
     # Join
     await db.join_organization(char["id"], org["id"])
@@ -442,6 +534,14 @@ async def leave_faction(char: dict, db, session=None) -> tuple[bool, str]:
     char["faction_id"] = "independent"
     await db.save_character(char["id"], faction_id="independent",
                              attributes=char.get("attributes", "{}"))
+
+    # Defection rep penalty
+    try:
+        await adjust_rep(char, current, db,
+                         action_key="defection",
+                         reason=f"Left {org['name']}" if org else "Left faction")
+    except Exception:
+        log.warning("[orgs] defection rep on leave failed", exc_info=True)
 
     # Narrative hook
     try:
@@ -603,6 +703,199 @@ async def promote(char: dict, org_code: str, db,
     )
 
 
+# ── Auto-promotion on rep threshold ──────────────────────────────────────────
+
+async def check_auto_promote(char: dict, faction_code: str, db,
+                              session=None) -> bool:
+    """
+    Check if character qualifies for automatic rank promotion based on rep.
+    Loops to handle multi-rank jumps. Returns True if any promotion occurred.
+    """
+    promoted = False
+    try:
+        org = await db.get_organization(faction_code)
+        if not org:
+            return False
+
+        for _ in range(10):  # Safety cap: max 10 promotions per call
+            mem = await db.get_membership(char["id"], org["id"])
+            if not mem:
+                break
+
+            ranks = await db.get_org_ranks(org["id"])
+            current_level = mem["rank_level"]
+            next_level = current_level + 1
+            next_rank = next((r for r in ranks if r["rank_level"] == next_level), None)
+
+            if not next_rank:
+                break  # Already max rank
+
+            if mem["rep_score"] < next_rank["min_rep"]:
+                break  # Not enough rep
+
+            # Auto-promote
+            ok, msg = await promote(char, faction_code, db)
+            if not ok:
+                break
+
+            promoted = True
+            if session:
+                await session.send_line(
+                    f"\n  \033[1;32m★ RANK UP! ★\033[0m {msg}"
+                )
+                try:
+                    await session.send_json("rank_up", {
+                        "faction": faction_code,
+                        "new_rank": next_rank["title"],
+                        "new_level": next_level,
+                    })
+                except Exception:
+                    pass  # Web event is optional
+
+    except Exception as e:
+        log.warning("[orgs] check_auto_promote failed: %s", e)
+    return promoted
+
+
+# ── Rep history ───────────────────────────────────────────────────────────────
+
+def _log_rep_change(char: dict, faction_code: str, delta: int, reason: str):
+    """Append a rep change entry to character attributes. Capped at 10 per faction."""
+    a = _get_attrs(char)
+    history = a.get("rep_history", {})
+    if not isinstance(history, dict):
+        history = {}
+
+    entries = history.get(faction_code, [])
+    if not isinstance(entries, list):
+        entries = []
+
+    entries.insert(0, {
+        "delta": delta,
+        "reason": reason or "Unknown",
+        "ts": int(time.time()),
+    })
+    entries = entries[:10]  # Keep last 10
+
+    history[faction_code] = entries
+    a["rep_history"] = history
+    _set_attrs(char, a)
+
+
+# ── Rep adjustment (REFACTORED v30) ──────────────────────────────────────────
+
+async def adjust_rep(char: dict, faction_code: str, db,
+                      action_key: str = None,
+                      delta: int = None,
+                      reason: str = None,
+                      session=None) -> int:
+    """
+    Adjust a character's rep score for a faction.
+
+    Can be called with action_key (looks up delta from REP_GAINS) or
+    with an explicit delta override. Returns new rep score (or 0 on error).
+
+    Features:
+    - Rep history logging (last 10 per faction in attributes)
+    - Cross-faction penalties (Empire <-> Rebel at -50%)
+    - Auto-promotion check for members
+    - Session notification if session provided
+    - Non-member rep stored in attributes.faction_rep (-100..+100)
+    """
+    try:
+        # Determine delta
+        if delta is None:
+            if action_key is None:
+                return 0
+            delta = REP_GAINS.get(action_key, 0)
+            if delta == 0:
+                return 0
+
+        if not reason:
+            reason = action_key or "rep_change"
+
+        org = await db.get_organization(faction_code)
+        if not org:
+            return 0
+
+        mem = await db.get_membership(char["id"], org["id"])
+        if not mem:
+            # Non-member: update attributes-based faction_rep (-100..+100)
+            a = _get_attrs(char)
+            rep_table = a.get("faction_rep", {})
+            old_rep = rep_table.get(faction_code, 0)
+            new_rep = max(-100, min(100, old_rep + delta))
+            rep_table[faction_code] = new_rep
+            a["faction_rep"] = rep_table
+            _log_rep_change(char, faction_code, delta, reason)
+            _set_attrs(char, a)
+            await db.save_character(char["id"], attributes=char.get("attributes", "{}"))
+
+            # Notification
+            if session and delta != 0:
+                _tier_key, tier_name, tier_color = get_rep_tier(new_rep)
+                sign = "+" if delta > 0 else ""
+                await session.send_line(
+                    f"  \033[2m[{org['name']}]\033[0m Rep {sign}{delta} "
+                    f"({tier_color}{tier_name}\033[0m)"
+                )
+
+            return new_rep
+
+        # Member: update via DB (0..100 range)
+        current_rep = mem.get("rep_score", 0)
+        new_rep = max(0, min(100, current_rep + delta))
+        await db.update_membership(char["id"], org["id"], rep_score=new_rep)
+
+        # Log in attributes rep history
+        _log_rep_change(char, faction_code, delta, reason)
+        a = _get_attrs(char)
+        _set_attrs(char, a)
+        await db.save_character(char["id"], attributes=char.get("attributes", "{}"))
+
+        # Notification
+        if session and delta != 0:
+            _tier_key, tier_name, tier_color = get_rep_tier(new_rep)
+            sign = "+" if delta > 0 else ""
+            await session.send_line(
+                f"  \033[2m[{org['name']}]\033[0m Rep {sign}{delta} → "
+                f"{new_rep}/100 ({tier_color}{tier_name}\033[0m)"
+            )
+            try:
+                await session.send_json("rep_change", {
+                    "faction": faction_code,
+                    "delta": delta,
+                    "new_rep": new_rep,
+                    "tier": _tier_key,
+                    "reason": reason,
+                })
+            except Exception:
+                pass  # Web event is optional
+
+        # Auto-promotion check (only on rep increase for members)
+        if delta > 0:
+            await check_auto_promote(char, faction_code, db, session=session)
+
+        # Cross-faction penalties
+        penalties = CROSS_FACTION_PENALTIES.get(faction_code, {})
+        if delta > 0 and penalties:
+            for target_faction, ratio in penalties.items():
+                cross_delta = int(delta * ratio)
+                if cross_delta != 0:
+                    # Recursive call but with no further cross-faction
+                    # (target factions don't have penalties pointing back)
+                    await adjust_rep(char, target_faction, db,
+                                     delta=cross_delta,
+                                     reason=f"Cross-faction: {faction_code} gain",
+                                     session=session)
+
+        return new_rep
+
+    except Exception as e:
+        log.exception("[orgs] adjust_rep failed: %s", e)
+        return 0
+
+
 async def faction_payroll_tick(db) -> int:
     """
     Pay weekly stipends to eligible faction members.
@@ -685,44 +978,160 @@ async def get_guild_cp_multiplier(char: dict, db) -> float:
     return 1.0
 
 
-# ── Rep adjustment ────────────────────────────────────────────────────────────
+# ── Reputation display ────────────────────────────────────────────────────────
 
-async def adjust_rep(char: dict, faction_code: str, db,
-                      action_key: str) -> int:
+async def format_reputation_overview(char: dict, db) -> str:
     """
-    Adjust a character's rep score for a faction based on an action.
-    Returns new rep score (or 0 on error).
+    Format the +reputation overview showing all faction standings.
+    Shows member faction with rank, and non-member factions with attribute-based rep.
     """
-    try:
-        delta = REP_GAINS.get(action_key, 0)
-        if delta == 0:
-            return 0
+    lines = [
+        "\033[1;36m==========================================\033[0m",
+        "  \033[1;37mFACTION REPUTATION\033[0m",
+        "\033[1;36m==========================================\033[0m",
+    ]
 
-        org = await db.get_organization(faction_code)
-        if not org:
-            return 0
+    orgs = await db.get_all_organizations()
+    factions = [o for o in orgs if o["org_type"] == "faction" and o["code"] != "independent"]
+    memberships = await db.get_memberships_for_char(char["id"])
+    mem_by_org = {m["org_id"]: m for m in memberships if m.get("org_type") == "faction"}
 
-        mem = await db.get_membership(char["id"], org["id"])
-        if not mem:
-            # Update attributes-based faction_rep even for non-members
-            a = _get_attrs(char)
-            rep_table = a.get("faction_rep", {})
-            new_rep = max(0, min(100, rep_table.get(faction_code, 0) + delta))
-            rep_table[faction_code] = new_rep
-            a["faction_rep"] = rep_table
-            _set_attrs(char, a)
-            await db.save_character(char["id"], attributes=char.get("attributes", "{}"))
-            return new_rep
+    a = _get_attrs(char)
+    non_member_rep = a.get("faction_rep", {})
 
-        # Member: update via DB
-        current_rep = mem.get("rep_score", 0)
-        new_rep = max(0, min(100, current_rep + delta))
-        await db.update_membership(char["id"], org["id"], rep_score=new_rep)
-        return new_rep
+    for fac in factions:
+        mem = mem_by_org.get(fac["id"])
+        if mem:
+            rep = mem.get("rep_score", 0)
+            _tk, tier_name, tier_color = get_rep_tier(rep)
+            bar = _rep_bar(rep)
+            rank_title = mem.get("title", "Member")
+            rank_level = mem.get("rank_level", 0)
 
-    except Exception as e:
-        log.exception("[orgs] adjust_rep failed: %s", e)
-        return 0
+            # Find next rank threshold
+            ranks = await db.get_org_ranks(fac["id"])
+            next_rank = next((r for r in ranks if r["rank_level"] == rank_level + 1), None)
+            next_info = ""
+            if next_rank:
+                needed = next_rank["min_rep"] - rep
+                if needed > 0:
+                    next_info = f"  → {next_rank['title']} at {next_rank['min_rep']} ({needed} away)"
+
+            lines.append(
+                f"  {fac['name']:<25} {bar} {rep:>4}/100  "
+                f"[{tier_color}{tier_name}\033[0m]"
+            )
+            lines.append(
+                f"    Rank: {rank_title} ({rank_level}){next_info}"
+            )
+        else:
+            rep = non_member_rep.get(fac["code"], 0)
+            _tk, tier_name, tier_color = get_rep_tier(rep)
+            bar = _rep_bar_signed(rep)
+            lines.append(
+                f"  {fac['name']:<25} {bar} {rep:>4}/100  "
+                f"[{tier_color}{tier_name}\033[0m]"
+            )
+
+    lines += [
+        "\033[1;36m==========================================\033[0m",
+        "  \033[1;33m+reputation <faction>\033[0m for details.",
+    ]
+    return "\n".join(lines)
+
+
+async def format_reputation_detail(char: dict, faction_code: str, db) -> str:
+    """Format detailed reputation view for a specific faction."""
+    org = await db.get_organization(faction_code)
+    if not org:
+        return f"  Unknown faction: '{faction_code}'."
+
+    lines = [
+        "\033[1;36m==========================================\033[0m",
+        f"  \033[1;37m{org['name'].upper()} — REPUTATION\033[0m",
+        "\033[1;36m==========================================\033[0m",
+    ]
+
+    memberships = await db.get_memberships_for_char(char["id"])
+    mem = next((m for m in memberships if m.get("org_id") == org["id"]), None)
+
+    a = _get_attrs(char)
+    non_member_rep = a.get("faction_rep", {})
+
+    if mem:
+        rep = mem.get("rep_score", 0)
+        rank_level = mem.get("rank_level", 0)
+        rank_title = mem.get("title", "Member")
+    else:
+        rep = non_member_rep.get(faction_code, 0)
+        rank_level = None
+        rank_title = None
+
+    _tk, tier_name, tier_color = get_rep_tier(rep)
+    lines.append(f"  Standing:  {rep}/100 [{tier_color}{tier_name}\033[0m]")
+
+    if rank_title is not None:
+        lines.append(f"  Rank:      {rank_title} ({rank_level})")
+
+        # Next rank info
+        ranks = await db.get_org_ranks(org["id"])
+        next_rank = next((r for r in ranks if r["rank_level"] == rank_level + 1), None)
+        if next_rank:
+            needed = next_rank["min_rep"] - rep
+            if needed > 0:
+                lines.append(f"  Next Rank: {next_rank['title']} at {next_rank['min_rep']} rep ({needed} away)")
+            else:
+                lines.append(f"  Next Rank: {next_rank['title']} — eligible for promotion!")
+        else:
+            lines.append("  Next Rank: \033[2mMaximum rank achieved\033[0m")
+    else:
+        lines.append("  Status:    \033[2mNon-member\033[0m")
+
+    # Rank thresholds
+    ranks = await db.get_org_ranks(org["id"])
+    if ranks:
+        lines.append("\033[1;36m------------------------------------------\033[0m")
+        lines.append("  RANK THRESHOLDS")
+        for r in sorted(ranks, key=lambda x: x.get("rank_level", 0)):
+            rl = r.get("rank_level", 0)
+            title = r.get("title", f"Rank {rl}")
+            min_r = r.get("min_rep", 0)
+            equip = json.loads(r.get("equipment", "[]"))
+            equip_str = ""
+            if equip:
+                names = [EQUIPMENT_CATALOG.get(e, {}).get("name", e) for e in equip]
+                equip_str = f" — {', '.join(names)}"
+
+            if rank_level is not None and rl < rank_level:
+                marker = "✓"
+            elif rank_level is not None and rl == rank_level:
+                marker = "▸"
+            else:
+                marker = "○"
+            lines.append(f"    {marker} {title:<15} ({min_r}){equip_str}")
+
+    # Recent rep changes
+    rep_history = a.get("rep_history", {}).get(faction_code, [])
+    if rep_history:
+        lines.append("\033[1;36m------------------------------------------\033[0m")
+        lines.append("  RECENT REP CHANGES")
+        now = int(time.time())
+        for entry in rep_history[:5]:
+            delta = entry.get("delta", 0)
+            reason_str = entry.get("reason", "")
+            ts = entry.get("ts", 0)
+            age = now - ts
+            if age < 3600:
+                age_str = f"{age // 60}m ago"
+            elif age < 86400:
+                age_str = f"{age // 3600}h ago"
+            else:
+                age_str = f"{age // 86400}d ago"
+            sign = "+" if delta > 0 else ""
+            lines.append(f"    {sign}{delta:>3}  {reason_str:<40} {age_str}")
+
+    lines.append("\033[1;36m==========================================\033[0m")
+    return "\n".join(lines)
 
 
 # ── Status display ────────────────────────────────────────────────────────────
@@ -742,9 +1151,11 @@ async def format_faction_status(char: dict, db) -> str:
             f"  Faction:  \033[1;37m{faction_mem['name']}\033[0m "
             f"({faction_mem.get('title', 'Member')})"
         )
+        rep = faction_mem.get('rep_score', 0)
+        _tk, tier_name, tier_color = get_rep_tier(rep)
         lines.append(
             f"  Rank:     {faction_mem['rank_level']}  "
-            f"Rep: \033[1;33m{faction_mem.get('rep_score', 0)}/100\033[0m"
+            f"Rep: {tier_color}{rep}/100 [{tier_name}]\033[0m"
         )
         if faction_mem.get("specialization"):
             spec = faction_mem["specialization"].replace("_", " ").title()
@@ -779,6 +1190,7 @@ async def format_faction_status(char: dict, db) -> str:
     lines += [
         "\033[1;36m==========================================\033[0m",
         "  \033[1;33mfaction list\033[0m / \033[1;33mguild list\033[0m to see options.",
+        "  \033[1;33m+reputation\033[0m for detailed faction standings.",
     ]
     return "\n".join(lines)
 
@@ -937,11 +1349,11 @@ async def update_org(org_code: str, db, **fields) -> bool:
         return False
     set_clause = ", ".join(f"{k} = ?" for k in fields)
     vals = list(fields.values())
-    await db._db.execute(
+    await db.execute(
         f"UPDATE organizations SET {set_clause} WHERE code = ?",
         vals + [org_code],
     )
-    await db._db.commit()
+    await db.commit()
     return True
 
 
@@ -993,3 +1405,156 @@ async def handoff_faction_leadership(org_code: str, new_leader: dict, db,
             pass
 
     return True, announcement
+
+
+# ── Drop 4: Gameplay Consequences ──────────────────────────────────────────
+
+# Shop discount/markup table by tier key
+SHOP_DISCOUNT_BY_TIER = {
+    "trusted":     -0.05,   # 5% discount
+    "honored":     -0.10,   # 10% discount
+    "revered":     -0.15,   # 15% discount
+    "exalted":     -0.20,   # 20% discount
+    "unfriendly":   0.50,   # 50% markup
+    "hostile":      None,   # Access denied
+}
+
+
+async def get_char_faction_rep(char: dict, faction_code: str, db) -> int:
+    """
+    Return a character's effective rep score with a faction.
+    Checks membership first (0..100), then attributes.faction_rep (-100..+100).
+    Returns 0 if no data found.
+    """
+    try:
+        org = await db.get_organization(faction_code)
+        if not org:
+            return 0
+        mem = await db.get_membership(char["id"], org["id"])
+        if mem:
+            return mem.get("rep_score", 0)
+        # Non-member: check attributes
+        a = _get_attrs(char)
+        return a.get("faction_rep", {}).get(faction_code, 0)
+    except Exception:
+        log.warning("[orgs] get_char_faction_rep failed", exc_info=True)
+        return 0
+
+
+async def get_all_faction_reps(char: dict, db) -> dict:
+    """
+    Return a dict of {faction_code: {rep, tier_key, tier_name, rank, rank_level, is_member}}
+    for all known factions.
+    """
+    FACTIONS = ["empire", "rebel", "hutt", "bh_guild"]
+    result = {}
+    try:
+        for fc in FACTIONS:
+            org = await db.get_organization(fc)
+            if not org:
+                continue
+            mem = await db.get_membership(char["id"], org["id"])
+            if mem:
+                rep = mem.get("rep_score", 0)
+                tier_key, tier_name, _ = get_rep_tier(rep)
+                # Get rank info
+                rank_title = None
+                rank_level = mem.get("rank_level", 0)
+                ranks = await db.get_org_ranks(org["id"])
+                for r in ranks:
+                    if r["rank_level"] == rank_level:
+                        rank_title = r["title"]
+                        break
+                result[fc] = {
+                    "rep": rep, "tier_key": tier_key, "tier_name": tier_name,
+                    "rank": rank_title, "rank_level": rank_level,
+                    "is_member": True,
+                }
+            else:
+                a = _get_attrs(char)
+                rep = a.get("faction_rep", {}).get(fc, 0)
+                tier_key, tier_name, _ = get_rep_tier(rep)
+                result[fc] = {
+                    "rep": rep, "tier_key": tier_key, "tier_name": tier_name,
+                    "rank": None, "rank_level": None,
+                    "is_member": False,
+                }
+    except Exception:
+        log.warning("[orgs] get_all_faction_reps failed", exc_info=True)
+    return result
+
+
+def get_shop_price_modifier(tier_key: str) -> Optional[float]:
+    """
+    Return the price modifier for a faction rep tier.
+    None = access denied (hostile). Float = multiplier offset (e.g. -0.10 = 10% discount).
+    Returns 0.0 for tiers with no effect.
+    """
+    return SHOP_DISCOUNT_BY_TIER.get(tier_key, 0.0)
+
+
+async def get_faction_shop_modifier(char: dict, faction_code: str, db) -> tuple:
+    """
+    Check if a character gets a price modifier at a faction-aligned shop.
+    Returns (allowed: bool, modifier: float, tier_name: str).
+    allowed=False means shop access denied (hostile rep).
+    modifier is a price multiplier offset: -0.10 = 10% discount, +0.50 = 50% markup.
+    """
+    rep = await get_char_faction_rep(char, faction_code, db)
+    tier_key, tier_name, _ = get_rep_tier(rep)
+    mod = get_shop_price_modifier(tier_key)
+    if mod is None:
+        return False, 0.0, tier_name
+    return True, mod, tier_name
+
+
+def get_faction_standing_context(npc_faction: str, player_rep: int) -> str:
+    """
+    Build a FACTION STANDING context string for NPC dialogue prompts.
+    Injected alongside persuasion_context in TalkCommand.
+    """
+    tier_key, tier_name, _ = get_rep_tier(player_rep)
+
+    if tier_key == "hostile":
+        return (
+            f"FACTION STANDING: The player is {tier_name} ({player_rep}) with your "
+            f"faction ({npc_faction}). You view them as a dangerous enemy. "
+            f"Be openly hostile, refuse to help, and warn them to leave. "
+            f"You may threaten to call guards."
+        )
+    elif tier_key == "unfriendly":
+        return (
+            f"FACTION STANDING: The player is {tier_name} ({player_rep}) with your "
+            f"faction ({npc_faction}). You are suspicious and unfriendly. "
+            f"Give curt, unhelpful answers. Overcharge if selling anything. "
+            f"Make it clear they are not welcome."
+        )
+    elif tier_key == "wary":
+        return (
+            f"FACTION STANDING: The player is {tier_name} ({player_rep}) with your "
+            f"faction ({npc_faction}). You are cautious and reserved. "
+            f"Answer briefly but don't volunteer information."
+        )
+    elif tier_key in ("unknown", "recognized"):
+        return ""  # No special context for neutral/low rep
+    elif tier_key == "trusted":
+        return (
+            f"FACTION STANDING: The player is {tier_name} ({player_rep}) with your "
+            f"faction ({npc_faction}). You recognize them as a reliable ally. "
+            f"Be cooperative and helpful. You may volunteer useful information."
+        )
+    elif tier_key == "honored":
+        return (
+            f"FACTION STANDING: The player is {tier_name} ({player_rep}) with your "
+            f"faction ({npc_faction}). You hold them in high regard. "
+            f"Be respectful and forthcoming. Address them by rank if appropriate. "
+            f"Volunteer extra detail and tips."
+        )
+    elif tier_key in ("revered", "exalted"):
+        return (
+            f"FACTION STANDING: The player is {tier_name} ({player_rep}) with your "
+            f"faction ({npc_faction}). You deeply respect and admire them. "
+            f"Be deferential and eager to help. Offer your best deals, insider "
+            f"knowledge, and treat them as a hero of the cause."
+        )
+    return ""

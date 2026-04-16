@@ -229,6 +229,10 @@ class SmugDeliverCommand(BaseCommand):
         new_credits = char.get("credits", 0) + reward
         char["credits"] = new_credits
         await ctx.db.save_character(char_id, credits=new_credits)
+        try:
+            await ctx.db.log_credit(char["id"], reward, "smuggling", new_credits)
+        except Exception as _e:
+            log.debug("silent except in parser/smuggling_commands.py:234: %s", _e, exc_info=True)
 
         await ctx.session.send_line(
             ansi.success(
@@ -262,6 +266,13 @@ class SmugDeliverCommand(BaseCommand):
         except Exception:
             log.warning("execute: unhandled exception", exc_info=True)
             pass
+        # Achievement: smuggling_complete
+        try:
+            from engine.achievements import on_smuggling_complete, on_mission_credits_earned
+            await on_smuggling_complete(ctx.db, char["id"], session=ctx.session)
+            await on_mission_credits_earned(ctx.db, char["id"], reward, session=ctx.session)
+        except Exception as _e:
+            log.debug("silent except in parser/smuggling_commands.py:274: %s", _e, exc_info=True)
         await ctx.session.send_line(
             f"  Payment received: {reward:,} credits. Balance: {new_credits:,} credits."
         )
@@ -286,11 +297,15 @@ class SmugDeliverCommand(BaseCommand):
             log.warning("execute: unhandled exception", exc_info=True)
             pass
         try:
-            from engine.organizations import REP_GAINS
+            from engine.organizations import adjust_rep
             faction_id = char.get("faction_id", "independent")
-            if faction_id == "hutt":
-                await ctx.db.adjust_rep(char["id"], "hutt",
-                                         REP_GAINS["deliver_contraband"])
+            if faction_id and faction_id != "independent":
+                await adjust_rep(
+                    char, faction_id, ctx.db,
+                    action_key="deliver_contraband",
+                    reason=f"Smuggling delivery: {completed.cargo_type}",
+                    session=ctx.session,
+                )
         except Exception:
             log.warning("execute: unhandled exception", exc_info=True)
             pass
@@ -301,8 +316,8 @@ class SmugDeliverCommand(BaseCommand):
                 ctx.session, ctx.db, "smuggling",
                 tier=getattr(completed, "tier", 0),
             )
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in parser/smuggling_commands.py:319: %s", _e, exc_info=True)
 
 
 class SmugDumpCommand(BaseCommand):
@@ -362,28 +377,31 @@ async def check_patrol_on_launch(ctx: CommandContext) -> bool:
         log.warning("check_patrol_on_launch: unhandled exception", exc_info=True)
         pass
 
-    # Player rolls Con or Sneak (use the higher of the two)
+    # Player rolls Con or Sneak via perform_skill_check (skill check invariant).
+    # Uses whichever pool is higher. Wound penalties and buffs apply properly.
     char = ctx.session.character
-    from engine.character import Character, SkillRegistry
-    from engine.dice import roll_d6_pool
-    skill_reg = SkillRegistry()
-    skill_reg.load_default()
+    from engine.skill_checks import perform_skill_check
 
+    # Determine which skill to use: Con or Sneak (higher pool)
     try:
-        from engine.character import Character as Char
-        c = Char.from_dict(char)
-        con_pool   = c.get_skill_pool("con", skill_reg)
-        sneak_pool = c.get_skill_pool("sneak", skill_reg)
-        # Use higher pool
-        pool = con_pool if con_pool.total_pips() >= sneak_pool.total_pips() else sneak_pool
-        roll_result = roll_d6_pool(pool)
-        roll_total = roll_result.total
-        skill_name = "Con" if con_pool.total_pips() >= sneak_pool.total_pips() else "Sneak"
+        import json as _sj
+        _skills = _sj.loads(char.get("skills", "{}"))
+        _attrs = _sj.loads(char.get("attributes", "{}"))
+        from engine.dice import DicePool as _DP
+        _perc = _DP.parse(_attrs.get("perception", "2D"))
+        _con_bonus = _DP.parse(_skills.get("con", "0D"))
+        _sneak_bonus = _DP.parse(_skills.get("sneak", "0D"))
+        con_total = _perc.total_pips() + _con_bonus.total_pips()
+        sneak_total = _perc.total_pips() + _sneak_bonus.total_pips()
+        skill_name = "con" if con_total >= sneak_total else "sneak"
     except Exception:
-        # Fallback: flat 2D roll
-        import random as _r
-        roll_total = sum(_r.randint(1, 6) for _ in range(2))
-        skill_name = "Con"
+        skill_name = "con"
+
+    # Use difficulty 0 so we get the raw roll — resolve_patrol_encounter
+    # does its own difficulty comparison.
+    result = perform_skill_check(char, skill_name, 0)
+    roll_total = result.roll
+    display_skill = skill_name.title()
 
     outcome = resolve_patrol_encounter(job, roll_total, lockdown_active)
 
@@ -400,6 +418,10 @@ async def check_patrol_on_launch(ctx: CommandContext) -> bool:
         new_credits = max(0, credits - fine)
         char["credits"] = new_credits
         await ctx.db.save_character(char_id, credits=new_credits)
+        try:
+            await ctx.db.log_credit(char["id"], -fine, "smuggling_fine", new_credits)
+        except Exception as _e:
+            log.debug("silent except in parser/smuggling_commands.py:423: %s", _e, exc_info=True)
         await board.fail(char_id, ctx.db)
         await ctx.session.send_line(
             f"  Fine deducted: {fine:,} credits. Balance: {new_credits:,} credits."
@@ -407,7 +429,7 @@ async def check_patrol_on_launch(ctx: CommandContext) -> bool:
         return True
     else:
         await ctx.session.send_line(
-            f"  ({skill_name} roll: {roll_total} vs difficulty {outcome['difficulty']})"
+            f"  ({display_skill} roll: {roll_total} vs difficulty {outcome['difficulty']})"
         )
         return False
 
@@ -454,23 +476,26 @@ async def check_patrol_on_arrival(ctx: CommandContext, dest_planet: str) -> bool
         pass
 
     char = ctx.session.character
-    from engine.character import Character, SkillRegistry
-    from engine.dice import roll_d6_pool
-    skill_reg = SkillRegistry()
-    skill_reg.load_default()
+    from engine.skill_checks import perform_skill_check
+
+    # Determine which skill to use: Con or Sneak (higher pool)
     try:
-        from engine.character import Character as Char
-        c = Char.from_dict(char)
-        con_pool   = c.get_skill_pool("con", skill_reg)
-        sneak_pool = c.get_skill_pool("sneak", skill_reg)
-        pool = con_pool if con_pool.total_pips() >= sneak_pool.total_pips() else sneak_pool
-        roll_result = roll_d6_pool(pool)
-        roll_total = roll_result.total
-        skill_name = "Con" if con_pool.total_pips() >= sneak_pool.total_pips() else "Sneak"
+        import json as _sj2
+        _skills = _sj2.loads(char.get("skills", "{}"))
+        _attrs = _sj2.loads(char.get("attributes", "{}"))
+        from engine.dice import DicePool as _DP2
+        _perc = _DP2.parse(_attrs.get("perception", "2D"))
+        _con_bonus = _DP2.parse(_skills.get("con", "0D"))
+        _sneak_bonus = _DP2.parse(_skills.get("sneak", "0D"))
+        con_total = _perc.total_pips() + _con_bonus.total_pips()
+        sneak_total = _perc.total_pips() + _sneak_bonus.total_pips()
+        skill_name = "con" if con_total >= sneak_total else "sneak"
     except Exception:
-        import random as _r
-        roll_total = sum(_r.randint(1, 6) for _ in range(2))
-        skill_name = "Con"
+        skill_name = "con"
+
+    result = perform_skill_check(char, skill_name, 0)
+    roll_total = result.roll
+    display_skill = skill_name.title()
 
     outcome = resolve_patrol_encounter(job, roll_total, lockdown_active)
 
@@ -497,7 +522,7 @@ async def check_patrol_on_arrival(ctx: CommandContext, dest_planet: str) -> bool
         return True
     else:
         await ctx.session.send_line(
-            f"  ({skill_name} roll: {roll_total} vs difficulty {outcome['difficulty']} — cleared)"
+            f"  ({display_skill} roll: {roll_total} vs difficulty {outcome['difficulty']} — cleared)"
         )
         return False
 

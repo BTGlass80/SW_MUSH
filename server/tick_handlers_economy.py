@@ -193,6 +193,12 @@ async def housing_rent_tick(ctx: TickContext) -> None:
     await tick_housing_rent(ctx.db, ctx.session_mgr)
 
 
+async def hq_maintenance_tick(ctx: TickContext) -> None:
+    """Org HQ maintenance from treasury. Every 604800 ticks (~1 week)."""
+    from engine.housing import tick_hq_maintenance
+    await tick_hq_maintenance(ctx.db, ctx.session_mgr)
+
+
 async def territory_presence_tick(ctx: TickContext) -> None:
     """Territory presence accumulation. Every 3600 ticks (~1 hour)."""
     from engine.territory import tick_territory_presence
@@ -231,3 +237,137 @@ async def territory_contests_tick(ctx: TickContext) -> None:
     """Territory contest resolution (expired contests). Every 3600 ticks (~1 hour)."""
     from engine.territory import tick_contest_resolution
     await tick_contest_resolution(ctx.db, ctx.session_mgr)
+
+
+async def docking_fee_tick(ctx: TickContext) -> None:
+    """Daily docking fee: 25 cr/day per docked player-owned ship.
+
+    Economy hardening v23 — passive credit drain prevents indefinite
+    free parking and creates incentive to undock or sell unused ships.
+    Every 86400 ticks (~1 day), offset 21600 (6h after midnight).
+    """
+    DOCKING_FEE = 25
+
+    try:
+        ships = await ctx.db.get_docked_player_ships()
+    except Exception:
+        log.warning("docking_fee_tick: get_docked_player_ships failed", exc_info=True)
+        return
+
+    if not ships:
+        return
+
+    # Group by owner to batch credit deductions
+    from collections import defaultdict
+    owner_ships = defaultdict(list)
+    for s in ships:
+        owner_ships[s["owner_id"]].append(s)
+
+    for owner_id, ship_list in owner_ships.items():
+        total_fee = DOCKING_FEE * len(ship_list)
+        try:
+            char = await ctx.db.get_character(owner_id)
+            if not char:
+                continue
+            old_credits = char.get("credits", 0)
+            if old_credits >= total_fee:
+                new_credits = old_credits - total_fee
+                await ctx.db.save_character(owner_id, credits=new_credits)
+                try:
+                    await ctx.db.log_credit(
+                        owner_id, -total_fee, "docking_fee", new_credits
+                    )
+                except Exception as _e:
+                    log.debug("silent except in server/tick_handlers_economy.py:280: %s", _e, exc_info=True)
+                # Notify if online
+                try:
+                    sess = ctx.session_mgr.find_by_character(owner_id)
+                    if sess:
+                        ship_names = ", ".join(s["name"] for s in ship_list)
+                        await sess.send_line(
+                            f"  \033[2m[DOCKING FEE]\033[0m {total_fee:,} cr "
+                            f"deducted for {len(ship_list)} docked ship(s): "
+                            f"{ship_names}. Balance: {new_credits:,} cr."
+                        )
+                except Exception as _e:
+                    log.debug("silent except in server/tick_handlers_economy.py:292: %s", _e, exc_info=True)
+            else:
+                log.info(
+                    "[economy] %s (id=%d) cannot pay %d cr docking fee (%d cr balance)",
+                    char.get("name", "?"), owner_id, total_fee, old_credits,
+                )
+        except Exception:
+            log.warning("docking_fee_tick: failed for owner %d", owner_id, exc_info=True)
+
+
+# ── Idle Queue (Ollama GPU utilization) ──────────────────────────────────────
+
+async def idle_queue_tick(ctx) -> None:
+    """Process one idle AI task if Ollama is free. Runs every 30 ticks."""
+    queue = getattr(ctx.server, '_idle_queue', None)
+    if not queue:
+        return
+    await queue.try_process_one(ctx.db)
+
+
+async def bark_seed_tick(ctx) -> None:
+    """Periodically re-seed bark generation for populated rooms.
+
+    Runs every 14400 ticks (~4 hours). On each run, queues bark tasks
+    for NPCs in rooms with online players whose barks are stale.
+    """
+    queue = getattr(ctx.server, '_idle_queue', None)
+    if not queue:
+        return
+    try:
+        from engine.idle_queue import seed_barks_for_populated_rooms
+        await seed_barks_for_populated_rooms(queue, ctx.db, ctx.session_mgr)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            "bark_seed_tick failed", exc_info=True
+        )
+
+
+# ── Buff expiry tick ─────────────────────────────────────────────────────────
+
+async def buff_expiry_tick(ctx) -> None:
+    """Expire timed buffs on all online characters. Runs every 60 ticks."""
+    try:
+        from engine.buffs import expire_buffs
+        for s in ctx.session_mgr.all:
+            if not s.is_in_game or not s.character:
+                continue
+            expired = expire_buffs(s.character)
+            if expired:
+                for name in expired:
+                    await s.send_line(
+                        f"  \033[2m[EFFECT] {name} has worn off.\033[0m"
+                    )
+                # Persist updated attributes
+                try:
+                    await ctx.db.save_character(
+                        s.character["id"],
+                        attributes=s.character.get("attributes", "{}"),
+                    )
+                except Exception as _e:
+                    log.debug("silent except in server/tick_handlers_economy.py:353: %s", _e, exc_info=True)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            "buff_expiry_tick failed", exc_info=True
+        )
+
+
+# ── Environmental hazard tick ────────────────────────────────────────────────
+
+async def hazard_tick(ctx) -> None:
+    """Check environmental hazards for occupied rooms. Every 300 ticks (~5 min)."""
+    try:
+        from engine.hazards import hazard_tick as _ht
+        await _ht(ctx.db, ctx.session_mgr)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            "hazard_tick failed", exc_info=True
+        )

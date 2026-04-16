@@ -61,6 +61,7 @@ class ActionType:
     PURCHASE          = "purchase"
     TRAVEL            = "travel"
     TUTORIAL_COMPLETE = "tutorial_complete"
+    THOUGHT           = "thought"
 
 
 # ── Summarization prompt ───────────────────────────────────────────────────────
@@ -87,8 +88,11 @@ SHORT_RECORD guidelines (max 150 words):
 Distill the long record into a briefing card — what a well-connected NPC
 in a cantina would know about this person. Focus on: name, species, visible
 occupation, reputation, recent notable actions (last 3-5 days only), known
-associates, any outstanding debts or conflicts. Do NOT include internal
-motivations or quest hooks. Write as a dossier, not a story.
+associates, any outstanding debts or conflicts, and visible scars. Do NOT
+include internal motivations or quest hooks. You may note observable behavioral
+patterns inferred from thoughts (e.g. "seems paranoid," "appears conflicted")
+but NEVER quote or reveal the character's private thoughts directly.
+Write as a dossier, not a story.
 
 Respond in JSON:
 {"long_record": "...", "short_record": "..."}"""
@@ -176,10 +180,37 @@ async def summarize_character(db, claude, char_row: dict) -> bool:
         return True  # Nothing new to summarize
 
     action_lines = []
+    thought_lines = []
     for a in new_actions:
         ts = a.get("logged_at", "")[:16]
-        action_lines.append(f"  [{ts}] {a['action_type']}: {a['summary']}")
-    action_block = "\n".join(action_lines)
+        if a["action_type"] == "thought":
+            thought_lines.append(f"  [{ts}] {a['summary']}")
+        else:
+            action_lines.append(f"  [{ts}] {a['action_type']}: {a['summary']}")
+    action_block = "\n".join(action_lines) if action_lines else "(none)"
+
+    # Thoughts: include last 20 for summarization context
+    thought_block = ""
+    if thought_lines:
+        thought_block = (
+            "\n\nRECENT THOUGHTS (last 24 hours — private internal monologue):\n"
+            + "\n".join(thought_lines[-20:])
+            + "\n\nWhen updating records, you may reference observable behavioral "
+            "patterns inferred from thoughts (e.g. 'seems paranoid,' 'appears "
+            "conflicted') but NEVER quote or reveal the character's private "
+            "thoughts directly in the short record."
+        )
+
+    # Scars: inject visible scars for NPC awareness
+    scar_block = ""
+    try:
+        from engine.scars import format_scars_for_narrative
+        # char_row may have attributes; build a minimal char dict
+        _scar_text = format_scars_for_narrative(char_row)
+        if _scar_text:
+            scar_block = f"\n\nPHYSICAL APPEARANCE NOTES:\n  {_scar_text}"
+    except Exception as _e:
+        log.debug("silent except in engine/narrative.py:212: %s", _e, exc_info=True)
 
     user_message = (
         f"CHARACTER BACKGROUND (player-written, preserve tone and intent):\n"
@@ -187,7 +218,9 @@ async def summarize_character(db, claude, char_row: dict) -> bool:
         f"CURRENT LONG RECORD (your previous summary, may be empty):\n"
         f"{char_row.get('long_record', '(no prior record)')}\n\n"
         f"NEW ACTIONS SINCE LAST UPDATE:\n"
-        f"{action_block}\n\n"
+        f"{action_block}"
+        f"{thought_block}"
+        f"{scar_block}\n\n"
         f"CURRENT GAME STATE:\n"
         f"  Credits: {char_row.get('credits', 0)}\n"
     )
@@ -319,7 +352,7 @@ async def trigger_on_demand_summarization(db, char_id: int,
 
     if char_row is None:
         # No new actions — build stub for background-only refresh
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT id, name, room_id, credits FROM characters WHERE id = ?",
             (char_id,),
         )

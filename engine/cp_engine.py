@@ -4,12 +4,12 @@ engine/cp_engine.py  --  Character Point (CP) progression economy.
 
 Tick Economy
 ------------
-  300 ticks = 1 CP
-  Weekly hard cap: 300 ticks (i.e. max 1 CP/week from tick accumulation)
+  200 ticks = 1 CP  (v23: was 300)
+  Weekly hard cap: 400 ticks (v23: was 300)
   Admin flag: characters hitting the cap 3+ consecutive weeks are flagged.
 
 Four income sources (in priority order):
-  1. Passive participation trickle  -- floor; 5 ticks/day if online at all
+  1. Passive participation trickle  -- floor; 10 ticks/day if online at all
   2. Scene completion bonus         -- pose-count reward at scene close
   3. Kudos                          -- dominant; 3/week, 35 ticks each, 7-day rolling lockout
   4. AI evaluator trickle           -- lowest priority; graceful-drop when GPU busy
@@ -36,14 +36,14 @@ log = logging.getLogger(__name__)
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
-TICKS_PER_CP = 300
+TICKS_PER_CP = 200              # v23: was 300 — target ~1 CP/week for active players
 
 # Weekly cap
-WEEKLY_CAP_TICKS = 300          # Max ticks earnable per 7-day window
+WEEKLY_CAP_TICKS = 400          # v23: was 300 — room for active RPers to progress
 WEEK_SECONDS = 7 * 24 * 3600
 
 # Passive participation (source 1)
-PASSIVE_TICKS_PER_DAY = 5       # Awarded once per calendar day if online
+PASSIVE_TICKS_PER_DAY = 10      # v23: was 5 — stronger floor for small populations
 DAY_SECONDS = 24 * 3600
 
 # Scene completion bonus (source 2)

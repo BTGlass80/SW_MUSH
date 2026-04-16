@@ -39,6 +39,20 @@ from engine.dice import DicePool
 
 log = logging.getLogger(__name__)
 
+
+def _safe_json_loads(value, default=None):
+    """Parse JSON from a string, returning `default` on malformed input."""
+    if value is None:
+        return default
+    if not isinstance(value, str):
+        return value
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError) as _e:
+        log.warning("Malformed NPC JSON: %s", _e)
+        return default
+
+
 # Persuasion difficulty for NPC dialogue
 _PERSUASION_DIFFICULTY = 10
 
@@ -159,20 +173,11 @@ class TalkCommand(BaseCommand):
     usage = "talk <npc> <message>  |  talk <npc> (starts conversation)"
 
     async def execute(self, ctx: CommandContext):
+        """Orchestrator: list NPCs / resolve target / tutorial or dialogue path."""
         if not ctx.args:
-            # List NPCs in the room
-            room_id = ctx.session.character["room_id"]
-            npcs = await ctx.db.get_npcs_in_room(room_id)
-            if not npcs:
-                await ctx.session.send_line("  There's no one to talk to here.")
-                return
-            await ctx.session.send_line("  NPCs here:")
-            for npc in npcs:
-                await ctx.session.send_line(f"    {ansi.npc_name(npc['name'])}")
-            await ctx.session.send_line("  Usage: talk <npc> <message>")
+            await self._list_npcs(ctx)
             return
 
-        # Parse: first word is NPC name, rest is message
         parts = ctx.args.split(None, 1)
         npc_name = parts[0]
         message = parts[1] if len(parts) > 1 else "Hello."
@@ -182,36 +187,176 @@ class TalkCommand(BaseCommand):
             await ctx.session.send_line(f"  You don't see '{npc_name}' here.")
             return
 
-        # Get AI manager from the game server
-        ai_manager = getattr(ctx, '_ai_manager', None)
-        if not ai_manager:
-            # Try to get it from session_mgr's parent (game server)
-            # This is a bit of a reach-through but avoids changing CommandContext
-            ai_manager = getattr(ctx.session_mgr, '_ai_manager', None)
-
+        ai_manager = self._resolve_ai_manager(ctx)
         if not ai_manager:
             await ctx.session.send_line(
-                f"  {ansi.npc_name(npc_row['name'])} stares at you blankly."
-            )
+                f"  {ansi.npc_name(npc_row['name'])} stares at you blankly.")
             return
 
         npc_data = NPCData.from_db_row(npc_row)
         brain = _get_brain(npc_data, ai_manager)
 
-        # Show thinking emote
         char = ctx.session.character
         await ctx.session_mgr.broadcast_to_room(
             char["room_id"],
             f'  {ansi.player_name(char["name"])} says to {ansi.npc_name(npc_data.name)}, "{message}"',
         )
 
+        # Tutorial NPC fast-path
+        result = await self._handle_tutorial_npc(
+            ctx, char, npc_row, npc_data, brain, message)
+        if result is not None:
+            return
+
+        # Trainer hooks — fires before Persuasion gate
+        if await handle_trainer_teach(ctx, npc_name):
+            return
+        if await _handle_skill_trainer(ctx, npc_data, char):
+            return
+
+        # Persuasion + faction standing → AI dialogue
+        persuasion_context = await self._run_persuasion_check(ctx, char, message)
+        persuasion_context = await self._inject_faction_context(
+            ctx, char, npc_data, persuasion_context)
+
+        await self._generate_and_display(
+            ctx, char, npc_data, brain, ai_manager, message, persuasion_context)
+
+        await self._post_talk_hooks(ctx, char, npc_row)
+
+    # ── Helpers ────────────────────────────────────────────────────────────
+
+    async def _list_npcs(self, ctx):
+        """List NPCs in the room when no argument given."""
+        room_id = ctx.session.character["room_id"]
+        npcs = await ctx.db.get_npcs_in_room(room_id)
+        if not npcs:
+            await ctx.session.send_line("  There's no one to talk to here.")
+            return
+        await ctx.session.send_line("  NPCs here:")
+        for npc in npcs:
+            await ctx.session.send_line(f"    {ansi.npc_name(npc['name'])}")
+        await ctx.session.send_line("  Usage: talk <npc> <message>")
+
+    def _resolve_ai_manager(self, ctx):
+        """Get AI manager from context or session_mgr."""
+        ai_manager = getattr(ctx, '_ai_manager', None)
+        if not ai_manager:
+            ai_manager = getattr(ctx.session_mgr, '_ai_manager', None)
+        return ai_manager
+
+    async def _run_persuasion_check(self, ctx, char, message):
+        """Run persuasion skill check for substantive questions. Returns context string."""
+        words = message.lower().split()
+        is_substantive = (
+            len(words) > 3
+            or "?" in message
+            or bool(_QUESTION_WORDS & set(words))
+        )
+        if not is_substantive:
+            return ""
+
+        try:
+            result = perform_skill_check(
+                char, "persuasion", _PERSUASION_DIFFICULTY)
+            if result.fumble:
+                await ctx.session.send_line(
+                    f"  {ansi.DIM}[Persuasion: {result.pool_str} vs {_PERSUASION_DIFFICULTY} "
+                    f"— roll {result.roll}, fumble]{ansi.RESET}")
+                return (
+                    "SOCIAL CONTEXT: The player approached this very poorly. "
+                    "You are offended or suspicious. Be curt, dismissive, or "
+                    "openly hostile. Give nothing away. End the conversation "
+                    "if your character would.")
+            elif not result.success:
+                await ctx.session.send_line(
+                    f"  {ansi.DIM}[Persuasion: {result.pool_str} vs {_PERSUASION_DIFFICULTY} "
+                    f"— roll {result.roll}, failed]{ansi.RESET}")
+                return (
+                    "SOCIAL CONTEXT: The player did not make a strong impression. "
+                    "Be guarded and non-committal. Give only the bare minimum. "
+                    "Do not volunteer extra information.")
+            elif result.critical_success:
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_GREEN}[Persuasion: {result.pool_str} vs {_PERSUASION_DIFFICULTY} "
+                    f"— roll {result.roll}, critical!]{ansi.RESET}")
+                return (
+                    "SOCIAL CONTEXT: The player is exceptionally charming or "
+                    "persuasive. Be unusually open and forthcoming. Volunteer "
+                    "extra detail, a useful rumour, or hint at a discount if "
+                    "you are a vendor. Treat them as someone you genuinely "
+                    "want to help.")
+            else:
+                return (
+                    "SOCIAL CONTEXT: The player communicated clearly and "
+                    "respectfully. Answer their question fully and in good faith. "
+                    "Normal cooperative tone.")
+        except Exception:
+            pass  # Graceful-drop — dialogue still fires without context
+        return ""
+
+    async def _inject_faction_context(self, ctx, char, npc_data, persuasion_context):
+        """Add faction standing context to persuasion_context. Returns updated string."""
+        try:
+            npc_faction_raw = (npc_data.ai_config.faction or "").lower()
+            if npc_faction_raw:
+                _fac_map = {
+                    "imperial": "empire", "empire": "empire",
+                    "galactic empire": "empire",
+                    "rebel": "rebel", "rebel alliance": "rebel",
+                    "hutt": "hutt", "hutt cartel": "hutt",
+                    "bounty hunter": "bh_guild", "bounty hunters": "bh_guild",
+                    "bounty hunters' guild": "bh_guild",
+                }
+                npc_fc = _fac_map.get(npc_faction_raw, "")
+                if npc_fc:
+                    from engine.organizations import (
+                        get_char_faction_rep, get_faction_standing_context,
+                    )
+                    _player_rep = await get_char_faction_rep(char, npc_fc, ctx.db)
+                    _standing_ctx = get_faction_standing_context(
+                        npc_faction_raw, _player_rep)
+                    if _standing_ctx:
+                        persuasion_context = (
+                            (persuasion_context + "\n" + _standing_ctx)
+                            if persuasion_context else _standing_ctx)
+        except Exception:
+            log.warning("_inject_faction_context: failed", exc_info=True)
+        return persuasion_context
+
+    async def _generate_and_display(self, ctx, char, npc_data, brain,
+                                     ai_manager, message, persuasion_context):
+        """Show thinking emote, call AI brain, display NPC response."""
+        if ai_manager.config.npc_thinking_emote:
+            await ctx.session.send_line(
+                f"  {ansi.dim(f'{npc_data.name} considers...')}")
+
+        room = await ctx.db.get_room(char["room_id"])
+        room_desc = room.get("desc_short", "") if room else ""
+
+        response = await brain.dialogue(
+            player_input=message,
+            player_name=char["name"],
+            player_char_id=char["id"],
+            room_desc=room_desc,
+            db=ctx.db,
+            persuasion_context=persuasion_context,
+        )
+
+        response = response.strip().strip('"').strip("'").strip('\u201c').strip('\u201d')
+        await ctx.session_mgr.broadcast_to_room(
+            char["room_id"],
+            f'  {ansi.npc_name(npc_data.name)} says, "{response}"',
+        )
+
+    async def _handle_tutorial_npc(self, ctx, char, npc_row, npc_data, brain, message):
+        """Handle tutorial NPC fast-path: scripted greetings + AI response."""
         # ── Tutorial NPC fast path ────────────────────────────────────
         # Tutorial NPCs bypass persuasion and get a scripted first-contact
         # line prepended to the AI response so new players get immediate
         # actionable guidance without waiting on Ollama.
         ai_cfg_raw = npc_row.get("ai_config_json", "{}")
-        ai_cfg_dict = (json.loads(ai_cfg_raw)
-                       if isinstance(ai_cfg_raw, str) else ai_cfg_raw) or {}
+        ai_cfg_dict = _safe_json_loads(ai_cfg_raw, default={}) or {}
         is_tutorial_npc = ai_cfg_dict.get("tutorial_npc", False)
 
         if is_tutorial_npc:
@@ -328,6 +473,8 @@ class TalkCommand(BaseCommand):
                 db=ctx.db,
                 persuasion_context="",
             )
+            # Strip any quotes the LLM wrapped around its response
+            response = response.strip().strip('"').strip("'").strip('\u201c').strip('\u201d')
             await ctx.session_mgr.broadcast_to_room(
                 char["room_id"],
                 f'  {ansi.npc_name(npc_data.name)} says, "{response}"',
@@ -365,95 +512,10 @@ class TalkCommand(BaseCommand):
         # ── End tutorial NPC fast path ────────────────────────────────
 
         # ── Persuasion skill gate ──────────────────────────────────────
-        # Casual greetings skip the check; substantive questions do not.
-        persuasion_context = ""
-        words = message.lower().split()
-        is_substantive = (
-            len(words) > 3
-            or "?" in message
-            or bool(_QUESTION_WORDS & set(words))
-        )
-        if is_substantive:
-            try:
-                result = perform_skill_check(
-                    char, "persuasion", _PERSUASION_DIFFICULTY
-                )
-                if result.fumble:
-                    persuasion_context = (
-                        "SOCIAL CONTEXT: The player approached this very poorly. "
-                        "You are offended or suspicious. Be curt, dismissive, or "
-                        "openly hostile. Give nothing away. End the conversation "
-                        "if your character would."
-                    )
-                    await ctx.session.send_line(
-                        f"  {ansi.DIM}[Persuasion: {result.pool_str} vs {_PERSUASION_DIFFICULTY} "
-                        f"— roll {result.roll}, fumble]{ansi.RESET}"
-                    )
-                elif not result.success:
-                    persuasion_context = (
-                        "SOCIAL CONTEXT: The player did not make a strong impression. "
-                        "Be guarded and non-committal. Give only the bare minimum. "
-                        "Do not volunteer extra information."
-                    )
-                    await ctx.session.send_line(
-                        f"  {ansi.DIM}[Persuasion: {result.pool_str} vs {_PERSUASION_DIFFICULTY} "
-                        f"— roll {result.roll}, failed]{ansi.RESET}"
-                    )
-                elif result.critical_success:
-                    persuasion_context = (
-                        "SOCIAL CONTEXT: The player is exceptionally charming or "
-                        "persuasive. Be unusually open and forthcoming. Volunteer "
-                        "extra detail, a useful rumour, or hint at a discount if "
-                        "you are a vendor. Treat them as someone you genuinely "
-                        "want to help."
-                    )
-                    await ctx.session.send_line(
-                        f"  {ansi.BRIGHT_GREEN}[Persuasion: {result.pool_str} vs {_PERSUASION_DIFFICULTY} "
-                        f"— roll {result.roll}, critical!]{ansi.RESET}"
-                    )
-                else:
-                    persuasion_context = (
-                        "SOCIAL CONTEXT: The player communicated clearly and "
-                        "respectfully. Answer their question fully and in good faith. "
-                        "Normal cooperative tone."
-                    )
-            except Exception:
-                pass  # Graceful-drop — dialogue still fires without context
 
-        if ai_manager.config.npc_thinking_emote:
-            await ctx.session.send_line(
-                f"  {ansi.dim(f'{npc_data.name} considers...')}"
-            )
 
-        # Get room description for context
-        room = await ctx.db.get_room(char["room_id"])
-        room_desc = room.get("desc_short", "") if room else ""
-
-        # Generate response
-        # Crafting trainer hook — fires before Persuasion gate
-        # If this NPC is a schematic trainer, teach and return immediately.
-        if await handle_trainer_teach(ctx, npc_name):
-            return
-
-        # Skill trainer hook — fires before Persuasion gate
-        # If this NPC has trainer=True in ai_config, show available skills.
-        if await _handle_skill_trainer(ctx, npc_data, char):
-            return
-        response = await brain.dialogue(
-            player_input=message,
-            player_name=char["name"],
-            player_char_id=char["id"],
-            room_desc=room_desc,
-            db=ctx.db,
-            persuasion_context=persuasion_context,
-        )
-
-        # Display NPC response
-        await ctx.session_mgr.broadcast_to_room(
-            char["room_id"],
-            f'  {ansi.npc_name(npc_data.name)} says, "{response}"',
-        )
-
+    async def _post_talk_hooks(self, ctx, char, npc_row):
+        """Post-talk effects: tutorial quest + spacer quest checks."""
         # Tutorial starter quest: talking to an NPC
         try:
             from engine.tutorial_v2 import check_starter_quest
@@ -475,8 +537,9 @@ class TalkCommand(BaseCommand):
                 room_name=_nroom.get("name", "") if _nroom else "",
                 room_id=ctx.session.character.get("room_id", 0),
             )
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in parser/npc_commands.py:513: %s", _e, exc_info=True)
+
 
 
 class AskCommand(BaseCommand):
@@ -717,7 +780,7 @@ class NPCManageCommand(BaseCommand):
             return
         await ctx.session.send_line(ansi.header("=== NPCs Here ==="))
         for n in npcs:
-            cfg = json.loads(n.get("ai_config_json", "{}"))
+            cfg = _safe_json_loads(n.get("ai_config_json"), default={}) or {}
             tier = cfg.get("model_tier", 1)
             personality = cfg.get("personality", "(not set)")[:30]
             hostile_flag = ansi.color(" [H]", ansi.BRIGHT_RED) if cfg.get("hostile") else ""
@@ -737,7 +800,7 @@ class NPCManageCommand(BaseCommand):
         if not npc:
             await ctx.session.send_line(f"  NPC #{npc_id} not found.")
             return
-        cfg = json.loads(npc.get("ai_config_json", "{}"))
+        cfg = _safe_json_loads(npc.get("ai_config_json"), default={}) or {}
         await ctx.session.send_line(ansi.header(f"=== NPC #{npc['id']}: {npc['name']} ==="))
         await ctx.session.send_line(f"  Species: {npc.get('species', 'Human')}")
         await ctx.session.send_line(f"  Room: #{npc['room_id']}")
@@ -754,7 +817,7 @@ class NPCManageCommand(BaseCommand):
             f"  |  Combat AI: {behavior}"
         )
         # Weapon
-        cs = json.loads(npc.get("char_sheet_json", "{}"))
+        cs = _safe_json_loads(npc.get("char_sheet_json"), default={}) or {}
         weapon = cs.get("weapon", "")
         if weapon:
             from engine.weapons import get_weapon_registry
@@ -791,7 +854,7 @@ class NPCManageCommand(BaseCommand):
             await ctx.session.send_line(f"  NPC #{npc_id} not found.")
             return
 
-        cfg = json.loads(npc.get("ai_config_json", "{}"))
+        cfg = _safe_json_loads(npc.get("ai_config_json"), default={}) or {}
         field_map = {
             "personality": "personality",
             "faction": "faction",
@@ -816,7 +879,7 @@ class NPCManageCommand(BaseCommand):
         if not npc:
             await ctx.session.send_line(f"  NPC #{npc_id} not found.")
             return
-        cfg = json.loads(npc.get("ai_config_json", "{}"))
+        cfg = _safe_json_loads(npc.get("ai_config_json"), default={}) or {}
         knowledge = cfg.get("knowledge", [])
         knowledge.append(value)
         cfg["knowledge"] = knowledge
@@ -840,7 +903,7 @@ class NPCManageCommand(BaseCommand):
         if not npc:
             await ctx.session.send_line(f"  NPC #{npc_id} not found.")
             return
-        cfg = json.loads(npc.get("ai_config_json", "{}"))
+        cfg = _safe_json_loads(npc.get("ai_config_json"), default={}) or {}
         cfg["model_tier"] = tier
         await ctx.db.update_npc(npc_id, ai_config_json=json.dumps(cfg))
         _npc_brains.pop(npc_id, None)
@@ -869,7 +932,7 @@ class NPCManageCommand(BaseCommand):
         if not npc:
             await ctx.session.send_line(f"  NPC #{npc_id} not found.")
             return
-        cfg = json.loads(npc.get("ai_config_json", "{}"))
+        cfg = _safe_json_loads(npc.get("ai_config_json"), default={}) or {}
         lines = cfg.get("fallback_lines", [])
         lines.append(value.strip())
         cfg["fallback_lines"] = lines
@@ -914,7 +977,7 @@ class NPCManageCommand(BaseCommand):
         if not npc:
             await ctx.session.send_line(f"  NPC #{npc_id} not found.")
             return
-        cfg = json.loads(npc.get("ai_config_json", "{}"))
+        cfg = _safe_json_loads(npc.get("ai_config_json"), default={}) or {}
         cfg["hostile"] = value in ("on", "true", "yes", "1")
         await ctx.db.update_npc(npc_id, ai_config_json=json.dumps(cfg))
         state = "HOSTILE" if cfg["hostile"] else "non-hostile"
@@ -947,7 +1010,7 @@ class NPCManageCommand(BaseCommand):
         if not npc:
             await ctx.session.send_line(f"  NPC #{npc_id} not found.")
             return
-        cfg = json.loads(npc.get("ai_config_json", "{}"))
+        cfg = _safe_json_loads(npc.get("ai_config_json"), default={}) or {}
         cfg["combat_behavior"] = value
         await ctx.db.update_npc(npc_id, ai_config_json=json.dumps(cfg))
         await ctx.session.send_line(
@@ -980,7 +1043,7 @@ class NPCManageCommand(BaseCommand):
             await ctx.session.send_line(f"  NPC #{npc_id} not found.")
             return
         # Update char_sheet_json
-        cs = json.loads(npc.get("char_sheet_json", "{}"))
+        cs = _safe_json_loads(npc.get("char_sheet_json"), default={}) or {}
         cs["weapon"] = weapon_key
         await ctx.db.update_npc(npc_id, char_sheet_json=json.dumps(cs))
         wname = weapon.name if weapon else "unarmed"
@@ -998,7 +1061,7 @@ class NPCManageCommand(BaseCommand):
         if not npc:
             await ctx.session.send_line(f"  NPC #{npc_id} not found.")
             return
-        cs = json.loads(npc.get("char_sheet_json", "{}"))
+        cs = _safe_json_loads(npc.get("char_sheet_json"), default={}) or {}
         if not cs.get("attributes"):
             await ctx.session.send_line(
                 f"  '{npc['name']}' has no combat stats to heal."

@@ -14,7 +14,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 # -- Schema version --
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 16
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -427,6 +427,125 @@ MIGRATIONS = {
         )""",
     ],
 
+    11: [
+        # Hand-tuned map coordinates for area map display
+        "ALTER TABLE rooms ADD COLUMN map_x REAL DEFAULT NULL",
+        "ALTER TABLE rooms ADD COLUMN map_y REAL DEFAULT NULL",
+    ],
+
+    12: [
+        # Economy hardening: credit transaction log for velocity tracking
+        """CREATE TABLE IF NOT EXISTS credit_log (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id     INTEGER NOT NULL,
+            delta       INTEGER NOT NULL,
+            source      TEXT NOT NULL,
+            balance     INTEGER NOT NULL,
+            created_at  REAL NOT NULL
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_credit_log_time ON credit_log(created_at)",
+        "CREATE INDEX IF NOT EXISTS idx_credit_log_source ON credit_log(source, created_at)",
+        "CREATE INDEX IF NOT EXISTS idx_credit_log_char ON credit_log(char_id, created_at)",
+    ],
+
+    13: [
+        # Scene logging & archive (Priority D Phase 1)
+        """CREATE TABLE IF NOT EXISTS scenes (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            title           TEXT    DEFAULT '',
+            summary         TEXT    DEFAULT '',
+            scene_type      TEXT    DEFAULT 'Social',
+            location        TEXT    DEFAULT '',
+            room_id         INTEGER,
+            creator_id      INTEGER NOT NULL REFERENCES characters(id),
+            status          TEXT    DEFAULT 'active',
+            started_at      REAL    NOT NULL,
+            completed_at    REAL,
+            shared_at       REAL
+        )""",
+        """CREATE TABLE IF NOT EXISTS scene_poses (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            scene_id        INTEGER NOT NULL REFERENCES scenes(id),
+            char_id         INTEGER,
+            char_name       TEXT    NOT NULL,
+            pose_text       TEXT    NOT NULL,
+            pose_type       TEXT    DEFAULT 'pose',
+            is_ooc          INTEGER DEFAULT 0,
+            created_at      REAL    NOT NULL
+        )""",
+        """CREATE TABLE IF NOT EXISTS scene_participants (
+            scene_id        INTEGER NOT NULL REFERENCES scenes(id),
+            char_id         INTEGER NOT NULL REFERENCES characters(id),
+            PRIMARY KEY (scene_id, char_id)
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_scene_poses_scene ON scene_poses(scene_id, created_at)",
+        "CREATE INDEX IF NOT EXISTS idx_scenes_status ON scenes(status, started_at)",
+        "CREATE INDEX IF NOT EXISTS idx_scene_participants ON scene_participants(char_id)",
+        "CREATE INDEX IF NOT EXISTS idx_scenes_room ON scenes(room_id, status)",
+    ],
+
+    14: [
+        # Achievement tracking system
+        """CREATE TABLE IF NOT EXISTS character_achievements (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id         INTEGER NOT NULL,
+            achievement_key TEXT NOT NULL,
+            progress        INTEGER DEFAULT 0,
+            completed       INTEGER DEFAULT 0,
+            completed_at    REAL,
+            UNIQUE(char_id, achievement_key)
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_achievements_char ON character_achievements(char_id)",
+        "CREATE INDEX IF NOT EXISTS idx_achievements_key ON character_achievements(achievement_key)",
+    ],
+
+    15: [
+        # Event calendar system (Priority D Phase 4)
+        """CREATE TABLE IF NOT EXISTS game_events (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            title           TEXT    NOT NULL,
+            description     TEXT    DEFAULT '',
+            location        TEXT    DEFAULT '',
+            creator_id      INTEGER NOT NULL REFERENCES characters(id),
+            creator_name    TEXT    NOT NULL,
+            status          TEXT    DEFAULT 'upcoming',
+            scheduled_at    REAL    NOT NULL,
+            created_at      REAL    NOT NULL
+        )""",
+        """CREATE TABLE IF NOT EXISTS game_event_signups (
+            event_id        INTEGER NOT NULL REFERENCES game_events(id),
+            char_id         INTEGER NOT NULL REFERENCES characters(id),
+            char_name       TEXT    NOT NULL,
+            signed_up_at    REAL    NOT NULL,
+            PRIMARY KEY (event_id, char_id)
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_events_status ON game_events(status, scheduled_at)",
+        "CREATE INDEX IF NOT EXISTS idx_events_creator ON game_events(creator_id)",
+    ],
+
+    16: [
+        # Plot / Story Arc Tracker (Priority D Phase 4, Drop 3)
+        """CREATE TABLE IF NOT EXISTS plots (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            title           TEXT    NOT NULL,
+            summary         TEXT    DEFAULT '',
+            creator_id      INTEGER NOT NULL REFERENCES characters(id),
+            creator_name    TEXT    NOT NULL,
+            status          TEXT    DEFAULT 'open',
+            created_at      REAL    NOT NULL,
+            updated_at      REAL    NOT NULL
+        )""",
+        """CREATE TABLE IF NOT EXISTS plot_scenes (
+            plot_id         INTEGER NOT NULL REFERENCES plots(id),
+            scene_id        INTEGER NOT NULL REFERENCES scenes(id),
+            linked_at       REAL    NOT NULL,
+            PRIMARY KEY (plot_id, scene_id)
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_plots_status ON plots(status, updated_at)",
+        "CREATE INDEX IF NOT EXISTS idx_plots_creator ON plots(creator_id)",
+        "CREATE INDEX IF NOT EXISTS idx_plot_scenes_scene ON plot_scenes(scene_id)",
+    ],
+
 }
 
 
@@ -481,6 +600,13 @@ class Database:
 
         log.info("Schema initialized (version %d)", SCHEMA_VERSION)
 
+        # Warm up scene active-room cache
+        try:
+            from engine.scenes import warm_cache as _scene_warm
+            await _scene_warm(self)
+        except Exception as _e:
+            log.warning("Scene cache warm-up failed: %s", _e)
+
     async def _run_migrations(self, from_version: int):
         """Apply sequential migrations from from_version+1 to SCHEMA_VERSION."""
         for target in range(from_version + 1, SCHEMA_VERSION + 1):
@@ -506,6 +632,48 @@ class Database:
         if self._db:
             await self._db.close()
             log.info("Database closed.")
+
+    # -- Query Proxy Methods --
+    # These proxy methods provide a stable public API for raw SQL queries.
+    # External callers should use these instead of reaching through to
+    # self._db (the raw aiosqlite Connection). This enables future
+    # backend swaps, auto-commit options, and transaction management
+    # without touching every call site.
+
+    async def fetchall(self, sql: str, params: tuple = ()) -> list:
+        """Execute SQL and return all rows as a list of Row objects."""
+        return await self._db.execute_fetchall(sql, params)
+
+    async def fetchone(self, sql: str, params: tuple = ()):
+        """Execute SQL and return the first row, or None if no results."""
+        rows = await self._db.execute_fetchall(sql, params)
+        return rows[0] if rows else None
+
+    async def execute(self, sql: str, params: tuple = ()):
+        """Execute a write statement (INSERT/UPDATE/DELETE).
+
+        Does NOT auto-commit. Call db.commit() after your last write in a
+        logical batch. For single-write convenience, use execute_commit().
+        """
+        return await self._db.execute(sql, params)
+
+    async def execute_commit(self, sql: str, params: tuple = ()):
+        """Execute a write statement and immediately commit.
+
+        Convenience method for single-statement writes. For multi-statement
+        batches, use execute() + commit() separately.
+        """
+        result = await self._db.execute(sql, params)
+        await self._db.commit()
+        return result
+
+    async def commit(self):
+        """Commit the current transaction."""
+        await self._db.commit()
+
+    async def executescript(self, sql: str):
+        """Execute a multi-statement SQL script."""
+        await self._db.executescript(sql)
 
     # -- Account Operations --
 
@@ -687,6 +855,15 @@ class Database:
         )
         return [dict(r) for r in rows]
 
+    async def set_room_map_coords(self, room_id: int,
+                                   map_x: float, map_y: float):
+        """Set hand-tuned map coordinates for a room."""
+        await self._db.execute(
+            "UPDATE rooms SET map_x = ?, map_y = ? WHERE id = ?",
+            (map_x, map_y, room_id),
+        )
+        await self._db.commit()
+
     async def get_exits(self, room_id: int) -> list:
         """Get all exits from a room."""
         rows = await self._db.execute_fetchall(
@@ -698,6 +875,19 @@ class Database:
         """Get all active characters in a room."""
         rows = await self._db.execute_fetchall(
             "SELECT * FROM characters WHERE room_id = ? AND is_active = 1",
+            (room_id,),
+        )
+        return [dict(r) for r in rows]
+
+    async def get_characters_in_room_summary(self, room_id: int) -> list:
+        """Get active characters in a room — lightweight (id, name, account_id only).
+
+        Use this when you only need to know WHO is present, not their full
+        stats/inventory/attributes. Avoids deserializing large JSON blobs.
+        """
+        rows = await self._db.execute_fetchall(
+            "SELECT id, name, account_id FROM characters "
+            "WHERE room_id = ? AND is_active = 1",
             (room_id,),
         )
         return [dict(r) for r in rows]
@@ -718,6 +908,7 @@ class Database:
 
     _ROOM_WRITABLE_COLUMNS = frozenset({
         "name", "desc_short", "desc_long", "zone_id", "properties",
+        "map_x", "map_y",
     })
 
     async def update_room(self, room_id: int, **fields):
@@ -1083,6 +1274,95 @@ class Database:
             "DELETE FROM missions WHERE status = 'available' AND expires_at < datetime('now')"
         )
         await self._db.commit()
+
+    # -- Credit Log (Economy Hardening v23) --
+
+    async def log_credit(self, char_id: int, delta: int, source: str,
+                         balance: int) -> None:
+        """Record a credit mutation. char_id=0 for system sinks."""
+        try:
+            await self._db.execute(
+                "INSERT INTO credit_log (char_id, delta, source, balance, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (char_id, delta, source, balance, time.time()),
+            )
+            await self._db.commit()
+        except Exception:
+            # credit_log table may not exist yet (pre-v12 DB)
+            log.debug("log_credit: table may not exist yet", exc_info=True)
+
+    async def get_credit_velocity(self, seconds: int = 86400) -> dict:
+        """Return credit flow summary over the last `seconds`.
+
+        Returns: {
+            'faucet_total': int, 'sink_total': int, 'net': int,
+            'txn_count': int,
+            'top_faucets': [(source, total), ...],
+            'top_sinks': [(source, total), ...],
+            'top_earners': [(char_id, total), ...],
+        }
+        """
+        cutoff = time.time() - seconds
+        try:
+            # Faucets (positive delta, excluding system char_id=0)
+            faucet_rows = await self._db.execute_fetchall(
+                "SELECT source, SUM(delta) as total, COUNT(*) as cnt "
+                "FROM credit_log WHERE delta > 0 AND char_id > 0 "
+                "AND created_at > ? GROUP BY source ORDER BY total DESC",
+                (cutoff,),
+            )
+            # Sinks (negative delta, excluding system)
+            sink_rows = await self._db.execute_fetchall(
+                "SELECT source, SUM(delta) as total, COUNT(*) as cnt "
+                "FROM credit_log WHERE delta < 0 AND char_id > 0 "
+                "AND created_at > ? GROUP BY source ORDER BY total ASC",
+                (cutoff,),
+            )
+            # Top earners
+            earner_rows = await self._db.execute_fetchall(
+                "SELECT char_id, SUM(delta) as total "
+                "FROM credit_log WHERE char_id > 0 AND created_at > ? "
+                "GROUP BY char_id ORDER BY total DESC LIMIT 10",
+                (cutoff,),
+            )
+            # Totals
+            total_row = await self._db.execute_fetchall(
+                "SELECT SUM(CASE WHEN delta > 0 AND char_id > 0 THEN delta ELSE 0 END) as faucet, "
+                "SUM(CASE WHEN delta < 0 AND char_id > 0 THEN delta ELSE 0 END) as sink, "
+                "COUNT(*) as cnt "
+                "FROM credit_log WHERE created_at > ?",
+                (cutoff,),
+            )
+            ft = int(total_row[0]["faucet"] or 0)
+            st = int(total_row[0]["sink"] or 0)
+            return {
+                "faucet_total": ft,
+                "sink_total": st,
+                "net": ft + st,
+                "txn_count": int(total_row[0]["cnt"] or 0),
+                "top_faucets": [(r["source"], int(r["total"])) for r in (faucet_rows or [])[:5]],
+                "top_sinks": [(r["source"], int(r["total"])) for r in (sink_rows or [])[:5]],
+                "top_earners": [(int(r["char_id"]), int(r["total"])) for r in (earner_rows or [])],
+            }
+        except Exception:
+            log.warning("get_credit_velocity: failed", exc_info=True)
+            return {
+                "faucet_total": 0, "sink_total": 0, "net": 0,
+                "txn_count": 0, "top_faucets": [], "top_sinks": [],
+                "top_earners": [],
+            }
+
+    async def get_docked_player_ships(self) -> list:
+        """Return all player-owned ships that are currently docked.
+
+        Used by the docking fee tick. Returns list of dicts with
+        id, name, owner_id, docked_at.
+        """
+        rows = await self._db.execute_fetchall(
+            "SELECT id, name, owner_id, docked_at FROM ships "
+            "WHERE docked_at IS NOT NULL AND owner_id IS NOT NULL"
+        )
+        return [dict(r) for r in rows] if rows else []
 
     # -- Ship Operations --
 
@@ -1677,7 +1957,12 @@ class Database:
     # -- Inventory Operations --
 
     async def get_inventory(self, char_id: int) -> list:
-        """Return character inventory as a list of item dicts."""
+        """Return character inventory as a list of item dicts.
+
+        Handles both legacy list format and current dict format
+        where items are stored under an 'items' key alongside
+        a 'resources' key used by the crafting system.
+        """
         import json as _j
         rows = await self._db.execute_fetchall(
             "SELECT inventory FROM characters WHERE id = ?", (char_id,)
@@ -1686,16 +1971,49 @@ class Database:
             return []
         raw = rows[0]["inventory"] or "[]"
         try:
-            return _j.loads(raw) if isinstance(raw, str) else raw
+            parsed = _j.loads(raw) if isinstance(raw, str) else raw
         except Exception:
-            log.warning("get_inventory: unhandled exception", exc_info=True)
+            log.warning("get_inventory: JSON parse failed for char %s", char_id, exc_info=True)
             return []
+        # Dict format: {"items": [...], "resources": [...]}
+        if isinstance(parsed, dict):
+            return parsed.get("items", [])
+        # List format (legacy): [item, item, ...]
+        if isinstance(parsed, list):
+            return parsed
+        return []
+
+    async def _get_inventory_raw(self, char_id: int) -> dict:
+        """Return the full inventory structure as a dict.
+
+        Always returns {"items": [...], "resources": [...]}.
+        Handles legacy list format, dict format, and NULL/empty.
+        """
+        import json as _j
+        rows = await self._db.execute_fetchall(
+            "SELECT inventory FROM characters WHERE id = ?", (char_id,)
+        )
+        if not rows:
+            return {"items": [], "resources": []}
+        raw = rows[0]["inventory"] or "{}"
+        try:
+            parsed = _j.loads(raw) if isinstance(raw, str) else raw
+        except Exception:
+            return {"items": [], "resources": []}
+        if isinstance(parsed, dict):
+            parsed.setdefault("items", [])
+            parsed.setdefault("resources", [])
+            return parsed
+        if isinstance(parsed, list):
+            # Legacy: bare list → migrate to dict format
+            return {"items": parsed, "resources": []}
+        return {"items": [], "resources": []}
 
     async def add_to_inventory(self, char_id: int, item: dict):
         """Append an item dict to character inventory and persist."""
         import json as _j
-        inv = await self.get_inventory(char_id)
-        inv.append(item)
+        inv = await self._get_inventory_raw(char_id)
+        inv["items"].append(item)
         await self._db.execute(
             "UPDATE characters SET inventory = ? WHERE id = ?",
             (_j.dumps(inv), char_id),
@@ -1707,18 +2025,19 @@ class Database:
         """Remove the first inventory item matching item_key.
         Returns True if removed."""
         import json as _j
-        inv = await self.get_inventory(char_id)
-        new_inv = []
+        inv = await self._get_inventory_raw(char_id)
+        new_items = []
         removed = False
-        for item in inv:
-            if not removed and item.get("key") == item_key:
+        for item in inv["items"]:
+            if not removed and isinstance(item, dict) and item.get("key") == item_key:
                 removed = True
             else:
-                new_inv.append(item)
+                new_items.append(item)
         if removed:
+            inv["items"] = new_items
             await self._db.execute(
                 "UPDATE characters SET inventory = ? WHERE id = ?",
-                (_j.dumps(new_inv), char_id),
+                (_j.dumps(inv), char_id),
             )
             await self._db.commit()
         return removed

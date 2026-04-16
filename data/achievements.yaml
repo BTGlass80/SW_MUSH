@@ -1,0 +1,280 @@
+# SW_MUSH Achievement Definitions
+# Each achievement: key, name, description, category, icon, cp_reward, trigger
+# trigger: {event: str, count: int, zone?: str}
+# requires: optional prerequisite achievement key
+
+achievements:
+
+  # ══════════════════════════════════════════════════════════════
+  # COMBAT (5 achievements)
+  # ══════════════════════════════════════════════════════════════
+
+  - key: first_blood
+    name: "First Blood"
+    description: "Win your first combat encounter"
+    category: combat
+    icon: "⚔️"
+    cp_reward: 2
+    trigger: {event: "combat_victory", count: 1}
+
+  - key: veteran_fighter
+    name: "Veteran Fighter"
+    description: "Win 25 combat encounters"
+    category: combat
+    icon: "🎖️"
+    cp_reward: 5
+    trigger: {event: "combat_victory", count: 25}
+    requires: first_blood
+
+  - key: deadly_aim
+    name: "Deadly Aim"
+    description: "Land 50 successful attacks"
+    category: combat
+    icon: "🎯"
+    cp_reward: 3
+    trigger: {event: "attack_hit", count: 50}
+
+  - key: iron_will
+    name: "Iron Will"
+    description: "Survive being Wounded 10 times"
+    category: combat
+    icon: "🛡️"
+    cp_reward: 3
+    trigger: {event: "survived_wound", count: 10}
+
+  - key: cheated_death
+    name: "Cheated Death"
+    description: "Survive a Mortally Wounded result"
+    category: combat
+    icon: "💀"
+    cp_reward: 5
+    trigger: {event: "survived_mortal_wound", count: 1}
+
+  # ══════════════════════════════════════════════════════════════
+  # SPACE (5 achievements)
+  # ══════════════════════════════════════════════════════════════
+
+  - key: first_flight
+    name: "First Flight"
+    description: "Launch a ship into orbit for the first time"
+    category: space
+    icon: "🚀"
+    cp_reward: 2
+    trigger: {event: "ship_launch", count: 1}
+
+  - key: seasoned_pilot
+    name: "Seasoned Pilot"
+    description: "Complete 25 hyperspace jumps"
+    category: space
+    icon: "✦"
+    cp_reward: 3
+    trigger: {event: "hyperspace_complete", count: 25}
+
+  - key: ace_pilot
+    name: "Ace Pilot"
+    description: "Destroy 10 hostile ships in space combat"
+    category: space
+    icon: "★"
+    cp_reward: 5
+    trigger: {event: "ship_destroyed", count: 10}
+    requires: first_flight
+
+  - key: salvage_king
+    name: "Salvage King"
+    description: "Successfully salvage 15 anomalies"
+    category: space
+    icon: "🔧"
+    cp_reward: 3
+    trigger: {event: "anomaly_salvaged", count: 15}
+
+  - key: galaxy_traveler
+    name: "Galaxy Traveler"
+    description: "Visit all four planets"
+    category: space
+    icon: "🌍"
+    cp_reward: 3
+    trigger: {event: "planets_visited", count: 4}
+
+  # ══════════════════════════════════════════════════════════════
+  # ECONOMY (5 achievements)
+  # ══════════════════════════════════════════════════════════════
+
+  - key: first_paycheck
+    name: "First Paycheck"
+    description: "Earn your first 1,000 credits from missions"
+    category: economy
+    icon: "💰"
+    cp_reward: 1
+    trigger: {event: "mission_credits_earned", count: 1000}
+
+  - key: high_roller
+    name: "High Roller"
+    description: "Accumulate 50,000 credits total earnings"
+    category: economy
+    icon: "💎"
+    cp_reward: 5
+    trigger: {event: "mission_credits_earned", count: 50000}
+    requires: first_paycheck
+
+  - key: merchant_prince
+    name: "Merchant Prince"
+    description: "Complete 20 trade goods transactions"
+    category: economy
+    icon: "📦"
+    cp_reward: 3
+    trigger: {event: "trade_goods_sold", count: 20}
+
+  - key: mission_runner
+    name: "Mission Runner"
+    description: "Complete 15 mission board jobs"
+    category: economy
+    icon: "📋"
+    cp_reward: 3
+    trigger: {event: "mission_complete", count: 15}
+
+  - key: sabacc_shark
+    name: "Sabacc Shark"
+    description: "Win 10 hands of Sabacc"
+    category: economy
+    icon: "🃏"
+    cp_reward: 2
+    trigger: {event: "sabacc_win", count: 10}
+
+  # ══════════════════════════════════════════════════════════════
+  # CRAFTING (4 achievements)
+  # ══════════════════════════════════════════════════════════════
+
+  - key: apprentice_crafter
+    name: "Apprentice Crafter"
+    description: "Craft your first item"
+    category: crafting
+    icon: "🔨"
+    cp_reward: 2
+    trigger: {event: "item_crafted", count: 1}
+
+  - key: journeyman_crafter
+    name: "Journeyman Crafter"
+    description: "Craft 10 items"
+    category: crafting
+    icon: "⚒️"
+    cp_reward: 3
+    trigger: {event: "item_crafted", count: 10}
+    requires: apprentice_crafter
+
+  - key: master_crafter
+    name: "Master Crafter"
+    description: "Craft a Masterwork-quality item (quality 90+)"
+    category: crafting
+    icon: "👑"
+    cp_reward: 10
+    trigger: {event: "craft_masterwork", count: 1}
+
+  - key: mad_scientist
+    name: "Mad Scientist"
+    description: "Successfully experiment on a weapon 5 times"
+    category: crafting
+    icon: "🧪"
+    cp_reward: 3
+    trigger: {event: "experiment_success", count: 5}
+
+  # ══════════════════════════════════════════════════════════════
+  # SOCIAL (4 achievements)
+  # ══════════════════════════════════════════════════════════════
+
+  - key: first_contact
+    name: "First Contact"
+    description: "Speak with another player character present"
+    category: social
+    icon: "🤝"
+    cp_reward: 1
+    trigger: {event: "pc_conversation", count: 1}
+
+  - key: storyteller
+    name: "Storyteller"
+    description: "Complete 5 RP scenes"
+    category: social
+    icon: "📖"
+    cp_reward: 3
+    trigger: {event: "scene_completed", count: 5}
+
+  - key: faction_loyalist
+    name: "Faction Loyalist"
+    description: "Reach rank 3 in any organization"
+    category: social
+    icon: "🏛️"
+    cp_reward: 5
+    trigger: {event: "org_rank_reached", count: 3}
+
+  - key: popular_figure
+    name: "Popular Figure"
+    description: "Receive 10 kudos from other players"
+    category: social
+    icon: "⭐"
+    cp_reward: 3
+    trigger: {event: "kudos_received", count: 10}
+
+  # ══════════════════════════════════════════════════════════════
+  # EXPLORATION (3 achievements)
+  # ══════════════════════════════════════════════════════════════
+
+  - key: mos_eisley_local
+    name: "Mos Eisley Local"
+    description: "Visit 20 different rooms on Tatooine"
+    category: exploration
+    icon: "🏜️"
+    cp_reward: 2
+    trigger: {event: "rooms_visited", count: 20}
+
+  - key: cartographer
+    name: "Cartographer"
+    description: "Visit 60 different rooms across the galaxy"
+    category: exploration
+    icon: "🗺️"
+    cp_reward: 5
+    trigger: {event: "rooms_visited", count: 60}
+    requires: mos_eisley_local
+
+  - key: smuggler_run
+    name: "Smuggler's Run"
+    description: "Complete 5 smuggling deliveries"
+    category: smuggling
+    icon: "📡"
+    cp_reward: 3
+    trigger: {event: "smuggling_complete", count: 5}
+
+  # ══════════════════════════════════════════════════════════════
+  # FORCE (4 achievements)
+  # ══════════════════════════════════════════════════════════════
+
+  - key: force_awakening
+    name: "Force Awakening"
+    description: "Successfully use a Force power for the first time"
+    category: force
+    icon: "✨"
+    cp_reward: 3
+    trigger: {event: "force_power_used", count: 1}
+
+  - key: force_adept
+    name: "Force Adept"
+    description: "Use Force powers 25 times successfully"
+    category: force
+    icon: "🌀"
+    cp_reward: 5
+    trigger: {event: "force_power_used", count: 25}
+    requires: force_awakening
+
+  - key: dark_temptation
+    name: "Dark Temptation"
+    description: "Earn your first Dark Side Point"
+    category: force
+    icon: "🌑"
+    cp_reward: 1
+    trigger: {event: "dark_side_point", count: 1}
+
+  - key: redeemed
+    name: "Redeemed"
+    description: "Atone for a Dark Side Point"
+    category: force
+    icon: "🌕"
+    cp_reward: 3
+    trigger: {event: "dark_side_atoned", count: 1}

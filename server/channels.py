@@ -142,6 +142,11 @@ class ChannelManager:
                 await sess.send_json("chat", {"channel": "ic", "from": sender_name, "text": f"[COMLINK] {message}"})
                 count += 1
         log.debug("[comlink] %s: %s  (%d recipients)", sender_name, message[:60], count)
+        # ── Comlink intercept delivery (Tier 3 Feature #19) ──
+        try:
+            await self._deliver_intercepts(session_mgr, sender_name, message, "comlink")
+        except Exception:
+            log.debug("[channels] intercept delivery failed", exc_info=True)
         return count
 
     # ── Faction Comms ─────────────────────────────────────────────────────────
@@ -166,6 +171,12 @@ class ChannelManager:
             "[fcomm/%s] %s: %s  (%d recipients)",
             faction, sender_name, message[:60], count,
         )
+        # ── Fcomm intercept delivery (Tier 3 Feature #19) ──
+        try:
+            await self._deliver_intercepts(
+                session_mgr, sender_name, message, f"fcomm/{faction}")
+        except Exception:
+            log.debug("[channels] fcomm intercept delivery failed", exc_info=True)
         return count
 
     # ── Custom Frequency ──────────────────────────────────────────────────────
@@ -217,6 +228,54 @@ class ChannelManager:
             "[freq %d] %s: %s  (%d recipients)", freq, sender_name, message[:60], count
         )
         return count
+
+    # ── Comlink Intercept delivery (Tier 3 Feature #19) ─────────────────
+
+    async def _deliver_intercepts(
+        self,
+        session_mgr: "SessionManager",
+        sender_name: str,
+        message: str,
+        channel_label: str,
+    ) -> None:
+        """
+        Deliver muffled comlink/fcomm messages to active interceptors.
+        Only delivers to interceptors who are NOT already recipients of
+        the original broadcast (e.g. intercepting a different faction's
+        fcomm).
+        """
+        from engine.espionage import (
+            get_all_active_interceptors, muffle_for_intercept,
+            increment_intercept_count,
+        )
+
+        interceptors = get_all_active_interceptors()
+        if not interceptors:
+            return
+
+        muffled = muffle_for_intercept(message)
+        if not muffled or muffled.replace("...", "").strip() == "":
+            return  # Nothing survived muffling
+
+        intercept_line = (
+            f"\n  \033[2;3m[INTERCEPT/{channel_label}] "
+            f"{sender_name}: {muffled}\033[0m"
+        )
+
+        for char_id, isess in interceptors:
+            sess = session_mgr.find_by_character(char_id)
+            if not sess or not sess.is_in_game:
+                continue
+            char = sess.character
+            if not char:
+                continue
+            # For fcomm: skip if interceptor is same faction (already got it)
+            if channel_label.startswith("fcomm/"):
+                fac = channel_label.split("/", 1)[1]
+                if get_faction(char) == fac:
+                    continue
+            await sess.send_line(intercept_line)
+            increment_intercept_count(char_id)
 
     # ── Utility ───────────────────────────────────────────────────────────────
 

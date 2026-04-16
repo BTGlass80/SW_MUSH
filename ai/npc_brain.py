@@ -115,7 +115,8 @@ class NPCBrain:
     def _build_system_prompt(self, room_desc: str = "",
                              player_name: str = "",
                              player_memory: str = "",
-                             persuasion_context: str = "") -> str:
+                             persuasion_context: str = "",
+                             zone_tone: str = "") -> str:
         """Assemble the full system prompt for this NPC."""
         cfg = self.npc.ai_config
         parts = []
@@ -149,6 +150,10 @@ class NPCBrain:
             parts.append("Things you know:")
             for k in cfg.knowledge:
                 parts.append(f"  - {k}")
+
+        # Zone atmosphere (from zones.yaml)
+        if zone_tone:
+            parts.append(f"ATMOSPHERE: {zone_tone}")
 
         # Room context
         if room_desc:
@@ -232,13 +237,46 @@ class NPCBrain:
                 log.debug("npc_brain: narrative fetch failed", exc_info=True)
                 pass
 
+        # Look up zone narrative tone
+        zone_tone = ""
+        if db:
+            try:
+                from engine.zone_tones import get_zone_tone
+                # NPC's room_id comes from its DB row; fall back to 0
+                _npc_room = getattr(self.npc, 'room_id', 0) or 0
+                if _npc_room:
+                    zone_tone = await get_zone_tone(db, _npc_room)
+            except Exception:
+                log.debug("npc_brain: zone tone fetch failed", exc_info=True)
+
         # Build prompt
         system_prompt = self._build_system_prompt(
             room_desc=room_desc,
             player_name=player_name,
             player_memory=player_memory if player_memory else player_narrative,
             persuasion_context=persuasion_context,
+            zone_tone=zone_tone,
         )
+
+        # Inject relevant world lore into the NPC prompt
+        if db:
+            try:
+                from engine.world_lore import get_relevant_lore, format_lore_block
+                _npc_zone_str = zone_tone[:60] if zone_tone else ""
+                _lore_ctx = (
+                    f"{player_input} {self.npc.ai_config.faction} "
+                    f"{_npc_zone_str} {room_desc[:60]}"
+                )
+                _npc_lore = await get_relevant_lore(
+                    db, _lore_ctx,
+                    zone_id="",  # NPC lore is global-scoped
+                    max_entries=3, max_chars=500,
+                )
+                _lore_block = format_lore_block(_npc_lore, "THINGS YOU KNOW ABOUT THE WORLD")
+                if _lore_block:
+                    system_prompt += "\n" + _lore_block
+            except Exception:
+                log.debug("npc_brain: lore injection failed", exc_info=True)
 
         # Add to conversation history
         self.conversation_history.append({
@@ -251,6 +289,12 @@ class NPCBrain:
             self.conversation_history = self.conversation_history[-12:]
 
         # Generate
+        # Notify idle queue that a player request is about to happen
+        # so it backs off and doesn't compete for Ollama
+        _idle_q = getattr(self.ai, '_idle_queue', None)
+        if _idle_q:
+            _idle_q.notify_player_request()
+
         response = await self.ai.generate(
             system_prompt=system_prompt,
             messages=self.conversation_history,
@@ -280,7 +324,7 @@ class NPCBrain:
     async def _load_memory(self, db, char_id: int) -> str:
         """Load NPC's memory of a specific player."""
         try:
-            rows = await db._db.execute_fetchall(
+            rows = await db.fetchall(
                 """SELECT memory_json FROM npc_memory
                    WHERE npc_id = ? AND character_id = ?
                    ORDER BY updated_at DESC LIMIT 1""",
@@ -312,11 +356,11 @@ class NPCBrain:
         memory_json = json.dumps({"summary": summary, "last_interaction": time.time()})
 
         # Upsert
-        await db._db.execute(
+        await db.execute(
             """INSERT INTO npc_memory (npc_id, character_id, memory_json, updated_at)
                VALUES (?, ?, ?, datetime('now'))
                ON CONFLICT(npc_id, character_id)
                DO UPDATE SET memory_json = ?, updated_at = datetime('now')""",
             (self.npc.id, char_id, memory_json, memory_json),
         )
-        await db._db.commit()
+        await db.commit()

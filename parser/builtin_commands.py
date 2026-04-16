@@ -10,6 +10,38 @@ from server import ansi
 log = logging.getLogger(__name__)
 
 
+def _wrap_exits(exit_parts: list, prefix: str = "  Exits: ", width: int = 120) -> str:
+    """Format exits across multiple lines if needed.
+
+    Each 'direction (Label)' pair is atomic — never split across lines.
+    Continuation lines indent to align with the first exit.
+    Width is measured in visible characters (ANSI codes excluded).
+    """
+    if not exit_parts:
+        return prefix + ansi.DIM + "None" + ansi.RESET
+
+    indent = " " * len(ansi.strip_ansi(prefix))
+    lines = []
+    current = prefix
+    current_vis = len(ansi.strip_ansi(prefix))
+
+    for i, part in enumerate(exit_parts):
+        vis = len(ansi.strip_ansi(part))
+        if i == 0:
+            current += part
+            current_vis += vis
+        elif current_vis + 2 + vis > width:
+            lines.append(current)
+            current = indent + part
+            current_vis = len(indent) + vis
+        else:
+            current += ", " + part
+            current_vis += 2 + vis
+
+    if current:
+        lines.append(current)
+    return "\n".join(lines)
+
 async def _check_hostile_npcs(ctx: CommandContext, room_id: int):
     """
     Check for hostile NPCs when a player enters a room.
@@ -103,6 +135,7 @@ class LookCommand(BaseCommand):
     usage = "look [target]"
 
     async def execute(self, ctx: CommandContext):
+        """Orchestrator: look at target or display room."""
         session = ctx.session
         char = session.character
         if not char:
@@ -113,22 +146,31 @@ class LookCommand(BaseCommand):
             await self._look_at(ctx)
             return
 
-        # ── Look at the current room ──
         room = await ctx.db.get_room(char["room_id"])
         if not room:
             await session.send_line("You are in a void. Something has gone wrong.")
             return
 
-        # Room name + security tag
+        await self._room_header(ctx, session, char, room)
+        await self._room_environment(ctx, session, char)
+        await self._room_description(ctx, session, room)
+        await self._room_overlays(ctx, session, char, room)
+        await self._room_exits(ctx, session, char)
+        await self._look_room_contents(ctx, session, char, room)
+        await self._sync_space_panel(ctx, session, char)
+
+    # ── Helpers ────────────────────────────────────────────────────────────
+
+    async def _room_header(self, ctx, session, char, room):
+        """Room name + security/housing/claim tags."""
         _sec_tag = ""
         try:
             from engine.security import get_effective_security, security_label
             _room_sec = await get_effective_security(char["room_id"], ctx.db, character=char)
             _sec_tag = " " + security_label(_room_sec)
         except Exception:
-            log.warning("execute: unhandled exception", exc_info=True)
-            pass
-        # Housing tag: [PRIVATE] + owner label for player-owned rooms
+            log.warning("_room_header: security tag failed", exc_info=True)
+
         _housing_tag = ""
         try:
             from engine.housing import get_room_housing_display
@@ -136,9 +178,8 @@ class LookCommand(BaseCommand):
             if _hdisp:
                 _housing_tag = f" \033[2m[PRIVATE — {_hdisp['owner_name']}]\033[0m"
         except Exception:
-            log.warning("execute: unhandled exception", exc_info=True)
-            pass
-        # Territory claim tag: [CLAIMED — Org Name]
+            log.warning("_room_header: housing tag failed", exc_info=True)
+
         _claim_tag = ""
         try:
             from engine.territory import get_claim_display_tag
@@ -146,17 +187,18 @@ class LookCommand(BaseCommand):
             if _ct:
                 _claim_tag = _ct
         except Exception:
-            log.warning("execute: unhandled exception", exc_info=True)
-            pass
-        await session.send_line(ansi.room_name(room["name"]) + _sec_tag + _housing_tag + _claim_tag)
+            log.warning("_room_header: claim tag failed", exc_info=True)
 
-        # Environment flavor line (from inherited properties)
+        await session.send_line(
+            ansi.room_name(room["name"]) + _sec_tag + _housing_tag + _claim_tag)
+
+    async def _room_environment(self, ctx, session, char):
+        """Environment flavor line (lighting, cover)."""
         props = await ctx.db.get_all_room_properties(char["room_id"])
         flavor_parts = []
         lighting = props.get("lighting", "")
         if lighting and lighting != "bright":
             flavor_parts.append(f"The lighting is {lighting}.")
-        env = props.get("environment", "")
         cover_max = props.get("cover_max", 0)
         if cover_max >= 3:
             flavor_parts.append("Heavy cover available.")
@@ -167,32 +209,40 @@ class LookCommand(BaseCommand):
 
         if flavor_parts:
             await session.send_line(
-                f"  {ansi.DIM}{' '.join(flavor_parts)}{ansi.RESET}"
-            )
+                f"  {ansi.DIM}{' '.join(flavor_parts)}{ansi.RESET}")
 
-        # Room description — single paragraph, no server-side line breaks for web
+    async def _room_description(self, ctx, session, room):
+        """Room description text."""
         desc = room["desc_long"] or room["desc_short"] or "You see nothing special."
         await session.send_prose(desc, indent="  ")
 
+    async def _room_overlays(self, ctx, session, char, room):
+        """Dynamic overlays: state descriptions, trophies, territory influence."""
+        # Room state overlays
+        try:
+            from engine.room_states import get_state_descriptions
+            _state_lines = get_state_descriptions(room)
+            for _sl in _state_lines:
+                await session.send_line(f"\n  \033[2;3m{_sl}\033[0m")
+        except Exception:
+            pass  # Non-critical
+
         # Trophy display for player-owned rooms
         try:
-            from engine.housing import get_room_housing_display, _trophies
+            from engine.housing import get_room_housing_display
             _hd2 = await get_room_housing_display(ctx.db, char["room_id"])
             if _hd2 and _hd2["trophies"]:
                 await session.send_line(
-                    f"  \033[2m[Mounted on the wall]\033[0m"
-                )
+                    f"  \033[2m[Mounted on the wall]\033[0m")
                 for _trophy in _hd2["trophies"]:
                     _tname = _trophy.get("name") or _trophy.get("key") or "Item"
                     _tqual = f"  (Q{_trophy['quality']})" if _trophy.get("quality") else ""
                     await session.send_line(
-                        f"   \033[1;33m◆\033[0m {_tname}{_tqual}"
-                    )
+                        f"   \033[1;33m◆\033[0m {_tname}{_tqual}")
         except Exception:
-            log.warning("execute: unhandled exception", exc_info=True)
-            pass
+            log.warning("_room_overlays: trophy display failed", exc_info=True)
 
-        # Territory influence presence (Drop 6A)
+        # Territory influence presence
         try:
             from engine.territory import get_zone_influence_line, get_room_zone_id
             _tz_id = await get_room_zone_id(ctx.db, char["room_id"])
@@ -201,56 +251,183 @@ class LookCommand(BaseCommand):
                 if _tz_line:
                     await session.send_line(_tz_line)
         except Exception:
-            log.warning("execute: unhandled exception", exc_info=True)
-            pass
+            log.warning("_room_overlays: territory influence failed", exc_info=True)
 
-        # Exits (show locks, use name label when available)
+    async def _room_exits(self, ctx, session, char):
+        """Display exits with locks and labels."""
         exits = await ctx.db.get_exits(char["room_id"])
-        if exits:
-            # Filter hidden exits (e.g. Rebel safehouse doors)
-            try:
-                from engine.housing import is_exit_visible
-                visible_exits = []
-                for e in exits:
-                    if await is_exit_visible(ctx.db, e, char):
-                        visible_exits.append(e)
-                exits = visible_exits
-            except Exception:
-                pass  # Graceful fallback: show all exits
+        if not exits:
+            return
 
-            exit_parts = []
-            seen_dirs = {}  # direction → list of labels (for dedup display)
+        # Filter hidden exits
+        try:
+            from engine.housing import is_exit_visible
+            visible_exits = []
             for e in exits:
-                dir_key = e["direction"]
-                label = (e.get("name") or "").strip()
-                if not label:
-                    # Auto-fetch destination room name as fallback label
-                    try:
-                        dest = await ctx.db.get_room(e["to_room_id"])
-                        if dest:
-                            label = dest["name"]
-                    except Exception:
-                        log.warning("execute: unhandled exception", exc_info=True)
-                        pass
-                seen_dirs.setdefault(dir_key, []).append((label, e))
+                if await is_exit_visible(ctx.db, e, char):
+                    visible_exits.append(e)
+            exits = visible_exits
+        except Exception:
+            pass  # Graceful fallback: show all exits
 
-            for dir_key, entries in seen_dirs.items():
-                # If multiple exits share a direction (shouldn't happen with fixed build,
-                # but handle gracefully): show each with its label
-                for label, e in entries:
-                    lock = e.get("lock_data", "")
-                    locked = lock and lock not in ("{}", "", "open")
-                    # Build display string: "north (Inn)" or just "north"
-                    if label and label.lower() != dir_key.lower():
-                        display = f"{ansi.exit_color(dir_key)} ({label})"
-                    else:
-                        display = ansi.exit_color(dir_key)
-                    if locked:
-                        display += f"{ansi.DIM}[locked]{ansi.RESET}"
-                    exit_parts.append(display)
+        exit_parts = []
+        seen_dirs = {}
+        for e in exits:
+            dir_key = e["direction"]
+            label = (e.get("name") or "").strip()
+            if not label:
+                try:
+                    dest = await ctx.db.get_room(e["to_room_id"])
+                    if dest:
+                        label = dest["name"]
+                except Exception:
+                    log.warning("_room_exits: dest room lookup failed", exc_info=True)
+            seen_dirs.setdefault(dir_key, []).append((label, e))
 
-            await session.send_line(f"  Exits: {', '.join(exit_parts)}")
+        for dir_key, entries in seen_dirs.items():
+            for label, e in entries:
+                lock = e.get("lock_data", "")
+                locked = lock and lock not in ("{}", "", "open")
+                if label and label.lower() != dir_key.lower():
+                    display = f"{ansi.exit_color(dir_key)} ({label})"
+                else:
+                    display = ansi.exit_color(dir_key)
+                if locked:
+                    display += f"{ansi.DIM}[locked]{ansi.RESET}"
+                exit_parts.append(display)
 
+        await session.send_line(_wrap_exits(exit_parts))
+
+    async def _sync_space_panel(self, ctx, session, char):
+        """Sync web client space panel state on every look."""
+        try:
+            if session.protocol.value == "websocket":
+                from parser.space_commands import build_space_state, broadcast_space_state
+                ship = await ctx.db.get_ship_by_bridge(char["room_id"])
+                if ship and not ship.get("docked_at"):
+                    payload = await build_space_state(ship, char["id"], ctx.db, ctx.session_mgr)
+                    await session.send_json("space_state", payload)
+                elif ship and ship.get("docked_at"):
+                    await session.send_json("space_state", {
+                        "active": False,
+                        "ship_name": ship.get("name", ""),
+                    })
+                else:
+                    await session.send_json("space_state", {"active": False})
+                await session.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
+        except Exception as e:
+            log.warning("LookCommand space_state sync failed: %s", e)
+
+    async def _look_at(self, ctx: CommandContext):
+        """Look at a specific target (character, NPC, or object)."""
+        from engine.matching import match_in_room, MatchResult
+        import json as _json
+
+        char = ctx.session.character
+        match = await match_in_room(
+            ctx.args, char["room_id"], char["id"], ctx.db,
+            session_mgr=ctx.session_mgr,
+        )
+
+        if match.result == MatchResult.AMBIGUOUS:
+            await ctx.session.send_line(f"  {match.error_message(ctx.args)}")
+            return
+
+        if not match.found:
+            # Check room_details in room properties before giving up
+            room = await ctx.db.get_room(char["room_id"])
+            if room:
+                try:
+                    props = _json.loads(room.get("properties", "{}") or "{}")
+                    details = props.get("room_details", {})
+                    # Find matching detail by keyword (partial match ok)
+                    search_lower = ctx.args.lower().strip()
+                    found_detail = None
+                    for kw, detail in details.items():
+                        if search_lower == kw.lower() or kw.lower() in search_lower or search_lower in kw.lower():
+                            found_detail = detail
+                            break
+                    if found_detail:
+                        # Show the detail description
+                        desc = found_detail.get("desc", "You see nothing special.")
+                        await ctx.session.send_line(f"  {desc}")
+                        # Grant item if present and not already granted this session
+                        grants = found_detail.get("grants_item")
+                        if grants:
+                            if not char.get(f"_found_{grants}", False):
+                                # Grant item to inventory
+                                item_name = found_detail.get("item_name", grants)
+                                item_slot = found_detail.get("item_slot", "misc")
+                                await ctx.db.add_to_inventory(char["id"], {
+                                    "key": grants,
+                                    "name": item_name,
+                                    "slot": item_slot,
+                                })
+                                await ctx.session.send_line(
+                                    f"  {ansi.color(f'You pick up the {item_name}.', ansi.YELLOW)}"
+                                )
+                                # Mark as found so it's not granted again this session
+                                char[f"_found_{grants}"] = True
+                                # Tutorial hook if applicable
+                                try:
+                                    from engine.tutorial_v2 import check_profession_chains
+                                    await check_profession_chains(
+                                        ctx.session, ctx.db, "find_item",
+                                        item_key=grants,
+                                    )
+                                except Exception as _e:
+                                    log.debug("silent except in parser/builtin_commands.py:461: %s", _e, exc_info=True)
+                        return
+                except Exception:
+                    log.warning("_look_at: room_details lookup failed", exc_info=True)
+            await ctx.session.send_line(f"  You don't see '{ctx.args}' here.")
+            return
+
+        c = match.candidate
+        if c.obj_type == "npc":
+            # NPC description
+            await ctx.session.send_line(f"  {ansi.npc_name(c.name)}")
+            desc = c.data.get("description", "")
+            if desc:
+                await ctx.session.send_prose(desc, indent="    ")
+            species = c.data.get("species", "Unknown")
+            await ctx.session.send_line(f"    Species: {species}")
+
+        elif c.obj_type == "character":
+            # Character description
+            await ctx.session.send_line(f"  {ansi.player_name(c.name)}")
+            desc = c.data.get("description", "")
+            if desc:
+                await ctx.session.send_prose(desc, indent="    ")
+            species = c.data.get("species", "Human")
+            await ctx.session.send_line(f"    Species: {species}")
+            # Show equipped weapon
+            try:
+                eq = _json.loads(c.data.get("equipment", "{}") or "{}")
+                if eq.get("weapon"):
+                    from engine.weapons import get_weapon_registry
+                    w = get_weapon_registry().get(eq["weapon"])
+                    if w:
+                        await ctx.session.send_line(f"    Wielding: {w.name}")
+            except Exception:
+                log.warning("_look_at: unhandled exception", exc_info=True)
+                pass
+            # Wound status
+            wl = c.data.get("wound_level", 0)
+            if wl > 0:
+                from engine.character import WoundLevel
+                await ctx.session.send_line(
+                    f"    Condition: {WoundLevel(wl).display_name}"
+                )
+
+        elif c.obj_type == "room":
+            await ctx.session.send_line(f"  This is {c.name}.")
+
+        else:
+            await ctx.session.send_line(f"  You see {c.name}.")
+
+    async def _look_room_contents(self, ctx, session, char, room):
+        """Render characters, NPCs, and vendor droids in the room."""
         # Other characters in the room
         others = await ctx.db.get_characters_in_room(char["room_id"])
         present = []
@@ -336,137 +513,7 @@ class LookCommand(BaseCommand):
             log.warning("execute: unhandled exception", exc_info=True)
             pass
 
-        # ── Web HUD: sync space panel state on every look ────────────────
-        # This ensures the sidebar switches correctly on board/disembark/look.
-        try:
-            if session.protocol.value == "websocket":
-                from parser.space_commands import build_space_state, broadcast_space_state
-                ship = await ctx.db.get_ship_by_bridge(char["room_id"])
-                if ship and not ship.get("docked_at"):
-                    # In space — activate space panel
-                    payload = await build_space_state(ship, char["id"], ctx.db, ctx.session_mgr)
-                    await session.send_json("space_state", payload)
-                elif ship and ship.get("docked_at"):
-                    # Docked — send inactive with ship name so client knows we're aboard
-                    await session.send_json("space_state", {
-                        "active": False,
-                        "ship_name": ship.get("name", ""),
-                    })
-                else:
-                    # On ground — deactivate space panel
-                    await session.send_json("space_state", {"active": False})
-                # Always send HUD update so sidebar reflects current room
-                await session.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
-        except Exception as e:
-            log.warning("LookCommand space_state sync failed: %s", e)
 
-    async def _look_at(self, ctx: CommandContext):
-        """Look at a specific target (character, NPC, or object)."""
-        from engine.matching import match_in_room, MatchResult
-        import json as _json
-
-        char = ctx.session.character
-        match = await match_in_room(
-            ctx.args, char["room_id"], char["id"], ctx.db,
-            session_mgr=ctx.session_mgr,
-        )
-
-        if match.result == MatchResult.AMBIGUOUS:
-            await ctx.session.send_line(f"  {match.error_message(ctx.args)}")
-            return
-
-        if not match.found:
-            # Check room_details in room properties before giving up
-            room = await ctx.db.get_room(char["room_id"])
-            if room:
-                try:
-                    props = _json.loads(room.get("properties", "{}") or "{}")
-                    details = props.get("room_details", {})
-                    # Find matching detail by keyword (partial match ok)
-                    search_lower = ctx.args.lower().strip()
-                    found_detail = None
-                    for kw, detail in details.items():
-                        if search_lower == kw.lower() or kw.lower() in search_lower or search_lower in kw.lower():
-                            found_detail = detail
-                            break
-                    if found_detail:
-                        # Show the detail description
-                        desc = found_detail.get("desc", "You see nothing special.")
-                        await ctx.session.send_line(f"  {desc}")
-                        # Grant item if present and not already granted this session
-                        grants = found_detail.get("grants_item")
-                        if grants:
-                            if not char.get(f"_found_{grants}", False):
-                                # Grant item to inventory
-                                item_name = found_detail.get("item_name", grants)
-                                item_slot = found_detail.get("item_slot", "misc")
-                                await ctx.db.add_to_inventory(char["id"], {
-                                    "key": grants,
-                                    "name": item_name,
-                                    "slot": item_slot,
-                                })
-                                await ctx.session.send_line(
-                                    f"  {ansi.color(f'You pick up the {item_name}.', ansi.YELLOW)}"
-                                )
-                                # Mark as found so it's not granted again this session
-                                char[f"_found_{grants}"] = True
-                                # Tutorial hook if applicable
-                                try:
-                                    from engine.tutorial_v2 import check_profession_chains
-                                    await check_profession_chains(
-                                        ctx.session, ctx.db, "find_item",
-                                        item_key=grants,
-                                    )
-                                except Exception:
-                                    pass
-                        return
-                except Exception:
-                    log.warning("_look_at: room_details lookup failed", exc_info=True)
-            await ctx.session.send_line(f"  You don't see '{ctx.args}' here.")
-            return
-
-        c = match.candidate
-        if c.obj_type == "npc":
-            # NPC description
-            await ctx.session.send_line(f"  {ansi.npc_name(c.name)}")
-            desc = c.data.get("description", "")
-            if desc:
-                await ctx.session.send_prose(desc, indent="    ")
-            species = c.data.get("species", "Unknown")
-            await ctx.session.send_line(f"    Species: {species}")
-
-        elif c.obj_type == "character":
-            # Character description
-            await ctx.session.send_line(f"  {ansi.player_name(c.name)}")
-            desc = c.data.get("description", "")
-            if desc:
-                await ctx.session.send_prose(desc, indent="    ")
-            species = c.data.get("species", "Human")
-            await ctx.session.send_line(f"    Species: {species}")
-            # Show equipped weapon
-            try:
-                eq = _json.loads(c.data.get("equipment", "{}") or "{}")
-                if eq.get("weapon"):
-                    from engine.weapons import get_weapon_registry
-                    w = get_weapon_registry().get(eq["weapon"])
-                    if w:
-                        await ctx.session.send_line(f"    Wielding: {w.name}")
-            except Exception:
-                log.warning("_look_at: unhandled exception", exc_info=True)
-                pass
-            # Wound status
-            wl = c.data.get("wound_level", 0)
-            if wl > 0:
-                from engine.character import WoundLevel
-                await ctx.session.send_line(
-                    f"    Condition: {WoundLevel(wl).display_name}"
-                )
-
-        elif c.obj_type == "room":
-            await ctx.session.send_line(f"  This is {c.name}.")
-
-        else:
-            await ctx.session.send_line(f"  You see {c.name}.")
 
 
 class MoveCommand(BaseCommand):
@@ -476,6 +523,7 @@ class MoveCommand(BaseCommand):
     usage = "north/south/east/west/up/down (or abbreviations)"
 
     async def execute(self, ctx: CommandContext):
+        """Orchestrator: match exit → check gates → move → auto-look → hooks."""
         session = ctx.session
         char = session.character
         if not char:
@@ -486,20 +534,60 @@ class MoveCommand(BaseCommand):
             await session.send_line("Move where? Specify a direction.")
             return
 
+        exit_data = await self._match_exit(ctx, char, direction)
+        if not exit_data:
+            await session.send_line(f"You can't go {direction}.")
+            return
+
+        blocked = await self._check_exit_gates(ctx, session, char, exit_data, direction)
+        if blocked:
+            return
+
+        old_room_id = char["room_id"]
+        new_room_id = exit_data["to_room_id"]
+
+        # Auto-depart from places table (MUX compat)
+        try:
+            from parser.places_commands import auto_depart_place
+            await auto_depart_place(ctx.db, char["id"], old_room_id, ctx.session_mgr)
+        except Exception:
+            pass  # Graceful
+
+        lock_d = self._parse_lock_data(exit_data)
+
+        await self._broadcast_departure(ctx, session, char, old_room_id, direction, lock_d)
+        await self._fire_room_hook(ctx, session, char, old_room_id, "ALEAVE")
+
+        char["room_id"] = new_room_id
+        await ctx.db.save_character(char["id"], room_id=new_room_id)
+
+        await self._broadcast_arrival(ctx, session, char, new_room_id, lock_d)
+        await self._fire_room_hook(ctx, session, char, new_room_id, "AENTER")
+
+        # Auto-look
+        look_cmd = LookCommand()
+        look_ctx = CommandContext(
+            session=session, raw_input="look", command="look",
+            args="", args_list=[], db=ctx.db, session_mgr=ctx.session_mgr,
+        )
+        await look_cmd.execute(look_ctx)
+
+        await self._post_move_hooks(ctx, session, char, new_room_id)
+
+    # ── Helpers ────────────────────────────────────────────────────────────
+
+    async def _match_exit(self, ctx, char, direction):
+        """Match direction input to an exit. Returns exit dict or None."""
         exits = await ctx.db.get_exits(char["room_id"])
 
-        # Filter hidden exits (e.g. Rebel safehouse doors)
+        # Filter hidden exits
         try:
             from engine.housing import is_exit_visible
             exits = [e for e in exits if await is_exit_visible(ctx.db, e, char)]
         except Exception:
             pass  # Graceful fallback: allow all exits
 
-        # Match priority:
-        # 1. Exact direction key match (e.g. "north")
-        # 2. Direction key prefix match (e.g. "no" → "north")
-        # 3. Exit name partial match (e.g. "inn" → exit with name="Inn")
-        # 4. Legacy: direction field contains the input (old "north to Inn" style)
+        # Priority: exact → prefix → name partial → legacy direction contains
         matching = [e for e in exits if e["direction"].lower() == direction]
         if not matching:
             matching = [e for e in exits if e["direction"].lower().startswith(direction)]
@@ -509,20 +597,16 @@ class MoveCommand(BaseCommand):
                 if e.get("name") and direction in e["name"].lower()
             ]
         if not matching:
-            # Legacy fallback: old DB has "north to Inn" stored as direction
             matching = [e for e in exits if direction in e["direction"].lower()]
 
-        if not matching:
-            await session.send_line(f"You can't go {direction}.")
-            return
+        return matching[0] if matching else None
 
-        exit_data = matching[0]
-
-        # Check exit lock (composable lock expressions)
+    async def _check_exit_gates(self, ctx, session, char, exit_data, direction):
+        """Check lock, housing, and org HQ gates. Returns True if blocked."""
+        # Exit lock
         lock_str = exit_data.get("lock_data", "{}")
         if lock_str and lock_str not in ("{}", "", "open"):
             from engine.locks import eval_lock
-            # Build context from account data
             account = await ctx.db.get_account(char.get("account_id", 0))
             lock_ctx = {}
             if account:
@@ -531,55 +615,86 @@ class MoveCommand(BaseCommand):
             passed, reason = eval_lock(lock_str, char, lock_ctx)
             if not passed:
                 await session.send_line(f"  The way {direction} is locked. ({reason})")
-                return
+                return True
 
-        old_room_id = char["room_id"]
         new_room_id = exit_data["to_room_id"]
 
-        # Housing private room gate (Drop 7) — check guest list / ownership
+        # Housing private room gate
         try:
             from engine.housing import can_enter_housing_room
             _allowed, _reason = await can_enter_housing_room(ctx.db, char, new_room_id)
             if not _allowed:
                 await session.send_line(
                     f"  [1;33m{_reason}[0m\n"
-                    "  Use [1;37mlockpick[0m to attempt entry."
-                )
-                return
+                    "  Use [1;37mlockpick[0m to attempt entry.")
+                return True
         except Exception:
-            pass  # Graceful fallback — allow movement
+            pass  # Graceful fallback
 
-        # Notify the old room
-        await ctx.session_mgr.broadcast_to_room(
-            old_room_id,
-            f"{ansi.player_name(char['name'])} leaves {direction}.",
-            exclude=session,
-        )
+        # Org HQ room gate
+        try:
+            from engine.housing import can_enter_hq_room
+            _allowed, _reason = await can_enter_hq_room(ctx.db, char, new_room_id)
+            if not _allowed:
+                await session.send_line(f"  [1;33m{_reason}[0m")
+                return True
+        except Exception:
+            pass  # Graceful fallback
 
-        # Move the character
-        char["room_id"] = new_room_id
-        await ctx.db.save_character(char["id"], room_id=new_room_id)
+        return False
 
-        # Notify the new room
-        await ctx.session_mgr.broadcast_to_room(
-            new_room_id,
-            f"{ansi.player_name(char['name'])} arrives.",
-            exclude=session,
-        )
+    def _parse_lock_data(self, exit_data):
+        """Parse exit lock_data for @osucc/@odrop messages."""
+        import json as _emj
+        _lock_d = {}
+        try:
+            _lock_raw = exit_data.get("lock_data", "{}")
+            if isinstance(_lock_raw, str) and _lock_raw.strip():
+                _lock_d = _emj.loads(_lock_raw)
+            elif isinstance(_lock_raw, dict):
+                _lock_d = _lock_raw
+        except Exception:
+            _lock_d = {}
+        return _lock_d
 
-        # Auto-look
-        look_cmd = LookCommand()
-        look_ctx = CommandContext(
-            session=session,
-            raw_input="look",
-            command="look",
-            args="",
-            args_list=[],
-            db=ctx.db,
-            session_mgr=ctx.session_mgr,
-        )
-        await look_cmd.execute(look_ctx)
+    async def _broadcast_departure(self, ctx, session, char, old_room_id, direction, lock_d):
+        """Broadcast departure message to the old room."""
+        _osucc = (lock_d.get("osucc_msg") or "").strip()
+        if _osucc:
+            _osucc = _osucc.replace("%N", char["name"])
+            await ctx.session_mgr.broadcast_to_room(
+                old_room_id, f"  {_osucc}", exclude=session)
+        else:
+            await ctx.session_mgr.broadcast_to_room(
+                old_room_id,
+                f"{ansi.player_name(char['name'])} leaves {direction}.",
+                exclude=session)
 
+    async def _broadcast_arrival(self, ctx, session, char, new_room_id, lock_d):
+        """Broadcast arrival message to the new room."""
+        _odrop = (lock_d.get("odrop_msg") or "").strip()
+        if _odrop:
+            _odrop = _odrop.replace("%N", char["name"])
+            await ctx.session_mgr.broadcast_to_room(
+                new_room_id, f"  {_odrop}", exclude=session)
+        else:
+            await ctx.session_mgr.broadcast_to_room(
+                new_room_id,
+                f"{ansi.player_name(char['name'])} arrives.",
+                exclude=session)
+
+    async def _fire_room_hook(self, ctx, session, char, room_id, hook_name):
+        """Fire ALEAVE/AENTER room hook."""
+        try:
+            from parser.attr_commands import fire_room_hook
+            await fire_room_hook(ctx.db, ctx.session_mgr, room_id, hook_name,
+                                 char=char, session=session)
+        except Exception as _e:
+            log.debug("_fire_room_hook %s: %s", hook_name, _e, exc_info=True)
+
+
+    async def _post_move_hooks(self, ctx, session, char, new_room_id):
+        """Post-move effects: lawless warning, hostile NPCs, achievements, barks, tutorial."""
         # ── Lawless zone entry warning (one-time per session) ────────────
         try:
             from engine.security import get_effective_security, SecurityLevel
@@ -598,6 +713,76 @@ class MoveCommand(BaseCommand):
 
         # Check for hostile NPCs in the new room
         await _check_hostile_npcs(ctx, new_room_id)
+
+        # Achievement: room visit tracking
+        try:
+            import json as _rvj
+            _attrs = char.get("attributes", "{}")
+            if isinstance(_attrs, str):
+                _attrs = _rvj.loads(_attrs) if _attrs else {}
+            _visited = set(_attrs.get("rooms_visited", []))
+            if new_room_id not in _visited:
+                _visited.add(new_room_id)
+                _attrs["rooms_visited"] = list(_visited)
+                char["attributes"] = _rvj.dumps(_attrs)
+                await ctx.db.save_character(char["id"], attributes=char["attributes"])
+                if hasattr(ctx.session, "game_server"):
+                    from engine.achievements import on_room_visited
+                    await on_room_visited(ctx.db, char["id"],
+                                          len(_visited), session=ctx.session)
+        except Exception as _e:
+            log.debug("silent except in parser/builtin_commands.py:718: %s", _e, exc_info=True)
+
+        # Idle queue: show ambient NPC bark on room entry
+        try:
+            _iq = getattr(ctx.session_mgr, '_idle_queue', None)
+            if _iq:
+                from engine.idle_queue import get_random_bark, needs_bark_refresh
+                npcs = await ctx.db.get_npcs_in_room(new_room_id)
+                for _npc in npcs:
+                    _nid = _npc.get("id", 0)
+                    if not _nid:
+                        continue
+                    _ai_cfg = _npc.get("ai_config_json", "{}")
+                    if isinstance(_ai_cfg, str):
+                        try:
+                            import json as _bj
+                            _ai_cfg = _bj.loads(_ai_cfg)
+                        except Exception:
+                            _ai_cfg = {}
+                    if _ai_cfg.get("hostile", False):
+                        continue
+                    if not _ai_cfg.get("personality", ""):
+                        continue
+                    bark = get_random_bark(_nid, char["id"], _npc.get("name", ""))
+                    if bark:
+                        await session.send_json("ambient_bark", {
+                            "npc_name": bark["npc_name"],
+                            "bark": bark["bark"],
+                            "text": bark["text"],
+                        })
+                        break  # Max 1 bark per room entry
+                    # Queue bark generation if stale
+                    if needs_bark_refresh(_nid):
+                        _zone_tone = ""
+                        try:
+                            from engine.zone_tones import get_zone_tone
+                            _zone_tone = await get_zone_tone(ctx.db, new_room_id)
+                        except Exception as _e:
+                            log.debug("silent except in parser/builtin_commands.py:756: %s", _e, exc_info=True)
+                        _new_room = await ctx.db.get_room(new_room_id)
+                        _rname = _new_room.get("name", "") if _new_room else ""
+                        _iq.enqueue_bark(
+                            npc_id=_nid,
+                            npc_name=_npc.get("name", ""),
+                            species=_npc.get("species", "alien"),
+                            personality=_ai_cfg.get("personality", ""),
+                            faction=_ai_cfg.get("faction", ""),
+                            room_name=_rname,
+                            zone_tone=_zone_tone,
+                        )
+        except Exception:
+            pass  # Non-critical — barks are pure flavor
 
         # Tutorial: start hint timer if in tutorial zone; check starter + discovery quests
         try:
@@ -665,10 +850,11 @@ class MoveCommand(BaseCommand):
                         room_id=new_room_id,
                         room_name=new_room.get("name", ""),
                     )
-                except Exception:
-                    pass
+                except Exception as _e:
+                    log.debug("silent except in parser/builtin_commands.py:838: %s", _e, exc_info=True)
         except Exception:
             pass  # Non-critical
+
 
 
 class SayCommand(BaseCommand):
@@ -691,17 +877,41 @@ class SayCommand(BaseCommand):
         char = ctx.session.character
         name = ansi.player_name(char["name"])
 
+        room_id = char["room_id"]
+        full_text = f'{char["name"]} says, "{ctx.args}"'
         await ctx.session.send_line(f'You say, "{ctx.args}"')
         await ctx.session_mgr.broadcast_to_room(
-            char["room_id"],
-            f'{name} says, "{ctx.args}"',
+            room_id,
+            full_text,
             exclude=ctx.session,
         )
         # Chat tag for WebSocket comms panel
         await ctx.session_mgr.broadcast_chat(
             "ic", char["name"], ctx.args,
-            room_id=char["room_id"],
+            room_id=room_id,
         )
+        # Scene logging hook
+        from engine.scenes import get_active_scene_id, capture_pose
+        scene_id = get_active_scene_id(room_id)
+        if scene_id is not None:
+            await capture_pose(ctx.db, scene_id, char["id"],
+                               char["name"], full_text, pose_type="say",
+                               session_mgr=ctx.session_mgr)
+        # Eavesdrop relay — let listeners in adjacent rooms overhear
+        try:
+            from parser.espionage_commands import relay_to_eavesdroppers
+            await relay_to_eavesdroppers(ctx.session_mgr, room_id, char["name"], ctx.args)
+        except Exception as _e:
+            log.debug("silent except in parser/builtin_commands.py:888: %s", _e, exc_info=True)
+        # Achievement: pc_conversation (2+ PCs in room)
+        try:
+            others = [s for s in ctx.session_mgr.sessions_in_room(room_id) or []
+                      if s.character and s.character.get("id") != char["id"]]
+            if others:
+                from engine.achievements import on_pc_conversation
+                await on_pc_conversation(ctx.db, char["id"], session=ctx.session)
+        except Exception as _e:
+            log.debug("silent except in parser/builtin_commands.py:897: %s", _e, exc_info=True)
 
 
 class WhisperCommand(BaseCommand):
@@ -779,6 +989,14 @@ class EmoteCommand(BaseCommand):
         for s in ctx.session_mgr.sessions_in_room(room_id):
             await s.send_line(text)
 
+        # Scene logging hook
+        from engine.scenes import get_active_scene_id, capture_pose
+        scene_id = get_active_scene_id(room_id)
+        if scene_id is not None:
+            await capture_pose(ctx.db, scene_id, char["id"],
+                               char["name"], text, pose_type="pose",
+                               session_mgr=ctx.session_mgr)
+
 
 class WhoCommand(BaseCommand):
     key = "+who"
@@ -827,8 +1045,8 @@ class InventoryCommand(BaseCommand):
         eq = {}
         try:
             eq = _json.loads(char.get("equipment", "{}") or "{}")
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in parser/builtin_commands.py:1032: %s", _e, exc_info=True)
         weapon_key  = eq.get("weapon", "")
         armor_key   = eq.get("armor", "")
 
@@ -1309,6 +1527,23 @@ class QuitCommand(BaseCommand):
                 ctx.session.character["id"],
                 room_id=room_id,
             )
+
+            # Flag as sleeping if in a non-safe room (Tier 3 Feature #16)
+            if room_id:
+                try:
+                    from engine.sleeping import set_sleeping
+                    sleeping = await set_sleeping(
+                        ctx.session.character, ctx.db, room_id)
+                    if sleeping:
+                        await ctx.session_mgr.broadcast_to_room(
+                            room_id,
+                            ansi.system_msg(
+                                f"{name} falls asleep here."),
+                            exclude=ctx.session,
+                        )
+                except Exception:
+                    log.warning("QuitCommand: sleeping flag failed", exc_info=True)
+
             if room_id:
                 await ctx.session_mgr.broadcast_to_room(
                     room_id,
@@ -1338,6 +1573,15 @@ class OocCommand(BaseCommand):
         for s in ctx.session_mgr.sessions_in_room(room_id):
             await s.send_line(text)
 
+        # Scene logging hook — captured as OOC, excluded from log render
+        from engine.scenes import get_active_scene_id, capture_pose
+        scene_id = get_active_scene_id(room_id)
+        if scene_id is not None:
+            await capture_pose(ctx.db, scene_id, char["id"],
+                               char["name"], f"[OOC] {name}: {ctx.args}",
+                               pose_type="ooc", is_ooc=True,
+                               session_mgr=ctx.session_mgr)
+
 
 class DescCommand(BaseCommand):
     key = "@desc"
@@ -1353,6 +1597,10 @@ class DescCommand(BaseCommand):
             else:
                 await ctx.session.send_line("You have no description set.")
             await ctx.session.send_line("Usage: @desc <description>")
+            return
+
+        if len(ctx.args) > 2000:
+            await ctx.session.send_line("  Description too long (2000 char max).")
             return
 
         ctx.session.character["description"] = ctx.args
@@ -1974,6 +2222,180 @@ class StealCommand(BaseCommand):
         )
         await ctx.session.send_line(result["msg"])
 
+
+class PickpocketCommand(BaseCommand):
+    """
+    pickpocket <player> — Attempt to steal credits from a sleeping character.
+    Tier 3 Feature #16: Sleeping Character Vulnerability.
+
+    Only works on characters who disconnected in non-secured rooms.
+    Pickpocket (Dexterity) check vs. sleeper's Perception at -2D.
+    Success: steal 5-25% of their credits. Fumble: you're exposed.
+    """
+    key = "pickpocket"
+    aliases = ["pp"]
+    help_text = (
+        "Attempt to steal credits from a sleeping character.\n"
+        "\n"
+        "USAGE:\n"
+        "  pickpocket <player name>\n"
+        "\n"
+        "Only works on characters who disconnected in non-secured rooms.\n"
+        "Success steals 5-25% of their credits. Fumble alerts the room.\n"
+        "Cannot be used in SECURED zones. 10-minute cooldown per target."
+    )
+    usage = "pickpocket <player name>"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        char = ctx.session.character
+        if not char:
+            return
+        target_name = (ctx.args or "").strip()
+        if not target_name:
+            await ctx.session.send_line(
+                "  Pickpocket whom? Usage: pickpocket <player name>")
+            return
+
+        # Find the target character in the room (must be sleeping)
+        room_id = char.get("room_id")
+        if not room_id:
+            await ctx.session.send_line("  You need to be in a room.")
+            return
+
+        # Look for sleeping characters in this room
+        # Sleeping chars are NOT in session_mgr (they're disconnected)
+        # so we need to query the DB for characters with this room_id
+        try:
+            rows = await ctx.db.fetchall(
+                """SELECT id, name, credits, attributes, faction_id
+                   FROM characters
+                   WHERE room_id = ? AND LOWER(name) LIKE LOWER(?)""",
+                (room_id, f"%{target_name}%"),
+            )
+        except Exception:
+            log.warning("PickpocketCommand: DB query failed", exc_info=True)
+            await ctx.session.send_line("  Something went wrong.")
+            return
+
+        if not rows:
+            await ctx.session.send_line(
+                f"  No one named '{target_name}' is here.")
+            return
+
+        # Filter to sleeping characters (not online)
+        target = None
+        for r in rows:
+            r = dict(r)
+            # Check they're not currently online
+            online = ctx.session_mgr.find_by_character(r["id"])
+            if online:
+                await ctx.session.send_line(
+                    f"  {r['name']} is awake. You can't pickpocket an alert target.")
+                return
+            # Check sleeping flag
+            from engine.sleeping import is_sleeping
+            if is_sleeping(r):
+                target = r
+                break
+
+        if not target:
+            await ctx.session.send_line(
+                f"  {rows[0]['name'] if rows else target_name} is not asleep here.")
+            return
+
+        # Can't pickpocket yourself
+        if target["id"] == char["id"]:
+            await ctx.session.send_line("  You can't pickpocket yourself.")
+            return
+
+        from engine.sleeping import attempt_pickpocket
+        result = await attempt_pickpocket(char, target, ctx.db, ctx.session_mgr)
+
+        await ctx.session.send_line(result["msg"])
+
+        # Broadcast fumble alert to room if present
+        if result.get("room_msg"):
+            await ctx.session_mgr.broadcast_to_room(
+                room_id, result["room_msg"],
+                exclude=ctx.session,
+            )
+
+
+# ── Think (internal monologue) ────────────────────────────────────────────────
+
+class ThinkCommand(BaseCommand):
+    """
+    think <text>
+    Record an internal thought visible only to you and the AI systems.
+    Thoughts feed into the PC Narrative Memory pipeline — NPCs and the
+    Director AI can pick up on behavioral patterns over time, but they
+    never see the exact words.
+    """
+    key = "think"
+    aliases = []
+    help_text = (
+        "Record an internal thought.\n\n"
+        "USAGE:\n"
+        "  think <text>\n\n"
+        "Your thoughts are private — no one else in the room sees them.\n"
+        "The AI narrative system uses them to inform NPC behavior and\n"
+        "Director quest hooks over time.\n\n"
+        "EXAMPLES:\n"
+        "  think I don't trust this Rodian.\n"
+        "  think Something about this deal feels wrong..."
+    )
+    usage = "think <text>"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            return
+
+        text = (ctx.args or "").strip()
+        if not text:
+            await ctx.session.send_line(
+                "  What are you thinking?  Usage: think <text>"
+            )
+            return
+
+        # Cap at 500 characters
+        if len(text) > 500:
+            text = text[:500]
+
+        # Display to the thinker only (italic/dim styling)
+        await ctx.session.send_line(
+            f"  \033[2;3mYou think: {text}\033[0m"
+        )
+
+        # Log to pc_action_log for narrative memory pipeline
+        try:
+            from engine.narrative import log_action, ActionType as NT
+            await log_action(
+                ctx.db, char["id"], NT.THOUGHT,
+                text[:120],  # summary capped for log readability
+                {"full_text": text},
+            )
+        except Exception:
+            log.warning("ThinkCommand: log_action failed", exc_info=True)
+
+
+class BuffsCommand(BaseCommand):
+    """Display active buffs and debuffs."""
+    key = "+buffs"
+    aliases = ["buffs", "+effects"]
+    help_text = "Show your active buffs and debuffs with remaining durations."
+    usage = "+buffs"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            return
+        from engine.buffs import format_buffs_display
+        lines = format_buffs_display(char)
+        for line in lines:
+            await ctx.session.send_line(line)
+
+
 def register_all(registry):
     """Register all built-in commands with the registry."""
     commands = [
@@ -1982,6 +2404,7 @@ def register_all(registry):
         PicklockCommand(),
         ForceDoorCommand(),
         StealCommand(),
+        PickpocketCommand(),
         SayCommand(),
         WhisperCommand(),
         EmoteCommand(),
@@ -2003,6 +2426,8 @@ def register_all(registry):
         RespawnCommand(),
         SemiposeCommand(),
         TradeCommand(),
+        ThinkCommand(),
+        BuffsCommand(),
     ]
     for cmd in commands:
         registry.register(cmd)
@@ -2144,6 +2569,11 @@ async def _handle_sell_cargo(ctx) -> None:
     new_credits = char.get("credits", 0) + total_revenue
     char["credits"] = new_credits
     await ctx.db.save_character(char["id"], credits=new_credits)
+    try:
+        await ctx.db.log_credit(char["id"], total_revenue, "trade_goods",
+                                 new_credits)
+    except Exception as _e:
+        log.debug("silent except in parser/builtin_commands.py:2555: %s", _e, exc_info=True)
 
     pct = haggle["price_modifier_pct"]
     if pct != 0:
@@ -2184,6 +2614,7 @@ class TradeCommand(BaseCommand):
         "\n"
         "USAGE:\n"
         "  trade <player> <amount> credits    — offer credits\n"
+        "  trade <player> item <item name>    — offer an inventory item\n"
         "  trade accept <player>              — accept a pending offer\n"
         "  trade decline <player>             — decline a pending offer\n"
         "  trade cancel                       — cancel your outgoing offer\n"
@@ -2191,12 +2622,14 @@ class TradeCommand(BaseCommand):
         "\n"
         "Both parties must be in the same room. The target must 'trade accept'\n"
         "within 2 minutes or the offer expires.\n"
+        "A 5% tax applies to credit trades (economy sink).\n"
         "\n"
         "EXAMPLES:\n"
         "  trade Tundra 500 credits\n"
+        "  trade Tundra item Heavy Blaster Pistol\n"
         "  trade accept Jex"
     )
-    usage = "trade <player> <amount> credits  |  trade accept|decline|cancel|list"
+    usage = "trade <player> <amount> credits | trade <player> item <name> | trade accept|decline|cancel|list"
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
@@ -2206,6 +2639,7 @@ class TradeCommand(BaseCommand):
         if not parts:
             await ctx.session.send_line(
                 "  Usage: trade <player> <amount> credits\n"
+                "         trade <player> item <item name>\n"
                 "         trade accept|decline|cancel|list"
             )
             return
@@ -2223,27 +2657,100 @@ class TradeCommand(BaseCommand):
             target_name = parts[1] if len(parts) > 1 else ""
             await self._decline(ctx, char, target_name)
         else:
-            # trade <player> <amount> credits
+            # trade <player> <amount> credits  OR  trade <player> item <name>
             await self._offer(ctx, char, parts)
 
     async def _offer(self, ctx, char, parts):
         _purge_trade_offers()
-        # Expect: <player_name> <amount> credits
         if len(parts) < 3:
             await ctx.session.send_line(
                 "  Usage: trade <player> <amount> credits\n"
-                "  Example: trade Tundra 500 credits"
+                "         trade <player> item <item name>\n"
+                "  Example: trade Tundra 500 credits\n"
+                "  Example: trade Tundra item Heavy Blaster Pistol"
             )
             return
 
         target_name = parts[0]
+        kind_hint = parts[1].lower()
+
+        # ── Item trade ────────────────────────────────────────────────────
+        if kind_hint == "item":
+            item_name = " ".join(parts[2:])
+            if not item_name:
+                await ctx.session.send_line("  Specify an item name: trade <player> item <name>")
+                return
+
+            # Find item in inventory
+            import json as _tj
+            inv = await ctx.db.get_inventory(char["id"])
+            matched_item = None
+            item_name_lower = item_name.lower()
+            for it in inv:
+                it_name = it.get("name", it.get("key", ""))
+                if it_name.lower() == item_name_lower or it_name.lower().startswith(item_name_lower):
+                    matched_item = it
+                    break
+
+            if not matched_item:
+                await ctx.session.send_line(
+                    f"  You don't have '{item_name}' in your inventory.\n"
+                    f"  Use 'inventory' to see your items."
+                )
+                return
+
+            display_name = matched_item.get("name", matched_item.get("key", "Unknown"))
+
+            # Find target in same room
+            target_sess = None
+            for s in ctx.session_mgr.sessions_in_room(char["room_id"]):
+                if (s.character and
+                        s.character["name"].lower().startswith(target_name.lower()) and
+                        s.character["id"] != char["id"]):
+                    target_sess = s
+                    break
+
+            if not target_sess:
+                await ctx.session.send_line(f"  '{target_name}' isn't here.")
+                return
+
+            target = target_sess.character
+            offer_key = (char["id"], target["id"])
+
+            _pending_trades[offer_key] = {
+                "offerer_id":   char["id"],
+                "offerer_name": char["name"],
+                "target_id":    target["id"],
+                "target_name":  target["name"],
+                "amount":       0,
+                "kind":         "item",
+                "item":         matched_item,
+                "item_name":    display_name,
+                "item_key":     matched_item.get("key", ""),
+                "ts":           _trade_time.time(),
+            }
+
+            await ctx.session.send_line(
+                f"  \033[1;33mTrade offer sent:\033[0m {display_name} → {target['name']}.\n"
+                f"  Waiting for them to 'trade accept {char['name']}'."
+            )
+            await target_sess.send_line(
+                f"\n  \033[1;33m[TRADE OFFER]\033[0m {char['name']} offers you "
+                f"\033[1;37m{display_name}\033[0m.\n"
+                f"  Type '\033[1;37mtrade accept {char['name']}\033[0m' to accept "
+                f"or '\033[1;37mtrade decline {char['name']}\033[0m' to decline. "
+                f"(Expires in 2 minutes.)\n"
+            )
+            return
+
+        # ── Credit trade (original path) ──────────────────────────────────
         amount_str = parts[1]
         kind = parts[2].lower() if len(parts) > 2 else ""
 
         if kind != "credits":
             await ctx.session.send_line(
-                "  Only credit trades are supported right now.\n"
-                "  Usage: trade <player> <amount> credits"
+                "  Usage: trade <player> <amount> credits\n"
+                "         trade <player> item <item name>"
             )
             return
 
@@ -2340,6 +2847,72 @@ class TradeCommand(BaseCommand):
             return
 
         offerer = offerer_sess.character
+        trade_kind = offer.get("kind", "credits")
+
+        # ── Item trade execution ──────────────────────────────────────────
+        if trade_kind == "item":
+            item_key = offer.get("item_key", "")
+            item_name = offer.get("item_name", "Unknown")
+            item_data = offer.get("item", {})
+
+            # Verify offerer still has the item
+            import json as _atj
+            offerer_inv = await ctx.db.get_inventory(offerer["id"])
+            has_item = any(
+                it.get("key") == item_key or it.get("name", "").lower() == item_name.lower()
+                for it in offerer_inv
+            )
+            if not has_item:
+                _pending_trades.pop(offer_key, None)
+                await ctx.session.send_line(
+                    f"  {offerer['name']} no longer has {item_name}. Trade cancelled."
+                )
+                await offerer_sess.send_line(
+                    f"  Trade with {char['name']} cancelled — you no longer have {item_name}."
+                )
+                return
+
+            # Execute item transfer atomically
+            removed = await ctx.db.remove_from_inventory(offerer["id"], item_key)
+            if not removed:
+                _pending_trades.pop(offer_key, None)
+                await ctx.session.send_line("  Item transfer failed. Trade cancelled.")
+                return
+
+            await ctx.db.add_to_inventory(char["id"], item_data)
+            _pending_trades.pop(offer_key, None)
+
+            await ctx.session.send_line(
+                f"  \033[1;32m[TRADE COMPLETE]\033[0m Received "
+                f"\033[1;37m{item_name}\033[0m from {offerer['name']}."
+            )
+            await offerer_sess.send_line(
+                f"  \033[1;32m[TRADE COMPLETE]\033[0m {char['name']} accepted. "
+                f"Gave \033[1;37m{item_name}\033[0m."
+            )
+
+            # Broadcast to room
+            await ctx.session_mgr.broadcast_to_room(
+                char["room_id"],
+                f"  {offerer['name']} hands {item_name} to {char['name']}.",
+                exclude=[offerer["id"], char["id"]],
+            )
+
+            # Narrative log
+            try:
+                from engine.narrative import log_action, ActionType as NT
+                await log_action(ctx.db, char["id"], NT.PURCHASE,
+                                 f"Received {item_name} from {offerer['name']} via trade",
+                                 {"item": item_name, "counterpart": offerer["name"]})
+                await log_action(ctx.db, offerer["id"], NT.PURCHASE,
+                                 f"Gave {item_name} to {char['name']} via trade",
+                                 {"item": item_name, "counterpart": char["name"]})
+            except Exception:
+                log.warning("_accept: item trade narrative log failed", exc_info=True)
+
+            return
+
+        # ── Credit trade execution (original path) ───────────────────────
         amount = offer["amount"]
 
         # Check offerer still has the credits
@@ -2353,9 +2926,12 @@ class TradeCommand(BaseCommand):
             )
             return
 
-        # Execute transfer
+        # Execute transfer with 5% transaction tax (economy hardening v23)
+        tax = max(1, amount // 20)  # 5% floor of 1 credit
+        received = amount - tax
+
         offerer["credits"] = offerer.get("credits", 0) - amount
-        char["credits"] = char.get("credits", 0) + amount
+        char["credits"] = char.get("credits", 0) + received
 
         await ctx.db.save_character(offerer["id"], credits=offerer["credits"])
         await ctx.db.save_character(char["id"], credits=char["credits"])
@@ -2363,12 +2939,16 @@ class TradeCommand(BaseCommand):
         _pending_trades.pop(offer_key, None)
 
         await ctx.session.send_line(
-            f"  \033[1;32m[TRADE COMPLETE]\033[0m Received {amount:,} credits "
-            f"from {offerer['name']}. Balance: {char['credits']:,} cr."
+            f"  \033[1;32m[TRADE COMPLETE]\033[0m Received {received:,} credits "
+            f"from {offerer['name']}. "
+            f"\033[2m(5% tax: {tax:,} cr)\033[0m  "
+            f"Balance: {char['credits']:,} cr."
         )
         await offerer_sess.send_line(
             f"  \033[1;32m[TRADE COMPLETE]\033[0m {char['name']} accepted. "
-            f"-{amount:,} credits. Balance: {offerer['credits']:,} cr."
+            f"-{amount:,} credits. "
+            f"\033[2m(5% tax: {tax:,} cr)\033[0m  "
+            f"Balance: {offerer['credits']:,} cr."
         )
 
         # Broadcast to room (brief)
@@ -2378,18 +2958,27 @@ class TradeCommand(BaseCommand):
             exclude=[offerer["id"], char["id"]],
         )
 
+        # Credit log (economy hardening v23)
+        try:
+            await ctx.db.log_credit(offerer["id"], -amount, "p2p_transfer",
+                                     offerer["credits"])
+            await ctx.db.log_credit(char["id"], received, "p2p_transfer",
+                                     char["credits"])
+            await ctx.db.log_credit(0, -tax, "p2p_tax", 0)  # char_id=0 = system sink
+        except Exception:
+            log.warning("_accept: credit log failed", exc_info=True)
+
         # Narrative log
         try:
             from engine.narrative import log_action, ActionType as NT
             await log_action(ctx.db, char["id"], NT.PURCHASE,
-                             f"Received {amount:,} credits from {offerer['name']} via trade",
-                             {"amount": amount, "counterpart": offerer["name"]})
+                             f"Received {received:,} credits from {offerer['name']} via trade (tax: {tax:,})",
+                             {"amount": received, "tax": tax, "counterpart": offerer["name"]})
             await log_action(ctx.db, offerer["id"], NT.PURCHASE,
-                             f"Paid {amount:,} credits to {char['name']} via trade",
-                             {"amount": -amount, "counterpart": char["name"]})
+                             f"Paid {amount:,} credits to {char['name']} via trade (tax: {tax:,})",
+                             {"amount": -amount, "tax": tax, "counterpart": char["name"]})
         except Exception:
             log.warning("_accept: unhandled exception", exc_info=True)
-            pass
 
     async def _decline(self, ctx, char, offerer_name):
         _purge_trade_offers()
@@ -2453,19 +3042,24 @@ class TradeCommand(BaseCommand):
             await ctx.session.send_line("  No pending trade offers.")
             return
 
+        def _offer_desc(v):
+            if v.get("kind") == "item":
+                return f"\033[1;37m{v.get('item_name', 'Unknown Item')}\033[0m"
+            return f"{v['amount']:,} credits"
+
         lines = ["\033[1;36m── Pending Trades ──────────────────\033[0m"]
         for v in incoming:
             age = int(_trade_time.time() - v["ts"])
             lines.append(
                 f"  \033[1;33mINBOUND\033[0m  {v['offerer_name']} offers "
-                f"{v['amount']:,} credits  \033[2m({age}s ago)\033[0m"
+                f"{_offer_desc(v)}  \033[2m({age}s ago)\033[0m"
             )
             lines.append(f"           → 'trade accept {v['offerer_name']}'")
         for v in outgoing:
             age = int(_trade_time.time() - v["ts"])
             lines.append(
                 f"  \033[2mOUTBOUND\033[0m → {v['target_name']}:  "
-                f"{v['amount']:,} credits  \033[2m({age}s ago)\033[0m"
+                f"{_offer_desc(v)}  \033[2m({age}s ago)\033[0m"
             )
         lines.append("\033[1;36m────────────────────────────────────\033[0m")
         await ctx.session.send_line("\n".join(lines))

@@ -394,6 +394,9 @@
     line-height: 1.6;
     max-height: 4.8em; /* ~3 lines */
     overflow: hidden;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    white-space: normal;
     transition: max-height 0.3s ease;
   }
   .ctx-desc-text.expanded { max-height: 40em; }
@@ -425,6 +428,639 @@
   .ctx-svc-icon {
     font-size: 12px;
     line-height: 1;
+  }
+
+  /* ── Ground UX Drop 8: Nearby Services panel ── */
+  .ctx-nearby {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-dim);
+  }
+  .ctx-nearby-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 5px;
+  }
+  .ctx-nearby-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .ctx-nearby-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 3px 5px;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    transition: border-color 0.1s, background 0.1s;
+  }
+  .ctx-nearby-item:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: var(--border-mid);
+  }
+  .ctx-nearby-item:active { background: rgba(255,255,255,0.09); }
+  .ctx-nearby-icon {
+    font-size: 13px;
+    line-height: 1;
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .ctx-nearby-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ctx-nearby-dist {
+    font-size: 9px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .ctx-nearby-dir {
+    font-size: 9px;
+    color: var(--accent-cyan);
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  /* ── Ground UX Drop 9: Credits ticker ── */
+  .credit-delta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    margin-left: 5px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .credit-delta.positive { color: var(--accent-green); }
+  .credit-delta.negative { color: var(--accent-red); }
+  .credit-delta.show { opacity: 1; }
+  @keyframes creditPop {
+    0%   { transform: translateY(0);   opacity: 1; }
+    70%  { transform: translateY(-6px); opacity: 1; }
+    100% { transform: translateY(-10px); opacity: 0; }
+  }
+  .credit-delta.pop { animation: creditPop 1.4s ease-out forwards; }
+
+  /* ── Achievement toast notification ── */
+  .achievement-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    background: linear-gradient(135deg, rgba(30, 30, 50, 0.97), rgba(20, 20, 40, 0.97));
+    border: 1px solid var(--accent-gold, #d4a020);
+    border-radius: 8px;
+    padding: 12px 18px;
+    max-width: 320px;
+    box-shadow: 0 4px 24px rgba(212, 160, 32, 0.25), 0 0 12px rgba(212, 160, 32, 0.15);
+    animation: achToastIn 0.4s ease-out forwards;
+    pointer-events: none;
+  }
+  .achievement-toast.hiding {
+    animation: achToastOut 0.5s ease-in forwards;
+  }
+  .achievement-toast .ach-header {
+    color: var(--accent-gold, #d4a020);
+    font-weight: bold;
+    font-size: 0.85em;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .achievement-toast .ach-name {
+    color: #fff;
+    font-size: 1.05em;
+    font-weight: bold;
+    margin-bottom: 2px;
+  }
+  .achievement-toast .ach-desc {
+    color: #aaa;
+    font-size: 0.85em;
+    margin-bottom: 4px;
+  }
+  .achievement-toast .ach-reward {
+    color: var(--accent-cyan, #5ec4c4);
+    font-size: 0.8em;
+  }
+  @keyframes achToastIn {
+    0%   { transform: translateX(120%); opacity: 0; }
+    100% { transform: translateX(0);    opacity: 1; }
+  }
+  @keyframes achToastOut {
+    0%   { transform: translateX(0);    opacity: 1; }
+    100% { transform: translateX(120%); opacity: 0; }
+  }
+
+  /* ── Ground UX Drop 9: CP progress bar ── */
+  .cp-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+    margin-bottom: 2px;
+    padding: 0 2px;
+  }
+  .cp-progress-track {
+    flex: 1;
+    height: 3px;
+    background: var(--border-mid);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .cp-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--accent-cyan);
+    border-radius: 2px;
+    transition: width 0.6s ease;
+  }
+  .cp-progress-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Ground UX Drop 9: Zone influence gauge ── */
+  .ctx-influence {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-dim);
+  }
+  .ctx-influence-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .ctx-inf-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+  }
+  .ctx-inf-org {
+    width: 52px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    text-transform: capitalize;
+  }
+  .ctx-inf-track {
+    flex: 1;
+    height: 5px;
+    background: var(--border-mid);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .ctx-inf-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+  .ctx-inf-pct {
+    font-size: 9px;
+    color: var(--text-dim);
+    width: 26px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ── Housing Drop 8: Housing panel ── */
+
+  /* ── Reputation Drop 5: Faction reputation panel ── */
+  .ctx-reputation {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-dim);
+  }
+  .ctx-rep-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .ctx-rep-header:hover { opacity: 0.8; }
+  .ctx-rep-icon { font-size: 12px; }
+  .ctx-rep-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .ctx-rep-toggle {
+    font-size: 8px;
+    color: var(--text-dim);
+    margin-left: auto;
+  }
+  .ctx-rep-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .ctx-rep-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+  }
+  .ctx-rep-faction {
+    width: 58px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    text-transform: capitalize;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ctx-rep-track {
+    flex: 1;
+    height: 5px;
+    background: var(--border-mid);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .ctx-rep-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+  .ctx-rep-tier {
+    font-size: 9px;
+    width: 60px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .ctx-rep-rank {
+    font-size: 8px;
+    color: var(--text-dim);
+    margin-top: 1px;
+    padding-left: 64px;
+  }
+  /* Rep tier colors */
+  .rep-hostile    { color: #e74c3c; }
+  .rep-unfriendly { color: #c0392b; }
+  .rep-wary       { color: #e67e22; }
+  .rep-unknown    { color: var(--text-dim); }
+  .rep-recognized { color: var(--text-main); }
+  .rep-trusted    { color: #f1c40f; }
+  .rep-honored    { color: #1abc9c; }
+  .rep-revered    { color: #2ecc71; }
+  .rep-exalted    { color: #9b59b6; }
+  /* Rep fill bar colors */
+  .rep-fill-hostile    { background: #e74c3c; }
+  .rep-fill-unfriendly { background: #c0392b; }
+  .rep-fill-wary       { background: #e67e22; }
+  .rep-fill-unknown    { background: var(--border-mid); }
+  .rep-fill-recognized { background: var(--text-dim); }
+  .rep-fill-trusted    { background: #f1c40f; }
+  .rep-fill-honored    { background: #1abc9c; }
+  .rep-fill-revered    { background: #2ecc71; }
+  .rep-fill-exalted    { background: #9b59b6; }
+
+  /* ── Rep change notification (subtle slide-in) ── */
+  .rep-notif {
+    position: fixed;
+    left: 12px;
+    bottom: 80px;
+    background: rgba(11,14,20,0.92);
+    border: 1px solid var(--border-mid);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-main);
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: all 0.3s ease;
+    z-index: 500;
+    pointer-events: none;
+  }
+  .rep-notif.show {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  .rep-notif.hiding {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  .rep-notif .rep-n-delta {
+    font-weight: bold;
+    margin-right: 4px;
+  }
+  .rep-notif .rep-n-delta.positive { color: #2ecc71; }
+  .rep-notif .rep-n-delta.negative { color: #e74c3c; }
+  .rep-notif .rep-n-faction { color: var(--accent-cyan); }
+  .rep-notif .rep-n-tier { color: var(--text-dim); font-size: 9px; margin-left: 6px; }
+
+  /* ── Rank-up toast ── */
+  .rankup-toast {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: linear-gradient(135deg, rgba(46,204,113,0.15), rgba(155,89,182,0.15));
+    border: 1px solid #2ecc71;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-family: var(--font-mono);
+    text-align: center;
+    z-index: 600;
+    opacity: 0;
+    transition: all 0.4s ease;
+    pointer-events: none;
+  }
+  .rankup-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .rankup-toast.hiding {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  .rankup-toast .ru-star { font-size: 16px; color: #f1c40f; }
+  .rankup-toast .ru-title {
+    font-size: 13px;
+    color: #2ecc71;
+    font-weight: bold;
+    margin: 2px 0;
+  }
+  .rankup-toast .ru-detail {
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .ctx-housing {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-dim);
+  }
+  .ctx-housing-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .ctx-housing-icon {
+    font-size: 14px;
+    line-height: 1;
+  }
+  .ctx-housing-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .ctx-housing-badge {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .ctx-housing-badge.owner {
+    background: rgba(0, 200, 180, 0.15);
+    color: var(--accent-cyan);
+    border: 1px solid rgba(0, 200, 180, 0.3);
+  }
+  .ctx-housing-badge.visitor {
+    background: rgba(200, 200, 200, 0.1);
+    color: var(--text-dim);
+    border: 1px solid var(--border-mid);
+  }
+  .ctx-housing-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .ctx-housing-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+  .ctx-housing-lbl {
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .ctx-housing-val {
+    color: var(--text-primary);
+    text-align: right;
+  }
+  .ctx-housing-val.warning {
+    color: var(--accent-red);
+    font-weight: bold;
+  }
+  .ctx-housing-val.ok {
+    color: var(--accent-green);
+  }
+  .ctx-housing-bar {
+    height: 4px;
+    background: var(--border-mid);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 2px 4px;
+  }
+  .ctx-housing-bar-fill {
+    height: 100%;
+    background: var(--accent-cyan);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+  .ctx-housing-bar-fill.high {
+    background: var(--accent-amber);
+  }
+  .ctx-housing-bar-fill.full {
+    background: var(--accent-red);
+  }
+  .ctx-housing-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .ctx-housing-btn {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 3px 8px;
+    border: 1px solid var(--border-mid);
+    border-radius: 3px;
+    background: rgba(255,255,255,0.04);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color 0.1s, background 0.1s;
+  }
+  .ctx-housing-btn:hover {
+    border-color: var(--accent-cyan);
+    background: rgba(0,200,180,0.08);
+  }
+  .ctx-housing-btn:active {
+    background: rgba(0,200,180,0.15);
+  }
+
+  /* ── Priority E: Achievement sidebar panel ── */
+  .ctx-ach-panel {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-dim);
+  }
+  .ctx-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .ctx-panel-header:hover { opacity: 0.8; }
+  .ctx-panel-icon { font-size: 12px; line-height: 1; }
+  .ctx-panel-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .ctx-panel-count {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-left: auto;
+  }
+  .ctx-panel-toggle {
+    font-size: 8px;
+    color: var(--text-dim);
+    margin-left: 4px;
+  }
+  .ctx-panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .ctx-ach-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 0;
+  }
+  .ctx-ach-icon { font-size: 14px; line-height: 1; flex-shrink: 0; }
+  .ctx-ach-info { flex: 1; min-width: 0; }
+  .ctx-ach-name {
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ctx-ach-name.locked { color: var(--text-dim); }
+  .ctx-ach-track {
+    height: 3px;
+    background: var(--border-mid);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 2px;
+  }
+  .ctx-ach-fill {
+    height: 100%;
+    background: var(--accent-cyan);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+  .ctx-ach-fill.complete { background: var(--accent-green); }
+  .ctx-ach-pct {
+    font-size: 9px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    width: 30px;
+    text-align: right;
+  }
+
+  /* ── Priority E: Mail sidebar panel ── */
+  .ctx-mail-panel {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-dim);
+  }
+  .ctx-mail-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 3px 0;
+    cursor: pointer;
+  }
+  .ctx-mail-row:hover { opacity: 0.8; }
+  .ctx-mail-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    flex-shrink: 0;
+  }
+  .ctx-mail-dot.read { background: transparent; }
+  .ctx-mail-from {
+    color: var(--text-primary);
+    flex-shrink: 0;
+    width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ctx-mail-subj {
+    color: var(--text-dim);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ctx-mail-empty {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    font-style: italic;
+    padding: 4px 0;
+  }
+
+  /* ── Priority E: Places sidebar panel ── */
+  .ctx-places-panel {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-dim);
+  }
+  .ctx-place-row {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 0;
+  }
+  .ctx-place-name {
+    color: var(--accent-amber);
+    cursor: pointer;
+  }
+  .ctx-place-name:hover { text-decoration: underline; }
+  .ctx-place-occ {
+    color: var(--text-dim);
+    font-size: 9px;
+    padding-left: 14px;
   }
 
   /* ── Ground UX Drop 1: NPC role icons ── */
@@ -460,6 +1096,45 @@
     background: rgba(255,255,255,0.06);
     padding: 0 5px;
     border-radius: 2px;
+  }
+
+  /* ── Ground UX Drop 6: Active Jobs Tracker ── */
+  .jobs-section { margin-bottom: 2px; }
+  .job-entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+    padding: 3px 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-mid);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .job-entry:last-child { border-bottom: none; }
+  .job-icon { font-size: 12px; flex-shrink: 0; line-height: 1.4; }
+  .job-info { flex: 1; overflow: hidden; min-width: 0; }
+  .job-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px;
+  }
+  .job-label.mission { color: var(--accent-cyan, #5bb8d4); }
+  .job-label.bounty  { color: #e06060; }
+  .job-label.smuggle { color: var(--accent-amber, #d4a54a); }
+  .job-label.quest   { color: #c090e0; }
+  .job-objective {
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .job-reward {
+    font-size: 10px;
+    color: var(--accent-amber, #d4a54a);
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
   /* ── Ground UX Drop 2: Area Map (floating overlay in terminal) ── */
@@ -515,14 +1190,21 @@
     border-radius: 3px;
   }
   .area-map-svg .map-edge {
-    stroke: var(--border-mid);
-    stroke-width: 1;
+    stroke: var(--border-dim);
+    stroke-width: 0.5;
+    stroke-opacity: 0.35;
+    fill: none;
+  }
+  .area-map-svg .map-edge-connected {
+    stroke: var(--accent-cyan);
+    stroke-width: 1.5;
+    stroke-opacity: 0.45;
+    stroke-dasharray: 5 4;
     fill: none;
   }
   .area-map-svg .map-node-label {
     font-family: var(--font-mono);
     text-anchor: middle;
-    dominant-baseline: central;
     pointer-events: none;
   }
   .area-map-svg .map-dir-label {
@@ -532,9 +1214,175 @@
     text-anchor: middle;
     opacity: 0.6;
   }
+  /* ── Fullscreen Map Modal ── */
+  .map-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 200;
+    background: rgba(4,6,10,0.92);
+    backdrop-filter: blur(8px);
+    animation: mapModalFadeIn 0.2s ease;
+  }
+  @keyframes mapModalFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .map-modal-overlay.active { display: flex; align-items: center; justify-content: center; }
+  .map-modal {
+    width: 85vw;
+    height: 80vh;
+    max-width: 1200px;
+    max-height: 900px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-mid);
+    border-radius: 6px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .map-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border-dim);
+    background: rgba(255,255,255,0.02);
+    flex-shrink: 0;
+  }
+  .map-modal-title {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent-cyan);
+  }
+  .map-modal-legend {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .map-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+  .map-legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    border: 1px solid rgba(255,255,255,0.15);
+    flex-shrink: 0;
+  }
+  .map-modal-close {
+    background: none;
+    border: 1px solid var(--border-dim);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .map-modal-close:hover { color: var(--text-bright); border-color: var(--accent-cyan); }
+  .map-modal-body {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    cursor: grab;
+  }
+  .map-modal-body:active { cursor: grabbing; }
+  .map-modal-body svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: rgba(0,0,0,0.3);
+  }
+  .map-modal-controls {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    z-index: 5;
+  }
+  .map-zoom-btn {
+    width: 28px;
+    height: 28px;
+    background: rgba(8,11,16,0.85);
+    border: 1px solid var(--border-mid);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 16px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .map-zoom-btn:hover { color: var(--accent-cyan); border-color: var(--accent-cyan); }
+  .map-modal-info {
+    position: absolute;
+    bottom: 10px;
+    left: 14px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    pointer-events: none;
+  }
+
+  /* ── Minimap expand button ── */
+  .area-map-expand {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 10px;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+    margin-left: 4px;
+  }
+  .area-map-expand:hover { color: var(--accent-cyan); }
+
+  /* ── Environment node colors (SVG fill classes) ── */
+  .map-env-cantina     { fill: rgba(210,153,34,0.18); }
+  .map-env-street      { fill: rgba(180,192,204,0.08); }
+  .map-env-industrial  { fill: rgba(77,158,255,0.12); }
+  .map-env-docking     { fill: rgba(77,158,255,0.15); }
+  .map-env-commercial  { fill: rgba(63,185,80,0.12); }
+  .map-env-official    { fill: rgba(248,81,73,0.10); }
+  .map-env-desert      { fill: rgba(210,170,90,0.12); }
+  .map-env-underground { fill: rgba(176,124,255,0.12); }
+  .map-env-barren      { fill: rgba(140,120,100,0.10); }
+  .map-env-urban       { fill: rgba(180,192,204,0.06); }
+  .map-env-default     { fill: rgba(255,255,255,0.03); }
+
+  /* ── Security border indicators ── */
+  .map-sec-secured  { stroke: var(--accent-green); }
+  .map-sec-contested { stroke: var(--accent-amber); }
+  .map-sec-lawless  { stroke: var(--accent-red); }
+
+  /* ── Service icons on map nodes ── */
+  .map-svc-icon {
+    pointer-events: none;
+    opacity: 0.9;
+  }
+
   /* Hide map overlay on narrow viewports and in space mode */
   @media (max-width: 900px) {
     .area-map-float { display: none !important; }
+  }
+  @media (max-width: 600px) {
+    .map-modal { width: 95vw; height: 90vh; }
   }
 
   /* Hide context panel on narrow viewports */
@@ -1697,11 +2545,32 @@
     background: var(--accent-amber); display: none;
   }
   .comms-tab .tab-badge.show { display: block; }
+
+  /* ── Web Chargen Overlay ── */
+  .chargen-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: var(--bg-deep);
+  }
+  .chargen-overlay.show { display: flex; }
+  .chargen-overlay iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: var(--bg-deep);
+  }
 </style>
 </head>
 <body>
 
 <div class="app" id="app">
+
+  <!-- Web Chargen Overlay (shown when new account has no characters) -->
+  <div class="chargen-overlay" id="chargen-overlay">
+    <iframe id="chargen-iframe" src="about:blank"></iframe>
+  </div>
 
   <!-- Mobile sidebar toggle -->
   <button id="sidebar-toggle" title="Toggle sidebar">☰</button>
@@ -1719,6 +2588,7 @@
         <span id="conn-label">Disconnected</span>
       </div>
       <button class="conn-btn disconnect" id="conn-btn">Disconnect</button>
+      <a href="/" class="conn-btn" style="text-decoration:none;background:transparent;color:var(--accent-cyan);border:1px solid var(--accent-cyan);font-size:10px;" target="_blank" title="Open the web portal in a new tab">Portal</a>
     </div>
   </div>
 
@@ -1741,7 +2611,10 @@
           <div class="area-map-float" id="ctx-area-map-wrap" style="display:none;">
             <div class="area-map-float-header">
               <span class="ctx-label" style="margin:0;">Area Map</span>
-              <button class="area-map-toggle" id="area-map-toggle-btn" title="Collapse/expand map">&#9660;</button>
+              <span>
+                <button class="area-map-expand" id="area-map-expand-btn" title="Expand to fullscreen">&#x26F6;</button>
+                <button class="area-map-toggle" id="area-map-toggle-btn" title="Collapse/expand map">&#9660;</button>
+              </span>
             </div>
             <div class="area-map-float-body" id="area-map-float-body">
               <svg class="area-map-svg" id="ctx-area-map-svg" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
@@ -1759,6 +2632,54 @@
               <div class="ctx-desc-text" id="ctx-desc-text"></div>
               <div class="ctx-desc-toggle" id="ctx-desc-toggle" style="display:none;">&#9662; show more</div>
               <div class="ctx-services" id="ctx-services" style="display:none;"></div>
+              <div class="ctx-nearby" id="ctx-nearby" style="display:none;">
+                <div class="ctx-nearby-label">Nearby Services</div>
+                <div class="ctx-nearby-list" id="ctx-nearby-list"></div>
+              </div>
+              <div class="ctx-influence" id="ctx-influence" style="display:none;">
+                <div class="ctx-nearby-label">Zone Influence</div>
+                <div class="ctx-influence-bars" id="ctx-influence-bars"></div>
+              </div>
+              <div class="ctx-reputation" id="ctx-reputation" style="display:none;">
+                <div class="ctx-rep-header" id="ctx-rep-header" onclick="toggleRepPanel()">
+                  <span class="ctx-rep-icon">⚔</span>
+                  <span class="ctx-rep-title">Faction Standing</span>
+                  <span class="ctx-rep-toggle" id="ctx-rep-toggle">▼</span>
+                </div>
+                <div class="ctx-rep-bars" id="ctx-rep-bars"></div>
+              </div>
+              <div class="ctx-housing" id="ctx-housing" style="display:none;">
+              </div>
+              <!-- Achievement panel -->
+              <div class="ctx-ach-panel" id="ctx-ach-panel" style="display:none;">
+                <div class="ctx-panel-header" onclick="toggleCtxPanel('ach')">
+                  <span class="ctx-panel-icon">🏆</span>
+                  <span class="ctx-panel-title">Achievements</span>
+                  <span class="ctx-panel-count" id="ctx-ach-count"></span>
+                  <span class="ctx-panel-toggle" id="ctx-ach-toggle">▼</span>
+                </div>
+                <div class="ctx-panel-body" id="ctx-ach-body"></div>
+              </div>
+              <!-- Mail panel -->
+              <div class="ctx-mail-panel" id="ctx-mail-panel" style="display:none;">
+                <div class="ctx-panel-header" onclick="toggleCtxPanel('mail')">
+                  <span class="ctx-panel-icon">✉</span>
+                  <span class="ctx-panel-title">Mail</span>
+                  <span class="ctx-panel-count" id="ctx-mail-count"></span>
+                  <span class="ctx-panel-toggle" id="ctx-mail-toggle">▼</span>
+                </div>
+                <div class="ctx-panel-body" id="ctx-mail-body"></div>
+              </div>
+              <!-- Places panel -->
+              <div class="ctx-places-panel" id="ctx-places-panel" style="display:none;">
+                <div class="ctx-panel-header" onclick="toggleCtxPanel('places')">
+                  <span class="ctx-panel-icon">📍</span>
+                  <span class="ctx-panel-title">Places</span>
+                  <span class="ctx-panel-count" id="ctx-places-count"></span>
+                  <span class="ctx-panel-toggle" id="ctx-places-toggle">▼</span>
+                </div>
+                <div class="ctx-panel-body" id="ctx-places-body"></div>
+              </div>
             </div>
           </div>
           <div class="ctx-section" id="ctx-space" style="display:none;">
@@ -1969,7 +2890,7 @@
       <div class="hud-label" title="Key character statistics">Stats</div>
       <div class="stat-row">
         <span class="stat-label" title="Galactic credits — earn from missions, bounties, trading">Credits</span>
-        <span class="stat-val credits" id="hud-credits">&mdash;</span>
+        <span class="stat-val credits" id="hud-credits">&mdash;</span><span class="credit-delta" id="hud-credit-delta"></span>
       </div>
       <div class="stat-row">
         <span class="stat-label" title="Force Points — spend to double all dice for one round">Force</span>
@@ -1978,6 +2899,12 @@
       <div class="stat-row">
         <span class="stat-label" title="Character Points — spend to improve skills with the 'train' command">Char Pts</span>
         <span class="stat-val cp" id="hud-cp">&mdash;</span>
+      </div>
+      <div class="cp-progress-row" id="cp-progress-row" style="display:none;">
+        <div class="cp-progress-track">
+          <div class="cp-progress-bar" id="cp-progress-bar"></div>
+        </div>
+        <span class="cp-progress-label" id="cp-progress-label"></span>
       </div>
       <div class="stat-row" id="dsp-row" style="display:none;">
         <span class="stat-label" title="Dark Side Points — gained from dark actions, affects Force use">Dark Side</span>
@@ -1997,6 +2924,13 @@
       <div id="loadout-body"></div>
     </div>
     </div><!-- /g-loadout -->
+
+    <div class="ground-only" id="g-active-jobs" style="display:none;">
+    <div class="hud-section jobs-section">
+      <div class="hud-label" title="Active missions, bounties, smuggling jobs, and quests">Active Jobs</div>
+      <div id="jobs-body"></div>
+    </div>
+    </div><!-- /g-active-jobs -->
 
     <div class="ground-only" id="g-location">
     <div class="hud-section">
@@ -2067,6 +3001,28 @@
     </div><!-- /g-quick -->
   </div><!-- /hud -->
 
+  <!-- Fullscreen Area Map Modal -->
+  <div class="map-modal-overlay" id="map-modal-overlay">
+    <div class="map-modal">
+      <div class="map-modal-header">
+        <span class="map-modal-title" id="map-modal-title">Area Map</span>
+        <div class="map-modal-legend" id="map-modal-legend"></div>
+        <button class="map-modal-close" id="map-modal-close">ESC &times;</button>
+      </div>
+      <div class="map-modal-body" id="map-modal-body">
+        <svg id="map-modal-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+          <text x="400" y="300" text-anchor="middle" style="fill:var(--text-dim);font-size:13px;font-family:Share Tech Mono,monospace;">No map data</text>
+        </svg>
+        <div class="map-modal-controls">
+          <button class="map-zoom-btn" id="map-zoom-in" title="Zoom in">+</button>
+          <button class="map-zoom-btn" id="map-zoom-out" title="Zoom out">&minus;</button>
+          <button class="map-zoom-btn" id="map-zoom-fit" title="Fit to view">&#x2922;</button>
+        </div>
+        <div class="map-modal-info" id="map-modal-info">Click adjacent rooms to navigate &bull; Scroll to zoom</div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -2117,9 +3073,8 @@
 
   // ═══════════ ANSI Parser ═══════════
 
-  function escapeHtml(str) {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
+  // NOTE: escapeHtml is defined later in this file (DOM-based implementation).
+  // JavaScript hoists function declarations, so this usage resolves correctly.
 
   function ansiToHtml(text) {
     var result = '';
@@ -2365,58 +3320,101 @@
     }
   }
 
-  // ═══════════ Area Map (Ground UX Drop 2) ═══════════
+  // ═══════════ Area Map v2 (Ground UX Drop 2 + Session 15 Upgrade) ═══════════
 
   var _lastMapRoomId = null;  // Track room to avoid redundant re-renders
+  var _lastMapData = null;    // Cache for fullscreen re-render
 
-  function renderAreaMap(mapData) {
-    var wrap = document.getElementById('ctx-area-map-wrap');
-    var svg  = document.getElementById('ctx-area-map-svg');
-    if (!wrap || !svg) return;
+  // ── Environment → fill color mapping ──
+  var _ENV_FILLS = {
+    cantina:           'rgba(210,153,34,0.40)',
+    bar:               'rgba(210,153,34,0.35)',
+    tavern:            'rgba(210,153,34,0.35)',
+    street:            'rgba(180,192,204,0.18)',
+    industrial:        'rgba(77,158,255,0.30)',
+    urban_industrial:  'rgba(77,158,255,0.25)',
+    docking:           'rgba(77,158,255,0.35)',
+    commercial:        'rgba(63,185,80,0.30)',
+    urban_commercial:  'rgba(63,185,80,0.25)',
+    official:          'rgba(80,110,200,0.28)',
+    government:        'rgba(80,110,200,0.28)',
+    desert_urban:      'rgba(210,170,90,0.30)',
+    desert_fringe:     'rgba(210,170,90,0.25)',
+    desert_wilderness: 'rgba(180,140,70,0.25)',
+    barren:            'rgba(140,120,100,0.25)',
+    underground:       'rgba(176,124,255,0.30)',
+    deep_underground:  'rgba(140,90,220,0.25)',
+    subterranean:      'rgba(140,90,220,0.30)',
+    urban_modern:      'rgba(120,160,200,0.22)',
+    urban_historic:    'rgba(200,180,140,0.22)',
+    urban_slum:        'rgba(160,120,80,0.22)',
+  };
+  var _ENV_FILL_DEFAULT = 'rgba(255,255,255,0.08)';
 
-    if (!mapData || !mapData.rooms || mapData.rooms.length === 0) {
-      wrap.style.display = 'none';
-      return;
-    }
+  // ── Environment → legend display name + swatch color ──
+  var _ENV_LEGEND = {
+    cantina:           {label: 'Cantina',      color: '#d4a020'},
+    industrial:        {label: 'Industrial',   color: '#4d9eff'},
+    urban_industrial:  {label: 'Industrial',   color: '#4d9eff'},
+    docking:           {label: 'Docking',      color: '#5090dd'},
+    commercial:        {label: 'Commercial',   color: '#3fb950'},
+    urban_commercial:  {label: 'Commercial',   color: '#3fb950'},
+    official:          {label: 'Official',     color: '#5070c8'},
+    government:        {label: 'Official',     color: '#5070c8'},
+    desert_urban:      {label: 'Desert Town',  color: '#d4a840'},
+    desert_fringe:     {label: 'Desert Edge',  color: '#c89830'},
+    desert_wilderness: {label: 'Wilderness',   color: '#b08828'},
+    barren:            {label: 'Barren',       color: '#8c7864'},
+    underground:       {label: 'Underground',  color: '#b07cff'},
+    deep_underground:  {label: 'Deep Underground', color: '#8c5adc'},
+    subterranean:      {label: 'Subterranean', color: '#8c5adc'},
+    urban_modern:      {label: 'Urban',        color: '#78a0c8'},
+    urban_historic:    {label: 'Historic',     color: '#c8b48c'},
+    urban_slum:        {label: 'Slums',        color: '#a07850'},
+    street:            {label: 'Street',       color: '#8898a8'},
+  };
 
-    // Only re-render if room changed
-    if (mapData.current === _lastMapRoomId) return;
-    _lastMapRoomId = mapData.current;
+  // ── Security → border color mapping ──
+  var _SEC_COLORS = {
+    secured:  'var(--accent-green)',
+    contested: 'var(--accent-amber)',
+    lawless:  'var(--accent-red)',
+  };
 
-    wrap.style.display = '';
+  // ── Service → icon mapping (small Unicode glyphs) ──
+  var _SVC_ICONS = {
+    cantina:  {icon: '\u2609',  color: '#d4a020', tip: 'Cantina / Bar'},
+    docking:  {icon: '\u2693',  color: '#4d9eff', tip: 'Docking Bay'},
+    vendor:   {icon: '\u25A4',  color: '#3fb950', tip: 'Vendor / Shop'},
+    trainer:  {icon: '\u2605',  color: '#b07cff', tip: 'Trainer'},
+    medical:  {icon: '\u2695',  color: '#f85149', tip: 'Medical'},
+    crafting: {icon: '\u2692',  color: '#78a0c8', tip: 'Crafting'},
+  };
 
-    var rooms = mapData.rooms;
-    var edges = mapData.edges || [];
-    var services = mapData.services || {};
-    var currentId = mapData.current;
-
-    // ── Layout constants ──
-    var PAD = 60;          // padding around content
-    var NODE_RX = 4;       // corner radius
-    var FONT_SIZE = 9;     // label font size in SVG units
-    var CHAR_W = 5.4;      // approximate width per char at 9px
-    var LINE_H = 12;       // line height for labels
-
-    // Build room lookup
-    var byId = {};
-    for (var i = 0; i < rooms.length; i++) byId[rooms[i].id] = rooms[i];
-
-    // Build adjacency for click-to-navigate
+  // ── Shared: build adjacency map from edges ──
+  function _buildAdjacency(edges, currentId) {
     var adjacent = {};
+    var rev = {north:'south',south:'north',east:'west',west:'east',
+               northeast:'southwest',southwest:'northeast',
+               northwest:'southeast',southeast:'northwest',
+               up:'down',down:'up','in':'out','out':'in'};
     for (var ei = 0; ei < edges.length; ei++) {
       var e = edges[ei];
       if (e.from === currentId) adjacent[e.to] = e.dir;
       if (e.to === currentId) {
-        var rev = {north:'south',south:'north',east:'west',west:'east',
-                   northeast:'southwest',southwest:'northeast',
-                   northwest:'southeast',southeast:'northwest',
-                   up:'down',down:'up','in':'out','out':'in'};
         adjacent[e.from] = rev[e.dir] || e.dir;
       }
     }
+    return adjacent;
+  }
 
-    // ── Compute pixel positions from normalized coords ──
-    // First pass: find bounds of normalized coords
+  // ── Shared: compute pixel positions from normalized coords ──
+  function _computeMapLayout(rooms, opts) {
+    var PAD = opts.pad || 60;
+    var CHAR_W = opts.charW || 6.5;
+    var maxLabelChars = opts.maxLabelChars || 14;
+    var currentId = opts.currentId;
+
     var minNx = 1, maxNx = 0, minNy = 1, maxNy = 0;
     for (var ri = 0; ri < rooms.length; ri++) {
       var r = rooms[ri];
@@ -2428,57 +3426,174 @@
     var rangeX = maxNx - minNx || 0.01;
     var rangeY = maxNy - minNy || 0.01;
 
-    // Determine node sizes based on label lengths
-    // Pre-compute label lines for each room
+    // Pre-compute label lines
     var roomLabels = {};
     var maxNodeW = 0;
     for (var li = 0; li < rooms.length; li++) {
       var rm = rooms[li];
-      var lines = _splitLabel(rm.name, rm.id === currentId ? 18 : 14);
+      var curChars = rm.id === currentId ? maxLabelChars + 4 : maxLabelChars;
+      var lines = _splitLabel(rm.name, curChars);
       roomLabels[rm.id] = lines;
       var longestLine = 0;
       for (var ll = 0; ll < lines.length; ll++) {
         if (lines[ll].length > longestLine) longestLine = lines[ll].length;
       }
-      var nw = longestLine * CHAR_W + 16;
+      var nw = longestLine * CHAR_W + 24;
       if (nw > maxNodeW) maxNodeW = nw;
     }
-    var NODE_W = Math.min(maxNodeW, 120);
+    var NODE_W = Math.min(maxNodeW, opts.maxNodeW || 120);
 
-    // Content area dimensions — scale to fit nodes with good spacing
-    var spacingX = Math.max(NODE_W + 30, 110);
-    var spacingY = 55;
+    var spacingX = Math.max(NODE_W + 40, opts.minSpacingX || 110);
+    var spacingY = opts.spacingY || 55;
     var contentW = rangeX > 0.01 ? (spacingX * rooms.length * 0.6) : spacingX;
     var contentH = rangeY > 0.01 ? (spacingY * rooms.length * 0.5) : spacingY;
-    // Clamp to reasonable range
-    contentW = Math.max(contentW, 200);
-    contentH = Math.max(contentH, 80);
-    contentW = Math.min(contentW, 500);
-    contentH = Math.min(contentH, 400);
+    contentW = Math.max(contentW, opts.minW || 200);
+    contentH = Math.max(contentH, opts.minH || 80);
+    contentW = Math.min(contentW, opts.maxW || 500);
+    contentH = Math.min(contentH, opts.maxH || 400);
 
     var totalW = contentW + PAD * 2;
     var totalH = contentH + PAD * 2;
 
-    // Map normalized coords to pixel coords
     for (var pi = 0; pi < rooms.length; pi++) {
       var pr = rooms[pi];
       pr._px = PAD + ((pr.x - minNx) / rangeX) * contentW;
       pr._py = PAD + ((pr.y - minNy) / rangeY) * contentH;
-      // For single-room or single-axis cases, center it
       if (rangeX < 0.02) pr._px = totalW / 2;
       if (rangeY < 0.02) pr._py = totalH / 2;
     }
 
-    // Set dynamic viewBox
-    svg.setAttribute('viewBox', '0 0 ' + totalW + ' ' + totalH);
+    // ── Pixel-space collision separation ──
+    // Run after coordinate mapping so we can use actual pixel distances.
+    // Estimates node half-widths from label lengths to push overlapping nodes apart.
+    // Also pulls extreme outliers toward the centroid first.
+    if (rooms.length > 2) {
+      // Step 1: compute estimated half-widths per room
+      var halfW = {};
+      var halfH = 18; // conservative half-height estimate
+      for (var hi = 0; hi < rooms.length; hi++) {
+        var hlabels = roomLabels[rooms[hi].id] || [rooms[hi].name];
+        var hlen = 0;
+        for (var hli = 0; hli < hlabels.length; hli++)
+          if (hlabels[hli].length > hlen) hlen = hlabels[hli].length;
+        halfW[rooms[hi].id] = Math.max(hlen * (opts.fullscreen ? 4.0 : 4.5) + 18, 40);
+      }
 
-    // Clear SVG
+      // Step 2: centroid + outlier pull (keep nodes within 2.5x median distance)
+      var minDists = [];
+      for (var oi = 0; oi < rooms.length; oi++) {
+        var minD = Infinity;
+        for (var oj = 0; oj < rooms.length; oj++) {
+          if (oi === oj) continue;
+          var odx = rooms[oi]._px - rooms[oj]._px;
+          var ody = rooms[oi]._py - rooms[oj]._py;
+          var od = Math.sqrt(odx*odx + ody*ody);
+          if (od < minD) minD = od;
+        }
+        minDists.push(minD);
+      }
+      var osorted = minDists.slice().sort(function(a,b){return a-b;});
+      var medianDist = osorted[Math.floor(osorted.length / 2)] || 100;
+      var OUTLIER_MAX = medianDist * 2.8;
+      var centX = 0, centY = 0;
+      for (var ci = 0; ci < rooms.length; ci++) { centX += rooms[ci]._px; centY += rooms[ci]._py; }
+      centX /= rooms.length; centY /= rooms.length;
+      for (var oi2 = 0; oi2 < rooms.length; oi2++) {
+        if (minDists[oi2] > OUTLIER_MAX) {
+          var ox = rooms[oi2]._px - centX, oy = rooms[oi2]._py - centY;
+          var olen = Math.sqrt(ox*ox + oy*oy) || 1;
+          rooms[oi2]._px = centX + (ox/olen) * OUTLIER_MAX;
+          rooms[oi2]._py = centY + (oy/olen) * OUTLIER_MAX;
+        }
+      }
+
+      // Step 3: iterative repulsion — push overlapping nodes apart
+      var MIN_GAP = opts.fullscreen ? 12 : 14;  // minimum pixel gap between node edges
+      for (var iter = 0; iter < (opts.fullscreen ? 20 : 30); iter++) {
+        var moved = false;
+        for (var ii = 0; ii < rooms.length; ii++) {
+          for (var jj = ii + 1; jj < rooms.length; jj++) {
+            var ri = rooms[ii], rj = rooms[jj];
+            var rdx = rj._px - ri._px, rdy = rj._py - ri._py;
+            var dist = Math.sqrt(rdx*rdx + rdy*rdy) || 0.1;
+            // Minimum center-to-center distance = sum of half-widths + gap
+            var minSep = halfW[ri.id] + halfW[rj.id] + MIN_GAP;
+            if (dist < minSep) {
+              var push = (minSep - dist) / 2;
+              var nx = rdx / dist, ny = rdy / dist;
+              ri._px -= nx * push; ri._py -= ny * push;
+              rj._px += nx * push; rj._py += ny * push;
+              moved = true;
+            }
+          }
+        }
+        if (!moved) break;
+      }
+
+      // Step 4: expand canvas to fit repulsion results, then re-clamp with generous padding
+      var maxPX = 0, maxPY = 0;
+      for (var bi2 = 0; bi2 < rooms.length; bi2++) {
+        if (rooms[bi2]._px > maxPX) maxPX = rooms[bi2]._px;
+        if (rooms[bi2]._py > maxPY) maxPY = rooms[bi2]._py;
+      }
+      if (maxPX + PAD > totalW) totalW = maxPX + PAD;
+      if (maxPY + PAD > totalH) totalH = maxPY + PAD;
+      for (var bi = 0; bi < rooms.length; bi++) {
+        rooms[bi]._px = Math.max(PAD, Math.min(totalW - PAD, rooms[bi]._px));
+        rooms[bi]._py = Math.max(PAD, Math.min(totalH - PAD, rooms[bi]._py));
+      }
+    }
+
+    return {totalW: totalW, totalH: totalH, roomLabels: roomLabels, NODE_W: NODE_W};
+  }
+
+  // ── Shared: render the map SVG content into a target element ──
+  function _renderMapSVG(svg, mapData, opts) {
+    var rooms = mapData.rooms;
+    var edges = mapData.edges || [];
+    var services = mapData.services || {};
+    var currentId = mapData.current;
+    var isFullscreen = opts.fullscreen || false;
+
+    var NODE_RX = 4;
+    var FONT_SIZE = opts.fontSize || 9;
+    var LINE_H = opts.lineH || 14;
+    // Character width estimates per font-size tier (monospace).
+    // Must be >= actual glyph width so nodes are never too narrow for their text.
+    var CHAR_W_SM = isFullscreen ? 7.2 : 6.0;   // depth-2 rooms (10/8px font)
+    var CHAR_W_MD = isFullscreen ? 7.6 : 6.2;   // adjacent rooms (11/9px font)
+    var CHAR_W_LG = isFullscreen ? 8.2 : 6.6;   // current room (12/10px font)
+
+    var byId = {};
+    for (var i = 0; i < rooms.length; i++) byId[rooms[i].id] = rooms[i];
+
+    var adjacent = _buildAdjacency(edges, currentId);
+
+    var layout = _computeMapLayout(rooms, {
+      pad: opts.pad || 60,
+      charW: isFullscreen ? 7.8 : 6.0,
+      maxLabelChars: isFullscreen ? 20 : 14,
+      currentId: currentId,
+      maxNodeW: isFullscreen ? 260 : 150,
+      minSpacingX: isFullscreen ? 230 : 160,
+      spacingY: isFullscreen ? 100 : 75,
+      minW: isFullscreen ? 600 : 300,
+      minH: isFullscreen ? 280 : 120,
+      maxW: isFullscreen ? 1600 : 800,
+      maxH: isFullscreen ? 1100 : 650,
+    });
+
+    var totalW = layout.totalW;
+    var totalH = layout.totalH;
+    var roomLabels = layout.roomLabels;
+
+    svg.setAttribute('viewBox', '0 0 ' + totalW + ' ' + totalH);
     while (svg.firstChild) svg.removeChild(svg.firstChild);
 
     // ── Background grid ──
     var grid = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     grid.setAttribute('opacity', '0.12');
-    var gridStep = 30;
+    var gridStep = isFullscreen ? 40 : 30;
     for (var gx = 0; gx <= totalW; gx += gridStep) {
       var gl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       gl.setAttribute('x1', gx); gl.setAttribute('y1', 0);
@@ -2496,6 +3611,9 @@
     svg.appendChild(grid);
 
     // ── Draw edges ──
+    var dirAbbr = {north:'N',south:'S',east:'E',west:'W',
+                   northeast:'NE',northwest:'NW',southeast:'SE',southwest:'SW',
+                   up:'\u2191',down:'\u2193','in':'\u25B6','out':'\u25C0'};
     var edgeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     for (var j = 0; j < edges.length; j++) {
       var edge = edges[j];
@@ -2510,12 +3628,7 @@
       var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       line.setAttribute('x1', x1); line.setAttribute('y1', y1);
       line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-      line.setAttribute('class', 'map-edge');
-      if (isConnected) {
-        line.setAttribute('stroke', 'var(--accent-cyan)');
-        line.setAttribute('stroke-opacity', '0.5');
-        line.setAttribute('stroke-width', '1.5');
-      }
+      line.setAttribute('class', isConnected ? 'map-edge-connected' : 'map-edge');
       edgeGroup.appendChild(line);
 
       // Direction label at midpoint
@@ -2523,15 +3636,13 @@
         var mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
         var ddx = x2 - x1, ddy = y2 - y1;
         var dlen = Math.sqrt(ddx*ddx + ddy*ddy) || 1;
-        var offx = -(ddy/dlen) * 7;
-        var offy = (ddx/dlen) * 7;
-        var dirAbbr = {north:'N',south:'S',east:'E',west:'W',
-                       northeast:'NE',northwest:'NW',southeast:'SE',southwest:'SW',
-                       up:'\u2191',down:'\u2193','in':'\u25B6','out':'\u25C0'};
+        var offx = -(ddy/dlen) * (isFullscreen ? 10 : 7);
+        var offy = (ddx/dlen) * (isFullscreen ? 10 : 7);
         var dlabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         dlabel.setAttribute('x', mx + offx);
         dlabel.setAttribute('y', my + offy);
         dlabel.setAttribute('class', 'map-dir-label');
+        if (isFullscreen) dlabel.setAttribute('font-size', '9');
         dlabel.textContent = dirAbbr[edge.dir] || edge.dir.charAt(0).toUpperCase();
         edgeGroup.appendChild(dlabel);
       }
@@ -2545,92 +3656,372 @@
       var cx = room._px, cy = room._py;
       var depth = room.depth || 0;
       var isCurrent = room.id === currentId;
-      var isAdjacent = !!adjacent[room.id];
+      var isAdj = !!adjacent[room.id];
       var lines = roomLabels[room.id] || [room.name];
+      var roomEnv = room.env || '';
+      var roomSec = room.sec || 'contested';
+      var roomSvcs = services[room.id] || [];
 
-      var nodeH = Math.max(lines.length * LINE_H + 8, 24);
+      // Compute node dimensions — taller if services to show
+      var svcRow = (roomSvcs.length > 0 && (isCurrent || isAdj || isFullscreen));
+      var nodeH = Math.max(lines.length * LINE_H + 14, 28);
+      if (svcRow) nodeH += (isFullscreen ? 24 : 16);
       var longestLen = 0;
       for (var lk = 0; lk < lines.length; lk++)
         if (lines[lk].length > longestLen) longestLen = lines[lk].length;
-      var nodeW = Math.max(longestLen * CHAR_W + 16, 50);
+      var charW = isCurrent ? CHAR_W_LG : (depth <= 1 ? CHAR_W_MD : CHAR_W_SM);
+      var nodeW = Math.max(longestLen * charW + 36, 80);
+      // Widen if icon row needs more space than the label
+      if (svcRow) {
+        var svcSpacingEst = isFullscreen ? 26 : 17;
+        var iconsW = roomSvcs.length * svcSpacingEst + (isFullscreen ? 20 : 14);
+        if (iconsW > nodeW) nodeW = iconsW;
+      }
 
       var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       g.setAttribute('class', 'map-node depth-' + depth);
       g.setAttribute('transform', 'translate(' + cx + ',' + cy + ')');
 
-      // Node rectangle
+      // Node rectangle — environment-colored fill, security-tinted border
       var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       rect.setAttribute('x', -nodeW/2); rect.setAttribute('y', -nodeH/2);
       rect.setAttribute('width', nodeW); rect.setAttribute('height', nodeH);
       rect.setAttribute('rx', NODE_RX); rect.setAttribute('ry', NODE_RX);
 
-      // Current room: strong fill and border
+      var envFill = _ENV_FILLS[roomEnv] || _ENV_FILL_DEFAULT;
+
       if (isCurrent) {
-        rect.setAttribute('fill', 'rgba(64,200,208,0.15)');
+        // Current room: bright env fill + cyan border
+        rect.setAttribute('fill', envFill.replace(/[\d.]+\)$/, '0.55)'));
         rect.setAttribute('stroke', 'var(--accent-cyan)');
-        rect.setAttribute('stroke-width', '2');
-      } else if (isAdjacent) {
-        rect.setAttribute('fill', 'rgba(255,255,255,0.05)');
-        rect.setAttribute('stroke', 'var(--accent-cyan)');
-        rect.setAttribute('stroke-width', '0.8');
-        rect.setAttribute('stroke-opacity', '0.5');
+        rect.setAttribute('stroke-width', isFullscreen ? '2.5' : '2');
+      } else if (isAdj) {
+        rect.setAttribute('fill', envFill);
+        // Security-colored border for adjacent rooms
+        rect.setAttribute('stroke', _SEC_COLORS[roomSec] || 'var(--accent-cyan)');
+        rect.setAttribute('stroke-width', isFullscreen ? '2' : '1.5');
+        rect.setAttribute('stroke-opacity', '0.9');
       } else {
-        rect.setAttribute('fill', 'rgba(255,255,255,0.025)');
+        rect.setAttribute('fill', envFill.replace(/[\d.]+\)$/, '0.15)'));
         rect.setAttribute('stroke', 'var(--border-mid)');
         rect.setAttribute('stroke-width', '0.5');
       }
       g.appendChild(rect);
 
+      // Security indicator — colored dot in top-right corner
+      var secDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      secDot.setAttribute('cx', nodeW/2 - 6);
+      secDot.setAttribute('cy', -nodeH/2 + 6);
+      secDot.setAttribute('r', isFullscreen ? 4.5 : 3.5);
+      var secColor = roomSec === 'secured' ? 'var(--accent-green)' :
+                     roomSec === 'lawless' ? 'var(--accent-red)' : 'var(--accent-amber)';
+      secDot.setAttribute('fill', secColor);
+      secDot.setAttribute('opacity', isCurrent ? '1' : '0.85');
+      g.appendChild(secDot);
+
       // "You are here" dot on current room
       if (isCurrent) {
         var dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         dot.setAttribute('cx', -nodeW/2 + 7); dot.setAttribute('cy', 0);
-        dot.setAttribute('r', 3);
+        dot.setAttribute('r', isFullscreen ? 4 : 3);
         dot.setAttribute('fill', 'var(--accent-cyan)');
         g.appendChild(dot);
       }
 
       // Room name label — multi-line
+      // SVG text Y is the baseline. To visually center each line within the node,
+      // we subtract half the line height (cap-height ≈ 0.35em ≈ LINE_H*0.35) so
+      // the visual midpoint of the glyph lands at the computed textY centre.
+      var CAP_HALF = LINE_H * 0.35;
+      var labelOffsetY = svcRow ? -((isFullscreen ? 6 : 4)) : 0;
       for (var ti = 0; ti < lines.length; ti++) {
         var tspan = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        var textY = -((lines.length - 1) * LINE_H / 2) + ti * LINE_H;
-        tspan.setAttribute('x', isCurrent ? 4 : 0);
-        tspan.setAttribute('y', textY + 1);
+        var textY = labelOffsetY + -((lines.length - 1) * LINE_H / 2) + ti * LINE_H + CAP_HALF;
+        tspan.setAttribute('x', 0);
+        tspan.setAttribute('y', textY);
         tspan.setAttribute('class', 'map-node-label');
         if (isCurrent) {
           tspan.setAttribute('fill', 'var(--text-bright)');
-          tspan.setAttribute('font-size', '10');
+          tspan.setAttribute('font-size', isFullscreen ? '12' : '10');
           tspan.setAttribute('font-weight', '600');
         } else if (depth === 1) {
           tspan.setAttribute('fill', 'var(--text-primary)');
-          tspan.setAttribute('font-size', '9');
+          tspan.setAttribute('font-size', isFullscreen ? '11' : '9');
         } else {
           tspan.setAttribute('fill', 'var(--text-dim)');
-          tspan.setAttribute('font-size', '8');
+          tspan.setAttribute('font-size', isFullscreen ? '10' : '8');
         }
         tspan.textContent = lines[ti];
         g.appendChild(tspan);
       }
 
+      // Service icons row — below the label text
+      if (svcRow) {
+        var svcSpacing = isFullscreen ? 26 : 17;
+        var svcStartX = -(roomSvcs.length - 1) * (svcSpacing / 2);
+        for (var si = 0; si < roomSvcs.length; si++) {
+          var svcInfo = _SVC_ICONS[roomSvcs[si]];
+          if (!svcInfo) continue;
+          var svcText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          svcText.setAttribute('x', svcStartX + si * svcSpacing);
+          svcText.setAttribute('y', nodeH/2 - (isFullscreen ? 6 : 4));
+          svcText.setAttribute('class', 'map-svc-icon');
+          svcText.setAttribute('text-anchor', 'middle');
+          svcText.setAttribute('font-size', isFullscreen ? '18' : '11');
+          svcText.setAttribute('fill', svcInfo.color);
+          svcText.textContent = svcInfo.icon;
+          var svcTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+          svcTitle.textContent = svcInfo.tip;
+          svcText.appendChild(svcTitle);
+          g.appendChild(svcText);
+        }
+      }
+
       // Tooltip
       var title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-      title.textContent = room.name;
-      if (isCurrent) title.textContent += ' (you are here)';
-      else if (isAdjacent) title.textContent += ' \u2014 click to go ' + adjacent[room.id];
+      var tipParts = [room.name];
+      if (roomSec) tipParts.push('[' + roomSec + ']');
+      if (roomSvcs.length > 0) {
+        tipParts.push('Services: ' + roomSvcs.map(function(s){
+          var si = _SVC_ICONS[s]; return si ? si.tip : s;
+        }).join(', '));
+      }
+      if (isCurrent) tipParts.push('(you are here)');
+      else if (isAdj) tipParts.push('\u2014 click to go ' + adjacent[room.id]);
+      title.textContent = tipParts.join(' ');
       g.appendChild(title);
 
       // Click handler for adjacent rooms
-      if (isAdjacent) {
+      if (isAdj) {
         (function(dir) {
           g.style.cursor = 'pointer';
-          g.addEventListener('click', function() { sendCmd(dir); });
+          g.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            sendCmd(dir);
+          });
         })(adjacent[room.id]);
       }
 
       nodeGroup.appendChild(g);
     }
     svg.appendChild(nodeGroup);
+
+    return {totalW: totalW, totalH: totalH};
   }
+
+  // ── Main minimap render (called from handleHudUpdate) ──
+  function renderAreaMap(mapData) {
+    var wrap = document.getElementById('ctx-area-map-wrap');
+    var svg  = document.getElementById('ctx-area-map-svg');
+    if (!wrap || !svg) return;
+
+    if (!mapData || !mapData.rooms || mapData.rooms.length === 0) {
+      wrap.style.display = 'none';
+      return;
+    }
+
+    // Only re-render if room changed
+    if (mapData.current === _lastMapRoomId) return;
+    _lastMapRoomId = mapData.current;
+    _lastMapData = mapData;  // Cache for fullscreen
+
+    wrap.style.display = '';
+
+    _renderMapSVG(svg, mapData, {
+      fullscreen: false,
+      pad: 60,
+      fontSize: 9,
+      lineH: 12,
+      charW: 6.0,
+    });
+
+    // If fullscreen modal is open, re-render it too
+    var overlay = document.getElementById('map-modal-overlay');
+    if (overlay && overlay.classList.contains('active')) {
+      _renderFullscreenMap(mapData);
+    }
+  }
+
+  // ── Fullscreen map ──
+  var _mapZoom = 1.0;
+  var _mapPanX = 0;
+  var _mapPanY = 0;
+  var _mapBaseVB = null;  // {x, y, w, h} — original viewBox
+  var _mapDragging = false;
+  var _mapDragStart = null;
+
+  function _renderFullscreenMap(mapData) {
+    var svg = document.getElementById('map-modal-svg');
+    if (!svg) return;
+
+    var dims = _renderMapSVG(svg, mapData, {
+      fullscreen: true,
+      pad: 80,
+      fontSize: 11,
+      lineH: 15,
+      charW: 7.8,
+    });
+
+    _mapBaseVB = {x: 0, y: 0, w: dims.totalW, h: dims.totalH};
+    _mapZoom = 1.0;
+    _mapPanX = 0;
+    _mapPanY = 0;
+
+    // Update title with room name
+    var titleEl = document.getElementById('map-modal-title');
+    if (titleEl) {
+      var curRoom = null;
+      for (var i = 0; i < mapData.rooms.length; i++) {
+        if (mapData.rooms[i].id === mapData.current) { curRoom = mapData.rooms[i]; break; }
+      }
+      titleEl.textContent = 'Area Map' + (curRoom ? ' \u2014 ' + curRoom.name : '');
+    }
+
+    // Build legend from environment types present
+    var legendEl = document.getElementById('map-modal-legend');
+    if (legendEl) {
+      legendEl.innerHTML = '';
+      var seenEnvs = {};
+      for (var j = 0; j < mapData.rooms.length; j++) {
+        var env = mapData.rooms[j].env;
+        if (env && !seenEnvs[env] && _ENV_LEGEND[env]) {
+          seenEnvs[env] = true;
+          var item = document.createElement('span');
+          item.className = 'map-legend-item';
+          var swatch = document.createElement('span');
+          swatch.className = 'map-legend-swatch';
+          swatch.style.background = _ENV_LEGEND[env].color;
+          item.appendChild(swatch);
+          var label = document.createElement('span');
+          label.textContent = _ENV_LEGEND[env].label;
+          item.appendChild(label);
+          legendEl.appendChild(item);
+        }
+      }
+      // Add security legend
+      var secItems = [
+        {color: 'var(--accent-green)', label: 'Secured'},
+        {color: 'var(--accent-amber)', label: 'Contested'},
+        {color: 'var(--accent-red)',   label: 'Lawless'},
+      ];
+      for (var si = 0; si < secItems.length; si++) {
+        var sitem = document.createElement('span');
+        sitem.className = 'map-legend-item';
+        var sdot = document.createElement('span');
+        sdot.className = 'map-legend-swatch';
+        sdot.style.cssText = 'background:none; border-radius:50%; width:8px; height:8px; border:2px solid ' + secItems[si].color + ';';
+        sitem.appendChild(sdot);
+        var slbl = document.createElement('span');
+        slbl.textContent = secItems[si].label;
+        sitem.appendChild(slbl);
+        legendEl.appendChild(sitem);
+      }
+    }
+  }
+
+  function _applyMapZoom() {
+    var svg = document.getElementById('map-modal-svg');
+    if (!svg || !_mapBaseVB) return;
+    var vw = _mapBaseVB.w / _mapZoom;
+    var vh = _mapBaseVB.h / _mapZoom;
+    var vx = _mapBaseVB.x + (_mapBaseVB.w - vw) / 2 + _mapPanX;
+    var vy = _mapBaseVB.y + (_mapBaseVB.h - vh) / 2 + _mapPanY;
+    svg.setAttribute('viewBox', vx + ' ' + vy + ' ' + vw + ' ' + vh);
+  }
+
+  function openFullscreenMap() {
+    var overlay = document.getElementById('map-modal-overlay');
+    if (!overlay || !_lastMapData) return;
+    overlay.classList.add('active');
+    _renderFullscreenMap(_lastMapData);
+    document.addEventListener('keydown', _mapEscHandler);
+  }
+
+  function closeFullscreenMap() {
+    var overlay = document.getElementById('map-modal-overlay');
+    if (overlay) overlay.classList.remove('active');
+    document.removeEventListener('keydown', _mapEscHandler);
+  }
+
+  function _mapEscHandler(ev) {
+    if (ev.key === 'Escape') closeFullscreenMap();
+  }
+
+  // Wire fullscreen map controls
+  (function() {
+    // Expand button in minimap header
+    var expandBtn = document.getElementById('area-map-expand-btn');
+    if (expandBtn) expandBtn.addEventListener('click', openFullscreenMap);
+
+    // Close button in modal
+    var closeBtn = document.getElementById('map-modal-close');
+    if (closeBtn) closeBtn.addEventListener('click', closeFullscreenMap);
+
+    // Click overlay to close
+    var overlay = document.getElementById('map-modal-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', function(ev) {
+        if (ev.target === overlay) closeFullscreenMap();
+      });
+    }
+
+    // Zoom controls
+    var zoomIn = document.getElementById('map-zoom-in');
+    var zoomOut = document.getElementById('map-zoom-out');
+    var zoomFit = document.getElementById('map-zoom-fit');
+    if (zoomIn) zoomIn.addEventListener('click', function() {
+      _mapZoom = Math.min(_mapZoom * 1.3, 5.0);
+      _applyMapZoom();
+    });
+    if (zoomOut) zoomOut.addEventListener('click', function() {
+      _mapZoom = Math.max(_mapZoom / 1.3, 0.5);
+      _applyMapZoom();
+    });
+    if (zoomFit) zoomFit.addEventListener('click', function() {
+      _mapZoom = 1.0; _mapPanX = 0; _mapPanY = 0;
+      _applyMapZoom();
+    });
+
+    // Scroll wheel zoom on modal body
+    var modalBody = document.getElementById('map-modal-body');
+    if (modalBody) {
+      modalBody.addEventListener('wheel', function(ev) {
+        ev.preventDefault();
+        if (ev.deltaY < 0) {
+          _mapZoom = Math.min(_mapZoom * 1.15, 5.0);
+        } else {
+          _mapZoom = Math.max(_mapZoom / 1.15, 0.5);
+        }
+        _applyMapZoom();
+      }, {passive: false});
+
+      // Pan via click-drag
+      modalBody.addEventListener('mousedown', function(ev) {
+        if (ev.target.closest('.map-zoom-btn')) return;
+        _mapDragging = true;
+        _mapDragStart = {x: ev.clientX, y: ev.clientY, panX: _mapPanX, panY: _mapPanY};
+        ev.preventDefault();
+      });
+      document.addEventListener('mousemove', function(ev) {
+        if (!_mapDragging || !_mapDragStart || !_mapBaseVB) return;
+        var dx = ev.clientX - _mapDragStart.x;
+        var dy = ev.clientY - _mapDragStart.y;
+        // Convert pixel delta to SVG units
+        var svgRect = document.getElementById('map-modal-svg');
+        if (!svgRect) return;
+        var bbox = svgRect.getBoundingClientRect();
+        var scaleX = (_mapBaseVB.w / _mapZoom) / bbox.width;
+        var scaleY = (_mapBaseVB.h / _mapZoom) / bbox.height;
+        _mapPanX = _mapDragStart.panX - dx * scaleX;
+        _mapPanY = _mapDragStart.panY - dy * scaleY;
+        _applyMapZoom();
+      });
+      document.addEventListener('mouseup', function() {
+        _mapDragging = false;
+        _mapDragStart = null;
+      });
+    }
+  })();
 
   // Helper: split a room name into lines for multi-line labels
   function _splitLabel(name, maxChars) {
@@ -2662,6 +4053,254 @@
   })();
 
   // ═══════════ Structured HUD ═══════════
+
+  // Credit event — animate delta when credits change (Drop 9)
+  var _creditDeltaTimer = null;
+  function handleCreditEvent(data) {
+    var deltaEl = document.getElementById('hud-credit-delta');
+    if (!deltaEl) return;
+
+    // Update the main credits display
+    var credEl = document.getElementById('hud-credits');
+    if (credEl && data.credits !== undefined) {
+      credEl.textContent = Number(data.credits).toLocaleString();
+    }
+
+    // Show animated delta
+    var delta = data.delta || 0;
+    if (delta === 0) return;
+
+    if (_creditDeltaTimer) { clearTimeout(_creditDeltaTimer); }
+    deltaEl.className = 'credit-delta ' + (delta > 0 ? 'positive' : 'negative');
+    deltaEl.textContent = (delta > 0 ? '+' : '') + Number(delta).toLocaleString();
+
+    // Force reflow so animation restarts cleanly
+    void deltaEl.offsetWidth;
+    deltaEl.classList.add('pop');
+
+    _creditDeltaTimer = setTimeout(function() {
+      deltaEl.className = 'credit-delta';
+      deltaEl.textContent = '';
+    }, 1600);
+  }
+
+  // ── Achievement Toast ──────────────────────────────────────────────────────
+  var _achToastTimer = null;
+  function handleAchievementUnlocked(data) {
+    // Remove any existing toast
+    var old = document.querySelector('.achievement-toast');
+    if (old) old.remove();
+    if (_achToastTimer) { clearTimeout(_achToastTimer); _achToastTimer = null; }
+
+    var toast = document.createElement('div');
+    toast.className = 'achievement-toast';
+    toast.innerHTML =
+      '<div class="ach-header">★ ACHIEVEMENT UNLOCKED ★</div>' +
+      '<div class="ach-name">' + (data.icon || '●') + ' ' + escapeHtml(data.name || '') + '</div>' +
+      '<div class="ach-desc">' + escapeHtml(data.description || '') + '</div>' +
+      (data.cp_reward ? '<div class="ach-reward">+' + data.cp_reward + ' CP</div>' : '');
+    document.body.appendChild(toast);
+
+    _achToastTimer = setTimeout(function() {
+      toast.classList.add('hiding');
+      setTimeout(function() { toast.remove(); }, 600);
+    }, 4500);
+  }
+  function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(s));
+    return d.innerHTML;
+  }
+
+  // ── Rep change notification (Drop 5) ──
+  var _repNotifTimer = null;
+  function handleRepChange(data) {
+    var old = document.querySelector('.rep-notif');
+    if (old) old.remove();
+    if (_repNotifTimer) { clearTimeout(_repNotifTimer); _repNotifTimer = null; }
+
+    var delta = data.delta || 0;
+    var sign = delta > 0 ? '+' : '';
+    var cls = delta > 0 ? 'positive' : 'negative';
+    var facNames = {
+      empire: 'Empire', rebel: 'Rebel', hutt: 'Hutt', bh_guild: 'BH Guild',
+    };
+    var facName = facNames[data.faction] || data.faction || '?';
+    var tierName = (data.tier || '').charAt(0).toUpperCase() + (data.tier || '').slice(1);
+
+    var el = document.createElement('div');
+    el.className = 'rep-notif';
+    el.innerHTML =
+      '<span class="rep-n-delta ' + cls + '">' + sign + delta + '</span>' +
+      '<span class="rep-n-faction">' + escapeHtml(facName) + '</span>' +
+      '<span class="rep-n-tier">' + escapeHtml(tierName) + '</span>';
+    document.body.appendChild(el);
+
+    // Animate in
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() { el.classList.add('show'); });
+    });
+
+    _repNotifTimer = setTimeout(function() {
+      el.classList.remove('show');
+      el.classList.add('hiding');
+      setTimeout(function() { el.remove(); }, 400);
+    }, 2500);
+  }
+
+  // ── Rank-up toast (Drop 5) ──
+  var _rankUpTimer = null;
+  function handleRankUp(data) {
+    var old = document.querySelector('.rankup-toast');
+    if (old) old.remove();
+    if (_rankUpTimer) { clearTimeout(_rankUpTimer); _rankUpTimer = null; }
+
+    var facNames = {
+      empire: 'Galactic Empire', rebel: 'Rebel Alliance',
+      hutt: 'Hutt Cartel', bh_guild: "Bounty Hunters' Guild",
+    };
+    var facName = facNames[data.faction] || data.faction || '?';
+
+    var el = document.createElement('div');
+    el.className = 'rankup-toast';
+    el.innerHTML =
+      '<div class="ru-star">★ ★ ★</div>' +
+      '<div class="ru-title">RANK UP!</div>' +
+      '<div class="ru-detail">' + escapeHtml(facName) + '</div>' +
+      '<div class="ru-detail">' + escapeHtml(data.new_rank || '') + '</div>';
+    document.body.appendChild(el);
+
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() { el.classList.add('show'); });
+    });
+
+    _rankUpTimer = setTimeout(function() {
+      el.classList.remove('show');
+      el.classList.add('hiding');
+      setTimeout(function() { el.remove(); }, 500);
+    }, 4000);
+  }
+
+  // ── Toggle reputation panel expand/collapse ──
+  var _repPanelOpen = true;
+  function toggleRepPanel() {
+    _repPanelOpen = !_repPanelOpen;
+    var bars = document.getElementById('ctx-rep-bars');
+    var toggle = document.getElementById('ctx-rep-toggle');
+    if (bars) bars.style.display = _repPanelOpen ? '' : 'none';
+    if (toggle) toggle.textContent = _repPanelOpen ? '▼' : '▶';
+  }
+
+  // ── Priority E: Collapsible sidebar panel toggle ──
+  var _ctxPanelState = { ach: true, mail: true, places: true };
+  function toggleCtxPanel(key) {
+    _ctxPanelState[key] = !_ctxPanelState[key];
+    var body = document.getElementById('ctx-' + key + '-body');
+    var toggle = document.getElementById('ctx-' + key + '-toggle');
+    if (body) body.style.display = _ctxPanelState[key] ? '' : 'none';
+    if (toggle) toggle.textContent = _ctxPanelState[key] ? '▼' : '▶';
+  }
+
+  // ── Priority E: Achievement sidebar panel ──
+  function handleAchievementsStatus(data) {
+    var panel = document.getElementById('ctx-ach-panel');
+    var body = document.getElementById('ctx-ach-body');
+    var countEl = document.getElementById('ctx-ach-count');
+    if (!panel || !body) return;
+
+    var achs = data.achievements || [];
+    if (!achs.length) { panel.style.display = 'none'; return; }
+
+    var completed = achs.filter(function(a) { return a.completed; }).length;
+    var total = achs.length;
+    if (countEl) countEl.textContent = completed + '/' + total;
+
+    // Show top 6: in-progress first, then recently completed
+    var inProgress = achs.filter(function(a) { return !a.completed && !a.locked && a.progress > 0; });
+    var done = achs.filter(function(a) { return a.completed; });
+    var locked = achs.filter(function(a) { return a.locked || (!a.completed && a.progress === 0); });
+    var display = inProgress.concat(done).concat(locked).slice(0, 6);
+
+    var html = '';
+    for (var i = 0; i < display.length; i++) {
+      var a = display[i];
+      var pct = a.target > 0 ? Math.min(100, Math.round(a.progress / a.target * 100)) : (a.completed ? 100 : 0);
+      var fillClass = a.completed ? 'complete' : '';
+      var nameClass = a.locked ? 'locked' : '';
+      html += '<div class="ctx-ach-row">' +
+        '<span class="ctx-ach-icon">' + (a.icon || '⭐') + '</span>' +
+        '<div class="ctx-ach-info">' +
+          '<div class="ctx-ach-name ' + nameClass + '">' + escapeHtml(a.name) + '</div>' +
+          '<div class="ctx-ach-track"><div class="ctx-ach-fill ' + fillClass + '" style="width:' + pct + '%"></div></div>' +
+        '</div>' +
+        '<span class="ctx-ach-pct">' + (a.completed ? '✓' : pct + '%') + '</span>' +
+      '</div>';
+    }
+    body.innerHTML = html;
+    panel.style.display = '';
+  }
+
+  // ── Priority E: Mail sidebar panel ──
+  function handleMailStatus(data) {
+    var panel = document.getElementById('ctx-mail-panel');
+    var body = document.getElementById('ctx-mail-body');
+    var countEl = document.getElementById('ctx-mail-count');
+    if (!panel || !body) return;
+
+    var msgs = data.messages || [];
+    var unread = data.unread || 0;
+    if (countEl) countEl.textContent = unread > 0 ? unread + ' new' : '';
+
+    if (!msgs.length && unread === 0) {
+      panel.style.display = 'none';
+      return;
+    }
+
+    var html = '';
+    if (!msgs.length) {
+      html = '<div class="ctx-mail-empty">No messages</div>';
+    } else {
+      var show = msgs.slice(0, 5);
+      for (var i = 0; i < show.length; i++) {
+        var m = show[i];
+        var dotClass = m.is_read ? 'read' : '';
+        html += '<div class="ctx-mail-row" onclick="sendCmd(\'@mail/read ' + m.id + '\')">' +
+          '<span class="ctx-mail-dot ' + dotClass + '"></span>' +
+          '<span class="ctx-mail-from">' + escapeHtml(m.from_name || '') + '</span>' +
+          '<span class="ctx-mail-subj">' + escapeHtml(m.subject || '(no subject)') + '</span>' +
+        '</div>';
+      }
+    }
+    body.innerHTML = html;
+    panel.style.display = '';
+  }
+
+  // ── Priority E: Places sidebar panel ──
+  function handlePlacesStatus(data) {
+    var panel = document.getElementById('ctx-places-panel');
+    var body = document.getElementById('ctx-places-body');
+    var countEl = document.getElementById('ctx-places-count');
+    if (!panel || !body) return;
+
+    var places = data.places || [];
+    if (!places.length) { panel.style.display = 'none'; return; }
+    if (countEl) countEl.textContent = places.length + ' place' + (places.length !== 1 ? 's' : '');
+
+    var html = '';
+    for (var i = 0; i < places.length; i++) {
+      var p = places[i];
+      html += '<div class="ctx-place-row">' +
+        '<div class="ctx-place-name" onclick="sendCmd(\'places/join ' + p.id + '\')">' +
+          (p.id) + '. ' + escapeHtml(p.name || 'A place') +
+        '</div>';
+      if (p.occupants && p.occupants.length) {
+        html += '<div class="ctx-place-occ">' + p.occupants.map(escapeHtml).join(', ') + '</div>';
+      }
+      html += '</div>';
+    }
+    body.innerHTML = html;
+    panel.style.display = '';
+  }
 
   function handleHudUpdate(data) {
     if (data.character_id !== undefined) combatViewerId = data.character_id;
@@ -2765,6 +4404,209 @@
       }
     }
 
+    // Nearby services panel (Ground UX Drop 8)
+    if (data.nearby_services !== undefined) {
+      var nearbyEl = document.getElementById('ctx-nearby');
+      var nearbyList = document.getElementById('ctx-nearby-list');
+      if (nearbyEl && nearbyList) {
+        nearbyList.innerHTML = '';
+        if (data.nearby_services && data.nearby_services.length > 0) {
+          nearbyEl.style.display = '';
+          var nearbyIcons = {
+            cantina:  '\u2609',
+            docking:  '\u2693',
+            vendor:   '\u25A4',
+            trainer:  '\u2605',
+            medical:  '\u2695',
+            crafting: '\u2692',
+            mechanic: '\u2699'
+          };
+          var dirLabels = {
+            north:'N', south:'S', east:'E', west:'W',
+            northeast:'NE', northwest:'NW', southeast:'SE', southwest:'SW',
+            up:'\u2191', down:'\u2193', 'in':'\u25B6', 'out':'\u25C0'
+          };
+          for (var ni = 0; ni < data.nearby_services.length; ni++) {
+            var ns = data.nearby_services[ni];
+            var item = document.createElement('div');
+            item.className = 'ctx-nearby-item';
+            item.title = 'Walk to ' + ns.name + ' (' + ns.distance + ' rooms away)';
+
+            var icon = document.createElement('span');
+            icon.className = 'ctx-nearby-icon';
+            icon.textContent = nearbyIcons[ns.type] || '\u25CB';
+
+            var name = document.createElement('span');
+            name.className = 'ctx-nearby-name';
+            // Shorten long room names
+            var displayName = ns.name.length > 22
+              ? ns.name.substring(0, 20) + '\u2026'
+              : ns.name;
+            name.textContent = displayName;
+
+            var dist = document.createElement('span');
+            dist.className = 'ctx-nearby-dist';
+            dist.textContent = ns.distance + (ns.distance === 1 ? ' hop' : ' hops');
+
+            var dir = document.createElement('span');
+            dir.className = 'ctx-nearby-dir';
+            dir.textContent = dirLabels[ns.direction] || ns.direction || '';
+
+            item.appendChild(icon);
+            item.appendChild(name);
+            item.appendChild(dist);
+            if (ns.direction) item.appendChild(dir);
+
+            // Click to walk: send the first-hop direction as a command
+            (function(direction) {
+              item.addEventListener('click', function() {
+                if (direction) sendCmd(direction);
+              });
+            })(ns.direction);
+
+            nearbyList.appendChild(item);
+          }
+        } else {
+          nearbyEl.style.display = 'none';
+        }
+      }
+    }
+
+    // CP progress bar (Ground UX Drop 9)
+    if (data.cp_progress !== undefined) {
+      var cpRow = document.getElementById('cp-progress-row');
+      var cpBar = document.getElementById('cp-progress-bar');
+      var cpLbl = document.getElementById('cp-progress-label');
+      if (cpRow && cpBar && cpLbl) {
+        if (data.cp_progress && data.cp_progress.ticks_per_cp > 0) {
+          cpRow.style.display = '';
+          var pct = Math.min(100, Math.max(0, data.cp_progress.pct || 0));
+          cpBar.style.width = pct + '%';
+          var weekPct = Math.round(
+            (data.cp_progress.ticks_this_week / data.cp_progress.weekly_cap) * 100
+          );
+          cpLbl.textContent = pct + '% \u2192 next CP'
+            + (weekPct >= 100 ? ' \u2022 cap' : '');
+          cpLbl.title = data.cp_progress.ticks_this_week + ' / '
+            + data.cp_progress.weekly_cap + ' weekly ticks';
+        } else {
+          cpRow.style.display = 'none';
+        }
+      }
+    }
+
+    // Zone influence gauge (Ground UX Drop 9)
+    if (data.zone_influence !== undefined) {
+      var infEl = document.getElementById('ctx-influence');
+      var infBars = document.getElementById('ctx-influence-bars');
+      if (infEl && infBars) {
+        infBars.innerHTML = '';
+        var infOrgs = Object.keys(data.zone_influence || {});
+        if (infOrgs.length > 0) {
+          infEl.style.display = '';
+          var orgColors = {
+            empire:   '#6699ff',
+            rebel:    '#ff6655',
+            hutt:     '#d4a020',
+            bh_guild: '#cc88ff',
+          };
+          for (var ii = 0; ii < infOrgs.length; ii++) {
+            var org = infOrgs[ii];
+            var pctInf = data.zone_influence[org] || 0;
+            var row = document.createElement('div');
+            row.className = 'ctx-inf-row';
+
+            var orgLbl = document.createElement('span');
+            orgLbl.className = 'ctx-inf-org';
+            orgLbl.textContent = org.replace('_', ' ');
+
+            var track = document.createElement('div');
+            track.className = 'ctx-inf-track';
+            var fill = document.createElement('div');
+            fill.className = 'ctx-inf-fill';
+            fill.style.width = pctInf + '%';
+            fill.style.background = orgColors[org] || 'var(--accent-cyan)';
+            track.appendChild(fill);
+
+            var pctLbl = document.createElement('span');
+            pctLbl.className = 'ctx-inf-pct';
+            pctLbl.textContent = pctInf + '%';
+
+            row.appendChild(orgLbl);
+            row.appendChild(track);
+            row.appendChild(pctLbl);
+            infBars.appendChild(row);
+          }
+        } else {
+          infEl.style.display = 'none';
+        }
+      }
+    }
+
+    // ── Faction Reputation panel (Drop 5) ──
+    if (data.reputation !== undefined) {
+      var repEl = document.getElementById('ctx-reputation');
+      var repBars = document.getElementById('ctx-rep-bars');
+      if (repEl && repBars) {
+        var factions = Object.keys(data.reputation || {});
+        if (factions.length > 0) {
+          repEl.style.display = '';
+          repBars.innerHTML = '';
+          var facNames = {
+            empire:   'Empire',
+            rebel:    'Rebel',
+            hutt:     'Hutt',
+            bh_guild: 'BH Guild',
+          };
+          for (var ri = 0; ri < factions.length; ri++) {
+            var fc = factions[ri];
+            var info = data.reputation[fc];
+            var rep = info.rep || 0;
+            var tierKey = info.tier_key || 'unknown';
+            var tierName = info.tier_name || 'Unknown';
+            var isMember = info.is_member || false;
+
+            var row = document.createElement('div');
+            row.className = 'ctx-rep-row';
+
+            var facLbl = document.createElement('span');
+            facLbl.className = 'ctx-rep-faction';
+            facLbl.textContent = facNames[fc] || fc;
+
+            var track = document.createElement('div');
+            track.className = 'ctx-rep-track';
+            var fill = document.createElement('div');
+            fill.className = 'ctx-rep-fill rep-fill-' + tierKey;
+            // For non-negative rep: 0-100 scale
+            // For negative rep: show as 0 width
+            var fillPct = rep >= 0 ? Math.min(100, rep) : 0;
+            fill.style.width = fillPct + '%';
+            track.appendChild(fill);
+
+            var tierLbl = document.createElement('span');
+            tierLbl.className = 'ctx-rep-tier rep-' + tierKey;
+            tierLbl.textContent = tierName;
+
+            row.appendChild(facLbl);
+            row.appendChild(track);
+            row.appendChild(tierLbl);
+            repBars.appendChild(row);
+
+            // Show rank below if member
+            if (isMember && info.rank) {
+              var rankRow = document.createElement('div');
+              rankRow.className = 'ctx-rep-rank';
+              rankRow.textContent = 'Rank: ' + info.rank +
+                (info.rank_level ? ' (' + info.rank_level + ')' : '');
+              repBars.appendChild(rankRow);
+            }
+          }
+        } else {
+          repEl.style.display = 'none';
+        }
+      }
+    }
+
     // Loadout section (Ground UX Drop 1)
     if (data.loadout) {
       var loadoutPanel = document.getElementById('g-loadout');
@@ -2811,7 +4653,40 @@
       }
     }
 
-    // Area map for context panel (Ground UX Drop 2)
+    // Active Jobs tracker (Ground UX Drop 6)
+    var jobsPanel = document.getElementById('g-active-jobs');
+    var jobsBody = document.getElementById('jobs-body');
+    if (jobsPanel && jobsBody) {
+      var jobs = data.active_jobs || [];
+      if (jobs.length > 0) {
+        jobsPanel.style.display = '';
+        jobsBody.innerHTML = '';
+        var _jobIcons = {
+          mission: '\uD83D\uDCCB', bounty: '\uD83C\uDFAF',
+          smuggle: '\uD83D\uDCE6', quest: '\u2728'
+        };
+        for (var ji = 0; ji < jobs.length; ji++) {
+          var job = jobs[ji];
+          var je = document.createElement('div');
+          je.className = 'job-entry';
+          var icon = _jobIcons[job.type] || '\u25CB';
+          var typeClass = job.type || 'mission';
+          var rewardStr = job.reward ? '<span class="job-reward">' + job.reward.toLocaleString() + 'cr</span>' : '';
+          var objStr = job.objective ? '<div class="job-objective">' + esc(job.objective) + '</div>' : '';
+          if (job.type === 'bounty' && job.target) {
+            objStr = '<div class="job-objective">Target: ' + esc(job.target) + '</div>';
+          }
+          je.innerHTML = '<span class="job-icon">' + icon + '</span>' +
+            '<div class="job-info"><div class="job-label ' + typeClass + '">' +
+            esc(job.label) + '</div>' + objStr + '</div>' + rewardStr;
+          jobsBody.appendChild(je);
+        }
+      } else {
+        jobsPanel.style.display = 'none';
+      }
+    }
+
+    // Area map for context panel (Ground UX Drop 2 — continued)
     if (data.area_map) {
       renderAreaMap(data.area_map);
     }
@@ -2875,6 +4750,128 @@
     // Detect housing context — server sends is_housing flag
     roomIsHousing = !!(data.is_housing);
 
+    // Housing Drop 8: Housing panel in context card
+    (function() {
+      var panel = document.getElementById('ctx-housing');
+      if (!panel) return;
+      var hi = data.housing_info;
+      if (!hi) { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+      panel.style.display = '';
+      panel.innerHTML = '';
+
+      // Header: icon + title + owner/visitor badge
+      var hdr = document.createElement('div');
+      hdr.className = 'ctx-housing-header';
+      var ico = document.createElement('span');
+      ico.className = 'ctx-housing-icon';
+      ico.textContent = hi.tier === 5 ? '\u{1F3DB}' : hi.tier === 4 ? '\u{1F3EA}' : '\u{1F3E0}';
+      var title = document.createElement('span');
+      title.className = 'ctx-housing-title';
+      title.textContent = hi.is_owner ? 'Your Home' : 'Visiting';
+      var badge = document.createElement('span');
+      badge.className = 'ctx-housing-badge ' + (hi.is_owner ? 'owner' : 'visitor');
+      badge.textContent = hi.is_owner ? 'owner' : hi.owner_name;
+      hdr.appendChild(ico);
+      hdr.appendChild(title);
+      hdr.appendChild(badge);
+      panel.appendChild(hdr);
+
+      // Info rows
+      var rows = document.createElement('div');
+      rows.className = 'ctx-housing-rows';
+
+      function addRow(label, value, cls) {
+        var r = document.createElement('div');
+        r.className = 'ctx-housing-row';
+        var l = document.createElement('span');
+        l.className = 'ctx-housing-lbl';
+        l.textContent = label;
+        var v = document.createElement('span');
+        v.className = 'ctx-housing-val' + (cls ? ' ' + cls : '');
+        v.textContent = value;
+        r.appendChild(l);
+        r.appendChild(v);
+        rows.appendChild(r);
+      }
+
+      // Tier label
+      addRow('Type', hi.tier_label);
+
+      // Room count
+      if (hi.rooms > 1) addRow('Rooms', hi.rooms);
+
+      // Rent (owner only)
+      if (hi.is_owner) {
+        if (hi.overdue && hi.overdue > 0) {
+          addRow('Rent', hi.rent_label + ' \u26A0 ' + hi.overdue + 'wk overdue', 'warning');
+        } else if (hi.housing_type === 'faction_quarters') {
+          addRow('Rent', 'Free (faction)', 'ok');
+        } else if (hi.days_left !== undefined) {
+          addRow('Rent', hi.rent_label + ' \u2022 ' + hi.days_left + 'd left');
+        } else {
+          addRow('Rent', hi.rent_label);
+        }
+      }
+
+      // Storage bar
+      var storPct = hi.storage_max > 0
+        ? Math.round(hi.storage_used / hi.storage_max * 100) : 0;
+      addRow('Storage', hi.storage_used + '/' + hi.storage_max);
+      var bar = document.createElement('div');
+      bar.className = 'ctx-housing-bar';
+      var fill = document.createElement('div');
+      fill.className = 'ctx-housing-bar-fill'
+        + (storPct >= 100 ? ' full' : storPct >= 75 ? ' high' : '');
+      fill.style.width = Math.min(storPct, 100) + '%';
+      bar.appendChild(fill);
+      rows.appendChild(bar);
+
+      // Trophies
+      if (hi.trophy_count > 0) {
+        addRow('Trophies', hi.trophy_count + '/10');
+      }
+
+      // Guest count (tier 3+ owner)
+      if (hi.is_owner && hi.guest_count !== undefined) {
+        addRow('Guests', hi.guest_count);
+      }
+
+      // Guard slots (tier 5 HQ)
+      if (hi.is_owner && hi.guard_slots !== undefined && hi.guard_slots > 0) {
+        addRow('Guards', hi.guard_slots + ' slots');
+      }
+
+      panel.appendChild(rows);
+
+      // Quick action buttons (owner only)
+      if (hi.is_owner) {
+        var acts = document.createElement('div');
+        acts.className = 'ctx-housing-actions';
+        var btns = [
+          { label: 'Storage', cmd: 'housing storage' },
+          { label: 'Trophies', cmd: 'housing trophies' },
+          { label: 'Describe', cmd: 'housing describe' }
+        ];
+        if (hi.tier >= 3 && hi.housing_type !== 'org_hq') {
+          btns.push({ label: 'Guests', cmd: 'housing guest list' });
+        }
+        if (hi.tier === 5) {
+          btns.push({ label: 'HQ Status', cmd: 'faction hq' });
+        }
+        for (var bi = 0; bi < btns.length; bi++) {
+          (function(b) {
+            var btn = document.createElement('button');
+            btn.className = 'ctx-housing-btn';
+            btn.textContent = b.label;
+            btn.title = b.cmd;
+            btn.addEventListener('click', function() { sendCmd(b.cmd); });
+            acts.appendChild(btn);
+          })(btns[bi]);
+        }
+        panel.appendChild(acts);
+      }
+    })();
+
     // Territory claim badge (Drop 6E)
     (function() {
       var existing = document.getElementById('claim-badge');
@@ -2912,6 +4909,26 @@
       }
     })();
 
+    // Ground UX Drop 7: set context flags for smart quick buttons
+    _playerCP = data.character_points || 0;
+    _lastWoundLevel = data.wound_level || 0;
+    // Detect trainer in room from NPC roles
+    _roomHasTrainer = false;
+    _roomHasCrafting = false;
+    if (data.room_contents && data.room_contents.npcs) {
+      for (var ni = 0; ni < data.room_contents.npcs.length; ni++) {
+        var nRole = data.room_contents.npcs[ni].role;
+        if (nRole === 'trainer') _roomHasTrainer = true;
+        if (nRole === 'mechanic') _roomHasCrafting = true;
+      }
+    }
+    // Also check room_services for crafting
+    if (data.room_services) {
+      for (var si2 = 0; si2 < data.room_services.length; si2++) {
+        if (data.room_services[si2] === 'crafting') _roomHasCrafting = true;
+      }
+    }
+
     // Update quick buttons based on new room context
     updateQuickButtons();
   }
@@ -2925,6 +4942,21 @@
     var tag     = channel === 'ooc' ? 'ooc' : channel === 'ic' ? 'ic' : 'system';
     var display = from ? from + ': ' + text : text;
     addNewsItem(tag, display, channel);
+  }
+
+  // ═══════════ Ambient NPC Barks ═══════════
+
+  function handleAmbientBark(msg) {
+    var npcName = msg.npc_name || 'Someone';
+    var bark    = msg.bark     || '';
+    if (!bark) return;
+    var el = document.createElement('div');
+    el.style.cssText = 'color:#8899aa; font-style:italic; padding:2px 0 2px 12px; font-size:0.92em; opacity:0.85;';
+    el.innerHTML = '<span style="color:#7a8fa0;font-weight:500;">' +
+      escapeHtml(npcName) + '</span> mutters, <span style="color:#99aabb;">&ldquo;' +
+      escapeHtml(bark) + '&rdquo;</span>';
+    output.appendChild(el);
+    output.scrollTop = output.scrollHeight;
   }
 
   // ═══════════ Shop State ═══════════
@@ -3471,6 +5503,42 @@
     return 'explore';
   }
 
+  // Ground UX Drop 7: build context-aware explore buttons
+  // Adds wound-heal, trainer, crafting buttons dynamically
+  function _buildExploreButtons() {
+    var base = QUICK_MODES.explore.slice();  // copy static list
+    var inject = [];
+
+    // Wound-aware: inject heal at top when wounded (outside combat)
+    if (_lastWoundLevel > 0 && !combatActive) {
+      inject.push({ label: '\u{1F48A} heal', cmd: 'heal', tip: 'Use a medpac to treat your wounds' });
+    }
+
+    // Trainer-aware: inject train if room has trainer NPC
+    if (_roomHasTrainer && _playerCP > 0) {
+      inject.push({ label: '\u{1F393} train', cmd: 'train', tip: 'Train a skill with the trainer in this room (costs CP)' });
+    }
+
+    // Crafting-aware: inject craft if room has crafting service
+    if (_roomHasCrafting) {
+      inject.push({ label: '\u{1F527} craft', cmd: 'craft', tip: 'Open the crafting interface' });
+    }
+
+    // Insert context buttons after 'look' (position 1)
+    if (inject.length > 0) {
+      var result = [base[0]]; // 'look' first
+      result = result.concat(inject);
+      result = result.concat(base.slice(1));
+      return result;
+    }
+    return base;
+  }
+
+  // Context flags set from handleHudUpdate (Ground UX Drop 7)
+  var _roomHasTrainer = false;
+  var _roomHasCrafting = false;
+  var _playerCP = 0;
+
   // Ground UX Drop 1: enter post-combat mode for 30s after combat ends
   function enterPostCombatMode() {
     _postCombatMode = true;
@@ -3498,7 +5566,8 @@
     var container = document.getElementById('quick-cmds-container');
     if (!container) return;
     var mode = getQuickMode();
-    var btns = QUICK_MODES[mode] || QUICK_MODES.explore;
+    var btns = (mode === 'explore') ? _buildExploreButtons() :
+               (QUICK_MODES[mode] || QUICK_MODES.explore);
     container.innerHTML = '';
     for (var i = 0; i < btns.length; i++) {
       (function(b) {
@@ -3687,7 +5756,17 @@
     ws.onopen = function() {
       setConnStatus('connected');
       sendResize();
-      systemMsg('[Connected]');
+      // Check for chargen auto-login token in URL
+      var params = new URLSearchParams(window.location.search);
+      var token = params.get('token');
+      if (token) {
+        ws.send(JSON.stringify({type: 'token_auth', token: token}));
+        // Clean token from URL bar
+        window.history.replaceState({}, document.title, window.location.pathname);
+        systemMsg('[Auto-login from character creation...]');
+      } else {
+        systemMsg('[Connected]');
+      }
       cmdInput.focus();
     };
 
@@ -3695,9 +5774,19 @@
       try {
         var msg = JSON.parse(evt.data);
         if (msg.type === 'hud_update') { handleHudUpdate(msg); return; }
+        if (msg.type === 'credit_event') { handleCreditEvent(msg); return; }
+        if (msg.type === 'rep_change') { handleRepChange(msg); return; }
+        if (msg.type === 'rank_up') { handleRankUp(msg); return; }
+        if (msg.type === 'achievement_unlocked') { handleAchievementUnlocked(msg); return; }
+        if (msg.type === 'achievements_status') { handleAchievementsStatus(msg); return; }
+        if (msg.type === 'mail_status') { handleMailStatus(msg); return; }
+        if (msg.type === 'places_status') { handlePlacesStatus(msg); return; }
         if (msg.type === 'space_state') { handleSpaceState(msg); return; }
         if (msg.type === 'combat_state') { handleCombatState(msg); return; }
         if (msg.type === 'shop_state') { handleShopState(msg); return; }
+        if (msg.type === 'chargen_start') { handleChargenStart(msg); return; }
+        if (msg.type === 'char_select') { handleCharSelect(msg); return; }
+        if (msg.type === 'ambient_bark') { handleAmbientBark(msg); return; }
         if (msg.type === 'chat') { handleChatMsg(msg); return; }
         if (msg.type === 'text' && typeof msg.data === 'string') { appendOutput(msg.data); }
         else if (msg.type === 'news_event') {
@@ -3864,7 +5953,8 @@
       }
       if (ctxGround) ctxGround.style.display = '';
       if (ctxSpace)  ctxSpace.style.display = 'none';
-      // areaMap visibility is controlled by renderAreaMap
+      // Reset map cache so renderAreaMap re-renders on next HUD update
+      _lastMapRoomId = null;
     }
   }
 
@@ -5074,6 +7164,89 @@
   initSvgToggle('schematic-toggle', 'schematic-body');
 
   // ═══════════ Boot ═══════════
+
+  // ═══════════ Character Select Picker ═══════════
+
+  function handleCharSelect(msg) {
+    var chars = msg.characters || [];
+    var canCreate = msg.can_create || false;
+    var maxChars = msg.max_characters || 3;
+
+    var overlay = document.getElementById('chargen-overlay');
+    var iframe = document.getElementById('chargen-iframe');
+    iframe.src = 'about:blank';
+
+    // Build picker HTML in the overlay
+    var html = '<div style="background:var(--bg-panel);border:1px solid var(--border-mid);border-radius:8px;padding:32px;max-width:420px;width:90%;font-family:var(--font-body);">';
+    html += '<h2 style="font-family:var(--font-display);font-size:16px;color:var(--accent-amber);margin-bottom:16px;letter-spacing:2px;">SELECT CHARACTER</h2>';
+    html += '<div style="color:var(--text-dim);font-size:12px;margin-bottom:16px;">' + chars.length + '/' + maxChars + ' character slots used</div>';
+
+    for (var i = 0; i < chars.length; i++) {
+      var c = chars[i];
+      html += '<button onclick="selectCharacter(' + c.id + ')" style="display:block;width:100%;text-align:left;padding:12px 16px;margin-bottom:8px;background:var(--bg-input);border:1px solid var(--border-mid);border-radius:4px;color:var(--text-bright);cursor:pointer;font-family:var(--font-body);font-size:14px;transition:border-color 0.2s;" onmouseover="this.style.borderColor=\'var(--accent-cyan)\'" onmouseout="this.style.borderColor=\'var(--border-mid)\'">';
+      html += '<span style="font-family:var(--font-display);font-size:13px;letter-spacing:1px;">' + c.name + '</span>';
+      html += '<span style="color:var(--text-dim);font-size:12px;margin-left:8px;">' + (c.species || '') + (c.template ? ' · ' + c.template : '') + '</span>';
+      html += '</button>';
+    }
+
+    if (canCreate) {
+      html += '<button onclick="createNewCharacter()" style="display:block;width:100%;text-align:center;padding:12px 16px;margin-top:16px;background:transparent;border:1px solid var(--accent-green);border-radius:4px;color:var(--accent-green);cursor:pointer;font-family:var(--font-display);font-size:12px;letter-spacing:1px;transition:background 0.2s;" onmouseover="this.style.background=\'rgba(63,185,80,0.1)\'" onmouseout="this.style.background=\'transparent\'">';
+      html += '+ CREATE NEW CHARACTER</button>';
+    }
+
+    html += '</div>';
+
+    // Replace iframe with inline picker
+    overlay.innerHTML = html;
+    overlay.classList.add('show');
+  }
+
+  function selectCharacter(charId) {
+    var overlay = document.getElementById('chargen-overlay');
+    overlay.classList.remove('show');
+    // Restore iframe
+    overlay.innerHTML = '<iframe id="chargen-iframe" src="about:blank"></iframe>';
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ input: '__char_select__' + charId }));
+    }
+  }
+
+  function createNewCharacter() {
+    var overlay = document.getElementById('chargen-overlay');
+    // Restore iframe and launch chargen
+    overlay.innerHTML = '<iframe id="chargen-iframe" src="about:blank"></iframe>';
+    var iframe = document.getElementById('chargen-iframe');
+    // Get token from server — we need to request one
+    // Send a synthetic signal; the server will respond with chargen_start
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ input: '__request_chargen__' }));
+    }
+  }
+
+  // ═══════════ Web Chargen Integration ═══════════
+
+  function handleChargenStart(msg) {
+    var token = msg.token || '';
+    var overlay = document.getElementById('chargen-overlay');
+    var iframe = document.getElementById('chargen-iframe');
+    iframe.src = '/chargen?embedded=1&token=' + encodeURIComponent(token);
+    overlay.classList.add('show');
+    systemMsg('[Opening character creator...]');
+  }
+
+  window.addEventListener('message', function(evt) {
+    if (evt.data && evt.data.type === 'chargen_done') {
+      var overlay = document.getElementById('chargen-overlay');
+      overlay.classList.remove('show');
+      var iframe = document.getElementById('chargen-iframe');
+      iframe.src = 'about:blank';
+      // Tell the server the character was created
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ input: '__chargen_done__' }));
+      }
+      systemMsg('[Character created! Entering the galaxy...]');
+    }
+  });
 
   systemMsg('Connecting to Mos Eisley...');
   connect();

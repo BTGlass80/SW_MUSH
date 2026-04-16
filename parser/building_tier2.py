@@ -13,8 +13,24 @@ Tier 2 building commands - quality of life tools.
 @grant     - Grant builder/admin status to a player (admin only)
 """
 import json
+import logging
 from parser.commands import BaseCommand, CommandContext, AccessLevel
 from server import ansi
+
+log = logging.getLogger(__name__)
+
+
+def _safe_json_loads(value, default=None):
+    """Parse JSON from a string, returning `default` on malformed input."""
+    if value is None:
+        return default
+    if not isinstance(value, str):
+        return value
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError) as _e:
+        log.warning("Malformed tier2 building JSON: %s", _e)
+        return default
 
 
 class SetCommand(BaseCommand):
@@ -30,7 +46,7 @@ class SetCommand(BaseCommand):
 
         if not ctx.args or ctx.args.strip().lower() in ("here", "show"):
             # Show current properties
-            props = json.loads(room.get("properties", "{}"))
+            props = _safe_json_loads(room.get("properties"), default={}) or {}
             await ctx.session.send_line(ansi.header(f"=== Properties: {room['name']} ==="))
             if not props:
                 await ctx.session.send_line("  (no properties set)")
@@ -54,7 +70,7 @@ class SetCommand(BaseCommand):
         key = key.strip().lower()
         val = val.strip()
 
-        props = json.loads(room.get("properties", "{}"))
+        props = _safe_json_loads(room.get("properties"), default={}) or {}
 
         if not val:
             # Remove property
@@ -150,7 +166,7 @@ class EntrancesCommand(BaseCommand):
                 lock = e.get("lock_data", "{}")
                 lock_str = ""
                 if lock and lock != "{}":
-                    lock_info = json.loads(lock) if isinstance(lock, str) else lock
+                    lock_info = _safe_json_loads(lock, default={}) or {}
                     if lock_info:
                         lock_str = f"  {ansi.red('[LOCKED]')}"
                 await ctx.session.send_line(
@@ -221,7 +237,7 @@ class ZoneCommand(BaseCommand):
             await ctx.session.send_line(f"  Unknown subcommand: '{subcmd}'")
 
     async def _list_zones(self, ctx):
-        rows = await ctx.db._db.execute_fetchall(
+        rows = await ctx.db.fetchall(
             "SELECT z.id, z.name, z.parent_id, COUNT(r.id) as room_count "
             "FROM zones z LEFT JOIN rooms r ON r.zone_id = z.id "
             "GROUP BY z.id ORDER BY z.id"
@@ -243,10 +259,10 @@ class ZoneCommand(BaseCommand):
         if not name:
             await ctx.session.send_line("  Usage: @zone create <name>")
             return
-        cursor = await ctx.db._db.execute(
+        cursor = await ctx.db.execute(
             "INSERT INTO zones (name) VALUES (?)", (name,)
         )
-        await ctx.db._db.commit()
+        await ctx.db.commit()
         await ctx.session.send_line(
             ansi.success(f"  Zone '{name}' created as #{cursor.lastrowid}.")
         )
@@ -262,7 +278,7 @@ class ZoneCommand(BaseCommand):
             await ctx.session.send_line(f"  Invalid zone ID: '{zone_str}'")
             return
 
-        rows = await ctx.db._db.execute_fetchall(
+        rows = await ctx.db.fetchall(
             "SELECT * FROM zones WHERE id = ?", (zone_id,)
         )
         if not rows:
@@ -287,7 +303,7 @@ class ZoneCommand(BaseCommand):
         if not zone_id:
             await ctx.session.send_line("  This room is not assigned to a zone.")
             return
-        rows = await ctx.db._db.execute_fetchall(
+        rows = await ctx.db.fetchall(
             "SELECT * FROM zones WHERE id = ?", (zone_id,)
         )
         if rows:
@@ -327,12 +343,12 @@ class CreateObjCommand(BaseCommand):
             return
 
         char_id = ctx.session.character["id"]
-        cursor = await ctx.db._db.execute(
+        cursor = await ctx.db.execute(
             """INSERT INTO objects (type, name, owner_id, data)
                VALUES (?, ?, ?, '{}')""",
             (obj_type, obj_name, char_id),
         )
-        await ctx.db._db.commit()
+        await ctx.db.commit()
         await ctx.session.send_line(
             ansi.success(f"  {obj_type.capitalize()} '{obj_name}' created as object #{cursor.lastrowid}.")
         )
@@ -362,7 +378,7 @@ class SuccessCommand(BaseCommand):
             return
 
         # Store in lock_data JSON (extend it)
-        lock = json.loads(exit_data.get("lock_data", "{}"))
+        lock = _safe_json_loads(exit_data.get("lock_data"), default={}) or {}
         lock["success_msg"] = msg
         await ctx.db.update_exit(exit_data["id"], lock_data=json.dumps(lock))
         await ctx.session.send_line(ansi.success(f"  Success message set on '{direction}'."))
@@ -391,7 +407,7 @@ class FailCommand(BaseCommand):
             await ctx.session.send_line(f"  No exit '{direction}' found here.")
             return
 
-        lock = json.loads(exit_data.get("lock_data", "{}"))
+        lock = _safe_json_loads(exit_data.get("lock_data"), default={}) or {}
         lock["fail_msg"] = msg
         await ctx.db.update_exit(exit_data["id"], lock_data=json.dumps(lock))
         await ctx.session.send_line(ansi.success(f"  Failure message set on '{direction}'."))
@@ -436,7 +452,7 @@ class GrantCommand(BaseCommand):
             return
 
         # Find the target player's account
-        rows = await ctx.db._db.execute_fetchall(
+        rows = await ctx.db.fetchall(
             "SELECT a.* FROM accounts a JOIN characters c ON c.account_id = a.id "
             "WHERE c.name = ? COLLATE NOCASE",
             (target_name,),
@@ -447,11 +463,11 @@ class GrantCommand(BaseCommand):
 
         account = dict(rows[0])
         field = "is_builder" if role == "builder" else "is_admin"
-        await ctx.db._db.execute(
+        await ctx.db.execute(
             f"UPDATE accounts SET {field} = 1 WHERE id = ?",
             (account["id"],),
         )
-        await ctx.db._db.commit()
+        await ctx.db.commit()
 
         await ctx.session.send_line(
             ansi.success(f"  {target_name} granted {role} status.")
@@ -488,7 +504,7 @@ class GetAttrCommand(BaseCommand):
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
-        a = json.loads(char.get("attributes", "{}") or "{}")
+        a = _safe_json_loads(char.get("attributes"), default={}) or {}
         key = ctx.args.strip() if ctx.args else None
         if key:
             val = a.get(key, "<not set>")
@@ -529,7 +545,7 @@ class SetAttrCommand(BaseCommand):
             val = raw
 
         char = ctx.session.character
-        a = _json.loads(char.get("attributes", "{}") or "{}")
+        a = _safe_json_loads(char.get("attributes"), default={}) or {}
 
         if val is None:
             a.pop(key, None)

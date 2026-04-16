@@ -384,8 +384,8 @@ async def grant_reward(session, db, credits: int = 0, item_key: str = None,
             if w:
                 item_name = w.name
                 item_slot = "weapon"
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in engine/tutorial_v2.py:387: %s", _e, exc_info=True)
         await db.add_to_inventory(char["id"], {
             "key":  item_key,
             "name": item_name,
@@ -406,8 +406,8 @@ async def grant_reward(session, db, credits: int = 0, item_key: str = None,
             w = get_weapon_registry().get(item_key)
             if w:
                 item_display = w.name
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("silent except in engine/tutorial_v2.py:409: %s", _e, exc_info=True)
         await session.send_line(f"  \033[1;33mReceived: {item_display}\033[0m")
     if title:
         await session.send_line(f"  \033[1;36mTitle earned: {title}\033[0m")
@@ -461,8 +461,8 @@ async def _hint_loop(session, room_name: str):
             await session.send_line(f"\n  \033[2;36m{hint}\033[0m")
             idx += 1
             await asyncio.sleep(HINT_REPEAT)
-    except asyncio.CancelledError:
-        pass
+    except asyncio.CancelledError as _e:
+        log.debug("silent except in engine/tutorial_v2.py:464: %s", _e, exc_info=True)
 
 
 def start_hint_timer(session, room_name: str):
@@ -1321,6 +1321,9 @@ SMUGGLERS_RUN = [
             "  \033[2mTask: Complete a smuggling delivery while evading an Imperial patrol. Reward: 800cr on delivery.\033[0m"
         ),
         "reward_credits": 500,
+        "reward_faction": "hutt",
+        "reward_rep": 5,
+        "reward_rep_reason": "Smuggler's Run: first delivery",
     },
     {   # Step 3 — triggered by landing on Nar Shaddaa (planet_land trigger)
         "trigger": "planet_land_nar_shaddaa",
@@ -1333,6 +1336,9 @@ SMUGGLERS_RUN = [
             "  \033[2mTask: Talk to Dash on Nar Shaddaa. Use 'talk dash' in the docking area.\033[0m"
         ),
         "reward_credits": 800,
+        "reward_faction": "hutt",
+        "reward_rep": 5,
+        "reward_rep_reason": "Smuggler's Run: Nar Shaddaa rendezvous",
     },
     {   # Step 4 — triggered by talking to Dash on Nar Shaddaa
         "trigger": "talk_dash",
@@ -1359,6 +1365,9 @@ SMUGGLERS_RUN = [
             "Use 'fire', 'flee', or 'evade'. Reward: 1,500cr once clear.\033[0m"
         ),
         "reward_credits": 2000,
+        "reward_faction": "hutt",
+        "reward_rep": 5,
+        "reward_rep_reason": "Smuggler's Run: Kessel delivery",
     },
     {   # Step 6 — triggered by landing on Nar Shaddaa OR surviving combat (flee/dock)
         "trigger": "docked_nar_shaddaa",
@@ -1373,6 +1382,10 @@ SMUGGLERS_RUN = [
         "reward_credits": 1500,
         "reward_title": "Veteran Smuggler",
         "reward_bonus": 1000,
+        "reward_faction": "hutt",
+        "reward_rep": 15,
+        "reward_rep_action": "complete_chain_final",
+        "reward_rep_reason": "Smuggler's Run complete!",
     },
 ]
 
@@ -1408,6 +1421,9 @@ HUNTERS_MARK = [
             "  \033[2mTask: Travel to Kessel to continue the hunt.\033[0m"
         ),
         "reward_credits": 300,
+        "reward_faction": "bh_guild",
+        "reward_rep": 5,
+        "reward_rep_reason": "Hunter's Mark: Nar Shaddaa lead",
     },
     {   # Step 3 — triggered by landing on Kessel
         "trigger": "planet_land_kessel",
@@ -1446,6 +1462,10 @@ HUNTERS_MARK = [
         ),
         "reward_credits": 1500,
         "reward_title": "Guild Hunter",
+        "reward_faction": "bh_guild",
+        "reward_rep": 15,
+        "reward_rep_action": "complete_chain_final",
+        "reward_rep_reason": "Hunter's Mark complete!",
     },
 ]
 
@@ -1510,6 +1530,9 @@ ARTISANS_FORGE = [
             "Use 'talk aldric' at the Coronet City docks. Reward: 2,000cr.\033[0m"
         ),
         "reward_credits": 500,
+        "reward_faction": "mechanics_guild",
+        "reward_rep": 5,
+        "reward_rep_reason": "Artisan's Forge: component crafted",
     },
     {   # Step 5 — triggered by planet_land_corellia at step 4
         "trigger": "planet_land_corellia",
@@ -1526,6 +1549,10 @@ ARTISANS_FORGE = [
         "reward_credits": 2000,
         "reward_bonus": 500,
         "reward_title": "Master Artisan",
+        "reward_faction": "mechanics_guild",
+        "reward_rep": 15,
+        "reward_rep_action": "complete_chain_final",
+        "reward_rep_reason": "Artisan's Forge complete!",
     },
 ]
 ARTISANS_FORGE_TOTAL = 5
@@ -1565,6 +1592,9 @@ REBEL_CELL = [
             "  \033[2mTask: Complete a smuggling delivery to Nar Shaddaa without getting caught.\033[0m"
         ),
         "reward_credits": 200,
+        "reward_faction": "rebel",
+        "reward_rep": 5,
+        "reward_rep_reason": "Rebel Cell: supply run",
     },
     {   # Step 3 — triggered by smuggling_complete to nar_shaddaa
         "trigger": "smuggling_complete",
@@ -1578,6 +1608,9 @@ REBEL_CELL = [
             "  \033[2mTask: Use 'scan' in Tatooine orbit or deep space on 3 Imperial patrol contacts.\033[0m"
         ),
         "reward_credits": 500,
+        "reward_faction": "rebel",
+        "reward_rep": 5,
+        "reward_rep_reason": "Rebel Cell: intel delivery",
     },
     {   # Step 4 — triggered after 3 scans of patrol ships (scan_patrols trigger)
         "trigger": "scan_patrols_complete",
@@ -1592,6 +1625,9 @@ REBEL_CELL = [
             "Use 'fire' then 'flee'. Reward: 1,000cr on extraction.\033[0m"
         ),
         "reward_credits": 800,
+        "reward_faction": "rebel",
+        "reward_rep": 5,
+        "reward_rep_reason": "Rebel Cell: patrol disruption",
     },
     {   # Step 5 — triggered by docking after combat (planet_land after space combat)
         "trigger": "mission_complete",
@@ -1607,6 +1643,10 @@ REBEL_CELL = [
         ),
         "reward_credits": 1500,
         "reward_title": "Rebel Sympathizer",
+        "reward_faction": "rebel",
+        "reward_rep": 15,
+        "reward_rep_action": "complete_chain_final",
+        "reward_rep_reason": "Rebel Cell complete!",
     },
 ]
 REBEL_CELL_TOTAL = 5
@@ -1632,6 +1672,9 @@ IMPERIAL_SERVICE = [
             "Type 'investigate' in the Market or Cantina area.\033[0m"
         ),
         "reward_credits": 300,
+        "reward_faction": "empire",
+        "reward_rep": 5,
+        "reward_rep_reason": "Imperial Service: investigation",
     },
     {   # Step 2 — triggered by mission_complete (any)
         "trigger": "mission_complete",
@@ -1646,6 +1689,9 @@ IMPERIAL_SERVICE = [
             "  \033[2mTask: Complete a space ESCORT or PATROL mission. Reward: 1,200cr.\033[0m"
         ),
         "reward_credits": 800,
+        "reward_faction": "empire",
+        "reward_rep": 5,
+        "reward_rep_reason": "Imperial Service: convoy escort",
     },
     {   # Step 3 — triggered by mission_complete (space mission)
         "trigger": "mission_complete",
@@ -1661,6 +1707,9 @@ IMPERIAL_SERVICE = [
             "A Persuasion or Intimidation check will determine outcome.\033[0m"
         ),
         "reward_credits": 1200,
+        "reward_faction": "empire",
+        "reward_rep": 5,
+        "reward_rep_reason": "Imperial Service: tax enforcement",
     },
     {   # Step 4 — triggered by planet_land_corellia at step 3
         "trigger": "planet_land_corellia",
@@ -1675,6 +1724,9 @@ IMPERIAL_SERVICE = [
             "  \033[2mTask: Destroy a Rebel-flagged NPC ship in space. Any deep space zone. Reward: 2,000cr.\033[0m"
         ),
         "reward_credits": 1000,
+        "reward_faction": "empire",
+        "reward_rep": 5,
+        "reward_rep_reason": "Imperial Service: Rebel intercept",
     },
     {   # Step 5 — triggered by mission_complete (intercept type)
         "trigger": "mission_complete",
@@ -1690,6 +1742,10 @@ IMPERIAL_SERVICE = [
         ),
         "reward_credits": 2000,
         "reward_title": "Imperial Associate",
+        "reward_faction": "empire",
+        "reward_rep": 15,
+        "reward_rep_action": "complete_chain_final",
+        "reward_rep_reason": "Imperial Service complete!",
     },
 ]
 IMPERIAL_SERVICE_TOTAL = 5
@@ -1729,6 +1785,9 @@ UNDERWORLD = [
             "  \033[2mTask: Complete a smuggling delivery to Nar Shaddaa. Reward: 1,500cr.\033[0m"
         ),
         "reward_credits": 1000,
+        "reward_faction": "hutt",
+        "reward_rep": 5,
+        "reward_rep_reason": "Underworld: debt collection",
     },
     {   # Step 3 — triggered by smuggling_complete to nar_shaddaa
         "trigger": "smuggling_complete",
@@ -1760,6 +1819,9 @@ UNDERWORLD = [
             "Combat or Persuasion resolves it. Reward: 2,500cr.\033[0m"
         ),
         "reward_credits": 2000,
+        "reward_faction": "hutt",
+        "reward_rep": 5,
+        "reward_rep_reason": "Underworld: cargo seizure",
     },
     {   # Step 5 — triggered by planet_land_tatooine after corellia trip
         "trigger": "planet_land_corellia",
@@ -1776,6 +1838,10 @@ UNDERWORLD = [
         ),
         "reward_credits": 2500,
         "reward_title": "Made Man",
+        "reward_faction": "hutt",
+        "reward_rep": 15,
+        "reward_rep_action": "complete_chain_final",
+        "reward_rep_reason": "Underworld complete!",
     },
 ]
 UNDERWORLD_TOTAL = 5
@@ -2097,6 +2163,24 @@ async def _grant_chain_reward(session, db, char: dict, step: dict) -> None:
     credits = step.get("reward_credits", 0)
     if credits > 0:
         await _award_credits(session, db, char, credits)
+
+    # Faction rep reward (Drop 3: reputation system)
+    reward_faction = step.get("reward_faction")
+    reward_rep = step.get("reward_rep", 0)
+    if reward_faction and reward_rep:
+        try:
+            from engine.organizations import adjust_rep
+            action = step.get("reward_rep_action", "complete_profession_chain_step")
+            reason = step.get("reward_rep_reason", "Profession chain progress")
+            await adjust_rep(
+                char, reward_faction, db,
+                action_key=action,
+                delta=reward_rep,
+                reason=reason,
+                session=session,
+            )
+        except Exception as e:
+            log.warning("[tutorial] chain rep reward failed: %s", e)
 
 
 async def _award_credits(session, db, char: dict, amount: int) -> None:

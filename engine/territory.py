@@ -204,8 +204,8 @@ async def ensure_territory_schema(db) -> None:
         for stmt in TERRITORY_SCHEMA_SQL.strip().split(";"):
             stmt = stmt.strip()
             if stmt:
-                await db._db.execute(stmt)
-        await db._db.commit()
+                await db.execute(stmt)
+        await db.commit()
     except Exception as e:
         log.warning("[territory] schema create error: %s", e)
     # Drop 6D: contests table
@@ -223,14 +223,14 @@ async def adjust_territory_influence(db, org_code: str, zone_id: int,
     """
     now = time.time()
 
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT score FROM territory_influence WHERE zone_id = ? AND org_code = ?",
         (zone_id, org_code),
     )
     current = rows[0]["score"] if rows else 0
     new_score = max(0, min(INFLUENCE_CAP, current + delta))
 
-    await db._db.execute(
+    await db.execute(
         """INSERT INTO territory_influence (zone_id, org_code, score, last_activity, last_presence)
            VALUES (?, ?, ?, ?, ?)
            ON CONFLICT(zone_id, org_code) DO UPDATE SET
@@ -238,7 +238,7 @@ async def adjust_territory_influence(db, org_code: str, zone_id: int,
              last_activity = excluded.last_activity""",
         (zone_id, org_code, new_score, now, now),
     )
-    await db._db.commit()
+    await db.commit()
 
     if delta != 0:
         log.info("[territory] %s influence in zone %d: %d -> %d (%s%d) %s",
@@ -259,7 +259,7 @@ async def adjust_territory_influence(db, org_code: str, zone_id: int,
 
 async def get_territory_influence(db, org_code: str, zone_id: int) -> int:
     """Get current influence score for an org in a zone."""
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT score FROM territory_influence WHERE zone_id = ? AND org_code = ?",
         (zone_id, org_code),
     )
@@ -268,7 +268,7 @@ async def get_territory_influence(db, org_code: str, zone_id: int) -> int:
 
 async def get_zone_territory_all(db, zone_id: int) -> dict[str, int]:
     """Get all org influence scores for a zone. Returns {org_code: score}."""
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT org_code, score FROM territory_influence WHERE zone_id = ? AND score > 0",
         (zone_id,),
     )
@@ -277,7 +277,7 @@ async def get_zone_territory_all(db, zone_id: int) -> dict[str, int]:
 
 async def get_org_territory_all(db, org_code: str) -> dict[int, int]:
     """Get all zone influence scores for an org. Returns {zone_id: score}."""
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT zone_id, score FROM territory_influence WHERE org_code = ? AND score > 0",
         (org_code,),
     )
@@ -447,13 +447,13 @@ async def tick_territory_presence(db, session_mgr) -> None:
                 await adjust_territory_influence(
                     db, org_code, zone_id, gain,
                     reason=f"presence ({count} members)")
-                await db._db.execute(
+                await db.execute(
                     """UPDATE territory_influence SET last_presence = ?
                        WHERE zone_id = ? AND org_code = ?""",
                     (now, zone_id, org_code),
                 )
 
-        await db._db.commit()
+        await db.commit()
     except Exception as e:
         log.warning("[territory] presence tick error: %s", e)
 
@@ -469,7 +469,7 @@ async def tick_territory_decay(db) -> None:
         now = time.time()
         cutoff = now - (DECAY_NO_PRESENCE_HOURS * 3600)
 
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             """SELECT zone_id, org_code, score, last_presence
                FROM territory_influence
                WHERE score > 0 AND last_presence < ?""",
@@ -570,7 +570,7 @@ async def get_territory_digest(db) -> dict:
     Returns {zone_name: {org_code: score}} for zones with any influence.
     """
     try:
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT zone_id, org_code, score FROM territory_influence WHERE score > 0"
         )
         if not rows:
@@ -595,7 +595,7 @@ async def get_territory_digest(db) -> dict:
 async def get_claim(db, room_id: int) -> Optional[dict]:
     """Get the territory claim for a room, or None."""
     try:
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT * FROM territory_claims WHERE room_id = ?", (room_id,)
         )
         return dict(rows[0]) if rows else None
@@ -607,7 +607,7 @@ async def get_claim(db, room_id: int) -> Optional[dict]:
 async def get_org_claims(db, org_code: str) -> list[dict]:
     """Get all claims for an organization."""
     try:
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT * FROM territory_claims WHERE org_code = ? ORDER BY claimed_at",
             (org_code,),
         )
@@ -620,7 +620,7 @@ async def get_org_claims(db, org_code: str) -> list[dict]:
 async def get_org_claims_in_zone(db, org_code: str, zone_id: int) -> list[dict]:
     """Get claims for an org in a specific zone."""
     try:
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT * FROM territory_claims WHERE org_code = ? AND zone_id = ?",
             (org_code, zone_id),
         )
@@ -699,13 +699,13 @@ async def claim_room(db, char: dict, org_code: str, room_id: int) -> dict:
     new_balance = await db.adjust_org_treasury(org["id"], -CLAIM_COST)
 
     now = time.time()
-    await db._db.execute(
+    await db.execute(
         """INSERT INTO territory_claims
            (org_code, room_id, zone_id, claimed_by, claimed_at, maintenance)
            VALUES (?, ?, ?, ?, ?, ?)""",
         (org_code, room_id, zone_id, char["id"], now, CLAIM_WEEKLY_MAINT),
     )
-    await db._db.commit()
+    await db.commit()
 
     await adjust_territory_influence(
         db, org_code, zone_id, 20,
@@ -744,17 +744,17 @@ async def unclaim_room(db, char: dict, org_code: str, room_id: int) -> dict:
     # Remove guard NPC if present
     if claim.get("guard_npc_id"):
         try:
-            await db._db.execute(
+            await db.execute(
                 "DELETE FROM npcs WHERE id = ?", (claim["guard_npc_id"],)
             )
         except Exception:
             log.warning("unclaim_room: unhandled exception", exc_info=True)
             pass
 
-    await db._db.execute(
+    await db.execute(
         "DELETE FROM territory_claims WHERE room_id = ?", (room_id,)
     )
-    await db._db.commit()
+    await db.commit()
 
     room = await db.get_room(room_id)
     room_name = room.get("name", f"Room #{room_id}") if room else f"Room #{room_id}"
@@ -797,7 +797,7 @@ async def tick_claim_maintenance(db, session_mgr) -> None:
     Guard upkeep is included in room maintenance cost if guard is stationed.
     """
     try:
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT * FROM territory_claims"
         )
         for r in rows:
@@ -829,18 +829,18 @@ async def tick_claim_maintenance(db, session_mgr) -> None:
                     # Remove guard if present
                     if claim.get("guard_npc_id"):
                         try:
-                            await db._db.execute(
+                            await db.execute(
                                 "DELETE FROM npcs WHERE id = ?",
                                 (claim["guard_npc_id"],),
                             )
                         except Exception:
                             log.warning("tick_claim_maintenance: unhandled exception", exc_info=True)
                             pass
-                    await db._db.execute(
+                    await db.execute(
                         "DELETE FROM territory_claims WHERE id = ?",
                         (claim["id"],),
                     )
-                    await db._db.commit()
+                    await db.commit()
                     log.info("[territory] auto-released claim on room %d (influence too low)",
                              claim["room_id"])
 
@@ -975,11 +975,11 @@ async def spawn_guard_npc(db, org_code: str, room_id: int,
                     "msg": "A guard is already stationed here. Use 'faction guard remove' first.",
                     "npc_id": claim["guard_npc_id"]}
         # Stale reference — clear it
-        await db._db.execute(
+        await db.execute(
             "UPDATE territory_claims SET guard_npc_id = NULL WHERE room_id = ?",
             (room_id,),
         )
-        await db._db.commit()
+        await db.commit()
 
     # Check treasury for one-time cost
     if org.get("treasury", 0) < GUARD_COST:
@@ -1010,11 +1010,11 @@ async def spawn_guard_npc(db, org_code: str, room_id: int,
     )
 
     # Link guard to claim
-    await db._db.execute(
+    await db.execute(
         "UPDATE territory_claims SET guard_npc_id = ? WHERE room_id = ?",
         (npc_id, room_id),
     )
-    await db._db.commit()
+    await db.commit()
 
     log.info("[territory] %s stationed guard NPC %d in room %d (%s). Cost: %dcr",
              org_code, npc_id, room_id, room_name, GUARD_COST)
@@ -1050,15 +1050,15 @@ async def remove_guard_npc(db, org_code: str, room_id: int,
 
     npc_id = claim["guard_npc_id"]
     try:
-        await db._db.execute("DELETE FROM npcs WHERE id = ?", (npc_id,))
+        await db.execute("DELETE FROM npcs WHERE id = ?", (npc_id,))
     except Exception as e:
         log.warning("[territory] error deleting guard NPC %d: %s", npc_id, e)
 
-    await db._db.execute(
+    await db.execute(
         "UPDATE territory_claims SET guard_npc_id = NULL WHERE room_id = ?",
         (room_id,),
     )
-    await db._db.commit()
+    await db.commit()
 
     room = await db.get_room(room_id)
     room_name = room.get("name", f"Room #{room_id}") if room else f"Room #{room_id}"
@@ -1091,7 +1091,7 @@ async def tick_resource_nodes(db, session_mgr) -> None:
     Crafting resources go into org shared storage (properties["org_storage"]).
     """
     try:
-        claims = await db._db.execute_fetchall(
+        claims = await db.fetchall(
             "SELECT * FROM territory_claims"
         )
         if not claims:
@@ -1226,11 +1226,11 @@ async def _save_org_storage(db, org_code: str, storage: dict) -> bool:
         props = {}
     props["org_storage"] = storage
     try:
-        await db._db.execute(
+        await db.execute(
             "UPDATE organizations SET properties = ? WHERE code = ?",
             (json.dumps(props), org_code),
         )
-        await db._db.commit()
+        await db.commit()
         return True
     except Exception as e:
         log.warning("[territory] save org storage error: %s", e)
@@ -1514,8 +1514,8 @@ CREATE TABLE IF NOT EXISTS territory_contests (
 async def ensure_contest_schema(db) -> None:
     """Create territory_contests table if absent. Idempotent."""
     try:
-        await db._db.execute(TERRITORY_CONTESTS_SCHEMA.strip())
-        await db._db.commit()
+        await db.execute(TERRITORY_CONTESTS_SCHEMA.strip())
+        await db.commit()
     except Exception as e:
         log.warning("[territory] contest schema error: %s", e)
 
@@ -1523,7 +1523,7 @@ async def ensure_contest_schema(db) -> None:
 async def get_active_contest(db, zone_id: int) -> Optional[dict]:
     """Return the active contest for a zone, or None."""
     try:
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT * FROM territory_contests WHERE zone_id = ? AND status = 'active'",
             (zone_id,),
         )
@@ -1536,7 +1536,7 @@ async def get_active_contest(db, zone_id: int) -> Optional[dict]:
 async def get_contests_for_org(db, org_code: str) -> list[dict]:
     """Return all active contests where org is holder or challenger."""
     try:
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             """SELECT * FROM territory_contests
                WHERE (holder_org_code = ? OR challenger_org_code = ?)
                AND status = 'active'""",
@@ -1571,13 +1571,13 @@ async def _declare_contest(db, zone_id: int,
     now = time.time()
     ends_at = now + CONTEST_DURATION_SECS
     try:
-        await db._db.execute(
+        await db.execute(
             """INSERT OR IGNORE INTO territory_contests
                (zone_id, holder_org_code, challenger_org_code, started_at, ends_at, status)
                VALUES (?, ?, ?, ?, ?, 'active')""",
             (zone_id, holder_org, challenger_org, now, ends_at),
         )
-        await db._db.commit()
+        await db.commit()
     except Exception as e:
         log.warning("[territory] contest declare error: %s", e)
         return
@@ -1628,7 +1628,7 @@ async def check_and_declare_contests(db, org_code: str, zone_id: int,
         # Find holder: org with claims in this zone (by influence, descending)
         zone_claims_by_org: dict[str, int] = {}
         try:
-            rows = await db._db.execute_fetchall(
+            rows = await db.fetchall(
                 "SELECT org_code, COUNT(*) as cnt FROM territory_claims WHERE zone_id = ? GROUP BY org_code",
                 (zone_id,),
             )
@@ -1687,7 +1687,7 @@ async def tick_contest_resolution(db, session_mgr) -> None:
     """
     try:
         now = time.time()
-        active = await db._db.execute_fetchall(
+        active = await db.fetchall(
             "SELECT * FROM territory_contests WHERE status = 'active' AND ends_at <= ?",
             (now,),
         )
@@ -1704,11 +1704,11 @@ async def tick_contest_resolution(db, session_mgr) -> None:
             if chall_inf > holder_inf:
                 # Challenger wins — transfer all claims in zone
                 await _transfer_zone_claims(db, zone_id, holder, chall)
-                await db._db.execute(
+                await db.execute(
                     "UPDATE territory_contests SET status = 'resolved' WHERE id = ?",
                     (contest["id"],),
                 )
-                await db._db.commit()
+                await db.commit()
 
                 winner_name = chall.replace("_", " ").title()
                 loser_name  = holder.replace("_", " ").title()
@@ -1726,11 +1726,11 @@ async def tick_contest_resolution(db, session_mgr) -> None:
                     db, chall, zone_id, -CONTEST_FAILURE_PENALTY,
                     reason="failed contest penalty",
                 )
-                await db._db.execute(
+                await db.execute(
                     "UPDATE territory_contests SET status = 'failed' WHERE id = ?",
                     (contest["id"],),
                 )
-                await db._db.commit()
+                await db.commit()
 
                 winner_name = holder.replace("_", " ").title()
                 loser_name  = chall.replace("_", " ").title()
@@ -1763,13 +1763,13 @@ async def _transfer_zone_claims(db, zone_id: int,
     Called on contest victory.  Guard NPCs are re-flagged to new owner.
     """
     try:
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT * FROM territory_claims WHERE zone_id = ? AND org_code = ?",
             (zone_id, from_org),
         )
         for r in rows:
             claim = dict(r)
-            await db._db.execute(
+            await db.execute(
                 "UPDATE territory_claims SET org_code = ? WHERE id = ?",
                 (to_org, claim["id"]),
             )
@@ -1788,7 +1788,7 @@ async def _transfer_zone_claims(db, zone_id: int,
                         )
                 except Exception as e:
                     log.warning("[territory] guard NPC retag error: %s", e)
-        await db._db.commit()
+        await db.commit()
         log.info("[territory] transferred %d claims in zone %d from %s to %s",
                  len(rows), zone_id, from_org, to_org)
     except Exception as e:
@@ -1865,7 +1865,7 @@ async def hostile_takeover_claim(db, char: dict, org_code: str,
     # Remove the rival's guard NPC if still present (dead guard cleanup)
     if claim.get("guard_npc_id"):
         try:
-            await db._db.execute(
+            await db.execute(
                 "DELETE FROM npcs WHERE id = ?", (claim["guard_npc_id"],)
             )
         except Exception:
@@ -1875,13 +1875,13 @@ async def hostile_takeover_claim(db, char: dict, org_code: str,
     # Overwrite claim
     new_balance = await db.adjust_org_treasury(org["id"], -CLAIM_COST)
     now = time.time()
-    await db._db.execute(
+    await db.execute(
         """UPDATE territory_claims
            SET org_code = ?, claimed_by = ?, claimed_at = ?, guard_npc_id = NULL
            WHERE room_id = ?""",
         (org_code, char["id"], now, room_id),
     )
-    await db._db.commit()
+    await db.commit()
 
     # Influence swing: attacker gains, defender loses
     await adjust_territory_influence(

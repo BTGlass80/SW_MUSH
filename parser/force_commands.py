@@ -24,6 +24,15 @@ from server import ansi
 
 log = logging.getLogger(__name__)
 
+# Achievement hooks (graceful-drop)
+async def _ach_force_hook(db, char_id, event, session=None):
+    try:
+        from engine.achievements import check_achievement
+        await check_achievement(db, char_id, event, session=session)
+    except Exception as _e:
+        log.debug("silent except in parser/force_commands.py:32: %s", _e, exc_info=True)
+
+
 _SKILL_REG_CACHE: SkillRegistry | None = None
 
 
@@ -209,6 +218,16 @@ class ForceCommand(BaseCommand):
                 + ("You have fallen to the dark side." if result.fall_failed
                    else "You resist the pull of the dark side.")
             )
+
+        # ── Achievement hooks ─────────────────────────────────────────────
+        try:
+            if result.success and hasattr(ctx.session, "game_server"):
+                from engine.achievements import on_force_power_used, on_dark_side_point
+                await on_force_power_used(ctx.db, char_dict["id"], session=ctx.session)
+                if result.dsp_gained if hasattr(result, "dsp_gained") else False:
+                    await on_dark_side_point(ctx.db, char_dict["id"], session=ctx.session)
+        except Exception as _e:
+            log.debug("silent except in parser/force_commands.py:229: %s", _e, exc_info=True)
 
 
 def _build_room_broadcast(char_name: str, power: ForcePower,

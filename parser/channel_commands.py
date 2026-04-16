@@ -38,11 +38,11 @@ async def _save_faction(ctx: CommandContext, char_id: int, faction: str) -> None
         if isinstance(attrs, str):
             attrs = json.loads(attrs) if attrs else {}
         attrs["faction"] = faction
-        await ctx.db._db.execute(
+        await ctx.db.execute(
             "UPDATE characters SET attributes = ? WHERE id = ?",
             (json.dumps(attrs), char_id),
         )
-        await ctx.db._db.commit()
+        await ctx.db.commit()
         char["attributes"] = json.dumps(attrs)
     except Exception as e:
         log.warning("[channels] Failed to save faction for char %d: %s", char_id, e)

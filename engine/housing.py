@@ -25,6 +25,26 @@ from typing import Optional
 
 log = logging.getLogger(__name__)
 
+
+def _safe_json_loads(value, default=None):
+    """
+    Parse JSON from a string, returning `default` on malformed input.
+
+    Handles the common housing pattern where a DB column may be either a
+    JSON string or already-parsed (from upstream callers that pre-parse).
+    Logs a warning on malformed JSON but does not raise.
+    """
+    if value is None:
+        return default
+    if not isinstance(value, str):
+        return value if value != "" else default
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError) as _e:
+        log.warning("Malformed housing JSON: %s", _e)
+        return default
+
+
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 TIER1_DEPOSIT      = 500     # credits; returned on checkout
@@ -335,16 +355,16 @@ async def ensure_schema(db) -> None:
         for stmt in HOUSING_SCHEMA_SQL.strip().split(";"):
             stmt = stmt.strip()
             if stmt:
-                await db._db.execute(stmt)
-        await db._db.commit()
+                await db.execute(stmt)
+        await db.commit()
     except Exception as e:
         log.warning("[housing] schema create error: %s", e)
 
     for sql in (ROOMS_HOUSING_ID_SQL, CHARACTERS_HOME_SQL,
                 _FACTION_CODE_COL, _HIDDEN_EXIT_COL):
         try:
-            await db._db.execute(sql)
-            await db._db.commit()
+            await db.execute(sql)
+            await db.commit()
         except Exception:
             pass  # Column already exists
     # Drop 7: intrusion log table
@@ -353,14 +373,14 @@ async def ensure_schema(db) -> None:
 
 async def seed_lots(db) -> None:
     """Insert the Drop 1 + Drop 4 housing lots if they don't exist yet."""
-    all_lots = list(HOUSING_LOTS_DROP1) + list(HOUSING_LOTS_TIER3) + list(HOUSING_LOTS_TIER4)
+    all_lots = list(HOUSING_LOTS_DROP1) + list(HOUSING_LOTS_TIER3) + list(HOUSING_LOTS_TIER4) + list(HOUSING_LOTS_TIER5)
     for room_id, planet, label, security, max_homes in all_lots:
-        existing = await db._db.execute_fetchall(
+        existing = await db.fetchall(
             "SELECT id FROM housing_lots WHERE room_id = ?", (room_id,)
         )
         if not existing:
             try:
-                await db._db.execute(
+                await db.execute(
                     """INSERT INTO housing_lots
                        (room_id, planet, label, security, max_homes, current_homes)
                        VALUES (?, ?, ?, ?, ?, 0)""",
@@ -368,14 +388,14 @@ async def seed_lots(db) -> None:
                 )
             except Exception as e:
                 log.warning("[housing] seed lot room %d: %s", room_id, e)
-    await db._db.commit()
+    await db.commit()
     log.info("[housing] Lots seeded.")
 
 
 # ── Housing record helpers ────────────────────────────────────────────────────
 
 async def get_housing(db, char_id: int) -> Optional[dict]:
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT * FROM player_housing WHERE char_id = ? ORDER BY id DESC LIMIT 1",
         (char_id,),
     )
@@ -383,59 +403,56 @@ async def get_housing(db, char_id: int) -> Optional[dict]:
 
 
 async def get_housing_by_id(db, housing_id: int) -> Optional[dict]:
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT * FROM player_housing WHERE id = ?", (housing_id,)
     )
     return dict(rows[0]) if rows else None
 
 
 async def get_housing_for_room(db, room_id: int) -> Optional[dict]:
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT * FROM player_housing WHERE room_ids LIKE ?",
         (f'%{room_id}%',),
     )
     for r in rows:
-        ids = json.loads(r["room_ids"] or "[]")
+        ids = _safe_json_loads(r["room_ids"], default=[])
         if room_id in ids:
             return dict(r)
     return None
 
 
 def _storage(h: dict) -> list:
-    s = h.get("storage", "[]")
-    return json.loads(s) if isinstance(s, str) else (s or [])
+    return _safe_json_loads(h.get("storage", "[]"), default=[])
 
 def _room_ids(h: dict) -> list:
-    r = h.get("room_ids", "[]")
-    return json.loads(r) if isinstance(r, str) else (r or [])
+    return _safe_json_loads(h.get("room_ids", "[]"), default=[])
 
 def _trophies(h: dict) -> list:
-    t = h.get("trophies", "[]")
-    return json.loads(t) if isinstance(t, str) else (t or [])
+    return _safe_json_loads(h.get("trophies", "[]"), default=[])
 
 
 # ── Lot helpers ───────────────────────────────────────────────────────────────
 
 async def get_available_lots(db) -> list[dict]:
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT * FROM housing_lots WHERE current_homes < max_homes ORDER BY planet, id"
     )
     return [dict(r) for r in rows]
 
 async def get_lot(db, lot_id: int) -> Optional[dict]:
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT * FROM housing_lots WHERE id = ?", (lot_id,)
     )
     return dict(rows[0]) if rows else None
 
 async def get_lot_by_room(db, room_id: int) -> Optional[dict]:
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT * FROM housing_lots WHERE room_id = ?", (room_id,)
     )
     return dict(rows[0]) if rows else None
 
 async def _pick_door_direction(db, entry_room_id: int) -> str:
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT direction FROM exits WHERE from_room_id = ?", (entry_room_id,)
     )
     used = {r["direction"] for r in rows}
@@ -488,7 +505,7 @@ async def rent_room(db, char: dict, lot_id: int) -> dict:
     await db.save_character(char_id, credits=char["credits"])
 
     now = time.time()
-    cursor = await db._db.execute(
+    cursor = await db.execute(
         """INSERT INTO player_housing
            (char_id, tier, housing_type, entry_room_id, room_ids, storage,
             storage_max, weekly_rent, deposit, rent_paid_until, door_direction,
@@ -500,21 +517,21 @@ async def rent_room(db, char: dict, lot_id: int) -> dict:
     )
     housing_id = cursor.lastrowid
 
-    await db._db.execute(
+    await db.execute(
         "UPDATE rooms SET housing_id = ? WHERE id = ?", (housing_id, new_room_id)
     )
-    await db._db.execute(
+    await db.execute(
         "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
         (lot_id,),
     )
-    await db._db.commit()
+    await db.commit()
 
     try:
-        await db._db.execute(
+        await db.execute(
             "UPDATE characters SET home_room_id = ? WHERE id = ?",
             (new_room_id, char_id),
         )
-        await db._db.commit()
+        await db.commit()
     except Exception:
         log.warning("rent_room: unhandled exception", exc_info=True)
         pass
@@ -577,7 +594,7 @@ async def checkout_room(db, char: dict) -> dict:
     # Delete rooms
     for rid in room_ids:
         try:
-            await db._db.execute("DELETE FROM rooms WHERE id = ?", (rid,))
+            await db.execute("DELETE FROM rooms WHERE id = ?", (rid,))
         except Exception as e:
             log.warning("[housing] checkout room delete error: %s", e)
 
@@ -585,22 +602,22 @@ async def checkout_room(db, char: dict) -> dict:
     if h["housing_type"] == "rented_room":
         lot = await get_lot_by_room(db, h["entry_room_id"])
         if lot:
-            await db._db.execute(
+            await db.execute(
                 "UPDATE housing_lots SET current_homes = MAX(0, current_homes - 1) WHERE id = ?",
                 (lot["id"],),
             )
 
-    await db._db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
+    await db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
 
     try:
-        await db._db.execute(
+        await db.execute(
             "UPDATE characters SET home_room_id = NULL WHERE id = ?", (char_id,)
         )
     except Exception:
         log.warning("checkout_room: unhandled exception", exc_info=True)
         pass
 
-    await db._db.commit()
+    await db.commit()
     log.info("[housing] char %d checked out of housing %d", char_id, h["id"])
 
     msg = "Room vacated."
@@ -641,11 +658,11 @@ async def housing_store(db, char: dict, item_key: str) -> dict:
         inv["items"] = items
         storage.append(match)
         await db.save_character(char_id, inventory=json.dumps(inv))
-        await db._db.execute(
+        await db.execute(
             "UPDATE player_housing SET storage = ?, last_activity = ? WHERE id = ?",
             (json.dumps(storage), time.time(), h["id"]),
         )
-        await db._db.commit()
+        await db.commit()
         item_name = match.get("name") or match.get("key") or item_key
         return {"ok": True, "msg": f"Stored: {item_name}. ({len(storage)}/{h['storage_max']} slots used)"}
     except Exception as e:
@@ -676,11 +693,11 @@ async def housing_retrieve(db, char: dict, item_key: str) -> dict:
         items.append(match)
         inv["items"] = items
         await db.save_character(char_id, inventory=json.dumps(inv))
-        await db._db.execute(
+        await db.execute(
             "UPDATE player_housing SET storage = ?, last_activity = ? WHERE id = ?",
             (json.dumps(storage), time.time(), h["id"]),
         )
-        await db._db.commit()
+        await db.commit()
         item_name = match.get("name") or match.get("key") or item_key
         return {"ok": True, "msg": f"Retrieved: {item_name}. ({len(storage)}/{h['storage_max']} slots used)"}
     except Exception as e:
@@ -694,7 +711,7 @@ async def tick_housing_rent(db, session_mgr) -> None:
     """Weekly rent collection. Handles Tier 1 and Tier 3 (faction quarters are free)."""
     try:
         now = time.time()
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT * FROM player_housing WHERE weekly_rent > 0"
         )
         for row in rows:
@@ -702,7 +719,7 @@ async def tick_housing_rent(db, session_mgr) -> None:
             if now < h["rent_paid_until"]:
                 continue
 
-            char_rows = await db._db.execute_fetchall(
+            char_rows = await db.fetchall(
                 "SELECT * FROM characters WHERE id = ?", (h["char_id"],)
             )
             if not char_rows:
@@ -712,7 +729,7 @@ async def tick_housing_rent(db, session_mgr) -> None:
             if char.get("credits", 0) >= h["weekly_rent"]:
                 new_credits = char["credits"] - h["weekly_rent"]
                 await db.save_character(char["id"], credits=new_credits)
-                await db._db.execute(
+                await db.execute(
                     "UPDATE player_housing SET rent_paid_until = ?, rent_overdue = 0, last_activity = ? WHERE id = ?",
                     (now + RENT_TICK_INTERVAL, now, h["id"]),
                 )
@@ -725,7 +742,7 @@ async def tick_housing_rent(db, session_mgr) -> None:
                     )
             else:
                 overdue = h["rent_overdue"] + 1
-                await db._db.execute(
+                await db.execute(
                     "UPDATE player_housing SET rent_overdue = ? WHERE id = ?",
                     (overdue, h["id"]),
                 )
@@ -746,7 +763,7 @@ async def tick_housing_rent(db, session_mgr) -> None:
                 if overdue >= TIER1_EVICT_WEEKS:
                     await checkout_room(db, dict(char_rows[0]))
 
-        await db._db.commit()
+        await db.commit()
     except Exception as e:
         log.warning("[housing] rent tick error: %s", e)
 
@@ -821,6 +838,83 @@ async def get_housing_status_lines(db, char: dict) -> list[str]:
     lines.append("")
     lines.append("  Commands: \033[1;37mhousing storage  housing store <item>  housing retrieve <item>  housing checkout\033[0m")
     return lines
+
+
+async def get_housing_hud_info(db, char: dict, room_id: int) -> Optional[dict]:
+    """Return a JSON-serialisable dict for the web client housing panel.
+
+    Called by session.py when the character is in a housing room.
+    Returns info whether the character owns the room or is a visitor.
+    """
+    from engine.housing import get_housing_for_room
+    h = await get_housing_for_room(db, room_id)
+    if not h:
+        return None
+
+    is_owner = (h.get("char_id") == char.get("id"))
+    tier = h.get("tier", 1)
+    tier_label = _TIER_LABELS.get(tier, f"Tier {tier}")
+    housing_type = h.get("housing_type", "rented_room")
+    storage = _storage(h)
+    trophies = _trophies(h)
+    room_ids = _room_ids(h)
+
+    # Owner name
+    owner_name = "You"
+    if not is_owner:
+        try:
+            rows = await db.fetchall(
+                "SELECT name FROM characters WHERE id = ?", (h["char_id"],)
+            )
+            owner_name = rows[0]["name"] if rows else "Unknown"
+        except Exception:
+            owner_name = "Unknown"
+
+    info: dict = {
+        "is_owner": is_owner,
+        "owner_name": owner_name,
+        "tier": tier,
+        "tier_label": tier_label,
+        "housing_type": housing_type,
+        "rooms": len(room_ids),
+        "storage_used": len(storage),
+        "storage_max": h.get("storage_max", 0),
+        "trophy_count": len(trophies),
+    }
+
+    if is_owner:
+        # Rent / overdue info (not for faction quarters)
+        if housing_type == "faction_quarters":
+            info["rent_label"] = "Free (faction)"
+            info["overdue"] = 0
+        elif tier == 5:
+            # HQ — maintenance from treasury
+            hq_data = {}
+            try:
+                raw = h.get("guest_list", "{}")
+                hq_data = json.loads(raw) if isinstance(raw, str) else raw
+                if isinstance(hq_data, list):
+                    hq_data = {}
+            except Exception as _e:
+                log.debug("silent except in engine/housing.py:881: %s", _e, exc_info=True)
+            info["rent_label"] = f"{h.get('weekly_rent', 0):,}cr/wk"
+            info["overdue"] = hq_data.get("maint_overdue", 0)
+            info["guard_slots"] = hq_data.get("guard_slots", 0)
+        else:
+            rent = h.get("weekly_rent", 0)
+            overdue = h.get("rent_overdue", 0)
+            paid_until = h.get("rent_paid_until", 0)
+            days_left = max(0, int((paid_until - time.time()) / 86400))
+            info["rent_label"] = f"{rent:,}cr/wk"
+            info["overdue"] = overdue
+            info["days_left"] = days_left
+
+        # Guest list count (tiers 3+)
+        if tier >= 3 and housing_type != "org_hq":
+            guests = _guest_list(h)
+            info["guest_count"] = len(guests)
+
+    return info
 
 
 def _lot_label_for_housing(h: dict) -> str:
@@ -901,11 +995,11 @@ async def set_room_description(db, char: dict, housing_id: int,
     room_id = room_ids[0]
 
     await db.update_room(room_id, desc_short=desc, desc_long=desc)
-    await db._db.execute(
+    await db.execute(
         "UPDATE player_housing SET last_activity = ? WHERE id = ?",
         (time.time(), housing_id),
     )
-    await db._db.commit()
+    await db.commit()
     return {"ok": True, "msg": f"Description saved. ({len(desc)}/{DESC_MAX_LEN} characters)"}
 
 
@@ -935,11 +1029,11 @@ async def trophy_mount(db, char: dict, item_key: str) -> dict:
         inv["items"] = items
         trophies.append(match)
         await db.save_character(char_id, inventory=json.dumps(inv))
-        await db._db.execute(
+        await db.execute(
             "UPDATE player_housing SET trophies = ?, last_activity = ? WHERE id = ?",
             (json.dumps(trophies), time.time(), h["id"]),
         )
-        await db._db.commit()
+        await db.commit()
         item_name = match.get("name") or match.get("key") or item_key
         return {"ok": True, "msg": f"Mounted: {item_name} ({len(trophies)}/10 trophy slots used)."}
     except Exception as e:
@@ -970,11 +1064,11 @@ async def trophy_unmount(db, char: dict, item_key: str) -> dict:
         items.append(match)
         inv["items"] = items
         await db.save_character(char_id, inventory=json.dumps(inv))
-        await db._db.execute(
+        await db.execute(
             "UPDATE player_housing SET trophies = ?, last_activity = ? WHERE id = ?",
             (json.dumps(trophies), time.time(), h["id"]),
         )
-        await db._db.commit()
+        await db.commit()
         item_name = match.get("name") or match.get("key") or item_key
         return {"ok": True, "msg": f"Unmounted: {item_name}. Returned to inventory."}
     except Exception as e:
@@ -985,7 +1079,7 @@ async def trophy_unmount(db, char: dict, item_key: str) -> dict:
 async def get_room_housing_display(db, room_id: int) -> Optional[dict]:
     """Return housing display data for a room (used by look command)."""
     try:
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT housing_id FROM rooms WHERE id = ?", (room_id,)
         )
         if not rows or not rows[0]["housing_id"]:
@@ -995,7 +1089,7 @@ async def get_room_housing_display(db, room_id: int) -> Optional[dict]:
         if not h:
             return None
 
-        char_rows = await db._db.execute_fetchall(
+        char_rows = await db.fetchall(
             "SELECT name FROM characters WHERE id = ?", (h["char_id"],)
         )
         owner_name = char_rows[0]["name"] if char_rows else "Unknown"
@@ -1075,11 +1169,11 @@ async def assign_faction_quarters(db, char: dict, faction_code: str,
                     "{name}", char.get("name", "Unknown"))
                 await db.update_room(room_ids[0], name=new_name,
                                      desc_short=new_desc, desc_long=new_desc)
-            await db._db.execute(
+            await db.execute(
                 "UPDATE player_housing SET storage_max = ?, last_activity = ? WHERE id = ?",
                 (tier_cfg["storage_max"], time.time(), existing["id"]),
             )
-            await db._db.commit()
+            await db.commit()
             msg = (f"Quarters upgraded: {tier_cfg['label']}. "
                    f"Storage expanded to {tier_cfg['storage_max']} slots.")
             log.info("[housing] Faction quarters upgraded: char %d, %s rank %d",
@@ -1142,7 +1236,7 @@ async def assign_faction_quarters(db, char: dict, faction_code: str,
     # Mark rebel exits as hidden
     if is_rebel:
         try:
-            await db._db.execute(
+            await db.execute(
                 "UPDATE exits SET hidden_faction = ? WHERE id = ?",
                 ("rebel", exit_in_id),
             )
@@ -1153,7 +1247,7 @@ async def assign_faction_quarters(db, char: dict, faction_code: str,
                                         entry_room.get("name", "Exit"))
 
     now = time.time()
-    cursor = await db._db.execute(
+    cursor = await db.execute(
         """INSERT INTO player_housing
            (char_id, tier, housing_type, entry_room_id, room_ids, storage,
             storage_max, weekly_rent, deposit, rent_paid_until, door_direction,
@@ -1166,17 +1260,17 @@ async def assign_faction_quarters(db, char: dict, faction_code: str,
     )
     housing_id = cursor.lastrowid
 
-    await db._db.execute(
+    await db.execute(
         "UPDATE rooms SET housing_id = ? WHERE id = ?", (housing_id, new_room_id)
     )
 
     # Set as home if none set
     try:
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT home_room_id FROM characters WHERE id = ?", (char_id,)
         )
         if not rows or not rows[0]["home_room_id"]:
-            await db._db.execute(
+            await db.execute(
                 "UPDATE characters SET home_room_id = ? WHERE id = ?",
                 (new_room_id, char_id),
             )
@@ -1184,7 +1278,7 @@ async def assign_faction_quarters(db, char: dict, faction_code: str,
         log.warning("assign_faction_quarters: unhandled exception", exc_info=True)
         pass
 
-    await db._db.commit()
+    await db.commit()
 
     msg = (f"Assigned: {tier_cfg['label']}. "
            f"Storage: {tier_cfg['storage_max']} slots. "
@@ -1247,14 +1341,13 @@ async def is_exit_visible(db, exit_row: dict, char: dict) -> bool:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _guest_list(h: dict) -> list:
-    g = h.get("guest_list", "[]")
-    return json.loads(g) if isinstance(g, str) else (g or [])
+    return _safe_json_loads(h.get("guest_list", "[]"), default=[])
 
 
 async def get_tier3_available_lots(db) -> list[dict]:
     """Return Tier 3 lots with open slots."""
     all_lot_ids = [r for r, *_ in HOUSING_LOTS_TIER3]
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT * FROM housing_lots WHERE current_homes < max_homes ORDER BY planet, id"
     )
     return [dict(r) for r in rows if r["room_id"] in all_lot_ids]
@@ -1285,7 +1378,7 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
         return {"ok": False, "msg": "Invalid lot."}
 
     lot_planet = lot["planet"]
-    existing_on_planet = await db._db.execute_fetchall(
+    existing_on_planet = await db.fetchall(
         "SELECT COUNT(*) as cnt FROM player_housing WHERE char_id = ? AND tier = 3",
         (char_id,),
     )
@@ -1364,7 +1457,7 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
 
     # Create housing record
     now = time.time()
-    cursor = await db._db.execute(
+    cursor = await db.execute(
         """INSERT INTO player_housing
            (char_id, tier, housing_type, entry_room_id, room_ids, storage,
             storage_max, weekly_rent, deposit, purchase_price,
@@ -1381,19 +1474,19 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
 
     # Mark all rooms as housing-owned
     for rid in room_ids:
-        await db._db.execute(
+        await db.execute(
             "UPDATE rooms SET housing_id = ? WHERE id = ?", (housing_id, rid)
         )
 
     # Update lot occupancy
-    await db._db.execute(
+    await db.execute(
         "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
         (lot_id,),
     )
 
     # Set as home
     try:
-        await db._db.execute(
+        await db.execute(
             "UPDATE characters SET home_room_id = ? WHERE id = ?",
             (room_ids[0], char_id),
         )
@@ -1401,7 +1494,7 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
         log.warning("purchase_home: unhandled exception", exc_info=True)
         pass
 
-    await db._db.commit()
+    await db.commit()
 
     log.info("[housing] char %d purchased %s at lot %d (%s), rooms %s",
              char_id, home_type, lot_id, lot["label"], room_ids)
@@ -1439,13 +1532,13 @@ async def sell_home(db, char: dict) -> dict:
 
     # Add refund
     if refund > 0:
-        char_row = await db._db.execute_fetchall(
+        char_row = await db.fetchall(
             "SELECT credits FROM characters WHERE id = ?", (char_id,)
         )
         if char_row:
             new_credits = char_row[0]["credits"] + refund
             await db.save_character(char_id, credits=new_credits)
-            await db._db.commit()
+            await db.commit()
 
     msg = f"Home sold. Refund: {refund:,}cr (50% of purchase price)."
     if "item(s)" in result.get("msg", ""):
@@ -1471,7 +1564,7 @@ async def guest_add(db, char: dict, guest_name: str) -> dict:
         return {"ok": False, "msg": "Guest list is full (10 maximum)."}
 
     # Find the guest character
-    rows = await db._db.execute_fetchall(
+    rows = await db.fetchall(
         "SELECT id, name FROM characters WHERE LOWER(name) = LOWER(?)",
         (guest_name.strip(),),
     )
@@ -1488,11 +1581,11 @@ async def guest_add(db, char: dict, guest_name: str) -> dict:
             return {"ok": False, "msg": f"{guest['name']} is already on your guest list."}
 
     guests.append({"id": guest["id"], "name": guest["name"]})
-    await db._db.execute(
+    await db.execute(
         "UPDATE player_housing SET guest_list = ?, last_activity = ? WHERE id = ?",
         (json.dumps(guests), time.time(), h["id"]),
     )
-    await db._db.commit()
+    await db.commit()
     return {"ok": True, "msg": f"Added {guest['name']} to your guest list."}
 
 
@@ -1512,11 +1605,11 @@ async def guest_remove(db, char: dict, guest_name: str) -> dict:
         return {"ok": False, "msg": f"'{guest_name}' is not on your guest list."}
 
     removed = guests.pop(match_idx)
-    await db._db.execute(
+    await db.execute(
         "UPDATE player_housing SET guest_list = ?, last_activity = ? WHERE id = ?",
         (json.dumps(guests), time.time(), h["id"]),
     )
-    await db._db.commit()
+    await db.commit()
     return {"ok": True, "msg": f"Removed {removed.get('name', guest_name)} from your guest list."}
 
 
@@ -1708,7 +1801,7 @@ async def get_tier4_listing_lines(db, char: dict) -> list[str]:
         "  " + "─" * 72,
     ]
     for room_id, planet, label, security, max_sf in HOUSING_LOTS_TIER4:
-        lot = await db._db.execute_fetchall(
+        lot = await db.fetchall(
             "SELECT current_homes, max_homes FROM housing_lots WHERE room_id = ?",
             (room_id,),
         )
@@ -1769,7 +1862,7 @@ async def purchase_shopfront(db, char: dict, lot_id: int,
 
     lot_planet = lot["planet"]
 
-    existing_t4_planet = await db._db.execute_fetchall(
+    existing_t4_planet = await db.fetchall(
         """SELECT COUNT(*) as cnt FROM player_housing
            WHERE char_id = ? AND tier = 4
            AND entry_room_id IN (
@@ -1781,7 +1874,7 @@ async def purchase_shopfront(db, char: dict, lot_id: int,
         return {"ok": False,
                 "msg": f"You already own a shopfront on {lot_planet.title()} (max {MAX_TIER4_PER_PLANET})."}
 
-    total_t4 = await db._db.execute_fetchall(
+    total_t4 = await db.fetchall(
         "SELECT COUNT(*) as cnt FROM player_housing WHERE char_id = ? AND tier = 4",
         (char_id,),
     )
@@ -1896,7 +1989,7 @@ async def purchase_shopfront(db, char: dict, lot_id: int,
 
     # Create housing record
     now = time.time()
-    cursor = await db._db.execute(
+    cursor = await db.execute(
         """INSERT INTO player_housing
            (char_id, tier, housing_type, entry_room_id, room_ids, storage,
             storage_max, weekly_rent, deposit, purchase_price,
@@ -1913,23 +2006,23 @@ async def purchase_shopfront(db, char: dict, lot_id: int,
 
     # Mark all rooms as housing-owned
     for rid in all_room_ids:
-        await db._db.execute(
+        await db.execute(
             "UPDATE rooms SET housing_id = ? WHERE id = ?", (housing_id, rid)
         )
 
     # Update lot occupancy
-    await db._db.execute(
+    await db.execute(
         "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
         (lot_id,),
     )
 
     # Set as home if they don't have one
     try:
-        char_row = await db._db.execute_fetchall(
+        char_row = await db.fetchall(
             "SELECT home_room_id FROM characters WHERE id = ?", (char_id,)
         )
         if char_row and not char_row[0]["home_room_id"]:
-            await db._db.execute(
+            await db.execute(
                 "UPDATE characters SET home_room_id = ? WHERE id = ?",
                 (private_room_ids[0] if private_room_ids else shop_room_ids[0], char_id),
             )
@@ -1937,7 +2030,7 @@ async def purchase_shopfront(db, char: dict, lot_id: int,
         log.warning("purchase_shopfront: unhandled exception", exc_info=True)
         pass
 
-    await db._db.commit()
+    await db.commit()
 
     log.info("[housing] char %d purchased shopfront '%s' at lot %d (%s), rooms %s",
              char_id, sf_type, lot_id, lot["label"], all_room_ids)
@@ -1970,7 +2063,7 @@ async def sell_shopfront(db, char: dict) -> dict:
         return {"ok": False,
                 "msg": "You don't own a shopfront. Use 'housing sell' for residences."}
 
-    room_ids = json.loads(h["room_ids"]) if isinstance(h["room_ids"], str) else h["room_ids"]
+    room_ids = _safe_json_loads(h["room_ids"], default=[]) or []
 
     # Recall any vendor droids from shop rooms first
     recalled = 0
@@ -1978,7 +2071,7 @@ async def sell_shopfront(db, char: dict) -> dict:
         try:
             droids = await db.get_objects_in_room(rid, "vendor_droid")
             for d in droids:
-                await db._db.execute(
+                await db.execute(
                     "UPDATE objects SET room_id = NULL WHERE id = ?", (d["id"],)
                 )
                 recalled += 1
@@ -1987,7 +2080,7 @@ async def sell_shopfront(db, char: dict) -> dict:
             pass
 
     # Return storage items to character inventory
-    storage = json.loads(h["storage"]) if isinstance(h["storage"], str) else (h["storage"] or [])
+    storage = _safe_json_loads(h["storage"], default=[]) or []
     if storage:
         try:
             inv_raw = char.get("inventory", "{}")
@@ -2008,7 +2101,7 @@ async def sell_shopfront(db, char: dict) -> dict:
     for exit_id in (h.get("exit_id_in"), h.get("exit_id_out")):
         if exit_id:
             try:
-                await db._db.execute("DELETE FROM exits WHERE id = ?", (exit_id,))
+                await db.execute("DELETE FROM exits WHERE id = ?", (exit_id,))
             except Exception:
                 log.warning("sell_shopfront: unhandled exception", exc_info=True)
                 pass
@@ -2016,16 +2109,16 @@ async def sell_shopfront(db, char: dict) -> dict:
     # Remove all housing rooms
     for rid in room_ids:
         try:
-            await db._db.execute("DELETE FROM exits WHERE from_room = ? OR to_room = ?",
+            await db.execute("DELETE FROM exits WHERE from_room = ? OR to_room = ?",
                                   (rid, rid))
-            await db._db.execute("DELETE FROM rooms WHERE id = ?", (rid,))
+            await db.execute("DELETE FROM rooms WHERE id = ?", (rid,))
         except Exception:
             log.warning("sell_shopfront: unhandled exception", exc_info=True)
             pass
 
     # Update lot occupancy
     try:
-        await db._db.execute(
+        await db.execute(
             "UPDATE housing_lots SET current_homes = MAX(0, current_homes - 1) "
             "WHERE room_id = ?",
             (h["entry_room_id"],),
@@ -2035,11 +2128,11 @@ async def sell_shopfront(db, char: dict) -> dict:
         pass
 
     # Delete housing record
-    await db._db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
+    await db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
 
     # Clear home_room_id if it pointed here
     try:
-        await db._db.execute(
+        await db.execute(
             "UPDATE characters SET home_room_id = NULL "
             "WHERE id = ? AND home_room_id IN (%s)" % ",".join("?" * len(room_ids)),
             [char_id] + room_ids,
@@ -2048,7 +2141,7 @@ async def sell_shopfront(db, char: dict) -> dict:
         log.warning("sell_shopfront: unhandled exception", exc_info=True)
         pass
 
-    await db._db.commit()
+    await db.commit()
     log.info("[housing] char %d sold shopfront, refund %dcr, %d droids recalled",
              char_id, refund, recalled)
 
@@ -2064,7 +2157,7 @@ async def get_shopfront_info(db, char: dict) -> Optional[dict]:
     """Return Tier 4 housing record for character, or None."""
     char_id = char["id"]
     try:
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT * FROM player_housing WHERE char_id = ? AND tier = 4",
             (char_id,),
         )
@@ -2090,7 +2183,7 @@ async def get_market_directory(db, planet: Optional[str] = None) -> list[dict]:
             "FROM rooms r "
             "WHERE r.properties LIKE '%is_shopfront%true%'"
         )
-        shop_rooms = await db._db.execute_fetchall(query)
+        shop_rooms = await db.fetchall(query)
 
         for sr in shop_rooms:
             props_raw = sr.get("properties", "{}")
@@ -2103,7 +2196,7 @@ async def get_market_directory(db, planet: Optional[str] = None) -> list[dict]:
 
             # Get planet from lot
             room_id = sr["room_id"]
-            lot_rows = await db._db.execute_fetchall(
+            lot_rows = await db.fetchall(
                 """SELECT hl.planet FROM housing_lots hl
                    JOIN player_housing ph ON ph.entry_room_id = hl.room_id
                    WHERE ? = ANY(
@@ -2113,13 +2206,13 @@ async def get_market_directory(db, planet: Optional[str] = None) -> list[dict]:
             )
             # Fallback: walk up through housing record
             if not lot_rows:
-                ph_rows = await db._db.execute_fetchall(
+                ph_rows = await db.fetchall(
                     "SELECT * FROM player_housing WHERE room_ids LIKE ?",
                     (f"%{room_id}%",),
                 )
                 if ph_rows:
                     entry_room = ph_rows[0]["entry_room_id"]
-                    lot_row2 = await db._db.execute_fetchall(
+                    lot_row2 = await db.fetchall(
                         "SELECT planet FROM housing_lots WHERE room_id = ?",
                         (entry_room,),
                     )
@@ -2238,8 +2331,8 @@ THEFT_STORAGE_DIFFICULTY = 30   # Very Difficult Security+Slicing for storage lo
 async def ensure_intrusion_schema(db) -> None:
     """Create housing_intrusions table if absent. Idempotent."""
     try:
-        await db._db.execute(HOUSING_INTRUSIONS_SQL.strip())
-        await db._db.commit()
+        await db.execute(HOUSING_INTRUSIONS_SQL.strip())
+        await db.commit()
     except Exception as e:
         log.warning("[housing] intrusion schema error: %s", e)
 
@@ -2267,7 +2360,7 @@ async def get_housing_for_private_room(db, room_id: int) -> Optional[dict]:
         if housing_id:
             return await get_housing_by_id(db, housing_id)
         # Fallback: search by room_ids JSON
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT * FROM player_housing WHERE room_ids LIKE ?",
             (f"%{room_id}%",),
         )
@@ -2316,13 +2409,13 @@ async def _log_intrusion(db, housing_id: int, intruder_id: int,
     """Record an intrusion attempt to the housing_intrusions table."""
     try:
         now = time.time()
-        await db._db.execute(
+        await db.execute(
             """INSERT INTO housing_intrusions
                (housing_id, intruder_id, action, success, details, timestamp)
                VALUES (?, ?, ?, ?, ?, ?)""",
             (housing_id, intruder_id, action, 1 if success else 0, details[:200], now),
         )
-        await db._db.commit()
+        await db.commit()
     except Exception as e:
         log.warning("[housing] intrusion log error: %s", e)
 
@@ -2546,7 +2639,7 @@ async def attempt_theft(db, char: dict, room_id: int,
 
     # Success — remove from trophies, give to thief
     trophies.pop(target_idx)
-    await db._db.execute(
+    await db.execute(
         "UPDATE player_housing SET trophies = ?, last_activity = ? WHERE id = ?",
         (json.dumps(trophies), time.time(), h["id"]),
     )
@@ -2558,7 +2651,7 @@ async def attempt_theft(db, char: dict, room_id: int,
         inv = {}
     inv.setdefault("items", []).append(target_trophy)
     await db.update_character(char["id"], inventory=json.dumps(inv))
-    await db._db.commit()
+    await db.commit()
 
     if session_mgr:
         await _notify_owner(db, session_mgr, h,
@@ -2578,7 +2671,7 @@ async def get_intrusion_log(db, char: dict) -> list[str]:
         return ["  You don't have housing."]
 
     try:
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             """SELECT hi.*, c.name as intruder_name
                FROM housing_intrusions hi
                LEFT JOIN characters c ON c.id = hi.intruder_id
@@ -2611,3 +2704,507 @@ async def get_intrusion_log(db, char: dict) -> list[str]:
         lines.append(f"  {ts}  {action_str}  {outcome}  {intruder:<20}  \033[2m{r['details'][:50]}\033[0m")
 
     return lines
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DROP 6: Organization Headquarters (Tier 5)
+# ══════════════════════════════════════════════════════════════════════════════
+"""
+Tier 5 HQs: multi-room complex owned by an organization, purchased from org
+treasury by the leader.  Members can enter freely; non-members are blocked.
+
+Architecture: reuses player_housing table with tier=5, housing_type='org_hq',
+faction_code=<org_code>.  HQ metadata stored in guest_list column (JSON).
+"""
+
+TIER5_TYPES = {
+    "outpost": {
+        "label": "Small Outpost", "total_rooms": 4, "cost": 50_000,
+        "weekly_maint": 500, "storage_max": 100, "guard_slots": 2,
+        "room_plan": [
+            ("entrance", "Entrance Hall"), ("meeting", "Meeting Room"),
+            ("armory", "Armory"), ("barracks", "Barracks"),
+        ],
+    },
+    "chapter_house": {
+        "label": "Chapter House", "total_rooms": 6, "cost": 100_000,
+        "weekly_maint": 1_000, "storage_max": 200, "guard_slots": 4,
+        "room_plan": [
+            ("entrance", "Entrance Hall"), ("meeting", "Meeting Room"),
+            ("armory", "Armory"), ("barracks", "Barracks"),
+            ("comm", "Comm Center"), ("quarters", "Officer Quarters"),
+        ],
+    },
+    "fortress": {
+        "label": "Fortress", "total_rooms": 9, "cost": 150_000,
+        "weekly_maint": 1_500, "storage_max": 400, "guard_slots": 6,
+        "room_plan": [
+            ("entrance", "Entrance Hall"), ("meeting", "War Room"),
+            ("armory", "Armory"), ("barracks", "Barracks"),
+            ("barracks2", "Crew Quarters"), ("comm", "Comm Center"),
+            ("quarters", "Commander's Suite"), ("cell", "Holding Cell"),
+            ("hangar", "Hangar Access"),
+        ],
+    },
+}
+
+HOUSING_LOTS_TIER5 = [
+    (42,  "tatooine",    "Outskirts Compound",     "contested", 2),
+    (47,  "tatooine",    "Abandoned Compound",      "lawless",   1),
+    (61,  "nar_shaddaa", "Corellian Sector Block",  "contested", 2),
+    (69,  "nar_shaddaa", "Undercity Stronghold",    "lawless",   2),
+    (86,  "kessel",      "Station Industrial Ring", "contested", 1),
+    (114, "corellia",    "Old Quarter Compound",    "contested", 2),
+]
+
+_TIER5_ROOM_DESCS = {
+    "empire": {
+        "entrance": ("Imperial Outpost — Entry",
+            "A reinforced blast door opens into a stark, well-lit entry hall. The Imperial "
+            "insignia is painted on the far wall. Security cameras track every corner."),
+        "meeting":  ("Briefing Room",
+            "A circular table with a holographic projector dominates this windowless room. "
+            "Star charts and tactical overlays glow on the walls."),
+        "armory":   ("Imperial Armory",
+            "Racks of blaster rifles in regulation rows. A locked durasteel cage holds "
+            "heavier ordnance. The air smells of weapon lubricant and ozone."),
+        "barracks": ("Garrison Barracks",
+            "Double-stacked bunks in regulation configuration with sealed footlockers. "
+            "Everything is spotlessly clean."),
+        "barracks2":("Personnel Quarters",
+            "Individual sleeping compartments. A shared common area has a holotable "
+            "and beverage dispenser."),
+        "comm":     ("Communications Station",
+            "Banks of encrypted military-band transceivers, a subspace relay, and "
+            "monitoring screens showing local sensor feeds."),
+        "quarters": ("Commander's Quarters",
+            "A spacious private suite. Proper bed, secure holoterminal, weapons rack, "
+            "and viewport. Dual-lock door — code and biometric."),
+        "cell":     ("Detention Block",
+            "A reinforced cell with a ray-shielded door. Metal slab bench. "
+            "Surveillance cameras cover every angle."),
+        "hangar":   ("Vehicle Bay",
+            "A cavernous bay with durasteel floor plating scored by repulsor wash. "
+            "Maintenance gantries line the walls."),
+    },
+    "rebel": {
+        "entrance": ("Rebel Safehouse — Entry",
+            "A concealed entrance into a cramped, dimly-lit foyer. A handwritten sign "
+            "reads 'HOPE.' Someone has added 'and blasters.'"),
+        "meeting":  ("Command Center",
+            "A makeshift war room with a salvaged holotable displaying Alliance-coded "
+            "star maps. Mismatched chairs. The air is thick with caf."),
+        "armory":   ("Supply Cache",
+            "Weapons in crates, wall racks, even a hollowed-out cargo pod. Nothing "
+            "matches, but everything works."),
+        "barracks": ("Rebel Quarters",
+            "Bunks and hammocks wherever space permits. It's cramped, messy, and "
+            "feels like home."),
+        "barracks2":("Crew Bunks",
+            "A secondary sleeping area. Someone hung a Rebel Alliance banner on the "
+            "wall. A repair droid trundles between the bunks."),
+        "comm":     ("Comm Shack",
+            "Jury-rigged from salvaged components. Despite appearances, the "
+            "encryption is military-grade. Cold caf on the console."),
+        "quarters": ("Cell Leader's Room",
+            "The only private room. A cot, datapads, and a locked strongbox. A "
+            "blaster hangs within arm's reach of the pillow."),
+        "cell":     ("Secure Room",
+            "Reinforced room — brig or panic room. Door locks from both sides."),
+        "hangar":   ("Hidden Dock",
+            "Camouflaged landing pad. Room for a small freighter. Fuel drums and "
+            "spare parts fill the corners."),
+    },
+    "hutt": {
+        "entrance": ("Hutt Stronghold — Entry",
+            "An opulent entryway designed to intimidate. Heavy curtains, garish "
+            "trophies, and two guard alcoves flanking the door."),
+        "meeting":  ("Audience Chamber",
+            "A lavish chamber with a raised dais. Plush cushions, hookah pipes, "
+            "and a sunken pit for 'entertainment.' Sound-dampened walls."),
+        "armory":   ("Weapons Vault",
+            "Reinforced vault crammed with weapons. Everything has a price tag — "
+            "the Hutts never give anything away."),
+        "barracks": ("Enforcers' Den",
+            "Rough dormitory for cartel muscle. Bunks with weapon racks underneath. "
+            "A sabacc table occupies the center."),
+        "barracks2":("Crew Quarters",
+            "Actual mattresses and personal lockers. Reserved for trusted operatives."),
+        "comm":     ("Operations Center",
+            "Surprisingly sophisticated. Encrypted channels, slicing terminals, and "
+            "a live feed of local law enforcement comms."),
+        "quarters": ("Boss's Suite",
+            "Obscenely luxurious. Massive bed, private refresher with actual water, "
+            "and a safe the size of a speeder."),
+        "cell":     ("Prisoner Cell",
+            "Bare cell. Chains bolted to the wall. A drain in the floor."),
+        "hangar":   ("Smuggling Bay",
+            "Concealed loading dock with hidden compartments and false walls."),
+    },
+    "default": {
+        "entrance": ("Headquarters — Entry", "The entrance to the headquarters."),
+        "meeting":  ("Meeting Room", "A conference room with a table and holodisplay."),
+        "armory":   ("Armory", "Secure room for weapons and equipment storage."),
+        "barracks": ("Barracks", "Shared sleeping quarters with bunks."),
+        "barracks2":("Crew Quarters", "Additional sleeping quarters for members."),
+        "comm":     ("Communications Room", "Communications equipment and consoles."),
+        "quarters": ("Leader's Quarters", "Private quarters for the leader."),
+        "cell":     ("Holding Room", "A reinforced room with a locking door."),
+        "hangar":   ("Vehicle Storage", "A bay for vehicles and equipment."),
+    },
+}
+
+
+def _get_hq_room_desc(org_code: str, room_key: str) -> tuple[str, str]:
+    """Return (name, description) for an HQ room, themed per faction."""
+    descs = _TIER5_ROOM_DESCS.get(org_code, _TIER5_ROOM_DESCS["default"])
+    entry = descs.get(room_key, _TIER5_ROOM_DESCS["default"].get(room_key))
+    if entry:
+        return entry
+    return (room_key.replace("_", " ").title(), "A room in the headquarters.")
+
+
+async def get_org_hq(db, org_code: str) -> Optional[dict]:
+    """Find the HQ housing record for an organization, or None."""
+    rows = await db.fetchall(
+        "SELECT * FROM player_housing WHERE housing_type = 'org_hq' AND faction_code = ? "
+        "ORDER BY id DESC LIMIT 1", (org_code,))
+    return dict(rows[0]) if rows else None
+
+
+async def purchase_hq(db, char: dict, org_code: str, hq_type: str,
+                       lot_id: int) -> dict:
+    """Purchase a Tier 5 Organization HQ from org treasury."""
+    cfg = TIER5_TYPES.get(hq_type)
+    if not cfg:
+        types_str = ", ".join(f"'{k}' ({v['label']}, {v['cost']:,}cr)"
+                              for k, v in TIER5_TYPES.items())
+        return {"ok": False, "msg": f"Unknown HQ type. Options: {types_str}"}
+
+    org = await db.get_organization(org_code)
+    if not org:
+        return {"ok": False, "msg": f"Organization '{org_code}' not found."}
+    if org.get("leader_id") and org["leader_id"] != char["id"]:
+        return {"ok": False, "msg": "Only the organization leader can purchase an HQ."}
+
+    existing = await get_org_hq(db, org_code)
+    if existing:
+        return {"ok": False, "msg": "Your org already has an HQ. Sell it first."}
+
+    treasury = org.get("treasury", 0)
+    if treasury < cfg["cost"]:
+        return {"ok": False, "msg": (
+            f"{cfg['label']} costs {cfg['cost']:,}cr. Treasury: {treasury:,}cr.")}
+
+    lot = await get_lot(db, lot_id)
+    if not lot:
+        return {"ok": False, "msg": f"Invalid lot ID '{lot_id}'."}
+    if lot["current_homes"] >= lot["max_homes"]:
+        return {"ok": False, "msg": f"{lot['label']} is full."}
+
+    entry_room_id = lot["room_id"]
+    entry_room = await db.get_room(entry_room_id)
+    if not entry_room:
+        return {"ok": False, "msg": "Lot room not found."}
+
+    entry_security = "contested"
+    try:
+        props = json.loads(entry_room.get("properties", "{}") or "{}")
+        entry_security = props.get("security", "contested")
+    except Exception as _e:
+        log.debug("silent except in engine/housing.py:2898: %s", _e, exc_info=True)
+
+    org_name = org.get("name", org_code.title())
+
+    # Create rooms
+    room_ids = []
+    room_plan = cfg["room_plan"]
+    for room_key, _label in room_plan:
+        r_name, r_desc = _get_hq_room_desc(org_code, room_key)
+        room_props = {"security": entry_security, "private": True,
+                      "org_hq": True, "org_code": org_code, "hq_room_type": room_key}
+        if room_key == "armory":
+            room_props["is_armory"] = True
+        rid = await db.create_room(
+            name=f"{org_name} — {r_name}", desc_short=r_desc, desc_long=r_desc,
+            zone_id=None, properties=json.dumps(room_props))
+        room_ids.append(rid)
+
+    # Link: entry → entrance, then hub-and-spoke from entrance
+    door_dir = await _pick_door_direction(db, entry_room_id)
+    exit_in_id = await db.create_exit(
+        entry_room_id, room_ids[0], door_dir, f"{org_name} HQ")
+    exit_out_id = await db.create_exit(
+        room_ids[0], entry_room_id, "out", entry_room.get("name", "Exit"))
+    for i in range(1, len(room_ids)):
+        r_name, _ = _get_hq_room_desc(org_code, room_plan[i][0])
+        inner_dir = _HOUSING_DIRS[i % len(_HOUSING_DIRS)]
+        await db.create_exit(room_ids[0], room_ids[i], inner_dir, r_name)
+        await db.create_exit(room_ids[i], room_ids[0], "out", "Entrance Hall")
+
+    new_treasury = await db.adjust_org_treasury(org["id"], -cfg["cost"])
+
+    now = time.time()
+    hq_meta = json.dumps({"guard_slots": cfg["guard_slots"],
+                           "guard_npcs": [], "maint_overdue": 0})
+    cursor = await db.execute(
+        """INSERT INTO player_housing
+           (char_id, tier, housing_type, entry_room_id, room_ids, storage,
+            storage_max, weekly_rent, deposit, purchase_price,
+            rent_paid_until, door_direction,
+            exit_id_in, exit_id_out, faction_code, guest_list,
+            created_at, last_activity)
+           VALUES (?, 5, 'org_hq', ?, ?, '[]', ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (char["id"], entry_room_id, json.dumps(room_ids), cfg["storage_max"],
+         cfg["weekly_maint"], cfg["cost"],
+         now + RENT_TICK_INTERVAL, door_dir,
+         exit_in_id, exit_out_id, org_code, hq_meta, now, now))
+    housing_id = cursor.lastrowid
+
+    for rid in room_ids:
+        await db.execute("UPDATE rooms SET housing_id = ? WHERE id = ?",
+                             (housing_id, rid))
+    await db.execute(
+        "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
+        (lot_id,))
+    await db.execute(
+        "UPDATE organizations SET hq_room_id = ? WHERE id = ?",
+        (room_ids[0], org["id"]))
+    await db.commit()
+
+    log.info("[housing] org %s purchased %s HQ at lot %d, rooms %s",
+             org_code, hq_type, lot_id, room_ids)
+    return {
+        "ok": True,
+        "msg": (f"Established: {org_name} {cfg['label']} at {lot['label']}! "
+                f"Cost: {cfg['cost']:,}cr (treasury: {new_treasury:,}cr). "
+                f"{cfg['total_rooms']} rooms, {cfg['guard_slots']} guard slots. "
+                f"Enter: {door_dir} from {entry_room.get('name', 'lobby')}."),
+        "housing_id": housing_id, "room_ids": room_ids, "direction": door_dir,
+    }
+
+
+async def sell_hq(db, char: dict, org_code: str) -> dict:
+    """Sell/disband org HQ.  25% refund to treasury.  Leader only."""
+    org = await db.get_organization(org_code)
+    if not org:
+        return {"ok": False, "msg": f"Organization '{org_code}' not found."}
+    if org.get("leader_id") and org["leader_id"] != char["id"]:
+        return {"ok": False, "msg": "Only the leader can sell the HQ."}
+    h = await get_org_hq(db, org_code)
+    if not h:
+        return {"ok": False, "msg": "Your org doesn't have an HQ."}
+
+    # Return storage to armory
+    storage = _storage(h)
+    if storage:
+        try:
+            from engine.territory import _get_armory, _save_armory
+            armory = await _get_armory(db, org_code)
+            armory.extend(storage)
+            await _save_armory(db, org_code, armory)
+        except Exception:
+            log.warning("[housing] HQ sell: armory return failed", exc_info=True)
+
+    # Remove guards + delete rooms
+    room_ids = _room_ids(h)
+    for rid in room_ids:
+        try:
+            from engine.territory import remove_guard_npc
+            await remove_guard_npc(db, org_code, rid, force=True)
+        except Exception as _e:
+            log.debug("silent except in engine/housing.py:2999: %s", _e, exc_info=True)
+        await db.delete_room(rid)
+
+    await db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
+    await db.execute(
+        "UPDATE housing_lots SET current_homes = MAX(0, current_homes - 1) "
+        "WHERE room_id = ?", (h["entry_room_id"],))
+    await db.execute(
+        "UPDATE organizations SET hq_room_id = NULL WHERE id = ?", (org["id"],))
+
+    refund = h.get("purchase_price", 0) // 4
+    new_treasury = await db.adjust_org_treasury(org["id"], refund)
+    await db.commit()
+
+    org_name = org.get("name", org_code.title())
+    log.info("[housing] org %s sold HQ (refund %d)", org_code, refund)
+    return {"ok": True, "msg": (
+        f"{org_name} HQ disbanded. Refund: {refund:,}cr (treasury: {new_treasury:,}cr). "
+        f"Storage returned to faction armory.")}
+
+
+async def can_enter_hq_room(db, char: dict, room_id: int) -> tuple[bool, str]:
+    """Check if a character can enter an org HQ room.  Members enter freely."""
+    room = await db.get_room(room_id)
+    if not room:
+        return True, ""
+    try:
+        props = json.loads(room.get("properties", "{}") or "{}")
+    except Exception:
+        return True, ""
+    if not props.get("org_hq"):
+        return True, ""
+    org_code = props.get("org_code", "")
+    if not org_code:
+        return True, ""
+    org = await db.get_organization(org_code)
+    if not org:
+        return True, ""
+    membership = await db.get_membership(char["id"], org["id"])
+    if membership:
+        return True, ""
+    return False, f"This is {org.get('name', org_code)} territory. Members only."
+
+
+async def get_hq_status_lines(db, org_code: str) -> list[str]:
+    """Format HQ status for 'faction hq' display."""
+    h = await get_org_hq(db, org_code)
+    org = await db.get_organization(org_code)
+    org_name = org.get("name", org_code.title()) if org else org_code.title()
+    B, DIM, CYAN = "\033[1m", "\033[2m", "\033[1;36m"
+    YELLOW, RED, RESET = "\033[1;33m", "\033[1;31m", "\033[0m"
+    w = 60
+
+    if not h:
+        return [
+            f"{CYAN}{'═' * w}{RESET}", f"  {YELLOW}{org_name} — Headquarters{RESET}",
+            f"{CYAN}{'═' * w}{RESET}", f"  {DIM}No headquarters established.{RESET}",
+            f"  {DIM}Use 'faction hq purchase <type> <lot>' to establish one.{RESET}",
+            f"  {DIM}Types: outpost (50Kcr), chapter_house (100Kcr), fortress (150Kcr){RESET}",
+            f"  {DIM}Use 'faction hq locations' to see lots.{RESET}",
+            f"{CYAN}{'═' * w}{RESET}",
+        ]
+
+    hq_data = {}
+    try:
+        raw = h.get("guest_list", "{}")
+        hq_data = json.loads(raw) if isinstance(raw, str) else raw
+        if isinstance(hq_data, list):
+            hq_data = {}
+    except Exception as _e:
+        log.debug("silent except in engine/housing.py:3069: %s", _e, exc_info=True)
+
+    room_ids = _room_ids(h)
+    storage = _storage(h)
+    guard_slots = hq_data.get("guard_slots", 2)
+    maint_overdue = hq_data.get("maint_overdue", 0)
+
+    type_label = "HQ"
+    for _k, v in TIER5_TYPES.items():
+        if v["total_rooms"] == len(room_ids):
+            type_label = v["label"]
+            break
+
+    entry_room = await db.get_room(h["entry_room_id"])
+    entry_name = entry_room.get("name", "Unknown") if entry_room else "Unknown"
+
+    lines = [
+        f"{CYAN}{'═' * w}{RESET}", f"  {YELLOW}{org_name} — {type_label}{RESET}",
+        f"{CYAN}{'─' * w}{RESET}",
+        f"  {B}Location:{RESET}    {entry_name} ({h.get('door_direction', '?')})",
+        f"  {B}Rooms:{RESET}       {len(room_ids)}",
+        f"  {B}Storage:{RESET}     {len(storage)}/{h.get('storage_max', 0)} items",
+        f"  {B}Guards:{RESET}      {guard_slots} slots",
+        f"  {B}Maintenance:{RESET} {h.get('weekly_rent', 0):,}cr/week",
+    ]
+    if maint_overdue >= 4:
+        lines.append(f"  {RED}{B}STATUS: ABANDONED{RESET}")
+    elif maint_overdue >= 2:
+        lines.append(f"  {RED}WARNING: Overdue {maint_overdue} weeks — doors unlocked!{RESET}")
+    elif maint_overdue == 1:
+        lines.append(f"  {YELLOW}Maintenance overdue 1 week{RESET}")
+    else:
+        treasury = org.get("treasury", 0) if org else 0
+        lines.append(f"  {B}Treasury:{RESET}    {treasury:,}cr")
+
+    lines.append(f"{CYAN}{'─' * w}{RESET}")
+    lines.append(f"  {YELLOW}Rooms:{RESET}")
+    for rid in room_ids:
+        rm = await db.get_room(rid)
+        lines.append(f"    {DIM}•{RESET} {rm.get('name', f'Room #{rid}') if rm else f'Room #{rid}'}")
+    lines.append(f"{CYAN}{'═' * w}{RESET}")
+    return lines
+
+
+async def get_tier5_listing_lines(db, org_code: str) -> list[str]:
+    """Show available HQ lots for purchase."""
+    B, DIM, CYAN = "\033[1m", "\033[2m", "\033[1;36m"
+    YELLOW, GREEN, RESET = "\033[1;33m", "\033[1;32m", "\033[0m"
+    lines = [f"{CYAN}{'═' * 60}{RESET}", f"  {YELLOW}Available HQ Locations{RESET}",
+             f"{CYAN}{'─' * 60}{RESET}"]
+    for room_id, planet, label, security, max_hqs in HOUSING_LOTS_TIER5:
+        lot_row = await db.fetchall(
+            "SELECT current_homes FROM housing_lots WHERE room_id = ?", (room_id,))
+        current = lot_row[0]["current_homes"] if lot_row else 0
+        avail = max_hqs - current
+        sec_c = GREEN if security == "secured" else (YELLOW if security == "contested" else "\033[1;31m")
+        lines.append(f"  {B}Lot {room_id}{RESET}  {label}")
+        lines.append(f"    {DIM}{planet.replace('_',' ').title()}{RESET}  "
+                     f"{sec_c}{security.title()}{RESET}  {DIM}({avail}/{max_hqs} avail){RESET}")
+    lines.append(f"{CYAN}{'─' * 60}{RESET}")
+    lines.append(f"  {YELLOW}HQ Types:{RESET}")
+    for key, cfg in TIER5_TYPES.items():
+        lines.append(f"    {B}{key}{RESET}: {cfg['label']} — {cfg['cost']:,}cr, "
+                     f"{cfg['total_rooms']} rooms, {cfg['guard_slots']} guards, "
+                     f"{cfg['weekly_maint']:,}cr/wk")
+    lines.append(f"{CYAN}{'═' * 60}{RESET}")
+    lines.append(f"  {DIM}Usage: faction hq purchase <type> <lot_id>{RESET}")
+    return lines
+
+
+async def tick_hq_maintenance(db, session_mgr) -> None:
+    """Weekly HQ maintenance.  Degradation: 1wk=guards off, 2wk=doors open, 4wk=abandoned."""
+    rows = await db.fetchall(
+        "SELECT * FROM player_housing WHERE housing_type = 'org_hq' AND rent_paid_until < ?",
+        (time.time(),))
+    for row in rows:
+        h = dict(row)
+        org_code = h.get("faction_code", "")
+        if not org_code:
+            continue
+        org = await db.get_organization(org_code)
+        if not org:
+            continue
+        maint_cost = h.get("weekly_rent", 500)
+        treasury = org.get("treasury", 0)
+        hq_data = {}
+        try:
+            raw = h.get("guest_list", "{}")
+            hq_data = json.loads(raw) if isinstance(raw, str) else raw
+            if isinstance(hq_data, list):
+                hq_data = {}
+        except Exception as _e:
+            log.debug("silent except in engine/housing.py:3161: %s", _e, exc_info=True)
+
+        if treasury >= maint_cost:
+            await db.adjust_org_treasury(org["id"], -maint_cost)
+            hq_data["maint_overdue"] = 0
+            await db.execute(
+                "UPDATE player_housing SET rent_paid_until = ?, guest_list = ? WHERE id = ?",
+                (time.time() + RENT_TICK_INTERVAL, json.dumps(hq_data), h["id"]))
+            await db.commit()
+        else:
+            overdue = hq_data.get("maint_overdue", 0) + 1
+            hq_data["maint_overdue"] = overdue
+            await db.execute(
+                "UPDATE player_housing SET rent_paid_until = ?, guest_list = ? WHERE id = ?",
+                (time.time() + RENT_TICK_INTERVAL, json.dumps(hq_data), h["id"]))
+            await db.commit()
+            org_name = org.get("name", org_code.title())
+            if overdue >= 4:
+                log.info("[housing] HQ for %s abandoned (%d wk overdue)", org_code, overdue)
+                try:
+                    await db.execute("UPDATE organizations SET leader_id = ? WHERE id = ?",
+                                         (h["char_id"], org["id"]))
+                    await sell_hq(db, {"id": h["char_id"]}, org_code)
+                except Exception:
+                    log.warning("[housing] HQ abandonment failed: %s", org_code, exc_info=True)
+            elif org.get("leader_id") and session_mgr:
+                sess = session_mgr.find_by_character(org["leader_id"])
+                if sess:
+                    warn = (f"  \033[1;31m[HQ]\033[0m {org_name} HQ overdue {overdue}wk! "
+                            f"Doors unlocked. Fund treasury or lose HQ." if overdue >= 2
+                            else f"  \033[1;33m[HQ]\033[0m {org_name} HQ maintenance overdue. "
+                            f"Guards offline. Cost: {maint_cost:,}cr/wk.")
+                    await sess.send_line(warn)

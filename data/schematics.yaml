@@ -394,3 +394,175 @@ schematics:
     stat_boost: 3
     cargo_weight: 5
     base_cost: 5000
+
+  # ──────────────────────────────────────────────────────────────
+  # SURVIVAL GEAR — Environmental hazard mitigation
+  # Taught by various NPCs; crafted items mitigate specific hazards
+  # when carried in inventory. Checked by engine/hazards.py.
+  # ──────────────────────────────────────────────────────────────
+
+  - key: cooling_unit
+    name: "Personal Cooling Unit"
+    skill_required: droid_repair
+    difficulty: 14
+    trainer_npc: Vek Nurren
+    components:
+      - type: energy
+        quantity: 2
+        min_quality: 30
+      - type: metal
+        quantity: 1
+        min_quality: 25
+    output_type: survival_gear
+    output_key: cooling_unit
+    base_cost: 200
+    max_uses: 0
+
+  - key: breath_mask
+    name: "Breath Mask"
+    skill_required: first_aid
+    difficulty: 12
+    trainer_npc: Vek Nurren
+    components:
+      - type: chemical
+        quantity: 1
+        min_quality: 30
+      - type: composite
+        quantity: 1
+        min_quality: 25
+    output_type: survival_gear
+    output_key: breath_mask
+    base_cost: 150
+    max_uses: 0
+
+  - key: radiation_suit
+    name: "Radiation Shielding Suit"
+    skill_required: armor_repair
+    difficulty: 18
+    trainer_npc: Vek Nurren
+    components:
+      - type: composite
+        quantity: 3
+        min_quality: 45
+      - type: rare
+        quantity: 1
+        min_quality: 40
+    output_type: survival_gear
+    output_key: radiation_suit
+    base_cost: 500
+    max_uses: 10
+
+  - key: anti_theft_alarm
+    name: "Anti-Theft Alarm"
+    skill_required: security
+    difficulty: 14
+    trainer_npc: Vek Nurren
+    components:
+      - type: energy
+        quantity: 2
+        min_quality: 25
+      - type: chemical
+        quantity: 1
+        min_quality: 20
+    output_type: survival_gear
+    output_key: anti_theft_alarm
+    base_cost: 100
+    max_uses: 1
+
+  - key: water_canteen
+    name: "Insulated Water Canteen"
+    skill_required: survival
+    difficulty: 8
+    trainer_npc: Vek Nurren
+    components:
+      - type: metal
+        quantity: 1
+        min_quality: 15
+    output_type: survival_gear
+    output_key: water_canteen
+    base_cost: 50
+    max_uses: 0
+
+  # ──────────────────────────────────────────────────────────────
+  # CRACKEN'S REBEL FIELD GUIDE (WEG40046) — Session 24
+  # ──────────────────────────────────────────────────────────────
+
+  - key: medpac_fastflesh
+    name: "FastFlesh Medpac"
+    skill_required: first_aid
+    difficulty: 18
+    trainer_npc: Doc Vashar
+    components:
+      - type: chemical
+        quantity: 3
+        min_quality: 50
+      - type: organic
+        quantity: 2
+        min_quality: 45
+    output_type: consumable
+    output_key: medpac_fastflesh
+    base_cost: 500
+
+  - key: comlink_bug
+    name: "Comlink Bug"
+    skill_required: security
+    difficulty: 8
+    trainer_npc: Kayson
+    components:
+      - type: energy
+        quantity: 1
+        min_quality: 20
+      - type: composite
+        quantity: 1
+        min_quality: 15
+    output_type: equipment
+    output_key: comlink_bug
+    base_cost: 50
+
+  - key: lockpick_simple
+    name: "Simple Lock Picker"
+    skill_required: security
+    difficulty: 12
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 1
+        min_quality: 25
+      - type: energy
+        quantity: 1
+        min_quality: 20
+    output_type: equipment
+    output_key: lockpick_simple
+    base_cost: 75
+
+  - key: lectroticker
+    name: "Lectroticker"
+    skill_required: security
+    difficulty: 16
+    trainer_npc: Kayson
+    components:
+      - type: composite
+        quantity: 2
+        min_quality: 40
+      - type: energy
+        quantity: 1
+        min_quality: 35
+    output_type: equipment
+    output_key: lectroticker
+    base_cost: 200
+
+  - key: tracker_basic
+    name: "MechBlaze Tracking Observer"
+    skill_required: security
+    difficulty: 10
+    trainer_npc: Kayson
+    components:
+      - type: energy
+        quantity: 1
+        min_quality: 25
+      - type: composite
+        quantity: 1
+        min_quality: 20
+    output_type: equipment
+    output_key: tracker_basic
+    base_cost: 500

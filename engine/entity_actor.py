@@ -369,8 +369,8 @@ class ActorRegistry:
                     self.remove(eid)
                     log.debug("Reaped idle actor for entity %d", eid)
 
-        except asyncio.CancelledError:
-            pass
+        except asyncio.CancelledError as _e:
+            log.debug("silent except in engine/entity_actor.py:372: %s", _e, exc_info=True)
 
     def get_status(self) -> list[dict]:
         """Get status of all actors for debugging."""

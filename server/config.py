@@ -32,6 +32,7 @@ class Config:
     tick_interval: float = 1.0  # seconds per game tick
     idle_timeout: int = 3600  # disconnect after 1 hour idle
     max_sessions_per_account: int = 1
+    max_characters_per_account: int = 3
 
     # ── Display ──
     default_terminal_width: int = 80
@@ -68,6 +69,9 @@ class Config:
         "  \033[92mconnect\033[0m \033[2m<username> <password>\033[0m   \033[2m— Log in to an existing account\033[0m\r\n"
         "  \033[92mcreate\033[0m  \033[2m<username> <password>\033[0m   \033[2m— Register a new account\033[0m\r\n"
         "  \033[92mquit\033[0m                          \033[2m— Disconnect\033[0m\r\n"
+        "\r\n"
+        "\033[2m  New? Try the visual character creator:\033[0m \033[4m\033[96m/chargen\033[0m\r\n"
+        "\033[2m  Browse the portal:\033[0m \033[4m\033[96mhttp://localhost:8080/\033[0m\r\n"
         "\r\n"
         "\033[36m  ───────────────────────────────────────────────────────────\033[0m\r\n"
         "\r\n"

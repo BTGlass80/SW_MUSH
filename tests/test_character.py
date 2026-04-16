@@ -170,10 +170,10 @@ class TestWoundLevel:
         c.apply_wound(2)  # Stun 1
         c.apply_wound(2)  # Stun 2
         assert c.wound_level == WoundLevel.STUNNED
-        assert c.stun_count == 2
+        assert c.active_stun_count == 2
         c.apply_wound(2)  # Stun 3 = STR dice -> unconscious (Incapacitated)
         assert c.wound_level == WoundLevel.INCAPACITATED
-        assert c.stun_count == 3
+        assert c.active_stun_count == 3
 
     def test_escalating_wound(self):
         c = Character(name="Test")

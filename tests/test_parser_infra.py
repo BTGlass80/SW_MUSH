@@ -100,6 +100,7 @@ def make_session():
     s.is_in_game = False
     s.character = None
     s.account = None
+    s._input_intercept = None
     return s
 
 

@@ -29,7 +29,7 @@ async def process_all_debts(db, session_mgr):
     """
     try:
         # Get all active characters
-        rows = await db._db.execute_fetchall(
+        rows = await db.fetchall(
             "SELECT id, credits, attributes FROM characters WHERE is_active = 1"
         )
     except Exception:

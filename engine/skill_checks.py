@@ -96,6 +96,20 @@ def perform_skill_check(
 
     # Parse character's skill pool
     dice, pips = _get_skill_pool(char, skill_name, skill_registry)
+
+    # Apply buff/debuff modifiers (in pips)
+    try:
+        from engine.buffs import get_buff_modifier
+        attr_name = _skill_to_attr(skill_name, skill_registry)
+        buff_pips = get_buff_modifier(char, attr_name)
+        if buff_pips:
+            total_pips = dice * 3 + pips + buff_pips
+            total_pips = max(3, total_pips)  # Floor: 1D minimum
+            dice = total_pips // 3
+            pips = total_pips % 3
+    except Exception:
+        pass  # Non-critical — roll without buff adjustment
+
     pool = DicePool(dice, pips)
     pool_str = str(pool)
 

@@ -11,13 +11,22 @@ Design decisions:
   - Consumables are placed directly in the character's equipped/carrying items via items.py.
 
 Resource types: metal, chemical, organic, energy, composite, rare
+
+Experimentation (Cracken's Jury-Rigging, Session 24):
+  After crafting, the player can 'experiment' on their *equipped* weapon to tune
+  a stat axis (damage, accuracy, durability). Each experiment adds a breakdown die
+  that is rolled on every combat use — risk of malfunction. Designed from WEG40046.
 """
 
 import os
 import json
 import math
+import random
+import logging
 import yaml
 from typing import Optional
+
+log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -47,6 +56,263 @@ STACK_MERGE_TOLERANCE = 5.0    # quality points within which stacks merge
 SCHEMATICS_YAML = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "data", "schematics.yaml"
 )
+
+# ---------------------------------------------------------------------------
+# Experimentation Parameters (Cracken's Jury-Rigging — WEG40046)
+# ---------------------------------------------------------------------------
+#
+# Per-category defaults. Individual schematics can override in their YAML
+# via an `experiment_params` block.
+#
+# Difficulty formula:  schematic.difficulty + 5 + (escalation × prior_experiments)
+# Cracken's canon: +1D = Moderate(15), +2D = Difficult(20), +3D = Very Difficult(25)
+#                  → that's a +5 step per tier, hence escalation = 5.
+#
+# breakdown_type maps to Cracken's 4 categories:
+#   "lethal"     — weapons  (1: explode, 2: break, 3: jam, 4-6: fine)
+#   "non_lethal" — equipment (1: break, 2: jam, 3-6: fine)
+#   "vehicle"    — ship parts (1: shutdown, 2: degrade, 3-6: fine)
+#   "no_dice"    — special devices (duration-limited)
+
+DEFAULT_EXPERIMENT_PARAMS = {
+    "weapon": {
+        "axes": [
+            {
+                "axis": "damage",
+                "label": "Galven Pattern Upgrade",
+                "description": "Increases weapon damage output",
+                "boost_per_margin": 0.5,
+                "tradeoff_axis": "durability",
+                "tradeoff_ratio": 0.3,
+            },
+            {
+                "axis": "accuracy",
+                "label": "Beam Calibration",
+                "description": "Improves accuracy at the cost of damage",
+                "boost_per_margin": 0.4,
+                "tradeoff_axis": "damage",
+                "tradeoff_ratio": 0.2,
+            },
+            {
+                "axis": "durability",
+                "label": "Reinforced Housing",
+                "description": "Strengthens the weapon frame (no tradeoff)",
+                "boost_per_margin": 0.6,
+                "tradeoff_axis": None,
+                "tradeoff_ratio": 0.0,
+            },
+        ],
+        "max_experiments": 3,
+        "difficulty_escalation": 5,
+        "breakdown_type": "lethal",
+        "skill_override": None,   # uses schematic skill_required
+    },
+    "component": {
+        "axes": [
+            {
+                "axis": "power",
+                "label": "Power Routing",
+                "description": "Increases component output, adds weight",
+                "boost_per_margin": 0.3,
+                "tradeoff_axis": "weight",
+                "tradeoff_ratio": 0.4,
+            },
+            {
+                "axis": "weight",
+                "label": "Mass Reduction",
+                "description": "Lighter component, less reliable",
+                "boost_per_margin": 0.4,
+                "tradeoff_axis": "reliability",
+                "tradeoff_ratio": 0.3,
+            },
+            {
+                "axis": "reliability",
+                "label": "Stress Testing",
+                "description": "More reliable component (no tradeoff)",
+                "boost_per_margin": 0.5,
+                "tradeoff_axis": None,
+                "tradeoff_ratio": 0.0,
+            },
+        ],
+        "max_experiments": 2,
+        "difficulty_escalation": 5,
+        "breakdown_type": "vehicle",
+        "skill_override": None,
+    },
+    "consumable": {
+        "axes": [
+            {
+                "axis": "potency",
+                "label": "Concentrated Formula",
+                "description": "More potent but fewer uses",
+                "boost_per_margin": 0.6,
+                "tradeoff_axis": "yield",
+                "tradeoff_ratio": 0.5,
+            },
+            {
+                "axis": "yield",
+                "label": "Extended Batch",
+                "description": "More uses but weaker effect",
+                "boost_per_margin": 0.4,
+                "tradeoff_axis": "potency",
+                "tradeoff_ratio": 0.3,
+            },
+        ],
+        "max_experiments": 2,
+        "difficulty_escalation": 3,
+        "breakdown_type": "non_lethal",
+        "skill_override": None,
+    },
+    "survival_gear": {
+        "axes": [
+            {
+                "axis": "effectiveness",
+                "label": "Enhanced Protection",
+                "description": "Better hazard mitigation (no tradeoff)",
+                "boost_per_margin": 0.5,
+                "tradeoff_axis": None,
+                "tradeoff_ratio": 0.0,
+            },
+        ],
+        "max_experiments": 1,
+        "difficulty_escalation": 4,
+        "breakdown_type": "non_lethal",
+        "skill_override": None,
+    },
+}
+
+
+def get_experiment_params(schematic: dict) -> dict:
+    """
+    Return experiment parameters for a schematic.
+    Uses schematic-level override if present, else category defaults.
+    """
+    # Check for schematic-level override first
+    override = schematic.get("experiment_params")
+    if override:
+        return override
+    # Fall back to category defaults by output_type
+    output_type = schematic.get("output_type", "weapon")
+    params = DEFAULT_EXPERIMENT_PARAMS.get(output_type)
+    if params:
+        return params
+    # Ultimate fallback: weapon defaults
+    return DEFAULT_EXPERIMENT_PARAMS["weapon"]
+
+
+def get_experiment_axes(schematic: dict) -> list:
+    """Return the list of axis dicts available for a schematic."""
+    params = get_experiment_params(schematic)
+    return params.get("axes", [])
+
+
+def get_max_experiments(schematic: dict) -> int:
+    """Return max experiment count for a schematic."""
+    params = get_experiment_params(schematic)
+    return params.get("max_experiments", 3)
+
+
+def get_experiment_difficulty(schematic: dict, prior_count: int) -> int:
+    """
+    Calculate experiment difficulty.
+    Formula: schematic.difficulty + 5 + (escalation × prior_experiments)
+    """
+    params = get_experiment_params(schematic)
+    base = schematic.get("difficulty", 10)
+    escalation = params.get("difficulty_escalation", 5)
+    return base + 5 + (escalation * prior_count)
+
+
+def resolve_experiment_result(
+    margin: int,
+    axis_def: dict,
+    is_critical: bool = False,
+) -> dict:
+    """
+    Calculate the boost and tradeoff from a successful experiment.
+
+    Returns:
+        {
+            "axis": str, "boost": float,
+            "tradeoff": {axis: amount} or None,
+            "label": str
+        }
+    """
+    boost_rate = axis_def.get("boost_per_margin", 0.5)
+    boost = boost_rate * max(1, margin)
+    if is_critical:
+        boost *= 2.0
+
+    tradeoff = None
+    tradeoff_axis = axis_def.get("tradeoff_axis")
+    if tradeoff_axis and not is_critical:
+        tradeoff_ratio = axis_def.get("tradeoff_ratio", 0.3)
+        tradeoff = {tradeoff_axis: round(-boost * tradeoff_ratio, 2)}
+
+    return {
+        "axis": axis_def["axis"],
+        "boost": round(boost, 2),
+        "tradeoff": tradeoff,
+        "label": axis_def.get("label", axis_def["axis"]),
+    }
+
+
+def resolve_experiment_failure(margin: int, breakdown_type: str) -> str:
+    """
+    Determine what happens on a failed experiment.
+
+    Args:
+        margin: negative margin (how badly the check was failed)
+        breakdown_type: "lethal", "non_lethal", "vehicle", "no_dice"
+
+    Returns one of:
+        "quality_loss"        — item quality degrades (regular failure)
+        "fine"                — fumble but got lucky on breakdown table
+        "jammed"              — item loses 25% max_condition
+        "broken"              — item destroyed, no damage to crafter
+        "exploded"            — item destroyed + stun damage to crafter
+        "system_shutdown"     — component disabled (vehicle type)
+        "degraded"            — component stat reduced (vehicle type)
+    """
+    # Regular failure (not a fumble): just quality loss
+    if margin > -5:
+        return "quality_loss"
+
+    # Fumble territory (margin <= -5): roll on breakdown table
+    roll = random.randint(1, 6)
+
+    if breakdown_type == "lethal":
+        if roll == 1:
+            return "exploded"
+        elif roll == 2:
+            return "broken"
+        elif roll == 3:
+            return "jammed"
+        else:
+            return "fine"
+
+    elif breakdown_type == "non_lethal":
+        if roll == 1:
+            return "broken"
+        elif roll == 2:
+            return "jammed"
+        else:
+            return "fine"
+
+    elif breakdown_type == "vehicle":
+        if roll == 1:
+            return "system_shutdown"
+        elif roll == 2:
+            return "degraded"
+        else:
+            return "fine"
+
+    else:
+        # no_dice or unknown: non-lethal fallback
+        if roll <= 2:
+            return "jammed"
+        return "fine"
+
 
 # ---------------------------------------------------------------------------
 # Schematic loading (cached singleton)
@@ -452,18 +718,36 @@ _CITY_ZONE_KEYWORDS    = {"eisley", "market", "cantina", "docking", "district", 
                           "spaceport", "commercial", "civic", "residential"}
 
 
-def get_survey_resources(zone_name: str) -> list[str]:
+def get_survey_resources(zone_name: str, quality: float = 50.0) -> list[dict]:
     """
-    Return the list of resource types a character can find by surveying in a zone.
+    Return a list of resource dicts a character finds by surveying in a zone.
+
+    Each dict: {"type": str, "amount": int, "quality": float}
+    Outdoor zones yield metal + organic; city zones yield chemical + energy.
+    Amount scales with quality: higher quality → more resources.
     """
+    import random
     lz = zone_name.lower()
     if any(kw in lz for kw in _OUTDOOR_ZONE_KEYWORDS):
-        return ["metal", "organic"]
-    # Default: city/indoor
-    return ["chemical", "energy"]
+        types = ["metal", "organic"]
+    else:
+        types = ["chemical", "energy"]
+
+    results = []
+    for rtype in types:
+        # Base 1-3 units, +1 per 25 quality above 30
+        base_amount = random.randint(1, 3)
+        quality_bonus = max(0, int((quality - 30) / 25))
+        amount = base_amount + quality_bonus
+        results.append({
+            "type": rtype,
+            "amount": amount,
+            "quality": round(quality, 1),
+        })
+    return results
 
 
-def survey_quality_from_margin(margin: int, is_outdoor: bool) -> float:
+def survey_quality_from_margin(margin: int, is_outdoor: bool = False) -> float:
     """
     Map skill check margin to survey quality.
       Outdoor (Search): base 60–90
