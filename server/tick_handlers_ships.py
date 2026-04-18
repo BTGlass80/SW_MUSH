@@ -274,7 +274,7 @@ async def hyperspace_arrival_tick(ctx: TickContext) -> None:
                 if sess.character:
                     await on_hyperspace_complete(ctx.db, sess.character["id"], session=sess)
         except Exception:
-            pass
+            log.warning("hyperspace arrival achievement hook failed", exc_info=True)
 
         # Patrol-on-arrival check for smuggling runs
         try:
@@ -302,7 +302,7 @@ async def space_anomaly_tick(ctx: TickContext) -> None:
 
     Ported from the inline block in _game_tick_loop (review fix v2).
     """
-    from engine.npc_space_traffic import ZONES
+    from engine.npc_space_traffic import ZONES, get_space_security
     from engine.space_anomalies import spawn_anomalies_for_zone, tick_anomaly_expiry
 
     active_zones: set[str] = set()
@@ -321,4 +321,94 @@ async def space_anomaly_tick(ctx: TickContext) -> None:
         tick_anomaly_expiry(zone_id)
         zone = ZONES.get(zone_id)
         if zone:
-            spawn_anomalies_for_zone(zone_id, zone.type.value)
+            spawn_anomalies_for_zone(zone_id, zone.type.value,
+                                     security=get_space_security(zone_id))
+
+
+async def texture_encounter_tick(ctx: TickContext) -> None:
+    """Randomly trigger texture encounters for ships in transit.
+
+    Runs every tick (~1s). For each player ship mid-transit (sublight or
+    hyperspace), roll a small chance to spawn a mechanical, cargo, or
+    contact encounter. Frequency scales with zone security (lawless = more
+    encounters, secured = fewer).
+
+    Space Overhaul v3 — texture auto-trigger (session 38).
+    """
+    from engine.space_encounters import get_encounter_manager
+    from engine.npc_space_traffic import get_space_security
+
+    # Base chance per tick: 0.8% (~1 event per 2 min of transit)
+    BASE_CHANCE = 0.008
+    SECURITY_MULT = {
+        "secured": 0.3,    # Very rare in secured space
+        "contested": 1.0,  # Normal
+        "lawless": 1.6,    # More frequent in lawless
+    }
+    TEXTURE_TYPES = ["mechanical", "cargo", "contact"]
+    TEXTURE_WEIGHTS = [40, 30, 30]  # mechanical most common
+
+    for ship in ctx.ships_in_space:
+        if ship.get("docked_at"):
+            continue
+        sys = _safe_json_loads(ship.get("systems"), default={}) or {}
+
+        # Only trigger during active transit (sublight or hyperspace)
+        in_transit = sys.get("sublight_transit") or sys.get("in_hyperspace")
+        if not in_transit:
+            continue
+
+        zone_id = sys.get("current_zone", "")
+        if not zone_id:
+            continue
+
+        bridge = ship.get("bridge_room_id")
+        if not bridge:
+            continue
+
+        # Must have a player aboard
+        sessions = list(ctx.session_mgr.sessions_in_room(bridge) or [])
+        if not any(getattr(s, "character", None) for s in sessions):
+            continue
+
+        # Scale by zone security
+        security = get_space_security(zone_id)
+        chance = BASE_CHANCE * SECURITY_MULT.get(security, 1.0)
+
+        if random.random() > chance:
+            continue
+
+        # Pick encounter type
+        enc_type = random.choices(TEXTURE_TYPES, weights=TEXTURE_WEIGHTS, k=1)[0]
+
+        try:
+            mgr = get_encounter_manager()
+            await mgr.create_encounter(
+                encounter_type=enc_type,
+                zone_id=zone_id,
+                target_ship_id=ship["id"],
+                target_bridge_room=bridge,
+                db=ctx.db,
+                session_mgr=ctx.session_mgr,
+                context={"trigger": "transit_random"},
+            )
+        except Exception:
+            log.warning("texture_encounter_tick: spawn failed", exc_info=True)
+
+
+async def encounter_tick(ctx: TickContext) -> None:
+    """Tick active space encounters and NPC combat AI.
+
+    Runs every tick (~1s). Handles:
+      1. Encounter deadline checks and warnings (Drop 1)
+      2. NPC combat AI action loop (Drop 3)
+
+    Space Overhaul v3, Drops 1+3.
+    """
+    from engine.space_encounters import get_encounter_manager
+    mgr = get_encounter_manager()
+    await mgr.tick(ctx.db, ctx.session_mgr)
+
+    # NPC combat AI tick (Drop 3)
+    from engine.npc_space_combat_ai import get_npc_combat_manager
+    await get_npc_combat_manager().tick(ctx.db, ctx.session_mgr)

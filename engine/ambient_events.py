@@ -287,6 +287,14 @@ class AmbientEventManager:
                 if line:
                     formatted = f"\n{AMBIENT_COLOR}  {line}{AMBIENT_RESET}"
                     await session_mgr.broadcast_to_room(room_id, formatted)
+                    # Field Kit: structured ambient event renders as dimmed
+                    # italic desc-inline row (not attributed to any character)
+                    try:
+                        await session_mgr.broadcast_pose_event(
+                            room_id, "desc-inline", "", line,
+                        )
+                    except Exception:
+                        log.debug("[ambient] pose_event send failed", exc_info=True)
             except Exception:
                 log.debug("[ambient] Error firing ambient for room %d", room_id,
                           exc_info=True)

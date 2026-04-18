@@ -121,6 +121,16 @@ class ChannelManager:
             if sess.character:
                 await sess.send_line(line)
                 await sess.send_json("chat", {"channel": "ooc", "from": sender_name, "text": message})
+                # Field Kit typed pose event — renders with OOC row styling
+                try:
+                    await sess.send_json("pose_event", {
+                        "event_type": "ooc",
+                        "who": sender_name,
+                        "text": message,
+                        "channel": "global",
+                    })
+                except Exception:
+                    log.debug("broadcast_ooc pose_event send failed", exc_info=True)
                 count += 1
         log.debug("[ooc] %s: %s  (%d recipients)", sender_name, message[:60], count)
         return count
@@ -140,6 +150,16 @@ class ChannelManager:
             if sess.character:
                 await sess.send_line(line)
                 await sess.send_json("chat", {"channel": "ic", "from": sender_name, "text": f"[COMLINK] {message}"})
+                # Field Kit: comm-in row (amber treatment in cockpit mode)
+                try:
+                    await sess.send_json("pose_event", {
+                        "event_type": "comm-in",
+                        "who": sender_name,
+                        "text": message,
+                        "channel": "comlink",
+                    })
+                except Exception:
+                    log.debug("broadcast_comlink pose_event send failed", exc_info=True)
                 count += 1
         log.debug("[comlink] %s: %s  (%d recipients)", sender_name, message[:60], count)
         # ── Comlink intercept delivery (Tier 3 Feature #19) ──
@@ -166,6 +186,16 @@ class ChannelManager:
             char = sess.character
             if char and get_faction(char) == faction:
                 await sess.send_line(line)
+                # Field Kit: comm-in row with faction channel label
+                try:
+                    await sess.send_json("pose_event", {
+                        "event_type": "comm-in",
+                        "who": sender_name,
+                        "text": message,
+                        "channel": faction,
+                    })
+                except Exception:
+                    log.debug("broadcast_fcomm pose_event send failed", exc_info=True)
                 count += 1
         log.debug(
             "[fcomm/%s] %s: %s  (%d recipients)",
@@ -223,6 +253,16 @@ class ChannelManager:
             char = sess.character
             if char and self.is_tuned(char["id"], freq):
                 await sess.send_line(line)
+                # Field Kit: comm-in row labelled with the frequency number
+                try:
+                    await sess.send_json("pose_event", {
+                        "event_type": "comm-in",
+                        "who": sender_name,
+                        "text": message,
+                        "channel": str(freq),
+                    })
+                except Exception:
+                    log.debug("broadcast_freq pose_event send failed", exc_info=True)
                 count += 1
         log.debug(
             "[freq %d] %s: %s  (%d recipients)", freq, sender_name, message[:60], count

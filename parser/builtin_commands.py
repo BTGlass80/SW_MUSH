@@ -664,11 +664,21 @@ class MoveCommand(BaseCommand):
             _osucc = _osucc.replace("%N", char["name"])
             await ctx.session_mgr.broadcast_to_room(
                 old_room_id, f"  {_osucc}", exclude=session)
+            depart_text = _osucc
         else:
             await ctx.session_mgr.broadcast_to_room(
                 old_room_id,
                 f"{ansi.player_name(char['name'])} leaves {direction}.",
                 exclude=session)
+            depart_text = f"{char['name']} leaves {direction}."
+        # Structured pose_event for Field Kit client
+        try:
+            await ctx.session_mgr.broadcast_pose_event(
+                old_room_id, "sys-arrival", char["name"], depart_text,
+                exclude=session,
+            )
+        except Exception as _e:
+            log.debug("silent except in _broadcast_departure pose_event: %s", _e, exc_info=True)
 
     async def _broadcast_arrival(self, ctx, session, char, new_room_id, lock_d):
         """Broadcast arrival message to the new room."""
@@ -677,11 +687,21 @@ class MoveCommand(BaseCommand):
             _odrop = _odrop.replace("%N", char["name"])
             await ctx.session_mgr.broadcast_to_room(
                 new_room_id, f"  {_odrop}", exclude=session)
+            arrive_text = _odrop
         else:
             await ctx.session_mgr.broadcast_to_room(
                 new_room_id,
                 f"{ansi.player_name(char['name'])} arrives.",
                 exclude=session)
+            arrive_text = f"{char['name']} arrives."
+        # Structured pose_event for Field Kit client
+        try:
+            await ctx.session_mgr.broadcast_pose_event(
+                new_room_id, "sys-arrival", char["name"], arrive_text,
+                exclude=session,
+            )
+        except Exception as _e:
+            log.debug("silent except in _broadcast_arrival pose_event: %s", _e, exc_info=True)
 
     async def _fire_room_hook(self, ctx, session, char, room_id, hook_name):
         """Fire ALEAVE/AENTER room hook."""
@@ -885,6 +905,13 @@ class SayCommand(BaseCommand):
             full_text,
             exclude=ctx.session,
         )
+        # Structured pose_event for Field Kit client
+        try:
+            await ctx.session_mgr.broadcast_pose_event(
+                room_id, "say", char["name"], ctx.args, mode="says",
+            )
+        except Exception as _e:
+            log.debug("silent except in SayCommand pose_event: %s", _e, exc_info=True)
         # Chat tag for WebSocket comms panel
         await ctx.session_mgr.broadcast_chat(
             "ic", char["name"], ctx.args,
@@ -959,6 +986,23 @@ class WhisperCommand(BaseCommand):
             f'{char_name} whispers to you, "{message}"'
         )
 
+        # Structured pose_event for Field Kit client — only sent to the two
+        # participants (we use per-session send_json rather than room-wide
+        # broadcast to preserve the private nature of the whisper)
+        try:
+            speaker_name = ctx.session.character["name"]
+            payload = {
+                "event_type": "whisper",
+                "who": speaker_name,
+                "text": message,
+                "mode": "whispers",
+                "to": target_session.character["name"],
+            }
+            await ctx.session.send_json("pose_event", payload)
+            await target_session.send_json("pose_event", payload)
+        except Exception as _e:
+            log.debug("silent except in WhisperCommand pose_event: %s", _e, exc_info=True)
+
 
 class EmoteCommand(BaseCommand):
     key = "emote"
@@ -988,6 +1032,14 @@ class EmoteCommand(BaseCommand):
         room_id = char["room_id"]
         for s in ctx.session_mgr.sessions_in_room(room_id):
             await s.send_line(text)
+
+        # Structured pose_event for Field Kit client
+        try:
+            await ctx.session_mgr.broadcast_pose_event(
+                room_id, "pose", char["name"], ctx.args, mode="poses",
+            )
+        except Exception as _e:
+            log.debug("silent except in EmoteCommand pose_event: %s", _e, exc_info=True)
 
         # Scene logging hook
         from engine.scenes import get_active_scene_id, capture_pose
@@ -1348,7 +1400,30 @@ class HelpCommand(BaseCommand):
         await ctx.session.send_line("")
 
     async def _render_entry(self, ctx, entry):
-        """Render a single HelpEntry with ANSI formatting."""
+        """Render a single HelpEntry with ANSI formatting.
+
+        Layout:
+          ═══════════════════════════════════════════════════════
+            Title                                      [Category]
+          ═══════════════════════════════════════════════════════
+
+            Summary sentence (dim, if present).
+
+            Body paragraphs go here, unchanged from whatever the
+            markdown file (or the auto-registered command) wrote.
+
+            EXAMPLES
+              attack greedo         Target Greedo and fire.
+              dodge                 Declare a reactive dodge.
+
+            SEE ALSO: combat, ranged, wounds
+          ═══════════════════════════════════════════════════════
+
+        The ``summary`` and ``examples`` blocks are only emitted when
+        the corresponding fields are populated — older auto-registered
+        entries with empty ``summary``/``examples`` render exactly as
+        they did before.
+        """
         send = ctx.session.send_line
         w = 70  # display width
 
@@ -1367,9 +1442,41 @@ class HelpCommand(BaseCommand):
         await send(ansi.header("═" * w))
         await send("")
 
-        # Body text — send line by line
+        # Summary (new) — shown dimmed between title and body, only if
+        # the entry has one and the body doesn't already open with the
+        # same sentence. The migration's auto-derived summaries are
+        # often the first sentence of the body, so we suppress the
+        # duplicate.
+        summary = getattr(entry, "summary", "") or ""
+        if summary:
+            body_start = entry.body.lstrip().split("\n", 1)[0].strip()
+            if not body_start.startswith(summary):
+                await send(f"  {ansi.DIM}{summary}{ansi.RESET}")
+                await send("")
+
+        # Body text — send line by line. Markdown constructs like
+        # `**bold**` and `# Heading` degrade gracefully here to plain
+        # text; players still get a usable readout.
         for line in entry.body.split("\n"):
             await send(f"  {line}")
+
+        # Examples (new)
+        examples = getattr(entry, "examples", None) or []
+        if examples:
+            await send("")
+            await send(f"  {ansi.DIM}EXAMPLES{ansi.RESET}")
+            for ex in examples:
+                cmd = ex.get("cmd", "") if isinstance(ex, dict) else ""
+                desc = ex.get("description", "") if isinstance(ex, dict) else ""
+                if not cmd:
+                    continue
+                if desc:
+                    await send(
+                        f"    {ansi.BRIGHT_CYAN}{cmd:20s}{ansi.RESET} "
+                        f"{ansi.DIM}{desc}{ansi.RESET}"
+                    )
+                else:
+                    await send(f"    {ansi.BRIGHT_CYAN}{cmd}{ansi.RESET}")
 
         # See also
         if entry.see_also:
@@ -1572,6 +1679,14 @@ class OocCommand(BaseCommand):
         room_id = char["room_id"]
         for s in ctx.session_mgr.sessions_in_room(room_id):
             await s.send_line(text)
+
+        # Structured pose_event for Field Kit client
+        try:
+            await ctx.session_mgr.broadcast_pose_event(
+                room_id, "ooc", char["name"], ctx.args,
+            )
+        except Exception as _e:
+            log.debug("silent except in OocCommand pose_event: %s", _e, exc_info=True)
 
         # Scene logging hook — captured as OOC, excluded from log render
         from engine.scenes import get_active_scene_id, capture_pose
@@ -2440,6 +2555,20 @@ import time as _trade_time
 _pending_trades: dict = {}
 _TRADE_TTL = 120  # 2 minutes
 
+# Daily P2P transfer cap (S51 economy hardening). The 5% transaction
+# tax discourages micro-transfers but doesn't friction-cap large
+# wealth transfers — particularly across alts on the same account
+# (which are already blocked entirely) or across allied accounts
+# (which the alt-block can't see). This cap creates an upper bound:
+# no character can send more than P2P_DAILY_CAP credits in any
+# rolling 24-hour window via the trade command.
+#
+# 5,000 cr/day is generous for legitimate play (roughly 2-3 mission
+# rewards) but meaningful as a floor on the "shovel everything to
+# the trader alt" pattern.
+P2P_DAILY_CAP = 5000
+P2P_DAILY_WINDOW_SECONDS = 86400  # 24h rolling window
+
 
 def _purge_trade_offers():
     now = _trade_time.time()
@@ -2481,6 +2610,7 @@ async def _handle_sell_cargo(ctx) -> None:
     from engine.trading import (
         TRADE_GOODS, get_planet_price, get_ship_cargo,
         cargo_quantity, remove_cargo, get_cargo_tons,
+        apply_volume_discount_to_sell, volume_adjustment_pct,
     )
     from engine.starships import get_ship_registry
     from engine.skill_checks import resolve_bargain_check
@@ -2547,7 +2677,8 @@ async def _handle_sell_cargo(ctx) -> None:
     from engine.npc_space_traffic import ZONES
     zone_obj = ZONES.get(zone_id)
     planet = zone_obj.planet if zone_obj else ""
-    base_price = get_planet_price(good, planet)
+    # v29: Use demand-depressed price for sell-side
+    base_price = get_planet_price(good, planet, include_demand_depression=True)
 
     # Bargain check
     char = ctx.session.character
@@ -2556,8 +2687,16 @@ async def _handle_sell_cargo(ctx) -> None:
         npc_bargain_dice=3, npc_bargain_pips=0,
         is_buying=False,
     )
-    total_revenue = haggle["adjusted_price"]
+    bargain_total = haggle["adjusted_price"]
+
+    # Volume scaling (S51 hardening): bulk dumps fetch less per ton.
+    # Bargain runs first (per-ton intent), then volume discount applies on
+    # top of the bargain-adjusted per-ton price. Symmetric with the buy
+    # side so the round-trip exploit isn't reintroduced via asymmetry.
+    bargain_per_ton = max(1, bargain_total // quantity)
+    total_revenue = apply_volume_discount_to_sell(bargain_per_ton, quantity)
     per_ton = max(1, total_revenue // quantity)
+    volume_pct = volume_adjustment_pct(quantity)
 
     # Remove cargo and compute profit
     new_cargo, avg_cost = remove_cargo(cargo, good.key, quantity)
@@ -2581,6 +2720,12 @@ async def _handle_sell_cargo(ctx) -> None:
         await ctx.session.send_line(
             f"  {ansi.DIM}Bargain: {abs(pct)}% {direction}{ansi.RESET}"
         )
+    if volume_pct > 0:
+        vol_pct_int = int(round(volume_pct * 100))
+        await ctx.session.send_line(
+            f"  {ansi.DIM}Bulk discount: -{vol_pct_int}% "
+            f"(large dump moves the local price){ansi.RESET}"
+        )
 
     # Ship's log: trade run if profitable (Drop 19)
     if total_profit >= 0:
@@ -2589,7 +2734,14 @@ async def _handle_sell_cargo(ctx) -> None:
             await _tlog(ctx.db, char, "trade_runs")
         except Exception:
             log.warning("_handle_sell_cargo: unhandled exception", exc_info=True)
-            pass
+
+    # v29: Record sale for demand depression
+    try:
+        from engine.trading import DEMAND_POOL
+        if planet:
+            DEMAND_POOL.record_sale(planet, good.key, quantity)
+    except Exception:
+        log.warning("_handle_sell_cargo: demand pool record failed", exc_info=True)
 
     profit_color = ansi.BRIGHT_GREEN if total_profit >= 0 else ansi.BRIGHT_RED
     profit_sign  = "+" if total_profit >= 0 else ""
@@ -2715,6 +2867,17 @@ class TradeCommand(BaseCommand):
                 return
 
             target = target_sess.character
+
+            # ── Self-trade / alt-trade block ──
+            own_account = ctx.session.account["id"] if ctx.session.account else None
+            tgt_account = target.get("account_id")
+            if own_account and tgt_account and own_account == tgt_account:
+                await ctx.session.send_line(
+                    "  \033[1;31m[TRADE BLOCKED]\033[0m You cannot trade "
+                    "with your own alternate characters."
+                )
+                return
+
             offer_key = (char["id"], target["id"])
 
             _pending_trades[offer_key] = {
@@ -2785,6 +2948,42 @@ class TradeCommand(BaseCommand):
             return
 
         target = target_sess.character
+
+        # ── Self-trade / alt-trade block ──
+        own_account = ctx.session.account["id"] if ctx.session.account else None
+        tgt_account = target.get("account_id")
+        if own_account and tgt_account and own_account == tgt_account:
+            await ctx.session.send_line(
+                "  \033[1;31m[TRADE BLOCKED]\033[0m You cannot trade "
+                "with your own alternate characters."
+            )
+            return
+
+        # ── Daily P2P transfer cap (S51 economy hardening) ──
+        # Sum of all p2p_transfer outflows from this char in the
+        # last 24h. Reject if this offer would put them over the cap.
+        # Fail-open on DB errors: a broken query never blocks a trade,
+        # the 5% tax still applies as the secondary friction.
+        try:
+            spent_today = await ctx.db.get_daily_p2p_outgoing(
+                char["id"], P2P_DAILY_WINDOW_SECONDS,
+            )
+        except Exception:
+            log.warning(
+                "_offer: daily p2p cap lookup failed for char %s",
+                char.get("id"), exc_info=True,
+            )
+            spent_today = 0
+        if spent_today + amount > P2P_DAILY_CAP:
+            remaining = max(0, P2P_DAILY_CAP - spent_today)
+            await ctx.session.send_line(
+                f"  \033[1;31m[TRADE BLOCKED]\033[0m Daily transfer "
+                f"limit reached. You've sent {spent_today:,} cr in "
+                f"the last 24 hours; cap is {P2P_DAILY_CAP:,} cr. "
+                f"You can still send {remaining:,} cr today."
+            )
+            return
+
         offer_key = (char["id"], target["id"])
 
         _pending_trades[offer_key] = {
@@ -2923,6 +3122,36 @@ class TradeCommand(BaseCommand):
             )
             await offerer_sess.send_line(
                 f"  Trade with {char['name']} cancelled — insufficient credits."
+            )
+            return
+
+        # Re-check daily P2P cap at acceptance time (S51 hardening).
+        # The offerer may have stacked multiple pending offers and the
+        # cap was only checked at offer-creation time. Re-checking here
+        # ensures total executed transfers in 24h cannot exceed the cap
+        # even with concurrent pending offers.
+        try:
+            spent_today = await ctx.db.get_daily_p2p_outgoing(
+                offerer["id"], P2P_DAILY_WINDOW_SECONDS,
+            )
+        except Exception:
+            log.warning(
+                "_accept: daily p2p cap re-check failed for char %s",
+                offerer.get("id"), exc_info=True,
+            )
+            spent_today = 0
+        if spent_today + amount > P2P_DAILY_CAP:
+            _pending_trades.pop(offer_key, None)
+            remaining = max(0, P2P_DAILY_CAP - spent_today)
+            await ctx.session.send_line(
+                f"  \033[1;31m[TRADE BLOCKED]\033[0m {offerer['name']} "
+                f"has reached the daily transfer limit. Trade cancelled."
+            )
+            await offerer_sess.send_line(
+                f"  \033[1;31m[TRADE BLOCKED]\033[0m Daily transfer limit "
+                f"reached. You've sent {spent_today:,} cr in the last "
+                f"24 hours; cap is {P2P_DAILY_CAP:,} cr. Remaining: "
+                f"{remaining:,} cr."
             )
             return
 

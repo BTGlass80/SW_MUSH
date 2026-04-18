@@ -106,6 +106,10 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
     zone_planet = zone_obj.planet    if zone_obj else None
     zone_hazards = dict(zone_obj.hazards) if zone_obj else {}
 
+    # Zone security level (Drop 0: space security zones)
+    from engine.npc_space_traffic import get_space_security
+    zone_security = get_space_security(zone_id) if zone_id else "lawless"
+
     adjacent_zones = []
     if zone_obj:
         for adj_id in (zone_obj.adjacent or []):
@@ -115,6 +119,7 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
                     "id": adj_id,
                     "name": adj.name,
                     "type": adj.type.value,
+                    "security": get_space_security(adj_id),
                 })
 
     # ── Hull & shields ────────────────────────────────────────────────────────
@@ -317,10 +322,53 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
     hyperspace_dest      = systems.get("hyperspace_dest_name") or systems.get("hyperspace_dest")
     hyperspace_ticks_rem = systems.get("hyperspace_ticks_remaining", 0)
     hyperspace_eta       = hyperspace_ticks_rem  # 1 tick ≈ 1 second
+    # Pct complete — needs the original total ticks. Emits None (null) when
+    # the total wasn't recorded (legacy jumps from before this field shipped)
+    # so the client can render an indeterminate progress state rather than
+    # "stuck at 0%". New jumps always have the total.
+    hyperspace_total = systems.get("hyperspace_ticks_total", 0) or 0
+    if in_hyperspace and hyperspace_total > 0:
+        hyperspace_pct = round(
+            (1.0 - (hyperspace_ticks_rem / hyperspace_total)) * 100
+        )
+        hyperspace_pct = max(0, min(100, hyperspace_pct))
+    else:
+        hyperspace_pct = None
 
     in_sublight    = bool(systems.get("sublight_transit"))
     transit_dest   = systems.get("sublight_dest", "")
     transit_ticks  = systems.get("sublight_ticks_remaining", 0)
+
+    # ── Target lock — derived from active lockon registry. Surfaces the
+    # strongest lock-on this ship has against any contact in this zone.
+    # The lockon registry stores (attacker_ship_id, target_ship_id) -> bonus
+    # dice (max +2D per R&E). We pick the highest bonus entry where the
+    # target is among our current contacts.
+    target_lock = None
+    try:
+        lockons = grid._lockon_bonuses if hasattr(grid, "_lockon_bonuses") else {}
+        contact_index = {c.get("ship_id"): c for c in contacts}
+        best = None  # (target_id, bonus_dice)
+        for (atk, tgt), bonus in lockons.items():
+            if atk != ship["id"]:
+                continue
+            if tgt not in contact_index:
+                continue
+            if best is None or bonus > best[1]:
+                best = (tgt, bonus)
+        if best is not None:
+            tgt_contact = contact_index[best[0]]
+            target_lock = {
+                "ship_id":    best[0],
+                "name":       tgt_contact.get("name", "Unknown"),
+                "ship_class": tgt_contact.get("ship_class", ""),
+                "range":      tgt_contact.get("range", "long"),
+                "position":   tgt_contact.get("position", "front"),
+                "hostile":    tgt_contact.get("hostile", False),
+                "bonus_dice": best[1],
+            }
+    except Exception:
+        log.debug("target_lock: derivation failed", exc_info=True)
 
     # ── Anomalies (visible to this crew) ─────────────────────────────────────
     anomalies_out = []
@@ -358,6 +406,7 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
         "active":           active,
         "ship_name":        ship.get("name", "Unknown"),
         "ship_class":       tmpl.name if tmpl else ship.get("template", ""),
+        "ship_category":    tmpl.ship_class if tmpl else "light_freighter",
         "ship_id":          ship["id"],
 
         "zone_id":          zone_id,
@@ -366,6 +415,7 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
         "zone_desc":        zone_desc,
         "zone_planet":      zone_planet,
         "adjacent_zones":   adjacent_zones,
+        "zone_security":    zone_security,
         "zone_hazards":     zone_hazards,
 
         "hull_current":     hull_current,
@@ -382,6 +432,10 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
         "controls_frozen":  bool(systems.get("controls_frozen")),
         "tractor_held_by":  systems.get("tractor_held_by_name"),
         "tractor_holding":  systems.get("tractor_holding_name"),
+        "tractor_held":     bool(systems.get("tractor_held_by", 0)),
+        "boarding_linked_to": systems.get("boarding_linked_to", 0),
+        "boarding_target_name": systems.get("boarding_target_name", ""),
+        "boarding_party_active": bool(systems.get("boarding_party_active")),
 
         "my_station":       my_station,
         "crew":             crew_out,
@@ -390,11 +444,13 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
         "in_hyperspace":        in_hyperspace,
         "hyperspace_dest":      hyperspace_dest,
         "hyperspace_eta":       hyperspace_eta,
+        "hyperspace_pct":       hyperspace_pct,
         "in_sublight_transit":  in_sublight,
         "transit_dest":         transit_dest,
         "transit_eta":          transit_ticks,
 
         "contacts":         contacts,
+        "target_lock":      target_lock,
         "anomalies":        anomalies_out,
         "station_buttons":  station_buttons,
         "power_state":      (eff or {}).get("power_state", {}),
@@ -404,7 +460,32 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
         "order_flags":      (eff or {}).get("order_flags", {}),
         "stealth_bonus":    (eff or {}).get("stealth_bonus", 0),
         "false_transponder":(eff or {}).get("false_transponder"),
+
+        # Active encounter (Drop 1: space encounters)
+        "encounter":        _get_encounter_state(ship["id"]),
     }
+
+
+def _get_encounter_state(ship_id: int) -> dict | None:
+    """Return encounter summary for HUD, or None if no active encounter."""
+    try:
+        from engine.space_encounters import get_encounter_manager
+        mgr = get_encounter_manager()
+        enc = mgr.get_encounter(ship_id)
+        if enc is None:
+            return None
+        return {
+            "id": enc.id,
+            "type": enc.encounter_type,
+            "state": enc.state,
+            "phase": enc.phase,
+            "has_choices": bool(enc.choices and not enc.chosen_key),
+            "chosen": enc.chosen_key,
+            "deadline_secs": int(enc.time_remaining()),
+            "outcome": enc.outcome,
+        }
+    except Exception:
+        return None
 
 
 async def broadcast_space_state(ship: dict, db, session_mgr) -> None:
@@ -1380,6 +1461,12 @@ class ShipCommand(BaseCommand):
             await ctx.session.send_line(
                 f"  {ansi.BRIGHT_CYAN}[TRACTOR]{ansi.RESET} "
                 f"Holding {hname} in tractor beam")
+        if systems.get("boarding_linked_to"):
+            linked = await ctx.db.get_ship(systems["boarding_linked_to"])
+            lname = linked["name"] if linked else "unknown"
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_GREEN}[BOARDING]{ansi.RESET} "
+                f"Linked to {lname} — type 'boarding_link' to cross")
         # Location
         if ship["docked_at"]:
             bay = await ctx.db.get_room(ship["docked_at"])
@@ -2193,19 +2280,12 @@ class FireCommand(BaseCommand):
           ORBIT / HYPERSPACE_LANE = contested (PvP needs consent)
           DEEP_SPACE = lawless (unrestricted)
         """
+        from engine.npc_space_traffic import get_space_security
         space_sec = "lawless"  # fail-open default
         try:
             systems_chk = _get_systems(ship)
             zone_id_chk = systems_chk.get("current_zone", "")
-            from engine.npc_space_traffic import ZONES as _SZONES, ZoneType
-            zone_chk = _SZONES.get(zone_id_chk)
-            if zone_chk:
-                if zone_chk.type == ZoneType.DOCK:
-                    space_sec = "secured"
-                elif zone_chk.type in (ZoneType.ORBIT, ZoneType.HYPERSPACE_LANE):
-                    space_sec = "contested"
-                elif zone_chk.type == ZoneType.DEEP_SPACE:
-                    space_sec = "lawless"
+            space_sec = get_space_security(zone_id_chk)
 
             if space_sec == "secured":
                 await ctx.session.send_line(
@@ -3761,11 +3841,61 @@ class HyperspaceCommand(BaseCommand):
         # Remove from space grid during transit
         get_space_grid().remove_ship(ship["id"])
 
+        # ── Clean up NPC combat targeting this ship (session 38 fix) ──
+        try:
+            from engine.npc_space_combat_ai import get_npc_combat_manager
+            from engine.space_encounters import get_encounter_manager
+            combat_mgr = get_npc_combat_manager()
+            enc_mgr = get_encounter_manager()
+            # Remove any NPC combatant targeting this ship
+            c = combat_mgr.get_combatant_targeting(ship["id"])
+            if c:
+                get_space_grid().remove_ship(c.npc_ship_id)
+                combat_mgr.remove_combatant(c.npc_ship_id)
+                await ctx.session_mgr.broadcast_to_room(
+                    ship["bridge_room_id"],
+                    f"  \033[2m[SENSORS] {c.display_name} breaks off pursuit "
+                    f"as you enter hyperspace.\033[0m"
+                )
+                # Reset the traffic ship state too
+                try:
+                    from engine.npc_space_traffic import get_traffic_manager, TrafficState
+                    ts = get_traffic_manager().get_ship(c.npc_ship_id)
+                    if ts:
+                        ts.tailing_ship_id = None
+                        ts.hail_sent = False
+                        ts.enter_state(TrafficState.IDLE, duration=0)
+                except Exception:
+                    log.debug("hyperspace npc combat cleanup: traffic reset failed",
+                              exc_info=True)
+            # Resolve any active encounter for this ship
+            enc = enc_mgr.get_encounter(ship["id"])
+            if enc and enc.state == "active":
+                enc_mgr.resolve(enc, outcome="player_fled_hyperspace")
+        except Exception:
+            log.warning("hyperspace NPC combat/encounter cleanup failed",
+                        exc_info=True)
+
+        # ── Sever boarding link if active ──
+        try:
+            from engine.boarding import get_boarding_link_info, sever_boarding_link
+            if get_boarding_link_info(ship):
+                ok, msg = await sever_boarding_link(
+                    ship, ctx.db, ctx.session_mgr, reason="hyperspace")
+                if ok:
+                    await ctx.session_mgr.broadcast_to_room(
+                        ship["bridge_room_id"],
+                        f"  {msg}",
+                    )
+        except Exception:
+            log.warning("hyperspace boarding link cleanup failed", exc_info=True)
+
         # Mark ship in hyperspace transit
         systems["in_hyperspace"] = True
         systems["hyperspace_dest"] = dest_key
         systems["hyperspace_dest_name"] = dest["name"]
         systems["hyperspace_ticks_remaining"] = travel_ticks
+        systems["hyperspace_ticks_total"] = travel_ticks  # for HUD pct
         systems["hyperspace_roll_str"] = roll_str + crit_note
         await ctx.db.update_ship(ship["id"], systems=json.dumps(systems))
 
@@ -4388,6 +4518,17 @@ class ResistTractorCommand(BaseCommand):
                 h_systems["tractor_holding"] = 0
                 await ctx.db.update_ship(holder_ship["id"],
                                          systems=json.dumps(h_systems))
+            # Sever boarding link if active on either ship
+            try:
+                from engine.boarding import get_boarding_link_info, sever_boarding_link
+                if get_boarding_link_info(ship):
+                    await sever_boarding_link(
+                        ship, ctx.db, ctx.session_mgr, reason="tractor_release")
+                elif get_boarding_link_info(holder_ship):
+                    await sever_boarding_link(
+                        holder_ship, ctx.db, ctx.session_mgr, reason="tractor_release")
+            except Exception:
+                log.warning("resist tractor: boarding link sever failed", exc_info=True)
         else:
             if result.drive_damage > 0:
                 systems["drive_penalty"] = systems.get("drive_penalty", 0) + result.drive_damage
@@ -5109,7 +5250,7 @@ class MarketCommand(BaseCommand):
             "normal": "normal",
         }
 
-        from engine.trading import SUPPLY_POOL
+        from engine.trading import SUPPLY_POOL, DEMAND_POOL, get_planet_price as _gpp
         for row in market:
             col = tier_colors[row["tier"]]
             tier_str = tier_labels[row["tier"]]
@@ -5117,9 +5258,21 @@ class MarketCommand(BaseCommand):
             avail = SUPPLY_POOL.available(planet, row["key"])
             avail_str = f"{avail}t" if avail > 0 else "OUT"
             avail_col = col if avail > 0 else ansi.DIM
+
+            # For demand goods, show effective sell price with depression
+            price_str = f"{row['planet_price']:>8,}cr"
+            if row["tier"] == "demand":
+                good_obj = TRADE_GOODS.get(row["key"])
+                if good_obj:
+                    eff_sell = _gpp(good_obj, planet, include_demand_depression=True)
+                    if eff_sell < row["planet_price"]:
+                        price_str = f"{eff_sell:>8,}cr"
+                        depression_pct = int((1 - eff_sell / row["planet_price"]) * 100)
+                        desc = f"(-{depression_pct}% demand saturated)"
+
             await ctx.session.send_line(
                 f"  {col}{row['name']:<24}{ansi.RESET}"
-                f"  {col}{row['planet_price']:>8,}cr{ansi.RESET}"
+                f"  {col}{price_str}{ansi.RESET}"
                 f"  {col}{tier_str:<8}{ansi.RESET}"
                 f"  {avail_col}{avail_str:>6}{ansi.RESET}"
                 f"  {ansi.DIM}{desc}{ansi.RESET}"
@@ -5530,6 +5683,148 @@ class ShipNameCommand(BaseCommand):
             log.exception("[shipname] spacer_quest hook failed")
 
 
+class BoardShipCommand(BaseCommand):
+    """Establish or manage a boarding link with another ship in space.
+
+    Usage:
+      boardship <contact#>   — establish boarding link with target
+      boardship release      — sever the boarding link
+      boardship status       — show boarding link status
+    """
+    key = "boardship"
+    aliases = ["boardlink"]
+    help_text = (
+        "Establish a boarding link with another ship in space.\n"
+        "Target must be held in your tractor beam or stationary.\n"
+        "Ships must be at Close range.\n"
+        "\n"
+        "EXAMPLES:\n"
+        "  boardship 2         -- link to contact #2\n"
+        "  boardship release   -- sever the link\n"
+        "  boardship status    -- show link info"
+    )
+    usage = "boardship <contact#|release|status>"
+
+    async def execute(self, ctx):
+        from engine.boarding import (
+            create_boarding_link, sever_boarding_link,
+            get_boarding_link_info,
+        )
+
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        if ship.get("docked_at"):
+            await ctx.session.send_line("  You're docked. Use 'board' to board docked ships.")
+            return
+
+        # Must be pilot or copilot
+        crew = _get_crew(ship)
+        char_id = ctx.session.character["id"]
+        if crew.get("pilot") != char_id and crew.get("copilot") != char_id:
+            await ctx.session.send_line(
+                "  Only the pilot or copilot can manage boarding links."
+            )
+            return
+
+        arg = (ctx.args or "").strip().lower()
+
+        # ── boardship status ──
+        if arg == "status":
+            info = get_boarding_link_info(ship)
+            if not info:
+                await ctx.session.send_line("  No active boarding link.")
+                return
+            partner = await ctx.db.get_ship(info["linked_to"])
+            partner_name = partner["name"] if partner else "Unknown"
+            await ctx.session.send_line(
+                f"  \033[1;36m[BOARDING]\033[0m Linked to: "
+                f"\033[1;37m{partner_name}\033[0m\n"
+                f"  Type 'boarding_link' to cross, "
+                f"'boardship release' to sever."
+            )
+            return
+
+        # ── boardship release ──
+        if arg == "release":
+            ok, msg = await sever_boarding_link(
+                ship, ctx.db, ctx.session_mgr, reason="manual")
+            await ctx.session.send_line(f"  {msg}")
+            return
+
+        # ── boardship <contact#> ──
+        if not arg:
+            await ctx.session.send_line(
+                "  Usage: boardship <contact#> | boardship release | boardship status\n"
+                "  Target must be tractor-held or stationary, at Close range."
+            )
+            return
+
+        # Parse contact number
+        try:
+            contact_num = int(arg)
+        except ValueError:
+            await ctx.session.send_line(
+                f"  Unknown argument: '{arg}'. "
+                f"Use a contact number, 'release', or 'status'."
+            )
+            return
+
+        # Resolve contact# to a ship
+        target_ship = await _resolve_contact(ctx, ship, contact_num)
+        if not target_ship:
+            return
+
+        ok, msg = await create_boarding_link(
+            ship, target_ship, ctx.db, ctx.session_mgr)
+        await ctx.session.send_line(f"  {msg}")
+
+        # Broadcast to target bridge
+        if ok and target_ship.get("bridge_room_id"):
+            await ctx.session_mgr.broadcast_to_room(
+                target_ship["bridge_room_id"],
+                f"  \033[1;31m[BOARDING]\033[0m "
+                f"{ship.get('name', 'Unknown ship')} has established "
+                f"a boarding link with your vessel!\n"
+                f"  Type 'boarding_link_back' to cross, "
+                f"or 'boardship release' to sever.",
+            )
+
+
+async def _resolve_contact(ctx, ship, contact_num: int):
+    """Resolve a contact number from the scan list to a ship dict."""
+    systems = _get_systems(ship)
+    zone_key = systems.get("current_zone", "")
+    if not zone_key:
+        await ctx.session.send_line("  Navigation error — no current zone.")
+        return None
+
+    from engine.starships import get_space_grid
+    grid = get_space_grid()
+
+    # Build contact list the same way ScanCommand does
+    all_ships = await ctx.db._db.execute_fetchall(
+        "SELECT id, name, template, owner_id, systems, crew "
+        "FROM ships WHERE docked_at IS NULL"
+    )
+    contacts = []
+    for s in all_ships:
+        s = dict(s)
+        s_sys = _get_systems(s)
+        if s_sys.get("current_zone") == zone_key and s["id"] != ship["id"]:
+            contacts.append(s)
+
+    if contact_num < 1 or contact_num > len(contacts):
+        await ctx.session.send_line(
+            f"  Invalid contact number: {contact_num}. "
+            f"Use 'scan' to see contacts in this zone."
+        )
+        return None
+
+    return contacts[contact_num - 1]
+
+
 def register_space_commands(registry):
     cmds = [
         ShipsCommand(), ShipInfoCommand(),
@@ -5556,6 +5851,7 @@ def register_space_commands(registry):
         PayCommand(), HailCommand(), CommsCommand(),
         SpawnShipCommand(), SetBountyCommand(),
         ResistTractorCommand(),
+        BoardShipCommand(),
         CourseCommand(),
         JinkCommand(), BarrelRollCommand(),
         LoopCommand(), SlipCommand(),

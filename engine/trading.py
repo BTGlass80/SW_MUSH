@@ -98,22 +98,33 @@ TRADE_GOODS: dict[str, TradeGood] = {
 TRADE_GOOD_LIST = list(TRADE_GOODS.values())
 
 # Price tier multipliers
-PRICE_SOURCE = 0.50
+# v29: Narrowed from 50%/200% (300% margin) to 70%/140% (100% margin).
+# GG6 Tramp Freighters (p.78) shows supply/demand price modifiers of
+# ±5-10%, not ±50-100%. We use wider spreads for gameplay but the old
+# 4:1 ratio was an exploit — 2:1 is still very profitable.
+PRICE_SOURCE = 0.70
 PRICE_NORMAL = 1.00
-PRICE_DEMAND = 2.00
+PRICE_DEMAND = 1.40
 
 
 # ── Price calculation ─────────────────────────────────────────────────────────
 
-def get_planet_price(good: TradeGood, planet: str) -> int:
+def get_planet_price(good: TradeGood, planet: str,
+                     include_demand_depression: bool = False) -> int:
     """
     Return base price per ton of good at planet.
-    Source planets: 50%, demand planets: 200%, others: 100%.
+    Source planets: 70%, demand planets: 140%, others: 100%.
+
+    If include_demand_depression=True, demand planet prices are reduced
+    by recent sales volume (DemandPool). Used for sell-side pricing.
     """
     if planet in good.source:
         mult = PRICE_SOURCE
     elif planet in good.demand:
         mult = PRICE_DEMAND
+        if include_demand_depression:
+            depression = DEMAND_POOL.get_depression(planet, good.key)
+            mult = max(PRICE_NORMAL, mult * (1.0 - depression))
     else:
         mult = PRICE_NORMAL
     return max(1, int(good.base_price * mult))
@@ -165,19 +176,19 @@ import time
 SUPPLY_REFRESH_SECONDS = 2700  # 45 minutes
 SUPPLY_CARRYOVER_MULT = 2      # pool caps at 2x refill amount
 
-# Default per-good cap per refresh. Tuned so a YT-1300 (~100 tons cargo)
-# cannot fill its hold on a single-planet stop — forces route hopping,
-# forces players to actually travel the galaxy.
-DEFAULT_MAX_UNITS_PER_REFRESH = 15
+# v29: Caps tightened ~40% from original values. Combined with the
+# narrower margins (100% vs 300%), this brings trader income to
+# ~6,000-8,000 cr/hr — within the design target of 4,000-8,000.
+DEFAULT_MAX_UNITS_PER_REFRESH = 10
 MAX_UNITS_PER_REFRESH = {
-    "luxury_goods": 10,   # tightest cap: the worst offender in the exploit
-    "spice":        10,
-    "weapons":      10,
-    "medical":      20,
-    "foodstuffs":   30,   # loosest: bulk/cheap/legal
-    "textiles":     25,
-    "machinery":    15,
-    "raw_ore":      25,
+    "luxury_goods": 6,    # tightest: highest base price
+    "spice_legal":  6,
+    "weapons_licensed": 8,
+    "medical_supplies": 10,
+    "electronics":  10,
+    "manufactured_parts": 10,
+    "foodstuffs":   20,   # loosest: bulk/cheap/legal
+    "raw_ore":      15,
 }
 
 
@@ -238,6 +249,63 @@ class SupplyPool:
 
 # Module-level singleton. Import as: `from engine.trading import SUPPLY_POOL`
 SUPPLY_POOL = SupplyPool()
+
+
+# ── Demand depression pool (v29) ─────────────────────────────────────────────
+#
+# Tracks recent sell volume per planet/good. Selling cargo at a demand
+# planet depresses the price — each ton sold in the last DEMAND_WINDOW
+# reduces the sell price by DEPRESSION_PER_TON, capped at MAX_DEPRESSION.
+# This creates a natural "demand saturation" curve: the first trader to
+# arrive gets the best price, subsequent sellers get less until demand
+# recovers.
+
+DEMAND_WINDOW_SECONDS = 2700   # 45 minutes (matches supply refresh)
+DEPRESSION_PER_TON = 0.005     # 0.5% per ton sold recently
+MAX_DEPRESSION = 0.30          # cap at 30% reduction (demand never drops below normal)
+
+
+class DemandPool:
+    """Per-planet, per-good demand depression tracker."""
+
+    def __init__(self) -> None:
+        # (planet, good_key) -> list of (timestamp, tons_sold)
+        self._sales: dict[tuple[str, str], list[tuple[float, int]]] = {}
+
+    def record_sale(self, planet: str, good_key: str, tons: int) -> None:
+        """Record a cargo sale for demand depression calculation."""
+        key = (planet, good_key)
+        now = time.time()
+        if key not in self._sales:
+            self._sales[key] = []
+        self._sales[key].append((now, tons))
+
+    def _prune(self, key: tuple[str, str]) -> None:
+        """Remove sales older than the demand window."""
+        cutoff = time.time() - DEMAND_WINDOW_SECONDS
+        if key in self._sales:
+            self._sales[key] = [
+                (ts, t) for ts, t in self._sales[key] if ts > cutoff
+            ]
+
+    def get_depression(self, planet: str, good_key: str) -> float:
+        """Return price depression factor (0.0 = no depression, 0.30 = max).
+
+        Depression = min(MAX_DEPRESSION, recent_tons × DEPRESSION_PER_TON).
+        """
+        key = (planet, good_key)
+        self._prune(key)
+        recent_tons = sum(t for _, t in self._sales.get(key, []))
+        return min(MAX_DEPRESSION, recent_tons * DEPRESSION_PER_TON)
+
+    def get_recent_volume(self, planet: str, good_key: str) -> int:
+        """Return total tons sold in the current demand window."""
+        key = (planet, good_key)
+        self._prune(key)
+        return sum(t for _, t in self._sales.get(key, []))
+
+
+DEMAND_POOL = DemandPool()
 
 
 # ── Cargo hold helpers ────────────────────────────────────────────────────────

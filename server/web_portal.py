@@ -119,6 +119,28 @@ class PortalAPI:
         app.router.add_get(
             "/api/portal/guide/{slug}", self.handle_guide_content
         )
+        # ── Reference (help system) ──────────────────────────────────────
+        # Pure pass-through over HelpManager. No category names,
+        # command names, or topic keywords are hardcoded — whatever
+        # the help registry currently holds is what's served. The
+        # portal's sidebar, search, and detail pages are built on
+        # these three endpoints.
+        app.router.add_get(
+            "/api/portal/reference", self.handle_reference_index
+        )
+        app.router.add_get(
+            "/api/portal/reference/search", self.handle_reference_search
+        )
+        # Help keys can contain literal ``+`` and ``/`` (e.g. a future
+        # ``+combat/attack``). aiohttp's {entry_slug} pattern doesn't
+        # match slashes, so we use a regex-style ``{entry_slug:.+}``
+        # catch-all. The frontend encodes slashes as ``__`` before
+        # putting the slug in the URL; the server reverses that to
+        # reach the canonical key.
+        app.router.add_get(
+            r"/api/portal/reference/{entry_slug:.+}",
+            self.handle_reference_entry,
+        )
         app.router.add_post("/api/portal/login", self.handle_login)
         app.router.add_get("/api/portal/me", self.handle_me)
         app.router.add_get("/api/portal/events", self.handle_events)
@@ -664,6 +686,224 @@ class PortalAPI:
 
         return self._json({"slug": slug, "title": title, "content": content})
 
+    # ── Reference (help system) ──────────────────────────────────────────
+    #
+    # These three endpoints are a thin pass-through over
+    # ``HelpManager``. They contain no hardcoded category names, no
+    # hardcoded command or topic keys, no hardcoded keyword lists —
+    # when the help system content changes (new topic, renamed
+    # command, new category), the portal reflects it on the next
+    # request without any code change here.
+    #
+    # Access-level filter: unauthenticated callers see only
+    # ``access_level == 0`` entries. Authenticated non-admin
+    # accounts see the same. Admin accounts see everything.
+    # ``HelpEntry.access_level`` is the authority — the filter
+    # rule is stable across any future category rename.
+
+    async def _help_mgr_or_404(self):
+        """Return the live HelpManager or an HTTP 503 response.
+
+        The manager is wired up at game boot; if the portal receives
+        a request before that finishes, we surface a clear error
+        instead of a confusing empty response.
+        """
+        mgr = getattr(self._game, "help_mgr", None) if self._game else None
+        if mgr is None:
+            return None, self._json(
+                {"error": "Help system not initialized"}, 503
+            )
+        return mgr, None
+
+    async def _caller_max_access_level(self, request) -> int:
+        """What's the maximum HelpEntry.access_level the caller may see?
+
+        - Unauthenticated: 0 (public)
+        - Authenticated non-admin: 0 (we don't expose builder/admin
+          help through the public portal even to logged-in players;
+          that's in-game content)
+        - Admin accounts: 99 (effectively unlimited)
+        """
+        account_id = await self._optional_auth(request)
+        if not account_id:
+            return 0
+        try:
+            acct = await self._db.get_account(account_id)
+            if acct and acct.get("is_admin"):
+                return 99
+        except Exception as e:
+            log.warning(
+                "Portal reference: failed to load account %s for access "
+                "level filter — %s", account_id, e,
+            )
+        return 0
+
+    @staticmethod
+    def _entry_to_public_dict(entry) -> dict:
+        """Serialize a HelpEntry for the API.
+
+        We return every field that a consumer (CLI, portal) might
+        render. The URL slug is a URL-safe transform of the key —
+        slashes become ``__`` so keys like ``+combat/attack`` survive
+        round-trip.
+        """
+        key = entry.key
+        return {
+            "key": key,
+            "slug": key.replace("/", "__"),
+            "title": entry.title,
+            "category": entry.category,
+            "summary": entry.summary,
+            "body": entry.body,
+            "aliases": list(entry.aliases),
+            "see_also": list(entry.see_also),
+            "tags": list(entry.tags),
+            "examples": list(entry.examples),
+            "access_level": entry.access_level,
+            "updated_at": entry.updated_at,
+        }
+
+    @staticmethod
+    def _entry_to_summary_dict(entry) -> dict:
+        """Lighter serialization for list views (tree, search results).
+
+        Skip the full body to keep payloads small — the sidebar tree
+        alone can list 100+ entries, and the body can be kilobytes.
+        """
+        key = entry.key
+        return {
+            "key": key,
+            "slug": key.replace("/", "__"),
+            "title": entry.title,
+            "category": entry.category,
+            "summary": entry.summary,
+            "tags": list(entry.tags),
+            "access_level": entry.access_level,
+        }
+
+    async def handle_reference_index(self, request) -> web.Response:
+        """GET /api/portal/reference — category tree + flat entry list.
+
+        Returns::
+
+            {
+              "tree": {
+                "Rules": {
+                  "entries": [...],
+                  "subcategories": {
+                    "Combat": {"entries": [...], "subcategories": {}},
+                    ...
+                  }
+                },
+                ...
+              },
+              "entries": [...flat list of entry summaries...],
+              "total": <int>
+            }
+
+        The tree shape mirrors ``HelpManager.get_categories_tree()``
+        but with entries serialized and access-level-filtered. The
+        flat list is included so the portal can render a full
+        alphabetic listing without walking the tree.
+        """
+        mgr, err = await self._help_mgr_or_404()
+        if err is not None:
+            return err
+        max_level = await self._caller_max_access_level(request)
+
+        def _summarize_tree(node: dict) -> dict:
+            return {
+                "entries": [
+                    self._entry_to_summary_dict(e)
+                    for e in node["_entries"]
+                    if e.access_level <= max_level
+                ],
+                "subcategories": {
+                    name: _summarize_tree(sub)
+                    for name, sub in node["_subcategories"].items()
+                },
+            }
+
+        tree_raw = mgr.get_categories_tree()
+        tree = {name: _summarize_tree(node) for name, node in tree_raw.items()}
+
+        # Prune empty branches so the sidebar doesn't show a
+        # "Admin" heading with zero visible entries under it.
+        def _prune(name_to_node: dict) -> dict:
+            out = {}
+            for name, node in name_to_node.items():
+                pruned_subs = _prune(node["subcategories"])
+                if node["entries"] or pruned_subs:
+                    out[name] = {
+                        "entries": node["entries"],
+                        "subcategories": pruned_subs,
+                    }
+            return out
+        tree = _prune(tree)
+
+        flat = [
+            self._entry_to_summary_dict(e)
+            for e in mgr.all_entries()
+            if e.access_level <= max_level
+        ]
+        flat.sort(key=lambda e: e["title"].lower())
+
+        return self._json({
+            "tree": tree,
+            "entries": flat,
+            "total": len(flat),
+        })
+
+    async def handle_reference_search(self, request) -> web.Response:
+        """GET /api/portal/reference/search?q=<keyword>&limit=<n>
+
+        Ranked search results using ``HelpManager.search()``. Default
+        limit is 30; max is 100.
+        """
+        mgr, err = await self._help_mgr_or_404()
+        if err is not None:
+            return err
+        max_level = await self._caller_max_access_level(request)
+
+        q = (request.query.get("q") or "").strip()
+        if not q:
+            return self._json({"results": [], "total": 0, "q": ""})
+        try:
+            limit = int(request.query.get("limit", "30"))
+        except ValueError:
+            limit = 30
+        limit = max(1, min(limit, 100))
+
+        raw = mgr.search(q)
+        filtered = [e for e in raw if e.access_level <= max_level]
+        results = [self._entry_to_summary_dict(e) for e in filtered[:limit]]
+        return self._json({
+            "results": results,
+            "total": len(filtered),
+            "q": q,
+        })
+
+    async def handle_reference_entry(self, request) -> web.Response:
+        """GET /api/portal/reference/{entry_slug} — single entry detail.
+
+        The slug is the URL-safe encoding of the key (slashes
+        encoded as ``__``). 404 for entries above the caller's
+        access level — we don't leak existence of admin entries.
+        """
+        mgr, err = await self._help_mgr_or_404()
+        if err is not None:
+            return err
+        max_level = await self._caller_max_access_level(request)
+
+        slug = request.match_info.get("entry_slug", "")
+        key = slug.replace("__", "/")
+        entry = mgr.get(key)
+        if entry is None or entry.access_level > max_level:
+            return self._json({"error": "Reference entry not found"}, 404)
+
+        return self._json(self._entry_to_public_dict(entry))
+
+
     # ── Authentication ───────────────────────────────────────────────────
 
     async def handle_events(self, request) -> web.Response:
@@ -810,7 +1050,7 @@ class PortalAPI:
             chars = await self._db.get_characters(account_id)
             online_ids = set()
             if self._session_mgr:
-                for s in self._session_mgr.all():
+                for s in self._session_mgr.all:
                     if hasattr(s, 'character') and s.character:
                         online_ids.add(s.character['id'])
 

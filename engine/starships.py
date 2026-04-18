@@ -475,6 +475,34 @@ class ShipTemplate:
     def scale_value(self) -> int:
         return SCALE_CAPITAL if self.scale == "capital" else SCALE_STARFIGHTER
 
+    @property
+    def ship_class(self) -> str:
+        """Classify ship for encounter eligibility (Space Overhaul v3 §4.8).
+
+        Returns: 'fighter', 'patrol_craft', 'light_freighter', 'shuttle', 'capital'
+        """
+        if self.scale == "capital":
+            return "capital"
+        if self.passengers >= 20:
+            return "shuttle"
+        # Single-seat, no passengers = fighter regardless of cargo
+        # (Y-Wing/B-Wing/TIE Bomber have high cargo from ordnance bays)
+        if self.passengers == 0 and self.crew == 1:
+            return "fighter"
+        if self.passengers > 0 and self.cargo <= 50 and self.crew == 1:
+            return "patrol_craft"
+        return "light_freighter"
+
+    @property
+    def is_boardable(self) -> bool:
+        """True if this ship class supports boarding encounters."""
+        return self.ship_class in ("light_freighter", "shuttle", "capital")
+
+    @property
+    def has_cargo_space(self) -> bool:
+        """True if this ship class can have cargo events."""
+        return self.ship_class in ("light_freighter", "shuttle", "capital")
+
 
 @dataclass
 class ShipInstance:

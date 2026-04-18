@@ -90,12 +90,6 @@ def _ensure_in_combat(char: dict, room_id: int) -> tuple:
     return combat, combatant
 
 
-async def _broadcast_events(events, session_mgr, room_id, exclude=None):
-    """Send combat events to the room (immediate, no pacing)."""
-    for event in events:
-        await session_mgr.broadcast_to_room(room_id, event.text, exclude=exclude)
-
-
 def _extract_actor_name(text: str):
     """Return the first name-token from a narrative line, or None for headers."""
     stripped = text.lstrip()
@@ -149,6 +143,61 @@ async def _broadcast_events_paced(events, session_mgr, room_id,
                     await sess.send_line(event.text)
         else:
             await session_mgr.broadcast_to_room(room_id, event.text, exclude=exclude)
+
+        # Field Kit: emit a structured pose_event alongside the text so the
+        # pose log can render typed rows. Events with an extractable actor
+        # become 'pose' rows (combat narration); header/separator/system
+        # lines fall through as 'sys' rows.
+        try:
+            if actor:
+                # Strip the actor name from the body so the pose body doesn't
+                # duplicate the name the client renders separately.
+                stripped = event.text.lstrip().lstrip("▸◆ ").strip()
+                # Remove the leading actor token from the body if it's present
+                body = stripped
+                if body.lower().startswith(actor.lower()):
+                    body = body[len(actor):].lstrip()
+                await session_mgr.broadcast_pose_event(
+                    room_id, "pose", actor, body, mode="in combat",
+                    exclude=exclude if not isinstance(exclude, list) else None,
+                )
+            else:
+                # Header/separator/damage-tally lines with no actor
+                stripped = event.text.strip()
+                if stripped and not stripped.startswith(("---", "─")):
+                    await session_mgr.broadcast_pose_event(
+                        room_id, "sys", "", stripped,
+                        exclude=exclude if not isinstance(exclude, list) else None,
+                    )
+        except Exception:
+            log.debug("combat _broadcast_events_paced pose_event send failed", exc_info=True)
+
+
+async def _broadcast_events(events, session_mgr, room_id, exclude=None):
+    """Send combat events to the room (immediate, no pacing)."""
+    for event in events:
+        await session_mgr.broadcast_to_room(room_id, event.text, exclude=exclude)
+        # Field Kit: mirror into pose_event for typed rendering
+        try:
+            actor = _extract_actor_name(event.text)
+            if actor:
+                stripped = event.text.lstrip().lstrip("▸◆ ").strip()
+                body = stripped
+                if body.lower().startswith(actor.lower()):
+                    body = body[len(actor):].lstrip()
+                await session_mgr.broadcast_pose_event(
+                    room_id, "pose", actor, body, mode="in combat",
+                    exclude=exclude if not isinstance(exclude, list) else None,
+                )
+            else:
+                stripped = event.text.strip()
+                if stripped and not stripped.startswith(("---", "─")):
+                    await session_mgr.broadcast_pose_event(
+                        room_id, "sys", "", stripped,
+                        exclude=exclude if not isinstance(exclude, list) else None,
+                    )
+        except Exception:
+            log.debug("combat _broadcast_events pose_event send failed", exc_info=True)
 
 
 async def _send_combat_state(combat, session_mgr):

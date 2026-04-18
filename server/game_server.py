@@ -21,6 +21,8 @@ from server.tick_handlers_ships import (
     asteroid_collision_tick,
     hyperspace_arrival_tick,
     space_anomaly_tick,
+    encounter_tick,
+    texture_encounter_tick,
 )
 from server.tick_handlers_economy import (
     npc_space_crew_tick,
@@ -83,7 +85,9 @@ from parser.espionage_commands import register_espionage_commands
 from parser.achievement_commands import register_achievement_commands
 from parser.event_commands import register_event_commands
 from parser.plot_commands import register_plot_commands
+from parser.encounter_commands import register_encounter_commands
 from parser.mail_commands import register_mail_commands
+from parser.char_commands import register_char_commands
 from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
@@ -142,10 +146,26 @@ class GameServer:
         register_attr_commands(self.registry)
         register_scene_commands(self.registry)
         register_mail_commands(self.registry)
+        register_char_commands(self.registry)
         register_espionage_commands(self.registry)
         register_achievement_commands(self.registry)
         register_event_commands(self.registry)
         register_plot_commands(self.registry)
+        register_encounter_commands(self.registry)
+
+        # ── Space Encounter Handlers ──
+        from engine.space_encounters import get_encounter_manager
+        from engine.encounter_patrol import register_patrol_handlers
+        from engine.encounter_pirate import register_pirate_handlers
+        from engine.encounter_anomaly import register_anomaly_handlers
+        from engine.encounter_texture import register_texture_handlers
+        from engine.encounter_hunter import register_hunter_handlers
+        _em = get_encounter_manager()
+        register_patrol_handlers(_em)
+        register_pirate_handlers(_em)
+        register_anomaly_handlers(_em)
+        register_texture_handlers(_em)
+        register_hunter_handlers(_em)
 
         # ── Achievement System Init ──
         from engine.achievements import load_achievements
@@ -155,10 +175,18 @@ class GameServer:
         # ── Help System Init ──
         from data.help_topics import HelpManager
         help_mgr = HelpManager()
-        help_mgr.auto_register_commands(self.registry)
-        help_mgr.register_topics()
+        # load_all() runs the three loaders in precedence order:
+        # auto-registered commands → legacy TOPIC_HELP → markdown
+        # files under data/help/. The markdown layer overrides any
+        # earlier same-key registration, which is how rich topics
+        # and command help beat the thin auto-generated versions.
+        help_mgr.load_all(self.registry)
         from parser.builtin_commands import HelpCommand
         HelpCommand._help_mgr = help_mgr
+        # Expose on self so other services (the web portal API, an
+        # eventual admin reload endpoint) can reach the manager
+        # without poking at HelpCommand's class attribute.
+        self.help_mgr = help_mgr
         log.info("Help system initialized: %d entries",
                  len(help_mgr._entries))
 
@@ -207,6 +235,13 @@ class GameServer:
         self._tick_scheduler.register("asteroid_collision", asteroid_collision_tick, interval=30)
         # ── environment (every 300 ticks ≈ 5 min) ──
         self._tick_scheduler.register("space_anomaly",     space_anomaly_tick,      interval=300)
+        # ── space encounters (every tick — deadline checks) ──
+        self._tick_scheduler.register("space_encounters",  encounter_tick,          interval=1)
+        self._tick_scheduler.register("texture_encounters", texture_encounter_tick,  interval=10)
+        # ── boarding encounters (every 5 ticks — check boarder status) ──
+        from engine.encounter_boarding import boarding_encounter_tick as _bet
+        async def _boarding_tick(ctx): await _bet(ctx.db, ctx.session_mgr)
+        self._tick_scheduler.register("boarding_encounters", _boarding_tick, interval=5)
         # ── missions & boards (every tick) ──
         self._tick_scheduler.register("space_mission_patrol", space_mission_patrol_tick, interval=1)
         self._tick_scheduler.register("board_housekeeping",   board_housekeeping_tick,   interval=60)
@@ -314,6 +349,24 @@ class GameServer:
             schedule_nightly_job(self.db, self.session_mgr)
         except Exception as _narr_err:
             log.warning("Narrative scheduler skipped: %s", _narr_err)
+
+        # Boarding link cleanup — remove stale exits from prior crash/shutdown
+        try:
+            from engine.boarding import startup_cleanup as boarding_cleanup
+            cleaned = await boarding_cleanup(self.db)
+            if cleaned:
+                log.info("Boarding cleanup: removed %d stale exits", cleaned)
+        except Exception as _board_err:
+            log.warning("Boarding cleanup skipped: %s", _board_err)
+
+        # Boarding party NPC cleanup — remove stale boarder NPCs from prior crash
+        try:
+            from engine.encounter_boarding import boarding_party_startup_cleanup
+            bp_cleaned = await boarding_party_startup_cleanup(self.db)
+            if bp_cleaned:
+                log.info("Boarding party cleanup: removed %d stale NPCs", bp_cleaned)
+        except Exception as _bp_err:
+            log.warning("Boarding party cleanup skipped: %s", _bp_err)
 
         # Network listeners
         await self.telnet.start(self.config.telnet_host, self.config.telnet_port)
@@ -451,11 +504,26 @@ class GameServer:
                     await session.send_line(
                         ansi.success(f"Welcome back, {username}!")
                     )
+                    # Structured auth success for Field Kit client
+                    try:
+                        await session.send_json("auth_status", {
+                            "ok": True, "kind": "connect", "username": username,
+                        })
+                    except Exception:
+                        log.debug("auth_status connect-ok send failed", exc_info=True)
                     await self._character_select(session)
                 else:
                     await session.send_line(
                         ansi.error("Invalid username or password.")
                     )
+                    try:
+                        await session.send_json("auth_status", {
+                            "ok": False, "kind": "connect",
+                            "reason": "invalid_credentials",
+                            "message": "Invalid username or password.",
+                        })
+                    except Exception:
+                        log.debug("auth_status connect-fail send failed", exc_info=True)
                     await session.send_prompt()
 
             elif cmd == "create" and len(parts) >= 3:
@@ -464,20 +532,28 @@ class GameServer:
 
                 # Validate
                 if len(username) < self.config.min_username_len:
-                    await session.send_line(
-                        ansi.error(
-                            f"Username must be at least {self.config.min_username_len} characters."
-                        )
-                    )
+                    msg = f"Username must be at least {self.config.min_username_len} characters."
+                    await session.send_line(ansi.error(msg))
+                    try:
+                        await session.send_json("auth_status", {
+                            "ok": False, "kind": "create",
+                            "reason": "username_too_short", "message": msg,
+                        })
+                    except Exception:
+                        log.debug("auth_status create-short-user send failed", exc_info=True)
                     await session.send_prompt()
                     continue
 
                 if len(password) < self.config.min_password_len:
-                    await session.send_line(
-                        ansi.error(
-                            f"Password must be at least {self.config.min_password_len} characters."
-                        )
-                    )
+                    msg = f"Password must be at least {self.config.min_password_len} characters."
+                    await session.send_line(ansi.error(msg))
+                    try:
+                        await session.send_json("auth_status", {
+                            "ok": False, "kind": "create",
+                            "reason": "password_too_short", "message": msg,
+                        })
+                    except Exception:
+                        log.debug("auth_status create-short-pass send failed", exc_info=True)
                     await session.send_prompt()
                     continue
 
@@ -489,11 +565,23 @@ class GameServer:
                     await session.send_line(
                         ansi.success(f"Account '{username}' created! Welcome to the galaxy.")
                     )
+                    try:
+                        await session.send_json("auth_status", {
+                            "ok": True, "kind": "create", "username": username,
+                        })
+                    except Exception:
+                        log.debug("auth_status create-ok send failed", exc_info=True)
                     await self._character_select(session)
                 else:
-                    await session.send_line(
-                        ansi.error("That username is already taken.")
-                    )
+                    msg = "That username is already taken."
+                    await session.send_line(ansi.error(msg))
+                    try:
+                        await session.send_json("auth_status", {
+                            "ok": False, "kind": "create",
+                            "reason": "username_taken", "message": msg,
+                        })
+                    except Exception:
+                        log.debug("auth_status create-taken send failed", exc_info=True)
                     await session.send_prompt()
             else:
                 await session.send_line(
@@ -501,8 +589,26 @@ class GameServer:
                 )
                 await session.send_prompt()
 
-        # Main game loop
-        await self._game_loop(session)
+        # Main game loop — wrapped so +char/switch can return to
+        # character selection without dropping the connection.
+        while session.state in (
+            SessionState.AUTHENTICATED,
+            SessionState.IN_GAME,
+            SessionState.CHAR_SWITCH,
+        ):
+            if session.state == SessionState.CHAR_SWITCH:
+                session.state = SessionState.AUTHENTICATED
+                session.character = None
+            await self._character_select(session)
+            if session.state == SessionState.IN_GAME:
+                await self._game_loop(session)
+            # CHAR_SWITCH after _game_loop → loop again.
+            # DISCONNECTING/CONNECTED → exit.
+            if session.state not in (
+                SessionState.CHAR_SWITCH,
+                SessionState.AUTHENTICATED,
+            ):
+                break
 
     async def _character_select(self, session: Session):
         """

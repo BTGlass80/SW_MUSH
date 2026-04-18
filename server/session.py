@@ -29,6 +29,7 @@ class SessionState(enum.Enum):
     CONNECTED = "connected"          # Just connected, at login screen
     AUTHENTICATED = "authenticated"  # Logged in, selecting/creating character
     IN_GAME = "in_game"              # Playing with an active character
+    CHAR_SWITCH = "char_switch"      # +char/switch: exit game loop, re-run char select
     DISCONNECTING = "disconnecting"
 
 
@@ -297,10 +298,13 @@ class Session:
     def wrap_width(self) -> int:
         """Text wrapping width.
 
-        Capped at 80 for both Telnet and WebSocket — classic MUSH terminal
-        width. This ensures decorative bars, prose, and sheet output all
-        line up consistently regardless of browser window size.
+        WebSocket sessions negotiate actual terminal width via the 'resize'
+        message sent on connect. Allow up to 100 chars (Fmt.MAX_PROSE_WIDTH)
+        so text fills the available space in wide browser windows.
+        Telnet stays at classic 80-char MUSH width.
         """
+        if self.protocol == Protocol.WEBSOCKET:
+            return min(self.width, 100)
         return min(self.width, 80)
 
     def __repr__(self):
@@ -383,7 +387,13 @@ class Session:
                     await self.send_line(text)
             elif msg_type in ("combat_state", "hud_update", "world_event",
                               "news_event", "space_state", "rep_change",
-                              "rank_up", "chargen_start"):
+                              "rank_up", "chargen_start", "pose_event",
+                              "achievements_status", "mail_status",
+                              "places_status", "space_choices",
+                              "space_choices_dismiss", "space_choices_countdown",
+                              "boarding_alert", "boarding_resolved",
+                              "achievement_unlocked", "credit_event",
+                              "shop_state", "char_select", "auth_status"):
                 pass  # Telnet clients ignore structured JSON messages
             else:
                 await self.send_line(str(data))
@@ -396,6 +406,8 @@ class Session:
         return {
             "character_id": char.get("id"),
             "name": char.get("name", ""),
+            "species": char.get("species", ""),
+            "template": char.get("template", ""),
             "wound_level": char.get("wound_level", 0),
             "wound_name": _wound_name(char.get("wound_level", 0)),
             "credits": char.get("credits", 0),
@@ -413,7 +425,30 @@ class Session:
             "room_description": "",
             "room_services": [],
             "loadout": None,
+            "attributes": None,
         }
+
+    def _hud_attributes(self, hud: dict) -> None:
+        """Add the 6 D6 attributes to the HUD for the Field Kit sheet.
+
+        Reads char["attributes"] JSON (e.g. {"dexterity":"4D+1", ...}) and
+        emits a flat dict for the client. Missing or unparseable attrs
+        fall back to "2D" per WEG D6 default.
+        """
+        char = self.character
+        raw = char.get("attributes", "{}") or "{}"
+        try:
+            if isinstance(raw, str):
+                parsed = json.loads(raw)
+            elif isinstance(raw, dict):
+                parsed = raw
+            else:
+                parsed = {}
+        except Exception:
+            parsed = {}
+        keys = ("dexterity", "knowledge", "mechanical",
+                "perception", "strength", "technical")
+        hud["attributes"] = {k: parsed.get(k, "2D") for k in keys}
 
     def _hud_equipped_weapon(self, hud: dict) -> None:
         """Add equipped weapon name to HUD from character equipment."""
@@ -885,6 +920,11 @@ class Session:
         except Exception:
             log.warning("send_hud_update: loadout failed", exc_info=True)
 
+        try:
+            self._hud_attributes(hud)
+        except Exception:
+            log.warning("send_hud_update: attributes failed", exc_info=True)
+
         # ── 3. Room row + properties (single DB fetch, reused below) ──
         room_row = None
         room_props = {}
@@ -1182,3 +1222,48 @@ class SessionManager:
             # Broadcast to all connected sessions
             for s in self._sessions:
                 await s.send_json("chat", payload)
+
+    async def broadcast_pose_event(
+        self, room_id: int, event_type: str, who: str,
+        text: str, mode: str = None, to: str = None,
+        exclude=None,
+    ):
+        """Emit a structured pose_event alongside the normal text broadcast.
+
+        The Field Kit client uses this to render typed pose log rows
+        (pose / pose-self / sys-arrival / sys-event / etc.) without
+        having to classify raw text. Telnet sessions ignore it; the
+        text broadcast covers them.
+
+        event_type: one of 'pose', 'say', 'emote', 'whisper',
+                    'sys-arrival', 'sys-event', 'sys-ok', 'sys',
+                    'room-enter'
+        who:        character name (caller resolves self vs. other client-side)
+        text:       the pose content (what was said / done)
+        mode:       verb like 'says' | 'whispers' | 'poses' | 'emotes'
+        to:         target name for directed poses (whispers, emotes at X)
+        """
+        payload = {
+            "event_type": event_type,
+            "who": who,
+            "text": text,
+        }
+        if mode is not None: payload["mode"] = mode
+        if to is not None:   payload["to"] = to
+
+        excluded_ids: set[int] = set()
+        excluded_sess = None
+        if isinstance(exclude, list):
+            excluded_ids = set(exclude)
+        elif exclude is not None:
+            excluded_sess = exclude
+
+        for s in self.sessions_in_room(room_id):
+            if excluded_sess is not None and s is excluded_sess:
+                continue
+            if s.character and s.character.get("id") in excluded_ids:
+                continue
+            try:
+                await s.send_json("pose_event", payload)
+            except Exception:
+                log.warning("broadcast_pose_event: send failed", exc_info=True)

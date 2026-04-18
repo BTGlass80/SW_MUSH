@@ -148,10 +148,14 @@ def get_anomalies_for_zone(zone_id: str) -> list:
     return list(_anomalies.get(zone_id, []))
 
 
-def spawn_anomalies_for_zone(zone_id: str, zone_type: str) -> Optional[object]:
+def spawn_anomalies_for_zone(zone_id: str, zone_type: str,
+                              security: str = "") -> Optional[object]:
     """
     Attempt to spawn a new anomaly in zone_id (call every ANOMALY_CHECK_INTERVAL ticks).
     Returns the new Anomaly if spawned, None otherwise.
+
+    If security is provided (Drop 0: space security zones), anomaly spawn rates
+    are modified. Lawless zones spawn more anomalies; secured zones spawn fewer.
     """
     global _anomaly_counter
 
@@ -161,6 +165,13 @@ def spawn_anomalies_for_zone(zone_id: str, zone_type: str) -> Optional[object]:
         return None
 
     rate = ANOMALY_SPAWN_RATES.get(zone_type, 0.0)
+
+    # Security modifier: lawless = +50% spawn rate, secured = -50%
+    if security == "lawless":
+        rate *= 1.5
+    elif security == "secured":
+        rate *= 0.5
+
     if rate <= 0.0 or random.random() > rate:
         return None
 

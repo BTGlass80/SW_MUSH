@@ -37,17 +37,17 @@ class TestTradeGoodsPricing:
         from engine.trading import get_planet_price, TRADE_GOODS
         raw_ore = TRADE_GOODS["raw_ore"]
 
-        # Tatooine is source for raw_ore (50%), Corellia is demand (200%)
+        # Tatooine is source for raw_ore (70%), Corellia is demand (140%)
         source_price = get_planet_price(raw_ore, "tatooine")
         demand_price = get_planet_price(raw_ore, "corellia")
         normal_price = get_planet_price(raw_ore, "nar_shaddaa")
 
         assert source_price < normal_price < demand_price
-        assert source_price == 50   # 100 * 0.50
-        assert demand_price == 200  # 100 * 2.00
+        assert source_price == 70   # 100 * 0.70
+        assert demand_price == 140  # 100 * 1.40
 
     def test_best_route_margin_capped(self):
-        """The best single-good route should not exceed 300% return."""
+        """The best single-good route should not exceed 150% return (v29)."""
         from engine.trading import get_planet_price, TRADE_GOODS
 
         best_ratio = 0
@@ -62,9 +62,8 @@ class TestTradeGoodsPricing:
                         best_ratio = ratio
                         best_route = f"{good.name}: {source}→{dest} ({buy}→{sell})"
 
-        # At 50%/200% multipliers the max is 4x. The audit flagged this.
-        # Document the current state for tracking.
-        assert best_ratio <= 5.0, \
+        # At 70%/140% multipliers the max is 2x (v29 — narrowed from 4x).
+        assert best_ratio <= 2.5, \
             f"Trade route ratio too high ({best_ratio:.1f}x): {best_route}"
 
     def test_supply_pool_exists(self):

@@ -299,6 +299,353 @@ _FALLBACK_DESTINATIONS = [
 ]
 
 
+# ── Faction mission configuration (v29 §6.5) ──────────────────────────────────
+#
+# FACTION_MISSION_CONFIG defines faction-affiliated mission contracts. Each
+# faction has:
+#   - badge:            Title-prefix tag, e.g. "[EMPIRE]"
+#   - givers:           Faction-specific NPC archetypes issuing the job
+#   - mission_types:    Which MissionTypes this faction offers
+#   - objectives:       Per-type objective templates (override the generic tables)
+#   - reward_mult:      Multiplier applied to the base reward (>1.0 premium)
+#   - rep_required:     Minimum faction rep to see this mission on the board
+#
+# Design intent (per economy_design_v02-1.md and faction_reputation_design_v1.md):
+#   Faction work pays 40-60% more than comparable open-board jobs, but requires
+#   enough rep with that faction to be trusted with the contract. Characters
+#   with no faction reputation see only open-board missions.
+#
+# The thematic "dark side pays more but costs DSP" core applies here too: Hutt
+# and Imperial work pays highest (1.5-1.6x) and is morally compromising; Rebel
+# work pays solid premium (1.4x) and is lawfully risky; Bounty Hunter Guild
+# sits in the middle (1.5x) and is faction-neutral professional.
+
+FACTION_MISSION_CONFIG: dict[str, dict] = {
+    "empire": {
+        "badge": "[EMPIRE]",
+        "givers": [
+            "An Imperial lieutenant in crisp uniform",
+            "A grim-faced COMPNOR operative",
+            "An ISB agent behind dark sunglasses",
+            "A harried Imperial supply officer",
+            "A bored stormtrooper sergeant",
+        ],
+        "mission_types": [
+            MissionType.DELIVERY, MissionType.COMBAT,
+            MissionType.INVESTIGATION, MissionType.TECHNICAL,
+            MissionType.BOUNTY, MissionType.PATROL,
+        ],
+        "objectives": {
+            MissionType.DELIVERY: [
+                "Transport sealed Imperial orders to the garrison at {dest}.",
+                "Deliver classified cargo to the Imperial liaison at {dest}.",
+                "Courier this encrypted datacron to the ISB station near {dest}.",
+            ],
+            MissionType.COMBAT: [
+                "Suppress insurgent activity near {dest}. Lethal force authorized.",
+                "Break up the unauthorized militia operating around {dest}.",
+                "Neutralize the armed dissidents hiding at {dest}.",
+            ],
+            MissionType.INVESTIGATION: [
+                "Identify Rebel sympathizers meeting at {dest}.",
+                "Surveil the suspected smuggling ring operating from {dest}.",
+                "Locate the deserter believed to be hiding near {dest}.",
+            ],
+            MissionType.TECHNICAL: [
+                "Repair the garrison power coupling at {dest}. Priority tasking.",
+                "Restore the Imperial comm relay at {dest} to full operation.",
+                "Recalibrate the scanner array at the {dest} checkpoint.",
+            ],
+            MissionType.BOUNTY: [
+                "Bring in the wanted traitor believed to be hiding near {dest}. Alive.",
+                "Capture the Rebel agent last seen at {dest}. No witnesses.",
+                "Detain the fugitive officer on the run near {dest}.",
+            ],
+            MissionType.PATROL: [
+                "Conduct an Imperial security sweep through {dest}.",
+                "Maintain visible Imperial presence in {dest} for two minutes.",
+                "Deter pirate activity in {dest}. Engage hostiles on sight.",
+            ],
+        },
+        "reward_mult": 1.5,
+        "rep_required": 25,   # Trusted tier - the Empire doesn't hand contracts to strangers
+    },
+    "rebel": {
+        "badge": "[REBEL]",
+        "givers": [
+            "A wary Rebel cell contact",
+            "A pilot with Alliance insignia quickly covered",
+            "A courier with a memorized message",
+            "A former Imperial officer turned sympathizer",
+            "A Mon Calamari operative in civilian clothes",
+        ],
+        "mission_types": [
+            MissionType.DELIVERY, MissionType.COMBAT,
+            MissionType.INVESTIGATION, MissionType.SMUGGLING,
+            MissionType.SLICING, MissionType.SALVAGE,
+            MissionType.INTERCEPT,
+        ],
+        "objectives": {
+            MissionType.DELIVERY: [
+                "Get these medical supplies through to the cell at {dest}.",
+                "Move these encrypted datachips to the safehouse at {dest}.",
+                "Deliver emergency funds to the contact at {dest}.",
+            ],
+            MissionType.COMBAT: [
+                "Ambush the Imperial convoy passing through {dest}.",
+                "Raid the Imperial depot near {dest}. Take what you can.",
+                "Free the political prisoners being held at {dest}.",
+            ],
+            MissionType.INVESTIGATION: [
+                "Identify the informant who compromised the {dest} cell.",
+                "Track the Imperial shipment leaving from {dest}.",
+                "Locate the missing operative last seen near {dest}.",
+            ],
+            MissionType.SMUGGLING: [
+                "Smuggle weapons past the Imperial checkpoint to {dest}. Don't get scanned.",
+                "Run this refugee family to safety at {dest}. No paperwork.",
+                "Move blockade-running cargo to the cell at {dest}.",
+            ],
+            MissionType.SLICING: [
+                "Slice Imperial records at {dest} and extract ship manifests.",
+                "Plant a dormant backdoor in the Imperial terminal at {dest}.",
+                "Decrypt the intercepted Imperial orders recovered near {dest}.",
+            ],
+            MissionType.SALVAGE: [
+                "Recover munitions from the crashed Imperial transport near {dest}.",
+                "Strip the damaged TIE fighter wreckage near {dest} for parts.",
+                "Retrieve the black box from the Rebel ship downed near {dest}.",
+            ],
+            MissionType.INTERCEPT: [
+                "Intercept {count} Imperial patrol craft operating in {dest}.",
+                "Disrupt the Imperial blockade in {dest} - destroy {count} ships.",
+                "Clear {count} TIE fighters from Rebel supply lanes near {dest}.",
+            ],
+        },
+        "reward_mult": 1.4,
+        "rep_required": 25,
+    },
+    "hutt": {
+        "badge": "[HUTT]",
+        "givers": [
+            "A Twi'lek majordomo speaking for a Hutt",
+            "A Nikto enforcer delivering a slate",
+            "A rotund Hutt kajidic lieutenant",
+            "A Weequay bodyguard passing on instructions",
+            "A slippery Hutt accountant",
+        ],
+        "mission_types": [
+            MissionType.DELIVERY, MissionType.COMBAT,
+            MissionType.SOCIAL, MissionType.MEDICAL,
+            MissionType.SMUGGLING, MissionType.BOUNTY,
+            MissionType.SLICING,
+        ],
+        "objectives": {
+            MissionType.DELIVERY: [
+                "Deliver a collection parcel to the deadbeat at {dest}. Make an impression.",
+                "Courier sealed goods to the Hutt's representative at {dest}.",
+                "Transport a 'sensitive package' to the contact at {dest}. Don't look inside.",
+            ],
+            MissionType.COMBAT: [
+                "Remind the shopkeepers at {dest} who they pay protection to.",
+                "Drive the rival gang out of {dest}. Permanent solution preferred.",
+                "Make an example of the welcher at {dest}. Leave a witness.",
+            ],
+            MissionType.SOCIAL: [
+                "Negotiate a better rate from the trader at {dest}. Any means.",
+                "Persuade the official at {dest} to look the other way next shipment.",
+                "Smooth things over with the rival clan's contact at {dest}.",
+            ],
+            MissionType.MEDICAL: [
+                "Treat a wounded operative at {dest}. No hospital, no records.",
+                "Patch up the enforcer recovering at {dest}. Keep it quiet.",
+                "Stabilize the injured courier at {dest}. Then get them moving.",
+            ],
+            MissionType.SMUGGLING: [
+                "Move contraband spice through the {dest} checkpoint. Don't get scanned.",
+                "Run off-manifest cargo to the Hutt's warehouse near {dest}.",
+                "Transport live cargo to the buyer at {dest}. No questions, no records.",
+            ],
+            MissionType.BOUNTY: [
+                "Bring in the deadbeat who owes the clan. Last seen near {dest}.",
+                "Retrieve the stolen property - and the thief - from {dest}.",
+                "Find the runaway contract-bound worker near {dest}. Bring them back.",
+            ],
+            MissionType.SLICING: [
+                "Erase the criminal record for a clan associate at {dest}.",
+                "Forge transit papers via the terminal at {dest}.",
+                "Wipe surveillance footage from the cameras near {dest}.",
+            ],
+        },
+        "reward_mult": 1.6,   # Hutts pay the best - and charge morally
+        "rep_required": 25,
+    },
+    "bh_guild": {
+        "badge": "[GUILD]",
+        "givers": [
+            "A grizzled Bounty Hunter Guild agent",
+            "A Trandoshan broker with a slate of warrants",
+            "A human Guild quartermaster",
+            "A masked Guild liaison with a courier droid",
+            "A stern Guild registrar",
+        ],
+        "mission_types": [
+            MissionType.BOUNTY, MissionType.COMBAT,
+            MissionType.INVESTIGATION,
+        ],
+        "objectives": {
+            MissionType.BOUNTY: [
+                "Guild warrant: bring in the fugitive last seen at {dest}. Alive.",
+                "Collect the registered bounty on the criminal near {dest}.",
+                "Hunt down the skip-tracer target believed to be at {dest}.",
+                "Warrant-served capture of the wanted felon near {dest}.",
+            ],
+            MissionType.COMBAT: [
+                "Eliminate the Guild-declared enemy combatants at {dest}.",
+                "Drive the unregistered hunters out of the Guild territory at {dest}.",
+                "Close out the resisting target's crew at {dest}.",
+            ],
+            MissionType.INVESTIGATION: [
+                "Locate the warrant target last seen at {dest}.",
+                "Verify the tip on the fugitive believed to be near {dest}.",
+                "Track the missing skip to their hideout near {dest}.",
+            ],
+        },
+        "reward_mult": 1.5,
+        "rep_required": 25,
+    },
+}
+
+
+def generate_faction_mission(
+    faction_code: str,
+    destination_rooms: Optional[list[dict]] = None,
+    skill_level: int = 3,
+) -> Optional["Mission"]:
+    """
+    Generate a single faction-affiliated mission.
+
+    Returns None if faction_code is not recognized. Otherwise returns a
+    Mission with:
+      - title prefixed with the faction badge (e.g. "[EMPIRE] Combat: Docking Bay 94")
+      - giver drawn from the faction's NPC pool
+      - objective drawn from the faction's per-type template (falls back to
+        the generic table if the faction has no override for that type)
+      - reward scaled by reward_mult (1.4-1.6x base, rounded to nearest 50 cr)
+      - faction_code and faction_rep_required set so rep-gated filters
+        can exclude it from characters who don't qualify
+    """
+    cfg = FACTION_MISSION_CONFIG.get(faction_code)
+    if cfg is None:
+        return None
+
+    # Pick mission type from the faction's allowed set.
+    mtype = random.choice(cfg["mission_types"])
+
+    # Ground-mission destination (faction missions are ground-oriented at this
+    # revision; PATROL/INTERCEPT still use planet names as shorthand for zones
+    # since a rep-gated faction board doesn't need the full space mission state
+    # machine to be useful for economic gating).
+    dest_room_id = None
+    if destination_rooms:
+        room = random.choice(destination_rooms)
+        dest_name = room["name"]
+        dest_room_id = str(room["id"])
+    else:
+        dest_name = random.choice(_FALLBACK_DESTINATIONS)
+
+    # Objective - prefer the faction-specific template, fall back to generic.
+    faction_templates = cfg["objectives"].get(mtype)
+    if faction_templates:
+        obj_template = random.choice(faction_templates)
+    else:
+        # Fallback to generic table. Shouldn't happen given mission_types list,
+        # but keeps us safe if FACTION_MISSION_CONFIG drifts from _OBJECTIVE_TABLES.
+        obj_template = random.choice(_OBJECTIVE_TABLES[mtype])
+
+    # Format: handle the optional {count}/{escort_ship}/{origin} placeholders
+    # that some space-mission templates use. For faction missions we substitute
+    # sensible defaults rather than leaving unformatted braces in the objective.
+    try:
+        objective = obj_template.format(
+            dest=dest_name,
+            count=random.randint(2, 4),
+            escort_ship="convoy",
+            origin=dest_name,
+        )
+    except (KeyError, IndexError):
+        # Template used an unknown placeholder - fall back to dest-only format.
+        objective = obj_template.replace("{dest}", dest_name)
+
+    # Skill / giver / title
+    skill_hint = random.choice(REQUIRED_SKILLS[mtype])
+    giver = random.choice(cfg["givers"])
+    type_display = mtype.value.replace("_", " ").title()
+    title = f"{cfg['badge']} {type_display}: {dest_name}"
+
+    # Reward: base scaled reward x faction multiplier, re-rounded to 50 cr.
+    base_reward = _scale_reward(mtype, skill_level)
+    reward_mult = cfg.get("reward_mult", 1.0)
+    reward = int(round(base_reward * reward_mult / 50) * 50)
+
+    now = time.time()
+    return Mission(
+        id=_generate_id(),
+        mission_type=mtype,
+        title=title,
+        giver=giver,
+        objective=objective,
+        destination=dest_name,
+        destination_room_id=dest_room_id,
+        reward=reward,
+        required_skill=skill_hint,
+        created_at=now,
+        expires_at=now + MISSION_TTL,
+        faction_code=faction_code,
+        faction_rep_required=cfg.get("rep_required", 0),
+    )
+
+
+async def available_missions_for_char(char: dict, db, board_missions: list) -> list:
+    """
+    Filter a list of board missions down to the subset this character
+    qualifies to see.
+
+    Rules:
+      - Non-faction missions (faction_code is None) are always visible.
+      - Faction missions are visible only if the character's rep with that
+        faction meets or exceeds faction_rep_required.
+
+    Rep lookup uses engine.organizations.get_char_faction_rep() which checks
+    membership first and falls back to attributes.faction_rep for non-members.
+
+    Returns a new list (does not mutate the input).
+    """
+    try:
+        from engine.organizations import get_char_faction_rep
+    except Exception:
+        log.warning("[missions] organizations import failed; returning unfiltered board", exc_info=True)
+        return list(board_missions)
+
+    visible = []
+    # Cache rep lookups so a board full of Empire missions only hits the DB once.
+    rep_cache: dict[str, int] = {}
+    for m in board_missions:
+        fc = getattr(m, "faction_code", None)
+        if not fc:
+            visible.append(m)
+            continue
+        if fc not in rep_cache:
+            try:
+                rep_cache[fc] = await get_char_faction_rep(char, fc, db)
+            except Exception:
+                log.warning("[missions] get_char_faction_rep failed for %s", fc, exc_info=True)
+                rep_cache[fc] = 0
+        if rep_cache[fc] >= getattr(m, "faction_rep_required", 0):
+            visible.append(m)
+    return visible
+
+
 # ── Mission dataclass ──────────────────────────────────────────────────────────
 
 @dataclass
@@ -327,6 +674,13 @@ class Mission:
     expires_at: Optional[float] = None
     # Space mission state (Drop 14): zone ID, kill counts, escort NPC ship ID, etc.
     mission_data: dict = field(default_factory=dict)
+    # ── Faction mission fields (v29 §6.5) ────────────────────────────────────
+    # Non-None when this mission is specifically faction-affiliated (e.g. an
+    # Imperial contract, a Rebel cell tasking, a Hutt job, a Guild bounty).
+    # Faction missions pay a reward_mult premium but only appear on the board
+    # for characters who meet faction_rep_required with the named faction.
+    faction_code: Optional[str] = None          # "empire" | "rebel" | "hutt" | "bh_guild" | None
+    faction_rep_required: int = 0               # Minimum rep to see this mission on the board
 
     def to_dict(self) -> dict:
         return {
@@ -345,6 +699,8 @@ class Mission:
             "accepted_at": self.accepted_at,
             "expires_at": self.expires_at,
             "mission_data": self.mission_data,
+            "faction_code": self.faction_code,
+            "faction_rep_required": self.faction_rep_required,
         }
 
     @classmethod
@@ -365,6 +721,8 @@ class Mission:
             accepted_at=d.get("accepted_at"),
             expires_at=d.get("expires_at"),
             mission_data=d.get("mission_data", {}),
+            faction_code=d.get("faction_code"),
+            faction_rep_required=d.get("faction_rep_required", 0),
         )
 
 

@@ -631,6 +631,55 @@ async def buy_from_droid(buyer: dict, droid_id: int,
         except Exception as e:
             log.debug("[shops] Bargain check failed: %s", e)
 
+    # ── Faction rep discount/markup ──
+    faction_msg = ""
+    try:
+        room_id = obj.get("room_id")
+        if room_id:
+            npcs = await db.get_npcs_in_room(room_id)
+            vendor_faction = ""
+            _fac_map = {
+                "imperial": "empire", "empire": "empire",
+                "galactic empire": "empire",
+                "rebel": "rebel", "rebel alliance": "rebel",
+                "hutt": "hutt", "hutt cartel": "hutt",
+                "bounty hunter": "bh_guild", "bounty hunters": "bh_guild",
+                "bounty hunters' guild": "bh_guild",
+            }
+            for npc in npcs:
+                ai_cfg = npc.get("ai_config_json", "{}")
+                if isinstance(ai_cfg, str):
+                    ai_cfg = json.loads(ai_cfg) if ai_cfg else {}
+                npc_fac = (ai_cfg.get("faction", "") or "").lower()
+                vendor_faction = _fac_map.get(npc_fac, "")
+                if vendor_faction:
+                    break
+            if vendor_faction:
+                from engine.organizations import get_faction_shop_modifier
+                allowed, mod, tier_name = await get_faction_shop_modifier(
+                    buyer, vendor_faction, db)
+                if not allowed:
+                    return False, (
+                        f"\033[1;31mThe vendor refuses to serve you.\033[0m "
+                        f"Your standing with this faction is {tier_name}. "
+                        f"Improve your reputation before shopping here."
+                    )
+                if mod != 0.0:
+                    faction_adj = int(final_price * mod)
+                    final_price = max(1, final_price + faction_adj)
+                    if mod < 0:
+                        faction_msg = (
+                            f"\n  {ansi.DIM}[{tier_name} standing: "
+                            f"{abs(int(mod*100))}% faction discount]{ansi.RESET}"
+                        )
+                    else:
+                        faction_msg = (
+                            f"\n  \033[0;31m[{tier_name} standing: "
+                            f"+{int(mod*100)}% price markup]\033[0m"
+                        )
+    except Exception:
+        log.warning("[shops] faction shop modifier failed for droid", exc_info=True)
+
     if buyer.get("credits", 0) < final_price:
         return False, (
             f"Insufficient credits. {slot['item_name']} costs "
@@ -721,7 +770,7 @@ async def buy_from_droid(buyer: dict, droid_id: int,
         f"{crafter_str} from \033[1;36m{shop_name}\033[0m "
         f"for \033[1;33m{final_price:,}cr\033[0m. "
         f"(Balance: {buyer['credits']:,} cr)"
-        f"{bargain_msg}"
+        f"{bargain_msg}{faction_msg}"
     )
 
 
