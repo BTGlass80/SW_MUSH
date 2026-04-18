@@ -33,7 +33,9 @@ _DIFFICULTY_LABELS = {
 
 class FactionCommand(BaseCommand):
     key = "faction"
-    aliases = ["+faction", "fac"]
+    # S58 — `+faction` alias moved to FactionUmbrellaCommand. Umbrella's
+    # default (no switch) routes back to this class for backward compat.
+    aliases = ["fac"]
     help_text = (
         "Manage your faction membership.\n"
         "\n"
@@ -833,7 +835,119 @@ class ReputationCommand(BaseCommand):
 
 
 def register_faction_commands(registry):
+    """Register faction / guild / reputation commands.
+
+    S58 — +faction umbrella registered first.
+    """
+    registry.register(FactionUmbrellaCommand())
     registry.register(FactionCommand())
     registry.register(GuildCommand())
     registry.register(SpecializeCommand())
     registry.register(ReputationCommand())
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# +faction — Umbrella for faction/guild/reputation verbs (S58)
+# ═══════════════════════════════════════════════════════════════════════════
+
+_FACTION_SWITCH_IMPL: dict = {}
+
+_FACTION_ALIAS_TO_SWITCH: dict[str, str] = {
+    # Faction view — default (absorbed from FactionCommand aliases)
+    "faction": "view", "fac": "view",
+    # Guild
+    "guild": "guild",
+    # Specialize (skill specialization within a faction)
+    "specialize": "specialize", "specialise": "specialize",
+    # Reputation
+    "reputation": "reputation", "rep": "reputation",
+}
+
+
+class FactionUmbrellaCommand(BaseCommand):
+    """`+faction` umbrella — faction, guild, specialize, reputation.
+
+    Canonical                Bare aliases (still work)
+    ---------------------    ---------------------------
+    +faction                 faction, fac (view your faction — default)
+    +faction/view            same as default
+    +faction/guild           guild, +guild
+    +faction/specialize      specialize, specialise
+    +faction/reputation      reputation, +reputation, +rep, rep
+
+    UNKNOWN-SWITCH FORWARDING (S58):
+    FactionCommand uses positional-argument subcommands (e.g.
+    `faction join rebel`, `faction list`, `faction roster`) rather
+    than switch syntax. To preserve the existing `+faction/<sub>`
+    form from pre-S58 (when `+faction` was just an alias for
+    `FactionCommand`), any switch NOT in valid_switches is forwarded
+    to FactionCommand with the switch name prepended to ctx.args.
+    So `+faction/join rebel` reaches FactionCommand as
+    `faction join rebel` and works as before.
+    """
+
+    key = "+faction"
+    aliases = [
+        "fac",
+        "guild",
+        "specialize", "specialise",
+        "reputation", "rep",
+    ]
+    help_text = (
+        "All faction verbs live under +faction/<switch>. "
+        "Bare verbs (faction, guild, reputation) still work."
+    )
+    usage = "+faction[/switch] [args]  — see 'help +faction'"
+    # NOTE: Explicit umbrella switches. Other switches (join, leave,
+    # list, roster, etc.) are forwarded to FactionCommand's positional
+    # parser rather than being listed here.
+    valid_switches = ["view", "guild", "specialize", "reputation",
+                      # FactionCommand subcommands — forwarded
+                      "list", "join", "leave", "info", "roster",
+                      "missions", "channel", "requisition",
+                      "invest", "influence", "territory", "terr",
+                      "claim", "unclaim", "guard", "armory", "seize",
+                      "hq",
+                      # Leader subs (forwarded to FactionLeaderCommand via
+                      # FactionCommand's own dispatch)
+                      "promote", "demote", "kick", "invite", "motd",
+                      "setrank", "disband", "treasury", "payroll"]
+
+    async def execute(self, ctx: CommandContext):
+        switch = None
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            typed = (ctx.command or "").lower()
+            switch = _FACTION_ALIAS_TO_SWITCH.get(typed, "view")
+
+        # First: check the real umbrella switches
+        impl = _FACTION_SWITCH_IMPL.get(switch)
+        if impl is not None:
+            await impl.execute(ctx)
+            return
+
+        # Fallback: forward to FactionCommand with switch prepended to args
+        # Preserves pre-S58 `+faction/join rebel` → `faction join rebel`
+        args_before = ctx.args or ""
+        ctx.args = f"{switch} {args_before}".strip()
+        ctx.switches = []
+        try:
+            await FactionCommand().execute(ctx)
+        finally:
+            # Restore so callers don't see the mutation
+            ctx.args = args_before
+            ctx.switches = [switch]
+
+
+def _init_faction_switch_impl():
+    global _FACTION_SWITCH_IMPL
+    _FACTION_SWITCH_IMPL = {
+        "view":       FactionCommand(),
+        "guild":      GuildCommand(),
+        "specialize": SpecializeCommand(),
+        "reputation": ReputationCommand(),
+    }
+
+
+_init_faction_switch_impl()

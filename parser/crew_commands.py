@@ -192,7 +192,10 @@ class HireCommand(BaseCommand):
 
 class RosterCommand(BaseCommand):
     key = "+roster"
-    aliases = ["roster", "crew", "mycrew", "+crew", "+mycrew"]
+    # NOTE: `crew`, `+crew`, `mycrew`, `+mycrew` moved to the CrewCommand
+    # umbrella (S56) — the umbrella's default (no switch) routes here, so
+    # bare `crew` still shows the roster via the umbrella's dispatch.
+    aliases = ["roster"]
     help_text = "View your hired NPC crew and their station assignments."
     usage = "roster"
 
@@ -508,7 +511,24 @@ def _order_flavor(station: str, action: str) -> str:
 # -- Registration --
 
 def register_crew_commands(registry):
-    """Register NPC crew management commands."""
+    """Register NPC crew management commands.
+
+    The `+crew` umbrella is the canonical form for every crew verb
+    (`+crew/hire`, `+crew/roster`, `+crew/assign`, etc.). Bare verb
+    forms (`hire`, `roster`, `assign`, `unassign`, `dismiss`, `order`)
+    remain as aliases.
+
+    NOTE on `order` collision: bare `order` is also claimed by
+    space_commands.OrderCommand (captain orders). Registration order
+    makes crew win. Canonical forms disambiguate: `+crew/order` for
+    the crew-order command here, and when S57 ships the space rename,
+    ship captain orders will get their own canonical umbrella form.
+    """
+    # Umbrella first — registers `+crew` and all the canonical
+    # verb aliases. (Dispatch table populated at module-load time.)
+    registry.register(CrewCommand())
+
+    # Per-verb classes keep their bare keys for backward compatibility.
     cmds = [
         HireCommand(),
         RosterCommand(),
@@ -519,3 +539,120 @@ def register_crew_commands(registry):
     ]
     for cmd in cmds:
         registry.register(cmd)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# +crew — Umbrella command for all crew management verbs (S56)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Switch → implementation dispatch table. Populated at module-load time.
+_CREW_SWITCH_IMPL: dict = {}
+
+# Bare alias → canonical switch. Every legacy crew verb routes here.
+_CREW_ALIAS_TO_SWITCH: dict[str, str] = {
+    # Crew view (bare umbrella names) — also the default for bare +crew
+    "crew": "roster", "mycrew": "roster",
+    # Hire (view recruiting board / hire NPC)
+    "hire": "hire", "recruiting": "hire", "hireboard": "hire",
+    # Roster (view your crew)
+    "roster": "roster",
+    # Assign / unassign
+    "assign": "assign",
+    "unassign": "unassign",
+    # Dismiss
+    "dismiss": "dismiss", "firecrew": "dismiss",
+    # Order (crew order — distinct from ship captain-order)
+    "order": "order", "ord": "order",
+}
+
+
+class CrewCommand(BaseCommand):
+    """`+crew` umbrella — dispatches to crew management handlers by switch.
+
+    Every crew verb is a switch under `+crew` as of S56:
+
+    Canonical               Bare aliases (still work)
+    --------------------    ---------------------------
+    +crew                   crew, mycrew, +mycrew  (view roster — default)
+    +crew/hire              hire, recruiting, hireboard
+    +crew/roster            roster (same as +crew default)
+    +crew/assign <n> <st>   assign
+    +crew/unassign <n>      unassign
+    +crew/dismiss <n>       dismiss, firecrew
+    +crew/order <cmd>       order, ord
+
+    `+crew` with no switch shows the roster (preserves existing
+    RosterCommand UX — that's the most common "what's my state" query).
+    `+crew/hire` browses recruiting at a cantina/spaceport.
+    `+crew/order` sends a crew order to your hired NPCs (distinct from
+    ship captain-orders, which live in space_commands).
+    """
+
+    key = "+crew"
+    aliases = [
+        # Roster aliases (from old RosterCommand)
+        "crew", "mycrew", "+mycrew",
+        # Hire
+        "hire", "recruiting", "hireboard",
+        # Roster
+        "roster",
+        # Assign / unassign
+        "assign", "unassign",
+        # Dismiss
+        "dismiss", "firecrew",
+        # Order
+        "order", "ord",
+    ]
+    help_text = (
+        "All crew management verbs live under +crew/<switch>. "
+        "Bare verbs (hire, roster, assign, unassign, dismiss, order) "
+        "still work as aliases."
+    )
+    usage = "+crew[/switch] [args]  — see 'help +crew' for all switches"
+    valid_switches = [
+        "hire", "roster", "assign", "unassign", "dismiss", "order",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        """Dispatch to the switch handler.
+
+        Resolution priority:
+          1. Explicit switch on the canonical form: `+crew/hire`
+          2. Bare alias: `assign` → ctx.command=="assign" →
+             _CREW_ALIAS_TO_SWITCH maps it to "assign"
+          3. Bare umbrella: `+crew` / `crew` / `mycrew` → show roster
+        """
+        switch = None
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            typed = (ctx.command or "").lower()
+            # Bare "+crew" / "crew" / "mycrew" → roster default
+            switch = _CREW_ALIAS_TO_SWITCH.get(typed, "roster")
+
+        impl = _CREW_SWITCH_IMPL.get(switch)
+        if impl is None:
+            await ctx.session.send_line(
+                f"  Unknown crew switch: /{switch}. "
+                f"Type 'help +crew' for the full list."
+            )
+            return
+        await impl.execute(ctx)
+
+
+def _init_crew_switch_impl():
+    """Build the switch → command instance dispatch table."""
+    global _CREW_SWITCH_IMPL
+    _CREW_SWITCH_IMPL = {
+        "hire":     HireCommand(),
+        "roster":   RosterCommand(),
+        "assign":   AssignCrewCommand(),
+        "unassign": UnassignCrewCommand(),
+        "dismiss":  DismissCrewCommand(),
+        "order":    OrderCommand(),
+    }
+
+
+# ── Populate the umbrella switch-dispatch map (S56) ──
+# Must happen after all per-verb classes are defined in this module.
+_init_crew_switch_impl()

@@ -580,7 +580,10 @@ class ShipInfoCommand(BaseCommand):
 
 class BoardCommand(BaseCommand):
     key = "board"
-    aliases = ["gunnery"]
+    # Historic "gunnery" alias removed (S57) — it was a collision with
+    # GunnerCommand.aliases, and "gunnery" is naturally an alias for
+    # "gunner", not for boarding an NPC ship.
+    aliases = []
     help_text = "Board a ship docked in this bay."
     usage = "board [ship name]"
     async def execute(self, ctx):
@@ -1325,8 +1328,26 @@ class LandCommand(BaseCommand):
 
 
 class ShipCommand(BaseCommand):
+    # S57a — expanded umbrella: absorbs aliases from sibling classes
+    # (ShipsCommand, MyShipsCommand, ShipInfoCommand, ShipRepairCommand,
+    # ShipNameCommand). The sibling classes remain registered at their
+    # bare keys for backward compatibility, but the umbrella now owns
+    # every alias route.
     key = "+ship"
-    aliases = ["ship", "+shipstatus", "shipstatus", "ss", "+ss"]
+    aliases = [
+        # Original ship-status aliases
+        "ship", "+shipstatus", "shipstatus", "ss", "+ss",
+        # From ShipsCommand (key=+ships) — ship catalog
+        "ships", "shiplist", "+ships",
+        # From MyShipsCommand (key=+myships) — owned fleet
+        "myships", "ownedships", "+myships",
+        # From ShipInfoCommand (key=+shipinfo) — template specs
+        "shipinfo", "si", "+shipinfo",
+        # From ShipRepairCommand (key=+shiprepair) — engineer repair
+        "shiprepair", "srepair", "+shiprepair",
+        # From ShipNameCommand (key=shipname) — rename owned ship
+        "shipname", "+shipname",
+    ]
     help_text = (
         "Your ship's status, info, and management.\n"
         "\n"
@@ -1335,6 +1356,7 @@ class ShipCommand(BaseCommand):
         "  /info           -- template specs for a ship type\n"
         "  /list           -- list all available ship types\n"
         "  /mine           -- list ships you own\n"
+        "  /rename <name>  -- rename your owned ship (S57a)\n"
         "  /repair         -- repair a damaged system (engineer)\n"
         "  /mods           -- view installed ship modifications\n"
         "  /install <item> -- install a crafted ship component\n"
@@ -1347,13 +1369,15 @@ class ShipCommand(BaseCommand):
         "  +ship/info x-wing  -- X-Wing stats\n"
         "  +ship/list         -- browse ship catalog\n"
         "  +ship/mine         -- your fleet\n"
+        "  +ship/rename Millennium Falcon  -- rename your ship\n"
         "  +ship/mods         -- installed modifications\n"
         "  +ship/install Engine Booster (Basic)\n"
         "  +ship/uninstall 0  -- remove mod in slot 0"
     )
-    usage = "+ship [/status|/info|/list|/mine|/repair|/mods|/install|/uninstall]"
-    valid_switches = ["status", "info", "list", "mine", "repair", "mods",
-                      "install", "uninstall", "log", "quirks"]
+    usage = "+ship [/status|/info|/list|/mine|/rename|/repair|/mods|/install|/uninstall]"
+    valid_switches = ["status", "info", "list", "mine", "rename",
+                      "repair", "mods", "install", "uninstall",
+                      "log", "quirks"]
 
     async def execute(self, ctx):
         if "list" in ctx.switches:
@@ -1362,6 +1386,9 @@ class ShipCommand(BaseCommand):
             return await self._show_info(ctx)
         if "mine" in ctx.switches:
             return await self._show_mine(ctx)
+        if "rename" in ctx.switches:
+            # S57a — delegate to ShipNameCommand which owns the logic.
+            return await ShipNameCommand().execute(ctx)
         if "repair" in ctx.switches:
             return await self._show_repair(ctx)
         if "mods" in ctx.switches:
@@ -5826,6 +5853,47 @@ async def _resolve_contact(ctx, ship, contact_num: int):
 
 
 def register_space_commands(registry):
+    """Register all space commands.
+
+    The S57b umbrellas are registered FIRST so their aliases claim the
+    bare-word routing before the per-verb classes' keys register. The
+    per-verb classes remain registered at their bare keys for
+    backward compatibility (same S54–S56 pattern).
+
+    Five umbrellas live here:
+      +pilot   — seat-claim + 10 piloting maneuvers
+      +gunner  — seat-claim + fire, lockon
+      +sensors — seat-claim + scan, deepscan
+      +bridge  — commander seat-claim + 11 captain-tier actions
+      +ship    — ship admin (expanded in S57a)
+
+    Commands that stay bare (no umbrella) per the design doc:
+      launch, land, hyperspace, disembark  — natural RP verbs
+      board, boardship, salvage            — situational PvP / boarding
+      buy, market, pay, credits            — economy (deferred to
+                                             future economy_commands
+                                             reorganization)
+      copilot, engineer, navigator         — single-action seat claims
+
+    Admin stays at @-prefix:
+      @spawn, @setbounty
+    """
+    # S57b umbrellas — register first so their alias lists claim
+    # the bare-word routing. Dispatch tables populate at module-load
+    # time.
+    umbrella_cmds = [
+        PilotStationCommand(),
+        GunnerStationCommand(),
+        SensorsStationCommand(),
+        BridgeCommand(),
+    ]
+    for cmd in umbrella_cmds:
+        registry.register(cmd)
+
+    # Per-verb classes register at their bare keys for backward
+    # compatibility. `ShipCommand` is the S57a-expanded umbrella for
+    # `+ship` — also registered here (alphabetically earlier in the
+    # list to match pre-S57b ordering).
     cmds = [
         ShipsCommand(), ShipInfoCommand(),
         BoardCommand(), DisembarkCommand(),
@@ -5859,3 +5927,383 @@ def register_space_commands(registry):
     ]
     for cmd in cmds:
         registry.register(cmd)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# +pilot — Umbrella for piloting station actions (S57b)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# NOTE on naming: the legacy `PilotCommand` has key="pilot" (bare verb
+# for "take the pilot seat"). The new umbrella uses key="+pilot" and
+# is named `PilotStationCommand` to avoid class-name collision. Same
+# pattern for +gunner → GunnerStationCommand, +sensors →
+# SensorsStationCommand. The +bridge umbrella has no naming conflict
+# (no `BridgeCommand` pre-existed) so it's just `BridgeCommand`.
+
+_PILOT_SWITCH_IMPL: dict = {}
+
+_PILOT_ALIAS_TO_SWITCH: dict[str, str] = {
+    # Default — take the pilot seat
+    "pilot": "claim",
+    # Maneuvers
+    "evade": "evade", "evasive": "evade",
+    "jink": "jink",
+    "barrelroll": "barrelroll", "broll": "barrelroll",
+    "loop": "loop", "immelmann": "loop",
+    "slip": "slip", "sideslip": "slip",
+    "tail": "tail", "getbehind": "tail",
+    "outmaneuver": "outmaneuver", "shake": "outmaneuver",
+    "close": "close", "approach": "close",
+    "fleeship": "flee", "breakaway": "flee",
+    "course": "course", "navigate": "course", "setcourse": "course",
+}
+
+
+class PilotStationCommand(BaseCommand):
+    """`+pilot` umbrella — seat claim + piloting maneuvers.
+
+    Canonical              Bare aliases (still work)
+    -------------------    ---------------------------
+    +pilot                 pilot (take the pilot seat — default)
+    +pilot/claim           pilot (same as default)
+    +pilot/evade           evade, evasive
+    +pilot/jink            jink
+    +pilot/barrelroll      barrelroll, broll
+    +pilot/loop            loop, immelmann
+    +pilot/slip            slip, sideslip
+    +pilot/tail <target>   tail, getbehind
+    +pilot/outmaneuver     outmaneuver, shake
+    +pilot/close <target>  close, approach
+    +pilot/flee            fleeship, breakaway
+    +pilot/course <zone>   course, navigate, setcourse
+
+    `+pilot` with no switch takes the pilot seat (preserves existing
+    PilotCommand UX). All other switches are piloting actions that
+    only work while seated at the pilot station.
+    """
+
+    key = "+pilot"
+    aliases = [
+        # Seat-claim default
+        "pilot",
+        # Maneuvers (absorbed from per-verb class aliases)
+        "evade", "evasive",
+        "jink",
+        "barrelroll", "broll",
+        "loop", "immelmann",
+        "slip", "sideslip",
+        "tail", "getbehind",
+        "outmaneuver", "shake",
+        "close", "approach",
+        "fleeship", "breakaway",
+        "course", "navigate", "setcourse",
+    ]
+    help_text = (
+        "All piloting verbs live under +pilot/<switch>. "
+        "Bare verbs (evade, jink, loop, etc.) still work as aliases."
+    )
+    usage = "+pilot[/switch] [args]  — see 'help +pilot' for all switches"
+    valid_switches = [
+        "claim", "evade", "jink", "barrelroll", "loop", "slip",
+        "tail", "outmaneuver", "close", "flee", "course",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        switch = None
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            typed = (ctx.command or "").lower()
+            switch = _PILOT_ALIAS_TO_SWITCH.get(typed, "claim")
+
+        impl = _PILOT_SWITCH_IMPL.get(switch)
+        if impl is None:
+            await ctx.session.send_line(
+                f"  Unknown piloting switch: /{switch}. "
+                f"Type 'help +pilot' for the full list."
+            )
+            return
+        await impl.execute(ctx)
+
+
+def _init_pilot_switch_impl():
+    global _PILOT_SWITCH_IMPL
+    _PILOT_SWITCH_IMPL = {
+        "claim":       PilotCommand(),
+        "evade":       EvadeCommand(),
+        "jink":        JinkCommand(),
+        "barrelroll":  BarrelRollCommand(),
+        "loop":        LoopCommand(),
+        "slip":        SlipCommand(),
+        "tail":        TailCommand(),
+        "outmaneuver": OutmaneuverCommand(),
+        "close":       CloseRangeCommand(),
+        "flee":        FleeShipCommand(),
+        "course":      CourseCommand(),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# +gunner — Umbrella for gunner station actions (S57b)
+# ═══════════════════════════════════════════════════════════════════════════
+
+_GUNNER_SWITCH_IMPL: dict = {}
+
+_GUNNER_ALIAS_TO_SWITCH: dict[str, str] = {
+    # Default — take a gunner seat
+    "gunner": "claim", "gunnery": "claim",
+    # Actions
+    "fire": "fire",
+    "lockon": "lockon", "lock": "lockon", "targetlock": "lockon",
+}
+
+
+class GunnerStationCommand(BaseCommand):
+    """`+gunner` umbrella — seat claim + weapons actions.
+
+    Canonical              Bare aliases (still work)
+    -------------------    ---------------------------
+    +gunner                gunner, gunnery (take a gunner seat — default)
+    +gunner/claim [#]      gunner [#] (same as default, optional station #)
+    +gunner/fire <target>  fire
+    +gunner/lockon <t>     lockon, lock, targetlock
+
+    `+gunner` with no switch takes a gunner seat (preserves existing
+    GunnerCommand UX). `/fire` and `/lockon` are actions from that
+    seat. Most ships have one gunner slot; multi-weapon ships accept
+    a station number: `+gunner/claim 2`.
+    """
+
+    key = "+gunner"
+    aliases = [
+        "gunner", "gunnery",
+        "fire",
+        "lockon", "lock", "targetlock",
+    ]
+    help_text = (
+        "All gunner verbs live under +gunner/<switch>. "
+        "Bare verbs (gunner, fire, lockon) still work as aliases."
+    )
+    usage = "+gunner[/switch] [args]  — see 'help +gunner' for all switches"
+    valid_switches = ["claim", "fire", "lockon"]
+
+    async def execute(self, ctx: CommandContext):
+        switch = None
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            typed = (ctx.command or "").lower()
+            switch = _GUNNER_ALIAS_TO_SWITCH.get(typed, "claim")
+
+        impl = _GUNNER_SWITCH_IMPL.get(switch)
+        if impl is None:
+            await ctx.session.send_line(
+                f"  Unknown gunner switch: /{switch}. "
+                f"Type 'help +gunner' for the full list."
+            )
+            return
+        await impl.execute(ctx)
+
+
+def _init_gunner_switch_impl():
+    global _GUNNER_SWITCH_IMPL
+    _GUNNER_SWITCH_IMPL = {
+        "claim":  GunnerCommand(),
+        "fire":   FireCommand(),
+        "lockon": LockOnCommand(),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# +sensors — Umbrella for sensor station actions (S57b)
+# ═══════════════════════════════════════════════════════════════════════════
+
+_SENSORS_SWITCH_IMPL: dict = {}
+
+_SENSORS_ALIAS_TO_SWITCH: dict[str, str] = {
+    # Default — take the sensors seat
+    "sensors": "claim", "sensor": "claim",
+    # Actions
+    "scan": "scan",
+    "deepscan": "deepscan",
+}
+
+
+class SensorsStationCommand(BaseCommand):
+    """`+sensors` umbrella — seat claim + sensor actions.
+
+    Canonical           Bare aliases (still work)
+    ----------------    ---------------------------
+    +sensors            sensors, sensor (take the sensors seat — default)
+    +sensors/claim      sensors (same as default)
+    +sensors/scan       scan
+    +sensors/deepscan   deepscan
+
+    `+sensors` with no switch takes the sensors seat (preserves
+    existing SensorsCommand UX). `/scan` is a passive sweep of the
+    current zone; `/deepscan` is active analysis (higher precision,
+    attracts attention).
+    """
+
+    key = "+sensors"
+    aliases = [
+        "sensors", "sensor",
+        "scan",
+        "deepscan",
+    ]
+    help_text = (
+        "All sensor verbs live under +sensors/<switch>. "
+        "Bare verbs (sensors, scan, deepscan) still work as aliases."
+    )
+    usage = "+sensors[/switch] [args]  — see 'help +sensors' for all switches"
+    valid_switches = ["claim", "scan", "deepscan"]
+
+    async def execute(self, ctx: CommandContext):
+        switch = None
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            typed = (ctx.command or "").lower()
+            switch = _SENSORS_ALIAS_TO_SWITCH.get(typed, "claim")
+
+        impl = _SENSORS_SWITCH_IMPL.get(switch)
+        if impl is None:
+            await ctx.session.send_line(
+                f"  Unknown sensor switch: /{switch}. "
+                f"Type 'help +sensors' for the full list."
+            )
+            return
+        await impl.execute(ctx)
+
+
+def _init_sensors_switch_impl():
+    global _SENSORS_SWITCH_IMPL
+    _SENSORS_SWITCH_IMPL = {
+        "claim":    SensorsCommand(),
+        "scan":     ScanCommand(),
+        "deepscan": DeepScanCommand(),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# +bridge — Umbrella for commander / captain / bridge-tier actions (S57b)
+# ═══════════════════════════════════════════════════════════════════════════
+
+_BRIDGE_SWITCH_IMPL: dict = {}
+
+_BRIDGE_ALIAS_TO_SWITCH: dict[str, str] = {
+    # Default — take the commander seat
+    "commander": "claim", "command": "claim", "captain": "claim",
+    # Ship-wide actions
+    "order": "order", "orders": "order",
+    "hail": "hail",
+    "comms": "comms", "comm": "comms", "radio": "comms",
+    "shields": "shields",
+    "power": "power", "pwr": "power",
+    "transponder": "transponder", "transp": "transponder",
+    "resist": "resist", "breakfree": "resist",
+    "damcon": "damcon", "damagecontrol": "damcon", "repair": "damcon",
+    # Management
+    "vacate": "vacate", "unstation": "vacate",
+    "assist": "assist",
+    "coordinate": "coordinate", "coord": "coordinate",
+}
+
+
+class BridgeCommand(BaseCommand):
+    """`+bridge` umbrella — commander station + ship-wide actions.
+
+    Canonical                Bare aliases (still work)
+    --------------------     ---------------------------
+    +bridge                  commander, command, captain (claim seat — default)
+    +bridge/claim            commander (same as default)
+    +bridge/order <s> <a>    order, orders       — tactical order to crew
+    +bridge/hail <target>    hail                — open a channel
+    +bridge/comms <chan>     comms, comm, radio  — comms channel management
+    +bridge/shields <l>      shields             — raise/lower/distribute
+    +bridge/power <alloc>    power, pwr          — power allocation
+    +bridge/transponder <s>  transponder, transp — set transponder state
+    +bridge/resist           resist, breakfree   — resist a tractor beam
+    +bridge/damcon <s>       damcon, damagecontrol, repair — damage control
+    +bridge/vacate           vacate, unstation   — leave your station
+    +bridge/assist <skill>   assist              — help another roll
+    +bridge/coordinate       coordinate, coord   — cross-station coordination
+
+    `+bridge` with no switch claims the commander seat (preserves
+    existing CommanderCommand UX). Most switches are ship-wide
+    captain decisions (shields, power, hail, transponder). /order
+    is the captain's tactical command to crew at other stations
+    (distinct from +crew/order which directs hired NPCs).
+    """
+
+    key = "+bridge"
+    aliases = [
+        # Commander seat aliases
+        "commander", "command", "captain",
+        # Ship-wide actions
+        "order", "orders",
+        "hail",
+        "comms", "comm", "radio",
+        "shields",
+        "power", "pwr",
+        "transponder", "transp",
+        "resist", "breakfree",
+        "damcon", "damagecontrol", "repair",
+        # Management
+        "vacate", "unstation",
+        "assist",
+        "coordinate", "coord",
+    ]
+    help_text = (
+        "All commander / bridge-tier verbs live under +bridge/<switch>. "
+        "Bare verbs (commander, hail, shields, power, etc.) still work."
+    )
+    usage = "+bridge[/switch] [args]  — see 'help +bridge' for all switches"
+    valid_switches = [
+        "claim", "order", "hail", "comms", "shields", "power",
+        "transponder", "resist", "damcon", "vacate", "assist",
+        "coordinate",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        switch = None
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            typed = (ctx.command or "").lower()
+            switch = _BRIDGE_ALIAS_TO_SWITCH.get(typed, "claim")
+
+        impl = _BRIDGE_SWITCH_IMPL.get(switch)
+        if impl is None:
+            await ctx.session.send_line(
+                f"  Unknown bridge switch: /{switch}. "
+                f"Type 'help +bridge' for the full list."
+            )
+            return
+        await impl.execute(ctx)
+
+
+def _init_bridge_switch_impl():
+    global _BRIDGE_SWITCH_IMPL
+    _BRIDGE_SWITCH_IMPL = {
+        "claim":       CommanderCommand(),
+        "order":       OrderCommand(),
+        "hail":        HailCommand(),
+        "comms":       CommsCommand(),
+        "shields":     ShieldsCommand(),
+        "power":       PowerCommand(),
+        "transponder": TransponderCommand(),
+        "resist":      ResistTractorCommand(),
+        "damcon":      DamConCommand(),
+        "vacate":      VacateCommand(),
+        "assist":      AssistCommand(),
+        "coordinate":  CoordinateCommand(),
+    }
+
+
+# ── Populate the S57b umbrella switch-dispatch maps ──
+# Must happen after all per-verb classes are defined in this module.
+_init_pilot_switch_impl()
+_init_gunner_switch_impl()
+_init_sensors_switch_impl()
+_init_bridge_switch_impl()

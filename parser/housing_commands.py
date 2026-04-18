@@ -29,7 +29,10 @@ log = logging.getLogger(__name__)
 
 class HousingCommand(BaseCommand):
     key = "housing"
-    aliases = ["home", "myroom", "homelocation"]
+    # S58 — `home` alias moved to the HomeUmbrellaCommand umbrella so
+    # bare `home` routes via the umbrella's /view default (preserves
+    # pre-S58 UX while freeing up the `+home` canonical key).
+    aliases = ["myroom", "homelocation"]
     help_text = (
         "Manage your housing or go home.\n"
         "\n"
@@ -975,10 +978,107 @@ class AdminHousingCommand(BaseCommand):
 # ── Registration ───────────────────────────────────────────────────────────────
 
 def register_housing_commands(registry) -> None:
-    """Register all housing commands. Called from game_server.py."""
+    """Register all housing commands. Called from game_server.py.
+
+    S58 — +home umbrella registered first.
+    """
+    registry.register(HomeUmbrellaCommand())
     for cmd in [
         HousingCommand(),
         SetHomeCommand(),
         AdminHousingCommand(),
     ]:
         registry.register(cmd)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# +home — Umbrella for housing verbs (S58)
+# ═══════════════════════════════════════════════════════════════════════════
+
+_HOME_SWITCH_IMPL: dict = {}
+
+_HOME_ALIAS_TO_SWITCH: dict[str, str] = {
+    # View — default (absorbed from HousingCommand alias list)
+    "home": "view", "myroom": "view", "homelocation": "view",
+    "housing": "view",
+    # Set your home location
+    "sethome": "sethome",
+    # Admin
+    "admin": "admin",
+}
+
+
+class HomeUmbrellaCommand(BaseCommand):
+    """`+home` umbrella — housing / residence verbs.
+
+    Canonical            Bare aliases (still work)
+    -----------------    ---------------------------
+    +home                home, myroom, housing (view your home — default)
+    +home/view           same as default
+    +home/sethome        sethome (set current room as your home)
+    +home/admin <args>   @housing (admin-only)
+
+    UNKNOWN-SWITCH FORWARDING (S58):
+    HousingCommand uses positional-argument subcommands (rent,
+    storage, name, trophy, buy, shopfront, guest, visit, etc.). Any
+    switch NOT in the "real" umbrella switch set is forwarded to
+    HousingCommand with the switch name prepended. So `+home/rent 5`
+    reaches HousingCommand as `housing rent 5`.
+    """
+
+    key = "+home"
+    aliases = [
+        "home", "myroom", "homelocation",
+        "sethome",
+        # NOTE: @housing admin stays at its own key
+    ]
+    help_text = (
+        "All housing verbs live under +home/<switch>. "
+        "Bare verbs (home, myroom, sethome) still work."
+    )
+    usage = "+home[/switch] [args]  — see 'help +home' for all switches"
+    valid_switches = [
+        # Real umbrella switches
+        "view", "sethome", "admin",
+        # HousingCommand subcommands — forwarded
+        "rent", "checkout", "storage", "store", "retrieve",
+        "name", "describe",
+        "trophy", "untrophy", "trophies",
+        "buy", "shopfront", "sell",
+        "guest", "intrusions", "visit",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        switch = None
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            typed = (ctx.command or "").lower()
+            switch = _HOME_ALIAS_TO_SWITCH.get(typed, "view")
+
+        impl = _HOME_SWITCH_IMPL.get(switch)
+        if impl is not None:
+            await impl.execute(ctx)
+            return
+
+        # Forward to HousingCommand with switch prepended to args
+        args_before = ctx.args or ""
+        ctx.args = f"{switch} {args_before}".strip()
+        ctx.switches = []
+        try:
+            await HousingCommand().execute(ctx)
+        finally:
+            ctx.args = args_before
+            ctx.switches = [switch]
+
+
+def _init_home_switch_impl():
+    global _HOME_SWITCH_IMPL
+    _HOME_SWITCH_IMPL = {
+        "view":    HousingCommand(),
+        "sethome": SetHomeCommand(),
+        "admin":   AdminHousingCommand(),
+    }
+
+
+_init_home_switch_impl()

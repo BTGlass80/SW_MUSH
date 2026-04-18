@@ -1056,7 +1056,18 @@ def _quality_desc(quality: float) -> str:
 # ---------------------------------------------------------------------------
 
 def register_crafting_commands(registry) -> None:
-    """Register all crafting commands with the command registry."""
+    """Register all crafting commands with the command registry.
+
+    The `+craft` umbrella is the canonical form for every crafting verb
+    (`+craft/start`, `+craft/survey`, `+craft/experiment`, etc.). Bare
+    verb forms (`craft`, `survey`, `experiment`, `resources`,
+    `schematics`, `teach`, `buyresources`) remain as aliases.
+    """
+    # Umbrella first — registers `+craft` and all the canonical
+    # verb aliases. (Dispatch table populated at module-load time.)
+    registry.register(CraftingCommand())
+
+    # Per-verb classes keep their bare keys for backward compatibility.
     for cmd in [
         SurveyCommand(),
         ResourcesCommand(),
@@ -1245,3 +1256,137 @@ class BuyResourcesCommand(BaseCommand):
                                      char["credits"])
         except Exception:
             log.warning("BuyResourcesCommand: credit log failed", exc_info=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# +craft — Umbrella command for all crafting verbs (S56)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Switch → implementation dispatch table. Populated at module-load time.
+_CRAFT_SWITCH_IMPL: dict = {}
+
+# Bare alias → canonical switch. Every legacy crafting verb routes here.
+_CRAFT_ALIAS_TO_SWITCH: dict[str, str] = {
+    # Survey (gather resources from the environment)
+    "survey": "survey",
+    # Resources (view your pool)
+    "resources": "resources", "res": "resources",
+    # Schematics (list what you know)
+    "schematics": "schematics", "schem": "schematics",
+    # Start (actual crafting — default action)
+    "craft": "start",
+    # Experiment (one-shot bonus attempts)
+    "experiment": "experiment", "exp": "experiment",
+    # Teach (trainer NPCs transfer skill)
+    "teach": "teach",
+    # Buy resources (NPC vendor path)
+    "buyresources": "buyresources",
+    "buyres": "buyresources",
+    "buy resources": "buyresources",
+}
+
+
+class CraftingCommand(BaseCommand):
+    """`+craft` umbrella — dispatches to crafting verb handlers by switch.
+
+    Every crafting verb is a switch under `+craft` as of S56:
+
+    Canonical                  Bare aliases (still work)
+    -----------------------    ---------------------------
+    +craft                     (default: /resources — shows your pool)
+    +craft/survey              survey
+    +craft/resources           resources, res
+    +craft/schematics          schematics, schem
+    +craft/start <schematic>   craft <schematic>
+    +craft/experiment          experiment, exp
+    +craft/teach <student>     teach
+    +craft/buyresources <t> <n> buyresources, buyres, buy resources, +buyres
+
+    `+craft` with no switch shows your current resource pool — the
+    most common "what's my state" query. Survey gathers materials
+    from your environment; experiment spends resources for a chance
+    at better quality; teach is trainer-NPC-only. Buyresources is the
+    economy-hardening floor: NPC vendors sell quality-50 resources at
+    fixed prices.
+    """
+
+    key = "+craft"
+    aliases = [
+        # Survey
+        "survey",
+        # Resources (default view)
+        "resources", "res",
+        # Schematics
+        "schematics", "schem",
+        # Start (actual crafting)
+        "craft",
+        # Experiment
+        "experiment", "exp",
+        # Teach
+        "teach",
+        # BuyResources
+        "buyresources", "buyres", "+buyres",
+    ]
+    help_text = (
+        "All crafting verbs live under +craft/<switch>. "
+        "Bare verbs (craft, survey, experiment, resources, schematics, "
+        "teach, buyresources) still work as aliases."
+    )
+    usage = "+craft[/switch] [args]  — see 'help +craft' for all switches"
+    valid_switches = [
+        "start", "survey", "experiment", "teach",
+        "resources", "buyresources", "schematics",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        """Dispatch to the switch handler.
+
+        Resolution priority:
+          1. Explicit switch on the canonical form: `+craft/survey`
+          2. Bare alias: `survey` → ctx.command=="survey" →
+             _CRAFT_ALIAS_TO_SWITCH maps it to "survey"
+          3. Bare umbrella: `+craft` / `craft` → show resources (default)
+
+        NOTE: bare `craft` is the legacy "start crafting" verb, so it
+        maps to /start, NOT /resources. Use `+craft` (no alias) for
+        the resources default.
+        """
+        switch = None
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            typed = (ctx.command or "").lower()
+            # Bare "+craft" → resources default. All other bare aliases
+            # map via _CRAFT_ALIAS_TO_SWITCH.
+            if typed == "+craft":
+                switch = "resources"
+            else:
+                switch = _CRAFT_ALIAS_TO_SWITCH.get(typed, "resources")
+
+        impl = _CRAFT_SWITCH_IMPL.get(switch)
+        if impl is None:
+            await ctx.session.send_line(
+                f"  Unknown crafting switch: /{switch}. "
+                f"Type 'help +craft' for the full list."
+            )
+            return
+        await impl.execute(ctx)
+
+
+def _init_craft_switch_impl():
+    """Build the switch → command instance dispatch table."""
+    global _CRAFT_SWITCH_IMPL
+    _CRAFT_SWITCH_IMPL = {
+        "start":         CraftCommand(),
+        "survey":        SurveyCommand(),
+        "experiment":    ExperimentCommand(),
+        "teach":         TeachCommand(),
+        "resources":     ResourcesCommand(),
+        "buyresources":  BuyResourcesCommand(),
+        "schematics":    SchematicsCommand(),
+    }
+
+
+# ── Populate the umbrella switch-dispatch map (S56) ──
+# Must happen after all per-verb classes are defined in this module.
+_init_craft_switch_impl()

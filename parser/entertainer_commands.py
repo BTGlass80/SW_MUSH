@@ -120,7 +120,10 @@ def _has_musical_instrument(char: dict) -> bool:
 
 class PerformCommand(BaseCommand):
     key = "perform"
-    aliases = ["entertain", "play"]
+    # S58 — `+perform` canonical form added as alias (single-action
+    # module; no umbrella class justified per the S57b pattern for
+    # single-action commands like copilot/engineer/navigator).
+    aliases = ["entertain", "play", "+perform"]
     help_text = (
         "Perform for credits in a cantina. Uses Persuasion or "
         "Musical Instrument skill. 10-minute cooldown between performances."

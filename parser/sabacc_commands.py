@@ -143,7 +143,9 @@ async def _get_dealer_pool(ctx, char) -> tuple[int, int]:
 
 class SabaccCommand(BaseCommand):
     key = "sabacc"
-    aliases = ["gamble", "cards"]
+    # S58 — `+sabacc` canonical form added as alias (single-action
+    # module; no umbrella class needed).
+    aliases = ["gamble", "cards", "+sabacc"]
     help_text = "Play a hand of Sabacc against the house. Cantina only."
     usage = "sabacc [bet amount]"
 

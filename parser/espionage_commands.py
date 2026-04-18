@@ -640,9 +640,113 @@ class InterceptCommand(BaseCommand):
 # ── Registration ──────────────────────────────────────────────────────────────
 
 def register_espionage_commands(registry):
-    """Register all espionage commands."""
+    """Register all espionage commands.
+
+    S58 — +spy umbrella registered first; per-verb classes remain at
+    their bare keys for backward compatibility.
+    """
+    registry.register(SpyCommand())
     registry.register(ScanCommand())
     registry.register(EavesdropCommand())
     registry.register(InvestigateCommand())
     registry.register(IntelCommand())
     registry.register(InterceptCommand())
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# +spy — Umbrella for espionage verbs (S58)
+# ═══════════════════════════════════════════════════════════════════════════
+
+_SPY_SWITCH_IMPL: dict = {}
+
+_SPY_ALIAS_TO_SWITCH: dict[str, str] = {
+    # Assess (size-up a target) — default (most common)
+    "assess": "assess", "size": "assess",
+    # Eavesdrop
+    "eavesdrop": "eavesdrop", "listen": "eavesdrop",
+    # Investigate
+    "investigate": "investigate", "search": "investigate", "inspect": "investigate",
+    # Intel
+    "intel": "intel",
+    # Intercept (comms wiretap)
+    "intercept": "intercept", "wiretap": "intercept", "comtap": "intercept",
+}
+
+
+class SpyCommand(BaseCommand):
+    """`+spy` umbrella — espionage and information-gathering verbs.
+
+    Canonical                Bare aliases (still work)
+    ---------------------    ---------------------------
+    +spy                     (assess a target — default)
+    +spy/assess <target>     assess, size
+    +spy/eavesdrop           eavesdrop, listen
+    +spy/investigate         investigate, search, inspect
+    +spy/intel               intel, +intel
+    +spy/intercept <chan>    intercept, wiretap, comtap
+
+    `+spy` with no switch defaults to /assess — the "size up a
+    target" action that's the most common first espionage step.
+    All five verbs are covered switches.
+
+    NOTE on `scan`: parser.espionage_commands.ScanCommand has
+    key="assess" (NOT "scan") — it was renamed pre-sweep to avoid
+    collision with parser.space_commands.ScanCommand (the sensor
+    scan). The umbrella's /assess switch dispatches to the
+    espionage ScanCommand; /scan in +sensors dispatches to the
+    space one. Two different commands, two different canonical
+    forms, no collision.
+    """
+
+    key = "+spy"
+    aliases = [
+        # Assess
+        "assess", "size",
+        # Eavesdrop
+        "eavesdrop", "listen",
+        # Investigate
+        "investigate", "search", "inspect",
+        # Intel
+        "intel",
+        # Intercept
+        "intercept", "wiretap", "comtap",
+    ]
+    help_text = (
+        "All espionage verbs live under +spy/<switch>. "
+        "Bare verbs (assess, listen, search, intel, wiretap) still work."
+    )
+    usage = "+spy[/switch] [args]  — see 'help +spy' for all switches"
+    valid_switches = [
+        "assess", "eavesdrop", "investigate", "intel", "intercept",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        switch = None
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            typed = (ctx.command or "").lower()
+            switch = _SPY_ALIAS_TO_SWITCH.get(typed, "assess")
+
+        impl = _SPY_SWITCH_IMPL.get(switch)
+        if impl is None:
+            await ctx.session.send_line(
+                f"  Unknown espionage switch: /{switch}. "
+                f"Type 'help +spy' for the full list."
+            )
+            return
+        await impl.execute(ctx)
+
+
+def _init_spy_switch_impl():
+    global _SPY_SWITCH_IMPL
+    _SPY_SWITCH_IMPL = {
+        "assess":      ScanCommand(),   # key='assess' despite class name
+        "eavesdrop":   EavesdropCommand(),
+        "investigate": InvestigateCommand(),
+        "intel":       IntelCommand(),
+        "intercept":   InterceptCommand(),
+    }
+
+
+_init_spy_switch_impl()

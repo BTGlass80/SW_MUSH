@@ -1776,7 +1776,8 @@ a { color: inherit; text-decoration: none; }
   position: absolute;
   top: 6px;
   right: 8px;
-  z-index: 5;
+  z-index: 10;               /* bumped from 5 — [S60/P1 bug 4] ensure button sits above sibling SVG */
+  pointer-events: auto;      /* [S60/P1 bug 4] explicit — defend against parent pointer-events:none */
   width: 22px; height: 22px;
   padding: 0;
   background: rgba(4, 20, 26, 0.65);
@@ -1865,6 +1866,8 @@ a { color: inherit; text-decoration: none; }
   color: var(--accent-dim);
   text-transform: uppercase;
   flex: 0 0 auto;
+  position: relative;   /* [S60/P1 bug 2] establish stacking context */
+  z-index: 2;           /* [S60/P1 bug 2] sit above .map-modal-body contents */
 }
 .map-modal-head .mm-title {
   color: var(--accent);
@@ -1887,6 +1890,9 @@ a { color: inherit; text-decoration: none; }
   cursor: pointer;
   border-radius: 3px;
   transition: color 0.15s, border-color 0.15s;
+  position: relative;       /* [S60/P1 bug 2] defend against overlay from body */
+  z-index: 3;               /* [S60/P1 bug 2] sit above anything in the head */
+  pointer-events: auto;     /* [S60/P1 bug 2] explicit — ensures clicks land */
 }
 .map-modal-head .mm-close:hover {
   color: var(--accent);
@@ -4337,8 +4343,14 @@ function closeMapModal() {
 }
 
 function mapModalBackdropClick(evt) {
-  // Only close if the click was directly on the overlay (not on a child).
-  if (evt && evt.target && evt.target.id === 'map-modal-overlay') {
+  // [S60/P1 bug 3] Close if the click target is NOT inside the modal box.
+  // Previous check (evt.target.id === 'map-modal-overlay') only matched clicks
+  // that landed exactly on the 40px overlay padding and missed clicks that
+  // bubbled up through children of the overlay whose stopPropagation didn't
+  // fire (e.g. elements briefly detached or overlay-level siblings).
+  if (!evt || !evt.target) return;
+  var modal = document.getElementById('map-modal');
+  if (modal && !modal.contains(evt.target)) {
     closeMapModal();
   }
 }
@@ -4365,6 +4377,29 @@ function renderMapModal(kind) {
   clone.setAttribute('height', '100%');
   clone.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
+  // [S60/P1 bug 1] Expand the cloned viewBox proportionally to the text
+  // scale factor below (TEXT_SCALE). Labels on the ground map are drawn at
+  // coords up to x≈370/y≈270 inside a 400×300 viewBox; scaling font-size
+  // 2.2× without touching the viewBox pushes text off the right/bottom
+  // edges. Adding margin on all sides absorbs that overflow. The radar
+  // map has a symmetric viewBox (-100 -100 200 200) and the same logic
+  // applies symmetrically. Margin factor is (scale - 1) so at scale=2.2,
+  // each side gets 60% of the original half-dimension added as padding.
+  var TEXT_SCALE = 2.2;
+  var PAD_FACTOR = TEXT_SCALE - 1;  // 1.2
+  var origVB = (clone.getAttribute('viewBox') || '').trim();
+  if (origVB) {
+    var parts = origVB.split(/[\s,]+/).map(parseFloat);
+    if (parts.length === 4 && parts.every(function(n) { return !isNaN(n); })) {
+      var vx = parts[0], vy = parts[1], vw = parts[2], vh = parts[3];
+      var padX = vw * PAD_FACTOR * 0.5;
+      var padY = vh * PAD_FACTOR * 0.5;
+      var newVB = (vx - padX) + ' ' + (vy - padY) + ' ' +
+                  (vw + padX * 2) + ' ' + (vh + padY * 2);
+      clone.setAttribute('viewBox', newVB);
+    }
+  }
+
   // Upscale label font-sizes in the clone. The mini-map labels are sized
   // for a 140px view; at modal size those become hard to read even though
   // the SVG scales. Walk all <text> elements and bump the font-size by ~2x.
@@ -4375,7 +4410,7 @@ function renderMapModal(kind) {
     var m = style.match(/font-size\s*:\s*([\d.]+)px/);
     if (m) {
       var orig = parseFloat(m[1]);
-      var scaled = Math.max(orig * 2.2, 4.5);
+      var scaled = Math.max(orig * TEXT_SCALE, 4.5);
       style = style.replace(/font-size\s*:\s*[\d.]+px/, 'font-size:' + scaled.toFixed(2) + 'px');
       t.setAttribute('style', style);
     } else {

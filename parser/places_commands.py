@@ -729,7 +729,15 @@ async def auto_depart_place(db, char_id: int, room_id: int, session_mgr):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def register_places_commands(registry):
-    """Register all places/mutter/exit-message commands."""
+    """Register all places/mutter/exit-message commands.
+
+    S58 — +place umbrella registered first; per-verb classes remain
+    registered at their bare keys for backward compatibility. `tt`,
+    `ttooc`, and `mutter` stay bare (natural RP shortcuts, per the
+    S54 rename policy).
+    """
+    # Umbrella first so its alias list claims bare-word routing
+    registry.register(PlaceUmbrellaCommand())
     for cmd in [
         PlacesCommand(), JoinPlaceCommand(), DepartPlaceCommand(),
         TableTalkCommand(), TableTalkOocCommand(),
@@ -738,3 +746,101 @@ def register_places_commands(registry):
         MutterCommand(),
     ]:
         registry.register(cmd)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# +place — Umbrella for places verbs (S58)
+# ═══════════════════════════════════════════════════════════════════════════
+
+_PLACE_SWITCH_IMPL: dict = {}
+
+_PLACE_ALIAS_TO_SWITCH: dict[str, str] = {
+    # View default
+    "places": "view", "place": "view",
+    # Seating
+    "join": "join", "sit": "join",
+    "depart": "depart", "stand": "depart",
+    # NOTE: admin commands (@places, @place, @osucc, @ofail, @odrop)
+    # stay at their @-prefix keys per S58 design. Folding them into
+    # +place/config etc. would clobber their native ctx.switches
+    # handling (e.g., @places/clear reads "clear" from ctx.switches,
+    # but +place/config clear would set ctx.switches=["config"]
+    # and lose the /clear signal).
+    # NOTE: tt, ttooc, mutter, mu stay BARE per S54 policy
+    # (natural RP shortcuts). Not routed through this umbrella.
+}
+
+
+class PlaceUmbrellaCommand(BaseCommand):
+    """`+place` umbrella — places / seating / exit-messages.
+
+    Canonical              Bare aliases (still work)
+    --------------------   ---------------------------
+    +place                 places, place (view places in this room — default)
+    +place/view            places (same as default)
+    +place/join <name>     join, sit
+    +place/depart          depart, stand
+    +place/config          @places (admin: configure places in this room)
+    +place/set <args>      @place (admin: set a specific place)
+    +place/osucc <msg>     @osucc (admin: exit success message)
+    +place/ofail <msg>     @ofail (admin: exit failure message)
+    +place/odrop <msg>     @odrop (admin: exit drop-off message)
+
+    `+place` with no switch lists places in this room (the legacy
+    PlacesCommand behavior). Seating verbs (join/depart) are
+    canonical under +place; bare RP shortcuts (tt, ttooc, mutter)
+    remain bare per the S54 rename policy — those are natural RP
+    actions players type without role context.
+    """
+
+    key = "+place"
+    aliases = [
+        # View
+        "places", "place",
+        # Seating
+        "join", "sit",
+        "depart", "stand",
+        # NOTE: admin @-prefix aliases stay on their per-verb classes;
+        # the umbrella only provides canonical +place/<switch> forms.
+    ]
+    help_text = (
+        "All places verbs live under +place/<switch>. "
+        "Bare verbs (places, join, depart) still work. "
+        "RP shortcuts (tt, ttooc, mutter) stay bare."
+    )
+    usage = "+place[/switch] [args]  — see 'help +place' for all switches"
+    valid_switches = [
+        "view", "join", "depart",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        switch = None
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            typed = (ctx.command or "").lower()
+            switch = _PLACE_ALIAS_TO_SWITCH.get(typed, "view")
+
+        impl = _PLACE_SWITCH_IMPL.get(switch)
+        if impl is None:
+            await ctx.session.send_line(
+                f"  Unknown place switch: /{switch}. "
+                f"Type 'help +place' for the full list."
+            )
+            return
+        await impl.execute(ctx)
+
+
+def _init_place_switch_impl():
+    global _PLACE_SWITCH_IMPL
+    _PLACE_SWITCH_IMPL = {
+        "view":   PlacesCommand(),
+        "join":   JoinPlaceCommand(),
+        "depart": DepartPlaceCommand(),
+        # NOTE: admin commands (@places, @place, @osucc, @ofail, @odrop)
+        # stay at their @-prefix keys per S58 design. Folding them
+        # here would clobber their native ctx.switches handling.
+    }
+
+
+_init_place_switch_impl()

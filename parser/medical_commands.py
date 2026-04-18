@@ -407,6 +407,80 @@ class HealRateCommand(BaseCommand):
 
 
 def register_medical_commands(registry):
-    """Register medical commands with the command registry."""
+    """Register medical commands with the command registry.
+
+    S58 — +medical umbrella registered first.
+    """
+    registry.register(MedicalCommand())
     for cmd in [HealCommand(), HealAcceptCommand(), HealRateCommand()]:
         registry.register(cmd)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# +medical — Umbrella for medical verbs (S58)
+# ═══════════════════════════════════════════════════════════════════════════
+
+_MEDICAL_SWITCH_IMPL: dict = {}
+
+_MEDICAL_ALIAS_TO_SWITCH: dict[str, str] = {
+    # Heal — default
+    "heal": "heal",
+    # Accept a heal offer
+    "healaccept": "accept", "haccept": "accept",
+    # Rate configuration
+    "healrate": "rate", "hrate": "rate",
+}
+
+
+class MedicalCommand(BaseCommand):
+    """`+medical` umbrella — healing verbs.
+
+    Canonical                Bare aliases (still work)
+    ---------------------    ---------------------------
+    +medical                 (heal a target — default)
+    +medical/heal <target>   heal <target>
+    +medical/accept          healaccept, haccept
+    +medical/rate <n>     healrate, hrate, +healrate
+    """
+
+    key = "+medical"
+    aliases = [
+        "heal",
+        "healaccept", "haccept",
+        "healrate", "hrate",
+    ]
+    help_text = (
+        "All medical verbs live under +medical/<switch>. "
+        "Bare verbs (heal, healaccept, healrate) still work."
+    )
+    usage = "+medical[/switch] [args]  — see 'help +medical' for all switches"
+    valid_switches = ["heal", "accept", "rate"]
+
+    async def execute(self, ctx: CommandContext):
+        switch = None
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            typed = (ctx.command or "").lower()
+            switch = _MEDICAL_ALIAS_TO_SWITCH.get(typed, "heal")
+
+        impl = _MEDICAL_SWITCH_IMPL.get(switch)
+        if impl is None:
+            await ctx.session.send_line(
+                f"  Unknown medical switch: /{switch}. "
+                f"Type 'help +medical' for the full list."
+            )
+            return
+        await impl.execute(ctx)
+
+
+def _init_medical_switch_impl():
+    global _MEDICAL_SWITCH_IMPL
+    _MEDICAL_SWITCH_IMPL = {
+        "heal":   HealCommand(),
+        "accept": HealAcceptCommand(),
+        "rate":   HealRateCommand(),
+    }
+
+
+_init_medical_switch_impl()
