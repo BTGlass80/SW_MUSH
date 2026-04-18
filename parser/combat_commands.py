@@ -1909,18 +1909,292 @@ async def try_nl_combat_action(ctx, raw_input: str) -> bool:
 
 
 def register_combat_commands(registry):
-    """Register all combat commands."""
+    """Register all combat commands.
+
+    The `+combat` umbrella is the canonical form for every combat verb
+    (`+combat/attack`, `+combat/dodge`, `+combat/parry`, etc.). Bare
+    verb forms (`attack`, `dodge`, `parry`, `aim`, `flee`, `cover`,
+    `fulldodge`, `fullparry`, `pass`, `disengage`, `range`, `cpose`,
+    `crolls`, `forcepoint`, `challenge`, `accept`, `decline`, `soak`)
+    remain as aliases. Players' muscle memory keeps working; the
+    canonical name moves.
+
+    The umbrella itself is `CombatCommand`, registered with a rich
+    alias list and a full `valid_switches` catalog. The per-verb
+    command classes (AttackCommand, DodgeCommand, etc.) still exist
+    and still implement the combat logic — the umbrella's `execute()`
+    dispatches to them by switch or by typed alias. This approach
+    preserves 1400+ lines of working combat logic untouched and only
+    adds the new routing layer on top.
+
+    One subtlety on `accept`: both combat (PvP challenge) and mission
+    (board) use the bare word. Registration order makes mission
+    win the bare `accept`. Under `+combat/accept` vs `+mission/accept`
+    the collision disappears.
+    """
+    # Umbrella first — registers `+combat` and all the canonical
+    # verb aliases. Must be registered BEFORE the per-verb classes
+    # are registered with their own bare keys so that bare-form
+    # dispatch resolves to the umbrella (not the legacy classes).
+    registry.register(CombatCommand())
+
+    # Per-verb classes still register their bare keys as a fallback
+    # path for any internal code or tests that call them directly.
+    # Bare-word player input is handled by the umbrella's alias list
+    # above; these registrations are harmless because a later `register`
+    # call with the same key overwrites, but aliases on the umbrella
+    # already dispatch correctly. Kept for backward compatibility
+    # with any deep imports that rely on the class-based lookup.
     cmds = [
         AttackCommand(), DodgeCommand(), FullDodgeCommand(),
         ParryCommand(), FullParryCommand(), SoakCommand(),
         AimCommand(), FleeCommand(), PassCommand(),
-        CombatStatusCommand(), ResolveCommand(), DisengageCommand(),
+        ResolveCommand(), DisengageCommand(),
         RangeCommand(), CoverCommand(), ForcePointCommand(),
         CombatPoseCommand(), CombatRollsCommand(),
         ChallengeCommand(), AcceptCommand(), DeclineCommand(),
     ]
     for cmd in cmds:
         registry.register(cmd)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# +combat — Umbrella command for all combat verbs (S54)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Map from canonical switch names to the per-verb class that implements them.
+# When a player types `+combat/attack`, we look up "attack" here and call the
+# corresponding command's execute(). When they type the bare alias `attack`,
+# we map it back to the switch via _ALIAS_TO_SWITCH.
+#
+# This table is the single source of truth for which verbs are switches
+# under +combat. To add a new combat verb:
+#   1. Add the class (as before)
+#   2. Add an entry to _SWITCH_IMPL
+#   3. Add any bare aliases to _ALIAS_TO_SWITCH
+#   4. Add to CombatCommand.valid_switches
+#   5. Update +combat.md help file
+_SWITCH_IMPL: dict = {}   # populated below; deferred to avoid forward-ref
+
+# Map from bare alias to the canonical switch name. Players who type
+# `attack greedo` reach the umbrella; ctx.command is "attack"; we map
+# to switch "attack" and dispatch. This covers every legacy bare verb
+# plus short-form aliases like "att", "kill", "shoot", "hit".
+_ALIAS_TO_SWITCH: dict[str, str] = {
+    # Attack
+    "attack": "attack", "att": "attack", "kill": "attack",
+    "shoot": "attack", "hit": "attack",
+    # Dodge
+    "dodge": "dodge",
+    "fulldodge": "fulldodge", "full dodge": "fulldodge", "fdodge": "fulldodge",
+    # Parry
+    "parry": "parry",
+    "fullparry": "fullparry", "full parry": "fullparry", "fparry": "fullparry",
+    # Soak
+    "soak": "soak",
+    # Aim
+    "aim": "aim",
+    # Flee / Disengage
+    "flee": "flee", "run": "flee", "retreat": "flee",
+    "disengage": "disengage",
+    # Declaration / round flow
+    "pass": "pass",
+    "resolve": "resolve",
+    # Positioning
+    "range": "range", "distance": "range",
+    "cover": "cover", "hide": "cover",
+    # Force points
+    "forcepoint": "forcepoint", "fp": "forcepoint",
+    # Pose / rolls
+    "cpose": "pose", "combatpose": "pose",
+    "crolls": "rolls", "combat rolls": "rolls",
+    # PvP
+    "challenge": "challenge", "duel": "challenge",
+    "accept": "accept",
+    "decline": "decline", "refuse": "decline",
+    # Status (no-switch default)
+    "combat": "status", "cs": "status",
+}
+
+
+class CombatCommand(BaseCommand):
+    """`+combat` umbrella — dispatches to combat verb handlers by switch.
+
+    Every combat verb is a switch under `+combat` as of S54:
+
+    Canonical               Bare aliases (still work)
+    --------------------    ---------------------------
+    +combat                 combat, cs, +cs
+    +combat/attack <t>      attack, att, kill, shoot, hit
+    +combat/dodge           dodge
+    +combat/fulldodge       fulldodge, full dodge, fdodge
+    +combat/parry           parry
+    +combat/fullparry       fullparry, full parry, fparry
+    +combat/soak <n>        soak
+    +combat/aim             aim
+    +combat/flee            flee, run, retreat
+    +combat/disengage       disengage
+    +combat/pass            pass
+    +combat/resolve         resolve                (admin)
+    +combat/range <t> <b>   range, distance
+    +combat/cover [level]   cover, hide
+    +combat/forcepoint      forcepoint, fp, +fp
+    +combat/pose <text>     cpose, combatpose
+    +combat/rolls           crolls, combat rolls
+    +combat/challenge <t>   challenge, duel
+    +combat/accept <t>      accept
+    +combat/decline [t]     decline, refuse
+    +combat/status          (also: bare `+combat`)
+
+    `+combat` with no switch shows combat status (preserves existing
+    CombatStatusCommand UX). `+combat/rolls` shows the initiative
+    roll breakdown. Anything else routes to the named combat verb.
+    """
+
+    key = "+combat"
+    aliases = [
+        # Status aliases (from old CombatStatusCommand)
+        "combat", "cs", "+cs",
+        # Attack
+        "attack", "att", "kill", "shoot", "hit",
+        # Dodge family
+        "dodge", "fulldodge", "fdodge",
+        # Parry family
+        "parry", "fullparry", "fparry",
+        # Soak / aim / flee / pass / disengage / resolve
+        "soak", "aim",
+        "flee", "run", "retreat",
+        "pass", "disengage",
+        "resolve",
+        # Positioning
+        "range", "distance",
+        "cover", "hide",
+        # Force points
+        "forcepoint", "fp", "+fp",
+        # Pose / rolls
+        "cpose", "combatpose",
+        "crolls",
+        # PvP
+        "challenge", "duel",
+        "accept", "decline", "refuse",
+    ]
+    help_text = (
+        "All ground combat verbs live under +combat/<switch>. "
+        "Bare verbs (attack, dodge, parry, etc.) still work as aliases."
+    )
+    usage = "+combat[/switch] [args]  — see 'help +combat' for all switches"
+    valid_switches = [
+        "attack", "dodge", "fulldodge", "parry", "fullparry",
+        "soak", "aim", "flee", "disengage", "pass", "resolve",
+        "range", "cover", "forcepoint", "pose", "rolls",
+        "challenge", "accept", "decline", "status",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        """Dispatch to the switch handler.
+
+        Resolution priority:
+          1. Explicit switch on the canonical form: `+combat/attack`
+          2. Bare alias: `attack greedo` → ctx.command=="attack" →
+             _ALIAS_TO_SWITCH maps it to "attack"
+          3. Bare umbrella: `+combat` or `combat` → show status
+        """
+        # Pick the switch. If the user typed `+combat/attack`, switches
+        # already has "attack" in it. If they typed `attack`, switches
+        # is empty but ctx.command tells us what alias they used.
+        switch = None
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            typed = (ctx.command or "").lower()
+            # Could be the raw umbrella name ("+combat" / "combat" / "cs")
+            # or a bare alias mapped via _ALIAS_TO_SWITCH.
+            switch = _ALIAS_TO_SWITCH.get(typed, "status")
+
+        # Route to the appropriate handler. Each _SWITCH_IMPL entry is a
+        # per-verb command class instance; we delegate execute() to it.
+        # The status and rolls cases are handled inline because their
+        # logic is short and originated in the old CombatStatusCommand.
+        if switch == "status":
+            return await self._show_status(ctx)
+        if switch == "rolls":
+            return await self._show_rolls(ctx)
+
+        impl = _SWITCH_IMPL.get(switch)
+        if impl is None:
+            await ctx.session.send_line(
+                f"  Unknown combat switch: /{switch}. "
+                f"Type 'help +combat' for the full list."
+            )
+            return
+        # Delegate. The per-verb class's execute() already handles all
+        # edge cases — we're just the router.
+        await impl.execute(ctx)
+
+    # ── Inline handlers: status + rolls (absorbed from CombatStatusCommand) ──
+
+    async def _show_status(self, ctx: CommandContext):
+        char = ctx.session.character
+        combat = _active_combats.get(char["room_id"])
+        if not combat:
+            await ctx.session.send_line("  No active combat here.")
+            return
+        lines = combat.get_status()
+        for line in lines:
+            await ctx.session.send_line(ansi.combat_msg(line))
+
+    async def _show_rolls(self, ctx: CommandContext):
+        char = ctx.session.character
+        combat = _active_combats.get(char["room_id"])
+        if not combat:
+            await ctx.session.send_line("  No active combat here.")
+            return
+        rolls = getattr(combat, "_last_initiative_rolls", {})
+        if not rolls:
+            await ctx.session.send_line("  No initiative rolls recorded yet.")
+            return
+        await ctx.session.send_line(
+            ansi.combat_msg(f"Initiative rolls \u2014 Round {combat.round_num}:")
+        )
+        for name, display in rolls.items():
+            await ctx.session.send_line(f"  {name}: {display}")
+
+
+# Populate the switch → implementation map after all classes are defined.
+# This is done at module import time so the umbrella can dispatch.
+def _init_switch_impl():
+    """Build the switch → command instance dispatch table.
+
+    Called once at module load. Maps the canonical switch name to the
+    per-verb command class instance. The umbrella's execute() looks up
+    here and delegates.
+    """
+    global _SWITCH_IMPL
+    _SWITCH_IMPL = {
+        "attack":       AttackCommand(),
+        "dodge":        DodgeCommand(),
+        "fulldodge":    FullDodgeCommand(),
+        "parry":        ParryCommand(),
+        "fullparry":    FullParryCommand(),
+        "soak":         SoakCommand(),
+        "aim":          AimCommand(),
+        "flee":         FleeCommand(),
+        "disengage":    DisengageCommand(),
+        "pass":         PassCommand(),
+        "resolve":      ResolveCommand(),
+        "range":        RangeCommand(),
+        "cover":        CoverCommand(),
+        "forcepoint":   ForcePointCommand(),
+        "pose":         CombatPoseCommand(),
+        "challenge":    ChallengeCommand(),
+        "accept":       AcceptCommand(),
+        "decline":      DeclineCommand(),
+    }
+
+
+# Call at module load; the CombatStatusCommand inline cases handle status/rolls.
+# Must be deferred to module end so all classes are defined.
+# (Actual call is at the bottom of the file after all classes exist.)
 
 
 class CombatPoseCommand(BaseCommand):
@@ -1979,9 +2253,10 @@ class CombatRollsCommand(BaseCommand):
     usage = "crolls  (or +combat/rolls)"
 
     async def execute(self, ctx: CommandContext):
+        # Delegate to the umbrella's inline rolls handler.
         ctx.switches = ["rolls"]
-        cmd = CombatStatusCommand()
-        await cmd.execute(ctx)
+        cmd = CombatCommand()
+        await cmd._show_rolls(ctx)
 
 class ChallengeCommand(BaseCommand):
     key = "challenge"
@@ -2192,3 +2467,8 @@ class DeclineCommand(BaseCommand):
                     f"  \033[2m{char['name']} declines your challenge.\033[0m"
                 )
                 break
+
+
+# ── Populate the umbrella switch-dispatch map (S54) ──
+# Must happen after all per-verb classes are defined in this module.
+_init_switch_impl()
