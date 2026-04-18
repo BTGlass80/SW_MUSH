@@ -637,15 +637,175 @@ class AbandonMissionCommand(BaseCommand):
             f"  {ansi.DIM}Type 'missions' to find a new job.{ansi.RESET}")
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# +mission — Umbrella command for all mission-board verbs (S55)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Map from canonical switch names to the per-verb class that implements them.
+# When a player types `+mission/accept`, we look up "accept" here and call the
+# corresponding command's execute(). When they type the bare alias `accept`,
+# we map it back to the switch via _MISSION_ALIAS_TO_SWITCH.
+#
+# This table is the single source of truth for which verbs are switches
+# under +mission. To add a new mission verb:
+#   1. Add the class (as before)
+#   2. Add an entry to _MISSION_SWITCH_IMPL
+#   3. Add any bare aliases to _MISSION_ALIAS_TO_SWITCH
+#   4. Add to MissionCommand.valid_switches
+#   5. Update +mission.md help file
+_MISSION_SWITCH_IMPL: dict = {}   # populated below; deferred to avoid forward-ref
+
+# Map from bare alias to the canonical switch name. Players who type
+# `accept m-4f3a` reach the umbrella; ctx.command is "accept"; we map
+# to switch "accept" and dispatch. Covers every legacy bare verb.
+#
+# NOTE on collision: bare `accept` is also a combat PvP alias. Registration
+# order makes mission win, which is the pre-S54 behavior (mission-accept
+# has been the default meaning of bare `accept` since economy phase 2).
+# After S55, canonical forms disambiguate: `+combat/accept` for PvP,
+# `+mission/accept` for the board.
+_MISSION_ALIAS_TO_SWITCH: dict[str, str] = {
+    # Board (list available missions)
+    "missions": "board", "mb": "board", "jobs": "board",
+    # Accept
+    "accept": "accept", "takejob": "accept",
+    # View active
+    "mission": "view", "myjob": "view", "activemission": "view",
+    # Complete
+    "complete": "complete", "finishjob": "complete", "turnin": "complete",
+    # Abandon
+    "abandon": "abandon", "dropmission": "abandon", "quitjob": "abandon",
+}
+
+
+class MissionCommand(BaseCommand):
+    """`+mission` umbrella — dispatches to mission-board verb handlers by switch.
+
+    Every mission-board verb is a switch under `+mission` as of S55:
+
+    Canonical               Bare aliases (still work)
+    --------------------    ---------------------------
+    +mission                mission, myjob, activemission, +myjob  (view active)
+    +mission/board          missions, mb, jobs, +jobs, +mb, +missions
+    +mission/accept <id>    accept, takejob
+    +mission/view           (same as +mission default)
+    +mission/complete       complete, finishjob, turnin
+    +mission/abandon        abandon, dropmission, quitjob
+
+    `+mission` with no switch shows the player's active mission (preserves
+    existing ActiveMissionCommand UX). `+mission/board` browses available
+    jobs. `+mission/accept <id>` takes one. `+mission/complete` turns it
+    in at the destination. `+mission/abandon` drops it back to the board.
+    """
+
+    key = "+mission"
+    aliases = [
+        # View-active aliases (from old ActiveMissionCommand)
+        "mission", "myjob", "activemission", "+myjob",
+        # Board aliases (from old MissionsCommand)
+        "missions", "mb", "jobs", "+jobs", "+mb", "+missions",
+        # Accept
+        "accept", "takejob",
+        # Complete
+        "complete", "finishjob", "turnin",
+        # Abandon
+        "abandon", "dropmission", "quitjob",
+    ]
+    help_text = (
+        "All mission-board verbs live under +mission/<switch>. "
+        "Bare verbs (missions, accept, complete, abandon) still work as aliases."
+    )
+    usage = "+mission[/switch] [args]  — see 'help +mission' for all switches"
+    valid_switches = [
+        "board", "accept", "view", "complete", "abandon",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        """Dispatch to the switch handler.
+
+        Resolution priority:
+          1. Explicit switch on the canonical form: `+mission/accept`
+          2. Bare alias: `accept m-4f3a` → ctx.command=="accept" →
+             _MISSION_ALIAS_TO_SWITCH maps it to "accept"
+          3. Bare umbrella: `+mission` or `mission` → show active (view)
+        """
+        switch = None
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            typed = (ctx.command or "").lower()
+            # Could be the raw umbrella name ("+mission" / "mission" / "myjob")
+            # or a bare alias mapped via _MISSION_ALIAS_TO_SWITCH.
+            switch = _MISSION_ALIAS_TO_SWITCH.get(typed, "view")
+
+        impl = _MISSION_SWITCH_IMPL.get(switch)
+        if impl is None:
+            await ctx.session.send_line(
+                f"  Unknown mission switch: /{switch}. "
+                f"Type 'help +mission' for the full list."
+            )
+            return
+        # Delegate. The per-verb class's execute() handles all edge cases —
+        # we're just the router.
+        await impl.execute(ctx)
+
+
+def _init_mission_switch_impl():
+    """Build the switch → command instance dispatch table.
+
+    Called once at module load. Maps the canonical switch name to the
+    per-verb command class instance. The umbrella's execute() looks up
+    here and delegates.
+    """
+    global _MISSION_SWITCH_IMPL
+    _MISSION_SWITCH_IMPL = {
+        "board":    MissionsCommand(),
+        "accept":   AcceptMissionCommand(),
+        "view":     ActiveMissionCommand(),
+        "complete": CompleteMissionCommand(),
+        "abandon":  AbandonMissionCommand(),
+    }
+
+
 # ── Registration ───────────────────────────────────────────────────────────────
 
 def register_mission_commands(registry) -> None:
-    """Register all mission commands. Call from game_server.py __init__."""
+    """Register all mission commands. Call from game_server.py __init__.
+
+    The `+mission` umbrella is the canonical form for every mission verb
+    (`+mission/board`, `+mission/accept`, `+mission/complete`, etc.). Bare
+    verb forms (`missions`, `accept`, `complete`, `abandon`) remain as
+    aliases. Players' muscle memory keeps working; the canonical name moves.
+
+    One subtlety on `accept`: both combat (PvP challenge) and mission
+    (board) use the bare word. Registration order makes mission
+    win the bare `accept`. Under `+combat/accept` vs `+mission/accept`
+    the collision disappears.
+    """
+    # Umbrella first — registers `+mission` and all the canonical
+    # verb aliases. (The dispatch table is populated at module-load
+    # time via _init_mission_switch_impl() at the bottom of this file.)
+    registry.register(MissionCommand())
+
+    # Per-verb classes register their bare keys as fallback paths. The
+    # umbrella's alias list above handles bare-word player input, but
+    # these registrations are kept so any deep imports or tests that
+    # call the class directly continue to work.
+    #
+    # NOTE: ActiveMissionCommand is NOT re-registered because its key
+    # `+mission` collides with the umbrella. Its aliases are already in
+    # the umbrella's alias list, and dispatch reaches it via
+    # _MISSION_SWITCH_IMPL["view"]. Registering it here would silently
+    # overwrite the umbrella in the registry.
     for cmd in [
         MissionsCommand(),
         AcceptMissionCommand(),
-        ActiveMissionCommand(),
         CompleteMissionCommand(),
         AbandonMissionCommand(),
     ]:
         registry.register(cmd)
+
+
+# ── Populate the umbrella switch-dispatch map (S55) ──
+# Must happen after all per-verb classes are defined in this module.
+_init_mission_switch_impl()
