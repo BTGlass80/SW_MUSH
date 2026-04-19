@@ -43,7 +43,7 @@ CLIENT_PATH = os.path.join(
 
 @pytest.fixture(scope="module")
 def src():
-    with open(CLIENT_PATH) as f:
+    with open(CLIENT_PATH, encoding="utf-8") as f:
         return f.read()
 
 

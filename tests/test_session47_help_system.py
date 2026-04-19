@@ -399,7 +399,7 @@ class TestHelpManagerPrecedence(unittest.TestCase):
     def test_markdown_overrides_auto_registered(self):
         from data.help_topics import HelpManager
         # Write a markdown file for key "dodge"
-        with open(os.path.join(self.tmp, "dodge.md"), "w") as f:
+        with open(os.path.join(self.tmp, "dodge.md"), "w", encoding="utf-8") as f:
             f.write("""---
 key: dodge
 title: Dodging
@@ -558,7 +558,7 @@ class TestReload(unittest.TestCase):
         mgr.load_markdown_files(self.tmp)
         self.assertIsNone(mgr.get("topicx"))
         # Write a new file and reload
-        with open(os.path.join(self.tmp, "topicx.md"), "w") as f:
+        with open(os.path.join(self.tmp, "topicx.md"), "w", encoding="utf-8") as f:
             f.write("---\nkey: topicx\ntitle: X\ncategory: T\n---\nBody\n")
         mgr.reload()
         self.assertIsNotNone(mgr.get("topicx"))

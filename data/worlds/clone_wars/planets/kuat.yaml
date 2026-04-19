@@ -1,0 +1,660 @@
+# data/worlds/clone_wars/planets/kuat.yaml
+# Clone Wars Era — Kuat
+# 30 rooms, 3 zones
+# Sources: Coruscant and the Core Worlds (WotC d20, 2003) pp.104-117
+#
+# Era context (~20 BBY):
+#   KDY is the Republic's primary capital-ship supplier — Venators, Acclamators,
+#   Arquitens cruisers roll off the assembly lines in weeks. The planet is run by
+#   Ten aristocratic merchant families ("The Ten"). Kuati Security Forces (KSF)
+#   patrol all areas within the Yards. Player ships dock at the Main Spaceport;
+#   they ride shuttles to the ring and surface.
+#   CIS-aligned characters face hard entry restrictions; infiltration is possible
+#   via faction mission (post-launch content).
+#
+# EXIT DISCIPLINE: per-room exits blocks, named exits for sub-destinations,
+#   cardinals for zone-to-zone. All exits validate round-trip.
+#
+# Zone layout:
+#   kuat_main_spaceport — arrival ring, customs, KSF checkpoint (6 rooms)
+#   kdy_orbital_ring    — the shipyards — drydocks, warehouses, factories (18 rooms)
+#   kuat_city_embassy   — planetary surface; merchant houses, Republic liaison (6 rooms)
+
+planet: kuat
+planet_display_name: "Kuat"
+primary_city: "Kuat Drive Yards Orbital"
+description: >
+  A designed world, terraformed by expert ecologists into a paradise of
+  groomed gardens, lush forests, and rolling green plains — and then
+  girdled with the largest shipyard complex in the galaxy. During the
+  Clone Wars, KDY is the heartbeat of the Republic war machine. Venator-class
+  Star Destroyers slide out of the drydocks every few weeks, painted in
+  Republic livery and crewed by clones before the paint is dry.
+
+rooms:
+
+  # ══════════════════════════════════════════════════════════════════════
+  # KUAT MAIN SPACEPORT (secured) — 6 rooms
+  # Hub: kuat_arrivals — player arrival point for Kuat
+  # Zone connections: spaceport → orbital_ring (transit), spaceport → surface (shuttle)
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 300
+    slug: kuat_arrivals
+    name: "Kuat - Main Spaceport Arrivals"
+    short_desc: "The public-facing port of entry for the Kuat system, orbiting above the planet."
+    description: >
+      The Kuat Main Spaceport handles civilian and commercial traffic for the
+      system — everything that isn't a warship or a weapons delivery. The
+      arrivals hall is clean, efficient, and slightly oppressive: KSF officers
+      in deep purple armor process documentation with a thoroughness that
+      borders on theatrical. Three security checkpoints stand between the
+      docking collar and the main concourse. The war has made the paperwork
+      worse. Overhead, through a transparisteel viewing strip, the planet
+      Kuat hangs in space — green and lush and surrounded by the metal ring
+      of the Drive Yards like a jewel in an industrial setting.
+    zone: kuat_main_spaceport
+    map_x: 30
+    map_y: 10
+    exits:
+      customs: kuat_customs_checkpoint
+      concourse: kuat_spaceport_concourse
+      transit: kuat_ring_transit_hub    # zone-to-zone (spaceport → orbital ring)
+      shuttle: kuat_shuttle_bay         # zone-to-zone (spaceport → surface)
+
+  - id: 301
+    slug: kuat_customs_checkpoint
+    name: "Kuat - KSF Customs Checkpoint"
+    short_desc: "A rigorous Kuati Security Forces checkpoint processing all arrivals."
+    description: >
+      The checkpoint is staffed by KSF officers whose thoroughness is locally
+      famous and universally resented. Visitors are scanned, documented,
+      and assessed. CIS-affiliated transponder codes result in immediate
+      detention and a call to Republic Intelligence. Independent traders
+      face a lengthy permit review. Republic military personnel with the
+      right codes pass in thirty seconds. The KSF motto, carved in Kuati
+      above the gate: "We are watching because you are here."
+    zone: kuat_main_spaceport
+    map_x: 31
+    map_y: 10
+    security_level: secured
+    exits:
+      back: kuat_arrivals
+
+  - id: 302
+    slug: kuat_spaceport_concourse
+    name: "Kuat - Spaceport Concourse"
+    short_desc: "The main concourse of the Kuat spaceport, lined with service businesses and transit lounges."
+    description: >
+      The concourse is compact and purposeful — no wasted space, no
+      decorative frills. A row of transit lounges offers food and rest
+      while passengers wait for shuttle assignments to the orbital ring or
+      the planet surface. A small bank of public HoloNet terminals provides
+      war news and system schedules. The KSF security presence is constant
+      but unobtrusive; officers blend into the crowd while maintaining
+      total situational awareness.
+    zone: kuat_main_spaceport
+    map_x: 30
+    map_y: 9
+    exits:
+      arrivals: kuat_arrivals
+      east: kuat_ksf_substation
+      lounge: kuat_transit_lounge
+
+  - id: 303
+    slug: kuat_ksf_substation
+    name: "Kuat - KSF Security Substation"
+    short_desc: "A Kuati Security Forces substation adjacent to the main concourse."
+    description: >
+      The KSF maintains a substation at the spaceport for immediate response
+      capability. Behind the front desk — staffed by an officer whose smile
+      does not reach her eyes — is a detention area, a weapons locker, and
+      a secure communications room. The KSF commander for this shift is a
+      veteran named Saya Andos who was doing this job before the war and
+      intends to be doing it after. She views the Republic military's
+      growing presence in the Yards with professional suspicion.
+    zone: kuat_main_spaceport
+    map_x: 31
+    map_y: 9
+    security_level: secured
+    exits:
+      out: kuat_spaceport_concourse
+
+  - id: 304
+    slug: kuat_transit_lounge
+    name: "Kuat - Spaceport Transit Lounge"
+    short_desc: "A waiting lounge where visitors rest between flights to the orbital ring and planetary surface."
+    description: >
+      The transit lounge is the most human space in the Kuat spaceport —
+      comfortable seating, decent food, and a view of the shipyard ring
+      through floor-to-ceiling transparisteel. Clone troopers on garrison
+      rotation eat in silence at one end. At the other, a cluster of
+      Kuati merchant house representatives argue quietly over a datapad.
+      Through the viewport, the skeletal frame of a Venator under
+      construction drifts slowly across the field of stars.
+    zone: kuat_main_spaceport
+    map_x: 29
+    map_y: 9
+    exits:
+      out: kuat_spaceport_concourse
+
+  - id: 305
+    slug: kuat_shuttle_bay
+    name: "Kuat - Shuttle Bay"
+    short_desc: "The shuttle bay connecting the spaceport station to the orbital ring and planetary surface below."
+    description: >
+      Scheduled shuttles run every two hours to the orbital ring and the
+      planet surface below. The KSF maintains a manifest of every passenger
+      on every shuttle and cross-references it against their customs records.
+      A board lists current service status: three routes operational, one
+      delayed pending security review. The shuttle to Kuat City has a
+      comfortable interior and a spectacular view on approach through
+      the atmospheric shell.
+    zone: kuat_main_spaceport
+    map_x: 30
+    map_y: 11
+    exits:
+      up: kuat_arrivals
+      ring: kuat_ring_transit_hub        # zone-to-zone (spaceport → orbital ring)
+      surface: kuat_city_landing_pad     # zone-to-zone (spaceport → surface)
+
+  # ══════════════════════════════════════════════════════════════════════
+  # KDY ORBITAL RING (secured/contested) — 18 rooms
+  # Hub: kuat_ring_transit_hub
+  # The actual shipyards. Most visitors only see the commercial zone;
+  # drydocks require Republic military clearance or KDY staff access.
+  # Named after the orbital map from the WotC sourcebook p.107.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 306
+    slug: kuat_ring_transit_hub
+    name: "Kuat Drive Yards - Ring Transit Hub"
+    short_desc: "The central transit hub of the KDY orbital ring, connecting all sections of the massive shipyard complex."
+    description: >
+      The ring transit hub is the circulatory heart of the Drive Yards —
+      tram lines, cargo sleds, personnel pods, and maintenance crawlers
+      all pass through here on their way somewhere else. The scale is
+      staggering: the hub is larger than some planetary spaceports, and
+      the ring it serves encircles an entire planet. Overhead, through
+      structural transparisteel, the ring extends in both directions until
+      it curves out of sight. KSF checkpoints gate access to the sensitive
+      sections. The commercial zone and apartments are open to cleared
+      visitors; the drydocks, factories, and military sections require
+      permits.
+    zone: kdy_orbital_ring
+    map_x: 33
+    map_y: 10
+    exits:
+      spaceport: kuat_arrivals           # zone-to-zone (ring → spaceport)
+      commercial: kuat_ring_commercial   # named: open zone
+      apartments: kuat_ring_apartments   # named: residential zone
+      warehouses: kuat_ring_warehouses   # named: freight zone
+      drydock: kuat_drydock_venator      # named: restricted, Republic-gated
+      offices: kdy_main_offices          # named: KDY corporate
+
+  - id: 307
+    slug: kuat_ring_commercial
+    name: "Kuat Drive Yards - Commercial Zone"
+    short_desc: "The orbital ring's commercial district — bars, shops, and services catering to shipyard workers."
+    description: >
+      Visitors can find bars, hotels, restaurants, shops, and medical
+      facilities here. Most Kuati citizens live in apartment complexes
+      built into the ring, and the commercial zone serves their daily
+      needs. The atmosphere is functional and slightly tense — these are
+      people who build warships for a living and know exactly what
+      those warships are used for. War has made business good, which
+      has made many of them uncomfortable. The Kuati don't make things
+      for fun; they make things that matter, and right now what matters
+      is winning a war they didn't start.
+    zone: kdy_orbital_ring
+    map_x: 34
+    map_y: 10
+    vendor: true
+    exits:
+      hub: kuat_ring_transit_hub
+      south: kuat_ring_cantina
+
+  - id: 308
+    slug: kuat_ring_cantina
+    name: "Kuat Drive Yards - The Pressure Drop Cantina"
+    short_desc: "The most popular cantina on the orbital ring, frequented by off-shift shipyard workers and KDY staff."
+    description: >
+      The Pressure Drop has been serving the ring's workers for forty years.
+      The decor is welding torches and decommissioned hull plating; the
+      drinks are strong and the food is adequate. Off-duty shipwrights
+      nurse ales at the bar and argue about hull tolerances. Clone troopers
+      drink water and make everyone slightly uncomfortable. Occasionally
+      a KDY corporate type appears to "mix with the workers," and is
+      quietly ignored until they leave. The house policy: any fight that
+      damages the hull plating gets the participants personally responsible
+      for repairs.
+    zone: kdy_orbital_ring
+    map_x: 34
+    map_y: 11
+    exits:
+      north: kuat_ring_commercial
+
+  - id: 309
+    slug: kuat_ring_apartments
+    name: "Kuat Drive Yards - Ring Residential Block"
+    short_desc: "The apartment complexes built into the orbital ring, housing the bulk of Kuat's permanent workforce."
+    description: >
+      Tightly efficient living spaces stacked twelve stories into the ring's
+      superstructure. Most residents are KDY workers or their families —
+      some families have lived in the ring for three generations without
+      ever setting foot on the planet surface below. The apartments are
+      small, functional, and surprisingly comfortable; the workers union
+      negotiated decent fittings in a contract dispute forty years ago and
+      the standards have held. Community gardens occupy pressurized bays
+      every few blocks. Children play in corridors designed for it.
+    zone: kdy_orbital_ring
+    map_x: 33
+    map_y: 9
+    housing: true
+    exits:
+      hub: kuat_ring_transit_hub
+
+  - id: 310
+    slug: kuat_ring_warehouses
+    name: "Kuat Drive Yards - Ring Warehouse District"
+    short_desc: "Vast warehouses storing components and raw materials for capital ship construction."
+    description: >
+      The warehouse district stretches for kilometers along the inner ring,
+      its cavernous bays holding everything from raw durasteel plates to
+      finished turbolaser batteries awaiting installation. Cargo droids
+      work in organized swarms, moving crates with mechanical precision.
+      KSF inventory teams audit every incoming and outgoing shipment.
+      The scale of the operation is almost impossible to absorb: enough
+      material moves through here every standard day to build a small city.
+    zone: kdy_orbital_ring
+    map_x: 32
+    map_y: 9
+    exits:
+      hub: kuat_ring_transit_hub
+      east: kuat_ring_machine_shops
+
+  - id: 311
+    slug: kuat_ring_machine_shops
+    name: "Kuat Drive Yards - Machine Shops"
+    short_desc: "Precision fabrication shops where specialized starship components are manufactured."
+    description: >
+      The machine shops are where art meets engineering. Master fabricators
+      work alongside automated systems to produce the precision components
+      that separate a KDY vessel from a Separatist rush-job. The noise is
+      constant and physical — the vibration of heavy fabrication equipment
+      travels through the ring's superstructure. Workers here wear hearing
+      protection, leave at shift's end with metal dust in their hair, and
+      take enormous pride in work that most people will never see because
+      it's inside a hull.
+    zone: kdy_orbital_ring
+    map_x: 32
+    map_y: 8
+    exits:
+      west: kuat_ring_warehouses
+      north: kuat_ring_factories
+
+  - id: 312
+    slug: kuat_ring_factories
+    name: "Kuat Drive Yards - Factories"
+    short_desc: "The automated factory lines producing hull sections, drive units, and weapons systems."
+    description: >
+      The factories operate around the clock. Assembly lines the length of
+      city blocks produce hull sections, shield generators, and hyperdrive
+      components in coordinated sequence. The automation is extraordinary —
+      organic workers here are supervisors and quality control, not
+      assemblers. The war has pushed the lines to maximum capacity;
+      quality control has taken shortcuts it will not officially acknowledge.
+      Three ships in the past year have been launched with minor defects
+      that were caught — barely — by fleet maintenance crews.
+    zone: kdy_orbital_ring
+    map_x: 32
+    map_y: 7
+    exits:
+      south: kuat_ring_machine_shops
+      east: kuat_ring_transit_hub
+
+  - id: 313
+    slug: kuat_drydock_venator
+    name: "Kuat Drive Yards - Venator Drydock"
+    short_desc: "One of several drydocks where Venator-class Star Destroyers are assembled."
+    description: >
+      The drydock opens onto space — a vast enclosed bay pressurized only
+      in the worker habitats that cling to the ship's emerging frame.
+      A Venator-class Star Destroyer in mid-construction dominates the
+      view: 1,137 meters of durasteel skeleton being fleshed out with
+      hull plating, sensor arrays, and weapons emplacements. Clone
+      troopers in EVA suits work alongside KDY engineers on the outer
+      hull. A ship like this will carry 7,400 clone troops when it
+      launches in approximately eleven days. The Republic already knows
+      where it's going.
+    zone: kdy_orbital_ring
+    map_x: 35
+    map_y: 8
+    security_level: secured
+    faction_override: republic
+    exits:
+      hub: kuat_ring_transit_hub
+
+  - id: 314
+    slug: kuat_drydock_acclamator
+    name: "Kuat Drive Yards - Acclamator Drydock"
+    short_desc: "An Acclamator-class assault ship drydock, currently holding two ships in various stages of construction."
+    description: >
+      Two Acclamators in different stages of construction occupy this
+      drydock — one nearly complete, its hull sealed and weapons systems
+      being calibrated; one still a framework of structural spines. The
+      Acclamator is smaller than the Venator but carries 16,000 clone
+      troopers in assault configuration and is the backbone of Republic
+      planetary landing operations. The clone troopers stenciling unit
+      markings on the nearly-complete ship do it with a thoroughness
+      that suggests they are not entirely comfortable with what they are
+      marking.
+    zone: kdy_orbital_ring
+    map_x: 35
+    map_y: 9
+    security_level: secured
+    faction_override: republic
+    exits:
+      hub: kuat_ring_transit_hub
+
+  - id: 315
+    slug: kdy_main_offices
+    name: "Kuat Drive Yards - Corporate Offices"
+    short_desc: "The KDY corporate headquarters on the orbital ring, where the Ten merchant families conduct business."
+    description: >
+      The KDY corporate offices occupy a segment of the ring that looks
+      nothing like the rest — polished stone floors, actual plants, artwork,
+      and the subtle perfume of wealth. Representatives of the Ten Kuati
+      merchant families conduct business here in comfortable conference
+      rooms. The war has made them very rich, a fact they discuss in
+      appropriately muted tones. House Andrim and House Purkis maintain
+      particularly prominent offices; their long-running rivalry over
+      specific contract awards has been the source of several security
+      incidents that KDY officially attributes to equipment malfunctions.
+    zone: kdy_orbital_ring
+    map_x: 33
+    map_y: 8
+    security_level: secured
+    exits:
+      hub: kuat_ring_transit_hub
+      andrim: house_andrim_office
+      purkis: house_purkis_office
+
+  - id: 316
+    slug: house_andrim_office
+    name: "Kuat Drive Yards - House Andrim Suite"
+    short_desc: "The private offices of House Andrim, one of the Ten Kuati merchant families."
+    description: >
+      House Andrim's suite is decorated in deep blue and silver — the
+      house colors that have flown on KDY vessels for two centuries.
+      The Andrim representative, Jestra Andrim, manages the house's
+      Venator contract portfolio. She is precise, well-dressed, and
+      acutely aware that her house's fortunes are directly tied to
+      the Republic winning the war. She is also aware that House Purkis
+      is trying to undercut their position on the Acclamator contract,
+      and she is not handling the situation as well as she would like.
+    zone: kdy_orbital_ring
+    map_x: 32
+    map_y: 8
+    security_level: secured
+    exits:
+      out: kdy_main_offices
+
+  - id: 317
+    slug: house_purkis_office
+    name: "Kuat Drive Yards - House Purkis Suite"
+    short_desc: "The private offices of House Purkis, rivals of House Andrim."
+    description: >
+      House Purkis operates in gold and black, conspicuously more modern
+      than Andrim's traditional scheme. The Purkis representative, Dorin
+      Purkis, is a third-generation KDY executive who learned the business
+      by memorizing every contract his grandmother ever signed. He is
+      pleasant, forthcoming, and engaged in at least three simultaneous
+      acts of corporate espionage. He'd be offended if you called it that.
+      He'd call it competitive intelligence.
+    zone: kdy_orbital_ring
+    map_x: 33
+    map_y: 7
+    security_level: secured
+    exits:
+      out: kdy_main_offices
+
+  - id: 318
+    slug: kuat_ksf_headquarters
+    name: "Kuat Drive Yards - KSF Headquarters"
+    short_desc: "The Kuati Security Forces headquarters on the orbital ring, coordinating security for the entire Yards."
+    description: >
+      The KSF headquarters is the nerve center of Kuat's security operation.
+      Banks of monitors show feeds from every section of the ring. KSF
+      Commander Avala Rhen runs the operation from a glassed command center
+      overlooking the main floor. She has been managing this facility for
+      twelve years and regards the Republic's increased military presence
+      as a reasonable wartime arrangement that she intends to make
+      considerably less comfortable as soon as the war ends.
+    zone: kdy_orbital_ring
+    map_x: 34
+    map_y: 8
+    security_level: secured
+    exits:
+      hub: kuat_ring_transit_hub
+
+  - id: 319
+    slug: kuat_ring_medical
+    name: "Kuat Drive Yards - Ring Medical Center"
+    short_desc: "The orbital ring's primary medical facility, serving shipyard workers and military personnel."
+    description: >
+      The medical center handles everything from industrial accidents to
+      combat injuries; since the war began, the second category has grown.
+      Clone troopers rotate through here for evaluation and minor repair —
+      Kaminoan medical protocols, administered by KDY-contracted doctors
+      who are still adjusting to the ethical peculiarities of treating
+      soldiers who were grown in a tank. The staff is excellent. The
+      philosophical questions are handled by looking away.
+    zone: kdy_orbital_ring
+    map_x: 32
+    map_y: 10
+    exits:
+      hub: kuat_ring_transit_hub
+
+  - id: 320
+    slug: kuat_ileu_shipyards
+    name: "Kuat Drive Yards - Ileu Shipyards"
+    short_desc: "The Ileu section of the KDY ring, specializing in escort and patrol craft production."
+    description: >
+      The Ileu section produces Arquitens-class light cruisers and
+      Consular-class cruisers — the Republic's workhorses for patrol and
+      diplomacy. The pace is slower than the Venator drydocks but the
+      craft requirements are tighter; Consular-class ships see dignitaries,
+      and dignitaries notice things. A fresh Consular-class in red Jedi
+      configuration sits in bay seven, its hull gleaming, awaiting final
+      inspection before delivery to the Jedi Temple.
+    zone: kdy_orbital_ring
+    map_x: 35
+    map_y: 10
+    exits:
+      hub: kuat_ring_transit_hub
+
+  - id: 321
+    slug: kuat_deporin_shipyards
+    name: "Kuat Drive Yards - Deporin Shipyards"
+    short_desc: "The Deporin section, handling refits and repair of existing Republic vessels."
+    description: >
+      Deporin doesn't build new ships — it fixes the ones that come back
+      from the front. Battle-damaged Venators and Acclamators queue for
+      berths in the six repair docks. The workers here see the results of
+      the war directly: hull breaches from ion cannon strikes, weapon
+      turrets sheared off by enemy fire, and occasionally a ship that
+      technically survived but will never fly again. The Deporin workers
+      are the most antiwar segment of the KDY workforce. They are also
+      the most skilled.
+    zone: kdy_orbital_ring
+    map_x: 34
+    map_y: 9
+    exits:
+      hub: kuat_ring_transit_hub
+
+  - id: 322
+    slug: kuat_supply_station
+    name: "Kuat - Supply Space Station"
+    short_desc: "One of three Kuati space stations managing interstellar traffic in the Kuat system."
+    description: >
+      The supply station handles incoming raw material shipments — durasteel
+      from Ord Mantell, electronics from Ralltiir, power cells from the
+      Corellian refineries. Freighter traffic is constant and heavy. KSF
+      inspectors board every incoming vessel. The war has increased the
+      volume of incoming material by roughly 400%; the supply station
+      is running at capacity it was not designed to handle, and the
+      paperwork has become truly impressive.
+    zone: kdy_orbital_ring
+    map_x: 31
+    map_y: 8
+    exits:
+      hub: kuat_ring_transit_hub
+
+  - id: 323
+    slug: kuat_military_station
+    name: "Kuat - Military Space Station"
+    short_desc: "The third Kuati space station, dedicated to planetary defense and Republic military logistics."
+    description: >
+      The military station is nominally KSF-controlled, but in practice
+      the Republic Navy has effectively occupied it for the duration of
+      the war. A Republic Admiral maintains offices here alongside the
+      KSF station commander, a relationship that generates a constant
+      low-level diplomatic friction. The station's weapons array could
+      challenge a small fleet; its sensor net covers the entire Kuat
+      system. Access is restricted to Republic military and KSF personnel.
+    zone: kdy_orbital_ring
+    map_x: 31
+    map_y: 9
+    security_level: secured
+    faction_override: republic
+    exits:
+      hub: kuat_ring_transit_hub
+
+  # ══════════════════════════════════════════════════════════════════════
+  # KUAT CITY SURFACE (secured) — 6 rooms
+  # Small planetary downport. Accessed only by shuttle from the ring.
+  # No personal ships land here without extraordinary permits.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 324
+    slug: kuat_city_landing_pad
+    name: "Kuat City - Landing Pad"
+    short_desc: "The surface landing area for Kuat City, accessible only via scheduled shuttle from the orbital ring."
+    description: >
+      The shuttle from the ring touches down on a manicured landing pad
+      at the edge of Kuat City. The first thing visitors notice is the
+      air — clean, warm, with the scent of actual vegetation. After the
+      recycled atmosphere of the ring, it is startling. KSF officers with
+      surface passes check permits before anyone leaves the pad. Beyond
+      the checkpoint gate, the spires of Kuat City rise against a sky
+      of remarkable, unobstructed blue.
+    zone: kuat_city_embassy
+    map_x: 36
+    map_y: 10
+    exits:
+      ring: kuat_shuttle_bay             # zone-to-zone (surface → spaceport)
+      city: kuat_city_main_street
+
+  - id: 325
+    slug: kuat_city_main_street
+    name: "Kuat City - Main Boulevard"
+    short_desc: "The main commercial boulevard of Kuat City, lined with merchant-house offices and high-end establishments."
+    description: >
+      Kuat City has no spaceport at ground level — by design. The city is
+      for Kuati citizens and those with legitimate surface business; it is
+      not a transit point. The main boulevard is wide and tended, lined
+      with the offices of merchant houses, high-end restaurants, hotels,
+      and cultural institutions. It resembles a Core World capital
+      designed by people who had enough money to make it look effortless.
+      Offworlders stand out immediately and know it.
+    zone: kuat_city_embassy
+    map_x: 37
+    map_y: 10
+    exits:
+      west: kuat_city_landing_pad
+      north: kuat_mercantile_forum
+      east: kuat_republic_liaison
+      south: kuat_city_estate_district
+      hotel: kuat_city_hotel
+
+  - id: 326
+    slug: kuat_mercantile_forum
+    name: "Kuat City - Mercantile Forum"
+    short_desc: "The venue where Kuati merchant houses meet to negotiate contracts and discuss trade policy."
+    description: >
+      The Mercantile Forum is where the Ten Kuati merchant families conduct
+      their surface-level business — trade practices, contract disputes,
+      and the elaborate political maneuvering that defines Kuati aristocratic
+      life. The Forum has the weight of centuries in its stone floors and
+      the quiet hum of significant money in its conference rooms. Outsiders
+      can access the public gallery but not the session rooms. A session
+      is currently underway; through the gallery glass, delegates from
+      House Andrim and House Purkis are notably not looking at each other.
+    zone: kuat_city_embassy
+    map_x: 37
+    map_y: 9
+    security_level: secured
+    exits:
+      south: kuat_city_main_street
+
+  - id: 327
+    slug: kuat_republic_liaison
+    name: "Kuat City - Republic Liaison Office"
+    short_desc: "The Republic's diplomatic and procurement liaison office on Kuat's surface."
+    description: >
+      The Republic maintains a small but strategically important office in
+      Kuat City. Officially it handles procurement coordination and diplomatic
+      protocol. In practice it is where the Republic's representative ensures
+      that KDY's extraordinary production rates remain tied to Republic
+      contracts rather than drifting toward neutral or CIS-adjacent buyers.
+      The current liaison, a Mirialan official named Vessen Kael, is very
+      good at this job and very good at making the Kuati aristocracy believe
+      they are making their own decisions.
+    zone: kuat_city_embassy
+    map_x: 38
+    map_y: 10
+    security_level: secured
+    faction_override: republic
+    exits:
+      west: kuat_city_main_street
+
+  - id: 328
+    slug: kuat_city_hotel
+    name: "Kuat City - The Andris Grand Hotel"
+    short_desc: "The finest hotel on Kuat's surface, catering to merchant-house guests and high-level Republic officials."
+    description: >
+      The Andris Grand is exactly what "grand" implies: marble floors,
+      genuine wood-paneled walls, a chef from Coruscant's Opera House
+      district, and rooms large enough to conduct a small meeting in.
+      The rate is 200 credits per night, which is exactly the price
+      point that makes government officials pause and merchant-house
+      representatives nod. The bar is famous for a drink called the
+      "Drive Yard" — a three-part concoction that the bartender mixes
+      while maintaining sustained eye contact.
+    zone: kuat_city_embassy
+    map_x: 36
+    map_y: 9
+    housing: true
+    exits:
+      out: kuat_city_main_street
+
+  - id: 329
+    slug: kuat_city_estate_district
+    name: "Kuat City - Estate District"
+    short_desc: "The exclusive residential district of Kuat City, where the Ten aristocratic families maintain their surface estates."
+    description: >
+      Upper-class Kuati live in expansive estates on the planet's surface —
+      a privilege maintained through a complex system of family status and
+      surface permits. The estates are visible from the main boulevard
+      through decorative gates: groomed gardens, private landing platforms,
+      and the kind of architectural confidence that only comes from
+      knowing your family has been rich for twenty-five thousand years.
+      KSF security vehicles make regular circuits. No one enters without
+      a personal invitation.
+    zone: kuat_city_embassy
+    map_x: 37
+    map_y: 11
+    security_level: secured
+    exits:
+      north: kuat_city_main_street

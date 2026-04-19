@@ -1,0 +1,93 @@
+# data/worlds/clone_wars/era.yaml
+# Clone Wars Era — Foundation Configuration
+# Schema version 1 — per world_data_extraction_design_v1.md §5
+#
+# This file is the root configuration for the Clone Wars era.
+# Active when game_server config sets active_era: clone_wars.
+# All content refs are relative to data/worlds/clone_wars/.
+
+schema_version: 1
+
+era:
+  code: clone_wars
+  name: "Clone Wars"
+  tagline: "The Republic fractures. The Jedi fight as generals. The galaxy bleeds."
+  description: >
+    Mid-war, approximately 20 BBY. The Galactic Republic fights the Confederacy
+    of Independent Systems across the Outer Rim. Jedi Masters serve as generals
+    commanding clone armies. Count Dooku leads the CIS publicly while Darth
+    Sidious directs events from the shadows of the Senate. The war has dragged
+    on long enough that everyone is tired of it — but no one knows how to stop.
+  timeline_reference: "~20 BBY"
+  canon_era: "Clone Wars (film trilogy + TCW animated series)"
+  sourcebook_refs:
+    - "WEG40120 (D6 R&E Core — era-agnostic rules)"
+    - "WEG40114 (Jedi Academy Sourcebook — Jedi pedagogy, Force powers)"
+    - "WEG40069 (GG7 Mos Eisley — Tatooine geography, era-agnostic)"
+    - "WEG40027 (GG6 Tramp Freighters — smuggler archetypes, era-agnostic)"
+
+policy:
+  # ── Force policy ─────────────────────────────────────────────────────────
+  # Jedi are not a chargen option by default. Players must complete the
+  # Jedi Village quest chain (Act 1-3) to unlock the Jedi Padawan template.
+  # This gates Force access behind meaningful in-game narrative commitment.
+  force_chargen_allowed: false
+  force_sensitive_chargen: village_gated   # Requires Village quest completion
+  lightsaber_availability: restricted_jedi # Issued by Jedi Order or earned via Village
+  force_suppression: none                  # No Inquisitorial pressure in 20 BBY
+  dark_side_detectability: high            # Public Force use draws attention
+  village_location: tatooine_dune_sea      # Seed data slug for Village quest chain
+
+  # ── Faction set ──────────────────────────────────────────────────────────
+  # These must match codes in organizations.yaml.
+  # npc_only_factions are not joinable by players; used by Director AI only.
+  factions:
+    - republic
+    - cis
+    - jedi_order
+    - hutt_cartel
+    - bounty_hunters_guild
+    - independent
+  npc_only_factions:
+    - sith          # Dooku/Sidious — NPC antagonists, never player-joinable
+    - separatist_council  # CIS leadership tier, NPC only
+
+  # ── Starting defaults ────────────────────────────────────────────────────
+  starting_room_slug: westport_arrivals    # Nar Shaddaa landing pad
+  starting_faction: independent
+  starting_credits_default: 500
+
+  # ── Era flavor substitutions ─────────────────────────────────────────────
+  # Used by Director AI and ambient event system to swap GCW terminology.
+  # "default_imperial_substitute" = faction that fills "Imperial threat" role.
+  # "default_rebel_substitute" = faction that fills "Rebel resistance" role.
+  default_trooper_type: clone              # Clone troopers, not stormtroopers
+  default_imperial_substitute: republic   # Republic = order/authority axis
+  default_rebel_substitute: cis           # CIS = disruption/resistance axis
+  hutt_cartel_stance: neutral_profiteering
+
+  # ── Director AI knobs ────────────────────────────────────────────────────
+  director_config_ref: director_config.yaml  # Clone Wars director baseline
+
+content_refs:
+  zones: zones.yaml
+  organizations: organizations.yaml
+  planets:
+    - planets/tatooine.yaml
+    - planets/nar_shaddaa.yaml
+    # Drops 2-4 add: coruscant, kuat, kamino, geonosis
+  wilderness: []          # Drop 5 adds coruscant_underworld, Drop 10 adds tatooine_dune_sea
+  npcs: npcs.yaml
+  housing_lots: housing_lots.yaml
+  test_character: test_character.yaml
+  test_jedi: test_jedi.yaml    # God-mode Jedi account for dev testing of Force content
+
+# Policy enforcement flags
+# When world-extraction refactor (Drop 0) lands and engine reads these,
+# the listed items will be actively enforced rather than advisory.
+policy_enforcement:
+  force_chargen_allowed_is_enforced: true
+  force_sensitive_chargen_is_enforced: true
+  lightsaber_availability_is_enforced: true
+  starting_faction_is_enforced: true
+  # village_state_machine_is_enforced: false  # Enabled in Drop 9 (pivot enablement)

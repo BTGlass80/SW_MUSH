@@ -401,7 +401,7 @@ class TestGameServerRegistration:
         import importlib.util
         spec = importlib.util.find_spec("server.game_server")
         src_path = spec.origin
-        with open(src_path, "r") as f:
+        with open(src_path, "r", encoding="utf-8") as f:
             src = f.read()
         assert "boarding_encounter_tick" in src, \
             "game_server must register boarding_encounter_tick"
@@ -413,7 +413,7 @@ class TestGameServerRegistration:
         import importlib.util
         spec = importlib.util.find_spec("server.game_server")
         src_path = spec.origin
-        with open(src_path, "r") as f:
+        with open(src_path, "r", encoding="utf-8") as f:
             src = f.read()
         assert "boarding_party_startup_cleanup" in src, \
             "game_server must call boarding_party_startup_cleanup"
@@ -428,21 +428,21 @@ class TestHudPayloadBoardingFields:
 
     def test_hud_has_boarding_party_active(self):
         """Space state HUD must include boarding_party_active."""
-        with open("parser/space_commands.py", "r") as f:
+        with open("parser/space_commands.py", "r", encoding="utf-8") as f:
             src = f.read()
         assert "boarding_party_active" in src, \
             "HUD payload must include boarding_party_active"
 
     def test_hud_has_boarding_target_name(self):
         """Space state HUD must include boarding_target_name."""
-        with open("parser/space_commands.py", "r") as f:
+        with open("parser/space_commands.py", "r", encoding="utf-8") as f:
             src = f.read()
         assert "boarding_target_name" in src, \
             "HUD payload must include boarding_target_name"
 
     def test_hud_has_tractor_held(self):
         """Space state HUD must include tractor_held boolean."""
-        with open("parser/space_commands.py", "r") as f:
+        with open("parser/space_commands.py", "r", encoding="utf-8") as f:
             src = f.read()
         assert '"tractor_held"' in src, \
             "HUD payload must include tractor_held boolean"
@@ -456,7 +456,7 @@ class TestWebClientBoardingUI:
     """Verify web client has boarding alert and status UI."""
 
     def _read_client(self):
-        with open("static/client.html", "r") as f:
+        with open("static/client.html", "r", encoding="utf-8") as f:
             return f.read()
 
     def test_boarding_alert_handler_exists(self):
@@ -528,7 +528,7 @@ class TestNoSilentExceptPass:
 
     def test_encounter_boarding_no_silent_except(self):
         """encounter_boarding.py must not have bare except: pass."""
-        with open("engine/encounter_boarding.py", "r") as f:
+        with open("engine/encounter_boarding.py", "r", encoding="utf-8") as f:
             src = f.read()
         import re
         matches = re.findall(r'except\s+\w*.*?:\s*\n\s*pass\b', src)
@@ -537,7 +537,7 @@ class TestNoSilentExceptPass:
 
     def test_npc_combat_ai_no_silent_except(self):
         """Modified npc_space_combat_ai.py must not have bare except: pass."""
-        with open("engine/npc_space_combat_ai.py", "r") as f:
+        with open("engine/npc_space_combat_ai.py", "r", encoding="utf-8") as f:
             src = f.read()
         import re
         matches = re.findall(r'except\s+\w*.*?:\s*\n\s*pass\b', src)
@@ -562,7 +562,7 @@ class TestAstValidation:
     def test_ast_parse(self, filepath):
         """File must be valid Python."""
         import ast
-        with open(filepath, "r") as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             src = f.read()
         try:
             ast.parse(src, filename=filepath)

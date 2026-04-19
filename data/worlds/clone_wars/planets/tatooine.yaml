@@ -1,0 +1,868 @@
+# data/worlds/clone_wars/planets/tatooine.yaml
+# Clone Wars Era — Tatooine (Mos Eisley)
+# 54 rooms, 7 zones
+# Reskin notes:
+#   - "stormtroopers" → "clone troopers" throughout
+#   - Imperial garrison → Republic/militia presence (lighter footprint)
+#   - No "Imperial" branding on infrastructure; Republic is distant
+#   - Hutt/criminal apparatus unchanged — Jabba is Jabba in any era
+#   - Rebel symbol in Jundland cave → CIS/resistance contact (contested)
+#   - Era: 20 BBY. The Clone Wars are distant rumor on Tatooine.
+# Room IDs are positional and must match build_mos_eisley.py order.
+# Do NOT reorder rooms — ID stability is required by rooms_manifest.json.
+
+planet: tatooine
+planet_display_name: "Tatooine"
+primary_city: "Mos Eisley"
+description: >
+  A harsh desert world in the Outer Rim, orbiting twin suns. Nominally
+  under Hutt control, with a token Republic presence that neither Hutts
+  nor locals take seriously. The Clone Wars are a distant rumor here —
+  most people on Tatooine care about moisture, credits, and survival,
+  in that order.
+
+rooms:
+
+  # ── SPACEPORT DISTRICT (secured) ── rooms 0-6 ──────────────────────────
+
+  - id: 0
+    slug: docking_bay_94_entrance
+    name: "Docking Bay 94 - Entrance"
+    short_desc: "The entrance to one of Mos Eisley's most famous docking bays."
+    description: >
+      Cracked duracrete steps descend into the pit of Docking Bay 94.
+      Beggars and flim-flam artists cluster near the stairs, sizing up
+      arrivals. A faded sign reads 'De Maal Docking Services' in three
+      languages.
+    zone: tatooine_spaceport
+    map_x: 5
+    map_y: 5
+
+  - id: 1
+    slug: docking_bay_94_pit
+    name: "Docking Bay 94 - Pit Floor"
+    short_desc: "The sunken pit floor of Docking Bay 94."
+    description: >
+      The reinforced floor is pitted and scorched from countless landings.
+      Eight landing lights ring the circle, two flickering. Binary load
+      lifters stand idle near the maintenance garage. Fuel cells cluster
+      along the back wall.
+    zone: tatooine_spaceport
+    map_x: 5
+    map_y: 6
+
+  - id: 2
+    slug: spaceport_customs_office
+    name: "Spaceport Customs Office"
+    short_desc: "A dingy customs office adjacent to the docking bays."
+    description: >
+      Dust covers everything in this cramped office. Desks pile high with
+      datadisks and confiscated goods. The inspectors spend more time
+      collecting bribes than actually inspecting cargo.
+    zone: tatooine_spaceport
+    map_x: 6
+    map_y: 5
+
+  - id: 3
+    slug: spaceport_speeders
+    name: "Spaceport Speeders"
+    short_desc: "An unassuming speeder shop southeast of the docking bays."
+    description: >
+      A motley collection of speeders fills this shop. The smell of
+      lubricant and ozone hangs in the air. A partially disassembled
+      SoroSuub XP-38 sits on a lift.
+    zone: tatooine_spaceport
+    map_x: 7
+    map_y: 6
+
+  - id: 4
+    slug: docking_bay_86
+    name: "Docking Bay 86"
+    short_desc: "A round pit gouged in the soil, slightly smaller than most bays."
+    description: >
+      Old 86 is utilitarian, mostly serving small shuttles and personal
+      transports. An ill-tempered admin droid named BX-9T manages with
+      brusque efficiency. Landing fees are 35 credits per day.
+    zone: tatooine_spaceport
+    map_x: 4
+    map_y: 5
+
+  - id: 5
+    slug: docking_bay_87
+    name: "Docking Bay 87"
+    short_desc: "One of the top favorite bays for smugglers and merchants."
+    description: >
+      Directly across from Bay 86, this bay has been continually
+      modernized. A double blast door and forcefield opens into the
+      street. The Ishi Tib owner Drue charges 30 credits per day, and
+      25 credits avoids cargo inspections.
+    zone: tatooine_spaceport
+    map_x: 6
+    map_y: 4
+
+  - id: 6
+    slug: docking_bay_92
+    name: "Docking Bay 92"
+    short_desc: "A bay used almost exclusively for starship repairs."
+    description: >
+      Underground rooms filled with repair tools, labor droids, and
+      engineering equipment. The owner Dom Antyll charges 125% of
+      standard rates but his work is first-class. The smell of ion flux
+      permeates everything.
+    zone: tatooine_spaceport
+    map_x: 5
+    map_y: 3
+
+  # ── STREETS & MARKETS (secured) ── rooms 7-11 ──────────────────────────
+
+  - id: 7
+    slug: mos_eisley_spaceport_row
+    name: "Mos Eisley Street - Spaceport Row"
+    short_desc: "A wide, dusty street running between the major docking bays."
+    description: >
+      This broad street connects several of the busiest docking bays.
+      Low-grade concrete mounds line both sides. Moisture vaporators
+      stand in corners. The air shimmers with heat from the twin suns.
+      Jawas and street vendors compete for attention.
+    zone: tatooine_mos_eisley
+    map_x: 5
+    map_y: 4
+
+  - id: 8
+    slug: mos_eisley_market_district
+    name: "Mos Eisley Street - Market District"
+    short_desc: "A bustling stretch of street near the market and cantina."
+    description: >
+      The streets grow crowded near the commercial heart. Speeders weave
+      between pedestrians. The cantina's curved walls are visible to the
+      west. A Dim-U monk preaches about sacred Banthas to an audience of
+      zero.
+    zone: tatooine_mos_eisley
+    map_x: 5
+    map_y: 3
+
+  - id: 9
+    slug: mos_eisley_government_quarter
+    name: "Mos Eisley Street - Government Quarter"
+    short_desc: "A quieter section near the government offices and police station."
+    description: >
+      Crowds thin near the regional offices and the police station.
+      Buildings are slightly better maintained. Republic militia troopers
+      patrol in pairs, their armor already coated in Tatooine dust.
+      Mostly they're here to collect the Hutt-approved tariffs and
+      stay out of everyone's way.
+    zone: tatooine_civic
+    map_x: 5
+    map_y: 2
+
+  - id: 10
+    slug: mos_eisley_north_end
+    name: "Mos Eisley Street - North End"
+    short_desc: "The northern edge of the central sector, near the factories."
+    description: >
+      The city becomes industrial here — warehouses, shipping offices,
+      factory compounds. Notsub Shipping's headquarters dominates the
+      skyline. Streets are wider for cargo skiffs.
+    zone: tatooine_mos_eisley
+    map_x: 5
+    map_y: 1
+
+  - id: 11
+    slug: mos_eisley_south_end
+    name: "Mos Eisley Street - South End"
+    short_desc: "The southern residential area, quieter than the central sector."
+    description: >
+      Streets narrow and quiet at the southern edge. White pourstone
+      residential buildings line a cul-de-sac. Small subterranean
+      gardens give this area an almost peaceful quality.
+    zone: tatooine_mos_eisley
+    map_x: 5
+    map_y: 5
+
+  # ── CHALMUN'S CANTINA (secured) ── rooms 12-14 ─────────────────────────
+
+  - id: 12
+    slug: chalmuans_cantina_entrance
+    name: "Chalmun's Cantina - Entrance"
+    short_desc: "The elevated entranceway of the most infamous cantina in the galaxy."
+    description: >
+      You step from blinding glare into dim coolness. The elevated
+      entrance lets patrons size up newcomers. A droid detector hums
+      softly. A battered sign reads 'NO DROIDS' in four languages.
+      Jizz music washes over you from below.
+    zone: tatooine_cantina
+    map_x: 4
+    map_y: 3
+
+  - id: 13
+    slug: chalmuans_cantina_main_bar
+    name: "Chalmun's Cantina - Main Bar"
+    short_desc: "The main bar of the most notorious establishment in Mos Eisley."
+    description: >
+      The dimly lit cantina is a cavern of sound and shadow. A high-tech
+      bar stretches along one wall. Booths line the curved walls. The
+      Modal Nodes play on the bandstand. Smugglers, bounty hunters, and
+      beings of every description pack the room. A clone trooper on
+      leave nurses a drink in the far corner, pretending to be off-duty.
+    zone: tatooine_cantina
+    map_x: 4
+    map_y: 2
+
+  - id: 14
+    slug: chalmuans_cantina_back_hallway
+    name: "Chalmun's Cantina - Back Hallway"
+    short_desc: "A narrow hallway behind the bar leading to restrooms and cellar."
+    description: >
+      This rear corridor provides a quick escape for those who know it.
+      Three restroom doors line one side. The cellar access is through
+      a trapdoor. The bartender's office is behind a curtained wall.
+    zone: tatooine_cantina
+    map_x: 3
+    map_y: 2
+
+  # ── COMMERCIAL DISTRICT (secured) ── rooms 15-17 ───────────────────────
+
+  - id: 15
+    slug: lups_general_store
+    name: "Lup's General Store"
+    short_desc: "A well-stocked general store run by friendly Shistavanen Wolfmen."
+    description: >
+      Despite the fierce wolf-like proprietors, this is one of the
+      friendlier shops. Touch-screen monitors line the counter. Twelve
+      monitors advertise daily specials. Provisions, supplies, machinery,
+      and weaponry at reasonable prices.
+    zone: tatooine_market
+    map_x: 6
+    map_y: 3
+    vendor: true
+
+  - id: 16
+    slug: market_place_geps_grill
+    name: "Market Place - Gep's Grill"
+    short_desc: "An open-air market with tents, food stalls, and a popular grill."
+    description: >
+      A sandy lot full of tents and improvised stalls. Farmers sell
+      underground vegetables, hunters offer game, vendors hawk trinkets.
+      Bantha burgers and Dewback ribs smoke on Gep's Grill.
+    zone: tatooine_market
+    map_x: 5
+    map_y: 4
+
+  - id: 17
+    slug: mos_eisley_inn
+    name: "Mos Eisley Inn"
+    short_desc: "A run-down building offering bare necessities for 10 credits a night."
+    description: >
+      The Inn offers exactly what its name suggests. A central lobby
+      with imported trees provides the only aesthetic touch. Subterranean
+      rooms are dark but cool; upper rooms are unbearably warm.
+    zone: tatooine_mos_eisley
+    map_x: 4
+    map_y: 4
+    housing: true
+
+  # ── JABBA'S TOWNHOUSE (contested, faction_override: hutt) ── rooms 18-19
+
+  - id: 18
+    slug: jabbas_townhouse_entrance
+    name: "Jabba's Townhouse - Main Entrance"
+    short_desc: "The intimidating entrance to Jabba the Hutt's Mos Eisley townhouse."
+    description: >
+      A reinforced blast door dominates this entrance. A sensor eye
+      stares from the wall. Guards disguised as beggars keep tabs on
+      visitors. Durasteel doors and blast-shielded walls tell the real
+      story.
+    zone: tatooine_mos_eisley
+    map_x: 6
+    map_y: 2
+    faction_override: hutt_cartel
+    security_level: contested
+
+  - id: 19
+    slug: jabbas_townhouse_audience
+    name: "Jabba's Townhouse - Audience Chamber"
+    short_desc: "The audience chamber where Jabba the Hutt holds court."
+    description: >
+      Specially constructed to accommodate Jabba's massive power sled.
+      A weapon-detecting droid scans all visitors. A wire mesh net near
+      the ceiling houses Kayven Whistlers for disciplining unruly guests.
+    zone: tatooine_mos_eisley
+    map_x: 6
+    map_y: 1
+    faction_override: hutt_cartel
+    security_level: contested
+
+  # ── GOVERNMENT / CIVIC (secured) ── rooms 20-22 ────────────────────────
+
+  - id: 20
+    slug: regional_government_offices
+    name: "Regional Government Offices"
+    short_desc: "The cramped administrative center of Tatooine's government."
+    description: >
+      Prefect Talmont's office is cluttered with datadisks. The building
+      handles land deeds, weapon licenses, and court appearances. Three
+      clerks sit behind computers. A small Republic seal is posted by
+      the door — more aspirational than authoritative.
+    zone: tatooine_civic
+    map_x: 4
+    map_y: 1
+
+  - id: 21
+    slug: police_station_main
+    name: "Police Station - Main Floor"
+    short_desc: "The Mos Eisley police station."
+    description: >
+      A desk clerk monitors holding cells from banks of monitors.
+      Patrol officers use personal datapads. The roof has a marked
+      landing pad. A Republic advisory liaison stops by twice a week
+      to file reports nobody reads.
+    zone: tatooine_civic
+    map_x: 4
+    map_y: 2
+
+  - id: 22
+    slug: tatooine_militia_hq
+    name: "Tatooine Militia Headquarters"
+    short_desc: "The militia building and its Republic-assigned garrison."
+    description: >
+      Home to the Tatooine Planetary Militia and a small detachment of
+      Republic troopers nominally assigned here for "Outer Rim security."
+      The clone troopers mostly look bored. A weapons vault holds
+      standard issue blasters. Speeder bikes crowd the garage.
+    zone: tatooine_civic
+    map_x: 5
+    map_y: 1
+    # Clone Wars reskin: stormtrooper garrison → Republic/clone detachment
+
+  - id: 23
+    slug: dewback_stables_garage
+    name: "Dewback Stables and Garage"
+    short_desc: "An ancient stable converted to house militia vehicles and beasts."
+    description: >
+      Three armored landspeeders sit in the garage. Half a dozen patrol
+      scooters line one wall. Dewbacks are kept in a separate paddock,
+      their musky smell permeating everything. Heavy blast doors secured
+      with a Difficult lock.
+    zone: tatooine_civic
+    map_x: 5
+    map_y: 0
+
+  # ── SPACEPORT OVERFLOW / MISC (secured) ── rooms 24-26 ─────────────────
+
+  - id: 24
+    slug: power_station
+    name: "Power Station"
+    short_desc: "A bustling charging station for speeders and droids."
+    description: >
+      Merchants and farmers gather here to discuss business, politics,
+      and weather. An unenthusiastic power droid named 4-LB runs the
+      station. Speeder recharges cost 15 credits; droids need only 3-4
+      credits. Rumors circulate freely.
+    zone: tatooine_mos_eisley
+    map_x: 6
+    map_y: 2
+
+  - id: 25
+    slug: spaceport_hotel
+    name: "Spaceport Hotel"
+    short_desc: "An adequate 40-room hotel near the spaceport."
+    description: >
+      Forty small rooms at 15 credits per night. Beds are almost
+      comfortable, sonic showers mostly work, air conditioning functions
+      some of the time. The Sullustan clerk does not ask questions.
+    zone: tatooine_spaceport
+    map_x: 4
+    map_y: 4
+    housing: true
+
+  - id: 26
+    slug: mos_eisley_control_tower
+    name: "Mos Eisley Spaceport Control Tower"
+    short_desc: "The five-story tower directing all incoming and outgoing traffic."
+    description: >
+      A Sienar Observation Module juts five stories high. Three stations
+      are occupied: one by a J9-5 worker droid, two by Human technicians.
+      Occasionally a Republic naval officer stops in to review traffic
+      logs and shake his head at the lack of manifest compliance.
+    zone: tatooine_spaceport
+    map_x: 5
+    map_y: 5
+
+  # ── MORE COMMERCIAL (secured) ── rooms 27-39 ───────────────────────────
+
+  - id: 27
+    slug: kaysons_weapon_shop
+    name: "Kayson's Weapon Shop"
+    short_desc: "A well-stocked weapon shop with both legal and contraband inventory."
+    description: >
+      Walls literally covered in weapons: new, used, ancient, modern,
+      all kept empty and unloaded. Kayson's knowledge of weapons is
+      encyclopedic. Black market weapons are available for those who
+      know how to ask.
+    zone: tatooine_market
+    map_x: 6
+    map_y: 3
+    vendor: true
+
+  - id: 28
+    slug: heffs_souvenirs
+    name: "Heff's Souvenirs"
+    short_desc: "A junk shop masquerading as a souvenir store."
+    description: >
+      Battered trinkets and curiosities fill this cluttered shop.
+      Behind the counter, unique souvenirs depict local sites. The
+      current owner Moplin makes his real living through forgery.
+    zone: tatooine_market
+    map_x: 5
+    map_y: 3
+
+  - id: 29
+    slug: jawa_traders
+    name: "Jawa Traders"
+    short_desc: "A repair shop specializing in vehicle and starship droids."
+    description: >
+      The oily interior is packed with droids in various states of
+      assembly. Restraining bolts, circuit boards, and motivator units
+      fill shelves floor to ceiling. Several droids stand motionless
+      in a display line near the entrance.
+    zone: tatooine_market
+    map_x: 4
+    map_y: 3
+    vendor: true
+
+  - id: 30
+    slug: dockside_cafe
+    name: "Dockside Cafe"
+    short_desc: "A dimly lit restaurant and bar popular with experienced spacers."
+    description: >
+      Adjacent to Bay 92, this cafe features alcoves and booths for
+      private conversation. No gambling here, unlike the cantina. A
+      droid bartender named CG-X2R takes no notice of anything.
+    zone: tatooine_mos_eisley
+    map_x: 4
+    map_y: 1
+
+  - id: 31
+    slug: lucky_despot_staircase
+    name: "Lucky Despot Hotel - Grand Staircase"
+    short_desc: "The entrance to the Lucky Despot, a decommissioned starship turned hotel."
+    description: >
+      A grand staircase leads into this converted cargo hauler. Faded
+      grandeur remains. Guards in orange uniforms keep watch. The whole
+      operation belongs to Valarian, a Whiphid crime boss whose rivalry
+      with Jabba predates the Clone Wars.
+    zone: tatooine_mos_eisley
+    map_x: 4
+    map_y: 6
+    housing: true
+
+  - id: 32
+    slug: lucky_despot_star_chamber
+    name: "Lucky Despot - Star Chamber Cafe"
+    short_desc: "The hotel restaurant with its famous holographic starfield projector."
+    description: >
+      The Star Chamber serves meals by day and transforms into an
+      illegal casino after Second Twilight. A holographic projector
+      portrays the galaxy from Coruscant. Gambling tables appear as
+      if by magic in the evenings.
+    zone: tatooine_mos_eisley
+    map_x: 4
+    map_y: 7
+
+  - id: 33
+    slug: zygians_banking
+    name: "Zygian's Banking Concern"
+    short_desc: "A bank that has slowly evolved into a pawn shop."
+    description: >
+      Items left as collateral clutter the vault area. A triple-lined
+      vault with computer-controlled timed entry dominates the back.
+      Loan rates of 15% seem generous compared to the usual loan sharks.
+    zone: tatooine_market
+    map_x: 5
+    map_y: 3
+
+  - id: 34
+    slug: transport_depot
+    name: "Transport Depot"
+    short_desc: "A decrepit building serving as Mos Eisley's transport terminal."
+    description: >
+      A cafe serves overpriced food to waiting passengers. Rows of
+      chairs face monitors showing prerecorded broadcasts. A bank of
+      lockers lines the back wall. The proprietor Yvonne Targis works
+      for Jabba on the side.
+    zone: tatooine_mos_eisley
+    map_x: 6
+    map_y: 5
+
+  - id: 35
+    slug: cutting_edge_clinic
+    name: "The Cutting Edge Clinic"
+    short_desc: "A nondescript clinic run by the infamous Dr. Evazan under a false name."
+    description: >
+      Four rooms specializing in cyborging, though seldom successful.
+      The 'doctor' operating as 'Cornelius' is actually Dr. Evazan,
+      wanted on 53 planets with death sentences in 14 systems.
+    zone: tatooine_civic
+    map_x: 6
+    map_y: 2
+
+  - id: 36
+    slug: dimu_monastery_gate
+    name: "Dim-U Monastery - Main Gate"
+    short_desc: "The entrance to an abandoned greenhouse converted into a monastery."
+    description: >
+      Huge doors rarely opened. The building was once a greenhouse.
+      Monks move about quietly. What visitors don't know: the monastery
+      is a front for forging transponder codes for wanted ships — a
+      service both Republic deserters and CIS sympathizers find useful.
+    zone: tatooine_mos_eisley
+    map_x: 5
+    map_y: 1
+
+  - id: 37
+    slug: dowager_queen_corner
+    name: "Street Corner - Dowager Queen Wreckage"
+    short_desc: "A historic corner near the remains of the colony ship Dowager Queen."
+    description: >
+      The original blockhouses built around the wreckage still stand.
+      Jawas examine droids, con men set up card tables, monks preach
+      to disinterested crowds. If something happens in Mos Eisley,
+      people discuss it here.
+    zone: tatooine_mos_eisley
+    map_x: 5
+    map_y: 3
+
+  - id: 38
+    slug: house_of_momaw_nadon
+    name: "House of Momaw Nadon"
+    short_desc: "A typical pourstone house concealing an ecological paradise."
+    description: >
+      Inside, humidity hits immediately. Insulated walls drip with
+      condensation. An artificial pond feeds a lush garden spilling
+      into a forested subterranean level. The Ithorian owner prefers
+      privacy and receives few uninvited visitors.
+    zone: tatooine_mos_eisley
+    map_x: 6
+    map_y: 5
+    housing: true
+
+  - id: 39
+    slug: notsub_shipping_lobby
+    name: "Notsub Shipping - Lobby"
+    short_desc: "The corporate lobby of Tatooine's largest company."
+    description: >
+      The most professional-looking building in Mos Eisley. Polished
+      floors, working climate control. Notsub employs almost 1,000
+      beings. CEO Armanda Durkin secretly leads a double life as the
+      pirate Duchess.
+    zone: tatooine_mos_eisley
+    map_x: 5
+    map_y: 0
+
+  # ── OUTSKIRTS (contested) ── rooms 40-47 ───────────────────────────────
+
+  - id: 40
+    slug: outskirts_eastern_gate
+    name: "City Outskirts - Eastern Gate"
+    short_desc: "The eastern edge of Mos Eisley where the streets give way to desert."
+    description: >
+      The last buildings of Mos Eisley end abruptly at a low ferrocrete
+      wall. Beyond, the Jundland Wastes shimmer in the heat. A weathered
+      gate stands half-open — no one has bothered to repair it in years.
+      Republic patrols occasionally pass through but rarely venture
+      further. Swoop tracks scar the sand outside.
+    zone: tatooine_outskirts
+    map_x: 8
+    map_y: 3
+    security_level: contested
+
+  - id: 41
+    slug: outskirts_scavenger_market
+    name: "City Outskirts - Scavenger Market"
+    short_desc: "A ramshackle collection of stalls where Jawas trade salvage."
+    description: >
+      Outside the city wall, Jawas have established a semi-permanent
+      trading post built from scavenged sandcrawler parts. Moisture
+      farmers haggle over vaporator components. Droids of questionable
+      provenance stand in crooked rows. The smell of Jawa is distinctive
+      and lingering. A hand-painted sign reads 'GOOD DROIDS CHEEP' in
+      phonetic Basic.
+    zone: tatooine_outskirts
+    map_x: 7
+    map_y: 3
+    security_level: contested
+    vendor: true
+
+  - id: 42
+    slug: outskirts_abandoned_farm
+    name: "City Outskirts - Abandoned Moisture Farm"
+    short_desc: "A moisture farm abandoned after a Tusken raid, now a squatter camp."
+    description: >
+      Four vaporator towers stand silent, their condensation tubes
+      stripped for parts. The underground living quarters have been
+      claimed by drifters and outcasts — beings with nowhere else to
+      go. Makeshift shelters lean against the old ferrocrete homestead
+      walls. A faint smell of charring lingers from the raid.
+    zone: tatooine_outskirts
+    map_x: 8
+    map_y: 4
+    security_level: contested
+
+  - id: 43
+    slug: outskirts_speeder_track
+    name: "City Outskirts - Speeder Track"
+    short_desc: "An informal swoop racing circuit carved into the hardpan desert."
+    description: >
+      Berms of packed sand mark a rough oval course. Swoop gangs
+      gather here at dusk for illegal races and to settle disputes.
+      During the day, the track is empty except for Womp Rats darting
+      between the berms. Discarded fuel cells and broken swoop parts
+      litter the edges.
+    zone: tatooine_outskirts
+    map_x: 8
+    map_y: 2
+    security_level: contested
+
+  - id: 44
+    slug: outskirts_checkpoint
+    name: "City Outskirts - Republic Checkpoint"
+    short_desc: "A prefab checkpoint on the main road heading east from Mos Eisley."
+    description: >
+      A plasteel booth and retractable barrier mark the last Republic
+      presence before the open desert. Two clone troopers check IDs
+      with varying degrees of interest. During crackdowns, the
+      checkpoint is reinforced with an E-web emplacement. Most locals
+      know the back routes around it.
+    zone: tatooine_outskirts
+    map_x: 9
+    map_y: 3
+    security_level: contested
+    # Clone Wars reskin: "Imperial Checkpoint" → "Republic Checkpoint"
+
+  - id: 45
+    slug: outskirts_wrecked_sandcrawler
+    name: "City Outskirts - Wrecked Sandcrawler"
+    short_desc: "The rusting hulk of a Jawa sandcrawler, half-buried in sand."
+    description: >
+      This sandcrawler was destroyed years ago — whether by Tusken
+      Raiders or something worse is debated in the cantina. Its massive
+      treads have sunk into the desert floor. The interior has been
+      stripped of anything valuable, but the superstructure provides
+      welcome shade. Womp Rat warrens riddle the hull.
+    zone: tatooine_outskirts
+    map_x: 7
+    map_y: 2
+    security_level: contested
+
+  - id: 46
+    slug: outskirts_hermits_ridge
+    name: "City Outskirts - Hermit's Ridge"
+    short_desc: "A rocky outcropping overlooking the desert approaches to Mos Eisley."
+    description: >
+      Weathered sandstone formations create natural shelters along
+      this ridge. An old hermit is said to live somewhere in these
+      rocks — a crazy old wizard, the locals say, best left alone.
+      The view extends for kilometers across the desert floor. Thermal
+      updrafts make the air dance.
+    zone: tatooine_outskirts
+    map_x: 8
+    map_y: 5
+    security_level: contested
+
+  - id: 47
+    slug: outskirts_trail_junction
+    name: "City Outskirts - Desert Trail Junction"
+    short_desc: "Where the main road forks: east toward the Wastes, south toward Anchorhead."
+    description: >
+      A trail marker — three stones stacked by some long-forgotten
+      traveler — indicates the fork. The eastern path narrows into a
+      rocky defile leading toward the Jundland Wastes. The southern
+      road is wider, following the route to Anchorhead and the moisture
+      farming settlements. Heat mirages shimmer on both horizons.
+    zone: tatooine_outskirts
+    map_x: 10
+    map_y: 3
+    security_level: contested
+
+  # ── JUNDLAND WASTES (lawless) ── rooms 48-53 ───────────────────────────
+
+  - id: 48
+    slug: jundland_canyon_mouth
+    name: "Jundland Wastes - Canyon Mouth"
+    short_desc: "The entrance to a narrow canyon cutting through sandstone cliffs."
+    description: >
+      Towering walls of wind-carved sandstone rise on either side,
+      casting deep shadow even under the twin suns. The canyon floor
+      is littered with rocks fallen from above — natural chokepoints
+      that Tusken Raiders use for ambushes. Bantha tracks are pressed
+      deep into the sand. The silence is oppressive.
+    zone: tatooine_jundland
+    map_x: 11
+    map_y: 3
+    security_level: lawless
+
+  - id: 49
+    slug: jundland_beggars_canyon
+    name: "Jundland Wastes - Beggar's Canyon"
+    short_desc: "A treacherous canyon famous as a test of piloting skill."
+    description: >
+      Sheer walls plunge hundreds of meters on either side of a winding
+      rock corridor barely wide enough for a speeder. Local youths race
+      T-16 Skyhoppers through here. The canyon floor is littered with
+      wreckage from those who misjudged the turns. Womp Rats nest in
+      the crevices — some growing nearly two meters long.
+    zone: tatooine_jundland
+    map_x: 11
+    map_y: 4
+    security_level: lawless
+
+  - id: 50
+    slug: jundland_tusken_overlook
+    name: "Jundland Wastes - Tusken Camp Overlook"
+    short_desc: "A high vantage point overlooking a Tusken Raider encampment."
+    description: >
+      From behind a screen of boulders, a Tusken camp is visible in
+      the valley below — Bantha-hide tents arranged in a rough circle,
+      cook fires sending thin smoke into the sky. Banthas graze on
+      scrub. The Sand People are fiercely territorial; approaching the
+      camp uninvited is suicide. Even from this distance, their
+      gaderffii sticks glint in the sun.
+    zone: tatooine_jundland
+    map_x: 12
+    map_y: 3
+    security_level: lawless
+
+  - id: 51
+    slug: jundland_krayt_graveyard
+    name: "Jundland Wastes - Krayt Dragon Graveyard"
+    short_desc: "A desolate stretch of desert where Krayt Dragons come to die."
+    description: >
+      Massive ribcages arch from the sand like the keels of buried
+      starships. Bleached skulls the size of landspeeders stare with
+      empty eye sockets. The pearl-hunters come here despite the
+      danger — a single Krayt Dragon pearl can be worth ten thousand
+      credits. Something moves in the sand nearby.
+    zone: tatooine_jundland
+    map_x: 13
+    map_y: 3
+    security_level: lawless
+
+  - id: 52
+    slug: jundland_hidden_cave
+    name: "Jundland Wastes - Hidden Cave"
+    short_desc: "A natural cave concealed behind a rockfall, showing signs of habitation."
+    description: >
+      The cave entrance is invisible from the canyon floor, screened
+      by tumbled boulders. Inside, the temperature drops sharply.
+      Someone has been here recently — a fire ring, water containers,
+      survival supplies. Scratched into the wall in several languages:
+      coordinates, warnings, and what might be a CIS contact mark
+      half-obscured by sand.
+    zone: tatooine_jundland
+    map_x: 11
+    map_y: 2
+    security_level: lawless
+    hidden_exit: true
+    # Clone Wars reskin: Rebel symbol → ambiguous contact mark (CIS sympathizer / neutral)
+
+  - id: 53
+    slug: jundland_dune_sea_edge
+    name: "Jundland Wastes - Dune Sea Edge"
+    short_desc: "Where the Jundland Wastes give way to the endless Dune Sea."
+    description: >
+      The rocky terrain falls away to an ocean of sand stretching to
+      every horizon. Jabba's palace lies somewhere out there — and
+      beyond that, the deep desert. The wind carries fine grit that
+      stings exposed skin. Navigation without instruments is nearly
+      impossible. Old stories say something lives out in the deep
+      desert. The Jawas won't say what.
+    zone: tatooine_dune_sea
+    map_x: 14
+    map_y: 3
+    security_level: lawless
+
+exits:
+  # ── Docking Bay 94 ─────────────────────────────────────────────────────
+  - {from: 0, to: 1, forward: "down", reverse: "up"}
+  - {from: 0, to: 7, forward: "north", reverse: "south to Bay 94"}
+  - {from: 2, to: 7, forward: "east", reverse: "west to Bay 86"}
+  - {from: 2, to: 0, forward: "south", reverse: "east to Bay 86"}
+  # ── Other bays to Spaceport Row ─────────────────────────────────────────
+  - {from: 3, to: 7, forward: "northwest", reverse: "southeast"}
+  - {from: 4, to: 7, forward: "west", reverse: "east"}
+  - {from: 5, to: 7, forward: "east", reverse: "northwest to Bay 87"}
+  # ── Bay 92 to North End ─────────────────────────────────────────────────
+  - {from: 6, to: 10, forward: "east", reverse: "west to Bay 92"}
+  # ── Spaceport Row <-> Market Row ────────────────────────────────────────
+  - {from: 7, to: 8, forward: "north", reverse: "south to Spaceport"}
+  # ── Market Row <-> Inner Curve ──────────────────────────────────────────
+  - {from: 8, to: 9, forward: "north", reverse: "south to Market"}
+  # ── Inner Curve <-> Outer Curve ─────────────────────────────────────────
+  - {from: 9, to: 10, forward: "north", reverse: "south to Inner Curve"}
+  # ── Market Row <-> Kerner Plaza ─────────────────────────────────────────
+  - {from: 8, to: 11, forward: "southeast", reverse: "northwest"}
+  # ── Cantina ─────────────────────────────────────────────────────────────
+  - {from: 12, to: 8, forward: "east", reverse: "west to Cantina"}
+  - {from: 12, to: 13, forward: "down", reverse: "up"}
+  - {from: 13, to: 14, forward: "west", reverse: "east"}
+  # ── General Store ───────────────────────────────────────────────────────
+  - {from: 15, to: 8, forward: "north", reverse: "up to General Store"}
+  # ── Market Place ────────────────────────────────────────────────────────
+  - {from: 16, to: 8, forward: "south", reverse: "grill"}
+  # ── Inn ─────────────────────────────────────────────────────────────────
+  - {from: 17, to: 7, forward: "south", reverse: "northeast to Inn"}
+  # ── Jabba's ─────────────────────────────────────────────────────────────
+  - {from: 18, to: 8, forward: "southeast", reverse: "northwest"}
+  - {from: 18, to: 19, forward: "in", reverse: "out"}
+  # ── Government District ─────────────────────────────────────────────────
+  - {from: 20, to: 9, forward: "east", reverse: "west to Prefect"}
+  - {from: 21, to: 9, forward: "west", reverse: "east"}
+  - {from: 22, to: 9, forward: "south", reverse: "northeast to Militia HQ"}
+  - {from: 23, to: 22, forward: "north", reverse: "east to Stables"}
+  # ── Power Station ───────────────────────────────────────────────────────
+  - {from: 24, to: 9, forward: "northwest", reverse: "southeast"}
+  # ── Hotel -> Spaceport Row ──────────────────────────────────────────────
+  - {from: 25, to: 7, forward: "east", reverse: "up to Hotel"}
+  # ── Control Tower -> Spaceport Row ─────────────────────────────────────
+  - {from: 26, to: 7, forward: "north", reverse: "southwest to Tower"}
+  # ── Weapon Shop -> Market ───────────────────────────────────────────────
+  - {from: 27, to: 8, forward: "east", reverse: "down to Weapon Shop"}
+  # ── Souvenirs / Jawa -> Market ──────────────────────────────────────────
+  - {from: 28, to: 8, forward: "northeast", reverse: "southwest"}
+  - {from: 29, to: 8, forward: "west", reverse: "northeast to Jawa Traders"}
+  # ── Dockside Cafe ───────────────────────────────────────────────────────
+  - {from: 30, to: 10, forward: "south", reverse: "north"}
+  - {from: 6, to: 30, forward: "south", reverse: "north"}
+  # ── Lucky Despot -> South End ───────────────────────────────────────────
+  - {from: 31, to: 11, forward: "north", reverse: "south"}
+  - {from: 31, to: 32, forward: "up", reverse: "down"}
+  # ── Banking -> Market ───────────────────────────────────────────────────
+  - {from: 33, to: 8, forward: "north", reverse: "bank"}
+  # ── Transport Depot -> South End ────────────────────────────────────────
+  - {from: 34, to: 11, forward: "east", reverse: "west"}
+  # ── Clinic -> Inner Curve ───────────────────────────────────────────────
+  - {from: 35, to: 9, forward: "east", reverse: "northwest to Clinic"}
+  # ── Monastery -> North End ──────────────────────────────────────────────
+  - {from: 36, to: 10, forward: "east", reverse: "northwest to Monastery"}
+  # ── Dowager Queen -> Market ─────────────────────────────────────────────
+  - {from: 37, to: 8, forward: "north", reverse: "wreckage"}
+  # ── Momaw Nadon -> South End ────────────────────────────────────────────
+  - {from: 38, to: 11, forward: "west", reverse: "east"}
+  # ── Notsub -> North End ─────────────────────────────────────────────────
+  - {from: 39, to: 10, forward: "north", reverse: "southeast to Notsub"}
+  # ── Outskirts ───────────────────────────────────────────────────────────
+  - {from: 40, to: 8, forward: "west", reverse: "east to Eastern Gate"}
+  - {from: 41, to: 40, forward: "west", reverse: "east to Scavenger Market"}
+  - {from: 42, to: 40, forward: "south", reverse: "north to Farm"}
+  - {from: 43, to: 41, forward: "east", reverse: "north to Track"}
+  - {from: 44, to: 40, forward: "east", reverse: "south to Checkpoint"}
+  - {from: 45, to: 41, forward: "north", reverse: "south to Sandcrawler"}
+  - {from: 46, to: 42, forward: "south", reverse: "north to Ridge"}
+  - {from: 47, to: 44, forward: "east", reverse: "west to Junction"}
+  # ── Jundland Wastes ─────────────────────────────────────────────────────
+  - {from: 48, to: 47, forward: "east", reverse: "west to Canyon"}
+  - {from: 49, to: 48, forward: "south", reverse: "north to Beggar's Canyon"}
+  - {from: 50, to: 48, forward: "east", reverse: "west to Overlook"}
+  - {from: 51, to: 50, forward: "east", reverse: "west to Graveyard"}
+  - {from: 52, to: 48, forward: "hidden", reverse: "out", hidden: true}
+  - {from: 53, to: 51, forward: "south", reverse: "north to Dune Sea"}

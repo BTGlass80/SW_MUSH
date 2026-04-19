@@ -1,0 +1,335 @@
+# data/worlds/clone_wars/zones.yaml
+# Clone Wars Era — Zone Definitions and Narrative Tones
+#
+# Zone codes must match the zone slugs used in planet YAML files.
+# narrative_tone is injected into Director AI prompts as ATMOSPHERE directive.
+# name_match is used for prefix-matching against zone names in the DB.
+#
+# Drop 1 covers: Tatooine (7 zones) + Nar Shaddaa (4 zones) + space (4 zones)
+# Drops 2-4 will add: Coruscant (7), Kuat (3), Kamino (3), Geonosis (4)
+
+zones:
+
+  # ── Tatooine ─────────────────────────────────────────────────────────────
+  # Tatooine is largely unchanged by the war. The Hutts are neutral and
+  # profitable. Neither the Republic nor the CIS has strategic interest here.
+  # Clonetroopers occasionally pass through the Westport but don't linger.
+  # The dominant forces remain the Hutts and Jabba's criminal apparatus.
+
+  tatooine_mos_eisley:
+    name_match: "mos eisley"
+    narrative_tone: >
+      Dangerous and lawless. Deals are whispered across cantina tables while
+      the twin suns bleach the streets white outside. Jabba's enforcers
+      collect their cuts. Republic clone patrols pass through on their way
+      to somewhere else — they have a war to fight and this dustbowl is not
+      it. The Hutts hold the real power here, and they aren't interested in
+      either side winning.
+
+  tatooine_spaceport:
+    name_match: "spaceport"
+    narrative_tone: >
+      The Mos Eisley Westport is the planet's busiest landing zone and the
+      closest thing to neutral ground. Republic transports dock alongside
+      Outer Rim freighters and questionable Hutt-flagged vessels. Customs
+      inspectors take credits more reliably than contraband. Everyone is
+      moving fast and not looking anyone in the eye.
+
+  tatooine_cantina:
+    name_match: "cantina"
+    narrative_tone: >
+      Chalmun's cantina is the same smoky den it has always been. Jizz music
+      drifts from the back. The clientele is diverse — a Clone trooper nursing
+      a drink on leave, a Weequay smuggler arguing about spice prices, an
+      Arkanian scholar who wandered in from the desert and looks like he
+      regrets it. Nobody asks what side you're on. Nobody cares.
+
+  tatooine_market:
+    name_match: "streets"
+    narrative_tone: >
+      The market streets are perpetually sun-baked and dusty. Jawas hawk
+      salvage from rattling carts. Moisture farmers barter for parts. War
+      news filters in from offworld like rumor — nobody trusts it enough
+      to act on. The Hutts' pricing adjusts to shortages created by the war,
+      which means prices are up and patience is thin.
+
+  tatooine_civic:
+    name_match: "civic"
+    narrative_tone: >
+      The civic district is quiet in the way that places are quiet when
+      authority has given up. Republic advisors passed through once, made
+      optimistic noises about integrating Tatooine into the war effort,
+      and were politely laughed out of the sector. Hutt bureaucracy grinds
+      on. Jabba signs what needs to be signed and ignores the rest.
+
+  tatooine_outskirts:
+    name_match: "outskirts"
+    narrative_tone: >
+      The edge of Mos Eisley where the duracrete gives out. Scrapyards,
+      moisture-vaporator farms, and the dwellings of people who couldn't
+      afford to live closer in. Banthas wander. The horizon shimmers.
+      War is something that happens offworld — out here the only fight
+      is against the heat and the sand.
+
+  tatooine_jundland:
+    name_match: "jundland"
+    narrative_tone: >
+      The Jundland Wastes are indifferent to the Republic and the CIS alike.
+      Tusken Raiders raid and retreat. Krayt dragons patrol their ancient
+      paths. The rock-hewn canyons make sensors unreliable. Out here, the
+      war is irrelevant — what matters is water and shelter before the
+      twin suns set.
+
+  tatooine_dune_sea:
+    name_match: "dune sea"
+    narrative_tone: >
+      Endless golden dunes to every horizon. The silence is broken only by
+      wind, the distant howl of krayt dragons, and the grinding of Jawa
+      sandcrawlers. Something moves in the deep desert that the Jawas refuse
+      to approach. The Force is strong here — or at least the old stories say
+      so, and the old stories are usually right about things like that.
+
+  # ── Nar Shaddaa ──────────────────────────────────────────────────────────
+  # Nar Shaddaa is the same Smugglers' Moon it has always been.
+  # The war has been good for business — both sides need contraband routes.
+  # The Hutts broker deals for both Republic and CIS without shame.
+  # Refugees from CIS-occupied worlds arrive in waves and get absorbed.
+
+  nar_shaddaa_landing:
+    name_match: "landing pad"
+    narrative_tone: >
+      The landing pads of Nar Shaddaa never go cold. War has doubled traffic —
+      blockade runners, refugee transports, black-market supply ships, and the
+      occasional Republic intelligence vessel running without markings. The
+      Hutt customs droids take their percentage without moral objection. On
+      Nar Shaddaa, arriving is easy. Leaving with your cargo intact is the
+      skill.
+
+  nar_shaddaa_promenade:
+    name_match: "promenade"
+    narrative_tone: >
+      The Corellian Sector Promenade hums with commerce and conspiracy.
+      War refugees from the Outer Rim crowd the cheap diners alongside
+      arms dealers doing their best business in years. Republic intelligence
+      operatives try to blend in and mostly fail. CIS sympathizers pass
+      credits across tables. The Hutts don't care — money is money, and
+      the war is printing a lot of it.
+
+  nar_shaddaa_undercity:
+    name_match: "undercity"
+    narrative_tone: >
+      The Undercity is where the war washes up its casualties — refugees
+      who ran out of credits before they ran out of planet, deserters from
+      both sides, and the simply forgotten. The lowest levels haven't seen
+      natural light in generations. Jury-rigged lighting flickers. Down
+      here, Republic and CIS are words for people who have enough food
+      to care about ideology.
+
+  nar_shaddaa_warrens:
+    name_match: "warrens"
+    narrative_tone: >
+      Pitch black except for bioluminescent fungi and the occasional stolen
+      glow rod. The Warrens go deeper than any map shows. Strange devices
+      abandoned by who-knows-which faction litter the corridors. Even the
+      Hutt enforcers don't come down here. There are things in the dark
+      that predate the war by several centuries.
+
+  # ── Space zones ──────────────────────────────────────────────────────────
+
+  space_tatooine:
+    name_match: "tatooine system"
+    narrative_tone: >
+      Sparse traffic compared to the Core, but the war has made even the
+      Outer Rim lanes interesting. Clone navy patrols interdict anything
+      flying CIS transponder codes. Smugglers run dark. The twin suns
+      create brutal sensor interference close in. A good place to lose
+      a tail — if you know which debris fields to hide in.
+
+  space_nar_shaddaa:
+    name_match: "nar shaddaa system"
+    narrative_tone: >
+      The most congested lanes in the Outer Rim, now worse. War traffic
+      piles on top of the usual freighter convoys. Hutt cartel frigates
+      enforce their own interdiction zones — no Republic, no CIS, just
+      Hutt profit. The sensor smog from Nar Shaddaa itself makes customs
+      enforcement a joke. Everyone is running something.
+
+  space_kessel:
+    name_match: "kessel system"
+    narrative_tone: >
+      The Maw lurks at the edge of the system, its gravity wells making
+      navigation a skill-check and a prayer. Republic corvettes patrol the
+      spice lanes. The mines below produce spice for both sides, laundered
+      through shell companies. A contested system nobody wants to admit
+      they're fighting over.
+
+  space_corellia:
+    name_match: "corellia system"
+    narrative_tone: >
+      Orderly and proud, Corellia remains nominally neutral in the war
+      while selling ships to both sides at a premium. CEC orbital yards
+      are running at capacity. Republic Acclamator transports pick up
+      fresh hulls every week. CorSec monitors traffic with professional
+      efficiency and strategic blindness to what's in the cargo holds.
+
+  # ── Coruscant (Drop 2) ───────────────────────────────────────────────────
+  # Placeholder stubs — full authoring in Drop 2
+
+  coruscant_senate:
+    name_match: "senate district"
+    narrative_tone: >
+      The heart of the Republic, where power is debated endlessly while
+      the war consumes the Outer Rim. Senators and lobbyists move through
+      polished corridors. Emergency powers concentrate authority in the
+      Chancellor's office. Everyone knows something is wrong. Nobody
+      agrees on what.
+
+  coruscant_temple:
+    name_match: "jedi temple"
+    narrative_tone: >
+      The Jedi Temple rises above the cityscape like a monument to a way
+      of life that feels increasingly precarious. Most Knights and Masters
+      are deployed to the front. What remains is Padawans, the elderly,
+      the wounded, and the troubled. The Force here is deep and old, but
+      lately it has felt like static — clouded, the masters say, clouded
+      by the dark side.
+
+  coruscant_upper:
+    name_match: "upper coruscant"
+    narrative_tone: >
+      Gleaming towers and air-traffic lanes above the smog line. The
+      wealthy live here as though the war is something that happens
+      elsewhere — which, for them, it largely is. War profiteers host
+      dinner parties. Senators attend charity galas. The holonet feeds
+      reassuring footage of Republic victories.
+
+  coruscant_midlevels:
+    name_match: "mid levels"
+    narrative_tone: >
+      The middle layers of Coruscant-city. Shops, transit hubs, and
+      residential towers stretching in every direction. Clone troopers
+      on leave pass through. War widows sell what they can. Clone
+      recruitment holos play on every corner screen. Prices have gone
+      up. People are tired.
+
+  coruscant_lower:
+    name_match: "lower coruscant"
+    narrative_tone: >
+      Below the sanctioned levels, the city gets older and darker.
+      Refugees from CIS-occupied Outer Rim worlds crowd into warrens
+      never meant for permanent habitation. The GAR military police
+      patrol the main arteries. The alleys belong to the gangs.
+
+  coruscant_underworld:
+    name_match: "coruscant underworld"
+    narrative_tone: >
+      Level 1313 and below. The Republic's law enforcement has given up
+      on the deep underworld — too costly, too dangerous, too politically
+      inconvenient. CIS agents operate freely here. So do everyone else's
+      agents. The architecture is centuries old and the infrastructure is
+      failing. The darkness is total and the inhabitants have adapted.
+
+  coruscant_works:
+    name_match: "coruscant works"
+    narrative_tone: >
+      Industrial sublevel. Power conduits, maintenance ducts, and the
+      mechanical guts of the planet-city. Clone engineers on rotation
+      service the grid. Droid workers run their eternal maintenance
+      loops. Few people come here on purpose.
+
+  # ── Kuat (Drop 3) ────────────────────────────────────────────────────────
+
+  kuat_orbital:
+    name_match: "kuat drive yards"
+    narrative_tone: >
+      The orbital shipyards are the most productive in the Republic —
+      and the most heavily guarded. Acclamator assault ships roll off
+      the assembly lines in weeks. KDY security is professional and
+      humorless. The workers know that what they build today kills
+      people tomorrow, and they have learned not to think about it.
+
+  kuat_surface:
+    name_match: "kuat city"
+    narrative_tone: >
+      Kuat's surface is orderly, prosperous, and quietly anxious.
+      The shipyard contracts keep everyone employed. The KDY noble
+      houses run the planet with corporate precision. The war is
+      good for business, and good business requires stability, and
+      stability requires not asking questions about where the ships go.
+
+  kuat_transit:
+    name_match: "kuat transit"
+    narrative_tone: >
+      Tram stations and transit hubs connecting the surface to the
+      orbital ring. Workers, engineers, and Republic procurement
+      officers cycle through constantly. The trams run on time.
+      Everything on Kuat runs on time.
+
+  # ── Kamino (Drop 3) ──────────────────────────────────────────────────────
+
+  kamino_tipoca:
+    name_match: "tipoca city"
+    narrative_tone: >
+      The white towers of Tipoca City rise from an endless ocean. Inside,
+      the Kaminoans move with eerie calm through their stainless corridors,
+      processing and training a million soldiers with clinical precision.
+      The clone troopers march in perfect formation. Visitor protocols are
+      strict. There is a quality to the air here — not oppressive, not warm,
+      just perfectly controlled — that most visitors find deeply unsettling.
+
+  kamino_training:
+    name_match: "kamino training"
+    narrative_tone: >
+      The clone training facilities are vast and relentlessly efficient.
+      Cohorts cycle through combat simulations, obstacle courses, and
+      battlefield scenario rooms. The Kaminoan trainers observe with
+      their large pale eyes and make notes. ARC troopers run separate
+      advanced programs in restricted wings. The purpose of this place
+      is utterly clear, and that clarity is its own kind of horror.
+
+  kamino_ocean:
+    name_match: "kamino ocean"
+    narrative_tone: >
+      The ocean platform landing areas. Rain hammers down on the permacrete.
+      Republic gunships idle in the hangar bays. The wind off the water is
+      cold and loud. Below, something massive and ancient moves in the deep.
+
+  # ── Geonosis (Drop 4) ────────────────────────────────────────────────────
+
+  geonosis_arena:
+    name_match: "geonosis arena"
+    narrative_tone: >
+      The great Petranaki Arena is a ruin now, scarred by the first battle.
+      The Republic occupies the approaches but can't hold the rock tunnels
+      beneath. Geonosian drones rebuild constantly — the same hive-mind that
+      built the original Death Star plans continues to serve the Separatist
+      cause in silence, underground, out of reach.
+
+  geonosis_foundries:
+    name_match: "geonosis foundry"
+    narrative_tone: >
+      The Geonosian foundries churn out Separatist droid components in
+      the tunnels beneath the rock spires. The air smells of hot metal
+      and acid fumes. Battle droids assemble on endless conveyor lines.
+      Republic bombardment craters the surface; the foundries move deeper
+      and keep working. The CIS has learned that Geonosis cannot be
+      killed from orbit.
+
+  geonosis_wastes:
+    name_match: "geonosis wastes"
+    narrative_tone: >
+      Red dust, shattered rock spires, and the lingering static of
+      electromagnetic weapons fire. The Republic and CIS have fought
+      over this world twice. It shows. The Geonosian natives move
+      through the waste like ghosts — patient, purposeful, and deeply
+      alien. The ruins of their pre-war civilization are already
+      being repurposed for the next phase of the conflict.
+
+  geonosis_tunnels:
+    name_match: "geonosis tunnels"
+    narrative_tone: >
+      The sub-surface tunnel network that gives Geonosis its strategic
+      depth. The Geonosians built it over centuries; Republic sensors
+      can't map it accurately; CIS droids use it freely. Dark, close,
+      and shaped for insectoid bodies. Soldiers on either side find it
+      claustrophobic and disorienting.

@@ -38,8 +38,9 @@ def test_render_map_modal_expands_viewbox(client_html: str) -> None:
     """renderMapModal must rewrite the cloned viewBox to absorb scaled text.
 
     The live mini-map viewBox stays as-is (0 0 400 300 for ground, -100 -100
-    200 200 for radar). In the modal clone we pad each side by ~60% of the
-    half-dimension so 2.2×-scaled labels don't overflow.
+    200 200 for radar). In the modal clone we pad each side by a fraction of
+    the corresponding dimension so 2.2×-scaled labels don't overflow — but
+    NOT so much that the map shrinks into a tiny centered square.
     """
     assert "function renderMapModal" in client_html, (
         "renderMapModal function is missing"
@@ -57,6 +58,27 @@ def test_render_map_modal_expands_viewbox(client_html: str) -> None:
     ), (
         "Bug 1 regressed: renderMapModal no longer rewrites the cloned "
         "viewBox; 2.2×-scaled text will overflow the original bounds."
+    )
+
+    # [S60/P1a] PAD_FACTOR must be in a sensible range. Too small (< 0.15)
+    # lets worst-case labels clip again; too large (> 0.6) shrinks the map
+    # into a postage-stamp centered in empty space (the original S60 bug —
+    # the initial S60 drop had PAD_FACTOR = TEXT_SCALE - 1 = 1.2, which
+    # shrank the map to ~45% of the modal in both axes).
+    pad_match = re.search(
+        r"var\s+PAD_FACTOR\s*=\s*([\d.]+)\s*;",
+        client_html,
+    )
+    assert pad_match, (
+        "Bug 1 regressed: PAD_FACTOR declaration not found or not a numeric "
+        "literal. The fix requires a tuned constant — do NOT re-tie it to "
+        "TEXT_SCALE."
+    )
+    pad_factor = float(pad_match.group(1))
+    assert 0.15 <= pad_factor <= 0.6, (
+        f"Bug 1 regressed: PAD_FACTOR = {pad_factor} is outside the "
+        f"tuned range [0.15, 0.6]. Below 0.15 lets labels clip; above 0.6 "
+        f"shrinks the map into a postage stamp (the S60 over-correction)."
     )
 
 

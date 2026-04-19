@@ -227,7 +227,7 @@ class TestSilentExceptInvariant:
                 if not fname.endswith(".py"):
                     continue
                 filepath = os.path.join(dirpath, fname)
-                with open(filepath) as fh:
+                with open(filepath, encoding="utf-8") as fh:
                     lines = fh.readlines()
                 for i, line in enumerate(lines):
                     if "except Exception" in line or "except:" in line:

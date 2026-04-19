@@ -4377,16 +4377,22 @@ function renderMapModal(kind) {
   clone.setAttribute('height', '100%');
   clone.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
-  // [S60/P1 bug 1] Expand the cloned viewBox proportionally to the text
-  // scale factor below (TEXT_SCALE). Labels on the ground map are drawn at
-  // coords up to x≈370/y≈270 inside a 400×300 viewBox; scaling font-size
-  // 2.2× without touching the viewBox pushes text off the right/bottom
-  // edges. Adding margin on all sides absorbs that overflow. The radar
-  // map has a symmetric viewBox (-100 -100 200 200) and the same logic
-  // applies symmetrically. Margin factor is (scale - 1) so at scale=2.2,
-  // each side gets 60% of the original half-dimension added as padding.
+  // [S60/P1a bug 1] Expand the cloned viewBox to absorb scaled-text overflow.
+  // Labels on the ground map are drawn at coords up to x≈370/y≈270 inside
+  // a 400×300 viewBox; scaling font-size 2.2× without touching the viewBox
+  // pushes text off the right/bottom edges. We pad each side by a fraction
+  // of the corresponding dimension.
+  //
+  // PAD_FACTOR is tuned empirically (not algebraically tied to TEXT_SCALE):
+  // worst-case overflow is a ~16-char label (half-width ~43 user units at
+  // 9px × 2.2 scale) anchored near the edge — so ~65 user units of margin
+  // on each side is sufficient for the ground map (400 wide × 0.175 ≈ 70).
+  // A factor of 0.35 gives 70 L/R and 52 T/B, which absorbs the overflow
+  // while keeping the actual map content occupying ~74% of the modal —
+  // the prior value (1.2, from TEXT_SCALE - 1) over-padded so heavily the
+  // map shrank to ~45% of the modal in both axes.
   var TEXT_SCALE = 2.2;
-  var PAD_FACTOR = TEXT_SCALE - 1;  // 1.2
+  var PAD_FACTOR = 0.35;  // see comment above — do NOT re-tie to TEXT_SCALE
   var origVB = (clone.getAttribute('viewBox') || '').trim();
   if (origVB) {
     var parts = origVB.split(/[\s,]+/).map(parseFloat);

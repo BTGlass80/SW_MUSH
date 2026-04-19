@@ -1,0 +1,1117 @@
+# data/worlds/clone_wars/planets/coruscant.yaml
+# Clone Wars Era — Coruscant
+# 55 hand-built rooms, 6 zones (underworld is wilderness coordinate region, not rooms)
+# Sources: Coruscant and the Core Worlds (WotC d20, 2003), Clone Wars film/TCW canon
+#
+# EXIT DISCIPLINE (per clone_wars_era_design_v3.md §6):
+#   - Per-room exits blocks; YAML-key uniqueness prevents direction collisions
+#   - Hubs use named exits for zone-internal sub-destinations; cardinals for zone-to-zone
+#   - Every exit declared on the FROM side; loader validates round-trip consistency
+#   - Wilderness entry (coruscant_underworld) is a SINGLE named exit from southern_underground
+#   - One-way exits annotated with one_way: true
+#
+# ZONE LAYOUT:
+#   coruscant_senate    — Senate District, government, spaceport (10 rooms)
+#   coruscant_temple    — Jedi Temple interior (11 rooms, incl. new crafting alcove)
+#   coruscant_upper     — Upper city above smog line, luxury districts (10 rooms)
+#   coruscant_midlevels — Working city, Coco Town, Outlander Club (10 rooms)
+#   coruscant_lower     — Below mid-levels, Southern Underground, lower city (10 rooms)
+#   coruscant_works     — Industrial sublevel, power/atmosphere infrastructure (4 rooms)
+#
+# Room IDs: assigned positionally starting at 200.
+# Do NOT reorder existing rooms — slug is the stable reference.
+
+planet: coruscant
+planet_display_name: "Coruscant"
+primary_city: "Republic City"
+description: >
+  The capital of the Galactic Republic, a planet-wide city of one trillion souls.
+  During the Clone Wars, Coruscant is simultaneously the Republic's beating heart
+  and its most vulnerable target — the Senate debates emergency powers, the Jedi
+  Temple deploys Masters to war, and somewhere in the lower city the foundations
+  of the Republic are quietly rotting.
+
+rooms:
+
+  # ══════════════════════════════════════════════════════════════════════
+  # SENATE DISTRICT (secured/contested) — 10 rooms
+  # Hub: coruscant_westport_landing (player arrival point)
+  # Zone connections: senate → temple (north from westport), senate → upper (west),
+  #                  senate → midlevels (down from legislative_borough)
+  # Direction budget audit for hub (westport):
+  #   north → Jedi Temple gate (zone-to-zone)
+  #   south → transit_platform (zone-to-zone, toward lower city approach)
+  #   east  → senate_esplanade (zone-internal spine)
+  #   west  → upper_city_approach (zone-to-zone)
+  #   senate → senate_building_exterior (named, zone-internal)
+  #   legislative → legislative_borough (named, zone-internal)
+  #   museum → galactic_museum (named, zone-internal)
+  #   opera  → opera_house (named, zone-internal)
+  #   Total: 4 cardinals + 4 named = 8 exits. Well within budget.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 200
+    slug: coruscant_westport_landing
+    name: "Coruscant - Westport Spaceport"
+    short_desc: "The bustling aerodrome of Westport, most accessible of Coruscant's public spaceports."
+    description: >
+      Westport occupies a favorable location near the Legislative Borough and
+      the Galactic Senate Building. Public berths on the lower tiers cost
+      50 credits per day. Clone troopers in white armor run security checks
+      at the main terminal. Floating platforms in the traffic lanes mark
+      berthing assignments. The air carries the omnipresent tang of recycled
+      atmosphere and repulsorlift exhaust.
+    zone: coruscant_senate
+    map_x: 20
+    map_y: 10
+    exits:
+      north: jedi_temple_main_gate       # zone-to-zone (senate → temple)
+      east: senate_esplanade             # zone-internal spine
+      west: upper_city_promenade         # zone-to-zone (senate → upper)
+      down: coco_town                    # zone-to-zone (senate → midlevels)
+      senate: senate_building_exterior   # named: shortcut
+      legislative: legislative_borough   # named: shortcut
+
+  - id: 201
+    slug: senate_esplanade
+    name: "Coruscant - Glitannai Esplanade"
+    short_desc: "The grand ceremonial boulevard running along the Judicial Plaza."
+    description: >
+      One of the most storied avenues in Republic City, Glitannai Esplanade
+      runs broad-topped and monumental past the Judicial Plaza. The ritziest
+      shops and tastiest restaurants in the city are found here. The annual
+      Galactic Fair transforms this avenue into a parade of military might and
+      patriotic display. Today a clone honor squad marches in formation
+      past a knot of protesters holding signs about Outer Rim relief funding.
+    zone: coruscant_senate
+    map_x: 21
+    map_y: 10
+    exits:
+      west: coruscant_westport_landing
+      north: senate_building_exterior
+      east: calocour_heights             # zone-to-zone (senate → upper)
+      south: monument_plaza
+      reception: grand_reception_hall    # named shortcut
+
+  - id: 202
+    slug: senate_building_exterior
+    name: "Coruscant - Galactic Senate Building - Exterior Plaza"
+    short_desc: "The immense plaza before the Galactic Senate Chamber."
+    description: >
+      The Senate Building fronts a vast plaza. The chamber's rotating 1,024
+      floating senatorial platforms are visible through the transparisteel dome.
+      Clone trooper honor guards flank the entrance in spotless white armor.
+      A HoloNet news terminal in the forecourt shows footage from the Outer
+      Rim front; a small crowd watches in uneasy silence.
+    zone: coruscant_senate
+    map_x: 21
+    map_y: 9
+    exits:
+      south: senate_esplanade
+      in: senate_building_lobby
+      east: chancellors_avenue
+      opera: opera_house                 # named: nearby landmark
+
+  - id: 203
+    slug: senate_building_lobby
+    name: "Coruscant - Galactic Senate Building - Public Lobby"
+    short_desc: "The vast public lobby of the Galactic Senate Chamber."
+    description: >
+      The lobby's soaring ceilings accommodate dozens of species from across
+      the Republic. A massive holographic display rotates scenes of Republic
+      military victories. Near the back, a crowded information desk processes
+      petitions to the Senate floor — the queue stretches back forty beings.
+    zone: coruscant_senate
+    map_x: 21
+    map_y: 8
+    security_level: secured
+    exits:
+      out: senate_building_exterior
+
+  - id: 204
+    slug: chancellors_avenue
+    name: "Coruscant - Chancellor's Avenue"
+    short_desc: "The wide boulevard leading toward the Chancellor's executive offices."
+    description: >
+      Lined with the flags of every Republic member world, Chancellor's Avenue
+      connects the Senate to the executive complex. Clone commanders move in
+      small groups between government buildings. Senate Commando guards in
+      blue armor stand at the avenue's gate, scanning pedestrians with
+      practiced efficiency.
+    zone: coruscant_senate
+    map_x: 22
+    map_y: 9
+    exits:
+      west: senate_building_exterior
+      north: grand_reception_hall
+      east: legislative_borough
+
+  - id: 205
+    slug: grand_reception_hall
+    name: "Coruscant - Grand Reception Hall"
+    short_desc: "The oldest continuously operated government building on Coruscant."
+    description: >
+      A rectangular stone structure a kilometer in length, its glassed-in
+      balconies overlooking the main floor, each decorated with a Republic
+      member world's banner. For centuries the Supreme Chancellor greeted
+      foreign dignitaries here. Today it hosts official state receptions
+      with the hollow pomp of a government trying to convince itself it
+      is not losing.
+    zone: coruscant_senate
+    map_x: 22
+    map_y: 8
+    exits:
+      south: chancellors_avenue
+      east: legislative_borough
+
+  - id: 206
+    slug: legislative_borough
+    name: "Coruscant - Legislative Borough"
+    short_desc: "The government district of bureaus, ministries, and administrative towers."
+    description: >
+      Where the Republic's machinery actually runs. Procurement orders are
+      signed, deployment schedules filed, and clone trooper replacement
+      requisitions processed in triplicate. A GAR logistics center occupies
+      an entire block, its loading docks busy around the clock. The air
+      smells of recycled oxygen and bureaucratic anxiety.
+    zone: coruscant_senate
+    map_x: 21
+    map_y: 7
+    exits:
+      north: grand_reception_hall
+      west: chancellors_avenue
+      south: monument_plaza
+      down: coco_town                    # zone-to-zone (senate → midlevels)
+
+  - id: 207
+    slug: monument_plaza
+    name: "Coruscant - Monument Plaza"
+    short_desc: "A bowl-shaped arena built around the summit of Mount Umate, the only exposed bedrock in Republic City."
+    description: >
+      Monument Plaza encircles the summit of Umate — now merely a granite
+      lump protruding through the cityscape, dusted in snow. The only spot
+      in Republic City where one can touch true rock. Heroic statues and
+      colorful banners decorate the grounds. Robe-wearing disciples of the
+      Flames of Umate meditate while touching the rock in an effort to
+      commune with what they call the "world-spirit" in Coruscant's
+      molten core.
+    zone: coruscant_senate
+    map_x: 21
+    map_y: 6
+    exits:
+      north: senate_esplanade
+      east: legislative_borough
+      museum: galactic_museum            # named: nearby landmark
+
+  - id: 208
+    slug: galactic_museum
+    name: "Coruscant - Galactic Museum"
+    short_desc: "The galaxy's premier repository of preserved artifacts, one kilometer south of the Chancellor's Palace."
+    description: >
+      For over twelve thousand years the Galactic Museum has been the
+      Republic's institutional memory. Exhibit wings include the Annals of
+      the Republic, Planetary Cultures, and the Jedi Order wing — a carefully
+      curated display of ancient lightsabers and holocrons that draws
+      reverent crowds. Security is top-notch. Anyone who visits has their
+      image captured by security cameras.
+    zone: coruscant_senate
+    map_x: 22
+    map_y: 6
+    exits:
+      monument: monument_plaza           # named: back to plaza
+
+  - id: 209
+    slug: opera_house
+    name: "Coruscant - Coruscant Opera House"
+    short_desc: "One of Imperial City's most ornate landmarks, bearing the elaborate design of indulgent pre-Republic architecture."
+    description: >
+      The Opera House has never once gone dark. A traditional orchestra pit,
+      tiered seating, and private balconies accommodate two thousand in the
+      main amphitheater, while those who couldn't afford a ticket watch via
+      real-time hologram from the gallery beneath the floor. A private box
+      near the stage is reserved, the placard reading simply "Office of
+      the Supreme Chancellor."
+    zone: coruscant_senate
+    map_x: 22
+    map_y: 10
+    exits:
+      out: senate_building_exterior
+
+  # ══════════════════════════════════════════════════════════════════════
+  # JEDI TEMPLE (secured, faction_override: jedi_order) — 11 rooms
+  # Hub: jedi_temple_main_gate
+  # Direction budget for gate hub:
+  #   south → westport (zone-to-zone, back to senate)
+  #   in    → entrance_hall (primary interior)
+  #   hangar → temple_hangar (named: side access)
+  #   Total: 2 cardinals + 1 named = 3 exits. Minimal by design; Temple is exclusive.
+  # Interior uses named exits off entrance_hall hub:
+  #   training, archives, garden, medical, commissary, crafting
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 210
+    slug: jedi_temple_main_gate
+    name: "Jedi Temple - Main Gate"
+    short_desc: "The great gate of the Jedi Temple, ancient stone worn smooth by millennia of passing hands."
+    description: >
+      The Jedi Temple rises above the cityscape like a monument to a way
+      of life that predates the Republic itself. Five spires reach into the
+      smog-tinged sky. The main gate is guarded by two Jedi Knights in
+      brown robes, their expressions patient and watchful. Most Knights and
+      Masters are gone, deployed to the front. What remains feels quiet in
+      a way that has become unsettling.
+    zone: coruscant_temple
+    map_x: 24
+    map_y: 10
+    faction_override: jedi_order
+    exits:
+      south: coruscant_westport_landing  # zone-to-zone (temple → senate)
+      in: jedi_temple_entrance_hall
+      hangar: jedi_temple_hangar         # named: side access
+
+  - id: 211
+    slug: jedi_temple_entrance_hall
+    name: "Jedi Temple - Entrance Hall"
+    short_desc: "The soaring entrance hall of the Jedi Temple, lit by filtered sky-light."
+    description: >
+      Light filtered down through the spire's transparisteel ceiling in long
+      columns that shift through the day. Padawans cross the hall in small
+      groups. An elderly Master sits on a stone bench near the central
+      fountain, eyes closed. The walls display friezes depicting legendary
+      Jedi whose names are now known only to archivists.
+    zone: coruscant_temple
+    map_x: 24
+    map_y: 9
+    faction_override: jedi_order
+    exits:
+      out: jedi_temple_main_gate
+      training: jedi_temple_training_hall
+      archives: jedi_temple_archives
+      garden: jedi_temple_meditation_garden
+      medical: jedi_temple_medical_bay
+      commissary: jedi_temple_commissary
+      crafting: jedi_temple_crafting_alcove
+      council: jedi_temple_council_antechamber
+
+  - id: 212
+    slug: jedi_temple_training_hall
+    name: "Jedi Temple - Training Hall"
+    short_desc: "A wide training hall where Padawans practice lightsaber forms and Force exercises."
+    description: >
+      The training hall floor is worn durasteel, polished by decades of
+      footwork. Padawans practice in pairs — lightsaber forms, telekinesis
+      exercises, combat sensing drills. A Knight instructor moves between
+      them with unhurried corrections. Remote training spheres drift in lazy
+      arcs, occasionally zapping a student who has let their concentration
+      slip. The smell of exertion and ozone.
+    zone: coruscant_temple
+    map_x: 25
+    map_y: 9
+    faction_override: jedi_order
+    exits:
+      out: jedi_temple_entrance_hall
+
+  - id: 213
+    slug: jedi_temple_archives
+    name: "Jedi Temple - Archives"
+    short_desc: "The Jedi Order's vast Archive Library, one of the most comprehensive information repositories in the galaxy."
+    description: >
+      Rows of glowing blue data terminals and physical holocron vaults
+      stretch for hundreds of meters. Madame Jocasta Nu, the chief archivist,
+      offers assistance only to those she has decided deserve it. Several
+      terminals display casualty lists from the Outer Rim front; an
+      archivist methodically updates the records of fallen Jedi Knights.
+    zone: coruscant_temple
+    map_x: 25
+    map_y: 8
+    faction_override: jedi_order
+    exits:
+      out: jedi_temple_entrance_hall
+      up: jedi_temple_council_antechamber   # vertical: archives → council spire
+
+  - id: 214
+    slug: jedi_temple_council_antechamber
+    name: "Jedi Temple - Council Antechamber"
+    short_desc: "The waiting chamber outside the Jedi High Council Chamber."
+    description: >
+      Portraits of every Jedi Council member in the Order's recorded history
+      line the curved walls. The chamber is rarely occupied — the Council
+      has fewer members present at any given time than it once did. Through
+      the chamber's narrow windows, Coruscant's skyline extends in every
+      direction, the city an unbroken gray-silver ocean to the horizon.
+    zone: coruscant_temple
+    map_x: 24
+    map_y: 7
+    faction_override: jedi_order
+    security_level: secured
+    exits:
+      down: jedi_temple_archives
+      up: jedi_temple_council_chamber
+
+  - id: 215
+    slug: jedi_temple_council_chamber
+    name: "Jedi Temple - High Council Chamber"
+    short_desc: "The circular chamber where the twelve members of the Jedi High Council convene."
+    description: >
+      Twelve seats arranged in a circle before tall windows overlooking the
+      cityscape in every direction. Four of the twelve seats are currently
+      empty, their occupants deployed or fallen. The Force feels heavy here.
+      When the Council is not in session, a single Knight stands guard and
+      the chamber is closed to all visitors.
+    zone: coruscant_temple
+    map_x: 24
+    map_y: 6
+    faction_override: jedi_order
+    security_level: secured
+    exits:
+      down: jedi_temple_council_antechamber
+
+  - id: 216
+    slug: jedi_temple_meditation_garden
+    name: "Jedi Temple - Meditation Garden"
+    short_desc: "A rare living garden within the Temple, maintained for contemplation."
+    description: >
+      A small garden tucked between two wings of the Temple complex, open
+      to the smog-filtered sky. A handful of real trees spread their branches
+      over gravel paths and a shallow reflecting pool. A Togrutan Padawan
+      eats alone, her montrals drooping with exhaustion, looking at the
+      pool and not seeing it.
+    zone: coruscant_temple
+    map_x: 23
+    map_y: 9
+    faction_override: jedi_order
+    exits:
+      out: jedi_temple_entrance_hall
+
+  - id: 217
+    slug: jedi_temple_medical_bay
+    name: "Jedi Temple - Medical Bay"
+    short_desc: "The Temple's medical facility, busier than it has ever been."
+    description: >
+      The medical bay was designed for a peacetime Order. It has been
+      expanded three times and is still not enough. Healers move between
+      patients with focused calm. A Knight sits upright in a bed, staring
+      at nothing, apparently unhurt. A healer checks on him every few
+      minutes with patient eyes.
+    zone: coruscant_temple
+    map_x: 23
+    map_y: 8
+    faction_override: jedi_order
+    exits:
+      out: jedi_temple_entrance_hall
+
+  - id: 218
+    slug: jedi_temple_hangar
+    name: "Jedi Temple - Hangar Bay"
+    short_desc: "The Temple's private hangar, reserved for Jedi transports and starfighters."
+    description: >
+      Delta-7 Aethersprite starfighters sit in staggered rows, several
+      showing battle damage in various stages of repair. Clone mechanics
+      work in silence. A LAAT/i gunship idles near the exit ramp, side
+      doors open, waiting for a deployment order that hasn't come yet.
+      Or one that just did.
+    zone: coruscant_temple
+    map_x: 23
+    map_y: 10
+    faction_override: jedi_order
+    exits:
+      out: jedi_temple_main_gate
+
+  - id: 219
+    slug: jedi_temple_commissary
+    name: "Jedi Temple - Commissary"
+    short_desc: "The Temple's communal dining and gathering space."
+    description: >
+      Long tables, plain food, low conversation. On one wall, a HoloNet
+      terminal displays the latest battle reports; someone has draped a
+      cloth over it. Clone trooper mess is served at the far end — a
+      practical accommodation the Order made at the war's start and has
+      not revisited.
+    zone: coruscant_temple
+    map_x: 25
+    map_y: 7
+    faction_override: jedi_order
+    exits:
+      out: jedi_temple_entrance_hall
+
+  - id: 220
+    slug: jedi_temple_crafting_alcove
+    name: "Jedi Temple - Lightsaber Crafting Alcove"
+    short_desc: "A meditation alcove where Padawans construct and modify their lightsabers under supervision."
+    description: >
+      The alcove is spare and quiet — a workbench of polished stone, a
+      rack of precision tools, and a shielded display case of Adegan
+      crystals issued to Padawans for construction. The Force resonance
+      here is deliberately cultivated: the walls are embedded with
+      focusing minerals that amplify the builder's connection to the
+      crystal. A supervising Knight is present during construction
+      sessions. The alcove smells faintly of ozone and heated metal.
+    zone: coruscant_temple
+    map_x: 23
+    map_y: 7
+    faction_override: jedi_order
+    exits:
+      out: jedi_temple_entrance_hall
+
+  # ══════════════════════════════════════════════════════════════════════
+  # UPPER CORUSCANT (secured) — 10 rooms
+  # Hub: upper_city_promenade
+  # Direction budget for promenade hub:
+  #   east  → senate (westport) zone-to-zone
+  #   south → coco_town zone-to-zone (down is used for transit hub)
+  #   heights → calocour_heights (named)
+  #   gardens → skydome_gardens (named)
+  #   commons → column_commons (named)
+  #   sea     → western_sea (named)
+  #   aquaria → royal_icqui_aquaria (named)
+  #   Total: 2 cardinals + 5 named = 7 exits. Fine.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 221
+    slug: upper_city_promenade
+    name: "Coruscant - Upper City Promenade"
+    short_desc: "The elevated walkway connecting the tower-top districts above the smog layer."
+    description: >
+      Above the smog line, the air is clean and the view staggering. The
+      Upper City Promenade runs between residential towers, luxury hotels,
+      and high-end commercial establishments on mag-elevated walkways.
+      Airspeeder traffic flows in orderly lanes below. War has been good
+      for some businesses here — the restaurants are packed and the prices
+      have doubled.
+    zone: coruscant_upper
+    map_x: 19
+    map_y: 10
+    exits:
+      east: coruscant_westport_landing   # zone-to-zone (upper → senate)
+      north: senatorial_towers
+      heights: calocour_heights
+      gardens: skydome_gardens
+      commons: column_commons
+      sea: western_sea
+      aquaria: royal_icqui_aquaria
+
+  - id: 222
+    slug: calocour_heights
+    name: "Coruscant - Calocour Heights"
+    short_desc: "The marketing district known as the Corporate Sector of Coruscant, dense with communications agencies."
+    description: >
+      Pushy survey-takers and free product samples float on repulsorlift
+      carts; flashing musical billboards compete for attention. Home to
+      the galaxy's most cutthroat marketing and communications agencies.
+      War has been good for business — recruitment holos compete with
+      luxury goods pitches, and the subliminal messaging is thick enough
+      to taste.
+    zone: coruscant_upper
+    map_x: 20
+    map_y: 9
+    exits:
+      promenade: upper_city_promenade
+
+  - id: 223
+    slug: skydome_gardens
+    name: "Coruscant - Skydome Botanical Gardens"
+    short_desc: "The galaxy's premier collection of living plant life, requiring a reservation weeks in advance."
+    description: >
+      Skydome possesses some of the rarest forms of plant life in the galaxy.
+      Two and a half tons of meat are needed every month to satiate the
+      ravenous plants in the Carnivorous Flora exhibit. The Poisonous Flora
+      exhibit is off-limits to anyone not wearing a biological hazard suit.
+      Stepping through the main doors is like stepping off Coruscant entirely.
+    zone: coruscant_upper
+    map_x: 19
+    map_y: 9
+    exits:
+      out: upper_city_promenade
+
+  - id: 224
+    slug: senatorial_towers
+    name: "Coruscant - Senatorial Tower District"
+    short_desc: "The residential and office towers assigned to the Republic's senatorial delegations."
+    description: >
+      Each Republic member world maintains a tower here — over two thousand,
+      each a miniature embassy of its homeworld's culture and architecture.
+      Air bridges and private transit tubes connect them. During the Clone
+      Wars, several towers have gone dark entirely as their systems fell
+      under CIS control.
+    zone: coruscant_upper
+    map_x: 19
+    map_y: 8
+    security_level: contested
+    exits:
+      south: upper_city_promenade
+
+  - id: 225
+    slug: western_sea
+    name: "Coruscant - The Western Sea"
+    short_desc: "Coruscant's famous artificial reservoir, surrounded by boat rentals and all-hours entertainment clubs."
+    description: >
+      An artificial aquifer fed by Coruscant's polar pipeline. "Islands"
+      of plasteel drums and sand bob on the surface; boat rentals and
+      all-hours entertainment clubs line the fabricated shore. Long-winged
+      sea shrikes circle the towers. In wartime, the clubs are packed
+      every night — people are spending money they might not live to save.
+    zone: coruscant_upper
+    map_x: 18
+    map_y: 10
+    exits:
+      promenade: upper_city_promenade
+
+  - id: 226
+    slug: column_commons
+    name: "Coruscant - Column Commons District"
+    short_desc: "The publishing district between the Chancellor's Palace and the Calocour Heights."
+    description: >
+      Large open areas interspersed with fat columns supporting the cityscape
+      overhead. Hundreds of HoloDrama and newsfeed publishers keep offices
+      here. War dispatches are the product of the moment; a correspondent
+      returning from the front is a celebrity. The businesspeople of the
+      Commons consider it their solemn obligation to keep the public informed.
+      Their definition of "informed" is commercially calibrated.
+    zone: coruscant_upper
+    map_x: 18
+    map_y: 9
+    exits:
+      promenade: upper_city_promenade
+
+  - id: 227
+    slug: royal_icqui_aquaria
+    name: "Coruscant - Royal Icqui Aquaria"
+    short_desc: "The largest public aquarium in the galaxy, spanning several square kilometers."
+    description: >
+      Millions of aquatic creatures fill the tanks — from microscopic
+      flecks of Baraboo biomold to a twenty-meter opee sea killer from
+      Naboo. Admission is 10 credits per person. The Aquaria has plenty
+      of side passages for quiet conversation, and the number of tourists
+      makes it difficult for any faction to set up an ambush.
+    zone: coruscant_upper
+    map_x: 18
+    map_y: 8
+    exits:
+      out: upper_city_promenade
+
+  - id: 228
+    slug: kallarak_amphitheater
+    name: "Coruscant - Kallarak Amphitheater"
+    short_desc: "The legendary entertainment venue seating one million spectators."
+    description: >
+      The Kallarak Amphitheater has attracted the finest talent in the
+      galaxy. The venue seats 1,000,000 and most nights there isn't an
+      empty seat. The sunken central stage is surrounded by concentric
+      rings of Sittana-marble benches. The observation droids ringing
+      the outer wall are not for crowd control — they are for intelligence
+      gathering.
+    zone: coruscant_upper
+    map_x: 20
+    map_y: 8
+    exits:
+      out: upper_city_promenade
+
+  - id: 229
+    slug: petrax_quarter
+    name: "Coruscant - Petrax Historic Quarter"
+    short_desc: "One of the oldest continually inhabited areas of the planet, slightly north of the Senate."
+    description: >
+      Archaeologists believe Coruscant's vertical architecture started here
+      and spread outward. Modern towers stand atop hundreds of meters of
+      packed rubble. Urban archaeologists drill into the ground for core
+      samples, recovering cups, styluses, and occasionally lightsaber
+      handles that predate any known Jedi Order. Middle-income residents
+      employed in service and manufacturing live here.
+    zone: coruscant_upper
+    map_x: 20
+    map_y: 7
+    exits:
+      south: upper_city_promenade
+
+  - id: 230
+    slug: xizors_tower_district
+    name: "Coruscant - Xizor's Castle District"
+    short_desc: "The district dominated by Prince Xizor's magnificent tower, a monument to corrupt power."
+    description: >
+      Prince Xizor's castle soars above this district — transparisteel and
+      durasteel inlaid with Falleen biochemical gardens. Ballrooms, combat
+      chambers, and landing pads sprawl across several city blocks. What
+      the public doesn't know is what happens in the castle's sub-levels.
+      Holocameras and armed guards watch from every corner.
+    zone: coruscant_upper
+    map_x: 17
+    map_y: 9
+    security_level: contested
+    exits:
+      east: upper_city_promenade
+
+  # ══════════════════════════════════════════════════════════════════════
+  # MID LEVELS (contested) — 10 rooms
+  # Hub: coco_town (arrival from above, departure to lower)
+  # Direction budget for coco_town hub:
+  #   up     → legislative_borough (zone-to-zone, senate)
+  #   down   → lower_descent (zone-to-zone, lower city)
+  #   north  → mid_transit_hub (mid-levels spine)
+  #   diner  → dexters_diner (named)
+  #   outlander → outlander_club (named)
+  #   university → university_district (named)
+  #   Total: 3 cardinals + 3 named = 6 exits. Clean.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 231
+    slug: coco_town
+    name: "Coruscant - Coco Town"
+    short_desc: "The lower-income neighborhood in the shadow of the Senate District, home to workers and freighter pilots."
+    description: >
+      Coco Town sits in the permanent shadow of the Senate District's towers.
+      Street vendors sell food from repulsorlift carts. Clone troopers on
+      leave cluster around a food stall, helmets clipped to their belts,
+      studying the menu with the careful attention of people who have not
+      been given many choices lately.
+    zone: coruscant_midlevels
+    map_x: 20
+    map_y: 11
+    security_level: contested
+    exits:
+      up: legislative_borough            # zone-to-zone (midlevels → senate)
+      north: mid_transit_hub
+      down: lower_descent                # zone-to-zone (midlevels → lower)
+      diner: dexters_diner
+      outlander: outlander_club
+      university: university_district
+
+  - id: 232
+    slug: dexters_diner
+    name: "Coruscant - Dexter's Diner"
+    short_desc: "An unpretentious diner in Coco Town, famous for its cheap food and the encyclopedic knowledge of its owner."
+    description: >
+      Located in a lower-income Coco Town neighborhood. The food is oily and
+      unhealthy and cheap. Fried nerfsteak, pickled gartro eggs, and Dexter's
+      mysterious ground-meat "sliders" are specialties of the house. The owner,
+      Dexter Jettster — a broad, four-armed Besalisk — knows more about more
+      things than most people would credit. He doesn't volunteer information,
+      but he doesn't turn away the right kind of question either.
+    zone: coruscant_midlevels
+    map_x: 20
+    map_y: 12
+    security_level: contested
+    vendor: true
+    exits:
+      out: coco_town
+
+  - id: 233
+    slug: mid_transit_hub
+    name: "Coruscant - Mid-City Transit Hub"
+    short_desc: "A major mass transit junction connecting upper and lower city via tram and turbolift."
+    description: >
+      The mid-city transit hub processes tens of thousands of commuters per
+      hour in a controlled chaos of tram arrivals, turbolift queues, and air
+      taxi staging pads. Screens display route information in forty languages.
+      Pickpockets work the crowd with professional efficiency while security
+      droids run random scans.
+    zone: coruscant_midlevels
+    map_x: 21
+    map_y: 11
+    exits:
+      south: coco_town
+      east: mid_market_street
+      west: invisec_border
+
+  - id: 234
+    slug: mid_market_street
+    name: "Coruscant - Mid-Level Market Street"
+    short_desc: "A busy mid-level commercial corridor lined with shops, stalls, and service businesses."
+    description: >
+      A dense corridor of shops selling everything from foodstuffs to
+      starship components. Republic war bonds posters cover the walls
+      between storefronts, some defaced with anti-war graffiti. A Rodian
+      herbalist argues pricing with a Mon Calamari customer at the far end.
+    zone: coruscant_midlevels
+    map_x: 22
+    map_y: 11
+    vendor: true
+    exits:
+      west: mid_transit_hub
+      north: mid_residential_block
+
+  - id: 235
+    slug: mid_residential_block
+    name: "Coruscant - Mid-Level Residential Block"
+    short_desc: "A standard mid-level apartment megablock housing thousands of working citizens."
+    description: >
+      The residential megablock is a self-contained community. The community
+      board advertises missing persons, work rotations, and a meeting of
+      the Outer Rim Refugees Aid Society. The war has deposited new faces
+      in the building recently — people with the particular exhaustion of
+      those who have lost more than a home.
+    zone: coruscant_midlevels
+    map_x: 22
+    map_y: 10
+    housing: true
+    exits:
+      south: mid_market_street
+
+  - id: 236
+    slug: invisec_border
+    name: "Coruscant - Invisible Sector Border"
+    short_desc: "The ferrocrete wall and checkpoint marking the boundary of the alien ghetto."
+    description: >
+      A ferrocrete barrier and a guarded checkpoint mark the edge of the
+      Invisible Sector. Clone troopers patrol the borders, making sure
+      that anyone passing has proper documentation. The walling-off has only
+      recently begun; the resentment is still building.
+    zone: coruscant_midlevels
+    map_x: 20
+    map_y: 10
+    security_level: contested
+    exits:
+      east: mid_transit_hub
+      in: invisec_main_street
+
+  - id: 237
+    slug: invisec_main_street
+    name: "Coruscant - Invisible Sector - Main Street"
+    short_desc: "The primary commercial street of Coruscant's alien ghetto, a sanctuary of sorts."
+    description: >
+      The Invisible Sector's main street is alive with commerce the Republic
+      officially pretends doesn't exist. The Alien Combine — an anti-Human
+      resistance organization — has cells operating openly here. The troopers
+      who occasionally patrol the interior have learned that aggressively
+      pursuing rumors leads to ambushes and paperwork.
+    zone: coruscant_midlevels
+    map_x: 19
+    map_y: 10
+    security_level: contested
+    exits:
+      out: invisec_border
+
+  - id: 238
+    slug: outlander_club
+    name: "Coruscant - The Outlander Club"
+    short_desc: "A neon-lit nightclub in the lower entertainment district, characteristic of Coruscant's shadow-life."
+    description: >
+      The Outlander welcomes everyone's credits and traffics in high-risk
+      vice. Young thrill-seekers and slumming nobles pack its dance floor
+      every evening, sampling alcohol, death sticks, and spice. Vidscreens
+      broadcast nuna-ball to illegal Podracing. The true owner is local
+      crime kingpin Volven Roxe; the droids-staffed sports book covers
+      his margins.
+    zone: coruscant_midlevels
+    map_x: 19
+    map_y: 11
+    security_level: contested
+    exits:
+      out: coco_town
+
+  - id: 239
+    slug: university_district
+    name: "Coruscant - University of Coruscant District"
+    short_desc: "The district surrounding Coruscant's oldest learning institution."
+    description: >
+      The University of Coruscant occupies a collection of buildings scattered
+      throughout the Fobosi district. Under recent policy, the Republic has
+      forbidden non-Humans from applying and expelled those already studying.
+      The district still bears the energy of an academic neighborhood, but
+      the faces on the streets have become disturbingly uniform.
+    zone: coruscant_midlevels
+    map_x: 21
+    map_y: 12
+    exits:
+      north: coco_town
+
+  - id: 240
+    slug: gartro_rookery
+    name: "Coruscant - Gartro Rookery"
+    short_desc: "An abandoned warehouse colonized by thousands of gartro birds — and the Lost Ones gang."
+    description: >
+      When Nebula Consumables vacated this warehouse, it left thousands of
+      tons of expired denta beans — which attracted flocks of green-skinned
+      dragonlike gartros. Countless birds roost on the ceiling beams while
+      the air seethes with their flying currents and the keening of a
+      feeding cry. The Lost Ones gang uses it as an initiation site. The
+      floor is buried beneath a centimeters-thick layer of guano.
+    zone: coruscant_midlevels
+    map_x: 19
+    map_y: 12
+    security_level: contested
+    exits:
+      north: outlander_club
+
+  # ══════════════════════════════════════════════════════════════════════
+  # LOWER CITY (lawless) — 10 rooms
+  # Hub: lower_descent (arrival from mid-levels)
+  # IMPORTANT: This is the hand-built lower city layer, NOT the wilderness
+  # underworld. The wilderness underworld is entered via a single named exit
+  # 'vent' from southern_underground (one-way drop, or climb back via 'climb').
+  # Direction budget for lower_descent hub:
+  #   up       → coco_town (zone-to-zone, back up)
+  #   south    → southern_underground (zone-internal spine)
+  #   east     → lower_market (zone-internal)
+  #   factory  → factory_district (named)
+  #   crypts   → ice_crypts (named)
+  #   Total: 3 cardinals + 2 named = 5 exits.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 241
+    slug: lower_descent
+    name: "Coruscant - Lower City Descent"
+    short_desc: "The turboshaft descent from the mid-levels into the lower city — no natural light below."
+    description: >
+      The turbolifts that serve the lower city are old, poorly maintained,
+      and frequently out of service. The transition happens abruptly: one
+      level there is still some ambient glow from above, and then there
+      isn't. The lower city runs on jury-rigged lighting, stolen power,
+      and the social rules of people who have been abandoned by the
+      civilization above their heads.
+    zone: coruscant_lower
+    map_x: 20
+    map_y: 13
+    security_level: lawless
+    exits:
+      up: coco_town                      # zone-to-zone (lower → midlevels)
+      south: southern_underground
+      east: lower_market
+      factory: factory_district
+      crypts: ice_crypts
+
+  - id: 242
+    slug: southern_underground
+    name: "Coruscant - Southern Underground"
+    short_desc: "The lawless lower-city district, a hemispherical shopping center stuffed with run-down stores and barter stalls."
+    description: >
+      The Southern Underground contains a hemispherical shopping center
+      stuffed with run-down stores and impromptu barter stalls. The Crystal
+      Jewel cantina boasts on its sign "If the customers don't kill you,
+      the drinks will." Down here you keep one hand on your credit pouch
+      and the other on your blaster. A bhg chapter house operates near
+      the back, technically off the books but openly known.
+    zone: coruscant_lower
+    map_x: 20
+    map_y: 14
+    security_level: lawless
+    exits:
+      north: lower_descent
+      cantina: crystal_jewel_cantina
+      bhg: bhg_chapter_house
+      vent: coruscant_uw_surface_entry   # named: wilderness underworld entrance (one-way drop)
+
+  - id: 243
+    slug: crystal_jewel_cantina
+    name: "Coruscant - Crystal Jewel Cantina"
+    short_desc: "The most infamous cantina near the Southern Underground — 'If the customers don't kill you, the drinks will.'"
+    description: >
+      The Crystal Jewel earns its reputation honestly. The clientele is a
+      cross-section of the lower city — dock workers, criminals of modest
+      ambition, refugees spending their last credits. A Twi'lek bartender
+      named Vella has been working this bar for fifteen years. She gives
+      good advice and doesn't charge for it, which is the most remarkable
+      thing about the place.
+    zone: coruscant_lower
+    map_x: 19
+    map_y: 14
+    security_level: lawless
+    exits:
+      out: southern_underground
+
+  - id: 244
+    slug: bhg_chapter_house
+    name: "Coruscant - Bounty Hunters' Guild Chapter House"
+    short_desc: "The Coruscant chapter house of the Bounty Hunters' Guild, officially unlisted."
+    description: >
+      What looks like a warehouse loading bay is in fact the Guild's
+      Coruscant operations center. Posting boards line the main corridor —
+      Republic-flagged bounties for CIS agents, CIS bounties for Republic
+      officers, and a third category that officially doesn't exist. An
+      equipment shop in the back specializes in tracking devices and
+      restraints. The Guild chapter head, a Chagrian named Doss Vek,
+      maintains strict neutrality and will kill anyone who violates it.
+    zone: coruscant_lower
+    map_x: 21
+    map_y: 14
+    security_level: contested
+    faction_override: bounty_hunters_guild
+    exits:
+      out: southern_underground
+
+  - id: 245
+    slug: lower_market
+    name: "Coruscant - Lower City Black Market"
+    short_desc: "The sprawling underground market where anything can be bought if you know where to look."
+    description: >
+      Stolen Republic military equipment sits beside black-market foodstuffs
+      and counterfeit identity documents. A Bothan information dealer occupies
+      a corner booth and seems to know more about the war than the Senate does.
+      Republic Security hasn't been seen at this level in years. The market
+      polices itself, brutally and effectively.
+    zone: coruscant_lower
+    map_x: 21
+    map_y: 13
+    security_level: lawless
+    vendor: true
+    exits:
+      west: lower_descent
+      south: lower_refugee_warren
+
+  - id: 246
+    slug: lower_refugee_warren
+    name: "Coruscant - Lower City Refugee Warren"
+    short_desc: "Makeshift shelters in the abandoned sub-levels, now housing thousands of war refugees."
+    description: >
+      The Clone Wars have deposited a steady stream of refugees into
+      Coruscant's lower levels. The warren occupies what were once industrial
+      access corridors, now packed with makeshift shelters and shared heating
+      vents. Republic relief organizations maintain a distribution point here,
+      but the queue is always longer than the supplies.
+    zone: coruscant_lower
+    map_x: 21
+    map_y: 15
+    security_level: lawless
+    exits:
+      north: lower_market
+
+  - id: 247
+    slug: ice_crypts
+    name: "Coruscant - The Ice Crypts"
+    short_desc: "A network of frozen caves bored into a glacial layer hundreds of meters underground."
+    description: >
+      Long, meandering side passages lead to thirteen chambers, each
+      containing the mummified remains of what are believed to be Zhell
+      war chieftains from 25,000 years ago. Temperatures are kept below
+      freezing. Curators who pace the empty tunnels at night swear they
+      can hear the echoes of the dead, whispering the mysterious words
+      "kerait mahtah..."
+    zone: coruscant_lower
+    map_x: 19
+    map_y: 13
+    security_level: lawless
+    hazard_type: cold
+    exits:
+      out: lower_descent
+
+  - id: 248
+    slug: factory_district
+    name: "Coruscant - Factory District"
+    short_desc: "The hemisphere opposite the Senate, where droids and organic overseers manufacture goods in semi-abandoned facilities."
+    description: >
+      The Grungeon block encompasses twenty square kilometers of idle factory.
+      The stamping plants that once hummed with industry are filled with
+      unsafe, unsupervised machinery. During the Clone Wars, CIS agents
+      use the district's low profile to hide the existence of Coruscant-based
+      operations. A secret hangar maintained for a senior Sith's apprentice
+      is rumored to exist somewhere in this block.
+    zone: coruscant_lower
+    map_x: 18
+    map_y: 13
+    security_level: lawless
+    exits:
+      east: lower_descent
+
+  - id: 249
+    slug: lower_medical
+    name: "Coruscant - Lower City Medical Post"
+    short_desc: "An underfunded Republic Health Authority clinic serving the lower city."
+    description: >
+      The equipment is outdated, the bacta supply never enough, and the
+      waiting room always full. The lead doctor, a tired Zabrak named Pell
+      Merdo, works eighteen-hour shifts and has not taken a day off since
+      the war started. She knows more about the lower city's population
+      than any government official, and has no interest in sharing what
+      she knows with them.
+    zone: coruscant_lower
+    map_x: 22
+    map_y: 13
+    security_level: lawless
+    exits:
+      west: lower_market
+
+  - id: 250
+    slug: petrax_sublevels
+    name: "Coruscant - Petrax Historic Quarter - Sublevels"
+    short_desc: "Ancient sublevels beneath the Petrax Quarter, a maze of excavation tunnels and sealed chambers."
+    description: >
+      Urban archaeologists have been drilling into the ground beneath the
+      Petrax Quarter for centuries. The sublevels are a maze of excavation
+      tunnels, shored-up access corridors, and sealed chambers whose contents
+      no one has catalogued. Artifacts surface regularly. Occasionally a
+      lightsaber handle pre-dating any known Jedi Order is found and quietly
+      passed to a collector rather than reported to the Museum.
+    zone: coruscant_lower
+    map_x: 20
+    map_y: 12
+    security_level: lawless
+    exits:
+      up: lower_descent
+
+  # ══════════════════════════════════════════════════════════════════════
+  # CORUSCANT WORKS (industrial, contested) — 4 rooms
+  # Entered from lower_descent down. No underworld entry from here —
+  # the underworld wilderness is accessed only from southern_underground 'vent'.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 251
+    slug: coruscant_works_main
+    name: "Coruscant Works - Industrial Sublevel"
+    short_desc: "The industrial sublevel where the city's power and life support infrastructure is maintained."
+    description: >
+      Power conduits, atmospheric recyclers, water purification plants, waste
+      processing. Clone engineers on rotation service the grid alongside
+      civilian maintenance workers. The air smells of hot metal and ozone.
+      Few people come here on purpose; those who do are usually trying to
+      stay unseen.
+    zone: coruscant_works
+    map_x: 20
+    map_y: 15
+    security_level: contested
+    exits:
+      up: lower_descent
+      east: coruscant_works_atmospheric
+      west: coruscant_works_power_grid
+      south: coruscant_works_hab
+
+  - id: 252
+    slug: coruscant_works_atmospheric
+    name: "Coruscant Works - Atmospheric Processing Plant"
+    short_desc: "One of thousands of atmospheric recycling stations keeping Coruscant's air breathable."
+    description: >
+      The recycling units are enormous — the size of small starships — and
+      ancient. Several have warning lights that have been illuminated for so
+      long that no one remembers what they were originally warning about.
+      The plant runs on a skeleton crew; much of the work is automated.
+      The automation has not been updated since the late Old Republic.
+    zone: coruscant_works
+    map_x: 21
+    map_y: 15
+    security_level: contested
+    exits:
+      west: coruscant_works_main
+
+  - id: 253
+    slug: coruscant_works_power_grid
+    name: "Coruscant Works - Central Power Grid Station"
+    short_desc: "A power distribution hub feeding energy to surrounding megablocks, protected by clone engineering corps."
+    description: >
+      A massive transformer hub surrounded by safety barriers and humming
+      with barely-contained energy. Clone engineering corps maintains rotating
+      shifts here — the grid is a high-value target, and several CIS sabotage
+      attempts have been documented in the past year. The station commander,
+      a veteran clone trooper who goes by "Bolt," runs the station with
+      military precision and a healthy paranoia about visitors.
+    zone: coruscant_works
+    map_x: 19
+    map_y: 15
+    security_level: contested
+    exits:
+      east: coruscant_works_main
+
+  - id: 254
+    slug: coruscant_works_hab
+    name: "Coruscant Works - Engineering Corps Habitation Block"
+    short_desc: "The barracks and off-duty space for the Works maintenance crews."
+    description: >
+      The Works personnel live in functional blocks near their stations.
+      Clone troopers assigned to engineering duty occupy one wing; civilian
+      maintenance workers another. The common room has a sabacc table that
+      has been running continuously for three years, and a wall of personal
+      photos that has grown into something almost moving. A clone trooper's
+      portion of the wall is notable for its absence.
+    zone: coruscant_works
+    map_x: 20
+    map_y: 16
+    housing: true
+    exits:
+      north: coruscant_works_main

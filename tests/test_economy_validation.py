@@ -308,7 +308,7 @@ class TestMissionSkillChecks:
         Verify by checking the import exists in mission_commands.py.
         """
         import ast
-        with open("parser/mission_commands.py", "r") as f:
+        with open("parser/mission_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
 
         assert "resolve_mission_completion" in source, \
@@ -359,14 +359,14 @@ class TestCraftingEconomics:
 
     def test_survey_uses_skill_check(self):
         """Survey should route through perform_skill_check."""
-        with open("parser/crafting_commands.py", "r") as f:
+        with open("parser/crafting_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         assert "perform_skill_check" in source or "_skill_check" in source, \
             "Survey does not use skill check routing"
 
     def test_crafting_requires_resources(self):
         """Craft command should check for required resources."""
-        with open("parser/crafting_commands.py", "r") as f:
+        with open("parser/crafting_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         assert "resource" in source.lower(), \
             "Craft command doesn't reference resources"
@@ -464,7 +464,7 @@ class TestCreditSinks:
 
     def test_sabacc_house_rake_exists(self):
         """Sabacc should have a house rake (net sink)."""
-        with open("parser/sabacc_commands.py", "r") as f:
+        with open("parser/sabacc_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         assert "rake" in source.lower() or "house" in source.lower() or \
                "0.9" in source or "0.10" in source or "10%" in source, \
@@ -477,7 +477,7 @@ class TestCreditSinks:
 
     def test_docking_fee_wired(self):
         """Docking fees should exist as a sink."""
-        with open("server/tick_handlers_economy.py", "r") as f:
+        with open("server/tick_handlers_economy.py", "r", encoding="utf-8") as f:
             source = f.read()
         assert "docking_fee" in source.lower() or "dock" in source.lower(), \
             "Docking fee handler not found in tick_handlers_economy.py"
@@ -648,7 +648,7 @@ class TestFaucetRates:
     def test_entertainer_performance_capped(self):
         """Entertainer earnings should have rate limiting."""
         # Check that perform command has some form of cooldown
-        with open("parser/entertainer_commands.py", "r") as f:
+        with open("parser/entertainer_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         assert "cooldown" in source.lower() or "remaining" in source.lower() \
                or "last_perform" in source.lower() or "wait" in source.lower(), \
@@ -669,7 +669,7 @@ class TestSkillCheckInvariant:
 
     def test_no_direct_roll_in_crafting(self):
         """Crafting commands should not call roll_d6_pool directly."""
-        with open("parser/crafting_commands.py", "r") as f:
+        with open("parser/crafting_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         # Should use _skill_check wrapper, not roll_d6_pool
         lines = source.split("\n")
@@ -686,7 +686,7 @@ class TestSkillCheckInvariant:
 
     def test_no_direct_roll_in_missions(self):
         """Mission commands should not call roll_d6_pool directly."""
-        with open("parser/mission_commands.py", "r") as f:
+        with open("parser/mission_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         lines = source.split("\n")
         violations = []
@@ -702,7 +702,7 @@ class TestSkillCheckInvariant:
 
     def test_no_direct_roll_in_smuggling(self):
         """Smuggling commands should not call roll_d6_pool directly."""
-        with open("parser/smuggling_commands.py", "r") as f:
+        with open("parser/smuggling_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         lines = source.split("\n")
         violations = []
@@ -724,7 +724,7 @@ class TestSkillCheckInvariant:
 
     def test_no_direct_roll_in_espionage(self):
         """Espionage commands should not call roll_d6_pool directly."""
-        with open("parser/espionage_commands.py", "r") as f:
+        with open("parser/espionage_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         lines = source.split("\n")
         violations = []

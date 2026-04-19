@@ -1,0 +1,553 @@
+# data/worlds/clone_wars/planets/nar_shaddaa.yaml
+# Clone Wars Era — Nar Shaddaa (Smugglers' Moon)
+# 30 rooms (IDs 54-83), 4 zones
+# Reskin notes:
+#   - Nar Shaddaa is largely unchanged — the Hutt criminal apparatus
+#     is eternal and the war barely touches the Moon directly.
+#   - "Imperial era" → general "current era" in historical references.
+#   - Old Corellian Quarter: "predates the Imperial era" → "predates
+#     the current war" (the residents have been here for generations).
+#   - Refugee Sector: wartime refugees from CIS-occupied worlds added.
+#   - Starting room for new arrivals (westport_arrivals) is here.
+# Room IDs 54-83, positional order must be preserved.
+
+planet: nar_shaddaa
+planet_display_name: "Nar Shaddaa"
+primary_city: "Corellian Sector"
+description: >
+  The Smugglers' Moon. A vertical city on Nal Hutta's largest moon,
+  operated under Hutt dominion. The Clone Wars have been good for
+  business — both sides need contraband routes, blockade-runners, and
+  plausible deniability. Nar Shaddaa provides all three at competitive
+  rates.
+
+rooms:
+
+  # ── LANDING PAD (secured) ── rooms 54-55 ───────────────────────────────
+
+  - id: 54
+    slug: nar_shaddaa_bay_aurek
+    name: "Nar Shaddaa - Docking Bay Aurek"
+    short_desc: "A grimy docking bay in the Corellian Sector of Nar Shaddaa."
+    description: >
+      Fuel-stained duracrete slopes down into this cavernous bay.
+      Refueling spires tower overhead, their navigation lights blinking
+      in the perpetual gloom. Cargo droids haul crates without
+      supervision. A battered kiosk charges 50 credits per day, payable
+      in advance. No questions asked.
+    zone: nar_shaddaa_landing
+    map_x: 15
+    map_y: 5
+
+  - id: 55
+    slug: westport_arrivals
+    name: "Nar Shaddaa - Landing Platform Besh"
+    short_desc: "An exposed landing platform jutting from the upper levels."
+    description: >
+      Wind howls across this platform, hundreds of stories above the
+      undercity. Mag-clamps secure ships against the constant gale.
+      The view of Nar Shaddaa's endless cityscape stretches to every
+      horizon, spire after spire vanishing into atmospheric haze.
+      Nal Hutta looms enormous in the sky above. New arrivals are
+      advised to keep their hands on their credits.
+    zone: nar_shaddaa_landing
+    map_x: 16
+    map_y: 5
+    # This is the starting_room_slug for Clone Wars era.
+    # Named westport_arrivals for era.yaml reference.
+
+  # ── PROMENADE / CORELLIAN SECTOR (contested) ── rooms 56-63 ────────────
+
+  - id: 56
+    slug: nar_shaddaa_promenade_main
+    name: "Nar Shaddaa - Corellian Sector Promenade"
+    short_desc: "The main street of the Corellian Sector, a smugglers' paradise."
+    description: >
+      Neon holographic signs flicker above a crowded thoroughfare.
+      Corellians and beings from a hundred worlds push through the
+      crowd. Street vendors hawk counterfeit transponder chips and
+      black market spice. The air reeks of engine exhaust and cooking
+      oil. Both sides of the war are represented here, identifiable
+      only by the careful observer and the well-paid informant.
+    zone: nar_shaddaa_promenade
+    map_x: 15
+    map_y: 4
+    security_level: contested
+
+  - id: 57
+    slug: burning_deck_cantina
+    name: "Nar Shaddaa - The Burning Deck Cantina"
+    short_desc: "A notorious smuggler cantina deep in the Corellian Sector."
+    description: >
+      Low ceilings, thick smoke, and the persistent clatter of sabacc
+      chips define this dive. Corellian whiskey flows cheap. Smuggling
+      guild recruiters size up newcomers from corner booths. A
+      holographic scoreboard tracks active cargo runs. The bartender,
+      a scarred Weequay, has a blaster under the counter.
+    zone: nar_shaddaa_promenade
+    map_x: 14
+    map_y: 4
+    security_level: contested
+
+  - id: 58
+    slug: burning_deck_back_room
+    name: "Nar Shaddaa - Burning Deck Back Room"
+    short_desc: "A private room behind the cantina used for high-stakes deals."
+    description: >
+      Soundproofed walls and a signal jammer ensure privacy. A circular
+      table seats six. Scorch marks on the ceiling tell of negotiations
+      gone wrong. The door has three locks and no window.
+    zone: nar_shaddaa_promenade
+    map_x: 13
+    map_y: 4
+    security_level: contested
+
+  - id: 59
+    slug: smugglers_guild_hall
+    name: "Nar Shaddaa - Smugglers' Guild Hall"
+    short_desc: "The unofficial headquarters of the Corellian Smugglers' Guild."
+    description: >
+      What looks like an abandoned warehouse opens into a surprisingly
+      organized operations center. Star charts cover the walls.
+      Dispatchers coordinate cargo runs across a dozen sectors. A
+      communal armory sits behind a cage. Membership dues are 500
+      credits per standard month.
+    zone: nar_shaddaa_promenade
+    map_x: 15
+    map_y: 3
+    security_level: contested
+
+  - id: 60
+    slug: vertical_bazaar
+    name: "Nar Shaddaa - Vertical Bazaar"
+    short_desc: "A multi-level marketplace built into an old refueling spire."
+    description: >
+      Shops and stalls ring the interior of a hollowed-out spire,
+      connected by rickety turbolifts and spiral ramps. Each level
+      specializes: weapons on three, ship parts on seven, information
+      on twelve. A central open shaft lets you see fifty stories up
+      and down. Vertigo is free of charge.
+    zone: nar_shaddaa_promenade
+    map_x: 16
+    map_y: 3
+    security_level: contested
+    vendor: true
+
+  - id: 61
+    slug: bounty_hunters_quarter
+    name: "Nar Shaddaa - Bounty Hunters' Quarter"
+    short_desc: "A fortified block claimed by bounty hunters and mercenaries."
+    description: >
+      Reinforced doors and weapon scanners mark the entrance to this
+      self-policing enclave. Bounty posting boards line the main
+      corridor. An equipment shop specializes in tracking devices and
+      restraints. The cantina here serves strong drink and asks fewer
+      questions than most.
+    zone: nar_shaddaa_promenade
+    map_x: 15
+    map_y: 5
+    security_level: contested
+
+  - id: 62
+    slug: old_corellian_quarter
+    name: "Nar Shaddaa - Old Corellian Quarter"
+    short_desc: "A weathered residential block, home to longtime Corellian expatriates."
+    description: >
+      Older than the rest of the Corellian Sector, this block predates
+      the current war by generations. Residents have lived here for
+      generations, maintaining Corellian customs in exile. A communal
+      kitchen serves as social center. Graffiti in Corellian script
+      covers the entry archway: 'Never tell me the odds.'
+    zone: nar_shaddaa_promenade
+    map_x: 14
+    map_y: 3
+    security_level: contested
+    housing: true
+    # Clone Wars reskin: "predates the Imperial era" → "predates the current war"
+
+  - id: 63
+    slug: refugee_sector
+    name: "Nar Shaddaa - Refugee Sector"
+    short_desc: "A crowded district where displaced beings eke out survival."
+    description: >
+      Makeshift shelters crowd the corridors between abandoned industrial
+      blocks. Families huddle around shared heating vents. Children
+      beg in a dozen languages. The newest arrivals are from CIS-occupied
+      worlds — Outer Rim systems that fell to the Separatists and left
+      their populations with nowhere to go but the Moon. Relief droids
+      distribute protein packs on a first-come basis.
+    zone: nar_shaddaa_promenade
+    map_x: 16
+    map_y: 4
+    security_level: contested
+    # Clone Wars reskin: added CIS refugee population detail
+
+  # ── UNDERCITY (lawless) ── rooms 64-69 ─────────────────────────────────
+
+  - id: 64
+    slug: undercity_market
+    name: "Nar Shaddaa - Undercity Market"
+    short_desc: "A sprawling black market in the lower levels of Nar Shaddaa."
+    description: >
+      Daylight has never reached these depths. Bioluminescent fungi and
+      jury-rigged glowpanels cast everything in sickly blue-green.
+      Stalls built from scrap metal sell everything from illegal weapons
+      to stolen ship parts. Pickpockets and informants lurk at every
+      junction. The law does not come here.
+    zone: nar_shaddaa_undercity
+    map_x: 15
+    map_y: 6
+    security_level: lawless
+    vendor: true
+
+  - id: 65
+    slug: undercity_depths
+    name: "Nar Shaddaa - Undercity Depths"
+    short_desc: "The deepest accessible level of Nar Shaddaa's vertical city."
+    description: >
+      Corroded catwalks span chasms that plunge into absolute darkness.
+      The mutated descendants of the Evocii scuttle in the shadows,
+      wary of strangers. Moisture condenses on every surface. Strange
+      sounds echo from below — machinery, or something else entirely.
+      Few who venture this deep return unchanged.
+    zone: nar_shaddaa_undercity
+    map_x: 15
+    map_y: 7
+    security_level: lawless
+
+  - id: 66
+    slug: spice_den
+    name: "Nar Shaddaa - Spice Den"
+    short_desc: "A dimly lit den where various forms of spice are consumed."
+    description: >
+      Reclining couches line the walls, occupied by beings in various
+      states of intoxication. Glitterstim, ryll, and more exotic
+      substances change hands in whispered transactions. The Twi'lek
+      proprietor watches with calculating eyes. A back exit leads
+      deeper into the Undercity.
+    zone: nar_shaddaa_undercity
+    map_x: 16
+    map_y: 6
+    security_level: lawless
+
+  - id: 67
+    slug: droid_junkyard
+    name: "Nar Shaddaa - Droid Junkyard"
+    short_desc: "A vast scrapyard of decommissioned and stolen droids."
+    description: >
+      Mountains of droid parts stretch to the hazy ceiling. Salvagers
+      pick through the wreckage with magnetic tools. Occasionally a
+      half-functional droid twitches or speaks a garbled phrase. The
+      Ugnaught proprietor insists everything is legitimately acquired.
+      Nobody believes him.
+    zone: nar_shaddaa_undercity
+    map_x: 17
+    map_y: 6
+    security_level: lawless
+    vendor: true
+
+  - id: 68
+    slug: black_market_medcenter
+    name: "Nar Shaddaa - Black Market Medcenter"
+    short_desc: "An unlicensed medical facility hidden behind a scrap metal front."
+    description: >
+      Behind a rust-streaked door lies a surprisingly functional
+      operating room. Recycled bacta tanks line one wall, half-full.
+      Stolen medical equipment fills surgical bays. The doctor charges
+      double the legal rate but asks no questions and files no reports.
+      A Twi'lek nurse monitors the waiting area.
+    zone: nar_shaddaa_undercity
+    map_x: 15
+    map_y: 8
+    security_level: lawless
+
+  - id: 69
+    slug: fighting_pits
+    name: "Nar Shaddaa - Fighting Pits"
+    short_desc: "An underground arena where beings fight for credits and survival."
+    description: >
+      Concentric rings of rusted seating surround a sand-floored pit
+      stained dark with old blood. Betters crowd the rails, screaming
+      odds. Combatants range from desperate refugees to professional
+      gladiators. The Hutt who runs the operation takes a forty percent
+      cut. House rules: no blasters, no surrender, and the crowd decides
+      if losers walk out.
+    zone: nar_shaddaa_undercity
+    map_x: 16
+    map_y: 7
+    security_level: lawless
+
+  # ── UPPER LEVELS (contested) ── rooms 70-72 ────────────────────────────
+
+  - id: 70
+    slug: hutt_emissary_tower_lobby
+    name: "Nar Shaddaa - Hutt Emissary Tower - Lobby"
+    short_desc: "The opulent lobby of a Hutt-controlled tower in the upper levels."
+    description: >
+      Polished duranium floors reflect the garish lighting. A massive
+      Hutt clan sigil dominates one wall. Gamorrean guards flank the
+      turbolift entrance. Visitors are scanned for weapons — then scanned
+      again. A protocol droid manages appointments with mechanical
+      precision.
+    zone: nar_shaddaa_promenade
+    map_x: 15
+    map_y: 3
+    security_level: contested
+    faction_override: hutt_cartel
+
+  - id: 71
+    slug: hutt_emissary_tower_audience
+    name: "Nar Shaddaa - Hutt Emissary Tower - Audience Chamber"
+    short_desc: "An audience chamber for conducting Hutt business on the Smuggler's Moon."
+    description: >
+      The chamber is designed to intimidate. A raised dais supports a
+      Hutt repulsor sled. Hookah pipes and platters of live food surround
+      the seat of power. Supplicants stand below, necks craned upward.
+      Wall-mounted security cameras record everything. Both Republic
+      and CIS envoys have sat in those uncomfortable chairs.
+    zone: nar_shaddaa_promenade
+    map_x: 15
+    map_y: 2
+    security_level: contested
+    faction_override: hutt_cartel
+
+  - id: 72
+    slug: the_grid
+    name: "Nar Shaddaa - The Grid"
+    short_desc: "An information broker's den in the upper levels, accessible by coded lift."
+    description: >
+      Banks of screens show feeds from across the Smuggler's Moon —
+      dock cameras, comm intercepts, patrol schedules from both sides
+      of the war. The broker, a blind Miralukan, trades exclusively in
+      information. No physical goods. No violence permitted on premises.
+      This rule is enforced by three heavily armed Gamorrean sentinels.
+    zone: nar_shaddaa_promenade
+    map_x: 15
+    map_y: 1
+    security_level: contested
+
+  # ── EXPANDED AREAS (mixed) ── rooms 73-78 ──────────────────────────────
+
+  - id: 73
+    slug: ship_parts_emporium
+    name: "Nar Shaddaa - Ship Parts Emporium"
+    short_desc: "A multi-deck shop selling salvaged and black-market starship components."
+    description: >
+      Seven levels of shelving hold hyperdrive motivators, sensor
+      arrays, shield generators, and ion cannon components. The stock
+      is eighty percent stolen, twenty percent salvage. The Sullustan
+      owner maintains meticulous inventory and competitive pricing.
+      Rare parts available on order.
+    zone: nar_shaddaa_promenade
+    map_x: 17
+    map_y: 3
+    security_level: contested
+    vendor: true
+
+  - id: 74
+    slug: renna_dox_workshop
+    name: "Nar Shaddaa - Renna Dox's Workshop"
+    short_desc: "A cluttered mechanical workshop run by a master shipwright."
+    description: >
+      Every surface is covered with ship components in various states
+      of assembly or disassembly. Diagrams and schematics paper the
+      walls. Renna Dox — a broad-shouldered Zabrak woman with engine
+      grease permanently under her fingernails — builds custom ship
+      modifications and teaches Technical skills to those willing to
+      work for the knowledge.
+    zone: nar_shaddaa_promenade
+    map_x: 14
+    map_y: 3
+    security_level: contested
+
+  - id: 75
+    slug: floating_market
+    name: "Nar Shaddaa - The Floating Market"
+    short_desc: "Repulsorlift platforms drifting between towers, forming an open-air market."
+    description: >
+      A dozen hovering platforms connected by gangways form this unusual
+      marketplace. The platforms drift slowly in the thermal currents
+      between towers, requiring some agility to navigate between them.
+      Food, cheap goods, and war surplus from both factions are the
+      primary offerings. The market has no fixed address — it moves.
+    zone: nar_shaddaa_promenade
+    map_x: 16
+    map_y: 5
+    security_level: contested
+    vendor: true
+    # Clone Wars reskin: "Imperial surplus" → "war surplus from both factions"
+
+  - id: 76
+    slug: enforcer_alley
+    name: "Nar Shaddaa - Enforcer Alley"
+    short_desc: "A narrow passage controlled by Hutt enforcers collecting protection money."
+    description: >
+      This passage connects the Corellian Sector to the upper docks.
+      Hutt-affiliated enforcers demand a 'transit toll' from everyone
+      passing through. Refusing is inadvisable. The alley smells of
+      spilled Corellian ale and old fear. Graffiti marks which gangs
+      claim what territory.
+    zone: nar_shaddaa_promenade
+    map_x: 16
+    map_y: 4
+    security_level: contested
+
+  - id: 77
+    slug: weapons_cache
+    name: "Nar Shaddaa - Weapons Cache"
+    short_desc: "A fortified room in the Bounty Hunters' Quarter, selling military hardware."
+    description: >
+      Security shutters and a Durasteel door protect this arsenal.
+      The proprietor, an armless Duros who lost both limbs on a bad
+      contract, operates the shop via waldos. Every weapon type is
+      represented — blasters, melee, explosives, even restricted
+      military stock from both sides of the war if the price is right.
+    zone: nar_shaddaa_promenade
+    map_x: 15
+    map_y: 6
+    security_level: contested
+    vendor: true
+
+  - id: 78
+    slug: upper_dock_observation
+    name: "Nar Shaddaa - Upper Dock Observation Level"
+    short_desc: "A windswept observation level above the main docking platforms."
+    description: >
+      The view from here is staggering — Nar Shaddaa's cityscape in
+      every direction, stretching to the curved horizon. Ships arrive
+      and depart in constant streams. Nal Hutta hangs enormous in the
+      sky above. Sensor equipment here monitors traffic for the dock
+      authority — which is a Hutt front company monitoring for Republic
+      interdiction vessels.
+    zone: nar_shaddaa_promenade
+    map_x: 17
+    map_y: 5
+    security_level: contested
+
+  # ── WARRENS (lawless) ── rooms 79-83 ───────────────────────────────────
+
+  - id: 79
+    slug: warrens_entry_shaft
+    name: "Nar Shaddaa - The Warrens - Entry Shaft"
+    short_desc: "A ventilation shaft descending into the deepest levels of Nar Shaddaa."
+    description: >
+      The turbolift stopped working decades ago. A jury-rigged ladder
+      of welded pipe descends into the Warrens — the lowest inhabitable
+      levels of the Smuggler's Moon. The air here is thick, recycled
+      so many times it tastes metallic. A warning scrawled in
+      blood-red paint: 'NO LAW BELOW THIS LINE.'
+    zone: nar_shaddaa_warrens
+    map_x: 15
+    map_y: 8
+    security_level: lawless
+
+  - id: 80
+    slug: warrens_fungal_cavern
+    name: "Nar Shaddaa - The Warrens - Fungal Cavern"
+    short_desc: "A vast natural cavity colonized by bioluminescent fungal growths."
+    description: >
+      Enormous mushroom-like growths reach three meters tall, their
+      caps glowing with pale blue light. The air is warm and humid,
+      thick with spores. The Evocii — the original inhabitants of Nar
+      Shaddaa, displaced millennia ago by the Hutts — have adapted to
+      life here. Their camps are visible as clusters of dim firelight
+      among the fungi. They do not welcome outsiders.
+    zone: nar_shaddaa_warrens
+    map_x: 16
+    map_y: 8
+    security_level: lawless
+
+  - id: 81
+    slug: warrens_reactor_core
+    name: "Nar Shaddaa - The Warrens - Reactor Core Access"
+    short_desc: "A catwalk spanning an ancient reactor core, still partially active."
+    description: >
+      The heat is intense — residual energy from a reactor that has
+      been running unmaintained for centuries. The catwalk vibrates
+      with suppressed power. Rare energy crystals grow on the cooling
+      fins like mineral barnacles, prized by crafters and smugglers
+      alike. The radiation levels are elevated. Don't linger.
+    zone: nar_shaddaa_warrens
+    map_x: 15
+    map_y: 9
+    security_level: lawless
+    hazard_type: radiation
+
+  - id: 82
+    slug: warrens_scavenger_den
+    name: "Nar Shaddaa - The Warrens - Scavenger Den"
+    short_desc: "A fortified camp where Warrens scavengers trade salvage from the deep."
+    description: >
+      Behind a barricade of welded durasteel plates, a small community
+      of hard-bitten scavengers has carved out survival. They trade in
+      reactor components, rare minerals, and information about what
+      lurks in the deeper tunnels. Payment is accepted in credits,
+      supplies, or interesting salvage. Trust is earned in blood down
+      here.
+    zone: nar_shaddaa_warrens
+    map_x: 16
+    map_y: 9
+    security_level: lawless
+    vendor: true
+
+  - id: 83
+    slug: warrens_collapsed_plaza
+    name: "Nar Shaddaa - The Warrens - Collapsed Plaza"
+    short_desc: "The ruins of what was once a grand public space, now buried under centuries of city."
+    description: >
+      Columns of an ancient plaza still stand, supporting nothing —
+      the ceiling is a tangle of collapsed infrastructure from dozens
+      of building layers above. The original tile floor is partially
+      visible under debris. This was street level thousands of years
+      ago, before the Hutts built their towers on top of the Evocii
+      civilization. History, forgotten and buried.
+    zone: nar_shaddaa_warrens
+    map_x: 15
+    map_y: 10
+    security_level: lawless
+
+exits:
+  # ── Landing pads ────────────────────────────────────────────────────────
+  - {from: 54, to: 56, forward: "out", reverse: "bay aurek"}
+  - {from: 55, to: 56, forward: "in", reverse: "platform besh"}
+  # ── Promenade hub ───────────────────────────────────────────────────────
+  - {from: 56, to: 57, forward: "west", reverse: "east to Promenade"}
+  - {from: 56, to: 59, forward: "north", reverse: "south to Promenade"}
+  - {from: 56, to: 64, forward: "down", reverse: "up to Promenade"}
+  - {from: 56, to: 70, forward: "up", reverse: "down to Promenade"}
+  - {from: 56, to: 63, forward: "southeast", reverse: "northwest to Promenade"}
+  - {from: 56, to: 60, forward: "northeast", reverse: "southwest to Promenade"}
+  - {from: 56, to: 61, forward: "south", reverse: "north to Promenade"}
+  # ── Cantina -> back room ─────────────────────────────────────────────────
+  - {from: 57, to: 58, forward: "back", reverse: "out"}
+  # ── Undercity Market -> Depths ───────────────────────────────────────────
+  - {from: 64, to: 65, forward: "down", reverse: "up"}
+  - {from: 64, to: 66, forward: "east", reverse: "west"}
+  - {from: 64, to: 68, forward: "south", reverse: "north to Market"}
+  # ── Hutt Tower ───────────────────────────────────────────────────────────
+  - {from: 70, to: 71, forward: "up", reverse: "down"}
+  - {from: 71, to: 72, forward: "coded lift", reverse: "down"}
+  # ── Vertical Bazaar ──────────────────────────────────────────────────────
+  - {from: 60, to: 67, forward: "down", reverse: "up"}
+  - {from: 60, to: 73, forward: "east", reverse: "west to Bazaar"}
+  # ── Old Quarter ──────────────────────────────────────────────────────────
+  - {from: 62, to: 56, forward: "southeast", reverse: "northwest to Old Quarter"}
+  # ── Renna Dox ────────────────────────────────────────────────────────────
+  - {from: 74, to: 62, forward: "out", reverse: "workshop"}
+  # ── Floating Market ──────────────────────────────────────────────────────
+  - {from: 75, to: 64, forward: "up", reverse: "west to Floating Market"}
+  # ── Enforcer Alley ───────────────────────────────────────────────────────
+  - {from: 76, to: 56, forward: "south", reverse: "east through Enforcer Alley"}
+  - {from: 76, to: 55, forward: "north", reverse: "south through Enforcer Alley"}
+  # ── Weapons Cache ────────────────────────────────────────────────────────
+  - {from: 77, to: 61, forward: "out", reverse: "weapons cache"}
+  # ── Observation Level ────────────────────────────────────────────────────
+  - {from: 78, to: 55, forward: "down", reverse: "up to Observation Level"}
+  # ── Fighting Pits ────────────────────────────────────────────────────────
+  - {from: 69, to: 65, forward: "east", reverse: "west to Fighting Pits"}
+  # ── Warrens ──────────────────────────────────────────────────────────────
+  - {from: 79, to: 65, forward: "down", reverse: "north to Warrens"}
+  - {from: 80, to: 79, forward: "east", reverse: "west to Shaft"}
+  - {from: 81, to: 79, forward: "south", reverse: "north to Shaft"}
+  - {from: 82, to: 80, forward: "east", reverse: "west to Cavern"}
+  - {from: 83, to: 81, forward: "south", reverse: "north to Reactor"}

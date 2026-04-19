@@ -317,7 +317,7 @@ class TestBoardingShipStatus:
 
     def test_hud_includes_boarding(self):
         """HUD JSON builder should include boarding_linked_to."""
-        with open("parser/space_commands.py") as f:
+        with open("parser/space_commands.py", encoding="utf-8") as f:
             src = f.read()
         # The build_space_state dict should include boarding data
         assert '"boarding_linked_to"' in src
@@ -345,7 +345,7 @@ class TestSilentExceptInvariant:
         for filepath in files:
             if not os.path.exists(filepath):
                 continue
-            with open(filepath) as f:
+            with open(filepath, encoding="utf-8") as f:
                 content = f.read()
             matches = pattern.findall(content)
             assert len(matches) == 0, \

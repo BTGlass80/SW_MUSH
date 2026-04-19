@@ -1,0 +1,561 @@
+# data/worlds/clone_wars/planets/kamino.yaml
+# Clone Wars Era — Kamino
+# 25 rooms, 3 zones
+# Sources: Attack of the Clones (film), The Clone Wars (animated series),
+#          WEG D6 R&E Core (general clone mechanics context)
+#
+# Era context (~20 BBY):
+#   The Kaminoan cloning program has been running for ~10 years at full scale.
+#   Tipoca City is the only permanent surface installation — everything else is
+#   ocean. Millions of clone troopers have been produced here. New batch orders
+#   for Republic emergency production are arriving monthly. Separatist agents
+#   have attempted to infiltrate the facility; security is accordingly intense.
+#   The Kaminoans are neutral professionals: they fill the order, they get paid,
+#   they have no interest in the politics of who wins.
+#
+# EXIT DISCIPLINE: per-room exits blocks, per-room uniqueness, named exits for
+#   zone-internal sub-destinations. All exits validate round-trip.
+#
+# Zone layout:
+#   kamino_tipoca_city    — the main city: arrival, public areas, admin (9 rooms)
+#   kamino_cloning_halls  — restricted cloning and training facilities (10 rooms)
+#   kamino_ocean_platform — exterior platforms, landing areas, ocean access (6 rooms)
+
+planet: kamino
+planet_display_name: "Kamino"
+primary_city: "Tipoca City"
+description: >
+  An ocean world of endless storms, Kamino's only permanent structures are
+  the stilt-mounted cities that rise above the perpetual waves. Tipoca City
+  is home to the most advanced cloning program in the galaxy — and the source
+  of every clone trooper in the Grand Army of the Republic. The Kaminoans who
+  run it are tall, pale, and professionally indifferent to the moral weight
+  of their work. They fill orders. They do not ask what the orders are for.
+
+rooms:
+
+  # ══════════════════════════════════════════════════════════════════════
+  # TIPOCA CITY — PUBLIC / ADMINISTRATIVE (secured) — 9 rooms
+  # Hub: kamino_westport_arrivals — player arrival point
+  # The only accessible part of Kamino for most visitors.
+  # Kaminoans are polite, clinical, and completely in control.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 350
+    slug: kamino_arrivals_hall
+    name: "Kamino - Tipoca City Arrivals Hall"
+    short_desc: "The arrivals hall of Tipoca City, where visitors are received with clinical efficiency."
+    description: >
+      The arrivals hall of Tipoca City is immaculate white. Everything is
+      white — the walls, the floors, the curved ceiling, the Kaminoan
+      staff who glide between stations with unhurried grace. The effect
+      is calming and slightly destabilizing. A Kaminoan attendant in
+      flowing robes greets arrivals with a precise bow. Behind her,
+      through floor-to-ceiling transparisteel, the ocean is visible:
+      dark, vast, and utterly indifferent. Rain sheets against the glass
+      in continuous horizontal streaks. Somewhere in this city, millions
+      of soldiers are being grown.
+    zone: kamino_tipoca_city
+    map_x: 40
+    map_y: 10
+    exits:
+      city: tipoca_main_corridor
+      platform: kamino_landing_platform_alpha  # zone-to-zone (city → ocean platform)
+
+  - id: 351
+    slug: tipoca_main_corridor
+    name: "Kamino - Tipoca City - Main Corridor"
+    short_desc: "The central administrative corridor connecting Tipoca City's major facilities."
+    description: >
+      The corridor curves gently — Tipoca City's architecture follows the
+      city's circular layout. White walls and indirect lighting give the
+      sense of moving through a very clean dream. Kaminoan staff pass
+      at intervals, moving with the unhurried purposefulness of beings
+      who have nowhere to be except exactly where they are going.
+      A holographic directory marks the junctions. The sound of the
+      ocean is constant and faint, filtered through multiple layers
+      of insulated hull plating.
+    zone: kamino_tipoca_city
+    map_x: 41
+    map_y: 10
+    exits:
+      arrivals: kamino_arrivals_hall
+      admin: tipoca_administration
+      briefing: tipoca_briefing_room
+      dining: tipoca_visitor_dining
+      deeper: tipoca_cloning_access     # zone-to-zone (city → cloning halls)
+
+  - id: 352
+    slug: tipoca_administration
+    name: "Kamino - Tipoca City Administration"
+    short_desc: "The administrative center where Kaminoan contracts and Republic orders are processed."
+    description: >
+      The administrative office is where the Kaminoan Prime Minister's
+      representatives manage the relationship with the Republic. This is
+      where clone production orders are received, confirmed, and scheduled;
+      where disputes over delivery timelines are resolved; and where the
+      Kaminoans maintain the careful fiction that this is purely a business
+      arrangement between equals. The current senior administrator is
+      Taun We, who was the one who greeted Obi-Wan Kenobi ten years ago
+      and has been managing the accelerating complexity of the arrangement
+      ever since.
+    zone: kamino_tipoca_city
+    map_x: 42
+    map_y: 10
+    security_level: secured
+    exits:
+      corridor: tipoca_main_corridor
+
+  - id: 353
+    slug: tipoca_briefing_room
+    name: "Kamino - Tipoca City - Briefing Room"
+    short_desc: "A formal briefing room where Republic military representatives receive status updates on clone production."
+    description: >
+      The briefing room is designed for Republic officers who need to
+      understand production schedules and training timelines. Holographic
+      displays show current batch numbers, training completion rates, and
+      projected delivery dates. A Kaminoan trainer named Lama Su occasionally
+      presents here when the figures require explanation. The figures
+      are always impressive. The questions Republic officers ask are always
+      the same: can you produce more, and can you produce them faster.
+      The Kaminoan answer is always the same: that depends on the budget.
+    zone: kamino_tipoca_city
+    map_x: 41
+    map_y: 9
+    exits:
+      corridor: tipoca_main_corridor
+
+  - id: 354
+    slug: tipoca_visitor_dining
+    name: "Kamino - Tipoca City - Visitor Dining Hall"
+    short_desc: "The dining facility maintained for visiting Republic officials and inspectors."
+    description: >
+      Kaminoans do not eat as most species do; the visitor dining hall
+      was built to accommodate human-standard guests. The food is excellent
+      and quietly puzzling — all the dishes are technically correct but
+      assembled with the faint wrongness of someone who has studied the
+      concept of food rather than grown up with it. The view is remarkable:
+      floor-to-ceiling transparisteel facing the open ocean, waves and
+      lightning and rain in a constant display. Clone troopers on
+      administrative assignment eat at separate tables at the far end,
+      their conversation quiet and efficient.
+    zone: kamino_tipoca_city
+    map_x: 42
+    map_y: 9
+    exits:
+      corridor: tipoca_main_corridor
+
+  - id: 355
+    slug: tipoca_prime_ministers_office
+    name: "Kamino - Prime Minister's Residence"
+    short_desc: "The Prime Minister's official residence and receiving office, rarely open to visitors."
+    description: >
+      Prime Minister Lama Su's residence occupies the highest point of
+      Tipoca City's central spire — an austere space of white stone and
+      ocean views in every direction. The Prime Minister receives senior
+      Republic military and government officials here. He is entirely
+      cordial, completely opaque, and very conscious that the Republic
+      needs Kamino more than Kamino needs the Republic at the moment.
+      He has not made this observation aloud. He doesn't need to.
+    zone: kamino_tipoca_city
+    map_x: 41
+    map_y: 8
+    security_level: secured
+    exits:
+      corridor: tipoca_main_corridor
+
+  - id: 356
+    slug: tipoca_kaminoan_quarters
+    name: "Kamino - Kaminoan Residential Wing"
+    short_desc: "The residential wing of Tipoca City, closed to non-Kaminoan visitors."
+    description: >
+      The residential wing is not accessible to visitors. Glimpsed through
+      a reinforced door that opens only for Kaminoan staff, it looks
+      identical to the rest of the city — white, immaculate, still. How
+      Kaminoans rest, how they socialize, what they do when they are not
+      being perfectly professional — these questions are generally not
+      answered for outsiders. The door closes with a soft, definitive click.
+    zone: kamino_tipoca_city
+    map_x: 40
+    map_y: 9
+    security_level: secured
+    exits:
+      corridor: tipoca_main_corridor
+
+  - id: 357
+    slug: tipoca_medical_bay
+    name: "Kamino - Tipoca City Medical Bay"
+    short_desc: "The advanced medical facility maintaining the health of millions of clone troopers."
+    description: >
+      The medical bay is the most human-accessible part of Tipoca City's
+      restricted infrastructure. Clone troopers pass through here for
+      routine health assessment, injury treatment, and what the Kaminoans
+      call "behavioral optimization" — a phrase whose clinical neutrality
+      does a great deal of work. Kaminoan medical science is extraordinary:
+      bacta treatment rates and injury recovery speeds that Core World
+      hospitals would envy. The clones accept treatment with the matter-of-fact
+      efficiency they bring to everything. They heal quickly. They are
+      designed to.
+    zone: kamino_tipoca_city
+    map_x: 42
+    map_y: 8
+    exits:
+      corridor: tipoca_main_corridor
+
+  - id: 358
+    slug: tipoca_library
+    name: "Kamino - Tipoca City Library and Research Archive"
+    short_desc: "The Kaminoan library containing centuries of genetic research and cloning methodology."
+    description: >
+      The Kaminoans are meticulous record-keepers. The library archive
+      holds centuries of genetic research, cloning methodology, and
+      behavioral conditioning documentation — most of it inaccessible
+      to visitors on intellectual property grounds. What is accessible is
+      still extraordinary: the theoretical foundations of genetic
+      engineering as practiced on Kamino are decades ahead of Core World
+      science. A Kaminoan archivist moves between the terminals with the
+      proprietary air of someone who knows that what is stored here is
+      worth more than what it produced.
+    zone: kamino_tipoca_city
+    map_x: 40
+    map_y: 8
+    exits:
+      corridor: tipoca_main_corridor
+
+  # ══════════════════════════════════════════════════════════════════════
+  # CLONING AND TRAINING HALLS (restricted) — 10 rooms
+  # Requires Republic military clearance or Kaminoan escort.
+  # This is where the clones are made and the soldiers are formed.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 359
+    slug: tipoca_cloning_access
+    name: "Kamino - Cloning Hall Access Checkpoint"
+    short_desc: "The security checkpoint separating the visitor areas from the restricted cloning and training facilities."
+    description: >
+      A Kaminoan security officer and two ARC trooper guards stand at the
+      access checkpoint. Republic military identification and a production-
+      clearance code are required to proceed. The checkpoint is calm and
+      professional; the ARC troopers are extremely still in a way that
+      suggests practice. Beyond the checkpoint, the corridor smells faintly
+      of the nutrient solution used in the growth chambers — sweet and
+      chemical in a combination that most visitors find difficult to describe.
+    zone: kamino_cloning_halls
+    map_x: 43
+    map_y: 10
+    security_level: secured
+    exits:
+      back: tipoca_main_corridor
+      forward: tipoca_growth_chambers
+
+  - id: 360
+    slug: tipoca_growth_chambers
+    name: "Kamino - Growth Chambers"
+    short_desc: "The vast halls where clone troopers are grown in artificial wombs from the genetic template of Jango Fett."
+    description: >
+      The growth chambers stretch for hundreds of meters in every direction —
+      rows upon rows of transparent cylinders, each containing a clone
+      at some stage of accelerated development. Infants, children, young
+      soldiers — the entire process visible at once, age progressing down
+      each row like chapters in a book being written in real time. Kaminoan
+      technicians move between the rows with clipboards and calm expressions.
+      The sound is a constant low hum of life-support equipment. The weight
+      of what this place represents settles on most visitors after about
+      thirty seconds and does not lift.
+    zone: kamino_cloning_halls
+    map_x: 44
+    map_y: 10
+    security_level: secured
+    exits:
+      back: tipoca_cloning_access
+      training: tipoca_training_block_alpha
+      genetics: tipoca_genetics_lab
+
+  - id: 361
+    slug: tipoca_genetics_lab
+    name: "Kamino - Genetics Laboratory"
+    short_desc: "The research laboratory where Kaminoan scientists maintain and refine the clone template."
+    description: >
+      The genetics lab is the most restricted space in Tipoca City.
+      Kaminoan geneticists work at stations that connect to the master
+      genetic archive — the original Jango Fett template and the thousands
+      of modifications that have been made to it over ten years of
+      production refinement. ARC trooper specializations, medical variance
+      reduction, accelerated growth rate calibration — all documented,
+      all stored, all proprietary. The lab director, Nala Se, is the
+      most important person on Kamino and knows it with a completeness
+      that precludes arrogance.
+    zone: kamino_cloning_halls
+    map_x: 44
+    map_y: 9
+    security_level: secured
+    exits:
+      out: tipoca_growth_chambers
+
+  - id: 362
+    slug: tipoca_training_block_alpha
+    name: "Kamino - Training Block Alpha"
+    short_desc: "The primary combat training facility where clone troopers learn to fight."
+    description: >
+      Training Block Alpha is designed for large-scale simulated combat.
+      The floor can be reconfigured between drills — jungle terrain, urban
+      rubble, open plains. Clone cadets in training armor practice squad
+      tactics under the instruction of Kaminoan drill coordinators and
+      ARC trooper veterans. The cadets are indistinguishable from young
+      soldiers anywhere, except for their faces, which are identical, and
+      the strange camaraderie that exists between beings who have never
+      needed to introduce themselves.
+    zone: kamino_cloning_halls
+    map_x: 43
+    map_y: 9
+    security_level: secured
+    exits:
+      chambers: tipoca_growth_chambers
+      advanced: tipoca_advanced_training
+      barracks: tipoca_clone_barracks
+
+  - id: 363
+    slug: tipoca_advanced_training
+    name: "Kamino - Advanced Training Facility"
+    short_desc: "The restricted facility where ARC troopers and specialist units receive advanced conditioning."
+    description: >
+      The advanced training facility runs programs that most clone troopers
+      never see. ARC trooper qualification, null-g combat, advanced
+      infiltration, and Force-awareness exercises for the small number of
+      clones who test with elevated midi-chlorian counts — all handled here
+      behind additional security layers. The instructors are ARC trooper
+      veterans with combat experience. They don't speak much during
+      training. Neither do the students.
+    zone: kamino_cloning_halls
+    map_x: 43
+    map_y: 8
+    security_level: secured
+    exits:
+      back: tipoca_training_block_alpha
+
+  - id: 364
+    slug: tipoca_clone_barracks
+    name: "Kamino - Clone Barracks"
+    short_desc: "The residential block where active-duty clone troopers are billeted between training rotations."
+    description: >
+      The barracks are efficient and clean. Bunks are arranged in identical
+      rows; personal items — which are not numerous — are stored in identical
+      footlockers. The clones have developed their own culture within the
+      constraints of this space: shared games, collective storytelling,
+      unofficial names that the Kaminoans don't acknowledge but don't
+      prohibit. Kix has decorated the medical station he runs on the side
+      with anatomical charts. Fives keeps a small carved bird on his
+      bunk shelf. These small differences matter enormously.
+    zone: kamino_cloning_halls
+    map_x: 44
+    map_y: 8
+    housing: true
+    exits:
+      training: tipoca_training_block_alpha
+      mess: tipoca_clone_mess
+
+  - id: 365
+    slug: tipoca_clone_mess
+    name: "Kamino - Clone Mess Hall"
+    short_desc: "The communal dining facility for clone troopers in training and rotation."
+    description: >
+      The mess hall feeds tens of thousands of clones per day in efficient
+      rotating shifts. The food is nutritionally optimized and consistent —
+      flavors calibrated for human metabolism, prepared by automated systems,
+      served at exact intervals. Clone troopers eat in squad formation out
+      of habit. The mess is one of the few spaces where conversation between
+      clones is unrestricted. Listening to it — the jokes, the arguments,
+      the shared history of a single long shared childhood — makes the moral
+      arithmetic of what Kamino does very difficult to complete.
+    zone: kamino_cloning_halls
+    map_x: 45
+    map_y: 8
+    exits:
+      barracks: tipoca_clone_barracks
+
+  - id: 366
+    slug: tipoca_equipment_bay
+    name: "Kamino - Clone Equipment Bay"
+    short_desc: "The armory and equipment bay where clone troopers receive their armor, weapons, and kit."
+    description: >
+      Row upon row of Phase I clone armor — white, curved, mass-produced —
+      waits in standardized racks. Weapons are stored in locked cases,
+      issued at training and collected afterward. The clone troopers accept
+      their armor with the same matter-of-fact efficiency they bring to
+      everything: it fits because it was grown to fit. A Kaminoan equipment
+      manager processes transactions on a datapad. She has processed
+      approximately four million of these transactions in her career.
+    zone: kamino_cloning_halls
+    map_x: 45
+    map_y: 9
+    exits:
+      hub: tipoca_cloning_access
+
+  - id: 367
+    slug: tipoca_strategic_command
+    name: "Kamino - Strategic Command Center"
+    short_desc: "The joint Republic-Kaminoan command center coordinating clone deployment logistics."
+    description: >
+      The command center displays deployment orders for every clone unit
+      currently leaving Kamino and every batch scheduled for completion.
+      Republic officers assigned to Kamino as liaisons work alongside
+      Kaminoan coordinators in a relationship of productive mutual
+      tension. The holographic battle map on the central table shows
+      the current state of the war in dispassionate strategic terms:
+      blue units, red units, vectors of advance and retreat, casualty
+      projections. None of it accounts for the people.
+    zone: kamino_cloning_halls
+    map_x: 44
+    map_y: 11
+    security_level: secured
+    faction_override: republic
+    exits:
+      hub: tipoca_cloning_access
+
+  - id: 368
+    slug: tipoca_holding_cells
+    name: "Kamino - Security Holding Facility"
+    short_desc: "A secure holding area for individuals detained during security incidents."
+    description: >
+      Tipoca City has experienced three attempted infiltrations in the
+      past two years — one by Separatist agents, one by a journalist,
+      and one by a being whose affiliation is still classified. The
+      holding facility was expanded after the first incident. It is
+      designed for beings who are small enough to fit in standard
+      containment cells, which excludes Kaminoans and no one else
+      who has ever been detained here. The ARC trooper guard on duty
+      sits with the uncanny stillness of someone who has been perfectly
+      trained to wait.
+    zone: kamino_cloning_halls
+    map_x: 45
+    map_y: 10
+    security_level: secured
+    exits:
+      hub: tipoca_cloning_access
+
+  # ══════════════════════════════════════════════════════════════════════
+  # OCEAN PLATFORMS (contested/lawless) — 6 rooms
+  # The exterior of Tipoca City — wind, rain, ocean, aiwha.
+  # Also where smugglers land when they're not supposed to be here.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 369
+    slug: kamino_landing_platform_alpha
+    name: "Kamino - Landing Platform Alpha"
+    short_desc: "The primary landing platform of Tipoca City, lashed by constant rain and ocean wind."
+    description: >
+      Wind howls across the landing platform with enough force to make
+      standing still require conscious effort. Rain sheets horizontally.
+      The ocean is visible in every direction — dark, churning, enormous.
+      Aiwha, the large ray-like creatures native to Kamino's ocean, circle
+      the city's support pylons far below in lazy spirals. Clone troopers
+      in weatherproofed armor direct incoming Republic transports. The
+      platform has no cover; Kaminoan engineers designed it and appear
+      not to have considered the weather a relevant factor.
+    zone: kamino_ocean_platform
+    map_x: 39
+    map_y: 10
+    exits:
+      city: kamino_arrivals_hall         # zone-to-zone (platform → city)
+      south: kamino_lower_platform
+      maintenance: kamino_pylon_access
+
+  - id: 370
+    slug: kamino_lower_platform
+    name: "Kamino - Lower Platform"
+    short_desc: "A secondary platform at a lower elevation, used for supply deliveries and maintenance access."
+    description: >
+      The lower platform sits closer to the ocean surface — close enough
+      that large swells occasionally spray the deck during storms. Supply
+      transports dock here for bulk deliveries: nutrient solution, medical
+      supplies, equipment components. The noise of the ocean is physical
+      at this level. Kaminoan maintenance workers in sealed suits check
+      the pylon anchors on rotating schedule. Below the platform, the
+      pylons disappear into dark water of unknown depth.
+    zone: kamino_ocean_platform
+    map_x: 39
+    map_y: 11
+    exits:
+      north: kamino_landing_platform_alpha
+      east: kamino_pylon_access
+      down: kamino_ocean_surface
+
+  - id: 371
+    slug: kamino_pylon_access
+    name: "Kamino - Pylon Access Corridor"
+    short_desc: "The maintenance corridor running through Tipoca City's support pylons."
+    description: >
+      The pylon access corridor runs through the structural supports
+      that hold Tipoca City above the ocean. It is loud, vibrating
+      constantly with wave action transmitted through the pylons, and
+      lit by emergency lighting that gives everything a sickly yellow
+      tint. Maintenance droids work here continuously. It is also the
+      least monitored part of Tipoca City, a fact known to the Kaminoan
+      maintenance staff and, increasingly, to others.
+    zone: kamino_ocean_platform
+    map_x: 40
+    map_y: 11
+    security_level: contested
+    exits:
+      up: kamino_landing_platform_alpha
+      west: kamino_lower_platform
+      deeper: kamino_smuggler_dock
+
+  - id: 372
+    slug: kamino_smuggler_dock
+    name: "Kamino - Unauthorized Docking Point"
+    short_desc: "A concealed docking point beneath Tipoca City, used for unauthorized arrivals."
+    description: >
+      A section of the pylon structure that was modified, quietly, some
+      years ago. The modifications allow a small ship to dock beneath
+      the city's sensor umbrella, concealed by the constant electromagnetic
+      interference generated by the city's power systems. The Kaminoans
+      are aware this access point exists. They have not sealed it. The
+      question of why they haven't is, like many questions about Kamino,
+      answered primarily by money. Someone pays for the city's maintenance.
+      Not everyone who arrives wants to be logged.
+    zone: kamino_ocean_platform
+    map_x: 41
+    map_y: 11
+    security_level: lawless
+    exits:
+      out: kamino_pylon_access
+
+  - id: 373
+    slug: kamino_ocean_surface
+    name: "Kamino - Ocean Surface Platform"
+    short_desc: "An emergency observation platform at ocean level, rarely used by anyone."
+    description: >
+      At ocean level, Kamino is awe-inspiring and terrifying in equal
+      measure. The swells are four meters high on a calm day. The city
+      rises above on its pylons like an artificial cliff face. Aiwha
+      breach the surface nearby — enormous, graceful, improbable creatures
+      that exist in a world the clones above will never see. The platform
+      is technically for scientific observation; in practice, the
+      only beings who come here are those who need to think about
+      something very large and very quiet.
+    zone: kamino_ocean_platform
+    map_x: 38
+    map_y: 11
+    exits:
+      up: kamino_lower_platform
+
+  - id: 374
+    slug: kamino_aiwha_stable
+    name: "Kamino - Aiwha Stable"
+    short_desc: "A docking structure for the aiwha used by Kaminoans as traditional mounts."
+    description: >
+      Kaminoans are one of the few species who ride their planet's native
+      megafauna as a matter of cultural tradition rather than necessity.
+      The aiwha stable extends out from the city's lower level — an open
+      structure where several of the enormous ray-like creatures rest
+      between flights, their wings folded, their patience infinite.
+      They are not domesticated in any meaningful sense; they choose to
+      be here because the Kaminoans understand them. No clone trooper
+      has ever been recorded successfully approaching an aiwha. The
+      aiwha appear to find this assessment mutual.
+    zone: kamino_ocean_platform
+    map_x: 39
+    map_y: 12
+    exits:
+      up: kamino_lower_platform

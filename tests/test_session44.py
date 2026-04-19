@@ -358,7 +358,7 @@ class TestWebSocketResize:
             os.path.dirname(os.path.dirname(__file__)),
             "static", "client.html",
         )
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             return f.read()
 
     def test_ws_onopen_sends_resize(self, client_src):

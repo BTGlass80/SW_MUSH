@@ -1,0 +1,825 @@
+# data/worlds/clone_wars/planets/geonosis.yaml
+# Clone Wars Era — Geonosis
+# 35 rooms, 4 zones
+# Sources: Attack of the Clones (film), The Clone Wars Season 2 "Landing at Point Rain"
+#          and related episodes; general SW Legends canon for hive structure.
+#
+# Era context (~20 BBY):
+#   Geonosis was the site of the first major battle of the Clone Wars. The Republic
+#   launched a massive invasion, destroyed the droid foundries... temporarily. The
+#   Geonosians rebuilt underground and resumed production within months. The planet
+#   has been the subject of a second Republic campaign (TCW S2) and continues to be
+#   a contested CIS industrial heartland. The surface is scarred by orbital bombardment;
+#   the hive runs deeper than Republic sensors can map.
+#
+# Faction access:
+#   - CIS-aligned: friendly NPCs, reputation rewards, open access to most zones
+#   - Independent: cautious transit possible; no active hostility from Geonosians
+#   - Republic-aligned: B1 droid patrols treat as hostiles; Geonosian warriors attack on sight
+#
+# EXIT DISCIPLINE: per-room exits blocks, named exits for hub sub-destinations,
+#   cardinals for zone-to-zone. Validated round-trip.
+#
+# Zone layout:
+#   geonosis_surface       — scarred surface, landing pads, hive entrance (10 rooms)
+#   geonosis_deep_hive     — hive tunnels, Archduke's palace, ruling class (10 rooms)
+#   geonosis_petranaki     — the arena and preparation areas (5 rooms)
+#   geonosis_foundries     — droid factories, assembly lines, sabotage targets (10 rooms)
+
+planet: geonosis
+planet_display_name: "Geonosis"
+primary_city: "Stalgasin Hive"
+description: >
+  A desert world of rock spires and red dust, Geonosis is the industrial heart of
+  the Separatist war machine. The insectoid Geonosians built their civilization
+  underground — vast hive cities carved into the rock, connected by tunnels that
+  no non-Geonosian has ever fully mapped. On the surface, the scars of two Republic
+  invasions are still visible. Underground, the droid foundries have never stopped.
+
+rooms:
+
+  # ══════════════════════════════════════════════════════════════════════
+  # GEONOSIS SURFACE (lawless) — 10 rooms
+  # Hub: geonosis_landing_pad — player arrival point
+  # Hostile to Republic; dangerous to Independent without care.
+  # Surface is scarred, red, covered in rock spires.
+  # B1 droid patrols active.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 400
+    slug: geonosis_landing_pad
+    name: "Geonosis - Separatist Landing Platform"
+    short_desc: "A CIS-controlled landing platform carved into a Geonosian rock spire."
+    description: >
+      The landing platform juts from the side of a massive sandstone spire,
+      overlooking a landscape of red rock formations and war-scarred flats.
+      The sky is a hazy ochre. B1 battle droids in their distinctive tan
+      armor stand at security posts with the alert posture of things
+      designed to look alert. A Geonosian warrior — taller than a human,
+      wings folded, compound eyes tracking everything — oversees arrivals
+      with the territorial intensity of a species that has been defending
+      this rock for fifty thousand years. CIS transponder codes get a nod.
+      Everything else gets a weapon pointed at it.
+    zone: geonosis_surface
+    map_x: 50
+    map_y: 10
+    security_level: lawless
+    faction_override: cis
+    exits:
+      surface: geonosis_surface_approach
+      hive: geonosis_hive_entrance        # zone-to-zone (surface → deep hive)
+      foundry: geonosis_foundry_approach  # zone-to-zone (surface → foundries)
+      arena: geonosis_arena_gate          # zone-to-zone (surface → petranaki)
+
+  - id: 401
+    slug: geonosis_surface_approach
+    name: "Geonosis - Surface Approach Road"
+    short_desc: "The road between the landing platform and the main hive entrance, carved into the rock."
+    description: >
+      The road is not so much built as excavated — Geonosian engineering
+      prefers to remove stone rather than add to it. Rock walls rise on
+      either side, carved with Geonosian script and stylized battle imagery.
+      The twin suns of the Geonosian system beat down with relentless
+      intensity. Heat mirages shimmer over the red dust of the valley floor
+      below. Droid patrol units move in pairs along the road on fixed routes.
+      An independent traveler who moves confidently and doesn't touch anything
+      will usually be left alone. One who hesitates will be questioned.
+    zone: geonosis_surface
+    map_x: 51
+    map_y: 10
+    security_level: lawless
+    exits:
+      pad: geonosis_landing_pad
+      market: geonosis_surface_market
+      east: geonosis_spire_overlook
+
+  - id: 402
+    slug: geonosis_surface_market
+    name: "Geonosis - Surface Market"
+    short_desc: "An informal market at the hive's main surface entrance, where Geonosians, smugglers, and bounty hunters intersect."
+    description: >
+      The market is neither sanctioned nor suppressed by the Geonosian
+      hive — it simply exists, in the pragmatic way that commerce finds
+      a place wherever beings gather. Geonosian merchants sell raw materials
+      and droid components; a handful of off-world traders offer supplies
+      that don't arrive through official Separatist logistics. Bounty hunters
+      pass through regularly — Geonosis is a good place to find contracts
+      for both Republic and CIS targets. The Geonosians watch everything
+      and participate in nothing they don't profit from.
+    zone: geonosis_surface
+    map_x: 51
+    map_y: 9
+    security_level: lawless
+    vendor: true
+    exits:
+      road: geonosis_surface_approach
+      cis_recruiter: geonosis_cis_recruiter_office
+
+  - id: 403
+    slug: geonosis_cis_recruiter_office
+    name: "Geonosis - CIS Recruitment Office"
+    short_desc: "A Separatist recruiting office near the hive entrance, signing up new operatives for the Confederacy."
+    description: >
+      A converted Geonosian storage chamber serves as the CIS recruitment
+      office. A B2 super battle droid stands guard at the entrance. Inside,
+      a human Separatist liaison named Daven Rek manages applications from
+      beings who want to formally join the Confederacy. He is efficient,
+      ideologically flexible ("We welcome anyone who opposes Republic
+      tyranny"), and maintains a list of open contracts for independent
+      operators willing to work in an unofficial capacity. The pay is good.
+      The risk is understood.
+    zone: geonosis_surface
+    map_x: 50
+    map_y: 9
+    security_level: lawless
+    faction_override: cis
+    exits:
+      out: geonosis_surface_market
+
+  - id: 404
+    slug: geonosis_spire_overlook
+    name: "Geonosis - Spire Overlook"
+    short_desc: "A natural rock terrace with a commanding view of the Geonosian surface and the distant arena."
+    description: >
+      The rock terrace is a natural formation enhanced by Geonosian carving —
+      a flat observation point at the top of a minor spire, accessible by
+      a carved stairway. The view is stark and enormous: red rock formations
+      extending in every direction, the distant dome of the Petranaki Arena
+      visible to the south, and the smudge of orbital bombardment craters
+      from the two Republic invasions still visible on the northern plain.
+      The Geonosians rebuilt faster than the Republic expected. They are
+      doing so again.
+    zone: geonosis_surface
+    map_x: 52
+    map_y: 10
+    security_level: lawless
+    exits:
+      west: geonosis_surface_approach
+
+  - id: 405
+    slug: geonosis_droid_staging
+    name: "Geonosis - Droid Staging Ground"
+    short_desc: "A surface staging area where assembled battle droids are marshaled before deployment."
+    description: >
+      Columns of B1 battle droids stand in formation on the staging ground,
+      powered down and waiting for activation orders. Thousands of them —
+      the surface-level fraction of what the foundries below produce daily.
+      Geonosian drone engineers move between the columns running diagnostics.
+      OOM command droids stand at intervals, their yellow markings bright
+      against the tan armor of the rank-and-file units. Republic Intelligence
+      would pay extremely well for accurate numbers from this staging ground.
+      The staging ground itself would pay less well for anyone caught here
+      without authorization.
+    zone: geonosis_surface
+    map_x: 51
+    map_y: 11
+    security_level: lawless
+    faction_override: cis
+    exits:
+      north: geonosis_surface_approach
+
+  - id: 406
+    slug: geonosis_surface_ruins
+    name: "Geonosis - Battle Ruins"
+    short_desc: "The ruins of structures destroyed in the first Republic invasion — still uncleared."
+    description: >
+      The ruins of the original surface facilities destroyed in the first
+      battle of Geonosis remain largely uncleared — Geonosians are not
+      sentimental about wreckage, but they are practical about salvage,
+      and the salvage operation is ongoing. Twisted durasteel beams and
+      shattered stone lie half-buried in red dust. Clone trooper equipment —
+      helmets, weapons, comlinks — is visible among the rubble, still there
+      two years later. Neither side has the administrative momentum to
+      claim them.
+    zone: geonosis_surface
+    map_x: 49
+    map_y: 10
+    security_level: lawless
+    exits:
+      east: geonosis_landing_pad
+
+  - id: 407
+    slug: geonosis_hive_entrance
+    name: "Geonosis - Main Hive Entrance"
+    short_desc: "The primary entrance to the Stalgasin Hive, carved into a cliff face."
+    description: >
+      The hive entrance is enormous — designed for Geonosians who can fly,
+      but scaled up over millennia to accommodate their wingless cargo and
+      the occasional non-Geonosian guest. The cliff face around the entrance
+      is carved in concentric rings of Geonosian architectural detail —
+      battle friezes, lineage markers, and what appear to be warning symbols
+      in a script that no Republic linguist has fully translated. The air
+      changes at the threshold: cooler, darker, carrying the deep mechanical
+      hum of the hive operating far below. Geonosian warriors guard the
+      entrance with weapons and absolute territorial confidence.
+    zone: geonosis_surface
+    map_x: 52
+    map_y: 9
+    security_level: lawless
+    exits:
+      surface: geonosis_surface_approach
+      down: geonosis_upper_tunnel        # zone-to-zone (surface → deep hive)
+
+  - id: 408
+    slug: geonosis_arena_gate
+    name: "Geonosis - Arena Gate Road"
+    short_desc: "The road leading from the landing pads toward the Petranaki Arena."
+    description: >
+      The road to the arena is wider and better-maintained than anything
+      else on the Geonosian surface — the arena draws visitors, and visitors
+      need to arrive in a condition to spend money. Geonosian vendors sell
+      refreshments and betting slips along the approach. The dome of the
+      arena grows larger ahead; even partially ruined by the first Republic
+      invasion, it dominates the landscape. Sound carries from inside —
+      something is happening in the arena today. Something is always
+      happening in the arena.
+    zone: geonosis_surface
+    map_x: 50
+    map_y: 11
+    security_level: lawless
+    exits:
+      north: geonosis_landing_pad
+      south: petranaki_arena_entrance    # zone-to-zone (surface → petranaki)
+
+  - id: 409
+    slug: geonosis_foundry_approach
+    name: "Geonosis - Foundry Approach Tunnel"
+    short_desc: "The primary access tunnel leading from the surface to the underground droid foundries."
+    description: >
+      The foundry approach tunnel slopes downward from the surface at a
+      gentle grade, wide enough for cargo transport. The smell changes
+      immediately on entering — hot metal, lubricant, the ozone smell of
+      welding. The walls are lined with power conduits and conveyor
+      infrastructure. Geonosian drones move cargo in both directions with
+      efficient purpose. The sound of manufacturing grows louder with every
+      meter of descent. A checkpoint two-thirds of the way down requires
+      foundry authorization — Geonosian warrior guards with electrostaff
+      weapons make the alternative to authorization obvious.
+    zone: geonosis_surface
+    map_x: 49
+    map_y: 9
+    security_level: lawless
+    exits:
+      surface: geonosis_landing_pad
+      down: geonosis_foundry_main        # zone-to-zone (surface → foundries)
+
+  # ══════════════════════════════════════════════════════════════════════
+  # GEONOSIS DEEP HIVE (lawless) — 10 rooms
+  # The interior of the Stalgasin Hive. Geonosian ruling class territory.
+  # Archduke Poggle the Lesser's domain. CIS high-command presence.
+  # Claustrophobic for non-Geonosians; built for beings with wings.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 410
+    slug: geonosis_upper_tunnel
+    name: "Geonosis - Upper Hive Tunnel"
+    short_desc: "The upper section of the Stalgasin Hive tunnel network, connecting surface to the hive interior."
+    description: >
+      The upper tunnel is the most accessible part of the hive for
+      non-Geonosians — wider corridors, lower ceiling sections, and the
+      occasional concession to bipedal anatomy in the form of steps
+      rather than the Geonosians' preferred angled ramps. Bioluminescent
+      lichen has been cultivated in strips along the walls, providing
+      the only natural lighting. The deeper you go, the more the scale
+      shifts toward Geonosian proportions — higher ceilings, broader
+      vertical shafts for flying, corridors that assume you can navigate
+      in three dimensions.
+    zone: geonosis_deep_hive
+    map_x: 52
+    map_y: 8
+    security_level: lawless
+    exits:
+      up: geonosis_hive_entrance         # zone-to-zone (hive → surface)
+      down: geonosis_hive_main_chamber
+      east: geonosis_warrior_barracks
+
+  - id: 411
+    slug: geonosis_hive_main_chamber
+    name: "Geonosis - Main Hive Chamber"
+    short_desc: "The vast central chamber of the Stalgasin Hive, alive with Geonosian activity."
+    description: >
+      The main chamber is enormous — a natural cavern expanded over
+      millennia by Geonosian engineering into something that functions
+      like a city square. Multiple tunnel entrances open at different
+      heights; Geonosian drones and warriors move between them on wing,
+      the air thick with the drone of insectoid flight. CIS holographic
+      displays have been mounted at intervals, showing battle maps and
+      production statistics. The chamber has the controlled chaos of
+      a very large, very efficient organism going about its business.
+      A non-Geonosian who stands still too long gets noticed.
+    zone: geonosis_deep_hive
+    map_x: 52
+    map_y: 7
+    security_level: lawless
+    exits:
+      up: geonosis_upper_tunnel
+      palace: geonosis_archduke_approach
+      worker: geonosis_worker_district
+      south: geonosis_hive_market
+
+  - id: 412
+    slug: geonosis_warrior_barracks
+    name: "Geonosis - Warrior Caste Barracks"
+    short_desc: "The barracks of the Geonosian warrior caste, guardian of the hive."
+    description: >
+      The warrior barracks are designed for beings who sleep hanging from
+      the ceiling by their feet and spend their waking hours in motion.
+      The ceiling is studded with sleeping anchors; the floor is an
+      obstacle course of training equipment scaled for Geonosian anatomy.
+      Warrior-caste Geonosians regard non-Geonosians in their barracks
+      with the same expression they use for everything: compound-eyed,
+      facially neutral, implying that they could remove you from the
+      premises very quickly and are simply deciding whether to bother.
+    zone: geonosis_deep_hive
+    map_x: 53
+    map_y: 8
+    security_level: lawless
+    exits:
+      west: geonosis_upper_tunnel
+
+  - id: 413
+    slug: geonosis_archduke_approach
+    name: "Geonosis - Archduke's Palace Approach"
+    short_desc: "The ceremonial corridor leading to Archduke Poggle the Lesser's audience hall."
+    description: >
+      The approach corridor is the most deliberately intimidating space
+      in the Stalgasin Hive. The ceiling rises forty meters; the walls
+      are carved with the lineage history of Poggle's family line going
+      back three hundred generations. Warrior-caste Geonosians stand at
+      attention at five-meter intervals, weapons held at formal rest.
+      The floor is smooth black stone, polished by generations of supplicants.
+      The Archduke grants audiences at irregular intervals and expects
+      a level of deference that many visitors find challenging. Count
+      Dooku is the only being who has ever spoken to him as an equal
+      and been believed.
+    zone: geonosis_deep_hive
+    map_x: 51
+    map_y: 7
+    security_level: lawless
+    faction_override: cis
+    exits:
+      chamber: geonosis_hive_main_chamber
+      in: geonosis_archduke_audience_hall
+
+  - id: 414
+    slug: geonosis_archduke_audience_hall
+    name: "Geonosis - Archduke's Audience Hall"
+    short_desc: "The audience hall of Archduke Poggle the Lesser, paramount leader of Geonosis and key Separatist Council member."
+    description: >
+      Poggle the Lesser holds court from an elevated throne-platform that
+      keeps his head at the same level as a standing human's — a deliberate
+      architectural choice. The audience hall is walled with CIS military
+      insignia interspersed with Geonosian battle trophies. A holographic
+      display behind the throne shows current droid production figures.
+      Poggle's court translator, a protocol droid with diplomatic subroutines,
+      stands ready. The Archduke speaks only Geonosian and requires
+      translation for all audiences — or claims to. Those who work closely
+      with him suspect he understands Basic perfectly.
+    zone: geonosis_deep_hive
+    map_x: 50
+    map_y: 7
+    security_level: secured
+    faction_override: cis
+    exits:
+      out: geonosis_archduke_approach
+
+  - id: 415
+    slug: geonosis_worker_district
+    name: "Geonosis - Worker Caste District"
+    short_desc: "The tunnels housing the Geonosian worker caste — drone engineers and production workers."
+    description: >
+      The worker district is the hive's largest residential zone, if
+      Geonosian sleeping arrangements can be called residential. Drone-caste
+      Geonosians live here in communal clusters, their individual identities
+      so thoroughly subsumed in the collective that human observers find
+      it difficult to distinguish one from another. The workers support
+      the foundries below and the warrior caste above and seem, to the
+      extent that a hive-mind species can seem anything, entirely content
+      with this arrangement.
+    zone: geonosis_deep_hive
+    map_x: 52
+    map_y: 6
+    security_level: lawless
+    exits:
+      chamber: geonosis_hive_main_chamber
+      foundry: geonosis_foundry_upper    # zone-to-zone (hive → foundries)
+
+  - id: 416
+    slug: geonosis_hive_market
+    name: "Geonosis - Hive Interior Market"
+    short_desc: "A trading space within the hive where off-world traders deal with Geonosian merchants."
+    description: >
+      Deep within the hive, a pocket of commercial activity has formed
+      around the practical needs of the CIS presence. Geonosian merchants
+      trade raw mineral resources from the deep tunnels for off-world
+      components the foundries can't produce themselves. Off-world traders
+      who have navigated to this point are considered trusted enough by
+      the hive to be tolerated. The market has an informal security
+      arrangement: the Geonosians handle anyone who causes trouble,
+      and their definition of "handle" is not the legal one.
+    zone: geonosis_deep_hive
+    map_x: 52
+    map_y: 8
+    security_level: lawless
+    vendor: true
+    exits:
+      chamber: geonosis_hive_main_chamber
+
+  - id: 417
+    slug: geonosis_cis_command_post
+    name: "Geonosis - CIS Field Command Post"
+    short_desc: "A Separatist military command installation within the hive, coordinating Geonosis defense."
+    description: >
+      The CIS field command post is tucked into a reinforced chamber
+      adjacent to the main hive. A tactical holographic display shows
+      the disposition of droid forces on the surface and in the tunnels.
+      A Neimoidian general manages operations with the anxious efficiency
+      of someone who knows that a second Republic invasion is inevitable
+      and is trying to delay it through pure administrative thoroughness.
+      B2 super battle droids stand guard; Magna Guards are positioned
+      near the command center door.
+    zone: geonosis_deep_hive
+    map_x: 53
+    map_y: 7
+    security_level: lawless
+    faction_override: cis
+    exits:
+      chamber: geonosis_hive_main_chamber
+
+  - id: 418
+    slug: geonosis_deep_tunnel
+    name: "Geonosis - Deep Hive Tunnel"
+    short_desc: "A deep tunnel connecting the main hive to the lower foundry levels, wide enough for cargo transport."
+    description: >
+      The deep tunnel descends at a steeper grade than the upper approaches,
+      its walls cut through older rock that predates the current hive by
+      thousands of years. The original Geonosian script carved here is in
+      an archaic form that even Geonosian scholars have difficulty reading.
+      The tunnel is heavily trafficked by cargo drones moving between the
+      foundry levels and the hive above. The temperature rises steadily
+      with descent. The sound of manufacturing becomes the baseline hum
+      against which all other sounds are measured.
+    zone: geonosis_deep_hive
+    map_x: 51
+    map_y: 6
+    security_level: lawless
+    exits:
+      up: geonosis_worker_district
+      down: geonosis_foundry_upper
+
+  - id: 419
+    slug: geonosis_hive_medical
+    name: "Geonosis - Hive Medical Station"
+    short_desc: "A Separatist medical station within the hive, serving CIS personnel and injured Geonosian warriors."
+    description: >
+      The medical station serves both Geonosian and humanoid patients with
+      approximately equal competence and approximately unequal bedside
+      manner. A Baktoid medical droid manages triage; a Twi'lek medic
+      handles humanoid patients; Geonosian healers deal with warrior-caste
+      injuries using methods that look brutal and work remarkably well.
+      The station is theoretically neutral — any being who comes for medical
+      assistance is treated. Whether they are also reported to the CIS
+      command post afterward depends on the circumstances.
+    zone: geonosis_deep_hive
+    map_x: 53
+    map_y: 6
+    security_level: lawless
+    exits:
+      chamber: geonosis_hive_main_chamber
+
+  # ══════════════════════════════════════════════════════════════════════
+  # PETRANAKI ARENA (contested) — 5 rooms
+  # The iconic execution pit of AotC. Still operational as a gladiatorial
+  # venue; Republic prisoners are a regular feature.
+  # Instanced combat candidate.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 420
+    slug: petranaki_arena_entrance
+    name: "Geonosis - Petranaki Arena - Entrance"
+    short_desc: "The main entrance to the Petranaki Arena, Geonosis's infamous gladiatorial venue."
+    description: >
+      The arena entrance is a broad colonnade of carved stone, its arches
+      depicting stylized combat scenes from three thousand years of
+      Geonosian gladiatorial tradition. Vendors sell refreshments and
+      betting opportunities outside. Geonosian warriors manage the crowd
+      with the easy authority of those who know that everyone here
+      came voluntarily. The sounds of the arena carry clearly — the roar
+      of Geonosian spectators, the clash of combat, the particular sound
+      that sand makes when something large falls onto it.
+    zone: geonosis_petranaki
+    map_x: 50
+    map_y: 12
+    security_level: contested
+    exits:
+      north: geonosis_arena_gate         # zone-to-zone (petranaki → surface)
+      in: geonosis_arena_stands
+      pit: geonosis_arena_floor          # named: direct to pit (one-way access for combatants)
+      prep: geonosis_arena_prep_room
+
+  - id: 421
+    slug: geonosis_arena_stands
+    name: "Geonosis - Petranaki Arena - Stands"
+    short_desc: "The tiered viewing stands of the Petranaki Arena, where Geonosians watch gladiatorial combat."
+    description: >
+      The stands encircle the arena floor in rising tiers, built for
+      Geonosian anatomy — perches rather than seats, angled for a species
+      that can grip with its feet. The capacity is tens of thousands;
+      on busy days every perch is occupied. The acoustics concentrate
+      the crowd sound into the pit below with remarkable efficiency,
+      creating a wall of noise that — the Geonosians understand — is
+      itself a form of pressure on the combatants below. Today the stands
+      are perhaps half full. A group of CIS officers occupies a reserved
+      section near the top, watching with professional assessment.
+    zone: geonosis_petranaki
+    map_x: 50
+    map_y: 13
+    security_level: contested
+    exits:
+      entrance: petranaki_arena_entrance
+
+  - id: 422
+    slug: geonosis_arena_floor
+    name: "Geonosis - Petranaki Arena - Floor"
+    short_desc: "The sand floor of the Petranaki Arena — the iconic execution and gladiatorial pit."
+    description: >
+      The arena floor is a circle of red-brown sand, fifty meters across,
+      enclosed by walls too smooth and too high to climb unaided. The sand
+      has absorbed a great deal of blood over three thousand years and shows
+      it in its dark, irregular patches. In the center, the restraining posts
+      where Padmé Amidala, Anakin Skywalker, and Obi-Wan Kenobi were chained
+      two years ago are still in place — the Geonosians see no reason to
+      remove them. Three sealed gates in the wall lead to the creature pens.
+      The crowd sound from above is physical at this level, a pressure in
+      the chest.
+    zone: geonosis_petranaki
+    map_x: 51
+    map_y: 13
+    security_level: lawless
+    exits:
+      stands: geonosis_arena_stands
+      prep: geonosis_arena_prep_room
+
+  - id: 423
+    slug: geonosis_arena_prep_room
+    name: "Geonosis - Petranaki Arena - Preparation Room"
+    short_desc: "The gladiatorial preparation chamber beneath the arena stands."
+    description: >
+      The preparation room is where combatants wait before entering the
+      arena floor. Stone benches, weapon racks, and a medical station
+      that the Geonosians keep supplied because damaged combatants don't
+      perform well. The room currently holds two humans — a smuggler
+      who owed a debt to a Geonosian merchant, and a Republic scout
+      who was captured three days ago. They are sitting as far apart as
+      the room allows and not talking. The gate to the arena floor is
+      iron-reinforced. It opens from the outside.
+    zone: geonosis_petranaki
+    map_x: 49
+    map_y: 13
+    security_level: lawless
+    exits:
+      floor: geonosis_arena_floor
+      entrance: petranaki_arena_entrance
+
+  - id: 424
+    slug: geonosis_creature_pens
+    name: "Geonosis - Petranaki Arena - Creature Pens"
+    short_desc: "The holding pens for the arena's combat creatures — nexu, reek, and acklay."
+    description: >
+      The creature pens run beneath the arena floor in a horseshoe
+      arrangement, each pen sealed by heavy gates operated from above.
+      A nexu paces its enclosure with the constant, restless movement
+      of something that has learned there is no out but still cannot
+      stop looking. The reek pen is empty — the last one died last week
+      and the replacement hasn't arrived from Codian Moon yet. The acklay
+      pen has warning signs in six languages. A Geonosian handler checks
+      the feeding schedule from a safe distance with the expression of
+      a professional who has made their peace with the work.
+    zone: geonosis_petranaki
+    map_x: 51
+    map_y: 12
+    security_level: lawless
+    exits:
+      prep: geonosis_arena_prep_room
+
+  # ══════════════════════════════════════════════════════════════════════
+  # DROID FOUNDRIES (lawless) — 10 rooms
+  # The industrial heart of the Separatist war machine.
+  # Sabotage missions for Republic; production missions for CIS.
+  # Always operational. Always loud.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 425
+    slug: geonosis_foundry_main
+    name: "Geonosis - Droid Foundry - Main Floor"
+    short_desc: "The main floor of the primary Geonosian droid foundry, producing B1 battle droids around the clock."
+    description: >
+      The foundry main floor is the loudest place in the Geonosian system.
+      Assembly lines the length of city blocks produce B1 battle droids
+      in a continuous, synchronized process — stamping, welding, painting,
+      installing the basic droid brain, moving to the next station. The
+      smell is hot metal and machine oil. The temperature is brutal. The
+      noise is physical. Geonosian drone engineers oversee the lines from
+      elevated catwalks, making adjustments with the calm precision of
+      beings who find this environment entirely natural. Everything here
+      is a sabotage target. Nothing here is unguarded.
+    zone: geonosis_foundries
+    map_x: 48
+    map_y: 10
+    security_level: lawless
+    faction_override: cis
+    exits:
+      surface: geonosis_foundry_approach  # zone-to-zone (foundries → surface)
+      hive: geonosis_foundry_upper
+      lines: geonosis_b2_assembly
+      control: geonosis_foundry_control
+      storage: geonosis_component_storage
+
+  - id: 426
+    slug: geonosis_foundry_upper
+    name: "Geonosis - Foundry Upper Level"
+    short_desc: "The upper level of the foundry complex, connecting to the hive tunnels above."
+    description: >
+      The upper foundry level is the administrative and logistics layer —
+      where production orders arrive from the CIS command post, where raw
+      material allocations are calculated, and where Geonosian foremen
+      coordinate between the hive above and the production floors below.
+      Less loud than the main floor, but the vibration travels through
+      the rock in a constant reminder of what is happening beneath your
+      feet. A conveyor system running through sealed tubes carries finished
+      droid components between levels.
+    zone: geonosis_foundries
+    map_x: 48
+    map_y: 9
+    security_level: lawless
+    exits:
+      hive: geonosis_deep_tunnel         # zone-to-zone (foundries → hive)
+      down: geonosis_foundry_main
+
+  - id: 427
+    slug: geonosis_b2_assembly
+    name: "Geonosis - B2 Super Battle Droid Assembly"
+    short_desc: "A dedicated assembly line for the heavier B2 super battle droid units."
+    description: >
+      The B2 line runs at roughly one-third the speed of the B1 line —
+      the heavier droids require more precise assembly. The units emerging
+      from the line are visibly more capable than their B1 counterparts:
+      built-in wrist blasters, heavier armor plating, and a droid brain
+      with enough combat processing to run independent tactical decisions.
+      A full B2 fresh off the line is standing upright and running
+      diagnostics before it reaches the end of the assembly run. The
+      first thing most of them do is look at their hands.
+    zone: geonosis_foundries
+    map_x: 47
+    map_y: 10
+    security_level: lawless
+    exits:
+      main: geonosis_foundry_main
+
+  - id: 428
+    slug: geonosis_foundry_control
+    name: "Geonosis - Foundry Control Center"
+    short_desc: "The control center managing all production lines in the primary foundry."
+    description: >
+      The control center is a Geonosian-designed masterwork of production
+      management — every assembly line, every conveyor, every raw material
+      feed monitored and adjustable from a central console designed for
+      six-fingered hands. The production figures displayed here are the
+      numbers that CIS command reports to Count Dooku. They are impressive.
+      The numbers that the Geonosian operators actually know — accounting
+      for the secondary lines running in the deeper tunnels — are more
+      impressive still. Sabotaging this room would not stop production.
+      It would slow it by approximately 40% for roughly three days.
+    zone: geonosis_foundries
+    map_x: 49
+    map_y: 9
+    security_level: lawless
+    faction_override: cis
+    exits:
+      main: geonosis_foundry_main
+
+  - id: 429
+    slug: geonosis_component_storage
+    name: "Geonosis - Component Storage"
+    short_desc: "Vast storage chambers holding droid components, weapons systems, and raw materials."
+    description: >
+      The storage chambers are carved directly into the rock — natural
+      caverns expanded by Geonosian excavation and lined with shelving
+      systems that extend from floor to ceiling. Droid components,
+      weapons systems, power cells, and raw materials are stored in a
+      cataloguing system that is opaque to non-Geonosians and perfectly
+      efficient for those who can read it. The items stored here represent
+      the production capacity of weeks of work. A well-placed explosive
+      could set production back by months. The Geonosians are aware of
+      this. The security reflects the awareness.
+    zone: geonosis_foundries
+    map_x: 47
+    map_y: 9
+    security_level: lawless
+    exits:
+      main: geonosis_foundry_main
+
+  - id: 430
+    slug: geonosis_secondary_foundry
+    name: "Geonosis - Secondary Foundry (Deep Level)"
+    short_desc: "A secondary foundry in the deepest accessible tunnels, running production the surface surveys miss."
+    description: >
+      The secondary foundry is the Geonosians' answer to the question
+      "what happens if the Republic bombs the primary foundry again?"
+      Deeper, smaller, and optimized for the droid components that are
+      hardest to reproduce — droid brain processors, sensor arrays, and
+      the specialized components that make a Magnaguard functional rather
+      than merely mobile. The Republic doesn't know this level exists.
+      The Geonosians would like to keep it that way. Characters who reach
+      this level without authorization are not given the opportunity to
+      report back.
+    zone: geonosis_foundries
+    map_x: 47
+    map_y: 11
+    security_level: lawless
+    exits:
+      up: geonosis_foundry_main
+
+  - id: 431
+    slug: geonosis_worker_staging
+    name: "Geonosis - Worker Staging Area"
+    short_desc: "The area where Geonosian drones and CIS technicians begin their foundry shifts."
+    description: >
+      The staging area functions as the foundry's common area — a space
+      where workers collect their assignments, receive safety briefings
+      (such as they are), and transfer between shifts. CIS technical
+      supervisors who work alongside the Geonosian drones meet here for
+      briefings. The Geonosians who are here are always doing something
+      specific. CIS personnel who are here without a clear purpose are
+      the exception; they stand out.
+    zone: geonosis_foundries
+    map_x: 48
+    map_y: 11
+    security_level: lawless
+    exits:
+      north: geonosis_foundry_main
+
+  - id: 432
+    slug: geonosis_cis_engineering_bay
+    name: "Geonosis - CIS Engineering Bay"
+    short_desc: "A technical workshop where CIS engineers modify and upgrade droid designs."
+    description: >
+      The engineering bay is where the theoretical becomes the practical.
+      CIS engineers — a mix of Neimoidians, humans, and other species
+      recruited from across the Separatist technical corps — work on
+      modifications to existing droid designs and prototypes of new ones.
+      Several B1 battle droids with non-standard modifications stand
+      against one wall in various stages of testing. A prototype on the
+      center workbench appears to be attempting to solve a puzzle box.
+      It has been attempting this for two weeks. The lead engineer
+      regards this as progress.
+    zone: geonosis_foundries
+    map_x: 49
+    map_y: 11
+    security_level: lawless
+    faction_override: cis
+    exits:
+      main: geonosis_foundry_main
+
+  - id: 433
+    slug: geonosis_power_generator
+    name: "Geonosis - Foundry Power Generator"
+    short_desc: "The massive power generation facility feeding the droid foundries — the highest-value sabotage target."
+    description: >
+      The power generator is the foundry's most critical infrastructure.
+      It draws geothermal energy from Geonosis's naturally volcanic deep
+      rock, converting it through a chain of turbines that fill a chamber
+      the size of a small starship hangar. The generator feeds every
+      assembly line, every welding station, every conveyor in the primary
+      foundry complex. Destroying it would halt primary foundry production
+      for weeks. The Geonosians know this. The security detail — two
+      Magnaguards and a rotating Geonosian warrior patrol — reflects the
+      prioritization.
+    zone: geonosis_foundries
+    map_x: 46
+    map_y: 10
+    security_level: lawless
+    exits:
+      east: geonosis_foundry_main
+
+  - id: 434
+    slug: geonosis_output_bay
+    name: "Geonosis - Droid Output Bay"
+    short_desc: "The bay where completed battle droids are staged for transport to the surface and deployment."
+    description: >
+      The output bay is where the foundry's work becomes the war's
+      resource. Completed battle droids — B1s in their thousands,
+      B2s in their hundreds, occasional Droidekas rolling in their
+      characteristic ball configuration — are staged here for loading
+      onto transport ships that dock at the surface platforms above.
+      The pace of output has accelerated significantly since the second
+      Republic invasion. Count Dooku had words with the Archduke about
+      the gap between the pre-invasion production rate and what was
+      required. The current rate is the result of that conversation.
+    zone: geonosis_foundries
+    map_x: 49
+    map_y: 10
+    security_level: lawless
+    exits:
+      foundry: geonosis_foundry_main
+      surface: geonosis_foundry_approach  # zone-to-zone shortcut (foundries → surface)

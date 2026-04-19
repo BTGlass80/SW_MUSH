@@ -420,7 +420,7 @@ class TestClientBoardingUI:
             os.path.dirname(os.path.dirname(__file__)),
             "static", "client.html",
         )
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             return f.read()
 
     def test_boarding_overlay_element_present(self, client_src):
