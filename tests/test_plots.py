@@ -8,6 +8,20 @@ import time
 import pytest
 import aiosqlite
 
+
+# ── Event-loop fixture (Python 3.14 compatibility) ─────────────────────────────
+# asyncio.get_event_loop() no longer auto-creates a loop in 3.14 outside a
+# coroutine. We can't use asyncio.run() either — aiosqlite connections are
+# loop-bound, so the fixture's connection has to live on the same loop as
+# the test bodies' run_until_complete calls. One shared loop per module.
+
+@pytest.fixture(scope="module")
+def event_loop_for_tests():
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
 # ── Fixture: in-memory DB with schema ──────────────────────────────────────────
 
 class FakeDB:
@@ -33,7 +47,7 @@ class FakeDB:
         await self._db.commit()
 
 @pytest.fixture
-def db():
+def db(event_loop_for_tests):
     """Create an in-memory SQLite DB with plots + scenes schema."""
     async def _make():
         conn = await aiosqlite.connect(":memory:")
@@ -135,14 +149,14 @@ def db():
 
         return FakeDB(conn)
 
-    return asyncio.get_event_loop().run_until_complete(_make())
+    return event_loop_for_tests.run_until_complete(_make())
 
 
 # ── Tests ──────────────────────────────────────────────────────────────────────
 
-def test_create_plot(db):
+def test_create_plot(db, event_loop_for_tests):
     from engine.plots import create_plot
-    p = asyncio.get_event_loop().run_until_complete(
+    p = event_loop_for_tests.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Rescue Mission",
                     summary="Rescue the princess from the Death Star")
     )
@@ -154,9 +168,9 @@ def test_create_plot(db):
     assert p["status"] == "open"
 
 
-def test_get_plot(db):
+def test_get_plot(db, event_loop_for_tests):
     from engine.plots import create_plot, get_plot
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Test Plot")
     )
@@ -165,15 +179,15 @@ def test_get_plot(db):
     assert p["title"] == "Test Plot"
 
 
-def test_get_plot_not_found(db):
+def test_get_plot_not_found(db, event_loop_for_tests):
     from engine.plots import get_plot
-    p = asyncio.get_event_loop().run_until_complete(get_plot(db, 999))
+    p = event_loop_for_tests.run_until_complete(get_plot(db, 999))
     assert p is None
 
 
-def test_get_open_plots(db):
+def test_get_open_plots(db, event_loop_for_tests):
     from engine.plots import create_plot, get_open_plots, close_plot
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Open Plot")
     )
@@ -187,9 +201,9 @@ def test_get_open_plots(db):
     assert plots[0]["title"] == "Open Plot"
 
 
-def test_get_all_plots(db):
+def test_get_all_plots(db, event_loop_for_tests):
     from engine.plots import create_plot, get_all_plots, close_plot
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Plot A")
     )
@@ -205,9 +219,9 @@ def test_get_all_plots(db):
     assert len(open_only) == 1
 
 
-def test_update_plot_summary(db):
+def test_update_plot_summary(db, event_loop_for_tests):
     from engine.plots import create_plot, update_plot, get_plot
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Test")
     )
@@ -218,9 +232,9 @@ def test_update_plot_summary(db):
     assert p["summary"] == "Updated summary"
 
 
-def test_close_and_reopen(db):
+def test_close_and_reopen(db, event_loop_for_tests):
     from engine.plots import create_plot, close_plot, reopen_plot, get_plot
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Arc")
     )
@@ -233,9 +247,9 @@ def test_close_and_reopen(db):
     assert p["status"] == "open"
 
 
-def test_link_scene(db):
+def test_link_scene(db, event_loop_for_tests):
     from engine.plots import create_plot, link_scene, get_scene_count
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Arc")
     )
@@ -245,9 +259,9 @@ def test_link_scene(db):
     assert count == 1
 
 
-def test_link_scene_duplicate(db):
+def test_link_scene_duplicate(db, event_loop_for_tests):
     from engine.plots import create_plot, link_scene
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Arc")
     )
@@ -256,9 +270,9 @@ def test_link_scene_duplicate(db):
     assert ok is False  # Already linked
 
 
-def test_unlink_scene(db):
+def test_unlink_scene(db, event_loop_for_tests):
     from engine.plots import create_plot, link_scene, unlink_scene, get_scene_count
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Arc")
     )
@@ -269,9 +283,9 @@ def test_unlink_scene(db):
     assert count == 0
 
 
-def test_unlink_not_found(db):
+def test_unlink_not_found(db, event_loop_for_tests):
     from engine.plots import create_plot, unlink_scene
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Arc")
     )
@@ -279,9 +293,9 @@ def test_unlink_not_found(db):
     assert ok is False
 
 
-def test_get_plot_scenes(db):
+def test_get_plot_scenes(db, event_loop_for_tests):
     from engine.plots import create_plot, link_scene, get_plot_scenes
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Arc")
     )
@@ -294,9 +308,9 @@ def test_get_plot_scenes(db):
     assert scenes[1]["title"] == "Escape from Tatooine"
 
 
-def test_plot_scenes_include_participants(db):
+def test_plot_scenes_include_participants(db, event_loop_for_tests):
     from engine.plots import create_plot, link_scene, get_plot_scenes
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Arc")
     )
@@ -308,9 +322,9 @@ def test_plot_scenes_include_participants(db):
     assert "Han" in scenes[0]["participants"]
 
 
-def test_plot_scenes_include_pose_count(db):
+def test_plot_scenes_include_pose_count(db, event_loop_for_tests):
     from engine.plots import create_plot, link_scene, get_plot_scenes
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Arc")
     )
@@ -320,9 +334,9 @@ def test_plot_scenes_include_pose_count(db):
     assert scenes[0]["pose_count"] == 2
 
 
-def test_link_updates_plot_timestamp(db):
+def test_link_updates_plot_timestamp(db, event_loop_for_tests):
     from engine.plots import create_plot, link_scene, get_plot
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     p1 = loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Arc")
     )
@@ -334,9 +348,9 @@ def test_link_updates_plot_timestamp(db):
     assert p2["updated_at"] > original_ts
 
 
-def test_get_my_plots_as_creator(db):
+def test_get_my_plots_as_creator(db, event_loop_for_tests):
     from engine.plots import create_plot, get_my_plots
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Luke's Plot")
     )
@@ -348,9 +362,9 @@ def test_get_my_plots_as_creator(db):
     assert my[0]["title"] == "Luke's Plot"
 
 
-def test_get_my_plots_as_participant(db):
+def test_get_my_plots_as_participant(db, event_loop_for_tests):
     from engine.plots import create_plot, link_scene, get_my_plots
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     # Han creates plot, links scene 1 (which Luke participates in)
     loop.run_until_complete(
         create_plot(db, creator_id=2, creator_name="Han", title="Han's Arc")
@@ -363,9 +377,9 @@ def test_get_my_plots_as_participant(db):
     assert my[0]["title"] == "Han's Arc"
 
 
-def test_scene_count_empty(db):
+def test_scene_count_empty(db, event_loop_for_tests):
     from engine.plots import create_plot, get_scene_count
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Empty")
     )
@@ -373,9 +387,9 @@ def test_scene_count_empty(db):
     assert count == 0
 
 
-def test_update_no_fields(db):
+def test_update_no_fields(db, event_loop_for_tests):
     from engine.plots import create_plot, update_plot
-    loop = asyncio.get_event_loop()
+    loop = event_loop_for_tests
     loop.run_until_complete(
         create_plot(db, creator_id=1, creator_name="Luke", title="Test")
     )

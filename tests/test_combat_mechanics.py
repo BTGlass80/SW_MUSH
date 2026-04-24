@@ -41,7 +41,12 @@ except ImportError:
     def is_melee_skill(s):
         return s.lower() in ("brawling", "melee combat", "lightsaber")
 
-pytestmark = pytest.mark.asyncio
+# ── S60/P1d: pytestmark removed (was: `pytestmark = pytest.mark.asyncio`).
+# Every test function in this file is sync. With `asyncio_mode = auto` in
+# pytest.ini, async tests auto-receive the asyncio mark; sync tests don't
+# need it. The module-level pytestmark was generating a PytestWarning on
+# every sync test. No functional change.
+
 
 # ── Helpers ──
 

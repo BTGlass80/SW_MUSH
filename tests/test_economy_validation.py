@@ -22,7 +22,12 @@ import json
 import time
 from tests.harness import strip_ansi, assert_output_contains, assert_credits_in_range
 
-pytestmark = pytest.mark.asyncio
+# ── S60/P1d: pytestmark removed (was: `pytestmark = pytest.mark.asyncio`).
+# Async tests in this file are decorated individually; sync tests (the
+# majority) don't need the mark. `asyncio_mode = auto` in pytest.ini
+# handles async-detection for us. Removing the module-level mark silences
+# ~49 `not an async function` warnings with no functional change.
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -37,17 +42,17 @@ class TestTradeGoodsPricing:
         from engine.trading import get_planet_price, TRADE_GOODS
         raw_ore = TRADE_GOODS["raw_ore"]
 
-        # Tatooine is source for raw_ore (50%), Corellia is demand (200%)
+        # Tatooine is source for raw_ore (70%), Corellia is demand (140%)
         source_price = get_planet_price(raw_ore, "tatooine")
         demand_price = get_planet_price(raw_ore, "corellia")
         normal_price = get_planet_price(raw_ore, "nar_shaddaa")
 
         assert source_price < normal_price < demand_price
-        assert source_price == 50   # 100 * 0.50
-        assert demand_price == 200  # 100 * 2.00
+        assert source_price == 70   # 100 * 0.70
+        assert demand_price == 140  # 100 * 1.40
 
     def test_best_route_margin_capped(self):
-        """The best single-good route should not exceed 300% return."""
+        """The best single-good route should not exceed 150% return (v29)."""
         from engine.trading import get_planet_price, TRADE_GOODS
 
         best_ratio = 0
@@ -62,9 +67,8 @@ class TestTradeGoodsPricing:
                         best_ratio = ratio
                         best_route = f"{good.name}: {source}→{dest} ({buy}→{sell})"
 
-        # At 50%/200% multipliers the max is 4x. The audit flagged this.
-        # Document the current state for tracking.
-        assert best_ratio <= 5.0, \
+        # At 70%/140% multipliers the max is 2x (v29 — narrowed from 4x).
+        assert best_ratio <= 2.5, \
             f"Trade route ratio too high ({best_ratio:.1f}x): {best_route}"
 
     def test_supply_pool_exists(self):
@@ -309,7 +313,7 @@ class TestMissionSkillChecks:
         Verify by checking the import exists in mission_commands.py.
         """
         import ast
-        with open("parser/mission_commands.py", "r") as f:
+        with open("parser/mission_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
 
         assert "resolve_mission_completion" in source, \
@@ -360,14 +364,14 @@ class TestCraftingEconomics:
 
     def test_survey_uses_skill_check(self):
         """Survey should route through perform_skill_check."""
-        with open("parser/crafting_commands.py", "r") as f:
+        with open("parser/crafting_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         assert "perform_skill_check" in source or "_skill_check" in source, \
             "Survey does not use skill check routing"
 
     def test_crafting_requires_resources(self):
         """Craft command should check for required resources."""
-        with open("parser/crafting_commands.py", "r") as f:
+        with open("parser/crafting_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         assert "resource" in source.lower(), \
             "Craft command doesn't reference resources"
@@ -465,7 +469,7 @@ class TestCreditSinks:
 
     def test_sabacc_house_rake_exists(self):
         """Sabacc should have a house rake (net sink)."""
-        with open("parser/sabacc_commands.py", "r") as f:
+        with open("parser/sabacc_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         assert "rake" in source.lower() or "house" in source.lower() or \
                "0.9" in source or "0.10" in source or "10%" in source, \
@@ -478,7 +482,7 @@ class TestCreditSinks:
 
     def test_docking_fee_wired(self):
         """Docking fees should exist as a sink."""
-        with open("server/tick_handlers_economy.py", "r") as f:
+        with open("server/tick_handlers_economy.py", "r", encoding="utf-8") as f:
             source = f.read()
         assert "docking_fee" in source.lower() or "dock" in source.lower(), \
             "Docking fee handler not found in tick_handlers_economy.py"
@@ -649,7 +653,7 @@ class TestFaucetRates:
     def test_entertainer_performance_capped(self):
         """Entertainer earnings should have rate limiting."""
         # Check that perform command has some form of cooldown
-        with open("parser/entertainer_commands.py", "r") as f:
+        with open("parser/entertainer_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         assert "cooldown" in source.lower() or "remaining" in source.lower() \
                or "last_perform" in source.lower() or "wait" in source.lower(), \
@@ -670,7 +674,7 @@ class TestSkillCheckInvariant:
 
     def test_no_direct_roll_in_crafting(self):
         """Crafting commands should not call roll_d6_pool directly."""
-        with open("parser/crafting_commands.py", "r") as f:
+        with open("parser/crafting_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         # Should use _skill_check wrapper, not roll_d6_pool
         lines = source.split("\n")
@@ -687,7 +691,7 @@ class TestSkillCheckInvariant:
 
     def test_no_direct_roll_in_missions(self):
         """Mission commands should not call roll_d6_pool directly."""
-        with open("parser/mission_commands.py", "r") as f:
+        with open("parser/mission_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         lines = source.split("\n")
         violations = []
@@ -703,7 +707,7 @@ class TestSkillCheckInvariant:
 
     def test_no_direct_roll_in_smuggling(self):
         """Smuggling commands should not call roll_d6_pool directly."""
-        with open("parser/smuggling_commands.py", "r") as f:
+        with open("parser/smuggling_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         lines = source.split("\n")
         violations = []
@@ -725,7 +729,7 @@ class TestSkillCheckInvariant:
 
     def test_no_direct_roll_in_espionage(self):
         """Espionage commands should not call roll_d6_pool directly."""
-        with open("parser/espionage_commands.py", "r") as f:
+        with open("parser/espionage_commands.py", "r", encoding="utf-8") as f:
             source = f.read()
         lines = source.split("\n")
         violations = []
