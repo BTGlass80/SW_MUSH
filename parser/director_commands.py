@@ -360,10 +360,9 @@ class EconomyCommand(BaseCommand):
         "  @economy credits   — credit distribution across active characters\n"
         "  @economy zones     — Director zone influence + alert levels\n"
         "  @economy velocity  — credit faucet/sink flow (1h, 24h, 7d)\n"
-        "  @economy alerts    — whale txns, farming chars, inflation snapshot\n"
         "  @economy           — all of the above"
     )
-    usage = "@economy [shops|credits|zones|velocity|alerts]"
+    usage = "@economy [shops|credits|zones|velocity]"
 
     async def execute(self, ctx: CommandContext):
         parts = (ctx.args or "").split()
@@ -377,7 +376,6 @@ class EconomyCommand(BaseCommand):
         show_credits  = sub in ("all", "credits")
         show_zones    = sub in ("all", "zones")
         show_velocity = sub in ("all", "velocity")
-        show_alerts   = sub in ("all", "alerts")
 
         # ── Shop stats ────────────────────────────────────────────────────
         if show_shops:
@@ -513,98 +511,6 @@ class EconomyCommand(BaseCommand):
                         lines.append(f"    {name:<20}  {total:>+10,} cr")
             except Exception as e:
                 lines.append(f"  Velocity stats error: {e}")
-
-        # ── Alerts (whale txns, farming, inflation) ──────────────────────
-        if show_alerts:
-            try:
-                lines.append("  \033[1;33mECONOMY ALERTS\033[0m")
-                # Thresholds — match the audit doc §7.1 recommendations.
-                # Tunable here since this is the only consumer.
-                WHALE_THRESHOLD     = 50000   # |delta| ≥ this is a whale txn
-                FARMING_HOURLY      = 5000    # cr/hr earnings
-                FARMING_HOURS       = 2       # sustained for this many hours
-                FARMING_LOOKBACK_S  = 14400   # in the last 4h
-                INFLATION_PCT       = 0.20    # net flow ≥ 20% of circulation
-
-                # ── Whale alerts (24h) ──
-                whales = await ctx.db.get_whale_transactions(
-                    threshold=WHALE_THRESHOLD, seconds=86400,
-                )
-                if whales:
-                    lines.append(f"  \033[1;31m▲ WHALE TRANSACTIONS\033[0m "
-                                 f"(|Δ| ≥ {WHALE_THRESHOLD:,} cr, last 24h):")
-                    for w in whales[:5]:
-                        try:
-                            ch = await ctx.db.get_character(w["char_id"])
-                            name = ch["name"] if ch else f"char#{w['char_id']}"
-                        except Exception:
-                            name = f"char#{w['char_id']}"
-                        sign = "+" if w["delta"] > 0 else ""
-                        lines.append(
-                            f"    {name:<20}  {sign}{w['delta']:>+10,} cr  "
-                            f"({w['source']})"
-                        )
-                else:
-                    lines.append(
-                        f"  \033[1;32m✓\033[0m No whale txns "
-                        f"(≥{WHALE_THRESHOLD:,} cr) in last 24h"
-                    )
-
-                # ── Farming alerts (rolling 4h window) ──
-                farmers = await ctx.db.get_farming_alerts(
-                    hourly_threshold=FARMING_HOURLY,
-                    sustained_hours=FARMING_HOURS,
-                    lookback_seconds=FARMING_LOOKBACK_S,
-                )
-                if farmers:
-                    lines.append(
-                        f"  \033[1;31m▲ FARMING ALERTS\033[0m "
-                        f"(≥{FARMING_HOURLY:,} cr/hr for "
-                        f"{FARMING_HOURS}+ hr, last "
-                        f"{FARMING_LOOKBACK_S // 3600}h):"
-                    )
-                    for f in farmers[:5]:
-                        try:
-                            ch = await ctx.db.get_character(f["char_id"])
-                            name = ch["name"] if ch else f"char#{f['char_id']}"
-                        except Exception:
-                            name = f"char#{f['char_id']}"
-                        lines.append(
-                            f"    {name:<20}  "
-                            f"{f['hours_over_threshold']}h over thr  "
-                            f"peak {f['peak_hour_total']:>+10,}/hr  "
-                            f"total {f['total_in_window']:>+10,} cr"
-                        )
-                else:
-                    lines.append(
-                        f"  \033[1;32m✓\033[0m No farming alerts "
-                        f"(≥{FARMING_HOURLY:,} cr/hr × "
-                        f"{FARMING_HOURS}h sustained)"
-                    )
-
-                # ── Inflation snapshot (24h) ──
-                infl = await ctx.db.get_inflation_metrics(seconds=86400)
-                pct = infl["flow_pct"] * 100.0
-                pct_str = f"{pct:+.1f}%"
-                if abs(infl["flow_pct"]) >= INFLATION_PCT:
-                    color = "\033[1;31m▲" if infl["flow_pct"] > 0 else "\033[1;33m▼"
-                    label = ("INFLATION" if infl["flow_pct"] > 0
-                             else "DEFLATION")
-                    lines.append(
-                        f"  {color} {label} ALERT\033[0m  "
-                        f"net {infl['net_flow']:+,} cr / "
-                        f"circ {infl['circulation']:,} cr = {pct_str} "
-                        f"(threshold ±{int(INFLATION_PCT*100)}%)"
-                    )
-                else:
-                    lines.append(
-                        f"  \033[1;32m✓\033[0m Net flow {pct_str} of "
-                        f"circulation ({infl['net_flow']:+,} / "
-                        f"{infl['circulation']:,} cr) — within ±"
-                        f"{int(INFLATION_PCT*100)}% threshold"
-                    )
-            except Exception as e:
-                lines.append(f"  Alerts error: {e}")
 
         lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
         await ctx.session.send_line("\n".join(lines))

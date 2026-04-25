@@ -401,8 +401,9 @@ a { color: inherit; text-decoration: none; }
 
 /* WOUND status block — central D6 health display.
    Wound levels (R&E p67): 0=Healthy, 1=Stunned, 2=Wounded, 3=Wounded Twice,
-   4=Incapacitated, 5=Mortally Wounded, 6=Killed. We render 6 LED pips and
-   the active level glows red; we show the textual level above. */
+   4=Incapacitated, 5=Mortally Wounded, 6=Killed. Drop C (F1, F10) renders
+   all 7 rungs as a vertical ladder with right-aligned penalty column;
+   DEAD is hidden until reached. */
 .wound-block {
   margin-bottom: 12px;
   padding: 8px 10px;
@@ -425,22 +426,93 @@ a { color: inherit; text-decoration: none; }
 .wound-head .w-status.incap     { color: var(--pad-red); }
 .wound-head .w-status.mortal    { color: var(--pad-red); text-shadow: 0 0 4px var(--pad-red); }
 .wound-head .w-status.killed    { color: var(--pad-red); text-shadow: 0 0 6px var(--pad-red); }
-.wound-pips {
-  display: flex; gap: 4px; align-items: center;
-}
-.wound-pip {
-  flex: 1; height: 10px; background: #000;
-  border: 1px solid var(--accent-dim);
-  position: relative;
-}
-.wound-pip.taken {
-  background: var(--pad-amber);
-  box-shadow: inset 0 0 3px rgba(0,0,0,0.4), 0 0 4px rgba(255,200,87,0.4);
-}
-.wound-pip.taken.severe { background: var(--pad-red); box-shadow: inset 0 0 3px rgba(0,0,0,0.4), 0 0 5px rgba(255,90,74,0.6); }
 
-/* STUN damage badge — only rendered when stun_damage > 0. Stun is a
-   discrete tracked state (R&E p67), not a percentage. */
+/* F1 + F10 — wound ladder: vertical list of all 7 rungs (DEAD hidden until reached).
+   Active rung: filled pip + glow. Below-active: filled pip in dim color.
+   Above-active: empty pip outline. Penalty column right-aligned with fixed width. */
+.wound-ladder {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.wound-rung {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; letter-spacing: 1px;
+  padding: 1px 0;
+  color: var(--pad-text-dim);
+}
+.wound-rung.below { color: var(--pad-amber-dim); }
+.wound-rung.active {
+  font-weight: 700;
+}
+.wound-rung.active.sev-ok    { color: var(--pad-green); text-shadow: 0 0 6px var(--pad-green); }
+.wound-rung.active.sev-warn  { color: var(--pad-amber); text-shadow: 0 0 6px var(--pad-amber); }
+.wound-rung.active.sev-hurt  { color: var(--pad-red); text-shadow: 0 0 6px var(--pad-red); }
+.wound-rung.active.sev-crit  { color: var(--pad-red); text-shadow: 0 0 6px var(--pad-red); }
+.wound-rung.active.sev-dead  { color: var(--pad-red); text-shadow: 0 0 8px var(--pad-red); }
+.wound-rung-pip {
+  display: inline-block; width: 8px; height: 8px;
+  border: 1px solid var(--pad-amber-dim);
+  flex-shrink: 0;
+  background: transparent;
+}
+.wound-rung.below .wound-rung-pip {
+  background: var(--pad-amber-dim);
+}
+.wound-rung.active.sev-ok    .wound-rung-pip { background: var(--pad-green);  border-color: var(--pad-green);  box-shadow: 0 0 6px var(--pad-green); }
+.wound-rung.active.sev-warn  .wound-rung-pip { background: var(--pad-amber);  border-color: var(--pad-amber);  box-shadow: 0 0 6px var(--pad-amber); }
+.wound-rung.active.sev-hurt  .wound-rung-pip { background: var(--pad-red);    border-color: var(--pad-red);    box-shadow: 0 0 6px var(--pad-red); }
+.wound-rung.active.sev-crit  .wound-rung-pip { background: var(--pad-red);    border-color: var(--pad-red);    box-shadow: 0 0 6px var(--pad-red); }
+.wound-rung.active.sev-dead  .wound-rung-pip { background: var(--pad-red);    border-color: var(--pad-red);    box-shadow: 0 0 8px var(--pad-red); }
+.wound-rung-label {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* F10 — fixed-width right-aligned penalty column keeps rungs in vertical alignment */
+.wound-rung-pen {
+  min-width: 28px; text-align: right;
+  font-size: 9px;
+}
+
+/* F8 — STUN COUNTERS strip. Replaces the prior single-state STUNNED badge.
+   Capacity = strength dice (KO threshold per R&E: stun_count >= STR.dice).
+   Each pip filled = one currently-active stun (-1D each on actions).
+   Hidden when force_sensitive PCs would push the panel too tall AND
+   stun_count == 0 — kept visible whenever STR.dice > 0 and stun > 0,
+   so players can see capacity at a glance during combat. */
+.stun-block {
+  margin-bottom: 10px;
+}
+.stun-block .stun-head {
+  font-size: 10px; letter-spacing: 2px; color: var(--accent-dim);
+  margin-bottom: 4px;
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.stun-block .stun-count-text {
+  font-family: var(--font-display); color: var(--pad-amber);
+  font-size: 11px; letter-spacing: 1px;
+}
+.stun-block .stun-count-text.severe { color: var(--pad-red); }
+.stun-pips {
+  display: flex; gap: 5px; align-items: center;
+}
+.stun-pip {
+  width: 11px; height: 11px;
+  border: 1.5px solid var(--pad-amber);
+  background: transparent;
+  transition: all 120ms;
+}
+.stun-pip.filled {
+  background: var(--pad-amber);
+  box-shadow: 0 0 6px var(--pad-amber);
+}
+.stun-pip.severe {
+  border-color: var(--pad-red);
+}
+.stun-pip.filled.severe {
+  background: var(--pad-red);
+  box-shadow: 0 0 6px var(--pad-red);
+}
+
+/* Legacy stun-badge — retained for backwards compatibility with code paths
+   that haven't migrated to the strip yet; .stun-block is the new path. */
 .stun-badge {
   display: inline-block; margin-bottom: 12px;
   padding: 3px 8px; font-size: 10px; letter-spacing: 2px;
@@ -459,6 +531,11 @@ a { color: inherit; text-decoration: none; }
   margin-bottom: 12px; display: none;
 }
 .fp-block.show { display: block; }
+/* Force-sensitive PCs get a Control/Sense/Alter block right after attributes */
+.force-skills-block {
+  margin-top: 8px; display: none;
+}
+.force-skills-block.show { display: block; }
 .fp-head {
   font-size: 10px; letter-spacing: 2px; color: var(--accent-dim);
   margin-bottom: 4px;
@@ -889,6 +966,59 @@ a { color: inherit; text-decoration: none; }
   flex-shrink: 0;
 }
 .map-frame svg { width: 100%; height: 100%; display: block; }
+
+/* ════════════════════════════════════════════════════════════════════
+   AREA MAP — room markers (dot + label-above pattern)
+   Per-room <g class="rm rm-sec-{secure|contested|lawless} [rm-current] [rm-adj]">
+     <circle class="rm-pulse">  -- only on current room (animated)
+     <circle class="rm-halo">   -- only on adjacent rooms
+     <circle class="rm-dot">    -- the room marker itself
+     <text   class="rm-icon">   -- optional unicode glyph for room type
+     <text   class="rm-label">  -- room name above dot
+   Edges drawn as <line class="rm-edge [rm-edge-adj]"> between dot positions.
+   ════════════════════════════════════════════════════════════════════ */
+.rm-edge {
+  stroke: var(--accent-dim); stroke-width: 0.7;
+  stroke-dasharray: 2.5 2; opacity: 0.55;
+}
+.rm-edge-adj {
+  stroke: var(--accent); stroke-width: 1.0;
+  stroke-dasharray: none; opacity: 0.85;
+}
+.rm-pulse  { stroke: var(--accent-bright); stroke-width: 0.8; opacity: 0.7; }
+.rm-halo   {
+  fill: none; stroke: var(--accent-bright); stroke-width: 0.6;
+  stroke-dasharray: 1.5 1.2; opacity: 0.55;
+}
+.rm-dot    { stroke-width: 1.0; }
+.rm-sec-secure    .rm-dot { fill: var(--self);   stroke: var(--self); }
+.rm-sec-contested .rm-dot { fill: var(--accent); stroke: var(--accent); }
+.rm-sec-lawless   .rm-dot { fill: var(--warn);   stroke: var(--warn); }
+.rm-current       .rm-dot { stroke: var(--accent-bright); stroke-width: 1.4; filter: drop-shadow(0 0 2px var(--accent)); }
+.rm-icon {
+  fill: #000; font-size: 4.5px; font-family: var(--font-mono);
+  font-weight: 700; pointer-events: none;
+  dominant-baseline: middle;
+}
+.rm-label {
+  font-size: 9px; font-family: var(--font-mono);
+  fill: var(--accent); pointer-events: none;
+  letter-spacing: 0.3px;
+}
+.rm-current .rm-label { fill: var(--accent-bright); font-weight: 600; }
+.rm-adj     .rm-label { fill: var(--accent-bright); }
+.rm-empty {
+  fill: var(--accent-dim); font-size: 11px;
+  font-family: var(--font-mono);
+}
+.rm-leader {
+  stroke: var(--accent-dim); stroke-width: 0.5;
+  stroke-dasharray: 1 1; opacity: 0.7;
+  pointer-events: none;
+}
+.rm-adj { cursor: pointer; }
+.rm-adj:hover .rm-dot { stroke-width: 1.6; }
+.rm-adj:hover .rm-halo { opacity: 0.95; stroke-dasharray: none; }
 .map-legend {
   font-size: 9px; letter-spacing: 1px; color: var(--accent-dim);
   margin-top: 8px;
@@ -2014,11 +2144,18 @@ a { color: inherit; text-decoration: none; }
             <span class="w-key">WOUND</span>
             <span class="w-status healthy" id="g-wound-status">HEALTHY</span>
           </div>
-          <div class="wound-pips" id="g-wound-pips">
-            <div class="wound-pip"></div><div class="wound-pip"></div><div class="wound-pip"></div>
-            <div class="wound-pip"></div><div class="wound-pip"></div><div class="wound-pip"></div>
-          </div>
+          <!-- F1 + F10: 7-rung wound ladder (DEAD hidden until reached). Populated by JS. -->
+          <div class="wound-ladder" id="g-wound-ladder"></div>
         </div>
+        <!-- F8: stun-counter strip. Capacity = STR dice; pips filled = active stuns. Hidden when STR unknown or no stuns active. -->
+        <div class="stun-block" id="g-stun-block" style="display:none;">
+          <div class="stun-head">
+            <span>▮▮ STUN COUNTERS</span>
+            <span class="stun-count-text" id="g-stun-count-text">—</span>
+          </div>
+          <div class="stun-pips" id="g-stun-pips"></div>
+        </div>
+        <!-- Legacy badge — preserved for code paths not yet migrated to the strip. Drop C hides this by default. -->
         <span class="stun-badge" id="g-stun-badge" style="display:none;">STUNNED</span>
         <div class="fp-block" id="g-fp-block">
           <div class="fp-head">
@@ -2036,6 +2173,15 @@ a { color: inherit; text-decoration: none; }
           <div class="attr-row"><span class="attr-key">PER</span><span class="attr-val" id="g-attr-per">—</span></div>
           <div class="attr-row"><span class="attr-key">STR</span><span class="attr-val" id="g-attr-str">—</span></div>
           <div class="attr-row"><span class="attr-key">TEC</span><span class="attr-val" id="g-attr-tec">—</span></div>
+        </div>
+
+        <div class="force-skills-block" id="g-force-skills-block">
+          <div class="section-label spaced">▮▮ FORCE</div>
+          <div class="attr-grid">
+            <div class="attr-row"><span class="attr-key">CTRL</span><span class="attr-val" id="g-force-control">—</span></div>
+            <div class="attr-row"><span class="attr-key">SENS</span><span class="attr-val" id="g-force-sense">—</span></div>
+            <div class="attr-row"><span class="attr-key">ALTR</span><span class="attr-val" id="g-force-alter">—</span></div>
+          </div>
         </div>
 
         <div class="credits-panel">
@@ -2522,6 +2668,113 @@ var AUTOSCROLL_THRESHOLD_PX = 60; // within this distance of bottom = auto-scrol
 var TOAST_DURATION_MS = 5000;
 var STAGE_TIMEOUT_MS = 30000;    // staged command auto-clears after 30s
 
+// ── FIELD KIT TOKENS & HELPERS ──────────────────────────────────────
+// Drop A: ports drop_v2/prototype/tokens.jsx (the JS portion).
+// CSS palette vars already in :root above; this section ports the JS
+// constants and helpers so subsequent drops (B/C/D/E) can call them.
+//
+//   F1  — WOUND_RUNGS: all 7 wound levels (was 6 in prior client)
+//   F8  — stunCap(strengthDice): KO threshold from STR.dice (was hardcoded 3)
+//   F11 — conditionColor(): map a condition string to its theme color
+//   F13 — CONDITION_COLORS keyed in title-case (matches engine output)
+//
+// Browser-console smoke tests (Drop A acceptance):
+//   WOUND_RUNGS.length === 7
+//   woundRung(3).label === 'WOUNDED ×2'
+//   stunCap(4) === 4
+//   conditionColor('Light Damage') === FK.cockGreen
+
+// FK — JS twin of the :root CSS palette. Same hex values; needed when
+// inline-styling, drawing on canvas, or building HTML via template
+// literals — places where var(--…) doesn't easily flow.
+var FK = {
+  // Datapad (ground)
+  padShell:        '#2a2220', padShellDark:    '#1a1412', padBezel:       '#1e1815',
+  padScreen:       '#14200e', padScreenDim:    '#0b1408',
+  padAmber:        '#ffc857', padAmberBright:  '#ffe3a0', padAmberDim:    '#8a6220',
+  padGreen:        '#7ce068', padRed:          '#ff6e4a',
+  padText:         '#d9b472', padTextDim:      '#7a5e2e',
+  // Cockpit (space)
+  cockMetal:       '#2e3540', cockMetalDark:   '#1a2028', cockMetalLight: '#3e4855',
+  cockScreen:      '#04141a', cockScreenDim:   '#02090d',
+  cockCyan:        '#6ee8ff', cockCyanDim:     '#2e7080',
+  cockAmber:       '#ffa640', cockRed:         '#ff5a4a', cockGreen:      '#7ce068',
+  cockText:        '#bfd8e4', cockTextDim:     '#5a7584'
+};
+
+// F1 — canonical wound ladder. Mirrors engine/character.py WoundLevel
+// (IntEnum 0..6). `sev` lets the theme map color without re-declaring
+// hex values per surface.
+var WOUND_RUNGS = [
+  { v: 0, label: 'HEALTHY',     pen: '',    sev: 'ok'   },
+  { v: 1, label: 'STUNNED',     pen: '',    sev: 'warn' },  // penalty from stun_timers, not this rung
+  { v: 2, label: 'WOUNDED',     pen: '-1D', sev: 'warn' },
+  { v: 3, label: 'WOUNDED \u00d72',  pen: '-2D', sev: 'hurt' },  // ×2 — \u00d7 to keep file ASCII-clean
+  { v: 4, label: 'INCAP',       pen: '',    sev: 'crit' },  // can_act = false at/above here
+  { v: 5, label: 'MORTAL',      pen: '',    sev: 'crit' },
+  { v: 6, label: 'DEAD',        pen: '',    sev: 'dead' }
+];
+
+function woundRung(level) {
+  for (var i = 0; i < WOUND_RUNGS.length; i++) {
+    if (WOUND_RUNGS[i].v === level) return WOUND_RUNGS[i];
+  }
+  return WOUND_RUNGS[0];
+}
+
+// Map severity → theme color. Themes: 'pad' (ground) | 'cockpit' (space).
+function woundColor(sev, theme) {
+  if (theme === 'cockpit') {
+    if (sev === 'ok')   return FK.cockGreen;
+    if (sev === 'warn') return FK.cockAmber;
+    if (sev === 'hurt') return FK.cockRed;
+    if (sev === 'crit') return FK.cockRed;
+    if (sev === 'dead') return FK.cockTextDim;
+    return FK.cockText;
+  }
+  if (sev === 'ok')   return FK.padGreen;
+  if (sev === 'warn') return FK.padAmber;
+  if (sev === 'hurt') return FK.padRed;
+  if (sev === 'crit') return FK.padRed;
+  if (sev === 'dead') return FK.padTextDim;
+  return FK.padText;
+}
+
+// F8 — stun cap derives from STR dice count (engine: KO when
+// len(stun_timers) >= character.strength.dice).
+function stunCap(strengthDice) {
+  var n = Number(strengthDice);
+  return (isFinite(n) && n > 0) ? n : 3;  // conservative fallback
+}
+
+// F13 — title-case condition keys (engine returns "Light Damage" etc.)
+var CONDITION_COLORS = {
+  'Pristine':        FK.cockGreen,
+  'Light Damage':    FK.cockGreen,
+  'Moderate Damage': FK.cockAmber,
+  'Heavy Damage':    FK.cockAmber,
+  'Critical Damage': FK.cockRed,
+  'Destroyed':       FK.cockRed
+};
+
+function conditionColor(cond) {
+  if (!cond) return FK.cockCyan;
+  // Accept any case — normalize to title-case for lookup
+  var key = String(cond).toLowerCase().replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+  return CONDITION_COLORS[key] || FK.cockCyan;
+}
+
+// Expose to window for browser-console smoke tests (Drop A acceptance).
+// Not the primary access path — code inside this IIFE references the
+// IIFE-local var directly; window.* is debug surface only.
+window.FK = FK;
+window.WOUND_RUNGS = WOUND_RUNGS;
+window.woundRung = woundRung;
+window.woundColor = woundColor;
+window.stunCap = stunCap;
+window.CONDITION_COLORS = CONDITION_COLORS;
+window.conditionColor = conditionColor;
+
 // ── STATE ───────────────────────────────────────────────────────────
 var ws = null;
 var intentionalDisconnect = false;
@@ -2737,6 +2990,7 @@ function buildRow(ev) {
     case 'present': {
       var html = '<div class="present-label">◆ ALSO HERE</div>';
       (ev.people || []).forEach(function(p) {
+        rememberActorName(p.name);  // populate classifier roster
         html += '<div class="present-item"><span class="present-name">' + escapeHtml(p.name) + '</span>' +
           (p.desc ? '<span class="present-desc"> · ' + escapeHtml(p.desc) + '</span>' : '') + '</div>';
       });
@@ -3013,10 +3267,18 @@ function classifyAndAppend(rawText) {
       i++; continue;
     }
 
-    // Simple pose: starts with capitalized name then a verb, no quotes
+    // Simple pose: starts with capitalized name then a verb, no quotes.
+    //
+    // GUARD: This regex is dangerously permissive — any sentence opening
+    // with "Capital lowercase ..." matches it. Without a roster check, lines
+    // like "A battered YT-series freighter settles..." rendered as a pose
+    // by character "A". So we now only accept the match when the captured
+    // name is in our known-actor roster (self, recent pose-event actors,
+    // current room occupants from `present` events). Unknown capitalized
+    // first words fall through to plain text (correct for prose).
     var simplePoseMatch = stripped.match(/^([A-Z][\w'-]*(?:\s[A-Z][\w'-]*){0,3})\s+([a-z][a-z'-]+(?:s|es|ed)?)\s+(.{8,})$/);
-    if (simplePoseMatch && !looksLikeSysLine(stripped)) {
-      // Heuristic: looks like a pose if the name is recognizable & it's not a sys line
+    if (simplePoseMatch && !looksLikeSysLine(stripped) &&
+        isKnownActor(simplePoseMatch[1])) {
       appendEvent({
         t: isSelfName(simplePoseMatch[1]) ? 'pose-self' : 'pose',
         who: simplePoseMatch[1],
@@ -3061,6 +3323,34 @@ function classifyAndAppend(rawText) {
 function isSelfName(name) {
   if (!lastHud.name || !name) return false;
   return name.trim().toLowerCase() === String(lastHud.name).trim().toLowerCase();
+}
+
+// ── Known-actor roster ───────────────────────────────────────────────
+// The text classifier's simplePoseMatch regex would misfire on any prose
+// sentence opening with a capitalized word ("A battered freighter…",
+// "Heavy cover available", "Cracked duracrete steps…"). To prevent that,
+// we maintain a roster of names we know belong to real actors and only
+// accept a pose match when the captured name is in the roster.
+//
+// Populated from:
+//   - lastHud.name (the player's own character)
+//   - 'present' room-occupant events (handlePresentList)
+//   - 'pose_event' messages (handlePoseEvent — actors appear here as they
+//     speak/pose, even before any 'present' refresh)
+//   - explicit hud_update with character_id/name (in case 'present' is delayed)
+//
+// We never remove names — staleness costs us nothing, and an exiting NPC's
+// last pose still needs to render. Roster is a per-session in-memory Set.
+var knownActorNames = new Set();
+function rememberActorName(name) {
+  if (!name) return;
+  var s = String(name).trim().toLowerCase();
+  if (s) knownActorNames.add(s);
+}
+function isKnownActor(name) {
+  if (!name) return false;
+  if (isSelfName(name)) return true;
+  return knownActorNames.has(String(name).trim().toLowerCase());
 }
 
 function looksLikeSysLine(s) {
@@ -3173,7 +3463,7 @@ function sendCmd(text) {
     return;
   }
   try {
-    ws.send(JSON.stringify({ type: 'cmd', data: text }));
+    ws.send(JSON.stringify({ input: text }));
   } catch (e) {
     appendEvent({ t: 'sys-event', text: 'Send failed: ' + e.message });
   }
@@ -3319,6 +3609,10 @@ function handleHudUpdate(data) {
       if (inp) inp.focus();
     }, 100);
   }
+  // Self goes into the actor roster so the classifier can identify the
+  // player's own simple poses (when emitted as plain text rather than
+  // structured pose_event).
+  if (data.name) rememberActorName(data.name);
   // Char name + meta — meta builds from species/template/faction.
   // Faction is derived from the reputation dict (entries with is_member: true).
   if (data.name !== undefined) $('g-char-name').textContent = data.name || '—';
@@ -3353,69 +3647,152 @@ function handleHudUpdate(data) {
 
   // Vitals — WOUND model (R&E p67): wound_level 0=Healthy, 1=Stunned,
   // 2=Wounded, 3=Wounded Twice, 4=Incapacitated, 5=Mortally Wounded, 6=Killed.
-  // Render 6 pips, fill one per level taken, sever color past level 4.
+  // Drop C (F1, F10): canonical 7-rung ladder via WOUND_RUNGS; DEAD (rung 6)
+  // hidden until reached. Penalty column right-aligned (CSS).
   if (data.wound_level !== undefined) {
     var wl = Math.max(0, Math.min(6, Number(data.wound_level)));
     var statusEl = $('g-wound-status');
     var statusName = (data.wound_name || ['HEALTHY','STUNNED','WOUNDED','WOUNDED 2x','INCAPACITATED','MORTALLY WOUNDED','KILLED'][wl]).toUpperCase();
     statusEl.textContent = statusName;
     statusEl.className = 'w-status ' + ['healthy','stunned','wounded','wounded2','incap','mortal','killed'][wl];
-    var pipsEl = $('g-wound-pips');
-    pipsEl.innerHTML = '';
-    for (var pi = 0; pi < 6; pi++) {
-      var pip = document.createElement('div');
-      pip.className = 'wound-pip' + (pi < wl ? ' taken' + (pi >= 3 ? ' severe' : '') : '');
-      pipsEl.appendChild(pip);
+
+    var ladderEl = $('g-wound-ladder');
+    if (ladderEl) {
+      ladderEl.innerHTML = '';
+      // F1: render WOUND_RUNGS rows. Hide DEAD (v=6) unless actually reached.
+      for (var ri = 0; ri < WOUND_RUNGS.length; ri++) {
+        var rung = WOUND_RUNGS[ri];
+        if (rung.v === 6 && wl < 6) continue;
+        var active = (rung.v === wl);
+        var below = (rung.v < wl);
+        var row = document.createElement('div');
+        row.className = 'wound-rung'
+          + (active ? ' active sev-' + rung.sev : '')
+          + (below  ? ' below' : '');
+        var pip = document.createElement('span');
+        pip.className = 'wound-rung-pip';
+        var label = document.createElement('span');
+        label.className = 'wound-rung-label';
+        label.textContent = (active ? '\u25b8 ' : '') + rung.label;  // ▸ marker on active
+        var pen = document.createElement('span');
+        pen.className = 'wound-rung-pen';
+        pen.textContent = rung.pen || '';
+        row.appendChild(pip);
+        row.appendChild(label);
+        row.appendChild(pen);
+        ladderEl.appendChild(row);
+      }
     }
   }
 
-  // STUN badge — only render if currently stunned (separate from wound track).
-  // The server reports stun via the wound_level 1 = "Stunned" state, but stun
-  // damage can also accumulate independently; we surface either signal.
-  var stunBadge = $('g-stun-badge');
-  var isStunned = (data.wound_level === 1) || (data.stun_damage && data.stun_damage > 0);
-  if (isStunned) {
-    stunBadge.style.display = '';
-    stunBadge.textContent = data.stun_damage > 1 ? 'STUNNED ×' + data.stun_damage : 'STUNNED';
-    stunBadge.classList.toggle('severe', (data.stun_damage || 0) > 2);
-  } else {
-    stunBadge.style.display = 'none';
+  // F8 — STUN COUNTERS strip. Capacity from STR.dice (parsed from
+  // attributes.strength dice string like "3D+1"); active stun count from
+  // server's active_stun_count (added in Drop C server-side change).
+  // KO threshold per R&E: active_stun_count >= STR.dice. Strip is hidden
+  // when STR.dice unknown OR when no stuns are active (panel stays compact
+  // for unstunned characters).
+  var stunBlock = $('g-stun-block');
+  var legacyStunBadge = $('g-stun-badge');
+  var strDiceStr = (data.attributes && data.attributes.strength) ? String(data.attributes.strength) : '';
+  var strMatch = strDiceStr.match(/^(\d+)D/);
+  var strDice = strMatch ? Number(strMatch[1]) : 0;
+  var stunCount = Number(data.active_stun_count || 0);
+  if (stunBlock) {
+    if (strDice > 0 && stunCount > 0) {
+      var stunMax = stunCap(strDice);
+      var severe = (stunCount >= stunMax);  // at/over KO threshold
+      stunBlock.style.display = '';
+      var countText = $('g-stun-count-text');
+      if (countText) {
+        countText.textContent = stunCount + '/' + stunMax + (severe ? ' KO' : ' \u00b7 -' + stunCount + 'D');
+        countText.classList.toggle('severe', severe);
+      }
+      var stunPips = $('g-stun-pips');
+      if (stunPips) {
+        stunPips.innerHTML = '';
+        // Render up to stunMax pips; clamp display if stunCount exceeds cap.
+        var displayCount = Math.min(stunCount, stunMax);
+        for (var spi = 0; spi < stunMax; spi++) {
+          var spip = document.createElement('div');
+          spip.className = 'stun-pip'
+            + (spi < displayCount ? ' filled' : '')
+            + (severe ? ' severe' : '');
+          stunPips.appendChild(spip);
+        }
+      }
+    } else {
+      stunBlock.style.display = 'none';
+    }
   }
+  // Legacy badge stays hidden post-Drop-C — the strip supersedes it.
+  // Kept in DOM so any non-migrated code paths don't NPE on $('g-stun-badge').
+  if (legacyStunBadge) legacyStunBadge.style.display = 'none';
 
   // FORCE POINTS — pip indicators (one filled circle per FP). Force-sensitive
-  // only. Show actual count, plus an overflow label for >6.
+  // only. F5 (Drop C divergence): WEG D6 R&E (p83) does not formalize a
+  // per-character FP cap — players accumulate FPs without an explicit
+  // ceiling. The prototype's `fp_max` field is therefore not implementable
+  // against the live data model. We preserve the prior client behavior:
+  // a UI-side soft cap (FP_DISPLAY_MAX) plus an explicit overflow indicator
+  // when fp exceeds it. Result: dots never overflow visually, the actual
+  // count is always communicated. If a future server change adds a real
+  // per-character fp_max, swap FP_DISPLAY_MAX for that field.
+  var FP_DISPLAY_MAX = 6;
   if (data.force_sensitive) {
     var fpBlock = $('g-fp-block');
     fpBlock.classList.add('show');
     var fp = data.force_points !== undefined ? Number(data.force_points) : 0;
+    if (!isFinite(fp) || fp < 0) fp = 0;
     $('g-fp-count').textContent = fp + ' FP';
     var fpPips = $('g-fp-pips');
     fpPips.innerHTML = '';
-    var visible = Math.min(fp, 6);
-    for (var fpi = 0; fpi < 6; fpi++) {
+    var visible = Math.min(fp, FP_DISPLAY_MAX);
+    for (var fpi = 0; fpi < FP_DISPLAY_MAX; fpi++) {
       var fpPip = document.createElement('div');
       fpPip.className = 'fp-pip' + (fpi < visible ? ' filled' : '');
       fpPips.appendChild(fpPip);
     }
-    if (fp > 6) {
+    if (fp > FP_DISPLAY_MAX) {
       var ov = document.createElement('span');
       ov.className = 'fp-overflow';
-      ov.textContent = '+' + (fp - 6);
+      ov.textContent = '+' + (fp - FP_DISPLAY_MAX);
       fpPips.appendChild(ov);
     }
   } else {
     $('g-fp-block').classList.remove('show');
   }
 
-  // Attributes (if server sends them)
+  // Attributes (if server sends them). Fall back to em-dash if value is
+  // empty/missing. Server now always sends the keys after the v85 _hud_base
+  // fix; if a key is empty string, render em-dash so the panel doesn't show
+  // a confusing blank.
   if (data.attributes && typeof data.attributes === 'object') {
     var a = data.attributes;
-    if (a.dexterity   !== undefined) $('g-attr-dex').textContent = a.dexterity;
-    if (a.knowledge   !== undefined) $('g-attr-kno').textContent = a.knowledge;
-    if (a.mechanical  !== undefined) $('g-attr-mec').textContent = a.mechanical;
-    if (a.perception  !== undefined) $('g-attr-per').textContent = a.perception;
-    if (a.strength    !== undefined) $('g-attr-str').textContent = a.strength;
-    if (a.technical   !== undefined) $('g-attr-tec').textContent = a.technical;
+    function setAttr(id, v) { $(id).textContent = (v && String(v).trim()) ? v : '—'; }
+    setAttr('g-attr-dex', a.dexterity);
+    setAttr('g-attr-kno', a.knowledge);
+    setAttr('g-attr-mec', a.mechanical);
+    setAttr('g-attr-per', a.perception);
+    setAttr('g-attr-str', a.strength);
+    setAttr('g-attr-tec', a.technical);
+  }
+
+  // Force skills — sensitive PCs only. Renders in the FP block if
+  // server sends force_skills with non-empty values.
+  if (data.force_skills && typeof data.force_skills === 'object' && data.force_sensitive) {
+    var fs = data.force_skills;
+    var fsBlock = $('g-force-skills-block');
+    var hasAny = (fs.control || fs.sense || fs.alter);
+    if (fsBlock) {
+      if (hasAny) {
+        fsBlock.classList.add('show');
+        var ctrl = $('g-force-control'); if (ctrl) ctrl.textContent = fs.control || '—';
+        var sens = $('g-force-sense');   if (sens) sens.textContent = fs.sense   || '—';
+        var altr = $('g-force-alter');   if (altr) altr.textContent = fs.alter   || '—';
+      } else {
+        fsBlock.classList.remove('show');
+      }
+    }
   }
 
   // Credits
@@ -3539,7 +3916,28 @@ function renderRecentRooms() {
 
 /* ════════════════════════════════════════════════════════════════════
    AREA MAP (right column on ground) — render rooms & links
+   Per-room <g> groups with dot + optional icon glyph + label-above.
+   Reads server-canonical fields: mapData.current, r.sec, e.from/e.to.
+   Adjacent rooms (depth 1, edge from current) are clickable for travel.
    ════════════════════════════════════════════════════════════════════ */
+
+// Map a room's environment / name to a single-glyph room-type icon.
+// Returns '' when no icon should render.
+function roomTypeGlyph(env, name) {
+  var e = (env || '').toLowerCase();
+  if (e === 'medical' || e === 'medbay' || e === 'hospital') return '+';
+  if (e === 'docking' || e === 'hangar' || e === 'spaceport' || e === 'bay' || e === 'landing') return '\u25BC';
+  if (e === 'workshop' || e === 'forge' || e === 'crafting' || e === 'foundry') return '\u2692';
+  if (e === 'cantina' || e === 'bar' || e === 'tavern') return '\u266A';  // ♪
+  // Name-keyword fallback for rooms whose env isn't tagged
+  var n = (name || '').toLowerCase();
+  if (/medbay|clinic|hospital|medical/.test(n)) return '+';
+  if (/dock|bay|hangar|spaceport|landing/.test(n)) return '\u25BC';
+  if (/workshop|forge|foundry|workbench/.test(n)) return '\u2692';
+  if (/cantina|bar|tavern|saloon/.test(n)) return '\u266A';
+  return '';
+}
+
 function renderAreaMap(mapData) {
   var svg = $('g-area-map-svg');
   if (!svg) return;
@@ -3547,31 +3945,30 @@ function renderAreaMap(mapData) {
 
   var rooms = mapData.rooms || [];
   var edges = mapData.edges || [];
-  var currentId = mapData.current_id;
+  // SERVER FIELD: mapData.current (NOT current_id — that was a long-standing
+  // mismatch that broke current-room highlighting completely).
+  var currentId = mapData.current;
   if (rooms.length === 0) {
     var t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     t.setAttribute('x', '200'); t.setAttribute('y', '150');
     t.setAttribute('text-anchor', 'middle');
-    t.setAttribute('style', 'fill:var(--accent-dim); font-size:11px; font-family:"IBM Plex Mono",monospace;');
+    t.setAttribute('class', 'rm-empty');
     t.textContent = 'No map data';
     svg.appendChild(t);
     return;
   }
 
-  // Force-directed layout: pre-compute positions if missing
+  // ── Position layout ──
   var W = 400, H = 300, pad = 30;
   var posById = {};
-  // If server provides x/y, use them; otherwise lay out in a grid
-  var hasCoords = rooms.every(function(r) { return r.x !== undefined && r.y !== undefined; });
+  var hasCoords = rooms.every(function(r) { return typeof r.x === 'number' && typeof r.y === 'number'; });
   if (hasCoords) {
     var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     rooms.forEach(function(r) {
-      if (r.x < minX) minX = r.x;
-      if (r.x > maxX) maxX = r.x;
-      if (r.y < minY) minY = r.y;
-      if (r.y > maxY) maxY = r.y;
+      if (r.x < minX) minX = r.x; if (r.x > maxX) maxX = r.x;
+      if (r.y < minY) minY = r.y; if (r.y > maxY) maxY = r.y;
     });
-    var spanX = Math.max(1, maxX - minX), spanY = Math.max(1, maxY - minY);
+    var spanX = Math.max(0.0001, maxX - minX), spanY = Math.max(0.0001, maxY - minY);
     rooms.forEach(function(r) {
       posById[r.id] = {
         x: pad + ((r.x - minX) / spanX) * (W - pad * 2),
@@ -3579,7 +3976,6 @@ function renderAreaMap(mapData) {
       };
     });
   } else {
-    // Grid layout
     var cols = Math.ceil(Math.sqrt(rooms.length));
     rooms.forEach(function(r, i) {
       posById[r.id] = {
@@ -3589,60 +3985,149 @@ function renderAreaMap(mapData) {
     });
   }
 
-  var ns = 'http://www.w3.org/2000/svg';
-  // Edges
+  // ── Adjacency: rooms one edge from current. Edge.from is always
+  // outgoing in build_area_map's deduplication (engine/area_map.py:251),
+  // but be defensive and accept either direction.
+  var adjacencyByRoomId = {};
   edges.forEach(function(e) {
-    var a = posById[e.a], b = posById[e.b];
+    if (e.from === currentId)      adjacencyByRoomId[e.to]   = e.dir;
+    else if (e.to === currentId)   adjacencyByRoomId[e.from] = _reverseDir(e.dir);
+  });
+
+  var ns = 'http://www.w3.org/2000/svg';
+
+  // ── Edges first so dots render on top ──
+  edges.forEach(function(e) {
+    var a = posById[e.from], b = posById[e.to];
     if (!a || !b) return;
     var line = document.createElementNS(ns, 'line');
     line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
     line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
-    line.setAttribute('stroke', 'var(--accent-dim)');
-    line.setAttribute('stroke-width', '0.8');
-    line.setAttribute('opacity', '0.5');
+    var isAdj = (e.from === currentId || e.to === currentId);
+    line.setAttribute('class', isAdj ? 'rm-edge rm-edge-adj' : 'rm-edge');
     svg.appendChild(line);
   });
-  // Nodes
+
+  // ── Room nodes ──
   rooms.forEach(function(r) {
     var p = posById[r.id]; if (!p) return;
-    var color = (r.security === 'lawless') ? 'var(--warn)'
-               : (r.security === 'contested') ? 'var(--accent)'
-               : 'var(--self)';
     var isYou = r.id === currentId;
+    var isAdj = !isYou && Object.prototype.hasOwnProperty.call(adjacencyByRoomId, r.id);
+    // Server emits "secured" or "secure" for safe; normalize to "secure".
+    // SERVER FIELD: r.sec (NOT r.security — another long-standing mismatch).
+    var sec = (r.sec || 'contested').toLowerCase();
+    if (sec === 'secured') sec = 'secure';
+    if (sec !== 'secure' && sec !== 'contested' && sec !== 'lawless') sec = 'contested';
+
+    var g = document.createElementNS(ns, 'g');
+    var classes = ['rm', 'rm-sec-' + sec];
+    if (isYou) classes.push('rm-current');
+    if (isAdj) classes.push('rm-adj');
+    g.setAttribute('class', classes.join(' '));
+    g.setAttribute('transform', 'translate(' + p.x + ',' + p.y + ')');
+    g.setAttribute('data-room-id', String(r.id));
+    if (isAdj) {
+      g.setAttribute('data-travel-dir', adjacencyByRoomId[r.id] || '');
+    }
+
+    // Pulsing ring for current room
     if (isYou) {
-      // Pulsing ring
       var ring = document.createElementNS(ns, 'circle');
-      ring.setAttribute('cx', p.x); ring.setAttribute('cy', p.y);
+      ring.setAttribute('class', 'rm-pulse');
+      ring.setAttribute('cx', '0'); ring.setAttribute('cy', '0');
       ring.setAttribute('r', '14'); ring.setAttribute('fill', 'none');
-      ring.setAttribute('stroke', 'var(--accent-bright)');
-      ring.setAttribute('stroke-width', '0.6');
-      ring.setAttribute('opacity', '0.6');
       var anim1 = document.createElementNS(ns, 'animate');
-      anim1.setAttribute('attributeName', 'r'); anim1.setAttribute('from', '8'); anim1.setAttribute('to', '20');
+      anim1.setAttribute('attributeName', 'r');
+      anim1.setAttribute('from', '8'); anim1.setAttribute('to', '20');
       anim1.setAttribute('dur', '1.8s'); anim1.setAttribute('repeatCount', 'indefinite');
       var anim2 = document.createElementNS(ns, 'animate');
-      anim2.setAttribute('attributeName', 'opacity'); anim2.setAttribute('from', '0.9'); anim2.setAttribute('to', '0');
+      anim2.setAttribute('attributeName', 'opacity');
+      anim2.setAttribute('from', '0.7'); anim2.setAttribute('to', '0');
       anim2.setAttribute('dur', '1.8s'); anim2.setAttribute('repeatCount', 'indefinite');
       ring.appendChild(anim1); ring.appendChild(anim2);
-      svg.appendChild(ring);
+      g.appendChild(ring);
     }
-    // Node label box
-    var label = (r.name || '').substring(0, 10);
-    var rect = document.createElementNS(ns, 'rect');
-    var w = Math.max(40, label.length * 6 + 8), h = 14;
-    rect.setAttribute('x', p.x - w / 2); rect.setAttribute('y', p.y - h / 2);
-    rect.setAttribute('width', w); rect.setAttribute('height', h);
-    rect.setAttribute('fill', '#000'); rect.setAttribute('stroke', isYou ? 'var(--accent-bright)' : color);
-    rect.setAttribute('stroke-width', '0.8');
-    svg.appendChild(rect);
-    var text = document.createElementNS(ns, 'text');
-    text.setAttribute('x', p.x); text.setAttribute('y', p.y + 3);
-    text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('style', 'fill:' + (isYou ? 'var(--accent-bright)' : color) + '; font-size:9px; font-family:"IBM Plex Mono",monospace;');
-    text.textContent = label;
-    svg.appendChild(text);
+    // Halo for adjacent (travelable) rooms
+    if (isAdj) {
+      var halo = document.createElementNS(ns, 'circle');
+      halo.setAttribute('class', 'rm-halo');
+      halo.setAttribute('cx', '0'); halo.setAttribute('cy', '0');
+      halo.setAttribute('r', '7');
+      g.appendChild(halo);
+    }
+
+    // Dot — security-colored, sized by importance
+    var dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('class', 'rm-dot');
+    dot.setAttribute('cx', '0'); dot.setAttribute('cy', '0');
+    dot.setAttribute('r', isYou ? '4.2' : isAdj ? '3.4' : '2.8');
+    g.appendChild(dot);
+
+    // Optional room-type icon glyph centered on the dot
+    var iconGlyph = roomTypeGlyph(r.env, r.name);
+    if (iconGlyph) {
+      var icon = document.createElementNS(ns, 'text');
+      icon.setAttribute('class', 'rm-icon');
+      icon.setAttribute('x', '0'); icon.setAttribute('y', '0');
+      icon.setAttribute('text-anchor', 'middle');
+      icon.textContent = iconGlyph;
+      g.appendChild(icon);
+    }
+
+    // Label above the dot
+    var labelText = (r.name || '').substring(0, 16);
+    var label = document.createElementNS(ns, 'text');
+    label.setAttribute('class', 'rm-label');
+    label.setAttribute('x', '0'); label.setAttribute('y', '-9');
+    label.setAttribute('text-anchor', 'middle');
+    label.textContent = labelText;
+    g.appendChild(label);
+
+    svg.appendChild(g);
   });
 }
+
+// Direction-reverse for adjacency lookup when an edge stored as B→A but A is current
+function _reverseDir(d) {
+  switch ((d || '').toLowerCase()) {
+    case 'north': return 'south'; case 'south': return 'north';
+    case 'east':  return 'west';  case 'west':  return 'east';
+    case 'northeast': return 'southwest'; case 'southwest': return 'northeast';
+    case 'northwest': return 'southeast'; case 'southeast': return 'northwest';
+    case 'up':    return 'down';  case 'down':  return 'up';
+    case 'in':    return 'out';   case 'out':   return 'in';
+  }
+  return d || '';
+}
+
+// Wire click-to-travel on adjacent rooms. Idempotent — safe to call after each render.
+// Listens via event delegation on the SVG so it survives re-renders.
+(function installAreaMapTravelHandler() {
+  var svg = document.getElementById('g-area-map-svg');
+  if (!svg) {
+    // SVG not in DOM yet (script ordering); retry after DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', installAreaMapTravelHandler, { once: true });
+    return;
+  }
+  if (svg._travelHandlerInstalled) return;
+  svg._travelHandlerInstalled = true;
+  svg.addEventListener('click', function(e) {
+    // Walk up from the click target until we find a .rm-adj group
+    var node = e.target;
+    while (node && node !== svg) {
+      if (node.classList && node.classList.contains('rm-adj')) {
+        var dir = node.getAttribute('data-travel-dir');
+        if (dir) {
+          e.stopPropagation();  // don't also trigger the expand-modal handler
+          sendCmd(dir);
+        }
+        return;
+      }
+      node = node.parentNode;
+    }
+  }, true);  // capture so we beat the expand-modal handler
+})();
+
 
 /* ════════════════════════════════════════════════════════════════════
    SPACE STATE — instruments, target, hyper, crew
@@ -4355,8 +4840,13 @@ function mapModalBackdropClick(evt) {
   }
 }
 
-// Render the expanded map by cloning the live mini-map SVG and upscaling
-// label font-sizes so they're readable at modal size.
+// Render the expanded map by cloning the live mini-map SVG, padding the
+// viewBox so larger labels don't clip, scaling labels for readability,
+// and resolving label collisions by displacing the LABEL inside its room
+// group while keeping the dot at its true map position. Leader lines are
+// drawn from each shifted dot to its displaced label so spatial truth
+// is preserved (unlike the earlier rect-shift approach which moved the
+// room icon itself).
 function renderMapModal(kind) {
   var body = $('map-modal-body');
   if (!body) return;
@@ -4377,59 +4867,52 @@ function renderMapModal(kind) {
   clone.setAttribute('height', '100%');
   clone.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
-  // [S60/P1a bug 1] Expand the cloned viewBox to absorb scaled-text overflow.
-  // Labels on the ground map are drawn at coords up to x≈370/y≈270 inside
-  // a 400×300 viewBox; scaling font-size 2.2× without touching the viewBox
-  // pushes text off the right/bottom edges. We pad each side by a fraction
-  // of the corresponding dimension.
-  //
-  // PAD_FACTOR is tuned empirically (not algebraically tied to TEXT_SCALE):
-  // worst-case overflow is a ~16-char label (half-width ~43 user units at
-  // 9px × 2.2 scale) anchored near the edge — so ~65 user units of margin
-  // on each side is sufficient for the ground map (400 wide × 0.175 ≈ 70).
-  // A factor of 0.35 gives 70 L/R and 52 T/B, which absorbs the overflow
-  // while keeping the actual map content occupying ~74% of the modal —
-  // the prior value (1.2, from TEXT_SCALE - 1) over-padded so heavily the
-  // map shrank to ~45% of the modal in both axes.
-  var TEXT_SCALE = 2.2;
-  var PAD_FACTOR = 0.35;  // see comment above — do NOT re-tie to TEXT_SCALE
+  // ── ViewBox padding — give larger labels room to breathe ──
+  // Worst-case 16-char label at 22px scaled font ≈ 88 user units half-width.
+  // A 0.35 PAD_FACTOR on a 400×300 viewBox adds 70 L/R and 52 T/B which
+  // absorbs the overflow. Don't re-tie to LABEL_SCALE — over-padding shrinks
+  // the actual map content.
+  var LABEL_SCALE = 2.4;
+  var ICON_SCALE  = 1.8;
+  var PAD_FACTOR  = 0.35;
   var origVB = (clone.getAttribute('viewBox') || '').trim();
+  var vbX = 0, vbY = 0, vbW = 400, vbH = 300;
   if (origVB) {
     var parts = origVB.split(/[\s,]+/).map(parseFloat);
     if (parts.length === 4 && parts.every(function(n) { return !isNaN(n); })) {
-      var vx = parts[0], vy = parts[1], vw = parts[2], vh = parts[3];
-      var padX = vw * PAD_FACTOR * 0.5;
-      var padY = vh * PAD_FACTOR * 0.5;
-      var newVB = (vx - padX) + ' ' + (vy - padY) + ' ' +
-                  (vw + padX * 2) + ' ' + (vh + padY * 2);
+      vbX = parts[0]; vbY = parts[1]; vbW = parts[2]; vbH = parts[3];
+      var padX = vbW * PAD_FACTOR * 0.5;
+      var padY = vbH * PAD_FACTOR * 0.5;
+      var newVB = (vbX - padX) + ' ' + (vbY - padY) + ' ' +
+                  (vbW + padX * 2) + ' ' + (vbH + padY * 2);
       clone.setAttribute('viewBox', newVB);
+      vbX -= padX; vbY -= padY; vbW += padX * 2; vbH += padY * 2;
     }
   }
 
-  // Upscale label font-sizes in the clone. The mini-map labels are sized
-  // for a 140px view; at modal size those become hard to read even though
-  // the SVG scales. Walk all <text> elements and bump the font-size by ~2x.
-  // We do this on the clone only — the live mini-map stays unchanged.
-  var texts = clone.querySelectorAll('text');
-  texts.forEach(function(t) {
+  // ── Label & icon scaling (inline overrides — CSS still applies for color) ──
+  // Walk text elements with our specific classes; non-room labels (e.g. the
+  // "No map data" placeholder) get a uniform bump.
+  clone.querySelectorAll('text.rm-label').forEach(function(t) {
+    t.style.fontSize = (9 * LABEL_SCALE).toFixed(2) + 'px';
+  });
+  clone.querySelectorAll('text.rm-icon').forEach(function(t) {
+    t.style.fontSize = (4.5 * ICON_SCALE).toFixed(2) + 'px';
+  });
+  // Catch-all for any labels without our classes (legacy / radar).
+  clone.querySelectorAll('text:not(.rm-label):not(.rm-icon):not(.rm-empty)').forEach(function(t) {
     var style = t.getAttribute('style') || '';
     var m = style.match(/font-size\s*:\s*([\d.]+)px/);
     if (m) {
       var orig = parseFloat(m[1]);
-      var scaled = Math.max(orig * TEXT_SCALE, 4.5);
+      var scaled = Math.max(orig * LABEL_SCALE, 5);
       style = style.replace(/font-size\s*:\s*[\d.]+px/, 'font-size:' + scaled.toFixed(2) + 'px');
       t.setAttribute('style', style);
-    } else {
-      // No explicit font-size — add one so the text is legible at scale.
-      var extra = (style ? style + ';' : '') + 'font-size:10px;font-family:"IBM Plex Mono",monospace;';
-      t.setAttribute('style', extra);
     }
   });
 
-  // Upscale stroke widths on rings / dividers so they don't become invisible
-  // hairlines at large size.
-  var strokables = clone.querySelectorAll('circle, line, path');
-  strokables.forEach(function(el) {
+  // Bump hairline strokes that would otherwise vanish at modal size.
+  clone.querySelectorAll('circle, line, path').forEach(function(el) {
     var sw = el.getAttribute('stroke-width');
     if (sw) {
       var w = parseFloat(sw);
@@ -4446,11 +4929,111 @@ function renderMapModal(kind) {
       var r = parseFloat(c.getAttribute('r') || '0');
       if (r > 0) c.setAttribute('r', (r * 1.5).toFixed(2));
     });
-    // Contact triangles were drawn as polygons with hard-coded offsets,
-    // so they scale with the SVG viewport — no extra work needed.
+  }
+
+  // ── Label collision resolution with leader lines (ground only) ──
+  // For each room group, the dot stays at the group's transform origin
+  // (true map position). We may shift the LABEL's local y to avoid collision
+  // with neighboring labels, then draw a thin <line class="rm-leader"> from
+  // (0,0) to (0, label_y) inside the group to visually anchor the label
+  // back to its room.
+  if (kind !== 'space') {
+    _resolveModalLabelCollisions(clone, vbX, vbY, vbW, vbH);
   }
 
   body.appendChild(clone);
+}
+
+// Iteratively shift label local y-positions to remove AABB overlaps.
+// Operates on the cloned modal SVG; mini-map is untouched.
+function _resolveModalLabelCollisions(clone, vbX, vbY, vbW, vbH) {
+  var groups = clone.querySelectorAll('g.rm');
+  if (!groups.length) return;
+
+  // Approximate label widths — full SVG-level measurement isn't available
+  // until the clone is in the DOM, but we can estimate from text length × pixel-per-char.
+  // 22px monospace ≈ 12 user units per character.
+  var EST_CHAR_W = 12;
+  var EST_LABEL_H = 26;  // 22px font + leading
+  var COLLISION_GAP = 4;
+  var ORIGINAL_LABEL_Y = -9;  // matches renderAreaMap
+
+  var entries = [];
+  groups.forEach(function(g) {
+    var label = g.querySelector('text.rm-label');
+    if (!label) return;
+    var transform = g.getAttribute('transform') || '';
+    var tm = transform.match(/translate\s*\(\s*([-\d.]+)\s*[,\s]\s*([-\d.]+)\s*\)/);
+    if (!tm) return;
+    var cx = parseFloat(tm[1]);
+    var cy = parseFloat(tm[2]);
+    var text = label.textContent || '';
+    var w = Math.max(EST_CHAR_W * 4, text.length * EST_CHAR_W);
+    entries.push({
+      g: g, label: label,
+      cx: cx, cy: cy,
+      w: w, h: EST_LABEL_H,
+      labelLocalY: ORIGINAL_LABEL_Y,  // initial local y inside the <g>
+    });
+  });
+
+  function aabbOverlap(a, b) {
+    var aL = a.cx - a.w / 2, aR = a.cx + a.w / 2;
+    var bL = b.cx - b.w / 2, bR = b.cx + b.w / 2;
+    if (aR < bL || bR < aL) return 0;
+    var aGy = a.cy + a.labelLocalY;
+    var bGy = b.cy + b.labelLocalY;
+    var aT = aGy - a.h / 2, aB = aGy + a.h / 2;
+    var bT = bGy - b.h / 2, bB = bGy + b.h / 2;
+    if (aB < bT || bB < aT) return 0;
+    return Math.min(aB - bT, bB - aT);
+  }
+
+  for (var iter = 0; iter < 60; iter++) {
+    var moved = false;
+    for (var i = 0; i < entries.length; i++) {
+      for (var j = i + 1; j < entries.length; j++) {
+        var a = entries[i], b = entries[j];
+        var ov = aabbOverlap(a, b);
+        if (ov <= 0) continue;
+        var shift = ov / 2 + COLLISION_GAP / 2;
+        // Push apart vertically. Whichever has higher current label y goes higher; lower goes lower.
+        var aGy = a.cy + a.labelLocalY, bGy = b.cy + b.labelLocalY;
+        if (aGy <= bGy) {
+          a.labelLocalY -= shift;
+          b.labelLocalY += shift;
+        } else {
+          a.labelLocalY += shift;
+          b.labelLocalY -= shift;
+        }
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+
+  // Apply shifts: update label y and add a leader line from dot (0,0) to label new y.
+  // Inserted as the FIRST child of the group so it renders behind the dot.
+  var ns = 'http://www.w3.org/2000/svg';
+  entries.forEach(function(ent) {
+    if (ent.labelLocalY === ORIGINAL_LABEL_Y) return;
+    ent.label.setAttribute('y', ent.labelLocalY);
+    // Extend the leader from the dot edge (~r=4 above center) to just below the label
+    var leaderEndY = ent.labelLocalY + (ent.h / 2 - 2);  // halfway into the label baseline
+    var leaderStartY = ent.labelLocalY < 0 ? -4 : 4;     // dot edge in the right direction
+    if ((ent.labelLocalY < 0 && leaderEndY > leaderStartY) ||
+        (ent.labelLocalY > 0 && leaderEndY < leaderStartY)) {
+      // Skip degenerate leaders
+      return;
+    }
+    var leader = document.createElementNS(ns, 'line');
+    leader.setAttribute('class', 'rm-leader');
+    leader.setAttribute('x1', '0');
+    leader.setAttribute('y1', String(leaderStartY));
+    leader.setAttribute('x2', '0');
+    leader.setAttribute('y2', String(leaderEndY));
+    ent.g.insertBefore(leader, ent.g.firstChild);
+  });
 }
 
 // Global ESC handler for the map modal. Installed at load time; defined
@@ -4663,6 +5246,9 @@ function handlePoseEvent(msg) {
   var mode = msg.mode || '';
   var to = msg.to || null;
   var channel = msg.channel || null;
+  // Whoever's speaking/posing/whispering is now a known actor.
+  rememberActorName(who);
+  if (to) rememberActorName(to);
   var rowType = et;
   if (et === 'say' || et === 'pose' || et === 'emote' || et === 'whisper') {
     rowType = isSelfName(who) ? 'pose-self' : 'pose';
@@ -4804,7 +5390,7 @@ function submitLogin() {
   pendingUsername = user;
   awaitingAuth = true;
   try {
-    ws.send(JSON.stringify({ type: 'cmd', data: loginMode + ' ' + user + ' ' + pass }));
+    ws.send(JSON.stringify({ input: loginMode + ' ' + user + ' ' + pass }));
   } catch (e) {
     showLoginError('Send failed: ' + e.message);
     awaitingAuth = false;
@@ -4850,7 +5436,7 @@ function handleCharSelect(msg) {
 function selectCharacter(charId, charName) {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   try {
-    ws.send(JSON.stringify({ type: 'cmd', data: '__char_select__' + charId }));
+    ws.send(JSON.stringify({ input: '__char_select__' + charId }));
     var list = $('charselect-list');
     list.innerHTML = '<div style="font-size:13px; color:var(--pad-amber-bright); padding:20px; text-align:center; letter-spacing:2px;">▸ ENTERING GAME AS ' + escapeHtml(charName).toUpperCase() + '<span class="cursor-blink"></span></div>';
   } catch (e) {
@@ -4861,13 +5447,13 @@ function selectCharacter(charId, charName) {
 function requestNewChargen() {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   try {
-    ws.send(JSON.stringify({ type: 'cmd', data: '__request_chargen__' }));
+    ws.send(JSON.stringify({ input: '__request_chargen__' }));
   } catch (e) { showLoginError('Send failed: ' + e.message); }
 }
 
 function logout() {
   if (ws && ws.readyState === WebSocket.OPEN) {
-    try { ws.send(JSON.stringify({ type: 'cmd', data: 'quit' })); } catch (_) {}
+    try { ws.send(JSON.stringify({ input: 'quit' })); } catch (_) {}
     try { ws.close(); } catch (_) {}
   }
   pendingUsername = '';

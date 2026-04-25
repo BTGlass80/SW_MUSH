@@ -33,10 +33,7 @@ log = logging.getLogger(__name__)
 
 class ShopCommand(BaseCommand):
     key = "shop"
-    # NOTE: `+shop` moved to the ShopUmbrellaCommand umbrella (S58) —
-    # the umbrella's default (no switch) routes here, so bare `+shop`
-    # still manages your shop via the umbrella's dispatch.
-    aliases = ["shopinfo"]
+    aliases = ["+shop", "shopinfo"]
     help_text = (
         "Manage your vendor droid player shop.\n"
         "\n"
@@ -831,13 +828,6 @@ async def _send_shop_browse(session, droids: list, focused_id=None) -> None:
 
 
 def register_shop_commands(registry):
-    """Register shop commands (S58 — +shop umbrella + per-verb classes).
-
-    Umbrella first so `+shop/<switch>` and bare `+shop` alias routing
-    wins over the per-verb class bare keys. Per-verb classes register
-    afterward at their own bare keys for backward compatibility.
-    """
-    registry.register(ShopUmbrellaCommand())
     registry.register(ShopCommand())
     registry.register(BrowseCommand())
     registry.register(AdminShopCommand())
@@ -963,98 +953,3 @@ class MarketSearchCommand(BaseCommand):
         for line in lines:
             await ctx.session.send_line(line)
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# +shop — Umbrella command for all shop verbs (S58)
-# ═══════════════════════════════════════════════════════════════════════════
-
-_SHOP_SWITCH_IMPL: dict = {}
-
-_SHOP_ALIAS_TO_SWITCH: dict[str, str] = {
-    "shop": "shop", "shopinfo": "shop",
-    "browse": "browse", "shops": "browse", "shoplist": "browse",
-    "market": "market", "mkt": "market",
-    "admin": "admin",
-}
-
-
-class ShopUmbrellaCommand(BaseCommand):
-    """`+shop` umbrella — dispatches to shop management handlers by switch.
-
-    Canonical               Bare aliases (still work)
-    --------------------    ---------------------------
-    +shop                   shop, shopinfo (manage your shop — default)
-    +shop/shop <args>       shop <args> (same as default)
-    +shop/browse [name]     browse, shops, shoplist
-    +shop/market [args]     market, mkt
-    +shop/admin <args>      (admin-only; see +help @shop)
-
-    `+shop` with no switch manages your own vendor-droid shop (the
-    legacy ShopCommand behavior). `+shop/browse` browses other
-    players' shops. `+shop/market` runs planetary market search.
-
-    UNKNOWN-SWITCH FORWARDING (S58):
-    ShopCommand uses positional-argument subcommands (e.g. `shop buy
-    droid gn4`, `shop place`, `shop stock`). Any switch NOT in
-    valid_switches is forwarded to ShopCommand with the switch name
-    prepended. So `+shop/buy droid gn4` reaches ShopCommand as
-    `shop buy droid gn4`.
-    """
-
-    key = "+shop"
-    aliases = [
-        "shopinfo",
-        "browse", "shops", "shoplist",
-        "mkt",
-    ]
-    help_text = (
-        "All shop verbs live under +shop/<switch>. "
-        "Bare verbs (shop, browse, market) still work as aliases."
-    )
-    usage = "+shop[/switch] [args]  — see 'help +shop' for all switches"
-    # Explicit umbrella switches + ShopCommand's positional subcommands
-    valid_switches = [
-        "shop", "browse", "market", "admin",
-        # ShopCommand subcommands — forwarded
-        "buy", "place", "recall", "name", "desc",
-        "stock", "unstock", "price",
-        "collect", "sales", "order", "cancel", "upgrade",
-        "info", "status",
-    ]
-
-    async def execute(self, ctx: CommandContext):
-        switch = None
-        if ctx.switches:
-            switch = ctx.switches[0].lower()
-        else:
-            typed = (ctx.command or "").lower()
-            switch = _SHOP_ALIAS_TO_SWITCH.get(typed, "shop")
-
-        # Real umbrella switches
-        impl = _SHOP_SWITCH_IMPL.get(switch)
-        if impl is not None:
-            await impl.execute(ctx)
-            return
-
-        # Forward to ShopCommand with switch prepended to args
-        args_before = ctx.args or ""
-        ctx.args = f"{switch} {args_before}".strip()
-        ctx.switches = []
-        try:
-            await ShopCommand().execute(ctx)
-        finally:
-            ctx.args = args_before
-            ctx.switches = [switch]
-
-
-def _init_shop_switch_impl():
-    global _SHOP_SWITCH_IMPL
-    _SHOP_SWITCH_IMPL = {
-        "shop":   ShopCommand(),
-        "browse": BrowseCommand(),
-        "market": MarketSearchCommand(),
-        "admin":  AdminShopCommand(),
-    }
-
-
-_init_shop_switch_impl()

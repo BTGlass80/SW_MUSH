@@ -87,6 +87,136 @@ def _load_guides() -> None:
     log.info("Portal: loaded %d guides", len(entries))
 
 
+# ── Reference loader ────────────────────────────────────────────────────────
+
+# Auto-generated rules reference, sourced from data/help/topics/*.md and
+# data/help/commands/*.md. Each markdown file has YAML frontmatter
+# (key, title, category, summary, aliases, see_also, tags, examples).
+_REFERENCE_INDEX: dict = {}      # {"tree": {...}, "flat": [...]}
+_REFERENCE_CONTENT: dict = {}    # slug → full entry dict
+
+
+def _parse_frontmatter(content: str) -> tuple[dict, str]:
+    """Parse YAML frontmatter from a markdown file. Returns (meta, body).
+    On any parse error, returns (empty dict, full original content)."""
+    if not content.startswith("---"):
+        return {}, content
+    end = content.find("---", 3)
+    if end == -1:
+        return {}, content
+    fm_text = content[3:end].strip()
+    body = content[end + 3:].strip()
+    try:
+        import yaml
+        meta = yaml.safe_load(fm_text) or {}
+        if not isinstance(meta, dict):
+            return {}, content
+        return meta, body
+    except Exception as e:
+        log.warning("Reference: YAML parse error: %s", e)
+        return {}, content
+
+
+def _load_reference() -> None:
+    """Load reference entries from data/help/topics/ and data/help/commands/.
+
+    Builds two artifacts:
+      _REFERENCE_INDEX: {"tree": {category: {entries, subcategories}}, "flat": [...]}
+      _REFERENCE_CONTENT: {slug → full entry dict including body}
+
+    Slug is the entry's key, lowercased. Look-up by alias is supported in
+    the entry handler.
+    """
+    global _REFERENCE_INDEX, _REFERENCE_CONTENT
+    base_dir = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "data", "help"
+    )
+    sources = [
+        ("topics", os.path.join(base_dir, "topics")),
+        ("commands", os.path.join(base_dir, "commands")),
+    ]
+
+    flat: list[dict] = []
+    by_slug: dict[str, dict] = {}
+
+    for source_kind, src_dir in sources:
+        if not os.path.isdir(src_dir):
+            continue
+        for fname in sorted(os.listdir(src_dir)):
+            if not fname.endswith(".md"):
+                continue
+            fpath = os.path.join(src_dir, fname)
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    content = f.read()
+            except Exception as e:
+                log.warning("Reference: failed to read %s: %s", fname, e)
+                continue
+            meta, body = _parse_frontmatter(content)
+            key = meta.get("key") if meta else None
+            if not key:
+                continue
+            slug = str(key).lower().strip()
+            entry = {
+                "slug": slug,
+                "key": key,
+                "title": meta.get("title", key),
+                "category": meta.get("category", "Uncategorized"),
+                "summary": meta.get("summary", ""),
+                "aliases": list(meta.get("aliases") or []),
+                "see_also": list(meta.get("see_also") or []),
+                "tags": list(meta.get("tags") or []),
+                "examples": list(meta.get("examples") or []),
+                "body": body,
+                "source": source_kind,
+            }
+            flat.append(entry)
+            by_slug[slug] = entry
+
+    # Build category tree. Splits "Parent: Child" into parent + subcategory.
+    tree: dict = {}
+    for entry in flat:
+        cat = entry["category"] or "Uncategorized"
+        # "Rules: D6" → parent="Rules", sub="D6"
+        if ": " in cat:
+            parent, sub = cat.split(": ", 1)
+            parent = parent.strip()
+            sub = sub.strip()
+        else:
+            parent, sub = cat, None
+
+        if parent not in tree:
+            tree[parent] = {"entries": [], "subcategories": {}}
+        slim = {
+            "slug": entry["slug"],
+            "key": entry["key"],
+            "title": entry["title"],
+            "summary": entry["summary"],
+            "tags": entry["tags"],
+        }
+        if sub:
+            if sub not in tree[parent]["subcategories"]:
+                tree[parent]["subcategories"][sub] = {"entries": [], "subcategories": {}}
+            tree[parent]["subcategories"][sub]["entries"].append(slim)
+        else:
+            tree[parent]["entries"].append(slim)
+
+    # Stable sort: entries by key within each level
+    def _sort_node(node):
+        node["entries"].sort(key=lambda e: e["key"].lower())
+        for sub in node["subcategories"].values():
+            _sort_node(sub)
+    for top in tree.values():
+        _sort_node(top)
+
+    _REFERENCE_INDEX = {"tree": tree, "flat": flat}
+    _REFERENCE_CONTENT = by_slug
+    log.info(
+        "Portal: loaded %d reference entries across %d top-level categories",
+        len(flat), len(tree)
+    )
+
+
 # ── Portal API class ────────────────────────────────────────────────────────
 
 class PortalAPI:
@@ -101,6 +231,9 @@ class PortalAPI:
         # Load guides on init
         if not _GUIDE_INDEX:
             _load_guides()
+        # Load reference (topics + commands) on init
+        if not _REFERENCE_INDEX:
+            _load_reference()
 
     def register_routes(self, app: web.Application) -> None:
         """Register all portal API routes on the aiohttp app."""
@@ -119,28 +252,6 @@ class PortalAPI:
         app.router.add_get(
             "/api/portal/guide/{slug}", self.handle_guide_content
         )
-        # ── Reference (help system) ──────────────────────────────────────
-        # Pure pass-through over HelpManager. No category names,
-        # command names, or topic keywords are hardcoded — whatever
-        # the help registry currently holds is what's served. The
-        # portal's sidebar, search, and detail pages are built on
-        # these three endpoints.
-        app.router.add_get(
-            "/api/portal/reference", self.handle_reference_index
-        )
-        app.router.add_get(
-            "/api/portal/reference/search", self.handle_reference_search
-        )
-        # Help keys can contain literal ``+`` and ``/`` (e.g. a future
-        # ``+combat/attack``). aiohttp's {entry_slug} pattern doesn't
-        # match slashes, so we use a regex-style ``{entry_slug:.+}``
-        # catch-all. The frontend encodes slashes as ``__`` before
-        # putting the slug in the URL; the server reverses that to
-        # reach the canonical key.
-        app.router.add_get(
-            r"/api/portal/reference/{entry_slug:.+}",
-            self.handle_reference_entry,
-        )
         app.router.add_post("/api/portal/login", self.handle_login)
         app.router.add_get("/api/portal/me", self.handle_me)
         app.router.add_get("/api/portal/events", self.handle_events)
@@ -148,6 +259,12 @@ class PortalAPI:
         app.router.add_get(
             "/api/portal/plot/{plot_id}", self.handle_plot_detail
         )
+        # Reference (auto-generated from data/help/*). Order matters: the
+        # /search route MUST register before {slug} or aiohttp will match
+        # "search" as a slug literal.
+        app.router.add_get("/api/portal/reference", self.handle_reference_index)
+        app.router.add_get("/api/portal/reference/search", self.handle_reference_search)
+        app.router.add_get("/api/portal/reference/{slug}", self.handle_reference_entry)
         log.info("Portal API routes registered")
 
     # ── Helpers ──────────────────────────────────────────────────────────
@@ -686,223 +803,72 @@ class PortalAPI:
 
         return self._json({"slug": slug, "title": title, "content": content})
 
-    # ── Reference (help system) ──────────────────────────────────────────
-    #
-    # These three endpoints are a thin pass-through over
-    # ``HelpManager``. They contain no hardcoded category names, no
-    # hardcoded command or topic keys, no hardcoded keyword lists —
-    # when the help system content changes (new topic, renamed
-    # command, new category), the portal reflects it on the next
-    # request without any code change here.
-    #
-    # Access-level filter: unauthenticated callers see only
-    # ``access_level == 0`` entries. Authenticated non-admin
-    # accounts see the same. Admin accounts see everything.
-    # ``HelpEntry.access_level`` is the authority — the filter
-    # rule is stable across any future category rename.
-
-    async def _help_mgr_or_404(self):
-        """Return the live HelpManager or an HTTP 503 response.
-
-        The manager is wired up at game boot; if the portal receives
-        a request before that finishes, we surface a clear error
-        instead of a confusing empty response.
-        """
-        mgr = getattr(self._game, "help_mgr", None) if self._game else None
-        if mgr is None:
-            return None, self._json(
-                {"error": "Help system not initialized"}, 503
-            )
-        return mgr, None
-
-    async def _caller_max_access_level(self, request) -> int:
-        """What's the maximum HelpEntry.access_level the caller may see?
-
-        - Unauthenticated: 0 (public)
-        - Authenticated non-admin: 0 (we don't expose builder/admin
-          help through the public portal even to logged-in players;
-          that's in-game content)
-        - Admin accounts: 99 (effectively unlimited)
-        """
-        account_id = await self._optional_auth(request)
-        if not account_id:
-            return 0
-        try:
-            acct = await self._db.get_account(account_id)
-            if acct and acct.get("is_admin"):
-                return 99
-        except Exception as e:
-            log.warning(
-                "Portal reference: failed to load account %s for access "
-                "level filter — %s", account_id, e,
-            )
-        return 0
-
-    @staticmethod
-    def _entry_to_public_dict(entry) -> dict:
-        """Serialize a HelpEntry for the API.
-
-        We return every field that a consumer (CLI, portal) might
-        render. The URL slug is a URL-safe transform of the key —
-        slashes become ``__`` so keys like ``+combat/attack`` survive
-        round-trip.
-        """
-        key = entry.key
-        return {
-            "key": key,
-            "slug": key.replace("/", "__"),
-            "title": entry.title,
-            "category": entry.category,
-            "summary": entry.summary,
-            "body": entry.body,
-            "aliases": list(entry.aliases),
-            "see_also": list(entry.see_also),
-            "tags": list(entry.tags),
-            "examples": list(entry.examples),
-            "access_level": entry.access_level,
-            "updated_at": entry.updated_at,
-        }
-
-    @staticmethod
-    def _entry_to_summary_dict(entry) -> dict:
-        """Lighter serialization for list views (tree, search results).
-
-        Skip the full body to keep payloads small — the sidebar tree
-        alone can list 100+ entries, and the body can be kilobytes.
-        """
-        key = entry.key
-        return {
-            "key": key,
-            "slug": key.replace("/", "__"),
-            "title": entry.title,
-            "category": entry.category,
-            "summary": entry.summary,
-            "tags": list(entry.tags),
-            "access_level": entry.access_level,
-        }
+    # ── Reference (auto-generated rules reference) ───────────────────────
 
     async def handle_reference_index(self, request) -> web.Response:
-        """GET /api/portal/reference — category tree + flat entry list.
-
-        Returns::
-
-            {
-              "tree": {
-                "Rules": {
-                  "entries": [...],
-                  "subcategories": {
-                    "Combat": {"entries": [...], "subcategories": {}},
-                    ...
-                  }
-                },
-                ...
-              },
-              "entries": [...flat list of entry summaries...],
-              "total": <int>
-            }
-
-        The tree shape mirrors ``HelpManager.get_categories_tree()``
-        but with entries serialized and access-level-filtered. The
-        flat list is included so the portal can render a full
-        alphabetic listing without walking the tree.
-        """
-        mgr, err = await self._help_mgr_or_404()
-        if err is not None:
-            return err
-        max_level = await self._caller_max_access_level(request)
-
-        def _summarize_tree(node: dict) -> dict:
-            return {
-                "entries": [
-                    self._entry_to_summary_dict(e)
-                    for e in node["_entries"]
-                    if e.access_level <= max_level
-                ],
-                "subcategories": {
-                    name: _summarize_tree(sub)
-                    for name, sub in node["_subcategories"].items()
-                },
-            }
-
-        tree_raw = mgr.get_categories_tree()
-        tree = {name: _summarize_tree(node) for name, node in tree_raw.items()}
-
-        # Prune empty branches so the sidebar doesn't show a
-        # "Admin" heading with zero visible entries under it.
-        def _prune(name_to_node: dict) -> dict:
-            out = {}
-            for name, node in name_to_node.items():
-                pruned_subs = _prune(node["subcategories"])
-                if node["entries"] or pruned_subs:
-                    out[name] = {
-                        "entries": node["entries"],
-                        "subcategories": pruned_subs,
-                    }
-            return out
-        tree = _prune(tree)
-
-        flat = [
-            self._entry_to_summary_dict(e)
-            for e in mgr.all_entries()
-            if e.access_level <= max_level
-        ]
-        flat.sort(key=lambda e: e["title"].lower())
-
+        """GET /api/portal/reference — category tree of all reference entries."""
         return self._json({
-            "tree": tree,
-            "entries": flat,
-            "total": len(flat),
-        })
-
-    async def handle_reference_search(self, request) -> web.Response:
-        """GET /api/portal/reference/search?q=<keyword>&limit=<n>
-
-        Ranked search results using ``HelpManager.search()``. Default
-        limit is 30; max is 100.
-        """
-        mgr, err = await self._help_mgr_or_404()
-        if err is not None:
-            return err
-        max_level = await self._caller_max_access_level(request)
-
-        q = (request.query.get("q") or "").strip()
-        if not q:
-            return self._json({"results": [], "total": 0, "q": ""})
-        try:
-            limit = int(request.query.get("limit", "30"))
-        except ValueError:
-            limit = 30
-        limit = max(1, min(limit, 100))
-
-        raw = mgr.search(q)
-        filtered = [e for e in raw if e.access_level <= max_level]
-        results = [self._entry_to_summary_dict(e) for e in filtered[:limit]]
-        return self._json({
-            "results": results,
-            "total": len(filtered),
-            "q": q,
+            "tree": _REFERENCE_INDEX.get("tree", {}),
         })
 
     async def handle_reference_entry(self, request) -> web.Response:
-        """GET /api/portal/reference/{entry_slug} — single entry detail.
+        """GET /api/portal/reference/{slug} — full entry detail.
 
-        The slug is the URL-safe encoding of the key (slashes
-        encoded as ``__``). 404 for entries above the caller's
-        access level — we don't leak existence of admin entries.
+        Falls back to alias lookup if direct slug lookup misses, so that
+        see-also chips like 'attrs' (aliased to 'attributes') resolve.
         """
-        mgr, err = await self._help_mgr_or_404()
-        if err is not None:
-            return err
-        max_level = await self._caller_max_access_level(request)
-
-        slug = request.match_info.get("entry_slug", "")
-        key = slug.replace("__", "/")
-        entry = mgr.get(key)
-        if entry is None or entry.access_level > max_level:
+        slug = (request.match_info.get("slug", "") or "").lower().strip()
+        if not slug:
+            return self._json({"error": "No slug specified"}, 400)
+        entry = _REFERENCE_CONTENT.get(slug)
+        if not entry:
+            # Try alias resolution — slug might be "attrs" pointing at "attributes"
+            for e in _REFERENCE_INDEX.get("flat", []):
+                if any(slug == a.lower() for a in e.get("aliases", [])):
+                    entry = e
+                    break
+        if not entry:
             return self._json({"error": "Reference entry not found"}, 404)
+        return self._json(entry)
 
-        return self._json(self._entry_to_public_dict(entry))
+    async def handle_reference_search(self, request) -> web.Response:
+        """GET /api/portal/reference/search?q=...&limit=N — keyword search.
 
+        Scoring: key match > title match > alias match > summary > tags > body.
+        Returns up to `limit` (default 20, max 100) results.
+        """
+        q = (request.query.get("q", "") or "").strip().lower()
+        try:
+            limit = int(request.query.get("limit", "20"))
+        except (TypeError, ValueError):
+            limit = 20
+        limit = max(1, min(100, limit))
+        if not q:
+            return self._json({"results": [], "total": 0})
+
+        scored = []
+        for e in _REFERENCE_INDEX.get("flat", []):
+            score = 0
+            if q in e["key"].lower():                                  score += 10
+            if q in e["title"].lower():                                score += 5
+            if any(q in (a or "").lower() for a in e.get("aliases", [])):  score += 4
+            if q in (e.get("summary") or "").lower():                  score += 3
+            if any(q in (t or "").lower() for t in e.get("tags", [])): score += 2
+            if q in (e.get("body") or "").lower():                     score += 1
+            if score > 0:
+                scored.append((score, {
+                    "slug":     e["slug"],
+                    "key":      e["key"],
+                    "title":    e["title"],
+                    "summary":  e["summary"],
+                    "category": e["category"],
+                    "tags":     e["tags"],
+                }))
+        scored.sort(key=lambda r: -r[0])
+        return self._json({
+            "results": [r[1] for r in scored[:limit]],
+            "total":   len(scored),
+        })
 
     # ── Authentication ───────────────────────────────────────────────────
 
@@ -1050,7 +1016,7 @@ class PortalAPI:
             chars = await self._db.get_characters(account_id)
             online_ids = set()
             if self._session_mgr:
-                for s in self._session_mgr.all:
+                for s in self._session_mgr.all():
                     if hasattr(s, 'character') and s.character:
                         online_ids.add(s.character['id'])
 

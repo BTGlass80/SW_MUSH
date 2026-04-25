@@ -308,6 +308,75 @@ class DemandPool:
 DEMAND_POOL = DemandPool()
 
 
+# ── Volume / bulk-purchase pricing (P3 §3.2.D) ────────────────────────────────
+#
+# Closes economy_audit_v1.md §3.2.D ("Volume price scaling. Buying 1 ton gets
+# posted price. Buying 50 tons increases the effective price per unit (bulk
+# premium). This is how commodity markets work — large orders move the price.")
+#
+# The premium is a function of order-size-relative-to-current-supply, NOT of
+# raw quantity. A 50-ton order against a 200-ton supply pool is a small
+# 25% slice and pays no premium; the same 50-ton order against a 50-ton
+# supply pool is the entire market and pays the maximum premium. This
+# matches GG6 Tramp Freighters' "thin market" intuition and means a
+# freshly-refreshed planet doesn't punish the first buyer of the cycle.
+#
+# Pairs naturally with the existing DemandPool sell-side depression: buying
+# in bulk at a source pays a premium on the way in, selling in bulk at a
+# demand planet hits depression on the way out. Together they create a
+# natural ceiling on whale-route profit per round-trip.
+
+VOLUME_PREMIUM_FLOOR_PCT = 0.20   # orders ≤20% of supply: no premium
+VOLUME_PREMIUM_CEIL_PCT  = 1.00   # orders ≥100% of supply: max premium
+VOLUME_PREMIUM_MAX       = 0.40   # max premium = +40% per ton
+
+
+def volume_premium(quantity: int, supply_available: int) -> float:
+    """
+    Bulk-purchase price premium for an order of `quantity` units against a
+    market with `supply_available` units currently in stock.
+
+    Returns a multiplicative premium in [0.0, VOLUME_PREMIUM_MAX] applied to
+    the base per-ton price. Multiply base_price by (1.0 + premium) to get
+    the effective per-ton price the player pays.
+
+    Model: linear ramp.
+      - Order fraction (quantity / supply_available) ≤ 0.20  → 0% premium
+      - Order fraction ≥ 1.00                                → +40% premium
+      - Linear in between
+
+    Returns 0.0 when quantity ≤ 0 or supply_available ≤ 0; the caller's
+    supply check is expected to have already rejected impossible orders.
+
+    Examples:
+        >>> round(volume_premium(5, 50), 4)    # 10% of supply: floor
+        0.0
+        >>> round(volume_premium(10, 50), 4)   # 20% of supply: floor edge
+        0.0
+        >>> round(volume_premium(25, 50), 4)   # 50% of supply: midpoint
+        0.15
+        >>> round(volume_premium(40, 50), 4)   # 80% of supply
+        0.3
+        >>> round(volume_premium(50, 50), 4)   # 100% of supply: ceiling
+        0.4
+        >>> round(volume_premium(60, 50), 4)   # over-supply (caller bug; clamp)
+        0.4
+        >>> volume_premium(0, 50)              # no order
+        0.0
+        >>> volume_premium(10, 0)              # empty market
+        0.0
+    """
+    if quantity <= 0 or supply_available <= 0:
+        return 0.0
+    fraction = quantity / supply_available
+    if fraction <= VOLUME_PREMIUM_FLOOR_PCT:
+        return 0.0
+    if fraction >= VOLUME_PREMIUM_CEIL_PCT:
+        return VOLUME_PREMIUM_MAX
+    span = VOLUME_PREMIUM_CEIL_PCT - VOLUME_PREMIUM_FLOOR_PCT  # 0.80
+    return VOLUME_PREMIUM_MAX * (fraction - VOLUME_PREMIUM_FLOOR_PCT) / span
+
+
 # ── Cargo hold helpers ────────────────────────────────────────────────────────
 
 def get_ship_cargo(ship: dict) -> list[dict]:

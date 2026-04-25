@@ -5365,7 +5365,7 @@ async def _handle_buy_cargo(ctx) -> None:
     """Handle 'buy cargo <good> <tons>'."""
     from engine.trading import (
         TRADE_GOODS, get_planet_price, get_ship_cargo,
-        cargo_free, add_cargo, SUPPLY_POOL,
+        cargo_free, add_cargo, SUPPLY_POOL, volume_premium,
     )
     from engine.starships import get_ship_registry
     from engine.skill_checks import resolve_bargain_check
@@ -5428,6 +5428,7 @@ async def _handle_buy_cargo(ctx) -> None:
 
     # Supply pool cap (review fix v1) — prevents the unlimited-trade
     # exploit that let a YT-1300 loop generate ~240,000 cr/hr.
+    avail = 0
     if planet:
         avail = SUPPLY_POOL.available(planet, good.key)
         if avail <= 0:
@@ -5445,10 +5446,17 @@ async def _handle_buy_cargo(ctx) -> None:
             )
             return
 
+    # Bulk-purchase premium (P3 §3.2.D) — large orders relative to current
+    # supply pay more per ton. Applied to the per-ton base price BEFORE
+    # the Bargain check so high-Bargain players can negotiate against the
+    # market-shifted price but can't completely cancel out the premium.
+    premium_pct = volume_premium(quantity, avail) if planet else 0.0
+    effective_per_ton = max(1, int(round(base_price * (1.0 + premium_pct))))
+
     # Bargain check
     char = ctx.session.character
     haggle = resolve_bargain_check(
-        char, base_price * quantity,
+        char, effective_per_ton * quantity,
         npc_bargain_dice=3, npc_bargain_pips=0,
         is_buying=True,
     )
@@ -5482,6 +5490,12 @@ async def _handle_buy_cargo(ctx) -> None:
     if planet:
         SUPPLY_POOL.consume(planet, good.key, quantity)
 
+    if premium_pct > 0:
+        # Round to whole percentage for display so 14.something doesn't surface.
+        await ctx.session.send_line(
+            f"  {ansi.DIM}Bulk premium: +{int(round(premium_pct * 100))}% "
+            f"(large order on thin supply){ansi.RESET}"
+        )
     pct = haggle["price_modifier_pct"]
     if pct != 0:
         direction = "discount" if pct < 0 else "markup"

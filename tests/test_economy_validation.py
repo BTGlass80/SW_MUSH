@@ -22,7 +22,12 @@ import json
 import time
 from tests.harness import strip_ansi, assert_output_contains, assert_credits_in_range
 
-pytestmark = pytest.mark.asyncio
+# ── S60/P1d: pytestmark removed (was: `pytestmark = pytest.mark.asyncio`).
+# Async tests in this file are decorated individually; sync tests (the
+# majority) don't need the mark. `asyncio_mode = auto` in pytest.ini
+# handles async-detection for us. Removing the module-level mark silences
+# ~49 `not an async function` warnings with no functional change.
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════

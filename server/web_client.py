@@ -200,19 +200,7 @@ class WebClient:
                                 log.warning("Token auth failed: %s", e)
                             # If token auth fails, just continue normally
                             continue
-                        # The client sends all commands as {type:'cmd', data:'...'}.
-                        # Older code paths also used 'input' or 'text' field names,
-                        # so keep those as fallbacks for backward compatibility with
-                        # any external tooling. 'data' must be checked first because
-                        # it is what the live web client actually sends.
-                        frame_type = data.get("type")
-                        if frame_type == "cmd":
-                            text = data.get("data", "")
-                        else:
-                            # Unknown/legacy JSON frame: try the historic field names.
-                            text = data.get("data", data.get("input", data.get("text", "")))
-                        if not isinstance(text, str):
-                            text = ""
+                        text = data.get("input", data.get("text", ""))
                     except (json.JSONDecodeError, AttributeError):
                         text = msg.data
                     text = text.strip()

@@ -447,25 +447,6 @@ async def join_faction(char: dict, faction_code: str, db,
     if existing:
         return False, f"You're already a member of {org['name']}."
 
-    # ── Same-faction alt prevention ──
-    # Block if any other character on this account is already in this faction.
-    account_id = char.get("account_id")
-    if account_id:
-        try:
-            siblings = await db.get_characters(account_id)
-            for sibling in siblings:
-                if sibling["id"] == char["id"]:
-                    continue
-                if sibling.get("faction_id") == faction_code:
-                    org_name = org["name"] if org else faction_code.title()
-                    return False, (
-                        f"Your alt '{sibling['name']}' is already in "
-                        f"{org_name}. Two alts may not share the same "
-                        f"faction."
-                    )
-        except Exception:
-            log.warning("[orgs] same-faction alt check failed", exc_info=True)
-
     # Leave current faction (reclaim equipment)
     current = char.get("faction_id", "independent")
     if current and current != "independent":

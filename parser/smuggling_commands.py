@@ -544,125 +544,10 @@ async def _get_player_ship(ctx: CommandContext):
     return None
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# +smuggle — Umbrella command for all smuggling verbs (S55)
-# ═══════════════════════════════════════════════════════════════════════════
-
-# Switch → implementation dispatch table. Populated at module-load time.
-_SMUGGLE_SWITCH_IMPL: dict = {}
-
-# Bare alias → canonical switch. Every legacy smuggling verb routes here.
-_SMUGGLE_ALIAS_TO_SWITCH: dict[str, str] = {
-    # Board (view available jobs)
-    "smugjobs": "board", "smugboard": "board", "smugcontacts": "board",
-    "underworld": "board",
-    # Accept
-    "smugaccept": "accept", "takesmug": "accept", "takerun": "accept",
-    # View active
-    "smugjob": "view", "myrun": "view", "activerun": "view", "cargo": "view",
-    # Deliver
-    "smugdeliver": "deliver", "deliver": "deliver", "dropoff": "deliver",
-    # Dump
-    "smugdump": "dump", "dumpcargo": "dump", "jettison": "dump",
-}
-
-
-class SmuggleCommand(BaseCommand):
-    """`+smuggle` umbrella — dispatches to smuggling verb handlers by switch.
-
-    Every smuggling verb is a switch under `+smuggle` as of S55:
-
-    Canonical               Bare aliases (still work)
-    --------------------    ---------------------------
-    +smuggle                smugjob, myrun, activerun, cargo, +cargo (view active)
-    +smuggle/board          smugjobs, smugboard, smugcontacts, underworld, +underworld
-    +smuggle/accept <id>    smugaccept, takesmug, takerun
-    +smuggle/view           (same as +smuggle default)
-    +smuggle/deliver        smugdeliver, deliver, dropoff
-    +smuggle/dump           smugdump, dumpcargo, jettison
-
-    `+smuggle` with no switch shows the active run. `+smuggle/board`
-    needs an eligible room (cantina / docking bay / spaceport). Delivery
-    requires being docked at the destination planet. Jettison dumps
-    cargo — no pay, no fine.
-    """
-
-    key = "+smuggle"
-    aliases = [
-        # View-active aliases (from old SmugJobCommand)
-        "smugjob", "myrun", "activerun", "cargo", "+cargo", "+smugjob",
-        # Board aliases (from old SmugJobsCommand)
-        "smugjobs", "smugboard", "smugcontacts", "underworld", "+underworld",
-        "+smugjobs",
-        # Accept
-        "smugaccept", "takesmug", "takerun",
-        # Deliver
-        "smugdeliver", "deliver", "dropoff",
-        # Dump
-        "smugdump", "dumpcargo", "jettison",
-    ]
-    access_level = AccessLevel.ANYONE
-    help_text = (
-        "All smuggling verbs live under +smuggle/<switch>. "
-        "Bare verbs (smugjobs, smugaccept, deliver, jettison, etc.) still work."
-    )
-    usage = "+smuggle[/switch] [args]  — see 'help +smuggle' for all switches"
-    valid_switches = [
-        "board", "accept", "view", "deliver", "dump",
-    ]
-
-    async def execute(self, ctx: CommandContext) -> None:
-        """Dispatch to the switch handler.
-
-        Resolution priority:
-          1. Explicit switch on the canonical form: `+smuggle/accept`
-          2. Bare alias: `deliver` → ctx.command=="deliver" →
-             _SMUGGLE_ALIAS_TO_SWITCH maps it to "deliver"
-          3. Bare umbrella: `+smuggle` / `smugjob` / `myrun` → view active
-        """
-        switch = None
-        if ctx.switches:
-            switch = ctx.switches[0].lower()
-        else:
-            typed = (ctx.command or "").lower()
-            switch = _SMUGGLE_ALIAS_TO_SWITCH.get(typed, "view")
-
-        impl = _SMUGGLE_SWITCH_IMPL.get(switch)
-        if impl is None:
-            await ctx.session.send_line(
-                f"  Unknown smuggling switch: /{switch}. "
-                f"Type 'help +smuggle' for the full list."
-            )
-            return
-        await impl.execute(ctx)
-
-
-def _init_smuggle_switch_impl():
-    """Build the switch → command instance dispatch table."""
-    global _SMUGGLE_SWITCH_IMPL
-    _SMUGGLE_SWITCH_IMPL = {
-        "board":   SmugJobsCommand(),
-        "accept":  SmugAcceptCommand(),
-        "view":    SmugJobCommand(),
-        "deliver": SmugDeliverCommand(),
-        "dump":    SmugDumpCommand(),
-    }
-
-
 # ── Registration ──────────────────────────────────────────────────────────────
 
 def register_smuggling_commands(registry) -> None:
-    """Register all smuggling commands.
-
-    The `+smuggle` umbrella is the canonical form for every smuggling verb
-    (`+smuggle/board`, `+smuggle/accept`, `+smuggle/deliver`, etc.). Bare
-    verb forms (`smugjobs`, `deliver`, `jettison`, etc.) remain as aliases.
-    """
-    # Umbrella first — registers `+smuggle` and all the canonical
-    # verb aliases. (Dispatch table populated at module-load time.)
-    registry.register(SmuggleCommand())
-
-    # Per-verb classes keep their bare keys for backward compatibility.
+    """Register all smuggling commands."""
     for cmd in [
         SmugJobsCommand(),
         SmugAcceptCommand(),
@@ -671,8 +556,3 @@ def register_smuggling_commands(registry) -> None:
         SmugDumpCommand(),
     ]:
         registry.register(cmd)
-
-
-# ── Populate the umbrella switch-dispatch map (S55) ──
-# Must happen after all per-verb classes are defined in this module.
-_init_smuggle_switch_impl()

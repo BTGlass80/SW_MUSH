@@ -103,7 +103,7 @@ class TestNpcPilotSkillFix:
             async def get_character(self, cid):
                 return None
 
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             mgr._get_target_pilot_skill(ship, None, MockDB())
         )
         assert result.dice == 3 and result.pips == 0, \
@@ -121,7 +121,7 @@ class TestNpcPilotSkillFix:
             async def get_character(self, cid):
                 return None
 
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             mgr._get_target_pilot_skill(ship, None, MockDB())
         )
         assert result.dice == 3 and result.pips == 0
@@ -212,7 +212,7 @@ class TestBoardingLinkValidation:
         ship_a = {"id": 1, "bridge_room_id": None, "systems": "{}"}
         ship_b = {"id": 2, "bridge_room_id": 100, "systems": "{}"}
 
-        ok, msg = asyncio.get_event_loop().run_until_complete(
+        ok, msg = asyncio.run(
             create_boarding_link(ship_a, ship_b, None)
         )
         assert not ok
@@ -226,7 +226,7 @@ class TestBoardingLinkValidation:
         ship_a = {"id": 1, "bridge_room_id": 10, "docked_at": None, "systems": "{}"}
         ship_b = {"id": 2, "bridge_room_id": 20, "docked_at": 99, "systems": "{}"}
 
-        ok, msg = asyncio.get_event_loop().run_until_complete(
+        ok, msg = asyncio.run(
             create_boarding_link(ship_a, ship_b, None)
         )
         assert not ok
@@ -241,7 +241,7 @@ class TestBoardingLinkValidation:
                   "systems": json.dumps({"boarding_linked_to": 99})}
         ship_b = {"id": 2, "bridge_room_id": 20, "docked_at": None, "systems": "{}"}
 
-        ok, msg = asyncio.get_event_loop().run_until_complete(
+        ok, msg = asyncio.run(
             create_boarding_link(ship_a, ship_b, None)
         )
         assert not ok

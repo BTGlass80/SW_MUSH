@@ -324,7 +324,7 @@ class TestEncounterBoardingModule:
             result = await cleanup_boarding_party(999, MockDB())
             assert result == 0
 
-        asyncio.get_event_loop().run_until_complete(_run())
+        asyncio.run(_run())
 
     def test_cleanup_boarding_party_handles_no_party(self):
         """cleanup_boarding_party must return 0 when no boarding party active."""
@@ -339,7 +339,7 @@ class TestEncounterBoardingModule:
             result = await cleanup_boarding_party(1, MockDB())
             assert result == 0
 
-        asyncio.get_event_loop().run_until_complete(_run())
+        asyncio.run(_run())
 
     def test_check_boarding_party_status_no_ship(self):
         """check_boarding_party_status returns None when ship not found."""
@@ -351,7 +351,7 @@ class TestEncounterBoardingModule:
             result = await check_boarding_party_status(999, MockDB(), None)
             assert result is None
 
-        asyncio.get_event_loop().run_until_complete(_run())
+        asyncio.run(_run())
 
     def test_check_boarding_party_status_no_active_party(self):
         """check_boarding_party_status returns None when no party active."""
@@ -364,7 +364,7 @@ class TestEncounterBoardingModule:
             result = await check_boarding_party_status(1, MockDB(), None)
             assert result is None
 
-        asyncio.get_event_loop().run_until_complete(_run())
+        asyncio.run(_run())
 
     def test_check_boarding_party_status_empty_ids_is_defeated(self):
         """check_boarding_party_status returns 'defeated' when npc_ids list is empty."""
@@ -380,7 +380,7 @@ class TestEncounterBoardingModule:
             result = await check_boarding_party_status(1, MockDB(), None)
             assert result == "defeated"
 
-        asyncio.get_event_loop().run_until_complete(_run())
+        asyncio.run(_run())
 
     def test_boarding_encounter_tick_is_async(self):
         """boarding_encounter_tick must be a coroutine function."""

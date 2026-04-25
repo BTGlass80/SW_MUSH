@@ -68,7 +68,6 @@ class Zone:
     adjacent: list          # list of zone id strings
     planet:   Optional[str] = None
     desc:     str = ""
-    security: str = ""      # "secured", "contested", "lawless" — empty = derive from type
     hazards:  dict = None   # e.g. {"asteroid_density": "heavy", "nav_modifier": 5, "sensor_penalty": 2}
 
     def __post_init__(self):
@@ -85,7 +84,6 @@ ZONES: dict[str, Zone] = {
         type=ZoneType.DOCK,
         planet="tatooine",
         adjacent=["tatooine_orbit"],
-        security="secured",
         desc="The approach corridor to Mos Eisley's docking bays. "
              "Customs transponders ping constantly.",
     ),
@@ -95,7 +93,6 @@ ZONES: dict[str, Zone] = {
         type=ZoneType.ORBIT,
         planet="tatooine",
         adjacent=["tatooine_dock", "tatooine_deep_space"],
-        security="contested",
         desc="Low orbit above Tatooine's amber deserts. "
              "Twin suns glare off the hull plating.",
     ),
@@ -105,7 +102,6 @@ ZONES: dict[str, Zone] = {
         type=ZoneType.DEEP_SPACE,
         planet="tatooine",
         adjacent=["tatooine_orbit", "outer_rim_lane_1"],
-        security="lawless",
         desc="The dark space beyond Tatooine's gravity well. "
              "Rocky debris drifts in slow silence.",
     ),
@@ -115,7 +111,6 @@ ZONES: dict[str, Zone] = {
         name="Outer Rim Lane — Tatooine Corridor",
         type=ZoneType.HYPERSPACE_LANE,
         adjacent=["tatooine_deep_space", "outer_rim_lane_2"],
-        security="contested",
         desc="A well-traveled hyperspace corridor along the Outer Rim. "
              "Ships streak past in blue-white flashes.",
     ),
@@ -126,7 +121,6 @@ ZONES: dict[str, Zone] = {
         type=ZoneType.DOCK,
         planet="nar_shaddaa",
         adjacent=["nar_shaddaa_orbit"],
-        security="contested",
         desc="The grimy docking platforms of Nar Shaddaa. Neon advertisements "
              "flicker over stacked landing pads. Everyone here has a price.",
     ),
@@ -136,7 +130,6 @@ ZONES: dict[str, Zone] = {
         type=ZoneType.ORBIT,
         planet="nar_shaddaa",
         adjacent=["nar_shaddaa_dock", "nar_shaddaa_deep_space"],
-        security="contested",
         desc="Tight orbital lanes above the Smuggler's Moon. Freighters jostle "
              "for position. Hutt patrol barges enforce their own kind of order.",
     ),
@@ -146,7 +139,6 @@ ZONES: dict[str, Zone] = {
         type=ZoneType.DEEP_SPACE,
         planet="nar_shaddaa",
         adjacent=["nar_shaddaa_orbit", "outer_rim_lane_2"],
-        security="lawless",
         desc="The open space beyond Nar Shaddaa's gravity well. "
              "Hutt space sprawls in every direction.",
     ),
@@ -157,7 +149,6 @@ ZONES: dict[str, Zone] = {
         type=ZoneType.DOCK,
         planet="kessel",
         adjacent=["kessel_orbit"],
-        security="contested",
         desc="A rough-hewn spaceport carved into Kessel's dark surface. "
              "Imperial garrison towers overlook every pad. "
              "Spice processing plants hum in the distance.",
@@ -168,7 +159,6 @@ ZONES: dict[str, Zone] = {
         type=ZoneType.ORBIT,
         planet="kessel",
         adjacent=["kessel_dock", "kessel_approach"],
-        security="contested",
         desc="Thin orbit over Kessel's dark surface. The Maw Cluster glows "
              "ominously to port — a wall of swirling gas and gravitational anomalies.",
     ),
@@ -178,7 +168,6 @@ ZONES: dict[str, Zone] = {
         type=ZoneType.DEEP_SPACE,
         planet="kessel",
         adjacent=["kessel_orbit", "outer_rim_lane_3"],
-        security="lawless",
         desc="The treacherous corridor between Kessel and open space. "
              "Asteroid debris and gravitational eddies from the Maw "
              "make navigation a white-knuckle affair.",
@@ -191,7 +180,6 @@ ZONES: dict[str, Zone] = {
         type=ZoneType.DOCK,
         planet="corellia",
         adjacent=["corellia_orbit"],
-        security="secured",
         desc="One of the galaxy's great spaceports. CEC shipyard gantries frame "
              "the skyline. CorSec patrols keep a firm but negotiable order.",
     ),
@@ -201,7 +189,6 @@ ZONES: dict[str, Zone] = {
         type=ZoneType.ORBIT,
         planet="corellia",
         adjacent=["corellia_dock", "corellia_deep_space"],
-        security="secured",
         desc="Busy orbital lanes around the shipbuilding capital. "
              "CEC drydocks and orbital stations dot the view.",
     ),
@@ -211,7 +198,6 @@ ZONES: dict[str, Zone] = {
         type=ZoneType.DEEP_SPACE,
         planet="corellia",
         adjacent=["corellia_orbit", "corellian_trade_spine"],
-        security="contested",
         desc="Open space at the edge of the Corellian system. "
              "The Corellian Trade Spine beckons toward the Core.",
     ),
@@ -221,7 +207,6 @@ ZONES: dict[str, Zone] = {
         name="Outer Rim Lane — Hutt Space Corridor",
         type=ZoneType.HYPERSPACE_LANE,
         adjacent=["outer_rim_lane_1", "nar_shaddaa_deep_space", "outer_rim_lane_3"],
-        security="lawless",
         desc="The hyperspace corridor linking the Outer Rim to Hutt Space. "
              "Smuggler traffic is heavy. Navigation beacons are unreliable.",
     ),
@@ -230,7 +215,6 @@ ZONES: dict[str, Zone] = {
         name="Outer Rim Lane — Kessel Run Approach",
         type=ZoneType.HYPERSPACE_LANE,
         adjacent=["outer_rim_lane_2", "kessel_approach"],
-        security="lawless",
         desc="The notorious approach corridor toward the Kessel system. "
              "The Maw's gravity shadows make this stretch genuinely dangerous.",
         hazards={"asteroid_density": "light", "nav_modifier": 2},
@@ -240,7 +224,6 @@ ZONES: dict[str, Zone] = {
         name="Corellian Trade Spine",
         type=ZoneType.HYPERSPACE_LANE,
         adjacent=["corellia_deep_space", "outer_rim_lane_1"],
-        security="contested",
         desc="One of the galaxy's major trade arteries. Heavy freighter traffic "
              "and Imperial customs interdiction make this a busy corridor.",
     ),
@@ -274,126 +257,6 @@ def get_orbit_zone_for_room(room_name: str) -> str:
         if key in name_lower:
             return zone_id
     return "tatooine_orbit"  # safe fallback
-
-
-# ── Space Security ───────────────────────────────────────────────────────────
-# Per-zone security levels control encounter rates, PvP rules, and loot
-# quality. Mirrors the ground security system (engine/security.py) but
-# uses explicit per-zone assignments rather than room property inheritance.
-#
-# Security hierarchy:
-#   secured   — No combat. Defense grid / CorSec / port authority.
-#   contested — NPC combat allowed. PvP requires consent.
-#   lawless   — Unrestricted PvP. No authority presence.
-#
-# See space_overhaul_v3_design.md §4 for full design rationale.
-
-_ZONE_TYPE_DEFAULT_SECURITY = {
-    ZoneType.DOCK:            "secured",
-    ZoneType.ORBIT:           "contested",
-    ZoneType.HYPERSPACE_LANE: "contested",
-    ZoneType.DEEP_SPACE:      "lawless",
-}
-
-# Director-driven transient overrides: zone_id → security string
-_space_security_overrides: dict[str, str] = {}
-
-
-def set_space_security_override(zone_id: str, level: str | None) -> None:
-    """Set (or clear with None) a transient Director-driven security override."""
-    if level is None:
-        _space_security_overrides.pop(zone_id, None)
-    else:
-        _space_security_overrides[zone_id] = level
-    log.info("[space_security] zone %s override → %s", zone_id, level)
-
-
-def clear_space_security_overrides() -> None:
-    """Clear all transient space security overrides (e.g. on restart)."""
-    _space_security_overrides.clear()
-
-
-def get_space_security(zone_id: str) -> str:
-    """Return effective security level for a space zone.
-
-    Resolution order:
-      1. Transient Director override (set via world events / faction turns)
-      2. Explicit zone.security field (per-planet profile)
-      3. Fallback: derive from zone type (legacy behavior)
-
-    Returns: "secured" | "contested" | "lawless"
-    """
-    # 1. Director override
-    override = _space_security_overrides.get(zone_id)
-    if override:
-        return override
-
-    # 2. Zone-level explicit security
-    zone = ZONES.get(zone_id)
-    if zone and zone.security:
-        return zone.security
-
-    # 3. Fallback: derive from zone type
-    if zone:
-        return _ZONE_TYPE_DEFAULT_SECURITY.get(zone.type, "contested")
-
-    return "lawless"  # unknown zone = fail-open
-
-
-# ── Security-aware encounter rates ───────────────────────────────────────────
-# Keyed by security level. Values are relative weights for archetype selection.
-# These replace the flat archetype weights for zone-aware spawning.
-
-ENCOUNTER_RATES_BY_SECURITY = {
-    "secured": {
-        "patrol":  35,
-        "pirate":  2,
-        "trader":  25,
-        "smuggler": 5,
-        "hunter":  3,
-    },
-    "contested": {
-        "patrol":  15,
-        "pirate":  15,
-        "trader":  15,
-        "smuggler": 15,
-        "hunter":  10,
-    },
-    "lawless": {
-        "patrol":  5,
-        "pirate":  30,
-        "trader":  8,
-        "smuggler": 20,
-        "hunter":  15,
-    },
-}
-
-# Anomaly quality multiplier by security level.
-# Affects salvage value and rare component drop rates.
-ANOMALY_QUALITY_MULT = {
-    "secured":   0.5,
-    "contested": 1.0,
-    "lawless":   2.0,
-}
-
-
-def get_archetype_weights_for_zone(zone_id: str) -> dict:
-    """Return archetype spawn weights adjusted for zone security level.
-
-    Maps security-level encounter rates to TrafficArchetype weights
-    for use by the existing _pick_archetype() weighted random selection.
-    Returns a dict of {TrafficArchetype: int_weight}.
-    """
-    sec = get_space_security(zone_id)
-    rates = ENCOUNTER_RATES_BY_SECURITY.get(sec, ENCOUNTER_RATES_BY_SECURITY["contested"])
-
-    return {
-        TrafficArchetype.PATROL:        rates["patrol"],
-        TrafficArchetype.PIRATE:        rates["pirate"],
-        TrafficArchetype.TRADER:        rates["trader"],
-        TrafficArchetype.SMUGGLER:      rates["smuggler"],
-        TrafficArchetype.BOUNTY_HUNTER: rates["hunter"],
-    }
 
 
 def get_deep_space_zone_for_orbit(orbit_zone_id: str) -> str:
@@ -682,19 +545,10 @@ class TrafficShip:
 # HELPER: random weighted archetype pick
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _pick_archetype(exclude_hunter: bool = True,
-                           zone_id: str = "") -> TrafficArchetype:
-    # Use zone-aware weights if zone_id provided (Drop 0: space security)
-    if zone_id:
-        pool = get_archetype_weights_for_zone(zone_id)
-        if exclude_hunter:
-            pool.pop(TrafficArchetype.BOUNTY_HUNTER, None)
-    else:
-        pool = {k: v for k, v in TRAFFIC_WEIGHTS.items()
-                if not (exclude_hunter and k == TrafficArchetype.BOUNTY_HUNTER)}
+def _pick_archetype(exclude_hunter: bool = True) -> TrafficArchetype:
+    pool = {k: v for k, v in TRAFFIC_WEIGHTS.items()
+            if not (exclude_hunter and k == TrafficArchetype.BOUNTY_HUNTER)}
     total = sum(pool.values())
-    if total <= 0:
-        return TrafficArchetype.TRADER
     r = random.randint(1, total)
     cumulative = 0
     for archetype, weight in pool.items():
@@ -841,12 +695,9 @@ class NpcSpaceTrafficManager:
 
     async def _spawn(self, db, session_mgr,
                      archetype: Optional[TrafficArchetype] = None,
-                     bounty_target: Optional[int] = None,
-                     force_zone: Optional[str] = None) -> Optional[TrafficShip]:
-        spawn_zone = force_zone or random.choice(SPAWN_ZONES)
-
+                     bounty_target: Optional[int] = None) -> Optional[TrafficShip]:
         if archetype is None:
-            archetype = _pick_archetype(zone_id=spawn_zone)
+            archetype = _pick_archetype()
 
         templates = TRAFFIC_SHIP_TEMPLATES.get(archetype, [])
         if not templates:
@@ -855,6 +706,7 @@ class NpcSpaceTrafficManager:
 
         ship_name    = _make_ship_name(tmpl)
         captain_name = _make_captain_name(tmpl)
+        spawn_zone   = random.choice(SPAWN_ZONES)
 
         # Create ship in DB
         try:
@@ -1002,21 +854,15 @@ class NpcSpaceTrafficManager:
         return False
 
     async def _tick_idle(self, ship: TrafficShip, db, session_mgr) -> bool:
-        # Patrol: scan for players in zone → create encounter (Drop 2)
+        # Patrol: scan for players in zone and hail them
         if ship.archetype == TrafficArchetype.PATROL and not ship.hail_sent:
             players_in_zone = await self._get_players_in_zone(ship.current_zone, db, session_mgr)
             if players_in_zone:
                 player_session, player_ship_name = players_in_zone[0]
-                # Use the new encounter system instead of the old hail flow
-                created = await self._create_patrol_encounter(
-                    ship, player_session, player_ship_name, db, session_mgr)
-                if created:
-                    ship.hail_sent = True
-                    # Patrol enters HAILING state so it doesn't re-trigger
-                    ship.enter_state(TrafficState.HAILING, duration=120)
+                await self._send_patrol_hail(ship, player_session, player_ship_name, session_mgr, db)
                 return False
 
-        # Pirate: spot a player ship in zone → create encounter (Drop 4)
+        # Pirate: spot a player ship in zone → begin tailing
         # Cap: at most 1 pirate actively tailing/hailing per zone.
         if ship.archetype == TrafficArchetype.PIRATE and ship.tailing_ship_id is None:
             _active_pirates = sum(
@@ -1033,11 +879,15 @@ class NpcSpaceTrafficManager:
                 player_session, player_ship_name = player_ships[0]
                 target_ship_id = await _get_player_ship_zone_ship_id(player_session, db)
                 if target_ship_id:
-                    created = await self._create_pirate_encounter(
-                        ship, target_ship_id, player_ship_name, db, session_mgr)
-                    if created:
-                        ship.tailing_ship_id = target_ship_id
-                        ship.enter_state(TrafficState.HAILING, duration=120)
+                    ship.tailing_ship_id = target_ship_id
+                    ship.enter_state(TrafficState.TAILING, duration=0)
+                    await self._announce_to_zone(
+                        ship.current_zone,
+                        f"  {ansi_yellow}[SENSORS]{ansi_reset} {ship.sensors_name()} "
+                        f"adjusts course — it appears to be following you.",
+                        session_mgr, db,
+                    )
+                    log.info(f"[traffic] pirate '{ship.display_name}' tailing ship {target_ship_id}")
                     return False
 
         # Bounty hunter: navigate toward target's zone
@@ -1066,25 +916,38 @@ class NpcSpaceTrafficManager:
         if ship.state_age() >= HAIL_TIMEOUT_SECS:
             # No reply — treat as refusal
             if ship.archetype == TrafficArchetype.PATROL:
-                # Drop 2: encounters handle their own timeout via EncounterManager.
-                # The patrol just needs to resume its route after the encounter resolves.
-                # Check if the encounter is still active:
-                from engine.space_encounters import get_encounter_manager
-                mgr = get_encounter_manager()
-                # If encounter already resolved (player responded), move on
-                # If encounter still active, it handles its own deadline
-                ship.hail_sent = False
-                ship.hail_pending = False
-                self._plan_next_move(ship)
-                return False
+                await self._announce_to_zone(
+                    ship.current_zone,
+                    f"  [COMMS] {ship.display_name}: \"Failure to respond is a violation."
+                    f" Prepare to be boarded.\"",
+                    session_mgr, db,
+                )
+                log.info(
+                    "[traffic] patrol %s hail timeout — boarding inspection",
+                    ship.display_name,
+                )
+                await self._run_boarding_inspection(ship, db, session_mgr)
             elif ship.archetype == TrafficArchetype.PIRATE:
-                # Drop 4: encounters handle their own timeout via EncounterManager.
-                # The pirate just resumes normal behavior after the encounter resolves.
+                # Refusal → pirate attacks
+                await self._announce_to_zone(
+                    ship.current_zone,
+                    f"  {ansi_yellow}[COMMS]{ansi_reset} {ship.sensors_name()}: "
+                    f"\"You had your chance. Open fire!\"",
+                    session_mgr, db,
+                )
+                await self._announce_to_zone(
+                    ship.current_zone,
+                    f"  {ansi_yellow}[ALERT]{ansi_reset} {ship.sensors_name()} "
+                    f"is attacking! Use 'fire', 'flee', or 'evade'.",
+                    session_mgr, db,
+                )
+                log.info(f"[traffic] pirate '{ship.display_name}' demand refused — attacking")
+                # Pirate re-enters idle; full combat loop is future work
                 ship.tailing_ship_id = None
-                ship.hail_sent = False
-                ship.hail_pending = False
                 idle_dur = random.uniform(IDLE_MIN_SECS, IDLE_MAX_SECS)
                 ship.enter_state(TrafficState.IDLE, duration=idle_dur)
+                ship.hail_sent = False
+                ship.hail_pending = False
                 return False
             elif ship.archetype == TrafficArchetype.BOUNTY_HUNTER:
                 # No surrender → hunter attacks
@@ -1280,48 +1143,36 @@ class NpcSpaceTrafficManager:
         # After tailing for HAIL_TIMEOUT_SECS, send demand
         if ship.state_age() >= HAIL_TIMEOUT_SECS and not ship.hail_sent:
             if ship.archetype == TrafficArchetype.BOUNTY_HUNTER:
-                # Drop 7: create hunter encounter instead of old hail
-                created = await self._create_hunter_encounter(
-                    ship, ship.tailing_ship_id, db, session_mgr)
-                if created:
-                    ship.hail_sent = True
-                    ship.hunter_hail_sent = True
-                    ship.enter_state(TrafficState.HAILING, duration=120)
-                else:
-                    # Fallback: old personalized hail
-                    target_name_str = ship.bounty_target_name or "fugitive"
-                    ship.hail_sent = True
-                    ship.hunter_hail_sent = True
-                    ship.enter_state(TrafficState.HAILING, duration=HAIL_TIMEOUT_SECS)
-                    await self._announce_to_zone(
-                        ship.current_zone,
-                        f"  {ansi_yellow}[COMMS]{ansi_reset} {ship.sensors_name()}: "
-                        f"\"{target_name_str}. Surrender or I collect from your wreckage.\"",
-                        session_mgr, db,
-                    )
+                # Personalized hail naming the target
+                target_name_str = ship.bounty_target_name or "fugitive"
+                ship.hail_sent = True
+                ship.hunter_hail_sent = True
+                ship.enter_state(TrafficState.HAILING, duration=HAIL_TIMEOUT_SECS)
+                await self._announce_to_zone(
+                    ship.current_zone,
+                    f"  {ansi_yellow}[COMMS]{ansi_reset} {ship.sensors_name()}: "
+                    f"\"{target_name_str}. I've tracked you across three sectors. "
+                    f"Power down your engines and surrender — or I collect the bounty "
+                    f"from your wreckage.\"",
+                    session_mgr, db,
+                )
+                log.info(f"[traffic] hunter '{ship.display_name}' sent personalized hail "
+                         f"to '{target_name_str}'")
             else:
-                # Pirate demand → create encounter (Drop 4)
-                target_name = dict(target_row).get("name", "your ship") if target_row else "your ship"
-                created = await self._create_pirate_encounter(
-                    ship, ship.tailing_ship_id, target_name, db, session_mgr)
-                if created:
-                    ship.hail_sent = True
-                    ship.enter_state(TrafficState.HAILING, duration=120)
-                else:
-                    # Fallback: old behavior
-                    demand = random.randint(PIRATE_CREDIT_MIN, PIRATE_CREDIT_MAX)
-                    ship.pirate_demand_credits = demand
-                    ship.pirate_paid = False
-                    ship.hail_sent = True
-                    ship.enter_state(TrafficState.HAILING, duration=HAIL_TIMEOUT_SECS)
-                    await self._announce_to_zone(
-                        ship.current_zone,
-                        f"  {ansi_yellow}[COMMS]{ansi_reset} {ship.sensors_name()}: "
-                        f"\"Cut your engines. Transfer {demand:,} credits or we start shooting. "
-                        f"Use: pay {ship.sensors_name()} to comply.\"",
-                        session_mgr, db,
-                    )
-                    log.info(f"[traffic] pirate '{ship.display_name}' demands {demand} cr (legacy)")
+                # Pirate demand
+                demand = random.randint(PIRATE_CREDIT_MIN, PIRATE_CREDIT_MAX)
+                ship.pirate_demand_credits = demand
+                ship.pirate_paid = False
+                ship.hail_sent = True
+                ship.enter_state(TrafficState.HAILING, duration=HAIL_TIMEOUT_SECS)
+                await self._announce_to_zone(
+                    ship.current_zone,
+                    f"  {ansi_yellow}[COMMS]{ansi_reset} {ship.sensors_name()}: "
+                    f"\"Cut your engines. Transfer {demand:,} credits or we start shooting. "
+                    f"Use: pay {ship.sensors_name()} to comply.\"",
+                    session_mgr, db,
+                )
+                log.info(f"[traffic] pirate '{ship.display_name}' demands {demand} cr")
 
         return False
 
@@ -1471,163 +1322,6 @@ class NpcSpaceTrafficManager:
         except Exception as e:
             log.error(f"[traffic] _find_char_ship_id error: {e}")
         return None
-
-    async def spawn_pirate_for_encounter(self, zone_id: str, db, session_mgr):
-        """Spawn a temporary pirate for an anomaly encounter. Returns TrafficShip or None."""
-        try:
-            return await self._spawn(db, session_mgr,
-                                      archetype=TrafficArchetype.PIRATE,
-                                      force_zone=zone_id)
-        except Exception as e:
-            log.warning("[traffic] spawn_pirate_for_encounter: %s", e)
-            return None
-
-    async def _create_hunter_encounter(self, ship: TrafficShip,
-                                        target_ship_id: int,
-                                        db, session_mgr) -> bool:
-        """Create a Bounty Hunter encounter (Drop 7). Returns True if created."""
-        from engine.space_encounters import get_encounter_manager
-        mgr = get_encounter_manager()
-        target_ship = await db.get_ship(target_ship_id)
-        if not target_ship:
-            return False
-        bridge_room = target_ship.get("bridge_room_id")
-        if not bridge_room:
-            return False
-
-        # Look up bounty amount from the target character
-        bounty_amount = 0
-        target_name = ship.bounty_target_name or "fugitive"
-        if ship.bounty_target_char_id:
-            try:
-                char = await db.get_character(ship.bounty_target_char_id)
-                if char:
-                    bounty_amount = dict(char).get("bounty", 0)
-                    target_name = dict(char).get("name", target_name)
-            except Exception:
-                log.warning("[traffic] hunter encounter target lookup failed", exc_info=True)
-
-        enc = await mgr.create_encounter(
-            encounter_type="hunter",
-            zone_id=ship.current_zone,
-            target_ship_id=target_ship_id,
-            target_bridge_room=bridge_room,
-            db=db,
-            session_mgr=session_mgr,
-            npc_ship_id=ship.ship_id,
-            context={
-                "hunter_name": ship.display_name,
-                "target_name": target_name,
-                "bounty_amount": bounty_amount,
-            },
-        )
-        if enc:
-            log.info("[traffic] hunter '%s' created encounter %s for '%s'",
-                     ship.display_name, enc.id, target_name)
-            return True
-        return False
-
-    # ── Encounter creation (Drop 2) ─────────────────────────────────────────
-
-    async def _create_patrol_encounter(self, ship: TrafficShip,
-                                        player_session, player_ship_name: str,
-                                        db, session_mgr) -> bool:
-        """Create an Imperial Patrol encounter using the new encounter system.
-
-        Returns True if encounter was created, False if blocked by cooldown/cap.
-        """
-        from engine.space_encounters import get_encounter_manager
-        mgr = get_encounter_manager()
-
-        # Find the player's ship ID and bridge room
-        target_ship_id = await _get_player_ship_zone_ship_id(player_session, db)
-        if not target_ship_id:
-            return False
-        target_ship = await db.get_ship(target_ship_id)
-        if not target_ship:
-            return False
-        bridge_room = target_ship.get("bridge_room_id")
-        if not bridge_room:
-            return False
-
-        # Check for contraband (smuggling job or false transponder)
-        import json as _json
-        sys_data = {}
-        raw = dict(target_ship).get("systems") or "{}"
-        try:
-            sys_data = _json.loads(raw) if isinstance(raw, str) else raw
-        except Exception:
-            log.warning("[traffic] patrol encounter systems JSON parse failed", exc_info=True)
-
-        has_contraband = bool(
-            sys_data.get("smuggling_job") or sys_data.get("false_transponder")
-        )
-
-        # Check cleared status — recently inspected ships are skipped
-        cleared_until = sys_data.get("patrol_cleared_until", 0)
-        if cleared_until and time.time() < cleared_until:
-            log.debug("[traffic] patrol skipping cleared ship %d", target_ship_id)
-            return False
-
-        enc = await mgr.create_encounter(
-            encounter_type="patrol",
-            zone_id=ship.current_zone,
-            target_ship_id=target_ship_id,
-            target_bridge_room=bridge_room,
-            db=db,
-            session_mgr=session_mgr,
-            npc_ship_id=ship.ship_id,
-            context={
-                "patrol_name": ship.display_name,
-                "player_ship_name": player_ship_name,
-                "has_contraband": has_contraband,
-            },
-        )
-
-        if enc:
-            log.info("[traffic] patrol '%s' created encounter %s for ship '%s'",
-                     ship.display_name, enc.id, player_ship_name)
-            return True
-        return False
-
-    async def _create_pirate_encounter(self, ship: TrafficShip,
-                                        target_ship_id: int,
-                                        player_ship_name: str,
-                                        db, session_mgr) -> bool:
-        """Create a Pirate encounter using the new encounter system (Drop 4).
-
-        Returns True if encounter was created, False if blocked.
-        """
-        from engine.space_encounters import get_encounter_manager
-        mgr = get_encounter_manager()
-
-        target_ship = await db.get_ship(target_ship_id)
-        if not target_ship:
-            return False
-        target_ship = dict(target_ship)
-        bridge_room = target_ship.get("bridge_room_id")
-        if not bridge_room:
-            return False
-
-        enc = await mgr.create_encounter(
-            encounter_type="pirate",
-            zone_id=ship.current_zone,
-            target_ship_id=target_ship_id,
-            target_bridge_room=bridge_room,
-            db=db,
-            session_mgr=session_mgr,
-            npc_ship_id=ship.ship_id,
-            context={
-                "pirate_name": ship.display_name,
-                "player_ship_name": player_ship_name,
-            },
-        )
-
-        if enc:
-            log.info("[traffic] pirate '%s' created encounter %s for ship %d",
-                     ship.display_name, enc.id, target_ship_id)
-            return True
-        return False
 
     # ── Hail senders ─────────────────────────────────────────────────────────
 

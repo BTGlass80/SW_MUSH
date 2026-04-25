@@ -246,7 +246,7 @@ class TestSameFactionAltPrevention:
             assert "alt" in msg.lower() or "faction" in msg.lower(), \
                 f"Block message should mention alt/faction: {msg}"
 
-        asyncio.get_event_loop().run_until_complete(_run())
+        asyncio.run(_run())
 
     def test_join_faction_allows_different_faction(self):
         """Different factions on alts should be allowed."""
@@ -295,7 +295,7 @@ class TestSameFactionAltPrevention:
             assert "alt" not in msg.lower() or ok is True, \
                 f"Should not block different-faction alt: {msg}"
 
-        asyncio.get_event_loop().run_until_complete(_run())
+        asyncio.run(_run())
 
 
 # ═══════════════════════════════════════════════════════════════════════

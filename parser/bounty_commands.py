@@ -430,125 +430,10 @@ class BountyCollectCommand(BaseCommand):
             pass
 
 
-# ═══════════════════════════════════════════════════════════════════════════
-# +bounty — Umbrella command for all bounty-board verbs (S55)
-# ═══════════════════════════════════════════════════════════════════════════
-
-# Switch → implementation dispatch table. Populated at module-load time.
-_BOUNTY_SWITCH_IMPL: dict = {}
-
-# Bare alias → canonical switch. Every legacy bounty verb routes here.
-_BOUNTY_ALIAS_TO_SWITCH: dict[str, str] = {
-    # Board (view posted contracts)
-    "bounties": "board", "bboard": "board", "bountyboard": "board",
-    # Claim (accept)
-    "bountyclaim": "claim", "claimbounty": "claim", "acceptbounty": "claim",
-    # View active
-    "mybounty": "view", "activebounty": "view", "myhunt": "view",
-    # Track (investigate)
-    "bountytrack": "track", "tracktarget": "track", "hunttrack": "track",
-    # Collect (after kill)
-    "bountycollect": "collect", "collectbounty": "collect",
-    "claimreward": "collect",
-}
-
-
-class BountyCommand(BaseCommand):
-    """`+bounty` umbrella — dispatches to bounty-board verb handlers by switch.
-
-    Every bounty-board verb is a switch under `+bounty` as of S55:
-
-    Canonical               Bare aliases (still work)
-    --------------------    ---------------------------
-    +bounty                 mybounty, activebounty, myhunt, +myhunt  (view active)
-    +bounty/board           bounties, bboard, bountyboard, +bboard, +bounties
-    +bounty/claim <id>      bountyclaim, claimbounty, acceptbounty
-    +bounty/view            (same as +bounty default)
-    +bounty/track           bountytrack, tracktarget, hunttrack
-    +bounty/collect         bountycollect, collectbounty, claimreward
-
-    `+bounty` with no switch shows your active contract. `+bounty/board`
-    lists posted contracts. `+bounty/claim <id>` takes one. `+bounty/track`
-    rolls Search/Streetwise/Tracking to locate the target. `+bounty/collect`
-    pays out after you've defeated them (Streetwise/Search claim-quality
-    roll affects reward 50%-120% of base).
-    """
-
-    key = "+bounty"
-    aliases = [
-        # View-active aliases (from old MyBountyCommand)
-        "mybounty", "activebounty", "myhunt", "+myhunt", "+mybounty",
-        # Board aliases (from old BountiesCommand)
-        "bounties", "bboard", "bountyboard", "+bboard", "+bounties",
-        # Claim
-        "bountyclaim", "claimbounty", "acceptbounty",
-        # Track
-        "bountytrack", "tracktarget", "hunttrack",
-        # Collect
-        "bountycollect", "collectbounty", "claimreward",
-    ]
-    help_text = (
-        "All bounty-board verbs live under +bounty/<switch>. "
-        "Bare verbs (bounties, bountyclaim, bountytrack, bountycollect) "
-        "still work as aliases."
-    )
-    usage = "+bounty[/switch] [args]  — see 'help +bounty' for all switches"
-    valid_switches = [
-        "board", "claim", "view", "track", "collect",
-    ]
-
-    async def execute(self, ctx: CommandContext):
-        """Dispatch to the switch handler.
-
-        Resolution priority:
-          1. Explicit switch on the canonical form: `+bounty/claim`
-          2. Bare alias: `bountytrack` → ctx.command=="bountytrack" →
-             _BOUNTY_ALIAS_TO_SWITCH maps it to "track"
-          3. Bare umbrella: `+bounty` / `mybounty` / `myhunt` → view active
-        """
-        switch = None
-        if ctx.switches:
-            switch = ctx.switches[0].lower()
-        else:
-            typed = (ctx.command or "").lower()
-            switch = _BOUNTY_ALIAS_TO_SWITCH.get(typed, "view")
-
-        impl = _BOUNTY_SWITCH_IMPL.get(switch)
-        if impl is None:
-            await ctx.session.send_line(
-                f"  Unknown bounty switch: /{switch}. "
-                f"Type 'help +bounty' for the full list."
-            )
-            return
-        await impl.execute(ctx)
-
-
-def _init_bounty_switch_impl():
-    """Build the switch → command instance dispatch table."""
-    global _BOUNTY_SWITCH_IMPL
-    _BOUNTY_SWITCH_IMPL = {
-        "board":   BountiesCommand(),
-        "claim":   BountyClaimCommand(),
-        "view":    MyBountyCommand(),
-        "track":   BountyTrackCommand(),
-        "collect": BountyCollectCommand(),
-    }
-
-
 # ── Registration ───────────────────────────────────────────────────────────────
 
 def register_bounty_commands(registry) -> None:
-    """Register all bounty commands. Call from game_server.py __init__.
-
-    The `+bounty` umbrella is the canonical form for every bounty verb
-    (`+bounty/board`, `+bounty/claim`, `+bounty/track`, `+bounty/collect`).
-    Bare verb forms remain as aliases.
-    """
-    # Umbrella first — registers `+bounty` and all the canonical
-    # verb aliases. (Dispatch table populated at module-load time.)
-    registry.register(BountyCommand())
-
-    # Per-verb classes keep their bare keys for backward compatibility.
+    """Register all bounty commands. Call from game_server.py __init__."""
     for cmd in [
         BountiesCommand(),
         BountyClaimCommand(),
@@ -557,8 +442,3 @@ def register_bounty_commands(registry) -> None:
         BountyCollectCommand(),
     ]:
         registry.register(cmd)
-
-
-# ── Populate the umbrella switch-dispatch map (S55) ──
-# Must happen after all per-verb classes are defined in this module.
-_init_bounty_switch_impl()
