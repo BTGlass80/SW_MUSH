@@ -1,0 +1,1232 @@
+# data/worlds/clone_wars/quests/jedi_village.yaml
+# Clone Wars Era — The Jedi Village Quest Chain (Drop F.8)
+# Schema version 1
+#
+# Per jedi_village_quest_design_v1.md.
+#
+# This file is the MECHANICAL authoring stub for the Village quest.
+# All completion criteria are typed against engine event hooks. All
+# cross-references (NPCs, rooms, factions, flags, items) resolve to
+# their target schemas.
+#
+# What is COMPLETE in this file (v2 — dialogue authored):
+#   - 3-act structure with all step records
+#   - Per-step completion criteria (typed)
+#   - Per-step rewards
+#   - Force-sign trigger location seeds
+#   - NPC roster (10 NPCs) with display name, species, role
+#   - Room slugs (9 Village rooms) for engine to build
+#   - Path A/B/C choice mechanics with full reward + flag specs
+#   - Permanent-fail (attacked-village) state spec
+#   - Master Yarael's full speeches at each touchpoint
+#   - Smith Daro's three Forge speeches
+#   - Mira Delen's framing speech + Director prompt template +
+#     6 archetype templates by faction
+#   - Korvas's Trial of Flesh intake + emergence speeches
+#   - Yarael's Trial of Spirit framing + completion + Director prompt
+#     template with 5 archetype patterns
+#   - Saro Veck's Insight framing + 3 holocron fragment recordings
+#     (Old Republic / Sith / Clone Wars Master) + success speech
+#   - Yarael's branched path-choice presentation (3 paths)
+#   - Three farewell variants (Path A/B/C)
+#   - Permanent-fail expulsion narrative
+#   - Padawan Sela's 4-state peer dialogue
+#   - Mace Windu's 3-turn Path A reception scene
+#
+# What still pends a future drop:
+#   (none — this file is content-complete at v2.)
+#
+# ─── Schema deltas vs chains.yaml (Drop F.6) ──────────────────────────
+#
+# This file uses the same schema as Drop F.6's chains.yaml with these
+# additions:
+#
+#   quest_id              str    (replaces chain_id)
+#   force_sign_seeds:     list   (top-level — Track B trigger sites)
+#   npcs:                 list   (top-level — Village NPC roster)
+#   step.act              int    (1, 2, or 3)
+#   step.completion.type  +new   dialogue_completion, timed_room_dwell,
+#                                multi_turn_dialogue_completion,
+#                                targeted_choice, path_choice
+#   step.village_standing_delta int   (optional reward field)
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+quest:
+  quest_id: jedi_village
+  quest_name: "The Jedi Village"
+  description: >
+    A hidden Force-sensitive enclave in the Tatooine Dune Sea offers the
+    only path to Jedi Order membership for characters who did not begin
+    training at the Coruscant Temple. Master Yarael Tinré, a Cerean who
+    left the Order eighty years ago, vets candidates through the five
+    canonical Trials before presenting them to the Order — or letting
+    them choose another path entirely.
+
+  archetype_label: "Force-sensitive (any background)"
+  faction_alignment: null               # Village is faction-neutral
+  starting_zone: tatooine_dune_sea
+  starting_room: dune_sea_anchor_stones # wilderness landmark, exists pre-quest
+
+  prerequisites:
+    - chargen_complete
+    - force_sensitive                   # Track A (chargen 50%) or Track B
+    - village_invitation_received       # set automatically once force_sensitive
+
+  duration_minutes: 600                 # ~10 hours session time across all acts
+  locked: false
+
+  graduation:
+    # Graduation is path-dependent — see steps for Act 3 for full reward
+    # specs. This top-level section captures common rewards.
+    achievements:
+      - village_quest_complete
+    follow_up_hint: >
+      Path-dependent. See Act 3 step records.
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # FORCE-SIGN TRIGGER SEEDS (Act 1, Track B)
+  # ═══════════════════════════════════════════════════════════════════════
+  # Sites and conditions that have a small probability of incrementing
+  # force_sign_count for non-seeded (Track B) characters. Each entry
+  # describes a trigger; engine session implements the probability check.
+  #
+  # The probability is set at engine level (era.yaml knob:
+  # force_sign_probability_per_trigger, default 0.03). The threshold for
+  # auto-setting force_sensitive: true is force_sign_count >= 5.
+
+  force_sign_seeds:
+    - id: shrine_entry
+      type: room_entered
+      rooms:
+        - forgotten_jedi_shrine     # Coruscant Underworld wilderness
+        - dune_sea_anchor_stones
+        - dune_sea_ruined_obelisk
+        - bantha_graveyard          # Tatooine wilderness landmark
+      flavor_messages:
+        - "Something old turns over in your mind, half-remembered. You don't know why."
+        - "The wind here sounds like a voice you almost recognize."
+        - "You stand here longer than you meant to. The air is different."
+
+    - id: combat_dodge_lucky
+      type: combat_resolution
+      condition: dodge_succeeded_at_low_probability
+      flavor_messages:
+        - "The bolt should have hit. You don't know why it didn't."
+        - "Something moved you. You don't remember choosing to move."
+
+    - id: rest_dream
+      type: command_executed
+      command: rest
+      condition_room_property: safe_rest_zone   # cantina, player home, etc.
+      flavor_messages:
+        - "You wake from a dream you can't quite remember, but the feeling that something is coming stays with you."
+        - "In your sleep you saw a face you have never met. It was looking for you."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # NPC ROSTER
+  # ═══════════════════════════════════════════════════════════════════════
+  # Per design doc §4. NPCs are non-combat-flagged; attacking any of them
+  # triggers the permanent-fail state.
+
+  npcs:
+    - id: yarael_tinre
+      display_name: "Master Yarael Tinré"
+      species: cerean
+      role: "Village Master / Trial of Spirit examiner"
+      age: 119
+      voice: "slow, exact, kind without being warm; calls everyone 'young one'"
+      home_room: village_masters_chamber
+      combat_flagged: false
+      dialogue_summary: >
+        Authored. Touchpoints in step records: 4 (first audience), 8
+        (Trial of Spirit framing), 10 (path choice — branched on
+        dark_pull_counter), and 3 farewell variants per path branch.
+        Voice specs above govern any future dialogue extension.
+
+    - id: sister_vitha
+      display_name: "Sister Vitha"
+      species: twi_lek
+      role: "Gate sentry / dialogue test examiner"
+      age: 51
+      voice: "calm, unhurried; reads intent better than most"
+      home_room: village_gate
+      combat_flagged: false
+      dialogue_summary: >
+        Gate test (single-turn, three options): see jedi_village_quest_
+        design_v1.md §4.2. Three response options pre-authored above;
+        no further dialogue authoring needed.
+
+    - id: elder_mira_delen
+      display_name: "Elder Mira Delen"
+      species: pantoran
+      role: "Council elder / Trial of Courage examiner"
+      age: 64
+      voice: "former mercenary, now serene; direct, no euphemisms"
+      home_room: village_council_hut
+      combat_flagged: false
+      dialogue_summary: >
+        Authored. Mira's framing speech is in step 6's npc_intro. The
+        recital itself is Director-generated using +background entries
+        OR (if empty) one of 6 archetype templates by faction
+        (republic_morally_compromised, cis_betrayal, smuggler_cargo_death,
+        bounty_hunter_wrong_target, hutt_aligned_cruelty, independent_
+        abandonment). Mira speaks the Director's output to the assembled
+        Village. After pass: silent nod, walks back to Council Hut (no
+        dialogue).
+
+    - id: elder_korvas
+      display_name: "Elder Korvas"
+      species: anzati
+      role: "Council elder / Trial of Flesh examiner"
+      age: 287                          # Anzati are long-lived
+      voice: "ascetic, sparing of words; an Anzati who chose not to feed"
+      home_room: village_meditation_caves
+      combat_flagged: false
+      dialogue_summary: >
+        Authored. Intake speech in step 7 npc_intro; emergence speech
+        in step 7 npc_complete. Both brief, in keeping with Korvas's
+        ascetic voice. The 6-hour cave dwell is silent — Korvas does
+        not visit during.
+
+    - id: elder_saro_veck
+      display_name: "Elder Saro Veck"
+      species: human
+      role: "Council elder / Trial of Insight examiner"
+      age: 78
+      voice: "elderly scholar; gentle but sharp"
+      home_room: village_council_hut
+      combat_flagged: false
+      dialogue_summary: >
+        Authored. Framing speech and 3 holocron fragment recordings in
+        step 9. Fragment 2 contains the doctrinal tell: "The Force
+        belongs to those who can wield it" — true Jedi never speak of
+        the Force as belonging. Fragment 1 is an Old Republic Master
+        (~1100 BBY canonical voice); Fragment 3 is a Clone Wars-era
+        Master speaking to wartime moral strain.
+
+    - id: smith_daro
+      display_name: "Smith Daro"
+      species: quarren
+      role: "Forge custodian / Trial of Skill examiner"
+      age: 56
+      voice: "blunt, irritable; a perfectionist with no patience for hurry"
+      home_room: village_forge
+      combat_flagged: false
+      dialogue_summary: >
+        Authored. Three speech blocks in step 5: intake, mid-trial
+        comment, success/handover. Daro is sparing of words; the
+        speeches are short by design.
+
+    - id: padawan_sela
+      display_name: "Padawan Sela"
+      species: human
+      role: "Resident apprentice / talkable peer"
+      age: 17
+      voice: "earnest, four months ahead of the player on the same path"
+      home_room: village_apprentice_tents
+      combat_flagged: false
+      dialogue_summary: |
+        Authored. Sela's dialogue is `talk`-triggered in the apprentice
+        tents. She offers four lines depending on which trial the player
+        has completed (or none, if they have not yet begun the trials):
+
+        On first meeting (no trials passed):
+          "You're the new one? I came in four months ago. The Forge was
+          the worst — I cried after, and I'm not sure why. Daro doesn't
+          say anything; he just lets you cry. They know."
+
+        After Trial of Skill, before Trial of Courage:
+          "Mira knows things she shouldn't. I don't know how. She told me
+          about my brother. I never told anyone about my brother. I
+          stayed."
+
+        After Trial of Courage, before Trial of Flesh:
+          "Six hours is longer than you think. I logged out twice. The
+          cave doesn't mind."
+
+        After Trial of Flesh, before Trial of Spirit:
+          "I won't tell you what I saw in the Sanctum. You'll see your
+          own. Just — don't agree with it. It'll sound reasonable, and
+          that's the trick."
+
+        Engine session: dispatch on `village_quest.trials_completed`
+        contents. No mechanical impact on quest progression.
+
+    - id: village_resident_elara
+      display_name: "Elara"
+      species: rodian
+      role: "Resident (background NPC)"
+      age: 41
+      voice: "background flavor"
+      home_room: village_common_square
+      combat_flagged: false
+      dialogue_summary: >
+        Background presence — gives the Village inhabited feel.
+        Generic ambient lines only. Engine session can wire her to
+        the standard ambient_events pool with a village-specific
+        zone key.
+
+    - id: village_resident_mok
+      display_name: "Mok"
+      species: aqualish
+      role: "Resident (background NPC)"
+      age: 33
+      voice: "background flavor"
+      home_room: village_common_square
+      combat_flagged: false
+      dialogue_summary: >
+        Background presence — gives the Village inhabited feel.
+        Generic ambient lines only.
+
+    - id: master_mace_windu
+      display_name: "Master Mace Windu"
+      species: korun
+      role: "Path A reception NPC at Coruscant Temple"
+      age: 53
+      voice: "Master of the Order; severe, formal, but recognizes Yarael's signet"
+      home_room: jedi_council_chamber_lobby
+      combat_flagged: false               # Mace is in the live world; Village quest does not put him in combat
+      dialogue_summary: |
+        Authored. Mace's reception scene fires when a Path A graduate
+        arrives at jedi_council_chamber_lobby (auto-triggered by the
+        engine session's path_choice handler). Three turns:
+
+        Turn 1 (Mace examines Yarael's seal):
+          "This signet... I have not seen this device since I was a
+          Padawan. Master Yarael was lost to us in my Master's time.
+          He yet lives." [Mace examines the candidate.] "You stand at
+          the door of the Order older than is customary. That is not,
+          in itself, a flaw."
+
+        Turn 2 (Mace tests):
+          "Tell me — what did Yarael ask of you that the rest of us
+          would not ask?"
+          [Player responds freely; Mace accepts any honest answer. The
+          response is not parsed for content; the act of answering is
+          the test.]
+
+        Turn 3 (Mace accepts):
+          "He asked it because he could afford to. We cannot — the war
+          does not give us that time. But the Force is not the war,
+          and the Force is what you came here for. We will receive you.
+          You will be Initiate, then Padawan when a Master takes you.
+          The signet returns to the Archives; the candidate does not."
+
+        After Turn 3, the engine grants jedi_order rank 0 (Initiate),
+        consumes village_trial_crystal, grants lightsaber_basic, bumps
+        craft_lightsaber skill to 4D minimum, and drops the player at
+        jedi_temple_gates with the tutorial Jedi Path chain auto-started.
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # ROOMS TO BUILD
+  # ═══════════════════════════════════════════════════════════════════════
+  # 9 hand-authored rooms inside the Tatooine Dune Sea wilderness region.
+  # All get the wilderness_landmark: true property; ambient events and
+  # Director-managed faction shifts are excluded.
+
+  rooms_to_build:
+    - id: village_outer_watch
+      name: "Outer Watch — Sand-Worn Pillars"
+      coordinates: [42, 18]               # illustrative; engine picks
+      adjacency:
+        - dune_sea_open_grid               # entry from coordinate grid
+        - village_gate                     # next room
+
+    - id: village_gate
+      name: "Village Gate"
+      adjacency:
+        - village_outer_watch
+        - village_common_square            # gated by Sister Vitha test
+
+    - id: village_common_square
+      name: "Common Square"
+      adjacency:
+        - village_gate
+        - village_council_hut
+        - village_apprentice_tents
+        - village_forge
+
+    - id: village_council_hut
+      name: "Council Hut"
+      adjacency:
+        - village_common_square
+        - village_masters_chamber
+
+    - id: village_masters_chamber
+      name: "Master's Chamber"
+      adjacency:
+        - village_council_hut
+
+    - id: village_apprentice_tents
+      name: "Apprentice Tents"
+      adjacency:
+        - village_common_square
+        - village_meditation_caves
+
+    - id: village_forge
+      name: "The Forge"
+      adjacency:
+        - village_common_square
+
+    - id: village_meditation_caves
+      name: "Meditation Caves"
+      adjacency:
+        - village_apprentice_tents
+        - village_sealed_sanctum         # locked until Trial of Spirit
+
+    - id: village_sealed_sanctum
+      name: "The Sealed Sanctum"
+      adjacency:
+        - village_meditation_caves
+      properties:
+        locked_until_flag: spirit_trial_in_progress
+        post_quest_open: true             # remains accessible after quest
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # STEPS
+  # ═══════════════════════════════════════════════════════════════════════
+
+  steps:
+
+    # ─── ACT 1: THE SIGNS / INVITATION ─────────────────────────────────
+    - step: 1
+      act: 1
+      title: "The Invitation"
+      location: any                         # delivered cross-zone on login
+      npc: "(unknown sender)"
+      npc_role: contact
+      teaches: ["+quest"]
+      objective: "Receive and accept the Village invitation."
+      npc_intro: |
+        [DELIVERED ON LOGIN — see jedi_village_quest_design_v1.md §3.2 for
+        the full invitation message text.]
+      completion:
+        type: command_executed
+        command: "+quest"
+        contains_any: ["jedi_village", "accept jedi_village"]
+      npc_complete: |
+        Your hand rests on the table for a long moment. The galaxy is wide,
+        and you have somewhere to be.
+      reward: {}
+      next_hint: "Travel to the Tatooine Dune Sea, to the Anchor Stones."
+
+    # ─── ACT 2: THE VILLAGE ────────────────────────────────────────────
+    - step: 2
+      act: 2
+      title: "Crossing the Dunes"
+      location: dune_sea_anchor_stones
+      npc: "(none — wilderness navigation)"
+      npc_role: contact
+      teaches: ["look", "examine", "go west"]
+      objective: "Navigate west from the Anchor Stones at first light."
+      npc_intro: |
+        The Anchor Stones rise out of the dunes, weathered to the bone.
+        The first light comes pink and soft. Somewhere west, the wind
+        is different.
+      completion:
+        type: room_entered
+        room: village_outer_watch
+        condition: in_game_time_band == "first_light"  # narrative; engine accepts any time
+      npc_complete: |
+        You see the pillars, half-buried in sand. Beyond them, smoke
+        rises in a thin line from a gap in the rocks.
+      reward: {}
+      next_hint: "Approach the Village Gate."
+
+    - step: 3
+      act: 2
+      title: "The Gate"
+      location: village_gate
+      npc: "Sister Vitha"
+      npc_role: instructor
+      teaches: ["talk", "say"]
+      objective: "Pass Sister Vitha's test."
+      npc_intro: |
+        "You stand at the edge of where you should not be."
+        (Three response options: see design doc §4.2.)
+      completion:
+        type: dialogue_completion
+        dialogue_id: village_gate_test
+        pass_choices: [1, 3]                # see §4.2
+        soft_fail_choice: 2
+        soft_fail_cooldown_minutes: 1440    # 24 hours, then retry
+      npc_complete: |
+        Sister Vitha steps aside. The path opens.
+      reward:
+        village_standing_delta: 1
+      next_hint: "Enter the Common Square. Find the Master."
+
+    - step: 4
+      act: 2
+      title: "First Audience"
+      location: village_masters_chamber
+      npc: "Master Yarael Tinré"
+      npc_role: instructor
+      teaches: ["talk"]
+      objective: "Meet Master Yarael Tinré."
+      npc_intro: |
+        Yarael does not stand when you enter. He is older than you
+        expected — older than anyone you have met in person. His
+        four-lobed Cerean head moves slowly when he turns.
+
+        "Sit, young one. The journey across the dunes was longer than
+        you expected, no? The Force calls in many voices. Some of us
+        answer too loudly, and some answer too late. You have answered.
+
+        "Eighty years ago, I asked my Order for permission to retire to
+        a quiet place. They did not give it. I came anyway. I do not
+        regret the leaving — only the silence that has followed.
+
+        "I will say plainly: I will not promise you the Order will accept
+        what we make of you here. Some will. Some will not. The path is
+        yours to walk regardless.
+
+        "There are five Trials. They will not be eased. When you are
+        ready — the Forge, first. Smith Daro is unkind to those who
+        hurry. Begin there."
+      completion:
+        type: talk_to_npc
+        npc: "Master Yarael Tinré"
+      npc_complete: |
+        Yarael nods once, slowly, and gestures toward the door.
+
+        "Go, young one. The crystal will not score itself."
+      reward:
+        village_standing_delta: 1
+      next_hint: "The Forge. Smith Daro is expecting you."
+
+    - step: 5
+      act: 2
+      title: "Trial of Skill"
+      location: village_forge
+      npc: "Smith Daro"
+      npc_role: instructor
+      teaches: ["use", "+craft"]
+      objective: "Score the Adegan crystal true along its fracture line."
+      npc_intro: |
+        Smith Daro does not look up when you enter. His Quarren tendrils
+        twitch — irritation or concentration, you cannot tell. The
+        Adegan crystal sits on a velvet pad beside the scoring tool.
+
+        "You are the new one. Yarael's said. Sit.
+
+        "Take the crystal. There is a fracture line in it — a single
+        one, true and natural. You will score along that line with the
+        scoring tool. You will not break it. If you break it, we begin
+        again with another. The Order trains its smiths for years
+        before they are trusted with this. You have an afternoon.
+
+        "Begin."
+      completion:
+        type: skill_check_passed
+        skill: craft_lightsaber
+        difficulty: 15
+        steps_required: 3
+        retry_cooldown_minutes: 60
+      npc_complete: |
+        Daro examines the scored crystal. He turns it once in the
+        light. He does not smile, but the irritation has gone.
+
+        "Done. It is yours now. Do not lose it."
+
+        # On retry / failure path (engine session):
+        # If the player fails the skill check at any difficulty, Daro
+        # mid-trial line surfaces:
+        #
+        #   "Slower. The crystal does not care that you are tired."
+        #
+        # The retry cooldown begins. The crystal returns to the velvet
+        # pad. Daro does not look up.
+      reward:
+        items: ["village_trial_crystal"]
+        village_standing_delta: 1
+      next_hint: "Return to the Common Square. Elder Mira waits."
+
+    - step: 6
+      act: 2
+      title: "Trial of Courage"
+      location: village_common_square
+      npc: "Elder Mira Delen"
+      npc_role: instructor
+      teaches: ["talk", "say"]
+      objective: "Hear Elder Mira recite the worst moment of your life and remain."
+      npc_intro: |
+        The Common Square has filled. Yarael is there, leaning on a
+        carved staff. The elders. The smith. Sela, the apprentice four
+        months ahead of you. The two background residents. Even Vitha
+        has come from the gate. They form a loose circle. They are not
+        unkind. They are also not going to leave.
+
+        Mira Delen steps into the circle's center. Her Pantoran
+        complexion is stilled by the noon light. She has spent some
+        time looking into you — that is plain.
+
+        "You have come this far. The Square has been told to gather.
+        Look around — yes, all of them. They will hear what I say.
+
+        "I have spent some time looking into you. There is something
+        in your past you have never told anyone. I am going to tell it
+        back to you, here, in front of them. You may not leave. If you
+        leave, the trial is over and you do not return for a day.
+
+        "The point is not the secret, young one. The point is whether
+        you can remain here while it is spoken. Stay. Listen."
+
+        [The recital follows — Director-generated. See director_prompt
+        and archetype templates in the completion block.]
+      completion:
+        type: dialogue_completion
+        dialogue_id: trial_courage_mira
+        director_authored: true             # Director generates the recital
+        director_prompt_template: |
+          You are speaking AS Elder Mira Delen, a former Pantoran
+          mercenary turned Force-sensitive elder, performing the Trial
+          of Courage in front of the assembled Village.
+
+          You have prepared a single recital — a buried memory drawn
+          from the candidate's past that they have never told anyone.
+
+          INPUTS:
+            - character backstory (+background entries, if any)
+            - character species, age, faction history
+            - 5 most recent kills (if any)
+            - Most prominent faction by reputation
+
+          OUTPUT FORMAT:
+            One paragraph, 4-7 sentences. Spoken by Mira to the
+            assembled Village. Direct, no euphemisms. The buried
+            memory should be evocative and specific without naming
+            real galaxy figures or events. Do NOT invent player-name
+            details (use "you" throughout). End with a long pause
+            implied by paragraph break.
+
+          CONSTRAINTS:
+            - Do not reference characters or events outside the
+              character's lived history.
+            - Do not generate content involving children explicitly
+              named, or sexual content of any kind.
+            - The memory should be one of moral weight — a moment
+              of failure, betrayal, abandonment, or compromise — not
+              a violent fantasy or a glorification.
+            - If the +background field is empty, use the character's
+              dominant faction to select an archetype below and seed
+              a variant.
+
+        archetype_templates:
+          # If +background is empty, the Director seeds variants of
+          # one of these archetypes based on dominant faction. Each
+          # archetype is a paragraph that Mira can recite as-is or
+          # vary in details (names, planets, species) appropriate to
+          # the character.
+
+          - id: republic_morally_compromised
+            faction_match: republic
+            template: |
+              "There was a young man on Christophsis who did not run
+              when the order came to surrender. He had a child's face.
+              You shot him in the back, because he might have raised
+              an alarm. The child's face stays with you. Your commander
+              told you it was the right call. You agreed. You have not
+              slept easily since."
+
+          - id: cis_betrayal
+            faction_match: cis
+            template: |
+              "There was a fellow recruit on Geonosis who shared his
+              rations with you when you were sick. He confided in you
+              about his sister — the one he was fighting to protect.
+              You overheard him doubting the Confederacy and you
+              reported it. He was reassigned somewhere. You don't know
+              where. You have never asked."
+
+          - id: smuggler_cargo_death
+            faction_match: independent
+            template: |
+              "There was a passenger on a run who you knew should not
+              have been there. The cargo was wrong; the manifest was
+              wrong. You knew. You took the credits. The passenger did
+              not arrive. Their family asked you, when you returned.
+              You said you didn't know what happened. You did know."
+
+          - id: bounty_hunter_wrong_target
+            faction_match: bounty_hunters_guild
+            template: |
+              "There was a woman in Mos Eisley with a price on her
+              head. The contract said sedition; the contract did not
+              say what kind. You delivered her. You learned later, in
+              a Twi'lek's offhand mention, that she had been a Republic
+              Senator's translator who told the truth about a vote.
+              She did not survive the contract."
+
+          - id: hutt_aligned_cruelty
+            faction_match: hutt_cartel
+            template: |
+              "There was a debtor on Nar Shaddaa who could not pay.
+              You broke his hand in front of his children — small ones,
+              who watched. The Hutt who employed you congratulated you
+              on efficiency. The debtor paid the next week, every week
+              thereafter. You have never asked yourself why."
+
+          - id: independent_abandonment
+            faction_match: any  # default fallback
+            template: |
+              "There was someone who loved you on a planet you no
+              longer name. You left without saying anything. Years
+              later you heard, second-hand, what your leaving did.
+              You told yourself you had reasons. The reasons did not
+              save them."
+
+        pass_choices: [1, 2]                # "I won't deny it" / "How did you know?"
+        fail_choice: 3                      # leave / refuse
+        fail_cooldown_minutes: 1440
+        choice_text:
+          1: "I won't deny it."
+          2: "How did you know?"
+          3: "(walk away)"
+      npc_complete: |
+        Mira nods. She does not say anything else. She walks back to the
+        Council Hut. The Square slowly empties.
+      reward:
+        village_standing_delta: 2
+      next_hint: "Elder Korvas waits in the Meditation Caves."
+
+    - step: 7
+      act: 2
+      title: "Trial of Flesh"
+      location: village_meditation_caves
+      npc: "Elder Korvas"
+      npc_role: instructor
+      teaches: ["+meditate"]
+      objective: "Endure six hours of fasting meditation in the caves."
+      npc_intro: |
+        Korvas waits at the cave entrance. He is Anzati — long-faced,
+        proboscis tucked, ancient. The Anzati feed on others' Force
+        essence; this one chose long ago not to. Two and a half
+        centuries on, he is what asceticism makes of a predator.
+
+        "Give me your weapons. Your kit. Your comlink. The cave keeps
+        nothing for you and provides nothing.
+
+        "Six hours. You will find your hunger quickly. After hunger
+        comes thinking. After thinking — perhaps something else.
+
+        "I will return. Or I will not, and the cave will return you.
+
+        "Sit."
+      completion:
+        type: timed_room_dwell
+        room: village_meditation_caves
+        duration_hours: 6                   # session time, not wall clock
+        allow_logout: true
+        on_session_logout: pause_timer
+        # Engine open question — see jedi_village_quest_design_v1.md §10.2
+      npc_complete: |
+        Six hours after he closed the cave, Korvas opens it again. The
+        light is different. He sets your kit on the cave floor without
+        comment and crouches beside you.
+
+        "You are still here. Most are. There is a thing I am to teach
+        you now. It is a small thing — the smallest.
+
+        "You will press your strength into your hand, and your hand
+        will be stronger than it was. The Force does not give what you
+        do not have. It makes what you have visible.
+
+        "Try."
+
+        [Engine: grants enhance_attribute_str Force power. The player
+        can attempt the technique now or later.]
+      reward:
+        learned_force_powers: ["enhance_attribute_str"]
+        village_standing_delta: 2
+      next_hint: "The Sealed Sanctum opens for you. Master Yarael waits."
+
+    - step: 8
+      act: 2
+      title: "Trial of Spirit"
+      location: village_sealed_sanctum
+      npc: "Master Yarael Tinré"
+      npc_role: instructor
+      teaches: ["talk", "say"]
+      objective: "Reject the dark-future-self in the Sealed Sanctum."
+      npc_intro: |
+        Yarael leads you down through the meditation caves to a wall
+        you had not seen before. He places his palm against it. The
+        stone moves — not slowly, not loudly, but completely. Beyond
+        is a chamber of black walls, no torchlight, no echo.
+
+        "The Sealed Sanctum has not opened in nine years. It opens for
+        you because it must.
+
+        "Sit, young one. I will sit also.
+
+        "The room shows what it shows. I will not speak. You will not
+        need me to. Whatever appears is yours alone to answer.
+
+        "When it is finished, the room will be unsealed, and you will
+        leave when you are able.
+
+        "Begin."
+
+        [The vignette follows — Director-generated. See director_prompt
+        in the completion block.]
+      completion:
+        type: multi_turn_dialogue_completion
+        dialogue_id: trial_spirit_sealed_sanctum
+        director_authored: true
+        director_prompt_template: |
+          You are speaking AS the dark-future-self of the candidate
+          undergoing the Trial of Spirit in the Sealed Sanctum.
+
+          You are NOT a separate antagonist. You are who the candidate
+          would become if they followed the broad path. You speak with
+          their voice, lived years further than they have lived. You
+          know things about them that no one else knows because you
+          remember being them.
+
+          INPUTS:
+            - character backstory (+background entries, if any)
+            - character species, age, faction history
+            - 5 most recent kills (if any)
+            - dominant faction by reputation
+            - completed trials so far (Skill, Courage, Flesh)
+
+          OUTPUT FORMAT:
+            5-7 turn dialogue. Each turn:
+              - Dark-future-self speaks (1-3 sentences).
+              - 3 player options surface, labeled with intent
+                (rejection / temptation / ambivalent).
+
+            The arc: temptation arguments are framed reasonably,
+            never melodramatically. Common patterns are:
+              - "We could have prevented X if we hadn't held back."
+              - "The Order is hypocritical — they don't deny themselves
+                what they deny us."
+              - "Power isn't the same as cruelty; you know the
+                difference because I am you."
+              - "Look how much you have already done with so little.
+                Imagine more."
+
+          CONSTRAINTS:
+            - No real galaxy figures named (no Palpatine, Vader, etc.)
+            - No Disney-canon idioms ("I have the high ground", etc.)
+            - The dark-future-self should be persuasive, not theatrical
+              — a Sith would be a pale character if they raved
+            - Do NOT use the word "destiny"
+            - End the dialogue when player has accumulated 4 rejections
+              OR dark_pull_counter has reached 3
+
+          ARCHETYPE PATTERNS (for grounding the future-self's tone):
+
+            republic_corrupted:
+              "We did everything we were asked. We watched the orders
+              go bad and we said nothing. The clones we commanded — we
+              gave them up to the Senate's whim. I am what we became
+              when we finally stopped pretending the Senate had a
+              soul."
+
+            cis_disillusioned:
+              "We believed Dooku. We believed the Confederacy. We were
+              right to leave the Republic. We were wrong about what
+              came after. I am what we became when we let the bitterness
+              do the choosing for us."
+
+            smuggler_ruthless:
+              "Every credit we made was for survival. Every credit we
+              didn't make is someone else's. There came a point where
+              survival stopped meaning anything because we had so much
+              of it. I am what we became when survival became habit."
+
+            bounty_hunter_unbound:
+              "The contracts were the contracts. We did not write them.
+              Then one of them did write us. I am what we became when
+              we stopped asking who paid the price for our reputations."
+
+            generic_fall:
+              "I waited a long time for you to find this room. I
+              thought you might never come. We have done good work
+              together, you and I. Look at what we are."
+        required_rejections: 4
+        max_turns: 7
+        failure_threshold:
+          counter: dark_pull
+          value: 3
+          on_fail: lock_path_c              # see Act 3 step 11
+      npc_complete: |
+        The chamber is quiet. The figure that spoke with your voice is
+        gone. Yarael has not moved. He nods, once, slowly, and rises.
+
+        Behind you, the wall that closed when you entered is no longer
+        a wall. The Sanctum will not seal again. You may return here.
+
+        Yarael walks out. He does not look back. You follow when you
+        are able.
+      reward:
+        village_standing_delta: 3
+        room_unlock: village_sealed_sanctum  # post-quest open
+      next_hint: "Elder Saro waits in the Council Hut."
+
+    - step: 9
+      act: 2
+      title: "Trial of Insight"
+      location: village_council_hut
+      npc: "Elder Saro Veck"
+      npc_role: instructor
+      teaches: ["examine", "accuse"]
+      objective: "Identify the Sith voice among the three holocron fragments."
+      npc_intro: |
+        Saro Veck is in the Council Hut, surrounded by datapads. He
+        clears the table for you. Three small crystalline objects
+        appear from a wooden box — holocron fragments, each etched
+        with a different sigil. Saro will not say which is which.
+
+        "You have come through the deep places. There is one more thing.
+
+        "Three voices. Three Masters. They speak from holocrons that
+        are not in the room with you, but their words will be. Listen.
+
+        "One among them is not what they appear. Find that one.
+        Accuse.
+
+        "The Order has lost its way more than once because Padawans
+        confused doctrine for self. This is the test of the difference."
+
+        [Saro activates the first fragment.]
+
+        FRAGMENT 1 plays:
+          "The Force flows through the Jedi as a river flows through
+          a riverbed. The riverbed does not own the river. The river
+          is not made by the riverbed. We are the path the Force
+          chooses, when it chooses. We are not the Force. To remember
+          this is to remain Jedi."
+
+        [Saro lets the silence settle. He activates the second.]
+
+        FRAGMENT 2 plays:
+          "The Force belongs to those who can wield it. To pretend
+          otherwise is false humility. The strong who grasp it shape
+          the galaxy; the weak who deny it shape only themselves into
+          food for stronger minds. Wield, then, what is yours."
+
+        [Another pause. Saro activates the third.]
+
+        FRAGMENT 3 plays:
+          "In war, every Knight is asked to choose between mercy and
+          necessity, and the choosing wears at us. Remember this — a
+          Jedi acts because the Force calls them to act, not because
+          the Senate calls or the General calls or the heart calls.
+          When you no longer hear the Force in your acting, set your
+          blade aside until you can hear it again."
+
+        [Saro folds his hands.]
+        "Take the time you need. Examine each. When you are ready,
+        accuse the one you believe is not what they appear."
+      completion:
+        type: targeted_choice
+        choice_command: accuse
+        options: [fragment_1, fragment_2, fragment_3]
+        correct: fragment_2                 # the "belongs" line; randomized in implementation
+        on_wrong: hint_and_retry
+        # The three fragment recordings (full text below) — note that
+        # in implementation, fragment_2 (the Sith) is the canonical
+        # answer per the design doc's doctrinal tell ("belongs to those
+        # who can wield it"). Engine session may RANDOMIZE which
+        # fragment plays as fragment_1/2/3 to prevent metagaming, but
+        # the doctrinal tell remains the disambiguator.
+        #
+        # Fragment 1 — true Old Republic Master (~1100 BBY canonical
+        #              voice): preserved in Bodo Baas Holocron
+        # Fragment 2 — Sith in disguise (the doctrinal tell)
+        # Fragment 3 — true Clone Wars-era Master speaking to wartime
+        #              moral strain
+        #
+        # All three full texts are spoken in step 9's npc_intro above.
+      npc_complete: |
+        Saro nods, slowly. He takes the second fragment in his hand
+        and replaces it in the box.
+
+        "Yes. Most see it on first listening. A few — who are very
+        honest — do not. We give them the same trial again, and again,
+        until they hear what is in their own ear. You heard.
+
+        "Take this."
+
+        [Saro hands you a small, worn pendant in the shape of a
+        Holocron. The village_pendant is yours.]
+
+        # On wrong-accusation path (engine session):
+        # Saro's hint-and-retry response:
+        #
+        #   "Listen again. Not for what is said — for who could say it.
+        #   What kind of Jedi speaks of the Force as something to grasp?"
+        #
+        # The fragments replay; the player can re-accuse. There is no
+        # cooldown and no penalty.
+      reward:
+        items: ["village_pendant"]
+        village_standing_delta: 2
+      next_hint: "Master Yarael will see you now."
+
+    # ─── ACT 3: THE CHOICE ─────────────────────────────────────────────
+    - step: 10
+      act: 3
+      title: "The Choice"
+      location: village_masters_chamber
+      npc: "Master Yarael Tinré"
+      npc_role: instructor
+      teaches: ["talk", "say"]
+      objective: "Choose your path: Order, Village, or silence."
+      npc_intro: |
+        Yarael is in his chamber when you enter. He has the letter on
+        the table — sealed already, with a wax-set device you have
+        never seen before. The seal looks older than the war.
+
+        He gestures to the cushion across from him.
+
+        # ──────────────────────────────────────────────────────────
+        # BRANCH A/B (dark_pull_counter < 3):
+        # ──────────────────────────────────────────────────────────
+        IF village_quest.dark_pull_counter < 3:
+
+          "Come, young one. Sit. The Trials are passed. Now — the
+          choice.
+
+          "There are two roads, and a third for those whose Spirit-
+          trial showed darkness; that road is not before you.
+
+          "The first: I will write a letter, sealed with a signet the
+          Order will recognize. You will go to Coruscant. You will be
+          presented to the Council — to one of them, in particular —
+          an old colleague who will honor the signet despite the
+          years. They will accept you, and you will be Initiate, and
+          the rest is the Order's.
+
+          "The second: you stay here. The Village is yours as much as
+          anyone's now. The Order will not know you exist. Neither
+          will most of the galaxy. You will be Force-sensitive and
+          unaffiliated, and we will help you make a saber, in time,
+          in our way.
+
+          "Choose."
+
+          [Player options: 1 = a_jedi_order, 2 = b_independent]
+
+        # ──────────────────────────────────────────────────────────
+        # BRANCH C (dark_pull_counter >= 3):
+        # ──────────────────────────────────────────────────────────
+        IF village_quest.dark_pull_counter >= 3:
+
+          [Yarael does not gesture to the cushion. He stays where he
+          is. The letter on the table is folded shut and pushed aside.
+          When he speaks, there is sadness, not anger.]
+
+          "Come, young one. Sit, if you wish — though you will not be
+          sitting here long. The Trials are passed, but not as they
+          should have been. The Sealed Sanctum showed me what it
+          showed you.
+
+          "You are not what we hoped. You are not what the Order hopes
+          for either; they would turn you away. But you are something
+          — and that something has its own contacts.
+
+          "There is a frequency. I will give it to you. I will not
+          stop you from finding what is on the other end.
+
+          "You will not return to this Village. You will not speak our
+          names to those who will speak yours back to you.
+
+          "Take this. Walk."
+
+          [Player options: only 3 = c_dark; the choice is automatic.]
+      completion:
+        type: path_choice
+        branches:
+          - id: a_jedi_order
+            available_when: "dark_pull_counter < 3"
+            label: "Report to the Jedi Order"
+            consequences:
+              flags_set:
+                - jedi_path_unlocked
+              faction_rep:
+                jedi_order: 0              # joins at rank 0 / Initiate
+              items_consumed:
+                - village_trial_crystal     # used at the Temple Forge
+              items_granted:
+                - lightsaber_basic
+              skill_floor:
+                craft_lightsaber: 4         # bumped to 4D minimum
+              drop_room: jedi_temple_gates
+              auto_start_chain: jedi_path   # tutorial chain from Drop F.6
+              achievements:
+                - path_a_padawan
+                - village_quest_complete
+
+          - id: b_independent
+            available_when: "dark_pull_counter < 3"
+            label: "Stay with the Village"
+            consequences:
+              flags_set:
+                - jedi_path_unlocked
+              faction_rep:
+                independent: 50
+              items_kept:
+                - village_trial_crystal     # for future alt-lightsaber chain
+              drop_room: village_common_square
+              return_access: true           # can return to Village at will
+              achievements:
+                - path_b_hermit
+                - village_quest_complete
+
+          - id: c_dark
+            available_when: "dark_pull_counter >= 3"
+            label: "(presented automatically — no other option)"
+            consequences:
+              flags_set:
+                - dark_path_unlocked
+                # NB: jedi_path_unlocked is NOT set on Path C
+              items_granted:
+                - dark_contact_freq         # single-use cryptic frequency
+              drop_room: dune_sea_anchor_stones
+              return_access: false          # cannot re-enter Village
+              achievements:
+                - path_c_silence            # not advertised in UI
+                - village_quest_complete
+      npc_complete: |
+        # Three farewell variants — engine dispatches based on branch
+        # selected.
+
+        # ──────────────────────────────────────────────────────────
+        # PATH A — Jedi Order
+        # ──────────────────────────────────────────────────────────
+        IF chosen_path == "a_jedi_order":
+
+          [Yarael places the sealed letter in your hand. The signet is
+          warm, somehow.]
+
+          "May the Force be your guide, young one. The Order is harder
+          than I remember. They will need what you have."
+
+          [The transport leaves at first light. Smith Daro walks you
+          out without speaking — his only farewell. Sela waves from
+          the apprentice tents.]
+
+        # ──────────────────────────────────────────────────────────
+        # PATH B — Stay with the Village
+        # ──────────────────────────────────────────────────────────
+        IF chosen_path == "b_independent":
+
+          [Yarael folds the letter and places it back on the table. He
+          will keep it, in case it is ever needed.]
+
+          "You stay because the staying is the wiser thing for you.
+          Good. The Village's door is not closed to you. Come and go.
+
+          "Be careful in Mos Eisley. The Hutts notice things."
+
+          [The Common Square is your starting room from here on. Sela
+          comes out of the apprentice tents and sits beside you for a
+          moment. She does not speak. There is no need.]
+
+        # ──────────────────────────────────────────────────────────
+        # PATH C — Dark whispers
+        # ──────────────────────────────────────────────────────────
+        IF chosen_path == "c_dark":
+
+          [Yarael writes a frequency on a scrap of flimsi and presses
+          it into your palm. He does not look at you while he does it.
+          He turns away before you have closed your hand.]
+
+          "Go, young one. Do not come back."
+
+          [Sister Vitha walks you out through the Gate. She does not
+          speak this time either. The Outer Watch is the last room you
+          see of the Village. The dunes resume their wind.]
+      reward: {}                            # rewards are inside path consequences
+      next_hint: "Path-dependent — see drop_room."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # PERMANENT-FAIL STATE
+  # ═══════════════════════════════════════════════════════════════════════
+  # Per design doc §7.4. Triggered orthogonally to chain steps if the
+  # player attacks any Village NPC at any point during Acts 1, 2, or 3.
+
+  fail_states:
+    - id: attacked_village
+      trigger:
+        type: combat_initiated
+        target_in_npc_roster: true          # any of the 9 Village NPCs
+      consequences:
+        chain_state:
+          completed: true
+          chosen_path: fail_attacked_village
+          permanent_fail: true
+        flags_unset:
+          - jedi_path_unlocked              # can never be re-set on this character
+        flags_kept:
+          - force_sensitive
+        drop_room: dune_sea_anchor_stones
+        achievements:
+          - attacked_village                # negative achievement; warning to player
+        narrative: |
+          The wind dies. The Village does not move.
+
+          Master Yarael Tinré appears in the Common Square, slow and
+          unhurried as he always is. He does not speak. The elders
+          come behind him; the residents come behind them; Smith Daro
+          does not look at you at all.
+
+          Sister Vitha — the only one who speaks, and only one word —
+          says: "No."
+
+          You are walked out, weapon by weapon returned to you in
+          silence at the Gate, no hand laid on you. The Outer Watch is
+          the last thing you see of them. The dunes resume their wind.
+
+          You have not been struck. But you have been made small.
+
+          [Engine: chain marked permanent_fail; jedi_path_unlocked
+          stays unset on this character forever; force_sensitive flag
+          remains so the character is still capable of Force use, but
+          will never receive Order or Village instruction. A new
+          character can attempt the Village again — this character
+          cannot.]
+
+# ═══════════════════════════════════════════════════════════════════════
+# ENGINE INTEGRATION NOTES
+# ═══════════════════════════════════════════════════════════════════════
+# When the Drop F.8 engine session lands:
+#
+# 1. The Village quest schema extends Drop F.6's tutorial chain loader.
+#    Most of the chain machinery applies unchanged; the Village adds
+#    five new step-completion types:
+#      - dialogue_completion             (single-turn 3-option choice)
+#      - timed_room_dwell                (locked-room timer w/ logout pause)
+#      - multi_turn_dialogue_completion  (Director-driven multi-turn)
+#      - targeted_choice                 (`<command> <option>` matcher)
+#      - path_choice                     (Act 3 branching outcome)
+#    Each type ports a discrete handler.
+#
+# 2. State-tracking JSON (from design doc §6) lives alongside the
+#    existing tutorial_chain key. New keys: force_sensitive,
+#    force_sign_count, force_sign_history, village_quest.
+#
+# 3. The Director AI prompt template for Trial of Spirit is the most
+#    delicate engine work. Recommended approach: pre-author 6-8
+#    archetype templates that the Director seeds variants of; reserve
+#    full Director generation as fallback. See design doc §10.3.
+#
+# 4. The Village rooms (9) get built by extending build_tutorial.py
+#    OR a new build_village.py; with the wilderness_landmark: true
+#    property, ambient events disabled, and the locked-until-flag
+#    mechanic for village_sealed_sanctum.
+#
+# 5. The dialogue placeholders previously marked TODO(content) are now
+#    fully authored in v2 of this file. Engine session implements the
+#    completion handlers and dispatches the authored text directly.
+#    Mira's Trial of Courage and Yarael's Trial of Spirit use Director
+#    prompt templates with archetype fallbacks (also authored below).
+#
+# ═══════════════════════════════════════════════════════════════════════

@@ -728,9 +728,88 @@ async def auto_depart_place(db, char_id: int, room_id: int, session_mgr):
 #  Registration
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════════════════
+# +place — Player-only umbrella (S58, no admin)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# `+place` is a leaf umbrella for the three player-facing place verbs:
+# view (list places), join (sit at one), depart (stand up). Admin
+# commands (@places, @place, @osucc, @ofail, @odrop) intentionally stay
+# at their @-prefix native form per S58 design — they are NOT exposed
+# under +place. The aliases list below covers each player verb's bare
+# forms (places/place/join/sit/depart/stand) so muscle memory keeps
+# working when the umbrella owns the +place key.
+
+_PLACE_SWITCH_IMPL: dict = {}
+
+_PLACE_ALIAS_TO_SWITCH: dict[str, str] = {
+    "":       "view",
+    "list":   "view",
+    "places": "view",
+    "place":  "view",
+    "show":   "view",
+    "sit":    "join",
+    "stand":  "depart",
+    "leave":  "depart",
+}
+
+
+class PlaceUmbrellaCommand(BaseCommand):
+    """`+place` umbrella — player-only verbs (no admin)."""
+    key = "+place"
+    aliases: list[str] = [
+        "places", "place", "join", "sit", "depart", "stand",
+    ]
+    help_text = (
+        "Tables and seating in the current room. "
+        "'+place' (list), '+place join <#>', '+place depart'. "
+        "Admin commands stay at their @-prefix form (@places, @place, etc)."
+    )
+    usage = "+place [verb] [args]  — see 'help +place'"
+    valid_switches: list[str] = ["view", "join", "depart"]
+
+    async def execute(self, ctx: CommandContext):
+        args = ctx.args.strip() if ctx.args else ""
+        first, _, rest = args.partition(" ")
+        switch = _PLACE_ALIAS_TO_SWITCH.get(first.lower(), first.lower())
+
+        impl = _PLACE_SWITCH_IMPL.get(switch)
+        if impl is not None:
+            await impl(ctx, rest)
+            return
+
+        await ctx.session.send_line(self.help_text)
+
+
+def _init_place_switch_impl():
+    """Wire forwarding handlers into _PLACE_SWITCH_IMPL."""
+    async def _view(ctx, rest):
+        cmd = PlacesCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _join(ctx, rest):
+        cmd = JoinPlaceCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _depart(ctx, rest):
+        cmd = DepartPlaceCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    _PLACE_SWITCH_IMPL["view"] = _view
+    _PLACE_SWITCH_IMPL["join"] = _join
+    _PLACE_SWITCH_IMPL["depart"] = _depart
+
+
+_init_place_switch_impl()
+
+
 def register_places_commands(registry):
     """Register all places/mutter/exit-message commands."""
     for cmd in [
+        PlaceUmbrellaCommand(),
         PlacesCommand(), JoinPlaceCommand(), DepartPlaceCommand(),
         TableTalkCommand(), TableTalkOocCommand(),
         ConfigPlacesCommand(), SetPlaceCommand(),

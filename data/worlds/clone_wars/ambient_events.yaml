@@ -1,0 +1,338 @@
+# data/worlds/clone_wars/ambient_events.yaml
+# Clone Wars Era — Ambient Room Events
+# Schema version 1
+#
+# This file provides ambient event lines for CW zones. The global
+# data/ambient_events.yaml stays in place and continues to serve GCW;
+# when Drop 6a's engine refactor lands, the ambient event manager
+# merges global + era-specific files at boot, with era-specific values
+# winning on key collision.
+#
+# Schema mirrors data/ambient_events.yaml exactly:
+#   zone_key:
+#     - text: "..."             event line (≤120 chars for terminal display)
+#       weight: 1.0             optional; default 1.0; lower = rarer
+#
+# Zone keys match name_match strings in zones.yaml. The global file's
+# generic keys (cantina, spaceport, streets, shops, jabba, government)
+# stay served by GCW values; CW-specific keys (per-planet zones) are
+# served by this file. Where a CW zone matches a generic GCW name (e.g.
+# tatooine_cantina is still a "cantina"), the engine prefers the more
+# specific CW key when both exist.
+#
+# Coverage: 17 new CW zones × 5-7 lines each = ~100 lines. Tatooine and
+# Nar Shaddaa zones use slight CW reskin (war-mention adjustments) of
+# the existing global ambient pool — the engine handles those via
+# rewicker rather than full re-authoring. This file targets the four
+# new planets primarily, plus war-flavor expansions for the existing
+# Tatooine/Nar Shaddaa cantina/streets pools.
+
+schema_version: 1
+
+ambient_events:
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # CORUSCANT
+  # ═══════════════════════════════════════════════════════════════════════
+
+  coruscant_senate:
+    - text: "A senator's aide hurries past, datapad in hand and stress in his face."
+    - text: "Two Senate Guards in blue and gold helmets stand at attention by an arched doorway."
+    - text: "A holovid crew sets up for a sound bite. The senator they're waiting for is, predictably, late."
+    - text: "Repulsorlift platforms drift past at scheduled altitudes. Each carries a different delegation's livery."
+    - text: "A protocol droid recites the day's session schedule to no one in particular."
+    - text: "The pulse of the Senate rotunda is just barely audible through the marble. Or imagined."
+    - text: "A pair of Senators converse in low tones, faces carefully neutral. One glances over their shoulder."
+      weight: 0.7
+
+  coruscant_temple:
+    - text: "A Padawan crosses the colonnade with a Master, listening intently to a quiet lesson."
+    - text: "A pair of Initiates pause to bow as a Council member passes."
+    - text: "The chime of the Temple bells marks an Order observance somewhere above."
+    - text: "Sunlight catches the polished kyber-crystal stained-glass of a meditation alcove."
+    - text: "A Knight returns from a mission, robes dust-stained, pace measured. They do not look around."
+    - text: "An Archives droid hovers past, datacard cradled in delicate manipulators."
+    - text: "Distant footsteps in the upper galleries. A door closes softly. The quiet returns."
+      weight: 0.6
+
+  coruscant_upper:
+    - text: "A luxury aircar idles at a private landing pad, awaiting its very late passenger."
+    - text: "Holographic ad displays cycle past — high-end fashion, exclusive vintage spirits, war bonds."
+    - text: "Two patrons of an establishment exchange a coded handshake before entering."
+    - text: "A protocol droid escorts a small dog through the manicured park."
+    - text: "Kuat-imported wine glasses clink at an outdoor cafe. Nobody mentions the war."
+    - text: "Senate Guards on detail watch the boulevard, eyes moving without their heads."
+
+  coruscant_midlevels:
+    - text: "Air traffic three layers up roars in muted thunder. Down here, life continues."
+    - text: "A construction droid welds something on a balcony. Sparks rain down two floors before fading."
+    - text: "A working-class diner does brisk lunch trade. Clone troopers on leave eat at the counter."
+    - text: "A Twi'lek street performer plays a quetarra. A small crowd has formed."
+    - text: "Datapads buzz with afternoon news. A handful of patrons watch the holovid behind the bar."
+    - text: "A Coruscant Security officer walks his beat, nodding to shopkeepers he knows by name."
+    - text: "The smell of caf and roasted nerf drifts from a corner stall."
+
+  coruscant_lower:
+    - text: "Steam vents from a maintenance grate. The shadows move with it. Or it just looks like they do."
+    - text: "A pair of toughs argue in Huttese, then resume their disagreement in a quieter language."
+    - text: "Neon flickers on a cantina sign two intersections away. The colors are wrong somehow."
+    - text: "A child runs past, clutching something they shouldn't have. Three adults give chase."
+      weight: 0.8
+    - text: "A coruscant security patrol passes the intersection without slowing. They never do, down here."
+    - text: "A street vendor offers identification chips at suspiciously good prices."
+    - text: "Far above, you can sometimes see daylight. Not today."
+      weight: 0.6
+
+  coruscant_works:
+    - text: "Heavy machinery cycles somewhere below. The floor vibrates faintly."
+    - text: "A maintenance worker in a stained jumpsuit checks readouts on a wall-mounted panel."
+    - text: "Steam vents in a regular rhythm — climate control, atmospheric processing, something."
+    - text: "The lighting flickers and re-stabilizes. Nobody around comments."
+    - text: "A repulsorlift platform descends with cargo nobody bothers to label."
+    - text: "Distant alarms whoop briefly, somewhere in the works. They cut off without being responded to."
+      weight: 0.5
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # KUAT
+  # ═══════════════════════════════════════════════════════════════════════
+
+  kuat_transit:
+    - text: "A Kuati Security Force officer reviews a manifest with dispassionate thoroughness."
+    - text: "An automated cargo lifter glides past, KDY corporate decal gleaming."
+    - text: "Two merchant-house representatives shake hands, both wearing house insignia and matching insincerity."
+    - text: "A KDY tug arcs past the viewport, towing what might be a Venator's bow section."
+    - text: "Customs droids efficiently process a queue of import declarations."
+    - text: "A Republic procurement officer in dress uniform reviews specifications on a datapad."
+
+  kuat_orbital:
+    - text: "Outside the viewport, an Acclamator pulls away from drydock under its own power for the first time."
+    - text: "Welding arcs flicker across the hull of a Venator under construction in the next bay."
+    - text: "A KDY shuttle ferries engineers between gantries on a tight schedule."
+    - text: "Workers in vacuum suits cluster around a turbolaser mount. The mount is being installed, or removed."
+    - text: "The orbital ring's environmental systems cycle audibly — millions of liters of air, in and out."
+    - text: "A Republic Navy officer stands at the observation window, watching new hulls take shape."
+    - text: "Industrial silence. The sort of silence that comes from very expensive soundproofing."
+      weight: 0.4
+
+  kuat_surface:
+    - text: "Two house representatives lobby a Republic procurement officer over caf in the lounge."
+    - text: "A merchant-house servant delivers a sealed datacard with practiced discretion."
+    - text: "The mercantile forum's holodisplay cycles current contract bids. The numbers are large."
+    - text: "A Kuati noble passes through, footmen trailing. Old money. Old grievances. Old contracts."
+    - text: "A Republic liaison officer tries to look comfortable in an environment built for nobles."
+    - text: "Quiet music drifts from somewhere. The kind that costs more than most spacers earn in a month."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # KAMINO
+  # ═══════════════════════════════════════════════════════════════════════
+
+  kamino_tipoca:
+    - text: "Rain hammers the transparent ceiling. The pattern is hypnotic, then unsettling."
+    - text: "A Kaminoan administrator glides past on tall legs, clipboard in delicate hands."
+    - text: "Republic officers confer over a holographic operations display. Voices low. Faces tired."
+    - text: "A clone trooper in command-tier armor delivers a status report and departs without ceremony."
+    - text: "The lighting is uniform, cold, and unflattering to organic life. The Kaminoans prefer it."
+    - text: "Distant thunder rolls in across the platform. The structure does not move; only the rain does."
+      weight: 0.7
+
+  kamino_training:
+    - text: "Through observation glass, ranks of training cadets perform a synchronized weapons drill."
+    - text: "A Kaminoan medical specialist reviews growth charts on a datapad, expression unreadable."
+    - text: "Two clone troopers — visibly older versions of the cadets — exchange a quiet word."
+    - text: "The hum of life-support systems is constant, low, and just loud enough to cover other sounds."
+    - text: "A training officer's voice carries from a sparring room — Mando'a phrases mixed with Basic."
+    - text: "Med-droids efficiently service a row of bacta-immersion chambers."
+      weight: 0.6
+
+  kamino_ocean:
+    - text: "A Republic gunship cycles through preflight checks on the rooftop landing pad."
+    - text: "Wind gusts hard enough to make the platform railings sing. The rain hits sideways."
+    - text: "Below the platform edge, the ocean churns black and white. Something large moves in it."
+      weight: 0.5
+    - text: "A clone trooper in fatigues stands at the railing, looking out at nothing in particular."
+    - text: "Two LAATs land in formation, troopers disembarking with practiced efficiency."
+    - text: "Lightning splits the cloud layer. The thunder follows two heartbeats later."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # GEONOSIS
+  # ═══════════════════════════════════════════════════════════════════════
+
+  geonosis_arena:
+    - text: "Wind across the broken stone makes a low, mournful sound through the arena ruins."
+    - text: "Geonosian drones move in coordinated lines along a distant gantry. They do not look up."
+    - text: "Republic shell craters mark the arena floor. Sand has begun to fill them in."
+    - text: "A B1 patrol clatters past, voicing tinny status reports to an unseen control channel."
+    - text: "The smell of iron-rich dust mixes with something acrid — droid lubricant, electromagnetic discharge."
+    - text: "Petrified gladiators' weapons still litter the sand in a few places. Nobody has cleaned up."
+
+  geonosis_foundries:
+    - text: "The roar of forge-fires is constant, deep, and felt through the floor more than heard."
+    - text: "Battle droid components move past on a conveyor — chassis, then limbs, then weapon mounts."
+    - text: "Geonosian work crews communicate in clicks and chitters that translation droids handle imperfectly."
+    - text: "Sparks shower from an overhead welding gantry. Drones below do not flinch."
+    - text: "A Techno Union foreman gestures impatiently at a droid quality-control inspector."
+    - text: "The air shimmers with heat. The smell of hot metal and acid fumes is omnipresent."
+    - text: "Somewhere in the foundry, a klaxon sounds briefly. Production does not slow."
+      weight: 0.5
+
+  geonosis_wastes:
+    - text: "Red dust settles in slow drifts. The air smells of old combat and ferrous oxidation."
+    - text: "Wreckage lies half-buried — a clone trooper helmet, a B1's torso plate, a fragment of armor."
+    - text: "Heat shimmer rises from cracked rock. Wildlife, what little there is, has learned to avoid the ridgelines."
+    - text: "A pair of Geonosian scouts pass at distance, their wing-membranes folded tight."
+      weight: 0.7
+    - text: "An acklay howl drifts across the wastes from far enough away to be almost atmospheric."
+      weight: 0.4
+    - text: "The sky has the dim red color you remember from the holos of the first battle. It always does."
+
+  geonosis_tunnels:
+    - text: "The tunnel curves and narrows in shapes built for wing-folded insectoids, not humans."
+    - text: "Geonosian chitin scrapes faintly against rock somewhere ahead. Or behind. The acoustics are bad."
+    - text: "Phosphorescent fungi growths give just enough light to see ten meters and no farther."
+    - text: "A side passage opens, then closes. Or opens, then was always closed. Hard to tell."
+      weight: 0.4
+    - text: "Distant voices — Geonosian, untranslated, agitated — echo briefly and then stop."
+    - text: "The temperature drops as the tunnel descends. The air grows still."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SPACE — narrative-tone overlay zones
+  # ═══════════════════════════════════════════════════════════════════════
+  # These zones are matched against ship-zone narrative tones in zones.yaml.
+  # Lighter coverage — space ambient is mostly delivered by the traffic
+  # system, not by ambient events. These add atmospheric breath where the
+  # traffic system isn't producing output.
+
+  space_coruscant:
+    - text: "A Venator transits past on the Perlemian heading rimward, escorted by V-19 wings."
+    - text: "Republic Navy traffic control crackles in the background — terse, clipped, unending."
+    - text: "Below, the planet-city glitters in unbroken light. Somewhere down there, the Senate is in session."
+    - text: "A patrol of ARC-170s passes overhead in tight formation. Routine. Always routine."
+      weight: 0.7
+
+  space_kuat:
+    - text: "Outside the canopy, a half-built Venator dwarfs your ship. It is one of dozens."
+    - text: "A KDY tug glides past, towing a hull plate the size of a city block."
+    - text: "Kuati Security Force escort vessels match your speed at a polite distance."
+    - text: "The orbital ring stretches across the sky, an unbroken arc of industry. It does not sleep."
+      weight: 0.6
+
+  space_kamino:
+    - text: "Sensor returns flutter as the Rishi Maze's gravitational shadow plays across your scopes."
+    - text: "Below, the cloud layers churn in patterns that do not repeat."
+    - text: "An interdictor cruiser holds station at the system's edge. It is not pretending to be elsewhere."
+      weight: 0.5
+    - text: "Lightning visible from orbit — vast, brief, soundless. The storms never stop down there."
+
+  space_geonosis:
+    - text: "Wreckage tumbles past — a Vulture droid, half-melted, slowly turning."
+    - text: "A Munificent-class frigate's silhouette passes against the planet's red horizon. Distant. Not friendly."
+      weight: 0.6
+    - text: "A flight of Vulture droids crosses your sensor sweep, headed somewhere with intent."
+    - text: "The space here smells, somehow, of metal and burnt ozone, even through the recyclers."
+      weight: 0.4
+
+# ═══════════════════════════════════════════════════════════════════════
+# ERA ADDITIONS — global pool merges
+# ═══════════════════════════════════════════════════════════════════════
+# Tatooine and Nar Shaddaa zones reuse the legacy global ambient pool in
+# data/ambient_events.yaml (cantina, spaceport, streets, shops, jabba,
+# government, default). Rather than re-author those pools end-to-end for
+# the CW era, we ship a small additive set of war-flavored lines here.
+#
+# When Drop 6a.4 lands and engine/ambient_events.py becomes era-aware,
+# the loader merges these entries INTO the generic global pool when the
+# active era is clone_wars. Outside of that era, this block is inert.
+#
+# Schema (mirrors the per-zone schema above):
+#   era_additions:
+#     <generic_key>:
+#       - text: "..."
+#         weight: 1.0           # optional; default 1.0
+#
+# Tone target: war touches Tatooine/Nar Shaddaa as rumor and profit
+# opportunity, not occupation. Lines should feel like the war is happening
+# elsewhere — clone troopers on leave, holovid war news on a muted screen,
+# Republic transports cycling down for refueling, the occasional
+# Separatist sigil scrawled on a wall. Keep the Mos Eisley character
+# dominant; CW additions are flavor not foreground.
+
+era_additions:
+
+  cantina:
+    - text: "A pair of clone troopers nurse drinks in a corner booth, off-duty and quiet."
+    - text: "The bartender keeps the holovid muted. Nobody wants war news with their drink."
+    - text: "A Twi'lek bounty hunter checks her datapad. She sets it face-down when you glance over."
+    - text: "Two patrons argue over a sabacc hand. Neither says a word about the Outer Rim."
+    - text: "A clone in plain civvies orders the cheapest thing on the menu. The bartender doesn't comment."
+      weight: 0.7
+    - text: "Someone at a back table is recruiting for a Bounty Hunters Guild contract. The targets are CIS-tagged."
+      weight: 0.5
+
+  spaceport:
+    - text: "A Republic transport cycles down its engines on Pad 7. Clone troopers disembark and form up."
+    - text: "Customs droids ask sharper questions today. Word is that a CIS courier slipped through last week."
+    - text: "An ARC-170 thunders past low overhead, escort wing peeling off behind."
+      weight: 0.6
+    - text: "A pair of Republic Intelligence agents board a freighter without showing credentials. The pilot doesn't ask."
+      weight: 0.5
+    - text: "Cargo manifests are getting reviewed twice. The lines are longer than usual."
+    - text: "A grounded YT-1300 has its hold open. Two clones are checking the markings against a list."
+      weight: 0.6
+
+  streets:
+    - text: "A holovid storefront cycles war news. A small crowd watches without expression."
+    - text: "Someone has scrawled a Separatist sigil on a wall. Nobody is in a hurry to clean it off."
+    - text: "A clone trooper on leave examines a market stall. The merchant pretends not to recognize him."
+    - text: "A holocrate of war bonds is being unloaded from a speeder. Nobody is buying."
+      weight: 0.6
+    - text: "A pair of children play 'Republic and Separatists.' Neither wants to be the Separatists."
+      weight: 0.7
+    - text: "A vendor's holovid is muted on the war news. He turns up the trade prices report instead."
+
+  shops:
+    - text: "Half a shelf is bare — Republic war priority pulled the stock yesterday morning."
+    - text: "A 'For Sale to Republic Forces Only' sign hangs over a row of power cells. Nobody enforces it here."
+      weight: 0.7
+    - text: "A merchant complains to a customer about Kuat-grade hyperdrive parts being impossible to source."
+    - text: "A salvage dealer has the half-melted plate of a clone trooper's pauldron displayed. He won't say where it came from."
+      weight: 0.5
+
+  jabba:
+    - text: "An aide reads a war-profit ledger to Jabba in low Huttese. Jabba laughs."
+    - text: "A Republic intelligence agent is shown out, having paid considerably more than they expected."
+      weight: 0.6
+    - text: "A CIS-flagged courier waits in the antechamber. He is being kept waiting on purpose."
+      weight: 0.6
+    - text: "A Gamorrean polishes new vibroblades. The crates they came in have Republic ordnance markings."
+      weight: 0.5
+
+  government:
+    # Mos Eisley civic authority is thin in CW. These additions are sparse
+    # by design — most "government" rooms in the legacy pool barely apply.
+    - text: "A Republic recruiting poster is half-peeled off the wall. Someone has scrawled CREDITS NOT BLOOD across it."
+      weight: 0.7
+    - text: "A datapad on the duty officer's desk shows a Senate appropriations debate, muted."
+      weight: 0.6
+    - text: "A clone trooper liaison waits in the corridor, helmet under his arm. He has been waiting a while."
+      weight: 0.5
+
+# ═══════════════════════════════════════════════════════════════════════
+# IMPLEMENTATION NOTES (deferred to Drop 6a.4)
+# ═══════════════════════════════════════════════════════════════════════
+# The engine work for `era_additions` lands in Drop 6a.4 alongside the
+# rest of the ambient_events refactor. Behavior:
+#
+# 1. Loader reads the global data/ambient_events.yaml AND, when era ==
+#    clone_wars, this file's `ambient_events` block AND `era_additions`.
+# 2. Per-zone-key dispatch checks the era-specific zone keys first
+#    (e.g. coruscant_senate). If absent, falls back to legacy generic
+#    keys (cantina, streets, etc.).
+# 3. For legacy generic keys, the era_additions entries are merged into
+#    the global pool. Weights stay independent — a 0.5-weight addition
+#    is half as likely to surface as a 1.0-weight global line.
+# 4. Outside the clone_wars era, era_additions is ignored entirely.
+#
+# Total CW ambient lines in this file at v1.1 of the drop:
+#   - 118 per-zone lines (20 new CW zones)
+#   -  29 era_additions lines (6 generic keys; merge into global pool)
+#   = 147 CW-flavored lines total, against the §8.6 target of ~170.

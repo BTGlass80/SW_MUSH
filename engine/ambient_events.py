@@ -285,8 +285,18 @@ class AmbientEventManager:
                 zone_key = await self._get_zone_key(room_id, db)
                 line = self._pick_line(zone_key)
                 if line:
-                    formatted = f"\n{AMBIENT_COLOR}  {line}{AMBIENT_RESET}"
-                    await session_mgr.broadcast_to_room(room_id, formatted)
+                    # Drop B: emit as typed pose_event (mode='ambient')
+                    # to all clients in the room. WebSocket gets typed
+                    # JSON for proper attribution; Telnet falls back to
+                    # styled text via send_json. This replaces the old
+                    # broadcast_to_room(formatted) path that hit
+                    # classifyAndAppend on the client and risked
+                    # mis-rendering ambient flavor as dialogue.
+                    from engine.pose_events import make_ambient_event
+                    ev = make_ambient_event(line)
+                    await session_mgr.broadcast_json_to_room(
+                        room_id, "pose_event", ev
+                    )
             except Exception:
                 log.debug("[ambient] Error firing ambient for room %d", room_id,
                           exc_info=True)

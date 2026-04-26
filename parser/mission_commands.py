@@ -174,8 +174,10 @@ class AcceptMissionCommand(BaseCommand):
 
 
 class ActiveMissionCommand(BaseCommand):
-    key = "+mission"
-    aliases = ["mission", "myjob", "activemission", "+myjob"]
+    # Pre-S57b key was "+mission"; demoted to "mission" so the +mission
+    # umbrella (MissionCommand) can occupy the canonical key.
+    key = "mission"
+    aliases = ["myjob", "activemission", "+myjob"]
     help_text = "View your currently active mission."
     usage = "mission"
 
@@ -639,9 +641,83 @@ class AbandonMissionCommand(BaseCommand):
 
 # ── Registration ───────────────────────────────────────────────────────────────
 
+# S55: Switch & alias dispatch tables for the +mission umbrella.
+_MISSION_SWITCH_IMPL: dict = {}
+
+_MISSION_ALIAS_TO_SWITCH: dict[str, str] = {
+    # board
+    "missions":     "board",
+    "mb":           "board",
+    "jobs":         "board",
+    "board":        "board",
+    # accept
+    "accept":       "accept",
+    "takejob":      "accept",
+    # view (active mission)
+    "mission":      "view",
+    "myjob":        "view",
+    "activemission":"view",
+    "view":         "view",
+    # complete
+    "complete":     "complete",
+    "finishjob":    "complete",
+    "turnin":       "complete",
+    # abandon
+    "abandon":      "abandon",
+    "dropmission":  "abandon",
+    "quitjob":      "abandon",
+}
+
+
+class MissionCommand(BaseCommand):
+    """`+mission` umbrella — see module docstring; full S55 dispatch."""
+    key = "+mission"
+    aliases: list[str] = [
+        "missions", "mb", "jobs",
+        "accept", "takejob",
+        "mission", "myjob", "activemission",
+        "complete", "finishjob", "turnin",
+        "abandon", "dropmission", "quitjob",
+    ]
+    help_text = (
+        "Mission board verbs: '+mission/board' (list), '+mission/accept "
+        "<id>', '+mission/view' (active), '+mission/complete', "
+        "'+mission/abandon'. Bare verbs (missions/accept/mission/...) "
+        "still work. Type 'help +mission' for the full reference."
+    )
+    usage = "+mission[/<switch>] [args]  — see 'help +mission'"
+    valid_switches: list[str] = ["view", "board", "abandon", "complete", "accept"]
+
+    async def execute(self, ctx: CommandContext):
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            switch = _MISSION_ALIAS_TO_SWITCH.get(
+                ctx.command.lower() if ctx.command else "",
+                "view",
+            )
+        impl_cls = _MISSION_SWITCH_IMPL.get(switch)
+        if impl_cls is None:
+            await ctx.session.send_line(self.help_text)
+            return
+        await impl_cls().execute(ctx)
+
+
+def _init_mission_switch_impl():
+    _MISSION_SWITCH_IMPL["board"]    = MissionsCommand
+    _MISSION_SWITCH_IMPL["accept"]   = AcceptMissionCommand
+    _MISSION_SWITCH_IMPL["view"]     = ActiveMissionCommand
+    _MISSION_SWITCH_IMPL["complete"] = CompleteMissionCommand
+    _MISSION_SWITCH_IMPL["abandon"]  = AbandonMissionCommand
+
+
+_init_mission_switch_impl()
+
+
 def register_mission_commands(registry) -> None:
     """Register all mission commands. Call from game_server.py __init__."""
     for cmd in [
+        MissionCommand(),
         MissionsCommand(),
         AcceptMissionCommand(),
         ActiveMissionCommand(),

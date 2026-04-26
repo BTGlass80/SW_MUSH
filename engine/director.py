@@ -1231,8 +1231,15 @@ class DirectorAI:
             if sess is None:
                 log.debug("[director] pc_hook char %d offline — dropped.", char_id)
                 return
-            prefix = ansi.color("[COMLINK] ", ansi.BRIGHT_CYAN)
-            await sess.send_line(f"{prefix}{content}")
+            # Drop B: comlink as typed pose_event (comm-in row type).
+            # The client renders comm-in with amber styling; Telnet
+            # falls back to plain text via send_json.
+            from engine.pose_events import make_pose_event, EVENT_COMM_IN
+            await sess.send_json("pose_event", make_pose_event(
+                event_type=EVENT_COMM_IN,
+                text=content,
+                who="COMLINK",
+            ))
             return
 
         # ── npc_whisper ───────────────────────────────────────────────────
@@ -1245,18 +1252,32 @@ class DirectorAI:
                     npcs = await db.get_npcs_in_room(room_id)
                     if npcs:
                         npc = npcs[0]
-                        prefix = ansi.color(
-                            f"{npc['name']} whispers to you: ", ansi.BRIGHT_YELLOW
-                        )
-                        await sess.send_line(f"{prefix}\"{content}\"")
+                        # Drop B: npc whisper as typed whisper event so
+                        # the client renders with proper attribution and
+                        # whisper styling instead of falling through the
+                        # classifyAndAppend regex.
+                        from engine.pose_events import make_pose_event, EVENT_WHISPER
+                        target_name = (char.get("name") if char else "you")
+                        await sess.send_json("pose_event", make_pose_event(
+                            event_type=EVENT_WHISPER,
+                            text=content,
+                            who=npc["name"],
+                            speaker_id=npc.get("id"),
+                            mode="whispers",
+                            to=target_name,
+                        ))
                         whispered = True
                 except Exception:
                     log.warning("_deliver_pc_hook: unhandled exception", exc_info=True)
                     pass
             if not whispered:
                 # Downgrade to comlink
-                prefix = ansi.color("[COMLINK] ", ansi.BRIGHT_CYAN)
-                await sess.send_line(f"{prefix}{content}")
+                from engine.pose_events import make_pose_event, EVENT_COMM_IN
+                await sess.send_json("pose_event", make_pose_event(
+                    event_type=EVENT_COMM_IN,
+                    text=content,
+                    who="COMLINK",
+                ))
             return
 
         # ── news_item ─────────────────────────────────────────────────────
@@ -1268,8 +1289,13 @@ class DirectorAI:
             except Exception as exc:
                 log.debug("[director] news_item fallback to comlink: %s", exc)
                 if sess:
-                    prefix = ansi.color("[COMLINK] ", ansi.BRIGHT_CYAN)
-                    await sess.send_line(f"{prefix}{content}")
+                    # Drop B: news fallback as comlink-styled typed event.
+                    from engine.pose_events import make_pose_event, EVENT_COMM_IN
+                    await sess.send_json("pose_event", make_pose_event(
+                        event_type=EVENT_COMM_IN,
+                        text=content,
+                        who="COMLINK",
+                    ))
             return
 
         # ── ambient ───────────────────────────────────────────────────────
@@ -1280,8 +1306,13 @@ class DirectorAI:
             except Exception as exc:
                 log.debug("[director] ambient fallback to comlink: %s", exc)
                 if sess:
-                    prefix = ansi.color("[COMLINK] ", ansi.BRIGHT_CYAN)
-                    await sess.send_line(f"{prefix}{content}")
+                    # Drop B: ambient fallback as comlink-styled typed event.
+                    from engine.pose_events import make_pose_event, EVENT_COMM_IN
+                    await sess.send_json("pose_event", make_pose_event(
+                        event_type=EVENT_COMM_IN,
+                        text=content,
+                        who="COMLINK",
+                    ))
 
     async def get_recent_log(self, db, limit: int = 10) -> list[dict]:
         """Fetch recent director_log entries (for news command)."""

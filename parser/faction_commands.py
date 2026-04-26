@@ -33,7 +33,7 @@ _DIFFICULTY_LABELS = {
 
 class FactionCommand(BaseCommand):
     key = "faction"
-    aliases = ["+faction", "fac"]
+    aliases = ["fac"]
     help_text = (
         "Manage your faction membership.\n"
         "\n"
@@ -832,7 +832,106 @@ class ReputationCommand(BaseCommand):
         await ctx.session.send_line(result)
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# +faction — Forwarding umbrella (S58)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# `+faction` is a thin player-facing umbrella that fans out to the
+# existing FactionCommand / GuildCommand / SpecializeCommand /
+# ReputationCommand machinery.
+#
+# Design notes (mirrors +home pattern):
+#   - FORWARDING umbrella. `valid_switches` enumerates verbs the
+#     umbrella advertises in help; `_FACTION_SWITCH_IMPL` is the
+#     smaller set of verbs the umbrella routes itself.
+#   - `+faction` (bare) → FactionCommand status view.
+#   - `+faction guild` / `specialize` / `reputation` → respective
+#     dedicated commands.
+#   - All other listed verbs (list/join/leave/roster/missions/claim/hq)
+#     forward to FactionCommand which already dispatches them.
+
+_FACTION_SWITCH_IMPL: dict = {}
+
+_FACTION_ALIAS_TO_SWITCH: dict[str, str] = {
+    "":      "view",
+    "show":  "view",
+    "info":  "view",
+    "rep":   "reputation",
+    "spec":  "specialize",
+}
+
+
+class FactionUmbrellaCommand(BaseCommand):
+    """`+faction` umbrella — see module docstring for forwarding rules."""
+    key = "+faction"
+    aliases: list[str] = []
+    help_text = (
+        "Faction membership and operations. Try '+faction', "
+        "'+faction list', '+faction join <code>', '+faction guild', "
+        "'+faction reputation'. Type 'help +faction' for the full "
+        "reference."
+    )
+    usage = "+faction [verb] [args]  — see 'help +faction'"
+    valid_switches: list[str] = [
+        "view", "guild", "specialize", "reputation",
+        "list", "join", "leave", "roster", "missions",
+        "claim", "hq",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        args = ctx.args.strip() if ctx.args else ""
+        first, _, rest = args.partition(" ")
+        switch = _FACTION_ALIAS_TO_SWITCH.get(first.lower(), first.lower())
+
+        # Direct routes handled by _FACTION_SWITCH_IMPL.
+        impl = _FACTION_SWITCH_IMPL.get(switch)
+        if impl is not None:
+            await impl(ctx, rest)
+            return
+
+        # All other listed verbs forward to FactionCommand intact.
+        if switch in self.valid_switches:
+            forwarded = FactionCommand()
+            ctx.args = args
+            await forwarded.execute(ctx)
+            return
+
+        await ctx.session.send_line(self.help_text)
+
+
+def _init_faction_switch_impl():
+    """Wire forwarding handlers into _FACTION_SWITCH_IMPL."""
+    async def _view(ctx, rest):
+        cmd = FactionCommand()
+        ctx.args = ""
+        await cmd.execute(ctx)
+
+    async def _guild(ctx, rest):
+        cmd = GuildCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _specialize(ctx, rest):
+        cmd = SpecializeCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _reputation(ctx, rest):
+        cmd = ReputationCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    _FACTION_SWITCH_IMPL["view"] = _view
+    _FACTION_SWITCH_IMPL["guild"] = _guild
+    _FACTION_SWITCH_IMPL["specialize"] = _specialize
+    _FACTION_SWITCH_IMPL["reputation"] = _reputation
+
+
+_init_faction_switch_impl()
+
+
 def register_faction_commands(registry):
+    registry.register(FactionUmbrellaCommand())
     registry.register(FactionCommand())
     registry.register(GuildCommand())
     registry.register(SpecializeCommand())

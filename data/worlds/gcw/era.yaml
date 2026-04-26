@@ -1,0 +1,96 @@
+# data/worlds/gcw/era.yaml
+# Galactic Civil War Era — Foundation Configuration
+# Schema version 1 — per world_data_extraction_design_v1.md §5
+#
+# This file is the GCW counterpart to data/worlds/clone_wars/era.yaml.
+# It registers the GCW lore/director_config/ambient_events YAMLs so the
+# era loader picks them up when active_era == gcw.
+#
+# Until Drop 6a.2/6a.3/6a.4 ship, this file is inert at runtime — the
+# engine still reads SEED_ENTRIES, DEFAULT_INFLUENCE, etc. from
+# hardcoded constants in engine/world_lore.py and engine/director.py.
+# The era YAML is the regression-test asset proving byte-equivalence.
+
+schema_version: 1
+
+era:
+  code: gcw
+  name: "Galactic Civil War"
+  tagline: "The Empire stands. The Rebellion fights. The galaxy chooses sides."
+  description: >
+    Approximately 0 ABY, between A New Hope and The Empire Strikes Back.
+    The Galactic Empire rules through fear; the Rebel Alliance fights from
+    hidden bases. The Hutt Cartel profits from both sides. Mos Eisley is
+    a backwater spaceport on Tatooine where Imperial authority is thin
+    and the Hutts hold real power.
+  timeline_reference: "~0 ABY"
+  canon_era: "Galactic Civil War (Original Trilogy)"
+  sourcebook_refs:
+    - "WEG40092 (Imperial Sourcebook)"
+    - "WEG40069 (GG7 Mos Eisley)"
+    - "WEG40124 (GG1 A New Hope)"
+    - "WEG40027 (GG6 Tramp Freighters)"
+    - "WEG40048 (GM Screen)"
+    - "WEG40093 (SW Sourcebook 2nd Ed)"
+
+policy:
+  # ── Force policy ─────────────────────────────────────────────────────────
+  # GCW: Jedi Order is destroyed. Force-sensitives are hunted. Public Force
+  # use draws Imperial attention. Lightsabers are extreme contraband.
+  force_chargen_allowed: false
+  force_sensitive_chargen: forbidden       # No PC Jedi in GCW launch scope
+  lightsaber_availability: extreme_contraband
+  force_suppression: inquisitorial         # Active Imperial pressure
+  dark_side_detectability: medium
+
+  # ── Faction set ──────────────────────────────────────────────────────────
+  # Must match VALID_FACTIONS frozenset in engine/director.py.
+  factions:
+    - imperial
+    - rebel
+    - criminal
+    - independent
+  npc_only_factions: []
+
+  # ── Starting defaults ────────────────────────────────────────────────────
+  starting_room_slug: westport_arrivals
+  starting_faction: independent
+  starting_credits_default: 500
+
+  # ── Era flavor ──────────────────────────────────────────────────────────
+  default_trooper_type: stormtrooper
+  default_imperial_substitute: imperial    # GCW IS the imperial axis
+  default_rebel_substitute: rebel
+  hutt_cartel_stance: criminal_dominant
+
+  # ── Director AI knobs ────────────────────────────────────────────────────
+  director_config_ref: director_config.yaml
+
+content_refs:
+  zones: zones.yaml                        # GCW zones — TBD; engine reads from build_mos_eisley.py today
+  organizations: organizations.yaml        # GCW orgs — TBD; engine reads from data/organizations.yaml today
+  planets: []                              # Mos Eisley is single-planet at GCW launch
+
+  # ── Director / Lore data-fication (Drop 6a) ─────────────────────────────
+  # These three files are consumed by Drop 6a's engine refactor. Until 6a.2
+  # /6a.3/6a.4 land, they are inert at runtime — engine still reads from
+  # source constants. They are the regression-test asset proving byte-
+  # equivalence at the parsed-dict level.
+  lore: lore.yaml
+  director_config: director_config.yaml
+  ambient_events: ambient_events.yaml
+
+# ═══════════════════════════════════════════════════════════════════════
+# REGISTRY POLICY
+# ═══════════════════════════════════════════════════════════════════════
+# GCW uses the global data/starships.yaml unfiltered. No exclusions.
+registry_policy:
+  starship_excluded_templates: []
+
+# Policy enforcement flags — advisory until Drop 0 lands the world-extraction
+# refactor. CW already enforces several of these.
+policy_enforcement:
+  force_chargen_allowed_is_enforced: true
+  force_sensitive_chargen_is_enforced: true
+  lightsaber_availability_is_enforced: true
+  starting_faction_is_enforced: true

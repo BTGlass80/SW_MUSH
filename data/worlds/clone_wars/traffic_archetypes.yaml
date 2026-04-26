@@ -1,0 +1,307 @@
+# data/worlds/clone_wars/traffic_archetypes.yaml
+# Clone Wars Era — NPC Space Traffic Archetype Definitions
+# Schema version 1
+#
+# This file defines the per-era archetype configuration consumed by the
+# NPC space traffic system. The engine currently hardcodes GCW values in
+# engine/npc_space_traffic.py TRAFFIC_SHIP_TEMPLATES — this file replaces
+# those when the F.X Space Pivot drop's engine refactor lands.
+#
+# Schema mirrors the engine's TRAFFIC_SHIP_TEMPLATES dict shape:
+#   archetype_key:
+#     - name_pool         list of ship-name patterns ({n} = random number)
+#       template          starships.yaml template key
+#       transponder       official | spoofed | none | registered
+#       crew_skill        single-die-string applied to NPC crew
+#       captain_name_pool list of NPC captain names
+#       behavior_notes    documentation only — engine drives behavior from
+#                         the archetype enum, not this string
+#
+# Each archetype can have multiple variants (different ship templates)
+# selected randomly at spawn time. Engine selects uniformly from the list.
+#
+# The two NEW archetypes for CW are republic_patrol and cis_patrol. The
+# imperial_patrol archetype from GCW is RETIRED — the rewicker maps it
+# to republic_patrol when the era is `clone_wars`.
+
+schema_version: 1
+
+archetypes:
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # TRADER — civilian freighters
+  # Behavior: DOCK → ORBIT → DEEP_SPACE → lane → repeat. Flees first damage.
+  # ═══════════════════════════════════════════════════════════════════════
+  trader:
+    - name_pool:
+        - "Galactic Carrier {n}"
+        - "Outer Rim Hauler {n}"
+        - "Republic Civilian Charter {n}"
+        - "Free Trader {n}"
+      template: yt_1300
+      transponder: registered
+      crew_skill: "3D+2"
+      captain_name_pool:
+        - "Captain Joren Vass"
+        - "Captain Mira Kelderan"
+        - "Captain Daro Quinn"
+        - "Captain Liss Voden"
+        - "Captain Tarek Olm"
+      behavior_notes: "Civilian freighter. Logged manifest, valid registry. Cooperates with patrols, flees pirates."
+    - name_pool:
+        - "Hutt Charter {n}"
+        - "Mos Eisley Mercantile {n}"
+        - "Spice Lanes {n}"
+      template: ghtroc_720
+      transponder: registered
+      crew_skill: "3D"
+      captain_name_pool:
+        - "Captain Dorek Mun"
+        - "Captain Ssira"
+        - "Captain Korvan Reld"
+      behavior_notes: "Cheaper haulers — Ghtrocs and the like. More likely to be running borderline-legal cargo."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SMUGGLER — contraband runners
+  # Behavior: avoids ORBIT (Republic presence). Fights 2 rounds, then flees.
+  # ═══════════════════════════════════════════════════════════════════════
+  smuggler:
+    - name_pool:
+        - "Wraith {n}"
+        - "Shadow {n}"
+        - "Drift {n}"
+        - "Long Run {n}"
+        - "Lucky {n}"
+      template: yt_1300
+      transponder: spoofed
+      crew_skill: "4D"
+      captain_name_pool:
+        - "A Smooth Operator"
+        - "A Nervous Pilot"
+        - "A Gruff Smuggler"
+        - "A Confident Spacer"
+        - "A Tired Captain"
+      behavior_notes: "Contraband runner. Spoofed transponder. Avoids Republic patrol zones. Will fight briefly before bolting."
+    - name_pool:
+        - "Comet's Edge"
+        - "Twin Suns"
+        - "Sandstorm"
+        - "Mynock's Bite"
+      template: ghtroc_720
+      transponder: spoofed
+      crew_skill: "3D+2"
+      captain_name_pool:
+        - "An Aging Smuggler"
+        - "A Twi'lek Captain"
+        - "A One-Eyed Spacer"
+      behavior_notes: "Older smuggler ships. More inclined to negotiate than fight."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # REPUBLIC PATROL — Grand Army of the Republic naval security
+  # Behavior: 3-zone patrol circuit. Hails any unregistered or flagged ship.
+  # Escalates to attack if ignored or if target flagged hostile.
+  # ═══════════════════════════════════════════════════════════════════════
+  # Replaces GCW's imperial_patrol archetype. Engine rewicker should map
+  # imperial_patrol -> republic_patrol when era == clone_wars.
+  republic_patrol:
+    - name_pool:
+        - "Republic Patrol CT-{n}"
+        - "GAR Picket {n}"
+        - "Sector Patrol {n}"
+        - "Coruscant Defense {n}"
+      template: arc_170
+      transponder: official
+      crew_skill: "4D"
+      captain_name_pool:
+        # Clone troopers go by designation + nickname
+        - "Lieutenant Trace"
+        - "Lieutenant Hawk"
+        - "Lieutenant Wedge"
+        - "Sergeant Boot"
+        - "Sergeant Cipher"
+        - "Sergeant Fix"
+        - "Captain Bolt"
+        - "Captain Vector"
+      behavior_notes: "Republic Navy patrol. Three-seat ARC-170. Authorized to interdict, board, and (if necessary) destroy unregistered or hostile vessels."
+    - name_pool:
+        - "Coruscant CAP {n}"
+        - "Home Defense {n}"
+        - "Senate Picket {n}"
+      template: v_19_torrent
+      transponder: official
+      crew_skill: "4D+1"
+      captain_name_pool:
+        - "Lieutenant Echo"
+        - "Lieutenant Hex"
+        - "Sergeant Tracer"
+        - "Sergeant Bolt"
+      behavior_notes: "Light-fighter combat air patrol. Faster, less armed than ARC-170 patrols. Common over Coruscant and Kuat."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # CIS PATROL — Confederacy of Independent Systems forces
+  # Behavior: hostile to Republic-flagged. Attacks on sight in CIS-controlled
+  # zones (Geonosis); attempts to flee in Republic zones unless cornered.
+  # ═══════════════════════════════════════════════════════════════════════
+  cis_patrol:
+    - name_pool:
+        - "DRD-{n}"        # Droid designation pattern
+        - "VTR-{n}"
+        - "Vulture Wing {n}"
+        - "Foundry Patrol {n}"
+      template: vulture_droid
+      transponder: official    # CIS military transponder; "official" relative to CIS
+      crew_skill: "3D+2"        # Droid brains — adequate gunnery, no astrogation
+      captain_name_pool:
+        # Droid units don't have captains; the "captain" slot reads as a
+        # control identifier (Lucrehulk channel, OOM command, etc.)
+        - "Control Channel Alpha"
+        - "Control Channel Beta"
+        - "Control Channel Gamma"
+        - "OOM-9 Tactical Net"
+        - "Foundry Command"
+      behavior_notes: "Droid fighter on CIS-aligned patrol. No pilot — operated remotely. Predictable tactics; vulnerable to comms-jamming."
+    - name_pool:
+        - "Tri-Wing {n}"
+        - "Buzz Squadron {n}"
+        - "DTF-{n}"
+      template: tri_fighter
+      transponder: official
+      crew_skill: "4D"
+      captain_name_pool:
+        - "Tri-Fighter Net"
+        - "Banking Clan Patrol"
+        - "Techno Union Escort"
+      behavior_notes: "Higher-tier CIS drone fighter. More dangerous than Vulture droids; deploys buzz-droid missiles."
+    - name_pool:
+        - "Neimoidian Charter {n}"
+        - "Trade Federation Liaison {n}"
+      template: sheathipede
+      transponder: official
+      crew_skill: "3D+1"
+      captain_name_pool:
+        - "Officer Nute Tassen"
+        - "Officer Lar Hess"
+        - "Officer Vaal Komari"
+      behavior_notes: "CIS officer transport — typically diplomatic or command-staff. Light armament; flees combat."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # PIRATE — opportunistic predators
+  # Behavior: lurks DEEP_SPACE, tails player ships, demands credits/cargo.
+  # Attacks if refused. Flees at hull <= 30%.
+  # ═══════════════════════════════════════════════════════════════════════
+  pirate:
+    - name_pool:
+        - "Krag's Fist"
+        - "Void Reaper"
+        - "Rust Claw"
+        - "Black Comet"
+        - "Screaming Mynock"
+        - "Iron Talon"
+        - "Skull's Mark"
+        - "Scarred Wing"
+      template: z_95
+      transponder: none
+      crew_skill: "4D"
+      captain_name_pool:
+        - "Krag the Terrible"
+        - "One-Eye Dozz"
+        - "Mara the Knife"
+        - "Captain Skorn"
+        - "Hess the Cleaver"
+        - "Vell the Quiet"
+      behavior_notes: "Common pirate. Z-95 Headhunter. Demands tribute via hail; attacks if refused."
+    - name_pool:
+        - "Lupercal"
+        - "Stygian Hawk"
+        - "Bloodtithe"
+      template: yt_2400
+      transponder: spoofed
+      crew_skill: "4D+2"
+      captain_name_pool:
+        - "Captain Brakka"
+        - "Captain Veska Korr"
+        - "Captain Ron Sek"
+      behavior_notes: "Higher-tier pirate. YT-2400 with extra firepower. More aggressive — attacks first, demands later."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # BOUNTY HUNTER — event-driven, target-specific
+  # Behavior: spawned by bounty event, navigates to target's zone, sends
+  # personalized hail naming target, attacks. Only attacks bounty target.
+  # ═══════════════════════════════════════════════════════════════════════
+  bounty_hunter:
+    - name_pool:
+        - "Slave I"            # Generic name slot — actual ship can be named
+        - "Hound's Tooth"      # whatever; these are Legends references
+        - "IG-2000"
+        - "Punishing One"
+        - "Outrider"
+      template: firespray
+      transponder: spoofed
+      crew_skill: "5D"
+      captain_name_pool:
+        # CW-era hunters. Mix of Boba's father's contemporaries, BHG types.
+        - "Cad Bane"
+        - "Aurra Sing"
+        - "Embo"
+        - "Bossk"
+        - "Sugi"
+        - "An Anonymous Hunter"
+      behavior_notes: "BHG-affiliated bounty hunter. Personalized hail; locks onto target. Will not engage non-targets unless attacked first."
+
+# ═══════════════════════════════════════════════════════════════════════
+# ARCHETYPE REWICKER MAP
+# ═══════════════════════════════════════════════════════════════════════
+# Translation table for the engine archetype enum. When the engine reads
+# era data, it should consume this map to translate GCW-era enum values
+# (still in source code) to CW-era archetype keys.
+#
+# This is a transitional mechanism — once the engine fully era-parameterizes
+# the TrafficArchetype enum, this map can be deleted.
+archetype_rewicker:
+  imperial_patrol: republic_patrol
+  imperial: republic_patrol
+  rebel: cis_patrol     # Engine has no GCW "rebel" archetype currently;
+                        # listed for future-proofing if added.
+  patrol: republic_patrol  # Generic enum value — CW default = Republic
+
+# ═══════════════════════════════════════════════════════════════════════
+# SPAWN WEIGHTS (per-zone-type)
+# ═══════════════════════════════════════════════════════════════════════
+# Engine selects an archetype using these weights. Weights are RELATIVE,
+# not percentages — engine sums and normalizes. Higher = more frequent.
+#
+# Three contexts: peaceful, contested, hostile. Engine determines which
+# context applies based on the spawn zone's owning planet's faction
+# disposition (resolved via Director config zone_baselines, when available).
+#
+# Republic-aligned zones (Coruscant, Kuat, Kamino approach):
+#   peaceful_weights apply. Republic patrols dominate; pirates rare.
+# Hutt/neutral zones (Tatooine, Nar Shaddaa, Hutt Space Corridor):
+#   contested_weights apply. Smugglers and pirates more common.
+# CIS-aligned zones (Geonosis):
+#   hostile_weights apply. CIS patrols dominate. Republic patrols absent.
+
+spawn_weights:
+  peaceful:
+    trader: 4
+    smuggler: 1
+    republic_patrol: 4
+    cis_patrol: 0
+    pirate: 1
+
+  contested:
+    trader: 3
+    smuggler: 3
+    republic_patrol: 1
+    cis_patrol: 1
+    pirate: 2
+
+  hostile:
+    trader: 1
+    smuggler: 2
+    republic_patrol: 0
+    cis_patrol: 5
+    pirate: 2
+
+# Note: bounty_hunter is event-driven only (spawn_bounty_hunter), not
+# random-spawn. It's not in spawn_weights for that reason.

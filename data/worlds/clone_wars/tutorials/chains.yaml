@@ -1,0 +1,1212 @@
+# data/worlds/clone_wars/tutorials/chains.yaml
+# Clone Wars Era — Tutorial Profession Chains
+# Schema version 1
+#
+# Per clone_wars_era_design_v3.md §10:
+#   "Eight chains for launch (up from six), mapping to the eight joinable
+#    faction-archetype axes. Each chain: 4-6 steps, introduces the player
+#    to their starting zone, faction HQ, mission board, relevant tools,
+#    and sets them up with 1-2 clear next actions."
+#
+# This file is the content side of the CW tutorial rework. The current
+# tutorial is hardcoded in build_tutorial.py (~2200 lines) and
+# engine/tutorial_v2.py (~2250 lines) — both GCW-keyed. The CW rework's
+# engine session will:
+#   1. Add a tutorial loader that consumes this YAML.
+#   2. Generalize the tutorial state machine to handle profession chains
+#      (currently it handles only "core" + 8 elective modules).
+#   3. Build the tutorial zone rooms from the locations referenced here.
+#
+# Until that refactor lands, this file is inert at runtime. It is the
+# regression-test asset and authoring source for the engine session.
+#
+# ─── Schema ────────────────────────────────────────────────────────────
+#
+# chains:
+#   - chain_id           str       unique identifier (snake_case)
+#     chain_name         str       display name
+#     description        str       1-2 sentence pitch shown at chain pick
+#     archetype_label    str       what kind of character this is
+#     faction_alignment  str       faction code from organizations.yaml,
+#                                  or `null` for unaligned (Smuggler)
+#     starting_zone      str       zone key from zones.yaml
+#     starting_room      str       room slug — built into tutorial zone
+#                                  if not present in zones.yaml
+#     prerequisites      list      gating flags (chargen_complete,
+#                                  faction_intent: <code>, force_sign,
+#                                  jedi_path_unlocked, etc.)
+#     duration_minutes   int       estimated chain length
+#     locked             bool      true means stub-only (Jedi Path)
+#     locked_message     str       explanation shown if player tries
+#     graduation:                  what happens at chain completion
+#       credits          int       cash reward
+#       faction_rep      dict      {faction_code: int_delta}
+#       items            list      item slugs granted
+#       achievements     list      achievement slugs unlocked
+#       drop_room        str       room player ends up in (live world)
+#       follow_up_hint   str       1-line "go do X next" pointer
+#     steps:
+#       - step           int       1-indexed step number
+#         title          str       step name
+#         location       str       zone key OR new tutorial-zone room slug
+#         npc            str       NPC display name
+#         npc_role       str       "instructor" | "contact" | "antagonist"
+#         teaches        list      command names this step exercises
+#         objective      str       player-facing objective sentence
+#         npc_intro      str       NPC opening line (delivered on entry)
+#         completion:    object    how the engine recognizes step done
+#           type         str       command_executed | talk_to_npc |
+#                                  combat_won | item_acquired |
+#                                  room_entered | mission_completed
+#           ...                    type-specific fields
+#         npc_complete   str       NPC reaction line on completion
+#         reward         object    {credits, items, faction_rep}
+#         next_hint      str       1-sentence pointer to step+1 or grad
+#
+# ─── Cross-references ──────────────────────────────────────────────────
+#
+# All `faction_alignment` values resolve to organizations.yaml codes:
+#   republic, cis, jedi_order, hutt_cartel, bounty_hunters_guild,
+#   independent, mechanics_guild, shipwrights_guild, medics_guild,
+#   slicers_guild, entertainers_guild, scouts_guild
+#
+# All `starting_zone` values resolve to zones.yaml keys:
+#   coruscant_*, kuat_*, kamino_*, geonosis_*, tatooine_*, nar_shaddaa_*,
+#   space_*
+#
+# Tutorial-zone-only rooms (e.g. `tipoca_briefing_chamber`,
+# `kuat_apprentice_dock`) are NEW rooms the engine session will build
+# under tutorial properties (`tutorial_zone: true`). They do NOT need to
+# exist in zones.yaml — they are tutorial-only rooms with the same flag
+# behavior as the current core tutorial's Landing Pad / Desert Trail.
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+chains:
+
+  # ─── 1. REPUBLIC SOLDIER ──────────────────────────────────────────────
+  - chain_id: republic_soldier
+    chain_name: "Republic Soldier"
+    description: >
+      Clone trooper or Naval officer. You start in a Republic facility,
+      receive your orders, prove your competence in a controlled exercise,
+      and ship out to Coruscant for active deployment.
+    archetype_label: "Clone Trooper / Naval Officer"
+    faction_alignment: republic
+    starting_zone: kamino_tipoca
+    starting_room: tipoca_briefing_chamber
+    prerequisites:
+      - chargen_complete
+      - faction_intent: republic
+    duration_minutes: 22
+    locked: false
+
+    graduation:
+      credits: 500
+      faction_rep:
+        republic: 50
+      items: ["dc15_blaster_rifle", "republic_light_armor", "comlink_basic"]
+      achievements: ["sworn_to_the_republic"]
+      drop_room: coruscant_works_landing_zone
+      follow_up_hint: >
+        Report to the duty officer at Coruscant Works for your first
+        mission. The Republic mission board (`+missions republic`) is
+        where most of your work will come from.
+
+    steps:
+      - step: 1
+        title: "Reporting In"
+        location: tipoca_briefing_chamber
+        npc: "Major Tarrn"
+        npc_role: instructor
+        teaches: ["look", "+sheet"]
+        objective: "Look around, check your sheet, and report to Major Tarrn."
+        npc_intro: >
+          "Stand at attention, trooper. I'm Major Tarrn, your CO for this
+          briefing cycle. Look around, confirm your gear with +sheet,
+          then come see me. Move."
+        completion:
+          type: talk_to_npc
+          npc: "Major Tarrn"
+          requires_first:
+            - command: "look"
+            - command: "+sheet"
+        npc_complete: >
+          "Good. Records check out. Tipoca conditioning passed. You're
+          cleared for Mission Cycle 11. The combat sims are through that
+          hatch."
+        reward: {}
+        next_hint: "The combat simulator hatch is east. Type `east`."
+
+      - step: 2
+        title: "Combat Sim Drill"
+        location: tipoca_combat_sim
+        npc: "Sim Operator CT-9904"
+        npc_role: instructor
+        teaches: ["attack", "dodge"]
+        objective: "Defeat two simulated B1 battle droids."
+        npc_intro: >
+          "Trooper. Drill ration: two B1 droids, weapons set to non-lethal.
+          Your DC-15 stays on full live-fire — they don't. Standard
+          engagement. Any questions? Didn't think so. Open the hatch."
+        completion:
+          type: combat_won
+          enemy_template: "b1_battle_droid_sim"
+          enemy_count: 2
+        npc_complete: >
+          "Adequate. Below the bell curve for your batch but inside
+          spec. Better trooper, worse droid — same outcome. Cleared."
+        reward:
+          credits: 0
+          faction_rep:
+            republic: 5
+        next_hint: "Report back to Major Tarrn for your assignment."
+
+      - step: 3
+        title: "Receiving the Assignment"
+        location: tipoca_briefing_chamber
+        npc: "Major Tarrn"
+        npc_role: instructor
+        teaches: ["+missions", "accept"]
+        objective: "Accept your first deployment from the mission board."
+        npc_intro: >
+          "Sims passed. Congratulations, you're now overqualified for
+          everything you'll actually do. Your assignment's on the board
+          — `+missions` will pull it. Accept it before the transport
+          leaves without you."
+        completion:
+          type: mission_accepted
+          mission_id: "tutorial_republic_first_deployment"
+        npc_complete: >
+          "Coruscant. You'll be at Republic Works under Sergeant Drix.
+          He's a clone like you — listen to him. Transport's at the
+          north dock. Move."
+        reward: {}
+        next_hint: "The transport is north. Board it to ship to Coruscant."
+
+      - step: 4
+        title: "Transit to Coruscant"
+        location: tipoca_transport_pad
+        npc: "Pilot CT-7567"
+        npc_role: contact
+        teaches: ["board", "depart"]
+        objective: "Board the transport and arrive at Coruscant Works."
+        npc_intro: >
+          "On time, trooper. Strap in. Three-hour hyperspace jump to
+          Coruscant. Boring. Don't lose your gear in the cabin."
+        completion:
+          type: room_entered
+          room: coruscant_works_landing_zone
+        npc_complete: >
+          "Welcome to Coruscant. There's your air. Try not to choke on
+          it. Sergeant Drix is the one in 212th colors over there."
+        reward:
+          credits: 100
+          items: ["coruscant_clearance_chip"]
+        next_hint: "Sergeant Drix is waiting. Talk to him."
+
+      - step: 5
+        title: "First Day on Coruscant"
+        location: coruscant_works_landing_zone
+        npc: "Sergeant Drix"
+        npc_role: contact
+        teaches: ["talk", "+factions"]
+        objective: "Meet Sergeant Drix; check your faction standing."
+        npc_intro: >
+          "Vat-fresh. Wonderful. I'm Drix, 212th. You'll bunk with the
+          rest of the Cycle 11s for now. Use `+factions` to see your
+          standing — it'll change as you do work. Welcome to the war."
+        completion:
+          type: command_executed
+          command: "+factions"
+        npc_complete: >
+          "Good. You're a Conscript with the Republic — that's normal.
+          Earn your stripes. Mission board's `+missions republic`. Don't
+          die on your first run."
+        reward:
+          credits: 0
+          faction_rep:
+            republic: 10
+        next_hint: "Chain complete — you're cleared for live deployment."
+
+  # ─── 2. REPUBLIC INTELLIGENCE ─────────────────────────────────────────
+  - chain_id: republic_intelligence
+    chain_name: "Republic Intelligence"
+    description: >
+      Covert operative for the Republic. You're recruited through
+      back channels, briefed on a CIS sympathizer, and tail him through
+      Coruscant midlevels. Clean, careful work — not stand-up combat.
+    archetype_label: "Republic Intelligence Officer"
+    faction_alignment: republic
+    starting_zone: coruscant_upper
+    starting_room: republic_intel_safehouse_alpha
+    prerequisites:
+      - chargen_complete
+      - faction_intent: republic
+    duration_minutes: 25
+    locked: false
+
+    graduation:
+      credits: 600
+      faction_rep:
+        republic: 40
+      items: ["concealed_blaster", "civilian_disguise_kit", "encrypted_comlink"]
+      achievements: ["recruited_in_shadow"]
+      drop_room: coruscant_upper_judicial_plaza
+      follow_up_hint: >
+        Your handler will contact you via comlink with field assignments.
+        Republic Intelligence missions on `+missions republic` are
+        flagged with the "intel" tag.
+
+    steps:
+      - step: 1
+        title: "The Quiet Recruitment"
+        location: republic_intel_safehouse_alpha
+        npc: "Director Naya Vell"
+        npc_role: instructor
+        teaches: ["look", "+sheet", "say"]
+        objective: "Listen to the recruitment pitch and accept the role."
+        npc_intro: >
+          "You weren't supposed to find this address. The fact that you
+          did is exactly why you're here. Look around. Check your sheet
+          — your file is open on the terminal. When you're ready, say
+          you'll take the position."
+        completion:
+          type: command_executed
+          command: "say"
+          contains_any: ["yes", "i'll do it", "i accept", "agreed", "in"]
+        npc_complete: >
+          "Good. From now on you don't exist. I'm Director Vell. Your
+          first contact will be a man named Bren Kost. He'll appear in
+          the next hour at Dex's Diner. Watch him. Don't approach."
+        reward:
+          items: ["concealed_blaster", "civilian_disguise_kit"]
+        next_hint: "Take the speeder line to Dex's Diner. Type `out`."
+
+      - step: 2
+        title: "Surveillance at Dex's"
+        location: dexs_diner
+        npc: "Bren Kost"
+        npc_role: antagonist
+        teaches: ["look", "examine"]
+        objective: "Locate Bren Kost without being noticed."
+        npc_intro: >
+          [Director Vell on comlink]: "He's there. Booth in the back.
+          Don't talk to him. Use `examine` on the booth area to confirm
+          his identity, then leave the way you came."
+        completion:
+          type: command_executed
+          command: "examine"
+          target_contains: "kost"
+        npc_complete: >
+          [Vell]: "Confirmed. He's meeting a contact in the midlevels
+          tonight. Track him. Don't lose him."
+        reward:
+          faction_rep:
+            republic: 5
+        next_hint: "Take the lift down to Coruscant midlevels."
+
+      - step: 3
+        title: "Tailing the Contact"
+        location: coruscant_midlevels_freight_district
+        npc: "Bren Kost"
+        npc_role: antagonist
+        teaches: ["sneak", "follow"]
+        objective: "Tail Kost to his meeting without being spotted."
+        npc_intro: >
+          [Vell]: "He's two streets ahead, walking east. Use `sneak`
+          to follow without alerting him. If your stealth fails he
+          spots you and the operation aborts. Patience."
+        completion:
+          type: skill_check_passed
+          skill: "sneak"
+          difficulty: 8
+        npc_complete: >
+          [Vell]: "He's at the meet. Hold position. Listen."
+        reward:
+          faction_rep:
+            republic: 10
+        next_hint: "Hold and listen — the meet is happening now."
+
+      - step: 4
+        title: "The Intercept"
+        location: coruscant_midlevels_freight_district
+        npc: "Bren Kost"
+        npc_role: antagonist
+        teaches: ["+missions", "complete"]
+        objective: "File your intercept report via mission complete."
+        npc_intro: >
+          [Vell]: "Recording captured. The meet was a CIS sympathizer
+          handoff — credit chip for ship schematics. We have what we
+          need. Type `+missions` to view your active assignment, then
+          `complete` it. Quietly."
+        completion:
+          type: mission_completed
+          mission_id: "tutorial_intel_first_intercept"
+        npc_complete: >
+          [Vell]: "Clean work. The chip Kost passed had Kuat schematics
+          — Republic Counter-Intel takes it from here. Report to the
+          Judicial Plaza office at street level. They'll formally
+          induct you."
+        reward:
+          credits: 200
+        next_hint: "Take the lift up. Judicial Plaza is at street level."
+
+      - step: 5
+        title: "Formal Induction"
+        location: coruscant_upper_judicial_plaza
+        npc: "Coordinator Sehrra"
+        npc_role: contact
+        teaches: ["+factions"]
+        objective: "Receive your formal Republic Intelligence credentials."
+        npc_intro: >
+          "Director Vell's recommendation came in. Your credentials
+          are on the desk — encrypted comlink, badge, the usual. Check
+          `+factions` to confirm your standing. You're a field operative
+          now. The work doesn't stop."
+        completion:
+          type: command_executed
+          command: "+factions"
+        npc_complete: >
+          "You're Republic Intelligence — Field Operative. Missions tagged
+          `intel` are yours. Stay alive. The job is the job."
+        reward:
+          items: ["encrypted_comlink"]
+          faction_rep:
+            republic: 15
+        next_hint: "Chain complete. Your handler will reach you in the field."
+
+  # ─── 3. JEDI PATH (LOCKED STUB) ───────────────────────────────────────
+  - chain_id: jedi_path
+    chain_name: "Jedi Path"
+    description: >
+      The Jedi Order does not recruit. The Order's Padawans were taken
+      from their families as infants and trained at the Temple. To walk
+      this path as an adult, you must first find what the Order itself
+      no longer remembers.
+    archetype_label: "Jedi Padawan / Knight"
+    faction_alignment: jedi_order
+    starting_zone: tatooine_dune_sea
+    prerequisites:
+      - chargen_complete
+      - jedi_path_unlocked         # set by the Village quest chain
+      - force_sensitive            # set during chargen (50% chance) or
+                                   # via Village quest narrative path
+    duration_minutes: 0
+    locked: true
+    locked_message: >
+      The Jedi path is not available at character creation. To unlock
+      it you must find a hidden village in the Jundland Wastes and
+      complete the Master's trials. Begin your career on another path
+      — the Force will find you in time.
+
+    graduation:
+      drop_room: jedi_temple_gates
+      follow_up_hint: >
+        See Master Yoda at the Jedi Temple. Padawan assignment follows.
+
+    steps:
+      - step: 1
+        title: "(Locked — Village Quest Required)"
+        location: tatooine_dune_sea
+        npc: "(none)"
+        npc_role: instructor
+        teaches: []
+        objective: "Complete the Village quest chain to unlock this path."
+        npc_intro: ""
+        completion:
+          type: prerequisite
+          flag: jedi_path_unlocked
+        npc_complete: ""
+        reward: {}
+        next_hint: "(See locked_message at chain level.)"
+
+  # ─── 4. SEPARATIST COMMANDO ───────────────────────────────────────────
+  - chain_id: separatist_commando
+    chain_name: "Separatist Commando"
+    description: >
+      Loyal warrior of the Confederacy. You're conscripted into a CIS
+      shock-trooper unit on Geonosis, learn to operate alongside droids,
+      survive your first action, and join the war on the other side.
+    archetype_label: "CIS Shock Trooper"
+    faction_alignment: cis
+    starting_zone: geonosis_foundries
+    starting_room: geonosis_foundry_briefing
+    prerequisites:
+      - chargen_complete
+      - faction_intent: cis
+    duration_minutes: 22
+    locked: false
+
+    graduation:
+      credits: 500
+      faction_rep:
+        cis: 50
+      items: ["e5_blaster_rifle", "cis_field_armor", "comlink_basic"]
+      achievements: ["raised_the_red_flag"]
+      drop_room: tatooine_outskirts_cis_safehouse
+      follow_up_hint: >
+        Your unit operates from the Tatooine safehouse. CIS missions
+        on `+missions cis` carry the work — most of it covert, since
+        Tatooine is technically Republic-aligned.
+
+    steps:
+      - step: 1
+        title: "The Foundry Floor"
+        location: geonosis_foundry_briefing
+        npc: "Tactical Droid TQ-89"
+        npc_role: instructor
+        teaches: ["look", "+sheet"]
+        objective: "Acknowledge the briefing and check your gear."
+        npc_intro: >
+          "[TQ-89, modulated]: Designation accepted. You are a sentient
+          unit assigned to Battalion Verdant. Look around. Confirm your
+          equipment via `+sheet`. Speak when ready."
+        completion:
+          type: command_executed
+          command: "+sheet"
+        npc_complete: >
+          "[TQ-89]: Sentient units require greater confirmation overhead
+          than droid units. Inefficient. Acceptable. Proceed to the
+          training pit."
+        reward: {}
+        next_hint: "The training pit is south. Move."
+
+      - step: 2
+        title: "Joint Operations Drill"
+        location: geonosis_foundry_drill_pit
+        npc: "Squad-Lead B2-7745"
+        npc_role: instructor
+        teaches: ["attack", "follow"]
+        objective: "Defeat two republic combat sims with droid support."
+        npc_intro: >
+          "[B2-7745]: Sentient unit, follow my movement. Engage hostiles
+          on contact. Two Republic clone-troop simulants. Begin."
+        completion:
+          type: combat_won
+          enemy_template: "republic_clone_sim"
+          enemy_count: 2
+          ally_count: 2          # B2 + tactical droid backup
+        npc_complete: >
+          "[B2-7745]: Engagement resolved. Sentient unit performed within
+          acceptable parameters. Proceed for assignment."
+        reward:
+          faction_rep:
+            cis: 5
+        next_hint: "Return to Tactical Droid TQ-89 for your assignment."
+
+      - step: 3
+        title: "First Assignment"
+        location: geonosis_foundry_briefing
+        npc: "Tactical Droid TQ-89"
+        npc_role: instructor
+        teaches: ["+missions", "accept"]
+        objective: "Accept your first CIS field deployment."
+        npc_intro: >
+          "[TQ-89]: Sentient unit cleared for field assignment. The
+          mission file is loaded. Use `+missions` and accept assignment
+          [tutorial_cis_tatooine_dispatch]. Transport awaits."
+        completion:
+          type: mission_accepted
+          mission_id: "tutorial_cis_tatooine_dispatch"
+        npc_complete: >
+          "[TQ-89]: Tatooine. Hutt-aligned territory. Republic presence
+          minimal. Optimal infiltration scenario. Embark."
+        reward: {}
+        next_hint: "Board the transport at the foundry pad."
+
+      - step: 4
+        title: "Insertion on Tatooine"
+        location: tatooine_outskirts_cis_safehouse
+        npc: "Cell Leader Mira Kavin"
+        npc_role: contact
+        teaches: ["look", "talk"]
+        objective: "Make contact at the Tatooine safehouse."
+        npc_intro: >
+          "You're the new commando. Welcome to nowhere. We don't fly
+          colors here — Tatooine pretends to be Republic when it bothers
+          to pretend at all. I'm Mira Kavin. I run this cell. Sit down."
+        completion:
+          type: talk_to_npc
+          npc: "Cell Leader Mira Kavin"
+        npc_complete: >
+          "Your role is overt-when-needed, covert-by-default. Hutt
+          Cartel turns a profitable blind eye if you don't make trouble.
+          Use `+factions` to confirm your CIS standing — that's how I'll
+          know you're real."
+        reward:
+          credits: 100
+        next_hint: "Check your faction standing."
+
+      - step: 5
+        title: "Confirmed Operational"
+        location: tatooine_outskirts_cis_safehouse
+        npc: "Cell Leader Mira Kavin"
+        npc_role: contact
+        teaches: ["+factions"]
+        objective: "Verify CIS faction standing."
+        npc_intro: >
+          "Run `+factions`. The Republic doesn't show your true rank
+          but I do. You're cleared for missions on `+missions cis`.
+          Don't get yourself caught. We don't extract."
+        completion:
+          type: command_executed
+          command: "+factions"
+        npc_complete: >
+          "Operational. Welcome to the CIS, commando. The war is mostly
+          elsewhere — your job is to keep it that way for our cell."
+        reward:
+          faction_rep:
+            cis: 10
+        next_hint: "Chain complete. Mira Kavin is your contact for ops."
+
+  # ─── 5. SEPARATIST AGENT ──────────────────────────────────────────────
+  - chain_id: separatist_agent
+    chain_name: "Separatist Agent"
+    description: >
+      CIS infiltrator hiding in plain sight in the Republic capital.
+      You're recruited at a Coruscant cantina, dead-drop a courier
+      packet, and survive your first close call with Republic Security.
+    archetype_label: "CIS Infiltrator / Diplomat"
+    faction_alignment: cis
+    starting_zone: coruscant_lower
+    starting_room: crystal_jewel_cantina
+    prerequisites:
+      - chargen_complete
+      - faction_intent: cis
+    duration_minutes: 25
+    locked: false
+
+    graduation:
+      credits: 600
+      faction_rep:
+        cis: 40
+      items: ["concealed_blaster", "civilian_disguise_kit", "fake_republic_id"]
+      achievements: ["sleeper_in_the_capital"]
+      drop_room: coruscant_lower_freight_dock
+      follow_up_hint: >
+        Your handler will contact you via the fake comlink. CIS-aligned
+        missions on `+missions cis` are flagged "deep cover." Avoid
+        Republic-faction contact NPCs while on assignment.
+
+    steps:
+      - step: 1
+        title: "The Cantina Recruitment"
+        location: crystal_jewel_cantina
+        npc: "Sevra Toryn"
+        npc_role: instructor
+        teaches: ["look", "say"]
+        objective: "Listen to the offer and signal your interest."
+        npc_intro: >
+          "You're alone. That's good. Sit. I've been watching you. The
+          Republic has not been kind. The Confederacy is recruiting.
+          Look around. If you're interested, say a word about Geonosis
+          — any word. If you're not, walk out."
+        completion:
+          type: command_executed
+          command: "say"
+          contains_any: ["geonosis"]
+        npc_complete: >
+          "Good. The word is the contract. I'm Sevra. The Republic will
+          never know your name. The Confederacy will. Take this. Don't
+          read it here. Find a quiet place."
+        reward:
+          items: ["sealed_data_packet"]
+        next_hint: "Find a quiet place. The freight dock is two levels up."
+
+      - step: 2
+        title: "Reading the Packet"
+        location: coruscant_midlevels_freight_district
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["examine", "use"]
+        objective: "Decrypt the sealed packet."
+        npc_intro: >
+          [Comlink, Sevra]: "Use the packet. It's keyed to your bio-sig.
+          Inside is your handler ID and the dead-drop location. Memorize
+          and destroy."
+        completion:
+          type: item_used
+          item: "sealed_data_packet"
+        npc_complete: >
+          [Comlink, Sevra]: "Now you know the address. Coruscant Works,
+          locker 144. Drop the packet there before midnight. Don't be
+          followed."
+        reward: {}
+        next_hint: "Coruscant Works is one level down. Take the lift."
+
+      - step: 3
+        title: "The Dead Drop"
+        location: coruscant_works_lockers
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["sneak", "use"]
+        objective: "Place the courier packet at locker 144 unseen."
+        npc_intro: >
+          [Comlink, Sevra]: "There are Republic Security cameras. Use
+          `sneak` before approaching the locker. If your stealth fails,
+          abort and move on — we don't repeat-attempt."
+        completion:
+          type: skill_check_passed
+          skill: "sneak"
+          difficulty: 9
+          on_fail: "abort_step_no_retry"   # narrative only — engine handles
+        npc_complete: >
+          [Comlink, Sevra]: "Drop confirmed. Get out. Republic patrol
+          passes through in two minutes."
+        reward:
+          faction_rep:
+            cis: 15
+        next_hint: "Move. Republic patrol incoming."
+
+      - step: 4
+        title: "Close Call"
+        location: coruscant_works_freight_corridor
+        npc: "Republic Security Officer Daln"
+        npc_role: antagonist
+        teaches: ["bluff", "say"]
+        objective: "Talk past Republic Security."
+        npc_intro: >
+          "You. Stop. ID and reason for being on this level. Cargo
+          handlers were dismissed an hour ago. Speak."
+        completion:
+          type: skill_check_passed
+          skill: "con"
+          difficulty: 10
+          fallback:
+            type: combat_won
+            enemy_template: "republic_security_officer"
+        npc_complete: >
+          "...alright. Move along. Curfew on this level is twenty-
+          two hundred. Don't make me see you again."
+        reward:
+          credits: 100
+          faction_rep:
+            cis: 5
+        next_hint: "Get to the freight dock and stay there."
+
+      - step: 5
+        title: "Operational Confirmation"
+        location: coruscant_lower_freight_dock
+        npc: "Sevra Toryn"
+        npc_role: contact
+        teaches: ["+factions"]
+        objective: "Confirm operational status with Sevra."
+        npc_intro: >
+          "You made it. That's not nothing. Run `+factions` — your CIS
+          rank is logged but not visible to the Republic. The fake ID
+          is in the box. Carry it. Use it."
+        completion:
+          type: command_executed
+          command: "+factions"
+        npc_complete: >
+          "Welcome to the Confederacy, agent. You don't exist on any
+          Republic record. That's the only protection we can give you.
+          Make it count."
+        reward:
+          items: ["fake_republic_id", "encrypted_comlink"]
+          faction_rep:
+            cis: 15
+        next_hint: "Chain complete. Stay quiet. Stay alive."
+
+  # ─── 6. BOUNTY HUNTER ─────────────────────────────────────────────────
+  - chain_id: bounty_hunter
+    chain_name: "Bounty Hunter"
+    description: >
+      Independent operator licensed by the Bounty Hunters Guild. You're
+      vetted by a Guild adjudicator on Nar Shaddaa, take a low-tier
+      contract, capture or kill the target, and get your Guild card.
+    archetype_label: "Licensed Bounty Hunter"
+    faction_alignment: bounty_hunters_guild
+    starting_zone: nar_shaddaa_promenade
+    starting_room: nar_shaddaa_bhg_chapter_house
+    prerequisites:
+      - chargen_complete
+      - faction_intent: bounty_hunters_guild
+    duration_minutes: 22
+    locked: false
+
+    graduation:
+      credits: 700              # higher because Guild bounty paid out
+      faction_rep:
+        bounty_hunters_guild: 50
+      items: ["bhg_license_card", "tracking_fob", "stun_baton"]
+      achievements: ["first_contract"]
+      drop_room: nar_shaddaa_promenade_bhg_lounge
+      follow_up_hint: >
+        Pull contracts from the Guild board (`+bounties`). The chapter
+        house lounge has standing-rate jobs and rumor-tier targets. Pay
+        your Guild dues monthly or your card lapses.
+
+    steps:
+      - step: 1
+        title: "Vetting at the Chapter House"
+        location: nar_shaddaa_bhg_chapter_house
+        npc: "Adjudicator Kaeleth Voss"
+        npc_role: instructor
+        teaches: ["look", "+sheet"]
+        objective: "Pass the Guild's intake interview."
+        npc_intro: >
+          "Another one. Sit down. I'm Voss, BHG adjudicator for this
+          chapter. I'll vet you. Look around — this is where you'll
+          collect work, get drinks, and complain about other hunters
+          taking your contracts. Show me your sheet via `+sheet`."
+        completion:
+          type: command_executed
+          command: "+sheet"
+        npc_complete: >
+          "Acceptable. Combat skills not bad, intelligence not too low.
+          You pass intake. The Guild doesn't formally license you until
+          you bring in a contract. Take a fresh one off the board."
+        reward: {}
+        next_hint: "The bounty board is on the back wall. Use `+bounties`."
+
+      - step: 2
+        title: "Picking the Contract"
+        location: nar_shaddaa_bhg_chapter_house
+        npc: "Adjudicator Kaeleth Voss"
+        npc_role: instructor
+        teaches: ["+bounties", "accept"]
+        objective: "Accept a tier-1 contract from the board."
+        npc_intro: >
+          "Lowest tier. Don't get cute. The smart money on your first
+          contract is `Tarko Vinn` — petty smuggler, last seen in the
+          warrens. Use `+bounties` to view the board and accept."
+        completion:
+          type: bounty_accepted
+          bounty_id: "tutorial_bhg_tarko_vinn"
+        npc_complete: >
+          "Good pick. Tarko's not armed past a hold-out. Bring him in
+          alive — capture pays better than corpse on tier-1. The
+          warrens are downstairs."
+        reward: {}
+        next_hint: "Take the lift down to the warrens."
+
+      - step: 3
+        title: "Tracking the Mark"
+        location: nar_shaddaa_warrens
+        npc: "Tarko Vinn"
+        npc_role: antagonist
+        teaches: ["scan", "search"]
+        objective: "Locate Tarko Vinn in the warrens."
+        npc_intro: >
+          [Tracking fob beeps]: "Tarko Vinn — proximity 30m. Use `scan`
+          to check the alley, `search` to check rooms. He's hiding."
+        completion:
+          type: skill_check_passed
+          skill: "search"
+          difficulty: 8
+        npc_complete: >
+          [Vinn, spotting you]: "Oh hells. Hells. You're a Guild card?
+          Look — I can pay. I can pay more than the bounty. Listen —"
+        reward:
+          faction_rep:
+            bounty_hunters_guild: 5
+        next_hint: "Capture him. Stun preferred — pay's better."
+
+      - step: 4
+        title: "The Capture"
+        location: nar_shaddaa_warrens
+        npc: "Tarko Vinn"
+        npc_role: antagonist
+        teaches: ["stun", "attack"]
+        objective: "Subdue Tarko Vinn (stun preferred)."
+        npc_intro: >
+          [Vinn, drawing hold-out blaster]: "Last warning, hunter."
+        completion:
+          type: combat_won
+          enemy_template: "tarko_vinn_petty_smuggler"
+          stun_bonus_credits: 200
+        npc_complete: >
+          [Vinn, dropping]: "...fine. Fine. Tell Voss I'm cooperating.
+          I'm cooperating."
+        reward:
+          credits: 0          # paid at chain graduation
+        next_hint: "Drag him back to the chapter house. Type `up`."
+
+      - step: 5
+        title: "Collecting the Bounty"
+        location: nar_shaddaa_bhg_chapter_house
+        npc: "Adjudicator Kaeleth Voss"
+        npc_role: instructor
+        teaches: ["+factions"]
+        objective: "Deliver Vinn and receive your Guild card."
+        npc_intro: >
+          "Vinn. Alive. Better than I expected. Your card is keyed to
+          your sheet now — run `+factions` to see your standing. Welcome
+          to the Guild. The bounty board's all yours."
+        completion:
+          type: command_executed
+          command: "+factions"
+        npc_complete: >
+          "Licensed. Don't lose the card — replacements cost more than
+          you have. Don't kill marks tagged 'capture only.' Don't poach
+          another hunter's contract. Otherwise — the work is yours."
+        reward:
+          items: ["bhg_license_card", "tracking_fob"]
+          faction_rep:
+            bounty_hunters_guild: 15
+        next_hint: "Chain complete. The board updates hourly."
+
+  # ─── 7. SMUGGLER ──────────────────────────────────────────────────────
+  - chain_id: smuggler
+    chain_name: "Smuggler"
+    description: >
+      Independent freight runner. You start crewing on a tramp ship at
+      Mos Eisley, learn the smuggling system, take a hot delivery to
+      Nar Shaddaa, and walk away with your own contacts list.
+    archetype_label: "Smuggler / Tramp Spacer"
+    faction_alignment: independent
+    starting_zone: tatooine_spaceport
+    starting_room: tatooine_spaceport_dock_94
+    prerequisites:
+      - chargen_complete
+      # No faction_intent gate — Smuggler is the unaligned default path.
+    duration_minutes: 22
+    locked: false
+
+    graduation:
+      credits: 800
+      faction_rep:
+        independent: 30
+        hutt_cartel: 15        # graduating with a Hutt favor on file
+      items: ["spacer_ident", "comlink_basic", "smugglers_baffle_kit"]
+      achievements: ["first_run"]
+      drop_room: nar_shaddaa_landing_dock_e
+      follow_up_hint: >
+        Hutt Cartel and independent missions on `+missions independent`.
+        Smuggling cargo via the cargo system pays best on the
+        Tatooine ↔ Nar Shaddaa run. Avoid Republic patrols at Coruscant
+        boundary — they scan harder.
+
+    steps:
+      - step: 1
+        title: "Crewing Up"
+        location: tatooine_spaceport_dock_94
+        npc: "Captain Reggi Voss"
+        npc_role: instructor
+        teaches: ["look", "+sheet"]
+        objective: "Sign on as crew with Captain Voss."
+        npc_intro: >
+          "You're the new hand? Look you over — `+sheet` if you don't
+          mind. I run a YT-1300 called the *Mynock's Promise*. Crew of
+          three, soon four. Show me you're not useless and I'll teach
+          you the trade."
+        completion:
+          type: command_executed
+          command: "+sheet"
+        npc_complete: >
+          "Good enough. Welcome aboard. We've got a run to Nar Shaddaa
+          tonight. Cargo's coming up from the bazaar. Help me load."
+        reward: {}
+        next_hint: "Bazaar's south. Move."
+
+      - step: 2
+        title: "The Cargo"
+        location: tatooine_market_smugglers_alley
+        npc: "Hutt Broker Vresh"
+        npc_role: contact
+        teaches: ["examine", "talk"]
+        objective: "Take delivery of the cargo from Vresh."
+        npc_intro: >
+          "[Vresh, in Huttese-laced Basic]: Voss sent you. Crate is
+          there. Examine it — you must know what you carry, even if
+          we both pretend not to. Then take it. Quickly."
+        completion:
+          type: command_executed
+          command: "examine"
+          target_contains: "crate"
+        npc_complete: >
+          "[Vresh]: Spice. You did not see this. Voss did not see this.
+          Nar Shaddaa contact pays on delivery. Go."
+        reward:
+          items: ["sealed_cargo_crate"]
+        next_hint: "Back to the dock. Voss is waiting."
+
+      - step: 3
+        title: "Lift Off"
+        location: tatooine_spaceport_dock_94
+        npc: "Captain Reggi Voss"
+        npc_role: instructor
+        teaches: ["board", "depart"]
+        objective: "Board the *Mynock's Promise* and depart for Nar Shaddaa."
+        npc_intro: >
+          "Cargo aboard? Good. Strap in. I'll handle the controls — you
+          watch the sensor board. Type `board` then `depart`. Welcome
+          to the trade."
+        completion:
+          type: room_entered
+          room: space_tatooine
+        npc_complete: >
+          "Hyperspace in three. Smooth so far. The dangerous part's
+          dropping out — Nar Shaddaa orbital screens harder than
+          Tatooine bothers to."
+        reward: {}
+        next_hint: "Hyperspace transit. Sit tight."
+
+      - step: 4
+        title: "Customs"
+        location: space_nar_shaddaa
+        npc: "Customs Inspector Drall"
+        npc_role: antagonist
+        teaches: ["bluff", "say"]
+        objective: "Talk past Nar Shaddaa customs (or run for the dock)."
+        npc_intro: >
+          "[Customs, on comm]: *Mynock's Promise*. Routine inspection.
+          State cargo manifest and prepare for boarding."
+        completion:
+          type: skill_check_passed
+          skill: "con"
+          difficulty: 9
+          fallback:
+            type: skill_check_passed
+            skill: "starship_piloting"
+            difficulty: 10
+            on_fail_narrative: "Cargo seized — Voss covers, you owe him."
+        npc_complete: >
+          "[Customs]: ...routine clearance. Approved. Land at Dock E."
+          " [Voss, off-comm]: Nice work. Crate's still ours."
+        reward:
+          faction_rep:
+            independent: 10
+        next_hint: "Dock E. Voss handles the comms — you handle the cargo."
+
+      - step: 5
+        title: "Delivery and Pay"
+        location: nar_shaddaa_landing_dock_e
+        npc: "Underworld Contact Dyn"
+        npc_role: contact
+        teaches: ["give", "+factions"]
+        objective: "Deliver the cargo to Dyn and check your standing."
+        npc_intro: >
+          "You're Voss's new hand. Crate. Quietly. Voss's cut goes to
+          him; yours goes to you direct. The Hutts will hear you did
+          good — `+factions` to confirm your standing afterward."
+        completion:
+          type: command_executed
+          command: "+factions"
+          requires_first:
+            - command: "give"
+              target_contains: "crate"
+              target_npc: "Dyn"
+        npc_complete: >
+          "Independent — that's your sheet. Hutt favor — that's mine,
+          for now. Voss likes you. He's already asked if you want a
+          steady berth. Up to you."
+        reward:
+          credits: 200
+          items: ["spacer_ident", "smugglers_baffle_kit"]
+          faction_rep:
+            hutt_cartel: 10
+        next_hint: "Chain complete. Voss is at the cantina if you want steady work."
+
+  # ─── 8. SHIPWRIGHT / TRADER ───────────────────────────────────────────
+  - chain_id: shipwright_trader
+    chain_name: "Shipwright / Trader"
+    description: >
+      Apprentice in the Kuat shipyards. You start in a KDY apprentice
+      bay, learn the survey-and-craft loop on a sub-component repair,
+      take a small repair contract, and graduate as a Shipwrights' Guild
+      apprentice with your first ship-side tools.
+    archetype_label: "KDY Apprentice / Trader"
+    faction_alignment: shipwrights_guild
+    starting_zone: kuat_orbital
+    starting_room: kdy_apprentice_bay_7
+    prerequisites:
+      - chargen_complete
+      - faction_intent: shipwrights_guild
+    duration_minutes: 22
+    locked: false
+
+    graduation:
+      credits: 400              # lower cash, more gear
+      faction_rep:
+        shipwrights_guild: 40
+        mechanics_guild: 10
+      items:
+        - "shipwright_toolkit"
+        - "diagnostic_scanner"
+        - "kdy_apprentice_pass"
+      achievements: ["first_repair"]
+      drop_room: kuat_orbital_apprentice_lounge
+      follow_up_hint: >
+        Shipwrights' Guild contracts post on `+missions shipwrights_guild`.
+        The Kuat orbital array has standing repair jobs; harder ones come
+        with materials shortages. Crafting commands (`+craft`, `+survey`)
+        unlock more as your skills grow.
+
+    steps:
+      - step: 1
+        title: "Apprentice Intake"
+        location: kdy_apprentice_bay_7
+        npc: "Foreman Andrim Purkis"
+        npc_role: instructor
+        teaches: ["look", "+sheet"]
+        objective: "Report to Foreman Purkis and check your gear."
+        npc_intro: >
+          "You're the new apprentice. I'm Purkis — Shipwrights' Guild,
+          KDY contracted. House Andrim runs this bay. Look around. Use
+          `+sheet` to confirm your starting tools. Don't break anything."
+        completion:
+          type: command_executed
+          command: "+sheet"
+        npc_complete: >
+          "Adequate. You'll learn the rest on the job. Apprentice work
+          is repair, not build — KDY doesn't trust new hands with new
+          frames. Diagnostic bench is east."
+        reward: {}
+        next_hint: "Diagnostic bench is east."
+
+      - step: 2
+        title: "Reading the Damage"
+        location: kdy_apprentice_diag_bench
+        npc: "Foreman Andrim Purkis"
+        npc_role: instructor
+        teaches: ["scan", "examine"]
+        objective: "Diagnose the damaged hyperdrive subsystem."
+        npc_intro: >
+          "Subsystem on the bench is from a Venator that took a Vulture
+          droid hit last week. Use `scan` to read its diagnostic, then
+          `examine subsystem` to confirm the damage type. I'll wait."
+        completion:
+          type: command_executed
+          command: "examine"
+          target_contains: "subsystem"
+          requires_first:
+            - command: "scan"
+              target_contains: "subsystem"
+        npc_complete: >
+          "Capacitor coil — burnt-through. Standard fault. Now you fetch
+          a replacement coil from the parts crib. `+survey` checks the
+          parts pool; `+craft fetch` pulls the part."
+        reward:
+          faction_rep:
+            shipwrights_guild: 5
+        next_hint: "Parts crib via `+survey`."
+
+      - step: 3
+        title: "The Parts Crib"
+        location: kdy_apprentice_parts_crib
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["+survey", "+craft"]
+        objective: "Pull a capacitor coil from the parts crib."
+        npc_intro: >
+          [Comlink, Purkis]: "`+survey` shows what's in stock. The coil
+          you want is `capacitor_coil_t1`. Use `+craft fetch capacitor_coil_t1`
+          and bring it back."
+        completion:
+          type: item_acquired
+          item: "capacitor_coil_t1"
+          method: "+craft fetch"
+        npc_complete: >
+          [Comlink, Purkis]: "Got it. Back to the bench. Don't drop it
+          — KDY apprentice damage tickets come out of your pay."
+        reward: {}
+        next_hint: "Back to the diagnostic bench."
+
+      - step: 4
+        title: "The Repair"
+        location: kdy_apprentice_diag_bench
+        npc: "Foreman Andrim Purkis"
+        npc_role: instructor
+        teaches: ["+craft repair"]
+        objective: "Repair the hyperdrive subsystem."
+        npc_intro: >
+          "Subsystem on the bench, coil in your inventory. `+craft repair
+          subsystem capacitor_coil_t1`. If the skill check passes the
+          subsystem comes back online. If it fails, we take it apart
+          and start over — no charge to you on the first attempt."
+        completion:
+          type: skill_check_passed
+          skill: "starship_repair"
+          difficulty: 8
+          on_fail: "retry_allowed"
+        npc_complete: >
+          "Subsystem online. Test bench reads green. That's a real
+          repair — your first. Now we get you signed on the Guild
+          rolls."
+        reward:
+          credits: 100
+          faction_rep:
+            shipwrights_guild: 10
+        next_hint: "Apprentice lounge for Guild signing."
+
+      - step: 5
+        title: "Guild Signing"
+        location: kuat_orbital_apprentice_lounge
+        npc: "Guildmaster Sera Kavel"
+        npc_role: contact
+        teaches: ["+factions"]
+        objective: "Sign the Shipwrights' Guild apprentice register."
+        npc_intro: >
+          "Purkis vouched. That's worth something around here. I'm
+          Sera Kavel, Guildmaster for the orbital. Your apprentice
+          card and toolkit are on the table. Run `+factions` once you
+          take them — that's how I know it's real."
+        completion:
+          type: command_executed
+          command: "+factions"
+        npc_complete: >
+          "Apprentice. The work pays in skill bumps and contacts more
+          than credits at this stage — but the credits will come.
+          Welcome to the Guild."
+        reward:
+          items:
+            - "shipwright_toolkit"
+            - "diagnostic_scanner"
+            - "kdy_apprentice_pass"
+          faction_rep:
+            shipwrights_guild: 15
+        next_hint: "Chain complete. The contract board is yours."
+
+# ═══════════════════════════════════════════════════════════════════════
+# ENGINE INTEGRATION NOTES
+# ═══════════════════════════════════════════════════════════════════════
+# When the CW tutorial engine session lands:
+#
+# 1. Add `engine/tutorial_chains.py` (or extend `engine/tutorial_v2.py`)
+#    with a chain loader that consumes this file and the GCW counterpart
+#    (data/worlds/gcw/tutorials/chains.yaml — TBD).
+#
+# 2. The state-tracking JSON gets a new key alongside the existing
+#    `tutorial_core` and `tutorial_electives`:
+#
+#        "tutorial_chain": {
+#            "chain_id": "republic_soldier",
+#            "step": 3,
+#            "started_at": <ts>,
+#            "completed_steps": [1, 2]
+#        }
+#
+#    The chain is selected after chargen if a `faction_intent` is set
+#    that maps to one of the chains (or by direct chain_id selection at
+#    the chargen "skip core, pick chain" branch).
+#
+# 3. Tutorial-zone-only rooms (those NOT in zones.yaml — e.g.
+#    `tipoca_briefing_chamber`, `kdy_apprentice_bay_7`) are built by an
+#    extension to `build_tutorial.py` that walks the chain definitions
+#    and creates rooms with `tutorial_zone: true` properties.
+#
+# 4. Step `completion` types map to engine event hooks:
+#       command_executed   → parser hook
+#       talk_to_npc        → NPC interaction hook
+#       combat_won         → combat resolution hook
+#       skill_check_passed → dice roll hook
+#       mission_accepted   → mission system hook
+#       mission_completed  → mission system hook
+#       bounty_accepted    → bounty board hook
+#       item_acquired      → inventory hook
+#       item_used          → use command hook
+#       room_entered       → movement hook
+#       prerequisite       → flag check (no event, blocks chain)
+#
+# 5. The `Jedi Path` chain (id: jedi_path) is locked: the chain selector
+#    rejects it at chargen and surfaces `locked_message` instead. The
+#    Village quest chain sets the `jedi_path_unlocked` flag on completion;
+#    only then does the chain become available. Player still needs the
+#    `force_sensitive` flag from chargen or Village trials.
+#
+# ═══════════════════════════════════════════════════════════════════════

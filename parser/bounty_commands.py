@@ -432,9 +432,87 @@ class BountyCollectCommand(BaseCommand):
 
 # ── Registration ───────────────────────────────────────────────────────────────
 
+# S55: Switch & alias dispatch tables for the +bounty umbrella.
+_BOUNTY_SWITCH_IMPL: dict = {}
+
+_BOUNTY_ALIAS_TO_SWITCH: dict[str, str] = {
+    # board
+    "bounties":    "board",
+    "bboard":      "board",
+    "bountyboard": "board",
+    "board":       "board",
+    # claim
+    "bountyclaim":  "claim",
+    "claimbounty":  "claim",
+    "acceptbounty": "claim",
+    "claim":        "claim",
+    # view (active hunt)
+    "mybounty":     "view",
+    "activebounty": "view",
+    "myhunt":       "view",
+    "view":         "view",
+    # track
+    "bountytrack":  "track",
+    "tracktarget":  "track",
+    "hunttrack":    "track",
+    "track":        "track",
+    # collect
+    "bountycollect": "collect",
+    "collectbounty": "collect",
+    "claimreward":   "collect",
+    "collect":       "collect",
+}
+
+
+class BountyCommand(BaseCommand):
+    """`+bounty` umbrella — full S55 dispatch over the bounty board."""
+    key = "+bounty"
+    aliases: list[str] = [
+        "bounties", "bboard", "bountyboard",
+        "bountyclaim", "claimbounty", "acceptbounty",
+        "mybounty", "activebounty", "myhunt",
+        "bountytrack", "tracktarget", "hunttrack",
+        "bountycollect", "collectbounty", "claimreward",
+    ]
+    help_text = (
+        "Bounty verbs: '+bounty/board' (list), '+bounty/claim <id>', "
+        "'+bounty/view' (active), '+bounty/track', '+bounty/collect'. "
+        "Bare verbs (bounties/bountyclaim/...) still work. Type "
+        "'help +bounty' for the full reference."
+    )
+    usage = "+bounty[/<switch>] [args]  — see 'help +bounty'"
+    valid_switches: list[str] = ["view", "board", "claim", "track", "collect"]
+
+    async def execute(self, ctx: CommandContext):
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            switch = _BOUNTY_ALIAS_TO_SWITCH.get(
+                ctx.command.lower() if ctx.command else "",
+                "view",
+            )
+        impl_cls = _BOUNTY_SWITCH_IMPL.get(switch)
+        if impl_cls is None:
+            await ctx.session.send_line(self.help_text)
+            return
+        await impl_cls().execute(ctx)
+
+
+def _init_bounty_switch_impl():
+    _BOUNTY_SWITCH_IMPL["board"]   = BountiesCommand
+    _BOUNTY_SWITCH_IMPL["claim"]   = BountyClaimCommand
+    _BOUNTY_SWITCH_IMPL["view"]    = MyBountyCommand
+    _BOUNTY_SWITCH_IMPL["track"]   = BountyTrackCommand
+    _BOUNTY_SWITCH_IMPL["collect"] = BountyCollectCommand
+
+
+_init_bounty_switch_impl()
+
+
 def register_bounty_commands(registry) -> None:
     """Register all bounty commands. Call from game_server.py __init__."""
     for cmd in [
+        BountyCommand(),
         BountiesCommand(),
         BountyClaimCommand(),
         MyBountyCommand(),

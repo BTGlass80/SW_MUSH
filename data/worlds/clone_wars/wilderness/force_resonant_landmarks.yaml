@@ -1,0 +1,241 @@
+# data/worlds/clone_wars/wilderness/force_resonant_landmarks.yaml
+# Clone Wars Era — Force-resonant wilderness landmarks
+# Schema version 1
+#
+# Per jedi_village_quest_design_v1.md §3.1, Track B accumulation:
+#   "Each character has an attribute force_sign_count: int (default 0).
+#    Trigger conditions (any of):
+#      - Entering a wilderness room flagged force_resonant: true (e.g.
+#        forgotten_jedi_shrine in Coruscant Underworld, Bantha Graveyard
+#        on Tatooine, several Dune Sea coordinate tiles)."
+#
+# This file defines those trigger rooms. Each landmark has:
+#   - The `force_resonant: true` property the engine checks for
+#   - A hand-authored description establishing the resonance in fiction
+#   - Ambient lines that surface as flavor text on entry/dwell
+#
+# These rooms are NOT built by this drop — they are picked up by the
+# wilderness region builder (Drop F.5 for Dune Sea; Coruscant Underworld
+# wilderness region's existing/future builder for the shrine). Until
+# those builders ship, this file is content authored ahead of the engine.
+#
+# The Village quest's force_sign_seeds list (in jedi_village.yaml)
+# references these landmarks by id. Cross-reference resolution:
+#   - jedi_village.yaml force_sign_seeds[0].rooms includes:
+#       forgotten_jedi_shrine
+#       dune_sea_anchor_stones
+#       dune_sea_ruined_obelisk
+#       bantha_graveyard
+#   - All four are defined in this file.
+#
+# Region attribution:
+#   - forgotten_jedi_shrine     → coruscant_underworld (low level)
+#   - dune_sea_anchor_stones    → tatooine_dune_sea (open dune)
+#   - dune_sea_ruined_obelisk   → tatooine_dune_sea (rocky outcrop)
+#   - bantha_graveyard          → tatooine_jundland (sheltered depression)
+#
+# Emotional flavor differentiation (each landmark has a distinct
+# resonance note so the discovery doesn't feel repetitive across visits):
+#   - forgotten_jedi_shrine     — sacred but unremembered; a Jedi presence
+#                                  preserved by no one
+#   - dune_sea_anchor_stones    — pre-Republic; tribal avoidance; older than
+#                                  the Tusken cycle
+#   - dune_sea_ruined_obelisk   — deliberately defaced; someone wanted it
+#                                  forgotten more than they wanted it standing
+#   - bantha_graveyard          — living-world resonance; Tusken sacred care;
+#                                  the Force in tended death
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+landmarks:
+
+  # ─── Coruscant Underworld ────────────────────────────────────────────
+  - id: forgotten_jedi_shrine
+    name: "Forgotten Jedi Shrine"
+    region: coruscant_underworld
+    coordinates: [12, 38]
+    level: low
+    short_desc: >
+      A small alcove set into the sublevel wall, half-buried by rubble
+      from the levels above. People who frequent the lower levels
+      avoid it without quite knowing why.
+    description: |
+      A small stone alcove set into the sublevel wall, half-buried by
+      rubble and refuse from the levels above. A statue once stood
+      here — you can see its base, weathered smooth, the stone darker
+      where the figure stood. The plaque is unreadable. The Coruscant
+      Public Works database does not list this site; there is no
+      record of who built it or when.
+
+      The alcove is quieter than the corridor outside. The drip of
+      water from somewhere upper, a sound that fills every other room
+      down here, does not reach in here. People who frequent the lower
+      levels avoid the spot without quite knowing why.
+    properties:
+      force_resonant: true
+      wilderness_landmark: true
+      ambient_disabled: false           # ambient lines below ARE the ambient pool
+      director_managed: false           # not part of faction-influence model
+    ambient_lines:
+      - text: "The air here moves differently. You cannot say how."
+      - text: "A hum you cannot quite hear settles behind your ears for a moment."
+      - text: "You realize you have been standing still longer than you meant to."
+      - text: "The shadows in the alcove fall wrongly. They do not match the lights above."
+      - text: "Someone has left a small candle stub at the base of the empty pedestal. It is burned out, but recently."
+      - text: "A child has scratched their name into the lower wall, with a date — three years ago. The name is unfamiliar."
+    cross_references:
+      - jedi_village.yaml.force_sign_seeds[0].rooms
+      - clone_wars_era_design_v3.md §7 (Coruscant Underworld wilderness landmark list)
+      - jedi_village_quest_design_v1.md §3.3 (lore foreshadowing)
+
+  # ─── Tatooine Dune Sea ───────────────────────────────────────────────
+  - id: dune_sea_anchor_stones
+    name: "The Anchor Stones"
+    region: tatooine_dune_sea
+    coordinates: [38, 18]              # near Village entry; engine picks exact
+    short_desc: >
+      Three weathered pillars rise from the sand at irregular angles.
+      Older than the Republic. The locals call them simply the Anchor
+      Stones; the name predates Basic.
+    description: |
+      Three weathered pillars rise from the sand at irregular angles,
+      their surfaces carved with patterns that wind and time have
+      softened almost smooth. They are older than the Republic. No
+      one knows who set them here, or why. The Tusken Raiders avoid
+      them — there is a small ring of bone fragments at the
+      southernmost stone, but no recent kills.
+
+      At dawn, the stones cast long shadows across the sand. At noon
+      they cast almost none. The locals call them simply the Anchor
+      Stones; the name predates Basic by a long way.
+    properties:
+      force_resonant: true
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      # Special: this is the Village quest navigation anchor.
+      # Walking west from here at first light enters village_outer_watch.
+      village_quest_anchor: true
+    ambient_lines:
+      - text: "A wind moves around the stones that does not move the sand outside the circle."
+      - text: "You touch one of the stones. It is cool, even now."
+      - text: "A bantha walks past in the middle distance. It does not look toward the stones."
+      - text: "The patterns on the southernmost stone, when you trace them, do not feel like writing. They feel like counting."
+      - text: "First light catches the western face of the tallest stone. The shadow that falls is longer than the stone is tall."
+    cross_references:
+      - jedi_village.yaml.starting_room
+      - jedi_village.yaml.force_sign_seeds[0].rooms
+      - jedi_village_quest_design_v1.md §3.2 (the invitation)
+
+  - id: dune_sea_ruined_obelisk
+    name: "The Ruined Obelisk"
+    region: tatooine_dune_sea
+    coordinates: [29, 24]
+    short_desc: >
+      A cracked tetrahedral foundation half-swallowed by a dune. The
+      obelisk itself fell long ago. One face was deliberately defaced
+      — by hand, not by weather.
+    description: |
+      What remains is the base — a cracked tetrahedral foundation
+      half-swallowed by a dune. The obelisk itself fell, or was
+      thrown down, a long time ago. Three sides of the base are
+      still legible if you know what to look for; the fourth has
+      been deliberately defaced, not by weather but by hand.
+
+      A Republic survey team passed through here twenty years ago
+      and noted nothing remarkable. The defacement matters; it is
+      older than the Republic. Whoever made this place wanted some
+      part of it forgotten more than they wanted it standing.
+    properties:
+      force_resonant: true
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+    ambient_lines:
+      - text: "You catch yourself running your fingers along the legible side. You do not remember crouching down."
+      - text: "The defaced face stays cool when you touch it. The other three are warm from the suns."
+      - text: "Sand drifts inward toward the base, against the wind. You watch it for a long time before you move."
+      - text: "There is no reason this place should be intact. Sandstorms have crossed it for millennia. Three sides are intact."
+    cross_references:
+      - jedi_village.yaml.force_sign_seeds[0].rooms
+      - jedi_village_quest_design_v1.md §3.1 (Track B trigger sites)
+
+  # ─── Tatooine Jundland Wastes ────────────────────────────────────────
+  - id: bantha_graveyard
+    name: "Bantha Graveyard"
+    region: tatooine_jundland
+    coordinates: [16, 31]
+    short_desc: >
+      A wide depression in the rock, sheltered from the wind, where
+      generations of banthas have come to die. The Tuskens tend the
+      bones. Outsiders who carry weapons are not welcomed back.
+    description: |
+      A wide depression in the rock, sheltered from the worst of the
+      wind. The bones of generations of banthas lie here, bleached
+      white, half-buried, arranged with care. The Tusken Raiders who
+      herded these animals also tended their dead — small bundles of
+      woven cloth sit at the base of certain skulls, never disturbed.
+
+      Tuskens do not visit the graveyard with weapons. Outsiders who
+      do are not welcomed back. The graveyard is older than any
+      single Tusken cycle; the deepest bones have weathered down to
+      almost dust.
+    properties:
+      force_resonant: true
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      # Note: hostile to weapon-carrying entrants. The engine session
+      # may want to wire a Tusken-attention check on entry — players
+      # who enter armed get a non-attack social-pressure event before
+      # any combat. The force_resonant flavor still applies on entry
+      # regardless of the social outcome.
+      weapon_carry_hostile: tusken_attention
+    ambient_lines:
+      - text: "You hear, faintly, what sounds like singing — too distant to be sure."
+      - text: "The bones are warm. They should not be warm. The depression is in shadow."
+      - text: "A Tusken stands at the edge of the depression in the middle distance. They watch you. They do not approach."
+      - text: "A bundle of woven cloth at the base of the nearest skull stirs in a wind you do not feel."
+      - text: "You realize you have been holding your breath. You do not know for how long."
+    cross_references:
+      - jedi_village.yaml.force_sign_seeds[0].rooms
+      - jedi_village_quest_design_v1.md §3.1 (Track B trigger sites)
+
+# ═══════════════════════════════════════════════════════════════════════
+# ENGINE INTEGRATION NOTES
+# ═══════════════════════════════════════════════════════════════════════
+# When the wilderness region builders ship (Coruscant Underworld is
+# already partially built per architecture v34; Dune Sea is Drop F.5):
+#
+# 1. The wilderness loader reads landmark records from this file. Each
+#    landmark gets a room created with its `description`, `properties`,
+#    and `ambient_lines` fields populated.
+#
+# 2. The `force_resonant: true` property is checked by the Force-sign
+#    Track B trigger handler (per jedi_village_quest_design_v1.md §3.1)
+#    on room_entered events. Probability is config-driven via
+#    era.yaml's force_sign_probability_per_trigger knob (default 0.03).
+#
+# 3. The `ambient_lines` here REPLACE the standard ambient pool for
+#    these rooms. Wilderness landmarks have hand-authored atmosphere,
+#    not Director-managed flavor. The engine session sets
+#    `ambient_disabled: false` (default in this file) so the loader
+#    knows to use the local ambient_lines instead of skipping ambient
+#    altogether.
+#
+# 4. The `dune_sea_anchor_stones` entry has `village_quest_anchor: true`
+#    — this is checked by the Village quest's Step 2 ("Crossing the
+#    Dunes") completion handler. Walking WEST from this landmark at
+#    first-light triggers the room transition into village_outer_watch.
+#    The first-light condition is narrative-only at engine level; any
+#    time accepts the transition mechanically.
+#
+# 5. The `bantha_graveyard` has `weapon_carry_hostile: tusken_attention`
+#    — engine session decides whether to wire this to a social-pressure
+#    encounter (recommended: a Tusken NPC approaches if you enter armed,
+#    not aggressive but pointedly present; if you draw a weapon, combat
+#    initiates). The force_resonant ambient lines fire regardless.
+#
+# ═══════════════════════════════════════════════════════════════════════

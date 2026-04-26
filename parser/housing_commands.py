@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 class HousingCommand(BaseCommand):
     key = "housing"
-    aliases = ["home", "myroom", "homelocation"]
+    aliases = ["myroom", "homelocation"]
     help_text = (
         "Manage your housing or go home.\n"
         "\n"
@@ -972,11 +972,107 @@ class AdminHousingCommand(BaseCommand):
         await ctx.session.send_line(f"  Unknown @housing sub-command '{sub}'.")
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# +home — Forwarding umbrella (S58)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# `+home` is a thin player-facing umbrella that fans out to the existing
+# HousingCommand / SetHomeCommand / AdminHousingCommand machinery.
+#
+# Design notes:
+#   - This is a FORWARDING umbrella (not a full switch-dispatch one like
+#     PilotStationCommand). `valid_switches` enumerates verbs the umbrella
+#     advertises in help; `_HOME_SWITCH_IMPL` is the smaller set of verbs
+#     the umbrella actually routes itself. Most verbs forward straight to
+#     HousingCommand because that class already handles its sub-tree.
+#   - `+home` (bare) and `+home view` both show the housing status.
+#   - `+home sethome` delegates to SetHomeCommand.
+#   - `+home admin <args>` delegates to AdminHousingCommand (`@housing`).
+#   - All other listed switches (rent, storage, trophy, shopfront, guest,
+#     visit) forward to HousingCommand which dispatches by sub-arg.
+
+_HOME_SWITCH_IMPL: dict = {}
+
+_HOME_ALIAS_TO_SWITCH: dict[str, str] = {
+    "":      "view",
+    "show":  "view",
+    "info":  "view",
+    "set":   "sethome",
+}
+
+
+class HomeUmbrellaCommand(BaseCommand):
+    """`+home` umbrella — see module docstring for forwarding rules."""
+    key = "+home"
+    aliases: list[str] = ["home"]
+    help_text = (
+        "Manage your home and housing. Try '+home', '+home rent <id>', "
+        "'+home storage', '+home sethome'. Type 'help +home' for the "
+        "full reference."
+    )
+    usage = "+home [verb] [args]  — see 'help +home'"
+    valid_switches: list[str] = [
+        "view", "sethome", "rent", "storage", "trophy",
+        "shopfront", "guest", "visit", "admin",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        # Resolve the requested switch (first arg → switch name).
+        args = ctx.args.strip() if ctx.args else ""
+        first, _, rest = args.partition(" ")
+        switch = _HOME_ALIAS_TO_SWITCH.get(first.lower(), first.lower())
+
+        # Direct routes (admin, sethome, view) handled by _HOME_SWITCH_IMPL.
+        impl = _HOME_SWITCH_IMPL.get(switch)
+        if impl is not None:
+            await impl(ctx, rest)
+            return
+
+        # All other listed verbs (rent/storage/trophy/...) forward as-is
+        # to HousingCommand which already understands them.
+        if switch in self.valid_switches:
+            forwarded = HousingCommand()
+            new_ctx = ctx
+            new_ctx.args = args  # full arg string with verb intact
+            await forwarded.execute(new_ctx)
+            return
+
+        # Unknown — show help text.
+        await ctx.session.send_line(self.help_text)
+
+
+def _init_home_switch_impl():
+    """Wire forwarding handlers into _HOME_SWITCH_IMPL."""
+    async def _view(ctx, rest):
+        # Bare +home → run HousingCommand with no args (status + teleport).
+        cmd = HousingCommand()
+        ctx.args = ""
+        await cmd.execute(ctx)
+
+    async def _sethome(ctx, rest):
+        cmd = SetHomeCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _admin(ctx, rest):
+        cmd = AdminHousingCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    _HOME_SWITCH_IMPL["view"] = _view
+    _HOME_SWITCH_IMPL["sethome"] = _sethome
+    _HOME_SWITCH_IMPL["admin"] = _admin
+
+
+_init_home_switch_impl()
+
+
 # ── Registration ───────────────────────────────────────────────────────────────
 
 def register_housing_commands(registry) -> None:
     """Register all housing commands. Called from game_server.py."""
     for cmd in [
+        HomeUmbrellaCommand(),
         HousingCommand(),
         SetHomeCommand(),
         AdminHousingCommand(),

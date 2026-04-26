@@ -639,8 +639,105 @@ class InterceptCommand(BaseCommand):
 
 # ── Registration ──────────────────────────────────────────────────────────────
 
+# ═══════════════════════════════════════════════════════════════════════════
+# +spy — Espionage umbrella (S58)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# `+spy` consolidates the five espionage verbs (assess/eavesdrop/
+# investigate/intel/intercept) under a single +-prefix. Each verb's
+# bare form is preserved in the umbrella's aliases list so existing
+# muscle memory continues to work — `assess <player>` still routes
+# correctly via the alias→switch map below.
+
+_SPY_SWITCH_IMPL: dict = {}
+
+_SPY_ALIAS_TO_SWITCH: dict[str, str] = {
+    "":            "assess",
+    "assess":      "assess",
+    "size":        "assess",
+    "eavesdrop":   "eavesdrop",
+    "listen":      "eavesdrop",
+    "investigate": "investigate",
+    "search":      "investigate",
+    "inspect":     "investigate",
+    "intel":       "intel",
+    "intercept":   "intercept",
+    "wiretap":     "intercept",
+    "comtap":      "intercept",
+}
+
+
+class SpyCommand(BaseCommand):
+    """`+spy` umbrella — espionage verbs."""
+    key = "+spy"
+    aliases: list[str] = [
+        "assess", "size", "eavesdrop", "listen",
+        "investigate", "search", "inspect",
+        "intel", "intercept", "wiretap", "comtap",
+    ]
+    help_text = (
+        "Espionage verbs: '+spy assess <player>', '+spy eavesdrop', "
+        "'+spy investigate', '+spy intel', '+spy intercept'. Type "
+        "'help +spy' for the full reference."
+    )
+    usage = "+spy <verb> [args]  — see 'help +spy'"
+    valid_switches: list[str] = [
+        "assess", "eavesdrop", "investigate", "intel", "intercept",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        args = ctx.args.strip() if ctx.args else ""
+        first, _, rest = args.partition(" ")
+        switch = _SPY_ALIAS_TO_SWITCH.get(first.lower(), first.lower())
+
+        impl = _SPY_SWITCH_IMPL.get(switch)
+        if impl is not None:
+            await impl(ctx, rest)
+            return
+
+        await ctx.session.send_line(self.help_text)
+
+
+def _init_spy_switch_impl():
+    """Wire forwarding handlers into _SPY_SWITCH_IMPL."""
+    async def _assess(ctx, rest):
+        cmd = ScanCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _eavesdrop(ctx, rest):
+        cmd = EavesdropCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _investigate(ctx, rest):
+        cmd = InvestigateCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _intel(ctx, rest):
+        cmd = IntelCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _intercept(ctx, rest):
+        cmd = InterceptCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    _SPY_SWITCH_IMPL["assess"] = _assess
+    _SPY_SWITCH_IMPL["eavesdrop"] = _eavesdrop
+    _SPY_SWITCH_IMPL["investigate"] = _investigate
+    _SPY_SWITCH_IMPL["intel"] = _intel
+    _SPY_SWITCH_IMPL["intercept"] = _intercept
+
+
+_init_spy_switch_impl()
+
+
 def register_espionage_commands(registry):
     """Register all espionage commands."""
+    registry.register(SpyCommand())
     registry.register(ScanCommand())
     registry.register(EavesdropCommand())
     registry.register(InvestigateCommand())

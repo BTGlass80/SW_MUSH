@@ -406,7 +406,79 @@ class HealRateCommand(BaseCommand):
         )
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# +medical — Leaf umbrella (S58)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# `+medical` is a thin leaf umbrella for the three medical verbs:
+# heal (offer), accept (haccept the offer), rate (set healing rate).
+# All three stay at their bare keys for backward compatibility; the
+# umbrella adds the canonical +-prefix and discovery surface.
+
+_MEDICAL_SWITCH_IMPL: dict = {}
+
+_MEDICAL_ALIAS_TO_SWITCH: dict[str, str] = {
+    "":            "heal",
+    "healaccept":  "accept",
+    "haccept":     "accept",
+    "healrate":    "rate",
+    "hrate":       "rate",
+}
+
+
+class MedicalCommand(BaseCommand):
+    """`+medical` umbrella — heal/accept/rate."""
+    key = "+medical"
+    aliases: list[str] = [
+        "heal", "healaccept", "haccept", "healrate", "hrate",
+    ]
+    help_text = (
+        "Medical verbs: 'heal <player>' (offer), 'healaccept' (haccept) "
+        "to accept an offer, 'healrate <credits>' to set your rate. "
+        "Type 'help +medical' for the full reference."
+    )
+    usage = "+medical [verb] [args]  — see 'help +medical'"
+    valid_switches: list[str] = ["heal", "accept", "rate"]
+
+    async def execute(self, ctx: CommandContext):
+        args = ctx.args.strip() if ctx.args else ""
+        first, _, rest = args.partition(" ")
+        switch = _MEDICAL_ALIAS_TO_SWITCH.get(first.lower(), first.lower())
+
+        impl = _MEDICAL_SWITCH_IMPL.get(switch)
+        if impl is not None:
+            await impl(ctx, rest)
+            return
+
+        await ctx.session.send_line(self.help_text)
+
+
+def _init_medical_switch_impl():
+    """Wire forwarding handlers into _MEDICAL_SWITCH_IMPL."""
+    async def _heal(ctx, rest):
+        cmd = HealCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _accept(ctx, rest):
+        cmd = HealAcceptCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _rate(ctx, rest):
+        cmd = HealRateCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    _MEDICAL_SWITCH_IMPL["heal"] = _heal
+    _MEDICAL_SWITCH_IMPL["accept"] = _accept
+    _MEDICAL_SWITCH_IMPL["rate"] = _rate
+
+
+_init_medical_switch_impl()
+
+
 def register_medical_commands(registry):
     """Register medical commands with the command registry."""
-    for cmd in [HealCommand(), HealAcceptCommand(), HealRateCommand()]:
+    for cmd in [MedicalCommand(), HealCommand(), HealAcceptCommand(), HealRateCommand()]:
         registry.register(cmd)

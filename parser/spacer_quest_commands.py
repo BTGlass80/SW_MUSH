@@ -27,10 +27,14 @@ log = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════════════════════════════
 
 class QuestCommand(BaseCommand):
-    key = "+quest"
-    aliases = ["quest", "+spacerquest", "+dusttostars"]
+    # Pre-S57b key was "+quest"; demoted to "spacerquest" so the
+    # narrative-side +quest umbrella (parser.narrative_commands.QuestCommand)
+    # can occupy the canonical key. The FDTS-specific aliases below stay
+    # so existing player muscle memory still works.
+    key = "spacerquest"
+    aliases = ["quest", "+spacerquest", "+dusttostars", "+fdts"]
     help_text = "View your From Dust to Stars quest progress."
-    usage = "+quest  |  +quest log  |  +quest abandon"
+    usage = "+spacerquest  |  +spacerquest log  |  +spacerquest abandon"
 
     async def execute(self, ctx: CommandContext):
         from engine.spacer_quest import format_quest_display, format_quest_log

@@ -183,6 +183,243 @@ a { color: inherit; text-decoration: none; }
 .combatant-wound.healthy { color: var(--self); }
 .combatant-wound.hurt    { color: var(--accent); }
 .combatant-wound.bad     { color: var(--warn); }
+
+/* ─────────────────────────────────────────────────────────────────
+   FIELD KIT v2 — Drop D-client.1 (Foundation)
+   Theatre-aware combat HUD theming + canonical 7-rung wound ladder.
+   The legacy 3-bucket .combatant-wound.{healthy,hurt,bad} rules above
+   stay in place as a no-op fallback; the new render path sets color
+   inline via woundColor(rung.sev, theme) and never adds those classes.
+   ───────────────────────────────────────────────────────────────── */
+
+/* Phase pill pulse — used by .ch-phase[data-pulse="1"] */
+@keyframes fkpulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.combat-head .ch-phase[data-pulse="1"] {
+  animation: fkpulse 1.2s ease-in-out infinite;
+}
+
+/* Phase variants beyond the legacy declaration/resolution pair.
+   F14 prereq: every engine phase must have a visual treatment. */
+.combat-head .ch-phase.initiative {
+  color: var(--cock-cyan, #6ee8ff);
+  text-shadow: 0 0 4px var(--cock-cyan, #6ee8ff);
+}
+.combat-head .ch-phase.posing {
+  color: var(--self, #7ce068);
+  text-shadow: 0 0 4px var(--self, #7ce068);
+}
+.combat-head .ch-phase.ended {
+  color: var(--accent-dim, #5a7584);
+  text-shadow: none;
+}
+
+/* Theatre-aware tint on the combat strip itself.
+   The .app[data-mode="space"] override above keys off the broader app
+   mode; this newer attribute keys off the engine's combat_state.theatre
+   field so a ground brawl in a starport stays datapad-amber even when
+   the app is in space mode (phase change between modes is rare but
+   the engine is the source of truth on theatre, not the app surface). */
+.combat-strip[data-theatre="space"] {
+  border-color: var(--cock-cyan, #6ee8ff);
+  box-shadow: inset 0 0 18px rgba(110,232,255,0.08), 0 -2px 12px rgba(0,0,0,0.5);
+}
+.combat-strip[data-theatre="ground"] {
+  border-color: var(--accent, #ffc857);
+  box-shadow: inset 0 0 18px rgba(255,200,87,0.08), 0 -2px 12px rgba(0,0,0,0.5);
+}
+.combat-strip[data-theatre="space"].phase-resolution,
+.combat-strip[data-theatre="ground"].phase-resolution {
+  border-color: var(--warn, #ff5a4a);
+  box-shadow: inset 0 0 18px rgba(255,90,74,0.12), 0 0 14px rgba(255,90,74,0.3);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   FIELD KIT v2 — Drop D-client.2 (Declaration Panel)
+   F2  — DODGE / FULL DODGE split (separate buttons, R&E tooltips)
+   F4  — fullDefense REMOVED from action set (was never a parser cmd)
+   F6  — Theatre-conditional action sets (space vs ground)
+   ───────────────────────────────────────────────────────────────── */
+.combat-decl-panel {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.35);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.combat-strip[data-theatre="space"] .combat-decl-panel {
+  border-top-color: rgba(110,232,255,0.18);
+}
+.combat-strip[data-theatre="ground"] .combat-decl-panel {
+  border-top-color: rgba(255,200,87,0.18);
+}
+.cdp-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  font-size: 9px;
+  letter-spacing: 2px;
+}
+.cdp-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--accent, #ffc857);
+}
+.combat-strip[data-theatre="space"] .cdp-label {
+  color: var(--cock-amber, #ffa640);
+}
+.cdp-label.declared {
+  color: var(--self, #7ce068);
+}
+.cdp-target {
+  color: var(--accent-dim, #5a7584);
+  font-family: var(--font-display);
+  letter-spacing: 1px;
+}
+.cdp-target b { color: var(--warn, #ff5a4a); font-weight: 700; }
+.cdp-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.cdp-btn {
+  padding: 5px 10px;
+  min-width: 60px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.25));
+  border: 1px solid var(--accent-dim, #5a7584);
+  color: var(--text, #d9b472);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s, box-shadow 0.12s, transform 0.06s;
+}
+.cdp-btn:hover {
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.18));
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.08), 0 0 6px currentColor;
+}
+.cdp-btn:active { transform: translateY(1px); }
+/* Tone-driven border + text color. Tones map to R&E action role:
+   red = offensive, amber = defensive/utility, green = cover, dim = pass */
+.cdp-btn.tone-red    { border-color: var(--warn, #ff5a4a);   color: var(--warn, #ff5a4a); }
+.cdp-btn.tone-amber  { border-color: var(--accent, #ffc857); color: var(--accent-bright, #ffe3a0); }
+.cdp-btn.tone-green  { border-color: var(--self, #7ce068);   color: var(--self, #7ce068); }
+.cdp-btn.tone-dim    { border-color: var(--accent-dim, #5a7584); color: var(--accent-dim, #5a7584); }
+
+/* ─────────────────────────────────────────────────────────────────
+   FIELD KIT v2 — Drop D-client.3 (Posing Panel)
+   F3   — Body-level posing panel instructs `cpose <text>`
+   F14  — 180s default timer (engine override via pose_window_seconds)
+   ───────────────────────────────────────────────────────────────── */
+.combat-pose-panel {
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.45);
+  border-top: 1px solid var(--self, #7ce068);
+  box-shadow: inset 0 0 10px rgba(124,224,104,0.08);
+}
+.combat-pose-panel.urgent {
+  border-top-color: var(--warn, #ff5a4a);
+  box-shadow: inset 0 0 10px rgba(255,90,74,0.18);
+}
+.cpp-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.cpp-label {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--self, #7ce068);
+}
+.combat-pose-panel.urgent .cpp-label { color: var(--warn, #ff5a4a); }
+.cpp-timer {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--self, #7ce068);
+}
+.combat-pose-panel.urgent .cpp-timer {
+  color: var(--warn, #ff5a4a);
+  animation: fkblink 1s step-end infinite;
+}
+.cpp-result {
+  font-size: 11px;
+  color: var(--text, #d9b472);
+  padding: 5px 10px;
+  background: rgba(0,0,0,0.5);
+  border-left: 2px solid var(--accent, #ffc857);
+  margin-bottom: 6px;
+  line-height: 1.5;
+  font-style: italic;
+}
+.cpp-result-label {
+  font-family: var(--font-display);
+  font-style: normal;
+  color: var(--accent, #ffc857);
+  font-size: 9px;
+  letter-spacing: 2px;
+  margin-right: 6px;
+}
+.cpp-bar {
+  height: 3px;
+  background: rgba(0,0,0,0.5);
+  position: relative;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.cpp-bar-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--self, #7ce068);
+  box-shadow: 0 0 4px var(--self, #7ce068);
+  transition: width 500ms linear, background 200ms linear;
+}
+.combat-pose-panel.urgent .cpp-bar-fill {
+  background: var(--warn, #ff5a4a);
+  box-shadow: 0 0 4px var(--warn, #ff5a4a);
+}
+.cpp-instructions {
+  font-size: 10px;
+  color: var(--accent-dim, #5a7584);
+  line-height: 1.6;
+}
+.cpp-instructions b { color: var(--accent, #ffc857); }
+.cpp-instructions code {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  color: var(--accent-dim, #5a7584);
+  padding: 0 2px;
+}
+.cpp-prime-btn {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 3px 8px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.25));
+  border: 1px solid var(--accent, #ffc857);
+  color: var(--accent-bright, #ffe3a0);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  cursor: pointer;
+  user-select: none;
+}
+.cpp-prime-btn:hover {
+  background: linear-gradient(180deg, rgba(255,255,255,0.1), rgba(0,0,0,0.18));
+  box-shadow: 0 0 4px var(--accent, #ffc857);
+}
+
 .combatant-action {
   font-size: 9px; color: var(--accent-bright);
   margin-top: 2px; letter-spacing: 0.5px;
@@ -401,14 +638,9 @@ a { color: inherit; text-decoration: none; }
 
 /* WOUND status block — central D6 health display.
    Wound levels (R&E p67): 0=Healthy, 1=Stunned, 2=Wounded, 3=Wounded Twice,
-<<<<<<< HEAD
    4=Incapacitated, 5=Mortally Wounded, 6=Killed. Drop C (F1, F10) renders
    all 7 rungs as a vertical ladder with right-aligned penalty column;
    DEAD is hidden until reached. */
-=======
-   4=Incapacitated, 5=Mortally Wounded, 6=Killed. We render 6 LED pips and
-   the active level glows red; we show the textual level above. */
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
 .wound-block {
   margin-bottom: 12px;
   padding: 8px 10px;
@@ -431,7 +663,6 @@ a { color: inherit; text-decoration: none; }
 .wound-head .w-status.incap     { color: var(--pad-red); }
 .wound-head .w-status.mortal    { color: var(--pad-red); text-shadow: 0 0 4px var(--pad-red); }
 .wound-head .w-status.killed    { color: var(--pad-red); text-shadow: 0 0 6px var(--pad-red); }
-<<<<<<< HEAD
 
 /* F1 + F10 — wound ladder: vertical list of all 7 rungs (DEAD hidden until reached).
    Active rung: filled pip + glow. Below-active: filled pip in dim color.
@@ -519,24 +750,6 @@ a { color: inherit; text-decoration: none; }
 
 /* Legacy stun-badge — retained for backwards compatibility with code paths
    that haven't migrated to the strip yet; .stun-block is the new path. */
-=======
-.wound-pips {
-  display: flex; gap: 4px; align-items: center;
-}
-.wound-pip {
-  flex: 1; height: 10px; background: #000;
-  border: 1px solid var(--accent-dim);
-  position: relative;
-}
-.wound-pip.taken {
-  background: var(--pad-amber);
-  box-shadow: inset 0 0 3px rgba(0,0,0,0.4), 0 0 4px rgba(255,200,87,0.4);
-}
-.wound-pip.taken.severe { background: var(--pad-red); box-shadow: inset 0 0 3px rgba(0,0,0,0.4), 0 0 5px rgba(255,90,74,0.6); }
-
-/* STUN damage badge — only rendered when stun_damage > 0. Stun is a
-   discrete tracked state (R&E p67), not a percentage. */
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
 .stun-badge {
   display: inline-block; margin-bottom: 12px;
   padding: 3px 8px; font-size: 10px; letter-spacing: 2px;
@@ -555,14 +768,11 @@ a { color: inherit; text-decoration: none; }
   margin-bottom: 12px; display: none;
 }
 .fp-block.show { display: block; }
-<<<<<<< HEAD
 /* Force-sensitive PCs get a Control/Sense/Alter block right after attributes */
 .force-skills-block {
   margin-top: 8px; display: none;
 }
 .force-skills-block.show { display: block; }
-=======
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
 .fp-head {
   font-size: 10px; letter-spacing: 2px; color: var(--accent-dim);
   margin-bottom: 4px;
@@ -993,7 +1203,6 @@ a { color: inherit; text-decoration: none; }
   flex-shrink: 0;
 }
 .map-frame svg { width: 100%; height: 100%; display: block; }
-<<<<<<< HEAD
 
 /* ════════════════════════════════════════════════════════════════════
    AREA MAP — room markers (dot + label-above pattern)
@@ -1047,8 +1256,6 @@ a { color: inherit; text-decoration: none; }
 .rm-adj { cursor: pointer; }
 .rm-adj:hover .rm-dot { stroke-width: 1.6; }
 .rm-adj:hover .rm-halo { opacity: 0.95; stroke-dasharray: none; }
-=======
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
 .map-legend {
   font-size: 9px; letter-spacing: 1px; color: var(--accent-dim);
   margin-top: 8px;
@@ -2174,7 +2381,6 @@ a { color: inherit; text-decoration: none; }
             <span class="w-key">WOUND</span>
             <span class="w-status healthy" id="g-wound-status">HEALTHY</span>
           </div>
-<<<<<<< HEAD
           <!-- F1 + F10: 7-rung wound ladder (DEAD hidden until reached). Populated by JS. -->
           <div class="wound-ladder" id="g-wound-ladder"></div>
         </div>
@@ -2187,13 +2393,6 @@ a { color: inherit; text-decoration: none; }
           <div class="stun-pips" id="g-stun-pips"></div>
         </div>
         <!-- Legacy badge — preserved for code paths not yet migrated to the strip. Drop C hides this by default. -->
-=======
-          <div class="wound-pips" id="g-wound-pips">
-            <div class="wound-pip"></div><div class="wound-pip"></div><div class="wound-pip"></div>
-            <div class="wound-pip"></div><div class="wound-pip"></div><div class="wound-pip"></div>
-          </div>
-        </div>
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
         <span class="stun-badge" id="g-stun-badge" style="display:none;">STUNNED</span>
         <div class="fp-block" id="g-fp-block">
           <div class="fp-head">
@@ -2213,7 +2412,6 @@ a { color: inherit; text-decoration: none; }
           <div class="attr-row"><span class="attr-key">TEC</span><span class="attr-val" id="g-attr-tec">—</span></div>
         </div>
 
-<<<<<<< HEAD
         <div class="force-skills-block" id="g-force-skills-block">
           <div class="section-label spaced">▮▮ FORCE</div>
           <div class="attr-grid">
@@ -2223,8 +2421,6 @@ a { color: inherit; text-decoration: none; }
           </div>
         </div>
 
-=======
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
         <div class="credits-panel">
           <div class="credits-label">CREDITS</div>
           <div class="credits-amount" id="g-credits">0</div>
@@ -2466,6 +2662,9 @@ a { color: inherit; text-decoration: none; }
           <span class="ts-key">ARC</span><span class="ts-val" id="ts-arc">—</span>
           <span class="ts-key">CLASS</span><span class="ts-val" id="ts-class">—</span>
           <span class="ts-key">LOCK BONUS</span><span class="ts-val" id="ts-bonus">—</span>
+          <!-- D-client.3 (F11): target hull condition rendered with
+               conditionColor() so severity is communicated at a glance. -->
+          <span class="ts-key">CONDITION</span><span class="ts-val" id="ts-condition">—</span>
         </div>
       </div>
 
@@ -2516,6 +2715,37 @@ a { color: inherit; text-decoration: none; }
           <span class="cs-label">WAITING ON:</span>
           <span class="cs-waiting" id="cs-waiting"></span>
         </div>
+      </div>
+    </div>
+    <!-- D-client.2: Declaration panel (theatre-conditional action buttons).
+         Renders only when phase === 'declaration' AND viewer hasn't declared.
+         Action set, tooltips, and button tones come from RE_DECL_ACTIONS in
+         the JS render path; the buttons here are populated dynamically. -->
+    <div class="combat-decl-panel" id="combat-decl-panel" style="display:none;">
+      <div class="cdp-header">
+        <span class="cdp-label" id="cdp-label">▸ DECLARE YOUR ACTION</span>
+        <span class="cdp-target" id="cdp-target"></span>
+      </div>
+      <div class="cdp-actions" id="cdp-actions"></div>
+    </div>
+    <!-- D-client.3: Posing panel. Body-level surface during the posing
+         phase. Big timer + RESULT block for what the engine resolved this
+         round + cpose primer instructions. Default 180s per engine. -->
+    <div class="combat-pose-panel" id="combat-pose-panel" style="display:none;">
+      <div class="cpp-header">
+        <span class="cpp-label">▸ POSE YOUR ACTION</span>
+        <span class="cpp-timer" id="cpp-timer">⏱ 3:00 / 3:00</span>
+      </div>
+      <div class="cpp-result" id="cpp-result">
+        <span class="cpp-result-label">RESULT</span>
+        <span class="cpp-result-text" id="cpp-result-text">— resolution pending —</span>
+      </div>
+      <div class="cpp-bar"><div class="cpp-bar-fill" id="cpp-bar-fill" style="width:100%;"></div></div>
+      <div class="cpp-instructions">
+        Submit your combat-round pose with <b>cpose &lt;text&gt;</b>.
+        Plain <code>pose</code> or <code>:</code> emote to the room but do NOT
+        register the round pose &mdash; you'll get auto-posed at the deadline.
+        <button type="button" class="cpp-prime-btn" id="cpp-prime-btn">✎ PRIME cpose</button>
       </div>
     </div>
   </div>
@@ -2709,7 +2939,6 @@ var AUTOSCROLL_THRESHOLD_PX = 60; // within this distance of bottom = auto-scrol
 var TOAST_DURATION_MS = 5000;
 var STAGE_TIMEOUT_MS = 30000;    // staged command auto-clears after 30s
 
-<<<<<<< HEAD
 // ── FIELD KIT TOKENS & HELPERS ──────────────────────────────────────
 // Drop A: ports drop_v2/prototype/tokens.jsx (the JS portion).
 // CSS palette vars already in :root above; this section ports the JS
@@ -2817,8 +3046,6 @@ window.stunCap = stunCap;
 window.CONDITION_COLORS = CONDITION_COLORS;
 window.conditionColor = conditionColor;
 
-=======
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
 // ── STATE ───────────────────────────────────────────────────────────
 var ws = null;
 var intentionalDisconnect = false;
@@ -3034,10 +3261,7 @@ function buildRow(ev) {
     case 'present': {
       var html = '<div class="present-label">◆ ALSO HERE</div>';
       (ev.people || []).forEach(function(p) {
-<<<<<<< HEAD
         rememberActorName(p.name);  // populate classifier roster
-=======
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
         html += '<div class="present-item"><span class="present-name">' + escapeHtml(p.name) + '</span>' +
           (p.desc ? '<span class="present-desc"> · ' + escapeHtml(p.desc) + '</span>' : '') + '</div>';
       });
@@ -3314,7 +3538,6 @@ function classifyAndAppend(rawText) {
       i++; continue;
     }
 
-<<<<<<< HEAD
     // Simple pose: starts with capitalized name then a verb, no quotes.
     //
     // GUARD: This regex is dangerously permissive — any sentence opening
@@ -3327,12 +3550,6 @@ function classifyAndAppend(rawText) {
     var simplePoseMatch = stripped.match(/^([A-Z][\w'-]*(?:\s[A-Z][\w'-]*){0,3})\s+([a-z][a-z'-]+(?:s|es|ed)?)\s+(.{8,})$/);
     if (simplePoseMatch && !looksLikeSysLine(stripped) &&
         isKnownActor(simplePoseMatch[1])) {
-=======
-    // Simple pose: starts with capitalized name then a verb, no quotes
-    var simplePoseMatch = stripped.match(/^([A-Z][\w'-]*(?:\s[A-Z][\w'-]*){0,3})\s+([a-z][a-z'-]+(?:s|es|ed)?)\s+(.{8,})$/);
-    if (simplePoseMatch && !looksLikeSysLine(stripped)) {
-      // Heuristic: looks like a pose if the name is recognizable & it's not a sys line
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
       appendEvent({
         t: isSelfName(simplePoseMatch[1]) ? 'pose-self' : 'pose',
         who: simplePoseMatch[1],
@@ -3379,7 +3596,6 @@ function isSelfName(name) {
   return name.trim().toLowerCase() === String(lastHud.name).trim().toLowerCase();
 }
 
-<<<<<<< HEAD
 // ── Known-actor roster ───────────────────────────────────────────────
 // The text classifier's simplePoseMatch regex would misfire on any prose
 // sentence opening with a capitalized word ("A battered freighter…",
@@ -3408,8 +3624,6 @@ function isKnownActor(name) {
   return knownActorNames.has(String(name).trim().toLowerCase());
 }
 
-=======
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
 function looksLikeSysLine(s) {
   return /^[\[\(<]|^WARNING|^ERROR|^ALERT|^Sensor|^Tractor|^Game:/i.test(s);
 }
@@ -3497,7 +3711,6 @@ function resolveStagedTemplate(template, key) {
       return 'fire ' + lastTargetLock.name.toLowerCase();
     }
     return 'fire ';
-<<<<<<< HEAD
   }
   // JUMP: pull plotted hyperspace destination
   if (key === 'JUMP') {
@@ -3527,37 +3740,6 @@ function sendCmd(text) {
   }
 }
 
-=======
-  }
-  // JUMP: pull plotted hyperspace destination
-  if (key === 'JUMP') {
-    if (lastHyperRoute && lastHyperRoute.dest) {
-      return 'hyperspace ' + lastHyperRoute.dest.toLowerCase();
-    }
-    return 'hyperspace ';
-  }
-  return template;
-}
-
-function sendCmd(text) {
-  if (!text || !text.trim()) return;
-  // Echo plus add to history
-  cmdHistory.push(text);
-  if (cmdHistory.length > 200) cmdHistory.shift();
-  cmdHistoryIdx = -1;
-
-  if (!ws || ws.readyState !== WebSocket.OPEN) {
-    appendEvent({ t: 'sys-event', text: 'Not connected — command not sent: ' + text });
-    return;
-  }
-  try {
-    ws.send(JSON.stringify({ type: 'cmd', data: text }));
-  } catch (e) {
-    appendEvent({ t: 'sys-event', text: 'Send failed: ' + e.message });
-  }
-}
-
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
 function setupInput(inputId, sendBtnId) {
   var inp = $(inputId);
   if (!inp) return;
@@ -3698,13 +3880,10 @@ function handleHudUpdate(data) {
       if (inp) inp.focus();
     }, 100);
   }
-<<<<<<< HEAD
   // Self goes into the actor roster so the classifier can identify the
   // player's own simple poses (when emitted as plain text rather than
   // structured pose_event).
   if (data.name) rememberActorName(data.name);
-=======
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
   // Char name + meta — meta builds from species/template/faction.
   // Faction is derived from the reputation dict (entries with is_member: true).
   if (data.name !== undefined) $('g-char-name').textContent = data.name || '—';
@@ -3739,19 +3918,14 @@ function handleHudUpdate(data) {
 
   // Vitals — WOUND model (R&E p67): wound_level 0=Healthy, 1=Stunned,
   // 2=Wounded, 3=Wounded Twice, 4=Incapacitated, 5=Mortally Wounded, 6=Killed.
-<<<<<<< HEAD
   // Drop C (F1, F10): canonical 7-rung ladder via WOUND_RUNGS; DEAD (rung 6)
   // hidden until reached. Penalty column right-aligned (CSS).
-=======
-  // Render 6 pips, fill one per level taken, sever color past level 4.
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
   if (data.wound_level !== undefined) {
     var wl = Math.max(0, Math.min(6, Number(data.wound_level)));
     var statusEl = $('g-wound-status');
     var statusName = (data.wound_name || ['HEALTHY','STUNNED','WOUNDED','WOUNDED 2x','INCAPACITATED','MORTALLY WOUNDED','KILLED'][wl]).toUpperCase();
     statusEl.textContent = statusName;
     statusEl.className = 'w-status ' + ['healthy','stunned','wounded','wounded2','incap','mortal','killed'][wl];
-<<<<<<< HEAD
 
     var ladderEl = $('g-wound-ladder');
     if (ladderEl) {
@@ -3835,72 +4009,30 @@ function handleHudUpdate(data) {
   // count is always communicated. If a future server change adds a real
   // per-character fp_max, swap FP_DISPLAY_MAX for that field.
   var FP_DISPLAY_MAX = 6;
-=======
-    var pipsEl = $('g-wound-pips');
-    pipsEl.innerHTML = '';
-    for (var pi = 0; pi < 6; pi++) {
-      var pip = document.createElement('div');
-      pip.className = 'wound-pip' + (pi < wl ? ' taken' + (pi >= 3 ? ' severe' : '') : '');
-      pipsEl.appendChild(pip);
-    }
-  }
-
-  // STUN badge — only render if currently stunned (separate from wound track).
-  // The server reports stun via the wound_level 1 = "Stunned" state, but stun
-  // damage can also accumulate independently; we surface either signal.
-  var stunBadge = $('g-stun-badge');
-  var isStunned = (data.wound_level === 1) || (data.stun_damage && data.stun_damage > 0);
-  if (isStunned) {
-    stunBadge.style.display = '';
-    stunBadge.textContent = data.stun_damage > 1 ? 'STUNNED ×' + data.stun_damage : 'STUNNED';
-    stunBadge.classList.toggle('severe', (data.stun_damage || 0) > 2);
-  } else {
-    stunBadge.style.display = 'none';
-  }
-
-  // FORCE POINTS — pip indicators (one filled circle per FP). Force-sensitive
-  // only. Show actual count, plus an overflow label for >6.
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
   if (data.force_sensitive) {
     var fpBlock = $('g-fp-block');
     fpBlock.classList.add('show');
     var fp = data.force_points !== undefined ? Number(data.force_points) : 0;
-<<<<<<< HEAD
     if (!isFinite(fp) || fp < 0) fp = 0;
     $('g-fp-count').textContent = fp + ' FP';
     var fpPips = $('g-fp-pips');
     fpPips.innerHTML = '';
     var visible = Math.min(fp, FP_DISPLAY_MAX);
     for (var fpi = 0; fpi < FP_DISPLAY_MAX; fpi++) {
-=======
-    $('g-fp-count').textContent = fp + ' FP';
-    var fpPips = $('g-fp-pips');
-    fpPips.innerHTML = '';
-    var visible = Math.min(fp, 6);
-    for (var fpi = 0; fpi < 6; fpi++) {
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
       var fpPip = document.createElement('div');
       fpPip.className = 'fp-pip' + (fpi < visible ? ' filled' : '');
       fpPips.appendChild(fpPip);
     }
-<<<<<<< HEAD
     if (fp > FP_DISPLAY_MAX) {
       var ov = document.createElement('span');
       ov.className = 'fp-overflow';
       ov.textContent = '+' + (fp - FP_DISPLAY_MAX);
-=======
-    if (fp > 6) {
-      var ov = document.createElement('span');
-      ov.className = 'fp-overflow';
-      ov.textContent = '+' + (fp - 6);
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
       fpPips.appendChild(ov);
     }
   } else {
     $('g-fp-block').classList.remove('show');
   }
 
-<<<<<<< HEAD
   // Attributes (if server sends them). Fall back to em-dash if value is
   // empty/missing. Server now always sends the keys after the v85 _hud_base
   // fix; if a key is empty string, render em-dash so the panel doesn't show
@@ -3932,17 +4064,6 @@ function handleHudUpdate(data) {
         fsBlock.classList.remove('show');
       }
     }
-=======
-  // Attributes (if server sends them)
-  if (data.attributes && typeof data.attributes === 'object') {
-    var a = data.attributes;
-    if (a.dexterity   !== undefined) $('g-attr-dex').textContent = a.dexterity;
-    if (a.knowledge   !== undefined) $('g-attr-kno').textContent = a.knowledge;
-    if (a.mechanical  !== undefined) $('g-attr-mec').textContent = a.mechanical;
-    if (a.perception  !== undefined) $('g-attr-per').textContent = a.perception;
-    if (a.strength    !== undefined) $('g-attr-str').textContent = a.strength;
-    if (a.technical   !== undefined) $('g-attr-tec').textContent = a.technical;
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
   }
 
   // Credits
@@ -4066,7 +4187,6 @@ function renderRecentRooms() {
 
 /* ════════════════════════════════════════════════════════════════════
    AREA MAP (right column on ground) — render rooms & links
-<<<<<<< HEAD
    Per-room <g> groups with dot + optional icon glyph + label-above.
    Reads server-canonical fields: mapData.current, r.sec, e.from/e.to.
    Adjacent rooms (depth 1, edge from current) are clickable for travel.
@@ -4089,9 +4209,6 @@ function roomTypeGlyph(env, name) {
   return '';
 }
 
-=======
-   ════════════════════════════════════════════════════════════════════ */
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
 function renderAreaMap(mapData) {
   var svg = $('g-area-map-svg');
   if (!svg) return;
@@ -4099,28 +4216,19 @@ function renderAreaMap(mapData) {
 
   var rooms = mapData.rooms || [];
   var edges = mapData.edges || [];
-<<<<<<< HEAD
   // SERVER FIELD: mapData.current (NOT current_id — that was a long-standing
   // mismatch that broke current-room highlighting completely).
   var currentId = mapData.current;
-=======
-  var currentId = mapData.current_id;
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
   if (rooms.length === 0) {
     var t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     t.setAttribute('x', '200'); t.setAttribute('y', '150');
     t.setAttribute('text-anchor', 'middle');
-<<<<<<< HEAD
     t.setAttribute('class', 'rm-empty');
-=======
-    t.setAttribute('style', 'fill:var(--accent-dim); font-size:11px; font-family:"IBM Plex Mono",monospace;');
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
     t.textContent = 'No map data';
     svg.appendChild(t);
     return;
   }
 
-<<<<<<< HEAD
   // ── Position layout ──
   var W = 400, H = 300, pad = 30;
   var posById = {};
@@ -4132,22 +4240,6 @@ function renderAreaMap(mapData) {
       if (r.y < minY) minY = r.y; if (r.y > maxY) maxY = r.y;
     });
     var spanX = Math.max(0.0001, maxX - minX), spanY = Math.max(0.0001, maxY - minY);
-=======
-  // Force-directed layout: pre-compute positions if missing
-  var W = 400, H = 300, pad = 30;
-  var posById = {};
-  // If server provides x/y, use them; otherwise lay out in a grid
-  var hasCoords = rooms.every(function(r) { return r.x !== undefined && r.y !== undefined; });
-  if (hasCoords) {
-    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    rooms.forEach(function(r) {
-      if (r.x < minX) minX = r.x;
-      if (r.x > maxX) maxX = r.x;
-      if (r.y < minY) minY = r.y;
-      if (r.y > maxY) maxY = r.y;
-    });
-    var spanX = Math.max(1, maxX - minX), spanY = Math.max(1, maxY - minY);
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
     rooms.forEach(function(r) {
       posById[r.id] = {
         x: pad + ((r.x - minX) / spanX) * (W - pad * 2),
@@ -4155,10 +4247,6 @@ function renderAreaMap(mapData) {
       };
     });
   } else {
-<<<<<<< HEAD
-=======
-    // Grid layout
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
     var cols = Math.ceil(Math.sqrt(rooms.length));
     rooms.forEach(function(r, i) {
       posById[r.id] = {
@@ -4168,7 +4256,6 @@ function renderAreaMap(mapData) {
     });
   }
 
-<<<<<<< HEAD
   // ── Adjacency: rooms one edge from current. Edge.from is always
   // outgoing in build_area_map's deduplication (engine/area_map.py:251),
   // but be defensive and accept either direction.
@@ -4183,17 +4270,10 @@ function renderAreaMap(mapData) {
   // ── Edges first so dots render on top ──
   edges.forEach(function(e) {
     var a = posById[e.from], b = posById[e.to];
-=======
-  var ns = 'http://www.w3.org/2000/svg';
-  // Edges
-  edges.forEach(function(e) {
-    var a = posById[e.a], b = posById[e.b];
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
     if (!a || !b) return;
     var line = document.createElementNS(ns, 'line');
     line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
     line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
-<<<<<<< HEAD
     var isAdj = (e.from === currentId || e.to === currentId);
     line.setAttribute('class', isAdj ? 'rm-edge rm-edge-adj' : 'rm-edge');
     svg.appendChild(line);
@@ -4219,56 +4299,8 @@ function renderAreaMap(mapData) {
     g.setAttribute('data-room-id', String(r.id));
     if (isAdj) {
       g.setAttribute('data-travel-dir', adjacencyByRoomId[r.id] || '');
-=======
-    line.setAttribute('stroke', 'var(--accent-dim)');
-    line.setAttribute('stroke-width', '0.8');
-    line.setAttribute('opacity', '0.5');
-    svg.appendChild(line);
-  });
-  // Nodes
-  rooms.forEach(function(r) {
-    var p = posById[r.id]; if (!p) return;
-    var color = (r.security === 'lawless') ? 'var(--warn)'
-               : (r.security === 'contested') ? 'var(--accent)'
-               : 'var(--self)';
-    var isYou = r.id === currentId;
-    if (isYou) {
-      // Pulsing ring
-      var ring = document.createElementNS(ns, 'circle');
-      ring.setAttribute('cx', p.x); ring.setAttribute('cy', p.y);
-      ring.setAttribute('r', '14'); ring.setAttribute('fill', 'none');
-      ring.setAttribute('stroke', 'var(--accent-bright)');
-      ring.setAttribute('stroke-width', '0.6');
-      ring.setAttribute('opacity', '0.6');
-      var anim1 = document.createElementNS(ns, 'animate');
-      anim1.setAttribute('attributeName', 'r'); anim1.setAttribute('from', '8'); anim1.setAttribute('to', '20');
-      anim1.setAttribute('dur', '1.8s'); anim1.setAttribute('repeatCount', 'indefinite');
-      var anim2 = document.createElementNS(ns, 'animate');
-      anim2.setAttribute('attributeName', 'opacity'); anim2.setAttribute('from', '0.9'); anim2.setAttribute('to', '0');
-      anim2.setAttribute('dur', '1.8s'); anim2.setAttribute('repeatCount', 'indefinite');
-      ring.appendChild(anim1); ring.appendChild(anim2);
-      svg.appendChild(ring);
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
     }
-    // Node label box
-    var label = (r.name || '').substring(0, 10);
-    var rect = document.createElementNS(ns, 'rect');
-    var w = Math.max(40, label.length * 6 + 8), h = 14;
-    rect.setAttribute('x', p.x - w / 2); rect.setAttribute('y', p.y - h / 2);
-    rect.setAttribute('width', w); rect.setAttribute('height', h);
-    rect.setAttribute('fill', '#000'); rect.setAttribute('stroke', isYou ? 'var(--accent-bright)' : color);
-    rect.setAttribute('stroke-width', '0.8');
-    svg.appendChild(rect);
-    var text = document.createElementNS(ns, 'text');
-    text.setAttribute('x', p.x); text.setAttribute('y', p.y + 3);
-    text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('style', 'fill:' + (isYou ? 'var(--accent-bright)' : color) + '; font-size:9px; font-family:"IBM Plex Mono",monospace;');
-    text.textContent = label;
-    svg.appendChild(text);
-  });
-}
 
-<<<<<<< HEAD
     // Pulsing ring for current room
     if (isYou) {
       var ring = document.createElementNS(ns, 'circle');
@@ -4311,40 +4343,6 @@ function renderAreaMap(mapData) {
       icon.setAttribute('text-anchor', 'middle');
       icon.textContent = iconGlyph;
       g.appendChild(icon);
-=======
-/* ════════════════════════════════════════════════════════════════════
-   SPACE STATE — instruments, target, hyper, crew
-   ════════════════════════════════════════════════════════════════════ */
-function handleSpaceState(data) {
-  lastSpace = Object.assign({}, lastSpace, data);
-  setMode(data.active ? 'space' : 'ground');
-  if (!data.active) {
-    dockedOnShip = !!(data.ship_name);
-    return;
-  }
-
-  // Hull
-  if (data.hull_current !== undefined && data.hull_max !== undefined) {
-    var hpct = Math.max(0, Math.min(1, data.hull_current / Math.max(1, data.hull_max)));
-    $('s-hull-num').textContent = data.hull_current;
-    $('s-hull-max').textContent = '/' + data.hull_max + ' HULL';
-    $('s-hull-cond').textContent = (data.hull_condition || '').toUpperCase();
-    // Animate gauge needle (-π to 0 across 100%)
-    var angle = Math.PI + hpct * Math.PI;  // π = left side, 2π = right side
-    var x = 50 + Math.cos(angle) * 32;
-    var y = 55 + Math.sin(angle) * 32;
-    var needle = document.getElementById('hull-needle');
-    if (needle) {
-      needle.setAttribute('x2', x);
-      needle.setAttribute('y2', y);
-      needle.setAttribute('stroke', hpct > 0.5 ? 'var(--cock-cyan)' : hpct > 0.25 ? 'var(--cock-amber)' : 'var(--cock-red)');
-    }
-    // Animate the arc fill
-    var arc = document.getElementById('hull-gauge-arc');
-    if (arc) {
-      arc.setAttribute('stroke-dashoffset', String(115 * (1 - hpct)));
-      arc.setAttribute('stroke', hpct > 0.5 ? 'var(--cock-cyan)' : hpct > 0.25 ? 'var(--cock-amber)' : 'var(--cock-red)');
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
     }
 
     // Label above the dot
@@ -4373,7 +4371,6 @@ function _reverseDir(d) {
   return d || '';
 }
 
-<<<<<<< HEAD
 // Wire click-to-travel on adjacent rooms. Idempotent — safe to call after each render.
 // Listens via event delegation on the SVG so it survives re-renders.
 (function installAreaMapTravelHandler() {
@@ -4420,6 +4417,18 @@ function handleSpaceState(data) {
     $('s-hull-num').textContent = data.hull_current;
     $('s-hull-max').textContent = '/' + data.hull_max + ' HULL';
     $('s-hull-cond').textContent = (data.hull_condition || '').toUpperCase();
+    // Drop E (F11/F13): apply CONDITION_COLORS via conditionColor() so the
+    // hull condition label communicates severity at a glance, not just label
+    // text. conditionColor() returns hex (theme=cockpit palette); applied
+    // inline so we don't need new CSS classes per condition.
+    var hcondEl = $('s-hull-cond');
+    if (hcondEl) {
+      var hcondColor = (typeof conditionColor === 'function')
+        ? conditionColor(data.hull_condition)
+        : '';
+      hcondEl.style.color = hcondColor || '';
+      hcondEl.style.textShadow = hcondColor ? ('0 0 4px ' + hcondColor) : '';
+    }
     // Animate gauge needle (-π to 0 across 100%)
     var angle = Math.PI + hpct * Math.PI;  // π = left side, 2π = right side
     var x = 50 + Math.cos(angle) * 32;
@@ -4440,10 +4449,15 @@ function handleSpaceState(data) {
 
   // Shields
   if (data.shield_arcs) {
-    setShield('s-shield-fore', data.shield_arcs.front);
-    setShield('s-shield-aft',  data.shield_arcs.rear);
-    setShield('s-shield-port', data.shield_arcs.left);
-    setShield('s-shield-stbd', data.shield_arcs.right);
+    // Drop E (F9): pass shield pool capacity so each arc renders
+    // {cur}D/{max}D. pool_dice is the ship's total shield dice pool
+    // (per WEG R&E p129, shields are one pool allocated/shifted between
+    // arcs); each arc can in principle hold up to the full pool.
+    var poolMax = data.shield_arcs.pool_dice;
+    setShield('s-shield-fore', data.shield_arcs.front, poolMax);
+    setShield('s-shield-aft',  data.shield_arcs.rear,  poolMax);
+    setShield('s-shield-port', data.shield_arcs.left,  poolMax);
+    setShield('s-shield-stbd', data.shield_arcs.right, poolMax);
   }
 
   // Power allocation — server emits power_state as a dict with integer power
@@ -4549,11 +4563,20 @@ function handleSpaceState(data) {
   setIndicator('ind-warn', !!(data.controls_frozen || data.boarding_party_active));
 }
 
-function setShield(id, val) {
+function setShield(id, val, poolMax) {
   var el = $(id);
   if (!el) return;
   var v = val !== undefined ? val : 0;
-  el.textContent = v + 'D';
+  // Drop E (F9): when the ship's shield pool capacity is provided, render
+  // {cur}D/{max}D so players can see how many dice are available to shift
+  // between arcs. Falls back to {cur}D when pool capacity is unknown
+  // (older payloads, no shields template, etc.). Pool capacity comes from
+  // the ship's total shield DicePool, not per-arc — R&E shields are a
+  // single pool that may be allocated/shifted.
+  var poolN = (poolMax !== undefined && poolMax !== null) ? Number(poolMax) : NaN;
+  el.textContent = (Number.isFinite(poolN) && poolN > 0)
+    ? (v + 'D/' + poolN + 'D')
+    : (v + 'D');
   el.className = 'shield-cell-val';
   if (v <= 0)      el.classList.add('off');
   else if (v >= 2) el.classList.add('high');
@@ -4818,6 +4841,25 @@ function showTargetLock(t) {
     bonusEl.textContent = '—';
     bonusEl.className = 'ts-val';
   }
+
+  // D-client.3 (F11/F13): target hull condition with severity color.
+  // conditionColor() lives in Drop A primitives and uses title-case keys
+  // matching engine output (Pristine / Light Damage / Moderate Damage /
+  // Heavy Damage / Critical Damage / Destroyed). Empty string → no color.
+  var condEl = $('ts-condition');
+  if (condEl) {
+    var cond = t.condition || '';
+    if (cond) {
+      condEl.textContent = cond.toUpperCase();
+      var cColor = (typeof conditionColor === 'function')
+        ? conditionColor(cond)
+        : '';
+      condEl.style.color = cColor || '';
+    } else {
+      condEl.textContent = '—';
+      condEl.style.color = '';
+    }
+  }
 }
 
 function showNoTargetLock() {
@@ -4827,6 +4869,13 @@ function showNoTargetLock() {
   $('target-name').textContent = '— NO LOCK —';
   $('target-faction').textContent = '';
   $('target-stats').style.display = 'none';
+  // D-client.3 (F11): clear inline condition color so a stale Critical
+  // Damage red doesn't flash through if the next target locks fast.
+  var condEl = $('ts-condition');
+  if (condEl) {
+    condEl.textContent = '—';
+    condEl.style.color = '';
+  }
 }
 
 function setIndicator(id, on) {
@@ -5175,746 +5224,10 @@ function renderMapModal(kind) {
   });
   // Catch-all for any labels without our classes (legacy / radar).
   clone.querySelectorAll('text:not(.rm-label):not(.rm-icon):not(.rm-empty)').forEach(function(t) {
-=======
-  // Shields
-  if (data.shield_arcs) {
-    setShield('s-shield-fore', data.shield_arcs.front);
-    setShield('s-shield-aft',  data.shield_arcs.rear);
-    setShield('s-shield-port', data.shield_arcs.left);
-    setShield('s-shield-stbd', data.shield_arcs.right);
-  }
-
-  // Power allocation — server emits power_state as a dict with integer power
-  // levels per system (engines/shields/weapons/sensors/...). Defaults are
-  // engines:3, shields:3, weapons:2, sensors:1. Bonus cap is +3 for most
-  // systems, so a sensible bar max is 6.
-  var ps = data.power_state || {};
-  setPowerBar('s-pow-engines', ps.engines !== undefined ? ps.engines : 3, 'amber', 3);
-  setPowerBar('s-pow-shields', ps.shields !== undefined ? ps.shields : 3, 'cyan',  3);
-  setPowerBar('s-pow-weapons', ps.weapons !== undefined ? ps.weapons : 2, 'red',   2);
-  setPowerBar('s-pow-sensors', ps.sensors !== undefined ? ps.sensors : 1, 'green', 1);
-
-  // Speed/scale/fuel/ion
-  if (data.speed !== undefined) $('s-speed').textContent = data.speed;
-  if (data.scale)               $('s-scale').textContent = data.scale.toUpperCase();
-  if (data.fuel !== undefined && data.fuel !== null) {
-    $('s-fuel-row').style.display = '';
-    $('s-fuel').textContent = data.fuel;
-  } else {
-    $('s-fuel-row').style.display = 'none';
-  }
-  if (data.ion_penalty && data.ion_penalty > 0) {
-    $('s-ion-row').style.display = '';
-    $('s-ion').textContent = data.ion_penalty + 'D';
-  } else {
-    $('s-ion-row').style.display = 'none';
-  }
-
-  // Warnings
-  var w = $('s-warnings');
-  w.innerHTML = '';
-  if (data.controls_frozen) w.appendChild(makeWarn('⚠ CONTROLS FROZEN'));
-  if (data.tractor_held)    w.appendChild(makeWarn('⚓ TRACTOR LOCK', 'tractor'));
-  if (data.boarding_party_active) w.appendChild(makeWarn('⚔ BOARDERS ON SHIP', '', 'boarders'));
-  if (data.boarding_linked_to) {
-    var linkName = data.boarding_target_name || ('SHIP #' + data.boarding_linked_to);
-    var linkBlock = makeWarn('▸ BOARDING LINK · ' + linkName, 'tractor');
-    // Quick-action buttons — Board / Release
-    var actRow = document.createElement('div');
-    actRow.className = 'boarding-actions';
-    var btnBoard = document.createElement('button');
-    btnBoard.className = 'boarding-btn board';
-    btnBoard.textContent = 'BOARD';
-    btnBoard.title = 'boarding_link — walk across to the linked ship';
-    btnBoard.onclick = function() { sendCmd('boarding_link'); };
-    var btnRelease = document.createElement('button');
-    btnRelease.className = 'boarding-btn release';
-    btnRelease.textContent = 'RELEASE';
-    btnRelease.title = 'boardship release — sever the boarding link';
-    btnRelease.onclick = function() { sendCmd('boardship release'); };
-    actRow.appendChild(btnBoard);
-    actRow.appendChild(btnRelease);
-    linkBlock.appendChild(actRow);
-    w.appendChild(linkBlock);
-  }
-
-  // Top context strip
-  var topCtx = (data.zone_name || 'SPACE') + (data.zone_type ? ' · ' + data.zone_type.toUpperCase() : '');
-  $('top-context').textContent = topCtx;
-
-  // Update top mode label with ship name
-  $('top-mode-label').textContent = ((data.ship_class || '').toUpperCase() + ' · ' + (data.ship_name || '').toUpperCase() + ' · FLIGHT MODE').trim();
-
-  // Hyperspace — server sends in_hyperspace (bool), hyperspace_dest (name),
-  // hyperspace_eta (ticks remaining; 1 tick ≈ 1s), hyperspace_pct (0-100 or
-  // null for legacy jumps with no recorded total).
-  if (data.in_hyperspace && data.hyperspace_dest) {
-    var pct = data.hyperspace_pct;  // may be null — showHyper handles that
-    showHyper(data.hyperspace_dest, pct, data.hyperspace_eta);
-    setIndicator('ind-hyper', true);
-    lastHyperRoute = {
-      dest: data.hyperspace_dest,
-      pct: (pct === null || pct === undefined) ? null : pct,
-      eta_str: formatEta(data.hyperspace_eta),
-    };
-  } else if (data.hyperspace_plot) {
-    showHyper(data.hyperspace_plot, 0, null);
-    lastHyperRoute = { dest: data.hyperspace_plot, pct: 0, eta_str: '' };
-    setIndicator('ind-hyper', false);
-  } else {
-    $('hyper-panel').style.display = 'none';
-    $('hyper-empty').style.display = '';
-    setIndicator('ind-hyper', false);
-    lastHyperRoute = null;
-  }
-
-  // Crew
-  if (data.crew) renderCrew(data.crew, data.my_station);
-
-  // Tactical radar — render contacts
-  if (data.contacts) renderRadar(data.contacts);
-
-  // Target lock
-  if (data.target_lock) {
-    showTargetLock(data.target_lock);
-    setIndicator('ind-lock', true);
-  } else {
-    showNoTargetLock();
-    setIndicator('ind-lock', false);
-  }
-
-  // Warn light
-  setIndicator('ind-warn', !!(data.controls_frozen || data.boarding_party_active));
-}
-
-function setShield(id, val) {
-  var el = $(id);
-  if (!el) return;
-  var v = val !== undefined ? val : 0;
-  el.textContent = v + 'D';
-  el.className = 'shield-cell-val';
-  if (v <= 0)      el.classList.add('off');
-  else if (v >= 2) el.classList.add('high');
-  else if (v >= 1) el.classList.add('med');
-  else             el.classList.add('low');
-}
-
-// Render power bar: integer power level (0-6 typical), color-coded.
-// Cells above `defaultLevel` are "overcharge" and pulse in a hotter color.
-// Numeric value shown in the adjacent .power-num slot with over/under styling.
-function setPowerBar(id, level, color, defaultLevel) {
-  var bar = $(id);
-  if (!bar) return;
-  var numEl = document.getElementById(id + '-n');
-  var lvl = Math.max(0, Math.round(level));
-  var max = 6;  // bar capacity; POWER_BONUS_CAP is +3 over defaults, so 6 is enough
-  bar.innerHTML = '';
-  for (var i = 0; i < max; i++) {
-    var c = document.createElement('div');
-    var on = i < lvl;
-    var over = defaultLevel !== undefined && i >= defaultLevel && on;
-    c.className = 'power-cell' + (on ? (over ? ' on amber' : ' on ' + color) : '');
-    bar.appendChild(c);
-  }
-  if (numEl) {
-    numEl.textContent = lvl;
-    numEl.className = 'power-num' +
-      (defaultLevel !== undefined && lvl > defaultLevel ? ' over'
-       : defaultLevel !== undefined && lvl < defaultLevel ? ' under'
-       : '');
-  }
-}
-
-function makeWarn(text, kind, extra) {
-  var d = document.createElement('div');
-  d.className = 'warn-block' + (kind ? ' ' + kind : '') + (extra ? ' ' + extra : '');
-  d.textContent = text;
-  return d;
-}
-
-function showHyper(dest, pct, eta) {
-  $('hyper-panel').style.display = '';
-  $('hyper-empty').style.display = 'none';
-  $('hyper-route').textContent = String(dest).toUpperCase();
-  var bar = $('hyper-bar');
-  bar.innerHTML = '';
-  var cells = 14;
-  var isIndeterminate = (pct === null || pct === undefined);
-  if (isIndeterminate) {
-    // Legacy jump without total — render an animated "scanning" pattern
-    // instead of a progress fill. Traveller sweep of 4 cells that loops.
-    bar.classList.add('indeterminate');
-    for (var i = 0; i < cells; i++) {
-      var c = document.createElement('div');
-      c.className = 'hyper-cell';
-      c.style.animationDelay = (i * 100) + 'ms';
-      bar.appendChild(c);
-    }
-    $('hyper-pct').textContent = '···';
-    $('hyper-eta').textContent = eta ? ('ETA ' + formatEta(eta)) : '— IN TRANSIT —';
-  } else {
-    bar.classList.remove('indeterminate');
-    var on = Math.floor((Math.max(0, Math.min(100, pct)) / 100) * cells);
-    for (var j = 0; j < cells; j++) {
-      var c2 = document.createElement('div');
-      c2.className = 'hyper-cell' + (j < on ? ' on' : '');
-      bar.appendChild(c2);
-    }
-    $('hyper-pct').textContent = Math.round(pct) + '%';
-    $('hyper-eta').textContent = eta ? ('ETA ' + formatEta(eta)) : '— PLOTTED —';
-  }
-}
-
-// Render crew assignments. Server emits crew as:
-//   {pilot, copilot, engineer, navigator, commander, sensors: {id,name,is_npc}|null,
-//    gunner_stations: {0: {id,name,is_npc}|null, 1: ..., ...}}
-function renderCrew(crew, myStation) {
-  var el = $('crew-list');
-  el.innerHTML = '';
-  var stations = [
-    ['pilot',     'PILOT'],
-    ['copilot',   'CO-PILOT'],
-    ['engineer',  'ENGINEER'],
-    ['navigator', 'NAV'],
-    ['sensors',   'SENSORS'],
-    ['commander', 'CMD'],
-  ];
-  stations.forEach(function(pair) {
-    var stKey = pair[0], stLabel = pair[1];
-    var member = crew[stKey];
-    if (!member && stKey !== 'pilot' && stKey !== 'gunner') {
-      // Hide unused optional stations unless someone's there
-      return;
-    }
-    var row = document.createElement('div');
-    row.className = 'crew-row-c';
-    var nameEl = document.createElement('span');
-    nameEl.className = 'crew-name-c';
-    if (!member) {
-      nameEl.textContent = 'VACANT';
-      nameEl.classList.add('empty');
-    } else {
-      nameEl.textContent = (member.name || 'Unknown').toUpperCase();
-      if (member.is_npc) nameEl.classList.add('npc');
-      if (myStation === stKey) nameEl.classList.add('me');
-    }
-    var stEl = document.createElement('span');
-    stEl.className = 'crew-station-c';
-    stEl.textContent = stLabel;
-    row.appendChild(nameEl); row.appendChild(stEl);
-    el.appendChild(row);
-  });
-  // Gunner stations (indexed: "0", "1", ...)
-  var gs = crew.gunner_stations || {};
-  Object.keys(gs).forEach(function(idx) {
-    var member = gs[idx];
-    if (!member) return;  // only show manned gunner positions
-    var row = document.createElement('div');
-    row.className = 'crew-row-c';
-    var nameEl = document.createElement('span');
-    nameEl.className = 'crew-name-c';
-    nameEl.textContent = (member.name || 'Unknown').toUpperCase();
-    if (member.is_npc) nameEl.classList.add('npc');
-    if (myStation === 'gunner') nameEl.classList.add('me');
-    var stEl = document.createElement('span');
-    stEl.className = 'crew-station-c';
-    stEl.textContent = 'GUN ' + idx;
-    row.appendChild(nameEl); row.appendChild(stEl);
-    el.appendChild(row);
-  });
-  // Fallback: entirely empty
-  if (el.childElementCount === 0) {
-    var empty = document.createElement('div');
-    empty.style.cssText = 'font-size:10px; color:var(--cock-cyan-dim); font-style:italic;';
-    empty.textContent = '— No crew data —';
-    el.appendChild(empty);
-  }
-}
-
-// Render contacts on the tactical radar.
-// Server contact shape: {name, ship_class, range: "close|medium|long",
-// position: "front|rear|left|right", hostile, is_player, archetype}.
-// We map: position → arc angle (front=270°/up, rear=90°/down, left=180°, right=0°),
-// range → radial distance (close=30, medium=58, long=85).
-// Multiple contacts at the same arc/range get spread along the arc.
-var RADAR_ARC_DEG  = { front: 270, rear: 90, left: 180, right: 0 };
-var RADAR_RANGE_R  = { close: 30,  medium: 58, long: 85 };
-function renderRadar(contacts) {
-  var g = $('radar-contacts');
-  if (!g) return;
-  while (g.firstChild) g.removeChild(g.firstChild);
-  if (!contacts || contacts.length === 0) {
-    $('tactical-hostiles').style.display = 'none';
-    return;
-  }
-  var ns = 'http://www.w3.org/2000/svg';
-  // Group by arc+range to spread overlapping contacts
-  var bucketed = {};
-  contacts.forEach(function(c) {
-    var k = (c.position || 'front') + '|' + (c.range || 'long');
-    (bucketed[k] = bucketed[k] || []).push(c);
-  });
-  var hostiles = 0;
-  Object.keys(bucketed).forEach(function(k) {
-    var bucket = bucketed[k];
-    var parts = k.split('|');
-    var pos = parts[0], rng = parts[1];
-    var baseDeg = RADAR_ARC_DEG[pos] !== undefined ? RADAR_ARC_DEG[pos] : 270;
-    var radius = RADAR_RANGE_R[rng] || 85;
-    var spread = bucket.length > 1 ? 30 : 0;  // ±15° spread for stacked contacts
-    bucket.forEach(function(c, idx) {
-      var deg = baseDeg + (bucket.length > 1 ? -spread / 2 + (idx * spread / Math.max(1, bucket.length - 1)) : 0);
-      var rad = (deg - 90) * Math.PI / 180;  // -90 because SVG 0° is right
-      var x = Math.cos(rad) * radius;
-      var y = Math.sin(rad) * radius;
-      var color, fillCls;
-      if (c.hostile)        { color = 'var(--cock-red)';   fillCls = 'hostile';  hostiles++; }
-      else if (c.is_player) { color = 'var(--cock-cyan)';  fillCls = 'friendly'; }
-      else                  { color = 'var(--cock-amber)'; fillCls = 'neutral'; }
-      var poly = document.createElementNS(ns, 'polygon');
-      // Triangle pointing toward center for hostiles, outward for friendlies
-      var pts = c.hostile
-        ? (x - 3) + ',' + (y - 3) + ' ' + (x + 3) + ',' + (y - 3) + ' ' + x + ',' + (y + 3)
-        : x + ',' + (y - 3.5) + ' ' + (x + 3) + ',' + (y + 2.5) + ' ' + (x - 3) + ',' + (y + 2.5);
-      poly.setAttribute('points', pts);
-      poly.setAttribute('fill', color);
-      var anim = document.createElementNS(ns, 'animate');
-      anim.setAttribute('attributeName', 'opacity');
-      anim.setAttribute('values', c.hostile ? '1;0.3;1' : '1;0.6;1');
-      anim.setAttribute('dur', c.hostile ? '1s' : '1.6s');
-      anim.setAttribute('repeatCount', 'indefinite');
-      poly.appendChild(anim);
-      g.appendChild(poly);
-      // Label — short form of name
-      var label = (c.name || c.ship_class || '?').substring(0, 8).toUpperCase();
-      var t = document.createElementNS(ns, 'text');
-      // Place label outside the marker, offset by arc angle so it doesn't overlap
-      var labelOffset = 7;
-      var lx = x + Math.cos(rad) * labelOffset;
-      var ly = y + Math.sin(rad) * labelOffset + 1.5;
-      t.setAttribute('x', lx); t.setAttribute('y', ly);
-      t.setAttribute('text-anchor', Math.abs(Math.cos(rad)) > 0.5 ? (Math.cos(rad) > 0 ? 'start' : 'end') : 'middle');
-      t.setAttribute('style', 'fill:' + color + '; font-size:5px; font-family:"IBM Plex Mono",monospace; opacity:0.85;');
-      t.textContent = label;
-      g.appendChild(t);
-    });
-  });
-  if (hostiles > 0) {
-    $('tactical-hostiles').style.display = '';
-    $('tactical-hostiles').textContent = hostiles + ' HOSTILE' + (hostiles > 1 ? 'S' : '');
-  } else {
-    $('tactical-hostiles').style.display = 'none';
-  }
-  // Bottom-left status: contact count + speed
-  var spd = lastSpace.speed !== undefined ? 'SPD ' + lastSpace.speed : '';
-  var cnt = contacts.length + ' CONTACT' + (contacts.length > 1 ? 'S' : '');
-  $('tactical-bl').textContent = [spd, cnt].filter(Boolean).join(' · ') || '—';
-}
-
-function showTargetLock(t) {
-  lastTargetLock = t;
-  var card = $('target-card');
-  card.classList.remove('no-lock');
-  $('target-name').textContent = (t.name || '—').toUpperCase();
-  $('target-faction').textContent = t.hostile ? 'HOSTILE'
-    : t.is_player ? 'ALLIED VESSEL'
-    : '';
-  $('target-stats').style.display = '';
-  // Range is "close"|"medium"|"long" from server
-  var rng = (t.range || '').toUpperCase();
-  var rngEl = $('ts-range');
-  rngEl.textContent = rng || '—';
-  rngEl.className = 'ts-val ' + (rng === 'CLOSE' ? 'closing' : rng === 'MEDIUM' ? 'holding' : '');
-  // Position is "front"|"rear"|"left"|"right"
-  var pos = (t.position || '').toUpperCase();
-  var POS_LABELS = { FRONT: 'FORE', REAR: 'AFT', LEFT: 'PORT', RIGHT: 'STBD' };
-  $('ts-arc').textContent = POS_LABELS[pos] || pos || '—';
-  $('ts-class').textContent = (t.ship_class || '—').toUpperCase();
-  // bonus_dice: integer pips from successive +lockon rolls (max +2D / +6 pips
-  // per R&E). Hardened against future schema drift: coerce to integer and
-  // fall back to '—' if it's something unexpected (e.g. a DicePool object).
-  var bonusRaw = t.bonus_dice;
-  var bonus = 0;
-  if (typeof bonusRaw === 'number' && isFinite(bonusRaw)) {
-    bonus = Math.floor(bonusRaw);
-  } else if (typeof bonusRaw === 'string' && /^\d+$/.test(bonusRaw)) {
-    bonus = parseInt(bonusRaw, 10);
-  } else if (bonusRaw && typeof bonusRaw === 'object') {
-    // Possible future: {dice: N, pips: N}
-    if (typeof bonusRaw.dice === 'number' && typeof bonusRaw.pips === 'number') {
-      bonus = bonusRaw.dice * 3 + bonusRaw.pips;
-    }
-  }
-  var bonusEl = $('ts-bonus');
-  if (bonus > 0) {
-    var dice = Math.floor(bonus / 3);
-    var pips = bonus % 3;
-    var pipStr = dice > 0 ? dice + 'D' + (pips > 0 ? '+' + pips : '') : '+' + pips;
-    bonusEl.textContent = pipStr;
-    bonusEl.className = 'ts-val closing';
-  } else {
-    bonusEl.textContent = '—';
-    bonusEl.className = 'ts-val';
-  }
-}
-
-function showNoTargetLock() {
-  lastTargetLock = null;
-  var card = $('target-card');
-  card.classList.add('no-lock');
-  $('target-name').textContent = '— NO LOCK —';
-  $('target-faction').textContent = '';
-  $('target-stats').style.display = 'none';
-}
-
-function setIndicator(id, on) {
-  var el = $(id);
-  if (!el) return;
-  if (on) { el.classList.add('on'); el.classList.remove('off'); }
-  else    { el.classList.add('off'); el.classList.remove('on'); }
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   SIDE PANEL HANDLERS — achievements, mail, places, rep
-   ════════════════════════════════════════════════════════════════════ */
-function handleAchievementsStatus(data) {
-  var unlocked = data.unlocked || [];
-  if (unlocked.length === 0) { $('ach-panel').style.display = 'none'; return; }
-  $('ach-panel').style.display = '';
-  $('ach-count').textContent = '· ' + unlocked.length;
-  var body = $('ach-body');
-  body.innerHTML = '';
-  unlocked.slice(-6).reverse().forEach(function(a) {
-    var d = document.createElement('div');
-    d.className = 'ach-item';
-    d.innerHTML = '<div class="ach-name">🏆 ' + escapeHtml(a.name || a.id) + '</div>' +
-                  (a.description ? '<div class="ach-desc">' + escapeHtml(a.description) + '</div>' : '');
-    body.appendChild(d);
-  });
-}
-
-function handleMailStatus(data) {
-  var unread = data.unread || 0;
-  var msgs = data.recent || [];
-  if (unread === 0 && msgs.length === 0) { $('mail-panel').style.display = 'none'; return; }
-  $('mail-panel').style.display = '';
-  $('mail-count').textContent = unread > 0 ? ('· ' + unread + ' unread') : '';
-  var body = $('mail-body');
-  body.innerHTML = '';
-  msgs.slice(0, 5).forEach(function(m) {
-    var d = document.createElement('div');
-    d.className = 'mail-item';
-    d.innerHTML = '<div class="mail-from">' + escapeHtml(m.from || '?') + '</div>' +
-                  '<div class="mail-subj">' + escapeHtml(m.subject || '(no subject)') + '</div>';
-    body.appendChild(d);
-  });
-}
-
-function handlePlacesStatus(data) {
-  var places = data.places || [];
-  if (places.length === 0) { $('places-panel').style.display = 'none'; return; }
-  $('places-panel').style.display = '';
-  $('places-count').textContent = '· ' + places.length;
-  var body = $('places-body');
-  body.innerHTML = '';
-  places.slice(0, 6).forEach(function(p) {
-    var d = document.createElement('div');
-    d.className = 'place-item';
-    d.innerHTML = '<div class="place-name">' + escapeHtml(p.name || '?') + '</div>' +
-                  (p.zone ? '<div class="place-zone">' + escapeHtml(p.zone) + '</div>' : '');
-    body.appendChild(d);
-  });
-}
-
-// Reputation panel — server emits hud.reputation as a dict keyed by faction
-// code: { empire: {rep, tier_key, tier_name, rank, rank_level, is_member}, ... }
-// We render members first, then non-zero rep, with tier name + numeric score.
-var FACTION_LABELS = {
-  empire:   'GALACTIC EMPIRE',
-  rebel:    'REBEL ALLIANCE',
-  hutt:     'HUTT CARTEL',
-  bh_guild: 'BOUNTY HUNTERS',
-};
-function renderReputation(rep) {
-  var entries = [];
-  if (rep && typeof rep === 'object' && !Array.isArray(rep)) {
-    Object.keys(rep).forEach(function(code) {
-      var r = rep[code] || {};
-      entries.push({
-        code: code,
-        label: FACTION_LABELS[code] || code.toUpperCase(),
-        rep: r.rep || 0,
-        tier_name: r.tier_name || '',
-        tier_key: r.tier_key || '',
-        rank: r.rank,
-        is_member: r.is_member,
-      });
-    });
-  } else if (Array.isArray(rep)) {
-    // Legacy/alt shape: [{faction, standing, label}]
-    rep.forEach(function(r) {
-      entries.push({
-        code: r.faction || r.code, label: (r.faction || r.name || '?').toUpperCase(),
-        rep: r.standing || r.value || 0, tier_name: r.label || '',
-      });
-    });
-  }
-  // Filter: only show members or non-zero rep
-  entries = entries.filter(function(e) { return e.is_member || e.rep !== 0; });
-  if (entries.length === 0) {
-    $('rep-panel').style.display = 'none';
-    return;
-  }
-  // Sort: members first, then by absolute rep desc
-  entries.sort(function(a, b) {
-    if (!!a.is_member !== !!b.is_member) return a.is_member ? -1 : 1;
-    return Math.abs(b.rep) - Math.abs(a.rep);
-  });
-  $('rep-panel').style.display = '';
-  var body = $('rep-body');
-  body.innerHTML = '';
-  entries.forEach(function(e) {
-    var row = document.createElement('div');
-    row.className = 'rep-row';
-    var sign = e.rep > 0 ? '+' : '';
-    var cls = e.rep > 0 ? 'rep-positive' : e.rep < 0 ? 'rep-negative' : '';
-    var tierLabel = e.tier_name ? e.tier_name.toUpperCase() : (sign + e.rep);
-    var memberMark = e.is_member ? '◆ ' : '';
-    var rankLine = (e.is_member && e.rank) ? ('<div class="rep-rank">' + escapeHtml(e.rank) + '</div>') : '';
-    row.innerHTML =
-      '<div style="display:flex; justify-content:space-between; align-items:baseline;">' +
-        '<span class="rep-name">' + memberMark + escapeHtml(e.label) + '</span>' +
-        '<span class="rep-val ' + cls + '">' + escapeHtml(tierLabel) + ' (' + sign + e.rep + ')</span>' +
-      '</div>' + rankLine;
-    body.appendChild(row);
-  });
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   TOAST NOTIFICATIONS — achievements, rank-ups, rep changes
-   ════════════════════════════════════════════════════════════════════ */
-function showToast(opts) {
-  var stack = $('toast-stack');
-  var t = document.createElement('div');
-  t.className = 'toast';
-  t.innerHTML =
-    '<div class="toast-head">' + escapeHtml(opts.head || 'NOTICE') + '</div>' +
-    '<div class="toast-body">' + escapeHtml(opts.body || '') + '</div>' +
-    (opts.sub ? '<div class="toast-sub">' + escapeHtml(opts.sub) + '</div>' : '');
-  t.addEventListener('click', function() { dismissToast(t); });
-  stack.appendChild(t);
-  setTimeout(function() { dismissToast(t); }, opts.duration || TOAST_DURATION_MS);
-}
-function dismissToast(t) {
-  if (!t || t.classList.contains('fade-out')) return;
-  t.classList.add('fade-out');
-  setTimeout(function() { if (t.parentNode) t.parentNode.removeChild(t); }, 240);
-}
-
-function handleAchievementUnlocked(data) {
-  showToast({ head: '🏆 ACHIEVEMENT', body: data.name || 'Unlocked!', sub: data.description || '' });
-}
-function handleRankUp(data) {
-  showToast({ head: '⬆ RANK UP · ' + (data.faction || ''), body: data.new_rank || 'Promoted!', sub: data.benefits || '' });
-}
-function handleRepChange(data) {
-  var sign = data.delta > 0 ? '+' : '';
-  showToast({
-    head: '⚔ REPUTATION · ' + (data.faction || ''),
-    body: sign + data.delta + ' standing',
-    sub: data.reason || ''
-  });
-}
-function handleCreditEvent(data) {
-  // Show delta in credits panel
-  var delta = data.delta || 0;
-  if (delta === 0) return;
-  var el = $('g-credits-delta');
-  el.textContent = (delta > 0 ? '+' : '') + formatNum(delta) + ' · ' + (data.reason || 'tx');
-  el.classList.remove('positive', 'negative', 'show');
-  void el.offsetWidth;  // restart
-  el.classList.add('show', delta > 0 ? 'positive' : 'negative');
-  setTimeout(function(){ el.classList.remove('show'); }, 2000);
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   ENCOUNTER CHOICES, BOARDING ALERTS, SPACE CHOICES
-   ════════════════════════════════════════════════════════════════════ */
-var encTimerHandle = null;
-function handleSpaceChoices(msg) {
-  var panel = $('encounter-panel');
-  $('enc-prompt').textContent = msg.prompt || 'Choose an action:';
-  var box = $('enc-choices');
-  box.innerHTML = '';
-  (msg.choices || []).forEach(function(c) {
-    var b = document.createElement('button');
-    b.className = 'enc-choice';
-    b.textContent = (c.key ? '[' + c.key.toUpperCase() + '] ' : '') + (c.label || c.text || '');
-    b.addEventListener('click', function() {
-      // Encounter choices are dispatched via 'respond <key|index>' — the
-      // server's RespondCommand routes to mgr.handle_response(). Sending
-      // the bare key (e.g. "comply") produces "Huh? Unknown command".
-      // Prefer key; fall back to numeric index; last-resort label (quoted).
-      var arg = c.key || (c.index != null ? String(c.index) : '') || c.cmd || c.label || '';
-      if (!arg) { dismissEncounter(); return; }
-      sendCmd('respond ' + arg);
-      dismissEncounter();
-    });
-    box.appendChild(b);
-  });
-  panel.classList.add('show');
-  if (msg.timeout) {
-    var endTs = Date.now() + msg.timeout * 1000;
-    if (encTimerHandle) clearInterval(encTimerHandle);
-    encTimerHandle = setInterval(function() {
-      var rem = Math.max(0, Math.round((endTs - Date.now()) / 1000));
-      $('enc-timer').textContent = rem > 0 ? '⏱ ' + rem + 's' : 'Time expired';
-      if (rem <= 0) { clearInterval(encTimerHandle); encTimerHandle = null; }
-    }, 250);
-  }
-}
-function dismissEncounter() {
-  $('encounter-panel').classList.remove('show');
-  if (encTimerHandle) { clearInterval(encTimerHandle); encTimerHandle = null; }
-  $('enc-timer').textContent = '';
-}
-function updateChoiceCountdown(msg) {
-  // Server may emit periodic countdown updates
-  if (msg.remaining !== undefined) $('enc-timer').textContent = '⏱ ' + msg.remaining + 's';
-}
-
-/* ════════════════════════════════════════════════════════════════════
-   MAP MODAL — S46 restore feature
-   Click ⛶ button on the tactical radar or sector map to open. The modal
-   clones the live mini-map SVG into a large container and upscales the
-   label font-sizes for readability. ESC / backdrop / close button all
-   dismiss.
-   ════════════════════════════════════════════════════════════════════ */
-var mapModalOpen = false;
-
-function openMapModal(kind) {
-  // kind: 'space' | 'ground'
-  var ov     = $('map-modal-overlay');
-  var modal  = $('map-modal');
-  var title  = $('map-modal-title');
-  var sub    = $('map-modal-sub');
-  var legend = $('map-modal-legend');
-  if (!ov || !modal) return;
-
-  // Variant theming + header text
-  modal.classList.toggle('variant-ground', kind === 'ground');
-  if (kind === 'space') {
-    title.textContent = '◎ TACTICAL';
-    var shipName = (lastSpace && lastSpace.ship_name) ? lastSpace.ship_name : '';
-    var zoneName = (lastSpace && lastSpace.zone_name) ? lastSpace.zone_name : '';
-    sub.textContent = [shipName, zoneName].filter(Boolean).join(' · ').toUpperCase();
-    legend.innerHTML =
-      '<span class="mml-item"><span class="mml-dot self"></span>YOU</span>' +
-      '<span class="mml-item"><span class="mml-dot hostile"></span>HOSTILE</span>' +
-      '<span class="mml-item"><span class="mml-dot friendly"></span>FRIENDLY / PLAYER</span>' +
-      '<span class="mml-item"><span class="mml-dot neutral"></span>NEUTRAL / NPC</span>';
-  } else {
-    title.textContent = '◉ SECTOR MAP';
-    var region = $('g-map-region');
-    sub.textContent = (region && region.textContent) ? region.textContent.toUpperCase() : '';
-    legend.innerHTML =
-      '<span class="mml-item">◉ YOU</span>' +
-      '<span class="mml-item">◇ EXIT</span>' +
-      '<span class="mml-item">◈ CONTESTED</span>' +
-      '<span class="mml-item">■ LAWLESS</span>';
-  }
-
-  renderMapModal(kind);
-  ov.classList.add('show');
-  mapModalOpen = true;
-}
-
-function closeMapModal() {
-  var ov = $('map-modal-overlay');
-  if (!ov) return;
-  ov.classList.remove('show');
-  mapModalOpen = false;
-  // Clear body so the next open is a fresh clone
-  var body = $('map-modal-body');
-  if (body) body.innerHTML = '';
-}
-
-function mapModalBackdropClick(evt) {
-  // [S60/P1 bug 3] Close if the click target is NOT inside the modal box.
-  // Previous check (evt.target.id === 'map-modal-overlay') only matched clicks
-  // that landed exactly on the 40px overlay padding and missed clicks that
-  // bubbled up through children of the overlay whose stopPropagation didn't
-  // fire (e.g. elements briefly detached or overlay-level siblings).
-  if (!evt || !evt.target) return;
-  var modal = document.getElementById('map-modal');
-  if (modal && !modal.contains(evt.target)) {
-    closeMapModal();
-  }
-}
-
-// Render the expanded map by cloning the live mini-map SVG and upscaling
-// label font-sizes so they're readable at modal size.
-function renderMapModal(kind) {
-  var body = $('map-modal-body');
-  if (!body) return;
-  body.innerHTML = '';
-
-  var srcId = (kind === 'space') ? 's-radar-svg' : 'g-area-map-svg';
-  var src = document.getElementById(srcId);
-  if (!src) {
-    body.innerHTML = '<div style="color:var(--accent-dim); font-family:var(--font-mono); font-size:12px;">No map data available.</div>';
-    return;
-  }
-
-  // Deep-clone the live SVG so the modal reflects current state.
-  var clone = src.cloneNode(true);
-  clone.removeAttribute('id');
-  clone.removeAttribute('style');
-  clone.setAttribute('width', '100%');
-  clone.setAttribute('height', '100%');
-  clone.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-
-  // [S60/P1a bug 1] Expand the cloned viewBox to absorb scaled-text overflow.
-  // Labels on the ground map are drawn at coords up to x≈370/y≈270 inside
-  // a 400×300 viewBox; scaling font-size 2.2× without touching the viewBox
-  // pushes text off the right/bottom edges. We pad each side by a fraction
-  // of the corresponding dimension.
-  //
-  // PAD_FACTOR is tuned empirically (not algebraically tied to TEXT_SCALE):
-  // worst-case overflow is a ~16-char label (half-width ~43 user units at
-  // 9px × 2.2 scale) anchored near the edge — so ~65 user units of margin
-  // on each side is sufficient for the ground map (400 wide × 0.175 ≈ 70).
-  // A factor of 0.35 gives 70 L/R and 52 T/B, which absorbs the overflow
-  // while keeping the actual map content occupying ~74% of the modal —
-  // the prior value (1.2, from TEXT_SCALE - 1) over-padded so heavily the
-  // map shrank to ~45% of the modal in both axes.
-  var TEXT_SCALE = 2.2;
-  var PAD_FACTOR = 0.35;  // see comment above — do NOT re-tie to TEXT_SCALE
-  var origVB = (clone.getAttribute('viewBox') || '').trim();
-  if (origVB) {
-    var parts = origVB.split(/[\s,]+/).map(parseFloat);
-    if (parts.length === 4 && parts.every(function(n) { return !isNaN(n); })) {
-      var vx = parts[0], vy = parts[1], vw = parts[2], vh = parts[3];
-      var padX = vw * PAD_FACTOR * 0.5;
-      var padY = vh * PAD_FACTOR * 0.5;
-      var newVB = (vx - padX) + ' ' + (vy - padY) + ' ' +
-                  (vw + padX * 2) + ' ' + (vh + padY * 2);
-      clone.setAttribute('viewBox', newVB);
-    }
-  }
-
-  // Upscale label font-sizes in the clone. The mini-map labels are sized
-  // for a 140px view; at modal size those become hard to read even though
-  // the SVG scales. Walk all <text> elements and bump the font-size by ~2x.
-  // We do this on the clone only — the live mini-map stays unchanged.
-  var texts = clone.querySelectorAll('text');
-  texts.forEach(function(t) {
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
     var style = t.getAttribute('style') || '';
     var m = style.match(/font-size\s*:\s*([\d.]+)px/);
     if (m) {
       var orig = parseFloat(m[1]);
-<<<<<<< HEAD
       var scaled = Math.max(orig * LABEL_SCALE, 5);
       style = style.replace(/font-size\s*:\s*[\d.]+px/, 'font-size:' + scaled.toFixed(2) + 'px');
       t.setAttribute('style', style);
@@ -5923,22 +5236,6 @@ function renderMapModal(kind) {
 
   // Bump hairline strokes that would otherwise vanish at modal size.
   clone.querySelectorAll('circle, line, path').forEach(function(el) {
-=======
-      var scaled = Math.max(orig * TEXT_SCALE, 4.5);
-      style = style.replace(/font-size\s*:\s*[\d.]+px/, 'font-size:' + scaled.toFixed(2) + 'px');
-      t.setAttribute('style', style);
-    } else {
-      // No explicit font-size — add one so the text is legible at scale.
-      var extra = (style ? style + ';' : '') + 'font-size:10px;font-family:"IBM Plex Mono",monospace;';
-      t.setAttribute('style', extra);
-    }
-  });
-
-  // Upscale stroke widths on rings / dividers so they don't become invisible
-  // hairlines at large size.
-  var strokables = clone.querySelectorAll('circle, line, path');
-  strokables.forEach(function(el) {
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
     var sw = el.getAttribute('stroke-width');
     if (sw) {
       var w = parseFloat(sw);
@@ -5955,7 +5252,6 @@ function renderMapModal(kind) {
       var r = parseFloat(c.getAttribute('r') || '0');
       if (r > 0) c.setAttribute('r', (r * 1.5).toFixed(2));
     });
-<<<<<<< HEAD
   }
 
   // ── Label collision resolution with leader lines (ground only) ──
@@ -5966,16 +5262,11 @@ function renderMapModal(kind) {
   // back to its room.
   if (kind !== 'space') {
     _resolveModalLabelCollisions(clone, vbX, vbY, vbW, vbH);
-=======
-    // Contact triangles were drawn as polygons with hard-coded offsets,
-    // so they scale with the SVG viewport — no extra work needed.
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
   }
 
   body.appendChild(clone);
 }
 
-<<<<<<< HEAD
 // Iteratively shift label local y-positions to remove AABB overlaps.
 // Operates on the cloned modal SVG; mini-map is untouched.
 function _resolveModalLabelCollisions(clone, vbX, vbY, vbW, vbH) {
@@ -6068,8 +5359,6 @@ function _resolveModalLabelCollisions(clone, vbX, vbY, vbW, vbH) {
   });
 }
 
-=======
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
 // Global ESC handler for the map modal. Installed at load time; defined
 // inline here so it lives next to the open/close handlers.
 (function installMapModalKeyHandler() {
@@ -6146,20 +5435,256 @@ function handleBoardingResolved(msg) {
      your_actions: [str], waiting_for: [name], pose_deadline: int|null }
    ════════════════════════════════════════════════════════════════════ */
 var lastCombatViewerName = null;
+/* ════════════════════════════════════════════════════════════════════
+   FIELD KIT v2 — Drop D-client.2 (Declaration Panel)
+
+   Theatre-conditional action sets for the combat declaration phase.
+   Each entry maps to a real parser command; tooltips are R&E-accurate
+   (per Rules & Expansions p79-86 for ground combat, Star Warriors p17
+   for space combat). F4: fullDefense intentionally absent — it was never
+   a parser command.
+
+   Action `kind`:
+     'send'  — fire-and-forget (e.g. dodge, fulldodge — single-token cmd)
+     'stage' — pre-fill the input so the player can append a target/arg
+
+   Tone is the visual role (red=offensive, amber=defensive/utility,
+   green=cover, dim=pass) and drives .cdp-btn.tone-* CSS classes.
+   ════════════════════════════════════════════════════════════════════ */
+var RE_DECL_ACTIONS = {
+  space: [
+    { id: 'fire',       label: 'FIRE',       cmd: 'fire',       kind: 'stage', tone: 'red',   desc: 'Attack the locked target with ship weapons. (Star Warriors p17)' },
+    { id: 'dodge',      label: 'DODGE',      cmd: 'dodge',      kind: 'send',  tone: 'amber', desc: 'Reactive dodge — raises difficulty for incoming fire. You can still act this round. (R&E p82)' },
+    { id: 'fulldodge',  label: 'FULL DODGE', cmd: 'fulldodge',  kind: 'send',  tone: 'amber', desc: 'Spend the whole round dodging. All incoming fire is rolled against your dodge total. No other actions this round. (R&E p82)' },
+    { id: 'evade',      label: 'EVADE',      cmd: 'evade',      kind: 'send',  tone: 'amber', desc: 'Evasive maneuvers — pilot bonus to ship defense. Can still act. (Star Warriors p21)' },
+    { id: 'aim',        label: 'AIM',        cmd: 'aim',        kind: 'send',  tone: 'amber', desc: 'Take careful aim — +1D to hit next round. (R&E p83)' },
+    { id: 'flee',       label: 'FLEE',       cmd: 'flee',       kind: 'send',  tone: 'amber', desc: 'Attempt to disengage from combat.' },
+    { id: 'pass',       label: 'PASS',       cmd: 'pass',       kind: 'send',  tone: 'dim',   desc: 'Hold action this round.' },
+  ],
+  ground: [
+    { id: 'attack',     label: 'ATTACK',     cmd: 'attack',     kind: 'stage', tone: 'red',   desc: 'Standard attack against a target. Uses your equipped weapon. (R&E p79)' },
+    { id: 'dodge',      label: 'DODGE',      cmd: 'dodge',      kind: 'send',  tone: 'amber', desc: 'Reactive dodge — raises difficulty for incoming attacks. You can still act this round. (R&E p82)' },
+    { id: 'fulldodge',  label: 'FULL DODGE', cmd: 'fulldodge',  kind: 'send',  tone: 'amber', desc: 'Spend the whole round dodging. All incoming attacks rolled against your dodge total. No other actions. (R&E p82)' },
+    { id: 'parry',      label: 'PARRY',      cmd: 'parry',      kind: 'send',  tone: 'amber', desc: 'Reactive melee parry against an incoming melee strike. (R&E p82)' },
+    { id: 'cover',      label: 'COVER',      cmd: 'cover',      kind: 'send',  tone: 'green', desc: 'Dive for cover — adds terrain cover dice to defense. (R&E p83)' },
+    { id: 'move',       label: 'MOVE',       cmd: 'move',       kind: 'stage', tone: 'amber', desc: 'Close, open range, or change position. Consumes your action this round.' },
+    { id: 'aim',        label: 'AIM',        cmd: 'aim',        kind: 'send',  tone: 'amber', desc: 'Take careful aim — +1D to hit next round. (R&E p83)' },
+    { id: 'pass',       label: 'PASS',       cmd: 'pass',       kind: 'send',  tone: 'dim',   desc: 'Hold action this round.' },
+  ],
+};
+
+/* renderDeclarationPanel — show/populate the combat-decl-panel based on
+   phase + viewer's declaration state. Called from handleCombatState. */
+function renderDeclarationPanel(data, theatre) {
+  var panel = $('combat-decl-panel');
+  if (!panel) return;
+
+  var phase = (data.phase || '').toLowerCase();
+  var alreadyDeclared = !!(data.your_actions && data.your_actions.length > 0);
+
+  // Hide the panel outside of declaration phase, or after the viewer
+  // has declared (the existing cs-actions-block already shows what was
+  // declared; reshowing buttons here would just confuse the surface).
+  if (phase !== 'declaration' || alreadyDeclared) {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = '';
+
+  // Update target hint (sourced from existing target lock for space, or
+  // simply blank for ground — engine-side target selection happens at
+  // attack-time on ground).
+  var tgtEl = $('cdp-target');
+  if (tgtEl) {
+    if (theatre === 'space' && lastTargetLock && lastTargetLock.name) {
+      tgtEl.innerHTML = 'TARGET: <b>' + escapeHtml(lastTargetLock.name) + '</b>';
+    } else {
+      tgtEl.textContent = '';
+    }
+  }
+
+  // Populate the action button row, replacing any prior content. We
+  // always rebuild — cheap, and keeps theatre transitions clean.
+  var actionsEl = $('cdp-actions');
+  if (!actionsEl) return;
+  actionsEl.innerHTML = '';
+  var actions = RE_DECL_ACTIONS[theatre] || RE_DECL_ACTIONS.ground;
+  actions.forEach(function(a) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cdp-btn tone-' + (a.tone || 'amber');
+    btn.textContent = a.label;
+    btn.title = a.desc;
+    btn.setAttribute('data-cdp-action', a.id);
+    btn.addEventListener('click', function() {
+      // 'send' = single-token immediate command (dodge, fulldodge, etc).
+      // 'stage' = pre-fill input so player can append target/arg.
+      if (a.kind === 'send') {
+        if (typeof sendCmd === 'function') {
+          sendCmd(a.cmd);
+        }
+      } else {
+        // stageCommand resolves a few special templates (fire/JUMP); for
+        // most ground+space staged actions we just pass a trailing space
+        // so the cursor lands right after the verb.
+        var template = a.cmd === 'fire' ? a.cmd : (a.cmd + ' ');
+        if (typeof stageCommand === 'function') {
+          stageCommand(template, a.id);
+        }
+      }
+    });
+    actionsEl.appendChild(btn);
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   FIELD KIT v2 — Drop D-client.3 (Posing Panel)
+
+   Body-level surface during the posing phase. Big timer counts down
+   from 180s default; engine can override via combat_state.pose_window_seconds
+   if/when that field lands. Surfaces the result of the round (what the
+   engine resolved) and primes the cpose command.
+
+   F3   — instructional text names cpose explicitly + notes that plain
+          pose / `:` does NOT register the round pose
+   F14  — totalSeconds default 180; engine override read from
+          data.pose_window_seconds when present
+
+   The timer ticks via setInterval at 500ms; that interval is started
+   when the panel becomes visible and cleared when it hides. Without
+   the interval, the timer would only update on the next combat_state
+   message (irregular cadence), and the bar would jump instead of
+   sweeping smoothly.
+   ════════════════════════════════════════════════════════════════════ */
+var POSE_PANEL_DEFAULT_SECONDS = 180;  // F14 — engine R&E default
+var posingPanelTimerHandle = null;
+var lastCombatStateData = null;        // captured by handleCombatState
+
+function _formatPoseTimer(secs) {
+  var mm = Math.floor(secs / 60);
+  var ss = secs % 60;
+  return mm + ':' + (ss < 10 ? '0' + ss : ss);
+}
+
+function _updatePosingPanelTick() {
+  // Read deadline from the most-recently-received combat_state. If we
+  // lose state, gracefully bail rather than throwing.
+  var d = lastCombatStateData;
+  var panel = $('combat-pose-panel');
+  if (!panel || !d || !d.pose_deadline) return;
+  var totalSeconds = (d.pose_window_seconds && d.pose_window_seconds > 0)
+    ? d.pose_window_seconds
+    : POSE_PANEL_DEFAULT_SECONDS;
+  var remaining = Math.max(0, Math.round(d.pose_deadline - Date.now() / 1000));
+  var pct = Math.max(0, Math.min(100, (remaining / totalSeconds) * 100));
+  var urgent = remaining < 30;
+
+  var timerEl = $('cpp-timer');
+  if (timerEl) {
+    timerEl.textContent = '⏱ ' + _formatPoseTimer(remaining)
+      + ' / ' + _formatPoseTimer(totalSeconds);
+  }
+  var barEl = $('cpp-bar-fill');
+  if (barEl) barEl.style.width = pct + '%';
+  panel.classList.toggle('urgent', urgent);
+}
+
+function _stopPosingPanelTimer() {
+  if (posingPanelTimerHandle) {
+    clearInterval(posingPanelTimerHandle);
+    posingPanelTimerHandle = null;
+  }
+}
+
+function renderPosingPanel(data, theatre) {
+  var panel = $('combat-pose-panel');
+  if (!panel) return;
+
+  var phase = (data.phase || '').toLowerCase();
+  if (phase !== 'posing') {
+    panel.style.display = 'none';
+    panel.classList.remove('urgent');
+    _stopPosingPanelTimer();
+    return;
+  }
+
+  panel.style.display = '';
+
+  // Result block — surface what the engine resolved this round for the
+  // viewer. data.your_actions is the same source the cs-actions block
+  // uses; we reformat into a single line for the result callout.
+  var resultEl = $('cpp-result-text');
+  if (resultEl) {
+    if (data.your_actions && data.your_actions.length > 0) {
+      resultEl.textContent = data.your_actions.join(' · ');
+    } else {
+      resultEl.textContent = '— resolution pending —';
+    }
+  }
+
+  // Wire (or rewire — idempotent) the prime button to stage 'cpose '.
+  // Using stageCommand keeps consistency with the rest of the surface
+  // (declaration buttons use it for target-required actions).
+  var primeBtn = $('cpp-prime-btn');
+  if (primeBtn && !primeBtn._fkBound) {
+    primeBtn.addEventListener('click', function() {
+      if (typeof stageCommand === 'function') {
+        stageCommand('cpose ', 'cpose');
+      }
+    });
+    primeBtn._fkBound = true;
+  }
+
+  // Initial render of timer/bar so the panel doesn't flash empty for up
+  // to 500ms while we wait for the first interval tick.
+  _updatePosingPanelTick();
+
+  // Start (or restart) the 500ms tick. Restarting on every combat_state
+  // message is fine — clearInterval + setInterval is cheap, and it keeps
+  // the timer aligned with the freshest deadline value.
+  _stopPosingPanelTimer();
+  posingPanelTimerHandle = setInterval(_updatePosingPanelTick, 500);
+}
+
 function handleCombatState(data) {
+  // D-client.3: capture for the posing panel's setInterval tick. Even
+  // when combat goes inactive we want this to be set so the timer can
+  // gracefully shut down rather than stale-render.
+  lastCombatStateData = data || null;
+
   var strip = $('combat-strip');
   if (!data || !data.active) {
     strip.classList.remove('show');
     strip.className = 'combat-strip';
+    strip.removeAttribute('data-theatre');
+    var declPanel = $('combat-decl-panel');
+    if (declPanel) declPanel.style.display = 'none';
+    var posePanel = $('combat-pose-panel');
+    if (posePanel) {
+      posePanel.style.display = 'none';
+      posePanel.classList.remove('urgent');
+    }
+    _stopPosingPanelTimer();
     return;
   }
   strip.classList.add('show');
   // Phase styling
   var phase = (data.phase || '').toLowerCase();
   strip.className = 'combat-strip show phase-' + phase;
+  // Drop D-client.1 (F6 foundation): theatre tint comes from the engine,
+  // not the app's broader mode. Default to ground per CombatInstance default.
+  var theatre = (data.theatre === 'space') ? 'space' : 'ground';
+  strip.setAttribute('data-theatre', theatre);
+
   var phaseEl = $('ch-phase');
   phaseEl.textContent = phase.toUpperCase();
   phaseEl.className = 'ch-phase ' + phase;
+  // Pulse on phases that are awaiting player input or actively unresolved.
+  // Mirrors prototype combat-hud.jsx PhasePill pulse map.
+  var pulse = (phase === 'initiative' || phase === 'declaration' || phase === 'posing');
+  if (pulse) phaseEl.setAttribute('data-pulse', '1');
+  else       phaseEl.removeAttribute('data-pulse');
+
   $('ch-round').textContent = 'RD ' + (data.round || 0);
 
   // Pose deadline countdown (if posing phase active)
@@ -6198,22 +5723,34 @@ function handleCombatState(data) {
     else                  classes.push('npc');
     if (c.declared) classes.push('declared');
     if (c.is_fleeing) classes.push('fleeing');
+    // Drop D-client.1 (F1): canonical 7-rung wound ladder. INCAP+ (level >= 4)
+    // drops opacity per prototype CombatantPip; we keep the legacy `.incap`
+    // class as a structural marker but the visual treatment now comes from
+    // the canonical ladder.
     if (c.wound_level >= 4) classes.push('incap');
     pip.className = classes.join(' ');
 
-    var woundCls = c.wound_level === 0 ? 'healthy'
-                 : c.wound_level <= 2 ? 'hurt'
-                 : 'bad';
+    // F1 — pull wound info from canonical ladder + theatre-aware palette.
+    var rung = (typeof woundRung === 'function')
+      ? woundRung(c.wound_level || 0)
+      : { label: (c.wound_name || ''), pen: '', sev: 'ok' };
+    var wColor = (typeof woundColor === 'function')
+      ? woundColor(rung.sev, theatre === 'space' ? 'cockpit' : 'pad')
+      : '';
     var initLbl = c.initiative > 0 ? c.initiative : '—';
     var actionTxt = c.action_summary
       ? escapeHtml(c.action_summary)
       : (c.declared ? 'declared' : '— pending —');
+    var woundLabel = rung.label + (rung.pen ? ' ' + rung.pen : '');
+    // Inline color is the canonical path; the legacy 3-bucket classes are
+    // intentionally NOT added so we never mask the inline color via CSS.
+    var woundStyle = wColor ? ' style="color:' + wColor + '"' : '';
 
     pip.innerHTML =
       '<div class="combatant-name" title="' + escapeHtml(c.name) + '">' + escapeHtml(c.name) + '</div>' +
       '<div class="combatant-meta">' +
         '<span class="combatant-init">⏵ ' + initLbl + '</span>' +
-        '<span class="combatant-wound ' + woundCls + '">' + escapeHtml((c.wound_name || '').toUpperCase()) + '</span>' +
+        '<span class="combatant-wound"' + woundStyle + '>' + escapeHtml(woundLabel) + '</span>' +
       '</div>' +
       '<div class="combatant-action' + (c.action_summary ? '' : ' empty') + '" title="' + actionTxt + '">' +
         actionTxt +
@@ -6245,6 +5782,14 @@ function handleCombatState(data) {
   } else {
     waitBlock.style.display = 'none';
   }
+
+  // D-client.2: render or hide the declaration button panel based on
+  // current phase + whether the viewer has declared.
+  renderDeclarationPanel(data, theatre);
+
+  // D-client.3: render or hide the posing panel based on phase. Starts
+  // its own 500ms tick when visible; cleared when hidden.
+  renderPosingPanel(data, theatre);
 }
 function handleShopState(_data) {
   // Shop browse is text-driven. Future enhancement: render an inline shop card.
@@ -6280,12 +5825,9 @@ function handlePoseEvent(msg) {
   var mode = msg.mode || '';
   var to = msg.to || null;
   var channel = msg.channel || null;
-<<<<<<< HEAD
   // Whoever's speaking/posing/whispering is now a known actor.
   rememberActorName(who);
   if (to) rememberActorName(to);
-=======
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
   var rowType = et;
   if (et === 'say' || et === 'pose' || et === 'emote' || et === 'whisper') {
     rowType = isSelfName(who) ? 'pose-self' : 'pose';
@@ -6427,11 +5969,7 @@ function submitLogin() {
   pendingUsername = user;
   awaitingAuth = true;
   try {
-<<<<<<< HEAD
     ws.send(JSON.stringify({ input: loginMode + ' ' + user + ' ' + pass }));
-=======
-    ws.send(JSON.stringify({ type: 'cmd', data: loginMode + ' ' + user + ' ' + pass }));
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
   } catch (e) {
     showLoginError('Send failed: ' + e.message);
     awaitingAuth = false;
@@ -6477,11 +6015,7 @@ function handleCharSelect(msg) {
 function selectCharacter(charId, charName) {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   try {
-<<<<<<< HEAD
     ws.send(JSON.stringify({ input: '__char_select__' + charId }));
-=======
-    ws.send(JSON.stringify({ type: 'cmd', data: '__char_select__' + charId }));
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
     var list = $('charselect-list');
     list.innerHTML = '<div style="font-size:13px; color:var(--pad-amber-bright); padding:20px; text-align:center; letter-spacing:2px;">▸ ENTERING GAME AS ' + escapeHtml(charName).toUpperCase() + '<span class="cursor-blink"></span></div>';
   } catch (e) {
@@ -6492,21 +6026,13 @@ function selectCharacter(charId, charName) {
 function requestNewChargen() {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   try {
-<<<<<<< HEAD
     ws.send(JSON.stringify({ input: '__request_chargen__' }));
-=======
-    ws.send(JSON.stringify({ type: 'cmd', data: '__request_chargen__' }));
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
   } catch (e) { showLoginError('Send failed: ' + e.message); }
 }
 
 function logout() {
   if (ws && ws.readyState === WebSocket.OPEN) {
-<<<<<<< HEAD
     try { ws.send(JSON.stringify({ input: 'quit' })); } catch (_) {}
-=======
-    try { ws.send(JSON.stringify({ type: 'cmd', data: 'quit' })); } catch (_) {}
->>>>>>> c41d0cffa3fc6e038abba23795a126918d5dda47
     try { ws.close(); } catch (_) {}
   }
   pendingUsername = '';

@@ -1409,8 +1409,11 @@ class PassCommand(BaseCommand):
 
 
 class CombatStatusCommand(BaseCommand):
-    key = "+combat"
-    aliases = ["combat", "cs", "+cs"]
+    # Pre-S57b key was "+combat"; demoted to "combat" so the +combat
+    # umbrella (CombatCommand) can occupy the canonical key. Original
+    # aliases preserved for backward compatibility.
+    key = "combat"
+    aliases = ["cs", "+cs"]
     help_text = "Show current combat status."
     usage = "+combat [/rolls|/status]"
     valid_switches = ["rolls", "status"]
@@ -1859,9 +1862,163 @@ async def try_nl_combat_action(ctx, raw_input: str) -> bool:
     return True
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# +combat — Umbrella for combat actions (S54 + S57b)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# This umbrella implements the S54 design: a single +-prefix entry
+# point with switch-style dispatch (`+combat/attack`, `+combat/dodge`,
+# etc.) plus a comprehensive alias list so muscle memory continues to
+# work. Each bare verb (attack, dodge, flee...) maps to a switch via
+# _ALIAS_TO_SWITCH; switches resolve to handlers via _SWITCH_IMPL.
+#
+# Per-verb command classes (AttackCommand, DodgeCommand, ...) remain
+# registered at their bare keys for backward compatibility. The
+# registry's `get()` prefers exact key matches over aliases, so typing
+# "attack" still reaches AttackCommand directly. The umbrella is for
+# the canonical `+combat/attack` form and the discoverability surface.
+
+# Switch → handler-class mapping. Populated by _init_switch_impl().
+_SWITCH_IMPL: dict = {}
+
+# Bare-alias → canonical-switch mapping. Lets the umbrella resolve
+# what `+combat` (no switch) or a bare alias should dispatch to.
+_ALIAS_TO_SWITCH: dict[str, str] = {
+    # Status / overview
+    "combat":      "status",
+    "cs":          "status",
+    "status":      "status",
+    # Attack family
+    "attack":      "attack",
+    "att":         "attack",
+    "kill":        "attack",
+    "shoot":       "attack",
+    "hit":         "attack",
+    # Dodge family
+    "dodge":       "dodge",
+    "fulldodge":   "fulldodge",
+    "fdodge":      "fulldodge",
+    # Parry family
+    "parry":       "parry",
+    "fullparry":   "fullparry",
+    "fparry":      "fullparry",
+    # Defensive / utility
+    "soak":        "soak",
+    "aim":         "aim",
+    # Movement / withdrawal
+    "flee":        "flee",
+    "run":         "flee",
+    "retreat":     "flee",
+    "pass":        "pass",
+    "disengage":   "disengage",
+    # Round resolution
+    "resolve":     "resolve",
+    # Tactical
+    "range":       "range",
+    "distance":    "range",
+    "cover":       "cover",
+    "hide":        "cover",
+    # Force points
+    "forcepoint":  "forcepoint",
+    "fp":          "forcepoint",
+    # Pose & rolls
+    "cpose":       "pose",
+    "combatpose":  "pose",
+    "crolls":      "rolls",
+    # Challenge subsystem
+    "challenge":   "challenge",
+    "duel":        "challenge",
+    "accept":      "accept",
+    "decline":     "decline",
+    "refuse":      "decline",
+}
+
+
+class CombatCommand(BaseCommand):
+    """`+combat` umbrella — see module docstring for dispatch rules."""
+    key = "+combat"
+    aliases: list[str] = [
+        "combat", "cs",
+        "attack", "att", "kill", "shoot", "hit",
+        "dodge", "fulldodge", "fdodge",
+        "parry", "fullparry", "fparry",
+        "soak", "aim",
+        "flee", "run", "retreat",
+        "pass", "disengage",
+        "resolve",
+        "range", "distance",
+        "cover", "hide",
+        "forcepoint", "fp",
+        "cpose", "combatpose",
+        "crolls",
+        "challenge", "duel",
+        "accept", "decline", "refuse",
+    ]
+    help_text = (
+        "Combat verbs. Canonical form '+combat/attack <target>', or "
+        "use bare verbs (attack, dodge, parry, ...). Type 'help +combat' "
+        "for the full reference."
+    )
+    usage = "+combat[/<switch>] [args]  — see 'help +combat'"
+    valid_switches: list[str] = [
+        "attack", "dodge", "fulldodge", "parry", "fullparry",
+        "soak", "aim", "flee", "disengage", "pass", "resolve",
+        "range", "cover", "forcepoint", "pose", "rolls",
+        "challenge", "accept", "decline", "status",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        # Resolve switch: explicit /switch wins, then alias map, else status.
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            switch = _ALIAS_TO_SWITCH.get(
+                ctx.command.lower() if ctx.command else "",
+                "status",
+            )
+
+        impl_cls = _SWITCH_IMPL.get(switch)
+        if impl_cls is None:
+            await ctx.session.send_line(self.help_text)
+            return
+
+        # Hand off to the per-verb command class.
+        cmd = impl_cls()
+        await cmd.execute(ctx)
+
+
+def _init_switch_impl():
+    """Populate _SWITCH_IMPL after all per-verb classes are defined."""
+    _SWITCH_IMPL["attack"]     = AttackCommand
+    _SWITCH_IMPL["dodge"]      = DodgeCommand
+    _SWITCH_IMPL["fulldodge"]  = FullDodgeCommand
+    _SWITCH_IMPL["parry"]      = ParryCommand
+    _SWITCH_IMPL["fullparry"]  = FullParryCommand
+    _SWITCH_IMPL["soak"]       = SoakCommand
+    _SWITCH_IMPL["aim"]        = AimCommand
+    _SWITCH_IMPL["flee"]       = FleeCommand
+    _SWITCH_IMPL["pass"]       = PassCommand
+    _SWITCH_IMPL["status"]     = CombatStatusCommand
+    _SWITCH_IMPL["resolve"]    = ResolveCommand
+    _SWITCH_IMPL["disengage"]  = DisengageCommand
+    _SWITCH_IMPL["range"]      = RangeCommand
+    _SWITCH_IMPL["cover"]      = CoverCommand
+    _SWITCH_IMPL["forcepoint"] = ForcePointCommand
+    _SWITCH_IMPL["pose"]       = CombatPoseCommand
+    _SWITCH_IMPL["rolls"]      = CombatRollsCommand
+    _SWITCH_IMPL["challenge"]  = ChallengeCommand
+    _SWITCH_IMPL["accept"]     = AcceptCommand
+    _SWITCH_IMPL["decline"]    = DeclineCommand
+
+
+# NOTE: _init_switch_impl() is called at the very end of the module
+# (see bottom of file) so all referenced per-verb classes are defined.
+
+
 def register_combat_commands(registry):
     """Register all combat commands."""
     cmds = [
+        CombatCommand(),
         AttackCommand(), DodgeCommand(), FullDodgeCommand(),
         ParryCommand(), FullParryCommand(), SoakCommand(),
         AimCommand(), FleeCommand(), PassCommand(),
@@ -2143,3 +2300,8 @@ class DeclineCommand(BaseCommand):
                     f"  \033[2m{char['name']} declines your challenge.\033[0m"
                 )
                 break
+
+
+# ── S54: populate _SWITCH_IMPL after all per-verb classes are defined ──
+_init_switch_impl()
+

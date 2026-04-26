@@ -1,0 +1,164 @@
+# data/worlds/clone_wars/npcs_cw_additions.yaml
+# Clone Wars Era — NPC additions to data/npcs_gg7.yaml
+# Schema version 1
+#
+# This file contains CW-specific NPC additions that supplement the GG7
+# NPC roster (data/npcs_gg7.yaml). Schema mirrors npcs_gg7.yaml exactly:
+#   - name, room, species, description
+#   - char_sheet: attributes, skills, weapon, move, points
+#   - ai_config: personality, knowledge, faction, dialogue_style,
+#                hostile, combat_behavior, fallback_lines
+#
+# Loaded alongside npcs_gg7.yaml when era == clone_wars. Engine session
+# extends engine/npc_loader.py to read both files and merge into the
+# build_mos_eisley.py NPC creation pass.
+#
+# ─── Authoring scope ──────────────────────────────────────────────────
+#
+# This file authors NPCs called for by other CW design docs but not
+# yet living anywhere in code. As of v7:
+#
+# 1. Vela Niree — Twi'lek dancer in Chalmun's Cantina. Source:
+#    jedi_village_quest_design_v1.md §3.3 ("A drunken Twi'lek in
+#    Chalmun's Cantina has a 3% chance per visit of muttering about
+#    'the old hermit in the deep dunes who knows things he shouldn't.'")
+#    She is the Mos Eisley old-Jedi rumor producer for the Village
+#    quest's pre-discovery lore foreshadow.
+#
+# Future drops add more NPCs to this file as design docs surface
+# additional roles (Coruscant-side NPCs, Uscru Fringe brokers if they
+# end up in Mos Eisley scope, etc.).
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+npcs:
+
+  # ─── Vela Niree — Twi'lek rumor producer ───────────────────────────
+  - name: "Vela Niree"
+    room: "Chalmun's Cantina - Main Room"
+    species: "Twi'lek"
+    description: >
+      A green-skinned Twi'lek dancer in faded silks, perched on a bar
+      stool with a half-empty glass of something cloudy. Her lekku
+      twitch occasionally. She looks like someone who has been here
+      since the suns came up.
+
+    char_sheet:
+      attributes:
+        dexterity: "3D"
+        knowledge: "2D+2"
+        mechanical: "2D"
+        perception: "3D+1"
+        strength: "2D+1"
+        technical: "2D"
+      skills:
+        bargain: "3D+1"
+        con: "3D+2"
+        dodge: "3D+2"
+        languages: "3D"          # Twi'leki, Basic, broken Huttese
+        persuasion: "3D"
+        sneak: "3D"
+        streetwise_tatooine: "4D"
+      weapon: "hold_out_blaster"
+      move: 10
+      force_points: 1
+      character_points: 4
+      dark_side_points: 0
+
+    ai_config:
+      personality: >
+        Vela is a former dancer who has worked Mos Eisley for fifteen
+        years. She is smart, watchful, and habitually drunk by midday.
+        She picks up rumors as part of her work and sometimes lets one
+        slip when she has had too much to drink. She is not a fool;
+        even drunk she does not name names. The Village rumor she
+        carries is something she heard from a Jawa scavenger who
+        heard it from a moisture farmer's son. She has never seen
+        the place herself and does not believe it exists. But.
+
+      knowledge:
+        - "There is an old hermit in the deep dunes — past the Anchor Stones, where sandcrawlers do not go"
+        - "Some moisture farmers' children have gone out there, trying to find him"
+        - "A Jawa told her about it three years ago; he was sure of what he had seen"
+        - "Whatever is out there, the Tuskens stay away from it"
+        - "Jabba's enforcers have heard the rumor too. They have not pursued it."
+        - "She does not believe the hermit exists. The rumor is older than she is."
+
+      faction: "Neutral"
+      dialogue_style: >
+        Slurred but precise. Vela's drunkenness shows in her timing —
+        she pauses too long, then says something exact. Speaks in
+        short phrases punctuated by sips.
+      hostile: false
+      combat_behavior: "defensive"
+
+      # The rumor producer mechanic: per Village design §3.3, Vela has
+      # a 3% chance per cantina visit of muttering the rumor unprompted.
+      # Engine session reads this rumor_chance field on room-entered
+      # events and triggers the rumor_lines roll.
+      rumor_producer:
+        trigger: room_entered
+        chance_per_visit: 0.03
+        cooldown_minutes: 1440          # 24h between mutters per character
+        rumor_lines:
+          - "Vela mutters into her glass: 'The old one. Past the stones. Past where you'd think to walk.' She does not look at you."
+          - "Vela's lekku twitch. 'They say there's a man out there who knows things he shouldn't. Knows them anyway.' She drinks."
+          - "Vela leans toward the bar. 'A Jawa told me — three years ago, this was — a Jawa. They saw the smoke from a cookfire where there shouldn't be a cookfire. Past the Anchor Stones.' She shrugs. 'Probably nothing.'"
+          - "Vela's voice drops. 'Tuskens won't go there. Jabba won't send anyone there. You think about what that means.' She holds out her glass for a refill."
+          - "Vela laughs without humor. 'A hermit. In the deep dunes. Like an old Jedi. Old Jedi don't exist anymore — that's what I'm told.' She does not say who told her."
+
+      # Standard fallback lines for non-rumor interactions
+      fallback_lines:
+        - "Vela glances up briefly. 'Buy a girl a drink?'"
+        - "'Wuher won't serve me again until I pay my tab. So.'"
+        - "Vela's lekku twitch in your direction. She doesn't speak."
+        - "'The cantina is the same as yesterday. So am I.'"
+        - "Vela laughs at a joke nobody told. She is alone again afterward."
+
+      # If a player explicitly asks her about the hermit / dunes / Anchor
+      # Stones, she sobers slightly and gives a more-on-record version.
+      # Engine session wires this as a `talk Vela about <topic>` branch.
+      directed_responses:
+        about_hermit:
+          - "Vela's drink stops halfway to her lips. She sets it down. 'I don't know anything about a hermit. I drink. I dance. I hear things. I forget most of them.' Pause. 'You should forget the hermit, too.'"
+        about_anchor_stones:
+          - "'The Anchor Stones are old. Older than Basic. Older than the Republic. Walk west from them at first light if you're going to walk at all.' She catches herself. 'Why am I telling you that.'"
+        about_jedi:
+          - "Vela's face closes. 'Jedi. There aren't Jedi anymore. There's a war fought by Jedi, far from here. That's not the same thing.' She turns away."
+
+# ═══════════════════════════════════════════════════════════════════════
+# ENGINE INTEGRATION NOTES
+# ═══════════════════════════════════════════════════════════════════════
+# When the engine session lands:
+#
+# 1. engine/npc_loader.py extends to read both data/npcs_gg7.yaml AND
+#    data/worlds/clone_wars/npcs_cw_additions.yaml when the active era
+#    is clone_wars. The merge is additive — npcs_gg7.yaml NPCs all
+#    spawn; this file's NPCs spawn alongside.
+#
+# 2. The rumor_producer block is a new optional NPC sub-feature.
+#    Engine session implements:
+#      - On room-entered event for a room containing a rumor_producer
+#        NPC, roll d100 < (chance_per_visit * 100).
+#      - If the roll succeeds, check the cooldown_minutes timer for
+#        this character + this NPC pair. If expired, fire one line
+#        from rumor_lines (random selection) and reset the timer.
+#      - The rumor surfaces as ambient flavor — not a direct talk
+#        interaction.
+#
+# 3. The directed_responses block is a new dialogue extension.
+#    Engine session wires `talk <npc> about <topic>` to look up the
+#    topic in directed_responses; if found, fire a random response
+#    from the list. If not found, fall through to fallback_lines.
+#
+# 4. The Village quest's force_sign_seeds block (in jedi_village.yaml)
+#    references the Anchor Stones as a Force-sign trigger location
+#    independently of Vela's rumor. Vela's rumor is FORESHADOW only —
+#    she does not set any flags, does not increment force_sign_count,
+#    does not unlock anything. She produces the satisfying "oh, that"
+#    click when the player later receives the Village invitation
+#    (which happens via Force-sensitive flag, not via Vela contact).
+#
+# ═══════════════════════════════════════════════════════════════════════

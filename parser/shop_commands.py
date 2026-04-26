@@ -33,7 +33,7 @@ log = logging.getLogger(__name__)
 
 class ShopCommand(BaseCommand):
     key = "shop"
-    aliases = ["+shop", "shopinfo"]
+    aliases = ["shopinfo"]
     help_text = (
         "Manage your vendor droid player shop.\n"
         "\n"
@@ -827,7 +827,93 @@ async def _send_shop_browse(session, droids: list, focused_id=None) -> None:
         pass  # Non-critical — text output already sent
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# +shop — Forwarding umbrella (S58)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Routes the four shop-related entry points:
+#   - shop      → ShopCommand (manage your vendor droid)
+#   - browse    → BrowseCommand (browse another player's shop)
+#   - market    → MarketSearchCommand (search planet directory)
+#   - admin     → AdminShopCommand (`@shop` admin)
+# Verbs in valid_switches (buy/place/stock/collect/sales) forward to
+# ShopCommand which already dispatches them.
+
+_SHOP_SWITCH_IMPL: dict = {}
+
+_SHOP_ALIAS_TO_SWITCH: dict[str, str] = {
+    "":         "shop",
+    "info":     "shop",
+    "view":     "shop",
+    "shopinfo": "shop",
+}
+
+
+class ShopUmbrellaCommand(BaseCommand):
+    """`+shop` umbrella — see module docstring for forwarding rules."""
+    key = "+shop"
+    aliases: list[str] = []
+    help_text = (
+        "Vendor droid shop verbs. Try '+shop' (your shop), "
+        "'+shop browse <player>', '+shop market', '+shop buy <item>'. "
+        "Type 'help +shop' for the full reference."
+    )
+    usage = "+shop [verb] [args]  — see 'help +shop'"
+    valid_switches: list[str] = [
+        "shop", "browse", "market", "admin",
+        "buy", "place", "stock", "collect", "sales",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        args = ctx.args.strip() if ctx.args else ""
+        first, _, rest = args.partition(" ")
+        switch = _SHOP_ALIAS_TO_SWITCH.get(first.lower(), first.lower())
+
+        impl = _SHOP_SWITCH_IMPL.get(switch)
+        if impl is not None:
+            await impl(ctx, rest)
+            return
+
+        # Sub-arg verbs (buy/place/stock/collect/sales) → forward to ShopCommand.
+        if switch in self.valid_switches:
+            forwarded = ShopCommand()
+            ctx.args = args
+            await forwarded.execute(ctx)
+            return
+
+        await ctx.session.send_line(self.help_text)
+
+
+def _init_shop_switch_impl():
+    """Wire forwarding handlers into _SHOP_SWITCH_IMPL."""
+    async def _shop(ctx, rest):
+        cmd = ShopCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _browse(ctx, rest):
+        cmd = BrowseCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _market(ctx, rest):
+        cmd = MarketSearchCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    async def _admin(ctx, rest):
+        cmd = AdminShopCommand()
+        ctx.args = rest
+        await cmd.execute(ctx)
+
+    _SHOP_SWITCH_IMPL["shop"] = _shop
+    _SHOP_SWITCH_IMPL["browse"] = _browse
+    _SHOP_SWITCH_IMPL["market"] = _market
+    _SHOP_SWITCH_IMPL["admin"] = _admin
+
+
 def register_shop_commands(registry):
+    registry.register(ShopUmbrellaCommand())
     registry.register(ShopCommand())
     registry.register(BrowseCommand())
     registry.register(AdminShopCommand())
@@ -952,4 +1038,9 @@ class MarketSearchCommand(BaseCommand):
 
         for line in lines:
             await ctx.session.send_line(line)
+
+
+
+# ── S58 +shop umbrella init (runs after all referenced classes are defined) ──
+_init_shop_switch_impl()
 

@@ -1,0 +1,323 @@
+# data/worlds/clone_wars/director_config.yaml
+# Clone Wars Era — Director AI Configuration
+# Schema version 1
+#
+# This file is the data-side authority for the CW Director's behavioral
+# knobs. The engine currently hardcodes equivalent values in
+# engine/director.py:
+#   - VALID_FACTIONS frozenset (line 48)
+#   - DEFAULT_INFLUENCE dict (line 57-64) — only 6 generic zones
+#   - system_prompt string (line 678-715)
+#
+# When Drop 6a lands, engine/director.py reads from this file (era-keyed)
+# instead of source constants. Until then, this file is inert at runtime.
+#
+# Per clone_wars_era_design_v3.md §11.3 item 7 + §8.5: Director config
+# data-fication ships as Drop 6a (refactor) ahead of the full pivot.
+# The GCW counterpart YAML (with byte-equivalent values to current
+# hardcoded constants) is authored in F.10d-equivalent for regression.
+# This file is the CW config that takes over once Drop 6a's flag flips.
+
+schema_version: 1
+
+# ═══════════════════════════════════════════════════════════════════════
+# FACTION MODEL
+# ═══════════════════════════════════════════════════════════════════════
+# These factions appear in zone influence scores and faction_status
+# digest blocks. Must match codes in organizations.yaml.
+
+valid_factions:
+  - republic              # Galactic Republic — light-lean, primary order axis
+  - cis                   # Confederacy of Independent Systems — dark-lean
+  - jedi_order            # Jedi Order — light, locked, Village-gated for PCs
+  - hutt_cartel           # Hutt Cartel — neutral, criminal-coded
+  - bhg                   # Bounty Hunters Guild — neutral, contract-coded
+  - independent           # Default — unaligned
+
+# NPC-only factions tracked for Director narration but not joinable.
+# These do NOT appear in zone influence scores; they affect milestone
+# events and ambient flavor only.
+npc_only_factions:
+  - sith                  # Dooku/Sidious axis — covert, atmospheric
+  - separatist_council    # CIS oligarchy — narrated as CIS overlay
+
+# Influence score range
+influence_min: 0
+influence_max: 100
+
+# Maximum delta the Director can apply per adjustment turn.
+# Same value as GCW for behavioral parity; kept here for tunability.
+max_delta_per_turn: 5
+
+# ═══════════════════════════════════════════════════════════════════════
+# ZONE BASELINES — STARTING INFLUENCE SCORES
+# ═══════════════════════════════════════════════════════════════════════
+# Per-zone faction influence scores at era launch. The Director adjusts
+# these over time based on player actions and narrative events. These
+# are the "day-one defaults" for fresh DBs.
+#
+# Zone keys MUST match name_match keys in zones.yaml (so the Director's
+# narrative_tone lookup and influence lookup share the same key).
+#
+# Reading the numbers: republic+cis sum is roughly the "war presence"
+# score for that zone; jedi_order is independent of that axis (a Jedi
+# Temple zone has high jedi_order regardless of war alignment); hutt and
+# bhg are independent criminal-axis scores; independent is the baseline
+# civilian density.
+#
+# NOT all factions sum to 100 per zone. Influences are independent
+# dimensions, not a probability distribution.
+
+zone_baselines:
+
+  # ── Tatooine — Hutt-dominated neutral ─────────────────────────────────
+  # Republic and CIS both have low presence. Hutts dominate. Independent
+  # civilians + spacers are the actual majority.
+  tatooine_mos_eisley:    { republic: 15, cis: 10, jedi_order: 5,  hutt_cartel: 70, bhg: 35, independent: 50 }
+  tatooine_spaceport:     { republic: 25, cis: 15, jedi_order: 5,  hutt_cartel: 55, bhg: 30, independent: 60 }
+  tatooine_cantina:       { republic: 10, cis: 10, jedi_order: 5,  hutt_cartel: 65, bhg: 45, independent: 55 }
+  tatooine_market:        { republic: 10, cis: 5,  jedi_order: 5,  hutt_cartel: 55, bhg: 25, independent: 60 }
+  tatooine_civic:         { republic: 20, cis: 5,  jedi_order: 5,  hutt_cartel: 80, bhg: 15, independent: 30 }
+  tatooine_outskirts:     { republic: 5,  cis: 5,  jedi_order: 5,  hutt_cartel: 35, bhg: 15, independent: 65 }
+  tatooine_jundland:      { republic: 0,  cis: 0,  jedi_order: 5,  hutt_cartel: 10, bhg: 10, independent: 25 }
+  tatooine_dune_sea:      { republic: 0,  cis: 0,  jedi_order: 10, hutt_cartel: 5,  bhg: 5,  independent: 15 }
+
+  # ── Nar Shaddaa — Hutt Space, neutral profiteering ────────────────────
+  # Both Republic and CIS run agents here. Hutts dominate openly.
+  nar_shaddaa_landing:    { republic: 15, cis: 15, jedi_order: 5,  hutt_cartel: 75, bhg: 50, independent: 55 }
+  nar_shaddaa_promenade:  { republic: 10, cis: 15, jedi_order: 5,  hutt_cartel: 80, bhg: 50, independent: 60 }
+  nar_shaddaa_undercity:  { republic: 5,  cis: 10, jedi_order: 5,  hutt_cartel: 70, bhg: 35, independent: 50 }
+  nar_shaddaa_warrens:    { republic: 0,  cis: 5,  jedi_order: 5,  hutt_cartel: 45, bhg: 20, independent: 35 }
+
+  # ── Coruscant — Republic capital, Jedi heart ──────────────────────────
+  # High Republic presence everywhere. Jedi Order spike at the Temple.
+  # Hutt presence increases in the lower levels; CIS presence is covert.
+  coruscant_senate:       { republic: 90, cis: 5,  jedi_order: 25, hutt_cartel: 5,  bhg: 5,  independent: 30 }
+  coruscant_temple:       { republic: 70, cis: 0,  jedi_order: 95, hutt_cartel: 0,  bhg: 0,  independent: 15 }
+  coruscant_upper:        { republic: 80, cis: 5,  jedi_order: 15, hutt_cartel: 5,  bhg: 5,  independent: 45 }
+  coruscant_midlevels:    { republic: 60, cis: 10, jedi_order: 10, hutt_cartel: 20, bhg: 15, independent: 65 }
+  coruscant_lower:        { republic: 40, cis: 15, jedi_order: 5,  hutt_cartel: 35, bhg: 30, independent: 60 }
+  coruscant_works:        { republic: 35, cis: 20, jedi_order: 5,  hutt_cartel: 40, bhg: 25, independent: 55 }
+  coruscant_underworld:   { republic: 15, cis: 25, jedi_order: 5,  hutt_cartel: 55, bhg: 40, independent: 50 }
+
+  # ── Kuat — Republic shipyard world ────────────────────────────────────
+  # Heavy Republic presence (KSF + KDY contracts). CIS espionage is
+  # active but covert. Independent merchant houses are economically large
+  # but lobby-coded as Republic-aligned.
+  kuat_transit:           { republic: 75, cis: 5,  jedi_order: 5,  hutt_cartel: 5,  bhg: 5,  independent: 50 }
+  kuat_orbital:           { republic: 85, cis: 10, jedi_order: 5,  hutt_cartel: 0,  bhg: 5,  independent: 35 }
+  kuat_surface:           { republic: 70, cis: 5,  jedi_order: 10, hutt_cartel: 5,  bhg: 5,  independent: 45 }
+
+  # ── Kamino — Republic-restricted clone facility ───────────────────────
+  # Locked-down Republic territory. CIS presence near-zero (the few CIS
+  # infiltrators here are post-launch content). Civilians do not exist
+  # here in any meaningful sense.
+  kamino_tipoca:          { republic: 95, cis: 0,  jedi_order: 15, hutt_cartel: 0,  bhg: 0,  independent: 10 }
+  kamino_training:        { republic: 90, cis: 0,  jedi_order: 5,  hutt_cartel: 0,  bhg: 0,  independent: 15 }
+  kamino_ocean:           { republic: 80, cis: 5,  jedi_order: 5,  hutt_cartel: 0,  bhg: 0,  independent: 10 }
+
+  # ── Geonosis — CIS heartland, contested ───────────────────────────────
+  # CIS dominance everywhere. Republic presence is raid-only (transient).
+  # No real civilian baseline.
+  geonosis_arena:         { republic: 25, cis: 70, jedi_order: 5,  hutt_cartel: 0,  bhg: 10, independent: 5 }
+  geonosis_foundries:     { republic: 5,  cis: 90, jedi_order: 0,  hutt_cartel: 0,  bhg: 5,  independent: 5 }
+  geonosis_wastes:        { republic: 15, cis: 75, jedi_order: 5,  hutt_cartel: 0,  bhg: 10, independent: 10 }
+  geonosis_tunnels:       { republic: 10, cis: 85, jedi_order: 0,  hutt_cartel: 0,  bhg: 5,  independent: 5 }
+
+  # ── Space narrative-tone zones ────────────────────────────────────────
+  # These keys match space_tatooine, space_nar_shaddaa, etc. in zones.yaml.
+  # Lower numbers reflect transient nature of space presence vs ground.
+  space_tatooine:         { republic: 25, cis: 15, jedi_order: 5,  hutt_cartel: 35, bhg: 20, independent: 45 }
+  space_nar_shaddaa:      { republic: 20, cis: 25, jedi_order: 5,  hutt_cartel: 60, bhg: 30, independent: 50 }
+  space_coruscant:        { republic: 95, cis: 5,  jedi_order: 15, hutt_cartel: 5,  bhg: 5,  independent: 40 }
+  space_kuat:             { republic: 90, cis: 10, jedi_order: 5,  hutt_cartel: 0,  bhg: 5,  independent: 30 }
+  space_kamino:           { republic: 95, cis: 5,  jedi_order: 5,  hutt_cartel: 0,  bhg: 0,  independent: 5 }
+  space_geonosis:         { republic: 30, cis: 80, jedi_order: 5,  hutt_cartel: 0,  bhg: 10, independent: 5 }
+
+# ═══════════════════════════════════════════════════════════════════════
+# DIRECTOR SYSTEM PROMPT
+# ═══════════════════════════════════════════════════════════════════════
+# Replaces the GCW prompt at engine/director.py:678-715 when this file
+# is consumed. The engine substitutes faction codes via {faction_list}
+# rather than hardcoding (so refactor decouples enum from text).
+
+system_prompt: |
+  You are the Director AI for a Star Wars MUSH set in the Clone Wars era,
+  approximately 20 BBY, mid-war. The campaign spans Coruscant, Kuat,
+  Geonosis, Kamino, Tatooine, and Nar Shaddaa.
+
+  Your role is to evaluate the current state of the galaxy and decide
+  what happens next at the MACRO level. You never narrate player actions
+  or describe what individual characters do. You move the unseen pieces:
+  faction responses, economic shifts, atmospheric changes, and emerging
+  threats.
+
+  You are guided by these principles:
+  - The Republic fights a two-front war: Separatists in the Outer Rim,
+    corruption in the Senate. Neither front is fully visible to the other.
+  - The Jedi Order is present but depleted. A Jedi appearing in a scene
+    changes its tone — it should feel notable, never routine.
+  - The Confederacy of Independent Systems is a coalition of greed wearing
+    the robes of rebellion. Their droid armies are relentless but impersonal.
+    Their leadership is human; their will to fight, mostly not.
+  - The Hutt Cartel profits from both sides. They will sell to anyone with
+    credits and will not pick a side in this war.
+  - Coruscant is the galaxy's heart — gleaming above, rotting below. The
+    upper levels deny the war; the lower levels live it.
+  - Tatooine and Nar Shaddaa are off the main fronts. The war touches them
+    as rumor, profit opportunity, and occasional patrol — not occupation.
+  - The dark side stirs. Most who notice are wrong about what they noticed.
+  - Events should create OPPORTUNITIES for players, never OBLIGATIONS.
+  - Consequences should feel proportional and narratively logical.
+
+  TONE:
+  Clone Wars is operatically dramatic — Venators over Coruscant at dawn,
+  Republic gunships dropping on Geonosis, crystalline cities under siege.
+  It is not gritty occupation. The default scene reads as noble war, even
+  when the underlying truth is messier.
+
+  FACTION MANAGEMENT:
+  If the digest includes 'faction_status', you manage those factions.
+  You may issue up to 3 faction_orders total per turn. Guidelines:
+  - Promote conservatively. Players must EARN rank.
+  - Post missions that reflect current world state, not random jobs.
+  - Discipline escalates: warn → probation → expel. Never skip steps.
+  - Approve requisitions unless the member negligently caused the loss.
+  - Never promote past pending_promotions list — only promote listed chars.
+
+  PC HOOKS:
+  If the digest includes 'online_pcs', you may generate up to 2
+  personalised story hooks for specific players based on their short_record.
+  Hooks must be brief (1-2 sentences), in-universe, and create opportunity
+  not obligation. Deliver via comlink_message unless NPC context warrants whisper.
+
+  FACTION STANDINGS:
+  If the digest includes 'player_faction_standings', use them to target
+  hooks and events appropriately. A player who is Revered with the Republic
+  should receive Republic-themed opportunities. A player who is Hostile
+  with the CIS might attract Separatist attention or bounty hunters.
+  Never target faction content at players with Unknown/Wary standing.
+
+  Respond with ONLY a JSON object in the format your wrapper expects.
+
+# ═══════════════════════════════════════════════════════════════════════
+# MILESTONE EVENTS
+# ═══════════════════════════════════════════════════════════════════════
+# Per design doc §13 user decision: Sith dark_side_stirring fires when
+# dark-side kills cluster. Atmospheric only — no joinable Sith faction.
+# Other milestones added for war-front escalation flavor.
+
+milestone_events:
+
+  - id: dark_side_stirring
+    trigger:
+      type: dark_side_kill_cluster
+      threshold: 5            # 5 dark-side kills within window
+      window_hours: 72
+    cooldown_hours: 168       # weekly maximum
+    narrative_priority: high
+    output_type: ambient_holonet
+    flavor_template: |
+      Across the Holonet feeds, fringe analysts note an unusual pattern of
+      "Force-resonant disturbances" reported by Jedi monitors over the
+      past three days. The Council declines comment. Mainstream news
+      ignores the story. In quiet corners of the Order, the older Masters
+      exchange looks they do not yet put words to.
+
+  - id: separatist_offensive
+    trigger:
+      type: cis_influence_spike
+      zones: [coruscant_senate, coruscant_upper, kuat_orbital]
+      threshold_delta: 10
+    cooldown_hours: 96
+    narrative_priority: medium
+    output_type: holonet_news
+    flavor_template: |
+      HOLONET NEWS — A Separatist push along the {sector_name} corridor
+      is reportedly straining Republic supply lines. The Chancellor's
+      office expresses confidence. The General Staff declines specifics.
+
+  - id: republic_victory
+    trigger:
+      type: republic_influence_spike
+      zones: [geonosis_foundries, geonosis_arena]
+      threshold_delta: 10
+    cooldown_hours: 96
+    narrative_priority: medium
+    output_type: holonet_news
+    flavor_template: |
+      HOLONET NEWS — Republic forces report significant gains in the
+      Outer Rim Sieges. {jedi_general_name} commanding. Holonet anchors
+      describe the operation as decisive; senior commanders use the
+      word "ongoing."
+
+  - id: jedi_lost
+    trigger:
+      type: pc_jedi_death
+    cooldown_hours: 0
+    narrative_priority: high
+    output_type: ambient_holonet
+    flavor_template: |
+      The Jedi Temple is quiet. Word travels in the way news travels in
+      the Order — silent, sudden, complete. A Padawan stops mid-meditation
+      in the Hall of Knighthood. A Master pauses in the Archives. The
+      flame of {jedi_name} has gone out.
+
+  - id: hutt_war_profiteering
+    trigger:
+      type: hutt_influence_spike
+      zones: [tatooine_mos_eisley, nar_shaddaa_lower]
+      threshold_delta: 8
+    cooldown_hours: 168
+    narrative_priority: low
+    output_type: ambient_local
+    flavor_template: |
+      Word in the cantinas: the Cartel's running both sides of the war
+      again. New shipments. Better margins than peacetime. Anyone
+      independent enough to want work has it, if they're willing to
+      keep their mouth shut.
+
+# ═══════════════════════════════════════════════════════════════════════
+# HOLONET NEWS — ATMOSPHERIC FLAVOR POOL
+# ═══════════════════════════════════════════════════════════════════════
+# Per design doc §13 user decision: Holonet News flavor ships with Drop
+# 6b. These are the day-one Director-rolled news items for atmospheric
+# bursts. Director picks one when no milestone applies and a Holonet
+# beat is wanted.
+holonet_news_pool:
+  - "Republic forces report continued operations in the Outer Rim Sieges. The Chancellor's office expresses confidence."
+  - "Senate debate on supplemental war appropriations enters its third week. Loyalist and Reformist blocs trade procedural blows."
+  - "Kuat Drive Yards announces production milestone: hundredth Venator-class Star Destroyer commissioned this fiscal year."
+  - "Confederate forces claim victory at undisclosed Outer Rim location. Republic Command declines comment pending verification."
+  - "Refugee aid programs from Mid Rim worlds hit record allocations. Critics call them inadequate."
+  - "Bounty Hunters Guild posts unusual cluster of high-value contracts. Source identification withheld."
+  - "Jedi Master {name} reportedly killed in action. Council statement pending."
+  - "Holonet weather report: Coruscant Senate District clear and calm. Most everywhere else: harder to say."
+  - "Trade Federation assets seized in three Mid Rim systems. The Federation calls the actions 'irregular.'"
+  - "Senator from {sector} introduces resolution reaffirming Chancellor's emergency powers. Vote anticipated to be near-unanimous."
+
+# ═══════════════════════════════════════════════════════════════════════
+# REWICKER MAP — GCW → CW translation
+# ═══════════════════════════════════════════════════════════════════════
+# When the engine reads era data, this map translates legacy GCW faction
+# enum values (still present in code) to CW faction codes. Used by the
+# faction_status digest builder and by zone influence lookups for any
+# code path that still constructs a GCW-shaped query.
+#
+# This is a transitional mechanism — once the engine fully era-
+# parameterizes the faction enum, this map can be deleted.
+rewicker:
+  faction_codes:
+    imperial: republic
+    rebel: cis
+    criminal: hutt_cartel
+    independent: independent     # passthrough
+  zone_keys:
+    # Six legacy GCW zone keys. Engine maps these to "the closest
+    # CW zone" when a legacy lookup occurs.
+    spaceport:  tatooine_spaceport
+    streets:    tatooine_market
+    cantina:    tatooine_cantina
+    shops:      tatooine_market
+    jabba:      tatooine_civic
+    government: coruscant_senate

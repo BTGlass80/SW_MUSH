@@ -1391,9 +1391,37 @@ class HelpCommand(BaseCommand):
         await send(ansi.header("═" * w))
         await send("")
 
+        # S47: Summary block — only when it adds info beyond body's first line.
+        # Auto-derived summaries that mirror the body opener are suppressed
+        # to avoid printing the same sentence twice.
+        summary = (getattr(entry, "summary", "") or "").strip()
+        if summary:
+            body_first_line = (entry.body or "").split("\n", 1)[0].strip()
+            if not body_first_line.startswith(summary):
+                await send(f"  {ansi.DIM}{summary}{ansi.RESET}")
+                await send("")
+
         # Body text — send line by line
         for line in entry.body.split("\n"):
             await send(f"  {line}")
+
+        # S47: Examples block — appears after body, before see-also.
+        # Each example is {"cmd": "...", "description": "..."}; rows
+        # missing `cmd` are silently dropped, descriptions may be empty.
+        examples = getattr(entry, "examples", None) or []
+        valid_examples = [ex for ex in examples
+                          if isinstance(ex, dict) and (ex.get("cmd") or "").strip()]
+        if valid_examples:
+            await send("")
+            await send(f"  {ansi.DIM}EXAMPLES:{ansi.RESET}")
+            for ex in valid_examples:
+                cmd = ex.get("cmd", "").strip()
+                desc = (ex.get("description") or "").strip()
+                if desc:
+                    await send(f"    {ansi.BRIGHT_CYAN}{cmd}{ansi.RESET}"
+                               f"  {ansi.DIM}—{ansi.RESET} {desc}")
+                else:
+                    await send(f"    {ansi.BRIGHT_CYAN}{cmd}{ansi.RESET}")
 
         # See also
         if entry.see_also:

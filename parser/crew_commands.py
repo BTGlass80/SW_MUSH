@@ -192,7 +192,7 @@ class HireCommand(BaseCommand):
 
 class RosterCommand(BaseCommand):
     key = "+roster"
-    aliases = ["roster", "crew", "mycrew", "+crew", "+mycrew"]
+    aliases = ["roster"]
     help_text = "View your hired NPC crew and their station assignments."
     usage = "roster"
 
@@ -507,9 +507,80 @@ def _order_flavor(station: str, action: str) -> str:
 
 # -- Registration --
 
+# S56: Switch & alias dispatch tables for the +crew umbrella.
+_CREW_SWITCH_IMPL: dict = {}
+
+_CREW_ALIAS_TO_SWITCH: dict[str, str] = {
+    # roster (view your crew)
+    "roster":      "roster",
+    "mycrew":      "roster",
+    "crew":        "roster",
+    # hire (visit hireboard / browse hireables)
+    "hire":        "hire",
+    "recruiting":  "hire",
+    "hireboard":   "hire",
+    # assign / unassign / dismiss / order
+    "assign":      "assign",
+    "unassign":    "unassign",
+    "dismiss":     "dismiss",
+    "firecrew":    "dismiss",
+    "order":       "order",
+    "ord":         "order",
+}
+
+
+class CrewCommand(BaseCommand):
+    """`+crew` umbrella — full S56 dispatch over NPC crew management."""
+    key = "+crew"
+    aliases: list[str] = [
+        "crew", "mycrew", "roster",
+        "hire", "recruiting", "hireboard",
+        "assign", "unassign",
+        "dismiss", "firecrew",
+        "order", "ord",
+    ]
+    help_text = (
+        "Crew verbs: '+crew/roster', '+crew/hire <npc>', '+crew/assign "
+        "<npc> <station>', '+crew/unassign <npc>', '+crew/dismiss "
+        "<npc>', '+crew/order <npc> <directive>'. Bare verbs (hire/"
+        "roster/...) still work. Type 'help +crew' for the full reference."
+    )
+    usage = "+crew[/<switch>] [args]  — see 'help +crew'"
+    valid_switches: list[str] = [
+        "roster", "hire", "assign", "unassign", "dismiss", "order",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            switch = _CREW_ALIAS_TO_SWITCH.get(
+                ctx.command.lower() if ctx.command else "",
+                "roster",
+            )
+        impl_cls = _CREW_SWITCH_IMPL.get(switch)
+        if impl_cls is None:
+            await ctx.session.send_line(self.help_text)
+            return
+        await impl_cls().execute(ctx)
+
+
+def _init_crew_switch_impl():
+    _CREW_SWITCH_IMPL["roster"]   = RosterCommand
+    _CREW_SWITCH_IMPL["hire"]     = HireCommand
+    _CREW_SWITCH_IMPL["assign"]   = AssignCrewCommand
+    _CREW_SWITCH_IMPL["unassign"] = UnassignCrewCommand
+    _CREW_SWITCH_IMPL["dismiss"]  = DismissCrewCommand
+    _CREW_SWITCH_IMPL["order"]    = OrderCommand
+
+
+_init_crew_switch_impl()
+
+
 def register_crew_commands(registry):
     """Register NPC crew management commands."""
     cmds = [
+        CrewCommand(),
         HireCommand(),
         RosterCommand(),
         AssignCrewCommand(),

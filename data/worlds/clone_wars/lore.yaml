@@ -1,0 +1,816 @@
+# data/worlds/clone_wars/lore.yaml
+# Clone Wars Era — World Lore Corpus
+# Schema version 1
+#
+# This file is the data-side authority for CW-era lore entries. The
+# engine currently hardcodes GCW SEED_ENTRIES in engine/world_lore.py
+# (line 284). When Drop 6a lands and that module is era-parameterized,
+# the seed loader will read this file for active_era == clone_wars.
+# Until then, this file is inert at runtime.
+#
+# Schema mirrors world_lore SQLite table + SEED_ENTRIES dict shape:
+#   title         str        unique entry title
+#   keywords      str        comma-separated trigger terms (lowercased)
+#   content       str        the lore text (1-3 paragraphs typical)
+#   category      str        faction | location | technology | concept | person | organization
+#   zone_scope    str|null   comma-separated zone keys (entries trigger
+#                            preferentially in matching zones; null = global)
+#   priority      int        1-10; higher = more prominent in retrieval
+#
+# Per clone_wars_era_design_v3.md §8.2: target ~50-55 total entries
+# (delete 15 GCW, reframe 10 era-neutral, add 30+ new CW). This file
+# starts with 32 entries — the critical/high-priority set — covering
+# all factions, the Jedi Order at depth, Republic and CIS military,
+# Coruscant landmarks, and reframed Tatooine/Nar Shaddaa/Hutt content.
+# Medium/low-priority entries (Holonet News, Petranaki, etc.) are
+# called out as future expansion targets in the handoff.
+
+schema_version: 1
+
+# ═══════════════════════════════════════════════════════════════════════
+# FACTIONS — primary powers
+# ═══════════════════════════════════════════════════════════════════════
+
+entries:
+
+  - title: "The Galactic Republic"
+    keywords: "republic,gar,grand army,chancellor,palpatine,senate,clone trooper,clone wars"
+    category: "faction"
+    priority: 9
+    content: >
+      The Galactic Republic has stood for a thousand generations. It is now
+      at war. Chancellor Palpatine holds emergency powers granted at the
+      conflict's outset — temporary, in theory. The Republic Navy fields
+      Venator-class Star Destroyers and Acclamator assault ships; its
+      ground forces are the Grand Army, a million Kaminoan-cloned soldiers
+      under Jedi command. Public sentiment runs patriotic on the Core
+      Worlds and exhausted on the Outer Rim. The Republic still calls
+      itself a democracy, and most citizens still believe it.
+
+  - title: "The Confederacy of Independent Systems"
+    keywords: "cis,separatist,confederacy,dooku,trade federation,banking clan,techno union,droid army"
+    category: "faction"
+    priority: 9
+    content: >
+      The Confederacy of Independent Systems is led publicly by Count
+      Dooku, formerly of the Jedi Order. The Separatist Council pulls the
+      strings — Trade Federation, Techno Union, Banking Clan, Commerce
+      Guild, Corporate Alliance, InterGalactic Banking Clan, Retail
+      Caucus. The CIS fields droid armies in numbers no organic force
+      could match. To its members, the Confederacy is a rebellion against
+      Republic corruption. To Republic citizens, it is a coalition of
+      greed wearing the robes of revolution.
+
+  - title: "The Jedi Order"
+    keywords: "jedi,order,knight,master,padawan,council,temple,lightsaber,force,light side"
+    category: "faction"
+    priority: 10
+    content: >
+      The Jedi Order is the galaxy's oldest religious-monastic
+      institution, devoted to the light side of the Force and the
+      protection of the Republic. The Order is currently militarized:
+      Knights and Masters serve as Generals, Padawans as Commanders. The
+      Temple on Coruscant remains the spiritual heart, but most of its
+      ten thousand members are deployed across war fronts. A Jedi
+      arriving in a scene changes its tone. Lightsaber duels are public
+      news. The Order's traditional reluctance toward warfare has been
+      set aside, though many older Masters question the cost.
+
+  - title: "The Sith"
+    keywords: "sith,dark side,dark lord,darth,sidious,maul,dooku,ventress"
+    category: "faction"
+    priority: 8
+    content: >
+      The Sith Order is publicly believed extinct, destroyed a thousand
+      years ago by the Jedi. This is incorrect. A Sith Lord — Darth
+      Sidious, identity unknown to all but his apprentice — manipulates
+      both sides of the war from within the Senate itself. Count Dooku
+      (Darth Tyranus) and Asajj Ventress wield dark powers openly enough
+      to be noticed but are publicly described as "fallen Jedi" or "Force
+      adepts" rather than acknowledged Sith. The truth is dangerous;
+      those who know often do not live to share it.
+
+  - title: "The Hutt Cartel"
+    keywords: "hutt,jabba,nal hutta,nar shaddaa,cartel,crime lord,spice,slug,huttese"
+    category: "faction"
+    priority: 8
+    content: >
+      The Hutt Cartel controls Hutt Space and most of the Outer Rim's
+      illegal commerce. The war has been good for business — both sides
+      need spice, contraband, and discretion. Jabba the Hutt rules from
+      Tatooine; the Grand Council of Hutts meets on Nal Hutta when
+      mutual interests demand alignment. Cartel policy is neutrality
+      with selective profit: sell to Republic and CIS alike, refuse to
+      pick sides, and break the kneecaps of any underling who suggests
+      otherwise.
+
+  - title: "The Bounty Hunters Guild"
+    keywords: "bounty hunter,bhg,guild,bossk,cad bane,aurra sing,sugi,embo"
+    category: "faction"
+    priority: 7
+    content: >
+      The Bounty Hunters Guild is a loose professional association more
+      than a single organization — chapters in every major Outer Rim
+      port, common contract law, and a shared code that prizes contract
+      completion over loyalty to any government. The war has tripled
+      contract volume. Both Republic and CIS post bounties through Guild
+      cutouts when official channels would be embarrassing. Cad Bane,
+      Aurra Sing, Embo, Sugi, and a young Bossk are the names that
+      define the era's contract work.
+
+  - title: "Independent Spacers"
+    keywords: "independent,spacer,smuggler,trader,civilian,unaligned,freelance"
+    category: "faction"
+    priority: 6
+    content: >
+      Most galactic citizens have no factional affiliation. They run
+      cargo, fix engines, tend bars, and try to keep their heads down.
+      Independent doesn't mean uninvolved — Republic patrols stop you,
+      CIS recruiters approach you, Hutt enforcers shake you down — but
+      it means no oath, no rank, no obligations beyond the next contract.
+      The default starting posture for new arrivals to any Outer Rim
+      port. Most stay independent because the alternatives all want
+      something they aren't willing to give.
+
+  - title: "The Separatist Council"
+    keywords: "separatist council,nute gunray,trade federation,banking clan,techno union,wat tambor,san hill"
+    category: "faction"
+    priority: 7
+    content: >
+      The Separatist Council is the corporate oligarchy that funds and
+      directs CIS war policy under Count Dooku's overall command. Members:
+      Viceroy Nute Gunray (Trade Federation), Foreman Wat Tambor (Techno
+      Union), Chairman San Hill (InterGalactic Banking Clan), Magistrate
+      Passel Argente (Corporate Alliance), Senator Po Nudo (Hyper-
+      Communications Cartel), Presidente Shu Mai (Commerce Guild). They
+      meet on rotating safehouses — Geonosis, Raxus Prime, Mustafar — and
+      coordinate galaxy-wide industrial war effort. They are not
+      Sidious-aware; they believe Dooku is in charge.
+
+# ═══════════════════════════════════════════════════════════════════════
+# PEOPLE — major figures
+# ═══════════════════════════════════════════════════════════════════════
+
+  - title: "Chancellor Palpatine"
+    keywords: "palpatine,chancellor,supreme chancellor,emergency powers,senate"
+    category: "person"
+    priority: 8
+    content: >
+      Sheev Palpatine, formerly Senator of Naboo, is the elected Supreme
+      Chancellor of the Galactic Republic. The Senate granted him
+      emergency powers at the war's outset; those powers have been
+      extended repeatedly. He presents as a humble public servant
+      reluctantly bearing wartime burdens. Few suspect what is true: that
+      he is Darth Sidious, that the war is his design, and that the
+      Republic is being maneuvered toward an outcome he chose decades
+      ago. Publicly: a beloved war leader. Privately: the Sith Lord who
+      orchestrates both sides.
+
+  - title: "Count Dooku"
+    keywords: "dooku,count,tyranus,darth tyranus,fallen jedi,serenno"
+    category: "person"
+    priority: 8
+    content: >
+      Count Dooku of Serenno was once a respected Jedi Master who left
+      the Order over what he viewed as its corruption. He now leads the
+      Confederacy of Independent Systems publicly and serves as Darth
+      Tyranus, Sidious's apprentice, privately. His lightsaber form is
+      Makashi — elegant, dueling-focused. He has personally killed Jedi
+      Masters in lightsaber combat. To his Separatist allies he is a
+      principled rebel against tyranny; to the Jedi who knew him before
+      his fall, his betrayal is a wound that will not heal.
+
+  - title: "General Grievous"
+    keywords: "grievous,general,kaleesh,cyborg,droid general,coughing"
+    category: "person"
+    priority: 7
+    content: >
+      General Grievous is Supreme Commander of the CIS Droid Armies. A
+      Kaleesh warrior whose body was rebuilt as a cyborg after an
+      assassination attempt, he carries the lightsabers of Jedi he has
+      personally killed. He fights with four blades simultaneously, in
+      mockery of Jedi forms. His persistent cough is a reminder that
+      his organic remnants are dying inside their durasteel shell. He
+      is feared, not loved, and he prefers it that way.
+
+# ═══════════════════════════════════════════════════════════════════════
+# JEDI — Order, doctrine, training
+# ═══════════════════════════════════════════════════════════════════════
+
+  - title: "The Jedi Council"
+    keywords: "jedi council,master yoda,mace windu,obi-wan,plo koon,ki-adi-mundi,kit fisto"
+    category: "organization"
+    priority: 9
+    zone_scope: "coruscant_temple"
+    content: >
+      The Jedi High Council is the Order's governing body — twelve
+      Masters who set policy, assign missions, and rule on matters of
+      doctrine. Master Yoda holds the Grand Master seat. Master Mace
+      Windu sits on his right. Other current members include Plo Koon,
+      Ki-Adi-Mundi, Kit Fisto, Saesee Tiin, and Obi-Wan Kenobi (recently
+      elevated). The Council Chamber sits at the apex of the High Council
+      Tower in the Temple. Council decisions are not democratic — they
+      are reached by consensus or by the Grand Master's call.
+
+  - title: "Jedi Temple on Coruscant"
+    keywords: "jedi temple,temple,archives,council chamber,coruscant temple"
+    category: "location"
+    priority: 9
+    zone_scope: "coruscant_temple"
+    content: >
+      The Jedi Temple on Coruscant is the Order's spiritual and
+      operational heart — a five-tower ziggurat housing roughly ten
+      thousand Jedi (when not deployed), the Archives, the Council
+      Chamber, training salas for Initiates and Padawans, lightsaber
+      crystal vaults, the Hall of Knighthood, and quarters for
+      Knights, Masters, and visiting dignitaries. Public access is
+      restricted to the lower courtyards. The Archives are the largest
+      organized repository of pre-Republic knowledge in the galaxy.
+      During the war, half the Temple is empty at any given time.
+
+  - title: "Master and Padawan"
+    keywords: "padawan,master,apprentice,training,jedi training,padawan braid"
+    category: "concept"
+    priority: 8
+    content: >
+      The Master-Padawan relationship is the Jedi Order's primary
+      teaching mechanism. After completing Initiate training in the
+      Temple, a young Jedi (typically aged 12-14) is selected by a
+      Knight or Master and apprenticed for roughly ten years. The
+      Padawan wears a single braid as the visible marker of their
+      training status. Padawans accompany their Masters on missions,
+      learning by direct exposure. The bond between Master and Padawan
+      is among the strongest a Jedi forms — many describe it as closer
+      than family, which the Order would not officially endorse.
+
+  - title: "Lightsaber Construction"
+    keywords: "lightsaber,kyber crystal,construction,gathering,ilum"
+    category: "technology"
+    priority: 7
+    content: >
+      A lightsaber is not a weapon issued by the Order — it is a tool
+      the Jedi builds, by tradition, near the end of Padawan training.
+      The blade's color comes from the kyber crystal at its heart;
+      crystals are gathered on Ilum at the Crystal Caves during a rite
+      called the Gathering. Construction takes days of meditation and
+      precision assembly. A Jedi's lightsaber is keyed to its builder's
+      Force-signature — others can wield it, but it serves its maker
+      best. Losing one's lightsaber is considered a profound failure.
+
+# ═══════════════════════════════════════════════════════════════════════
+# CLONE TROOPERS & THE GAR
+# ═══════════════════════════════════════════════════════════════════════
+
+  - title: "Clone Troopers"
+    keywords: "clone,clone trooper,jango fett,kamino,grand army,gar,vode"
+    category: "faction"
+    priority: 9
+    content: >
+      Clone troopers are the Grand Army of the Republic. Genetically
+      identical, derived from the bounty hunter Jango Fett, accelerated-
+      grown on Kamino, trained from gestation for warfare. They serve
+      under designation numbers but adopt nicknames among themselves.
+      Their loyalty to the Republic and to their Jedi commanders is
+      genuine and fierce. They consider themselves brothers — vode in
+      Mando'a — and their bond with their Generals is often the deepest
+      relationship of their short, accelerated lives. Few Republic
+      citizens have seen one out of armor.
+
+  - title: "Kaminoan Cloners"
+    keywords: "kaminoan,kamino,tipoca,cloner,prime minister lama su,nala se"
+    category: "organization"
+    priority: 7
+    zone_scope: "kamino_tipoca,kamino_training"
+    content: >
+      The Kaminoans are tall, pale-skinned, large-eyed cloners from the
+      ocean world Kamino, in Wild Space beyond the Outer Rim. Their
+      genetic engineering technology is the most advanced in the galaxy.
+      Prime Minister Lama Su and Chief Scientist Nala Se administer the
+      clone program from Tipoca City. Kaminoans regard their work with
+      detached pride; they do not consider clone troopers individuals,
+      precisely. The Republic contracts Kamino for clone production but
+      does not advertise the source — public awareness of clone origins
+      varies and is officially classified.
+
+  - title: "ARC Troopers and Commando Units"
+    keywords: "arc trooper,arc,clone commando,delta squad,advanced recon"
+    category: "concept"
+    priority: 6
+    content: >
+      Most clones are line troopers — the rank-and-file of the GAR.
+      Above them are specialized units: ARC (Advanced Recon Commando)
+      troopers trained to operate independently with minimal command,
+      and Clone Commandos in four-trooper squads for special operations.
+      Both groups received longer, more individualized training and
+      operate with significantly more autonomy than line troopers. They
+      tend to develop stronger personalities than their conditioning was
+      meant to allow, which their officers note with mixed feelings.
+
+# ═══════════════════════════════════════════════════════════════════════
+# CIS DROID ARMIES
+# ═══════════════════════════════════════════════════════════════════════
+
+  - title: "Battle Droids"
+    keywords: "battle droid,b1,b2,super battle droid,droideka,destroyer droid,roger roger"
+    category: "concept"
+    priority: 8
+    content: >
+      The CIS fields battle droids in numbers organic armies cannot
+      match. The B1 ("Roger Roger") is the standard line model — cheap,
+      mass-produced, individually weak but deployed in overwhelming
+      numbers. The B2 Super Battle Droid is heavier-armored, harder to
+      kill, with built-in weapons. Droidekas (Destroyer Droids) deploy
+      from rolling form and project deflector shields — the most
+      dangerous standard CIS infantry unit. IG-100 MagnaGuards serve
+      as bodyguards for senior CIS officers including General Grievous.
+
+  - title: "MagnaGuard"
+    keywords: "magnaguard,ig-100,grievous bodyguard,electrostaff"
+    category: "concept"
+    priority: 5
+    content: >
+      IG-100 MagnaGuards are elite CIS bodyguard droids. They wield
+      electrostaffs that can parry lightsabers, are programmed with
+      seven forms of melee combat, and serve as the personal guard for
+      General Grievous and senior Separatist Council members. They are
+      not deployed as line troops — encountering one signals presence
+      of a Council member or strategic CIS asset.
+
+  - title: "Trade Federation"
+    keywords: "trade federation,nute gunray,viceroy,neimoidian,droid army,lucrehulk"
+    category: "organization"
+    priority: 6
+    content: >
+      The Trade Federation is a Neimoidian-led commercial cartel that
+      controlled most galactic shipping prior to the war. Viceroy Nute
+      Gunray heads the Federation; he is also a senior Separatist
+      Council member. The Federation contributed the bulk of the early
+      CIS droid armies and the massive Lucrehulk-class battleships.
+      Their military power was once unmatched by any private organization.
+      Most Neimoidians are not soldiers — they are bureaucrats and
+      profiteers who suddenly find themselves at war.
+
+# ═══════════════════════════════════════════════════════════════════════
+# REPUBLIC NAVY & MILITARY
+# ═══════════════════════════════════════════════════════════════════════
+
+  - title: "Republic Navy"
+    keywords: "republic navy,venator,acclamator,star destroyer,arc-170,clone pilot"
+    category: "organization"
+    priority: 7
+    content: >
+      The Republic Navy is the Grand Army's space arm. Capital ship
+      classes include the Venator-class Star Destroyer (the iconic
+      red-banded carrier-destroyers seen over Coruscant), the Acclamator-
+      class assault ship (clone trooper transport), and the Consular-
+      class cruiser (diplomatic and light military). Starfighter
+      complements include ARC-170 heavy fighters, V-19 Torrents, Jedi
+      Eta-2 Actis interceptors, and LAAT/i gunships. Most Naval crews
+      are clones; most ranking officers are non-clone Republic citizens.
+
+  - title: "Kuat Drive Yards"
+    keywords: "kdy,kuat,kuati,drive yards,shipyard,merchant house"
+    category: "organization"
+    priority: 7
+    zone_scope: "kuat_transit,kuat_orbital,kuat_surface"
+    content: >
+      Kuat Drive Yards is the Republic's primary capital-ship
+      contractor — Venators, Acclamators, and most of the Republic Navy
+      are built here. The Kuati merchant houses (Andrim, Purkis, others)
+      compete viciously for KDY contracts; industrial espionage and
+      occasional sabotage between rival houses is unofficially
+      tolerated as long as it doesn't slow production. Kuat itself is a
+      Core World; the orbital ring is among the largest single
+      industrial structures in the galaxy.
+
+# ═══════════════════════════════════════════════════════════════════════
+# CORUSCANT
+# ═══════════════════════════════════════════════════════════════════════
+
+  - title: "Coruscant"
+    keywords: "coruscant,galactic city,senate,republic capital,trillion souls"
+    category: "location"
+    priority: 9
+    zone_scope: "coruscant_senate,coruscant_temple,coruscant_upper,coruscant_midlevels,coruscant_lower,coruscant_works"
+    content: >
+      Coruscant is the capital of the Galactic Republic — a planet-wide
+      city of one trillion sentients. The skyline is dominated by
+      Senate towers, the Jedi Temple, and luxury residential districts
+      that gleam above the smog line. Below the smog line lies the
+      working city; below that the lower levels; below those the
+      Underworld, where sunlight has not reached the streets in
+      millennia. During the war the city is simultaneously the Republic's
+      beating heart and its most vulnerable target. Senate gridlock is
+      the dominant local sport.
+
+  - title: "The Galactic Senate"
+    keywords: "senate,galactic senate,senator,convocation chamber,republic senate"
+    category: "organization"
+    priority: 7
+    zone_scope: "coruscant_senate"
+    content: >
+      The Galactic Senate is the Republic's elected legislature —
+      thousands of Senators representing star systems, sector
+      collectives, and special-interest blocs. The Convocation Chamber
+      is a massive cylinder of repulsorlift platforms surrounding the
+      Chancellor's pulpit. In wartime the Senate has ceded much of its
+      authority to the Chancellor's emergency powers. Bao-Dur Loyalists,
+      Reformers, and Centrists trade procedural blows daily; meaningful
+      legislation moves only by Chancellor's directive.
+
+  - title: "Chancellor's Emergency Powers"
+    keywords: "emergency powers,chancellor,clone authorization,palpatine emergency"
+    category: "concept"
+    priority: 6
+    content: >
+      The Senate's Clone Authorization Act granted Chancellor Palpatine
+      sweeping emergency powers at the war's outset — the authority to
+      create the Grand Army, deploy military forces without Senate
+      vote, and reorganize executive agencies for war footing. The
+      powers were intended as temporary; they have been extended in
+      every Senate session since. Civil libertarians (a shrinking
+      caucus) call this drift toward autocracy. Loyalists call it
+      necessary in wartime. Both are right, depending on how the
+      argument is framed.
+
+  - title: "Coruscant Underworld"
+    keywords: "underworld,lower levels,southern underground,uscru,coco town,coruscant underworld"
+    category: "location"
+    priority: 7
+    zone_scope: "coruscant_lower,coruscant_works"
+    content: >
+      The Coruscant Underworld is the planet's accumulated lower
+      levels — sublevels 1313 through dim memory, where sunlight has
+      not reached in centuries. It is its own ecosystem: independent
+      gangs, bottom-tier markets, illegal cantinas, refugee enclaves,
+      and the kind of crime that makes Hutt Space look organized. Senate
+      Guard rarely descends below Level 50. Coruscant Security Force
+      maintains pickets but doesn't patrol. The Underworld is where
+      Republic war criminals, draft-dodgers, and CIS infiltrators all
+      end up, sometimes drinking at the same bar.
+
+  - title: "CoCo Town and Dex's Diner"
+    keywords: "coco town,dex,dexter jettster,diner,collective commerce"
+    category: "location"
+    priority: 4
+    zone_scope: "coruscant_midlevels"
+    content: >
+      CoCo Town (Collective Commerce) is a working-class Coruscant
+      district known for its mixed-species clientele and reasonably
+      honest cafes. Dex's Diner — run by the Besalisk Dexter Jettster —
+      is one of its more famous establishments, frequented by Coruscant
+      Security officers, Jedi (notably Obi-Wan Kenobi when on planet),
+      and anyone else who values a properly cooked sliders plate. Dex
+      is also a useful information source if you tip him in respect
+      rather than credits.
+
+# ═══════════════════════════════════════════════════════════════════════
+# KAMINO & KUAT (additional context)
+# ═══════════════════════════════════════════════════════════════════════
+
+  - title: "Kamino"
+    keywords: "kamino,tipoca city,ocean world,rishi maze,clone facility"
+    category: "location"
+    priority: 7
+    zone_scope: "kamino_tipoca,kamino_training,kamino_ocean"
+    content: >
+      Kamino is an ocean world in Wild Space, beyond the Outer Rim and
+      partially shadowed by the Rishi Maze. Endless storm systems lash
+      its surface; permanent settlements like Tipoca City rise on
+      stilts above the global ocean. Republic access is classified —
+      civilian traffic is interdicted at the Approach. The clone-
+      production facilities are the Republic's most strategically
+      important industrial asset. The Kaminoans regard the offworld
+      situation with polite detachment; their world's future depends on
+      Republic patronage continuing.
+
+# ═══════════════════════════════════════════════════════════════════════
+# OUTER RIM & WAR FRONTS
+# ═══════════════════════════════════════════════════════════════════════
+
+  - title: "Outer Rim Sieges"
+    keywords: "outer rim,outer rim sieges,war front,sieges,grievous,palpatine kidnapping"
+    category: "concept"
+    priority: 6
+    content: >
+      The Outer Rim Sieges are the war's current strategic focus — a
+      grinding multi-front Republic offensive against CIS strongholds in
+      the Outer Rim. Felucia, Saleucami, Cato Neimoidia, and a dozen
+      other worlds change hands repeatedly. Most senior Jedi Generals
+      are deployed to the front. The Sieges are why Coruscant feels
+      half-empty — the Republic Navy's main fleets are out there, and
+      will be for the foreseeable future. The Perlemian Trade Route is
+      the primary supply lane.
+
+  - title: "Geonosis"
+    keywords: "geonosis,stalgasin hive,petranaki arena,droid foundry,geonosian"
+    category: "location"
+    priority: 7
+    zone_scope: "geonosis_arena,geonosis_foundries,geonosis_wastes,geonosis_tunnels"
+    content: >
+      Geonosis is the CIS industrial heartland — an Outer Rim rock
+      world whose insectoid Geonosian natives produce battle droid
+      components and Trade Federation munitions in subterranean hive
+      foundries. The First Battle of Geonosis began the Clone Wars; the
+      Republic has fought over this rock twice and held it neither
+      time. Republic raids strike at the surface foundries; Geonosian
+      drones dig the next level deeper. The Petranaki Arena, where the
+      war began, sits in ruin above the active hive.
+
+# ═══════════════════════════════════════════════════════════════════════
+# REFRAMED GCW LOCATIONS — Tatooine, Nar Shaddaa, etc.
+# ═══════════════════════════════════════════════════════════════════════
+
+  - title: "Mos Eisley"
+    keywords: "mos eisley,cantina,docking bay,tatooine spaceport,chalmun"
+    category: "location"
+    priority: 7
+    zone_scope: "tatooine_mos_eisley,tatooine_spaceport,tatooine_cantina,tatooine_market,tatooine_outskirts"
+    content: >
+      Mos Eisley is a lawless spaceport on Tatooine in the Outer Rim.
+      The Hutt Cartel holds real power here; Jabba's enforcers collect
+      cuts from every business that matters. Republic clone patrols
+      occasionally pass through but never linger — Tatooine is too far
+      from the war fronts to bother garrisoning. The cantina is the
+      social hub for smugglers, bounty hunters, and people whose
+      questions are best not asked. Twin suns. Brutal heat. Water and
+      shade are precious. Strangers are watched but not interfered with.
+
+  - title: "Nar Shaddaa"
+    keywords: "nar shaddaa,smuggler's moon,vertical city,hutt moon,nal hutta"
+    category: "location"
+    priority: 7
+    zone_scope: "nar_shaddaa_landing,nar_shaddaa_promenade,nar_shaddaa_undercity,nar_shaddaa_warrens"
+    content: >
+      Nar Shaddaa, the Smuggler's Moon, is a vertical city of neon and
+      squalor orbiting Nal Hutta. Every vice is for sale; the Hutts
+      control everything from the upper casino towers to the toxic
+      undercity warrens. The war has been good for Nar Shaddaa — both
+      Republic intelligence agents and CIS infiltrators come here to
+      buy information that won't show up in official channels. Nobody
+      asks who's signing your paychecks. Nobody trusts the answer if
+      you tell them.
+
+  - title: "Tatooine"
+    keywords: "tatooine,jundland,dune sea,tusken,jawa,hutt territory"
+    category: "location"
+    priority: 6
+    zone_scope: "tatooine_jundland,tatooine_civic"
+    content: >
+      Tatooine is a desert world in Hutt-controlled space, neither
+      Republic nor CIS. Jabba the Hutt rules from his palace east of
+      Mos Eisley; nominal civic authority exists but defers to him. The
+      Jundland Wastes between settlements are home to Tusken Raiders
+      and the occasional krayt dragon — sensors are unreliable and the
+      law goes no farther than blaster range. War news arrives offworld
+      and is treated as rumor. The only reliable currency is what you
+      can carry and what you can keep.
+
+# ═══════════════════════════════════════════════════════════════════════
+# WAR-ECONOMY & SOCIAL CONCEPTS
+# ═══════════════════════════════════════════════════════════════════════
+
+  - title: "War Profiteering"
+    keywords: "war profiteering,profiteer,arms dealer,black market munitions"
+    category: "concept"
+    priority: 5
+    content: >
+      The Clone Wars have created the largest galactic war economy in
+      memory. Arms dealers, contractor middlemen, off-the-books
+      logistics firms, and the Hutt Cartel itself all profit massively.
+      Both Republic and CIS leadership formally condemn profiteering
+      while quietly tolerating it because their war effort depends on
+      gray-market supply chains. A sitting Senator can theoretically
+      profit from arms contracts to their home system; the Senate
+      ethics committee has approximately three open investigations and
+      has closed none.
+
+  - title: "Mandalore"
+    keywords: "mandalore,mandalorian,duchess satine,death watch,kryze"
+    category: "location"
+    priority: 5
+    content: >
+      Mandalore in this era is officially neutral, ruled by the New
+      Mandalorian government under Duchess Satine Kryze — a pacifist
+      faction that has formally renounced Mandalorian warrior tradition.
+      Death Watch, the militant traditionalist faction, operates from
+      exile and conducts raids it disavows. Both Republic and CIS court
+      Mandalorian neutrality, with little success. The famous beskar'gam
+      armor and Mando'a culture persist primarily among Death Watch and
+      independent clans. Most galactic citizens think of Mandalorians as
+      a romantic lost-warrior-culture; the reality is messier.
+
+  - title: "Holonet News"
+    keywords: "holonet,holonet news,broadcast,media,war coverage"
+    category: "technology"
+    priority: 4
+    content: >
+      The Holonet is the galactic communication network; Holonet News
+      Service is the largest civilian news broadcaster. Wartime
+      coverage skews Republic-favorable, partly through patriotic
+      consensus and partly through Senate Information Bureau guidance.
+      Holonet anchors deliver war updates with grave dignity; CIS-
+      flagged sources are restricted in Republic space but available
+      via gray-market signal repeaters. Independent journalism exists
+      but operates under increasing pressure. Most citizens get their
+      war news here, including most of what's misleading about it.
+
+# ═══════════════════════════════════════════════════════════════════════
+# JEDI COUNCIL — INDIVIDUAL MASTERS (Drop 6b expansion)
+# ═══════════════════════════════════════════════════════════════════════
+# Per design doc §6.3 (open question — lore corpus completeness): the
+# launch corpus shipped with 37 entries against a §8.2 target of 50-55.
+# These entries are the medium-priority expansion — individual Council
+# members, prominent generals, key Senators and CIS leaders, and one
+# location entry (Petranaki Arena) that adds depth to Geonosis content.
+
+  - title: "Master Yoda"
+    keywords: "yoda,grand master,green,small,council"
+    category: "person"
+    priority: 8
+    content: >
+      Master Yoda is the Grand Master of the Jedi Order, eight hundred
+      and seventy-something years old, three feet tall, and the most
+      powerful Jedi alive. He has served on the Council for over four
+      centuries. In wartime he commands Republic forces in person when
+      the situation demands it, though he prefers to teach. His
+      idiosyncratic syntax and gentle humor disguise an absolute,
+      unsentimental clarity about the dark side and the cost of war.
+      Younger Jedi find him impossible to read. Older Masters do not
+      try.
+
+  - title: "Master Mace Windu"
+    keywords: "mace windu,windu,vaapad,council,korun,master of the order"
+    category: "person"
+    priority: 7
+    content: >
+      Master of the Order, Mace Windu sits at the right hand of Yoda
+      on the Jedi Council. A Korun by birth, dark-skinned and severe,
+      he wields a purple-bladed lightsaber — one of the few non-blue,
+      non-green sabers in the Order. Windu's signature combat form is
+      Vaapad, a discipline that channels the dark side without yielding
+      to it. He is widely considered the second most dangerous Jedi
+      alive. He distrusts Chancellor Palpatine more openly than most of
+      his colleagues, though he has not yet said so on the record.
+
+  - title: "General Obi-Wan Kenobi"
+    keywords: "obi-wan,kenobi,negotiator,obi wan,general kenobi"
+    category: "person"
+    priority: 8
+    content: >
+      Jedi Master and General Obi-Wan Kenobi commands the 212th Attack
+      Battalion under Commander Cody. The Council has nicknamed him
+      The Negotiator — he prefers diplomacy and resolves more campaigns
+      with words than blades. He is Anakin Skywalker's former master
+      and current closest friend; the relationship between them is
+      complicated by Anakin's prominence and Obi-Wan's quieter style.
+      Holonet audiences know him as a measured, dryly humorous figure
+      in field interviews. Republic Intelligence rates him among the
+      Order's most reliable battlefield commanders.
+
+  - title: "General Anakin Skywalker"
+    keywords: "anakin,skywalker,hero with no fear,chosen one,podracer,501st"
+    category: "person"
+    priority: 9
+    content: >
+      Jedi Knight and General Anakin Skywalker leads the 501st Legion
+      under Captain Rex. Holonet audiences call him the Hero With No
+      Fear; the Senate Public Information Bureau pushes the nickname
+      hard. He was discovered as a slave on Tatooine, trained late by
+      Obi-Wan Kenobi, and is widely considered the most powerful Jedi
+      Knight of his generation. His command style is reckless and
+      effective. Some Council members consider his ascendancy a
+      destabilizing force in the Order. Younger clones idolize him.
+      Older ones are more cautious about saying so out loud.
+
+  - title: "Senator Padmé Amidala"
+    keywords: "padme,amidala,naboo,senator,loyalist,delegation"
+    category: "person"
+    priority: 7
+    content: >
+      Senator Padmé Amidala of Naboo is one of the most prominent
+      Senate Loyalists — pro-Republic, anti-war-escalation, and
+      increasingly vocal about Chancellor Palpatine's expanding
+      emergency powers. A former queen of Naboo, she serves the Senate
+      with reformist instincts and considerable personal courage. She
+      moves between Coruscant, Naboo, and the war fronts on diplomatic
+      missions more often than is comfortable. Her staff is small, her
+      enemies in the Trade Federation persistent, and her allies in
+      the Loyalist bloc fewer than her speeches suggest.
+
+  - title: "Senator Bail Organa"
+    keywords: "bail organa,alderaan,senator,loyalist committee,viceroy"
+    category: "person"
+    priority: 6
+    content: >
+      Senator Bail Organa of Alderaan is one of the Senate's quietest
+      and most effective Loyalists. As First Chairman of the Alderaan
+      Council and Viceroy, he commands moral authority well beyond his
+      formal voting bloc. He is on the Loyalist Committee that
+      ostensibly advises the Chancellor on war policy, where he
+      consistently argues for restraint and against expansion of
+      emergency powers. He is the kind of Senator who is in the room
+      for every important conversation and almost never quoted in the
+      Holonet coverage.
+
+# ═══════════════════════════════════════════════════════════════════════
+# CIS LEADERSHIP — KEY FIGURES
+# ═══════════════════════════════════════════════════════════════════════
+
+  - title: "Asajj Ventress"
+    keywords: "ventress,asajj,dathomir,nightsister,dooku apprentice,sith assassin"
+    category: "person"
+    priority: 6
+    content: >
+      Asajj Ventress is Count Dooku's apprentice — a Dathomirian
+      Nightsister trained in the dark side, twin-curved-blade
+      lightsaber duelist, and one of the CIS's most effective field
+      operatives. The Jedi Council classifies her as a Dark Acolyte
+      rather than a Sith, an important distinction in their internal
+      doctrine. She has crossed blades with Anakin Skywalker, Obi-Wan
+      Kenobi, and Mace Windu and walked away. To clone troopers she is
+      a rumor in some circles, a confirmed nightmare in others. Bounties
+      on her head are extreme and almost never collected.
+
+  - title: "Viceroy Nute Gunray"
+    keywords: "nute gunray,trade federation,neimoidian,viceroy,naboo blockade"
+    category: "person"
+    priority: 5
+    content: >
+      Nute Gunray is the Neimoidian Viceroy of the Trade Federation
+      and the public face of CIS economic power. He sat on the
+      Separatist Council from its inception. He is widely despised —
+      cowardly in person, vindictive in policy, and personally
+      responsible for the Naboo blockade thirteen years ago. The
+      Republic has a standing warrant for his arrest. He travels with
+      a personal MagnaGuard escort and an unhealthy fear of Jedi
+      assassination.
+
+# ═══════════════════════════════════════════════════════════════════════
+# WAR FRONTS & DOCTRINE
+# ═══════════════════════════════════════════════════════════════════════
+
+  - title: "The Outer Rim Front"
+    keywords: "christophsis,ryloth,felucia,umbara,front lines,outer rim battles"
+    category: "concept"
+    priority: 6
+    content: >
+      The Outer Rim Front is where the Clone Wars actually happen.
+      Christophsis was an early-war showcase battle, with crystal
+      towers shattered by orbital bombardment. Ryloth has been
+      occupied, liberated, and reoccupied by both sides; the Twi'lek
+      population pays the price each time. Felucia is a poisonous
+      jungle world where clone casualties run high and Jedi
+      replacements are slow. Umbara is so dark and so paranoid that
+      both sides have lost battalions to it. These names rotate
+      through Holonet news as the war drags on. Few Coruscanti civilians
+      could find them on a star chart.
+
+  - title: "The Jedi Generals Doctrine"
+    keywords: "jedi general,generals doctrine,council debate,militarization"
+    category: "concept"
+    priority: 6
+    content: >
+      The decision to make every Jedi Knight a Republic General was
+      made at the war's outset under emergency authority. The Council
+      voted on it in a closed session that older Masters still discuss
+      uneasily. The arguments for: clone troopers benefit immensely
+      from Force-sensitive command, Jedi tactical instincts save lives,
+      the Republic needs commanders it can trust. The arguments
+      against: Jedi are not soldiers, militarization changes the
+      Order's character, every Knight in the field is one less Knight
+      walking the Council corridors. Both sets of arguments have
+      proven correct in different ways.
+
+  - title: "The Senate Loyalist Bloc"
+    keywords: "loyalist,loyalist committee,senate bloc,delegation of 2000,reformist"
+    category: "organization"
+    priority: 5
+    content: >
+      The Senate Loyalist Bloc is the informal coalition of Senators
+      who oppose further expansion of Chancellor Palpatine's emergency
+      powers while continuing to support the Republic war effort
+      itself. Senator Padmé Amidala, Senator Bail Organa, and Senator
+      Mon Mothma are its most visible figures. The Loyalist Committee
+      ostensibly advises the Chancellor; in practice it is a discussion
+      group whose recommendations are politely received and quietly
+      shelved. Within the bloc, conversations have lately turned to
+      what comes after the war — and whether the war will, in fact,
+      end.
+
+  - title: "Petranaki Arena"
+    keywords: "petranaki,arena,geonosis,gladiator,execution,reek,acklay,nexu"
+    category: "location"
+    priority: 5
+    zone_scope: "geonosis_arena"
+    content: >
+      The Petranaki Arena is the great Geonosian execution arena where
+      the war began — Anakin Skywalker, Padmé Amidala, and Obi-Wan
+      Kenobi were chained to its pillars to face reek, acklay, and
+      nexu before Mace Windu led the rescue and the first battle of
+      Geonosis erupted around them. The arena is older than that
+      moment by a long margin: Geonosian society has used it for
+      gladiatorial blood-sport and political execution for generations.
+      In wartime it has been variously a Republic command post, a CIS
+      rallying ground, and a contested battleground. Its tiered stone
+      benches still bear the scoring of vibroblades.

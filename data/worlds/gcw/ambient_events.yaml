@@ -1,0 +1,99 @@
+# data/worlds/gcw/ambient_events.yaml
+# Galactic Civil War Era — Ambient Room Events
+# Schema version 1
+#
+# This file is the GCW counterpart to
+# data/worlds/clone_wars/ambient_events.yaml. It is BYTE-EQUIVALENT to
+# the legacy data/ambient_events.yaml at the time Drop 6a.5 was authored.
+#
+# When Drop 6a.4 lands and engine/ambient_events.py reads from era YAML,
+# this file becomes the live ambient pool for active_era==gcw. Until then,
+# it is the regression-test asset for byte-equivalence.
+#
+# The CW ambient_events.yaml authors per-zone keys (e.g. coruscant_senate);
+# this GCW file authors the legacy generic keys: spaceport, streets,
+# cantina, shops, jabba, government, default. Engine refactor 6a.4 makes
+# the merge logic era-aware so both shapes coexist.
+
+schema_version: 1
+
+ambient_events:
+  cantina:
+  - text: A Rodian at the bar glances nervously at the door.
+  - text: The band switches to a slower number. Half the cantina ignores it.
+  - text: Someone loses a hand of sabacc. You can tell by the silence that follows.
+  - text: A Devaronian laughs too loudly at something. Nobody else is smiling.
+  - text: The bartender wipes down the same spot he's been cleaning for ten minutes.
+  - text: Smoke curls up from a corner booth. The occupant's face stays in shadow.
+  - text: Two spacers argue over a docking fee. It sounds like it might escalate.
+  - text: A serving droid wobbles past, one leg sparking against the floor.
+  - text: The smell of cheap Corellian whiskey drifts from the bar.
+  - text: A Jawa climbs onto a barstool, barely reaching the counter.
+  - text: Someone at a back table is counting credits. A lot of credits.
+    weight: 0.5
+  - text: The cantina door swings open. Everyone looks. Nobody interesting.
+  spaceport:
+  - text: A freighter's engines cycle up somewhere overhead -- the heat blast is momentary.
+  - text: Two stormtroopers pass through without stopping. This time.
+  - text: A dock worker curses in Huttese as a cargo loader jams again.
+  - text: The PA system crackles with a garbled docking assignment.
+  - text: A battered YT-series freighter settles onto a landing pad with a groan of metal.
+  - text: The sharp smell of tibanna gas hangs in the dry air.
+  - text: A customs droid scans a nervous-looking Twi'lek's cargo manifest.
+  - text: Heat shimmer rises from the ferrocrete landing pads.
+  - text: A repair crew hauls a blackened engine nacelle across the tarmac.
+  - text: Somewhere, a ship's proximity alarm wails briefly before cutting out.
+  streets:
+  - text: A vendor shouts prices in three languages. None of them sound honest.
+  - text: Somewhere in the crowd, a child laughs at a street performer's trick.
+  - text: A Jawa trader tugs at a passerby's sleeve, chattering urgently.
+  - text: The smell of roasting hubba gourd mixes with engine grease.
+  - text: Two merchants haggle over a crate of power cells. Neither is budging.
+  - text: A pit droid scurries between the stalls, dodging feet.
+  - text: A gust of hot wind sends a vendor scrambling after loose tarps.
+  - text: A Kubaz examines a piece of salvage through tinted goggles, clicking softly.
+  - text: A moisture farmer counts coins carefully before making a small purchase.
+  - text: The whine of a speeder bike fades into the distance.
+  - text: The twin suns cast long shadows between the sandstone buildings.
+  - text: A stray massiff sniffs at a pile of discarded food containers.
+  shops:
+  - text: A tech bent over a workbench doesn't look up as you pass.
+  - text: Someone is selling 'authentic Jedi artifacts' from a blanket on the ground.
+    weight: 0.5
+  - text: A diagnostic display flickers between green and amber warnings.
+  - text: A stack of salvaged droid parts leans precariously against the wall.
+  - text: A Toydarian hovers past, muttering about supply shipments.
+  - text: The smell of solder and tibanna gas hangs in the dry air.
+  - text: A GNK power droid shuffles between shops, beeping mournfully.
+  - text: Someone is playing a hallikset badly behind a closed door.
+  - text: A repair droid welds a cracked speeder panel. Sparks scatter.
+  - text: The hum of a repulsorlift test stand vibrates through the floor.
+  jabba:
+  - text: A Gamorrean guard snorts in your direction. Probably not a greeting.
+  - text: The walls are thicker here. Sound doesn't carry well. By design.
+  - text: Somewhere deeper in the building, something heavy shifts.
+  - text: A protocol droid hurries past, looking harried. Even for a droid.
+  - text: The air smells faintly of hookah smoke and something reptilian.
+  - text: A security camera swivels to track your movement.
+    weight: 0.7
+  - text: Hushed voices behind a door go silent as you pass.
+  - text: A Weequay enforcer leans against the wall, cleaning his nails with a vibroblade.
+  government:
+  - text: A door slams somewhere down the corridor. Then silence.
+  - text: Two stormtroopers pass through without stopping. This time.
+  - text: An Imperial bureaucrat taps at a datapad with visible irritation.
+  - text: Wanted posters line the wall. Some of the faces look familiar.
+    weight: 0.5
+  - text: A protocol droid recites customs regulations to no one in particular.
+  - text: The Imperial crest on the wall has been subtly defaced. Again.
+  - text: A holding cell door buzzes open. A sullen Rodian is escorted out.
+  - text: The air conditioning works better here than anywhere else in Mos Eisley.
+  default:
+  - text: Wind carries a thin stream of sand across the ground.
+  - text: The heat is physical out here. It presses down like a hand.
+  - text: The twin suns are merciless. There is no shade.
+  - text: A distant mesa shimmers in the heat haze.
+  - text: Something metallic glints half-buried in a dune. Probably nothing.
+    weight: 0.5
+  - text: The silence is so complete your ears ring.
+  - text: Dust settles on everything. Including you.

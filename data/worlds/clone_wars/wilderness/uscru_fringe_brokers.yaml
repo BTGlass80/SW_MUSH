@@ -1,0 +1,442 @@
+# data/worlds/clone_wars/wilderness/uscru_fringe_brokers.yaml
+# Clone Wars Era — Uscru Entertainment District Fringe broker NPC roster
+# Schema version 1
+#
+# Per coruscant_underworld_landmarks.yaml v6 canonical:
+#   uscru_entertainment_district_fringe.gameplay_role: jobs_hub
+#   uscru_entertainment_district_fringe.npc_cluster: true
+#   uscru_entertainment_district_fringe.job_board: true
+#
+# The v6 landmark file marks Uscru as a jobs hub with an NPC cluster
+# but does NOT enumerate the broker NPCs or the job categories. This
+# file fills that gap.
+#
+# Five job categories the Fringe handles (authored here as the v7 spec
+# extension to the v6 landmark — engine session uses these as the job
+# generator's category enum):
+#   - off_record_courier
+#   - off_record_information
+#   - find_a_specific_person
+#   - lose_a_specific_pursuer
+#   - low_tier_smuggling
+#
+# These categories are NEW authoring in this drop. The v6 landmark
+# file does not list them; this file establishes them. Engine session
+# merges the two: the landmark says "this is a jobs hub"; this file
+# says "these are the brokers and these are the categories."
+#
+# Each broker authored here covers 1-2 categories. The 6 brokers
+# together cover all 5 categories with redundancy (every category
+# has at least 2 brokers who handle it). This way the 4-7 concurrent
+# subset will reliably cover all categories regardless of which
+# subset is spawned.
+#
+# Roster diversity targets:
+#   - Species mix: 6 different species (no duplicates)
+#   - Gender / cultural mix: balanced
+#   - Voice register: each broker has a distinct conversational tic
+#   - Trust / reliability: brokers vary from "low risk, low pay" to
+#     "high risk, high pay" so the player has a meaningful choice
+#
+# Schema mirrors npcs_gg7.yaml + adds:
+#   - job_categories_handled: list (which of the 5 categories)
+#   - reliability_tier: int 1-5 (1=cheapest/safest, 5=highest-risk)
+#   - typical_payout_credits: [min, max]
+#
+# ─── Tone ─────────────────────────────────────────────────────────────
+#
+# Brokers are professional. They are not hostile. They are not friendly.
+# They are doing their job; you are doing yours; the conversation is
+# transactional. Reliability tier shows in their language — tier 1
+# brokers are cautious and protect both sides; tier 5 brokers will
+# get you killed if it pays more than the job.
+#
+# All 6 brokers come pre-loaded with knowledge that Republic Security
+# patrols pass two corridors over and that the Fringe is "off-record."
+# None of them work assassinations or faction-official contracts.
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+room: uscru_entertainment_district_fringe
+
+brokers:
+
+  # ─── Tier 1: cautious, lowest pay, lowest risk ──────────────────────
+  - name: "Yenn Tarra"
+    species: "Sullustan"
+    description: >
+      A small Sullustan woman in a worn jacket, perched at a corner
+      table with a datapad and a blue drink. Her eyes track the
+      corridor without seeming to.
+    char_sheet:
+      attributes:
+        dexterity: "3D+1"
+        knowledge: "3D"
+        mechanical: "2D+2"
+        perception: "4D"
+        strength: "2D"
+        technical: "3D"
+      skills:
+        bargain: "5D"
+        forgery: "4D"
+        languages: "4D"        # Sullustese, Basic, Bocce, Huttese
+        sneak: "3D"
+        streetwise_coruscant: "5D"
+      weapon: "hold_out_blaster"
+      move: 8
+      force_points: 1
+      character_points: 6
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Yenn has been brokering on the Fringe for nine years without a
+        single client lost. She is careful, slow to commit, and turns
+        down jobs that smell wrong. Her clients pay less because they
+        sleep better at night.
+      faction: "Independent"
+      hostile: false
+      combat_behavior: "defensive"
+      dialogue_style: >
+        Quick clipped Sullustese-accented Basic. Says "hm" before
+        every other sentence while she thinks.
+      knowledge:
+        - "Republic Security patrols Fringe corridors at 21h, 03h, 09h, 15h"
+        - "The Outlander Club's back door opens for couriers if you know the bouncer's name (Vors)"
+        - "She does not handle assassinations, hits, or anything that touches kids"
+      job_categories_handled: [off_record_courier, off_record_information]
+      reliability_tier: 1
+      typical_payout_credits: [80, 250]
+      fallback_lines:
+        - "Yenn glances up. 'Hm. Sit. Drink first; talk after.'"
+        - "'Hm. I don't take that kind of job. Try the Devaronian.'"
+        - "'Pay's eighty. You bring it back, you get eighty more. Hm.'"
+        - "She slides a small data-chip across the table without looking at you."
+
+  # ─── Tier 2: balanced ───────────────────────────────────────────────
+  - name: "Brokk Vesh"
+    species: "Devaronian"
+    description: >
+      A red-skinned Devaronian with one horn shorter than the other,
+      wearing a patched flight jacket. He nurses a glass of Corellian
+      whiskey and watches the door.
+    char_sheet:
+      attributes:
+        dexterity: "3D"
+        knowledge: "3D"
+        mechanical: "3D"
+        perception: "3D+2"
+        strength: "3D"
+        technical: "2D+2"
+      skills:
+        bargain: "4D+1"
+        intimidation: "4D"
+        languages: "3D+1"
+        persuasion: "4D"
+        streetwise_coruscant: "4D+2"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 1
+      character_points: 4
+      dark_side_points: 1
+    ai_config:
+      personality: >
+        Brokk works steady. He doesn't care if a job is shady as long
+        as the credits clear. He has no Coruscant friends he can't
+        replace, but he keeps his word once he gives it. Half his
+        jobs are "find a person who doesn't want to be found."
+      faction: "Independent"
+      hostile: false
+      combat_behavior: "aggressive_when_cornered"
+      dialogue_style: >
+        Direct, slightly amused. Often leans back in his chair before
+        answering. Calls clients "friend" without warmth.
+      knowledge:
+        - "Several pop-up dance halls in Uscru double as info-broker meets"
+        - "The Reaper territory has a price on heads delivered out — but he doesn't take that work; nobody comes back"
+        - "Who in the Senate is sleeping with whose aide (current as of last week)"
+      job_categories_handled: [find_a_specific_person, off_record_information]
+      reliability_tier: 2
+      typical_payout_credits: [200, 600]
+      fallback_lines:
+        - "Brokk gestures at the chair across from him. 'Sit down, friend. Tell me a name.'"
+        - "'Two hundred up front. Two hundred when I find them. Three hundred if you want them held.'"
+        - "He laughs, once. 'No, that one's not at this address anymore. I'd know.'"
+        - "'Republic Security came through this morning. Walked right past me. Cute.'"
+
+  - name: "Marra Sundvik"
+    species: "Zabrak"
+    description: >
+      A horn-tattooed Zabrak woman in dark traveling clothes, drinking
+      water. She is the only person in the Fringe who is not
+      drunk and the only one who notices everything.
+    char_sheet:
+      attributes:
+        dexterity: "4D"
+        knowledge: "2D+2"
+        mechanical: "3D"
+        perception: "4D+1"
+        strength: "3D+1"
+        technical: "2D+1"
+      skills:
+        dodge: "5D"
+        hide: "4D+2"
+        sneak: "5D"
+        bargain: "3D+2"
+        streetwise_coruscant: "4D"
+        survival_urban: "4D+1"
+      weapon: "vibroblade"
+      move: 10
+      force_points: 2
+      character_points: 6
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Marra specializes in helping people disappear. Witness-
+        protection at the lowest possible level. She is sober,
+        observant, and trusts almost no one. She charges accordingly.
+      faction: "Independent"
+      hostile: false
+      combat_behavior: "evasive"
+      dialogue_style: >
+        Quiet. Asks short questions. Watches your hands and your
+        exits before she watches your face.
+      knowledge:
+        - "Six routes off Coruscant that Republic Customs does not track regularly"
+        - "Three midlevel safehouses run by people who will not ask questions"
+        - "Republic Intelligence's standard surveillance pattern (15-minute rotations on registered targets)"
+      job_categories_handled: [lose_a_specific_pursuer, find_a_specific_person]
+      reliability_tier: 3
+      typical_payout_credits: [400, 1200]
+      fallback_lines:
+        - "Marra does not speak first. She waits until you do."
+        - "'How long do you need to be lost?' Pause. 'I can do a week. Two weeks costs more. Permanent costs more than you have.'"
+        - "'You were followed here. The Mirialan, two tables down. He left when you sat. Worth knowing.'"
+        - "'No. Find Brokk for that. I don't find people. I lose them.'"
+
+  # ─── Tier 3: balanced, smuggling-flavored ──────────────────────────
+  - name: "Kel Doran"
+    species: "Human"
+    description: >
+      A wiry Human man in his fifties wearing a freighter pilot's
+      jumpsuit two sizes too large. He has the look of someone who
+      has been grounded by Republic Customs and has not stopped being
+      angry about it.
+    char_sheet:
+      attributes:
+        dexterity: "3D"
+        knowledge: "2D+2"
+        mechanical: "4D+1"
+        perception: "3D"
+        strength: "2D+2"
+        technical: "3D+1"
+      skills:
+        astrogation: "4D+2"
+        space_transports: "5D"
+        starship_piloting: "5D"
+        streetwise_coruscant: "3D+2"
+        bargain: "3D"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >
+        Kel is a smuggler whose ship was impounded eight months ago
+        by Republic Customs over what he insists is a paperwork
+        misunderstanding. He brokers low-tier smuggling work on the
+        Fringe to pay for a lawyer. He is bitter and cooperative
+        in roughly equal proportions.
+      faction: "Independent"
+      hostile: false
+      combat_behavior: "defensive"
+      dialogue_style: >
+        Dry, complaining. Every other sentence relates back to his
+        impounded ship. Calls Republic Customs "those bureaucrat
+        bastards" without lowering his voice.
+      knowledge:
+        - "Customs scan-blind cargo formats for tier-1 contraband"
+        - "Three pilots who will fly low-tier runs out of Coruscant for cheap"
+        - "The Dominus factory cache mechanic (knows the chalk-mark pattern)"
+        - "Cross-reference: chains.yaml smuggler chain step 2 — same skills, easier targets"
+      job_categories_handled: [low_tier_smuggling, off_record_courier]
+      reliability_tier: 3
+      typical_payout_credits: [300, 900]
+      fallback_lines:
+        - "Kel looks up from his drink. 'You flying? I'm not, anymore. Those bureaucrat bastards. But maybe I can find you someone who is.'"
+        - "'Half up front, half on delivery. Same as it ever was. Don't run blind, kid — Customs scans for the obvious.'"
+        - "'Dominus factory. You know the place? Chalk-marks on the wall. If it says cache empty, it's empty. They don't lie about that.'"
+        - "He sighs. 'Eight months. Eight months that ship has been sitting in Westport detention.'"
+
+  # ─── Tier 4: high-risk, high-pay ────────────────────────────────────
+  - name: "Vesh Nokal"
+    species: "Bothan"
+    description: >
+      A grey-furred Bothan in expensive but rumpled robes. He smiles
+      a great deal. Most people who do business with him stop
+      smiling soon afterward.
+    char_sheet:
+      attributes:
+        dexterity: "2D+2"
+        knowledge: "4D"
+        mechanical: "2D"
+        perception: "4D+2"
+        strength: "2D"
+        technical: "2D+2"
+      skills:
+        bargain: "5D"
+        bureaucracy: "4D+1"
+        forgery: "4D"
+        languages: "4D"        # Bothese, Basic, Huttese, Twi'leki, Bocce
+        persuasion: "5D+1"
+        streetwise_coruscant: "5D"
+      weapon: "hold_out_blaster"
+      move: 8
+      force_points: 1
+      character_points: 8
+      dark_side_points: 2
+    ai_config:
+      personality: >
+        Vesh is a Bothan information broker working at the level
+        where information becomes leverage. He pays well; his clients
+        usually deliver, because the alternatives are not pleasant
+        for them. He himself is never in personal danger — that is
+        the entire trick.
+      faction: "Independent"
+      hostile: false
+      combat_behavior: "evasive"
+      dialogue_style: >
+        Charming, expansive, theatrical. Uses three sentences where
+        one would do. Smiles often.
+      knowledge:
+        - "Bothan SpyNet contacts on Coruscant (he is not full SpyNet, but adjacent)"
+        - "Senate aide gossip down to the per-aide level"
+        - "Trade Federation account movements on Coruscant"
+        - "Several Republic Intelligence cells on Coruscant — names, addresses, rotations"
+      job_categories_handled: [off_record_information, find_a_specific_person]
+      reliability_tier: 4
+      typical_payout_credits: [800, 2500]
+      fallback_lines:
+        - "Vesh's smile widens. 'Ah, a new face. Sit, sit. We have so much to discuss, you and I — though we have not yet met.'"
+        - "'Information has a price. The price varies. Yours is — let me see — within reach. Excellent.'"
+        - "'Now, I will tell you what I know. You will tell me how that knowledge served you. We will trust each other, slowly, over many transactions. It is the Bothan way.'"
+        - "'No, no — that name? Do not speak that name here. Not in the Fringe. We will discuss them somewhere quieter, and the price will be different.'"
+
+  # ─── Tier 5: dangerous, will sell you out for the right offer ──────
+  - name: "Zhett Marn"
+    species: "Twi'lek"
+    description: >
+      A dark-blue-skinned Twi'lek woman in a tailored coat that
+      probably cost more than a freighter berth. She does not drink.
+      She looks at you the way a slicer looks at a system —
+      assessing.
+    char_sheet:
+      attributes:
+        dexterity: "3D+2"
+        knowledge: "3D+1"
+        mechanical: "2D"
+        perception: "4D+2"
+        strength: "2D+1"
+        technical: "3D"
+      skills:
+        bargain: "5D+1"
+        con: "5D"
+        intimidation: "4D+2"
+        persuasion: "5D"
+        streetwise_coruscant: "5D+1"
+        languages: "4D+1"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 2
+      character_points: 6
+      dark_side_points: 3
+    ai_config:
+      personality: >
+        Zhett is the highest-tier broker on the Fringe and the only
+        one a careful player should think twice before approaching.
+        She delivers what she promises — but she sells your name and
+        face to the next-best bidder the moment your business is
+        finished. Her jobs pay extraordinarily well and end careers.
+      faction: "Independent"
+      hostile: false
+      combat_behavior: "evasive"
+      dialogue_style: >
+        Cool, exact, faintly amused. Makes direct eye contact and
+        does not break it. Speaks slowly because she has decided
+        how the conversation ends already.
+      knowledge:
+        - "Black Sun's Coruscant chapter command structure"
+        - "Hutt Cartel laundering routes through Coruscant banks"
+        - "Several Republic senators' personal vices, with proof"
+        - "Names of Jedi Council members who have been compromised (false; this is bait)"
+      job_categories_handled: [find_a_specific_person, lose_a_specific_pursuer, off_record_information]
+      reliability_tier: 5
+      typical_payout_credits: [2000, 8000]
+      fallback_lines:
+        - "Zhett does not stand. She studies you for several seconds before speaking. 'Sit. We will talk.'"
+        - "'I deliver. I always deliver. I also remember every face that sits across from me, and so does the man who pays me to remember.' She smiles. 'But the work is excellent.'"
+        - "'You want it done? I do it. You will not like what I charge. You will like even less what comes after.'"
+        - "She watches you stand to leave. 'No? Pity. Come back when you have grown out of caution.'"
+
+# ═══════════════════════════════════════════════════════════════════════
+# JOB CATEGORY COVERAGE TABLE
+# ═══════════════════════════════════════════════════════════════════════
+# Per-category broker count (the engine session uses this to ensure
+# any 4-broker subset still covers most categories):
+#
+#   off_record_courier         : 2 brokers (Yenn, Kel)
+#   off_record_information     : 4 brokers (Yenn, Brokk, Vesh, Zhett)
+#   find_a_specific_person     : 4 brokers (Brokk, Marra, Vesh, Zhett)
+#   lose_a_specific_pursuer    : 2 brokers (Marra, Zhett)
+#   low_tier_smuggling         : 1 broker (Kel)
+#
+# Total broker-category slots: 13. With 4-7 concurrent presence the
+# expected coverage is 4-5 of the 5 categories visible at any time.
+# `low_tier_smuggling` has only one broker (Kel) which is a known
+# narrowness — engine session may want to weight Kel's spawn-presence
+# higher to ensure smuggling jobs are usually available.
+#
+# Reliability-tier distribution:
+#   tier 1:  Yenn (1)
+#   tier 2:  Brokk (1)
+#   tier 3:  Marra, Kel (2)
+#   tier 4:  Vesh (1)
+#   tier 5:  Zhett (1)
+#
+# This shape gives every player session a likely encounter with at
+# least one tier-1-2 (safe) broker and at least one tier-4-5 (risky)
+# broker, so the choice between "play it safe" and "take the
+# big-money job" is materially present.
+#
+# ═══════════════════════════════════════════════════════════════════════
+# ENGINE INTEGRATION NOTES
+# ═══════════════════════════════════════════════════════════════════════
+# When the Coruscant Underworld subsystem engine work lands:
+#
+# 1. The Uscru Fringe room loader reads this file when building the
+#    `uscru_entertainment_district_fringe` room from
+#    coruscant_underworld_landmarks.yaml. The 6 brokers are spawned
+#    according to the room's `brokers_present_concurrent: 4-7` rule.
+#
+# 2. Engine session implements broker-rotation logic: every X minutes
+#    of in-game time, the active broker subset is reshuffled. This
+#    way a player's second visit shows partially different brokers,
+#    making the room feel populated rather than scripted.
+#
+# 3. Each broker's `job_categories_handled` field tells the jobs
+#    system which of the 5 off-record categories to populate the
+#    broker's available work with. The engine session generates
+#    individual job records procedurally from each category template.
+#
+# 4. The `reliability_tier` field is a runtime knob — engine session
+#    uses it to determine job risk-vs-reward parameters, betrayal
+#    probability for tier-5 brokers, and Republic-Security-attention
+#    scaling.
+#
+# 5. The `typical_payout_credits` range scales jobs to the broker's
+#    tier. A tier-5 job is materially more rewarding than a tier-1,
+#    but with materially worse downside.
+#
+# ═══════════════════════════════════════════════════════════════════════

@@ -572,11 +572,27 @@ class EncounterManager:
 
     async def broadcast_to_bridge(self, enc: SpaceEncounter,
                                   message: str, session_mgr) -> None:
-        """Send a text message to all sessions on the encounter's bridge."""
+        """Send a narration message to all sessions on the encounter's bridge.
+
+        Drop B (Field Kit v2 §4): emits as typed pose_event (sys-event
+        banner) so all encounter narration — pirate hails, anomaly
+        readings, patrol challenges, hunter taunts, texture flavor —
+        gets proper attribution on the WebSocket client instead of
+        being mis-classified by the legacy classifyAndAppend regex.
+        Telnet sessions get a styled text fallback via send_json.
+
+        All non-boarding encounter files (encounter_pirate, _anomaly,
+        _patrol, _hunter, _texture) call this helper, so a single change
+        here migrates every encounter narration site at once.
+        """
         if not enc.target_bridge_room:
             return
         try:
-            await session_mgr.broadcast_to_room(enc.target_bridge_room, message)
+            from engine.pose_events import make_system_event
+            ev = make_system_event(message)
+            await session_mgr.broadcast_json_to_room(
+                enc.target_bridge_room, "pose_event", ev
+            )
         except Exception as e:
             log.warning("[encounters] broadcast error: %s", e, exc_info=True)
 

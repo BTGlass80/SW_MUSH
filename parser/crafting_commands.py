@@ -1058,6 +1058,7 @@ def _quality_desc(quality: float) -> str:
 def register_crafting_commands(registry) -> None:
     """Register all crafting commands with the command registry."""
     for cmd in [
+        CraftingCommand(),
         SurveyCommand(),
         ResourcesCommand(),
         SchematicsCommand(),
@@ -1067,6 +1068,86 @@ def register_crafting_commands(registry) -> None:
         BuyResourcesCommand(),
     ]:
         registry.register(cmd)
+
+
+# S56: Switch & alias dispatch tables for the +craft umbrella.
+_CRAFT_SWITCH_IMPL: dict = {}
+
+_CRAFT_ALIAS_TO_SWITCH: dict[str, str] = {
+    # start (the bare 'craft' verb begins crafting from a schematic)
+    "craft":         "start",
+    "start":         "start",
+    # survey
+    "survey":        "survey",
+    # resources
+    "resources":     "resources",
+    "res":           "resources",
+    # schematics
+    "schematics":    "schematics",
+    "schem":         "schematics",
+    # experiment
+    "experiment":    "experiment",
+    "exp":           "experiment",
+    # teach
+    "teach":         "teach",
+    # buyresources
+    "buyresources":  "buyresources",
+    "buyres":        "buyresources",
+    "buy resources": "buyresources",
+}
+
+
+class CraftingCommand(BaseCommand):
+    """`+craft` umbrella — full S56 dispatch over crafting verbs."""
+    key = "+craft"
+    aliases: list[str] = [
+        "craft",
+        "survey",
+        "resources", "res",
+        "schematics", "schem",
+        "experiment", "exp",
+        "teach",
+        "buyresources", "buyres",
+    ]
+    help_text = (
+        "Crafting verbs: '+craft/start <schematic>', '+craft/survey', "
+        "'+craft/resources', '+craft/schematics', '+craft/experiment', "
+        "'+craft/teach', '+craft/buyresources'. Bare verbs (craft/"
+        "survey/...) still work. Type 'help +craft' for the full reference."
+    )
+    usage = "+craft[/<switch>] [args]  — see 'help +craft'"
+    valid_switches: list[str] = [
+        "start", "survey", "resources", "schematics",
+        "experiment", "teach", "buyresources",
+    ]
+
+    async def execute(self, ctx: CommandContext):
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            switch = _CRAFT_ALIAS_TO_SWITCH.get(
+                ctx.command.lower() if ctx.command else "",
+                "survey",
+            )
+        impl_cls = _CRAFT_SWITCH_IMPL.get(switch)
+        if impl_cls is None:
+            await ctx.session.send_line(self.help_text)
+            return
+        await impl_cls().execute(ctx)
+
+
+def _init_craft_switch_impl():
+    _CRAFT_SWITCH_IMPL["start"]        = CraftCommand
+    _CRAFT_SWITCH_IMPL["survey"]       = SurveyCommand
+    _CRAFT_SWITCH_IMPL["resources"]    = ResourcesCommand
+    _CRAFT_SWITCH_IMPL["schematics"]   = SchematicsCommand
+    _CRAFT_SWITCH_IMPL["experiment"]   = ExperimentCommand
+    _CRAFT_SWITCH_IMPL["teach"]        = TeachCommand
+    _CRAFT_SWITCH_IMPL["buyresources"] = BuyResourcesCommand
+
+
+# NOTE: _init_craft_switch_impl() called at end of file (after
+# BuyResourcesCommand is defined).
 
 
 # ---------------------------------------------------------------------------
@@ -1245,3 +1326,7 @@ class BuyResourcesCommand(BaseCommand):
                                      char["credits"])
         except Exception:
             log.warning("BuyResourcesCommand: credit log failed", exc_info=True)
+
+
+# ── S56: populate _CRAFT_SWITCH_IMPL after BuyResourcesCommand is defined ──
+_init_craft_switch_impl()

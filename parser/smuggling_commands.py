@@ -546,9 +546,87 @@ async def _get_player_ship(ctx: CommandContext):
 
 # ── Registration ──────────────────────────────────────────────────────────────
 
+# S55: Switch & alias dispatch tables for the +smuggle umbrella.
+_SMUGGLE_SWITCH_IMPL: dict = {}
+
+_SMUGGLE_ALIAS_TO_SWITCH: dict[str, str] = {
+    # board
+    "smugjobs":   "board",
+    "smugboard":  "board",
+    "underworld": "board",
+    "board":      "board",
+    # accept
+    "smugaccept": "accept",
+    "takesmug":   "accept",
+    "takerun":    "accept",
+    "accept":     "accept",
+    # view (active run)
+    "smugjob":    "view",
+    "myrun":      "view",
+    "activerun":  "view",
+    "cargo":      "view",
+    "view":       "view",
+    # deliver
+    "smugdeliver":"deliver",
+    "deliver":    "deliver",
+    "dropoff":    "deliver",
+    # dump
+    "smugdump":   "dump",
+    "dumpcargo":  "dump",
+    "jettison":   "dump",
+    "dump":       "dump",
+}
+
+
+class SmuggleCommand(BaseCommand):
+    """`+smuggle` umbrella — full S55 dispatch over smuggling jobs."""
+    key = "+smuggle"
+    aliases: list[str] = [
+        "smugjobs", "smugboard", "underworld",
+        "smugaccept", "takerun",
+        "smugjob", "myrun", "cargo",
+        "smugdeliver", "deliver", "dropoff",
+        "smugdump", "dumpcargo", "jettison",
+    ]
+    help_text = (
+        "Smuggling job verbs: '+smuggle/board' (list), '+smuggle/accept "
+        "<id>', '+smuggle/view' (active), '+smuggle/deliver', "
+        "'+smuggle/dump'. Bare verbs (smugjobs/smugaccept/...) still "
+        "work. Type 'help +smuggle' for the full reference."
+    )
+    usage = "+smuggle[/<switch>] [args]  — see 'help +smuggle'"
+    valid_switches: list[str] = ["view", "board", "deliver", "accept", "dump"]
+
+    async def execute(self, ctx: CommandContext):
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            switch = _SMUGGLE_ALIAS_TO_SWITCH.get(
+                ctx.command.lower() if ctx.command else "",
+                "view",
+            )
+        impl_cls = _SMUGGLE_SWITCH_IMPL.get(switch)
+        if impl_cls is None:
+            await ctx.session.send_line(self.help_text)
+            return
+        await impl_cls().execute(ctx)
+
+
+def _init_smuggle_switch_impl():
+    _SMUGGLE_SWITCH_IMPL["board"]   = SmugJobsCommand
+    _SMUGGLE_SWITCH_IMPL["accept"]  = SmugAcceptCommand
+    _SMUGGLE_SWITCH_IMPL["view"]    = SmugJobCommand
+    _SMUGGLE_SWITCH_IMPL["deliver"] = SmugDeliverCommand
+    _SMUGGLE_SWITCH_IMPL["dump"]    = SmugDumpCommand
+
+
+_init_smuggle_switch_impl()
+
+
 def register_smuggling_commands(registry) -> None:
     """Register all smuggling commands."""
     for cmd in [
+        SmuggleCommand(),
         SmugJobsCommand(),
         SmugAcceptCommand(),
         SmugJobCommand(),

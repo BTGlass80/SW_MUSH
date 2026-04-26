@@ -1,0 +1,379 @@
+# data/worlds/clone_wars/wilderness/coruscant_underworld_landmarks.yaml
+# Clone Wars Era — Coruscant Underworld non-Force-resonant landmarks
+# Schema version 1
+#
+# Per clone_wars_era_design_v3.md §7.2, the Coruscant Underworld
+# wilderness region has six anchored landmarks plus three connecting
+# transit nodes:
+#
+#   ▸ black_sun_crawler_hideout              (Mid level, 20×15) — BHG anchor
+#   ▸ forgotten_jedi_shrine                  (Low level, 12×38) — Jedi sign
+#   ▸ abandoned_factory_dominus              (Low level, 30×5)  — smuggler cache
+#   ▸ uscru_entertainment_district_fringe    (Mid level, 8×20)  — jobs hub
+#   ▸ maze_the_reaper_territory              (Bottom, 25×25)    — high-danger
+#   ▸ transit_shaft_alpha     (Mid ↔ Low)
+#   ▸ transit_shaft_beta      (Low ↔ Bottom)
+#   ▸ surface_manhole_to_southern_underground   (Underworld ↔ city)
+#
+# `forgotten_jedi_shrine` is force-resonant and was authored in the
+# previous drop's `force_resonant_landmarks.yaml` file. This file
+# authors the remaining FOUR landmarks plus the THREE transit nodes.
+# Together with `force_resonant_landmarks.yaml` the Coruscant
+# Underworld region's anchor set is content-complete.
+#
+# Schema mirrors `force_resonant_landmarks.yaml` with one delta:
+# none of these landmarks have `force_resonant: true`. They have
+# their own faction-typed and gameplay-role-typed properties instead.
+#
+# Region attribution:
+#   All landmarks: region = coruscant_underworld
+#   Levels: mid | low | bottom
+#
+# Gameplay role differentiation:
+#   - black_sun_crawler_hideout       → BHG miniboss / faction-anchored hostile
+#   - abandoned_factory_dominus       → smuggler contraband cache
+#   - uscru_entertainment_district_fringe → NPC cluster / jobs hub
+#   - maze_the_reaper_territory       → deterrent zone for low-level chars
+#   - transit shafts                  → traversal infrastructure (no NPCs)
+#   - surface_manhole                 → city ↔ wilderness handoff
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+landmarks:
+
+  # ─── Black Sun Crawler Hideout ───────────────────────────────────────
+  - id: black_sun_crawler_hideout
+    name: "Black Sun Crawler Hideout"
+    region: coruscant_underworld
+    coordinates: [20, 15]
+    level: mid
+    short_desc: >
+      A converted city-maintenance crawler now serving as a Black Sun
+      operations point. Heavily reinforced; lookouts on the gantries.
+      Bounty-hunter contracts on the Sun's lieutenants pass through here.
+    description: |
+      The crawler — a city-maintenance vehicle the size of a small
+      freighter, originally used to clear lower-level debris — sits
+      half-buried in old ferrocrete. The treads are cannibalized for
+      scrap. The cab and rear hold have been reinforced with welded
+      plate, comm gear, and a single visible repulsor turret on the
+      upper gantry.
+
+      Two armed lookouts stand on the lower gantry, openly. A third
+      patrols the perimeter at irregular intervals. The Black Sun
+      sigil — a black starburst — is sprayed on the side of the cab,
+      the paint fresh enough that it still bleeds at the edges. This
+      is not a hideout that intends to be hidden.
+
+      Bounty-hunter contracts naming a Black Sun lieutenant pass
+      through this site. The Guild adjudicators on Nar Shaddaa won't
+      send a hunter here without backup; this is miniboss territory.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      faction_anchor: black_sun
+      gameplay_role: bhg_miniboss_anchor
+      hostile_default: true
+      threat_tier: miniboss
+    ambient_lines:
+      - text: "One of the lookouts shifts position, watching you. He does not raise his weapon. Yet."
+      - text: "From inside the crawler, a comm crackles. A voice answers in Huttese."
+      - text: "Footprints in the ferrocrete dust around the crawler — a half-dozen, none recent today."
+      - text: "The Black Sun sigil is fresh paint over older Black Sun paint. The territory has changed hands at least once."
+      - text: "A speeder bike is parked at the rear of the crawler. Its registration plate has been ground off."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (named landmark)
+      - clone_wars_era_design_v3.md §7.3 (BHG miniboss content)
+      - chains.yaml bounty_hunter chain (BHG content downstream)
+
+  # ─── Abandoned Factory Dominus ───────────────────────────────────────
+  - id: abandoned_factory_dominus
+    name: "Abandoned Factory Dominus"
+    region: coruscant_underworld
+    coordinates: [30, 5]
+    level: low
+    short_desc: >
+      A vast Republic-era munitions factory shuttered fifteen years
+      ago. Smugglers use the lower assembly bays as drop sites; the
+      upper floors are unsafe. Cargo crates appear and disappear.
+    description: |
+      Factory Dominus was a Republic-era munitions plant — small-arms
+      blaster components, mostly — that closed when its corporate
+      parent collapsed in a Senate corruption inquiry fifteen years
+      ago. The shutdown was abrupt; a half-finished production run
+      still sits on the upper assembly line, blast rifles in various
+      states of incomplete fabrication, the conveyor frozen mid-cycle.
+
+      The upper floors are structurally compromised — collapsed
+      ceilings, exposed power couplings still live to a degraded
+      grid, the ferrocrete weakening year by year. The lower
+      assembly bays are intact and dry. Smugglers use them. Cargo
+      crates appear at unscheduled intervals and disappear before
+      anyone can claim ownership. The factory's surveillance
+      infrastructure has been stripped or sabotaged at every level.
+
+      No corporate entity claims Dominus. The Coruscant Public Works
+      database lists it as "scheduled for demolition," which it has
+      been for thirteen years.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      faction_anchor: independent
+      gameplay_role: smuggler_contraband_cache
+      hostile_default: false
+      threat_tier: low
+      structural_hazard: true            # upper floors are dangerous to enter
+    ambient_lines:
+      - text: "A crate sits at the back of the assembly bay. The seal is broken. The contents are gone."
+      - text: "Somewhere in the upper floors, ferrocrete shifts. A fine dust filters down."
+      - text: "An old security holocam stares from the ceiling. Its lens is shattered. The wire to its power supply has been cleanly cut."
+      - text: "Footprints in the dust trace a path between the loading dock and the rear exit. No prints lead toward the upper floors."
+      - text: "A blast rifle frame sits on the conveyor belt — half-assembled, fifteen years stalled. The bolts are still bright."
+      - text: "A faint hum from a power coupling somewhere overhead. The grid is degraded but not dead."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (named landmark)
+      - clone_wars_era_design_v3.md §7.3 (smuggler contraband cache role)
+      - chains.yaml smuggler chain (independent faction downstream)
+
+  # ─── Uscru Entertainment District Fringe ─────────────────────────────
+  - id: uscru_entertainment_district_fringe
+    name: "Uscru Entertainment District Fringe"
+    region: coruscant_underworld
+    coordinates: [8, 20]
+    level: mid
+    short_desc: >
+      The frayed edge of the Uscru entertainment district — neon
+      bleeding down from the levels above, cantinas, jobs board on
+      the cracked plaza wall. NPCs cluster here; word travels fast.
+    description: |
+      Uscru proper is two levels up — the famous Outlander Club, the
+      Galaxies Opera, the high-end establishments where senators are
+      seen and not seen. The Fringe is what catches the runoff: the
+      cantinas that don't ask too many questions, the secondhand
+      gear shops, the overflow crowd who couldn't get into the rooms
+      where the credits move.
+
+      Neon from the upper levels bleeds down through the gaps. The
+      light is patchy and chromatic, never quite settling. A jobs
+      board — a literal cracked plaster wall on the south side of
+      the plaza — collects flyers and chits from anyone with work
+      that needs doing. Some of it is legitimate. Most of it is
+      not. The board updates faster than any holonet feed.
+
+      NPCs cluster here at all hours. This is the closest thing the
+      Underworld has to a town square.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: true              # NPC cluster — Director-flavored
+      faction_anchor: independent
+      gameplay_role: jobs_hub
+      hostile_default: false
+      threat_tier: none
+      npc_cluster: true                   # multiple NPCs spawn here
+      job_board: true                     # mission/contract board reads here
+    ambient_lines:
+      - text: "The jobs board has a fresh flyer pinned with a vibroblade. The flyer offers credits for 'discreet retrieval.' No address. The blade is the contact."
+      - text: "Two Twi'leks at a corner table fall silent when you glance over. They resume when you look away."
+      - text: "A Sullustan singer is performing in one of the cantinas, unseen from the plaza. The song is a war ballad with the verses changed."
+      - text: "A clone trooper in plain civvies sits at the cantina railing. He has been off-duty long enough that no one is paying attention to him anymore."
+      - text: "Neon from the levels above flickers. For a moment the plaza is dark; the cantina interiors stay lit."
+      - text: "Someone has spray-painted 'THE WAR PAYS BETTER UP THERE' on the south wall. It has not been cleaned off."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (named landmark)
+      - clone_wars_era_design_v3.md §7.3 (jobs hub role)
+      - clone_wars_era_design_v3.md §1.4 (Coruscant Uscru proper, two levels up)
+
+  # ─── Maze the Reaper Territory ───────────────────────────────────────
+  - id: maze_the_reaper_territory
+    name: "The Reaper's Maze"
+    region: coruscant_underworld
+    coordinates: [25, 25]
+    level: bottom
+    short_desc: >
+      The bottom level's most hostile zone. The Reaper is a creature,
+      a gang, or a rumor — accounts disagree. Low-level characters
+      who enter rarely come back. Threat tier: lethal.
+    description: |
+      The bottom level of the Coruscant Underworld is unmapped by
+      the Public Works database — the city no longer pretends to
+      have authority here. The Reaper's Maze is the sector that has
+      become folklore even among the Underworld's regular residents.
+
+      Accounts disagree on what the Reaper is. Some say a creature —
+      a Coruscant rakghoul descendant or a worse engineering. Some
+      say a gang, hooded and silent, whose rite of admission
+      involves the kills they make in this sector. Some say a
+      rumor that has accreted around the simple fact that this
+      area kills people who enter.
+
+      The architecture changes here. Corridors loop in patterns
+      that should not be possible — the cartography of the levels
+      above does not predict the layout. People who survive a visit
+      describe paths that did not exist when they entered. People
+      who do not survive are not described.
+
+      Low-level characters are warned away. The Adjudicator at the
+      Nar Shaddaa BHG chapter house has flagged this sector as
+      LETHAL on contracts — no Guild bounty originates here, and
+      hunters who pursue marks into the Maze do so on their own
+      authority and at their own risk.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      faction_anchor: null                # the Reaper has no faction loyalty
+      gameplay_role: lethal_deterrent
+      hostile_default: true
+      threat_tier: lethal
+      low_level_warning: true             # engine surfaces a warning on entry
+                                          # for characters below threshold
+      cartography_unstable: true          # exit destinations may change
+                                          # between visits (engine-decided)
+    ambient_lines:
+      - text: "The corridor behind you — the one you just walked through — is gone. There is a wall there now. There has always been a wall there."
+      - text: "A dragging sound, distant, behind a wall you cannot see past. It stops when you stop."
+      - text: "The lights here are low and red. There is no fixture. The redness is the air."
+      - text: "Bones at the base of one wall. A skull, intact. The bite radius does not match any species you can name."
+      - text: "You come around a corner and see, at the far end of the corridor, a figure standing very still. When you blink it is not there."
+      - text: "There are no rats here. There should be rats here. The lower levels are full of rats. There are no rats here."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (named landmark)
+      - clone_wars_era_design_v3.md §7.3 (deterrent zone)
+
+# ═══════════════════════════════════════════════════════════════════════
+# TRANSIT NODES
+# ═══════════════════════════════════════════════════════════════════════
+# Per design §7.2, the Underworld has three connecting transit nodes
+# in addition to the named landmarks. These are not landmarks per se —
+# they are traversal infrastructure — but they live in the same data
+# file because the wilderness builder reads them at the same time.
+
+transit_nodes:
+
+  - id: transit_shaft_alpha
+    name: "Transit Shaft Alpha"
+    region: coruscant_underworld
+    connects_levels: [mid, low]
+    short_desc: >
+      An old industrial transit shaft connecting the Mid and Low
+      levels. The lift cage is rusted but functional; the chains
+      hold.
+    description: |
+      A square-bored vertical shaft, perhaps ten meters across,
+      driven by Public Works centuries ago for cargo transit between
+      the Mid and Low Underworld levels. The lift cage at the bottom
+      is iron-framed, rusted at every joint, but the chains and
+      counterweights are sound. The control lever still works. The
+      shaft is not on any current city map.
+
+      Travelers between Mid and Low typically use this shaft. The
+      alternative is a fall.
+    properties:
+      wilderness_landmark: false
+      transit_node: true
+      ambient_disabled: true              # transit nodes are utilitarian
+      director_managed: false
+    ambient_lines: []                     # quiet by design
+
+  - id: transit_shaft_beta
+    name: "Transit Shaft Beta"
+    region: coruscant_underworld
+    connects_levels: [low, bottom]
+    short_desc: >
+      A maintenance shaft from Low to Bottom. The lift is gone; what
+      remains is a service ladder bolted to the shaft wall. Long
+      descent.
+    description: |
+      The lift cage that once served this shaft was scrapped — the
+      iron is gone, the counterweight chain still hangs in the
+      shaft below. What remains is the service ladder, bolted to
+      one wall, descending the full thirty meters from Low to
+      Bottom.
+
+      The descent is long, tiring, and offers no good handholds for
+      hauling cargo. Smugglers who need to reach the Bottom level
+      send empty handed. Most travelers do not need to reach the
+      Bottom level.
+    properties:
+      wilderness_landmark: false
+      transit_node: true
+      ambient_disabled: true
+      director_managed: false
+      requires_climb_check: true          # engine: climbing skill check
+                                          # on transit; failure = damage
+    ambient_lines: []
+
+  - id: surface_manhole_to_southern_underground
+    name: "Surface Manhole — Southern Underground"
+    region: coruscant_underworld
+    connects_levels: [mid]
+    connects_to_zone: coruscant_lower     # the city-side zone slug
+    connects_to_room: southern_underground
+    short_desc: >
+      The single explicit handoff between Coruscant city and the
+      Underworld wilderness region. Climb down here from the
+      Southern Underground; climb up here to return to Coruscant.
+    description: |
+      A round manhole in the floor of the Southern Underground's
+      lowest accessible plaza, at the edge of the Crystal Jewel's
+      service alley. The cover is not locked. The smell from below
+      is humid and metallic. A service ladder descends into the
+      Mid-level Underworld.
+
+      This is the only mapped, unobstructed handoff between the
+      city's Southern Underground zone and the Underworld
+      wilderness region. The city-side exit is the named exit
+      `manhole` from `southern_underground`; the wilderness-side
+      arrival is here.
+    properties:
+      wilderness_landmark: false
+      transit_node: true
+      ambient_disabled: true
+      director_managed: false
+      city_handoff: true                  # special: zone-to-region boundary
+    ambient_lines: []
+
+# ═══════════════════════════════════════════════════════════════════════
+# ENGINE INTEGRATION NOTES
+# ═══════════════════════════════════════════════════════════════════════
+# When the Coruscant Underworld wilderness builder ships:
+#
+# 1. The builder reads BOTH this file and the predecessor
+#    `force_resonant_landmarks.yaml`. It filters by region =
+#    coruscant_underworld and creates rooms for each landmark and
+#    transit node, populating coordinates, level, descriptions,
+#    properties, and ambient pools from these files.
+#
+# 2. `surface_manhole_to_southern_underground` is the ONE handoff
+#    point per design §2.3.1. The Coruscant city-side
+#    `southern_underground` room must declare a named exit `manhole`
+#    that points to `surface_manhole_to_southern_underground`. The
+#    builder validates this at load time.
+#
+# 3. Director AI is enabled ONLY for `uscru_entertainment_district_fringe`
+#    (the NPC cluster / jobs hub). All other landmarks set
+#    director_managed: false; their NPCs (the Black Sun lookouts,
+#    the Reaper's hostiles) are hand-spawned by the builder, not
+#    Director-flavored.
+#
+# 4. `maze_the_reaper_territory.cartography_unstable: true` is a
+#    specific engine signal — the wilderness movement code may
+#    permute exit destinations between visits to this landmark to
+#    encode the "the corridor behind you is gone" effect. Implementation
+#    is engine-side; this file just declares the flag.
+#
+# 5. `abandoned_factory_dominus.structural_hazard: true` signals that
+#    moving deeper into the upper floors should trigger a falling-debris
+#    event. Implementation is engine-side.
+#
+# 6. The two Coruscant Underworld landmark files together
+#    (`force_resonant_landmarks.yaml` for `forgotten_jedi_shrine` plus
+#    this file for the other 4 landmarks + 3 transit nodes) provide
+#    complete coverage of design §7.2's anchor list.
+#
+# ═══════════════════════════════════════════════════════════════════════

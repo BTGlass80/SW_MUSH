@@ -82,6 +82,43 @@ content_refs:
   test_character: test_character.yaml
   test_jedi: test_jedi.yaml    # God-mode Jedi account for dev testing of Force content
 
+  # ── Space pivot content (Drop F.X — engine refactor pending) ─────────────
+  # These three files are loaded by the F.X Space Pivot drop's engine
+  # refactor. Until that ships, they are inert at runtime — content is
+  # ready, engine integration is the gating work. See
+  # clone_wars_space_pivot_design_v1.md for the engine plan.
+  space_zones: space_zones.yaml          # CW space zone graph (24 zones)
+  starships: starships.yaml              # 14 CW-exclusive ship templates
+  traffic_archetypes: traffic_archetypes.yaml  # Republic/CIS patrol archetypes
+
+  # ── Director / Lore pivot content (Drop 6a — engine refactor pending) ────
+  # These three files are consumed by Drop 6a's engine refactor of
+  # engine/director.py and engine/world_lore.py. Until that ships, they
+  # are inert at runtime. See clone_wars_director_lore_pivot_design_v1.md
+  # for the engine plan.
+  lore: lore.yaml                        # 32 CW lore entries (replaces SEED_ENTRIES)
+  director_config: director_config.yaml  # Faction model + zone_baselines + system prompt
+  ambient_events: ambient_events.yaml    # Ambient flavor for new CW zones
+
+# ═══════════════════════════════════════════════════════════════════════
+# REGISTRY POLICY (Space Pivot drop)
+# ═══════════════════════════════════════════════════════════════════════
+# The ship registry merges global data/starships.yaml with this era's
+# starships.yaml. excluded_templates names global ships that should NOT
+# register in this era — typically post-CW Imperial-era designs.
+registry_policy:
+  starship_excluded_templates:
+    - x_wing
+    - a_wing
+    - b_wing
+    - tie_fighter
+    - tie_interceptor
+    - tie_bomber
+    - lambda_shuttle
+    - sentinel_shuttle
+    - nebulon_b
+    - imperial_star_destroyer
+
 # Policy enforcement flags
 # When world-extraction refactor (Drop 0) lands and engine reads these,
 # the listed items will be actively enforced rather than advisory.

@@ -1,0 +1,614 @@
+# data/worlds/clone_wars/starships.yaml
+# Clone Wars Era — CW-Exclusive Ship Templates
+# Schema version 1
+#
+# This file is ADDITIVE to the global data/starships.yaml. It contains
+# only ships that are CW-era specific — ships that did not exist in 20 BBY
+# (X-Wing, A-Wing, B-Wing, TIE Fighter/Interceptor/Bomber, Lambda Shuttle,
+# Sentinel Shuttle, Nebulon-B, Imperial Star Destroyer) stay out of the CW
+# era's effective registry; ships that ARE era-agnostic (YT-1300, Ghtroc 720,
+# YT-2400, Y-Wing, Z-95, Firespray, Corellian Corvette) are sourced from
+# the global file unchanged.
+#
+# When the F.X Space Pivot drop lands, the engine ship registry will merge
+# global + era-specific YAMLs with this precedence:
+#   1. Era-specific (this file) wins on key collision
+#   2. Era-agnostic global file fills in the rest
+#   3. Era's `excluded_templates` list (in era.yaml) blocks the global
+#      file's post-CW ships from registering
+#
+# Until that lands, this file is inert at runtime.
+#
+# Schema (must match data/starships.yaml entries):
+#   name, nickname, scale, hull, shields, speed, maneuverability,
+#   crew, passengers, cargo, consumables, hyperdrive, hyperdrive_backup,
+#   cost, mod_slots, reactor_power, weapons[]
+#
+# Stat sources: WEG D6 R&E core values where available; consensus
+# fan-converted values (Saga Edition / WotC d20 conversions) where WEG
+# never published the ship. Balance check: each entry was sized against
+# the closest existing data/starships.yaml entry to keep the same
+# scale-relative power curve.
+#
+# 14 templates total: 7 Republic, 7 CIS.
+
+# ═══════════════════════════════════════════════════════════════════════
+# REPUBLIC NAVY
+# ═══════════════════════════════════════════════════════════════════════
+
+# ── Capital ships ──────────────────────────────────────────────────────
+
+venator:
+  name: "Venator-class Star Destroyer"
+  nickname: "Venator"
+  scale: capital
+  hull: "4D"
+  shields: "3D"
+  speed: 4
+  maneuverability: "1D"
+  crew: 7400
+  passengers: 2000
+  cargo: 20000
+  consumables: "2 years"
+  hyperdrive: 1
+  hyperdrive_backup: 10
+  cost: 0
+  mod_slots: 10
+  reactor_power: 30
+  weapons:
+    - name: "Eight Heavy Turbolaser Turrets"
+      fire_arc: turret
+      damage: "5D"
+      fire_control: "3D"
+      skill: capital_ship_gunnery
+    - name: "Two Medium Dual Turbolaser Cannons"
+      fire_arc: turret
+      damage: "4D+2"
+      fire_control: "3D"
+      skill: capital_ship_gunnery
+    - name: "Fifty-Two Point-Defense Laser Cannons"
+      fire_arc: turret
+      damage: "2D"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "Four Proton Torpedo Tubes"
+      fire_arc: front
+      damage: "9D"
+      fire_control: "2D"
+      skill: capital_ship_gunnery
+    - name: "Six Tractor Beam Projectors"
+      fire_arc: turret
+      damage: "4D"
+      fire_control: "2D"
+      skill: capital_ship_gunnery
+      tractor: true
+  notes: "Republic capital ship. Dual-purpose carrier/destroyer. Carries 192 starfighters and 24 LAAT/i gunships."
+
+acclamator:
+  name: "Acclamator-class Assault Ship"
+  nickname: "Acclamator"
+  scale: capital
+  hull: "3D+2"
+  shields: "2D+2"
+  speed: 4
+  maneuverability: "1D"
+  crew: 700
+  passengers: 16000
+  cargo: 11250
+  consumables: "2 years"
+  hyperdrive: 0.6
+  hyperdrive_backup: 12
+  cost: 0
+  mod_slots: 8
+  reactor_power: 24
+  weapons:
+    - name: "Twelve Quad Turbolaser Turrets"
+      fire_arc: turret
+      damage: "5D"
+      fire_control: "3D"
+      skill: capital_ship_gunnery
+    - name: "Twenty-Four Laser Cannons"
+      fire_arc: turret
+      damage: "2D"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "Four Proton Torpedo Launchers"
+      fire_arc: front
+      damage: "9D"
+      fire_control: "2D"
+      skill: capital_ship_gunnery
+    - name: "Four Concussion Missile Launchers"
+      fire_arc: front
+      damage: "7D"
+      fire_control: "2D"
+      skill: capital_ship_gunnery
+  notes: "Republic clone trooper assault transport. Atmosphere-capable; can land planetside."
+
+consular_cruiser:
+  name: "Consular-class Cruiser"
+  nickname: "Consular"
+  scale: capital
+  hull: "3D+1"
+  shields: "1D+2"
+  speed: 5
+  maneuverability: "2D"
+  crew: 9
+  passengers: 16
+  cargo: 1500
+  consumables: "1 year"
+  hyperdrive: 2
+  hyperdrive_backup: 12
+  cost: 1500000
+  mod_slots: 6
+  reactor_power: 14
+  weapons:
+    - name: "Two Double Turbolaser Cannons"
+      fire_arc: turret
+      damage: "4D"
+      fire_control: "2D"
+      skill: capital_ship_gunnery
+  notes: "Diplomatic courier. Republic military variant has the listed armament; civilian variant is unarmed."
+
+# ── Starfighters ───────────────────────────────────────────────────────
+
+arc_170:
+  name: "ARC-170 Starfighter"
+  nickname: "ARC-170"
+  scale: starfighter
+  hull: "4D"
+  shields: "1D+2"
+  speed: 7
+  maneuverability: "2D"
+  crew: 3
+  passengers: 0
+  cargo: 110
+  consumables: "5 days"
+  hyperdrive: 1.5
+  hyperdrive_backup: 18
+  cost: 220000
+  mod_slots: 4
+  reactor_power: 10
+  weapons:
+    - name: "Two Medium Laser Cannons"
+      fire_arc: front
+      damage: "5D"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "Two Rear Laser Cannons"
+      fire_arc: rear
+      damage: "3D"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "Six Proton Torpedoes"
+      fire_arc: front
+      damage: "9D"
+      fire_control: "2D"
+      skill: starship_gunnery
+      ammo: 6
+  notes: "Republic heavy starfighter. Three-seat: pilot, copilot/navigator, tail gunner. Hyperdrive-capable."
+
+v_19_torrent:
+  name: "V-19 Torrent Starfighter"
+  nickname: "V-19"
+  scale: starfighter
+  hull: "2D+2"
+  shields: "1D"
+  speed: 11
+  maneuverability: "3D+1"
+  crew: 1
+  passengers: 0
+  cargo: 80
+  consumables: "2 days"
+  hyperdrive: 0     # No internal hyperdrive — carrier-deployed
+  hyperdrive_backup: 0
+  cost: 145000
+  mod_slots: 3
+  reactor_power: 8
+  weapons:
+    - name: "Two Light Laser Cannons"
+      fire_arc: front
+      damage: "4D"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "Two Concussion Missile Launchers"
+      fire_arc: front
+      damage: "7D"
+      fire_control: "2D"
+      skill: starship_gunnery
+      ammo: 8
+  notes: "Republic light starfighter. Carrier-deployed; no internal hyperdrive."
+
+eta_2_actis:
+  name: "Eta-2 Actis Light Interceptor"
+  nickname: "Jedi Interceptor"
+  scale: starfighter
+  hull: "2D+1"
+  shields: "0D"
+  speed: 13
+  maneuverability: "4D"
+  crew: 1
+  passengers: 0
+  cargo: 60
+  consumables: "1 day"
+  hyperdrive: 0     # No internal hyperdrive — uses external booster ring
+  hyperdrive_backup: 0
+  cost: 320000
+  mod_slots: 3
+  reactor_power: 9
+  weapons:
+    - name: "Two Dual Laser Cannons"
+      fire_arc: front
+      damage: "4D"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "Two Ion Cannons"
+      fire_arc: front
+      damage: "3D"
+      fire_control: "2D"
+      skill: starship_gunnery
+      ion: true
+  notes: "Jedi-issued interceptor. Extreme maneuverability, no shields. Hyperdrive booster ring is a separate vehicle."
+
+laat_gunship:
+  name: "LAAT/i Republic Gunship"
+  nickname: "LAAT"
+  scale: starfighter
+  hull: "3D+2"
+  shields: "1D"
+  speed: 6
+  maneuverability: "2D"
+  crew: 4
+  passengers: 30
+  cargo: 340
+  consumables: "5 days"
+  hyperdrive: 0
+  hyperdrive_backup: 0
+  cost: 175000
+  mod_slots: 4
+  reactor_power: 9
+  weapons:
+    - name: "Two Mass-Driver Turrets"
+      fire_arc: turret
+      damage: "5D"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "Three Anti-Personnel Laser Turrets"
+      fire_arc: turret
+      damage: "3D"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "Four Air-to-Air Missile Launchers"
+      fire_arc: front
+      damage: "7D"
+      fire_control: "2D"
+      skill: starship_gunnery
+      ammo: 8
+    - name: "Eight Light Air-to-Surface Rockets"
+      fire_arc: front
+      damage: "5D"
+      fire_control: "2D"
+      skill: starship_gunnery
+      ammo: 16
+  notes: "Republic combat gunship. Atmosphere-optimized; sublight space capable but slow. Used for clone trooper insertion."
+
+# ═══════════════════════════════════════════════════════════════════════
+# CIS / SEPARATIST FLEET
+# ═══════════════════════════════════════════════════════════════════════
+
+# ── Capital ships ──────────────────────────────────────────────────────
+
+lucrehulk:
+  name: "Lucrehulk-class Battleship"
+  nickname: "Lucrehulk"
+  scale: capital
+  hull: "5D"
+  shields: "4D"
+  speed: 2
+  maneuverability: "0D"
+  crew: 350
+  passengers: 139000   # Battle droid contingent
+  cargo: 100000
+  consumables: "3 years"
+  hyperdrive: 2
+  hyperdrive_backup: 10
+  cost: 0
+  mod_slots: 12
+  reactor_power: 36
+  weapons:
+    - name: "Forty-Two Quad Laser Cannons"
+      fire_arc: turret
+      damage: "3D+2"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "One-Hundred-Sixty-Four Turbolaser Batteries"
+      fire_arc: turret
+      damage: "4D+2"
+      fire_control: "3D"
+      skill: capital_ship_gunnery
+  notes: "Trade Federation flagship. 3,170 meters; one of the largest CIS vessels in service. Carries 1,500 droid starfighters and 50 MTT/AAT companies."
+
+munificent:
+  name: "Munificent-class Star Frigate"
+  nickname: "Munificent"
+  scale: capital
+  hull: "4D"
+  shields: "2D+2"
+  speed: 4
+  maneuverability: "1D"
+  crew: 200    # Plus droid complement
+  passengers: 150000   # Battle droids
+  cargo: 40000
+  consumables: "2 years"
+  hyperdrive: 1
+  hyperdrive_backup: 12
+  cost: 0
+  mod_slots: 9
+  reactor_power: 26
+  weapons:
+    - name: "Two Ultra-Heavy Turbolaser Cannons"
+      fire_arc: front
+      damage: "7D"
+      fire_control: "3D"
+      skill: capital_ship_gunnery
+    - name: "Two Long-Range Heavy Ion Cannons"
+      fire_arc: front
+      damage: "5D"
+      fire_control: "3D"
+      skill: capital_ship_gunnery
+      ion: true
+    - name: "Twenty-Six Twin Heavy Turbolaser Turrets"
+      fire_arc: turret
+      damage: "5D"
+      fire_control: "3D"
+      skill: capital_ship_gunnery
+    - name: "Twenty Light Turbolaser Cannons"
+      fire_arc: turret
+      damage: "3D+2"
+      fire_control: "2D"
+      skill: capital_ship_gunnery
+    - name: "Thirty-Eight Point-Defense Laser Cannons"
+      fire_arc: turret
+      damage: "2D"
+      fire_control: "2D"
+      skill: starship_gunnery
+  notes: "InterGalactic Banking Clan-built CIS frigate. Long-range gunnery platform. The two ion cannons can disable capital ships at extreme range."
+
+recusant:
+  name: "Recusant-class Light Destroyer"
+  nickname: "Recusant"
+  scale: capital
+  hull: "3D+2"
+  shields: "2D"
+  speed: 4
+  maneuverability: "1D"
+  crew: 300    # Plus droid complement
+  passengers: 40000   # Battle droids
+  cargo: 25000
+  consumables: "2 years"
+  hyperdrive: 1
+  hyperdrive_backup: 14
+  cost: 0
+  mod_slots: 8
+  reactor_power: 22
+  weapons:
+    - name: "One Prow Heavy Turbolaser"
+      fire_arc: front
+      damage: "6D"
+      fire_control: "3D"
+      skill: capital_ship_gunnery
+    - name: "Four Heavy Turbolaser Cannons"
+      fire_arc: turret
+      damage: "5D"
+      fire_control: "3D"
+      skill: capital_ship_gunnery
+    - name: "Six Turbolaser Cannons"
+      fire_arc: turret
+      damage: "4D"
+      fire_control: "2D"
+      skill: capital_ship_gunnery
+    - name: "Five Heavy Laser Cannons"
+      fire_arc: turret
+      damage: "3D"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "Four Ion Cannons"
+      fire_arc: turret
+      damage: "4D"
+      fire_control: "2D"
+      skill: capital_ship_gunnery
+      ion: true
+    - name: "Thirty Anti-Fighter Laser Cannons"
+      fire_arc: turret
+      damage: "2D+2"
+      fire_control: "2D"
+      skill: starship_gunnery
+  notes: "Mass-produced CIS destroyer. Cheap, expendable, plentiful. Engagements typically feature multiple Recusants in formation."
+
+# ── Drone fighters ─────────────────────────────────────────────────────
+
+vulture_droid:
+  name: "Vulture-class Droid Starfighter"
+  nickname: "Vulture Droid"
+  scale: starfighter
+  hull: "2D"
+  shields: "0D"
+  speed: 9
+  maneuverability: "3D"
+  crew: 0   # Droid brain
+  passengers: 0
+  cargo: 0
+  consumables: "0 days"
+  hyperdrive: 0     # Carrier-deployed only
+  hyperdrive_backup: 0
+  cost: 35000
+  mod_slots: 2
+  reactor_power: 6
+  weapons:
+    - name: "Four Blaster Cannons"
+      fire_arc: front
+      damage: "3D+2"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "Two Energy Torpedo Launchers"
+      fire_arc: front
+      damage: "6D"
+      fire_control: "2D"
+      skill: starship_gunnery
+      ammo: 4
+  notes: "CIS drone fighter. No pilot — operated remotely from a Lucrehulk control ship. Cheap, expendable, deployed in massive squadrons."
+
+hyena_bomber:
+  name: "Hyena-class Bomber"
+  nickname: "Hyena Bomber"
+  scale: starfighter
+  hull: "2D+2"
+  shields: "0D"
+  speed: 6
+  maneuverability: "2D"
+  crew: 0   # Droid brain
+  passengers: 0
+  cargo: 0
+  consumables: "0 days"
+  hyperdrive: 0     # Carrier-deployed
+  hyperdrive_backup: 0
+  cost: 60000
+  mod_slots: 3
+  reactor_power: 7
+  weapons:
+    - name: "Two Medium Laser Cannons"
+      fire_arc: front
+      damage: "4D"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "Two Light Laser Cannons"
+      fire_arc: front
+      damage: "3D"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "Six Proton Bombs"
+      fire_arc: turret
+      damage: "9D"
+      fire_control: "1D"
+      skill: starship_gunnery
+      ammo: 6
+    - name: "Eight Concussion Missiles"
+      fire_arc: front
+      damage: "7D"
+      fire_control: "2D"
+      skill: starship_gunnery
+      ammo: 8
+  notes: "CIS drone bomber. Vulture droid chassis adapted for ordnance delivery. No pilot — battle-droid brain."
+
+tri_fighter:
+  name: "Droid Tri-Fighter"
+  nickname: "Tri-Fighter"
+  scale: starfighter
+  hull: "2D+1"
+  shields: "0D"
+  speed: 10
+  maneuverability: "3D+2"
+  crew: 0   # Droid brain
+  passengers: 0
+  cargo: 0
+  consumables: "0 days"
+  hyperdrive: 0
+  hyperdrive_backup: 0
+  cost: 75000
+  mod_slots: 3
+  reactor_power: 8
+  weapons:
+    - name: "Three Light Laser Cannons"
+      fire_arc: front
+      damage: "3D+2"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "One Medium Laser Cannon"
+      fire_arc: front
+      damage: "4D+2"
+      fire_control: "2D"
+      skill: starship_gunnery
+    - name: "Buzz Droid Missile Launcher"
+      fire_arc: front
+      damage: "5D"
+      fire_control: "2D"
+      skill: starship_gunnery
+      ammo: 4
+      special: "Buzz droids — opposed astrogation/repair check or hull damage continues per round."
+  notes: "Advanced CIS drone fighter. Higher-end than Vulture droids. The buzz-droid missiles are the signature weapon — they don't kill outright but disable systems progressively."
+
+# ── Transport ──────────────────────────────────────────────────────────
+
+sheathipede:
+  name: "Sheathipede-class Transport Shuttle"
+  nickname: "Sheathipede"
+  scale: starfighter
+  hull: "2D+2"
+  shields: "1D"
+  speed: 4
+  maneuverability: "1D+2"
+  crew: 1
+  passengers: 6
+  cargo: 100
+  consumables: "2 weeks"
+  hyperdrive: 2     # With booster sled; without sled the shuttle has no FTL
+  hyperdrive_backup: 0
+  cost: 50000
+  mod_slots: 4
+  reactor_power: 8
+  weapons:
+    - name: "Two Light Laser Cannons"
+      fire_arc: front
+      damage: "3D"
+      fire_control: "2D"
+      skill: starship_gunnery
+  notes: "Neimoidian shuttle. Used for senior CIS officer transport, diplomatic missions, and (in armed configurations) light combat. No fixed hyperdrive — booster sled is a separate vehicle."
+
+# ═══════════════════════════════════════════════════════════════════════
+# REGISTRY HINTS
+# ═══════════════════════════════════════════════════════════════════════
+# When the engine ship registry merges global + era YAMLs, these notes
+# inform the merge logic. None of these are strict requirements — they
+# document author intent.
+
+registry_hints:
+  era_specific_keys:
+    - venator
+    - acclamator
+    - consular_cruiser
+    - arc_170
+    - v_19_torrent
+    - eta_2_actis
+    - laat_gunship
+    - lucrehulk
+    - munificent
+    - recusant
+    - vulture_droid
+    - hyena_bomber
+    - tri_fighter
+    - sheathipede
+  era_agnostic_global_keys_in_use:
+    # Ships from data/starships.yaml that ARE valid in 20 BBY and should
+    # remain registered in CW. The era-specific file does NOT redefine them.
+    - yt_1300
+    - yt1300
+    - ghtroc_720
+    - yt_2400
+    - y_wing
+    - z_95
+    - z95
+    - firespray
+    - corellian_corvette
+  excluded_global_keys:
+    # Ships from data/starships.yaml that did NOT exist in 20 BBY and
+    # should NOT register in the CW era. Engine should consume this list
+    # via era.yaml's excluded_templates field (see era.yaml registry policy).
+    - x_wing
+    - a_wing
+    - b_wing
+    - tie_fighter
+    - tie_interceptor
+    - tie_bomber
+    - lambda_shuttle
+    - sentinel_shuttle
+    - nebulon_b
+    - imperial_star_destroyer

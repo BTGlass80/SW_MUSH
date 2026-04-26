@@ -120,7 +120,7 @@ def _has_musical_instrument(char: dict) -> bool:
 
 class PerformCommand(BaseCommand):
     key = "perform"
-    aliases = ["entertain", "play"]
+    aliases = ["+perform", "entertain", "play"]
     help_text = (
         "Perform for credits in a cantina. Uses Persuasion or "
         "Musical Instrument skill. 10-minute cooldown between performances."

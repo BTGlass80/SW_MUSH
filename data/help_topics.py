@@ -11,6 +11,7 @@ The HelpManager is initialized at server boot and injected into HelpCommand.
 """
 from dataclasses import dataclass, field
 from typing import Optional
+import os
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -26,6 +27,12 @@ class HelpEntry:
     aliases: list[str] = field(default_factory=list)
     see_also: list[str] = field(default_factory=list)
     access_level: int = 0               # 0=anyone, 3=admin
+    # Markdown-loader fields (engine/help_loader.py). Optional — entries
+    # constructed in code without these still work via the defaults.
+    summary: str = ""                                       # 1-line tagline shown above body
+    examples: list[dict] = field(default_factory=list)      # [{"cmd": "...", "description": "..."}]
+    tags: list[str] = field(default_factory=list)           # search/filter tags
+    updated_at: str = ""                                    # ISO-8601 from frontmatter or file mtime
 
 
 class HelpManager:
@@ -34,12 +41,29 @@ class HelpManager:
     def __init__(self):
         self._entries: dict[str, HelpEntry] = {}   # key → HelpEntry
         self._alias_map: dict[str, str] = {}        # alias → key
+        # S47: track aliases per-key so re-register can clean up stale ones.
+        self._key_aliases: dict[str, set[str]] = {}
+        # S47: state needed for reload().
+        self._last_registry = None
+        self._last_md_root = None
 
     def register(self, entry: HelpEntry):
         k = entry.key.lower()
+        # S47 alias hygiene: remove any stale aliases from a prior registration
+        # of the same key before adding the new ones.
+        prior = self._key_aliases.get(k, set())
+        for stale in prior:
+            # Only clear the alias if it still points at this key — don't
+            # clobber an alias another key has since claimed.
+            if self._alias_map.get(stale) == k:
+                self._alias_map.pop(stale, None)
         self._entries[k] = entry
+        new_aliases = set()
         for alias in entry.aliases:
-            self._alias_map[alias.lower()] = k
+            a = alias.lower()
+            self._alias_map[a] = k
+            new_aliases.add(a)
+        self._key_aliases[k] = new_aliases
 
     def get(self, name: str) -> Optional[HelpEntry]:
         name = name.lower().strip()
@@ -58,7 +82,11 @@ class HelpManager:
 
     def search(self, keyword: str) -> list[HelpEntry]:
         """Search all entries by keyword in key, title, aliases, and body."""
-        keyword = keyword.lower()
+        keyword = keyword.lower().strip()
+        # S47: empty/whitespace query returns no results — full-list dump
+        # would be useless and breaks the contract that callers expect.
+        if not keyword:
+            return []
         results = []
         seen = set()
         for entry in self._entries.values():
@@ -77,6 +105,127 @@ class HelpManager:
         for entry in self._entries.values():
             cats.setdefault(entry.category, []).append(entry)
         return cats
+
+    # ── S47: nested category tree for portal sidebar ─────────────────────
+    def get_categories_tree(self) -> dict:
+        """Build a nested category tree from `category` strings.
+
+        Categories may use ``:`` or middle-dot ``·`` (or `` / ``) as
+        separators to indicate nesting (e.g. ``Rules: Combat`` or
+        ``Rules · Combat``). Returns a tree like::
+
+            {
+              "Rules": {
+                "_entries": [...],          # entries directly in "Rules"
+                "_subcategories": {
+                  "Combat": {"_entries": [...], "_subcategories": {}},
+                  "D6":     {"_entries": [...], "_subcategories": {}},
+                },
+              },
+              "Character": {"_entries": [...], "_subcategories": {}},
+            }
+        """
+        tree: dict = {}
+        for entry in self._entries.values():
+            cat = (entry.category or "").strip()
+            if not cat:
+                continue
+            # Split on common nesting separators. The middle dot ·
+            # (U+00B7) appears in markdown frontmatter; colons and
+            # forward slashes are also accepted.
+            parts: list[str] = [cat]
+            for sep in (" · ", "·", ":", " / ", "/"):
+                if any(sep in p for p in parts):
+                    out: list[str] = []
+                    for p in parts:
+                        out.extend(seg.strip() for seg in p.split(sep))
+                    parts = [p for p in out if p]
+                    break  # one separator wins per category
+            # Walk/create the tree path.
+            node = tree
+            for i, segment in enumerate(parts):
+                if segment not in node:
+                    node[segment] = {"_entries": [], "_subcategories": {}}
+                if i == len(parts) - 1:
+                    node[segment]["_entries"].append(entry)
+                else:
+                    node = node[segment]["_subcategories"]
+        return tree
+
+    # ── S47: by-tag lookup ───────────────────────────────────────────────
+    def by_tag(self, tag: str) -> list[HelpEntry]:
+        """Return all entries that have ``tag`` in their tags list."""
+        tag = tag.lower().strip()
+        if not tag:
+            return []
+        seen = set()
+        results: list[HelpEntry] = []
+        for entry in self._entries.values():
+            if entry.key in seen:
+                continue
+            if tag in [t.lower() for t in (entry.tags or [])]:
+                results.append(entry)
+                seen.add(entry.key)
+        return results
+
+    # ── S47: load on-disk markdown help files ────────────────────────────
+    def load_markdown_files(self, root: Optional[str] = None) -> int:
+        """Load every .md help file under ``root`` into this manager.
+
+        Markdown entries override prior same-key registrations
+        (e.g. auto-registered command stubs). Default root is
+        ``<project>/data/help`` so a bare ``mgr.load_markdown_files()``
+        loads the shipping content.
+
+        Returns the number of entries loaded.
+        """
+        if root is None:
+            # Default to <project>/data/help — this file lives at
+            # <project>/data/help_topics.py.
+            here = os.path.dirname(os.path.abspath(__file__))
+            root = os.path.join(here, "help")
+        # Remember for reload().
+        self._last_md_root = root
+        if not os.path.isdir(root):
+            return 0
+        # Defer the import to avoid a circular dependency at module load.
+        from engine.help_loader import load_help_directory
+        loaded = list(load_help_directory(root, HelpEntry))
+        for entry in loaded:
+            self.register(entry)
+        return len(loaded)
+
+    # ── S47: load both code-derived and on-disk help in one call ─────────
+    def load_all(self, registry, md_root: Optional[str] = None) -> None:
+        """Register entries from ``registry`` (code-derived) then layer
+        markdown files on top (on-disk overrides). Records the inputs so
+        ``reload()`` can re-run with the same arguments.
+        """
+        self._last_registry = registry
+        self.auto_register_commands(registry)
+        # md_root None means "fall through to default in load_markdown_files".
+        self.load_markdown_files(md_root)
+
+    # ── S47: re-run the most-recent load_all/load_markdown_files inputs ──
+    def reload(self) -> None:
+        """Re-register from the last seen registry and markdown root.
+
+        Resets the entry table first so deletions (commands removed,
+        markdown files deleted) propagate correctly.
+        """
+        self._entries.clear()
+        self._alias_map.clear()
+        self._key_aliases.clear()
+        if self._last_registry is not None:
+            self.auto_register_commands(self._last_registry)
+        if self._last_md_root is not None:
+            # Use the explicit prior root (don't re-derive defaults — the
+            # caller may have used a tmp path during testing).
+            from engine.help_loader import load_help_directory
+            if os.path.isdir(self._last_md_root):
+                for entry in load_help_directory(
+                        self._last_md_root, HelpEntry):
+                    self.register(entry)
 
     def auto_register_commands(self, registry):
         """

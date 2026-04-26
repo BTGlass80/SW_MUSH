@@ -403,7 +403,78 @@ class AdminNarrativeCommand(BaseCommand):
 
 # ── Registration ──────────────────────────────────────────────────────────────
 
+# S55: Switch & alias dispatch tables for the +quest umbrella.
+_QUEST_SWITCH_IMPL: dict = {}
+
+_QUEST_ALIAS_TO_SWITCH: dict[str, str] = {
+    # list
+    "quests":         "list",
+    "personalquests": "list",
+    "list":           "list",
+    # accept
+    "questaccept":    "accept",
+    "acceptquest":    "accept",
+    "pqaccept":       "accept",
+    "accept":         "accept",
+    # complete
+    "questcomplete":  "complete",
+    "finishquest":    "complete",
+    "pqcomplete":     "complete",
+    "completequest":  "complete",
+    "complete":       "complete",
+    # abandon
+    "questabandon":   "abandon",
+    "abandonquest":   "abandon",
+    "pqdrop":         "abandon",
+    "abandon":        "abandon",
+}
+
+
+class QuestCommand(BaseCommand):
+    """`+quest` umbrella — full S55 dispatch over narrative quests."""
+    key = "+quest"
+    aliases: list[str] = [
+        "quests", "personalquests",
+        "questaccept", "acceptquest", "pqaccept",
+        "questcomplete", "finishquest", "pqcomplete", "completequest",
+        "questabandon", "abandonquest", "pqdrop",
+    ]
+    help_text = (
+        "Quest verbs: '+quest/list', '+quest/accept <id>', "
+        "'+quest/complete', '+quest/abandon'. Bare verbs (quests/"
+        "questaccept/...) still work. Type 'help +quest' for the "
+        "full reference."
+    )
+    usage = "+quest[/<switch>] [args]  — see 'help +quest'"
+    valid_switches: list[str] = ["list", "accept", "complete", "abandon"]
+
+    async def execute(self, ctx: CommandContext):
+        if ctx.switches:
+            switch = ctx.switches[0].lower()
+        else:
+            switch = _QUEST_ALIAS_TO_SWITCH.get(
+                ctx.command.lower() if ctx.command else "",
+                "list",
+            )
+        impl_cls = _QUEST_SWITCH_IMPL.get(switch)
+        if impl_cls is None:
+            await ctx.session.send_line(self.help_text)
+            return
+        await impl_cls().execute(ctx)
+
+
+def _init_quest_switch_impl():
+    _QUEST_SWITCH_IMPL["list"]     = QuestsCommand
+    _QUEST_SWITCH_IMPL["accept"]   = QuestAcceptCommand
+    _QUEST_SWITCH_IMPL["complete"] = QuestCompleteCommand
+    _QUEST_SWITCH_IMPL["abandon"]  = QuestAbandonCommand
+
+
+_init_quest_switch_impl()
+
+
 def register_narrative_commands(registry):
+    registry.register(QuestCommand())
     registry.register(BackgroundCommand())
     registry.register(RecapCommand())
     registry.register(QuestsCommand())

@@ -213,18 +213,26 @@ async def check_hazard_for_character(
 
     if result.success:
         # Passed — atmospheric message only
-        msg = f"\n  {DIM}[{template['display_name']}]{RST} {GREEN}{template['pass_text']}{RST}"
+        # Drop B: emit as typed pose_event (sys-event banner). Telnet
+        # falls back to plain text via send_json. Drops ANSI from the
+        # WebSocket payload — the client themes by event_type.
         if session:
-            await session.send_line(msg)
+            from engine.pose_events import make_system_event
+            text = f"[{template['display_name']}] {template['pass_text']}"
+            await session.send_json("pose_event", make_system_event(text))
         return {"checked": True, "passed": True, "msg": template["pass_text"]}
     else:
         # Failed — apply debuff or credit theft
-        warning = f"\n  {YELLOW}[{template['display_name']}]{RST} {template['warning_text']}"
-        fail = f"  {RED}{template['fail_text']}{RST}"
-
+        # Drop B: warning + consequence both emit as sys-event banners.
         if session:
-            await session.send_line(warning)
-            await session.send_line(fail)
+            from engine.pose_events import make_system_event
+            warning_text = f"[{template['display_name']}] {template['warning_text']}"
+            await session.send_json(
+                "pose_event", make_system_event(warning_text)
+            )
+            await session.send_json(
+                "pose_event", make_system_event(template["fail_text"])
+            )
 
         # Apply effect
         if template["buff_type"]:
@@ -259,8 +267,14 @@ async def check_hazard_for_character(
                     except Exception as _e:
                         log.debug("silent except in engine/hazards.py:259: %s", _e, exc_info=True)
                 if session:
-                    await session.send_line(
-                        f"  {RED}You lost {stolen:,} credits to a pickpocket!{RST}"
+                    # Drop B: pickpocket narrative as desc-inline (no
+                    # attribution — the pickpocket is anonymous flavor).
+                    from engine.pose_events import make_ambient_event
+                    await session.send_json(
+                        "pose_event",
+                        make_ambient_event(
+                            f"You lost {stolen:,} credits to a pickpocket!"
+                        ),
                     )
 
         return {"checked": True, "passed": False, "msg": template["fail_text"]}

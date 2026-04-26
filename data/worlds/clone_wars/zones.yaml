@@ -5,8 +5,14 @@
 # narrative_tone is injected into Director AI prompts as ATMOSPHERE directive.
 # name_match is used for prefix-matching against zone names in the DB.
 #
-# Drop 1 covers: Tatooine (7 zones) + Nar Shaddaa (4 zones) + space (4 zones)
+# Drop 1 covers: Tatooine (7 zones) + Nar Shaddaa (4 zones) + space (6 zones)
 # Drops 2-4 will add: Coruscant (7), Kuat (3), Kamino (3), Geonosis (4)
+#
+# Space-zone narrative tones cover the six CW planets:
+#   space_tatooine, space_nar_shaddaa, space_coruscant, space_kuat,
+#   space_kamino, space_geonosis
+# (NB: GCW had space_kessel and space_corellia. Both removed — Kessel and
+#  Corellia are not on the CW manifest.)
 
 zones:
 
@@ -154,23 +160,49 @@ zones:
       Hutt profit. The sensor smog from Nar Shaddaa itself makes customs
       enforcement a joke. Everyone is running something.
 
-  space_kessel:
-    name_match: "kessel system"
+  space_coruscant:
+    name_match: "coruscant system"
     narrative_tone: >
-      The Maw lurks at the edge of the system, its gravity wells making
-      navigation a skill-check and a prayer. Republic corvettes patrol the
-      spice lanes. The mines below produce spice for both sides, laundered
-      through shell companies. A contested system nobody wants to admit
-      they're fighting over.
+      The strategic crossroads of the galaxy. Republic Venators transit
+      between the Perlemian and the Hydian Way in escorted formations.
+      The Home Defense Fleet keeps a permanent screen of ARC-170s and
+      V-19s on combat air patrol. Civilian traffic threads carefully
+      between cleared lanes. Senate Guard pickets challenge any flagged
+      transponder. CIS infiltrators run quiet, hoping to look unremarkable
+      in the shadow of the Republic's flagship class.
 
-  space_corellia:
-    name_match: "corellia system"
+  space_kuat:
+    name_match: "kuat system"
     narrative_tone: >
-      Orderly and proud, Corellia remains nominally neutral in the war
-      while selling ships to both sides at a premium. CEC orbital yards
-      are running at capacity. Republic Acclamator transports pick up
-      fresh hulls every week. CorSec monitors traffic with professional
-      efficiency and strategic blindness to what's in the cargo holds.
+      Industrial space at peak operational tempo. Venators in various
+      stages of construction. Acclamators pulling out under their own
+      power for the first time. KDY tugs threading civilian freighters
+      between drydock bays larger than most cities. Kuati Security Forces
+      run a wide perimeter — KDY does not want unauthorized eyes on the
+      construction docks. The most concentrated industrial operation in
+      the Republic, and one of its most valuable strategic targets.
+
+  space_kamino:
+    name_match: "kamino system"
+    narrative_tone: >
+      Sensor returns are unreliable here. The Rishi Maze's gravitational
+      shadow plays havoc with both passive scans and active sweeps. The
+      classified approach corridor is permanently interdicted by Republic
+      Navy assets — unauthorized vessels are tractor-locked or destroyed.
+      The cloud layers below churn in unending hurricane patterns. Most
+      spacers transiting nearby lanes never knew Kamino was here at all,
+      and the Republic prefers it that way.
+
+  space_geonosis:
+    name_match: "geonosis system"
+    narrative_tone: >
+      Contested orbital space. CIS Munificent-class frigates hold station
+      in defensive rings; periodic Republic raids strike at the orbital
+      foundry platforms and depart before Separatist reinforcements
+      arrive. Vulture droids patrol in clouds — predictable tactics,
+      overwhelming numbers. Wreckage from the first Battle of Geonosis
+      still tumbles in slow orbits. The space here is rarely calm and
+      never neutral.
 
   # ── Coruscant (Drop 2) ───────────────────────────────────────────────────
   # Placeholder stubs — full authoring in Drop 2

@@ -350,9 +350,17 @@ class CombatInstance:
 
     def __init__(self, room_id: int, skill_reg: SkillRegistry,
                  default_range: RangeBand = RangeBand.SHORT,
-                 cover_max: int = COVER_NONE):
+                 cover_max: int = COVER_NONE,
+                 theatre: str = "ground"):
+        # Drop D server-side prereq (Field Kit v2 §6): theatre tags this
+        # combat instance as 'ground' or 'space' so the client can pick
+        # the correct HUD overlay (amber datapad vs cyan cockpit). Today
+        # CombatInstance is only used by parser/combat_commands.py (ground);
+        # space resolution lives in parser/space_commands.py with its own
+        # space_state payload. Default is 'ground' to match current usage.
         self.room_id = room_id
         self.skill_reg = skill_reg
+        self.theatre = theatre
         self.round_num = 0
         self.phase = CombatPhase.INITIATIVE
         self.combatants: dict[int, Combatant] = {}
@@ -554,6 +562,7 @@ class CombatInstance:
             "active": True,
             "round": self.round_num,
             "phase": self.phase.name.lower(),
+            "theatre": self.theatre,
             "combatants": combatants_data,
             "your_actions": your_actions,
             "waiting_for": waiting_for,

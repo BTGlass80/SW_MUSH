@@ -143,7 +143,7 @@ async def _get_dealer_pool(ctx, char) -> tuple[int, int]:
 
 class SabaccCommand(BaseCommand):
     key = "sabacc"
-    aliases = ["gamble", "cards"]
+    aliases = ["+sabacc", "gamble", "cards"]
     help_text = "Play a hand of Sabacc against the house. Cantina only."
     usage = "sabacc [bet amount]"
 

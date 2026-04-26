@@ -1,0 +1,159 @@
+# data/worlds/clone_wars/quests/jedi_village_archetype_additions.yaml
+# Clone Wars Era — Additional Spirit Trial archetype patterns
+# Schema version 1
+#
+# Per jedi_village_quest_design_v1.md §10.3:
+#
+#   "Pre-author 6-8 archetype templates that the Director seeds
+#    variants of (Republic-soldier-falls, Smuggler-falls, etc.).
+#    Director fills in character-specific details, doesn't generate
+#    the whole arc from scratch."
+#
+# The canonical jedi_village.yaml step 8 (Trial of Spirit) ships with
+# five archetype patterns inline:
+#   - republic_corrupted
+#   - cis_disillusioned
+#   - smuggler_ruthless
+#   - bounty_hunter_unbound
+#   - generic_fall
+#
+# This file adds three more, taking the total to eight (the upper bound
+# in §10.3's recommendation). They are authored in the same voice and
+# pattern as the canonical five — short, persuasive, never theatrical,
+# anchored to a specific faction or profession by `faction_match`.
+#
+# When the Drop F.8 engine session lands, the Director prompt loader
+# merges these additions into the inline list to form the full
+# selection pool. Until then, this file is inert at runtime.
+#
+# ─── Voice constraints (matching canonical) ──────────────────────────
+#
+# Each archetype is a single paragraph, ~5 sentences, spoken by the
+# dark-future-self in first-person plural ("we did", "I am what we
+# became"). The pivot point is always the same: "I am what we became
+# when X."
+#
+# The arc:
+#   1. Acknowledgment of the work the candidate has actually done
+#   2. The compromise that the candidate has not yet fully committed to
+#   3. The pivot — "I am what we became when [the compromise solidified]"
+#
+# Constraints:
+#   - No real galaxy figures named
+#   - No Disney-canon idioms
+#   - Never melodramatic
+#   - The dark-future-self believes their own argument
+#
+# ─── Selector logic ──────────────────────────────────────────────────
+#
+# Each archetype has a `faction_match` field that engine session uses
+# to pick which template fits the candidate. Match precedence is
+# author-side; when multiple match, the engine prefers the most
+# specific (faction-specific over `any`).
+#
+# When no faction-specific match applies, the engine falls back to
+# generic_fall (canonical) which works for any candidate.
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+# Target file these additions merge into:
+target_file: data/worlds/clone_wars/quests/jedi_village.yaml
+target_path: quest.steps[step=8].completion.archetype_patterns
+merge_mode: append
+
+archetype_additions:
+
+  # ─── Republic Intelligence officer falls ───────────────────────────
+  - id: intelligence_compromised
+    faction_match: republic
+    sub_match: intel_role          # require recent intel-flagged work
+    template: |
+      "We were good at watching. We were better at recording. The
+      reports we filed went somewhere we never asked about. By the
+      end we were filing on our own friends because the Republic
+      asked. I am what we became when the watching became the only
+      thing we still knew how to do."
+    voice_note: >
+      Quieter than the soldier archetype. The candidate wasn't on
+      a battlefield; they were in a back room. The compromise was
+      smaller and slower and harder to point at.
+    selection_priority: high       # if intel role matches, prefer this
+                                    # over generic republic_corrupted
+
+  # ─── Shipwright / craftsperson falls ────────────────────────────────
+  - id: shipwright_complicit
+    faction_match: shipwrights_guild
+    sub_match: any                 # any shipwright role qualifies
+    template: |
+      "Every weapon-bay we modified was a weapon-bay. We told ourselves
+      it was the work; the customer was the customer; the Guild signed
+      off. Then one of our retrofits killed a Republic transport
+      crew that we had drinks with the week before. The Guild paid
+      the wake. I am what we became when we let the Guild do our
+      grieving for us."
+    voice_note: >
+      The fall is professional, not personal. The shipwright did not
+      hate anyone. The shipwright did the work. The work shaped a
+      person who could not stop doing the work.
+    selection_priority: medium
+
+  # ─── Entertainer / face-of-the-house falls ──────────────────────────
+  - id: entertainer_used
+    faction_match: entertainers_guild
+    sub_match: any
+    template: |
+      "We were good at being looked at. We learned what the room
+      wanted before the room knew. The room wanted secrets, in time —
+      ours, then other people's. We sold both. The credits paid for
+      the costumes that paid for the next room. I am what we became
+      when we stopped being able to leave a stage we hadn't built."
+    voice_note: >
+      The entertainer's fall is about identity diffusion — having
+      been so many faces that no face is theirs. The pivot is "we
+      stopped being able to leave," not "we did wrong."
+    selection_priority: medium
+
+# ═══════════════════════════════════════════════════════════════════════
+# ENGINE INTEGRATION NOTES
+# ═══════════════════════════════════════════════════════════════════════
+# When the Drop F.8 engine session lands:
+#
+# 1. The Director prompt loader for Trial of Spirit reads:
+#      a. The inline ARCHETYPE PATTERNS block in jedi_village.yaml
+#         step 8 (5 patterns, canonical)
+#      b. This file's archetype_additions list (3 patterns, adds to 8)
+#    The merge is `append` — additions extend the inline list.
+#
+# 2. Selection logic at trial start:
+#      a. Filter pool by faction_match against the candidate's
+#         dominant faction.
+#      b. If multiple match, sort by selection_priority (high > medium
+#         > low) and pick the highest.
+#      c. If no faction-specific match applies, fall back to
+#         generic_fall (canonical).
+#
+# 3. The `sub_match` field is a soft predicate — engine session can
+#    choose to enforce it strictly (intelligence_compromised requires
+#    intel-tagged history) or loosely (intelligence_compromised is
+#    a *flavor* preference, not a *requirement*). Recommendation:
+#    soft. The dark-future-self doesn't need to be perfectly accurate
+#    — it needs to feel plausibly the candidate.
+#
+# 4. The voice_note fields are author-side guidance for the engine
+#    session's prompt-tuning, not runtime data. They are documentation
+#    for the next person who works on the prompt template.
+#
+# 5. With 8 archetypes total covering republic / cis / independent /
+#    bounty_hunters_guild / shipwrights_guild / entertainers_guild +
+#    intelligence sub-role + generic, the coverage is:
+#      - All faction codes from organizations.yaml that have player
+#        characters.
+#      - The two non-faction guilds (shipwrights, entertainers) that
+#        have tutorial chains.
+#      - A generic fallback for unaligned characters.
+#    No archetype targets jedi_order (Force-sensitives reach the
+#    Sanctum by definition; the generic_fall covers them best).
+#
+# ═══════════════════════════════════════════════════════════════════════

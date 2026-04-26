@@ -344,9 +344,18 @@ class TalkCommand(BaseCommand):
         )
 
         response = response.strip().strip('"').strip("'").strip('\u201c').strip('\u201d')
-        await ctx.session_mgr.broadcast_to_room(
-            char["room_id"],
-            f'  {ansi.npc_name(npc_data.name)} says, "{response}"',
+        # Drop B: NPC dialogue as typed say event so the client gets
+        # proper attribution + dedup support and never trips the
+        # classifyAndAppend regex into mis-rendering as something else.
+        # Telnet falls back to "<NPC> says, '<text>'" via send_json.
+        from engine.pose_events import make_npc_say
+        ev = make_npc_say(
+            npc_name=npc_data.name,
+            text=response,
+            npc_id=getattr(npc_data, "id", None),
+        )
+        await ctx.session_mgr.broadcast_json_to_room(
+            char["room_id"], "pose_event", ev,
         )
 
     async def _handle_tutorial_npc(self, ctx, char, npc_row, npc_data, brain, message):
@@ -475,9 +484,15 @@ class TalkCommand(BaseCommand):
             )
             # Strip any quotes the LLM wrapped around its response
             response = response.strip().strip('"').strip("'").strip('\u201c').strip('\u201d')
-            await ctx.session_mgr.broadcast_to_room(
-                char["room_id"],
-                f'  {ansi.npc_name(npc_data.name)} says, "{response}"',
+            # Drop B: NPC dialogue as typed say event (tutorial fast-path).
+            from engine.pose_events import make_npc_say
+            ev = make_npc_say(
+                npc_name=npc_data.name,
+                text=response,
+                npc_id=getattr(npc_data, "id", None),
+            )
+            await ctx.session_mgr.broadcast_json_to_room(
+                char["room_id"], "pose_event", ev,
             )
             try:
                 from engine.tutorial_v2 import check_starter_quest

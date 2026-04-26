@@ -146,6 +146,13 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
         "rear":  systems.get("shield_dice_rear", 0),
         "left":  0,
         "right": 0,
+        # Drop E (F9): pool capacity so the client can render {cur}D/{max}D
+        # per arc. R&E shields are a single pool that may be allocated/shifted
+        # between arcs, so each arc's effective max == the ship's total dice
+        # pool. Pips are surfaced separately for ships with non-integer dice
+        # (e.g., 1D+2 starfighter shields).
+        "pool_dice": shield_pool.dice,
+        "pool_pips": shield_pool.pips,
     }
 
     # ── Speed ─────────────────────────────────────────────────────────────────
@@ -268,6 +275,23 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
             except Exception:
                 pos_str = "front"
             s_tmpl = reg.get(s.get("template", ""))
+            # D-client.3 (F11): derive hull condition for the target panel.
+            # Strings exactly match CONDITION_COLORS keys in the client.
+            cond = ""
+            if s_tmpl:
+                try:
+                    hull_pool = DicePool.parse(s_tmpl.hull)
+                    total_pips = hull_pool.total_pips()
+                    dmg = s.get("hull_damage", 0) or 0
+                    frac = dmg / max(total_pips, 1)
+                    if   frac <= 0:    cond = "Pristine"
+                    elif frac < 0.25:  cond = "Light Damage"
+                    elif frac < 0.5:   cond = "Moderate Damage"
+                    elif frac < 0.75:  cond = "Heavy Damage"
+                    elif frac < 1.0:   cond = "Critical Damage"
+                    else:              cond = "Destroyed"
+                except Exception:
+                    cond = ""
             contacts.append({
                 "ship_id":   s["id"],
                 "name":      s.get("name", f"Ship #{s['id']}"),
@@ -278,6 +302,7 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
                 "is_player": True,
                 "hostile":   False,
                 "archetype": "",
+                "condition": cond,
             })
     except Exception as e:
         log.warning("build_space_state: DB ship contacts failed: %s", e)
@@ -313,6 +338,11 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
                 "is_player": False,
                 "hostile":   hostile,
                 "archetype": archetype,
+                # D-client.3 (F11): traffic ships don't track hull damage
+                # in the traffic system — they're abstract until pulled
+                # into combat (which materializes a ShipInstance). Until
+                # then their condition is always Pristine.
+                "condition": "Pristine",
             })
     except Exception as e:
         log.warning("build_space_state: NPC traffic contacts failed: %s", e)
@@ -366,6 +396,9 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
                 "position":   tgt_contact.get("position", "front"),
                 "hostile":    tgt_contact.get("hostile", False),
                 "bonus_dice": best[1],
+                # D-client.3 (F11): plumb condition from contact dict.
+                # Empty string when no condition data available.
+                "condition":  tgt_contact.get("condition", ""),
             }
     except Exception:
         log.debug("target_lock: derivation failed", exc_info=True)

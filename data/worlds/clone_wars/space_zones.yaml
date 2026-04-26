@@ -1,0 +1,418 @@
+# data/worlds/clone_wars/space_zones.yaml
+# Clone Wars Era — Space Zone Graph
+# Schema version 1
+#
+# This file is the data-side authority for the CW space topology. The
+# engine currently hardcodes the GCW graph in engine/npc_space_traffic.py
+# (ZONES dict). When the F.X Space Pivot drop lands and that engine
+# module is era-parameterized, it will load this file via world_loader.
+# Until then, this file is inert at runtime and exists as content the
+# main track can keep working around without conflict.
+#
+# Schema mirrors engine/npc_space_traffic.py Zone dataclass:
+#   id          str            unique zone slug
+#   name        str            display name shown to players
+#   type        enum           dock | orbit | deep_space | hyperspace_lane
+#   planet      str|null       planet key (null for lanes)
+#   adjacent    list[str]      ids of zones reachable in one transit
+#   desc        str            short atmospheric description
+#   hazards     dict|null      optional: asteroid_density, nav_modifier,
+#                              sensor_penalty, etc.
+#
+# TOPOLOGY (canonical hyperspace lanes per Star Wars cartography):
+#
+#   [Perlemian Trade Route] ──── (Outer Rim Sieges, off-graph east)
+#            │
+#   Coruscant DS ──────── Hydian Way ──── Kuat DS
+#            │                  │
+#            │                  └── Kamino Approach (HAZARD: sensor shadow)
+#            │                              │
+#            │                          Kamino DS
+#            │
+#   Corellian Run ──── Tatooine DS ──── Triellus TR ──── Geonosis DS
+#                                              │
+#                                       Hutt Space Corridor ──── Nar Shaddaa DS
+#
+# Six planets × (dock + orbit + deep_space) = 18 planet zones
+# Six hyperspace zones (Perlemian, Hydian Way, Corellian Run, Triellus,
+#                      Hutt Space Corridor, Kamino Approach) = 6 lane zones
+# Total: 24 zones
+#
+# Comparison to GCW graph (16 zones, 4 planets, 3 generic lanes): adds
+# 2 planets, 2 lanes, drops Kessel + Corellia. Kamino Approach is the
+# only hazard zone in CW (replaces Kessel Approach in the GCW graph).
+
+schema_version: 1
+
+# ═══════════════════════════════════════════════════════════════════════
+# PLANET ZONES
+# ═══════════════════════════════════════════════════════════════════════
+
+zones:
+
+  # ── Tatooine — Outer Rim, Hutt-adjacent neutral ─────────────────────────
+  tatooine_dock:
+    name: "Mos Eisley Approach"
+    type: dock
+    planet: tatooine
+    adjacent: [tatooine_orbit]
+    desc: >
+      The approach corridor to Mos Eisley's Westport. Customs transponders
+      ping constantly. Republic clone patrols are rare here — Tatooine sits
+      well off the war front and the Hutts pay enough customs greasing
+      to keep most inspections superficial.
+
+  tatooine_orbit:
+    name: "Tatooine Orbit"
+    type: orbit
+    planet: tatooine
+    adjacent: [tatooine_dock, tatooine_deep_space]
+    desc: >
+      Low orbit above Tatooine's amber deserts. Twin suns glare off the
+      hull plating. Sparse traffic — a few Hutt-flagged freighters, an
+      occasional Republic transport diverted through.
+
+  tatooine_deep_space:
+    name: "Tatooine Deep Space"
+    type: deep_space
+    planet: tatooine
+    adjacent: [tatooine_orbit, corellian_run, triellus_trade_route]
+    desc: >
+      The dark space beyond Tatooine's gravity well. The Corellian Run
+      arrives from coreward; the Triellus Trade Route arcs along the
+      Outer Rim toward Geonosis and Hutt Space.
+
+  # ── Nar Shaddaa — Smuggler's Moon, Hutt Space ───────────────────────────
+  nar_shaddaa_dock:
+    name: "Nar Shaddaa Landing Platform"
+    type: dock
+    planet: nar_shaddaa
+    adjacent: [nar_shaddaa_orbit]
+    desc: >
+      The grimy docking platforms of the Smuggler's Moon. Neon advertisements
+      flicker over stacked landing pads. Hutt cartel enforcers run their own
+      brand of customs; everyone here has a price.
+
+  nar_shaddaa_orbit:
+    name: "Nar Shaddaa Orbit"
+    type: orbit
+    planet: nar_shaddaa
+    adjacent: [nar_shaddaa_dock, nar_shaddaa_deep_space]
+    desc: >
+      Tight orbital lanes above the Smuggler's Moon. Freighters jostle
+      for position. Hutt patrol barges enforce the cartel's interdiction
+      preferences. Both Republic intel and CIS agents transit through
+      here in equal measure, both trying not to be noticed.
+
+  nar_shaddaa_deep_space:
+    name: "Nar Shaddaa Deep Space"
+    type: deep_space
+    planet: nar_shaddaa
+    adjacent: [nar_shaddaa_orbit, hutt_space_corridor]
+    desc: >
+      The open space beyond Nar Shaddaa's gravity well. Hutt Space
+      sprawls in every direction, lawless and profitable. The Hutt
+      Space Corridor connects to the Triellus and the rest of the
+      Outer Rim trade web.
+
+  # ── Coruscant — Galactic Capital, Republic heart ────────────────────────
+  coruscant_dock:
+    name: "Coruscant Westport Arrivals"
+    type: dock
+    planet: coruscant
+    adjacent: [coruscant_orbit]
+    desc: >
+      The arrivals corridor of Westport, busiest of Coruscant's public
+      spaceports. Air traffic control juggles thousands of approaches
+      per minute. Senate Guard and Coruscant Security pickets challenge
+      every flagged transponder.
+
+  coruscant_orbit:
+    name: "Coruscant Orbit"
+    type: orbit
+    planet: coruscant
+    adjacent: [coruscant_dock, coruscant_deep_space]
+    desc: >
+      Geostationary orbit above the planet-city. Republic Navy pickets
+      patrol in Venator-class formation. The Home Defense Fleet keeps
+      a permanent screen of ARC-170s and V-19s on combat air patrol.
+      Civilian traffic threads carefully between cleared lanes.
+
+  coruscant_deep_space:
+    name: "Coruscant Deep Space"
+    type: deep_space
+    planet: coruscant
+    adjacent:
+      - coruscant_orbit
+      - perlemian_trade_route
+      - hydian_way
+      - corellian_run
+    desc: >
+      The strategic cross-roads of the galaxy. Three of the four great
+      hyperspace corridors converge here — the Perlemian heading galactic
+      east, the Hydian Way running coreward and rimward, the Corellian
+      Run heading toward the Outer Rim. Republic capital ships transit
+      constantly. So does everyone trying to look unremarkable in their
+      shadow.
+
+  # ── Kuat — Republic shipyards, Core World ───────────────────────────────
+  kuat_dock:
+    name: "Kuat Spaceport Approach"
+    type: dock
+    planet: kuat
+    adjacent: [kuat_orbit]
+    desc: >
+      The civilian approach lane to Kuat City spaceport — distinct from
+      the heavily restricted KDY drydock approaches. Kuati Security Forces
+      run permits-and-permissions checks before any vessel enters atmosphere.
+
+  kuat_orbit:
+    name: "Kuat Orbital Ring"
+    type: orbit
+    planet: kuat
+    adjacent: [kuat_dock, kuat_deep_space]
+    desc: >
+      The orbital shipyards encircle the planet in a continuous ring of
+      drydocks, foundries, and assembly slips. Venators in various stages
+      of construction; Acclamators pulling out under their own power for
+      the first time; civilian freighters threading between massive
+      KDY tugs. Most concentrated industrial operation in the Republic.
+
+  kuat_deep_space:
+    name: "Kuat Deep Space"
+    type: deep_space
+    planet: kuat
+    adjacent: [kuat_orbit, hydian_way]
+    desc: >
+      The space beyond Kuat's gravity well. The Hydian Way sweeps past
+      heading both coreward to Coruscant and rimward toward Bothan Space
+      and the Outer Rim. KSF picket vessels keep a wide perimeter; KDY
+      doesn't want unauthorized eyes on the construction docks.
+
+  # ── Kamino — Republic clone facility, Wild Space ────────────────────────
+  kamino_dock:
+    name: "Tipoca City Landing Platform"
+    type: dock
+    planet: kamino
+    adjacent: [kamino_orbit]
+    desc: >
+      Rain hammers the permacrete of Tipoca City's rooftop landing pads.
+      Republic gunships idle in the hangar bays. The wind off the water
+      is cold and loud. Access is restricted to Republic-flagged vessels
+      with verified clearance — civilian traffic is turned away or
+      intercepted.
+
+  kamino_orbit:
+    name: "Kamino Orbit"
+    type: orbit
+    planet: kamino
+    adjacent: [kamino_dock, kamino_deep_space]
+    desc: >
+      Low orbit over the storm-wracked ocean world. The cloud layers churn
+      below in unending hurricane patterns. Republic Navy maintains a
+      permanent garrison; the Home Defense Fleet keeps an Acclamator on
+      station at all times. The Kaminoan cloners do not advertise their
+      services, and the Republic prefers it that way.
+
+  kamino_deep_space:
+    name: "Kamino Deep Space"
+    type: deep_space
+    planet: kamino
+    adjacent: [kamino_orbit, kamino_approach]
+    desc: >
+      The void beyond Kamino's gravity well. Sensor returns are unreliable
+      — the Rishi Maze's gravitational shadow plays havoc with both
+      passive scans and active sweeps. Most spacers passing through these
+      lanes never knew Kamino was here at all.
+
+  # ── Geonosis — CIS industrial heartland, Outer Rim ──────────────────────
+  geonosis_dock:
+    name: "Stalgasin Hive Landing Pads"
+    type: dock
+    planet: geonosis
+    adjacent: [geonosis_orbit]
+    desc: >
+      The Separatist landing pads carved into the rock spires above the
+      Stalgasin hive. CIS-flagged vessels arrive openly; Republic-flagged
+      ships are interdicted on approach. Geonosian drone work crews swarm
+      across loading platforms in unsettling, coordinated patterns.
+
+  geonosis_orbit:
+    name: "Geonosis Orbit"
+    type: orbit
+    planet: geonosis
+    adjacent: [geonosis_dock, geonosis_deep_space]
+    desc: >
+      Contested orbital space. CIS Munificent-class frigates hold station
+      in a defensive ring; periodic Republic raids strike at the orbital
+      foundry platforms and depart before Separatist reinforcements
+      arrive. Vulture droids patrol in clouds. The space is rarely calm.
+
+  geonosis_deep_space:
+    name: "Geonosis Deep Space"
+    type: deep_space
+    planet: geonosis
+    adjacent: [geonosis_orbit, triellus_trade_route]
+    desc: >
+      The open space beyond Geonosis's gravity well. The Triellus Trade
+      Route arcs through here — formerly a smuggler's bypass, now also
+      the supply line for CIS forces dug into Geonosis's hives. Wreckage
+      from the first Battle of Geonosis still tumbles in slow orbits.
+
+# ═══════════════════════════════════════════════════════════════════════
+# HYPERSPACE LANES
+# ═══════════════════════════════════════════════════════════════════════
+# Lanes are zones too — they have transit time, traffic, and combat.
+# Adjacency is bidirectional unless an entry is marked one_way: true
+# (none currently).
+
+  # ── Perlemian Trade Route ────────────────────────────────────────────────
+  # Major spinward artery from the Core to the Outer Rim. In CW, this is
+  # the primary supply lane for the Outer Rim Sieges. Off-graph terminator
+  # for now; future expansions can extend toward Brentaal/Centares.
+  perlemian_trade_route:
+    name: "Perlemian Trade Route — Outer Rim Approach"
+    type: hyperspace_lane
+    planet: null
+    adjacent: [coruscant_deep_space]
+    desc: >
+      The Perlemian Trade Route arcs toward the Outer Rim Sieges. Republic
+      naval traffic dominates — Venator squadrons in transit, Acclamators
+      hauling clone reinforcements, supply convoys running to the front.
+      Civilian traffic is heavily interdicted; CIS raiders sometimes punch
+      through to harass the supply lines, then jump out before the
+      response arrives.
+
+  # ── Hydian Way ──────────────────────────────────────────────────────────
+  # The longest lane in the galaxy, running from the Core to Wild Space.
+  # In our graph it connects Coruscant to Kuat directly, with a branch to
+  # the Kamino Approach (canonically Kamino is far off the lane, but for
+  # gameplay purposes the Approach forks here).
+  hydian_way:
+    name: "Hydian Way — Core Span"
+    type: hyperspace_lane
+    planet: null
+    adjacent: [coruscant_deep_space, kuat_deep_space, kamino_approach]
+    desc: >
+      The Hydian Way runs from the galactic Core through Kuat and out
+      toward Bothan Space and the Outer Rim. The Core stretch is the
+      most heavily trafficked corridor in the Republic — KDY hulls
+      transiting from yard to fleet, civilian shipping running coreward
+      to Coruscant, Republic Navy assets in constant movement.
+
+  # ── Corellian Run ───────────────────────────────────────────────────────
+  # Coreward-to-Outer-Rim. Canonically passes through Corellia (omitted
+  # from the CW manifest — Corellia is post-launch content). The lane as
+  # represented here spans the Corellia gap.
+  corellian_run:
+    name: "Corellian Run"
+    type: hyperspace_lane
+    planet: null
+    adjacent: [coruscant_deep_space, tatooine_deep_space]
+    desc: >
+      One of the great galactic trade arteries, running from Coruscant
+      through the Mid Rim and out to the Outer Rim. War traffic mixes
+      with civilian shipping. Republic customs cutters work the coreward
+      end; Hutt-affiliated raiders work the rimward end. Smugglers run
+      the gaps between them.
+
+  # ── Triellus Trade Route ────────────────────────────────────────────────
+  # Outer Rim arc connecting Tatooine, Geonosis, and (via Hutt Space
+  # Corridor) Nar Shaddaa. In CW, this lane is the smuggler's preferred
+  # route around the Republic interdictions on the Corellian Run.
+  triellus_trade_route:
+    name: "Triellus Trade Route"
+    type: hyperspace_lane
+    planet: null
+    adjacent: [tatooine_deep_space, geonosis_deep_space, hutt_space_corridor]
+    desc: >
+      The Triellus arcs along the Outer Rim, connecting Tatooine,
+      Geonosis, and the Hutt Space corridors. Heavy smuggler traffic —
+      this is the route that doesn't go through Republic checkpoints.
+      CIS supply convoys run through here under false transponders.
+      Pirates are a real problem, and so are the bounty hunters who
+      hunt them.
+
+  # ── Hutt Space Corridor ─────────────────────────────────────────────────
+  # Connector between Nar Shaddaa and the Triellus, threading through
+  # Hutt-controlled space.
+  hutt_space_corridor:
+    name: "Hutt Space Corridor"
+    type: hyperspace_lane
+    planet: null
+    adjacent: [nar_shaddaa_deep_space, triellus_trade_route]
+    desc: >
+      The hyperspace stretch through the heart of Hutt Space. Cartel
+      patrols enforce their own laws — neither Republic nor CIS, just
+      Hutt profit. Sensor smog from Nal Hutta and Nar Shaddaa makes
+      lane discipline a polite suggestion. Everyone running through
+      here is running something.
+
+  # ── Kamino Approach ─────────────────────────────────────────────────────
+  # The classified Republic-only lane to Kamino. Sensor shadow from the
+  # Rishi Maze makes this the only hazard zone in the CW graph.
+  kamino_approach:
+    name: "Kamino Approach — Restricted Lane"
+    type: hyperspace_lane
+    planet: null
+    adjacent: [hydian_way, kamino_deep_space]
+    desc: >
+      The classified approach corridor to Kamino. The Rishi Maze's
+      gravitational shadow plays havoc with sensors and astrogation
+      alike. Republic Navy interdictors flag and inspect every
+      transit; unauthorized vessels are tractor-locked or destroyed.
+      Even with proper clearance, navigation is genuinely difficult.
+    hazards:
+      asteroid_density: light
+      nav_modifier: 4
+      sensor_penalty: 3
+
+# ═══════════════════════════════════════════════════════════════════════
+# SPAWN ZONES
+# ═══════════════════════════════════════════════════════════════════════
+# Zones eligible for random NPC traffic spawn. Engine selects from this
+# list when MAX_TRAFFIC_SHIPS budget allows. Mirrors the SPAWN_ZONES
+# constant in engine/npc_space_traffic.py — not all deep_space zones
+# spawn traffic (e.g., Kamino is restricted; Geonosis is contested
+# enough that traffic spawns are scripted rather than random).
+spawn_zones:
+  - tatooine_deep_space
+  - nar_shaddaa_deep_space
+  - coruscant_deep_space
+  - kuat_deep_space
+  - corellian_run
+  - hydian_way
+  - triellus_trade_route
+  - hutt_space_corridor
+  - perlemian_trade_route
+  # NOT eligible for random spawn:
+  #   kamino_deep_space, kamino_approach — restricted; scripted spawns only
+  #   geonosis_deep_space — contested; Director-driven spawns only
+
+# ═══════════════════════════════════════════════════════════════════════
+# BAY → ORBIT MAP
+# ═══════════════════════════════════════════════════════════════════════
+# Maps room name substrings (lowercase) to orbit zone ids. Used by the
+# `launch` command to assign current_zone without hardcoding. Engine
+# loads this when it consumes this YAML; for now the mapping lives in
+# engine/npc_space_traffic.py BAY_PLANET_MAP. The engine refactor will
+# read this dict and replace the hardcoded one.
+bay_planet_map:
+  tatooine: tatooine_orbit
+  mos eisley: tatooine_orbit
+  westport: coruscant_orbit
+  coruscant: coruscant_orbit
+  nar shaddaa: nar_shaddaa_orbit
+  smuggler: nar_shaddaa_orbit
+  kuat: kuat_orbit
+  kdy: kuat_orbit
+  drydock: kuat_orbit
+  kamino: kamino_orbit
+  tipoca: kamino_orbit
+  geonosis: geonosis_orbit
+  stalgasin: geonosis_orbit
+
+# Default fallback orbit zone if no substring matches.
+# (The Westport Arrivals / Coruscant default reflects the CW starting
+# room policy — see era.yaml starting_room_slug.)
+default_orbit_zone: coruscant_orbit

@@ -381,6 +381,34 @@ class Session:
                 text = data.get("text", "")
                 if text:
                     await self.send_line(text)
+            elif msg_type == "pose_event":
+                # Drop B: pose_event Telnet fallback. Render the typed
+                # narration as styled text so Telnet players still see it
+                # (they just don't get client-side dedup or attribution
+                # styling). event_type determines the prefix; text is
+                # the narration body. Schema mirrors the live client's
+                # handlePoseEvent consumer (event_type/who/text/mode/to)
+                # — see engine/pose_events.py for the full contract.
+                text = data.get("text", "")
+                if not text:
+                    return
+                who = data.get("who", "")
+                et = data.get("event_type", "")
+                if et == "say" and who:
+                    await self.send_line(f'{who} says, "{text}"')
+                elif et == "whisper" and who:
+                    to = data.get("to")
+                    suffix = f" to {to}" if to else ""
+                    await self.send_line(f'{who} whispers{suffix}, "{text}"')
+                elif et in ("pose", "emote") and who:
+                    await self.send_line(f"{who} {text}")
+                elif et in ("desc-inline", "sys-event", "sys-ok",
+                            "sys-arrival", "comm-in"):
+                    await self.send_line(text)
+                else:
+                    # Unknown event_type — render bare so we don't drop
+                    # the narration entirely.
+                    await self.send_line(text)
             elif msg_type in ("combat_state", "hud_update", "world_event",
                               "news_event", "space_state", "rep_change",
                               "rank_up", "chargen_start"):
