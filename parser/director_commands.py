@@ -360,9 +360,10 @@ class EconomyCommand(BaseCommand):
         "  @economy credits   — credit distribution across active characters\n"
         "  @economy zones     — Director zone influence + alert levels\n"
         "  @economy velocity  — credit faucet/sink flow (1h, 24h, 7d)\n"
+        "  @economy alerts    — whale transactions, farming alerts, inflation metrics\n"
         "  @economy           — all of the above"
     )
-    usage = "@economy [shops|credits|zones|velocity]"
+    usage = "@economy [shops|credits|zones|velocity|alerts]"
 
     async def execute(self, ctx: CommandContext):
         parts = (ctx.args or "").split()
@@ -376,6 +377,7 @@ class EconomyCommand(BaseCommand):
         show_credits  = sub in ("all", "credits")
         show_zones    = sub in ("all", "zones")
         show_velocity = sub in ("all", "velocity")
+        show_alerts   = sub in ("all", "alerts")
 
         # ── Shop stats ────────────────────────────────────────────────────
         if show_shops:
@@ -511,6 +513,77 @@ class EconomyCommand(BaseCommand):
                         lines.append(f"    {name:<20}  {total:>+10,} cr")
             except Exception as e:
                 lines.append(f"  Velocity stats error: {e}")
+
+        # ── Alerts (S51 economy hardening) ──────────────────────────────
+        # Three separate signals that surface concerning credit movement:
+        #   - Whale transactions: single moves >= 50,000 cr in last 24h
+        #   - Farming alerts:     chars sustaining >5,000 cr/hr earnings
+        #   - Inflation metrics:  net 24h flow vs total circulation
+        # All three failsafe to "nothing to report" on DB error so this
+        # never tanks the dashboard.
+        if show_alerts:
+            try:
+                lines.append("  \033[1;33mECONOMY ALERTS\033[0m")
+                # Whale transactions
+                whales = await ctx.db.get_whale_transactions(threshold=50000)
+                if whales:
+                    lines.append(f"  Whale txns (>=50k, 24h): {len(whales)}")
+                    for w in whales[:5]:
+                        try:
+                            ch = await ctx.db.get_character(w["char_id"])
+                            name = ch["name"] if ch else f"char#{w['char_id']}"
+                        except Exception:
+                            name = f"char#{w['char_id']}"
+                        sign = "+" if w["delta"] > 0 else ""
+                        lines.append(
+                            f"    {name:<20}  {sign}{w['delta']:>10,} cr  "
+                            f"({w['source']})"
+                        )
+                else:
+                    lines.append("  Whale txns (>=50k, 24h): none")
+
+                # Farming alerts
+                farmers = await ctx.db.get_farming_alerts(
+                    hourly_threshold=5000, sustained_hours=2,
+                )
+                if farmers:
+                    lines.append(
+                        f"  Sustained farming (>=5k/hr, 2+ hrs): {len(farmers)}"
+                    )
+                    for f in farmers[:5]:
+                        try:
+                            ch = await ctx.db.get_character(f["char_id"])
+                            name = ch["name"] if ch else f"char#{f['char_id']}"
+                        except Exception:
+                            name = f"char#{f['char_id']}"
+                        lines.append(
+                            f"    {name:<20}  "
+                            f"{f['hours_over_threshold']} hrs  "
+                            f"peak {f['peak_hour_total']:,} cr  "
+                            f"total {f['total_in_window']:,} cr"
+                        )
+                else:
+                    lines.append("  Sustained farming: none")
+
+                # Inflation metrics
+                infl = await ctx.db.get_inflation_metrics()
+                pct = infl["flow_pct"] * 100.0
+                # Color the headline number by direction + magnitude
+                if abs(pct) < 5:
+                    pct_color = "\033[2m"
+                elif pct > 10 or pct < -10:
+                    pct_color = "\033[1;31m"
+                else:
+                    pct_color = "\033[1;33m"
+                sign = "+" if infl["net_flow"] >= 0 else ""
+                lines += [
+                    "  \033[1mInflation (24h):\033[0m",
+                    f"    Net flow      : {sign}{infl['net_flow']:,} cr",
+                    f"    Circulation   : {infl['circulation']:,} cr",
+                    f"    Flow / circ   : {pct_color}{pct:+.1f}%\033[0m",
+                ]
+            except Exception as e:
+                lines.append(f"  Alerts error: {e}")
 
         lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
         await ctx.session.send_line("\n".join(lines))

@@ -46,10 +46,14 @@ def test_render_map_modal_expands_viewbox(client_html: str) -> None:
         "renderMapModal function is missing"
     )
 
-    # The fix adds a TEXT_SCALE constant and a viewBox rewrite block.
-    assert "TEXT_SCALE" in client_html, (
-        "Bug 1 regressed: renderMapModal no longer declares TEXT_SCALE — "
-        "expanded-view text will clip again."
+    # The fix adds a label-scale constant and a viewBox rewrite block.
+    # Originally introduced as TEXT_SCALE; later split into LABEL_SCALE
+    # (room labels) + ICON_SCALE (small markers) so labels and icons can
+    # bump independently. Either name is acceptable — a missing "*_SCALE"
+    # constant means the bump is gone and labels will clip again.
+    assert ("LABEL_SCALE" in client_html or "TEXT_SCALE" in client_html), (
+        "Bug 1 regressed: renderMapModal no longer declares LABEL_SCALE "
+        "(or legacy TEXT_SCALE) — expanded-view text will clip again."
     )
     # Presence of setAttribute('viewBox', newVB) on the clone.
     assert re.search(

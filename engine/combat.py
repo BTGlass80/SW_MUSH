@@ -37,6 +37,7 @@ from engine.dice import (
 from engine.character import Character, SkillRegistry, ATTRIBUTE_NAMES, WoundLevel
 from engine.weapons import RangeBand, WeaponData, get_weapon_registry
 from server import ansi as _ansi
+import engine.combat_events as _cevt
 
 log = logging.getLogger(__name__)
 
@@ -187,6 +188,7 @@ class ActionResult:
     narrative: str = ""         # Human-readable summary
     you_narrative: str = ""     # Per-session variant for the target (◆ YOU got hit)
     targets: list = None        # Character IDs of targets (for per-session delivery)
+    resolution_event: dict = None  # Structured combat_resolution_event payload (web only)
 
 
 # ── Combatant State ──
@@ -332,6 +334,177 @@ class CombatEvent:
     text: str
     targets: list[int] = field(default_factory=list)  # Character IDs who should see this
     you_text: str = ""  # Per-session variant shown to the target (◆ YOU got hit format)
+    combat_resolution_event: dict = None  # Structured payload for web inspector
+
+
+def _build_resolution_event(
+    *,
+    actor: "Combatant",
+    target_c: "Combatant",
+    action: "CombatAction",
+    attacker_context: dict,
+    damage_pool: "DicePool",
+    damage_roll,
+    soak_strength_pool: "DicePool",
+    soak_armor_pool: "DicePool",
+    soak_roll,
+    soak_total: int,
+    soak_cp_bonus: int,
+    damage_margin: int,
+    wound_text: str,
+    stun_knocked_out: bool,
+    round_num: int,
+    combat_id,
+) -> dict:
+    """Build a combat_resolution_event payload via engine.combat_events.
+
+    Returns None silently on any error so a factory bug never breaks combat.
+    Only called when attacker_context is not None (web path).
+    """
+    try:
+        ctx = attacker_context
+
+        # ── Attacker pool ──
+        skill_dice    = ctx.get("skill_dice", 0)
+        weapon_dice   = ctx.get("weapon_dice", 0)
+        fp_dice       = ctx.get("fp_double_dice", 0)
+        mod_dice      = ctx.get("modifier_dice", 0)
+        attack_roll   = ctx.get("attack_roll")
+        is_opposed    = ctx.get("is_opposed", False)
+        defender_roll = ctx.get("defender_roll")
+        diff_num      = ctx.get("difficulty_num")
+        range_band    = ctx.get("range_band")
+
+        component_sizes = []
+        if skill_dice:
+            component_sizes.append((_cevt.SOURCE_SKILL, skill_dice))
+        if weapon_dice:
+            component_sizes.append((_cevt.SOURCE_WEAPON, weapon_dice))
+        if fp_dice:
+            component_sizes.append((_cevt.SOURCE_FP_DOUBLE, fp_dice))
+        if mod_dice:
+            component_sizes.append((_cevt.SOURCE_MODIFIER, mod_dice))
+        if not component_sizes:
+            # Fallback: tag all as skill
+            component_sizes = [(_cevt.SOURCE_SKILL, damage_pool.dice)]
+
+        attacker_pool_dict = _cevt.build_dice_pool_roll(
+            roll_result=attack_roll,
+            total=attack_roll.total if attack_roll else 0,
+            label=action.skill,
+            component_sizes=component_sizes,
+        ) if attack_roll else None
+
+        if attacker_pool_dict is None:
+            return None
+
+        # ── Defender pool / difficulty ──
+        defender_pool_dict = None
+        difficulty_dict    = None
+        if is_opposed and defender_roll:
+            defender_pool_dict = _cevt.build_dice_pool_roll(
+                roll_result=defender_roll,
+                total=defender_roll.total,
+                label="defense",
+                component_sizes=[(_cevt.SOURCE_SKILL, max(1, defender_roll.dice_count
+                                                           if hasattr(defender_roll, "dice_count") else 1))],
+            )
+        elif not is_opposed:
+            difficulty_dict = {
+                "number": diff_num or 0,
+                "label": range_band or "static",
+                "breakdown": ctx.get("defense_display", ""),
+            }
+
+        # ── Damage pool ──
+        from engine.combat_events import SOURCE_SKILL as _SS, SOURCE_WEAPON as _SW, SOURCE_FP_DOUBLE as _SFP
+        dmg_ctx = attacker_context  # re-use for damage component sizes
+        d_skill  = dmg_ctx.get("dmg_skill_dice", 0)
+        d_weapon = dmg_ctx.get("dmg_weapon_dice", 0)
+        d_fp     = dmg_ctx.get("dmg_fp_dice", 0)
+        dmg_sizes = []
+        if d_skill:  dmg_sizes.append((_SS, d_skill))
+        if d_weapon: dmg_sizes.append((_SW, d_weapon))
+        if d_fp:     dmg_sizes.append((_SFP, d_fp))
+        if not dmg_sizes:
+            dmg_sizes = [(_SW, damage_pool.dice)]
+
+        damage_pool_dict = _cevt.build_dice_pool_roll(
+            roll_result=damage_roll,
+            total=damage_roll.total,
+            label="damage",
+            component_sizes=dmg_sizes,
+        )
+
+        # ── Soak ──
+        soak_components = []
+        soak_components.append(_cevt.make_soak_component(
+            _cevt.SOAK_STRENGTH, "Strength",
+            soak_strength_pool.dice * 3 + soak_strength_pool.pips,  # rough value
+            rolls=[soak_roll.total],
+        ))
+        if not soak_armor_pool.is_zero():
+            soak_components.append(_cevt.make_soak_component(
+                _cevt.SOAK_ARMOR, "Armor",
+                soak_armor_pool.dice * 3 + soak_armor_pool.pips,
+                rolls=[],
+            ))
+        if soak_cp_bonus:
+            soak_components.append(_cevt.make_soak_component(
+                _cevt.SOAK_CP, "CP Soak",
+                soak_cp_bonus,
+                rolls=[soak_cp_bonus],
+            ))
+
+        soak_dict = {
+            "total": soak_total,
+            "components": soak_components,
+        }
+
+        # ── Wound outcome ──
+        wound_dict = _cevt.build_wound_outcome(
+            hit=True,
+            wound_text=wound_text,
+            damage_margin=damage_margin,
+            stun_mode=action.stun_mode,
+            stun_knocked_out=stun_knocked_out,
+            target_can_act=target_c.char.wound_level.can_act
+                           if target_c.char else True,
+        )
+
+        actor_kind  = "pc" if getattr(actor.char, "is_pc", True) else "npc"
+        target_kind = "pc" if getattr(target_c.char, "is_pc", True) else "npc"
+
+        return _cevt.make_combat_resolution_event(
+            actor_id=actor.id,
+            actor_name=actor.name,
+            actor_kind=actor_kind,
+            is_force_point_active=actor.force_point_active,
+            target_id=target_c.id,
+            target_name=target_c.name,
+            target_kind=target_kind,
+            skill=action.skill,
+            weapon_name=action.weapon_key,
+            range_band=range_band,
+            stun_mode=action.stun_mode,
+            is_opposed=is_opposed,
+            attacker_pool=attacker_pool_dict,
+            defender_pool=defender_pool_dict,
+            difficulty=difficulty_dict,
+            damage_pool=damage_pool_dict,
+            soak=soak_dict,
+            hit=True,
+            margin=ctx.get("attack_margin", 0),
+            damage_margin=damage_margin,
+            wound_outcome=wound_dict,
+            round_num=round_num,
+            combat_id=combat_id,
+        )
+    except Exception as exc:  # pragma: no cover
+        logging.getLogger(__name__).warning(
+            "combat_resolution_event build failed: %s", exc, exc_info=True
+        )
+        return None
 
 
 class CombatInstance:
@@ -696,6 +869,7 @@ class CombatInstance:
                     text=result.narrative,
                     you_text=result.you_narrative,
                     targets=hit_targets,
+                    combat_resolution_event=result.resolution_event,
                 ))
                 # Track as incoming for the target
                 if action.target_id and action.target_id in self.combatants:
@@ -787,7 +961,9 @@ class CombatInstance:
         melee = is_melee_skill(atk_skill)
 
         # Build attacker's pool
-        attack_pool = char.get_skill_pool(action.skill, self.skill_reg)
+        _base_skill_pool = char.get_skill_pool(action.skill, self.skill_reg)
+        _base_skill_dice = _base_skill_pool.dice  # for structured event
+        attack_pool = _base_skill_pool
         attack_pool = apply_wound_penalty(attack_pool, char.total_penalty_dice)
         attack_pool = apply_multi_action_penalty(attack_pool, num_actions)
 
@@ -797,8 +973,11 @@ class CombatInstance:
             attack_pool = apply_wound_penalty(attack_pool, armor_dex_pen.dice)
 
         # Force Point: double all dice (R&E p52)
+        _fp_attack_extra = 0
         if actor.force_point_active:
+            _pre_fp = attack_pool.dice
             attack_pool = apply_force_point(attack_pool)
+            _fp_attack_extra = attack_pool.dice - _pre_fp
 
         # Add aim bonus
         if actor.aim_bonus > 0:
@@ -823,22 +1002,34 @@ class CombatInstance:
         # ═══════════════════════════════════════
         # RANGED ATTACK -- Difficulty-based (R&E)
         # ═══════════════════════════════════════
+        # Build attacker_context for structured web event (Phase 2 wiring)
+        _attacker_ctx = {
+            "skill_dice":     _base_skill_dice,
+            "weapon_dice":    0,   # ranged: weapon dice come from action.weapon_damage
+            "fp_double_dice": _fp_attack_extra,
+            "modifier_dice":  0,
+            "is_opposed":     not ranged,  # melee is opposed; ranged is difficulty-based
+        }
+
         if ranged:
             return self._resolve_ranged_attack(
-                actor, target_c, action, attack_pool, defense_action, num_actions
+                actor, target_c, action, attack_pool, defense_action, num_actions,
+                _attacker_ctx=_attacker_ctx,
             )
 
         # ═══════════════════════════════════════
         # MELEE ATTACK -- Opposed roll
         # ═══════════════════════════════════════
         return self._resolve_melee_attack(
-            actor, target_c, action, attack_pool, defense_action, num_actions
+            actor, target_c, action, attack_pool, defense_action, num_actions,
+            _attacker_ctx=_attacker_ctx,
         )
 
     def _resolve_ranged_attack(
         self, actor: Combatant, target_c: Combatant,
         action: CombatAction, attack_pool: DicePool,
         defense_action: Optional[CombatAction], num_actions: int,
+        _attacker_ctx: dict = None,
     ) -> ActionResult:
         """
         Ranged attack resolution per R&E p58-60.
@@ -989,14 +1180,26 @@ class CombatInstance:
             )
 
         # ── HIT! Damage vs soak ──
+        if _attacker_ctx is not None:
+            _attacker_ctx.update({
+                "attack_roll":    attack_roll,
+                "is_opposed":     False,
+                "defender_roll":  None,
+                "difficulty_num": total_difficulty,
+                "range_band":     range_label,
+                "defense_display": diff_display,
+                "attack_margin":  attack_total - total_difficulty,
+            })
         return self._apply_damage(
-            actor, target_c, action, attack_total, diff_display, cp_text
+            actor, target_c, action, attack_total, diff_display, cp_text,
+            _attacker_context=_attacker_ctx,
         )
 
     def _resolve_melee_attack(
         self, actor: Combatant, target_c: Combatant,
         action: CombatAction, attack_pool: DicePool,
         defense_action: Optional[CombatAction], num_actions: int,
+        _attacker_ctx: dict = None,
     ) -> ActionResult:
         """
         Melee attack resolution -- opposed roll per R&E.
@@ -1111,34 +1314,69 @@ class CombatInstance:
             )
 
         # ── HIT! ──
+        if _attacker_ctx is not None:
+            _attacker_ctx.update({
+                "attack_roll":    result.attacker_roll,
+                "is_opposed":     def_pool is not None,
+                "defender_roll":  result.defender_roll if def_pool is not None else None,
+                "difficulty_num": def_total if def_pool is None else None,
+                "range_band":     None,
+                "defense_display": f"{def_label}: {def_total}",
+                "attack_margin":  attack_total - def_total,
+            })
         return self._apply_damage(
             actor, target_c, action,
             attack_total,
             f"{def_label}: {def_total}",
             cp_text,
+            _attacker_context=_attacker_ctx,
         )
 
     def _apply_damage(
         self, actor: Combatant, target_c: Combatant,
         action: CombatAction, attack_total: int, defense_display: str,
         cp_text: str = "",
+        _attacker_context: dict = None,
     ) -> ActionResult:
-        """Common damage/soak resolution for both ranged and melee hits."""
+        """Common damage/soak resolution for both ranged and melee hits.
+
+        _attacker_context is an optional dict carrying pool metadata for the
+        structured combat_resolution_event (web inspector). Shape:
+          {
+            "attack_roll":    RollResult,   # raw roll object
+            "attack_pool":    DicePool,     # final pool after all modifiers
+            "skill_dice":     int,          # base skill dice count
+            "weapon_dice":    int,          # weapon bonus dice (0 for melee)
+            "fp_double_dice": int,          # extra dice from FP doubling
+            "modifier_dice":  int,          # situational modifier dice (0 usually)
+            "is_opposed":     bool,
+            "defender_roll":  RollResult | None,
+            "difficulty_num": int | None,
+            "range_band":     str | None,
+          }
+        If None, no structured event is emitted (telnet path unchanged).
+        """
         target = target_c.char
 
         # Parse damage - handle STR+XD notation for melee weapons
         damage_str = action.weapon_damage or "3D"
+        _dmg_skill_dice = 0   # for structured event component_sizes
+        _dmg_weapon_dice = 0
+        _dmg_fp_dice = 0
         if damage_str.upper().startswith("STR"):
             # Melee: STR+2D means attacker's Strength + bonus dice
             str_pool = actor.char.get_attribute("strength")
+            _dmg_skill_dice = str_pool.dice
             # Force Point: double STR but NOT weapon bonus (R&E p52)
             if actor.force_point_active:
                 str_pool = apply_force_point(str_pool)
+                _dmg_fp_dice = str_pool.dice - _dmg_skill_dice
             bonus_str = damage_str.upper().replace("STR", "").strip()
             if bonus_str.startswith("+"):
                 bonus_str = bonus_str[1:]
             if bonus_str:
                 bonus_pool = DicePool.parse(bonus_str)
+                _dmg_weapon_dice = bonus_pool.dice
                 damage_pool = DicePool(
                     str_pool.dice + bonus_pool.dice,
                     str_pool.pips + bonus_pool.pips,
@@ -1146,12 +1384,16 @@ class CombatInstance:
             else:
                 damage_pool = str_pool
         else:
-            damage_pool = DicePool.parse(damage_str)
+            _base_dmg_pool = DicePool.parse(damage_str)
+            _dmg_weapon_dice = _base_dmg_pool.dice
+            damage_pool = _base_dmg_pool
             # Force Point: double weapon damage for ranged
             if actor.force_point_active:
                 damage_pool = apply_force_point(damage_pool)
+                _dmg_fp_dice = damage_pool.dice - _base_dmg_pool.dice
 
         soak_pool = target.get_attribute("strength")
+        soak_strength_pool = soak_pool  # track pre-armor for component breakdown
         # v22 audit #9: armor adds to Strength for soak per R&E p83
         is_energy = not damage_str.upper().startswith("STR")  # ranged = energy, melee = physical
         armor_pool = target.get_armor_protection(energy=is_energy)
@@ -1169,6 +1411,7 @@ class CombatInstance:
         # CP declared at action time via `dodge cp 3` / `soak 2`.
         # Only spent if actually hit. Dice explode on 6, no mishap on 1.
         soak_cp_text = ""
+        soak_cp_bonus = 0
         if target_c.soak_cp > 0 and target_c.char:
             cp_to_spend = min(target_c.soak_cp, target_c.char.character_points, 5)
             if cp_to_spend > 0:
@@ -1201,6 +1444,12 @@ class CombatInstance:
         _seed = (getattr(self, "round_num", 0) * 31 + actor.id) & 0xFFFF
         verb = _pick_verb(action.skill, _seed)
         fp_tag = " [FORCE POINT]" if actor.force_point_active else ""
+
+        # Merge damage component sizes into attacker_context for the event builder
+        if _attacker_context is not None:
+            _attacker_context["dmg_skill_dice"]  = _dmg_skill_dice
+            _attacker_context["dmg_weapon_dice"] = _dmg_weapon_dice
+            _attacker_context["dmg_fp_dice"]     = _dmg_fp_dice
 
         # 2-line narrative: story (bold) + mechanics (dim)
         colored_wound = _wound_color(wound_text)
@@ -1263,6 +1512,24 @@ class CombatInstance:
             narrative=narrative,
             you_narrative=you_narrative,
             targets=[target_c.id],
+            resolution_event=_build_resolution_event(
+                actor=actor,
+                target_c=target_c,
+                action=action,
+                attacker_context=_attacker_context,
+                damage_pool=damage_pool,
+                damage_roll=damage_roll,
+                soak_strength_pool=soak_strength_pool,
+                soak_armor_pool=armor_pool,
+                soak_roll=soak_roll,
+                soak_total=soak_total,
+                soak_cp_bonus=soak_cp_bonus if target_c.soak_cp > 0 else 0,
+                damage_margin=damage_margin,
+                wound_text=wound_text,
+                stun_knocked_out=stun_knocked_out,
+                round_num=getattr(self, "round_num", 0),
+                combat_id=getattr(self, "combat_id", None),
+            ) if _attacker_context is not None else None,
         )
 
     def _resolve_dodge(self, actor: Combatant, action: CombatAction,

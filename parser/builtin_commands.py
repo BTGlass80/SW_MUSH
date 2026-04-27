@@ -880,9 +880,22 @@ class SayCommand(BaseCommand):
         room_id = char["room_id"]
         full_text = f'{char["name"]} says, "{ctx.args}"'
         await ctx.session.send_line(f'You say, "{ctx.args}"')
-        await ctx.session_mgr.broadcast_to_room(
+        # Drop B': broadcast as typed pose_event instead of plain text.
+        # Telnet observers still see the formatted line via the
+        # send_json("pose_event") Telnet fallback in server/session.py;
+        # WebSocket observers get the typed event for handlePoseEvent.
+        # Actor is excluded — they already saw the self-echo above.
+        from engine.pose_events import make_pose_event, EVENT_SAY
+        await ctx.session_mgr.broadcast_json_to_room(
             room_id,
-            full_text,
+            "pose_event",
+            make_pose_event(
+                EVENT_SAY,
+                ctx.args,
+                who=char["name"],
+                speaker_id=char.get("id"),
+                mode="says",
+            ),
             exclude=ctx.session,
         )
         # Chat tag for WebSocket comms panel
@@ -955,8 +968,23 @@ class WhisperCommand(BaseCommand):
         await ctx.session.send_line(
             f'You whisper to {ansi.player_name(target_name)}, "{message}"'
         )
-        await target_session.send_line(
-            f'{char_name} whispers to you, "{message}"'
+        # Drop B': target receives a typed pose_event instead of plain
+        # text. Telnet target sees the formatted line via the send_json
+        # Telnet fallback; WebSocket target gets the typed event for
+        # handlePoseEvent (renders in pose log with whisper styling).
+        from engine.pose_events import make_pose_event, EVENT_WHISPER
+        speaker_char = ctx.session.character
+        target_char_name = target_session.character["name"]
+        await target_session.send_json(
+            "pose_event",
+            make_pose_event(
+                EVENT_WHISPER,
+                message,
+                who=speaker_char["name"],
+                speaker_id=speaker_char.get("id"),
+                mode="whispers",
+                to=target_char_name,
+            ),
         )
 
 
@@ -984,10 +1012,25 @@ class EmoteCommand(BaseCommand):
         name = ansi.player_name(char["name"])
         text = f"{name} {ctx.args}"
 
-        # Send to everyone in the room including the actor
+        # Drop B': broadcast as typed pose_event to ALL sessions in the
+        # room (including the actor — matches the legacy behavior of the
+        # send_line loop, where the actor sees their own pose). Telnet
+        # observers and the actor's Telnet self-view both render via the
+        # send_json("pose_event") Telnet fallback as 'Tundra <action>';
+        # WebSocket clients get the typed event for handlePoseEvent.
         room_id = char["room_id"]
-        for s in ctx.session_mgr.sessions_in_room(room_id):
-            await s.send_line(text)
+        from engine.pose_events import make_pose_event, EVENT_POSE
+        await ctx.session_mgr.broadcast_json_to_room(
+            room_id,
+            "pose_event",
+            make_pose_event(
+                EVENT_POSE,
+                ctx.args,
+                who=char["name"],
+                speaker_id=char.get("id"),
+                mode="poses",
+            ),
+        )
 
         # Scene logging hook
         from engine.scenes import get_active_scene_id, capture_pose
@@ -1146,14 +1189,24 @@ class SheetCommand(BaseCommand):
         # equipment). Dumping the rendered text into the pose log here
         # caused the visible "sheet bleed" — wound-track ASCII, weapon
         # lines, and skill rows being misclassified into the comms feed.
-        # On WebSocket: trigger an immediate hud refresh and stay quiet
-        # in the chat stream. Telnet still gets the full formatted text.
+        # On WebSocket: trigger an immediate hud refresh and send a brief
+        # confirmation line so the user gets feedback that the command
+        # landed.  Telnet still gets the full formatted text below.
         from server.session import Protocol
         if ctx.session.protocol == Protocol.WEBSOCKET:
             try:
                 await ctx.session.send_hud_update(
                     db=ctx.db, session_mgr=ctx.session_mgr
                 )
+                # Brief acknowledgment — without this, the command produces
+                # zero terminal output and feels broken even though the
+                # sidebar refreshed.
+                if "skills" not in ctx.switches and "combat" not in ctx.switches:
+                    await ctx.session.send_line(
+                        "  Character sheet refreshed. (See sidebar for "
+                        "stats; type +sheet/skills or +sheet/combat for "
+                        "the full text breakdown.)"
+                    )
             except Exception:
                 # Fall back to text dump if HUD push fails for any reason
                 for line in lines:
@@ -2492,6 +2545,15 @@ import time as _trade_time
 _pending_trades: dict = {}
 _TRADE_TTL = 120  # 2 minutes
 
+# ── S51 economy hardening: daily P2P transfer cap ──────────────────────────
+# Caps how many credits one character may *send* via the trade command in any
+# rolling 24-hour window. Tuned per the economy audit (v1) — 5,000 cr/day is
+# enough for legitimate gifts and small payments while making large alt-farming
+# transfers visible (and ultimately blocked). The window is rolling, not
+# calendar-bound, so a player can't dodge by waiting for midnight UTC.
+P2P_DAILY_CAP             = 5_000   # credits per rolling window
+P2P_DAILY_WINDOW_SECONDS  = 86_400  # 24 hours
+
 
 def _purge_trade_offers():
     now = _trade_time.time()
@@ -2767,6 +2829,27 @@ class TradeCommand(BaseCommand):
                 return
 
             target = target_sess.character
+
+            # ── Self-trade alt block (S44) — item path ────────────────────
+            # Block trades between two characters on the same account.
+            # Compare account_id values, guarding for None (web sessions
+            # may have an unset account in tests). We deliberately
+            # re-fetch both sides every time so a stale session doesn't
+            # leak a free transfer between alternate characters.
+            own_account = (
+                ctx.session.account["id"] if ctx.session.account else None
+            )
+            tgt_account = (
+                target_sess.account["id"] if target_sess.account else None
+            )
+            if own_account is not None and own_account == tgt_account:
+                await ctx.session.send_line(
+                    "  \033[1;31m[TRADE BLOCKED]\033[0m You cannot trade "
+                    "between alternate characters on the same account. "
+                    "Items must be earned, not handed off to your alts."
+                )
+                return
+
             offer_key = (char["id"], target["id"])
 
             _pending_trades[offer_key] = {
@@ -2837,6 +2920,49 @@ class TradeCommand(BaseCommand):
             return
 
         target = target_sess.character
+
+        # ── Self-trade alt block (S44) — credit path ──────────────────────
+        # Same guard as the item path: refuse credit transfers between
+        # two characters on the same account. own_account == tgt_account
+        # appears here intentionally a second time (the test count locks
+        # in that the check runs on BOTH paths, not just one).
+        own_account = (
+            ctx.session.account["id"] if ctx.session.account else None
+        )
+        tgt_account = (
+            target_sess.account["id"] if target_sess.account else None
+        )
+        if own_account is not None and own_account == tgt_account:
+            await ctx.session.send_line(
+                "  \033[1;31m[TRADE BLOCKED]\033[0m You cannot trade "
+                "credits between alternate characters on the same account."
+            )
+            return
+
+        # ── S51 daily P2P transfer cap ────────────────────────────────────
+        # Block at offer time so the player gets immediate feedback rather
+        # than discovering the limit only when their target tries to
+        # accept. The same check fires again on accept so two simultaneous
+        # offers can't sum past the cap.
+        try:
+            already_sent = await ctx.db.get_daily_p2p_outgoing(
+                char["id"], seconds=P2P_DAILY_WINDOW_SECONDS,
+            )
+            if already_sent + amount > P2P_DAILY_CAP:
+                remaining = max(0, P2P_DAILY_CAP - already_sent)
+                await ctx.session.send_line(
+                    f"  \033[1;31m[TRADE BLOCKED]\033[0m Daily transfer "
+                    f"cap is {P2P_DAILY_CAP:,} cr. You have already sent "
+                    f"{already_sent:,} cr in the last 24 hours; you can "
+                    f"send at most {remaining:,} cr more today."
+                )
+                return
+        except Exception:
+            # Fail open — a credit_log outage must not freeze every trade
+            # in the game. The audit logger picks up the actual movement
+            # and admin tooling can backfill caps later.
+            log.debug("p2p cap check failed, allowing trade", exc_info=True)
+
         offer_key = (char["id"], target["id"])
 
         _pending_trades[offer_key] = {
@@ -2977,6 +3103,33 @@ class TradeCommand(BaseCommand):
                 f"  Trade with {char['name']} cancelled — insufficient credits."
             )
             return
+
+        # ── S51 daily P2P cap (race-safe re-check at accept time) ────────
+        # Two simultaneous offers from the same offerer would otherwise be
+        # able to sum past the cap — both pass the offer-time check, then
+        # both succeed at accept. Re-check here against the live total so
+        # the cap holds even with concurrent acceptors.
+        try:
+            already_sent = await ctx.db.get_daily_p2p_outgoing(
+                offerer["id"], seconds=P2P_DAILY_WINDOW_SECONDS,
+            )
+            if already_sent + amount > P2P_DAILY_CAP:
+                _pending_trades.pop(offer_key, None)
+                remaining = max(0, P2P_DAILY_CAP - already_sent)
+                await ctx.session.send_line(
+                    f"  \033[1;31m[TRADE BLOCKED]\033[0m {offerer['name']} "
+                    f"has hit their daily transfer cap. Trade cancelled."
+                )
+                await offerer_sess.send_line(
+                    f"  \033[1;31m[TRADE BLOCKED]\033[0m Daily transfer "
+                    f"cap is {P2P_DAILY_CAP:,} cr. You have already sent "
+                    f"{already_sent:,} cr in the last 24 hours; you can "
+                    f"send at most {remaining:,} cr more today."
+                )
+                return
+        except Exception:
+            log.debug("p2p cap accept-side recheck failed, allowing trade",
+                      exc_info=True)
 
         # Execute transfer with 5% transaction tax (economy hardening v23)
         tax = max(1, amount // 20)  # 5% floor of 1 credit

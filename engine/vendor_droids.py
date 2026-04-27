@@ -606,6 +606,70 @@ async def buy_from_droid(buyer: dict, droid_id: int,
     base_price = slot["price"]
     final_price = base_price
 
+    # ── Faction shop modifier (S39) ───────────────────────────────────────
+    # If the shop owner aligns with one of the canonical factions, look up
+    # the buyer's reputation with that faction and apply the corresponding
+    # tier modifier. Hostile rep blocks the purchase outright; friendly
+    # rep gives a discount; unfriendly rep imposes a markup.
+    #
+    # The seller's stored faction_id is normalized through this map so a
+    # vendor whose owner sits under a long-form name still resolves to a
+    # canonical code. Documented codes (architecture v29 §6.5):
+    #   "empire", "rebel", "hutt", "bh_guild"
+    _FACTION_NAME_MAP = {
+        "empire":               "empire",
+        "imperial":             "empire",
+        "galactic empire":      "empire",
+        "rebel":                "rebel",
+        "rebellion":            "rebel",
+        "rebel alliance":       "rebel",
+        "hutt":                 "hutt",
+        "hutts":                "hutt",
+        "hutt cartel":          "hutt",
+        "bh_guild":             "bh_guild",
+        "bounty hunters guild": "bh_guild",
+        "bounty hunters":       "bh_guild",
+    }
+    faction_msg = ""
+    seller_faction_raw = ""
+    try:
+        seller_char_for_faction = await db.get_character(obj["owner_id"])
+        if seller_char_for_faction:
+            seller_faction_raw = (
+                seller_char_for_faction.get("faction_id", "") or ""
+            ).strip().lower()
+    except Exception:
+        log.debug("[shops] faction owner lookup failed", exc_info=True)
+
+    seller_faction_code = _FACTION_NAME_MAP.get(seller_faction_raw)
+    if seller_faction_code and seller_faction_code != "independent":
+        try:
+            from engine.organizations import get_faction_shop_modifier
+            allowed, modifier, tier_name = await get_faction_shop_modifier(
+                buyer, seller_faction_code, db,
+            )
+            if not allowed:
+                # Hostile rep — vendor refuses to serve.
+                return False, (
+                    f"The vendor refuses to serve you. "
+                    f"({tier_name} with the {seller_faction_code} faction)"
+                )
+            if modifier:
+                final_price = max(1, int(round(base_price * (1.0 + modifier))))
+                pct = int(round(modifier * 100))
+                if pct < 0:
+                    faction_msg = (
+                        f"\n  {ansi.DIM}Faction: "
+                        f"{abs(pct)}% discount ({tier_name}).{ansi.RESET}"
+                    )
+                elif pct > 0:
+                    faction_msg = (
+                        f"\n  {ansi.DIM}Faction: "
+                        f"{pct}% markup ({tier_name}).{ansi.RESET}"
+                    )
+        except Exception:
+            log.debug("[shops] faction shop modifier failed", exc_info=True)
+
     # Bargain check for Tier 2+
     tier_key = data.get("tier_key", "gn4")
     tier     = get_tier(tier_key) or {}
@@ -617,7 +681,7 @@ async def buy_from_droid(buyer: dict, droid_id: int,
         try:
             from engine.skill_checks import resolve_bargain_check
             haggle = resolve_bargain_check(
-                buyer, base_price,
+                buyer, final_price,
                 npc_bargain_dice=b_dice, npc_bargain_pips=b_pips,
                 is_buying=True,
             )
@@ -721,7 +785,7 @@ async def buy_from_droid(buyer: dict, droid_id: int,
         f"{crafter_str} from \033[1;36m{shop_name}\033[0m "
         f"for \033[1;33m{final_price:,}cr\033[0m. "
         f"(Balance: {buyer['credits']:,} cr)"
-        f"{bargain_msg}"
+        f"{bargain_msg}{faction_msg}"
     )
 
 

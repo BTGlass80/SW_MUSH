@@ -69,7 +69,11 @@ policy:
 content_refs:
   zones: zones.yaml                        # GCW zones — TBD; engine reads from build_mos_eisley.py today
   organizations: organizations.yaml        # GCW orgs — TBD; engine reads from data/organizations.yaml today
-  planets: []                              # Mos Eisley is single-planet at GCW launch
+  planets:                                 # GCW Mos Eisley + Nar Shaddaa + Kessel + Corellia
+    - planets/tatooine.yaml                # 54 rooms
+    - planets/nar_shaddaa.yaml             # 30 rooms
+    - planets/kessel.yaml                  # 12 rooms
+    - planets/corellia.yaml                # 24 rooms
 
   # ── Director / Lore data-fication (Drop 6a) ─────────────────────────────
   # These three files are consumed by Drop 6a's engine refactor. Until 6a.2

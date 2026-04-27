@@ -439,7 +439,7 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
         "active":           active,
         "ship_name":        ship.get("name", "Unknown"),
         "ship_class":       tmpl.name if tmpl else ship.get("template", ""),
-        "ship_category":    tmpl.ship_class if tmpl else "light_freighter",
+        "ship_category":    tmpl.key if tmpl else "light_freighter",
         "ship_id":          ship["id"],
 
         "zone_id":          zone_id,

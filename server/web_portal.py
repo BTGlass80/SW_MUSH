@@ -264,7 +264,7 @@ class PortalAPI:
         # "search" as a slug literal.
         app.router.add_get("/api/portal/reference", self.handle_reference_index)
         app.router.add_get("/api/portal/reference/search", self.handle_reference_search)
-        app.router.add_get("/api/portal/reference/{slug}", self.handle_reference_entry)
+        app.router.add_get("/api/portal/reference/{entry_slug}", self.handle_reference_entry)
         log.info("Portal API routes registered")
 
     # ── Helpers ──────────────────────────────────────────────────────────
@@ -805,66 +805,232 @@ class PortalAPI:
 
     # ── Reference (auto-generated rules reference) ───────────────────────
 
+    # ── Reference (S48): use game.help_mgr, not the markdown loader ────────
+    # The earlier implementation read from data/help/topics/*.md and built a
+    # static index at init time. The S48 contract instead drives off the live
+    # ``HelpManager`` carried by the GameServer so admin-gated entries can be
+    # filtered per-caller and the reference stays in sync with what the
+    # in-game `help` command shows.
+
+    async def _caller_max_access_level(self, request) -> int:
+        """Return the highest access_level the caller may see.
+
+        - No Authorization header / unknown token → 0 (public).
+        - Authenticated but non-admin               → 0 (public).
+        - Authenticated admin                       → 99 (sees everything).
+        """
+        account_id = await self._optional_auth(request)
+        if not account_id:
+            return 0
+        try:
+            account = await self._db.get_account(account_id)
+            if account and account.get("is_admin"):
+                return 99
+        except Exception:
+            log.debug("[portal] account lookup failed in access check",
+                      exc_info=True)
+        return 0
+
+    @staticmethod
+    def _entry_slug(key: str) -> str:
+        """Encode a HelpEntry key as a URL-safe slug.
+
+        Slashes (used in command keys like ``+combat/attack``) are encoded
+        as ``__`` so the slug round-trips through path segments cleanly.
+        """
+        return (key or "").replace("/", "__")
+
+    @staticmethod
+    def _decode_slug(slug: str) -> str:
+        """Inverse of ``_entry_slug``."""
+        return (slug or "").replace("__", "/")
+
+    @staticmethod
+    def _summary_view(entry) -> dict:
+        """Compact entry shape used in the index + search results."""
+        return {
+            "key":          entry.key,
+            "slug":         PortalAPI._entry_slug(entry.key),
+            "title":        entry.title,
+            "category":     entry.category,
+            "summary":      getattr(entry, "summary", "") or "",
+            "tags":         list(getattr(entry, "tags", []) or []),
+            "access_level": getattr(entry, "access_level", 0),
+        }
+
+    @staticmethod
+    def _full_view(entry) -> dict:
+        """Full entry shape used by the detail endpoint."""
+        v = PortalAPI._summary_view(entry)
+        v.update({
+            "body":      entry.body,
+            "aliases":   list(getattr(entry, "aliases", []) or []),
+            "see_also":  list(getattr(entry, "see_also", []) or []),
+            "examples":  list(getattr(entry, "examples", []) or []),
+        })
+        return v
+
     async def handle_reference_index(self, request) -> web.Response:
-        """GET /api/portal/reference — category tree of all reference entries."""
+        """GET /api/portal/reference — tree + flat list of help entries.
+
+        Filters by caller access_level so admin-only entries (e.g. ``@dig``)
+        never appear for unauthenticated callers. Empty categories are
+        pruned so the tree never carries a label that resolves to nothing.
+        """
+        mgr = getattr(self._game, "help_mgr", None) if self._game else None
+        if mgr is None:
+            return self._json({"error": "Reference unavailable"}, 503)
+
+        max_level = await self._caller_max_access_level(request)
+
+        flat: list[dict] = []
+        for entry in mgr._entries.values():
+            if getattr(entry, "access_level", 0) > max_level:
+                continue
+            flat.append(self._summary_view(entry))
+        # Stable order — keys, lowercased.
+        flat.sort(key=lambda e: e["key"].lower())
+
+        # Build tree. Categories using "Parent: Child" or "Parent/Child"
+        # split into a parent → subcategory hierarchy. Single-segment
+        # categories live at the top level. Empty categories are pruned.
+        tree: dict = {}
+        for e in flat:
+            cat = e["category"] or "Uncategorized"
+            # Support both "Rules: Combat" and "Rules/Combat" — the in-game
+            # corpus uses both styles.
+            if ": " in cat:
+                parent, sub = cat.split(": ", 1)
+            elif "/" in cat:
+                parent, sub = cat.split("/", 1)
+            else:
+                parent, sub = cat, None
+            parent = parent.strip()
+            sub = sub.strip() if sub else None
+
+            node = tree.setdefault(parent, {"entries": [], "subcategories": {}})
+            if sub:
+                child = node["subcategories"].setdefault(
+                    sub, {"entries": [], "subcategories": {}},
+                )
+                child["entries"].append(e)
+            else:
+                node["entries"].append(e)
+
+        # Prune empty branches: a parent that has no entries AND whose
+        # subcategories are all empty must not show up. (Public callers
+        # filter out admin-only entries earlier; this prevents an "Admin"
+        # label leaking with nothing under it.)
+        def _node_has_content(node: dict) -> bool:
+            if node["entries"]:
+                return True
+            return any(_node_has_content(child)
+                       for child in node["subcategories"].values())
+
+        for parent in list(tree.keys()):
+            node = tree[parent]
+            # Drop empty subcategories first.
+            for sub_name in list(node["subcategories"].keys()):
+                if not _node_has_content(node["subcategories"][sub_name]):
+                    del node["subcategories"][sub_name]
+            if not _node_has_content(node):
+                del tree[parent]
+
         return self._json({
-            "tree": _REFERENCE_INDEX.get("tree", {}),
+            "tree":    tree,
+            "entries": flat,
+            "total":   len(flat),
         })
 
     async def handle_reference_entry(self, request) -> web.Response:
-        """GET /api/portal/reference/{slug} — full entry detail.
+        """GET /api/portal/reference/{entry_slug} — full entry detail.
 
-        Falls back to alias lookup if direct slug lookup misses, so that
-        see-also chips like 'attrs' (aliased to 'attributes') resolve.
+        Returns 404 (not 403) when the entry is admin-gated and the caller
+        is unauthenticated — admins can confirm an entry exists; the public
+        cannot. This is deliberate: a 403 leaks the entry's existence.
         """
-        slug = (request.match_info.get("slug", "") or "").lower().strip()
-        if not slug:
+        mgr = getattr(self._game, "help_mgr", None) if self._game else None
+        if mgr is None:
+            return self._json({"error": "Reference unavailable"}, 503)
+
+        # Accept ``entry_slug`` as the canonical URL parameter; older code
+        # paths used ``slug``, so check both for compatibility.
+        raw_slug = (
+            request.match_info.get("entry_slug")
+            or request.match_info.get("slug")
+            or ""
+        )
+        if not raw_slug:
             return self._json({"error": "No slug specified"}, 400)
-        entry = _REFERENCE_CONTENT.get(slug)
-        if not entry:
-            # Try alias resolution — slug might be "attrs" pointing at "attributes"
-            for e in _REFERENCE_INDEX.get("flat", []):
-                if any(slug == a.lower() for a in e.get("aliases", [])):
-                    entry = e
-                    break
-        if not entry:
+        key = self._decode_slug(raw_slug)
+
+        max_level = await self._caller_max_access_level(request)
+        entry = mgr.get(key)
+        if entry is None or getattr(entry, "access_level", 0) > max_level:
+            # No info leak — both "not found" and "you can't see this"
+            # collapse to 404.
             return self._json({"error": "Reference entry not found"}, 404)
-        return self._json(entry)
+
+        return self._json(self._full_view(entry))
 
     async def handle_reference_search(self, request) -> web.Response:
         """GET /api/portal/reference/search?q=...&limit=N — keyword search.
 
-        Scoring: key match > title match > alias match > summary > tags > body.
-        Returns up to `limit` (default 20, max 100) results.
+        Ranking (high → low):
+          - exact key match
+          - key prefix match
+          - title contains
+          - alias contains
+          - summary contains
+          - tag contains
+          - body contains
+
+        Results filtered by caller access_level so admin entries never
+        leak through search.
         """
+        mgr = getattr(self._game, "help_mgr", None) if self._game else None
+        if mgr is None:
+            return self._json({"error": "Reference unavailable"}, 503)
+
         q = (request.query.get("q", "") or "").strip().lower()
         try:
             limit = int(request.query.get("limit", "20"))
         except (TypeError, ValueError):
             limit = 20
+        # Clamp [1, 100]. Zero / negative falls back to 1; huge values clamp
+        # down so a malicious caller can't pull the whole corpus.
         limit = max(1, min(100, limit))
         if not q:
             return self._json({"results": [], "total": 0})
 
-        scored = []
-        for e in _REFERENCE_INDEX.get("flat", []):
+        max_level = await self._caller_max_access_level(request)
+
+        scored: list[tuple[int, dict]] = []
+        for entry in mgr._entries.values():
+            if getattr(entry, "access_level", 0) > max_level:
+                continue
+            key_l   = entry.key.lower()
+            title_l = entry.title.lower()
+            body_l  = (entry.body or "").lower()
+            sum_l   = (getattr(entry, "summary", "") or "").lower()
+            aliases = [(a or "").lower() for a in getattr(entry, "aliases", []) or []]
+            tags    = [(t or "").lower() for t in getattr(entry, "tags", []) or []]
+
             score = 0
-            if q in e["key"].lower():                                  score += 10
-            if q in e["title"].lower():                                score += 5
-            if any(q in (a or "").lower() for a in e.get("aliases", [])):  score += 4
-            if q in (e.get("summary") or "").lower():                  score += 3
-            if any(q in (t or "").lower() for t in e.get("tags", [])): score += 2
-            if q in (e.get("body") or "").lower():                     score += 1
+            if q == key_l:                         score += 100   # exact key
+            elif key_l.startswith(q):              score += 50    # key prefix
+            elif q in key_l:                       score += 20    # key substring
+            if q in title_l:                       score += 10
+            if any(q == a or q in a for a in aliases): score += 8
+            if q in sum_l:                         score += 5
+            if any(q in t for t in tags):          score += 3
+            if q in body_l:                        score += 1
+
             if score > 0:
-                scored.append((score, {
-                    "slug":     e["slug"],
-                    "key":      e["key"],
-                    "title":    e["title"],
-                    "summary":  e["summary"],
-                    "category": e["category"],
-                    "tags":     e["tags"],
-                }))
-        scored.sort(key=lambda r: -r[0])
+                scored.append((score, self._summary_view(entry)))
+
+        # Stable secondary sort by key so ties are deterministic.
+        scored.sort(key=lambda r: (-r[0], r[1]["key"].lower()))
         return self._json({
             "results": [r[1] for r in scored[:limit]],
             "total":   len(scored),

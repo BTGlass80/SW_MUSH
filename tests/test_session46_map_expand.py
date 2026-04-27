@@ -171,9 +171,21 @@ class MapExpandModalTests(unittest.TestCase):
         start = self.html.find("function renderMapModal(kind)")
         self.assertNotEqual(start, -1)
         body = self.html[start : start + 4000]
-        # The patch uses querySelectorAll('text') and a font-size regex.
-        self.assertIn("querySelectorAll('text')", body)
-        self.assertRegex(body, r"font-size\s*:\s*\\?s\*\(\?\[\\d\.\]\+\)\s*px|font-size\s*:.*?px")
+        # The patch walks <text> nodes in the cloned SVG and bumps their
+        # font-size. The current implementation targets text by class
+        # (.rm-label / .rm-icon) plus a catch-all for legacy text nodes;
+        # earlier drops used a plain querySelectorAll('text'). Either
+        # shape is acceptable — what we're locking down is that *some*
+        # querySelectorAll('text…') walk is present, not the exact
+        # selector.
+        self.assertRegex(
+            body,
+            r"querySelectorAll\(\s*['\"]text(?:[.:][^'\"]*)?['\"]",
+            "renderMapModal must walk <text> nodes via "
+            "querySelectorAll('text…') to bump font-size in the modal "
+            "clone — without it labels stay tuned for the 140px mini view.",
+        )
+        self.assertRegex(body, r"font-size\s*:.*?px")
 
 
 if __name__ == "__main__":

@@ -1945,8 +1945,17 @@ function getReferenceIndex() {
   if (_refIndex) return Promise.resolve(_refIndex);
   if (_refIndexPromise) return _refIndexPromise;
   _refIndexPromise = api('/api/portal/reference').then(d => {
-    _refIndex = d;
     _refIndexPromise = null;
+    // Defense-in-depth: api() returns the JSON body even on HTTP error
+    // status (e.g. 503 with {error: "..."}), so an error envelope reaches
+    // here as a truthy object that lacks the `tree` field. Treat that as
+    // a failure so renderers hit their `if (!index)` fallback instead of
+    // throwing on Object.entries(undefined) and leaving the spinner stuck.
+    if (!d || d.error || !d.tree) {
+      _refIndex = null;
+      return null;
+    }
+    _refIndex = d;
     return d;
   });
   return _refIndexPromise;

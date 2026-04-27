@@ -1,0 +1,103 @@
+# Wookieepedia topics for SW_MUSH Clone Wars pivot extraction
+# Per architecture v35 §32.3
+#
+# Usage (from project root, with wookieepedia_scraper.py in same dir):
+#   python wookieepedia_scraper.py --from-file wookieepedia_topics.txt
+#
+# This will produce raw_<slug>.md files in ./wookieepedia_extracts/
+# for each topic. Lines starting with # are comments and skipped.
+# Order is roughly priority order (per architecture v35 §32.3).
+
+# ----- Tier 1: Locations directly mapped to active design docs -----
+
+Coruscant
+Coruscant Underworld
+Coruscant Underworld/Legends
+Jedi Temple of Coruscant
+Uscru Entertainment District
+Level 1313
+
+# ----- Tier 2: CW-era political/military structure -----
+
+Galactic Republic
+Confederacy of Independent Systems
+Order 66
+Grand Army of the Republic
+Separatist Droid Army
+
+# ----- Tier 3: Director AI lore — major Jedi Council figures -----
+
+Yoda
+Mace Windu
+Plo Koon
+Ki-Adi-Mundi
+Saesee Tiin
+Kit Fisto
+Shaak Ti
+Obi-Wan Kenobi
+Anakin Skywalker
+Ahsoka Tano
+Qui-Gon Jinn
+
+# ----- Tier 4: Force-resonant locations -----
+
+Mortis
+Tython
+Ilum
+Dagobah
+Lothal
+
+# ----- Tier 5: Clone trooper culture -----
+
+Clone trooper
+ARC trooper
+Republic Commando
+Clone Force 99
+501st Legion
+212th Attack Battalion
+
+# ----- Tier 6: CW-era social hubs and recurring locations -----
+
+Dex's Diner
+CoCo Town
+The Works
+Senate District
+Galaxies Opera House
+Outlander Club
+
+# ----- Tier 7: Major Clone Wars antagonists (Director AI lore) -----
+
+Count Dooku
+General Grievous
+Asajj Ventress
+Darth Sidious
+Darth Maul
+Cad Bane
+Aurra Sing
+Pre Vizsla
+
+# ----- Tier 8: Force-using traditions detailed in CWCG §4 -----
+#       Useful follow-up extraction to enrich force_resonant_landmarks_design
+
+Bando Gora
+Believers (Cularin sect)
+Korunnai
+Pelekotan
+
+# ----- Tier 9: Clone Wars-relevant CW-era planets (gazetteer) -----
+#       Per CWCG §6 — fuller treatment than the campaign book provides.
+
+Christophsis
+Geonosis
+Kamino
+Mustafar
+Muunilinst
+Utapau
+Polis Massa
+Teth
+Toydaria
+Mandalore
+Felucia
+Ryloth
+Onderon
+Saleucami

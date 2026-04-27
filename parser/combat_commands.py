@@ -147,8 +147,18 @@ async def _broadcast_events_paced(events, session_mgr, room_id,
                     await sess.send_line(event.you_text)
                 else:
                     await sess.send_line(event.text)
+                # Web clients also receive the structured inspector event (AC4)
+                if event.combat_resolution_event is not None:
+                    await sess.send_json("combat_resolution_event",
+                                         event.combat_resolution_event)
         else:
             await session_mgr.broadcast_to_room(room_id, event.text, exclude=exclude)
+            # Web clients also receive the structured inspector event on room-wide hits
+            if event.combat_resolution_event is not None:
+                await session_mgr.broadcast_json_to_room(
+                    room_id, "combat_resolution_event",
+                    event.combat_resolution_event, exclude=exclude,
+                )
 
 
 async def _send_combat_state(combat, session_mgr):

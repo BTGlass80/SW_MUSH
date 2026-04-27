@@ -29,6 +29,11 @@ class SessionState(enum.Enum):
     CONNECTED = "connected"          # Just connected, at login screen
     AUTHENTICATED = "authenticated"  # Logged in, selecting/creating character
     IN_GAME = "in_game"              # Playing with an active character
+    # CHAR_SWITCH (S44): in-game request to drop the current character and
+    # return to character select. handle_new_session checks for this state
+    # at the end of the game loop and re-enters _character_select instead
+    # of disconnecting.
+    CHAR_SWITCH = "char_switch"
     DISCONNECTING = "disconnecting"
 
 
@@ -297,11 +302,15 @@ class Session:
     def wrap_width(self) -> int:
         """Text wrapping width.
 
-        Capped at 80 for both Telnet and WebSocket — classic MUSH terminal
-        width. This ensures decorative bars, prose, and sheet output all
-        line up consistently regardless of browser window size.
+        Telnet caps at 80 (classic terminal width) so decorative bars,
+        prose, and sheet output line up consistently in any terminal
+        emulator. WebSocket caps at 100 — modern browsers can show wider
+        lines comfortably and the in-game web client uses a monospace
+        font with elastic columns. The session reports its raw width
+        from the negotiated NAWS / window size; we just clamp it.
         """
-        return min(self.width, 80)
+        cap = 100 if self.protocol == Protocol.WEBSOCKET else 80
+        return min(self.width, cap)
 
     def __repr__(self):
         name = self.character["name"] if self.character else "anonymous"
@@ -401,7 +410,17 @@ class Session:
                     suffix = f" to {to}" if to else ""
                     await self.send_line(f'{who} whispers{suffix}, "{text}"')
                 elif et in ("pose", "emote") and who:
-                    await self.send_line(f"{who} {text}")
+                    # Drop B': pose-with-target-and-mode is how mutter is
+                    # carried (event_type='pose', mode='mutters', to=tname).
+                    # Render as: 'Tundra mutters to Han, "..."' on Telnet.
+                    # Plain pose without `to` keeps the legacy Drop B
+                    # rendering: 'Tundra wipes his hands.'
+                    to = data.get("to")
+                    if to:
+                        verb = data.get("mode") or "poses"
+                        await self.send_line(f'{who} {verb} to {to}, "{text}"')
+                    else:
+                        await self.send_line(f"{who} {text}")
                 elif et in ("desc-inline", "sys-event", "sys-ok",
                             "sys-arrival", "comm-in"):
                     await self.send_line(text)
@@ -1213,14 +1232,44 @@ class SessionManager:
             await asyncio.gather(*targets, return_exceptions=True)
 
     async def broadcast_json_to_room(
-        self, room_id: int, msg_type: str, data: dict
+        self, room_id: int, msg_type: str, data: dict,
+        exclude=None,
     ):
         """Send a typed JSON message to all WebSocket sessions in a room.
 
-        Telnet sessions silently ignore this call.
-        Used for combat_state, space_state, and other structured updates.
+        Telnet sessions render typed messages with a known fallback (e.g.
+        pose_event becomes formatted text); see Session.send_json. Other
+        msg_types may be silently dropped on Telnet.
+
+        Used for combat_state, space_state, pose_event, and other
+        structured updates.
+
+        Args:
+            exclude: Session object, list of character IDs to skip, or
+                None. Mirrors broadcast_to_room's contract so callers can
+                avoid echoing a typed event back to the originating
+                session (e.g. the actor of a `say` doesn't need to receive
+                their own pose_event — they already got the self-echo).
+
+        Drop B': `exclude` parameter added so the player-narration
+        migration (say/whisper/emote/mutter) can broadcast the typed
+        pose_event to observers while the actor's send_line self-echo
+        remains the only thing they see locally. Mirrors broadcast_to_room.
         """
-        targets = [s.send_json(msg_type, data) for s in self.sessions_in_room(room_id)]
+        excluded_ids: set[int] = set()
+        excluded_sess: Optional["Session"] = None
+        if isinstance(exclude, list):
+            excluded_ids = set(exclude)
+        elif exclude is not None:
+            excluded_sess = exclude
+
+        targets = []
+        for s in self.sessions_in_room(room_id):
+            if excluded_sess is not None and s is excluded_sess:
+                continue
+            if s.character and s.character.get("id") in excluded_ids:
+                continue
+            targets.append(s.send_json(msg_type, data))
         if targets:
             await asyncio.gather(*targets, return_exceptions=True)
 

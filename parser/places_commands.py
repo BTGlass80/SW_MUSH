@@ -653,24 +653,58 @@ class MutterCommand(BaseCommand):
         tname = target_sess.character["name"]
         cname = char["name"]
 
-        # Full message to target
-        await target_sess.send_line(
-            f"  {ansi.player_name(cname)} mutters to you, \"{message}\""
+        # Drop B': mutter is carried as a typed pose_event with
+        # event_type='pose', mode='mutters', to=<target_name>. The client's
+        # appendEvent() pose case already renders this as
+        #   "Tundra mutters to Han · <relative time>"
+        # in the header and the message body underneath. The Telnet
+        # fallback in server/session.py renders pose-with-`to` as
+        #   'Tundra mutters to Han, "..."'
+        # which preserves the legacy Telnet UX exactly.
+        from engine.pose_events import make_pose_event, EVENT_POSE
+
+        # Full message to target via typed pose_event
+        await target_sess.send_json(
+            "pose_event",
+            make_pose_event(
+                EVENT_POSE,
+                message,
+                who=cname,
+                speaker_id=char.get("id"),
+                mode="mutters",
+                to=tname,
+            ),
         )
-        # Full message to sender
+        # Full message self-echo for the actor (confirmation, not narration)
         await ctx.session.send_line(
             f"  You mutter to {ansi.player_name(tname)}, \"{message}\""
         )
 
-        # Muffled version to rest of room
+        # Muffled version to rest of room as typed pose_event
         muffled = _muffle_text(message)
-        muffled_msg = (
-            f"  \033[2m{cname} mutters to {tname}, \"{muffled}\"\033[0m"
+        muffled_event = make_pose_event(
+            EVENT_POSE,
+            muffled,
+            who=cname,
+            speaker_id=char.get("id"),
+            mode="mutters",
+            to=tname,
         )
-        for s in ctx.session_mgr.sessions_in_room(room_id):
-            if s is ctx.session or s is target_sess:
-                continue
-            await s.send_line(muffled_msg)
+        # Exclude both actor (already self-echoed) and target (already
+        # received the full version). broadcast_json_to_room's `exclude`
+        # accepts a single Session OR a list of character IDs; we use the
+        # list form to skip both at once.
+        excluded_char_ids = [
+            sess.character.get("id")
+            for sess in (ctx.session, target_sess)
+            if sess.character and sess.character.get("id") is not None
+        ]
+        await ctx.session_mgr.broadcast_json_to_room(
+            room_id,
+            "pose_event",
+            muffled_event,
+            exclude=excluded_char_ids,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

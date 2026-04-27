@@ -43,6 +43,8 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 from db.database import Database
 from engine.npc_loader import load_npcs_from_yaml
+from engine.world_loader import load_world_dry_run
+from engine.world_writer import write_world_bundle
 
 
 # ── Exit direction / label splitter ──────────────────────────────────────────
@@ -2116,124 +2118,38 @@ async def build(db_path="sw_mush.db"):
     print("|    Building Galaxy v4 -- Security Zones      |")
     print("+============================================+")
 
-    # -- Zones (aligned with security_zones_design_v1.md) --
-    print("\n  Creating zones...")
-    zones = {}
+    # ── World content: zones + rooms + exits ─────────────────────────────────
+    # F.0 Drop 4 Pass A: zones/rooms/exits are now loaded from data/worlds/gcw/
+    # YAML and written by engine.world_writer.  The legacy ROOMS / EXITS /
+    # ROOM_ZONES / ROOM_OVERRIDES / MAP_COORDS literals are kept in this file
+    # but unreachable; Pass B will delete them.  The YAML's yaml_id ordering
+    # matches the legacy ROOMS positional ordering exactly (verified), so
+    # downstream code (NPCs, hireable crew, planet NPCs, ships, seed-room
+    # linking, test character) keeps working with `room_ids[i]` and
+    # `zones["slug"]` unchanged.
+    print("\n  Loading world content from data/worlds/gcw/ ...")
+    bundle = load_world_dry_run("gcw")
+    if not bundle.report.ok:
+        raise RuntimeError(
+            f"World validation failed with {len(bundle.report.errors)} errors: "
+            f"{bundle.report.errors[:3]}"
+        )
+    for w in bundle.report.warnings:
+        print(f"    [WARN] {w}")
+    print(f"    Loaded {len(bundle.zones)} zones, "
+          f"{len(bundle.rooms)} rooms, {len(bundle.exits)} exits")
 
-    # === Tatooine / Mos Eisley ===
-    zones["mos_eisley"] = await db.create_zone(
-        "Mos Eisley", properties=json.dumps({"environment": "desert_urban",
-                                              "lighting": "bright", "gravity": "standard",
-                                              "security": "secured"}))
-    zones["spaceport"] = await db.create_zone(
-        "Spaceport District", parent_id=zones["mos_eisley"],
-        properties=json.dumps({"cover_max": 3, "environment": "industrial",
-                                "security": "secured"}))
-    zones["cantina"] = await db.create_zone(
-        "Chalmun's Cantina", parent_id=zones["mos_eisley"],
-        properties=json.dumps({"cover_max": 2, "lighting": "dim", "environment": "cantina",
-                                "security": "secured"}))
-    zones["market"] = await db.create_zone(
-        "Streets & Markets", parent_id=zones["mos_eisley"],
-        properties=json.dumps({"cover_max": 1, "environment": "street",
-                                "security": "secured"}))
-    zones["civic"] = await db.create_zone(
-        "Civic & Government", parent_id=zones["mos_eisley"],
-        properties=json.dumps({"cover_max": 1, "environment": "official",
-                                "security": "secured"}))
-    zones["residential"] = await db.create_zone(
-        "Residential & Commercial", parent_id=zones["mos_eisley"],
-        properties=json.dumps({"cover_max": 2, "environment": "commercial",
-                                "security": "secured"}))
-    zones["outskirts"] = await db.create_zone(
-        "City Outskirts", parent_id=zones["mos_eisley"],
-        properties=json.dumps({"cover_max": 1, "environment": "desert_fringe",
-                                "security": "contested"}))
-    zones["wastes"] = await db.create_zone(
-        "Jundland Wastes",
-        properties=json.dumps({"cover_max": 2, "environment": "desert_wilderness",
-                                "lighting": "bright", "gravity": "standard",
-                                "security": "lawless"}))
+    print("\n  Writing world to DB ...")
+    write_result = await write_world_bundle(bundle, db)
+    print(f"    Wrote {len(write_result.zone_ids)} zones, "
+          f"{len(write_result.room_ids)} rooms, "
+          f"{write_result.exits_written} exit rows")
 
-    # === Nar Shaddaa ===
-    zones["ns_landing_pad"] = await db.create_zone(
-        "Nar Shaddaa Landing Pads",
-        properties=json.dumps({"environment": "urban_industrial",
-                               "lighting": "dim", "gravity": "standard",
-                               "security": "secured"}))
-    zones["ns_promenade"] = await db.create_zone(
-        "Corellian Sector Promenade", parent_id=zones["ns_landing_pad"],
-        properties=json.dumps({"cover_max": 2, "environment": "urban_commercial",
-                                "security": "contested"}))
-    zones["ns_undercity"] = await db.create_zone(
-        "Nar Shaddaa Undercity", parent_id=zones["ns_landing_pad"],
-        properties=json.dumps({"cover_max": 1, "lighting": "dark", "environment": "urban_slum",
-                                "security": "lawless"}))
-    zones["ns_warrens"] = await db.create_zone(
-        "The Warrens", parent_id=zones["ns_landing_pad"],
-        properties=json.dumps({"cover_max": 0, "lighting": "dark", "environment": "subterranean",
-                                "security": "lawless"}))
-
-    # === Kessel ===
-    zones["kessel_station"] = await db.create_zone(
-        "Kessel Station",
-        properties=json.dumps({"environment": "barren", "lighting": "bright",
-                               "gravity": "light", "atmosphere": "thin",
-                               "security": "contested"}))
-    zones["kessel_mines"] = await db.create_zone(
-        "Kessel Spice Mines", parent_id=zones["kessel_station"],
-        properties=json.dumps({"cover_max": 1, "lighting": "dim", "environment": "underground",
-                                "security": "lawless"}))
-    zones["kessel_deep_mines"] = await db.create_zone(
-        "Kessel Deep Mines", parent_id=zones["kessel_station"],
-        properties=json.dumps({"cover_max": 0, "lighting": "dark", "environment": "deep_underground",
-                                "security": "lawless"}))
-
-    # === Corellia ===
-    zones["coronet_port"] = await db.create_zone(
-        "Coronet Port District",
-        properties=json.dumps({"environment": "urban_modern",
-                               "lighting": "bright", "gravity": "standard",
-                               "security": "contested"}))
-    zones["coronet_city"] = await db.create_zone(
-        "Coronet City Center", parent_id=zones["coronet_port"],
-        properties=json.dumps({"cover_max": 2, "environment": "urban_commercial",
-                                "security": "secured"}))
-    zones["coronet_gov"] = await db.create_zone(
-        "Coronet Government District", parent_id=zones["coronet_port"],
-        properties=json.dumps({"cover_max": 2, "environment": "official",
-                                "security": "secured"}))
-    zones["coronet_industrial"] = await db.create_zone(
-        "Coronet Industrial District", parent_id=zones["coronet_port"],
-        properties=json.dumps({"cover_max": 2, "environment": "industrial",
-                                "security": "secured"}))
-    zones["coronet_old_quarter"] = await db.create_zone(
-        "Coronet Old Quarter", parent_id=zones["coronet_port"],
-        properties=json.dumps({"cover_max": 1, "environment": "urban_historic",
-                                "security": "contested"}))
-
-    print(f"    {len(zones)} zones created")
-
-    # -- Rooms --
-    print(f"\n  Creating {len(ROOMS)} rooms...")
-    room_ids = []
-    for i, (name, short, long) in enumerate(ROOMS):
-        zone_key = ROOM_ZONES.get(i)
-        zone_id = zones.get(zone_key) if zone_key else None
-        props = json.dumps(ROOM_OVERRIDES.get(i, {}))
-        rid = await db.create_room(name, short, long, zone_id=zone_id, properties=props)
-        room_ids.append(rid)
-        print(f"    [{rid:3d}] {name}")
-
-    # -- Exits --
-    print(f"\n  Creating {len(EXITS)} exit pairs...")
-    for from_idx, to_idx, direction, reverse in EXITS:
-        from_id = room_ids[from_idx]
-        to_id = room_ids[to_idx]
-        dir_key, dir_label = _split_exit(direction)
-        rev_key, rev_label = _split_exit(reverse)
-        await db.create_exit(from_id, to_id, dir_key, dir_label)
-        await db.create_exit(to_id, from_id, rev_key, rev_label)
+    # Reconstruct legacy locals that downstream code (NPCs, ships, seed-room
+    # linking, summary print) still depends on.  Keys match the legacy ones:
+    # zones["mos_eisley"] etc., room_ids[7] = Spaceport Row, etc.
+    zones = dict(write_result.zone_ids)
+    room_ids = [write_result.room_id_for_yaml_id[i] for i in range(len(ROOMS))]
 
     # Connect to seed rooms (1=Landing Pad, 2=Mos Eisley Street, 3=Cantina)
     print("\n  Linking seed rooms to new Mos Eisley...")
@@ -2441,12 +2357,9 @@ async def build(db_path="sw_mush.db"):
         119: (0.78, 0.28),  # Venn Kator's Forge
     }
 
-    print(f"\n  Setting map coordinates for {len(MAP_COORDS)} rooms across all planets...")
-    for room_idx, (mx, my) in MAP_COORDS.items():
-        if room_idx < len(room_ids):
-            rid = room_ids[room_idx]
-            await db.set_room_map_coords(rid, mx, my)
-    print("    Map coordinates set.")
+    # NOTE: F.0 Drop 4 Pass A — map coordinates are now applied by
+    # engine.world_writer from the YAML.  The MAP_COORDS dict literal above
+    # is unreachable; Pass B will delete it.
 
     # -- NPCs (from GG7 YAML) --
     room_name_map = {ROOMS[i][0]: i for i in range(len(ROOMS))}

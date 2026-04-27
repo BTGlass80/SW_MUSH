@@ -270,6 +270,55 @@ def get_deep_space_zone_for_orbit(orbit_zone_id: str) -> str:
     return "tatooine_deep_space"
 
 
+# ── Space security tier ──────────────────────────────────────────────────────
+# Maps a zone id to "secured" / "contested" / "lawless".  Consumed by:
+#   - parser.space_commands.build_space_state    (zone_security in HUD payload)
+#   - parser.space_commands._check_space_security (no-fire rule for DOCK zones)
+#   - engine.encounter_patrol.patrol_setup        (BLUFF/HIDE difficulties,
+#                                                  patrol deadline tuning)
+#
+# Per the design comment in space_commands._check_space_security:
+#   DOCK zones      → "secured"   (port authority, no weapons fire)
+#   ORBIT zones     → "contested" (patrols, PvP requires consent)
+#   HYPERSPACE_LANE → "contested" (mainline lanes carry patrols)
+#   DEEP_SPACE      → "lawless"   (no eyes on you)
+#
+# Lore-driven per-zone overrides go in _SPACE_SECURITY_OVERRIDES.  Keep this
+# list small and intentional — every entry is a deliberate departure from
+# the type-based default.
+_SPACE_SECURITY_BY_TYPE = {
+    ZoneType.DOCK:            "secured",
+    ZoneType.ORBIT:           "contested",
+    ZoneType.HYPERSPACE_LANE: "contested",
+    ZoneType.DEEP_SPACE:      "lawless",
+}
+
+_SPACE_SECURITY_OVERRIDES: dict[str, str] = {
+    # Add lore exceptions here, e.g.:
+    #   "corellian_trade_spine": "secured",   # Major Core lane
+    #   "nar_shaddaa_orbit":     "lawless",   # Hutt territory, no Imperial presence
+    # Keeping empty by default so the type-based mapping is the single source
+    # of truth until a specific override is justified.
+}
+
+
+def get_space_security(zone_id: str) -> str:
+    """Return the security tier for a space zone id.
+
+    Returns one of "secured", "contested", or "lawless".  Falls back to
+    "lawless" for unknown zone ids — fail-open so callers don't block player
+    actions on data holes; the encounter logic handles the edge cases.
+
+    Lookup order: per-zone override → zone type default → "lawless".
+    """
+    if zone_id in _SPACE_SECURITY_OVERRIDES:
+        return _SPACE_SECURITY_OVERRIDES[zone_id]
+    z = ZONES.get(zone_id)
+    if z is None:
+        return "lawless"
+    return _SPACE_SECURITY_BY_TYPE.get(z.type, "lawless")
+
+
 def find_path(start: str, end: str) -> list[str]:
     """BFS shortest path between two zone ids. Returns list of zone ids to visit
     (not including start, including end). Returns [] if no path found."""

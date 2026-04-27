@@ -48,6 +48,25 @@ from server.tick_handlers_economy import (
     buff_expiry_tick,
     hazard_tick,
 )
+# ── S40 boarding party encounter wiring ────────────────────────────────────
+# ``boarding_encounter_tick`` is the periodic check; it takes (db, session_mgr)
+# rather than the standard TickContext so we wrap it below for the scheduler.
+# ``boarding_party_startup_cleanup`` runs once at boot to clear stale boarding
+# state left over from an unclean shutdown.
+from engine.encounter_boarding import (
+    boarding_encounter_tick as _boarding_encounter_tick_impl,
+    boarding_party_startup_cleanup,
+)
+
+
+async def boarding_encounter_tick(ctx: "TickContext") -> None:
+    """TickContext adapter for ``engine.encounter_boarding.boarding_encounter_tick``.
+
+    The engine handler predates the scheduler and takes positional ``db`` and
+    ``session_mgr`` arguments; wrap it so the scheduler can dispatch with a
+    ``TickContext`` like every other handler.
+    """
+    await _boarding_encounter_tick_impl(ctx.db, ctx.session_mgr)
 from parser.commands import CommandRegistry, CommandParser, CommandContext
 from parser.builtin_commands import register_all
 from parser.d6_commands import register_d6_commands
@@ -78,6 +97,7 @@ from parser.spacer_quest_commands import register_spacer_quest_commands
 from parser.mux_commands import register_mux_commands
 from parser.places_commands import register_places_commands
 from parser.attr_commands import register_attr_commands
+from parser.char_commands import register_char_commands
 from parser.scene_commands import register_scene_commands
 from parser.espionage_commands import register_espionage_commands
 from parser.achievement_commands import register_achievement_commands
@@ -140,6 +160,7 @@ class GameServer:
         register_mux_commands(self.registry)
         register_places_commands(self.registry)
         register_attr_commands(self.registry)
+        register_char_commands(self.registry)
         register_scene_commands(self.registry)
         register_mail_commands(self.registry)
         register_espionage_commands(self.registry)
@@ -159,6 +180,11 @@ class GameServer:
         help_mgr.register_topics()
         from parser.builtin_commands import HelpCommand
         HelpCommand._help_mgr = help_mgr
+        # Bind to the GameServer instance so the web portal's
+        # /api/portal/reference handler can resolve it via getattr(self._game,
+        # "help_mgr", None). Without this, the handler returns 503 and the
+        # portal Reference page spins forever.
+        self.help_mgr = help_mgr
         log.info("Help system initialized: %d entries",
                  len(help_mgr._entries))
 
@@ -236,6 +262,9 @@ class GameServer:
         self._tick_scheduler.register("buff_expiry",          buff_expiry_tick,         interval=60,     offset=45)
         # ── Environmental hazards (every 5 min) ──
         self._tick_scheduler.register("hazard_check",          hazard_tick,             interval=300,    offset=120)
+        # ── S40 boarding encounters: every 5 ticks (~5s) — checks ships
+        #    with active boarding parties and resolves defeated boarders.
+        self._tick_scheduler.register("boarding_encounters",   boarding_encounter_tick, interval=5,      offset=2)
 
     async def start(self):
         """Initialize database, load game data, and start all listeners."""
@@ -295,6 +324,18 @@ class GameServer:
                 log.info("World lore: seeded %d entries", _lore_seeded)
         except Exception as _lore_err:
             log.warning("World lore init skipped: %s", _lore_err)
+
+        # ── S40 boarding-party startup cleanup ──────────────────────────
+        # Sweep any "boarding_party_active" ships left over from an
+        # unclean shutdown so the next session starts with a clean slate.
+        # Runs after schemas are ready but before listeners come up so a
+        # stale boarder NPC can never be present when players reconnect.
+        try:
+            cleaned = await boarding_party_startup_cleanup(self.db)
+            if cleaned:
+                log.info("Boarding startup cleanup: removed %d stale boarders", cleaned)
+        except Exception as _bpsc_err:
+            log.warning("Boarding startup cleanup skipped: %s", _bpsc_err)
 
         # Auto-build tutorial zones if not yet present.
         # If the world was just built above, wait 1s to let the DB flush cleanly.
@@ -501,8 +542,33 @@ class GameServer:
                 )
                 await session.send_prompt()
 
-        # Main game loop
-        await self._game_loop(session)
+        # ── Main game loop with CHAR_SWITCH support (S44) ──
+        # When the player runs `+char/switch <name>`, the CharCommand sets
+        # session.state = SessionState.CHAR_SWITCH and the game loop
+        # returns. We then save & clear the current character, reset to
+        # AUTHENTICATED, and re-enter _character_select so they can pick a
+        # new character without disconnecting. Anything other than
+        # CHAR_SWITCH falls through and the connection ends normally.
+        while True:
+            await self._game_loop(session)
+            if session.state != SessionState.CHAR_SWITCH:
+                break
+            # Persist the outgoing character's position so the switched-to
+            # body shows up exactly where it logged off.
+            try:
+                if session.character:
+                    await self.db.save_character(
+                        session.character["id"],
+                        room_id=session.character.get("room_id"),
+                    )
+            except Exception:
+                log.warning("CHAR_SWITCH: failed to save outgoing character",
+                            exc_info=True)
+            # Drop the character cleanly and re-enter character select.
+            session.character = None
+            session.invalidate_char_obj()
+            session.state = SessionState.AUTHENTICATED
+            await self._character_select(session)
 
     async def _character_select(self, session: Session):
         """

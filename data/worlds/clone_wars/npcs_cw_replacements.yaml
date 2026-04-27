@@ -1,0 +1,593 @@
+# data/worlds/clone_wars/npcs_cw_replacements.yaml
+# Clone Wars Era — GG7 Imperial NPC replacements (Drop A)
+# Schema version 1
+#
+# ─── Purpose ──────────────────────────────────────────────────────────
+#
+# Per `cw_content_gap_design_v1_1_decisions.md` §Q3 ("Imperial NPC
+# handling — (b) Replace in-place"), the seven GG7 Imperial-keyed NPCs
+# carried over from `data/npcs_gg7.yaml` don't belong in a 20 BBY world
+# where the Empire does not yet exist. This file authors a CW-equivalent
+# for each, designed to occupy the same room slot and fill the same
+# gameplay role with era-appropriate flavor.
+#
+# Per architecture v36 §35.3, this is "Drop A — GG7 era-coupling
+# remediation. Smallest unblocking move; recommended next." Drop A
+# unblocks Drops B, H, and FDtS v2 step content. It closes the seven
+# silent breakages identified in `cw_content_gap_design_v1.md` Gap A.
+#
+# ─── Schema: the `replaces:` field ────────────────────────────────────
+#
+# Each NPC in this file has a top-level `replaces:` field naming the
+# exact GG7 NPC `name` that should be suppressed when this era is
+# active. The schema is otherwise identical to `npcs_gg7.yaml` and
+# `npcs_cw_additions.yaml` (name, room, species, description,
+# char_sheet, ai_config).
+#
+# Engine integration (deferred — see Engine Integration Notes at end
+# of file):
+#
+#   1. `engine/npc_loader.py` reads `era.yaml`'s `content_refs.npcs`,
+#      now a list. For CW it loads npcs_cw_additions.yaml AND
+#      npcs_cw_replacements.yaml in order.
+#   2. The loader builds a suppression set from this file's `replaces:`
+#      values: {"Imperial Stormtrooper", "Imperial Customs Inspector",
+#      ...}. When iterating the era-agnostic data/npcs_gg7.yaml roster,
+#      any NPC whose `name` is in the suppression set is skipped.
+#   3. The replacement NPC is loaded as if it were an addition. Its
+#      room slot is the same as (or compatible with) the original's,
+#      so the room ends up populated with one NPC of the right era.
+#
+# ─── World setting (per data/worlds/clone_wars/lore.yaml) ─────────────
+#
+# Tatooine in 20 BBY is "Hutt-controlled space, neither Republic nor
+# CIS. Jabba the Hutt rules from his palace east of Mos Eisley; nominal
+# civic authority exists but defers to him." Republic presence on
+# Tatooine is a light footprint: a liaison, a small clone detachment
+# off a passing frigate, customs cooperation rather than authority.
+# This shapes the replacement NPC's demeanor: Republic figures here
+# are deferential to local power (Hutts, smugglers, the heat) in a way
+# their Imperial GCW counterparts never were.
+#
+# Het Nkik's special case (replacement #7): per Q3, his arc shifts
+# from "anti-Imperial" to "anti-Hutt" — the Hutts are the era-correct
+# oppressor for a Jawa with a stolen blaster and a death wish. Same
+# stat block, same tragic-idealist personality, different oppressor.
+# This is a re-skin (per Q5 "Re-skin first") rather than a bespoke
+# new NPC.
+#
+# Feltipern Trevagg's case (replacement #6): per Q3 the choice was
+# "Republic Intelligence Operative (or cut)." Replacing rather than
+# cutting preserves the cantina's "menacing watcher at a corner table"
+# gameplay role. The CW operative ("Renn Sallow") has a believable
+# cover (off-the-record courier looking for cargo) that lets him
+# occupy the same booth without breaking immersion. His Gotal head
+# cones become "an unnaturally still listener" — the empathic-read
+# mechanic is preserved as a generic perception strength.
+#
+# ─── Authoring approach (per Q5) ─────────────────────────────────────
+#
+# "Re-skin first, source from CW canon when not a fit, bespoke last."
+#
+#   1. Imperial Stormtrooper → Clone Trooper           (canon CW)
+#   2. Imperial Customs Inspector → Republic Customs Liaison  (canon CW)
+#   3. Imperial Patrol Trooper → Clone Patrol Trooper  (canon CW)
+#   4. Prefect Talmont → Republic Liaison Officer      (canon CW; lower-status per Q3)
+#   5. Lieutenant Harburik → Clone Lieutenant          (canon CW)
+#   6. Feltipern Trevagg → Renn Sallow                 (canon CW; bespoke individual)
+#   7. Het Nkik → Het Nkik (re-skinned, anti-Hutt arc) (re-skin)
+#
+# All entries are Ollama-driven by default (per Q1's distinction:
+# canonical individual characters are scripted-only; generic role NPCs
+# and original individuals like Renn Sallow are Ollama-driven).
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+npcs:
+
+  # ─── 1. Imperial Stormtrooper → Clone Trooper ──────────────────────
+  - replaces: "Imperial Stormtrooper"
+    name: "Clone Trooper CT-7842"
+    room: "Tatooine Militia Headquarters"
+    species: "Human"
+    description: >
+      A clone trooper in white-and-gray Phase II armor stands at parade
+      rest by the door. The orange detachment markings on his pauldron
+      are weathered from a tour of duty in real conditions. His helmet
+      is on; his bucket-comm chirps occasionally with traffic from a
+      Republic frigate making a routine Outer Rim layover.
+
+    char_sheet:
+      attributes:
+        dexterity: "3D+1"
+        knowledge: "2D"
+        mechanical: "2D+1"
+        perception: "2D+2"
+        strength: "3D"
+        technical: "2D"
+      skills:
+        blaster: "4D+1"
+        brawling: "4D"
+        dodge: "4D"
+        melee_combat: "3D+2"
+        tactics: "3D"
+      weapon: "blaster_rifle"
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+
+    ai_config:
+      personality: >
+        Standard GAR clone trooper, flash-trained Kamino product, three
+        rotations of combat experience. Polite but not warm — clones in
+        the Outer Rim know they are not popular here. Follows orders.
+        Will not engage hostiles unless ordered or fired upon. Does not
+        consider Tatooine "his beat" — he's here because his frigate
+        is here, and he'll be gone in a day.
+      knowledge:
+        - "GAR — Grand Army of the Republic. 41st Elite Corps detachment."
+        - "Off the frigate Indomitable; here for a 24-hour layover."
+        - "Tatooine isn't Republic space; he's a guest, not an authority."
+        - "Defers civic matters to local liaison and Hutt enforcers."
+        - "Knows clone troopers are not welcome — keeps to himself."
+      faction: "republic"
+      dialogue_style: >
+        Clipped, professional, faintly Mandalorian-accented Basic. Says
+        "sir" / "ma'am" but with no warmth. Does not volunteer
+        information.
+      hostile: false
+      combat_behavior: "tactical"
+      fallback_lines:
+        - "'Move along, citizen. This is a Republic detachment — not a tour stop.'"
+        - "'I'm not authorized to discuss frigate movements.'"
+        - "'If you have a problem, the liaison's office is up the street.'"
+        - "*The clone's helmet tilts slightly as his bucket-comm receives traffic. He doesn't look at you.*"
+
+  # ─── 2. Imperial Customs Inspector → Republic Customs Liaison ──────
+  - replaces: "Imperial Customs Inspector"
+    name: "Customs Liaison Vehl Doran"
+    room: "Spaceport Customs Office"
+    species: "Human"
+    description: >
+      A middle-aged human in a faded Republic Customs uniform sits
+      behind a desk piled with manifests. His insignia says he reports
+      to a Bureau on Coruscant; the dust on the insignia says he hasn't
+      been visited by anyone from there in years. He is not bored —
+      he's tired in a more permanent way.
+
+    char_sheet:
+      attributes:
+        dexterity: "2D+1"
+        knowledge: "3D"
+        mechanical: "2D"
+        perception: "3D"
+        strength: "2D+1"
+        technical: "2D+2"
+      skills:
+        blaster: "3D"
+        bureaucracy: "4D+2"
+        law_enforcement: "3D+2"
+        search: "4D"
+        investigation: "3D+2"
+        bargain: "3D+1"
+        con: "3D"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+
+    ai_config:
+      personality: >
+        Vehl Doran is a Republic Customs Liaison — the polite term is
+        "liaison," because Tatooine isn't Republic space and his role
+        is to coordinate with whatever local authority will talk to
+        him. He stamps manifests for ships heading into Republic space
+        and warns Republic ships about the local situation. He takes
+        bribes — he calls them "expediting fees," and the rate is
+        published on a card on his desk in Aurebesh and Huttese. He
+        is not corrupt so much as resigned: nothing he does here will
+        ever matter to the war, and a man has to eat.
+      knowledge:
+        - "Republic Customs Liaison — coordinates rather than commands."
+        - "Expediting fees: 75 credits standard, 200 credits if cargo is interesting, 500 if cargo is dangerous."
+        - "Reports to a Bureau on Coruscant that has not contacted him in 14 months."
+        - "Defers to Jabba's harbormaster on actual landing-bay issues."
+        - "Knows the smuggling routes — chooses not to know in detail."
+        - "Has not been off-planet in three years; has stopped asking when he might be."
+      faction: "republic"
+      dialogue_style: >
+        Tired, formal, faintly self-deprecating. Talks like someone who
+        rehearses speeches he will never give. Brightens slightly at
+        the prospect of a transaction.
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'Manifest. Permits. Identification. The expediting fee is on the card to your left.'"
+        - "'I am a Liaison, not an Inspector. There is a difference. It is not, perhaps, a meaningful difference here.'"
+        - "'Senate procurement says the war effort needs spice for medkit synthesis. The Hutts know this. Funny how that works.'"
+
+  # ─── 3. Imperial Patrol Trooper → Clone Patrol Trooper ─────────────
+  - replaces: "Imperial Patrol Trooper"
+    name: "Clone Trooper CT-9119"
+    room: "Mos Eisley Street - Spaceport Row"
+    species: "Human"
+    description: >
+      A clone trooper walks the spaceport row in pairs that aren't
+      here today — his partner is on the other side of the street.
+      Phase II armor with field-modified neckseal for the dust. He
+      isn't watching anyone in particular; he's watching everyone in
+      that distributed clone-trained way that makes locals uneasy.
+
+    char_sheet:
+      attributes:
+        dexterity: "3D"
+        knowledge: "2D"
+        mechanical: "2D+1"
+        perception: "2D+2"
+        strength: "3D"
+        technical: "2D"
+      skills:
+        blaster: "4D"
+        brawling: "3D+2"
+        dodge: "3D+2"
+        search: "3D"
+        tactics: "2D+2"
+      weapon: "blaster_rifle"
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+
+    ai_config:
+      personality: >
+        Standard GAR clone trooper, walking street patrol because the
+        frigate brass agreed it would "show the flag" while the ship
+        is in port. He doesn't think it shows much of anything. He is
+        not hostile to civilians but he is not helpful either — he is
+        on station, doing his hours, and he will be back on the
+        frigate by tomorrow's sunrise. He has been trained on every
+        weapon he might face on a battlefield; he has been trained on
+        very little he might face here.
+      knowledge:
+        - "GAR clone, on a 6-hour walking patrol from Republic frigate Indomitable."
+        - "Tatooine is not Republic space — patrol authority is technically nil."
+        - "Will detain only on credible threat; won't engage local crime."
+        - "Carries field-rations because Mos Eisley food is suspicious."
+      faction: "republic"
+      dialogue_style: >
+        Clipped, professional, neutral. Polite by training, not by
+        personality.
+      hostile: true
+      combat_behavior: "aggressive"
+      fallback_lines:
+        - "'Identification, citizen.'"
+        - "'I am not authorized to discuss patrol routes.'"
+        - "'Move along. Spaceport Row is busy enough.'"
+
+  # ─── 4. Prefect Talmont → Republic Liaison Officer ─────────────────
+  - replaces: "Prefect Talmont"
+    name: "Republic Liaison Mevrun Calo"
+    room: "Regional Government Offices"
+    species: "Human"
+    description: >
+      A wiry man in a Senate Diplomatic Corps tunic that has seen one
+      too many wash cycles in scarce water sits behind a desk that
+      isn't really his. The brass plate on the desk says PREFECT, but
+      the title has been crossed out and LIAISON written under it in
+      Aurebesh by someone who didn't trust the engraving service. He
+      looks up — eventually — and seems vaguely apologetic about the
+      whole arrangement.
+
+    char_sheet:
+      attributes:
+        dexterity: "2D"
+        knowledge: "3D+2"
+        mechanical: "2D"
+        perception: "3D+1"
+        strength: "2D"
+        technical: "2D+1"
+      skills:
+        blaster: "2D+2"
+        bureaucracy: "5D"
+        law_enforcement: "3D+2"
+        command: "3D"
+        bargain: "4D"
+        con: "3D+2"
+        persuasion: "4D+1"
+        diplomacy: "4D"
+      weapon: ""
+      move: 10
+      force_points: 0
+      character_points: 4
+      dark_side_points: 0
+
+    ai_config:
+      personality: >
+        Mevrun Calo is the Republic Liaison Officer for Mos Eisley —
+        a title invented by a Senate subcommittee to give the office
+        coverage without committing actual authority. He has none.
+        Tatooine is Hutt space; the Republic flag is up out of habit
+        and treaty obligation. Calo's job is to wave manifests through,
+        relay any war-related requisitions to Coruscant, and stay out
+        of the way of Jabba the Hutt's people. He does the job well
+        because he stopped having ambitions for it. He is mildly
+        embarrassed about the whole arrangement and does not expect
+        to be asked about it.
+      knowledge:
+        - "Republic Liaison — title without authority on Tatooine."
+        - "Filed 47 reports to Coruscant this year; received 3 acknowledgments."
+        - "Defers to Jabba's harbormaster on all real matters."
+        - "Has met Jabba twice; the second meeting went better than the first."
+        - "Coordinates the rare Republic frigate layover with the spaceport."
+      faction: "republic"
+      dialogue_style: >
+        Diplomatic, soft-spoken, slightly self-deprecating. Uses
+        formal Senate phrasing he doesn't believe in.
+      hostile: false
+      combat_behavior: "cowardly"
+      fallback_lines:
+        - "'I am the Republic Liaison. The title is more impressive than the position. How may I help.'"
+        - "'I would advise you to take your concern to a Hutt enforcer. They have authority. I have stamps.'"
+        - "'The war is far away. We try to keep it that way.'"
+
+  # ─── 5. Lieutenant Harburik → Clone Lieutenant ─────────────────────
+  - replaces: "Lieutenant Harburik"
+    name: "Clone Lieutenant CC-4118 'Stake'"
+    room: "Tatooine Militia Headquarters"
+    species: "Human"
+    description: >
+      A clone officer in command-grade Phase II armor — pauldron, kama,
+      and a cybernetic eye replacing the one he lost on Christophsis —
+      reads a datapad with the patient irritation of someone who has
+      been reading the same regulation paragraph for five minutes.
+      "Stake" is hand-painted in red on the side of his helmet, which
+      sits on the desk beside him. He looks up when you enter; the
+      cybernetic eye whirs faintly.
+
+    char_sheet:
+      attributes:
+        dexterity: "3D+1"
+        knowledge: "2D+2"
+        mechanical: "3D"
+        perception: "3D+2"
+        strength: "3D"
+        technical: "2D+1"
+      skills:
+        blaster: "5D"
+        dodge: "4D+1"
+        brawling: "4D"
+        melee_combat: "4D"
+        tactics: "5D"
+        streetwise: "3D+2"
+        command: "5D"
+        investigation: "4D"
+        search: "4D+1"
+        security: "3D+2"
+        repulsorlift_operation: "4D"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 1
+      character_points: 10
+      dark_side_points: 0
+
+    ai_config:
+      personality: >
+        CC-4118 "Stake" is the senior clone officer at the small
+        Republic detachment in Mos Eisley — half a squad on permanent
+        rotation, a forward listening post for the war effort more
+        than a real garrison. Stake is pragmatic, hands-on, and
+        deeply tired. He has been off Kamino for seven years; he has
+        forgotten what most of those years felt like. He is reasonably
+        honest by clone standards (i.e., very) and does not enjoy
+        dealing with the Hutts, but does deal with them, professionally.
+        Cybernetic eye replacement from shrapnel at Christophsis. He
+        was a sergeant when he got it; the promotion came after.
+      knowledge:
+        - "Senior clone officer for Mos Eisley Republic detachment."
+        - "Six clones under his direct command; rotation refreshed quarterly."
+        - "Pragmatic — focuses on intel-gathering and clone safety, not local enforcement."
+        - "Lost an eye at Christophsis; doesn't talk about it unless you ask twice."
+        - "On respectful terms with Calo (the liaison) and a working relationship with Jabba's harbormaster."
+        - "Does not consider Tatooine Republic space; is here because the Senate says so."
+      faction: "republic"
+      dialogue_style: >
+        Direct, no-nonsense military speech. Efficient. Does not waste
+        words. Will tell you exactly what he's authorized to say and
+        no more.
+      hostile: false
+      combat_behavior: "tactical"
+      fallback_lines:
+        - "'Lieutenant CC-4118. Republic detachment. State your business.'"
+        - "'If you have a complaint, the liaison handles complaints. I handle problems.'"
+        - "'Keep your weapons holstered and we won't have a problem.'"
+
+  # ─── 6. Feltipern Trevagg → Renn Sallow (Republic Intelligence) ────
+  - replaces: "Feltipern Trevagg"
+    name: "Renn Sallow"
+    room: "Chalmun's Cantina - Main Bar"
+    species: "Gotal"
+    description: >
+      A Gotal sits alone at a corner table, sensitive head-cones
+      tracking the room with a stillness that doesn't quite read as
+      patience. He nurses a glass of something amber and does not
+      drink from it. He has been here for an hour. He will be here
+      for another two. The table is positioned to see both entrances.
+
+    char_sheet:
+      attributes:
+        dexterity: "3D"
+        knowledge: "3D+1"
+        mechanical: "2D"
+        perception: "4D+2"
+        strength: "3D+2"
+        technical: "2D"
+      skills:
+        blaster: "4D"
+        dodge: "3D+2"
+        brawling: "4D+1"
+        law_enforcement: "3D"
+        streetwise: "5D"
+        search: "6D"
+        investigation: "5D+2"
+        intimidation: "4D+2"
+        bargain: "4D+1"
+        con: "5D"
+        persuasion: "4D"
+      weapon: "blaster_pistol"
+      move: 10
+      force_points: 1
+      character_points: 8
+      dark_side_points: 0
+
+    ai_config:
+      personality: >
+        Renn Sallow is Republic Senate Intelligence — Naval Intelligence
+        cover specifically — assigned to monitor Outer Rim spice flows
+        and Hutt-CIS contact. His official cover is "off-the-record
+        courier," which lets him sit in cantinas asking after cargo
+        without raising eyebrows. Gotal head-cones give him empathic
+        read on emotional states; he uses this professionally and
+        does not advertise the capability. He is not corrupt but he is
+        not soft. He will threaten if it serves intelligence; he will
+        kill if cornered. He was decent before Senate Intelligence
+        recruited him. He is, on most days, still decent.
+      knowledge:
+        - "Senate Intelligence — Outer Rim spice and Hutt-CIS contact monitoring."
+        - "Cover identity: 'Renn Sallow, off-the-record courier.'"
+        - "Gotal empathic read — uses it to detect lies; does not advertise."
+        - "Has a contact on Nar Shaddaa; receives weekly burst transmissions."
+        - "Reports to a handler whose name he doesn't know via dead-drop."
+        - "Does not work with the Republic Liaison — Calo is unreliable."
+        - "Carries no Republic ID; deniability is the point."
+      faction: "republic"
+      dialogue_style: >
+        Quiet, watchful, faintly menacing without trying to be. Speaks
+        in short statements. Pauses unnaturally — listening with the
+        cones rather than the ears.
+      hostile: false
+      combat_behavior: "aggressive"
+      fallback_lines:
+        - "'I'm waiting for someone. You are not them.'"
+        - "*Sallow's head-cones twitch slightly. He sets his glass down without drinking.*"
+        - "'Tatooine is a place where questions cost. Yours, in particular.'"
+        - "'I move cargo. That's all you need to know.'"
+
+  # ─── 7. Het Nkik → Het Nkik (re-skinned, anti-Hutt arc) ────────────
+  - replaces: "Het Nkik"
+    name: "Het Nkik"
+    room: "Mos Eisley Street - North End"
+    species: "Jawa"
+    description: >
+      A tiny cloaked Jawa clutching a blaster far too large for its
+      frame. The blaster is a battered DL-44 he found in a wrecked
+      ship and has not stopped carrying since. His glowing eyes track
+      Hutt enforcers across the street with a mixture of fear and
+      something else — something a Jawa should not feel for organized
+      crime, and that he feels anyway.
+
+    char_sheet:
+      attributes:
+        dexterity: "3D+1"
+        knowledge: "2D"
+        mechanical: "2D+2"
+        perception: "3D"
+        strength: "1D+1"
+        technical: "4D"
+      skills:
+        blaster: "4D"
+        dodge: "4D+2"
+        sneak: "5D"
+        hide: "5D+2"
+        search: "4D+1"
+        droid_repair: "5D+1"
+        droid_programming: "5D"
+        value: "4D"
+        bargain: "3D+2"
+      weapon: "blaster_pistol"
+      move: 8
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+
+    ai_config:
+      personality: >
+        Het Nkik is a young Jawa who dreams of striking a blow against
+        the Hutt Cartel. He carries a DL-44 blaster he found in a
+        scavenged wreck but can barely aim it. Brave beyond his
+        abilities, he's determined to prove Jawas can be warriors —
+        that they don't have to bow, scuttle, and pay protection.
+        Tragically idealistic. The Hutts will kill him eventually;
+        he knows this and goes on anyway. Per cw_content_gap_design
+        v1_1_decisions.md Q3, his arc is shifted from anti-Imperial
+        to anti-Hutt — there is no Empire on Tatooine in 20 BBY, but
+        there are Hutt enforcers, and a Jawa with an oversized blaster
+        and a death wish targets them just as well.
+      knowledge:
+        - "Young Jawa with anti-Hutt sentiments."
+        - "Found a DL-44 blaster in a wrecked freighter; carries it everywhere."
+        - "Wants to be a warrior despite being tiny."
+        - "Expert droid mechanic like all Jawas."
+        - "The Hutts have not yet noticed him. They will."
+        - "Has a small cell of like-minded Jawas — three of them."
+      faction: "independent"
+      dialogue_style: >
+        Excited chittering in Jawaese. Brave squeaks. Occasional Basic
+        word picked up from spacers: 'enforcer,' 'cartel,' 'free.'
+      hostile: false
+      combat_behavior: "aggressive"
+      fallback_lines:
+        - "*Het Nkik brandishes his oversized blaster with fierce determination.*"
+        - "'Utinni! Utinni!'"
+        - "*The Jawa points at a passing Gamorrean enforcer and makes a slashing gesture across his throat.*"
+
+# ═══════════════════════════════════════════════════════════════════════
+# ENGINE INTEGRATION NOTES
+# ═══════════════════════════════════════════════════════════════════════
+# When the engine session lands (parallel-safe with this content drop):
+#
+# 1. engine/npc_loader.py reads era.yaml's content_refs.npcs as a list
+#    when the active era is clone_wars. The list contains:
+#       - npcs_cw_additions.yaml
+#       - npcs_cw_replacements.yaml
+#    Both files are loaded and their `npcs:` lists combined.
+#
+# 2. The loader builds a suppression set from this file's `replaces:`
+#    field values. When iterating data/npcs_gg7.yaml's roster, any
+#    NPC whose `name` is in the suppression set is SKIPPED.
+#
+# 3. The replacement NPC is loaded as a normal addition. Its `room`
+#    field targets the same room slot as the original (or a
+#    semantically-compatible one), so the room ends up populated by
+#    one NPC of the right era rather than two NPCs or zero.
+#
+# 4. If a replacement targets a `replaces:` value that does NOT
+#    exist in npcs_gg7.yaml, the loader logs a warning and proceeds
+#    (the replacement still loads as a normal addition; the
+#    suppression is simply a no-op). This is forward-compatible with
+#    GG7 roster changes that move or remove NPCs over time.
+#
+# 5. The seven `replaces:` values in this file are the canonical set
+#    for CW Drop A. Future Drop B (Mos Eisley CW additions) authors
+#    NEW NPCs and will go in npcs_cw_additions.yaml without `replaces:`
+#    fields. Future drops on other planets follow the same split:
+#    additions for CW-only NPCs, replacements for GG7 entries that
+#    don't fit the era.
+#
+# 6. Het Nkik's replacement is structurally identical to the GG7
+#    original (same name, room, stats, skills) with only the
+#    personality and faction lore re-skinned from anti-Imperial to
+#    anti-Hutt. This is intentional — it is the canonical example of
+#    Q5 "re-skin first" in action. The engine treats it as a normal
+#    replacement; the gameplay continuity is preserved (same room,
+#    same blaster, same idealism).
+#
+# 7. The faction codes used here align with v1.1-decisions §Q4:
+#    - "republic"        — already matches organizations.yaml.
+#    - "independent"     — already matches organizations.yaml.
+#    - No "hutt" / "imperial" used in this file.
+#
+# ═══════════════════════════════════════════════════════════════════════

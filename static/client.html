@@ -1180,6 +1180,218 @@ a { color: inherit; text-decoration: none; }
 .ansi-bright { font-weight: 600; }
 
 /* ════════════════════════════════════════════════════════════════════
+   COMBAT RESOLUTION INSPECTOR — Drop D′ Phase 2 (client side)
+   Renders the structured combat_resolution_event payload as a
+   collapsible inspector below the two-line story+mechanics summary.
+   See engine/combat_events.py for the wire schema and
+   combat_mechanics_display_design_v1.1.md for the visibility rules.
+   ════════════════════════════════════════════════════════════════════ */
+.row-combat-result {
+  padding: 9px 20px 7px;
+  border-left: 3px solid var(--accent-dim);
+  margin: 4px 0;
+  background: rgba(255,200,87,0.04);
+}
+.row-combat-result.is-self   { border-left-color: var(--self); background: rgba(124,224,104,0.06); }
+.row-combat-result.is-target { border-left-color: var(--warn); background: rgba(255,110,74,0.05); }
+.app[data-mode="space"] .row-combat-result { background: rgba(110,232,255,0.04); }
+
+.cri-summary { display: flex; align-items: baseline; gap: 8px; cursor: pointer; user-select: none; }
+.cri-chevron {
+  font-size: 9px; color: var(--accent-dim); width: 10px; flex-shrink: 0;
+  transition: transform 120ms ease; line-height: 1;
+}
+.cri-summary.expanded .cri-chevron { transform: rotate(90deg); color: var(--accent); }
+.cri-summary:hover .cri-chevron    { color: var(--accent); }
+
+.cri-headline {
+  font-family: var(--font-display); font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
+  flex: 1; min-width: 0; line-height: 1.4;
+}
+.cri-headline .cri-actor    { color: var(--accent-bright); }
+.cri-headline .cri-target   { color: var(--text); }
+.cri-headline .cri-verb     { color: var(--accent); font-weight: 500; }
+.cri-headline .cri-meta     { color: var(--text-dim); font-size: 11px; font-weight: 400; }
+.cri-headline .cri-outcome.hit            { color: var(--warn); }
+.cri-headline .cri-outcome.miss           { color: var(--accent-dim); }
+.cri-headline .cri-outcome.no-damage      { color: var(--accent-dim); }
+.cri-headline .cri-outcome.wound          { color: var(--warn); }
+.cri-headline .cri-outcome.stun           { color: #b07cff; }
+.cri-headline .cri-outcome.stun-unconscious { color: #b07cff; text-shadow: 0 0 4px currentColor; }
+.cri-headline .cri-outcome.incapacitated  { color: var(--warn); text-shadow: 0 0 4px currentColor; }
+.cri-headline .cri-fp {
+  color: var(--self); font-size: 9px; letter-spacing: 1.5px;
+  border: 1px solid var(--self); padding: 0 3px; margin-left: 4px;
+  border-radius: 2px; vertical-align: middle;
+}
+
+.cri-mechline {
+  font-size: 11px; color: var(--text-dim); margin-top: 2px; padding-left: 18px;
+  font-family: var(--font-mono); line-height: 1.4;
+}
+
+/* Inspector body (collapsible — sibling combinator) */
+.cri-body {
+  display: none; margin-top: 8px; padding: 10px 0 4px 18px;
+  border-top: 1px dashed var(--accent-dim);
+  font-family: var(--font-mono); font-size: 11.5px;
+}
+.cri-summary.expanded ~ .cri-body { display: block; }
+
+.cri-section { margin-bottom: 10px; }
+.cri-section:last-child { margin-bottom: 4px; }
+.cri-section-head {
+  font-family: var(--font-display); font-size: 9.5px; letter-spacing: 1.5px;
+  color: var(--accent-dim); margin-bottom: 5px; text-transform: uppercase;
+}
+.cri-section-head .cri-actor-tag {
+  color: var(--accent-bright); font-weight: 600;
+}
+
+.cri-pool-row {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  padding: 3px 0;
+}
+.cri-pool-label {
+  font-size: 10.5px; color: var(--text-dim); min-width: 70px;
+  letter-spacing: 0.5px;
+}
+.cri-pool-pip {
+  font-size: 11px; color: var(--text-dim); padding: 0 2px;
+}
+.cri-pool-total {
+  margin-left: auto; font-family: var(--font-display); font-weight: 600;
+  color: var(--accent-bright); font-size: 13px; letter-spacing: 0.5px;
+}
+
+/* Per-die chips */
+.cri-die {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; padding: 0 4px;
+  border: 1px solid var(--die-border, var(--accent-dim));
+  border-radius: 3px; background: rgba(0,0,0,0.28);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  color: var(--die-color, var(--text));
+  position: relative;
+  flex-shrink: 0;
+}
+.cri-die[data-source="skill"]     { --die-border: #ffc857; --die-color: #ffc857; }
+.cri-die[data-source="weapon"]    { --die-border: #ff8a5a; --die-color: #ff8a5a; }
+.cri-die[data-source="modifier"]  { --die-border: #b07cff; --die-color: #b07cff; }
+.cri-die[data-source="fp_double"] { --die-border: #7ce068; --die-color: #7ce068; }
+.cri-die.is-wild {
+  border-width: 2px; box-shadow: 0 0 4px var(--die-border);
+  margin-top: 4px;
+}
+.cri-die.is-wild::before {
+  content: "★"; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  font-size: 8px; color: var(--die-border); text-shadow: 0 0 2px currentColor;
+  line-height: 1;
+}
+.cri-die.is-exploded { background: rgba(255,200,87,0.18); }
+.cri-die.is-dropped {
+  text-decoration: line-through; opacity: 0.42;
+  border-style: dashed;
+}
+.cri-die.is-exploded-chain {
+  min-width: 56px; padding: 0 7px; font-weight: 500;
+}
+
+/* CP roll annotation */
+.cri-cp-line {
+  font-size: 10px; color: var(--self); padding-left: 76px; margin-top: 2px;
+  letter-spacing: 0.5px;
+}
+.cri-complication-note {
+  font-size: 10px; color: var(--warn); padding-left: 76px; margin-top: 2px;
+  font-style: italic; letter-spacing: 0.3px;
+}
+
+/* Difficulty block */
+.cri-diff-block {
+  display: flex; align-items: baseline; gap: 8px; padding: 3px 0;
+}
+.cri-diff-num {
+  font-family: var(--font-display); font-size: 16px; font-weight: 600;
+  color: var(--warn); letter-spacing: 0.5px;
+}
+.cri-diff-label {
+  font-size: 10px; color: var(--accent-dim); letter-spacing: 1px; text-transform: uppercase;
+}
+.cri-diff-breakdown {
+  font-size: 10px; color: var(--text-dim); padding-left: 12px; margin-top: 2px;
+  letter-spacing: 0.3px;
+}
+
+/* Soak components */
+.cri-soak-comp {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 2px 0 2px 12px;
+}
+.cri-soak-comp[data-source="strength"] { border-left: 2px solid #ffc857; padding-left: 10px; }
+.cri-soak-comp[data-source="armor"]    { border-left: 2px solid #ff8a5a; padding-left: 10px; }
+.cri-soak-comp[data-source="cp_soak"]  { border-left: 2px solid #b07cff; padding-left: 10px; }
+.cri-soak-comp[data-source="shield"]   { border-left: 2px solid #6ee8ff; padding-left: 10px; }
+.cri-soak-label {
+  font-size: 10.5px; color: var(--text-dim); min-width: 130px;
+}
+.cri-soak-rolls {
+  font-size: 10px; color: var(--accent-dim); letter-spacing: 0.5px;
+  font-family: var(--font-mono);
+}
+.cri-soak-value {
+  font-family: var(--font-display); font-size: 12px; font-weight: 600;
+  color: var(--accent); margin-left: auto;
+}
+.cri-soak-total {
+  margin-top: 4px; padding: 4px 0 0 0;
+  border-top: 1px dotted var(--accent-dim);
+  display: flex; align-items: center; gap: 6px;
+}
+.cri-soak-total .cri-pool-label { color: var(--accent); }
+
+/* Wound outcome */
+.cri-wound-row {
+  display: flex; align-items: center; gap: 10px; padding: 3px 0;
+  font-size: 12px; flex-wrap: wrap;
+}
+.cri-wound-display {
+  font-family: var(--font-display); font-weight: 600; font-size: 12.5px;
+  letter-spacing: 0.5px;
+}
+.cri-wound-display.wound            { color: var(--warn); }
+.cri-wound-display.no-damage        { color: var(--accent-dim); }
+.cri-wound-display.stun             { color: #b07cff; }
+.cri-wound-display.stun-unconscious { color: #b07cff; text-shadow: 0 0 4px currentColor; }
+.cri-wound-display.incapacitated    { color: var(--warn); text-shadow: 0 0 4px currentColor; }
+.cri-wound-track {
+  font-size: 10.5px; color: var(--text-dim); letter-spacing: 0.3px;
+}
+.cri-wound-track .cri-wound-arrow { color: var(--accent-dim); padding: 0 4px; }
+.cri-wound-track .cri-wound-after { color: var(--warn); font-weight: 600; }
+.cri-wound-track .cri-wound-delta { color: var(--accent-dim); padding-left: 4px; }
+.cri-wound-drama {
+  font-style: italic; font-size: 11px; color: var(--accent);
+  padding-left: 12px; margin-top: 3px;
+}
+.cri-stun-duration {
+  font-size: 10px; color: var(--accent-dim);
+  padding: 3px 0 0 12px; font-style: italic; letter-spacing: 0.3px;
+}
+
+/* Source legend at bottom of expanded view */
+.cri-legend {
+  display: flex; gap: 12px; flex-wrap: wrap; padding: 6px 0 2px 0;
+  border-top: 1px dotted var(--accent-dim); margin-top: 6px;
+  font-size: 9.5px; letter-spacing: 0.5px; color: var(--text-dim);
+}
+.cri-legend-item { display: inline-flex; align-items: center; gap: 4px; }
+.cri-legend-swatch {
+  width: 9px; height: 9px; border: 1.5px solid currentColor; border-radius: 1px;
+  display: inline-block; flex-shrink: 0;
+}
+
+/* ════════════════════════════════════════════════════════════════════
    RIGHT COLUMN (ground) — sector map + recent rooms + sidebar panels
    ════════════════════════════════════════════════════════════════════ */
 .col-map {
@@ -3327,6 +3539,12 @@ function buildRow(ev) {
       row.innerHTML = ohtml;
       break;
     }
+    case 'combat-result': {
+      // Drop D′ Phase 2: structured combat resolution row. Defer all
+      // rendering to buildCombatResultRow so the buildRow switch stays
+      // readable. The helper returns a complete row element.
+      return buildCombatResultRow(ev);
+    }
     case 'plain':
     default:
       row.innerHTML = '<div class="plain-text">' + (ev.html || ansiToHtml(ev.text || '')) + '</div>';
@@ -3499,6 +3717,12 @@ function classifyAndAppend(rawText) {
     // duplicate rows when the server emits both the structured event and
     // the text broadcast (which happens intentionally for telnet support).
     if (isDuplicateOfRecentPoseEvent(raw)) { i++; continue; }
+
+    // Drop D′ Phase 2 (AC10): the same suppression for combat_resolution_event.
+    // The engine emits the legacy two-line story+mechanics narrative AND
+    // the structured event in parallel. WebSocket clients render the
+    // structured row and skip the text; telnet sees only the text.
+    if (isDuplicateOfRecentCombatEvent(raw)) { i++; continue; }
 
     // ── Room arrival pattern: a line in bold/colored followed by a description.
     // Server typically emits room name as a bold/yellow line, then a blank, then desc.
@@ -5884,6 +6108,463 @@ function isDuplicateOfRecentPoseEvent(rawText) {
   return false;
 }
 
+/* ════════════════════════════════════════════════════════════════════
+   COMBAT RESOLUTION INSPECTOR — Drop D′ Phase 2 (handler + renderers)
+
+   Receives `combat_resolution_event` messages from the server and
+   renders them as a typed pose-log row of type 'combat-result'. The
+   row carries a collapsible inspector panel showing per-die
+   provenance, soak components, and wound outcome detail. See
+   engine/combat_events.py for the wire schema.
+
+   Visibility rule (design v1.1 §5):
+     - Actor (`event.actor.id == lastHud.character_id`)  → expanded
+     - Target (`event.target.id == lastHud.character_id`) → expanded
+     - Bystander (anyone else)                            → collapsed
+   The wire payload is identical for all viewers; only the default UI
+   state differs.
+   ════════════════════════════════════════════════════════════════════ */
+
+// 250ms dedup window (AC10) — when the server emits the structured
+// event AND the legacy two-line text broadcast, the WebSocket client
+// suppresses the redundant text after the typed event arrives. Telnet
+// sees only the text (combat_resolution_event is dropped server-side
+// by send_json's protocol gate).
+var combatEventFingerprints = [];  // [{sig, ts}, ...]
+var COMBAT_DEDUP_WINDOW_MS = 250;
+
+function recordCombatEventFingerprint(text) {
+  if (!text) return;
+  var sig = (text + '').replace(/\s+/g, ' ').trim().slice(0, 80).toLowerCase();
+  if (!sig) return;
+  combatEventFingerprints.push({ sig: sig, ts: Date.now() });
+  var cutoff = Date.now() - COMBAT_DEDUP_WINDOW_MS;
+  while (combatEventFingerprints.length > 0 && combatEventFingerprints[0].ts < cutoff) {
+    combatEventFingerprints.shift();
+  }
+}
+
+function isDuplicateOfRecentCombatEvent(rawText) {
+  if (!rawText) return false;
+  var sig = (stripAnsi(rawText) + '').replace(/\s+/g, ' ').trim().slice(0, 80).toLowerCase();
+  if (!sig) return false;
+  var cutoff = Date.now() - COMBAT_DEDUP_WINDOW_MS;
+  for (var i = combatEventFingerprints.length - 1; i >= 0; i--) {
+    var fp = combatEventFingerprints[i];
+    if (fp.ts < cutoff) break;
+    if (sig.indexOf(fp.sig) !== -1 || fp.sig.indexOf(sig) !== -1) return true;
+  }
+  return false;
+}
+
+function handleCombatResolutionEvent(msg) {
+  if (!msg) return;
+  // Schema sanity guard — refuse to render mismatched protocol versions
+  // rather than show wrong data. The factory currently emits
+  // schema_version=1; bump on breaking change.
+  if (msg.schema_version != null && msg.schema_version !== 1) {
+    return;  // silent drop; logging here would just spam
+  }
+
+  // Compute viewer role for default expand state.
+  var myId = (lastHud && lastHud.character_id) || null;
+  var actorId  = msg.actor  && msg.actor.id;
+  var targetId = msg.target && msg.target.id;
+  var role = 'bystander';
+  if (myId != null) {
+    if (actorId === myId)       role = 'self';
+    else if (targetId === myId) role = 'target';
+  }
+
+  // Track names so the pose classifier knows them.
+  if (msg.actor  && msg.actor.name)  rememberActorName(msg.actor.name);
+  if (msg.target && msg.target.name) rememberActorName(msg.target.name);
+
+  appendEvent({
+    t: 'combat-result',
+    payload: msg,
+    role: role,
+    expanded: (role === 'self' || role === 'target'),
+  });
+
+  // Fingerprint the legacy two-line content for dedup. The engine still
+  // emits the existing story line + mechanics line via broadcast_to_room
+  // for telnet compatibility; on WebSocket sessions we suppress those
+  // when the structured event arrived first.
+  recordCombatEventFingerprint(composeCombatHeadline(msg));
+  recordCombatEventFingerprint(composeCombatMechline(msg));
+}
+
+function combatVerbForSkill(skill) {
+  var s = (skill || '').toLowerCase();
+  if (s.indexOf('lightsaber') !== -1) return 'strikes';
+  if (s.indexOf('blaster') !== -1 || s.indexOf('gunnery') !== -1) return 'blasts';
+  if (s.indexOf('brawling') !== -1) return 'punches';
+  if (s.indexOf('thrown') !== -1)   return 'throws at';
+  if (s.indexOf('melee') !== -1)    return 'attacks';
+  if (s.indexOf('missile') !== -1)  return 'fires at';
+  if (s.indexOf('vehicle') !== -1)  return 'fires at';
+  return 'attacks';
+}
+
+function composeCombatHeadline(msg) {
+  // Reproduces the engine's "<actor> <verb> <target> with <weapon>" story
+  // line so the dedup matcher can suppress the parallel text broadcast.
+  // Exact byte-match isn't required — dedup is a case-insensitive
+  // substring match on the first 80 chars.
+  var a = (msg.actor  && msg.actor.name)  || '?';
+  var t = (msg.target && msg.target.name) || '?';
+  var w = msg.action && msg.action.weapon_name;
+  var skill = (msg.action && msg.action.skill) || '';
+  var verb = combatVerbForSkill(skill);
+  var weaponPart = w ? (' with ' + w) : '';
+  var outcome = msg.hit ? 'HIT' : 'MISS';
+  var wound = (msg.wound_outcome && msg.wound_outcome.display_name) || '';
+  return a + ' ' + verb + ' ' + t + weaponPart + ' — ' + outcome +
+         (wound ? ' — ' + wound : '');
+}
+
+function composeCombatMechline(msg) {
+  var atk = (msg.attacker_pool && msg.attacker_pool.total != null)
+              ? msg.attacker_pool.total : 0;
+  var defTotal;
+  if (msg.defender_pool && msg.defender_pool.total != null) {
+    defTotal = msg.defender_pool.total;
+  } else if (msg.difficulty && msg.difficulty.number != null) {
+    defTotal = msg.difficulty.number;
+  } else {
+    defTotal = 0;
+  }
+  var parts = ['Roll: ' + atk + ' vs ' + defTotal];
+  if (msg.hit && msg.damage_pool && msg.soak) {
+    parts.push('Damage ' + (msg.damage_pool.total || 0) +
+               ' vs Soak ' + (msg.soak.total || 0));
+    if (msg.wound_outcome && msg.wound_outcome.display_name) {
+      parts.push('→ ' + msg.wound_outcome.display_name);
+    }
+  }
+  return '(' + parts.join(' · ') + ')';
+}
+
+function buildCombatResultRow(ev) {
+  var msg = ev.payload || {};
+  var role = ev.role || 'bystander';
+  var expanded = !!ev.expanded;
+
+  var row = document.createElement('div');
+  row.className = 'pose-row row-combat-result';
+  if (role === 'self')   row.classList.add('is-self');
+  if (role === 'target') row.classList.add('is-target');
+
+  // ── Summary (always visible, clickable to toggle inspector) ─────
+  var summary = document.createElement('div');
+  summary.className = 'cri-summary' + (expanded ? ' expanded' : '');
+  summary.innerHTML =
+    '<span class="cri-chevron">▶</span>' +
+    '<span class="cri-headline">' + buildCombatHeadlineHtml(msg) + '</span>';
+  row.appendChild(summary);
+
+  // ── Mechanics line (always visible, dim) ────────────────────────
+  var mech = document.createElement('div');
+  mech.className = 'cri-mechline';
+  mech.textContent = composeCombatMechline(msg);
+  row.appendChild(mech);
+
+  // ── Inspector body (collapsible via .expanded ~ .cri-body) ──────
+  var body = document.createElement('div');
+  body.className = 'cri-body';
+  body.appendChild(buildAttackerSection(msg));
+  if (msg.action && msg.action.is_opposed) {
+    body.appendChild(buildDefenderSection(msg));
+  } else {
+    body.appendChild(buildDifficultySection(msg));
+  }
+  if (msg.hit && msg.damage_pool) body.appendChild(buildDamageSection(msg));
+  if (msg.hit && msg.soak)        body.appendChild(buildSoakSection(msg));
+  body.appendChild(buildWoundSection(msg));
+  body.appendChild(buildSourceLegend());
+  row.appendChild(body);
+
+  summary.addEventListener('click', function() {
+    summary.classList.toggle('expanded');
+  });
+
+  return row;
+}
+
+function buildCombatHeadlineHtml(msg) {
+  var a = (msg.actor  && msg.actor.name)  || '?';
+  var t = (msg.target && msg.target.name) || '?';
+  var w = msg.action && msg.action.weapon_name;
+  var skill = (msg.action && msg.action.skill) || '';
+  var verb = combatVerbForSkill(skill);
+  var fpFlag = (msg.actor && msg.actor.is_force_point_active)
+    ? '<span class="cri-fp">FP</span>' : '';
+  var weaponHtml = w
+    ? ' <span class="cri-meta">with ' + escapeHtml(w) + '</span>' : '';
+  var outcomeText = msg.hit ? 'HIT' : 'MISS';
+  var outcomeCls  = msg.hit ? 'hit' : 'miss';
+  var woundHtml = '';
+  var wo = msg.wound_outcome || {};
+  if (wo.display_name && msg.hit) {
+    var woCls = (wo.outcome_type || 'no-damage').replace(/_/g, '-');
+    woundHtml = ' <span class="cri-outcome ' + woCls + '">— ' +
+                escapeHtml(wo.display_name) + '</span>';
+  }
+  return '<span class="cri-actor">' + escapeHtml(a) + '</span>' + fpFlag +
+         ' <span class="cri-verb">' + escapeHtml(verb) + '</span> ' +
+         '<span class="cri-target">' + escapeHtml(t) + '</span>' +
+         weaponHtml +
+         ' <span class="cri-outcome ' + outcomeCls + '">— ' + outcomeText + '</span>' +
+         woundHtml;
+}
+
+function buildAttackerSection(msg) {
+  var sec = document.createElement('div');
+  sec.className = 'cri-section';
+  var actorName = (msg.actor && msg.actor.name) || '';
+  var skill = (msg.action && msg.action.skill) || '';
+  var pool = msg.attacker_pool || {};
+  sec.innerHTML =
+    '<div class="cri-section-head">' +
+      'ATTACKER · <span class="cri-actor-tag">' + escapeHtml(actorName.toUpperCase()) + '</span>' +
+      (skill ? ' · ' + escapeHtml(skill.toUpperCase()) : '') +
+      (pool.pool_text ? ' ' + escapeHtml(pool.pool_text) : '') +
+    '</div>';
+  appendPoolRow(sec, pool, 'Roll');
+  return sec;
+}
+
+function buildDefenderSection(msg) {
+  var sec = document.createElement('div');
+  sec.className = 'cri-section';
+  var targetName = (msg.target && msg.target.name) || '';
+  var pool = msg.defender_pool || {};
+  sec.innerHTML =
+    '<div class="cri-section-head">' +
+      'DEFENDER · <span class="cri-actor-tag">' + escapeHtml(targetName.toUpperCase()) + '</span> · OPPOSED' +
+      (pool.pool_text ? ' ' + escapeHtml(pool.pool_text) : '') +
+    '</div>';
+  appendPoolRow(sec, pool, 'Roll');
+  return sec;
+}
+
+function buildDifficultySection(msg) {
+  var sec = document.createElement('div');
+  sec.className = 'cri-section';
+  var diff = msg.difficulty || {};
+  sec.innerHTML =
+    '<div class="cri-section-head">DIFFICULTY</div>' +
+    '<div class="cri-diff-block">' +
+      '<span class="cri-diff-num">' + (diff.number != null ? diff.number : '—') + '</span>' +
+      '<span class="cri-diff-label">' + escapeHtml(diff.label || '') + '</span>' +
+    '</div>';
+  if (diff.breakdown && diff.breakdown.length > 1) {
+    var bk = document.createElement('div');
+    bk.className = 'cri-diff-breakdown';
+    bk.textContent = diff.breakdown.map(function(b) {
+      var sign = (b.mod != null && b.mod >= 0) ? '+' : '';
+      return (b.name || '') + ' ' + sign + (b.mod != null ? b.mod : '');
+    }).join(' · ');
+    sec.appendChild(bk);
+  }
+  return sec;
+}
+
+function buildDamageSection(msg) {
+  var sec = document.createElement('div');
+  sec.className = 'cri-section';
+  var pool = msg.damage_pool || {};
+  sec.innerHTML =
+    '<div class="cri-section-head">DAMAGE' +
+      (pool.pool_text ? ' · ' + escapeHtml(pool.pool_text) : '') +
+    '</div>';
+  appendPoolRow(sec, pool, 'Roll');
+  return sec;
+}
+
+// Append a complete pool render (row + optional CP/complication notes)
+// to the given parent. Mutating the parent rather than returning a
+// fragment lets the section builders stay one-line at call sites.
+function appendPoolRow(parent, pool, label) {
+  var div = document.createElement('div');
+  div.className = 'cri-pool-row';
+
+  var labelEl = document.createElement('span');
+  labelEl.className = 'cri-pool-label';
+  labelEl.textContent = label || '';
+  div.appendChild(labelEl);
+
+  (pool.dice || []).forEach(function(d) { div.appendChild(buildDieChip(d)); });
+
+  if (pool.pool_pips) {
+    var pip = document.createElement('span');
+    pip.className = 'cri-pool-pip';
+    pip.textContent = (pool.pool_pips > 0 ? '+' : '') + pool.pool_pips;
+    div.appendChild(pip);
+  }
+
+  var total = document.createElement('span');
+  total.className = 'cri-pool-total';
+  total.textContent = pool.total != null ? '= ' + pool.total : '';
+  div.appendChild(total);
+
+  parent.appendChild(div);
+
+  if (pool.cp_spent && pool.cp_rolls && pool.cp_rolls.length) {
+    var cp = document.createElement('div');
+    cp.className = 'cri-cp-line';
+    cp.textContent = '+ ' + pool.cp_spent + ' CP: [' +
+      pool.cp_rolls.join(', ') + '] = ' + (pool.cp_bonus || 0);
+    parent.appendChild(cp);
+  }
+
+  if (pool.complication) {
+    var comp = document.createElement('div');
+    comp.className = 'cri-complication-note';
+    comp.textContent = pool.removed_die_value != null
+      ? 'Complication! Wild Die rolled 1; dropped highest normal die (' +
+        pool.removed_die_value + ').'
+      : 'Complication! Wild Die rolled 1.';
+    parent.appendChild(comp);
+  }
+}
+
+function buildDieChip(d) {
+  d = d || {};
+  var el = document.createElement('span');
+  el.className = 'cri-die';
+  el.setAttribute('data-source', d.source || 'skill');
+  if (d.is_wild)  el.classList.add('is-wild');
+  if (d.exploded) el.classList.add('is-exploded');
+  if (d.dropped)  el.classList.add('is-dropped');
+
+  var titleParts = [d.source || 'skill'];
+  if (d.is_wild)  titleParts.push('Wild Die');
+  if (d.exploded && d.explosion_chain) titleParts.push('Exploded: ' + d.explosion_chain.join('→'));
+  if (d.dropped)  titleParts.push('Dropped (complication)');
+  el.title = titleParts.join(' · ');
+
+  if (d.is_wild && d.exploded && d.explosion_chain && d.explosion_chain.length) {
+    el.classList.add('is-exploded-chain');
+    el.textContent = d.explosion_chain.join('→') + '=' + (d.value != null ? d.value : '');
+  } else if (d.is_wild && d.value === 0) {
+    el.textContent = '1!';  // complication: Wild Die zeroed
+  } else {
+    el.textContent = (d.value != null ? d.value : '?');
+  }
+  return el;
+}
+
+function buildSoakSection(msg) {
+  var sec = document.createElement('div');
+  sec.className = 'cri-section';
+  var soak = msg.soak || {};
+  sec.innerHTML = '<div class="cri-section-head">SOAK</div>';
+
+  (soak.components || []).forEach(function(c) {
+    if (!c) return;
+    var row = document.createElement('div');
+    row.className = 'cri-soak-comp';
+    row.setAttribute('data-source', c.source || 'strength');
+    var rollsHtml = (c.rolls && c.rolls.length)
+      ? '<span class="cri-soak-rolls">[' + c.rolls.join(', ') + ']</span>'
+      : '';
+    row.innerHTML =
+      '<span class="cri-soak-label">' + escapeHtml(c.label || '') + '</span>' +
+      rollsHtml +
+      '<span class="cri-soak-value">' + (c.value != null ? c.value : '') + '</span>';
+    sec.appendChild(row);
+  });
+
+  var total = document.createElement('div');
+  total.className = 'cri-soak-total';
+  total.innerHTML =
+    '<span class="cri-pool-label">Total</span>' +
+    '<span class="cri-pool-total">= ' + (soak.total != null ? soak.total : 0) + '</span>';
+  sec.appendChild(total);
+  return sec;
+}
+
+function buildWoundSection(msg) {
+  var sec = document.createElement('div');
+  sec.className = 'cri-section';
+  sec.innerHTML = '<div class="cri-section-head">OUTCOME</div>';
+
+  var wo = msg.wound_outcome || {};
+  var ot = wo.outcome_type || 'no_damage';
+  var cls = ot.replace(/_/g, '-');
+
+  var row = document.createElement('div');
+  row.className = 'cri-wound-row';
+  var html = '<span class="cri-wound-display ' + cls + '">' +
+             escapeHtml(wo.display_name || '—') + '</span>';
+
+  if (wo.wound_level_before || wo.wound_level_after) {
+    var before = wo.wound_level_before || '—';
+    var after  = wo.wound_level_after  || '—';
+    var deltaTxt = wo.wound_level_delta
+      ? ' <span class="cri-wound-delta">(+' + wo.wound_level_delta + ')</span>'
+      : '';
+    html += '<span class="cri-wound-track">' +
+      escapeHtml(before) +
+      '<span class="cri-wound-arrow">→</span>' +
+      '<span class="cri-wound-after">' + escapeHtml(after) + '</span>' +
+      deltaTxt + '</span>';
+  }
+
+  if (msg.hit && msg.damage_margin != null) {
+    var dm = msg.damage_margin;
+    html += '<span class="cri-wound-track">margin ' + (dm >= 0 ? '+' : '') + dm + '</span>';
+  } else if (!msg.hit && msg.margin != null) {
+    html += '<span class="cri-wound-track">margin ' +
+            (msg.margin >= 0 ? '+' : '') + msg.margin + '</span>';
+  }
+
+  row.innerHTML = html;
+  sec.appendChild(row);
+
+  if (wo.drama_text) {
+    var drama = document.createElement('div');
+    drama.className = 'cri-wound-drama';
+    drama.textContent = wo.drama_text;
+    sec.appendChild(drama);
+  }
+
+  // Stun-unconscious duration line. v1.1 reserves the schema fields;
+  // engine doesn't roll them yet (separate ticket), so we render a
+  // placeholder when the fields are null.
+  if (ot === 'stun_unconscious') {
+    var sd = document.createElement('div');
+    sd.className = 'cri-stun-duration';
+    if (wo.stun_duration_dice && wo.stun_duration_unit) {
+      sd.textContent = 'Unconscious for ' + wo.stun_duration_dice +
+                       ' ' + wo.stun_duration_unit + '.';
+    } else {
+      sd.textContent = 'Unconscious — duration roll pending.';
+    }
+    sec.appendChild(sd);
+  }
+
+  return sec;
+}
+
+function buildSourceLegend() {
+  var leg = document.createElement('div');
+  leg.className = 'cri-legend';
+  leg.innerHTML =
+    '<span class="cri-legend-item" style="color:#ffc857">' +
+      '<span class="cri-legend-swatch"></span>SKILL</span>' +
+    '<span class="cri-legend-item" style="color:#ff8a5a">' +
+      '<span class="cri-legend-swatch"></span>WEAPON</span>' +
+    '<span class="cri-legend-item" style="color:#b07cff">' +
+      '<span class="cri-legend-swatch"></span>MOD</span>' +
+    '<span class="cri-legend-item" style="color:#7ce068">' +
+      '<span class="cri-legend-swatch"></span>FP DOUBLE</span>' +
+    '<span class="cri-legend-item">★ Wild Die · ⊘ dropped</span>';
+  return leg;
+}
+
 function handleChargenStart(msg) {
   var ov = $('chargen-overlay');
   var ifr = $('chargen-iframe');
@@ -6158,6 +6839,7 @@ function connect() {
         case 'boarding_alert':        handleBoardingAlert(msg); return;
         case 'boarding_resolved':     handleBoardingResolved(msg); return;
         case 'combat_state':          handleCombatState(msg); return;
+        case 'combat_resolution_event': handleCombatResolutionEvent(msg); return;
         case 'shop_state':            handleShopState(msg); return;
         case 'pose_event':
           handlePoseEvent(msg);

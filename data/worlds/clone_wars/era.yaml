@@ -77,7 +77,19 @@ content_refs:
     - planets/nar_shaddaa.yaml
     # Drops 2-4 add: coruscant, kuat, kamino, geonosis
   wilderness: []          # Drop 5 adds coruscant_underworld, Drop 10 adds tatooine_dune_sea
-  npcs: npcs.yaml
+  # ── NPCs (per cw_content_gap_design_v1_1_decisions.md Drop A) ────────────
+  # `npcs` is a list of files that engine/npc_loader.py loads in order. The
+  # additions file adds CW-only NPCs with no GG7 antecedent (Vela Niree, etc.).
+  # The replacements file substitutes 7 GG7 NPCs that are Imperial-keyed in
+  # the GCW era and don't fit a 20 BBY Republic-Hutt-CIS world. Entries in
+  # the replacements file have a `replaces:` field naming the GG7 NPC name
+  # the engine should suppress when this era is active. Both files are
+  # additive on top of the era-agnostic data/npcs_gg7.yaml roster, with
+  # `replaces:` providing the suppression mechanism. The ordering matters
+  # only to the human reader; engine merge is keyed by `replaces:` field.
+  npcs:
+    - npcs_cw_additions.yaml
+    - npcs_cw_replacements.yaml
   housing_lots: housing_lots.yaml
   test_character: test_character.yaml
   test_jedi: test_jedi.yaml    # God-mode Jedi account for dev testing of Force content

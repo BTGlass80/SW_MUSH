@@ -274,7 +274,12 @@ async def hyperspace_arrival_tick(ctx: TickContext) -> None:
                 if sess.character:
                     await on_hyperspace_complete(ctx.db, sess.character["id"], session=sess)
         except Exception:
-            pass
+            # Best-effort hook — never block hyperspace arrival because the
+            # achievements layer choked, but DO leave a breadcrumb so silent
+            # failures are visible in production logs (S38 silent-except
+            # invariant).
+            log.warning("hyperspace arrival achievement hook failed",
+                        exc_info=True)
 
         # Patrol-on-arrival check for smuggling runs
         try:
@@ -322,3 +327,107 @@ async def space_anomaly_tick(ctx: TickContext) -> None:
         zone = ZONES.get(zone_id)
         if zone:
             spawn_anomalies_for_zone(zone_id, zone.type.value)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Texture encounters — atmospheric "something is happening" events fired
+# during transit. Low-stakes (mechanical glitches, cargo shifting,
+# navigation drift) but they fill the long quiet stretches of hyperspace
+# and sublight transit with something for the bridge crew to react to.
+# Probability scales by zone security so quiet Core lanes feel safe and
+# Outer Rim lanes feel eventful.
+# Tested by tests/test_session38.py::TestTextureEncounterTick.
+# ──────────────────────────────────────────────────────────────────────────
+
+# Encounter type pool with relative weights. Mechanical events are the
+# bread and butter; atmospheric events are flavour-only and stay rare.
+_TEXTURE_TYPES = ["mechanical", "cargo", "navigation", "atmospheric"]
+_TEXTURE_WEIGHTS = [10, 8, 6, 4]
+
+# Per-tick trigger probability by zone security. Tuned so an active
+# transit produces ~1 encounter per 3 minutes in lawless space and ~1
+# per ~17 minutes in secured space at a 1 Hz tick rate.
+_TEXTURE_PROB_BY_SECURITY = {
+    "secured":  0.001,
+    "neutral":  0.005,
+    "lawless":  0.010,
+}
+_TEXTURE_BASE_PROB = 0.005
+
+# Planet → security tier. Used to derive a zone's security from its
+# planet attribute. Zones whose planet is unset / unknown fall back to
+# "neutral".
+_PLANET_SECURITY = {
+    "corellia":     "secured",   # CEC + CorSec
+    "tatooine":     "lawless",   # Outer Rim, no central authority
+    "kessel":       "lawless",   # Smuggler haven, Maw approach
+    "nar_shaddaa":  "lawless",   # Hutt territory, Smuggler's Moon
+}
+
+
+def _texture_trigger_probability(zone_id: str) -> float:
+    """Resolve per-tick texture-encounter probability for ``zone_id``.
+
+    Returns the base probability if the zone or its planet can't be
+    located, so a misconfigured zone never hard-zeros the feature.
+    """
+    try:
+        from engine.npc_space_traffic import ZONES
+        zone = ZONES.get(zone_id)
+        if not zone:
+            return _TEXTURE_BASE_PROB
+        sec = _PLANET_SECURITY.get(zone.planet, "neutral")
+        return _TEXTURE_PROB_BY_SECURITY.get(sec, _TEXTURE_BASE_PROB)
+    except Exception:
+        return _TEXTURE_BASE_PROB
+
+
+async def texture_encounter_tick(ctx: TickContext) -> None:
+    """Random low-stakes texture encounters during transit.
+
+    Fires for ships in sublight or hyperspace transit when at least one
+    bridge crew member is logged in. Per-tick probability scales by zone
+    security. The encounter type is weighted toward mechanical events;
+    atmospheric ones stay rare so they keep their flavour weight.
+    """
+    for ship in ctx.ships_in_space:
+        if ship.get("docked_at"):
+            continue
+        sys = _safe_json_loads(ship.get("systems"), default={}) or {}
+        # Only fire during transit — stationary ships don't encounter
+        # texture events. (Hazards and combat use their own ticks.)
+        if not (sys.get("sublight_transit") or sys.get("in_hyperspace")):
+            continue
+
+        bridge = ship.get("bridge_room_id")
+        if not bridge:
+            continue
+
+        sessions = ctx.session_mgr.sessions_in_room(bridge) or []
+        # No-op if nobody on the bridge has a character — the encounter
+        # has nobody to react to it.
+        if not any(getattr(s, "character", None) for s in sessions):
+            continue
+
+        zone_id = sys.get("current_zone", "")
+        prob = _texture_trigger_probability(zone_id)
+        if random.random() >= prob:
+            continue
+
+        encounter_type = random.choices(
+            _TEXTURE_TYPES, weights=_TEXTURE_WEIGHTS,
+        )[0]
+
+        try:
+            from engine.space_encounters import get_encounter_manager
+            mgr = get_encounter_manager()
+            await mgr.create_encounter(
+                encounter_type=encounter_type,
+                ship_id=ship["id"],
+                zone=zone_id,
+            )
+        except Exception:
+            log.warning(
+                "[texture] encounter creation failed for ship %s in %s",
+                ship.get("id"), zone_id, exc_info=True,
+            )

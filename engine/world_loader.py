@@ -73,7 +73,12 @@ class EraManifest:
     organizations_path: Optional[Path]
     planet_paths: list[Path]
     wilderness_paths: list[Path]
-    npcs_path: Optional[Path]
+    # Drop A (CW content gap remediation): `npcs` in era.yaml is now a
+    # list of one or more files. The legacy single-string form is still
+    # accepted by load_era_manifest and wrapped to a single-element list.
+    # See data/worlds/clone_wars/npcs_cw_replacements.yaml header for
+    # the full rationale (replaces:-keyed in-place GG7 substitution).
+    npcs_paths: list[Path]
     housing_lots_path: Optional[Path]
     test_character_path: Optional[Path]
     test_jedi_path: Optional[Path]
@@ -208,6 +213,27 @@ def load_era_manifest(era_dir: Path) -> EraManifest:
             )
         return [era_dir / p for p in items]
 
+    def resolve_list_or_legacy_string(field_name):
+        """Accept a list of relative file paths OR a legacy single string.
+
+        Drop A (CW content gap): the `npcs` field was originally a
+        single string (`npcs: npcs.yaml`). Drop A introduces a multi-file
+        form so an era can split additions and replacements across
+        separate files without engine plumbing changes downstream.
+        Returns a (possibly empty) list of resolved Paths in either case.
+        """
+        items = refs.get(field_name)
+        if items is None:
+            return []
+        if isinstance(items, str):
+            return [era_dir / items]
+        if isinstance(items, list):
+            return [era_dir / p for p in items]
+        raise WorldLoadError(
+            f"{era_yaml}: content_refs.{field_name} must be a string or a list, "
+            f"got {type(items).__name__}."
+        )
+
     return EraManifest(
         era_code=era_block.get("code", era_dir.name),
         era_name=era_block.get("name", era_dir.name.title()),
@@ -217,7 +243,7 @@ def load_era_manifest(era_dir: Path) -> EraManifest:
         organizations_path=resolve("organizations", required=False),
         planet_paths=resolve_list("planets"),
         wilderness_paths=resolve_list("wilderness"),
-        npcs_path=resolve("npcs", required=False),
+        npcs_paths=resolve_list_or_legacy_string("npcs"),
         housing_lots_path=resolve("housing_lots", required=False),
         test_character_path=resolve("test_character", required=False),
         test_jedi_path=resolve("test_jedi", required=False),

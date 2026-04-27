@@ -1352,6 +1352,187 @@ class Database:
                 "top_earners": [],
             }
 
+    # ── S51 economy hardening helpers ──────────────────────────────────────
+    # All four read directly from credit_log. The aiosqlite connection is
+    # stored as ``self._db`` so these mirror the patterns used by
+    # ``get_credit_velocity`` above. Each method fails open (returns the
+    # neutral "no data" result) on any DB error so they can be safely
+    # called from tick handlers that must not crash the loop.
+
+    async def get_daily_p2p_outgoing(self, char_id: int,
+                                       seconds: int = 86400) -> int:
+        """Sum of credits the character has *sent* via p2p_transfer in the
+        last ``seconds`` seconds.
+
+        Only negative-delta rows count (positive deltas are receipts).
+        Returns the absolute value so callers can compare directly against
+        ``P2P_DAILY_CAP``.
+
+        Used by the trade command to enforce the daily transfer cap.
+        Fails open (returns 0) on DB error so a transient credit_log
+        outage never permanently locks every account out of trading.
+        """
+        try:
+            cutoff = time.time() - seconds
+            rows = await self._db.execute_fetchall(
+                "SELECT SUM(delta) AS total FROM credit_log "
+                "WHERE char_id = ? AND source = 'p2p_transfer' "
+                "AND delta < 0 AND created_at > ?",
+                (char_id, cutoff),
+            )
+            if not rows or rows[0]["total"] is None:
+                return 0
+            return abs(int(rows[0]["total"]))
+        except Exception:
+            log.warning("get_daily_p2p_outgoing: failed", exc_info=True)
+            return 0
+
+    async def get_whale_transactions(self, threshold: int = 50000,
+                                       seconds: int = 86400,
+                                       limit: int = 50) -> list[dict]:
+        """Return individual credit_log rows whose ``|delta| >= threshold``
+        within the last ``seconds`` seconds.
+
+        Excludes ``char_id = 0`` (system sinks) — those represent credits
+        leaving the player economy and would dwarf real player movement.
+        Ordered by ``|delta| DESC`` so the biggest single moves are first.
+        Each row is a plain dict with ``id, char_id, delta, source,
+        created_at`` keys.
+        """
+        try:
+            cutoff = time.time() - seconds
+            rows = await self._db.execute_fetchall(
+                "SELECT id, char_id, delta, source, created_at "
+                "FROM credit_log "
+                "WHERE char_id > 0 AND ABS(delta) >= ? AND created_at > ? "
+                "ORDER BY ABS(delta) DESC LIMIT ?",
+                (threshold, cutoff, limit),
+            )
+            return [
+                {
+                    "id":         int(r["id"]),
+                    "char_id":    int(r["char_id"]),
+                    "delta":      int(r["delta"]),
+                    "source":     r["source"],
+                    "created_at": float(r["created_at"]),
+                }
+                for r in (rows or [])
+            ]
+        except Exception:
+            log.warning("get_whale_transactions: failed", exc_info=True)
+            return []
+
+    async def get_farming_alerts(self,
+                                   hourly_threshold: int = 5000,
+                                   sustained_hours: int = 2,
+                                   lookback_seconds: int = 86400) -> list[dict]:
+        """Identify characters whose hourly *positive* income has stayed
+        above ``hourly_threshold`` for at least ``sustained_hours`` distinct
+        hour-buckets inside the lookback window.
+
+        Bucketing uses ``CAST(created_at/3600 AS INTEGER)`` — Unix-epoch
+        hour index, so two timestamps fall in the same bucket if they
+        share the same hour offset from epoch (NOT the same hour-of-day).
+        Negative deltas (sinks) never contribute — spending money does
+        not make someone a farmer.
+
+        Returns a list of dicts:
+            {
+              "char_id":               int,
+              "hours_over_threshold":  int,
+              "total_in_window":       int,  (sum of positive deltas)
+              "peak_hour_total":       int,  (max single-hour total)
+            }
+
+        Sorted by ``hours_over_threshold DESC`` then ``peak_hour_total DESC``
+        so the most concerning offenders surface first.
+        """
+        try:
+            cutoff = time.time() - lookback_seconds
+            # Two-stage aggregation: first per (char_id, hour_bucket), then
+            # filter buckets ≥ threshold and roll up per char.
+            rows = await self._db.execute_fetchall(
+                "SELECT char_id, "
+                "       CAST(created_at / 3600 AS INTEGER) AS hour_bucket, "
+                "       SUM(delta) AS hour_total "
+                "FROM credit_log "
+                "WHERE char_id > 0 AND delta > 0 AND created_at > ? "
+                "GROUP BY char_id, hour_bucket "
+                "HAVING hour_total >= ?",
+                (cutoff, hourly_threshold),
+            )
+            # Aggregate hot-hours per char in Python — easier than nested SQL
+            # and perfectly fine for the modest volume we expect here.
+            by_char: dict[int, dict] = {}
+            for r in (rows or []):
+                cid = int(r["char_id"])
+                ht  = int(r["hour_total"] or 0)
+                bucket = by_char.setdefault(cid, {
+                    "char_id":              cid,
+                    "hours_over_threshold": 0,
+                    "total_in_window":      0,
+                    "peak_hour_total":      0,
+                })
+                bucket["hours_over_threshold"] += 1
+                bucket["total_in_window"]      += ht
+                if ht > bucket["peak_hour_total"]:
+                    bucket["peak_hour_total"] = ht
+            alerts = [
+                b for b in by_char.values()
+                if b["hours_over_threshold"] >= sustained_hours
+            ]
+            alerts.sort(
+                key=lambda a: (
+                    -a["hours_over_threshold"],
+                    -a["peak_hour_total"],
+                ),
+            )
+            return alerts
+        except Exception:
+            log.warning("get_farming_alerts: failed", exc_info=True)
+            return []
+
+    async def get_inflation_metrics(self, seconds: int = 86400) -> dict:
+        """Net player-economy flow over the last ``seconds`` seconds vs
+        the current circulation total.
+
+        Returns ``{net_flow, circulation, flow_pct}`` where:
+          - net_flow    : SUM(delta) for char_id > 0 in the window. Excludes
+                          char_id=0 (system) so a tax destroying credits
+                          isn't double-counted alongside the absence of
+                          those credits in circulation.
+          - circulation : SUM(credits) over the characters table — what
+                          players are currently holding.
+          - flow_pct    : net_flow / circulation, as a float in [-inf, +inf].
+                          Returns 0.0 (not NaN) when circulation is zero.
+        """
+        try:
+            cutoff = time.time() - seconds
+            flow_rows = await self._db.execute_fetchall(
+                "SELECT SUM(delta) AS total FROM credit_log "
+                "WHERE char_id > 0 AND created_at > ?",
+                (cutoff,),
+            )
+            net_flow = int((flow_rows[0]["total"] or 0)) if flow_rows else 0
+
+            circ_rows = await self._db.execute_fetchall(
+                "SELECT SUM(credits) AS total FROM characters",
+            )
+            circulation = int((circ_rows[0]["total"] or 0)) if circ_rows else 0
+
+            if circulation > 0:
+                flow_pct = float(net_flow) / float(circulation)
+            else:
+                flow_pct = 0.0
+            return {
+                "net_flow":    net_flow,
+                "circulation": circulation,
+                "flow_pct":    flow_pct,
+            }
+        except Exception:
+            log.warning("get_inflation_metrics: failed", exc_info=True)
+            return {"net_flow": 0, "circulation": 0, "flow_pct": 0.0}
+
     async def get_docked_player_ships(self) -> list:
         """Return all player-owned ships that are currently docked.
 
