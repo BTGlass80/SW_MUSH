@@ -81,6 +81,42 @@ _ATYPE_WEIGHTS   = [t[0] for t in ANOMALY_TYPES]
 _ATYPE_KEYS      = [t[1] for t in ANOMALY_TYPES]
 _ATYPE_META      = {t[1]: t for t in ANOMALY_TYPES}  # key → full tuple
 
+
+# ── B.1.g (Apr 29 2026) — Era-aware display overlay ──────────────────────────
+# The anomaly_type key (e.g. "imperial") is the storage/routing identifier and
+# stays era-stable. The display strings (name, sensor narration, full
+# description) get an era overlay so a CW player on an "imperial" anomaly
+# sees Republic-flavored text instead. The overlay is consulted by
+# `Anomaly.display_name` / `Anomaly.description`; missing entries fall
+# through to the GCW default in ANOMALY_TYPES.
+#
+# Schema (per anomaly_type key): (display_name, vague, partial, full)
+# Mirrors slots [2], [4], [5], [6] of the ANOMALY_TYPES tuple.
+
+_ATYPE_ERA_OVERLAY: dict[str, dict[str, tuple]] = {
+    "clone_wars": {
+        "imperial": (
+            "Republic Dead Drop",
+            "Encrypted tight-beam burst. Source: unknown.",
+            "Encrypted data package — Republic cipher signature.",
+            "Republic Dead Drop — a dead-letter container with encrypted "
+            "intelligence data. Slicing check (Difficult, diff 20) to decode. "
+            "Failure triggers a Republic patrol. "
+            "Type 'course anomaly {id}' to retrieve.",
+        ),
+    },
+}
+
+
+def _resolve_overlay(anomaly_type: str) -> tuple | None:
+    """Return the era-overlay tuple for `anomaly_type`, or None."""
+    try:
+        from engine.era_state import get_active_era
+        era = get_active_era()
+    except Exception:
+        return None
+    return _ATYPE_ERA_OVERLAY.get(era, {}).get(anomaly_type)
+
 # ── Spawn rate config ─────────────────────────────────────────────────────────
 
 # Zone type string → spawn probability per check interval
@@ -116,6 +152,10 @@ class Anomaly:
 
     @property
     def display_name(self) -> str:
+        # B.1.g: era overlay takes precedence over the GCW default.
+        overlay = _resolve_overlay(self.anomaly_type)
+        if overlay:
+            return overlay[0]
         meta = _ATYPE_META.get(self.anomaly_type)
         return meta[2] if meta else self.anomaly_type.replace("_", " ").title()
 
@@ -125,6 +165,16 @@ class Anomaly:
         return meta[3] if meta else 3
 
     def description(self) -> str:
+        # B.1.g: era overlay (when present) replaces all three description
+        # tiers. Scans count and routing key stay from the GCW meta tuple.
+        overlay = _resolve_overlay(self.anomaly_type)
+        if overlay:
+            if self.resolution == 0:
+                return overlay[1]
+            elif self.resolution == 1:
+                return overlay[2]
+            else:
+                return overlay[3].replace("{id}", str(self.id))
         meta = _ATYPE_META.get(self.anomaly_type)
         if not meta:
             return "Unclassified anomaly."

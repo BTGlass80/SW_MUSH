@@ -30,6 +30,8 @@ import os
 import time
 from typing import Optional
 
+from engine.json_safe import safe_json_loads
+
 log = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -59,6 +61,15 @@ REP_GAINS = {
 CROSS_FACTION_PENALTIES = {
     "empire": {"rebel": -0.5},
     "rebel":  {"empire": -0.5},
+    # ── B.1.b.1 (Apr 29 2026) — CW mirror ────────────────────────────
+    # Republic and CIS are direct adversaries — gaining rep with one
+    # damages standing with the other at the same -0.5 ratio as GCW.
+    # Jedi Order does NOT cross-penalize: per CW v3 §3.1 the Jedi
+    # serve the Republic but their faction is "a way of life," and
+    # joining the Jedi is village-quest-gated, not a political
+    # affiliation that can drift via missions.
+    "republic": {"cis": -0.5},
+    "cis":      {"republic": -0.5},
 }
 
 # Rep tier thresholds and names
@@ -110,6 +121,37 @@ STIPEND_TABLE = {
     ("bh_guild", 3): 150,
     ("bh_guild", 4): 300,
     ("bh_guild", 5): 500,
+    # ── B.1.b.1 (Apr 29 2026) — CW stipends ──────────────────────────
+    # Mirrors the GCW shape per faction archetype:
+    #   republic       — lawful state, mirrors empire pay scale
+    #   cis            — insurgent, mirrors rebel pay scale
+    #   jedi_order     — modest stipend (Order is austere; rank 0 is
+    #                    Padawan, rank 1 Knight, rank 2 Master)
+    #   hutt_cartel    — direct rename of hutt; same scale
+    #   bounty_hunters_guild — direct rename of bh_guild; same scale
+    ("republic", 1): 50,
+    ("republic", 2): 100,
+    ("republic", 3): 200,
+    ("republic", 4): 350,
+    ("republic", 5): 500,
+    ("republic", 6): 500,
+    ("cis",      1): 25,
+    ("cis",      2): 50,
+    ("cis",      3): 100,
+    ("cis",      4): 200,
+    ("cis",      5): 300,
+    ("jedi_order", 1): 50,
+    ("jedi_order", 2): 100,
+    ("hutt_cartel", 1): 75,
+    ("hutt_cartel", 2): 150,
+    ("hutt_cartel", 3): 300,
+    ("hutt_cartel", 4): 500,
+    ("hutt_cartel", 5): 750,
+    ("bounty_hunters_guild", 1): 25,
+    ("bounty_hunters_guild", 2): 75,
+    ("bounty_hunters_guild", 3): 150,
+    ("bounty_hunters_guild", 4): 300,
+    ("bounty_hunters_guild", 5): 500,
 }
 
 # ── Equipment catalog ────────────────────────────────────────────────────────
@@ -139,6 +181,33 @@ EQUIPMENT_CATALOG = {
     "tracking_fob":          {"name": "Tracking Fob",               "slot": "misc",   "description": "Short-range biometric tracker. +1D to Search for targets."},
     # Generic
     "medpac":                {"name": "Medpac",                     "slot": "misc",   "description": "Standard medpac. Heals 1D Stun damage when applied."},
+    # ── B.1.b.1 (Apr 29 2026) — CW equipment ─────────────────────────
+    # Item codes referenced by data/worlds/clone_wars/organizations.yaml
+    # rank equipment lists. Catalog entries supply the display name,
+    # slot, and description used by `format_equipment_inventory` and
+    # `issue_equipment` narration.
+    # Republic
+    "republic_uniform":      {"name": "Republic Service Uniform",   "slot": "armor", "description": "Off-white Republic-issue tunic and trousers. Worn by clones and conscripts off-duty."},
+    "dc17_pistol":           {"name": "DC-17 Hand Blaster",         "slot": "weapon", "description": "Republic sidearm. 4D damage. Issued to clone troopers and Republic officers."},
+    "dc15_blaster_rifle":    {"name": "DC-15A Blaster Rifle",       "slot": "weapon", "description": "Standard clone trooper rifle. 5D damage. Heavier than Imperial E-11; longer range."},
+    "republic_light_armor":  {"name": "Republic Combat Plate",      "slot": "armor", "description": "Phase II clone trooper armor segments adapted for non-clone wearers. +1D+2 physical soak."},
+    # ── B.1.b.2 (Apr 29 2026) — Republic specialization gear ─────────
+    # Mirrors the Imperial spec-equipment shape (flight_suit_imperial,
+    # officers_uniform, datapad_imperial) for the Republic clone-pilot
+    # and clone-officer specs. The republic_intelligence spec reuses
+    # civilian_cover + slicing_kit since those items are era-agnostic
+    # spy gear (forged ID, slicing toolkit).
+    "flight_suit_republic":  {"name": "Republic Pilot Flight Suit",   "slot": "armor", "description": "Sealed flight suit with life support and Republic comm rig. +1D physical soak."},
+    "officers_uniform_republic": {"name": "Republic Officer's Uniform", "slot": "armor", "description": "Pressed Republic Navy dress uniform with junior-officer insignia."},
+    "datapad_republic":      {"name": "Republic Datapad",             "slot": "misc",   "description": "Encrypted Republic-issue datapad with logistics and comms software."},
+    # CIS / Hutt operatives
+    "civilian_gear":         {"name": "Civilian Operative Kit",     "slot": "misc",   "description": "Plain clothes, forged ID chip, and a comm earpiece. Suited to undercover work."},
+    "heavy_blaster_pistol":  {"name": "Heavy Blaster Pistol",       "slot": "weapon", "description": "DL-44 or equivalent. 5D damage. Compact stopping power."},
+    "smuggler_vest":         {"name": "Smuggler's Vest",            "slot": "armor", "description": "Multi-pocket vest with concealed plating. +1D physical soak; +2 storage."},
+    # Jedi Order
+    "padawan_robes":         {"name": "Padawan Robes",              "slot": "armor", "description": "Tan and brown Jedi robes worn by apprentices. No armor value; identifies the wearer as a member of the Order."},
+    "jedi_utility_belt":     {"name": "Jedi Utility Belt",          "slot": "misc",   "description": "Padawan-issue belt with food capsules, comlink, and a small tool kit."},
+    "jedi_robes":            {"name": "Jedi Knight Robes",          "slot": "armor", "description": "The earned robes of a Jedi Knight. Sturdy weave with internal pockets for a lightsaber clip."},
 }
 
 # Rank-0 equipment per faction
@@ -147,6 +216,15 @@ RANK_0_EQUIPMENT = {
     "rebel":    ["encrypted_comlink"],
     "hutt":     [],   # Hutts don't issue gear to associates
     "bh_guild": ["binder_cuffs", "guild_license"],
+    # ── B.1.b.1 (Apr 29 2026) — CW rank-0 ────────────────────────────
+    # Mirrors data/worlds/clone_wars/organizations.yaml::ranks[level=0].equipment.
+    # Kept in sync with the YAML so the in-Python issuance path matches
+    # the YAML-driven seeding path byte-for-byte.
+    "republic":             ["republic_uniform", "dc17_pistol"],
+    "cis":                  ["encrypted_comlink"],
+    "jedi_order":           ["padawan_robes", "jedi_utility_belt"],
+    "hutt_cartel":          ["blaster_pistol"],   # CW Hutts issue a sidearm; YAML differs from GCW empty list
+    "bounty_hunters_guild": ["binder_cuffs", "guild_license"],
 }
 
 # Rank-1 equipment per faction (adds to rank 0)
@@ -155,6 +233,17 @@ RANK_1_EQUIPMENT = {
     "rebel":    ["blaster_pistol", "flight_suit"],
     "hutt":     [],
     "bh_guild": ["tracking_fob"],
+    # ── B.1.b.1 (Apr 29 2026) — CW rank-1 ────────────────────────────
+    # Mirrors data/worlds/clone_wars/organizations.yaml::ranks[level=1].equipment.
+    # republic at rank 1 is "Private" (DC-15A + light armor); CIS at
+    # rank 1 is "Operative" (sidearm + civvies); jedi rank 1 is the
+    # Knight robes; hutt_cartel rank 1 is "Runner" (heavy + vest);
+    # bounty_hunters_guild rank 1 is "Journeyman" (tracking fob).
+    "republic":             ["dc15_blaster_rifle", "republic_light_armor"],
+    "cis":                  ["blaster_pistol", "civilian_gear"],
+    "jedi_order":           ["jedi_robes"],
+    "hutt_cartel":          ["heavy_blaster_pistol", "smuggler_vest"],
+    "bounty_hunters_guild": ["tracking_fob"],
 }
 
 # Imperial specialization equipment
@@ -163,6 +252,33 @@ IMPERIAL_SPEC_EQUIPMENT = {
     "tie_pilot":     ["flight_suit_imperial"],
     "naval_officer": ["officers_uniform", "datapad_imperial"],
     "intelligence":  ["civilian_cover", "slicing_kit"],
+}
+
+# ── B.1.b.2 (Apr 29 2026) — Republic specialization equipment ───────
+# Mirrors IMPERIAL_SPEC_EQUIPMENT shape per the Apr 29 design lock-in:
+# four Republic specs analogous to the four Imperial ones. Issued by
+# `complete_republic_specialization` after a Republic PC selects via
+# the `specialize <1-4>` command.
+#
+# Mapping rationale:
+#   clone_trooper        ↔ stormtrooper     (ground combat)
+#   clone_pilot          ↔ tie_pilot        (space combat)
+#   clone_officer        ↔ naval_officer    (command/support)
+#   republic_intelligence↔ intelligence     (stealth/slicing — gear reused)
+REPUBLIC_SPEC_EQUIPMENT = {
+    "clone_trooper":         ["dc15_blaster_rifle", "republic_light_armor"],
+    "clone_pilot":           ["flight_suit_republic"],
+    "clone_officer":         ["officers_uniform_republic", "datapad_republic"],
+    "republic_intelligence": ["civilian_cover", "slicing_kit"],
+}
+
+# Faction → spec table dispatch. Used by the generic
+# `prompt_specialization` / `complete_specialization` helpers and by
+# any future caller that needs to look up "what's the spec equipment
+# for this faction's spec key?" without hardcoding the faction code.
+SPEC_EQUIPMENT_BY_FACTION = {
+    "empire":   IMPERIAL_SPEC_EQUIPMENT,
+    "republic": REPUBLIC_SPEC_EQUIPMENT,
 }
 
 
@@ -290,60 +406,140 @@ async def reclaim_equipment(char: dict, org_code: str, db,
     return count
 
 
-# ── Imperial specialization ───────────────────────────────────────────────────
+# ── Faction specialization (Imperial / Republic) ──────────────────────────────
 
-async def prompt_imperial_specialization(char: dict, db, session) -> bool:
+# Per-faction config for the specialization prompt: header label,
+# choice index → spec_key, and per-spec display label.
+#
+# This config drives the generic `prompt_specialization` and
+# `complete_specialization` helpers below. The legacy
+# `prompt_imperial_specialization` / `complete_imperial_specialization`
+# functions are kept as thin shims for byte-equivalence with any
+# external caller that imports them by name (notably
+# `parser/faction_commands.py::SpecializeCommand`).
+_SPEC_CONFIG_BY_FACTION = {
+    "empire": {
+        "header_color": "\033[1;34m",
+        "header_label": "[IMPERIAL ONBOARDING]",
+        "menu_lines": [
+            "  \033[1;33m1\033[0m  Stormtrooper    — Ground combat. E-11 rifle, armor.",
+            "  \033[1;33m2\033[0m  TIE Pilot       — Space combat. Flight suit, TIE assignment at rank 4.",
+            "  \033[1;33m3\033[0m  Naval Officer   — Command/support. Uniform, datapad, crew bonuses.",
+            "  \033[1;33m4\033[0m  Intelligence    — Stealth/slicing. Civilian cover, slicing kit.",
+        ],
+        "spec_map": {
+            1: "stormtrooper",
+            2: "tie_pilot",
+            3: "naval_officer",
+            4: "intelligence",
+        },
+        "spec_labels": {
+            "stormtrooper":  "Stormtrooper",
+            "tie_pilot":     "TIE Pilot",
+            "naval_officer": "Naval Officer",
+            "intelligence":  "Intelligence Agent",
+        },
+    },
+    # ── B.1.b.2 (Apr 29 2026) — Republic specialization config ───────
+    # Mirrors the Imperial four-choice prompt with CW-flavored copy.
+    # Republic blue header instead of Imperial blue (same color code
+    # since both are state authorities).
+    "republic": {
+        "header_color": "\033[1;34m",
+        "header_label": "[REPUBLIC ONBOARDING]",
+        "menu_lines": [
+            "  \033[1;33m1\033[0m  Clone Trooper        — Ground combat. DC-15A rifle, combat plate.",
+            "  \033[1;33m2\033[0m  Clone Pilot          — Space combat. Republic flight suit.",
+            "  \033[1;33m3\033[0m  Clone Officer        — Command/support. Officer's uniform, datapad.",
+            "  \033[1;33m4\033[0m  Republic Intelligence — Stealth/slicing. Civilian cover, slicing kit.",
+        ],
+        "spec_map": {
+            1: "clone_trooper",
+            2: "clone_pilot",
+            3: "clone_officer",
+            4: "republic_intelligence",
+        },
+        "spec_labels": {
+            "clone_trooper":         "Clone Trooper",
+            "clone_pilot":           "Clone Pilot",
+            "clone_officer":         "Clone Officer",
+            "republic_intelligence": "Republic Intelligence Agent",
+        },
+    },
+}
+
+
+def faction_has_specialization(faction_code: str) -> bool:
+    """True iff this faction has a specialization-prompt flow on join.
+
+    Used by `join_faction` to decide whether to fire a prompt after
+    rank-0 equipment issuance, and by `SpecializeCommand` to gate
+    the `specialize` parser command.
     """
-    Present Imperial specialization choice to a newly-joined Imperial character.
-    Stores selection in attributes and issues spec equipment.
-    Returns True if selection was made.
+    return faction_code in _SPEC_CONFIG_BY_FACTION
+
+
+def get_specialization_config(faction_code: str) -> dict | None:
+    """Return the spec config for a faction, or None if not configured."""
+    return _SPEC_CONFIG_BY_FACTION.get(faction_code)
+
+
+async def prompt_specialization(char: dict, db, session,
+                                faction_code: str) -> bool:
+    """Generic specialization prompt for any faction with a spec config.
+
+    Sends the per-faction onboarding menu to the player's session, sets
+    `attributes.faction.specialization_pending = True`, and persists.
+    Returns True if the prompt was sent.
+
+    Falls through to False (no prompt) for factions without a spec
+    config — safe to call unconditionally from `join_faction`.
     """
     if not session:
         return False
-
+    cfg = _SPEC_CONFIG_BY_FACTION.get(faction_code)
+    if not cfg:
+        return False
     try:
-        await session.send_line(
-            "\n  \033[1;34m[IMPERIAL ONBOARDING]\033[0m "
-            "Select your specialization:\n"
-            "  \033[1;33m1\033[0m  Stormtrooper    — Ground combat. E-11 rifle, armor.\n"
-            "  \033[1;33m2\033[0m  TIE Pilot       — Space combat. Flight suit, TIE assignment at rank 4.\n"
-            "  \033[1;33m3\033[0m  Naval Officer   — Command/support. Uniform, datapad, crew bonuses.\n"
-            "  \033[1;33m4\033[0m  Intelligence    — Stealth/slicing. Civilian cover, slicing kit.\n"
-            "\n  Type \033[1;33mspecialize <number>\033[0m to select."
-        )
-        # Specialization is completed via the SpecializeCommand below.
-        # Store a pending flag so SpecializeCommand knows to fire equipment.
+        header = f"\n  {cfg['header_color']}{cfg['header_label']}\033[0m " \
+                 f"Select your specialization:"
+        menu = "\n".join(cfg["menu_lines"])
+        footer = "\n  Type \033[1;33mspecialize <number>\033[0m to select."
+        await session.send_line(f"{header}\n{menu}{footer}")
+
         a = _get_attrs(char)
         a.setdefault("faction", {})["specialization_pending"] = True
         _set_attrs(char, a)
         await db.save_character(char["id"], attributes=char.get("attributes", "{}"))
         return True
     except Exception as e:
-        log.exception("[orgs] specialization prompt failed: %s", e)
+        log.exception("[orgs] %s specialization prompt failed: %s",
+                      faction_code, e)
         return False
 
 
-async def complete_imperial_specialization(char: dict, db,
-                                            choice: int, session=None) -> tuple:
-    """
-    Process specialization choice (1-4). Issues equipment, stores in attributes.
+async def complete_specialization(char: dict, db, choice: int,
+                                   faction_code: str,
+                                   session=None) -> tuple:
+    """Generic specialization completion for any faction with a spec config.
+
+    Looks up the per-faction spec_map and equipment table, stores the
+    selection in attributes + org membership, and issues the spec gear.
     Returns (success, message).
+
+    Returns (False, message) for invalid choice, no-pending-spec, or
+    unconfigured faction.
     """
-    spec_map = {
-        1: "stormtrooper",
-        2: "tie_pilot",
-        3: "naval_officer",
-        4: "intelligence",
-    }
-    spec_labels = {
-        "stormtrooper":  "Stormtrooper",
-        "tie_pilot":     "TIE Pilot",
-        "naval_officer": "Naval Officer",
-        "intelligence":  "Intelligence Agent",
-    }
+    cfg = _SPEC_CONFIG_BY_FACTION.get(faction_code)
+    if not cfg:
+        return False, f"Faction {faction_code!r} has no specialization."
+
+    spec_map = cfg["spec_map"]
+    spec_labels = cfg["spec_labels"]
 
     if choice not in spec_map:
-        return False, "Invalid choice. Enter 1, 2, 3, or 4."
+        valid = "/".join(str(k) for k in sorted(spec_map.keys()))
+        return False, f"Invalid choice. Enter {valid}."
 
     a = _get_attrs(char)
     if not a.get("faction", {}).get("specialization_pending"):
@@ -355,15 +551,16 @@ async def complete_imperial_specialization(char: dict, db,
     _set_attrs(char, a)
     await db.save_character(char["id"], attributes=char.get("attributes", "{}"))
 
-    # Also update the org_membership specialization field
-    org = await db.get_organization("empire")
+    # Update the org_membership specialization field
+    org = await db.get_organization(faction_code)
     if org:
         await db.update_membership(char["id"], org["id"],
                                    specialization=spec_key)
 
-    # Issue spec equipment
-    spec_items = IMPERIAL_SPEC_EQUIPMENT.get(spec_key, [])
-    await issue_equipment(char, "empire", db, spec_items, session=session)
+    # Issue spec equipment via the per-faction dispatch table
+    spec_table = SPEC_EQUIPMENT_BY_FACTION.get(faction_code, {})
+    spec_items = spec_table.get(spec_key, [])
+    await issue_equipment(char, faction_code, db, spec_items, session=session)
 
     label = spec_labels.get(spec_key, spec_key.title())
     return True, (
@@ -372,15 +569,105 @@ async def complete_imperial_specialization(char: dict, db,
     )
 
 
+# ── Imperial specialization (legacy named API — preserved for callers) ────────
+# These two functions are now thin shims over the generic helpers above.
+# Their signatures and behavior on the Imperial path are byte-equivalent
+# to pre-B.1.b.2 — `parser/faction_commands.py::SpecializeCommand` and
+# any other caller that imports by name continues to work unchanged.
+
+async def prompt_imperial_specialization(char: dict, db, session) -> bool:
+    """
+    Present Imperial specialization choice to a newly-joined Imperial character.
+    Stores selection in attributes and issues spec equipment.
+    Returns True if selection was made.
+
+    (Thin shim; delegates to `prompt_specialization(..., "empire")`.)
+    """
+    return await prompt_specialization(char, db, session, "empire")
+
+
+async def complete_imperial_specialization(char: dict, db,
+                                            choice: int, session=None) -> tuple:
+    """
+    Process specialization choice (1-4). Issues equipment, stores in attributes.
+    Returns (success, message).
+
+    (Thin shim; delegates to `complete_specialization(..., "empire", ...)`.)
+    """
+    return await complete_specialization(char, db, choice,
+                                          faction_code="empire",
+                                          session=session)
+
+
+# ── B.1.b.2 (Apr 29 2026) — Republic specialization (named API) ───────────────
+# Symmetric named functions for the Republic faction. New callers can
+# either import these by name or use the generic helpers above with
+# `faction_code="republic"`. Both paths land in the same generic
+# implementation.
+
+async def prompt_republic_specialization(char: dict, db, session) -> bool:
+    """
+    Present Republic specialization choice to a newly-joined Republic character.
+    Stores selection in attributes and issues spec equipment.
+    Returns True if selection was made.
+
+    (Thin shim; delegates to `prompt_specialization(..., "republic")`.)
+    """
+    return await prompt_specialization(char, db, session, "republic")
+
+
+async def complete_republic_specialization(char: dict, db,
+                                            choice: int, session=None) -> tuple:
+    """
+    Process Republic specialization choice (1-4). Issues equipment,
+    stores in attributes. Returns (success, message).
+
+    (Thin shim; delegates to `complete_specialization(..., "republic", ...)`.)
+    """
+    return await complete_specialization(char, db, choice,
+                                          faction_code="republic",
+                                          session=session)
+
+
 # ── Seed loader ───────────────────────────────────────────────────────────────
 
-async def seed_organizations(db) -> None:
-    """Load organizations.yaml into DB. Safe to call multiple times."""
+async def seed_organizations(db, era: str | None = None) -> None:
+    """Load organizations.yaml into DB. Safe to call multiple times.
+
+    Args:
+        db: Database handle.
+        era: Optional era code. If None, resolves from
+             `engine.era_state.get_active_era()` (defaults to "gcw" when
+             no Config is registered).
+
+    Path resolution:
+        - era="gcw"  -> data/organizations.yaml (legacy top-level path,
+                       byte-equivalent to pre-B.4 production)
+        - other      -> data/worlds/<era>/organizations.yaml
+
+    B.4 (Apr 28 2026): added `era` kwarg + per-era path resolution. Before
+    this change, seed_organizations ignored era entirely and always read
+    `data/organizations.yaml` (GCW). When the F.6a.6 dev flag flipped era
+    to clone_wars, this seeded GCW orgs into a CW DB, which is what made
+    `+faction` crash and Tatooine look unchanged.
+    """
     import yaml
-    data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-    yaml_path = os.path.join(data_dir, "organizations.yaml")
+    if era is None:
+        from engine.era_state import get_active_era
+        era = get_active_era()
+
+    project_root = os.path.dirname(os.path.dirname(__file__))
+    if era == "gcw":
+        # Legacy GCW path. Top-level data/organizations.yaml IS the GCW
+        # source of truth — there is no data/worlds/gcw/organizations.yaml.
+        yaml_path = os.path.join(project_root, "data", "organizations.yaml")
+    else:
+        yaml_path = os.path.join(project_root, "data", "worlds", era,
+                                 "organizations.yaml")
+
     if not os.path.exists(yaml_path):
-        log.warning("[orgs] organizations.yaml not found — skipping seed")
+        log.warning("[orgs] organizations.yaml not found at %s — skipping seed (era=%s)",
+                    yaml_path, era)
         return
 
     with open(yaml_path, encoding="utf-8") as f:
@@ -417,7 +704,7 @@ async def seed_organizations(db) -> None:
             properties=json.dumps(props),
         )
 
-    log.info("[orgs] Organizations seeded from YAML")
+    log.info("[orgs] Organizations seeded from %s (era=%s)", yaml_path, era)
 
 
 # ── Join / leave ─────────────────────────────────────────────────────────────
@@ -506,9 +793,12 @@ async def join_faction(char: dict, faction_code: str, db,
     rank0_items = RANK_0_EQUIPMENT.get(faction_code, [])
     await issue_equipment(char, faction_code, db, rank0_items, session=session)
 
-    # Imperial specialization prompt
-    if faction_code == "empire":
-        await prompt_imperial_specialization(char, db, session)
+    # Specialization prompt — fires for any faction with a spec config.
+    # Currently: "empire" (legacy) and "republic" (B.1.b.2). The generic
+    # `prompt_specialization` is a no-op for factions without a config,
+    # so this call is safe regardless of faction.
+    if faction_has_specialization(faction_code):
+        await prompt_specialization(char, db, session, faction_code)
 
     # Clear any stored faction_intent
     a2 = _get_attrs(char)
@@ -588,6 +878,254 @@ async def leave_faction(char: dict, db, session=None) -> tuple[bool, str]:
         f"You have left {org['name'] if org else 'the faction'}. "
         "You are now \033[2mIndependent\033[0m."
     )
+
+
+# ── B.5: Organization-axis legacy rewicker (Apr 29 2026) ──────────────────────
+#
+# Per architecture v38 §19.7 (B.5: PC `faction_intent` migration). Brian's
+# decision: auto-rewicker on login, with a clear in-game notification.
+#
+# When a PC's stored `faction_id` (canonical column) or
+# `attributes.faction_intent` (tutorial-stored intent) references a faction
+# code from a prior era's organizations.yaml that doesn't exist in the
+# currently-seeded DB, we translate the legacy code to its current-era
+# equivalent using the `legacy_rewicker.factions` map at the top of
+# `data/worlds/<era>/organizations.yaml`.
+#
+# This is a SEPARATE namespace from the director-axis rewicker in
+# `data/worlds/<era>/director_config.yaml::rewicker.faction_codes`. The
+# director rewicker maps director-axis codes (imperial/rebel/criminal/
+# independent) used by zone-tone calculations; this one maps organization
+# codes (empire/rebel/hutt/bh_guild) used by chargen, faction membership,
+# and faction_intent. The two namespaces happened to share `rebel` and
+# `independent` but are otherwise distinct — keeping them separate
+# prevents zone-tone changes from accidentally rewickering org codes.
+
+
+async def get_org_rewicker_map(db, era: str | None = None) -> dict:
+    """
+    Load the organization-axis legacy rewicker map for the active era.
+
+    Returns a dict mapping legacy faction codes -> current era codes.
+    For GCW (or any era without a `legacy_rewicker` section in its
+    organizations.yaml), returns an empty dict (no-op semantics).
+
+    Never raises. On any I/O or parse error, logs a warning and returns
+    an empty dict so the caller can proceed safely.
+    """
+    if era is None:
+        from engine.era_state import get_active_era
+        era = get_active_era()
+
+    # GCW has no rewicker — it IS the legacy era. Returning {} means
+    # apply_org_rewicker becomes a no-op when era="gcw", preserving
+    # byte-equivalence for production.
+    if era == "gcw":
+        return {}
+
+    try:
+        import yaml
+        project_root = os.path.dirname(os.path.dirname(__file__))
+        yaml_path = os.path.join(project_root, "data", "worlds", era,
+                                 "organizations.yaml")
+        if not os.path.exists(yaml_path):
+            return {}
+        with open(yaml_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        rewicker = data.get("legacy_rewicker", {}) or {}
+        factions = rewicker.get("factions", {}) or {}
+        # Sanity: must be a flat str->str map.
+        if not isinstance(factions, dict):
+            log.warning(
+                "[orgs] legacy_rewicker.factions for era=%s is not a dict "
+                "(got %s); ignoring.",
+                era, type(factions).__name__,
+            )
+            return {}
+        return {str(k): str(v) for k, v in factions.items()}
+    except Exception as e:
+        log.warning("[orgs] get_org_rewicker_map(era=%s) failed: %s",
+                    era, e)
+        return {}
+
+
+async def apply_org_rewicker(char: dict, db, era: str | None = None,
+                              session=None) -> dict:
+    """
+    Migrate a character's stored faction codes from a prior era to the
+    current era. Called on login.
+
+    Resolution order:
+      1. If `char.faction_id` is set, non-`independent`, and DOES NOT
+         exist in the current DB BUT DOES have a rewicker target, swap
+         it (and persist via db.save_character).
+      2. If `attributes.faction_intent` is set and DOES NOT exist in
+         the current DB BUT DOES have a rewicker target, swap it (and
+         persist).
+      3. Else no-op.
+
+    Returns a summary dict:
+      {
+        "migrated": bool,
+        "faction_id_before": str | None,
+        "faction_id_after": str | None,
+        "intent_before": str | None,
+        "intent_after": str | None,
+        "era": str,
+      }
+
+    `migrated=True` when at least one of faction_id / faction_intent
+    was rewickered. Caller may use this to display a notification.
+
+    Graceful-drop: never raises. On any DB error, logs a warning and
+    returns `{"migrated": False, ...}`.
+
+    INVARIANTS:
+      - Never rewickers an already-current code (e.g., `republic` in CW
+        DB stays `republic`).
+      - Never rewickers a code that has no rewicker target (e.g., a
+        random unknown code like `'nonexistent'` is left as-is to
+        surface via B.6's stale-record advisory).
+      - Never crosses the GCW→GCW or CW→CW boundary (the rewicker map
+        is empty on GCW, so no-op there).
+      - The migration is a single atomic update via save_character;
+        if it fails mid-way, the rewicker_map's empty fallback keeps
+        the character in a consistent state.
+    """
+    summary = {
+        "migrated": False,
+        "faction_id_before": None,
+        "faction_id_after": None,
+        "intent_before": None,
+        "intent_after": None,
+        "era": era,
+    }
+
+    try:
+        if era is None:
+            from engine.era_state import get_active_era
+            era = get_active_era()
+            summary["era"] = era
+
+        rewicker_map = await get_org_rewicker_map(db, era=era)
+        if not rewicker_map:
+            return summary  # No-op for GCW or eras without a map
+
+        migrated_anything = False
+
+        # ── Step 1: faction_id ───────────────────────────────────────
+        fid = char.get("faction_id") or "independent"
+        summary["faction_id_before"] = fid
+
+        if fid and fid != "independent":
+            current_org = await db.get_organization(fid)
+            if not current_org and fid in rewicker_map:
+                target = rewicker_map[fid]
+                if target == fid:
+                    # Identity passthrough (e.g., "independent": "independent");
+                    # don't count as a migration.
+                    summary["faction_id_after"] = fid
+                else:
+                    # Verify the target exists in this era's DB before
+                    # rewickering. If not (e.g., misconfigured map), leave
+                    # the stale code for B.6 to surface.
+                    target_org = await db.get_organization(target)
+                    if target_org:
+                        char["faction_id"] = target
+                        await db.save_character(char["id"], faction_id=target)
+                        summary["faction_id_after"] = target
+                        migrated_anything = True
+                        log.info(
+                            "[orgs] B.5 rewicker: char %s faction_id "
+                            "%r -> %r (era=%s)",
+                            char.get("id"), fid, target, era,
+                        )
+                    else:
+                        # Map points at a non-existent target; leave as-is.
+                        summary["faction_id_after"] = fid
+                        log.warning(
+                            "[orgs] B.5 rewicker: target %r for legacy "
+                            "%r not in DB (era=%s); leaving stale.",
+                            target, fid, era,
+                        )
+            else:
+                summary["faction_id_after"] = fid
+        else:
+            summary["faction_id_after"] = fid
+
+        # ── Step 2: faction_intent ───────────────────────────────────
+        a = _get_attrs(char)
+        intent = a.get("faction_intent")
+        summary["intent_before"] = intent
+
+        if intent:
+            intent_org = await db.get_organization(intent)
+            if not intent_org and intent in rewicker_map:
+                target = rewicker_map[intent]
+                if target == intent:
+                    summary["intent_after"] = intent
+                else:
+                    target_org = await db.get_organization(target)
+                    if target_org:
+                        a["faction_intent"] = target
+                        _set_attrs(char, a)
+                        await db.save_character(
+                            char["id"],
+                            attributes=char.get("attributes", "{}"),
+                        )
+                        summary["intent_after"] = target
+                        migrated_anything = True
+                        log.info(
+                            "[orgs] B.5 rewicker: char %s faction_intent "
+                            "%r -> %r (era=%s)",
+                            char.get("id"), intent, target, era,
+                        )
+                    else:
+                        summary["intent_after"] = intent
+            else:
+                summary["intent_after"] = intent
+        else:
+            summary["intent_after"] = intent
+
+        summary["migrated"] = migrated_anything
+
+        # ── Notification ────────────────────────────────────────────
+        if migrated_anything and session:
+            try:
+                lines = [
+                    "",
+                    "  \033[1;35m[FACTION RECORD UPDATED]\033[0m",
+                    "  \033[2mYour faction record was carried over from a prior",
+                    "  era and has been translated to its current equivalent.\033[0m",
+                ]
+                if summary["faction_id_before"] != summary["faction_id_after"]:
+                    lines.append(
+                        f"    Membership: \033[2m{summary['faction_id_before']}"
+                        f"\033[0m -> "
+                        f"\033[1;37m{summary['faction_id_after']}\033[0m"
+                    )
+                if (summary["intent_before"]
+                        and summary["intent_before"] != summary["intent_after"]):
+                    lines.append(
+                        f"    Intent:     \033[2m{summary['intent_before']}"
+                        f"\033[0m -> "
+                        f"\033[1;37m{summary['intent_after']}\033[0m"
+                    )
+                lines.append(
+                    "  \033[2mUse 'faction' to view your current standing.\033[0m"
+                )
+                for line in lines:
+                    await session.send_line(line)
+            except Exception:
+                # Notification is best-effort; never block on send_line failures.
+                log.debug("[orgs] B.5 rewicker notification failed",
+                          exc_info=True)
+
+        return summary
+
+    except Exception as e:
+        log.exception("[orgs] apply_org_rewicker failed: %s", e)
+        return summary
 
 
 # ── faction_intent migration ──────────────────────────────────────────────────
@@ -1121,7 +1659,8 @@ async def format_reputation_detail(char: dict, faction_code: str, db) -> str:
             rl = r.get("rank_level", 0)
             title = r.get("title", f"Rank {rl}")
             min_r = r.get("min_rep", 0)
-            equip = json.loads(r.get("equipment", "[]"))
+            equip = safe_json_loads(r.get("equipment"), default=[],
+                                     context=f"rank {rl} equipment")
             equip_str = ""
             if equip:
                 names = [EQUIPMENT_CATALOG.get(e, {}).get("name", e) for e in equip]
@@ -1160,6 +1699,31 @@ async def format_reputation_detail(char: dict, faction_code: str, db) -> str:
 
 
 # ── Status display ────────────────────────────────────────────────────────────
+
+async def is_faction_membership_stale(char: dict, db) -> bool:
+    """
+    B.6 (defensive): Return True if the character's `faction_id` references
+    a faction code that does NOT exist in the current DB (i.e., an orphan
+    membership left over from a prior era's organizations.yaml).
+
+    Returns False if:
+      - faction_id is missing, empty, or "independent" (no membership claimed)
+      - the org row exists in DB (membership is current)
+
+    Never raises. On any DB error, conservatively returns False (the safer
+    default — don't surface a "stale" advisory if we can't confirm).
+    """
+    try:
+        fid = char.get("faction_id") or "independent"
+        if not fid or fid == "independent":
+            return False
+        org = await db.get_organization(fid)
+        return org is None
+    except Exception:
+        log.warning("is_faction_membership_stale: unhandled exception",
+                    exc_info=True)
+        return False
+
 
 async def format_faction_status(char: dict, db) -> str:
     memberships = await db.get_memberships_for_char(char["id"])
@@ -1200,7 +1764,28 @@ async def format_faction_status(char: dict, db) -> str:
             log.warning("format_faction_status: unhandled exception", exc_info=True)
             pass
     else:
-        lines.append("  Faction:  \033[2mIndependent\033[0m")
+        # B.6 (defensive): A character may have `faction_id` set to a
+        # code that no longer exists in this DB (e.g., GCW PC logging
+        # into a CW-seeded DB, or any future faction-table migration).
+        # Surface a clear advisory rather than silently displaying
+        # "Independent" — the user otherwise has no way to know why
+        # `+faction join`/`leave` won't work as expected.
+        fid = char.get("faction_id") or "independent"
+        if fid and fid != "independent" and await is_faction_membership_stale(char, db):
+            lines.append(
+                f"  Faction:  \033[1;33m[stale record: '{fid}']\033[0m"
+            )
+            lines.append(
+                "  \033[2mYour faction record references a faction that no longer\033[0m"
+            )
+            lines.append(
+                "  \033[2mexists in this universe. Use 'faction list' to see your\033[0m"
+            )
+            lines.append(
+                "  \033[2moptions and 'faction join <code>' to refresh.\033[0m"
+            )
+        else:
+            lines.append("  Faction:  \033[2mIndependent\033[0m")
 
     guilds = [m for m in memberships if m.get("org_type") == "guild"]
     lines.append("\033[1;36m------------------------------------------\033[0m")
@@ -1470,11 +2055,25 @@ async def get_all_faction_reps(char: dict, db) -> dict:
     """
     Return a dict of {faction_code: {rep, tier_key, tier_name, rank, rank_level, is_member}}
     for all known factions.
+
+    B.6 (defensive): faction codes are now derived from the DB
+    (`db.get_all_organizations()` filtered to org_type=='faction') rather
+    than hardcoded as `["empire", "rebel", "hutt", "bh_guild"]`. This
+    makes the function era-clean: in a CW DB it returns republic/cis/
+    jedi_order/etc.; in a GCW DB it returns empire/rebel/hutt/bh_guild
+    (byte-equivalent to the prior list because those are exactly the
+    non-`independent` factions in `data/organizations.yaml`).
     """
-    FACTIONS = ["empire", "rebel", "hutt", "bh_guild"]
     result = {}
     try:
-        for fc in FACTIONS:
+        all_orgs = await db.get_all_organizations()
+        # Filter to faction-type orgs, exclude 'independent' (it's a
+        # null faction, not something a player has rep with).
+        factions = [
+            o["code"] for o in (all_orgs or [])
+            if o.get("org_type") == "faction" and o.get("code") != "independent"
+        ]
+        for fc in factions:
             org = await db.get_organization(fc)
             if not org:
                 continue

@@ -28,11 +28,104 @@ import yaml
 log = logging.getLogger(__name__)
 
 
+# Tuple shape produced by every loader path:
+#   (name, room_idx, species, description, char_sheet_dict, ai_config_dict)
+# room_idx is a yaml_id from the world bundle.
+NpcTuple = tuple[str, int, str, str, dict, dict]
+
+
+def load_era_npcs(
+    era_dir: str,
+    room_name_map: dict[str, int],
+    *,
+    fallback_room_idx: int = 8,
+) -> tuple[list[NpcTuple], list[NpcTuple]]:
+    """
+    Load era-keyed NPCs per `era.yaml::content_refs.npcs` and `npcs_hireable`.
+
+    Reads <era_dir>/era.yaml and dispatches to load_npcs_from_yaml() for each
+    file referenced. Paths in era.yaml may be era-relative (`npcs_planet.yaml`)
+    or repo-root-relative-via-`../../` (`../../npcs_gg7.yaml`).
+
+    Returns:
+        (planet_npcs, hireable_npcs) — two lists of NpcTuple.
+
+    Both lists may be empty if the era.yaml has no NPC content_refs (this is
+    the current state for any era that hasn't been migrated to F.1a YAML).
+    Callers should accept that and fall back to whatever literal definition
+    they still have, but new code paths should not depend on literals.
+
+    Replacement semantics: any file containing entries with a `replaces:`
+    field will skip the entry in the loaded base, and substitute the
+    replacement entry in its place. This matches the design in
+    data/worlds/clone_wars/npcs_cw_replacements.yaml. The suppression set is
+    built from `replaces:` values across ALL files in the npcs list.
+    """
+    era_yaml_path = os.path.join(era_dir, "era.yaml")
+    if not os.path.exists(era_yaml_path):
+        log.warning("era.yaml not found at %s", era_yaml_path)
+        return [], []
+
+    with open(era_yaml_path, "r", encoding="utf-8") as f:
+        era = yaml.safe_load(f) or {}
+
+    refs = (era.get("content_refs") or {})
+    planet_files = refs.get("npcs") or []
+    hireable_file = refs.get("npcs_hireable")
+
+    if isinstance(planet_files, str):
+        planet_files = [planet_files]
+
+    # First pass: collect suppression set (names appearing in `replaces:`)
+    suppress: set[str] = set()
+    for rel_path in planet_files:
+        full = _resolve(era_dir, rel_path)
+        if not os.path.exists(full):
+            continue
+        with open(full, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        for entry in (data.get("npcs") or []):
+            replaces = entry.get("replaces")
+            if replaces:
+                suppress.add(replaces)
+
+    # Second pass: load each file, applying suppression to base entries
+    planet: list[NpcTuple] = []
+    for rel_path in planet_files:
+        full = _resolve(era_dir, rel_path)
+        loaded = load_npcs_from_yaml(
+            full, room_name_map,
+            fallback_room_idx=fallback_room_idx,
+            suppress_names=suppress,
+        )
+        planet.extend(loaded)
+
+    hireable: list[NpcTuple] = []
+    if hireable_file:
+        full = _resolve(era_dir, hireable_file)
+        hireable = load_npcs_from_yaml(
+            full, room_name_map,
+            fallback_room_idx=fallback_room_idx,
+        )
+
+    log.info(
+        "Era NPC load (%s): %d planet, %d hireable, %d suppressed",
+        era_dir, len(planet), len(hireable), len(suppress),
+    )
+    return planet, hireable
+
+
+def _resolve(era_dir: str, rel: str) -> str:
+    """Resolve a path from era.yaml — supports era-relative and ../../ forms."""
+    return os.path.normpath(os.path.join(era_dir, rel))
+
+
 def load_npcs_from_yaml(
     path: str,
     room_name_map: dict[str, int],
     *,
     fallback_room_idx: int = 8,
+    suppress_names: Optional[set] = None,
 ) -> list[tuple[str, int, str, str, dict, dict]]:
     """
     Load NPC definitions from a YAML file.
@@ -44,6 +137,10 @@ def load_npcs_from_yaml(
         fallback_room_idx: Room index to use if an NPC's room name doesn't
                            match any key in room_name_map. Defaults to 8
                            (Market Row — central, safe fallback).
+        suppress_names: Optional set of NPC names to skip when encountered as
+                        base entries (i.e. entries WITHOUT a `replaces:` field).
+                        Used by load_era_npcs() to implement the era-replacement
+                        protocol from data/worlds/clone_wars/npcs_cw_replacements.yaml.
 
     Returns:
         List of (name, room_idx, species, description, char_sheet, ai_config)
@@ -62,9 +159,17 @@ def load_npcs_from_yaml(
 
     results = []
     skipped = 0
+    suppressed_count = 0
 
     for entry in data["npcs"]:
         try:
+            name = (entry.get("name") or "").strip()
+            replaces = entry.get("replaces")
+            # If this entry has no replaces: field but its name is in the
+            # suppress set, skip — a replacement file elsewhere has claimed it.
+            if not replaces and suppress_names and name in suppress_names:
+                suppressed_count += 1
+                continue
             npc_tuple = _convert_entry(entry, room_name_map, fallback_room_idx)
             if npc_tuple:
                 results.append(npc_tuple)
@@ -75,6 +180,8 @@ def load_npcs_from_yaml(
 
     if skipped:
         log.warning("Skipped %d NPC(s) due to errors", skipped)
+    if suppressed_count:
+        log.info("Suppressed %d NPC(s) in %s due to era replacement", suppressed_count, path)
 
     log.info("Loaded %d NPCs from %s", len(results), path)
     return results
@@ -188,6 +295,18 @@ def _build_ai_config(ai: dict, name: str) -> dict:
         "temperature": ai.get("temperature", 0.7),
         "max_tokens": ai.get("max_tokens", 120),
     }
+
+    # Pass-through fields that the _ai() helper in build_mos_eisley.py emits
+    # but the basic schema above doesn't whitelist:
+    #   - skills (space-combat skills used by NPC ship crews)
+    #   - trainer + train_skills (skill-training NPCs in cantinas/wastes)
+    # These were silently dropped before F.1a; preserved now so the
+    # YAML-driven NPCs match the literal-defined ones.
+    if ai.get("skills"):
+        config["skills"] = dict(ai["skills"])
+    if ai.get("trainer"):
+        config["trainer"] = True
+        config["train_skills"] = list(ai.get("train_skills") or [])
 
     # If no fallback lines, generate generic ones
     if not config["fallback_lines"]:

@@ -991,6 +991,64 @@ _BH_GUILD_OBJECTIVES: dict[MissionType, list[str]] = {
 }
 
 
+# ── B.1.e (Apr 29 2026) — CW archetype objective templates ────────────────────
+# Per Brian's Apr 29 directive ("generic is fine"), CW factions reuse two
+# archetype templates plus the existing `_HUTT_OBJECTIVES` / `_BH_GUILD_OBJECTIVES`
+# rather than authoring custom objectives per faction. Mission flavor is
+# era-correct (Republic vs Separatist instead of Empire vs Rebel) but the
+# narrative shape is the same across the lawful / insurgent / criminal /
+# guild archetypes.
+#
+# Mapping:
+#   republic    -> _CW_LAWFUL_OBJECTIVES     (lawful state authority)
+#   jedi_order  -> _CW_LAWFUL_OBJECTIVES     (Jedi serve the Republic)
+#   cis         -> _CW_INSURGENT_OBJECTIVES  (insurgent challenger)
+#   hutt_cartel -> _HUTT_OBJECTIVES          (same archetype as GCW Hutt)
+#   bounty_hunters_guild -> _BH_GUILD_OBJECTIVES  (same archetype as GCW bh_guild)
+
+_CW_LAWFUL_OBJECTIVES: dict[MissionType, list[str]] = {
+    MissionType.COMBAT: [
+        "Suppress the Separatist cell operating out of {dest}.",
+        "Eliminate the droid commando squad that has fortified {dest}.",
+        "Neutralize the Separatist sympathizers harassing Republic patrols near {dest}.",
+        "Storm the CIS safehouse at {dest} and clear it room by room.",
+    ],
+    MissionType.INVESTIGATION: [
+        "Identify the Separatist agents operating out of {dest}.",
+        "Track the leak that compromised our patrol schedule near {dest}.",
+        "Investigate Republic deserters last seen at {dest}.",
+        "Find out who is funding Separatist activity near {dest}.",
+    ],
+    MissionType.DELIVERY: [
+        "Transport classified Republic orders to the garrison at {dest}.",
+        "Deliver requisitioned supplies to the Republic outpost at {dest}.",
+        "Carry sealed orders from Coruscant Command to the officer at {dest}.",
+        "Run encrypted communiqu\u00e9s to the listening post at {dest}.",
+    ],
+}
+
+_CW_INSURGENT_OBJECTIVES: dict[MissionType, list[str]] = {
+    MissionType.COMBAT: [
+        "Sabotage the Republic supply convoy staging at {dest}.",
+        "Liberate the prisoners held in the Republic detention block at {dest}.",
+        "Disrupt the Republic garrison's morning briefing at {dest}.",
+        "Strike the Republic fuel depot near {dest} and disappear.",
+    ],
+    MissionType.INVESTIGATION: [
+        "Confirm rumours of a Republic defector operating near {dest}.",
+        "Map the patrol patterns the GAR is running through {dest}.",
+        "Identify the informant feeding the Republic intel from {dest}.",
+        "Investigate suspicious Republic activity around {dest}.",
+    ],
+    MissionType.SMUGGLING: [
+        "Move medical supplies past the Republic cordon to the cell at {dest}.",
+        "Smuggle a courier with intel to the safehouse at {dest}.",
+        "Run weapons past patrols to the Separatist contact at {dest}.",
+        "Carry refugees on a quiet route to the rendezvous at {dest}.",
+    ],
+}
+
+
 # ── FACTION_MISSION_CONFIG ──────────────────────────────────────────────────
 # Test invariants (test_session49_faction_missions.py::TestFactionMissionConfigShape):
 #   - keys: empire, rebel, hutt, bh_guild   (architecture doc v29 §6.5)
@@ -1054,6 +1112,97 @@ FACTION_MISSION_CONFIG: dict[str, dict] = {
         "rep_required": 20,
     },
     "bh_guild": {
+        "badge": "GUILD",
+        "givers": [
+            "A weathered Guild handler at the bounty desk",
+            "A Trandoshan with a long-running tally of marks",
+            "A clipped, professional Guild liaison",
+            "A scarred Guild veteran sliding contracts across the bar",
+        ],
+        "mission_types": [
+            MissionType.BOUNTY,
+            MissionType.COMBAT,
+            MissionType.INVESTIGATION,
+        ],
+        "objectives": _BH_GUILD_OBJECTIVES,
+        "reward_mult": 1.6,
+        "rep_required": 30,
+    },
+    # ── B.1.e (Apr 29 2026) — CW factions ─────────────────────────────
+    # Generic per-archetype templates per Brian's Apr 29 decision.
+    # republic + jedi_order share lawful-authority shape (mirrors empire);
+    # cis uses insurgent shape (mirrors rebel);
+    # hutt_cartel reuses _HUTT_OBJECTIVES; bounty_hunters_guild reuses
+    # _BH_GUILD_OBJECTIVES.
+    "republic": {
+        "badge": "REPUBLIC",
+        "givers": [
+            "A Republic recruiter in pressed officer's whites",
+            "A clone trooper sergeant with a busy datapad",
+            "A grim-faced Republic Intelligence officer",
+            "A logistics officer from the local Republic garrison",
+        ],
+        "mission_types": [
+            MissionType.COMBAT,
+            MissionType.INVESTIGATION,
+            MissionType.DELIVERY,
+        ],
+        "objectives": _CW_LAWFUL_OBJECTIVES,
+        "reward_mult": 1.5,
+        "rep_required": 25,
+    },
+    "cis": {
+        "badge": "CIS",
+        "givers": [
+            "A nervous Separatist agent who keeps glancing at the door",
+            "A scarred Separatist veteran with a stripped-down blaster",
+            "A Twi'lek courier in worn flight leathers",
+            "A Neimoidian quietly nursing a drink",
+        ],
+        "mission_types": [
+            MissionType.COMBAT,
+            MissionType.INVESTIGATION,
+            MissionType.SMUGGLING,
+        ],
+        "objectives": _CW_INSURGENT_OBJECTIVES,
+        "reward_mult": 1.5,
+        "rep_required": 25,
+    },
+    "jedi_order": {
+        "badge": "JEDI",
+        "givers": [
+            "A Jedi Knight in tan robes, hood drawn back",
+            "A Padawan running errands for their Master",
+            "A Temple liaison from Coruscant carrying sealed orders",
+            "A weary Jedi General between deployments",
+        ],
+        "mission_types": [
+            MissionType.COMBAT,
+            MissionType.INVESTIGATION,
+            MissionType.DELIVERY,
+        ],
+        "objectives": _CW_LAWFUL_OBJECTIVES,
+        "reward_mult": 1.5,
+        "rep_required": 25,
+    },
+    "hutt_cartel": {
+        "badge": "HUTT",
+        "givers": [
+            "A Hutt's smooth-tongued majordomo",
+            "A Niktoo enforcer with a lazy grin",
+            "A Twi'lek protocol attache from the kajidic",
+            "A bored Rodian fixer with a datapad",
+        ],
+        "mission_types": [
+            MissionType.SMUGGLING,
+            MissionType.BOUNTY,
+            MissionType.SOCIAL,
+        ],
+        "objectives": _HUTT_OBJECTIVES,
+        "reward_mult": 1.4,
+        "rep_required": 20,
+    },
+    "bounty_hunters_guild": {
         "badge": "GUILD",
         "givers": [
             "A weathered Guild handler at the bounty desk",

@@ -15,6 +15,7 @@ import logging
 import random
 import time
 
+from engine.json_safe import load_ship_systems
 from engine.starships import SpaceRange
 
 log = logging.getLogger(__name__)
@@ -329,7 +330,7 @@ async def mynock_evade(enc, mgr, db, sm, **kw):
         if enc.target_ship_id:
             ship = await db.get_ship(enc.target_ship_id)
             if ship:
-                sd = json.loads(dict(ship).get("systems") or "{}")
+                sd = load_ship_systems(ship)
                 sd["sensors"] = False
                 await db.update_ship(enc.target_ship_id, systems=json.dumps(sd))
         mgr.resolve(enc, outcome="mynock_attached")
@@ -346,7 +347,7 @@ async def mynock_timeout(enc, mgr, db, sm, **kw):
     if enc.target_ship_id:
         ship = await db.get_ship(enc.target_ship_id)
         if ship:
-            sd = json.loads(dict(ship).get("systems") or "{}")
+            sd = load_ship_systems(ship)
             sd["sensors"] = False
             await db.update_ship(enc.target_ship_id, systems=json.dumps(sd))
     mgr.resolve(enc, outcome="mynock_timeout")

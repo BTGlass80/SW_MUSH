@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 
+from engine.json_safe import safe_json_loads
 from parser.commands import BaseCommand, CommandContext
 from server import ansi
 
@@ -898,7 +899,10 @@ class AdminHousingCommand(BaseCommand):
             )
             for r in rows:
                 r = dict(r)
-                storage_count = len(json.loads(r.get("storage", "[]") or "[]"))
+                storage_count = len(safe_json_loads(
+                    r.get("storage"), default=[],
+                    context=f"housing {r.get('id')} storage",
+                ))
                 await ctx.session.send_line(
                     f"  [{r['id']}] {r['owner_name']:<20} "
                     f"Tier {r['tier']}  "

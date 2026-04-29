@@ -614,9 +614,16 @@ async def buy_from_droid(buyer: dict, droid_id: int,
     #
     # The seller's stored faction_id is normalized through this map so a
     # vendor whose owner sits under a long-form name still resolves to a
-    # canonical code. Documented codes (architecture v29 §6.5):
-    #   "empire", "rebel", "hutt", "bh_guild"
+    # canonical code. Codes (architecture v38 §6.5):
+    #   GCW: "empire", "rebel", "hutt", "bh_guild"
+    #   CW (B.1.a, Apr 29 2026): "republic", "cis", "jedi_order",
+    #                            "hutt_cartel", "bounty_hunters_guild"
+    #
+    # Note: "independent" is filtered out below by the
+    # `seller_faction_code != "independent"` guard, so it's not in this
+    # map (no shop modifier ever applies for an independent seller).
     _FACTION_NAME_MAP = {
+        # ── GCW ──
         "empire":               "empire",
         "imperial":             "empire",
         "galactic empire":      "empire",
@@ -629,6 +636,19 @@ async def buy_from_droid(buyer: dict, droid_id: int,
         "bh_guild":             "bh_guild",
         "bounty hunters guild": "bh_guild",
         "bounty hunters":       "bh_guild",
+        # ── CW (B.1.a) ──
+        "republic":             "republic",
+        "galactic republic":    "republic",
+        "cis":                  "cis",
+        "confederacy":          "cis",
+        "separatist":           "cis",
+        "separatists":          "cis",
+        "confederacy of independent systems": "cis",
+        "jedi":                 "jedi_order",
+        "jedi order":           "jedi_order",
+        "hutt_cartel":          "hutt_cartel",
+        "bounty_hunters_guild": "bounty_hunters_guild",
+        "bounty hunters' guild": "bounty_hunters_guild",
     }
     faction_msg = ""
     seller_faction_raw = ""

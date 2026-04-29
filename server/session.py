@@ -13,6 +13,8 @@ import logging
 import time
 from typing import Optional, TYPE_CHECKING
 
+from engine.json_safe import safe_json_loads
+
 if TYPE_CHECKING:
     from db.database import Database
 
@@ -511,8 +513,10 @@ class Session:
         """Add equipped weapon name to HUD from character equipment."""
         equip = self.character.get("equipment")
         if equip:
-            if isinstance(equip, str):
-                equip = json.loads(equip)
+            equip = safe_json_loads(
+                equip, default={},
+                context=f"char {self.character.get('id')} equipment",
+            )
             weapon_data = equip.get("weapon")
             if weapon_data and isinstance(weapon_data, dict):
                 hud["equipped_weapon"] = weapon_data.get("name", "")

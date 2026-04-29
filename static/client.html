@@ -2544,6 +2544,702 @@ a { color: inherit; text-decoration: none; }
   .map-modal-head { padding: 10px 12px; font-size: 10px; }
   .map-modal-legend { font-size: 9px; gap: 10px; }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   SHEET PANEL — slide-in character dashboard
+   Triggered by `+sheet` on WebSocket clients.  Themed automatically
+   via the existing :root / .app[data-mode] tokens, so the panel is
+   pad-amber on the ground and cock-cyan in space without any JS
+   theme work.  Slide-in from the right; ESC and backdrop dismiss.
+   Tabs (FULL / SKILLS / COMBAT / FORCE) filter the center column.
+   ════════════════════════════════════════════════════════════════════ */
+.sheet-panel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  background: rgba(2, 5, 8, 0.74);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease-out;
+}
+.sheet-panel-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sheet-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 960px;
+  max-width: 96vw;
+  z-index: 2101;
+  background: var(--screen);
+  border-left: 1px solid var(--accent);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5),
+              inset 0 0 60px rgba(0, 0, 0, 0.5);
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+.sheet-panel.show { transform: translateX(0); }
+
+/* Top bar: identity + points strip */
+.sheet-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  background: var(--shell-dark);
+  border-bottom: 1px solid var(--accent-dim);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.sheet-head .sh-label {
+  color: var(--accent-dim);
+  font-family: var(--font-display);
+  letter-spacing: 3px;
+  font-size: 10px;
+}
+.sheet-head .sh-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--accent-dim);
+  opacity: 0.5;
+}
+.sheet-head .sh-name {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent-bright);
+  letter-spacing: 1px;
+  text-transform: none;
+}
+.sheet-head .sh-sub {
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: none;
+}
+.sheet-head .sh-spacer { flex: 1; }
+.sheet-head .sh-chip {
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border: 1px solid var(--accent-dim);
+  color: var(--text);
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+.sheet-head .sh-chip.warn   { color: var(--accent);     border-color: var(--accent); }
+.sheet-head .sh-chip.hurt   { color: var(--cock-amber, #ffa640); border-color: var(--cock-amber, #ffa640); }
+.sheet-head .sh-chip.crit   { color: var(--warn);       border-color: var(--warn); }
+.sheet-head .sh-chip.dead   { color: #7a0000;           border-color: #7a0000; }
+.sheet-head .sh-stat {
+  text-align: right;
+  padding-left: 12px;
+  border-left: 1px solid var(--accent-dim);
+}
+.sheet-head .sh-stat-label {
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+}
+.sheet-head .sh-stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+.sheet-head .sh-stat-value.fp  { color: #6ea3ff; }
+.sheet-head .sh-stat-value.cp  { color: var(--self); }
+.sheet-head .sh-stat-value.dsp { color: var(--warn); }
+.sheet-head .sh-close {
+  background: transparent;
+  color: var(--accent-dim);
+  border: 1px solid var(--accent-dim);
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.sheet-head .sh-close:hover {
+  color: var(--accent-bright);
+  border-color: var(--accent);
+  background: rgba(255, 200, 87, 0.08);
+}
+.app[data-mode="space"] .sheet-head .sh-close:hover {
+  background: rgba(110, 232, 255, 0.08);
+}
+
+/* Tab strip below head */
+.sheet-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  background: var(--shell-dark);
+  border-bottom: 1px solid var(--accent-dim);
+}
+.sheet-tab {
+  padding: 10px 20px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: color 0.10s, border-color 0.10s;
+}
+.sheet-tab:hover { color: var(--text); }
+.sheet-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.sheet-tab.hidden { display: none; }
+
+/* Body grid: 230 vitals | flex content | 290 detail */
+.sheet-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 230px 1fr 290px;
+  min-height: 0;
+}
+
+.sheet-col {
+  overflow: auto;
+  padding: 14px;
+  min-height: 0;
+}
+.sheet-col + .sheet-col {
+  border-left: 1px solid var(--accent-dim);
+}
+.sheet-col.center { padding: 12px 0; }
+
+.sheet-section-label {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+/* Attribute rows in the left column */
+.sheet-attr {
+  margin-bottom: 10px;
+}
+.sheet-attr-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+  cursor: help;
+}
+.sheet-attr-row:hover .sheet-attr-name { color: var(--accent); }
+.sheet-attr-name { letter-spacing: 2px; }
+.sheet-attr-value {
+  color: var(--accent-bright);
+  font-family: var(--font-mono);
+}
+.sheet-attr-bar {
+  height: 6px;
+  background: var(--screen-dim);
+  border: 1px solid var(--accent-dim);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.sheet-attr-bar-fill {
+  height: 100%;
+  background: var(--accent);
+}
+.app[data-mode="space"] .sheet-attr-bar-fill {
+  box-shadow: 0 0 8px var(--accent);
+}
+
+/* Wound ladder */
+.sheet-wound-rung {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 6px;
+  font-size: 11px;
+  border-left: 2px solid transparent;
+  color: var(--text);
+}
+.sheet-wound-rung.past { color: var(--text-dim); }
+.sheet-wound-rung.current {
+  background: rgba(255, 200, 87, 0.10);
+  border-left-color: var(--accent);
+  color: var(--accent);
+}
+.app[data-mode="space"] .sheet-wound-rung.current {
+  background: rgba(110, 232, 255, 0.10);
+}
+.sheet-wound-rung .w-pen {
+  font-family: var(--font-mono);
+  letter-spacing: 1px;
+}
+
+/* Weapon block */
+.sheet-weapon-card {
+  background: var(--screen-dim);
+  padding: 10px;
+  border: 1px solid var(--accent-dim);
+}
+.sheet-weapon-card .swc-name {
+  color: var(--accent-bright);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-display);
+  letter-spacing: 0.5px;
+}
+.sheet-weapon-card .swc-stats {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+
+/* Points (credits / move / FS) */
+.sheet-points {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  row-gap: 4px;
+  column-gap: 8px;
+  font-size: 11px;
+}
+.sheet-points .sp-label { color: var(--text-dim); }
+.sheet-points .sp-value {
+  font-family: var(--font-mono);
+  text-align: right;
+}
+.sheet-points .sp-value.credits { color: var(--self); }
+.sheet-points .sp-value.fs      { color: #6ea3ff; }
+.sheet-points .sp-value.fs.dim  { color: var(--text-dim); }
+
+/* Center column: skill list / force powers / etc. */
+.sheet-center-toolbar {
+  padding: 0 14px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.sheet-skill-group-head {
+  padding: 6px 14px;
+  display: flex;
+  justify-content: space-between;
+  background: var(--shell-dark);
+  border-top: 1px solid var(--accent-dim);
+  border-bottom: 1px solid var(--accent-dim);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--accent-bright);
+  text-transform: uppercase;
+  cursor: help;
+}
+.sheet-skill-group-head .ssg-pool {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.sheet-skill-row {
+  display: grid;
+  grid-template-columns: 1fr 70px 78px 50px;
+  padding: 5px 14px;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  background: transparent;
+  transition: background 0.10s;
+}
+.sheet-skill-row:hover {
+  background: rgba(255, 200, 87, 0.05);
+}
+.app[data-mode="space"] .sheet-skill-row:hover {
+  background: rgba(110, 232, 255, 0.05);
+}
+.sheet-skill-row.selected {
+  background: rgba(255, 200, 87, 0.10);
+  border-left-color: var(--accent);
+}
+.app[data-mode="space"] .sheet-skill-row.selected {
+  background: rgba(110, 232, 255, 0.10);
+}
+.sheet-skill-row .ssr-name { color: var(--text); }
+.sheet-skill-row .ssr-name .ssr-priority {
+  color: var(--accent);
+  margin-left: 6px;
+}
+.sheet-skill-row .ssr-bonus {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.sheet-skill-row .ssr-total {
+  color: var(--self);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-align: right;
+  letter-spacing: 1px;
+}
+.sheet-skill-row .ssr-roll {
+  padding: 2px 0;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  letter-spacing: 1px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.sheet-skill-row .ssr-roll:hover {
+  color: var(--accent-bright);
+  border-color: var(--accent);
+  background: rgba(255, 200, 87, 0.08);
+}
+.app[data-mode="space"] .sheet-skill-row .ssr-roll:hover {
+  background: rgba(110, 232, 255, 0.08);
+  box-shadow: 0 0 6px rgba(110, 232, 255, 0.4);
+}
+
+.sheet-skills-empty {
+  padding: 24px 14px;
+  color: var(--text-dim);
+  font-size: 12px;
+  text-align: center;
+  font-style: italic;
+}
+
+/* Force powers list (FORCE tab) */
+.sheet-force-attrs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 0 14px 16px;
+}
+.sheet-force-attr {
+  background: var(--screen-dim);
+  border: 1px solid var(--accent-dim);
+  padding: 10px;
+  text-align: center;
+}
+.sheet-force-attr .sfa-label {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.sheet-force-attr .sfa-value {
+  font-family: var(--font-mono);
+  color: #6ea3ff;
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.sheet-power-row {
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(138, 98, 32, 0.18);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr 80px 60px;
+  align-items: center;
+  gap: 8px;
+}
+.app[data-mode="space"] .sheet-power-row {
+  border-bottom-color: rgba(95, 200, 255, 0.12);
+}
+.sheet-power-row:hover { background: rgba(255, 200, 87, 0.04); }
+.app[data-mode="space"] .sheet-power-row:hover {
+  background: rgba(110, 232, 255, 0.04);
+}
+.sheet-power-row .spr-name {
+  color: var(--text);
+  font-size: 12px;
+}
+.sheet-power-row .spr-name .spr-dsp {
+  color: var(--warn);
+  font-size: 10px;
+  margin-left: 6px;
+  letter-spacing: 1px;
+}
+.sheet-power-row .spr-skills {
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-align: right;
+}
+.sheet-power-row .spr-cast {
+  padding: 2px 0;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  letter-spacing: 1px;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 2px;
+  cursor: pointer;
+  background: transparent;
+}
+.sheet-power-row .spr-cast:hover {
+  color: var(--accent-bright);
+  border-color: var(--accent);
+  background: rgba(255, 200, 87, 0.08);
+}
+.app[data-mode="space"] .sheet-power-row .spr-cast:hover {
+  background: rgba(110, 232, 255, 0.08);
+}
+
+/* Right column: detail drawer */
+.sheet-detail {
+  background: var(--shell-dark);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.sheet-detail .sd-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent-bright);
+  letter-spacing: 0.5px;
+}
+.sheet-detail .sd-chips {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.sheet-detail .sd-chip {
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 2px;
+  color: var(--text);
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+.sheet-detail .sd-chip.total    { color: var(--self);   border-color: var(--self); }
+.sheet-detail .sd-chip.priority { color: var(--accent); border-color: var(--accent); }
+.sheet-detail .sd-section {
+  margin-top: 12px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sheet-detail .sd-edit-btn {
+  background: transparent;
+  border: 1px solid var(--accent-dim);
+  color: var(--accent-dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+.sheet-detail .sd-edit-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.sheet-detail .sd-text  { color: var(--text); margin-top: 6px; }
+.sheet-detail .sd-tip {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(124, 224, 104, 0.08);
+  border-left: 2px solid var(--self);
+  color: var(--self);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.sheet-detail .sd-roll-btn {
+  margin-top: 14px;
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #1a1008;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+}
+.sheet-detail .sd-roll-btn:hover {
+  background: var(--accent-bright);
+}
+.app[data-mode="space"] .sheet-detail .sd-roll-btn {
+  color: #04080c;
+  box-shadow: 0 0 12px rgba(110, 232, 255, 0.4);
+}
+
+/* Edit-in-place: textarea + save/cancel */
+.sheet-detail .sd-edit-area {
+  margin-top: 6px;
+  width: 100%;
+  min-height: 140px;
+  padding: 8px;
+  background: var(--screen-dim);
+  color: var(--text);
+  border: 1px solid var(--accent-dim);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+.sheet-detail .sd-edit-area:focus {
+  border-color: var(--accent);
+}
+.sheet-detail .sd-edit-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+.sheet-detail .sd-edit-action {
+  flex: 1;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  border: 1px solid var(--accent-dim);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+.sheet-detail .sd-edit-action.save {
+  color: #1a1008;
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+.app[data-mode="space"] .sheet-detail .sd-edit-action.save { color: #04080c; }
+.sheet-detail .sd-edit-action:hover {
+  border-color: var(--accent);
+  color: var(--accent-bright);
+}
+.sheet-detail .sd-edit-action.save:hover {
+  background: var(--accent-bright);
+  color: #1a1008;
+}
+.sheet-detail .sd-edit-hint {
+  margin-top: 6px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+
+/* "Hooks" / advantages-disadvantages list at bottom of right rail */
+.sheet-hooks { margin-top: 22px; }
+.sheet-hook {
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+.sheet-hook-name {
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-family: var(--font-display);
+}
+.sheet-hook-note { color: var(--text); }
+
+/* Default detail (no skill selected) shows background */
+.sheet-detail .sd-bg-text {
+  color: var(--text);
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
+.sheet-detail .sd-bg-empty {
+  color: var(--text-dim);
+  font-style: italic;
+  margin-top: 6px;
+}
+
+/* Roll toast inside the panel */
+.sheet-toast {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  background: var(--shell-dark);
+  border: 1px solid var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  border-radius: 2px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  z-index: 99;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease-out;
+}
+.app[data-mode="space"] .sheet-toast {
+  box-shadow: 0 0 20px rgba(110, 232, 255, 0.5);
+}
+.sheet-toast.show { opacity: 1; }
+
+.sheet-hint {
+  position: absolute;
+  bottom: 10px;
+  right: 14px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+/* Mobile: full-screen, single-column stack */
+@media (max-width: 900px) {
+  .sheet-panel {
+    width: 100vw;
+    max-width: 100vw;
+    border-left: none;
+  }
+  .sheet-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+  .sheet-col + .sheet-col {
+    border-left: none;
+    border-top: 1px solid var(--accent-dim);
+  }
+  .sheet-detail { max-height: 38vh; }
+  .sheet-head { flex-wrap: wrap; padding: 10px 12px; gap: 8px; }
+  .sheet-head .sh-stat { padding-left: 8px; }
+  .sheet-tab { padding: 8px 12px; font-size: 9px; letter-spacing: 2px; }
+}
+
 </style>
 </head>
 <body>
@@ -3056,6 +3752,79 @@ a { color: inherit; text-decoration: none; }
     <div class="map-modal-hint">ESC / click outside to close</div>
   </div>
 </div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     SHEET PANEL — slide-in character dashboard
+     Driven by the `sheet_data` WebSocket event from `+sheet`. The
+     panel inherits theme via .app[data-mode], so no JS theme prop
+     is needed.  ESC and backdrop dismiss; ROLL buttons submit
+     `+roll <skill>` through the existing input pipeline.  Tabs filter
+     the center column (FULL / SKILLS / COMBAT / FORCE).
+     ══════════════════════════════════════════════════════════════════ -->
+<div class="sheet-panel-overlay" id="sheet-panel-overlay" onclick="sheetPanelBackdropClick(event)"></div>
+<aside class="sheet-panel" id="sheet-panel" role="dialog" aria-label="Character sheet">
+  <header class="sheet-head">
+    <span class="sh-label">▮▮ FIELD KIT · CHARACTER</span>
+    <span class="sh-divider"></span>
+    <span class="sh-name" id="sheet-name">—</span>
+    <span class="sh-sub"  id="sheet-sub"></span>
+    <span class="sh-spacer"></span>
+    <span class="sh-chip" id="sheet-wound-chip">HEALTHY</span>
+    <div class="sh-stat"><div class="sh-stat-label">FP</div>  <div class="sh-stat-value fp"  id="sheet-fp">0</div></div>
+    <div class="sh-stat"><div class="sh-stat-label">CP</div>  <div class="sh-stat-value cp"  id="sheet-cp">0</div></div>
+    <div class="sh-stat"><div class="sh-stat-label">DSP</div> <div class="sh-stat-value dsp" id="sheet-dsp">0</div></div>
+    <button class="sh-close" type="button" onclick="closeSheetPanel()">ESC ×</button>
+  </header>
+  <nav class="sheet-tabs" id="sheet-tabs">
+    <button class="sheet-tab active" type="button" data-tab="full"   onclick="setSheetTab('full')">FULL</button>
+    <button class="sheet-tab"        type="button" data-tab="skills" onclick="setSheetTab('skills')">SKILLS</button>
+    <button class="sheet-tab"        type="button" data-tab="combat" onclick="setSheetTab('combat')">COMBAT</button>
+    <button class="sheet-tab hidden" type="button" data-tab="force"  onclick="setSheetTab('force')" id="sheet-tab-force">FORCE</button>
+  </nav>
+  <div class="sheet-body">
+    <!-- Left column: vitals -->
+    <section class="sheet-col left">
+      <div class="sheet-section-label">VITALS</div>
+      <div id="sheet-attrs"></div>
+
+      <div style="margin-top:18px;">
+        <div class="sheet-section-label">WOUND LADDER</div>
+        <div id="sheet-wound-ladder"></div>
+      </div>
+
+      <div style="margin-top:18px;" id="sheet-weapon-block">
+        <div class="sheet-section-label">WEAPON</div>
+        <div id="sheet-weapon"></div>
+      </div>
+
+      <div style="margin-top:18px; display:none;" id="sheet-armor-block">
+        <div class="sheet-section-label">ARMOR</div>
+        <div id="sheet-armor"></div>
+      </div>
+
+      <div style="margin-top:18px;">
+        <div class="sheet-section-label">POINTS</div>
+        <div class="sheet-points" id="sheet-points"></div>
+      </div>
+    </section>
+
+    <!-- Center column: skill list / force powers (tab-driven) -->
+    <section class="sheet-col center">
+      <div class="sheet-center-toolbar">
+        <span id="sheet-center-title">SKILLS · TAP TO INSPECT · ROLL TO ROLL</span>
+        <span id="sheet-center-count">0 TRAINED</span>
+      </div>
+      <div id="sheet-center-body"></div>
+    </section>
+
+    <!-- Right column: skill detail / background -->
+    <section class="sheet-col sheet-detail" id="sheet-detail">
+      <!-- Populated by renderSheetDetail() on click -->
+    </section>
+  </div>
+  <div class="sheet-toast" id="sheet-toast"></div>
+  <div class="sheet-hint">ESC / click outside to close</div>
+</aside>
 
 <!-- ══════════════════════════════════════════════════════════════════
      LOGIN / BOOT OVERLAY (FK login datapad)
@@ -5611,6 +6380,673 @@ function _resolveModalLabelCollisions(clone, vbX, vbY, vbW, vbH) {
   }
 })();
 
+// ══════════════════════════════════════════════════════════════════
+// SHEET PANEL — slide-in character dashboard
+// Driven by `sheet_data` event from `+sheet`. Renders identity/points
+// header, vitals column, grouped skill list, force powers, and a
+// context-aware detail drawer with click-to-roll and edit-in-place.
+// Theme inherits via .app[data-mode], so no JS theme prop is needed —
+// the same DOM looks pad-amber on ground and cock-cyan in space
+// because the CSS variables re-bind.
+//
+// Tabs filter the center column:
+//   full   — all trained skills, grouped by attribute
+//   skills — same as full (kept distinct so legacy +sheet/skills opens
+//            here without any visual difference)
+//   combat — only skills tagged `combat` in skill_descriptions.yaml
+//   force  — force attrs + powers list (only shown when force_sensitive)
+// ══════════════════════════════════════════════════════════════════
+var sheetPanelOpen = false;
+var sheetPanelData = null;            // last payload received
+var sheetSelectedSkill = null;        // string key, or null for "show background"
+var sheetActiveTab = 'full';          // current tab: full|skills|combat|force
+var sheetEditMode = null;             // 'background' | 'chargen_notes' | null
+var skillDescriptions = { attributes: {}, skills: {} };  // cache from skill_descriptions event
+
+// Canonical 7-rung wound ladder, matched to the engine builder's
+// _wound_label_and_penalty().
+var SHEET_WOUND_RUNGS = [
+  { idx: 0, label: 'HEALTHY',          pen: '',    sev: 'ok'   },
+  { idx: 1, label: 'STUNNED',          pen: '-1D', sev: 'warn' },
+  { idx: 2, label: 'WOUNDED',          pen: '-1D', sev: 'warn' },
+  { idx: 3, label: 'WOUNDED TWICE',    pen: '-2D', sev: 'hurt' },
+  { idx: 4, label: 'INCAPACITATED',    pen: '—',   sev: 'crit' },
+  { idx: 5, label: 'MORTALLY WOUNDED', pen: '—',   sev: 'crit' },
+  { idx: 6, label: 'KILLED',           pen: '—',   sev: 'dead' },
+];
+var SHEET_ATTR_ORDER = ['dexterity', 'knowledge', 'mechanical',
+                        'perception', 'strength', 'technical'];
+
+function sheetPoolToStr(p) {
+  if (!p) return '0D';
+  var d = (p.d || 0), pp = (p.p || 0);
+  if (pp > 0) return d + 'D+' + pp;
+  if (pp < 0) return d + 'D' + pp;
+  return d + 'D';
+}
+function sheetSkillName(key) {
+  if (!key) return '';
+  return key.replace(/_/g, ' ').replace(/\b\w/g, function(c) {
+    return c.toUpperCase();
+  });
+}
+
+// Cache the skill-descriptions catalog when the server pushes it.
+function handleSkillDescriptions(msg) {
+  if (!msg || !msg.payload) return;
+  var p = msg.payload;
+  skillDescriptions = {
+    attributes: (p.attributes && typeof p.attributes === 'object') ? p.attributes : {},
+    skills:     (p.skills     && typeof p.skills     === 'object') ? p.skills     : {},
+  };
+}
+
+// Open the panel with a fresh payload from `+sheet`.
+function handleSheetData(msg) {
+  if (!msg || !msg.payload) return;
+  sheetPanelData = msg.payload;
+  // Honor the server-suggested view (full/skills/combat/brief).
+  // 'brief' falls through to 'full' in the GUI — there's no value in
+  // a separate cramped layout when the panel already scales down.
+  var requested = (msg.view || 'full').toLowerCase();
+  if (requested === 'brief') requested = 'full';
+  if (requested === 'force' && !(sheetPanelData.force)) requested = 'full';
+  // Show/hide the FORCE tab based on force_sensitive
+  var forceTab = $('sheet-tab-force');
+  if (forceTab) {
+    forceTab.classList.toggle('hidden', !sheetPanelData.force);
+  }
+  sheetActiveTab = requested;
+  // Reset selection on each open so the right rail starts on a sensible
+  // default (high-priority skill, then first trained, then background).
+  sheetSelectedSkill = pickDefaultSkill(sheetPanelData);
+  sheetEditMode = null;
+  renderSheetPanel();
+  openSheetPanel();
+}
+
+function pickDefaultSkill(payload) {
+  if (!payload || !payload.skills) return null;
+  var keys = Object.keys(payload.skills);
+  if (keys.length === 0) return null;
+  // Prefer high-priority skill if its description was loaded
+  for (var i = 0; i < keys.length; i++) {
+    var d = skillDescriptions.skills[keys[i]];
+    if (d && d.priority === 'high') return keys[i];
+  }
+  return keys[0];
+}
+
+function openSheetPanel() {
+  var ov = $('sheet-panel-overlay');
+  var pn = $('sheet-panel');
+  if (!ov || !pn) return;
+  ov.classList.add('show');
+  pn.classList.add('show');
+  sheetPanelOpen = true;
+}
+
+function closeSheetPanel() {
+  var ov = $('sheet-panel-overlay');
+  var pn = $('sheet-panel');
+  if (!ov || !pn) return;
+  ov.classList.remove('show');
+  pn.classList.remove('show');
+  sheetPanelOpen = false;
+  sheetEditMode = null;
+}
+
+function sheetPanelBackdropClick(evt) {
+  // Backdrop sits behind the panel; clicks here always dismiss.
+  closeSheetPanel();
+}
+
+function setSheetTab(tab) {
+  if (!tab) return;
+  if (tab === 'force' && (!sheetPanelData || !sheetPanelData.force)) return;
+  sheetActiveTab = tab;
+  // Update tab strip
+  var tabs = document.querySelectorAll('#sheet-tabs .sheet-tab');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].classList.toggle('active', tabs[i].dataset.tab === tab);
+  }
+  renderSheetCenter();
+}
+
+function renderSheetPanel() {
+  if (!sheetPanelData) return;
+  var p = sheetPanelData;
+  var id = p.identity || {};
+  var pts = p.points || {};
+
+  // Header
+  $('sheet-name').textContent = id.name || '—';
+  var subParts = [];
+  if (id.species) subParts.push(id.species);
+  if (id.template) subParts.push(id.template);
+  $('sheet-sub').textContent = subParts.join(' · ');
+  $('sheet-fp').textContent  = pts.fp  || 0;
+  $('sheet-cp').textContent  = pts.cp  || 0;
+  $('sheet-dsp').textContent = pts.dsp || 0;
+
+  // Wound chip
+  var w = p.wound || {};
+  var rung = SHEET_WOUND_RUNGS[w.level || 0] || SHEET_WOUND_RUNGS[0];
+  var chip = $('sheet-wound-chip');
+  chip.className = 'sh-chip ' + (rung.sev === 'ok' ? '' : rung.sev);
+  chip.textContent = rung.label + (w.penalty ? ' · ' + w.penalty : '');
+
+  // Update tab strip active state to match sheetActiveTab
+  var tabs = document.querySelectorAll('#sheet-tabs .sheet-tab');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].classList.toggle('active', tabs[i].dataset.tab === sheetActiveTab);
+  }
+
+  renderSheetAttrs(p);
+  renderSheetWoundLadder(p);
+  renderSheetWeapon(p);
+  renderSheetArmor(p);
+  renderSheetPoints(p);
+  renderSheetCenter();
+  renderSheetDetail();
+}
+
+function renderSheetAttrs(p) {
+  var host = $('sheet-attrs');
+  if (!host) return;
+  host.innerHTML = '';
+  var attrs = p.attributes || {};
+  for (var i = 0; i < SHEET_ATTR_ORDER.length; i++) {
+    var a = SHEET_ATTR_ORDER[i];
+    var pool = attrs[a] || { d: 0, p: 0 };
+    var pct = Math.min(100, ((pool.d * 3 + pool.p) / 18) * 100);
+    var desc = (skillDescriptions.attributes && skillDescriptions.attributes[a]) || null;
+    var tipText = desc ? (desc.gameplay_note || desc.short || desc.description || '') : '';
+    var div = document.createElement('div');
+    div.className = 'sheet-attr';
+    div.innerHTML =
+      '<div class="sheet-attr-row"' + (tipText ? ' title="' + escapeHtml(tipText) + '"' : '') + '>' +
+        '<span class="sheet-attr-name">' + a.slice(0, 3).toUpperCase() + '</span>' +
+        '<span class="sheet-attr-value">' + escapeHtml(sheetPoolToStr(pool)) + '</span>' +
+      '</div>' +
+      '<div class="sheet-attr-bar"><div class="sheet-attr-bar-fill" style="width:' + pct + '%"></div></div>';
+    host.appendChild(div);
+  }
+}
+
+function renderSheetWoundLadder(p) {
+  var host = $('sheet-wound-ladder');
+  if (!host) return;
+  host.innerHTML = '';
+  var cur = (p.wound && p.wound.level) || 0;
+  // Show only rungs 0..5 (KILLED is implied by death)
+  for (var i = 0; i < 6; i++) {
+    var r = SHEET_WOUND_RUNGS[i];
+    var cls = 'sheet-wound-rung';
+    if (i === cur) cls += ' current';
+    else if (i < cur) cls += ' past';
+    var div = document.createElement('div');
+    div.className = cls;
+    div.innerHTML =
+      '<span>' + r.label + '</span>' +
+      '<span class="w-pen">' + (r.pen || '') + '</span>';
+    host.appendChild(div);
+  }
+}
+
+function renderSheetWeapon(p) {
+  var host = $('sheet-weapon');
+  if (!host) return;
+  if (!p.weapon) {
+    host.innerHTML = '<div class="sheet-weapon-card" style="opacity:0.6"><div class="swc-name">— none equipped —</div></div>';
+    return;
+  }
+  var w = p.weapon;
+  var ranges = '';
+  if (w.ranges && w.ranges.length === 4) {
+    ranges = ' · S' + w.ranges[1] + ' M' + w.ranges[2] + ' L' + w.ranges[3];
+  } else if (w.ranges && w.ranges.length > 0) {
+    ranges = ' · ' + w.ranges.join('/');
+  }
+  host.innerHTML =
+    '<div class="sheet-weapon-card">' +
+      '<div class="swc-name">' + escapeHtml(w.name || w.key || 'Weapon') + '</div>' +
+      '<div class="swc-stats">' + escapeHtml(w.damage || '') + escapeHtml(ranges) + '</div>' +
+    '</div>';
+}
+
+function renderSheetArmor(p) {
+  var block = $('sheet-armor-block');
+  var host = $('sheet-armor');
+  if (!block || !host) return;
+  if (!p.armor) {
+    block.style.display = 'none';
+    return;
+  }
+  block.style.display = '';
+  var a = p.armor;
+  var bits = [];
+  if (a.energy)   bits.push('E:' + a.energy);
+  if (a.physical) bits.push('P:' + a.physical);
+  if (a.dex_pen)  bits.push('DEX ' + a.dex_pen);
+  host.innerHTML =
+    '<div class="sheet-weapon-card">' +
+      '<div class="swc-name">' + escapeHtml(a.name || a.key || 'Armor') + '</div>' +
+      '<div class="swc-stats">' + escapeHtml(bits.join(' · ')) + '</div>' +
+    '</div>';
+}
+
+function renderSheetPoints(p) {
+  var host = $('sheet-points');
+  if (!host) return;
+  var pts = p.points || {};
+  var id = p.identity || {};
+  var fsCls = pts.force_sensitive ? 'fs' : 'fs dim';
+  var fsText = pts.force_sensitive ? 'YES' : '—';
+  var creditsText = (pts.credits || 0).toLocaleString();
+  host.innerHTML =
+    '<span class="sp-label">Credits</span>'        + '<span class="sp-value credits">' + escapeHtml(creditsText) + '</span>' +
+    '<span class="sp-label">Move</span>'           + '<span class="sp-value">' + escapeHtml(String(id.move || 10)) + '</span>' +
+    '<span class="sp-label">Force Sensitive</span>'+ '<span class="sp-value ' + fsCls + '">' + fsText + '</span>';
+}
+
+function renderSheetCenter() {
+  var p = sheetPanelData;
+  if (!p) return;
+  var title = $('sheet-center-title');
+  var count = $('sheet-center-count');
+  var host = $('sheet-center-body');
+  if (!host) return;
+  host.innerHTML = '';
+
+  if (sheetActiveTab === 'force') {
+    // Force tab: 3 attribute tiles + powers list
+    if (title) title.textContent = 'FORCE · POWERS · TAP TO CAST';
+    var f = p.force || {};
+    var powers = f.powers || [];
+    if (count) count.textContent = powers.length + ' POWER' + (powers.length === 1 ? '' : 'S');
+    // Attr tiles
+    var tiles = document.createElement('div');
+    tiles.className = 'sheet-force-attrs';
+    var fa = [
+      { key: 'control', label: 'CONTROL' },
+      { key: 'sense',   label: 'SENSE'   },
+      { key: 'alter',   label: 'ALTER'   },
+    ];
+    for (var i = 0; i < fa.length; i++) {
+      var pool = f[fa[i].key] || { d: 0, p: 0 };
+      var tile = document.createElement('div');
+      tile.className = 'sheet-force-attr';
+      tile.innerHTML =
+        '<div class="sfa-label">' + fa[i].label + '</div>' +
+        '<div class="sfa-value">' + escapeHtml(sheetPoolToStr(pool)) + '</div>';
+      tiles.appendChild(tile);
+    }
+    host.appendChild(tiles);
+    if (powers.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'sheet-skills-empty';
+      empty.textContent = 'No Force powers available — train Control, Sense, or Alter to unlock them.';
+      host.appendChild(empty);
+    } else {
+      for (var pi = 0; pi < powers.length; pi++) {
+        host.appendChild(makeSheetPowerRow(powers[pi]));
+      }
+    }
+    return;
+  }
+
+  // Skills tabs (full / skills / combat) — render the trained skill list,
+  // optionally filtered to combat-tagged skills.
+  var skills = p.skills || {};
+  var skillKeys = Object.keys(skills);
+  var filtered = skillKeys;
+  if (sheetActiveTab === 'combat') {
+    filtered = skillKeys.filter(function(k) {
+      var tags = (skills[k] && skills[k].tags) || [];
+      return tags.indexOf('combat') !== -1;
+    });
+  }
+
+  if (sheetActiveTab === 'combat') {
+    if (title) title.textContent = 'COMBAT · SKILLS · TAP TO INSPECT · ROLL TO ROLL';
+  } else {
+    if (title) title.textContent = 'SKILLS · TAP TO INSPECT · ROLL TO ROLL';
+  }
+  if (count) {
+    count.textContent = filtered.length + ' TRAINED' +
+      (filtered.length > 0 ? ' · ★ HIGH-PRIORITY' : '');
+  }
+
+  if (filtered.length === 0) {
+    var empty = document.createElement('div');
+    empty.className = 'sheet-skills-empty';
+    empty.textContent = (sheetActiveTab === 'combat') ?
+      'No trained combat skills.' :
+      'No trained skills yet. Type +sheet during chargen to build out your character.';
+    host.appendChild(empty);
+    return;
+  }
+
+  // Group by parent attribute
+  var byAttr = {};
+  for (var i2 = 0; i2 < SHEET_ATTR_ORDER.length; i2++) byAttr[SHEET_ATTR_ORDER[i2]] = [];
+  for (var k = 0; k < filtered.length; k++) {
+    var sk = filtered[k];
+    var attr = (skills[sk] && skills[sk].attr) || 'dexterity';
+    if (!byAttr[attr]) byAttr[attr] = [];
+    byAttr[attr].push(sk);
+  }
+  for (var ai = 0; ai < SHEET_ATTR_ORDER.length; ai++) {
+    var a = SHEET_ATTR_ORDER[ai];
+    var group = byAttr[a];
+    if (!group || group.length === 0) continue;
+    group.sort();
+    var attrPool = (p.attributes && p.attributes[a]) || { d: 0, p: 0 };
+    var attrDesc = (skillDescriptions.attributes && skillDescriptions.attributes[a]) || null;
+    var attrTip = attrDesc ? (attrDesc.gameplay_note || attrDesc.short || '') : '';
+    var head = document.createElement('div');
+    head.className = 'sheet-skill-group-head';
+    if (attrTip) head.title = attrTip;
+    head.innerHTML =
+      '<span>' + a.toUpperCase() + '</span>' +
+      '<span class="ssg-pool">' + escapeHtml(sheetPoolToStr(attrPool)) + '</span>';
+    host.appendChild(head);
+    for (var gi = 0; gi < group.length; gi++) {
+      host.appendChild(makeSheetSkillRow(group[gi], skills[group[gi]]));
+    }
+  }
+}
+
+function makeSheetSkillRow(skillKey, skillData) {
+  var row = document.createElement('div');
+  row.className = 'sheet-skill-row';
+  if (skillKey === sheetSelectedSkill) row.classList.add('selected');
+  var desc = (skillDescriptions.skills && skillDescriptions.skills[skillKey]) || null;
+  var prio = desc && desc.priority === 'high' ? '<span class="ssr-priority">★</span>' : '';
+  row.innerHTML =
+    '<span class="ssr-name">' + escapeHtml(sheetSkillName(skillKey)) + prio + '</span>' +
+    '<span class="ssr-bonus">+' + escapeHtml(sheetPoolToStr(skillData.bonus)) + '</span>' +
+    '<span class="ssr-total">' + escapeHtml(sheetPoolToStr(skillData.total)) + '</span>' +
+    '<button class="ssr-roll" type="button">ROLL</button>';
+  row.addEventListener('click', function() {
+    sheetSelectedSkill = (sheetSelectedSkill === skillKey) ? null : skillKey;
+    // Re-render center (to flip selected class) and detail
+    renderSheetCenter();
+    renderSheetDetail();
+  });
+  row.querySelector('.ssr-roll').addEventListener('click', function(e) {
+    e.stopPropagation();
+    sendSheetRoll(skillKey, skillData.total);
+  });
+  return row;
+}
+
+function makeSheetPowerRow(power) {
+  var row = document.createElement('div');
+  row.className = 'sheet-power-row';
+  var dspMark = power.dark_side ? '<span class="spr-dsp">[DARK SIDE]</span>' : '';
+  var skills = (power.skills || []).map(function(s) {
+    return s.toUpperCase();
+  }).join('·');
+  row.innerHTML =
+    '<span class="spr-name">' + escapeHtml(power.name || power.key) + dspMark + '</span>' +
+    '<span class="spr-skills">' + escapeHtml(skills) + ' · DIFF ' + (power.base_diff || 0) + '</span>' +
+    '<button class="spr-cast" type="button">CAST</button>';
+  // Click row → inspect (set the detail drawer to show the power blurb).
+  row.addEventListener('click', function() {
+    sheetSelectedSkill = '__force__:' + power.key;
+    renderSheetDetail();
+  });
+  row.querySelector('.spr-cast').addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (typeof sendCmd === 'function') sendCmd('force ' + power.key);
+    showSheetToast('force ' + (power.name || power.key));
+  });
+  return row;
+}
+
+function sendSheetRoll(skillKey, totalPool) {
+  // Engine resolves the skill name on the server side; the panel just
+  // submits the same `+roll <skill>` the input pipeline accepts. The
+  // wire-key is underscored ("space_transports") but `+roll` accepts
+  // either form thanks to the registry's name-prefix matching.
+  var cmd = '+roll ' + skillKey.replace(/_/g, ' ');
+  if (typeof sendCmd === 'function') sendCmd(cmd);
+  showSheetToast('+roll ' + sheetSkillName(skillKey) + ' · ' + sheetPoolToStr(totalPool));
+}
+
+function showSheetToast(text) {
+  var el = $('sheet-toast');
+  if (!el) return;
+  el.textContent = text;
+  el.classList.add('show');
+  if (el._timer) clearTimeout(el._timer);
+  el._timer = setTimeout(function() { el.classList.remove('show'); }, 2400);
+}
+
+function renderSheetDetail() {
+  var host = $('sheet-detail');
+  if (!host) return;
+  var p = sheetPanelData;
+  if (!p) { host.innerHTML = ''; return; }
+
+  // Hooks block (advantages + disadvantages with notes) — always
+  // appended at the bottom of whatever the right rail is currently
+  // showing, when present.
+  var hooks = (p.advantages || []).concat(p.disadvantages || [])
+    .filter(function(h) { return h && h.note; });
+  var hooksHtml = '';
+  if (hooks.length > 0) {
+    hooksHtml = '<div class="sheet-hooks"><div class="sd-section">HOOKS</div>';
+    for (var i = 0; i < hooks.length; i++) {
+      hooksHtml +=
+        '<div class="sheet-hook">' +
+          '<div class="sheet-hook-name">' + escapeHtml(hooks[i].name || '') + '</div>' +
+          '<div class="sheet-hook-note">' + escapeHtml(hooks[i].note || '') + '</div>' +
+        '</div>';
+    }
+    hooksHtml += '</div>';
+  }
+
+  // Force-power inspection branch
+  if (sheetSelectedSkill && sheetSelectedSkill.indexOf('__force__:') === 0) {
+    var fkey = sheetSelectedSkill.slice('__force__:'.length);
+    var f = p.force || {};
+    var powers = f.powers || [];
+    var pwr = null;
+    for (var pi = 0; pi < powers.length; pi++) {
+      if (powers[pi].key === fkey) { pwr = powers[pi]; break; }
+    }
+    if (pwr) {
+      var dspChip = pwr.dark_side ?
+        '<span class="sd-chip" style="color:var(--warn);border-color:var(--warn);">DARK SIDE · +1 DSP</span>' : '';
+      var skillsLine = (pwr.skills || []).map(function(s) { return s.toUpperCase(); }).join(' · ');
+      host.innerHTML =
+        '<div class="sheet-section-label">FORCE POWER · DETAIL</div>' +
+        '<div class="sd-name">' + escapeHtml(pwr.name) + '</div>' +
+        '<div class="sd-chips">' +
+          '<span class="sd-chip total">DIFF ' + (pwr.base_diff || 0) + '</span>' +
+          '<span class="sd-chip">' + escapeHtml(skillsLine) + '</span>' +
+          dspChip +
+        '</div>' +
+        '<div class="sd-text" style="margin-top:12px;">' + escapeHtml(pwr.description || '') + '</div>' +
+        '<button class="sd-roll-btn" type="button" id="sheet-detail-cast">CAST →</button>' +
+        hooksHtml;
+      var btn = $('sheet-detail-cast');
+      if (btn) btn.addEventListener('click', function() {
+        if (typeof sendCmd === 'function') sendCmd('force ' + pwr.key);
+        showSheetToast('force ' + pwr.name);
+      });
+      return;
+    }
+  }
+
+  // Skill inspection branch
+  if (sheetSelectedSkill && p.skills && p.skills[sheetSelectedSkill]) {
+    var sk = p.skills[sheetSelectedSkill];
+    var desc = (skillDescriptions.skills && skillDescriptions.skills[sheetSelectedSkill]) || {};
+    var totalStr = sheetPoolToStr(sk.total);
+    var attrLabel = (sk.attr || '').toUpperCase();
+    var prioChip = desc.priority ? '<span class="sd-chip priority">★ ' + escapeHtml(desc.priority) + '</span>' : '';
+    var gameUseHtml = desc.game_use ?
+      '<div class="sd-section">IN PLAY</div><div class="sd-text">' + escapeHtml(desc.game_use) + '</div>' : '';
+    var tipHtml = desc.tip ? '<div class="sd-tip">' + escapeHtml(desc.tip) + '</div>' : '';
+    var descText = desc.description || '(No description in skill catalog yet.)';
+    host.innerHTML =
+      '<div class="sheet-section-label">SKILL · DETAIL</div>' +
+      '<div class="sd-name">' + escapeHtml(sheetSkillName(sheetSelectedSkill)) + '</div>' +
+      '<div class="sd-chips">' +
+        '<span class="sd-chip total">' + escapeHtml(totalStr) + '</span>' +
+        '<span class="sd-chip">' + escapeHtml(attrLabel) + '</span>' +
+        prioChip +
+      '</div>' +
+      '<div class="sd-text" style="margin-top:12px;">' + escapeHtml(descText) + '</div>' +
+      gameUseHtml +
+      tipHtml +
+      '<button class="sd-roll-btn" type="button" id="sheet-detail-roll">ROLL ' + escapeHtml(totalStr) + ' →</button>' +
+      hooksHtml;
+    var rbtn = $('sheet-detail-roll');
+    if (rbtn) rbtn.addEventListener('click', function() {
+      sendSheetRoll(sheetSelectedSkill, sk.total);
+    });
+    return;
+  }
+
+  // Default branch — background + chargen notes (with edit-in-place).
+  renderSheetBackground(host, hooksHtml);
+}
+
+function renderSheetBackground(host, hooksHtml) {
+  var p = sheetPanelData || {};
+  var bg = (p.background || '').trim();
+  var cgn = (p.chargen_notes || '').trim();
+  var bgEditing  = sheetEditMode === 'background';
+  var cgnEditing = sheetEditMode === 'chargen_notes';
+
+  var bgBlock = '';
+  if (bgEditing) {
+    bgBlock =
+      '<div class="sd-section">BACKGROUND <span></span></div>' +
+      '<textarea class="sd-edit-area" id="sheet-edit-background" maxlength="2000">' +
+        escapeHtml(bg) +
+      '</textarea>' +
+      '<div class="sd-edit-hint">Up to 2000 chars · seen by NPCs and the Director.</div>' +
+      '<div class="sd-edit-actions">' +
+        '<button class="sd-edit-action" type="button" onclick="cancelSheetEdit()">CANCEL</button>' +
+        '<button class="sd-edit-action save" type="button" onclick="saveSheetEdit(\'background\')">SAVE</button>' +
+      '</div>';
+  } else {
+    bgBlock =
+      '<div class="sd-section">BACKGROUND ' +
+        '<button class="sd-edit-btn" type="button" onclick="beginSheetEdit(\'background\')">EDIT</button>' +
+      '</div>' +
+      (bg ?
+        '<div class="sd-bg-text">' + escapeHtml(bg) + '</div>' :
+        '<div class="sd-bg-empty">No background written yet. Click EDIT or use +background.</div>'
+      );
+  }
+
+  var cgnBlock = '';
+  if (cgnEditing) {
+    cgnBlock =
+      '<div class="sd-section" style="margin-top:18px;">CHARGEN NOTES <span></span></div>' +
+      '<textarea class="sd-edit-area" id="sheet-edit-chargen-notes" maxlength="2000">' +
+        escapeHtml(cgn) +
+      '</textarea>' +
+      '<div class="sd-edit-hint">Private to you. Used to remember why you built this character this way.</div>' +
+      '<div class="sd-edit-actions">' +
+        '<button class="sd-edit-action" type="button" onclick="cancelSheetEdit()">CANCEL</button>' +
+        '<button class="sd-edit-action save" type="button" onclick="saveSheetEdit(\'chargen_notes\')">SAVE</button>' +
+      '</div>';
+  } else {
+    cgnBlock =
+      '<div class="sd-section" style="margin-top:18px;">CHARGEN NOTES ' +
+        '<button class="sd-edit-btn" type="button" onclick="beginSheetEdit(\'chargen_notes\')">EDIT</button>' +
+      '</div>' +
+      (cgn ?
+        '<div class="sd-bg-text">' + escapeHtml(cgn) + '</div>' :
+        '<div class="sd-bg-empty">No chargen notes yet. Click EDIT or use +chargen_notes.</div>'
+      );
+  }
+
+  host.innerHTML = bgBlock + cgnBlock + hooksHtml;
+
+  // Auto-focus the textarea when entering edit mode.
+  if (bgEditing) {
+    var ta = $('sheet-edit-background');
+    if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+  } else if (cgnEditing) {
+    var ta2 = $('sheet-edit-chargen-notes');
+    if (ta2) { ta2.focus(); ta2.setSelectionRange(ta2.value.length, ta2.value.length); }
+  }
+}
+
+function beginSheetEdit(field) {
+  sheetEditMode = field;
+  renderSheetDetail();
+}
+
+function cancelSheetEdit() {
+  sheetEditMode = null;
+  renderSheetDetail();
+}
+
+function saveSheetEdit(field) {
+  var ta = (field === 'background') ?
+    $('sheet-edit-background') :
+    $('sheet-edit-chargen-notes');
+  if (!ta) return;
+  var text = (ta.value || '').trim();
+  // Optimistically reflect in the local payload so the right rail
+  // updates instantly; the server will overwrite on the next +sheet
+  // if the actual save failed (the engine commands send a confirm
+  // line either way).
+  if (sheetPanelData) {
+    if (field === 'background')   sheetPanelData.background    = text;
+    if (field === 'chargen_notes') sheetPanelData.chargen_notes = text;
+  }
+  // Submit through the same pipeline the input bar uses. Empty input
+  // would echo the current value rather than clear it; route empty
+  // saves through the explicit /clear switch where supported.
+  var cmd;
+  if (field === 'background') {
+    // +background <text>  — no /clear switch on this command, so for
+    // empty saves we no-op (the user can still wipe via the textarea
+    // and the optimistic update). The server does not yet support
+    // empty-set on +background; explicit clears are a roadmap item.
+    if (text === '') { cancelSheetEdit(); return; }
+    cmd = '+background ' + text;
+  } else {
+    if (text === '') {
+      cmd = '+chargen_notes/clear';
+    } else {
+      cmd = '+chargen_notes ' + text;
+    }
+  }
+  if (typeof sendCmd === 'function') sendCmd(cmd);
+  sheetEditMode = null;
+  renderSheetDetail();
+  showSheetToast((field === 'background' ? 'Background' : 'Chargen notes') + ' saved');
+}
+
+// Global ESC handler — installed alongside the map-modal one so both
+// panels can be dismissed with the same key. ESC during edit cancels
+// the edit; ESC outside edit closes the panel.
+(function installSheetPanelKeyHandler() {
+  document.addEventListener('keydown', function(e) {
+    if (!sheetPanelOpen) return;
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      if (sheetEditMode) {
+        cancelSheetEdit();
+      } else {
+        closeSheetPanel();
+      }
+      e.preventDefault();
+    }
+  });
+})();
+
 function handleBoardingAlert(msg) {
   // Full-screen red flash overlay
   var ov = $('boarding-overlay');
@@ -6841,6 +8277,8 @@ function connect() {
         case 'combat_state':          handleCombatState(msg); return;
         case 'combat_resolution_event': handleCombatResolutionEvent(msg); return;
         case 'shop_state':            handleShopState(msg); return;
+        case 'sheet_data':            handleSheetData(msg); return;
+        case 'skill_descriptions':    handleSkillDescriptions(msg); return;
         case 'pose_event':
           handlePoseEvent(msg);
           return;
@@ -6976,6 +8414,29 @@ function init() {
 
   connect();
 }
+
+/* INLINE-HANDLER EXPORTS — see notes at the IIFE wrapper at the top of this
+   script. The HTML uses `onclick="setSheetTab('full')"` etc., which run in
+   global scope; the script body runs inside an IIFE, so we have to lift the
+   handler functions onto `window` explicitly. Function declarations are
+   hoisted within the IIFE, so naming them here is fine even though the
+   declarations are later in the file textually. Keep this list in sync with
+   `grep -oE 'on(click|change|input)="[^"]*"' static/client.html`. */
+window.setSheetTab              = setSheetTab;
+window.closeSheetPanel          = closeSheetPanel;
+window.sheetPanelBackdropClick  = sheetPanelBackdropClick;
+window.beginSheetEdit           = beginSheetEdit;
+window.cancelSheetEdit          = cancelSheetEdit;
+window.saveSheetEdit            = saveSheetEdit;
+window.openMapModal             = openMapModal;
+window.closeMapModal            = closeMapModal;
+window.mapModalBackdropClick    = mapModalBackdropClick;
+window.setCommsFilter           = setCommsFilter;
+window.toggleCommsPane          = toggleCommsPane;
+/* Already exported above; re-asserted here as a single source of truth. */
+window.toggleSidePanel          = toggleSidePanel;
+window.scrollPoseLogToBottom    = scrollPoseLogToBottom;
+window.reconnectClick           = reconnectClick;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);

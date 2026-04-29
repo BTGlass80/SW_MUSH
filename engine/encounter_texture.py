@@ -17,6 +17,8 @@ import logging
 import random
 import time
 
+from engine.json_safe import load_ship_systems
+
 log = logging.getLogger(__name__)
 
 AMBER = "\033[1;33m"
@@ -113,7 +115,7 @@ async def mechanical_setup(enc, mgr, db, sm, **kw):
     if enc.target_ship_id:
         ship = await db.get_ship(enc.target_ship_id)
         if ship:
-            sd = json.loads(dict(ship).get("systems") or "{}")
+            sd = load_ship_systems(ship)
             sd[sys_key] = False
             await db.update_ship(enc.target_ship_id, systems=json.dumps(sd))
     await mgr.broadcast_to_bridge(enc,
@@ -133,7 +135,7 @@ async def mechanical_repair(enc, mgr, db, sm, **kw):
         if enc.target_ship_id:
             ship = await db.get_ship(enc.target_ship_id)
             if ship:
-                sd = json.loads(dict(ship).get("systems") or "{}")
+                sd = load_ship_systems(ship)
                 sd[sys_key] = True
                 await db.update_ship(enc.target_ship_id, systems=json.dumps(sd))
 
@@ -199,7 +201,7 @@ async def mechanical_ignore(enc, mgr, db, sm, **kw):
         if enc.target_ship_id:
             ship = await db.get_ship(enc.target_ship_id)
             if ship:
-                sd = json.loads(dict(ship).get("systems") or "{}")
+                sd = load_ship_systems(ship)
                 sd[second] = False
                 await db.update_ship(enc.target_ship_id, systems=json.dumps(sd))
         await mgr.broadcast_to_bridge(enc,
@@ -294,7 +296,7 @@ async def cargo_investigate(enc, mgr, db, sm, **kw):
             if enc.target_ship_id:
                 ship = await db.get_ship(enc.target_ship_id)
                 if ship:
-                    sd = json.loads(dict(ship).get("systems") or "{}")
+                    sd = load_ship_systems(ship)
                     sd["sensors"] = False
                     await db.update_ship(enc.target_ship_id, systems=json.dumps(sd))
             mgr.resolve(enc, outcome="cargo_creature_escaped")
@@ -333,7 +335,7 @@ async def cargo_ignore(enc, mgr, db, sm, **kw):
         if enc.target_ship_id:
             ship = await db.get_ship(enc.target_ship_id)
             if ship:
-                sd = json.loads(dict(ship).get("systems") or "{}")
+                sd = load_ship_systems(ship)
                 sd["weapons"] = False
                 await db.update_ship(enc.target_ship_id, systems=json.dumps(sd))
         mgr.resolve(enc, outcome="cargo_creature_escalated")

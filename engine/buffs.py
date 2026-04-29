@@ -176,7 +176,15 @@ def _get_buffs(char: dict) -> list[Buff]:
             attrs = json.loads(attrs)
         raw = attrs.get("active_buffs", [])
         return [Buff.from_dict(b) for b in raw if isinstance(b, dict)]
-    except Exception:
+    except (json.JSONDecodeError, TypeError, ValueError) as e:
+        # Per code_review_session32.md D5: narrow guard. JSONDecodeError
+        # for malformed JSON; TypeError/ValueError for shape errors from
+        # Buff.from_dict on a corrupt buff dict. Log so corruption is
+        # visible instead of silently dropping all buffs.
+        log.warning(
+            "[buffs] _get_buffs failed for char %s: %s",
+            char.get("id"), e,
+        )
         return []
 
 

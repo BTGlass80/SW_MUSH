@@ -55,6 +55,7 @@ class CombatBehavior(Enum):
 # Used by @npc generate to assign sensible defaults
 
 DEFAULT_ARCHETYPE_BEHAVIOR: dict[str, str] = {
+    # ── GCW + era-agnostic ──
     "stormtrooper": "aggressive",
     "scout_trooper": "defensive",
     "imperial_officer": "defensive",
@@ -70,9 +71,16 @@ DEFAULT_ARCHETYPE_BEHAVIOR: dict[str, str] = {
     "dark_jedi": "berserk",
     "noble": "cowardly",
     "creature": "berserk",
+    # ── CW (B.1.g) ──
+    "clone_trooper":     "aggressive",
+    "arc_trooper":       "aggressive",
+    "republic_officer":  "defensive",
+    "b1_battle_droid":   "aggressive",   # droid programming
+    "jedi_knight":       "defensive",    # Jedi defend, don't berserk
 }
 
 DEFAULT_ARCHETYPE_WEAPONS: dict[str, str] = {
+    # ── GCW + era-agnostic ──
     "stormtrooper": "blaster_rifle",
     "scout_trooper": "blaster_pistol",
     "imperial_officer": "blaster_pistol",
@@ -88,6 +96,12 @@ DEFAULT_ARCHETYPE_WEAPONS: dict[str, str] = {
     "dark_jedi": "lightsaber",
     "noble": "hold_out_blaster",
     "creature": "",  # Creatures use brawling, no weapon
+    # ── CW (B.1.g) ──
+    "clone_trooper":     "blaster_rifle",
+    "arc_trooper":       "blaster_rifle",
+    "republic_officer":  "blaster_pistol",
+    "b1_battle_droid":   "blaster_rifle",
+    "jedi_knight":       "lightsaber",
 }
 
 

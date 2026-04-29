@@ -1,0 +1,128 @@
+# data/worlds/gcw/npcs_hireable.yaml
+# GCW Era — Hireable Crew NPCs (extracted from build_mos_eisley.py F.1a)
+# Schema: name, room, species, description, char_sheet, ai_config
+# Loaded by engine/npc_loader.py via era.yaml's content_refs.npcs_hireable.
+# The hireable role is signaled by file location, not a per-entry flag.
+#
+schema_version: 1
+
+npcs:
+- name: Kael Voss
+  room: Chalmun's Cantina - Main Bar
+  species: Human
+  description: A lean Human pilot with quick eyes and a flight jacket covered in unit patches.
+  char_sheet:
+    attributes:
+      dexterity: 3D+1
+      knowledge: 2D
+      mechanical: 4D+1
+      perception: 3D
+      strength: 2D+2
+      technical: 3D
+    skills:
+      dodge: 4D
+      blaster: 4D
+      starfighter_piloting: 5D+1
+      space_transports: 5D
+      starship_gunnery: 4D+2
+      astrogation: 4D
+    move: 10
+  ai_config:
+    personality: >-
+      Kael is a former Republic Navy pilot turned freelancer. Competent, confident, professional.
+    dialogue_style: Calm, professional. Military bearing.
+    fallback_lines:
+    - '''Need a pilot? I''ve flown worse than whatever you''ve got.'''
+    - Kael checks instrument readings out of habit.
+    skills:
+      space transports: 5D
+      starfighter piloting: 5D+1
+      starship gunnery: 4D+2
+      astrogation: 4D
+- name: Grek Duul
+  room: Chalmun's Cantina - Main Bar
+  species: Rodian
+  description: A green-skinned Rodian with a modified targeting visor over one eye.
+  char_sheet:
+    attributes:
+      dexterity: 4D
+      knowledge: 2D
+      mechanical: 3D+1
+      perception: 3D+2
+      strength: 2D+1
+      technical: 2D+2
+    skills:
+      blaster: 5D
+      dodge: 4D+2
+      starship_gunnery: 5D+2
+      sensors: 4D
+    move: 10
+  ai_config:
+    personality: >-
+      Grek is a crack shot. Talks about weapons obsessively. Former bounty hunter who decided shooting
+      from a turret was safer.
+    dialogue_style: Eager, gun-obsessed. Speaks with Rodian accent.
+    fallback_lines:
+    - Grek adjusts his targeting visor. 'I never miss. Almost never.'
+    - '''Point me at a turret and watch the fireworks.'''
+    skills:
+      starship gunnery: 5D+2
+      sensors: 4D
+- name: Mira Tann
+  room: Dockside Cafe
+  species: Human
+  description: A wiry Human mechanic with grease-stained coveralls and a confident smile.
+  char_sheet:
+    attributes:
+      dexterity: 2D+2
+      knowledge: 2D
+      mechanical: 3D
+      perception: 3D
+      strength: 3D+1
+      technical: 4D+2
+    skills:
+      dodge: 3D+1
+      space_transports_repair: 5D+1
+      starship_weapon_repair: 4D+2
+      droid_repair: 4D
+      space_transports: 3D+2
+    move: 10
+  ai_config:
+    personality: >-
+      Mira keeps ships running with baling wire and ingenuity. Self-taught. Prefers machines to people.
+    dialogue_style: Practical, no-nonsense. Talks in technical jargon.
+    fallback_lines:
+    - '''What''d you do to this poor ship?'''
+    - Mira peers into an access panel, already diagnosing.
+    skills:
+      space transports repair: 5D+1
+      starship weapon repair: 4D+2
+- name: Tik-So
+  room: Dockside Cafe
+  species: Sullustan
+  description: A bright-eyed Sullustan navigator with a datapad full of star charts.
+  char_sheet:
+    attributes:
+      dexterity: 2D+1
+      knowledge: 3D+2
+      mechanical: 4D
+      perception: 3D
+      strength: 2D
+      technical: 3D+1
+    skills:
+      astrogation: 5D+2
+      space_transports: 4D+1
+      sensors: 4D+2
+      planetary_systems: 4D+1
+    move: 10
+  ai_config:
+    personality: >-
+      Tik-So has memorized half the known hyperlanes. Chatty. Tells stories about every system he's visited.
+    dialogue_style: Enthusiastic, chatty. Lots of space trivia.
+    fallback_lines:
+    - '''I can plot a jump to Kessel in twelve parsecs! Well, fourteen.'''
+    - Tik-So scrolls through star charts eagerly.
+    skills:
+      astrogation: 5D+2
+      sensors: 4D+2
+      space transports: 4D+1

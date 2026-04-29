@@ -1016,9 +1016,13 @@ class AttackCommand(BaseCommand):
 
     async def _check_bh_override(self, ctx, char, target_name, room_id):
         """True if attacker is BH guild with an active claimed contract.
-        Broadcasts a [BOUNTY HUNTER] drama line to the room if so."""
+        Broadcasts a [BOUNTY HUNTER] drama line to the room if so.
+
+        B.1.g (Apr 29 2026): accepts both GCW (`bh_guild`) and CW
+        (`bounty_hunters_guild`) faction codes.
+        """
         try:
-            if char.get("faction_id") != "bh_guild":
+            if char.get("faction_id") not in ("bh_guild", "bounty_hunters_guild"):
                 return False
             from parser.bounty_commands import (
                 _get_active_contract, _load_board)

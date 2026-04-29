@@ -205,8 +205,8 @@ class InvestigateCommand(BaseCommand):
             await ctx.session.send_line("  Must be in open space.")
             return
 
-        import json
-        systems = json.loads(ship.get("systems") or "{}")
+        from engine.json_safe import load_ship_systems
+        systems = load_ship_systems(ship)
         zone_id = systems.get("current_zone", "")
 
         from engine.space_anomalies import get_anomaly_by_id, remove_anomaly

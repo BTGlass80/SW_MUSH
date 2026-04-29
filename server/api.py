@@ -383,6 +383,12 @@ class ChargenAPI:
             # Background → description
             char_obj.description = char_data.get("background", "")
 
+            # Chargen rationale notes (optional, separate from
+            # description; defaults to '' for older clients).
+            cgn = char_data.get("chargen_notes", "") or ""
+            if isinstance(cgn, str) and cgn:
+                char_obj.chargen_notes = cgn[:2000]  # cap matches +chargen_notes
+
             # Place in tutorial Landing Pad if it exists
             try:
                 landing_pad_rows = await self.db.fetchall(
@@ -558,6 +564,11 @@ class ChargenAPI:
                 char_obj.set_attribute("alter", DicePool(0, 0))
 
             char_obj.description = char_data.get("background", "")
+
+            # Chargen rationale notes (optional, mirrors handle_submit).
+            cgn = char_data.get("chargen_notes", "") or ""
+            if isinstance(cgn, str) and cgn:
+                char_obj.chargen_notes = cgn[:2000]
 
             # Tutorial Landing Pad placement
             try:

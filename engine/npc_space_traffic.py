@@ -26,6 +26,8 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Optional
 
+from engine.json_safe import load_ship_systems, safe_json_loads
+
 log = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -48,6 +50,25 @@ IDLE_MIN_SECS           = 30     # minimum loiter time in a zone
 IDLE_MAX_SECS           = 180    # maximum loiter time in a zone
 DOCK_MIN_SECS           = 120    # minimum docking time (trader/smuggler)
 DOCK_MAX_SECS           = 300    # maximum docking time
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEPRECATED — auto-patrol-hail kill switch
+# ─────────────────────────────────────────────────────────────────────────────
+# When True, idle PATROL traffic ships scan for players in their zone and
+# auto-hail them with the legacy "Respond with: comms <name> <message>"
+# inspection.  This is the comms-keyword model that space_overhaul_v3_design.md
+# explicitly calls "Problem 1: Events are taxes, not gameplay" and exists to
+# replace.  The replacement (engine/encounter_patrol.py — Comply / Bluff / Run
+# / Hide skill-check encounter) is fully built but its register_patrol_handlers
+# call is never invoked at boot, so the deprecated path is what currently runs.
+#
+# Set to False as a stop-gap so launches aren't spammed by inspection hails
+# while the new system gets properly wired up.  When the wire-up drop ships,
+# DELETE this flag entirely and route the encounter through the new manager
+# instead — don't set it back to True.
+#
+# See: cw_preflight_checklist_v1.md item #1
+PATROL_AUTO_HAIL_ENABLED = False
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ZONE MODEL
@@ -904,7 +925,13 @@ class NpcSpaceTrafficManager:
 
     async def _tick_idle(self, ship: TrafficShip, db, session_mgr) -> bool:
         # Patrol: scan for players in zone and hail them
-        if ship.archetype == TrafficArchetype.PATROL and not ship.hail_sent:
+        # NOTE: Gated behind PATROL_AUTO_HAIL_ENABLED (currently False).  The
+        # legacy "comms keyword" inspection model is being replaced by the
+        # encounter system in engine/encounter_patrol.py; until that wires up,
+        # patrols loiter without auto-hailing.  See module-top constant.
+        if (PATROL_AUTO_HAIL_ENABLED
+                and ship.archetype == TrafficArchetype.PATROL
+                and not ship.hail_sent):
             players_in_zone = await self._get_players_in_zone(ship.current_zone, db, session_mgr)
             if players_in_zone:
                 player_session, player_ship_name = players_in_zone[0]
@@ -1067,8 +1094,7 @@ class NpcSpaceTrafficManager:
                 sid = await _get_player_ship_zone_ship_id(sess, db)
                 ship_row = await db.get_ship(sid) if sid else None
                 sys_data = (
-                    json.loads(dict(ship_row).get("systems") or "{}")
-                    if ship_row else {}
+                    load_ship_systems(dict(ship_row)) if ship_row else {}
                 )
 
                 inf_class = 5
@@ -1164,7 +1190,7 @@ class NpcSpaceTrafficManager:
             target_row = None
 
         if target_row:
-            target_sys = json.loads(dict(target_row).get("systems") or "{}")
+            target_sys = load_ship_systems(target_row)
             target_zone = target_sys.get("current_zone", "")
             if target_zone and target_zone != ship.current_zone:
                 # Target moved — follow if adjacent, else give up
@@ -1338,7 +1364,7 @@ class NpcSpaceTrafficManager:
                 ship_row = await db.get_ship(ship_id)
                 if not ship_row:
                     continue
-                systems = json.loads(dict(ship_row).get("systems") or "{}")
+                systems = load_ship_systems(dict(ship_row))
                 if systems.get("current_zone") == zone_id:
                     result.append((session, dict(ship_row).get("name", "your ship")))
         except Exception as e:
@@ -1351,9 +1377,12 @@ class NpcSpaceTrafficManager:
             ships = await db.get_ships_in_space()
             for ship in ships:
                 ship = dict(ship)
-                crew = json.loads(ship.get("crew") or "{}")
+                crew = safe_json_loads(
+                    ship.get("crew"), default={},
+                    context=f"ship {ship.get('id')} crew",
+                )
                 if char_id in crew.values():
-                    systems = json.loads(ship.get("systems") or "{}")
+                    systems = load_ship_systems(ship)
                     return systems.get("current_zone")
         except Exception as e:
             log.error(f"[traffic] _find_char_zone error: {e}")
@@ -1365,7 +1394,10 @@ class NpcSpaceTrafficManager:
             ships = await db.get_ships_in_space()
             for ship in ships:
                 ship = dict(ship)
-                crew = json.loads(ship.get("crew") or "{}")
+                crew = safe_json_loads(
+                    ship.get("crew"), default={},
+                    context=f"ship {ship.get('id')} crew",
+                )
                 if char_id in crew.values():
                     return ship["id"]
         except Exception as e:
@@ -1538,7 +1570,7 @@ class NpcSpaceTrafficManager:
             rows = await db.get_all_traffic_ships()
             for row in rows:
                 row = dict(row)
-                systems = json.loads(row.get("systems") or "{}")
+                systems = load_ship_systems(row)
                 traffic_data = systems.get("traffic")
                 if traffic_data:
                     ts = TrafficShip.from_json(row["id"], traffic_data)
@@ -1565,7 +1597,7 @@ class NpcSpaceTrafficManager:
                 ship_row = await db.get_ship(ship_id)
                 if not ship_row:
                     continue
-                systems = json.loads(dict(ship_row).get("systems") or "{}")
+                systems = load_ship_systems(dict(ship_row))
                 if systems.get("current_zone") == zone_id:
                     await session.send_line(message)
         except Exception as e:
@@ -1700,7 +1732,10 @@ async def _get_player_ship_zone_ship_id(session, db) -> Optional[int]:
     ships = await db.get_ships_in_space()
     for ship in ships:
         ship = dict(ship)
-        crew = json.loads(ship.get("crew") or "{}")
+        crew = safe_json_loads(
+            ship.get("crew"), default={},
+            context=f"ship {ship.get('id')} crew",
+        )
         char_id = char["id"]
         if char_id in crew.values():
             return ship["id"]

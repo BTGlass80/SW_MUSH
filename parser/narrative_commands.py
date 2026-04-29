@@ -76,6 +76,89 @@ class BackgroundCommand(BaseCommand):
             log.debug("silent except in parser/narrative_commands.py:75: %s", _e, exc_info=True)
 
 
+# ── +chargen_notes ────────────────────────────────────────────────────────────
+
+class ChargenNotesCommand(BaseCommand):
+    key = "+chargen_notes"
+    aliases = ["chargen_notes", "+cgn", "cgn", "+chargennotes", "chargennotes"]
+    help_text = (
+        "View or set your chargen rationale — the player-facing 'why I "
+        "built this character this way' notes.\n"
+        "\n"
+        "USAGE:\n"
+        "  +chargen_notes           — show your current chargen notes\n"
+        "  +chargen_notes <text>    — set your chargen notes (up to 2000 chars)\n"
+        "  +chargen_notes /clear    — clear them\n"
+        "\n"
+        "Distinct from +background (in-character biography) and your "
+        "look-at description.  Chargen notes are visible to you in the "
+        "GUI sheet panel's right rail and never to other players.  Use "
+        "them to remind yourself which advantages you took and why, "
+        "what plot hooks you're hoping for, or what build direction "
+        "you're aiming at."
+    )
+    usage = "+chargen_notes [<text>|/clear]"
+    valid_switches = ["clear"]
+
+    # Match the +background length cap so the two stay symmetric.
+    _MAX_LENGTH = 2000
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            return
+        char_id = char.get("id")
+        if not char_id:
+            return
+
+        # /clear empties the field
+        if "clear" in ctx.switches:
+            await ctx.db.save_character(char_id, chargen_notes="")
+            char["chargen_notes"] = ""
+            await ctx.session.send_line(
+                "  \033[1;32mChargen notes cleared.\033[0m"
+            )
+            return
+
+        text = (ctx.args or "").strip()
+
+        if not text:
+            current = char.get("chargen_notes", "") or ""
+            if current:
+                await ctx.session.send_line(
+                    f"\n  \033[1;33mYour chargen notes:\033[0m\n  {current}\n"
+                )
+            else:
+                await ctx.session.send_line(
+                    "  You haven't written any chargen notes yet.\n"
+                    "  Use \033[1;33m+chargen_notes <text>\033[0m to add some."
+                )
+            return
+
+        if len(text) > self._MAX_LENGTH:
+            await ctx.session.send_line(
+                f"  \033[1;31mToo long.\033[0m  Max {self._MAX_LENGTH} chars; "
+                f"your message was {len(text)}."
+            )
+            return
+
+        try:
+            await ctx.db.save_character(char_id, chargen_notes=text)
+        except Exception as _e:
+            log.warning("save chargen_notes failed: %s", _e, exc_info=True)
+            await ctx.session.send_line(
+                "  \033[1;31mCouldn't save chargen notes — try again.\033[0m"
+            )
+            return
+
+        # Keep the live session dict in sync so the next +sheet shows
+        # the new value without a re-fetch.
+        char["chargen_notes"] = text
+        await ctx.session.send_line(
+            f"  \033[1;32mChargen notes saved.\033[0m  ({len(text)} chars)"
+        )
+
+
 # ── +recap ────────────────────────────────────────────────────────────────────
 
 class RecapCommand(BaseCommand):
@@ -476,6 +559,7 @@ _init_quest_switch_impl()
 def register_narrative_commands(registry):
     registry.register(QuestCommand())
     registry.register(BackgroundCommand())
+    registry.register(ChargenNotesCommand())
     registry.register(RecapCommand())
     registry.register(QuestsCommand())
     registry.register(QuestAcceptCommand())

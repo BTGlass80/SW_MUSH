@@ -44,8 +44,56 @@ log = logging.getLogger(__name__)
 
 FACTION_TURN_INTERVAL = 1800  # 30 minutes in seconds
 
-# Valid factions and zones
-VALID_FACTIONS = frozenset({"imperial", "rebel", "criminal", "independent"})
+# F.6a.3-int: VALID_FACTIONS and DEFAULT_INFLUENCE are derived from the
+# F.6a.3 director_config_loader seam at module load. When the active-era
+# flag (Config.use_yaml_director_data) is off — the production default —
+# the seam returns the legacy hardcoded values byte-for-byte. When on,
+# they come from data/worlds/<era>/director_config.yaml.
+#
+# Byte-equivalence in the flag-off case is pinned by
+# tests/test_f6a3_int_byte_equivalence.py.
+#
+# Note: re-resolution requires a server restart. The flag is read once
+# at import time, not per-call. This is by design for now — the flag
+# flip is a deliberate boot-time decision (per F.6a.6).
+def _resolve_director_runtime_config():
+    """Resolve the runtime config from the seam, with a hard-coded
+    safety fallback if the seam itself fails to import (e.g. during
+    test collection in environments where world_loader is unavailable).
+    """
+    try:
+        from engine.director_config_loader import get_director_runtime_config
+        from engine.era_state import resolve_era_for_seeding
+        return get_director_runtime_config(era=resolve_era_for_seeding())
+    except Exception as e:
+        log.warning(
+            "[director] Seam resolution failed (%s); using last-resort "
+            "hardcoded constants. The byte-equiv tests should catch this.", e,
+        )
+        # Last-resort fallback — must stay byte-equivalent to the seam's
+        # _LEGACY_VALID_FACTIONS / _LEGACY_DEFAULT_INFLUENCE.
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            valid_factions=frozenset({"imperial", "rebel", "criminal", "independent"}),
+            zone_baselines={
+                "spaceport":  {"imperial": 65, "rebel": 8,  "criminal": 45, "independent": 25},
+                "streets":    {"imperial": 55, "rebel": 12, "criminal": 50, "independent": 35},
+                "cantina":    {"imperial": 40, "rebel": 15, "criminal": 65, "independent": 40},
+                "shops":      {"imperial": 50, "rebel": 10, "criminal": 55, "independent": 40},
+                "jabba":      {"imperial": 20, "rebel": 5,  "criminal": 85, "independent": 10},
+                "government": {"imperial": 80, "rebel": 5,  "criminal": 20, "independent": 20},
+            },
+            system_prompt="",  # Last-resort path can't recover the prompt
+            source="legacy-emergency-fallback",
+        )
+
+
+_RUNTIME_CFG = _resolve_director_runtime_config()
+
+# Module-level constants — these names are referenced from many sites
+# across this file. Keeping the names lets the integration touch only
+# the resolution logic, not the call sites.
+VALID_FACTIONS = _RUNTIME_CFG.valid_factions
 
 # Zone keys matching ROOM_ZONES in build_mos_eisley.py
 VALID_ZONES = frozenset({
@@ -55,13 +103,15 @@ VALID_ZONES = frozenset({
 
 # Starting influence scores for Mos Eisley (from design doc)
 DEFAULT_INFLUENCE = {
-    "spaceport":  {"imperial": 65, "rebel": 8,  "criminal": 45, "independent": 25},
-    "streets":    {"imperial": 55, "rebel": 12, "criminal": 50, "independent": 35},
-    "cantina":    {"imperial": 40, "rebel": 15, "criminal": 65, "independent": 40},
-    "shops":      {"imperial": 50, "rebel": 10, "criminal": 55, "independent": 40},
-    "jabba":      {"imperial": 20, "rebel": 5,  "criminal": 85, "independent": 10},
-    "government": {"imperial": 80, "rebel": 5,  "criminal": 20, "independent": 20},
+    k: dict(v) for k, v in _RUNTIME_CFG.zone_baselines.items()
 }
+
+log.info(
+    "[director] Runtime config resolved (source=%s, factions=%d, zones=%d)",
+    getattr(_RUNTIME_CFG, "source", "unknown"),
+    len(VALID_FACTIONS),
+    len(DEFAULT_INFLUENCE),
+)
 
 # Influence score range
 MIN_INFLUENCE = 0
@@ -674,81 +724,13 @@ class DirectorAI:
         if not await claude.is_available():
             return False
 
-        # Build the director system prompt (static, cacheable)
-        system_prompt = (
-            "You are the Director AI for a Star Wars MUSH set in Mos Eisley, Tatooine.\n"
-            "Your role is to evaluate the current state of the galaxy and decide what\n"
-            "happens next at the MACRO level. You never narrate player actions or\n"
-            "describe what individual characters do. You move the unseen pieces:\n"
-            "faction responses, economic shifts, atmospheric changes, and emerging\n"
-            "threats.\n\n"
-            "You are guided by these principles:\n"
-            "- The Empire reacts to resistance with escalation, not retreat.\n"
-            "- The criminal underworld fills any vacuum the Empire leaves.\n"
-            "- The Rebel Alliance operates in shadows; their influence is felt\n"
-            "  through sabotage and propaganda, not open warfare on Tatooine.\n"
-            "- Tatooine is a backwater. The Empire cares about order, not ideology.\n"
-            "  The Hutts care about profit. Neither wants open war here.\n"
-            "- Events should create OPPORTUNITIES for players, never OBLIGATIONS.\n"
-            "- Consequences should feel proportional and narratively logical.\n\n"
-            "FACTION MANAGEMENT:\n"
-            "If the digest includes 'faction_status', you manage those factions.\n"
-            "You may issue up to 3 faction_orders total per turn. Guidelines:\n"
-            "- Promote conservatively. Players must EARN rank.\n"
-            "- Post missions that reflect current world state, not random jobs.\n"
-            "- Discipline escalates: warn → probation → expel. Never skip steps.\n"
-            "- Approve requisitions unless the member negligently caused the loss.\n"
-            "- Never promote past pending_promotions list — only promote listed chars.\n\n"
-            "PC HOOKS:\n"
-            "If the digest includes 'online_pcs', you may generate up to 2\n"
-            "personalised story hooks for specific players based on their short_record.\n"
-            "Hooks must be brief (1-2 sentences), in-universe, and create opportunity\n"
-            "not obligation. Deliver via comlink_message unless NPC context warrants whisper.\n\n"
-            "FACTION STANDINGS:\n"
-            "If the digest includes 'player_faction_standings', use them to target\n"
-            "hooks and events appropriately. A player who is Revered with the Rebel\n"
-            "Alliance should receive Rebel-themed opportunities. A player who is\n"
-            "Hostile with the Empire might attract Imperial attention or bounty hunters.\n"
-            "Never target faction content at players with Unknown/Wary standing.\n\n"
-            "Respond with ONLY a JSON object in this exact format:\n"
-            "{\n"
-            "  \"influence_adjustments\": [\n"
-            "    {\"zone\": \"...\", \"faction\": \"...\", \"delta\": <int>}\n"
-            "  ],\n"
-            "  \"narrative_event\": {\n"
-            "    \"type\": \"...\",\n"
-            "    \"headline\": \"...\",\n"
-            "    \"duration_minutes\": <int>,\n"
-            "    \"zones_affected\": [\"...\"],\n"
-            "    \"mechanical_effects\": {\"...\": \"...\"}\n"
-            "  } OR null,\n"
-            "  \"ambient_pool\": [\"line1\", \"line2\", \"line3\"] OR null,\n"
-            "  \"news_headline\": \"One-sentence summary for the world events board.\",\n"
-            "  \"faction_orders\": [\n"
-            "    {\n"
-            "      \"faction\": \"empire\" | \"rebel\" | \"cartel\" | \"bhg\" | \"traders\",\n"
-            "      \"action\": \"promote\" | \"warn\" | \"probation\" | \"expel\" | \"pardon\"\n"
-            "               | \"post_mission\" | \"faction_announcement\",\n"
-            "      \"target_char_id\": <int> | null,\n"
-            "      \"new_rank\": <int> | null,\n"
-            "      \"reason\": \"...\",\n"
-            "      \"mission_type\": \"patrol\" | \"delivery\" | \"combat\" | \"investigation\" | null,\n"
-            "      \"zone\": \"...\" | null,\n"
-            "      \"reward\": <int 100-5000> | null,\n"
-            "      \"description\": \"...\" | null,\n"
-            "      \"message\": \"...\" | null\n"
-            "    }\n"
-            "  ] OR null,\n"
-            "  \"pc_hooks\": [\n"
-            "    {\n"
-            "      \"char_id\": <int>,\n"
-            "      \"hook_type\": \"rumor\" | \"opportunity\" | \"encounter\",\n"
-            "      \"content\": \"Brief in-universe message (1-2 sentences max)\",\n"
-            "      \"delivery\": \"comlink_message\" | \"npc_whisper\" | \"news_item\" | \"ambient\"\n"
-            "    }\n"
-            "  ] OR null\n"
-            "}"
-        )
+        # Build the director system prompt (static, cacheable).
+        # F.6a.3-int: resolved through the director_config_loader seam.
+        # When use_yaml_director_data is off (default), the seam returns
+        # the legacy GCW prompt byte-for-byte. When on, the era's
+        # director_config.yaml supplies the prompt. Pinned by
+        # tests/test_f6a3_int_byte_equivalence.py.
+        system_prompt = _RUNTIME_CFG.system_prompt
 
         # Compile digest
         digest = await self.compile_digest(session_mgr, db=db)
@@ -813,8 +795,10 @@ class DirectorAI:
             return False
 
         # ── Validate & apply influence adjustments ─────────────────────────
+        # Local VALID_ZONES is derived from this Director's runtime zone
+        # state (per-instance), distinct from the module-level VALID_ZONES.
+        # The module-level VALID_FACTIONS is used directly (no shadow).
         VALID_ZONES    = frozenset(self._zones.keys())
-        VALID_FACTIONS = frozenset({"imperial", "rebel", "criminal", "independent"})
         EVENT_TYPES    = frozenset({
             "imperial_crackdown", "imperial_checkpoint", "bounty_surge",
             "merchant_arrival", "sandstorm", "cantina_brawl", "distress_signal",

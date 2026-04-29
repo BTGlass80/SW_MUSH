@@ -12,6 +12,30 @@
 # NPC-only factions (sith, separatist_council) are defined here for
 # Director AI use but marked npc_only: true so chargen never surfaces them.
 
+# ── Legacy rewicker map (B.5, Apr 29 2026) ──────────────────────────────
+# Maps GCW organization codes to their CW equivalents. Used by
+# `engine.organizations.apply_org_rewicker()` on login to migrate PCs
+# whose stored faction_id or attributes.faction_intent references a
+# code from the prior era's organizations.yaml. Mapping rationale:
+#
+#   empire    -> republic            (lawful state authority of the era)
+#   rebel     -> cis                 (insurgent challenger — structural mirror)
+#   hutt      -> hutt_cartel         (direct rename; same archetype)
+#   bh_guild  -> bounty_hunters_guild  (direct rename)
+#   independent -> independent       (era-agnostic, passthrough)
+#
+# This is a separate namespace from director_config.yaml::rewicker.
+# That one maps director-axis codes (imperial/rebel/criminal/independent)
+# used by the zone-tone system; this one maps organization codes used
+# by chargen, the faction system, and faction_intent.
+legacy_rewicker:
+  factions:
+    empire:      republic
+    rebel:       cis
+    hutt:        hutt_cartel
+    bh_guild:    bounty_hunters_guild
+    independent: independent
+
 factions:
 
   # ── Galactic Republic ─────────────────────────────────────────────────

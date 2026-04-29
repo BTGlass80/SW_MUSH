@@ -139,7 +139,9 @@ class FactionCommand(BaseCommand):
     aliases = ["faction", "affiliation"]
     help_text = (
         "View or set your faction affiliation.\n"
-        "  Valid factions: Imperial, Rebel, Criminal, Independent\n"
+        "  Use 'faction set <name>' to change.\n"
+        "  Valid factions vary by era — see 'faction' (no args) for\n"
+        "  the current list.\n"
         "  Usage: faction              -- show current faction\n"
         "         faction set <name>   -- change faction"
     )

@@ -104,6 +104,21 @@ from parser.achievement_commands import register_achievement_commands
 from parser.event_commands import register_event_commands
 from parser.plot_commands import register_plot_commands
 from parser.mail_commands import register_mail_commands
+from parser.channel_commands import register_channel_commands
+from parser.party_commands import register_party_commands
+from parser.encounter_commands import register_encounter_commands
+from engine.space_encounters import get_encounter_manager
+from engine.bounty_board import get_bounty_board
+from engine.missions import get_mission_board
+from engine.smuggling import get_smuggling_board
+from engine.party import get_party_manager
+from engine.ambient_events import get_ambient_manager
+from engine.world_events import get_world_event_manager
+from engine.director import get_director
+from engine.npc_space_traffic import get_traffic_manager
+from engine.npc_space_combat_ai import get_npc_combat_manager
+from engine.starships import get_space_grid, get_ship_registry
+from engine.weapons import get_weapon_registry
 from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
@@ -167,6 +182,9 @@ class GameServer:
         register_achievement_commands(self.registry)
         register_event_commands(self.registry)
         register_plot_commands(self.registry)
+        register_channel_commands(self.registry)
+        register_party_commands(self.registry)
+        register_encounter_commands(self.registry)
 
         # ── Achievement System Init ──
         from engine.achievements import load_achievements
@@ -209,6 +227,26 @@ class GameServer:
 
         # Tutorial system
         self.tutorial = TutorialManager()
+
+        # ── Singleton manager bindings (cw_preflight_checklist §A.2) ─────
+        # These expose engine singletons on the GameServer instance so
+        # the portal (web_portal.py) can access them via
+        # `getattr(self._game, "encounter_mgr", None)` etc. Without
+        # these, portal routes 503 on unbound singletons.
+
+        self.encounter_mgr   = get_encounter_manager()
+        self.bounty_board     = get_bounty_board()
+        self.mission_board    = get_mission_board()
+        self.smuggling_board  = get_smuggling_board()
+        self.party_mgr        = get_party_manager()
+        self.ambient_mgr      = get_ambient_manager()
+        self.world_event_mgr  = get_world_event_manager()
+        self.director         = get_director()
+        self.traffic_mgr      = get_traffic_manager()
+        self.npc_combat_mgr   = get_npc_combat_manager()
+        self.space_grid       = get_space_grid()
+        self.ship_registry    = get_ship_registry()
+        self.weapon_registry  = get_weapon_registry()
 
         self._running = False
         self._tick_task: Optional[asyncio.Task] = None
@@ -277,7 +315,7 @@ class GameServer:
         # Seed organizations (factions + guilds) — idempotent
         try:
             from engine.organizations import seed_organizations
-            await seed_organizations(self.db)
+            await seed_organizations(self.db, era=self.config.active_era)
         except Exception as _org_err:
             log.warning("Organization seed skipped: %s", _org_err)
 
@@ -295,9 +333,11 @@ class GameServer:
         built = False
         try:
             from build_mos_eisley import auto_build_if_needed
-            built = await auto_build_if_needed(self.config.db_path)
+            built = await auto_build_if_needed(self.config.db_path,
+                                               era=self.config.active_era)
             if built:
-                log.info("World auto-build completed successfully.")
+                log.info("World auto-build completed successfully (era=%s).",
+                         self.config.active_era)
         except Exception as _build_err:
             log.warning("World auto-build skipped: %s", _build_err)
         # Housing schema + lot seeding
@@ -704,6 +744,26 @@ class GameServer:
         session.invalidate_char_obj()  # v22: clear cached Character object
         session.state = SessionState.IN_GAME
 
+        # Push the skill-descriptions catalog to WS clients so the
+        # sheet panel's right-rail can render rich tooltips without
+        # a per-skill round-trip.  Sent once at session start; cached
+        # client-side until reconnect.  Telnet skips this — the catalog
+        # only matters to the GUI sheet panel.
+        if session.protocol == Protocol.WEBSOCKET:
+            try:
+                from engine.sheet_renderer import (
+                    build_skill_descriptions_payload,
+                )
+                desc_payload = build_skill_descriptions_payload()
+                await session.send_json(
+                    "skill_descriptions",
+                    {"payload": desc_payload},
+                )
+            except Exception:
+                # Non-critical — the sheet panel falls back to plain
+                # skill names if the catalog never arrives.
+                pass
+
         # Announce arrival
         room_id = char.get("room_id", self.config.starting_room_id)
 
@@ -774,6 +834,19 @@ class GameServer:
                         session, self.db, room_row.get("name", "")
                     )
                     start_hint_timer(session, room_row.get("name", ""))
+        except Exception:
+            pass  # Non-critical
+
+        # B.5 (Apr 29 2026) — Organization-axis legacy rewicker. Runs
+        # FIRST so any subsequent faction_intent_migration sees the
+        # rewickered intent (not the stale legacy code). When era=gcw
+        # the rewicker map is empty and this is a no-op; behavior is
+        # byte-equivalent to pre-B.5 production.
+        try:
+            from engine.organizations import apply_org_rewicker
+            await apply_org_rewicker(char, self.db,
+                                      era=self.config.active_era,
+                                      session=session)
         except Exception:
             pass  # Non-critical
 

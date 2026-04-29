@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 import logging
 
+from engine.json_safe import load_ship_systems
 from server.tick_scheduler import TickContext
 
 log = logging.getLogger(__name__)
@@ -70,7 +71,7 @@ async def space_mission_patrol_tick(ctx: TickContext) -> None:
     for ship in ctx.ships_in_space:
         if ship.get("docked_at"):
             continue
-        sys = json.loads(ship.get("systems") or "{}")
+        sys = load_ship_systems(ship)
         zone = sys.get("current_zone", "")
         if not zone:
             continue

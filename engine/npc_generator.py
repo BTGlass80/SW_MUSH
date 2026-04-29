@@ -179,6 +179,52 @@ ARCHETYPES: dict[str, NPCArchetype] = {
         primary_skills=["brawling"],
         secondary_skills=["sneak", "search", "running", "stamina"],
     ),
+    # ── B.1.g (Apr 29 2026) — CW archetypes ──────────────────────────
+    # Per Brian's Apr 29 directive: "the CW pivot needs to be complete."
+    # CW analogues for the four GCW Imperial-spec archetypes plus a
+    # B1 battle droid (CIS) and Jedi Knight (Jedi Order) round out the
+    # roster. Skill loadouts mirror the GCW counterparts so per-tier
+    # NPC generation produces sensible CW NPCs for spawning, fugitive
+    # rolls, and CW bounty boards.
+    "clone_trooper": NPCArchetype(
+        name="Clone Trooper",
+        primary_attrs=["dexterity", "strength"],
+        secondary_attrs=["perception", "mechanical"],
+        primary_skills=["blaster", "brawling", "dodge"],
+        secondary_skills=["melee combat", "search", "stamina", "tactics"],
+    ),
+    "arc_trooper": NPCArchetype(
+        name="ARC Trooper",
+        primary_attrs=["dexterity", "perception"],
+        secondary_attrs=["strength", "knowledge"],
+        primary_skills=["blaster", "dodge", "sneak", "tactics"],
+        secondary_skills=["melee combat", "search", "command", "demolitions",
+                          "stamina"],
+    ),
+    "republic_officer": NPCArchetype(
+        name="Republic Officer",
+        primary_attrs=["knowledge", "perception"],
+        secondary_attrs=["dexterity", "mechanical"],
+        primary_skills=["bureaucracy", "command", "tactics"],
+        secondary_skills=["blaster", "intimidation", "planetary systems",
+                          "willpower"],
+    ),
+    "b1_battle_droid": NPCArchetype(
+        name="B1 Battle Droid",
+        primary_attrs=["dexterity"],
+        secondary_attrs=["strength", "perception"],
+        primary_skills=["blaster", "dodge"],
+        secondary_skills=["search", "melee combat"],
+    ),
+    "jedi_knight": NPCArchetype(
+        name="Jedi Knight",
+        primary_attrs=["perception", "dexterity"],
+        secondary_attrs=["knowledge", "strength"],
+        primary_skills=["lightsaber", "dodge", "control", "sense", "alter"],
+        secondary_skills=["melee combat", "willpower", "command",
+                          "alien species"],
+        force_sensitive=True,
+    ),
 }
 
 

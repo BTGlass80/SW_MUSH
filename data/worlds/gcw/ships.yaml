@@ -1,0 +1,74 @@
+# data/worlds/gcw/ships.yaml
+# GCW Era — Pre-spawned ships docked across the four planets.
+# Schema version 1.
+#
+# Each entry creates a bridge room, a ship row, and bidirectional
+# board/disembark exits between the docking bay and the bridge.
+#
+# Schema:
+#   template_key — must match a key in data/starships.yaml
+#   name         — display name shown to players
+#   bay_room     — name of the docking bay room (resolved against the
+#                  world bundle's room map; matches the build NPC pattern)
+#   bridge_desc  — flavor text shown when boarding the bridge
+#
+# Loaded by engine/ship_loader.py via era.yaml's content_refs.ships.
+# Replaces the SHIPS literal in build_mos_eisley.py (F.1b — Apr 2026).
+
+schema_version: 1
+
+ships:
+
+  # ── Tatooine ────────────────────────────────────────────────────────────
+  - template_key: yt_1300
+    name: Rusty Mynock
+    bay_room: Docking Bay 94 - Pit Floor
+    bridge_desc: >-
+      The cockpit of this battered YT-1300 hums with mismatched instruments.
+      Half the warning lights are on. A co-pilot station sits to the right.
+
+  - template_key: z_95
+    name: Dusty Hawk
+    bay_room: Docking Bay 86
+    bridge_desc: >-
+      The cramped cockpit of this old Z-95 Headhunter smells of coolant
+      and old sweat. Instruments flicker. The ejection seat looks
+      questionable.
+
+  - template_key: ghtroc_720
+    name: Krayt's Fortune
+    bay_room: Docking Bay 87
+    bridge_desc: >-
+      The bridge of this Ghtroc 720 is surprisingly spacious. The
+      Corellian-style controls are worn smooth from years of use.
+
+  - template_key: lambda_shuttle
+    name: Imperial Surplus 7
+    bay_room: Docking Bay 92
+    bridge_desc: >-
+      The bridge of this Lambda-class shuttle still bears Imperial insignia.
+      Someone has scratched 'SURPLUS - DO NOT REQUISITION' into the console.
+
+  # ── Nar Shaddaa ─────────────────────────────────────────────────────────
+  - template_key: yt_1300
+    name: Shadowport Runner
+    bay_room: Nar Shaddaa - Docking Bay Aurek
+    bridge_desc: >-
+      This YT-1300 has been heavily modified for smuggling. Hidden cargo
+      compartments line the hull. The sensor baffler emits a low hum.
+
+  # ── Kessel ──────────────────────────────────────────────────────────────
+  - template_key: lambda_shuttle
+    name: Prison Transport K-7
+    bay_room: Kessel - Spaceport Landing Field
+    bridge_desc: >-
+      A stripped-down Lambda shuttle configured for prisoner transport.
+      The passenger section has been replaced with holding cells.
+
+  # ── Corellia ────────────────────────────────────────────────────────────
+  - template_key: yt_1300
+    name: Corellian Dawn
+    bay_room: Coronet City - Starport Docking Bay
+    bridge_desc: >-
+      A factory-fresh YT-1300 straight from the CEC production line.
+      Everything gleams. The new-ship smell hasn't faded yet.

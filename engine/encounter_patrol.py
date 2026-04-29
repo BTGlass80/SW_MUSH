@@ -24,6 +24,7 @@ import random
 import time
 from typing import Optional
 
+from engine.json_safe import load_ship_systems
 from engine.starships import SpaceRange
 
 log = logging.getLogger(__name__)
@@ -335,7 +336,7 @@ async def patrol_run(encounter, manager, db, session_mgr, **kwargs):
             # Flag transponder — increased attention for 1 hour
             ship_row = await db.get_ship(encounter.target_ship_id)
             if ship_row:
-                sys_data = json.loads(dict(ship_row).get("systems") or "{}")
+                sys_data = load_ship_systems(ship_row)
                 sys_data["patrol_flagged_until"] = time.time() + 3600
                 await db.update_ship(encounter.target_ship_id,
                                      systems=json.dumps(sys_data))

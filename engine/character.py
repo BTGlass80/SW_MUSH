@@ -194,6 +194,13 @@ class Character:
     # Movement
     move: int = 10
 
+    # Player-supplied chargen rationale ("why I built this character
+    # this way"). Captured during creation, surfaces in the GUI sheet
+    # right-rail, editable via +chargen_notes <text>. Distinct from
+    # description (in-character look-at) and pc_narrative.background
+    # (in-character biography).
+    chargen_notes: str = ""
+
     @property
     def active_stun_count(self) -> int:
         """Number of currently active stuns (each gives -1D)."""
@@ -432,6 +439,7 @@ class Character:
             "room_id": self.room_id,
             "description": self.description,
             "equipment": json.dumps(equipment),
+            "chargen_notes": self.chargen_notes,
         }
 
     @classmethod
@@ -510,6 +518,8 @@ class Character:
         char.dark_side_points = data.get("dark_side_points", 0)
         char.credits = data.get("credits", 1000)
         char.wound_level = WoundLevel(data.get("wound_level", 0))
+        # chargen_notes is optional — pre-migration rows return None.
+        char.chargen_notes = data.get("chargen_notes", "") or ""
 
         # Parse attributes
         attrs = data.get("attributes", "{}")

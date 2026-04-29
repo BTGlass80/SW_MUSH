@@ -17,6 +17,7 @@ import json
 import logging
 import time
 
+from engine.json_safe import safe_json_loads
 from parser.commands import BaseCommand, CommandContext, AccessLevel
 from server import ansi
 
@@ -55,8 +56,8 @@ class QuestCommand(BaseCommand):
 
     async def _handle_abandon(self, ctx: CommandContext):
         char = ctx.session.character
-        raw = char.get("attributes", "{}")
-        attrs = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        attrs = safe_json_loads(char.get("attributes"), default={},
+                                 context=f"char {char.get('id')} attributes")
 
         qs = attrs.get("spacer_quest")
         if not qs:
@@ -113,8 +114,8 @@ class DebtCommand(BaseCommand):
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
-        raw = char.get("attributes", "{}")
-        attrs = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        attrs = safe_json_loads(char.get("attributes"), default={},
+                                 context=f"char {char.get('id')} attributes")
         debt = attrs.get("hutt_debt")
 
         if not debt or debt.get("principal", 0) <= 0:
@@ -304,8 +305,8 @@ class TravelCommand(BaseCommand):
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
-        raw = char.get("attributes", "{}")
-        attrs = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        attrs = safe_json_loads(char.get("attributes"), default={},
+                                 context=f"char {char.get('id')} attributes")
         qs = attrs.get("spacer_quest")
 
         # Only works during Phase 2-3 (before player has own ship)

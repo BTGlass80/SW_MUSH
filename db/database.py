@@ -546,6 +546,17 @@ MIGRATIONS = {
         "CREATE INDEX IF NOT EXISTS idx_plot_scenes_scene ON plot_scenes(scene_id)",
     ],
 
+    17: [
+        # Sheet redesign — chargen_notes captures the player's
+        # "why I built this character this way" rationale during
+        # creation. Defaults to '' for existing characters; surfaces
+        # in the GUI sheet's right-rail and is editable from the
+        # panel via +chargen_notes <text>. Distinct from `description`
+        # (in-character look-at text) and `pc_narrative.background`
+        # (in-character biography).
+        "ALTER TABLE characters ADD COLUMN chargen_notes TEXT DEFAULT ''",
+    ],
+
 }
 
 
@@ -795,8 +806,8 @@ class Database:
             """INSERT INTO characters
                (account_id, name, species, template, attributes, skills,
                 wound_level, character_points, force_points,
-                dark_side_points, room_id, description)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                dark_side_points, room_id, description, chargen_notes)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 account_id,
                 fields["name"],
@@ -810,6 +821,7 @@ class Database:
                 fields.get("dark_side_points", 0),
                 fields.get("room_id", 1),
                 fields.get("description", ""),
+                fields.get("chargen_notes", ""),
             ),
         )
         await self._db.commit()
@@ -823,6 +835,7 @@ class Database:
         "wound_level", "character_points", "force_points", "dark_side_points",
         "credits", "resources", "room_id", "inventory", "equipment",
         "description", "is_active", "faction_id", "bounty",
+        "chargen_notes",
     })
 
     async def save_character(self, char_id: int, **fields):

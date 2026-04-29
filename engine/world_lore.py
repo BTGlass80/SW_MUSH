@@ -774,22 +774,96 @@ SEED_ENTRIES = [
 ]
 
 
-async def seed_lore(db) -> int:
+async def seed_lore(db, era: Optional[str] = None) -> int:
     """Insert seed lore entries, skipping any whose title already exists.
 
     Idempotent: safe to re-run after adding new SEED_ENTRIES.
     Returns the count of newly inserted entries.
+
+    Drop F.6a.2: When `era` is provided, this function attempts to load
+    `data/worlds/<era>/lore.yaml` via the F.6a.1 loader and seed from
+    that corpus instead of `SEED_ENTRIES`. Any failure (missing file,
+    parse error, validation error) falls back to `SEED_ENTRIES` with a
+    warning, so booting in a partially-set-up era never breaks the lore
+    system. When `era` is None (the legacy boot path), behavior is
+    unchanged: seed straight from `SEED_ENTRIES`.
+
+    The byte-equivalence assertion (`tests/test_f6a2_world_lore_yaml.py`)
+    proves that loading GCW lore.yaml produces the same seeded entries
+    as the hardcoded SEED_ENTRIES path.
+    """
+    if era is None:
+        return await _seed_from_entries(db, SEED_ENTRIES)
+
+    # Era path — try YAML, fall back to SEED_ENTRIES on any error.
+    try:
+        from pathlib import Path
+        from engine.world_loader import load_era_manifest, load_lore as _load_lore
+        manifest = load_era_manifest(Path("data") / "worlds" / era)
+        corpus = _load_lore(manifest)
+    except Exception as e:
+        log.warning(
+            "[world_lore] Era-aware seed for %r failed at load (%s); "
+            "falling back to SEED_ENTRIES.", era, e,
+        )
+        return await _seed_from_entries(db, SEED_ENTRIES)
+
+    if corpus is None:
+        log.info(
+            "[world_lore] Era %r has no lore content_ref; "
+            "falling back to SEED_ENTRIES.", era,
+        )
+        return await _seed_from_entries(db, SEED_ENTRIES)
+
+    if corpus.report.errors:
+        log.warning(
+            "[world_lore] Era %r lore.yaml has %d validation error(s); "
+            "falling back to SEED_ENTRIES. First: %s",
+            era, len(corpus.report.errors), corpus.report.errors[0],
+        )
+        return await _seed_from_entries(db, SEED_ENTRIES)
+
+    return await seed_lore_from_corpus(db, corpus)
+
+
+async def seed_lore_from_corpus(db, corpus) -> int:
+    """Seed the world_lore table from a LoreCorpus produced by F.6a.1.
+
+    Idempotent: skips any entry whose title already exists. Returns the
+    count of newly inserted entries. The corpus's `.report.errors` is
+    NOT re-checked here — caller is responsible for deciding whether
+    to seed a corpus with errors. (`seed_lore(db, era=...)` falls back
+    to SEED_ENTRIES rather than seeding a broken corpus; tools that
+    want to force-seed a partial corpus can call this function directly.)
+    """
+    entries = [
+        {
+            "title":      e.title,
+            "keywords":   e.keywords,
+            "content":    e.content,
+            "category":   e.category or "general",
+            "zone_scope": e.zone_scope,
+            "priority":   e.priority,
+        }
+        for e in corpus.entries
+    ]
+    return await _seed_from_entries(db, entries)
+
+
+async def _seed_from_entries(db, entries: list[dict]) -> int:
+    """Insert each entry whose title isn't already in world_lore.
+
+    Shared insertion path for both `seed_lore` (legacy SEED_ENTRIES) and
+    `seed_lore_from_corpus` (F.6a.1 LoreCorpus). Idempotent. Returns
+    the count of newly inserted entries.
     """
     try:
-        # Get existing titles
-        rows = await db.fetchall(
-            "SELECT title FROM world_lore"
-        )
+        rows = await db.fetchall("SELECT title FROM world_lore")
         existing_titles = {r["title"] for r in (rows or [])}
 
         count = 0
         now = time.time()
-        for entry in SEED_ENTRIES:
+        for entry in entries:
             if entry["title"] in existing_titles:
                 continue  # Already present, skip
             await db.execute(

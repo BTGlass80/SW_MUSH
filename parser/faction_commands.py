@@ -184,10 +184,25 @@ class FactionCommand(BaseCommand):
         # ── faction info <code> ──
 
     async def _cmd_info(self, ctx, char, rest):
+        # B.6 (defensive): distinguish "user typed a bad code" from
+        # "your own faction_id references a stale faction." The latter
+        # shows up when a PC's stored faction_id was valid in a prior
+        # era but isn't in the currently-seeded DB.
+        explicit = bool(rest)
         code = rest or char.get("faction_id", "independent")
         org = await ctx.db.get_organization(code)
         if not org:
-            await ctx.session.send_line(f"  Unknown faction '{code}'.")
+            if explicit:
+                await ctx.session.send_line(f"  Unknown faction '{code}'.")
+            else:
+                await ctx.session.send_line(
+                    f"  \033[1;33mYour faction record references '{code}', "
+                    f"which no longer\033[0m\n"
+                    f"  \033[1;33mexists in this universe.\033[0m "
+                    f"Use \033[1;37mfaction list\033[0m to see your\n"
+                    f"  options, then \033[1;37mfaction join <code>\033[0m "
+                    f"to refresh."
+                )
             return
         ranks = await ctx.db.get_org_ranks(org["id"])
         lines = [
@@ -768,31 +783,55 @@ class SpecializeCommand(BaseCommand):
     key = "specialize"
     aliases = ["specialise"]
     help_text = (
-        "Select your Imperial specialization (only available after joining the Empire).\n"
-        "  1 = Stormtrooper  2 = TIE Pilot  3 = Naval Officer  4 = Intelligence"
+        "Select your faction specialization (only available after joining a "
+        "faction with specializations: Empire or Republic).\n"
+        "  Imperial:  1 = Stormtrooper  2 = TIE Pilot  3 = Naval Officer  4 = Intelligence\n"
+        "  Republic:  1 = Clone Trooper 2 = Clone Pilot 3 = Clone Officer  4 = Republic Intelligence"
     )
     usage = "specialize <1-4>"
 
     async def execute(self, ctx: CommandContext):
-        from engine.organizations import complete_imperial_specialization
+        # B.1.b.2 (Apr 29 2026): faction-aware dispatch. Routes to the
+        # generic `complete_specialization` helper based on the player's
+        # actual faction. Pre-B.1.b.2 callers landed only on Imperial.
+        from engine.organizations import (
+            complete_specialization,
+            faction_has_specialization,
+            get_specialization_config,
+        )
         char = ctx.session.character
+        faction_code = char.get("faction_id", "independent")
 
-        if char.get("faction_id", "independent") != "empire":
+        if not faction_has_specialization(faction_code):
             await ctx.session.send_line(
-                "  This command is only available to Imperial faction members."
+                "  This command is only available to faction members "
+                "with onboarding specializations (currently: Empire or Republic)."
             )
             return
+
+        # Build a faction-aware usage line on bad input
+        cfg = get_specialization_config(faction_code) or {}
+        labels = cfg.get("spec_labels", {})
+        spec_map = cfg.get("spec_map", {})
+        # Order: 1, 2, 3, 4 — display labels in numeric order.
+        ordered_pairs = []
+        for n in sorted(spec_map.keys()):
+            spec_key = spec_map[n]
+            ordered_pairs.append(f"{n} = {labels.get(spec_key, spec_key.title())}")
+        usage_tail = "  ".join(ordered_pairs)
 
         arg = (ctx.args or "").strip()
-        if not arg.isdigit() or int(arg) not in (1, 2, 3, 4):
+        if not arg.isdigit() or int(arg) not in spec_map:
             await ctx.session.send_line(
                 "  Usage: specialize <1-4>\n"
-                "  1 = Stormtrooper  2 = TIE Pilot  3 = Naval Officer  4 = Intelligence"
+                f"  {usage_tail}"
             )
             return
 
-        ok, msg = await complete_imperial_specialization(
-            char, ctx.db, int(arg), session=ctx.session
+        ok, msg = await complete_specialization(
+            char, ctx.db, int(arg),
+            faction_code=faction_code,
+            session=ctx.session,
         )
         await ctx.session.send_line(f"  {msg}")
         if ok:

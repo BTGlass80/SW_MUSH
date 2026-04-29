@@ -75,6 +75,39 @@ content_refs:
     - planets/kessel.yaml                  # 12 rooms
     - planets/corellia.yaml                # 24 rooms
 
+  # ── NPCs (per F.1a — era-aware NPC loader) ──────────────────────────────
+  # `npcs` is a list of files that engine/npc_loader.py loads in order.
+  # Loading order:
+  #   1. ../../npcs_gg7.yaml    — Era-agnostic GG7 base roster (50 NPCs at
+  #                              Mos Eisley locations; Imperial-keyed entries
+  #                              are suppressed in CW per its replaces: map).
+  #   2. npcs_planet.yaml       — GCW planet-specific NPCs across Tatooine
+  #                              outskirts/wastes, Nar Shaddaa, Kessel,
+  #                              Corellia (43 entries; F.1a extraction).
+  #   3. npcs_hireable.yaml     — Hireable crew NPCs at cantinas/spaceports
+  #                              (4 entries; F.1a extraction). File location
+  #                              identifies the role; no per-entry flag.
+  # The path "../../npcs_gg7.yaml" is era-relative; resolved against the
+  # data/worlds/gcw/ directory.
+  npcs:
+    - ../../npcs_gg7.yaml
+    - npcs_planet.yaml
+  npcs_hireable: npcs_hireable.yaml
+
+  # ── Ships (per F.1b — era-aware ship loader) ────────────────────────────
+  # Pre-spawned ships docked at bays across the four GCW planets. Loaded
+  # by engine/ship_loader.py at world-build time. CW has its own analogous
+  # file at data/worlds/clone_wars/starships.yaml — F.1b's loader will
+  # consume both schemas (CW's has ship templates per registry policy;
+  # this file is the GCW spawn manifest).
+  ships: ships.yaml
+
+  # ── Test character (per F.1c — era-aware test character loader) ─────────
+  # Dev/admin god-mode account for testing. Skips chargen + tutorial.
+  # GCW: Test Jedi at Docking Bay 94. CW will populate its own when the
+  # era pivot lands (CW's era.yaml already declares this slot).
+  test_character: test_character.yaml
+
   # ── Director / Lore data-fication (Drop 6a) ─────────────────────────────
   # These three files are consumed by Drop 6a's engine refactor. Until 6a.2
   # /6a.3/6a.4 land, they are inert at runtime — engine still reads from

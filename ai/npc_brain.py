@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from ai.providers import AIManager
+from engine.json_safe import safe_json_loads
 
 log = logging.getLogger(__name__)
 
@@ -89,11 +90,15 @@ class NPCData:
         npc.species = row.get("species", "Human")
         npc.description = row.get("description", "")
 
-        cs = row.get("char_sheet_json", "{}")
-        npc.char_sheet = json.loads(cs) if isinstance(cs, str) else cs
+        npc.char_sheet = safe_json_loads(
+            row.get("char_sheet_json"), default={},
+            context=f"npc {row.get('id')} char_sheet_json",
+        )
 
-        ai = row.get("ai_config_json", "{}")
-        ai_dict = json.loads(ai) if isinstance(ai, str) else ai
+        ai_dict = safe_json_loads(
+            row.get("ai_config_json"), default={},
+            context=f"npc {row.get('id')} ai_config_json",
+        )
         npc.ai_config = NPCConfig.from_dict(ai_dict)
 
         return npc

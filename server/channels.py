@@ -9,11 +9,14 @@ Pure in-memory — no DB persistence needed for transient comms.
 Channels:
   ooc       -- Global out-of-character.  Always available.  Alias: newbie.
   comlink   -- Planet-wide IC channel.  Alias: cl.
-  fcomm     -- Faction-only IC (Imperial / Rebel / Criminal / Independent).
+  fcomm     -- Faction-only IC. Display labels are era-agnostic (Imperial,
+               Rebel, Republic, Separatist, Hutt, etc.); routing is
+               per-PC (each PC's stored faction value is the bucket).
   commfreq  -- Custom frequency IC (agree on a number with your crew).
 
 Character faction is stored in character attributes JSON under key "faction".
-Valid values: "imperial", "rebel", "criminal", "independent" (default).
+Valid values (B.1.a, Apr 29 2026): the union of GCW and CW codes. See the
+FACTIONS constant below for the canonical set. Default: "independent".
 
 Usage in commands:
     from server.channels import get_channel_manager
@@ -34,19 +37,64 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 # ── Faction constants ──────────────────────────────────────────────────────────
+#
+# B.1.a (Apr 29 2026) — extended to cover both GCW and CW director-axis
+# faction codes. `FACTIONS` is now the era-agnostic union; labels and
+# colors carry entries for every code so a CW PC's stored
+# `attributes.faction = "republic"` renders as `[Republic]`, not as the
+# `Unknown` fallback.
+#
+# Why a union (not a per-era table): the channel system is per-PC
+# (each PC's stored faction value is the source of truth for fcomm
+# routing). A GCW PC with `imperial` and a CW PC with `republic` can
+# co-exist on the same server — they just can't fcomm each other,
+# which is the correct semantics. The era flag controls which set
+# chargen surfaces; the channel layer just renders whatever's stored.
 
-FACTIONS = {"imperial", "rebel", "criminal", "independent"}
-FACTION_LABELS = {
-    "imperial":    "Imperial",
-    "rebel":       "Rebel",
-    "criminal":    "Criminal",
-    "independent": "Independent",
+FACTIONS = {
+    # GCW director-axis (legacy, byte-equivalent for all GCW PCs)
+    "imperial", "rebel", "criminal", "independent",
+    # CW director-axis (Brian Apr 29: "the CW pivot needs to be complete")
+    "republic", "cis",
+    # Shared org-axis codes that may also appear in `attributes.faction`
+    # via chargen direct-stash (covers all reasonable input shapes the
+    # web client and IntentParser might emit).
+    "empire", "hutt", "bh_guild",
+    "hutt_cartel", "bounty_hunters_guild", "jedi_order",
 }
+
+FACTION_LABELS = {
+    # GCW
+    "imperial":              "Imperial",
+    "rebel":                 "Rebel",
+    "criminal":              "Criminal",
+    "independent":           "Independent",
+    "empire":                "Imperial",        # org-axis alias for fcomm display
+    "hutt":                  "Hutt",
+    "bh_guild":              "Bounty Hunter",
+    # CW
+    "republic":              "Republic",
+    "cis":                   "Separatist",
+    "jedi_order":            "Jedi",
+    "hutt_cartel":           "Hutt",
+    "bounty_hunters_guild":  "Bounty Hunter",
+}
+
 FACTION_COLORS = {
-    "imperial":    "\033[37m",   # white/grey
-    "rebel":       "\033[31m",   # red
-    "criminal":    "\033[33m",   # yellow
-    "independent": "\033[36m",   # cyan
+    # GCW
+    "imperial":              "\033[37m",   # white/grey
+    "rebel":                 "\033[31m",   # red
+    "criminal":              "\033[33m",   # yellow
+    "independent":           "\033[36m",   # cyan
+    "empire":                "\033[37m",
+    "hutt":                  "\033[33m",
+    "bh_guild":              "\033[35m",   # magenta
+    # CW
+    "republic":              "\033[1;34m", # bold blue (mirrors orgs.yaml)
+    "cis":                   "\033[1;31m", # bold red
+    "jedi_order":            "\033[1;36m", # bold cyan
+    "hutt_cartel":           "\033[33m",
+    "bounty_hunters_guild":  "\033[35m",
 }
 RESET = "\033[0m"
 BOLD  = "\033[1m"

@@ -131,46 +131,50 @@ class AmbientEventManager:
         self._loaded = False
 
     def _load_yaml(self):
-        """Load static ambient events from YAML file."""
-        import yaml
+        """Load static ambient events.
 
-        yaml_path = Path(__file__).parent.parent / "data" / "ambient_events.yaml"
-        if not yaml_path.exists():
-            log.warning("[ambient] data/ambient_events.yaml not found")
-            self._loaded = True
-            return
+        Drop F.6a.4-int wire-up: reads through `ambient_pools_loader` to
+        get an era-aware merged view of the static pool. When the active
+        era flag (`Config.use_yaml_director_data`) is off — which is the
+        default — `resolve_era_for_seeding` returns None, and the seam
+        returns the legacy `data/ambient_events.yaml` byte-for-byte
+        unchanged (pinned by tests/test_f6a4_int_byte_equivalence.py).
 
+        When the flag is on, the seam additionally merges the
+        era-specific `data/worlds/<era>/ambient_events.yaml` on top of
+        legacy. Era-specific zone keys win on collision; legacy zone
+        keys not redefined by the era continue to be served from the
+        legacy file.
+        """
+        from engine.ambient_pools_loader import get_ambient_pools
+        from engine.era_state import resolve_era_for_seeding
+
+        era = resolve_era_for_seeding()
         try:
-            with open(yaml_path, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f)
+            merged = get_ambient_pools(era=era)
         except Exception as e:
-            log.error("[ambient] Failed to load ambient_events.yaml: %s", e)
+            log.error(
+                "[ambient] Failed to resolve ambient pools (era=%s): %s",
+                era, e,
+            )
             self._loaded = True
             return
 
-        if not isinstance(data, dict):
-            log.error("[ambient] ambient_events.yaml root must be a dict")
-            self._loaded = True
-            return
-
+        # Convert AmbientLineTuple -> AmbientLine for the engine's
+        # internal pool representation. Field names match exactly, so
+        # the conversion is mechanical.
         total_lines = 0
-        for zone_key, entries in data.items():
-            if not isinstance(entries, list):
-                continue
-            lines = []
-            for entry in entries:
-                if isinstance(entry, str):
-                    lines.append(AmbientLine(text=entry))
-                elif isinstance(entry, dict) and "text" in entry:
-                    weight = float(entry.get("weight", 1.0))
-                    lines.append(AmbientLine(text=entry["text"], weight=weight))
-            if lines:
-                self._static_pool[zone_key] = lines
-                total_lines += len(lines)
+        for zone_key, lines in merged.pools.items():
+            converted = [
+                AmbientLine(text=ln.text, weight=ln.weight) for ln in lines
+            ]
+            if converted:
+                self._static_pool[zone_key] = converted
+                total_lines += len(converted)
 
         log.info(
-            "[ambient] Loaded %d static lines across %d zones",
-            total_lines, len(self._static_pool),
+            "[ambient] Loaded %d static lines across %d zones (source=%s)",
+            total_lines, len(self._static_pool), merged.source,
         )
         self._loaded = True
 

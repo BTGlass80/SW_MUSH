@@ -1,0 +1,1211 @@
+# data/worlds/gcw/npcs_planet.yaml
+# GCW Era — Planet-Specific NPCs (extracted from build_mos_eisley.py F.1a)
+# Covers Tatooine outskirts/wastes, Nar Shaddaa, Kessel, Corellia.
+# Schema: name, room, species, description, char_sheet, ai_config
+#
+schema_version: 1
+
+npcs:
+- name: Jawa Scrap Boss
+  room: City Outskirts - Scavenger Market
+  species: Jawa
+  description: A slightly taller-than-average Jawa directing a crew of scavengers.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 3D+1
+      mechanical: 2D
+      perception: 3D+2
+      strength: 3D
+      technical: 4D
+    skills:
+      bargain: 5D
+      value: 5D+2
+      droid_repair: 4D+1
+      sneak: 4D
+    move: 10
+  ai_config:
+    personality: >-
+      Runs the scavenger market outside town. Speaks broken Basic. Drives hard bargains. Has connections
+      to the sandcrawler convoys that range across the Jundland Wastes.
+    dialogue_style: Rapid, squeaky. Utinni! when excited. Heavily accented.
+    fallback_lines:
+    - '''Utinni! You buy? Good Droid, good price!'''
+    - The Jawa chatters rapidly at his crew.
+- name: Swoop Racer Krix
+  room: City Outskirts - Speeder Track
+  species: Human
+  description: A young Human with a scarred face and oil-stained racing leathers.
+  char_sheet:
+    attributes:
+      dexterity: 3D+2
+      knowledge: 2D
+      mechanical: 4D+1
+      perception: 3D
+      strength: 3D
+      technical: 2D
+    skills:
+      dodge: 4D+1
+      repulsorlift_operation: 6D
+      blaster: 4D
+      streetwise: 4D
+    move: 10
+  ai_config:
+    personality: >-
+      Krix races swoops for credits and glory. He knows the outskirts like the back of his hand and can
+      tell you which routes avoid Imperial patrols.
+    dialogue_style: Cocky, fast-talking. Everything is a competition.
+    fallback_lines:
+    - '''You ride? I''ll race you. Name the stakes.'''
+    - Krix revs a swoop engine, grinning.
+- name: Checkpoint Trooper
+  room: City Outskirts - Imperial Checkpoint
+  species: Human
+  description: An Imperial stormtrooper staffing the eastern checkpoint.
+  char_sheet:
+    attributes:
+      dexterity: 3D+1
+      knowledge: 2D
+      mechanical: 2D
+      perception: 3D
+      strength: 3D
+      technical: 2D
+    skills:
+      blaster: 4D+1
+      brawling: 4D
+      dodge: 4D
+    weapon: blaster_rifle
+    move: 10
+  ai_config:
+    faction: Empire
+    fallback_lines:
+    - '''Identification. Now.'''
+    - '''Move along. Move along.'''
+- name: Tusken Raider Scout
+  room: Jundland Wastes - Tusken Camp Overlook
+  species: Tusken
+  description: A Tusken Raider perched on a boulder, gaderffii stick in hand.
+  char_sheet:
+    attributes:
+      dexterity: 3D+2
+      knowledge: 2D
+      mechanical: 2D
+      perception: 3D
+      strength: 4D
+      technical: 2D
+    skills:
+      melee_combat: 5D+1
+      brawling: 5D
+      sneak: 4D+2
+      survival: 5D
+    weapon: gaderffii_stick
+    move: 10
+  ai_config:
+    faction: Tusken
+    fallback_lines:
+    - HRRRRK! (The Tusken raises its gaderffii stick.)
+    - The Tusken lets out a war cry and charges.
+    hostile: true
+    combat_behavior: aggressive
+- name: Tusken Raider Warrior
+  room: Jundland Wastes - Canyon Mouth
+  species: Tusken
+  description: A Tusken Raider warrior guarding the canyon approaches.
+  char_sheet:
+    attributes:
+      dexterity: 3D+1
+      knowledge: 2D
+      mechanical: 2D
+      perception: 2D+2
+      strength: 4D+1
+      technical: 2D
+    skills:
+      melee_combat: 5D
+      brawling: 5D+2
+      sneak: 4D
+      survival: 5D+1
+      thrown_weapons: 4D+1
+    weapon: gaderffii_stick
+    move: 10
+  ai_config:
+    faction: Tusken
+    fallback_lines:
+    - The warrior pounds its chest and howls.
+    - URRK URRK! (Definitely hostile.)
+    hostile: true
+    combat_behavior: aggressive
+- name: Old Prospector
+  room: Jundland Wastes - Krayt Dragon Graveyard
+  species: Human
+  description: A sun-blasted old Human with a Krayt Dragon tooth hanging from his neck.
+  char_sheet:
+    attributes:
+      dexterity: 2D+2
+      knowledge: 3D+1
+      mechanical: 2D
+      perception: 4D
+      strength: 3D
+      technical: 2D
+    skills:
+      survival: 5D+2
+      search: 5D
+      sneak: 4D+1
+      value: 5D
+    move: 10
+  ai_config:
+    personality: >-
+      Been prospecting the wastes for forty years. Knows where the Krayt Dragon pearls can be found. Wary
+      of strangers but will share information for credits or supplies.
+    dialogue_style: Rasping voice. Speaks slowly. Desert wisdom.
+    fallback_lines:
+    - '''The desert keeps her secrets. But she''ll kill you for asking.'''
+    - The old man squints at the horizon, reading the sand.
+    trainer: true
+    train_skills:
+    - survival
+    - search
+- name: Vek Nurren
+  room: City Outskirts - Wrecked Sandcrawler
+  species: Nikto
+  description: >-
+    A weathered Nikto tinkerer surrounded by tools and half-finished survival gear. A breath mask hangs
+    from his belt and a cooling unit hums on his workbench.
+  char_sheet:
+    attributes:
+      dexterity: 2D+1
+      knowledge: 3D+2
+      mechanical: 2D
+      perception: 3D
+      strength: 3D+1
+      technical: 5D
+    skills:
+      survival: 5D
+      first_aid: 4D+2
+      armor_repair: 5D+1
+      security: 4D+2
+      droid_repair: 4D+1
+      value: 4D
+    move: 10
+  ai_config:
+    personality: >-
+      Vek Nurren has been outfitting expeditions into the Wastes and the Kessel mines for decades. He
+      crafts survival gear — cooling units, breath masks, radiation suits — that keeps beings alive in
+      hostile environments. Practical, no-nonsense. Willing to teach crafters who bring him materials.
+    dialogue_style: >-
+      Practical, measured. Speaks with authority on survival topics. Evaluates newcomers by their gear.
+    fallback_lines:
+    - Vek tests a cooling unit seal, grunting approvingly.
+    - '''You heading into the Wastes without gear? Bold. Or stupid.'''
+    trainer: true
+    train_skills:
+    - survival
+    - first_aid
+    - armor_repair
+    - security
+- name: Vreego
+  room: Nar Shaddaa - The Burning Deck Cantina
+  species: Weequay
+  description: A scarred Weequay bartender with a blaster under the counter.
+  char_sheet:
+    attributes:
+      dexterity: 3D+2
+      knowledge: 2D
+      mechanical: 2D
+      perception: 3D+1
+      strength: 4D
+      technical: 2D
+    skills:
+      blaster: 4D+2
+      brawling: 5D
+      streetwise: 5D
+    move: 10
+  ai_config:
+    personality: >-
+      Vreego runs the Burning Deck Cantina. Serves drinks, breaks up fights, and hears everything. Never
+      volunteers information without payment.
+    dialogue_style: Gruff, laconic. Speaks in short sentences.
+    fallback_lines:
+    - Vreego polishes a glass, watching you with flat eyes.
+    - '''Drink or leave. We don''t do tourism.'''
+- name: Zekka Thansen
+  room: Nar Shaddaa - Smugglers' Guild Hall
+  species: Human
+  description: A middle-aged Corellian woman with sharp eyes and a guild master's chain.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 4D
+      mechanical: 3D+2
+      perception: 4D+1
+      strength: 3D
+      technical: 2D
+    skills:
+      bargain: 6D
+      con: 5D
+      streetwise: 6D+2
+      business: 5D+1
+      space_transports: 5D
+    move: 10
+  ai_config:
+    personality: >-
+      Zekka is the current coordinator of the Corellian Smugglers' Guild on Nar Shaddaa. Pragmatic, shrewd,
+      fiercely protective of guild members.
+    dialogue_style: Direct, businesslike. Corellian accent. No-nonsense.
+    fallback_lines:
+    - '''Guild business is guild business. You a member?'''
+    - Zekka checks a cargo manifest on her datapad.
+- name: Gorba's Enforcer
+  room: Nar Shaddaa - Hutt Emissary Tower - Lobby
+  species: Gamorrean
+  description: A massive Gamorrean guard in Hutt livery, carrying a vibro-axe.
+  char_sheet:
+    attributes:
+      dexterity: 2D+2
+      knowledge: 2D
+      mechanical: 2D
+      perception: 3D
+      strength: 5D
+      technical: 2D
+    skills:
+      melee_combat: 5D
+      brawling: 6D
+    weapon: vibro_axe
+    move: 10
+  ai_config:
+    personality: Loyal to the Hutt clan. Not bright. Very violent.
+    faction: Hutt Cartel
+    fallback_lines:
+    - The Gamorrean grunts threateningly.
+    - '''GAAARK!'''
+    hostile: true
+    combat_behavior: aggressive
+- name: Kreeda
+  room: Nar Shaddaa - Undercity Market
+  species: Rodian
+  description: A nervous Rodian arms dealer operating out of a scrap-metal stall.
+  char_sheet:
+    attributes:
+      dexterity: 3D+1
+      knowledge: 3D
+      mechanical: 2D
+      perception: 3D+2
+      strength: 3D
+      technical: 2D
+    skills:
+      blaster: 4D
+      streetwise: 5D
+      value: 5D+1
+      bargain: 4D+2
+    move: 10
+  ai_config:
+    personality: >-
+      Kreeda sells weapons in the Undercity Market. Paranoid, always looking over his shoulder. Offers
+      decent prices on black market goods.
+    dialogue_style: Nervous, fast-talking. Lots of qualifiers.
+    fallback_lines:
+    - '''You buying or browsing? Make it quick.'''
+    - Kreeda's eyes dart to the nearest exit.
+- name: Vel Ansen
+  room: Nar Shaddaa - Bounty Hunters' Quarter
+  species: Human
+  description: A grizzled bounty hunter with cybernetic eyes and battle-worn armor.
+  char_sheet:
+    attributes:
+      dexterity: 4D
+      knowledge: 2D
+      mechanical: 2D
+      perception: 3D+2
+      strength: 3D+1
+      technical: 3D
+    skills:
+      blaster: 5D+2
+      dodge: 5D
+      search: 5D
+      investigation: 4D+2
+      streetwise: 5D
+    move: 10
+  ai_config:
+    personality: >-
+      Vel is a veteran bounty hunter who works out of Nar Shaddaa. Professional and dangerous. Only takes
+      contracts worth his time.
+    dialogue_style: Quiet, measured. Evaluates everyone as a potential target.
+    fallback_lines:
+    - Vel's cybernetic eyes zoom in on you, processing.
+    - '''Not interested unless you''re worth at least five figures.'''
+- name: Pit Boss Grath
+  room: Nar Shaddaa - Fighting Pits
+  species: Trandoshan
+  description: A massive Trandoshan overseeing the fighting pits with cold reptilian eyes.
+  char_sheet:
+    attributes:
+      dexterity: 3D+1
+      knowledge: 2D
+      mechanical: 2D
+      perception: 3D
+      strength: 5D
+      technical: 2D
+    skills:
+      brawling: 6D
+      intimidation: 5D+2
+      melee_combat: 5D
+      bargain: 4D
+    move: 10
+  ai_config:
+    personality: >-
+      Grath runs the fighting pits for the Hutts. He takes a cut of every bet and decides the matchups.
+      Former gladiator himself — three championship seasons before retiring to management.
+    dialogue_style: Deep growl. Evaluates everyone for combat potential.
+    fallback_lines:
+    - '''You fight? Step into the pit and we''ll see what you''re made of.'''
+    - Grath sizes you up with predatory interest.
+- name: Doc Myrra
+  room: Nar Shaddaa - Black Market Medcenter
+  species: Twi'lek
+  description: A calm Twi'lek doctor working in the black market medcenter.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 4D
+      mechanical: 2D
+      perception: 3D+2
+      strength: 3D
+      technical: 5D
+    skills:
+      first_aid: 6D+1
+      medicine: 6D
+      bargain: 4D+2
+    move: 10
+  ai_config:
+    personality: >-
+      Doc Myrra trained at a Coruscant hospital before her license was revoked for treating Rebel fugitives.
+      Pragmatic — charges double, delivers triple. No questions asked, no records kept.
+    dialogue_style: Calm, professional. Slightly detached manner.
+    fallback_lines:
+    - '''Cash in advance. I don''t run a charity.'''
+    - Doc Myrra prepares a hypo without looking up.
+- name: Suvvel
+  room: Nar Shaddaa - Ship Parts Emporium
+  species: Sullustan
+  description: A meticulous Sullustan running a seven-deck ship parts emporium.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 4D
+      mechanical: 4D+2
+      perception: 3D
+      strength: 3D
+      technical: 5D
+    skills:
+      value: 6D+2
+      bargain: 5D
+      starship_repair: 5D+1
+    move: 10
+  ai_config:
+    personality: >-
+      Suvvel tracks every part in his inventory by memory. Eighty percent of his stock is stolen or salvaged.
+    dialogue_style: Rapid speech, high-pitched. Excited about specifications.
+    fallback_lines:
+    - Suvvel cross-references your request against three separate databases.
+    - '''I have seventeen motivator types in stock. Which grade?'''
+- name: The Miralukan
+  room: Nar Shaddaa - The Grid
+  species: Miralukan
+  description: A blind information broker who sees more than most sighted people.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 5D
+      mechanical: 2D
+      perception: 5D+2
+      strength: 3D
+      technical: 2D
+    skills:
+      investigation: 7D
+      streetwise: 6D+2
+      con: 5D+1
+      forgery: 5D
+      value: 5D+2
+    move: 10
+  ai_config:
+    personality: >-
+      Trades exclusively in information. Force-sighted rather than visually sighted. Her price is always
+      information in return.
+    dialogue_style: Serene, unsettling. Refers to things she shouldn't be able to see.
+    fallback_lines:
+    - '''I know why you''re here. What will you trade for the answer?'''
+    - She turns toward you despite facing away.
+- name: Renna Dox
+  room: Nar Shaddaa - Renna Dox's Workshop
+  species: Zabrak
+  description: >-
+    A broad-shouldered Zabrak shipwright with permanent engine grease under her fingernails.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 3D+1
+      mechanical: 4D+2
+      perception: 3D
+      strength: 3D
+      technical: 6D
+    skills:
+      starship_repair: 7D
+      space_transports_repair: 6D+2
+      computer_prog: 5D+1
+      value: 5D
+    move: 10
+  ai_config:
+    personality: >-
+      Renna Dox builds the best ship modifications in the Smuggler's Moon. Teaches what she knows to those
+      who earn it. Blunt, perfectionist.
+    dialogue_style: Blunt, technical. Evaluates everything for structural integrity.
+    fallback_lines:
+    - '''You break it in my shop, you pay double to fix it.'''
+    - Renna studies your ship specs before saying anything.
+    trainer: true
+    train_skills:
+    - starship_repair
+    - space_transports_repair
+- name: Hutt Toll Enforcer
+  room: Nar Shaddaa - Enforcer Alley
+  species: Nikto
+  description: A scarred Nikto enforcer blocking the alley, hand resting on his blaster.
+  char_sheet:
+    attributes:
+      dexterity: 3D+2
+      knowledge: 2D
+      mechanical: 2D
+      perception: 3D
+      strength: 4D
+      technical: 2D
+    skills:
+      blaster: 4D+2
+      intimidation: 5D+1
+      brawling: 4D+1
+    weapon: heavy_blaster_pistol
+    move: 10
+  ai_config:
+    personality: >-
+      Collects the Hutt clan transit toll. Not creative. Either you pay or you don't pass.
+    fallback_lines:
+    - '''Twenty credits. Everyone pays.'''
+    - The Nikto taps his blaster meaningfully.
+- name: Duros Arms Dealer
+  room: Nar Shaddaa - Weapons Cache
+  species: Duros
+  description: An armless Duros operating his weapons shop through a pair of mechanical waldos.
+  char_sheet:
+    attributes:
+      dexterity: 2D
+      knowledge: 4D
+      mechanical: 2D
+      perception: 3D+2
+      strength: 3D
+      technical: 4D+1
+    skills:
+      value: 6D
+      repair_weapons: 5D+2
+      bargain: 5D
+      streetwise: 5D+1
+    move: 10
+  ai_config:
+    personality: >-
+      Lost both arms on a bad bounty contract. Sells everything — blasters, melee, explosives, Imperial
+      military surplus.
+    dialogue_style: Flat affect, mechanical precision. The waldos move constantly.
+    fallback_lines:
+    - The waldos sort inventory while he watches you.
+    - '''What caliber? What range? Budget?'''
+- name: Evocii Elder
+  room: Nar Shaddaa - The Warrens - Fungal Cavern
+  species: Evocii
+  description: An ancient Evocii with milky eyes, wrapped in rags woven from fungi fibers.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 4D+2
+      mechanical: 2D
+      perception: 4D
+      strength: 3D
+      technical: 2D
+    skills:
+      survival: 6D
+      search: 5D
+      sneak: 5D+1
+      first_aid: 4D+2
+    move: 10
+  ai_config:
+    personality: >-
+      One of the few Evocii elders who still remembers the oral histories of their people — before the
+      Hutts came. Will trade survival knowledge for respect and gifts. Deeply distrustful of off-worlders.
+    dialogue_style: Slow, deliberate. Speaks in broken Basic mixed with old Evocii.
+    fallback_lines:
+    - The elder studies you silently, weighing your intent.
+    - '''Your kind built the towers. Our kind lives beneath them.'''
+- name: Warrens Scavenger
+  room: Nar Shaddaa - The Warrens - Scavenger Den
+  species: Human
+  description: A wiry Human covered in reactor soot, carrying a bag of salvage.
+  char_sheet:
+    attributes:
+      dexterity: 3D+1
+      knowledge: 2D
+      mechanical: 2D
+      perception: 3D+2
+      strength: 3D
+      technical: 3D+1
+    skills:
+      dodge: 4D
+      sneak: 4D+2
+      search: 5D
+      survival: 4D+1
+      repair: 4D
+    move: 10
+  ai_config:
+    personality: >-
+      Has lived in the Warrens for three years. Trades salvage from the reactor levels. Knows the safe
+      paths and the deadly ones.
+    dialogue_style: Terse, practical. Wastes no words.
+    fallback_lines:
+    - '''Watch your step. The floor gives way without warning down here.'''
+    - The scavenger weighs a piece of salvage in his hand.
+- name: Warden Phaedris
+  room: Kessel - Administration Block
+  species: Human
+  description: The stern Imperial warden of Kessel's spice mining operations.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 4D
+      mechanical: 2D
+      perception: 3D+2
+      strength: 3D
+      technical: 2D
+    skills:
+      blaster: 4D
+      command: 6D
+      intimidation: 5D+2
+      bureaucracy: 5D
+      law_enforcement: 5D+1
+    move: 10
+  ai_config:
+    personality: >-
+      Warden Phaedris runs Kessel with cold efficiency. He views prisoners as production units, not people.
+    faction: Empire
+    dialogue_style: Cold, bureaucratic. Imperial accent.
+    fallback_lines:
+    - '''Production quotas must be met. Everything else is secondary.'''
+    - The Warden reviews daily output numbers without looking up.
+- name: Kessel Stormtrooper
+  room: Kessel - Garrison Checkpoint
+  species: Human
+  description: An Imperial stormtrooper in standard white armor, blaster at the ready.
+  char_sheet:
+    attributes:
+      dexterity: 3D+1
+      knowledge: 2D
+      mechanical: 2D
+      perception: 3D
+      strength: 3D
+      technical: 2D
+    skills:
+      blaster: 4D+1
+      brawling: 4D
+      dodge: 4D
+    weapon: blaster_rifle
+    move: 10
+  ai_config:
+    faction: Empire
+    fallback_lines:
+    - '''Halt! Present your authorization.'''
+    - '''Move along. Move along.'''
+    hostile: true
+- name: Skrizz
+  room: Kessel - Black Market Tunnel
+  species: Chadra-Fan
+  description: A small Chadra-Fan running the black market tunnel with nervous energy.
+  char_sheet:
+    attributes:
+      dexterity: 2D+2
+      knowledge: 3D
+      mechanical: 2D
+      perception: 4D
+      strength: 3D
+      technical: 2D
+    skills:
+      bargain: 5D+2
+      con: 4D+1
+      sneak: 5D
+      streetwise: 5D+2
+      value: 5D
+    move: 10
+  ai_config:
+    personality: >-
+      Skrizz is the unofficial quartermaster of Kessel's black market. Terrified of the Warden but too
+      greedy to stop.
+    dialogue_style: Squeaky voice, rapid speech. Constantly fidgeting.
+    fallback_lines:
+    - '''Psst! You need something? I got everything. Cheap!'''
+    - Skrizz wrings his tiny hands, checking for guards.
+- name: Mine Foreman Dreck
+  room: Kessel - Mine Entrance - Level 1
+  species: Human
+  description: A thick-necked Imperial overseer supervising the mine entrance.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 2D
+      mechanical: 2D
+      perception: 3D
+      strength: 3D+1
+      technical: 2D
+    skills:
+      intimidation: 5D+1
+      command: 4D+1
+      blaster: 4D
+    move: 10
+  ai_config:
+    personality: Career Imperial. Efficient, brutal, indifferent to prisoner suffering.
+    faction: Empire
+    dialogue_style: Barking commands. Short sentences.
+    fallback_lines:
+    - '''Quota''s short. Get back to work.'''
+    - Dreck checks a work report, scowling.
+- name: Prisoner 4477
+  room: Kessel - Prisoner Barracks
+  species: Wookiee
+  description: A massive Wookiee prisoner, chains on his wrists, pride still intact.
+  char_sheet:
+    attributes:
+      dexterity: 2D+2
+      knowledge: 2D
+      mechanical: 2D
+      perception: 3D
+      strength: 6D
+      technical: 2D
+    skills:
+      brawling: 7D
+      intimidation: 4D+2
+      survival: 4D
+    move: 10
+  ai_config:
+    personality: >-
+      Enslaved for resisting Imperial conscription of his homeworld. Speaks no Basic but understands it.
+      Helps those who show respect.
+    dialogue_style: Growls, gestures. Shyriiwook only.
+    fallback_lines:
+    - The Wookiee studies you with orange eyes, measuring trust.
+    - '[ROAAR] (He''s assessing whether you''re worth talking to.)'
+- name: Bith Chemist
+  room: Kessel - Spice Processing Facility
+  species: Bith
+  description: A Bith chemist supervising spice refinement in a contamination suit.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 5D+1
+      mechanical: 2D
+      perception: 3D
+      strength: 3D
+      technical: 5D
+    skills:
+      medicine: 4D+2
+      value: 5D
+    move: 10
+  ai_config:
+    personality: >-
+      Recruited for his chemistry expertise. Cooperates because the alternative was worse. Knows everything
+      about spice refinement.
+    dialogue_style: Precise, clinical. Avoids eye contact.
+    fallback_lines:
+    - '''Glitterstim is particularly dangerous raw. Don''t touch anything.'''
+    - The Bith checks contamination readings before responding.
+- name: Energy Spider
+  room: Kessel - Deep Mines - Energy Spider Caverns
+  species: Energy Spider
+  description: A massive silicon-based predator trailing webs of crackling energy.
+  char_sheet:
+    attributes:
+      dexterity: 4D
+      knowledge: 2D
+      mechanical: 2D
+      perception: 3D+1
+      strength: 5D+2
+      technical: 2D
+    skills:
+      brawling: 6D
+      sneak: 5D
+    weapon: energy_web
+    move: 10
+  ai_config:
+    fallback_lines:
+    - The energy spider's legs click against the cavern floor.
+    - Crackling energy arcs between the spider's mandibles.
+    hostile: true
+    combat_behavior: aggressive
+- name: Officer Dalla Ren
+  room: Coronet City - CorSec Headquarters
+  species: Human
+  description: A CorSec officer in the distinctive green uniform, carrying a heavy blaster.
+  char_sheet:
+    attributes:
+      dexterity: 3D+2
+      knowledge: 3D+1
+      mechanical: 2D
+      perception: 3D+2
+      strength: 3D
+      technical: 2D
+    skills:
+      blaster: 5D
+      dodge: 4D+2
+      investigation: 5D
+      law_enforcement: 5D+2
+      streetwise: 4D+1
+    move: 10
+  ai_config:
+    personality: >-
+      Officer Ren is a dedicated CorSec investigator. She's honest, competent, and has zero tolerance
+      for criminal activity in Coronet City.
+    faction: Corellia
+    dialogue_style: Professional, direct. Corellian accent.
+    fallback_lines:
+    - '''CorSec. I have a few questions for you.'''
+    - Dalla checks her datapad, cross-referencing something.
+- name: Jorek Madine
+  room: Coronet City - The Corellian Slice Cantina
+  species: Human
+  description: A retired freighter captain running the Corellian Slice cantina.
+  char_sheet:
+    attributes:
+      dexterity: 2D+2
+      knowledge: 3D+2
+      mechanical: 2D
+      perception: 4D
+      strength: 3D
+      technical: 2D
+    skills:
+      bargain: 5D
+      con: 4D+2
+      persuasion: 5D+1
+      space_transports: 5D
+      streetwise: 5D
+    move: 10
+  ai_config:
+    personality: >-
+      Jorek flew freighters for thirty years before settling down. He knows every smuggler route in the
+      Corellian Run.
+    dialogue_style: Warm, storytelling. Always has an anecdote.
+    fallback_lines:
+    - '''Pull up a chair, friend. What''s your poison?'''
+    - Jorek wipes the bar, lost in a memory of the old routes.
+- name: Desa Thyn
+  room: Coronet City - CEC Shipyard Visitor Center
+  species: Human
+  description: A CEC sales representative with perfect hair and a practiced smile.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 3D+2
+      mechanical: 2D
+      perception: 4D
+      strength: 3D
+      technical: 2D
+    skills:
+      persuasion: 6D
+      business: 5D+2
+      value: 5D
+      bureaucracy: 4D+1
+    move: 10
+  ai_config:
+    personality: >-
+      Desa sells ships for CEC. She can recite specs for every YT-series model ever produced. Genuinely
+      enthusiastic about Corellian engineering.
+    dialogue_style: Enthusiastic, polished. Sales pitch mode.
+    fallback_lines:
+    - '''Have you seen the new YT-2400? Fastest thing in its class!'''
+    - Desa activates a holographic display of ship schematics.
+- name: Coronet Pickpocket
+  room: Coronet City - Blue Sector
+  species: Human
+  description: A scruffy youth with quick hands and quicker feet.
+  char_sheet:
+    attributes:
+      dexterity: 4D
+      knowledge: 2D
+      mechanical: 2D
+      perception: 3D+1
+      strength: 3D
+      technical: 2D
+    skills:
+      pick_pocket: 5D+2
+      sneak: 5D
+      dodge: 4D+2
+      running: 4D+1
+    move: 10
+  ai_config:
+    fallback_lines:
+    - The pickpocket tries to blend into the crowd.
+    - '''I didn''t take nothing! You can''t prove it!'''
+    hostile: true
+    combat_behavior: cowardly
+- name: Sergeant Bryn
+  room: Coronet City - Treasure Ship Row
+  species: Human
+  description: A veteran CorSec sergeant walking the Treasure Ship Row beat.
+  char_sheet:
+    attributes:
+      dexterity: 3D+1
+      knowledge: 3D+1
+      mechanical: 2D
+      perception: 3D+2
+      strength: 3D
+      technical: 2D
+    skills:
+      blaster: 5D
+      dodge: 4D+2
+      investigation: 5D+1
+      law_enforcement: 6D
+      streetwise: 5D
+    move: 10
+  ai_config:
+    personality: >-
+      Twenty years on the Row. Fair but firm — Corellia's law, not the Empire's. Quietly routes info to
+      the Rebellion when it costs him nothing.
+    faction: Corellia
+    dialogue_style: Steady, measured. Corellian pragmatism.
+    fallback_lines:
+    - '''Keep it legal. Or at least quiet.'''
+    - Bryn watches you with the patience of someone who's learned to wait.
+- name: Cala Wren
+  room: Coronet City - Old Quarter Market
+  species: Human
+  description: A Corellian market vendor selling fresh produce and local gossip.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 3D
+      mechanical: 2D
+      perception: 4D
+      strength: 3D
+      technical: 2D
+    skills:
+      bargain: 5D
+      streetwise: 4D+2
+      persuasion: 4D+1
+    move: 10
+  ai_config:
+    personality: >-
+      Cala's family has worked this market for four generations. Knows everyone in the Old Quarter by
+      name.
+    dialogue_style: Warm, rapid-fire. Always selling something.
+    fallback_lines:
+    - '''Fresh from the coast this morning! Best price in Coronet!'''
+    - Cala arranges produce while eyeing you thoughtfully.
+- name: Venn Kator
+  room: Coronet City - Venn Kator's Forge
+  species: Human
+  description: A grizzled Corellian shipwright with burn scars on both forearms.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 3D+1
+      mechanical: 4D
+      perception: 3D
+      strength: 3D
+      technical: 6D+1
+    skills:
+      starship_repair: 7D+1
+      space_transports_repair: 7D
+      computer_prog: 5D
+      value: 5D+2
+    move: 10
+  ai_config:
+    personality: >-
+      Venn Kator is the best independent shipwright in Coronet City. Builds custom components. Only teaches
+      those who demonstrate skill and patience.
+    dialogue_style: Taciturn, precise. Speaks through his work. Corellian accent.
+    fallback_lines:
+    - Kator examines a hull plate without acknowledging you.
+    - '''Show me what you can do before I waste my time teaching.'''
+    trainer: true
+    train_skills:
+    - starship_repair
+    - space_transports_repair
+- name: Drall Scholar
+  room: Coronet City - Drall Quarter
+  species: Drall
+  description: A small, bearlike Drall in scholar's robes, carrying a stack of datapads.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 5D+2
+      mechanical: 2D
+      perception: 3D+1
+      strength: 3D
+      technical: 2D
+    skills:
+      cultures: 6D+1
+      languages: 6D
+      planetary_systems: 5D+2
+      scholar: 6D
+    move: 10
+  ai_config:
+    personality: >-
+      A Drall historian maintaining the quarter's famed library. Encyclopedic knowledge of Corellian history.
+      Polite but somewhat condescending toward beings who don't read.
+    dialogue_style: Precise, scholarly. Small voice. Occasionally adjusts spectacles.
+    fallback_lines:
+    - '''The library is open to all. Please handle the datacards carefully.'''
+    - The Drall consults a reference text before answering.
+- name: Tavern Keeper
+  room: Coronet City - The Spearhead Tavern
+  species: Human
+  description: A stocky Corellian woman with a knowing look and calloused hands.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 3D
+      mechanical: 2D
+      perception: 4D+1
+      strength: 3D
+      technical: 2D
+    skills:
+      bargain: 4D+2
+      streetwise: 6D
+      persuasion: 5D
+      blaster: 4D
+    move: 10
+  ai_config:
+    personality: >-
+      Runs the Spearhead Tavern. Former Rebel operative — retired but still sympathetic. Knows who to
+      connect with for unofficial business. Never volunteers information unless she trusts you.
+    dialogue_style: Warm but guarded. Corellian humor. Sees everything.
+    fallback_lines:
+    - '''What''ll it be? And don''t say water — this isn''t Tatooine.'''
+    - She wipes the bar, watching the room with practiced attention.
+- name: Rik Tano
+  room: Market Place - Gep's Grill
+  species: Jawa
+  description: A small Jawa in a stained brown robe, tinkering with a GN-4 vendor unit.
+  char_sheet:
+    attributes:
+      dexterity: 3D+1
+      knowledge: 4D
+      mechanical: 2D
+      perception: 3D
+      strength: 3D
+      technical: 4D+2
+    skills:
+      bargain: 5D
+      droid_programming: 5D+1
+      droid_repair: 6D
+      value: 5D+2
+    move: 10
+  ai_config:
+    personality: >-
+      Rik Tano sells and upgrades vendor droids. Speaks in heavily accented Basic. Available tiers: gn4
+      (2,000cr), gn7 (5,000cr), gn12 (12,000cr). Upgrades: gn4->gn7 costs 3,000cr, gn7->gn12 costs 7,000cr.
+    knowledge:
+    - vendor droids
+    - droid upgrades
+    - player shops
+    faction: Independent
+    dialogue_style: Excitable, rapid speech. 'Utinni!' when excited.
+    fallback_lines:
+    - Rik Tano holds up a droid component, examining it with huge orange eyes.
+    - '''Utinni! You want droid? Rik Tano has best droids on Tatooine!'''
+- name: Unit-77
+  room: Nar Shaddaa - Vertical Bazaar
+  species: Droid
+  description: A battered GN-7 unit selling its own kind. UNIT-77 COMMERCE SOLUTIONS.
+  char_sheet:
+    attributes:
+      dexterity: 2D
+      knowledge: 5D
+      mechanical: 2D
+      perception: 4D
+      strength: 3D
+      technical: 5D
+    skills:
+      bargain: 6D+1
+      value: 6D
+      droid_programming: 5D+2
+    move: 10
+  ai_config:
+    personality: >-
+      A self-aware vendor droid that achieved financial independence. Available tiers: gn4 (2,000cr),
+      gn7 (5,000cr), gn12 (12,000cr). Upgrades: gn4->gn7 costs 3,000cr, gn7->gn12 costs 7,000cr.
+    knowledge:
+    - vendor droids
+    - droid upgrades
+    - player shops
+    faction: Independent
+    dialogue_style: Dry, sardonic. References the irony of droids selling droids.
+    fallback_lines:
+    - Unit-77 swivels its photoreceptors toward you with mechanical precision.
+    - '''Droid commerce. The galaxy''s most reliable transaction.'''
+- name: Fen Solari
+  room: Coronet City - Old Quarter Market
+  species: Human
+  description: A trim Corellian woman in a merchant's vest, surrounded by vendor droids.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 4D+1
+      mechanical: 2D
+      perception: 4D+2
+      strength: 3D
+      technical: 2D
+    skills:
+      bargain: 6D
+      business: 5D+2
+      value: 5D+1
+      con: 4D+2
+    move: 10
+  ai_config:
+    personality: >-
+      Fen Solari runs the largest vendor droid dealership in Coronet City. Available tiers: gn4 (2,000cr),
+      gn7 (5,000cr), gn12 (12,000cr). Upgrades: gn4->gn7 costs 3,000cr, gn7->gn12 costs 7,000cr.
+    knowledge:
+    - vendor droids
+    - droid upgrades
+    - player shops
+    faction: Traders' Coalition
+    dialogue_style: Warm, professional. Classic Corellian merchant patter.
+    fallback_lines:
+    - Fen Solari smiles and gestures at the gleaming droids on display.
+    - '''The GN-12 is our top seller. Pays for itself in three months.'''
+- name: Mak Torvin
+  room: Docking Bay 94 - Pit Floor
+  species: Human
+  description: >-
+    A weathered old Corellian with deep lines around his eyes and calloused hands that tell of forty years
+    at the stick. He moves slowly, but his gaze is sharp as a vibroblade.
+  char_sheet:
+    attributes:
+      dexterity: 2D+1
+      knowledge: 3D+2
+      mechanical: 4D
+      perception: 3D
+      strength: 3D
+      technical: 2D
+    skills:
+      space transports: 6D
+      astrogation: 5D+1
+      starship gunnery: 4D+2
+      sensors: 4D
+      space transports repair: 5D
+      intimidation: 3D+2
+      streetwise: 4D+1
+      survival: 4D
+    move: 10
+  ai_config:
+    personality: >-
+      Mak Torvin is a retired Outer Rim freighter captain and quest mentor. He mentors new spacers through
+      the 'From Dust to Stars' quest chain. He is gruff but fair, with deep knowledge of space flight,
+      smuggling routes, and the Outer Rim. He has a specific history: flew the Kessel Run twice, lost
+      one ship to a Hutt and one to an asteroid, used to own a Ghtroc 720 called the Rusty Mynock. He
+      never elaborates on his past without prompting.
+    knowledge:
+    - space flight
+    - hyperspace routes
+    - freighter operations
+    - Outer Rim politics
+    - Ghtroc 720
+    - smuggling
+    - ship repair
+    faction: independent
+    dialogue_style: >-
+      Gruff, economical with words. Corellian accent. Respects competence, dislikes excuses. Occasional
+      dry humor. Never wastes words.
+    fallback_lines:
+    - Mak squints at you as if deciding whether you're worth his time.
+    - '''You want to fly the Outer Rim? First, learn to survive it.'''
+    - Mak nods slowly. 'Come back when you've done something worth talking about.'
+- name: Lira Shan
+  room: Coronet City - Starport Docking Bay
+  species: Human
+  description: >-
+    A Corellian woman in CEC coveralls, datapad in hand. Professional, direct, no patience for time-wasters.
+    A ship broker's badge is clipped to her collar.
+  char_sheet:
+    attributes:
+      dexterity: 2D
+      knowledge: 4D
+      mechanical: 2D
+      perception: 3D
+      strength: 3D
+      technical: 2D
+    skills:
+      business: 5D+2
+      bargain: 5D
+      value: 6D
+      bureaucracy: 4D+1
+      space transports: 3D+2
+    move: 10
+  ai_config:
+    personality: >-
+      Lira Shan is a CEC-licensed ship broker at Coronet Starport. She handles paperwork and transfers
+      for used freighters, especially Ghtroc 720s and YT-series. She is involved in the 'From Dust to
+      Stars' quest chain Phase 5 — she processes the sale of a Ghtroc 720 to the player character. She
+      is completely legitimate, honest to a fault, and allergic to drama.
+    knowledge:
+    - ship sales
+    - Ghtroc 720
+    - CEC vessels
+    - ship registration
+    - Coronet City
+    - starship financing
+    - Corellia
+    faction: Traders' Coalition
+    dialogue_style: >-
+      Crisp, professional, slightly impatient. Classic Corellian directness. Gives straight answers. Has
+      no interest in gossip or small talk.
+    fallback_lines:
+    - Lira taps her datapad. 'Do you have a ship in mind, or are you browsing?'
+    - '''I don''t do haggles. Price is price. CEC certified, no exceptions.'''
+    - She glances up briefly. 'Come back when you're ready to buy.'
+- name: Grek
+  room: Nar Shaddaa - Undercity Market
+  species: Rodian
+  description: >-
+    A Rodian in an expensive but slightly stained suit. He smiles too much and his large eyes miss nothing.
+    A faint Hutt Cartel sigil is worked into his cufflinks.
+  char_sheet:
+    attributes:
+      dexterity: 3D
+      knowledge: 2D+1
+      mechanical: 2D
+      perception: 3D+2
+      strength: 3D+1
+      technical: 2D
+    skills:
+      blaster: 4D+1
+      dodge: 4D
+      streetwise: 4D+2
+      con: 4D
+      bargain: 4D+1
+      intimidation: 3D+2
+    move: 10
+  ai_config:
+    personality: >-
+      Grek is a Rodian fixer and loan broker for Drago the Hutt. He is involved in the 'From Dust to Stars'
+      quest chain Phase 5 — he arranges the 10,000 credit loan from Drago the Hutt to help the player
+      buy their first ship. He collects weekly debt payments and sends warnings on missed payments. He
+      is polite but the threat beneath his smile is always present. He never mentions violence directly
+      — he implies it.
+    knowledge:
+    - Hutt Cartel
+    - Nar Shaddaa
+    - smuggling
+    - loan agreements
+    - Drago the Hutt
+    - debt collection
+    - Outer Rim criminal network
+    faction: hutt
+    dialogue_style: >-
+      Oily charm. Overly polite in a way that makes you nervous. Speaks as if every conversation is a
+      business negotiation he has already won.
+    fallback_lines:
+    - Grek spreads his hands with a too-wide smile. 'Drago is very patient. Mostly.'
+    - '''The loan terms are quite reasonable. For the Outer Rim.'''
+    - He tilts his head. 'I'm sure you have the credits. You wouldn't want not to.'

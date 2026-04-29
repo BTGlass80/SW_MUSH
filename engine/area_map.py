@@ -80,7 +80,13 @@ def _parse_room_props(row: dict) -> dict:
         try:
             import json
             return json.loads(props_raw)
-        except Exception:
+        except (json.JSONDecodeError, TypeError) as e:
+            # Per code_review_session32.md D5: narrow JSON guard with log
+            # so DB corruption is visible instead of silently returning {}.
+            log.warning(
+                "[area_map] Malformed room properties JSON for room %s: %s",
+                row.get("id"), e,
+            )
             return {}
     return props_raw or {}
 
@@ -431,7 +437,12 @@ def _detect_room_services(row: dict) -> list:
         try:
             import json as _json
             props = _json.loads(props_raw)
-        except Exception:
+        except (_json.JSONDecodeError, TypeError) as e:
+            # Per code_review_session32.md D5: narrow JSON guard with log.
+            log.warning(
+                "[area_map] Malformed room properties JSON for room %s "
+                "(services lookup): %s", row.get("id"), e,
+            )
             props = {}
     else:
         props = props_raw or {}

@@ -111,17 +111,12 @@ class TestSplitExit:
     def test_empty_string(self):
         assert _split_exit("") == ("", "")
 
-    def test_match_against_build_script_helper(self):
-        # The build script has its own _split_exit; this test pins
-        # behavioral parity. If build_mos_eisley's helper drifts, this
-        # surfaces it.
-        from build_mos_eisley import _split_exit as build_split
-        cases = [
-            "north", "south to Cantina", "out", "board",
-            "south", "northeast to Marketplace",
-        ]
-        for s in cases:
-            assert _split_exit(s) == build_split(s), f"divergence on {s!r}"
+    # NOTE: an earlier `test_match_against_build_script_helper` test
+    # pinned parity between this module's `_split_exit` and a copy in
+    # `build_mos_eisley.py`. Pass B deleted the build-script copy along
+    # with the legacy literals it served, so the parity check has no
+    # second side to compare against and was removed in Pass B. The
+    # tests above already validate this `_split_exit` independently.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -297,13 +292,17 @@ class TestDbContent:
         assert len(rev) == 1
         assert rev[0]["direction"] == "up"
 
-    def test_exit_with_label_split_correctly(self, write_result, event_loop_for_tests):
-        # Find an exit in the source EXITS that has a "to <name>" label.
-        from build_mos_eisley import EXITS
-        labeled = [e for e in EXITS
-                   if " to " in e[2].lower() or " to " in e[3].lower()]
-        assert labeled, "No labeled exits found in build_mos_eisley.EXITS — test sanity"
-        from_idx, to_idx, fwd_raw, rev_raw = labeled[0]
+    def test_exit_with_label_split_correctly(self, write_result, gcw_bundle,
+                                              event_loop_for_tests):
+        # Find an exit in the loaded bundle that has a "to <name>" label
+        # in either direction. (Pre-Pass-B this scanned
+        # `build_mos_eisley.EXITS`; post-Pass-B that literal is gone, so
+        # we use the bundle directly.)
+        labeled = [e for e in gcw_bundle.exits
+                   if " to " in e.forward.lower() or " to " in e.reverse.lower()]
+        assert labeled, "No labeled exits found in GCW bundle - test sanity"
+        e = labeled[0]
+        from_idx, to_idx, fwd_raw, rev_raw = e.from_id, e.to_id, e.forward, e.reverse
         db, result = write_result
         rid_from = result.room_id_for_yaml_id[from_idx]
         rid_to = result.room_id_for_yaml_id[to_idx]

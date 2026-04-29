@@ -598,3 +598,454 @@ def _pips_to_dice(pips):
     d = pips // 3
     p = pips % 3
     return f"{d}D+{p}" if p > 0 else f"{d}D"
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  STRUCTURED PAYLOAD (GUI sheet redesign)
+# ═══════════════════════════════════════════════════════════════════
+#
+#  These builders are the WebSocket-side counterpart to render_*().  The
+#  text renderers above are still used for Telnet and as a fallback path
+#  on WS errors.  The web client receives `build_sheet_payload(...)` over
+#  a `sheet_data` event and renders the themed slide-in panel without any
+#  ANSI parsing.
+#
+#  Payload schema (mirrors prototype/sheet-data.jsx SAMPLE_CHAR shape):
+#
+#    {
+#      "identity":        {name, species, template, gender, homeworld,
+#                          age, height, hair, eyes, move, description},
+#      "points":          {cp, fp, dsp, force_sensitive, credits},
+#      "wound":           {level, label, penalty},
+#      "attributes":      {dexterity: {d, p}, knowledge: {d, p}, ...},
+#      "skills":          {blaster: {bonus: {d, p},
+#                                     total: {d, p},
+#                                     attr: "dexterity",
+#                                     tags: ["combat", ...]}, ...},
+#      "specializations": [{skill, name, bonus: {d, p}, total: {d, p}}],
+#      "force":           {control: {d, p}, sense: {d, p}, alter: {d, p},
+#                          powers: [{key, name, skills, base_diff,
+#                                    dark_side, description}, ...]} | None,
+#      "advantages":      [],     # populated when advantages DB lands
+#      "disadvantages":   [],     # populated when disadvantages DB lands
+#      "weapon":          {key, name, damage, ranges} | None,
+#      "armor":           {key, name, energy, physical, dex_pen} | None,
+#      "inventory":       [{name, qty}],
+#      "background":      "",     # filled from pc_narrative when present
+#      "notes":           "",     # filled when notes table lands
+#      "chargen_notes":   "",     # NEW: characters table column
+#      "skill_count":     <int>,  # convenience: trained skill total
+#    }
+#
+#  DicePools serialize as {"d": <dice>, "p": <pips>} so the JSX renderer
+#  can call poolToStr() identically to the mock data.
+# ═══════════════════════════════════════════════════════════════════
+
+
+def _pool_to_dict(pool):
+    """Serialize a DicePool to {d, p} for the JSON payload.
+
+    Mirrors the shape used in prototype/sheet-data.jsx so the JSX
+    poolToStr() helper works without modification.
+    """
+    if pool is None:
+        return {"d": 0, "p": 0}
+    return {"d": int(getattr(pool, "dice", 0)),
+            "p": int(getattr(pool, "pips", 0))}
+
+
+def _wound_label_and_penalty(wound):
+    """Return ('STUNNED', '-1D')-style strings for the payload."""
+    # Map WoundLevel to UI ladder labels (matches WOUND_RUNGS in
+    # prototype/sheet-data.jsx — 7 rungs, 0=HEALTHY .. 6=KILLED).
+    labels = [
+        ("HEALTHY", ""),
+        ("STUNNED", "-1D"),
+        ("WOUNDED", "-1D"),
+        ("WOUNDED TWICE", "-2D"),
+        ("INCAPACITATED", "—"),
+        ("MORTALLY WOUNDED", "—"),
+        ("KILLED", "—"),
+    ]
+    idx = int(wound) if wound is not None else 0
+    if 0 <= idx < len(labels):
+        return labels[idx]
+    return ("HEALTHY", "")
+
+
+# Cache of skill-tag lookup so the payload can mark each trained skill
+# with its tags ("combat", "social", "piloting", ...) for the GUI tabs.
+# Keys here are the underscored wire form to match the payload.
+_SKILL_TAG_CACHE: dict = {}
+
+
+def _load_skill_tags():
+    """Lazy-load skill tag mapping from data/skill_descriptions.yaml.
+
+    The catalog is a few KB and rarely changes — load once and cache.
+    Returns dict: underscored_skill_key -> list[str] of tags.
+    """
+    global _SKILL_TAG_CACHE
+    if _SKILL_TAG_CACHE:
+        return _SKILL_TAG_CACHE
+    import os
+    try:
+        import yaml as _yaml
+    except ImportError:
+        return {}
+    here = os.path.dirname(os.path.abspath(__file__))
+    yaml_path = os.path.join(
+        os.path.dirname(here), "data", "skill_descriptions.yaml"
+    )
+    if not os.path.exists(yaml_path):
+        return {}
+    try:
+        with open(yaml_path, "r", encoding="utf-8") as f:
+            raw = _yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+    tags = {}
+    for parent_attr, attr_block in (raw.get("skills") or {}).items():
+        if not isinstance(attr_block, dict):
+            continue
+        for skill_key, skill_data in attr_block.items():
+            if not isinstance(skill_data, dict):
+                continue
+            t = skill_data.get("tags") or []
+            if isinstance(t, list):
+                tags[skill_key.lower()] = [str(x) for x in t]
+    _SKILL_TAG_CACHE = tags
+    return tags
+
+
+def build_sheet_payload(char_dict, skill_reg):
+    """Build a structured dict describing the character for the GUI sheet.
+
+    Sibling of render_game_sheet().  Reuses the same data assembly logic
+    (Character.from_db_dict, skill_reg.skills_for_attribute) but emits a
+    JSON-serializable dict instead of ANSI text lines.
+
+    Args:
+        char_dict: DB row dict from db.get_character() (string-encoded
+            JSON for attributes/skills/equipment).
+        skill_reg: A SkillRegistry loaded from data/skills.yaml.
+
+    Returns:
+        A dict matching the schema documented above.  All fields are
+        always present so the client renderer doesn't need optional-key
+        guards.  Pools are {d, p} dicts, not strings.
+    """
+    import json as _json
+    from engine.character import Character, ATTRIBUTE_NAMES, WoundLevel
+
+    char = Character.from_db_dict(char_dict)
+    wound_level = WoundLevel(char_dict.get("wound_level", 0))
+    wound_label, wound_pen = _wound_label_and_penalty(wound_level)
+
+    # ── Identity ───────────────────────────────────────────────────
+    # gender/homeworld/age/height/hair/eyes don't exist in the
+    # characters table today — emit empty strings so the client's
+    # optional-bio panel renders cleanly when those columns land.
+    identity = {
+        "name":        char.name,
+        "species":     char.species_name,
+        "template":    char.template or "",
+        "gender":      char_dict.get("gender", ""),
+        "homeworld":   char_dict.get("homeworld", ""),
+        "age":         char_dict.get("age", ""),
+        "height":      char_dict.get("height", ""),
+        "hair":        char_dict.get("hair", ""),
+        "eyes":        char_dict.get("eyes", ""),
+        "move":        char.move,
+        "description": char.description or "",
+    }
+
+    # ── Points ─────────────────────────────────────────────────────
+    points = {
+        "cp":               int(char.character_points or 0),
+        "fp":               int(char.force_points or 0),
+        "dsp":              int(char.dark_side_points or 0),
+        "force_sensitive":  bool(char.force_sensitive),
+        "credits":          int(char.credits or 0),
+    }
+
+    # ── Wound ──────────────────────────────────────────────────────
+    wound = {
+        "level":   int(wound_level.value if hasattr(wound_level, "value") else wound_level),
+        "label":   wound_label,
+        "penalty": wound_pen,
+    }
+
+    # ── Attributes ─────────────────────────────────────────────────
+    attributes = {
+        a: _pool_to_dict(char.get_attribute(a))
+        for a in ATTRIBUTE_NAMES
+    }
+
+    # ── Skills (trained only — bonus > 0) ──────────────────────────
+    # Each skill carries the parent attribute and skill-tag list so the
+    # client can group/filter without consulting a parallel registry.
+    # Keys are normalized to the underscored form ("space_transports")
+    # so they match the convention used in data/skill_descriptions.yaml
+    # and the dashboard's SKILL_DESC lookup.  The registry stores keys
+    # as "space transports" (lowercased name with spaces).
+    skill_tags = _load_skill_tags()
+    skills = {}
+    for sd in skill_reg.all_skills():
+        bonus = char.skills.get(sd.key)
+        if bonus and (bonus.dice > 0 or bonus.pips > 0):
+            attr_pool = char.get_attribute(sd.attribute)
+            total = attr_pool + bonus
+            wire_key = sd.key.replace(" ", "_")
+            skills[wire_key] = {
+                "bonus":   _pool_to_dict(bonus),
+                "total":   _pool_to_dict(total),
+                "attr":    sd.attribute,
+                "tags":    list(skill_tags.get(wire_key, [])),
+            }
+
+    # ── Specializations ────────────────────────────────────────────
+    # Character.specializations is dict[str, DicePool].  Spec keys
+    # follow the convention "<skill>:<spec_name>" (engine/character
+    # treats them as bonuses on top of the parent skill).  We surface
+    # both the spec_key and a human-readable name; total = parent
+    # skill total + spec bonus.
+    specializations = []
+    for spec_key, spec_bonus in char.specializations.items():
+        if not spec_bonus:
+            continue
+        # Best-effort split: "blaster:blaster_pistol" → parent "blaster"
+        if ":" in spec_key:
+            parent_skill, spec_name = spec_key.split(":", 1)
+        else:
+            parent_skill, spec_name = spec_key, spec_key
+        parent_def = skill_reg.get(parent_skill)
+        if parent_def:
+            attr_pool = char.get_attribute(parent_def.attribute)
+            parent_bonus = char.skills.get(parent_def.key)
+            parent_total = attr_pool + parent_bonus if parent_bonus else attr_pool
+            spec_total = parent_total + spec_bonus
+        else:
+            spec_total = spec_bonus
+        specializations.append({
+            "skill":  parent_skill.replace(" ", "_"),
+            "name":   spec_name.replace("_", " ").title(),
+            "bonus":  _pool_to_dict(spec_bonus),
+            "total":  _pool_to_dict(spec_total),
+        })
+
+    # ── Force ──────────────────────────────────────────────────────
+    # Powers list comes from list_powers_for_char(), which gates each
+    # power on the required force skills (≥1D in control / sense /
+    # alter).  Engine doesn't track per-character "learned" powers —
+    # in WEG D6 R&E, having the gating skill = knowing the power.
+    force = None
+    if char.force_sensitive:
+        powers_list = []
+        try:
+            from engine.force_powers import list_powers_for_char
+            for p in list_powers_for_char(char):
+                powers_list.append({
+                    "key":         p.key,
+                    "name":        p.name,
+                    "skills":      list(p.skills),
+                    "base_diff":   int(p.base_diff),
+                    "dark_side":   bool(p.dark_side),
+                    "combat_only": bool(getattr(p, "combat_only", False)),
+                    "target":      getattr(p, "target", "self"),
+                    "description": p.description or "",
+                })
+        except Exception:
+            powers_list = []
+        force = {
+            "control": _pool_to_dict(char.control),
+            "sense":   _pool_to_dict(char.sense),
+            "alter":   _pool_to_dict(char.alter),
+            "powers":  powers_list,
+        }
+
+    # ── Advantages / Disadvantages ─────────────────────────────────
+    # Not yet schema-backed; emit empty arrays so the right rail's
+    # HOOKS panel renders consistently across all characters.  The
+    # client falls back to the background string when these are empty.
+    advantages = []
+    disadvantages = []
+
+    # ── Weapon / Armor ─────────────────────────────────────────────
+    weapon_payload = None
+    armor_payload = None
+    equip_data = char_dict.get("equipment", "{}")
+    if isinstance(equip_data, str):
+        try:
+            equip_data = _json.loads(equip_data)
+        except (ValueError, TypeError):
+            equip_data = {}
+    if isinstance(equip_data, dict):
+        weapon_key = equip_data.get("weapon", "") or ""
+        armor_key = equip_data.get("armor", "") or ""
+        if weapon_key:
+            try:
+                from engine.weapons import get_weapon_registry
+                wr = get_weapon_registry()
+                w_obj = wr.get(weapon_key)
+                if w_obj:
+                    weapon_payload = {
+                        "key":    weapon_key,
+                        "name":   w_obj.name,
+                        "damage": w_obj.damage,
+                        "ranges": list(w_obj.ranges) if w_obj.ranges else [],
+                    }
+                else:
+                    weapon_payload = {
+                        "key": weapon_key, "name": weapon_key,
+                        "damage": "", "ranges": [],
+                    }
+            except Exception:
+                weapon_payload = {
+                    "key": weapon_key, "name": weapon_key,
+                    "damage": "", "ranges": [],
+                }
+        if armor_key:
+            try:
+                from engine.weapons import get_weapon_registry
+                wr = get_weapon_registry()
+                a_obj = wr.get(armor_key)
+                if a_obj:
+                    armor_payload = {
+                        "key":      armor_key,
+                        "name":     a_obj.name,
+                        "energy":   a_obj.protection_energy or "",
+                        "physical": a_obj.protection_physical or "",
+                        "dex_pen":  a_obj.dexterity_penalty or "",
+                    }
+                else:
+                    armor_payload = {
+                        "key": armor_key, "name": armor_key,
+                        "energy": "", "physical": "", "dex_pen": "",
+                    }
+            except Exception:
+                armor_payload = {
+                    "key": armor_key, "name": armor_key,
+                    "energy": "", "physical": "", "dex_pen": "",
+                }
+
+    # ── Inventory ──────────────────────────────────────────────────
+    inv_data = char_dict.get("inventory", "[]")
+    if isinstance(inv_data, str):
+        try:
+            inv_data = _json.loads(inv_data)
+        except (ValueError, TypeError):
+            inv_data = []
+    inventory = []
+    if isinstance(inv_data, list):
+        for item in inv_data:
+            if isinstance(item, dict):
+                inventory.append({
+                    "name": str(item.get("name", "")),
+                    "qty":  int(item.get("qty", 1) or 1),
+                })
+            elif isinstance(item, str) and item:
+                inventory.append({"name": item, "qty": 1})
+
+    # ── Background / notes / chargen_notes ─────────────────────────
+    # background lives in pc_narrative (separate fetch); SheetCommand
+    # hydrates that field before calling the builder, so we just read
+    # it off the dict here.  chargen_notes lives on characters.
+    background = char_dict.get("background", "") or ""
+    notes = char_dict.get("notes", "") or ""
+    chargen_notes = char_dict.get("chargen_notes", "") or ""
+
+    return {
+        "identity":        identity,
+        "points":          points,
+        "wound":           wound,
+        "attributes":      attributes,
+        "skills":          skills,
+        "specializations": specializations,
+        "force":           force,
+        "advantages":      advantages,
+        "disadvantages":   disadvantages,
+        "weapon":          weapon_payload,
+        "armor":           armor_payload,
+        "inventory":       inventory,
+        "background":      background,
+        "notes":           notes,
+        "chargen_notes":   chargen_notes,
+        "skill_count":     len(skills),
+    }
+
+
+def build_skill_descriptions_payload(yaml_path=None):
+    """Load data/skill_descriptions.yaml as a flat lookup dict.
+
+    Returns:
+        {
+          "attributes": {dexterity: {description, short, gameplay_note,
+                                     icon}, ...},
+          "skills":     {blaster: {description, game_use, tags, priority,
+                                   tip, attribute}, ...},
+        }
+
+    The client caches this on connect so the dashboard's right-rail
+    drawer can display rich tooltips without round-tripping per skill.
+    Skills from the YAML are flattened (the YAML groups them under
+    parent attributes); each skill record has its parent attribute
+    folded in as `attribute`.
+
+    Returns an empty payload (with the shape preserved) if the YAML is
+    missing or malformed — the client falls back to plain skill names.
+    """
+    import os
+    try:
+        import yaml as _yaml
+    except ImportError:
+        return {"attributes": {}, "skills": {}}
+
+    if yaml_path is None:
+        # Default location — same convention as SheetCommand uses for
+        # data/skills.yaml.
+        here = os.path.dirname(os.path.abspath(__file__))
+        yaml_path = os.path.join(
+            os.path.dirname(here), "data", "skill_descriptions.yaml"
+        )
+    if not os.path.exists(yaml_path):
+        return {"attributes": {}, "skills": {}}
+
+    try:
+        with open(yaml_path, "r", encoding="utf-8") as f:
+            raw = _yaml.safe_load(f) or {}
+    except Exception:
+        return {"attributes": {}, "skills": {}}
+
+    out_attrs = {}
+    for attr_name, attr_data in (raw.get("attributes") or {}).items():
+        if not isinstance(attr_data, dict):
+            continue
+        out_attrs[attr_name.lower()] = {
+            "description":   (attr_data.get("description") or "").strip(),
+            "short":         (attr_data.get("short") or "").strip(),
+            "gameplay_note": (attr_data.get("gameplay_note") or "").strip(),
+            "icon":          (attr_data.get("icon") or "").strip(),
+        }
+
+    out_skills = {}
+    skills_section = raw.get("skills") or {}
+    for parent_attr, attr_block in skills_section.items():
+        if not isinstance(attr_block, dict):
+            continue
+        for skill_key, skill_data in attr_block.items():
+            if not isinstance(skill_data, dict):
+                continue
+            tags = skill_data.get("tags") or []
+            if not isinstance(tags, list):
+                tags = []
+            out_skills[skill_key.lower()] = {
+                "description": (skill_data.get("description") or "").strip(),
+                "game_use":    (skill_data.get("game_use") or "").strip(),
+                "tip":         (skill_data.get("tip") or "").strip(),
+                "tags":        [str(t) for t in tags],
+                "priority":    (skill_data.get("priority") or "").strip(),
+                "attribute":   parent_attr.lower(),
+            }
+
+    return {"attributes": out_attrs, "skills": out_skills}

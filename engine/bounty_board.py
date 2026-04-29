@@ -76,9 +76,17 @@ TIER_WEIGHTS: dict[BountyTier, int] = {
 }
 
 # Archetypes appropriate as fugitives
+# B.1.g (Apr 29 2026): extended with CW archetype keys so CW boots
+# generate era-appropriate fugitives (deserter clones, ARC defectors,
+# rogue Jedi). Era selection happens at NPC-spawn time via the npc
+# generator; this list is the union of allowed archetypes across both
+# eras. The Director / spawn callers can filter by era if needed.
 FUGITIVE_ARCHETYPES = [
+    # ── GCW / era-agnostic ──
     "thug", "smuggler", "bounty_hunter", "scout",
     "stormtrooper", "imperial_officer",
+    # ── CW (B.1.g) ──
+    "clone_trooper", "arc_trooper", "republic_officer",
 ]
 
 # Rooms to avoid placing fugitives (docking bays are too obvious/common)
@@ -117,6 +125,66 @@ _POSTING_ORGS = [
     "Anonymous Sponsor (credentials verified)",
     "Interstellar Collections Agency",
 ]
+
+# B.1.g (Apr 29 2026) — CW-era flavor pools. Selected at posting time
+# via `_get_crime_descriptions(era)` / `_get_posting_orgs(era)`. GCW
+# pools above remain byte-equivalent.
+_CW_CRIME_DESCRIPTIONS = [
+    "wanted for armed robbery and assault on Republic personnel",
+    "suspected spice smuggler with three outstanding warrants",
+    "wanted for murder — last seen armed and dangerous",
+    "debt defaulter wanted by the Hutt Cartel — bring in alive if possible",
+    "wanted for slicing into Republic military records and selling secrets",
+    "accused of stealing a cargo shipment and assaulting the owner",
+    "armed fugitive wanted for multiple counts of fraud and extortion",
+    "wanted for impersonating a Republic officer",
+    "wanted for destruction of property and resisting arrest",
+    "known Separatist sympathizer — capture preferred",
+]
+
+_CW_POSTING_ORGS = [
+    "Republic Garrison, Mos Eisley",
+    "Hutt Cartel (Jabba's Organization)",
+    "Bounty Hunters' Guild — Tatooine Charter",
+    "Mos Eisley Port Authority",
+    "Anonymous Sponsor (credentials verified)",
+    "Interstellar Collections Agency",
+]
+
+
+def _get_crime_descriptions(era: str | None = None) -> list[str]:
+    """Return the era-appropriate crime description pool.
+
+    B.1.g (Apr 29 2026): CW era returns CW-flavored crimes (Republic
+    instead of Imperial, Separatist instead of Rebel). Other eras
+    (including the GCW default and any unmapped era) return the
+    legacy GCW pool, preserving production byte-equivalence.
+
+    Never raises; on any error resolving the era, returns the GCW pool.
+    """
+    if era is None:
+        try:
+            from engine.era_state import get_active_era
+            era = get_active_era()
+        except Exception:
+            return _CRIME_DESCRIPTIONS
+    if era == "clone_wars":
+        return _CW_CRIME_DESCRIPTIONS
+    return _CRIME_DESCRIPTIONS
+
+
+def _get_posting_orgs(era: str | None = None) -> list[str]:
+    """Return the era-appropriate posting-org pool. See
+    `_get_crime_descriptions` for semantics."""
+    if era is None:
+        try:
+            from engine.era_state import get_active_era
+            era = get_active_era()
+        except Exception:
+            return _POSTING_ORGS
+    if era == "clone_wars":
+        return _CW_POSTING_ORGS
+    return _POSTING_ORGS
 
 _INVESTIGATIVE_TIPS = [
     "Last seen near the cantina district.",
@@ -308,8 +376,8 @@ async def generate_bounty(db, rooms: Optional[list[dict]] = None) -> Optional[Bo
         target_name=target_name,
         target_species=target_species,
         target_archetype=archetype,
-        crime_description=random.choice(_CRIME_DESCRIPTIONS),
-        posting_org=random.choice(_POSTING_ORGS),
+        crime_description=random.choice(_get_crime_descriptions()),
+        posting_org=random.choice(_get_posting_orgs()),
         tip=random.choice(_INVESTIGATIVE_TIPS),
         reward=reward,
         reward_alive_bonus=alive_bonus,

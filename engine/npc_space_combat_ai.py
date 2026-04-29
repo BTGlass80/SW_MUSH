@@ -30,6 +30,7 @@ from enum import Enum
 from typing import Optional
 
 from engine.dice import DicePool
+from engine.json_safe import load_ship_systems
 from engine.starships import (
     get_ship_registry, get_space_grid, resolve_space_attack,
     SpaceRange, RelativePosition, resolve_evade, can_weapon_fire,
@@ -375,7 +376,7 @@ class NpcSpaceCombatManager:
             return "continue"
 
         from engine.starships import get_effective_stats
-        t_sys = json.loads(target_ship.get("systems") or "{}")
+        t_sys = load_ship_systems(target_ship)
         t_eff = get_effective_stats(target_tmpl, t_sys)
 
         target_pilot_pool = await self._get_target_pilot_skill(

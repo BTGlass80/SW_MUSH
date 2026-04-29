@@ -177,6 +177,184 @@ FACTION_QUARTER_TIERS = {
             "outside. This is what power looks like in the Outer Rim."
         ),
     },
+    # ── B.1.d.1 (Apr 29 2026) — CW faction quarter tiers ─────────────────────────────
+    # Per cw_housing_design_v1.md §5. Republic on Coruscant Coco Town,
+    # CIS in Stalgasin Deep Hive on Geonosis, Jedi Order in Coruscant
+    # Jedi Temple, Hutt Cartel identical to GCW Hutt with renamed key.
+    # Bounty Hunters' Guild has no faction quarters per design §5.5.
+    ("republic", 0): {
+        "label": "Republic Guard Barracks — Shared Bunk",
+        "storage_max": 10,
+        "room_name": "{name}'s Bunk",
+        "room_desc": (
+            "A bunk in the Coruscant Coco Town Republic Guard barracks. Crisp "
+            "white-and-blue walls, a sealed footlocker, and a holosched display "
+            "showing rotation orders. The hum of the barracks ventilation is a "
+            "constant white noise. A view through the slit window shows {planet_view}."
+        ),
+    },
+    ("republic", 2): {
+        "label": "Republic Guard — Private Cell",
+        "storage_max": 30,
+        "room_name": "{name}'s Quarters",
+        "room_desc": (
+            "A functional officer's cell in the Republic Guard barracks. A proper "
+            "bed, a desk with an encrypted terminal, and a wall locker with a "
+            "biometric lock. The Republic crest is etched above the desk. "
+            "A viewport shows {planet_view}."
+        ),
+    },
+    ("republic", 4): {
+        "label": "Republic Officer Wing — Suite",
+        "storage_max": 50,
+        "room_name": "{name}'s Officer Suite",
+        "room_desc": (
+            "An officer's suite in the Republic Guard's command wing. A bedroom "
+            "and an adjoining briefing room with a holotable for tactical reviews. "
+            "The walls carry framed Republic battle citations. A viewport offers "
+            "a commanding view of {planet_view}. A private refresher adjoins."
+        ),
+    },
+    ("republic", 5): {
+        "label": "Republic Commander — Senate-Adjacent Compound",
+        "storage_max": 100,
+        "room_name": "Commander {name}'s Quarters",
+        "room_desc": (
+            "A commander's compound on the edge of the Senate District, three rooms "
+            "deep — bedchamber, war room with secure subspace comms, and a private "
+            "antechamber for visiting senators or generals. The Judicial Forces "
+            "insignia is woven into the carpet. A panoramic viewport spans the wall, "
+            "showing {planet_view}. Guard patrols rotate past the corridor outside."
+        ),
+    },
+    ("cis", 0): {
+        "label": "Stalgasin Hive — Recruit Dormitory",
+        "storage_max": 10,
+        "room_name": "{name}'s Bedroll",
+        "room_desc": (
+            "A spartan dormitory carved into the chitinous walls of the Stalgasin "
+            "Deep Hive. Low orange light pulses from glow-grubs in the ceiling. "
+            "A bedroll, a stone shelf, and a single locking footlocker. The air "
+            "tastes of damp resin and ozone from distant droid foundries."
+        ),
+    },
+    ("cis", 2): {
+        "label": "Stalgasin Hive — Private Alcove",
+        "storage_max": 40,
+        "room_name": "{name}'s Alcove",
+        "room_desc": (
+            "A private vaulted alcove deep in the hive. Carved chitin curves "
+            "overhead. An encrypted comms station tied to the Separatist network "
+            "sits beside the bedroll. Spare battle-droid parts are stacked in a "
+            "corner. The Geonosian guards outside know your scent."
+        ),
+    },
+    ("cis", 4): {
+        "label": "Stalgasin Hive — Officer's Chamber",
+        "storage_max": 80,
+        "room_name": "{name}'s Chamber",
+        "room_desc": (
+            "An officer's chamber in the upper levels of the deep hive — two "
+            "rooms, with a war-planning slate showing current Separatist front "
+            "lines and a droid-courier dock for sending orders to droid foundries "
+            "across the system. The vaulted ceiling is studded with trophy plaques."
+        ),
+    },
+    ("cis", 5): {
+        "label": "Stalgasin Hive — Council Suite",
+        "storage_max": 100,
+        "room_name": "Marshal {name}'s Suite",
+        "room_desc": (
+            "A council suite at the Stalgasin Deep Hive's restricted Council "
+            "approach — three chambers, a holotable showing live tactical data "
+            "from every Separatist battlefront, and a private antechamber where "
+            "Count Dooku's emissaries are received. Geonosian sentinels stand "
+            "watch in the outer hall. Few non-Geonosians have ever stood here."
+        ),
+    },
+    ("jedi_order", 0): {
+        "label": "Jedi Temple — Initiate Cluster",
+        "storage_max": 10,
+        "room_name": "Initiate {name}'s Cot",
+        "room_desc": (
+            "A communal sleeping arrangement in the Jedi Temple's Initiate "
+            "Cluster. A simple cot among many, separated by hanging cloth "
+            "partitions. Robed initiates move quietly between the rows. The "
+            "room smells faintly of old books and the polished stone of the "
+            "Temple. Through the high arched window, {planet_view}."
+        ),
+    },
+    ("jedi_order", 1): {
+        "label": "Jedi Temple — Padawan Cell",
+        "storage_max": 30,
+        "room_name": "Padawan {name}'s Cell",
+        "room_desc": (
+            "A small private room in the Padawan Wing, adjacent to one's "
+            "Master's quarters. A pallet, a desk with study datapads, a "
+            "shelf of spare robes, and a small meditation corner. The "
+            "Temple's Force-presence is thick here. Through the slit window, {planet_view}."
+        ),
+    },
+    ("jedi_order", 3): {
+        "label": "Jedi Temple — Knight Quarters",
+        "storage_max": 80,
+        "room_name": "Knight {name}'s Quarters",
+        "room_desc": (
+            "A Jedi Knight's quarters in the Knight Wing — two rooms. A "
+            "meditation chamber with a smooth stone floor and a single "
+            "candle, and a private cell with a proper bed and a writing "
+            "desk. A high arched viewport shows {planet_view}. The "
+            "lightsaber rack on the wall is empty when its owner is in residence."
+        ),
+    },
+    ("jedi_order", 5): {
+        "label": "Jedi Temple — Master Suite",
+        "storage_max": 100,
+        "room_name": "Master {name}'s Suite",
+        "room_desc": (
+            "A Jedi Master's suite in the Master Wing — three rooms. A "
+            "meditation hall large enough for kata practice, a Padawan "
+            "teaching alcove with floor cushions and a holocron projector, "
+            "and a private chamber. Carved kyber crystals are set into the "
+            "walls, faintly luminous. Through the master viewport, "
+            "{planet_view}. Few rooms in the galaxy carry this much "
+            "accumulated Force-presence."
+        ),
+    },
+    ("hutt_cartel", 2): {
+        "label": "Hutt Cartel — Enforcer's Safehouse",
+        "storage_max": 30,
+        "room_name": "Enforcer's Room",
+        "room_desc": (
+            "A functional safehouse room in the Nar Shaddaa undercity. The door "
+            "is reinforced durasteel with three separate locks. A weapons rack, a bunk, "
+            "and a hidden floor compartment for 'special deliveries.' The walls are "
+            "covered in cheap soundproofing material. Comfort was never the point."
+        ),
+    },
+    ("hutt_cartel", 3): {
+        "label": "Hutt Cartel — Lieutenant's Suite",
+        "storage_max": 50,
+        "room_name": "{name}'s Suite",
+        "room_desc": (
+            "A well-appointed suite in a Hutt-controlled building. The decor is "
+            "gaudy — gold trim, velvet cushions, a bubbling hookah stand. A heavy "
+            "curtain hides a hidden compartment large enough to hold a small arsenal. "
+            "A viewport shows {planet_view}. The Hutts take care of their own."
+        ),
+    },
+    ("hutt_cartel", 5): {
+        "label": "Hutt Vigo — Luxury Penthouse",
+        "storage_max": 100,
+        "room_name": "Vigo {name}'s Penthouse",
+        "room_desc": (
+            "A luxury penthouse dripping with Hutt-style opulence. Gold-plated fixtures, "
+            "a sunken conversation pit with plush cushions, a fully stocked bar of "
+            "exotic spirits, and a panoramic viewport showing {planet_view}. A private "
+            "turbolift connects to the street below. Armed guards patrol the corridor "
+            "outside. This is what power looks like in the Outer Rim."
+        ),
+    },
 }
 
 # Faction housing attachment points: (faction_code, planet) -> room_id
@@ -193,6 +371,16 @@ FACTION_HOME_PLANET = {
     "empire": "tatooine",
     "rebel":  "tatooine",
     "hutt":   "nar_shaddaa",
+    # ── B.1.d.1 (Apr 29 2026) — CW faction home planets ────────────────────────────
+    # Per cw_housing_design_v1.md §5: Republic on Coruscant, CIS on
+    # Geonosis, Jedi Order on Coruscant, Hutt Cartel on Nar Shaddaa
+    # (rename of GCW hutt). Bounty Hunters' Guild has no faction
+    # quarters per design §5.5 and is intentionally absent — it lands
+    # on the "tatooine" default via _planet_for_faction's .get fallback.
+    "republic":    "coruscant",
+    "cis":         "geonosis",
+    "jedi_order":  "coruscant",
+    "hutt_cartel": "nar_shaddaa",
 }
 
 # ── Lot definitions for Drop 1 ────────────────────────────────────────────────
@@ -926,6 +1114,13 @@ def _planet_view(planet: str) -> str:
         "nar_shaddaa": "neon-lit Nar Shaddaa skyline",
         "kessel":      "grey mine exhaust drifting past the porthole",
         "corellia":    "Coronet City spires glinting in the morning light",
+        # ── B.1.d.1 (Apr 29 2026) — CW planet views ────────────────────────────────
+        # Used by faction-quarter and HQ description "{planet_view}"
+        # placeholder substitutions. CW planets per cw_housing_design_v1.md §4.
+        "coruscant":   "the endless skyline of upper Coruscant, traffic lanes streaking between the spires",
+        "kuat":        "the orbital ring of Kuat Drive Yards arcing across the void, half-built ships in slow rotation",
+        "kamino":      "the storm-lashed ocean stretching to the grey horizon, rain sheeting against the platform",
+        "geonosis":    "the rust-red expanse of the Geonosian wastes, hive towers rising in the distance",
     }
     return views.get(planet, "the street outside")
 
@@ -2840,6 +3035,179 @@ _TIER5_ROOM_DESCS = {
             "Bare cell. Chains bolted to the wall. A drain in the floor."),
         "hangar":   ("Smuggling Bay",
             "Concealed loading dock with hidden compartments and false walls."),
+    },
+    # ── B.1.d.1 (Apr 29 2026) — CW org-HQ room descriptions ──────────────────────────
+    # Per architecture v38 §19 territory-control: any org with an HQ
+    # gets per-room flavor when built. Adds 5 CW factions; falls
+    # through to "default" for any unmapped code.
+    "republic": {
+        "entrance": ("Republic Forward Compound — Entry",
+            "A reinforced compound entry with a wide blast door. The Republic "
+            "crest is set into the lintel above. Two clone trooper sentries "
+            "flank the entry, weapons holstered but visibly ready."),
+        "meeting":  ("Strategy Hall",
+            "A wide round room with a holotable in the center, ringed by "
+            "tactical screens showing the current Republic order of battle. "
+            "The Republic crest is stenciled on the floor."),
+        "armory":   ("Republic Armory",
+            "Racks of DC-15A blaster rifles and ordered crates of supplies. "
+            "A locked vault holds heavy weapons. Inventory is logged on a "
+            "datapad mounted to the wall."),
+        "barracks": ("Trooper Barracks",
+            "Identical bunks in regulation rows. Lockers stenciled with rank "
+            "and serial number. The barracks smells of clean kit and gun oil."),
+        "barracks2":("Officer Quarters",
+            "Smaller two-bunk rooms reserved for non-clone officers and "
+            "specialists. A shared common area has a holotable and a caf urn "
+            "that is never empty."),
+        "comm":     ("Comms Station",
+            "Encrypted Republic-band transceivers and a subspace relay tied "
+            "into the Coruscant command net. Live sensor feeds tile every "
+            "available wall."),
+        "quarters": ("Commander's Quarters",
+            "A private suite for the compound's commanding officer. A proper "
+            "bed, a secure terminal, a weapons rack, and a viewport. The "
+            "door takes a code and a biometric."),
+        "cell":     ("Holding Block",
+            "A small detention cell with a ray-shielded door. A metal slab "
+            "bench. Surveillance cameras cover every angle."),
+        "hangar":   ("Vehicle Bay",
+            "A wide repulsorlift bay scored by recent traffic. A LAAT/i "
+            "gunship sits on the pad, technicians swarming over its engines."),
+    },
+    "cis": {
+        "entrance": ("Separatist Outpost — Entry",
+            "A camouflaged entry concealed against the surrounding architecture. "
+            "The Confederacy hex is painted small and weathered above the door. "
+            "A B1 battle droid stands sentry, its photoreceptors tracking new arrivals."),
+        "meeting":  ("Cell Planning Room",
+            "A windowless chamber with a battered holotable and mismatched chairs. "
+            "Star maps marked with Republic supply lines cover one wall. The air "
+            "smells faintly of droid lubricant."),
+        "armory":   ("Cell Armory",
+            "Crates of E-5 blasters and battle-droid parts stacked along one wall. "
+            "Anything that needs a permit, the cartel got via Geonosian foundries."),
+        "barracks": ("Operatives' Bunkroom",
+            "Spartan bunks for Separatist operatives between missions. Personal "
+            "kit is stowed in lockers stenciled with cell-internal callsigns, "
+            "never real names."),
+        "barracks2":("Sympathizer Quarters",
+            "A smaller dormitory for civilian sympathizers and visiting agents. "
+            "Less spartan; reading material from Confederacy presses fills a shelf."),
+        "comm":     ("Encrypted Comms",
+            "A hardened transceiver suite with rotating frequency hops. The "
+            "encryption is good enough to make Republic Intelligence work for "
+            "every intercept."),
+        "quarters": ("Cell Leader's Room",
+            "The only private room. A cot, datapads, a locked strongbox, and "
+            "a secondary blaster within arm's reach of the bed. The walls carry "
+            "no insignia — the cell leader's identity stays compartmented."),
+        "cell":     ("Holding Cell",
+            "A reinforced room. Captured Republic personnel get one chance at "
+            "talking before being moved deeper into Separatist territory."),
+        "hangar":   ("Concealed Bay",
+            "A camouflaged landing pad. Room for a small freighter and a B2 "
+            "battle droid honor guard. Fuel cells and droid parts fill the corners."),
+    },
+    "jedi_order": {
+        "entrance": ("Temple Annex — Entry",
+            "A quiet stone-flagged hall lit by sconces of carved kyber. The "
+            "Jedi crest is inlaid into the floor — not displayed loudly, just "
+            "present. The air feels slower here."),
+        "meeting":  ("Council Chamber",
+            "A circular chamber with curved benches in carved wood, surrounding "
+            "a meditation focus on a low plinth. No holographic displays — "
+            "discussions here are deliberate, unrushed."),
+        "armory":   ("Practice Salle",
+            "Less an armory than a training hall. Practice droids stand in "
+            "alcoves; training sabers hang on a rack. The Jedi Order does "
+            "not stockpile weapons. A few rare lightsaber crystals rest in a "
+            "shielded case."),
+        "barracks": ("Padawan Wing",
+            "A long hall of small private cells where Padawans sleep beside "
+            "their Masters' rooms. The hall is quiet at all hours; Jedi rest "
+            "lightly."),
+        "barracks2":("Initiate Cluster",
+            "A communal dormitory for Initiates not yet selected as Padawans. "
+            "Robed children and youths move through quietly, carrying datapads "
+            "and meditation cushions."),
+        "comm":     ("Communications Sanctum",
+            "A small chamber with a single secure subspace relay tied to the "
+            "Coruscant Temple. The Jedi Order does not flood the airwaves; "
+            "what is sent from here matters."),
+        "quarters": ("Master's Chamber",
+            "A modest private chamber for the senior Jedi in residence. A "
+            "meditation mat, a writing desk, a bed, and one small shelf of "
+            "personal mementos. The lightsaber rack is empty whenever the "
+            "owner is in residence."),
+        "cell":     ("Reflection Room",
+            "A quiet shielded room used for prisoner interview or for "
+            "Jedi-internal contemplation in the wake of difficult decisions. "
+            "Force-dampening crystals are set into the walls."),
+        "hangar":   ("Starfighter Bay",
+            "A small bay holding two or three Delta-7 Aethersprite Jedi "
+            "starfighters and their astromech docking stations."),
+    },
+    "hutt_cartel": {
+        # Identical to GCW hutt per CW design §5.4 ("Identical to GCW").
+        "entrance": ("Hutt Stronghold — Entry",
+            "An opulent entryway designed to intimidate. Heavy curtains, garish "
+            "trophies, and two guard alcoves flanking the door."),
+        "meeting":  ("Audience Chamber",
+            "A lavish chamber with a raised dais. Plush cushions, hookah pipes, "
+            "and a sunken pit for 'entertainment.' Sound-dampened walls."),
+        "armory":   ("Weapons Vault",
+            "Reinforced vault crammed with weapons. Everything has a price tag — "
+            "the Hutts never give anything away."),
+        "barracks": ("Enforcers' Den",
+            "Rough dormitory for cartel muscle. Bunks with weapon racks underneath. "
+            "A sabacc table occupies the center."),
+        "barracks2":("Crew Quarters",
+            "Actual mattresses and personal lockers. Reserved for trusted operatives."),
+        "comm":     ("Operations Center",
+            "Surprisingly sophisticated. Encrypted channels, slicing terminals, and "
+            "a live feed of local law enforcement comms."),
+        "quarters": ("Boss's Suite",
+            "Obscenely luxurious. Massive bed, private refresher with actual water, "
+            "and a safe the size of a speeder."),
+        "cell":     ("Prisoner Cell",
+            "Bare cell. Chains bolted to the wall. A drain in the floor."),
+        "hangar":   ("Smuggling Bay",
+            "Concealed loading dock with hidden compartments and false walls."),
+    },
+    "bounty_hunters_guild": {
+        "entrance": ("Guild Chapter House — Entry",
+            "A sturdy unadorned entry with a single Guild sigil etched into the "
+            "stone above the door. A bounty board hangs in the foyer, its "
+            "postings updated nightly."),
+        "meeting":  ("Contract Hall",
+            "A long room dominated by a central table where contract details are "
+            "negotiated. Holos of current high-priority marks rotate above "
+            "the table. Guild members come and go without ceremony."),
+        "armory":   ("Hunter's Armory",
+            "Personal weapons lockers line the walls. Members store gear they "
+            "don't want to carry on a particular hunt — and trust the Guild's "
+            "reputation to keep their lockers untouched."),
+        "barracks": ("Bunkroom",
+            "Plain bunks for visiting Guild members between contracts. No "
+            "long-term occupancy; rotation by Guild rank."),
+        "barracks2":("Senior Quarters",
+            "Slightly nicer bunks for Senior Hunter and above. Each has a "
+            "personal locker and a small privacy curtain."),
+        "comm":     ("Bounty Board Office",
+            "The encrypted core of the chapter house's operations — the secure "
+            "feed from Guild central, the contract verification terminals, and "
+            "the bounty payout cashier."),
+        "quarters": ("Guildmaster's Office",
+            "The chapter Guildmaster's office and quarters in one — desk, bed, "
+            "and a bank of monitors showing every active hunt the chapter is "
+            "running. The Guildmaster sleeps when the work is done."),
+        "cell":     ("Holding Pen",
+            "A hardened cell where live bounties await transport. Stun-grid "
+            "floor, no sharp edges, ray-shielded door."),
+        "hangar":   ("Tracker Bay",
+            "A bay holding two or three Guild speeder bikes and a small "
+            "transport for moving live captures."),
     },
     "default": {
         "entrance": ("Headquarters — Entry", "The entrance to the headquarters."),

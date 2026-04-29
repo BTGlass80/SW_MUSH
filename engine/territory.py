@@ -125,6 +125,76 @@ _GUARD_TEMPLATES = {
         "weapon": "Heavy Blaster Pistol (5D)",
         "faction": "Bounty Hunters' Guild",
     },
+    # ── B.1.c (Apr 29 2026) — CW guard templates ─────────────────────
+    # Mirrors the GCW four-faction shape with era-appropriate species,
+    # gear, and flavor. A CW PC's claimed room gets a thematically
+    # correct guard instead of falling through to the generic
+    # "_default" template.
+    "republic": {
+        "name_prefix": "Republic Garrison Guard",
+        "species": "Clone Trooper",
+        "description": (
+            "A clone trooper in standard Phase II armor stands watch with "
+            "a DC-15A blaster rifle held at the ready. The Republic crest "
+            "is stenciled in faded blue across the shoulder plate."
+        ),
+        "dex": "3D+1", "blaster": "5D", "dodge": "4D",
+        "brawling": "3D+2", "str": "3D+2", "per": "3D",
+        "weapon": "DC-15A Blaster Rifle (5D)",
+        "faction": "Galactic Republic",
+    },
+    "cis": {
+        "name_prefix": "CIS Battle Droid",
+        "species": "B1 Battle Droid",
+        "description": (
+            "A B1 battle droid stands at attention with an E-5 blaster rifle. "
+            "Its movements are slightly jerky, but its programming will not "
+            "hesitate. A Separatist hex is painted on its chest plate."
+        ),
+        "dex": "3D", "blaster": "4D+1", "dodge": "3D",
+        "brawling": "3D", "str": "3D+1", "per": "2D+2",
+        "weapon": "E-5 Blaster Rifle (4D+1)",
+        "faction": "Confederacy",
+    },
+    "jedi_order": {
+        "name_prefix": "Temple Sentinel",
+        "species": "Human",
+        "description": (
+            "A Jedi sentinel in tan robes stands quietly, hands folded into "
+            "their sleeves. A lightsaber hangs at their belt. They watch "
+            "without speaking — and they see everything."
+        ),
+        "dex": "4D", "blaster": "3D", "dodge": "5D",
+        "brawling": "4D", "str": "3D", "per": "4D+1",
+        "weapon": "Lightsaber (5D)",
+        "faction": "Jedi Order",
+    },
+    "hutt_cartel": {
+        "name_prefix": "Cartel Enforcer",
+        "species": "Gamorrean",
+        "description": (
+            "A hulking Gamorrean enforcer in mismatched armor stands at the "
+            "entrance, meaty hands resting on a vibroaxe haft. It eyes you "
+            "with dim suspicion."
+        ),
+        "dex": "2D+2", "blaster": "3D+1", "dodge": "3D",
+        "brawling": "5D", "str": "4D", "per": "2D+1",
+        "weapon": "Vibroaxe (STR+3D)",
+        "faction": "Hutt Cartel",
+    },
+    "bounty_hunters_guild": {
+        "name_prefix": "Guild Hunter",
+        "species": "Human",
+        "description": (
+            "A scarred hunter in well-worn armor leans against the wall, arms "
+            "crossed. A heavy holster sits low on one hip and a tracking fob "
+            "winks from a chest pocket."
+        ),
+        "dex": "3D+2", "blaster": "5D+1", "dodge": "4D+1",
+        "brawling": "4D", "str": "3D+1", "per": "4D",
+        "weapon": "Heavy Blaster Pistol (5D)",
+        "faction": "Bounty Hunters' Guild",
+    },
     "_default": {
         "name_prefix": "Territory Guard",
         "species": "Human",
@@ -166,11 +236,32 @@ ORG_STORAGE_MAX_ITEMS    = 50    # Max items in org shared storage
 ORG_STORAGE_MAX_RESOURCES = 200  # Max total resource units in org storage
 
 # ── Org code → Director axis mapping ────────────────────────────────────────
+# Maps an organization-axis code (what's stored in `char.faction_id`) to
+# the director-axis code (what's used by zone-influence aggregation +
+# Director AI narration). The director axis is always one of:
+# imperial / rebel / criminal / independent (era-stable; the rewicker
+# in director_config.yaml handles era display for these labels).
+#
+# Mapping rationale (mirrors data/worlds/clone_wars/organizations.yaml's
+# legacy_rewicker reverse direction):
+#   GCW: empire→imperial, rebel→rebel, hutt→criminal, bh_guild→independent
+#   CW:  republic→imperial, cis→rebel, jedi_order→imperial,
+#        hutt_cartel→criminal, bounty_hunters_guild→independent
+#
+# Unmapped codes fall through to "independent" via the .get() default
+# at every call site.
 ORG_TO_AXIS = {
-    "empire":   "imperial",
-    "rebel":    "rebel",
-    "hutt":     "criminal",
-    "bh_guild": "independent",
+    # ── GCW ──
+    "empire":                "imperial",
+    "rebel":                 "rebel",
+    "hutt":                  "criminal",
+    "bh_guild":              "independent",
+    # ── CW (B.1.c, Apr 29 2026) ──
+    "republic":              "imperial",   # lawful state authority
+    "cis":                   "rebel",      # insurgent challenger
+    "jedi_order":            "imperial",   # Jedi serve the Republic
+    "hutt_cartel":           "criminal",
+    "bounty_hunters_guild":  "independent",
 }
 
 
@@ -553,10 +644,17 @@ async def get_zone_influence_line(db, zone_id: int) -> Optional[str]:
         return None
 
     flavor = {
-        "empire":    "The Empire's presence is felt here — patrols and informants.",
-        "rebel":     "Rebel Alliance influence stirs quietly in the shadows.",
-        "hutt":      "The Hutt Cartel's grip extends to these streets.",
-        "bh_guild":  "Bounty Hunters' Guild operatives watch from the corners.",
+        # ── GCW ──
+        "empire":               "The Empire's presence is felt here — patrols and informants.",
+        "rebel":                "Rebel Alliance influence stirs quietly in the shadows.",
+        "hutt":                 "The Hutt Cartel's grip extends to these streets.",
+        "bh_guild":             "Bounty Hunters' Guild operatives watch from the corners.",
+        # ── CW (B.1.c) ──
+        "republic":             "Republic patrols and clone trooper presence are felt here.",
+        "cis":                  "Separatist sympathizers and droid scouts move quietly here.",
+        "jedi_order":           "Jedi presence pervades this place — quiet, watchful, alert.",
+        "hutt_cartel":          "The Hutt Cartel's grip extends to these streets.",
+        "bounty_hunters_guild": "Guild hunters watch from the corners, ledgers in hand.",
     }
     msg = flavor.get(dominant_org, f"{dominant_org.title()} influence is felt here.")
     return f"  \033[2m{msg}\033[0m"
@@ -772,10 +870,19 @@ async def get_claim_display_tag(db, room_id: int) -> Optional[str]:
     if not claim:
         return None
     org_colors = {
-        "empire":   "\033[1;34m",
-        "rebel":    "\033[1;31m",
-        "hutt":     "\033[1;33m",
-        "bh_guild": "\033[1;35m",
+        # ── GCW ──
+        "empire":               "\033[1;34m",
+        "rebel":                "\033[1;31m",
+        "hutt":                 "\033[1;33m",
+        "bh_guild":             "\033[1;35m",
+        # ── CW (B.1.c) ──
+        # Colors mirror data/worlds/clone_wars/organizations.yaml properties.color
+        # so claim tags display in the same color as the faction's flagged hue.
+        "republic":             "\033[1;34m",   # bold blue
+        "cis":                  "\033[1;31m",   # bold red
+        "jedi_order":           "\033[1;36m",   # bold cyan
+        "hutt_cartel":          "\033[1;33m",   # bold yellow
+        "bounty_hunters_guild": "\033[1;35m",   # bold magenta
     }
     color = org_colors.get(claim["org_code"], "\033[1;37m")
     org_name = claim["org_code"].replace("_", " ").title()

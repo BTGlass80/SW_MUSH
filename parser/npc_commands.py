@@ -296,17 +296,33 @@ class TalkCommand(BaseCommand):
         return ""
 
     async def _inject_faction_context(self, ctx, char, npc_data, persuasion_context):
-        """Add faction standing context to persuasion_context. Returns updated string."""
+        """Add faction standing context to persuasion_context. Returns updated string.
+
+        B.1.a (Apr 29 2026): _fac_map extended to recognize CW faction
+        names so that NPCs flagged with `ai_config.faction = "republic"`
+        (etc.) flow through the same standing-context injection as GCW
+        NPCs. Mapping is many-to-one: long-form names normalize to the
+        canonical org code that exists in DB.
+        """
         try:
             npc_faction_raw = (npc_data.ai_config.faction or "").lower()
             if npc_faction_raw:
                 _fac_map = {
+                    # ── GCW ──
                     "imperial": "empire", "empire": "empire",
                     "galactic empire": "empire",
                     "rebel": "rebel", "rebel alliance": "rebel",
                     "hutt": "hutt", "hutt cartel": "hutt",
                     "bounty hunter": "bh_guild", "bounty hunters": "bh_guild",
                     "bounty hunters' guild": "bh_guild",
+                    # ── CW (B.1.a) ──
+                    "republic": "republic", "galactic republic": "republic",
+                    "cis": "cis", "separatist": "cis", "separatists": "cis",
+                    "confederacy": "cis",
+                    "confederacy of independent systems": "cis",
+                    "jedi": "jedi_order", "jedi order": "jedi_order",
+                    "hutt_cartel": "hutt_cartel",
+                    "bounty_hunters_guild": "bounty_hunters_guild",
                 }
                 npc_fc = _fac_map.get(npc_faction_raw, "")
                 if npc_fc:

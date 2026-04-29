@@ -82,6 +82,13 @@ class EraManifest:
     housing_lots_path: Optional[Path]
     test_character_path: Optional[Path]
     test_jedi_path: Optional[Path]
+    # Drop F.6a.1: paths for the Director / Lore pivot YAML files. All
+    # three are optional — eras may omit any of them and the consuming
+    # loader returns None. See clone_wars_director_lore_pivot_design_v1.md
+    # §3 for the engine refactor that consumes these.
+    lore_path: Optional[Path] = None
+    director_config_path: Optional[Path] = None
+    ambient_events_path: Optional[Path] = None
     policy: dict = field(default_factory=dict)
     raw: dict = field(default_factory=dict)
 
@@ -247,6 +254,10 @@ def load_era_manifest(era_dir: Path) -> EraManifest:
         housing_lots_path=resolve("housing_lots", required=False),
         test_character_path=resolve("test_character", required=False),
         test_jedi_path=resolve("test_jedi", required=False),
+        # Drop F.6a.1: optional Director / Lore pivot refs.
+        lore_path=resolve("lore", required=False),
+        director_config_path=resolve("director_config", required=False),
+        ambient_events_path=resolve("ambient_events", required=False),
         policy=raw.get("policy") or {},
         raw=raw,
     )
@@ -581,4 +592,673 @@ def load_world_dry_run(era: str,
         rooms=rooms,
         exits=exits,
         report=report,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Drop F.6a.1 — Director / Lore Pivot loaders
+# ─────────────────────────────────────────────────────────────────────────────
+# These three loaders read the era-specific Director / Lore pivot YAMLs:
+#
+#     data/worlds/<era>/lore.yaml              → load_lore
+#     data/worlds/<era>/director_config.yaml   → load_director_config
+#     data/worlds/<era>/ambient_events.yaml    → load_ambient_pools
+#
+# All three return None when the era's manifest does not declare the
+# corresponding `content_refs.*` entry. This is intentional — the loaders
+# are additive and an era can adopt them piecemeal. The engine refactors
+# scheduled for Drops 6a.2 (world_lore.py), 6a.3 (director.py), and 6a.4
+# (ambient_events.py) will fall back to legacy hardcoded constants when
+# the loader returns None, so callers can opt in safely behind a feature
+# flag.
+#
+# These loaders DO NOT mutate global state, DO NOT seed the database, and
+# DO NOT instantiate any engine class. They are pure parse-and-validate.
+# Drop 6a.2-4 wire them into the relevant engine init paths.
+#
+# Per clone_wars_director_lore_pivot_design_v1.md §3 + §5.1.
+
+
+@dataclass
+class LoreEntry:
+    """One entry from `<era>/lore.yaml::entries`. Mirrors world_lore SQLite shape.
+
+    Schema:
+        title       str           unique entry title
+        keywords    str           comma-separated trigger terms (lowercased)
+        content     str           the lore text (1-3 paragraphs typical)
+        category    str           faction | location | technology | concept |
+                                  person | organization
+        priority    int           1-10; higher = more prominent in retrieval
+        zone_scope  Optional[str] comma-separated zone keys; null = global
+    """
+    title: str
+    keywords: str
+    content: str
+    category: str
+    priority: int
+    zone_scope: Optional[str] = None
+    raw: dict = field(default_factory=dict)
+
+
+@dataclass
+class LoreCorpus:
+    """Result of load_lore — the full parsed lore set for an era.
+
+    `report` collects soft warnings (duplicate titles, empty keywords,
+    missing recommended fields). It is informational; callers can ignore
+    `.warnings` if they want strict validation, fail boot on `.errors`.
+    """
+    schema_version: int
+    entries: list[LoreEntry]
+    report: ValidationReport = field(default_factory=ValidationReport)
+    raw: dict = field(default_factory=dict)
+
+
+@dataclass
+class MilestoneEvent:
+    """One entry from `director_config.yaml::milestone_events`.
+
+    The CW and GCW eras author this with different optional shapes:
+        CW:  id, trigger, cooldown_hours, narrative_priority,
+             output_type, flavor_template
+        GCW: id, trigger, headline, fires_once,
+             narrative_event_type, duration_minutes
+    Only `id` and `trigger` are universally required. Everything else
+    is optional with a `None` default; the Director's runtime decides
+    which fields to consume based on its current era contract. The
+    full original mapping is preserved in `raw` so the engine can
+    access era-specific fields without going back to YAML.
+    """
+    id: str
+    trigger: dict
+    cooldown_hours: Optional[int] = None
+    narrative_priority: Optional[str] = None
+    output_type: Optional[str] = None
+    flavor_template: Optional[str] = None
+    headline: Optional[str] = None
+    fires_once: Optional[bool] = None
+    narrative_event_type: Optional[str] = None
+    duration_minutes: Optional[int] = None
+    raw: dict = field(default_factory=dict)
+
+
+@dataclass
+class DirectorConfig:
+    """Result of load_director_config — the Director's data-fied knobs.
+
+    `valid_factions` and `zone_baselines` map onto the engine's
+    VALID_FACTIONS frozenset and DEFAULT_INFLUENCE dict respectively.
+    `system_prompt` replaces the multi-line string literal at
+    engine/director.py:678-715. Optional features (milestone_events,
+    holonet_news_pool, rewicker) default to empty when the era omits
+    them — the GCW counterpart YAML, for instance, only authors the
+    core fields.
+    """
+    schema_version: int
+    valid_factions: list[str]
+    npc_only_factions: list[str]
+    influence_min: int
+    influence_max: int
+    max_delta_per_turn: int
+    zone_baselines: dict[str, dict[str, int]]
+    system_prompt: str
+    milestone_events: list[MilestoneEvent] = field(default_factory=list)
+    holonet_news_pool: list[str] = field(default_factory=list)
+    rewicker_faction_codes: dict[str, str] = field(default_factory=dict)
+    rewicker_zone_keys: dict[str, str] = field(default_factory=dict)
+    extras: dict = field(default_factory=dict)  # any unrecognized top-level keys
+    report: ValidationReport = field(default_factory=ValidationReport)
+    raw: dict = field(default_factory=dict)
+
+
+@dataclass
+class AmbientLine:
+    """One entry under `ambient_events.<zone_key>`. `weight` defaults to 1.0."""
+    text: str
+    weight: float = 1.0
+    raw: dict = field(default_factory=dict)
+
+
+@dataclass
+class AmbientPools:
+    """Result of load_ambient_pools — per-zone-key list of ambient lines.
+
+    Schema:
+        ambient_events:
+          <zone_key>:
+            - text: "..."
+              weight: 0.7   # optional, default 1.0
+            - text: "..."
+
+    Zone keys can be specific (e.g. `coruscant_senate`) or generic
+    (e.g. `cantina`). Drop 6a.4's merge logic decides which key wins
+    when both are defined; this loader simply preserves the era's
+    declarations.
+    """
+    schema_version: int
+    pools: dict[str, list[AmbientLine]]
+    report: ValidationReport = field(default_factory=ValidationReport)
+    raw: dict = field(default_factory=dict)
+
+
+# ── Lore loader ──────────────────────────────────────────────────────────────
+
+
+_VALID_LORE_CATEGORIES = frozenset({
+    "faction", "location", "technology", "concept",
+    "person", "organization",
+})
+
+
+def load_lore(manifest: EraManifest) -> Optional[LoreCorpus]:
+    """Parse the era's lore.yaml into a LoreCorpus.
+
+    Returns None when the manifest does not declare a `lore` content_ref.
+    Raises WorldLoadError when the file is declared but missing/malformed.
+
+    Soft warnings (duplicate titles, unknown category, empty keywords)
+    are collected into corpus.report.warnings. Hard errors (missing
+    required field on an entry) are collected into corpus.report.errors.
+    """
+    path = manifest.lore_path
+    if path is None:
+        return None
+    if not path.is_file():
+        raise WorldLoadError(f"Missing lore file: {path}")
+
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as e:
+        raise WorldLoadError(f"Failed to parse {path}: {e}") from e
+
+    if not isinstance(raw, dict):
+        raise WorldLoadError(
+            f"{path}: top-level must be a mapping, got {type(raw).__name__}."
+        )
+
+    schema_version = int(raw.get("schema_version", 1))
+    entries_raw = raw.get("entries") or []
+    if not isinstance(entries_raw, list):
+        raise WorldLoadError(
+            f"{path}: 'entries' must be a list, got {type(entries_raw).__name__}."
+        )
+
+    entries: list[LoreEntry] = []
+    seen_titles: set[str] = set()
+    report = ValidationReport()
+
+    for i, e in enumerate(entries_raw):
+        if not isinstance(e, dict):
+            report.errors.append(
+                f"{path}: entries[{i}] must be a mapping, got {type(e).__name__}."
+            )
+            continue
+
+        title = e.get("title")
+        if not title or not isinstance(title, str):
+            report.errors.append(f"{path}: entries[{i}] missing required 'title'.")
+            continue
+
+        keywords = e.get("keywords") or ""
+        if not isinstance(keywords, str):
+            report.errors.append(
+                f"{path}: entries[{i}] '{title}': 'keywords' must be a string."
+            )
+            continue
+        if not keywords.strip():
+            report.warnings.append(
+                f"{path}: entries[{i}] '{title}': empty keywords — entry will only "
+                f"trigger on title-exact match."
+            )
+
+        content = e.get("content") or ""
+        if not isinstance(content, str) or not content.strip():
+            report.errors.append(
+                f"{path}: entries[{i}] '{title}': 'content' must be a non-empty string."
+            )
+            continue
+
+        # Category is an open vocabulary — the GCW lore corpus uses
+        # `history`, `item`, `npc` alongside the documented set. Warn
+        # only when it's empty/missing; otherwise accept whatever the
+        # author wrote.
+        category = e.get("category") or ""
+        if not category:
+            report.warnings.append(
+                f"{path}: entries[{i}] '{title}': missing 'category'."
+            )
+
+        priority_raw = e.get("priority", 5)
+        try:
+            priority = int(priority_raw)
+        except (TypeError, ValueError):
+            report.errors.append(
+                f"{path}: entries[{i}] '{title}': 'priority' must be an int, "
+                f"got {priority_raw!r}."
+            )
+            continue
+        if not (1 <= priority <= 10):
+            report.warnings.append(
+                f"{path}: entries[{i}] '{title}': priority {priority} outside 1-10 range."
+            )
+
+        zone_scope = e.get("zone_scope")
+        if zone_scope is not None and not isinstance(zone_scope, str):
+            report.errors.append(
+                f"{path}: entries[{i}] '{title}': 'zone_scope' must be a string or null, "
+                f"got {type(zone_scope).__name__}."
+            )
+            continue
+
+        if title in seen_titles:
+            report.warnings.append(
+                f"{path}: duplicate title {title!r} (entries[{i}])."
+            )
+        seen_titles.add(title)
+
+        entries.append(LoreEntry(
+            title=title,
+            keywords=keywords,
+            content=content.strip(),
+            category=category,
+            priority=priority,
+            zone_scope=zone_scope,
+            raw=e,
+        ))
+
+    return LoreCorpus(
+        schema_version=schema_version,
+        entries=entries,
+        report=report,
+        raw=raw,
+    )
+
+
+# ── Director config loader ───────────────────────────────────────────────────
+
+
+_VALID_NARRATIVE_PRIORITIES = frozenset({"low", "medium", "high"})
+
+
+def load_director_config(manifest: EraManifest) -> Optional[DirectorConfig]:
+    """Parse the era's director_config.yaml into a DirectorConfig.
+
+    Returns None when the manifest does not declare a `director_config`
+    content_ref. Raises WorldLoadError when the file is declared but
+    missing/malformed, or when a structurally required field is absent
+    (valid_factions, zone_baselines, system_prompt are required; all
+    other top-level fields are optional).
+    """
+    path = manifest.director_config_path
+    if path is None:
+        return None
+    if not path.is_file():
+        raise WorldLoadError(f"Missing director_config file: {path}")
+
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as e:
+        raise WorldLoadError(f"Failed to parse {path}: {e}") from e
+
+    if not isinstance(raw, dict):
+        raise WorldLoadError(
+            f"{path}: top-level must be a mapping, got {type(raw).__name__}."
+        )
+
+    schema_version = int(raw.get("schema_version", 1))
+
+    # ── Required fields ──────────────────────────────────────────────────
+    valid_factions = raw.get("valid_factions")
+    if not isinstance(valid_factions, list) or not valid_factions:
+        raise WorldLoadError(
+            f"{path}: 'valid_factions' is required and must be a non-empty list."
+        )
+    if not all(isinstance(f, str) for f in valid_factions):
+        raise WorldLoadError(
+            f"{path}: 'valid_factions' must contain only strings."
+        )
+
+    zone_baselines_raw = raw.get("zone_baselines")
+    if not isinstance(zone_baselines_raw, dict):
+        raise WorldLoadError(
+            f"{path}: 'zone_baselines' is required and must be a mapping "
+            f"(zone_key → {{faction: int, ...}})."
+        )
+
+    system_prompt = raw.get("system_prompt")
+    if not isinstance(system_prompt, str) or not system_prompt.strip():
+        raise WorldLoadError(
+            f"{path}: 'system_prompt' is required and must be a non-empty string."
+        )
+
+    # ── Optional fields with defaults ───────────────────────────────────
+    npc_only_factions = raw.get("npc_only_factions") or []
+    if not isinstance(npc_only_factions, list):
+        raise WorldLoadError(
+            f"{path}: 'npc_only_factions' must be a list."
+        )
+
+    influence_min = int(raw.get("influence_min", 0))
+    influence_max = int(raw.get("influence_max", 100))
+    if influence_min >= influence_max:
+        raise WorldLoadError(
+            f"{path}: influence_min ({influence_min}) must be < "
+            f"influence_max ({influence_max})."
+        )
+
+    max_delta_per_turn = int(raw.get("max_delta_per_turn", 5))
+    if max_delta_per_turn < 1:
+        raise WorldLoadError(
+            f"{path}: max_delta_per_turn must be >= 1, got {max_delta_per_turn}."
+        )
+
+    # ── Zone baselines: validate per-zone shape ─────────────────────────
+    report = ValidationReport()
+    zone_baselines: dict[str, dict[str, int]] = {}
+    valid_set = set(valid_factions)
+    for zk, zd in zone_baselines_raw.items():
+        if not isinstance(zd, dict):
+            report.errors.append(
+                f"{path}: zone_baselines[{zk!r}] must be a mapping, got "
+                f"{type(zd).__name__}."
+            )
+            continue
+        clean: dict[str, int] = {}
+        for fk, fv in zd.items():
+            try:
+                fv_int = int(fv)
+            except (TypeError, ValueError):
+                report.errors.append(
+                    f"{path}: zone_baselines[{zk!r}][{fk!r}] must be an int, "
+                    f"got {fv!r}."
+                )
+                continue
+            if not (influence_min <= fv_int <= influence_max):
+                report.warnings.append(
+                    f"{path}: zone_baselines[{zk!r}][{fk!r}] = {fv_int} outside "
+                    f"[{influence_min}, {influence_max}]."
+                )
+            if fk not in valid_set:
+                report.warnings.append(
+                    f"{path}: zone_baselines[{zk!r}] mentions unknown faction "
+                    f"{fk!r} (not in valid_factions)."
+                )
+            clean[fk] = fv_int
+        zone_baselines[zk] = clean
+
+    # ── Milestone events ────────────────────────────────────────────────
+    # Per CW/GCW shape divergence (CW uses cooldown_hours/output_type/
+    # flavor_template; GCW uses headline/fires_once/narrative_event_type/
+    # duration_minutes), only `id` and `trigger` are universally
+    # required. Everything else is optional and validated only when
+    # present. The full original mapping is preserved in `raw` so the
+    # Director engine can read era-specific fields directly.
+    milestone_events: list[MilestoneEvent] = []
+    me_raw = raw.get("milestone_events") or []
+    if not isinstance(me_raw, list):
+        raise WorldLoadError(
+            f"{path}: 'milestone_events' must be a list."
+        )
+    seen_ids: set[str] = set()
+    for i, m in enumerate(me_raw):
+        if not isinstance(m, dict):
+            report.errors.append(
+                f"{path}: milestone_events[{i}] must be a mapping."
+            )
+            continue
+        mid = m.get("id")
+        if not mid or not isinstance(mid, str):
+            report.errors.append(
+                f"{path}: milestone_events[{i}] missing required 'id'."
+            )
+            continue
+        if mid in seen_ids:
+            report.warnings.append(
+                f"{path}: duplicate milestone id {mid!r}."
+            )
+        seen_ids.add(mid)
+
+        trigger = m.get("trigger") or {}
+        if not isinstance(trigger, dict):
+            report.errors.append(
+                f"{path}: milestone_events[{i}] '{mid}': 'trigger' must be a mapping."
+            )
+            continue
+
+        # Optional fields — validate type only when present.
+        cooldown: Optional[int] = None
+        if "cooldown_hours" in m:
+            try:
+                cooldown = int(m["cooldown_hours"])
+            except (TypeError, ValueError):
+                report.errors.append(
+                    f"{path}: milestone_events[{i}] '{mid}': cooldown_hours must "
+                    f"be int, got {m['cooldown_hours']!r}."
+                )
+                continue
+            if cooldown < 0:
+                report.errors.append(
+                    f"{path}: milestone_events[{i}] '{mid}': cooldown_hours must "
+                    f"be >= 0, got {cooldown}."
+                )
+                continue
+
+        narrative_priority: Optional[str] = m.get("narrative_priority")
+        if narrative_priority is not None and \
+                narrative_priority not in _VALID_NARRATIVE_PRIORITIES:
+            report.warnings.append(
+                f"{path}: milestone_events[{i}] '{mid}': unknown narrative_priority "
+                f"{narrative_priority!r}."
+            )
+
+        output_type: Optional[str] = m.get("output_type")
+        if output_type is not None and not isinstance(output_type, str):
+            report.errors.append(
+                f"{path}: milestone_events[{i}] '{mid}': output_type must be a string."
+            )
+            continue
+
+        flavor: Optional[str] = m.get("flavor_template")
+        if flavor is not None:
+            if not isinstance(flavor, str) or not flavor.strip():
+                report.errors.append(
+                    f"{path}: milestone_events[{i}] '{mid}': flavor_template, "
+                    f"when set, must be a non-empty string."
+                )
+                continue
+            flavor = flavor.strip()
+
+        # GCW-shape fields. Validate type only when present.
+        headline: Optional[str] = m.get("headline")
+        if headline is not None and not isinstance(headline, str):
+            report.errors.append(
+                f"{path}: milestone_events[{i}] '{mid}': headline must be a string."
+            )
+            continue
+
+        fires_once: Optional[bool] = m.get("fires_once")
+        if fires_once is not None and not isinstance(fires_once, bool):
+            report.errors.append(
+                f"{path}: milestone_events[{i}] '{mid}': fires_once must be a bool."
+            )
+            continue
+
+        narrative_event_type: Optional[str] = m.get("narrative_event_type")
+        if narrative_event_type is not None and \
+                not isinstance(narrative_event_type, str):
+            report.errors.append(
+                f"{path}: milestone_events[{i}] '{mid}': narrative_event_type "
+                f"must be a string."
+            )
+            continue
+
+        duration_minutes: Optional[int] = None
+        if "duration_minutes" in m:
+            try:
+                duration_minutes = int(m["duration_minutes"])
+            except (TypeError, ValueError):
+                report.errors.append(
+                    f"{path}: milestone_events[{i}] '{mid}': duration_minutes "
+                    f"must be int, got {m['duration_minutes']!r}."
+                )
+                continue
+
+        milestone_events.append(MilestoneEvent(
+            id=mid,
+            trigger=trigger,
+            cooldown_hours=cooldown,
+            narrative_priority=narrative_priority,
+            output_type=output_type,
+            flavor_template=flavor,
+            headline=headline,
+            fires_once=fires_once,
+            narrative_event_type=narrative_event_type,
+            duration_minutes=duration_minutes,
+            raw=m,
+        ))
+
+    # ── Holonet news pool ───────────────────────────────────────────────
+    holonet_pool = raw.get("holonet_news_pool") or []
+    if not isinstance(holonet_pool, list):
+        raise WorldLoadError(
+            f"{path}: 'holonet_news_pool' must be a list of strings."
+        )
+    if not all(isinstance(s, str) for s in holonet_pool):
+        raise WorldLoadError(
+            f"{path}: 'holonet_news_pool' entries must be strings."
+        )
+
+    # ── Rewicker ────────────────────────────────────────────────────────
+    rew = raw.get("rewicker") or {}
+    if not isinstance(rew, dict):
+        raise WorldLoadError(f"{path}: 'rewicker' must be a mapping.")
+    rew_factions = rew.get("faction_codes") or {}
+    rew_zones = rew.get("zone_keys") or {}
+    if not isinstance(rew_factions, dict) or not isinstance(rew_zones, dict):
+        raise WorldLoadError(
+            f"{path}: rewicker.faction_codes and rewicker.zone_keys must be mappings."
+        )
+
+    # Capture any unrecognized top-level keys for forward compatibility,
+    # so future authors can extend the schema without breaking the loader.
+    KNOWN_KEYS = {
+        "schema_version", "valid_factions", "npc_only_factions",
+        "influence_min", "influence_max", "max_delta_per_turn",
+        "zone_baselines", "system_prompt",
+        "milestone_events", "holonet_news_pool", "rewicker",
+    }
+    extras = {k: v for k, v in raw.items() if k not in KNOWN_KEYS}
+
+    return DirectorConfig(
+        schema_version=schema_version,
+        valid_factions=list(valid_factions),
+        npc_only_factions=list(npc_only_factions),
+        influence_min=influence_min,
+        influence_max=influence_max,
+        max_delta_per_turn=max_delta_per_turn,
+        zone_baselines=zone_baselines,
+        system_prompt=system_prompt.strip(),
+        milestone_events=milestone_events,
+        holonet_news_pool=list(holonet_pool),
+        rewicker_faction_codes=dict(rew_factions),
+        rewicker_zone_keys=dict(rew_zones),
+        extras=extras,
+        report=report,
+        raw=raw,
+    )
+
+
+# ── Ambient pools loader ─────────────────────────────────────────────────────
+
+
+def load_ambient_pools(manifest: EraManifest) -> Optional[AmbientPools]:
+    """Parse the era's ambient_events.yaml into an AmbientPools.
+
+    Returns None when the manifest does not declare an `ambient_events`
+    content_ref. Raises WorldLoadError when the file is declared but
+    missing/malformed.
+
+    The schema is forgiving: a zone-key entry can be a list of strings
+    OR a list of {text, weight?} mappings. Strings are coerced to
+    AmbientLine(text=..., weight=1.0). Per-line weight is optional and
+    defaults to 1.0; non-positive weights produce warnings.
+    """
+    path = manifest.ambient_events_path
+    if path is None:
+        return None
+    if not path.is_file():
+        raise WorldLoadError(f"Missing ambient_events file: {path}")
+
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as e:
+        raise WorldLoadError(f"Failed to parse {path}: {e}") from e
+
+    if not isinstance(raw, dict):
+        raise WorldLoadError(
+            f"{path}: top-level must be a mapping, got {type(raw).__name__}."
+        )
+
+    schema_version = int(raw.get("schema_version", 1))
+
+    pools_raw = raw.get("ambient_events")
+    if not isinstance(pools_raw, dict):
+        raise WorldLoadError(
+            f"{path}: 'ambient_events' is required and must be a mapping "
+            f"(zone_key → list of lines)."
+        )
+
+    report = ValidationReport()
+    pools: dict[str, list[AmbientLine]] = {}
+
+    for zk, lines_raw in pools_raw.items():
+        if not isinstance(lines_raw, list):
+            report.errors.append(
+                f"{path}: ambient_events[{zk!r}] must be a list, got "
+                f"{type(lines_raw).__name__}."
+            )
+            continue
+        lines: list[AmbientLine] = []
+        for i, ln in enumerate(lines_raw):
+            if isinstance(ln, str):
+                lines.append(AmbientLine(text=ln, weight=1.0, raw={"text": ln}))
+                continue
+            if not isinstance(ln, dict):
+                report.errors.append(
+                    f"{path}: ambient_events[{zk!r}][{i}] must be a string or "
+                    f"mapping, got {type(ln).__name__}."
+                )
+                continue
+            text = ln.get("text") or ""
+            if not isinstance(text, str) or not text.strip():
+                report.errors.append(
+                    f"{path}: ambient_events[{zk!r}][{i}] missing 'text'."
+                )
+                continue
+            try:
+                weight = float(ln.get("weight", 1.0))
+            except (TypeError, ValueError):
+                report.errors.append(
+                    f"{path}: ambient_events[{zk!r}][{i}] 'weight' must be a number, "
+                    f"got {ln.get('weight')!r}."
+                )
+                continue
+            if weight <= 0:
+                report.warnings.append(
+                    f"{path}: ambient_events[{zk!r}][{i}] weight {weight} <= 0; "
+                    f"line will never trigger."
+                )
+            lines.append(AmbientLine(text=text.strip(), weight=weight, raw=ln))
+        if not lines:
+            report.warnings.append(
+                f"{path}: ambient_events[{zk!r}] resolved to zero usable lines."
+            )
+        pools[zk] = lines
+
+    return AmbientPools(
+        schema_version=schema_version,
+        pools=pools,
+        report=report,
+        raw=raw,
     )

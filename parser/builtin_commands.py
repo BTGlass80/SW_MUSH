@@ -1184,36 +1184,64 @@ class SheetCommand(BaseCommand):
             from engine.sheet_renderer import render_game_sheet
             lines = render_game_sheet(char, skill_reg, width=w)
 
-        # WebSocket clients render the sheet from the structured sidebar
-        # HUD payload (attributes, force_skills, wound, FP, CP, credits,
-        # equipment). Dumping the rendered text into the pose log here
-        # caused the visible "sheet bleed" — wound-track ASCII, weapon
-        # lines, and skill rows being misclassified into the comms feed.
-        # On WebSocket: trigger an immediate hud refresh and send a brief
-        # confirmation line so the user gets feedback that the command
-        # landed.  Telnet still gets the full formatted text below.
+        # ── WebSocket clients: emit structured sheet_data event ──
+        # The browser slide-in panel renders from this payload — no
+        # ANSI parsing, no comms-feed bleed.  Telnet falls through to
+        # the text dump below.  /skills, /combat, /brief switches are
+        # passed through as `view` so the panel opens on the matching
+        # tab; the legacy text variants are no longer sent on WS (the
+        # tabs absorb them).
         from server.session import Protocol
         if ctx.session.protocol == Protocol.WEBSOCKET:
             try:
-                await ctx.session.send_hud_update(
-                    db=ctx.db, session_mgr=ctx.session_mgr
-                )
-                # Brief acknowledgment — without this, the command produces
-                # zero terminal output and feels broken even though the
-                # sidebar refreshed.
-                if "skills" not in ctx.switches and "combat" not in ctx.switches:
-                    await ctx.session.send_line(
-                        "  Character sheet refreshed. (See sidebar for "
-                        "stats; type +sheet/skills or +sheet/combat for "
-                        "the full text breakdown.)"
+                from engine.sheet_renderer import build_sheet_payload
+                # Hydrate background from pc_narrative if available so
+                # the right-rail can show it without a second round-trip.
+                sheet_char = dict(char)
+                try:
+                    char_id = sheet_char.get("id")
+                    if char_id and ctx.db is not None:
+                        row = await ctx.db.fetchone(
+                            "SELECT background FROM pc_narrative "
+                            "WHERE char_id = ?",
+                            (char_id,),
+                        )
+                        # aiosqlite.Row supports bracket access but not
+                        # .get(); guard via keys().
+                        if row is not None and "background" in row.keys():
+                            bg = row["background"]
+                            if bg:
+                                sheet_char["background"] = bg
+                except Exception as _e:
+                    log.debug(
+                        "sheet: pc_narrative hydrate skipped: %s", _e,
+                        exc_info=True,
                     )
-            except Exception:
-                # Fall back to text dump if HUD push fails for any reason
-                for line in lines:
-                    await ctx.session.send_line(line)
-            # For /skills and /combat there's no sidebar equivalent yet —
-            # send those text variants regardless so the user gets info.
-            if "skills" in ctx.switches or "combat" in ctx.switches:
+                payload = build_sheet_payload(sheet_char, skill_reg)
+                await ctx.session.send_json("sheet_data", {
+                    "payload": payload,
+                    "view": (
+                        "skills" if "skills" in ctx.switches
+                        else "combat" if "combat" in ctx.switches
+                        else "brief" if "brief" in ctx.switches
+                        else "full"
+                    ),
+                })
+                # Refresh the sidebar HUD too — vitals / credits / wound
+                # are mirrored there and can drift if the sheet is the
+                # only thing that pulled fresh state.
+                try:
+                    await ctx.session.send_hud_update(
+                        db=ctx.db, session_mgr=ctx.session_mgr,
+                    )
+                except Exception as _e:
+                    log.debug(
+                        "sheet: HUD refresh skipped: %s", _e, exc_info=True,
+                    )
+            except Exception as _e:
+                # Any failure in the structured path falls back to the
+                # ANSI text dump so the user still sees their sheet.
+                log.warning("sheet_data emission failed: %s", _e, exc_info=True)
                 for line in lines:
                     await ctx.session.send_line(line)
             return
