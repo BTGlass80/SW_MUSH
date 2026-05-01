@@ -147,9 +147,17 @@ class AmbientEventManager:
         legacy file.
         """
         from engine.ambient_pools_loader import get_ambient_pools
-        from engine.era_state import resolve_era_for_seeding
+        from engine.era_state import get_seeding_era
 
-        era = resolve_era_for_seeding()
+        # F.6a.7 Phase 1 (Apr 29 2026): switched from
+        # resolve_era_for_seeding() (returned None when
+        # use_yaml_director_data was off) to get_seeding_era()
+        # (returns the active era unconditionally). The YAML path is
+        # now the production path for ambient pools too. The
+        # get_ambient_pools() era=None branch falls back to the
+        # legacy flat data/ambient_events.yaml if YAML load fails for
+        # any reason, so this remains safe.
+        era = get_seeding_era()
         try:
             merged = get_ambient_pools(era=era)
         except Exception as e:

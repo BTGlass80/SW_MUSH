@@ -20,6 +20,12 @@ import json
 import logging
 
 from engine.json_safe import safe_json_loads
+from engine.housing import (
+    get_housing, get_housing_status_lines,
+    rent_room, checkout_room,
+    housing_store, housing_retrieve,
+    _storage,
+)
 from parser.commands import BaseCommand, CommandContext
 from server import ansi
 
@@ -51,13 +57,6 @@ class HousingCommand(BaseCommand):
         if not char:
             await ctx.session.send_line(ansi.error("Not logged in."))
             return
-
-        from engine.housing import (
-            get_housing, get_housing_status_lines,
-            rent_room, checkout_room,
-            housing_store, housing_retrieve,
-            _storage,
-        )
 
         # 'home' with no args → teleport
         raw = (ctx.raw_input or "").strip().lower()

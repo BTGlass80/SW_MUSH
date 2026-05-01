@@ -506,6 +506,53 @@ rooms:
     map_y: 10
     security_level: lawless
 
+  # ══════════════════════════════════════════════════════════════════════
+  # HOUSING HOST ROOMS (F.5a.2.x — Apr 30 2026) — 2 rooms
+  # Per cw_housing_design_v1.md §7.1 (T3) + §9 (T5).
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 84
+    slug: warrens_squat_block
+    name: "Nar Shaddaa - The Warrens - Squat Block"
+    short_desc: "A makeshift block of squatter dwellings carved into a collapsed warehouse — the cheapest housing on Nar Shaddaa."
+    description: >
+      The squat block is the closest thing the Warrens has to formal
+      housing — a collapsed-warehouse interior partitioned into a
+      hundred small dwellings by sheets of welded durasteel and
+      hanging plastic. Power is jury-rigged from the warrens' main
+      reactor. Water comes from a shared pipe with a queue. Rent is
+      paid to a Hutt-affiliated kingpin nobody on the block has met
+      personally. It's the cheapest, deepest, most dangerous habitable
+      space on Nar Shaddaa, and it's still in demand. War has created
+      a refugee market here that the kingpin is happy to serve.
+    zone: nar_shaddaa_warrens
+    map_x: 16
+    map_y: 10
+    security_level: lawless
+    housing: true
+
+  - id: 85
+    slug: promenade_corporate_tower
+    name: "Nar Shaddaa - Promenade - Corporate Tower"
+    short_desc: "A mid-rise corporate tower on the Promenade, leasing fortified offices to mercenary outfits and bounty-hunter chapters."
+    description: >
+      The corporate tower is fifteen stories of fortified office
+      space, each floor leased separately to organizations that need
+      a Nar Shaddaa presence with security to match. The lobby is
+      staffed by a private security firm that asks the right
+      questions of arriving visitors and provides escort to the
+      correct floor. Tenants include a bounty-hunter chapter house,
+      two mercenary command posts, a Hutt-affiliated trading
+      consortium's regional office, and a handful of independent
+      operators with discreet signage. The tower's reputation is
+      "neutral ground enforced by competent professionals," which is
+      exactly what its tenants pay for.
+    zone: nar_shaddaa_promenade
+    map_x: 16
+    map_y: 4
+    security_level: contested
+    housing: true
+
 exits:
   # ── Landing pads ────────────────────────────────────────────────────────
   - {from: 54, to: 56, forward: "out", reverse: "bay aurek"}
@@ -551,3 +598,12 @@ exits:
   - {from: 81, to: 79, forward: "south", reverse: "north to Shaft"}
   - {from: 82, to: 80, forward: "east", reverse: "west to Cavern"}
   - {from: 83, to: 81, forward: "south", reverse: "north to Reactor"}
+
+  # F.5a.2.x.1 (Apr 30 2026) — wire orphan housing host rooms into graph
+  # Per cw_housing_design_v1.md §7.1 (T3 Warrens) + §9 (T5 Promenade Tower).
+  # Both rooms were authored as orphans by a prior pass; this drop connects them.
+  - {from: 56, to: 85, forward: "tower", reverse: "out to Promenade"}
+  # Warrens has no other authored room on disk; we anchor it from the
+  # Promenade as a long-haul named exit. A future Warrens map expansion
+  # (out of F.5a.2.x.1 scope) will give it local neighbors.
+  - {from: 56, to: 84, forward: "warrens", reverse: "back to Promenade"}

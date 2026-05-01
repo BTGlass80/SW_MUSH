@@ -99,18 +99,47 @@ STEP_ATTRIBUTES = "attributes"
 STEP_SKILLS = "skills"
 STEP_FORCE = "force"
 STEP_BACKGROUND = "background"
+STEP_TUTORIAL_CHAIN = "tutorial_chain"  # F.8.c.1: CW-only step
 STEP_REVIEW = "review"
 STEP_FREEFORM = "freeform"
 
+# ── F.8.c.1 (Apr 30 2026) — Tutorial-chain selection step ────────────────
+# Inserted between STEP_BACKGROUND and STEP_REVIEW for the CW era ONLY.
+# GCW chargen uses the legacy `engine/tutorial_v2.py` 8-elective tutorial
+# model; CW chargen uses the new chain-based tutorial seam from
+# `engine/tutorial_chains.py` (delivered F.8 Phase 1) plus the 24
+# tutorial-zone rooms from F.8.b.
+#
+# The chain step is era-conditional via _build_step_lists() at __init__
+# time. Eras without a chains.yaml file (GCW) get the legacy step
+# lists; CW gets the chain step inserted before review.
+
 # Ordered step list for back/forward navigation
-SCRATCH_STEPS = [
+SCRATCH_STEPS_LEGACY = [
     STEP_WELCOME, STEP_SPECIES, STEP_ATTRIBUTES,
     STEP_SKILLS, STEP_FORCE, STEP_BACKGROUND, STEP_REVIEW,
 ]
-TEMPLATE_STEPS = [
+TEMPLATE_STEPS_LEGACY = [
     STEP_WELCOME, STEP_TEMPLATE_SELECT,
     STEP_SKILLS, STEP_FORCE, STEP_BACKGROUND, STEP_REVIEW,
 ]
+# CW step lists with chain selection slotted before review
+SCRATCH_STEPS_CW = [
+    STEP_WELCOME, STEP_SPECIES, STEP_ATTRIBUTES,
+    STEP_SKILLS, STEP_FORCE, STEP_BACKGROUND,
+    STEP_TUTORIAL_CHAIN, STEP_REVIEW,
+]
+TEMPLATE_STEPS_CW = [
+    STEP_WELCOME, STEP_TEMPLATE_SELECT,
+    STEP_SKILLS, STEP_FORCE, STEP_BACKGROUND,
+    STEP_TUTORIAL_CHAIN, STEP_REVIEW,
+]
+
+# Module-level aliases preserve the pre-F.8.c.1 names for any external
+# imports. These default to the legacy lists; CreationWizard switches
+# at __init__ time via `self.scratch_steps` / `self.template_steps`.
+SCRATCH_STEPS = SCRATCH_STEPS_LEGACY
+TEMPLATE_STEPS = TEMPLATE_STEPS_LEGACY
 
 
 class CreationWizard:
@@ -133,6 +162,31 @@ class CreationWizard:
         self.background = ""
         self._force_sensitive = False
         self.fmt = Fmt(width=width)
+
+        # ── F.8.c.1: Era-conditional tutorial chain selection ──
+        # The wizard detects whether the active era has chain-based
+        # tutorials. CW does (via data/worlds/clone_wars/tutorials/
+        # chains.yaml); GCW falls through to the legacy elective-module
+        # tutorial in engine/tutorial_v2.py. The seam in
+        # engine/tutorial_chains.load_tutorial_chains() returns None
+        # for eras without a chains.yaml — that's the signal to use the
+        # legacy step lists.
+        self._chains_corpus = None
+        self._selected_chain_id: Optional[str] = None
+        self.scratch_steps = SCRATCH_STEPS_LEGACY
+        self.template_steps = TEMPLATE_STEPS_LEGACY
+        try:
+            from engine.tutorial_chains import load_tutorial_chains
+            corpus = load_tutorial_chains()  # uses active era
+            if corpus is not None and corpus.ok and corpus.chains:
+                self._chains_corpus = corpus
+                self.scratch_steps = SCRATCH_STEPS_CW
+                self.template_steps = TEMPLATE_STEPS_CW
+        except Exception as e:
+            log.warning(
+                "[creation_wizard] Tutorial chains corpus unavailable "
+                "(%s); falling back to legacy step lists.", e,
+            )
 
     # ══════════════════════════════════════════════
     #  PUBLIC API
@@ -180,6 +234,7 @@ class CreationWizard:
             STEP_SKILLS: self._handle_skills,
             STEP_FORCE: self._handle_force,
             STEP_BACKGROUND: self._handle_background,
+            STEP_TUTORIAL_CHAIN: self._handle_tutorial_chain,
             STEP_REVIEW: self._handle_review,
         }.get(self.step)
 
@@ -219,6 +274,7 @@ class CreationWizard:
             STEP_SKILLS: self._render_skills,
             STEP_FORCE: self._render_force,
             STEP_BACKGROUND: self._render_background,
+            STEP_TUTORIAL_CHAIN: self._render_tutorial_chain,
             STEP_REVIEW: self._render_review,
         }
         renderer = renderers.get(self.step, self._render_welcome)
@@ -536,6 +592,216 @@ class CreationWizard:
         lines.append(self.fmt.bar("="))
         return "\n".join(lines)
 
+    # ── F.8.c.1: Tutorial chain selection (CW only) ──────────────────────
+    def _render_tutorial_chain(self):
+        """Render the tutorial-chain selection screen.
+
+        Shows the player a numbered list of available chains, with
+        locked chains marked. Players pick a chain by number or by
+        chain_id, or skip with `next`.
+
+        Locked-chain rejection (F.8.c.1):
+          - jedi_path is locked at chargen because the design's
+            Force-policy gates Jedi behind the Village quest chain.
+            The chain's locked_message is shown inline, but the chain
+            cannot be selected.
+          - Other chains may have prereq-blocks (e.g. faction_intent
+            mismatches) that make them unavailable; those are filtered
+            out of the menu.
+        """
+        if self._chains_corpus is None:
+            # Should never reach this if the step is in the list, but
+            # belt-and-suspenders.
+            self.step = STEP_REVIEW
+            return self._render_step()
+
+        lines = [
+            "",
+            self.fmt.bar("="),
+            f"  {_hdr('TUTORIAL CHAIN')}",
+            self.fmt.bar("-", DIM),
+            "",
+        ]
+        lines.extend(self.fmt.wrap(
+            "Pick a profession path. Each chain walks you through 4-6 "
+            "tutorial steps with NPCs of that profession, then drops "
+            "you into the live galaxy with a starter package and "
+            "faction reputation. You can complete other chains later, "
+            "but you'll start with this one."
+        ))
+        lines.append("")
+
+        # Build the player-attrs dict for prereq checks. At chargen
+        # we don't have a full character yet, so we synthesize:
+        char_attrs = self._chargen_attrs_for_chain_check()
+
+        # List unlocked chains numbered, locked chains marked
+        from engine.tutorial_chains import is_chain_locked_for_character
+        self._menu_chains = []  # ordered list of selectable chain_ids
+        idx = 1
+        for chain in self._chains_corpus.chains:
+            is_locked, reason = is_chain_locked_for_character(chain, char_attrs)
+            if is_locked:
+                # Show locked entry but greyed-out, no number
+                lines.append(
+                    f"  {_dim('—')}  {_dim(chain.chain_name)}  "
+                    f"{_dim('(' + chain.archetype_label + ')')}"
+                )
+                # Word-wrap the locked-reason as a sub-line
+                for sub in self.fmt.wrap(reason, indent=6):
+                    lines.append(f"     {_dim(sub.lstrip())}")
+            else:
+                lines.append(
+                    f"  {_yl(str(idx))}  {_hdr(chain.chain_name)}  "
+                    f"{_dim('(' + chain.archetype_label + ')')}"
+                )
+                for sub in self.fmt.wrap(chain.description, indent=6):
+                    lines.append(f"     {sub.lstrip()}")
+                if chain.duration_minutes:
+                    lines.append(f"     {_dim('~' + str(chain.duration_minutes) + ' minutes')}")
+                self._menu_chains.append(chain.chain_id)
+                idx += 1
+            lines.append("")
+
+        lines.append(f"  {_yl('1-' + str(len(self._menu_chains)))}  "
+                     f"{_dim('— pick a chain by number')}")
+        lines.append(f"  {_yl('next')}  {_dim('— skip the tutorial (drops you straight into the galaxy)')}")
+        lines.append("")
+        lines.append(self.fmt.bar("="))
+        return "\n".join(lines)
+
+    def _handle_tutorial_chain(self, text):
+        """Process tutorial-chain step input."""
+        low = text.lower().strip()
+
+        if low in ("next", "skip"):
+            # Skip the tutorial chain entirely; advance to review
+            self._selected_chain_id = None
+            self.step = self._next_step_after(STEP_TUTORIAL_CHAIN)
+            return (f"  {_dim('Tutorial chain skipped — you will start in the live galaxy.')}\n\n"
+                    + self._render_step()), self._prompt(), False
+
+        # Numeric selection
+        if low.isdigit():
+            n = int(low)
+            menu = getattr(self, "_menu_chains", [])
+            if 1 <= n <= len(menu):
+                chain_id = menu[n - 1]
+                return self._select_chain_by_id(chain_id)
+            return (f"  {BRIGHT_RED}No chain numbered {n}.{RESET}\n"
+                    f"  {_dim('Pick 1-' + str(len(menu)) + ' or')} "
+                    f"{_yl('next')} {_dim('to skip.')}"), \
+                   self._prompt(), False
+
+        # Direct chain_id selection (handy for power users)
+        if self._chains_corpus:
+            chain = self._chains_corpus.by_id().get(low)
+            if chain is not None:
+                return self._select_chain_by_id(low)
+
+        return (f"  {_dim('Pick a chain by number, or type')} "
+                f"{_yl('next')} {_dim('to skip.')}"), \
+               self._prompt(), False
+
+    def _select_chain_by_id(self, chain_id: str):
+        """Internal: store the chain selection and advance to review."""
+        if self._chains_corpus is None:
+            self.step = STEP_REVIEW
+            return self._render_step(), self._prompt(), False
+        chain = self._chains_corpus.by_id().get(chain_id)
+        if chain is None:
+            return (f"  {BRIGHT_RED}No chain '{chain_id}'.{RESET}", self._prompt(), False)
+        # Re-check locked status against current attrs — this catches the
+        # edge case where someone reaches this method via direct chain_id
+        # input bypassing the menu filter.
+        from engine.tutorial_chains import is_chain_locked_for_character
+        attrs = self._chargen_attrs_for_chain_check()
+        is_locked, reason = is_chain_locked_for_character(chain, attrs)
+        if is_locked:
+            return (f"  {BRIGHT_RED}{reason}{RESET}", self._prompt(), False)
+        self._selected_chain_id = chain_id
+        self.step = self._next_step_after(STEP_TUTORIAL_CHAIN)
+        return (f"  {_gr('Path selected: ' + chain.chain_name)}.\n"
+                f"  {_dim('You will be routed to')} "
+                f"{_yl(chain.starting_room or '(graduation drop_room)')} "
+                f"{_dim('after final review.')}\n\n"
+                + self._render_step()), self._prompt(), False
+
+    def _chargen_attrs_for_chain_check(self) -> dict:
+        """Build the minimal char_attrs dict for chain-prereq checking.
+
+        At chargen we don't have a full character yet, but
+        is_chain_locked_for_character() needs:
+          - chargen_complete: implicitly True at this step (player has
+            finished background already; we're 1 step from done)
+          - faction_intent: at chargen, picking a faction-aligned chain
+            IS the faction commitment, so we synthesize a permissive
+            faction_intent that satisfies any chain's gate. F.8.c.1
+            uses a sentinel value "__chargen_any__" that the
+            engine.tutorial_chains module treats as "matches any
+            faction_intent prereq" (chargen-only override).
+            (Actual runtime faction_intent is set post-chargen
+            by the chain selection itself.)
+          - force_sensitive / jedi_path_unlocked: from wizard state.
+            jedi_path remains LOCKED at chargen by design — Jedi unlock
+            requires the F.10 Village quest, regardless of force-sensitive
+            attribute.
+        """
+        attrs = {
+            "chargen_complete": True,
+            "faction_intent": "__chargen_any__",
+            "force_sensitive": self._force_sensitive,
+            # jedi_path_unlocked is set by the F.10 Village quest, not
+            # chargen. Always False at character creation.
+            "jedi_path_unlocked": False,
+        }
+        return attrs
+
+    def get_selected_chain_id(self) -> Optional[str]:
+        """Return the player's selected tutorial chain_id, or None if
+        skipped / not applicable. Used by game_server.py post-chargen
+        to layer the tutorial_chain state into the character's
+        attributes JSON before DB save."""
+        return self._selected_chain_id
+
+    def get_tutorial_chain_block(self) -> Optional[dict]:
+        """Return the tutorial_chain state block to merge into the
+        character's attributes JSON, or None if no chain selected.
+
+        Format matches engine/tutorial_chains.select_chain():
+            {
+                "chain_id": <str>,
+                "step": 1,
+                "started_at": <unix_ts>,
+                "completed_steps": [],
+                "completion_state": "active",
+            }
+        """
+        if not self._selected_chain_id or self._chains_corpus is None:
+            return None
+        import time
+        return {
+            "chain_id": self._selected_chain_id,
+            "step": 1,
+            "started_at": time.time(),
+            "completed_steps": [],
+            "completion_state": "active",
+        }
+
+    def get_tutorial_chain_starting_room_slug(self) -> Optional[str]:
+        """Return the room slug to teleport the new character into,
+        or None if no chain was selected. Returned slug is a
+        room slug; game_server.py is responsible for resolving it
+        to a room id via DB lookup."""
+        if not self._selected_chain_id or self._chains_corpus is None:
+            return None
+        chain = self._chains_corpus.by_id().get(self._selected_chain_id)
+        if chain is None:
+            return None
+        # Locked-stub chains (jedi_path) have empty starting_room; those
+        # shouldn't be selectable anyway, but defend against it.
+        return chain.starting_room or None
+
     def _render_review(self):
         lines = [
             "",
@@ -752,7 +1018,7 @@ class CreationWizard:
                 return (f"  {BRIGHT_RED}You need a name before you can proceed.{RESET}\n"
                         f"  {_dim('Use')} {_yl('name <n>')} {_dim('to set it.')}"), \
                        self._prompt(), False
-            self.step = STEP_REVIEW
+            self.step = self._next_step_after(STEP_BACKGROUND)
             return self._render_step(), self._prompt(), False
 
         if cmd == "name":
@@ -810,13 +1076,29 @@ class CreationWizard:
 
     def _go_back(self):
         """Move to the previous step."""
-        steps = TEMPLATE_STEPS if self.path == "template" else SCRATCH_STEPS
+        steps = self.template_steps if self.path == "template" else self.scratch_steps
         if self.step in steps:
             idx = steps.index(self.step)
             if idx > 0:
                 self.step = steps[idx - 1]
                 return self._render_step()
         return f"  {_dim('Already at the first step.')}"
+
+    def _next_step_after(self, current_step: str) -> str:
+        """Return the step that comes after `current_step` in the active
+        step list. Used by step handlers that advance to "the next step"
+        rather than naming a destination explicitly. F.8.c.1: lets
+        background→next go to tutorial_chain in CW or review in GCW
+        without each handler hardcoding the era.
+        """
+        steps = self.template_steps if self.path == "template" else self.scratch_steps
+        try:
+            idx = steps.index(current_step)
+            if idx + 1 < len(steps):
+                return steps[idx + 1]
+        except ValueError:
+            pass
+        return STEP_REVIEW
 
     def _cmd_undo(self):
         display, _, _ = self.engine.process_input("undo")

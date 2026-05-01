@@ -84,6 +84,10 @@ rooms:
       briefing: tipoca_briefing_room
       dining: tipoca_visitor_dining
       deeper: tipoca_cloning_access     # zone-to-zone (city → cloning halls)
+      pm: tipoca_prime_ministers_office  # F.4b: pair for PM office's corridor exit
+      quarters: tipoca_kaminoan_quarters # F.4b: pair for kaminoan quarters' corridor exit
+      medical: tipoca_medical_bay        # F.4b: pair for medical bay's corridor exit
+      library: tipoca_library            # F.4b: pair for library's corridor exit
 
   - id: 352
     slug: tipoca_administration
@@ -247,6 +251,9 @@ rooms:
     exits:
       back: tipoca_main_corridor
       forward: tipoca_growth_chambers
+      equipment: tipoca_equipment_bay    # F.4b: pair for equipment bay's hub exit
+      strategic: tipoca_strategic_command # F.4b: pair for strategic command's hub exit
+      holding: tipoca_holding_cells      # F.4b: pair for holding cells' hub exit
 
   - id: 360
     slug: tipoca_growth_chambers
@@ -459,6 +466,7 @@ rooms:
       city: kamino_arrivals_hall         # zone-to-zone (platform → city)
       south: kamino_lower_platform
       maintenance: kamino_pylon_access
+      quarters: ocean_visiting_officers_quarters  # F.5a.2.x.1: pair for VOQ host
 
   - id: 370
     slug: kamino_lower_platform
@@ -479,6 +487,7 @@ rooms:
       north: kamino_landing_platform_alpha
       east: kamino_pylon_access
       down: kamino_ocean_surface
+      stable: kamino_aiwha_stable        # F.4b: pair for aiwha_stable's up exit (down is taken by ocean_surface)
 
   - id: 371
     slug: kamino_pylon_access
@@ -559,3 +568,32 @@ rooms:
     map_y: 12
     exits:
       up: kamino_lower_platform
+
+  # ══════════════════════════════════════════════════════════════════════
+  # F.5a.2.x.1 host rooms (Apr 30 2026) — T1 rentals
+  # Per cw_housing_design_v1.md §6 (Tier 1 — Kamino note: ocean platforms
+  # only; 2-week visitor stay cap enforced at lot-record level).
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 375
+    slug: ocean_visiting_officers_quarters
+    name: "Kamino - Ocean Platform - Visiting Officers' Quarters"
+    short_desc: "A small block of transient quarters for off-platform visitors — Republic officer per-diem permits required."
+    description: >
+      The visiting officers' quarters are an annex to the lower platform's
+      Republic liaison station. Three short corridors of small, identical
+      rooms — bunk, locker, refresher, comm panel — built for two-week
+      maximum stays. Clone trooper CT-3372, who answers to "Splash" and
+      runs the desk, has been on this rotation for six months and knows
+      everyone who has cycled through. The Kaminoans don't permit
+      civilian rentals on Tipoca City Platform itself; this annex is
+      where the system pushes anyone who needs lodging that isn't a
+      cantina or a barracks. The two-week stay cap is enforced
+      automatically — if you're still here on day fifteen, you're not.
+    zone: kamino_ocean_platform
+    map_x: 39
+    map_y: 9
+    security_level: contested
+    housing: true
+    exits:
+      out: kamino_landing_platform_alpha

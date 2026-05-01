@@ -55,6 +55,7 @@ rooms:
     zone: ns_promenade
     map_x: 0.45
     map_y: 0.22
+    housing: true  # F.5b.3.a: T1 + T3 host (Promenade Hostel + Corellian Sector Apartments)
 
   - id: 57
     slug: nar_shaddaa_the_burning_deck_cantina
@@ -110,6 +111,7 @@ rooms:
     zone: ns_promenade
     map_x: 0.58
     map_y: 0.25
+    housing: true  # F.5b.3.a: T4 shopfront host (Promenade Market)
 
   - id: 61
     slug: nar_shaddaa_bounty_hunters_quarter
@@ -123,6 +125,7 @@ rooms:
     zone: ns_promenade
     map_x: 0.45
     map_y: 0.32
+    housing: true  # F.5b.3.a: T5 organization HQ host (Corellian Sector Block)
 
   - id: 62
     slug: nar_shaddaa_old_corellian_quarter
@@ -247,6 +250,7 @@ rooms:
     map_y: 0.55
     properties:
       cover_max: 0
+    housing: true  # F.5b.3.a: T3 + T4 + T5 host (Hab-Block + Black Market + Stronghold)
 
   - id: 70
     slug: nar_shaddaa_hutt_emissary_tower_lobby

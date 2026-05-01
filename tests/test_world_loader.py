@@ -444,28 +444,84 @@ class TestCloneWarsRealData(unittest.TestCase):
             self.skipTest("data/worlds/clone_wars/ not present")
 
     def test_clone_wars_parses_without_errors(self):
+        """All 6 CW planets are wired in (F.4) AND content-clean (F.4b).
+
+        Pre-F.4b (the F.4 baseline) accepted 35 content errors as known
+        authoring debt and only asserted loader-class cleanliness. F.4b
+        (Apr 30 2026) walked content debt to zero, so this test now
+        asserts the strict invariant: zero errors of any kind.
+
+        If this test fails with f4b_unpaired_exit or
+        f4b_unresolved_target_slug or f4b_auto_inverse_collision errors,
+        new content was added with new authoring gaps — find the
+        offending new room block and add the missing reverse. Loader-class
+        errors mean the loader regressed.
+        """
         from engine.world_loader import load_world_dry_run
         b = load_world_dry_run("clone_wars", worlds_root=self.worlds_root)
-        self.assertEqual(
-            b.report.errors, [],
-            f"Real CW data should have zero validation errors. "
-            f"First error: {b.report.errors[:1]}"
+
+        # Categorize for diagnostic output. F.4b reduced all known
+        # categories to zero; this categorization remains so a future
+        # failure cleanly attributes the error.
+        def categorize(msg: str) -> str:
+            if "invalid reverse direction ''" in msg:
+                return "f4b_unpaired_exit"
+            if "not found in any loaded room" in msg:
+                return "f4b_unresolved_target_slug"
+            if "claimed by" in msg and "exits" in msg:
+                return "f4b_auto_inverse_collision"
+            return "loader_class"
+
+        if b.report.errors:
+            buckets: dict[str, list[str]] = {}
+            for e in b.report.errors:
+                buckets.setdefault(categorize(e), []).append(e)
+            summary = ", ".join(f"{k}={len(v)}" for k, v in buckets.items())
+            self.fail(
+                f"CW must parse without errors after F.4b. Current: "
+                f"{len(b.report.errors)} errors ({summary}). First: "
+                f"{b.report.errors[0]}"
+            )
+
+    def test_clone_wars_content_debt_is_bounded(self):
+        """F.4b content-fix gate: with F.4b landed, the CW content-debt
+        floor is ZERO. The bound was walked from 35 (F.4 baseline) to 0
+        (F.4b closure) in a single drop.
+
+        This test acts as a regression guard going forward — if any new
+        CW content adds an unpaired exit, unresolved slug, or
+        auto-inverse collision, this fires.
+
+        If you legitimately need to expand the bound to absorb a known
+        new authoring gap, do so explicitly and document why in the
+        next handoff.
+        """
+        from engine.world_loader import load_world_dry_run
+        b = load_world_dry_run("clone_wars", worlds_root=self.worlds_root)
+        # F.4b closure (Apr 30 2026): 0 unpaired exits, 0 collisions,
+        # 0 unresolved targets. CW now boots clean.
+        self.assertLessEqual(
+            len(b.report.errors), 0,
+            f"Content debt regressed past F.4b floor of 0. Current: "
+            f"{len(b.report.errors)} errors. Investigate new content "
+            f"that introduced authoring gaps. First: "
+            f"{b.report.errors[0] if b.report.errors else None}"
         )
 
     def test_clone_wars_loads_expected_planet_count(self):
         from engine.world_loader import load_world_dry_run
         b = load_world_dry_run("clone_wars", worlds_root=self.worlds_root)
-        # Manifest currently lists tatooine + nar_shaddaa (2 planets).
-        # When Drop 3+ wires the other 4, this number bumps.
-        self.assertGreaterEqual(len(b.manifest.planet_paths), 2)
+        # F.4 (Apr 30 2026): all 6 planets now wired in.
+        self.assertGreaterEqual(len(b.manifest.planet_paths), 6)
 
     def test_clone_wars_loads_expected_minimum_rooms(self):
         from engine.world_loader import load_world_dry_run
         b = load_world_dry_run("clone_wars", worlds_root=self.worlds_root)
-        # Tatooine = 54, Nar Shaddaa = 30 → at least 84 rooms when both
-        # are wired. Use >= so adding planets to the manifest doesn't
-        # break the test.
-        self.assertGreaterEqual(len(b.rooms), 84)
+        # F.4b (Apr 30 2026): all 6 planets wired in + underworld
+        # surface-entry shim room. Tatooine 54 + Nar Shaddaa 30 +
+        # Coruscant 56 (incl. shim) + Kuat 30 + Kamino 25 + Geonosis 35
+        # = 230 rooms minimum. Use >= so adding rooms doesn't break.
+        self.assertGreaterEqual(len(b.rooms), 230)
 
     def test_clone_wars_room_zero_is_docking_bay_94(self):
         """ID stability sanity check — room id=0 must be the starting

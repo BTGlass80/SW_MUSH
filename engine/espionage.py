@@ -201,6 +201,7 @@ _SECURITY_FINDINGS = [
 ]
 
 _FACTION_FINDINGS = {
+    # ── GCW factions (era=gcw) ──────────────────────────────────────
     "empire": [
         "Imperial insignia scratched into the underside of a table.",
         "A coded frequency list tucked behind a wall panel — ISB standard.",
@@ -215,6 +216,37 @@ _FACTION_FINDINGS = {
         "Hutt Cartel accounting ledger fragments — mostly credits owed.",
         "Spice residue in the cracks between floor plates.",
         "A Hutt clan tattoo sketched on the wall — recent.",
+    ],
+    # ── B.1.f (Apr 29 2026) — CW faction findings ───────────────────
+    # Lookup is keyed by `claim.org_code` which already varies by era;
+    # extending the dict keeps the lookup site (line ~242) era-agnostic
+    # and additive — GCW orgs (empire/rebel/hutt) keep their pools
+    # byte-identical, CW orgs (republic/cis/jedi_order/hutt_cartel/
+    # bounty_hunters_guild) get era-themed clues.
+    "republic": [
+        "Republic seal stamped on a discarded ration tin — fresh print.",
+        "An encrypted clone-trooper tactical frequency list, partially burned.",
+        "Phase II armor sealant residue on the floor near the doorway.",
+    ],
+    "cis": [
+        "A Separatist hex-pattern decal peeled from a console.",
+        "Battle-droid foot-servo lubricant smeared along the wall.",
+        "Confederacy currency chits hidden in a hollow chair leg.",
+    ],
+    "jedi_order": [
+        "A meditation candle stub in a corner, recently extinguished.",
+        "Faintly scorched flooring in a triangular pattern — saber katas.",
+        "A scrap of Jedi-cipher flimsi tucked behind a loose panel.",
+    ],
+    "hutt_cartel": [
+        "Cartel ledger fragments — debts owed, mostly to Black Sun.",
+        "Spice residue in the cracks between floor plates.",
+        "A clan-allegiance tattoo sketched on the wall — Desilijic.",
+    ],
+    "bounty_hunters_guild": [
+        "A Guild marker etched into the lintel — territory claim.",
+        "Spent slug-thrower casings of an unusual caliber.",
+        "A laminated bounty puck stuffed behind a loose tile.",
     ],
 }
 

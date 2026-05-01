@@ -1,0 +1,224 @@
+# data/worlds/clone_wars/chargen_templates.yaml
+# Clone Wars Chargen Templates — Schema v1
+#
+# F.7 (Apr 30 2026): CW-era chargen archetype set. Replaces the GCW
+# `rebel_pilot` with `republic_pilot` and `separatist_pilot`; replaces
+# `soldier` (era-neutral but Imperial-coded by default) with
+# `clone_trooper`; adds `republic_officer` and `cis_field_agent` as
+# CW-canonical archetypes; drops `jedi_apprentice` (Jedi PCs in CW
+# are village-gated per data/worlds/clone_wars/era.yaml policy).
+#
+# Era-neutral templates (smuggler, bounty_hunter, scoundrel,
+# technician) are byte-equivalent to their GCW counterparts — they
+# represent the same WEG D6 archetype with no era-specific flavor
+# bleed.
+#
+# Schema: identical to data/worlds/gcw/chargen_templates.yaml. See
+# that file's header for full schema documentation.
+#
+# Sourcebook references for CW templates:
+#   - clone_trooper:       physically-enhanced humans, blaster +
+#                          tactics + stamina cluster, modeled by
+#                          analogy to WEG D6 R&E Core "Soldier" with
+#                          tactical-discipline emphasis
+#   - republic_officer:    Republic Judicial Forces / fleet command,
+#                          modeled on the Soldier baseline with command
+#                          + leadership skill emphasis
+#   - republic_pilot:      ARC-170 / Y-wing pilots, equivalent to GCW
+#                          rebel_pilot stat distribution (clone-trained
+#                          in mechanical, similar starfighter cluster)
+#   - separatist_pilot:    Belbullab/Hyena-bomber pilots flying
+#                          alongside CIS droid air assets; same baseline
+#                          as republic_pilot (the canonical pilot
+#                          archetype is era-axis-symmetric)
+#   - cis_field_agent:     CIS infiltrator/saboteur — recon + sneak +
+#                          security + comms emphasis; analog of
+#                          GCW Scoundrel re-flavored for the Separatist
+#                          shadow-war role
+
+schema_version: 1
+
+templates:
+  # ── Era-neutral (carry-over from GCW with no flavor change) ──────────────
+  smuggler:
+    label: Smuggler
+    species: Human
+    attributes:
+      dexterity:  "3D+1"
+      knowledge:  "2D+1"
+      mechanical: "4D"
+      perception: "3D+1"
+      strength:   "2D+2"
+      technical:  "2D+1"
+    skills:
+      blaster:            "1D+1"
+      dodge:              "1D"
+      space transports:   "1D+2"
+      starship gunnery:   "1D"
+      streetwise:         "1D"
+      bargain:            "1D"
+
+  bounty_hunter:
+    label: Bounty Hunter
+    species: Human
+    attributes:
+      dexterity:  "3D+2"
+      knowledge:  "2D+1"
+      mechanical: "2D+2"
+      perception: "3D+1"
+      strength:   "3D+1"
+      technical:  "2D+2"
+    skills:
+      blaster:    "2D"
+      dodge:      "1D"
+      brawling:   "1D"
+      search:     "1D"
+      sneak:      "1D"
+      security:   "1D"
+
+  scoundrel:
+    label: Scoundrel
+    species: Human
+    attributes:
+      dexterity:  "3D"
+      knowledge:  "3D"
+      mechanical: "2D+2"
+      perception: "4D"
+      strength:   "2D+2"
+      technical:  "2D+2"
+    skills:
+      blaster:     "1D"
+      dodge:       "1D"
+      con:         "1D+2"
+      persuasion:  "1D"
+      gambling:    "1D"
+      sneak:       "1D+1"
+
+  technician:
+    label: Technician
+    species: Human
+    attributes:
+      dexterity:  "2D+1"
+      knowledge:  "3D"
+      mechanical: "2D+2"
+      perception: "2D+2"
+      strength:   "2D+2"
+      technical:  "4D+2"
+    skills:
+      computer programming/repair:  "1D+2"
+      droid repair:                 "1D"
+      first aid:                    "1D"
+      security:                     "1D"
+      blaster repair:               "1D"
+      space transport repair:       "1D+1"
+
+  # ── CW-specific ──────────────────────────────────────────────────────────
+  # Clone Trooper: the canonical CW grunt-PC. Physically enhanced
+  # human (locked species "Human" — clones are exclusively human),
+  # blaster + tactics + stamina cluster, dodge for cover-and-move
+  # tactical doctrine. Strength bumped vs. baseline soldier to reflect
+  # the clone genetic-enhancement template; Mechanical bumped to
+  # reflect ARC-170/LAAT/AT-TE crew familiarity from boot camp.
+  clone_trooper:
+    label: Clone Trooper
+    species: Human
+    attributes:
+      dexterity:  "3D+2"
+      knowledge:  "2D"
+      mechanical: "3D"
+      perception: "2D+2"
+      strength:   "3D+2"
+      technical:  "2D+2"
+    skills:
+      blaster:           "2D"
+      dodge:             "1D+1"
+      brawling:          "1D"
+      grenade:           "1D"
+      tactics:           "1D+1"
+      stamina:           "1D+2"
+
+  # Republic Officer: Judicial Forces command-track. Fewer combat
+  # dice than a clone trooper, more command/leadership/communication
+  # dice. Captures the "ARC-170 wing commander" / "LAAT-launch officer"
+  # / "Republic Senate Guard sergeant" archetype.
+  republic_officer:
+    label: Republic Officer
+    species: Human
+    attributes:
+      dexterity:  "3D"
+      knowledge:  "3D+1"
+      mechanical: "2D+2"
+      perception: "3D+1"
+      strength:   "2D+2"
+      technical:  "2D+2"
+    skills:
+      blaster:           "1D+1"
+      dodge:             "1D"
+      command:           "1D+2"
+      tactics:           "1D"
+      bureaucracy:       "1D"
+      persuasion:        "1D"
+
+  # Republic Pilot: ARC-170 / Y-wing pilot, byte-equivalent stat
+  # distribution to the GCW rebel_pilot template (the pilot archetype
+  # is era-axis-symmetric — the dice don't change, only the affiliation).
+  republic_pilot:
+    label: Republic Pilot
+    species: Human
+    attributes:
+      dexterity:  "3D"
+      knowledge:  "2D+2"
+      mechanical: "4D+1"
+      perception: "2D+2"
+      strength:   "2D+2"
+      technical:  "2D+2"
+    skills:
+      blaster:                "1D"
+      starfighter piloting:   "2D"
+      starship gunnery:       "1D"
+      astrogation:            "1D"
+      sensors:                "1D"
+      starfighter repair:     "1D"
+
+  # Separatist Pilot: Belbullab / Hyena-bomber pilot. Same baseline
+  # as republic_pilot — the pilot archetype is era-axis-symmetric.
+  # Different faction allegiance, identical mechanical fingerprint.
+  separatist_pilot:
+    label: Separatist Pilot
+    species: Human
+    attributes:
+      dexterity:  "3D"
+      knowledge:  "2D+2"
+      mechanical: "4D+1"
+      perception: "2D+2"
+      strength:   "2D+2"
+      technical:  "2D+2"
+    skills:
+      blaster:                "1D"
+      starfighter piloting:   "2D"
+      starship gunnery:       "1D"
+      astrogation:            "1D"
+      sensors:                "1D"
+      starfighter repair:     "1D"
+
+  # CIS Field Agent: infiltrator/saboteur archetype. Lighter than
+  # bounty_hunter (less combat-front), heavier on stealth/tech/comms
+  # than scoundrel (more spy-craft, less con-game). Knowledge bumped
+  # for tactical/political analysis; Perception elevated for recon.
+  cis_field_agent:
+    label: CIS Field Agent
+    species: Human
+    attributes:
+      dexterity:  "3D"
+      knowledge:  "2D+2"
+      mechanical: "2D+1"
+      perception: "3D+2"
+      strength:   "2D+2"
+      technical:  "3D+1"
+    skills:
+      blaster:           "1D"
+      dodge:             "1D"
+      sneak:             "1D+2"
+      security:          "1D+1"
+      search:            "1D"
+      forgery:           "1D"

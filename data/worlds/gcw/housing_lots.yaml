@@ -1,0 +1,401 @@
+# data/worlds/gcw/housing_lots.yaml
+#
+# F.5a.1 (Apr 29 2026) - GCW housing lot inventory.
+#
+# Per cw_housing_design_v1.md §12B.6 + Drop-0 invariant: GCW must have
+# a byte-equivalent YAML counterpart to its in-Python literals so
+# F.5b's data-fy of FACTION_QUARTER_TIERS can byte-equivalence-test
+# against the existing live data.
+#
+# This file is the parity extraction of
+# `engine/housing.py::FACTION_QUARTER_TIERS` (GCW factions only:
+# empire, rebel, hutt). The CW additions that B.1.d.1 landed
+# (republic/cis/jedi_order/hutt_cartel) live in
+# data/worlds/clone_wars/housing_lots.yaml.
+#
+# Schema:
+#   tier2_faction_quarters:
+#     <faction_code>:
+#       tiers: list of { rank_min, label, storage_max, room_name, room_desc }
+#
+# rank_min is the minimum rank at which this tier becomes active.
+# Engine walks tiers in descending rank_min order and picks the highest
+# qualifying one - same semantics as the (faction_code, rank) -> cfg
+# dict it replaces.
+#
+# Until F.5b's data-fy ships, this YAML is data-only (live engine still
+# uses FACTION_QUARTER_TIERS literal). The byte-equivalence test
+# (tests/test_f5a1_housing_lots_loader.py) gates the eventual swap.
+
+schema_version: 1
+era: gcw
+
+tier2_faction_quarters:
+  empire:
+    tiers:
+    - rank_min: 0
+      label: Imperial Barracks — Shared Bunk
+      storage_max: 10
+      room_name: '{name}''s Bunk'
+      room_desc: >-
+        A narrow bunk in the Imperial garrison barracks. A thin mattress sits on a durasteel frame, with a locker bolted to
+        the wall. The steady hum of the garrison's power generator vibrates through the floor. Stormtrooper boots echo in
+        the corridor outside.
+    - rank_min: 2
+      label: Imperial Garrison — Private Quarters
+      storage_max: 30
+      room_name: '{name}''s Quarters'
+      room_desc: >-
+        A private room in the Imperial garrison's officer wing. A proper bed, a desk with a holoterminal, and a reinforced
+        locker. The door has a coded lock. A viewport shows {planet_view}.
+    - rank_min: 4
+      label: Imperial Garrison — Officer's Suite
+      storage_max: 50
+      room_name: '{name}''s Officer Suite'
+      room_desc: >-
+        A spacious officer's suite in the garrison command level. A large desk dominates one wall, flanked by a personal holoterminal
+        and a weapons rack. The bed is military-neat with Imperial-issue sheets. A viewport offers a commanding view of {planet_view}.
+        A private refresher adjoins.
+    - rank_min: 6
+      label: Imperial Garrison — Commander's Quarters
+      storage_max: 100
+      room_name: Commander {name}'s Quarters
+      room_desc: >-
+        The garrison commander's private quarters. Spartan Imperial efficiency meets the privileges of rank: a full-size desk
+        with encrypted terminal, a conference table for four, personal weapons vault, and a viewport spanning the entire wall
+        showing {planet_view}. A private meeting room adjoins through a blast-rated door.
+  hutt:
+    tiers:
+    - rank_min: 2
+      label: Hutt Cartel — Enforcer's Safehouse
+      storage_max: 30
+      room_name: Enforcer's Room
+      room_desc: >-
+        A functional safehouse room in the Hutt-controlled undercity. The door is reinforced durasteel with three separate
+        locks. A weapons rack, a bunk, and a hidden floor compartment for 'special deliveries.' The walls are covered in cheap
+        soundproofing material. Comfort was never the point.
+    - rank_min: 3
+      label: Hutt Cartel — Lieutenant's Suite
+      storage_max: 50
+      room_name: '{name}''s Suite'
+      room_desc: >-
+        A well-appointed suite in a Hutt-controlled building. The decor is gaudy — gold trim, velvet cushions, a bubbling
+        hookah stand. A heavy curtain hides a hidden compartment large enough to hold a small arsenal. A viewport shows {planet_view}.
+        The Hutts take care of their own.
+    - rank_min: 5
+      label: Hutt Vigo — Luxury Penthouse
+      storage_max: 100
+      room_name: Vigo {name}'s Penthouse
+      room_desc: >-
+        A luxury penthouse dripping with Hutt-style opulence. Gold-plated fixtures, a sunken conversation pit with plush cushions,
+        a fully stocked bar of exotic spirits, and a panoramic viewport showing {planet_view}. A private turbolift connects
+        to the street below. Armed guards patrol the corridor outside. This is what power looks like in the Outer Rim.
+  rebel:
+    tiers:
+    - rank_min: 1
+      label: Rebel Safehouse — Shared Bunk
+      storage_max: 20
+      room_name: Safehouse Bunk
+      room_desc: >-
+        A cramped bunk in a hidden Rebel safehouse. The walls are bare ferrocrete, the lighting dim and powered by a tapped
+        junction. Cargo crates serve as furniture. A small locker is bolted under the bunk. The air tastes of recycled atmosphere
+        and quiet defiance.
+    - rank_min: 3
+      label: Rebel Safehouse — Private Cell
+      storage_max: 40
+      room_name: '{name}''s Cell'
+      room_desc: >-
+        A private room in the safehouse's inner section. A bunk, a secured locker, and a small desk with an encrypted datapad.
+        Alliance propaganda posters line one wall — hand-painted Starbird symbols. The door has an old-fashioned mechanical
+        lock, harder to slice than electronic ones.
+    - rank_min: 5
+      label: Rebel Command Quarters
+      storage_max: 80
+      room_name: Commander {name}'s Quarters
+      room_desc: >-
+        The cell commander's quarters deep in the safehouse. A planning table covered in holographic terrain maps, an encrypted
+        terminal with a direct HoloNet relay, and a weapons cache behind a false wall. The spartan furnishings can't hide
+        the weight of responsibility that fills this room.
+tier1_rentals:
+  # F.5b.3.a (Apr 30 2026) — GCW T1 rental host inventory.
+  #
+  # These records mirror engine/housing.py::HOUSING_LOTS_DROP1, which
+  # was authored at production-launch time using numeric room IDs that
+  # have since drifted (e.g. legacy ID 29 was Spaceport Hotel; current
+  # world dry-run resolves "Spaceport Hotel" to ID 25). The slug-based
+  # references below resolve to the correct rooms regardless of build
+  # ordering.
+  #
+  # F.5b.3.b (Apr 30 2026) added `display_label` and `security_override`
+  # fields preserving the legacy hand-authored player-facing strings.
+  # When omitted (CW lots), the provider derives both from the host
+  # room's name and zone.
+  #
+  # GCW has no purpose-built rental clerk NPCs, so `npc` references
+  # the slug of the closest stand-in: the Sullustan clerk at the
+  # Spaceport Hotel, the Mos Eisley Inn proprietor, etc. The loader
+  # accepts the slug as a string.
+
+  - id: spaceport_hotel
+    planet: tatooine
+    zone: residential
+    host_room: spaceport_hotel
+    npc: sullustan_clerk
+    slots: 5
+    weekly_rent_base: 105
+    description_theme: tatooine_spaceport
+    display_label: Spaceport Hotel
+    security_override: secured
+
+  - id: mos_eisley_inn
+    planet: tatooine
+    zone: residential
+    host_room: mos_eisley_inn
+    npc: mos_eisley_innkeeper
+    slots: 5
+    weekly_rent_base: 70
+    description_theme: tatooine_residential
+    display_label: Mos Eisley Inn
+    security_override: secured
+
+  - id: nar_shaddaa_promenade_hostel
+    planet: nar_shaddaa
+    zone: ns_promenade
+    host_room: nar_shaddaa_corellian_sector_promenade
+    npc: corellian_sector_innkeeper
+    slots: 5
+    weekly_rent_base: 90
+    description_theme: nar_shaddaa_promenade
+    display_label: Nar Shaddaa Promenade Hostel
+    security_override: contested
+
+  - id: kessel_station_barracks
+    planet: kessel
+    zone: kessel_station
+    host_room: kessel_administration_block
+    npc: kessel_warden
+    slots: 5
+    weekly_rent_base: 60
+    description_theme: kessel_station
+    display_label: Kessel Station Barracks
+    security_override: contested
+
+  - id: coronet_city_spacers_rest
+    planet: corellia
+    zone: coronet_city
+    host_room: coronet_city_blue_sector
+    npc: blue_sector_concierge
+    slots: 5
+    weekly_rent_base: 110
+    description_theme: corellia_blue_sector
+    display_label: Coronet City Spacers' Rest
+    security_override: secured
+
+tier3_lots:
+  # F.5b.3.a — GCW T3 private residence inventory.
+  # Mirrors engine/housing.py::HOUSING_LOTS_TIER3.
+  # No rep_gate fields — GCW has no Republic-rep-gated lots in its
+  # current design (cw_housing_design_v1.md §7.1 introduces rep_gate
+  # for the CW Kuat lots only).
+  #
+  # F.5b.3.b adds display_label / security_override per record.
+
+  - id: south_end_residences
+    planet: tatooine
+    zone: market
+    host_room: mos_eisley_street_south_end
+    max_homes: 4
+    allowed_types: [small, standard, large]
+    description_theme: tatooine_residential
+    display_label: South End Residences
+    security_override: secured
+
+  - id: outskirts_homesteads
+    planet: tatooine
+    zone: outskirts
+    host_room: city_outskirts_eastern_gate
+    max_homes: 3
+    allowed_types: [small, standard, large]
+    description_theme: tatooine_outskirts
+    display_label: Outskirts Homesteads
+    security_override: contested
+
+  - id: corellian_sector_apartments
+    planet: nar_shaddaa
+    zone: ns_promenade
+    host_room: nar_shaddaa_corellian_sector_promenade
+    max_homes: 4
+    allowed_types: [small, standard, large]
+    description_theme: nar_shaddaa_corellian
+    display_label: Corellian Sector Apartments
+    security_override: contested
+
+  - id: undercity_hab_block
+    planet: nar_shaddaa
+    zone: ns_undercity
+    host_room: nar_shaddaa_fighting_pits
+    max_homes: 3
+    allowed_types: [small, standard]
+    description_theme: nar_shaddaa_undercity
+    display_label: Undercity Hab-Block
+    security_override: lawless
+
+  - id: station_habitat_ring
+    planet: kessel
+    zone: kessel_station
+    host_room: kessel_administration_block
+    max_homes: 2
+    allowed_types: [small, standard]
+    description_theme: kessel_station
+    display_label: Station Habitat Ring
+    security_override: contested
+
+  - id: coronet_residential_quarter
+    planet: corellia
+    zone: coronet_city
+    host_room: coronet_city_residential_quarter
+    max_homes: 4
+    allowed_types: [small, standard, large]
+    description_theme: corellia_residential
+    display_label: Residential Quarter
+    security_override: secured
+
+  - id: coronet_old_quarter_townhouses
+    planet: corellia
+    zone: coronet_old_quarter
+    host_room: coronet_city_old_quarter_back_streets
+    max_homes: 3
+    allowed_types: [small, standard, large]
+    description_theme: corellia_old_quarter
+    display_label: Old Quarter Townhouses
+    security_override: contested
+
+tier4_lots:
+  # F.5b.3.a — GCW T4 shopfront inventory.
+  # Mirrors engine/housing.py::HOUSING_LOTS_TIER4.
+  # F.5b.3.b adds display_label / security_override per record.
+
+  - id: mos_eisley_market_row_stalls
+    planet: tatooine
+    zone: market
+    host_room: mos_eisley_street_market_district
+    max_homes: 4
+    allowed_types: [small, standard]
+    description_theme: tatooine_market
+    display_label: Market Row Stalls
+    security_override: contested
+
+  - id: spaceport_commercial_strip
+    planet: tatooine
+    zone: market
+    host_room: mos_eisley_street_spaceport_row
+    max_homes: 3
+    allowed_types: [small, standard]
+    description_theme: tatooine_spaceport
+    display_label: Spaceport Commercial Strip
+    security_override: secured
+
+  - id: nar_shaddaa_promenade_market
+    planet: nar_shaddaa
+    zone: ns_promenade
+    host_room: nar_shaddaa_vertical_bazaar
+    max_homes: 4
+    allowed_types: [small, standard]
+    description_theme: nar_shaddaa_bazaar
+    display_label: Promenade Market
+    security_override: contested
+
+  - id: nar_shaddaa_undercity_black_market
+    planet: nar_shaddaa
+    zone: ns_undercity
+    host_room: nar_shaddaa_fighting_pits
+    max_homes: 2
+    allowed_types: [small]
+    description_theme: nar_shaddaa_undercity
+    display_label: Undercity Black Market
+    security_override: lawless
+
+  - id: kessel_station_bazaar
+    planet: kessel
+    zone: kessel_station
+    host_room: kessel_administration_block
+    max_homes: 2
+    allowed_types: [small, standard]
+    description_theme: kessel_station
+    display_label: Station Bazaar
+    security_override: contested
+
+  - id: coronet_commercial_quarter
+    planet: corellia
+    zone: coronet_city
+    host_room: coronet_city_blue_sector
+    max_homes: 4
+    allowed_types: [small, standard]
+    description_theme: corellia_blue_sector
+    display_label: Commercial Quarter
+    security_override: secured
+
+tier5_lots:
+  # F.5b.3.a — GCW T5 organization HQ inventory.
+  # Mirrors engine/housing.py::HOUSING_LOTS_TIER5.
+  # F.5b.3.b adds display_label / security_override per record.
+
+  - id: tatooine_outskirts_compound
+    planet: tatooine
+    zone: outskirts
+    host_room: city_outskirts_abandoned_moisture_farm
+    max_homes: 2
+    allowed_types: [outpost, chapter_house]
+    description_theme: tatooine_compound
+    display_label: Outskirts Compound
+    security_override: contested
+
+  - id: tatooine_abandoned_compound
+    planet: tatooine
+    zone: outskirts
+    host_room: city_outskirts_desert_trail_junction
+    max_homes: 1
+    allowed_types: [outpost]
+    description_theme: tatooine_abandoned
+    display_label: Abandoned Compound
+    security_override: lawless
+
+  - id: nar_shaddaa_corellian_block
+    planet: nar_shaddaa
+    zone: ns_promenade
+    host_room: nar_shaddaa_bounty_hunters_quarter
+    max_homes: 2
+    allowed_types: [chapter_house, fortress]
+    description_theme: nar_shaddaa_corellian
+    display_label: Corellian Sector Block
+    security_override: contested
+
+  - id: nar_shaddaa_undercity_stronghold
+    planet: nar_shaddaa
+    zone: ns_undercity
+    host_room: nar_shaddaa_fighting_pits
+    max_homes: 2
+    allowed_types: [outpost, fortress]
+    description_theme: nar_shaddaa_stronghold
+    display_label: Undercity Stronghold
+    security_override: lawless
+
+  - id: kessel_industrial_ring
+    planet: kessel
+    zone: kessel_station
+    host_room: kessel_administration_block
+    max_homes: 1
+    allowed_types: [outpost]
+    description_theme: kessel_station
+    display_label: Station Industrial Ring
+    security_override: contested
+
+  - id: coronet_old_quarter_compound
+    planet: corellia
+    zone: coronet_old_quarter
+    host_room: coronet_city_old_quarter_back_streets
+    max_homes: 2
+    allowed_types: [chapter_house, fortress]
+    description_theme: corellia_old_quarter
+    display_label: Old Quarter Compound
+    security_override: contested

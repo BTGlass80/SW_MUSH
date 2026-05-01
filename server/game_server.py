@@ -358,8 +358,14 @@ class GameServer:
         # World lore schema + seed data
         try:
             from engine.world_lore import ensure_lore_schema, seed_lore
+            from engine.era_state import get_seeding_era
             await ensure_lore_schema(self.db)
-            _lore_seeded = await seed_lore(self.db)
+            # F.6a.7 Phase 1 (Apr 29 2026): pass the active era so GCW
+            # production boot routes through data/worlds/gcw/lore.yaml
+            # instead of the legacy hardcoded SEED_ENTRIES list. The
+            # seed_lore() era=None branch falls back to SEED_ENTRIES if
+            # YAML load fails for any reason, so this remains safe.
+            _lore_seeded = await seed_lore(self.db, era=get_seeding_era())
             if _lore_seeded:
                 log.info("World lore: seeded %d entries", _lore_seeded)
         except Exception as _lore_err:
@@ -969,22 +975,103 @@ class GameServer:
             try:
                 char_obj = wizard.get_character()
 
-                # Place new characters in tutorial Landing Pad if it exists,
-                # otherwise fall back to the configured starting room
+                # ── F.8.c.1 (Apr 30 2026): Tutorial-chain start routing ──
+                # CW chargen has an extra step where the player picks a
+                # tutorial chain (republic_soldier, smuggler, etc.) or
+                # skips. If a chain was selected, the character starts
+                # in that chain's starting_room (resolved by slug); if
+                # not, we fall through to the legacy GCW Landing Pad
+                # logic below. This block runs unconditionally — for
+                # GCW the wizard's get_selected_chain_id() returns None
+                # because GCW has no chains.yaml.
                 tutorial_start_room = self.config.starting_room_id
+                chain_starting_slug = None
                 try:
-                    landing_pad_rows = await self.db.fetchall(
-                        "SELECT id FROM rooms WHERE name = 'Landing Pad' "
-                        "AND properties LIKE '%tutorial_zone%' ORDER BY id LIMIT 1"
+                    chain_starting_slug = wizard.get_tutorial_chain_starting_room_slug()
+                except AttributeError:
+                    # Pre-F.8.c.1 wizards don't expose this method;
+                    # treat as "no chain selected" and fall through.
+                    chain_starting_slug = None
+
+                if chain_starting_slug:
+                    # Resolve the slug to a room_id. F.8.c.1 stores the
+                    # slug in the room's properties JSON (see
+                    # engine/world_writer.py); we look it up via a
+                    # JSON-substring LIKE query. The pattern is
+                    # tight enough to avoid false matches because
+                    # `"slug": "<slug>"` is unique per room.
+                    chain_room_rows = await self.db.fetchall(
+                        "SELECT id FROM rooms WHERE properties LIKE ? "
+                        "ORDER BY id LIMIT 1",
+                        (f'%"slug": "{chain_starting_slug}"%',),
                     )
-                    if landing_pad_rows:
-                        tutorial_start_room = landing_pad_rows[0]["id"]
-                except Exception:
-                    log.warning("_run_character_creation: unhandled exception", exc_info=True)
-                    pass
+                    if chain_room_rows:
+                        tutorial_start_room = chain_room_rows[0]["id"]
+                        log.info(
+                            "[F.8.c.1] Routing %s to tutorial chain starting "
+                            "room %s (id=%d)",
+                            char_obj.name, chain_starting_slug,
+                            tutorial_start_room,
+                        )
+                    else:
+                        log.warning(
+                            "[F.8.c.1] Tutorial chain starting room slug "
+                            "%r did not resolve; falling back to default "
+                            "starting room.", chain_starting_slug,
+                        )
+                else:
+                    # Legacy GCW Landing Pad placement
+                    try:
+                        landing_pad_rows = await self.db.fetchall(
+                            "SELECT id FROM rooms WHERE name = 'Landing Pad' "
+                            "AND properties LIKE '%tutorial_zone%' ORDER BY id LIMIT 1"
+                        )
+                        if landing_pad_rows:
+                            tutorial_start_room = landing_pad_rows[0]["id"]
+                    except Exception:
+                        log.warning("_run_character_creation: unhandled exception", exc_info=True)
+                        pass
                 char_obj.room_id = tutorial_start_room
 
                 db_fields = char_obj.to_db_dict()
+
+                # ── F.8.c.1: Merge tutorial_chain block into attributes JSON ──
+                # The wizard's get_tutorial_chain_block() returns the
+                # state shape from engine/tutorial_chains.select_chain()
+                # (chain_id, step=1, started_at, completed_steps=[],
+                # completion_state="active"). Merge it into the
+                # serialized attributes JSON before DB save so the
+                # runtime can read tutorial_chain state via the same
+                # _get_attrs() helper that engine/tutorial_v2.py uses.
+                # Also persists faction_intent based on the chain's
+                # faction_alignment so runtime faction-prereq checks
+                # against the new character's intent.
+                try:
+                    chain_block = wizard.get_tutorial_chain_block()
+                except AttributeError:
+                    chain_block = None
+
+                if chain_block:
+                    import json
+                    try:
+                        attrs_dict = json.loads(db_fields.get("attributes") or "{}")
+                    except json.JSONDecodeError:
+                        attrs_dict = {}
+                    attrs_dict["tutorial_chain"] = chain_block
+                    # Persist faction_intent from the selected chain's
+                    # faction_alignment so runtime prereq checks resolve.
+                    try:
+                        chain_id = chain_block.get("chain_id")
+                        if chain_id and wizard._chains_corpus is not None:
+                            chain_obj = wizard._chains_corpus.by_id().get(chain_id)
+                            if chain_obj and chain_obj.faction_alignment:
+                                attrs_dict["faction_intent"] = chain_obj.faction_alignment
+                    except Exception:
+                        log.warning(
+                            "[F.8.c.1] Failed to read chain faction_alignment "
+                            "for %s", char_obj.name, exc_info=True,
+                        )
+                    db_fields["attributes"] = json.dumps(attrs_dict)
 
                 char_id = await self.db.create_character(
                     account_id=session.account["id"],

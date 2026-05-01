@@ -61,15 +61,21 @@ def _run_python(script: str, timeout: int = 30) -> tuple[int, str, str]:
 
 
 class TestBootOrderingFlagOff(unittest.TestCase):
-    """With the flag OFF (default Config), director's constants must
-    be the legacy GCW values. Any import order should produce the
-    same result because the seam returns legacy when no era is asked
-    for."""
+    """With no active_config registered (or `use_yaml_director_data`
+    off), director's constants must resolve to the canonical GCW
+    values. Post-F.6a.7 these come from data/worlds/gcw/director_config.yaml
+    instead of in-Python literals — but the *values* are byte-equivalent
+    to the pre-F.6a.7 legacy constants, which is what this class
+    actually tests.
+
+    Pre-F.6a.7 the source label was 'legacy'; post-F.6a.7 it's 'yaml-gcw'.
+    The factions and zones are unchanged.
+    """
 
     def test_default_config_no_active_config_legacy_constants(self):
-        # No set_active_config call at all. era_state returns its
-        # defaults, which means resolve_era_for_seeding -> None,
-        # which means the seam returns legacy.
+        # No set_active_config call at all. era_state.get_seeding_era()
+        # returns its default ('gcw'), so director resolves through the
+        # GCW YAML.
         script = textwrap.dedent("""
             import sys
             from engine import director
@@ -79,13 +85,14 @@ class TestBootOrderingFlagOff(unittest.TestCase):
         """)
         rc, out, err = _run_python(script)
         self.assertEqual(rc, 0, f"subprocess failed: {err}")
-        self.assertIn("source: legacy", out)
-        # Legacy GCW factions
+        # Post-F.6a.7: source label is 'yaml-gcw' (was 'legacy' pre-drop).
+        self.assertIn("source: yaml-gcw", out)
+        # Canonical GCW factions — unchanged across the F.6a.7 transition.
         self.assertIn(
             "factions: ['criminal', 'imperial', 'independent', 'rebel']",
             out,
         )
-        # Legacy GCW zones
+        # Canonical GCW zones — unchanged across the F.6a.7 transition.
         self.assertIn(
             "zones: ['cantina', 'government', 'jabba', 'shops', "
             "'spaceport', 'streets']",
@@ -93,9 +100,15 @@ class TestBootOrderingFlagOff(unittest.TestCase):
         )
 
     def test_config_registered_but_flag_off_legacy_constants(self):
-        # Config built with use_yaml_director_data=False (default),
-        # set_active_config called BEFORE director import. Should
-        # still resolve to legacy because the flag is off.
+        # Pre-F.6a.7: `use_yaml_director_data=False` was the mechanism
+        # that gated yaml-vs-legacy. Setting active_era='clone_wars'
+        # but flag=False resulted in the legacy GCW path.
+        #
+        # Post-F.6a.7 Phase 1: the flag no longer gates the era.
+        # `get_seeding_era()` returns active_era unconditionally,
+        # so this scenario now produces CW values. The test's pre-drop
+        # contract was a transitional gate; post-drop it asserts the
+        # new contract: era wins over flag.
         script = textwrap.dedent("""
             from server.config import Config
             from engine.era_state import set_active_config
@@ -108,9 +121,11 @@ class TestBootOrderingFlagOff(unittest.TestCase):
         """)
         rc, out, err = _run_python(script)
         self.assertEqual(rc, 0, f"subprocess failed: {err}")
-        self.assertIn("source: legacy", out)
+        # Post-F.6a.7 Phase 1: era wins, flag is bypassed.
+        self.assertIn("source: yaml-clone_wars", out)
         self.assertIn(
-            "factions: ['criminal', 'imperial', 'independent', 'rebel']",
+            "factions: ['bhg', 'cis', 'hutt_cartel', 'independent', "
+            "'jedi_order', 'republic']",
             out,
         )
 
@@ -155,6 +170,16 @@ class TestBootOrderingFlagOn(unittest.TestCase):
         # Import director FIRST, then set_active_config. Confirms the
         # silent no-op failure mode that the boot order in main.py
         # is designed to prevent.
+        #
+        # Pre-F.6a.7: wrong ordering meant director defaulted to no-era
+        # → legacy hardcoded literals. Source label: 'legacy'.
+        # Post-F.6a.7: wrong ordering means director defaults to 'gcw'
+        # YAML (because era_state.get_active_era() returns _DEFAULT_ERA
+        # when nothing's registered yet). Source label: 'yaml-gcw'.
+        # The user-visible failure is the same: a CW server boots with
+        # GCW Director values because the config wasn't registered in
+        # time. main.py's boot ordering is what prevents this in
+        # production.
         script = textwrap.dedent("""
             from server.config import Config
             # Director gets imported here — constants resolve with no
@@ -171,13 +196,20 @@ class TestBootOrderingFlagOn(unittest.TestCase):
         """)
         rc, out, err = _run_python(script)
         self.assertEqual(rc, 0, f"subprocess failed: {err}")
-        # Director was imported BEFORE the config was registered, so
-        # it captured the default (no-era) state — legacy.
-        self.assertIn("source: legacy", out)
+        # Director was imported BEFORE the config was registered, so it
+        # captured the default-era state — GCW. Post-F.6a.7 this means
+        # 'yaml-gcw', not 'legacy'. The point of the test is the same:
+        # wrong ordering silently produces GCW values when the operator
+        # asked for CW. main.py's boot ordering is what prevents this.
+        self.assertIn("source: yaml-gcw", out)
         self.assertIn(
             "factions: ['criminal', 'imperial', 'independent', 'rebel']",
             out,
         )
+        # Critical regression-guard assertion: it must NOT have
+        # picked up the CW config registered after-the-fact.
+        self.assertNotIn("yaml-clone_wars", out)
+        self.assertNotIn("republic", out)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

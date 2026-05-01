@@ -38,67 +38,65 @@ class CreationState:
 
 
 # ── Templates ──
+#
+# ── F.7 (Apr 30 2026) — Chargen templates data-fy (Phase 1) ──────────────
+# Pre-F.7, TEMPLATES was a hardcoded in-Python dict of 7 GCW archetypes.
+# F.7 Phase 1 extracts the data to per-era YAML at
+# `data/worlds/<era>/chargen_templates.yaml` and resolves TEMPLATES at
+# module-import time via the seam in `engine.chargen_templates_loader`.
+#
+# The legacy in-Python literal lives in the seam module
+# (`_LEGACY_TEMPLATES_GCW` in engine/chargen_templates_loader.py), NOT
+# here, to avoid a circular import (this module is consumed by the seam
+# at fallback-resolution time during Phase 1; it cannot also depend on
+# the seam at module-load time without breaking the import graph).
+#
+# F.7.b Phase 2 retires `_LEGACY_TEMPLATES_GCW` from the seam once
+# byte-equivalence is proven in production, mirroring the F.6a.3 →
+# F.6a.7 Phase 2 pattern.
+#
+# Module-level binding `TEMPLATES` resolves at import time so existing
+# `from engine.creation import TEMPLATES` consumers (parser/chargen,
+# CreationEngine helpers) get the era-appropriate dict without any
+# call-site changes. Seam-resolution failures fall back internally to
+# the legacy literal — chargen never silently breaks during Phase 1.
 
-TEMPLATES = {
-    "smuggler": {
-        "label": "Smuggler",
-        "species": "Human",
-        "attributes": {"dexterity": "3D+1", "knowledge": "2D+1", "mechanical": "4D",
-                        "perception": "3D+1", "strength": "2D+2", "technical": "2D+1"},
-        "skills": {"blaster": "1D+1", "dodge": "1D", "space transports": "1D+2",
-                    "starship gunnery": "1D", "streetwise": "1D", "bargain": "1D"},
-    },
-    "bounty_hunter": {
-        "label": "Bounty Hunter",
-        "species": "Human",
-        "attributes": {"dexterity": "3D+2", "knowledge": "2D+1", "mechanical": "2D+2",
-                        "perception": "3D+1", "strength": "3D+1", "technical": "2D+2"},
-        "skills": {"blaster": "2D", "dodge": "1D", "brawling": "1D",
-                    "search": "1D", "sneak": "1D", "security": "1D"},
-    },
-    "rebel_pilot": {
-        "label": "Rebel Pilot",
-        "species": "Human",
-        "attributes": {"dexterity": "3D", "knowledge": "2D+2", "mechanical": "4D+1",
-                        "perception": "2D+2", "strength": "2D+2", "technical": "2D+2"},
-        "skills": {"blaster": "1D", "starfighter piloting": "2D",
-                    "starship gunnery": "1D", "astrogation": "1D", "sensors": "1D",
-                    "starfighter repair": "1D"},
-    },
-    "scoundrel": {
-        "label": "Scoundrel",
-        "species": "Human",
-        "attributes": {"dexterity": "3D", "knowledge": "3D", "mechanical": "2D+2",
-                        "perception": "4D", "strength": "2D+2", "technical": "2D+2"},
-        "skills": {"blaster": "1D", "dodge": "1D", "con": "1D+2",
-                    "persuasion": "1D", "gambling": "1D", "sneak": "1D+1"},
-    },
-    "technician": {
-        "label": "Technician",
-        "species": "Human",
-        "attributes": {"dexterity": "2D+1", "knowledge": "3D", "mechanical": "2D+2",
-                        "perception": "2D+2", "strength": "2D+2", "technical": "4D+2"},
-        "skills": {"computer programming/repair": "1D+2", "droid repair": "1D",
-                    "first aid": "1D", "security": "1D", "blaster repair": "1D",
-                    "space transport repair": "1D+1"},
-    },
-    "jedi_apprentice": {
-        "label": "Jedi Apprentice",
-        "species": "Human",
-        "attributes": {"dexterity": "3D+1", "knowledge": "3D", "mechanical": "2D+1",
-                        "perception": "3D+2", "strength": "3D", "technical": "2D+2"},
-        "skills": {"lightsaber": "1D+2", "dodge": "1D", "scholar": "1D",
-                    "willpower": "1D", "sneak": "1D", "climbing/jumping": "1D+1"},
-    },
-    "soldier": {
-        "label": "Soldier",
-        "species": "Human",
-        "attributes": {"dexterity": "3D+2", "knowledge": "2D+2", "mechanical": "2D+2",
-                        "perception": "2D+2", "strength": "3D+2", "technical": "2D+2"},
-        "skills": {"blaster": "1D+2", "dodge": "1D", "brawling": "1D",
-                    "grenade": "1D", "tactics": "1D", "stamina": "1D+1"},
-    },
-}
+def _resolve_templates_at_import() -> dict:
+    """Resolve the chargen TEMPLATES dict for the active era.
+
+    Routes through the F.7 seam (`engine.chargen_templates_loader.
+    get_chargen_templates`) which itself falls back to its internal
+    `_LEGACY_TEMPLATES_GCW` literal if the YAML path doesn't resolve.
+    A defensive final fallback below catches "what if the seam itself
+    fails to import" — true defense-in-depth, mirroring the F.6a.3
+    seam's `_resolve_director_runtime_config` pattern.
+
+    Returns an empty dict in the unlikely worst case (seam imports OK
+    but returns empty AND its own fallback failed). The chargen wizard
+    handles an empty templates dict gracefully (it just shows no
+    template options); a runtime warning will already have surfaced
+    via the seam's logging by then.
+    """
+    try:
+        from engine.chargen_templates_loader import get_chargen_templates
+        result = get_chargen_templates()
+        if result:
+            return result
+        log.warning(
+            "[creation] Chargen templates seam returned empty dict; "
+            "TEMPLATES will be empty. Check chargen_templates.yaml for "
+            "the active era.",
+        )
+        return {}
+    except Exception as e:
+        log.error(
+            "[creation] Chargen templates seam resolution failed (%s); "
+            "TEMPLATES will be empty.", e,
+        )
+        return {}
+
+
+TEMPLATES = _resolve_templates_at_import()
 
 
 class CreationEngine:

@@ -1,0 +1,569 @@
+# data/worlds/clone_wars/tutorials/rooms.yaml
+# Clone Wars Era — Tutorial Chain Rooms (F.8.b, Apr 30 2026)
+#
+# 24 tutorial-zone-only rooms anchoring the 7 unlocked CW tutorial
+# chains. All rooms carry `properties.tutorial_zone: true` which the
+# runtime uses to:
+#   - Disable ambient events
+#   - Disable world events
+#   - Suppress NPC traffic
+#   - Suppress CP tick accrual
+# (mirrors the legacy Landing Pad / Desert Trail GCW core-tutorial
+#  pattern that build_tutorial.py establishes).
+#
+# Per cw_tutorial_chains_design_v1.md §4.1 design path (a):
+# Tutorial-zone-only rooms are authored here. The live-world Coruscant
+# / Tatooine / Nar Shaddaa / Kuat / Geonosis builds remain unaffected.
+# Three chain-referenced slugs that already exist as live-world rooms
+# are NOT duplicated here — chains.yaml is updated to reference the
+# live-world slugs directly:
+#   - crystal_jewel_cantina (live id 243, coruscant.yaml)
+#   - dexs_diner → dexters_diner (live id 232, F.4c rename)
+#   - jedi_temple_gates → jedi_temple_main_gate (live id 210, F.4c rename)
+# Players visit those rooms during tutorial play and again in live play;
+# the live-world rooms don't carry tutorial_zone properties, but the
+# chain state machine handles the player's tutorial state independently
+# of the room's properties.
+#
+# ID allocation: 600-623 (block 600+ reserved for tutorial-zone rooms;
+# planet IDs end at 437, leaving 438-599 as growth budget).
+#
+# This file is consumed by the world loader the same way planet YAMLs
+# are — `planet:` field is stamped onto each room as `tutorial_chains`,
+# and the existing world_writer reads `properties:` from `room.raw`
+# (see engine/world_writer.py:186) without any loader changes needed.
+#
+# EXIT POLICY (F.8.b decision):
+# Tutorial rooms have NO exits authored. The chain state machine
+# (engine/tutorial_chains.py F.8.c integration) teleports the player
+# between rooms on chain advancement; players don't navigate by typing
+# directional commands. This mirrors the GCW core-tutorial Landing Pad
+# pattern where rooms are connected sequentially via the tutorial
+# state machine, not via world-loader exits. It also avoids
+# validate_world exit-collision concerns from cross-linking tutorial
+# rooms with live-world rooms.
+#
+# Each room IS the rest-anchor for its chain step. The chain state
+# machine handles "the player typed `look` here" semantics.
+
+planet: tutorial_chains
+planet_display_name: "Tutorial Zones"
+description: >
+  Out-of-band tutorial-only rooms that host the 7 CW profession
+  chains. Players are routed here by the chain state machine on
+  chargen completion, walked through 4-6 instructional steps, then
+  teleported to a live-world graduation point. These rooms have
+  `tutorial_zone: true` properties to disable world systems for the
+  duration. Per F.8.b exit policy, rooms have no walkable exits —
+  movement is state-machine-driven.
+
+rooms:
+
+  # ════════════════════════════════════════════════════════════════════
+  # REPUBLIC SOLDIER PATH (3 rooms)
+  # Chain: republic_soldier — Tipoca City barracks → combat sim →
+  # transport pad. Step 5 graduates to coruscant_works_landing_zone.
+  # ════════════════════════════════════════════════════════════════════
+
+  # republic_soldier step 1/3 anchors at the live-world Kamino room
+  # `tipoca_briefing_room` (id 353, kamino.yaml — kamino_tipoca_city zone).
+  # F.8.b note: F.4c renamed `tipoca_briefing_chamber` →
+  # `tipoca_briefing_room` precisely to redirect the chain at this
+  # existing room. No tutorial-zone-only version is authored here;
+  # the chain state machine handles the player's tutorial state
+  # independently of the room's properties (the room doesn't carry
+  # tutorial_zone=true, but the chain treats the player's presence
+  # there as in-tutorial because their attributes.tutorial_chain
+  # block is active).
+
+  - id: 600
+    slug: tipoca_combat_sim
+    name: "Tipoca City - Combat Simulator"
+    short_desc: "An open training deck where droid targets pop up from concealed risers."
+    description: >
+      The combat simulator deck is a wide rectangular space with
+      padded flooring and a low ceiling stippled with target-tracking
+      sensors. Pop-up B1 droid mockups crouch behind metal cover at
+      irregular intervals. Practice DC-15s rest on a rack along one
+      wall. The walls bear scuff marks at hip and shoulder height
+      from countless rotations of recruits learning to take cover.
+      A safety officer watches from a glassed observation booth.
+    zone: kamino_tipoca_city
+    properties:
+      tutorial_zone: true
+      cover_max: 3
+
+  - id: 601
+    slug: tipoca_transport_pad
+    name: "Tipoca City - Transport Pad"
+    short_desc: "An open landing pad where a Republic gunship idles in the rain."
+    description: >
+      The transport pad is exposed to Kamino's weather. Rain hammers
+      the deck plates. A LAAT/i Republic gunship sits with engines
+      idling at low whine, cargo ramp lowered. Beyond the platform
+      edge, the white-walled facility recedes into mist. A flight
+      sergeant watches the manifest, ticking off names as troopers
+      file aboard. Once the ramp closes, the next stop is Coruscant.
+    zone: kamino_tipoca_city
+    properties:
+      tutorial_zone: true
+      cover_max: 1
+
+  # ════════════════════════════════════════════════════════════════════
+  # REPUBLIC INTELLIGENCE PATH (3 distinct new rooms; live-world dexters_diner
+  # carries step 2)
+  # Chain: republic_intelligence — Coruscant safehouse → Dex's Diner
+  # (live-world id 232 via F.4c rename) → mid-levels freight district
+  # → judicial plaza graduation.
+  # `dexters_diner` is the existing live-world room (chains.yaml updated
+  # to reference it directly). Only the safehouse, freight district,
+  # and judicial plaza are NEW tutorial-zone rooms.
+  # `coruscant_works_landing_zone` is shared with republic_soldier
+  # step 5 / graduation.
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: 602
+    slug: republic_intel_safehouse_alpha
+    name: "Coruscant - Republic Intel Safehouse Alpha"
+    short_desc: "A dimly-lit apartment crowded with surveillance equipment and stale caf cups."
+    description: >
+      Safehouse Alpha occupies the upper floor of a nondescript
+      Upper City residence. Hololuminator panels are dialed low; the
+      windows are blacked out with privacy film. A wall-mounted
+      surveillance array tracks intercepted comm chatter on six
+      simultaneous channels. Agent Kerrick hunches over a console,
+      datapads stacked beside her. The place smells of cold caf and
+      circuit oil. Records say the previous handler died here last
+      cycle. Nobody mentions it.
+    zone: coruscant_upper
+    properties:
+      tutorial_zone: true
+      cover_max: 2
+
+  - id: 603
+    slug: coruscant_midlevels_freight_district
+    name: "Coruscant - Mid-Levels Freight District"
+    short_desc: "A noisy commercial sub-level where droids haul cargo skiffs through narrow lanes."
+    description: >
+      The mid-levels freight district is loud, hot, and never sleeps.
+      Loading bays line the avenue at intervals; cargo skiffs whine
+      between berths. Dock workers in stained jumpsuits direct droid
+      crews. Overhead, advertising holos compete with the constant
+      thrum of repulsorlift engines. The walls are tagged with rival
+      union markings. This is where Republic supplies move and where
+      Separatist agents try to interrupt them.
+    zone: coruscant_midlevels
+    properties:
+      tutorial_zone: true
+      cover_max: 4
+
+  - id: 604
+    slug: coruscant_upper_judicial_plaza
+    name: "Coruscant - Upper City Judicial Plaza"
+    short_desc: "A wide ceremonial plaza where the Republic Judicial Department conducts public business."
+    description: >
+      The judicial plaza is open, sun-warmed, and patrolled. Its
+      flagstones bear the seal of the Galactic Republic in
+      worn-down inlay. Senate guards in red plumed helmets stand
+      watch at the entrances to administrative buildings. Citizens
+      cross the plaza on errands of permits and petitions; clerks
+      hurry between annexes with stacks of flimsi. A statue of
+      Justice stands at center. The plaza is a place of formal
+      transitions — sentences delivered, careers begun, oaths sworn.
+    zone: coruscant_upper
+    properties:
+      tutorial_zone: true
+      cover_max: 2
+
+  - id: 605
+    slug: coruscant_works_landing_zone
+    name: "Coruscant - The Works, Landing Zone"
+    short_desc: "An industrial landing platform on the edge of Coruscant's Works district."
+    description: >
+      The Works landing zone is utilitarian. Cargo gunships put down
+      and lift off in steady rotation. The deck is stained with
+      hydraulic spills and decades of repulsor-burn. Beyond the
+      platform edge, the ancient industrial undercity stretches
+      down into the dark. A clone sergeant at the perimeter checks
+      transit chips against a manifest. The smell is fuel and
+      ozone. New deployments come through here; so does materiel
+      bound for the front. So does intelligence, going either way.
+    zone: coruscant_works
+    properties:
+      tutorial_zone: true
+      cover_max: 2
+
+  # ════════════════════════════════════════════════════════════════════
+  # SEPARATIST COMMANDO PATH (3 rooms)
+  # Chain: separatist_commando — Geonosis foundry briefing → drill pit
+  # → Tatooine outskirts safehouse graduation.
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: 606
+    slug: geonosis_foundry_briefing
+    name: "Geonosis Foundry - Cadre Briefing Chamber"
+    short_desc: "A vaulted hive chamber where Separatist cadre officers brief commando recruits."
+    description: >
+      The cadre briefing chamber occupies a vaulted alcove off the
+      main foundry production floor. Rough-hewn stone walls. An
+      animated tactical hologram projects above a circular speaking
+      stone where Subcommander Jhol explains the mission in clipped
+      Galactic Basic. The air carries volcanic mineral dust and the
+      mechanical heartbeat of the great droid foundry below. The
+      recruits — a mix of CIS-aligned humans, Twi'leks, Geonosian
+      uplifts — sit on worn benches and listen.
+    zone: geonosis_foundries
+    properties:
+      tutorial_zone: true
+      cover_max: 2
+
+  - id: 607
+    slug: geonosis_foundry_drill_pit
+    name: "Geonosis Foundry - Drill Pit"
+    short_desc: "An open training pit ringed by inactive battle droid mockups."
+    description: >
+      The drill pit is a wide circular floor below the briefing
+      chamber. B1 and B2 mockups stand inert at marked positions,
+      ready to be activated for live-fire scenarios. The walls bear
+      pock-marks from blaster scoring — overaggressive recruits are
+      a cadre tradition. A drill instructor in CIS-issue armor
+      paces the rim. The air is hot from the foundry vents below;
+      sweat drips into eyes. Someone's blasting cap discharges in
+      the distance.
+    zone: geonosis_foundries
+    properties:
+      tutorial_zone: true
+      cover_max: 4
+
+  - id: 608
+    slug: tatooine_outskirts_cis_safehouse
+    name: "Tatooine Outskirts - CIS Safehouse"
+    short_desc: "A wind-buried adobe homestead serving as a CIS forward operating base."
+    description: >
+      The safehouse is a half-buried adobe homestead a few klicks
+      from any settlement. Sand drifts up the leeward wall. The
+      interior is cool and dim; sandstone walls hold back the day's
+      heat. A sand-tan handler runs operations from a battered
+      console. Crates of Separatist-stamped gear are stacked in the
+      back room. The local Hutt boss is paid to look elsewhere; a
+      Republic patrol passing near the homestead has never
+      happened to look here.
+    zone: tatooine_outskirts
+    properties:
+      tutorial_zone: true
+      cover_max: 3
+
+  # ════════════════════════════════════════════════════════════════════
+  # SEPARATIST AGENT PATH (3 distinct new rooms; live-world crystal_jewel
+  # carries step 1; rep_intel-shared midlevels carries step 2)
+  # Chain: separatist_agent — Crystal Jewel Cantina (live-world id 243)
+  # → midlevels freight district (shared with rep_intel) → Works lockers
+  # → Works freight corridor → Lower freight dock graduation.
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: 609
+    slug: coruscant_works_lockers
+    name: "Coruscant Works - Worker Lockers"
+    short_desc: "A long row of dented metal lockers in a freight crew changing room."
+    description: >
+      The locker room serves the dock workers of the lower Works
+      district. Industrial fluorescents buzz. The lockers are
+      dented, rusting at the bases, marked with worker IDs in
+      faded chalk. Wet boots line the duckboards. A bench runs
+      down the middle of the row. This is where freight workers
+      stash their day-rags before shifts; it's also where a
+      well-placed agent can plant items unobserved. The smell is
+      sweat, machine oil, and the rust of poorly-maintained
+      atmosphere processors.
+    zone: coruscant_works
+    properties:
+      tutorial_zone: true
+      cover_max: 4
+
+  - id: 610
+    slug: coruscant_works_freight_corridor
+    name: "Coruscant Works - Freight Corridor"
+    short_desc: "A long industrial corridor with cargo lifts at every junction."
+    description: >
+      The freight corridor is a wide service tunnel running through
+      the Works district. Cargo lifts open at intervals to
+      lower-level loading docks. Crates marked with Republic
+      requisition codes wait on pallets. Workers shuttle between
+      loadout points; droid forklifts hum past. This is where
+      materiel moves between the upper district and the lower
+      docks; an agent who can read manifests and slip a tracker
+      into the right crate can move information across the war.
+    zone: coruscant_works
+    properties:
+      tutorial_zone: true
+      cover_max: 5
+
+  - id: 611
+    slug: coruscant_lower_freight_dock
+    name: "Coruscant - Lower City Freight Dock"
+    short_desc: "A grim concrete loading dock at the edge of Coruscant's lower city."
+    description: >
+      The lower freight dock is grim, oily, and barely-lit. Cargo
+      shuttles berth at four bay slots; longshore droids unload
+      under foreman supervision. The walls are tagged with
+      hierarchic gang markings. This far down, Republic enforcement
+      is a rumor. Hutt-affiliated dock bosses set the rates. A
+      contact in Separatist pay can buy passage to almost
+      anywhere from here, including off-world bolt-holes that the
+      Republic doesn't know exist.
+    zone: coruscant_lower
+    properties:
+      tutorial_zone: true
+      cover_max: 3
+
+  # ════════════════════════════════════════════════════════════════════
+  # BOUNTY HUNTER PATH (3 rooms — including warrens-fix room)
+  # Chain: bounty_hunter — Nar Shaddaa BHG chapter house → warrens
+  # safehouse → promenade BHG lounge graduation.
+  # F.8.b fixes a zone-as-room misuse: chains.yaml step3/4 location
+  # was `nar_shaddaa_warrens` (a zone), now points at
+  # nar_shaddaa_warrens_safehouse (a real room).
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: 612
+    slug: nar_shaddaa_bhg_chapter_house
+    name: "Nar Shaddaa - BHG Chapter House"
+    short_desc: "A fortified Bounty Hunters' Guild chapter house off the Promenade's east arm."
+    description: >
+      The Nar Shaddaa BHG chapter house occupies a converted
+      warehouse just off the Promenade. The interior is part
+      private bar, part assignment office, part armory. Hunters
+      cycle through, dropping off bounties and picking up new ones.
+      The chapter master, a grizzled Trandoshan named Skogg, runs
+      the floor from a corner table. The walls bear plaqued bounty
+      posters going back decades. The unwritten rule: no fights
+      indoors. Outdoors, business is business.
+    zone: nar_shaddaa_promenade
+    properties:
+      tutorial_zone: true
+      cover_max: 2
+
+  - id: 613
+    slug: nar_shaddaa_warrens_safehouse
+    name: "Nar Shaddaa Warrens - Hunter Safehouse"
+    short_desc: "A stash-room cut into the warrens where hunters stage approaches to deep-undercity targets."
+    description: >
+      The safehouse is a cramped cluster of three rooms cut into
+      the side of a warrens corridor. Industrial pipes run across
+      the ceiling. A fold-out cot, a weapons locker, a comms-rig
+      bolted to the wall. Hunters use this as a staging point
+      before pursuit jobs into the deep undercity — the kind of
+      job where you don't want to come back to your usual digs
+      until the contract closes. The place smells of stale
+      ration-pack and gun oil.
+    zone: nar_shaddaa_warrens
+    properties:
+      tutorial_zone: true
+      cover_max: 3
+
+  - id: 614
+    slug: nar_shaddaa_promenade_bhg_lounge
+    name: "Nar Shaddaa - Promenade Hunter Lounge"
+    short_desc: "An upstairs lounge above the Promenade where licensed hunters celebrate or grieve."
+    description: >
+      The lounge is the upstairs companion-piece to the chapter
+      house. It opens at standard sundown and runs until first
+      shift. The lighting is amber; the booths are leather and
+      old. A long bar serves anything that pours. New full
+      members get a free drink and a place at the wall — a small
+      brass plaque with their name and date of induction. The
+      walls hold many such plaques; the lounge has been here for
+      generations of hunters.
+    zone: nar_shaddaa_promenade
+    properties:
+      tutorial_zone: true
+      cover_max: 2
+
+  # ════════════════════════════════════════════════════════════════════
+  # SMUGGLER PATH (5 rooms — including 2 zone-fix rooms)
+  # Chain: smuggler — Mos Eisley Dock 94 → smuggler's alley →
+  # ship transit → Nar Shaddaa landing dock E graduation.
+  # F.8.b fixes 2 zone-as-room misuses:
+  #   - smuggler step3 completion.room space_tatooine →
+  #     tatooine_smuggler_holdout
+  #   - smuggler step4 location space_nar_shaddaa →
+  #     smuggler_ship_cockpit
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: 615
+    slug: tatooine_spaceport_dock_94
+    name: "Mos Eisley - Docking Bay 94"
+    short_desc: "A circular sandstone-walled docking bay where the YT-1300 'Lucky Run' is loading."
+    description: >
+      Docking Bay 94 is a circular pit cut into the sandstone of
+      Mos Eisley. The ramp of a YT-1300 light freighter — the
+      'Lucky Run' — is lowered. Crates marked with falsified
+      manifests are being loaded by a crew of two, one human and
+      one Wookiee. The bay supervisor accepts a small bribe to
+      not look at the cargo. Above the rim of the bay, the
+      cantina district hums. Inside the bay it smells of fuel
+      vapor and engine grease. This is where a smuggler's career
+      either starts or ends.
+    zone: tatooine_spaceport
+    properties:
+      tutorial_zone: true
+      cover_max: 2
+
+  - id: 616
+    slug: tatooine_market_smugglers_alley
+    name: "Mos Eisley - Smugglers' Alley"
+    short_desc: "A narrow alley between market stalls where less-licit goods change hands quickly."
+    description: >
+      Smugglers' Alley is the unofficial name for the gap between
+      the formal market hall and the docking-bay row. The stalls
+      here sell things that aren't officially in the market's
+      registry: black-market spice, Hutt-stamped contraband,
+      restricted weapons. The vendors keep one eye on customers
+      and one on the alley mouths for Imperial — well, Republic
+      — patrols. A Rodian named Ghirak handles introductions for
+      a finder's fee; he can put a smuggler in touch with a
+      hot-cargo job in under ten minutes.
+    zone: tatooine_market
+    properties:
+      tutorial_zone: true
+      cover_max: 3
+
+  - id: 617
+    slug: tatooine_smuggler_holdout
+    name: "Mos Eisley - Smuggler's Holdout"
+    short_desc: "A back room above the cantina where smuggler crews wait out heat between jobs."
+    description: >
+      The holdout is a cluster of cushions and low tables in a
+      shuttered upper-floor room above one of the lesser
+      cantinas. Smuggler crews wait here while a job's heat dies
+      down — sometimes hours, sometimes days. The shutters keep
+      the sun and the patrols out. A dejarik table sees casual
+      games. A heavily-modified comm rig in the corner stays
+      tuned to spaceport frequencies. The crew takes turns on
+      watch. When the courier finally signals all-clear, the
+      crew moves to the bay and lifts off in minutes.
+    zone: tatooine_spaceport
+    properties:
+      tutorial_zone: true
+      cover_max: 4
+
+  - id: 618
+    slug: smuggler_ship_cockpit
+    name: "YT-1300 - Cockpit (In Transit)"
+    short_desc: "The cramped cockpit of a YT-1300 freighter mid-jump, hyperspace streaming past the viewports."
+    description: >
+      The 'Lucky Run' is in hyperspace. The cockpit is dim,
+      lit by the green-blue stream of the hyperspace tunnel
+      across the canopy. The pilot's chair is worn smooth by
+      decades of hands. Status displays show all systems nominal,
+      coolant pressure stable, navicomputer counting down to
+      Nar Shaddaa exit. The Wookiee co-pilot grumbles softly at
+      the engineering board. Behind the cockpit, the main hold
+      is sealed — the cargo doesn't get checked again until the
+      Hutt's people inspect it on arrival.
+    zone: space_nar_shaddaa
+    properties:
+      tutorial_zone: true
+      cover_max: 1
+
+  - id: 619
+    slug: nar_shaddaa_landing_dock_e
+    name: "Nar Shaddaa - Landing Dock E"
+    short_desc: "A grimy private landing pad on Nar Shaddaa's lower spire, run by a Hutt syndicate."
+    description: >
+      Landing Dock E sits on the lower spire of Nar Shaddaa, in
+      the syndicate-run private docks. The pad is corroded,
+      lit by failing sodium lamps. A Hutt syndicate inspector —
+      a Twi'lek named Sho'ass — meets every incoming smuggler
+      with a datapad and a wide knowing smile. The cargo gets
+      counted. The agreed price gets paid in unmarked credits.
+      The smuggler pays the dock fee and walks away with both
+      a payout and a contacts-list entry: Sho'ass remembers
+      every captain she's met, and she likes punctual ones.
+    zone: nar_shaddaa_landing
+    properties:
+      tutorial_zone: true
+      cover_max: 2
+
+  # ════════════════════════════════════════════════════════════════════
+  # SHIPWRIGHT/TRADER PATH (4 rooms)
+  # Chain: shipwright_trader — Kuat Drive Yards apprentice bay →
+  # diagnostic bench → parts crib → orbital lounge graduation.
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: 620
+    slug: kdy_apprentice_bay_7
+    name: "KDY - Apprentice Bay 7"
+    short_desc: "A small fabrication bay where new shipwrights learn on a partly-disassembled freighter."
+    description: >
+      Apprentice Bay 7 is one of two-dozen small fabrication bays
+      where new Kuat Drive Yards shipwrights cut their teeth. A
+      partially-disassembled YT-class freighter — the 'Trainer
+      No. 4' — sits on the hangar deck, panels removed to expose
+      its drive coil. Tool drawers line the walls. Foreman Nivix
+      runs the bay; he has been running apprentices through this
+      same freighter for fifteen years and his patience is legend.
+      The bay smells of solvent, cold metal, and the faint ozone
+      of plasma-cutting.
+    zone: kuat_main_spaceport
+    properties:
+      tutorial_zone: true
+      cover_max: 2
+
+  - id: 621
+    slug: kdy_apprentice_diag_bench
+    name: "KDY - Apprentice Diagnostic Bench"
+    short_desc: "A long bench with diagnostic rigs for hyperdrive components."
+    description: >
+      The diagnostic bench is a long padded workspace lit by
+      task-spotlights. Hyperdrive ignition coils, thrust
+      regulators, and astrogation units sit at intervals along
+      it, hooked to test rigs. Apprentices work in pairs, running
+      diagnostic sweeps. Nivix's lead instructor moves down the
+      bench with a critical eye, marking sloppy work with a
+      grease pencil. A diagnostic done right takes an hour; a
+      diagnostic done wrong takes a ship's worth of credits.
+    zone: kuat_main_spaceport
+    properties:
+      tutorial_zone: true
+      cover_max: 3
+
+  - id: 622
+    slug: kdy_apprentice_parts_crib
+    name: "KDY - Apprentice Parts Crib"
+    short_desc: "A walk-in storage cage where requisitioned parts are signed out by serial."
+    description: >
+      The parts crib is a chain-link-walled storage area inside
+      the bay. Bins of standardized components are organized by
+      KDY catalog number. A clerk droid, an old protocol unit
+      named E-7, runs the requisitions. Every part signed out
+      gets logged against the apprentice's training record;
+      mis-orders cost demerits. The crib smells of new
+      durasteel and lubricant. This is also where an apprentice
+      finds the part the diagnostic bench just told them they
+      need — and where they learn that careful is faster than
+      sloppy.
+    zone: kuat_main_spaceport
+    properties:
+      tutorial_zone: true
+      cover_max: 2
+
+  - id: 623
+    slug: kuat_orbital_apprentice_lounge
+    name: "Kuat Orbital - Apprentice Lounge"
+    short_desc: "A modest lounge in the orbital ring where graduating apprentices are formally received."
+    description: >
+      The apprentice lounge is a small, well-kept room in the
+      orbital ring's worker quarter. Comfortable chairs, a long
+      window-view onto the active shipyard outside, where
+      Republic warships are under construction. A small bar
+      serves caf and modest spirits. The graduation ceremony for
+      a KDY apprentice happens here — a senior journeyman
+      shakes the new hand, hands over the union tag, points
+      at the window: 'That's what we make. Make it well.' The
+      next ship of the line is the apprentice's first paying
+      job.
+    zone: kuat_main_spaceport
+    properties:
+      tutorial_zone: true
+      cover_max: 2

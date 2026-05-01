@@ -54,6 +54,7 @@ rooms:
     zone: kessel_station
     map_x: 0.6
     map_y: 0.25
+    housing: true  # F.5b.3.a: T1 + T3 + T4 + T5 host (Barracks + Habitat Ring + Bazaar + Industrial Ring)
 
   - id: 87
     slug: kessel_mine_entrance_level_1

@@ -269,9 +269,21 @@ zones:
       service the grid. Droid workers run their eternal maintenance
       loops. Few people come here on purpose.
 
+  coruscant_gilded_cage:
+    name_match: "gilded cage"
+    narrative_tone: >
+      The Gilded Cage district sits in Coruscant's mid-upper levels —
+      a cosmopolitan alien quarter where dozens of species find
+      tolerated residence. The architecture is a layered patchwork of
+      cultural styles. War paranoia has hit hard here: every non-human
+      face draws scrutiny from Republic patrols, but the district's
+      old Hutt-mediated charters keep it formally protected. Mosaic
+      towers, multi-tongue street markets, and the constant low hum
+      of a hundred languages.
+
   # ── Kuat (Drop 3) ────────────────────────────────────────────────────────
 
-  kuat_orbital:
+  kdy_orbital_ring:
     name_match: "kuat drive yards"
     narrative_tone: >
       The orbital shipyards are the most productive in the Republic —
@@ -280,7 +292,7 @@ zones:
       humorless. The workers know that what they build today kills
       people tomorrow, and they have learned not to think about it.
 
-  kuat_surface:
+  kuat_city_embassy:
     name_match: "kuat city"
     narrative_tone: >
       Kuat's surface is orderly, prosperous, and quietly anxious.
@@ -289,7 +301,7 @@ zones:
       good for business, and good business requires stability, and
       stability requires not asking questions about where the ships go.
 
-  kuat_transit:
+  kuat_main_spaceport:
     name_match: "kuat transit"
     narrative_tone: >
       Tram stations and transit hubs connecting the surface to the
@@ -299,7 +311,7 @@ zones:
 
   # ── Kamino (Drop 3) ──────────────────────────────────────────────────────
 
-  kamino_tipoca:
+  kamino_tipoca_city:
     name_match: "tipoca city"
     narrative_tone: >
       The white towers of Tipoca City rise from an endless ocean. Inside,
@@ -309,7 +321,7 @@ zones:
       strict. There is a quality to the air here — not oppressive, not warm,
       just perfectly controlled — that most visitors find deeply unsettling.
 
-  kamino_training:
+  kamino_cloning_halls:
     name_match: "kamino training"
     narrative_tone: >
       The clone training facilities are vast and relentlessly efficient.
@@ -319,7 +331,7 @@ zones:
       advanced programs in restricted wings. The purpose of this place
       is utterly clear, and that clarity is its own kind of horror.
 
-  kamino_ocean:
+  kamino_ocean_platform:
     name_match: "kamino ocean"
     narrative_tone: >
       The ocean platform landing areas. Rain hammers down on the permacrete.
@@ -328,7 +340,7 @@ zones:
 
   # ── Geonosis (Drop 4) ────────────────────────────────────────────────────
 
-  geonosis_arena:
+  geonosis_petranaki:
     name_match: "geonosis arena"
     narrative_tone: >
       The great Petranaki Arena is a ruin now, scarred by the first battle.
@@ -347,7 +359,7 @@ zones:
       and keep working. The CIS has learned that Geonosis cannot be
       killed from orbit.
 
-  geonosis_wastes:
+  geonosis_surface:
     name_match: "geonosis wastes"
     narrative_tone: >
       Red dust, shattered rock spires, and the lingering static of
@@ -357,7 +369,7 @@ zones:
       alien. The ruins of their pre-war civilization are already
       being repurposed for the next phase of the conflict.
 
-  geonosis_tunnels:
+  geonosis_deep_hive:
     name_match: "geonosis tunnels"
     narrative_tone: >
       The sub-surface tunnel network that gives Geonosis its strategic

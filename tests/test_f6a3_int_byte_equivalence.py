@@ -42,7 +42,6 @@ if PROJECT_ROOT not in sys.path:
 from engine import director as director_module  # noqa: E402
 from engine.director_config_loader import (  # noqa: E402
     get_director_runtime_config,
-    _LEGACY_SYSTEM_PROMPT,
 )
 
 
@@ -156,22 +155,26 @@ class TestSystemPromptByteEqual(unittest.TestCase):
         self.assertIn('"pc_hooks"', self.seam_prompt)
 
     def test_seam_prompt_matches_inline_literal_byte_equal(self):
-        """The strongest assertion: the seam's _LEGACY_SYSTEM_PROMPT
-        equals the inline literal in director.py character-for-character.
+        """Pre-F.6a.7 Phase 2 this asserted the seam's _LEGACY_SYSTEM_PROMPT
+        equaled the inline literal in director.py character-for-character.
 
-        Pre-wiring: the inline literal still exists in director.py.
-        Post-wiring (after F.6a.3-int swap): the inline literal is
-        replaced with `cfg.system_prompt`, this test still passes
-        because the literal that USED to be there was lifted into the
-        seam (and we verify by reading the seam constant directly here,
-        not by re-extracting from source).
+        Phase 2 deleted _LEGACY_SYSTEM_PROMPT — the prompt now lives
+        exclusively in data/worlds/gcw/director_config.yaml. The byte-
+        equivalence guarantee is preserved by the F.6a.3 byte-equiv test
+        suite (test_gcw_yaml_path_returns_yaml_values etc.), which gates
+        any drift between the YAML and the original literal.
+
+        Post-Phase-2 this test asserts only that the seam's prompt is
+        non-empty and matches itself across two independent calls
+        (drift detection for in-memory caching bugs).
         """
-        # Compare against the imported constant — that's the seam's
-        # ground truth.
-        self.assertEqual(
-            self.seam_prompt, _LEGACY_SYSTEM_PROMPT,
-            "seam runtime prompt drifted from _LEGACY_SYSTEM_PROMPT constant",
-        )
+        a = get_director_runtime_config(era=None).system_prompt
+        b = get_director_runtime_config(era=None).system_prompt
+        self.assertEqual(a, b,
+                         "seam returns drifting prompt across calls")
+        self.assertGreater(len(a), 1500,
+                           "seam prompt is suspiciously short — possible "
+                           "regression to placeholder")
 
 
 class TestL817DuplicateAlignment(unittest.TestCase):

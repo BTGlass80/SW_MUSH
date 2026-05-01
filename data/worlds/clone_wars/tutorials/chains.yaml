@@ -74,7 +74,7 @@
 #   coruscant_*, kuat_*, kamino_*, geonosis_*, tatooine_*, nar_shaddaa_*,
 #   space_*
 #
-# Tutorial-zone-only rooms (e.g. `tipoca_briefing_chamber`,
+# Tutorial-zone-only rooms (e.g. `tipoca_briefing_room`,
 # `kuat_apprentice_dock`) are NEW rooms the engine session will build
 # under tutorial properties (`tutorial_zone: true`). They do NOT need to
 # exist in zones.yaml — they are tutorial-only rooms with the same flag
@@ -95,8 +95,8 @@ chains:
       and ship out to Coruscant for active deployment.
     archetype_label: "Clone Trooper / Naval Officer"
     faction_alignment: republic
-    starting_zone: kamino_tipoca
-    starting_room: tipoca_briefing_chamber
+    starting_zone: kamino_tipoca_city
+    starting_room: tipoca_briefing_room
     prerequisites:
       - chargen_complete
       - faction_intent: republic
@@ -118,7 +118,7 @@ chains:
     steps:
       - step: 1
         title: "Reporting In"
-        location: tipoca_briefing_chamber
+        location: tipoca_briefing_room
         npc: "Major Tarrn"
         npc_role: instructor
         teaches: ["look", "+sheet"]
@@ -166,7 +166,7 @@ chains:
 
       - step: 3
         title: "Receiving the Assignment"
-        location: tipoca_briefing_chamber
+        location: tipoca_briefing_room
         npc: "Major Tarrn"
         npc_role: instructor
         teaches: ["+missions", "accept"]
@@ -287,7 +287,7 @@ chains:
 
       - step: 2
         title: "Surveillance at Dex's"
-        location: dexs_diner
+        location: dexters_diner  # F.8.b: re-targeted to live-world room id 232 per F.4c rename map.
         npc: "Bren Kost"
         npc_role: antagonist
         teaches: ["look", "examine"]
@@ -403,14 +403,14 @@ chains:
       — the Force will find you in time.
 
     graduation:
-      drop_room: jedi_temple_gates
+      drop_room: jedi_temple_main_gate  # F.8.b: re-targeted to live-world room id 210 per F.4c rename map.
       follow_up_hint: >
         See Master Yoda at the Jedi Temple. Padawan assignment follows.
 
     steps:
       - step: 1
         title: "(Locked — Village Quest Required)"
-        location: tatooine_dune_sea
+        location: jedi_temple_main_gate  # F.8.b: re-targeted from a zone slug to the live-world jedi_temple_main_gate (id 210). Stub never runs at runtime.
         npc: "(none)"
         npc_role: instructor
         teaches: []
@@ -786,7 +786,7 @@ chains:
 
       - step: 3
         title: "Tracking the Mark"
-        location: nar_shaddaa_warrens
+        location: nar_shaddaa_warrens_safehouse  # F.8.b: re-targeted from a zone slug to a real tutorial-zone room.
         npc: "Tarko Vinn"
         npc_role: antagonist
         teaches: ["scan", "search"]
@@ -808,7 +808,7 @@ chains:
 
       - step: 4
         title: "The Capture"
-        location: nar_shaddaa_warrens
+        location: nar_shaddaa_warrens_safehouse  # F.8.b: re-targeted from a zone slug to a real tutorial-zone room.
         npc: "Tarko Vinn"
         npc_role: antagonist
         teaches: ["stun", "attack"]
@@ -938,7 +938,7 @@ chains:
           to the trade."
         completion:
           type: room_entered
-          room: space_tatooine
+          room: tatooine_smuggler_holdout  # F.8.b: re-targeted from a zone slug to a real tutorial-zone room (back room above cantina).
         npc_complete: >
           "Hyperspace in three. Smooth so far. The dangerous part's
           dropping out — Nar Shaddaa orbital screens harder than
@@ -948,7 +948,7 @@ chains:
 
       - step: 4
         title: "Customs"
-        location: space_nar_shaddaa
+        location: smuggler_ship_cockpit  # F.8.b: re-targeted from a zone slug to a real tutorial-zone room (in-transit ship cockpit).
         npc: "Customs Inspector Drall"
         npc_role: antagonist
         teaches: ["bluff", "say"]
@@ -1012,7 +1012,7 @@ chains:
       apprentice with your first ship-side tools.
     archetype_label: "KDY Apprentice / Trader"
     faction_alignment: shipwrights_guild
-    starting_zone: kuat_orbital
+    starting_zone: kuat_main_spaceport
     starting_room: kdy_apprentice_bay_7
     prerequisites:
       - chargen_complete
@@ -1186,7 +1186,7 @@ chains:
 #    the chargen "skip core, pick chain" branch).
 #
 # 3. Tutorial-zone-only rooms (those NOT in zones.yaml — e.g.
-#    `tipoca_briefing_chamber`, `kdy_apprentice_bay_7`) are built by an
+#    `tipoca_briefing_room`, `kdy_apprentice_bay_7`) are built by an
 #    extension to `build_tutorial.py` that walks the chain definitions
 #    and creates rooms with `tutorial_zone: true` properties.
 #

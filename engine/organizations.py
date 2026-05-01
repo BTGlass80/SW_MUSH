@@ -1241,10 +1241,17 @@ async def promote(char: dict, org_code: str, db,
     # Issue rank-specific equipment (from YAML equipment field)
     try:
         new_equip = json.loads(next_rank.get("equipment", "[]"))
-        if new_equip and org_code != "empire":  # Empire uses specialization
+        # ── B.1.f (Apr 29 2026) — generalize spec-faction gate ──────
+        # Pre-drop: hardcoded `org_code == "empire"` literal. Post-drop:
+        # `faction_has_specialization(org_code)` so the rank-1 spec
+        # re-prompt fires for any spec-eligible faction (Empire in GCW,
+        # Republic in CW). GCW Empire path is byte-equivalent because
+        # `faction_has_specialization("empire")` returns True.
+        if new_equip and not faction_has_specialization(org_code):
             await issue_equipment(char, org_code, db, new_equip)
-        elif org_code == "empire" and next_level == 1:
-            # Rank 1 Imperial: re-prompt specialization if not yet chosen
+        elif faction_has_specialization(org_code) and next_level == 1:
+            # Rank 1 spec-eligible faction: re-prompt specialization
+            # if not yet chosen. Handled separately via SpecializeCommand.
             a = _get_attrs(char)
             if not a.get("faction", {}).get("specialization"):
                 pass  # Handled separately via SpecializeCommand

@@ -92,6 +92,7 @@ rooms:
       pad: geonosis_landing_pad
       market: geonosis_surface_market
       east: geonosis_spire_overlook
+      hive: geonosis_hive_entrance       # F.4b: pair for hive_entrance's surface exit
 
   - id: 402
     slug: geonosis_surface_market
@@ -114,6 +115,9 @@ rooms:
     exits:
       road: geonosis_surface_approach
       cis_recruiter: geonosis_cis_recruiter_office
+      quarter: stalgasin_offworld_quarter   # F.5a.2.x: T3 host
+      compound: stalgasin_outsider_compound # F.5a.2.x: T5 host (CIS-recommended)
+      flophouse: smugglers_roost_flophouse  # F.5a.2.x.1: pair for Smuggler's Roost
 
   - id: 403
     slug: geonosis_cis_recruiter_office
@@ -219,6 +223,7 @@ rooms:
     exits:
       surface: geonosis_surface_approach
       down: geonosis_upper_tunnel        # zone-to-zone (surface → deep hive)
+      landing: geonosis_landing_pad      # F.4b: pair for landing_pad's hive exit
 
   - id: 408
     slug: geonosis_arena_gate
@@ -262,6 +267,7 @@ rooms:
     exits:
       surface: geonosis_landing_pad
       down: geonosis_foundry_main        # zone-to-zone (surface → foundries)
+      output: geonosis_output_bay        # F.4b: pair for output_bay's surface exit (surface name is taken by landing_pad)
 
   # ══════════════════════════════════════════════════════════════════════
   # GEONOSIS DEEP HIVE (lawless) — 10 rooms
@@ -316,6 +322,8 @@ rooms:
       palace: geonosis_archduke_approach
       worker: geonosis_worker_district
       south: geonosis_hive_market
+      command: geonosis_cis_command_post # F.4b: pair for cis_command_post's chamber exit
+      medical: geonosis_hive_medical     # F.4b: pair for hive_medical's chamber exit
 
   - id: 412
     slug: geonosis_warrior_barracks
@@ -537,6 +545,7 @@ rooms:
     security_level: contested
     exits:
       entrance: petranaki_arena_entrance
+      floor: geonosis_arena_floor        # F.4b: pair for arena_floor's stands exit
 
   - id: 422
     slug: geonosis_arena_floor
@@ -559,6 +568,7 @@ rooms:
     exits:
       stands: geonosis_arena_stands
       prep: geonosis_arena_prep_room
+      gate: petranaki_arena_entrance     # F.4b: pair for entrance's pit exit
 
   - id: 423
     slug: geonosis_arena_prep_room
@@ -580,6 +590,7 @@ rooms:
     exits:
       floor: geonosis_arena_floor
       entrance: petranaki_arena_entrance
+      pens: geonosis_creature_pens       # F.4b: pair for creature_pens' prep exit
 
   - id: 424
     slug: geonosis_creature_pens
@@ -634,6 +645,8 @@ rooms:
       lines: geonosis_b2_assembly
       control: geonosis_foundry_control
       storage: geonosis_component_storage
+      engineering: geonosis_cis_engineering_bay  # F.4b: pair for cis_engineering_bay's main exit
+      output: geonosis_output_bay        # F.4b: pair for output_bay's foundry exit
 
   - id: 426
     slug: geonosis_foundry_upper
@@ -655,6 +668,7 @@ rooms:
     exits:
       hive: geonosis_deep_tunnel         # zone-to-zone (foundries → hive)
       down: geonosis_foundry_main
+      workers: geonosis_worker_district  # F.4b: pair for worker_district's foundry exit
 
   - id: 427
     slug: geonosis_b2_assembly
@@ -823,3 +837,88 @@ rooms:
     exits:
       foundry: geonosis_foundry_main
       surface: geonosis_foundry_approach  # zone-to-zone shortcut (foundries → surface)
+
+  # ══════════════════════════════════════════════════════════════════════
+  # HOUSING HOST ROOMS (F.5a.2.x — Apr 30 2026) — 2 rooms
+  # Per cw_housing_design_v1.md §7.1 (T3) + §9 (T5). Both anchor off
+  # the surface market — the only formally rentable space on Geonosis.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 435
+    slug: stalgasin_offworld_quarter
+    name: "Geonosis - Stalgasin Surface - Offworld Quarter"
+    short_desc: "A row of converted hive cells repurposed as long-term lodging for off-world workers and contractors."
+    description: >
+      The offworld quarter is a stretch of the hive's outer wall where
+      the Geonosians have allowed non-Geonosians to take long-term
+      residence. The cells are repurposed worker hives — chitinous
+      walls, minimal furnishings, and the omnipresent low hum of the
+      droid foundries below. Rent is paid in credits or Republic
+      strategic minerals, depending on what the resident has. The
+      clientele is a mix of CIS contractors, smuggler crews using
+      Geonosis as a layover, and a handful of independents who've
+      decided the Outer Rim's wartime instability is preferable to
+      whatever they were running from. The Geonosians treat them as
+      tolerated guests, not as residents.
+    zone: geonosis_surface
+    map_x: 51
+    map_y: 11
+    security_level: lawless
+    housing: true
+    exits:
+      out: geonosis_surface_market
+
+  - id: 436
+    slug: stalgasin_outsider_compound
+    name: "Geonosis - Stalgasin Surface - Outsider Compound"
+    short_desc: "A walled compound on the Stalgasin surface where CIS-aligned organizations and contractors maintain headquarters."
+    description: >
+      The outsider compound is a Geonosian-engineered walled enclosure
+      separate from the hive proper, set up specifically to host
+      organizational tenants — CIS military advisors, droid-engineering
+      firms with Geonosian contracts, mercenary outfits operating on
+      CIS retainers. Each tenant maintains their own building inside
+      the wall; the compound's central plaza serves as neutral ground
+      for negotiation. Geonosian warriors patrol the perimeter; what
+      happens inside the compound is the tenants' business. The
+      compound's existence is the closest thing the Geonosians have
+      to formal foreign-relations infrastructure.
+    zone: geonosis_surface
+    map_x: 50
+    map_y: 11
+    security_level: lawless
+    faction_override: cis
+    housing: true
+    exits:
+      out: geonosis_surface_market
+
+  # ══════════════════════════════════════════════════════════════════════
+  # F.5a.2.x.1 host rooms (Apr 30 2026) — T1 rentals
+  # Per cw_housing_design_v1.md §6 (Tier 1 — Geonosis surface market).
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 437
+    slug: smugglers_roost_flophouse
+    name: "Geonosis - Stalgasin Surface - Smuggler's Roost Flophouse"
+    short_desc: "A patched-together flophouse on the edge of the surface market — Vez Garra's place, no questions asked."
+    description: >
+      The Smuggler's Roost is the closest thing the Geonosian surface
+      offers to formal lodging. Vez Garra, a Weequay who has been on
+      Geonosis longer than the war and longer than most things, runs
+      the building from a stool by the door. The flophouse itself is a
+      cluster of converted cargo containers welded into a half-buried
+      structure that is partly a building and partly a bunker. Rooms
+      are functional: a cot, a footlocker with a working lock, a
+      grit-covered window, and a private water tap that works most
+      hours. The clientele is offworld smugglers, refugees from the
+      arena's losing column, and the occasional bounty hunter waiting
+      for a Republic patrol to pass. Rate is twenty-five credits a
+      night; Vez does not extend credit and does not need to explain
+      why.
+    zone: geonosis_surface
+    map_x: 53
+    map_y: 11
+    security_level: lawless
+    housing: true
+    exits:
+      out: geonosis_surface_market

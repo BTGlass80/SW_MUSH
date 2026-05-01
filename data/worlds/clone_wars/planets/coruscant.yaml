@@ -71,6 +71,7 @@ rooms:
       down: coco_town                    # zone-to-zone (senate → midlevels)
       senate: senate_building_exterior   # named: shortcut
       legislative: legislative_borough   # named: shortcut
+      hotel: westport_arrivals_hotel_lobby  # F.5a.2.x: T1 host
 
   - id: 201
     slug: senate_esplanade
@@ -111,6 +112,7 @@ rooms:
       in: senate_building_lobby
       east: chancellors_avenue
       opera: opera_house                 # named: nearby landmark
+      westport: coruscant_westport_landing  # F.4b: pair for westport's senate-named exit
 
   - id: 203
     slug: senate_building_lobby
@@ -163,6 +165,7 @@ rooms:
     exits:
       south: chancellors_avenue
       east: legislative_borough
+      esplanade: senate_esplanade        # F.4b: pair for esplanade's reception-named exit
 
   - id: 206
     slug: legislative_borough
@@ -182,6 +185,7 @@ rooms:
       west: chancellors_avenue
       south: monument_plaza
       down: coco_town                    # zone-to-zone (senate → midlevels)
+      westport: coruscant_westport_landing  # F.4b: pair for westport's legislative-named exit
 
   - id: 207
     slug: monument_plaza
@@ -347,6 +351,7 @@ rooms:
     exits:
       down: jedi_temple_archives
       up: jedi_temple_council_chamber
+      entrance: jedi_temple_entrance_hall  # F.4b: pair for entrance hall's council exit
 
   - id: 215
     slug: jedi_temple_council_chamber
@@ -489,6 +494,8 @@ rooms:
       commons: column_commons
       sea: western_sea
       aquaria: royal_icqui_aquaria
+      petrax: petrax_quarter             # F.4b: pair for petrax_quarter's south exit (north is taken)
+      gilded: gilded_cage_alien_quarter  # F.5a.2.x: zone-to-zone (upper → gilded_cage)
 
   - id: 222
     slug: calocour_heights
@@ -506,6 +513,9 @@ rooms:
     map_y: 9
     exits:
       promenade: upper_city_promenade
+      marketing: calocour_marketing_row  # F.5a.2.x: T3 host
+      overlook: calocour_overlook_terrace # F.5a.2.x: T3 host
+      boutique: calocour_boutique_row    # F.5a.2.x: T4 host
 
   - id: 223
     slug: skydome_gardens
@@ -674,6 +684,11 @@ rooms:
       diner: dexters_diner
       outlander: outlander_club
       university: university_district
+      westport: coruscant_westport_landing   # F.4b: pair for westport down (up taken)
+      residential: coco_town_residential_walk  # F.5a.2.x: T3 host
+      loft: coco_town_loft_district      # F.5a.2.x: T3 host
+      civic: coco_town_civic_block       # F.5a.2.x: T5 host
+      arcade: coco_town_market_arcade    # F.5a.2.x: T4 host
 
   - id: 232
     slug: dexters_diner
@@ -797,6 +812,7 @@ rooms:
     security_level: contested
     exits:
       out: coco_town
+      backrooms: outlander_cantina       # F.5a.2.x: T1 host
 
   - id: 239
     slug: university_district
@@ -868,6 +884,7 @@ rooms:
       east: lower_market
       factory: factory_district
       crypts: ice_crypts
+      petrax: petrax_sublevels           # F.4b: explicit pair (prevents down-collision with works_main)
 
   - id: 242
     slug: southern_underground
@@ -889,6 +906,7 @@ rooms:
       cantina: crystal_jewel_cantina
       bhg: bhg_chapter_house
       vent: coruscant_uw_surface_entry   # named: wilderness underworld entrance (one-way drop)
+      tenement: underground_tenement_block  # F.5a.2.x: T3 host
 
   - id: 243
     slug: crystal_jewel_cantina
@@ -907,6 +925,8 @@ rooms:
     security_level: lawless
     exits:
       out: southern_underground
+      back: crystal_jewel_back_rooms     # F.5a.2.x.1: pair for back-rooms host
+      alley: crystal_jewel_alley         # F.5a.2.x: T5 host
 
   - id: 244
     slug: bhg_chapter_house
@@ -925,6 +945,7 @@ rooms:
     map_y: 14
     security_level: contested
     faction_override: bounty_hunters_guild
+    housing: true                        # F.5a.2.x.1: T5 host per cw_housing_design_v1.md §9
     exits:
       out: southern_underground
 
@@ -1115,3 +1136,404 @@ rooms:
     housing: true
     exits:
       north: coruscant_works_main
+
+  # ══════════════════════════════════════════════════════════════════════
+  # UNDERWORLD SURFACE ENTRY (lawless) — 1 room (F.4b shim)
+  # The wilderness underworld is a coordinate-based region (handled by the
+  # wilderness system, not by per-room exits). This single shim room is
+  # the formal transit point between the hand-built lower-city rooms and
+  # the wilderness underworld grid. From southern_underground's `vent`
+  # exit you drop into this room; from this room you `climb` back up to
+  # southern_underground, or `enter` the wilderness grid (entry into the
+  # wilderness system itself is handled by the wilderness module on its
+  # own coordinates, not a per-room exit).
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 255
+    slug: coruscant_uw_surface_entry
+    name: "Coruscant Underworld - Surface Entry"
+    short_desc: "A maintenance vent shaft opening onto the abandoned upper layer of the Coruscant underworld."
+    description: >
+      The vent drops you onto a half-collapsed maintenance gantry that
+      hangs over a yawning shaft. Lower City light filters down from the
+      grate above; below, the abyss is total. Old graffiti in a dozen
+      languages decorates the walls. This is the formal transit point
+      between the lower city and the underworld proper — anyone who
+      drops further is on their own. A worn rope ladder leads back up;
+      a buckled ramp leads outward into the underworld grid.
+    zone: coruscant_underworld
+    map_x: 20
+    map_y: 17
+    security_level: lawless
+    exits:
+      climb: southern_underground        # F.4b: pair for southern_underground's vent exit
+
+  # ══════════════════════════════════════════════════════════════════════
+  # HOUSING HOST ROOMS (F.5a.2.x — Apr 30 2026) — 14 rooms
+  # Per cw_housing_design_v1.md §6 (T1), §7 (T3), §8 (T4), §9 (T5).
+  # These rooms are anchors for housing-lot inventories; the lot YAML
+  # records that F.5a.3 will deliver reference these rooms by slug.
+  # Each room is in its district's existing zone (or in the new
+  # coruscant_gilded_cage zone for the Gilded Cage trio).
+  # ══════════════════════════════════════════════════════════════════════
+
+  # T1 host (senate-district hotel, transient lodging)
+  - id: 256
+    slug: westport_arrivals_hotel_lobby
+    name: "Coruscant - Westport Arrivals Hotel - Lobby"
+    short_desc: "The lobby of a mid-priced hotel adjoining Westport, catering to off-world arrivals."
+    description: >
+      The arrivals hotel does brisk business with travelers stopping
+      over for a night or two before continuing into the city. The
+      lobby is functional rather than luxurious — a check-in desk
+      staffed around the clock, a small caf bar, and a wall of
+      arrival/departure boards keyed to Westport's flight schedule.
+      The clientele is a steady cross-section of the wartime galaxy:
+      Republic contractors, war correspondents, refugees with
+      transit papers, and the occasional senator's aide running an
+      errand they'd rather not be seen running.
+    zone: coruscant_senate
+    map_x: 21
+    map_y: 11
+    security_level: secured
+    housing: true
+    exits:
+      out: coruscant_westport_landing
+
+  # T3 hosts (coco_town residential)
+  - id: 257
+    slug: coco_town_residential_walk
+    name: "Coruscant - Coco Town - Residential Walk"
+    short_desc: "A residential lane in Coco Town lined with mid-level apartment towers."
+    description: >
+      The residential walk runs north of Coco Town's commercial heart.
+      Apartment towers fifty levels tall rise on either side, their
+      lower windows showing laundry lines, their upper windows showing
+      the slow churn of repulsor traffic. A neighborhood market cart
+      sells caf and protein wrappers. Children play a complicated
+      ball-game between the support pylons. This is where Coruscant's
+      working class actually lives.
+    zone: coruscant_midlevels
+    map_x: 21
+    map_y: 11
+    security_level: contested
+    housing: true
+    exits:
+      out: coco_town
+
+  - id: 258
+    slug: coco_town_loft_district
+    name: "Coruscant - Coco Town - Loft District"
+    short_desc: "Converted industrial lofts on Coco Town's east edge — bigger, brighter, slightly more expensive."
+    description: >
+      The loft district occupies a row of converted warehouses east of
+      the main concourse. Tall windows, exposed structural beams, and
+      generous floor plans make these the largest residences in Coco
+      Town. They're popular with artists, freelancers, and Republic
+      mid-level officers who want more space than the standard
+      apartment towers offer. A wartime art collective has murals on
+      every blank wall.
+    zone: coruscant_midlevels
+    map_x: 22
+    map_y: 11
+    security_level: contested
+    housing: true
+    exits:
+      out: coco_town
+
+  - id: 259
+    slug: coco_town_civic_block
+    name: "Coruscant - Coco Town - Civic Block"
+    short_desc: "A civic block on Coco Town's northern edge, host to small organizations and chapter halls."
+    description: >
+      The civic block is a square of older buildings around a small
+      plaza, each housing a different small-organization presence —
+      veterans' associations, mutual-aid societies, trade federations
+      that lost their headquarters to the war and reconstituted here.
+      Coruscant's bureaucracy treats this block as a designated civic
+      zone, which means cheaper rents and lighter scrutiny for orgs
+      that file the right paperwork. Recruitment posters cover every
+      wall. A clone trooper veterans' lodge does steady business at
+      the corner cantina.
+    zone: coruscant_midlevels
+    map_x: 21
+    map_y: 10
+    security_level: contested
+    housing: true
+    exits:
+      out: coco_town
+
+  # T4 host (coco_town shopfront)
+  - id: 260
+    slug: coco_town_market_arcade
+    name: "Coruscant - Coco Town - Market Arcade"
+    short_desc: "The covered shopping arcade running the length of Coco Town — small shopfronts and stalls."
+    description: >
+      The market arcade is a long covered walkway lined with shopfronts
+      ranging from established family businesses to one-week pop-up
+      stalls. War rationing has hit some sections hard — half the
+      grocery stalls feature substitute-protein bricks where fresh
+      produce used to be — but the arcade itself thrives. This is
+      where Coco Town does its shopping, and small operators with the
+      right rental contract can do reasonable business. Foot traffic
+      is constant from morning to late evening.
+    zone: coruscant_midlevels
+    map_x: 20
+    map_y: 11
+    security_level: contested
+    housing: true
+    exits:
+      out: coco_town
+
+  # T3 hosts (calocour_heights luxury)
+  - id: 261
+    slug: calocour_marketing_row
+    name: "Coruscant - Calocour Heights - Marketing Row"
+    short_desc: "Luxury apartments above the corporate-sector marketing district — premium, view-priced."
+    description: >
+      Marketing Row stacks luxury apartments above the marketing-
+      agency offices below. The towers are newer than most of the
+      Heights, all transparisteel and chrome, with private repulsor
+      pads on the higher floors. Residents are mostly senior
+      executives at the agencies below, plus a handful of senators
+      who prefer the Heights' anonymity to the senatorial towers'
+      formality. The view through the smog-filter glass is
+      cinematic.
+    zone: coruscant_upper
+    map_x: 20
+    map_y: 8
+    security_level: secured
+    housing: true
+    exits:
+      out: calocour_heights
+
+  - id: 262
+    slug: calocour_overlook_terrace
+    name: "Coruscant - Calocour Heights - Overlook Terrace"
+    short_desc: "Sky-view condos at the edge of Calocour, looking out across the upper city."
+    description: >
+      Overlook Terrace is a row of high-end condos on the western
+      edge of Calocour, each unit positioned for an unobstructed view
+      across the upper-city sprawl. The terrace itself is a wide
+      transparisteel deck where residents take morning caf above the
+      cloud line. Discreet security checks at the lobby; private
+      turbolifts to each unit. The kind of address that signals
+      status without announcing it.
+    zone: coruscant_upper
+    map_x: 19
+    map_y: 8
+    security_level: secured
+    housing: true
+    exits:
+      out: calocour_heights
+
+  # T4 host (calocour boutique)
+  - id: 263
+    slug: calocour_boutique_row
+    name: "Coruscant - Calocour Heights - Boutique Row"
+    short_desc: "An exclusive shopping street offering boutique storefronts to high-end merchants."
+    description: >
+      Boutique Row is the Heights' premier retail corridor — small
+      shopfronts dealing in luxury goods, bespoke tailoring, rare
+      antiquities, and designer outfits the rest of the galaxy reads
+      about months later. Rent here is among the highest in the city.
+      Foot traffic is selective but well-funded: senators' aides on
+      gift-buying errands, war profiteers' wives, the occasional
+      Hutt envoy with credits to burn. A merchant who can hold a
+      lease here is a merchant who has arrived.
+    zone: coruscant_upper
+    map_x: 21
+    map_y: 8
+    security_level: secured
+    housing: true
+    exits:
+      out: calocour_heights
+
+  # T3 host (southern_underground risky tenement)
+  - id: 264
+    slug: underground_tenement_block
+    name: "Coruscant - Southern Underground - Tenement Block"
+    short_desc: "A ten-tower tenement block in the lower city — cheap rent, dangerous neighborhood."
+    description: >
+      The tenement block is ten towers stacked tight together over a
+      shared lower-level courtyard. Power flickers; the lifts work
+      half the time; the sub-level smells of old coolant and damp
+      duracrete. But the rent is the cheapest non-Underworld housing
+      on Coruscant, and there's a thriving informal economy of
+      mutual aid among the residents. A retired clone trooper runs
+      a free clinic on the third floor of Tower 3. The Lost Ones
+      gang controls the courtyard but generally leaves the tenements
+      themselves alone.
+    zone: coruscant_lower
+    map_x: 21
+    map_y: 14
+    security_level: lawless
+    housing: true
+    exits:
+      out: southern_underground
+
+  # T5 host (southern_underground independent merc/smuggler chapter)
+  - id: 265
+    slug: crystal_jewel_alley
+    name: "Coruscant - Crystal Jewel Alley"
+    short_desc: "The narrow service alley behind the Crystal Jewel cantina — informal HQ space for independent crews."
+    description: >
+      The alley runs behind the Crystal Jewel cantina, sheltered by
+      the cantina's overhanging upper floors. Independent merc crews,
+      smuggler outfits, and freelancer collectives rent the back-room
+      offices that face the alley — close enough to the cantina's
+      foot traffic for clients to find them, far enough back that
+      the wrong kind of attention slides past. Every door has its
+      own rules. The cantina staff knows everyone but says nothing.
+    zone: coruscant_lower
+    map_x: 19
+    map_y: 14
+    security_level: lawless
+    housing: true
+    exits:
+      out: crystal_jewel_cantina
+
+  # Gilded Cage district trio (T3 + T4 + T5) — new zone coruscant_gilded_cage
+  - id: 266
+    slug: gilded_cage_alien_quarter
+    name: "Coruscant - Gilded Cage - Alien Quarter"
+    short_desc: "The cosmopolitan residential heart of the Gilded Cage — apartments tuned for a dozen species' physiologies."
+    description: >
+      The alien quarter is the Gilded Cage's residential core. Buildings
+      here are designed for accommodation rather than display — wider
+      doors for non-bipedal residents, variable-gravity floors for
+      species used to higher-G homes, atmospheric mix controls in the
+      better units. Multi-tongue street signage, food stalls serving
+      a dozen cuisines, and a constant low murmur of languages the
+      Republic has never bothered to translate. Coruscant tolerates
+      the district because its old Hutt-mediated charters predate the
+      modern Senate.
+    zone: coruscant_gilded_cage
+    map_x: 18
+    map_y: 9
+    security_level: contested
+    housing: true
+    exits:
+      out: upper_city_promenade
+      bazaar: gilded_cage_bazaar         # F.5a.2.x: pair for bazaar
+      courtyard: gilded_cage_courtyard   # F.5a.2.x: pair for courtyard
+      hotel: mosaic_hotel                # F.5a.2.x.1: pair for Mosaic Hotel
+
+  - id: 267
+    slug: gilded_cage_bazaar
+    name: "Coruscant - Gilded Cage - Bazaar"
+    short_desc: "The Gilded Cage's open-air street market — exotic goods, strange foods, and merchant stalls without registration."
+    description: >
+      The bazaar runs along the district's main concourse, an open
+      market under transparisteel canopies that catch and refract the
+      Coruscant sky. Stalls sell goods that wouldn't pass customs
+      inspection in the upper-city districts: spices unfamiliar to
+      human palates, off-world textiles, communication crystals tuned
+      to wavelengths the Republic doesn't license, religious icons of
+      species the central archives have stopped tracking. Merchants
+      here pay rent under the old charters, not to the modern
+      bureaucracy. Republic patrols rarely come this far in.
+    zone: coruscant_gilded_cage
+    map_x: 18
+    map_y: 8
+    security_level: contested
+    housing: true
+    exits:
+      gilded: gilded_cage_alien_quarter
+
+  - id: 268
+    slug: gilded_cage_courtyard
+    name: "Coruscant - Gilded Cage - Courtyard"
+    short_desc: "A central plaza where the Gilded Cage's many fraternal organizations and species-specific orgs maintain headquarters."
+    description: >
+      The courtyard is a square plaza ringed by old buildings whose
+      facades represent a dozen architectural traditions. Each building
+      hosts a different fraternal organization, mutual-aid society, or
+      species-specific civic body — the Gran Heritage Hall, the
+      Twi'lek Cultural Mission, the Bothan Trade Confederacy office,
+      and many others, layered in by centuries of Gilded Cage
+      tradition. War has filled the courtyard with new factions —
+      refugee organizations from CIS-occupied worlds, mutual-defense
+      pacts among off-world residents — alongside the old.
+    zone: coruscant_gilded_cage
+    map_x: 17
+    map_y: 9
+    security_level: contested
+    housing: true
+    exits:
+      gilded: gilded_cage_alien_quarter
+
+  - id: 269
+    slug: outlander_cantina
+    name: "Coruscant - Outlander Cantina - Back Rooms"
+    short_desc: "The back-room rentals at the Outlander Club — short-term lodging for the off-world clientele."
+    description: >
+      The Outlander Club rents its upper-floor back rooms by the
+      night to clientele who don't want to be on the public hotel
+      registers. The rooms are functional — bed, refresher, a window
+      that looks out on the back-alley speeder lane — and the
+      management handles inquiries with practiced discretion. Bounty
+      hunters between contracts, off-world contractors, and the
+      occasional senator's adjutant on a discreet errand make up the
+      regular trade.
+    zone: coruscant_midlevels
+    map_x: 19
+    map_y: 12
+    security_level: contested
+    housing: true
+    exits:
+      out: outlander_club
+
+  # ══════════════════════════════════════════════════════════════════════
+  # F.5a.2.x.1 host rooms — T1 rentals on lower / gilded_cage
+  # Per cw_housing_design_v1.md §6 (Tier 1 rental locations).
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 270
+    slug: crystal_jewel_back_rooms
+    name: "Coruscant - Crystal Jewel Cantina - Back Rooms"
+    short_desc: "The back-of-cantina lodgings rented out by Wesseri the innkeeper — cheap, dangerous, no questions."
+    description: >
+      Behind the cantina's main floor, a narrow stairway leads up to
+      a row of small letting-rooms above the bar. Wesseri runs the
+      board with a heavy datapad and a heavier blaster. The rooms
+      themselves are basic: cot, footlocker with a working lock, a
+      sink that mostly works, a window that doesn't. Down here in the
+      lower city the rate is twenty-five credits a night and the
+      clientele is what you'd expect — between-jobs spacers, refugees
+      with savings to stretch, the occasional bounty hunter laying
+      low for a contract. Wesseri's motto, if she had one, would be
+      that she does not care who you are or what you did, only that
+      you pay on time and don't bring trouble onto her floor.
+    zone: coruscant_lower
+    map_x: 19
+    map_y: 14
+    security_level: lawless
+    housing: true
+    exits:
+      out: crystal_jewel_cantina
+
+  - id: 271
+    slug: mosaic_hotel
+    name: "Coruscant - The Mosaic Hotel"
+    short_desc: "A small mid-tier hotel in the Gilded Cage, run by Iri Camas — twi'lek-owned and proud of it."
+    description: >
+      The Mosaic occupies the third through sixth floors of a converted
+      apartment block in the Gilded Cage's quieter end. The lobby is
+      decorated with hand-laid stone mosaics in classical Rylothian
+      patterns — Iri Camas designed them herself when she bought the
+      building eleven years ago. The clientele is mostly off-worlders
+      who want comfortable accommodations without the Calocour Heights
+      price tag, plus a regular trickle of senatorial-staff aides on
+      modest expense accounts. Rooms are clean, the breakfast is
+      genuinely good, and Iri runs a tight desk. The rate is thirty-
+      eight credits per night.
+    zone: coruscant_gilded_cage
+    map_x: 18
+    map_y: 9
+    security_level: contested
+    housing: true
+    exits:
+      out: gilded_cage_alien_quarter
+
+

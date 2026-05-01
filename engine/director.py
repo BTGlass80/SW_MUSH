@@ -60,11 +60,20 @@ def _resolve_director_runtime_config():
     """Resolve the runtime config from the seam, with a hard-coded
     safety fallback if the seam itself fails to import (e.g. during
     test collection in environments where world_loader is unavailable).
+
+    F.6a.7 (Apr 29 2026): switched from `resolve_era_for_seeding()`
+    (which returned None when use_yaml_director_data was off) to
+    `get_seeding_era()` (which returns the active era unconditionally).
+    The YAML path is now the production path for both GCW and CW —
+    the legacy hardcoded constants are byte-equivalence-verified
+    against data/worlds/gcw/director_config.yaml, and the seam's
+    own legacy fallback inside get_director_runtime_config still
+    catches YAML load failures defensively.
     """
     try:
         from engine.director_config_loader import get_director_runtime_config
-        from engine.era_state import resolve_era_for_seeding
-        return get_director_runtime_config(era=resolve_era_for_seeding())
+        from engine.era_state import get_seeding_era
+        return get_director_runtime_config(era=get_seeding_era())
     except Exception as e:
         log.warning(
             "[director] Seam resolution failed (%s); using last-resort "

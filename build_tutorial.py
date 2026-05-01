@@ -2125,12 +2125,13 @@ async def build_factions_briefing(db):
     print(f"  Factions Briefing rooms: entry={entry_id}, board={board_room_id}")
 
 
-async def build_all():
+async def build_all(db_path=None):
     from db.database import Database
 
-    db_path = os.path.join(os.path.dirname(__file__), "sw_mush.db")
+    if db_path is None:
+        db_path = os.path.join(os.path.dirname(__file__), "sw_mush.db")
     if not os.path.exists(db_path):
-        print("ERROR: sw_mush.db not found. Run build_mos_eisley.py first.")
+        print(f"ERROR: {db_path} not found. Run build_mos_eisley.py first.")
         sys.exit(1)
 
     db = Database(db_path)
@@ -2187,6 +2188,6 @@ async def auto_build_if_needed(db_path="sw_mush.db"):
 
     if not already_built:
         print("\n  [Auto-Build] Tutorial zones not found. Running tutorial builder...")
-        await build_all()
+        await build_all(db_path)
         return True
     return False

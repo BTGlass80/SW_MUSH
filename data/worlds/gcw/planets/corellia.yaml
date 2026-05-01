@@ -126,6 +126,7 @@ rooms:
     zone: coronet_city
     map_x: 0.4
     map_y: 0.55
+    housing: true  # F.5b.3.a: T1 + T4 host (Spacers' Rest + Commercial Quarter)
     properties:
       lighting: dim
 
@@ -142,6 +143,7 @@ rooms:
     zone: coronet_city
     map_x: 0.45
     map_y: 0.18
+    housing: true  # F.5b.3.a: T3 private residence host (Residential Quarter)
 
   - id: 105
     slug: coronet_city_central_plaza
@@ -290,6 +292,7 @@ rooms:
     properties:
       cover_max: 1
       lighting: dim
+    housing: true  # F.5b.3.a: T3 + T5 host (Old Quarter Townhouses + Compound)
 
   - id: 115
     slug: coronet_city_the_spearhead_tavern

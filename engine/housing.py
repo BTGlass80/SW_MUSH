@@ -60,8 +60,18 @@ RENT_TICK_INTERVAL = 604_800  # game ticks per week (1 tick = 1 second)
 #
 # FACTION_QUARTER_TIERS maps (faction_code, min_rank) -> tier config.
 # Checked in descending rank order so highest qualifying tier wins.
+#
+# F.5b.1 (Apr 29 2026): the in-Python literal below was renamed to
+# _LEGACY_FACTION_QUARTER_TIERS and wrapped by `_resolve_faction_quarter_tiers()`,
+# which loads from data/worlds/<active_era>/housing_lots.yaml on import
+# and falls back to the legacy literal on YAML load failure. The
+# byte-equivalence gate (tests/test_f5a1_housing_lots_loader.py
+# TestGCWByteEquivalence and TestCWByteEquivalence) proves the YAML
+# matches the literal exactly. Module-level binding `FACTION_QUARTER_TIERS`
+# at line ~360 is what consumers see — same name, same shape, same data,
+# different source.
 
-FACTION_QUARTER_TIERS = {
+_LEGACY_FACTION_QUARTER_TIERS = {
     # ── Empire ──
     ("empire", 0): {
         "label": "Imperial Barracks — Shared Bunk",
@@ -357,7 +367,177 @@ FACTION_QUARTER_TIERS = {
     },
 }
 
+
+# ── F.5b.1 (Apr 29 2026) — FACTION_QUARTER_TIERS data-fy ─────────────────────
+# Build the (faction_code, rank) -> cfg dict from the active era's
+# data/worlds/<era>/housing_lots.yaml via the F.5a.1 loader. Falls back
+# to the in-Python _LEGACY_FACTION_QUARTER_TIERS literal above if the
+# YAML can't be loaded (missing file, parse error, validation error,
+# or world_loader import failure).
+#
+# The fallback is byte-equivalent to the live data because both YAMLs
+# (data/worlds/{gcw,clone_wars}/housing_lots.yaml) were authored as
+# byte-equivalent extractions of the in-Python literal — proven by
+# tests/test_f5a1_housing_lots_loader.py's byte-equivalence test classes.
+#
+# Why "load on import" not "lazy"? FACTION_QUARTER_TIERS is consumed at
+# module-load time by the existing helpers `_faction_min_rank` and
+# `_best_tier_for_rank`, which iterate `.items()` directly. A lazy
+# resolver would require either changing those callers or wrapping in a
+# property — both are bigger surface-area changes than the seam needs.
+# Module-level resolution captures the active era at import time, same
+# pattern as engine/director.py's `_resolve_director_runtime_config()`.
+
+def _resolve_faction_quarter_tiers() -> dict:
+    """Resolve FACTION_QUARTER_TIERS from BOTH GCW and CW housing_lots.yaml,
+    merged into a single (faction_code, rank) -> cfg dict.
+
+    Pre-F.5b.1 the in-Python literal mashed both eras' faction data
+    into one dict (B.1.d.1 added CW factions inline alongside GCW
+    ones). The YAML split (F.5a.1) stores them per-era, but consumer
+    code in this module (`_faction_min_rank`, `_best_tier_for_rank`)
+    expects faction-level coverage regardless of active era — a CW PC
+    in GCW DB still needs a recognizable faction code, and the
+    soft-bail in B.1.d.2 only fires when the faction IS in the dict
+    but its (faction, planet) lot ID isn't built yet.
+
+    Falls back to _LEGACY_FACTION_QUARTER_TIERS on any failure
+    (logs WARNING). The fallback is byte-equivalent to the merged
+    YAML output because both YAMLs were authored as byte-equivalent
+    extractions of the legacy literal — proven by
+    tests/test_f5a1_housing_lots_loader.py's byte-equivalence tests.
+    """
+    try:
+        from engine.world_loader import (
+            load_era_manifest, load_housing_lots,
+        )
+        from pathlib import Path
+    except Exception as e:
+        log.warning(
+            "[housing] world_loader import failed (%s); "
+            "using legacy FACTION_QUARTER_TIERS literal.", e,
+        )
+        return dict(_LEGACY_FACTION_QUARTER_TIERS)
+
+    out: dict = {}
+    eras_loaded: list = []
+    eras_failed: list = []
+    for era in ("gcw", "clone_wars"):
+        try:
+            era_dir = Path("data") / "worlds" / era
+            if not era_dir.is_dir():
+                eras_failed.append(f"{era}:no-dir")
+                continue
+            manifest = load_era_manifest(era_dir)
+            corpus = load_housing_lots(manifest)
+        except Exception as e:
+            eras_failed.append(f"{era}:{type(e).__name__}")
+            log.warning(
+                "[housing] %r housing_lots load failed (%s); "
+                "skipping era.", era, e,
+            )
+            continue
+
+        if corpus is None:
+            eras_failed.append(f"{era}:no-content")
+            continue
+
+        if corpus.report.errors:
+            eras_failed.append(
+                f"{era}:{len(corpus.report.errors)} validation-errors"
+            )
+            continue
+
+        # Merge this era's tiers into the output dict.
+        era_entries = 0
+        for fc, fcfg in corpus.tier2_faction_quarters.items():
+            if not fcfg.tiers:
+                # Faction explicitly has no quarters (e.g. BHG=null in CW).
+                continue
+            for tier in fcfg.tiers:
+                key = (fc, tier.rank_min)
+                if key in out:
+                    log.warning(
+                        "[housing] (faction=%r, rank=%d) appears in "
+                        "multiple era YAMLs; %r entry wins.",
+                        fc, tier.rank_min, era,
+                    )
+                out[key] = {
+                    "label": tier.label,
+                    "storage_max": tier.storage_max,
+                    "room_name": tier.room_name,
+                    "room_desc": tier.room_desc,
+                }
+                era_entries += 1
+        eras_loaded.append(f"{era}:{era_entries}")
+
+    if not out:
+        log.warning(
+            "[housing] No era YAML produced tier entries (failed: %s); "
+            "using legacy FACTION_QUARTER_TIERS literal.",
+            ", ".join(eras_failed) or "none",
+        )
+        return dict(_LEGACY_FACTION_QUARTER_TIERS)
+
+    log.info(
+        "[housing] FACTION_QUARTER_TIERS resolved from YAML "
+        "(loaded: %s; failed: %s; total tier-entries=%d)",
+        ", ".join(eras_loaded) or "none",
+        ", ".join(eras_failed) or "none",
+        len(out),
+    )
+    return out
+
+
+FACTION_QUARTER_TIERS = _resolve_faction_quarter_tiers()
+
+
 # Faction housing attachment points: (faction_code, planet) -> room_id
+#
+# ── F.5d (Apr 30 2026) — Jedi Temple anchor wired ────────────────────────────
+# The CW jedi_order ladder (rank 0 Initiate / 1 Padawan / 3 Knight /
+# 5 Master) was authored in data/worlds/clone_wars/housing_lots.yaml and
+# loaded into FACTION_QUARTER_TIERS by F.5b.1, but the entry-room mapping
+# below was not. Net effect pre-F.5d: a Jedi PC promoted to any rank hit
+# `_faction_quarters_locatable("jedi_order") == False` and silently no-op'd.
+#
+# Anchor room: 211 (jedi_temple_entrance_hall, coruscant_temple zone). The
+# entrance hall is the right anchor — it's the inside-the-Temple analogue
+# of Jabba's Audience Chamber for hutt or the Tatooine Militia HQ for
+# empire. The main gate (210) is a public outdoor concourse and would be
+# wrong (you don't put your bedroom door on the front lawn).
+#
+# ── B.1.d.3 (Apr 30 2026) — Remaining CW faction anchors wired ───────────────
+# F.5d explicitly flagged that republic/cis/hutt_cartel CW entries were
+# also missing. B.1.d.3 closes that gap. The three anchors below were
+# selected by reading each faction's ladder narrative in
+# data/worlds/clone_wars/housing_lots.yaml and choosing the interior
+# room from which the described quarters would naturally branch:
+#
+#   republic    → 259 coco_town_civic_block. The republic ladder describes
+#                 the "Coruscant Coco Town Republic Guard barracks";
+#                 room 259 is Coco Town's civic block, which the YAML
+#                 explicitly tags as "host to small organizations and
+#                 chapter halls" — including a clone trooper veterans'
+#                 lodge already canonically present in the room. The
+#                 Republic Guard chapter house lives on this block.
+#
+#   cis         → 418 geonosis_deep_tunnel. The cis ladder anchors at
+#                 "Stalgasin Deep Hive" — vaulted alcoves, officer's
+#                 chambers, council suites all carved off the deep
+#                 hive's tunnel backbone. Room 418 is that backbone:
+#                 the deep hive tunnel that descends from the main
+#                 chamber to the foundry levels. Insurgent exit hiding
+#                 (cis is in INSURGENT_FACTIONS) reads naturally from
+#                 a reinforced backbone tunnel rather than the public
+#                 main chamber (411).
+#
+#   hutt_cartel → 71 hutt_emissary_tower_audience. Direct CW analog of
+#                 the GCW (hutt, "tatooine"): 19 ("Jabba's Townhouse -
+#                 Audience Chamber") and (hutt, "nar_shaddaa"): 72
+#                 entries — the audience chamber is the interior room
+#                 where Hutt business is conducted, and the suites/
+#                 penthouses described in the ladder branch from there.
 FACTION_QUARTER_LOTS = {
     ("empire", "tatooine"):    22,   # Tatooine Militia HQ / Garrison
     ("empire", "corellia"):    107,  # CorSec HQ (Imperial liaison)
@@ -365,6 +545,12 @@ FACTION_QUARTER_LOTS = {
     ("rebel", "nar_shaddaa"):  69,   # Undercity - Deep Warrens access
     ("hutt", "tatooine"):      19,   # Jabba's Townhouse - Audience Chamber
     ("hutt", "nar_shaddaa"):   72,   # Hutt Emissary Tower area
+    # ── F.5d (Apr 30 2026): CW jedi_order anchor ─────────────────────────────
+    ("jedi_order", "coruscant"): 211,  # Jedi Temple - Entrance Hall
+    # ── B.1.d.3 (Apr 30 2026): remaining CW faction anchors ──────────────────
+    ("republic", "coruscant"):    259,  # Coco Town - Civic Block
+    ("cis", "geonosis"):          418,  # Geonosis - Deep Hive Tunnel
+    ("hutt_cartel", "nar_shaddaa"): 71,  # Hutt Emissary Tower - Audience Chamber
 }
 
 FACTION_HOME_PLANET = {
@@ -383,14 +569,31 @@ FACTION_HOME_PLANET = {
     "hutt_cartel": "nar_shaddaa",
 }
 
-# ── Lot definitions for Drop 1 ────────────────────────────────────────────────
-HOUSING_LOTS_DROP1 = [
-    (29,  "tatooine",    "Spaceport Hotel",                "secured",   5),
-    (21,  "tatooine",    "Mos Eisley Inn",                 "secured",   5),
-    (60,  "nar_shaddaa", "Nar Shaddaa Promenade Hostel",   "contested", 5),
-    (93,  "kessel",      "Kessel Station Barracks",        "contested", 5),
-    (103, "corellia",    "Coronet City Spacers' Rest",     "secured",   5),
-]
+# ── Lot definitions ──────────────────────────────────────────────────────────
+# F.5b.3.c (Apr 30 2026) DELETED the legacy in-Python constants
+# `HOUSING_LOTS_DROP1`, `HOUSING_LOTS_TIER3`, `HOUSING_LOTS_TIER4`,
+# `HOUSING_LOTS_TIER5`. They are now sourced from
+# data/worlds/<era>/housing_lots.yaml via engine/housing_lots_provider.
+#
+# Pre-F.5b.3.c, these constants:
+#   - Lived in this file as Python literals
+#   - Referenced room IDs that had drifted from the live world build
+#     (e.g. "Spaceport Hotel" claimed room 29; actually room 25)
+#   - Were the seed source for the housing_lots SQL table
+#   - Were the soft-fallback path in housing_lots_provider when YAML
+#     loading failed
+#
+# Post-F.5b.3.c:
+#   - YAML is the only source of truth for both GCW and CW
+#   - housing_lots_provider has no fallback — a YAML load failure now
+#     produces zero lots and an ERROR log (fail-loud per F.6a.7
+#     pattern, §18.19 seam-vs-integration discipline)
+#   - The legacy values are preserved in
+#     tests/test_f5b3c_legacy_constants_deleted.py as static snapshots
+#     for byte-equivalence regression testing
+#
+# Tier 3 type catalog (purchase costs, room counts, etc.) below was
+# NOT part of this deletion — it's in-Python config, not lot inventory.
 
 # ── Drop 4: Tier 3 Private Residence definitions ────────────────────────────
 # tier=3, housing_type='private_residence'
@@ -472,16 +675,10 @@ _TIER3_ROOM_DESCS = {
     ],
 }
 
-# Lots where Tier 3 homes can be purchased (room_id, planet, label, security, max_homes)
-HOUSING_LOTS_TIER3 = [
-    (11,  "tatooine",    "South End Residences",             "secured",   4),
-    (42,  "tatooine",    "Outskirts Homesteads",             "contested", 3),
-    (61,  "nar_shaddaa", "Corellian Sector Apartments",      "contested", 4),
-    (69,  "nar_shaddaa", "Undercity Hab-Block",              "lawless",   3),
-    (86,  "kessel",      "Station Habitat Ring",             "contested", 2),
-    (104, "corellia",    "Residential Quarter",              "secured",   4),
-    (114, "corellia",    "Old Quarter Townhouses",           "contested", 3),
-]
+# F.5b.3.c (Apr 30 2026): HOUSING_LOTS_TIER3 deleted. T3 lot inventory
+# is now sourced from data/worlds/<era>/housing_lots.yaml::tier3_lots
+# via engine/housing_lots_provider.get_tier3_lots(). See the F.5b.3.c
+# header comment above for context.
 
 # Max homes a player can own per planet (prevents monopoly)
 MAX_TIER3_PER_PLANET = 1
@@ -560,8 +757,20 @@ async def ensure_schema(db) -> None:
 
 
 async def seed_lots(db) -> None:
-    """Insert the Drop 1 + Drop 4 housing lots if they don't exist yet."""
-    all_lots = list(HOUSING_LOTS_DROP1) + list(HOUSING_LOTS_TIER3) + list(HOUSING_LOTS_TIER4) + list(HOUSING_LOTS_TIER5)
+    """Insert the Drop 1 + Drop 4 housing lots if they don't exist yet.
+
+    F.5b.2 (Apr 30 2026): switched from direct HOUSING_LOTS_* constants
+    to the era-aware provider. GCW boots see byte-equivalent behavior
+    (the provider returns the legacy constants verbatim). CW boots see
+    the YAML-derived lot inventory from data/worlds/clone_wars/housing_lots.yaml.
+    """
+    from engine.housing_lots_provider import (
+        get_tier1_lots, get_tier3_lots, get_tier4_lots, get_tier5_lots,
+    )
+    all_lots = (
+        get_tier1_lots() + get_tier3_lots()
+        + get_tier4_lots() + get_tier5_lots()
+    )
     for room_id, planet, label, security, max_homes in all_lots:
         existing = await db.fetchall(
             "SELECT id FROM housing_lots WHERE room_id = ?", (room_id,)
@@ -1336,6 +1545,57 @@ def _entry_room_for_faction(faction_code: str, planet: str = None) -> Optional[i
     return FACTION_QUARTER_LOTS.get((faction_code, planet))
 
 
+# ── B.1.d.2 (Apr 29 2026) — Insurgent-faction generalization ─────────────────
+# The pre-B.1.d.2 code hardcoded `is_rebel = faction_code == "rebel"`
+# to decide whether a faction-quarter entry exit should be hidden from
+# non-members. The semantic is "this faction is the era's insurgent
+# challenger; their safehouses shouldn't be discoverable by walking
+# down the hall." Generalizing it to a module-level set lets CW's
+# CIS quarters use the same insurgent-quarter pattern as GCW Rebel
+# safehouses without further code changes.
+#
+# Mapping rationale:
+#   GCW: `rebel` is the insurgent (the empire is the lawful state)
+#   CW:  `cis` is the insurgent (the republic is the lawful state)
+#
+# Republic, Empire, Jedi Order, Hutt Cartel, BHG quarters are all
+# either lawful-state or independent-criminal — overt enough to not
+# need exit hiding. Adding a faction here is opt-in; a faction not
+# in this set keeps its exits visible (the GCW pre-drop default for
+# all non-rebel factions).
+INSURGENT_FACTIONS = frozenset({"rebel", "cis"})
+
+
+def is_insurgent_faction(faction_code: str) -> bool:
+    """True iff this faction's quarters should have hidden entry exits.
+
+    Used by `assign_faction_quarters` to decide whether to mark the
+    new exit with `hidden_faction = faction_code`. The semantic is
+    "insurgent safehouse" — the exit is invisible to anyone outside
+    the faction, mirroring how Rebel safehouses worked in GCW.
+    """
+    return faction_code in INSURGENT_FACTIONS
+
+
+def _faction_quarters_locatable(faction_code: str) -> bool:
+    """True iff this faction has a built entry room — i.e., quarters
+    can actually be created right now, not just modeled in the data.
+
+    Returns True for any (faction, planet) pair that has both a
+    FACTION_HOME_PLANET entry AND a corresponding FACTION_QUARTER_LOTS
+    entry. Returns False for CW factions whose home-planet rooms
+    haven't been built yet (Coruscant Coco Town, Stalgasin Hive,
+    Coruscant Jedi Temple) — F.5a builds those.
+
+    Used by `assign_faction_quarters` to distinguish:
+      - "real bug": entry-room ID set but the room is missing → log error
+      - "expected, era rooms not built yet": no entry-room ID for a
+        valid (faction, planet) pair → log info + advise the player
+    """
+    planet = _planet_for_faction(faction_code)
+    return (faction_code, planet) in FACTION_QUARTER_LOTS
+
+
 async def assign_faction_quarters(db, char: dict, faction_code: str,
                                    rank_level: int,
                                    session=None) -> Optional[dict]:
@@ -1391,8 +1651,29 @@ async def assign_faction_quarters(db, char: dict, faction_code: str,
     planet = _planet_for_faction(faction_code)
     entry_room_id = _entry_room_for_faction(faction_code, planet)
     if entry_room_id is None:
-        log.warning("[housing] No entry room for faction %s on %s",
-                    faction_code, planet)
+        # ── B.1.d.2 (Apr 29 2026) — distinguish bail paths ─────────────
+        # Two reasons we hit None here:
+        #   1. CW faction whose home-planet rooms haven't been built
+        #      yet (republic/cis/jedi_order — F.5a builds these).
+        #      Expected during the era pivot. Soft-log + tell the player
+        #      so they don't think their rank-up was a no-op.
+        #   2. Faction has both home-planet AND quarter-lots entries
+        #      but the (faction, planet) tuple is somehow missing.
+        #      Real bug or DB drift — log a warning.
+        if not _faction_quarters_locatable(faction_code):
+            log.info("[housing] Faction quarters not yet built for %s on %s",
+                     faction_code, planet)
+            if session:
+                await session.send_line(
+                    f"  \033[2m[HOUSING] Faction quarters for "
+                    f"\033[1;36m{faction_code}\033[2m are not yet established "
+                    f"in this era. Your rank promotion stands; quarters will "
+                    f"be assigned automatically when the faction's home "
+                    f"location ({planet}) opens.\033[0m"
+                )
+        else:
+            log.warning("[housing] No entry room for faction %s on %s",
+                        faction_code, planet)
         return None
 
     entry_room = await db.get_room(entry_room_id)
@@ -1424,16 +1705,23 @@ async def assign_faction_quarters(db, char: dict, faction_code: str,
     )
 
     door_dir = await _pick_door_direction(db, entry_room_id)
-    is_rebel = faction_code == "rebel"
 
     exit_in_id = await db.create_exit(entry_room_id, new_room_id, door_dir,
                                        room_name)
-    # Mark rebel exits as hidden
-    if is_rebel:
+    # ── B.1.d.2 (Apr 29 2026) — Generalized insurgent-exit hiding ──────
+    # Insurgent factions (rebel in GCW, cis in CW) get hidden entry
+    # exits — only members can see the way in. Lawful-state and
+    # independent factions get visible exits (the GCW pre-drop default
+    # for all non-rebel factions).
+    #
+    # The hidden_faction column stores the actual faction_code, so a
+    # CIS PC entering a CIS safehouse will see the exit while a
+    # Republic PC walking past the same intersection will not.
+    if is_insurgent_faction(faction_code):
         try:
             await db.execute(
                 "UPDATE exits SET hidden_faction = ? WHERE id = ?",
-                ("rebel", exit_in_id),
+                (faction_code, exit_in_id),
             )
         except Exception as e:
             log.warning("[housing] hidden exit set error: %s", e)
@@ -1539,13 +1827,60 @@ def _guest_list(h: dict) -> list:
     return _safe_json_loads(h.get("guest_list", "[]"), default=[])
 
 
-async def get_tier3_available_lots(db) -> list[dict]:
-    """Return Tier 3 lots with open slots."""
-    all_lot_ids = [r for r, *_ in HOUSING_LOTS_TIER3]
+async def _get_char_rep_flat(db, char: Optional[dict]) -> dict:
+    """F.5b.2.x: Return a flat {faction_code: int_rep} dict for a character.
+
+    The DB API `get_all_faction_reps(char, db)` returns
+    `{code: {rep, tier_key, ...}}` — but `housing_lots_provider.is_lot_rep_visible`
+    expects a flat {code: int} dict. This helper converts.
+
+    Returns an empty dict on any failure (missing char, DB error, etc.) —
+    a no-rep character should see only non-gated lots, which is the
+    correct behavior for an unaligned PC. Logs at DEBUG since this is
+    expected for fresh characters.
+    """
+    if not char or not char.get("id"):
+        return {}
+    try:
+        from engine.organizations import get_all_faction_reps
+        rep_map = await get_all_faction_reps(char, db)
+    except Exception as e:
+        log.debug("[housing] _get_char_rep_flat failed: %s", e, exc_info=True)
+        return {}
+    flat: dict = {}
+    for fc, info in (rep_map or {}).items():
+        try:
+            flat[fc] = int(info.get("rep", 0)) if isinstance(info, dict) else int(info)
+        except Exception:
+            flat[fc] = 0
+    return flat
+
+
+async def get_tier3_available_lots(db, char: Optional[dict] = None) -> list[dict]:
+    """Return Tier 3 lots with open slots.
+
+    F.5b.2: era-aware via housing_lots_provider.
+    F.5b.2.x: when `char` is provided, filter rep-gated lots that the
+    character can't see per `cw_housing_design_v1.md` §7.1. When `char`
+    is None (callers that want the full inventory regardless), no
+    filtering is applied — preserves backward compatibility for any
+    pre-F.5b.2.x caller.
+    """
+    from engine.housing_lots_provider import get_tier3_lots, is_lot_rep_visible
+    all_t3 = get_tier3_lots()
+    all_lot_ids = [r for r, *_ in all_t3]
     rows = await db.fetchall(
         "SELECT * FROM housing_lots WHERE current_homes < max_homes ORDER BY planet, id"
     )
-    return [dict(r) for r in rows if r["room_id"] in all_lot_ids]
+    base = [dict(r) for r in rows if r["room_id"] in all_lot_ids]
+    if char is None:
+        return base
+    # Apply rep_gate filter
+    char_rep = await _get_char_rep_flat(db, char)
+    return [
+        row for row in base
+        if is_lot_rep_visible(row["room_id"], char_rep)
+    ]
 
 
 async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
@@ -1570,6 +1905,15 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
     # Check per-planet limit
     lot = await get_lot(db, lot_id)
     if not lot:
+        return {"ok": False, "msg": "Invalid lot."}
+
+    # F.5b.2.x: rep_gate enforcement (cw_housing_design_v1.md §7.1).
+    # If the character can't see this lot, return the same "Invalid lot."
+    # message rather than leaking the rep gate's existence. Per design,
+    # an unaligned PC shouldn't even know about Kuat-side properties.
+    from engine.housing_lots_provider import is_lot_rep_visible
+    char_rep = await _get_char_rep_flat(db, char)
+    if not is_lot_rep_visible(lot["room_id"], char_rep):
         return {"ok": False, "msg": "Invalid lot."}
 
     lot_planet = lot["planet"]
@@ -1823,8 +2167,12 @@ async def get_guest_list_display(db, char: dict) -> list[str]:
 
 
 async def get_tier3_listing_lines(db, char: dict) -> list[str]:
-    """Return formatted Tier 3 lot listing for the buy command."""
-    lots = await get_tier3_available_lots(db)
+    """Return formatted Tier 3 lot listing for the buy command.
+
+    F.5b.2.x: passes `char` to get_tier3_available_lots so rep-gated
+    lots are hidden from listings per cw_housing_design_v1.md §7.1.
+    """
+    lots = await get_tier3_available_lots(db, char=char)
     if not lots:
         return ["  No lots available for private residences."]
 
@@ -1910,15 +2258,9 @@ _TIER4_SECURITY_DISCOUNT = {"lawless": 0.50, "contested": 0.75, "secured": 1.0}
 MAX_TIER4_PER_CHAR  = 2   # can own multiple shopfronts (different planets)
 MAX_TIER4_PER_PLANET = 1
 
-HOUSING_LOTS_TIER4 = [
-    # (room_id, planet, label, security, max_shopfronts)
-    (8,   "tatooine",    "Market Row Stalls",         "contested", 4),
-    (11,  "tatooine",    "Spaceport Commercial Strip", "secured",   3),
-    (46,  "nar_shaddaa", "Promenade Market",           "contested", 4),
-    (69,  "nar_shaddaa", "Undercity Black Market",     "lawless",   2),
-    (86,  "kessel",      "Station Bazaar",             "contested", 2),
-    (104, "corellia",    "Commercial Quarter",         "secured",   4),
-]
+# F.5b.3.c (Apr 30 2026): HOUSING_LOTS_TIER4 deleted. T4 lot inventory
+# is now sourced from data/worlds/<era>/housing_lots.yaml::tier4_lots
+# via engine/housing_lots_provider.get_tier4_lots().
 
 # Shop room descriptions — publicly accessible front rooms
 _TIER4_SHOP_DESCS = {
@@ -1986,7 +2328,11 @@ _TIER4_PRIVATE_DESCS = {
 
 
 async def get_tier4_listing_lines(db, char: dict) -> list[str]:
-    """Return formatted Tier 4 shopfront lot listing for a character."""
+    """Return formatted Tier 4 shopfront lot listing for a character.
+
+    F.5b.2: era-aware via housing_lots_provider.
+    """
+    from engine.housing_lots_provider import get_tier4_lots
     lines = [
         "\033[1;37m── Shopfront Residences (Tier 4) ──\033[0m",
         "  A home with an integrated public shop room and vendor droid directory listing.",
@@ -1995,7 +2341,7 @@ async def get_tier4_listing_lines(db, char: dict) -> list[str]:
         f"  {'ID':<5} {'Location':<35} {'Planet':<12} {'Security':<12} {'Slots'}",
         "  " + "─" * 72,
     ]
-    for room_id, planet, label, security, max_sf in HOUSING_LOTS_TIER4:
+    for room_id, planet, label, security, max_sf in get_tier4_lots():
         lot = await db.fetchall(
             "SELECT current_homes, max_homes FROM housing_lots WHERE room_id = ?",
             (room_id,),
@@ -2052,7 +2398,8 @@ async def purchase_shopfront(db, char: dict, lot_id: int,
     lot = await get_lot(db, lot_id)
     if not lot:
         return {"ok": False, "msg": "Invalid lot ID."}
-    if lot["room_id"] not in [r for r, *_ in HOUSING_LOTS_TIER4]:
+    from engine.housing_lots_provider import get_tier4_lots
+    if lot["room_id"] not in [r for r, *_ in get_tier4_lots()]:
         return {"ok": False, "msg": "That lot is not a shopfront location."}
 
     lot_planet = lot["planet"]
@@ -2943,14 +3290,9 @@ TIER5_TYPES = {
     },
 }
 
-HOUSING_LOTS_TIER5 = [
-    (42,  "tatooine",    "Outskirts Compound",     "contested", 2),
-    (47,  "tatooine",    "Abandoned Compound",      "lawless",   1),
-    (61,  "nar_shaddaa", "Corellian Sector Block",  "contested", 2),
-    (69,  "nar_shaddaa", "Undercity Stronghold",    "lawless",   2),
-    (86,  "kessel",      "Station Industrial Ring", "contested", 1),
-    (114, "corellia",    "Old Quarter Compound",    "contested", 2),
-]
+# F.5b.3.c (Apr 30 2026): HOUSING_LOTS_TIER5 deleted. T5 lot inventory
+# is now sourced from data/worlds/<era>/housing_lots.yaml::tier5_lots
+# via engine/housing_lots_provider.get_tier5_lots().
 
 _TIER5_ROOM_DESCS = {
     "empire": {
@@ -3496,12 +3838,16 @@ async def get_hq_status_lines(db, org_code: str) -> list[str]:
 
 
 async def get_tier5_listing_lines(db, org_code: str) -> list[str]:
-    """Show available HQ lots for purchase."""
+    """Show available HQ lots for purchase.
+
+    F.5b.2: era-aware via housing_lots_provider.
+    """
+    from engine.housing_lots_provider import get_tier5_lots
     B, DIM, CYAN = "\033[1m", "\033[2m", "\033[1;36m"
     YELLOW, GREEN, RESET = "\033[1;33m", "\033[1;32m", "\033[0m"
     lines = [f"{CYAN}{'═' * 60}{RESET}", f"  {YELLOW}Available HQ Locations{RESET}",
              f"{CYAN}{'─' * 60}{RESET}"]
-    for room_id, planet, label, security, max_hqs in HOUSING_LOTS_TIER5:
+    for room_id, planet, label, security, max_hqs in get_tier5_lots():
         lot_row = await db.fetchall(
             "SELECT current_homes FROM housing_lots WHERE room_id = ?", (room_id,))
         current = lot_row[0]["current_homes"] if lot_row else 0

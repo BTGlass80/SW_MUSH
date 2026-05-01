@@ -50,6 +50,31 @@ def _get_crew(ship):
         del crew["gunners"]
     return crew
 
+
+def _seated_gunner_ids(crew: dict) -> list:
+    """Return the list of char_ids currently in any gunner station.
+
+    Schema-agnostic: works whether ``crew`` still has the legacy
+    ``gunners`` list or the migrated ``gunner_stations`` dict. Use
+    this at every read site that previously did
+    ``crew.get("gunners", [])`` — because after ``_get_crew()`` runs
+    the migration, that legacy key is GONE and the read returns []
+    even when gunners are seated.
+
+    Reported by the SH4 smoke harness as the ``test_s12_lockon_*``
+    xfail; fix preserves the single source of truth for the migration
+    in ``_get_crew``.
+    """
+    if not crew:
+        return []
+    stations = crew.get("gunner_stations") or {}
+    if isinstance(stations, dict):
+        # Filter out None values (empty stations).
+        return [gid for gid in stations.values() if gid is not None]
+    # Defensive fallback: legacy schema slipped through somehow.
+    legacy = crew.get("gunners") or []
+    return [gid for gid in legacy if gid is not None]
+
 def _get_systems(ship):
     systems = ship.get("systems", "{}")
     if isinstance(systems, str):
@@ -681,10 +706,16 @@ class DisembarkCommand(BaseCommand):
         if crew.get("pilot") == char_id:
             crew["pilot"] = None
             changed = True
-        gunners = crew.get("gunners", [])
-        if char_id in gunners:
-            gunners.remove(char_id)
-            changed = True
+        # Clear any gunner station this player occupies. Schema-aware:
+        # _get_crew() migrates legacy crew["gunners"] into
+        # crew["gunner_stations"], so this writes to the canonical
+        # location.
+        stations = crew.get("gunner_stations")
+        if isinstance(stations, dict):
+            for slot, gid in list(stations.items()):
+                if gid == char_id:
+                    stations[slot] = None
+                    changed = True
         if changed:
             await ctx.db.update_ship(ship["id"], crew=json.dumps(crew))
         char["room_id"] = ship["docked_at"]
@@ -1028,7 +1059,7 @@ class AssistCommand(BaseCommand):
                 at_station = s
                 break
         if not at_station:
-            gunners = crew.get("gunners", [])
+            gunners = _seated_gunner_ids(crew)
             if char_id in gunners:
                 at_station = "gunner"
         if not at_station:
@@ -1037,7 +1068,7 @@ class AssistCommand(BaseCommand):
         target = ctx.args.strip().lower()
         # Validate target station has someone
         if target == "gunner":
-            gunners = crew.get("gunners", [])
+            gunners = _seated_gunner_ids(crew)
             if not gunners:
                 await ctx.session.send_line("  No one is at a gunner station.")
                 return
@@ -2805,7 +2836,7 @@ class LockOnCommand(BaseCommand):
 
         crew = _get_crew(ship)
         char_id = ctx.session.character["id"]
-        gunners = crew.get("gunners", [])
+        gunners = _seated_gunner_ids(crew)
         if char_id not in gunners:
             await ctx.session.send_line(
                 "  You're not at a gunner station. Type 'gunner' first."

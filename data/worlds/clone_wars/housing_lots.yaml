@@ -1,0 +1,566 @@
+# data/worlds/clone_wars/housing_lots.yaml
+#
+# F.5a.1 (Apr 29 2026) - Clone Wars housing lot inventory.
+#
+# Per cw_housing_design_v1.md §5 (Tier 2 faction quarters) + §11 (schema).
+# This drop ships the Tier 2 faction-quarter mappings; T1 (rentals),
+# T3 (private residence), T4 (shopfronts), T5 (organization HQ) come
+# in F.5a.2.
+#
+# The CW faction set is republic / cis / jedi_order / hutt_cartel /
+# bounty_hunters_guild. BHG has no faction quarters by design (§5.5);
+# its entry is null.
+#
+# Schema:
+#   tier2_faction_quarters:
+#     <faction_code>:
+#       tiers: list of { rank_min, label, storage_max, room_name, room_desc }
+#
+# This file is byte-equivalent to the CW additions in
+# `engine/housing.py::FACTION_QUARTER_TIERS` (republic/cis/jedi_order/
+# hutt_cartel) that B.1.d.1 (Apr 29) landed. Until F.5b's data-fy
+# ships, this YAML is data-only.
+
+schema_version: 1
+era: clone_wars
+
+tier2_faction_quarters:
+  cis:
+    tiers:
+    - rank_min: 0
+      label: Stalgasin Hive — Recruit Dormitory
+      storage_max: 10
+      room_name: '{name}''s Bedroll'
+      room_desc: >-
+        A spartan dormitory carved into the chitinous walls of the Stalgasin Deep Hive. Low orange light pulses from glow-grubs
+        in the ceiling. A bedroll, a stone shelf, and a single locking footlocker. The air tastes of damp resin and ozone
+        from distant droid foundries.
+    - rank_min: 2
+      label: Stalgasin Hive — Private Alcove
+      storage_max: 40
+      room_name: '{name}''s Alcove'
+      room_desc: >-
+        A private vaulted alcove deep in the hive. Carved chitin curves overhead. An encrypted comms station tied to the Separatist
+        network sits beside the bedroll. Spare battle-droid parts are stacked in a corner. The Geonosian guards outside know
+        your scent.
+    - rank_min: 4
+      label: Stalgasin Hive — Officer's Chamber
+      storage_max: 80
+      room_name: '{name}''s Chamber'
+      room_desc: >-
+        An officer's chamber in the upper levels of the deep hive — two rooms, with a war-planning slate showing current Separatist
+        front lines and a droid-courier dock for sending orders to droid foundries across the system. The vaulted ceiling
+        is studded with trophy plaques.
+    - rank_min: 5
+      label: Stalgasin Hive — Council Suite
+      storage_max: 100
+      room_name: Marshal {name}'s Suite
+      room_desc: >-
+        A council suite at the Stalgasin Deep Hive's restricted Council approach — three chambers, a holotable showing live
+        tactical data from every Separatist battlefront, and a private antechamber where Count Dooku's emissaries are received.
+        Geonosian sentinels stand watch in the outer hall. Few non-Geonosians have ever stood here.
+  hutt_cartel:
+    tiers:
+    - rank_min: 2
+      label: Hutt Cartel — Enforcer's Safehouse
+      storage_max: 30
+      room_name: Enforcer's Room
+      room_desc: >-
+        A functional safehouse room in the Nar Shaddaa undercity. The door is reinforced durasteel with three separate locks.
+        A weapons rack, a bunk, and a hidden floor compartment for 'special deliveries.' The walls are covered in cheap soundproofing
+        material. Comfort was never the point.
+    - rank_min: 3
+      label: Hutt Cartel — Lieutenant's Suite
+      storage_max: 50
+      room_name: '{name}''s Suite'
+      room_desc: >-
+        A well-appointed suite in a Hutt-controlled building. The decor is gaudy — gold trim, velvet cushions, a bubbling
+        hookah stand. A heavy curtain hides a hidden compartment large enough to hold a small arsenal. A viewport shows {planet_view}.
+        The Hutts take care of their own.
+    - rank_min: 5
+      label: Hutt Vigo — Luxury Penthouse
+      storage_max: 100
+      room_name: Vigo {name}'s Penthouse
+      room_desc: >-
+        A luxury penthouse dripping with Hutt-style opulence. Gold-plated fixtures, a sunken conversation pit with plush cushions,
+        a fully stocked bar of exotic spirits, and a panoramic viewport showing {planet_view}. A private turbolift connects
+        to the street below. Armed guards patrol the corridor outside. This is what power looks like in the Outer Rim.
+  jedi_order:
+    tiers:
+    - rank_min: 0
+      label: Jedi Temple — Initiate Cluster
+      storage_max: 10
+      room_name: Initiate {name}'s Cot
+      room_desc: >-
+        A communal sleeping arrangement in the Jedi Temple's Initiate Cluster. A simple cot among many, separated by hanging
+        cloth partitions. Robed initiates move quietly between the rows. The room smells faintly of old books and the polished
+        stone of the Temple. Through the high arched window, {planet_view}.
+    - rank_min: 1
+      label: Jedi Temple — Padawan Cell
+      storage_max: 30
+      room_name: Padawan {name}'s Cell
+      room_desc: >-
+        A small private room in the Padawan Wing, adjacent to one's Master's quarters. A pallet, a desk with study datapads,
+        a shelf of spare robes, and a small meditation corner. The Temple's Force-presence is thick here. Through the slit
+        window, {planet_view}.
+    - rank_min: 3
+      label: Jedi Temple — Knight Quarters
+      storage_max: 80
+      room_name: Knight {name}'s Quarters
+      room_desc: >-
+        A Jedi Knight's quarters in the Knight Wing — two rooms. A meditation chamber with a smooth stone floor and a single
+        candle, and a private cell with a proper bed and a writing desk. A high arched viewport shows {planet_view}. The lightsaber
+        rack on the wall is empty when its owner is in residence.
+    - rank_min: 5
+      label: Jedi Temple — Master Suite
+      storage_max: 100
+      room_name: Master {name}'s Suite
+      room_desc: >-
+        A Jedi Master's suite in the Master Wing — three rooms. A meditation hall large enough for kata practice, a Padawan
+        teaching alcove with floor cushions and a holocron projector, and a private chamber. Carved kyber crystals are set
+        into the walls, faintly luminous. Through the master viewport, {planet_view}. Few rooms in the galaxy carry this much
+        accumulated Force-presence.
+  republic:
+    tiers:
+    - rank_min: 0
+      label: Republic Guard Barracks — Shared Bunk
+      storage_max: 10
+      room_name: '{name}''s Bunk'
+      room_desc: >-
+        A bunk in the Coruscant Coco Town Republic Guard barracks. Crisp white-and-blue walls, a sealed footlocker, and a
+        holosched display showing rotation orders. The hum of the barracks ventilation is a constant white noise. A view through
+        the slit window shows {planet_view}.
+    - rank_min: 2
+      label: Republic Guard — Private Cell
+      storage_max: 30
+      room_name: '{name}''s Quarters'
+      room_desc: >-
+        A functional officer's cell in the Republic Guard barracks. A proper bed, a desk with an encrypted terminal, and a
+        wall locker with a biometric lock. The Republic crest is etched above the desk. A viewport shows {planet_view}.
+    - rank_min: 4
+      label: Republic Officer Wing — Suite
+      storage_max: 50
+      room_name: '{name}''s Officer Suite'
+      room_desc: >-
+        An officer's suite in the Republic Guard's command wing. A bedroom and an adjoining briefing room with a holotable
+        for tactical reviews. The walls carry framed Republic battle citations. A viewport offers a commanding view of {planet_view}.
+        A private refresher adjoins.
+    - rank_min: 5
+      label: Republic Commander — Senate-Adjacent Compound
+      storage_max: 100
+      room_name: Commander {name}'s Quarters
+      room_desc: >-
+        A commander's compound on the edge of the Senate District, three rooms deep — bedchamber, war room with secure subspace
+        comms, and a private antechamber for visiting senators or generals. The Judicial Forces insignia is woven into the
+        carpet. A panoramic viewport spans the wall, showing {planet_view}. Guard patrols rotate past the corridor outside.
+  bounty_hunters_guild: null
+
+# ══════════════════════════════════════════════════════════════════════════════
+# F.5a.3 (Apr 30 2026) — Tier 1/3/4/5 lot inventory
+# Per cw_housing_design_v1.md §6 (T1), §7 (T3), §8 (T4), §9 (T5).
+#
+# Counts: 13 T1 + 16 T3 + 8 T4 + 9 T5 = 46 lot records.
+#
+# Every host_room slug is verified live in the CW world by
+# tests/test_f5a2x1_housing_host_rooms.py (the F.5a.2.x.1 regression
+# guard). Lot records added here MUST anchor on a live host_room slug
+# or the engine will silently fail to host the lot at runtime.
+#
+# `description_theme` is a tag the housing engine uses to bias
+# generated room descriptions; see player_housing_design_v1.md §4.
+# ══════════════════════════════════════════════════════════════════════════════
+
+tier1_rentals:
+
+  # ── Coruscant T1 (4 lots) ──────────────────────────────────────────────────
+  - id: westport_travelers_hotel
+    planet: coruscant
+    zone: coruscant_senate
+    host_room: westport_arrivals_hotel_lobby
+    npc: rental_clerk_wx9
+    slots: 6
+    weekly_rent_base: 50
+    description_theme: corporate_chain
+  - id: outlander_rooms
+    planet: coruscant
+    zone: coruscant_midlevels
+    host_room: outlander_cantina
+    npc: doola_bartender
+    slots: 5
+    weekly_rent_base: 50
+    description_theme: cantina_back_room
+  - id: crystal_jewel_rooms
+    planet: coruscant
+    zone: coruscant_lower
+    host_room: crystal_jewel_back_rooms
+    npc: wesseri_innkeeper
+    slots: 6
+    weekly_rent_base: 50
+    description_theme: lower_city_flop
+  - id: mosaic_hotel_rentals
+    planet: coruscant
+    zone: coruscant_gilded_cage
+    host_room: mosaic_hotel
+    npc: iri_camas
+    slots: 4
+    weekly_rent_base: 50
+    description_theme: twi_lek_boutique
+
+  # ── Kuat T1 (2 lots) ───────────────────────────────────────────────────────
+  - id: kuat_concourse_hotel
+    planet: kuat
+    zone: kuat_main_spaceport
+    host_room: spaceport_concourse_hotel
+    npc: kdy_hospitality_droid
+    slots: 4
+    weekly_rent_base: 50
+    description_theme: kdy_corporate
+  - id: kuat_embassy_inn
+    planet: kuat
+    zone: kuat_city_embassy
+    host_room: embassy_inn
+    npc: talvik_maru
+    slots: 3
+    weekly_rent_base: 50
+    description_theme: embassy_modest
+
+  # ── Kamino T1 (1 lot, 2-week stay cap) ─────────────────────────────────────
+  - id: kamino_visiting_quarters
+    planet: kamino
+    zone: kamino_ocean_platform
+    host_room: ocean_visiting_officers_quarters
+    npc: ct_3372_splash
+    slots: 3
+    weekly_rent_base: 50
+    description_theme: kamino_transient
+    max_stay_weeks: 2
+
+  # ── Geonosis T1 (1 lot) ────────────────────────────────────────────────────
+  - id: geonosis_smugglers_roost
+    planet: geonosis
+    zone: geonosis_surface
+    host_room: smugglers_roost_flophouse
+    npc: vez_garra
+    slots: 4
+    weekly_rent_base: 50
+    description_theme: lawless_flophouse
+
+  # ── Tatooine T1 (2 lots — anchor on existing GCW rooms) ───────────────────
+  - id: mos_eisley_inn_rooms
+    planet: tatooine
+    zone: tatooine_mos_eisley
+    host_room: mos_eisley_inn
+    npc: mos_eisley_innkeeper
+    slots: 6
+    weekly_rent_base: 50
+    description_theme: mos_eisley_inn
+  - id: chalmuns_back_rooms
+    planet: tatooine
+    zone: tatooine_cantina
+    host_room: chalmuans_cantina_back_hallway
+    npc: chalmun_back_room_clerk
+    slots: 4
+    weekly_rent_base: 50
+    description_theme: chalmuns_cantina_rooms
+
+  # ── Nar Shaddaa T1 (3 lots — anchor on existing rooms) ────────────────────
+  - id: nar_shaddaa_dock_flop
+    planet: nar_shaddaa
+    zone: nar_shaddaa_landing
+    host_room: nar_shaddaa_bay_aurek
+    npc: dock_district_innkeeper
+    slots: 4
+    weekly_rent_base: 50
+    description_theme: dock_flophouse
+  - id: nar_shaddaa_promenade_inn
+    planet: nar_shaddaa
+    zone: nar_shaddaa_promenade
+    host_room: old_corellian_quarter
+    npc: promenade_innkeeper
+    slots: 4
+    weekly_rent_base: 50
+    description_theme: corellian_promenade
+  - id: nar_shaddaa_undercity_bunkroom
+    planet: nar_shaddaa
+    zone: nar_shaddaa_undercity
+    host_room: undercity_market
+    npc: smugglers_den_innkeeper
+    slots: 5
+    weekly_rent_base: 50
+    description_theme: smugglers_den
+
+tier3_lots:
+
+  # ── Coruscant T3 (6 lots) ──────────────────────────────────────────────────
+  - id: coco_town_residential_walk
+    planet: coruscant
+    zone: coruscant_midlevels
+    host_room: coco_town_residential_walk
+    max_homes: 4
+    allowed_types: [studio, standard, deluxe]
+    description_theme: midlevel_apartment
+  - id: coco_town_loft_district
+    planet: coruscant
+    zone: coruscant_midlevels
+    host_room: coco_town_loft_district
+    max_homes: 3
+    allowed_types: [standard, deluxe]
+    description_theme: midlevel_loft
+  - id: calocour_marketing_row
+    planet: coruscant
+    zone: coruscant_upper
+    host_room: calocour_marketing_row
+    max_homes: 2
+    allowed_types: [deluxe]
+    description_theme: luxury_marketing
+  - id: calocour_overlook_terrace
+    planet: coruscant
+    zone: coruscant_upper
+    host_room: calocour_overlook_terrace
+    max_homes: 2
+    allowed_types: [deluxe]
+    description_theme: skyview_condo
+  - id: underground_tenement_block
+    planet: coruscant
+    zone: coruscant_lower
+    host_room: underground_tenement_block
+    max_homes: 4
+    allowed_types: [studio, standard]
+    description_theme: lower_city_tenement
+  - id: gilded_cage_alien_quarter
+    planet: coruscant
+    zone: coruscant_gilded_cage
+    host_room: gilded_cage_alien_quarter
+    max_homes: 4
+    allowed_types: [studio, standard, deluxe]
+    description_theme: alien_quarter
+
+  # ── Kuat T3 (2 lots, both rep-gated) ───────────────────────────────────────
+  - id: kdy_engineer_apartments
+    planet: kuat
+    zone: kdy_orbital_ring
+    host_room: kdy_engineer_apartments
+    max_homes: 3
+    allowed_types: [studio, standard]
+    description_theme: industrial_dormitory
+    rep_gate:
+      faction: republic
+      min_value: 25
+  - id: embassy_residential_row
+    planet: kuat
+    zone: kuat_city_embassy
+    host_room: embassy_residential_row
+    max_homes: 2
+    allowed_types: [standard, deluxe]
+    description_theme: embassy_residential
+    rep_gate:
+      faction: republic
+      min_value: 25
+
+  # ── Geonosis T3 (1 lot) ────────────────────────────────────────────────────
+  - id: stalgasin_offworld_quarter
+    planet: geonosis
+    zone: geonosis_surface
+    host_room: stalgasin_offworld_quarter
+    max_homes: 3
+    allowed_types: [studio, standard]
+    description_theme: smuggler_offworld
+
+  # ── Tatooine T3 (3 lots — existing GCW rooms reskinned) ───────────────────
+  - id: mos_eisley_residences
+    planet: tatooine
+    zone: tatooine_mos_eisley
+    host_room: mos_eisley_south_end
+    max_homes: 4
+    allowed_types: [studio, standard, deluxe]
+    description_theme: mos_eisley_residential
+  - id: outskirts_homesteads
+    planet: tatooine
+    zone: tatooine_outskirts
+    host_room: outskirts_abandoned_farm
+    max_homes: 3
+    allowed_types: [standard, deluxe]
+    description_theme: outskirts_homestead
+  - id: jundland_hidden_compound
+    planet: tatooine
+    zone: tatooine_jundland
+    host_room: jundland_hidden_cave
+    max_homes: 2
+    allowed_types: [standard, deluxe]
+    description_theme: jundland_compound
+
+  # ── Nar Shaddaa T3 (3 lots — existing rooms reskinned) ────────────────────
+  - id: corellian_sector_apartments
+    planet: nar_shaddaa
+    zone: nar_shaddaa_promenade
+    host_room: old_corellian_quarter
+    max_homes: 3
+    allowed_types: [studio, standard]
+    description_theme: corellian_apartments
+  - id: promenade_flats
+    planet: nar_shaddaa
+    zone: nar_shaddaa_promenade
+    host_room: bounty_hunters_quarter
+    max_homes: 3
+    allowed_types: [standard, deluxe]
+    description_theme: promenade_flats
+  - id: undercity_hab_block
+    planet: nar_shaddaa
+    zone: nar_shaddaa_undercity
+    host_room: undercity_depths
+    max_homes: 4
+    allowed_types: [studio, standard]
+    description_theme: undercity_hab
+
+  # ── Nar Shaddaa Warrens T3 (1 lot — NEW, cheapest housing in CW) ──────────
+  - id: warrens_squat_block
+    planet: nar_shaddaa
+    zone: nar_shaddaa_warrens
+    host_room: warrens_squat_block
+    max_homes: 3
+    allowed_types: [studio]
+    description_theme: warrens_squat
+
+tier4_lots:
+
+  # ── Coruscant T4 (3 lots — Coco Town flagship + Calocour + Gilded Cage) ───
+  - id: coco_town_market_arcade
+    planet: coruscant
+    zone: coruscant_midlevels
+    host_room: coco_town_market_arcade
+    max_homes: 4
+    allowed_types: [stall, merchant, trading]
+    description_theme: bustling_arcade
+    market_search_priority: 100   # F.5a.3: flagship CW shopfront (design §8)
+  - id: calocour_boutique_row
+    planet: coruscant
+    zone: coruscant_upper
+    host_room: calocour_boutique_row
+    max_homes: 2
+    allowed_types: [merchant, trading]
+    description_theme: luxury_boutique
+  - id: gilded_cage_bazaar
+    planet: coruscant
+    zone: coruscant_gilded_cage
+    host_room: gilded_cage_bazaar
+    max_homes: 3
+    allowed_types: [stall, merchant]
+    description_theme: alien_bazaar
+
+  # ── Tatooine T4 (2 lots — existing rooms reskinned) ───────────────────────
+  - id: mos_eisley_market
+    planet: tatooine
+    zone: tatooine_market
+    host_room: mos_eisley_market_district
+    max_homes: 3
+    allowed_types: [stall, merchant, trading]
+    description_theme: mos_eisley_market
+  - id: chalmuns_exterior_stall
+    planet: tatooine
+    zone: tatooine_cantina
+    host_room: chalmuans_cantina_entrance
+    max_homes: 1
+    allowed_types: [stall]
+    description_theme: cantina_exterior
+
+  # ── Nar Shaddaa T4 (3 lots — existing rooms reskinned) ────────────────────
+  - id: nar_shaddaa_dock_market
+    planet: nar_shaddaa
+    zone: nar_shaddaa_landing
+    host_room: westport_arrivals
+    max_homes: 2
+    allowed_types: [stall, merchant]
+    description_theme: dock_market
+  - id: corellian_sector_shops
+    planet: nar_shaddaa
+    zone: nar_shaddaa_promenade
+    host_room: vertical_bazaar
+    max_homes: 3
+    allowed_types: [merchant, trading]
+    description_theme: corellian_trading
+  - id: promenade_premium_shops
+    planet: nar_shaddaa
+    zone: nar_shaddaa_promenade
+    host_room: floating_market
+    max_homes: 3
+    allowed_types: [merchant, trading]
+    description_theme: promenade_premium
+
+tier5_lots:
+
+  # ── Coruscant T5 (4 lots) ──────────────────────────────────────────────────
+  - id: coco_town_civic_block
+    planet: coruscant
+    zone: coruscant_midlevels
+    host_room: coco_town_civic_block
+    max_homes: 1
+    allowed_types: [outpost, chapter_house, fortress]
+    description_theme: republic_civic
+    recommended_faction: republic
+  - id: bhg_chapter_house
+    planet: coruscant
+    zone: coruscant_lower
+    host_room: bhg_chapter_house
+    max_homes: 1
+    allowed_types: [chapter_house, fortress]
+    description_theme: bhg_chapter
+    recommended_faction: bounty_hunters_guild
+  - id: crystal_jewel_alley
+    planet: coruscant
+    zone: coruscant_lower
+    host_room: crystal_jewel_alley
+    max_homes: 1
+    allowed_types: [outpost, chapter_house]
+    description_theme: independent_merc
+  - id: gilded_cage_courtyard
+    planet: coruscant
+    zone: coruscant_gilded_cage
+    host_room: gilded_cage_courtyard
+    max_homes: 1
+    allowed_types: [outpost, chapter_house]
+    description_theme: alien_fraternal
+
+  # ── Geonosis T5 (1 lot) ────────────────────────────────────────────────────
+  - id: stalgasin_outsider_compound
+    planet: geonosis
+    zone: geonosis_surface
+    host_room: stalgasin_outsider_compound
+    max_homes: 1
+    allowed_types: [outpost, chapter_house, fortress]
+    description_theme: cis_industrial
+    recommended_faction: cis
+
+  # ── Tatooine T5 (2 lots — existing rooms reskinned) ───────────────────────
+  - id: jabbas_townhouse_hq
+    planet: tatooine
+    zone: tatooine_mos_eisley
+    host_room: jabbas_townhouse_audience
+    max_homes: 1
+    allowed_types: [outpost, chapter_house, fortress]
+    description_theme: hutt_opulent
+    recommended_faction: hutt_cartel
+  - id: outskirts_independent_hq
+    planet: tatooine
+    zone: tatooine_outskirts
+    host_room: outskirts_hermits_ridge
+    max_homes: 1
+    allowed_types: [outpost, chapter_house]
+    description_theme: independent_outskirts
+
+  # ── Nar Shaddaa T5 (2 lots) ────────────────────────────────────────────────
+  - id: nar_shaddaa_undercity_hutt_hq
+    planet: nar_shaddaa
+    zone: nar_shaddaa_undercity
+    host_room: undercity_depths
+    max_homes: 1
+    allowed_types: [chapter_house, fortress]
+    description_theme: hutt_undercity
+    recommended_faction: hutt_cartel
+  - id: promenade_corporate_tower
+    planet: nar_shaddaa
+    zone: nar_shaddaa_promenade
+    host_room: promenade_corporate_tower
+    max_homes: 1
+    allowed_types: [chapter_house, fortress]
+    description_theme: bhg_corporate
+    recommended_faction: bounty_hunters_guild

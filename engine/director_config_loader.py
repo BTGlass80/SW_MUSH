@@ -2,12 +2,10 @@
 """
 engine/director_config_loader.py — Era-aware Director config seam.
 
-Drop F.6a.3 (seam-only). This module is the production-safe seam between
-the F.6a.1 YAML loader (`engine/world_loader.py::load_director_config`)
-and the live Director engine (`engine/director.py`). It is INTENTIONALLY
-small — it does not modify `engine/director.py` itself; that is the work
-of a future drop ("F.6a.3 integration") which Brian must validate at the
-PC because it touches the live faction system.
+Drop F.6a.3 (seam-only) + F.6a.7 Phase 2 (legacy fallback removal).
+This module is the production-safe seam between the F.6a.1 YAML loader
+(`engine/world_loader.py::load_director_config`) and the live Director
+engine (`engine/director.py`).
 
 What this module provides
 -------------------------
@@ -20,26 +18,24 @@ Director needs:
     system_prompt:     str
     rewicker_factions: dict[str, str]   # {"imperial": "republic", ...}
 
-When `era` is None or the YAML can't be loaded, this falls back to the
-hardcoded constants currently defined in engine/director.py
-(`VALID_FACTIONS`, `DEFAULT_INFLUENCE`, the inline system_prompt
-literal). The fallback is bytes-equivalent to current behavior — there
-is no functional change unless the caller explicitly passes an era.
+`era` defaults to "gcw" when None. The values are sourced from
+`data/worlds/<era>/director_config.yaml` via the F.6a.1 loader.
 
-Why a seam, not a refactor
---------------------------
-Per `clone_wars_director_lore_pivot_design_v1.md` §3.2: Director's
-`VALID_FACTIONS` and `DEFAULT_INFLUENCE` and `system_prompt` are
-referenced from ~30 sites across `engine/director.py`. A direct refactor
-risks breaking the live faction system in subtle ways (e.g. a frozenset
-literal at line 817 is a SECOND copy that needs to be updated separately;
-several `for faction in VALID_FACTIONS:` loops inside class methods
-would need the per-instance value injected; etc.). That's a session of
-work AND a session of validation against a real DB. Not safe to ship
-unattended.
-
-The seam ships now. The integration ("read the seam from inside
-DirectorAI.__init__") happens later in a single targeted PR.
+History
+-------
+- F.6a.3 (Apr 28): shipped the seam with in-Python legacy constants
+  (`_LEGACY_VALID_FACTIONS`, `_LEGACY_DEFAULT_INFLUENCE`,
+  `_LEGACY_SYSTEM_PROMPT`) as a rollback safety net while the F.6a
+  integration drops landed.
+- F.6a.7 Phase 1 (Apr 29): production boot wired to pass `era="gcw"`
+  via `engine.era_state.get_seeding_era()` so legacy fallbacks became
+  unreached from production.
+- F.6a.7 Phase 2 (Apr 29): legacy constants and `_legacy()` factory
+  deleted. `era=None` now defaults to "gcw" so backward-compat with
+  existing test fixtures is preserved (they get YAML-sourced data
+  byte-equivalent to what the deleted constants used to provide).
+  YAML load failures return an empty config + ERROR log instead of
+  silent fallback to stale literals.
 
 Tested by tests/test_f6a3_director_config_loader.py.
 """
@@ -53,103 +49,23 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 
-# Hardcoded fallbacks. These MUST remain byte-equivalent to the constants
-# currently defined at the top of engine/director.py until the integration
-# PR removes the duplication. See the design doc §3.2 rollback path.
-
-_LEGACY_VALID_FACTIONS = frozenset({
-    "imperial", "rebel", "criminal", "independent",
-})
-
-_LEGACY_DEFAULT_INFLUENCE = {
-    "spaceport":  {"imperial": 65, "rebel": 8,  "criminal": 45, "independent": 25},
-    "streets":    {"imperial": 55, "rebel": 12, "criminal": 50, "independent": 35},
-    "cantina":    {"imperial": 40, "rebel": 15, "criminal": 65, "independent": 40},
-    "shops":      {"imperial": 50, "rebel": 10, "criminal": 55, "independent": 40},
-    "jabba":      {"imperial": 20, "rebel": 5,  "criminal": 85, "independent": 10},
-    "government": {"imperial": 80, "rebel": 5,  "criminal": 20, "independent": 20},
-}
-
-# The legacy system prompt — lifted verbatim from engine/director.py
-# (L678-751 at the time of F.6a.3 integration). After F.6a.3-int wires
-# `DirectorAI._call_claude` to read `cfg.system_prompt` instead of the
-# inline literal, this constant becomes the single source of truth for
-# the GCW-era prompt. Era YAMLs (e.g. data/worlds/clone_wars/
-# director_config.yaml) override it via the seam's yaml-<era> path.
-_LEGACY_SYSTEM_PROMPT = (
-    "You are the Director AI for a Star Wars MUSH set in Mos Eisley, Tatooine.\n"
-    "Your role is to evaluate the current state of the galaxy and decide what\n"
-    "happens next at the MACRO level. You never narrate player actions or\n"
-    "describe what individual characters do. You move the unseen pieces:\n"
-    "faction responses, economic shifts, atmospheric changes, and emerging\n"
-    "threats.\n\n"
-    "You are guided by these principles:\n"
-    "- The Empire reacts to resistance with escalation, not retreat.\n"
-    "- The criminal underworld fills any vacuum the Empire leaves.\n"
-    "- The Rebel Alliance operates in shadows; their influence is felt\n"
-    "  through sabotage and propaganda, not open warfare on Tatooine.\n"
-    "- Tatooine is a backwater. The Empire cares about order, not ideology.\n"
-    "  The Hutts care about profit. Neither wants open war here.\n"
-    "- Events should create OPPORTUNITIES for players, never OBLIGATIONS.\n"
-    "- Consequences should feel proportional and narratively logical.\n\n"
-    "FACTION MANAGEMENT:\n"
-    "If the digest includes 'faction_status', you manage those factions.\n"
-    "You may issue up to 3 faction_orders total per turn. Guidelines:\n"
-    "- Promote conservatively. Players must EARN rank.\n"
-    "- Post missions that reflect current world state, not random jobs.\n"
-    "- Discipline escalates: warn → probation → expel. Never skip steps.\n"
-    "- Approve requisitions unless the member negligently caused the loss.\n"
-    "- Never promote past pending_promotions list — only promote listed chars.\n\n"
-    "PC HOOKS:\n"
-    "If the digest includes 'online_pcs', you may generate up to 2\n"
-    "personalised story hooks for specific players based on their short_record.\n"
-    "Hooks must be brief (1-2 sentences), in-universe, and create opportunity\n"
-    "not obligation. Deliver via comlink_message unless NPC context warrants whisper.\n\n"
-    "FACTION STANDINGS:\n"
-    "If the digest includes 'player_faction_standings', use them to target\n"
-    "hooks and events appropriately. A player who is Revered with the Rebel\n"
-    "Alliance should receive Rebel-themed opportunities. A player who is\n"
-    "Hostile with the Empire might attract Imperial attention or bounty hunters.\n"
-    "Never target faction content at players with Unknown/Wary standing.\n\n"
-    "Respond with ONLY a JSON object in this exact format:\n"
-    "{\n"
-    "  \"influence_adjustments\": [\n"
-    "    {\"zone\": \"...\", \"faction\": \"...\", \"delta\": <int>}\n"
-    "  ],\n"
-    "  \"narrative_event\": {\n"
-    "    \"type\": \"...\",\n"
-    "    \"headline\": \"...\",\n"
-    "    \"duration_minutes\": <int>,\n"
-    "    \"zones_affected\": [\"...\"],\n"
-    "    \"mechanical_effects\": {\"...\": \"...\"}\n"
-    "  } OR null,\n"
-    "  \"ambient_pool\": [\"line1\", \"line2\", \"line3\"] OR null,\n"
-    "  \"news_headline\": \"One-sentence summary for the world events board.\",\n"
-    "  \"faction_orders\": [\n"
-    "    {\n"
-    "      \"faction\": \"empire\" | \"rebel\" | \"cartel\" | \"bhg\" | \"traders\",\n"
-    "      \"action\": \"promote\" | \"warn\" | \"probation\" | \"expel\" | \"pardon\"\n"
-    "               | \"post_mission\" | \"faction_announcement\",\n"
-    "      \"target_char_id\": <int> | null,\n"
-    "      \"new_rank\": <int> | null,\n"
-    "      \"reason\": \"...\",\n"
-    "      \"mission_type\": \"patrol\" | \"delivery\" | \"combat\" | \"investigation\" | null,\n"
-    "      \"zone\": \"...\" | null,\n"
-    "      \"reward\": <int 100-5000> | null,\n"
-    "      \"description\": \"...\" | null,\n"
-    "      \"message\": \"...\" | null\n"
-    "    }\n"
-    "  ] OR null,\n"
-    "  \"pc_hooks\": [\n"
-    "    {\n"
-    "      \"char_id\": <int>,\n"
-    "      \"hook_type\": \"rumor\" | \"opportunity\" | \"encounter\",\n"
-    "      \"content\": \"Brief in-universe message (1-2 sentences max)\",\n"
-    "      \"delivery\": \"comlink_message\" | \"npc_whisper\" | \"news_item\" | \"ambient\"\n"
-    "    }\n"
-    "  ] OR null\n"
-    "}"
-)
+# ── F.6a.7 Phase 2 (Apr 29 2026) — legacy constants deleted ─────────
+# Pre-F.6a.7 Phase 2, this module held three large legacy constants:
+#
+#   _LEGACY_VALID_FACTIONS      (frozenset of 4 GCW director-axis names)
+#   _LEGACY_DEFAULT_INFLUENCE   (dict of 6 zone × 4-faction baselines)
+#   _LEGACY_SYSTEM_PROMPT       (~70-line multi-line string)
+#
+# They were the byte-equivalent in-Python copy of the values authored
+# in `data/worlds/gcw/director_config.yaml`. They existed as a rollback
+# safety net during F.6a.{1-6}; once the byte-equivalence tests proved
+# the YAML matches them exactly and Phase 1 wired production boot to
+# the YAML path, the constants became dead code.
+#
+# Phase 2 deletes them outright. The `era is None` branch in
+# `get_director_runtime_config` now defaults to "gcw" so backward-compat
+# with existing test fixtures is preserved (they get YAML-sourced data
+# byte-equivalent to what the deleted constants used to provide).
 
 
 @dataclass
@@ -182,28 +98,35 @@ def get_director_runtime_config(
     """Resolve Director runtime config for the given era.
 
     `era` is the directory name under data/worlds/ — usually "gcw" or
-    "clone_wars". When None, returns the legacy hardcoded values
-    immediately without touching the filesystem.
+    "clone_wars". When None, defaults to "gcw" (the F.6a.7 Phase 2
+    behavior change: pre-Phase-2, era=None returned in-Python literal
+    constants; post-Phase-2, era=None defaults to loading
+    `data/worlds/gcw/director_config.yaml`).
 
     `worlds_root` overrides the default `data/worlds` path; tests use
     this to point at a temp directory.
 
-    Never raises. On any failure, logs a warning and returns the legacy
-    fallback so the Director can still boot.
+    Raises `RuntimeError` on any YAML load/validation failure for the
+    GCW era — there is no longer an in-Python fallback. For other eras,
+    a missing/broken YAML returns a minimal empty config so the engine
+    can still boot (with degraded Director behavior). The
+    `engine/director.py::_resolve_director_runtime_config` last-resort
+    SimpleNamespace fallback still catches "what if the seam itself
+    fails to import" for true defense-in-depth.
     """
     if era is None:
-        return _legacy()
+        era = "gcw"
 
     try:
         from engine.world_loader import (
             load_era_manifest, load_director_config as _load_dc,
         )
     except Exception as e:
-        log.warning(
+        log.error(
             "[director_config_loader] world_loader import failed (%s); "
-            "falling back to legacy.", e,
+            "Director config cannot be resolved.", e,
         )
-        return _legacy()
+        return _empty_config(era=era, source_label=f"yaml-{era}-load-failed")
 
     root = worlds_root or (Path("data") / "worlds")
     era_dir = Path(root) / era
@@ -211,26 +134,26 @@ def get_director_runtime_config(
         manifest = load_era_manifest(era_dir)
         dc = _load_dc(manifest)
     except Exception as e:
-        log.warning(
+        log.error(
             "[director_config_loader] Era %r director_config load failed "
-            "(%s); falling back to legacy.", era, e,
+            "(%s); returning empty config.", era, e,
         )
-        return _legacy()
+        return _empty_config(era=era, source_label=f"yaml-{era}-load-failed")
 
     if dc is None:
-        log.info(
+        log.error(
             "[director_config_loader] Era %r has no director_config "
-            "content_ref; falling back to legacy.", era,
+            "content_ref; returning empty config.", era,
         )
-        return _legacy()
+        return _empty_config(era=era, source_label=f"yaml-{era}-no-content")
 
     if dc.report.errors:
-        log.warning(
+        log.error(
             "[director_config_loader] Era %r director_config has %d "
-            "validation error(s); falling back to legacy. First: %s",
+            "validation error(s); returning empty config. First: %s",
             era, len(dc.report.errors), dc.report.errors[0],
         )
-        return _legacy()
+        return _empty_config(era=era, source_label=f"yaml-{era}-validation-failed")
 
     return DirectorRuntimeConfig(
         valid_factions=frozenset(dc.valid_factions),
@@ -249,15 +172,27 @@ def get_director_runtime_config(
     )
 
 
-def _legacy() -> DirectorRuntimeConfig:
+def _empty_config(era: str, source_label: str) -> DirectorRuntimeConfig:
+    """Return a minimal empty config when YAML resolution fails.
+
+    Post-F.6a.7 Phase 2, this is the only fallback path inside this
+    module. The Director can still boot (it has zero valid_factions
+    and no zone baselines), but its behavior is degraded to "no
+    Director activity" rather than "use stale GCW literals." This
+    fail-loud behavior surfaces real boot misconfigurations instead
+    of silently masking them.
+
+    Operators see ERROR-level log messages identifying which YAML
+    failed to load, so the diagnostic signal is preserved.
+    """
     return DirectorRuntimeConfig(
-        valid_factions=_LEGACY_VALID_FACTIONS,
-        zone_baselines={k: dict(v) for k, v in _LEGACY_DEFAULT_INFLUENCE.items()},
-        system_prompt=_LEGACY_SYSTEM_PROMPT,
+        valid_factions=frozenset(),
+        zone_baselines={},
+        system_prompt="",
         rewicker_factions={},
         rewicker_zones={},
-        source="legacy",
-        raw_meta={"era": None},
+        source=source_label,
+        raw_meta={"era": era},
     )
 
 

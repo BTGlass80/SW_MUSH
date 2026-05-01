@@ -100,6 +100,7 @@ rooms:
       arrivals: kuat_arrivals
       east: kuat_ksf_substation
       lounge: kuat_transit_lounge
+      hotel: spaceport_concourse_hotel   # F.5a.2.x.1: pair for concourse hotel
 
   - id: 303
     slug: kuat_ksf_substation
@@ -191,6 +192,14 @@ rooms:
       warehouses: kuat_ring_warehouses   # named: freight zone
       drydock: kuat_drydock_venator      # named: restricted, Republic-gated
       offices: kdy_main_offices          # named: KDY corporate
+      shuttles: kuat_shuttle_bay         # F.4b: pair for shuttle_bay's ring exit
+      acclamator: kuat_drydock_acclamator  # F.4b: pair for acclamator drydock's hub exit
+      ksf: kuat_ksf_headquarters         # F.4b: pair for KSF HQ's hub exit
+      medical: kuat_ring_medical         # F.4b: pair for ring medical's hub exit
+      ileu: kuat_ileu_shipyards          # F.4b: pair for Ileu shipyards' hub exit
+      deporin: kuat_deporin_shipyards    # F.4b: pair for Deporin shipyards' hub exit
+      supply: kuat_supply_station        # F.4b: pair for supply station's hub exit
+      military: kuat_military_station    # F.4b: pair for military station's hub exit
 
   - id: 307
     slug: kuat_ring_commercial
@@ -253,6 +262,7 @@ rooms:
     housing: true
     exits:
       hub: kuat_ring_transit_hub
+      engineers: kdy_engineer_apartments  # F.5a.2.x: T3 host (Republic-gated)
 
   - id: 310
     slug: kuat_ring_warehouses
@@ -577,6 +587,8 @@ rooms:
       east: kuat_republic_liaison
       south: kuat_city_estate_district
       hotel: kuat_city_hotel
+      residential: embassy_residential_row  # F.5a.2.x: T3 host (Republic-gated)
+      inn: embassy_inn                       # F.5a.2.x.1: pair for Embassy Inn (modest tier)
 
   - id: 326
     slug: kuat_mercantile_forum
@@ -658,3 +670,104 @@ rooms:
     security_level: secured
     exits:
       north: kuat_city_main_street
+
+  # ══════════════════════════════════════════════════════════════════════
+  # HOUSING HOST ROOMS (F.5a.2.x — Apr 30 2026) — 2 rooms
+  # Per cw_housing_design_v1.md §7.1 (T3). Both are Republic-rep gated.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 330
+    slug: kdy_engineer_apartments
+    name: "Kuat Drive Yards - Engineer Apartments"
+    short_desc: "Residential block reserved for KDY engineering staff and Republic military liaison officers — Republic clearance required."
+    description: >
+      The engineer apartments occupy a dedicated residential ring
+      attached to the orbital ring's commercial zone. Units range from
+      single-occupancy studios for junior engineers to family-sized
+      apartments for senior staff with dependents. The complex is
+      Republic-cleared; access requires verified Republic military or
+      Republic-contractor credentials with at least journeyman-level
+      clearance. KDY hospitality runs the front desk. The lifts to the
+      restricted production sections are accessible only from these
+      residences — a perk and a leash.
+    zone: kdy_orbital_ring
+    map_x: 35
+    map_y: 10
+    security_level: secured
+    housing: true
+    exits:
+      out: kuat_ring_apartments
+
+  - id: 331
+    slug: embassy_residential_row
+    name: "Kuat City - Embassy Residential Row"
+    short_desc: "A row of mid-sized residences adjacent to the Republic Embassy quarter — for visiting officers and contractors."
+    description: >
+      Embassy Row consists of two-story residences built into a
+      long curving block that faces the embassy plaza. Each unit
+      includes a small garden and a discreet rear delivery entrance.
+      The residents are mostly Republic Embassy staff and visiting
+      contractors — Kuati families don't live here, the Estate
+      District being where they prefer to keep their distance. Republic
+      Special Forces sentries make passes at irregular intervals.
+      Quieter than orbital, less guarded than the Estate, and closer
+      to KDY's corporate offices than either.
+    zone: kuat_city_embassy
+    map_x: 36
+    map_y: 10
+    security_level: secured
+    housing: true
+    exits:
+      out: kuat_city_main_street
+
+  # ══════════════════════════════════════════════════════════════════════
+  # F.5a.2.x.1 host rooms (Apr 30 2026) — T1 rentals
+  # Per cw_housing_design_v1.md §6 (Tier 1 rental locations).
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 332
+    slug: spaceport_concourse_hotel
+    name: "Kuat - Spaceport Concourse Hotel"
+    short_desc: "A clean, functional hotel above the spaceport concourse — KDY-affiliated, run by hospitality droids."
+    description: >
+      The Concourse Hotel occupies the upper deck of the main spaceport
+      concourse — a covered glass walkway runs from the customs hall
+      directly into the lobby, so arriving travellers can check in
+      without going outside. KDY built the place as a contractor lodge
+      and still leases the building to a hospitality consortium that
+      runs it efficiently. Rooms are modular standardized units with
+      hard surfaces and quiet ventilation. The hospitality droids
+      handle check-in, room service, and most security questions; a
+      single human shift manager handles anything they can't. Rate is
+      fifty credits per night, payable in any major currency.
+    zone: kuat_main_spaceport
+    map_x: 30
+    map_y: 10
+    security_level: secured
+    housing: true
+    exits:
+      out: kuat_spaceport_concourse
+
+  - id: 333
+    slug: embassy_inn
+    name: "Kuat City - The Embassy Inn"
+    short_desc: "A modest inn on the embassy quarter's main street — Talvik Maru's family business, three generations running."
+    description: >
+      The Embassy Inn is the kind of small, well-run hotel that takes
+      pride in not being grand. Three stories of clean rooms above a
+      ground-floor common room with a bar that serves an honest
+      caf-and-pastry breakfast. Talvik Maru runs the desk; her father
+      ran it before her, and his mother before him. The Maru family
+      has watched three Republic ambassadors come and go from the
+      building across the street, and they keep a register of their
+      regular guests that goes back decades. Most of the trade is
+      KDY-affiliated contractors and embassy staff on per-diem. The
+      rate is fifty credits per night and includes a passably decent
+      breakfast.
+    zone: kuat_city_embassy
+    map_x: 35
+    map_y: 11
+    security_level: secured
+    housing: true
+    exits:
+      out: kuat_city_main_street

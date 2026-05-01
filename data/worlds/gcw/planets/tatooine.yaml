@@ -115,6 +115,7 @@ rooms:
     zone: market
     map_x: 0.3
     map_y: 0.48
+    housing: true  # F.5b.3.a: T4 shopfront host (Spaceport Commercial Strip)
 
   - id: 8
     slug: mos_eisley_street_market_district
@@ -128,6 +129,7 @@ rooms:
     zone: market
     map_x: 0.45
     map_y: 0.4
+    housing: true  # F.5b.3.a: T4 shopfront host (Market Row Stalls)
 
   - id: 9
     slug: mos_eisley_street_government_quarter
@@ -164,6 +166,7 @@ rooms:
     zone: market
     map_x: 0.38
     map_y: 0.58
+    housing: true  # F.5b.3.a: T3 private residence host (South End Residences)
 
   - id: 12
     slug: chalmuns_cantina_entrance
@@ -243,6 +246,7 @@ rooms:
     zone: residential
     map_x: 0.3
     map_y: 0.42
+    housing: true  # F.5b.3.a: T1 rental host per data/worlds/gcw/housing_lots.yaml
 
   - id: 18
     slug: jabbas_townhouse_main_entrance
@@ -351,6 +355,7 @@ rooms:
     zone: residential
     map_x: 0.3
     map_y: 0.54
+    housing: true  # F.5b.3.a: T1 rental host per data/worlds/gcw/housing_lots.yaml
 
   - id: 26
     slug: mos_eisley_spaceport_control_tower
@@ -542,6 +547,7 @@ rooms:
     zone: outskirts
     map_x: 0.65
     map_y: 0.4
+    housing: true  # F.5b.3.a: T3 private residence host (Outskirts Homesteads)
 
   - id: 41
     slug: city_outskirts_scavenger_market
@@ -572,6 +578,7 @@ rooms:
     map_y: 0.5
     properties:
       cover_max: 0
+    housing: true  # F.5b.3.a: T5 organization HQ host (Outskirts Compound)
 
   - id: 43
     slug: city_outskirts_speeder_track
@@ -648,6 +655,7 @@ rooms:
     zone: outskirts
     map_x: 0.82
     map_y: 0.3
+    housing: true  # F.5b.3.a: T5 organization HQ host (Abandoned Compound)
 
   - id: 48
     slug: jundland_wastes_canyon_mouth

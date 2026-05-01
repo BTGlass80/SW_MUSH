@@ -75,7 +75,13 @@ content_refs:
   planets:
     - planets/tatooine.yaml
     - planets/nar_shaddaa.yaml
-    # Drops 2-4 add: coruscant, kuat, kamino, geonosis
+    - planets/coruscant.yaml
+    - planets/kuat.yaml
+    - planets/kamino.yaml
+    - planets/geonosis.yaml
+    - tutorials/rooms.yaml   # F.8.b (Apr 30 2026): 27 tutorial-zone-only rooms (planet="tutorial_chains") anchoring the 7 unlocked CW tutorial chains. All have properties.tutorial_zone=true so the runtime suppresses ambient/world events, NPC traffic, and CP tick accrual while the player is in-tutorial.
+    # F.4 (Apr 30 2026): All six CW planets now active. Per-room exit dict
+    # format supported by the loader (see clone_wars_era_design_v3.md §6).
   wilderness: []          # Drop 5 adds coruscant_underworld, Drop 10 adds tatooine_dune_sea
   # ── NPCs (per cw_content_gap_design_v1_1_decisions.md Drop A) ────────────
   # `npcs` is a list of files that engine/npc_loader.py loads in order. The
@@ -103,6 +109,16 @@ content_refs:
   starships: starships.yaml              # 14 CW-exclusive ship templates
   traffic_archetypes: traffic_archetypes.yaml  # Republic/CIS patrol archetypes
 
+  # ── Docked ships (CW.SHIPS drop, May 2026) ───────────────────────────────
+  # 7 docked ships across the four player-facing CW planets (Tatooine,
+  # Nar Shaddaa, Kuat, Coruscant). Loaded by engine/ship_loader.py and
+  # spawned at world-build time. Templates resolve through the era-aware
+  # get_ship_registry() (loads data/starships.yaml + this era's
+  # starships.yaml in two passes). Per architecture v39 §3.2 priority #1
+  # CW.SHIPS, this closes the "CW players have no ships to fly" gap that
+  # the smoke harness flagged.
+  ships: ships.yaml
+
   # ── Director / Lore pivot content (Drop 6a — engine refactor pending) ────
   # These three files are consumed by Drop 6a's engine refactor of
   # engine/director.py and engine/world_lore.py. Until that ships, they
@@ -111,6 +127,25 @@ content_refs:
   lore: lore.yaml                        # 32 CW lore entries (replaces SEED_ENTRIES)
   director_config: director_config.yaml  # Faction model + zone_baselines + system prompt
   ambient_events: ambient_events.yaml    # Ambient flavor for new CW zones
+
+  # ── Housing lot inventory (per F.5a.1, Apr 29 2026) ─────────────────────
+  # Tier 2 faction-quarter mappings for republic / cis / jedi_order /
+  # hutt_cartel; bounty_hunters_guild has no faction quarters by design.
+  # Byte-equivalent extraction of the CW additions in
+  # engine/housing.py::FACTION_QUARTER_TIERS that B.1.d.1 (Apr 29) landed.
+  # T1/T3/T4/T5 inventories come in F.5a.2.
+  # Until F.5b's data-fy refactor lands, this YAML is data-only — engine
+  # still reads from the in-Python literal.
+  housing_lots: housing_lots.yaml
+
+  # ── Chargen templates (per F.7, Apr 30 2026) ────────────────────────────
+  # 9 CW chargen archetypes (smuggler, bounty_hunter, scoundrel,
+  # technician — era-neutral carry-overs from GCW; clone_trooper,
+  # republic_officer, republic_pilot, separatist_pilot, cis_field_agent
+  # — CW-canonical additions). jedi_apprentice is intentionally absent
+  # — CW Jedi PCs are village_gated per the era policy block above; the
+  # village quest chain is the entry path, not chargen template selection.
+  chargen_templates: chargen_templates.yaml
 
 # ═══════════════════════════════════════════════════════════════════════
 # REGISTRY POLICY (Space Pivot drop)

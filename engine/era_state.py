@@ -129,7 +129,49 @@ def resolve_era_for_seeding(cfg: Optional[object] = None) -> Optional[str]:
     Returns None when the flag is off, which makes the seeding function
     take its legacy path. Callers that want the era code regardless
     should use `get_active_era()` directly.
+
+    DEPRECATED for production callers as of F.6a.7. New callers should
+    use `get_seeding_era()` instead, which returns the active era
+    unconditionally (the YAML path is the production path post-F.6a.7).
+    Kept for backward compatibility with F.6a.{2,3}-int test fixtures
+    that explicitly exercise the `era=None` legacy branch.
     """
     if not use_yaml_director_data(cfg):
         return None
+    return get_active_era(cfg)
+
+
+# ── F.6a.7 (Apr 29 2026) — YAML path is now the production path ──────
+# Pre-F.6a.7, GCW production boot called seeding helpers with era=None,
+# routing through the legacy hardcoded constants (SEED_ENTRIES,
+# _LEGACY_VALID_FACTIONS, etc.). The GCW YAML counterparts in
+# data/worlds/gcw/ have been byte-equivalence-verified by F.6a.{2,3}
+# test gates (still green as of B.1.f close-out, Apr 29 2026), so the
+# YAML path is now safe to use unconditionally for both eras.
+#
+# Phase 1 of F.6a.7 (this drop): production boot calls get_seeding_era()
+# to resolve the active era regardless of the use_yaml_director_data
+# flag, so GCW boots through `era="gcw"` instead of `era=None`. The
+# legacy `era=None` branches in seed_lore() and
+# get_director_runtime_config() remain in place for safety + for the
+# explicit test fixtures that exercise them.
+#
+# Phase 2 of F.6a.7 (later drop): once Phase 1 is proven stable, the
+# `era=None` legacy branches are deleted along with the `_LEGACY_*`
+# constants and the SEED_ENTRIES literal.
+
+def get_seeding_era(cfg: Optional[object] = None) -> str:
+    """Return the active era code unconditionally — the YAML path is
+    now the production path for both GCW and CW.
+
+    Mirrors `get_active_era()` exactly: explicit cfg → registered cfg →
+    _DEFAULT_ERA ("gcw"). The use_yaml_director_data flag is NOT
+    consulted here; that flag was a transitional gate for F.6a.6's
+    dev CLI, and is bypassed by callers that have committed to the
+    YAML path (post-F.6a.7).
+
+    Use this in production seeding call sites:
+        seed_lore(self.db, era=get_seeding_era())
+        get_director_runtime_config(era=get_seeding_era())
+    """
     return get_active_era(cfg)

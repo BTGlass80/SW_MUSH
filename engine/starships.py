@@ -608,12 +608,58 @@ _registry: Optional[ShipRegistry] = None
 
 
 def get_ship_registry() -> ShipRegistry:
+    """Return the shared ship template registry.
+
+    Loads in two passes:
+      1. ``data/starships.yaml`` — the base/legacy template catalog
+         (GCW-era ships; always present).
+      2. ``data/worlds/<active_era>/starships.yaml`` — era-specific
+         templates, layered on top of the base. CW templates (Venator,
+         ARC-170, Eta-2 Actis, etc.) live here. Skipped silently if
+         the file does not exist (e.g. for eras with no exclusive
+         templates).
+
+    Era resolution defers to ``engine.era_state.get_active_era()`` so
+    the registry follows the same single-source-of-truth contract as
+    the NPC loader and director config (see architecture v39 §2.2).
+    The era is read once at first ``get_ship_registry()`` call; if a
+    test or runtime needs to flip eras, call
+    ``reset_ship_registry()`` first.
+
+    Note on field-type tolerance: Python dataclasses do not enforce
+    type annotations at runtime, so float-valued fields like
+    ``hyperdrive`` (CW Acclamator x0.6, ARC-170 x1.5) load cleanly
+    against the ``int``-annotated field. All four downstream usages
+    of ``template.hyperdrive`` already coerce to float or compare
+    numerically (see engine/starships.py around lines 1120, 1405,
+    1796).
+    """
     global _registry
     if _registry is None:
         _registry = ShipRegistry()
         data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+        # Base catalog (always loaded)
         _registry.load_file(os.path.join(data_dir, "starships.yaml"))
+        # Era-specific overlay (loaded if present)
+        try:
+            from engine.era_state import get_active_era
+            era = get_active_era()
+        except Exception:  # pragma: no cover - defensive
+            era = "gcw"
+        era_path = os.path.join(data_dir, "worlds", era, "starships.yaml")
+        if os.path.exists(era_path):
+            _registry.load_file(era_path)
     return _registry
+
+
+def reset_ship_registry() -> None:
+    """Drop the cached registry. Next ``get_ship_registry()`` rebuilds.
+
+    Intended for tests that need to flip the active era between
+    assertions. Production code should not call this.
+    """
+    global _registry
+    _registry = None
 
 
 # -- Space Combat Resolution --

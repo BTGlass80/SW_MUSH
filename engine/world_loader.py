@@ -89,6 +89,10 @@ class EraManifest:
     lore_path: Optional[Path] = None
     director_config_path: Optional[Path] = None
     ambient_events_path: Optional[Path] = None
+    # Drop F.7 (Apr 30 2026): optional chargen-templates pivot ref.
+    # Eras may omit and the consuming loader (engine/chargen_templates_loader.py)
+    # returns None. See F.7 handoff for the data-fy plan.
+    chargen_templates_path: Optional[Path] = None
     policy: dict = field(default_factory=dict)
     raw: dict = field(default_factory=dict)
 
@@ -136,6 +140,24 @@ class Exit:
     locked: bool = False
     hidden: bool = False
     raw: dict = field(default_factory=dict)
+
+
+# ── F.4 (Apr 30 2026) — Per-room exit directive (staging type) ───────────────
+# The newer planet-YAML schema (per clone_wars_era_design_v3.md §6) authors
+# exits as a per-room dict: `exits: {direction: target_slug}`. These cannot
+# be resolved to integer-ID `Exit` records until ALL planet files have been
+# loaded, since cross-planet exits reference slugs not yet known to a single
+# file. _load_planet_file collects these directives and load_planets resolves
+# them after building a global slug→(id, planet) index.
+@dataclass
+class _PerRoomExitDirective:
+    """A pre-resolution exit declaration from a per-room exits block."""
+    from_slug: str
+    direction: str
+    to_slug: str
+    planet: str  # the file the directive came from
+    locked: bool = False
+    hidden: bool = False
 
 
 @dataclass
@@ -258,6 +280,8 @@ def load_era_manifest(era_dir: Path) -> EraManifest:
         lore_path=resolve("lore", required=False),
         director_config_path=resolve("director_config", required=False),
         ambient_events_path=resolve("ambient_events", required=False),
+        # Drop F.7 (Apr 30 2026): optional chargen-templates ref.
+        chargen_templates_path=resolve("chargen_templates", required=False),
         policy=raw.get("policy") or {},
         raw=raw,
     )
@@ -309,9 +333,23 @@ def load_zones(manifest: EraManifest) -> dict[str, Zone]:
 # ── Planet loader (rooms + exits) ────────────────────────────────────────────
 
 
-def _load_planet_file(path: Path) -> tuple[list[Room], list[Exit]]:
-    """Parse a single planet YAML into (rooms, exits) — the planet name
-    is read from the file itself and stamped onto each room/exit.
+def _load_planet_file(path: Path) -> tuple[list[Room], list[Exit], list[_PerRoomExitDirective]]:
+    """Parse a single planet YAML into (rooms, top_level_exits, per_room_directives)
+    — the planet name is read from the file itself and stamped onto each
+    room/exit/directive.
+
+    Two exit schemas are supported (a planet file can use either or both):
+
+      1. Top-level `exits:` list, integer-ID-keyed records with explicit
+         `forward` and `reverse`. This is the legacy format used by
+         tatooine.yaml and nar_shaddaa.yaml.
+
+      2. Per-room `exits: {direction: target_slug}` dict on each room.
+         This is the F.4 format used by coruscant/kuat/kamino/geonosis,
+         per clone_wars_era_design_v3.md §6 ("Per-room exits blocks;
+         every exit declared on the FROM side"). These cannot be resolved
+         to Exit records here — load_planets pairs them after all planet
+         files have been parsed.
     """
     if not path.is_file():
         raise WorldLoadError(f"Missing planet file: {path}")
@@ -331,6 +369,7 @@ def _load_planet_file(path: Path) -> tuple[list[Room], list[Exit]]:
         raise WorldLoadError(f"{path}: missing top-level 'planet' field.")
 
     rooms_out: list[Room] = []
+    directives_out: list[_PerRoomExitDirective] = []
     for rd in (raw.get("rooms") or []):
         if not isinstance(rd, dict):
             raise WorldLoadError(
@@ -345,9 +384,10 @@ def _load_planet_file(path: Path) -> tuple[list[Room], list[Exit]]:
             raise WorldLoadError(
                 f"{path}: room id={rd['id']} missing 'slug'."
             )
+        room_slug = str(rd["slug"])
         rooms_out.append(Room(
             id=int(rd["id"]),
-            slug=str(rd["slug"]),
+            slug=room_slug,
             name=str(rd.get("name", rd["slug"])),
             short_desc=str(rd.get("short_desc", "") or "").strip(),
             description=str(rd.get("description", "") or "").strip(),
@@ -358,8 +398,32 @@ def _load_planet_file(path: Path) -> tuple[list[Room], list[Exit]]:
             raw=rd,
         ))
 
+        # F.4: collect per-room exits (if any). The new schema uses a dict;
+        # any non-dict (a list, etc.) is an authoring error.
+        room_exits = rd.get("exits")
+        if room_exits is not None and isinstance(room_exits, dict):
+            for direction, target in room_exits.items():
+                if not isinstance(target, str):
+                    raise WorldLoadError(
+                        f"{path}: room '{room_slug}' exit '{direction}' "
+                        f"target must be a slug string; got {type(target).__name__}."
+                    )
+                directives_out.append(_PerRoomExitDirective(
+                    from_slug=room_slug,
+                    direction=str(direction),
+                    to_slug=target,
+                    planet=planet,
+                ))
+
     exits_out: list[Exit] = []
     for ed in (raw.get("exits") or []):
+        # Top-level `exits:` MUST be a list (legacy schema). If a planet file
+        # mistakenly puts a top-level exits dict, that's an authoring error.
+        if not isinstance(raw.get("exits"), list):
+            raise WorldLoadError(
+                f"{path}: top-level 'exits' must be a list (legacy schema). "
+                f"For per-room exits use the room's own 'exits:' dict."
+            )
         if not isinstance(ed, dict):
             raise WorldLoadError(
                 f"{path}: every exit must be a mapping; got {type(ed).__name__}."
@@ -380,21 +444,34 @@ def _load_planet_file(path: Path) -> tuple[list[Room], list[Exit]]:
             raw=ed,
         ))
 
-    return rooms_out, exits_out
+    return rooms_out, exits_out, directives_out
 
 
-def load_planets(manifest: EraManifest
+def load_planets(manifest: EraManifest,
+                  unresolved_report: Optional[list[str]] = None,
                   ) -> tuple[dict[int, Room], list[Exit]]:
     """Walk every planet file in manifest.planet_paths, return merged
     dict-of-rooms (keyed by integer ID) and flat list of exits.
 
     Duplicate IDs across planet files raise WorldLoadError immediately —
     that's a build-time catastrophe, not a validation warning.
+
+    F.4 (Apr 30 2026): per-room exit directives from any planet file are
+    collected first, then resolved to Exit records after all planets are
+    parsed. The slug→(id, planet) index used for resolution is built from
+    EVERY loaded room across EVERY planet file, so cross-planet exits work.
+
+    If `unresolved_report` is provided, dangling per-room exit targets
+    (slugs that don't resolve to any loaded room) are appended to it as
+    string messages. Otherwise unresolved targets are silently dropped.
+    The boot path passes a list and merges it into ValidationReport.errors;
+    tools that just want the room/exit data can ignore it.
     """
     rooms: dict[int, Room] = {}
     exits: list[Exit] = []
+    all_directives: list[_PerRoomExitDirective] = []
     for path in manifest.planet_paths:
-        ps_rooms, ps_exits = _load_planet_file(path)
+        ps_rooms, ps_exits, ps_directives = _load_planet_file(path)
         for r in ps_rooms:
             if r.id in rooms:
                 prev = rooms[r.id]
@@ -405,7 +482,141 @@ def load_planets(manifest: EraManifest
                 )
             rooms[r.id] = r
         exits.extend(ps_exits)
+        all_directives.extend(ps_directives)
+
+    # F.4: resolve per-room directives into Exit records.
+    if all_directives:
+        resolved = _resolve_per_room_directives(
+            all_directives, rooms, unresolved_report=unresolved_report,
+        )
+        exits.extend(resolved)
     return rooms, exits
+
+
+def _resolve_per_room_directives(directives: list[_PerRoomExitDirective],
+                                  rooms: dict[int, Room],
+                                  unresolved_report: Optional[list[str]] = None,
+                                  ) -> list[Exit]:
+    """Resolve per-room exit directives to Exit records.
+
+    For each directive D = (from_slug, direction, to_slug):
+
+      1. Look up from_slug and to_slug in the slug → (id, planet) index.
+         Missing from_slug is a build-time error (the directive came
+         from the room itself, so this would mean the same file declared
+         a room and didn't register it). Missing to_slug is a soft error
+         — the directive is dropped and recorded into unresolved_report
+         so validate_world can surface it as part of a single combined
+         report rather than crashing the load.
+
+      2. Look for a paired directive D' on the destination room — i.e.,
+         a directive with from_slug == D.to_slug and to_slug == D.from_slug.
+         The pair's `direction` becomes D's `reverse`.
+
+      3. If no pair is found, emit Exit with reverse="" and let
+         validate_world report the dangling exit as a validation error
+         (an empty reverse is an invalid direction).
+
+    Directives are processed once each; the (forward, reverse) pair is
+    emitted as a single Exit anchored on the alphabetically-first slug
+    so we don't duplicate the same physical edge twice.
+    """
+    if unresolved_report is None:
+        unresolved_report = []
+
+    # Build slug → (id, planet) index
+    slug_index: dict[str, tuple[int, str]] = {}
+    for r in rooms.values():
+        slug_index[r.slug] = (r.id, r.planet)
+
+    # Build pair index: (from_slug, to_slug) -> direction (for fast pair lookup)
+    forward_by_pair: dict[tuple[str, str], str] = {}
+    for d in directives:
+        forward_by_pair[(d.from_slug, d.to_slug)] = d.direction
+
+    out: list[Exit] = []
+    seen_pairs: set[tuple[str, str]] = set()
+
+    for d in directives:
+        # Skip if we've already emitted this physical edge (under either
+        # direction's anchor).
+        canonical = tuple(sorted([d.from_slug, d.to_slug]))
+        if canonical in seen_pairs:
+            continue
+
+        # Resolve from-slug — this MUST exist (we got the directive from
+        # the room itself).
+        if d.from_slug not in slug_index:
+            raise WorldLoadError(
+                f"Per-room exit on planet '{d.planet}': from_slug "
+                f"'{d.from_slug}' not found in any loaded room. "
+                f"This is a loader-internal invariant violation."
+            )
+        from_id, from_planet = slug_index[d.from_slug]
+
+        # Resolve to-slug — soft fail: record and skip. validate_world
+        # surfaces these as a single combined report.
+        if d.to_slug not in slug_index:
+            unresolved_report.append(
+                f"Per-room exit on '{d.from_slug}' (planet '{d.planet}'): "
+                f"target slug '{d.to_slug}' (direction '{d.direction}') "
+                f"not found in any loaded room."
+            )
+            seen_pairs.add(canonical)
+            continue
+        to_id, _to_planet = slug_index[d.to_slug]
+
+        # Look for a paired reverse directive.
+        reverse = forward_by_pair.get((d.to_slug, d.from_slug), "")
+
+        # F.4: if no pair was authored, auto-derive the reverse for
+        # canonical-symmetric cardinal directions. This rescues cases
+        # like `north → south`, `up → down` where the author wrote the
+        # forward exit on the source but forgot to declare the reverse
+        # exit on the destination. Asymmetric directions (named hub/spoke
+        # like `commercial/hub`) cannot be auto-derived; if those are
+        # missing, validate_world flags them as invalid reverse direction.
+        if not reverse:
+            cardinal_inverses = {
+                "north": "south", "south": "north",
+                "east": "west", "west": "east",
+                "northeast": "southwest", "southwest": "northeast",
+                "northwest": "southeast", "southeast": "northwest",
+                "up": "down", "down": "up",
+                "in": "out", "out": "in",
+            }
+            inferred = cardinal_inverses.get(d.direction.strip().lower())
+            if inferred:
+                # Only auto-fill if the destination doesn't already have an
+                # authored exit on that direction (don't clobber explicit
+                # authoring).
+                already_taken = any(
+                    other.from_slug == d.to_slug
+                    and other.direction.strip().lower() == inferred
+                    for other in directives
+                )
+                if not already_taken:
+                    reverse = inferred
+
+        out.append(Exit(
+            from_id=from_id,
+            to_id=to_id,
+            forward=d.direction,
+            reverse=reverse,
+            planet=from_planet,
+            locked=d.locked,
+            hidden=d.hidden,
+            raw={
+                "from_slug": d.from_slug,
+                "to_slug": d.to_slug,
+                "forward": d.direction,
+                "reverse": reverse,
+                "_source": "per_room_directive",
+            },
+        ))
+        seen_pairs.add(canonical)
+
+    return out
 
 
 # ── Validation pass ──────────────────────────────────────────────────────────
@@ -492,18 +703,27 @@ def validate_world(zones: dict[str, Zone],
     # For each room, collect the set of outgoing-direction first-tokens
     # (forward direction for from-exits, first token of reverse for to-exits).
     # Duplicates are an error — a room can't have two "north" exits.
+    #
+    # F.4: empty-string forward/reverse is *not* counted as a direction.
+    # That's a separate validation error (handled by check #4 above as
+    # "invalid forward/reverse direction"). Including empties here would
+    # produce spurious collision errors when an unpaired per-room exit
+    # leaves a destination with N exits all claiming direction='' — the
+    # underlying issue is each unpaired exit, not a multi-claimant collision.
     room_outgoing: dict[int, dict[str, list[str]]] = {}
     for ex in exits:
         if ex.from_id in rooms:
             fwd = ex.forward.split()[0].lower() if ex.forward else ""
-            room_outgoing.setdefault(ex.from_id, {}).setdefault(
-                fwd, []
-            ).append(f"to room {ex.to_id}")
+            if fwd:
+                room_outgoing.setdefault(ex.from_id, {}).setdefault(
+                    fwd, []
+                ).append(f"to room {ex.to_id}")
         if ex.to_id in rooms:
             rev = ex.reverse.split()[0].lower() if ex.reverse else ""
-            room_outgoing.setdefault(ex.to_id, {}).setdefault(
-                rev, []
-            ).append(f"back from room {ex.from_id}")
+            if rev:
+                room_outgoing.setdefault(ex.to_id, {}).setdefault(
+                    rev, []
+                ).append(f"back from room {ex.from_id}")
     for room_id, dir_map in room_outgoing.items():
         for direction, sources in dir_map.items():
             if len(sources) > 1:
@@ -584,8 +804,14 @@ def load_world_dry_run(era: str,
     era_dir = Path(worlds_root) / era
     manifest = load_era_manifest(era_dir)
     zones = load_zones(manifest)
-    rooms, exits = load_planets(manifest)
+    unresolved: list[str] = []
+    rooms, exits = load_planets(manifest, unresolved_report=unresolved)
     report = validate_world(zones, rooms, exits)
+    # F.4: dangling per-room exit targets are validation errors. Boot
+    # fails on any non-empty unresolved list, but the user sees the full
+    # surface area in a single report.
+    if unresolved:
+        report.errors.extend(unresolved)
     return WorldBundle(
         manifest=manifest,
         zones=zones,
@@ -1259,6 +1485,944 @@ def load_ambient_pools(manifest: EraManifest) -> Optional[AmbientPools]:
     return AmbientPools(
         schema_version=schema_version,
         pools=pools,
+        report=report,
+        raw=raw,
+    )
+
+
+# ── F.5a.1 (Apr 29 2026) — Housing lots loader ───────────────────────────────
+# Per cw_housing_design_v1.md §11 (the housing_lots.yaml schema). This drop
+# ships only the Tier 2 faction-quarter mappings (the data bound to F.5b's
+# eventual `FACTION_QUARTER_TIERS` data-fy refactor). T1/T3/T4/T5 lot
+# inventories come in F.5a.2; the loader tolerates their absence.
+
+@dataclass
+class FactionQuarterTier:
+    """One rank-tier within a faction's quarter ladder.
+
+    `rank_min` is the minimum rank at which this tier becomes active.
+    Engine consumers walk tiers in descending `rank_min` order and pick
+    the highest qualifying one. Same semantics as the
+    (faction_code, rank) -> cfg dict in `engine/housing.py::FACTION_QUARTER_TIERS`
+    that this YAML mirrors.
+    """
+    rank_min: int
+    label: str
+    storage_max: int
+    room_name: str
+    room_desc: str
+
+
+@dataclass
+class FactionQuartersConfig:
+    """Tier ladder for one faction's quarter assignments.
+
+    `tiers` is a list of FactionQuarterTier ordered by `rank_min` ascending.
+    A faction with no quarters by design (BHG in CW) is represented by
+    `tiers=[]` plus the YAML's `null` value for the faction key (the
+    parsing layer maps `null` → `FactionQuartersConfig(tiers=[])`).
+    """
+    tiers: list = field(default_factory=list)
+
+
+# ── F.5a.2 (Apr 29 2026) — Lot inventory dataclasses ─────────────────────────
+# Per cw_housing_design_v1.md §11. F.5a.2 extends the loader to parse the
+# remaining four sections of housing_lots.yaml: tier1_rentals (T1 rental
+# host buildings), tier3_lots (private residence host rooms), tier4_lots
+# (shopfront host rooms), tier5_lots (organization HQ host rooms). Each
+# section is optional and may be omitted or empty in the YAML.
+#
+# These four dataclasses mirror the §11 schema. F.5a.3 will populate the
+# YAMLs with actual lot inventories (~46 lots across CW + GCW parity).
+
+@dataclass
+class Tier1RentalHost:
+    """A T1 rental host building. Per cw_housing_design_v1.md §6.
+
+    A T1 host is a building (cantina back room, hotel, station rentable
+    bunkroom) operated by an NPC clerk. `slots` is the number of
+    parallel rentals the building offers; `weekly_rent_base` is the
+    per-week credit cost before security-tier discount.
+
+    F.5b.3.b (Apr 30 2026) added `display_label` and `security_override`
+    as optional overrides for the provider's auto-derived label/security.
+    The legacy GCW lots had hand-authored labels (e.g. "Spaceport
+    Hotel") and securities ("secured") that don't match the auto-derived
+    values; these fields preserve that authoring while keeping the
+    underlying slug-based addressing.
+    """
+    id: str
+    planet: str
+    zone: str
+    host_room: str         # slug — resolved to room ID at boot time
+    npc: str               # rental clerk NPC slug
+    slots: int
+    weekly_rent_base: int
+    description_theme: str = ""
+    max_stay_weeks: Optional[int] = None  # Kamino transient cap (§6 note)
+    display_label: Optional[str] = None      # F.5b.3.b override
+    security_override: Optional[str] = None  # F.5b.3.b override
+
+
+@dataclass
+class Tier3Lot:
+    """A T3 private-residence host room. Per cw_housing_design_v1.md §7.
+
+    A T3 lot is a host room that can hold up to `max_homes` purchased
+    private residences. `allowed_types` enumerates which house tiers
+    (studio/standard/deluxe) the lot supports. `rep_gate` is optional
+    and locks the lot behind a faction reputation threshold (§7.1 Kuat
+    rep-gated lots; §13.1 engine filter).
+
+    F.5b.3.b (Apr 30 2026): `display_label` and `security_override`
+    are optional fields for preserving legacy GCW hand-authored labels
+    and securities (see Tier1RentalHost docstring).
+    """
+    id: str
+    planet: str
+    zone: str
+    host_room: str
+    max_homes: int
+    allowed_types: list = field(default_factory=list)
+    description_theme: str = ""
+    rep_gate: Optional[dict] = None  # {"faction": str, "min_value": int}
+    display_label: Optional[str] = None      # F.5b.3.b override
+    security_override: Optional[str] = None  # F.5b.3.b override
+
+
+@dataclass
+class Tier4Lot:
+    """A T4 shopfront host room. Per cw_housing_design_v1.md §8.
+
+    A T4 lot is a public-shop-room + private-residence combo. The
+    invariant from §3 forbids T4 in lawless zones — the loader does
+    NOT enforce this (zone security tier is not part of housing data);
+    enforcement lives at lot-author-time and at runtime in
+    engine/housing.py.
+
+    F.5b.3.b (Apr 30 2026): `display_label` and `security_override`
+    are optional fields for preserving legacy GCW hand-authored labels
+    and securities.
+    """
+    id: str
+    planet: str
+    zone: str
+    host_room: str
+    max_homes: int
+    allowed_types: list = field(default_factory=list)
+    description_theme: str = ""
+    market_search_priority: int = 0  # Coco Town Arcade flagship boost (§8)
+    display_label: Optional[str] = None      # F.5b.3.b override
+    security_override: Optional[str] = None  # F.5b.3.b override
+
+
+@dataclass
+class Tier5Lot:
+    """A T5 organization HQ host room. Per cw_housing_design_v1.md §9.
+
+    A T5 lot is an organization headquarters (outpost / chapter_house /
+    fortress). `recommended_faction` biases the description templates
+    but does not lock out other orgs (§9 — "recommended" not "required").
+    `max_homes` defaults to 1 (one HQ per host room) but the schema
+    permits >1 for shared compounds.
+
+    F.5b.3.b (Apr 30 2026): `display_label` and `security_override`
+    are optional fields for preserving legacy GCW hand-authored labels
+    and securities.
+    """
+    id: str
+    planet: str
+    zone: str
+    host_room: str
+    max_homes: int = 1
+    allowed_types: list = field(default_factory=list)
+    description_theme: str = ""
+    recommended_faction: Optional[str] = None
+    display_label: Optional[str] = None      # F.5b.3.b override
+    security_override: Optional[str] = None  # F.5b.3.b override
+
+
+@dataclass
+class HousingLotsCorpus:
+    """Full housing-lot inventory for one era.
+
+    F.5a.1 shipped only `tier2_faction_quarters`. F.5a.2 (this drop)
+    extends the corpus with `tier1_rentals`, `tier3_lots`, `tier4_lots`,
+    `tier5_lots`. Each is a list (possibly empty) of the matching
+    lot-tier dataclass.
+    """
+    schema_version: int
+    era: str
+    tier2_faction_quarters: dict  # {faction_code: FactionQuartersConfig}
+    report: ValidationReport
+    raw: dict = field(default_factory=dict)
+    # F.5a.2 additions — default to empty lists for backwards compat.
+    tier1_rentals: list = field(default_factory=list)   # list[Tier1RentalHost]
+    tier3_lots: list = field(default_factory=list)      # list[Tier3Lot]
+    tier4_lots: list = field(default_factory=list)      # list[Tier4Lot]
+    tier5_lots: list = field(default_factory=list)      # list[Tier5Lot]
+
+
+def load_housing_lots(manifest: EraManifest) -> Optional[HousingLotsCorpus]:
+    """Parse the era's housing_lots.yaml into a HousingLotsCorpus.
+
+    Returns None when the manifest does not declare a `housing_lots`
+    content_ref. Raises WorldLoadError when the file is declared but
+    missing/malformed.
+
+    Per F.5a.1 scope, only `tier2_faction_quarters` is parsed. Future
+    F.5a.2 will extend this loader to handle `tier1_rentals`,
+    `tier3_lots`, `tier4_lots`, `tier5_lots` — each can be empty in
+    F.5a.1 YAMLs without warnings.
+
+    Tested by tests/test_f5a1_housing_lots_loader.py.
+    """
+    path = manifest.housing_lots_path
+    if path is None:
+        return None
+    if not path.is_file():
+        raise WorldLoadError(f"Missing housing_lots file: {path}")
+
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as e:
+        raise WorldLoadError(f"Failed to parse {path}: {e}") from e
+
+    if not isinstance(raw, dict):
+        raise WorldLoadError(
+            f"{path}: top-level must be a mapping, "
+            f"got {type(raw).__name__}."
+        )
+
+    schema_version = int(raw.get("schema_version", 1))
+    era = raw.get("era") or ""
+    report = ValidationReport()
+
+    fq_raw = raw.get("tier2_faction_quarters") or {}
+    if not isinstance(fq_raw, dict):
+        report.errors.append(
+            f"{path}: 'tier2_faction_quarters' must be a mapping, "
+            f"got {type(fq_raw).__name__}."
+        )
+        fq_raw = {}
+
+    tier2_faction_quarters: dict = {}
+    for fc, fcfg in fq_raw.items():
+        if fcfg is None:
+            # Faction explicitly declares no quarters (BHG in CW).
+            tier2_faction_quarters[fc] = FactionQuartersConfig(tiers=[])
+            continue
+
+        if not isinstance(fcfg, dict):
+            report.errors.append(
+                f"{path}: tier2_faction_quarters[{fc!r}] must be "
+                f"a mapping or null, got {type(fcfg).__name__}."
+            )
+            continue
+
+        tiers_raw = fcfg.get("tiers") or []
+        if not isinstance(tiers_raw, list):
+            report.errors.append(
+                f"{path}: tier2_faction_quarters[{fc!r}].tiers must "
+                f"be a list, got {type(tiers_raw).__name__}."
+            )
+            continue
+
+        tiers: list = []
+        seen_ranks: set = set()
+        for i, t in enumerate(tiers_raw):
+            if not isinstance(t, dict):
+                report.errors.append(
+                    f"{path}: tier2_faction_quarters[{fc!r}].tiers[{i}] "
+                    f"must be a mapping, got {type(t).__name__}."
+                )
+                continue
+
+            # Required fields
+            missing = [k for k in ("rank_min", "label", "storage_max",
+                                    "room_name", "room_desc")
+                       if t.get(k) is None]
+            if missing:
+                report.errors.append(
+                    f"{path}: tier2_faction_quarters[{fc!r}].tiers[{i}] "
+                    f"missing required field(s): {missing}."
+                )
+                continue
+
+            rank_min = t["rank_min"]
+            if not isinstance(rank_min, int) or rank_min < 0:
+                report.errors.append(
+                    f"{path}: tier2_faction_quarters[{fc!r}].tiers[{i}] "
+                    f"rank_min must be non-negative int, got {rank_min!r}."
+                )
+                continue
+
+            if rank_min in seen_ranks:
+                report.warnings.append(
+                    f"{path}: tier2_faction_quarters[{fc!r}] has duplicate "
+                    f"rank_min={rank_min}; later entry wins."
+                )
+            seen_ranks.add(rank_min)
+
+            storage_max = t["storage_max"]
+            if not isinstance(storage_max, int) or storage_max < 0:
+                report.errors.append(
+                    f"{path}: tier2_faction_quarters[{fc!r}].tiers[{i}] "
+                    f"storage_max must be non-negative int, got "
+                    f"{storage_max!r}."
+                )
+                continue
+
+            tiers.append(FactionQuarterTier(
+                rank_min=rank_min,
+                label=str(t["label"]),
+                storage_max=storage_max,
+                room_name=str(t["room_name"]),
+                room_desc=str(t["room_desc"]),
+            ))
+
+        tiers.sort(key=lambda x: x.rank_min)
+        tier2_faction_quarters[fc] = FactionQuartersConfig(tiers=tiers)
+
+    # ── F.5a.2 — Parse T1/T3/T4/T5 lot inventories ──────────────────────
+    # Each section is optional (may be omitted entirely) and may be empty.
+    # Validation rules (per cw_housing_design_v1.md §11 schema):
+    #   - Required string fields: id, planet, zone, host_room
+    #   - Required ints: slots/max_homes, weekly_rent_base (T1 only) — non-negative
+    #   - allowed_types must be a list of strings (when present)
+    #   - rep_gate (T3 only) must be {"faction": str, "min_value": int}
+    #   - id values must be unique within their tier section
+    # Records that fail validation are skipped with an error in `report.errors`;
+    # the loader still returns a corpus so consumers see partial data + errors.
+
+    tier1_rentals: list = _parse_tier1_rentals(
+        raw.get("tier1_rentals") or [], path, report
+    )
+    tier3_lots: list = _parse_tier3_lots(
+        raw.get("tier3_lots") or [], path, report
+    )
+    tier4_lots: list = _parse_tier4_lots(
+        raw.get("tier4_lots") or [], path, report
+    )
+    tier5_lots: list = _parse_tier5_lots(
+        raw.get("tier5_lots") or [], path, report
+    )
+
+    return HousingLotsCorpus(
+        schema_version=schema_version,
+        era=era,
+        tier2_faction_quarters=tier2_faction_quarters,
+        report=report,
+        raw=raw,
+        tier1_rentals=tier1_rentals,
+        tier3_lots=tier3_lots,
+        tier4_lots=tier4_lots,
+        tier5_lots=tier5_lots,
+    )
+
+
+# ── F.5a.2 — Lot-section parsers ─────────────────────────────────────────────
+# Helpers split out for testability and to keep load_housing_lots readable.
+# Each parser is defensive: it appends an error to `report` and skips the
+# bad record rather than raising. The exception is when the section itself
+# isn't a list — that's a structural error, recorded once, then the section
+# is treated as empty.
+
+def _validate_lot_common(rec, idx: int, section: str, path,
+                         report: ValidationReport,
+                         seen_ids: set) -> Optional[dict]:
+    """Common validation for any lot record. Returns the record dict if
+    it passes basic shape checks, or None if it should be skipped.
+
+    Checks:
+      - record is a mapping
+      - required string fields (id, planet, zone, host_room) are present
+        and non-empty strings
+      - id is unique within section
+    """
+    if not isinstance(rec, dict):
+        report.errors.append(
+            f"{path}: {section}[{idx}] must be a mapping, "
+            f"got {type(rec).__name__}."
+        )
+        return None
+
+    for key in ("id", "planet", "zone", "host_room"):
+        v = rec.get(key)
+        if not isinstance(v, str) or not v.strip():
+            report.errors.append(
+                f"{path}: {section}[{idx}] field {key!r} must be a "
+                f"non-empty string, got {v!r}."
+            )
+            return None
+
+    rid = rec["id"]
+    if rid in seen_ids:
+        report.errors.append(
+            f"{path}: {section} has duplicate id {rid!r}."
+        )
+        return None
+    seen_ids.add(rid)
+    return rec
+
+
+def _validate_allowed_types(rec, idx: int, section: str, path,
+                            report: ValidationReport) -> Optional[list]:
+    """Validate the optional `allowed_types` field. Returns the list
+    (possibly empty) on success, or None on a hard error."""
+    raw_types = rec.get("allowed_types")
+    if raw_types is None:
+        return []
+    if not isinstance(raw_types, list):
+        report.errors.append(
+            f"{path}: {section}[{idx}] field 'allowed_types' must be a "
+            f"list, got {type(raw_types).__name__}."
+        )
+        return None
+    out: list = []
+    for j, item in enumerate(raw_types):
+        if not isinstance(item, str) or not item.strip():
+            report.errors.append(
+                f"{path}: {section}[{idx}].allowed_types[{j}] must be a "
+                f"non-empty string, got {item!r}."
+            )
+            return None
+        out.append(item)
+    return out
+
+
+def _parse_tier1_rentals(raw_list, path, report: ValidationReport) -> list:
+    """Parse the tier1_rentals section. Returns list[Tier1RentalHost]."""
+    if not isinstance(raw_list, list):
+        report.errors.append(
+            f"{path}: 'tier1_rentals' must be a list, "
+            f"got {type(raw_list).__name__}."
+        )
+        return []
+
+    out: list = []
+    seen_ids: set = set()
+    for idx, rec in enumerate(raw_list):
+        rec = _validate_lot_common(rec, idx, "tier1_rentals", path,
+                                    report, seen_ids)
+        if rec is None:
+            continue
+
+        # T1-specific required fields
+        npc = rec.get("npc")
+        if not isinstance(npc, str) or not npc.strip():
+            report.errors.append(
+                f"{path}: tier1_rentals[{idx}] field 'npc' must be a "
+                f"non-empty string, got {npc!r}."
+            )
+            continue
+
+        slots = rec.get("slots")
+        if not isinstance(slots, int) or isinstance(slots, bool) or slots < 0:
+            report.errors.append(
+                f"{path}: tier1_rentals[{idx}] field 'slots' must be a "
+                f"non-negative int, got {slots!r}."
+            )
+            continue
+
+        rent = rec.get("weekly_rent_base")
+        if not isinstance(rent, int) or isinstance(rent, bool) or rent < 0:
+            report.errors.append(
+                f"{path}: tier1_rentals[{idx}] field 'weekly_rent_base' "
+                f"must be a non-negative int, got {rent!r}."
+            )
+            continue
+
+        max_stay = rec.get("max_stay_weeks")
+        if max_stay is not None:
+            if (not isinstance(max_stay, int) or isinstance(max_stay, bool)
+                    or max_stay <= 0):
+                report.errors.append(
+                    f"{path}: tier1_rentals[{idx}] field 'max_stay_weeks' "
+                    f"must be a positive int when present, got {max_stay!r}."
+                )
+                continue
+
+        # F.5b.3.b: optional override fields
+        display_label = _validate_optional_string(
+            rec, "display_label", idx, "tier1_rentals", path, report,
+        )
+        if display_label is False:
+            continue
+        security_override = _validate_optional_string(
+            rec, "security_override", idx, "tier1_rentals", path, report,
+            valid_values=_VALID_SECURITY_OVERRIDES,
+        )
+        if security_override is False:
+            continue
+
+        out.append(Tier1RentalHost(
+            id=rec["id"],
+            planet=rec["planet"],
+            zone=rec["zone"],
+            host_room=rec["host_room"],
+            npc=npc,
+            slots=slots,
+            weekly_rent_base=rent,
+            description_theme=str(rec.get("description_theme") or ""),
+            max_stay_weeks=max_stay,
+            display_label=display_label,
+            security_override=security_override,
+        ))
+    return out
+
+
+def _validate_max_homes(rec, idx: int, section: str, path,
+                        report: ValidationReport,
+                        min_value: int = 1) -> Optional[int]:
+    """Validate `max_homes` (T3/T4/T5). Returns the int or None on error."""
+    mh = rec.get("max_homes")
+    if not isinstance(mh, int) or isinstance(mh, bool) or mh < min_value:
+        report.errors.append(
+            f"{path}: {section}[{idx}] field 'max_homes' must be an int "
+            f">= {min_value}, got {mh!r}."
+        )
+        return None
+    return mh
+
+
+def _validate_optional_string(rec, key: str, idx: int, section: str, path,
+                              report: ValidationReport,
+                              valid_values: Optional[set] = None
+                              ) -> Optional[str]:
+    """Validate an optional string field on a lot record.
+
+    F.5b.3.b (Apr 30 2026): used for `display_label` and
+    `security_override`. Returns:
+      - the string when present and valid
+      - None when absent (the default-derive case in the provider)
+      - sentinel `False` (cast: pass through with `is False` check)
+        on a hard validation error so the caller can `continue`
+
+    Note: this returns None for both "absent" and "error" cases would
+    be ambiguous, so on error we append to report.errors and return
+    `False` (the literal); callers check `result is False` to skip.
+    """
+    v = rec.get(key)
+    if v is None:
+        return None
+    if not isinstance(v, str) or not v.strip():
+        report.errors.append(
+            f"{path}: {section}[{idx}] field {key!r} must be a non-empty "
+            f"string when present, got {v!r}."
+        )
+        return False  # type: ignore[return-value]
+    if valid_values is not None and v not in valid_values:
+        report.errors.append(
+            f"{path}: {section}[{idx}] field {key!r} must be one of "
+            f"{sorted(valid_values)}, got {v!r}."
+        )
+        return False  # type: ignore[return-value]
+    return v
+
+
+# F.5b.3.b: canonical security values per cw_housing_design_v1.md §4
+# and engine/security.py SecurityLevel. These are the only values
+# `security_override` may take when present.
+_VALID_SECURITY_OVERRIDES = {"secured", "contested", "lawless"}
+
+
+def _validate_rep_gate(rec, idx: int, path,
+                       report: ValidationReport) -> Optional[dict]:
+    """Validate the optional T3 `rep_gate` field. Returns:
+      - the dict if valid
+      - {} when not present
+      - None on error
+    """
+    rg = rec.get("rep_gate")
+    if rg is None:
+        return {}
+    if not isinstance(rg, dict):
+        report.errors.append(
+            f"{path}: tier3_lots[{idx}].rep_gate must be a mapping, "
+            f"got {type(rg).__name__}."
+        )
+        return None
+    faction = rg.get("faction")
+    min_value = rg.get("min_value")
+    if not isinstance(faction, str) or not faction.strip():
+        report.errors.append(
+            f"{path}: tier3_lots[{idx}].rep_gate.faction must be a "
+            f"non-empty string, got {faction!r}."
+        )
+        return None
+    if (not isinstance(min_value, int) or isinstance(min_value, bool)):
+        report.errors.append(
+            f"{path}: tier3_lots[{idx}].rep_gate.min_value must be an int, "
+            f"got {min_value!r}."
+        )
+        return None
+    return {"faction": faction, "min_value": min_value}
+
+
+def _parse_tier3_lots(raw_list, path, report: ValidationReport) -> list:
+    """Parse the tier3_lots section. Returns list[Tier3Lot]."""
+    if not isinstance(raw_list, list):
+        report.errors.append(
+            f"{path}: 'tier3_lots' must be a list, "
+            f"got {type(raw_list).__name__}."
+        )
+        return []
+
+    out: list = []
+    seen_ids: set = set()
+    for idx, rec in enumerate(raw_list):
+        rec = _validate_lot_common(rec, idx, "tier3_lots", path,
+                                    report, seen_ids)
+        if rec is None:
+            continue
+
+        mh = _validate_max_homes(rec, idx, "tier3_lots", path, report)
+        if mh is None:
+            continue
+
+        types = _validate_allowed_types(rec, idx, "tier3_lots", path, report)
+        if types is None:
+            continue
+
+        rep_gate = _validate_rep_gate(rec, idx, path, report)
+        if rep_gate is None:
+            continue
+
+        # F.5b.3.b: optional override fields
+        display_label = _validate_optional_string(
+            rec, "display_label", idx, "tier3_lots", path, report,
+        )
+        if display_label is False:
+            continue
+        security_override = _validate_optional_string(
+            rec, "security_override", idx, "tier3_lots", path, report,
+            valid_values=_VALID_SECURITY_OVERRIDES,
+        )
+        if security_override is False:
+            continue
+
+        out.append(Tier3Lot(
+            id=rec["id"],
+            planet=rec["planet"],
+            zone=rec["zone"],
+            host_room=rec["host_room"],
+            max_homes=mh,
+            allowed_types=types,
+            description_theme=str(rec.get("description_theme") or ""),
+            rep_gate=(rep_gate if rep_gate else None),
+            display_label=display_label,
+            security_override=security_override,
+        ))
+    return out
+
+
+def _parse_tier4_lots(raw_list, path, report: ValidationReport) -> list:
+    """Parse the tier4_lots section. Returns list[Tier4Lot]."""
+    if not isinstance(raw_list, list):
+        report.errors.append(
+            f"{path}: 'tier4_lots' must be a list, "
+            f"got {type(raw_list).__name__}."
+        )
+        return []
+
+    out: list = []
+    seen_ids: set = set()
+    for idx, rec in enumerate(raw_list):
+        rec = _validate_lot_common(rec, idx, "tier4_lots", path,
+                                    report, seen_ids)
+        if rec is None:
+            continue
+
+        mh = _validate_max_homes(rec, idx, "tier4_lots", path, report)
+        if mh is None:
+            continue
+
+        types = _validate_allowed_types(rec, idx, "tier4_lots", path, report)
+        if types is None:
+            continue
+
+        priority = rec.get("market_search_priority", 0)
+        if (not isinstance(priority, int) or isinstance(priority, bool)
+                or priority < 0):
+            report.errors.append(
+                f"{path}: tier4_lots[{idx}] field 'market_search_priority' "
+                f"must be a non-negative int when present, got {priority!r}."
+            )
+            continue
+
+        # F.5b.3.b: optional override fields
+        display_label = _validate_optional_string(
+            rec, "display_label", idx, "tier4_lots", path, report,
+        )
+        if display_label is False:
+            continue
+        security_override = _validate_optional_string(
+            rec, "security_override", idx, "tier4_lots", path, report,
+            valid_values=_VALID_SECURITY_OVERRIDES,
+        )
+        if security_override is False:
+            continue
+
+        out.append(Tier4Lot(
+            id=rec["id"],
+            planet=rec["planet"],
+            zone=rec["zone"],
+            host_room=rec["host_room"],
+            max_homes=mh,
+            allowed_types=types,
+            description_theme=str(rec.get("description_theme") or ""),
+            market_search_priority=priority,
+            display_label=display_label,
+            security_override=security_override,
+        ))
+    return out
+
+
+def _parse_tier5_lots(raw_list, path, report: ValidationReport) -> list:
+    """Parse the tier5_lots section. Returns list[Tier5Lot]."""
+    if not isinstance(raw_list, list):
+        report.errors.append(
+            f"{path}: 'tier5_lots' must be a list, "
+            f"got {type(raw_list).__name__}."
+        )
+        return []
+
+    out: list = []
+    seen_ids: set = set()
+    for idx, rec in enumerate(raw_list):
+        rec = _validate_lot_common(rec, idx, "tier5_lots", path,
+                                    report, seen_ids)
+        if rec is None:
+            continue
+
+        # T5 max_homes defaults to 1 if absent (per design §9 — one HQ per
+        # host room is the norm; >1 is rare-but-permitted).
+        if rec.get("max_homes") is None:
+            mh = 1
+        else:
+            mh = _validate_max_homes(rec, idx, "tier5_lots", path, report)
+            if mh is None:
+                continue
+
+        types = _validate_allowed_types(rec, idx, "tier5_lots", path, report)
+        if types is None:
+            continue
+
+        rec_faction = rec.get("recommended_faction")
+        if rec_faction is not None:
+            if not isinstance(rec_faction, str) or not rec_faction.strip():
+                report.errors.append(
+                    f"{path}: tier5_lots[{idx}] field 'recommended_faction' "
+                    f"must be a non-empty string when present, got "
+                    f"{rec_faction!r}."
+                )
+                continue
+
+        # F.5b.3.b: optional override fields
+        display_label = _validate_optional_string(
+            rec, "display_label", idx, "tier5_lots", path, report,
+        )
+        if display_label is False:
+            continue
+        security_override = _validate_optional_string(
+            rec, "security_override", idx, "tier5_lots", path, report,
+            valid_values=_VALID_SECURITY_OVERRIDES,
+        )
+        if security_override is False:
+            continue
+
+        out.append(Tier5Lot(
+            id=rec["id"],
+            planet=rec["planet"],
+            zone=rec["zone"],
+            host_room=rec["host_room"],
+            max_homes=mh,
+            allowed_types=types,
+            description_theme=str(rec.get("description_theme") or ""),
+            recommended_faction=rec_faction,
+            display_label=display_label,
+            security_override=security_override,
+        ))
+    return out
+
+
+# ── F.7 (Apr 30 2026) — Chargen templates loader ─────────────────────────────
+# Per F.7 design: extract the in-Python TEMPLATES literal at
+# engine/creation.py L42–L101 to per-era YAML so each era can author
+# its own archetype set. F.7 Phase 1 ships the seam + GCW byte-equivalent
+# YAML + CW archetype set + the runtime resolver in engine/creation.py.
+# F.7.b Phase 2 retires the legacy in-Python literal once
+# byte-equivalence is proven in production.
+
+@dataclass
+class ChargenTemplate:
+    """One chargen archetype loaded from chargen_templates.yaml.
+
+    Mirrors the in-Python TEMPLATES dict-of-dicts shape at
+    engine/creation.py — each template carries a label, a default
+    species, an attribute-pool map, and a skill-pool map.
+
+    `key` is the YAML key (e.g. "smuggler", "clone_trooper") the
+    chargen wizard uses for selection; `attributes` and `skills` are
+    raw dice-pool strings (e.g. "3D+1") that engine consumers parse
+    into `engine.dice.DicePool` instances.
+    """
+    key: str
+    label: str
+    species: str
+    attributes: dict
+    skills: dict
+
+
+@dataclass
+class ChargenTemplatesCorpus:
+    """Parsed chargen_templates.yaml. Holds an ordered list of
+    ChargenTemplate plus a per-corpus report.
+
+    Order is preserved from the YAML mapping (Python 3.7+ dict
+    iteration). The chargen wizard relies on this order for the
+    numbered template-selection menu (smuggler is option 1 in GCW,
+    clone_trooper in CW, etc.).
+    """
+    schema_version: int
+    templates: list  # list[ChargenTemplate]
+    report: ValidationReport
+    raw: dict = field(default_factory=dict)
+
+
+def load_chargen_templates(manifest: EraManifest) -> Optional[ChargenTemplatesCorpus]:
+    """Load chargen templates for the given era manifest.
+
+    Returns None if the era's content_refs has no `chargen_templates:`
+    entry — the consuming seam (engine/chargen_templates_loader.py)
+    falls back to the legacy in-Python TEMPLATES literal in that case.
+
+    Raises WorldLoadError on a malformed YAML; the seam catches and
+    converts to an ERROR log + empty corpus, matching the F.6a.3
+    fail-loud convention.
+
+    Per F.5b.3.c precedent: a missing-but-referenced YAML is content
+    debt that should surface immediately, not be masked behind silent
+    fallback. The seam logs ERROR and returns an empty corpus when
+    `chargen_templates:` is declared in era.yaml but the file is
+    missing or unparseable.
+    """
+    path = manifest.chargen_templates_path
+    if path is None:
+        return None  # No chargen_templates ref — caller falls back.
+
+    if not path.is_file():
+        raise WorldLoadError(
+            f"Missing chargen_templates file: {path}. "
+            f"era.yaml references it but the file does not exist."
+        )
+
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as e:
+        raise WorldLoadError(f"Failed to parse {path}: {e}") from e
+
+    report = ValidationReport()
+
+    if not isinstance(raw, dict):
+        raise WorldLoadError(
+            f"{path}: top-level must be a mapping, got {type(raw).__name__}."
+        )
+
+    schema_version = int(raw.get("schema_version", 1))
+
+    tmpl_block = raw.get("templates")
+    if tmpl_block is None:
+        report.warnings.append(
+            f"{path}: top-level `templates:` key absent or null; "
+            f"corpus has zero archetypes."
+        )
+        return ChargenTemplatesCorpus(
+            schema_version=schema_version,
+            templates=[],
+            report=report,
+            raw=raw,
+        )
+
+    if not isinstance(tmpl_block, dict):
+        raise WorldLoadError(
+            f"{path}: `templates:` must be a mapping, "
+            f"got {type(tmpl_block).__name__}."
+        )
+
+    templates: list = []
+    for key, body in tmpl_block.items():
+        if not isinstance(body, dict):
+            report.errors.append(
+                f"{path}: templates[{key!r}] must be a mapping, "
+                f"got {type(body).__name__}."
+            )
+            continue
+
+        label = body.get("label")
+        species = body.get("species")
+        attributes = body.get("attributes")
+        skills = body.get("skills")
+
+        # Per-field validation. Each missing/wrong-shape field is a
+        # report.errors entry — the loader keeps going so multiple
+        # problems surface in one run.
+        if not isinstance(label, str) or not label:
+            report.errors.append(
+                f"{path}: templates[{key!r}].label must be a non-empty "
+                f"string."
+            )
+            continue
+        if not isinstance(species, str) or not species:
+            report.errors.append(
+                f"{path}: templates[{key!r}].species must be a non-empty "
+                f"string."
+            )
+            continue
+        if not isinstance(attributes, dict):
+            report.errors.append(
+                f"{path}: templates[{key!r}].attributes must be a "
+                f"mapping, got {type(attributes).__name__}."
+            )
+            continue
+        if not isinstance(skills, dict):
+            report.errors.append(
+                f"{path}: templates[{key!r}].skills must be a mapping, "
+                f"got {type(skills).__name__}."
+            )
+            continue
+
+        # Shape-check the attribute/skill pool values are dice strings.
+        # Don't try to parse them here — that's the consumer's job; the
+        # loader only validates "this is a string the consumer can try
+        # to parse."
+        attr_ok = all(isinstance(v, str) for v in attributes.values())
+        skill_ok = all(isinstance(v, str) for v in skills.values())
+        if not attr_ok:
+            report.errors.append(
+                f"{path}: templates[{key!r}].attributes values must "
+                f"all be dice-pool strings (e.g. \"3D+1\")."
+            )
+            continue
+        if not skill_ok:
+            report.errors.append(
+                f"{path}: templates[{key!r}].skills values must "
+                f"all be dice-pool strings (e.g. \"1D+2\")."
+            )
+            continue
+
+        templates.append(ChargenTemplate(
+            key=str(key),
+            label=label,
+            species=species,
+            attributes=dict(attributes),
+            skills=dict(skills),
+        ))
+
+    return ChargenTemplatesCorpus(
+        schema_version=schema_version,
+        templates=templates,
         report=report,
         raw=raw,
     )

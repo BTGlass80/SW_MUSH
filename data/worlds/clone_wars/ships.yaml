@@ -1,0 +1,113 @@
+# data/worlds/clone_wars/ships.yaml
+# Clone Wars Era — Pre-spawned ships docked across player-facing planets.
+# Schema version 1 (matches GCW format; see data/worlds/gcw/ships.yaml).
+#
+# Each entry creates a bridge room, a ship row, and bidirectional
+# board/disembark exits between the docking bay and the bridge.
+#
+# Schema:
+#   template_key — must match a key in data/starships.yaml OR
+#                  data/worlds/clone_wars/starships.yaml. Per
+#                  architecture v39 §2.2 + the get_ship_registry()
+#                  era-aware overlay (CW.SHIPS drop, May 2026), the
+#                  registry loads both files, with era-specific
+#                  templates layered over the base.
+#   name         — display name shown to players
+#   bay_room     — name of the docking bay room (resolved against the
+#                  world bundle's room map)
+#   bridge_desc  — flavor text shown when boarding the bridge
+#
+# Loaded by engine/ship_loader.py via era.yaml's content_refs.ships.
+#
+# Roster sizing: 7 ships, mirroring GCW. Distributed across the four
+# player-facing CW planets per launch_strategy_v1.md's casual-destination
+# list (Tatooine, Nar Shaddaa, Kuat, Coruscant). Kamino and Geonosis are
+# deliberately excluded — too plot-coupled at launch.
+#
+# Era-correct ship classes only:
+#   - YT-1300, Ghtroc 720: civilian transports (cross-era, predate Clone Wars)
+#   - Consular-class Cruiser: Republic diplomatic frigate (Jedi-coded)
+#   - ARC-170, V-19 Torrent: Republic starfighters
+#   - Eta-2 Actis: Jedi interceptor
+#   - Sheathipede: CIS shuttle (Neimoidian transport, era-correct on Nar Shaddaa)
+#
+# Notably absent: Imperial-era ships (Lambda shuttle, TIE fighter, X-wing,
+# Z-95 Headhunter — Z-95 actually predates the Clone Wars but is heavily
+# Rebel-coded in the GCW NPC roster; left out for clarity).
+
+schema_version: 1
+
+ships:
+
+  # ── Tatooine ────────────────────────────────────────────────────────────
+  # Tatooine is the same hive of scum and villainy in either era.
+  # Civilian transports dominate. The Hutts run things; the Republic
+  # nominally cares but has bigger problems.
+  - template_key: yt_1300
+    name: Sand Skimmer
+    bay_room: Docking Bay 94 - Pit Floor
+    bridge_desc: >-
+      The cockpit of this YT-1300 is older than most of its crew. The
+      hyperdrive whines on warmup and the sensor array has been
+      replaced twice. A crude Aurebesh "FREE TRADER" sticker peels
+      from the viewport.
+
+  - template_key: ghtroc_720
+    name: Dune Strider
+    bay_room: Docking Bay 87
+    bridge_desc: >-
+      The bridge of this Ghtroc 720 is unusually well-kept for a Mos
+      Eisley ship. Someone has installed a small holocron of an
+      unknown saint above the navigation console.
+
+  # ── Nar Shaddaa ─────────────────────────────────────────────────────────
+  # The Smugglers' Moon. Hutt-controlled, cross-era. The CIS doesn't
+  # come here much; the Republic comes here even less.
+  - template_key: yt_1300
+    name: Outer Rim Promise
+    bay_room: Nar Shaddaa - Docking Bay Aurek
+    bridge_desc: >-
+      This YT-1300 has been heavily modified for smuggling. Hidden
+      compartments line the deck. The transponder switches between
+      three different IDs depending on which spaceport's hailing.
+
+  - template_key: sheathipede
+    name: Hutt's Patience
+    bay_room: Nar Shaddaa - Landing Platform Besh
+    bridge_desc: >-
+      A Sheathipede-class shuttle of Neimoidian make, currently leased
+      to a Hutt clan. The interior is gilded in a way that suggests
+      its previous owner was reluctant to part with it.
+
+  # ── Kuat ────────────────────────────────────────────────────────────────
+  # Kuat Drive Yards. Republic-aligned, pristine, rich. Naval surplus
+  # and inspection-ready demonstrators sit on the pads.
+  - template_key: arc_170
+    name: Kuat Demonstrator
+    bay_room: Kuat - Shuttle Bay
+    bridge_desc: >-
+      A factory-fresh ARC-170 in Kuat Drive Yards livery. The three
+      crew stations are still wrapped in protective film. The pilot's
+      seat smells of new leather and lubricant.
+
+  # ── Coruscant ───────────────────────────────────────────────────────────
+  # Republic capital. The Jedi Temple Hangar Bay holds Order-issued
+  # ships. A Consular cruiser sits ready for diplomatic missions; an
+  # Eta-2 stands beside it for emergencies.
+  - template_key: consular_cruiser
+    name: Negotiator's Hand
+    bay_room: Jedi Temple - Hangar Bay
+    bridge_desc: >-
+      The bridge of this Consular-class cruiser is austere and
+      practical, every surface clean and unornamented. Twin diplomatic
+      crew stations face a wide forward viewport. The ship's logbook
+      lies open to a recent entry in clean Aurebesh script.
+
+  - template_key: eta_2_actis
+    name: Mendicant
+    bay_room: Jedi Temple - Hangar Bay
+    bridge_desc: >-
+      The single-seat cockpit of this Eta-2 Actis interceptor is
+      shockingly small — barely room to breathe. The yoke is worn
+      smooth where Jedi hands have gripped it. The hyperdrive ring
+      is parked separately in the adjoining bay.

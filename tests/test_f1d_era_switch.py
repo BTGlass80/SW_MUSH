@@ -92,10 +92,21 @@ class TestCloneWarsBuildPostF1d:
 
     def test_build_produced_rooms(self, cw_db):
         rows = _query(cw_db, "SELECT COUNT(*) AS n FROM rooms")
-        # CW has fewer rooms than GCW (only Tatooine + Nar Shaddaa per
-        # current era.yaml content_refs.planets); should be > 50, < 120.
-        assert rows[0]["n"] > 50
-        assert rows[0]["n"] < 120
+        # F.4 (Apr 30 2026) wired in 4 additional CW planets beyond the
+        # original Tatooine + Nar Shaddaa pair: Coruscant, Kuat, Kamino,
+        # Geonosis. CW build now produces ~256 rooms (was ~80 pre-F.4).
+        # Still less than full GCW production build (which has Tatooine
+        # only at full GG7 fidelity plus seed rooms).
+        assert rows[0]["n"] > 200, (
+            f"CW build produced {rows[0]['n']} rooms; expected > 200 "
+            "post-F.4 (Tatooine + Nar Shaddaa + Coruscant + Kuat + "
+            "Kamino + Geonosis)"
+        )
+        assert rows[0]["n"] < 400, (
+            f"CW build produced {rows[0]['n']} rooms; expected < 400. "
+            "If this fails high, a new planet was added to CW era.yaml "
+            "content_refs.planets — bump the upper bound."
+        )
 
     def test_cw_npcs_loaded(self, cw_db):
         """CW has additions + replacements but no own planet roster yet."""

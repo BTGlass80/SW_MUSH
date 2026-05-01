@@ -1,0 +1,159 @@
+# data/worlds/gcw/chargen_templates.yaml
+# GCW Chargen Templates — Schema v1
+#
+# F.7 (Apr 30 2026): byte-equivalent extraction of the in-Python
+# TEMPLATES literal at engine/creation.py L42–L101. Each entry below
+# matches its in-Python counterpart exactly — same key, label, species,
+# attribute pools, and skill pools. F.7 byte-equivalence tests
+# (tests/test_f7_chargen_templates_loader.py::TestGCWByteEquivalence)
+# enforce this parity.
+#
+# Schema:
+#   templates:
+#     <key>:                       # snake_case template key
+#       label: <str>               # Display name in the chargen wizard
+#       species: <str>             # Default species (matches species
+#                                  # registry; usually "Human")
+#       attributes:                # 6-attribute D-pool literal map
+#         dexterity:    "<DnD+m>"  # WEG dice pool format: e.g. "3D+2"
+#         knowledge:    "<DnD+m>"
+#         mechanical:   "<DnD+m>"
+#         perception:   "<DnD+m>"
+#         strength:     "<DnD+m>"
+#         technical:    "<DnD+m>"
+#       skills:                    # Skill -> bonus dice (over attribute)
+#         <skill_key>:  "<DnD+m>"
+#
+# Maintenance note: when adding/editing a template, also update
+# engine/creation.py's _LEGACY_TEMPLATES_GCW (F.7's parallel-fallback
+# constant, deleted in F.7.b) to maintain byte-equivalence until
+# Phase 2 retires the legacy literal.
+
+schema_version: 1
+
+templates:
+  smuggler:
+    label: Smuggler
+    species: Human
+    attributes:
+      dexterity:  "3D+1"
+      knowledge:  "2D+1"
+      mechanical: "4D"
+      perception: "3D+1"
+      strength:   "2D+2"
+      technical:  "2D+1"
+    skills:
+      blaster:            "1D+1"
+      dodge:              "1D"
+      space transports:   "1D+2"
+      starship gunnery:   "1D"
+      streetwise:         "1D"
+      bargain:            "1D"
+
+  bounty_hunter:
+    label: Bounty Hunter
+    species: Human
+    attributes:
+      dexterity:  "3D+2"
+      knowledge:  "2D+1"
+      mechanical: "2D+2"
+      perception: "3D+1"
+      strength:   "3D+1"
+      technical:  "2D+2"
+    skills:
+      blaster:    "2D"
+      dodge:      "1D"
+      brawling:   "1D"
+      search:     "1D"
+      sneak:      "1D"
+      security:   "1D"
+
+  rebel_pilot:
+    label: Rebel Pilot
+    species: Human
+    attributes:
+      dexterity:  "3D"
+      knowledge:  "2D+2"
+      mechanical: "4D+1"
+      perception: "2D+2"
+      strength:   "2D+2"
+      technical:  "2D+2"
+    skills:
+      blaster:                "1D"
+      starfighter piloting:   "2D"
+      starship gunnery:       "1D"
+      astrogation:            "1D"
+      sensors:                "1D"
+      starfighter repair:     "1D"
+
+  scoundrel:
+    label: Scoundrel
+    species: Human
+    attributes:
+      dexterity:  "3D"
+      knowledge:  "3D"
+      mechanical: "2D+2"
+      perception: "4D"
+      strength:   "2D+2"
+      technical:  "2D+2"
+    skills:
+      blaster:     "1D"
+      dodge:       "1D"
+      con:         "1D+2"
+      persuasion:  "1D"
+      gambling:    "1D"
+      sneak:       "1D+1"
+
+  technician:
+    label: Technician
+    species: Human
+    attributes:
+      dexterity:  "2D+1"
+      knowledge:  "3D"
+      mechanical: "2D+2"
+      perception: "2D+2"
+      strength:   "2D+2"
+      technical:  "4D+2"
+    skills:
+      computer programming/repair:  "1D+2"
+      droid repair:                 "1D"
+      first aid:                    "1D"
+      security:                     "1D"
+      blaster repair:               "1D"
+      space transport repair:       "1D+1"
+
+  jedi_apprentice:
+    label: Jedi Apprentice
+    species: Human
+    attributes:
+      dexterity:  "3D+1"
+      knowledge:  "3D"
+      mechanical: "2D+1"
+      perception: "3D+2"
+      strength:   "3D"
+      technical:  "2D+2"
+    skills:
+      lightsaber:        "1D+2"
+      dodge:             "1D"
+      scholar:           "1D"
+      willpower:         "1D"
+      sneak:             "1D"
+      climbing/jumping:  "1D+1"
+
+  soldier:
+    label: Soldier
+    species: Human
+    attributes:
+      dexterity:  "3D+2"
+      knowledge:  "2D+2"
+      mechanical: "2D+2"
+      perception: "2D+2"
+      strength:   "3D+2"
+      technical:  "2D+2"
+    skills:
+      blaster:    "1D+2"
+      dodge:      "1D"
+      brawling:   "1D"
+      grenade:    "1D"
+      tactics:    "1D"
+      stamina:    "1D+1"

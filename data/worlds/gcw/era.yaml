@@ -117,6 +117,22 @@ content_refs:
   director_config: director_config.yaml
   ambient_events: ambient_events.yaml
 
+  # ── Housing lot inventory (per F.5a.1, Apr 29 2026) ─────────────────────
+  # Tier 2 faction-quarter mappings. Byte-equivalent extraction of
+  # engine/housing.py::FACTION_QUARTER_TIERS (GCW factions: empire, rebel,
+  # hutt). T1/T3/T4/T5 inventories come in F.5a.2.
+  # Until F.5b's data-fy refactor lands, this YAML is data-only — engine
+  # still reads from the in-Python literal.
+  housing_lots: housing_lots.yaml
+
+  # ── Chargen templates (per F.7, Apr 30 2026) ────────────────────────────
+  # 7 GCW chargen archetypes (smuggler, bounty_hunter, rebel_pilot,
+  # scoundrel, technician, jedi_apprentice, soldier). Byte-equivalent
+  # to the in-Python TEMPLATES literal at engine/creation.py L42–L101
+  # under F.7 Phase 1; F.7.b Phase 2 retires the literal once
+  # byte-equivalence is proven in production.
+  chargen_templates: chargen_templates.yaml
+
 # ═══════════════════════════════════════════════════════════════════════
 # REGISTRY POLICY
 # ═══════════════════════════════════════════════════════════════════════

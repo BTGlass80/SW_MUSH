@@ -184,6 +184,14 @@ async def _write_rooms(rooms: dict[int, Room],
         # Per-room properties merge: ROOM_OVERRIDES from build_mos_eisley
         # were emitted as the room's `properties` raw key during Drop 2.
         properties = room.raw.get("properties", {}) or {}
+        # F.8.c.1 (Apr 30 2026): persist the room's slug into properties
+        # so the runtime can look up rooms by slug (e.g. for tutorial
+        # chain starting-room resolution from the chargen wizard). The
+        # slug is otherwise only held in-memory in slug_to_id during
+        # the boot pass; without this persistence, parser/server code
+        # has no way to resolve slug → room_id at runtime.
+        if "slug" not in properties:
+            properties["slug"] = room.slug
         db_id = await db.create_room(
             room.name,
             desc_short=room.short_desc or "",
