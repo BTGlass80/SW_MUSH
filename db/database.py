@@ -14,7 +14,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 # -- Schema version --
-SCHEMA_VERSION = 17
+SCHEMA_VERSION = 18
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -555,6 +555,113 @@ MIGRATIONS = {
         # (in-character look-at text) and `pc_narrative.background`
         # (in-character biography).
         "ALTER TABLE characters ADD COLUMN chargen_notes TEXT DEFAULT ''",
+    ],
+
+    18: [
+        # ── Progression Gates & Consequences — Phase 1 schema ────────────
+        # Per progression_gates_and_consequences_design_v1.md and
+        # architecture v39 §3.3 (CW.GATES sub-decomposition: PG.1.schema).
+        #
+        # This migration adds the persistent state for three coupled
+        # systems: Jedi gating (50-hour playtime + Village trial chain),
+        # death penalty (respawn-Wounded + corpse retrieval), and the
+        # PC bounty / BH insurance loop. No data backfill required —
+        # all columns default to safe pre-feature values, and at the
+        # time this lands there are no live players whose state would
+        # need migrating.
+        #
+        # The legacy `characters.bounty` column from migration 3 is
+        # untouched and remains independent of the new PC-posted bounty
+        # system below (`pc_bounties` table). The legacy column tracked
+        # NPC-bounty placeholder state and is not used by the design.
+        # The legacy `characters.wound_level` column (set in base
+        # SCHEMA_SQL) tracks combat-active wound levels via the WEG
+        # ladder; the new `wound_state` / `wound_clear_at` columns track
+        # the post-respawn Wounded debuff that persists across
+        # logout/login until cleared by time or bacta. Distinct concerns.
+
+        # ── Jedi gating: per-character playtime, predisposition, Village state ─
+        "ALTER TABLE characters ADD COLUMN play_time_seconds INTEGER DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN force_predisposition REAL DEFAULT 0.0",
+        "ALTER TABLE characters ADD COLUMN force_signs_accumulated INTEGER DEFAULT 0",
+        # village_act: 0=pre-invitation, 1=invited (post-Hermit),
+        #              2=in-trials, 3=passed (Padawan)
+        "ALTER TABLE characters ADD COLUMN village_act INTEGER DEFAULT 0",
+        # Wall-clock timestamp of last act transition; drives 7-day
+        # Act-1→Act-2 cooldown.
+        "ALTER TABLE characters ADD COLUMN village_act_unlocked_at REAL DEFAULT 0",
+        # Per-trial completion flags. 0=not done, 1=done.
+        "ALTER TABLE characters ADD COLUMN village_trial_courage_done INTEGER DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_trial_insight_done INTEGER DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_trial_flesh_done INTEGER DEFAULT 0",
+        # Wall-clock of last trial attempt; drives 14-day inter-trial cooldown.
+        "ALTER TABLE characters ADD COLUMN village_trial_last_attempt REAL DEFAULT 0",
+
+        # ── Death penalty: respawn-Wounded persistence ──────────────────────
+        # wound_state: 'healthy' | 'wounded'
+        # wound_clear_at: unix epoch seconds when wound_state returns to
+        #                 'healthy' via passive recovery; 0 means no
+        #                 active recovery clock (already healthy).
+        "ALTER TABLE characters ADD COLUMN wound_state TEXT DEFAULT 'healthy'",
+        "ALTER TABLE characters ADD COLUMN wound_clear_at REAL DEFAULT 0",
+
+        # ── Death penalty: corpses ──────────────────────────────────────────
+        # On PC death the body persists at the death location for a
+        # bounded window (2h contested / 4h lawless / no-corpse for
+        # secured). Decay either auto-mails `bound` items to the owner
+        # or destroys the rest.
+        """CREATE TABLE IF NOT EXISTS corpses (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id         INTEGER NOT NULL REFERENCES characters(id),
+            room_id         INTEGER NOT NULL REFERENCES rooms(id),
+            died_at         REAL    NOT NULL,
+            decay_at        REAL    NOT NULL,
+            inventory       TEXT    NOT NULL DEFAULT '[]',
+            credits         INTEGER DEFAULT 0,
+            killer_id       INTEGER REFERENCES characters(id),
+            killer_is_bh    INTEGER DEFAULT 0,
+            bounty_resolved INTEGER DEFAULT 0
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_corpses_room ON corpses(room_id, decay_at)",
+        "CREATE INDEX IF NOT EXISTS idx_corpses_char ON corpses(char_id)",
+
+        # ── PC bounty system ────────────────────────────────────────────────
+        # state: 'active' | 'claimed' | 'fulfilled' | 'expired' | 'canceled'
+        """CREATE TABLE IF NOT EXISTS pc_bounties (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            poster_id       INTEGER NOT NULL REFERENCES characters(id),
+            target_id       INTEGER NOT NULL REFERENCES characters(id),
+            amount          INTEGER NOT NULL,
+            reason          TEXT    NOT NULL,
+            state           TEXT    NOT NULL DEFAULT 'active',
+            claimed_by      INTEGER REFERENCES characters(id),
+            claimed_at      REAL    DEFAULT 0,
+            posted_at       REAL    NOT NULL,
+            expires_at      REAL    NOT NULL,
+            resolved_at     REAL    DEFAULT 0
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_bounties_target ON pc_bounties(target_id, state)",
+        "CREATE INDEX IF NOT EXISTS idx_bounties_poster ON pc_bounties(poster_id, state)",
+        "CREATE INDEX IF NOT EXISTS idx_bounties_state_expiry ON pc_bounties(state, expires_at)",
+
+        # 30-day per-(poster, target) cooldown after expiry/cancel.
+        # Prevents harassment loops.
+        """CREATE TABLE IF NOT EXISTS bounty_cooldowns (
+            poster_id   INTEGER NOT NULL REFERENCES characters(id),
+            target_id   INTEGER NOT NULL REFERENCES characters(id),
+            until       REAL    NOT NULL,
+            PRIMARY KEY (poster_id, target_id)
+        )""",
+
+        # BH insurance debt — accrues when target lacks credits at
+        # respawn to cover the 10%-of-bounty insurance hit. Blocks
+        # Guild services, intercepts faction stipends, refused at
+        # some BH-tier vendors until paid off.
+        """CREATE TABLE IF NOT EXISTS bh_insurance_debt (
+            char_id     INTEGER PRIMARY KEY REFERENCES characters(id),
+            amount      INTEGER NOT NULL,
+            incurred_at REAL    NOT NULL
+        )""",
     ],
 
 }

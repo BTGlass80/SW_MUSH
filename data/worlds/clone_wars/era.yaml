@@ -96,6 +96,13 @@ content_refs:
   npcs:
     - npcs_cw_additions.yaml
     - npcs_cw_replacements.yaml
+    - npcs_drop_h_combat.yaml      # Drop H (May 2026): 12 combat-capable NPCs (B1, B2, droideka, clones, Republic commando, Geonosian warriors) seeded across Geonosis, Coruscant, Kamino, Kuat. Per cw_content_gap_design_v1.md and dropH_combat_templates_v1.md.
+    - npcs_drop_c1_coruscant.yaml  # Drop C1 (May 2026): 24 NPCs across Coruscant Senate District (12) + Jedi Temple (12). Per cw_content_gap_design_v1_1_decisions.md Stage 4. Q1 policy applied: no canonical Council members or Senators.
+    - npcs_drop_def_civilians.yaml # Drop D+E+F batched (May 2026): 25 NPCs across Kamino (9) + Geonosis (8) + Kuat (8). Sparse-density civilian rosters complementing Drop H combat templates.
+    - npcs_drop_g1_nar_shaddaa_topside.yaml  # Drop G1 (May 2026): 22 Nar Shaddaa topside NPCs (docking, cantinas, Smugglers' Guild, Bounty Hunters' Quarter, FDtS anchors Mak/Zekka/Renna/Doc Myrra). Per cw_content_gap_design_v1_1_decisions.md Stage 4. G2 will cover Hutt Tower / Warrens / Undercity / Spice Den / Fighting Pits.
+    - npcs_drop_g2_nar_shaddaa_lower.yaml     # Drop G2 (May 2026): 23 Nar Shaddaa lower-level NPCs (Hutt Emissary Tower incl. Borka + Grek the FDtS loanshark fixer, Spice Den, Fighting Pits, The Grid slicers, 5 Warrens sub-rooms, Undercity, Enforcer Alley, Weapons Cache, Upper Dock Observation, Promenade Corporate Tower). Completes Drop G; brings Nar Shaddaa to 45 NPCs across 32 rooms (~1.4/room).
+    - npcs_drop_b_mos_eisley.yaml             # Drop B (May 2026): 6 Mos Eisley CW polish NPCs (clone customs liaison, Republic Navy traffic controller, clone Eastern Gate patrol, Hutt Townhouse enforcer, dewback stable-keeper, Jawa trade-elder). Per cw_content_gap_design_v1_1_decisions.md Stage 4 Gap B. Tatooine total 64 NPCs across 54 rooms.
+    - npcs_drop_c2_coruscant_lower.yaml       # Drop C2 (May 2026): 24 Coruscant Coco Town + Mid-City + Lower City + Underworld NPCs. FINAL CW.NPCS content drop. Per cw_content_gap_design_v1_1_decisions.md Stage 4 Gap C2. Coruscant total 49 across 31 of 72 rooms (active subset ~1.5/room; remaining 41 rooms are atmospheric reserves).
   housing_lots: housing_lots.yaml
   test_character: test_character.yaml
   test_jedi: test_jedi.yaml    # God-mode Jedi account for dev testing of Force content

@@ -320,7 +320,7 @@ class HousingCommand(BaseCommand):
 
     async def _cmd_shopfront(self, ctx, char, rest):
         from engine.housing import (
-            get_tier4_listing_lines, purchase_shopfront, HOUSING_LOTS_TIER4
+            get_tier4_listing_lines, purchase_shopfront,
         )
         sf_parts = rest.split(None, 1)
         if len(sf_parts) < 2 or not sf_parts[1].strip().isdigit():
@@ -335,16 +335,17 @@ class HousingCommand(BaseCommand):
             ansi.success(f"  {result['msg']}") if result["ok"]
             else ansi.error(f"  {result['msg']}")
         )
-        # Enqueue AI description pre-generation on successful purchase
+        # Enqueue AI description pre-generation on successful purchase.
+        # Mirrors _cmd_buy's pattern (F.5b.3.c bug fix): resolve the
+        # planet via get_lot(ctx.db, lot_id) instead of iterating the
+        # legacy HOUSING_LOTS_TIER4 constant.
         if result.get("ok") and result.get("housing_id"):
             try:
                 _iq = getattr(ctx.session_mgr, '_idle_queue', None)
                 if _iq:
-                    _planet = "tatooine"
-                    for _lt in HOUSING_LOTS_TIER4:
-                        if _lt[0] == lot_id:
-                            _planet = _lt[1]
-                            break
+                    from engine.housing import get_lot
+                    _lot = await get_lot(ctx.db, lot_id)
+                    _planet = _lot["planet"] if _lot else "tatooine"
                     _iq.enqueue_housing_desc(
                         housing_id=result["housing_id"],
                         room_name=f"{char.get('name', 'Unknown')}'s Shopfront",

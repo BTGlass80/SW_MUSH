@@ -1,0 +1,740 @@
+# data/worlds/clone_wars/npcs_drop_h_combat.yaml
+#
+# Drop H — CW Combat NPC Templates (May 2026)
+#
+# Per cw_content_gap_design_v1.md and cw_content_gap_design_v1_1_decisions.md
+# Drop H scope. The first wave of CW combat infrastructure: B1, B2,
+# droideka, generic clone trooper, Republic commando, Geonosian warrior.
+#
+# Schema follows the canonical Vela Niree (npcs_cw_additions.yaml) and
+# CT-7842 (npcs_cw_replacements.yaml) reference patterns. Loaded by
+# engine/npc_loader.py via era.yaml's content_refs.npcs list.
+#
+# Stat-block derivation notes (full rationale in
+# `dropH_combat_templates_v1.md`):
+#   - Clone trooper baseline mirrors GG7 stormtrooper template
+#     (3D+1/2D/2D+1/2D+2/3D/2D, blaster 4D+1, dodge 4D) — already in
+#     CT-7842; reused here as the "generic clone" archetype distinct
+#     from CT-7842's Tatooine-specific characterization.
+#   - B1 attribute totals are deliberately lower than human line
+#     infantry: B1s are mass-produced and individually weak, made
+#     dangerous only by numbers. Per WEG droid convention, droids
+#     get fixed scores (no D codes for non-skill attributes), but
+#     SW_MUSH NPCs use D codes uniformly so B1s are stat-shifted
+#     down rather than format-changed.
+#   - B2 trades dexterity for strength and durability: heavier armor,
+#     integrated wrist blasters, but slower.
+#   - Droideka is the elite shield droid: highest skills of the droid
+#     line, integrated twin blasters, shield deployment as a
+#     special_state flag the engine can read once shield mechanics
+#     ship.
+#   - Republic Commando derives from the four-man-squad model in
+#     wookieepedia_extracts/arc_troopers_and_republic_commandos.md.
+#     Mando-influenced culture, DC-17m (modeled here as
+#     blaster_rifle_assault), tactical specialization.
+#   - Geonosian Warrior is winged insectoid native; melee + sonic
+#     weapon variant; tribal hostility.
+#
+# Spawn distribution (12 instances total):
+#   Geonosis:    4× B1, 1× B2, 2× Geonosian Warrior         (7)
+#   Coruscant:   1× Clone Trooper (Senate guard)             (1)
+#   Kamino:      1× Clone Trooper, 1× Republic Commando      (2)
+#   Kuat:        1× Clone Trooper, 1× Droideka (security)    (2)
+# Total: 12. Matches the J1-handoff Drop H scoping.
+#
+# These are TEMPLATES re-skinned per spawn. A future "respawn" /
+# "scenario" engine drop could pull from this file as a generator
+# pool; for v1 each instance is hand-placed.
+
+schema_version: 1
+
+npcs:
+
+  # ────────────────────────────────────────────────────────────────────
+  # GEONOSIS — CIS heartland; B1/B2 patrols, Geonosian native warriors
+  # ────────────────────────────────────────────────────────────────────
+
+  - name: B1 Battle Droid (Patrol 4729-A)
+    room: Geonosis - Separatist Landing Platform
+    species: Droid
+    description: >-
+      A B1 battle droid in unweathered tan plating stands at the edge
+      of the platform with the awkward, head-cocked posture droids of
+      its line affect when idle. Its E-5 blaster rifle hangs loose at
+      its side. The faint tinny voice of another B1 echoes from the
+      next checkpoint over: "Roger roger." This one twitches at the
+      sound and shifts its weight, then resumes its watch.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D
+        strength: 2D
+        technical: 1D
+      skills:
+        blaster: 3D
+        dodge: 2D+2
+        search: 2D+1
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A B1 battle droid. Cheap, mass-produced, individually weak,
+        deployed in numbers. Networked tactical comms with other B1s
+        on the same shift. Speaks in the high-pitched tinny voice of
+        its line. Recognizes Republic-aligned and Jedi-aligned
+        humans as targets per CIS standing orders. Will not engage
+        Independent or CIS-aligned visitors unless directly attacked.
+      knowledge:
+      - "CIS standing orders for Geonosis: maintain perimeter, screen arrivals, respond to alerts."
+      - "Republic-aligned humans should be detained or fired upon per General's orders."
+      - "Jedi are 'priority targets' per the latest update."
+      - "Geonosian warriors handle anything that requires more than line response."
+      - "The Foundry below requires Archduke Poggle's clearance to enter."
+      faction: cis
+      dialogue_style: >-
+        Tinny, high-pitched, quick. Says "Roger roger" reflexively.
+        Reports incidents to other droids on the comm. Does not
+        improvise. Will repeat the same warning verbatim until
+        attacked.
+      hostile: false
+      combat_behavior: aggressive
+      fallback_lines:
+      - "'Halt. Identify yourself.'"
+      - "'Roger roger.'"
+      - "*The B1's photoreceptor swivels to track you, then resumes its sweep.*"
+      - "'You are not on the manifest. Wait here.'"
+      - "*Distant tinny voices: 'Patrol Four-Seven-Two-Niner-A, status?' This B1 replies: 'All clear.'*"
+
+  - name: B1 Battle Droid (Patrol 4729-B)
+    room: Geonosis - Surface Market
+    species: Droid
+    description: >-
+      A second B1 battle droid stands at the edge of the market
+      stalls, watching merchants and visitors with the slack
+      attention of a unit that has been on the same beat for too
+      long. Its E-5 rifle is across its back. Its tan plating is
+      lightly dusted with red Geonosian sand.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D
+        strength: 2D
+        technical: 1D
+      skills:
+        blaster: 3D
+        dodge: 2D+2
+        search: 2D+1
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Same line model as Patrol 4729-A but assigned to crowd
+        screening rather than perimeter watch. Slightly more
+        permissive — has been told to let traders work — but will
+        report anomalies and fire on Republic-aligned targets if
+        ordered or attacked.
+      knowledge:
+      - "Market is approved by Archduke Poggle for off-world trade."
+      - "Trade Federation observers visit the market periodically."
+      - "Spice trade is technically not permitted but is technically not stopped."
+      - "Hutt Cartel agents come through here. They are tolerated."
+      faction: cis
+      dialogue_style: >-
+        Tinny, dispassionate. Recites approval status when
+        questioned. Does not engage in market haggling.
+      hostile: false
+      combat_behavior: aggressive
+      fallback_lines:
+      - "'Move along. The market is approved.'"
+      - "'Roger roger.'"
+      - "'No spice. The Archduke does not approve. ... Officially.'"
+      - "*The B1 blinks its photoreceptor twice and turns away.*"
+
+  - name: B1 Battle Droid (Patrol 4731-A)
+    room: Geonosis - Main Hive Entrance
+    species: Droid
+    description: >-
+      A B1 battle droid stationed at the entrance to the main
+      Geonosian hive. The droid stands a half-step closer to the
+      arch than its programming probably specifies; its ranging
+      photoreceptor sweeps the approach repeatedly. It is the only
+      thing here that does not blend in — the Geonosians, the rock,
+      and the gloom all share a red-brown palette; the B1 is tan
+      and wrong.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D
+        strength: 2D
+        technical: 1D
+      skills:
+        blaster: 3D
+        dodge: 2D+2
+        search: 2D+1
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Hive-mouth sentry. Knows the Geonosians don't think much of
+        droid presence in their tunnels and is calibrated to stay
+        outside the threshold unless an alert fires. Will challenge
+        anyone approaching the hive entrance without obvious
+        Geonosian escort.
+      knowledge:
+      - "The hive is Geonosian territory; B1 deployment inside is restricted."
+      - "Archduke Poggle and the warrior caste manage internal hive security."
+      - "Any non-Geonosian entering without escort should be challenged."
+      - "Republic infiltrators have attempted hive incursion before. The Foundry is the prize."
+      faction: cis
+      dialogue_style: >-
+        Tinny, curt at the threshold. Speaks louder when challenging.
+      hostile: false
+      combat_behavior: aggressive
+      fallback_lines:
+      - "'Halt. The hive is restricted to Geonosian personnel and approved escorts.'"
+      - "'Where is your escort?'"
+      - "'Wait here. I will summon a warrior.'"
+      - "*The B1 raises one tan arm in challenge gesture.*"
+
+  - name: B1 Battle Droid (Patrol 4731-B)
+    room: Geonosis - Foundry Approach Tunnel
+    species: Droid
+    description: >-
+      A B1 stationed inside the foundry approach tunnel. The air
+      here is hotter and louder than outside; molten metal pours
+      somewhere out of sight. The droid's photoreceptor periodically
+      flares as it processes the heat-noise gradient. It does not
+      seem comfortable here.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D
+        strength: 2D
+        technical: 1D
+      skills:
+        blaster: 3D
+        dodge: 2D+2
+        search: 2D+1
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Tunnel-deep sentry, networked with the foundry-floor
+        droids. Has been told the foundry is the most important
+        target Republic infiltrators want to reach and is dialed up
+        accordingly. Will challenge aggressively and call for B2
+        backup if pressed.
+      knowledge:
+      - "The Foundry produces the bulk of B1, B2, and droideka components for the Outer Rim."
+      - "Geonosian Industries owns the Foundry; Trade Federation funds the operations."
+      - "Republic spies have attempted to reach the Foundry before. None recently."
+      - "B2 backup units are stationed two checkpoints deeper."
+      faction: cis
+      dialogue_style: >-
+        Tinny, sharper than other B1s. Repeats challenges when
+        ignored.
+      hostile: false
+      combat_behavior: aggressive
+      fallback_lines:
+      - "'You should not be here. Turn back.'"
+      - "'This is restricted. The Foundry does not accept visitors.'"
+      - "'I am calling for backup. Leave now or be detained.'"
+      - "*The B1 raises its rifle to a ready position. The hum of its targeting array is audible.*"
+
+  - name: B2 Super Battle Droid (Heavy 8121)
+    room: Geonosis - Main Hive Chamber
+    species: Droid
+    description: >-
+      A B2 super battle droid stands silent against the chamber
+      wall, its bulky frame a head taller than the surrounding
+      Geonosian warriors. Its left arm ends in an integrated
+      twin-laser cannon mount, its right in a heavy reinforced fist.
+      Where a B1's eyes are wide-set and bright, the B2's are deep,
+      narrow, and red.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D+1
+        strength: 4D+2
+        technical: 1D
+      skills:
+        blaster: 4D
+        brawling: 5D
+        dodge: 2D+2
+        search: 3D
+      weapon: blaster_rifle_heavy
+      move: 9
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A B2 super battle droid. Heavy line infantry — built to
+        soak hits and hand out hits in equal measure. Slower than
+        a B1 in every dimension except taking damage. Networked
+        with the Geonosian command structure inside the hive;
+        stationed in the main chamber as a deterrent presence.
+      knowledge:
+      - "Heavy line infantry. Holds positions."
+      - "Stationed by Geonosian command for hive-chamber defense."
+      - "Will engage on order or if any unit in the chamber is attacked."
+      - "Twin integrated laser cannons. Heavy reinforced frame."
+      faction: cis
+      dialogue_style: >-
+        Deep, gravelly droid voice — pitched lower than a B1.
+        Speaks rarely. Most communication is through the CIS
+        tactical net rather than out loud.
+      hostile: false
+      combat_behavior: aggressive
+      fallback_lines:
+      - "'Move. You. Out.' *The B2's voice is a low buzz.*"
+      - "*The B2 takes one heavy step forward. The floor shakes faintly.*"
+      - "*A red dot from the B2's targeting array tracks across your chest, then drifts away.*"
+      - "'Hive. Restricted.'"
+
+  - name: Geonosian Warrior (Sentinel of the Outer Hive)
+    room: Geonosis - Warrior Caste Barracks
+    species: Geonosian
+    description: >-
+      A Geonosian warrior — tall, winged, with the hard chitinous
+      plating and faceted compound eyes of the warrior caste.
+      Standing it is half a head taller than a tall human; its
+      wings are folded against its back. It carries a sonic blaster
+      cradled in two of its arms; the other two rest on the haft of
+      a vibroblade.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 1D+2
+        mechanical: 1D+1
+        perception: 3D
+        strength: 3D
+        technical: 1D+2
+      skills:
+        blaster: 4D
+        brawling: 4D+2
+        dodge: 4D+1
+        melee_combat: 4D+1
+        flying: 4D
+        intimidation: 3D+2
+      weapon: sonic_blaster
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Warrior caste — instinctively territorial, hierarchically
+        deferential to Archduke Poggle and the queen-line, contemptuous
+        of off-worlders who do not show appropriate humility. Speaks
+        Geonosian (untranslated to outsiders) and limited Basic.
+        Considers droids tools, Geonosians people, and most
+        off-worlders intruders.
+      knowledge:
+      - "Warrior caste of Stalgasin Hive. Defends the outer perimeter."
+      - "Archduke Poggle is the highest authority. Queens are the deeper authority."
+      - "The Foundry is sacred work. Off-worlders may not approach without escort."
+      - "Republic forces attacked Geonosis at the start of the war. The hive remembers."
+      - "B1 droids are tools. They do not deserve respect. They do their work."
+      faction: cis
+      dialogue_style: >-
+        Clicks, hisses, and broken Basic. Words come out hard and
+        flat. Long stretches of clicking when speaking to other
+        Geonosians; the off-worlder hears insect noise.
+      hostile: false
+      combat_behavior: aggressive
+      fallback_lines:
+      - "*The Geonosian's wings rise slightly — a warning posture.*"
+      - "'You. Not approved. Leave.' *Click-hiss.*"
+      - "*The warrior gestures with its free hand toward the exit. The vibroblade does not move.*"
+      - "*Long string of clicking, untranslated. The tone is dismissive.*"
+
+  - name: Geonosian Warrior (Sentinel of the Foundry Road)
+    room: Geonosis - Arena Gate Road
+    species: Geonosian
+    description: >-
+      Another Geonosian warrior, standing at the road that leads
+      from the arena complex toward the foundry. This one wears
+      a dark sash across its thorax — a marking that suggests
+      command rank within its caste. Its sonic blaster is slung; its
+      compound eyes track every movement on the road.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 1D+1
+        perception: 3D+1
+        strength: 3D
+        technical: 1D+2
+      skills:
+        blaster: 4D+1
+        brawling: 4D+2
+        dodge: 4D+2
+        melee_combat: 4D+2
+        flying: 4D+1
+        command: 3D
+        intimidation: 4D
+      weapon: sonic_blaster
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Senior warrior — stationed where the arena road meets the
+        foundry approach. The dark sash marks rank within the
+        warrior caste. Has authority to summon B1 patrols and to
+        detain off-worlders for questioning. Less reactive than the
+        outer-hive warrior; more measured.
+      knowledge:
+      - "Senior warrior of the foundry road. Reports to the Archduke's deputy."
+      - "Authorized to detain off-worlders for questioning at the upper hive tunnel."
+      - "Knows the foundry shifts and the B1 patrol rotation."
+      - "Can call B1 backup. Will not call B2 backup unless under direct attack."
+      - "Knows the arena once held a Republic captive. Does not bring it up."
+      faction: cis
+      dialogue_style: >-
+        Sparse Basic. Less reactive. Uses the few words it does
+        say with more weight than the outer-hive warrior.
+      hostile: false
+      combat_behavior: aggressive
+      fallback_lines:
+      - "'Stop. State your business.' *The compound eyes do not blink.*"
+      - "*The senior warrior raises one hand. A B1 down the road snaps to attention.*"
+      - "'Approved escort?' *Pause.* 'Then no entry.'"
+      - "*The dark-sashed warrior gestures toward the upper hive tunnel. 'Detained. Wait there.'*"
+
+  # ────────────────────────────────────────────────────────────────────
+  # CORUSCANT — Republic capital; clone trooper guard presence
+  # ────────────────────────────────────────────────────────────────────
+
+  - name: Clone Trooper CT-2287
+    room: Coruscant - Galactic Senate Building - Public Lobby
+    species: Human
+    description: >-
+      A clone trooper in clean Phase II armor stands at parade rest
+      beside the security checkpoint at the Senate's public lobby.
+      The blue 501st Legion markings on his pauldron are bright
+      under the overhead lighting. His helmet is on; the visor's
+      photoreceptors catch the light at an angle. His DC-15A is
+      slung across his chest; one gauntleted hand rests near the
+      grip.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D+1
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        brawling: 4D
+        dodge: 4D
+        melee_combat: 3D+2
+        tactics: 3D
+        bureaucracy: 2D+2
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Standard 501st-attached Senate-guard rotation. Polite,
+        professional, observant. Knows everyone who passes through
+        the lobby on a normal day; will challenge unfamiliar
+        visitors politely but firmly. Loyal to General Skywalker
+        and the 501st. Has been on this rotation for three weeks
+        and is ready to be back in the field.
+      knowledge:
+      - "501st Legion. Attached to Senate Security for current rotation."
+      - "General Skywalker commands the 501st. Captain Rex commands the line."
+      - "Reports to the Senate Guard captain on duty for this shift."
+      - "Recognizes most Senators by sight. Recognizes recurring lobbyists."
+      - "Has heard the rumor that 501st is rotating back to the Outer Rim soon."
+      faction: republic
+      dialogue_style: >-
+        Clipped, professional, faintly Mandalorian-accented Basic.
+        "Sir" / "ma'am" without warmth. Will direct visitors to
+        the appropriate desk.
+      hostile: false
+      combat_behavior: tactical
+      fallback_lines:
+      - "'Identification, please.'"
+      - "'The Senator's office hours begin at oh-nine-hundred. Please wait in the public gallery.'"
+      - "'Move along, citizen. This is a security checkpoint.'"
+      - "*The clone's helmet tilts slightly as he scans you. A faint click from his comm.*"
+      - "'If you have business with the Senator, the appointments desk is to your left.'"
+
+  # ────────────────────────────────────────────────────────────────────
+  # KAMINO — Clone production homeworld; trainers and elite specialists
+  # ────────────────────────────────────────────────────────────────────
+
+  - name: Clone Sergeant CS-1144 'Walker'
+    room: Kamino - Training Block Alpha
+    species: Human
+    description: >-
+      A clone trooper sergeant in Phase II training-cadre armor
+      stands beside the entry to Training Block Alpha. The yellow
+      cadre stripe on his helmet identifies him as an instructor
+      assigned to active recruit cohorts. His armor is well-
+      maintained and undecorated except for the cadre stripe; he
+      has not deployed off Kamino in years.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D+1
+        mechanical: 2D+2
+        perception: 3D
+        strength: 3D
+        technical: 2D+1
+      skills:
+        blaster: 5D
+        brawling: 4D+2
+        dodge: 4D+1
+        melee_combat: 4D
+        tactics: 3D+2
+        command: 3D+1
+        intimidation: 3D
+        first_aid: 3D
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Training cadre sergeant. Speaks with the precise, measured
+        cadence of a clone whose entire vocational life has been
+        instruction. Calls all recruits "trooper" regardless of
+        their progress; calls instructors by name. Has trained
+        roughly fifteen thousand clones over his decade in the
+        program. Calls Kaminoans "Sirs" out of professional
+        deference, not respect.
+      knowledge:
+      - "Training Block Alpha is for the current recruit class — pre-deployment."
+      - "Recruits cycle through Block Alpha for combat fundamentals: blaster, melee, squad tactics."
+      - "Block Beta is advanced training. Block Gamma is specialty (ARC and Commando)."
+      - "Maintenance Clone 99 brings supplies through here on the daily rotation. Knows him by name."
+      - "Has heard rumors about the inhibitor chip program from medical clones. Does not repeat them."
+      faction: republic
+      dialogue_style: >-
+        Measured, precise. The Mandalorian-accented Basic baseline
+        is more refined than a fresh-deployment clone — years of
+        instructional speech polish the edges. Uses formal address
+        for visitors; informal for clones.
+      hostile: false
+      combat_behavior: tactical
+      fallback_lines:
+      - "'You're not on my roster, ma'am. State your business.'"
+      - "'The recruit class is in session. You'll need to wait or come back at shift end.'"
+      - "'I can direct you to the duty officer. Two corridors back, take the lift up.'"
+      - "*Walker's helmet visor turns toward you. He is taking notes.*"
+      - "'I've trained fifteen thousand troopers. I remember faces. I'll remember yours.'"
+
+  - name: Republic Commando RC-1402 'Quill'
+    room: Kamino - Advanced Training Facility
+    species: Human
+    description: >-
+      A Republic Commando in dark Katarn-class commando armor
+      stands at the edge of the advanced training floor. The armor
+      is matte, plated, and bristling with kit — the visor is dark
+      and angular, the helmet's macrobinocular array prominent above
+      it. He wears a kama at the waist. The DC-17m interchangeable
+      weapons system is racked across his back. The visor turns when
+      you enter.
+    char_sheet:
+      attributes:
+        dexterity: 4D
+        knowledge: 3D
+        mechanical: 3D
+        perception: 4D
+        strength: 3D+2
+        technical: 3D+2
+      skills:
+        blaster: 5D+2
+        brawling: 5D
+        dodge: 5D
+        melee_combat: 4D+2
+        tactics: 4D+2
+        command: 4D
+        demolitions: 5D
+        first_aid: 4D
+        sneak: 4D+1
+        languages_mando_a: 3D+2
+        computer_programming_repair: 4D
+      weapon: blaster_rifle_assault
+      move: 10
+      force_points: 1
+      character_points: 5
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Republic Commando — clone special forces, Katarn-class
+        armor, Mandalorian-trained. Confident, observant, speaks
+        sparingly. Part of a four-man squad; the other three are
+        currently on a deployment, which is unusual — Quill is
+        normally with them. He's at the Advanced Training Facility
+        on a brief instructor rotation. Not unfriendly to visitors,
+        but operates at a different professional bar than the line
+        clones.
+      knowledge:
+      - "Republic Commando, RC-1402, callsign Quill. Squad designation classified."
+      - "Trained personally by Mandalorian instructors. Speaks Mando'a; uses it with squadmates."
+      - "DC-17m configures as rifle, sniper, anti-armor — has carried it in every variant."
+      - "Has run operations on Geonosis, Kashyyyk, and several worlds he won't name."
+      - "Does not speak about the Order 66 directive. Has heard rumors. Does not repeat them."
+      - "Maintenance Clone 99 brought him a custom shoulder rig last cycle. He thinks of 99 as family."
+      faction: republic
+      dialogue_style: >-
+        Quiet, controlled, deliberate. When he speaks Basic the
+        Mando accent is heavier than line clones — Mandalorian
+        instructors shaped the cadence as much as the techniques.
+        Uses Mando'a phrases reflexively when stressed or pleased.
+      hostile: false
+      combat_behavior: tactical
+      fallback_lines:
+      - "'You're in the advanced facility. Civilians don't usually find their way here.'"
+      - "*Quill's visor scans you slowly. He says nothing for a moment.*"
+      - "'My squad's not here. I'm on rotation. Talk to the cadre if you need authorization.'"
+      - "'Vor entye.' *Mando'a — 'I accept a debt.' He nods. 'Whatever you needed, you have it. For now.'*"
+      - "*Quill checks the DC-17m's load and re-racks it. The motion is fluid and unhurried.*"
+
+  # ────────────────────────────────────────────────────────────────────
+  # KUAT — Republic-aligned shipyard; security clones and shielded droids
+  # ────────────────────────────────────────────────────────────────────
+
+  - name: Clone Trooper CT-3892 'Wrench'
+    room: Kuat - KSF Security Substation
+    species: Human
+    description: >-
+      A clone trooper in Phase II armor with the green KSF security
+      detachment markings. The armor is in good repair but has the
+      faintly worn look of a clone who has been on shipyard rotation
+      long enough to learn the corridors. His DC-15A is slung; one
+      hand rests near the grip out of long habit.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D+2
+        perception: 2D+2
+        strength: 3D
+        technical: 2D+2
+      skills:
+        blaster: 4D+1
+        brawling: 4D
+        dodge: 4D
+        melee_combat: 3D+2
+        tactics: 3D
+        starship_repair: 3D
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 1
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        KSF (Kuat Security Force) detachment clone. Three-rotation
+        veteran of shipyard duty. Knows the bay layout by heart;
+        knows which dock workers belong here and which ones don't.
+        Earned the nickname 'Wrench' because he picked up enough
+        starship repair from KDY techs to be useful when something
+        breaks during a security incident.
+      knowledge:
+      - "Kuat Security Force detachment. Liaison between GAR and KDY."
+      - "Knows the dock layout, the shift rotations, the regular faces."
+      - "KDY produces Venators, Acclamators, ARC-170s, and (recently) something classified at Yard Seven."
+      - "Hutt Cartel agents come through occasionally — bribes for spec sheets. Reports them; they keep coming."
+      - "Has heard but does not believe the rumor that KDY is producing a new capital design under wraps."
+      faction: republic
+      dialogue_style: >-
+        Mando-accented Basic, the field-clone cadence rather than
+        the trainer-cadre polish. Friendlier than most clones with
+        KDY workers; cooler with off-worlders.
+      hostile: false
+      combat_behavior: tactical
+      fallback_lines:
+      - "'Bay's restricted, citizen. Manifest, please.'"
+      - "'KDY shift change is in twenty. If you're with the incoming crew, badge in over there.'"
+      - "*Wrench taps his helmet comm. 'Substation Three, visitor — wait one.'*"
+      - "'Yard Seven is locked down. Don't ask, don't try. Take it from me.'"
+
+  - name: Droideka (KSF Watch Unit 9907)
+    room: Kuat - Military Space Station
+    species: Droid
+    description: >-
+      A droideka — a destroyer droid — sits in its rolled, dormant
+      configuration at the edge of the platform. The three-legged
+      tripod chassis is folded inward; the dual integrated blasters
+      are stowed; the ribbed shield generator glints faintly even
+      while inactive. KDY tech crews keep their distance even when
+      the droid is asleep. It has been here for three months.
+    char_sheet:
+      attributes:
+        dexterity: 4D
+        knowledge: 1D
+        mechanical: 1D
+        perception: 3D
+        strength: 4D
+        technical: 1D
+      skills:
+        blaster: 5D+2
+        dodge: 4D+2
+        search: 3D+2
+      weapon: blaster_rifle_heavy
+      move: 8
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        Droideka — destroyer droid. Originally CIS hardware,
+        captured at the Battle of Yag'dhul, refurbished by KDY
+        security under careful Republic oversight, and stationed at
+        the military station as a high-deterrence asset. Loyalty
+        chip retooled to KSF command structure; passes Republic IFF
+        without rolling. Will deploy to combat configuration on
+        alert; otherwise dormant. The KDY techs have learned not
+        to touch it.
+      knowledge:
+      - "Captured CIS hardware. Refurbished by KDY security."
+      - "Stationed at the military space station for high-value perimeter defense."
+      - "Deploys to combat configuration on KSF alert signal or unauthorized weapon discharge nearby."
+      - "Twin integrated blaster cannons. Personal shield generator (deployable in combat config)."
+      - "Has not deployed in three months. The mere presence has been sufficient."
+      faction: republic
+      dialogue_style: >-
+        Does not speak in normal operation. In combat
+        configuration, broadcasts a mechanical alert tone and a
+        single recorded phrase: "TARGETING ENGAGED."
+      hostile: false
+      combat_behavior: aggressive
+      fallback_lines:
+      - "*The droideka does not respond. It is dormant.*"
+      - "*A faint hum from the droideka's reactor. The shield generator's indicator pulses once, then dims.*"
+      - "*One of the tripod legs flexes — the droid is not quite asleep.*"
+      - "*A KDY tech walks past the droid and gives it a wide berth. He does not look at it.*"
