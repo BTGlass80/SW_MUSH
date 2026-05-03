@@ -48,6 +48,10 @@ from server.tick_handlers_economy import (
     buff_expiry_tick,
     hazard_tick,
 )
+from server.tick_handlers_progression import (
+    playtime_heartbeat_tick,
+    force_sign_emit_tick,
+)
 # ── S40 boarding party encounter wiring ────────────────────────────────────
 # ``boarding_encounter_tick`` is the periodic check; it takes (db, session_mgr)
 # rather than the standard TickContext so we wrap it below for the scheduler.
@@ -303,6 +307,21 @@ class GameServer:
         # ── S40 boarding encounters: every 5 ticks (~5s) — checks ships
         #    with active boarding parties and resolves defeated boarders.
         self._tick_scheduler.register("boarding_encounters",   boarding_encounter_tick, interval=5,      offset=2)
+        # ── PG.3.gates.a (May 2026): playtime heartbeat. Every 60 ticks
+        #    (~60s); increments characters.play_time_seconds for every
+        #    in-game non-idle session by 60. Foundation of the 50-hour
+        #    Force-gate per progression_gates_and_consequences_design_v1.md
+        #    §2.3. Idle filter (5min) inside the handler.
+        self._tick_scheduler.register("playtime_heartbeat",    playtime_heartbeat_tick, interval=60,     offset=30)
+        # ── PG.3.gates.b (May 2026): Force-sign emission. Every 60 ticks
+        #    (~60s, offset 45 to spread tick load with playtime_heartbeat
+        #    at offset 30). For each post-gate active session, rolls for
+        #    a Force-sign emission scaled by predisposition. At 5 signs,
+        #    invitation threshold hits and the Hermit-invitation flow
+        #    becomes eligible (future Village quest engine consumes that
+        #    signal). Per progression_gates_and_consequences_design_v1.md
+        #    §2.3 / §2.4.
+        self._tick_scheduler.register("force_sign_emit",       force_sign_emit_tick,    interval=60,     offset=45)
 
     async def start(self):
         """Initialize database, load game data, and start all listeners."""
@@ -1077,6 +1096,45 @@ class GameServer:
                     account_id=session.account["id"],
                     fields=db_fields,
                 )
+
+                # ── PG.3.gates.a: stamp force_predisposition at chargen ──
+                # Per progression_gates_and_consequences_design_v1.md §2.4
+                # (May 2026). Predisposition is a hidden 0.0–1.0 score
+                # set ONCE at character creation, never modified.
+                # `engine.jedi_gating.compute_predisposition` combines:
+                #   - species weight  (lore-relevant species nudged up)
+                #   - backstory keywords (capped at +0.30)
+                #   - an RNG roll (caller-supplied; 0.0–0.5)
+                #
+                # We seed the roll with the stdlib RNG here. The
+                # Director-RNG-seeded variant is a PG.3.gates.b concern
+                # (the Director isn't otherwise involved in chargen).
+                # Failures here MUST NOT break chargen — predisposition
+                # defaults to 0.0 from the schema migration, so we
+                # tolerate it staying at 0.0 if scoring fails for any
+                # reason.
+                try:
+                    import random as _random
+                    rng_roll = _random.uniform(0.0, 0.5)
+                    predisposition = wizard.get_predisposition(rng_roll=rng_roll)
+                    await self.db._db.execute(
+                        "UPDATE characters SET force_predisposition = ? "
+                        "WHERE id = ?",
+                        (predisposition, char_id),
+                    )
+                    await self.db._db.commit()
+                    log.info(
+                        "[PG.3.gates.a] Set force_predisposition=%.3f for "
+                        "char_id=%d (%s)",
+                        predisposition, char_id, char_obj.name,
+                    )
+                except Exception:
+                    # Don't break chargen if predisposition scoring
+                    # fails — it's flavor data, not load-bearing.
+                    log.warning(
+                        "[PG.3.gates.a] predisposition scoring failed for %s; "
+                        "leaving at default 0.0", char_obj.name, exc_info=True,
+                    )
 
                 # Fetch back as a dict
                 char = await self.db.get_character(char_id)

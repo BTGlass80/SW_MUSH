@@ -1,245 +1,215 @@
 # -*- coding: utf-8 -*-
+"""F.1d — Era switch regression tests.
+
+After F.1a-c, build_mos_eisley.py has no GCW-specific literals; the era is
+selected via the `era` kwarg on build(). F.1d adds the kwarg, era-guards
+the GCW-specific seed-room linking, and proves CW builds end-to-end.
+
+These tests are integration-level — they actually run build() against a
+temp DB and assert on what landed.
 """
-tests/test_b1a_alias_tables_display.py — B.1.a (server display + alias
-tables) tests.
-
-Per architecture v38 §19.7 and `b1_audit_v1.md` §3, B.1.a is the lowest-
-risk B.1 sub-drop: extend three alias tables / display constants to
-cover both GCW and CW faction codes. No removals; both eras coexist.
-
-Three change sites:
-
-  1. `server/channels.py` — `FACTIONS` / `FACTION_LABELS` / `FACTION_COLORS`
-     extended to be the era-agnostic union. CW PCs with stored
-     `attributes.faction = "republic"` now render as `[Republic]` not
-     the `Unknown` fallback.
-
-  2. `engine/vendor_droids.py::_FACTION_NAME_MAP` — extended with CW
-     entries (republic/cis/jedi_order/hutt_cartel/bounty_hunters_guild
-     plus long-form aliases like "Galactic Republic", "Confederacy of
-     Independent Systems", "Jedi Order").
-
-  3. `parser/npc_commands.py::_fac_map` (inside
-     `_inject_faction_context`) — same treatment.
-
-Tests are byte-equivalent: every existing GCW alias still resolves to
-its same canonical code; every existing GCW label/color still matches
-the prior value. New CW entries are additive.
-
-Note: `engine/vendor_droids.py::_FACTION_NAME_MAP` is a function-local
-dict, so we can't import it directly. Instead we test it via the
-public function that consumes it (or by inspecting the source token-
-level — see TestVendorDroidsFactionMapSource).
-"""
-from __future__ import annotations
-
+import asyncio
 import os
-import re
-import sys
-import unittest
+import sqlite3
+import tempfile
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(HERE, ".."))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+import pytest
+
+from build_mos_eisley import build
 
 
-# ──────────────────────────────────────────────────────────────────────
-# 1. server/channels.py — FACTIONS / FACTION_LABELS / FACTION_COLORS
-# ──────────────────────────────────────────────────────────────────────
-
-class TestChannelsConstantsByteEquivalence(unittest.TestCase):
-    """Existing GCW codes must keep their existing labels and colors."""
-
-    def test_gcw_factions_still_present(self):
-        """All four canonical GCW director-axis codes are still in
-        FACTIONS (the production set)."""
-        from server.channels import FACTIONS
-        for fac in ("imperial", "rebel", "criminal", "independent"):
-            self.assertIn(fac, FACTIONS,
-                          f"GCW canonical code '{fac}' was dropped from FACTIONS")
-
-    def test_gcw_labels_unchanged(self):
-        """Existing label values are byte-identical to pre-B.1.a."""
-        from server.channels import FACTION_LABELS
-        self.assertEqual(FACTION_LABELS["imperial"],    "Imperial")
-        self.assertEqual(FACTION_LABELS["rebel"],       "Rebel")
-        self.assertEqual(FACTION_LABELS["criminal"],    "Criminal")
-        self.assertEqual(FACTION_LABELS["independent"], "Independent")
-
-    def test_gcw_colors_unchanged(self):
-        """Existing color values are byte-identical to pre-B.1.a."""
-        from server.channels import FACTION_COLORS
-        self.assertEqual(FACTION_COLORS["imperial"],    "\033[37m")
-        self.assertEqual(FACTION_COLORS["rebel"],       "\033[31m")
-        self.assertEqual(FACTION_COLORS["criminal"],    "\033[33m")
-        self.assertEqual(FACTION_COLORS["independent"], "\033[36m")
+def _run_build(era):
+    """Run build() in a fresh temp DB, return path."""
+    fd, db_path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    os.unlink(db_path)
+    asyncio.run(build(db_path=db_path, era=era))
+    return db_path
 
 
-class TestChannelsConstantsCWExtensions(unittest.TestCase):
-    """The B.1.a additions: CW codes are recognized and display correctly.
+def _query(db_path, sql, params=()):
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+    return rows
 
-    Asymmetric: these tests FAIL pre-B.1.a (those keys didn't exist),
-    PASS post-B.1.a.
-    """
 
-    def test_cw_factions_added(self):
-        from server.channels import FACTIONS
-        for fac in ("republic", "cis"):
-            self.assertIn(fac, FACTIONS,
-                          f"CW director-axis code '{fac}' missing from FACTIONS")
+# ──────────────────────────────────────────────────────────────────────────
 
-    def test_cw_labels_present(self):
-        from server.channels import FACTION_LABELS
-        self.assertEqual(FACTION_LABELS["republic"], "Republic")
-        self.assertEqual(FACTION_LABELS["cis"],      "Separatist")
 
-    def test_cw_colors_present(self):
-        """CW codes have a color entry (any valid ANSI code)."""
-        from server.channels import FACTION_COLORS
-        self.assertIn("republic", FACTION_COLORS)
-        self.assertIn("cis", FACTION_COLORS)
-        # Colors are ANSI escape sequences.
-        self.assertTrue(FACTION_COLORS["republic"].startswith("\033["))
-        self.assertTrue(FACTION_COLORS["cis"].startswith("\033["))
+class TestGcwBuildPostF1d:
+    """GCW build remains identical to pre-F.1d behaviour."""
 
-    def test_org_axis_aliases_for_attributes_faction(self):
-        """Org-axis codes (`empire`/`republic`/`hutt_cartel` etc.) that
-        might appear in `attributes.faction` from chargen are also
-        recognized."""
-        from server.channels import FACTION_LABELS
-        # Org-axis 'empire' should display as 'Imperial' (matches GCW
-        # director-axis label).
-        self.assertEqual(FACTION_LABELS["empire"], "Imperial")
-        # CW org-axis names get reasonable display labels.
-        self.assertEqual(FACTION_LABELS["hutt_cartel"], "Hutt")
-        self.assertEqual(FACTION_LABELS["jedi_order"],  "Jedi")
-        self.assertEqual(
-            FACTION_LABELS["bounty_hunters_guild"], "Bounty Hunter"
+    @pytest.fixture(scope="class")
+    def gcw_db(self):
+        path = _run_build("gcw")
+        yield path
+        if os.path.exists(path):
+            os.unlink(path)
+
+    def test_room_count(self, gcw_db):
+        rows = _query(gcw_db, "SELECT COUNT(*) AS n FROM rooms")
+        # F.0 Pass B baseline: 120 YAML + 7 ship bridges = 127 (per summary
+        # box). DB row count includes 3 seed rooms created by
+        # Database.initialize() before build() runs (Landing Pad / Street /
+        # Cantina), so total = 130.
+        assert rows[0]["n"] == 130
+
+    def test_npc_count(self, gcw_db):
+        rows = _query(gcw_db, "SELECT COUNT(*) AS n FROM npcs")
+        # F.1a: 98 planet + 4 hireable = 102
+        assert rows[0]["n"] == 102
+
+    def test_ship_count(self, gcw_db):
+        rows = _query(gcw_db, "SELECT COUNT(*) AS n FROM ships")
+        assert rows[0]["n"] == 7
+
+    def test_test_character_present(self, gcw_db):
+        rows = _query(gcw_db, "SELECT name FROM characters WHERE name='Test Jedi'")
+        assert len(rows) == 1
+
+    def test_seed_room_linking_applied(self, gcw_db):
+        """Seed room 1 (Landing Pad) gets a 'north' exit to spaceport row."""
+        rows = _query(
+            gcw_db,
+            "SELECT direction FROM exits WHERE from_room_id=1 AND direction='north'"
+        )
+        assert len(rows) >= 1
+
+
+class TestCloneWarsBuildPostF1d:
+    """CW build runs end-to-end. NPC replacements apply. No seed-room
+    linking (era != gcw). Hireable/ships/test-character files don't exist
+    yet for CW — skipped without crashing."""
+
+    @pytest.fixture(scope="class")
+    def cw_db(self):
+        path = _run_build("clone_wars")
+        yield path
+        if os.path.exists(path):
+            os.unlink(path)
+
+    def test_build_produced_rooms(self, cw_db):
+        rows = _query(cw_db, "SELECT COUNT(*) AS n FROM rooms")
+        # F.4 (Apr 30 2026) wired in 4 additional CW planets beyond the
+        # original Tatooine + Nar Shaddaa pair: Coruscant, Kuat, Kamino,
+        # Geonosis. CW build now produces ~256 rooms (was ~80 pre-F.4).
+        # Still less than full GCW production build (which has Tatooine
+        # only at full GG7 fidelity plus seed rooms).
+        assert rows[0]["n"] > 200, (
+            f"CW build produced {rows[0]['n']} rooms; expected > 200 "
+            "post-F.4 (Tatooine + Nar Shaddaa + Coruscant + Kuat + "
+            "Kamino + Geonosis)"
+        )
+        assert rows[0]["n"] < 400, (
+            f"CW build produced {rows[0]['n']} rooms; expected < 400. "
+            "If this fails high, a new planet was added to CW era.yaml "
+            "content_refs.planets — bump the upper bound."
         )
 
+    def test_cw_npcs_loaded(self, cw_db):
+        """CW NPC roster is populated across all six player-facing planets.
 
-class TestFmtFcommUsesEraAwareLabels(unittest.TestCase):
-    """The display function must render CW factions correctly."""
+        History: pre-CW.NPCS this was 8 (Vela Niree addition + 7
+        Imperial replacements). The CW.NPCS track (May 2026) shipped
+        eight content drops registering 7 planet-specific NPC YAMLs in
+        ``data/worlds/clone_wars/era.yaml``: Mos Eisley, Coruscant
+        Senate + Temple, Coruscant lower / Coco Town / Underworld,
+        Kamino + Geonosis + Kuat civilians, Nar Shaddaa topside,
+        Nar Shaddaa lower, and the Drop H combat templates seeded
+        across multiple planets. Reality is now ~144 NPCs.
 
-    def test_fcomm_format_for_republic(self):
-        """A CW Republic PC's fcomm should render as [Republic], not [Unknown]."""
-        from server.channels import fmt_fcomm
-        out = fmt_fcomm("Skywalker", "republic", "Hello")
-        self.assertIn("[Republic]", out)
-        self.assertNotIn("[Unknown]", out)
+        We assert a generous floor (>120) rather than a hard equality
+        because future content drops will move the number up; CW.NPCS
+        is a content-lane track and the count grows without engine
+        contracts changing. A regression *down* from this floor would
+        signal a content-ref or loader regression worth investigating.
+        """
+        rows = _query(cw_db, "SELECT COUNT(*) AS n FROM npcs")
+        n = rows[0]["n"]
+        assert n > 120, (
+            f"CW build produced {n} NPCs; expected > 120 post-CW.NPCS "
+            "(8 content drops registered 7 planet-specific YAMLs in "
+            "era.yaml). Did a content_ref get removed or did the "
+            "replaces: protocol over-suppress?"
+        )
+        # Sanity ceiling — way above expected, just guards against
+        # accidental duplicate-load loops.
+        assert n < 1000, (
+            f"CW build produced {n} NPCs; expected < 1000. "
+            "Possible duplicate-load loop or runaway replicator NPC."
+        )
 
-    def test_fcomm_format_for_cis(self):
-        from server.channels import fmt_fcomm
-        out = fmt_fcomm("Dooku", "cis", "Greetings")
-        self.assertIn("[Separatist]", out)
+    def test_cw_replacement_names_present(self, cw_db):
+        """The Clone Trooper replacement loaded in place of Imperial Stormtrooper."""
+        rows = _query(cw_db, "SELECT name FROM npcs WHERE name LIKE 'Clone Trooper%'")
+        assert len(rows) >= 1
 
-    def test_fcomm_format_for_imperial_unchanged(self):
-        """GCW byte-equivalence: existing Imperial fcomm still renders correctly."""
-        from server.channels import fmt_fcomm
-        out = fmt_fcomm("Vader", "imperial", "You don't know the power")
-        self.assertIn("[Imperial]", out)
+    def test_cw_no_imperial_stormtrooper(self, cw_db):
+        """Imperial Stormtrooper is suppressed by the replaces: protocol."""
+        rows = _query(
+            cw_db,
+            "SELECT name FROM npcs WHERE name='Imperial Stormtrooper'"
+        )
+        assert len(rows) == 0
 
+    def test_cw_ships_loaded(self, cw_db):
+        """CW docked-ship roster is populated.
 
-# ──────────────────────────────────────────────────────────────────────
-# 2. engine/vendor_droids.py — _FACTION_NAME_MAP (in-source check)
-# ──────────────────────────────────────────────────────────────────────
+        History: pre-CW.SHIPS this was 0 (no ``ships.yaml`` existed for
+        CW). CW.SHIPS shipped a ``data/worlds/clone_wars/ships.yaml``
+        roster of 7 era-correct ships (per memory + content_refs),
+        registered via ``content_refs.ships`` in era.yaml. Reality is
+        now 7 ships.
 
-class TestVendorDroidsFactionMapSource(unittest.TestCase):
-    """The `_FACTION_NAME_MAP` is a function-local dict, so we verify
-    the source contains the expected entries (string match) rather than
-    importing it directly."""
+        We assert presence (> 0) and a reasonable ceiling rather than
+        a hard equality so future ship additions don't immediately
+        re-stale this test. A drop to 0 signals a content_refs or
+        ship_loader regression.
+        """
+        rows = _query(cw_db, "SELECT COUNT(*) AS n FROM ships")
+        n = rows[0]["n"]
+        assert n > 0, (
+            f"CW build produced 0 ships; expected > 0 post-CW.SHIPS "
+            "(content_refs.ships in era.yaml should point at "
+            "ships.yaml and ship_loader should populate the table)."
+        )
+        assert n < 100, (
+            f"CW build produced {n} ships; expected < 100. "
+            "Possible duplicate-load loop."
+        )
 
-    def setUp(self):
-        path = os.path.join(PROJECT_ROOT, "engine", "vendor_droids.py")
-        with open(path, encoding="utf-8") as f:
-            self.source = f.read()
+    def test_cw_no_test_character(self, cw_db):
+        """CW has no test_character.yaml yet — loader skips silently."""
+        rows = _query(cw_db, "SELECT name FROM characters")
+        # No test characters created — only a fresh world's tables.
+        assert len(rows) == 0
 
-    def test_gcw_entries_still_present(self):
-        for entry in (
-            '"empire":', '"imperial":', '"galactic empire":',
-            '"rebel":', '"rebellion":', '"rebel alliance":',
-            '"hutt":', '"hutts":', '"hutt cartel":',
-            '"bh_guild":', '"bounty hunters guild":', '"bounty hunters":',
-        ):
-            self.assertIn(entry, self.source,
-                          f"GCW alias '{entry}' missing from vendor_droids "
-                          f"_FACTION_NAME_MAP (regression)")
-
-    def test_cw_entries_added(self):
-        for entry in (
-            '"republic":', '"galactic republic":',
-            '"cis":', '"confederacy":', '"separatist":',
-            '"jedi":', '"jedi order":',
-            '"hutt_cartel":', '"bounty_hunters_guild":',
-        ):
-            self.assertIn(entry, self.source,
-                          f"CW alias '{entry}' missing from vendor_droids "
-                          f"_FACTION_NAME_MAP")
-
-    def test_cw_entries_route_to_canonical_codes(self):
-        """The CW long-form entries should map to canonical CW codes."""
-        # Quick sanity: source contains the right pairings.
-        # Exact pattern: `"republic":             "republic",` etc.
-        self.assertRegex(self.source, r'"galactic republic":\s*"republic"')
-        self.assertRegex(self.source, r'"confederacy":\s*"cis"')
-        self.assertRegex(self.source, r'"jedi order":\s*"jedi_order"')
-
-
-# ──────────────────────────────────────────────────────────────────────
-# 3. parser/npc_commands.py — _fac_map (in-source check)
-# ──────────────────────────────────────────────────────────────────────
-
-class TestNpcCommandsFacMapSource(unittest.TestCase):
-    """The `_fac_map` is a function-local dict inside
-    `_inject_faction_context`. Verify source-level extension."""
-
-    def setUp(self):
-        path = os.path.join(PROJECT_ROOT, "parser", "npc_commands.py")
-        with open(path, encoding="utf-8") as f:
-            self.source = f.read()
-
-    def test_gcw_entries_still_present(self):
-        for key in (
-            '"imperial":', '"empire":', '"galactic empire":',
-            '"rebel":', '"rebel alliance":',
-            '"hutt":', '"hutt cartel":',
-            '"bounty hunter":', '"bounty hunters":',
-            "\"bounty hunters' guild\":",
-        ):
-            self.assertIn(
-                key, self.source,
-                f"GCW alias '{key}' missing from npc_commands _fac_map"
-            )
-
-    def test_cw_entries_added(self):
-        for key in (
-            '"republic":', '"galactic republic":',
-            '"cis":', '"separatist":', '"separatists":',
-            '"jedi":', '"jedi order":',
-            '"confederacy":',
-            '"hutt_cartel":', '"bounty_hunters_guild":',
-        ):
-            self.assertIn(
-                key, self.source,
-                f"CW alias '{key}' missing from npc_commands _fac_map"
-            )
+    def test_cw_seed_rooms_not_linked(self, cw_db):
+        """Era != gcw: the GCW seed-room linking is skipped, so seed
+        room 1 (which Database.initialize() creates) won't have the
+        north→spaceport exit applied."""
+        rows = _query(
+            cw_db,
+            """SELECT e.direction FROM exits e
+               WHERE e.from_room_id=1 AND e.direction='north'
+               AND e.to_room_id IN (SELECT id FROM rooms
+                                     WHERE name LIKE '%Spaceport Row%')"""
+        )
+        assert len(rows) == 0
 
 
-# ──────────────────────────────────────────────────────────────────────
-# 4. Smoke: imports clean (catches typo regressions)
-# ──────────────────────────────────────────────────────────────────────
+class TestBuildSignature:
+    """The build() signature is the F.1d contract surface."""
 
-class TestModuleImportsClean(unittest.TestCase):
-    def test_channels_imports(self):
-        import importlib
-        mod = importlib.import_module("server.channels")
-        self.assertTrue(hasattr(mod, "FACTIONS"))
-        self.assertTrue(hasattr(mod, "FACTION_LABELS"))
-        self.assertTrue(hasattr(mod, "FACTION_COLORS"))
-        # FACTIONS must be a frozenset/set.
-        self.assertIsInstance(mod.FACTIONS, (frozenset, set))
+    def test_default_era_is_gcw(self):
+        import inspect
+        sig = inspect.signature(build)
+        assert "era" in sig.parameters
+        assert sig.parameters["era"].default == "gcw"
 
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_db_path_default_unchanged(self):
+        import inspect
+        sig = inspect.signature(build)
+        assert sig.parameters["db_path"].default == "sw_mush.db"

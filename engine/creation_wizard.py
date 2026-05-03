@@ -113,25 +113,34 @@ STEP_FREEFORM = "freeform"
 # The chain step is era-conditional via _build_step_lists() at __init__
 # time. Eras without a chains.yaml file (GCW) get the legacy step
 # lists; CW gets the chain step inserted before review.
+#
+# ── PG.3.gates.b (May 2026) — Force Sensitivity step removed ─────────────
+# Per progression_gates_and_consequences_design_v1.md §2.5, the
+# chargen Force Sensitivity choice is removed. All characters start
+# non-Force-sensitive; the flag flips during Village quest completion
+# (Path A success) per the redesigned gating flow. The legacy
+# STEP_FORCE constant and _handle_force / _render_force methods are
+# retained as orphaned dead code so external imports don't break;
+# they are no longer reachable through the step ladders.
 
 # Ordered step list for back/forward navigation
 SCRATCH_STEPS_LEGACY = [
     STEP_WELCOME, STEP_SPECIES, STEP_ATTRIBUTES,
-    STEP_SKILLS, STEP_FORCE, STEP_BACKGROUND, STEP_REVIEW,
+    STEP_SKILLS, STEP_BACKGROUND, STEP_REVIEW,
 ]
 TEMPLATE_STEPS_LEGACY = [
     STEP_WELCOME, STEP_TEMPLATE_SELECT,
-    STEP_SKILLS, STEP_FORCE, STEP_BACKGROUND, STEP_REVIEW,
+    STEP_SKILLS, STEP_BACKGROUND, STEP_REVIEW,
 ]
 # CW step lists with chain selection slotted before review
 SCRATCH_STEPS_CW = [
     STEP_WELCOME, STEP_SPECIES, STEP_ATTRIBUTES,
-    STEP_SKILLS, STEP_FORCE, STEP_BACKGROUND,
+    STEP_SKILLS, STEP_BACKGROUND,
     STEP_TUTORIAL_CHAIN, STEP_REVIEW,
 ]
 TEMPLATE_STEPS_CW = [
     STEP_WELCOME, STEP_TEMPLATE_SELECT,
-    STEP_SKILLS, STEP_FORCE, STEP_BACKGROUND,
+    STEP_SKILLS, STEP_BACKGROUND,
     STEP_TUTORIAL_CHAIN, STEP_REVIEW,
 ]
 
@@ -764,6 +773,42 @@ class CreationWizard:
         attributes JSON before DB save."""
         return self._selected_chain_id
 
+    def get_predisposition(self, rng_roll: float = 0.0) -> float:
+        """Compute the character's force_predisposition score.
+
+        Per ``progression_gates_and_consequences_design_v1.md`` §2.4
+        (PG.3.gates.a, May 2026). The score is a hidden 0.0–1.0
+        value combining:
+          - Species weight (from
+            ``engine.jedi_gating.SPECIES_PREDISPOSITION_WEIGHTS``)
+          - Backstory keyword scoring (capped at +0.30)
+          - A caller-supplied RNG roll in [0.0, 0.5]
+
+        The wizard does not roll the RNG itself — game_server.py at
+        chargen finalize draws the value from its own RNG (or an
+        injected seed for tests) and passes it in. This keeps the
+        wizard deterministic for unit testing and lets the Director
+        seed flow through cleanly when wired.
+
+        Args:
+            rng_roll: pre-rolled value in [0.0, 0.5]. Defaults to 0.0
+                so a caller that doesn't yet supply an RNG still
+                gets a deterministic species + backstory score.
+
+        Returns:
+            float in [0.0, 1.0].
+        """
+        from engine.jedi_gating import compute_predisposition
+        species = (
+            self.engine.state.species.name
+            if self.engine.state.species else ""
+        )
+        return compute_predisposition(
+            species=species,
+            backstory=self.background,
+            rng_roll=rng_roll,
+        )
+
     def get_tutorial_chain_block(self) -> Optional[dict]:
         """Return the tutorial_chain state block to merge into the
         character's attributes JSON, or None if no chain selected.
@@ -961,7 +1006,11 @@ class CreationWizard:
         cmd = parts[0] if parts else ""
 
         if cmd == "next":
-            self.step = STEP_FORCE
+            # PG.3.gates.b (May 2026): STEP_FORCE removed from chargen
+            # per progression_gates_and_consequences_design_v1.md §2.5.
+            # Skills now flows directly to background; the Force
+            # Sensitivity choice has been removed entirely.
+            self.step = STEP_BACKGROUND
             return self._render_step(), self._prompt(), False
 
         if cmd == "explain" and len(parts) > 1:
