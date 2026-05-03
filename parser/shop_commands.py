@@ -31,6 +31,26 @@ from parser.commands import BaseCommand, CommandContext, AccessLevel
 log = logging.getLogger(__name__)
 
 
+# DROP-2 SHOP FIX (May 2026):
+# These imports were originally local to ShopCommand.execute(). The Phase 3
+# C4 refactor split execute() into a dispatch + 13 _cmd_* sibling methods,
+# but the import statement stayed local. Result: every subcommand that
+# didn't do its own re-import (_cmd_buy/place/recall/name/desc/stock/
+# unstock/price/collect/sales) raised NameError because the names only
+# existed in execute's scope. The pattern is the same import-scope bug
+# that bit HousingCommand pre-bugfix2 (caught by SH6/H1).
+# _cmd_order, _cmd_cancel, _cmd_upgrade have their own local imports
+# inside their bodies and aren't affected — they're left alone here.
+# Smoke EE1 is the regression guard.
+from engine.vendor_droids import (
+    purchase_droid, place_droid, recall_droid,
+    set_shop_name, set_shop_desc,
+    stock_droid, unstock_droid, set_slot_price,
+    collect_escrow, format_shop_status,
+    find_droid_by_name, _load_data,
+)
+
+
 class ShopCommand(BaseCommand):
     key = "shop"
     aliases = ["shopinfo"]

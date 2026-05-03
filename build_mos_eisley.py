@@ -42,7 +42,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 from db.database import Database
-from engine.npc_loader import load_era_npcs
+from engine.npc_loader import load_era_npcs, load_wilderness_npcs
 from engine.ship_loader import load_era_ships
 from engine.test_character_loader import load_era_test_character
 from engine.world_loader import load_world_dry_run
@@ -214,6 +214,56 @@ async def build(db_path="sw_mush.db", era="gcw"):
         print(f"\n  [SKIP] Seed-room linking is GCW-specific; era={era!r}.")
 
 
+    # ── Wilderness regions (Drop 9 / May 2026) ──────────────────────────────
+    # Per wilderness_system_design_v1.md and v40 §3.5. Reads
+    # era.yaml.content_refs.wilderness (a list of region YAML paths),
+    # loads each region, and writes its landmark roster as ordinary
+    # rooms tagged with wilderness_region_id. The full coordinate-
+    # movement / hazards / encounters engine is the post-Village
+    # roadmap track; this minimal-substrate writer is what the
+    # Village quest needs to land its landmarks.
+    #
+    # The wilderness writer must run AFTER the main world write
+    # (zones must exist in the DB so wilderness landmarks can
+    # inherit zone_id from `region.zone`), and BEFORE NPCs (so NPC
+    # placement can target Village rooms by name).
+    try:
+        from engine.wilderness_loader import load_era_wilderness_regions
+        from engine.wilderness_writer import write_wilderness_region
+
+        era_dir_for_wilderness = os.path.join(
+            os.path.dirname(__file__), "data", "worlds", era,
+        )
+        wilderness_reports = load_era_wilderness_regions(
+            era_dir_for_wilderness,
+        )
+        if wilderness_reports:
+            print(f"\n  Loading {len(wilderness_reports)} wilderness region(s)...")
+            for rep in wilderness_reports:
+                if not rep.ok:
+                    print(f"    [WARN] Region load failed: {rep.errors[:2]}")
+                    continue
+                for w in rep.warnings:
+                    print(f"    [WARN] {w}")
+                wr = await write_wilderness_region(rep.region, db)
+                print(
+                    f"    Region {rep.region.slug!r}: "
+                    f"{wr.landmarks_written} landmarks written, "
+                    f"{wr.landmarks_reused} reused, "
+                    f"{wr.exits_written} exits"
+                )
+                if wr.errors:
+                    for e in wr.errors:
+                        print(f"      [ERROR] {e}")
+        else:
+            print("\n  [skip] No wilderness regions registered for this era.")
+    except Exception as wilderness_err:
+        # Non-fatal — the rest of the world build should still complete.
+        import traceback
+        print(f"\n  [WARN] Wilderness build failed: {wilderness_err}")
+        traceback.print_exc()
+
+
     # -- NPCs (era-aware loader; F.1a) --
     # `room_name_map` translates a YAML room-name string to the yaml_id that
     # the NPC tuple stores in its `room_idx` field.  load_era_npcs() reads
@@ -250,6 +300,37 @@ async def build(db_path="sw_mush.db", era="gcw"):
         )
         print(f"    #{npc_id:3d} {name:30s} [HIREABLE] in {room_name_by_yaml_id[room_idx][:25]}")
         npc_count += 1
+
+    # -- Wilderness-anchored NPCs (F.6, May 3 2026) --
+    # Per Drop F.6 / engine/hermit.py: NPCs whose home rooms are
+    # wilderness landmarks (rooms.wilderness_region_id IS NOT NULL).
+    # These are NOT in the yaml-bundle's room_name_map because the
+    # wilderness writer ran AFTER bundle construction; load_wilderness_npcs()
+    # resolves names directly against the DB.
+    #
+    # Currently this is a singleton population: the Hermit at
+    # Hermit's Hut. Future regions (Coruscant Underworld) will add
+    # entries via era.yaml::content_refs.wilderness_npcs.
+    try:
+        wilderness_npcs = await load_wilderness_npcs(era_dir, db)
+        if wilderness_npcs:
+            print(f"\n  Creating {len(wilderness_npcs)} wilderness-anchored NPC(s)...")
+            for name, room_id, species, desc, sheet, ai_cfg in wilderness_npcs:
+                npc_id = await db.create_npc(
+                    name=name, room_id=room_id, species=species, description=desc,
+                    char_sheet_json=json.dumps(sheet),
+                    ai_config_json=json.dumps(ai_cfg),
+                )
+                print(f"    #{npc_id:3d} {name:30s} [WILDERNESS] in room_id={room_id}")
+                npc_count += 1
+        else:
+            # Clean miss is normal for eras without wilderness_npcs registered.
+            pass
+    except Exception as wilderness_npc_err:
+        # Non-fatal — the rest of the build should still complete.
+        import traceback
+        print(f"\n  [WARN] Wilderness NPC load failed: {wilderness_npc_err}")
+        traceback.print_exc()
 
     # -- Ships (era-aware loader; F.1b) --
     # ships are loaded from data/worlds/<era>/ships.yaml via era.yaml's

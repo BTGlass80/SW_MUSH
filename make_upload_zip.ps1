@@ -41,8 +41,7 @@ try {
     }
 
     $timestamp = Get-Date -Format 'yyyyMMdd_HHmm'
-    $zipPath = Join-Path (Split-Path $projectRoot -Parent) "SW_MUSH_upload_$timestamp.zip"
-
+    $zipPath = Join-Path $env:USERPROFILE "Downloads\SW_MUSH_upload_$timestamp.zip"
     # Remove old zip with same timestamp if present (safety)
     if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 

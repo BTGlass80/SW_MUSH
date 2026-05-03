@@ -88,10 +88,21 @@ async def _fk_list(db, table):
 
 class TestSchemaVersionBump(unittest.TestCase):
 
-    def test_schema_version_is_18(self):
+    def test_schema_version_is_at_least_18(self):
+        """PG.1.schema bumps SCHEMA_VERSION to at least 18.
+
+        History note: this test originally asserted ``== 18`` but
+        was rewritten to ``>= 18`` after the wilderness substrate
+        landed migration 19. Future migrations beyond 18 don't
+        invalidate PG.1.schema's contract — they just stack on top
+        of it. The thing PG.1 actually guarantees is that v18 was
+        applied, not that v18 is current.
+        """
         from db.database import SCHEMA_VERSION
-        self.assertEqual(SCHEMA_VERSION, 18,
-                         "PG.1.schema bumps SCHEMA_VERSION from 17 to 18")
+        self.assertGreaterEqual(
+            SCHEMA_VERSION, 18,
+            "PG.1.schema requires SCHEMA_VERSION >= 18",
+        )
 
     def test_migration_18_is_registered(self):
         from db.database import MIGRATIONS
@@ -100,13 +111,16 @@ class TestSchemaVersionBump(unittest.TestCase):
         self.assertGreater(len(MIGRATIONS[18]), 0,
                            "Migration 18 should not be a placeholder")
 
-    def test_fresh_db_records_v18(self):
+    def test_fresh_db_records_v18_or_later(self):
+        """A fresh DB's recorded schema_version is at least v18 —
+        proves migration 18 ran. Forward-compatible with later
+        migrations."""
         async def _check():
             db = await _fresh_db()
             row = await db._db.execute_fetchall(
                 "SELECT MAX(version) AS v FROM schema_version"
             )
-            self.assertEqual(row[0]["v"], 18)
+            self.assertGreaterEqual(row[0]["v"], 18)
             await db._db.close()
         _run(_check())
 
@@ -505,12 +519,16 @@ class TestMigrationFromOldDB(unittest.TestCase):
             finally:
                 ddmod.SCHEMA_VERSION = original
 
-            # Now bump to 18 and re-initialize. Should apply migration 18.
+            # Now re-initialize at the current SCHEMA_VERSION (>= 18).
+            # Should apply migration 18 (and any later migrations
+            # like v19 wilderness on top of it).
             await db.initialize()
             row = await db._db.execute_fetchall(
                 "SELECT MAX(version) AS v FROM schema_version"
             )
-            self.assertEqual(row[0]["v"], 18)
+            # Forward-compatible: as long as we're at v18 or later,
+            # migration 18 ran.
+            self.assertGreaterEqual(row[0]["v"], 18)
             cols = await _columns_of(db, "characters")
             self.assertIn("play_time_seconds", cols)
             self.assertIn("wound_state", cols)

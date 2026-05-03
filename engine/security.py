@@ -98,7 +98,18 @@ async def get_effective_security(room_id: int, db, character: dict = None) -> Se
         # 1. Integer zone_id override (admin @security command)
         if zone_id and zone_id in _overrides:
             base = _overrides[zone_id]
-            return _apply_claim_upgrade(base, room_id, character, db)
+            # DROP-2 SECURITY FIX (May 2026): _apply_claim_upgrade is
+            # async; the four sibling call sites in this function
+            # await it correctly, but this admin-override branch was
+            # missing the await. Symptoms: the coroutine object was
+            # returned in place of a SecurityLevel, callers got a
+            # truthy non-SecurityLevel value, and the override
+            # effectively didn't apply (callers fell through to the
+            # un-overridden security tier with a RuntimeWarning).
+            # Caught by smoke CX1 driving set_security_override.
+            return await _apply_claim_upgrade(
+                base, room_id, character, db,
+            )
 
         # Resolve zone environment key for steps 2–3
         if zone_id:

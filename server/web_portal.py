@@ -25,6 +25,12 @@ from typing import Optional, TYPE_CHECKING
 
 from aiohttp import web
 
+# Access level constants — kept in sync with parser.commands.AccessLevel.
+# Imported lazily inside helpers to avoid pulling parser into module init,
+# but the values themselves are stable enough to mirror as constants.
+_ACCESS_PLAYER = 1   # parser.commands.AccessLevel.PLAYER
+_ACCESS_ADMIN  = 3   # parser.commands.AccessLevel.ADMIN
+
 if TYPE_CHECKING:
     from db.database import Database
     from server.session import SessionManager
@@ -88,133 +94,17 @@ def _load_guides() -> None:
 
 
 # ── Reference loader ────────────────────────────────────────────────────────
-
-# Auto-generated rules reference, sourced from data/help/topics/*.md and
-# data/help/commands/*.md. Each markdown file has YAML frontmatter
-# (key, title, category, summary, aliases, see_also, tags, examples).
-_REFERENCE_INDEX: dict = {}      # {"tree": {...}, "flat": [...]}
-_REFERENCE_CONTENT: dict = {}    # slug → full entry dict
-
-
-def _parse_frontmatter(content: str) -> tuple[dict, str]:
-    """Parse YAML frontmatter from a markdown file. Returns (meta, body).
-    On any parse error, returns (empty dict, full original content)."""
-    if not content.startswith("---"):
-        return {}, content
-    end = content.find("---", 3)
-    if end == -1:
-        return {}, content
-    fm_text = content[3:end].strip()
-    body = content[end + 3:].strip()
-    try:
-        import yaml
-        meta = yaml.safe_load(fm_text) or {}
-        if not isinstance(meta, dict):
-            return {}, content
-        return meta, body
-    except Exception as e:
-        log.warning("Reference: YAML parse error: %s", e)
-        return {}, content
-
-
-def _load_reference() -> None:
-    """Load reference entries from data/help/topics/ and data/help/commands/.
-
-    Builds two artifacts:
-      _REFERENCE_INDEX: {"tree": {category: {entries, subcategories}}, "flat": [...]}
-      _REFERENCE_CONTENT: {slug → full entry dict including body}
-
-    Slug is the entry's key, lowercased. Look-up by alias is supported in
-    the entry handler.
-    """
-    global _REFERENCE_INDEX, _REFERENCE_CONTENT
-    base_dir = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "data", "help"
-    )
-    sources = [
-        ("topics", os.path.join(base_dir, "topics")),
-        ("commands", os.path.join(base_dir, "commands")),
-    ]
-
-    flat: list[dict] = []
-    by_slug: dict[str, dict] = {}
-
-    for source_kind, src_dir in sources:
-        if not os.path.isdir(src_dir):
-            continue
-        for fname in sorted(os.listdir(src_dir)):
-            if not fname.endswith(".md"):
-                continue
-            fpath = os.path.join(src_dir, fname)
-            try:
-                with open(fpath, "r", encoding="utf-8") as f:
-                    content = f.read()
-            except Exception as e:
-                log.warning("Reference: failed to read %s: %s", fname, e)
-                continue
-            meta, body = _parse_frontmatter(content)
-            key = meta.get("key") if meta else None
-            if not key:
-                continue
-            slug = str(key).lower().strip()
-            entry = {
-                "slug": slug,
-                "key": key,
-                "title": meta.get("title", key),
-                "category": meta.get("category", "Uncategorized"),
-                "summary": meta.get("summary", ""),
-                "aliases": list(meta.get("aliases") or []),
-                "see_also": list(meta.get("see_also") or []),
-                "tags": list(meta.get("tags") or []),
-                "examples": list(meta.get("examples") or []),
-                "body": body,
-                "source": source_kind,
-            }
-            flat.append(entry)
-            by_slug[slug] = entry
-
-    # Build category tree. Splits "Parent: Child" into parent + subcategory.
-    tree: dict = {}
-    for entry in flat:
-        cat = entry["category"] or "Uncategorized"
-        # "Rules: D6" → parent="Rules", sub="D6"
-        if ": " in cat:
-            parent, sub = cat.split(": ", 1)
-            parent = parent.strip()
-            sub = sub.strip()
-        else:
-            parent, sub = cat, None
-
-        if parent not in tree:
-            tree[parent] = {"entries": [], "subcategories": {}}
-        slim = {
-            "slug": entry["slug"],
-            "key": entry["key"],
-            "title": entry["title"],
-            "summary": entry["summary"],
-            "tags": entry["tags"],
-        }
-        if sub:
-            if sub not in tree[parent]["subcategories"]:
-                tree[parent]["subcategories"][sub] = {"entries": [], "subcategories": {}}
-            tree[parent]["subcategories"][sub]["entries"].append(slim)
-        else:
-            tree[parent]["entries"].append(slim)
-
-    # Stable sort: entries by key within each level
-    def _sort_node(node):
-        node["entries"].sort(key=lambda e: e["key"].lower())
-        for sub in node["subcategories"].values():
-            _sort_node(sub)
-    for top in tree.values():
-        _sort_node(top)
-
-    _REFERENCE_INDEX = {"tree": tree, "flat": flat}
-    _REFERENCE_CONTENT = by_slug
-    log.info(
-        "Portal: loaded %d reference entries across %d top-level categories",
-        len(flat), len(tree)
-    )
+#
+# REMOVED in Drop 1 (May 2026): the legacy _REFERENCE_INDEX/_REFERENCE_CONTENT
+# globals plus their _load_reference()/_parse_frontmatter() loaders read
+# from data/help/topics/*.md and data/help/commands/*.md at module import
+# time. The current handle_reference_index/_entry/_search handlers all
+# resolve through `self._game.help_mgr` (the live HelpManager), which
+# auto-registers from the command registry and gets richer markdown content
+# layered via HelpManager.load_markdown_files() at boot. The static loader
+# was dead code — populated but never read by any handler. Removed to
+# eliminate a confusing second source-of-truth and the YAML import on
+# module load.
 
 
 # ── Portal API class ────────────────────────────────────────────────────────
@@ -231,9 +121,8 @@ class PortalAPI:
         # Load guides on init
         if not _GUIDE_INDEX:
             _load_guides()
-        # Load reference (topics + commands) on init
-        if not _REFERENCE_INDEX:
-            _load_reference()
+        # Reference content is served live from self._game.help_mgr; no
+        # boot-time prefetch needed (see "Reference loader" note above).
 
     def register_routes(self, app: web.Application) -> None:
         """Register all portal API routes on the aiohttp app."""
@@ -815,21 +704,40 @@ class PortalAPI:
     async def _caller_max_access_level(self, request) -> int:
         """Return the highest access_level the caller may see.
 
-        - No Authorization header / unknown token → 0 (public).
-        - Authenticated but non-admin               → 0 (public).
-        - Authenticated admin                       → 99 (sees everything).
+        DROP-1 PORTAL FIX (May 2026):
+        Previous behavior returned 0 (ANYONE) for both unauth callers AND
+        authenticated non-admin players. Combined with `BaseCommand`'s
+        default `access_level = AccessLevel.PLAYER` (=1), this filtered
+        the entire player command corpus out of the portal Reference for
+        anyone who wasn't an admin. The browse page rendered ~54 of ~303
+        entries while in-game `+help` showed all 303.
+
+        New behavior: the portal Reference is documentation. Anonymous
+        browsers (potential players reading about the game) and logged-in
+        non-admin players both see entries up to PLAYER level. Only
+        admins see ADMIN/BUILDER-level entries (e.g. `@dig`, `@director`).
+
+        - No Authorization header / unknown token → PLAYER (1)
+        - Authenticated but non-admin               → PLAYER (1)
+        - Authenticated admin                       → ADMIN (3)
+
+        Note: this is a documentation-visibility decision, NOT an
+        in-game permission decision. Players still cannot RUN admin
+        commands; they just see them documented. (Admin commands are
+        still hidden from non-admins so the docs aren't cluttered with
+        commands they can't use.)
         """
         account_id = await self._optional_auth(request)
         if not account_id:
-            return 0
+            return _ACCESS_PLAYER
         try:
             account = await self._db.get_account(account_id)
             if account and account.get("is_admin"):
-                return 99
+                return _ACCESS_ADMIN
         except Exception:
             log.debug("[portal] account lookup failed in access check",
                       exc_info=True)
-        return 0
+        return _ACCESS_PLAYER
 
     @staticmethod
     def _entry_slug(key: str) -> str:
@@ -1182,7 +1090,12 @@ class PortalAPI:
             chars = await self._db.get_characters(account_id)
             online_ids = set()
             if self._session_mgr:
-                for s in self._session_mgr.all():
+                # _session_mgr.all is a @property (see SessionManager.all
+                # in server/session.py), not a method. Calling it as
+                # .all() raises TypeError: 'list' object is not callable.
+                # Pre-fix this 500'd every authenticated /api/portal/me
+                # call as soon as a non-empty session list existed.
+                for s in self._session_mgr.all:
                     if hasattr(s, 'character') and s.character:
                         online_ids.add(s.character['id'])
 

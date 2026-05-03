@@ -82,7 +82,27 @@ content_refs:
     - tutorials/rooms.yaml   # F.8.b (Apr 30 2026): 27 tutorial-zone-only rooms (planet="tutorial_chains") anchoring the 7 unlocked CW tutorial chains. All have properties.tutorial_zone=true so the runtime suppresses ambient/world events, NPC traffic, and CP tick accrual while the player is in-tutorial.
     # F.4 (Apr 30 2026): All six CW planets now active. Per-room exit dict
     # format supported by the loader (see clone_wars_era_design_v3.md §6).
-  wilderness: []          # Drop 5 adds coruscant_underworld, Drop 10 adds tatooine_dune_sea
+  wilderness:
+    # Drop 9 (May 3 2026): Tatooine Dune Sea minimal substrate. Hosts the
+    # Village quest landmarks (per jedi_village.yaml) plus the 2 force-
+    # resonant landmarks (anchor_stones, ruined_obelisk) plus the Hermit's
+    # Hut. The full coordinate-grid wilderness engine (movement, hazards,
+    # encounters per wilderness_system_design_v1.md Drops 2-7) is the
+    # post-Village roadmap track.
+    - wilderness/dune_sea.yaml
+    # Drop 5 will add coruscant_underworld here when the Underworld
+    # region builder ships.
+
+  # ── Wilderness-anchored NPCs (Drop F.6, May 3 2026) ─────────────────────
+  # NPCs whose home rooms are wilderness landmarks (i.e. rooms with
+  # wilderness_region_id IS NOT NULL). These are loaded by
+  # engine/npc_loader.py::load_wilderness_npcs() AFTER the wilderness
+  # writer has populated the landmark rooms in the DB. Cannot use
+  # the regular content_refs.npcs path because those resolve room
+  # names against the yaml-bundle, which doesn't include wilderness
+  # rooms. See Drop F.6 handoff for context.
+  wilderness_npcs:
+    - wilderness_npcs.yaml      # F.6: the Hermit at Hermit's Hut
   # ── NPCs (per cw_content_gap_design_v1_1_decisions.md Drop A) ────────────
   # `npcs` is a list of files that engine/npc_loader.py loads in order. The
   # additions file adds CW-only NPCs with no GG7 antecedent (Vela Niree, etc.).

@@ -571,6 +571,17 @@ class TalkCommand(BaseCommand):
         except Exception as _e:
             log.debug("silent except in parser/npc_commands.py:513: %s", _e, exc_info=True)
 
+        # Village quest: talking to the Hermit triggers Step 1 (invitation)
+        # when the player is force-sign-eligible. Per F.7.a / F.6 gate seam.
+        try:
+            from engine.village_quest import check_village_quest
+            await check_village_quest(
+                ctx.session, ctx.db, "talk",
+                npc_name=npc_row["name"],
+            )
+        except Exception as _e:
+            log.debug("silent except in parser/npc_commands.py village_quest hook: %s", _e, exc_info=True)
+
 
 
 class AskCommand(BaseCommand):

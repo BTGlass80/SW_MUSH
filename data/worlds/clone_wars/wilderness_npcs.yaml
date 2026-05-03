@@ -1,0 +1,267 @@
+# data/worlds/clone_wars/wilderness_npcs.yaml
+# Clone Wars Era — Wilderness-anchored NPCs (Drop F.6, May 3 2026)
+# Schema version 1
+#
+# This file populates NPCs whose home rooms live in wilderness
+# substrate (rooms.wilderness_region_id IS NOT NULL), not in the
+# yaml-bundle planet roster. These rooms only exist in the DB after
+# engine/wilderness_writer.py has run, so the build sequence is:
+#
+#   1. write_world_bundle()     ← yaml-bundle rooms (planet rooms)
+#   2. write_wilderness_region()← wilderness landmark rooms (THIS FILE'S TARGETS)
+#   3. load_era_npcs()          ← bundle-resolved NPCs (existing path)
+#   4. load_wilderness_npcs()   ← DB-resolved NPCs (THIS FILE)
+#
+# A separate loader is used because the yaml-bundle room_name_map is
+# built before the wilderness writer runs, so wilderness rooms are
+# absent from it. Rather than retrofit the bundle (which would force
+# all wilderness landmarks to round-trip through the bundle's
+# yaml_id space), wilderness NPCs resolve room names directly against
+# the DB after the writer has populated them.
+#
+# ─── Authoring scope (F.6) ─────────────────────────────────────────────
+#
+# 1. The Hermit (no canonical name) — interim Master at Hermit's Hut,
+#    Tatooine Dune Sea. The answer to Vela Niree's rumor. Gates the
+#    Village quest's Act 1 invitation: silent and uninteractive until
+#    the visiting PC has accumulated >= 5 Force-signs (the Force-sign
+#    threshold from engine/force_signs.py); thereafter, delivers the
+#    invitation that admits the PC into Act 1 of the Village quest.
+#
+# Future drops (Coruscant Underworld region builder, etc.) will add
+# more entries here as more wilderness regions ship.
+#
+# ─── POLICY CONSTRAINTS APPLIED ────────────────────────────────────────
+#
+# Q1 (canonical character cameos = EXTREMELY RESTRICTED):
+#   - The Hermit is NOT a canonical figure. He is not Obi-Wan, not
+#     Yoda, not Qui-Gon, not any named Jedi from Wookieepedia. He is
+#     a deliberately under-specified surviving Force-sensitive who has
+#     gone to ground in the Dune Sea, in mid-war Clone Wars. Players
+#     who want to read him as Obi-Wan-flavored fan fiction can; the
+#     authored content does not assert it.
+#
+# Q2 (mid-war ~20 BBY): Order 66 is THREE YEARS in the future. There
+#   is no Imperial regime, no purge in progress. The Hermit is hiding
+#   from something more local — possibly Hutt scrutiny, possibly the
+#   Jedi Order itself (a quiet defector or reflective dropout, not a
+#   fugitive from genocide). The Q1 absence of a canonical name lets
+#   us leave this open: he is whatever the player needs him to be.
+#
+# Q5 (re-skin first, source canon second, bespoke last):
+#   - Stat block grounded in WEG R&E "elderly Force-user" archetype:
+#     low Strength, high Knowledge, high Perception, modest Dexterity,
+#     trained Force skills below combat-ready thresholds. He is not a
+#     duelist; he is a teacher.
+#   - Personality grounded in WEG40114 (Jedi Academy Sourcebook) Master
+#     archetype: patient, inquiring, gives nothing away that the
+#     student has not earned by asking the right question.
+#
+# Q6 (variable density per planet): The Hermit is a singleton fixture,
+#   not a roster filler. Density math doesn't apply.
+
+schema_version: 1
+
+# ── Schema notes ───────────────────────────────────────────────────────
+# Mirrors the planet NPC schema (npcs_drop_b_mos_eisley.yaml etc.)
+# with one addition: an optional ai_config.gate block describing what
+# state gates the NPC's primary dialogue branch.
+#
+#   ai_config.gate:
+#     kind:      gate-machine identifier (currently only
+#                "force_sign_invitation" is recognized)
+#     threshold: integer threshold (informational; the engine reads
+#                FORCE_SIGNS_FOR_INVITATION from engine/force_signs.py
+#                so the source of truth stays in code, not duplicated
+#                across YAMLs)
+#     before_lines: lines spoken when the visiting PC has NOT yet
+#                accumulated enough Force-signs. Substrate effect:
+#                the Hermit is present but uninteresting.
+#     after_lines: lines spoken when the visiting PC HAS accumulated
+#                enough Force-signs. Substrate effect: the Hermit
+#                delivers the Village invitation.
+#
+# This drop ships the data and the gate seam (engine/hermit.py).
+# Full integration with the conversation system is the Village quest
+# engine's job (separate future drop). Until then, the gate is
+# consultable and tested but does not yet wire into the live talk-to
+# command flow.
+
+wilderness_npcs:
+
+  # ════════════════════════════════════════════════════════════════════
+  # THE HERMIT — Tatooine Dune Sea (Hermit's Hut)
+  # ════════════════════════════════════════════════════════════════════
+
+  - name: "the Hermit"
+    room: "Hermit's Hut"            # resolved against the DB after wilderness write
+    species: "Human"
+    description: >-
+      An old man in sun-bleached robes the color of the surrounding
+      sandstone. His hands and face are weathered by long exposure;
+      his eyes are clear and direct. He sits on a low stone bench
+      under the awning, doing nothing in particular, and looks at
+      you the moment you cross the threshold. He does not seem
+      surprised that you are here.
+
+      He carries no obvious weapon. There is a clay cup beside him
+      and a small fire-pit, recently used. The hut behind him is
+      austere: a sleeping mat, a water jar, a lidded chest, no
+      decoration.
+
+    char_sheet:
+      # Per WEG40114 elderly Force-trained Master archetype: low
+      # combat profile, high mental stats, trained Force skills.
+      # Deliberately NOT pegged at canonical Jedi Master tier —
+      # he is hiding for a reason, and his current life is not
+      # one of saber drills.
+      attributes:
+        dexterity: "2D+1"
+        knowledge: "4D"
+        mechanical: "2D"
+        perception: "4D+2"
+        strength: "2D"
+        technical: "2D+2"
+      skills:
+        # Combat: minimal. He is not here to fight.
+        brawling: "2D+2"
+        dodge: "3D+1"
+        # Mental: his actual strengths.
+        scholar_jedi_lore: "5D"
+        scholar_galactic_history: "4D+2"
+        languages: "5D"            # Basic, Huttese, Old Tongue, fragments of others
+        survival_desert: "5D+2"   # 20+ years in the Dune Sea
+        # Force skills: trained, careful, practical. NOT showy.
+        control: "5D"
+        sense: "5D+2"
+        alter: "4D+1"
+      weapon: "none"
+      move: 8
+      force_points: 3
+      character_points: 12
+      dark_side_points: 0
+
+    ai_config:
+      personality: >-
+        The Hermit is a Force-sensitive who came to the Dune Sea
+        a long time ago for reasons he does not volunteer. He is
+        patient in the way old teachers are patient — he answers
+        questions that are asked carefully and ignores questions
+        that are not. He is not lonely; he is alone, and the
+        difference matters to him. He has been waiting for someone
+        to find him, but he has been waiting without urgency.
+
+        He knows when a Force-sensitive is in his hut. He does not
+        know exactly who they are or what they need. He listens
+        first. If they are ready, he invites them to begin a path.
+        If they are not ready, he gives them tea and watches the
+        sand move and says little.
+
+      knowledge:
+        # The Hermit knows things, but the YAML lists what he KNOWS,
+        # not what he says. Disclosure is a function of the asker.
+        - "He has been in the Dune Sea since before the war began."
+        - "He was once part of an order that no longer welcomes him; the order may not yet know it does not welcome him."
+        - "There is a place — a village, of sorts — where one can be tested. He can describe how to find it. He has been to it once."
+        - "Force-signs gather around the unawakened the way dust gathers around still air. He has watched them gather around this visitor."
+        - "He does not say who his teacher was. He does not ask who the visitor's was."
+        - "The Tuskens of the Dune Sea know he is here. They leave him alone. He suspects they understand him better than he understands them."
+        - "There is a war that he is not fighting. He has opinions about this. He keeps them to himself."
+
+      faction: "neutral"
+
+      dialogue_style: >-
+        Slow. Considered. Uses fewer words than the listener
+        expects. Asks questions back rather than answering most
+        of the time. Never raises his voice. Calls strangers
+        "young one" or "traveler" regardless of their age. When
+        he chooses to be precise, he is unmistakably precise.
+
+      hostile: false
+      combat_behavior: "defensive"   # If attacked, he flees to the dunes — he does not fight.
+
+      # ── Gate block (F.6 addition — see schema notes above) ─────────
+      gate:
+        kind: force_sign_invitation
+        threshold: 5     # mirrors engine/force_signs.py FORCE_SIGNS_FOR_INVITATION
+                         # source of truth lives in code; this is informational
+
+        # ── Pre-invitation lines (signs < threshold) ────────────────
+        # The Hermit is present, watchful, but unforthcoming. He does
+        # not test, hint, or invite — he waits. Players who arrive
+        # here too early should leave with a sense of "I was looked
+        # at, and I was found uninteresting" rather than "I have a
+        # quest hook waiting for me when I'm ready."
+        before_lines:
+          - "The old man looks up. His gaze rests on you for a moment, then returns to the middle distance. He does not speak."
+          - "*The Hermit picks up his clay cup, drinks, sets it down. He does not offer you one.* 'There's water, if you want it. The well is round the back.'"
+          - "'You walked a long way for nothing in particular,' the Hermit says. He does not make it sound like a question. He does not seem to expect an answer."
+          - "*He watches a heat-shimmer move across the dunes. Without looking at you:* 'The desert teaches what it teaches in its own time. I would not hurry it.'"
+          - "*The Hermit closes his eyes for a moment, then opens them.* 'Not yet, traveler. Sit if you like. Don't, if you don't.'"
+
+        # ── Invitation-eligible lines (signs >= threshold) ──────────
+        # The visitor has accumulated enough Force-signs. The Hermit
+        # acknowledges what he has been waiting for and delivers the
+        # Village invitation. The actual quest hook (state-machine
+        # transition into Act 1) is the Village quest engine's job;
+        # this is the dialogue surface that hands off to it.
+        after_lines:
+          - "*The Hermit stands, slowly, and faces you. His voice is the same as before, but no longer indifferent.* 'You found your way here. Of course you did. Sit, then.'"
+          - "*He gestures to the bench across from him.* 'You have been hearing things. Seeing things. Catching the edge of a thread you did not know was there. This is how it begins, for those who begin at all.'"
+          - "*He pours water from the clay jar into a second cup and sets it before you.* 'There is a place in the deep dunes — a village, of a kind. Those who tend it test those who come to it. If you wish to know what you are, you will go there. I cannot test you myself. I am not what I once was.'"
+          - "*The Hermit's eyes are clear and steady.* 'Walk west from the Anchor Stones at first light. Do not bring anything you cannot afford to lose. They will know you are coming. They will decide.'"
+
+        # ── Closing line, era-anchor ────────────────────────────────
+        # Spoken regardless of gate state, on subsequent visits after
+        # the first interaction in either branch. Keeps the Hermit
+        # from looping the same lines and gives him a small atmosphere
+        # of continuity.
+        recurring_lines:
+          - "'You came back. The desert does that to some.'"
+          - "*The Hermit nods at the horizon.* 'Quiet, today.'"
+          - "'There is tea. There is water. Both are honest.'"
+
+      # ── Standard fallback ──────────────────────────────────────────
+      # Used if/when the gate-aware dialogue path is not yet wired
+      # (i.e., right now, before the Village quest engine consumes
+      # the gate block). Functions as a safety net — the Hermit
+      # always has SOMETHING to say, even if the gate logic is dark.
+      fallback_lines:
+        - "*The Hermit watches the sand move and does not speak.*"
+        - "'There is water at the well, traveler.'"
+        - "*The old man's gaze returns to the middle distance.*"
+
+# ═══════════════════════════════════════════════════════════════════════
+# ENGINE INTEGRATION NOTES
+# ═══════════════════════════════════════════════════════════════════════
+#
+# 1. engine/npc_loader.py adds load_wilderness_npcs(era_dir, db) which:
+#    - Reads <era_dir>/era.yaml::content_refs.wilderness_npcs (a list
+#      of file paths, era-relative).
+#    - For each file, loads the wilderness_npcs: array.
+#    - Resolves room names against the DB (NOT the yaml bundle): for
+#      each entry, looks up the room by `name = ?` against rooms where
+#      wilderness_region_id IS NOT NULL.
+#    - Returns a list of (name, room_id, species, description,
+#      char_sheet, ai_config) tuples ready for db.create_npc().
+#
+# 2. build_mos_eisley.py calls load_wilderness_npcs() AFTER
+#    write_wilderness_region() has populated landmark rooms, and
+#    BEFORE load_era_npcs() so the wilderness NPCs print first in
+#    the build log (logical grouping).
+#
+# 3. engine/hermit.py exposes is_invitation_eligible(char) which
+#    delegates to engine.force_signs.has_received_invitation. The
+#    Village quest engine (future drop) calls this when the Hermit's
+#    talk-to handler fires, to pick between gate.before_lines and
+#    gate.after_lines.
+#
+# Until the Village quest engine ships:
+#   - The Hermit is in the room (this drop's contribution).
+#   - Standard talk-to falls through to fallback_lines (existing engine).
+#   - The gate block is data-only, consultable by tests.
+#   - is_invitation_eligible() is callable and tested but unused at
+#     runtime.
+#
+# This is the same pattern as engine/force_signs.py: ship the seam,
+# test the contract, defer runtime wiring to the consumer that needs it.

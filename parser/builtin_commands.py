@@ -852,6 +852,26 @@ class MoveCommand(BaseCommand):
                     )
                 except Exception as _e:
                     log.debug("silent except in parser/builtin_commands.py:838: %s", _e, exc_info=True)
+
+                # Village quest room-entry check (F.7.a). Slug-based
+                # match against properties.slug (set by world_writer
+                # for hand-built rooms and wilderness_writer for
+                # landmarks). Step 2: arrival at village_outer_watch.
+                try:
+                    from engine.village_quest import check_village_quest
+                    _vq_slug = ""
+                    if isinstance(rprops, dict):
+                        _vq_slug = rprops.get("slug", "") or ""
+                    await check_village_quest(
+                        session, ctx.db, "room_entered",
+                        room_id=new_room_id,
+                        room_slug=_vq_slug,
+                    )
+                except Exception as _e:
+                    log.debug(
+                        "silent except in parser/builtin_commands.py village_quest hook: %s",
+                        _e, exc_info=True,
+                    )
         except Exception:
             pass  # Non-critical
 

@@ -14,7 +14,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 # -- Schema version --
-SCHEMA_VERSION = 18
+SCHEMA_VERSION = 20
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -68,8 +68,17 @@ CREATE TABLE IF NOT EXISTS rooms (
     desc_short      TEXT DEFAULT '',
     desc_long       TEXT DEFAULT '',
     properties      TEXT DEFAULT '{}',   -- JSON: environment, gravity, etc.
+    wilderness_region_id  TEXT,          -- v19 (May 3 2026): NULL for hand-built rooms;
+                                         -- set on wilderness landmark rows. Foundation for
+                                         -- the Village's Dune Sea substrate; full coordinate-
+                                         -- movement engine ships in a future drop per
+                                         -- wilderness_system_design_v1.md.
     created_at      TEXT DEFAULT (datetime('now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_rooms_wilderness_region
+ON rooms(wilderness_region_id)
+WHERE wilderness_region_id IS NOT NULL;
 
 -- Exits between rooms
 CREATE TABLE IF NOT EXISTS exits (
@@ -664,6 +673,89 @@ MIGRATIONS = {
         )""",
     ],
 
+    # ─── v19 (May 3 2026) — Wilderness substrate (Dune Sea minimal) ──────
+    #
+    # Per wilderness_system_design_v1.md and the v40 §3.5 Village build
+    # prerequisite stack: the Village quest needs a wilderness region
+    # that hosts its landmarks (Anchor Stones, Outer Watch, Common
+    # Square, Hermit's Hut, etc.). The full coordinate-grid wilderness
+    # system is a future multi-drop track; this migration adds the
+    # MINIMUM column needed for the Dune Sea substrate to land:
+    #
+    #   - rooms.wilderness_region_id    NULL for hand-built rooms;
+    #                                   set on rows that belong to a
+    #                                   wilderness region's landmark
+    #                                   roster. Used by the wilderness
+    #                                   loader/writer (engine/wilderness_*)
+    #                                   and (eventually) by the future
+    #                                   coordinate-movement engine to
+    #                                   distinguish "this is a wilderness
+    #                                   landmark room" from "this is a
+    #                                   hand-built city room."
+    #
+    # Coordinates themselves live in properties JSON (already a flexible
+    # dict on rooms); we don't need a hard column for them right now.
+    # If/when coordinate queries become hot enough to justify indexed
+    # access, a future migration adds (region_id, x, y) columns.
+    #
+    # The full wilderness buildout (per wilderness_system_design_v1.md
+    # Drops 2-7) is the post-Village roadmap item; see the May 3 handoff
+    # doc.
+    19: [
+        "ALTER TABLE rooms ADD COLUMN wilderness_region_id TEXT NULL",
+        "CREATE INDEX IF NOT EXISTS idx_rooms_wilderness_region "
+        "ON rooms(wilderness_region_id) "
+        "WHERE wilderness_region_id IS NOT NULL",
+    ],
+
+    # ── v20 (May 3 2026): Wilderness movement core (Drop 2) ──────────────────
+    #
+    # Per wilderness_system_design_v1.md §3.2 §3.3 and Drop 2 plan:
+    # adds the per-character wilderness coordinate state + the regions
+    # registry table. The virtual sentinel room is written by the
+    # build script, not by migration (it's content, not schema).
+    #
+    # `characters.wilderness_region_slug` is the slug TEXT (matches the
+    # F.5 / v19 pattern of slug-based wilderness_region_id on rooms,
+    # rather than INTEGER FK that the design doc originally specified —
+    # consistent with how landmark rooms reference the region).
+    #
+    # `wilderness_x` / `wilderness_y` are NULL when the character is in
+    # a normal room, set to (col, row) when in wilderness. The pair
+    # (slug, x, y) is the authoritative wilderness location.
+    #
+    # `wilderness_regions` is a registry table written at world-build
+    # time from each loaded region YAML. This gives the engine a fast
+    # path for "look up bounds / default terrain by slug" without
+    # re-reading the YAML at every move.
+    #
+    # `wilderness_discoveries` is deferred to Drop 4 (search/landmark
+    # discovery) — not part of Drop 2.
+    20: [
+        "ALTER TABLE characters ADD COLUMN wilderness_region_slug TEXT NULL",
+        "ALTER TABLE characters ADD COLUMN wilderness_x INTEGER NULL",
+        "ALTER TABLE characters ADD COLUMN wilderness_y INTEGER NULL",
+        "CREATE TABLE IF NOT EXISTS wilderness_regions ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " slug TEXT NOT NULL UNIQUE,"
+        " name TEXT NOT NULL,"
+        " planet TEXT NOT NULL,"
+        " zone_slug TEXT NOT NULL,"
+        " width INTEGER NOT NULL,"
+        " height INTEGER NOT NULL,"
+        " tile_scale_km INTEGER NOT NULL DEFAULT 1,"
+        " default_terrain TEXT NOT NULL,"
+        " default_security TEXT NOT NULL,"
+        " sentinel_room_id INTEGER,"
+        " config_json TEXT NOT NULL DEFAULT '{}',"
+        " created_at REAL NOT NULL"
+        ")",
+        # Index for the common query "is this character in a region?"
+        "CREATE INDEX IF NOT EXISTS idx_characters_wilderness_region "
+        "ON characters(wilderness_region_slug) "
+        "WHERE wilderness_region_slug IS NOT NULL",
+    ],
+
 }
 
 
@@ -943,6 +1035,29 @@ class Database:
         "credits", "resources", "room_id", "inventory", "equipment",
         "description", "is_active", "faction_id", "bounty",
         "chargen_notes",
+        # ── PG.1.schema columns (v18 migration) ──────────────────────────
+        # Per F.7.a (May 3 2026): these columns landed in schema v18
+        # but were never added to the writable set. The Village quest
+        # engine and the playtime heartbeat need to write to them.
+        # Adding them here is the missing wiring, not a new feature.
+        "play_time_seconds",
+        "force_predisposition",
+        "force_signs_accumulated",
+        "village_act",
+        "village_act_unlocked_at",
+        "village_trial_courage_done",
+        "village_trial_insight_done",
+        "village_trial_flesh_done",
+        "village_trial_last_attempt",
+        "wound_state",
+        "wound_clear_at",
+        # ── Wilderness Drop 2 columns (v20 migration) ────────────────────
+        # Per wilderness_system_design_v1.md §3.2: per-character
+        # wilderness coordinate state. NULL when in a normal room;
+        # set to (slug, x, y) when in a wilderness region.
+        "wilderness_region_slug",
+        "wilderness_x",
+        "wilderness_y",
     })
 
     async def save_character(self, char_id: int, **fields):

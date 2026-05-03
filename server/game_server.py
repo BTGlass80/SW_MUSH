@@ -200,6 +200,15 @@ class GameServer:
         help_mgr = HelpManager()
         help_mgr.auto_register_commands(self.registry)
         help_mgr.register_topics()
+        # DROP-1 PORTAL FIX (May 2026): layer in markdown-authored entries.
+        # MD files in data/help/{topics,commands}/*.md have richer bodies,
+        # explicit summaries, and explicit access_level overrides for
+        # commands whose BaseCommand default (PLAYER=1) would otherwise
+        # mis-categorize them. Without this call those files were inert
+        # for the running server (they were already inert for the portal —
+        # the static loader that read them was dead code; both have been
+        # consolidated through HelpManager now).
+        n_md = help_mgr.load_markdown_files()
         from parser.builtin_commands import HelpCommand
         HelpCommand._help_mgr = help_mgr
         # Bind to the GameServer instance so the web portal's
@@ -207,8 +216,8 @@ class GameServer:
         # "help_mgr", None). Without this, the handler returns 503 and the
         # portal Reference page spins forever.
         self.help_mgr = help_mgr
-        log.info("Help system initialized: %d entries",
-                 len(help_mgr._entries))
+        log.info("Help system initialized: %d entries (%d from markdown)",
+                 len(help_mgr._entries), n_md)
 
         # AI system
         self.ai_manager = AIManager(AIConfig())

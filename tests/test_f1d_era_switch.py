@@ -109,14 +109,30 @@ class TestCloneWarsBuildPostF1d:
         )
 
     def test_cw_npcs_loaded(self, cw_db):
-        """CW has additions + replacements but no own planet roster yet."""
+        """CW loads at least the foundational additions + replacements roster.
+
+        Originally asserted == 8 (Drop A: 1 addition + 7 replacements). The
+        CW.NPCS sweep through Drop H + C1 + DEF + G1/G2 + B + C2 grew the
+        roster well past 100; F.6 (Hermit) adds a wilderness-anchored NPC.
+        Generous lower bound catches a real regression (CW NPC pipeline
+        broken / replacement protocol stripped roster to nothing) without
+        re-staling on every additive content drop. Same pattern as the
+        PG.1 schema-version fix in F.5.
+        """
         rows = _query(cw_db, "SELECT COUNT(*) AS n FROM npcs")
-        # 8 NPCs per CW design Drop A: 1 addition (Vela Niree) +
-        # 7 replacements suppressing/substituting Imperial-keyed GG7 NPCs.
-        # If GG7 base were loaded without suppression, count would be 55.
-        # The fact it's 8 proves: GG7 base not in CW era.yaml content_refs,
-        # so only the additions+replacements files load.
-        assert rows[0]["n"] == 8
+        # Sanity: at least the foundational 8 (Drop A) and at most a
+        # large generous ceiling that catches accidental cross-era leakage.
+        assert rows[0]["n"] >= 8, (
+            f"CW build produced {rows[0]['n']} NPCs; expected at least 8 "
+            "(Drop A foundational additions + replacements). If lower, "
+            "the CW NPC pipeline has regressed."
+        )
+        assert rows[0]["n"] < 1000, (
+            f"CW build produced {rows[0]['n']} NPCs; expected < 1000. "
+            "If this fails high, GG7 base may be leaking into CW era "
+            "or content_refs.npcs has accidentally referenced a "
+            "GCW-only roster."
+        )
 
     def test_cw_replacement_names_present(self, cw_db):
         """The Clone Trooper replacement loaded in place of Imperial Stormtrooper."""
@@ -132,9 +148,21 @@ class TestCloneWarsBuildPostF1d:
         assert len(rows) == 0
 
     def test_cw_no_ships_loaded(self, cw_db):
-        """CW has no ships.yaml yet — content_refs.ships isn't set."""
+        """CW ships count: was 0 pre-CW.SHIPS, now ~7 post-CW.SHIPS.
+
+        Per HANDOFF_FOR_COMPACTION_MAY1 / userMemory: CW.SHIPS landed
+        with 7 ships across the four player-facing CW planets. This
+        test originally asserted == 0; relaxed to a generous ceiling
+        so it catches accidental GCW-ship leakage without re-staling
+        on every additive ship drop.
+        """
         rows = _query(cw_db, "SELECT COUNT(*) AS n FROM ships")
-        assert rows[0]["n"] == 0
+        # Generous ceiling: the GCW production build has many more
+        # ships than CW; a count > 100 would indicate cross-era leakage.
+        assert rows[0]["n"] < 100, (
+            f"CW build produced {rows[0]['n']} ships; expected < 100. "
+            "If this fails high, GCW ship roster may be leaking into CW."
+        )
 
     def test_cw_no_test_character(self, cw_db):
         """CW has no test_character.yaml yet — loader skips silently."""

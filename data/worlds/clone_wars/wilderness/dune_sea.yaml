@@ -1,0 +1,405 @@
+# data/worlds/clone_wars/wilderness/dune_sea.yaml
+# Clone Wars Era — Tatooine Dune Sea Wilderness Region
+# Schema version 1
+#
+# Per wilderness_system_design_v1.md §3.1 and the v40 §3.5 Village
+# build prerequisite stack. This file is the MINIMAL substrate the
+# Dune Sea needs to host the Village quest's landmarks; the full
+# coordinate-movement / hazard / encounter system from
+# wilderness_system_design_v1.md Drops 2-7 is the post-Village
+# roadmap track.
+#
+# What this file authoritatively defines:
+#   - Region metadata (slug, dimensions, default terrain)
+#   - Terrain definitions (descriptions for the future look engine)
+#   - Landmark anchors with coordinates, descriptions, and adjacency
+#     for the Village quest path
+#
+# What this file deliberately does NOT define yet:
+#   - Encounter pools (Drop 5)
+#   - Hazard severity tuning beyond the bare minimum (Drop 3)
+#   - Edge connections to hand-built rooms (Drop 2)
+#   - Per-tile NPC spawns
+#   - Time-of-day overlay variants beyond defaults
+#
+# Until those drops ship, the wilderness writer simply creates the
+# named landmarks as ordinary rooms with their adjacency exits and
+# `wilderness_region_id` populated. Players move between landmarks via
+# normal exit traversal. The "step into the open dunes and walk for
+# 200 meters" experience comes later.
+#
+# ─── Cross-references this file resolves ─────────────────────────────
+#
+#   - jedi_village.yaml.force_sign_seeds[0].rooms references
+#     dune_sea_anchor_stones, dune_sea_ruined_obelisk
+#       → both defined here AND already content-authored in
+#         force_resonant_landmarks.yaml. We re-author the descriptions
+#         here in lighter form because this file is the wilderness
+#         region's own authoritative landmark roster; the loader
+#         merges with force_resonant_landmarks.yaml entries by id and
+#         the latter's full description wins. See engine/wilderness_loader.py
+#         for merge semantics.
+#
+#   - jedi_village.yaml.rooms references village_outer_watch,
+#     village_gate, village_common_square, village_council_hut,
+#     village_masters_chamber, village_apprentice_tents,
+#     village_forge, village_meditation_caves, village_sealed_sanctum
+#       → all 9 defined here as wilderness landmarks. The Village
+#         quest engine (separate future drop) consumes them.
+#
+#   - jedi_village_quest_design_v1.md §3.2 (Hermit invitation flow)
+#     places the Hermit at "deep in the dunes, west of the Anchor
+#     Stones." Authored here as `hermit_hut`.
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+region:
+  slug: tatooine_dune_sea
+  name: "The Dune Sea"
+  planet: tatooine
+  zone: jundland_wastes              # inherits security from this zone
+  default_security: lawless           # per security_model_design_v1.md §4
+  narrative_tone_key: tatooine_wastes
+
+grid:
+  # Per wilderness_system_design_v1.md §3.1 reference dimensions.
+  # The grid is reserved geometry; the minimal-substrate writer
+  # doesn't yet generate per-tile rooms. Landmarks anchor at
+  # coordinates inside this space so when the full engine ships,
+  # they slot in without renumbering.
+  width: 40                           # x-coords 0..39
+  height: 40                          # y-coords 0..39
+  tile_scale_km: 2                    # 2km per tile = 80×80 km region
+  default_terrain: dune
+
+terrains:
+  # Authoritative description pools used by the future tile-look
+  # engine. Defined here to lock in the content during this drop —
+  # they cost nothing to author now and avoid a content-authoring
+  # detour when the look engine ships.
+  dune:
+    move_cost: 2
+    sight_radius: 1
+    ambient_hazard: extreme_heat
+    hazard_severity: 2
+    variants:
+      - "Rolling dunes stretch in every direction. The sand shifts with each gust of wind."
+      - "A sea of sand, sculpted by centuries of wind. The twin suns hammer down."
+      - "Steep dunes rise and fall. Footprints vanish within minutes of being made."
+    time_overlays:
+      night: "Under the cold moonlight, the dunes take on a silver-blue cast. The heat has broken; the cold is coming."
+
+  rocky_outcrop:
+    move_cost: 3
+    sight_radius: 2
+    ambient_hazard: extreme_heat
+    hazard_severity: 1
+    variants:
+      - "Weathered stone rises from the sand in broken ridges. Shadows pool in the crevices."
+      - "A low rocky shelf juts from the desert floor, offering rare shade and footholds."
+
+  canyon:
+    move_cost: 2
+    sight_radius: 1
+    ambient_hazard: extreme_heat
+    hazard_severity: 1
+    variants:
+      - "Wind-carved sandstone walls rise on either side, funneling the hot air."
+
+  oasis:
+    move_cost: 1
+    sight_radius: 3
+    ambient_hazard: none
+    variants:
+      - "An unlikely pool of water surrounded by hardy scrub. Life clusters here."
+
+  ruins:
+    # Used by the force-resonant landmark sites and the Village
+    # outer perimeter. Slow movement, good visibility.
+    move_cost: 3
+    sight_radius: 2
+    ambient_hazard: extreme_heat
+    hazard_severity: 1
+    variants:
+      - "Stone foundations protrude from the sand, their original shapes lost to the wind."
+
+  village_interior:
+    # Used by Village landmark rooms — these are sheltered, not
+    # exposed to the desert hazard.
+    move_cost: 1
+    sight_radius: 3
+    ambient_hazard: none
+    variants:
+      - "Hard-packed sand underfoot, low stone walls hand-laid, awnings of woven banthawool overhead."
+
+# Landmarks — the authoritative roster of named places in the region.
+# Each landmark becomes a `rooms` row at world-build time with
+# `wilderness_region_id = 'tatooine_dune_sea'` and coordinates stored
+# in properties JSON. Adjacency lists translate to bidirectional exits
+# between landmarks unless `directional` is set.
+landmarks:
+
+  # ─── Force-resonant landmarks (existing content) ──────────────────────
+  # These two were authored in force_resonant_landmarks.yaml. We
+  # re-declare them here as part of the region roster (with brief
+  # descriptions), and the loader merges richer content from the
+  # force-resonant file at load time. See engine/wilderness_loader.py
+  # `_merge_force_resonant_content`.
+
+  - id: dune_sea_anchor_stones
+    name: "The Anchor Stones"
+    coordinates: [38, 18]
+    terrain: ruins
+    short_desc: "Three weathered pillars rise from the sand at irregular angles."
+    description: |
+      Three weathered pillars rise from the sand at irregular angles,
+      their surfaces softened almost smooth by centuries of wind. They
+      are older than the Republic; their builders are unknown. The
+      Tusken Raiders avoid them.
+
+      The Village lies somewhere west of here. Few know how to find it.
+    properties:
+      force_resonant: true
+      wilderness_landmark: true
+      village_quest_anchor: true
+      ambient_disabled: false
+    adjacency:
+      - dune_sea_ruined_obelisk
+      - village_outer_watch       # the Village path begins here
+
+  - id: dune_sea_ruined_obelisk
+    name: "Ruined Obelisk"
+    coordinates: [29, 24]
+    terrain: ruins
+    short_desc: "A toppled obelisk, deliberately defaced — someone wanted it forgotten."
+    description: |
+      A black-stone obelisk lies broken across a low rocky shelf, its
+      original height impossible to estimate. The carvings on its
+      flanks have been deliberately chiseled away, not weathered —
+      someone wanted this stone forgotten more than they wanted it
+      standing. The defacement is centuries old.
+    properties:
+      force_resonant: true
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - dune_sea_anchor_stones
+
+  # ─── Hermit's Hut (Village invitation site) ──────────────────────────
+  # Per jedi_village_quest_design_v1.md §3.2: "deep in the dunes, west
+  # of the Anchor Stones." This is where the Hermit NPC fires the
+  # invitation cutscene when a PC has hit 5 Force-signs and travels
+  # here. Pre-Hermit-NPC drop: room exists, just empty.
+
+  - id: hermit_hut
+    name: "Hermit's Hut"
+    coordinates: [33, 16]
+    terrain: rocky_outcrop
+    short_desc: "A weathered single-room dwelling tucked into a sandstone fold."
+    description: |
+      A single-room dwelling tucked against a low sandstone ridge,
+      its walls hand-laid from local stone, its roof of bleached
+      banthawool. A small awning offers shade over the door. There
+      is no smoke, no animal sign, no obvious occupant — and yet the
+      threshold is swept clean of sand, recently.
+
+      Whoever lives here is private, careful, and present.
+    properties:
+      wilderness_landmark: true
+      hermit_invitation_site: true    # Village quest engine triggers
+                                       # the invitation flow at this room
+      ambient_disabled: false
+    adjacency:
+      - dune_sea_anchor_stones        # the only known way in or out
+
+  # ─── Village landmarks (the Village proper) ──────────────────────────
+  # 9 rooms per jedi_village.yaml.rooms. Adjacency carefully matches
+  # the YAML's spec so the Village quest engine sees the topology it
+  # was designed against. All Village interiors use `village_interior`
+  # terrain (no desert hazard exposure).
+
+  - id: village_outer_watch
+    name: "Outer Watch — Sand-Worn Pillars"
+    coordinates: [37, 18]
+    terrain: ruins
+    short_desc: "Sand-worn pillars mark the approach to the Village."
+    description: |
+      A double row of weathered pillars marks the approach to a place
+      that does not appear on any chart. The Outer Watch is exactly
+      what its name suggests: those who keep the Village's perimeter
+      see you well before you see them. The wind here moves around
+      the pillars in a way that does not match the dunes outside.
+    properties:
+      wilderness_landmark: true
+      village_room: true
+      ambient_disabled: false
+    adjacency:
+      - dune_sea_anchor_stones
+      - village_gate
+
+  - id: village_gate
+    name: "Village Gate"
+    coordinates: [36, 18]
+    terrain: village_interior
+    short_desc: "A simple gate of hand-cut sandstone blocks. Sister Vitha keeps the watch."
+    description: |
+      The gate is no fortification — a chest-high arch of hand-cut
+      sandstone, no door, no guard tower. What keeps it is Sister
+      Vitha, who sits cross-legged in its shade and asks one question
+      of every traveler who arrives: "Why are you here?"
+
+      The right answer admits you. The wrong answer turns you back
+      into the dunes politely.
+    properties:
+      wilderness_landmark: true
+      village_room: true
+      sister_vitha_gate_test: true     # Village quest Step 3 hook
+    adjacency:
+      - village_outer_watch
+      - village_common_square           # gated by Sister Vitha test;
+                                         # the engine enforces, not the YAML
+
+  - id: village_common_square
+    name: "Common Square"
+    coordinates: [35, 18]
+    terrain: village_interior
+    short_desc: "A wide hard-packed square at the heart of the Village."
+    description: |
+      A wide hard-packed square at the heart of the Village, ringed
+      by low buildings of hand-laid stone. A central well draws
+      moisture from a vaporator hidden somewhere underground; the
+      water tastes of nothing and is the best you have ever drunk.
+      Smoke from the Forge drifts overhead. A young man, twelve or
+      thirteen, sits alone on a stone bench, watching you with the
+      attention of someone who has been told not to ask questions.
+    properties:
+      wilderness_landmark: true
+      village_room: true
+    adjacency:
+      - village_gate
+      - village_council_hut
+      - village_apprentice_tents
+      - village_forge
+
+  - id: village_council_hut
+    name: "Council Hut"
+    coordinates: [35, 19]
+    terrain: village_interior
+    short_desc: "A simple stone hut where the elders meet."
+    description: |
+      A simple stone hut, larger than the residential dwellings but
+      not grand. The interior is a single room with a low table, a
+      circle of cushions worn flat by long use, and a small alcove
+      with a recording stone in it. The recording stone is old —
+      pre-Republic — and is waiting.
+    properties:
+      wilderness_landmark: true
+      village_room: true
+    adjacency:
+      - village_common_square
+      - village_masters_chamber
+
+  - id: village_masters_chamber
+    name: "Master's Chamber"
+    coordinates: [35, 20]
+    terrain: village_interior
+    short_desc: "Master Yarael Tinré's small private chamber."
+    description: |
+      A small stone chamber adjoining the Council Hut, used by Master
+      Yarael Tinré for one-on-one conversation. There is no desk, no
+      throne, no rug — only a low cushion across from another low
+      cushion, and a small clay cup of water set carefully on the
+      floor between them. The water has been sitting there long
+      enough that condensation has formed on the cup's outside, but
+      it has not been drunk.
+
+      The cup is for you, if you accept it.
+    properties:
+      wilderness_landmark: true
+      village_room: true
+    adjacency:
+      - village_council_hut
+
+  - id: village_apprentice_tents
+    name: "Apprentice Tents"
+    coordinates: [34, 18]
+    terrain: village_interior
+    short_desc: "Three sleeping tents for current and arriving apprentices."
+    description: |
+      Three small tents of woven banthawool stand in a tight cluster,
+      each with a single bedroll inside, a clay washbasin, and a peg
+      for a robe. Two are empty. One holds the belongings of Padawan
+      Sela, currently pursuing the Trial of Spirit. Yours is
+      whichever Master Yarael says is yours.
+    properties:
+      wilderness_landmark: true
+      village_room: true
+    adjacency:
+      - village_common_square
+      - village_meditation_caves
+
+  - id: village_forge
+    name: "The Forge"
+    coordinates: [34, 17]
+    terrain: village_interior
+    short_desc: "Smith Daro's open-air forge. A focusing crystal smolders in the coals."
+    description: |
+      An open-walled forge with a clay roof, the air thick with
+      heat. Smith Daro works here — a heavy-built woman in apron and
+      goggles, her hair shaved close to keep sparks out. Her hammer
+      lies on the anvil, her tongs in their slot, and a single
+      focusing crystal smolders dull-orange in the coals, waiting
+      for the next test.
+
+      The Forge is where the Trial of Flesh is taken. You will know
+      when it is your turn.
+    properties:
+      wilderness_landmark: true
+      village_room: true
+      trial_of_flesh_site: true        # Village quest engine hook
+    adjacency:
+      - village_common_square
+
+  - id: village_meditation_caves
+    name: "Meditation Caves"
+    coordinates: [33, 18]
+    terrain: village_interior
+    short_desc: "A natural cave network used for meditation and the Trial of Spirit."
+    description: |
+      A natural cave network in the sandstone behind the Apprentice
+      Tents, cool and quiet, the air carrying a faint mineral
+      smell. Small stone benches have been placed at intervals along
+      the main passage. At the deepest point, a sealed door of
+      polished hardwood blocks the way further in.
+    properties:
+      wilderness_landmark: true
+      village_room: true
+      trial_of_spirit_site: true       # Village quest engine hook
+    adjacency:
+      - village_apprentice_tents
+      - village_sealed_sanctum
+
+  - id: village_sealed_sanctum
+    name: "The Sealed Sanctum"
+    coordinates: [32, 18]
+    terrain: village_interior
+    short_desc: "A sealed chamber containing the Village's three holocron fragments."
+    description: |
+      A small chamber sealed behind the polished hardwood door at the
+      deepest point of the Meditation Caves. Three stone alcoves are
+      set into the far wall; each holds a holocron fragment dimly
+      glowing. The air in here is older than any other air you have
+      ever breathed.
+
+      The chamber unlocks during the Trial of Spirit. Outside that
+      moment, the door is closed.
+    properties:
+      wilderness_landmark: true
+      village_room: true
+      locked_until_flag: spirit_trial_in_progress
+      post_quest_open: true             # remains accessible after quest
+      trial_of_insight_site: true       # Village quest engine hook
+    adjacency:
+      - village_meditation_caves
