@@ -357,7 +357,7 @@ async def build_training_grounds(db):
             "Training Grounds",
             properties=json.dumps({
                 "environment":   "interior",
-                "security":      "safe",
+                "security":      "secured",
                 "tutorial_zone": True,
                 "lighting":      "bright",
                 "gravity":       "standard",
@@ -365,7 +365,7 @@ async def build_training_grounds(db):
         )
         print(f"  Zone created: id={tg_zone_id}")
 
-    tg_props = _tprops(environment="interior", security="safe")
+    tg_props = _tprops(environment="interior", security="secured")
 
     # ------------------------------------------------------------------
     # Hub room
@@ -931,7 +931,7 @@ async def build_space_academy(db):
         print("  ERROR: Training Grounds zone not found.")
         return
     tg_zone_id = zone_rows[0]["id"]
-    tg_props = _tprops(environment="interior", security="safe")
+    tg_props = _tprops(environment="interior", security="secured")
 
     entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1",
@@ -1156,7 +1156,7 @@ async def build_combat_arena(db):
         print("  ERROR: Training Grounds zone not found.")
         return
     tg_zone_id = zone_rows[0]["id"]
-    tg_props = _tprops(environment="interior", security="safe")
+    tg_props = _tprops(environment="interior", security="secured")
 
     entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1", ("Combat Arena",),
@@ -1372,7 +1372,7 @@ async def build_traders_hall(db):
         print("  ERROR: Training Grounds zone not found.")
         return
     tg_zone_id = zone_rows[0]["id"]
-    tg_props = _tprops(environment="interior", security="safe")
+    tg_props = _tprops(environment="interior", security="secured")
 
     entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1", ("Trader\'s Hall",),
@@ -1586,7 +1586,7 @@ async def build_crafters_workshop(db):
     if not zone_rows:
         print("  ERROR: Training Grounds zone not found."); return
     tg_zone_id = zone_rows[0]["id"]
-    tg_props = _tprops(environment="interior", security="safe")
+    tg_props = _tprops(environment="interior", security="secured")
     entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1", ("Crafter's Workshop",),
     )
@@ -1742,7 +1742,7 @@ async def build_bounty_office(db):
     if not zone_rows:
         print("  ERROR: Training Grounds zone not found."); return
     tg_zone_id = zone_rows[0]["id"]
-    tg_props = _tprops(environment="interior", security="safe")
+    tg_props = _tprops(environment="interior", security="secured")
     entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1", ("Bounty Office",),
     )
@@ -1901,7 +1901,7 @@ async def build_crew_quarters(db):
     if not zone_rows:
         print("  ERROR: Training Grounds zone not found."); return
     tg_zone_id = zone_rows[0]["id"]
-    tg_props = _tprops(environment="interior", security="safe")
+    tg_props = _tprops(environment="interior", security="secured")
     entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1", ("Crew Quarters",),
     )
@@ -2029,7 +2029,7 @@ async def build_factions_briefing(db):
     if not zone_rows:
         print("  ERROR: Training Grounds zone not found."); return
     tg_zone_id = zone_rows[0]["id"]
-    tg_props = _tprops(environment="interior", security="safe")
+    tg_props = _tprops(environment="interior", security="secured")
     entry_rows = await db.fetchall(
         "SELECT id FROM rooms WHERE name = ? LIMIT 1",
         ("Galactic Factions Briefing Room",),

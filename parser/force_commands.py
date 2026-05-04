@@ -56,13 +56,16 @@ async def _find_target_char(ctx: CommandContext, target_name: str):
     """
     Find a target character in the same room by partial name match.
     Returns (char_dict, Character) or (None, None).
+
+    W.2 phase 2: source_char filters to wilderness co-located peers.
     """
-    room_id = ctx.session.character["room_id"]
-    chars_in_room = await ctx.db.get_characters_in_room(room_id)
+    char = ctx.session.character
+    room_id = char["room_id"]
+    chars_in_room = await ctx.db.get_characters_in_room(room_id, source_char=char)
     target_name_lower = target_name.lower()
     for c in chars_in_room:
         c = dict(c)
-        if c["id"] == ctx.session.character["id"]:
+        if c["id"] == char["id"]:
             continue
         if c["name"].lower().startswith(target_name_lower):
             return c, _char_obj(c)
@@ -195,7 +198,8 @@ class ForceCommand(BaseCommand):
         if result.success:
             broadcast_msg = _build_room_broadcast(char_dict["name"], power, target_dict)
             await ctx.session_mgr.broadcast_to_room(
-                room_id, broadcast_msg, exclude=ctx.session
+                room_id, broadcast_msg, exclude=ctx.session,
+                source_char=char_dict,  # W.2 phase 2
             )
 
         # ── Persist changes ────────────────────────────────────────────────

@@ -75,6 +75,24 @@ def bright_white(text: str) -> str:
     return color(text, BRIGHT_WHITE)
 
 
+def highlight(text: str) -> str:
+    """Visual highlight for inline tokens (commands, names, frequencies).
+
+    DROP-3 ANSI FIX (May 2026): added because 10 callers across
+    parser/channel_commands.py and parser/party_commands.py invoke
+    `ansi.highlight(...)` and would AttributeError-out otherwise.
+    The crash made `+faction`, `+channels`, `tune`, `+freqs`,
+    `commfreq`, and the party-accept/decline messaging chain
+    non-functional in production. Smoke FC1/CN1 are the regression
+    guards.
+
+    Style: bold bright-cyan. Mirrors the existing `header()` look
+    on a single inline token without the surrounding heavyweight
+    framing — same visual weight as a Wikipedia link in body text.
+    """
+    return f"{BOLD}{BRIGHT_CYAN}{text}{RESET}"
+
+
 def dim(text: str) -> str:
     return color(text, DIM)
 

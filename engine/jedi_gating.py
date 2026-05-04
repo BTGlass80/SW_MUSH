@@ -27,6 +27,33 @@ What this drop deliberately does NOT do:
 See ``progression_gates_and_consequences_design_v1.md`` §2.3, §2.4,
 §2.8, and the v40 architecture §3.5 prerequisite stack for the full
 context.
+
+F.7.k (May 4 2026) — extension
+------------------------------
+Adds the cooldown-bypass seam (env var + era YAML flag) and exposes
+``cooldowns_enabled()`` plus the policy-aware predicates
+``act_2_gate_passed`` / ``trial_gate_passed`` / ``courage_retry_gate_passed``.
+
+The existing ``*_ready`` / ``*_seconds_remaining`` helpers continue
+to evaluate the strict math (so unit tests of the math stay valid).
+Callers that want production-correct gating with a dev bypass should
+use the new ``*_gate_passed`` predicates.
+
+The bypass exists because pre-launch dev needs to walk the full
+Village quest in one sitting; 7-day Act gates and 14-day inter-trial
+cooldowns are correct for production but hostile for testing.
+
+Resolution order for ``cooldowns_enabled()``:
+
+  1. ``SW_MUSH_PROGRESSION_COOLDOWNS`` env var, if set:
+       - "0" / "false" / "off" / "no" → cooldowns BYPASSED (returns False)
+       - "1" / "true" / "on" / "yes"  → cooldowns ENFORCED (returns True)
+       - anything else → fail-loud warning, fall through to YAML
+  2. era.yaml ``policy.progression_cooldowns_enabled`` (bool), if
+     era YAML loaded successfully and key is present.
+  3. Default: True (strict — production behavior).
+
+Tested by tests/test_f7k_cooldown_wireup.py.
 """
 from __future__ import annotations
 
@@ -502,3 +529,225 @@ def format_remaining(seconds: float) -> str:
     if m or not parts:
         parts.append(f"{m}m")
     return " ".join(parts)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# F.7.k — Cooldown bypass policy + policy-aware gate predicates
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# The strict ``*_ready`` helpers above are pure math against schema
+# columns. They never look at env vars or YAML; tests of the math can
+# rely on them returning the same answer in every environment.
+#
+# Callers that want "should this player be gated right now?" should use
+# the policy-aware ``*_gate_passed`` predicates below. Those consult
+# ``cooldowns_enabled()``: if cooldowns are disabled (dev bypass),
+# every gate predicate returns True. If enabled, they delegate to the
+# strict ``*_ready`` math.
+#
+# This split lets dev/test environments short-circuit the 35+-day
+# Village quest without compromising production correctness.
+
+# Env var name. The single source of truth for the dev override.
+COOLDOWN_BYPASS_ENV_VAR: str = "SW_MUSH_PROGRESSION_COOLDOWNS"
+
+# Recognized truthy/falsy spellings for the env var. We accept the
+# common conventions and fail loud on anything else.
+_ENV_TRUTHY = frozenset({"1", "true", "on", "yes"})
+_ENV_FALSY = frozenset({"0", "false", "off", "no"})
+
+
+def _parse_env_override() -> Optional[bool]:
+    """Read the env var. Returns True/False if set to a recognized
+    value, None if unset, None with a warning if set to something
+    weird."""
+    import os
+    raw = os.environ.get(COOLDOWN_BYPASS_ENV_VAR)
+    if raw is None:
+        return None
+    norm = raw.strip().lower()
+    if norm in _ENV_TRUTHY:
+        return True
+    if norm in _ENV_FALSY:
+        return False
+    log.warning(
+        "[jedi_gating] %s=%r is not a recognized boolean "
+        "(expected one of %s for True, %s for False); "
+        "falling through to era.yaml.",
+        COOLDOWN_BYPASS_ENV_VAR, raw,
+        sorted(_ENV_TRUTHY), sorted(_ENV_FALSY),
+    )
+    return None
+
+
+def _read_era_policy_flag() -> Optional[bool]:
+    """Read ``policy.progression_cooldowns_enabled`` from the active
+    era's era.yaml. Returns the bool if present, None otherwise.
+
+    Best-effort: any failure to load era YAML returns None (callers
+    fall through to the default). Logs at debug level so a missing
+    era.yaml during tests doesn't spam warnings.
+    """
+    try:
+        from engine.era_state import get_active_era
+        era = get_active_era()
+    except Exception:
+        log.debug(
+            "[jedi_gating] era_state import failed; "
+            "no era YAML policy lookup.", exc_info=True,
+        )
+        return None
+
+    try:
+        from pathlib import Path
+        import yaml
+    except ImportError:
+        log.debug(
+            "[jedi_gating] pyyaml not available; "
+            "no era YAML policy lookup.",
+        )
+        return None
+
+    era_path = Path("data") / "worlds" / era / "era.yaml"
+    if not era_path.is_file():
+        log.debug(
+            "[jedi_gating] %s not found; no era YAML policy lookup.",
+            era_path,
+        )
+        return None
+
+    try:
+        with open(era_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+    except Exception:
+        log.warning(
+            "[jedi_gating] failed to parse %s; "
+            "falling through to default cooldown policy.",
+            era_path, exc_info=True,
+        )
+        return None
+
+    policy = (data or {}).get("policy") or {}
+    val = policy.get("progression_cooldowns_enabled")
+    if val is None:
+        return None
+    if not isinstance(val, bool):
+        log.warning(
+            "[jedi_gating] %s::policy.progression_cooldowns_enabled "
+            "is %r (expected bool); falling through to default.",
+            era_path, val,
+        )
+        return None
+    return val
+
+
+def cooldowns_enabled() -> bool:
+    """Are real-time progression cooldowns enforced right now?
+
+    Resolution order:
+      1. ``SW_MUSH_PROGRESSION_COOLDOWNS`` env var (recognized values)
+      2. era.yaml ``policy.progression_cooldowns_enabled``
+      3. Default: True (strict / production)
+
+    The function is intentionally cheap to call — env var read is a
+    dict lookup, era YAML is read once per call but tiny. If a hot
+    path needs this and profiling shows it as a bottleneck, the
+    obvious cache point is here, not at every caller.
+    """
+    env = _parse_env_override()
+    if env is not None:
+        return env
+
+    yaml_flag = _read_era_policy_flag()
+    if yaml_flag is not None:
+        return yaml_flag
+
+    return True
+
+
+def act_2_gate_passed(
+    char: Mapping, *, now: Optional[float] = None,
+) -> bool:
+    """Policy-aware predicate: may this PC enter Act 2?
+
+    Honors ``cooldowns_enabled()``. When cooldowns are disabled,
+    returns True iff the strict math would consider Act 2 *eligible*
+    at all (i.e. ``village_act >= 1``) — we never bypass the
+    structural "you must be invited first" requirement, only the
+    7-day timer.
+    """
+    if not cooldowns_enabled():
+        # Dev bypass: skip the timer but keep the structural gate.
+        # ``act_2_unlock_seconds_remaining`` returns +inf when
+        # village_act < 1; we mirror that here so a not-yet-invited
+        # PC still can't slip into Act 2.
+        return int(char.get("village_act") or 0) >= 1
+    return act_2_unlock_ready(char, now=now)
+
+
+def trial_gate_passed(
+    char: Mapping, *, now: Optional[float] = None,
+) -> bool:
+    """Policy-aware predicate: may this PC attempt the next trial?
+
+    Honors ``cooldowns_enabled()``. When cooldowns are disabled,
+    always returns True (no structural gate beyond the trial's own
+    per-step prerequisites, which trial code enforces separately).
+    """
+    if not cooldowns_enabled():
+        return True
+    return trial_cooldown_ready(char, now=now)
+
+
+def courage_retry_gate_passed(
+    char: Mapping, *, now: Optional[float] = None,
+) -> bool:
+    """Policy-aware predicate: may this PC retry the Courage trial
+    after a failure?
+
+    Honors ``cooldowns_enabled()``. When cooldowns are disabled,
+    always returns True. NOTE: the per-Courage 24-hour lockout
+    (``village_trial_courage_lockout_until``) is enforced separately
+    in ``engine.village_trials`` and is independent of this gate.
+    This gate is the (currently unused) inter-trial 24h floor; once
+    the Courage trial engine writes ``village_trial_last_attempt`` on
+    failure, this gate becomes meaningful.
+    """
+    if not cooldowns_enabled():
+        return True
+    return courage_retry_cooldown_ready(char, now=now)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# F.7.k — Trial-attempt timestamp helper
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# The 14-day inter-trial cooldown reads ``village_trial_last_attempt``
+# but the Village trial-completion paths historically didn't write it.
+# This helper is the single canonical writer; trial code calls it at
+# completion time with the existing ``save_kwargs`` accumulator.
+
+def stamp_trial_attempt(
+    char: dict, save_kwargs: dict, *, now: Optional[float] = None,
+) -> float:
+    """Stamp ``village_trial_last_attempt`` on the character.
+
+    Mutates both ``char`` (in-memory state) and ``save_kwargs``
+    (DB-write accumulator) — the caller is responsible for the
+    actual ``db.save_character(**save_kwargs)`` call. Idempotent
+    against being called twice in the same path; the new timestamp
+    overwrites any earlier one (which is what we want — the most
+    recent attempt is the one that gates the next trial).
+
+    Args:
+        char: character dict (mutated)
+        save_kwargs: dict of pending DB column writes (mutated)
+        now: wall-clock override for testing
+
+    Returns:
+        The timestamp written.
+    """
+    ts = now if now is not None else _now()
+    char["village_trial_last_attempt"] = ts
+    save_kwargs["village_trial_last_attempt"] = ts
+    return ts

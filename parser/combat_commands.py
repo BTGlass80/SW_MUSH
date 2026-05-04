@@ -767,6 +767,25 @@ class AttackCommand(BaseCommand):
         char = ctx.session.character
         room_id = char["room_id"]
 
+        # ── W.2 phase 2: combat-in-wilderness gate ───────────────────
+        # The combat system is keyed by room_id. In wilderness all PCs
+        # share the sentinel room_id, so naive combat would attack
+        # ANYONE in the region. Until wilderness combat is properly
+        # designed (combat key incorporating wilderness coords), we
+        # refuse combat in wilderness entirely. This is the safest
+        # default — protects against the cross-tile damage bug.
+        try:
+            from engine.wilderness_movement import in_wilderness
+            if in_wilderness(char):
+                await ctx.session.send_line(
+                    "  \033[1;33m[NO COMBAT]\033[0m Combat in wilderness "
+                    "regions is not yet supported. The desert is too open; "
+                    "no encounter system has eyes on you here yet."
+                )
+                return
+        except Exception:
+            pass  # If the helper isn't available, fall through
+
         # Phase 1: Security gate
         from engine.security import SecurityLevel
         sec = await self._check_security_gate(ctx, room_id, char)

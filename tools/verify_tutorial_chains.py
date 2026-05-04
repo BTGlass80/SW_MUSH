@@ -117,8 +117,11 @@ def test_top_level(data):
     check("'chains' key present", "chains" in data)
     chains = data.get("chains", [])
     check("chains is a list", isinstance(chains, list))
-    check("expected 8 chains", len(chains) == 8,
+    check("expected 9 chains", len(chains) == 9,
           f"got {len(chains)}")
+    # F.7.j (May 4 2026) — chain count grew 8 → 9 with the split of
+    # the formerly-monolithic `jedi_path` chain into Path-A
+    # (`jedi_path`) and Path-B (`jedi_path_independent`) flavors.
 
 
 def test_chain_shape(chain, idx, zone_keys, faction_codes):
@@ -164,9 +167,18 @@ def test_chain_shape(chain, idx, zone_keys, faction_codes):
                     check(f"faction_intent '{v}' resolves",
                           v in faction_codes,
                           f"not a valid faction code")
+                elif k == "village_chosen_path":
+                    # F.7.j (May 4 2026) — second mapped-key prereq.
+                    # Valid values: 'a' (Path A — Order), 'b'
+                    # (Path B — Independent), 'c' (Path C — Dark
+                    # Whispers, currently unused for chain gating
+                    # but reserved). See engine.tutorial_chains.
+                    check(f"village_chosen_path '{v}' valid",
+                          str(v).strip().lower() in {"a", "b", "c"},
+                          f"must be 'a', 'b', or 'c'")
                 else:
                     check(f"prerequisite '{k}' is a known mapped key",
-                          k in {"faction_intent"},
+                          k in {"faction_intent", "village_chosen_path"},
                           f"unknown mapped prerequisite key: {k}")
 
     # duration_minutes type

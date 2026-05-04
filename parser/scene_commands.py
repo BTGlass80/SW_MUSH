@@ -220,8 +220,9 @@ async def _cmd_scene_start(ctx: CommandContext, title: str):
             f'Poses are being logged (#\033[1;37m{scene_id}\033[0m).'
         )
         await ctx.session_mgr.broadcast_to_room(
-            room_id, notice, exclude=ctx.session
-        )
+            room_id, notice, exclude=ctx.session,
+    source_char=char,
+)
     else:
         await ctx.session.send_line(ansi.error(result["msg"]))
 
@@ -246,7 +247,8 @@ async def _cmd_scene_stop(ctx: CommandContext):
         f'{ansi.player_name(char["name"])} has ended the scene. '
         f'{result["total_poses"]} IC pose(s) logged.',
         exclude=ctx.session,
-    )
+        source_char=char,
+)
 
     # Award scene CP bonuses to all participants who posed
     pose_counts = result.get("pose_counts", {})
@@ -502,7 +504,7 @@ async def _cmd_pose_order(ctx):
         # Show existing pose order
         # Build name map from participants in room
         name_map = {}
-        for s in ctx.session_mgr.sessions_in_room(room_id):
+        for s in ctx.session_mgr.sessions_in_room(room_id, source_char=char):
             if s.character:
                 name_map[s.character["id"]] = s.character["name"]
         # Also get names from DB for offline participants
@@ -566,7 +568,7 @@ async def _cmd_pose_drop(ctx, name: str):
     target_name = None
 
     # Check online sessions first
-    for s in ctx.session_mgr.sessions_in_room(room_id):
+    for s in ctx.session_mgr.sessions_in_room(room_id, source_char=char):
         if s.character and s.character["name"].lower().startswith(name_lower):
             target_id = s.character["id"]
             target_name = s.character["name"]
@@ -619,7 +621,7 @@ async def _cmd_pose_mode(ctx, mode: str):
     result = sm.set_pose_order_mode(scene_id, mode.strip().lower())
     if result["ok"]:
         await ctx.session.send_line(f"\x1b[92m{result['msg']}\x1b[0m")
-        for s in ctx.session_mgr.sessions_in_room(room_id):
+        for s in ctx.session_mgr.sessions_in_room(room_id, source_char=char):
             if s.character and s.character["id"] != char["id"]:
                 await s.send(
                     ansi.dim(f"[Pose Order] Mode changed to {mode.strip().lower()}."))

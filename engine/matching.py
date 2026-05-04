@@ -133,6 +133,7 @@ async def match_in_room(
     include_characters: bool = True,
     include_objects: bool = True,
     admin: bool = False,
+    source_char=None,
 ) -> Match:
     """
     Match a search string against everything visible in a room.
@@ -149,6 +150,11 @@ async def match_in_room(
         include_characters: Search other characters
         include_objects: Search room objects
         admin: Allow #id references
+        source_char: optional character dict. When set AND source is in
+            wilderness, character matches are filtered to co-located PCs.
+            Path B (W.2 phase 2) — every "look at <name>", "examine
+            <name>", "target <name>" call site that passes source_char
+            respects co-location automatically.
 
     Returns:
         Match result
@@ -213,7 +219,7 @@ async def match_in_room(
 
     # Characters in room (from connected sessions)
     if include_characters and session_mgr:
-        for s in session_mgr.sessions_in_room(room_id):
+        for s in session_mgr.sessions_in_room(room_id, source_char=source_char):
             if s.character and s.character["id"] != char_id:
                 candidates.append(MatchCandidate(
                     id=s.character["id"],

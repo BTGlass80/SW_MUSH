@@ -42,7 +42,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 from db.database import Database
-from engine.npc_loader import load_era_npcs, load_wilderness_npcs
+from engine.npc_loader import load_era_npcs, load_wilderness_npcs, load_jedi_village_npcs
 from engine.ship_loader import load_era_ships
 from engine.test_character_loader import load_era_test_character
 from engine.world_loader import load_world_dry_run
@@ -330,6 +330,37 @@ async def build(db_path="sw_mush.db", era="gcw"):
         # Non-fatal — the rest of the build should still complete.
         import traceback
         print(f"\n  [WARN] Wilderness NPC load failed: {wilderness_npc_err}")
+        traceback.print_exc()
+
+    # -- Jedi Village NPCs (Drop F.7.b, May 4 2026) --
+    # Per jedi_village_quest_design_v1.md §4.2 and §4.3: Sister Vitha
+    # at the Gate, Master Yarael Tinré at the Master's Chamber. These
+    # are the F.7.b dialogue runtime NPCs (Step 3 examiner and Step 4
+    # examiner respectively). Future trial NPCs (Smith Daro, Elder
+    # Mira, etc.) will be added to the same YAML in F.7.c/d.
+    #
+    # Mirrors load_wilderness_npcs() — same room-resolution semantics
+    # (rooms.wilderness_region_id IS NOT NULL filter). Village rooms
+    # qualify because they were written by the wilderness writer as
+    # landmark rooms inside the Dune Sea region.
+    try:
+        village_npcs = await load_jedi_village_npcs(era_dir, db)
+        if village_npcs:
+            print(f"\n  Creating {len(village_npcs)} Jedi Village NPC(s)...")
+            for name, room_id, species, desc, sheet, ai_cfg in village_npcs:
+                npc_id = await db.create_npc(
+                    name=name, room_id=room_id, species=species, description=desc,
+                    char_sheet_json=json.dumps(sheet),
+                    ai_config_json=json.dumps(ai_cfg),
+                )
+                print(f"    #{npc_id:3d} {name:30s} [VILLAGE] in room_id={room_id}")
+                npc_count += 1
+        else:
+            # Clean miss for eras without jedi_village_npcs registered.
+            pass
+    except Exception as village_npc_err:
+        import traceback
+        print(f"\n  [WARN] Jedi Village NPC load failed: {village_npc_err}")
         traceback.print_exc()
 
     # -- Ships (era-aware loader; F.1b) --

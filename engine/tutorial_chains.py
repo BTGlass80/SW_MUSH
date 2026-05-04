@@ -33,6 +33,16 @@ integration (next drop). Same pattern as F.6a.1 (loader without
 integration) and F.7 (seam with deferred runtime).
 
 Tested by tests/test_f8_tutorial_chains_yaml.py.
+
+F.7.j (May 4 2026) — extension
+------------------------------
+`is_chain_locked_for_character` now recognizes a second mapped-key
+prerequisite shape: ``{"village_chosen_path": "a"|"b"|"c"}``. This
+lets the Jedi Path branch into Order- and Independent-flavored
+chains after the Village quest commits a path. No schema change;
+no parser change; the new vocabulary is additive.
+
+Tested by tests/test_f7j_path_chain_branching.py.
 """
 from __future__ import annotations
 
@@ -502,6 +512,14 @@ def is_chain_locked_for_character(
         The wizard sets char_attrs["faction_intent"] =
         "__chargen_any__" only during the chargen render; runtime
         callers always pass the real faction_intent (or None).
+      - {"village_chosen_path": "a"|"b"|"c"}: check
+        `char_attrs.get("village_chosen_path") == <expected>`.
+        F.7.j: lets the Jedi Path branch into Order- and
+        Independent-flavored chains after the Village quest commits
+        a path. Unlike `faction_intent`, there is NO chargen
+        sentinel — the Jedi-Path chains MUST stay locked at
+        chargen, so a chargen-fresh attrs dict (no village_chosen_path
+        set) correctly fails this prereq.
     """
     CHARGEN_FACTION_ANY = "__chargen_any__"
     missing_flags: list = []
@@ -518,6 +536,21 @@ def is_chain_locked_for_character(
                         continue
                     if actual != v:
                         missing_flags.append(f"faction_intent={v}")
+                elif k == "village_chosen_path":
+                    # F.7.j: post-Village path-flavored gate.
+                    actual = char_attrs.get("village_chosen_path")
+                    # Normalize for case-tolerance — village_choice
+                    # writes lowercase 'a'/'b'/'c' but defensive in
+                    # case some path through `chargen_notes` JSON
+                    # picks up a different shape.
+                    actual_norm = (
+                        str(actual).strip().lower() if actual else ""
+                    )
+                    expected_norm = str(v).strip().lower()
+                    if actual_norm != expected_norm:
+                        missing_flags.append(
+                            f"village_chosen_path={expected_norm}"
+                        )
                 else:
                     # Unknown mapped-key prereq — surface as missing
                     missing_flags.append(f"{k}={v}")

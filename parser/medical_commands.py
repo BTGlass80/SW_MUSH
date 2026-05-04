@@ -101,12 +101,17 @@ def _has_healing_skill(char: dict) -> tuple[bool, str]:
 
 
 def _find_target_session(ctx, target_name: str):
-    """Find a player session in the same room by name prefix."""
-    room_id = ctx.session.character["room_id"]
+    """Find a player session in the same room by name prefix.
+
+    W.2 phase 2: source_char on sessions_in_room filters to wilderness
+    co-located peers when the searcher is in wilderness.
+    """
+    char = ctx.session.character
+    room_id = char["room_id"]
     target_name_lower = target_name.strip().lower()
     matches = []
-    for s in ctx.session_mgr.sessions_in_room(room_id):
-        if not s.character or s.character["id"] == ctx.session.character["id"]:
+    for s in ctx.session_mgr.sessions_in_room(room_id, source_char=char):
+        if not s.character or s.character["id"] == char["id"]:
             continue
         cname = s.character.get("name", "").lower()
         if cname == target_name_lower or cname.startswith(target_name_lower):
@@ -221,6 +226,7 @@ class HealCommand(BaseCommand):
             f"  {ansi.player_name(char.get('name', 'Someone'))} examines "
             f"{ansi.player_name(target_name)}'s injuries.",
             exclude=ctx.session,
+            source_char=char,  # W.2 phase 2
         )
 
 
@@ -334,6 +340,7 @@ class HealAcceptCommand(BaseCommand):
                 f"  {ansi.player_name(healer_name)} treats "
                 f"{ansi.player_name(char.get('name', 'someone'))}'s wounds.",
                 exclude=[ctx.session, healer_session],
+                source_char=char,  # W.2 phase 2
             )
 
         elif result.margin >= -4:

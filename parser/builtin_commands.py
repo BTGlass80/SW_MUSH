@@ -10,6 +10,24 @@ from server import ansi
 log = logging.getLogger(__name__)
 
 
+def _opposite_direction(direction: str) -> str:
+    """Return the human-readable opposite of a movement direction.
+
+    Used to phrase wilderness arrival broadcasts: "X arrives from the south"
+    when X moved north into the tile.
+    """
+    opposites = {
+        "north": "south",      "south": "north",
+        "east": "west",        "west": "east",
+        "northeast": "southwest", "southwest": "northeast",
+        "northwest": "southeast", "southeast": "northwest",
+        "n": "south", "s": "north", "e": "west", "w": "east",
+        "ne": "southwest", "sw": "northeast",
+        "nw": "southeast", "se": "northwest",
+    }
+    return opposites.get((direction or "").lower(), direction)
+
+
 def _wrap_exits(exit_parts: list, prefix: str = "  Exits: ", width: int = 120) -> str:
     """Format exits across multiple lines if needed.
 
@@ -145,6 +163,15 @@ class LookCommand(BaseCommand):
         if ctx.args:
             await self._look_at(ctx)
             return
+
+        # ── W.2 phase 2: wilderness branch ──────────────────────────────
+        try:
+            from engine.wilderness_movement import in_wilderness
+            if in_wilderness(char):
+                await self._look_wilderness(ctx, char)
+                return
+        except Exception:
+            log.warning("wilderness look fork failed", exc_info=True)
 
         room = await ctx.db.get_room(char["room_id"])
         if not room:
@@ -327,6 +354,7 @@ class LookCommand(BaseCommand):
         match = await match_in_room(
             ctx.args, char["room_id"], char["id"], ctx.db,
             session_mgr=ctx.session_mgr,
+            source_char=char,  # W.2 phase 2: wilderness co-location
         )
 
         if match.result == MatchResult.AMBIGUOUS:
@@ -514,6 +542,104 @@ class LookCommand(BaseCommand):
             pass
 
 
+    # ─────────────────────────────────────────────────────────────────────
+    # W.2 phase 2: wilderness rendering branch
+    # ─────────────────────────────────────────────────────────────────────
+
+    async def _look_wilderness(self, ctx, char):
+        """Render a wilderness tile.
+
+        Pulls the WildernessRegion from the cache (or YAML on miss),
+        renders tile + adjacent terrain via the engine kernel, lists
+        co-located peers (Path B: characters_at_tile gives us only
+        same-tile PCs).
+        """
+        session = ctx.session
+        try:
+            from engine.wilderness_movement import (
+                get_or_load_region, get_wilderness_coords,
+                render_tile, render_adjacent_terrain, characters_at_tile,
+                find_edge_at_coords,
+            )
+        except Exception:
+            await session.send_line("You can't see anything.")
+            return
+
+        coords = get_wilderness_coords(char)
+        if coords is None:
+            await session.send_line("You feel disoriented; the desert blurs.")
+            return
+        slug, x, y = coords
+
+        region = await get_or_load_region(ctx.db, slug)
+        if region is None:
+            await session.send_line(f"You are in {slug}, but the region is unloaded.")
+            return
+
+        tile = render_tile(region, x, y)
+
+        # Header — region name + coords
+        await session.send_line("")
+        await session.send_line(
+            f"\033[1;33m{tile['region_name']} — Coordinates {x}, {y}\033[0m"
+        )
+
+        # Description (terrain variant + optional time overlay)
+        if tile["description"]:
+            await session.send_line(f"  {tile['description']}")
+        if tile["time_overlay"]:
+            await session.send_line(f"  {tile['time_overlay']}")
+
+        # Status line: security tag + movement cost + hazard hint
+        sec = (tile.get("security") or "").upper()
+        sec_tag = ""
+        if sec == "LAWLESS":
+            sec_tag = "\033[1;31m[LAWLESS]\033[0m  "
+        elif sec == "CONTESTED":
+            sec_tag = "\033[1;33m[CONTESTED]\033[0m  "
+        elif sec == "SECURED":
+            sec_tag = "\033[1;32m[SECURED]\033[0m  "
+        await session.send_line("")
+        await session.send_line(
+            f"  {sec_tag}Movement: {tile['terrain']} (cost {tile['move_cost']})"
+        )
+        if tile.get("ambient_hazard") and tile["ambient_hazard"] != "none":
+            await session.send_line(
+                f"  \033[2mAmbient hazard: {tile['ambient_hazard']} "
+                f"(severity {tile['hazard_severity']})\033[0m"
+            )
+
+        # Adjacent terrain (compass-style)
+        adj = render_adjacent_terrain(region, x, y)
+        await session.send_line("")
+        await session.send_line("  Terrain around you:")
+        for d in ("north", "south", "east", "west"):
+            t = adj.get(d)
+            label = t if t else "edge of region"
+            await session.send_line(f"    {d:6s} {label}")
+
+        # Edge exit hint
+        edge = find_edge_at_coords(region, x, y)
+        if edge is not None:
+            await session.send_line("")
+            await session.send_line(
+                f"  \033[1;36mYou could leave the desert here — "
+                f"head {edge.direction_back_to_room}.\033[0m"
+            )
+
+        # Other PCs at this tile (co-location filtered by helper)
+        others = await characters_at_tile(ctx.db, slug, x, y)
+        peers = [o for o in others if o.get("id") != char.get("id")]
+        if peers:
+            await session.send_line("")
+            for o in peers:
+                await session.send_line(
+                    f"  {ansi.player_name(o['name'])} is here."
+                )
+
+        await session.send_line("")
+
+
 
 
 class MoveCommand(BaseCommand):
@@ -534,8 +660,29 @@ class MoveCommand(BaseCommand):
             await session.send_line("Move where? Specify a direction.")
             return
 
+        # ── W.2 phase 2: wilderness fork ────────────────────────────────
+        # If character is already in wilderness, branch entirely to the
+        # wilderness handler — it owns in-tile movement, edge exits,
+        # and all messaging.
+        try:
+            from engine.wilderness_movement import in_wilderness
+            if in_wilderness(char):
+                await self._execute_wilderness_move(ctx, char, direction)
+                return
+        except Exception:
+            log.warning("wilderness move fork failed", exc_info=True)
+            # Fall through to normal-room path
+
         exit_data = await self._match_exit(ctx, char, direction)
         if not exit_data:
+            # ── W.2 phase 2: wilderness entry from hand-built room ─────
+            # No normal exit matched; check whether the current room
+            # is a wilderness edge entry point for this direction.
+            try:
+                if await self._try_wilderness_entry(ctx, char, direction):
+                    return
+            except Exception:
+                log.warning("wilderness entry fork failed", exc_info=True)
             await session.send_line(f"You can't go {direction}.")
             return
 
@@ -641,6 +788,26 @@ class MoveCommand(BaseCommand):
         except Exception:
             pass  # Graceful fallback
 
+        # Conditional room-lock gate (F.7.e):
+        # If the destination room carries a `locked_until_flag` property
+        # in its world-data definition, evaluate the named flag against
+        # the character's quest state. Admins/builders bypass.
+        try:
+            from engine.room_locks import can_enter_locked_room
+            _lock_ctx = {}
+            account = await ctx.db.get_account(char.get("account_id", 0))
+            if account:
+                _lock_ctx["is_admin"] = bool(account.get("is_admin"))
+                _lock_ctx["is_builder"] = bool(account.get("is_builder"))
+            _allowed, _reason = await can_enter_locked_room(
+                ctx.db, char, new_room_id, lock_ctx=_lock_ctx,
+            )
+            if not _allowed:
+                await session.send_line(f"  \033[1;33m{_reason}\033[0m")
+                return True
+        except Exception:
+            pass  # Graceful fallback — fail-open
+
         return False
 
     def _parse_lock_data(self, exit_data):
@@ -691,6 +858,261 @@ class MoveCommand(BaseCommand):
                                  char=char, session=session)
         except Exception as _e:
             log.debug("_fire_room_hook %s: %s", hook_name, _e, exc_info=True)
+
+
+    # ─────────────────────────────────────────────────────────────────────
+    # W.2 phase 2: wilderness movement helpers
+    # ─────────────────────────────────────────────────────────────────────
+
+    async def _try_wilderness_entry(self, ctx, char, direction) -> bool:
+        """Check whether the current room is a wilderness edge entry for direction.
+
+        If so, transition the character into wilderness at the edge's
+        coords and return True. If not, return False so the caller
+        falls through to the normal "you can't go that way" message.
+        """
+        try:
+            from engine.wilderness_movement import (
+                get_or_load_region, find_entry_edges_for_room,
+            )
+        except Exception:
+            return False
+
+        room = await ctx.db.get_room(char["room_id"])
+        if not room:
+            return False
+
+        # Pull room slug from properties
+        import json as _wj
+        rprops = room.get("properties", "{}")
+        if isinstance(rprops, str):
+            try:
+                rprops = _wj.loads(rprops or "{}")
+            except Exception:
+                rprops = {}
+        room_slug = (rprops.get("slug") or "").strip()
+        if not room_slug:
+            return False
+
+        # Iterate registered regions and check each for matching edges
+        rows = await ctx.db._db.execute_fetchall(
+            "SELECT slug FROM wilderness_regions"
+        )
+        for r in rows:
+            slug = r["slug"]
+            region = await get_or_load_region(ctx.db, slug)
+            if region is None:
+                continue
+
+            for edge in find_entry_edges_for_room(region, room_slug):
+                if direction != edge.direction_from_room:
+                    continue
+
+                # Match — transition into wilderness at edge.coords.
+                sentinel_rows = await ctx.db._db.execute_fetchall(
+                    "SELECT sentinel_room_id FROM wilderness_regions WHERE slug = ?",
+                    (slug,),
+                )
+                if not sentinel_rows or not sentinel_rows[0]["sentinel_room_id"]:
+                    log.warning("wilderness entry: no sentinel for %r", slug)
+                    return False
+                sentinel_id = sentinel_rows[0]["sentinel_room_id"]
+
+                old_room_id = char["room_id"]
+                ex, ey = edge.coords
+
+                # Departure broadcast in OLD room — no source_char filter
+                # needed; caller is leaving a normal room and everyone there
+                # should see them go.
+                await ctx.session_mgr.broadcast_to_room(
+                    old_room_id,
+                    f"{char['name']} heads {direction}.",
+                    exclude=ctx.session,
+                )
+
+                # Update character state
+                char["room_id"] = sentinel_id
+                char["wilderness_region_slug"] = slug
+                char["wilderness_x"] = ex
+                char["wilderness_y"] = ey
+                await ctx.db.save_character(
+                    char["id"],
+                    room_id=sentinel_id,
+                    wilderness_region_slug=slug,
+                    wilderness_x=ex,
+                    wilderness_y=ey,
+                )
+
+                # Self-message
+                if edge.enter_message:
+                    await ctx.session.send_line("")
+                    await ctx.session.send_line(edge.enter_message.strip())
+
+                # Auto-look (LookCommand will branch to wilderness path now)
+                look_cmd = LookCommand()
+                look_ctx = CommandContext(
+                    session=ctx.session, raw_input="look", command="look",
+                    args="", args_list=[], db=ctx.db, session_mgr=ctx.session_mgr,
+                )
+                await look_cmd.execute(look_ctx)
+
+                return True
+
+        return False
+
+    async def _execute_wilderness_move(self, ctx, char, direction):
+        """Movement handler for characters already in wilderness.
+
+        Two paths:
+          1. Edge exit: at edge coords + direction matches direction_back_to_room
+          2. In-tile move: ask move_in_wilderness, update coords on success
+        """
+        session = ctx.session
+        try:
+            from engine.wilderness_movement import (
+                get_or_load_region, find_edge_for_exit_direction,
+                move_in_wilderness, get_wilderness_coords,
+            )
+        except Exception:
+            await session.send_line("Movement is unavailable here.")
+            return
+
+        coords = get_wilderness_coords(char)
+        if coords is None:
+            await session.send_line("You feel disoriented; the desert blurs.")
+            return
+        slug, x, y = coords
+
+        region = await get_or_load_region(ctx.db, slug)
+        if region is None:
+            await session.send_line("You can't move — this region is unavailable.")
+            return
+
+        # 1. Edge exit?
+        edge = find_edge_for_exit_direction(region, x, y, direction)
+        if edge is not None:
+            await self._execute_wilderness_exit(ctx, char, edge)
+            return
+
+        # 2. In-tile move
+        result = move_in_wilderness(region, x, y, direction)
+        if not result.ok:
+            await session.send_line(result.reason or f"You can't go {direction}.")
+            return
+
+        # Departure broadcast at old tile (Path B: source_char filters)
+        await ctx.session_mgr.broadcast_to_room(
+            char["room_id"],
+            f"{char['name']} moves {direction}.",
+            exclude=ctx.session,
+            source_char=char,  # filtered to old-tile peers
+        )
+
+        # Update coords
+        char["wilderness_x"] = result.new_x
+        char["wilderness_y"] = result.new_y
+        await ctx.db.save_character(
+            char["id"],
+            wilderness_x=result.new_x,
+            wilderness_y=result.new_y,
+        )
+
+        # Arrival broadcast at new tile (source_char now points to new coords)
+        await ctx.session_mgr.broadcast_to_room(
+            char["room_id"],
+            f"{char['name']} arrives from the {_opposite_direction(direction)}.",
+            exclude=ctx.session,
+            source_char=char,  # filtered to new-tile peers
+        )
+
+        # Auto-look
+        look_cmd = LookCommand()
+        look_ctx = CommandContext(
+            session=session, raw_input="look", command="look",
+            args="", args_list=[], db=ctx.db, session_mgr=ctx.session_mgr,
+        )
+        await look_cmd.execute(look_ctx)
+
+    async def _execute_wilderness_exit(self, ctx, char, edge):
+        """Transition character out of wilderness to a hand-built room."""
+        session = ctx.session
+
+        # Resolve target room by slug. JSON1 path first; scan fallback if unavailable.
+        target_id = None
+        try:
+            target_rows = await ctx.db._db.execute_fetchall(
+                "SELECT id FROM rooms WHERE json_extract(properties, '$.slug') = ? LIMIT 1",
+                (edge.room_slug,),
+            )
+            if target_rows:
+                target_id = target_rows[0]["id"]
+        except Exception:
+            pass  # Falls through to scan
+
+        if target_id is None:
+            import json as _exj
+            all_rows = await ctx.db._db.execute_fetchall(
+                "SELECT id, properties FROM rooms"
+            )
+            for r in all_rows:
+                try:
+                    p = _exj.loads(r["properties"] or "{}")
+                    if p.get("slug") == edge.room_slug:
+                        target_id = r["id"]
+                        break
+                except Exception:
+                    continue
+
+        if target_id is None:
+            await session.send_line("You can't go that way — the path is blocked.")
+            return
+
+        # Cache old wilderness state for the departure broadcast
+        old_slug = char.get("wilderness_region_slug")
+        old_x = char.get("wilderness_x")
+        old_y = char.get("wilderness_y")
+
+        # Departure broadcast at OLD wilderness tile (source_char still pointing
+        # to wilderness coords)
+        await ctx.session_mgr.broadcast_to_room(
+            char["room_id"],
+            f"{char['name']} departs the area.",
+            exclude=ctx.session,
+            source_char=char,
+        )
+
+        # Clear wilderness state
+        char["room_id"] = target_id
+        char["wilderness_region_slug"] = None
+        char["wilderness_x"] = None
+        char["wilderness_y"] = None
+        await ctx.db.save_character(
+            char["id"],
+            room_id=target_id,
+            wilderness_region_slug=None,
+            wilderness_x=None,
+            wilderness_y=None,
+        )
+
+        # Self-message: exit message
+        if edge.exit_message:
+            await session.send_line("")
+            await session.send_line(edge.exit_message.strip())
+
+        # Arrival broadcast in the new (normal) room
+        await ctx.session_mgr.broadcast_to_room(
+            target_id,
+            f"{char['name']} arrives from the wastes.",
+            exclude=ctx.session,
+        )
+
+        # Auto-look (normal room path now)
+        look_cmd = LookCommand()
+        look_ctx = CommandContext(
+            session=session, raw_input="look", command="look",
+            args="", args_list=[], db=ctx.db, session_mgr=ctx.session_mgr,
+        )
+        await look_cmd.execute(look_ctx)
 
 
     async def _post_move_hooks(self, ctx, session, char, new_room_id):
@@ -917,11 +1339,13 @@ class SayCommand(BaseCommand):
                 mode="says",
             ),
             exclude=ctx.session,
+            source_char=char,  # W.2 phase 2: wilderness co-location
         )
         # Chat tag for WebSocket comms panel
         await ctx.session_mgr.broadcast_chat(
             "ic", char["name"], ctx.args,
             room_id=room_id,
+            source_char=char,  # W.2 phase 2: wilderness co-location
         )
         # Scene logging hook
         from engine.scenes import get_active_scene_id, capture_pose
@@ -938,7 +1362,7 @@ class SayCommand(BaseCommand):
             log.debug("silent except in parser/builtin_commands.py:888: %s", _e, exc_info=True)
         # Achievement: pc_conversation (2+ PCs in room)
         try:
-            others = [s for s in ctx.session_mgr.sessions_in_room(room_id) or []
+            others = [s for s in ctx.session_mgr.sessions_in_room(room_id, source_char=char) or []
                       if s.character and s.character.get("id") != char["id"]]
             if others:
                 from engine.achievements import on_pc_conversation
@@ -973,7 +1397,12 @@ class WhisperCommand(BaseCommand):
 
         # Find target in room
         room_id = ctx.session.character["room_id"]
-        room_sessions = ctx.session_mgr.sessions_in_room(room_id)
+        speaker = ctx.session.character
+        # W.2 phase 2: Path B — sessions_in_room with source_char filters
+        # to co-located characters when in wilderness. The whisper target
+        # must be at the same wilderness tile, not just somewhere else
+        # in the desert.
+        room_sessions = ctx.session_mgr.sessions_in_room(room_id, source_char=speaker)
         target_session = None
         for s in room_sessions:
             if s.character and s.character["name"].lower() == target_name.lower():
@@ -1050,6 +1479,7 @@ class EmoteCommand(BaseCommand):
                 speaker_id=char.get("id"),
                 mode="poses",
             ),
+            source_char=char,  # W.2 phase 2: wilderness co-location
         )
 
         # Scene logging hook
@@ -2549,11 +2979,63 @@ class BuffsCommand(BaseCommand):
             await ctx.session.send_line(line)
 
 
+class CoordsCommand(BaseCommand):
+    """Show wilderness coordinates and region info.
+
+    Per W.2 phase 2: small comfort command for players in wilderness.
+    """
+    key = "coords"
+    aliases = ["coordinates"]
+    help_text = (
+        "Show your wilderness coordinates.\n"
+        "Only meaningful while you're in a wilderness region.\n"
+        "Use 'look' for full tile information including terrain and exits."
+    )
+    usage = "coords"
+
+    async def execute(self, ctx: CommandContext):
+        session = ctx.session
+        char = session.character
+        if not char:
+            return
+        try:
+            from engine.wilderness_movement import (
+                in_wilderness, get_wilderness_coords, get_or_load_region,
+            )
+        except Exception:
+            await session.send_line("Coordinates are unavailable.")
+            return
+
+        if not in_wilderness(char):
+            await session.send_line(
+                "You're not in a wilderness region. Use 'look' to see your surroundings."
+            )
+            return
+
+        coords = get_wilderness_coords(char)
+        if coords is None:
+            await session.send_line("Your wilderness state is inconsistent.")
+            return
+        slug, x, y = coords
+
+        region = await get_or_load_region(ctx.db, slug)
+        region_name = region.name if region else slug
+        await session.send_line(
+            f"  \033[1;33m{region_name}\033[0m — coordinates "
+            f"\033[1;36m({x}, {y})\033[0m"
+        )
+        if region is not None:
+            await session.send_line(
+                f"  \033[2mRegion bounds: 0..{region.grid_width-1} x 0..{region.grid_height-1}\033[0m"
+            )
+
+
 def register_all(registry):
     """Register all built-in commands with the registry."""
     commands = [
         LookCommand(),
         MoveCommand(),
+        CoordsCommand(),
         PicklockCommand(),
         ForceDoorCommand(),
         StealCommand(),
@@ -2865,7 +3347,7 @@ class TradeCommand(BaseCommand):
 
             # Find target in same room
             target_sess = None
-            for s in ctx.session_mgr.sessions_in_room(char["room_id"]):
+            for s in ctx.session_mgr.sessions_in_room(char["room_id"], source_char=char):
                 if (s.character and
                         s.character["name"].lower().startswith(target_name.lower()) and
                         s.character["id"] != char["id"]):
@@ -2956,7 +3438,7 @@ class TradeCommand(BaseCommand):
 
         # Find target in same room
         target_sess = None
-        for s in ctx.session_mgr.sessions_in_room(char["room_id"]):
+        for s in ctx.session_mgr.sessions_in_room(char["room_id"], source_char=char):
             if (s.character and
                     s.character["name"].lower().startswith(target_name.lower()) and
                     s.character["id"] != char["id"]):

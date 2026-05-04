@@ -385,13 +385,13 @@ landmarks:
     name: "The Sealed Sanctum"
     coordinates: [32, 18]
     terrain: village_interior
-    short_desc: "A sealed chamber containing the Village's three holocron fragments."
+    short_desc: "A black-walled chamber where Master Yarael leads the Trial of Spirit."
     description: |
       A small chamber sealed behind the polished hardwood door at the
-      deepest point of the Meditation Caves. Three stone alcoves are
-      set into the far wall; each holds a holocron fragment dimly
-      glowing. The air in here is older than any other air you have
-      ever breathed.
+      deepest point of the Meditation Caves. The walls are a darker
+      stone than the caves outside; the floor is polished smooth from
+      generations of meditation. There is no decoration. The air in
+      here is older than any other air you have ever breathed.
 
       The chamber unlocks during the Trial of Spirit. Outside that
       moment, the door is closed.
@@ -400,6 +400,57 @@ landmarks:
       village_room: true
       locked_until_flag: spirit_trial_in_progress
       post_quest_open: true             # remains accessible after quest
-      trial_of_insight_site: true       # Village quest engine hook
+      trial_of_spirit_site: true        # F.7.c.4 / F.7.d: corrected from
+                                         # earlier (incorrect) trial_of_insight_site
+                                         # marker — the holocron fragments
+                                         # live in the Council Hut, not here.
     adjacency:
       - village_meditation_caves
+
+# ═══════════════════════════════════════════════════════════════════════
+# EDGES — connections to hand-built rooms at the region perimeter
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Each edge defines a tile coordinate where the wilderness connects to
+# a hand-built room. Players in the hand-built room type
+# `direction_from_room` to enter wilderness at `coords`. Players in
+# wilderness at `coords` type `direction_back_to_room` to exit back
+# to the hand-built room.
+#
+# Per W.2 phase 2 (May 3 2026): the loader parses these into
+# WildernessEdge dataclass entries. The MoveCommand consults the
+# region edge list when the player is in wilderness (for exit-back)
+# or in a hand-built room (for entry).
+#
+# The Dune Sea ships W.2 phase 2 with ONE edge: jundland_dune_sea_edge
+# (existing CW Tatooine room at the rocky boundary) connects to (0, 20)
+# on the wilderness grid. Future content drops can add more edges
+# (Anchor Stones via separate trail, moisture farm boundary, etc.)
+# without touching this drop's plumbing.
+
+edges:
+  - room_slug: jundland_dune_sea_edge
+    coords: [0, 20]
+    direction_from_room: east
+    direction_back_to_room: west
+    enter_message: |
+      You step past the rocky outcrops of the Jundland Wastes and onto
+      open sand. The horizon opens. The wind shifts, free of rock to
+      break it. The Dune Sea begins here.
+    exit_message: |
+      You climb back up onto rocky ground. The wind drops as the
+      outcrops break the desert's reach. Behind you, the Dune Sea
+      stretches away.
+
+# ═══════════════════════════════════════════════════════════════════════
+# UNWALKABLE TILES (per W.2 phase 2 / Evennia review addendum)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Tiles that are inside the rectangular bounds but cannot be entered.
+# Used for cliff faces, sealed bunkers, military exclusion zones, etc.
+#
+# The Dune Sea ships W.2 phase 2 with NO unwalkable tiles — the whole
+# rectangle is walkable open desert. The block below is a documentation
+# template for future regions; the loader accepts an empty or absent list.
+
+unwalkable_tiles: []

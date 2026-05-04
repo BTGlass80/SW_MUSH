@@ -202,6 +202,22 @@ class TalkCommand(BaseCommand):
             f'  {ansi.player_name(char["name"])} says to {ansi.npc_name(npc_data.name)}, "{message}"',
         )
 
+        # ── F.7.b: Sister Vitha pre-AI hook ─────────────────────────────
+        # The Gate dialogue runtime intercepts talk-to-Vitha for PCs at
+        # Step 3 of the Village quest. Returns True if intercepted, in
+        # which case we skip the standard AI dialogue path entirely.
+        try:
+            from engine.village_dialogue import maybe_intercept_vitha_talk
+            if await maybe_intercept_vitha_talk(
+                ctx.session, ctx.db, char, npc_data.name,
+            ):
+                # Still fire post-talk hooks (e.g., conversation
+                # achievement) for the non-AI path.
+                await self._post_talk_hooks(ctx, char, npc_row)
+                return
+        except Exception:
+            log.warning("Vitha pre-AI hook failed", exc_info=True)
+
         # Tutorial NPC fast-path
         result = await self._handle_tutorial_npc(
             ctx, char, npc_row, npc_data, brain, message)
@@ -1163,11 +1179,63 @@ class AIStatusCommand(BaseCommand):
             await ctx.session.send_line("  Usage: @ai status  |  @ai enable  |  @ai disable")
 
 
+class GateCommand(BaseCommand):
+    """Commit a choice in the Sister Vitha gate dialogue (F.7.b).
+
+    Per jedi_village_quest_design_v1.md §4.2: when Sister Vitha
+    presents the three-choice menu, the player commits with
+    `gate 1`, `gate 2`, or `gate 3`. This command processes that
+    commit through engine.village_dialogue.process_gate_choice.
+
+    Outside the active-offer state, this command emits a helpful
+    message and does nothing.
+    """
+    key = "gate"
+    aliases = []
+    help_text = (
+        "Answer Sister Vitha's question at the Village Gate.\n"
+        "Use 'gate 1', 'gate 2', or 'gate 3' after she presents the choices.\n"
+        "Speak to Sister Vitha (`talk Vitha`) to begin."
+    )
+    usage = "gate <1|2|3>"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            return
+
+        arg = (ctx.args or "").strip()
+        if not arg:
+            await ctx.session.send_line(
+                "  Usage: gate <1|2|3>. "
+                "Speak to Sister Vitha first if you have not."
+            )
+            return
+
+        try:
+            choice = int(arg)
+        except ValueError:
+            await ctx.session.send_line(
+                f"  '{arg}' is not a valid gate answer. Use 1, 2, or 3."
+            )
+            return
+
+        try:
+            from engine.village_dialogue import process_gate_choice
+            await process_gate_choice(ctx.session, ctx.db, char, choice)
+        except Exception:
+            log.warning("gate choice processing failed", exc_info=True)
+            await ctx.session.send_line(
+                "  Something went wrong with the gate. Try speaking to Vitha again."
+            )
+
+
 def register_npc_commands(registry):
     """Register NPC and AI commands."""
     cmds = [
         TalkCommand(), AskCommand(),
         NPCManageCommand(), AIStatusCommand(),
+        GateCommand(),
     ]
     for cmd in cmds:
         registry.register(cmd)

@@ -1192,12 +1192,35 @@ class SessionManager:
                 return s
         return None
 
-    def sessions_in_room(self, room_id: int) -> list[Session]:
-        """Get all sessions with characters in a given room."""
-        return [
+    def sessions_in_room(self, room_id: int, *, source_char=None) -> list["Session"]:
+        """Get all sessions with characters in a given room.
+
+        Args:
+            room_id: the room id to filter on.
+            source_char: optional character dict. If provided AND that
+                character is in wilderness, results are further filtered
+                to sessions whose character has matching wilderness coords.
+                Path B (W.2 phase 2): every PC↔PC ground interaction
+                that calls this with `source_char=char` automatically
+                respects wilderness co-location. Default behavior
+                (no source_char) is unchanged.
+        """
+        sessions = [
             s for s in self._sessions.values()
             if s.is_in_game and s.character and s.character.get("room_id") == room_id
         ]
+        if source_char is None:
+            return sessions
+        try:
+            from engine.wilderness_movement import filter_by_source_location
+            return filter_by_source_location(
+                sessions, source_char, get_char=lambda s: s.character,
+            )
+        except Exception:
+            # Defensive fallback: if the helper isn't available, return
+            # the room-only filtered list. Better to over-broadcast than
+            # to silently break.
+            return sessions
 
     async def broadcast(self, text: str, exclude: Optional[Session] = None):
         """Send a message to all in-game sessions."""
@@ -1208,11 +1231,18 @@ class SessionManager:
     async def broadcast_to_room(
         self, room_id: int, text: str,
         exclude=None,
+        source_char=None,
     ):
         """Send text to all sessions in a room.
 
         Args:
             exclude: Session object, list of character IDs to skip, or None.
+            source_char: optional character dict. When the source is in
+                wilderness, broadcast is restricted to characters at the
+                same wilderness tile (Path B / W.2 phase 2). Without
+                this kwarg, every PC in the wilderness sentinel would
+                receive the message regardless of their tile, which is
+                exactly the bug we're closing.
 
         v22 audit S16: asyncio.gather isolates slow telnet clients so one
         backed-up send queue can't stall the broadcast for everyone.
@@ -1225,7 +1255,7 @@ class SessionManager:
             excluded_sess = exclude
 
         targets = []
-        for s in self.sessions_in_room(room_id):
+        for s in self.sessions_in_room(room_id, source_char=source_char):
             if excluded_sess is not None and s is excluded_sess:
                 continue
             if s.character and s.character.get("id") in excluded_ids:
@@ -1238,6 +1268,7 @@ class SessionManager:
     async def broadcast_json_to_room(
         self, room_id: int, msg_type: str, data: dict,
         exclude=None,
+        source_char=None,
     ):
         """Send a typed JSON message to all WebSocket sessions in a room.
 
@@ -1254,11 +1285,16 @@ class SessionManager:
                 avoid echoing a typed event back to the originating
                 session (e.g. the actor of a `say` doesn't need to receive
                 their own pose_event — they already got the self-echo).
+            source_char: optional character dict. Same semantics as
+                broadcast_to_room — wilderness-aware co-location filter.
 
         Drop B': `exclude` parameter added so the player-narration
         migration (say/whisper/emote/mutter) can broadcast the typed
         pose_event to observers while the actor's send_line self-echo
         remains the only thing they see locally. Mirrors broadcast_to_room.
+
+        W.2 phase 2: `source_char` parameter added for wilderness
+        co-location filtering.
         """
         excluded_ids: set[int] = set()
         excluded_sess: Optional["Session"] = None
@@ -1268,7 +1304,7 @@ class SessionManager:
             excluded_sess = exclude
 
         targets = []
-        for s in self.sessions_in_room(room_id):
+        for s in self.sessions_in_room(room_id, source_char=source_char):
             if excluded_sess is not None and s is excluded_sess:
                 continue
             if s.character and s.character.get("id") in excluded_ids:
@@ -1280,6 +1316,7 @@ class SessionManager:
     async def broadcast_chat(
         self, channel: str, from_name: str, text: str,
         room_id: int = None, exclude=None,
+        source_char=None,
     ):
         """Send a structured chat message to WebSocket clients.
 
@@ -1289,6 +1326,12 @@ class SessionManager:
         broadcast_to_room or send_line).
 
         channel: 'ic' | 'ooc' | 'sys'
+
+        Args:
+            source_char: optional. When set and the source is in wilderness,
+                room-scoped chat is restricted to PCs at the same tile
+                (W.2 phase 2). For OOC channels and global broadcasts,
+                source_char is ignored.
         """
         payload = {"channel": channel, "from": from_name, "text": text}
         if room_id is not None:
@@ -1298,7 +1341,7 @@ class SessionManager:
                 excluded_ids = set(exclude)
             elif exclude is not None:
                 excluded_sess = exclude
-            for s in self.sessions_in_room(room_id):
+            for s in self.sessions_in_room(room_id, source_char=source_char):
                 if excluded_sess is not None and s is excluded_sess:
                     continue
                 if s.character and s.character.get("id") in excluded_ids:

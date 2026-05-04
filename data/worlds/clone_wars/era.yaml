@@ -38,6 +38,21 @@ policy:
   dark_side_detectability: high            # Public Force use draws attention
   village_location: tatooine_dune_sea      # Seed data slug for Village quest chain
 
+  # ── Progression policy ───────────────────────────────────────────────────
+  # F.7.k (May 4 2026). Whether real-time cooldowns gate the Village
+  # quest's Act transitions and inter-trial windows. Per
+  # progression_gates_and_consequences_design_v1.md §2.5:
+  #   - 7 days between Act 1 (invitation) and Act 2 (first trial)
+  #   - 14 days between successful trials
+  #   - 24 hours between Trial of Courage retries on failure (this is
+  #     enforced separately in engine/village_trials.py and is NOT
+  #     governed by this flag)
+  # The flag is true (strict) for production; flip to false to short-
+  # circuit dev/test runs. Honored after the
+  # SW_MUSH_PROGRESSION_COOLDOWNS env var (env var wins if set to a
+  # recognized boolean spelling — see engine/jedi_gating.py docstring).
+  progression_cooldowns_enabled: true
+
   # ── Faction set ──────────────────────────────────────────────────────────
   # These must match codes in organizations.yaml.
   # npc_only_factions are not joinable by players; used by Director AI only.
@@ -103,6 +118,19 @@ content_refs:
   # rooms. See Drop F.6 handoff for context.
   wilderness_npcs:
     - wilderness_npcs.yaml      # F.6: the Hermit at Hermit's Hut
+
+  # ── Jedi Village NPCs (Drop F.7.b, May 4 2026) ──────────────────────────
+  # NPCs at Village landmark rooms (also wilderness_region_id IS NOT NULL,
+  # since Village rooms live inside the Dune Sea region's substrate).
+  # Loaded by engine/npc_loader.py::load_jedi_village_npcs() AFTER the
+  # wilderness writer + wilderness_npcs load. Mirrors the wilderness_npcs
+  # contract — same room-resolution semantics, same NPC-config schema,
+  # but the top-level YAML key is `jedi_village_npcs:` instead of
+  # `wilderness_npcs:`. Sister Vitha (the Gate sentry) and Master Yarael
+  # Tinré are the F.7.b NPCs; F.7.c/d will add Smith Daro, Elders Mira/
+  # Korvas/Saro, and Padawan Sela for the trial runtime.
+  jedi_village_npcs:
+    - jedi_village/jedi_village_npcs.yaml
   # ── NPCs (per cw_content_gap_design_v1_1_decisions.md Drop A) ────────────
   # `npcs` is a list of files that engine/npc_loader.py loads in order. The
   # additions file adds CW-only NPCs with no GG7 antecedent (Vela Niree, etc.).

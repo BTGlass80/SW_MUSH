@@ -33,10 +33,13 @@ def pytest_addoption(parser):
     parser.addoption(
         "--smoke-era",
         action="store",
-        default="gcw",
+        default="clone_wars",
         help=(
             "Active era for smoke scenarios. One of 'gcw', 'clone_wars'. "
-            "Default: gcw."
+            "Default: clone_wars (the launch target). Pass --smoke-era=gcw "
+            "to exercise the legacy GCW seed; era-specific scenarios pin "
+            "the era they need via the `smoke_era` class attribute (see "
+            "tests/smoke/test_smoke_era_clone_wars.py for the pattern)."
         ),
     )
 

@@ -133,6 +133,15 @@ async def write_wilderness_region(
             f"Failed to upsert wilderness_regions row for {region.slug!r}: {e}"
         )
 
+    # W.2 phase 2: cache the region in-process so MoveCommand and
+    # LookCommand can consult it without re-parsing the YAML on every
+    # move. Idempotent on slug.
+    try:
+        from engine.wilderness_movement import cache_region
+        cache_region(region)
+    except Exception as e:
+        log.debug("cache_region failed for %r: %s", region.slug, e, exc_info=True)
+
     # ── Pass 1: write landmark rooms ──────────────────────────────────────
     for lm in region.landmarks:
         try:

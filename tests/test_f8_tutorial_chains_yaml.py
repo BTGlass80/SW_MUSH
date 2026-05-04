@@ -112,9 +112,14 @@ class TestChainsYAMLShape(unittest.TestCase):
         data = _load_chains_yaml()
         self.assertIsInstance(data["chains"], list)
 
-    def test_chains_count_is_eight(self):
+    def test_chains_count_is_nine(self):
+        # F.7.j (May 4 2026) — count grew 8 → 9 with the split of
+        # the formerly-monolithic `jedi_path` chain into Path-A
+        # (`jedi_path`) and Path-B (`jedi_path_independent`)
+        # flavors. See chains.yaml footer note 5 and the F.7.j
+        # handoff for design rationale.
         data = _load_chains_yaml()
-        self.assertEqual(len(data["chains"]), 8)
+        self.assertEqual(len(data["chains"]), 9)
 
     def test_each_chain_has_required_fields(self):
         data = _load_chains_yaml()
@@ -223,7 +228,14 @@ class TestChainsFactionCrossRefs(unittest.TestCase):
 
 class TestChainsPrerequisites(unittest.TestCase):
     """Prerequisites are either string flags from the allowed set, or
-    {key: value} maps where the only allowed key is faction_intent."""
+    {key: value} maps. Allowed mapped keys (F.7.j widened):
+      - `faction_intent` → faction code from organizations.yaml
+      - `village_chosen_path` → 'a' | 'b' | 'c' (Path A/B/C from
+        the Village quest)
+    """
+
+    ALLOWED_MAPPED_PREREQ_KEYS = {"faction_intent", "village_chosen_path"}
+    ALLOWED_VILLAGE_CHOSEN_PATH_VALUES = {"a", "b", "c"}
 
     def test_prerequisite_strings_in_allowed_set(self):
         from engine.tutorial_chains import ALLOWED_PREREQUISITE_FLAGS
@@ -237,23 +249,31 @@ class TestChainsPrerequisites(unittest.TestCase):
                         f"flag {pr!r}",
                     )
 
-    def test_prerequisite_dicts_use_faction_intent_only(self):
+    def test_prerequisite_dicts_use_allowed_keys(self):
         codes = _load_faction_codes()
         data = _load_chains_yaml()
         for c in data["chains"]:
             for pr in c.get("prerequisites") or []:
                 if isinstance(pr, dict):
                     for k, v in pr.items():
-                        self.assertEqual(
-                            k, "faction_intent",
+                        self.assertIn(
+                            k, self.ALLOWED_MAPPED_PREREQ_KEYS,
                             f"chain {c['chain_id']!r} unknown mapped "
                             f"prerequisite key {k!r}",
                         )
-                        self.assertIn(
-                            v, codes,
-                            f"chain {c['chain_id']!r} faction_intent "
-                            f"{v!r} unresolved",
-                        )
+                        if k == "faction_intent":
+                            self.assertIn(
+                                v, codes,
+                                f"chain {c['chain_id']!r} faction_intent "
+                                f"{v!r} unresolved",
+                            )
+                        elif k == "village_chosen_path":
+                            self.assertIn(
+                                v, self.ALLOWED_VILLAGE_CHOSEN_PATH_VALUES,
+                                f"chain {c['chain_id']!r} "
+                                f"village_chosen_path {v!r} not in "
+                                f"{sorted(self.ALLOWED_VILLAGE_CHOSEN_PATH_VALUES)}",
+                            )
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -367,10 +387,13 @@ class TestLoaderHappyPath(unittest.TestCase):
         self.assertTrue(corpus.ok,
                         f"corpus had errors: {corpus.errors[:3]}")
 
-    def test_corpus_has_eight_chains(self):
+    def test_corpus_has_nine_chains(self):
+        # F.7.j (May 4 2026) — count grew 8 → 9 with the Jedi Path
+        # split into Path-A (`jedi_path`) and Path-B
+        # (`jedi_path_independent`) flavored chains.
         from engine.tutorial_chains import load_tutorial_chains
         corpus = load_tutorial_chains(era="clone_wars")
-        self.assertEqual(len(corpus.chains), 8)
+        self.assertEqual(len(corpus.chains), 9)
 
     def test_corpus_by_id_lookup(self):
         from engine.tutorial_chains import load_tutorial_chains
@@ -524,6 +547,11 @@ class TestStateMachineLockedChain(unittest.TestCase):
         self.assertIn("Jedi", reason)
 
     def test_jedi_path_unlocked_with_all_flags(self):
+        # F.7.j (May 4 2026) — `jedi_path` is now the Path-A-flavored
+        # chain, so unlocking it requires `village_chosen_path == 'a'`
+        # in addition to the older flag set. The Path-B-flavored
+        # sibling `jedi_path_independent` has its own dedicated tests
+        # in `test_f7j_path_chain_branching.py`.
         from engine.tutorial_chains import (
             load_tutorial_chains, is_chain_locked_for_character,
         )
@@ -533,6 +561,7 @@ class TestStateMachineLockedChain(unittest.TestCase):
             "chargen_complete": True,
             "force_sensitive": True,
             "jedi_path_unlocked": True,
+            "village_chosen_path": "a",
         }
         is_locked, reason = is_chain_locked_for_character(chain, char)
         self.assertFalse(is_locked,
@@ -694,11 +723,13 @@ class TestF8DocstringMarkers(unittest.TestCase):
         self.assertIn("Phase 1", src)
         self.assertIn("Phase 2", src)
 
-    def test_chains_yaml_has_eight_chain_entries(self):
+    def test_chains_yaml_has_nine_chain_entries(self):
+        # F.7.j (May 4 2026) — count grew 8 → 9 with the Jedi Path
+        # split.
         with open(CHAINS_PATH, "r", encoding="utf-8") as f:
             src = f.read()
-        # 8 chain_id entries
-        self.assertEqual(src.count("chain_id:"), 8)
+        # 9 chain_id entries
+        self.assertEqual(src.count("chain_id:"), 9)
 
 
 if __name__ == "__main__":

@@ -23,6 +23,21 @@ Commands:
 import logging
 from parser.commands import BaseCommand, CommandContext, AccessLevel
 
+# F.7.j follow-up (May 4 2026): hoisted from inside FactionCommand.execute
+# so the post-Phase-3-C4 `_cmd_*` dispatch handlers can see these symbols.
+# Prior to this hoist, `_cmd_status`, `_cmd_list`, `_cmd_join`, `_cmd_leave`
+# raised `NameError: name 'format_faction_status' is not defined` (and
+# similar for `format_faction_list`, `join_faction`, `leave_faction`)
+# because the imports were local to `execute()` and didn't reach the
+# named methods. Caught by tests/smoke/test_smoke_channels_faction.py
+# (the +faction with no args path → _cmd_status) on the Windows ground-
+# truth full-suite run. The guild-side imports stay local because
+# GuildCommand.execute is still inline (no `_cmd_*` split there).
+from engine.organizations import (
+    join_faction, leave_faction,
+    format_faction_status, format_faction_list,
+)
+
 log = logging.getLogger(__name__)
 
 _DIFFICULTY_LABELS = {
@@ -68,11 +83,13 @@ class FactionCommand(BaseCommand):
     usage = "faction [list|join|leave|info|roster|missions|channel|invest|influence|claim|unclaim|guard|armory]"
 
     async def execute(self, ctx: CommandContext):
-        """Dispatch to sub-command handlers. Phase 3 C4 refactor."""
-        from engine.organizations import (
-            join_faction, leave_faction, format_faction_status,
-            format_faction_list,
-        )
+        """Dispatch to sub-command handlers. Phase 3 C4 refactor.
+
+        Module-level imports of `join_faction`, `leave_faction`,
+        `format_faction_status`, `format_faction_list` (top of file)
+        are visible to the `_cmd_*` handlers below — see the F.7.j
+        follow-up note at the top of this module.
+        """
         from server import ansi
 
         char = ctx.session.character
@@ -171,7 +188,8 @@ class FactionCommand(BaseCommand):
                 char["room_id"],
                 f"  {char['name']} has aligned with a new cause.",
                 exclude=ctx.session,
-            )
+                source_char=char,
+        )
         return
 
         # ── faction leave ──
@@ -441,7 +459,8 @@ class FactionCommand(BaseCommand):
                 f"  \033[1;37m{char['name']} plants a marker — "
                 f"this room is now claimed by {faction_id.replace('_', ' ').title()}.\033[0m",
                 exclude=ctx.session,
-            )
+                source_char=char,
+        )
         return
 
         # ── faction unclaim ──
@@ -488,7 +507,8 @@ class FactionCommand(BaseCommand):
                     room_id,
                     f"  \033[2mA guard takes up position, eyes scanning the room.\033[0m",
                     exclude=ctx.session,
-                )
+                    source_char=char,
+        )
         elif guard_sub == "remove":
             result = await remove_guard_npc(ctx.db, faction_id, room_id, char["id"])
             await ctx.session.send_line(
@@ -500,7 +520,8 @@ class FactionCommand(BaseCommand):
                     room_id,
                     f"  \033[2mThe guard is dismissed and departs without a word.\033[0m",
                     exclude=ctx.session,
-                )
+                    source_char=char,
+        )
         else:
             # Show guard status for this room
             claim = await get_claim(ctx.db, room_id)
@@ -625,7 +646,8 @@ class FactionCommand(BaseCommand):
                 f"{char['name']} claims this room for "
                 f"{faction_id.replace('_', ' ').title()}!",
                 exclude=ctx.session,
-            )
+                source_char=char,
+        )
         return
 
         # ── faction hq ──

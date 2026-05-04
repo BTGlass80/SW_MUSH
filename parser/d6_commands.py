@@ -80,7 +80,8 @@ class RollCommand(BaseCommand):
                     char["room_id"],
                     f"  {ansi.player_name(char['name'])} rolls {pool}: {ansi.bright_white(str(result.total))}",
                     exclude=ctx.session,
-                )
+                    source_char=char,
+)
                 return
         except (ValueError, IndexError) as _e:
             log.debug("silent except in parser/d6_commands.py:85: %s", _e, exc_info=True)
@@ -115,6 +116,7 @@ class RollCommand(BaseCommand):
                 f"  {ansi.player_name(char['name'])} rolls {sd.name}: "
                 f"{ansi.bright_white(str(result.total))}",
                 exclude=ctx.session,
+                source_char=char,  # W.2 phase 2
             )
         else:
             await ctx.session.send_line(
@@ -207,7 +209,8 @@ class CheckCommand(BaseCommand):
             room_msg = f"{ansi.player_name(char['name'])} fails a {sd.name} check."
         await ctx.session_mgr.broadcast_to_room(
             char["room_id"], f"  {room_msg}", exclude=ctx.session,
-        )
+    source_char=char,
+)
 
 
 class OpposedCommand(BaseCommand):
@@ -279,7 +282,8 @@ class OpposedCommand(BaseCommand):
             room_msg = f"{ansi.player_name(char['name'])} loses an opposed {sd.name} roll."
         await ctx.session_mgr.broadcast_to_room(
             char["room_id"], f"  {room_msg}", exclude=ctx.session,
-        )
+    source_char=char,
+)
 
 
 def register_d6_commands(registry):

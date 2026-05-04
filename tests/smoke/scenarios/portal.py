@@ -310,18 +310,50 @@ async def hx7_login_then_me_roundtrip(h):
     exactly the §4.7 "logged in and crashed → add a scenario" case.
 
     Asserts:
-      - Admin credentials authenticate (the seeded testuser/testpass)
+      - Admin credentials authenticate
       - Token comes back well-formed (non-empty string)
       - GET /me with that token returns 200 (not 500)
       - The response's account_id matches the login's account_id
-      - The character list includes the seeded testuser character
-        (engine/test_character_loader puts a Test Jedi on this account)
+      - The character list shape is correct (list)
+
+    DROP-5 (May 2026): seeds its own admin account rather than
+    relying on the engine/test_character_loader.py seed. The latter
+    only fires when there's a test_character.yaml in the active
+    era's data dir; GCW has one, CW doesn't (yet). Now that
+    --smoke-era defaults to clone_wars, depending on the seeded
+    admin breaks under the default. Seeding our own keeps HX7
+    era-independent.
     """
+    # Seed a portal admin account if one doesn't already exist.
+    # `create_account` auto-promotes the FIRST account to admin, so
+    # we use that path when the accounts table is empty. Otherwise
+    # (e.g. GCW seed already populated id=1 as testuser admin) we
+    # piggyback on whatever admin exists. The login below tries
+    # both credential pairs in order — the explicit hx7admin pair
+    # first (the one we just created), falling back to testuser
+    # (the GCW seed) if the create returned None (already taken).
+    HX7_USERNAME = "hx7admin"
+    HX7_PASSWORD = "hx7adminpass"
+    new_id = await h.db.create_account(HX7_USERNAME, HX7_PASSWORD)
+    if new_id is None:
+        # Username taken (probably from a prior test in the same
+        # class-scoped harness); the existing row is fine to reuse.
+        pass
+    # If we weren't first, also promote ourselves to admin so /me
+    # round-trip passes regardless of the registration order. This
+    # is a smoke-test convenience — production never grants admin
+    # this way.
+    await h.db._db.execute(
+        "UPDATE accounts SET is_admin = 1 WHERE username = ?",
+        (HX7_USERNAME,),
+    )
+    await h.db._db.commit()
+
     async with _portal_client(h) as client:
         # Login
         resp = await client.post(
             "/api/portal/login",
-            json={"username": "testuser", "password": "testpass"},
+            json={"username": HX7_USERNAME, "password": HX7_PASSWORD},
         )
         assert resp.status == 200, (
             f"login expected 200, got {resp.status}: "

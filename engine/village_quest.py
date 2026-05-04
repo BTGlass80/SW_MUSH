@@ -289,23 +289,49 @@ async def enter_trials(char: dict, db) -> bool:
     this instant.
 
     Note: per ``progression_gates_and_consequences_design_v1.md``
-    §2.5, the 7-day cooldown is *between Act 1 and Act 2*. F.7.a
-    implements arrival as the Act 2 trigger (with a soft cooldown
-    check); a stricter "you must wait 7 days after invitation"
-    enforcement can be added in F.7.b without changing this seam.
+    §2.5, the 7-day cooldown is *between Act 1 and Act 2*. F.7.k
+    (May 4 2026) wires the strict cooldown enforcement via
+    ``engine.jedi_gating.act_2_gate_passed`` — when cooldowns are
+    enabled (production default), the transition is gated on the
+    7-day window; when bypassed (dev / testing), only the structural
+    "must be invited first" guard fires.
 
     Args:
         char: character dict (mutated in place)
         db: Database instance with save_character()
 
     Returns:
-        True if the transition fired this call; False if no-op.
+        True if the transition fired this call; False if no-op
+        (already in trials, not yet invited, or cooldown not cleared).
     """
     current = int(char.get("village_act") or 0)
     if current >= ACT_IN_TRIALS:
         return False
     if current < ACT_INVITED:
         return False  # must be invited first
+
+    # F.7.k: 7-day Act 1→2 cooldown gate. Honors the cooldowns_enabled
+    # bypass — dev/test environments short-circuit the timer while
+    # production keeps the design's "spiritual training, not a
+    # checklist" pacing.
+    try:
+        from engine.jedi_gating import act_2_gate_passed
+        if not act_2_gate_passed(char):
+            log.debug(
+                "Village quest: character %d (%s) blocked at Act 1→2 "
+                "transition by 7-day cooldown.",
+                char.get("id", -1), char.get("name", "?"),
+            )
+            return False
+    except Exception:
+        # Fail-soft: a gate-import failure must not block progression.
+        # The strict math lives in jedi_gating; if that module is
+        # broken we don't want every PC stuck at Act 1.
+        log.warning(
+            "Village quest: act_2_gate_passed consultation failed; "
+            "defaulting to permissive (transition allowed).",
+            exc_info=True,
+        )
 
     now = time.time()
     char["village_act"] = ACT_IN_TRIALS
@@ -376,50 +402,124 @@ async def check_village_quest(session, db, trigger: str, **kw) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def _handle_talk(session, db, char: dict, kw: dict) -> None:
-    """Talk-to handler. Step 1: Hermit delivers the invitation.
+    """Talk-to handler. Dispatch by NPC name to the right step.
 
-    Triggered when the player talks to any NPC. We only act if:
-      - The NPC is the Hermit (case-insensitive name match)
-      - The player is at act 0 (pre-invitation)
-      - The player is invitation-eligible per the F.6 gate seam
-        (i.e. force_signs_accumulated >= FORCE_SIGNS_FOR_INVITATION)
-
-    On success, fires ``deliver_invitation()`` and sends a one-time
-    invitation-delivered message to the player. Future F.7.b will
-    replace this with the Hermit's authored after_lines from the
-    gate block.
+    F.7.a: Hermit pre-invitation (Step 1 — Act 0 → 1).
+    F.7.b: Hermit post-invitation (after_lines emission, ambient).
+    F.7.b: Master Yarael Tinré first audience (Step 4 — completes act
+           transition started by passing the Gate).
+    F.7.c.1: Smith Daro (Trial 1: Skill) and Elder Saro Veck (Trial 5:
+           Insight) trial entry/state hooks.
     """
     npc_name = (kw.get("npc_name") or "").strip()
     if not npc_name:
         return
+
+    # ── F.7.c.1 / c.2 / c.3: Trial NPC hooks ─────────────────────────
+    # Smith Daro (Forge — Trial 1: Skill), Elder Mira Delen (Common
+    # Square — Trial 2: Courage; F.7.c.2), Elder Korvas (Meditation
+    # Caves — Trial 3: Flesh; F.7.c.3), Elder Saro Veck (Council Hut
+    # — Trial 5: Insight). Each hook returns True if it intercepted
+    # (briefing or deflection), False if not its NPC.
+    try:
+        from engine.village_trials import (
+            maybe_handle_daro_skill_trial,
+            maybe_handle_mira_courage_trial,
+            maybe_handle_korvas_flesh_trial,
+            maybe_handle_yarael_spirit_trial,
+            maybe_handle_saro_insight_trial,
+        )
+        if await maybe_handle_daro_skill_trial(session, db, char, npc_name):
+            return
+        if await maybe_handle_mira_courage_trial(session, db, char, npc_name):
+            return
+        if await maybe_handle_korvas_flesh_trial(session, db, char, npc_name):
+            return
+        # Yarael-in-Sanctum (Trial 4: Spirit; F.7.c.4) is room-gated:
+        # the hook returns False unless the player is in the Sealed
+        # Sanctum, so the Master's-Chamber audience hook below still
+        # handles `talk Yarael` in his normal location.
+        if await maybe_handle_yarael_spirit_trial(session, db, char, npc_name):
+            return
+        if await maybe_handle_saro_insight_trial(session, db, char, npc_name):
+            return
+    except Exception:
+        log.debug("Trial NPC hook failed", exc_info=True)
+
+    # Master Yarael Path-choice handler (F.7.d) — fires once Insight
+    # is done. The hook is room-gated to the Master's Chamber, so
+    # Yarael talks in the Sealed Sanctum still route to the Spirit
+    # hook above, and pre-Insight Yarael talks fall through to the
+    # audience hook below.
+    try:
+        from engine.village_choice import maybe_handle_yarael_path_choice
+        if await maybe_handle_yarael_path_choice(session, db, char, npc_name):
+            return
+    except Exception:
+        log.debug("Yarael path-choice hook failed", exc_info=True)
+
+    # Master Yarael first-audience handler — fires once after gate pass.
+    # The audience marks the End of Act 1's Step 4. The trials begin
+    # immediately after this handler completes.
+    try:
+        from engine.village_dialogue import maybe_handle_yarael_first_audience
+        if await maybe_handle_yarael_first_audience(session, db, char, npc_name):
+            return
+    except Exception:
+        log.debug("Yarael first-audience hook failed", exc_info=True)
+
+    # Hermit-specific branch
     if npc_name.casefold() != HERMIT_NAME.casefold():
-        return  # not talking to the Hermit; no-op
+        return  # not the Hermit, not Yarael, not a trial NPC; no-op
 
     act = int(char.get("village_act") or 0)
-    if act != ACT_PRE_INVITATION:
-        return  # already invited or past; no re-fire
 
-    # Eligibility gate — F.6 contract.
-    from engine.hermit import is_invitation_eligible
-    if not is_invitation_eligible(char):
-        return  # Hermit doesn't deliver the invitation yet
+    if act == ACT_PRE_INVITATION:
+        # Step 1: Pre-invitation. Eligibility gate applies; on pass,
+        # transition to ACT_INVITED and emit the invitation message.
+        from engine.hermit import is_invitation_eligible
+        if not is_invitation_eligible(char):
+            return  # Hermit holds his peace; standard fallback_lines fire
+        fired = await deliver_invitation(char, db)
+        if fired:
+            try:
+                await session.send_line(
+                    "\n  \033[1;33m* The Hermit's words have meaning now. "
+                    "You have been invited to the Village. *\033[0m\n"
+                    "  \033[2mWalk west from the Anchor Stones at first light. "
+                    "(Use 'quest' to view your progress.)\033[0m\n"
+                )
+            except Exception:
+                log.debug("send_line failed for invitation message", exc_info=True)
+        return
 
-    fired = await deliver_invitation(char, db)
-    if fired:
-        # One-time invitation-delivered message. Kept short and
-        # state-machine-facing; the Hermit's authored "after_lines"
-        # are still being delivered through the standard talk-to
-        # flow alongside this. F.7.b replaces the talk-to flow
-        # itself with the gate-aware dialogue runtime.
-        try:
-            await session.send_line(
-                "\n  \033[1;33m* The Hermit's words have meaning now. "
-                "You have been invited to the Village. *\033[0m\n"
-                "  \033[2mWalk west from the Anchor Stones at first light. "
-                "(Use 'quest' to view your progress.)\033[0m\n"
-            )
-        except Exception:
-            log.debug("send_line failed for invitation message", exc_info=True)
+    # F.7.b carry-over: Hermit after_lines for invited PCs (act >= 1).
+    # The standard NPC dialogue path will fire fallback_lines via the
+    # Mistral surface; we want to inject one of the gate.after_lines
+    # so the Hermit feels gate-aware. We emit a chosen line here as a
+    # single send_line; the AI dialogue follows naturally afterward
+    # (the after_line is a flavor leader).
+    try:
+        from engine.hermit import load_hermit_gate_config
+        import os
+        # Standard path resolution — same convention used by the loader
+        yaml_path = os.path.join(
+            "data", "worlds", "clone_wars", "wilderness_npcs.yaml",
+        )
+        cfg = load_hermit_gate_config(yaml_path)
+        after_lines = (cfg or {}).get("after_lines") or []
+        if after_lines:
+            # Deterministic-by-char-and-day selection — same character
+            # who returns within a few minutes sees the same line, but
+            # the line shifts on subsequent days. Hash on (char_id, day).
+            import hashlib
+            day = int(time.time() // 86400)
+            key = f"{char.get('id', 0)}|{day}".encode("utf-8")
+            idx = int(hashlib.sha1(key).hexdigest()[:8], 16) % len(after_lines)
+            await session.send_line("")
+            await session.send_line(f"  {after_lines[idx]}")
+    except Exception:
+        log.debug("Hermit after_lines emission failed", exc_info=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -427,23 +527,45 @@ async def _handle_talk(session, db, char: dict, kw: dict) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def _handle_room_entered(session, db, char: dict, kw: dict) -> None:
-    """Room-entered handler. Step 2: arrival at village_outer_watch.
+    """Room-entered handler.
 
-    Triggered when the player enters any room. We only act if:
-      - The room's slug is village_outer_watch
-      - The player is at act 1 (invited but not yet in trials)
+    Step 2: arrival at village_outer_watch (act 1 → in_trials).
+    F.7.c.3: cave-entry hook for the Trial of Flesh — anchors
+    ``village_trial_flesh_started_at`` on first entry to the
+    Meditation Caves with Courage done.
 
-    On success, fires ``enter_trials()`` and sends a one-time
-    arrival message.
+    Triggered when the player enters any room. We act if any of:
+      - Room slug is village_outer_watch AND act == ACT_INVITED
+      - Room name is "Meditation Caves" AND Flesh is unlocked
+
+    Both paths are independent and additive.
     """
     room_slug = (kw.get("room_slug") or "").strip()
-    if not room_slug:
+    room_id = kw.get("room_id")
+    if not room_slug and room_id:
         # Caller didn't pass the slug — try to look it up from the room_id.
-        room_id = kw.get("room_id")
-        if room_id:
-            room_slug = await _lookup_room_slug(db, room_id) or ""
-        if not room_slug:
-            return
+        room_slug = await _lookup_room_slug(db, room_id) or ""
+
+    # ── F.7.c.3: Flesh cave-entry hook ───────────────────────────────
+    # Look up the room name; do this once (it's reused below in the
+    # outer_watch logic anyway). Failures are non-fatal.
+    if room_id:
+        try:
+            from engine.village_trials import (
+                maybe_start_flesh_trial_on_cave_entry,
+            )
+            room = await db.get_room(room_id)
+            room_name = (room or {}).get("name", "") if room else ""
+            if room_name:
+                await maybe_start_flesh_trial_on_cave_entry(
+                    session, db, char, room_name,
+                )
+        except Exception:
+            log.debug("Flesh cave-entry hook failed", exc_info=True)
+
+    # ── Step 2: outer_watch arrival (act 1 → in_trials) ──────────────
+    if not room_slug:
+        return
 
     if room_slug != VILLAGE_OUTER_WATCH_SLUG:
         return  # not the trigger room

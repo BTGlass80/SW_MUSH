@@ -225,7 +225,8 @@ class PerformCommand(BaseCommand):
                 f"  {ansi.player_name(char_name)} puts on a performance "
                 f"for the cantina crowd. {flavor}",
                 exclude=ctx.session,
-            )
+                source_char=char,
+        )
 
         elif result.margin >= -4:
             # Partial: small payout, mild reaction
@@ -255,7 +256,8 @@ class PerformCommand(BaseCommand):
                 f"  {ansi.player_name(char_name)} attempts a performance. "
                 f"It's... okay.",
                 exclude=ctx.session,
-            )
+                source_char=char,
+        )
 
         else:
             # Failure: no credits, shorter cooldown
@@ -284,7 +286,8 @@ class PerformCommand(BaseCommand):
                 f"  {ansi.player_name(char_name)} tries to perform, but "
                 f"it doesn't go well.",
                 exclude=ctx.session,
-            )
+                source_char=char,
+        )
 
 
 def register_entertainer_commands(registry):

@@ -378,22 +378,41 @@ chains:
             republic: 15
         next_hint: "Chain complete. Your handler will reach you in the field."
 
-  # ─── 3. JEDI PATH (LOCKED STUB) ───────────────────────────────────────
+  # ─── 3. JEDI PATH — ORDER (LOCKED STUB) ───────────────────────────────
+  #
+  # F.7.j (May 4 2026) — split the formerly-monolithic "Jedi Path" into
+  # two path-flavored chains. The chain_id `jedi_path` is preserved
+  # for the Order-bound (Path A) flavor so existing engine consumers,
+  # smoke scenarios, and tests keep their references. The new
+  # sibling `jedi_path_independent` (entry 4 below) handles Path B —
+  # Force-sensitive characters who stayed with the Village.
+  #
+  # Path C (the Dark Whispers branch) deliberately has NO chain — Path
+  # C does not set `jedi_path_unlocked`, the player is exiled from the
+  # Order, and the Dark-side comlink content is post-launch (per
+  # `from_dust_to_stars_design_v2_clone_wars.md` §7.3 and the F.7.h
+  # carry-over list). When that content lands, it gets its own chain
+  # (`dark_path_acolyte` or similar), gated on `dark_path_unlocked`
+  # and `village_chosen_path: c`.
   - chain_id: jedi_path
-    chain_name: "Jedi Path"
+    chain_name: "Jedi Path — Order"
     description: >
-      The Jedi Order does not recruit. The Order's Padawans were taken
-      from their families as infants and trained at the Temple. To walk
-      this path as an adult, you must first find what the Order itself
-      no longer remembers.
-    archetype_label: "Jedi Padawan / Knight"
+      The Order accepted you. Your name is now in a ledger that has
+      been quiet for a long time. Master Mace Windu meets you at the
+      Temple gate; your training begins where countless Padawans'
+      have begun before.
+    archetype_label: "Jedi Padawan (Order)"
     faction_alignment: jedi_order
     starting_zone: tatooine_dune_sea
     prerequisites:
       - chargen_complete
       - jedi_path_unlocked         # set by the Village quest chain
+                                   #   (Path A or Path B both unlock it)
       - force_sensitive            # set during chargen (50% chance) or
-                                   # via Village quest narrative path
+                                   #   via Village quest narrative path
+      - village_chosen_path: a     # F.7.j: only Path A graduates take
+                                   #   the Order chain. Path B graduates
+                                   #   take `jedi_path_independent` below.
     duration_minutes: 0
     locked: true
     locked_message: >
@@ -423,7 +442,82 @@ chains:
         reward: {}
         next_hint: "(See locked_message at chain level.)"
 
-  # ─── 4. SEPARATIST COMMANDO ───────────────────────────────────────────
+  # ─── 4. JEDI PATH — INDEPENDENT (LOCKED STUB) ─────────────────────────
+  #
+  # F.7.j (May 4 2026) — Path B opening for Village graduates who
+  # stayed with the Village rather than reporting to the Order.
+  # Force-sensitive, training-bound, but NOT in the Order's ledger.
+  # The chain itself is a stub at this point — the runtime tutorial
+  # engine that will consume `steps:` is F.8.b's deferred work and
+  # this chain shares the locked-stub shape with the Order chain
+  # above. The graduation `drop_room` is the Village Common Square
+  # (`village_common_square`, authored in dune_sea.yaml) — a Path B
+  # graduate's "home base" rather than the Coruscant Temple.
+  #
+  # Why a separate chain (vs. branching steps inside `jedi_path`):
+  #   - The chain abstraction is "one chain, one path through the
+  #     world." Branching inside a chain breaks that contract and
+  #     forces every chain consumer (verifier, smoke, chargen menu,
+  #     graduation drop, achievements) to learn the branch.
+  #   - Path A graduates land in Coruscant; Path B graduates land in
+  #     the Village. Different `drop_room`, different
+  #     `faction_alignment` (Path B is `independent`, not
+  #     `jedi_order`), different `archetype_label`, different
+  #     `follow_up_hint`. These differences are at the chain level,
+  #     not the step level.
+  #   - Future Path-B-specific content (e.g. a Hermit-mentored
+  #     intermediate trial, the lightsaber-bond scene without a
+  #     Council audience) can be added to `jedi_path_independent`
+  #     without touching `jedi_path`.
+  - chain_id: jedi_path_independent
+    chain_name: "Jedi Path — Independent"
+    description: >
+      You are Force-sensitive and trained to be so, but the Order
+      has no claim it can press without your asking. The Village is
+      your home; the rest of the galaxy is open to you. You walk
+      this path alone — and not alone, in the older meaning.
+    archetype_label: "Jedi Padawan (Independent)"
+    faction_alignment: independent
+    starting_zone: tatooine_dune_sea
+    prerequisites:
+      - chargen_complete
+      - jedi_path_unlocked         # set by the Village quest chain
+                                   #   (Path B sets this too)
+      - force_sensitive            # Path B mandatorily sets this
+      - village_chosen_path: b     # F.7.j: only Path B graduates take
+                                   #   the Independent chain.
+    duration_minutes: 0
+    locked: true
+    locked_message: >
+      The Jedi path is not available at character creation. To unlock
+      it you must find a hidden village in the Jundland Wastes and
+      complete the Master's trials. The Independent flavor of this
+      path opens to those who stay with the Village rather than
+      reporting to the Order.
+
+    graduation:
+      drop_room: village_common_square  # F.7.j: Path B graduate's home — the Village, not Coruscant.
+      follow_up_hint: >
+        Master Yarael remains at the Council Hut. Walk the Dune Sea
+        and the wider galaxy; come back when you can.
+
+    steps:
+      - step: 1
+        title: "(Locked — Village Quest Required)"
+        location: village_common_square  # F.7.j: stub never runs at runtime; mirrors `jedi_path`'s pattern but anchors at the Village rather than the Temple.
+        npc: "(none)"
+        npc_role: instructor
+        teaches: []
+        objective: "Complete the Village quest chain (Path B) to unlock this path."
+        npc_intro: ""
+        completion:
+          type: prerequisite
+          flag: jedi_path_unlocked
+        npc_complete: ""
+        reward: {}
+        next_hint: "(See locked_message at chain level.)"
+
+  # ─── 5. SEPARATIST COMMANDO ───────────────────────────────────────────
   - chain_id: separatist_commando
     chain_name: "Separatist Commando"
     description: >
@@ -562,7 +656,7 @@ chains:
             cis: 10
         next_hint: "Chain complete. Mira Kavin is your contact for ops."
 
-  # ─── 5. SEPARATIST AGENT ──────────────────────────────────────────────
+  # ─── 6. SEPARATIST AGENT ──────────────────────────────────────────────
   - chain_id: separatist_agent
     chain_name: "Separatist Agent"
     description: >
@@ -711,7 +805,7 @@ chains:
             cis: 15
         next_hint: "Chain complete. Stay quiet. Stay alive."
 
-  # ─── 6. BOUNTY HUNTER ─────────────────────────────────────────────────
+  # ─── 7. BOUNTY HUNTER ─────────────────────────────────────────────────
   - chain_id: bounty_hunter
     chain_name: "Bounty Hunter"
     description: >
@@ -850,7 +944,7 @@ chains:
             bounty_hunters_guild: 15
         next_hint: "Chain complete. The board updates hourly."
 
-  # ─── 7. SMUGGLER ──────────────────────────────────────────────────────
+  # ─── 8. SMUGGLER ──────────────────────────────────────────────────────
   - chain_id: smuggler
     chain_name: "Smuggler"
     description: >
@@ -1002,7 +1096,7 @@ chains:
             hutt_cartel: 10
         next_hint: "Chain complete. Voss is at the cantina if you want steady work."
 
-  # ─── 8. SHIPWRIGHT / TRADER ───────────────────────────────────────────
+  # ─── 9. SHIPWRIGHT / TRADER ───────────────────────────────────────────
   - chain_id: shipwright_trader
     chain_name: "Shipwright / Trader"
     description: >
@@ -1203,10 +1297,25 @@ chains:
 #       room_entered       → movement hook
 #       prerequisite       → flag check (no event, blocks chain)
 #
-# 5. The `Jedi Path` chain (id: jedi_path) is locked: the chain selector
-#    rejects it at chargen and surfaces `locked_message` instead. The
-#    Village quest chain sets the `jedi_path_unlocked` flag on completion;
-#    only then does the chain become available. Player still needs the
-#    `force_sensitive` flag from chargen or Village trials.
+# 5. The Jedi-Path chains (`jedi_path` and `jedi_path_independent`) are
+#    locked: the chain selector rejects both at chargen and surfaces the
+#    `locked_message` instead. The Village quest sets the
+#    `jedi_path_unlocked` flag on completion of either Path A (Order) or
+#    Path B (Independent); only then does the corresponding flavored
+#    chain become available, and only the one matching the player's
+#    `village_chosen_path`.
+#
+#    Player still needs the `force_sensitive` flag from chargen or
+#    Village trials.
+#
+#    F.7.j (May 4 2026) split the formerly-monolithic `jedi_path` chain
+#    into:
+#      - `jedi_path`              → Path A graduates (jedi_order, drops
+#                                   into jedi_temple_main_gate)
+#      - `jedi_path_independent`  → Path B graduates (independent, drops
+#                                   into village_common_square)
+#    Path C (Dark Whispers) deliberately has no chain; that flavor is
+#    post-launch content per from_dust_to_stars_design_v2_clone_wars.md
+#    §7.3.
 #
 # ═══════════════════════════════════════════════════════════════════════

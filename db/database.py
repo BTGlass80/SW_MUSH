@@ -14,7 +14,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 # -- Schema version --
-SCHEMA_VERSION = 20
+SCHEMA_VERSION = 26
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -229,6 +229,51 @@ INSERT OR IGNORE INTO exits (id, from_room_id, to_room_id, direction) VALUES (1,
 INSERT OR IGNORE INTO exits (id, from_room_id, to_room_id, direction) VALUES (2, 2, 1, 'south');
 INSERT OR IGNORE INTO exits (id, from_room_id, to_room_id, direction) VALUES (3, 2, 3, 'east');
 INSERT OR IGNORE INTO exits (id, from_room_id, to_room_id, direction) VALUES (4, 3, 2, 'west');
+
+-- Mail subsystem (smoke drop 4 carry-over, May 2026)
+-- The mail subsystem (parser/mail_commands.py) had been shipping
+-- against missing tables — every @mail subcommand 500'd with
+-- "no such table: mail". Schema inferred from queries in
+-- mail_commands.py (_list_inbox, _read, _quick, _do_send, _delete,
+-- _purge, _unread, _sent, _forward, _reply, _compose_*).
+--
+-- sent_at is stored as ISO format text (datetime.utcnow().isoformat()
+-- in _do_send) — it goes through datetime.fromisoformat() on read.
+-- Keeping TEXT (not REAL) to match the existing format and avoid
+-- a downstream parser change.
+--
+-- ON DELETE CASCADE on mail_recipients.mail_id matches the manual
+-- orphan-cleanup _purge already does:
+--   DELETE FROM mail WHERE id NOT IN (SELECT DISTINCT mail_id
+--   FROM mail_recipients)
+-- The cascade makes that defensive cleanup redundant but harmless.
+--
+-- This block + the v23 migration below were carried into F.7.c.1
+-- because Brian's apply chain (smoke drop 4 → F.7.b → W.2 phase 2)
+-- caused the later W.2 phase 2 db/database.py overwrite to drop the
+-- mail tables. F.7.c.1's database.py is the chain's new HEAD.
+CREATE TABLE IF NOT EXISTS mail (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender_id       INTEGER NOT NULL REFERENCES characters(id),
+    subject         TEXT NOT NULL,
+    body            TEXT NOT NULL,
+    sent_at         TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mail_recipients (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    mail_id         INTEGER NOT NULL REFERENCES mail(id) ON DELETE CASCADE,
+    char_id         INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    is_read         INTEGER NOT NULL DEFAULT 0,
+    is_deleted      INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_mail_recipients_char_id
+    ON mail_recipients(char_id);
+CREATE INDEX IF NOT EXISTS idx_mail_recipients_mail_id
+    ON mail_recipients(mail_id);
+CREATE INDEX IF NOT EXISTS idx_mail_sender_id
+    ON mail(sender_id);
 """
 
 # -- Migrations --
@@ -756,6 +801,234 @@ MIGRATIONS = {
         "WHERE wilderness_region_slug IS NOT NULL",
     ],
 
+    # ── v21 (May 4 2026): Village quest Step 3 gate state (F.7.b) ────────────
+    #
+    # Per jedi_village_quest_design_v1.md §4.2: Sister Vitha's Gate
+    # accepts answers [1] and [3] (advance), and rejects answer [2]
+    # with a 24-hour cooldown. We need to track:
+    #
+    #   - village_gate_passed:        bool — True iff Vitha admitted
+    #     the player. Set to 1 when answer [1] or [3] chosen.
+    #     Idempotent (a passed gate stays passed).
+    #
+    #   - village_gate_lockout_until: REAL — Unix timestamp when the
+    #     24-hour cooldown expires. 0 if no lockout active. Set when
+    #     answer [2] is chosen.
+    #
+    #   - village_gate_attempts:      INTEGER — total times the gate
+    #     dialogue has been initiated. Used for telemetry/balance —
+    #     no in-game effect.
+    21: [
+        "ALTER TABLE characters ADD COLUMN village_gate_passed INTEGER DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_gate_lockout_until REAL DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_gate_attempts INTEGER DEFAULT 0",
+    ],
+
+    # ── v22 (May 4 2026): Village quest Trials runtime state (F.7.c.1) ───────
+    #
+    # Per jedi_village_quest_design_v1.md §5: five trials, each with
+    # its own completion type and state. F.7.c.1 ships Trial 1 (Skill)
+    # and Trial 5 (Insight) end-to-end.
+    #
+    # NOTE: v18 (PG.1.schema) already declared the four "headline"
+    # done-flag columns: village_trial_courage_done,
+    # village_trial_insight_done, village_trial_flesh_done, and
+    # village_trial_last_attempt. v22 adds the remaining state columns
+    # specific to each trial's mechanic — and intentionally does NOT
+    # redeclare the v18 columns (the migration runner is duplicate-
+    # tolerant, but cleaner not to repeat).
+    #
+    # F.7.c.1 RUNTIME-LIVE columns (Skill + Insight):
+    #
+    #   Trial 1 (Skill — 3-step craft_lightsaber check, 1h cooldown):
+    #     - village_trial_skill_done               INTEGER  bool
+    #     - village_trial_skill_step               INTEGER  0..3
+    #     - village_trial_skill_attempts           INTEGER  total attempts
+    #     - village_trial_skill_last_at            REAL     last-attempt ts
+    #     - village_trial_skill_crystal_granted    INTEGER  one-shot reward
+    #
+    #   Trial 5 (Insight — accuse fragment_N, hint+retry on wrong):
+    #     - village_trial_insight_attempts         INTEGER  total accusations
+    #     - village_trial_insight_correct_fragment INTEGER  1..3, persisted
+    #         on first encounter so retries don't shuffle
+    #     - village_trial_insight_pendant_granted  INTEGER  one-shot reward
+    #
+    # Reserved-for-future columns (F.7.c.2/3):
+    #
+    #   Trial 2 (Courage):
+    #     - village_trial_courage_lockout_until    REAL    (24h fail cooldown)
+    #
+    #   Trial 3 (Flesh):
+    #     - village_trial_flesh_started_at         REAL    0 if not started
+    #     - village_trial_flesh_session_seconds    REAL    accumulated time
+    #
+    #   Trial 4 (Spirit):
+    #     - village_trial_spirit_done              INTEGER  bool
+    #     - village_trial_spirit_dark_pull         INTEGER  0..3 (Path C lock at 3)
+    #     - village_trial_spirit_rejections        INTEGER  toward pass-threshold (4)
+    #
+    # All forward columns ship in v22 even though F.7.c.1 only writes
+    # to Skill + Insight; cheaper than two more schema bumps.
+    22: [
+        # Trial 1: Skill (Smith Daro)
+        "ALTER TABLE characters ADD COLUMN village_trial_skill_done INTEGER DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_trial_skill_step INTEGER DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_trial_skill_attempts INTEGER DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_trial_skill_last_at REAL DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_trial_skill_crystal_granted INTEGER DEFAULT 0",
+        # Trial 2: Courage (Elder Mira Delen) — F.7.c.2 will use
+        "ALTER TABLE characters ADD COLUMN village_trial_courage_lockout_until REAL DEFAULT 0",
+        # Trial 3: Flesh (Elder Korvas) — F.7.c.3 will use
+        "ALTER TABLE characters ADD COLUMN village_trial_flesh_started_at REAL DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_trial_flesh_session_seconds REAL DEFAULT 0",
+        # Trial 4: Spirit (Master Yarael in Sealed Sanctum) — F.7.c.2 will use
+        "ALTER TABLE characters ADD COLUMN village_trial_spirit_done INTEGER DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_trial_spirit_dark_pull INTEGER DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_trial_spirit_rejections INTEGER DEFAULT 0",
+        # Trial 5: Insight (Elder Saro Veck)
+        "ALTER TABLE characters ADD COLUMN village_trial_insight_attempts INTEGER DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_trial_insight_correct_fragment INTEGER DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_trial_insight_pendant_granted INTEGER DEFAULT 0",
+    ],
+
+    # ── v23 (May 4 2026): Mail subsystem tables (smoke-drop-4 carry-over) ────
+    #
+    # Brian's apply chain on his Windows dev box was:
+    #     smoke drop3 → smoke drop4 → smoke drop5 → W.2 phase 2 → F.7.b
+    # W.2 phase 2 and F.7.b each shipped a `db/database.py`. Neither
+    # included the mail tables that smoke drop 4 had introduced (smoke
+    # drop 4 forked from a v19 baseline before W.2's wilderness
+    # migration existed). The result: F.7.b's database.py overwrote
+    # smoke drop 4's, and the mail subsystem tables vanished from HEAD.
+    #
+    # The runtime parser/mail_commands.py file survived (neither W.2p2
+    # nor F.7.b touched it), so re-introducing the schema here is the
+    # full fix. CREATE TABLE IF NOT EXISTS is idempotent: existing DBs
+    # that somehow already have the tables won't error.
+    #
+    # Schema is identical to what smoke drop 4 declared:
+    #   - mail (id, sender_id FK characters, subject TEXT, body TEXT,
+    #     sent_at TEXT in ISO format)
+    #   - mail_recipients (id, mail_id FK mail ON DELETE CASCADE,
+    #     char_id FK characters ON DELETE CASCADE, is_read,
+    #     is_deleted)
+    #   - 3 indexes on the high-cardinality access columns
+    #
+    # See SCHEMA_SQL above for the full create statements; this
+    # migration runs the same DDL against existing DBs (the IF NOT
+    # EXISTS clauses make the two paths converge).
+    23: [
+        "CREATE TABLE IF NOT EXISTS mail ("
+        "  id        INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  sender_id INTEGER NOT NULL REFERENCES characters(id),"
+        "  subject   TEXT NOT NULL,"
+        "  body      TEXT NOT NULL,"
+        "  sent_at   TEXT NOT NULL"
+        ")",
+        "CREATE TABLE IF NOT EXISTS mail_recipients ("
+        "  id         INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  mail_id    INTEGER NOT NULL REFERENCES mail(id) "
+        "             ON DELETE CASCADE,"
+        "  char_id    INTEGER NOT NULL REFERENCES characters(id) "
+        "             ON DELETE CASCADE,"
+        "  is_read    INTEGER NOT NULL DEFAULT 0,"
+        "  is_deleted INTEGER NOT NULL DEFAULT 0"
+        ")",
+        "CREATE INDEX IF NOT EXISTS idx_mail_recipients_char_id "
+        "ON mail_recipients(char_id)",
+        "CREATE INDEX IF NOT EXISTS idx_mail_recipients_mail_id "
+        "ON mail_recipients(mail_id)",
+        "CREATE INDEX IF NOT EXISTS idx_mail_sender_id "
+        "ON mail(sender_id)",
+    ],
+
+    # ── v24 (May 4 2026): Trial 4 (Spirit) — turn counter + Path C ──────────
+    #
+    # F.7.c.4 (Spirit runtime) needs two more pieces of state beyond
+    # what v22 reserved:
+    #
+    #   - village_trial_spirit_turn      INTEGER  current turn 1..7
+    #     (the trial caps at 7 turns; without this column we'd have to
+    #      derive it as `dark_pull + rejections + ambivalent`, but
+    #      ambivalent is otherwise unused — the explicit column is
+    #      cleaner than adding a fourth counter just to derive turn).
+    #
+    #   - village_trial_spirit_path_c_locked INTEGER  bool, 1 once
+    #      dark_pull >= 3. Per design §7.3 this is a one-way irreversible
+    #      lock that re-shapes Yarael's Act 3 dialogue (Path A/B suppressed,
+    #      only Path C offered). Stored explicitly rather than derived from
+    #      dark_pull because (a) future drops may dial back the dark_pull
+    #      threshold without changing the lock semantic, and (b) it makes
+    #      the gate check cheap and obvious.
+    #
+    # Both columns are additive and default 0. No existing column or
+    # table semantics change.
+    24: [
+        "ALTER TABLE characters ADD COLUMN village_trial_spirit_turn INTEGER DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_trial_spirit_path_c_locked INTEGER DEFAULT 0",
+    ],
+
+    # ── v25 (May 4 2026): Village quest Step 10 — Path A/B/C choice ─────────
+    #
+    # F.7.d (the Path choice) needs two columns to record which path
+    # the character committed to:
+    #
+    #   - village_choice_completed   INTEGER  bool, 1 once a path is
+    #     committed. Once true, the choice is irreversible — see
+    #     design §7.0 ("the choice is the end of the chain; the
+    #     character does not return to it").
+    #
+    #   - village_chosen_path        TEXT     'a' | 'b' | 'c' | ''.
+    #     Empty string until choice is committed, then one of the
+    #     three single-letter codes. Matches the user-facing
+    #     `path a` / `path b` / `path c` command vocabulary, and is
+    #     explicit enough that downstream code never has to guess
+    #     what an enum value meant.
+    #
+    # Path-specific consequence flags (jedi_path_unlocked,
+    # dark_path_unlocked, village_chosen_path_a, etc.) live in
+    # chargen_notes JSON alongside village_first_audience_done; that
+    # pattern works for the engine consumers (tutorial_chains.py
+    # reads them out of a dict, not a column).
+    #
+    # Both columns are additive. No existing column or table
+    # semantics change.
+    25: [
+        "ALTER TABLE characters ADD COLUMN village_choice_completed INTEGER DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN village_chosen_path TEXT DEFAULT ''",
+    ],
+
+    # ── v26 (May 4 2026): Village quest — village_standing attribute ────────
+    #
+    # Per ``jedi_village_quest_design_v1.md`` §6.2: a per-character
+    # integer attribute that increments on positive Village quest
+    # outcomes. Local to the Village; not a faction code.
+    #
+    # Deltas come from ``data/worlds/clone_wars/quests/jedi_village.yaml``
+    # (the existing world-data field ``village_standing_delta``):
+    #
+    #   gate pass (Sister Vitha test) ........... +1
+    #   First Audience (Master Yarael) .......... +1
+    #   Trial of Skill (Forge / Daro) ........... +1
+    #   Trial of Courage (Mira) ................. +2
+    #   Trial of Flesh (Korvas) ................. +2
+    #   Trial of Spirit (Yarael, Sanctum) ....... +3
+    #   Trial of Insight (Saro, Council Hut) .... +2
+    #
+    # Total possible: 12. Path C lock-in completes the Spirit trial
+    # per design §7.3, so it also grants +3 — the Village's *welcome*
+    # diverges at Step 10 (the Path commit) but the trial-completion
+    # standing is earned regardless of dark/light alignment during
+    # the trial.
+    #
+    # Forward-additive: future drops may grant standing for non-trial
+    # actions (helping NPCs, returning artifacts, etc.). The column
+    # is unbounded but in practice will sit in the 0–20 range for the
+    # foreseeable future.
+    26: [
+        "ALTER TABLE characters ADD COLUMN village_standing INTEGER DEFAULT 0",
+    ],
+
 }
 
 
@@ -1058,6 +1331,38 @@ class Database:
         "wilderness_region_slug",
         "wilderness_x",
         "wilderness_y",
+        # ── Village quest Step 3 gate state (v21 migration) ──────────────
+        # Per F.7.b (May 4 2026): Sister Vitha's gate dialogue records
+        # outcome here. Idempotent on retry; lockout_until is a
+        # wall-clock timestamp.
+        "village_gate_passed",
+        "village_gate_lockout_until",
+        "village_gate_attempts",
+        # ── Village quest Trials runtime state (v22 migration) ───────────
+        # Per F.7.c.1 (May 4 2026): Trial 1 (Skill) + Trial 5 (Insight)
+        # runtime columns + reserved columns for Trials 2-4 (F.7.c.2/3).
+        "village_trial_skill_done",
+        "village_trial_skill_step",
+        "village_trial_skill_attempts",
+        "village_trial_skill_last_at",
+        "village_trial_skill_crystal_granted",
+        "village_trial_courage_done",
+        "village_trial_courage_lockout_until",
+        "village_trial_flesh_done",
+        "village_trial_flesh_started_at",
+        "village_trial_flesh_session_seconds",
+        "village_trial_spirit_done",
+        "village_trial_spirit_dark_pull",
+        "village_trial_spirit_rejections",
+        "village_trial_spirit_turn",
+        "village_trial_spirit_path_c_locked",
+        "village_choice_completed",
+        "village_chosen_path",
+        "village_standing",
+        "village_trial_insight_done",
+        "village_trial_insight_attempts",
+        "village_trial_insight_correct_fragment",
+        "village_trial_insight_pendant_granted",
     })
 
     async def save_character(self, char_id: int, **fields):
@@ -1106,26 +1411,63 @@ class Database:
         )
         return [dict(r) for r in rows]
 
-    async def get_characters_in_room(self, room_id: int) -> list:
-        """Get all active characters in a room."""
+    async def get_characters_in_room(self, room_id: int, *, source_char=None) -> list:
+        """Get all active characters in a room.
+
+        Args:
+            source_char: optional character dict. When set AND source is
+                in wilderness, results are filtered to characters at
+                the same wilderness tile. Path B (W.2 phase 2): every
+                ground-interaction surface that calls this with
+                source_char=char respects co-location automatically.
+        """
         rows = await self._db.execute_fetchall(
             "SELECT * FROM characters WHERE room_id = ? AND is_active = 1",
             (room_id,),
         )
-        return [dict(r) for r in rows]
+        chars = [dict(r) for r in rows]
+        if source_char is None:
+            return chars
+        try:
+            from engine.wilderness_movement import filter_by_source_location
+            return filter_by_source_location(chars, source_char)
+        except Exception:
+            return chars
 
-    async def get_characters_in_room_summary(self, room_id: int) -> list:
+    async def get_characters_in_room_summary(self, room_id: int, *, source_char=None) -> list:
         """Get active characters in a room — lightweight (id, name, account_id only).
 
         Use this when you only need to know WHO is present, not their full
         stats/inventory/attributes. Avoids deserializing large JSON blobs.
+
+        Args:
+            source_char: optional. Same Path B semantics as get_characters_in_room.
+                Note: if source_char is in wilderness we still need the
+                wilderness coord columns, so the SELECT widens to include
+                them when filtering.
         """
+        if source_char is None:
+            rows = await self._db.execute_fetchall(
+                "SELECT id, name, account_id FROM characters "
+                "WHERE room_id = ? AND is_active = 1",
+                (room_id,),
+            )
+            return [dict(r) for r in rows]
+
+        # Source-char-aware path: include wilderness coord columns so
+        # the filter helper has what it needs.
         rows = await self._db.execute_fetchall(
-            "SELECT id, name, account_id FROM characters "
-            "WHERE room_id = ? AND is_active = 1",
+            "SELECT id, name, account_id, room_id, "
+            "wilderness_region_slug, wilderness_x, wilderness_y "
+            "FROM characters WHERE room_id = ? AND is_active = 1",
             (room_id,),
         )
-        return [dict(r) for r in rows]
+        chars = [dict(r) for r in rows]
+        try:
+            from engine.wilderness_movement import filter_by_source_location
+            return filter_by_source_location(chars, source_char)
+        except Exception:
+            return chars
 
     # -- Room Building Operations --
 

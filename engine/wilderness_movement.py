@@ -231,6 +231,17 @@ def move_in_wilderness(
             boundary_direction=canonical,
         )
 
+    # Unwalkable tile check (W.2 phase 2 / Evennia review). Per-tile
+    # narrative blocks (cliff faces, sealed bunkers). Empty/missing
+    # dict is the default; the Dune Sea ships with no unwalkable
+    # tiles so this is inert today.
+    unwalkable = getattr(region, "unwalkable_tiles", None) or {}
+    if (new_x, new_y) in unwalkable:
+        return MoveResult(
+            ok=False,
+            reason=str(unwalkable[(new_x, new_y)]) or "You can't go that way.",
+        )
+
     # Resolve destination terrain. Per design §4.2: tile_assignments
     # override the default; otherwise default_terrain. Drop 2 dune_sea
     # has no tile_assignments, so this is currently always
@@ -430,3 +441,319 @@ def _select_variant(region_slug: str, x: int, y: int, variants: list) -> str:
     key = f"{region_slug}|{x}|{y}".encode("utf-8")
     h = int(hashlib.sha1(key).hexdigest()[:8], 16)
     return variants[h % len(variants)]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Co-location helpers (W.2 phase 2 / Evennia review)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# In our model, ALL characters in a wilderness region share the same
+# sentinel room_id. To answer "who else is at this tile?" we have to
+# consult (wilderness_region_slug, wilderness_x, wilderness_y) on the
+# character row.
+#
+# These helpers are consumed by the broadcast/lookup primitives in
+# server/session.py and db/database.py via Path B (see audit doc):
+# every PC↔PC ground interaction calls those primitives with
+# `source_char=char` and the filtering happens automatically.
+#
+# Same-place rule:
+#   Both in normal rooms with same room_id  → same place
+#   Both in wilderness with same (slug,x,y) → same place
+#   Mixed (one normal, one wilderness)      → never same place
+
+
+def in_wilderness(char) -> bool:
+    """True iff the character is currently in a wilderness region.
+
+    Reads ``wilderness_region_slug``: if non-empty, the character is
+    in wilderness regardless of room_id (which points at the sentinel).
+    """
+    if char is None:
+        return False
+    if isinstance(char, dict):
+        slug = char.get("wilderness_region_slug")
+    else:
+        slug = getattr(char, "wilderness_region_slug", None)
+    return bool(slug)
+
+
+def get_wilderness_coords(char):
+    """Return (slug, x, y) tuple for a wilderness char, else None."""
+    if char is None:
+        return None
+    if isinstance(char, dict):
+        slug = char.get("wilderness_region_slug")
+        x = char.get("wilderness_x")
+        y = char.get("wilderness_y")
+    else:
+        slug = getattr(char, "wilderness_region_slug", None)
+        x = getattr(char, "wilderness_x", None)
+        y = getattr(char, "wilderness_y", None)
+
+    if not slug or x is None or y is None:
+        return None
+    try:
+        return (slug, int(x), int(y))
+    except (TypeError, ValueError):
+        return None
+
+
+def same_location(char_a, char_b) -> bool:
+    """True iff char_a and char_b are at the same place.
+
+    Returns False for None inputs, mixed normal/wilderness state, or
+    missing room/coords.
+    """
+    if char_a is None or char_b is None:
+        return False
+
+    a_wild = in_wilderness(char_a)
+    b_wild = in_wilderness(char_b)
+
+    if a_wild != b_wild:
+        return False  # one in wilderness, one in a room
+
+    if a_wild:
+        return get_wilderness_coords(char_a) == get_wilderness_coords(char_b)
+
+    # Both in normal rooms
+    if isinstance(char_a, dict):
+        a_room = char_a.get("room_id")
+    else:
+        a_room = getattr(char_a, "room_id", None)
+    if isinstance(char_b, dict):
+        b_room = char_b.get("room_id")
+    else:
+        b_room = getattr(char_b, "room_id", None)
+    if a_room is None or b_room is None:
+        return False
+    return a_room == b_room
+
+
+async def characters_at_tile(db, slug: str, x: int, y: int) -> list:
+    """Return active character dicts at a given wilderness tile."""
+    try:
+        rows = await db._db.execute_fetchall(
+            "SELECT * FROM characters "
+            "WHERE wilderness_region_slug = ? "
+            "AND wilderness_x = ? AND wilderness_y = ? "
+            "AND is_active = 1",
+            (slug, int(x), int(y)),
+        )
+        return [dict(r) for r in rows]
+    except Exception:
+        log.warning("characters_at_tile failed", exc_info=True)
+        return []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Path B core: filter a session/character iterable by source_char's location
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def filter_by_source_location(items, source_char, *, get_char=lambda x: x):
+    """Filter an iterable of sessions/characters to those co-located with source_char.
+
+    The single chokepoint that all broadcast/lookup primitives consult.
+    Path B: callers pass `source_char` and this helper does the filter.
+
+    Args:
+        items: iterable of sessions or character dicts.
+        source_char: the character whose location we filter by. If None
+            or has no wilderness state, items are returned unchanged
+            (caller's prior behavior).
+        get_char: callable mapping each item to a character dict. The
+            default (identity) works for character iterables; pass
+            ``lambda s: s.character`` for session iterables.
+
+    Returns:
+        list of items co-located with source_char (or all items if no
+        filter applies).
+    """
+    if source_char is None:
+        return list(items)
+
+    src_wild = in_wilderness(source_char)
+    if not src_wild:
+        # Source is in a normal room — no co-location filtering needed
+        # because room_id sharing already means same place. Return as-is.
+        return list(items)
+
+    src_coords = get_wilderness_coords(source_char)
+    if src_coords is None:
+        # Inconsistent state — defensively don't filter (better to show
+        # too many than to silently hide everyone).
+        return list(items)
+
+    src_slug, src_x, src_y = src_coords
+    out = []
+    for item in items:
+        ch = get_char(item)
+        if ch is None:
+            continue
+        # Co-located requires both in same wilderness AND matching coords
+        if isinstance(ch, dict):
+            ch_slug = ch.get("wilderness_region_slug")
+            ch_x = ch.get("wilderness_x")
+            ch_y = ch.get("wilderness_y")
+        else:
+            ch_slug = getattr(ch, "wilderness_region_slug", None)
+            ch_x = getattr(ch, "wilderness_x", None)
+            ch_y = getattr(ch, "wilderness_y", None)
+
+        if ch_slug != src_slug:
+            continue
+        try:
+            if int(ch_x) == src_x and int(ch_y) == src_y:
+                out.append(item)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Edge resolution helpers (W.2 phase 2)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def find_edge_at_coords(region, x: int, y: int):
+    """Return the first WildernessEdge whose coords match (x, y), or None."""
+    edges = getattr(region, "edges", None) or []
+    for edge in edges:
+        if tuple(edge.coords) == (x, y):
+            return edge
+    return None
+
+
+def find_edge_for_exit_direction(region, x: int, y: int, direction: str):
+    """Edge at (x, y) whose direction_back_to_room matches direction, else None."""
+    edge = find_edge_at_coords(region, x, y)
+    if edge is None:
+        return None
+    if (direction or "").lower().strip() == edge.direction_back_to_room:
+        return edge
+    return None
+
+
+def find_entry_edges_for_room(region, room_slug: str) -> list:
+    """All edges whose room_slug matches — for hand-built room→wilderness."""
+    edges = getattr(region, "edges", None) or []
+    return [e for e in edges if e.room_slug == room_slug]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Region cache — lazy YAML reload at runtime
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Both MoveCommand and LookCommand need a WildernessRegion instance at
+# runtime. The wilderness_loader parses YAMLs at world-build time, but
+# those instances don't survive the build. Rather than re-parse on
+# every move, we lazy-cache one WildernessRegion per slug per process.
+# Cache invalidation is process restart (region YAMLs are content,
+# edited rarely, server bounce is the natural reload point).
+
+_REGION_CACHE: dict = {}
+
+
+def get_cached_region(slug: str):
+    """Return the cached WildernessRegion for this slug, or None."""
+    return _REGION_CACHE.get(slug)
+
+
+def cache_region(region) -> None:
+    """Insert a WildernessRegion into the cache. Idempotent on slug."""
+    if region is None:
+        return
+    slug = getattr(region, "slug", None)
+    if slug:
+        _REGION_CACHE[slug] = region
+
+
+def clear_region_cache() -> None:
+    """Wipe the region cache (used by tests)."""
+    _REGION_CACHE.clear()
+
+
+async def get_or_load_region(db, slug: str):
+    """Resolve a region by slug, using the cache or re-parsing YAML.
+
+    Returns None if the region can't be resolved at all.
+    """
+    cached = get_cached_region(slug)
+    if cached is not None:
+        return cached
+
+    import os
+    candidates = [
+        os.path.join("data", "worlds", "clone_wars", "wilderness", f"{slug}.yaml"),
+    ]
+    if slug.startswith("tatooine_"):
+        short = slug[len("tatooine_"):]
+        candidates.append(
+            os.path.join("data", "worlds", "clone_wars", "wilderness", f"{short}.yaml"),
+        )
+    for cand in candidates:
+        if os.path.exists(cand):
+            try:
+                from engine.wilderness_loader import load_wilderness_region
+                report = load_wilderness_region(cand)
+                if report.ok and report.region:
+                    cache_region(report.region)
+                    return report.region
+            except Exception:
+                log.warning("get_or_load_region: parse failed for %s", cand, exc_info=True)
+                continue
+
+    log.warning("get_or_load_region: cannot resolve region slug %r", slug)
+    return None
+
+
+def find_session_at_same_location(session_mgr, source_char, name: str, *, exclude_self: bool = True):
+    """Find a session whose character matches `name` and is co-located with source_char.
+
+    Path B helper used by trade, heal, force-target, sabacc, pickpocket,
+    teach, etc. — every command that wants to find a specific player by
+    name in the same place. Replaces the recurring pattern:
+
+        for s in session_mgr.sessions_in_room(char["room_id"]):
+            if s.character["name"].lower().startswith(name.lower()):
+                ...
+
+    with one call that handles wilderness co-location for free.
+
+    Args:
+        session_mgr: the SessionManager instance (ctx.session_mgr).
+        source_char: the searching character's dict.
+        name: prefix to match against session.character["name"] (case-insensitive).
+        exclude_self: if True (default), source_char's own session is
+            excluded from results.
+
+    Returns:
+        the matching Session, or None if no match.
+    """
+    if not name or source_char is None:
+        return None
+    name_lc = name.lower().strip()
+    if not name_lc:
+        return None
+
+    src_room_id = (
+        source_char.get("room_id") if isinstance(source_char, dict)
+        else getattr(source_char, "room_id", None)
+    )
+    src_id = (
+        source_char.get("id") if isinstance(source_char, dict)
+        else getattr(source_char, "id", None)
+    )
+
+    # sessions_in_room with source_char does the co-location filter for us
+    candidates = session_mgr.sessions_in_room(src_room_id, source_char=source_char)
+    for s in candidates:
+        if not s.character:
+            continue
+        if exclude_self and s.character.get("id") == src_id:
+            continue
+        if s.character["name"].lower().startswith(name_lc):
+            return s
+    return None

@@ -512,7 +512,15 @@ class TestVillagePathTraversable(unittest.TestCase):
         _run(_check())
 
     def test_sealed_sanctum_exists(self):
-        """The Trial of Insight site must exist with its locking flag."""
+        """The Trial of Spirit site must exist with its locking flag.
+
+        F.7.d note: the room was earlier (incorrectly) marked as
+        ``trial_of_insight_site`` because the original world data
+        conflated Insight (holocron fragments at the Council Hut)
+        with Spirit (dark-future-self vignette in the Sanctum). The
+        F.7.d data fix corrects the property to
+        ``trial_of_spirit_site``; this assertion follows.
+        """
         async def _check():
             from engine.wilderness_loader import load_wilderness_region
             from engine.wilderness_writer import write_wilderness_region
@@ -534,7 +542,8 @@ class TestVillagePathTraversable(unittest.TestCase):
                 props.get("locked_until_flag"),
                 "spirit_trial_in_progress",
             )
-            self.assertTrue(props.get("trial_of_insight_site"))
+            self.assertTrue(props.get("trial_of_spirit_site"))
+            self.assertFalse(props.get("trial_of_insight_site"))
             await db._db.close()
         _run(_check())
 

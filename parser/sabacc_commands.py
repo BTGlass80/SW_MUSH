@@ -310,6 +310,7 @@ class SabaccCommand(BaseCommand):
             f"  {ansi.player_name(char.get('name', 'Someone'))} "
             f"plays a hand of Sabacc and {broadcast_outcome}.",
             exclude=ctx.session,
+            source_char=char,  # W.2 phase 2
         )
         # Spacer quest: sabacc played
         try:

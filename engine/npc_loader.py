@@ -506,3 +506,131 @@ async def _resolve_wilderness_room_id(db, room_name: str) -> Optional[int]:
     if not rows:
         return None
     return rows[0]["id"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# F.7.b (May 4 2026): Jedi Village NPC loader — Sister Vitha + Master Yarael
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Mirrors load_wilderness_npcs() but reads the
+# `content_refs.jedi_village_npcs` key. Village NPCs live in landmark
+# rooms inside a wilderness region, so the room resolver
+# (_resolve_wilderness_room_id) works for them unchanged.
+
+async def load_jedi_village_npcs(
+    era_dir: str,
+    db,
+) -> list[WildernessNpcTuple]:
+    """Load Jedi Village NPCs per era.yaml::content_refs.jedi_village_npcs.
+
+    Same resolution semantics as load_wilderness_npcs(). Returns an
+    empty list if no jedi_village_npcs files are registered for this
+    era.
+    """
+    era_yaml_path = os.path.join(era_dir, "era.yaml")
+    if not os.path.exists(era_yaml_path):
+        log.warning("era.yaml not found at %s", era_yaml_path)
+        return []
+
+    try:
+        with open(era_yaml_path, "r", encoding="utf-8") as fh:
+            era_data = yaml.safe_load(fh) or {}
+    except Exception as exc:
+        log.error("Failed to read era.yaml at %s: %s", era_yaml_path, exc)
+        return []
+
+    refs = (era_data.get("content_refs") or {}).get("jedi_village_npcs")
+    if not refs:
+        return []  # Era has no Village NPCs registered — clean miss
+
+    if isinstance(refs, str):
+        refs = [refs]
+
+    all_tuples: list[WildernessNpcTuple] = []
+    for rel_path in refs:
+        full_path = os.path.join(era_dir, rel_path)
+        tuples = await _load_jedi_village_npcs_file(full_path, db)
+        all_tuples.extend(tuples)
+
+    log.info(
+        "Loaded %d Jedi Village NPC(s) total across %d file(s)",
+        len(all_tuples),
+        len(refs),
+    )
+    return all_tuples
+
+
+async def _load_jedi_village_npcs_file(
+    path: str,
+    db,
+) -> list[WildernessNpcTuple]:
+    """Load and resolve a single jedi_village_npcs YAML file.
+
+    The schema is identical to wilderness_npcs.yaml — same `name`,
+    `room`, `species`, `description`, `ai_config` keys — but the
+    top-level list key is `jedi_village_npcs:` instead of
+    `wilderness_npcs:`.
+    """
+    if not os.path.exists(path):
+        log.warning("jedi_village_npcs file not found: %s", path)
+        return []
+
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = yaml.safe_load(fh) or {}
+    except Exception as exc:
+        log.error("Failed to read jedi_village_npcs file %s: %s", path, exc)
+        return []
+
+    entries = data.get("jedi_village_npcs") or []
+    if not entries:
+        log.warning("jedi_village_npcs file has no entries: %s", path)
+        return []
+
+    results: list[WildernessNpcTuple] = []
+    skipped = 0
+
+    for entry in entries:
+        try:
+            name = (entry.get("name") or "").strip()
+            if not name:
+                log.warning("Village NPC entry with no name in %s, skipping", path)
+                skipped += 1
+                continue
+
+            room_name = (entry.get("room") or "").strip()
+            if not room_name:
+                log.warning("Village NPC %r has no room in %s, skipping", name, path)
+                skipped += 1
+                continue
+
+            room_id = await _resolve_wilderness_room_id(db, room_name)
+            if room_id is None:
+                log.warning(
+                    "Village NPC %r: room %r not found in wilderness substrate, skipping",
+                    name, room_name,
+                )
+                skipped += 1
+                continue
+
+            species = entry.get("species", "Human")
+            description = entry.get("description", "")
+
+            cs = entry.get("char_sheet", {})
+            char_sheet = _build_char_sheet(cs, species)
+
+            ai_raw = entry.get("ai_config", {})
+            ai_config = _build_ai_config(ai_raw, name)
+
+            results.append((name, room_id, species, description, char_sheet, ai_config))
+
+        except Exception as exc:
+            entry_name = entry.get("name", "<unknown>") if isinstance(entry, dict) else "<unknown>"
+            log.error("Failed to load Village NPC %r from %s: %s", entry_name, path, exc)
+            skipped += 1
+
+    if skipped:
+        log.warning("Skipped %d Village NPC(s) in %s due to errors or unresolved rooms", skipped, path)
+
+    log.info("Loaded %d Village NPC(s) from %s", len(results), path)
+    return results

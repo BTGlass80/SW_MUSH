@@ -223,7 +223,14 @@ class MailCommand(BaseCommand):
         await ctx.session.send_line(f"  \033[1;36m{bar}\033[0m")
         await ctx.session.send_line("")
 
-        body = msg.get("body", "")
+        # DROP-4 MAIL FIX (May 2026): sqlite3.Row supports __getitem__
+        # via column name but does NOT support .get() like a dict.
+        # The original .get("body", "") raised AttributeError on every
+        # @mail/read call (after the schema fix made the row reachable
+        # at all). The columns are NOT NULL in the schema so a raw
+        # subscript is safe; the dict-style fallback was never doing
+        # anything useful.
+        body = msg["body"]
         for line in body.split("\n"):
             await ctx.session.send_line(f"  {line}")
 

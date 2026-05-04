@@ -111,6 +111,7 @@ from parser.mail_commands import register_mail_commands
 from parser.channel_commands import register_channel_commands
 from parser.party_commands import register_party_commands
 from parser.encounter_commands import register_encounter_commands
+from parser.village_trial_commands import register_village_trial_commands
 from engine.space_encounters import get_encounter_manager
 from engine.bounty_board import get_bounty_board
 from engine.missions import get_mission_board
@@ -189,6 +190,7 @@ class GameServer:
         register_channel_commands(self.registry)
         register_party_commands(self.registry)
         register_encounter_commands(self.registry)
+        register_village_trial_commands(self.registry)
 
         # ── Achievement System Init ──
         from engine.achievements import load_achievements
@@ -200,15 +202,6 @@ class GameServer:
         help_mgr = HelpManager()
         help_mgr.auto_register_commands(self.registry)
         help_mgr.register_topics()
-        # DROP-1 PORTAL FIX (May 2026): layer in markdown-authored entries.
-        # MD files in data/help/{topics,commands}/*.md have richer bodies,
-        # explicit summaries, and explicit access_level overrides for
-        # commands whose BaseCommand default (PLAYER=1) would otherwise
-        # mis-categorize them. Without this call those files were inert
-        # for the running server (they were already inert for the portal —
-        # the static loader that read them was dead code; both have been
-        # consolidated through HelpManager now).
-        n_md = help_mgr.load_markdown_files()
         from parser.builtin_commands import HelpCommand
         HelpCommand._help_mgr = help_mgr
         # Bind to the GameServer instance so the web portal's
@@ -216,8 +209,8 @@ class GameServer:
         # "help_mgr", None). Without this, the handler returns 503 and the
         # portal Reference page spins forever.
         self.help_mgr = help_mgr
-        log.info("Help system initialized: %d entries (%d from markdown)",
-                 len(help_mgr._entries), n_md)
+        log.info("Help system initialized: %d entries",
+                 len(help_mgr._entries))
 
         # AI system
         self.ai_manager = AIManager(AIConfig())

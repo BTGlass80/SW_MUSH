@@ -79,6 +79,44 @@ class AcceptMissionCommand(BaseCommand):
             return
 
         char = ctx.session.character
+
+        # DROP-5 ACCEPT-DISPATCH FIX (May 2026):
+        # `accept` is registered by both combat (PvP challenge accept,
+        # parser/combat_commands.py::AcceptCommand) and missions (this
+        # command). Mission registers later in game_server, so it
+        # shadowed the combat accept entirely — `accept Alice` (a PC
+        # name) returned "No mission 'alice' on the board." instead
+        # of accepting Alice's challenge. The PvP consent flow was
+        # effectively unreachable from `accept`.
+        #
+        # Smart-dispatch fix: before doing mission lookup, check if
+        # the arg names a PC in the same room with a pending challenge
+        # against this character. If so, route to the combat accept
+        # logic and skip the mission path. The mission path runs
+        # only when the arg doesn't resolve to a challenger.
+        from parser.combat_commands import (
+            _pvp_consent, _PVP_CHALLENGE_TTL, AcceptCommand,
+        )
+        import time as _t
+        room_id = char["room_id"]
+        from engine.matching import match_in_room
+        match = await match_in_room(
+            ctx.args.strip(), room_id, char["id"], ctx.db,
+            session_mgr=ctx.session_mgr,
+        )
+        if (match.found and
+                match.candidate.obj_type == "character"):
+            challenger_id = match.id
+            t_id = char["id"]
+            pending_ts = _pvp_consent.get((challenger_id, t_id), 0)
+            if pending_ts and _t.time() - pending_ts <= _PVP_CHALLENGE_TTL:
+                # Delegate to the combat AcceptCommand. It re-runs
+                # the same match_in_room lookup which is wasteful
+                # but keeps the two paths cleanly separated; the
+                # alternative is duplicating the consent-activation
+                # logic here, which fragments the source of truth.
+                return await AcceptCommand().execute(ctx)
+
         char_id = str(char["id"])
 
         # Check for existing active mission

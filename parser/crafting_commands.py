@@ -736,12 +736,16 @@ class TeachCommand(BaseCommand):
 
         target_name, schem_arg = parts[0], parts[1].strip()
 
-        # Find target session in same room via session_mgr
+        # Find target session in same room via session_mgr.
+        # W.2 phase 2: in wilderness, sessions_in_room with source_char
+        # restricts to PCs at the same wilderness tile, so cross-tile
+        # teaching is correctly refused.
         target_session = None
-        for sess in ctx.session_mgr.all:
+        for sess in ctx.session_mgr.sessions_in_room(
+            char.get("room_id"), source_char=char,
+        ):
             if (sess.character and
-                    sess.character.get("name", "").lower() == target_name.lower() and
-                    sess.character.get("room_id") == char.get("room_id")):
+                    sess.character.get("name", "").lower() == target_name.lower()):
                 target_session = sess
                 break
 

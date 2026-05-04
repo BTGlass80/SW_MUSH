@@ -81,6 +81,28 @@ class WildernessLandmark:
 
 
 @dataclass
+class WildernessEdge:
+    """A connection between a hand-built room and a wilderness tile.
+
+    Per W.2 phase 2 (May 3 2026): when a player in ``room_slug`` types
+    ``direction_from_room``, they enter wilderness at ``coords``.
+    When a player at ``coords`` types ``direction_back_to_room``, they
+    exit back to ``room_slug``.
+
+    Validated by the loader:
+      - room_slug must be a non-empty string
+      - coords must be in-bounds for the region
+      - direction_from_room and direction_back_to_room must be present
+    """
+    room_slug: str
+    coords: tuple
+    direction_from_room: str
+    direction_back_to_room: str
+    enter_message: str = ""
+    exit_message: str = ""
+
+
+@dataclass
 class WildernessRegion:
     """A complete loaded wilderness region."""
     slug: str
@@ -96,6 +118,9 @@ class WildernessRegion:
     landmarks: list         # WildernessLandmark in YAML order
     narrative_tone_key: str = ""
     schema_version: int = 1
+    # ── W.2 phase 2 additions (May 3 2026, post Evennia review) ─────────
+    edges: list = field(default_factory=list)         # WildernessEdge
+    unwalkable_tiles: dict = field(default_factory=dict)  # (x, y) -> reason
 
 
 @dataclass
@@ -295,6 +320,18 @@ def load_wilderness_region(
     if force_resonant_path:
         _merge_force_resonant_content(landmarks, force_resonant_path, report)
 
+    # ── Parse edges (W.2 phase 2) ────────────────────────────────────────
+    edges = _parse_edges(
+        data.get("edges") or [],
+        grid_width, grid_height, report,
+    )
+
+    # ── Parse unwalkable_tiles (W.2 phase 2 / Evennia review) ────────────
+    unwalkable_tiles = _parse_unwalkable_tiles(
+        data.get("unwalkable_tiles") or [],
+        grid_width, grid_height, report,
+    )
+
     # ── Build region ─────────────────────────────────────────────────────
     region = WildernessRegion(
         slug=region_meta["slug"],
@@ -310,11 +347,135 @@ def load_wilderness_region(
         landmarks=landmarks,
         narrative_tone_key=region_meta.get("narrative_tone_key", ""),
         schema_version=schema_version,
+        edges=edges,
+        unwalkable_tiles=unwalkable_tiles,
     )
 
     report.ok = True
     report.region = region
     return report
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# W.2 phase 2: edge + unwalkable parsing helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _parse_edges(raw_edges, grid_width, grid_height, report) -> list:
+    """Parse YAML `edges:` block into WildernessEdge instances.
+
+    Bad edges produce warnings and are dropped; load succeeds with the
+    valid subset rather than failing wholesale.
+    """
+    edges = []
+    for i, raw in enumerate(raw_edges):
+        if not isinstance(raw, dict):
+            report.warnings.append(f"Edge #{i}: not a dict, skipping")
+            continue
+
+        room_slug = (raw.get("room_slug") or "").strip()
+        if not room_slug:
+            report.warnings.append(f"Edge #{i}: missing room_slug, skipping")
+            continue
+
+        coords_raw = raw.get("coords")
+        if not (isinstance(coords_raw, (list, tuple)) and len(coords_raw) == 2):
+            report.warnings.append(
+                f"Edge #{i} ({room_slug!r}): coords must be [x, y], skipping"
+            )
+            continue
+
+        try:
+            x, y = int(coords_raw[0]), int(coords_raw[1])
+        except (TypeError, ValueError):
+            report.warnings.append(
+                f"Edge #{i} ({room_slug!r}): coords not integers, skipping"
+            )
+            continue
+
+        if not (0 <= x < grid_width and 0 <= y < grid_height):
+            report.warnings.append(
+                f"Edge #{i} ({room_slug!r}): coords ({x}, {y}) out of bounds, skipping"
+            )
+            continue
+
+        direction_from = (raw.get("direction_from_room") or "").strip()
+        direction_back = (raw.get("direction_back_to_room") or "").strip()
+        if not direction_from or not direction_back:
+            report.warnings.append(
+                f"Edge #{i} ({room_slug!r}): direction_from_room and "
+                f"direction_back_to_room are both required, skipping"
+            )
+            continue
+
+        edges.append(WildernessEdge(
+            room_slug=room_slug,
+            coords=(x, y),
+            direction_from_room=direction_from.lower(),
+            direction_back_to_room=direction_back.lower(),
+            enter_message=str(raw.get("enter_message") or "").strip(),
+            exit_message=str(raw.get("exit_message") or "").strip(),
+        ))
+    return edges
+
+
+def _parse_unwalkable_tiles(raw_unwalkable, grid_width, grid_height, report) -> dict:
+    """Parse `unwalkable_tiles:` block into a coords→reason dict.
+
+    Supports two entry shapes:
+      - {coords: [x, y], reason: "..."}
+      - {region_block: {x1, y1, x2, y2}, reason: "..."}
+    """
+    unwalkable: dict = {}
+    for i, raw in enumerate(raw_unwalkable):
+        if not isinstance(raw, dict):
+            report.warnings.append(f"unwalkable_tiles #{i}: not a dict, skipping")
+            continue
+
+        reason = str(raw.get("reason") or "You can't go that way.").strip()
+
+        if "coords" in raw:
+            coords_raw = raw["coords"]
+            if not (isinstance(coords_raw, (list, tuple)) and len(coords_raw) == 2):
+                report.warnings.append(
+                    f"unwalkable_tiles #{i}: coords must be [x, y], skipping"
+                )
+                continue
+            try:
+                x, y = int(coords_raw[0]), int(coords_raw[1])
+            except (TypeError, ValueError):
+                report.warnings.append(
+                    f"unwalkable_tiles #{i}: coords not integers, skipping"
+                )
+                continue
+            if not (0 <= x < grid_width and 0 <= y < grid_height):
+                report.warnings.append(
+                    f"unwalkable_tiles #{i}: ({x}, {y}) out of bounds, skipping"
+                )
+                continue
+            unwalkable[(x, y)] = reason
+
+        elif "region_block" in raw:
+            blk = raw["region_block"] or {}
+            try:
+                x1 = int(blk["x1"]); y1 = int(blk["y1"])
+                x2 = int(blk["x2"]); y2 = int(blk["y2"])
+            except (KeyError, TypeError, ValueError):
+                report.warnings.append(
+                    f"unwalkable_tiles #{i}: region_block needs x1/y1/x2/y2 ints, skipping"
+                )
+                continue
+            x_lo, x_hi = min(x1, x2), max(x1, x2)
+            y_lo, y_hi = min(y1, y2), max(y1, y2)
+            for xx in range(x_lo, x_hi + 1):
+                for yy in range(y_lo, y_hi + 1):
+                    if 0 <= xx < grid_width and 0 <= yy < grid_height:
+                        unwalkable[(xx, yy)] = reason
+        else:
+            report.warnings.append(
+                f"unwalkable_tiles #{i}: needs `coords` or `region_block`, skipping"
+            )
+
+    return unwalkable
 
 
 def _merge_force_resonant_content(

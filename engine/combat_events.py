@@ -188,11 +188,11 @@ def make_die(
 
 
 def build_dice_pool_roll(
-    pool_text: str,
-    pool_dice: int,
-    pool_pips: int,
-    total: int,
-    dice: Sequence[dict],
+    pool_text: str = None,
+    pool_dice: int = None,
+    pool_pips: int = None,
+    total: int = None,
+    dice: Sequence[dict] = None,
     *,
     complication: bool = False,
     exploded: bool = False,
@@ -200,6 +200,25 @@ def build_dice_pool_roll(
     cp_spent: int = 0,
     cp_rolls: Optional[Sequence[int]] = None,
     cp_bonus: int = 0,
+    # ── Legacy v1.0 API (DROP-5 compat shim, May 2026) ───────────────────
+    # Three call sites in engine/combat.py invoke this helper with
+    # roll_result + label + component_sizes — the pre-v1.1 API. The
+    # v1.1 refactor changed the signature to require pre-built per-die
+    # descriptors but never updated those call sites. Result: every
+    # combat resolution event since the v1.1 schema landed silent-failed
+    # with `TypeError: build_dice_pool_roll() got an unexpected keyword
+    # argument 'roll_result'` (caught by the broad `except` around the
+    # event factory). The web client's combat-resolution inspector got
+    # nothing.
+    #
+    # The shim translates the legacy kwargs into the v1.1 payload with
+    # full per-die source provenance derived from component_sizes. New
+    # callers should use the v1.1 keyword set directly; this branch is
+    # for bug-compat with the existing combat.py call sites until they
+    # can be refactored.
+    roll_result=None,
+    label: Optional[str] = None,
+    component_sizes: Optional[Sequence[tuple]] = None,
 ) -> dict:
     """Build a ``DicePoolRoll`` payload (design v1.1 §4 schema).
 
@@ -230,9 +249,86 @@ def build_dice_pool_roll(
             explode on 6 with no mishap; see ``engine/dice.py``).
         cp_bonus: Total contribution from CP dice.
 
+    Legacy v1.0 args (compat shim):
+        roll_result: A ``RollResult`` from ``engine/dice.py``. When
+            provided, ``pool_text``/``pool_dice``/``pool_pips``/
+            ``total``/``dice``/``complication``/``exploded``/
+            ``removed_die_value`` are derived from it.
+        label: Currently unused — kept for signature compat. The
+            display label lives on the surrounding event payload.
+        component_sizes: Sequence of ``(source, n_dice)`` tuples
+            describing the provenance of each block of dice. Used
+            to assign ``source`` tags to per-die descriptors when
+            translating from a flat ``RollResult.normal_dice``.
+
     Returns:
         Dict matching the ``DicePoolRoll`` shape in design v1.1 §4.
     """
+    # Legacy path: translate roll_result + component_sizes into the
+    # v1.1 schema. This is the path engine/combat.py currently uses.
+    if roll_result is not None:
+        pool = roll_result.pool
+        pool_text = pool_text if pool_text is not None else str(pool)
+        pool_dice = pool_dice if pool_dice is not None else int(pool.dice)
+        pool_pips = pool_pips if pool_pips is not None else int(pool.pips)
+        total = total if total is not None else int(roll_result.total)
+        complication = complication or bool(roll_result.complication)
+        exploded = exploded or bool(roll_result.exploded)
+        if removed_die_value is None:
+            removed_die_value = roll_result.removed_die
+
+        # Build per-die descriptors. We have a flat list of
+        # roll_result.normal_dice (ints) plus optional component_sizes
+        # telling us how many dice came from each source. Zip them
+        # together; if component_sizes is missing or doesn't sum to
+        # len(normal_dice), tag the remainder as SOURCE_SKILL by
+        # convention (matches the existing fallback at combat.py:389).
+        if dice is None:
+            dice_list: list = []
+            normal_values = list(roll_result.normal_dice or [])
+            sizes = list(component_sizes or [])
+            cursor = 0
+            for source, count in sizes:
+                if source not in VALID_SOURCES:
+                    # Unknown source — coerce to SOURCE_SKILL rather
+                    # than raising, so a single bad component_sizes
+                    # entry doesn't kill the whole event.
+                    source = SOURCE_SKILL
+                for _ in range(int(count)):
+                    if cursor >= len(normal_values):
+                        break
+                    dice_list.append(make_die(
+                        value=normal_values[cursor], source=source,
+                    ))
+                    cursor += 1
+            # Any leftover normal dice get tagged SOURCE_SKILL.
+            while cursor < len(normal_values):
+                dice_list.append(make_die(
+                    value=normal_values[cursor], source=SOURCE_SKILL,
+                ))
+                cursor += 1
+            # Wild Die: tagged SOURCE_SKILL by convention (matches
+            # the design — the Wild Die is part of the skill pool).
+            wild = roll_result.wild_die
+            if wild is not None:
+                dice_list.append(make_die(
+                    value=int(getattr(wild, "total", 0)),
+                    source=SOURCE_SKILL,
+                    is_wild=True,
+                    exploded=bool(getattr(wild, "exploded", False)),
+                    explosion_chain=list(getattr(wild, "rolls", []) or [])
+                                    if getattr(wild, "exploded", False)
+                                    else None,
+                ))
+            dice = dice_list
+
+    # Defensive defaults for the v1.1 path if a caller omits something.
+    pool_text = pool_text if pool_text is not None else ""
+    pool_dice = pool_dice if pool_dice is not None else 0
+    pool_pips = pool_pips if pool_pips is not None else 0
+    total = total if total is not None else 0
+    dice = dice if dice is not None else []
+
     return {
         "pool_text": pool_text,
         "pool_dice": int(pool_dice),
@@ -438,14 +534,25 @@ def make_soak_component(
 
 def build_wound_outcome(
     *,
-    outcome_type: str,
-    display_name: str,
+    outcome_type: Optional[str] = None,
+    display_name: Optional[str] = None,
     wound_level_before: Optional[str] = None,
     wound_level_after: Optional[str] = None,
     wound_level_delta: int = 0,
     stun_duration_dice: Optional[str] = None,
     stun_duration_unit: Optional[str] = None,
     drama_text: Optional[str] = None,
+    # ── Legacy v1.0 API (DROP-5 compat shim, May 2026) ───────────────────
+    # engine/combat.py:465 calls with hit/wound_text/damage_margin/
+    # stun_mode/stun_knocked_out/target_can_act — the pre-v1.1 API.
+    # Same drift class as the build_dice_pool_roll fix in this drop.
+    # See classify_wound_outcome for the legacy → outcome_type mapping.
+    hit: Optional[bool] = None,
+    wound_text: Optional[str] = None,
+    damage_margin: Optional[int] = None,
+    stun_mode: Optional[bool] = None,
+    stun_knocked_out: Optional[bool] = None,
+    target_can_act: Optional[bool] = None,
 ) -> dict:
     """Build a ``WoundOutcome`` payload (design v1.1 §4 + §4.2).
 
@@ -474,6 +581,14 @@ def build_wound_outcome(
         drama_text: Optional drama narration the engine produces for
             severe wounds.
 
+    Legacy v1.0 args (compat shim):
+        hit, wound_text, damage_margin, stun_mode, stun_knocked_out,
+        target_can_act: When ``hit`` is provided, ``outcome_type`` is
+        derived via ``classify_wound_outcome`` and ``display_name``
+        is taken from ``wound_text``. ``stun_knocked_out`` is ignored
+        — the classifier infers stun-unconscious from
+        ``stun_mode + damage_margin``.
+
     Returns:
         Dict matching the ``WoundOutcome`` shape in design v1.1 §4.
 
@@ -481,6 +596,27 @@ def build_wound_outcome(
         ValueError: if ``outcome_type`` is invalid, or if duration
             fields are populated for non-stun-unconscious outcomes.
     """
+    # Legacy path: derive outcome_type + display_name from the v1.0
+    # kwargs. The classifier lives below as a pure function so this
+    # branch stays one-line.
+    if hit is not None and outcome_type is None:
+        outcome_type = classify_wound_outcome(
+            hit=bool(hit),
+            stun_mode=bool(stun_mode),
+            damage_margin=int(damage_margin or 0),
+            target_can_act=bool(target_can_act)
+                            if target_can_act is not None else True,
+        )
+    if display_name is None:
+        display_name = wound_text or ""
+
+    # Defensive default — the v1.1 path requires outcome_type, so
+    # if neither path supplied it we can't construct a valid payload.
+    if outcome_type is None:
+        raise ValueError(
+            "build_wound_outcome: outcome_type required (or pass "
+            "the legacy hit/wound_text/damage_margin/stun_mode args)"
+        )
     if outcome_type not in VALID_OUTCOMES:
         raise ValueError(
             f"Unknown outcome_type {outcome_type!r}; "

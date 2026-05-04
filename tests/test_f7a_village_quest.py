@@ -306,7 +306,14 @@ class TestStep1HermitTalk:
         ))
         # Already at ACT_INVITED — no further mutation
         assert char["village_act"] == ACT_INVITED
-        assert session.lines_sent == []
+        # F.7.b (May 4 2026): the Hermit now emits a deterministic
+        # after_line for invited PCs (see test_f7b_village_dialogue.py
+        # ::TestHermitAfterLines). The presence of output here is
+        # the intended new behavior. Verify the act state, not the
+        # output silence.
+        # No invitation-delivered message (one-time, already fired)
+        joined = "\n".join(session.lines_sent)
+        assert "have been invited" not in joined
 
     def test_case_insensitive_hermit_match(self):
         char = _new_char(act=ACT_PRE_INVITATION, signs=FORCE_SIGNS_FOR_INVITATION)
