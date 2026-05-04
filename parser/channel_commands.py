@@ -133,51 +133,17 @@ class FcommCommand(BaseCommand):
 
 
 # ── Faction Management ────────────────────────────────────────────────────────
-
-class FactionCommand(BaseCommand):
-    key = "+faction"
-    aliases = ["faction", "affiliation"]
-    help_text = (
-        "View or set your faction affiliation.\n"
-        "  Use 'faction set <name>' to change.\n"
-        "  Valid factions vary by era — see 'faction' (no args) for\n"
-        "  the current list.\n"
-        "  Usage: faction              -- show current faction\n"
-        "         faction set <name>   -- change faction"
-    )
-    usage = "faction [set <faction>]"
-
-    async def execute(self, ctx: CommandContext):
-        char = ctx.session.character
-        if not char:
-            return
-        args = (ctx.args or "").strip()
-        if not args:
-            faction = get_faction(char)
-            label = FACTION_LABELS.get(faction, faction.title())
-            valid = ", ".join(FACTION_LABELS.values())
-            await ctx.session.send_line(ansi.header("=== Faction ==="))
-            await ctx.session.send_line(f"  Current affiliation: {ansi.highlight(label)}")
-            await ctx.session.send_line(f"  Valid factions: {valid}")
-            await ctx.session.send_line("  Change with: faction set <name>")
-            return
-        sub, _, rest = args.partition(" ")
-        if sub.lower() != "set" or not rest.strip():
-            await ctx.session.send_line("  Usage: faction set <faction name>")
-            return
-        new_faction = rest.strip().lower()
-        if new_faction not in FACTIONS:
-            valid = ", ".join(FACTION_LABELS.values())
-            await ctx.session.send_line(ansi.error(f"Unknown faction '{rest.strip()}'. Valid: {valid}"))
-            return
-        old_faction = get_faction(char)
-        if new_faction == old_faction:
-            await ctx.session.send_line(f"  You are already {FACTION_LABELS[new_faction]}.")
-            return
-        await _save_faction(ctx, char["id"], new_faction)
-        await ctx.session.send_line(
-            ansi.success(f"Faction set to {ansi.highlight(FACTION_LABELS[new_faction])}.")
-        )
+# The previous version of this file shipped a small FactionCommand class
+# here (key="+faction", aliases=["faction","affiliation"]) that did
+# nothing more than `+faction` view and `+faction set <name>`. It
+# silently shadowed the much more capable FactionUmbrellaCommand /
+# FactionCommand pair in parser/faction_commands.py because
+# register_channel_commands runs after register_faction_commands and
+# the registry is last-writer-wins. Removed in the May 2026 prefix
+# normalization pass — `faction_commands.py` is now the single owner
+# of `+faction` and `faction`. The faction-channel helpers
+# (get_faction / FACTIONS / FACTION_LABELS / _save_faction) used by
+# fcomm and channels remain because they're independent infrastructure.
 
 
 # ── Custom Frequency ──────────────────────────────────────────────────────────
@@ -398,7 +364,8 @@ def register_channel_commands(registry):
     registry.register(OocCommand())
     registry.register(ComlinkCommand())
     registry.register(FcommCommand())
-    registry.register(FactionCommand())
+    # FactionCommand removed — see comment block where the class used to
+    # live. Faction registration is owned by parser/faction_commands.py.
     registry.register(TuneCommand())
     registry.register(UntuneCommand())
     registry.register(FreqsCommand())
@@ -406,6 +373,6 @@ def register_channel_commands(registry):
     registry.register(ChannelsCommand())
     registry.register(WhoCommand())
     log.info(
-        "[channels] Registered: ooc, comlink, fcomm, faction, "
+        "[channels] Registered: ooc, comlink, fcomm, "
         "tune, untune, freqs, commfreq, channels, who"
     )

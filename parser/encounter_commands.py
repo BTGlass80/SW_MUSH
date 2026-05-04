@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 class RespondCommand(BaseCommand):
     """Select a choice in the active space encounter."""
-    name = "respond"
+    key = "respond"
     aliases = ["resp"]
     help_text = (
         "Respond to an active space encounter by choosing an option.\n"
@@ -63,7 +63,7 @@ class RespondCommand(BaseCommand):
 
 class StationActCommand(BaseCommand):
     """Perform a station-specific action during a multi-crew encounter."""
-    name = "stationact"
+    key = "stationact"
     aliases = ["sa"]
     help_text = (
         "Perform a station-specific action during a space encounter.\n"
@@ -115,7 +115,7 @@ class StationActCommand(BaseCommand):
 
 class EncounterStatusCommand(BaseCommand):
     """Show the current encounter status."""
-    name = "encounter"
+    key = "encounter"
     aliases = ["enc"]
     help_text = (
         "Show the status of your current space encounter, if any.\n"
@@ -169,107 +169,6 @@ class EncounterStatusCommand(BaseCommand):
         await ctx.session.send_line("\n".join(lines))
 
 
-class InvestigateCommand(BaseCommand):
-    """Investigate a fully-resolved anomaly to trigger its encounter."""
-    name = "investigate"
-    aliases = ["inv_anomaly"]
-    help_text = (
-        "Investigate a fully-resolved anomaly to see what's there.\n"
-        "  investigate <anomaly_id>  — approach and interact with the anomaly\n"
-        "\n"
-        "Anomalies must be fully resolved via 'deepscan' first.\n"
-        "Derelicts use 'salvage' instead."
-    )
-
-    async def execute(self, ctx: CommandContext):
-        char = ctx.session.character
-        if not char:
-            await ctx.session.send_line("  You must be in the game.")
-            return
-
-        if not ctx.args.strip():
-            await ctx.session.send_line("  Usage: investigate <anomaly_id>")
-            return
-
-        try:
-            anomaly_id = int(ctx.args.strip())
-        except ValueError:
-            await ctx.session.send_line("  Usage: investigate <anomaly_id>")
-            return
-
-        ship = await _get_ship_for_session(ctx)
-        if ship is None:
-            await ctx.session.send_line("  You're not aboard a ship.")
-            return
-        if ship.get("docked_at"):
-            await ctx.session.send_line("  Must be in open space.")
-            return
-
-        from engine.json_safe import load_ship_systems
-        systems = load_ship_systems(ship)
-        zone_id = systems.get("current_zone", "")
-
-        from engine.space_anomalies import get_anomaly_by_id, remove_anomaly
-
-        anomaly = get_anomaly_by_id(zone_id, anomaly_id)
-        if anomaly is None:
-            await ctx.session.send_line(
-                f"  No anomaly #{anomaly_id} in this zone.")
-            return
-
-        if anomaly.resolution < anomaly.scans_needed:
-            await ctx.session.send_line(
-                f"  Anomaly #{anomaly_id} not fully resolved. "
-                f"Use 'deepscan {anomaly_id}' to scan further.")
-            return
-
-        # Derelicts use 'salvage' command
-        if anomaly.anomaly_type == "derelict":
-            await ctx.session.send_line(
-                "  Use 'salvage' to strip a derelict for components.")
-            return
-
-        # Map anomaly type to encounter type
-        encounter_type_map = {
-            "distress":     "distress",
-            "cache":        "cache",
-            "pirates":      "pirate_nest",
-            "mineral_vein": "mineral_vein",
-            "imperial":     "imperial",
-            "mynock":       "mynock",
-        }
-
-        enc_type = encounter_type_map.get(anomaly.anomaly_type)
-        if not enc_type:
-            await ctx.session.send_line(
-                f"  Can't investigate anomaly type '{anomaly.anomaly_type}'.")
-            return
-
-        from engine.space_encounters import get_encounter_manager
-        mgr = get_encounter_manager()
-
-        enc = await mgr.create_encounter(
-            encounter_type=enc_type,
-            zone_id=zone_id,
-            target_ship_id=ship["id"],
-            target_bridge_room=ship.get("bridge_room_id", 0),
-            db=ctx.db,
-            session_mgr=ctx.session_mgr,
-            context={
-                "anomaly_id": anomaly_id,
-                "anomaly_type": anomaly.anomaly_type,
-            },
-        )
-
-        if enc:
-            # Consume the anomaly
-            remove_anomaly(zone_id, anomaly_id)
-        else:
-            await ctx.session.send_line(
-                "  Can't investigate right now (encounter cooldown or "
-                "another encounter active).")
-
-
 # ── Helper ───────────────────────────────────────────────────────────────────
 
 async def _get_ship_for_session(ctx: CommandContext):
@@ -283,9 +182,16 @@ async def _get_ship_for_session(ctx: CommandContext):
 # ── Registration ─────────────────────────────────────────────────────────────
 
 def register_encounter_commands(registry):
-    """Register encounter commands with the command registry."""
+    """Register encounter commands with the command registry.
+
+    Note: the former InvestigateCommand (anomaly mode) was folded into
+    parser/espionage_commands.py:InvestigateCommand which now dispatches
+    to anomaly logic when given a numeric arg. This kept `investigate
+    <anomaly_id>` working without two classes fighting over the same
+    key. See espionage_commands._investigate_anomaly for the helper.
+    """
     registry.register(RespondCommand())
     registry.register(StationActCommand())
     registry.register(EncounterStatusCommand())
-    registry.register(InvestigateCommand())
-    log.info("[encounters] encounter commands registered")
+    log.info("[encounters] encounter commands registered: "
+             "respond, stationact, encounter")

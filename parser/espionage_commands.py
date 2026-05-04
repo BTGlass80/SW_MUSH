@@ -225,22 +225,121 @@ class EavesdropCommand(BaseCommand):
 
 # ── Investigate Command ───────────────────────────────────────────────────────
 
+async def _investigate_anomaly(ctx: CommandContext, anomaly_id: int) -> None:
+    """Anomaly-mode dispatch for `investigate <id>`. Replaces the
+    silently-dead encounter_commands.InvestigateCommand which had a
+    `name =` typo where `key =` was needed.
+
+    Mirrors the original behaviour: must be aboard a ship in open
+    space, anomaly must be fully resolved (via deepscan), derelicts
+    are routed to `salvage` instead.
+    """
+    char = ctx.session.character
+    room_id = char.get("room_id", 0)
+    if not room_id:
+        await ctx.session.send_line("  You must be aboard a ship in space.")
+        return
+    ship = await ctx.db.get_ship_by_bridge(room_id)
+    if ship is None:
+        await ctx.session.send_line("  You're not aboard a ship.")
+        return
+    if ship.get("docked_at"):
+        await ctx.session.send_line("  Must be in open space.")
+        return
+
+    from engine.json_safe import load_ship_systems
+    systems = load_ship_systems(ship)
+    zone_id = systems.get("current_zone", "")
+
+    from engine.space_anomalies import get_anomaly_by_id, remove_anomaly
+    anomaly = get_anomaly_by_id(zone_id, anomaly_id)
+    if anomaly is None:
+        await ctx.session.send_line(f"  No anomaly #{anomaly_id} in this zone.")
+        return
+    if anomaly.resolution < anomaly.scans_needed:
+        await ctx.session.send_line(
+            f"  Anomaly #{anomaly_id} not fully resolved. "
+            f"Use 'deepscan {anomaly_id}' to scan further."
+        )
+        return
+    if anomaly.anomaly_type == "derelict":
+        await ctx.session.send_line(
+            "  Use 'salvage' to strip a derelict for components."
+        )
+        return
+
+    encounter_type_map = {
+        "distress":     "distress",
+        "cache":        "cache",
+        "pirates":      "pirate_nest",
+        "mineral_vein": "mineral_vein",
+        "imperial":     "imperial",
+        "mynock":       "mynock",
+    }
+    enc_type = encounter_type_map.get(anomaly.anomaly_type)
+    if not enc_type:
+        await ctx.session.send_line(
+            f"  Can't investigate anomaly type '{anomaly.anomaly_type}'."
+        )
+        return
+
+    from engine.space_encounters import get_encounter_manager
+    mgr = get_encounter_manager()
+    enc = await mgr.create_encounter(
+        encounter_type=enc_type,
+        zone_id=zone_id,
+        target_ship_id=ship["id"],
+        target_bridge_room=ship.get("bridge_room_id", 0),
+        db=ctx.db,
+        session_mgr=ctx.session_mgr,
+        context={
+            "anomaly_id":   anomaly_id,
+            "anomaly_type": anomaly.anomaly_type,
+        },
+    )
+    if enc:
+        remove_anomaly(zone_id, anomaly_id)
+    else:
+        await ctx.session.send_line(
+            "  Can't investigate right now (encounter cooldown or "
+            "another encounter active)."
+        )
+
+
 class InvestigateCommand(BaseCommand):
     key = "investigate"
     aliases = ["search", "inspect"]
     help_text = (
-        "Search the current room for hidden information.\n"
-        "Uses Search skill. Finds clues based on room state.\n"
+        "Search the current room for hidden information, or — when\n"
+        "aboard a ship in open space — investigate a fully-resolved\n"
+        "anomaly. The two modes are dispatched by the argument shape:\n"
+        "  investigate                — Search skill check on this room\n"
+        "  investigate <anomaly_id>   — approach a scanned anomaly\n"
+        "                                (numeric arg triggers anomaly mode)\n"
         "\n"
-        "USAGE: investigate\n"
-        "COOLDOWN: 30 minutes per room"
+        "Anomalies must first be fully resolved with 'deepscan'.\n"
+        "Derelicts use 'salvage' instead.\n"
+        "Room search has a 30-minute per-room cooldown."
     )
-    usage = "investigate"
+    usage = "investigate [anomaly_id]"
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
         if not char:
             return
+
+        # ── Anomaly-mode dispatch ────────────────────────────────────────
+        # If the player passed a numeric arg, route to the anomaly
+        # handler. The encounter_commands.InvestigateCommand class used
+        # to live in its own file with `name = "investigate"` (a typo
+        # for `key =`), so it never registered and this UX was dead.
+        # The behaviour was documented in engine/encounter_anomaly.py
+        # and engine/space_anomalies.py; this dispatcher revives it.
+        arg = (ctx.args or "").strip()
+        if arg.isdigit():
+            await _investigate_anomaly(ctx, int(arg))
+            return
+
         room_id = char["room_id"]
 
         # Cooldown (30 min per room)

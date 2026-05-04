@@ -942,40 +942,62 @@ def register_shop_commands(registry):
 
 class MarketSearchCommand(BaseCommand):
     """
-    market search [planet]  — Search the planet-wide shopfront directory.
-    Lists all vendor droids in player-owned shopfront residences.
-    Drop 5: Housing Shopfronts.
+    market           — Cargo trade-good prices at the docked port (S6 trading).
+    market <planet>  — Cargo prices at a specific planet (planning, no docked req).
+    market search [planet | all]
+                     — Search the planet-wide shopfront directory (player-run shops).
+
+    May 2026 prefix-normalization fix: this class used to silently shadow
+    space_commands.MarketCommand (the original `market` cargo-prices
+    handler) because both registered key="market" and shop_commands
+    loaded later. Now the two are unified: the search subcommand below
+    keeps the housing-shopfront UX, every other invocation forwards to
+    the cargo-prices helper. No surprises for either set of users.
     """
     key = "market"
     aliases = ["mkt"]
     help_text = (
-        "Search the planetary market directory for player-run shops.\n"
+        "Show trade-good prices, or search player-run shopfronts.\n"
         "\n"
         "USAGE:\n"
-        "  market search           — list all shopfronts on the current planet\n"
-        "  market search <planet>  — list shopfronts on a specific planet\n"
-        "  market search all       — list all shopfronts across all planets\n"
+        "  market                   — cargo prices at your docked port\n"
+        "  market <planet>          — cargo prices at any planet (planning)\n"
+        "  market search            — list shopfronts on the current planet\n"
+        "  market search <planet>   — list shopfronts on a specific planet\n"
+        "  market search all        — list every shopfront, all planets\n"
         "\n"
-        "Only vendor droids placed in player-owned shopfront residences appear here.\n"
-        "Use 'browse <shop name>' to browse a specific shop's inventory."
+        "Cargo prices require you to be docked (or pass a planet name).\n"
+        "Shopfronts list player-owned vendor droids; use 'browse <shop>'\n"
+        "to inspect a specific shop's inventory."
     )
-    usage = "market search [planet | all]"
+    usage = "market [search] [planet | all]"
 
     async def execute(self, ctx: CommandContext) -> None:
+        args = (ctx.args or "").strip()
+        first, _, _ = args.partition(" ")
+        # Anything that isn't `search ...` falls through to the cargo
+        # prices command. The bare `market` (no args) is the most
+        # common case and goes to cargo prices, matching the original
+        # behaviour the help text and other commands assume.
+        if first.lower() != "search":
+            from parser.space_commands import MarketCommand as _CargoPrices
+            await _CargoPrices().execute(ctx)
+            return
+
+        # ── shopfront search path (existing behaviour) ─────────────────
+        # Strip the leading 'search' so the rest of the logic is
+        # unchanged from before the dispatcher was introduced.
+        ctx.args = args[len("search"):].strip()
+        await self._search_shopfronts(ctx)
+
+    async def _search_shopfronts(self, ctx: CommandContext) -> None:
         from engine.housing import get_market_directory
 
         char    = ctx.session.character
         args    = (ctx.args or "").strip().lower()
-        parts   = args.split(None, 1)
-        sub     = parts[0] if parts else ""
-        planet  = parts[1].strip() if len(parts) > 1 else None
-
-        if sub not in ("search", ""):
-            await ctx.session.send_line(
-                "  Usage: market search [planet | all]\n"
-                "  Example: market search tatooine"
-            )
-            return
+        # `args` here is whatever followed `search` in the original
+        # input. May be empty (current planet) or a planet name or "all".
+        planet  = args.strip() or None
 
         # Determine planet filter: default to current room's planet
         if not planet or planet == "all":

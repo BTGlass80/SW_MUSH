@@ -5983,7 +5983,13 @@ def register_space_commands(registry):
         ShipRepairCommand(), MyShipsCommand(),
         LaunchCommand(), LandCommand(),
         ShipCommand(), ScanCommand(), DeepScanCommand(), SalvageCommand(),
-        MarketCommand(),
+        # MarketCommand intentionally NOT registered here. Both this
+        # file and shop_commands.py defined a `market` key, which
+        # silently clobbered each other (last-writer wins). The
+        # `market` key now belongs to shop_commands.MarketSearchCommand,
+        # which dispatches to MarketCommand().execute() for cargo-
+        # prices output and handles `market search` for shopfronts.
+        # Keep the class here as a callable helper.
         TransponderCommand(),
         OrderCommand(),
         PowerCommand(),
