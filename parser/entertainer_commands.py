@@ -40,6 +40,54 @@ _PARTIAL_PAY = 25
 # Performance difficulty
 _PERFORM_DIFFICULTY = 10
 
+# ── SRB.2 (May 22 2026) — Entertainer morale aura ────────────────────────
+#
+# Per support_role_buffs_design_v1.md §2.2: aura magnitude scales with
+# the perform-roll margin above difficulty.
+#
+# Margin       | Magnitude | Flavor
+# 1-4   basic  | 1         | "Pleasant background music"
+# 5-9   good   | 2         | "An engaging performance lifts the mood"
+# 10-14 excel. | 3         | "A genuinely inspiring performance"
+# 15+   heroic | 5         | "A once-in-a-lifetime performance"
+#
+# Note magnitude 4 is intentionally skipped — design uses 1/2/3/5.
+# Magnitude is the *difficulty reduction* applied by the aura-aware
+# skill-check helper to morale-flavored rolls in the same room.
+_AURA_DURATION_SECONDS = 1800   # 30 minutes per design §2.1
+_AURA_MIN_MARGIN = 1            # Any success creates at least a tier-1 aura
+
+# Fatigue per design §2.5
+_FATIGUE_WINDOW_SECONDS = 8 * 3600   # 8 hours of no-perform resets count
+_FATIGUE_PENALTY_PIPS = 3            # -1D per repeated perform
+
+# Aura flavor strings (room-look surface per design §2.6)
+_AURA_FLAVOR = {
+    1: "Pleasant background music here.",
+    2: "An engaging performance lifts the mood here.",
+    3: "A genuinely inspiring performance fills the room.",
+    5: "A once-in-a-lifetime performance — the room is electric.",
+}
+
+
+def _aura_magnitude_for_margin(margin: int) -> int:
+    """Map a perform-roll margin to an aura magnitude per design §2.2.
+
+    Returns 0 if the margin is below the minimum success threshold —
+    caller should still have checked `result.success` first, but the
+    floor is defensive.
+    """
+    if margin < _AURA_MIN_MARGIN:
+        return 0
+    if margin >= 15:
+        return 5
+    if margin >= 10:
+        return 3
+    if margin >= 5:
+        return 2
+    return 1
+
+
 # Flavor text pools
 _SUCCESS_MESSAGES = [
     "The cantina crowd cheers as the performance wraps up.",
@@ -164,9 +212,27 @@ class PerformCommand(BaseCommand):
         else:
             skill_name = "persuasion"
 
+        # ── SRB.2 fatigue: -1D per repeated perform within 8-hour window ──
+        # Read the current fatigue state; reset if the window has elapsed.
+        fatigue_count_before = 0
+        try:
+            resets_at, count = await ctx.db.get_perform_fatigue(char["id"])
+            if resets_at > 0 and now < resets_at:
+                fatigue_count_before = count
+        except Exception:
+            log.warning("perform: get_perform_fatigue failed",
+                        exc_info=True)
+
+        # Effective difficulty: bump by FATIGUE_PENALTY_PIPS per
+        # prior performance in the window. +3 difficulty ≈ -1D
+        # (same model SRB.1 used for self-stim per design §3.7).
+        effective_difficulty = (
+            _PERFORM_DIFFICULTY + fatigue_count_before * _FATIGUE_PENALTY_PIPS
+        )
+
         # ── Perform the skill check ──
         from engine.skill_checks import perform_skill_check
-        result = perform_skill_check(char, skill_name, _PERFORM_DIFFICULTY)
+        result = perform_skill_check(char, skill_name, effective_difficulty)
 
         # ── Check for cantina brawl world event (2x payout) ──
         brawl_mult = 1.0
@@ -211,6 +277,46 @@ class PerformCommand(BaseCommand):
                 char["id"], credits=new_credits, attributes=new_attrs
             )
 
+            # ── SRB.2 fatigue: bump count, refresh window ──
+            try:
+                await ctx.db.set_perform_fatigue(
+                    char_id=char["id"],
+                    resets_at=now + _FATIGUE_WINDOW_SECONDS,
+                    count=fatigue_count_before + 1,
+                )
+            except Exception:
+                log.warning("perform: set_perform_fatigue failed",
+                            exc_info=True)
+
+            # ── SRB.2 morale aura: write/refresh on success per §2.2 ──
+            # Magnitude is determined against the BASE difficulty (10),
+            # not the fatigue-adjusted effective difficulty. A tired
+            # performer who barely clears the high bar should still
+            # produce a tier-1 aura, not a tier-3 one — the audience
+            # judges the performance against the canonical bar, not
+            # the performer's effort.
+            base_margin = result.roll - _PERFORM_DIFFICULTY
+            aura_magnitude = _aura_magnitude_for_margin(base_margin)
+            if aura_magnitude > 0:
+                # "Higher aura wins" per §2.4 — only overwrite if our
+                # magnitude meets or exceeds the existing one.
+                try:
+                    existing = await ctx.db.get_morale_aura(room_id)
+                    existing_mag = 0
+                    if existing and existing.get("expires_at", 0) > now:
+                        existing_mag = int(existing.get("magnitude", 0))
+                    if aura_magnitude >= existing_mag:
+                        await ctx.db.set_morale_aura(
+                            room_id=room_id,
+                            performer_id=char["id"],
+                            magnitude=aura_magnitude,
+                            started_at=now,
+                            expires_at=now + _AURA_DURATION_SECONDS,
+                        )
+                except Exception:
+                    log.warning("perform: aura write failed",
+                                exc_info=True)
+
             brawl_note = " (Brawl bonus!)" if brawl_mult > 1.0 else ""
             await ctx.session.send_line(
                 f"  {ansi.BRIGHT_GREEN}[PERFORM]{ansi.RESET} "
@@ -218,7 +324,7 @@ class PerformCommand(BaseCommand):
             )
             await ctx.session.send_line(
                 f"  {ansi.DIM}({skill_name.title()} {result.pool_str}: "
-                f"{result.roll} vs {_PERFORM_DIFFICULTY}){ansi.RESET}"
+                f"{result.roll} vs {effective_difficulty}){ansi.RESET}"
             )
             await ctx.session_mgr.broadcast_to_room(
                 room_id,
@@ -242,6 +348,19 @@ class PerformCommand(BaseCommand):
                 char["id"], credits=new_credits, attributes=new_attrs
             )
 
+            # SRB.2 fatigue: partials count toward the per-day cap
+            # (it's "the audience had to sit through this", not "the
+            # performer worked hard enough to count it").
+            try:
+                await ctx.db.set_perform_fatigue(
+                    char_id=char["id"],
+                    resets_at=now + _FATIGUE_WINDOW_SECONDS,
+                    count=fatigue_count_before + 1,
+                )
+            except Exception:
+                log.warning("perform: set_perform_fatigue (partial) failed",
+                            exc_info=True)
+
             flavor = random.choice(_PARTIAL_MESSAGES)
             await ctx.session.send_line(
                 f"  {ansi.BRIGHT_YELLOW}[PERFORM]{ansi.RESET} "
@@ -249,7 +368,7 @@ class PerformCommand(BaseCommand):
             )
             await ctx.session.send_line(
                 f"  {ansi.DIM}({skill_name.title()} {result.pool_str}: "
-                f"{result.roll} vs {_PERFORM_DIFFICULTY}){ansi.RESET}"
+                f"{result.roll} vs {effective_difficulty}){ansi.RESET}"
             )
             await ctx.session_mgr.broadcast_to_room(
                 room_id,
@@ -279,7 +398,7 @@ class PerformCommand(BaseCommand):
             )
             await ctx.session.send_line(
                 f"  {ansi.DIM}({skill_name.title()} {result.pool_str}: "
-                f"{result.roll} vs {_PERFORM_DIFFICULTY}){ansi.RESET}"
+                f"{result.roll} vs {effective_difficulty}){ansi.RESET}"
             )
             await ctx.session_mgr.broadcast_to_room(
                 room_id,

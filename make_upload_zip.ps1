@@ -12,19 +12,36 @@
 #   - *.log                     (test/runtime logs)
 #   - *.db, *.db-wal, *.db-shm  (live SQLite database)
 #
-# Result: ~36 MB upload zip becomes ~5-7 MB. Faster uploads, lower
-# token cost, no semantic loss -- everything stripped is regenerable
-# or lives in git.
+#   *** NEW (2026-05-30): static/maps/ painted substrates ***
+#   The six *_substrate.png paintings are ~9.3 MB raw and ~9 MB even
+#   zipped (PNG is already compressed), i.e. the bulk of the upload.
+#   They are LIVE runtime assets (declared in area YAML, loaded by
+#   engine/area_loader.py) -- so they stay on disk and in git -- but
+#   the AI session does not need the binaries to work on code/design.
+#   Excluding them takes the upload from ~15 MB to ~5 MB with zero
+#   semantic loss. When a specific map's painting matters for a
+#   session, attach that one PNG to the chat directly.
+#
+#   Need them in the zip anyway?  ->  .\make_upload_zip.ps1 -IncludeMaps
+#
+# Result: ~36 MB raw tree -> ~5 MB upload zip. Faster uploads, lower
+# token cost, no semantic loss -- everything stripped is regenerable,
+# lives in git, or can be attached on demand.
 #
 # Usage (from C:\SW_MUSH):
-#   .\make_upload_zip.ps1
+#   .\make_upload_zip.ps1                 # default: maps excluded
+#   .\make_upload_zip.ps1 -IncludeMaps    # include the substrates
 #
 # Output:
-#   ..\SW_MUSH_upload_<timestamp>.zip
+#   %USERPROFILE%\Downloads\SW_MUSH_upload_<timestamp>.zip
 #
 # To verify what's in the zip without extracting:
 #   Get-ChildItem ..\SW_MUSH_upload_*.zip | Select-Object Length,Name
 # ============================================================================
+
+param(
+    [switch]$IncludeMaps   # opt back in to shipping static/maps/*.png
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -48,9 +65,14 @@ try {
     Write-Host "=== Building clean upload zip ===" -ForegroundColor Cyan
     Write-Host "Source:      $projectRoot"
     Write-Host "Destination: $zipPath"
+    if ($IncludeMaps) {
+        Write-Host "Maps:        INCLUDED (-IncludeMaps)" -ForegroundColor Yellow
+    } else {
+        Write-Host "Maps:        excluded (static/maps/ substrates skipped)" -ForegroundColor Gray
+    }
     Write-Host ""
 
-    # Patterns to exclude (matched against full relative path with forward slashes)
+    # Patterns to exclude (matched against full relative path with backslashes)
     $excludePatterns = @(
         '\\venv\\',
         '\\\.git\\',
@@ -59,6 +81,12 @@ try {
         '\\\.mypy_cache\\',
         '\\\.ruff_cache\\'
     )
+
+    # The painted map substrates -- the bulk of the upload weight.
+    # Skipped by default; -IncludeMaps puts them back.
+    if (-not $IncludeMaps) {
+        $excludePatterns += '\\static\\maps\\'
+    }
 
     $excludeExtensions = @(
         '.pyc',
@@ -133,7 +161,7 @@ try {
     Write-Host "Zip size:    $zipMB MB" -ForegroundColor Green
     Write-Host "Output:      $zipPath" -ForegroundColor Green
     Write-Host ""
-    Write-Host "Upload this file to Claude. The previous 36 MB zip is no longer needed." -ForegroundColor Yellow
+    Write-Host "Upload this file to Claude. The previous zip is no longer needed." -ForegroundColor Yellow
 }
 finally {
     Pop-Location

@@ -91,8 +91,10 @@ async def _check_hostile_npcs(ctx: CommandContext, room_id: int):
         return
 
     # Get or create combat
+    # W.2.4: _get_or_create_combat now takes a char (not room_id) so
+    # wilderness combats are keyed by (sentinel_room_id, wx, wy).
     cover_max = await ctx.db.get_room_property(room_id, "cover_max", 0)
-    combat = _get_or_create_combat(room_id, cover_max=cover_max)
+    combat = _get_or_create_combat(char, cover_max=cover_max)
     new_combat = combat.round_num == 0
 
     # Add the player
@@ -122,12 +124,14 @@ async def _check_hostile_npcs(ctx: CommandContext, room_id: int):
     await ctx.session_mgr.broadcast_to_room(
         room_id,
         ansi.combat_msg(f"{names} {'attacks' if len(added_names) == 1 else 'attack'}!"),
+        source_char=char,  # W.2.3.1: wilderness co-location filter
     )
 
     # Roll initiative
     if new_combat:
         events = combat.roll_initiative()
-        await _broadcast_events(events, ctx.session_mgr, room_id)
+        await _broadcast_events(events, ctx.session_mgr, room_id,
+                                source_char=combat.broadcast_source())
 
     # Auto-declare NPC actions
     await _auto_declare_npc_actions(combat, ctx)
@@ -189,7 +193,7 @@ class LookCommand(BaseCommand):
     # ── Helpers ────────────────────────────────────────────────────────────
 
     async def _room_header(self, ctx, session, char, room):
-        """Room name + security/housing/claim tags."""
+        """Room name + security/housing/claim/city tags."""
         _sec_tag = ""
         try:
             from engine.security import get_effective_security, security_label
@@ -216,8 +220,21 @@ class LookCommand(BaseCommand):
         except Exception:
             log.warning("_room_header: claim tag failed", exc_info=True)
 
+        # Player Cities Phase 3: [CITY: <name>] bracket tag
+        _city_tag = ""
+        try:
+            from engine.player_cities import (
+                get_city_for_room, format_city_header_tag,
+            )
+            _city = await get_city_for_room(ctx.db, char["room_id"])
+            if _city:
+                _city_tag = format_city_header_tag(_city)
+        except Exception:
+            log.warning("_room_header: city tag failed", exc_info=True)
+
         await session.send_line(
-            ansi.room_name(room["name"]) + _sec_tag + _housing_tag + _claim_tag)
+            ansi.room_name(room["name"]) + _sec_tag + _housing_tag
+            + _claim_tag + _city_tag)
 
     async def _room_environment(self, ctx, session, char):
         """Environment flavor line (lighting, cover)."""
@@ -279,6 +296,67 @@ class LookCommand(BaseCommand):
                     await session.send_line(_tz_line)
         except Exception:
             log.warning("_room_overlays: territory influence failed", exc_info=True)
+
+        # SRB.2 (May 22 2026): morale aura overlay per design §2.6.
+        # Renders a single line under the room description naming the
+        # active performer and the aura's effect. Suppressed if the
+        # aura has expired (the row is still on disk until the tick
+        # reaps it). Failure-tolerant: any DB issue silently no-ops.
+        try:
+            import time as _time
+            from parser.entertainer_commands import _AURA_FLAVOR
+            aura = await ctx.db.get_morale_aura(char["room_id"])
+            if aura and float(aura.get("expires_at", 0.0)) > _time.time():
+                magnitude = int(aura.get("magnitude", 0))
+                flavor = _AURA_FLAVOR.get(magnitude, "A performance is in progress.")
+                # Look up performer name; fall back to "Someone" if
+                # the character row is gone (shouldn't happen but be safe).
+                performer_name = "Someone"
+                try:
+                    perf = await ctx.db.get_character(aura["performer_id"])
+                    if perf:
+                        performer_name = perf.get("name") or performer_name
+                except Exception:
+                    log.debug(
+                        "_room_overlays: morale aura performer "
+                        "name lookup failed (best-effort)",
+                        exc_info=True,
+                    )
+                await session.send_line(
+                    f"  \033[36m\u266a {performer_name} is performing — {flavor}\033[0m"
+                )
+                await session.send_line(
+                    "  \033[2m(Morale-related rolls are easier in this room.)\033[0m"
+                )
+        except Exception:
+            log.warning("_room_overlays: morale aura failed", exc_info=True)
+
+        # Player Cities Phase 3 (May 22 2026) — city motd + banishment
+        # warning per design §12. Lookup the city by room (cheap; if
+        # absent, all overlays no-op). Motd renders for everyone;
+        # banishment warning renders only for banished viewers.
+        try:
+            from engine.player_cities import (
+                get_city_for_room, is_banished,
+            )
+            _city = await get_city_for_room(ctx.db, char["room_id"])
+            if _city:
+                _motd = (_city.get("motd") or "").strip()
+                if _motd:
+                    await session.send_line(
+                        f"  \033[2;3m— {_motd}\033[0m"
+                    )
+                if await is_banished(
+                    ctx.db, int(_city["id"]), int(char["id"])
+                ):
+                    await session.send_line(
+                        f"  \033[91m⚠ You are not welcome here. "
+                        f"Move along.\033[0m"
+                    )
+        except Exception:
+            log.warning(
+                "_room_overlays: city overlay failed", exc_info=True,
+            )
 
     async def _room_exits(self, ctx, session, char):
         """Display exits with locks and labels."""
@@ -448,6 +526,38 @@ class LookCommand(BaseCommand):
                     f"    Condition: {WoundLevel(wl).display_name}"
                 )
 
+            # ── WoW.2a: look self Force-connection descriptor ─────────
+            # Per weight_of_war_design_v1.md §6: when a Jedi PC looks
+            # at themselves, surface the narrative descriptor for the
+            # current Weight-of-War tier. Conditions for display:
+            #   - The looker IS the character being looked at (self).
+            #   - The character is a Jedi PC (engine.weight_of_war.
+            #     is_jedi_pc).
+            #   - Weight > 20 (the "at peace" tier is silent — no
+            #     descriptor — per design §6's table starting at
+            #     "Troubled" being the first signal). This avoids a
+            #     constant "you feel the Force flowing freely" message
+            #     that would be just noise.
+            # Other players looking at this character get no Weight
+            # signal — per design §3, this is private Force state.
+            try:
+                from engine.weight_of_war import (
+                    get_descriptor_for_char, get_weight, is_jedi_pc,
+                )
+                if c.data.get("id") == char.get("id"):
+                    if is_jedi_pc(c.data):
+                        wow_value = get_weight(c.data)
+                        if wow_value > 20:
+                            descriptor = get_descriptor_for_char(c.data)
+                            await ctx.session.send_line(
+                                f"    {ansi.color(descriptor, ansi.CYAN)}"
+                            )
+            except Exception:
+                log.warning(
+                    "_look_at: WoW descriptor render failed",
+                    exc_info=True,
+                )
+
         elif c.obj_type == "room":
             await ctx.session.send_line(f"  This is {c.name}.")
 
@@ -462,6 +572,30 @@ class LookCommand(BaseCommand):
         for other in others:
             if other["id"] != char["id"]:
                 present.append(other)
+        # ── P-M.2 (May 20 2026): batched bond-role lookup ──────────────
+        # Per padawan_master_system_design_v1.md §5.1 + v45 §8.12 #4:
+        # show [Padawan]/[Master] marker on bonded PCs in the room
+        # listing. Batched into a single SELECT to avoid N+1 queries
+        # on busy rooms. The marker literals live as module constants
+        # in parser/padawan_master_commands.py and are byte-grep-pinned
+        # by tests + smoke (v45 §6.2 seventh phantom-pattern discipline).
+        bond_roles: dict = {}
+        try:
+            from parser.padawan_master_commands import (
+                PADAWAN_MARKER, MASTER_MARKER,
+            )
+            if present:
+                bond_roles = await ctx.db.get_bond_roles_for_chars(
+                    [p["id"] for p in present]
+                )
+        except Exception:
+            log.warning(
+                "_look_room_contents: bond-role lookup failed; "
+                "markers will be omitted this turn",
+                exc_info=True,
+            )
+            PADAWAN_MARKER = ""
+            MASTER_MARKER = ""
         for other in present:
             equip_str = ""
             import json as _json
@@ -475,8 +609,27 @@ class LookCommand(BaseCommand):
             except Exception:
                 log.warning("execute: unhandled exception", exc_info=True)
                 pass
+            # +pvp display surface (May 18 2026): show a [PvP] marker
+            # after the flagged player's name so observers can see at a
+            # glance who's opted in. SECURED zones still refuse PvP
+            # regardless of flag state — the marker is informational, not
+            # a green light.
+            pvp_str = (" \033[1;31m[PvP]\033[0m"
+                       if other.get("pvp_flagged") else "")
+            # P-M.2 bond marker. 'both' shows both markers (rare: a
+            # Knight who has not yet been formally promoted past their
+            # own Master-bond but has taken a Padawan).
+            role = bond_roles.get(other["id"])
+            bond_str = ""
+            if role == "padawan":
+                bond_str = f" {PADAWAN_MARKER}"
+            elif role == "master":
+                bond_str = f" {MASTER_MARKER}"
+            elif role == "both":
+                bond_str = f" {PADAWAN_MARKER} {MASTER_MARKER}"
             await session.send_line(
-                f"  {ansi.player_name(other['name'])} is here{equip_str}."
+                f"  {ansi.player_name(other['name'])}{pvp_str}{bond_str} "
+                f"is here{equip_str}."
             )
 
         # NPCs in the room
@@ -523,6 +676,38 @@ class LookCommand(BaseCommand):
                         )
 
         await session.send_line("")
+
+        # ── PG.1.death.b (Drop 2d): corpses in the room ──
+        # Any non-decayed corpses show up between the NPC list and
+        # the vendor droids. Resolves owner-name from the
+        # characters table; tolerant of missing rows.
+        try:
+            _corpses = await ctx.db.get_corpses_in_room(char["room_id"])
+            for _cr in _corpses:
+                try:
+                    _owner = await ctx.db.get_character(_cr["char_id"])
+                except Exception:
+                    _owner = None
+                _owner_name = (_owner or {}).get("name", "") or "an unknown person"
+                # Resolve a friendly time-since-death.
+                try:
+                    import time as _t
+                    _age = max(0.0, _t.time() - float(_cr.get("died_at", 0.0)))
+                    if _age < 60:
+                        _age_str = "moments ago"
+                    elif _age < 3600:
+                        _age_str = f"{int(_age / 60)} minutes ago"
+                    else:
+                        _age_str = f"{int(_age / 3600)} hours ago"
+                except Exception:
+                    _age_str = "recently"
+                await session.send_line(
+                    f"  {ansi.dim('The body of')} "
+                    f"{ansi.player_name(_owner_name)}"
+                    f" {ansi.dim('lies here (' + _age_str + ').')}"
+                )
+        except Exception:
+            log.debug("look: corpse listing failed", exc_info=True)
 
         # Vendor droids in the room (player shops)
         try:
@@ -607,6 +792,29 @@ class LookCommand(BaseCommand):
             await session.send_line(
                 f"  \033[2mAmbient hazard: {tile['ambient_hazard']} "
                 f"(severity {tile['hazard_severity']})\033[0m"
+            )
+
+        # SYN.10 (May 25 2026): Region info block per design §2.6.
+        # Renders ownership, influence breakdown, weekly resource
+        # quality, and active contest under the security/movement
+        # tags. Failure-tolerant: any error silently no-ops so the
+        # wilderness look itself never breaks.
+        try:
+            from engine.territory_display import get_region_look_block
+            viewing_org = char.get("faction_id")
+            if viewing_org == "independent":
+                viewing_org = None
+            region_lines = await get_region_look_block(
+                ctx.db, slug, viewing_org_code=viewing_org, ansi=True,
+            )
+            if region_lines:
+                await session.send_line("")
+                for rline in region_lines:
+                    await session.send_line(rline)
+        except Exception:
+            log.warning(
+                "_look_wilderness: region info block failed",
+                exc_info=True,
             )
 
         # Adjacent terrain (compass-style)
@@ -700,6 +908,17 @@ class MoveCommand(BaseCommand):
         except Exception:
             pass  # Graceful
 
+        # SRB.2 (May 22 2026): if this character is the active performer
+        # in their old room, clear the morale aura on departure per
+        # design §2.1 ("until performer leaves the room"). Failure-
+        # tolerant: a DB error doesn't block the movement.
+        try:
+            old_aura = await ctx.db.get_morale_aura(old_room_id)
+            if old_aura and int(old_aura.get("performer_id", 0)) == char["id"]:
+                await ctx.db.clear_morale_aura(old_room_id)
+        except Exception:
+            log.warning("MoveCommand: aura-clear hook failed", exc_info=True)
+
         lock_d = self._parse_lock_data(exit_data)
 
         await self._broadcast_departure(ctx, session, char, old_room_id, direction, lock_d)
@@ -719,7 +938,8 @@ class MoveCommand(BaseCommand):
         )
         await look_cmd.execute(look_ctx)
 
-        await self._post_move_hooks(ctx, session, char, new_room_id)
+        await self._post_move_hooks(ctx, session, char, new_room_id,
+                                    direction=direction, exit_data=exit_data)
 
     # ── Helpers ────────────────────────────────────────────────────────────
 
@@ -808,6 +1028,24 @@ class MoveCommand(BaseCommand):
         except Exception:
             pass  # Graceful fallback — fail-open
 
+        # Player Cities Phase 5 (May 22 2026) §6.3 gate:
+        # Non-citizens (including guests) cannot enter rooms flagged
+        # citizen_only. Failure-tolerant: any exception in the cities
+        # layer logs and falls open per design §6.3 ("cities are
+        # public spaces by default").
+        try:
+            from engine.player_cities import can_enter_city_room
+            _allowed, _reason = await can_enter_city_room(
+                ctx.db, char, new_room_id,
+            )
+            if not _allowed:
+                await session.send_line(f"  \033[1;33m{_reason}\033[0m")
+                return True
+        except Exception:
+            log.warning(
+                "_check_exit_gates: city gate failed", exc_info=True,
+            )
+
         return False
 
     def _parse_lock_data(self, exit_data):
@@ -825,30 +1063,48 @@ class MoveCommand(BaseCommand):
         return _lock_d
 
     async def _broadcast_departure(self, ctx, session, char, old_room_id, direction, lock_d):
-        """Broadcast departure message to the old room."""
+        """Broadcast departure message to the old room.
+
+        W.2.3.1: ``source_char=char`` filters the broadcast to the old
+        room's co-located peers (in wilderness, same tile). In regular
+        rooms the kwarg is a no-op (no wilderness state on char).
+        """
         _osucc = (lock_d.get("osucc_msg") or "").strip()
         if _osucc:
             _osucc = _osucc.replace("%N", char["name"])
             await ctx.session_mgr.broadcast_to_room(
-                old_room_id, f"  {_osucc}", exclude=session)
+                old_room_id, f"  {_osucc}", exclude=session,
+                source_char=char,
+            )
         else:
             await ctx.session_mgr.broadcast_to_room(
                 old_room_id,
                 f"{ansi.player_name(char['name'])} leaves {direction}.",
-                exclude=session)
+                exclude=session,
+                source_char=char,
+            )
 
     async def _broadcast_arrival(self, ctx, session, char, new_room_id, lock_d):
-        """Broadcast arrival message to the new room."""
+        """Broadcast arrival message to the new room.
+
+        W.2.3.1: ``source_char=char`` filters to the new room's
+        co-located peers (in wilderness, the tile char just stepped
+        onto). In regular rooms the kwarg is a no-op.
+        """
         _odrop = (lock_d.get("odrop_msg") or "").strip()
         if _odrop:
             _odrop = _odrop.replace("%N", char["name"])
             await ctx.session_mgr.broadcast_to_room(
-                new_room_id, f"  {_odrop}", exclude=session)
+                new_room_id, f"  {_odrop}", exclude=session,
+                source_char=char,
+            )
         else:
             await ctx.session_mgr.broadcast_to_room(
                 new_room_id,
                 f"{ansi.player_name(char['name'])} arrives.",
-                exclude=session)
+                exclude=session,
+                source_char=char,
+            )
 
     async def _fire_room_hook(self, ctx, session, char, room_id, hook_name):
         """Fire ALEAVE/AENTER room hook."""
@@ -1025,6 +1281,41 @@ class MoveCommand(BaseCommand):
             source_char=char,  # filtered to new-tile peers
         )
 
+        # ── T2.WENC encounter roll (May 24 2026) ────────────────────────
+        # Per wilderness_system_design_v1.md §5: roll for a wilderness
+        # encounter on the new tile. The selector enforces the
+        # per-character 60s cooldown and filters the region's pool by
+        # terrain + edge distance + faction gate. Regions without an
+        # encounter pool no-op silently.
+        #
+        # This drop fires the encounter as a narrative broadcast only.
+        # NPC spawn / vendor caravan / weather effects land in a
+        # follow-up sub-drop (T2.WENC.b) per minimal-substrate-first
+        # discipline.
+        try:
+            from engine.wilderness_encounters import roll_encounter
+            enc_result = roll_encounter(
+                region,
+                new_x=result.new_x,
+                new_y=result.new_y,
+                terrain=result.terrain or region.default_terrain,
+                char=char,
+                db=ctx.db,
+            )
+            if enc_result.fired and enc_result.entry is not None:
+                narrative = enc_result.entry.narrative or (
+                    f"[Something stirs nearby — {enc_result.entry.id}.]"
+                )
+                await session.send_line("")
+                await session.send_line(f"[ENCOUNTER] {narrative}")
+        except Exception as _e:
+            # Encounters must never sink a move. Log and continue.
+            import logging as _enc_log
+            _enc_log.getLogger(__name__).warning(
+                "[wilderness] encounter roll failed for char %s: %s",
+                char.get("name", "?"), _e,
+            )
+
         # Auto-look
         look_cmd = LookCommand()
         look_ctx = CommandContext(
@@ -1115,7 +1406,8 @@ class MoveCommand(BaseCommand):
         await look_cmd.execute(look_ctx)
 
 
-    async def _post_move_hooks(self, ctx, session, char, new_room_id):
+    async def _post_move_hooks(self, ctx, session, char, new_room_id,
+                                direction=None, exit_data=None):
         """Post-move effects: lawless warning, hostile NPCs, achievements, barks, tutorial."""
         # ── Lawless zone entry warning (one-time per session) ────────────
         try:
@@ -1136,18 +1428,38 @@ class MoveCommand(BaseCommand):
         # Check for hostile NPCs in the new room
         await _check_hostile_npcs(ctx, new_room_id)
 
-        # Achievement: room visit tracking
+        # Achievement: room visit tracking (+ Phase-1 bearing substrate:
+        # record facing from the move direction so the map chevron points the
+        # way the player last walked). Both ride the SAME attributes read-
+        # modify-write so a move costs at most one extra DB write, not two.
         try:
             import json as _rvj
             _attrs = char.get("attributes", "{}")
             if isinstance(_attrs, str):
                 _attrs = _rvj.loads(_attrs) if _attrs else {}
+            _dirty = False
+            # Bearing: only planar compass moves set a facing; up/down/in/out/
+            # named exits leave the previous bearing intact (a turbolift ride
+            # shouldn't spin the marker).
+            try:
+                from engine.bearing import bearing_for_direction
+                _bdir = (exit_data.get("direction") if isinstance(exit_data, dict) else None) or direction
+                _bearing = bearing_for_direction(_bdir)
+                if _bearing is not None and _attrs.get("bearing") != _bearing:
+                    _attrs["bearing"] = _bearing
+                    _dirty = True
+            except Exception:
+                log.warning("MoveCommand: bearing update failed", exc_info=True)
             _visited = set(_attrs.get("rooms_visited", []))
-            if new_room_id not in _visited:
+            _new_visit = new_room_id not in _visited
+            if _new_visit:
                 _visited.add(new_room_id)
                 _attrs["rooms_visited"] = list(_visited)
+                _dirty = True
+            if _dirty:
                 char["attributes"] = _rvj.dumps(_attrs)
                 await ctx.db.save_character(char["id"], attributes=char["attributes"])
+            if _new_visit:
                 if hasattr(ctx.session, "game_server"):
                     from engine.achievements import on_room_visited
                     await on_room_visited(ctx.db, char["id"],
@@ -1294,6 +1606,29 @@ class MoveCommand(BaseCommand):
                         "silent except in parser/builtin_commands.py village_quest hook: %s",
                         _e, exc_info=True,
                     )
+
+                # F.8.c.2.b: CW tutorial chain — room_entered completion.
+                # Reuses the slug computed above for the village quest
+                # hook; hand-built rooms have properties.slug set by
+                # world_writer, while legacy rooms without a slug
+                # silently no-op (the hook is slug-keyed).
+                try:
+                    from engine.chain_events import on_room_entered
+                    _ce_slug = ""
+                    if isinstance(rprops, dict):
+                        _ce_slug = rprops.get("slug", "") or ""
+                    if _ce_slug:
+                        _adv = await on_room_entered(ctx.db, char, _ce_slug)
+                        if _adv:
+                            from engine.chain_graduation import (
+                                execute_pending_teleport,
+                            )
+                            await execute_pending_teleport(ctx, char)
+                except Exception as _e:
+                    log.debug(
+                        "silent except in parser/builtin_commands.py chain_events hook: %s",
+                        _e, exc_info=True,
+                    )
         except Exception:
             pass  # Non-critical
 
@@ -1373,10 +1708,12 @@ class SayCommand(BaseCommand):
 
 class WhisperCommand(BaseCommand):
     key = "whisper"
-    aliases = ["wh", "page", "tell"]
+    aliases = ["wh", "tell"]
     help_text = (
-        "Private message to someone in the same room.\n"
-        "Only you and the target see it.\n"
+        "Private message to someone in the same room (or, in "
+        "wilderness, at the same co-located tile). Only you and the "
+        "target see it. For cross-room private messaging use `page` "
+        "(separate command in mux_commands.py).\n"
         "\n"
         "EXAMPLE: whisper Tundra = Meet me at bay 94."
     )
@@ -1518,6 +1855,184 @@ class WhoCommand(BaseCommand):
             f"  {ansi.dim(f'{len(in_game)} player(s) online.')}"
         )
         await ctx.session.send_line("")
+
+
+class UseCommand(BaseCommand):
+    """`use <item>` — activate / consume an inventory item.
+
+    F.8.c.2.b₄ (May 4 2026) closes the last wired-but-inert chain
+    hook. The ``on_item_used`` chain dispatcher hook was wired in
+    F.8.c.2.b₂ but had no production trigger. With this command,
+    chain steps with ``completion: {type: item_used, item: <key>}``
+    can advance at runtime.
+
+    Item resolution order:
+      1. Exact ``key`` match (case-sensitive)
+      2. Exact ``name`` match (case-insensitive)
+      3. Single-substring partial-name match (case-insensitive)
+
+    Items may declare an optional ``consumable: true`` flag — if
+    set, the item is removed from inventory after use. Items with
+    an optional ``use_message`` field replace the default flavor
+    line; otherwise a generic "You use the X." is sent.
+
+    Side effect: every successful use fires the ``on_item_used``
+    chain hook with the item's ``key``. The chain hook is a no-op
+    for non-chain players or chain-active players whose current
+    step doesn't match.
+
+    Usage:
+        use sealed_data_packet
+        use packet            (matches "Sealed Data Packet" partial)
+        use Sealed Data Packet
+    """
+    key = "use"
+    aliases = []
+    help_text = "Activate or consume an inventory item."
+    usage = "use <item-name-or-key>"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line(
+                "  You must be in the game to use items.")
+            return
+
+        target = (ctx.args or "").strip()
+        if not target:
+            await ctx.session.send_line("  Usage: use <item-name-or-key>")
+            return
+
+        # ── Fetch inventory ────────────────────────────────────────
+        try:
+            inv = await ctx.db.get_inventory(char["id"])
+        except Exception:
+            log.warning("UseCommand: get_inventory failed",
+                        exc_info=True)
+            await ctx.session.send_line(
+                "  You can't access your inventory right now.")
+            return
+
+        if not inv:
+            await ctx.session.send_line(
+                "  You're not carrying anything to use.")
+            return
+
+        # ── Resolve target ────────────────────────────────────────
+        target_lower = target.lower()
+        matched = None
+
+        # Pass 1: exact key match
+        for item in inv:
+            if not isinstance(item, dict):
+                continue
+            if item.get("key") == target:
+                matched = item
+                break
+
+        # Pass 2: exact name match (case-insensitive)
+        if matched is None:
+            for item in inv:
+                if not isinstance(item, dict):
+                    continue
+                if (item.get("name", "") or "").lower() == target_lower:
+                    matched = item
+                    break
+
+        # Pass 3: partial name match (must be unique)
+        if matched is None:
+            partial = []
+            for item in inv:
+                if not isinstance(item, dict):
+                    continue
+                name = (item.get("name", "") or "").lower()
+                key = (item.get("key", "") or "").lower()
+                if target_lower in name or target_lower in key:
+                    partial.append(item)
+            if len(partial) == 1:
+                matched = partial[0]
+            elif len(partial) > 1:
+                names = [
+                    p.get("name") or p.get("key") or "?"
+                    for p in partial
+                ]
+                await ctx.session.send_line(
+                    f"  Multiple matches for '{target}': "
+                    f"{', '.join(names)}. Be more specific.")
+                return
+
+        if matched is None:
+            await ctx.session.send_line(
+                f"  You don't have anything called '{target}'.")
+            return
+
+        # ── Send flavor ────────────────────────────────────────────
+        item_key = matched.get("key", "") or ""
+        item_name = matched.get("name") or item_key or "the item"
+        flavor = matched.get("use_message") or f"You use the {item_name}."
+        await ctx.session.send_line(f"  {flavor}")
+
+        # ── Consume if marked consumable ──────────────────────────
+        if matched.get("consumable") and item_key:
+            try:
+                removed = await ctx.db.remove_from_inventory(
+                    char["id"], item_key)
+                if not removed:
+                    log.debug("UseCommand: consumable item %s not "
+                              "removed (no matching key in inventory)",
+                              item_key)
+            except Exception:
+                log.warning("UseCommand: remove_from_inventory failed "
+                            "for %s", item_key, exc_info=True)
+                # Don't fail the use itself; the flavor already sent
+
+        # ── Fire chain hook ───────────────────────────────────────
+        if item_key:
+            try:
+                from engine.chain_events import on_item_used
+                _adv = await on_item_used(ctx.db, char, item_key)
+                if _adv:
+                    # F.8.c.2.c graduation finisher (consistent with
+                    # the other chain-hook call sites)
+                    from engine.chain_graduation import (
+                        execute_pending_teleport,
+                    )
+                    await execute_pending_teleport(ctx, char)
+            except Exception as _e:
+                log.debug("UseCommand: chain_events hook error: %s",
+                          _e, exc_info=True)
+
+        # ── PG.1.death.b bacta-pack hook (Drop 2d) ─────────────────
+        # The bacta_pack is a normal consumable item that *also*
+        # clears wound_state. The flavor + consume already happened
+        # above; here we just toggle the debuff if the player is
+        # wounded. No-op for healthy chars (the pack is spent
+        # anyway — single-shot, per design §3.3).
+        from engine.death import BACTA_PACK_KEY as _BPK
+        if item_key == _BPK:
+            try:
+                state = char.get("wound_state") or "healthy"
+                if state == "wounded":
+                    from engine.death import consume_bacta_pack
+                    cleared = await consume_bacta_pack(ctx.db, char["id"])
+                    if cleared:
+                        char["wound_state"] = "healthy"
+                        char["wound_clear_at"] = 0.0
+                        await ctx.session.send_line(
+                            f"  {ansi.BRIGHT_CYAN}Relief floods "
+                            f"through you.{ansi.RESET} Your wounds "
+                            f"close clean."
+                        )
+                else:
+                    await ctx.session.send_line(
+                        "  (You weren't wounded — the pack works "
+                        "but the effect is wasted.)"
+                    )
+            except Exception:
+                log.debug(
+                    "UseCommand: bacta_pack hook failed for char %s",
+                    char.get("id"), exc_info=True,
+                )
 
 
 class InventoryCommand(BaseCommand):
@@ -1970,7 +2485,7 @@ class HelpCommand(BaseCommand):
 class RespawnCommand(BaseCommand):
     key = "respawn"
     aliases = ["revive"]
-    help_text = "Return to life after death. Costs credits and weapon condition."
+    help_text = "Return to life after death. You'll be Wounded — go to a med-droid or wait it out."
     usage = "respawn"
 
     async def execute(self, ctx: CommandContext):
@@ -1984,48 +2499,59 @@ class RespawnCommand(BaseCommand):
             await ctx.session.send_line("  You're not dead!")
             return
 
-        # ── Calculate penalties ──
-        credits = char.get("credits", 0)
-        credit_penalty = max(100, int(credits * 0.10))  # 10% or min 100
-        new_credits = max(0, credits - credit_penalty)
-
-        # Starting room (could be expanded to nearest medical facility)
-        respawn_room = 1  # Landing Pad - Mos Eisley
-        # Try to find a medical room property in the future
-        # For now, use config starting room
+        # ── PG.1.death (Drop 2c, May 19 2026 evening) ──
+        # Per progression_gates_and_consequences_design_v1.md §3.2:
+        #   - Credits and bank UNTOUCHED.
+        #   - Equipment stayed on the corpse at death-time (the
+        #     on_pc_death hook in parser/combat_commands.py already
+        #     ran before this command); no extra weapon-condition
+        #     penalty.
+        #   - wound_state='wounded' was set by on_pc_death; here
+        #     we just respawn the body in the safe room.
+        # Old behavior (pre-PG.1.death): 10%-of-credits penalty +
+        # 20% weapon condition damage. Both removed per design.
+        from engine.death import respawn_destination
+        respawn_room = await respawn_destination(ctx.db, char["id"])
 
         old_room_id = char.get("room_id", 1)
 
-        # ── Apply respawn ──
-        char["wound_level"] = 2  # WoundLevel.WOUNDED (need medical treatment)
-        char["credits"] = new_credits
-        char["room_id"] = respawn_room
+        # ── W.2.4 Phase 5: capture pre-respawn wilderness snapshot ──
+        # The broadcast to old_room_id below needs Path B
+        # filtering to route the "body carried away" line to the
+        # right wilderness tile. By the time we reach the
+        # broadcasts, char's wilderness coords will have been
+        # nulled by the respawn move. Capture the pre-respawn
+        # anchor now so we can build a synthetic source_char for
+        # the OLD-room broadcast that points at the right tile.
+        old_source_char = {
+            "room_id": old_room_id,
+            "wilderness_region_slug": char.get("wilderness_region_slug"),
+            "wilderness_x": char.get("wilderness_x"),
+            "wilderness_y": char.get("wilderness_y"),
+        }
 
-        # Persist to DB
+        # ── Apply respawn ──
+        # wound_level resets to HEALTHY on the WEG ladder — the
+        # death-roll state is gone; you're a live body again.
+        # The −1D debuff comes from wound_state, not wound_level,
+        # so the in-combat ladder reset is clean.
+        char["wound_level"] = 0  # WoundLevel.HEALTHY
+        char["room_id"] = respawn_room
+        # Clear wilderness anchor — respawn moves char to a regular room.
+        char["wilderness_region_slug"] = None
+        char["wilderness_x"] = None
+        char["wilderness_y"] = None
+
+        # Persist to DB. Note: credits NOT in this update — they
+        # stay untouched. wound_state was already set by on_pc_death.
         await ctx.db.save_character(
             char["id"],
-            wound_level=2,
-            credits=new_credits,
+            wound_level=0,
             room_id=respawn_room,
+            wilderness_region_slug=None,
+            wilderness_x=None,
+            wilderness_y=None,
         )
-
-        # Weapon condition penalty
-        import json as _json
-        equip_data = char.get("equipment", "{}")
-        if isinstance(equip_data, str):
-            try:
-                equip_data = _json.loads(equip_data)
-            except Exception:
-                equip_data = {}
-        if equip_data and equip_data.get("weapon"):
-            from engine.items import parse_equipment_json, serialize_equipment
-            item = parse_equipment_json(char.get("equipment", "{}"))
-            if item:
-                item.condition = max(0, item.condition - 20)
-                char["equipment"] = serialize_equipment(item)
-                await ctx.db.save_character(
-                    char["id"], equipment=char["equipment"]
-                )
 
         # ── Bacta tank narration ──
         await ctx.session.send_line("")
@@ -2048,22 +2574,37 @@ class RespawnCommand(BaseCommand):
             f"  {ansi.dim('Consciousness floods back. A medical droid chirps.')}"
         )
         await ctx.session.send_line(
-            f"  {ansi.dim('\"Patient revived. Vital signs stabilizing.\"')}"
+            f"  {ansi.dim('\"Patient stable. Vitals weak. Body still recovering.\"')}"
         )
         await ctx.session.send_line("")
-        await ctx.session.send_line(
-            f"  {ansi.BRIGHT_YELLOW}Medical charges: {credit_penalty:,} credits deducted.{ansi.RESET}"
-        )
-        await ctx.session.send_line(
-            f"  {ansi.dim(f'Credits remaining: {new_credits:,}')}"
-        )
+        # ── Status callout: Wounded + recovery hint ──
+        # The −1D Wounded debuff is real — surface it visibly. Two
+        # recovery paths per design §3.3:
+        #   (a) wait it out: 1 hour real-time, wound_clear_at handles it
+        #   (b) bacta tank at any med-droid: 500cr (PG.1.death.b ships
+        #       the vendor)
         await ctx.session.send_line(
             f"  {ansi.BRIGHT_RED}Status: Wounded{ansi.RESET} "
-            f"{ansi.dim('(seek medical treatment to fully heal)')}"
+            f"{ansi.dim('(-1D to all rolls until recovered)')}"
         )
+        # Show retrieval hint if a corpse exists.
+        try:
+            corpses = await ctx.db.get_corpses_in_room(old_room_id)
+            for cr in corpses:
+                if cr.get("char_id") == char["id"]:
+                    await ctx.session.send_line(
+                        f"  {ansi.dim('Your body, and your gear, are still at the scene.')}"
+                    )
+                    break
+        except Exception:
+            log.debug("respawn: corpse-hint lookup failed",
+                      exc_info=True)
         await ctx.session.send_line("")
 
-        # Notify old room
+        # Notify old room.
+        # W.2.4 Phase 5: source_char is the PRE-RESPAWN snapshot
+        # captured above, so the broadcast filters to the wilderness
+        # tile char died at (not the regular respawn room).
         char_name = char["name"]
         death_msg = ansi.dim(char_name + "'s body is carried away by medical droids.")
         if old_room_id != respawn_room:
@@ -2071,14 +2612,22 @@ class RespawnCommand(BaseCommand):
                 old_room_id,
                 f"  {death_msg}",
                 exclude=ctx.session,
+                source_char=old_source_char,
             )
 
-        # Notify new room
+        # Notify new room.
+        # W.2.4 Phase 5: source_char is char (which has been moved to
+        # the respawn room — a regular, non-wilderness room). In a
+        # future world where respawn could land in wilderness, this
+        # would key on char's new coords; today the respawn_room is
+        # always a regular room (Mos Eisley Landing Pad), so
+        # source_char=char is a no-op filter.
         revive_msg = ansi.dim(char_name + " stumbles out of a bacta tank, gasping.")
         await ctx.session_mgr.broadcast_to_room(
             respawn_room,
             f"  {revive_msg}",
             exclude=ctx.session,
+            source_char=char,
         )
 
         # Auto-look at new room
@@ -2095,6 +2644,223 @@ class RespawnCommand(BaseCommand):
         await look_cmd.execute(look_ctx)
 
 
+# ─── PG.1.death.b (Drop 2d, May 19 2026 evening) ────────────────────────
+#
+# Three commands that close the death-penalty loop:
+#   loot <name> [item]   — take from a corpse in the room
+#   bacta tank           — 500cr immediate heal at a med-droid
+#   use bacta_pack       — 150cr consumable, in-place heal
+#
+# All three honour the design's "credits-untouched" rule on death
+# itself; these are explicit player credit sinks for *recovery*,
+# which is exactly the economy_design §3.2 mandated credit drain.
+
+
+class LootCommand(BaseCommand):
+    key = "loot"
+    aliases = []
+    help_text = (
+        "Take items from a corpse in the current room.\n"
+        "\n"
+        "With no item argument, takes EVERYTHING (the body's owner\n"
+        "is the typical user). With an item key, takes the first\n"
+        "matching item.\n"
+        "\n"
+        "EXAMPLES:\n"
+        "  loot kessa             -- take everything from Kessa's corpse\n"
+        "  loot kessa blaster     -- take just the blaster_pistol key"
+    )
+    usage = "loot <name> [item_key]"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line("  You must be in the game to loot.")
+            return
+        if not ctx.args:
+            await ctx.session.send_line("  Usage: loot <name> [item_key]")
+            return
+
+        parts = ctx.args.strip().split(maxsplit=1)
+        target_name = parts[0].lower()
+        item_key = parts[1].lower() if len(parts) > 1 else None
+
+        # Find a corpse in this room whose owner-name starts with the
+        # target. Owners can be offline, so we look the name up from
+        # the characters table rather than session_mgr.
+        room_id = char.get("room_id", 0)
+        corpses = await ctx.db.get_corpses_in_room(room_id)
+        if not corpses:
+            await ctx.session.send_line(
+                "  There's nothing here to loot."
+            )
+            return
+
+        # Resolve each corpse's owner name (for matching). Cache one
+        # lookup per char_id to avoid hammering get_character on a
+        # big pile-up.
+        chosen = None
+        for cr in corpses:
+            try:
+                owner = await ctx.db.get_character(cr["char_id"])
+            except Exception:
+                owner = None
+            owner_name = (owner or {}).get("name", "") or ""
+            if owner_name.lower().startswith(target_name):
+                chosen = (cr, owner_name)
+                break
+        if chosen is None:
+            await ctx.session.send_line(
+                f"  No corpse here matching '{target_name}'."
+            )
+            return
+        corpse_row, owner_name = chosen
+
+        if item_key is None:
+            # Bulk loot — usually the owner returning to their body.
+            from engine.death import loot_all_from_corpse
+            moved = await loot_all_from_corpse(
+                ctx.db,
+                corpse_id=corpse_row["id"],
+                looter_id=char["id"],
+            )
+            if not moved:
+                await ctx.session.send_line(
+                    f"  {owner_name}'s body has nothing left to take."
+                )
+                return
+            keys = ", ".join(
+                str(i.get("key") or i.get("type") or "?")
+                for i in moved
+            )
+            await ctx.session.send_line(
+                f"  You take everything from {owner_name}'s body: "
+                f"{keys}."
+            )
+            return
+
+        # Single-item loot.
+        from engine.death import loot_corpse_take_item
+        taken = await loot_corpse_take_item(
+            ctx.db,
+            corpse_id=corpse_row["id"],
+            looter_id=char["id"],
+            item_key=item_key,
+        )
+        if taken is None:
+            await ctx.session.send_line(
+                f"  {owner_name}'s body has no '{item_key}'."
+            )
+            return
+        await ctx.session.send_line(
+            f"  You take the {item_key} from {owner_name}'s body."
+        )
+
+
+class BactaTankCommand(BaseCommand):
+    key = "bacta"
+    aliases = []
+    help_text = (
+        "Pay for a bacta tank treatment at a med-droid.\n"
+        "Costs 500 credits and clears Wounded immediately."
+    )
+    usage = "bacta tank"
+
+    async def execute(self, ctx: CommandContext):
+        from engine.death import (
+            apply_bacta_tank, BACTA_TANK_PRICE,
+        )
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line(
+                "  You must be in the game for treatment."
+            )
+            return
+        args = (ctx.args or "").strip().lower()
+        if args not in ("", "tank"):
+            await ctx.session.send_line(
+                "  Usage: bacta tank   (500cr immediate heal)"
+            )
+            return
+
+        # Wounded check first — don't charge if no benefit.
+        state = char.get("wound_state") or "healthy"
+        if state != "wounded":
+            await ctx.session.send_line(
+                "  You're not wounded. The med-droid politely declines "
+                "your business."
+            )
+            return
+
+        credits = int(char.get("credits", 0))
+        if credits < BACTA_TANK_PRICE:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}Bacta tank costs "
+                f"{BACTA_TANK_PRICE} credits — you have {credits:,}."
+                f"{ansi.RESET}"
+            )
+            return
+
+        # Deduct first, then transition. Either-order would work,
+        # but charging first means a transient DB blip during
+        # apply_bacta_tank doesn't leave the player healed-for-free.
+        new_credits = credits - BACTA_TANK_PRICE
+        char["credits"] = new_credits
+        await ctx.db.save_character(char["id"], credits=new_credits)
+
+        cleared = await apply_bacta_tank(ctx.db, char["id"])
+        if cleared:
+            char["wound_state"] = "healthy"
+            char["wound_clear_at"] = 0.0
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_CYAN}The bacta tank works its slow "
+                f"magic.{ansi.RESET} Your wounds knit clean."
+            )
+            balance_line = (
+                f"-{BACTA_TANK_PRICE} credits. "
+                f"Balance: {new_credits:,}."
+            )
+            await ctx.session.send_line(
+                f"  {ansi.dim(balance_line)}"
+            )
+        else:
+            # Race: the wound_recovery_tick already cleared. Refund.
+            char["credits"] = credits
+            await ctx.db.save_character(char["id"], credits=credits)
+            await ctx.session.send_line(
+                "  The med-droid checks again — you're already healed. "
+                "No charge."
+            )
+
+
+class BactaPackUseCommand(BaseCommand):
+    """DEPRECATED stub — see UseCommand (Drop 2d hook).
+
+    Drop 2d (May 19 2026 evening) initially shipped a dedicated
+    ``BactaPackUseCommand`` for the 150cr Wounded → Healthy
+    consumable. During the same drop we discovered the existing
+    F.8.c.2.b₄ ``UseCommand`` already handles consumables generically
+    via the ``consumable: true`` item flag and fires the chain hook.
+    The bacta-pack hook now lives inline in ``UseCommand`` (search
+    for "PG.1.death.b bacta-pack hook"), and this class is left as
+    a no-op for backwards-compatibility with any code that imported
+    it from this module during the drop authoring.
+
+    The class deliberately does NOT set ``key`` so it isn't
+    registered against any command keyword. Treat it as removed.
+    """
+
+    key = "__bacta_pack_legacy__"  # not a real command keyword
+    aliases = []
+    help_text = ""
+    usage = ""
+
+    async def execute(self, ctx: CommandContext):
+        await ctx.session.send_line(
+            "  (use bacta_pack now goes through `use` — try that.)"
+        )
+
+
 class QuitCommand(BaseCommand):
     key = "quit"
     aliases = ["@quit", "logout", "QUIT"]
@@ -2104,10 +2870,11 @@ class QuitCommand(BaseCommand):
 
     async def execute(self, ctx: CommandContext):
         if ctx.session.character:
-            name = ctx.session.character["name"]
-            room_id = ctx.session.character.get("room_id")
+            char = ctx.session.character
+            name = char["name"]
+            room_id = char.get("room_id")
             await ctx.db.save_character(
-                ctx.session.character["id"],
+                char["id"],
                 room_id=room_id,
             )
 
@@ -2116,13 +2883,17 @@ class QuitCommand(BaseCommand):
                 try:
                     from engine.sleeping import set_sleeping
                     sleeping = await set_sleeping(
-                        ctx.session.character, ctx.db, room_id)
+                        char, ctx.db, room_id)
                     if sleeping:
+                        # W.2.3.1: source_char filters to co-located peers
+                        # so a PC sleeping at wilderness (12,18) doesn't
+                        # broadcast "X falls asleep" to (15,18) etc.
                         await ctx.session_mgr.broadcast_to_room(
                             room_id,
                             ansi.system_msg(
                                 f"{name} falls asleep here."),
                             exclude=ctx.session,
+                            source_char=char,
                         )
                 except Exception:
                     log.warning("QuitCommand: sleeping flag failed", exc_info=True)
@@ -2132,6 +2903,7 @@ class QuitCommand(BaseCommand):
                     room_id,
                     ansi.system_msg(f"{name} has disconnected."),
                     exclude=ctx.session,
+                    source_char=char,  # W.2.3.1: co-located peers only
                 )
 
         await ctx.session.close()
@@ -2139,9 +2911,16 @@ class QuitCommand(BaseCommand):
 
 class OocCommand(BaseCommand):
     key = "+ooc"
-    aliases = ["ooc", "@ooc"]
-    help_text = "Send an out-of-character message to the room."
-    usage = "@ooc <message>"
+    aliases = ["@ooc"]
+    help_text = (
+        "Room-local out-of-character message — visible only to "
+        "people in your current room (or co-located wilderness "
+        "tile). For galaxy-wide OOC chat, use the plain `ooc` "
+        "channel command instead.\n"
+        "\n"
+        "Display tag: [Local OOC]  (global is [OOC])\n"
+    )
+    usage = "+ooc <message>"
 
     async def execute(self, ctx: CommandContext):
         if not ctx.args:
@@ -2150,10 +2929,16 @@ class OocCommand(BaseCommand):
 
         char = ctx.session.character
         name = char["name"]
-        text = f"{ansi.dim(f'[OOC] {name}: {ctx.args}')}"
+        # Smoke #5 fix: tag local-room OOC distinctly from global ooc.
+        # Global ooc (channel_commands.OocCommand) uses `[OOC]`; we use
+        # `[Local OOC]` to make scope unambiguous at the receiving end.
+        text = f"{ansi.dim(f'[Local OOC] {name}: {ctx.args}')}"
 
         room_id = char["room_id"]
-        for s in ctx.session_mgr.sessions_in_room(room_id):
+        # W.2.3.1: source_char filters OOC chatter to co-located peers.
+        # In wilderness, "+ooc" should reach the tile you're at, not
+        # every PC in the sentinel region.
+        for s in ctx.session_mgr.sessions_in_room(room_id, source_char=char):
             await s.send_line(text)
 
         # Scene logging hook — captured as OOC, excluded from log render
@@ -2161,7 +2946,8 @@ class OocCommand(BaseCommand):
         scene_id = get_active_scene_id(room_id)
         if scene_id is not None:
             await capture_pose(ctx.db, scene_id, char["id"],
-                               char["name"], f"[OOC] {name}: {ctx.args}",
+                               char["name"],
+                               f"[Local OOC] {name}: {ctx.args}",
                                pose_type="ooc", is_ooc=True,
                                session_mgr=ctx.session_mgr)
 
@@ -2518,6 +3304,27 @@ class SellCommand(BaseCommand):
         await ctx.db.save_character(
             char["id"], credits=new_credits, equipment=char["equipment"])
 
+        # ── Player Cities Phase 4b (May 22 2026): city tax ─────────────
+        # NPC vendor sale: per Phase 4b design call #2, the player's
+        # receipt is unchanged; the city revenue is funded "from thin
+        # air" by the NPC vendor system. The transaction value is
+        # sale_price (what the NPC paid).
+        city_tax_msg = ""
+        try:
+            from engine.player_cities import apply_city_tax
+            city_take, _, city_name = await apply_city_tax(
+                ctx.db, char["room_id"], sale_price,
+            )
+            if city_take > 0:
+                city_tax_msg = (
+                    f"  \033[2m[{city_take:,}cr city tax to "
+                    f"{city_name}]\033[0m"
+                )
+        except Exception:
+            log.warning(
+                "execute: city tax hook failed", exc_info=True,
+            )
+
         # Show haggle result
         pct = haggle["price_modifier_pct"]
         if pct != 0:
@@ -2532,6 +3339,8 @@ class SellCommand(BaseCommand):
             ansi.success(
                 f"  Sold {wname} ({item.condition_label}) for {sale_price:,} credits. "
                 f"Balance: {new_credits:,} credits."))
+        if city_tax_msg:
+            await ctx.session.send_line(city_tax_msg)
 
 
 class WeaponsListCommand(BaseCommand):
@@ -2625,7 +3434,8 @@ class SemiposeCommand(BaseCommand):
         # No space between name and args — that's the whole point
         text = f"{name}{ctx.args}"
         room_id = char["room_id"]
-        for s in ctx.session_mgr.sessions_in_room(room_id):
+        # W.2.3.1: source_char filters semipose to co-located peers.
+        for s in ctx.session_mgr.sessions_in_room(room_id, source_char=char):
             await s.send_line(text)
 
 
@@ -2898,9 +3708,13 @@ class PickpocketCommand(BaseCommand):
 
         # Broadcast fumble alert to room if present
         if result.get("room_msg"):
+            # W.2.3.1: source_char filters to co-located peers so a
+            # pickpocket fumble at wilderness (12,18) doesn't alert PCs
+            # at (15,18).
             await ctx.session_mgr.broadcast_to_room(
                 room_id, result["room_msg"],
                 exclude=ctx.session,
+                source_char=char,
             )
 
 
@@ -3045,6 +3859,7 @@ def register_all(registry):
         EmoteCommand(),
         WhoCommand(),
         InventoryCommand(),
+        UseCommand(),
         SheetCommand(),
         HelpCommand(),
         QuitCommand(),
@@ -3059,6 +3874,12 @@ def register_all(registry):
         SellCommand(),
         WeaponsListCommand(),
         RespawnCommand(),
+        # ── PG.1.death.b (Drop 2d): loot + bacta tank ──
+        # `use bacta_pack` flows through the existing UseCommand
+        # (above) which now carries the wound_state-clearing hook;
+        # no separate BactaPackUseCommand needed.
+        LootCommand(),
+        BactaTankCommand(),
         SemiposeCommand(),
         TradeCommand(),
         ThinkCommand(),
@@ -3219,6 +4040,28 @@ async def _handle_sell_cargo(ctx) -> None:
     except Exception as _e:
         log.debug("silent except in parser/builtin_commands.py:2555: %s", _e, exc_info=True)
 
+    # ── Player Cities Phase 4b (May 22 2026): city tax ──────────────────
+    # Planet-market cargo sell at a spaceport. Per Phase 4b design call
+    # #2, player's receipt is unchanged; city revenue funded by the
+    # NPC vendor system. Mostly a no-op since spaceport rooms aren't
+    # usually in player cities — but if a player city has expanded to
+    # include a spaceport room, the tax fires correctly.
+    city_tax_msg = ""
+    try:
+        from engine.player_cities import apply_city_tax
+        city_take, _, city_name = await apply_city_tax(
+            ctx.db, char["room_id"], total_revenue,
+        )
+        if city_take > 0:
+            city_tax_msg = (
+                f"  \033[2m[{city_take:,}cr city tax to "
+                f"{city_name}]\033[0m"
+            )
+    except Exception:
+        log.warning(
+            "_handle_sell_cargo: city tax hook failed", exc_info=True,
+        )
+
     pct = haggle["price_modifier_pct"]
     if pct != 0:
         direction = "bonus" if pct > 0 else "penalty"
@@ -3248,6 +4091,8 @@ async def _handle_sell_cargo(ctx) -> None:
         f"(paid {avg_cost:,}/t, sold {per_ton:,}/t){ansi.RESET}"
         f"  Balance: {new_credits:,}cr"
     )
+    if city_tax_msg:
+        await ctx.session.send_line(city_tax_msg)
 
 
 class TradeCommand(BaseCommand):
@@ -3600,10 +4445,14 @@ class TradeCommand(BaseCommand):
             )
 
             # Broadcast to room
+            # W.2.3.1: source_char filters to co-located peers. Trades
+            # are mutually consensual so both parties are at the same
+            # tile by construction (same room_id + same coords).
             await ctx.session_mgr.broadcast_to_room(
                 char["room_id"],
                 f"  {offerer['name']} hands {item_name} to {char['name']}.",
                 exclude=[offerer["id"], char["id"]],
+                source_char=char,
             )
 
             # Narrative log
@@ -3687,10 +4536,12 @@ class TradeCommand(BaseCommand):
         )
 
         # Broadcast to room (brief)
+        # W.2.3.1: source_char filters to co-located peers.
         await ctx.session_mgr.broadcast_to_room(
             char["room_id"],
             f"  {offerer['name']} and {char['name']} exchange credits.",
             exclude=[offerer["id"], char["id"]],
+            source_char=char,
         )
 
         # Credit log (economy hardening v23)

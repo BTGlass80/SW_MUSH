@@ -1,0 +1,68 @@
+{
+  "area_key": "coruscant.senate_district",
+  "display_name": "SENATE DISTRICT",
+  "substrate": "/static/maps/coruscant_senate_substrate.png",
+  "bounds": {
+    "x_min": 0.0,
+    "y_min": 0.0,
+    "x_max": 9.0,
+    "y_max": 8.0
+  },
+  "landmarks": [
+    {
+      "id": "senate_dome",
+      "icon": "palace",
+      "name": "Senate Rotunda",
+      "distinctive": true,
+      "fx": 0.5,
+      "fy": 0.5,
+      "note": "distinctive painted feature — place on the palace",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "monument",
+      "icon": "beacon",
+      "name": "Monument Plaza",
+      "distinctive": false,
+      "fx": 0.5,
+      "fy": 0.125,
+      "note": "indistinct / generic — approximate is fine",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "museum",
+      "icon": "palace",
+      "name": "Galactic Museum",
+      "distinctive": true,
+      "fx": 0.7556,
+      "fy": 0.175,
+      "note": "distinctive painted feature — place on the palace",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "opera",
+      "icon": "palace",
+      "name": "Opera House",
+      "distinctive": true,
+      "fx": 0.7333,
+      "fy": 0.75,
+      "note": "distinctive painted feature — place on the palace",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "jedi_temple",
+      "icon": "palace",
+      "name": "Jedi Temple ↗",
+      "distinctive": false,
+      "fx": 0.9667,
+      "fy": 0.375,
+      "note": "off-map pointer — edge is fine",
+      "min_zoom": 2,
+      "max_zoom": 3
+    }
+  ]
+}

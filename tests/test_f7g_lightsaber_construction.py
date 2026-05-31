@@ -623,10 +623,14 @@ class TestPathAWireUp:
             notes = json.loads(char["chargen_notes"])
             assert notes.get(MARKER_DONE) is True
             assert MARKER_PENDING not in notes
-            # Narration includes both the Mace Windu line and the
-            # forge scene
+            # Narration includes both the reception scene and the
+            # forge scene. The reception scene was rewritten post-Q1
+            # to replace the canonical Mace Windu NPC with original
+            # Master Tova Resh (see test_q1_scenes_and_planets.py).
             output = "\n".join(session.received)
-            assert "Yarael lives" in output
+            assert "Tova Resh" in output or "Master Tova" in output, (
+                "Path A narration must include the reception NPC."
+            )
             assert "Apprentice Forge" in output
         asyncio.run(_check())
 

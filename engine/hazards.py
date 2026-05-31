@@ -286,12 +286,39 @@ async def hazard_tick(db, session_mgr) -> None:
     """Check environmental hazards for all online characters.
 
     Called by tick_handlers_economy every 300 ticks (5 minutes).
+
+    Two paths:
+      1. Room-based: characters whose ``room_id`` points at a room
+         with an ``environment_hazard`` in properties.
+      2. Wilderness-based (T2.WENC, May 24 2026): characters with
+         ``wilderness_region_slug`` set; the terrain at their
+         coordinates may carry an ``ambient_hazard`` that maps to
+         a HAZARD_TYPES entry. Terrain hazard strings that don't
+         resolve to a known HAZARD_TYPE are inert (no error) so
+         aspirational tags ship without immediate consequence.
     """
     try:
         for s in session_mgr.all:
             if not s.is_in_game or not s.character:
                 continue
             char = s.character
+
+            # Path 1: wilderness — checked first because wilderness
+            # characters share a sentinel room_id; the room hazard
+            # path would otherwise look up the sentinel room and
+            # find nothing useful.
+            try:
+                wilderness_hit = await _check_wilderness_hazard(char, db, session=s)
+            except Exception as e:
+                log.warning(
+                    "[hazards] Wilderness check failed for char %d: %s",
+                    char.get("id", 0), e,
+                )
+                wilderness_hit = False
+            if wilderness_hit:
+                continue  # don't double-process this char on the room path
+
+            # Path 2: room-based
             room_id = char.get("room_id")
             if not room_id:
                 continue
@@ -313,6 +340,104 @@ async def hazard_tick(db, session_mgr) -> None:
                             char.get("id", 0), e)
     except Exception as e:
         log.warning("[hazards] hazard_tick failed: %s", e)
+
+
+async def _check_wilderness_hazard(char: dict, db, session=None) -> bool:
+    """Run the hazard check against the character's current wilderness tile.
+
+    Returns True iff we processed a wilderness hazard for this
+    character (whether the roll passed or failed) — callers use that
+    flag to skip the room-based path so wilderness characters aren't
+    double-checked.
+
+    Returns False when:
+      - the character isn't in wilderness, or
+      - the region can't be loaded, or
+      - the terrain at the tile has no ambient hazard, or
+      - the terrain's hazard string isn't a known HAZARD_TYPE
+        (aspirational tag — inert until the hazard type is defined).
+
+    Design source: wilderness_system_design_v1.md §6.2.
+    """
+    # Avoid importing the wilderness module at module-load time —
+    # keeps hazards.py importable in test fixtures that don't stand
+    # up the wilderness loader. Import on first call instead.
+    try:
+        from engine.wilderness_movement import (
+            in_wilderness, get_wilderness_coords, get_or_load_region,
+            _terrain_at, _terrain_attr,
+        )
+    except Exception:
+        return False
+
+    if not in_wilderness(char):
+        return False
+    coords = get_wilderness_coords(char)
+    if coords is None:
+        return False
+    slug, x, y = coords
+
+    region = await get_or_load_region(db, slug)
+    if region is None:
+        return False
+
+    terrain_name = _terrain_at(region, x, y)
+    terrain_cfg = (region.terrains or {}).get(terrain_name)
+    if terrain_cfg is None:
+        return False
+
+    hazard_type = _terrain_attr(terrain_cfg, "ambient_hazard", "none")
+    severity = int(_terrain_attr(terrain_cfg, "hazard_severity", 0))
+    if not hazard_type or hazard_type == "none" or severity <= 0:
+        return False
+    if hazard_type not in HAZARD_TYPES:
+        # Aspirational tag (e.g. Coruscant's "structural_collapse",
+        # "stale_air", "lethal_environment"). Inert until the matching
+        # HAZARD_TYPE ships. Logged at debug to surface during testing
+        # without spamming production logs.
+        log.debug(
+            "[hazards] Wilderness terrain %r has aspirational ambient_hazard "
+            "%r (severity %d); inert until HAZARD_TYPE ships.",
+            terrain_name, hazard_type, severity,
+        )
+        return False
+
+    # Synthesise a "room dict" so we can reuse check_hazard_for_character
+    # unchanged. The cooldown key is (char_id, room_id), so we use a
+    # stable per-region negative pseudo-id to keep wilderness cooldowns
+    # separate from any real room cooldowns. Negative numbers are not
+    # used by the rooms table (id INTEGER PRIMARY KEY → always > 0).
+    template = HAZARD_TYPES[hazard_type]
+    pseudo_room_id = _wilderness_pseudo_room_id(slug)
+    synthetic_room = {
+        "id": pseudo_room_id,
+        "properties": json.dumps({
+            "environment_hazard": {
+                "type": hazard_type,
+                "severity": severity,
+                "difficulty": template["base_difficulty"] + (severity - 1) * 3,
+            },
+        }),
+    }
+    await check_hazard_for_character(char, synthetic_room, db, session=session)
+    return True
+
+
+def _wilderness_pseudo_room_id(slug: str) -> int:
+    """Stable negative pseudo-id for a wilderness region's hazard cooldown.
+
+    Cooldown keys are (char_id, room_id). We need a room_id that:
+      - is stable across calls within a session (same slug → same id),
+      - doesn't collide with real room ids (rooms.id is always > 0),
+      - is the same for every tile inside the region (tile-by-tile
+        cooldown reset would defeat the hazard pacing — the 5-minute
+        cadence is per region, not per step).
+    """
+    # Negative to avoid colliding with rooms.id. We deliberately do
+    # NOT use the region slug for cooldown granularity per-tile.
+    h = abs(hash(slug)) % 1_000_000
+    return -(h + 1)
+
 
 
 # ── Admin Helpers ─────────────────────────────────────────────────────────────

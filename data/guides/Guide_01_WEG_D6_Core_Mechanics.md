@@ -1,4 +1,10 @@
-# SW_MUSH Detailed Systems Guide #1
+---
+category: foundations
+order: 1
+summary: "How D6 dice rolls, attributes, and skills work. The rules engine behind every action."
+tags: ["d6", "dice", "rolls", "attributes", "skills", "wild die", "rules"]
+---
+
 # WEG D6 Core Mechanics
 
 **SW_MUSH — Star Wars D6 Revised & Expanded**
@@ -306,10 +312,10 @@ Not everything in Star Wars is the same size. A blaster pistol and a turbolaser 
 | Character | 0 | People, droids, personal weapons |
 | Speeder | 2 | Landspeeders, swoops |
 | Walker | 4 | AT-ST, AT-AT |
-| Starfighter | 6 | X-Wing, TIE Fighter |
+| Starfighter | 6 | ARC-170 Starfighter, Vulture Droid Starfighter |
 | Corvette | 9 | Corellian Corvette, gunships |
 | Capital | 12 | Star Destroyer, Mon Calamari cruiser |
-| Death Star | 18 | The Death Star |
+| Death Star scale | 18 | (Canonical scale-18 reference; no such weapon exists in the Clone Wars era) |
 
 When something at a smaller scale attacks something at a larger scale, the smaller attacker gets **bonus dice to hit** equal to the scale difference (the bigger target is easier to hit) but does **reduced damage** (the target's armor is massive relative to your weapon). The reverse also applies — a turbolaser has a hard time hitting a starfighter, but if it connects, the fighter is dust.
 
@@ -555,7 +561,7 @@ Weapons have a **damage code** — another dice pool. When you hit a target, you
 |-------|-------------------|---------------------|---------|
 | Blast Vest | +1D | +1D | None |
 | Blast Helmet | +1D | +1D | None |
-| Stormtrooper Armor | +1D | +2D | −1D Dexterity |
+| Clone Trooper Armor | +1D | +2D | −1D Dexterity |
 | Bounty Hunter Armor | +2D | +3D | −1D Dexterity |
 
 **Range bands** affect hit difficulty:

@@ -957,6 +957,7 @@ npcs:
       - "Will direct legitimate visitors; will gently turn away the curious."
       - "Heard from the Council that the war's tide is uncertain. Doesn't share details with non-Order."
       faction: jedi_order
+      is_intel_handler: true     # T2.DEF Q3 intel-handler seed (2026-05-31)
       dialogue_style: >-
         Warm, articulate, faintly tired. Has the slight Coruscant
         intonation of someone who grew up in the Temple. Calls people

@@ -268,7 +268,7 @@ def npc_choose_actions(
       4. Build action list
     """
     char = npc_combatant.char
-    if not char or not char.wound_level.can_act:
+    if not char or not char.can_act_now():
         return []
 
     actions: list[CombatAction] = []
@@ -430,7 +430,7 @@ def auto_declare_npcs(
     for combatant in combat.undeclared_combatants():
         if not combatant.is_npc:
             continue
-        if not combatant.char or not combatant.char.wound_level.can_act:
+        if not combatant.char or not combatant.char.can_act_now():
             continue
 
         behavior = npc_behaviors.get(
@@ -469,6 +469,6 @@ async def check_room_hostiles(
             continue
         # Only attack if NPC has combat stats
         char = build_npc_character(npc_row)
-        if char and char.wound_level.can_act:
+        if char and char.can_act_now():
             hostiles.append(npc_row)
     return hostiles

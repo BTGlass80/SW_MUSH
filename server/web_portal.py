@@ -40,14 +40,97 @@ log = logging.getLogger(__name__)
 
 # ── Guide loader ────────────────────────────────────────────────────────────
 
-# Guide metadata: (slug, title, order)
+# Guide metadata: (slug, title, order, category, summary, tags)
 _GUIDE_INDEX: list[dict] = []
-_GUIDE_CONTENT: dict[str, str] = {}  # slug → markdown content
+_GUIDE_CONTENT: dict[str, str] = {}  # slug → markdown content (sans frontmatter)
+_GUIDE_CATEGORIES: list[dict] = []   # ordered list of {key, label, blurb}
+
+# Category display metadata. The KEY is what guide frontmatter writes; the
+# LABEL is what the portal renders; the ORDER controls grouping sequence;
+# the BLURB sits under the category header as a one-liner. This is the
+# server's single source of truth — the portal JS reads it from
+# /api/portal/guides and never hardcodes category names (matches the
+# extensibility contract enforced by test_no_hardcoded_category_names in
+# tests/test_session48_portal_retheme.py for the reference surface).
+_CATEGORY_TABLE: list[dict] = [
+    {
+        "key": "foundations",
+        "label": "Foundations",
+        "blurb": "Read these first. Rules, character creation, and tutorials.",
+    },
+    {
+        "key": "combat",
+        "label": "Combat & Survival",
+        "blurb": "Fighting, wounds, death, and the things that can kill you.",
+    },
+    {
+        "key": "galaxy",
+        "label": "The Galaxy",
+        "blurb": "Space travel, security zones, territory, and the world around you.",
+    },
+    {
+        "key": "economy",
+        "label": "Economy & Trade",
+        "blurb": "Credits, crafting, shops, and ways to earn a living.",
+    },
+    {
+        "key": "paths",
+        "label": "Paths & Specialties",
+        "blurb": "Long-arc careers and Force-sensitive training tracks.",
+    },
+    {
+        "key": "community",
+        "label": "Community & Story",
+        "blurb": "Factions, cities, communication, and the Director AI.",
+    },
+]
+
+# Order index → faster sort key lookup. Built at first load.
+_CATEGORY_ORDER: dict[str, int] = {
+    c["key"]: i for i, c in enumerate(_CATEGORY_TABLE)
+}
+
+
+def _parse_guide_frontmatter(text: str) -> tuple[dict, str]:
+    """Parse YAML frontmatter from a guide markdown file.
+
+    Returns (metadata_dict, body_without_frontmatter). If no frontmatter is
+    present, returns ({}, original_text). Designed to be tolerant of the
+    older shipped guides that don't yet have frontmatter — they still load,
+    they just fall back to defaults (uncategorized, no summary).
+    """
+    if not text.startswith("---\n"):
+        return {}, text
+    end = text.find("\n---\n", 4)
+    if end == -1:
+        return {}, text
+    fm_block = text[4:end]
+    body = text[end + 5:]
+    try:
+        import yaml  # local import: yaml only needed when loading guides
+        meta = yaml.safe_load(fm_block) or {}
+        if not isinstance(meta, dict):
+            return {}, text  # malformed
+        return meta, body
+    except Exception as e:
+        log.warning("Failed to parse guide frontmatter: %s", e)
+        return {}, text
 
 
 def _load_guides() -> None:
-    """Load guide markdown files from data/guides/ into memory."""
-    global _GUIDE_INDEX, _GUIDE_CONTENT
+    """Load guide markdown files from data/guides/ into memory.
+
+    Each file may carry YAML frontmatter at the top with these fields:
+      category: foundations|combat|galaxy|economy|paths|community
+      order:    integer, intra-category sort key (lower = first)
+      summary:  short one-line description for the index card
+      tags:     list of strings used by the portal search box
+
+    The H1 title (first ``# ...`` line) is still used for the display title.
+    Guides without frontmatter still load but appear in an "Other" bucket
+    at the end with no summary.
+    """
+    global _GUIDE_INDEX, _GUIDE_CONTENT, _GUIDE_CATEGORIES
     guides_dir = os.path.join(
         os.path.dirname(os.path.dirname(__file__)), "data", "guides"
     )
@@ -61,36 +144,86 @@ def _load_guides() -> None:
             continue
         fpath = os.path.join(guides_dir, fname)
         try:
-            content = open(fpath, "r", encoding="utf-8").read()
+            raw = open(fpath, "r", encoding="utf-8").read()
         except Exception as e:
             log.warning("Failed to read guide %s: %s", fname, e)
             continue
 
-        # Extract title from first # heading
+        meta, content = _parse_guide_frontmatter(raw)
+
+        # Extract title from first # heading of the body (post-frontmatter).
+        # Also defensively skip the legacy "SW_MUSH Detailed Systems Guide
+        # #N" header if a stale file ever sneaks past the content pipeline.
         title = fname.replace(".md", "").replace("_", " ").title()
         for line in content.split("\n"):
             line = line.strip()
             if line.startswith("# "):
-                title = line[2:].strip()
-                break
+                candidate = line[2:].strip()
+                if not candidate.startswith("SW_MUSH Detailed Systems Guide"):
+                    title = candidate
+                    break
 
-        # Slug from filename: Guide_01_Core_Mechanics.md → core-mechanics
+        # Slug from filename: Guide_18_Jedi_Village.md → jedi-village
         slug = fname.replace(".md", "")
-        # Strip leading Guide_NN_ prefix
         parts = slug.split("_", 2)
         if len(parts) >= 3 and parts[0].lower() == "guide" and parts[1].isdigit():
-            order = int(parts[1])
+            file_order = int(parts[1])
             slug = parts[2].lower().replace("_", "-")
         else:
-            order = 99
+            file_order = 99
             slug = slug.lower().replace("_", "-")
 
-        entries.append({"slug": slug, "title": title, "order": order})
+        category = str(meta.get("category", "")).strip().lower() or "other"
+        intra_order = meta.get("order")
+        if not isinstance(intra_order, int):
+            intra_order = file_order  # fall back to filename number
+        summary = str(meta.get("summary", "")).strip()
+        tags = meta.get("tags", [])
+        if not isinstance(tags, list):
+            tags = []
+        # normalize tags to lowercase strings
+        tags = [str(t).lower() for t in tags if t]
+
+        entries.append({
+            "slug": slug,
+            "title": title,
+            "order": intra_order,
+            "category": category,
+            "summary": summary,
+            "tags": tags,
+        })
         _GUIDE_CONTENT[slug] = content
 
-    entries.sort(key=lambda e: e["order"])
+    # Sort: by category_order (unknown → end), then intra-category order,
+    # then title as a stable tiebreaker.
+    def sort_key(e):
+        cat_idx = _CATEGORY_ORDER.get(e["category"], len(_CATEGORY_TABLE))
+        return (cat_idx, e["order"], e["title"].lower())
+
+    entries.sort(key=sort_key)
     _GUIDE_INDEX = entries
-    log.info("Portal: loaded %d guides", len(entries))
+
+    # Build the categories payload — only include categories that actually
+    # have at least one guide assigned. This lets the portal hide empty
+    # sections without any extra logic.
+    present_cats = {e["category"] for e in entries}
+    _GUIDE_CATEGORIES = [
+        c for c in _CATEGORY_TABLE if c["key"] in present_cats
+    ]
+    # If any guides landed in "other" (uncategorized), expose that bucket too.
+    if "other" in present_cats and not any(
+        c["key"] == "other" for c in _GUIDE_CATEGORIES
+    ):
+        _GUIDE_CATEGORIES.append({
+            "key": "other",
+            "label": "Other",
+            "blurb": "Guides without an assigned category.",
+        })
+
+    log.info(
+        "Portal: loaded %d guides across %d categories",
+        len(entries), len(_GUIDE_CATEGORIES),
+    )
 
 
 # ── Reference loader ────────────────────────────────────────────────────────
@@ -673,8 +806,23 @@ class PortalAPI:
     # ── Guides ───────────────────────────────────────────────────────────
 
     async def handle_guides(self, request) -> web.Response:
-        """GET /api/portal/guides — guide index."""
-        return self._json({"guides": _GUIDE_INDEX})
+        """GET /api/portal/guides — guide index grouped by category.
+
+        Response shape:
+          {
+            "guides":     [ {slug, title, category, summary, tags, order}, ... ],
+            "categories": [ {key, label, blurb}, ... ]    # ordered for display
+          }
+
+        The portal JS reads ``categories`` from this payload — never hardcoded
+        on the client — so adding/renaming a category is a one-place edit on
+        the server (the ``_CATEGORY_TABLE`` constant above) plus a frontmatter
+        update in the guides that should live there.
+        """
+        return self._json({
+            "guides": _GUIDE_INDEX,
+            "categories": _GUIDE_CATEGORIES,
+        })
 
     async def handle_guide_content(self, request) -> web.Response:
         """GET /api/portal/guide/{slug} — guide markdown content."""

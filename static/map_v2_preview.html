@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SW MUSH — Map V2 Preview (F.MAP.1)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  /*  Continues the existing client.html aesthetic: IBM Plex Mono,
+      dark substrate, amber/cyan accents. This page is not part of
+      the live client — it's the standalone visual sign-off surface
+      for the F.MAP.1 renderer port. */
+  :root {
+    --bg:        #04141a;
+    --bg-deep:   #020a0e;
+    --panel:     #07181f;
+    --line:      #0f2a33;
+    --line-mid:  #163844;
+    --cyan:      #6ee8ff;
+    --amber:     #ffa640;
+    --amber-dim: #a86c20;
+    --text:      #cfe9f0;
+    --text-dim:  #5e8590;
+    --red:       #ff5a4a;
+  }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg-deep); color: var(--text);
+    font-family: 'IBM Plex Mono', Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+  header {
+    padding: 18px 28px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 {
+    margin: 0; font-size: 16px; letter-spacing: 0.10em;
+    color: var(--cyan); text-transform: uppercase;
+  }
+  header .sub {
+    margin-top: 4px; font-size: 11px; color: var(--text-dim);
+  }
+  main {
+    padding: 18px 28px 60px;
+    display: flex; flex-direction: column; gap: 28px;
+    max-width: 1200px;
+  }
+  section {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 14px 16px 18px;
+    border-radius: 4px;
+  }
+  section h2 {
+    margin: 0 0 10px; font-size: 12px; letter-spacing: 0.12em;
+    color: var(--amber); text-transform: uppercase;
+  }
+  section .h2-sub {
+    color: var(--text-dim); font-size: 10px; margin-left: 8px;
+    letter-spacing: 0.04em; text-transform: none;
+  }
+  .row {
+    display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start;
+  }
+  .artboard {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    padding: 0;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .artboard .frame-head {
+    background: var(--bg-deep);
+    border-bottom: 1px solid var(--line);
+    padding: 6px 12px;
+    font-size: 10px; letter-spacing: 0.10em;
+    color: var(--text-dim); text-transform: uppercase;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .artboard .frame-head .crumb {
+    color: var(--cyan);
+  }
+  .artboard svg {
+    display: block;
+  }
+  .artboard .frame-foot {
+    background: var(--bg-deep);
+    border-top: 1px solid var(--line);
+    padding: 6px 12px;
+    font-size: 10px; color: var(--text-dim);
+    display: flex; gap: 12px; justify-content: space-between;
+    align-items: center; flex-wrap: wrap;
+  }
+  .artboard .frame-foot .live {
+    color: var(--amber);
+  }
+  .legend {
+    background: var(--bg-deep);
+    border-top: 1px solid var(--line);
+    padding: 6px 12px;
+    font-size: 10px; color: var(--text-dim);
+    display: flex; gap: 14px; flex-wrap: wrap;
+  }
+  .legend span { white-space: nowrap; }
+  .tier-rail {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 0 8px 0 0;
+  }
+  .tier-chip {
+    width: 64px; height: 56px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    font-size: 9px; letter-spacing: 0.10em;
+    color: var(--text-dim); text-transform: uppercase;
+  }
+  .tier-chip.active {
+    background: var(--bg);
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+  .tier-chip .num {
+    font-size: 16px; line-height: 1; margin-bottom: 4px;
+    color: var(--cyan); font-weight: 600;
+  }
+  .tier-chip.active .num { color: var(--amber); }
+  .modal-row {
+    display: flex; align-items: stretch;
+  }
+  .planet-art {
+    width: 480px; height: 360px;
+    background: radial-gradient(ellipse at 50% 50%, #2a1f12 0%, #0a0604 70%);
+    position: relative; overflow: hidden; border-radius: 4px;
+  }
+  .planet-art .planet {
+    position: absolute; left: 50%; top: 50%;
+    width: 240px; height: 240px;
+    margin-left: -120px; margin-top: -120px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%,
+      #d4a35e 0%, #8a5d2b 45%, #4a2a10 80%, #1a0d04 100%);
+    box-shadow: 0 0 40px 4px rgba(255, 166, 64, 0.25),
+                inset -20px -10px 60px rgba(0,0,0,0.5);
+  }
+  .planet-art .sun-1, .planet-art .sun-2 {
+    position: absolute; border-radius: 50%; pointer-events: none;
+  }
+  .planet-art .sun-1 {
+    width: 28px; height: 28px;
+    right: 12%; top: 14%;
+    background: radial-gradient(circle, #ffd089, #ffa640 65%, transparent 70%);
+    box-shadow: 0 0 20px #ffd089;
+  }
+  .planet-art .sun-2 {
+    width: 18px; height: 18px;
+    right: 22%; top: 24%;
+    background: radial-gradient(circle, #ffe5b0, #ffba66 70%, transparent 75%);
+    box-shadow: 0 0 14px #ffba66;
+  }
+  .planet-art .pin {
+    position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+    border-radius: 50%; background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+  }
+  .planet-art .pin.you {
+    background: var(--amber);
+    box-shadow: 0 0 12px var(--amber);
+  }
+  .planet-art .pin-label {
+    position: absolute;
+    color: var(--text-dim);
+    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+    transform: translate(-50%, 8px);
+  }
+  .planet-art .pin-label.you { color: var(--amber); }
+  .info p {
+    margin: 0 0 6px; color: var(--text-dim); font-size: 11px;
+    max-width: 720px;
+  }
+  .info code {
+    color: var(--cyan); font-family: inherit;
+  }
+  .info b { color: var(--text); font-weight: 600; }
+  .scanlines {
+    position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg,
+      transparent 0, transparent 2px,
+      rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 3px);
+    mix-blend-mode: multiply;
+  }
+  .vignette {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 50%,
+      transparent 55%, rgba(0,0,0,0.55) 100%);
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>SW MUSH · MAP V2 PREVIEW (F.MAP.1)</h1>
+  <div class="sub">
+    Standalone renderer sign-off · static fixtures only · no live wiring ·
+    <code style="color:var(--cyan)">map_view.js</code> +
+    <code style="color:var(--cyan)">mos_eisley_fixture.js</code>
+  </div>
+</header>
+
+<main>
+
+<!-- ────────────────────────────────────────────────────────────────── -->
+<!-- 01 · DISTRICT VIEW — expanded modal + in-client mini side by side -->
+<!-- ────────────────────────────────────────────────────────────────── -->
+
+<section>
+  <h2>01 · TIER 1 — DISTRICT
+    <span class="h2-sub">primary view · most-used · two surfaces</span>
+  </h2>
+
+  <div class="info">
+    <p><b>Modal (960 × 640)</b> at left — full Mos Eisley district visible,
+       <code>showRooms="full"</code>, district fills + labels off (zoom-tier
+       1 has labels off by design — labels light up at tier 2). Tier rail on
+       the left, breadcrumb in the title.</p>
+    <p><b>In-client mini (360 × 420)</b> at right — locked to tier-1 around
+       the player, <code>showRooms="dot+player"</code>. Only the player's
+       own room is rendered as a footprint; everything else is a
+       style-colored dot.</p>
+  </div>
+
+  <div class="row" style="margin-top: 12px;">
+
+    <!-- Expanded modal -->
+    <div class="modal-row">
+      <div class="tier-rail">
+        <div class="tier-chip"><span class="num">3</span>PLANET</div>
+        <div class="tier-chip"><span class="num">2</span>CITY</div>
+        <div class="tier-chip active"><span class="num">1</span>DIST.</div>
+        <div class="tier-chip"><span class="num">0</span>SITE</div>
+      </div>
+      <div class="artboard">
+        <div class="frame-head">
+          <span>MAP · DISTRICT VIEW</span>
+          <span class="crumb">TATOOINE › MOS EISLEY › SPACEPORT › BAY 94</span>
+          <span style="color: var(--text-dim);">−  ▮  +   ESC</span>
+        </div>
+        <div style="position: relative;">
+          <svg id="modal-svg" width="960" height="571" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="scanlines"></div>
+          <div class="vignette"></div>
+        </div>
+        <div class="legend">
+          <span style="color:var(--cyan);">◉ YOU</span>
+          <span>▾ PC</span>
+          <span style="color:var(--amber);">● NPC FRIENDLY</span>
+          <span style="color:var(--red);">▲ HOSTILE</span>
+          <span>◯ NEUTRAL</span>
+          <span style="margin-left:18px;">Λ CANTINA · ≡ DOCK · § CIVIC · $ VENDOR · ※ LANDMARK</span>
+        </div>
+        <div class="frame-foot">
+          <span>20 BBY · CW</span>
+          <span class="live">● LIVE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- In-client mini -->
+    <div class="artboard">
+      <div class="frame-head">
+        <span>SECTOR MAP</span>
+        <span class="crumb">MOS EISLEY · SPACEPORT · BAY 94</span>
+        <span style="color: var(--text-dim);">⛶</span>
+      </div>
+      <div style="position: relative;">
+        <svg id="mini-svg" width="360" height="420" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="scanlines"></div>
+        <div class="vignette"></div>
+        <div style="position:absolute; left:8px; top:8px;
+                    background:rgba(255,166,64,0.12);
+                    border:1px solid var(--amber); border-radius:2px;
+                    padding:3px 7px; font-size:9px; letter-spacing:0.12em;
+                    color:var(--amber); text-transform:uppercase;">
+          TIER 1 · DISTRICT
+        </div>
+      </div>
+      <div class="frame-foot">
+        <span>──── 20 m</span>
+        <span>● 1 PC · ● 2 FRD · ▲ 2 HOST</span>
+        <span class="live">● LIVE</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────── -->
+<!-- 02 · TIER 2 — CITY                                                  -->
+<!-- ────────────────────────────────────────────────────────────────── -->
+
+<section>
+  <h2>02 · TIER 2 — CITY
+    <span class="h2-sub">whole Mos Eisley · district fills + labels · rooms collapse to dots</span>
+  </h2>
+  <div class="info">
+    <p><code>showRooms="dot"</code>, district fills + labels both ON.
+       Major streets become coarser ribbons; landmarks light up
+       (the room glyph IS the landmark at tier 1; at tier 2 the rooms
+       become dots so the landmark icon takes over).</p>
+  </div>
+  <div class="row" style="margin-top: 12px;">
+    <div class="artboard">
+      <div class="frame-head">
+        <span>MAP · CITY VIEW</span>
+        <span class="crumb">TATOOINE › MOS EISLEY</span>
+        <span style="color: var(--text-dim);">−  ▮  +   ESC</span>
+      </div>
+      <div style="position: relative;">
+        <svg id="city-svg" width="960" height="620" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="scanlines"></div>
+        <div class="vignette"></div>
+      </div>
+      <div class="legend">
+        <span>※ LANDMARK · H HUTT · Λ CANTINA · ≡ DOCK</span>
+        <span style="margin-left:18px; color:var(--amber);">◉ MOS EISLEY</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────── -->
+<!-- 03 · CORUSCANT PALETTE SWAP — same renderer, different geometry    -->
+<!-- ────────────────────────────────────────────────────────────────── -->
+
+<section>
+  <h2>03 · CORUSCANT SENATE — PALETTE SWAP
+    <span class="h2-sub">same renderer · cool-metallic palette · different geometry</span>
+  </h2>
+  <div class="info">
+    <p>Demonstrates the renderer is theme-agnostic. New area = new
+       palette entry + new <code>AreaGeometry</code> YAML; no renderer
+       change. Substrate becomes cool-blue duracrete, ribbons become
+       steel, district label is silver-blue. Same z-order, same
+       algorithms.</p>
+  </div>
+  <div class="row" style="margin-top: 12px;">
+    <div class="artboard">
+      <div class="frame-head">
+        <span>MAP · DISTRICT VIEW</span>
+        <span class="crumb">CORUSCANT › SENATE DISTRICT</span>
+        <span style="color: var(--text-dim);">−  ▮  +   ESC</span>
+      </div>
+      <div style="position: relative;">
+        <svg id="senate-svg" width="780" height="585" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="scanlines"></div>
+        <div class="vignette"></div>
+      </div>
+      <div class="legend">
+        <span>§ SENATE FLOOR · T ROTUNDA · ⌂ EMBASSY · ※ LANDMARK</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────── -->
+<!-- 04 · TIER 3 — PLANET (bespoke composition; not via MapView)        -->
+<!-- ────────────────────────────────────────────────────────────────── -->
+
+<section>
+  <h2>04 · TIER 3 — PLANET
+    <span class="h2-sub">bespoke composition · NOT routed through MapView · placeholder for the
+    later Tier-3 renderer</span>
+  </h2>
+  <div class="info">
+    <p>Tier 3 doesn't use <code>MapView</code> — planets aren't
+       rooms-with-exits. This is a placeholder showing the visual
+       direction (planet sphere · twin suns · city pins · "YOU" pulse
+       on Mos Eisley). The real Tier-3 renderer comes later.</p>
+  </div>
+  <div class="row" style="margin-top: 12px;">
+    <div class="artboard">
+      <div class="frame-head">
+        <span>MAP · PLANET VIEW</span>
+        <span class="crumb">TATOOINE</span>
+        <span style="color: var(--text-dim);">−  ▮  +   ESC</span>
+      </div>
+      <div class="planet-art">
+        <div class="planet"></div>
+        <div class="sun-1"></div>
+        <div class="sun-2"></div>
+        <!-- City pins (rough placement on disc) -->
+        <div class="pin you"  style="left: 38%; top: 42%;"></div>
+        <div class="pin-label you" style="left: 38%; top: 42%;">MOS EISLEY</div>
+        <div class="pin"      style="left: 30%; top: 55%;"></div>
+        <div class="pin-label"     style="left: 30%; top: 55%;">MOS ESPA</div>
+        <div class="pin"      style="left: 55%; top: 38%;"></div>
+        <div class="pin-label"     style="left: 55%; top: 38%;">BESTINE</div>
+        <div class="pin"      style="left: 50%; top: 60%;"></div>
+        <div class="pin-label"     style="left: 50%; top: 60%;">ANCHORHEAD</div>
+        <div class="pin"      style="left: 60%; top: 50%;"></div>
+        <div class="pin-label"     style="left: 60%; top: 50%;">JABBA'S PALACE</div>
+      </div>
+      <div class="frame-foot">
+        <span>1 SUN · 2 MOONS · OUTER RIM · 1 G</span>
+        <span class="live">● LIVE</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────────────────────────────────────────────── -->
+<!-- Implementation footnote                                              -->
+<!-- ────────────────────────────────────────────────────────────────── -->
+
+<section>
+  <h2>NOTES
+    <span class="h2-sub">F.MAP.1 deliverables and what comes next</span>
+  </h2>
+  <div class="info">
+    <p><b>This drop ships:</b>
+       <code>static/map_view.js</code>,
+       <code>engine/area_loader.py</code>,
+       <code>data/worlds/clone_wars/maps/mos_eisley.yaml</code>,
+       <code>data/worlds/clone_wars/maps/senate_district.yaml</code>,
+       <code>tools/emit_area_geometry_js.py</code>, this preview, and
+       <code>tests/test_fmap1_area_geometry_loader.py</code>.
+       No live wiring; the legacy <code>renderAreaMap()</code> in
+       <code>client.html</code> keeps running.</p>
+    <p><b>F.MAP.2 (next drop):</b> server emits an
+       <code>area_geometry</code> event when the player crosses an area
+       boundary; client subscribes and replaces the legacy minimap with
+       <code>MapView.render(svg, geom, {showRooms:"dot+player", ...})</code>.</p>
+    <p><b>F.MAP.3:</b> expanded modal — chrome + tier switcher + viewBox
+       animation + ESC handling.</p>
+    <p><b>F.MAP.4 / 5:</b> Tier 0 (Site) and Tier 3 (Planet) bespoke renderers.</p>
+  </div>
+</section>
+
+</main>
+
+<!-- ── Module load order matters: tokens defined inline by map_view.js ──── -->
+<script src="map_view.js"></script>
+<script src="map_v2/mos_eisley_fixture.js"></script>
+<script src="map_v2/senate_fixture.js"></script>
+<script>
+(function () {
+  // Demo contacts — in production, the server pushes these as a
+  // separate `contacts_update` event. The fixture file holds only
+  // the static AreaGeometry spec; live state is layered on here.
+  var DEMO_CONTACTS = [
+    {kind: "pc",          name: "Vanya R.",     x: 3.95, y: 6.45},
+    {kind: "npc_friend",  name: "4-LB",         x: 6.4,  y: 1.6},
+    {kind: "npc_friend",  name: "Chalmun",      x: 2.8,  y: 2.9},
+    {kind: "npc_hostile", name: "Tusken",       x: 11.9, y: 3.0},
+    {kind: "npc_hostile", name: "Bounty H.",    x: 2.8,  y: 2.9},
+    {kind: "npc_neutral", name: "Jawa",         x: 8.3,  y: 2.5},
+    {kind: "npc_neutral", name: "Moisture F.",  x: 8.3,  y: 3.7},
+  ];
+  // Mutate the fixture in place — the renderer reads geom.contacts,
+  // so we just stamp the demo array onto the loaded fixture.
+  window.MOS_EISLEY_FIXTURE.contacts = DEMO_CONTACTS;
+
+  // Modal — full district view, room footprints visible
+  MapView.render(document.getElementById("modal-svg"),
+    window.MOS_EISLEY_FIXTURE, {
+      viewBox:      [2.4, -0.4, 12.4, 7.8],
+      zoomTier:     1,
+      showRooms:    "full",
+      width:        960, height: 571,
+      // tier-1 has district labels off; labels light up at tier-2
+      showDistrictLabels: false,
+    });
+
+  // In-client mini — tight crop around player, dot+player mode
+  MapView.render(document.getElementById("mini-svg"),
+    window.MOS_EISLEY_FIXTURE, {
+      viewBox:      [3.0, 4.6, 4.4, 3.0],
+      zoomTier:     1,
+      showRooms:    "dot+player",
+      width:        360, height: 420,
+      showDistrictLabels: false,
+      // mini hides flavor text — too noisy at this size
+      showLabels:   false,
+    });
+
+  // City — tier 2, district labels + landmarks pop
+  MapView.render(document.getElementById("city-svg"),
+    window.MOS_EISLEY_FIXTURE, {
+      viewBox:      [2.4, -0.6, 12.6, 8.4],
+      zoomTier:     2,
+      showRooms:    "dot",
+      width:        960, height: 620,
+      showDistrictLabels: true,
+    });
+
+  // Coruscant Senate — same renderer, different geometry + palette
+  MapView.render(document.getElementById("senate-svg"),
+    window.SENATE_FIXTURE, {
+      viewBox:      [0.0, 0.0, 8.0, 6.0],
+      zoomTier:     1,
+      showRooms:    "full",
+      width:        780, height: 585,
+      showDistrictLabels: false,
+    });
+})();
+</script>
+</body>
+</html>

@@ -21,6 +21,23 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+def _bearing_from_attributes(char) -> Optional[int]:
+    """Phase-1 bearing substrate: pull ``attributes.bearing`` (screen-space
+    degrees, set by MoveCommand from the last planar move) off a character
+    dict. Returns ``None`` when absent/unparseable so the renderer keeps its
+    default (0). ``attributes`` may be a JSON string or an already-parsed dict.
+    """
+    if not char:
+        return None
+    attrs = char.get("attributes")
+    if isinstance(attrs, str):
+        attrs = safe_json_loads(attrs, {}) if attrs else {}
+    if not isinstance(attrs, dict):
+        return None
+    b = attrs.get("bearing")
+    return b if isinstance(b, (int, float)) else None
+
+
 class Protocol(enum.Enum):
     TELNET = "telnet"
     WEBSOCKET = "websocket"
@@ -299,6 +316,12 @@ class Session:
 
         # Track last sent credits value to detect changes for credit_event (Drop 9)
         self._last_sent_credits: Optional[int] = None
+
+        # F.MAP.2: Track the last AreaGeometry we pushed to this session.
+        # The full payload (~22KB) only ships on area transitions; per-tick
+        # HUD updates send only `player_position` (lightweight). Set to None
+        # when no AreaGeometry has been pushed yet.
+        self._last_sent_area_key: Optional[str] = None
 
     @property
     def wrap_width(self) -> int:
@@ -622,26 +645,64 @@ class Session:
                 hud["housing_info"] = hi
 
     async def _hud_territory(self, hud: dict, db, room_id) -> None:
-        """Add territory claim badge and contest status."""
+        """Add region-ownership badge and active region-contest status.
+
+        SYN.3 (2026-05-25): retargeted from zone-keyed Drop 6D contest
+        surfaces (now physically deleted) to region-keyed SYN.3
+        contest surfaces. Per-room claims are also gone (SYN.1.b
+        retirement) — the badge now reflects region ownership instead
+        of per-room claim ownership.
+        """
         hud["territory_claim"] = None
         hud["contest_active"] = False
         if not (db and room_id):
             return
-        from engine.territory import get_claim, get_active_contest, get_room_zone_id
-        tc = await get_claim(db, room_id)
-        if tc:
+        # Resolve the room's wilderness region (if any). City-map
+        # rooms (no wilderness_region_id) have neither a territory
+        # claim nor a contest — they're neutral commons per the
+        # Contestable Wilderness pivot (design v2 §0 + §1.3).
+        try:
+            room = await db.get_room(room_id)
+        except Exception:
+            room = None
+        region_slug = (room or {}).get("wilderness_region_id")
+        if not region_slug:
+            return
+
+        from engine.territory import get_region_owner
+        from engine.contest import get_active_region_contest
+
+        owner = await get_region_owner(db, region_slug)
+        if owner:
+            org_code = owner["org_code"]
             hud["territory_claim"] = {
-                "org_code": tc["org_code"],
-                "org_name": tc["org_code"].replace("_", " ").title(),
-                "has_guard": bool(tc.get("guard_npc_id")),
+                "org_code": org_code,
+                "org_name": org_code.replace("_", " ").title(),
+                "region_slug": region_slug,
+                # Per-room guard_npc_id is gone (SYN.1.b); region
+                # garrisons live in region_garrison and span the
+                # whole region rather than one room.
+                "has_guard": False,
             }
-            zone_id = await get_room_zone_id(db, room_id)
-            if zone_id:
-                contest = await get_active_contest(db, zone_id)
-                if contest:
-                    hud["contest_active"] = True
-                    hud["contest_challenger"] = contest["challenger_org_code"].replace("_", " ").title()
-                    hud["contest_ends"] = max(0, int(contest["ends_at"] - time.time()))
+
+        contest = await get_active_region_contest(db, region_slug)
+        if contest:
+            hud["contest_active"] = True
+            hud["contest_region"] = region_slug
+            hud["contest_challenger"] = (
+                contest["challenger_org_code"].replace("_", " ").title()
+            )
+            defender = contest.get("defender_org_code")
+            hud["contest_defender"] = (
+                defender.replace("_", " ").title()
+                if defender else "(un-owned)"
+            )
+            hud["contest_ends"] = max(
+                0, int(contest["ends_at"] - time.time()))
+            # Are we in the culminating-fight phase?
+            hud["contest_culminating"] = (
+                time.time() >= float(contest["accumulation_ends_at"])
+            )
 
     async def _hud_cp_progress(self, hud: dict, db, char_id) -> None:
         """Add CP progression data for sidebar progress bar."""
@@ -669,6 +730,386 @@ class Session:
             return
         from engine.organizations import get_all_faction_reps
         hud["reputation"] = await get_all_faction_reps(char, db)
+
+    async def _hud_city(self, hud: dict, db, char,
+                         room_id) -> None:
+        """Phase 6 web UI: assemble the city sidebar payload.
+
+        Sets ``hud["city"]`` to a summary dict when the player is
+        in a city room OR is a member of an org with an active
+        city. For admins (``is_admin=1``), additionally attaches
+        ``hud["city"]["admin"]`` with the all-cities list.
+
+        Payload shape:
+            hud["city"] = {
+                "name":            "Sunshine Outpost",
+                "id":              7,
+                "role":            "founder" | "mayor" | "citizen" | "guest" | "visitor",
+                "hq_tier":         "outpost" | "chapter_house" | "fortress",
+                "state":           "active" | "dissolved",
+                "grace_stage":     "active" | "week1" | "week2" | "week3" | "week4" | "expired",
+                "is_in_grace":     bool,
+                "treasury":        int,
+                "tax_rate":        float (0.0-0.10),
+                "rate_cap":        float,
+                "motd":            str,
+                "revenue_week":    int,
+                "revenue_total":   int,
+                "expansion_rooms": int,
+                "max_expansion":   int,
+                "guard_slots_used":  int,
+                "guard_slots_total": int,
+                "citizens_count":  int,
+                "guests_count":    int,
+                "banishments_count": int,
+                "founder_id":      int,
+                "mayor_id":        int,
+                "founder_name":    str,
+                "mayor_name":      str,
+                # Lists (truncated to 25; modal does the full read)
+                "citizens":     [{id, name, rank, online}, ...],
+                "guests":       [{id, name}, ...],
+                "banishments":  [{id, name, until, issued_by}, ...],
+                "guards":       [{npc_id, room_id, assigned_at, ai_active}, ...],
+                # Admin-only block
+                "admin": {
+                    "is_admin":   True,
+                    "all_cities": [{id, name, planet, mayor, hq_tier,
+                                    rooms, treasury, state}, ...],
+                },
+            }
+
+        If the player has no city context AND is not an admin,
+        ``hud["city"]`` is not set (the JS renders the panel
+        only when the key is present).
+
+        Failure-tolerant per the standing HUD contract: any
+        exception falls through with a partial payload (caller
+        wraps in try/except).
+        """
+        # Late import — engine.player_cities is the engine of
+        # record for everything here.
+        try:
+            from engine import player_cities as pc
+        except Exception:
+            return
+
+        is_admin = bool(char.get("is_admin"))
+
+        # Resolve the candidate city: (a) the room the player is
+        # in, falling back to (b) the player's org's active city.
+        city = None
+        if room_id:
+            try:
+                city = await pc.get_city_for_room(db, int(room_id))
+            except Exception:
+                log.debug("[_hud_city] room lookup failed",
+                          exc_info=True)
+        if city is None:
+            faction = char.get("faction_id") or "independent"
+            if faction and faction != "independent":
+                try:
+                    org = await db.get_organization(faction)
+                    if org:
+                        city = await pc.get_city_by_org(
+                            db, int(org["id"]))
+                except Exception:
+                    log.debug(
+                        "[_hud_city] org lookup failed",
+                        exc_info=True,
+                    )
+
+        if city is None and not is_admin:
+            return  # No payload — JS hides the panel
+
+        if city is not None:
+            payload = await self._hud_city_payload(db, char, city)
+        else:
+            # Admin with no city context — still ship admin block
+            payload = {"admin_only": True}
+
+        if is_admin:
+            try:
+                admin_block = await self._hud_city_admin_block(
+                    db, char)
+                payload["admin"] = admin_block
+            except Exception:
+                log.debug(
+                    "[_hud_city] admin block build failed",
+                    exc_info=True,
+                )
+
+        hud["city"] = payload
+
+    async def _hud_city_payload(
+        self, db, char, city: dict,
+    ) -> dict:
+        """Build the per-city payload dict.
+
+        Centralized so the admin "viewing another city" surface
+        (if added later) can call the same builder.
+
+        Lists are TRUNCATED to 25 entries; the click-to-modal
+        flow uses the same data shape and the v2 of this
+        payload will accept a query param to page beyond 25.
+        """
+        from engine import player_cities as pc
+
+        city_id = int(city["id"])
+        # Role of this character vs this city
+        try:
+            role = await pc.get_city_role(db, city, char)
+        except Exception:
+            role = "outsider"
+
+        # Pure-helper-driven derived values
+        try:
+            grace_stage = pc.grace_stage(city)
+        except Exception:
+            grace_stage = "active"
+        try:
+            is_grace = pc.is_in_grace(city)
+        except Exception:
+            is_grace = False
+        try:
+            guard_slots_total = pc.compute_city_guard_slots(city)
+        except Exception:
+            guard_slots_total = 0
+        try:
+            guards_used = await pc.count_city_guards(db, city_id)
+        except Exception:
+            guards_used = 0
+        try:
+            expansion_rooms = await pc.get_city_expansion_count(
+                db, city_id)
+        except Exception:
+            expansion_rooms = 0
+        max_expansion = pc.MAX_EXPANSION_ROOMS.get(
+            city.get("hq_tier") or "outpost", 0)
+
+        # Treasury (org's wallet)
+        treasury = 0
+        try:
+            org_id = int(city.get("org_id") or 0)
+            if org_id:
+                rows = await db.fetchall(
+                    "SELECT treasury FROM organizations "
+                    "WHERE id = ?",
+                    (org_id,),
+                )
+                if rows:
+                    treasury = int(rows[0].get("treasury") or 0)
+        except Exception:
+            log.debug("[_hud_city] treasury read failed",
+                      exc_info=True)
+
+        # Founder / mayor names
+        founder_name = ""
+        mayor_name = ""
+        try:
+            f = await db.get_character(
+                int(city.get("founder_id") or 0))
+            if f:
+                founder_name = f.get("name", "")
+            m = await db.get_character(
+                int(city.get("mayor_id") or 0))
+            if m:
+                mayor_name = m.get("name", "")
+        except Exception:
+            log.debug(
+                "[_hud_city] founder/mayor name lookup failed",
+                exc_info=True,
+            )
+
+        # Citizens (members of the founding org). Show top 25
+        # ordered by rank desc then name asc — matches the
+        # underlying get_org_members ordering.
+        citizens: list = []
+        try:
+            members = await db.get_org_members(
+                int(city.get("org_id") or 0))
+            for m in members[:25]:
+                citizens.append({
+                    "id": int(m.get("char_id") or 0),
+                    "name": m.get("char_name") or "",
+                    "rank": int(m.get("rank_level") or 0),
+                    # Online flag not yet wired — Phase 6 UI v1
+                    # leaves this field present but False.
+                    "online": False,
+                })
+        except Exception:
+            log.debug("[_hud_city] citizens read failed",
+                      exc_info=True)
+        citizens_count = len(citizens)
+        try:
+            # If the truncated list IS the truncated list, the
+            # count is at least 25 — but the underlying call
+            # gave us the full member list anyway, so:
+            if 'members' in locals():
+                citizens_count = len(members)
+        except Exception:
+            log.debug(
+                "[_hud_city] citizens_count recovery failed",
+                exc_info=True,
+            )
+
+        # Guests
+        guests: list = []
+        guests_count = 0
+        try:
+            from engine.player_cities import list_guests
+            guest_ids = await list_guests(db, city_id)
+            guests_count = len(guest_ids)
+            for gid in guest_ids[:25]:
+                gname = f"id={gid}"
+                try:
+                    g = await db.get_character(int(gid))
+                    if g:
+                        gname = g.get("name") or gname
+                except Exception:
+                    log.debug(
+                        "[_hud_city] guest name lookup failed "
+                        "for %s (best-effort)", gid,
+                        exc_info=True,
+                    )
+                guests.append({"id": int(gid), "name": gname})
+        except Exception:
+            log.debug("[_hud_city] guests read failed",
+                      exc_info=True)
+
+        # Banishments (active only)
+        banishments: list = []
+        banishments_count = 0
+        try:
+            from engine.player_cities import list_active_banishments
+            bans = await list_active_banishments(db, city_id)
+            banishments_count = len(bans)
+            for b in bans[:25]:
+                cid = int(b.get("char_id") or 0)
+                bname = f"id={cid}"
+                try:
+                    c = await db.get_character(cid)
+                    if c:
+                        bname = c.get("name") or bname
+                except Exception:
+                    log.debug(
+                        "[_hud_city] banishment name lookup "
+                        "failed for %s (best-effort)", cid,
+                        exc_info=True,
+                    )
+                banishments.append({
+                    "id": cid, "name": bname,
+                    "until": float(b.get("until") or 0.0),
+                    "issued_by": int(b.get("issued_by") or 0),
+                })
+        except Exception:
+            log.debug("[_hud_city] banishments read failed",
+                      exc_info=True)
+
+        # Guards (use the engine helper)
+        guards: list = []
+        try:
+            assigns = await pc.list_city_guards(db, city_id)
+            for a in assigns[:25]:
+                guards.append({
+                    "npc_id": int(a.get("npc_id") or 0),
+                    "room_id": int(a.get("room_id") or 0),
+                    "assigned_at": float(
+                        a.get("assigned_at") or 0.0),
+                    # AI active iff city not in grace. The Phase
+                    # 7b helper lives in engine.city_guard_runtime
+                    # but uses the same predicate.
+                    "ai_active": not is_grace,
+                })
+        except Exception:
+            log.debug("[_hud_city] guards read failed",
+                      exc_info=True)
+
+        return {
+            "name":   city.get("name", ""),
+            "id":     city_id,
+            "role":   role,
+            "hq_tier": city.get("hq_tier", "outpost"),
+            "state":   city.get("state", "active"),
+            "grace_stage": grace_stage,
+            "is_in_grace": is_grace,
+            "treasury": treasury,
+            "tax_rate": float(city.get("tax_rate") or 0.0),
+            "rate_cap": float(city.get("rate_cap") or 0.10),
+            "motd":     city.get("motd") or "",
+            "revenue_week":  int(city.get("revenue_week") or 0),
+            "revenue_total": int(city.get("revenue_total") or 0),
+            "expansion_rooms": expansion_rooms,
+            "max_expansion":   max_expansion,
+            "guard_slots_used":  guards_used,
+            "guard_slots_total": guard_slots_total,
+            "citizens_count":    citizens_count,
+            "guests_count":      guests_count,
+            "banishments_count": banishments_count,
+            "founder_id":   int(city.get("founder_id") or 0),
+            "mayor_id":     int(city.get("mayor_id") or 0),
+            "founder_name": founder_name,
+            "mayor_name":   mayor_name,
+            "citizens":    citizens,
+            "guests":      guests,
+            "banishments": banishments,
+            "guards":      guards,
+        }
+
+    async def _hud_city_admin_block(
+        self, db, char,
+    ) -> dict:
+        """Admin-only block: list of every active city for the
+        @city admin view."""
+        from engine import player_cities as pc
+
+        all_cities: list = []
+        try:
+            rows = await pc.list_all_cities(db)
+            for row in rows[:200]:  # client-side cap; admin view paginates
+                if row.get("state") == "dissolved":
+                    continue
+                all_cities.append({
+                    "id":       int(row.get("id") or 0),
+                    "name":     row.get("name") or "",
+                    "hq_tier":  row.get("hq_tier") or "outpost",
+                    "treasury": 0,  # filled below per-org
+                    "state":    row.get("state") or "active",
+                    "org_id":   int(row.get("org_id") or 0),
+                })
+        except Exception:
+            log.debug(
+                "[_hud_city] admin list_all_cities failed",
+                exc_info=True,
+            )
+
+        # Bulk-fetch treasuries for the org_ids we collected
+        try:
+            org_ids = sorted({c["org_id"] for c in all_cities
+                              if c.get("org_id")})
+            if org_ids:
+                placeholders = ",".join("?" * len(org_ids))
+                rows = await db.fetchall(
+                    f"SELECT id, treasury FROM organizations "
+                    f"WHERE id IN ({placeholders})",
+                    tuple(org_ids),
+                )
+                trez = {int(r["id"]): int(r.get("treasury") or 0)
+                        for r in rows}
+                for c in all_cities:
+                    c["treasury"] = trez.get(
+                        int(c.get("org_id") or 0), 0)
+        except Exception:
+            log.debug(
+                "[_hud_city] admin treasury bulk-fetch failed",
+                exc_info=True,
+            )
+
+        return {
+            "is_admin":   True,
+            "all_cities": all_cities,
+        }
+
 
     async def _hud_zone_influence(self, hud: dict, db, room_row) -> None:
         """Add zone influence percentages for territory context panel."""
@@ -763,11 +1204,395 @@ class Session:
         }
         hud["room_services"] = _derive_room_services(npcs, vendor_droids, room_props)
 
-    async def _hud_area_map(self, hud: dict, db, room_id) -> None:
-        """Build area map for minimap context panel."""
+    async def _hud_area_map(self, hud: dict, db, room_id, session_mgr=None) -> None:
+        """Build area map for minimap context panel.
+
+        Always emits the legacy ``area_map`` payload (used by the
+        existing client.html ``renderAreaMap`` minimap renderer).
+
+        F.MAP.2: when an ``AreaGeometryRegistry`` is attached to
+        session_mgr (via ``session_mgr._area_registry``) AND the
+        current room's ``properties.slug`` resolves to an
+        AreaGeometry-covered room, ALSO emits:
+
+          - ``area_geometry``: full AreaGeometry-as-dict, ONLY on the
+            first push to this session OR when the player crosses
+            into a different area. Per-tick steady-state pushes
+            omit this field. Saves ~22KB per HUD tick.
+          - ``player_position``: lightweight {area_key, room_id, x, y}
+            stamped on every push so the client marker layer can
+            interpolate to the new position without re-rendering
+            the rest of the map.
+
+        F.MAP.6: when the area is covered, ALSO emits:
+
+          - ``contacts``: list of {kind, name, x, y} entries — every
+            other PC in any covered room, plus every NPC in any
+            covered room, mapped to render coords. Self excluded
+            (already in player_position). Stamped on every push so
+            the renderer can update markers in place.
+
+        If the registry is absent, the room's slug isn't in the
+        index, or any other failure occurs, only the legacy
+        ``area_map`` is sent. The client falls back to the legacy
+        renderer transparently.
+        """
+        # ── Legacy path (always runs) ──────────────────────────────────
         from engine.area_map import build_area_map
         hud["area_map"] = await build_area_map(room_id, db, depth=2)
 
+        # Fetch the player's room row once — used by the environment
+        # substrate (below) AND the F.MAP.2 slug/registry path. Best-effort:
+        # the HUD push must never crash (see TestFailureTolerance), so a DB
+        # read failure here degrades to the legacy area_map already emitted.
+        try:
+            row = await db.get_room(room_id)
+        except Exception:
+            log.warning("[hud_area_map] get_room failed; legacy area_map only",
+                        exc_info=True)
+            return
+        props = row.get("properties") if row else None
+        if isinstance(props, str):
+            try:
+                props = json.loads(props)
+            except (ValueError, TypeError):
+                props = {}
+        if not isinstance(props, dict):
+            props = {}
+
+        # ── Phase-1 environment substrate (always sent; best-effort) ───
+        # time-of-day + weather scalars the SPA map renderer consumes. Room
+        # `properties.time_of_day` / `.weather` override the global day cycle;
+        # absent => the living day->dusk->night loop and 'clear'.
+        try:
+            from engine.world_time import resolve_environment
+            hud["environment"] = resolve_environment(props)
+        except Exception:
+            log.warning("[hud_area_map] environment resolve failed", exc_info=True)
+
+        # ── F.MAP.2/F.MAP.6 augmentation (best-effort, never raises) ───
+        registry = getattr(session_mgr, "_area_registry", None) if session_mgr else None
+        if registry is None:
+            return  # No registry attached; legacy path only.
+        try:
+            if not row:
+                return
+            slug = props.get("slug")
+            if not slug:
+                return
+            entry = registry.lookup(slug)
+            if entry is None:
+                # Room is in production but not covered by an
+                # authored AreaGeometry. Legacy minimap renders.
+                # Drop the cached area_key so the next entry into a
+                # covered area triggers a fresh `area_geometry` push.
+                self._last_sent_area_key = None
+                return
+            # Always send a lightweight player_position
+            hud["player_position"] = {
+                "area_key":      entry.area_key,
+                "render_room_id": entry.render_room_id,
+                "x":             entry.x,
+                "y":             entry.y,
+                # Phase-1 bearing substrate: the player's own facing from
+                # their last planar move, so the self-chevron points that way.
+                "bearing":       _bearing_from_attributes(self.character),
+            }
+            # On area transition (or first push), include the full geometry
+            if self._last_sent_area_key != entry.area_key:
+                payload = registry.get_payload(entry.area_key)
+                if payload is not None:
+                    hud["area_geometry"] = payload
+                    self._last_sent_area_key = entry.area_key
+            # F.MAP.6: build contacts list (every other PC + every NPC
+            # in any covered room, mapped to render coords). Failure
+            # here doesn't kill the rest of the augmentation.
+            try:
+                contacts = await self._build_area_contacts(
+                    db, registry, entry.area_key, session_mgr,
+                )
+                hud["contacts"] = contacts
+            except Exception:
+                log.warning("[hud_area_map] contacts assembly failed",
+                            exc_info=True)
+            # Dynamic POI feed: live entities (bounty targets, …) for the
+            # map's L_Entities layer. Separate from static authored landmarks.
+            try:
+                pois = await self._build_area_pois(db, registry, entry.area_key)
+                hud["pois"] = pois
+            except Exception:
+                log.warning("[hud_area_map] pois assembly failed",
+                            exc_info=True)
+        except Exception:
+            log.warning("[hud_area_map] area_geometry augmentation failed",
+                        exc_info=True)
+
+    async def _build_area_contacts(self, db, registry, area_key: str,
+                                   session_mgr) -> list:
+        """F.MAP.6: assemble the ``contacts`` list for the player's
+        current area.
+
+        Returns a list of dicts shaped for the F.MAP.1 MapView
+        renderer's marker layer:
+          [{kind: "pc"|"npc_friend"|"npc_hostile"|"npc_neutral",
+            name: str, x: float, y: float}, ...]
+
+        Self is EXCLUDED — the caller already stamped the player on
+        ``hud["player_position"]`` and the renderer draws that
+        separately (with the pulsing self-marker).
+
+        NPCs are role-classified via the existing _classify_npc_role
+        path:
+          hostile               → "npc_hostile"
+          guard / quest         → "npc_friend"   (allies/allies-of-the-state)
+          trainer / vendor /    → "npc_neutral"
+          mechanic / bartender    (service NPCs)
+          other                 → "npc_neutral"
+
+        Failure-tolerant: any per-NPC or per-PC failure is logged at
+        DEBUG and skipped — better to ship a partial roster than a
+        broken HUD.
+        """
+        # Resolve the area's slugs to db room_ids (cached after first call).
+        try:
+            room_id_map = await registry.resolve_area_room_ids(area_key, db)
+        except Exception:
+            log.warning("[hud_area_map] resolve_area_room_ids failed for %s",
+                        area_key, exc_info=True)
+            return []
+        if not room_id_map:
+            return []
+
+        contacts: list = []
+
+        # ── PCs in covered rooms (excluding self) ───────────────────────
+        if session_mgr is not None:
+            try:
+                self_id = (self.character or {}).get("id")
+                for sess in session_mgr._sessions.values():
+                    if not getattr(sess, "is_in_game", False):
+                        continue
+                    sc = sess.character
+                    if not sc:
+                        continue
+                    if sc.get("id") == self_id:
+                        continue
+                    sroom = sc.get("room_id")
+                    e = room_id_map.get(sroom) if sroom else None
+                    if e is None:
+                        continue
+                    contacts.append({
+                        "kind": "pc",
+                        "name": sc.get("name", "?"),
+                        "x":    e.x,
+                        "y":    e.y,
+                        # Phase-1 bearing substrate: facing from the PC's last
+                        # move (attributes.bearing), so their chevron points
+                        # the way they walked. Absent => renderer defaults 0.
+                        "bearing": _bearing_from_attributes(sc),
+                        # +pvp display surface (May 18 2026): surface
+                        # opt-in flag status to the HUD contact roster
+                        # so observers can see at a glance which PCs
+                        # are flagged before approaching. Web-first;
+                        # rendering choice (color, badge) is a UI
+                        # concern. SECURED zones still block PvP
+                        # regardless of flag, so this is informational.
+                        "pvp_flagged": bool(sc.get("pvp_flagged") or False),
+                    })
+            except Exception:
+                log.debug("[hud_area_map] pc roster sweep failed",
+                          exc_info=True)
+
+        # ── NPCs in covered rooms ───────────────────────────────────────
+        # Single SQL: SELECT * FROM npcs WHERE room_id IN (?, ?, ...).
+        # The IN-clause is constructed from the resolved room ids only,
+        # so the ? count is bounded by the number of authored rooms in
+        # the area (53 for Mos Eisley).
+        room_ids = list(room_id_map.keys())
+        if room_ids:
+            try:
+                placeholders = ",".join(["?"] * len(room_ids))
+                rows = await db._db.execute_fetchall(
+                    f"SELECT * FROM npcs WHERE room_id IN ({placeholders})",
+                    tuple(room_ids),
+                )
+                for r in rows:
+                    rd = dict(r)
+                    if rd.get("hired_by") is not None:
+                        # Hired NPC — already conceptually with the player
+                        # who hired them. Skip to avoid stacking icons.
+                        continue
+                    rid = rd.get("room_id")
+                    e = room_id_map.get(rid)
+                    if e is None:
+                        continue
+                    role = _classify_npc_role(rd)
+                    if role == "hostile":
+                        kind = "npc_hostile"
+                    elif role in ("guard", "quest"):
+                        kind = "npc_friend"
+                    else:
+                        # trainer / vendor / mechanic / bartender / neutral
+                        kind = "npc_neutral"
+                    contacts.append({
+                        "kind": kind,
+                        "name": rd.get("name", "NPC"),
+                        "x":    e.x,
+                        "y":    e.y,
+                    })
+            except Exception:
+                log.debug("[hud_area_map] npc roster sweep failed",
+                          exc_info=True)
+
+        return contacts
+
+    async def _build_area_pois(self, db, registry, area_key: str) -> list:
+        """F.MAP — dynamic POI feed: live entities (bounty targets, …) in the
+        player's current area, mapped to render coords for L_Entities.
+
+        Returns a list shaped for the composition engine's ``dynamic.poi``:
+          [{kind: "bounty"|"vendor"|"mission"|"objective"
+                   |"anomaly_t1"|"anomaly_t2"|"anomaly_t3",
+            x: float, y: float}, ...]
+
+        These are RUNTIME entities, distinct from the static authored
+        ``landmarks`` the adapter already turns into POIs. Same render-id
+        bridge as contacts: ``resolve_area_room_ids`` maps a DB room_id to its
+        AreaGeometry render coords. Best-effort — never raises into the HUD.
+
+        v1 source: posted bounty contracts whose ``target_room_id`` falls in a
+        covered room. Also wired: wilderness anomalies — anchored to a landmark
+        ``room_id`` and tiered (``anomaly_t1/t2/t3``, incl. the Tier-3 world
+        boss). They're enumerated per-region via
+        ``wilderness_anomalies.get_anomalies_for_region``, so we first derive
+        the covered regions from the room map (``region_slug`` is captured on
+        each ``_RoomLookupEntry`` at no extra DB cost), then map each anomaly's
+        ``anchor_room_id`` to render coords the same way bounties are mapped.
+
+        Also wired (see the sweep below): the player's accepted-mission
+        objective(s) — ``destination_room_id`` → ``{kind:"objective"}``.
+        Still not wired: mission-giver pins (``giver`` is a name, not a room).
+        """
+        pois: list = []
+        try:
+            room_id_map = await registry.resolve_area_room_ids(area_key, db)
+        except Exception:
+            log.warning("[hud_area_map] resolve_area_room_ids failed for %s "
+                        "(pois)", area_key, exc_info=True)
+            return pois
+        if not room_id_map:
+            return pois
+
+        # ── Bounty targets in covered rooms ─────────────────────────────
+        try:
+            from engine.bounty_board import get_bounty_board
+            board = get_bounty_board()
+            for c in board.posted_contracts():
+                troom = getattr(c, "target_room_id", None)
+                if troom is None:
+                    continue
+                e = room_id_map.get(troom)
+                if e is None:
+                    continue  # bounty target isn't in this area's view
+                pois.append({"kind": "bounty", "x": e.x, "y": e.y})
+        except Exception:
+            log.debug("[hud_area_map] bounty poi sweep failed", exc_info=True)
+
+        # ── Wilderness anomalies in covered regions ─────────────────────
+        # Anomalies are keyed by region, so first collect the distinct
+        # regions this area covers (region_slug rides along on each room
+        # entry, captured at no extra DB cost in resolve_area_room_ids).
+        # Empty for city areas (region is None) → no anomaly glyphs there.
+        try:
+            from engine.wilderness_anomalies import get_anomalies_for_region
+            regions = {
+                e.region_slug
+                for e in room_id_map.values()
+                if getattr(e, "region_slug", None)
+            }
+            for region in regions:
+                for a in get_anomalies_for_region(region):
+                    anchor = getattr(a, "anchor_room_id", None)
+                    if anchor is None:
+                        continue
+                    e = room_id_map.get(int(anchor))
+                    if e is None:
+                        continue  # anchored outside this area's view
+                    tier = getattr(a, "tier", 1) or 1
+                    tier = 1 if tier < 1 else (3 if tier > 3 else tier)
+                    pois.append({
+                        "kind": "anomaly_t{}".format(tier),
+                        "x": e.x, "y": e.y,
+                    })
+        except Exception:
+            log.debug("[hud_area_map] anomaly poi sweep failed", exc_info=True)
+
+        # ── Placed vendor droids in covered rooms ───────────────────────
+        # Area-state, like bounty/anomaly: every shopfront in view, for
+        # everyone. Vendor droids are player-owned objects (type=
+        # 'vendor_droid') anchored to a room when deployed (`shop place`);
+        # unplaced ones sit in inventory with room_id=NULL and are excluded
+        # by the room_id IN-filter automatically. One batched SQL keyed on
+        # the covered room ids — the SAME no-storm pattern the contacts NPC
+        # sweep uses (the ? count is bounded by the area's authored rooms),
+        # so this adds a single indexed query per push, not one-per-room.
+        room_ids = list(room_id_map.keys())
+        if room_ids:
+            try:
+                placeholders = ",".join(["?"] * len(room_ids))
+                rows = await db._db.execute_fetchall(
+                    "SELECT room_id FROM objects "
+                    "WHERE type = 'vendor_droid' "
+                    f"AND room_id IN ({placeholders})",
+                    tuple(room_ids),
+                )
+                for r in rows:
+                    rd = dict(r)
+                    e = room_id_map.get(rd.get("room_id"))
+                    if e is None:
+                        continue  # shouldn't happen (IN-filtered), but be safe
+                    pois.append({"kind": "vendor", "x": e.x, "y": e.y})
+            except Exception:
+                log.debug("[hud_area_map] vendor poi sweep failed", exc_info=True)
+
+        # ── The player's accepted-mission objective(s) ──────────────────
+        # Unlike bounty/anomaly, which are area-state (everything huntable /
+        # anomalous in view, for everyone), an objective is personal: it's the
+        # destination of a mission THIS character accepted. So this sweep reads
+        # self.character and places a green-star "objective" glyph on each
+        # accepted mission's destination room that falls in the current view.
+        #
+        # destination_room_id is populated by the board generator from a real
+        # DB room (MissionBoard.refresh lazily fetches the room list when it
+        # fills the board) and stored as a string. Missions without one —
+        # space missions (they target a zone, not a ground room) and any not
+        # generated with a room list — carry None and are simply skipped, so a
+        # missing destination degrades to "no marker", never an error.
+        try:
+            char = getattr(self, "character", None)
+            if char is not None:
+                char_id_str = str(char["id"])
+                from engine.missions import get_mission_board, MissionStatus
+                mboard = get_mission_board()
+                for m in mboard._missions.values():
+                    if (getattr(m, "accepted_by", None) != char_id_str or
+                            getattr(m, "status", None) != MissionStatus.ACCEPTED):
+                        continue
+                    drid = getattr(m, "destination_room_id", None)
+                    if drid is None:
+                        continue
+                    try:
+                        rid = int(drid)
+                    except (TypeError, ValueError):
+                        continue
+                    e = room_id_map.get(rid)
+                    if e is None:
+                        continue  # objective room isn't in this area's view
+                    pois.append({"kind": "objective", "x": e.x, "y": e.y})
+        except Exception:
+            log.debug("[hud_area_map] objective poi sweep failed", exc_info=True)
+
+        return pois
     async def _hud_nearby_services(self, hud: dict, db, room_id) -> None:
         """BFS for nearby services within 4 rooms."""
         from engine.area_map import find_nearby_services
@@ -1050,6 +1875,14 @@ class Session:
             except Exception:
                 pass  # Non-critical
 
+        # ── 13b. City (Phase 6 web UI) ──
+        if db:
+            try:
+                await self._hud_city(hud, db, char, room_id)
+            except Exception:
+                log.warning("send_hud_update: city failed",
+                            exc_info=True)
+
         # ── 14. Room contents (NPCs, players, droids, services) ──
         if db and room_id:
             try:
@@ -1061,7 +1894,7 @@ class Session:
         # ── 15. Area map ──
         if db and room_id:
             try:
-                await self._hud_area_map(hud, db, room_id)
+                await self._hud_area_map(hud, db, room_id, session_mgr=session_mgr)
             except Exception:
                 log.warning("send_hud_update: area_map failed", exc_info=True)
 

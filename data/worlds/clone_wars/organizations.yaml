@@ -277,10 +277,15 @@ factions:
       color: "\033[1;31m"    # Red
       axis: sith
       description: >
-        The Sith operate in secret. Count Dooku is publicly a Separatist
-        leader; privately he is Darth Tyranus, Sith Lord. Darth Sidious
-        controls the Republic from within. The Sith influence score tracks
-        how much of the galaxy's suffering serves their plan.
+        The Sith Order is publicly believed extinct, destroyed a thousand
+        years ago by the Jedi — but a master-apprentice pair has operated
+        in the shadows of galactic politics for generations, never seen
+        and never named by those who survive learning the truth. Their
+        hand shapes both sides of the war from off-stage; the
+        Sith influence score tracks how much of the galaxy's suffering
+        serves their plan. NPC-only; the Director uses this faction to
+        narrate atmospheric pressure, never to put a Sith Lord in a
+        player-reachable scene.
     ranks:
       - level: 0
         title: "Acolyte"
@@ -297,11 +302,16 @@ factions:
       color: "\033[0;31m"    # Dark red
       axis: separatist
       description: >
-        The corporate leaders of the CIS: Nute Gunray, Wat Tambor,
-        San Hill, Poggle the Lesser. They funded the war for profit
-        and are increasingly aware they are pawns. NPC-only — the
-        Council is a Director AI faction for narrative events, not
-        a player organization.
+        The Separatist Council is the corporate oligarchy that funds
+        and directs CIS war policy at the institutional level — Trade
+        Federation, Techno Union, InterGalactic Banking Clan, Corporate
+        Alliance, Commerce Guild, and the Hyper-Communications Cartel,
+        each represented by its sitting senior. The Council meets at
+        rotating off-world safehouses (Geonosis, Raxus Prime, Mustafar)
+        and never in a Republic-reachable system. NPC-only — the
+        Council is a Director AI faction for narrative events, not a
+        player organization. Individual Council members remain
+        off-screen by design.
     ranks:
       - level: 0
         title: "Council Member"

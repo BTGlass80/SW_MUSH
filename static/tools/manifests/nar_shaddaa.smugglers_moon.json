@@ -1,0 +1,68 @@
+{
+  "area_key": "nar_shaddaa.smugglers_moon",
+  "display_name": "NAR SHADDAA",
+  "substrate": "/static/maps/nar_shaddaa_substrate.png",
+  "bounds": {
+    "x_min": 0.0,
+    "y_min": 0.0,
+    "x_max": 9.0,
+    "y_max": 13.0
+  },
+  "landmarks": [
+    {
+      "id": "hutt_tower",
+      "icon": "palace",
+      "name": "Hutt Emissary Tower",
+      "distinctive": true,
+      "fx": 0.5,
+      "fy": 0.1923,
+      "note": "distinctive painted feature — place on the palace",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "promenade",
+      "icon": "cantina",
+      "name": "The Promenade",
+      "distinctive": true,
+      "fx": 0.5,
+      "fy": 0.3462,
+      "note": "distinctive painted feature — place on the cantina",
+      "min_zoom": 2,
+      "max_zoom": 2
+    },
+    {
+      "id": "bay_aurek",
+      "icon": "dock",
+      "name": "Docking Bay Aurek",
+      "distinctive": true,
+      "fx": 0.5,
+      "fy": 0.4538,
+      "note": "distinctive painted feature — place on the dock",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "fight_pits",
+      "icon": "palace",
+      "name": "Fighting Pits",
+      "distinctive": true,
+      "fx": 0.6889,
+      "fy": 0.6385,
+      "note": "distinctive painted feature — place on the palace",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "reactor",
+      "icon": "beacon",
+      "name": "Reactor Core",
+      "distinctive": false,
+      "fx": 0.5,
+      "fy": 0.8385,
+      "note": "indistinct / generic — approximate is fine",
+      "min_zoom": 2,
+      "max_zoom": 3
+    }
+  ]
+}

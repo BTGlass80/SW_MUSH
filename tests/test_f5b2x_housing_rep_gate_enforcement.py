@@ -435,15 +435,32 @@ class TestPurchaseHomeRepGateEnforcement(unittest.TestCase):
 
 class TestGCWBackwardsCompatibility(unittest.TestCase):
     """Under GCW era, F.5b.2.x changes are no-ops because there are no
-    rep-gated lots in the legacy GCW T3 hardcodes."""
+    rep-gated lots in the legacy GCW T3 hardcodes.
+
+    Post-May-18-2026 pivot the default era is CW, not GCW. This class
+    explicitly registers a GCW config in setUp so the no-filter
+    assertion holds. Pre-pivot the class relied on the default era
+    being GCW; the pivot flipped that default so we register
+    explicitly now.
+    """
 
     def setUp(self):
         from engine.housing_lots_provider import clear_lots_cache
+        from engine.era_state import set_active_config
         clear_lots_cache()
-        # Don't set active era — defaults to GCW.
+        # Post-pivot, explicitly register a GCW config — the default
+        # is now CW which would apply CW rep gates and filter out
+        # most lots.
+
+        class _GcwCfg:
+            active_era = "gcw"
+            use_yaml_director_data = True
+        set_active_config(_GcwCfg())
 
     def tearDown(self):
         from engine.housing_lots_provider import clear_lots_cache
+        from engine.era_state import set_active_config
+        set_active_config(None)
         clear_lots_cache()
 
     def test_gcw_no_filter_applied(self):

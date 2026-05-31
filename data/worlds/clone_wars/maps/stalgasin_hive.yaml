@@ -1,0 +1,194 @@
+# ─────────────────────────────────────────────────────────────────────────
+# GEONOSIS — Stalgasin Hive & Environs (AreaGeometry, server-authoritative)
+#
+# City #4 of the substrate rollout. Lays out the real geonosis rooms from
+# planets/geonosis.yaml (ids 400–437, 4 zones) by their slug. The rooms
+# carry rich inline exits, so streets here follow the REAL adjacency graph.
+#
+# Spatial logic (from the planet file's map_x/map_y grid, x 46–53 y 6–13):
+# a central SURFACE hub (landing pad + market + quarters), with three wings
+# radiating out — FOUNDRIES west (droid assembly lines), the DEEP HIVE
+# northeast (Archduke's hall, worker district, command), and the PETRANAKI
+# ARENA south (the execution arena + creature pens). Doorway rooms
+# (hive_entrance, foundry_approach, arena_gate) sit at the wing mouths.
+#
+# Y-up authored frame (adapter reflects Y; do not pre-flip). Grid collisions
+# nudged apart so footprints don't overlap.
+#
+# substrate_image: add a painted Geonosis tile once generated (see
+# NANO_SUBSTRATE_PLAYBOOK.md). Absent → procedural. Palette: tatooine is the
+# closest desert palette shipped today (Geonosis has no dedicated palette
+# yet) — swap to a geonosis palette when one is authored.
+# ─────────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+area_key: geonosis.stalgasin_hive
+display_name: STALGASIN HIVE
+planet: GEONOSIS
+era: 20 BBY · Clone Wars
+default_terrain: sand
+palette: tatooine
+
+substrate_image: /static/maps/geonosis_stalgasin_substrate.png
+
+bounds:
+  x_min: 0.0
+  y_min: 0.0
+  x_max: 11.0
+  y_max: 11.0
+
+# ── DISTRICTS ────────────────────────────────────────────────────────────
+districts:
+  - id: surface
+    name: SURFACE
+    polygon: [[5.4, 2.8], [9.8, 2.8], [9.8, 7.0], [5.4, 7.0]]
+    label_anchor: [9.3, 6.6]
+    rotation: 0
+  - id: foundries
+    name: FOUNDRIES
+    polygon: [[0.4, 2.8], [5.4, 2.8], [5.4, 7.0], [0.4, 7.0]]
+    label_anchor: [0.8, 6.6]
+    rotation: 0
+  - id: hive
+    name: DEEP HIVE
+    polygon: [[5.4, 7.0], [10.6, 7.0], [10.6, 10.6], [5.4, 10.6]]
+    label_anchor: [10.1, 10.2]
+    rotation: 0
+  - id: arena
+    name: PETRANAKI ARENA
+    polygon: [[4.0, 0.4], [8.2, 0.4], [8.2, 2.8], [4.0, 2.8]]
+    label_anchor: [7.7, 0.8]
+    rotation: 0
+
+# ── ROOMS (real geonosis rooms, by slug; collisions nudged apart) ────────
+rooms:
+  # DEEP HIVE (northeast, top-right) — Archduke's domain
+  - {id: 418, slug: "geonosis_deep_tunnel",          name: "Deep Tunnel",     zone: hive,      x: 7.4,  y: 10.2, w: 0.45, h: 0.4,  style: street,   symbol: "·"}
+  - {id: 415, slug: "geonosis_worker_district",      name: "Worker Dist.",    zone: hive,      x: 8.8,  y: 10.2, w: 0.55, h: 0.5,  style: housing,  symbol: "⌂"}
+  - {id: 419, slug: "geonosis_hive_medical",         name: "Hive Medical",    zone: hive,      x: 10.1, y: 10.2, w: 0.5,  h: 0.45, style: civic,    symbol: "§"}
+  - {id: 414, slug: "geonosis_archduke_audience_hall", name: "Archduke Hall", zone: hive,      x: 6.0,  y: 8.9,  w: 0.6,  h: 0.55, style: temple,   symbol: "T"}
+  - {id: 413, slug: "geonosis_archduke_approach",    name: "Archduke App.",   zone: hive,      x: 7.4,  y: 8.9,  w: 0.45, h: 0.4,  style: street,   symbol: "·"}
+  - {id: 411, slug: "geonosis_hive_main_chamber",    name: "Hive Chamber",    zone: hive,      x: 8.8,  y: 8.9,  w: 0.7,  h: 0.6,  style: landmark, symbol: "※"}
+  - {id: 417, slug: "geonosis_cis_command_post",     name: "CIS Command",     zone: hive,      x: 10.1, y: 8.9,  w: 0.55, h: 0.5,  style: civic,    symbol: "§"}
+  - {id: 410, slug: "geonosis_upper_tunnel",         name: "Upper Tunnel",    zone: hive,      x: 8.4,  y: 7.6,  w: 0.45, h: 0.4,  style: street,   symbol: "·"}
+  - {id: 416, slug: "geonosis_hive_market",          name: "Hive Market",     zone: hive,      x: 9.4,  y: 7.6,  w: 0.55, h: 0.5,  style: market,   symbol: "#"}
+  - {id: 412, slug: "geonosis_warrior_barracks",     name: "Warrior Barr.",   zone: hive,      x: 10.1, y: 7.6,  w: 0.55, h: 0.5,  style: civic,    symbol: "§"}
+  # SURFACE (center) — the hub
+  - {id: 407, slug: "geonosis_hive_entrance",        name: "Hive Entrance",   zone: surface,   x: 8.9,  y: 6.2,  w: 0.6,  h: 0.55, style: civic,    symbol: "§"}
+  - {id: 402, slug: "geonosis_surface_market",       name: "Surface Market",  zone: surface,   x: 7.5,  y: 6.2,  w: 0.6,  h: 0.55, style: market,   symbol: "#"}
+  - {id: 403, slug: "geonosis_cis_recruiter_office", name: "CIS Recruiter",   zone: surface,   x: 6.2,  y: 6.2,  w: 0.5,  h: 0.45, style: civic,    symbol: "§"}
+  - {id: 400, slug: "geonosis_landing_pad",          name: "Landing Pad",     zone: surface,   x: 6.2,  y: 4.8,  w: 0.7,  h: 0.6,  style: dock,     symbol: "◎"}
+  - {id: 401, slug: "geonosis_surface_approach",     name: "Surf. Approach",  zone: surface,   x: 7.5,  y: 4.8,  w: 0.45, h: 0.45, style: street,   symbol: "·"}
+  - {id: 404, slug: "geonosis_spire_overlook",       name: "Spire Overlook",  zone: surface,   x: 8.9,  y: 4.8,  w: 0.5,  h: 0.45, style: landmark, symbol: "※"}
+  - {id: 405, slug: "geonosis_droid_staging",        name: "Droid Staging",   zone: surface,   x: 8.0,  y: 3.5,  w: 0.55, h: 0.5,  style: civic,    symbol: "§"}
+  - {id: 435, slug: "stalgasin_offworld_quarter",    name: "Offworld Qtr",    zone: surface,   x: 9.2,  y: 3.5,  w: 0.5,  h: 0.45, style: housing,  symbol: "⌂"}
+  - {id: 436, slug: "stalgasin_outsider_compound",   name: "Outsider Cmp.",   zone: surface,   x: 6.4,  y: 3.5,  w: 0.5,  h: 0.45, style: housing,  symbol: "⌂"}
+  - {id: 406, slug: "geonosis_surface_ruins",        name: "Surface Ruins",   zone: surface,   x: 5.4,  y: 4.8,  w: 0.5,  h: 0.45, style: landmark, symbol: "※"}
+  - {id: 437, slug: "smugglers_roost_flophouse",     name: "Roost Flop.",     zone: surface,   x: 10.1, y: 3.5,  w: 0.5,  h: 0.45, style: cantina,  symbol: "Λ"}
+  # FOUNDRIES (west) — droid assembly
+  - {id: 429, slug: "geonosis_component_storage",    name: "Component Stor.", zone: foundries, x: 2.1,  y: 6.2,  w: 0.5,  h: 0.45, style: vendor,   symbol: "$"}
+  - {id: 426, slug: "geonosis_foundry_upper",        name: "Foundry Upper",   zone: foundries, x: 3.5,  y: 6.2,  w: 0.5,  h: 0.45, style: civic,    symbol: "§"}
+  - {id: 409, slug: "geonosis_foundry_approach",     name: "Foundry App.",    zone: foundries, x: 4.7,  y: 6.2,  w: 0.45, h: 0.45, style: street,   symbol: "·"}
+  - {id: 428, slug: "geonosis_foundry_control",      name: "Foundry Ctrl",    zone: foundries, x: 4.7,  y: 5.4,  w: 0.5,  h: 0.45, style: civic,    symbol: "§"}
+  - {id: 433, slug: "geonosis_power_generator",      name: "Power Gen.",      zone: foundries, x: 0.8,  y: 4.8,  w: 0.55, h: 0.5,  style: landmark, symbol: "※"}
+  - {id: 427, slug: "geonosis_b2_assembly",          name: "B2 Assembly",     zone: foundries, x: 2.1,  y: 4.8,  w: 0.6,  h: 0.5,  style: civic,    symbol: "§"}
+  - {id: 425, slug: "geonosis_foundry_main",         name: "Foundry Main",    zone: foundries, x: 3.5,  y: 4.8,  w: 0.7,  h: 0.6,  style: landmark, symbol: "※"}
+  - {id: 434, slug: "geonosis_output_bay",           name: "Output Bay",      zone: foundries, x: 4.9,  y: 4.8,  w: 0.5,  h: 0.45, style: dock,     symbol: "◎"}
+  - {id: 430, slug: "geonosis_secondary_foundry",    name: "Sec. Foundry",    zone: foundries, x: 2.1,  y: 3.5,  w: 0.55, h: 0.5,  style: civic,    symbol: "§"}
+  - {id: 431, slug: "geonosis_worker_staging",       name: "Worker Staging",  zone: foundries, x: 3.5,  y: 3.5,  w: 0.5,  h: 0.45, style: housing,  symbol: "⌂"}
+  - {id: 432, slug: "geonosis_cis_engineering_bay",  name: "Eng. Bay",        zone: foundries, x: 4.8,  y: 3.5,  w: 0.5,  h: 0.45, style: civic,    symbol: "§"}
+  # PETRANAKI ARENA (south, bottom)
+  - {id: 408, slug: "geonosis_arena_gate",           name: "Arena Gate",      zone: arena,     x: 5.6,  y: 2.4,  w: 0.5,  h: 0.45, style: street,   symbol: "·"}
+  - {id: 420, slug: "petranaki_arena_entrance",      name: "Arena Entrance",  zone: arena,     x: 6.2,  y: 2.0,  w: 0.55, h: 0.5,  style: civic,    symbol: "§"}
+  - {id: 424, slug: "geonosis_creature_pens",        name: "Creature Pens",   zone: arena,     x: 7.5,  y: 2.0,  w: 0.55, h: 0.5,  style: landmark, symbol: "※"}
+  - {id: 421, slug: "geonosis_arena_stands",         name: "Arena Stands",    zone: arena,     x: 6.2,  y: 0.9,  w: 0.55, h: 0.5,  style: civic,    symbol: "§"}
+  - {id: 422, slug: "geonosis_arena_floor",          name: "Arena Floor",     zone: arena,     x: 7.5,  y: 0.9,  w: 0.7,  h: 0.6,  style: landmark, symbol: "※"}
+  - {id: 423, slug: "geonosis_arena_prep_room",      name: "Prep Room",       zone: arena,     x: 4.9,  y: 0.9,  w: 0.5,  h: 0.45, style: civic,    symbol: "§"}
+
+# ── EXITS (the real intra-zone adjacency graph from the planet file) ─────
+exits:
+  - [400, 401]
+  - [400, 407]
+  - [400, 409]
+  - [400, 408]
+  - [400, 406]
+  - [401, 402]
+  - [401, 404]
+  - [402, 403]
+  - [402, 435]
+  - [402, 436]
+  - [402, 437]
+  - [405, 401]
+  - [407, 410]
+  - [409, 425]
+  - [409, 434]
+  - [410, 411]
+  - [410, 412]
+  - [411, 413]
+  - [411, 415]
+  - [411, 416]
+  - [411, 417]
+  - [411, 419]
+  - [413, 414]
+  - [415, 426]
+  - [415, 418]
+  - [418, 426]
+  - [408, 420]
+  - [420, 421]
+  - [420, 422]
+  - [420, 424]
+  - [421, 422]
+  - [422, 423]
+  - [423, 424]
+  - [425, 426]
+  - [425, 427]
+  - [425, 428]
+  - [425, 429]
+  - [425, 430]
+  - [425, 431]
+  - [425, 432]
+  - [425, 434]
+  - [425, 433]
+
+exit_paths:
+  # SURFACE HUB — the central crossroads
+  "400-401": {kind: road, path: [[6.2, 4.8], [6.9, 4.8], [7.5, 4.8]], width: 0.30}
+  "401-402": {kind: road, path: [[7.5, 4.8], [7.5, 5.5], [7.5, 6.2]], width: 0.22}
+  "402-403": {kind: road, path: [[7.5, 6.2], [6.9, 6.2], [6.2, 6.2]], width: 0.22}
+  "400-408": {kind: road, path: [[6.2, 4.8], [5.9, 3.6], [5.6, 2.4]], width: 0.22}
+  # SURFACE → HIVE (east doorway)
+  "400-407": {kind: road, path: [[6.2, 4.8], [7.5, 5.5], [8.9, 6.2]], width: 0.22}
+  "407-410": {kind: street, path: [[8.9, 6.2], [8.6, 6.9], [8.4, 7.6]], width: 0.22}
+  # SURFACE → FOUNDRY (west doorway)
+  "400-409": {kind: road, path: [[6.2, 4.8], [5.4, 5.5], [4.7, 6.2]], width: 0.22}
+  "409-425": {kind: street, path: [[4.7, 6.2], [4.1, 5.5], [3.5, 4.8]], width: 0.22}
+  # HIVE interior — the great chamber spine
+  "410-411": {kind: street, path: [[8.4, 7.6], [8.6, 8.25], [8.8, 8.9]], width: 0.22}
+  "411-413": {kind: street, path: [[8.8, 8.9], [8.1, 8.9], [7.4, 8.9]], width: 0.22}
+  "413-414": {kind: alley, path: [[7.4, 8.9], [6.7, 8.9], [6.0, 8.9]], width: 0.18}
+  "411-415": {kind: street, path: [[8.8, 8.9], [8.8, 9.55], [8.8, 10.2]], width: 0.22}
+  # FOUNDRY interior — assembly lines off the main floor
+  "425-427": {kind: road, path: [[3.5, 4.8], [2.8, 4.8], [2.1, 4.8]], width: 0.22}
+  "425-426": {kind: street, path: [[3.5, 4.8], [3.5, 5.5], [3.5, 6.2]], width: 0.22}
+  "425-433": {kind: road, path: [[3.5, 4.8], [2.1, 4.8], [0.8, 4.8]], width: 0.18}
+  "425-431": {kind: road, path: [[3.5, 4.8], [3.5, 4.15], [3.5, 3.5]], width: 0.18}
+  # ARENA interior
+  "408-420": {kind: street, path: [[5.6, 2.4], [5.9, 2.2], [6.2, 2.0]], width: 0.22}
+  "420-421": {kind: street, path: [[6.2, 2.0], [6.2, 1.45], [6.2, 0.9]], width: 0.22}
+  "420-422": {kind: road, path: [[6.2, 2.0], [6.9, 1.45], [7.5, 0.9]], width: 0.18}
+  "422-423": {kind: alley, path: [[7.5, 0.9], [6.2, 0.9], [4.9, 0.9]], width: 0.18}
+
+labels:
+  - {text: "FOUNDRY  ROW",  kind: street, path_id: "425-427", t: 0.50, side: 0, offset: 0, size: 7, min_zoom: 1, max_zoom: 2}
+  - {text: "down to the arena ↓", kind: flavor, pos: [5.6, 2.6], rot: 0, size: 6, min_zoom: 1, max_zoom: 2}
+  - {text: "into the hive →", kind: flavor, pos: [8.9, 6.6], rot: 0, size: 6, min_zoom: 1, max_zoom: 2}
+
+# ── LANDMARKS ────────────────────────────────────────────────────────────
+# Seeded at painted-feature anchors; re-register against the substrate once
+# the Geonosis tile is painted (NANO_SUBSTRATE_PLAYBOOK.md).
+landmarks:
+  - {id: arena_floor, icon: palace, name: "Petranaki Arena", pos: [6, 1.3], min_zoom: 2, max_zoom: 3}
+  - {id: hive_chamber, icon: palace, name: "Stalgasin Hive", pos: [8.8, 8.9], min_zoom: 2, max_zoom: 3}
+  - {id: foundry, icon: palace, name: "Droid Foundry", pos: [2.8, 5.2], min_zoom: 2, max_zoom: 3}
+  - {id: landing, icon: dock, name: "Landing Pad", pos: [8.6, 2.5], min_zoom: 2, max_zoom: 3}
+  - {id: spire, icon: beacon, name: "Geonosian Spire ↗", pos: [10.3, 6.4], min_zoom: 2, max_zoom: 3}

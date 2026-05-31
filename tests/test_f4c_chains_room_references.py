@@ -63,6 +63,31 @@ class TestChainsRoomReferences(unittest.TestCase):
         cls.live_slugs = {r.slug for r in b.rooms.values()}
         cls.cw_world = b
 
+        # F.7.l-followup-a (May 4 2026): F.7.j made `village_common_square`
+        # — a wilderness landmark in dune_sea.yaml — the legitimate
+        # graduation drop_room and stub-step location for the new
+        # `jedi_path_independent` chain. `load_world_dry_run` only walks
+        # `manifest.planet_paths` and does NOT include wilderness
+        # landmarks in `bundle.rooms` (those are written into the DB at
+        # boot time by engine/wilderness_writer.py from the era manifest's
+        # `wilderness:` block, separately from the planet load path). So
+        # `live_slugs` above is correctly "rooms the world bundle knows
+        # about" — but for chain-reference resolution, the wilderness
+        # landmarks are equally legitimate anchor points and must be
+        # added. Without this merge, every chain reference to a Village
+        # or Dune Sea landmark room is a false positive.
+        wilderness_dir = (PROJECT_ROOT / "data" / "worlds" / "clone_wars" /
+                          "wilderness")
+        if wilderness_dir.is_dir():
+            for wp in sorted(wilderness_dir.glob("*.yaml")):
+                with open(wp, encoding="utf-8") as f:
+                    wdata = yaml.safe_load(f)
+                if not isinstance(wdata, dict):
+                    continue
+                for lm in wdata.get("landmarks") or []:
+                    if isinstance(lm, dict) and lm.get("id"):
+                        cls.live_slugs.add(lm["id"])
+
     def _walk_room_refs(self):
         """Yield (chain_id, field_path, slug) for every room reference."""
         for c in self.chains_data["chains"]:

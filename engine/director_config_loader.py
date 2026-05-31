@@ -98,24 +98,23 @@ def get_director_runtime_config(
     """Resolve Director runtime config for the given era.
 
     `era` is the directory name under data/worlds/ — usually "gcw" or
-    "clone_wars". When None, defaults to "gcw" (the F.6a.7 Phase 2
-    behavior change: pre-Phase-2, era=None returned in-Python literal
-    constants; post-Phase-2, era=None defaults to loading
-    `data/worlds/gcw/director_config.yaml`).
+    "clone_wars". When None, defaults to "clone_wars" (post-May-18-2026
+    pivot — was "gcw" pre-pivot, aligned with the active_era pivot in
+    server/config.py and engine/era_state.py).
 
     `worlds_root` overrides the default `data/worlds` path; tests use
     this to point at a temp directory.
 
     Raises `RuntimeError` on any YAML load/validation failure for the
-    GCW era — there is no longer an in-Python fallback. For other eras,
-    a missing/broken YAML returns a minimal empty config so the engine
-    can still boot (with degraded Director behavior). The
+    default era — there is no longer an in-Python fallback. For other
+    eras, a missing/broken YAML returns a minimal empty config so the
+    engine can still boot (with degraded Director behavior). The
     `engine/director.py::_resolve_director_runtime_config` last-resort
     SimpleNamespace fallback still catches "what if the seam itself
     fails to import" for true defense-in-depth.
     """
     if era is None:
-        era = "gcw"
+        era = "clone_wars"
 
     try:
         from engine.world_loader import (

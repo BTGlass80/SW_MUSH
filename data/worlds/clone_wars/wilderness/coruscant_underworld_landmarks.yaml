@@ -258,6 +258,11 @@ transit_nodes:
   - id: transit_shaft_alpha
     name: "Transit Shaft Alpha"
     region: coruscant_underworld
+    coordinates: [22, 20]                   # W.3 (May 24): single-level
+    # Brian's call: collapse Z-axis. Was Mid↔Low; the level metadata
+    # below remains as flavor (the description still talks about
+    # vertical descent) but mechanically all wilderness landmarks are
+    # on one plane.
     connects_levels: [mid, low]
     short_desc: >
       An old industrial transit shaft connecting the Mid and Low
@@ -283,6 +288,7 @@ transit_nodes:
   - id: transit_shaft_beta
     name: "Transit Shaft Beta"
     region: coruscant_underworld
+    coordinates: [18, 32]                   # W.3 (May 24): single-level
     connects_levels: [low, bottom]
     short_desc: >
       A maintenance shaft from Low to Bottom. The lift is gone; what
@@ -311,6 +317,13 @@ transit_nodes:
   - id: surface_manhole_to_southern_underground
     name: "Surface Manhole — Southern Underground"
     region: coruscant_underworld
+    coordinates: [20, 17]                   # W.3 (May 24): matches the
+    # existing coruscant_uw_surface_entry city-side room's map_x/map_y.
+    # The duplication is intentional but inert at this drop — both
+    # rooms exist; the wilderness writer creates this one for the
+    # wilderness side, and the city-side coruscant_uw_surface_entry
+    # remains for the city-side handoff. Reconciliation into a single
+    # room is a follow-up drop tracked under TD.2.
     connects_levels: [mid]
     connects_to_zone: coruscant_lower     # the city-side zone slug
     connects_to_room: southern_underground

@@ -25,9 +25,10 @@ will need a SINGLE place to resolve "what era are we in" without
 plumbing the Config object through every call. This module is that
 place.
 
-Default behavior is conservative: returns "gcw" and use_yaml=False
-when no Config has been registered, so importing this module from
-test code with no setup gives the legacy production behavior.
+Default behavior (post-May 18 2026 pivot): returns "clone_wars" and
+use_yaml=True when no Config has been registered. The pre-pivot
+defaults were ("gcw", False); they were flipped alongside the
+production active_era pivot in server/config.py.
 
 Tested by tests/test_f6a5b_era_state.py.
 """
@@ -44,12 +45,16 @@ log = logging.getLogger(__name__)
 _active_config: Optional[object] = None
 
 
-# Conservative defaults — what this module returns when no Config has
-# been registered. Mirrors the current production behavior so importing
-# era_state from a test file with no setup never accidentally flips the
-# era YAML path.
-_DEFAULT_ERA = "gcw"
-_DEFAULT_USE_YAML = False
+# Module-level defaults — what this module returns when no Config has
+# been registered. May 18 2026: flipped from ("gcw", False) to
+# ("clone_wars", True) alongside the production active_era pivot in
+# server/config.py. Tests that explicitly want the legacy GCW defaults
+# must call set_active_config with a Config(active_era="gcw",
+# use_yaml_director_data=False) — or pass cfg= explicitly to the
+# accessors. Importing era_state from a test file with no setup now
+# gives the CW production behavior, mirroring the new boot default.
+_DEFAULT_ERA = "clone_wars"
+_DEFAULT_USE_YAML = True
 
 
 def set_active_config(cfg: Optional[object]) -> None:
@@ -76,7 +81,7 @@ def get_active_era(cfg: Optional[object] = None) -> str:
     Resolution order:
       1. `cfg.active_era` if `cfg` is provided
       2. `_active_config.active_era` if registered
-      3. `_DEFAULT_ERA` ("gcw")
+      3. `_DEFAULT_ERA` ("clone_wars" — post-May 18 2026 pivot)
 
     Never raises. Logs a warning and returns the default if either
     source has the attribute set to a non-string.
@@ -165,10 +170,10 @@ def get_seeding_era(cfg: Optional[object] = None) -> str:
     now the production path for both GCW and CW.
 
     Mirrors `get_active_era()` exactly: explicit cfg → registered cfg →
-    _DEFAULT_ERA ("gcw"). The use_yaml_director_data flag is NOT
-    consulted here; that flag was a transitional gate for F.6a.6's
-    dev CLI, and is bypassed by callers that have committed to the
-    YAML path (post-F.6a.7).
+    _DEFAULT_ERA ("clone_wars" post-May 18 2026 pivot). The
+    use_yaml_director_data flag is NOT consulted here; that flag was a
+    transitional gate for F.6a.6's dev CLI, and is bypassed by callers
+    that have committed to the YAML path (post-F.6a.7).
 
     Use this in production seeding call sites:
         seed_lore(self.db, era=get_seeding_era())

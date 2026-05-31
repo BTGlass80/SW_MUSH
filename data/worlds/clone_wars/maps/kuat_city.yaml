@@ -1,0 +1,130 @@
+# ─────────────────────────────────────────────────────────────────────────
+# KUAT — Kuat City (surface) (AreaGeometry, server-authoritative)
+#
+# City #6 of the substrate rollout — the planet-SURFACE map for Kuat.
+#
+# SOURCE-FIDELITY NOTE (important): the rollout plan assumed
+# kuat_main_spaceport was a *ground* zone. The room descriptions say
+# otherwise — the Main Spaceport is "orbiting above the planet" (a
+# station), and Kuat City "has no spaceport at ground level — by design,"
+# reachable only by shuttle from orbit. So the honest surface view is
+# Kuat City / the embassy quarter ALONE (the 8 kuat_city_embassy rooms).
+# The Main Spaceport station + KDY orbital ring (26 rooms) are a separate
+# coherent ORBITAL view and stay on the deferred orbital/space-map track
+# (they are not ground and do not belong on a planet-surface tile).
+#
+# Lays out the real kuat_city_embassy rooms from planets/kuat.yaml
+# (ids 324–329, 331, 333) by their slug, so click-to-walk / NPC overlay /
+# landmark resolution bind to actual rooms. Layout from the planet file's
+# map_x/map_y hints (x 35–38, y 9–11) and the real exit graph: a star
+# centered on the Main Boulevard (kuat_city_main_street, 325) — every
+# other room hangs off it; the landing pad (324) is the western arrival
+# gate and also carries the off-map shuttle link UP to the orbital ring.
+#
+# Districts (3): GATEWAY (western arrival edge — shuttle pad + inn),
+# CITY CENTER (the commercial boulevard core), EMBASSY ROW (eastern
+# diplomatic / residential / estate quarter).
+#
+# Y-up authored frame (the adapter reflects Y so a north-up substrate
+# registers; do NOT pre-flip). Bounds authored at 1.5 aspect (9×6) to
+# match the intended landscape city-vista substrate.
+#
+# substrate_image: add a painted Kuat City tile once generated (see
+# NANO_SUBSTRATE_PLAYBOOK.md). Absent → procedural render. Palette:
+# coruscant_senate is the closest Core-World palette shipped today (Kuat
+# has no dedicated palette yet) — swap to a kuat palette (warm terraformed
+# garden world: greens + pale duracrete + gold) when one is authored.
+# ─────────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+area_key: kuat.kuat_city
+display_name: KUAT CITY
+planet: KUAT
+era: 20 BBY · Clone Wars
+default_terrain: duracrete
+palette: coruscant_senate
+
+# Painted substrate (architecture v51 lane). Uncomment once the tile is
+# generated + registered; the loader/renderer handle it generically.
+substrate_image: /static/maps/kuat_city_substrate.png
+
+bounds:
+  x_min: 0.0
+  y_min: 0.0
+  x_max: 9.0
+  y_max: 6.0
+
+# ── DISTRICTS ────────────────────────────────────────────────────────────
+# label_anchors sit in empty corners, off the street centerlines.
+districts:
+  - id: gateway
+    name: GATEWAY
+    polygon: [[0.4, 0.8], [2.6, 0.8], [2.6, 4.2], [0.4, 4.2]]
+    label_anchor: [0.7, 3.9]
+    rotation: 0
+  - id: center
+    name: CITY CENTER
+    polygon: [[2.6, 0.8], [6.0, 0.8], [6.0, 5.2], [2.6, 5.2]]
+    label_anchor: [5.5, 1.1]
+    rotation: 0
+  - id: embassy
+    name: EMBASSY ROW
+    polygon: [[6.0, 0.8], [8.6, 0.8], [8.6, 5.2], [6.0, 5.2]]
+    label_anchor: [8.1, 4.9]
+    rotation: 0
+
+# ── ROOMS (the real kuat_city_embassy rooms, by slug) ────────────────────
+# Under a substrate these are invisible click-to-walk hitboxes; the
+# name/symbol/style are cosmetic (procedural fallback only).
+rooms:
+  # GATEWAY — western arrival edge
+  - {id: 324, slug: "kuat_city_landing_pad",     name: "Landing Pad",   zone: gateway, x: 1.5, y: 3.2, w: 0.8, h: 0.6, style: dock,    symbol: "◎"}
+  - {id: 333, slug: "embassy_inn",               name: "Embassy Inn",   zone: gateway, x: 1.5, y: 1.6, w: 0.5, h: 0.45, style: housing, symbol: "⌂"}
+  # CITY CENTER — the boulevard core
+  - {id: 325, slug: "kuat_city_main_street",     name: "Grand Blvd.",   zone: center,  x: 4.3, y: 3.0, w: 0.55, h: 0.55, style: street,  symbol: "·"}
+  - {id: 326, slug: "kuat_mercantile_forum",     name: "Forum",         zone: center,  x: 4.3, y: 4.4, w: 0.6, h: 0.45, style: vendor,  symbol: "$"}
+  - {id: 328, slug: "kuat_city_hotel",           name: "Grand Hotel",   zone: center,  x: 3.2, y: 4.4, w: 0.55, h: 0.45, style: housing, symbol: "⌂"}
+  # EMBASSY ROW — eastern diplomatic / residential quarter
+  - {id: 327, slug: "kuat_republic_liaison",     name: "Rep. Liaison",  zone: embassy, x: 7.2, y: 3.4, w: 0.6, h: 0.5, style: civic,   symbol: "§"}
+  - {id: 329, slug: "kuat_city_estate_district", name: "Estates",       zone: embassy, x: 7.2, y: 1.9, w: 0.6, h: 0.5, style: housing, symbol: "⌂"}
+  - {id: 331, slug: "embassy_residential_row",   name: "Residences",    zone: embassy, x: 6.9, y: 4.5, w: 0.55, h: 0.45, style: housing, symbol: "⌂"}
+
+# ── EXITS ───────────────────────────────────────────────────────────────
+# The real adjacency graph from planets/kuat.yaml: a pure star centered on
+# the Main Boulevard (325). The landing pad's off-map shuttle link (UP to
+# the orbital ring / spaceport station) is represented by the off-map
+# orbital landmark pointer, not an on-map exit.
+exits:
+  - [324, 325]
+  - [325, 326]
+  - [325, 327]
+  - [325, 328]
+  - [325, 329]
+  - [325, 331]
+  - [325, 333]
+
+# ── EXIT PATHS — these ARE the visible streets ──────────────────────────
+# The Grand Boulevard runs E–W (landing pad → hub → liaison); the other
+# rooms hang off the hub on short tended walkways.
+exit_paths:
+  "324-325": {kind: street, path: [[1.5, 3.2], [2.8, 3.1], [4.3, 3.0]], width: 0.30}
+  "325-327": {kind: street, path: [[4.3, 3.0], [5.8, 3.1], [7.2, 3.4]], width: 0.30}
+  "325-326": {kind: alley,  path: [[4.3, 3.0], [4.3, 3.7], [4.3, 4.4]], width: 0.16}
+  "325-328": {kind: alley,  path: [[4.3, 3.0], [3.8, 3.7], [3.2, 4.4]], width: 0.16}
+  "325-329": {kind: alley,  path: [[4.3, 3.0], [5.7, 2.5], [7.2, 1.9]], width: 0.16}
+  "325-331": {kind: alley,  path: [[4.3, 3.0], [5.6, 3.7], [6.9, 4.5]], width: 0.16}
+  "325-333": {kind: alley,  path: [[4.3, 3.0], [2.9, 2.3], [1.5, 1.6]], width: 0.16}
+
+# ── LABELS ──────────────────────────────────────────────────────────────
+labels:
+  - {text: "THE  GRAND  BOULEVARD", kind: street, path_id: "324-325", t: 0.55, side: 0, offset: 0, size: 9, min_zoom: 1, max_zoom: 2}
+  - {text: "to the orbital ring →", kind: flavor, pos: [7.9, 5.4], rot: 0, size: 6, min_zoom: 1, max_zoom: 2}
+
+# ── LANDMARKS — independent POI markers (min_zoom>=2: don't double-stamp) ─
+# Registered against the painted substrate via static/tools/map_register.html.
+landmarks:
+  - {id: shuttlepad, icon: dock, name: "Shuttle Landing Pad", pos: [1.4, 5.3], min_zoom: 2, max_zoom: 2}
+  - {id: liaison, icon: palace, name: "Republic Liaison Office", pos: [8, 3.6], min_zoom: 2, max_zoom: 2}
+  - {id: grandhotel, icon: palace, name: "Andris Grand Hotel", pos: [3.8, 5.6], min_zoom: 2, max_zoom: 3}
+  - {id: forum, icon: beacon, name: "Mercantile Forum", pos: [1.6, 3.3], min_zoom: 2, max_zoom: 3}
+  - {id: orbital, icon: ship, name: "KDY Orbital Ring ↗", pos: [8.4, 5.6], min_zoom: 2, max_zoom: 3}

@@ -813,19 +813,61 @@ class TestGetCharactersInRoomSourceChar:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 12. Combat-in-wilderness gate
+# 12. Combat-in-wilderness gate — LIFTED by W.2.4 (May 17 2026)
+#
+# Pre-W.2.4 this section asserted the wilderness combat gate's
+# PRESENCE in AttackCommand.execute. W.2.4 re-keyed _active_combats
+# by (room_id, wilderness_x, wilderness_y) and migrated all 19
+# combat broadcast helpers to thread the Path B source_char kwarg,
+# so the gate is no longer needed. This section now asserts the
+# gate's ABSENCE and that the tuple-key infrastructure is in place.
 # ═════════════════════════════════════════════════════════════════════════════
 
 
-class TestCombatGateInWilderness:
-    """AttackCommand refuses to fire when source is in wilderness."""
+class TestCombatGateInWildernessLifted:
+    """AttackCommand no longer refuses wilderness combat (post-W.2.4).
 
-    def test_combat_gate_present_in_source(self):
+    The keying refactor closed the cross-tile combat bug class:
+    two PCs at the same wilderness sentinel but different (wx, wy)
+    now resolve to DIFFERENT CombatInstance keys, so they can fight
+    independently without their narration bleeding across tiles.
+    """
+
+    def test_no_no_combat_string_in_attack_execute(self):
+        """The user-facing ``[NO COMBAT]`` message must not appear
+        in any string literal inside AttackCommand.execute.
+
+        AST-based to avoid false positives on explanatory comments
+        elsewhere in the module describing what the lift removed.
+        """
+        import ast as _ast
         with open(os.path.join(PROJECT_ROOT, "parser", "combat_commands.py"),
                   encoding="utf-8") as fh:
-            text = fh.read()
-        assert "in_wilderness" in text
-        assert "[NO COMBAT]" in text
+            module = _ast.parse(fh.read())
+        for cls in [n for n in module.body
+                    if isinstance(n, _ast.ClassDef)
+                    and n.name == "AttackCommand"]:
+            for fn in cls.body:
+                if not (isinstance(fn, (_ast.FunctionDef, _ast.AsyncFunctionDef))
+                        and fn.name == "execute"):
+                    continue
+                for node in _ast.walk(fn):
+                    if (isinstance(node, _ast.Constant)
+                            and isinstance(node.value, str)):
+                        assert "[NO COMBAT]" not in node.value, (
+                            "AttackCommand.execute contains a "
+                            "[NO COMBAT] string literal — the W.2.4 "
+                            "wilderness gate-lift was reverted.")
+
+    def test_tuple_key_helper_still_present(self):
+        """Belt-and-braces: the gate lift is only safe because the
+        tuple-key infrastructure is in place. If a future drop
+        reverted the keying refactor without reinstating the gate,
+        wilderness combat would silently regress to cross-tile
+        damage; this guard catches that.
+        """
+        from parser.combat_commands import _combat_key_for
+        assert callable(_combat_key_for)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -890,3 +932,12 @@ class TestBucket1SurfacesUseSourceChar:
 
     def test_matching_uses_source_char(self):
         assert self._has_source_char("engine/matching.py")
+
+    def test_combat_uses_source_char(self):
+        # W.2.3 (May 5 2026): combat targeting + PvP-consent flow
+        # added to the audit. Migration covers AttackCommand._find_target,
+        # ChallengeCommand, AcceptCommand, DeclineCommand. In-combat
+        # broadcast helpers remain on the wilderness-gated side; see
+        # tests/test_w2_3_combat_source_char.py for the per-call-site
+        # AST-level guarantees.
+        assert self._has_source_char("parser/combat_commands.py")

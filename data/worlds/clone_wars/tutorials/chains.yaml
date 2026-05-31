@@ -398,9 +398,9 @@ chains:
     chain_name: "Jedi Path — Order"
     description: >
       The Order accepted you. Your name is now in a ledger that has
-      been quiet for a long time. Master Mace Windu meets you at the
-      Temple gate; your training begins where countless Padawans'
-      have begun before.
+      been quiet for a long time. A senior Council representative
+      meets you at the Temple gate; your training begins where
+      countless Padawans have begun before.
     archetype_label: "Jedi Padawan (Order)"
     faction_alignment: jedi_order
     starting_zone: tatooine_dune_sea
@@ -424,7 +424,8 @@ chains:
     graduation:
       drop_room: jedi_temple_main_gate  # F.8.b: re-targeted to live-world room id 210 per F.4c rename map.
       follow_up_hint: >
-        See Master Yoda at the Jedi Temple. Padawan assignment follows.
+        Speak with your assigned instructor at the Jedi Temple.
+        Padawan assignment follows.
 
     steps:
       - step: 1

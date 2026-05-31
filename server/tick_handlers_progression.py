@@ -2,7 +2,7 @@
 """
 server/tick_handlers_progression.py — Progression-gates tick handlers.
 
-Currently hosts two handlers:
+Currently hosts three handlers:
 
   playtime_heartbeat_tick    — increments characters.play_time_seconds
                                for every actively-playing non-idle PC.
@@ -14,6 +14,12 @@ Currently hosts two handlers:
                                character's predisposition. Per design
                                §2.3 / §2.4, this is what drives the
                                Hermit invitation ladder (5 signs).
+
+  wow_passive_decay_tick     — hourly scan of all Jedi PCs for passive
+                               Weight-of-War decay. Per WoW design §5.1
+                               and WoW.3b scope (May 24 2026): -1 Weight
+                               per 7 real-time days of no Weight events,
+                               skipping retreat-active characters.
 
 Idle filter:
   A session is "idle" if it has had no input in the last
@@ -221,4 +227,91 @@ async def force_sign_emit_tick(ctx: TickContext) -> None:
         log.debug(
             "force_sign_emit: rolled=%d emitted=%d invitations=%d",
             rolled, emitted, invitations,
+        )
+
+
+# ── PG.2 session 2 (May 21 2026): PC bounty expiry tick ─────────────────
+
+
+async def pc_bounty_expiry_tick(ctx: "TickContext") -> None:
+    """Hourly tick: auto-expire active bounties past their 30-day
+    window and revert claimed bounties whose 7-day BH claim timer
+    has elapsed.
+
+    Per progression_gates_and_consequences_design_v1.md §4.3:
+      - Active → Expired (30 days unclaimed): escrow returns to
+        contributors minus the 10% posting fee (already sunk).
+      - Claimed → Active (7 days unfulfilled): contract reverts
+        to active for another BH to claim.
+
+    Delegates the actual work to
+    ``parser.pc_bounty_commands.run_pc_bounty_expiry_tick`` so the
+    bounty business logic lives next to the rest of the bounty
+    module. The tick handler is the thin scheduler hook.
+
+    Failure-tolerant: any uncaught exception is logged and
+    swallowed. The next tick will retry.
+    """
+    try:
+        from parser.pc_bounty_commands import (
+            run_pc_bounty_expiry_tick,
+        )
+        summary = await run_pc_bounty_expiry_tick(ctx.db)
+        if summary.get("expired") or summary.get("reverted"):
+            log.info(
+                "[pc_bounty_expiry] expired=%d reverted=%d "
+                "refunded_total=%d",
+                summary["expired"], summary["reverted"],
+                summary["refunded_total"],
+            )
+    except Exception:
+        log.warning(
+            "[pc_bounty_expiry] tick handler raised",
+            exc_info=True,
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Weight of War passive decay tick (WoW.3b, May 24 2026)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+async def wow_passive_decay_tick(ctx: "TickContext") -> None:
+    """Hourly tick: apply passive Weight decay to eligible Jedi PCs.
+
+    Per weight_of_war_design_v1.md §5.1 and the WoW.3b scope
+    decision (May 24 2026): every Jedi PC whose last Weight
+    event (accrual or decay) is at least 7 real-time days old
+    gets -1 Weight, with the standard substrate floor (0). This
+    is the "idle decay" — the slow shrinkage that happens
+    during peacetime arcs.
+
+    Delegates to ``engine.weight_of_war.run_passive_decay_tick``
+    so the business logic lives next to the rest of the WoW
+    substrate. This handler is the thin scheduler hook per
+    architecture v45 §4.5.
+
+    Cadence: every 3600 ticks (1 hour). The 7-day eligibility
+    check means hourly granularity is plenty — a server restart
+    on day-7 won't miss anyone's decay by more than an hour.
+    Offset chosen to spread server load.
+
+    Failure-tolerant: any uncaught exception is logged and
+    swallowed. The next tick will retry.
+    """
+    try:
+        from engine.weight_of_war import run_passive_decay_tick
+        summary = await run_passive_decay_tick(ctx.db)
+        if summary.get("decayed") or summary.get("errors"):
+            log.debug(
+                "[wow_passive_decay] tick=%d scanned=%d "
+                "decayed=%d errors=%d",
+                ctx.tick_count,
+                summary["scanned"], summary["decayed"],
+                summary["errors"],
+            )
+    except Exception:
+        log.warning(
+            "[wow_passive_decay] tick handler raised",
+            exc_info=True,
         )

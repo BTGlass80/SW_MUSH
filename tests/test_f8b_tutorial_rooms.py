@@ -97,6 +97,37 @@ def _load_tutorial_room_slugs() -> set:
     return {r["slug"] for r in rooms.get("rooms") or []}
 
 
+def _load_wilderness_landmark_slugs() -> set:
+    """F.7.l-followup-a (May 4 2026): wilderness landmarks are
+    legitimate chain-reference targets.
+
+    F.7.j made `village_common_square` — a wilderness landmark in
+    `data/worlds/clone_wars/wilderness/dune_sea.yaml` — the
+    `graduation.drop_room` and stub-step location for the new
+    `jedi_path_independent` chain. Wilderness landmarks become real
+    rooms at boot time via engine/wilderness_writer.py (run as part
+    of the era manifest's `wilderness:` block), but they are NOT
+    declared in the planet YAMLs nor in `tutorials/rooms.yaml`. So
+    a chain-reference resolver that only walks planets + tutorials
+    will false-positive on every Village / Dune Sea anchor. This
+    helper closes that gap.
+    """
+    slugs: set = set()
+    wilderness_dir = (PROJECT_ROOT / "data" / "worlds" / "clone_wars" /
+                      "wilderness")
+    if not wilderness_dir.is_dir():
+        return slugs
+    for wp in sorted(wilderness_dir.glob("*.yaml")):
+        with open(wp, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        if not isinstance(data, dict):
+            continue
+        for lm in data.get("landmarks") or []:
+            if isinstance(lm, dict) and lm.get("id"):
+                slugs.add(lm["id"])
+    return slugs
+
+
 # ──────────────────────────────────────────────────────────────────────
 # 1. Tutorial rooms loaded
 # ──────────────────────────────────────────────────────────────────────
@@ -185,7 +216,7 @@ class TestChainRoomReferencesResolve(unittest.TestCase):
 
     def test_every_starting_room_resolves(self):
         chains = _load_chains_yaml()
-        all_slugs = _load_tutorial_room_slugs() | _load_planet_room_slugs()
+        all_slugs = (_load_tutorial_room_slugs() | _load_planet_room_slugs() | _load_wilderness_landmark_slugs())
         for c in chains["chains"]:
             sr = c.get("starting_room")
             if not sr:
@@ -203,7 +234,7 @@ class TestChainRoomReferencesResolve(unittest.TestCase):
 
     def test_every_drop_room_resolves(self):
         chains = _load_chains_yaml()
-        all_slugs = _load_tutorial_room_slugs() | _load_planet_room_slugs()
+        all_slugs = (_load_tutorial_room_slugs() | _load_planet_room_slugs() | _load_wilderness_landmark_slugs())
         for c in chains["chains"]:
             grad = c.get("graduation") or {}
             drop = grad.get("drop_room")
@@ -217,7 +248,7 @@ class TestChainRoomReferencesResolve(unittest.TestCase):
 
     def test_every_step_location_resolves(self):
         chains = _load_chains_yaml()
-        all_slugs = _load_tutorial_room_slugs() | _load_planet_room_slugs()
+        all_slugs = (_load_tutorial_room_slugs() | _load_planet_room_slugs() | _load_wilderness_landmark_slugs())
         for c in chains["chains"]:
             for step in c.get("steps") or []:
                 loc = step.get("location")
@@ -234,7 +265,7 @@ class TestChainRoomReferencesResolve(unittest.TestCase):
 
     def test_every_completion_room_resolves(self):
         chains = _load_chains_yaml()
-        all_slugs = _load_tutorial_room_slugs() | _load_planet_room_slugs()
+        all_slugs = (_load_tutorial_room_slugs() | _load_planet_room_slugs() | _load_wilderness_landmark_slugs())
         for c in chains["chains"]:
             for step in c.get("steps") or []:
                 comp = step.get("completion") or {}

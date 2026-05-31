@@ -1,4 +1,10 @@
-# SW_MUSH Detailed Systems Guide #2
+---
+category: foundations
+order: 2
+summary: "Species, templates, attribute dice, starting skills, and gear. Your first build, step by step."
+tags: ["chargen", "species", "template", "build", "starting", "skills", "attributes"]
+---
+
 # Character Creation
 
 **SW_MUSH — Star Wars D6 Revised & Expanded**
@@ -199,7 +205,7 @@ Don't want to build from scratch? Seven pre-built templates set up reasonable at
 |----------|-----|-----|-----|-----|-----|-----|------------|
 | **Smuggler** | 3D+1 | 2D+1 | 4D | 3D+1 | 2D+2 | 2D+1 | Blaster +1D+1, Dodge +1D, Space Transports +1D+2, Gunnery +1D, Streetwise +1D, Bargain +1D |
 | **Bounty Hunter** | 3D+2 | 2D+1 | 2D+2 | 3D+1 | 3D+1 | 2D+2 | Blaster +2D, Dodge +1D, Brawling +1D, Search +1D, Sneak +1D, Security +1D |
-| **Rebel Pilot** | 3D | 2D+2 | 4D+1 | 2D+2 | 2D+2 | 2D+2 | Starfighter Piloting +2D, Gunnery +1D, Astrogation +1D, Sensors +1D, Starfighter Repair +1D, Blaster +1D |
+| **Separatist Pilot** | 3D | 2D+2 | 4D+1 | 2D+2 | 2D+2 | 2D+2 | Starfighter Piloting +2D, Gunnery +1D, Astrogation +1D, Sensors +1D, Starfighter Repair +1D, Blaster +1D |
 | **Scoundrel** | 3D | 3D | 2D+2 | 4D | 2D+2 | 2D+2 | Con +1D+2, Persuasion +1D, Gambling +1D, Sneak +1D+1, Blaster +1D, Dodge +1D |
 | **Technician** | 2D+1 | 3D | 2D+2 | 2D+2 | 2D+2 | 4D+2 | Comp Prog/Repair +1D+2, Space Transport Repair +1D+1, Droid Repair +1D, First Aid +1D, Security +1D, Blaster Repair +1D |
 | **Jedi Apprentice** | 3D+1 | 3D | 2D+1 | 3D+2 | 3D | 2D+2 | Lightsaber +1D+2, Dodge +1D, Scholar +1D, Willpower +1D, Sneak +1D, Climbing/Jumping +1D+1 |

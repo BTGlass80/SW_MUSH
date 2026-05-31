@@ -102,14 +102,22 @@ class TestModuleConstantsMatchSeam(unittest.TestCase):
 
 
 class TestSystemPromptByteEqual(unittest.TestCase):
-    """Verify the seam's legacy system_prompt matches the inline literal
-    currently used in DirectorAI._call_claude. Pre-wiring, this checks
-    the lift was correct; post-wiring, it pins the contract.
+    """Verify the seam's legacy GCW system_prompt matches the inline
+    literal originally used in DirectorAI._call_claude. Pre-wiring,
+    this checked the lift was correct; post-wiring, it pins the
+    GCW prompt's byte-level shape against drift.
+
+    Post-May-18-2026 pivot: era=None defaults to clone_wars, but this
+    class is *about* the GCW byte-equivalence contract — it must
+    request era='gcw' explicitly. Pre-pivot the era=None default
+    landed on GCW automatically; post-pivot we have to ask.
     """
 
     @classmethod
     def setUpClass(cls):
-        cls.cfg = get_director_runtime_config(era=None)
+        # Explicit era='gcw' — this class tests the GCW system prompt
+        # byte-equivalence contract, not "the default era's prompt."
+        cls.cfg = get_director_runtime_config(era="gcw")
         cls.seam_prompt = cls.cfg.system_prompt
         # Read the director.py source and extract the inline prompt.
         # The prompt is assigned to a local `system_prompt = ( ... )`

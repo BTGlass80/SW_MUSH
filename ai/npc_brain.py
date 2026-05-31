@@ -160,9 +160,16 @@ class NPCBrain:
         if zone_tone:
             parts.append(f"ATMOSPHERE: {zone_tone}")
 
-        # Room context
+        # Room context — this is factual ground truth about the player's
+        # surroundings. Authored room descriptions often contain specific
+        # information (prices, faction control, inventory, hooks) the LLM
+        # would otherwise hallucinate. Frame as authoritative so the
+        # model anchors to it rather than inventing competing details.
         if room_desc:
-            parts.append(f"Current location: {room_desc}")
+            parts.append(
+                "Current location (factual — do not contradict): "
+                f"{room_desc}"
+            )
 
         # Player memory
         if player_memory:

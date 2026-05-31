@@ -1,0 +1,194 @@
+# data/worlds/clone_wars/test_character.yaml
+# Clone Wars Era — Test character / dev account.
+# Schema version 1.
+#
+# May 19 2026: Authored to close the May 18 active_era pivot regression.
+# When the production era flipped GCW → CW, the test character loader
+# (engine/test_character_loader.py) began looking for
+# `data/worlds/clone_wars/test_character.yaml`, which did not exist.
+# The loader silently returned None, build_mos_eisley.py printed
+# "[SKIP] No test_character spec for this era." and no dev account
+# was created in the CW DB. This file restores the testuser/testpass
+# account under the CW era with CW-appropriate flavor (Jedi Knight on
+# active assignment, faction_id=jedi_order vs GCW's `independent`).
+#
+# Auto-created on first build to provide an admin+builder god-mode
+# account for development testing. Skips chargen + tutorial.
+#
+# Schema: identical to data/worlds/gcw/test_character.yaml. See that
+# file's header for full schema documentation.
+#
+# Loaded by engine/test_character_loader.py via era.yaml's
+# content_refs.test_character. The companion content_refs.test_jedi
+# ref in era.yaml is currently inert — world_loader.py resolves it into
+# the bundle struct (`test_jedi_path` on EraManifest) but no caller
+# dereferences it. Per May 19 audit, only test_character.yaml is
+# actually consumed; test_jedi.yaml is reserved for a future
+# "second test account" feature.
+
+schema_version: 1
+
+account:
+  username: testuser
+  password: testpass
+  is_admin: true
+  is_builder: true
+
+character:
+  name: Test Jedi
+  species: Human
+  template: jedi
+  faction_id: jedi_order
+  starting_room: Docking Bay 94 - Entrance
+  description: >-
+    A Jedi Knight in plain travelling robes, dispatched on a discreet
+    Council errand to the Outer Rim. Their bearing is calm and watchful;
+    a lightsaber rests at their belt within easy reach.
+  credits: 100000
+  character_points: 25
+  force_points: 5
+  dark_side_points: 0
+  wound_level: 0
+
+  attributes:
+    # ── D6 attribute dice (engine reads these for skill rolls) ─────────────
+    dexterity:  "5D"
+    knowledge:  "5D"
+    mechanical: "5D"
+    perception: "5D"
+    strength:   "5D"
+    technical:  "5D"
+    # ── Game state flags ──────────────────────────────────────────────────
+    force_sensitive: true
+    force_skills:
+      control: "8D"
+      sense:   "8D"
+      alter:   "7D"
+    tutorial_core: complete
+    tutorial_step: 99
+    tutorial_electives:
+      combat: complete
+      space: complete
+      trading: complete
+      crafting: complete
+      factions: complete
+    planets_visited:
+      - tatooine
+      - coruscant
+      - kamino
+      - geonosis
+      - kuat
+      - nar_shaddaa
+    ships_log:
+      jumps: 50
+      kills: 25
+      discoveries: 10
+      trade_runs: 20
+      smuggle_runs: 15
+
+  skills:
+    # Dexterity
+    blaster: "8D+2"
+    bowcaster: "7D"
+    brawling_parry: "8D"
+    dodge: "9D"
+    firearms: "7D"
+    grenade: "7D"
+    lightsaber: "10D"
+    melee_combat: "8D"
+    melee_parry: "8D"
+    missile_weapons: "7D"
+    pick_pocket: "7D"
+    running: "7D"
+    thrown_weapons: "7D"
+    vehicle_blasters: "7D"
+    # Knowledge
+    alien_species: "7D"
+    bureaucracy: "7D"
+    business: "7D"
+    cultures: "7D"
+    intimidation: "8D"
+    languages: "8D"
+    law_enforcement: "7D"
+    planetary_systems: "7D"
+    scholar: "7D"
+    streetwise: "8D"
+    survival: "8D"
+    tactics: "8D"
+    value: "7D"
+    willpower: "9D"
+    # Mechanical
+    astrogation: "8D"
+    beast_riding: "7D"
+    capital_ship_gunnery: "7D"
+    capital_ship_piloting: "7D"
+    capital_ship_shields: "7D"
+    communications: "7D"
+    ground_vehicle_operation: "7D"
+    hover_vehicle_operation: "7D"
+    repulsorlift_operation: "8D"
+    sensors: "8D"
+    space_transports: "9D"
+    starfighter_piloting: "9D"
+    starship_gunnery: "8D+2"
+    starship_shields: "8D"
+    swoop_operation: "7D"
+    walker_operation: "7D"
+    # Perception
+    bargain: "8D"
+    command: "8D"
+    con: "8D"
+    forgery: "7D"
+    gambling: "8D"
+    hide: "8D"
+    investigation: "8D"
+    persuasion: "9D"
+    search: "8D"
+    sneak: "8D"
+    # Strength
+    brawling: "8D"
+    climbing_jumping: "7D"
+    lifting: "7D"
+    stamina: "8D"
+    swimming: "7D"
+    # Technical
+    armor_repair: "7D"
+    blaster_repair: "7D"
+    capital_ship_repair: "7D"
+    capital_ship_weapon_repair: "7D"
+    computer_programming_repair: "8D"
+    demolitions: "7D"
+    droid_programming: "7D"
+    droid_repair: "7D"
+    first_aid: "8D"
+    ground_vehicle_repair: "7D"
+    medicine: "8D"
+    repulsorlift_repair: "7D"
+    security: "8D"
+    space_transport_repair: "8D"
+    starfighter_repair: "7D"
+    starship_weapon_repair: "7D"
+    # Force skills (also stored as attributes — these are duplicates per
+    # the inline literal that was extracted; preserved for parity)
+    control: "8D"
+    sense: "8D"
+    alter: "7D"
+
+  equipment:
+    key: lightsaber
+    condition: 100
+    max_condition: 100
+    quality: 100
+    crafter: Test Jedi
+
+  inventory:
+    items:
+      - {key: medpac, name: Medpac, quality: 80}
+      - {key: medpac, name: Medpac, quality: 80}
+      - {key: heavy_blaster_pistol, name: "DL-44 Heavy Blaster", quality: 90, crafter: ""}
+      - {key: comlink, name: Comlink, quality: 50}
+      - {key: datapad, name: "Encrypted Datapad", quality: 70}
+    resources:
+      - {type: durasteel, quality: 85, quantity: 20}
+      - {type: power_cell, quality: 90, quantity: 10}
+      - {type: tibanna_gas, quality: 80, quantity: 5}

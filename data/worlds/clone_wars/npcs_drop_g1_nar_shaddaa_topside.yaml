@@ -975,6 +975,7 @@ npcs:
       - "Has had four contested claims in the last month. Resolved all four without violence."
       - "Knows Mak Torvin once collected a bounty here, fifteen years ago. Doesn't remember Mak personally."
       faction: bounty_hunters_guild
+      is_intel_handler: true     # T2.DEF Q3 intel-handler seed (2026-05-31)
       dialogue_style: >-
         Coruscant-Outer-Rim accent, professional and dry. Calls
         Guild members by name; non-members "stranger" or

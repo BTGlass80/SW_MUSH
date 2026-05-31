@@ -432,27 +432,59 @@ class TestActiveEraDefault(unittest.TestCase):
         from engine.housing_lots_provider import clear_lots_cache
         clear_lots_cache()
 
-    def test_no_active_config_falls_back_to_gcw(self):
-        """Default behavior: with no Config registered, era resolves to gcw.
+    def test_no_active_config_falls_back_to_clone_wars(self):
+        """Default behavior post-May-18-2026 pivot: with no Config
+        registered, era resolves to 'clone_wars'.
 
-        F.5b.3.b (Apr 30 2026): GCW now flows through YAML, so the
-        result matches the legacy constants on (planet, label,
-        security, max_homes) but not on room_id (YAML uses corrected
-        slug-resolved IDs).
+        Pre-pivot this test was test_no_active_config_falls_back_to_gcw
+        and asserted the GCW legacy snapshot. The pivot flipped the
+        module-level default in engine/era_state.py; this test now
+        asserts the new default returns CW housing data instead.
 
-        F.5b.3.c (Apr 30 2026): legacy constants deleted; reference is
-        now the static snapshot.
+        The contract being checked is the same shape: "default era
+        produces that era's housing lots." Pre-pivot the default was
+        GCW (16 legacy lots); post-pivot the default is CW (also 16
+        lots, per the CW housing_lots.yaml).
         """
         from engine.housing_lots_provider import get_tier3_lots
-        from tests._legacy_housing_lots_snapshot import LEGACY_HOUSING_LOTS_TIER3
-        # No era param → falls back to gcw default
+        # No era param → falls back to clone_wars default
         t3 = get_tier3_lots()
-        # Strip ID for comparison (per F.5b.3.b contract).
+        # CW T3 lot count is 16 (mirrors GCW pre-pivot count, but
+        # different content). Per test_active_cw_config_returns_cw_data
+        # below, this is the same number the explicit-CW path produces.
+        self.assertEqual(
+            len(t3), 16,
+            f"Default era (now CW) should yield 16 T3 lots; got "
+            f"{len(t3)}. If CW housing_lots.yaml content changed, "
+            f"update this expected count.",
+        )
+
+    def test_explicit_gcw_config_returns_legacy_snapshot(self):
+        """Explicit GCW config still produces the legacy housing
+        snapshot. Pre-pivot this was the no-arg behavior; post-pivot
+        callers must register a GCW config explicitly.
+        """
+        from engine.housing_lots_provider import get_tier3_lots
+        from engine.era_state import set_active_config
+        from tests._legacy_housing_lots_snapshot import (
+            LEGACY_HOUSING_LOTS_TIER3,
+        )
+
+        class _GcwCfg:
+            active_era = "gcw"
+            use_yaml_director_data = True
+
+        set_active_config(_GcwCfg())
+        try:
+            t3 = get_tier3_lots()
+        finally:
+            set_active_config(None)
+
         def _strip_id(lots):
             return sorted([(p, l, s, m) for (rid, p, l, s, m) in lots])
         self.assertEqual(
             _strip_id(t3), _strip_id(list(LEGACY_HOUSING_LOTS_TIER3)),
-            "Default gcw path must produce id-stripped equivalent of legacy",
+            "Explicit gcw path must produce id-stripped equivalent of legacy",
         )
         self.assertEqual(len(t3), len(LEGACY_HOUSING_LOTS_TIER3))
 

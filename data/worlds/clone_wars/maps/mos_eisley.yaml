@@ -1,0 +1,303 @@
+# ─────────────────────────────────────────────────────────────────────────
+# MOS EISLEY — AreaGeometry (server-authoritative)
+#
+# Drop F.MAP.1 (Tier 1 #4, Step 1 of map redesign implementation).
+#
+# Mirrors design_handoff_datapad_map/reference/data/mos-eisley.js exactly:
+#   same room ids, same world coords (Y-up), same exits, same labels.
+# The YAML form lives here so it can be loaded server-side via
+# engine/area_loader.py and pushed to clients as an `area_geometry`
+# event when the player crosses an area boundary (per architecture
+# v41 §3.6 "Server-side data path").
+#
+# CRITICAL AUTHORING RULE (don't re-introduce; see README §"Recent fixes"):
+#   1. Rooms cluster in BLOCKS with explicit GAPS between them. The
+#      gaps ARE the streets. Don't place rooms on ribbon paths.
+#   2. Landmarks that share a room's coords MUST have min_zoom >= 2.
+#      At tier-1 the room glyph IS the landmark; tier-2+ rooms
+#      collapse to dots and the landmark icon takes over.
+#   3. District `label_anchor`s sit in EMPTY corners of the polygon,
+#      never on a street centerline.
+#
+# Coordinate system: world units, Y-up. The renderer flips at the
+# world <g> via scale(1, -1).
+# ─────────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+area_key: tatooine.mos_eisley
+display_name: MOS EISLEY
+planet: TATOOINE
+era: 20 BBY · Clone Wars
+default_terrain: sand
+palette: tatooine
+
+# Hybrid raster substrate (architecture v51 lane). Pre-painted Mos Eisley
+# tile rendered at the world bounds beneath the SVG overlays. Present =>
+# client skips procedural district/building/street/furniture layers and
+# keeps labels/entities/weather/chrome on top. Remove this line to fall
+# back to fully procedural rendering.
+substrate_image: /static/maps/mos_eisley_substrate.png
+
+bounds:
+  x_min: 0.88
+  y_min: -3.26
+  x_max: 13.73
+  y_max: 9.03
+
+# ── DISTRICTS (zone polygons) ───────────────────────────────────────
+# label_anchors sit in EMPTY corners — never on a street centerline.
+# Streets occupy: y≈3.0 (causeway), y≈2.9 (cantina lane), x≈5.4 (Westport spine).
+districts:
+  - id: spaceport
+    name: SPACEPORT
+    polygon:
+      -   - 3.45
+          - -2.58
+      -   - 10.85
+          - -2.58
+      -   - 10.85
+          - 3.8
+      -   - 3.45
+          - 3.8
+    label_anchor:
+      - 6.16
+      - 0.76
+    rotation: 0
+  - id: market
+    name: MARKET QUARTER
+    polygon:
+      -   - 4.05
+          - 1.49
+      -   - 7.36
+          - 1.49
+      -   - 7.36
+          - 4.89
+      -   - 4.05
+          - 4.89
+    label_anchor:
+      - 5.47
+      - 3.3
+    rotation: 0
+  - id: cantina
+    name: CANTINA ROW
+    polygon:
+      -   - 1.6
+          - 3.1
+      -   - 4.19
+          - 3.1
+      -   - 4.19
+          - 4.3
+      -   - 1.6
+          - 4.3
+    label_anchor:
+      - 2.9
+      - 3.7
+    rotation: -90
+  - id: civic
+    name: CIVIC
+    polygon:
+      -   - 3.15
+          - 3.55
+      -   - 7.39
+          - 3.55
+      -   - 7.39
+          - 8.35
+      -   - 3.15
+          - 8.35
+    label_anchor:
+      - 5.36
+      - 5.46
+    rotation: 0
+  - id: outskirts
+    name: OUTSKIRTS
+    polygon:
+      -   - 6.9
+          - 2.52
+      -   - 10.12
+          - 2.52
+      -   - 10.12
+          - 5.89
+      -   - 6.9
+          - 5.89
+    label_anchor:
+      - 8.39
+      - 3.87
+    rotation: 0
+  - id: jundland
+    name: JUNDLAND WASTES
+    polygon:
+      -   - 9.23
+          - 1.93
+      -   - 11.58
+          - 1.93
+      -   - 11.58
+          - 4.53
+      -   - 9.23
+          - 4.53
+    label_anchor:
+      - 10.19
+      - 3.19
+    rotation: 0
+  - id: dune_sea
+    name: DUNE SEA
+    polygon:
+      -   - 11.81
+          - 2.5
+      -   - 13.01
+          - 2.5
+      -   - 13.01
+          - 3.7
+      -   - 11.81
+          - 3.7
+    label_anchor:
+      - 12.41
+      - 3.1
+    rotation: -90
+
+# ── ROOMS — unique coords, clustered in blocks ─────────────────────
+rooms:
+  # SPACEPORT — west of Westport (docking bays + housing)
+  - {id: 1, slug: "docking_bay_94_pit", name: "Bay 94", zone: spaceport, x: 4.38, y: 0.0, w: 0.9, h: 0.9, style: dock, symbol: "◎"}
+  - {id: 0, slug: "docking_bay_94_entrance", name: "Bay 94 Ent", zone: spaceport, x: 5.17, y: -0.01, w: 0.4, h: 0.4, style: dock, symbol: "≡"}
+  - {id: 4, slug: "docking_bay_86", name: "Bay 86", zone: spaceport, x: 6.89, y: 1.43, w: 0.7, h: 0.7, style: dock, symbol: "◎"}
+  - {id: 25, slug: "spaceport_hotel", name: "Hotel", zone: spaceport, x: 4.7, y: 1.34, w: 0.5, h: 0.5, style: housing, symbol: "⌂"}
+  - {id: 17, slug: "mos_eisley_inn", name: "Inn", zone: spaceport, x: 5.23, y: 3.2, w: 0.5, h: 0.5, style: housing, symbol: "⌂"}
+  - {id: 31, slug: "lucky_despot_staircase", name: "Lucky Despot", zone: spaceport, x: 7.92, y: -1.08, w: 0.7, h: 0.7, style: housing, symbol: "⌂"}
+  - {id: 32, slug: "lucky_despot_star_chamber", name: "Star Chamber", zone: spaceport, x: 7.93, y: -1.98, w: 0.5, h: 0.5, style: cantina, symbol: "Λ"}
+  # SPACEPORT — east of Westport (more bays, services)
+  - {id: 5, slug: "docking_bay_87", name: "Bay 87", zone: spaceport, x: 4.05, y: 1.43, w: 0.7, h: 0.7, style: dock, symbol: "◎"}
+  - {id: 2, slug: "spaceport_customs_office", name: "Customs", zone: spaceport, x: 4.95, y: 1.62, w: 0.5, h: 0.5, style: civic, symbol: "§"}
+  - {id: 3, slug: "spaceport_speeders", name: "Speeders", zone: spaceport, x: 6.2, y: 0.63, w: 0.5, h: 0.5, style: vendor, symbol: "⌬"}
+  - {id: 34, slug: "transport_depot", name: "Transport", zone: spaceport, x: 6.08, y: 1.32, w: 0.5, h: 0.5, style: civic, symbol: "§"}
+  - {id: 38, slug: "house_of_momaw_nadon", name: "M. Nadon", zone: spaceport, x: 10.25, y: 1.32, w: 0.5, h: 0.5, style: housing, symbol: "⌂"}
+  - {id: 26, slug: "mos_eisley_control_tower", name: "Tower", zone: spaceport, x: 5.42, y: -0.5, w: 0.5, h: 0.5, style: civic, symbol: "T"}
+  # SPACEPORT spine — Westport junctions
+  - {id: 7, slug: "mos_eisley_spaceport_row", name: "Spaceport Row", zone: spaceport, x: 5.39, y: 1.43, w: 0.45, h: 0.45, style: street, symbol: "·"}
+  - {id: 11, slug: "mos_eisley_south_end", name: "South End", zone: spaceport, x: 7.91, y: 1.32, w: 0.45, h: 0.45, style: street, symbol: "·"}
+  # CANTINA ROW
+  - {id: 13, slug: "chalmuans_cantina_main_bar", name: "Cantina Bar", zone: cantina, x: 2.9, y: 3.7, w: 0.7, h: 0.5, style: cantina, symbol: "Λ"}
+  - {id: 14, slug: "chalmuans_cantina_back_hallway", name: "Back Hall", zone: cantina, x: 2.2, y: 3.7, w: 0.4, h: 0.4, style: cantina, symbol: "Λ"}
+  - {id: 12, slug: "chalmuans_cantina_entrance", name: "Cantina Ent.", zone: cantina, x: 3.59, y: 3.7, w: 0.45, h: 0.45, style: cantina, symbol: "Λ"}
+  # MARKET — strip between civic and spaceport (south of Cantina Lane)
+  - {id: 8, slug: "mos_eisley_market_district", name: "Market St.", zone: market, x: 5.49, y: 3.69, w: 0.45, h: 0.45, style: street, symbol: "·"}
+  - {id: 29, slug: "jawa_traders", name: "Jawa Traders", zone: market, x: 6.76, y: 3.64, w: 0.5, h: 0.5, style: vendor, symbol: "$"}
+  - {id: 16, slug: "market_place_geps_grill", name: "Gep's Grill", zone: market, x: 5.5, y: 4.29, w: 0.45, h: 0.45, style: market, symbol: "#"}
+  - {id: 15, slug: "lups_general_store", name: "Lup's Store", zone: market, x: 5.54, y: 2.88, w: 0.5, h: 0.5, style: vendor, symbol: "$"}
+  - {id: 28, slug: "heffs_souvenirs", name: "Souvenirs", zone: market, x: 4.65, y: 2.85, w: 0.45, h: 0.45, style: vendor, symbol: "$"}
+  - {id: 33, slug: "zygians_banking", name: "Bank", zone: market, x: 5.5, y: 2.09, w: 0.4, h: 0.4, style: civic, symbol: "§"}
+  - {id: 27, slug: "kaysons_weapon_shop", name: "Weapons", zone: market, x: 4.69, y: 3.69, w: 0.5, h: 0.4, style: vendor, symbol: "$"}
+  - {id: 37, slug: "dowager_queen_corner", name: "Dowager Q.", zone: market, x: 5.66, y: 3.3, w: 0.5, h: 0.4, style: landmark, symbol: "※"}
+  # CIVIC — south block
+  - {id: 9, slug: "mos_eisley_government_quarter", name: "Gov. Qtr St.", zone: civic, x: 5.59, y: 5.23, w: 0.45, h: 0.45, style: street, symbol: "·"}
+  - {id: 10, slug: "mos_eisley_north_end", name: "North End", zone: civic, x: 5.74, y: 6.07, w: 0.45, h: 0.45, style: street, symbol: "·"}
+  - {id: 21, slug: "police_station_main", name: "Police", zone: civic, x: 6.79, y: 5.23, w: 0.5, h: 0.4, style: civic, symbol: "§"}
+  - {id: 20, slug: "regional_government_offices", name: "Prefect", zone: civic, x: 3.75, y: 5.23, w: 0.5, h: 0.4, style: civic, symbol: "§"}
+  - {id: 22, slug: "tatooine_militia_hq", name: "Militia HQ", zone: civic, x: 5.49, y: 6.55, w: 0.5, h: 0.4, style: civic, symbol: "§"}
+  - {id: 18, slug: "jabbas_townhouse_entrance", name: "Jabba's TH", zone: civic, x: 4.25, y: 4.85, w: 0.5, h: 0.4, style: hutt, symbol: "H"}
+  - {id: 19, slug: "jabbas_townhouse_audience", name: "Audience", zone: civic, x: 4.8, y: 4.92, w: 0.45, h: 0.4, style: hutt, symbol: "H"}
+  - {id: 35, slug: "cutting_edge_clinic", name: "Clinic", zone: civic, x: 4.34, y: 5.32, w: 0.45, h: 0.4, style: medical, symbol: "+"}
+  - {id: 24, slug: "power_station", name: "Power", zone: civic, x: 6.73, y: 4.15, w: 0.45, h: 0.4, style: vendor, symbol: "⚡"}
+  - {id: 36, slug: "dimu_monastery_gate", name: "Dim-U", zone: civic, x: 5.19, y: 6.05, w: 0.5, h: 0.4, style: temple, symbol: "T"}
+  - {id: 23, slug: "dewback_stables_garage", name: "Stables", zone: civic, x: 5.39, y: 4.81, w: 0.5, h: 0.4, style: vendor, symbol: "~"}
+  - {id: 39, slug: "notsub_shipping_lobby", name: "Notsub", zone: civic, x: 5.87, y: 4.77, w: 0.45, h: 0.4, style: vendor, symbol: "$"}
+  - {id: 30, slug: "dockside_cafe", name: "Dockside Cafe", zone: civic, x: 5.75, y: 7.75, w: 0.5, h: 0.4, style: cantina, symbol: "Λ"}
+  # OUTSKIRTS
+  - {id: 40, slug: "outskirts_eastern_gate", name: "East Gate", zone: outskirts, x: 7.99, y: 3.64, w: 0.45, h: 0.45, style: gate, symbol: "⨯"}
+  - {id: 41, slug: "outskirts_scavenger_market", name: "Scavenger", zone: outskirts, x: 8.56, y: 3.72, w: 0.5, h: 0.4, style: vendor, symbol: "$"}
+  - {id: 45, slug: "outskirts_wrecked_sandcrawler", name: "Sandcrawler", zone: outskirts, x: 8.55, y: 3.12, w: 0.5, h: 0.4, style: ruin, symbol: "※"}
+  - {id: 43, slug: "outskirts_speeder_track", name: "Track", zone: outskirts, x: 7.5, y: 3.75, w: 0.5, h: 0.4, style: vendor, symbol: "~"}
+  - {id: 42, slug: "outskirts_abandoned_farm", name: "Old Farm", zone: outskirts, x: 7.99, y: 4.58, w: 0.5, h: 0.4, style: ruin, symbol: "※"}
+  - {id: 46, slug: "outskirts_hermits_ridge", name: "Hermit Ridge", zone: outskirts, x: 7.99, y: 5.29, w: 0.5, h: 0.4, style: landmark, symbol: "^"}
+  - {id: 44, slug: "outskirts_checkpoint", name: "Checkpoint", zone: outskirts, x: 9.06, y: 3.51, w: 0.45, h: 0.45, style: gate, symbol: "⨯"}
+  # JUNDLAND WASTES
+  - {id: 47, slug: "outskirts_trail_junction", name: "Junction", zone: outskirts, x: 9.52, y: 3.37, w: 0.4, h: 0.4, style: street, symbol: "·"}
+  - {id: 48, slug: "jundland_canyon_mouth", name: "Canyon Mouth", zone: jundland, x: 9.87, y: 3.22, w: 0.5, h: 0.4, style: wilderness, symbol: "^"}
+  - {id: 49, slug: "jundland_beggars_canyon", name: "Beggar's Cyn.", zone: jundland, x: 9.83, y: 3.93, w: 0.5, h: 0.4, style: wilderness, symbol: "^"}
+  - {id: 52, slug: "jundland_hidden_cave", name: "Hidden Cave", zone: jundland, x: 9.87, y: 2.53, w: 0.4, h: 0.35, style: hidden, symbol: "?"}
+  - {id: 50, slug: "jundland_tusken_overlook", name: "Tusken Camp", zone: jundland, x: 10.41, y: 3.16, w: 0.5, h: 0.4, style: hostile, symbol: "!"}
+  - {id: 51, slug: "jundland_krayt_graveyard", name: "Krayt Graveyd", zone: jundland, x: 10.98, y: 3.12, w: 0.5, h: 0.4, style: landmark, symbol: "※"}
+  - {id: 53, slug: "jundland_dune_sea_edge", name: "Dune Sea Edge", zone: dune_sea, x: 12.41, y: 3.1, w: 0.4, h: 0.4, style: wilderness, symbol: "~"}
+
+# ── EXITS ───────────────────────────────────────────────────────────
+# Most exits are bidirectional pairs [from, to]. Hidden exits use the
+# object form { from, to, hidden: true } and render dashed.
+exits:
+  - [0, 1]
+  - [0, 7]
+  - [2, 7]
+  - [3, 7]
+  - [4, 7]
+  - [5, 7]
+  - [7, 8]
+  - [8, 9]
+  - [9, 10]
+  - [7, 11]
+  - [12, 8]
+  - [12, 13]
+  - [13, 14]
+  - [15, 8]
+  - [16, 8]
+  - [17, 7]
+  - [18, 8]
+  - [18, 19]
+  - [20, 9]
+  - [21, 9]
+  - [22, 9]
+  - [23, 22]
+  - [24, 9]
+  - [25, 7]
+  - [26, 7]
+  - [27, 8]
+  - [28, 8]
+  - [29, 8]
+  - [30, 10]
+  - [31, 11]
+  - [31, 32]
+  - [33, 8]
+  - [34, 11]
+  - [35, 9]
+  - [36, 10]
+  - [37, 8]
+  - [38, 11]
+  - [39, 10]
+  - [40, 8]
+  - [41, 40]
+  - [42, 40]
+  - [43, 41]
+  - [44, 40]
+  - [45, 41]
+  - [46, 42]
+  - [47, 44]
+  - [48, 47]
+  - [49, 48]
+  - [50, 48]
+  - [51, 50]
+  - {from: 52, to: 48, hidden: true}
+  - [53, 51]
+
+# ── EXIT PATHS — these ARE the visible streets ──────────────────────
+# Streets run through GAPS between room blocks, not through rooms.
+# The renderer draws each path as a wide sand-colored ribbon (the road
+# surface) plus a thin dashed centerline. Keys are "fromId-toId".
+
+# ── LABELS — anchored to the street ribbons (negative space) ────────
+# Streets sit ON the ribbon. Labels use min_zoom/max_zoom for tier visibility.
+labels:
+  # Flavor — empty substrate only
+  - {text: "to Anchorhead →", kind: flavor, pos: [9.5, 2.2], rot: 0, size: 6, min_zoom: 1, max_zoom: 2}
+  - {text: "to the deep desert →", kind: flavor, pos: [14.2, 5.2], rot: 0, size: 6, min_zoom: 1, max_zoom: 2}
+
+# ── LANDMARKS — independent POI markers ─────────────────────────────
+# Landmarks that share room coords have min_zoom>=2 (don't double-stamp).
+# Registered against the painted substrate via static/tools/map_register.html
+# (image-canonical: positions derived from where each pin sits on the painting).
+landmarks:
+  - {id: bay94, icon: dock, name: "Docking Bay 94", pos: [2.6, -1.4], min_zoom: 2, max_zoom: 2}
+  - {id: despot, icon: ship, name: "Lucky Despot", pos: [7.0, -1.3], min_zoom: 2, max_zoom: 2}
+  - {id: dowager, icon: wreck, name: "Dowager Queen", pos: [7.2, 4], min_zoom: 2, max_zoom: 3}
+  - {id: chalmun, icon: cantina, name: "Chalmun's Cantina", pos: [3.8, 4.7], min_zoom: 2, max_zoom: 2}
+  - {id: kraytgrave, icon: bones, name: "Krayt Graveyard", pos: [13.4, 3.9], min_zoom: 2, max_zoom: 3}
+  - {id: jabba_th, icon: hutt, name: "Jabba's Townhouse", pos: [6.9, 0.8], min_zoom: 2, max_zoom: 2}
+  - {id: beacon, icon: beacon, name: "Hyperspace Beacon", pos: [3.5, 6], min_zoom: 2, max_zoom: 3}
+  - {id: jabba_p, icon: palace, name: "Jabba's Palace ↗", pos: [9.5, 6.7], min_zoom: 2, max_zoom: 3}
+  - {id: sarlacc, icon: sarlacc, name: "The Sarlacc ↗", pos: [13.9, 6.2], min_zoom: 2, max_zoom: 3}

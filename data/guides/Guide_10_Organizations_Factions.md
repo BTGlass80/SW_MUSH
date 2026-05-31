@@ -1,244 +1,298 @@
-# SW_MUSH Detailed Systems Guide #10
+---
+category: community
+order: 1
+summary: "Republic, CIS, Jedi Order, Hutts, Bounty Hunters Guild. Join a faction, climb the ranks, and shape the galaxy."
+tags: ["faction", "organization", "republic", "cis", "jedi", "hutt", "bounty hunters", "guild", "rank"]
+---
+
 # Organizations & Factions
 
 **SW_MUSH — Star Wars D6 Revised & Expanded**
-**BTGlass80 — April 2026**
-**Guide Version 1.0**
 
 ---
 
-## 1. Overview
+## How to Read This Guide
 
-### Player Rules
+The Clone Wars are a galactic-scale conflict, but you experience them through one organization at a time. Joining a faction is the single biggest choice you make about your character's place in the war — bigger than your species, bigger than your starting profession, often bigger than your skills. The faction shapes which missions you see, which rooms you can enter, what equipment you carry, who shoots at you on sight, and what story arc your character lives.
 
-The organizations system divides into two types: **Factions** (major political groups that shape the galaxy) and **Guilds** (professional associations that provide trade bonuses). You can belong to one faction at a time and up to three guilds simultaneously.
+This guide covers the six playable factions, the six era-agnostic professional guilds, the rank-and-equipment system that ties them all together, and the bigger-picture systems (Director AI, Faction Intent, reputation) that the factions plug into.
 
-Factions are Director AI-managed — they compete for zone influence, trigger world events, and shape the game's ongoing narrative. Guilds are simpler — they provide a 20% CP training discount and define professional communities.
+If you only have ten minutes, read **§1 The Faction Map** and **§2 The Six Playable Factions**. That's enough to make an informed first choice. The deeper sections cover ranks, equipment, the Bounty Hunters' Guild override, guilds, reputation, and the Director AI's role in keeping faction politics dynamic.
+
+You should already understand the basics of the security model (see [Security Zones](#/guide/security-zones)) — factions matter most in the contested-zone gray space between Republic-secured and lawless territory.
 
 ---
 
-## 2. Factions
+## 1. The Faction Map
 
-### Player Rules
+The Clone Wars galaxy has three large powers and a small handful of organizations that operate alongside them:
 
-Five factions exist:
+- **The Galactic Republic** — the thousand-year democratic state, fighting for its survival. Clone armies in the field, the Senate at home.
+- **The Confederacy of Independent Systems (CIS)** — the Separatist alliance, drawing from systems that resent Republic taxation and Core World privilege. Battle droids in the field, the Separatist Council at home.
+- **The Jedi Order** — ancient guardians of peace now drafted as generals. Aligned with the Republic, but as a way of life rather than a political affiliation.
+- **The Hutt Cartel** — the criminal apparatus of the Outer Rim. Officially neutral. Profits from both sides.
+- **The Bounty Hunters' Guild** — independent contractors. Both the Republic and the CIS post bounties through Guild cutouts when official channels would be embarrassing.
+- **Independent** — the default. No faction obligations, no faction benefits. The galaxy is full of people who just want to survive the war without picking a side.
 
-| Faction | Axis | HQ | Ranks | Stipend Range | Special Features |
-|---------|------|-----|-------|---------------|-----------------|
-| **Galactic Empire** | Imperial | Kessel Garrison | 7 (Recruit → Commander) | 50–500 cr/week | 4 specializations, best equipment |
-| **Rebel Alliance** | Rebel | Nar Shaddaa Promenade | 6 (Sympathizer → Commander) | 25–300 cr/week | Cell missions, encrypted comms |
-| **Hutt Cartel** | Criminal | Jabba's Townhouse | 6 (Associate → Vigo) | 100–500 cr/week (rank 3+) | Smuggling routes, debt collection |
-| **Bounty Hunters' Guild** | Independent | Nar Shaddaa BH Quarter | 6 (Novice → Guildmaster) | None | Bounty board access, PvP override, tracking fobs |
-| **Independent** | Independent | — | 1 (Freelancer) | None | Default; no affiliation |
+Beyond those six, there are two **NPC-only factions** that you'll encounter but can't join:
 
-**Joining a faction:** `faction join <name>`. You receive rank-0 equipment immediately. Switching factions has a 7-day cooldown.
+- **The Sith** — a covert dark-side cabal directing CIS strategy from off-stage. Players never see them as such; they see only Count Dooku publicly leading the CIS, and dark-side events the Director narrates.
+- **The Separatist Council** — the CIS's oligarchic inner circle (Nute Gunray, Wat Tambor, San Hill, et al.). Their decisions surface as CIS faction policy; you don't interact with them directly as a player.
 
-**Leaving:** `faction leave`. All faction-issued equipment is reclaimed.
+And six **professional guilds** that cut across faction lines — see §5.
 
-### Rank Progression
+You can be a member of one faction at a time. You can additionally hold membership in any number of guilds. So a Republic clone officer who's also in the Medics' Guild is fully valid; a CIS agent who's also in the Slicers' Guild is fully valid; a Hutt enforcer who's also in the Mechanics' Guild is fully valid. Guilds are neutral.
 
-Each faction has 5–7 ranks with minimum reputation requirements. You earn reputation (rep) through faction-aligned actions:
+---
 
-| Action | Rep Gained |
-|--------|-----------|
-| Complete faction mission | +3 |
-| Complete profession chain step | +5 |
-| Kill enemy faction NPC | +1 |
-| Complete bounty | +2 |
-| Deliver contraband (Hutt) | +2 |
-| Crafting sale | +1 |
-| Faction event attendance | +1 |
-| Rule violation | −5 |
+## 2. The Six Playable Factions
 
-When your rep reaches the next rank's threshold, you can be promoted (automatic or by a superior). Promotion issues new rank equipment.
+| Faction | Axis | HQ | Ranks | Joinable At |
+|---|---|---|---|---|
+| Galactic Republic | Republic / Order | Nar Shaddaa - Corellian Sector Promenade | 7 (Conscript → Commander) | Chargen or anytime |
+| Confederacy of Independent Systems | Separatist | Nar Shaddaa - The Burning Deck Cantina | 6 (Sympathizer → Commander) | Chargen or anytime |
+| Jedi Order | Jedi / Light | Coruscant - Jedi Temple Main Hall | 3 (Padawan → Master) | Village quest completion required |
+| Hutt Cartel | Criminal | Nar Shaddaa - Hutt Emissary Tower - Audience Chamber | 6 (Associate → Vigo) | Chargen or anytime |
+| Bounty Hunters' Guild | Independent / Contract | Nar Shaddaa - Bounty Hunters' Quarter | 5 (Novice → Veteran) | Anytime after dues paid |
+| Independent | None | (no HQ) | 1 (Freelancer) | Default starting affiliation |
 
-**Example: Empire ranks**
+Why so many faction HQs on Nar Shaddaa? Because Nar Shaddaa is the Smuggler's Moon — Hutt-controlled, neutral, where everyone has business and no one is officially supposed to. The Republic and CIS both maintain "trade missions" on Nar Shaddaa that function as recruitment offices. The Hutts let them coexist because it's good for business. Coruscant has Republic and Jedi presence but no CIS recruiting (you'd be arrested on sight). The Outer Rim has Hutt and bounty hunter presence but no Republic or CIS infrastructure.
 
-| Level | Title | Min Rep | Equipment | Permissions |
-|-------|-------|---------|-----------|------------|
-| 0 | Recruit | 0 | Uniform, SE-14C pistol | — |
-| 1 | Private | 10 | E-11 rifle, Stormtrooper armor | Faction comms |
-| 2 | Corporal | 25 | Improved armor | Faction comms |
-| 3 | Sergeant | 40 | — | Lead NPC squad |
-| 4 | Lieutenant | 60 | Officer's sidearm | Issue orders, restricted access |
-| 5 | Captain | 75 | — | Create missions, promote sergeants |
-| 6 | Commander | 90 | — | Full faction admin |
+### Galactic Republic
 
-### Imperial Specializations
+The thousand-year-old democratic Republic is fighting for its survival against the Separatist insurgency. Joining the Republic means clone trooper logistics, Senate politics, and the weight of an institution that believes it is fighting for civilization. You'll work alongside clone troopers (NPCs), report through a military chain of command, and access the best equipment in the game once you make rank.
 
-When you join the Empire, you choose one of four specializations:
+The Republic recruits actively at the Nar Shaddaa Corellian Sector Promenade and on Coruscant. Joining is a `+faction join republic` away — there's no audition, no test, the war needs warm bodies. Distinguishing yourself in service is where the work begins.
 
-| Specialization | Focus | Equipment Issued |
-|---------------|-------|-----------------|
-| **Stormtrooper** | Ground combat | E-11 Blaster Rifle, Stormtrooper Armor |
-| **TIE Pilot** | Space combat | TIE Pilot Flight Suit |
-| **Naval Officer** | Command/support | Officer Uniform, Imperial Datapad |
-| **Intelligence** | Stealth/slicing | Civilian Cover Package, Slicing Kit |
+**Ranks** (each rank gates equipment, permissions, and certain mission types):
 
-Type `specialize <number>` after joining.
+| Level | Title | Min Rep | Equipment Issued | Permissions |
+|---:|---|---:|---|---|
+| 0 | Conscript | 0 | Republic uniform, DC-17 pistol | — |
+| 1 | Private | 10 | DC-15 blaster rifle, Republic light armor | faction_comms |
+| 2 | Corporal | 25 | Improved armor | faction_comms |
+| 3 | Sergeant | 40 | — | faction_comms, lead_npc_squad |
+| 4 | Lieutenant | 60 | Officer's sidearm | + issue_orders, restricted_access |
+| 5 | Captain | 75 | — | + create_missions, promote_sergeant |
+| 6 | Commander | 90 | — | faction_admin |
 
-### Faction Stipends
+Reputation is gained through completed Republic missions, donations to the faction treasury, killing CIS or Sith NPCs, and being present at Republic-aligned narrative events the Director runs. Reputation can be *lost* through faction infractions (smuggling Hutt contraband, fraternizing with CIS sympathizers, refusing direct orders from in-faction superiors).
 
-Weekly payroll from the faction treasury:
+### Confederacy of Independent Systems
 
-| Faction | Rank 1 | Rank 2 | Rank 3 | Rank 4 | Rank 5 |
-|---------|--------|--------|--------|--------|--------|
-| Empire | 50 cr | 100 cr | 200 cr | 350 cr | 500 cr |
-| Rebel | 25 cr | 50 cr | 100 cr | 200 cr | 300 cr |
-| Hutt | — | — | 100 cr | 250 cr | 500 cr |
-| BH Guild | — | — | — | — | — |
+The Separatist alliance draws its membership from systems that resent Republic taxation, corruption, and Core World privilege. Joining the CIS means working alongside battle droids (NPCs), Sith-aligned commanders, and a cause that might be justified or might be a power grab — it's genuinely hard to tell from the inside.
 
-Stipends are paid from the faction's treasury. If the treasury runs dry, payments stop.
+CIS recruitment is more covert than Republic. The HQ at the Burning Deck Cantina is a known Separatist front; walking in and saying you want to join is the equivalent of signing up at a recruiting station, but the cell-and-handler structure means you'll work in small groups, with limited visibility into the wider organization. The CIS cell structure is reflected in your starting equipment — civilian-looking gear instead of uniforms, encrypted comlinks instead of faction comms.
 
-### 🔧 Developer Internals
+**Ranks:**
 
-**File:** `engine/organizations.py` (~996 lines)
+| Level | Title | Min Rep | Equipment Issued | Permissions |
+|---:|---|---:|---|---|
+| 0 | Sympathizer | 0 | Encrypted comlink | — |
+| 1 | Operative | 15 | Blaster pistol, civilian gear | faction_comms, cell_missions |
+| 2 | Agent | 30 | Heavy blaster pistol | faction_comms, cell_missions |
+| 3 | Sergeant | 50 | — | + lead_npc_squad |
+| 4 | Cell Leader | 70 | — | + create_missions, recruit |
+| 5 | Commander | 90 | — | faction_admin |
 
-**Constants:**
-- `FACTION_SWITCH_COOLDOWN = 604800` (7 days)
-- `REP_GAINS` dict: Maps action keys to rep delta values
-- `STIPEND_TABLE` dict: Maps `(faction_code, rank_level)` → credit amount
-- `EQUIPMENT_CATALOG` dict: ~20 equipment items with name, slot, description
-- `RANK_0_EQUIPMENT`, `RANK_1_EQUIPMENT`: Per-faction starting gear
-- `IMPERIAL_SPEC_EQUIPMENT`: Per-specialization equipment
+CIS reputation tracks similarly to Republic — completed Separatist missions, donations, killing Republic or Jedi NPCs, narrative events. CIS members face a recurring tension: many missions push toward dark-side actions (sabotage, assassination, intimidation) that can attract Dark Side Points. The cause may be justified, but the methods are corrosive. See [Force Powers](#/guide/force-powers) for the dark-side mechanics.
 
-**`join_faction(char, faction_code, db, session)`** (lines 340–422):
-1. Checks 7-day cooldown
-2. Reclaims equipment from previous faction
-3. Joins new faction via DB
-4. Records cooldown timestamp
-5. Issues rank-0 equipment
-6. Prompts Imperial specialization if applicable
-7. Clears faction_intent (tutorial migration)
-8. Logs to narrative system
-9. Assigns faction quarters (housing hook)
+### Jedi Order
 
-**`leave_faction(char, db, session)`** (lines 425–465): Reclaims equipment, updates DB, records cooldown, revokes faction quarters.
+The Jedi Order serves the Republic as generals while upholding their ancient mandate as guardians of peace. A Jedi's faction is not a political affiliation — it is a way of life. Joining the Order requires completing the **Jedi Village quest chain** (see [The Jedi Village](#/guide/jedi-village)). You cannot pick Jedi at chargen; you earn it through the longest narrative arc in the game.
 
-**`promote(char, org_code, db, promoter_char)`** (lines 546–603): Validates rep threshold, updates rank level, issues new equipment, triggers housing hook.
+**Ranks:**
 
-**`faction_payroll_tick(db)`** (lines 606–669): Called from tick loop. Iterates all faction members, checks standing and rank, pays stipend from treasury, logs disbursement.
+| Level | Title | Min Rep | Equipment Issued | Permissions |
+|---:|---|---:|---|---|
+| 0 | Padawan | 0 | Padawan robes, Jedi utility belt | — |
+| 1 | Jedi Knight | 50 | Jedi robes | faction_comms, take_padawan |
+| 2 | Jedi Master | 90 | — | + sit_council, faction_admin |
 
-**`adjust_rep(char, faction_code, db, action_key)`** (lines 690–725): Applies delta from `REP_GAINS`, clamps 0–100. Works for both members (DB membership table) and non-members (attributes JSON `faction_rep`).
+Note that the **lightsaber** is granted via the Village quest's graduation step, not as standard rank equipment. The Order is a small faction — at any given time there are typically fewer than half a dozen PC Jedi on the entire game. This is by design. Jedi are meant to be rare and important.
+
+A Jedi Knight can take a Padawan via the [Padawan-Master](#/guide/padawan-master) bond. Jedi Masters can sit on the Council and approve major decisions for the faction.
+
+### The Hutt Cartel
+
+The Hutts are neutral in the Clone Wars and intend to stay that way — neutrally profitable. Working for the Hutt Cartel means smuggling, enforcement, and the Outer Rim criminal apparatus. Dark side pays more. The Hutts know this and price accordingly.
+
+The Cartel doesn't recruit publicly. You "join" by attracting the attention of a Hutt enforcer in the Nar Shaddaa underworld, on Tatooine, or anywhere Hutt interests run — usually by completing a job for them as a freelancer first. After enough freelance jobs, the local Vigo will offer you a Cartel position.
+
+**Ranks:**
+
+| Level | Title | Min Rep | Equipment Issued | Permissions |
+|---:|---|---:|---|---|
+| 0 | Associate | 0 | Blaster pistol | — |
+| 1 | Runner | 10 | Heavy blaster pistol, smuggler vest | faction_comms, hutt_missions |
+| 2 | Enforcer | 25 | — | faction_comms, hutt_missions |
+| 3 | Operator | 45 | — | + hutt_black_market |
+| 4 | Underboss | 65 | — | + recruit, territory_ops |
+| 5 | Vigo | 85 | — | faction_admin |
+
+The Hutts' `hutt_black_market` permission at Operator and above unlocks restricted gear sales — things the Republic and CIS would arrest you for owning. The Cartel is also the only faction with `territory_ops`, which lets Underbosses claim and contest territory rooms in lawless zones. See [Territory Control](#/guide/territory-control).
+
+### Bounty Hunters' Guild
+
+The Guild doesn't take sides in the war — it takes contracts. Both Republic and CIS put bounties on each other's agents. The Guild processes them all with professional neutrality. Membership requires demonstrated competence and payment of dues — you can't just walk in and join. The Guild office in the Nar Shaddaa Bounty Hunters' Quarter (a few corridors away from the Hutt Emissary Tower) is the standard intake point; CT-7842 in Mos Eisley brokers offworld contracts; the Hutt Council on Nal Hutta posts the highest-value ones.
+
+**Ranks:**
+
+| Level | Title | Min Rep | Equipment Issued | Permissions |
+|---:|---|---:|---|---|
+| 0 | Novice | 0 | Binder cuffs, Guild license | — |
+| 1 | Journeyman | 15 | Tracking fob | guild_bounty_board |
+| 2 | Hunter | 35 | — | guild_bounty_board |
+| 3 | Senior Hunter | 55 | — | + post_player_bounties |
+| 4 | Veteran | 75 | — | + guild_vote |
+
+The most important Guild permission, available at Journeyman and above, is **bounty hunter PvP override** — see [Security Zones](#/guide/security-zones) §4. With an active claimed contract, you can attack your target in a contested zone without going through challenge/accept. The contract is the consent. This is what makes bounty hunting a playable profession rather than a roleplay aesthetic.
+
+Senior Hunters and above can **post bounties on player characters** (not arbitrary characters — the system tracks criminal behavior, faction infractions, and contract failures; bounties are generated from real player actions, not griefing wishlists).
+
+### Independent
+
+The default starting affiliation. No allegiance. No faction benefits, no faction obligations. The galaxy is full of people who just want to survive the war without picking a side.
+
+This is a real option, not a placeholder. An Independent character can join professional guilds, run missions through whatever broker pays today, smuggle for the Hutts on Tuesday and ferry Jedi diplomats on Wednesday, and never make a binding commitment to anyone. The price you pay is faction infrastructure: no comms net, no rank progression, no faction-only missions, no faction-issued equipment.
+
+Many spacers run Independent for their entire career. The traders and freelancers around the Outer Rim mostly stay Independent because the alternatives all want something they aren't willing to give.
 
 ---
 
 ## 3. Equipment Issuance
 
-### Player Rules
+When you reach a new faction rank, the faction's quartermaster issues you the equipment listed in the rank table. You can claim it at the faction HQ via `+faction equipment`. The faction also reissues equipment on death (when you respawn), so promotion-tier gear is not lost permanently.
 
-When you join a faction or get promoted, you receive **faction-issued equipment** — weapons, armor, and utility items appropriate to your rank and specialization. This equipment is marked as faction-issued and will be **reclaimed** if you leave the faction.
+Some things to know:
 
-Imperial Stormtroopers get an E-11 Blaster Rifle and Stormtrooper Armor. Rebel Operatives get a DL-18 Pistol and flight suit. Bounty Hunters get binder cuffs and a guild license. Each rank adds more gear.
-
-### 🔧 Developer Internals
-
-**`issue_equipment(char, org_code, db, item_keys, session)`** (lines 133–174): Adds items to inventory via `db.add_to_inventory()` with `faction_issued: True` flag. Records in `issued_equipment` table for reclamation tracking.
-
-**`reclaim_equipment(char, org_code, db, session)`** (lines 177–206): Removes all faction-issued items for this org from inventory. Marks as reclaimed in DB. Reports count to player.
+- **Equipment is faction-marked.** A DC-15 blaster rifle issued by the Republic isn't ordinary military hardware — it's specifically Republic-issue. Walking around with it in a CIS zone gets you noticed. Most factions track lost or stolen equipment as a faction infraction.
+- **You can sell or trade issued equipment**, but doing so repeatedly may flag you for fraud and cost reputation. The system tolerates occasional loss (battlefield reality) but punishes patterns.
+- **Independents and guild-only members don't receive equipment** unless they pay for it through the standard economy. See [Economy](#/guide/economy).
+- **Tutorial chains issue starter gear** before you've picked a faction. That gear is yours regardless of subsequent affiliation. See [Tutorial Chains](#/guide/tutorial-chains).
 
 ---
 
-## 4. Guilds
+## 4. The Professional Guilds
 
-### Player Rules
+Guilds are era-agnostic professional organizations. They don't take sides in the war; they take members. A guild membership signals competence in a craft and unlocks craft-specific tools, contracts, and discounts. Six guilds are available:
 
-Six professional guilds provide trade community and a **20% CP training discount**:
+| Guild | Profession | What It Unlocks |
+|---|---|---|
+| Mechanics' Guild | Vehicle/ship repair | Discounted parts, repair contracts, garage access |
+| Shipwrights' Guild | Starship construction & mod | Hull design templates, mod slot certifications |
+| Medics' Guild | First aid & medicine | Bacta access, surgical permits, medical contracts |
+| Slicers' Guild | Computer programming & security | Software libraries, slicing contracts, dead-drop access |
+| Entertainers' Guild | Performance & gambling | Cantina performance slots, sabacc tournament invites |
+| Scouts' Guild | Survival & wilderness | Map data, scout routes, frontier contracts |
 
-| Guild | Focus | Weekly Dues |
-|-------|-------|------------|
-| **Mechanics' Guild** | Ship and equipment repair | 50 cr |
-| **Shipwrights' Guild** | Ship modification and construction | 75 cr |
-| **Medics' Guild** | Healing, bacta, combat medicine | 50 cr |
-| **Slicers' Collective** | Computer intrusion, electronic warfare | 60 cr |
-| **Entertainers' Guild** | Performance, music, social arts | 25 cr |
-| **Scouts' Guild** | Surveying, pathfinding, wilderness | 40 cr |
+You can hold any number of guild memberships. They cost dues (typically 50–100 credits/week per guild) and require demonstrating skill in the relevant area before you'll be admitted. The Mechanics' Guild won't let you in without a Mechanical Repair check above a threshold; the Entertainers' Guild requires a Performance audition.
 
-**Joining:** `guild join <name>`. Max 3 guilds at once.
-**Leaving:** `guild leave <name>`.
+Guild membership is **independent of faction**. A Jedi Knight in the Medics' Guild is fully canonical (some Jedi do specialize in healing). A Hutt Cartel Enforcer in the Slicers' Guild is fine — the Slicers don't care who your patron is, only whether you can crack the encryption.
 
-**The 20% CP discount** is the primary mechanical benefit. When you `train` a skill, guild membership reduces the CP cost. A 5 CP training costs 4 CP for a guild member. This applies to any skill, not just guild-related ones — it's a flat discount on all advancement.
-
-### 🔧 Developer Internals
-
-**`join_guild(char, guild_code, db)`** (lines 509–526): Checks max 3 guilds via `get_memberships_for_char()` filtering by `org_type == "guild"`.
-
-**`get_guild_cp_multiplier(char, db)`** (lines 674–685): Returns `0.8` (1.0 − 0.20) if the character is in any guild with standing != "expelled". Called by `TrainCommand` in `cp_commands.py`.
-
-**Guild dues:** Defined in `organizations.yaml` as `dues_weekly`. Deducted by a weekly tick handler (in `server/tick_handlers_economy.py`).
+For the actual craft systems behind these guilds, see [Crafting](#/guide/crafting), [Sabacc & Entertainer](#/guide/sabacc-entertainer), and the relevant sourcebook-derived material.
 
 ---
 
-## 5. Director AI Integration
+## 5. Reputation, Promotion, and Demotion
 
-### Player Rules
+Each faction tracks your **reputation** as an integer score from 0 to 100. The rank table for each faction lists a `min_rep` for each rank; when your reputation crosses a threshold, you become *eligible* for promotion. Promotion isn't automatic — a faction officer with the `promote_sergeant` (or `faction_admin`) permission has to approve it. For NPC-managed factions, the Director AI handles approvals; for PC-led factions, you'll need to be noticed by the brass.
 
-Factions are **Director-managed** — the Director AI uses faction influence data to:
-- Shift zone security levels (Imperial crackdown, criminal surge)
-- Generate faction-themed world events and news
-- Issue NPC faction orders (patrol assignments, raids)
-- Award CP ticks for quality faction roleplay
-- Publish faction digests in the news system
+**Gaining reputation:**
 
-Player actions (killing NPCs, completing missions, smuggling) shift faction influence scores in each zone. Over weeks of play, this creates a dynamic, player-driven political landscape.
+- Completing faction missions (~3–10 rep per mission, depending on difficulty)
+- Donating credits to the faction treasury (1 rep per 100 credits, capped per week)
+- Killing rival-faction NPCs (1–3 rep per kill)
+- Being present at faction-relevant narrative events the Director runs (variable, sometimes substantial)
+- Performing exemplary roleplay that the Roleplay Evaluator flags as faction-aligned (rare, but possible — see [Director AI](#/guide/director-ai))
 
-### 🔧 Developer Internals
+**Losing reputation:**
 
-Each faction has a `director_managed: true` flag and an `axis` property (imperial, rebel, criminal, independent) that maps to the Director's zone influence model. The `adjust_rep()` function hooks into the Director's faction digest system, and faction-related actions are logged to the narrative system for Director awareness.
+- Failing missions (-1 to -5 rep)
+- Faction infractions (smuggling rival gear, fraternizing with rivals, refusing orders, getting caught committing crimes against the faction)
+- Long inactivity (-1 rep per week of game-time silence; this is mild attrition, not a punishment, but it adds up)
 
----
-
-## 6. Faction Intent (Tutorial Migration)
-
-### Player Rules
-
-If you chose a faction alignment during the tutorial's profession chain, your choice is remembered. When you next log in, you're automatically joined to that faction with a brief notification.
-
-### 🔧 Developer Internals
-
-**`faction_intent_migration(char, db, session)`** (lines 470–504): Called on login. Checks `attributes["faction_intent"]`. If set and character is still Independent, auto-calls `join_faction()`. Graceful-drop: never blocks login.
+**Discipline escalates.** A first infraction is usually a warning. A second puts you on probation. A third can expel you from the faction entirely, which strips your rank and equipment and locks you out until you re-earn membership. The Director AI handles discipline for NPC-managed factions with this escalation pattern — see [Director AI](#/guide/director-ai) for the details.
 
 ---
 
-## 7. Commands Quick Reference
+## 6. Faction Intent and Tutorial Migration
 
-| Command | Syntax | Description |
-|---------|--------|-------------|
-| `faction` | `faction` | Show your faction status |
-| `faction join` | `faction join <name>` | Join a faction |
-| `faction leave` | `faction leave` | Leave your faction |
-| `faction list` | `faction list` | List all factions |
-| `faction info` | `faction info <name>` | View faction details |
-| `specialize` | `specialize <1-4>` | Choose Imperial specialization |
-| `guild` | `guild` | Show your guild memberships |
-| `guild join` | `guild join <name>` | Join a guild (max 3) |
-| `guild leave` | `guild leave <name>` | Leave a guild |
-| `guild list` | `guild list` | List all guilds |
+If you completed a tutorial chain before joining a faction, the chain may have recorded your **faction intent** — a non-binding declaration of which faction you were leaning toward when you arrived. This is stored in your character data and surfaces when you actually join, sometimes giving you a small reputation head-start.
 
-**Leader commands** (rank 4+):
-| Command | Description |
-|---------|-------------|
-| `faction promote <player>` | Promote a member |
-| `faction demote <player>` | Demote a member |
-| `faction kick <player>` | Remove a member |
-| `faction treasury` | View faction treasury |
-| `faction invest <amount>` | Invest credits into territory influence |
+Faction intent is set during tutorial chains that include faction-relevant choices — the Mos Eisley spacer chain may flag you as leaning Independent or Hutt depending on whether you took a smuggling job; the Coruscant arrival chain may flag you as leaning Republic or CIS based on dialogue choices in the Senate sector tour.
+
+Intent is **not** a commitment. You're free to join any faction your character qualifies for, regardless of what your intent says. The system just gives small alignment bonuses where your declared intent and actual joining match. Mostly this is invisible to you — a few extra reputation points at join time.
 
 ---
 
-## 8. File Reference
+## 7. Director AI Integration
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `engine/organizations.py` | ~996 | Faction/guild join/leave, rank progression, equipment issuance/reclamation, payroll, rep adjustment, guild CP discount, Imperial specialization, seed loader |
-| `parser/faction_commands.py` | ~740 | faction/guild commands, specialize command |
-| `parser/faction_leader_commands.py` | ~560 | Leader-only commands (promote, demote, kick, treasury, invest) |
-| `data/organizations.yaml` | ~200 | 5 factions (with full rank tables) + 6 guilds |
-| `engine/territory.py` | ~768 | Territory influence (connected to faction invest) |
+Factions don't exist as static rosters. They're embedded in the **Director AI's faction influence system**, which tracks each faction's strength in every zone and updates the world accordingly. See [Director AI](#/guide/director-ai) for the full system.
 
-**Total organizations system:** ~2,496 lines of engine/parser code + ~200 lines of data.
+Practical effects for you as a faction member:
+
+- **Your missions are pulled from a faction-specific pool** the Director generates based on the current state of the war. CIS gains influence in Sullust this week? Republic mission boards will offer counter-operations there. Hutts make a move on Nar Shaddaa? Republic enforcement missions appear at the spaceport.
+- **Your reputation contributes to your faction's zone influence.** A high-rep Republic Captain doing missions in Mos Eisley nudges Republic influence upward in that zone. Multiply that across all active faction members and the world is shaped by player action.
+- **Faction politics are visible.** The HoloNet News feed announces faction milestones — "Separatist offensive in Outer Rim Sector 4," "Jedi Master killed in action," "Hutt Council issues neutrality reaffirmation." You can read the war happening in real time.
 
 ---
 
-*End of Guide #10 — Organizations & Factions*
-*Next: Guide #11 — Territory Control*
+## 8. Bounty Hunter Override (Cross-Reference)
+
+Worth restating because it's the single most consequential faction mechanic for PvP players: **Bounty Hunters' Guild members with an active claimed contract bypass the PvP consent system in contested zones for their specific target.** The contract counts as consent. This is how bounty hunting is playable as a profession.
+
+The guardrails:
+- You need an active **claimed** contract, not just Guild membership
+- The contract must name a specific target
+- Targets have earned their bounties (criminal behavior, faction infractions, contract failures — not arbitrary)
+
+For the full mechanics, see [Security Zones](#/guide/security-zones) §4.
+
+---
+
+## 9. Worked Example: A First Week as a Republic Conscript
+
+To pull it together, here's what an early-career Republic Soldier might look like.
+
+You roll a Human soldier at chargen and choose the Republic faction. You start as a **Conscript** (rank 0), 0 reputation, issued a Republic uniform and a DC-17 sidearm. You spawn at the Republic recruiting station at Nar Shaddaa Corellian Sector Promenade.
+
+Your first mission, pulled from the Republic mission board: deliver a sealed dispatch to a Republic Intelligence officer in the Mos Eisley spaceport. Pays 200 credits and 4 reputation if successful. You hyperjump to Tatooine, walk the dispatch to the contact, complete the delivery. The dispatch is encrypted — you don't know what's in it. Mission completes, you have 4 rep and 200 cr.
+
+Your second mission: escort a Republic Customs Liaison on a market sweep through Mos Eisley. You're armed (DC-17), in uniform (visible to anyone passing), and the Liaison is going to make herself unpopular by inspecting Hutt-aligned merchants. Three rounds of low-grade encounters: a Trandoshan stallholder gets aggressive (one dodge roll to defuse), a Hutt enforcer recognizes you and stares (Perception check to ignore it without losing face), a wounded Geonosian refugee tries to grab the Liaison's arm (Persuasion check to deflect without violence). Mission completes, you have 8 rep and 350 cr.
+
+You hit 10 reputation. The system flags you eligible for **Private** rank. The faction NPC (or, if you're lucky, a high-rank PC officer) approves the promotion. You report to the Republic equipment officer, get issued a DC-15 blaster rifle and Republic light armor, and gain the `faction_comms` permission — you can now talk on the Republic faction channel and see what other Republic players are doing in real time.
+
+Three Hutt missions you ran on the side as a freelancer (while still wearing the Republic uniform — sloppy, but you were broke) get noticed. The faction comms ping you: "Conscript, your association with criminal elements has been observed. This is a warning." Your reputation drops by 1. You decide to be more careful.
+
+By the end of week 1, you're a Private with 14 reputation, a DC-15 rifle, light armor, 850 credits, and a working understanding that the Republic notices what you do.
+
+That's the texture of faction life. Choices have weight, the world reacts, and progress is earned in small visible increments.
+
+---
+
+## 10. Commands Quick Reference
+
+| Command | Effect |
+|---|---|
+| `+faction list` | Show all factions and your standing in each |
+| `+faction info <faction>` | Detailed faction info |
+| `+faction join <faction>` | Apply to join a faction |
+| `+faction leave` | Resign from your current faction |
+| `+faction equipment` | View / claim issued equipment for your rank |
+| `+faction members` | View other members of your faction (rank-gated detail) |
+| `+faction missions` | Show available faction missions |
+| `+faction comm <message>` | Speak on faction comms (requires permission) |
+| `+rep` | Show your reputation in all factions and guilds |
+| `+rep <faction>` | Detailed reputation breakdown for a specific faction |
+| `+guild list` | Show all guilds and your membership status |
+| `+guild join <guild>` | Apply to join a guild |
+| `+guild leave <guild>` | Resign from a guild |
+| `+promote <character>` | Promote a subordinate (requires permission) |
+| `+discipline <character> <reason>` | Issue a faction discipline action (requires permission) |
+| `+treasury` | View faction treasury (rank-gated) |
+| `+treasury donate <amount>` | Donate credits to the faction treasury |
+
+---
+
+*This guide is part of the SW_MUSH Game Guides. See also: [Security Zones](#/guide/security-zones), [Territory Control](#/guide/territory-control), [The Jedi Village](#/guide/jedi-village), [Padawan-Master](#/guide/padawan-master), [The Director AI](#/guide/director-ai), [Tutorial Chains](#/guide/tutorial-chains).*

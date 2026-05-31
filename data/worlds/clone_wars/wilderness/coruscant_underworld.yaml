@@ -1,0 +1,306 @@
+# data/worlds/clone_wars/wilderness/coruscant_underworld.yaml
+# Clone Wars Era — Coruscant Underworld Wilderness Region
+# Schema version 1
+#
+# Per wilderness_system_design_v1.md §3.1 and the v48 §8.13 design
+# call resolved May 24 2026 (T2.3):
+#
+#   - SINGLE-LEVEL region (Brian's call to collapse the design's
+#     mid/low/bottom Z-axis into one plane). Level metadata on
+#     landmarks remains as descriptive flavor only — the descriptions
+#     still talk about descending into the deep underworld, but
+#     mechanically all wilderness landmarks live on one 40x40 grid.
+#
+#   - Minimal substrate parity with dune_sea.yaml. Region metadata,
+#     terrain pools, edges. No inline landmarks — those live in the
+#     existing coruscant_underworld_landmarks.yaml file and the
+#     force_resonant_landmarks.yaml file, brought in via the new
+#     landmark_includes: mechanism (W.3 May 24 2026).
+#
+#   - The full encounter/hazard system from wilderness_system_design_v1.md
+#     §5 is NOT in this drop. Tracked separately under TODO.json item
+#     T2.W.encounters (will cover both Coruscant and Dune Sea).
+#
+# What this file authoritatively defines:
+#   - Region metadata (slug, dimensions, default terrain, security)
+#   - Terrain pool definitions (for the future tile-look engine)
+#   - Edges (the manhole at southern_underground; future edges added
+#     here as the wilderness build matures)
+#   - References to the landmark include files via `landmark_includes:`
+#
+# What this file deliberately does NOT define:
+#   - Inline landmarks (see landmark_includes)
+#   - Encounter pools (deferred — wilderness encounter system)
+#   - Hazard severity tuning beyond defaults
+#   - Per-tile NPC spawns
+#
+# ─── Cross-references this file resolves ─────────────────────────────
+#
+#   - coruscant_underworld_landmarks.yaml defines 4 non-resonant
+#     landmarks + 3 transit nodes; all referenced here via
+#     landmark_includes.
+#
+#   - force_resonant_landmarks.yaml defines forgotten_jedi_shrine
+#     (the 5th landmark); also referenced here via landmark_includes.
+#
+#   - coruscant.yaml (data/worlds/clone_wars/planets/) has an
+#     existing room `coruscant_uw_surface_entry` (map_x=20, map_y=17)
+#     that already pairs with southern_underground via the `vent` /
+#     `climb` exits. The wilderness-side `surface_manhole_to_
+#     southern_underground` landmark sits at the same coordinates;
+#     for now the two rooms coexist (duplication is semantic, not DB)
+#     and reconciliation is a follow-up drop. Documented in
+#     HANDOFF_MAY24_T2_3.md.
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+region:
+  slug: coruscant_underworld
+  name: "Coruscant Underworld"
+  planet: coruscant
+  zone: coruscant_underworld          # inherits security from this zone
+  default_security: lawless            # per security_model_design_v1.md §4
+  narrative_tone_key: coruscant_underworld
+
+grid:
+  # Per wilderness_system_design_v1.md §3.1 reference dimensions.
+  # 40x40 to match the design call's "40×40×3 grid" intent, with the
+  # Z-axis collapsed per Brian's May 24 2026 call. The grid is reserved
+  # geometry; landmarks anchor at coordinates so when the encounter
+  # system ships, they slot in without renumbering.
+  width: 40                           # x-coords 0..39
+  height: 40                          # y-coords 0..39
+  tile_scale_km: 1                    # 1 unit = ~1km of underworld corridor
+                                      # (Coruscant's underworld is denser
+                                      # than the Dune Sea's open desert; the
+                                      # smaller scale reflects that)
+  default_terrain: ferrocrete_corridor
+
+terrains:
+  # The Coruscant underworld is built environment, not natural; terrain
+  # types reflect the urban-decay flavor of the design rather than
+  # geographical features. Move costs and sight radii mirror the
+  # design's atmosphere notes.
+
+  ferrocrete_corridor:
+    # Default tile type — collapsed/decaying urban infrastructure
+    # corridors. The bulk of the underworld walkable space.
+    move_cost: 1
+    sight_radius: 2
+    ambient_hazard: none
+    hazard_severity: 0
+    variants:
+      - "Crumbling ferrocrete walls press in on both sides. A puddle of unidentifiable runoff catches what little light filters down from levels above."
+      - "The corridor opens into a wider chamber; broken machinery and discarded crates form rough partitions. Echoes carry strangely here."
+      - "Old advertising posters peel from the walls, advertising entertainment districts that closed decades ago. The corporate logos are unfamiliar."
+    time_overlays:
+      night: "Without the trickle of light from the upper levels, the corridor is nearly pitch black. Only the faint glow of failing emergency strips remains."
+
+  abandoned_plaza:
+    # Larger open spaces where intersections used to host vendor stalls
+    # or transit hubs. Better sight, slightly more dangerous because
+    # they're funnel points for whoever controls the corridor flow.
+    move_cost: 1
+    sight_radius: 3
+    ambient_hazard: none
+    hazard_severity: 0
+    variants:
+      - "A plaza wide enough to host a market once upon a time, now mostly empty. A few makeshift stalls cling to the edges; their proprietors do not make eye contact."
+      - "The intersection of several corridors. Old maintenance machinery rusts in the middle. Whoever uses this plaza now does not maintain it."
+
+  industrial_ruin:
+    # Old factories, manufacturing levels, abandoned utility plants.
+    # Slow movement (debris underfoot), occasional structural hazards.
+    move_cost: 2
+    sight_radius: 2
+    ambient_hazard: structural_collapse
+    hazard_severity: 1
+    variants:
+      - "The remains of an industrial bay — conveyor systems frozen mid-cycle, half-assembled goods crusted with corrosion. The air smells of old lubricant."
+      - "Cracked support pillars rise to a sagging ceiling. The structural integrity here is questionable."
+
+  service_tunnel:
+    # The maintenance shafts and utility runs threaded between the
+    # main corridors. Narrow, sometimes dangerous, sometimes the only
+    # way to get somewhere quickly.
+    move_cost: 2
+    sight_radius: 1
+    ambient_hazard: stale_air
+    hazard_severity: 1
+    variants:
+      - "A narrow service tunnel, barely shoulder-width. Pipes run along the ceiling. The hum of distant machinery carries down the duct."
+      - "Steam vents hiss intermittently in the tunnel walls. The air is humid and smells of oxidized metal."
+
+  bottom_dark:
+    # The lowest passable layer — where the Maze lives. Dangerous
+    # ambient. Used by landmarks tagged with bottom-level flavor.
+    move_cost: 2
+    sight_radius: 1
+    ambient_hazard: lethal_environment
+    hazard_severity: 3
+    variants:
+      - "The light from above has given up. Whatever lives down here has its own light sources, and none of them are kind."
+      - "The corridor pattern here makes no architectural sense. You cannot quite remember which direction you came from."
+    time_overlays:
+      night: "Time of day is meaningless down here. The dark is the dark."
+
+# ─── Landmark sources ────────────────────────────────────────────────
+# Per W.3 (May 24 2026): landmark content is authored in separate
+# files and pulled in here. This keeps the region YAML focused on
+# region-level data (terrain, grid, edges) and the landmark files
+# focused on landmark content.
+#
+# Files are resolved relative to this YAML's directory.
+
+landmark_includes:
+  # Force-resonant landmarks file — contains forgotten_jedi_shrine
+  # (the 5th Coruscant Underworld landmark, force-resonant).
+  - force_resonant_landmarks.yaml
+
+  # Non-resonant landmarks file — the other 4 landmarks plus 3
+  # transit nodes (transit_shaft_alpha, transit_shaft_beta, and
+  # surface_manhole_to_southern_underground).
+  - coruscant_underworld_landmarks.yaml
+
+# ─── Edges ────────────────────────────────────────────────────────────
+# Per W.2 phase 2: edges connect hand-built rooms (city-side) to
+# specific coordinates inside the wilderness grid.
+#
+# The Coruscant Underworld has ONE designed entry/exit point:
+# the manhole from `southern_underground` in coruscant.yaml. The
+# city-side `vent` exit drops players to `coruscant_uw_surface_entry`
+# (existing room, map_x=20, map_y=17). For W.3 we ALSO declare
+# the equivalent wilderness-side edge so the wilderness movement
+# code recognizes the boundary.
+#
+# Currently the existing southern_underground/coruscant_uw_surface_entry
+# pair is enough for players to reach the underworld via the city.
+# The edge below documents the wilderness-side perspective so that
+# when the wilderness encounter system (TD-tracked) ships, this
+# boundary is already declared and movement code knows what to do
+# when a player approaches the (20, 17) tile from inside the grid.
+
+edges:
+  - room_slug: coruscant_uw_surface_entry
+    coords: [20, 17]
+    direction_from_room: deeper
+    direction_back_to_room: climb
+    enter_message: "You step away from the vestibule and descend into the underworld proper. The structured corridors give way to abandoned space."
+    exit_message: "You climb back to the surface entry vestibule. The pale gray light of the lower city filters through the grate above."
+
+# ─── Encounters (T2.WENC, May 24 2026) ──────────────────────────────
+# Per wilderness_system_design_v1.md §5. Same minimal-substrate
+# pattern as Dune Sea: narrative content only; spawn dispatch is the
+# T2.WENC.b follow-up.
+#
+# The Underworld's flavor leans heavily into gangs, scavenger lifeforms,
+# and Coruscant's vertical decay — corporate refuse, broken tech, the
+# occasional surface citizen who took a wrong turn.
+encounters:
+  base_chance_per_move: 0.05   # slightly higher than Dune Sea — the
+                                # underworld is denser, more eventful.
+  pool:
+
+    # ── Gang patrols — the canonical Underworld threat ──────────────
+    - id: gang_patrol
+      type: hostile
+      weight: 3
+      terrains: [ferrocrete_corridor, abandoned_plaza, industrial_ruin]
+      min_distance_from_edge: 2
+      faction_gate: underworld_gang_pressure_default
+      narrative: "Three figures emerge from a side passage. Tattooed knuckles, mismatched armor scraps, sidearms already drawn. The lead one steps forward — no greeting."
+      payload:
+        npc_template: underworld_thug
+        count: [2, 4]
+        tier: tier1
+
+    - id: maze_ambush
+      type: hostile
+      weight: 1
+      terrains: [bottom_dark, service_tunnel]
+      min_distance_from_edge: 4
+      faction_gate: underworld_gang_pressure_high
+      narrative: "Something moves in the shadow ahead — not human. The shape resolves into multiple smaller shapes, low to the ground, eyes catching what little light there is. The Maze has scouts here, and they have seen you first."
+      payload:
+        npc_template: maze_predator
+        count: [3, 5]
+        tier: tier2
+
+    # ── Scavenger lifeforms / fauna ────────────────────────────────
+    - id: ranza_pack
+      type: non_hostile
+      weight: 2
+      terrains: [industrial_ruin, service_tunnel]
+      narrative: "A pack of ranzas — the rat-sized scavengers that infest the lower levels — skitters past in a loose stream, ignoring you entirely. They are headed somewhere in a hurry."
+
+    - id: cleaner_droid_remnant
+      type: non_hostile
+      weight: 1
+      terrains: [ferrocrete_corridor, abandoned_plaza]
+      narrative: "A municipal cleaner droid, decades past its service date, trundles slowly through the corridor. It pauses near you, emits a confused buzz, and resumes its endless, pointless circuit."
+
+    # ── Underworld citizens ────────────────────────────────────────
+    - id: refugee_huddle
+      type: non_hostile
+      weight: 2
+      terrains: [ferrocrete_corridor, abandoned_plaza, industrial_ruin]
+      narrative: "Around a makeshift heat lamp: a family of three, faces averted, possessions bundled at their feet. They are not from the underworld — somebody fell from the upper levels and didn't break, but didn't come back up either."
+
+    - id: lone_information_broker
+      type: non_hostile
+      weight: 1
+      terrains: [abandoned_plaza]
+      min_distance_from_edge: 3
+      narrative: "A figure in a long coat materializes at the edge of the plaza, posture deliberate. Information brokers work this district. She catches your eye, holds it, doesn't approach — waiting to be acknowledged."
+
+    # ── Trader caravan equivalent (underworld market) ──────────────
+    - id: black_market_pop_up
+      type: trader_caravan
+      weight: 1
+      terrains: [abandoned_plaza, industrial_ruin]
+      min_distance_from_edge: 3
+      narrative: "Three vendors have set up an impromptu stall against a collapsed loading bay — sidearms, tech, things best not asked about. They notice you immediately. The middle one beckons."
+      payload:
+        vendor_template: underworld_black_market
+        duration_minutes: 5
+
+    # ── Anomalies (salvage) ────────────────────────────────────────
+    - id: crashed_speeder_drop
+      type: anomaly
+      weight: 1
+      terrains: [ferrocrete_corridor, industrial_ruin]
+      narrative: "A speeder — recent, by the heat still bleeding off the engine block — has dropped from the upper levels and embedded itself in the corridor floor. The pilot's body is gone. The wreck is not yet picked clean."
+      payload:
+        salvage_table: speeder_wreck_table
+
+    - id: abandoned_tech_cache
+      type: anomaly
+      weight: 1
+      terrains: [industrial_ruin, service_tunnel]
+      min_distance_from_edge: 2
+      narrative: "Tucked behind a collapsed section of pipework: a small lockbox, civilian make, not opened recently. Somebody hid this. Somebody didn't come back."
+      payload:
+        salvage_table: tech_cache_table
+
+    # ── Weather equivalent (underworld atmospheric event) ──────────
+    - id: ventilation_failure
+      type: weather
+      weight: 1
+      terrains: []   # any terrain
+      narrative: "The ambient hum of the ventilation system stutters and dies. Within seconds the air feels heavier, hotter, and faintly chemical. Somewhere a corporate maintenance contract just lapsed."
+      payload:
+        effect: ventilation_failure
+        duration_minutes: 20
+        sight_radius_override: null
+        hazard_severity_bonus: 1
+
+# ─── Sign-off ───────────────────────────────────────────────────────
+# Drop T2.3 (May 24 2026). Single-level Coruscant Underworld
+# wilderness region, parity with Dune Sea's minimal substrate.
+# T2.WENC (May 24 2026): encounter pool authored with 10 entries
+# spanning hostile gang patrols / Maze predators, non-hostile fauna
+# and refugees, an underworld black market trader stop, two
+# anomaly salvage sites, and a ventilation-failure weather event.
+# NPC spawn dispatch lands in T2.WENC.b.

@@ -1,0 +1,50 @@
+# data/worlds/clone_wars/skip_starter_kit.yaml
+# Clone Wars Era — Skip-tutorial starter kit.
+#
+# Drop 2 (May 19 2026 evening). Per discussion w/ Brian:
+#
+#   First character on an account: tutorial mandatory; the chain
+#   graduation reward IS their starter loadout (DC-15 + light armor for
+#   republic_soldier, civilian disguise + concealed blaster for
+#   republic_intelligence, etc.).
+#
+#   Second+ character on the same account: the player has already
+#   seen the tutorial. They get the option to skip; if they skip, this
+#   small starter kit is granted instead of the chain graduation
+#   bundle. Lean enough that completing a real chain remains the
+#   stronger path; rich enough that skipping isn't punitive.
+#
+# Schema (loaded by server/api.py via the era manifest content_refs
+# resolver):
+#
+#   credits      — int, granted to the new character's credits column
+#   items        — list of { key, name, quality } dicts, appended to
+#                  the character's inventory.items JSON. Schema matches
+#                  data/worlds/<era>/test_character.yaml inventory shape.
+#   resources    — optional list of { type, quality, quantity }
+#   message      — optional short string shown to the player on entry
+#
+# This is intentionally a small fixed kit; it does NOT include faction
+# rep (alts haven't earned standing in any faction) and does NOT
+# include any chain-specific gear (DC-15, lightsaber, etc.). It's the
+# "naked but not destitute" baseline.
+
+schema_version: 1
+
+credits: 300
+
+items:
+  - {key: medpac, name: "Medpac", quality: 60}
+  - {key: comlink, name: "Comlink", quality: 50}
+  - {key: hold_out_blaster, name: "Hold-Out Blaster", quality: 50}
+
+# No resources granted on skip — chargen-fresh resource pile is the
+# tutorial graduation reward, not a baseline. If the player wants
+# crafting materials they can buy them or work a tutorial chain.
+resources: []
+
+message: >-
+  You're a veteran of the galactic stage already — no need for the
+  standard recruit briefing. You arrive with a small kit: 300
+  credits, a medpac, a basic comlink, and a hold-out blaster.
+  Whatever else you need, you'll have to earn yourself.

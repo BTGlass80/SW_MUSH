@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SW MUSH — Field Kit</title>
+<title>SW MUSH</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -901,7 +901,10 @@ a { color: inherit; text-decoration: none; }
   min-height: 0;
   position: relative;
 }
-.comms-pane.collapsed { height: 0; overflow: hidden; }
+/* When collapsed, keep the 18px handle bar visible as a pull-tab.
+   Without this, the entire pane (including its own toggle handle)
+   was clipped to 0 height, leaving no way to re-expand. */
+.comms-pane.collapsed { height: 18px; overflow: hidden; }
 
 /* Drag handle / toggle bar */
 .comms-handle {
@@ -1468,6 +1471,19 @@ a { color: inherit; text-decoration: none; }
 .rm-adj { cursor: pointer; }
 .rm-adj:hover .rm-dot { stroke-width: 1.6; }
 .rm-adj:hover .rm-halo { opacity: 0.95; stroke-dasharray: none; }
+/* Vertical / interior exits (down/up/in/out): clickable like any neighbour,
+   but flagged with a corner badge so a descend/enter reads differently from a
+   compass walk. The badge is a filled disc + glyph at the cell's top-right. */
+.rm-adj-vert { cursor: pointer; }
+.rm-vert-badge circle {
+  fill: #0b0f08; stroke: var(--accent-bright); stroke-width: 0.8; opacity: 0.97;
+}
+.rm-vert-badge text {
+  fill: var(--accent-bright); font-family: var(--font-mono);
+  font-weight: 700; pointer-events: none;
+}
+.rm-adj-vert:hover .rm-vert-badge circle { fill: var(--accent-bright); }
+.rm-adj-vert:hover .rm-vert-badge text   { fill: #0b0f08; }
 .map-legend {
   font-size: 9px; letter-spacing: 1px; color: var(--accent-dim);
   margin-top: 8px;
@@ -2313,12 +2329,199 @@ a { color: inherit; text-decoration: none; }
 
 /* Chargen / char-select iframe overlay */
 .chargen-overlay {
-  position: fixed; inset: 0; z-index: 90;
+  /* May 19 2026 [revision-2] — z-index bumped 90 → 200 to clear the
+     field-kit redesign's .boot-overlay (z-index 100). See
+     handleChargenStart() comment for the symptom. The visible bump
+     is belt-and-suspenders; setLoginState('done') in the handler is
+     the primary fix. */
+  position: fixed; inset: 0; z-index: 200;
   background: #050302; display: none;
 }
 .chargen-overlay.show { display: block; }
 .chargen-overlay iframe {
   width: 100%; height: 100%; border: none;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PHASE 6 WEB UI — city sidebar + modal styles
+   ════════════════════════════════════════════════════════════════════ */
+/* Sidebar summary entries */
+.city-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 11px; padding: 2px 0;
+  color: var(--text);
+}
+.city-row .ck { color: var(--accent-dim); }
+.city-row .cv { color: var(--accent-bright); }
+.city-row .cv.bad { color: #ff7a5a; }
+.city-row .cv.warn { color: #ffc869; }
+.city-row .cv.ok { color: var(--accent-bright); }
+.city-grace-banner {
+  margin: 4px 0; padding: 4px 6px;
+  background: rgba(255,80,40,0.10);
+  border-left: 2px solid #ff5a3a;
+  color: #ffc869;
+  font-size: 10px;
+  line-height: 1.35;
+}
+.city-grace-banner.warn { border-left-color: #ffaa4a; }
+.city-expand-btn {
+  display: block; width: 100%;
+  margin-top: 6px; padding: 4px 6px;
+  background: rgba(54,255,180,0.08);
+  border: 1px solid var(--accent-dim);
+  color: var(--accent);
+  font-family: inherit; font-size: 10px;
+  letter-spacing: 1px; cursor: pointer;
+  transition: background 100ms, border-color 100ms;
+}
+.city-expand-btn:hover {
+  background: rgba(54,255,180,0.16);
+  border-color: var(--accent-bright);
+  color: var(--accent-bright);
+}
+/* Sidebar badge for grace state — sits in the sp-count slot */
+#city-grace-badge.active   { color: var(--accent-bright); }
+#city-grace-badge.warn     { color: #ffc869; }
+#city-grace-badge.danger   { color: #ff7a5a; }
+
+/* Modal overlay */
+.city-modal-overlay {
+  position: fixed; inset: 0; z-index: 180;
+  background: rgba(4,8,10,0.78);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(2px);
+}
+.city-modal {
+  background: linear-gradient(180deg, #0a1014 0%, #060a0c 100%);
+  border: 1px solid var(--accent-dim);
+  box-shadow: 0 0 40px rgba(54,255,180,0.15);
+  width: 100%; max-width: 880px; max-height: 86vh;
+  display: flex; flex-direction: column;
+  font-family: inherit; color: var(--text);
+}
+.city-modal-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--accent-dim);
+  background: rgba(54,255,180,0.04);
+}
+.city-modal-title {
+  flex: 1; color: var(--accent-bright);
+  font-size: 14px; letter-spacing: 3px;
+}
+.city-modal-badge {
+  font-size: 10px; letter-spacing: 2px;
+  padding: 2px 8px;
+  border: 1px solid var(--accent-dim);
+  color: var(--accent);
+}
+.city-modal-badge.warn { color: #ffc869; border-color: #ffaa4a; }
+.city-modal-badge.danger { color: #ff7a5a; border-color: #ff5a3a; }
+.city-modal-close {
+  background: transparent; border: 1px solid var(--accent-dim);
+  color: var(--accent); width: 24px; height: 24px;
+  cursor: pointer; font-size: 16px; line-height: 1;
+  padding: 0;
+}
+.city-modal-close:hover {
+  border-color: var(--accent-bright); color: var(--accent-bright);
+}
+.city-modal-body {
+  padding: 14px 16px; overflow-y: auto;
+  font-size: 12px; line-height: 1.55;
+}
+.city-modal-section {
+  margin-bottom: 16px;
+}
+.city-modal-section-title {
+  color: var(--accent); font-size: 11px;
+  letter-spacing: 2px; text-transform: uppercase;
+  border-bottom: 1px solid rgba(54,255,180,0.15);
+  padding-bottom: 3px; margin-bottom: 8px;
+}
+.city-stat-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 4px 16px;
+}
+.city-stat-row {
+  display: flex; justify-content: space-between;
+  font-size: 11px;
+}
+.city-stat-row .cs-key { color: var(--accent-dim); }
+.city-stat-row .cs-val { color: var(--text); }
+.city-stat-row .cs-val.bad { color: #ff7a5a; }
+.city-stat-row .cs-val.warn { color: #ffc869; }
+.city-list { font-size: 11px; }
+.city-list-row {
+  display: flex; justify-content: space-between;
+  padding: 2px 0; border-bottom: 1px dotted rgba(54,255,180,0.08);
+}
+.city-list-row:last-child { border-bottom: none; }
+.city-list-row .cl-name { color: var(--text); }
+.city-list-row .cl-meta { color: var(--accent-dim); font-size: 10px; }
+.city-list-empty {
+  color: var(--accent-dim); font-style: italic;
+  font-size: 10px; padding: 4px 0;
+}
+
+/* Action buttons */
+.city-action-btn {
+  background: rgba(54,255,180,0.08);
+  border: 1px solid var(--accent-dim);
+  color: var(--accent);
+  padding: 4px 10px;
+  font-family: inherit; font-size: 10px; letter-spacing: 1px;
+  cursor: pointer;
+  margin: 2px 4px 2px 0;
+  transition: background 100ms, border-color 100ms;
+}
+.city-action-btn:hover {
+  background: rgba(54,255,180,0.16);
+  border-color: var(--accent-bright);
+  color: var(--accent-bright);
+}
+.city-action-btn.danger {
+  background: rgba(255,80,40,0.06);
+  border-color: #883b22;
+  color: #ff9a7a;
+}
+.city-action-btn.danger:hover {
+  background: rgba(255,80,40,0.16);
+  border-color: #ff5a3a;
+  color: #ff7a5a;
+}
+.city-action-btn:disabled {
+  opacity: 0.4; cursor: not-allowed;
+}
+/* Inline confirm-state for destructive buttons */
+.city-action-btn.pending {
+  background: rgba(255,80,40,0.20);
+  border-color: #ff5a3a;
+  color: #ffe0c4;
+  animation: cityPendingPulse 1.5s ease-in-out infinite;
+}
+@keyframes cityPendingPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(255,90,58,0); }
+  50%      { box-shadow: 0 0 10px rgba(255,90,58,0.55); }
+}
+.city-action-input {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--accent-dim);
+  color: var(--text); font-family: inherit;
+  font-size: 11px; padding: 3px 6px;
+  margin: 2px 4px 2px 0;
+}
+.city-action-input:focus { border-color: var(--accent-bright); outline: none; }
+.city-action-row {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 4px; margin: 4px 0;
+}
+
+@media (max-width: 1099px) {
+  .city-stat-grid { grid-template-columns: 1fr; }
+  .city-modal { max-width: 100%; max-height: 94vh; }
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -2478,6 +2681,39 @@ a { color: inherit; text-decoration: none; }
   border-color: var(--accent);
 }
 
+/* F.MAP.3: tier switcher between district view (tier 1) and city
+   overview (tier 2). Sits in the modal head between sub-title and
+   close button. Ground-only — hidden on space tactical. */
+.map-modal-head .mm-tier-rail {
+  display: flex;
+  gap: 4px;
+  margin-right: 12px;
+}
+.map-modal-head .mm-tier-btn {
+  background: transparent;
+  color: var(--accent-dim);
+  border: 1px solid var(--accent-dim);
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
+}
+.map-modal-head .mm-tier-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.map-modal-head .mm-tier-btn.active {
+  color: var(--cock-amber, #ffa640);
+  border-color: var(--cock-amber, #ffa640);
+  background: rgba(255, 166, 64, 0.08);
+}
+
 .map-modal-body {
   flex: 1 1 auto;
   position: relative;
@@ -2516,6 +2752,43 @@ a { color: inherit; text-decoration: none; }
   pointer-events: none;
 }
 .map-modal-legend .mml-item { display: inline-flex; align-items: center; gap: 5px; }
+
+/* TD.CW_M3_CLICK_TO_WALK_LATERAL — exit strip (bottom-centre, between the
+   bottom-left legend and bottom-right hint). Always-clickable exit controls so
+   the player can leave a room even when the destination has no map marker. */
+.map-modal-exits {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: calc(100% - 340px);
+  z-index: 4;
+  pointer-events: auto;
+}
+.map-modal-exits:empty { display: none; }
+.map-modal-exits .mm-exit-btn {
+  background: rgba(8, 12, 8, 0.82);
+  color: var(--accent-bright);
+  border: 1px solid var(--accent-dim);
+  padding: 5px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  pointer-events: auto;
+  white-space: nowrap;
+}
+.map-modal-exits .mm-exit-btn:hover {
+  background: var(--accent-bright);
+  color: #0b0f08;
+  border-color: var(--accent-bright);
+}
 .map-modal-legend .mml-dot {
   display: inline-block;
   width: 8px; height: 8px;
@@ -3425,6 +3698,16 @@ a { color: inherit; text-decoration: none; }
           </div>
           <div class="side-panel-body" id="places-body"></div>
         </div>
+
+        <!-- Phase 6 web UI: city sidebar panel -->
+        <div class="side-panel" id="city-panel" style="display:none;">
+          <div class="side-panel-head" onclick="toggleSidePanel('city-panel')">
+            <span class="sp-title">CITY</span>
+            <span class="sp-count" id="city-grace-badge"></span>
+            <span class="sp-toggle">▾</span>
+          </div>
+          <div class="side-panel-body" id="city-body"></div>
+        </div>
       </div>
 
     </div>
@@ -3715,6 +3998,26 @@ a { color: inherit; text-decoration: none; }
     <iframe id="chargen-iframe" src="about:blank"></iframe>
   </div>
 
+  <!-- ══════════════════════════════════════════════════════════════════
+       PHASE 6 WEB UI: city modal — full detail + Mayor/Founder action
+       buttons + admin block when applicable. Hidden until user clicks
+       the city sidebar's expand-to-modal control.
+       ══════════════════════════════════════════════════════════════════ -->
+  <div class="city-modal-overlay" id="city-modal-overlay" style="display:none;"
+       onclick="closeCityModal(event)">
+    <div class="city-modal" onclick="event.stopPropagation()">
+      <div class="city-modal-head">
+        <span class="city-modal-title" id="city-modal-title">CITY</span>
+        <span class="city-modal-badge" id="city-modal-badge"></span>
+        <button class="city-modal-close" onclick="closeCityModal()"
+                title="Close (Esc)">×</button>
+      </div>
+      <div class="city-modal-body" id="city-modal-body">
+        <!-- Filled by renderCityModal() -->
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════
@@ -3743,11 +4046,24 @@ a { color: inherit; text-decoration: none; }
       <span class="mm-title" id="map-modal-title">TACTICAL</span>
       <span class="mm-sub"   id="map-modal-sub"></span>
       <span class="mm-spacer"></span>
+      <!-- F.MAP.3: tier switcher (ground only — space modal hides this) -->
+      <div class="mm-tier-rail" id="map-modal-tier-rail" style="display:none;">
+        <button class="mm-tier-btn" type="button" data-tier="1"
+                onclick="setMapModalTier(1)">TIER 1 · DISTRICT</button>
+        <button class="mm-tier-btn" type="button" data-tier="2"
+                onclick="setMapModalTier(2)">TIER 2 · CITY</button>
+      </div>
       <button class="mm-close" type="button" onclick="closeMapModal()">ESC ×</button>
     </div>
     <div class="map-modal-body" id="map-modal-body">
       <!-- SVG is injected here by renderMapModal(kind) -->
     </div>
+    <!-- TD.CW_M3_CLICK_TO_WALK_LATERAL: exit controls. The on-map click-to-walk
+         only decorates rooms that render a marker (street/hub rooms don't), so an
+         exit to a hub (e.g. Bay 94 Entrance -> spaceport row) had no clickable
+         target. This strip always offers every non-hidden exit of the current
+         room, built from the cached lastExits. -->
+    <div class="map-modal-exits" id="map-modal-exits"></div>
     <div class="map-modal-legend" id="map-modal-legend"></div>
     <div class="map-modal-hint">ESC / click outside to close</div>
   </div>
@@ -3864,7 +4180,7 @@ a { color: inherit; text-decoration: none; }
       <!-- LOGIN state (credential entry) -->
       <div id="boot-state-login" style="position:relative; z-index:1; display:none;">
         <div class="boot-line bright" style="font-family:var(--font-display); font-size:18px; letter-spacing:2px;">SW MUSH · AUTH</div>
-        <div class="boot-line dim">Imperial Security Bureau · Credential Verification</div>
+        <div class="boot-line dim">Senate Bureau of Intelligence · Credential Verification</div>
 
         <div class="login-tab-row" style="margin-top:18px;">
           <button class="login-tab active" data-login-tab="connect">SIGN IN</button>
@@ -3904,6 +4220,59 @@ a { color: inherit; text-decoration: none; }
     </div>
   </div>
 </div>
+
+<!-- F.MAP.2 (May 5 2026): F.MAP.1 renderer — exposes window.MapView. -->
+<!-- Loads BEFORE the main client IIFE so window.MapView is defined when  -->
+<!-- the HUD update handler runs. Self-contained, ~770 lines, vanilla JS. -->
+<!-- Falls back to legacy renderAreaMap when no AreaGeometry covers the   -->
+<!-- player's room (i.e. registry.lookup(slug) returns null).             -->
+<!--                                                                      -->
+<!-- Path note: /static/ matches the aiohttp route added in               -->
+<!-- server/web_client.py:99 for both /play and /client.html. file://     -->
+<!-- harnesses must serve via aiohttp or use page.route() interception.   -->
+<script src="/static/map_view.js"></script>
+
+<!-- ─── M3 SPA composition engine (Drop 4.2a/b · Tier 1 #4) ─────────── -->
+<!-- 10 scripts in dependency order; loaded in parallel with map_view.js. -->
+<!-- Two flags gate which M3 surfaces are live:                         -->
+<!--   window._sw_useM3MiniRenderer  — mini-map (default FALSE; 4.2a    -->
+<!--     defaulted true but 4.2b reverted because M3 doesn't yet carry  -->
+<!--     `data-travel-dir` for click-to-walk. Restoration is queued for -->
+<!--     4.2c. Opt back in for dev/testing with                         -->
+<!--     `window._sw_useM3MiniRenderer = true; renderMapV2()`.)         -->
+<!--   window._sw_useM3ModalRenderer — full-screen modal (default TRUE; -->
+<!--     4.2b ships this on. Modal is view-only today so no click-to-   -->
+<!--     travel regression. Rollback:                                   -->
+<!--     `window._sw_useM3ModalRenderer = false; renderMapModal('ground')` -->
+<!-- The adapter sits last so it can reference M3CompositionEngine; the -->
+<!-- adapter itself defines no runtime deps but lives in this load      -->
+<!-- group for cohesion.                                                -->
+<script src="/static/spa/m3_tokens.js"></script>
+<script src="/static/spa/m3_palettes.js"></script>
+<script src="/static/spa/m3_assets_styles.js"></script>
+<script src="/static/spa/m3_assets_icons.js"></script>
+<script src="/static/spa/m3_assets_markers.js"></script>
+<script src="/static/spa/m3_assets_wilderness.js"></script>
+<script src="/static/spa/m3_assets_overlays.js"></script>
+<script src="/static/spa/m3_assets_landmarks.js"></script>
+<script src="/static/spa/m3_composition_engine.js"></script>
+<script src="/static/spa/m3_adapter.js"></script>
+<script src="/static/spa/m3_combat_inspector.js"></script>
+<script src="/static/spa/m3_combat_theater.js"></script>
+<script src="/static/spa/m3_sheet.js"></script>
+<script src="/static/spa/m3_holocron.js"></script>
+<script src="/static/spa/m3_map_navigator.js"></script>
+<script src="/static/spa/m3_cockpit.js"></script>
+<script src="/static/spa/m3_holonet.js"></script>
+<script src="/static/spa/m3_skill_check.js"></script>
+<script src="/static/spa/m3_assembled_client.js"></script>
+<script src="/static/spa/m3_tier_galaxy_body.js"></script>
+<script src="/static/spa/m3_tier_system_body.js"></script>
+<script src="/static/spa/m3_tier_planet_body.js"></script>
+<script src="/static/spa/m3_tier_city_body.js"></script>
+<script src="/static/spa/m3_tier_wilderness_body.js"></script>
+<script src="/static/spa/m3_tier_interior_body.js"></script>
+<script src="/static/spa/m3_tier_registry.js"></script>
 
 <script>
 /* ════════════════════════════════════════════════════════════════════
@@ -3958,13 +4327,13 @@ var FK = {
 // (IntEnum 0..6). `sev` lets the theme map color without re-declaring
 // hex values per surface.
 var WOUND_RUNGS = [
-  { v: 0, label: 'HEALTHY',     pen: '',    sev: 'ok'   },
-  { v: 1, label: 'STUNNED',     pen: '',    sev: 'warn' },  // penalty from stun_timers, not this rung
-  { v: 2, label: 'WOUNDED',     pen: '-1D', sev: 'warn' },
-  { v: 3, label: 'WOUNDED \u00d72',  pen: '-2D', sev: 'hurt' },  // ×2 — \u00d7 to keep file ASCII-clean
-  { v: 4, label: 'INCAP',       pen: '',    sev: 'crit' },  // can_act = false at/above here
-  { v: 5, label: 'MORTAL',      pen: '',    sev: 'crit' },
-  { v: 6, label: 'DEAD',        pen: '',    sev: 'dead' }
+  { v: 0, label: 'HEALTHY',     labelLong: 'HEALTHY',          pen: '',    sev: 'ok'   },
+  { v: 1, label: 'STUNNED',     labelLong: 'STUNNED',          pen: '',    sev: 'warn' },  // penalty from stun_timers, not this rung
+  { v: 2, label: 'WOUNDED',     labelLong: 'WOUNDED',          pen: '-1D', sev: 'warn' },
+  { v: 3, label: 'WOUNDED \u00d72',  labelLong: 'WOUNDED TWICE',    pen: '-2D', sev: 'hurt' },  // ×2 — \u00d7 to keep file ASCII-clean
+  { v: 4, label: 'INCAP',       labelLong: 'INCAPACITATED',    pen: '',    sev: 'crit' },  // can_act = false at/above here
+  { v: 5, label: 'MORTAL',      labelLong: 'MORTALLY WOUNDED', pen: '',    sev: 'crit' },
+  { v: 6, label: 'DEAD',        labelLong: 'DEAD',             pen: '',    sev: 'dead' }   // L3 (Drop 4.6): 'DEAD' not 'KILLED' to match engine
 ];
 
 function woundRung(level) {
@@ -4310,9 +4679,10 @@ function buildRow(ev) {
     }
     case 'combat-result': {
       // Drop D′ Phase 2: structured combat resolution row. Defer all
-      // rendering to buildCombatResultRow so the buildRow switch stays
-      // readable. The helper returns a complete row element.
-      return buildCombatResultRow(ev);
+      // rendering to M3CombatInspector.buildCombatResultRow so the
+      // buildRow switch stays readable. The helper returns a complete
+      // row element.
+      return M3CombatInspector.buildCombatResultRow(ev);
     }
     case 'plain':
     default:
@@ -4864,6 +5234,12 @@ window.scrollPoseLogToBottom = scrollPoseLogToBottom;
    ════════════════════════════════════════════════════════════════════ */
 function handleHudUpdate(data) {
   lastHud = Object.assign({}, lastHud, data);
+  // Phase-1 environment substrate: stash the server's time-of-day + weather
+  // scalars so the map renderers read live values instead of hardcoded
+  // day/clear. Sent on (almost) every push; absent => helpers fall back.
+  if (data.environment && typeof data.environment === 'object') {
+    window._sw_env = data.environment;
+  }
   // First hud_update after login means the game is live — hide the overlay.
   if (loginState !== 'done') {
     setLoginState('done');
@@ -4886,7 +5262,13 @@ function handleHudUpdate(data) {
   // Derive primary faction (first member, by display priority)
   if (data.reputation && typeof data.reputation === 'object') {
     var memberFactions = [];
-    var FACTION_PRIORITY = ['rebel', 'empire', 'hutt', 'bh_guild'];
+    // Drop 4.7-A (May 26 2026): CW-era canonical codes (republic, cis) are
+    // the canonical order. Legacy GCW codes (rebel, empire) are kept in the
+    // priority list for backward-compat: the engine's VALID_FACTION_CODES
+    // still emits the legacy keys (engine bug #6 per code review session 4 —
+    // unfixed at HEAD). Engine cleanup is a separate drop. Once the engine
+    // emits republic/cis, the legacy entries can be removed from this list.
+    var FACTION_PRIORITY = ['republic', 'cis', 'rebel', 'empire', 'hutt', 'bh_guild'];
     Object.keys(data.reputation).forEach(function(code) {
       if (data.reputation[code] && data.reputation[code].is_member) {
         memberFactions.push(code);
@@ -4907,6 +5289,15 @@ function handleHudUpdate(data) {
   // Reputation side panel
   if (data.reputation !== undefined) {
     renderReputation(data.reputation);
+  }
+
+  // Phase 6 web UI: city sidebar (and modal data).
+  // We always dispatch — passing undefined hides the panel,
+  // a present payload shows it. The hud.city key is omitted
+  // entirely by the server when the player has no city
+  // context and is not an admin.
+  if (typeof renderCity === 'function') {
+    renderCity(data.city);
   }
 
   // Vitals — WOUND model (R&E p67): wound_level 0=Healthy, 1=Stunned,
@@ -5160,10 +5551,745 @@ function handleHudUpdate(data) {
     rebuildDirectionButtons([]);
   }
 
-  // Area map (sector map)
-  if (data.area_map && Array.isArray(data.area_map.rooms)) {
-    renderAreaMap(data.area_map);
+  // ── Sector map ────────────────────────────────────────────────────
+  // F.MAP.2: when the server includes an `area_geometry` payload (the
+  // redesigned datapad map from F.MAP.1), the new MapView renderer
+  // takes over the minimap. The full geometry only ships on area
+  // transitions; per-tick HUD updates send only `player_position`,
+  // which mutates the cached fixture and re-renders.
+  //
+  // Fall back to legacy `renderAreaMap` when:
+  //   - server didn't send area_geometry or player_position, AND
+  //   - we have no cached AreaGeometry from a prior push, OR
+  //   - the player walked into a room outside any authored area
+  //     (server signals this by omitting both fields).
+  if (data.area_geometry && typeof window.MapView === 'object') {
+    // Full geometry refresh — area transition or first push to session
+    window._sw_areaGeom = data.area_geometry;
+    if (data.player_position) {
+      window._sw_areaGeom.player = {
+        room_id: data.player_position.render_room_id,
+        x: data.player_position.x,
+        y: data.player_position.y,
+        bearing: data.player_position.bearing,  // Phase-1 bearing substrate: facing for the self-chevron
+      };
+    }
+    // F.MAP.6: contacts always overwrite the previous list. Server
+    // sends an empty array when the area is empty (other than self).
+    if (Array.isArray(data.contacts)) {
+      window._sw_areaGeom.contacts = data.contacts;
+    }
+    // Dynamic POI feed: live entities (bounty targets, …) overwrite each push.
+    if (Array.isArray(data.pois)) {
+      window._sw_areaGeom.pois = data.pois;
+    }
+    // DROP 4.2c: cache the latest area_map alongside the geometry.
+    // The two payloads share the same hud_update but live in disjoint
+    // id namespaces (area_map uses SERVER room ids; area_geometry uses
+    // YAML-internal render_room_id). M3 needs both to plumb click-to-
+    // walk and per-room security. See _xrefAreaMapToGeom() at line ~5640.
+    if (data.area_map && Array.isArray(data.area_map.rooms)) {
+      window._sw_areaMap = data.area_map;
+    }
+    renderMapV2();
+    // F.MAP.3: if the modal is currently open in MapView mode, also
+    // re-render it so contact markers stay in sync. (Modal uses its
+    // own SVG element; the cached geom is shared.)
+    if (mapModalOpen && window._sw_areaGeom &&
+        typeof window.setMapModalTier === 'function') {
+      var body = $('map-modal-body');
+      if (body) {
+        body.innerHTML = '';
+        _renderMapModalV2(body, window._sw_areaGeom, mapModalCurrentTier);
+      }
+    }
+  } else if (data.player_position && window._sw_areaGeom &&
+             typeof window.MapView === 'object') {
+    // Steady-state position update — patch the cached geometry
+    if (data.player_position.area_key === window._sw_areaGeom.area_key) {
+      window._sw_areaGeom.player = {
+        room_id: data.player_position.render_room_id,
+        x: data.player_position.x,
+        y: data.player_position.y,
+        bearing: data.player_position.bearing,  // Phase-1 bearing substrate: facing for the self-chevron
+      };
+      // F.MAP.6: contacts may also have changed (someone entered/left).
+      if (Array.isArray(data.contacts)) {
+        window._sw_areaGeom.contacts = data.contacts;
+      }
+      // Dynamic POI feed: live entities refresh on every steady-state push.
+      if (Array.isArray(data.pois)) {
+        window._sw_areaGeom.pois = data.pois;
+      }
+      // DROP 4.2c: refresh cached area_map on every steady-state push.
+      if (data.area_map && Array.isArray(data.area_map.rooms)) {
+        window._sw_areaMap = data.area_map;
+      }
+      renderMapV2();
+      // F.MAP.3+6: keep the modal in sync if open.
+      if (mapModalOpen) {
+        var body2 = $('map-modal-body');
+        if (body2) {
+          body2.innerHTML = '';
+          _renderMapModalV2(body2, window._sw_areaGeom, mapModalCurrentTier);
+        }
+      }
+    } else {
+      // Cross-area without a geometry push (shouldn't happen; defensive)
+      window._sw_areaGeom = null;
+      window._sw_areaMap  = null;   // DROP 4.2c
+      if (data.area_map && Array.isArray(data.area_map.rooms)) {
+        renderAreaMap(data.area_map);
+      }
+    }
+  } else {
+    // Legacy path — no AreaGeometry covers this room.
+    // Drop any cached geometry from a prior area so the next entry
+    // into a covered area gets a fresh full push.
+    window._sw_areaGeom = null;
+    window._sw_areaMap  = null;   // DROP 4.2c
+    if (data.area_map && Array.isArray(data.area_map.rooms)) {
+      renderAreaMap(data.area_map);
+    }
   }
+}
+
+// F.MAP.2: Render the cached AreaGeometry into the in-client minimap
+// SVG. Tier-1 lock around the player, dot+player mode (only the
+// player's room is rendered as a footprint; everything else is a
+// style-colored dot). Per the design handoff README §"In-client
+// mini" — the full mode is too noisy at 360×420.
+//
+// DROP 4.2a (Tier 1 #4): added an M3 SPA composition-engine branch
+// gated by window._sw_useM3MiniRenderer.
+//
+// DROP 4.2b: temporarily defaulted that flag to FALSE (opt-in)
+// because the M3 mini regressed click-to-walk — AreaGeometry's
+// exits[] are [from_id, to_id] pairs without direction strings, so
+// the M3 engine couldn't attach `data-travel-dir` to adjacent rooms.
+//
+// DROP 4.2c: flag DEFAULT FLIPPED BACK TO TRUE (opt-out). Click-to-
+// walk is restored via two coordinated mechanisms:
+//   1. The composition engine's L_Buildings now emits `data-room-id`
+//      on each building wrapper (m3_composition_engine.js§336).
+//   2. _decorateMiniForClickToWalk() (this file, below) walks the
+//      rendered SVG after each M3 render, identifies adjacent-room
+//      buildings by their data-room-id, looks up the direction via
+//      cross-reference between _sw_areaGeom.exits and
+//      _sw_areaMap.edges (matched by NAME — see m3_adapter.js
+//      §"the namespace gap"), and adds `class="rm-adj"` +
+//      `data-travel-dir="<dir>"` so the existing delegated click
+//      handler (line ~5930) just works.
+// Rollback (debug only): window._sw_useM3MiniRenderer = false; renderMapV2()
+function renderMapV2() {
+  var svg = $('g-area-map-svg');
+  var geom = window._sw_areaGeom;
+  if (!svg || !geom) return;
+
+  // ─── M3 branch (Drop 4.2a; default-on as of 4.2c) ─────────────
+  var m3Ready = (window._sw_useM3MiniRenderer !== false) &&
+                window.M3CompositionEngine &&
+                window.M3Adapter &&
+                typeof window.M3CompositionEngine.Tier1aBody === 'function' &&
+                typeof window.M3Adapter.fromAreaGeometry === 'function';
+  if (m3Ready) {
+    var m3Data = null;
+    try {
+      // 4.2c: pass cached _sw_areaMap as second arg so the adapter
+      // can cross-reference per-room security via name match.
+      m3Data = window.M3Adapter.fromAreaGeometry(geom, window._sw_areaMap);
+    } catch (eAdapt) {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('M3Adapter.fromAreaGeometry threw:', eAdapt);
+      }
+      m3Data = null;
+    }
+    if (m3Data) {
+      try {
+        // Resolve palette by area_key prefix. Mos Eisley → tatooine,
+        // Senate District → coruscant, anything else → a neutral
+        // default. The adapter doesn't ship the palette inside `data`
+        // (engine wants it in opts).
+        var paletteKey = 'tatooine';
+        if (geom.palette && typeof geom.palette === 'string') {
+          paletteKey = geom.palette;
+        } else if (typeof geom.area_key === 'string') {
+          if (geom.area_key.indexOf('coruscant') === 0) paletteKey = 'coruscant';
+        }
+        var palette = window.M3Palettes && typeof window.M3Palettes.getPalette === 'function'
+                      ? window.M3Palettes.getPalette(paletteKey)
+                      : null;
+        // Tier1aBody returns a fresh <svg> element. Replace the slot's
+        // contents with it. We keep the slot element itself (id and
+        // event handlers stay attached) and re-parent only children.
+        var bodySvg = window.M3CompositionEngine.Tier1aBody({
+          data:    m3Data,
+          palette: palette,
+          tier:    1,
+          time:    _envTime(),    // Phase-1 substrate: server-emitted time-of-day
+          weather: _envWeather(), // Phase-1 substrate: server-emitted weather
+          width:   360,
+          height:  420,
+        });
+        // Clear the slot and adopt the rendered children. Tier1aBody
+        // returns a complete <svg> — we copy its viewBox/width/height
+        // onto the slot and move its children in.
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        if (bodySvg && bodySvg.getAttribute) {
+          var vb = bodySvg.getAttribute('viewBox');
+          if (vb) svg.setAttribute('viewBox', vb);
+          var w = bodySvg.getAttribute('width');
+          var h = bodySvg.getAttribute('height');
+          if (w) svg.setAttribute('width', w);
+          if (h) svg.setAttribute('height', h);
+        }
+        if (bodySvg) {
+          while (bodySvg.firstChild) {
+            svg.appendChild(bodySvg.firstChild);
+          }
+        }
+        // 4.2c: decorate adjacent-room buildings with click-to-walk
+        // attributes. The existing delegated click handler at line
+        // ~5930 reads `data-travel-dir` and calls sendCmd(dir).
+        _decorateMiniForClickToWalk(svg, geom, window._sw_areaMap);
+        // Room-name labels (hover on all cells; always-on for current +
+        // adjacent). Parity with the modal; no-op on the legacy mini path.
+        try { _labelRoomsForNavigation(svg, geom); } catch (eLbl) {}
+        // Mark the slot so smoke tests / debug can tell which renderer
+        // last drew. Cheap, side-effect-free signal.
+        svg.setAttribute('data-renderer', 'm3');
+        return;
+      } catch (eM3) {
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn('M3 renderMapV2 failed, falling back to legacy:', eM3);
+        }
+        // Fall through to legacy branch below.
+      }
+    }
+  }
+
+  // ─── Legacy MapView branch (preserved) ─────────────────────────
+  if (typeof window.MapView !== 'object') return;
+  // Tight crop around the player (4×3 world units, centered on the
+  // player room). The legacy SVG viewBox of 0 0 400 300 is replaced
+  // by world coords inside MapView.render.
+  var px = (geom.player && geom.player.x) || 0;
+  var py = (geom.player && geom.player.y) || 0;
+  var cropW = 4.4, cropH = 3.0;
+  // Clamp viewBox to area bounds so we don't show void off-edge
+  var b = geom.bounds || {x_min: 0, y_min: 0, x_max: 10, y_max: 10};
+  var vx = Math.max(b.x_min, Math.min(b.x_max - cropW, px - cropW / 2));
+  var vy = Math.max(b.y_min, Math.min(b.y_max - cropH, py - cropH / 2));
+  try {
+    window.MapView.render(svg, geom, {
+      viewBox:           [vx, vy, cropW, cropH],
+      zoomTier:          1,
+      showRooms:         "dot+player",
+      width:             360, height: 420,
+      showDistrictLabels: false,
+      showLabels:        false,    // mini hides street labels — too noisy
+      pulse:             true,
+    });
+    svg.setAttribute('data-renderer', 'legacy');
+  } catch (e) {
+    // Render failure: fall back to a notice in the SVG, keep going
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('renderMapV2 failed:', e);
+    }
+  }
+}
+// F.MAP.2: expose renderMapV2 + handleHudUpdate to window so the
+// smoke harness (tools/_smoke_fmap2_render.py) and any in-browser
+// debug session can invoke them. Production code stays IIFE-scoped;
+// these exports are for tooling only and are safe — both functions
+// are pure consumers of `window._sw_areaGeom` / their `data` arg
+// respectively.
+if (typeof window !== 'undefined') {
+  window.renderMapV2     = renderMapV2;
+  window.handleHudUpdate = handleHudUpdate;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   DROP 4.2c — click-to-walk decoration for the M3 mini-map.
+
+   The M3 composition engine (m3_composition_engine.js§L_Buildings) now
+   emits `data-room-id="<render_room_id>"` on each building wrapper.
+   After the M3 mini renders, this helper:
+
+     1. Builds an adjacency map: render_room_id → direction string
+        (e.g. {7: "north", 11: "east"}). Built by cross-referencing
+        `_sw_areaGeom.exits` (render-id pairs, no direction) with
+        `_sw_areaMap.edges` (server-id pairs WITH direction), bridging
+        by NAME match between the two payloads' rooms[] arrays.
+     2. For each building <g data-room-id> whose room_id appears in the
+        adjacency map, adds `class="rm-adj"` + `data-travel-dir="<dir>"`
+        and sets cursor:pointer.
+     3. The existing delegated click handler at line ~5930 reads
+        `data-travel-dir` and calls sendCmd(dir) — unchanged from the
+        legacy renderer.
+
+   Fallback strategy for the adjacency map (cascading):
+     A. NAME MATCH (best). For each render-id room adjacent to the
+        player, find the same-named room in area_map.rooms. Look up
+        its edge to the player's current server-id in area_map.edges.
+        Use that edge's `dir`.
+     B. SPATIAL FALLBACK. If name match fails (truncated names, etc.),
+        derive direction from coordinate offset: dx=rx-px, dy=ry-py;
+        snap to 8-way compass via atan2. Less reliable than server-
+        canonical but better than no click-to-walk.
+
+   When _sw_areaMap is unavailable (legacy area without geometry, or
+   first push race), only fallback B operates. When neither works for
+   a particular adjacent room, that room stays un-decorated and clicks
+   on it do nothing — matches the legacy behavior for unreachable
+   rooms.
+   ════════════════════════════════════════════════════════════════════ */
+
+// Helper: snap (dx, dy) world delta to 8-way compass direction.
+// Y-up coords: positive dy = north. Returns server-canonical
+// direction strings: north/south/east/west/northeast/northwest/
+// southeast/southwest.
+function _snapToCompass8(dx, dy) {
+  if (dx === 0 && dy === 0) return '';
+  // atan2 returns radians in [-π, π]. Convert to degrees in [0, 360)
+  // where 0 = east, 90 = north (Y-up).
+  var deg = Math.atan2(dy, dx) * 180 / Math.PI;
+  if (deg < 0) deg += 360;
+  // 8 wedges of 45°, centered on the cardinal/intercardinal.
+  // Wedge boundaries at 22.5°, 67.5°, 112.5°, ...
+  if (deg < 22.5  || deg >= 337.5) return 'east';
+  if (deg < 67.5)                  return 'northeast';
+  if (deg < 112.5)                 return 'north';
+  if (deg < 157.5)                 return 'northwest';
+  if (deg < 202.5)                 return 'west';
+  if (deg < 247.5)                 return 'southwest';
+  if (deg < 292.5)                 return 'south';
+  return 'southeast';
+}
+
+// Build {render_room_id → direction string} for rooms adjacent to the
+// player. Tries name-match cross-reference first, falls back to
+// spatial derivation. Returns empty object if no adjacency can be
+// resolved (e.g. player room not set).
+function _buildAdjacencyByRenderId(geom, areaMap) {
+  var out = {};
+  if (!geom || !geom.player || !Array.isArray(geom.rooms)) return out;
+  var playerRid = geom.player.room_id;
+  if (playerRid == null) return out;
+
+  // Index rooms by render-id for quick lookup
+  var roomByRid = {};
+  for (var i = 0; i < geom.rooms.length; i++) {
+    var r = geom.rooms[i];
+    if (r && r.id != null) roomByRid[r.id] = r;
+  }
+  var playerRoom = roomByRid[playerRid];
+  if (!playerRoom) return out;
+
+  // Collect adjacent render-ids from geom.exits. Each exit is either
+  // [from_id, to_id] (array form) or {from, to, hidden?} (object).
+  // Hidden exits are excluded from click-to-walk (player shouldn't
+  // see them as walkable on the map).
+  var adjacentRids = [];
+  if (Array.isArray(geom.exits)) {
+    for (var j = 0; j < geom.exits.length; j++) {
+      var e = geom.exits[j];
+      var from = null, to = null, hidden = false;
+      if (Array.isArray(e) && e.length >= 2) {
+        from = e[0]; to = e[1];
+      } else if (e && typeof e === 'object') {
+        from = e.from; to = e.to; hidden = !!e.hidden;
+      }
+      if (hidden) continue;
+      if (from === playerRid && to != null) adjacentRids.push(to);
+      else if (to === playerRid && from != null) adjacentRids.push(from);
+    }
+  }
+
+  // ── Path A: name-match cross-reference via area_map ───────────
+  // Build: serverId → dir for edges adjacent to player (in server
+  // namespace). Then: room-name → dir by walking areaMap.rooms.
+  var dirByName = {};
+  var dirBySlug = {};
+  if (areaMap && Array.isArray(areaMap.edges) && Array.isArray(areaMap.rooms)
+      && areaMap.current != null) {
+    var serverCurrent = areaMap.current;
+    // First pass: map serverId → dir for edges touching player
+    var serverDirByRid = {};
+    for (var k = 0; k < areaMap.edges.length; k++) {
+      var ed = areaMap.edges[k];
+      if (!ed || !ed.dir) continue;
+      if (ed.from === serverCurrent && ed.to != null) {
+        serverDirByRid[ed.to] = ed.dir;
+      } else if (ed.to === serverCurrent && ed.from != null) {
+        // Reverse direction. The reverse map is approximate — server
+        // canonical reverse-direction logic is in engine, not exposed
+        // to client. Use a simple table for the 8 directions.
+        serverDirByRid[ed.from] = _reverseDirSimple(ed.dir);
+      }
+    }
+    // Second pass: serverId → {slug, name} → dir. The SLUG is the canonical
+    // join key (stable across the two id namespaces; it is what the map
+    // tooling, tools/check_map_cardinals.py, joins on). NAME is kept only as a
+    // fallback for legacy payloads that carry no slug. Both are normalised on
+    // BOTH sides so trivial text/case differences can't silently break the
+    // bridge and leave every cell inert (the short cell names — "Bay 94 Ent" —
+    // never matched the long room names — "Docking Bay 94 - Entrance" — which
+    // is why name-only resolution found nothing).
+    for (var m = 0; m < areaMap.rooms.length; m++) {
+      var ar = areaMap.rooms[m];
+      if (!ar || serverDirByRid[ar.id] == null) continue;
+      if (ar.slug) dirBySlug[_normSlug(ar.slug)] = serverDirByRid[ar.id];
+      if (ar.name) dirByName[_normName(ar.name)] = serverDirByRid[ar.id];
+    }
+  }
+
+  // ── Now assemble out: render_room_id → dir ────────────────────
+  // CRITICAL: the direction MUST come from a real exit. area_geometry's
+  // exits[] are bare [from,to] pairs with NO direction word — the source of
+  // truth for *which way* an exit points is area_map.edges[].dir (server
+  // namespace), bridged to render-ids by SLUG (canonical) or NAME (fallback)
+  // above. No spatial/pixel guess: a NORTH exit can render up-and-left and a
+  // pixel guess would emit "west" for an edge that isn't a valid exit
+  // ("You can't go west."). A wrong direction is worse than none.
+  //
+  // Vertical / interior exits (down/up/in/out/enter) ARE included here —
+  // every room must be reachable from the map. They resolve to their real
+  // command word (e.g. "down"), so clicking the cell walks the player there;
+  // the caller (_decorateMiniForClickToWalk) tags them distinctly so the
+  // player can tell a descend/enter from a compass walk.
+  for (var n = 0; n < adjacentRids.length; n++) {
+    var rid = adjacentRids[n];
+    var adjRoom = roomByRid[rid];
+    if (!adjRoom) continue;
+    var resolvedDir = null;
+    if (adjRoom.slug && dirBySlug[_normSlug(adjRoom.slug)]) {
+      resolvedDir = dirBySlug[_normSlug(adjRoom.slug)];        // canonical
+    } else if (adjRoom.name && dirByName[_normName(adjRoom.name)]) {
+      resolvedDir = dirByName[_normName(adjRoom.name)];        // fallback
+    }
+    if (resolvedDir) out[rid] = resolvedDir;
+    // else: leave undecided — caller renders it inert, not mis-directed.
+  }
+  return out;
+}
+
+// Simple reverse-direction table. Covers the 8 cardinals + a few
+// extras (up/down). Returns the input verbatim if no reverse is
+// known (which is safe — sendCmd with an unknown direction will just
+// fail at the server with "no exit that way", not break anything).
+// Normalise a room name for cross-payload matching: trim + collapse inner
+// whitespace + lower-case. The area_map and area_geometry payloads are built
+// by different code paths and can differ by trailing spaces or case; this
+// keeps the name-bridge (the ONLY source of true exit directions) robust.
+function _normName(s) {
+  return String(s == null ? '' : s).trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+// Normalise a slug for cross-payload matching: trim + lower-case. Slugs are
+// already canonical (snake_case, no spaces); normalise defensively so a stray
+// case/whitespace difference can't break the now-canonical join.
+function _normSlug(s) {
+  return String(s == null ? '' : s).trim().toLowerCase();
+}
+
+// Vertical / interior moves (down/up/in/out/enter) have no compass meaning.
+// They are still reachable on the map, but the cell is tagged distinctly so
+// the player can tell a descend/enter from a horizontal walk. Classify on the
+// command's base word so "down", "down to Pit Floor", "enter", etc. all match.
+var _VERTICAL_DIRS = {
+  up: 1, down: 1, 'in': 1, out: 1, enter: 1, exit: 1,
+  leave: 1, inside: 1, outside: 1, u: 1, d: 1
+};
+function _isVerticalDir(dir) {
+  if (!dir) return false;
+  var w = String(dir).trim().toLowerCase().split(/\s+/)[0];
+  return !!_VERTICAL_DIRS[w];
+}
+// Glyph hint for the vertical-exit badge.
+function _vertGlyph(dir) {
+  var w = String(dir == null ? '' : dir).trim().toLowerCase().split(/\s+/)[0];
+  if (w === 'up' || w === 'u') return '\u2191';                                   // up
+  if (w === 'down' || w === 'd') return '\u2193';                                 // down
+  if (w === 'out' || w === 'leave' || w === 'exit' || w === 'outside') return '\u2197'; // exit
+  return '\u2302';                                                                // enter / in
+}
+
+function _reverseDirSimple(dir) {
+  var REV = {
+    north:     'south',     south:     'north',
+    east:      'west',      west:      'east',
+    northeast: 'southwest', southwest: 'northeast',
+    northwest: 'southeast', southeast: 'northwest',
+    up:        'down',      down:      'up',
+    'in':      'out',       'out':     'in',
+    n: 's', s: 'n', e: 'w', w: 'e',
+    ne: 'sw', sw: 'ne', nw: 'se', se: 'nw',
+    u: 'd', d: 'u'
+  };
+  return REV[dir] || dir;
+}
+
+// Walk the SVG, find every <g data-room-id="…"> that matches an
+// entry in the adjacency map, and decorate it with rm-adj +
+// data-travel-dir. Idempotent — re-running clears previous decoration
+// first (so room transitions don't accumulate stale adj classes).
+function _decorateMiniForClickToWalk(svg, geom, areaMap) {
+  if (!svg) return;
+  // Clear previous decoration (idempotent — re-render / room change / tier switch).
+  var prevAdj = svg.querySelectorAll('g.rm-adj, g.rm-adj-vert');
+  for (var i = 0; i < prevAdj.length; i++) {
+    prevAdj[i].classList.remove('rm-adj');
+    prevAdj[i].classList.remove('rm-adj-vert');
+    prevAdj[i].removeAttribute('data-travel-dir');
+    prevAdj[i].removeAttribute('data-travel-kind');
+    if (prevAdj[i].style) prevAdj[i].style.cursor = '';
+  }
+  var prevBadge = svg.querySelectorAll('g.rm-vert-badge');
+  for (var b = 0; b < prevBadge.length; b++) {
+    if (prevBadge[b].parentNode) prevBadge[b].parentNode.removeChild(prevBadge[b]);
+  }
+  // Build the adjacency map (handles its own null/missing input)
+  var adj = _buildAdjacencyByRenderId(geom, areaMap);
+  if (!adj || Object.keys(adj).length === 0) return;
+  // name-by-render-id, for badge tooltips ("Down to Pit Floor").
+  var nameByRid = {};
+  if (geom && Array.isArray(geom.rooms)) {
+    for (var k = 0; k < geom.rooms.length; k++) {
+      var rr = geom.rooms[k];
+      if (rr && rr.id != null && rr.name) nameByRid[rr.id] = rr.name;
+    }
+  }
+  // Decorate every adjacent building. Vertical/interior moves get a distinct
+  // class + a badge glyph so they read as descend/enter rather than a compass
+  // walk — but they stay fully clickable: every room is reachable from the map.
+  var buildings = svg.querySelectorAll('g[data-room-id]');
+  for (var j = 0; j < buildings.length; j++) {
+    var g = buildings[j];
+    var rid = parseInt(g.getAttribute('data-room-id'), 10);
+    if (isNaN(rid)) continue;
+    var dir = adj[rid];
+    if (dir == null) continue;
+    g.classList.add('rm-adj');
+    g.setAttribute('data-travel-dir', String(dir));
+    if (g.style) g.style.cursor = 'pointer';
+    if (_isVerticalDir(dir)) {
+      g.classList.add('rm-adj-vert');
+      g.setAttribute('data-travel-kind', 'vertical');
+      var word = String(dir).trim().toLowerCase().split(/\s+/)[0];
+      var nm = nameByRid[rid] || 'room';
+      var label = (word === 'up')   ? ('Up to ' + nm)
+                : (word === 'down') ? ('Down to ' + nm)
+                : (word === 'out' || word === 'leave' || word === 'exit' || word === 'outside')
+                                    ? ('Exit to ' + nm)
+                                    : ('Enter ' + nm);
+      _addVertBadge(g, dir, label);
+    } else {
+      g.setAttribute('data-travel-kind', 'compass');
+    }
+  }
+}
+
+// Append a small corner badge to a vertical/interior exit cell: a filled
+// circle + a direction glyph (↓ ↑ ⌂ ↗) + a <title> tooltip. Sized from the
+// cell's own footprint so it scales with zoom. pointer-events:none — the
+// click is handled by the cell <g> via the delegated data-travel-dir handler.
+function _addVertBadge(g, dir, label) {
+  try {
+    var SVGNS = 'http://www.w3.org/2000/svg';
+    var x = 0, y = 0, w = 0, h = 0;
+    var rect = g.querySelector('rect');
+    if (rect) {
+      x = parseFloat(rect.getAttribute('x')) || 0;
+      y = parseFloat(rect.getAttribute('y')) || 0;
+      w = parseFloat(rect.getAttribute('width')) || 0;
+      h = parseFloat(rect.getAttribute('height')) || 0;
+    } else if (g.getBBox) {
+      var bb = g.getBBox();
+      x = bb.x; y = bb.y; w = bb.width; h = bb.height;
+    }
+    if (!(w > 0 && h > 0)) return;
+    var r  = Math.max(3, Math.min(w, h) * 0.22);
+    var cx = x + w - r * 0.7;
+    var cy = y + r * 0.7;
+    var badge = document.createElementNS(SVGNS, 'g');
+    badge.setAttribute('class', 'rm-vert-badge');
+    badge.setAttribute('pointer-events', 'none');
+    var c = document.createElementNS(SVGNS, 'circle');
+    c.setAttribute('cx', String(cx)); c.setAttribute('cy', String(cy));
+    c.setAttribute('r', String(r));
+    badge.appendChild(c);
+    var t = document.createElementNS(SVGNS, 'text');
+    t.setAttribute('x', String(cx)); t.setAttribute('y', String(cy));
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('dominant-baseline', 'central');
+    t.setAttribute('font-size', String(r * 1.25));
+    t.textContent = _vertGlyph(dir);
+    badge.appendChild(t);
+    if (label) {
+      var ttl = document.createElementNS(SVGNS, 'title');
+      ttl.textContent = String(label);
+      badge.appendChild(ttl);
+    }
+    g.appendChild(badge);
+  } catch (e) { /* badge is cosmetic; never block click-to-walk */ }
+}
+
+// ── Room-name labels for navigation ────────────────────────────────
+// The substrate map's cells (g[data-room-id]) carry no name text — L_Labels
+// draws only district + landmark names. This adds, per the navigation-first
+// design:
+//   • a native <title> tooltip on EVERY cell (hover any room to read it), and
+//   • an always-on <text> label on the current room and the rooms you can
+//     walk to (the navigation-relevant set), shortened to the distinctive
+//     tail of the name ("Mos Eisley Street - Market District" → "Market
+//     District"); the full name stays in the hover tooltip.
+// Idempotent — clears prior labels before re-applying (room change / tier
+// switch / re-render). Coordinates come from each cell's own <rect>, and the
+// body SVG's viewBox is "0 0 width height" (px space), so px font sizes read
+// at default zoom and scale up as the player zooms in.
+// Phase-1 environment accessors — server-emitted time-of-day + weather, with
+// safe fallbacks. The renderer supports time ∈ {day,dusk,night} and
+// weather ∈ {clear,sandstorm}; window._sw_env is set by handleHudUpdate.
+function _envTime()    { var e = window._sw_env; return (e && e.time_of_day) ? e.time_of_day : 'day'; }
+function _envWeather() { var e = window._sw_env; return (e && e.weather)     ? e.weather     : 'clear'; }
+
+function _labelRoomsForNavigation(svg, geom, opts) {
+  if (!svg || !geom || !Array.isArray(geom.rooms)) return;
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  // Zoom-aware level-of-detail. `opts.zoom` is the zoom FACTOR (1 = fit, >1 =
+  // zoomed in); `opts.viewScale` is the viewBox-shrink ratio (cur.w/orig.w,
+  // ≤1). Defaults keep the mini-map + first modal paint at always-on
+  // current+adjacent only (back-compat: 2-arg callers pass no opts).
+  var zoom      = (opts && typeof opts.zoom === 'number' && opts.zoom > 0) ? opts.zoom : 1;
+  var viewScale = (opts && typeof opts.viewScale === 'number' && opts.viewScale > 0) ? opts.viewScale : 1;
+  // How many graph hops out from the player we always-on label. Zoom in →
+  // reveal more rings; past the inner thresholds, label every named room so
+  // the cropped, magnified view is fully annotated (the reported bug: zooming
+  // in never showed more room info).
+  var maxDepth = (zoom < 1.5) ? 1 : (zoom < 2.3) ? 2 : Infinity;
+
+  // Clear prior decoration first (idempotent — re-run on every zoom step).
+  var oldT = svg.querySelectorAll('text.rm-name');
+  for (var a = 0; a < oldT.length; a++) oldT[a].parentNode.removeChild(oldT[a]);
+  var oldTitle = svg.querySelectorAll('title.rm-title');
+  for (var b = 0; b < oldTitle.length; b++) oldTitle[b].parentNode.removeChild(oldTitle[b]);
+
+  // name by render-id
+  var nameByRid = {};
+  for (var i = 0; i < geom.rooms.length; i++) {
+    var r = geom.rooms[i];
+    if (r && r.id != null && r.name) nameByRid[r.id] = r.name;
+  }
+
+  // BFS depth from the current room over the (undirected, non-hidden) exit
+  // graph. Direction is irrelevant for *labelling* — a room should be named
+  // even when its travel direction can't be derived (that only gates clicks).
+  var currentRid = (geom.player && geom.player.room_id != null)
+    ? geom.player.room_id : null;
+  var depthByRid = {};
+  if (currentRid != null && Array.isArray(geom.exits)) {
+    var adjList = {};
+    for (var e = 0; e < geom.exits.length; e++) {
+      var ex = geom.exits[e], from = null, to = null, hidden = false;
+      if (Array.isArray(ex) && ex.length >= 2) { from = ex[0]; to = ex[1]; }
+      else if (ex && typeof ex === 'object') { from = ex.from; to = ex.to; hidden = !!ex.hidden; }
+      if (hidden || from == null || to == null) continue;
+      (adjList[from] = adjList[from] || []).push(to);
+      (adjList[to]   = adjList[to]   || []).push(from);
+    }
+    depthByRid[currentRid] = 0;
+    var queue = [currentRid];
+    while (queue.length) {
+      var node = queue.shift();
+      var nd = depthByRid[node];
+      var nbrs = adjList[node] || [];
+      for (var q = 0; q < nbrs.length; q++) {
+        var nb = nbrs[q];
+        if (depthByRid[nb] === undefined) { depthByRid[nb] = nd + 1; queue.push(nb); }
+      }
+    }
+  } else if (currentRid != null) {
+    depthByRid[currentRid] = 0;
+  }
+
+  // Decide which rooms get an always-on label, and their kind.
+  function kindFor(rid) {
+    var d = depthByRid[rid];
+    if (d === 0) return 'current';
+    if (d === 1) return 'adj';
+    // depth ≥2 (or disconnected, d === undefined) → 'far', shown only once
+    // zoomed in enough. At max zoom (maxDepth === Infinity) every named room
+    // is labelled, including ones not connected to the player's component.
+    if (maxDepth === Infinity) return 'far';
+    if (d !== undefined && d <= maxDepth) return 'far';
+    return null;
+  }
+
+  function shortName(n) {
+    if (!n) return '';
+    var idx = n.lastIndexOf(' - ');
+    var s = idx >= 0 ? n.slice(idx + 3) : n;
+    return s.length > 22 ? s.slice(0, 21) + '\u2026' : s;
+  }
+
+  var cells = svg.querySelectorAll('g[data-room-id]');
+  for (var j = 0; j < cells.length; j++) {
+    var g = cells[j];
+    var rid = parseInt(g.getAttribute('data-room-id'), 10);
+    if (isNaN(rid)) continue;
+    var nm = nameByRid[rid];
+    if (!nm) continue;
+
+    // hover tooltip on every cell, at every zoom
+    var title = document.createElementNS(SVGNS, 'title');
+    title.setAttribute('class', 'rm-title');
+    title.textContent = nm;
+    g.appendChild(title);
+
+    var kind = kindFor(rid);
+    if (!kind) continue;
+    var rect = g.querySelector('rect');
+    if (!rect) continue;
+    var rx = parseFloat(rect.getAttribute('x'));
+    var ry = parseFloat(rect.getAttribute('y'));
+    var rw = parseFloat(rect.getAttribute('width'));
+    var rh = parseFloat(rect.getAttribute('height'));
+    if (isNaN(rx) || isNaN(ry) || isNaN(rw) || isNaN(rh)) continue;
+    // Base size in world units, then × viewScale so the label is a roughly
+    // CONSTANT on-screen size at any zoom (the viewBox shrinks by viewScale,
+    // so world text would otherwise balloon when zoomed in). 'far' labels are
+    // a touch smaller + dimmer so the player's own ring still reads first.
+    var base = Math.max(8, Math.min(rh * 0.5, 16));
+    if (kind === 'far') base *= 0.85;
+    var fs = base * viewScale;
+    var t = document.createElementNS(SVGNS, 'text');
+    t.setAttribute('class', 'rm-name');
+    t.setAttribute('x', String(rx + rw / 2));
+    t.setAttribute('y', String(ry + rh + fs + 1 * viewScale));   // just below the cell
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('font-size', String(fs));
+    t.setAttribute('font-weight', kind === 'far' ? '500' : '600');
+    t.setAttribute('paint-order', 'stroke');          // stroke under fill = legible
+    t.setAttribute('stroke', 'rgba(8,9,14,0.9)');
+    t.setAttribute('stroke-width', String(Math.max(1, fs * 0.16)));
+    t.setAttribute('fill', kind === 'current' ? '#ffcf7a'
+                         : kind === 'adj'     ? '#bfe8ef'
+                                              : '#8fb3ba');  // 'far' = dimmer
+    if (kind === 'far') t.setAttribute('opacity', '0.92');
+    t.setAttribute('style', 'pointer-events:none');
+    t.textContent = shortName(nm);
+    g.appendChild(t);
+  }
+}
+
+// Expose helpers for tests + in-browser debug
+if (typeof window !== 'undefined') {
+  window._sw_decorateMiniForClickToWalk = _decorateMiniForClickToWalk;
+  window._sw_buildAdjacencyByRenderId   = _buildAdjacencyByRenderId;
+  window._sw_snapToCompass8             = _snapToCompass8;
+  window._sw_labelRoomsForNavigation    = _labelRoomsForNavigation;
 }
 
 function renderRecentRooms() {
@@ -5931,13 +7057,21 @@ function handlePlacesStatus(data) {
 }
 
 // Reputation panel — server emits hud.reputation as a dict keyed by faction
-// code: { empire: {rep, tier_key, tier_name, rank, rank_level, is_member}, ... }
+// code: { republic: {rep, tier_key, tier_name, rank, rank_level, is_member}, ... }
 // We render members first, then non-zero rep, with tier name + numeric score.
+// Drop 4.7-A (May 26 2026): canonical CW codes are republic/cis. Legacy
+// GCW codes (empire/rebel) are kept as fallback aliases for the period
+// where engine still emits them (engine bug #6 — see comment in
+// FACTION_PRIORITY above).
 var FACTION_LABELS = {
-  empire:   'GALACTIC EMPIRE',
-  rebel:    'REBEL ALLIANCE',
+  republic: 'GALACTIC REPUBLIC',
+  cis:      'CONFEDERACY OF INDEPENDENT SYSTEMS',
   hutt:     'HUTT CARTEL',
   bh_guild: 'BOUNTY HUNTERS',
+  // Backward-compat: legacy GCW keys still emitted by engine.
+  // Render as their CW counterparts so the player never sees Empire/Rebel.
+  empire:   'GALACTIC REPUBLIC',
+  rebel:    'CONFEDERACY OF INDEPENDENT SYSTEMS',
 };
 function renderReputation(rep) {
   var entries = [];
@@ -5995,10 +7129,917 @@ function renderReputation(rep) {
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   TOAST NOTIFICATIONS — achievements, rank-ups, rep changes
-   ════════════════════════════════════════════════════════════════════ */
+   PHASE 6 WEB UI — city sidebar + modal + Mayor/admin actions
+   ════════════════════════════════════════════════════════════════════
+   Renders hud.city on every HUD update. The sidebar shows a summary
+   (name, role, treasury, tax, grace banner if applicable, expand
+   button). Clicking the expand button opens the modal with full
+   detail: stats grid, citizens / guests / banishments / guards
+   lists, Mayor/Founder action buttons (motd, tax set, mayor reassign,
+   banish/unbanish, guest add/remove, citizenroom, guards
+   assign/remove, claim/release, dissolve), and the admin block
+   (@city list + admin actions: dissolve, void-banish, set-rate-cap,
+   rename) when applicable.
+
+   ACTION BUTTON POLICY:
+   - Safe actions (motd, tax-within-cap, guards assign/remove, guest,
+     unbanish, rename, citizenroom toggle) fire on click.
+   - Destructive actions (dissolve player, dissolve admin, mayor
+     reassign, banish, admin void-banish, set-rate-cap) require a
+     two-click confirm. First click stages the action with a 5s
+     countdown; second click within the window fires; timeout
+     reverts. The .pending class + countdown animation surfaces this.
+*/
+
+var __cityCurrent = null;  // most-recent hud.city payload
+
+/* Format helpers */
+function _cityFmtPct(rate) {
+  if (rate === undefined || rate === null) return '—';
+  return (Math.round(rate * 100 * 10) / 10) + '%';
+}
+function _cityFmtCr(n) {
+  if (n === undefined || n === null) return '—';
+  return Number(n).toLocaleString() + ' cr';
+}
+function _cityFmtRoleLabel(role) {
+  if (!role) return 'Outsider';
+  return ({
+    founder:  'Founder',
+    mayor:    'Mayor',
+    citizen:  'Citizen',
+    guest:    'Guest',
+    outsider: 'Outsider',
+    banished: 'Banished',
+    visitor:  'Visitor',
+  })[role] || role;
+}
+function _cityGraceLabel(stage) {
+  return ({
+    active:  'Active',
+    week1:   'Grace · Week 1 (guards off)',
+    week2:   'Grace · Week 2 (flags cleared)',
+    week3:   'Grace · Week 3 (tax stopped)',
+    week4:   'Grace · Week 4 (final warning)',
+    expired: 'Grace · EXPIRED',
+  })[stage] || stage;
+}
+function _cityGraceSeverity(stage) {
+  if (stage === 'active' || !stage) return 'ok';
+  if (stage === 'week1') return 'warn';
+  return 'danger';
+}
+
+/* Sidebar render */
+function renderCity(payload) {
+  if (!payload) {
+    $('city-panel').style.display = 'none';
+    __cityCurrent = null;
+    return;
+  }
+  __cityCurrent = payload;
+
+  // Admin-only-with-no-city: show only the open-modal button so
+  // admins can reach @city list from anywhere.
+  if (payload.admin_only) {
+    $('city-panel').style.display = '';
+    $('city-grace-badge').textContent = 'ADMIN';
+    $('city-grace-badge').className = 'sp-count';
+    var body = $('city-body');
+    body.innerHTML = '';
+    var btn = document.createElement('button');
+    btn.className = 'city-expand-btn';
+    btn.textContent = '◆ @city admin panel';
+    btn.onclick = openCityModal;
+    body.appendChild(btn);
+    return;
+  }
+
+  $('city-panel').style.display = '';
+
+  // Grace badge in the panel head
+  var badge = $('city-grace-badge');
+  badge.className = 'sp-count ' + _cityGraceSeverity(
+    payload.grace_stage);
+  badge.textContent = payload.is_in_grace
+    ? payload.grace_stage.toUpperCase()
+    : '';
+
+  // Body: city name, role, treasury, tax, grace banner, expand
+  var body = $('city-body');
+  body.innerHTML = '';
+
+  var add = function(k, v, cls) {
+    var row = document.createElement('div');
+    row.className = 'city-row';
+    row.innerHTML =
+      '<span class="ck">' + escapeHtml(k) + '</span>' +
+      '<span class="cv ' + (cls || '') + '">' + escapeHtml(v) + '</span>';
+    body.appendChild(row);
+  };
+
+  // Name + tier
+  var nameRow = document.createElement('div');
+  nameRow.className = 'city-row';
+  nameRow.innerHTML =
+    '<span class="cv ok" style="font-size:12px;">' +
+    escapeHtml(payload.name || '?') + '</span>' +
+    '<span class="ck">' +
+    escapeHtml((payload.hq_tier || '').replace('_', ' ')) +
+    '</span>';
+  body.appendChild(nameRow);
+
+  add('Role', _cityFmtRoleLabel(payload.role));
+  add('Treasury', _cityFmtCr(payload.treasury));
+  add('Tax', _cityFmtPct(payload.tax_rate) +
+      ' / ' + _cityFmtPct(payload.rate_cap) + ' cap');
+  add('Rooms', payload.expansion_rooms + '/' +
+      payload.max_expansion);
+  add('Guards', payload.guard_slots_used + '/' +
+      payload.guard_slots_total);
+  add('Citizens', String(payload.citizens_count || 0));
+
+  // Grace banner
+  if (payload.is_in_grace) {
+    var banner = document.createElement('div');
+    banner.className = 'city-grace-banner';
+    if (payload.grace_stage === 'week1') {
+      banner.className += ' warn';
+    }
+    banner.innerHTML =
+      '<strong>' + _cityGraceLabel(payload.grace_stage) +
+      '</strong><br>' +
+      'Refill the org treasury to recover.';
+    body.appendChild(banner);
+  }
+
+  // Expand button
+  var btn = document.createElement('button');
+  btn.className = 'city-expand-btn';
+  btn.textContent = '▣ EXPAND / DETAILS';
+  btn.onclick = openCityModal;
+  body.appendChild(btn);
+}
+
+/* ── Modal open/close ─────────────────────────────────────────── */
+
+function openCityModal() {
+  if (!__cityCurrent) return;
+  renderCityModal(__cityCurrent);
+  $('city-modal-overlay').style.display = 'flex';
+  // Esc-to-close
+  document.addEventListener('keydown', _cityModalKeyHandler);
+}
+
+function closeCityModal(ev) {
+  if (ev && ev.target && ev.target.id !== 'city-modal-overlay' &&
+      ev.type === 'click') {
+    return;  // background-only click handler — not a button
+  }
+  $('city-modal-overlay').style.display = 'none';
+  document.removeEventListener('keydown', _cityModalKeyHandler);
+  // Clear any pending-confirm states so they don't bleed into next open
+  __cityPendingAction = null;
+  if (__cityPendingTimer) {
+    clearTimeout(__cityPendingTimer);
+    __cityPendingTimer = null;
+  }
+}
+
+function _cityModalKeyHandler(e) {
+  if (e.key === 'Escape') closeCityModal();
+}
+
+/* ── Modal render ─────────────────────────────────────────────── */
+
+function renderCityModal(p) {
+  // Title + badge
+  if (p.admin_only) {
+    $('city-modal-title').textContent = '@CITY · ADMIN PANEL';
+  } else {
+    $('city-modal-title').textContent =
+      (p.name || 'CITY').toUpperCase();
+  }
+  var mbadge = $('city-modal-badge');
+  if (p.admin_only) {
+    mbadge.textContent = 'ADMIN';
+    mbadge.className = 'city-modal-badge';
+  } else {
+    mbadge.textContent = _cityGraceLabel(p.grace_stage);
+    mbadge.className = 'city-modal-badge ' +
+      _cityGraceSeverity(p.grace_stage);
+  }
+
+  var body = $('city-modal-body');
+  body.innerHTML = '';
+
+  // Stats grid (only if we have a city, not admin-only-no-city)
+  if (!p.admin_only) {
+    body.appendChild(_cityStatsSection(p));
+    body.appendChild(_cityActionsSection(p));
+    body.appendChild(_cityListSection('citizens',
+      'CITIZENS (' + (p.citizens_count || 0) + ')',
+      p.citizens || [], function(c) {
+        return '<span class="cl-name">' + escapeHtml(c.name) +
+          '</span><span class="cl-meta">rank ' + (c.rank || 0) +
+          '</span>';
+      }));
+    body.appendChild(_cityListSection('guests',
+      'GUESTS (' + (p.guests_count || 0) + ')',
+      p.guests || [], function(g) {
+        return '<span class="cl-name">' + escapeHtml(g.name) +
+          '</span><span class="cl-meta">id ' + g.id + '</span>';
+      }));
+    body.appendChild(_cityListSection('banishments',
+      'BANISHMENTS (' + (p.banishments_count || 0) + ')',
+      p.banishments || [], function(b) {
+        var until = b.until ? new Date(b.until * 1000)
+          .toISOString().slice(0, 16).replace('T', ' ') + ' UTC'
+          : 'unknown';
+        return '<span class="cl-name">' + escapeHtml(b.name) +
+          '</span><span class="cl-meta">until ' + until +
+          '</span>';
+      }));
+    body.appendChild(_cityListSection('guards',
+      'GUARDS (' + (p.guard_slots_used || 0) + '/' +
+      (p.guard_slots_total || 0) + ')',
+      p.guards || [], function(g) {
+        var status = g.ai_active ? 'active' : 'INACTIVE';
+        return '<span class="cl-name">#' + g.npc_id +
+          ' room=' + g.room_id +
+          '</span><span class="cl-meta">' + status + '</span>';
+      }));
+  }
+
+  // Admin block
+  if (p.admin) {
+    body.appendChild(_cityAdminSection(p));
+  }
+}
+
+function _cityStatsSection(p) {
+  var sec = document.createElement('div');
+  sec.className = 'city-modal-section';
+  sec.innerHTML =
+    '<div class="city-modal-section-title">Status</div>' +
+    '<div class="city-stat-grid"></div>';
+  var grid = sec.querySelector('.city-stat-grid');
+  var rows = [
+    ['HQ Tier', (p.hq_tier || '').replace('_', ' '), ''],
+    ['Role', _cityFmtRoleLabel(p.role), ''],
+    ['Treasury', _cityFmtCr(p.treasury),
+      (p.is_in_grace ? 'bad' : '')],
+    ['Tax Rate', _cityFmtPct(p.tax_rate), ''],
+    ['Rate Cap', _cityFmtPct(p.rate_cap), ''],
+    ['Revenue (week)', _cityFmtCr(p.revenue_week), ''],
+    ['Revenue (total)', _cityFmtCr(p.revenue_total), ''],
+    ['Rooms', (p.expansion_rooms || 0) + ' / ' +
+              (p.max_expansion || 0), ''],
+    ['Guards', (p.guard_slots_used || 0) + ' / ' +
+               (p.guard_slots_total || 0), ''],
+    ['Founder', p.founder_name || ('id=' + p.founder_id), ''],
+    ['Mayor', p.mayor_name || ('id=' + p.mayor_id), ''],
+    ['Motd', p.motd || '(none)', ''],
+  ];
+  rows.forEach(function(r) {
+    var div = document.createElement('div');
+    div.className = 'city-stat-row';
+    div.innerHTML =
+      '<span class="cs-key">' + escapeHtml(r[0]) + '</span>' +
+      '<span class="cs-val ' + r[2] + '">' +
+      escapeHtml(String(r[1])) + '</span>';
+    grid.appendChild(div);
+  });
+  return sec;
+}
+
+function _cityListSection(key, title, items, fmt) {
+  var sec = document.createElement('div');
+  sec.className = 'city-modal-section';
+  sec.innerHTML =
+    '<div class="city-modal-section-title">' + escapeHtml(title) +
+    '</div><div class="city-list"></div>';
+  var list = sec.querySelector('.city-list');
+  if (!items || items.length === 0) {
+    var empty = document.createElement('div');
+    empty.className = 'city-list-empty';
+    empty.textContent = '(none)';
+    list.appendChild(empty);
+    return sec;
+  }
+  items.forEach(function(item) {
+    var row = document.createElement('div');
+    row.className = 'city-list-row';
+    row.innerHTML = fmt(item);
+    list.appendChild(row);
+  });
+  if (items.length === 25) {
+    var more = document.createElement('div');
+    more.className = 'city-list-empty';
+    more.textContent =
+      '(showing first 25 — type the matching +city command for the full list)';
+    list.appendChild(more);
+  }
+  return sec;
+}
+
+/* ── Action button system ─────────────────────────────────────── */
+// Safe actions fire on click. Destructive actions require a two-
+// click confirm with a 5-second countdown.
+
+var __cityPendingAction = null;  // {btnEl, cmd, label, timer}
+var __cityPendingTimer = null;
+var CITY_CONFIRM_MS = 5000;
+
+function _cityFireCommand(cmd) {
+  if (!cmd) return;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    appendEvent({ t: 'sys-event',
+      text: 'Not connected — command not sent: ' + cmd });
+    return;
+  }
+  try {
+    ws.send(JSON.stringify({ input: cmd }));
+    // Echo to the local pose log so the player sees what fired
+    appendEvent({ t: 'user-cmd', text: '> ' + cmd });
+  } catch (e) {
+    appendEvent({ t: 'sys-event',
+      text: 'Send failed: ' + e.message });
+  }
+}
+
+function _cityMakeSafeBtn(label, cmd, opts) {
+  opts = opts || {};
+  var btn = document.createElement('button');
+  btn.className = 'city-action-btn';
+  btn.textContent = label;
+  btn.onclick = function() {
+    _cityFireCommand(cmd);
+    if (opts.closeOnFire) {
+      setTimeout(closeCityModal, 100);
+    }
+  };
+  return btn;
+}
+
+function _cityMakeDangerBtn(label, cmd) {
+  var btn = document.createElement('button');
+  btn.className = 'city-action-btn danger';
+  btn.textContent = label;
+  btn.onclick = function() {
+    // Two-stage confirm
+    if (__cityPendingAction &&
+        __cityPendingAction.btnEl === btn) {
+      // Confirmed — fire and clear
+      clearTimeout(__cityPendingTimer);
+      __cityPendingTimer = null;
+      __cityPendingAction = null;
+      btn.classList.remove('pending');
+      btn.textContent = label;
+      _cityFireCommand(cmd);
+      setTimeout(closeCityModal, 100);
+      return;
+    }
+    // Different button or no pending — stage this one
+    if (__cityPendingAction) {
+      __cityPendingAction.btnEl.classList.remove('pending');
+      __cityPendingAction.btnEl.textContent =
+        __cityPendingAction.label;
+      clearTimeout(__cityPendingTimer);
+    }
+    btn.classList.add('pending');
+    btn.textContent = 'CONFIRM? (5s)';
+    __cityPendingAction = { btnEl: btn, cmd: cmd, label: label };
+    var remaining = 5;
+    __cityPendingTimer = setInterval(function() {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(__cityPendingTimer);
+        __cityPendingTimer = null;
+        btn.classList.remove('pending');
+        btn.textContent = label;
+        __cityPendingAction = null;
+      } else {
+        btn.textContent = 'CONFIRM? (' + remaining + 's)';
+      }
+    }, 1000);
+  };
+  return btn;
+}
+
+function _cityMakeInput(placeholder, width) {
+  var inp = document.createElement('input');
+  inp.className = 'city-action-input';
+  inp.placeholder = placeholder;
+  if (width) inp.style.width = width;
+  return inp;
+}
+
+function _cityActionsSection(p) {
+  var sec = document.createElement('div');
+  sec.className = 'city-modal-section';
+  var canAct = (p.role === 'mayor' || p.role === 'founder');
+  var canFounder = (p.role === 'founder');
+  sec.innerHTML =
+    '<div class="city-modal-section-title">Actions' +
+    (canAct ? '' : ' <span style="color:var(--accent-dim); font-size:9px;">' +
+      '(view only — you are not Mayor or Founder)</span>') +
+    '</div>';
+
+  if (!canAct) return sec;
+
+  // ── Row: motd ──
+  var motdRow = document.createElement('div');
+  motdRow.className = 'city-action-row';
+  var motdInp = _cityMakeInput('Set motd…', '320px');
+  var motdBtn = document.createElement('button');
+  motdBtn.className = 'city-action-btn';
+  motdBtn.textContent = 'SET MOTD';
+  motdBtn.onclick = function() {
+    var txt = motdInp.value.trim();
+    if (!txt) return;
+    _cityFireCommand('+city motd ' + txt);
+    motdInp.value = '';
+  };
+  motdRow.appendChild(motdInp);
+  motdRow.appendChild(motdBtn);
+  sec.appendChild(motdRow);
+
+  // ── Row: tax ──
+  var taxRow = document.createElement('div');
+  taxRow.className = 'city-action-row';
+  var taxInp = _cityMakeInput('Tax % (0-' +
+    Math.round((p.rate_cap || 0.10) * 100) + ')', '120px');
+  taxInp.type = 'number';
+  taxInp.step = '0.1';
+  taxInp.min = '0';
+  taxInp.max = String(Math.round((p.rate_cap || 0.10) * 100));
+  var taxBtn = document.createElement('button');
+  taxBtn.className = 'city-action-btn';
+  taxBtn.textContent = 'SET TAX';
+  taxBtn.onclick = function() {
+    var v = taxInp.value.trim();
+    if (!v) return;
+    _cityFireCommand('+city tax set ' + v);
+    taxInp.value = '';
+  };
+  taxRow.appendChild(taxInp);
+  taxRow.appendChild(taxBtn);
+  sec.appendChild(taxRow);
+
+  // ── Row: founder-only — rate cap ──
+  if (canFounder) {
+    var capRow = document.createElement('div');
+    capRow.className = 'city-action-row';
+    var capInp = _cityMakeInput('Rate cap % (0-10)', '140px');
+    capInp.type = 'number';
+    capInp.step = '0.1';
+    capInp.min = '0';
+    capInp.max = '10';
+    var capBtn = document.createElement('button');
+    capBtn.className = 'city-action-btn';
+    capBtn.textContent = 'SET RATE CAP';
+    capBtn.onclick = function() {
+      var v = capInp.value.trim();
+      if (!v) return;
+      _cityFireCommand('+city tax ratecap ' + v);
+      capInp.value = '';
+    };
+    capRow.appendChild(capInp);
+    capRow.appendChild(capBtn);
+    sec.appendChild(capRow);
+  }
+
+  // ── Row: guest add/remove ──
+  var guestRow = document.createElement('div');
+  guestRow.className = 'city-action-row';
+  var guestInp = _cityMakeInput('Player name…', '180px');
+  guestRow.appendChild(guestInp);
+  var guestAdd = document.createElement('button');
+  guestAdd.className = 'city-action-btn';
+  guestAdd.textContent = 'ADD GUEST';
+  guestAdd.onclick = function() {
+    var n = guestInp.value.trim();
+    if (n) _cityFireCommand('+city guest add ' + n);
+    guestInp.value = '';
+  };
+  var guestRm = document.createElement('button');
+  guestRm.className = 'city-action-btn';
+  guestRm.textContent = 'REMOVE GUEST';
+  guestRm.onclick = function() {
+    var n = guestInp.value.trim();
+    if (n) _cityFireCommand('+city guest remove ' + n);
+    guestInp.value = '';
+  };
+  guestRow.appendChild(guestAdd);
+  guestRow.appendChild(guestRm);
+  sec.appendChild(guestRow);
+
+  // ── Row: banish (DANGER) / unbanish (safe) ──
+  var banRow = document.createElement('div');
+  banRow.className = 'city-action-row';
+  var banInp = _cityMakeInput('Player name…', '180px');
+  banRow.appendChild(banInp);
+  var banBtn = _cityMakeDangerBtn('BANISH (30d)', '');
+  banBtn.onclick = function() {
+    var n = banInp.value.trim();
+    if (!n) return;
+    // Reset the danger handler with the populated command
+    var label = 'BANISH (30d)';
+    if (__cityPendingAction &&
+        __cityPendingAction.btnEl === banBtn) {
+      clearTimeout(__cityPendingTimer);
+      __cityPendingTimer = null;
+      __cityPendingAction = null;
+      banBtn.classList.remove('pending');
+      banBtn.textContent = label;
+      _cityFireCommand('+city banish ' + n);
+      banInp.value = '';
+      setTimeout(closeCityModal, 100);
+      return;
+    }
+    if (__cityPendingAction) {
+      __cityPendingAction.btnEl.classList.remove('pending');
+      __cityPendingAction.btnEl.textContent =
+        __cityPendingAction.label;
+      clearTimeout(__cityPendingTimer);
+    }
+    banBtn.classList.add('pending');
+    banBtn.textContent = 'CONFIRM? (5s)';
+    __cityPendingAction = {
+      btnEl: banBtn, cmd: '+city banish ' + n, label: label };
+    var remaining = 5;
+    __cityPendingTimer = setInterval(function() {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(__cityPendingTimer);
+        __cityPendingTimer = null;
+        banBtn.classList.remove('pending');
+        banBtn.textContent = label;
+        __cityPendingAction = null;
+      } else {
+        banBtn.textContent = 'CONFIRM? (' + remaining + 's)';
+      }
+    }, 1000);
+  };
+  var unbanBtn = document.createElement('button');
+  unbanBtn.className = 'city-action-btn';
+  unbanBtn.textContent = 'UNBANISH';
+  unbanBtn.onclick = function() {
+    var n = banInp.value.trim();
+    if (n) _cityFireCommand('+city unbanish ' + n);
+    banInp.value = '';
+  };
+  banRow.appendChild(banBtn);
+  banRow.appendChild(unbanBtn);
+  sec.appendChild(banRow);
+
+  // ── Row: founder-only — mayor reassign (DANGER) ──
+  if (canFounder) {
+    var mayorRow = document.createElement('div');
+    mayorRow.className = 'city-action-row';
+    var mayorInp = _cityMakeInput('New mayor name…', '200px');
+    mayorRow.appendChild(mayorInp);
+    var mayorBtn = _cityMakeDangerBtn('REASSIGN MAYOR', '');
+    mayorBtn.onclick = function() {
+      var n = mayorInp.value.trim();
+      if (!n) return;
+      var label = 'REASSIGN MAYOR';
+      if (__cityPendingAction &&
+          __cityPendingAction.btnEl === mayorBtn) {
+        clearTimeout(__cityPendingTimer);
+        __cityPendingTimer = null;
+        __cityPendingAction = null;
+        mayorBtn.classList.remove('pending');
+        mayorBtn.textContent = label;
+        _cityFireCommand('+city mayor ' + n);
+        mayorInp.value = '';
+        setTimeout(closeCityModal, 100);
+        return;
+      }
+      if (__cityPendingAction) {
+        __cityPendingAction.btnEl.classList.remove('pending');
+        __cityPendingAction.btnEl.textContent =
+          __cityPendingAction.label;
+        clearTimeout(__cityPendingTimer);
+      }
+      mayorBtn.classList.add('pending');
+      mayorBtn.textContent = 'CONFIRM? (5s)';
+      __cityPendingAction = {
+        btnEl: mayorBtn, cmd: '+city mayor ' + n, label: label };
+      var remaining = 5;
+      __cityPendingTimer = setInterval(function() {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(__cityPendingTimer);
+          __cityPendingTimer = null;
+          mayorBtn.classList.remove('pending');
+          mayorBtn.textContent = label;
+          __cityPendingAction = null;
+        } else {
+          mayorBtn.textContent = 'CONFIRM? (' + remaining + 's)';
+        }
+      }, 1000);
+    };
+    mayorRow.appendChild(mayorBtn);
+    sec.appendChild(mayorRow);
+  }
+
+  // ── Row: guards ──
+  var guardRow = document.createElement('div');
+  guardRow.className = 'city-action-row';
+  var guardInp = _cityMakeInput('Room id…', '110px');
+  guardInp.type = 'number';
+  guardRow.appendChild(guardInp);
+  var guardAdd = document.createElement('button');
+  guardAdd.className = 'city-action-btn';
+  guardAdd.textContent = 'ASSIGN GUARD';
+  guardAdd.onclick = function() {
+    var v = guardInp.value.trim();
+    if (v) _cityFireCommand('+city guards assign ' + v);
+    guardInp.value = '';
+  };
+  var guardNpcInp = _cityMakeInput('NPC id…', '110px');
+  guardNpcInp.type = 'number';
+  var guardRm = document.createElement('button');
+  guardRm.className = 'city-action-btn';
+  guardRm.textContent = 'REMOVE GUARD';
+  guardRm.onclick = function() {
+    var v = guardNpcInp.value.trim();
+    if (v) _cityFireCommand('+city guards remove ' + v);
+    guardNpcInp.value = '';
+  };
+  guardRow.appendChild(guardAdd);
+  guardRow.appendChild(guardNpcInp);
+  guardRow.appendChild(guardRm);
+  sec.appendChild(guardRow);
+
+  // ── Row: founder-only — DISSOLVE (DANGER) ──
+  if (canFounder) {
+    var dissRow = document.createElement('div');
+    dissRow.className = 'city-action-row';
+    dissRow.style.marginTop = '12px';
+    dissRow.style.paddingTop = '8px';
+    dissRow.style.borderTop = '1px dashed rgba(255,80,40,0.25)';
+    var dissBtn = _cityMakeDangerBtn(
+      'DISSOLVE CITY (50% refund)',
+      '+city dissolve ' + (p.name || ''));
+    dissRow.appendChild(dissBtn);
+    sec.appendChild(dissRow);
+  }
+
+  return sec;
+}
+
+/* ── Admin block ──────────────────────────────────────────────── */
+
+function _cityAdminSection(p) {
+  var admin = p.admin || {};
+  var sec = document.createElement('div');
+  sec.className = 'city-modal-section';
+  sec.innerHTML =
+    '<div class="city-modal-section-title">' +
+    '@city · Admin Panel (all cities)</div>' +
+    '<div class="city-list"></div>';
+  var list = sec.querySelector('.city-list');
+
+  var cities = admin.all_cities || [];
+  if (cities.length === 0) {
+    var empty = document.createElement('div');
+    empty.className = 'city-list-empty';
+    empty.textContent = '(no active cities)';
+    list.appendChild(empty);
+  } else {
+    cities.forEach(function(c) {
+      var row = document.createElement('div');
+      row.className = 'city-list-row';
+      row.innerHTML =
+        '<span class="cl-name">' + escapeHtml(c.name) + '</span>' +
+        '<span class="cl-meta">' +
+        (c.hq_tier || '').replace('_', ' ') +
+        ' · ' + Number(c.treasury || 0).toLocaleString() + ' cr' +
+        '</span>';
+      list.appendChild(row);
+    });
+  }
+
+  // Admin action row
+  var actHead = document.createElement('div');
+  actHead.className = 'city-modal-section-title';
+  actHead.style.marginTop = '14px';
+  actHead.textContent = 'Admin Actions';
+  sec.appendChild(actHead);
+
+  // Inspect (safe)
+  var inspRow = document.createElement('div');
+  inspRow.className = 'city-action-row';
+  var inspInp = _cityMakeInput('City name…', '200px');
+  var inspBtn = document.createElement('button');
+  inspBtn.className = 'city-action-btn';
+  inspBtn.textContent = 'INSPECT';
+  inspBtn.onclick = function() {
+    var n = inspInp.value.trim();
+    if (n) _cityFireCommand('@city inspect ' + n);
+    inspInp.value = '';
+  };
+  inspRow.appendChild(inspInp);
+  inspRow.appendChild(inspBtn);
+  sec.appendChild(inspRow);
+
+  // List + rename (safe)
+  var renRow = document.createElement('div');
+  renRow.className = 'city-action-row';
+  var listBtn = document.createElement('button');
+  listBtn.className = 'city-action-btn';
+  listBtn.textContent = 'LIST ALL';
+  listBtn.onclick = function() { _cityFireCommand('@city list'); };
+  var renOldInp = _cityMakeInput('Old name…', '160px');
+  var renNewInp = _cityMakeInput('New name…', '160px');
+  var renBtn = document.createElement('button');
+  renBtn.className = 'city-action-btn';
+  renBtn.textContent = 'RENAME';
+  renBtn.onclick = function() {
+    var o = renOldInp.value.trim();
+    var n = renNewInp.value.trim();
+    if (o && n) {
+      _cityFireCommand('@city rename ' + o + ' = ' + n);
+      renOldInp.value = '';
+      renNewInp.value = '';
+    }
+  };
+  renRow.appendChild(listBtn);
+  renRow.appendChild(renOldInp);
+  renRow.appendChild(renNewInp);
+  renRow.appendChild(renBtn);
+  sec.appendChild(renRow);
+
+  // Void-banish (DANGER) + set-rate-cap (DANGER)
+  var dangerRow = document.createElement('div');
+  dangerRow.className = 'city-action-row';
+  var vbCityInp = _cityMakeInput('City…', '140px');
+  var vbCharInp = _cityMakeInput('Player…', '140px');
+  var vbBtn = _cityMakeDangerBtn('VOID-BANISH', '');
+  vbBtn.onclick = function() {
+    var c = vbCityInp.value.trim();
+    var p = vbCharInp.value.trim();
+    if (!c || !p) return;
+    var label = 'VOID-BANISH';
+    var cmd = '@city void-banish ' + c + ' = ' + p;
+    if (__cityPendingAction &&
+        __cityPendingAction.btnEl === vbBtn) {
+      clearTimeout(__cityPendingTimer);
+      __cityPendingTimer = null;
+      __cityPendingAction = null;
+      vbBtn.classList.remove('pending');
+      vbBtn.textContent = label;
+      _cityFireCommand(cmd);
+      vbCityInp.value = ''; vbCharInp.value = '';
+      return;
+    }
+    if (__cityPendingAction) {
+      __cityPendingAction.btnEl.classList.remove('pending');
+      __cityPendingAction.btnEl.textContent =
+        __cityPendingAction.label;
+      clearTimeout(__cityPendingTimer);
+    }
+    vbBtn.classList.add('pending');
+    vbBtn.textContent = 'CONFIRM? (5s)';
+    __cityPendingAction = {
+      btnEl: vbBtn, cmd: cmd, label: label };
+    var remaining = 5;
+    __cityPendingTimer = setInterval(function() {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(__cityPendingTimer);
+        __cityPendingTimer = null;
+        vbBtn.classList.remove('pending');
+        vbBtn.textContent = label;
+        __cityPendingAction = null;
+      } else {
+        vbBtn.textContent = 'CONFIRM? (' + remaining + 's)';
+      }
+    }, 1000);
+  };
+  dangerRow.appendChild(vbCityInp);
+  dangerRow.appendChild(vbCharInp);
+  dangerRow.appendChild(vbBtn);
+  sec.appendChild(dangerRow);
+
+  // Set-rate-cap (DANGER)
+  var capRow = document.createElement('div');
+  capRow.className = 'city-action-row';
+  var capCityInp = _cityMakeInput('City…', '140px');
+  var capPctInp = _cityMakeInput('% (0-10)', '90px');
+  capPctInp.type = 'number'; capPctInp.step = '0.1';
+  capPctInp.min = '0'; capPctInp.max = '10';
+  var capBtn = _cityMakeDangerBtn('SET RATE CAP', '');
+  capBtn.onclick = function() {
+    var c = capCityInp.value.trim();
+    var v = capPctInp.value.trim();
+    if (!c || !v) return;
+    var label = 'SET RATE CAP';
+    var cmd = '@city set-rate-cap ' + c + ' = ' + v;
+    if (__cityPendingAction &&
+        __cityPendingAction.btnEl === capBtn) {
+      clearTimeout(__cityPendingTimer);
+      __cityPendingTimer = null;
+      __cityPendingAction = null;
+      capBtn.classList.remove('pending');
+      capBtn.textContent = label;
+      _cityFireCommand(cmd);
+      capCityInp.value = ''; capPctInp.value = '';
+      return;
+    }
+    if (__cityPendingAction) {
+      __cityPendingAction.btnEl.classList.remove('pending');
+      __cityPendingAction.btnEl.textContent =
+        __cityPendingAction.label;
+      clearTimeout(__cityPendingTimer);
+    }
+    capBtn.classList.add('pending');
+    capBtn.textContent = 'CONFIRM? (5s)';
+    __cityPendingAction = {
+      btnEl: capBtn, cmd: cmd, label: label };
+    var remaining = 5;
+    __cityPendingTimer = setInterval(function() {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(__cityPendingTimer);
+        __cityPendingTimer = null;
+        capBtn.classList.remove('pending');
+        capBtn.textContent = label;
+        __cityPendingAction = null;
+      } else {
+        capBtn.textContent = 'CONFIRM? (' + remaining + 's)';
+      }
+    }, 1000);
+  };
+  capRow.appendChild(capCityInp);
+  capRow.appendChild(capPctInp);
+  capRow.appendChild(capBtn);
+  sec.appendChild(capRow);
+
+  // Admin dissolve (DANGER — no refund)
+  var adRow = document.createElement('div');
+  adRow.className = 'city-action-row';
+  adRow.style.marginTop = '12px';
+  adRow.style.paddingTop = '8px';
+  adRow.style.borderTop = '1px dashed rgba(255,80,40,0.35)';
+  var adInp = _cityMakeInput('City name…', '200px');
+  var adBtn = _cityMakeDangerBtn(
+    '@DISSOLVE (no refund)', '');
+  adBtn.onclick = function() {
+    var c = adInp.value.trim();
+    if (!c) return;
+    var label = '@DISSOLVE (no refund)';
+    var cmd = '@city dissolve ' + c;
+    if (__cityPendingAction &&
+        __cityPendingAction.btnEl === adBtn) {
+      clearTimeout(__cityPendingTimer);
+      __cityPendingTimer = null;
+      __cityPendingAction = null;
+      adBtn.classList.remove('pending');
+      adBtn.textContent = label;
+      _cityFireCommand(cmd);
+      adInp.value = '';
+      return;
+    }
+    if (__cityPendingAction) {
+      __cityPendingAction.btnEl.classList.remove('pending');
+      __cityPendingAction.btnEl.textContent =
+        __cityPendingAction.label;
+      clearTimeout(__cityPendingTimer);
+    }
+    adBtn.classList.add('pending');
+    adBtn.textContent = 'CONFIRM? (5s)';
+    __cityPendingAction = {
+      btnEl: adBtn, cmd: cmd, label: label };
+    var remaining = 5;
+    __cityPendingTimer = setInterval(function() {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(__cityPendingTimer);
+        __cityPendingTimer = null;
+        adBtn.classList.remove('pending');
+        adBtn.textContent = label;
+        __cityPendingAction = null;
+      } else {
+        adBtn.textContent = 'CONFIRM? (' + remaining + 's)';
+      }
+    }, 1000);
+  };
+  adRow.appendChild(adInp);
+  adRow.appendChild(adBtn);
+  sec.appendChild(adRow);
+
+  return sec;
+}
+
+
 function showToast(opts) {
+  opts = opts || {};
   var stack = $('toast-stack');
+  if (!stack) return;  // toast-stack element not in DOM; silently no-op
   var t = document.createElement('div');
   t.className = 'toast';
   t.innerHTML =
@@ -6095,15 +8136,20 @@ function updateChoiceCountdown(msg) {
    dismiss.
    ════════════════════════════════════════════════════════════════════ */
 var mapModalOpen = false;
+var mapModalKind = 'ground';   // 'space' | 'ground' — tracked for resize re-render
 
 function openMapModal(kind) {
   // kind: 'space' | 'ground'
+  mapModalKind = kind;
   var ov     = $('map-modal-overlay');
   var modal  = $('map-modal');
   var title  = $('map-modal-title');
   var sub    = $('map-modal-sub');
   var legend = $('map-modal-legend');
+  var rail   = $('map-modal-tier-rail');
+  var exitStrip = $('map-modal-exits');
   if (!ov || !modal) return;
+  if (exitStrip) exitStrip.innerHTML = '';   // cleared each open; ground repopulates
 
   // Variant theming + header text
   modal.classList.toggle('variant-ground', kind === 'ground');
@@ -6117,6 +8163,7 @@ function openMapModal(kind) {
       '<span class="mml-item"><span class="mml-dot hostile"></span>HOSTILE</span>' +
       '<span class="mml-item"><span class="mml-dot friendly"></span>FRIENDLY / PLAYER</span>' +
       '<span class="mml-item"><span class="mml-dot neutral"></span>NEUTRAL / NPC</span>';
+    if (rail) rail.style.display = 'none';
   } else {
     title.textContent = '◉ SECTOR MAP';
     var region = $('g-map-region');
@@ -6126,11 +8173,41 @@ function openMapModal(kind) {
       '<span class="mml-item">◇ EXIT</span>' +
       '<span class="mml-item">◈ CONTESTED</span>' +
       '<span class="mml-item">■ LAWLESS</span>';
+    // F.MAP.3: tier switcher visible only when geometry is cached AND
+    // an AreaGeometry-aware renderer is available. Drop 4.2b: either
+    // MapView OR M3 satisfies the requirement (both support tier 1/2).
+    // Without geometry the modal falls back to the legacy clone-and-
+    // scale path, which has no tier concept.
+    if (rail) {
+      var hasGeomRendererForRail =
+        (typeof window.MapView === 'object') ||
+        (window.M3CompositionEngine && window.M3Adapter &&
+         typeof window.M3CompositionEngine.Tier1aBody === 'function');
+      rail.style.display = (window._sw_areaGeom && hasGeomRendererForRail)
+                         ? 'flex' : 'none';
+    }
+    _renderModalExitStrip();   // TD.CW_M3_CLICK_TO_WALK_LATERAL
   }
 
-  renderMapModal(kind);
+  // Show the overlay FIRST, then render. The modal body is
+  // display:none until `.show` flips it to flex; rendering before that
+  // means _renderModalViaM3 measures a 0×0 body and collapses the map
+  // to its minimum-size floor (the "tiny map in a huge modal" bug).
+  // We add `.show`, render once synchronously (layout is usually
+  // available immediately after the class flip), then re-render on the
+  // next two animation frames once the browser has definitely laid the
+  // flex body out — _renderModalViaM3 reads body.getBoundingClientRect()
+  // and sizes the map to fill it.
   ov.classList.add('show');
   mapModalOpen = true;
+  renderMapModal(kind);
+  // Re-render after layout settles so the map fills the real body size
+  // even if the first measure (same frame as the class flip) was short.
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      if (mapModalOpen) renderMapModal(kind);
+    });
+  });
 }
 
 function closeMapModal() {
@@ -6142,6 +8219,19 @@ function closeMapModal() {
   var body = $('map-modal-body');
   if (body) body.innerHTML = '';
 }
+
+// Re-render the open map modal when the window resizes so the map keeps
+// filling the available space (the SVG is sized in pixels at render time
+// from the modal body's measured box, so it doesn't reflow on its own).
+// Debounced to avoid thrashing during a drag-resize.
+var _mapModalResizeTimer = null;
+window.addEventListener('resize', function () {
+  if (!mapModalOpen) return;
+  if (_mapModalResizeTimer) clearTimeout(_mapModalResizeTimer);
+  _mapModalResizeTimer = setTimeout(function () {
+    if (mapModalOpen) renderMapModal(mapModalKind);
+  }, 150);
+});
 
 function mapModalBackdropClick(evt) {
   // [S60/P1 bug 3] Close if the click target is NOT inside the modal box.
@@ -6156,18 +8246,40 @@ function mapModalBackdropClick(evt) {
   }
 }
 
-// Render the expanded map by cloning the live mini-map SVG, padding the
-// viewBox so larger labels don't clip, scaling labels for readability,
-// and resolving label collisions by displacing the LABEL inside its room
-// group while keeping the dot at its true map position. Leader lines are
-// drawn from each shifted dot to its displaced label so spatial truth
-// is preserved (unlike the earlier rect-shift approach which moved the
-// room icon itself).
+// Render the expanded map. F.MAP.3 (May 5 2026) added a branch: when
+// the new MapView renderer has cached an AreaGeometry for the player's
+// current area (window._sw_areaGeom), render the modal directly via
+// MapView.render at modal scale (showRooms="full", full bounds, district
+// labels visible). When no AreaGeometry is cached (player is in a
+// non-covered area), fall back to the legacy clone-and-scale path
+// preserved below — labels collide-resolve, hairlines bump, etc.
+//
+// Tier 1 (default) crops to the area's full bounds with district labels
+// off. Tier 2 zooms out further (city overview) with district labels on
+// and rooms collapsed to dots. setMapModalTier(tier) re-renders.
+
+var mapModalCurrentTier = 1;  // F.MAP.3 — tracks which tier is active
+
 function renderMapModal(kind) {
   var body = $('map-modal-body');
   if (!body) return;
   body.innerHTML = '';
 
+  // F.MAP.3: ground + cached AreaGeometry → AreaGeometry-aware path
+  // (M3 if 4.2b flag on, else legacy MapView). Drop 4.2b broadened
+  // this gate: previously required `MapView` to enter — now M3 alone
+  // is sufficient because _renderMapModalV2's M3 branch doesn't touch
+  // MapView. Either renderer being available is enough.
+  var hasGeomRenderer = (typeof window.MapView === 'object') ||
+                        (window.M3CompositionEngine && window.M3Adapter &&
+                         typeof window.M3CompositionEngine.Tier1aBody === 'function');
+  if (kind === 'ground' && window._sw_areaGeom && hasGeomRenderer) {
+    _renderMapModalV2(body, window._sw_areaGeom, mapModalCurrentTier);
+    _updateModalTierButtons(mapModalCurrentTier);
+    return;
+  }
+
+  // ── Legacy path: clone-and-scale the live mini-map SVG ──────────
   var srcId = (kind === 'space') ? 's-radar-svg' : 'g-area-map-svg';
   var src = document.getElementById(srcId);
   if (!src) {
@@ -6258,6 +8370,451 @@ function renderMapModal(kind) {
   }
 
   body.appendChild(clone);
+}
+
+// ── F.MAP.3 helpers (modal renderer for AreaGeometry-covered areas) ──
+
+// Render the modal SVG via the F.MAP.1 MapView renderer at the given
+// tier. Tier 1 = district view (full bounds, room footprints visible,
+// district labels off — labels at tier 2). Tier 2 = city overview
+// (rooms collapse to dots, district labels + landmarks pop).
+//
+// DROP 4.2b (Tier 1 #4): added an M3 SPA composition-engine branch
+// gated by window._sw_useM3ModalRenderer (default TRUE). On success,
+// uses M3CompositionEngine.Tier1aBody (bare SVG; modal supplies chrome)
+// with tier 1/2 LOD, and installs scroll-zoom + click-drag pan
+// handlers on the inner SVG (matches the controls hint in the chrome
+// bottom bar). Hides the legacy #map-modal-legend element because
+// HolocartaFrame includes its own legend. On any failure, falls
+// through to the legacy MapView branch unchanged. Rollback:
+//   window._sw_useM3ModalRenderer = false; renderMapModal('ground');
+function _renderMapModalV2(body, geom, tier) {
+  // ─── M3 branch (Drop 4.2b) ────────────────────────────────────
+  var m3Ready = (window._sw_useM3ModalRenderer !== false) &&
+                window.M3CompositionEngine &&
+                window.M3Adapter &&
+                typeof window.M3CompositionEngine.Tier1aBody === 'function' &&
+                typeof window.M3Adapter.fromAreaGeometry === 'function';
+  if (m3Ready) {
+    var rendered = _renderModalViaM3(body, geom, tier);
+    if (rendered) {
+      body.setAttribute('data-renderer', 'm3');
+      return;
+    }
+    // Fall through to legacy on failure (the modal body was cleared
+    // by _renderModalViaM3 on failure; legacy renderer rebuilds).
+  }
+
+  // ─── Legacy MapView branch (preserved) ────────────────────────
+  // Build a fresh SVG element inside the modal body. We don't reuse
+  // the mini's SVG — that's tier-1 cropped to the player. The modal
+  // shows the WHOLE area at modal scale.
+  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width',  '100%');
+  svg.setAttribute('height', '100%');
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  body.appendChild(svg);
+
+  // Compute viewBox + render opts based on tier.
+  var b = geom.bounds || {x_min: 0, y_min: 0, x_max: 10, y_max: 10};
+  var vbX = b.x_min, vbY = b.y_min;
+  var vbW = b.x_max - b.x_min;
+  var vbH = b.y_max - b.y_min;
+
+  var opts;
+  if (tier === 2) {
+    // City overview — full area, dots, district labels visible
+    opts = {
+      viewBox:            [vbX, vbY, vbW, vbH],
+      zoomTier:           2,
+      showRooms:          'dot',
+      showDistrictLabels: true,
+      showLabels:         true,
+      pulse:              true,
+    };
+  } else {
+    // Tier 1 (default) — full district, room footprints, no district labels
+    opts = {
+      viewBox:            [vbX, vbY, vbW, vbH],
+      zoomTier:           1,
+      showRooms:          'full',
+      showDistrictLabels: false,
+      showLabels:         true,
+      pulse:              true,
+    };
+  }
+
+  try {
+    window.MapView.render(svg, geom, opts);
+    body.setAttribute('data-renderer', 'legacy');
+    // Restore the legacy legend (M3 branch hides it; legacy uses it)
+    var legacyLegend = $('map-modal-legend');
+    if (legacyLegend) legacyLegend.style.display = '';
+  } catch (e) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('renderMapModalV2 failed:', e);
+    }
+  }
+}
+
+// ── 4.2b helper: M3 modal render path ───────────────────────────────
+// Builds a bare M3 Tier1aBody SVG sized to the modal body, mounts
+// it, attaches scroll-zoom + click-drag pan handlers, and hides the
+// legacy #map-modal-legend (HolocartaFrame includes its own legend).
+// Returns true on success, false on any failure (caller falls back
+// to legacy MapView). On failure, the modal body is cleared so the
+// caller can rebuild without nested duplicate output.
+function _renderModalViaM3(body, geom, tier) {
+  // Clear and measure. The map fills the modal body. If the body
+  // measures small (e.g. rendered in the same frame the overlay became
+  // visible, before flex layout flushed), fall back to the modal's own
+  // box, then to the viewport — never the hard floor on a real screen,
+  // which is what produced the tiny-map-in-a-huge-modal bug.
+  body.innerHTML = '';
+  var rect = body.getBoundingClientRect();
+  var w = Math.floor(rect.width);
+  var h = Math.floor(rect.height);
+  // A real modal body is ~80vw × ~80vh. If we measured much smaller, the
+  // layout hasn't settled — borrow the modal's box (minus the ~58px head)
+  // or, failing that, the viewport. The 200px threshold is well below any
+  // real modal size but above the 0×0 / floor case.
+  if (w < 200 || h < 200) {
+    var modalEl = document.getElementById('map-modal');
+    var mrect = modalEl ? modalEl.getBoundingClientRect() : null;
+    if (mrect && mrect.width >= 200 && mrect.height >= 200) {
+      w = Math.floor(mrect.width);
+      h = Math.floor(mrect.height) - 58;   // approx .map-modal-head height
+    } else {
+      w = Math.floor((window.innerWidth  || 1024) * 0.9);
+      h = Math.floor((window.innerHeight || 768)  * 0.8);
+    }
+  }
+  // Final guard — keep a sane minimum if everything above failed.
+  w = Math.max(320, w);
+  h = Math.max(240, h);
+
+  var data;
+  try {
+    data = window.M3Adapter.fromAreaGeometry(geom);
+  } catch (eAdapt) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('M3Adapter.fromAreaGeometry threw in modal:', eAdapt);
+    }
+    return false;
+  }
+  if (!data) return false;
+
+  // Resolve palette (same heuristic as renderMapV2)
+  var paletteKey = 'tatooine';
+  if (geom.palette && typeof geom.palette === 'string') {
+    paletteKey = geom.palette;
+  } else if (typeof geom.area_key === 'string' &&
+             geom.area_key.indexOf('coruscant') === 0) {
+    paletteKey = 'coruscant';
+  }
+  var palette = window.M3Palettes && typeof window.M3Palettes.getPalette === 'function'
+                ? window.M3Palettes.getPalette(paletteKey)
+                : null;
+  if (!palette) return false;
+
+  // Per the single-chrome design: the modal supplies its own header
+  // (◉ SECTOR MAP · tier rail · close) and legend, so we render the bare
+  // Tier1aBody SVG — NOT MapRenderer, which would wrap it in a second
+  // HolocartaFrame device (its own title bar + legend) nested inside the
+  // modal. Tier1aBody fills the full measured body; no 64px chrome inset.
+  var bodySvg;
+  try {
+    bodySvg = window.M3CompositionEngine.Tier1aBody({
+      data:    data,
+      palette: palette,
+      tier:    tier === 2 ? 2 : 1,    // modal supports tiers 1/2 today
+      time:    _envTime(),             // Phase-1 substrate: server-emitted time-of-day
+      weather: _envWeather(),          // Phase-1 substrate: server-emitted weather
+      width:   w,
+      height:  h,
+    });
+  } catch (eRender) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('M3 modal render threw:', eRender);
+    }
+    return false;
+  }
+  if (!bodySvg) return false;
+
+  body.appendChild(bodySvg);
+
+  // The modal's own #map-modal-legend is the single legend now (the inner
+  // HolocartaFrame legend is gone). Make sure it's visible — earlier code
+  // hid it when the nested frame carried its own.
+  var modalLegend = $('map-modal-legend');
+  if (modalLegend) modalLegend.style.display = '';
+
+  // Install scroll-zoom + click-drag pan directly on the body SVG. The
+  // zoom callback re-labels at a density tied to the zoom level (level-of-
+  // detail) so zooming in reveals more room names — not just bigger ones.
+  _installModalZoomPan(bodySvg, function (scale) {
+    var z = (scale > 0) ? (1 / scale) : 1;
+    try { _labelRoomsForNavigation(bodySvg, geom, { zoom: z, viewScale: scale }); }
+    catch (e) {}
+  });
+
+  // Drop 4.2c-modal: the substrate's room cells (L_SubstrateRooms, tier 1)
+  // carry data-room-id but were never made interactive in the modal — the
+  // mini's decorator + travel handler are bound to #g-area-map-svg only, so
+  // the big map's cells were inert (no click-to-navigate). Decorate the
+  // modal's adjacent cells (rm-adj + data-travel-dir) and bind a travel
+  // handler to THIS svg so clicking a neighbouring room walks there.
+  try {
+    _decorateMiniForClickToWalk(bodySvg, geom, window._sw_areaMap);
+  } catch (eDecorate) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('modal click-to-walk decorate failed:', eDecorate);
+    }
+  }
+  _installModalTravelHandler(bodySvg);
+
+  // Room-name labels: hover tooltip on every cell + always-on labels on the
+  // current room and the rooms you can walk to (navigation-first design). The
+  // zoom callback above expands this set as the player zooms in.
+  try {
+    _labelRoomsForNavigation(bodySvg, geom, { zoom: 1, viewScale: 1 });
+  } catch (eLbl) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('modal room labels failed:', eLbl);
+    }
+  }
+
+  return true;
+}
+
+// ── TD.CW_M3_CLICK_TO_WALK_LATERAL — exit strip for the SECTOR MAP modal ──
+// The on-map click-to-walk decoration (_decorateMiniForClickToWalk) only
+// attaches data-travel-dir to rooms that render a marker; L_SubstrateRooms
+// skips street/hub rooms, so an exit whose destination is a hub (e.g. Bay 94
+// Entrance -> spaceport row) had NO clickable target and the player could get
+// stuck with only down/up. This strip is built from the cached current-room
+// exits (lastExits, set on every look/move) and always offers every exit,
+// marker or not. Mirrors the marker travel handler: issue the direction, then
+// close the modal so the player drops into the live view in the new room.
+// (If you'd rather keep the modal open for chained navigation, drop the
+// closeMapModal() call below.)
+function _renderModalExitStrip() {
+  var strip = $('map-modal-exits');
+  if (!strip) return;
+  strip.innerHTML = '';
+  // NB: do NOT guard on mapModalOpen here — openMapModal() calls this from the
+  // ground branch BEFORE it sets mapModalOpen=true, so a guard would bail every
+  // time. The strip simply mirrors the current room's exits; if lastExits is
+  // empty it renders nothing and :empty CSS hides it (the space modal case).
+  var exits = Array.isArray(lastExits) ? lastExits : [];
+  exits.forEach(function (x) {
+    if (!x || !x.dir) return;
+    var dir = String(x.dir);
+    var label = (x.label && x.label.toLowerCase() !== dir.toLowerCase()) ? x.label : '';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'mm-exit-btn';
+    btn.textContent = dir.toUpperCase() + (label ? ' \u00b7 ' + label : '');
+    btn.setAttribute('data-cmd', dir);
+    btn.title = 'Go ' + (x.label || dir);
+    btn.addEventListener('click', function () {
+      sendCmd(dir);
+      try { closeMapModal(); } catch (e) {}
+    });
+    strip.appendChild(btn);
+  });
+}
+
+// ── 4.2c-modal helper: click-to-travel on the SECTOR MAP modal SVG ──
+// Mirrors the mini's installAreaMapTravelHandler, but bound to the modal's
+// own SVG (the mini handler listens on #g-area-map-svg only). On a click
+// that lands on an adjacent room cell (class rm-adj, set by
+// _decorateMiniForClickToWalk), it sends the travel direction and closes the
+// modal so the player drops back into the live view already in the new room.
+// Idempotent per-SVG (tagged with _travelHandlerInstalled).
+function _installModalTravelHandler(svg) {
+  if (!svg || svg._travelHandlerInstalled) return;
+  svg._travelHandlerInstalled = true;
+  svg.addEventListener('click', function(e) {
+    var node = e.target;
+    while (node && node !== svg) {
+      if (node.classList && node.classList.contains('rm-adj')) {
+        var dir = node.getAttribute('data-travel-dir');
+        if (dir) {
+          e.stopPropagation();              // don't also pan / close on backdrop
+          if (typeof sendCmd === 'function') sendCmd(dir);
+          if (typeof closeMapModal === 'function') closeMapModal();
+        }
+        return;
+      }
+      node = node.parentNode;
+    }
+  }, true);                                  // capture, like the mini handler
+}
+
+// ── 4.2b helper: scroll-zoom + click-drag pan on an SVG ─────────────
+// Mutates the SVG's viewBox in response to wheel and mousedown/move/up.
+// Designed to be idempotent — re-attaching to the same SVG is harmless
+// (we tag the element with `_swZoomPanInstalled`). Bounds:
+//   - zoom factor clamped to [0.25, 4.0] of the original
+//   - pan clamped so the view always overlaps the original viewBox
+//     (no flying off into infinity)
+function _installModalZoomPan(svg, onZoom) {
+  if (!svg || svg._swZoomPanInstalled) return;
+  svg._swZoomPanInstalled = true;
+  // Debounce re-label requests so we relabel once the wheel settles, not on
+  // every tick. `onZoom(scale)` receives the viewBox-shrink ratio (≤1).
+  var _zoomRelabelTimer = null;
+
+  var vbAttr = svg.getAttribute('viewBox');
+  if (!vbAttr) return;
+  var parts = vbAttr.split(/\s+/).map(parseFloat);
+  if (parts.length !== 4 || parts.some(isNaN)) return;
+
+  // Store the ORIGINAL viewBox for clamping zoom + reset.
+  var orig = { x: parts[0], y: parts[1], w: parts[2], h: parts[3] };
+  // Current state (mutates with wheel/pan).
+  var cur  = { x: orig.x, y: orig.y, w: orig.w, h: orig.h };
+
+  function applyViewBox() {
+    svg.setAttribute('viewBox',
+      cur.x + ' ' + cur.y + ' ' + cur.w + ' ' + cur.h);
+  }
+
+  // ── Zoom (wheel) ──────────────────────────────────────────────
+  // Standard "zoom around cursor" — keep the world point under the
+  // cursor stationary while w/h shrink or grow.
+  svg.addEventListener('wheel', function(ev) {
+    ev.preventDefault();
+    var rect = svg.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    // Cursor position in SVG-local pixel coords
+    var cx = ev.clientX - rect.left;
+    var cy = ev.clientY - rect.top;
+    // Same point in current viewBox world coords
+    var wx = cur.x + (cx / rect.width)  * cur.w;
+    var wy = cur.y + (cy / rect.height) * cur.h;
+    // Zoom step — wheel delta is direction; magnitude is fixed
+    var step = ev.deltaY < 0 ? (1 / 1.15) : 1.15;
+    var newW = cur.w * step;
+    var newH = cur.h * step;
+    // Clamp: never zoom out beyond original, never zoom in past 1/4 orig
+    var minScale = 0.25, maxScale = 1.0;
+    var scale = newW / orig.w;
+    if (scale < minScale) { newW = orig.w * minScale; newH = orig.h * minScale; }
+    if (scale > maxScale) { newW = orig.w * maxScale; newH = orig.h * maxScale; }
+    // Re-center on cursor (the (wx,wy) world point stays under (cx,cy))
+    cur.w = newW;
+    cur.h = newH;
+    cur.x = wx - (cx / rect.width)  * cur.w;
+    cur.y = wy - (cy / rect.height) * cur.h;
+    _clampPan(cur, orig);
+    applyViewBox();
+    // Zoom level changed → ask the caller to re-evaluate label density
+    // (level-of-detail). Debounced; pan (below) deliberately doesn't fire it.
+    if (typeof onZoom === 'function') {
+      if (_zoomRelabelTimer) clearTimeout(_zoomRelabelTimer);
+      _zoomRelabelTimer = setTimeout(function () {
+        try { onZoom(cur.w / orig.w); } catch (e) {}
+      }, 110);
+    }
+  }, { passive: false });
+
+  // ── Pan (mousedown + mousemove + mouseup) ─────────────────────
+  var dragging = false;
+  var dragStart = null;
+  svg.addEventListener('mousedown', function(ev) {
+    if (ev.button !== 0) return;  // left click only
+    dragging = true;
+    dragStart = { x: ev.clientX, y: ev.clientY, vbX: cur.x, vbY: cur.y };
+    ev.preventDefault();
+  });
+  // Listen on window so the drag continues even if the cursor leaves
+  // the SVG (matches every map app's pan behavior — Google Maps, etc.).
+  function onMove(ev) {
+    if (!dragging || !dragStart) return;
+    var rect = svg.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    var dx = (ev.clientX - dragStart.x) * (cur.w / rect.width);
+    var dy = (ev.clientY - dragStart.y) * (cur.h / rect.height);
+    // Drag direction is inverted: dragging right moves the view LEFT
+    // (the world slides under the cursor).
+    cur.x = dragStart.vbX - dx;
+    cur.y = dragStart.vbY - dy;
+    _clampPan(cur, orig);
+    applyViewBox();
+  }
+  function onUp() { dragging = false; dragStart = null; }
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup',   onUp);
+  // Mark the cursor as grab-cursor when over the svg
+  svg.style.cursor = 'grab';
+  svg.addEventListener('mousedown', function() { svg.style.cursor = 'grabbing'; });
+  window.addEventListener('mouseup', function() {
+    if (svg.style.cursor === 'grabbing') svg.style.cursor = 'grab';
+  });
+
+  // Store handlers on the svg so a future tear-down (e.g. modal close)
+  // could remove them. Not currently called — modal close clears
+  // innerHTML which detaches the svg; window-bound listeners go stale
+  // but harmless (they bail at `!dragging` immediately).
+  svg._swZoomPanCleanup = function() {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup',   onUp);
+  };
+}
+
+// Helper: clamp the pan so the visible viewBox always overlaps the
+// original area. Prevents the player from panning off into emptiness.
+function _clampPan(cur, orig) {
+  // Allow the viewBox to slide up to (origW - curW) in either direction
+  // from the original x — i.e. the visible window can travel within the
+  // original bounds. When zoomed to 100% (cur.w == orig.w), there's no
+  // room to pan; clamp pins both axes to origin.
+  var slackX = Math.max(0, orig.w - cur.w);
+  var slackY = Math.max(0, orig.h - cur.h);
+  if (cur.x < orig.x)            cur.x = orig.x;
+  if (cur.x > orig.x + slackX)   cur.x = orig.x + slackX;
+  if (cur.y < orig.y)            cur.y = orig.y;
+  if (cur.y > orig.y + slackY)   cur.y = orig.y + slackY;
+}
+
+// Tier switcher click handler — re-renders the modal at the new tier.
+// Also used by tests to flip tiers programmatically.
+function setMapModalTier(tier) {
+  if (tier !== 1 && tier !== 2) return;
+  if (mapModalCurrentTier === tier) return;
+  mapModalCurrentTier = tier;
+  // Only re-render if the modal is open AND an AreaGeometry-aware
+  // renderer is available. Drop 4.2b: M3 satisfies this alongside
+  // MapView. Legacy clone-and-scale mode has no tier concept.
+  if (!mapModalOpen) return;
+  if (!window._sw_areaGeom) return;
+  var hasGeomRendererForTier =
+    (typeof window.MapView === 'object') ||
+    (window.M3CompositionEngine && window.M3Adapter &&
+     typeof window.M3CompositionEngine.Tier1aBody === 'function');
+  if (!hasGeomRendererForTier) return;
+  var body = $('map-modal-body');
+  if (!body) return;
+  body.innerHTML = '';
+  _renderMapModalV2(body, window._sw_areaGeom, tier);
+  _updateModalTierButtons(tier);
+}
+
+// Reflect current tier on the rail buttons (active highlight).
+function _updateModalTierButtons(tier) {
+  var btns = document.querySelectorAll('#map-modal-tier-rail .mm-tier-btn');
+  if (!btns) return;
+  btns.forEach(function(b) {
+    var t = parseInt(b.getAttribute('data-tier'), 10);
+    b.classList.toggle('active', t === tier);
+  });
+}
+
+// F.MAP.3: expose for the smoke harness + in-browser debug.
+if (typeof window !== 'undefined') {
+  window.setMapModalTier = setMapModalTier;
 }
 
 // Iteratively shift label local y-positions to remove AABB overlaps.
@@ -7566,447 +10123,303 @@ function isDuplicateOfRecentPoseEvent(rawText) {
 // suppresses the redundant text after the typed event arrives. Telnet
 // sees only the text (combat_resolution_event is dropped server-side
 // by send_json's protocol gate).
-var combatEventFingerprints = [];  // [{sig, ts}, ...]
-var COMBAT_DEDUP_WINDOW_MS = 250;
+/* ════════════════════════════════════════════════════════════════════
+   DROP 4.4 — D' inspector extracted to /static/spa/m3_combat_inspector.js.
 
-function recordCombatEventFingerprint(text) {
-  if (!text) return;
-  var sig = (text + '').replace(/\s+/g, ' ').trim().slice(0, 80).toLowerCase();
-  if (!sig) return;
-  combatEventFingerprints.push({ sig: sig, ts: Date.now() });
-  var cutoff = Date.now() - COMBAT_DEDUP_WINDOW_MS;
-  while (combatEventFingerprints.length > 0 && combatEventFingerprints[0].ts < cutoff) {
-    combatEventFingerprints.shift();
-  }
+   The previous in-line block (Drop D' + Drop 4.3 markers) is now an SPA
+   module. This block keeps two delegator functions because their names
+   are called from elsewhere in client.html:
+     · handleCombatResolutionEvent — called by the WS message router
+       (case 'combat_resolution_event' below).
+     · isDuplicateOfRecentCombatEvent — called by the legacy pose-text
+       suppressor where the parallel text broadcast is dedup'd against
+       any recent structured event.
+   Forwarding instead of renaming the call sites keeps the surface area
+   of this drop tightly scoped: one new SPA module, two thin delegators,
+   one init() call, zero behavior change.
+
+   The window._sw_* aliases are preserved for browser-console use and
+   for any out-of-band tooling that latched onto them; they now point
+   at the module exports rather than the file-local symbols.
+
+   Drop 4.3's extraction markers (DROP-D'-TEST-EXTRACT-START / END) are
+   gone — the regression suite now loads m3_combat_inspector.js directly
+   via the existing spa_dom_harness, the same way the rest of the m3_*
+   modules are tested.
+   ════════════════════════════════════════════════════════════════════ */
+M3CombatInspector.init({
+  escapeHtml:        escapeHtml,
+  stripAnsi:         stripAnsi,
+  appendEvent:       appendEvent,
+  rememberActorName: rememberActorName,
+  // lastHud is reassigned on every HUD update, so we pass a getter
+  // (closing over the binding) rather than a snapshot value.
+  getLastHud:        function() { return lastHud; },
+});
+
+/* DROP 4.5 — M3CombatTheater bound but not yet wired to live state.
+   This module ships HUD-chrome LEGO pieces (right-rail components +
+   bottom action strip with the bug-fix-sprint corrections from the
+   May 26 design review). The existing combat-strip HUD remains in
+   place; M3CombatTheater is the scaffold for the eventual swap-in. */
+M3CombatTheater.init({
+  escapeHtml: escapeHtml,
+});
+
+/* DROP 4.6 — M3Sheet bound but not yet wired to the +sheet command.
+   This module ships the character-sheet renderer ported from
+   map_v3/sheet-v2.jsx with the bug-fix-sprint corrections
+   (B3 era-contamination, B4 wound ladder, H4 Force panel,
+   H5 FP without /max, L3 wound strings, L5 TEY VOSS uppercase).
+   The existing sheet rendering in client.html stays in place; this
+   module is the LEGO piece for the eventual swap-in. */
+M3Sheet.init({
+  escapeHtml: escapeHtml,
+});
+
+/* DROP 4.7 — M3Holocron bound but not yet wired to a +holocron command.
+   This module ships the in-game lore browser ported from
+   map_v3/holocron.jsx. B3-clean: the demo fixture is the Hutt Cartel
+   page in Clone-Wars-era framing (Republic + CIS only, no GCW-era
+   faction references; "Hutt Empire successor" in the founded-date
+   stat is a ~25,000-BBY historical lore reference, direct from the
+   source — covered by the existing era-scrub allowlist).
+   The eventual integration: clicking a noun in the chat / sheet /
+   holonet opens a HolocronModal scoped to that entry. */
+M3Holocron.init({
+  escapeHtml: escapeHtml,
+});
+
+/* DROP 4.8 — M3MapNavigator bound but not yet wired to a +map command.
+   This module ships the interactive zoom/pan/tier orchestrator ported
+   from map_v3/map-navigator.jsx. First SPA module that owns runtime
+   state: callers invoke M3MapNavigator.create(p, hooks) once, get back
+   a handle with .element / .jumpTo / .closeHolocron / .getState /
+   .destroy. Tier-body renderers supplied via hooks.getTierRenderer DI
+   seam — production '1a' wires to M3CompositionEngine.Tier1aBody; the
+   other six tier renderers (4c/4a/3/2/1b/0) are caller-provided and
+   land in their own future drops. Holocron toggle integrates with
+   M3Holocron.buildHolocronModal from Drop 4.7. */
+M3MapNavigator.init({
+  escapeHtml: escapeHtml,
+});
+
+/* DROP 4.9 — M3Cockpit bound but not yet wired to a space-combat surface.
+   This module ships the cockpit flight console renderer ported from
+   map_v3/cockpit.jsx. Clone-Wars-era demo fixtures (Vulture Droid
+   target / CIS faction tags / Geonosian signatures / Tatooine low orbit).
+   The action strip consumes M3CombatTheater.buildActionButton via DI;
+   falls back to a minimal local renderer if M3CombatTheater isn't
+   loaded. The eventual integration: when the player is aboard a ship
+   and combat starts, the SPA can swap from the standard ground HUD
+   to the cockpit view. */
+M3Cockpit.init({
+  escapeHtml: escapeHtml,
+});
+
+/* DROP 4.10 — M3Holonet bound but not yet wired to a +holonet command.
+   This module ships the Holonet news/world-state surface ported from
+   map_v3/holonet.jsx. Two callable surfaces: a single-line ticker
+   marquee (suitable for shell sidebar embed) and a full popup browser
+   (modal like Holocron). The browser hosts a featured story + 8-row
+   live feed + category filter + world-events / faction-movements /
+   director-AI right rail. Clone-Wars-era demo fixtures (Ryloth /
+   Geonosis / CIS / Republic / Hutt Cartel / Bail Organa / 20 BBY).
+   FactionMovementsPanel consumes M3AssetsIcons.FACTION_ICONS with
+   defensive fallback. */
+M3Holonet.init({
+  escapeHtml: escapeHtml,
+});
+
+/* DROP 4.11 — M3SkillCheck bound but not yet wired to a +skill command.
+   This module ships the skill-check ribbon ported from
+   map_v3/skill-check.jsx. Two surfaces (UNOPPOSED, OPPOSED) stacked
+   in a showcase view, with full scene context (room, setup pose,
+   dice math, outcome pose, system effects). Demo fixtures are
+   Mos Eisley Tey Voss scenes (Streetwise at Chalmun's, Sneak vs
+   Search at the spaceport customs corridor). Wuher / Greedo flavor
+   references preserved from source per Q1 source-fidelity policy.
+   Self-contained — no DI beyond optional escapeHtml. The eventual
+   integration: when the engine emits a skill_check_event, the SPA
+   can render a single UnopposedCheck or OpposedCheck panel rather
+   than the full stacked showcase. */
+M3SkillCheck.init({
+  escapeHtml: escapeHtml,
+});
+
+/* DROP 4.12b — M3AssembledClient bound but not yet wired to a production
+   route. This is the integration target — the full field-kit shell that
+   composes every prior m3_* module (sheet, holocron, holonet, map nav).
+   The shell is stateful: it owns the popup state machine (sheet /
+   holocron / holonet / map) and the right-rail cartridge selection
+   (MAP / INV / JOBS / LORE). All dependency modules are consumed via
+   defensive DI: if a module isn't loaded, the assembled-client renders
+   a labeled fallback rather than crashing. The mini-map cartridge
+   consumes the same getTierRenderer seam as M3MapNavigator (Drop 4.8);
+   when the tier-body renderer batch ships, both consumers wire to the
+   same lookup. Eventual integration: replace the legacy renderMapV2()
+   shell with M3AssembledClient.create(p, hooks) and let the popup
+   layer carry the +sheet / +holocron / +map / +holonet command flows. */
+M3AssembledClient.init({
+  escapeHtml: escapeHtml,
+});
+
+/* DROP 4.13 (Batch 1, outer-tier triplet) — tier-body renderers
+   slotting into the getTierRenderer DI seam used by both M3MapNavigator
+   (Drop 4.8) and M3AssembledClient.MiniMap (Drop 4.12b). Three modules:
+
+     · M3TierGalaxyBody   — Tier 4c galaxy view (CW era 20 BBY)
+     · M3TierSystemBody   — Tier 4a Tatooine system view
+     · M3TierPlanetBody   — Tier 3 Tatooine planet view
+
+   All three are pure SVG generators. M3TierPlanetBody consumes
+   M3CompositionEngine.HolocartaFrame and M3AssetsOverlays.OV_TimeOfDay
+   via defensive DI hooks; missing dependencies degrade to labeled
+   fallbacks rather than crashing. The remaining tier-body renderers
+   (Tier 2 city, Tier 1b wilderness, Tier 0 interior) ship in Drop 4.14.
+
+   These modules are scaffold-only — no production code routes the
+   navigator's getTierRenderer hook to them yet. That decision-drop
+   lands separately once the full tier-body lane is delivered. */
+if (typeof window !== 'undefined' && window.M3TierGalaxyBody) {
+  // M3TierGalaxyBody has no init dependencies; namespace is ready.
+}
+if (typeof window !== 'undefined' && window.M3TierSystemBody) {
+  // M3TierSystemBody has no init dependencies; namespace is ready.
+}
+if (typeof window !== 'undefined' && window.M3TierPlanetBody) {
+  // M3TierPlanetBody has no init dependencies; namespace is ready.
 }
 
-function isDuplicateOfRecentCombatEvent(rawText) {
-  if (!rawText) return false;
-  var sig = (stripAnsi(rawText) + '').replace(/\s+/g, ' ').trim().slice(0, 80).toLowerCase();
-  if (!sig) return false;
-  var cutoff = Date.now() - COMBAT_DEDUP_WINDOW_MS;
-  for (var i = combatEventFingerprints.length - 1; i >= 0; i--) {
-    var fp = combatEventFingerprints[i];
-    if (fp.ts < cutoff) break;
-    if (sig.indexOf(fp.sig) !== -1 || fp.sig.indexOf(sig) !== -1) return true;
-  }
-  return false;
+/* DROP 4.14 (Batch 2, inner-tier triplet) — the remaining three
+   tier-body renderers, completing the getTierRenderer DI lane that
+   M3MapNavigator (Drop 4.8) and M3AssembledClient.MiniMap (Drop 4.12b)
+   consume. Three modules:
+
+     · M3TierCityBody       — Tier 2 Mos Eisley city overview
+     · M3TierWildernessBody — Tier 1b Dune Sea wilderness region
+     · M3TierInteriorBody   — Tier 0 Chalmun's Cantina interior
+
+   All three are pure SVG generators following the Drop 4.13 idiom.
+   Each consumes M3CompositionEngine.HolocartaFrame (+ CompassRose /
+   L_Atmosphere where relevant) and M3AssetsOverlays helpers via
+   defensive DI hooks; missing dependencies degrade to labeled
+   fallbacks rather than crashing.
+
+   With this drop the full seven-tier ladder (4c / 4a / 3 / 2 / 1b /
+   1a / 0) has a renderer. Like Drop 4.13 these modules are scaffold-
+   only — no production code routes the navigator's getTierRenderer
+   hook to them yet. The production cutover (wiring getTierRenderer to
+   a lookup returning these builders) is the next decision-drop. */
+if (typeof window !== 'undefined' && window.M3TierCityBody) {
+  // M3TierCityBody has no init dependencies; namespace is ready.
+}
+if (typeof window !== 'undefined' && window.M3TierWildernessBody) {
+  // M3TierWildernessBody has no init dependencies; namespace is ready.
+}
+if (typeof window !== 'undefined' && window.M3TierInteriorBody) {
+  // M3TierInteriorBody has no init dependencies; namespace is ready.
+}
+
+/* DROP 4.15 (production cutover) — M3TierRegistry wires the seven
+   tier-body renderers into the getTierRenderer DI seam that
+   M3MapNavigator (Drop 4.8) and M3AssembledClient.MiniMap (Drop 4.12b)
+   consume. With this drop, a caller that invokes M3MapNavigator.create(p,
+   {}) — passing NO getTierRenderer — gets real tier bodies across the
+   whole ladder instead of "TIER RENDERER NOT WIRED" placeholders,
+   because both consumers now fall back to
+   window.M3TierRegistry.getTierRenderer when no hook is supplied.
+
+   The registry resolves:
+     4c → M3TierGalaxyBody    4a → M3TierSystemBody    3  → M3TierPlanetBody
+     2  → M3TierCityBody      1b → M3TierWildernessBody 0 → M3TierInteriorBody
+     1a → M3CompositionEngine.Tier1aBody (live AreaGeometry via args.data)
+
+   This does NOT touch the live mini-map render path (renderMapV2, which
+   draws only the current 1a district straight from Tier1aBody + the
+   M3Adapter). renderMapV2 stays exactly as-is; the navigator/assembled-
+   client are still scaffold entry points (.create() is not yet called in
+   production) — but they are now FULLY FUNCTIONAL when invoked, which is
+   the cutover this drop delivers. Routing renderMapV2's full-screen map
+   button to M3MapNavigator.create is a future UI-wiring drop. */
+if (typeof window !== 'undefined' && window.M3TierRegistry) {
+  // M3TierRegistry is a pure lookup; no init dependencies. Both
+  // M3MapNavigator and M3AssembledClient pick it up lazily as the
+  // default getTierRenderer at .create() time.
 }
 
 function handleCombatResolutionEvent(msg) {
-  if (!msg) return;
-  // Schema sanity guard — refuse to render mismatched protocol versions
-  // rather than show wrong data. The factory currently emits
-  // schema_version=1; bump on breaking change.
-  if (msg.schema_version != null && msg.schema_version !== 1) {
-    return;  // silent drop; logging here would just spam
-  }
-
-  // Compute viewer role for default expand state.
-  var myId = (lastHud && lastHud.character_id) || null;
-  var actorId  = msg.actor  && msg.actor.id;
-  var targetId = msg.target && msg.target.id;
-  var role = 'bystander';
-  if (myId != null) {
-    if (actorId === myId)       role = 'self';
-    else if (targetId === myId) role = 'target';
-  }
-
-  // Track names so the pose classifier knows them.
-  if (msg.actor  && msg.actor.name)  rememberActorName(msg.actor.name);
-  if (msg.target && msg.target.name) rememberActorName(msg.target.name);
-
-  appendEvent({
-    t: 'combat-result',
-    payload: msg,
-    role: role,
-    expanded: (role === 'self' || role === 'target'),
-  });
-
-  // Fingerprint the legacy two-line content for dedup. The engine still
-  // emits the existing story line + mechanics line via broadcast_to_room
-  // for telnet compatibility; on WebSocket sessions we suppress those
-  // when the structured event arrived first.
-  recordCombatEventFingerprint(composeCombatHeadline(msg));
-  recordCombatEventFingerprint(composeCombatMechline(msg));
+  return M3CombatInspector.handleCombatResolutionEvent(msg);
 }
 
-function combatVerbForSkill(skill) {
-  var s = (skill || '').toLowerCase();
-  if (s.indexOf('lightsaber') !== -1) return 'strikes';
-  if (s.indexOf('blaster') !== -1 || s.indexOf('gunnery') !== -1) return 'blasts';
-  if (s.indexOf('brawling') !== -1) return 'punches';
-  if (s.indexOf('thrown') !== -1)   return 'throws at';
-  if (s.indexOf('melee') !== -1)    return 'attacks';
-  if (s.indexOf('missile') !== -1)  return 'fires at';
-  if (s.indexOf('vehicle') !== -1)  return 'fires at';
-  return 'attacks';
+function isDuplicateOfRecentCombatEvent(rawText) {
+  return M3CombatInspector.isDuplicateOfRecentCombatEvent(rawText);
 }
 
-function composeCombatHeadline(msg) {
-  // Reproduces the engine's "<actor> <verb> <target> with <weapon>" story
-  // line so the dedup matcher can suppress the parallel text broadcast.
-  // Exact byte-match isn't required — dedup is a case-insensitive
-  // substring match on the first 80 chars.
-  var a = (msg.actor  && msg.actor.name)  || '?';
-  var t = (msg.target && msg.target.name) || '?';
-  var w = msg.action && msg.action.weapon_name;
-  var skill = (msg.action && msg.action.skill) || '';
-  var verb = combatVerbForSkill(skill);
-  var weaponPart = w ? (' with ' + w) : '';
-  var outcome = msg.hit ? 'HIT' : 'MISS';
-  var wound = (msg.wound_outcome && msg.wound_outcome.display_name) || '';
-  return a + ' ' + verb + ' ' + t + weaponPart + ' — ' + outcome +
-         (wound ? ' — ' + wound : '');
-}
-
-function composeCombatMechline(msg) {
-  var atk = (msg.attacker_pool && msg.attacker_pool.total != null)
-              ? msg.attacker_pool.total : 0;
-  var defTotal;
-  if (msg.defender_pool && msg.defender_pool.total != null) {
-    defTotal = msg.defender_pool.total;
-  } else if (msg.difficulty && msg.difficulty.number != null) {
-    defTotal = msg.difficulty.number;
-  } else {
-    defTotal = 0;
-  }
-  var parts = ['Roll: ' + atk + ' vs ' + defTotal];
-  if (msg.hit && msg.damage_pool && msg.soak) {
-    parts.push('Damage ' + (msg.damage_pool.total || 0) +
-               ' vs Soak ' + (msg.soak.total || 0));
-    if (msg.wound_outcome && msg.wound_outcome.display_name) {
-      parts.push('→ ' + msg.wound_outcome.display_name);
-    }
-  }
-  return '(' + parts.join(' · ') + ')';
-}
-
-function buildCombatResultRow(ev) {
-  var msg = ev.payload || {};
-  var role = ev.role || 'bystander';
-  var expanded = !!ev.expanded;
-
-  var row = document.createElement('div');
-  row.className = 'pose-row row-combat-result';
-  if (role === 'self')   row.classList.add('is-self');
-  if (role === 'target') row.classList.add('is-target');
-
-  // ── Summary (always visible, clickable to toggle inspector) ─────
-  var summary = document.createElement('div');
-  summary.className = 'cri-summary' + (expanded ? ' expanded' : '');
-  summary.innerHTML =
-    '<span class="cri-chevron">▶</span>' +
-    '<span class="cri-headline">' + buildCombatHeadlineHtml(msg) + '</span>';
-  row.appendChild(summary);
-
-  // ── Mechanics line (always visible, dim) ────────────────────────
-  var mech = document.createElement('div');
-  mech.className = 'cri-mechline';
-  mech.textContent = composeCombatMechline(msg);
-  row.appendChild(mech);
-
-  // ── Inspector body (collapsible via .expanded ~ .cri-body) ──────
-  var body = document.createElement('div');
-  body.className = 'cri-body';
-  body.appendChild(buildAttackerSection(msg));
-  if (msg.action && msg.action.is_opposed) {
-    body.appendChild(buildDefenderSection(msg));
-  } else {
-    body.appendChild(buildDifficultySection(msg));
-  }
-  if (msg.hit && msg.damage_pool) body.appendChild(buildDamageSection(msg));
-  if (msg.hit && msg.soak)        body.appendChild(buildSoakSection(msg));
-  body.appendChild(buildWoundSection(msg));
-  body.appendChild(buildSourceLegend());
-  row.appendChild(body);
-
-  summary.addEventListener('click', function() {
-    summary.classList.toggle('expanded');
-  });
-
-  return row;
-}
-
-function buildCombatHeadlineHtml(msg) {
-  var a = (msg.actor  && msg.actor.name)  || '?';
-  var t = (msg.target && msg.target.name) || '?';
-  var w = msg.action && msg.action.weapon_name;
-  var skill = (msg.action && msg.action.skill) || '';
-  var verb = combatVerbForSkill(skill);
-  var fpFlag = (msg.actor && msg.actor.is_force_point_active)
-    ? '<span class="cri-fp">FP</span>' : '';
-  var weaponHtml = w
-    ? ' <span class="cri-meta">with ' + escapeHtml(w) + '</span>' : '';
-  var outcomeText = msg.hit ? 'HIT' : 'MISS';
-  var outcomeCls  = msg.hit ? 'hit' : 'miss';
-  var woundHtml = '';
-  var wo = msg.wound_outcome || {};
-  if (wo.display_name && msg.hit) {
-    var woCls = (wo.outcome_type || 'no-damage').replace(/_/g, '-');
-    woundHtml = ' <span class="cri-outcome ' + woCls + '">— ' +
-                escapeHtml(wo.display_name) + '</span>';
-  }
-  return '<span class="cri-actor">' + escapeHtml(a) + '</span>' + fpFlag +
-         ' <span class="cri-verb">' + escapeHtml(verb) + '</span> ' +
-         '<span class="cri-target">' + escapeHtml(t) + '</span>' +
-         weaponHtml +
-         ' <span class="cri-outcome ' + outcomeCls + '">— ' + outcomeText + '</span>' +
-         woundHtml;
-}
-
-function buildAttackerSection(msg) {
-  var sec = document.createElement('div');
-  sec.className = 'cri-section';
-  var actorName = (msg.actor && msg.actor.name) || '';
-  var skill = (msg.action && msg.action.skill) || '';
-  var pool = msg.attacker_pool || {};
-  sec.innerHTML =
-    '<div class="cri-section-head">' +
-      'ATTACKER · <span class="cri-actor-tag">' + escapeHtml(actorName.toUpperCase()) + '</span>' +
-      (skill ? ' · ' + escapeHtml(skill.toUpperCase()) : '') +
-      (pool.pool_text ? ' ' + escapeHtml(pool.pool_text) : '') +
-    '</div>';
-  appendPoolRow(sec, pool, 'Roll');
-  return sec;
-}
-
-function buildDefenderSection(msg) {
-  var sec = document.createElement('div');
-  sec.className = 'cri-section';
-  var targetName = (msg.target && msg.target.name) || '';
-  var pool = msg.defender_pool || {};
-  sec.innerHTML =
-    '<div class="cri-section-head">' +
-      'DEFENDER · <span class="cri-actor-tag">' + escapeHtml(targetName.toUpperCase()) + '</span> · OPPOSED' +
-      (pool.pool_text ? ' ' + escapeHtml(pool.pool_text) : '') +
-    '</div>';
-  appendPoolRow(sec, pool, 'Roll');
-  return sec;
-}
-
-function buildDifficultySection(msg) {
-  var sec = document.createElement('div');
-  sec.className = 'cri-section';
-  var diff = msg.difficulty || {};
-  sec.innerHTML =
-    '<div class="cri-section-head">DIFFICULTY</div>' +
-    '<div class="cri-diff-block">' +
-      '<span class="cri-diff-num">' + (diff.number != null ? diff.number : '—') + '</span>' +
-      '<span class="cri-diff-label">' + escapeHtml(diff.label || '') + '</span>' +
-    '</div>';
-  if (diff.breakdown && diff.breakdown.length > 1) {
-    var bk = document.createElement('div');
-    bk.className = 'cri-diff-breakdown';
-    bk.textContent = diff.breakdown.map(function(b) {
-      var sign = (b.mod != null && b.mod >= 0) ? '+' : '';
-      return (b.name || '') + ' ' + sign + (b.mod != null ? b.mod : '');
-    }).join(' · ');
-    sec.appendChild(bk);
-  }
-  return sec;
-}
-
-function buildDamageSection(msg) {
-  var sec = document.createElement('div');
-  sec.className = 'cri-section';
-  var pool = msg.damage_pool || {};
-  sec.innerHTML =
-    '<div class="cri-section-head">DAMAGE' +
-      (pool.pool_text ? ' · ' + escapeHtml(pool.pool_text) : '') +
-    '</div>';
-  appendPoolRow(sec, pool, 'Roll');
-  return sec;
-}
-
-// Append a complete pool render (row + optional CP/complication notes)
-// to the given parent. Mutating the parent rather than returning a
-// fragment lets the section builders stay one-line at call sites.
-function appendPoolRow(parent, pool, label) {
-  var div = document.createElement('div');
-  div.className = 'cri-pool-row';
-
-  var labelEl = document.createElement('span');
-  labelEl.className = 'cri-pool-label';
-  labelEl.textContent = label || '';
-  div.appendChild(labelEl);
-
-  (pool.dice || []).forEach(function(d) { div.appendChild(buildDieChip(d)); });
-
-  if (pool.pool_pips) {
-    var pip = document.createElement('span');
-    pip.className = 'cri-pool-pip';
-    pip.textContent = (pool.pool_pips > 0 ? '+' : '') + pool.pool_pips;
-    div.appendChild(pip);
-  }
-
-  var total = document.createElement('span');
-  total.className = 'cri-pool-total';
-  total.textContent = pool.total != null ? '= ' + pool.total : '';
-  div.appendChild(total);
-
-  parent.appendChild(div);
-
-  if (pool.cp_spent && pool.cp_rolls && pool.cp_rolls.length) {
-    var cp = document.createElement('div');
-    cp.className = 'cri-cp-line';
-    cp.textContent = '+ ' + pool.cp_spent + ' CP: [' +
-      pool.cp_rolls.join(', ') + '] = ' + (pool.cp_bonus || 0);
-    parent.appendChild(cp);
-  }
-
-  if (pool.complication) {
-    var comp = document.createElement('div');
-    comp.className = 'cri-complication-note';
-    comp.textContent = pool.removed_die_value != null
-      ? 'Complication! Wild Die rolled 1; dropped highest normal die (' +
-        pool.removed_die_value + ').'
-      : 'Complication! Wild Die rolled 1.';
-    parent.appendChild(comp);
-  }
-}
-
-function buildDieChip(d) {
-  d = d || {};
-  var el = document.createElement('span');
-  el.className = 'cri-die';
-  el.setAttribute('data-source', d.source || 'skill');
-  if (d.is_wild)  el.classList.add('is-wild');
-  if (d.exploded) el.classList.add('is-exploded');
-  if (d.dropped)  el.classList.add('is-dropped');
-
-  var titleParts = [d.source || 'skill'];
-  if (d.is_wild)  titleParts.push('Wild Die');
-  if (d.exploded && d.explosion_chain) titleParts.push('Exploded: ' + d.explosion_chain.join('→'));
-  if (d.dropped)  titleParts.push('Dropped (complication)');
-  el.title = titleParts.join(' · ');
-
-  if (d.is_wild && d.exploded && d.explosion_chain && d.explosion_chain.length) {
-    el.classList.add('is-exploded-chain');
-    el.textContent = d.explosion_chain.join('→') + '=' + (d.value != null ? d.value : '');
-  } else if (d.is_wild && d.value === 0) {
-    el.textContent = '1!';  // complication: Wild Die zeroed
-  } else {
-    el.textContent = (d.value != null ? d.value : '?');
-  }
-  return el;
-}
-
-function buildSoakSection(msg) {
-  var sec = document.createElement('div');
-  sec.className = 'cri-section';
-  var soak = msg.soak || {};
-  sec.innerHTML = '<div class="cri-section-head">SOAK</div>';
-
-  (soak.components || []).forEach(function(c) {
-    if (!c) return;
-    var row = document.createElement('div');
-    row.className = 'cri-soak-comp';
-    row.setAttribute('data-source', c.source || 'strength');
-    var rollsHtml = (c.rolls && c.rolls.length)
-      ? '<span class="cri-soak-rolls">[' + c.rolls.join(', ') + ']</span>'
-      : '';
-    row.innerHTML =
-      '<span class="cri-soak-label">' + escapeHtml(c.label || '') + '</span>' +
-      rollsHtml +
-      '<span class="cri-soak-value">' + (c.value != null ? c.value : '') + '</span>';
-    sec.appendChild(row);
-  });
-
-  var total = document.createElement('div');
-  total.className = 'cri-soak-total';
-  total.innerHTML =
-    '<span class="cri-pool-label">Total</span>' +
-    '<span class="cri-pool-total">= ' + (soak.total != null ? soak.total : 0) + '</span>';
-  sec.appendChild(total);
-  return sec;
-}
-
-function buildWoundSection(msg) {
-  var sec = document.createElement('div');
-  sec.className = 'cri-section';
-  sec.innerHTML = '<div class="cri-section-head">OUTCOME</div>';
-
-  var wo = msg.wound_outcome || {};
-  var ot = wo.outcome_type || 'no_damage';
-  var cls = ot.replace(/_/g, '-');
-
-  var row = document.createElement('div');
-  row.className = 'cri-wound-row';
-  var html = '<span class="cri-wound-display ' + cls + '">' +
-             escapeHtml(wo.display_name || '—') + '</span>';
-
-  if (wo.wound_level_before || wo.wound_level_after) {
-    var before = wo.wound_level_before || '—';
-    var after  = wo.wound_level_after  || '—';
-    var deltaTxt = wo.wound_level_delta
-      ? ' <span class="cri-wound-delta">(+' + wo.wound_level_delta + ')</span>'
-      : '';
-    html += '<span class="cri-wound-track">' +
-      escapeHtml(before) +
-      '<span class="cri-wound-arrow">→</span>' +
-      '<span class="cri-wound-after">' + escapeHtml(after) + '</span>' +
-      deltaTxt + '</span>';
-  }
-
-  if (msg.hit && msg.damage_margin != null) {
-    var dm = msg.damage_margin;
-    html += '<span class="cri-wound-track">margin ' + (dm >= 0 ? '+' : '') + dm + '</span>';
-  } else if (!msg.hit && msg.margin != null) {
-    html += '<span class="cri-wound-track">margin ' +
-            (msg.margin >= 0 ? '+' : '') + msg.margin + '</span>';
-  }
-
-  row.innerHTML = html;
-  sec.appendChild(row);
-
-  if (wo.drama_text) {
-    var drama = document.createElement('div');
-    drama.className = 'cri-wound-drama';
-    drama.textContent = wo.drama_text;
-    sec.appendChild(drama);
-  }
-
-  // Stun-unconscious duration line. v1.1 reserves the schema fields;
-  // engine doesn't roll them yet (separate ticket), so we render a
-  // placeholder when the fields are null.
-  if (ot === 'stun_unconscious') {
-    var sd = document.createElement('div');
-    sd.className = 'cri-stun-duration';
-    if (wo.stun_duration_dice && wo.stun_duration_unit) {
-      sd.textContent = 'Unconscious for ' + wo.stun_duration_dice +
-                       ' ' + wo.stun_duration_unit + '.';
-    } else {
-      sd.textContent = 'Unconscious — duration roll pending.';
-    }
-    sec.appendChild(sd);
-  }
-
-  return sec;
-}
-
-function buildSourceLegend() {
-  var leg = document.createElement('div');
-  leg.className = 'cri-legend';
-  leg.innerHTML =
-    '<span class="cri-legend-item" style="color:#ffc857">' +
-      '<span class="cri-legend-swatch"></span>SKILL</span>' +
-    '<span class="cri-legend-item" style="color:#ff8a5a">' +
-      '<span class="cri-legend-swatch"></span>WEAPON</span>' +
-    '<span class="cri-legend-item" style="color:#b07cff">' +
-      '<span class="cri-legend-swatch"></span>MOD</span>' +
-    '<span class="cri-legend-item" style="color:#7ce068">' +
-      '<span class="cri-legend-swatch"></span>FP DOUBLE</span>' +
-    '<span class="cri-legend-item">★ Wild Die · ⊘ dropped</span>';
-  return leg;
+if (typeof window !== 'undefined') {
+  // Preserved aliases — browser-console / out-of-band tooling.
+  window._sw_buildCombatResultRow    = M3CombatInspector.buildCombatResultRow;
+  window._sw_buildDieChip            = M3CombatInspector.buildDieChip;
+  window._sw_buildCombatHeadlineHtml = M3CombatInspector.buildCombatHeadlineHtml;
+  window._sw_composeCombatHeadline   = M3CombatInspector.composeCombatHeadline;
+  window._sw_composeCombatMechline   = M3CombatInspector.composeCombatMechline;
+  window._sw_combatVerbForSkill      = M3CombatInspector.combatVerbForSkill;
 }
 
 function handleChargenStart(msg) {
+  // May 19 2026 — fix three-part regression vs client_legacy.html:7509-7530.
+  //   1. Use registered route /chargen, not /chargen.html (which 404s).
+  //   2. Pass embedded=1 so the SPA hides its standalone Account step.
+  //   3. Forward the server-issued token so the SPA's REST POST to
+  //      /api/chargen/create-character can authenticate the embedded
+  //      session against the existing account.
+  // The corresponding postMessage listener below closes the loop by
+  // signalling __chargen_done__ to the server when the SPA finishes.
+  //
+  // May 19 2026 [revision-2] — z-index collision fix.
+  // The field-kit redesign introduced .boot-overlay at z-index 100,
+  // which sits ABOVE the legacy .chargen-overlay at z-index 90. The
+  // legacy client had no boot-overlay (login UI was inline in the main
+  // page), so the chargen iframe popped over freely. After the field-kit
+  // port, opening the chargen iframe left it hidden beneath the still-
+  // showing login screen, producing the "password blanks, nothing
+  // happens" symptom: the iframe was loaded and visible in the DOM
+  // but visually obscured. Fix: tell the login state machine the boot
+  // flow is done (which also covers the natural transition once the
+  // post-chargen hud_update arrives). The CSS-side z-index bump below
+  // is belt-and-suspenders against any future overlay added above 90.
+  setLoginState('done');
   var ov = $('chargen-overlay');
   var ifr = $('chargen-iframe');
-  ifr.src = msg.url || '/chargen.html';
+  var token = msg.token || '';
+  ifr.src = '/chargen?embedded=1&token=' + encodeURIComponent(token);
   ov.classList.add('show');
 }
+
+// May 19 2026 — restore chargen postMessage bridge.
+// The embedded chargen SPA (static/chargen.html) sends a
+// {type: 'chargen_done', characterId} postMessage to its parent window
+// when character creation completes. The parent closes the overlay,
+// resets the iframe, and forwards __chargen_done__ over the WebSocket
+// so the server can transition the session into the new character.
+// Without this listener, chargen completion would never reach the
+// server and the player would be stranded with the overlay still up.
+// Mirrors client_legacy.html:7518-7530.
+window.addEventListener('message', function(evt) {
+  if (evt.data && evt.data.type === 'chargen_done') {
+    var ov = $('chargen-overlay');
+    var ifr = $('chargen-iframe');
+    if (ov) ov.classList.remove('show');
+    if (ifr) ifr.src = 'about:blank';
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify({ input: '__chargen_done__' }));
+      } catch (e) {
+        console.error('chargen_done send failed:', e);
+      }
+    }
+  }
+});
 
 /* ════════════════════════════════════════════════════════════════════
    LOGIN STATE MACHINE

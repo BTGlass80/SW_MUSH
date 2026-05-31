@@ -99,10 +99,11 @@ rooms:
       where clone production orders are received, confirmed, and scheduled;
       where disputes over delivery timelines are resolved; and where the
       Kaminoans maintain the careful fiction that this is purely a business
-      arrangement between equals. The current senior administrator is
-      Taun We, who was the one who greeted Obi-Wan Kenobi ten years ago
-      and has been managing the accelerating complexity of the arrangement
-      ever since.
+      arrangement between equals. The current senior administrator is a
+      veteran Kaminoan whose protocols define every interaction — courteous,
+      measured, faintly opaque — and who has managed the accelerating
+      complexity of the Republic arrangement since well before the war
+      began.
     zone: kamino_tipoca_city
     map_x: 42
     map_y: 10
@@ -118,8 +119,9 @@ rooms:
       The briefing room is designed for Republic officers who need to
       understand production schedules and training timelines. Holographic
       displays show current batch numbers, training completion rates, and
-      projected delivery dates. A Kaminoan trainer named Lama Su occasionally
-      presents here when the figures require explanation. The figures
+      projected delivery dates. A senior Kaminoan production manager
+      occasionally presents here when the figures require explanation.
+      The figures
       are always impressive. The questions Republic officers ask are always
       the same: can you produce more, and can you produce them faster.
       The Kaminoan answer is always the same: that depends on the budget.
@@ -154,7 +156,7 @@ rooms:
     name: "Kamino - Prime Minister's Residence"
     short_desc: "The Prime Minister's official residence and receiving office, rarely open to visitors."
     description: >
-      Prime Minister Lama Su's residence occupies the highest point of
+      The Prime Minister's residence occupies the highest point of
       Tipoca City's central spire — an austere space of white stone and
       ocean views in every direction. The Prime Minister receives senior
       Republic military and government officials here. He is entirely
@@ -289,9 +291,9 @@ rooms:
       of modifications that have been made to it over ten years of
       production refinement. ARC trooper specializations, medical variance
       reduction, accelerated growth rate calibration — all documented,
-      all stored, all proprietary. The lab director, Nala Se, is the
-      most important person on Kamino and knows it with a completeness
-      that precludes arrogance.
+      all stored, all proprietary. The lab director is the most important
+      person on Kamino and knows it with a completeness that precludes
+      arrogance.
     zone: kamino_cloning_halls
     map_x: 44
     map_y: 9

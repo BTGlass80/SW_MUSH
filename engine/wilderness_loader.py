@@ -26,10 +26,20 @@ What this loader does NOT do (deferred to wilderness_system_design
 Drops 2-7):
   - Coordinate-grid tile generation (no per-tile rooms — only
     landmarks become rooms in this drop)
-  - Encounter pool resolution
-  - Hazard severity tuning
+  - Hazard severity tuning beyond the YAML's terrain-level severity
+    integer (use cases beyond extreme_heat / urban_danger map to
+    HAZARD_TYPES entries; aspirational tags are inert until the
+    matching HAZARD_TYPE ships)
   - Edge connections to hand-built rooms (use adjacency between
     landmarks instead, for now)
+
+What this loader DOES handle (post-minimal-substrate additions):
+  - Edges (W.2 phase 2, May 3 2026)
+  - Unwalkable tiles (W.2 phase 2, May 3 2026)
+  - landmark_includes (W.3, May 24 2026)
+  - Encounter pool parsing (T2.WENC, May 24 2026) — see
+    engine/wilderness_encounters.py for the selector that consumes
+    the parsed pool.
 
 The full coordinate-movement engine is the post-Village roadmap
 track. This loader is the bridge.
@@ -121,6 +131,12 @@ class WildernessRegion:
     # ── W.2 phase 2 additions (May 3 2026, post Evennia review) ─────────
     edges: list = field(default_factory=list)         # WildernessEdge
     unwalkable_tiles: dict = field(default_factory=dict)  # (x, y) -> reason
+    # ── T2.WENC (May 24 2026) — encounter pool ───────────────────────
+    # Region-level encounter configuration. Default-constructed
+    # ``EncounterPool`` (base_chance=0, empty entries) is a no-op:
+    # regions without ``encounters:`` in their YAML simply don't roll
+    # for encounters. See engine/wilderness_encounters.py.
+    encounter_pool: object = None  # EncounterPool; None until loader sets it
 
 
 @dataclass
@@ -240,63 +256,99 @@ def load_wilderness_region(
         )
 
     # ── Landmarks ────────────────────────────────────────────────────────
+    # Per W.3 (May 24 2026): landmarks may come from the region YAML's
+    # own ``landmarks:`` block AND/OR from one or more include files
+    # declared via ``landmark_includes:``. The include files have the
+    # same shape (``schema_version`` + ``landmarks:`` + optional
+    # ``transit_nodes:`` block which is treated as additional landmarks
+    # with the ``transit_node: true`` property already set).
+    #
+    # Include file paths are resolved relative to the wilderness/
+    # directory containing the region YAML. The legacy
+    # ``force_resonant_path`` parameter (kept for backward-compat) is
+    # also resolved through the same code path as an implicit include
+    # at the end of the merge list, but only enriches existing
+    # landmarks (matches the pre-W.3 semantics).
     landmarks: list = []
     seen_ids: set = set()
     seen_coords: set = set()
 
-    for raw in (data.get("landmarks") or []):
-        if not isinstance(raw, dict):
-            report.errors.append(
-                f"Landmark entry is not a mapping: {raw!r}"
-            )
-            continue
+    # First pass: region's own landmarks
+    _parse_landmarks_block(
+        data.get("landmarks") or [],
+        landmarks, seen_ids, seen_coords,
+        grid_width, grid_height, default_terrain, terrains,
+        report,
+        source_label="region YAML",
+        is_transit_nodes=False,
+    )
 
-        lid = raw.get("id")
-        if not lid:
-            report.errors.append(f"Landmark missing 'id': {raw!r}")
-            continue
-        if lid in seen_ids:
-            report.errors.append(f"Duplicate landmark id: {lid!r}")
-            continue
-        seen_ids.add(lid)
-
-        coords = raw.get("coordinates", [0, 0])
-        if not isinstance(coords, (list, tuple)) or len(coords) != 2:
-            report.errors.append(
-                f"Landmark {lid!r}: coordinates must be [x, y]"
-            )
-            continue
-        x, y = int(coords[0]), int(coords[1])
-        if not (0 <= x < grid_width and 0 <= y < grid_height):
-            report.errors.append(
-                f"Landmark {lid!r}: coordinates ({x}, {y}) out of grid "
-                f"bounds ({grid_width}x{grid_height})"
-            )
-            continue
-        if (x, y) in seen_coords:
-            report.errors.append(
-                f"Landmark {lid!r}: duplicate coordinates ({x}, {y})"
-            )
-            continue
-        seen_coords.add((x, y))
-
-        terrain_name = raw.get("terrain", default_terrain)
-        if terrain_name not in terrains:
+    # Second pass: landmark_includes (each file contributes landmarks
+    # AND transit_nodes; both are appended to the landmark list, with
+    # transit_nodes auto-tagged as ``transit_node: true``).
+    region_dir = os.path.dirname(yaml_path)
+    includes = data.get("landmark_includes") or []
+    if not isinstance(includes, list):
+        report.warnings.append(
+            f"landmark_includes is not a list; got {type(includes).__name__}; "
+            f"ignoring"
+        )
+        includes = []
+    for include_rel in includes:
+        if not isinstance(include_rel, str):
             report.warnings.append(
-                f"Landmark {lid!r}: terrain {terrain_name!r} not defined; "
-                f"will use defaults at look time"
+                f"landmark_includes entry not a string: {include_rel!r}; "
+                f"skipping"
             )
-
-        landmarks.append(WildernessLandmark(
-            id=lid,
-            name=raw.get("name", lid),
-            coordinates=(x, y),
-            terrain=terrain_name,
-            short_desc=raw.get("short_desc", ""),
-            description=raw.get("description", ""),
-            properties=dict(raw.get("properties") or {}),
-            adjacency=list(raw.get("adjacency") or []),
-        ))
+            continue
+        include_path = (
+            include_rel
+            if os.path.isabs(include_rel)
+            else os.path.join(region_dir, include_rel)
+        )
+        if not os.path.exists(include_path):
+            report.errors.append(
+                f"landmark_includes file not found: {include_path}"
+            )
+            continue
+        try:
+            with open(include_path, "r", encoding="utf-8") as f:
+                inc_data = yaml.safe_load(f) or {}
+        except yaml.YAMLError as e:
+            report.errors.append(
+                f"landmark_includes parse failed for {include_path}: {e}"
+            )
+            continue
+        if not isinstance(inc_data, dict):
+            report.errors.append(
+                f"landmark_includes file root is not a mapping: "
+                f"{include_path}"
+            )
+            continue
+        # Parse landmarks
+        _parse_landmarks_block(
+            inc_data.get("landmarks") or [],
+            landmarks, seen_ids, seen_coords,
+            grid_width, grid_height, default_terrain, terrains,
+            report,
+            source_label=f"include {os.path.basename(include_path)}",
+            is_transit_nodes=False,
+            region_filter=region_meta.get("slug"),
+        )
+        # Parse transit_nodes (treated as landmarks with transit_node
+        # property auto-set). Transit nodes that lack coordinates are
+        # skipped with a warning — in the single-level wilderness
+        # model, every landmark needs a coordinate to be placed.
+        _parse_landmarks_block(
+            inc_data.get("transit_nodes") or [],
+            landmarks, seen_ids, seen_coords,
+            grid_width, grid_height, default_terrain, terrains,
+            report,
+            source_label=f"include {os.path.basename(include_path)} "
+                         f"(transit_nodes)",
+            is_transit_nodes=True,
+            region_filter=region_meta.get("slug"),
+        )
 
     # ── Adjacency reference validation ───────────────────────────────────
     landmark_ids = {l.id for l in landmarks}
@@ -332,6 +384,17 @@ def load_wilderness_region(
         grid_width, grid_height, report,
     )
 
+    # ── Parse encounter pool (T2.WENC, May 24 2026) ──────────────────────
+    # Optional ``encounters:`` block per wilderness_system_design_v1.md §5.
+    # Absent / empty block yields a no-op EncounterPool — no special
+    # case needed at the call site.
+    from engine.wilderness_encounters import parse_encounter_pool
+    encounter_pool = parse_encounter_pool(
+        data.get("encounters") or {},
+        terrains=terrains,
+        report=report,
+    )
+
     # ── Build region ─────────────────────────────────────────────────────
     region = WildernessRegion(
         slug=region_meta["slug"],
@@ -349,6 +412,7 @@ def load_wilderness_region(
         schema_version=schema_version,
         edges=edges,
         unwalkable_tiles=unwalkable_tiles,
+        encounter_pool=encounter_pool,
     )
 
     report.ok = True
@@ -476,6 +540,231 @@ def _parse_unwalkable_tiles(raw_unwalkable, grid_width, grid_height, report) -> 
             )
 
     return unwalkable
+
+
+def _parse_landmarks_block(
+    raw_entries: list,
+    landmarks: list,
+    seen_ids: set,
+    seen_coords: set,
+    grid_width: int,
+    grid_height: int,
+    default_terrain: str,
+    terrains: dict,
+    report,
+    *,
+    source_label: str = "region YAML",
+    is_transit_nodes: bool = False,
+    region_filter: Optional[str] = None,
+) -> None:
+    """Parse a list of raw landmark dicts and append to landmarks.
+
+    Per W.3 (May 24 2026): factored out of load_wilderness_region so
+    both the region YAML's own ``landmarks:`` block and each
+    ``landmark_includes:`` file can be parsed through the same
+    validation path.
+
+    Mutates landmarks/seen_ids/seen_coords. Errors append to report.
+
+    Args:
+        raw_entries: list of dicts from the YAML ``landmarks:`` or
+            ``transit_nodes:`` block.
+        landmarks: accumulator list; new WildernessLandmark objects
+            appended here.
+        seen_ids: id-uniqueness accumulator across all sources.
+        seen_coords: (x, y) accumulator across all sources.
+        grid_width / grid_height: region bounds for coordinate check.
+        default_terrain: name used when a landmark omits ``terrain``.
+        terrains: dict of defined terrain names; unknown terrains
+            warn but don't fail.
+        report: WildernessLoadReport for error/warning collection.
+        source_label: human-readable label of the source file, used
+            in error messages to disambiguate which include caused
+            a duplicate id / coord etc.
+        is_transit_nodes: if True, auto-set ``transit_node: true``
+            and ``ambient_disabled: true`` on each entry's properties
+            unless already declared. Transit-node entries without
+            coordinates are skipped with a warning (single-level
+            wilderness model requires placement).
+        region_filter: if non-None, entries whose ``region:`` field
+            does not match are silently skipped. Used when an include
+            file (e.g. force_resonant_landmarks.yaml) hosts entries
+            for multiple regions — the loader filters to entries
+            relevant to the region currently being assembled.
+    """
+    # Track ids added during THIS call separately from the
+    # cross-call seen_ids accumulator. Within a single source (one
+    # landmarks: or transit_nodes: block) a duplicate id is a content
+    # bug and errors. Across sources (region YAML + include files)
+    # a duplicate id is enrichment intent.
+    ids_in_this_call: set = set()
+
+    for raw in raw_entries:
+        if not isinstance(raw, dict):
+            report.errors.append(
+                f"[{source_label}] landmark entry is not a mapping: {raw!r}"
+            )
+            continue
+
+        # ── Region filter (W.3) ────────────────────────────────────
+        # Include files may host entries for multiple regions. Skip
+        # entries that don't match the region currently being loaded.
+        # Entries with no ``region`` field are treated as matching
+        # any filter (they're region-agnostic content the region YAML
+        # is asking to include).
+        if region_filter is not None:
+            entry_region = raw.get("region")
+            if entry_region is not None and entry_region != region_filter:
+                continue
+
+        lid = raw.get("id")
+        if not lid:
+            report.errors.append(
+                f"[{source_label}] landmark missing 'id': {raw!r}"
+            )
+            continue
+
+        # Within-call duplicate: content-authoring bug, error.
+        if lid in ids_in_this_call:
+            report.errors.append(
+                f"[{source_label}] duplicate landmark id: {lid!r} "
+                f"(appears twice in the same source block)"
+            )
+            continue
+
+        # ── Existing-id enrichment (W.3) ───────────────────────────
+        # If this id has already been added by an EARLIER call (region
+        # YAML's own block, or an earlier include file), treat the
+        # current entry as ENRICHMENT rather than a duplicate-error.
+        # Enrichment policy (mirrors the pre-W.3
+        # _merge_force_resonant_content behavior):
+        #   - description: overrides if non-empty
+        #   - short_desc: overrides only if existing is empty
+        #   - properties: setdefault per key (existing wins)
+        #   - ambient_lines: replaces only if existing list is empty
+        #   - coordinates: NOT overridden; the first source wins
+        #   - terrain: NOT overridden; the first source wins
+        #   - adjacency: extended (deduped)
+        if lid in seen_ids:
+            existing = next((l for l in landmarks if l.id == lid), None)
+            if existing is None:
+                # seen_ids contained the id but landmarks doesn't —
+                # earlier validation rejected the entry. Don't enrich
+                # an orphan id; just skip.
+                continue
+            if raw.get("description"):
+                existing.description = raw["description"]
+            if raw.get("short_desc") and not existing.short_desc:
+                existing.short_desc = raw["short_desc"]
+            for k, v in (raw.get("properties") or {}).items():
+                existing.properties.setdefault(k, v)
+            ambient_raw = raw.get("ambient_lines") or []
+            if ambient_raw and not existing.ambient_lines:
+                existing.ambient_lines = [
+                    a["text"] if isinstance(a, dict) and "text" in a
+                    else str(a)
+                    for a in ambient_raw
+                ]
+            for adj in (raw.get("adjacency") or []):
+                if adj not in existing.adjacency:
+                    existing.adjacency.append(adj)
+            ids_in_this_call.add(lid)
+            continue
+        if not lid:
+            report.errors.append(
+                f"[{source_label}] landmark missing 'id': {raw!r}"
+            )
+            continue
+
+        # Transit nodes may legitimately omit coordinates in legacy
+        # multi-level files; in the single-level model they need a
+        # placement. Skip with a warning rather than failing the load.
+        coords_raw = raw.get("coordinates")
+        if coords_raw is None:
+            if is_transit_nodes:
+                report.warnings.append(
+                    f"[{source_label}] transit node {lid!r} has no "
+                    f"coordinates; skipping (single-level wilderness "
+                    f"model requires placement)"
+                )
+                continue
+            else:
+                report.errors.append(
+                    f"[{source_label}] landmark {lid!r}: coordinates "
+                    f"are required"
+                )
+                continue
+
+        if not isinstance(coords_raw, (list, tuple)) or len(coords_raw) != 2:
+            report.errors.append(
+                f"[{source_label}] landmark {lid!r}: coordinates must "
+                f"be [x, y]"
+            )
+            continue
+        try:
+            x, y = int(coords_raw[0]), int(coords_raw[1])
+        except (TypeError, ValueError):
+            report.errors.append(
+                f"[{source_label}] landmark {lid!r}: coordinates must "
+                f"be integers; got {coords_raw!r}"
+            )
+            continue
+        if not (0 <= x < grid_width and 0 <= y < grid_height):
+            report.errors.append(
+                f"[{source_label}] landmark {lid!r}: coordinates "
+                f"({x}, {y}) out of grid bounds "
+                f"({grid_width}x{grid_height})"
+            )
+            continue
+        if (x, y) in seen_coords:
+            report.errors.append(
+                f"[{source_label}] landmark {lid!r}: duplicate "
+                f"coordinates ({x}, {y})"
+            )
+            continue
+
+        terrain_name = raw.get("terrain", default_terrain)
+        if terrain_name not in terrains:
+            report.warnings.append(
+                f"[{source_label}] landmark {lid!r}: terrain "
+                f"{terrain_name!r} not defined; will use defaults "
+                f"at look time"
+            )
+
+        # Properties: copy explicit ones; auto-tag transit nodes.
+        props = dict(raw.get("properties") or {})
+        if is_transit_nodes:
+            props.setdefault("transit_node", True)
+            props.setdefault("ambient_disabled", True)
+            props.setdefault("wilderness_landmark", False)
+
+        # Ambient lines may be present in include files (the
+        # force-resonant-style enrichment block). Accept both
+        # ``[{text: "..."}]`` and ``[str]`` forms.
+        ambient_raw = raw.get("ambient_lines") or []
+        ambient_lines = [
+            a["text"] if isinstance(a, dict) and "text" in a else str(a)
+            for a in ambient_raw
+        ]
+
+        # Only commit the seen-trackers AFTER all validation succeeds,
+        # so a malformed entry doesn't accidentally block a later
+        # well-formed one from claiming the same id/coords.
+        seen_ids.add(lid)
+        seen_coords.add((x, y))
+        ids_in_this_call.add(lid)
+
+        landmarks.append(WildernessLandmark(
+            id=lid,
+            name=raw.get("name", lid),
+            coordinates=(x, y),
+            terrain=terrain_name,
+            short_desc=raw.get("short_desc", ""),
+            description=raw.get("description", ""),
+            properties=props,
+            adjacency=list(raw.get("adjacency") or []),
+            ambient_lines=ambient_lines,
+        ))
 
 
 def _merge_force_resonant_content(

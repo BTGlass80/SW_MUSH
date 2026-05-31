@@ -192,6 +192,31 @@ async def _write_rooms(rooms: dict[int, Room],
         # has no way to resolve slug → room_id at runtime.
         if "slug" not in properties:
             properties["slug"] = room.slug
+        # S-RES (May 18 2026): promote the top-level `security_level:`
+        # YAML field into `properties.security` so the engine resolver
+        # in engine/security.py::get_effective_security actually sees
+        # it. Without this merge the top-level field is inert: 154 CW
+        # rooms (67 lawless, 53 contested, 34 secured) declared
+        # security_level: in YAML but resolved as CONTESTED at
+        # runtime because the resolver consults
+        # db.get_room_property(room_id, "security"), which reads
+        # `properties.security` (and the zone-inherited variant), not
+        # the top-level field. Audit: tests/test_security_level_yaml_audit.py
+        # surfaces the drift count; this writer-level merge closes it.
+        # Precedence: explicit `properties.security` wins over the
+        # top-level field — authors who wrote both intentionally get
+        # the properties-level value (consistent with how `slug` above
+        # treats properties as authoritative). The top-level field is
+        # only consulted when `properties.security` is absent.
+        if "security" not in properties:
+            sl = room.raw.get("security_level")
+            if sl:
+                properties["security"] = sl
+                log.debug(
+                    "world_writer: merged security_level=%r into "
+                    "properties.security for room %s (slug=%s)",
+                    sl, yaml_id, room.slug,
+                )
         db_id = await db.create_room(
             room.name,
             desc_short=room.short_desc or "",
@@ -338,3 +363,147 @@ def build_rooms_manifest(result: WriteResult) -> dict:
         "rooms": dict(sorted(result.room_ids.items())),
         "by_id": {str(k): v for k, v in sorted(result.slug_for_room_id.items())},
     }
+
+
+# ── F.8.c.2.c (May 4 2026): slug backfill for legacy rooms ──────────────────
+
+
+async def backfill_room_slugs(db, bundle) -> dict:
+    """Idempotent slug backfill for rooms that predate F.8.c.1's
+    slug-stamping. Reads the canonical world YAML (via `bundle`),
+    finds DB rooms whose `properties.slug` is missing or empty, and
+    stamps the slug from the matching YAML entry.
+
+    Called from `server/game_server.py` after `auto_build_if_needed`
+    runs on every boot. Idempotent: rooms whose slug is already
+    present are skipped at row level (no UPDATE), so re-running has
+    zero cost beyond the read scan.
+
+    Why a runtime backfill instead of a SQL migration. The slug
+    source is YAML, not another column — there's no cross-column
+    transform that SQL can do alone. The world_writer already
+    stamps slugs on freshly-built worlds (via `_write_rooms`); this
+    function closes the gap for DBs that were built before F.8.c.1
+    landed in the world_writer.
+
+    Match strategy: by exact room name. The bundle.rooms entries
+    have a `name` field that the world_writer also writes verbatim
+    to the rooms.name column, so name is a reliable join key for
+    legacy-DB rooms that the world_writer originally created. Rooms
+    created by tests or admin commands without a corresponding YAML
+    entry have no slug to backfill and are silently skipped.
+
+    Returns a small report dict with backfill counts:
+        {
+          "scanned": int,        # number of DB rooms inspected
+          "already_stamped": int,
+          "backfilled": int,     # newly-stamped this call
+          "no_yaml_match": int,  # DB rooms with no YAML name match
+          "errors": int,
+        }
+
+    Failure-tolerant: per-row UPDATE failures are logged and
+    counted; the function does not raise. A backfill failure on
+    one row should not prevent backfill of the rest.
+    """
+    import json as _bf_json
+
+    report = {
+        "scanned": 0,
+        "already_stamped": 0,
+        "backfilled": 0,
+        "no_yaml_match": 0,
+        "errors": 0,
+    }
+
+    if not getattr(bundle, "rooms", None):
+        log.debug("[world_writer] backfill_room_slugs: empty bundle, skipping")
+        return report
+
+    # Build name → slug map from YAML
+    name_to_slug = {}
+    for room in bundle.rooms.values():
+        name = (getattr(room, "name", "") or "").strip()
+        slug = (getattr(room, "slug", "") or "").strip()
+        if name and slug:
+            # If two YAML rooms share a name, keep the first; this
+            # is rare (mostly happens in tutorial-zone rebuilds) and
+            # the alternative (skipping both) is worse than an
+            # arbitrary tie-break.
+            name_to_slug.setdefault(name, slug)
+
+    if not name_to_slug:
+        log.debug("[world_writer] backfill_room_slugs: no YAML rooms "
+                  "with names, skipping")
+        return report
+
+    # Scan all DB rooms
+    try:
+        rows = await db._db.execute_fetchall(
+            "SELECT id, name, properties FROM rooms"
+        )
+    except Exception:
+        log.warning("[world_writer] backfill_room_slugs: DB scan failed",
+                    exc_info=True)
+        return report
+
+    for r in rows:
+        report["scanned"] += 1
+        try:
+            row_dict = dict(r)
+            db_id = row_dict["id"]
+            db_name = (row_dict.get("name") or "").strip()
+            props_raw = row_dict.get("properties") or "{}"
+            try:
+                props = _bf_json.loads(props_raw) if isinstance(props_raw, str) else (props_raw or {})
+            except Exception:
+                props = {}
+            if not isinstance(props, dict):
+                props = {}
+
+            # Already stamped? Skip.
+            existing_slug = (props.get("slug") or "").strip()
+            if existing_slug:
+                report["already_stamped"] += 1
+                continue
+
+            # YAML match?
+            yaml_slug = name_to_slug.get(db_name)
+            if not yaml_slug:
+                report["no_yaml_match"] += 1
+                continue
+
+            # Stamp + UPDATE
+            props["slug"] = yaml_slug
+            try:
+                await db._db.execute(
+                    "UPDATE rooms SET properties = ? WHERE id = ?",
+                    (_bf_json.dumps(props), db_id),
+                )
+                report["backfilled"] += 1
+            except Exception:
+                log.warning(
+                    "[world_writer] backfill_room_slugs: UPDATE failed "
+                    "for room id=%s name=%r", db_id, db_name,
+                    exc_info=True,
+                )
+                report["errors"] += 1
+        except Exception:
+            log.warning("[world_writer] backfill_room_slugs: row "
+                        "processing failed", exc_info=True)
+            report["errors"] += 1
+
+    if report["backfilled"] > 0:
+        try:
+            await db._db.commit()
+        except Exception:
+            log.warning("[world_writer] backfill_room_slugs: commit failed",
+                        exc_info=True)
+
+    log.info(
+        "[world_writer] backfill_room_slugs: scanned=%d, already=%d, "
+        "backfilled=%d, no_yaml=%d, errors=%d",
+        report["scanned"], report["already_stamped"],
+        report["backfilled"], report["no_yaml_match"], report["errors"],
+    )
+    return report

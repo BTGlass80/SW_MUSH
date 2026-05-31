@@ -56,8 +56,29 @@ class BountiesCommand(BaseCommand):
 
     async def execute(self, ctx: CommandContext):
         board = await _load_board(ctx.db)
+        contracts = board.posted_contracts()
+
+        # F.8.c.2.b₃: Filter chain-tagged tutorial bounties so only
+        # the player whose active chain step expects them sees them.
+        try:
+            from engine.chain_missions import filter_visible_bounties
+            import json as _bj
+            char = ctx.session.character
+            attrs_raw = char.get("attributes", "{}") if char else "{}"
+            if isinstance(attrs_raw, str):
+                try:
+                    attrs = _bj.loads(attrs_raw) if attrs_raw else {}
+                except Exception:
+                    attrs = {}
+            else:
+                attrs = attrs_raw or {}
+            contracts = filter_visible_bounties(contracts, attrs)
+        except Exception:
+            log.debug("chain_missions bounty visibility filter failed",
+                      exc_info=True)
+
         from engine.bounty_board import format_bounty_board
-        for line in format_bounty_board(board.posted_contracts()):
+        for line in format_bounty_board(contracts):
             await ctx.session.send_line(line)
 
 
@@ -105,6 +126,27 @@ class BountyClaimCommand(BaseCommand):
             await ctx.session.send_line(
                 "  That contract is no longer available.")
             return
+
+        # F.8.c.2.b₂: CW tutorial chain — bounty_accepted completion.
+        # Chain-tagged bounties carry a chain_bounty_id field;
+        # untagged contracts skip silently inside the hook.
+        try:
+            from engine.chain_events import on_bounty_accepted
+            _chain_bid = getattr(claimed, "chain_bounty_id", "") or ""
+            if _chain_bid and ctx.session.character:
+                _adv = await on_bounty_accepted(
+                    ctx.db, ctx.session.character, _chain_bid,
+                )
+                if _adv:
+                    from engine.chain_graduation import (
+                        execute_pending_teleport,
+                    )
+                    await execute_pending_teleport(
+                        ctx, ctx.session.character,
+                    )
+        except Exception as _ce:
+            log.debug("chain_events bounty_accepted hook error: %s",
+                      _ce, exc_info=True)
 
         from engine.bounty_board import format_contract_detail
         for line in format_contract_detail(claimed):

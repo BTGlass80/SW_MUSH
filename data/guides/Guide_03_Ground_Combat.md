@@ -1,496 +1,445 @@
-# SW_MUSH Detailed Systems Guide #3
+---
+category: combat
+order: 1
+summary: "Turn order, attack and damage rolls, cover and range, blasters, melee, and grenades."
+tags: ["combat", "fighting", "attack", "damage", "blasters", "melee", "initiative"]
+---
+
 # Ground Combat
 
 **SW_MUSH — Star Wars D6 Revised & Expanded**
-**BTGlass80 — April 2026**
-**Guide Version 1.0**
 
 ---
 
 ## How to Read This Guide
 
-**Player Rules** sections explain combat from a player's perspective — commands, flow, and what you see. **Developer Internals** (🔧) sections explain the engine: data structures, resolution algorithms, and code paths. Ground combat is the largest system in the game (~70,000 lines across four files), so this guide is correspondingly detailed.
+Combat is the densest system in the game. It's also the system you'll touch the most often, so it's worth taking the time to understand. This guide covers the full round structure, every action you can declare, how to-hit and damage work, the cover and range systems, melee, grenades, fleeing, posing, NPC AI, the death sequence, and the web client's combat panel.
+
+If you only have ten minutes, read **§1 The Round**, **§3 Actions**, and **§5 Damage**. That's enough to play a competent first fight. The rest is what makes you good — when to full-dodge versus when to aim, how to position for cover, when to spend Character Points versus when to bank them, what NPC behaviors to expect from B1 droids versus Geonosian warriors versus Hutt enforcers.
+
+This is the foundational combat-rules layer. It assumes you've already read the [Core Mechanics](#/guide/weg-d6-core-mechanics) guide — dice pools, the Wild Die, difficulty numbers. If those phrases don't mean anything to you yet, start there. Combat is gated by zones (see [Security Zones](#/guide/security-zones)) and feeds directly into the wound and death system (see [Medical & Death](#/guide/medical-death)). Force-sensitive characters layer Force powers on top of everything below (see [Force Powers](#/guide/force-powers)). The Clone Wars setting also means you'll be fighting a specific range of opponents: B1 and B2 battle droids on Geonosis, Hutt enforcers in Mos Eisley and Nar Shaddaa, Trandoshan thugs in the Coruscant Underworld, Republic clones in rare PvE-vs-Republic scenarios. Each archetype fights differently — knowing the patterns saves your life.
 
 ---
 
-## 1. Combat Flow: The Round
+## 1. The Round
 
-### Player Rules
-
-Combat is turn-based, organized into rounds. Each round follows four phases:
+Combat is turn-based, organized into rounds. Each round has four phases that always run in the same order:
 
 **Phase 1 — Initiative.** Everyone in combat rolls Perception. Highest goes first. The game displays the turn order.
 
-**Phase 2 — Declaration.** Starting from lowest initiative to highest, each combatant declares what they'll do this round: attack a target, dodge, parry, aim, take cover, flee, or use a Force power. You can declare multiple actions (attack + dodge, for example), but each extra action applies a multi-action penalty (−1D per extra action to ALL your rolls). You can also declare a full dodge or full parry — your entire round is spent on defense, but it's much more effective.
+**Phase 2 — Declaration.** Starting from lowest initiative and going up, each combatant declares what they'll do this round: attack a target, dodge, parry, aim, take cover, flee, use a Force power. You can declare multiple actions in one round, but every extra action imposes a **−1D penalty to all of your rolls** that round. You can also commit your entire round to defense — see "full dodge" and "full parry" below.
 
-**Phase 3 — Resolution.** Actions resolve in initiative order (highest first). The game rolls all dice, applies damage, and narrates results. You see a two-line output for each action: a bold story line ("▸ Kaelin fires at the Stormtrooper — HIT! Wounded!") and a dim mechanics line showing the exact rolls.
+**Phase 3 — Resolution.** Actions resolve in initiative order (highest first). The game rolls all the dice, applies damage, and narrates results. Each action produces a two-line output: a **bold story line** ("▸ Kaelin fires at the B1 droid — HIT! Wounded!") and a **dim mechanics line** showing the exact rolls and math behind it. You can see the underlying dice without them cluttering the narrative.
 
-**Phase 4 — Cleanup.** Stun timers tick down. Mortally wounded characters make death rolls. Fled or dead combatants are removed. If only one side remains, combat ends.
+**Phase 4 — Cleanup.** Stun timers tick down. Mortally wounded characters make their death rolls. Fled or dead combatants leave the fight. If only one side remains, combat ends. Otherwise a new round begins at Phase 1.
 
-Then a new round begins at Phase 1.
+The round structure is consistent. Once you know the four phases, you know the rhythm of every fight — including big multi-combatant battles. The phases just take longer when there's more going on. A two-character cantina duel in Mos Eisley resolves a round in seconds; a five-on-five clone-vs-droid engagement on the Geonosis surface can take several minutes per round once everyone has declared. The web client shows you exactly where in the phase cycle the fight is, so you don't have to guess whether you should be declaring or waiting.
 
-### 🔧 Developer Internals
+### What gets carried across rounds
 
-**File:** `engine/combat.py` — `CombatInstance` class (line 337, ~1,400 lines)
+Some state persists between rounds and some doesn't:
 
-**Phase tracking:** `CombatPhase` enum: `INITIATIVE`, `DECLARATION`, `RESOLUTION`, `POSING`, `CLEANUP`, `ENDED`.
+| State | Persists? | Notes |
+|---|---|---|
+| Wound level | Yes | Healthy → Stunned → Wounded → ... stays unless healed |
+| Stun timers | Yes (until they tick out) | Each stun has a 2-round countdown |
+| Cover level | Yes (until you attack or move) | Attacking degrades cover to 1/4 |
+| Aim bonus | Yes (resets after you fire) | Stacks to +3D over multiple rounds |
+| Force Point active | No | One round per spend |
+| PvP consent timer | Yes | 10 minutes from accept |
+| Declared actions | No | Cleared at the start of each declaration phase |
 
-**Round flow in code:**
-```
-combat.roll_initiative()     → DECLARATION phase, events returned
-    ↓ (players declare actions)
-combat.declare_action(id, action) → validates, appends to Combatant.actions
-    ↓ (when all_declared() is True)
-combat.resolve_round()       → RESOLUTION → POSING phase, events returned
-    ↓ (pose window for narrative)
-    ↓ (then command layer starts next round)
-combat.roll_initiative()     → next round
-```
-
-**`CombatInstance.__init__()`**: Takes `room_id`, `skill_reg`, `default_range` (RangeBand), `cover_max`. Maintains `combatants: dict[int, Combatant]`, `initiative_order: list[int]`, `events: list[CombatEvent]`.
-
-**`is_over` property**: Returns True when `len(active_combatants) <= 1`. Active = `wound_level.can_act and not is_fleeing`.
+The persistence model is what makes longer fights tactical rather than chaotic. If you full-dodge in round 2, then attack in round 3, you didn't waste your effort — you survived round 2's incoming shots, and you go into round 3 with a clean slate to attack. Cover stays put until you give it up. Aim stacks across rounds.
 
 ---
 
 ## 2. Initiative
 
-### Player Rules
+At the start of every round, every combatant rolls **Perception** (with wound penalties applied). The results sort the turn order — highest acts first during resolution. Ties are broken by sort order, so the same character always wins identical ties to themselves.
 
-At the start of each round, every combatant rolls **Perception** (with wound penalties applied). The results determine turn order — highest roll acts first during resolution. Ties are broken by the sort (stable, so consistent ordering).
+You don't type anything for initiative. The game rolls it automatically and shows you the order:
 
-You don't type anything for initiative — it happens automatically.
+```
+Turn order: Kaelin (18) → Tarn (15) → B1 Battle Droid (12) → Hutt Enforcer (9)
+```
 
-### 🔧 Developer Internals
+Initiative matters more than people expect. The first character to act in resolution gets to apply their wound (or kill) before the target gets to fire back. A character at low Perception in a fast fight may never get to act before being incapacitated. Investing in Perception isn't just about social skills — it's a combat stat. In a Clone Wars context this is particularly relevant against Republic Commandos, who have Perception 3D+2 and routinely outroll player characters in opening initiative.
 
-**`roll_initiative()`** (lines 418–467):
-1. Increments `round_num`, sets phase to DECLARATION
-2. For each combatant: rolls `Perception` pool via `roll_d6_pool()`, applies wound penalty
-3. Stores individual roll displays in `_last_initiative_rolls` (for `combat rolls` command)
-4. Sorts `initiative_order` by roll total (descending)
-5. Resets per-round state: clears actions, `has_acted`, `dodge_roll_cached`, `soak_cp`
-6. Returns single summary event: `"Turn order: Kaelin (18) → Trooper (14) → ..."`
+### Tactical tip: re-rolling initiative
+
+Some Force powers (Sense-tree powers like Combat Sense) can boost your Perception for the round in which you activate them. If you suspect you're in a fight where initiative matters and you have a Force-sensitive in the party, that's the kind of round to spend a Force Point on — being first in resolution often decides who walks away.
 
 ---
 
-## 3. Actions and Declaration
+## 3. Declaring Actions
 
-### Player Rules
-
-**Available actions:**
+When the declaration phase opens, the game waits for every combatant to declare at least one action. The available actions:
 
 | Command | Action | Notes |
-|---------|--------|-------|
-| `attack <target>` | Attack someone | Optionally: `attack trooper with melee combat` |
-| `dodge` | Normal dodge | Counts as an action (multi-action penalty applies) |
-| `fulldodge` | Full dodge | Entire round dedicated to dodging — no other actions |
-| `parry` | Normal parry | Melee defense, counts as an action |
-| `fullparry` | Full parry | Entire round dedicated to parrying |
-| `aim` | Aim at target | +1D to next attack, stackable to +3D over multiple rounds |
-| `cover` | Take cover | Uses room's available cover level |
+|---|---|---|
+| `attack <target>` | Attack a specific target | Optional: `attack droid with melee combat` |
+| `dodge` | Normal dodge | Counts as an action; multi-action penalty applies |
+| `fulldodge` | Full dodge | Entire round on defense; no other actions allowed |
+| `parry` | Normal melee parry | Counts as an action |
+| `fullparry` | Full melee parry | Entire round on defense; no other actions allowed |
+| `aim` | Aim at next target | +1D to your next attack, stackable to +3D |
+| `cover` | Take cover | Uses the room's available cover (see §7) |
 | `flee` | Attempt to escape | Opposed Running roll vs. fastest opponent |
 | `pass` | Do nothing | Generates a generic auto-pose |
 
-**Multi-action declaration:** You can declare multiple actions in one round. Each additional action imposes −1D to ALL rolls:
-```
-> attack trooper          (1 action: full dice)
-> dodge                    (2nd action: −1D to both attack and dodge)
-```
+**Multi-action declarations.** You can declare more than one action in a single round — attack and dodge in the same turn, for instance. Every extra action imposes **−1D on every roll you make that round**, including the first one. A character with 4D in Blaster declaring "attack + dodge" rolls both at 3D. Three actions is 2D for everything. The penalty doesn't favor the original action; it spreads evenly.
 
-**Full defense rules:**
-- `fulldodge` or `fullparry` must be your ONLY action — you can't attack and full dodge
-- Full dodge ADDS your dodge roll to the difficulty for ALL incoming ranged attacks
-- Normal dodge REPLACES the base difficulty — which can be worse if you roll low
+This is the central tradeoff of every combat round. More actions means more things you can do but more chances to whiff. Skilled combat is largely about knowing when to commit to one action with full dice and when to spread thin. Against B1 Battle Droids (low individual stats but they come in numbers), single-attack rounds are usually correct — your full-dice attack one-shots them. Against a Republic Commando or a Trandoshan brute with 6D Brawling, the calculation changes — you may need to dodge AND attack to survive, even at the dice penalty.
 
-**CP spending on attacks:** `attack trooper cp 3` spends 3 Character Points on the attack roll. CP dice are rolled after your attack roll and added (they explode on 6, no mishap on 1). CP and Force Points cannot be used in the same round.
+**Full defense.** `fulldodge` and `fullparry` must be your *only* action. You can't full-dodge and also attack. In exchange, the defense roll behaves very differently:
 
-**Soak CP:** `soak 2` pre-declares 2 CP to add to your Strength resistance roll if you're hit. Max 5 per R&E. Only spent if you're actually hit.
+- A normal dodge roll **replaces** the base difficulty for incoming ranged attacks. If you roll high, you're safer than the base difficulty would have made you. If you roll low, you might actually be *easier* to hit than if you hadn't dodged at all.
+- A full dodge roll **adds to** the base difficulty. Whatever your dodge roll comes out to is added on top of the range difficulty. Even a low full-dodge roll is still net-positive defense; a high one makes you nearly untouchable.
 
-### 🔧 Developer Internals
+The same distinction applies to `parry` versus `fullparry` for melee. Full defense is the right call when you're outnumbered or wounded and just need to survive the round. It's also a strong call in the first round of a fight you didn't expect — if a Mos Eisley cantina brawl breaks out and you weren't ready, full-dodging round 1 buys you a round to assess before you commit.
 
-**`CombatAction` dataclass** (lines 162–172): `action_type: ActionType`, `skill`, `target_id`, `weapon_damage`, `weapon_key`, `cp_spend`, `stun_mode`, `description`.
+**Character Points on attacks.** `attack droid cp 3` spends 3 Character Points on the attack roll. The CP dice are rolled *after* your normal attack dice — you see your initial result, then decide whether to spend CP to push it over the edge. CP dice explode on 6s (like the Wild Die) but have no complication on 1s, so they're always purely beneficial. The R&E rule is that CP and Force Points can't be used in the same round; the game enforces this.
 
-**`ActionType` enum** (lines 117–128): ATTACK, DODGE, FULL_DODGE, PARRY, FULL_PARRY, AIM, FLEE, COVER, USE_ITEM, FORCE_POWER, OTHER.
+When to spend CP: when the roll is close to the difficulty and the consequences of missing matter. Killing the last B1 in a patrol so it can't sound an alarm is worth 2 CP. Landing a hit on a fleeing bounty target before they round the corner is worth 3 CP. Pushing a marginal dodge over the threshold to survive a Republic Commando's headshot is worth as much as you've got. Don't burn CP on rolls that succeed or fail by wide margins — only on the close ones.
 
-**`declare_action()`** (lines 591–629): Validation rules:
-- Full dodge/parry must be the only action (and no other actions can follow)
-- CP and FP are mutually exclusive in the same round (R&E p55)
-- Must have enough CP to spend
-- Appends to `Combatant.actions` list
-
-**`clear_actions()`**: Wipes the action list and resets dodge cache (re-declare means fresh roll).
-
-**`all_declared()` / `undeclared_combatants()`**: Check if every active combatant has at least one action declared. Used by the command layer to trigger auto-resolve.
+**Soak CP.** `soak 2` pre-declares 2 CP to add to your Strength resistance roll *if* you get hit. Max 5 per the R&E rule. The CP is only spent if damage actually lands, so it's a smart precaution rather than a guaranteed cost. Pre-declaring soak before a round where you expect to take fire — say, you've drawn the aggro of a Droideka and you're going to be in its line of sight — is one of the highest-value uses of CP in the game.
 
 ---
 
-## 4. Ranged Attack Resolution
+## 4. Ranged Attacks
 
-### Player Rules
+When you fire a blaster, bowcaster, or any other ranged weapon, your attack works like this:
 
-When you fire a blaster (or any ranged weapon), the attack works like this:
+**1. The range band sets the base difficulty.** Every shot starts with a target number based on how far you are from your target:
 
-1. **Base difficulty** comes from the range band to your target:
-   - Point-blank: Very Easy (5)
-   - Short range: Easy (10)
-   - Medium range: Moderate (15)
-   - Long range: Difficult (20)
+| Range | Difficulty |
+|---|---|
+| Point-blank | Very Easy (5) |
+| Short | Easy (10) |
+| Medium | Moderate (15) |
+| Long | Difficult (20) |
 
-2. **Dodge modifies difficulty:**
-   - If the target declared a normal dodge: their dodge roll **replaces** the base difficulty (which can backfire if they roll low!)
-   - If the target declared a full dodge: their dodge roll **adds** to the base difficulty
-   - Dodge is rolled once per round and cached — the same roll applies to all incoming ranged attacks
+Range is determined by the room geometry and the `range` command. Most cantina interiors are short-range throughout. Mos Eisley street fights can stretch to medium. Open terrain like the Jundland Wastes or the Geonosis surface routinely sees long-range fire — that's why sniping with `aim` matters so much in those zones.
 
-3. **Cover adds to difficulty:** If the target is behind cover, additional dice are rolled and added to the difficulty (+1D for quarter cover, +2D for half, +3D for three-quarter). Full cover blocks targeting entirely.
+**2. The target's dodge modifies the difficulty.** If they declared a normal dodge, their dodge roll **replaces** the base difficulty — which can backfire if they rolled low. If they declared a full dodge, their roll **adds to** the base. Dodge is rolled once per round and cached, so the same value applies to every incoming ranged attack on them that round.
 
-4. **You roll your weapon skill** (Blaster, Bowcaster, etc.) with all modifiers (wound penalty, multi-action penalty, armor DEX penalty, aim bonus, Force Point doubling, CP spending).
+**3. Cover adds more difficulty.** If they're behind cover, the game rolls extra dice and adds the total to the difficulty: +1D for quarter cover, +2D for half, +3D for three-quarters. Full cover blocks the shot entirely.
 
-5. **If your roll ≥ total difficulty: HIT.** Proceed to damage resolution.
+**4. You roll your weapon skill.** Your Blaster pool (or Bowcaster, or whatever) with all relevant modifiers applied: wound penalty, multi-action penalty, armor's Dexterity penalty (heavy armor makes you a worse shot), aim bonus from previous rounds, Force Point doubling if you spent one, plus any CP dice you spent on this roll.
 
-### What You See
+**5. If your roll is greater than or equal to the total difficulty, you hit.** Then damage is rolled — see §5.
+
+A hit looks like this in play:
 
 ```
-  ▸ Kaelin fires at Stormtrooper with blaster — HIT — Wounded!
+  ▸ Kaelin fires at B1 Battle Droid with blaster — HIT — Wounded!
     (Roll: 18 vs Diff: Short(10) + Cover(1/2) 6 = 16 · Damage 14 vs Soak 9 → Wounded)
 ```
 
-A miss looks dimmer:
+A miss is dimmer and less dramatic:
+
 ```
-  Kaelin shoots at Stormtrooper with blaster — barely misses!
+  Kaelin shoots at B1 Battle Droid with blaster — barely misses!
     (Roll: 12 vs Diff: Short(10) + FullDodge 8 = 18)
 ```
 
-### 🔧 Developer Internals
+The first line is always the narrative. The dim parenthetical is the math. Both are shown so you understand exactly why the result came out as it did — no hidden modifiers.
 
-**`_resolve_ranged_attack()`** (lines 825–981):
+### Worked example: Mos Eisley cantina brawl
 
-1. Determines range band via `get_range(actor_id, target_id)` → `RangeBand` enum (5/10/15/20/99)
-2. Checks full cover (level 4) — blocks targeting entirely
-3. Attacking from cover degrades attacker's cover to quarter (peeking out)
-4. **Dodge calculation** (v22 audit #7, #8):
-   - Uses `target_c.dodge_roll_cached` if already rolled this round (one roll per round rule)
-   - Otherwise: rolls dodge pool with wound/multi-action/armor/FP penalties
-   - Normal dodge: `dodge_replaces = True`, dodge value replaces base difficulty
-   - Full dodge: dodge value adds to base difficulty
-5. **Cover bonus**: Rolls `COVER_DICE[level]`D, adds total to difficulty
-6. **Total difficulty**: `base + dodge_bonus + cover_bonus` (or `dodge_value + cover_bonus` for replacement)
-7. Rolls attack pool, applies CP spending, checks `attack_total >= total_difficulty`
-8. On hit: calls `_apply_damage()`
+You're a Human smuggler at 3D+2 Blaster, carrying a DL-44 Heavy Blaster Pistol (5D damage). A Trandoshan tough across the cantina decides he doesn't like your face and pulls a blaster pistol. Initiative comes out: him 14, you 11. He fires first.
 
-**Attack pool construction** (lines 776–793):
-```python
-attack_pool = char.get_skill_pool(action.skill, skill_reg)
-attack_pool = apply_wound_penalty(attack_pool, char.total_penalty_dice)
-attack_pool = apply_multi_action_penalty(attack_pool, num_actions)
-# Armor DEX penalty (v22)
-attack_pool = apply_wound_penalty(attack_pool, armor_dex_pen.dice)
-# Force Point doubles
-if actor.force_point_active:
-    attack_pool = apply_force_point(attack_pool)
-# Aim bonus
-attack_pool.dice += actor.aim_bonus
-```
+His attack: 3D Blaster, short range (cantinas are mostly short). Diff is 10 + your cached dodge (you declared a normal dodge, rolled 9 — *replaces* the base, so total diff is 9). He rolls 13. Hit. Damage 4D = 12 vs your Strength 3D + Blast Vest 1D energy = 4D, you roll 11. Margin 1 — Stunned for 2 rounds. Bad start, but you're still up.
+
+Your turn. You're at −1D from the stun (1 active timer × −1D), so effective Blaster is 2D+2. You attack, Diff is 10 + his cached dodge (he declared a normal dodge, rolled 7 — so diff is 7 because dodge replaces). You roll 12, including a Wild Die that exploded. Margin 5 — Hit. Damage 5D from the DL-44 vs his 3D Strength + 1D Blast Vest = 4D, you roll 16. Margin 6 — Wounded. He's at −1D for the rest of the fight.
+
+Round 2 starts. You stun-timer ticks once (one round left). You're still at −1D. He's at −1D from wounded. You both declare attacks at reduced dice. Etc.
+
+The fight runs another two rounds — you spend 2 CP on round 3 to push him to Incapacitated, he tries to flee in round 4 and fails the opposed Running roll, you put him down on round 5. Three minutes of real time, four to five rounds of fiction, a full cantina sequence. Welcome to Mos Eisley.
 
 ---
 
-## 5. Melee Attack Resolution
+## 5. Damage and Wounds
 
-### Player Rules
-
-Melee combat (fists, vibroblades, lightsabers) uses **opposed rolls** — your attack skill vs. the defender's parry skill. The higher total wins.
-
-**Defense skill matching:**
-- Brawling attacks → defended by Brawling Parry
-- Melee weapon attacks → defended by Melee Parry (or Lightsaber if the defender has it and it's higher)
-- Lightsaber attacks → defended by Lightsaber or Melee Parry (whichever is higher)
-
-**R&E melee modifiers:**
-- Unarmed defender vs. armed attacker: **+10 flat bonus** to the attacker's roll
-- Armed defender (parry/lightsaber) vs. unarmed attacker: **+5 flat bonus** to the parry roll
-
-If no defense is declared, the attacker rolls against the weapon's listed difficulty number instead (Easy/Moderate/Difficult from weapons.yaml).
-
-### 🔧 Developer Internals
-
-**`_resolve_melee_attack()`** (lines 983–1106):
-1. Builds defense pool via `get_defense_skill()` (lines 73–112) — determines appropriate parry skill
-2. If defender declared parry: opposed roll with melee modifiers as FLAT bonuses to roll totals (not DicePool additions — v22 audit #15 fix)
-3. If no defense declared: difficulty check against weapon's `melee_difficulty` field (v22 audit #16)
-4. CP spending added to attack total after roll
-5. Applies `_apply_damage()` on hit
-
-**`get_defense_skill()`** (lines 73–112): Returns `(skill_name, pool)`:
-- Ranged → dodge
-- Brawling → brawling parry
-- Lightsaber → lightsaber if defender has it (by pips comparison), else melee parry
-- Other melee → melee parry, with lightsaber override if defender's lightsaber is higher
-
----
-
-## 6. Damage Resolution
-
-### Player Rules
-
-When an attack hits, the game rolls weapon damage vs. target's resistance (Strength + armor). The difference determines the wound:
+When an attack hits, the game rolls the weapon's damage dice against the target's **resistance** (Strength + armor protection). The margin between damage and resistance determines what kind of wound the target takes:
 
 | Damage Margin | Result |
-|---------------|--------|
+|---|---|
 | ≤ 0 | No Damage |
-| 1–3 | Stunned (−1D, wears off in 2 rounds) |
-| 4–8 | Wounded (−1D permanent until healed) |
-| 9–12 | Incapacitated (out of the fight) |
+| 1–3 | Stunned (−1D, wears off after 2 rounds) |
+| 4–8 | Wounded (−1D, persists until healed) |
+| 9–12 | Incapacitated (out of the fight, unconscious) |
 | 13–15 | Mortally Wounded (death roll each round) |
 | 16+ | Dead |
 
-**Melee damage** uses STR + weapon bonus. A character with 3D Strength swinging a Vibroblade (STR+3D) rolls 6D damage.
+A ranged attack rolls the weapon's flat damage code (a blaster pistol is 4D, a blaster rifle is 5D, a Wookiee bowcaster is 4D, and so on). A melee attack rolls **Strength + weapon bonus** — a 3D-Strength character swinging a Vibroblade (STR+3D) rolls 6D damage.
 
-**Force Point on melee:** Doubles your Strength but NOT the weapon bonus. So 3D STR + 3D vibroblade with FP = 6D STR + 3D weapon = 9D total (not 12D).
+**Force Point interaction.** Spending a Force Point doubles your dice for the round. For melee damage, it doubles your **Strength** but *not* the weapon bonus. So that 3D-STR + 3D-Vibroblade character with a Force Point active rolls 6D STR + 3D weapon = 9D damage, not 12D. This is the R&E p52 rule and the game enforces it specifically.
 
-**Armor** adds to your Strength for resistance. A character with 3D STR wearing Stormtrooper Armor (+1D energy / +2D physical) resists a blaster bolt with 4D (3D + 1D energy protection).
+**Armor.** Armor adds dice to your Strength when resisting damage. Clone trooper armor gives +2D energy / +1D physical (deliberately tuned the opposite of stormtrooper armor — clone phase-1 armor is better against energy weapons than against melee). A 3D-Strength clone resists a blaster bolt with 5D total but resists a vibroblade strike with only 4D. Most armors also impose a Dexterity penalty for wearing them, which reduces your effectiveness at shooting and dodging — so armor is a tradeoff, not a free upgrade.
 
-**Stun mode:** Blasters set to stun roll damage normally, but any result more severe than Stunned becomes "Stunned — Unconscious" instead. You can't kill someone with a stun blast.
+Some specific armor profiles you'll see in CW play:
 
-### 🔧 Developer Internals
+| Armor | Energy | Physical | Dex Penalty | Notes |
+|---|---|---|---|---|
+| Plain Clothes | +0 | +0 | None | Default for civilians and smugglers |
+| Blast Vest | +1D | +1D | None | The everyman option |
+| Padded Flight Suit | +1D | +1D | None | Spacer-typical |
+| Clone Phase 1 Armor | +2D | +1D | −1D Dexterity | Republic standard issue |
+| Mandalorian Beskar'gam | +2D | +3D | −1D Dexterity | Bounty hunter, very expensive |
+| ARC Trooper Recon Armor | +1D+2 | +1D+1 | None | Lighter, faster, elite-only |
+| Geonosian Chitin | +1D | +2D | None | Native species natural armor |
 
-**`_apply_damage()`** (lines 1108–1253):
+**Stun mode.** Blaster pistols (and many other blasters) have a stun setting. A blaster set to stun rolls damage normally, but any result more severe than Stunned is capped at "Stunned — Unconscious." You cannot kill someone with a stun blast, no matter how good your damage roll. This is what most arrest scenarios use — Coruscant Security Force shoots first and asks questions later, but they shoot on stun.
 
-1. **Parse damage string:** Handles `"STR+2D"` notation for melee (splits STR pool + weapon bonus, Force Point doubles STR only) and flat `"4D"` for ranged (FP doubles entire pool)
-2. **Build soak pool:** `target.strength + armor_protection(energy=is_ranged)` with wound penalty applied
-3. **Soak CP:** If defender pre-declared soak CP and was hit, rolls CP dice (max 5) and adds to soak total, deducts from character_points
-4. **Damage margin:** `damage_roll.total - soak_total`
-5. **Stun mode:** If `action.stun_mode` and margin > 3, caps at "Stunned — Unconscious" (v22 audit #11)
-6. **Wound application:** Calls `target.apply_wound(damage_margin)` which uses `WoundLevel.from_damage_margin()` and handles escalation
-7. **Narrative generation:** Two-line format with verb variety, wound color escalation (dim for no damage, yellow for stunned, bright yellow for wounded, bold red for incap/mortal/dead), and wound drama text for severe results
+**Soak CP, again.** If you pre-declared `soak 2`, those 2 CP get rolled and added to your resistance total when you actually get hit. Up to 5 CP can be soaked per round. The decision is asymmetric — you spend CP only if hit, so soak-declaring is much cheaper than attack-CP-spending.
+
+For what happens *after* you take serious damage — wound recovery, bacta tanks (rare in CW; field medics with bacta-patches are more common), the death sequence — see [Medical & Death](#/guide/medical-death).
 
 ---
 
-## 7. Cover System
+## 6. Melee
 
-### Player Rules
+Melee combat (fists, vibroblades, lightsabers) uses **opposed rolls** instead of a fixed difficulty. Your attack skill vs. their parry skill. Highest total wins.
 
-Some rooms have cover available. Use the `cover` command to take cover:
+The defense skill the game uses depends on what you're attacking with:
 
-| Cover Level | Bonus to Attacker's Difficulty | Notes |
-|-------------|-------------------------------|-------|
-| None | +0 | No cover in this room |
+- **Brawling attacks** → defended by Brawling Parry
+- **Melee weapon attacks** → defended by Melee Parry (or Lightsaber if the defender has it trained higher)
+- **Lightsaber attacks** → defended by Lightsaber or Melee Parry (whichever is higher for the defender)
+
+The R&E rules add two flat bonuses for equipment mismatches:
+
+- An **unarmed defender** fighting an **armed attacker** gives the attacker **+10 to their roll total**. Trying to parry a vibroblade barehanded is a bad idea.
+- An **armed defender** parrying an **unarmed attacker** gets **+5 to the parry roll**. Lightsabers and vibroaxes don't have trouble swatting away a punch.
+
+If no defense is declared at all, the attacker rolls against the weapon's **listed melee difficulty** (Easy, Moderate, or Difficult, set per weapon). This lets you stab someone who's not paying attention without the game requiring them to defend — useful for sneak attacks and surprise rounds.
+
+After a melee hit, damage resolves exactly as in §5 — STR + weapon bonus vs. STR + armor.
+
+### Lightsabers are special
+
+Lightsabers do **flat 5D** damage regardless of your Strength, and they **bypass most armor** (the blade cuts through Phase 1 clone armor as easily as through plain clothes; beskar is one of the few materials that can resist a lightsaber strike, and even then only briefly).
+
+If you're a Padawan or fully-trained Jedi facing a non-lightsaber opponent, you have an extreme melee advantage. The reverse is also true — facing a lightsaber opponent without one of your own is essentially a death sentence unless you can stay at range. This is part of why Padawans get sent into messy ground engagements and why Hutt enforcers facing Jedi tend to fire from cover rather than close to melee.
+
+### Worked example: a Geonosian arena duel
+
+You're a Padawan with 3D Lightsaber. A Geonosian Warrior on the arena floor closes with a sonic pike (STR+2D damage, defended by Melee Parry). Initiative: you 14, Geo 12. You attack.
+
+Your roll: 3D Lightsaber, opposed by their Melee Parry 2D+1. You roll 11. They roll 8. Margin 3, you hit. Damage 5D (lightsaber flat) vs their Strength 3D + Geonosian Chitin 1D = 4D, you roll 17. Margin 12 — Incapacitated in one swing. The lightsaber bypassed most of their chitin protection; even rolling decently on the soak side, they're done.
+
+Round 2 starts but the fight is over. The arena crowd reacts. You disengage. Welcome to Geonosis.
+
+---
+
+## 7. Cover
+
+Many rooms have **cover available** — crates, low walls, doorways, terrain, the rusted hulks of battle-droid wreckage. Use the `cover` command to take advantage of it:
+
+| Cover Level | Bonus to Attacker's Difficulty | Feels Like |
+|---|---|---|
+| None | +0 | Standing in the open |
 | 1/4 Cover | +1D | Peeking around a corner |
 | 1/2 Cover | +2D | Behind a crate or wall section |
 | 3/4 Cover | +3D | Barely exposed |
-| Full Cover | Can't be targeted | But you can't attack either |
+| Full Cover | Cannot be targeted | Hidden — but you can't shoot either |
 
-**Key rules:**
-- Cover level is limited by the room's `cover_max` property (set by builders)
-- Attacking from cover **degrades your cover to 1/4** (you have to peek out to shoot)
-- Cover persists across rounds until you attack or move
-- Cover only protects against ranged attacks, not melee
+The key rules to remember:
 
-### 🔧 Developer Internals
+- **Cover level is room-capped.** Each room has a maximum cover level set by the builder. The Mos Eisley docking bays have plenty of cargo crates (cover_max = 3). The Coruscant Senate plaza has columns but they're spaced thin (cover_max = 2). The open Jundland Wastes mid-canyon have almost nothing (cover_max = 1, maybe 0). The room's `look` description usually tells you what's available.
+- **Attacking from cover degrades your cover to 1/4.** You have to peek out to take the shot. So an aggressive shooter behind half-cover effectively loses most of their protection when they fire. Sniping with `aim` and rare shots is more cover-friendly than spraying every round.
+- **Cover persists across rounds** until you attack or move out of the cover position. You don't have to re-declare it every turn.
+- **Cover only protects against ranged attacks.** Hiding behind a crate doesn't help against a vibroblade. The melee combatant just walks around the crate. (This is why Jedi and Sith are so dangerous against blaster-only opponents — they close to melee and your cover stops mattering.)
 
-**Constants** (lines 131–159): `COVER_NONE` through `COVER_FULL` (0–4), `COVER_DICE` dict mapping level to bonus dice count, `COVER_NAMES` for display.
+### Tactical: when to take cover
 
-**`_resolve_cover()`** (lines 1304–1342): Parses requested level from action description, clamps to `self.cover_max`. Sets `actor.cover_level`.
+- Round 1 of any unexpected fight, if cover is available — buys you assessment time.
+- Whenever you're at 4D or less in your active combat skill and facing multiple shooters — the difficulty boost on incoming fire matters more than your action economy.
+- Before declaring `aim` rounds — a sniper in 3/4 cover aiming for three rounds is the safest possible offensive setup.
 
-**Cover applied in ranged attacks** (lines 919–927): Rolls `COVER_DICE[level]`D and adds the total to the difficulty.
+When NOT to take cover:
+
+- When your only viable target is also in cover and you need to close — cover doesn't help you advance.
+- In melee-only encounters — wastes an action for zero benefit.
+- When fleeing — `flee` is the better single-action choice; cover doesn't help you exit the room.
 
 ---
 
-## 8. Fleeing Combat
+## 8. Fleeing
 
-### Player Rules
+Type `flee` to attempt to escape combat. The game makes an **opposed Running roll** — your Running skill against the highest-initiative opponent's Running skill. Both rolls include wound and multi-action penalties.
 
-Type `flee` to attempt to escape. The game makes an **opposed Running roll** — your Running skill vs. the highest-initiative opponent's Running skill. Win and you escape; lose and you're stuck for another round.
+Win the roll and you flee successfully — you're removed from combat during cleanup. Lose and you're stuck in the fight for at least another round. If no enemies remain by the time you declare, you flee automatically.
 
-If no opponents remain, you flee automatically.
+Fleeing is a legitimate tactical choice, not a failure state. A wounded character down to 2D in everything fleeing to find a medic is often the right move. A character at full health bailing on a fight just because they're outnumbered is also valid. The game doesn't shame you for running.
 
-### 🔧 Developer Internals
+### Running in the Clone Wars
 
-**`_resolve_flee()`** (lines 1344–1379): Uses `opposed_roll()` with actor's Running vs. highest-initiative opponent's Running, both with wound/multi-action penalties. On success, sets `c.is_fleeing = True` — removed during cleanup.
+A few specific scenarios where fleeing is the correct read:
+
+- **Republic Commando squad ambush.** Four ARC-tier troopers with 4D+ skills and military discipline. If you're solo and they've gotten the drop on you, run. Fight back later from cover with friends.
+- **Droideka deployment.** Once a droideka unfolds its shield and starts firing, you cannot outshoot it — its shield negates most damage and its twin blasters out-DPS most player loadouts. Run, regroup, find an EMP grenade.
+- **Mandalorian bounty hunter pursuit.** If a beskar-armored hunter has identified you specifically, you cannot win that fight head-on with a starting character. Run, lose them in the Coruscant Underworld levels, change your appearance, fight another day.
+- **Geonosian swarm encounter.** Ten Geonosian Warriors in their home arena. Even with Force-sensitivity, the dice math just doesn't work. Run.
 
 ---
 
 ## 9. Aim
 
-### Player Rules
+Type `aim` to spend your action carefully aiming. You gain **+1D to your next attack**, stackable up to **+3D** over multiple rounds. The bonus resets to 0 once you actually fire.
 
-Type `aim` to spend your action taking careful aim. You gain **+1D to your next attack**, stackable up to **+3D** over multiple rounds of aiming. The bonus resets to 0 after you fire. Aiming is most effective when used 2–3 rounds in succession before a single devastating shot.
+Aim is the bedrock of sniper play. Three rounds of `aim` followed by a single shot is a 4D-Blaster character firing at 7D — that's the difference between a probable miss and a probable kill on a difficult target.
 
-### 🔧 Developer Internals
+It also works as a soft delay tactic. If your initiative is high but you're not ready to commit, `aim` lets you stack a bonus while waiting for a better tactical picture.
 
-**`_resolve_aim()`** (lines 1296–1302): `actor.aim_bonus = min(actor.aim_bonus + 1, 3)`. Applied in `_resolve_attack()` at line 792 and reset to 0 after firing.
+The classic Tatooine setup: a player with a sporting blaster and 5D Blaster, perched on a rocky outcropping at long range to a Bantha caravan in the Jundland flatlands. Three rounds of aim (+3D), one shot at 8D against long-range difficulty 20 plus whatever cover the target has. That's the math that puts food on a moisture farmer's table.
 
 ---
 
 ## 10. PvP Consent and Security Zones
 
-### Player Rules
+Combat is gated by security level — this is critical to understand. Players are not legally targets just because they're hostile to your character.
 
-PvP combat is gated by security zones:
+| Zone | PvE | PvP |
+|---|---|---|
+| Secured | Blocked | Blocked |
+| Contested | Allowed | Requires challenge/accept |
+| Lawless | Unrestricted | Unrestricted |
 
-| Zone | PvE | PvP | Example |
-|------|-----|-----|---------|
-| Secured | Blocked | Blocked | Mos Eisley Core, Imperial Garrison |
-| Contested | Allowed | Requires challenge/accept | Spaceport, Cantina, most urban |
-| Lawless | Unrestricted | Unrestricted | Jundland Wastes, Nar Shaddaa Undercity |
+In contested zones, you must `challenge <player>` and they must `accept` before PvP can begin. Challenges expire after 10 minutes. Once accepted, PvP is open between you for ten minutes.
 
-In contested zones, you must `challenge <player>` and they must `accept` before PvP can begin. Challenges expire after 10 minutes.
+In secured zones — the Senate District, the Jedi Temple, Kuat Drive Yards — you cannot attack other players at all. The `attack` command will refuse.
 
-**Bounty Hunter override:** Guild members with an active claimed contract can bypass PvP consent in contested zones for their target.
+In lawless zones — the Jundland Wastes, the Coruscant Underworld below level 50, the Nar Shaddaa Warrens, anywhere on Geonosis that isn't a Republic position — no consent is needed. Anyone can attack anyone.
 
-### 🔧 Developer Internals
+**Bounty Hunter override:** Guild members with an active claimed contract can bypass PvP consent in contested zones for their target. The bounty is the consent. See [Security Zones](#/guide/security-zones) §4 for the full rules.
 
-**File:** `parser/combat_commands.py` — PvP consent tracking (lines 41–47):
-- `_pvp_consent: dict[tuple, float]` — Pending challenges with timestamps
-- `_pvp_active: dict[tuple, float]` — Accepted PvP pairs
-- `_PVP_CHALLENGE_TTL = 600` — 10-minute expiry
-
-Security zone checks are performed before attack commands are processed, gating on the zone's effective security level (which can be temporarily modified by the Director AI).
+For the complete security model — Director-driven crackdowns, faction influence, territory claims, space security — see [Security Zones](#/guide/security-zones).
 
 ---
 
 ## 11. NPC Combat AI
 
-### Player Rules
+NPCs in combat use one of five **behavioral profiles** that determine how they pick targets, when they take cover, when they dodge, and when they flee. Knowing which profile you're up against tells you a lot about how to fight them.
 
-NPCs fight using one of five behavioral profiles that determine how they select targets, when they dodge, and when they flee:
-
-| Profile | Attack Style | Defense | Flees At | Target Selection |
-|---------|-------------|---------|----------|-----------------|
+| Profile | Attack Style | Defense | Flees At | Targeting |
+|---|---|---|---|---|
 | **Aggressive** | Attacks best target | Dodges when wounded | Mortally Wounded | Most wounded (easiest kill) |
 | **Defensive** | Attacks opportunistically | Prefers dodge/cover | Incapacitated | Random |
-| **Cowardly** | Only fights if cornered | Takes cover first | Wounded | Most wounded (safest) |
+| **Cowardly** | Only fights if cornered | Takes cover first | Wounded | Most wounded (safest target) |
 | **Berserk** | Always attacks | Never dodges | Never | Strongest (biggest threat) |
-| **Sniper** | Aims then attacks | Uses cover | Wounded | Most wounded (easiest kill) |
+| **Sniper** | Aims, then attacks | Uses cover | Wounded | Most wounded (easiest kill) |
 
-Default archetype mappings: Stormtroopers are aggressive, thugs are berserk, merchants are cowardly, scouts are defensive, dark jedi are berserk.
+The default profile by NPC type in the Clone Wars era:
 
-### 🔧 Developer Internals
+- **Clone Troopers** are **Aggressive** — they fight as a disciplined unit, will dodge when wounded, will retreat if Mortally Wounded but not before. They pick the highest-value target (the most wounded ally of the player party) and focus fire.
+- **B1 Battle Droids** are **Berserk** — they don't dodge, don't take cover, just attack until destroyed. Individually weak (2D Blaster), but they come in numbers and they don't flinch. The first round of a B1 swarm fight is usually the worst because they all act and they all fire.
+- **B2 Super Battle Droids** are **Aggressive** with extra durability — they have the protocol to dodge and back off, but their heavy plating means they often don't bother.
+- **Droidekas** are **Sniper** — they deploy, aim, fire from cover. The shield is a special-state flag that adds significant resistance to incoming damage.
+- **Republic Commandos** are **Defensive** — disciplined, professional, will dodge and take cover, will only flee if the squad is reduced to one survivor. The hardest non-Force opponent in the player-accessible PvE pool.
+- **Geonosian Warriors** are **Berserk** in their home arena, **Defensive** outside it. Cultural — they fight to defend the hive, not to win as individuals.
+- **Hutt Enforcers** are **Aggressive** — they're paid, they're professional, they fight competently but they don't have suicide-pact loyalty. They'll flee if the contract isn't going their way.
+- **Trandoshan thugs** are **Berserk** — religious motivation, jagannath points, they don't flee even when they should.
+- **Twi'lek pickpockets / Coruscant Underworld lowlifes** are **Cowardly** — they'll only fight if cornered, will take cover first, will run as soon as wounded.
+- **Bounty hunter NPCs** (Cad Bane archetype, Aurra Sing archetype) are **Sniper** — they aim, they take cover, they fight from advantage. Avoid open ground.
 
-**File:** `engine/npc_combat_ai.py` (~461 lines)
-
-**`CombatBehavior` enum** (lines 39–44): AGGRESSIVE, DEFENSIVE, COWARDLY, BERSERK, SNIPER.
-
-**`npc_choose_actions()`** (lines 239–350): Decision tree:
-1. Check wound level vs. `_FLEE_THRESHOLD[behavior]` → FLEE if exceeded
-2. `_select_target()` — Berserk picks healthiest (min wound_level), Aggressive/Sniper/Cowardly pick most wounded (max wound_level), Defensive picks random
-3. `_get_npc_weapon()` — Reads `equipped_weapon` from Character, falls back to brawling
-4. Behavior-specific logic:
-   - Berserk: single attack, no defense, never dodges
-   - Sniper: aims for first 1–2 rounds, then attacks from cover
-   - Aggressive: attack + dodge (2 actions with multi-action penalty) when wounded, single attack when healthy
-   - Defensive: dodge + attack (prioritizes defense), takes cover when available
-   - Cowardly: takes cover first, attacks only if already in cover
-
-**`build_npc_character()`** (lines 108–143): Constructs a `Character` object from NPC DB row's `char_sheet_json`. Reads weapon from `ai_config_json` as fallback.
-
-**`DEFAULT_ARCHETYPE_BEHAVIOR`** and **`DEFAULT_ARCHETYPE_WEAPONS`** (lines 57–91): Maps like `"stormtrooper" → "aggressive"` and `"stormtrooper" → "blaster_rifle"`.
+**What this means in practice.** A Berserk B1 swarm will pick the strongest character in your party and just hit them every round until they go down. You can mitigate this by full-dodging on the threatened character, or by spreading the threat across multiple PCs. A Cowardly Twi'lek in a back alley will take cover the moment combat starts; if you let them, they'll run — fine if you don't need them dead, bad if you wanted to interrogate them and they escaped. A Sniper Droideka will aim for a round or two before firing — that's your window to close distance, throw an EMP, or flank the cover.
 
 ---
 
 ## 12. Combat Narrative and Flavor
 
-### Player Rules
-
-Combat output uses a two-line format for every action:
+Combat output uses a deliberate two-line format for every action:
 
 **Line 1 (Story):** Bold text with narrative verb variety and wound color escalation.
 **Line 2 (Mechanics):** Dim text showing exact rolls, difficulties, damage, and soak.
 
-Miss margin affects flavor text: narrow misses say "barely misses!" or "grazes the air!" while wide misses say "misses wildly!" or "the shot sails well past!" Severe wounds get drama beats: "staggers, struggling to stay on their feet" for Wounded Twice, "collapses, unable to continue" for Incapacitated.
+The narrative line varies by weapon and outcome. A blaster attack might "fire," "shoot," "snap off a shot," or "lay down covering fire." A vibroblade attack might "slash," "thrust," "carve," or "strike." A Force-power attack might "channel," "gather," or "release." The variety is built from a flavor matrix that picks verbs based on the weapon's skill and the margin of success.
 
-Target players see a special "◆ YOU" variant in bright red so they immediately notice they've been hit.
+Miss margin affects the flavor. A narrow miss says "barely misses!" or "grazes the air past your ear!" A wide miss says "misses wildly!" or "the shot sails well past the target!" The dimmer the description, the worse the roll.
 
-### 🔧 Developer Internals
+Severe wounds get drama beats. A Wounded Twice result reads "staggers, struggling to stay on their feet." An Incapacitated result reads "collapses, unable to continue." Mortally Wounded reads "falls and lies still, life draining away." These dramatic lines exist specifically because in a play-by-text game, the difference between "wounded twice" and "incapacitated" needs to *feel* different at a glance — players scanning the action log shouldn't have to parse the mechanics line to know what happened.
 
-**Verb variety pools** (lines 243–274): Keyed by weapon skill. `_pick_verb(skill, seed)` selects from the pool using `seed % len(pool)` for reproducibility.
+**Color coding.** Wound results escalate visually:
 
-**Miss flavor** (lines 259–274): `_miss_flavor(margin, ranged)` selects "close" or "wide" pool based on margin threshold (≤3 vs >3).
+- No damage: dim white
+- Stunned: yellow
+- Wounded: bright yellow
+- Wounded Twice: orange-yellow
+- Incapacitated: bright red
+- Mortally Wounded: bold red
+- Dead: bold red + skull marker
 
-**Wound color** (lines 223–238): `_wound_color()` maps wound text to ANSI colors: DIM for no damage, YELLOW for stunned, BRIGHT_YELLOW for wounded, BRIGHT_RED for incapacitated, BOLD+BRIGHT_RED for mortal/dead.
+You can scan a combat log purely by color and know who's in trouble.
 
-**File:** `engine/combat_flavor.py` (~280 lines) — FLAVOR_MATRIX auto-pose system:
-- `APPROACH_VERBS`: Per-skill verb pools for narrative attack descriptions
-- `MARGIN_RANGES`: miss_wild (-999 to -6), miss_close (-5 to -1), graze (0 to 2), solid (3 to 7), devastating (8+)
-- `generate_auto_pose()`: Combines approach verb + connection text (margin-dependent) + wound result into a complete pose sentence
-- `generate_pass_pose()`: Generic inaction pose for `pass` command
-- `generate_compound_npc_pose()`: Combines multiple action fragments into one sentence for multi-action NPCs
+**The "◆ YOU" marker.** When you take a hit, the target line shows your name with a bright red diamond marker — "◆ YOU" — so you immediately notice you've been wounded. Other players in the same combat see your name normally; the marker is yours alone. This prevents the "I didn't realize I'd been shot" failure mode in fast multi-combatant fights.
 
 ---
 
 ## 13. The Posing System
 
-### Player Rules
-
-After resolution, there's a short **pose window** where you can write a custom narrative description of what your character did:
+After resolution, there's a short **pose window** before the next round begins. During this window, you can write a custom narrative description of what your character did:
 
 ```
-> pose Kaelin ducks behind the cargo crate, snapping off two quick shots at the trooper. The first goes wide but the second catches him in the shoulder.
+> pose Kaelin ducks behind the cargo crate, snapping off two quick shots at the B1. The first goes wide but the second catches it in the optical sensor.
 ```
 
-If you don't write a pose within the grace period, the system generates an auto-pose using the flavor matrix. Type `pass` to explicitly skip posing and use the auto-generated text.
+If you don't write a pose within the grace period, the system generates an **auto-pose** from a flavor matrix — verb variety based on your weapon skill, miss/graze/solid/devastating tier based on the damage margin, color-coded based on the wound result. The auto-pose is competent prose, not a placeholder.
 
-Poses are delivered in initiative order — highest initiative poses appear first in the action log.
+Type `pass` to skip the pose window explicitly and accept the auto-generated text.
 
-### 🔧 Developer Internals
+Poses are delivered in initiative order, so the action log reads chronologically: highest-initiative action first, then lower, then lower. This makes it possible to read a round back and follow the sequence cleanly. In a five-on-five fight, the log for one round might be five lines of action followed by five poses, all in initiative order — readable, dramatic, and complete.
 
-**Pose state** tracked in `CombatInstance._pose_state: dict[int, dict]` with keys: `status` ("pending"/"ready"/"passed"), `text`, `initiative`.
+The pose window is short on purpose. It's a beat for the narrative to land, not a creative-writing exercise. If you can't think of something in the time given, the auto-pose is more than adequate. Save your best prose for the dramatic rounds — the kill shot on a major villain, the heroic sacrifice that saves your Padawan, the moment your character finally connects with their lightsaber on the Sith they've been chasing for six sessions.
 
-**`set_pose_status()`**: Updates a combatant's pose state.
-**`all_poses_in()`**: Returns True when no combatants are "pending".
-**`get_sorted_poses()`**: Returns `(initiative, char_id, text)` tuples sorted by initiative descending for the action log.
-**`generate_auto_pose()`** (lines 1507–1567): Delegates to `combat_flavor` module, assembles one pose fragment per `ActionResult` in `_round_results`.
-**`build_private_briefing()`** (lines 1569–1650): Builds a personal summary for each player showing their actions and outcomes plus incoming attacks targeting them, with a prompt to write their pose.
+### Practical posing tips
 
----
-
-## 14. Death, Mortal Wounds, and Stun Recovery
-
-### Player Rules
-
-**Mortal wound death roll:** Each round you're mortally wounded, roll 2D. If the result is less than the number of rounds you've been mortally wounded, you die. Round 1: need to roll ≥ 1 (impossible to die). Round 7: need ≥ 7 (50/50). The longer you go without medical attention, the worse your odds.
-
-**Stun recovery:** Each stun hit has a 2-round timer. When all stun timers expire, you recover to Healthy (if no other wounds). Multiple stuns stack their −1D penalties, and if total stuns ≥ STR dice, you're knocked unconscious.
-
-**Death and respawn:** When killed, your character respawns at a safe location. No permadeath. Equipment is preserved.
-
-### 🔧 Developer Internals
-
-**`_cleanup()`** (lines 1381–1453):
-1. Resets `force_point_active` flag on all combatants
-2. Ticks stun timers: decrements each timer, removes expired ones. If all stuns expire and wound_level is STUNNED, resets to HEALTHY
-3. **Death roll**: For mortally wounded, increments `mortally_wounded_rounds`, rolls 2D, if `roll < rounds_MW` → DEAD
-4. Removes fled combatants (`is_fleeing` flag) and dead combatants
+- **Don't restate the mechanics.** The mechanics line already showed the roll. Your pose should be the *fiction* of the result, not a description of it.
+- **Acknowledge environment.** "Kaelin ducks behind the cargo crate" reads better than "Kaelin shoots." Use the room.
+- **Keep it short.** Three sentences max. The pose window is for one beat per round, not a paragraph.
+- **Match the tone.** A wide-miss pose shouldn't be dramatic. A killing-blow pose should be.
 
 ---
 
-## 15. Web Client Combat Panel
+## 14. Death, Mortal Wounds, and Recovery
 
-### Player Rules
+**Mortal wound death roll.** Each round you're Mortally Wounded, the game rolls 2D. If the result is less than the number of rounds you've been mortally wounded, you die. Round 1: need to roll ≥ 1 (impossible to die). Round 4: need ≥ 4 (likely fine). Round 7: need ≥ 7 (50/50). The longer you go without medical attention, the worse your odds.
 
-The web client displays a dedicated combat panel with:
-- **Wound pips** — Color-coded health indicators for all combatants
-- **Initiative order** — Who goes when
-- **Declared actions** — What each combatant plans to do
-- **★ Viewer marker** — Your character highlighted
-- **Phase labels & round badge** — Current phase and round number
-- **Cover and aim indicators** — Visual status for tactical information
+Someone — a fellow PC, an NPC medic, a passing clone with a bacta-patch — can stabilize you and stop the death roll. See [Medical & Death](#/guide/medical-death) for the full healing flow.
 
-### 🔧 Developer Internals
+**Stun recovery.** Each stun hit has a 2-round timer. When all stun timers expire, you recover to Healthy (if no other wounds). Multiple stuns stack their −1D penalties, and if total active stuns ≥ your Strength dice, you're knocked unconscious. A 3D-Strength character with three concurrent stun timers is at −3D on everything AND unconscious. Wakes up when the timers tick out, with no permanent damage.
 
-**`to_hud_dict(viewer_id)`** (lines 471–561): Serializes combat state for WebSocket clients. Returns JSON-safe dict with:
-- `active`, `round`, `phase`
-- `combatants[]`: Each has `id`, `name`, `is_player`, `wound_level`, `wound_name`, `initiative`, `declared`, `action_summary`, `pose_status`, `cover`, `aim_bonus`, `is_fleeing`
-- `your_actions[]`: Viewer's own declared actions
-- `waiting_for[]`: Names of undeclared combatants
-- `pose_deadline`: ISO timestamp for pose window expiry
+**Death and respawn.** When killed, your character respawns at a safe location — usually a nearby Republic medical facility, the Jedi Temple infirmary if you're a Padawan or Jedi, or the Mos Eisley clinic if you died in the Outer Rim. There is no permadeath. Equipment you had equipped is preserved; loose inventory may be lootable from your corpse before it decays. You take a temporary **−1D to all rolls for 30 game-minutes post-respawn** to represent the recovery period — this is the cost of dying, not a permanent setback.
+
+For the corpse system, looting, bacta tank protocols, the −1D debuff details, and the full death loop, see [Medical & Death](#/guide/medical-death).
 
 ---
 
-## 16. Player Commands Quick Reference
+## 15. The Web Client Combat Panel
+
+If you're playing through the web client (which most players are), combat gets a dedicated panel that updates in real time:
+
+- **Wound pips** — color-coded health indicators for every combatant in the fight
+- **Initiative order** — who acts when, top to bottom
+- **Declared actions** — what each combatant has locked in for this round
+- **★ Viewer marker** — your own character highlighted distinctly
+- **Phase labels and round badge** — current phase and round number, top of panel
+- **Cover and aim indicators** — small visual flags showing tactical state
+- **Pose deadline countdown** — how long you have left in the pose window
+
+The panel is meant to replace the cognitive load of tracking everything in text. You don't need to remember whether the B1 is at half cover or whether you have an aim stack — the panel shows you. Telnet players still get the text-based status via `combat` and `combat rolls`, but the web client is significantly more readable for anything beyond a simple two-combatant fight.
+
+A particularly important affordance: the panel shows you, in real time, which combatants have declared and which haven't. In a five-character fight you can see at a glance who's still typing their declaration, so you know whether to keep waiting or whether the game is just slow to resolve.
+
+---
+
+## 16. Command Quick Reference
 
 | Command | Syntax | Description |
-|---------|--------|-------------|
+|---|---|---|
 | `attack` | `attack <target> [with <skill>] [cp <n>]` | Attack a target |
-| `dodge` | `dodge` | Normal dodge (counts as action) |
+| `dodge` | `dodge` | Normal dodge (counts as an action) |
 | `fulldodge` | `fulldodge` | Full dodge (only action this round) |
 | `parry` | `parry` | Normal melee parry |
 | `fullparry` | `fullparry` | Full melee parry |
@@ -500,30 +449,14 @@ The web client displays a dedicated combat panel with:
 | `pass` | `pass` | Skip posing, use auto-pose |
 | `combat` | `combat` | Show combat status |
 | `combat rolls` | `combat rolls` | Show detailed dice for this round |
-| `challenge` | `challenge <player>` | Request PvP in contested zone |
-| `accept` | `accept` | Accept PvP challenge |
-| `decline` | `decline` | Decline PvP challenge |
-| `soak` | `soak <n>` | Pre-declare CP for damage resistance (max 5) |
-| `resolve` | `resolve` | Force-resolve round (admin) |
-| `disengage` | `disengage` | Leave combat when it's over |
+| `range` | `range <target>` | Check range to a target |
+| `challenge` | `challenge <player>` | Request PvP in a contested zone |
+| `accept` | `accept` | Accept a PvP challenge |
+| `decline` | `decline` | Decline a PvP challenge |
+| `soak` | `soak <n>` | Pre-declare CP for damage resistance |
+| `force-point` | `force-point` | Activate Force Point (Force-sensitives only) |
+| `disengage` | `disengage` | Leave combat once it's over |
 
 ---
 
-## 17. File Reference
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `engine/combat.py` | ~1,738 | CombatInstance, initiative, declaration, ranged/melee resolution, damage/soak, cover, flee, aim, posing system, HUD serialization |
-| `engine/combat_flavor.py` | ~280 | FLAVOR_MATRIX auto-pose generation, approach verbs, margin ranges, compound NPC poses |
-| `engine/npc_combat_ai.py` | ~461 | 5 behavior profiles, target selection, weapon resolution, action selection, flee thresholds, archetype defaults |
-| `parser/combat_commands.py` | ~1,954 | 19+ player commands, PvP consent, NPC auto-declare, security zone gates, combat lifecycle management |
-| `engine/character.py` | ~588 | WoundLevel, wound escalation, stun timers, armor penalties, Character Points |
-| `engine/dice.py` | ~381 | Roll engine, multi-action penalty, wound penalty, CP dice, Force Point doubling |
-| `data/weapons.yaml` | ~279 | 22 weapon/armor definitions with damage, ranges, melee difficulties |
-
-**Total combat system:** ~4,900 lines of engine code + ~1,954 lines of command code = ~6,854 lines dedicated to ground combat, plus shared dependencies.
-
----
-
-*End of Guide #3 — Ground Combat*
-*Next: Guide #4 — Security Zones*
+*This guide is part of the SW_MUSH Game Guides. See also: [Core Mechanics](#/guide/weg-d6-core-mechanics), [Security Zones](#/guide/security-zones), [Medical & Death](#/guide/medical-death), [Force Powers](#/guide/force-powers), [Encounters & Hazards](#/guide/encounters-hazards).*

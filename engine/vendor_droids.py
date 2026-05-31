@@ -726,6 +726,27 @@ async def buy_from_droid(buyer: dict, droid_id: int,
     fee       = max(1, int(final_price * fee_pct))
     net_payout = final_price - fee
 
+    # ── Player Cities Phase 4 (May 22 2026): city tax ────────────────────
+    # Per design v1.2 §5.3: the city's cut is carved out of the
+    # seller's net (not added on top of the buyer's debit). The buyer
+    # paid `final_price` regardless of whether the room is in a city;
+    # if it is, the city takes a slice of `net_payout` before the
+    # remainder reaches the droid escrow. apply_city_tax is a no-op
+    # when the droid's room is not in any city or when tax_rate=0.
+    city_tax_msg = ""
+    try:
+        from engine.player_cities import apply_city_tax
+        city_take, _city_id, city_name = await apply_city_tax(
+            db, obj["room_id"], net_payout,
+        )
+        if city_take > 0:
+            net_payout -= city_take
+            city_tax_msg = (
+                f" ({city_take:,}cr city tax to {city_name})"
+            )
+    except Exception:
+        log.warning("[shops] city tax hook failed", exc_info=True)
+
     # Deduct buyer credits
     buyer["credits"] -= final_price
     await db.save_character(buyer["id"], credits=buyer["credits"])
@@ -805,7 +826,7 @@ async def buy_from_droid(buyer: dict, droid_id: int,
         f"{crafter_str} from \033[1;36m{shop_name}\033[0m "
         f"for \033[1;33m{final_price:,}cr\033[0m. "
         f"(Balance: {buyer['credits']:,} cr)"
-        f"{bargain_msg}{faction_msg}"
+        f"{bargain_msg}{faction_msg}{city_tax_msg}"
     )
 
 

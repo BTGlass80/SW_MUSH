@@ -321,6 +321,16 @@ def _build_ai_config(ai: dict, name: str) -> dict:
     if ai.get("gate"):
         config["gate"] = dict(ai["gate"])
 
+    # Preserve the intel-handler marker (T2.DEF / Q3 intel-handler seed,
+    # 2026-05-31). An NPC tagged `is_intel_handler: true` in YAML accepts
+    # faction intel handover in its room — see
+    # engine/intel_handlers.py::_is_handler_npc, which reads this key out of
+    # ai_config_json. Without this pass-through the marker was silently dropped
+    # by the fixed schema above, so NO yaml-seeded NPC could ever be a handler
+    # (the `faction` it matches against is already carried by the base schema).
+    if ai.get("is_intel_handler"):
+        config["is_intel_handler"] = True
+
     return config
 
 

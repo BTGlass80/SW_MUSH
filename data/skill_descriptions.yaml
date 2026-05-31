@@ -1120,3 +1120,129 @@ templates:
       hardest fighter in the group — the one everyone hides behind when
       the shooting starts.
     key_skills: ["blaster", "dodge", "brawling", "grenade", "tactics", "stamina"]
+
+  # ── Clone Wars era templates (May 19 2026) ──────────────────────────
+  # Authored to close the post-active_era-pivot gap where CW-specific
+  # templates loaded into chargen without flavor text or tagline. The
+  # five entries below mirror the schema of the GCW templates above
+  # (label / tagline / description / gameplay / key_skills) and reflect
+  # CW canon (Republic vs CIS) rather than GCW (Empire vs Rebellion).
+
+  clone_trooper:
+    label: "Clone Trooper"
+    tagline: "Bred, trained, and ready. The Republic's spearhead."
+    description: >
+      You were grown on Kamino, raised on discipline, and trained for
+      war from the day you could walk. You are one face among millions,
+      sharing your brothers' features and their cause — the defense of
+      the Republic against the Separatist threat. But you are not just
+      a number. The clones who survive learn to think for themselves,
+      and your battalion has taught you to be more than your genetics
+      intended.
+
+      Your armor is your second skin. Your blaster is an extension of
+      your arm. When the orders come down, you execute them with the
+      precision your training demands — and the judgement experience
+      has earned you.
+    gameplay: >
+      High Dexterity and Strength built for sustained combat. Blaster,
+      Dodge, and Tactics are your professional toolkit. Stamina lets
+      you outlast lesser troops. Command opens leadership paths if you
+      survive long enough to be promoted. You're the front line of any
+      engagement — and you know how to make it count.
+    key_skills: ["blaster", "dodge", "tactics", "stamina", "command", "grenade"]
+
+  republic_officer:
+    label: "Republic Officer"
+    tagline: "Judicial Forces, Fleet command, or Senate guard. The Republic's authority made flesh."
+    description: >
+      You hold a commission in the Galactic Republic's armed forces —
+      Judicial Forces, the Open Circle Fleet, the Senate Guard, or one
+      of the auxiliary services that sprang up when the war began.
+      Your training emphasized command presence, tactical thinking,
+      and the kind of moral clarity that keeps soldiers following you
+      into fire.
+
+      The war has changed everyone. You've seen clone troopers die
+      under your orders, watched Separatist droids overrun positions
+      you swore you could hold, and made decisions you'll carry for
+      the rest of your life. But the Republic still stands, and as
+      long as it does, you have a duty to do.
+    gameplay: >
+      Balanced Knowledge and Perception for command and intelligence
+      work. Command and Tactics are your defining skills — you lead
+      from the front and you read the battlefield. Bureaucracy and
+      Persuasion get you what you need from the supply chain. Blaster
+      and Dodge keep you alive when staff officers have to fight.
+    key_skills: ["command", "tactics", "bureaucracy", "persuasion", "blaster", "dodge"]
+
+  republic_pilot:
+    label: "Republic Pilot"
+    tagline: "ARC-170 driver. The fleet's eyes and teeth."
+    description: >
+      You fly for the Republic — ARC-170 heavy fighters, Y-wing
+      bombers, the occasional Delta-7 escort run when the Jedi need a
+      wingman. Most pilots in your squadron are clone-trained, but a
+      few of you came up through the civilian academies and earned
+      your commission the hard way. Either road, the cockpit is where
+      you live now.
+
+      The Separatist droid fighters come in numbers a sane person
+      wouldn't try to fight. You aren't sane. You're a pilot, and
+      pilots who hesitate become memorials on the squadron wall.
+    gameplay: >
+      Maximum Mechanical for piloting and gunnery. Starfighter Piloting
+      and Starship Gunnery are your primary skills. Astrogation gets
+      you home through hyperspace. Sensors and Perception keep you
+      aware of what's coming. You're not as strong in ground combat,
+      but you can hold your own with a blaster when grounded.
+    key_skills: ["starfighter piloting", "starship gunnery", "astrogation", "sensors", "blaster", "dodge"]
+
+  separatist_pilot:
+    label: "Separatist Pilot"
+    tagline: "Belbullab driver. Flesh-and-blood among a sea of droids."
+    description: >
+      Flying for the Confederacy of Independent Systems is a strange
+      calling. Most of your wingmen are vulture droids and tri-fighters —
+      software, not pilots. The handful of organic Separatist aces
+      stand out: Geonosian aces, Koorivar mercenaries, idealistic
+      veterans who believe the Republic has overstepped. Whatever
+      brought you to a Belbullab cockpit, you fly with the conviction
+      of someone who picked their side and meant it.
+
+      The Republic outnumbers you in some sectors. The droid swarms
+      outnumber you in others. You learn to weave through both, and
+      to make every shot count, because the next one might be your
+      last.
+    gameplay: >
+      Maximum Mechanical for piloting and gunnery — mechanically
+      identical to the Republic Pilot archetype (the pilot baseline
+      is era-axis-symmetric). Starfighter Piloting and Starship
+      Gunnery are your core skills. Astrogation and Sensors round out
+      the cockpit kit. Faction allegiance — not stats — is what
+      separates you from your Republic counterpart.
+    key_skills: ["starfighter piloting", "starship gunnery", "astrogation", "sensors", "blaster", "dodge"]
+
+  cis_field_agent:
+    label: "CIS Field Agent"
+    tagline: "Saboteur, infiltrator, ghost in Republic territory."
+    description: >
+      The Confederacy of Independent Systems doesn't fight only with
+      droid armies and Lucrehulk dreadnoughts. The shadow war is just
+      as decisive — slicers, saboteurs, infiltrators working behind
+      Republic lines to crack supply chains, turn neutral worlds, and
+      bleed the war effort one operation at a time. You are one of
+      those agents.
+
+      You don't wear a uniform. You don't take orders over open
+      channels. You meet your handler in cantinas and back alleys,
+      receive your target, and disappear back into the crowd. Your
+      tools are wits, contacts, and a hold-out blaster — never an
+      army.
+    gameplay: >
+      High Perception and Knowledge for infiltration and intelligence
+      work. Sneak and Hide get you in. Security and Computer
+      Programming/Repair get you through. Con and Persuasion handle
+      the human element. You're a scoundrel archetype re-flavored for
+      the Separatist shadow-war — flexible, deniable, dangerous.
+    key_skills: ["sneak", "hide", "security", "computer programming/repair", "con", "persuasion"]

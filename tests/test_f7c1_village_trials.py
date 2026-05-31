@@ -293,8 +293,16 @@ class TestVillageTrialNPCsPlaced:
     def test_total_npc_count_includes_all_seven_village(self):
         # F.7.b shipped 145 → 147 (Vitha, Yarael)
         # F.7.c.1 ships 147 → 152 (+ Daro, Mira, Korvas, Saro, Sela)
+        # F.8.c.2.a (May 4 2026) ships 152 → 172 (+ 20 chain anchor NPCs)
+        # F.8.c.2.b₂ (May 4 2026) ships 172 → 176 (+ 4 combat-template
+        # seed NPCs: B1 Sim Droid Alpha/Bravo at Tipoca combat sim,
+        # Republic Clone Simulant Alpha/Bravo at Geonosis drill pit)
+        # Q1.3 (May 18 2026) ships 176 → 177 (+ Vigo Sethel Vask, the
+        # Falleen Black Sun Vigo backing the Falleen Syndicate Tower
+        # rewrite of coruscant room 230; see
+        # data/worlds/clone_wars/npcs_drop_i_falleen_syndicate.yaml).
         rows = _query(self.db_path, "SELECT COUNT(*) AS c FROM npcs")
-        assert rows[0]["c"] == 152
+        assert rows[0]["c"] == 177
 
     def test_smith_daro_at_forge(self):
         rows = _query(

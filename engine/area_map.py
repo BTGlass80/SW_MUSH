@@ -236,6 +236,13 @@ async def build_area_map(room_id: int, db, depth: int = 2,
         rooms.append({
             "id": rid,
             "name": name,
+            # Stable production slug — the join key the web client uses to
+            # bridge area_map (server DB ids) to area_geometry render cells
+            # (map-YAML ids). Names diverge (short cell names vs long room
+            # names), so name-matching is unreliable; slug is canonical and
+            # already what tools/check_map_cardinals.py joins on. Falls back
+            # to None for rooms whose properties carry no slug.
+            "slug": (props.get("slug") if isinstance(props, dict) else None),
             "x": float(mx) if mx is not None else None,
             "y": float(my) if my is not None else None,
             "depth": d,

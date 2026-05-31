@@ -1,0 +1,109 @@
+# Drop F.8.c.2.b₃ — Chain-Tagged Tutorial Missions
+#
+# Static mission templates that the chain dispatcher injects into
+# the live mission board when a character advances into a chain step
+# whose completion is mission_accepted or mission_completed.
+#
+# Each entry:
+#   - chain_mission_id: the abstract identifier the chain step
+#     references (matches `completion.mission_id` in chains.yaml)
+#   - The full Mission shape, with mission_data.chain_mission_id set
+#     so the chain_events dispatcher's mission_accepted /
+#     mission_completed matchers fire correctly.
+#
+# Visibility: tutorial missions are hidden from non-chain players in
+# the +missions board listing (filtered in parser/mission_commands.py
+# via chain_missions.is_chain_mission_visible_to). They are listed
+# only for the player whose active chain step expects them.
+#
+# Spawn lifecycle: spawned on chain step entry; removed on accept
+# (the engine's mission accept flow already moves missions out of
+# the AVAILABLE pool, so no separate cleanup is needed).
+
+schema_version: 1
+
+missions:
+
+  # ════════════════════════════════════════════════════════════════
+  # republic_soldier step 3 — "Receiving the Assignment"
+  # Anchor NPC: Major Tarrn at Tipoca briefing room
+  # ════════════════════════════════════════════════════════════════
+  - chain_mission_id: tutorial_republic_first_deployment
+    chain_id: republic_soldier
+    chain_step: 3
+    mission_type: combat
+    title: "First Deployment: Coruscant Industrial District"
+    giver: "Major Tarrn"
+    objective: >-
+      Report to Sergeant Drix at the Coruscant Works landing zone
+      for active deployment. Standard escort-and-secure rotation;
+      you're filling out a clone squad short two troopers.
+    destination: "Coruscant - The Works, Landing Zone"
+    destination_slug: coruscant_works_landing_zone
+    reward: 300
+    required_skill: blaster
+    # Optional: faction_code/faction_rep_required default to None/0
+    # so this passes the existing visibility filter as an open
+    # mission. Chain-tag visibility is layered on top.
+
+  # ════════════════════════════════════════════════════════════════
+  # republic_intelligence step 4 — "The Intercept"
+  # Anchor NPC: Bren Kost (handler) at Coruscant Mid-Levels Freight
+  # District. Mission was implicitly accepted at step 3 (tail);
+  # step 4 completes it. Chain dispatcher seeds it as ALREADY
+  # ACCEPTED for the player.
+  # ════════════════════════════════════════════════════════════════
+  - chain_mission_id: tutorial_intel_first_intercept
+    chain_id: republic_intelligence
+    chain_step: 4
+    mission_type: investigation
+    title: "Intercept: Mid-Levels Freight District"
+    giver: "Director Naya Vell"
+    objective: >-
+      Document the courier handoff between Bren Kost and his CIS
+      sympathizer contact. Recording is sufficient; do not engage.
+      File the report via `complete` once the recording is captured.
+    destination: "Coruscant - Mid-Levels Freight District"
+    destination_slug: coruscant_midlevels_freight_district
+    reward: 200
+    required_skill: search
+    # Pre-accepted: chain dispatcher seeds this directly into the
+    # character's active-mission slot, not the board. Listed here
+    # for completeness; the chain hook spawns + auto-accepts in one
+    # step at chain step entry.
+    pre_accepted: true
+
+  # ════════════════════════════════════════════════════════════════
+  # separatist_commando step 3 — "First Assignment"
+  # Anchor NPC: Tactical Droid TQ-89 at Geonosis Foundry briefing
+  # chamber. Player accepts; transport carries them to the Tatooine
+  # CIS safehouse for step 4's contact with Cell Leader Mira Kavin.
+  # ════════════════════════════════════════════════════════════════
+  - chain_mission_id: tutorial_cis_tatooine_dispatch
+    chain_id: separatist_commando
+    chain_step: 3
+    mission_type: investigation
+    title: "Tatooine Dispatch: Outskirts Safehouse"
+    giver: "Tactical Droid TQ-89"
+    objective: >-
+      Insert at the Tatooine outskirts safehouse and report to
+      Cell Leader Mira Kavin. Hutt-aligned territory, minimal
+      Republic presence, overt-when-needed. Standard CIS field
+      deployment for fresh commandos.
+    destination: "Tatooine Outskirts - CIS Safehouse"
+    destination_slug: tatooine_outskirts_cis_safehouse
+    reward: 250
+    required_skill: sneak
+
+  # ════════════════════════════════════════════════════════════════
+  # F.8.c.2.b₃ does NOT include the shipwright_trader step 3
+  # mission. That step's completion type is `item_acquired`, not
+  # `mission_accepted`/`mission_completed`. Phase 2's item hook
+  # already fires on `db.add_to_inventory` keyed by item registry
+  # `key`. The capacitor_coil_t1 item is the data the chain needs;
+  # the parts-crib NPC dialogue (Foreman Andrim Purkis at KDY
+  # Apprentice Bay 7) tells the player to `+craft fetch
+  # capacitor_coil_t1`, which routes through the existing crafting
+  # subsystem and lands in the inventory. No tutorial-mission
+  # template needed for that path.
+  # ════════════════════════════════════════════════════════════════

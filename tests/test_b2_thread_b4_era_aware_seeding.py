@@ -98,8 +98,17 @@ class TestAutoBuildEraPlumbing(unittest.TestCase):
 
         return mock_db_cls, fake_build
 
-    def test_default_no_era_resolves_to_gcw(self):
-        """No era arg + no registered Config -> build() called with era='gcw'."""
+    def test_default_no_era_resolves_to_clone_wars(self):
+        """No era arg + no registered Config -> build() called with
+        era='clone_wars' (the post-May-18-2026-pivot default).
+
+        Pre-pivot this asserted era='gcw'. The pivot flipped the
+        module-level default in engine/era_state.py; this test
+        tracks the new default. Tests that need to explicitly
+        exercise the GCW build path must register a GCW Config
+        first (see test_registered_config_clone_wars for the
+        registration pattern with the opposite era).
+        """
         from build_mos_eisley import auto_build_if_needed
         mock_db_cls, fake_build = self._patch_db_and_build(count_rooms_value=0)
 
@@ -109,13 +118,14 @@ class TestAutoBuildEraPlumbing(unittest.TestCase):
 
             # Asymmetric assertion: pre-wiring auto_build_if_needed calls
             # build(db_path) with no era kwarg. Post-wiring it must pass
-            # era='gcw' (resolved from the era_state default).
+            # era='clone_wars' (resolved from the era_state default).
             mock_build.assert_called_once()
             call_kwargs = mock_build.call_args.kwargs
             self.assertEqual(
-                call_kwargs.get("era"), "gcw",
-                "auto_build_if_needed must pass era='gcw' to build() when no "
-                "Config is registered. Pre-wiring this test fails because "
+                call_kwargs.get("era"), "clone_wars",
+                "auto_build_if_needed must pass era='clone_wars' to "
+                "build() when no Config is registered (post-May-18-2026 "
+                "pivot default). Pre-wiring this test fails because "
                 "auto_build_if_needed calls build(db_path) without era=."
             )
 
@@ -216,24 +226,34 @@ class TestSeedOrganizationsPathResolution(unittest.TestCase):
 
         return captured_paths
 
-    def test_default_era_reads_legacy_path(self):
-        """No era arg + no registered Config -> reads data/organizations.yaml.
+    def test_default_era_reads_clone_wars_path(self):
+        """No era arg + no registered Config -> reads
+        data/worlds/clone_wars/organizations.yaml.
 
-        This is the byte-equivalence guarantee for production.
+        Pre-pivot (Apr-May early 2026), the era_state default was
+        "gcw" with use_yaml_director_data=False, which routed
+        seed_organizations to the legacy data/organizations.yaml.
+        Post-May-18-2026 pivot, the default is ("clone_wars", True)
+        and the no-arg call reads the CW YAML directly.
+
+        Tests that need the legacy GCW path must pass era="gcw"
+        explicitly (see test_explicit_gcw_era_reads_legacy_path).
         """
         paths = self._run_seed_with_path_capture(era=None)
         self.assertTrue(len(paths) >= 1, "Expected at least one yaml open.")
-        # The path must be the legacy top-level data/organizations.yaml,
-        # NOT data/worlds/<era>/organizations.yaml.
+        # Post-pivot: the path is data/worlds/clone_wars/organizations.yaml.
         self.assertTrue(
+            any(os.path.join("worlds", "clone_wars",
+                             "organizations.yaml") in p for p in paths),
+            f"Expected data/worlds/clone_wars/organizations.yaml read "
+            f"(post-May-18-2026 pivot default); got {paths}"
+        )
+        # And it must NOT have read the legacy path.
+        self.assertFalse(
             any(p.endswith(os.path.join("data", "organizations.yaml"))
                 for p in paths),
-            f"Expected legacy data/organizations.yaml read; got {paths}"
-        )
-        # And it must NOT have read from data/worlds/...
-        self.assertFalse(
-            any(os.path.join("worlds", "gcw") in p for p in paths),
-            f"Did not expect data/worlds/gcw/ read; got {paths}"
+            f"Unexpected legacy data/organizations.yaml read; "
+            f"got {paths}"
         )
 
     def test_explicit_gcw_era_reads_legacy_path(self):
@@ -321,17 +341,52 @@ class TestSeedOrganizationsByteEquivalence(unittest.TestCase):
 
         return org_writes, rank_writes
 
-    def test_gcw_default_produces_expected_factions(self):
-        """era=gcw (default) seeds the legacy GCW factions: empire, rebel,
-        hutt, independent."""
+    def test_clone_wars_default_produces_expected_factions(self):
+        """era=None (post-May-18-2026 pivot default) seeds the CW
+        factions. The required-set is the load-bearing four
+        (republic, cis, jedi_order, hutt_cartel) plus the
+        independent / bounty-hunter org. Other CW orgs (sith,
+        separatist_council, the various guilds) are present but not
+        load-bearing for this regression-guard test — see
+        test_clone_wars_produces_expected_factions for the broader
+        positive set and the canonical negative set.
+
+        Pre-pivot this test was test_gcw_default_produces_expected_factions
+        and asserted the GCW factions (empire, rebel, hutt, independent)
+        because the era_state default was 'gcw'. The pivot flipped
+        that default; tests that need to exercise the GCW seed path
+        must pass era='gcw' explicitly.
+        """
         orgs, ranks = self._capture_org_writes(era=None)
         org_codes = {o[0] for o in orgs}
-        for required in ("empire", "rebel", "hutt", "independent"):
-            self.assertIn(required, org_codes,
-                          f"GCW seed must include {required}; got {org_codes}")
+        for required in ("republic", "cis", "jedi_order",
+                         "hutt_cartel", "independent",
+                         "bounty_hunters_guild"):
+            self.assertIn(
+                required, org_codes,
+                f"CW seed (post-pivot default) must include "
+                f"{required}; got {org_codes}",
+            )
+        # Must NOT have the GCW factions.
+        self.assertNotIn(
+            "empire", org_codes,
+            f"Default-era seed (now CW) must NOT include empire; "
+            f"got {org_codes}",
+        )
+        self.assertNotIn(
+            "rebel", org_codes,
+            f"Default-era seed (now CW) must NOT include rebel; "
+            f"got {org_codes}",
+        )
 
     def test_clone_wars_produces_expected_factions(self):
-        """era=clone_wars seeds CW factions: republic, cis, jedi_order, etc."""
+        """era=clone_wars seeds CW factions: republic, cis, jedi_order, etc.
+
+        Functionally identical to test_clone_wars_default_produces_expected_factions
+        post-pivot — the default IS clone_wars now. Kept as a separate
+        test so an explicit era='clone_wars' regression is caught even
+        if the default is flipped back for some reason.
+        """
         orgs, ranks = self._capture_org_writes(era="clone_wars")
         org_codes = {o[0] for o in orgs}
         # From data/worlds/clone_wars/organizations.yaml:
@@ -346,14 +401,19 @@ class TestSeedOrganizationsByteEquivalence(unittest.TestCase):
         self.assertNotIn("rebel", org_codes,
                          f"CW seed must NOT include rebel; got {org_codes}")
 
-    def test_gcw_byte_equiv_default_vs_explicit(self):
-        """seed(era=None) and seed(era='gcw') produce IDENTICAL output."""
+    def test_clone_wars_byte_equiv_default_vs_explicit(self):
+        """seed(era=None) and seed(era='clone_wars') produce IDENTICAL
+        output post-pivot. Pre-pivot this asserted era=None ==
+        era='gcw' equivalence; the pivot flipped the default era so
+        the equivalence axis flipped with it."""
         orgs_default, ranks_default = self._capture_org_writes(era=None)
-        orgs_gcw, ranks_gcw = self._capture_org_writes(era="gcw")
-        self.assertEqual(orgs_default, orgs_gcw,
-                         "Default-era and explicit-gcw must be byte-identical.")
-        self.assertEqual(ranks_default, ranks_gcw,
-                         "Default-era and explicit-gcw rank writes must match.")
+        orgs_cw, ranks_cw = self._capture_org_writes(era="clone_wars")
+        self.assertEqual(
+            orgs_default, orgs_cw,
+            "Default-era and explicit-clone_wars must be byte-identical.")
+        self.assertEqual(
+            ranks_default, ranks_cw,
+            "Default-era and explicit-clone_wars rank writes must match.")
 
 
 class TestSeedOrganizationsMissingFile(unittest.TestCase):

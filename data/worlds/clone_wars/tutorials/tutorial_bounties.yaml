@@ -1,0 +1,48 @@
+# Drop F.8.c.2.b₃ — Chain-Tagged Tutorial Bounties
+#
+# Static bounty contract templates that the chain dispatcher injects
+# into the live BountyBoard when a character advances into a chain
+# step whose completion is bounty_accepted.
+#
+# Each entry:
+#   - chain_bounty_id: the abstract identifier the chain step
+#     references (matches `completion.bounty_id` in chains.yaml)
+#   - The full BountyContract shape, with chain_bounty_id set so
+#     the chain_events dispatcher's bounty_accepted matcher fires
+#     correctly when the player runs `bountyclaim`.
+#
+# Visibility: tutorial bounties are hidden from non-chain players
+# in the +bounties board listing. Listed only for the player whose
+# active chain step expects them.
+
+schema_version: 1
+
+bounties:
+
+  # ════════════════════════════════════════════════════════════════
+  # bounty_hunter step 2 — "Picking the Contract"
+  # Anchor NPC: Adjudicator Kaeleth Voss at Nar Shaddaa BHG Chapter
+  # House. Target NPC is Tarko Vinn — the F.8.c.2.a anchor NPC who
+  # was tagged with chain_enemy_template: tarko_vinn_petty_smuggler
+  # in F.8.c.2.b₂ for the step 4 combat_won completion.
+  # ════════════════════════════════════════════════════════════════
+  - chain_bounty_id: tutorial_bhg_tarko_vinn
+    chain_id: bounty_hunter
+    chain_step: 2
+    tier: novice
+    target_name: "Tarko Vinn"
+    target_species: "Zabrak"
+    target_archetype: "petty_smuggler"
+    crime_description: >-
+      Skipped a Hutt Cartel debt note for 8,400 credits and a
+      Black Sun secondary contract for transport-fraud. Both
+      contracts are non-violent priors; recovery is alive-or-dead
+      with the standard alive-bonus.
+    posting_org: "Bounty Hunters' Guild — Nar Shaddaa Chapter"
+    tip: >-
+      Last seen in the Warrens hunter-safehouse circuit. He runs
+      tight cover at the Hunter Safehouse — Adjudicator Voss has
+      the address and can sign the warrant in for the chapter.
+    reward: 2400
+    reward_alive_bonus: 360       # 15% alive-bonus for tier 1
+    target_room_slug: nar_shaddaa_warrens_safehouse

@@ -9,7 +9,10 @@ complete. Per ``jedi_village_quest_design_v1.md`` §7.0–§7.3:
   - **Path A — Report to the Jedi Order.** Master Yarael writes a
     letter of introduction sealed with his old Order signet. The
     character is escorted (off-stage) to the Coruscant Jedi Temple
-    and received by Master Mace Windu. Mechanically:
+    and received by Master Tova Resh, the Order's intake-archives
+    liaison (an original, non-canonical Master — Q1 policy:
+    canonical figures like Mace Windu may appear only off-screen
+    with absence framing). Mechanically:
       - sets ``force_sensitive`` on the character (top-level field)
       - sets ``jedi_path_unlocked = True`` in chargen_notes JSON
         (this unblocks the Jedi tutorial chain in F.8.b)
@@ -289,8 +292,9 @@ async def maybe_handle_yarael_path_choice(
                 )
                 await session.send_line(
                     "  \033[1;33m\"You stood in every place you were asked "
-                    "to stand. The Village will speak of you. Tell Master "
-                    "Windu — and remember it.\"\033[0m"
+                    "to stand. The Village will speak of you. Tell the "
+                    "Master who receives you what was asked of you here "
+                    "— and remember it.\"\033[0m"
                 )
         elif chosen == PATH_B:
             await session.send_line(
@@ -419,13 +423,130 @@ async def attempt_choose_path(
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+# F.7.n (May 19 2026): Force-attribute seeding for Path A / B / C
+# commits. Pre-F.7.n, the Path commit functions set
+# `char["force_sensitive"] = 1` in-memory only. The `force_sensitive`
+# state is NOT a DB column — `Character.from_db_dict` reconstructs
+# it from the presence of `control` / `sense` / `alter` keys in the
+# `attributes` JSON blob (engine/character.py L583-586). With no
+# Force-attribute seeds persisted, the next login reconstructed
+# force_sensitive=False and silently broke the Jedi path.
+#
+# This helper persists 1D in each Force attribute when the player
+# commits a Force-sensitive path. WEG D6 R&E starting convention:
+# a newly-awakened Force-sensitive gets 1D in each of control,
+# sense, alter. Standard ladder is then climbed via CP spend.
+#
+# Idempotent: if any Force attribute is already present (e.g.
+# during a replay of the path commit, or in tests that seed
+# manually), the helper makes NO change. This prevents
+# accidentally downgrading a character whose attributes have
+# advanced past 1D.
+
+_FORCE_SEED_DICE = "1D"
+_FORCE_ATTRS = ("control", "sense", "alter")
+
+
+async def _seed_force_attributes(db, char: dict) -> bool:
+    """Persist Force-attribute seeds (1D control / sense / alter)
+    into the character's attributes JSON.
+
+    Called from the Path A / B / C commit flows so that
+    ``Character.from_db_dict`` reconstructs ``force_sensitive=True``
+    on the next login. Without this, the in-memory
+    ``char["force_sensitive"] = 1`` set during the commit is lost
+    on reload and the player's Force-sensitivity silently disappears.
+
+    Idempotent: if any of the three Force attributes is already
+    present in the attributes JSON, returns False without writing
+    (a character whose Force has advanced past 1D should not be
+    downgraded by a path-commit replay).
+
+    Returns:
+        True if attributes were written; False if no-op.
+
+    Failure-tolerant: any exception is logged and the function
+    returns False — Force-attribute seeding must NOT block path
+    commit, even if attributes JSON is malformed or
+    save_character raises.
+    """
+    try:
+        raw = char.get("attributes")
+        if isinstance(raw, str):
+            attrs = json.loads(raw or "{}")
+        elif isinstance(raw, dict):
+            attrs = dict(raw)  # defensive copy
+        else:
+            attrs = {}
+
+        # Idempotency guard: if ANY Force attribute already exists,
+        # do nothing. The player either pre-existed with Force, or a
+        # prior path commit already seeded.
+        if any(k in attrs for k in _FORCE_ATTRS):
+            log.debug(
+                "[village_choice] _seed_force_attributes: char %s "
+                "already has Force attributes; skipping seed",
+                char.get("id"),
+            )
+            return False
+
+        for attr in _FORCE_ATTRS:
+            attrs[attr] = _FORCE_SEED_DICE
+
+        serialized = json.dumps(attrs)
+        char["attributes"] = serialized
+        await db.save_character(char["id"], attributes=serialized)
+        log.info(
+            "[village_choice] Seeded Force attributes (control/sense/"
+            "alter = %s) for char %s",
+            _FORCE_SEED_DICE, char.get("id"),
+        )
+        return True
+    except Exception:
+        log.warning(
+            "[village_choice] _seed_force_attributes failed for char %s",
+            char.get("id"), exc_info=True,
+        )
+        return False
+
+
 async def _set_chargen_flags(db, char: dict, **flags) -> None:
-    """Update chargen_notes JSON with the given flags and persist."""
+    """Update chargen_notes JSON with the given flags and persist.
+
+    F.8.c.2.b₆ (May 19 2026): after the persist succeeds, every flag
+    being set to a truthy value is dispatched through
+    `chain_events.on_prerequisite_flag_set`, which advances any
+    chain step whose `completion.type == "prerequisite"` matches
+    the flag name. The dispatch is failure-tolerant — a chain hook
+    raising must not fail the flag-set.
+    """
     notes = _read_chargen_notes(char)
     notes.update(flags)
     serialized = json.dumps(notes)
     char["chargen_notes"] = serialized
     await db.save_character(char["id"], chargen_notes=serialized)
+
+    # Chain-event dispatch (F.8.c.2.b₆). Iterate the flags being set
+    # in insertion order. For each truthy flag, fire the prerequisite
+    # hook. Each dispatch is independently failure-tolerant inside
+    # chain_events; the loop wraps once more as belt-and-suspenders.
+    try:
+        from engine.chain_events import on_prerequisite_flag_set
+        for flag_name, flag_value in flags.items():
+            if not flag_value:
+                continue
+            try:
+                await on_prerequisite_flag_set(db, char, flag_name)
+            except Exception:
+                log.debug(
+                    "[village_choice] on_prerequisite_flag_set raised "
+                    "for flag=%r; flag persisted, dispatch swallowed",
+                    flag_name, exc_info=True,
+                )
+    except ImportError:
+        # chain_events not on the path (test fixture using a minimal
+        # engine subset) — skip silently. Production always has it.
+        pass
 
 
 async def _teleport(db, char: dict, slug: str) -> bool:
@@ -472,13 +593,30 @@ async def _commit_path_a(session, db, char: dict) -> None:
     join jedi_order at rank 0 + teleport to Coruscant Temple gate."""
     char["village_choice_completed"] = 1
     char["village_chosen_path"] = PATH_A
+    # F.7.m (May 4 2026): The in-memory `char["force_sensitive"] = 1`
+    # below is kept for within-session reads, but `force_sensitive` is
+    # NOT a column on the `characters` table — it's derived state
+    # reconstructed by `Character.from_db_dict` from the presence of
+    # `control`/`sense`/`alter` keys in the `attributes` JSON blob.
+    # Passing `force_sensitive=1` to `save_character` raises
+    # ValueError and rolls back the entire UPDATE, taking
+    # `village_choice_completed` and `village_chosen_path` with it.
+    # Smoke test VL7 in tests/smoke/test_smoke_village.py surfaced this.
+    # Persisting Force-attribute seeds (so `from_db_dict` reconstructs
+    # `force_sensitive=True` on next load) is the bigger surgery
+    # tracked separately as a post-launch followup; for graduation to
+    # actually persist, we just need the kwarg removed.
     char["force_sensitive"] = 1
     await db.save_character(
         char["id"],
         village_choice_completed=1,
         village_chosen_path=PATH_A,
-        force_sensitive=1,
     )
+    # F.7.n (May 19 2026): persist Force-attribute seeds so
+    # `from_db_dict` reconstructs `force_sensitive=True` on next
+    # login. Without this, the in-memory mutation above is lost
+    # on reload and the Jedi path silently breaks.
+    await _seed_force_attributes(db, char)
     await _set_chargen_flags(
         db, char,
         jedi_path_unlocked=True,
@@ -508,10 +646,11 @@ async def _commit_path_a(session, db, char: dict) -> None:
         "letter in your hands.*\033[0m"
     )
     await session.send_line(
-        "  \033[1;33m\"Take this to Master Mace Windu at the Coruscant "
-        "Temple. He will know the seal. He will recognise the lineage "
-        "even if it has been cold for forty years. The road is short "
-        "if you make it short.\"\033[0m"
+        "  \033[1;33m\"Take this to the Temple intake archives on "
+        "Coruscant. The Master who keeps that office will know the "
+        "seal. She will recognise the lineage even if it has been "
+        "cold for forty years. The road is short if you make it "
+        "short.\"\033[0m"
     )
     await session.send_line("")
     await session.send_line(
@@ -521,13 +660,31 @@ async def _commit_path_a(session, db, char: dict) -> None:
     )
     await session.send_line("")
     await session.send_line(
-        "  \033[1;33m*Master Mace Windu meets you at the Temple gate. "
-        "He turns the signet over in his hand and looks at you for a "
-        "long moment. Then he nods, once.*\033[0m"
+        "  \033[1;33m*Master Tova Resh meets you at the Temple gate — "
+        "an Iktotchi woman of late middle age, with the long forward-"
+        "curving horns of her species and a datapad tucked under one "
+        "arm. She is the Order's intake-archives liaison: outside-"
+        "track candidates pass through her office before they pass "
+        "anywhere else. She turns Yarael's signet over in her hand and "
+        "looks at you for a long moment. Then she allows herself a "
+        "small, dry smile.*\033[0m"
     )
     await session.send_line(
-        "  \033[1;33m\"Yarael lives. Good. Come inside, late-Padawan. "
-        "We have a great deal of catching up to do.\"\033[0m"
+        "  \033[1;33m\"This seal has not crossed my desk in my "
+        "tenure. The archives, however, remember it perfectly. Master "
+        "Yarael Tinré, presumed lost on a Cerean retreat circa thirty-"
+        "eight BBY. The file note reads: 'returnable.' Which appears "
+        "to have been accurate.\"\033[0m"
+    )
+    await session.send_line(
+        "  \033[1;33m*She glances at you, then back at the seal. The "
+        "amusement does not quite leave her eyes.*\033[0m"
+    )
+    await session.send_line(
+        "  \033[1;33m\"Come inside, late-Padawan. The Council has not "
+        "yet heard your name. By the time they do, the archives will "
+        "have made a case for you. That is what the archives are "
+        "for.\"\033[0m"
     )
     await session.send_line("")
     await session.send_line(
@@ -569,13 +726,18 @@ async def _commit_path_b(session, db, char: dict) -> None:
     is preserved (uncommitted)."""
     char["village_choice_completed"] = 1
     char["village_chosen_path"] = PATH_B
+    # F.7.m (May 4 2026): see Path A docstring — `force_sensitive` is
+    # derived state, not a column. The kwarg is removed; the
+    # in-memory dict mutation stays for within-session reads.
     char["force_sensitive"] = 1
     await db.save_character(
         char["id"],
         village_choice_completed=1,
         village_chosen_path=PATH_B,
-        force_sensitive=1,
     )
+    # F.7.n (May 19 2026): persist Force-attribute seeds; see
+    # _commit_path_a for rationale.
+    await _seed_force_attributes(db, char)
     await _set_chargen_flags(
         db, char,
         jedi_path_unlocked=True,
@@ -638,13 +800,19 @@ async def _commit_path_c(session, db, char: dict) -> None:
     org join (Path C is exiled). NOT jedi_path_unlocked."""
     char["village_choice_completed"] = 1
     char["village_chosen_path"] = PATH_C
+    # F.7.m (May 4 2026): see Path A docstring — `force_sensitive` is
+    # derived state, not a column. The kwarg is removed; the
+    # in-memory dict mutation stays for within-session reads.
     char["force_sensitive"] = 1
     await db.save_character(
         char["id"],
         village_choice_completed=1,
         village_chosen_path=PATH_C,
-        force_sensitive=1,
     )
+    # F.7.n (May 19 2026): persist Force-attribute seeds; see
+    # _commit_path_a for rationale. Path C is exiled-Jedi (Dark
+    # Side track) — still Force-sensitive, just not in the Order.
+    await _seed_force_attributes(db, char)
     await _set_chargen_flags(
         db, char,
         dark_path_unlocked=True,

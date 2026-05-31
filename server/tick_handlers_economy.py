@@ -200,6 +200,59 @@ async def hq_maintenance_tick(ctx: TickContext) -> None:
     await tick_hq_maintenance(ctx.db, ctx.session_mgr)
 
 
+async def city_revenue_rollover_tick(ctx: TickContext) -> None:
+    """Player Cities Phase 4: zero revenue_week on each city whose
+    week boundary has elapsed. Every 86400 ticks (~1 day) so per-city
+    boundaries roll at most ~1 day late. The actual rollover is
+    per-city (week_start_ts is checked individually); design §5.3."""
+    from engine.player_cities import tick_city_revenue_rollover
+    await tick_city_revenue_rollover(ctx.db)
+
+
+async def city_maintenance_tick(ctx: TickContext) -> None:
+    """Player Cities Phase 6 (May 23 2026): weekly maintenance debit
+    + 4-week grace state machine. Per design §8.1 + §8.2.
+
+    Every 604800 ticks (~1 week). Per-city anchor is
+    `maint_paid_until`, so cities whose week hasn't yet elapsed are
+    skipped this pass.
+
+    Drives the active → grace → dissolved state machine. Mails the
+    Mayor + Founder on grace-state transitions (best-effort).
+    Does NOT charge HQ base maintenance (that's
+    engine.housing.tick_hq_maintenance's job).
+    """
+    from engine.player_cities import tick_city_maintenance
+    await tick_city_maintenance(ctx.db, ctx.session_mgr)
+
+
+async def city_vitality_tick(ctx: TickContext) -> None:
+    """SYN.4 (2026-05-25): City vitality state machine.
+
+    Per ``contestable_wilderness_design_v2.md`` §2.9.4. Hourly tick
+    (every 3600 ticks). For each active city, counts citizens whose
+    last_login is within the 7-day active window and compares against
+    the HQ-tier threshold (1 for outpost, 3 for chapter house, 5 for
+    fortress). Drives the active → reduced → dormant state machine:
+    dropping below threshold marks the city 'reduced'; staying below
+    for 14+ days transitions to 'dormant'. Recovery is immediate when
+    the count rises back to threshold.
+
+    Effects:
+      * Tax cap drops to 50% of HQ-tier baseline while reduced/dormant.
+        (Enforced at tax-set time via effective_tax_rate_cap().)
+      * Expansion is blocked while reduced/dormant.
+        (Enforced in claim_landmark_for_city.)
+      * Dormant tag visible in look output (wired in display surfaces).
+
+    Dormant state is a "reminder, not a death sentence" — small
+    playerbases need recovery room. Cities don't dissolve on
+    inactivity here.
+    """
+    from engine.player_cities import tick_city_vitality
+    await tick_city_vitality(ctx.db, ctx.session_mgr)
+
+
 async def territory_presence_tick(ctx: TickContext) -> None:
     """Territory presence accumulation. Every 3600 ticks (~1 hour)."""
     from engine.territory import tick_territory_presence
@@ -213,9 +266,18 @@ async def territory_decay_tick(ctx: TickContext) -> None:
 
 
 async def territory_claim_tick(ctx: TickContext) -> None:
-    """Territory claim maintenance (upkeep costs). Every 604800 ticks (~1 week)."""
-    from engine.territory import tick_claim_maintenance
-    await tick_claim_maintenance(ctx.db, ctx.session_mgr)
+    """Region maintenance tick (weekly upkeep). Every 604800 ticks (~1 week).
+
+    SYN.1.b (2026-05-24): retargeted from the per-room
+    ``tick_claim_maintenance`` to the region-scope
+    ``tick_region_maintenance``. The tick *name* (territory_claim_tick)
+    is preserved so the scheduler registration in server/game_server.py
+    doesn't need to change. The legacy ``tick_claim_maintenance``
+    function is stubbed to a no-op as part of the SYN.1.b retirement —
+    calling it is harmless but accomplishes nothing.
+    """
+    from engine.territory import tick_region_maintenance
+    await tick_region_maintenance(ctx.db, ctx.session_mgr)
 
 
 async def debt_payment_tick(ctx: TickContext) -> None:
@@ -229,15 +291,140 @@ async def debt_payment_tick(ctx: TickContext) -> None:
 
 
 async def territory_resources_tick(ctx: TickContext) -> None:
-    """Territory resource node yields. Every 86400 ticks (~1 day)."""
-    from engine.territory import tick_resource_nodes
-    await tick_resource_nodes(ctx.db, ctx.session_mgr)
+    """Region passive yield tick (daily). Every 86400 ticks (~1 day).
+
+    SYN.1.b (2026-05-24): retargeted from per-room
+    ``tick_resource_nodes`` to the region-scope
+    ``tick_region_passive_yield``. Active harvest (the larger income
+    lever) ships in SYN.6 — this tick is the passive baseline only.
+    Tick name preserved for scheduler stability.
+    """
+    from engine.territory import tick_region_passive_yield
+    await tick_region_passive_yield(ctx.db, ctx.session_mgr)
+
+
+async def region_quality_weekly_tick(ctx: TickContext) -> None:
+    """SYN.6.b (2026-05-25): weekly per-region per-resource-type quality
+    variance roll. Per ``contestable_wilderness_design_v2.md`` §2.5.5.
+
+    Runs hourly with per-region-per-week idempotence (ISO year-week
+    anchor). Only the first call in a new ISO week actually rolls;
+    subsequent calls within the same week no-op cheaply.
+
+    Crafters consume the outputs via SYN.6.a's harvest mechanic
+    (``engine.harvest.compute_harvest_payout`` accepts per-type
+    quality dicts) and via the ``faction resource_outlook`` parser
+    surface.
+
+    Hourly cadence + idempotence anchor matches the
+    ``city_maintenance_tick`` pattern — simpler than trying to
+    arrange a cron-style Monday-midnight fire on an interval-based
+    scheduler.
+    """
+    from engine.region_quality import tick_weekly_region_quality
+    await tick_weekly_region_quality(ctx.db, ctx.session_mgr)
+
+
+async def wilderness_anomaly_tick(ctx: TickContext) -> None:
+    """SYN.7.a (2026-05-25): wilderness anomaly spawn + expiry tick.
+    Per ``contestable_wilderness_design_v2.md`` §2.8.
+
+    Runs every CADENCE_TICK_INTERVAL seconds (1 hour). Per-region
+    per-tick spawn-chance is 0.4 → expected interval between spawns
+    of ~2.5h, matching the design's "every 2-3 hours per region"
+    Tier 1 cadence.
+
+    Anomalies are module-level transient state — restart wipes
+    everything. Matches the engine.space_anomalies pattern.
+
+    Broadcasts a news line on each spawn (best-effort) via
+    session_mgr.broadcast.
+    """
+    from engine.wilderness_anomalies import tick_wilderness_anomalies
+    await tick_wilderness_anomalies(ctx.db, ctx.session_mgr)
+
+
+async def tier2_wilderness_anomaly_tick(ctx: TickContext) -> None:
+    """SYN.7.b (2026-05-25): Tier 2 wilderness anomaly spawn tick.
+    Per ``contestable_wilderness_design_v2.md`` §2.8 Tier 2.
+
+    Runs every TIER2_CADENCE_TICK_INTERVAL seconds (6 hours). Per-region
+    per-tick spawn-chance is 0.20 → expected interval between spawns
+    of ~30h, matching the design's "every 24-48 hours per region"
+    Tier 2 cadence.
+
+    Tier 2 anomalies are multi-phase combat encounters with 2-3
+    waves of increasingly difficult NPCs. They drop T5 materials
+    (weapons_capacitor_core, composite_chitin) and named loot to
+    the killing-blow player. Credits/resources are split among all
+    characters in the anchor room at final clear.
+
+    Module-level transient state — restart wipes (same as Tier 1).
+    """
+    from engine.wilderness_anomalies import tick_tier2_wilderness_anomalies
+    await tick_tier2_wilderness_anomalies(ctx.db, ctx.session_mgr)
+
+
+async def tier3_wilderness_anomaly_tick(ctx: TickContext) -> None:
+    """SYN.8 (2026-05-25): Tier 3 wilderness anomaly spawn tick.
+    Per ``contestable_wilderness_design_v2.md`` §2.8 Tier 3.
+
+    Runs every TIER3_CADENCE_TICK_INTERVAL seconds (24 hours).
+    Per-region per-tick spawn-chance is 0.10 → expected interval
+    between spawns of ~10 days, matching the design's "every 7-14
+    days per region" Tier 3 cadence.
+
+    Tier 3 anomalies are world-boss events with 3 phases each. They
+    drop unique trophies (one per participant) plus scaled T5
+    material pieces (floor(N/4) per design's RotMG lesson).
+    Killing-blow faction gets +50 region influence.
+
+    Templates: krayt_dragon (Dune Sea, deep_dune_iron),
+    maze_predator_apex (Coruscant Underworld, composite_chitin
+    scaled), crashed_separatist_capital_ship (any region,
+    weapons_capacitor_core scaled), republic_lost_patrol (any
+    region, weapons_capacitor_core scaled).
+
+    Module-level transient state — restart wipes (same as T1 + T2).
+    """
+    from engine.wilderness_anomalies import tick_tier3_wilderness_anomalies
+    await tick_tier3_wilderness_anomalies(ctx.db, ctx.session_mgr)
+
+
+async def building_construction_tick(ctx: TickContext) -> None:
+    """SYN.9 (2026-05-25): Player-constructed building construction tick.
+    Per ``contestable_wilderness_design_v2.md`` §2.9.3 + §3.9.
+
+    Runs every 5 minutes. Two responsibilities:
+      1. Transition `under_construction` → `operational` when
+         completion_ts has elapsed (24h after construction start).
+         For garrison_annex buildings, spawn 2 defending NPCs at
+         completion.
+      2. Transition `operational` with expired eviction notice
+         (`evict_after_ts <= now`) to `evicted` status. Removes any
+         spawned NPCs.
+
+    Notifies the owner (if online) on both transitions:
+      [CONSTRUCTION COMPLETE] on operational transition.
+      [EVICTED] on evict transition.
+    """
+    from engine.buildings import tick_building_construction
+    await tick_building_construction(ctx.db, ctx.session_mgr)
 
 
 async def territory_contests_tick(ctx: TickContext) -> None:
-    """Territory contest resolution (expired contests). Every 3600 ticks (~1 hour)."""
-    from engine.territory import tick_contest_resolution
-    await tick_contest_resolution(ctx.db, ctx.session_mgr)
+    """Region contest resolution tick (two-phase). Every 3600 ticks (~1 hour).
+
+    SYN.3 (2026-05-25): retargeted from the deleted Drop 6D
+    zone-keyed contest-resolution function in ``engine.territory``
+    to the SYN.3 ``engine.contest.tick_region_contest_resolution``
+    (region-keyed, two-phase: Anchor spawn at accumulation_ends_at,
+    defender-win-by-default at ends_at). The tick name is preserved
+    for scheduler stability — the scheduler entry in
+    ``server/game_server.py`` doesn't need touching.
+    """
+    from engine.contest import tick_region_contest_resolution
+    await tick_region_contest_resolution(ctx.db, ctx.session_mgr)
 
 
 async def docking_fee_tick(ctx: TickContext) -> None:
@@ -357,6 +544,32 @@ async def buff_expiry_tick(ctx) -> None:
         import logging
         logging.getLogger(__name__).warning(
             "buff_expiry_tick failed", exc_info=True
+        )
+
+
+# ── SRB.2 morale-aura expiry (May 22 2026) ──────────────────────────────────
+#
+# Reaps expired morale_auras rows. Per design §2.1, an aura lasts 30
+# minutes from a successful perform or until cleared by performer
+# departure / room exit. The look-renderer also filters expired auras
+# inline, so this tick is purely a DB-hygiene reaper — there's no
+# player-visible delay between expiry and the aura "disappearing."
+#
+# Cadence: every 60 ticks (1 minute). Light query and even a few
+# minutes of delay would be fine, but 1 minute matches the rest of
+# the economy tick family.
+
+async def morale_aura_expiry_tick(ctx) -> None:
+    """Reap expired morale_auras rows. Runs every 60 ticks (~1 min)."""
+    try:
+        import time as _time
+        reaped = await ctx.db.reap_expired_morale_auras(_time.time())
+        if reaped:
+            log.debug("morale_aura_expiry_tick reaped %d aura(s)", reaped)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            "morale_aura_expiry_tick failed", exc_info=True
         )
 
 

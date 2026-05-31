@@ -679,22 +679,92 @@ class _LiveHarness:
                           timeout: float, quiet_window: float) -> str:
         """Wait until the text buffer goes quiet for *quiet_window*,
         then drain it.
+
+        FLAKE FIX (May 18 [3] 2026, CX4 triage): the original loop
+        declared "quiet" as soon as the buffer hadn't changed for
+        ``quiet_window`` seconds — including the case where the
+        buffer never received any text at all. Under sandbox load
+        when the server is still processing a queued command (e.g.
+        CX4's ``+combat`` immediately after ``attack`` engages
+        combat with NPC auto-declare + initiative + broadcast),
+        the drain could fire on an empty buffer and return "" even
+        though the command produced output a fraction of a second
+        later. The fix: require the buffer to have been non-empty
+        at some point before the quiet-window break can fire. If
+        the buffer is still empty when the deadline arrives, drain
+        whatever's there (probably still nothing) — same behavior
+        as before, but the timeout becomes the safety net rather
+        than the eager quiet-fire.
         """
         deadline = time.monotonic() + timeout
         last_len = -1
         last_change = time.monotonic()
+        ever_nonempty = False
         while time.monotonic() < deadline:
             await asyncio.sleep(quiet_window / 2)
             cur_len = sum(len(t) for t in s._text_buf)
+            if cur_len > 0:
+                ever_nonempty = True
             if cur_len != last_len:
                 last_len = cur_len
                 last_change = time.monotonic()
                 continue
             if time.monotonic() - last_change >= quiet_window:
-                break
+                # Only break on "quiet" if we've actually seen text.
+                # An empty buffer that never received anything is not
+                # "quiet" — it's "hasn't started yet". Keep waiting
+                # until the deadline.
+                if ever_nonempty:
+                    break
         return strip_ansi(s.drain_text())
 
     # ── DB convenience methods (the existing API contract) ────────────────
+
+    async def room_id_by_slug(self, slug: str) -> int:
+        """Resolve a room slug to its runtime DB id.
+
+        SMOKE-SAFETY (May 18 2026, PVF-5 bug-fix drop): smoke
+        scenarios MUST use this helper for any semantic dependency
+        on a specific room — never hardcode integer DB ids.
+
+        Why: YAML rooms in ``data/worlds/<era>/planets/*.yaml``
+        carry author-assigned ``id:`` fields that start at 0 (or
+        wherever the file starts), but those YAML ids do NOT survive
+        intact into the DB. The world-writer uses ``db.create_room``
+        which delegates id assignment to SQLite's ``AUTOINCREMENT``,
+        and the schema's ``-- Seed data: starting room`` block in
+        ``db/database.py`` pre-inserts a legacy Mos Eisley "Landing
+        Pad" at id 1, "Mos Eisley Street" at id 2, and "Chalmun's
+        Cantina" at id 3 BEFORE the YAML write runs. The CW YAML
+        rooms therefore land at DB id 4 onwards — yaml_id 0
+        (``docking_bay_94_entrance``) becomes DB id 4, yaml_id 1
+        (``docking_bay_94_pit``) becomes DB id 5, etc.
+
+        The PVF-5 scenario was the canary that surfaced this: it
+        logged into ``room_id=1`` expecting ``docking_bay_94_pit``
+        (SECURED via S-RES.2 zone walk), but DB id 1 is the legacy
+        "Landing Pad" seed with ``zone_id=None`` and ``properties={}``
+        — which resolves to CONTESTED by default, so the SECURED
+        gate never fires.
+
+        Use this helper to look up rooms by slug at scenario start:
+
+            >>> sec_room = await h.room_id_by_slug("docking_bay_94_pit")
+            >>> alice = await h.login_as("Alice", room_id=sec_room)
+
+        Raises ``LookupError`` if the slug isn't in the world.
+        """
+        if not slug:
+            raise LookupError("room_id_by_slug: empty slug")
+        row = await self.db.get_room_by_slug(slug)
+        if not row:
+            raise LookupError(
+                f"room_id_by_slug: no room with slug={slug!r} in this world. "
+                f"Era: {self._era}. Check the world YAMLs or use a different "
+                f"slug. (This helper exists so scenarios don't hardcode DB "
+                f"ids — see helper docstring for the rationale.)"
+            )
+        return int(row["id"])
 
     async def get_char(self, char_id: int) -> Optional[dict]:
         """Reload a character row by ID. Used by tests after actions

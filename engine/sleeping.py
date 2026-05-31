@@ -56,13 +56,25 @@ async def set_sleeping(char: dict, db, room_id: int) -> bool:
         except Exception:
             pass  # Housing module unavailable — continue
 
-        # Check if room is claimed by character's faction
+        # Check if room is in a wilderness region owned by the
+        # character's faction. SYN.1.b (2026-05-24): retargeted from
+        # the per-room ``is_room_claimed_by`` to the region-scope
+        # ``is_region_owned_by``. City-map rooms (no
+        # wilderness_region_id) don't get the safe-sleep bonus through
+        # this path — those are commons under the Contestable
+        # Wilderness pivot (contestable_wilderness_design_v2.md §2.1).
+        # The own-housing branch above already covers safe-sleep
+        # inside city-map homes; the city-citizen branch in
+        # engine/player_cities.py handles citizen security separately.
         char_org = char.get("faction_id", "independent")
         if char_org and char_org != "independent":
             try:
-                from engine.territory import is_room_claimed_by
-                if await is_room_claimed_by(db, room_id, char_org):
-                    return False  # Safe — faction territory
+                room = await db.get_room(room_id)
+                region_slug = (room or {}).get("wilderness_region_id")
+                if region_slug:
+                    from engine.territory import is_region_owned_by
+                    if await is_region_owned_by(db, region_slug, char_org):
+                        return False  # Safe — faction-owned wilderness region
             except Exception as _e:
                 log.debug("silent except in engine/sleeping.py:66: %s", _e, exc_info=True)
 

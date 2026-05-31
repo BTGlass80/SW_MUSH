@@ -168,8 +168,14 @@ def format_remaining(seconds: float) -> str:
 CD_SURVEY         = "survey"
 CD_FACTION_SWITCH = "faction_switch"
 CD_TRADE          = "trade"
+CD_PVP_UNFLAG     = "pvp_unflag"   # v27 (May 18 2026): +pvp off cooldown
 
 # Durations (seconds)
 SURVEY_COOLDOWN_S         = 300   # 5 minutes
 FACTION_SWITCH_COOLDOWN_S = 604800  # 7 days
 TRADE_COOLDOWN_S          = 30    # 30 seconds between trades
+# +pvp unflag cooldown: after attacking or being attacked while flagged,
+# you cannot toggle the flag off for 5 minutes. Mirrors WoW's anti-tag-
+# and-flee mechanic — prevents griefers from flagging, getting a free
+# attack, then immediately unflagging to escape consequences.
+PVP_UNFLAG_COOLDOWN_S     = 300   # 5 minutes

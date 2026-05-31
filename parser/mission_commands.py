@@ -61,6 +61,26 @@ class MissionsCommand(BaseCommand):
 
         available = board.available_missions()
 
+        # F.8.c.2.b₃: Filter chain-tagged tutorial missions so only
+        # the player whose active chain step expects them sees them
+        # on the board. Open (non-chain) missions always pass through.
+        try:
+            from engine.chain_missions import filter_visible_missions
+            import json as _mj
+            char = ctx.session.character
+            attrs_raw = char.get("attributes", "{}") if char else "{}"
+            if isinstance(attrs_raw, str):
+                try:
+                    attrs = _mj.loads(attrs_raw) if attrs_raw else {}
+                except Exception:
+                    attrs = {}
+            else:
+                attrs = attrs_raw or {}
+            available = filter_visible_missions(available, attrs)
+        except Exception:
+            log.debug("chain_missions visibility filter failed",
+                      exc_info=True)
+
         from engine.missions import format_board
         for line in format_board(available):
             await ctx.session.send_line(line)
@@ -162,6 +182,28 @@ class AcceptMissionCommand(BaseCommand):
             await ctx.session.send_line(
                 "  That mission was just taken. Try another.")
             return
+
+        # F.8.c.2.b₂: CW tutorial chain — mission_accepted completion.
+        # Chain-tagged missions carry mission_data.chain_mission_id;
+        # untagged missions skip silently inside the hook.
+        try:
+            from engine.chain_events import on_mission_accepted
+            _chain_mid = (accepted.mission_data or {}
+                         ).get("chain_mission_id", "") or ""
+            if _chain_mid and ctx.session.character:
+                _adv = await on_mission_accepted(
+                    ctx.db, ctx.session.character, _chain_mid,
+                )
+                if _adv:
+                    from engine.chain_graduation import (
+                        execute_pending_teleport,
+                    )
+                    await execute_pending_teleport(
+                        ctx, ctx.session.character,
+                    )
+        except Exception as _ce:
+            log.debug("chain_events mission_accepted hook error: %s",
+                      _ce, exc_info=True)
 
         await ctx.session.send_line(
             ansi.success(f"  Mission accepted: {accepted.title}"))
@@ -626,6 +668,23 @@ class CompleteMissionCommand(BaseCommand):
                 )
             except Exception:
                 log.exception("[missions] HOOK-6 spacer_quest failed")
+            # F.8.c.2.b₂: CW tutorial chain — mission_completed completion
+            try:
+                from engine.chain_events import on_mission_completed
+                _chain_mid = (
+                    getattr(completed, "mission_data", None) or {}
+                ).get("chain_mission_id", "") or ""
+                if _chain_mid:
+                    _adv = await on_mission_completed(
+                        ctx.db, char, _chain_mid,
+                    )
+                    if _adv:
+                        from engine.chain_graduation import (
+                            execute_pending_teleport,
+                        )
+                        await execute_pending_teleport(ctx, char)
+            except Exception:
+                log.exception("[missions] HOOK-7 chain_events failed")
         except Exception:
             log.exception("[missions] OUTER post-completion safety net caught")
 

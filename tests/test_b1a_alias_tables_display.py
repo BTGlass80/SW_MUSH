@@ -181,10 +181,26 @@ class TestCloneWarsBuildPostF1d:
         )
 
     def test_cw_no_test_character(self, cw_db):
-        """CW has no test_character.yaml yet — loader skips silently."""
+        """CW now ships a test_character.yaml (added May 19 2026 to
+        close the May 18 active_era pivot regression). The loader
+        creates the test character row at build time, same as GCW.
+
+        The original assertion (len == 0) was correct pre-May 19;
+        it's stale now. The current invariant: the CW test character
+        file IS loaded — exactly one row created. A drop to 0 would
+        signal a content_refs / loader regression. A jump above 1
+        would signal a duplicate-load loop (the loader writing the
+        same row twice).
+
+        Test name kept for grep compatibility with the May 18 audit
+        notes; the body asserts the new reality.
+        """
         rows = _query(cw_db, "SELECT name FROM characters")
-        # No test characters created — only a fresh world's tables.
-        assert len(rows) == 0
+        assert len(rows) == 1, (
+            f"CW build should produce exactly 1 test character "
+            f"(post-May 19 test_character.yaml). Got {len(rows)}: "
+            f"{[r['name'] for r in rows]!r}"
+        )
 
     def test_cw_seed_rooms_not_linked(self, cw_db):
         """Era != gcw: the GCW seed-room linking is skipped, so seed

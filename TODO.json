@@ -1,0 +1,1545 @@
+{
+  "schema_version": 1,
+  "last_updated": "2026-05-31",
+  "architecture_of_record": "sw_d6_mush_architecture_v51.md",
+  "_notes": [
+    "Machine-readable companion to the architecture doc's §3.2 priority ranking and §8 outstanding decisions.",
+    "Architecture doc is authoritative on narrative/rationale; this file is authoritative on what to grep on session pickup.",
+    "Update at end of every drop alongside CHANGELOG.md. See architecture §5 (drop discipline).",
+    "2026-05-30 backfill: the ledger lapsed 2026-05-25 → 2026-05-30 (SPA visual port drops 4.11–4.15, the v51 hybrid raster substrate migration of all six maps + 4 new painted areas, and the map A/D/B + env/bearing + bounty & anomaly POI feeds). Reconstructed CHANGELOG entries (marked) cover the gap; tracker_update_in_same_drop resumes 2026-05-30.",
+    "2026-05-30 objective-POI drop: wired the third runtime POI kind — the player's accepted-mission OBJECTIVE (green star) — onto L_Entities in server/session.py::_build_area_pois, joining bounty + anomaly. Enabling co-fix in engine/missions.py::MissionBoard.refresh (lazy room-list fetch, gated on board-fill so idle ticks pay no DB cost) so tick-spawned missions also carry destination_room_id. Zero JS (MK_Objective + poiMap 'objective' + adapter pass-through already in place). Pre-flight overturned the prior handoff's premise: Mission.destination_room_id already existed and was populated — only the server enumeration was missing. +13 tests in test_poi_feed.py.",
+    "2026-05-30 vendor-POI drop (same session): wired the fourth runtime POI kind — placed VENDOR droids (player shopfronts, amber awning) — onto L_Entities in the same _build_area_pois method. Area-state like bounty/anomaly: one batched 'SELECT room_id FROM objects WHERE type=vendor_droid AND room_id IN (...)' (the contacts-NPC no-storm pattern), {kind:'vendor'} per placed shopfront in view; unplaced droids (room_id NULL) excluded by the filter. Zero JS (MK_Vendor + poiMap 'vendor' already in place). +7 tests. The dynamic POI feed now renders ALL FOUR room-anchored kinds it was built for (bounty/anomaly/vendor/objective); only mission-giver pins remain, blocked on a non-existent giver-room field. test_poi_feed.py now 17→37 across both drops. Architecture v51 updated (§1.4-F/§1.5/§3/§10.6, delivered standalone).",
+    "2026-05-30 pre-flight finding (intel-handler seeding): HQ rooms are DYNAMICALLY created by engine/housing.py (org_hq rooms, organizations.hq_room_id FK) when an org establishes an HQ — NOT statically pre-seeded. So the SYN.5 intel-handler seeding follow-up must resolve the live hq_room_id, not a YAML-fixed room id, or the handler NPC dangles. Five factions carry hq_room_name; the '9 HQs' figure needs reconciling against that. Recorded in v51 §10.6 / §3.",
+    "2026-05-30 housekeeping: deleted orphan parser/admin_fp_commands.py. Its @fp admin surface was folded into @weight <name> fp <delta> (the 'fp' subform, Weight-of-War scaling included) during WoW.4 — live path unchanged, so zero functionality lost. game_server.py had no reference; full-tree grep found zero other importers. Clears the carried-forward baseline failure test_wow3c_dsp_fp_wiring.py::TestNoLeftoverAdminFpModule::test_admin_fp_module_removed (file now 27/27). Removed from v51 §1.3 baseline-failures list. Note: deletion is a FILE REMOVAL — Expand-Archive -Force will NOT delete the file on the Windows tree; remove parser/admin_fp_commands.py manually (or via git rm) on apply.",
+    "2026-05-31 session (answering the 4 launch questions + capture request): (Q1) TD.CW_BUILD_EXIT_COLLISION FIXED via Option A — tatooine.yaml room 41 re-coorded to (9,4) + SE/NW gate edge; dry-run ok True, errors 1->0, warnings flat 29. (Q2) Coruscant underworld SINGLE-LEVEL confirmed (data already so); reconciled the stale '40x40x3' resolved entry. (Q3) intel-handler seeding DECIDED — 5 static-HQ factions tagged via live room-name now, dynamic-HQ factions via a future housing.py hook; recorded in T2.DEF.handler_npcs, tagging deferred to a verifiable pass. (Q4) click-to-move DIAGNOSED (TD.CW_M3_CLICK_TO_WALK_LATERAL) — only marker rooms are click-decorated, so the lone lateral exit out of Bay 94 Ent (north->street hub 7) has no clickable target; NOT blind-patched (multiple render branches, rendering-layer-phantom risk) — shipped a 30-sec console probe + recommended a view-independent exit HUD. CAPTURE: painted_wilderness_and_coruscant_underworld_design_v1.md written (Coruscant parity + the Nano wilderness plan).",
+    "2026-05-31 (Q4 follow-up, same session): probe came back CONFIRMING sub-case (a) — rooms 6,7,8,9,10,11,47 (streets/hub, incl. room 7) absent from data-room-id, only 'down' decorated. SHIPPED the fix in static/client.html: an exit strip in the SECTOR MAP modal (#map-modal-exits) built from lastExits, every exit clickable (sendCmd + closeMapModal, mirroring the marker travel handler). 5 contained edits (HTML+CSS+3 JS); node --check clean on the inline block; pending Brian's Windows browser smoke-test.",
+    "2026-05-31 (Q4 v2 + log triage): Brian re-tested — exit strip didn't render. Cause: ordering bug (_renderModalExitStrip guarded on mapModalOpen, but it's called before that flag is set in openMapModal) -> removed the guard. Also his server log showed a separate GLOBAL bug: _post_move_hooks NameError on exit_data/direction every move ('bearing update failed') -> added those as params, passed from execute() (direction L866, exit_data L884). Reframed for Brian: the on-map click-to-walk only works for marker rooms, and streets/hubs (the connective tissue of EVERY city) draw no markers -> the exit strip (room's real exits, not markers) is the correct GLOBAL fix, no per-area work. client.html node --check + builtin_commands.py AST both clean; pending Brian's hard-refresh + smoke-test.",
+    "2026-05-31 (Q3 intel-handler seed, self-directed on 'Continue'): pre-flight caught a latent feature-breaker — npc_loader._build_ai_config dropped the is_intel_handler marker (not in its fixed schema/pass-through), so tagging NPCs alone would've been a no-op. Added the pass-through (mirrors trainer/gate). Tagged 3 clean handlers (Borka/hutt_cartel @ Hutt Emissary Tower, Drel Mok/bounty_hunters_guild @ Bounty Hunters' Quarter, Halen Voss/jedi_order @ Jedi Temple Entrance Hall). Deferred republic + cis because their HQ residents (Zekka=independent, Brann Korr=hutt_cartel) would be retconned by tagging — needs a covert-contact NPC or HQ relocation (design call). Verified the full chain in-sandbox with REAL YAML through the REAL loader (_build_ai_config -> _is_handler_npc True/False correct; fix proven load-bearing); DB seed + find_handler_in_room is Brian's pytest. Also found jedi_order hq_room_name -> nonexistent 'Main Hall' room (TD.CW_JEDI_HQ_ROOM_NAME), flagged not fixed (touches housing). dry-run still ok=True/0/29."
+  ],
+  "tier_1_active": [
+    {
+      "id": "T1.1",
+      "title": "Eavesdrop target_char design call",
+      "lane": "design",
+      "effort": "small (~0.5 sess)",
+      "status": "resolved_deferred",
+      "resolution_date": "2026-05-24",
+      "resolution": "No code change. The eavesdrop system is shipped and fully functional (engine/espionage.py + parser/espionage_commands.py). The 'target_char' question is a narrow forward-compat concern at parser/espionage_commands.py:199-207: the fumble broadcast to the target room calls sessions_in_room() without source_char. Today this is correct (eavesdrop targets indoor rooms via exit-graph; no wilderness-tile leak vector exists). The parser comment names the exact site and the exact fix; future drop adding wilderness-tile-to-wilderness-tile eavesdropping will add the source_char/target_char parameter at the moment it's actually needed.",
+      "trigger_to_fix": "A future drop that introduces wilderness-tile-to-wilderness-tile eavesdropping. At that point the comment becomes the prompt; the fix is ~3 lines.",
+      "carried_since": "v45 (resolved 2026-05-24)",
+      "pre_flight_finding": "Pattern 2 (Phantom-undelivered) — userMemories/TODO.json listed this as a pending design call; HEAD has had the substrate shipped for some time. The narrow forward-compat note remained interpreted as a design call rather than as a documented seam."
+    },
+    {
+      "id": "T1.2",
+      "title": "skill_check_passed trigger-site decision",
+      "lane": "design",
+      "effort": "small (~0.5 sess)",
+      "status": "DONE",
+      "done_date": "2026-05-20",
+      "resolution": "Option 2: explicit `chain attempt` command. Shipped May 20 2026 per engine/chain_events.py docstring (line 52-79). Player types `chain attempt` at the chain step's authored location; the parser command (parser/chain_commands.py::ChainCommand) reads the active step via get_active_step_info, runs the authored perform_skill_check against the step's skill and difficulty, and dispatches the result to on_skill_check_passed. All 6 skill_check_passed completions in chains.yaml use this seam.",
+      "alternatives_rejected": [
+        "Option 1: roll on step entry (silently, no player agency) — rejected; bad UX",
+        "Option 3: per-step attempt_on_command YAML schema — rejected; new schema surface for marginal gain"
+      ],
+      "rationale": "Option 2 won on (a) player agency, (b) no new YAML schema, (c) discoverable via a dedicated command that later carries `chain status`, `chain skip`, etc.",
+      "carried_since": "v45 (resolved 2026-05-20, finally tracked-as-resolved 2026-05-24)",
+      "pre_flight_finding": "Pattern 2 (Phantom-undelivered) — userMemories/TODO.json listed this as carried-since-v45 design call pending Brian. HEAD has had this fully resolved and shipped for 4 days. Caught during T1.1/T1.2 pre-flight."
+    }
+  ],
+  "tier_2_queued": [
+    {
+      "id": "T2.DEF.tier1_combat_polish",
+      "title": "Replace simplified skill-check resolution for Tier 1 combat templates with proper NPC spawn",
+      "lane": "engine",
+      "effort": "small-medium (~0.5-1 sess)",
+      "status": "closed",
+      "closed_date": "2026-05-25",
+      "closed_by": "SYN.7.a.fix",
+      "design_doc": "Implicit in SYN.7.a — current resolution for wounded_animal and tusken_party uses a single skill check (Survival or Blaster vs DC 13) rather than an actual combat encounter.",
+      "scope": "Replace skill-check resolution for the two combat-flavored Tier 1 templates with proper NPC spawn + combat-loop integration. wounded_animal: spawn a low-tier creature NPC with appropriate stats (faction-neutral, predetermined to die in 2-3 rounds); on kill, grant the template reward. tusken_party: spawn 3-4 Tusken raider NPCs (existing template if available; create if not); on victory, grant reward. Touches engine/npc.py spawn API + faction tagging + the combat loop.",
+      "promoted_from_changelog": "SYN.7.a (2026-05-25) — listed in 'what_deferred_within_scope' field of that entry.",
+      "carried_since": "2026-05-25",
+      "resolution_note": "Closed by SYN.7.a.fix the same day. Beyond the original scope: also added 4 additional combat-resolution templates for Coruscant Underworld (black_sun_courier 2x thug, maze_rogue 1x veteran creature, cis_sleeper_cell 2x b1_battle_droid, bounty_hunter_rival 1x veteran bounty_hunter), so a total of 6 templates now use real NPC spawn + combat-loop reward instead of skill-check. Reward delivery hooks through parser/combat_commands.py death loop (mirrors bounty kill hook pattern)."
+    },
+    {
+      "id": "T2.ECON.review",
+      "title": "Game-economist review of the entire game (whole-game pass)",
+      "lane": "design",
+      "effort": "large (~3-5 sess across multiple weeks)",
+      "status": "queued",
+      "scope_explicit": "WHOLE GAME — not just SYN. Covers every numeric value across credits flow, resource flow, influence economy, time gates (cooldowns), opportunity costs, supply/demand balance, win-rate tuning, faction balance, progression gates, and content gates. Includes but is not limited to: tunable_open_questions array (below) listing the SYN.6 picks; existing economy_audit_v2.md findings; player city tax rates; combat damage scaling; faction missions reward shape; crafting quality-to-stats curve; vendor pricing; bounty board reward bands; intel handover reward tiers; etc.",
+      "trigger": "Brian's explicit call (May 25 2026): 'I intend to have you take a long look over everything again from the perspective of a game economist.' The whole-game pass is deliberately deferred until SYN is shipped — doing it mid-SYN derails forward progress; doing it after SYN means the economist looks at a complete system rather than a moving target.",
+      "preserved_inputs": [
+        "TODO.json::tunable_open_questions array (SYN.6 picks; SYN.7+ picks will be appended as those drops land)",
+        "economy_tuning_open_questions_v1.md (design doc — SYN.6-specific consolidation; SYN.7+ docs will follow)",
+        "Existing audit docs: economy_audit_v1.md, economy_audit_v2.md, economy_design_v02-1.md, economy_hardening_design_v1.md, economy_bulk_premium_design_v1.md, economy_audit_implementation_scorecard_v1.md"
+      ],
+      "blocking": "Pre-launch SYN completion (SYN.7.a, SYN.7.b, SYN.8, SYN.9 still ahead). Economist review opens AFTER SYN.9 ships.",
+      "carried_since": "2026-05-25 (created at SYN.6 wave close)"
+    },
+    {
+      "id": "T2.DEF.handler_npcs",
+      "title": "Seed is_intel_handler NPCs at faction HQs (SYN.5 deferred content)",
+      "lane": "content",
+      "effort": "small (~0.3-0.5 sess)",
+      "status": "partially seeded (3 of 5 static-HQ factions) — pending Brian pytest",
+      "design_doc": "Implicit in SYN.5 — engine treats any NPC with ai_config_json:{is_intel_handler:true, faction:<code>} as a handler. Per CHANGELOG.md SYN.5 entry: 'Did not seed handler NPCs at faction HQs. Content drop, not engine drop.'",
+      "scope": "Populate the is_intel_handler ai_config_json tag on existing faction-HQ NPCs across the 9 factions (Hutts, Republic, CIS, Jedi Order, Bounty Hunters' Guild, Pyke Syndicate, Black Sun, Falleen Syndicate, independent broker). Identify the right HQ rooms per faction; pick the right NPC slot per HQ (typically the quartermaster/contact-NPC pattern). Verify with smoke test: each faction has at least one redeemable handler reachable.",
+      "blocking": "Until seeded, finished espionage characters have no NPCs to redeem intel reports to — the SYN.5 mechanic is mechanically complete but content-unreachable.",
+      "promoted_from_changelog": "SYN.5 (2026-05-25) — listed in 'What it deliberately did not do' section.",
+      "carried_since": "2026-05-25 (originally SYN.5 deferred; promoted to discrete TODO at Brian's request May 25 2026)",
+      "decision_2026_05_31": "Seed the 5 STATIC-HQ factions now; defer the rest to a housing.py hook. Placement resolved by live HQ room-NAME (NPCs are already seeded by `room: <name>`, e.g. npcs_drop_g1_nar_shaddaa_topside.yaml), so no hardcoded room ids. Tag the resident contact/quartermaster NPC in each HQ room; the Hutt Audience Chamber + Jedi Temple Main Hall may need the right resident NPC identified (some HQ NPCs are Ollama-driven). NOT implemented this session: the actual ai_config_json tagging can't be runtime-verified in the AST sandbox (needs a built DB), so it gets its own careful pass + Brian's pytest, rather than blind cross-file NPC edits.",
+      "decided_factions_static_hq": [
+        "Jedi Order — Coruscant - Jedi Temple Main Hall",
+        "Hutts — Nar Shaddaa - Hutt Emissary Tower - Audience Chamber",
+        "Bounty Hunters' Guild — Nar Shaddaa - Bounty Hunters' Quarter",
+        "(Nar Shaddaa sector org) — Nar Shaddaa - Corellian Sector Promenade",
+        "(Nar Shaddaa sector org) — Nar Shaddaa - The Burning Deck Cantina"
+      ],
+      "deferred_factions_dynamic_hq": "Remaining of the 9 (Republic, CIS, Pyke Syndicate, Black Sun, Falleen Syndicate, independent broker as applicable) — no static hq_room_name; handler placed via a housing.py hook when their HQ is established. Engine drop.",
+      "seed_2026_05_31": {
+        "engine_fix": "engine/npc_loader.py _build_ai_config: added is_intel_handler to the pass-through (it was NOT in the fixed schema, so the YAML marker was silently DROPPED — no yaml-seeded NPC could ever be a handler). `faction` was already carried by the base schema. VERIFIED in sandbox: real YAML -> _build_ai_config -> _is_handler_npc resolves True for the matching faction, False otherwise; proven the fix is load-bearing (pre-fix path returns False).",
+        "tagged_clean": [
+          "hutt_cartel -> Borka the Hutt (Emissary) @ Nar Shaddaa - Hutt Emissary Tower - Audience Chamber (faction already hutt_cartel)",
+          "bounty_hunters_guild -> Bounty Board Operator Drel Mok @ Nar Shaddaa - Bounty Hunters' Quarter (faction already bounty_hunters_guild)",
+          "jedi_order -> Knight Halen Voss @ Jedi Temple - Entrance Hall (faction already jedi_order; discoverable front-of-house Jedi)"
+        ],
+        "deferred_with_reason": [
+          "republic -> its HQ (Nar Shaddaa - Corellian Sector Promenade) is hosted by Zekka Thansen whose faction is 'independent'. Tagging him republic would retcon his faction. NEEDS a design call: add a dedicated Republic covert-contact NPC at the front, or relocate the Republic HQ. NOT tagged.",
+          "cis -> its HQ (Nar Shaddaa - The Burning Deck Cantina) is hosted by Cantina Owner Brann Korr whose faction is 'hutt_cartel'. Tagging him cis would directly contradict established faction data. Same design call as republic. NOT tagged."
+        ],
+        "left_for_pytest": "DB seed places these NPCs with the marker in ai_config_json AND find_handler_in_room(db, room_id, faction) returns them by room_id. Can't build the DB in the AST sandbox; every pure-function link in the chain is verified.",
+        "dynamic_hq_factions_still_deferred": "The 4 factions with no static hq_room_name (Pyke Syndicate, Black Sun, Falleen Syndicate, independent broker) remain on the future housing.py hook (place a handler when an org establishes its HQ)."
+      }
+    },
+    {
+      "id": "T2.DEF.t5_drop_hooks",
+      "title": "Wire the 4 remaining T5 material drop hooks (SYN.6.c deferred)",
+      "lane": "engine+content",
+      "effort": "small-each (~0.3-0.5 sess per hook); some land naturally inside SYN.7.b / SYN.8",
+      "status": "queued",
+      "design_doc": "contestable_wilderness_design_v2.md §2.5.6",
+      "subitems": [
+        {
+          "mat": "weapons_capacitor_core",
+          "intended_source": "Dune Sea T2 anomaly drops (Republic Acclamator, Hutt smuggling convoy)",
+          "lands_in": "SYN.7.b (natural — T2 anomaly drop tables will list it)",
+          "status": "CLOSED 2026-05-25 in SYN.7.b. Named-loot drops on downed_republic_acclamator + hutt_smuggling_convoy templates (1 unit, q70 each). Also dropped at q80 by Tier 3 crashed_separatist_capital_ship and republic_lost_patrol (SYN.8) — scaled to participation."
+        },
+        {
+          "mat": "composite_chitin",
+          "intended_source": "Maze Predator hunts (Coruscant Underworld T2 + T3 anomalies)",
+          "lands_in": "SYN.7.b (T2 outbreak) + SYN.8 (T3 Apex; participation-scaled)",
+          "status": "CLOSED 2026-05-25 in SYN.7.b + SYN.8. T2 maze_predator_outbreak drops 1 unit q70 named-loot. T3 maze_predator_apex drops at q80 scaled to participation."
+        },
+        {
+          "mat": "scavenged_republic_tech",
+          "intended_source": "Coruscant Underworld special harvest (not a standard region harvest yield)",
+          "lands_in": "Standalone small drop (~0.3 sess) — likely an extension of engine.harvest with a Coruscant-only branch, or a parser command like 'scavenge' in Coruscant Underworld rooms"
+        },
+        {
+          "mat": "deep_dune_iron",
+          "intended_source": "Dune Sea T3 anomaly drops (Krayt Dragon participation loot)",
+          "lands_in": "SYN.8 (natural — T3 world boss loot table)",
+          "status": "CLOSED 2026-05-25 in SYN.8. krayt_dragon Tier 3 template drops at q80 scaled to participation (floor(N_participants/4), minimum 1 to killer)."
+        }
+      ],
+      "engine_state": "All 4 mats are in engine.crafting.RESOURCE_TYPES and engine.crafting.T5_WILDERNESS_MATERIALS. T5 schematics referencing them are valid YAML and gate correctly on q75+. Only the acquisition path is missing — admin-grant works for testing today.",
+      "promoted_from_changelog": "SYN.6.c (2026-05-25) — listed in 'What it deliberately did not do' + nested in SYN.6.c TODO entry's what_deferred_within_scope field.",
+      "carried_since": "2026-05-25"
+    },
+    {
+      "id": "T2.DEF.t5_trainer_storyline",
+      "title": "T5 schematic acquisition story-line + trainer NPCs",
+      "lane": "content+design",
+      "effort": "medium (~1-2 sess; story-line authoring is open-ended)",
+      "status": "queued",
+      "design_doc": "TBD — design pass needed; current state is empty trainer_npc fields on all 5 t5_* schematics in data/schematics.yaml",
+      "scope": "Define how players learn the 5 T5 schematics. Per design §2.5.6 the intent is story/quest-line acquisition (Jedi Master for lightsaber, Hutt weaponsmith for blaster rifle, Republic engineer-corps officer for ship parts, etc.). Includes: 5 trainer NPCs OR a single questline per schematic; schematic-grant parser surface (or quest-completion hook); discoverability UI in 'craft' command (next entry T2.DEF.t5_discoverability).",
+      "engine_state": "Admin-grant works today — admins can manually add the schematic key to a character's attributes.schematics list. No story-line surface for non-admin acquisition.",
+      "promoted_from_changelog": "SYN.6.c (2026-05-25)",
+      "carried_since": "2026-05-25"
+    },
+    {
+      "id": "T2.DEF.t5_ship_part_items",
+      "title": "T5 ship-part item catalog entries (combat/space effects)",
+      "lane": "content+engine",
+      "effort": "small (~0.5 sess)",
+      "status": "queued",
+      "design_doc": "TBD — likely a data/items.yaml extension; depends on whether ship parts use the existing weapons.yaml schema or get a new shape",
+      "scope": "Two T5 schematics craft items with no functional combat/space effects today: t5_hyperdrive_surge_converter and t5_mil_spec_ion_engine_core. The crafted ItemInstance rows land in inventory correctly, but the items don't yet do anything in combat/space. Needs: data/items.yaml entries (or extension of weapons.yaml / starships.yaml) defining the per-item stat effects (hyperdrive efficiency, ion engine output bonus). Also needs an item-mod-to-ship application surface — likely a parser command like 'install <item>' or admin-applies-to-ship.",
+      "engine_state": "Schematics craft into inventory. Items are inert in combat/space.",
+      "promoted_from_changelog": "SYN.6.c (2026-05-25)",
+      "carried_since": "2026-05-25"
+    },
+    {
+      "id": "T2.DEF.t5_discoverability",
+      "title": "T5 schematic discoverability UI in 'craft' command",
+      "lane": "parser+engine",
+      "effort": "small (~0.3 sess)",
+      "status": "queued",
+      "design_doc": "Existing parser/crafting_commands.py — extend the 'craft' command's schematic-list output to surface T5 entries with appropriate gating-info display (which T5 mat needed, current quality available in inventory, can_craft yes/no).",
+      "scope": "Today the 'craft' command lists all schematics in a character's attributes.schematics. T5 schematics work for any character who has them in that list (via admin-grant or the future T2.DEF.t5_trainer_storyline path). The discoverability concern is: even with a schematic granted, the player doesn't see a clear 'you have q72 kyber, need q75 to craft this' diagnostic. Surface that.",
+      "promoted_from_changelog": "SYN.6.c (2026-05-25)",
+      "carried_since": "2026-05-25"
+    },
+    {
+      "id": "T2.3",
+      "title": "Coruscant Underworld wilderness build",
+      "lane": "content+engine",
+      "effort": "medium (~1-2 sess)",
+      "status": "DONE",
+      "done_date": "2026-05-24",
+      "design_doc": "coruscant_underworld_landmarks_design_v1.md",
+      "data_file": "data/worlds/clone_wars/wilderness/coruscant_underworld.yaml (region) + coruscant_underworld_landmarks.yaml (content)",
+      "resolution": "Shipped as single-level region per Brian's call to collapse the design's mid/low/bottom Z-axis. Loader extended with generic landmark_includes: mechanism (W.3); Dune Sea migrated to the same mechanism for parity. 5 landmarks + 3 transit nodes load cleanly. era.yaml wired. 24 new tests + 153 existing wilderness tests green. Encounter/hazard system explicitly deferred to T2.W.encounters (covers both regions).",
+      "scope_options_chosen": "A (region YAML + grid + terrain), modified: single-level (no Z-axis), no inline landmarks (use includes)",
+      "known_tech_debt": "TD.2: surface_manhole_to_southern_underground wilderness landmark and coruscant_uw_surface_entry city room both exist at (20, 17); reconciliation deferred."
+    },
+    {
+      "id": "T2.WENC",
+      "title": "Wilderness encounter/hazard system (Coruscant + Dune Sea)",
+      "lane": "engine+content",
+      "effort": "medium (~2 sess)",
+      "status": "partly_done_rolled_into_SYN_sequence_2026_05_24",
+      "done_date": "2026-05-24",
+      "design_doc": "wilderness_system_design_v1.md §5 (encounters), §6.2 (hazards); SUPERSEDED by contestable_wilderness_design_v2.md (May 24 2026 design lock)",
+      "resolution_phase_a": "T2.WENC.a (May 24 2026 morning): selector + cooldown + filters + integration hook shipped in engine/wilderness_encounters.py; loader parses encounters: YAML block; engine/hazards.py hazard_tick extended with wilderness path (terrain ambient_hazard → check_hazard_for_character via synthetic room dict); aspirational hazard tags inert until matching HAZARD_TYPE ships; encounter pools authored for both regions (9 entries Dune Sea, 10 entries Coruscant) covering all 5 design §5.2 types.",
+      "rolled_into_note": "Per May 24 2026 afternoon design pivot (see contestable_wilderness_design_v2.md): the encounter system's spawn dispatch and faction-gate wiring are rolled into the SYN sequence rather than continued as standalone T2.WENC.b/T2.WENC.c. SYN.7 + SYN.8 (wilderness anomalies Tier 1-2 and Tier 3) supersede T2.WENC.b. SYN.5 (espionage-as-influence + Director-AI integration) supersedes T2.WENC.c.",
+      "subitems": [
+        {
+          "id": "T2.WENC.a",
+          "title": "Schema + selector + content authoring + hazard tick wilderness path",
+          "status": "DONE",
+          "done_date": "2026-05-24",
+          "note": "Minimal-substrate ship: encounter fires as a narrative broadcast only. The substrate this drop shipped survives into the SYN sequence — SYN.7 builds spawn dispatch on top of EncounterEntry.payload."
+        },
+        {
+          "id": "T2.WENC.b",
+          "title": "Encounter type dispatch — spawn NPCs, vendor caravans, anomaly salvage, weather effects",
+          "status": "rolled_into_SYN.7_2026_05_24",
+          "note": "Per pivot: spawn dispatch is now part of the wilderness anomaly system (Tier 1-2 in SYN.7). The encounter selector substrate from T2.WENC.a feeds SYN.7's spawn handlers via EncounterEntry.payload."
+        },
+        {
+          "id": "T2.WENC.c",
+          "title": "Director-AI faction influence wired into evaluate_faction_gate",
+          "status": "rolled_into_SYN.5_2026_05_24",
+          "note": "Per pivot: faction-gate evaluation now runs through the same Director-AI integration that SYN.5 ships for intel handlers. Stub at engine/wilderness_encounters.py::evaluate_faction_gate replaced by real Director call when T3.15 lands; SYN.5 ships intermediate stub."
+        }
+      ],
+      "depends_on": [
+        "existing wilderness movement (W.2 phase 2 — shipped)"
+      ],
+      "why_now": "T2.WENC.a closed the substrate gap. Higher-level work (NPC spawn dispatch, faction-gate evaluation) now lives in the SYN sequence with proper political context (region ownership, contest state, Director integration)."
+    },
+    {
+      "id": "SYN.0",
+      "title": "Pre-flight + Migration Plan for Contestable Wilderness pivot",
+      "lane": "verification+planning",
+      "effort": "~0.5 sess",
+      "status": "DONE",
+      "done_date": "2026-05-24",
+      "priority_note": "FIRST in SYN sequence. No engine code ships in SYN.0; verification + plan + migration skeleton.",
+      "design_doc": "contestable_wilderness_design_v2.md",
+      "depends_on": [
+        "T2.WENC.a (shipped)"
+      ],
+      "resolution": "Pre-flight audit conducted, migration script skeleton authored at tools/syn_migration.py, deprecated surfaces tagged with docstring headers, TODO.json::tech_debt surface list corrected. Shipped in the BugFix5_plus_SYN0 combined drop alongside five test-only bugfixes.",
+      "pre_flight_findings": [
+        "Finding 1: TODO.json::tech_debt named MAX_CLAIMS_PER_ZONE / MAX_CLAIMS_PER_ORG; actual constants in engine/territory.py:66-67 are CLAIM_MAX_PER_ZONE = 3 and CLAIM_MAX_TOTAL = 10. The surface list is corrected in this drop.",
+        "Finding 2: is_room_claimed_by has 6 consumers beyond engine/security.py::_apply_claim_upgrade: parser/faction_commands.py (armory gate, 2 sites), engine/territory.py (armory storage/withdraw, 3 internal sites), engine/sleeping.py (sleeping bonus, 1 site). Design doc §3.1 only named _apply_claim_upgrade. SYN.1 must retarget or retire each of these 6 sites; the design doc estimate of ~1 sess still holds since each site is mechanical (region-scope swap) but the call-site count is recorded here so SYN.1's pre-flight doesn't re-discover it.",
+        "Finding 3: engine/player_cities.py::found_city is NOT anchor-agnostic at HEAD. Steps 7-10 of the validation chain hard-code the org's tier-5 HQ entry room → that room's zone_id → that zone's declared_security → org influence in that zone. SYN.4 rewrites all four steps to anchor on a wilderness region. The design doc's ~2 sess estimate for SYN.4 is consistent with this scope.",
+        "Finding 4: engine/player_cities.py::claim_room_for_city (city expansion) was added later than the design doc accounted for. SYN.4 retires this entirely — the per-room expansion model goes away when cities anchor on regions; expansion happens via wilderness landmark capture + building construction (SYN.9)."
+      ],
+      "tagged_surfaces": [
+        "engine/territory.py::claim_room",
+        "engine/territory.py::unclaim_room",
+        "engine/territory.py::is_room_claimed_by",
+        "engine/territory.py::CLAIM_MAX_PER_ZONE",
+        "engine/territory.py::CLAIM_MAX_TOTAL",
+        "engine/security.py::_apply_claim_upgrade",
+        "engine/player_cities.py::found_city",
+        "engine/player_cities.py::claim_room_for_city"
+      ],
+      "migration_script": "tools/syn_migration.py (skeleton; audit + wipe phases implemented, city-dissolution phase deferred to SYN.4 where it ships atomically with the wilderness-anchor retarget)"
+    },
+    {
+      "id": "SYN.1.a",
+      "title": "Region ownership engine — data-only first half",
+      "lane": "engine+schema",
+      "effort": "~0.5 sess",
+      "status": "DONE",
+      "done_date": "2026-05-24",
+      "priority_note": "First half of SYN.1, per the two-session split discipline. Parallel-ship of region-ownership surfaces alongside legacy per-room block. Old surfaces remain operational; SYN.1.b retargets call sites and retires the legacy block.",
+      "design_doc": "contestable_wilderness_design_v2.md §3.1, §2.2",
+      "scope": "New schema (region_ownership + region_garrison tables); new public surfaces (claim_region, unclaim_region, is_region_owned_by, get_region_owner, get_org_regions, spawn_region_garrison, dismiss_region_garrison, tick_region_maintenance, tick_region_passive_yield); ensure_region_ownership_schema wired into ensure_territory_schema for boot-time creation. No call sites moved — the six is_room_claimed_by consumers and parser/faction_commands._cmd_claim/_cmd_unclaim still use the legacy room-keyed code path.",
+      "test_target": "43 new (all green sandbox)",
+      "tests_added": "tests/test_syn1a_region_ownership.py (43 tests across 10 sections)",
+      "retires_surfaces": [],
+      "split_rationale": "Per Brian's standing 'two-session split for medium-risk items: data-only first, code-flow second' discipline. SYN.1 unsplit would land ~1500 LOC across schema + new functions + tick retargets + garrison spawn + six cross-module call-site retargets + ~30 tests in one drop. Splitting halves the wedge risk and gives a chance to validate the new API shape before it goes load-bearing."
+    },
+    {
+      "id": "SYN.1.b",
+      "title": "Retarget legacy call sites + retire per-room claim surfaces",
+      "lane": "engine+content+migration",
+      "effort": "~0.5 sess",
+      "status": "DONE",
+      "priority_note": "Second half of SYN.1. Pure mechanical retarget + delete — no new logic. Unblocks SYN.2.",
+      "design_doc": "contestable_wilderness_design_v2.md §3.1, §6",
+      "depends_on": [
+        "SYN.1.a (DONE 2026-05-24)"
+      ],
+      "scope": "Retarget six is_room_claimed_by call sites per SYN.0 Finding 2 (parser/faction_commands.py armory gate; engine/territory.py 3 internal armory callers; engine/sleeping.py sleeping bonus; engine/security.py _apply_claim_upgrade); retarget parser/faction_commands.py::_cmd_claim/_cmd_unclaim to new region surfaces; invoke tools/syn_migration.py::wipe_territory_claims; delete legacy surfaces (claim_room, unclaim_room, is_room_claimed_by, CLAIM_MAX_PER_ZONE, CLAIM_MAX_TOTAL, tick_claim_maintenance, tick_resource_nodes, spawn_guard_npc per-room); call tag_surface_retired for each deleted surface; rewrite existing claim/armory tests to use region fixtures.",
+      "test_target": "~15 new + retarget existing per-room claim tests",
+      "retires_surfaces": [
+        "claim_room",
+        "unclaim_room",
+        "is_room_claimed_by",
+        "CLAIM_MAX_PER_ZONE",
+        "CLAIM_MAX_TOTAL",
+        "spawn_guard_npc (per-room)",
+        "tick_claim_maintenance",
+        "tick_resource_nodes"
+      ],
+      "done_date": "2026-05-24",
+      "resolution": "Stub-and-defang strategy adopted instead of physical deletion (wider blast radius than SYN.0 Finding 2 anticipated: get_claim/get_claim_display_tag/get_claims_status_lines/_GUARD_TEMPLATES have fan-in from session.py HUD, builtin_commands.py look output, combat_commands.py hostile takeover (SYN.3's domain), and the faction _cmd_guard handler — physical deletion would have required simultaneous edits to ~7 modules). The 8 legacy surfaces are stubbed to no-ops with RETIRED docstrings: claim_room/unclaim_room return ok=False with deprecation messages; is_room_claimed_by always returns False; spawn_guard_npc/remove_guard_npc return ok=False (remove also accepts **kwargs to tolerate the housing.py force=True call that was always silently failing); tick_claim_maintenance and tick_resource_nodes are no-ops; _apply_claim_upgrade (pre-empted from SYN.2) returns base unchanged. CLAIM_MAX_PER_ZONE and CLAIM_MAX_TOTAL physically deleted (only used inside claim_room). get_claims_status_lines retargeted to iterate region_ownership. The six is_room_claimed_by callers + the two faction parser commands + the two tick handlers all retargeted to the SYN.1.a region surfaces. wipe_territory_claims wired into ensure_territory_schema via _syn1b_wipe_territory_claims_once with a syn_migration_state marker table for idempotency. One existing test (TestClaimUpgradeCompose in test_secmod1_admin_security.py) updated to reflect the no-op _apply_claim_upgrade.",
+      "preempted_from_syn2": "engine/security.py::_apply_claim_upgrade — stubbed to no-op in SYN.1.b because it cannot function without is_room_claimed_by. SYN.2's remaining scope (wilderness-aware security branch in get_effective_security) is unaffected."
+    },
+    {
+      "id": "SYN.2",
+      "title": "Wilderness-aware security",
+      "lane": "engine",
+      "effort": "~1 sess",
+      "status": "DONE",
+      "design_doc": "contestable_wilderness_design_v2.md §2.3, §3.2",
+      "scope": "engine/security.py step 4 (wilderness branch, terminal for wilderness chars); _get_wilderness_region_state + _apply_wilderness_ownership helpers; _apply_claim_upgrade deletes.",
+      "test_target": "~15 new",
+      "retires_surfaces": [],
+      "note_preempted_in_syn1b": "_apply_claim_upgrade was stubbed to no-op in SYN.1.b (could not function without is_room_claimed_by). SYN.2's remaining work: ship the wilderness-aware security branch in get_effective_security (step 4) — read region_ownership directly when room.wilderness_region_id is set; physically delete the _apply_claim_upgrade stub from _finalize after the new branch ships.",
+      "done_date": "2026-05-24",
+      "resolution": "New wilderness-aware step 4 added to engine/security.py::get_effective_security per design §2.3. Two new helpers: _get_wilderness_region_state(room, db) reads default_security from the wilderness_regions registry + owner from region_ownership (SYN.1.a); _apply_wilderness_ownership(base, char, region_state) is the pure citadel-upgrade rule (LAWLESS → CONTESTED for owners, base stands for outsiders or unowned regions, CONTESTED stays CONTESTED — no double promotion). Step 4 is terminal for wilderness rooms (skips steps 5-6 room-prop fallback). _apply_claim_upgrade physically deleted; _finalize stripped of its claim_upgrade call. Director overlays (steps 1-3) still short-circuit step 4 — admin overrides win. City-map resolution path unchanged. Pre-flight confirmed wilderness_regions table is populated by engine/wilderness_writer.py at world-build time and read elsewhere in production (parser/builtin_commands.py wilderness travel commands); rooms in unregistered regions fall through gracefully to step 5. Adjacent regression: 313 tests green (SYN.1.a region ownership, SYN.2 wilderness branch, secmod1 admin security, territory constants, wenc, security resolver runtime + writer merge + zone coverage + yaml audit, wilderness drop2 + drop2_phase2, TODO/CHANGELOG hygiene); cities phases 1-7c 396 tests green; combat 77 tests green."
+    },
+    {
+      "id": "SYN.3",
+      "title": "Region contest state machine (combined: schema + culminating fight + Drop 6D deletion)",
+      "lane": "engine+parser+migration",
+      "effort": "~1.5 sess",
+      "status": "DONE",
+      "done_date": "2026-05-25",
+      "priority_note": "Originally split SYN.3.a (schema+engine, DONE) and SYN.3.b (culminating fight + caller retargets + Drop 6D physical deletion, queued). Brian called the roll-up. SYN.3.a + SYN.3.b shipped together in one combined drop. Unblocks SYN.4 (cities retarget) since the region-keyed contest engine is fully operational and Drop 6D is physically gone.",
+      "design_doc": "contestable_wilderness_design_v2.md §2.4 + §3.3 + §2.4 'Day 7, final 4 hours'",
+      "scope": [
+        "engine/contest.py: region_contests + region_contest_cooldowns schema, declaration + tick + on_npc_killed_in_combat + cancel + influence multipliers",
+        "engine/territory.py: adjust_territory_influence gains region_slug kwarg + applies contest multipliers + auto-trigger swap; Drop 6D contest block (442 LOC, 12 surfaces) physically deleted",
+        "5 caller retargets: server/session.py HUD, parser/combat_commands.py PvP gate, parser/combat_commands.py NPC death, parser/faction_commands.py _cmd_seize DELETED, server/tick_handlers_economy.py",
+        "Anchor NPC system: 9 faction templates + 4 HP tiers (basic/strong/hardened/fortress) mapping compute_anchor_hp to WEG D6 stat-dice boosts",
+        "Two test suites: test_syn3a (65 tests) + test_syn3b (53 tests) = 118 tests green"
+      ]
+    },
+    {
+      "id": "SYN.4",
+      "title": "Cities retarget (wilderness anchor) + migration + vitality (combined SYN.4a + SYN.4b)",
+      "lane": "engine+content+migration",
+      "effort": "~2 sess",
+      "status": "DONE",
+      "design_doc": "contestable_wilderness_design_v2.md §2.9.1, §2.9.2, §2.9.4, §3.4",
+      "scope": [
+        "engine/player_cities.py: found_city_in_region + claim_landmark_for_city new surfaces, parallel-ship with legacy. ~700 LOC added.",
+        "Schema: vitality_state + vitality_below_since columns added via additive ALTER (idempotent).",
+        "City vitality state machine: count_active_citizens, compute_vitality_threshold, compute_vitality_state, effective_tax_rate_cap, tick_city_vitality.",
+        "Migration: syn4_migrate_dissolve_city_map_cities with 75% refund, idempotency marker.",
+        "Parser: +city found <name> [in <region>] dispatch; +city claim routes to new API when city is region-anchored.",
+        "Tick wire-up: city_vitality_tick registered hourly (interval=3600, offset=1900) in server/game_server.py.",
+        "Tests: SYN.4a 30 tests (founding + expansion + eligibility + constants); SYN.4b 37 tests (vitality state machine + tick + migration). 67 total new."
+      ],
+      "test_target": "67 new tests; 520 existing cities tests unchanged",
+      "retires_surfaces": [
+        "(none — parallel-ship retains legacy surfaces; the deletion will land in a post-migration follow-up drop after the runtime migration confirms no orphan legacy cities remain)"
+      ],
+      "done_date": "2026-05-25",
+      "priority_note": "Originally scoped ~2 sess; landed in a single combined drop. Per Brian's standing roll-up call. Cities retarget shipped as parallel-ship: legacy found_city + claim_room_for_city stay for the 520 existing cities tests; new found_city_in_region + claim_landmark_for_city ship alongside. Parser routes new path when the active org's city has wilderness_region_id; legacy path otherwise. Migration script (syn4_migrate_dissolve_city_map_cities) dissolves city-map cities with 75% refund, idempotent via syn_migration_state marker (mirrors SYN.1.b pattern). City vitality state machine ships hourly tick + per-tier active-citizen thresholds (outpost 1 / chapter house 3 / fortress 5) + 14-day grace before dormant. Unblocks SYN.5 (espionage-as-influence) and SYN.6 (active harvest)."
+    },
+    {
+      "id": "SYN.5",
+      "title": "Espionage-as-influence + mission/bounty/pvp influence hooks retarget",
+      "lane": "engine",
+      "effort": "~1 sess",
+      "status": "DONE",
+      "design_doc": "contestable_wilderness_design_v2.md §2.7, §3.5",
+      "scope": [
+        "engine/intel_handlers.py new (~520 LOC): evaluate_intel_quality heuristic stub, sample_intel_reward, find_handler_in_room, handover_intel entry point.",
+        "engine/territory.py: on_npc_kill / on_mission_complete / on_pvp_kill retargeted to gate on wilderness_region_id. _resolve_room_region helper added.",
+        "parser/espionage_commands.py: +intel handover [<id>] subcommand wired.",
+        "Quality tiers per design §2.7: low 1-3 inf / 200-500 cr; medium 4-8 inf / 600-1500 cr; high 10-20 inf / 2000-5000 cr.",
+        "Tests: 47 in test_syn5_espionage_as_influence.py across 8 sections."
+      ],
+      "test_target": "47 new tests",
+      "supersedes": [
+        "T2.WENC.c"
+      ],
+      "done_date": "2026-05-25",
+      "priority_note": "Shipped in one session per the standing roll-up call. Two-tier influence reward rule from design v2 §2.7 wired into the three engine.territory hooks (on_npc_kill, on_mission_complete, on_pvp_kill): city-map rooms grant no influence (rep/credits/CP only); wilderness rooms grant the design-table delta, routed through the SYN.3 region_slug kwarg so contest multipliers fire. engine/intel_handlers.py new (~520 LOC) ships the +intel handover redemption surface with a heuristic quality stub awaiting T3.15 (Director AI CW-tuning). Unblocks SYN.6 (active harvest) — the next reward-flow drop will pass region_slug at its own call site too.",
+      "retires_surfaces": [
+        "(none — additive surface; old territory hook signatures preserved at call sites)"
+      ]
+    },
+    {
+      "id": "SYN.6.a",
+      "title": "Active harvest mechanic (first half of SYN.6)",
+      "lane": "engine",
+      "effort": "~1 sess (delivered)",
+      "status": "DONE",
+      "done_date": "2026-05-25",
+      "design_doc": "contestable_wilderness_design_v2.md §2.5.2, §2.5.3",
+      "resolution": "Shipped engine/harvest.py (~510 LOC) + parser/harvest_command.py + 57 tests. Pure helpers (_yield_table_lookup, _apply_skill_margin, _quality_to_resource_quality, _compute_tax, compute_harvest_payout) + DB-touching perform_harvest. 6-row yield table per design §2.5.2 verbatim (security × influence-tier). Survival skill check at DC 6 (WEG Easy). 30-min per-region cooldown with per-region namespacing. 15% non-owner credit tax routed to owner treasury via existing adjust_org_treasury seam. Resource stacks land in inventory.resources via engine.crafting.add_resource — same storage crafting already reads from, no schema migration. Region-quality multiplier is a seam (_get_region_quality) returning 1.0 in SYN.6.a; SYN.6.b is a one-function swap. T5 rare hits grant +1 'rare' stack at q100 (top of band) so existing crafting sees them immediately and T5 recipes can gate on min_quality ≥ 95 when they land. Influence: NONE — pinned by TestPerformHarvestNoInfluence per §4.25 wilderness-only-influence invariant + design §2.7 reward table. 10/10 deterministic runs after fixing the test fixture's skill field placement (skills are a top-level char dict field, not nested in attributes).",
+      "tests_delivered": 57,
+      "files_touched": [
+        "engine/harvest.py (new)",
+        "parser/harvest_command.py (new)",
+        "server/game_server.py (+1 import, +1 register)",
+        "tests/test_syn6a_active_harvest.py (new)"
+      ]
+    },
+    {
+      "id": "SYN.6.b",
+      "title": "Weekly region-quality variance + Director resource-outlook digest (second half of SYN.6)",
+      "lane": "engine+content",
+      "effort": "~0.5 sess (delivered)",
+      "status": "DONE",
+      "done_date": "2026-05-25",
+      "design_doc": "contestable_wilderness_design_v2.md §2.5.5",
+      "resolution": "Shipped engine/region_quality.py (~290 LOC) — full weekly-quality subsystem: schema (region_quality table, composite PK region_slug+resource_type), pure helpers (_iso_year_week canonical 'YYYY-Www', _compute_weekly_multiplier 0.7..1.3 with 2-decimal rounding, _outlook_summary best/worst with stable tie-breaking), DB-touching wrappers (roll_region_quality idempotent per ISO week, get_region_quality_for fail-soft dict[type,float], get_outlook with optional org filter, tick_weekly_region_quality iterating SELECT DISTINCT wilderness_region_id FROM rooms — broader than region_ownership so un-owned regions get rolls too since SYN.6.a maps them to fallback yields). Schema bootstrap is per-feature (ensure_region_quality_schema) not a SCHEMA_VERSION bump — mirrors SYN.1.a pattern. compute_harvest_payout in engine/harvest.py now polymorphic on quality: accepts float (SYN.6.a back-compat) OR dict[type, float] (SYN.6.b consumer); new stack_qualities result field. _get_region_quality seam swapped from return 1.0 to delegating into engine.region_quality.get_region_quality_for with fail-soft fallback. parser/faction_commands.py new _cmd_resource_outlook subcommand (aliases: outlook, resources) with green/yellow/dim color-grading by best-multiplier. Hourly tick (region_quality_weekly_tick) with per-region per-week ISO 8601 anchor — matches city_maintenance_tick pattern, simpler than wiring cron on interval-based scheduler. 38 new tests across 10 sections, 95 tests across SYN.6.a+SYN.6.b combined, 5/5 deterministic runs. Adjacent SYN family (394) + faction tests (94) all green.",
+      "tests_delivered": 38,
+      "files_touched": [
+        "engine/region_quality.py (new)",
+        "engine/harvest.py (modified — seam consumer + polymorphic quality)",
+        "parser/faction_commands.py (modified — _cmd_resource_outlook)",
+        "server/tick_handlers_economy.py (modified — region_quality_weekly_tick wrapper)",
+        "server/game_server.py (modified — scheduler registration)",
+        "tests/test_syn6a_active_harvest.py (modified — 1 test updated for new seam contract)",
+        "tests/test_syn6b_weekly_region_quality.py (new)"
+      ]
+    },
+    {
+      "id": "SYN.6.c",
+      "title": "T5 crafting tier + harvest-node gating + kyber attunement (closes SYN.6)",
+      "lane": "engine+content",
+      "effort": "~1 sess (delivered)",
+      "status": "DONE",
+      "done_date": "2026-05-25",
+      "design_doc": "contestable_wilderness_design_v2.md §2.5.2, §2.5.6",
+      "resolution": "Closes SYN.6 wave. Extended engine/crafting.py RESOURCE_TYPES from 6 to 11 entries (added 5 T5 wilderness-only mats: kyber_shard_minor, weapons_capacitor_core, scavenged_republic_tech, deep_dune_iron, composite_chitin). Added HARVESTABLE_RESOURCE_TYPES (T1-T4 subset, 6 entries) for clean separation — T5 mats are drop-only and don't participate in weekly variance. Added T5_WILDERNESS_MATERIALS frozenset + T5_MIN_QUALITY=75 constants. Appended 5 T5 schematics to data/schematics.yaml (33 → 38 schematics, diff 25-28 Very Difficult band). Output_keys reuse existing base items (lightsaber, blaster_rifle, bounty_hunter_armor) where they exist; ship-part keys (hyperdrive_surge_converter, mil_spec_ion_engine_core) forward-reference future item catalog. engine/harvest.py: new _is_harvest_node helper with region-scoped fallback (no flags → any room qualifies, SYN.6.a back-compat; any flag → only flagged rooms count). engine/region_quality.py: switched weekly-variance loop to HARVESTABLE_RESOURCE_TYPES (3-line change). engine/kyber_attunement.py NEW (~280 LOC): attune_to_landmark entry point — Force-sensitive PC at force_resonant wilderness landmark performs Knowledge/scholar/willpower skill check vs DC 11, grants 1 kyber_shard_minor at q75-95 (margin-scaled), 24h per-landmark cooldown. parser/attune_command.py NEW: AttuneCommand player surface. 40 new tests across 11 sections, 5/5 deterministic. Combined SYN.6 suite: 135 tests green. Adjacent SYN family (394) + faction (94) + crafting (42) = 530 tests green.",
+      "tests_delivered": 40,
+      "files_touched": [
+        "engine/crafting.py (modified — RESOURCE_TYPES expansion + 3 new constants)",
+        "engine/harvest.py (modified — _is_harvest_node helper + Step 1.5 gate)",
+        "engine/kyber_attunement.py (new — ~280 LOC, attune_to_landmark + helpers)",
+        "engine/region_quality.py (modified — HARVESTABLE subset consumer)",
+        "parser/attune_command.py (new — AttuneCommand)",
+        "server/game_server.py (modified — +1 import + 1 register)",
+        "data/schematics.yaml (modified — +5 T5 schematics)",
+        "tests/test_syn6a_active_harvest.py (modified — 2 tests tightened to HARVESTABLE)",
+        "tests/test_syn6b_weekly_region_quality.py (modified — bulk-renamed 6 RESOURCE_TYPES references)",
+        "tests/test_syn6c_t5_crafting_and_harvest_nodes.py (new — 40 tests, 11 sections)"
+      ],
+      "what_deferred_within_scope": [
+        "Drop hooks for 4 of 5 T5 mats — kyber wired (force-resonant landmarks); weapons_capacitor_core + composite_chitin await SYN.7.b T2 anomaly drops; scavenged_republic_tech awaits small post-SYN harvest hook; deep_dune_iron awaits SYN.8 T3 anomaly drops.",
+        "trainer_npc story-line for T5 schematics (acquisition path: Jedi Master, Hutt weaponsmith, Republic engineer-corps officer). All 5 T5 schematics ship with empty trainer_npc field — admin-grant is the current path.",
+        "Ship-part item catalog entries (hyperdrive_surge_converter, mil_spec_ion_engine_core) — schematics craft valid ItemInstance rows but combat/space effects await future items.yaml drop.",
+        "T5 schematic discoverability UI in the existing 'craft' command — same future drop as trainer story-line."
+      ]
+    },
+    {
+      "id": "SYN.7.a",
+      "title": "Wilderness anomalies Tier 1 (CW-correct, skill-check resolution)",
+      "lane": "engine+content",
+      "effort": "~1 sess (delivered)",
+      "status": "DONE",
+      "done_date": "2026-05-25",
+      "design_doc": "contestable_wilderness_design_v2.md §2.8, §3.7",
+      "resolution": "Shipped engine/wilderness_anomalies.py (~600 LOC) with substrate + Tier 1 templates + skill-check resolution. Module-level transient state keyed by region_slug (restart wipes, matches engine.space_anomalies pattern). 5 CW-correct templates: stranded_clone_scout (Republic, Medicine/Survival), salvage_cache (Technical/Survival), wounded_animal (Survival/Brawling), tusken_party (Blaster/Melee), crashed_cis_probe (Technical/Knowledge). All templates ship simplified combat-resolution via skill check rather than full NPC spawn — proper NPC spawn for templates 3-4 (wounded_animal, tusken_party) defers to a post-launch polish drop. parser/anomaly_commands.py NEW: AnomaliesCommand (lists active anomalies in caller's wilderness region with ~Nm-left countdown) + InvestigateCommand (resolves anomaly with skill check). server/tick_handlers_economy.py: wilderness_anomaly_tick wrapper. server/game_server.py: scheduler registration (interval=3600, offset=1500). Hourly cadence + 0.4 spawn-chance per region per tick → expected ~2.5h avg interval per region (matches design 'every 2-3 hours per region'). MAX_PER_REGION=2 cap. TIER1_DURATION_SECS=1800 (30 min). +5 influence to resolver's faction on success. News broadcast on each spawn via session_mgr.broadcast (best-effort). One-shot resolution semantics: failed skill check still consumes the anomaly and grants reduced fail_reward (anti-farm + low frustration). 41 new tests across 10 sections, 5/5 deterministic. Adjacent SYN family (570) + new = 611 tests green.",
+      "tests_delivered": 41,
+      "files_touched": [
+        "engine/wilderness_anomalies.py (new — ~600 LOC: WildernessAnomaly dataclass, 5 templates, spawn cadence, resolution flow)",
+        "parser/anomaly_commands.py (new — AnomaliesCommand + InvestigateCommand)",
+        "server/tick_handlers_economy.py (modified — wilderness_anomaly_tick wrapper)",
+        "server/game_server.py (modified — +2 imports + 2 registrations)",
+        "tests/test_syn7a_wilderness_anomalies.py (new — 41 tests, 10 sections)"
+      ],
+      "what_deferred_within_scope": [
+        "Full NPC-spawn-based combat resolution for wounded_animal and tusken_party templates — CLOSED 2026-05-25 by SYN.7.a.fix (same day). Both templates now spawn real NPCs via engine.npc_generator + db.create_npc; reward fires from the kill hook in parser/combat_commands.py when the last tagged hostile dies.",
+        "Region-flavored template weighting — CLOSED 2026-05-25 by SYN.7.a.fix (same day). Templates are now region-tagged via 'regions: [...]' field; _pick_template filters to matching templates. The Coruscant gap (no Coruscant Underworld templates were ever in scope of original SYN.7.a) was also closed in the same fix drop with 5 new templates."
+      ],
+      "supersedes": [
+        "T2.WENC.b (rolled in, Tier 1 portion)"
+      ]
+    },
+    {
+      "id": "SYN.7.a.fix",
+      "title": "SYN.7.a Coruscant gap + real NPC combat (corner-cut closures)",
+      "lane": "engine+content",
+      "effort": "~1 sess (delivered)",
+      "status": "DONE",
+      "done_date": "2026-05-25",
+      "design_doc": "Implicit in SYN.7.a + Brian's directive 2026-05-25: 'complete SYN' means actually complete, not corner-cut. Two gaps closed: (1) SYN.7.a templates were all Dune Sea-flavored; the Coruscant Underworld wilderness region (real and active) had zero anomaly coverage. (2) wounded_animal + tusken_party resolved as skill check vs DC 13 rather than real combat encounters.",
+      "resolution": "Rewrote engine/wilderness_anomalies.py to ~1100 LOC. 10 templates now: 5 Dune Sea (unchanged keys; wounded_animal + tusken_party flipped skill → combat) + 5 new Coruscant Underworld (black_sun_courier, factory_cache, maze_rogue, cis_sleeper_cell, bounty_hunter_rival). New per-template fields: 'regions: [...]' (region-tag list; REGION_ANY sentinel for universal) and 'resolution: skill|combat'. _pick_template now filters by region; returns None for unknown regions (system stays silent in un-templated regions rather than spawning random content). Combat-mode templates declare 'combat_npcs: [...]' specs (archetype + tier + species + name_pool + weapon + behavior + personality) — one real NPC spawned per spec via db.create_npc; ai_config_json tagged with is_anomaly_target + anomaly_id. New helpers: award_combat_anomaly_reward (the kill-hook entry point; decrements live-NPC list, fires payout on last-hostile death), find_anomaly_globally (cross-region anomaly lookup for the kill hook), _prune_expired_region_with_cleanup (deletes surviving NPCs from expired combat anomalies), _gate_investigate + _resolve_anomaly_skill + _resolve_anomaly_combat (split resolution paths). parser/combat_commands.py: anomaly kill hook inserted between bounty kill hook and WoW.3a kill credit; mirrors bounty pattern (reads ai_config_json.is_anomaly_target on dying NPC, calls award_combat_anomaly_reward, surfaces [ANOMALY CLEARED] line via session_mgr.find_by_character; attribution via c.last_attacker_id, same chain as bounty + WoW.3a). parser/anomaly_commands.py: InvestigateCommand branches on result.mode — combat-mode shows long_desc + 'use attack' nudge; skill-mode shows the roll + verdict + resource grants. Resolution mix: 4 skill (stranded_clone_scout, salvage_cache, crashed_cis_probe, factory_cache) + 6 combat. CW-grep extended to Coruscant templates and verified. 26 new tests (41 → 67 in test_syn7a_wilderness_anomalies.py, 5/5 deterministic). _MiniDB extended with npcs table + create_npc/get_npc/delete_npc/update_npc/get_npcs_in_room for combat-path tests. Adjacent SYN family (501 tests across SYN.1.a..SYN.7.a): zero regressions. Combat-adjacent files (147 tests across wow3a/wow3b/pvp_flag/sess54_combat_umbrella/sess58_cleanup/sess63_bulk_premium): zero regressions.",
+      "tests_delivered": 26,
+      "files_touched": [
+        "engine/wilderness_anomalies.py (rewritten — 785 LOC → ~1100 LOC)",
+        "parser/combat_commands.py (modified — +75 LOC for anomaly kill hook between bounty hook and WoW.3a kill credit)",
+        "parser/anomaly_commands.py (modified — +15 LOC for mode-branched InvestigateCommand output)",
+        "tests/test_syn7a_wilderness_anomalies.py (modified — +26 tests, 41 → 67; _MiniDB extended with NPC CRUD)"
+      ],
+      "closes": [
+        "T2.DEF.tier1_combat_polish (closed same day)"
+      ],
+      "supersedes": [
+        "Two 'what_deferred_within_scope' items on SYN.7.a (real NPC combat + region-flavored weighting)"
+      ]
+    },
+    {
+      "id": "SYN.7.b",
+      "title": "Wilderness anomalies Tier 2 (CW-correct, multi-phase combat)",
+      "lane": "engine+content",
+      "effort": "~1 sess (delivered)",
+      "status": "DONE",
+      "done_date": "2026-05-25",
+      "design_doc": "contestable_wilderness_design_v2.md §2.8, §3.7",
+      "scope": "5 CW-correct Tier 2 templates (3 Dune Sea + 2 Coruscant; region parity from SYN.7.a.fix): downed_republic_acclamator (3 phases — CIS scout element → heavy response → salvage commander; T5 drops weapons_capacitor_core), hutt_smuggling_convoy (2 phases — outriders → convoy heavies; T5 drops weapons_capacitor_core), cis_commando_deployment (3 phases — BX vanguard → heavy support → tactical droid commander; named item loot: T-Series Tactical Droid Command Module), maze_predator_outbreak (3 phases — scout pack → main pack → alpha; T5 drops composite_chitin), coruscant_gang_war (2 phases — first volley → boss engagement; named item loot: Black Sun Vigo Signet Ring). Cadence: 6h tick × 0.20 chance → ~30h avg interval. Per-region cap 1 (T2 is the headline event). 2h duration. +20 influence (mid of design's 15-25 band).",
+      "resolution": "Extended engine/wilderness_anomalies.py from ~1100 LOC to ~1500 LOC. New TIER2_TEMPLATES catalog with 5 templates, each with `phases: [...]` + optional `named_loot: {...}`. Multi-phase combat dispatch: investigate spawns ONLY phase 0 NPCs; killing the last NPC of phase N triggers _advance_to_next_phase which spawns phase N+1's NPCs (or fires final payout if at last phase). New helpers: _spawn_combat_npcs (extracted shared spawn loop), _advance_to_next_phase (phase advancement with intro broadcast), _payout_combat_anomaly (split T1 single-char from T2 multi-char payout), _grant_named_loot (resource + item shapes). Tier 2 payout distributes credits/resources to ALL characters in anchor room (split equally for credits; resource list shared); killer alone gets influence (+20 to faction) and named loot. WildernessAnomaly dataclass extended with tier (default 1), current_phase, total_phases property, is_final_phase property. _pick_template signature gained tier=int parameter (1 or 2); selects from TIER1_TEMPLATES vs TIER2_TEMPLATES disjointly. spawn_anomaly_for_region gained tier kwarg with per-tier duration + cap. New tick: tick_tier2_wilderness_anomalies (separate from Tier 1 tick — caps, durations, chances all independent). parser/combat_commands.py kill hook extended: detects tier from payout, surfaces per-participant [ANOMALY CLEARED] lines for Tier 2; killer gets +inf line + [NAMED LOOT] line; passes session_mgr through to award_combat_anomaly_reward for phase-intro broadcasts. server/tick_handlers_economy.py: tier2_wilderness_anomaly_tick wrapper. server/game_server.py: scheduler registration (interval=21600, offset=3300 — won't collide with Tier 1's offset=1500).",
+      "tests_delivered": 43,
+      "files_touched": [
+        "engine/wilderness_anomalies.py (modified — added ~400 LOC: TIER2_TEMPLATES catalog, Tier 2 constants, multi-phase resolution helpers, split payout function, named-loot grant function)",
+        "parser/combat_commands.py (modified — anomaly kill hook extended for Tier 2 multi-participant payout shape + named-loot line; passes session_mgr through)",
+        "server/tick_handlers_economy.py (modified — tier2_wilderness_anomaly_tick wrapper)",
+        "server/game_server.py (modified — 1 new import + 1 scheduler registration)",
+        "tests/test_syn7b_wilderness_anomalies_tier2.py (new — 43 tests across 9 sections, 5/5 deterministic)"
+      ],
+      "depends_on": [
+        "SYN.7.a.fix (DONE — provided region-tag + combat-resolution substrate)"
+      ],
+      "closes": [
+        "T2.DEF.t5_drop_hooks.weapons_capacitor_core (closed — Acclamator + convoy named-loot drops)",
+        "T2.DEF.t5_drop_hooks.composite_chitin (partially closed — Maze outbreak named-loot drop; T3 Apex participation-scaled drop still queued for SYN.8)"
+      ],
+      "supersedes": [
+        "T2.WENC.b (rolled in, Tier 2 portion)"
+      ]
+    },
+    {
+      "id": "SYN.8",
+      "title": "Wilderness anomalies Tier 3 (world bosses)",
+      "lane": "engine+content",
+      "effort": "~1 sess (delivered)",
+      "status": "DONE",
+      "done_date": "2026-05-25",
+      "design_doc": "contestable_wilderness_design_v2.md §2.8, §3.8",
+      "scope": "4 CW-correct Tier 3 templates per design verbatim: krayt_dragon (Dune Sea, 3 phases — juvenile pack guards → elder krayt → enraged krayt; trophy: Krayt Dragon Scale; scaled T5 mat: deep_dune_iron q80), maze_predator_apex (Coruscant Underworld, 3 phases — pack vanguard → the apex → frenzy; trophy: Maze Apex Fang; scaled T5 mat: composite_chitin q80), crashed_separatist_capital_ship (REGION_ANY, 3 phases — perimeter security → heavy response → tactical command; trophy: Salvaged Separatist Hull Plate; scaled T5 mat: weapons_capacitor_core q80), republic_lost_patrol (REGION_ANY, 3 phases — outer picket → interrogation detail → final reinforcements; trophy: Republic Patrol Insignia; scaled T5 mat: weapons_capacitor_core q80). Cadence: daily tick × 0.10 chance → ~10-day avg per region (mid of design's 7-14d). Per-region cap 1. 8h duration. +50 influence to killing-blow faction.",
+      "resolution": "Extended engine/wilderness_anomalies.py from ~1500 LOC to ~2000 LOC. New TIER3_TEMPLATES catalog with 4 templates, each adding trophy_per_participant + scaled_t5_mat fields. Tier 3 reuses Tier 2's multi-phase machinery (investigate spawns phase 0; phase advancement on phase clear; final clear triggers payout). WildernessAnomaly extended with kill_counts: dict[char_id, int] tracked by the kill hook. _resolve_anomaly_combat + _advance_to_next_phase + award_combat_anomaly_reward all changed `tier == 2` to `tier >= 2` so the same machinery handles T3. _payout_combat_anomaly rewritten as tier dispatch: T1 = single-char (unchanged), T2 = room-occupant enumeration (unchanged), T3 = kill_counts.keys() as participants (anyone who killed any anomaly NPC during the encounter). New helpers: _grant_trophy (adds item to inventory['items'] with is_trophy:True + is_anomaly_loot:True), _distribute_scaled_t5_mat (floor(N/4) pieces ranked by kill count descending; killer wins ties; minimum 1 piece consolation for small teams). New tick_tier3_wilderness_anomalies parallel to T1/T2 ticks. parser/combat_commands.py kill hook extended: detects tier=3; surfaces [WORLD BOSS DEFEATED] headline, [TROPHY] line per participant, [T5 MATERIAL] line for top scaled-T5 recipients with kill count. server/tick_handlers_economy.py: tier3_wilderness_anomaly_tick wrapper. server/game_server.py: scheduler registration (interval=86400, offset=7200 — won't collide with T1 offset=1500 or T2 offset=3300). Also fixed: total_phases property previously checked tier==2; now tier>=2.",
+      "tests_delivered": 39,
+      "files_touched": [
+        "engine/wilderness_anomalies.py (modified — added ~500 LOC: TIER3_TEMPLATES catalog, Tier 3 constants, kill_counts tracking, trophy + scaled T5 distribution helpers, payout tier dispatch, T3 tick. Also fixed total_phases property + tier check in _advance_to_next_phase.)",
+        "parser/combat_commands.py (modified — anomaly kill hook extended for Tier 3 [WORLD BOSS DEFEATED] headline + [TROPHY] line per participant + [T5 MATERIAL] line for top contributors)",
+        "server/tick_handlers_economy.py (modified — tier3_wilderness_anomaly_tick wrapper)",
+        "server/game_server.py (modified — 1 import + 1 scheduler registration)",
+        "tests/test_syn8_wilderness_anomalies_tier3.py (new — 39 tests across 10 sections, 5/5 deterministic)"
+      ],
+      "depends_on": [
+        "SYN.7.a (DONE — Tier 1 anomaly substrate)",
+        "SYN.7.a.fix (DONE — region tags + real NPC combat resolution)",
+        "SYN.7.b (DONE — multi-phase combat machinery; T3 reuses it)"
+      ],
+      "closes": [
+        "T2.DEF.t5_drop_hooks.composite_chitin (fully closed — T3 maze_predator_apex completes the scaled drop)",
+        "T2.DEF.t5_drop_hooks.deep_dune_iron (fully closed — T3 krayt_dragon drops it)"
+      ],
+      "elevates_surfaces": [
+        "engine/world_events.py::KRAYT_SIGHTING — left untouched as atmospheric layer. SYN.8 ships the real-spawning krayt as a Tier 3 wilderness anomaly via its own cadence engine, not by elevating the world_event. The two layers cooperate but stay disjoint; the world_event broadcasts atmospheric rumor, the Tier 3 anomaly is the actual fightable event."
+      ],
+      "what_deferred_within_scope": [
+        "'Relocation tile' mechanic per design §2.8 (krayt moves to new tile at half HP). Implemented abstractly as phase advancement (boss re-emerges in the next phase, same anchor room) — phase intro narrates the relocation. True multi-room relocation requires temporary-room generation + NPC movement mid-combat; deferred to a polish drop.",
+        "'During-contest 2× cadence' wiring. The contest-detection coupling is non-trivial; deferred. Tracked in economy_tuning.",
+        "Republic Lost Patrol rescue-vs-handover binary choice (design §2.8). Currently ships as combat-only (clear the CIS captors). The choice mechanic UI is deferred to a polish drop.",
+        "Damage-contribution-weighted scaled T5 distribution. Currently uses kill-count as the proxy. Per-combatant damage tracking doesn't exist in engine today; building that surface intrudes into combat.py. Logged in economy_tuning."
+      ],
+      "supersedes": [
+        "T2.WENC.b (rolled in fully now)",
+        "T2.WORLD_BOSS.krayt_real_spawn (Tier 3 implements the real-spawn substrate independently of world_events)"
+      ]
+    },
+    {
+      "id": "SYN.9",
+      "title": "Player-constructed building system",
+      "lane": "engine+schema+content",
+      "effort": "~2 sess (delivered in 1)",
+      "status": "DONE",
+      "done_date": "2026-05-25",
+      "design_doc": "contestable_wilderness_design_v2.md §2.9.3, §3.9",
+      "scope": "engine/buildings.py (~1150 LOC) with 5 categories per design literal: residence (5000cr + 5 metal + 5 organic; 50-item personal storage), crafting_station (8000cr + 10 metal + 5 composite; +1D crafting bonus lookup), commerce_stall (6000cr + 8 metal; 50/50 owner/city vendor split lookup), garrison_annex (10000cr + 15 metal + 5 chemical; spawns 2 defending NPCs at completion), cultural_hall (7500cr + 8 metal + 5 organic; +1 daily CP lookup). Construction takes 24 real-time hours; demolish refunds 25% materials; same-owner rebuild gets 10% discount. Mayor evict has 2-day notice. Slot capacity per landmark defaults to 2; force-resonant landmarks have 0 slots.",
+      "resolution": "Shipped engine/buildings.py with full substrate: ensure_schema (idempotent CREATE TABLE IF NOT EXISTS), construct_building (validates rank 3+ in city's owning org + slot free + materials + credits; deducts on start; creates row with status='under_construction' + completion_ts=now+24h), demolish_building (owner-initiated; 25% refund if operational; no refund if under_construction; cleans up garrison NPCs), evict_building (mayor-initiated; sets evict_after_ts=now+2d; double-evict rejected), tick_building_construction (transitions under_construction→operational at 24h with garrison NPC spawn; transitions operational+evict-notice→evicted at 2-day expiry with NPC cleanup), 4 effect-lookup helpers (get_crafting_station_bonus, get_cultural_hall_in_room, get_commerce_stall_in_room, get_residence_for_owner), residence_store_item + residence_take_item (owner-only 50-item cap). parser/player_building_commands.py with PlayerBuildingCommand dispatch (7 subcommands: construct, demolish, evict, list, inspect, store, take). Filename chosen to avoid collision with existing parser/building_commands.py (admin world-building, @dig/@tunnel/etc — unrelated system). server/tick_handlers_economy.py: building_construction_tick wrapper. server/game_server.py: import + ensure_schema at boot + scheduler register (interval=300s = 5min, offset=120) + register_player_building_commands at parser bootstrap.",
+      "tests_delivered": 54,
+      "files_touched": [
+        "engine/buildings.py (new — ~1150 LOC: schema, 5 categories, construct/demolish/evict, residence storage, garrison NPC spawn, tick, 4 effect-lookup helpers, rebuild discount)",
+        "parser/player_building_commands.py (new — ~350 LOC: +building dispatch with 7 subcommands)",
+        "server/tick_handlers_economy.py (modified — building_construction_tick wrapper)",
+        "server/game_server.py (modified — import + ensure_schema at boot + scheduler register + parser register)",
+        "tests/test_syn9_player_buildings.py (new — ~1100 LOC, 54 tests across 11 sections, 5/5 deterministic)"
+      ],
+      "depends_on": [
+        "engine.player_cities (DONE — get_city_for_room used to validate which city owns a landmark)",
+        "engine.organizations (DONE — get_membership used for rank check)",
+        "engine.crafting.add_resource (DONE — material refund path)",
+        "engine.npc_generator + ai.npc_brain (DONE — garrison NPC spawn at completion)"
+      ],
+      "what_deferred_within_scope": [
+        "Consumer integration of effect-lookup helpers. The substrate ships the 4 lookup functions but does NOT wire them into consumers — engine.crafting still does not consult get_crafting_station_bonus during craft rolls, engine.cp_engine still does not consult get_cultural_hall_in_room during daily CP tick, no vendor-surface command consumes get_commerce_stall_in_room. Lookup helpers ready for SYN.10 polish or post-launch wiring. This is the 'seam discipline' pattern (architecture v50): ship the contract first with no consumer, fail-loud on missing consumer rather than silent fallback.",
+        "Commerce stall full vendor surface (player-vendor commands for listing items, accepting buyer credits, 50/50 split with city treasury). Substrate detects the commerce_stall building exists in a room; the vendor command surface (analogous to bounty board or sabacc) is deferred.",
+        "Cultural hall time-tracking. The design says '5+ minutes here'; tracking per-char time-in-room requires either a periodic tick poll or hooking room-move events. Deferred.",
+        "Donate-to-org flow. construct_building has a `donate_to_org` parameter that sets owning_org_id on the building row; the parser surface doesn't expose it yet. Substrate supports it.",
+        "Building HP / combat damage. The schema has an hp column; nothing decrements it. Tier 3 anomaly events / contest damage as design mentions for destruction is deferred."
+      ],
+      "supersedes": [
+        "T2.BUILD.* (player building plans rolled into this drop)"
+      ]
+    },
+    {
+      "id": "SYN.10",
+      "title": "Display integration + launch polish",
+      "lane": "engine+display+content",
+      "effort": "~1 sess (delivered)",
+      "status": "DONE",
+      "done_date": "2026-05-25",
+      "priority_note": "FINAL in SYN sequence. Architecture v49 rollup opens next. T2.ECON.review opens.",
+      "design_doc": "contestable_wilderness_design_v2.md §2.6, §3.12",
+      "scope": "Display integration: engine/territory_display.py (new, ~890 LOC) with web-UI-contract data dict (get_region_data_block) + ANSI CLI renderer (get_region_look_block) + faction-scoped renderers (get_faction_contests_lines/data, get_faction_resource_outlook_lines/data) + 6 news-format helpers (ownership_change, contest_start, contest_resolve, anomaly_defeat, building_completion, building_demolition). parser/region_commands.py (new) — +region [slug] command. Region info block auto-injects into wilderness `look` between security/movement and adjacent terrain. +faction contest + +faction resource_outlook subcommands wired into existing FactionUmbrellaCommand. News broadcast hooks added at: anomaly defeat (T1/T2/T3 payout), claim_region/unclaim_region return-dict `news` field, garrison_annex completion (global broadcast; other building categories stay owner-only). Contest start/resolve broadcasts predated SYN.10 with [REGION CONTEST]/[REGION DEFENDED]/[REGION SEIZED] tags — design-equivalent, not retouched.",
+      "resolution": "Substantial UI-pivot-bridge content shipped. Data contract (get_region_data_block) is the canonical web-UI surface. ANSI palette centralized in engine/territory_display.py constants (_RED/_YELLOW/_GREEN/_CYAN/_MAGENTA/_BOLD/_DIM/_ITALIC) — web theme maps these to semantic CSS classes. All *_lines functions accept ansi=False for plain-text rendering (test snapshots, log dumps, structured data consumers). Failure-tolerant by design: any sub-section failure (missing wilderness_regions row, missing region_quality data, no contest active) silently no-ops so the render never breaks the wilderness look itself.",
+      "tests_delivered": 43,
+      "files_touched": [
+        "engine/territory_display.py (new — ~890 LOC: structured data + CLI renderer + 6 news formatters)",
+        "parser/region_commands.py (new — +region standalone command)",
+        "parser/builtin_commands.py (modified — region info block injected in _look_wilderness)",
+        "parser/faction_commands.py (modified — +faction contest/resource_outlook subcommands)",
+        "engine/territory.py (modified — claim_region/unclaim_region return dict gains optional 'news' field)",
+        "engine/wilderness_anomalies.py (modified — _broadcast_anomaly_defeat called at end of every payout path)",
+        "engine/buildings.py (modified — garrison_annex completion fires global broadcast)",
+        "server/game_server.py (modified — register_region_commands at boot)",
+        "tests/test_syn10_display_integration.py (new — 43 tests across 10 sections, 5/5 deterministic)"
+      ],
+      "depends_on": [
+        "engine.territory.get_region_owner (existing)",
+        "engine.territory.get_zone_territory_all (existing)",
+        "engine.region_quality.get_outlook (existing — SYN.6.b)",
+        "engine.contest.get_active_region_contest + get_org_region_contests (existing — SYN.3)",
+        "engine.wilderness_anomalies (existing — SYN.7+8)",
+        "engine.buildings (existing — SYN.9)"
+      ],
+      "what_deferred_within_scope": [
+        "Web HUD region-ownership + contest-countdown panel (design §3.12 calls it 'post-launch polish; CLI suffices for launch'). The data contract get_region_data_block ships as substrate; the upcoming UI work consumes it.",
+        "News-digest persistence (current implementation is real-time broadcast only; no log of news events for catch-up display when offline). Useful but design-deferred.",
+        "Faction influence dashboard region-keyed rewrite. The design also asks for the existing `faction influence` command to be 'rewritten for region-keyed display.' The +region command + auto-overlay covers most of this need; the existing dashboard still renders per-zone. Deferred to UI pivot since the web HUD will likely replace the CLI dashboard entirely.",
+        "Building completion broadcast for non-garrison categories. residence/crafting_station/commerce_stall/cultural_hall completions stay owner-only on purpose (private investment signal). Could be configurable later."
+      ],
+      "ui_pivot_handoff": [
+        "engine/territory_display.py is the contract module for the upcoming UI work. All structured-dict functions return stable shapes (documented in module docstring + function docstrings).",
+        "ANSI palette consolidation: web theme maps 8 color tags (_RED/_YELLOW/_GREEN/_CYAN/_MAGENTA/_BOLD/_DIM/_ITALIC) to semantic classes (security_lawless, security_contested, security_secured, accent_heading, contest_panel, emphasis, subtle, descriptive).",
+        "6 news-format helpers ship pre-formatted news strings the web HUD news ticker can consume directly.",
+        "+region command surfaces the same data CLI-side; the web HUD has the option to either reuse the data accessor or render its own."
+      ],
+      "supersedes": [
+        "T2.DISPLAY.* (display integration plans rolled into this drop)"
+      ]
+    },
+    {
+      "id": "T2.4",
+      "title": "Weight of War mechanic",
+      "lane": "engine",
+      "effort": "medium (~1-2 sess)",
+      "status": "MVP_COMPLETE_2026_05_24",
+      "design_doc": "weight_of_war_design_v1.md",
+      "why": "MVP launch complete per design §14. All seven WoW.x drops landed in May 24 wave. Per HANDOFF_MAY24_WOW4.md, WoW substrate + look-self descriptor + admin command (with FP subform) + meditation + counsel + retreat + combat hooks + passive decay + duel gating + DSP-resistance modifier + extra DSP at high Weight + FP-award reduction + bond sensing all live.",
+      "post_launch_followups": [
+        "Director AI narrative-tone integration (NPC dialogue modulation by listener Weight)",
+        "+history weight player-visible event log",
+        "Peace-arc decay multipliers (recovery acceleration after RP catharsis)",
+        "Zone-aware passive decay rates",
+        "Mission-completion non-combat decay",
+        "Richer +forcebond mechanic if wanted (FP cost + sense roll + location reveal) - attaches to existing P-M commands per extend-don't-add discipline"
+      ],
+      "note_to_v49_arch": "Arch v48 §3.2 still lists this as Tier 2 #4 queued; v49 should reflect MVP-complete status."
+    },
+    {
+      "id": "T2.5",
+      "title": "Security Model v1 content reconciliation",
+      "lane": "data+design",
+      "effort": "small (~0.5 sess + design call)",
+      "status": "design_call_pending_brian",
+      "design_doc": "security_model_design_v1.md",
+      "why": "YAML edit per §3 catalog. Live Coruscant uses tier-based names; catalog expects function-based names.",
+      "blocked_on": [
+        "coruscant_naming_scheme_decision"
+      ]
+    },
+    {
+      "id": "T2.6",
+      "title": "F.MAP.4 - Tier 0 bespoke renderer",
+      "lane": "client",
+      "effort": "medium (~1-2 sess)",
+      "status": "design_call_pending_brian",
+      "reference": "design_handoff_datapad_map/Map_Redesign_v2.html (approved sign-off material)",
+      "blocked_on": [
+        "brian_decision_on_production_port"
+      ]
+    },
+    {
+      "id": "T2.7",
+      "title": "F.MAP.5 - Tier 3 planet renderer",
+      "lane": "client",
+      "effort": "medium (~1-2 sess)",
+      "status": "design_call_pending_brian",
+      "blocked_on": [
+        "brian_decision_on_production_port"
+      ]
+    },
+    {
+      "id": "T2.8",
+      "title": "F.MAP.7 - third area port",
+      "lane": "content+small_client",
+      "effort": "small (~0.5 sess)",
+      "status": "design_call_pending_brian",
+      "blocked_on": [
+        "brian_decision_on_production_port"
+      ]
+    },
+    {
+      "id": "T2.9",
+      "title": "PG.2.bounty post-launch follow-ups",
+      "lane": "engine",
+      "effort": "small per-drop",
+      "status": "ready",
+      "subitems": [
+        {
+          "id": "T2.9.a",
+          "title": "Faction stipend interceptor",
+          "status": "DONE",
+          "note": "engine/organizations.py uses db.get_insurance_debt directly"
+        },
+        {
+          "id": "T2.9.b",
+          "title": "BH-tier vendor check_debt_gate integration",
+          "status": "no_consumer_yet",
+          "note": "engine.insurance_debt.BH_TIER_VENDOR exported; waits for real vendor consumer"
+        },
+        {
+          "id": "T2.9.c",
+          "title": "Guild-services consumer audit",
+          "status": "DONE",
+          "note": "Only pc_bounty_commands._handle_post consumes check_debt_gate today"
+        }
+      ]
+    },
+    {
+      "id": "T2.10",
+      "title": "SRB.1 follow-ups",
+      "lane": "engine+data",
+      "effort": "small per-drop",
+      "status": "partly_done",
+      "subitems": [
+        {
+          "id": "T2.10.a",
+          "title": "Add stim crafting schematics to data/schematics.yaml",
+          "status": "DONE",
+          "done_date": "pre-2026-05-24",
+          "note": "Found already shipped at HEAD during SRB.1.b pre-flight. The four stim schematics (stimpack_field, adrenaline_shot_field, focus_stim_field, combat_stim_field) exist in data/schematics.yaml with output_keys matching parser/medical_commands.py::_STIM_CATALOG.",
+          "ref": "SRB §3.4"
+        },
+        {
+          "id": "T2.10.b",
+          "title": "Wire stim consumption to inventory",
+          "status": "DONE",
+          "done_date": "2026-05-24",
+          "note": "Shipped via engine/buffs.py::has_consumable + consume_consumable; offer-time gate in StimCommand (after skill check); attempt-time consumption in _execute_stim_roll on success/failure/fumble per design §3.5. Storage model: attributes.consumables (where crafting writes). See tech debt: consumable_storage_unification."
+        },
+        {
+          "id": "T2.10.c",
+          "title": "Failed-overdose auto-incapacitates",
+          "status": "design_call_pending_brian",
+          "ref": "SRB §3.6"
+        }
+      ]
+    },
+    {
+      "id": "T2.11",
+      "title": "SRB.2 follow-ups",
+      "lane": "engine",
+      "effort": "small per-drop",
+      "status": "ready",
+      "subitems": [
+        {
+          "id": "T2.11.a",
+          "title": "Force-fall-check integration in engine/force_powers.py::_resolve_fall_check",
+          "status": "ready",
+          "note": "Sync->async conversion + db threading work"
+        },
+        {
+          "id": "T2.11.b",
+          "title": "Broaden morale-flavored skill set beyond v1",
+          "status": "design_call_pending_brian"
+        },
+        {
+          "id": "T2.11.c",
+          "title": "Announce aura presence on room entry",
+          "status": "ready",
+          "note": "Currently surfaced on look only"
+        }
+      ]
+    },
+    {
+      "id": "T2.12",
+      "title": "PG.3 Act 3 trial implementation",
+      "lane": "engine",
+      "effort": "varies — depends on which trials mechanize",
+      "status": "deferred_low_priority",
+      "resolution_date": "2026-05-24",
+      "resolution": "Master-fiat (`+knight` + `+endorse trials`) is the launch posture. Mechanical implementations of the 5 Trials (Skill, Courage, Flesh, Spirit, Insight) are post-launch. Per Brian's T2.12 call on 2026-05-24.",
+      "why_low_priority": "Working Master-fiat path covers the launch use case. Mechanical trials are a polish lane that enriches the existing flow rather than unlocking new gameplay.",
+      "design_doc_refs": [
+        "padawan_master_system_design_v1.md §6 (The 5 Trials)",
+        "progression_gates_and_consequences_design_v1.md §2 (PG.3 Village + Act 3)"
+      ],
+      "subitems_post_launch": [
+        {
+          "trial": "Trial of Skill",
+          "mechanism": "combat/Force-power demo before Council; needs witness-NPC dispatcher",
+          "complexity": "small"
+        },
+        {
+          "trial": "Trial of Courage",
+          "mechanism": "solo mission into contested/lawless zone; needs mission-tracker",
+          "complexity": "medium"
+        },
+        {
+          "trial": "Trial of Flesh",
+          "mechanism": "endurance/injury event; needs no-rescue gate",
+          "complexity": "small"
+        },
+        {
+          "trial": "Trial of Spirit",
+          "mechanism": "Director AI-narrated dark-side tempter scene",
+          "complexity": "medium",
+          "blocked_on": "T3.15 Director AI CW-tuning must ship first per Brian Q6 call 2026-05-24"
+        },
+        {
+          "trial": "Trial of Insight",
+          "mechanism": "perception/puzzle challenge; mostly text+roll",
+          "complexity": "small"
+        }
+      ]
+    }
+  ],
+  "tunable_open_questions": {
+    "_notes": [
+      "Numeric values picked during feature shipping where Brian has NOT explicitly signed off. Each entry names the value, where it lives in code/data, what it currently is, what alternative values were considered, and the smallest possible test or playtest that would confirm or refute the pick.",
+      "Updated at end of every drop alongside CHANGELOG.md. New entries appended as SYN.7+ drops introduce new tuning knobs.",
+      "Consumed by T2.ECON.review (whole-game economist pass). Until that pass runs, this is the bookkeeping ledger — Brian sees the picks before they compound."
+    ],
+    "_consolidated_design_doc": "economy_tuning_open_questions_v1.md",
+    "syn6_questions": [
+      {
+        "id": "TUN.kyber.cooldown",
+        "value": "24h per-landmark per-character",
+        "site": "engine/kyber_attunement.py::ATTUNE_COOLDOWN_SECS",
+        "alternatives": [
+          "24h per-character GLOBAL (any landmark consumes the daily) — tighter; 1 kyber/Jedi/day across the map",
+          "Weekly per-character — ceremonial; 1 kyber/Jedi/week aligns with Padawan-trial narrative",
+          "24h per-landmark per-character (current) — 4 force-resonant landmarks in CW × 24h = 4 shards/Jedi/day max",
+          "No cooldown but per-landmark consumed-this-week tag (region quality model) — landmark goes quiet for the week after first attune by any character; preserves single-Jedi pacing but adds cross-Jedi competition"
+        ],
+        "supply_math": "Current: 4 shards/Jedi/day theoretical max (need to visit 4 landmarks). Lightsaber needs 1 kyber. So one Jedi can craft 4 lightsabers/day or accumulate stacks indefinitely. Likely oversupplied for the one-and-done canonical need.",
+        "concern": "HIGH PRIORITY — most likely to be off. Per-landmark cooldown was the easy implementation choice; per-character (or per-week) is probably the right design choice for scarcity. Need a Brian call on whether kyber is 'common-for-Jedi' or 'ceremonial-for-Jedi'."
+      },
+      {
+        "id": "TUN.kyber.quality_band",
+        "value": "q75 floor, q95 ceiling, +5Q per skill margin band",
+        "site": "engine/kyber_attunement.py::QUALITY_FLOOR, QUALITY_CEILING",
+        "alternatives": [
+          "Floor at q60, ceiling at q90 — broader band, some duds; matches existing crafting tier descriptors (Good=60+, Superior=80+, Masterwork=90+)",
+          "Floor at q75 (current, matches T5_MIN_QUALITY), ceiling q95 — every successful attune is T5-craftable; no duds",
+          "Floor at q70, ceiling q100, margin scaling — lets exceptional rolls cap at q100 but removes the SYN.8 reserved-tier semantics",
+          "Variable per-landmark (some landmarks 'minor', some 'major' kyber) — content-authoring layer"
+        ],
+        "supply_math": "Current: every successful attune yields T5-craftable material. A skilled Jedi (8D Scholar) auto-passes DC 11 every time. No duds means every cooldown turns into supply.",
+        "concern": "No-duds design is generous. Pre-launch playtest should confirm: is the right shape 'always get something' (current) or 'sometimes get nothing'?"
+      },
+      {
+        "id": "TUN.kyber.skill_difficulty",
+        "value": "DC 11 (Moderate), Knowledge attribute or scholar/willpower skill",
+        "site": "engine/kyber_attunement.py::ATTUNE_DIFFICULTY",
+        "alternatives": [
+          "DC 11 (Moderate, current) — typical Jedi clears easily",
+          "DC 15 (Difficult) — Padawan strains, Knight passes, Master auto-passes; tighter gate on quality outcomes",
+          "DC 21 (Very Difficult) — only Masters reliably succeed; cap matches T5 schematic-difficulty band; very ceremonial"
+        ],
+        "concern": "Current DC 11 means a typical Jedi-faction starter character (3D Knowledge) succeeds ~50%, a trained one (4D+) succeeds nearly always. Pairs with the no-duds quality floor to give consistent yield."
+      },
+      {
+        "id": "TUN.harvest.cooldown_per_region",
+        "value": "30 min per-region per-character",
+        "site": "engine/harvest.py::HARVEST_COOLDOWN_SECS",
+        "alternatives": [
+          "30 min per-region (current) — design doc value",
+          "30 min global — prevents region-cycling farm; tighter session loop but penalizes legitimate roaming play",
+          "60 min per-region + 30 min global floor — caps both cycling and single-spot farming",
+          "Reset on death — combat-tied cooldown"
+        ],
+        "supply_math": "Current: a player cycling through 5+ wilderness regions per session could harvest 5+ × yield/30min — accumulates credits + resources at session-length pace. No global supply ceiling.",
+        "concern": "30min/region was the design number; per-region was the right axis. But the lack of a session-level ceiling means a determined harvester can fill inventory in one play session. Maybe acceptable; needs playtest."
+      },
+      {
+        "id": "TUN.harvest.non_owner_tax_rate",
+        "value": "15%",
+        "site": "engine/harvest.py::NON_OWNER_TAX_RATE",
+        "alternatives": [
+          "10% — softer visitor friction",
+          "15% (current, design number)",
+          "20-25% — heavier owner advantage, more incentive to claim",
+          "Variable by region security (lawless 10%, contested 20%) — content-axis dial"
+        ],
+        "concern": "15% is the design number, no debate needed unless the economist pass surfaces it as a friction issue."
+      },
+      {
+        "id": "TUN.weekly_variance.band",
+        "value": "0.7×..1.3× per-resource-type per-week",
+        "site": "engine/region_quality.py::QUALITY_MIN, QUALITY_MAX",
+        "alternatives": [
+          "0.7×..1.3× (current, design number) — ±30% swing",
+          "0.8×..1.2× — tamer, less crafter-travel motivation",
+          "0.5×..1.5× — wider, stronger 'follow the news' pull"
+        ],
+        "concern": "Design number; preserve unless economist pass calls for tightening."
+      },
+      {
+        "id": "TUN.harvest.yield_bands",
+        "value": "6-row table per design §2.5.2 (Contested foothold 100-200cr → Lawless control 400-800cr)",
+        "site": "engine/harvest.py::YIELD_TABLE",
+        "alternatives": [
+          "Design numbers (current)",
+          "Halved for soft-launch tuning",
+          "Doubled for 'cash-rich crafter' lane"
+        ],
+        "concern": "Pairs with weekly variance + skill-margin scaling. End-to-end credit-per-hour-of-harvest math hasn't been computed. Economist pass should derive: typical Jedi-faction Knight playing 1h, harvesting 2 regions, gets X credits. Then compare against vendor prices, weapon costs, ship maintenance, etc."
+      },
+      {
+        "id": "TUN.harvest.skill_margin_credit_bonus",
+        "value": "+20% credits per 5-pt margin band, no cap",
+        "site": "engine/harvest.py::_MARGIN_CREDIT_BONUS_PER_BAND",
+        "alternatives": [
+          "+20% per band uncapped (current) — a 50-margin roll gives 11× the base credits",
+          "+20% per band capped at 5 bands (+100%) — exceptional rolls double the base, no more",
+          "+10% per band, capped at +50% — softer reward curve"
+        ],
+        "concern": "Current uncapped scaling means a Master-tier harvester can get extreme credit outliers. Tests use 12D Survival which produces consistent +large margins. Real play might be tamer, but a 10D+ Survival skill is achievable post-progression."
+      },
+      {
+        "id": "TUN.harvest.t5_rare_chance",
+        "value": "10% at Control tier (contested + lawless)",
+        "site": "engine/harvest.py::_T5_RARE_CHANCE",
+        "alternatives": [
+          "10% (current) — rare but reachable; +1 rare stack at q100 per ~10 control-tier harvests",
+          "5% — half as common; aligns with the 'reserved for SYN.8 Tier-3 anomaly drops' framing of q100",
+          "20% — twice as common; tempts more Control-tier-region traffic"
+        ],
+        "concern": "Today this is the only path to q100 'rare' stacks (the post-launch T5 recipes won't use 'rare' as a primary mat anyway). Will become moot when SYN.8 lands and q100 'rare' is design-reserved for anomaly drops — at that point reduce or remove."
+      },
+      {
+        "id": "TUN.t5_schematic.difficulty_band",
+        "value": "25-28 (Very Difficult, WEG D6 R&E)",
+        "site": "data/schematics.yaml — t5_* entries",
+        "alternatives": [
+          "25-28 (current) — Master crafter with 8D+ skill + Wild Die explosion typical",
+          "30-32 (Heroic) — even Masters need exceptional rolls; pairs better with 'genuine endgame' framing",
+          "20-23 (Difficult top) — overlaps existing T4 ceiling; might dilute the T5 boundary"
+        ],
+        "concern": "T1-T4 ceiling is 20. T5 at 25-28 is clearly above. Pre-launch playtest with a Master crafter should confirm success rates feel right (target: 50-70% success at intended progression tier)."
+      },
+      {
+        "id": "TUN.t5_schematic.component_quality_bands",
+        "value": "T5 mat q75+, standard T1-T4 components at q50-65",
+        "site": "data/schematics.yaml — t5_* entries components min_quality",
+        "alternatives": [
+          "Current: q75 T5 mat + q50-65 standard mats",
+          "Tighter: q75 T5 mat + q65-75 standard mats — pulls in more standard-material economy",
+          "Looser: q75 T5 mat + q40-50 standard mats — only the T5 mat matters; standard mats are filler"
+        ],
+        "concern": "Current bands mean a Master crafter who can't source q50+ standard materials is locked out even with T5 mats. Pairs with weekly variance (which can push a region's metal to 0.7× → harder to find q50+ stacks). Real bottleneck question is whether the standard-mat floor is the right shape."
+      },
+      {
+        "id": "TUN.t5_schematic.t5_mat_quantity",
+        "value": "1 T5 mat per craft",
+        "site": "data/schematics.yaml — t5_* entries components quantity",
+        "alternatives": [
+          "1 per craft (current) — minimum scarcity",
+          "2-3 per craft for more potent items (e.g. master-grade armor) — differentiates T5 outputs by gating cost",
+          "Variable by output_type — lightsaber 1, ship part 2, armor 1"
+        ],
+        "concern": "Flat 1-per-craft means every T5 output costs the same in T5-mat terms. Differentiation could come from T1-T4 component costs (current shape) or from T5-mat costs."
+      },
+      {
+        "id": "TUN.harvest_node.fallback_policy",
+        "value": "Region-scoped fallback — no flags in region → every room qualifies",
+        "site": "engine/harvest.py::_is_harvest_node",
+        "alternatives": [
+          "Region-scoped fallback (current) — incremental authoring; un-audited regions stay open",
+          "Global fallback — only triggers if NO room anywhere has the flag",
+          "Hard gate, no fallback — all rooms require the flag from day one"
+        ],
+        "concern": "Current allows content team to migrate one region at a time without breaking unmarked regions. Fallback path goes dormant once all regions are flagged (post-launch content pass). Acceptable as a transitional design; economist pass should confirm long-term shape after content pass completes."
+      }
+    ],
+    "syn7_questions_pending": "Will be appended as SYN.7.b drops land — Tier 2 anomaly reward shape (15-25 influence is the design number, but the per-tier loot tables, multi-participant distribution rules, and corvette-boarding-ground-adaptation specifics all need explicit picks).",
+    "syn7a_questions": [
+      {
+        "id": "TUN.anomaly.cadence_per_region",
+        "value": "hourly tick + 0.4 spawn-chance → expected ~2.5h average interval",
+        "site": "engine/wilderness_anomalies.py::CADENCE_TICK_INTERVAL, SPAWN_CHANCE_PER_TICK",
+        "alternatives": [
+          "hourly tick + 0.4 chance (current) → matches design '2-3h per region'",
+          "hourly tick + 0.5 chance → 2h avg (faster, more visible activity for small playerbase)",
+          "hourly tick + 0.33 chance → 3h avg (slower, more scarce)",
+          "30-min tick + variable chance — finer control but tighter polling load"
+        ],
+        "supply_math": "With 2 wilderness regions (Tatooine Dune Sea, Coruscant Underworld) and 0.4 spawn-chance per region per hour, expected ~0.8 anomaly spawns/hour across the world. Per-region cap MAX_PER_REGION=2 means a single region tops out at 2 concurrent. For a small playerbase that's about right; for a quiet server with 1-2 active players a 2.5h cadence means a player playing 1 hour rarely sees a fresh spawn during their session.",
+        "concern": "Design number aligned; needs playtest to confirm 'feels right' density. Spawn-chance 0.4 was picked to hit the design's 2-3h midpoint; legitimate tunable. Halving the chance (0.2 → 5h avg) might better match a sparse server."
+      },
+      {
+        "id": "TUN.anomaly.duration",
+        "value": "30 min per anomaly",
+        "site": "engine/wilderness_anomalies.py::TIER1_DURATION_SECS",
+        "alternatives": [
+          "30 min (current, design number)",
+          "60 min — gives players a wider response window",
+          "15 min — tighter urgency, harder to catch"
+        ],
+        "concern": "Design number. Preserve unless playtest shows players consistently arrive too late."
+      },
+      {
+        "id": "TUN.anomaly.max_per_region",
+        "value": "2 concurrent anomalies per region",
+        "site": "engine/wilderness_anomalies.py::MAX_PER_REGION",
+        "alternatives": [
+          "2 (current) — prevents accumulation during inactive periods",
+          "1 — strict pacing, one-at-a-time",
+          "3-5 — allows backlog for quiet periods"
+        ],
+        "concern": "2 is a reasonable cap. With ~30 min duration and ~2.5h cadence, a region naturally hovers near 0-1 anomalies most of the time. Cap mostly relevant for the early-game cold-start window when no one's resolving."
+      },
+      {
+        "id": "TUN.anomaly.tier1_influence_delta",
+        "value": "+5 influence to resolver's faction (per design §2.8)",
+        "site": "engine/wilderness_anomalies.py::TIER1_INFLUENCE_DELTA",
+        "alternatives": [
+          "+5 (current, design number)",
+          "+3-7 variable by template difficulty — finer-grained pacing",
+          "+2-3 — even tighter; combined with high cadence this nudges toward 'lots of small wins' play"
+        ],
+        "concern": "Design number. The supply math depends on resolution rate: a faction with one active player resolving every anomaly in their territory gets +5 inf × N anomalies × resolve rate. At ~2.5h/region cadence and ~2 regions in active use, that's +5 × 8/day × 0.5 resolve rate × 2 regions = ~40 inf/day per region per active faction. Foothold (50) reached in ~6 days, Dominant (200) in ~5 weeks. Pre-launch playtest should confirm this curve is right for the intended progression."
+      },
+      {
+        "id": "TUN.anomaly.tier1_resolution_dc",
+        "value": "DC 13 (Moderate-Difficult, WEG D6 R&E)",
+        "site": "engine/wilderness_anomalies.py::TIER1_RESOLUTION_DC",
+        "alternatives": [
+          "DC 13 (current) — Moderate-Difficult; starter 3D character rolls average 10-11 → fails most; trained 4D-5D rolls 14-17 → succeeds most",
+          "DC 11 — Moderate; even starter chars succeed roughly half the time",
+          "DC 15 — Difficult; tightly gated, only trained characters reliably succeed"
+        ],
+        "concern": "DC 13 is meant to be 'newer players sometimes fail, trained players reliably succeed.' Pairs with one-shot semantics (failed resolution still consumes the anomaly + grants reduced reward). Playtest target: ~70% success rate for the intended-tier player (4D in the relevant skill)."
+      },
+      {
+        "id": "TUN.anomaly.template_reward_bands",
+        "value": "Per-template credit bands (100-500cr range) + 1-4 resource stacks at q30-60",
+        "site": "engine/wilderness_anomalies.py::TIER1_TEMPLATES",
+        "alternatives": [
+          "Current bands (100-500cr success, 0-100cr fail; 1-4 stacks at q30-60)",
+          "Wider success-vs-fail gap — make success much more rewarding, fail nearly nothing",
+          "Higher quality on resources — q50-70 instead of q30-60 — feeds T5 crafting more aggressively",
+          "Lower credit, higher resource — emphasizes the crafter-pipeline aspect"
+        ],
+        "concern": "Picked to feel proportionate to the time/risk: ~30 min effort, skill check vs DC 13, +5 influence. Compare against harvest yields (100-800cr per harvest with 30-min regional cooldown) — anomalies should sit in the same band as harvest but with the influence kicker as the differentiator. End-to-end credit-per-hour math hasn't been computed; defer to economist pass."
+      },
+      {
+        "id": "TUN.anomaly.fail_reward_existence",
+        "value": "Failed skill check still grants partial reward (anomaly consumed)",
+        "site": "engine/wilderness_anomalies.py::resolve_anomaly + TIER1_TEMPLATES.fail_reward",
+        "alternatives": [
+          "Current: one-shot, fail consumes anomaly + partial reward (anti-farm + low frustration)",
+          "Fail leaves anomaly active for others — encourages handoff but lets first-arriver retry",
+          "Fail consumes anomaly + no reward — punishing; might feel bad",
+          "No skill check, just walk-up resolution — drops the resolution mechanic entirely"
+        ],
+        "concern": "One-shot semantics prevents farming and prevents player A failing then player B succeeding (which would feel arbitrary). Partial reward on fail keeps players engaged — failing still feels worthwhile. Tusken party fail_reward is 0/0/0 because narratively losing a combat shouldn't pay out; that's an intentional asymmetry within the catalog."
+      },
+      {
+        "id": "TUN.anomaly.template_distribution",
+        "value": "Uniform random across 5 templates (each ~20% probability)",
+        "site": "engine/wilderness_anomalies.py::_pick_template",
+        "alternatives": [
+          "Uniform (current) — every template equally likely",
+          "Region-flavored weighting — Tusken party more likely in Dune Sea, CIS probe more likely in CIS-traffic regions",
+          "Faction-state weighting — Director sees active CW conflict in region → CIS probe more likely",
+          "Rarity-weighted — common templates 30%, rare 10%"
+        ],
+        "concern": "Uniform is the simple shape. Region-flavored weighting would be a SYN.7.b polish drop and ties into the Director AI's existing event-weighting mechanics. Defer until Tier 2 templates land so region-specific weighting can be designed once across both tiers."
+      }
+    ],
+    "syn8_questions_pending": "Will be appended as SYN.8 drops — Tier 3 world boss numbers (HP, multi-phase HP thresholds, participation scaling, kyber-pearl drop count formula floor(participants/4) — design number, but the participant denominator could be tighter or looser).",
+    "syn9_questions_pending": "Will be appended as SYN.9 drops — building construction costs, category effect magnitudes, construction time, demolish refund."
+  },
+  "tier_3_post_launch": [
+    {
+      "id": "T3.13",
+      "title": "Padawan-Master post-launch expansion (council, lineage trees, re-assignment)",
+      "design_doc": "padawan_master_system_design_v1.md"
+    },
+    {
+      "id": "T3.14",
+      "title": "Cities post-launch expansion (multi-city-per-org, paged list sub-modals, P2P discovery)",
+      "design_doc": "player_cities_design_v1_2.md"
+    },
+    {
+      "id": "T3.15",
+      "title": "Director AI Clone-Wars tuning"
+    },
+    {
+      "id": "T3.16",
+      "title": "Space Wildspace expansion",
+      "design_doc": "space_wildspace_design_v1.md"
+    },
+    {
+      "id": "T3.17",
+      "title": "Sheet redesign",
+      "design_doc": "sheet_redesign_design_v1.md"
+    },
+    {
+      "id": "T3.18",
+      "title": "Ground UX overhaul",
+      "design_doc": "ground_ux_overhaul_design_v1.md"
+    }
+  ],
+  "design_calls_pending_brian": [
+    {
+      "ref": "T2.5",
+      "topic": "Coruscant tier-based vs function-based zone names"
+    },
+    {
+      "ref": "T2.10.c",
+      "topic": "SRB.1 failed-overdose auto-incapacitates"
+    },
+    {
+      "ref": "T2.11.b",
+      "topic": "Broaden morale-flavored skill set?"
+    }
+  ],
+  "design_calls_resolved_recent": [
+    {
+      "ref": "Q3 intel-handler seed — implemented (3 of 5)",
+      "resolution_date": "2026-05-31",
+      "summary": "The 'use your judgement' Q3 seed, done as a verifiable pass. Engine: added is_intel_handler pass-through to npc_loader._build_ai_config (the marker was being dropped — a latent feature-breaker). Tagged 3 clean faction-matching HQ residents (Borka/hutt_cartel, Drel Mok/bounty_hunters_guild, Halen Voss/jedi_order). Deferred republic + cis: their Nar Shaddaa HQ residents are 'independent' (Zekka) and 'hutt_cartel' (Brann Korr) — tagging would contradict canon; needs a covert-contact NPC or HQ relocation (Brian's design call). Verified end-to-end in sandbox via real YAML -> real loader -> _is_handler_npc; DB seed + find_handler_in_room left for Brian's pytest. Also flagged TD.CW_JEDI_HQ_ROOM_NAME (jedi HQ name points at a nonexistent room)."
+    },
+    {
+      "ref": "Click-to-move v2 + bearing NameError",
+      "resolution_date": "2026-05-31",
+      "summary": "Two fixes after Brian's re-test. (1) The v1 exit strip had a runtime ordering bug — the mapModalOpen guard bailed before the flag was set, so the strip never rendered; removed the guard (v2). (2) Separate global server bug from the log: _post_move_hooks raised NameError on exit_data/direction every move ('bearing update failed'); threaded those through from execute(). The exit strip is the GLOBAL nav fix — it's built from each room's real exits (lastExits), not map markers, so it works in every area/room."
+    },
+    {
+      "ref": "Click-to-move (Q4 of 4) — fix shipped",
+      "resolution_date": "2026-05-31",
+      "summary": "Probe confirmed sub-case (a): street/hub rooms (incl. spaceport hub room 7) get no data-room-id cell in the District branch, so only 'down' was clickable. Fix: an exit strip in the SECTOR MAP modal built from lastExits — every exit clickable, issues sendCmd + closes the modal. Shipped in static/client.html; node --check clean; pending Brian's browser smoke-test. Tracked: TD.CW_M3_CLICK_TO_WALK_LATERAL."
+    },
+    {
+      "ref": "TD.CW_BUILD_EXIT_COLLISION (Q1 of 4)",
+      "resolution_date": "2026-05-31",
+      "summary": "Option A. Re-coorded scavenger market (41) to desert-side (9,4) + SE/NW gate edge; resolves room 40's duplicate-'east' collision. Dry-run ok flipped True, errors 1->0, warnings flat at 29. Shipped in this drop's tatooine.yaml; pytest is the final gate on Windows."
+    },
+    {
+      "ref": "Intel-handler seeding (Q3 of 4) — Brian deferred to judgement",
+      "resolution_date": "2026-05-31",
+      "summary": "DECISION: launch intel handlers at the 5 factions that carry a STATIC hq_room_name (Jedi Order @ Jedi Temple Main Hall; Hutts @ Hutt Emissary Tower Audience Chamber; Bounty Hunters' Guild @ Bounty Hunters' Quarter; + the two Nar Shaddaa sector orgs @ Corellian Sector Promenade and The Burning Deck Cantina). Tag the existing resident HQ contact NPC with ai_config_json:{is_intel_handler:true,faction:<code>}, resolved by LIVE room-NAME (never a hardcoded numeric id — matches the pre-flight finding that HQ rooms are dynamic). Defer the remaining factions (no static HQ) to a future housing.py hook that places a handler when an org establishes its HQ (engine drop, not content). See T2.DEF.handler_npcs for the execution plan."
+    },
+    {
+      "ref": "Painted-wilderness + Coruscant underworld plan — CAPTURED",
+      "resolution_date": "2026-05-31",
+      "summary": "Per Brian's 'don't lose it' request: full plan written to painted_wilderness_and_coruscant_underworld_design_v1.md (tree root). Covers Coruscant parity (one gap: the wilderness renderer), the Nano style transfer (cities->wilderness, one atlas), and the two enablers — generalize m3_tier_wilderness_body.js to 'render region R, substrate-first' (double-duty: also fixes the Coruscant underworld map) + add a wilderness seed mode to tools/make_substrate_seed.py."
+    },
+    {
+      "ref": "§8.13 / Coruscant Underworld scope",
+      "resolution_date": "2026-05-31",
+      "summary": "SINGLE-LEVEL 40x40 grid (Brian's May 24 2026 call, re-confirmed 2026-05-31). SUPERSEDES the earlier '40x40x3' phrasing — the Z-axis is collapsed. Already reflected in wilderness/coruscant_underworld.yaml (+ _landmarks). The remaining work is the MAP RENDERER, not the data: see painted_wilderness_and_coruscant_underworld_design_v1.md."
+    },
+    {
+      "ref": "§8.7 / SYN.4 city-dissolution migration timing",
+      "resolution_date": "2026-05-30",
+      "summary": "Run NOW, as part of this deploy (not deferred). Admin invocation `await syn4_migrate_dissolve_city_map_cities(db)`; idempotent via syn_migration_state; schema-neutral; 75% refund. Operator must run it during the 2026-05-30 deploy."
+    },
+    {
+      "ref": "§8.16 / Web-client launch-scope cutoff",
+      "resolution_date": "2026-05-30",
+      "summary": "Pull SOME Phase 2 rich panels into launch (not Phase-0/1-only, not all-of-Phase-2-deferred). SPA + substrate map already live; launch adds a selected Phase 2 subset (candidates: sheet, holocron/holonet, cockpit, combat theater/inspector — already built in the SPA suite). Rest of Phase 2 + Phases 4/5 post-launch. Specific subset = a follow-up scoping pass vs v1.3 §9."
+    },
+    {
+      "ref": "§8.10 / §8.15 / §8.17",
+      "resolution_date": "2026-05-30",
+      "summary": "Closed as moot by the May 26–30 wave shipping: map renderer live (SPA port + substrate lane), web-client implementation Path B executed, and the SYN-interleave question resolved by SYN running to completion then web."
+    },
+    {
+      "ref": "T1.1",
+      "resolution_date": "2026-05-24",
+      "summary": "Found resolved at HEAD via pre-flight (Pattern 2). Eavesdrop substrate is shipped; the narrow forward-compat note in parser/espionage_commands.py is the standing trigger-to-fix for any future wilderness-tile eavesdropping work."
+    },
+    {
+      "ref": "T1.2",
+      "resolution_date": "2026-05-20",
+      "summary": "Found resolved at HEAD via pre-flight (Pattern 2). Option 2 (`chain attempt` command) shipped 2026-05-20; engine/chain_events.py docstring documents the resolution."
+    },
+    {
+      "ref": "T2.3",
+      "resolution_date": "2026-05-24",
+      "summary": "Single-level Coruscant Underworld region (Z-axis collapsed), minimal-substrate parity with Dune Sea, encounter system deferred to T2.WENC."
+    },
+    {
+      "ref": "T2.12",
+      "resolution_date": "2026-05-24",
+      "summary": "Master-fiat is launch posture; mechanical trials deferred to post-launch. Trial of Spirit additionally blocked on T3.15 Director AI CW-tuning."
+    },
+    {
+      "ref": "T2.WENC.a",
+      "resolution_date": "2026-05-24",
+      "summary": "Wilderness encounter selector + cooldown + filters + integration hook shipped. Hazard tick extended with wilderness path (terrain ambient_hazard → check_hazard_for_character). Encounter pools authored for Dune Sea (9 entries) and Coruscant Underworld (10 entries) covering all 5 design §5.2 types. Encounter dispatch (NPC spawn, vendor caravan, weather effects) rolled into SYN.7 per May 24 afternoon design pivot."
+    },
+    {
+      "ref": "DESIGN_LOCK_CONTESTABLE_WILDERNESS_V2",
+      "resolution_date": "2026-05-24",
+      "summary": "Locked the structural pivot for the wilderness layer. City-map = permanently neutral commons; wilderness regions = contestable frontier at whole-region/one-owner granularity; player cities anchor in wilderness only; all regions launch un-owned with zero seeded influence; hybrid contest centrality; 7-day contest with Albion-style culminating fight at contested landmark (influence-scaled Anchor HP); partial-passive-plus-active-harvest yield model with 15% non-owner tax; wilderness-only T5 crafting materials; wilderness anomaly system Tier 1-3 (krayt dragons, corvette boardings, etc.); city vitality (SWG); player-constructed buildings (residence/crafting/commerce/garrison/cultural categories). Eleven-drop SYN.0-SYN.10 sequence (~14.5 sessions) implements. Design doc: contestable_wilderness_design_v2.md. T2.WENC.b/c rolled into SYN.7/SYN.5 respectively. Twelve shipped surfaces flagged for deprecation in tech_debt."
+    },
+    {
+      "ref": "BugFix5",
+      "resolution_date": "2026-05-24",
+      "summary": "Five failing tests at HEAD fixed in one drop: (a) _find_hostile_npc in tests/smoke/scenarios/ground_combat.py + combat_extended.py filtered to WHERE room_id IS NOT NULL ORDER BY id — root cause of the load-dependent G2/CX4 flake on Python 3.14/Windows where SQLite's unordered SELECT returned NULL-room hostile NPCs first. (b) Three hazard tick tests in test_t2_wenc_wilderness_encounters.py replaced asyncio.get_event_loop().run_until_complete(...) with asyncio.run(...) for Python 3.14 compatibility (the get_event_loop() implicit loop creation is gone). (c) parser/admin_fp_commands.py deleted per WoW.4 consolidation — the file was orphaned but not removed in the WoW.4 drop; the existing test_admin_fp_module_removed assertion fires correctly until the file is gone."
+    },
+    {
+      "ref": "SYN.0",
+      "resolution_date": "2026-05-24",
+      "summary": "Pre-flight + Migration Plan drop. No engine code shipped. Deliverables: (1) tools/syn_migration.py skeleton with audit + wipe phases implemented and city-dissolution phase deferred to SYN.4 (where it ships atomically with the wilderness-anchor retarget); (2) docstring deprecation tags on 8 surfaces (claim_room, unclaim_room, is_room_claimed_by, CLAIM_MAX_PER_ZONE, CLAIM_MAX_TOTAL, _apply_claim_upgrade, found_city, claim_room_for_city); (3) TODO.json::tech_debt corrected for two surface-name errors (MAX_CLAIMS_PER_ZONE → CLAIM_MAX_PER_ZONE; expand_city → claim_room_for_city) and amended with SYN.0 Finding 2 (six is_room_claimed_by callers, not one). Four pre-flight findings recorded; SYN.1 unblocked."
+    }
+  ],
+  "baseline_test_skips_accepted": [
+    {
+      "test": "test_cw_era_neutral_carryovers_match_gcw",
+      "reason": "Technician template strength drift GCW->CW",
+      "decided_by": "brian_design_call"
+    },
+    {
+      "test": "test_cw_no_test_character (in test_f1d_era_switch.py)",
+      "reason": "Era-switch baseline failure carried forward"
+    }
+  ],
+  "tech_debt": [
+    {
+      "id": "TD.1",
+      "name": "consumable_storage_unification",
+      "added_date": "2026-05-24",
+      "added_by": "SRB.1.b drop retrospective",
+      "summary": "Two parallel storage models exist for consumables. (1) attributes.consumables = {key: count} — used by stims/medpacs, written by crafting layer for output_type: consumable, consumed by stim command. (2) inventory.items = [...] with consumable:true flag — used by bacta packs etc., handled by UseCommand.",
+      "consequence": "UseCommand cannot operate on stims; stim command cannot operate on bacta packs. Future consumable types must pick a model arbitrarily. Crafting output is bifurcated based on schematic output_type alone, not on category.",
+      "remediation_outline": "Migrate attributes.consumables entries into inventory.items as {type: consumable, key, quality, count} (stacked by key), or alternatively as individual unstacked items. Update add_to_inventory to handle stacking by key. Update parser/crafting_commands.py::consumable branch to write to inventory. Update parser/medical_commands.py::has_consumable + consume_consumable to read/write inventory. Extend UseCommand to handle stims (which would obsolete much of the stim-command flow but the offer/accept ritual is still wanted for cross-character application). Schema migration required for live characters.",
+      "effort_estimate": "Medium (~2 sess) — data migration + consumer migration + likely DB upgrade.",
+      "trigger_to_fix": "Add a third consumable category (anything that isn't a stim, medpac, or bacta pack) — at that point the third author is forced to pick a model and the bifurcation pain is loudest.",
+      "status": "intentionally_deferred"
+    },
+    {
+      "id": "TD.2",
+      "name": "surface_manhole_room_duplication",
+      "added_date": "2026-05-24",
+      "added_by": "T2.3 Coruscant Underworld drop",
+      "summary": "Two rooms exist at coordinates (20, 17) representing the same gameplay location — the city ↔ wilderness handoff point. (1) coruscant_uw_surface_entry (room id 255 in coruscant.yaml, zone: coruscant_underworld) — the city-side handoff, already wired via bidirectional 'vent'/'climb' exits with southern_underground. (2) surface_manhole_to_southern_underground (wilderness landmark in coruscant_underworld_landmarks.yaml) — the wilderness-side declaration.",
+      "consequence": "Two rooms with overlapping semantic meaning; players might experience them as separate locations even though the design intent is a single shared handoff point. The wilderness writer creates room (2); the world writer creates room (1); both persist.",
+      "remediation_outline": "Decide which side owns the handoff room and remove the other. Option A: keep the city-side room and mark the wilderness landmark as 'external' (writer skips creation, adjacency resolves to the city-side room via a slug-lookup). Option B: keep the wilderness landmark and remove coruscant_uw_surface_entry from coruscant.yaml (the city-side 'vent' exit then targets the wilderness landmark by slug). Either approach needs writer support for external/cross-region room references in adjacency.",
+      "effort_estimate": "Small (~0.5 sess) — writer change + content removal + a couple of tests.",
+      "trigger_to_fix": "Tester confusion about 'two doors leading to the same place', OR when the wilderness encounter system (T2.WENC) makes the duplication user-visible (e.g. encounter rolls firing in one room but not the other).",
+      "status": "intentionally_deferred",
+      "lock_in_test": "tests/test_t2_3_coruscant_underworld.py::TestSurfaceManholeRoomDuplication asserts the two coordinate sets remain identical. If one moves without the other, the test breaks and forces a re-decision."
+    },
+    {
+      "id": "DEPRECATION.CW_PIVOT",
+      "name": "shipped_surfaces_retiring_in_SYN_sequence",
+      "added_date": "2026-05-24",
+      "added_by": "Contestable Wilderness design lock v2 (afternoon May 24 2026)",
+      "summary": "The May 24 2026 design lock (contestable_wilderness_design_v2.md) retargets ~13 shipped surfaces from per-room semantics to per-region semantics, or retires them outright. Per Pattern-2 hygiene, these surfaces are tagged forward (not silently abandoned) and retire in the corresponding SYN drop. Each retirement event updates this entry from 'deprecated_after_design_pivot_2026_05_24' to 'retired_in_SYN.N_2026_MM_DD'.",
+      "surfaces": [
+        {
+          "surface": "engine/territory.py::claim_room",
+          "retires_in": "SYN.1",
+          "status": "retired_in_SYN.1.b_2026_05_24",
+          "action": "rename to claim_region; retarget room_id → wilderness_region_slug"
+        },
+        {
+          "surface": "engine/territory.py::unclaim_room",
+          "retires_in": "SYN.1",
+          "status": "retired_in_SYN.1.b_2026_05_24",
+          "action": "rename to unclaim_region"
+        },
+        {
+          "surface": "engine/territory.py::is_room_claimed_by",
+          "retires_in": "SYN.1",
+          "status": "retired_in_SYN.1.b_2026_05_24",
+          "action": "rename to is_region_owned_by; retarget 6 call sites (parser/faction_commands.py:566,572; engine/territory.py:1437,1485,1528; engine/sleeping.py:63-64; engine/security.py:215-216 — see SYN.0 Finding 2)"
+        },
+        {
+          "surface": "engine/territory.py::CLAIM_MAX_PER_ZONE",
+          "retires_in": "SYN.1",
+          "status": "retired_in_SYN.1.b_2026_05_24",
+          "action": "delete (irrelevant under one-owner-per-region). SYN.0 correction: the previous entry named MAX_CLAIMS_PER_ZONE which does not exist; actual symbol is CLAIM_MAX_PER_ZONE = 3 at engine/territory.py:66."
+        },
+        {
+          "surface": "engine/territory.py::CLAIM_MAX_TOTAL",
+          "retires_in": "SYN.1",
+          "status": "retired_in_SYN.1.b_2026_05_24",
+          "action": "delete. SYN.0 correction: the previous entry named MAX_CLAIMS_PER_ORG which does not exist; actual symbol is CLAIM_MAX_TOTAL = 10 at engine/territory.py:67."
+        },
+        {
+          "surface": "engine/territory.py::spawn_guard_npc (per-room)",
+          "retires_in": "SYN.1",
+          "status": "retired_in_SYN.1.b_2026_05_24",
+          "action": "retarget to per-region garrison (5 NPCs distributed across landmarks)"
+        },
+        {
+          "surface": "engine/territory.py::tick_claim_maintenance",
+          "retires_in": "SYN.1",
+          "status": "retired_in_SYN.1.b_2026_05_24",
+          "action": "retarget to region weekly upkeep (3000 cr/wk per region)"
+        },
+        {
+          "surface": "engine/territory.py::tick_resource_nodes",
+          "retires_in": "SYN.1",
+          "status": "retired_in_SYN.1.b_2026_05_24",
+          "action": "retarget to passive yield only; active harvest is SYN.6"
+        },
+        {
+          "surface": "engine/security.py::_apply_claim_upgrade",
+          "retires_in": "SYN.2",
+          "status": "physically_deleted_in_SYN.2_2026_05_24 (was stubbed in SYN.1.b)",
+          "action": "delete (no consumers under pivot; city upgrades go through cities engine)"
+        },
+        {
+          "surface": "engine/player_cities.py::found_city city-map anchor chain (steps 7-10)",
+          "retires_in": "SYN.4",
+          "status": "deprecated_after_design_pivot_2026_05_24",
+          "action": "retarget to wilderness-region-anchor validation. SYN.0 Finding 3: full chain hq_entry_room → zone_id → declared_security → influence rewrites end-to-end."
+        },
+        {
+          "surface": "engine/player_cities.py::claim_room_for_city",
+          "retires_in": "SYN.4",
+          "status": "deprecated_after_design_pivot_2026_05_24",
+          "action": "retire entirely (per-room expansion model goes away; expansion via wilderness landmark capture + building construction in SYN.9). SYN.0 correction: the previous entry named expand_city which does not exist; actual function is claim_room_for_city at engine/player_cities.py:1178."
+        },
+        {
+          "surface": "Drop 6D room-keyed contest state machine",
+          "retires_in": "SYN.3",
+          "status": "deprecated_after_design_pivot_2026_05_24",
+          "action": "retarget to region-scaled with culminating fight"
+        },
+        {
+          "surface": "engine/world_events.py::KRAYT_SIGHTING (event-flag only)",
+          "retires_in": "SYN.8",
+          "status": "deprecated_after_design_pivot_2026_05_24",
+          "action": "ELEVATE not retire — becomes real Tier-3 anomaly spawn; flag stays but triggers actual spawn"
+        }
+      ],
+      "remediation_outline": "Each SYN.N drop retires the surfaces listed for it; the retirement is captured in the SYN drop's CHANGELOG entry by transitioning the status field here from 'deprecated_after_design_pivot_2026_05_24' to 'retired_in_SYN.N_2026_MM_DD' (or 'elevated_in_SYN.N_2026_MM_DD' for KRAYT_SIGHTING). At end of SYN sequence, all surfaces should show non-deprecated status; that becomes a TODO/CHANGELOG hygiene assertion the test suite enforces.",
+      "trigger_to_fix": "Each SYN drop in the pivot sequence. Final reconciliation at SYN.10 + architecture v49 rollup.",
+      "status": "active_in_progress",
+      "design_doc_anchor": "contestable_wilderness_design_v2.md §6 (Deprecation Discipline)"
+    },
+    {
+      "id": "TD.ARCH_V51",
+      "name": "architecture_of_record_v51_pending",
+      "added_date": "2026-05-30",
+      "added_by": "2026-05-30 anomaly-POI/relayout drop pre-flight",
+      "summary": "The hybrid raster substrate lane shipped (all six CW maps carry substrate_image with painted PNGs in static/maps/; client skips procedural district/building/street/furniture layers under a substrate). NANO_MAP_PACKAGE.md and MAP_NAV_OVERLAY_DROP_20260529.md name sw_d6_mush_architecture_v51.md as the architecture-of-record, but no v51 doc exists in the tree and architecture_of_record above still points to v50.",
+      "consequence": "Narrative ground truth lags the code: the substrate lane, the 4 new painted areas (Kuat City, Smuggler's Moon, Stalgasin Hive, Tipoca City), and the Mos Eisley relayout (exit_paths dropped) are undocumented in an architecture doc.",
+      "remediation_outline": "Write sw_d6_mush_architecture_v51.md rolling up the CHANGELOG entries since v50: §1.4 'what landed' = SPA visual port + cutover, substrate migration + new areas, map A/D/B + env/bearing, bounty & anomaly POI feeds. Document the substrate render contract (AreaGeometry.substrate_image; L_SubstrateImage dim + L_SubstrateRooms tactical cells). Then update architecture_of_record here and the CHANGELOG header to v51.",
+      "effort_estimate": "Small–Medium (~1 sess, doc-only).",
+      "trigger_to_fix": "Next doc-hygiene pass / before the next architecture revision.",
+      "status": "resolved",
+      "resolution_date": "2026-05-30",
+      "resolution": "sw_d6_mush_architecture_v51.md written 2026-05-30. Full consolidation: header/§0 reading guide, §1.3 code-state (HEAD May 30; schema-neutral at 35), §1.4 'what landed since v50' (SYN tail SYN.6-10 + SPA port 4.11-4.15 + substrate migration + map A/D/B + env/bearing + POI feeds + this session), §1.5 trimmed, §2.5/§2.6 (SPA module suite + painted maps), new invariant §4.28 (hybrid raster substrate render contract), §3 roadmap re-ranked (SYN + web-client lane now CLOSED), §9 version history, §10 closing. architecture_of_record flipped v50->v51; CHANGELOG header updated."
+    },
+    {
+      "id": "TD.CW_BUILD_EXIT_COLLISION",
+      "name": "cw_fresh_build_blocked_by_eastern_gate_exit_collision",
+      "added_date": "2026-05-30",
+      "added_by": "objective/vendor-POI session pre-flight (diagnosing the carried-forward test_cw_no_test_character failure)",
+      "priority": "HIGH — launch-relevant: a fresh CW database cannot be built from scratch.",
+      "summary": "load_world_dry_run('clone_wars').report.ok is False at HEAD — the SOLE blocking error is: Room 40 (outskirts_eastern_gate): direction 'east' is claimed by 2 exits: ['back from room 41', 'back from room 44'] (data/worlds/clone_wars/planets/tatooine.yaml exits, lines ~855 and ~858). Room 44 (checkpoint, 'main road heading east') is correctly east; room 41 (scavenger market) is the conflicting one. 29 non-blocking warnings also present.",
+      "consequence": "Reproduces on pristine HEAD. At boot, server.game_server auto_build_if_needed swallows the RuntimeError into a log.warning and backfill_room_slugs is gated on report.ok, so a FRESH CW deploy silently comes up with seed rooms only (no world content) — no crash. Masked today because the dev DB already exists (auto-build is skipped when the DB is non-empty). Caught by tests/test_f1d_era_switch.py::TestCloneWarsBuildPostF1d::test_cw_no_test_character, which builds a fresh temp DB and so ERRORS in its cw_db fixture (not on the character-count assertion).",
+      "why_not_fixed_here": "The fix is a map-layout/cardinal-correctness DESIGN call, not a mechanical one, and the authored signals conflict: room 41's coords (7,3) place it due-WEST of the gate (8,3), but its description says 'Outside the city wall' (desert-side = east), and the checkpoint (44) is ALSO east per its text. Grid-adjacency suggests the gate's existing direct 'west'->room 8 (city, x=5) should instead hit the adjacent room 41 (x=7). Multiple valid resolutions, no derivable ground truth — Brian's per-map domain (cf. the May 29-30 relayout philosophies A/B). Not guessed at.",
+      "remediation_options": [
+        "Option A (re-coord, matches description): move room 41 to a free desert-side tile (e.g. (9,4) SE of the gate; 44 holds (9,3)) and set the 40<->41 exit to southeast/northwest so coords + direction + description agree. Touches map coords -> check it against any relaid outskirts map.",
+        "Option B (ordinal deconfliction, keep coords): keep 40->8 'west' and 40->44 'east'; give 40<->41 a free ordinal (e.g. gate 'southeast'->market, market 'northwest'->gate). Resolves the collision but worsens cardinal-vs-coord agreement (coords say due-west), which runs against the relayout goal.",
+        "Option C (re-route the west corridor): make the gate's 'west' go to the ADJACENT scavenger market (41) and have the market continue 'west' to the city (8), instead of the gate jumping straight to room 8. Changes player navigation topology."
+      ],
+      "verification": "After whichever fix: `python -c \"from engine.world_loader import load_world_dry_run as L; print(L('clone_wars').report.ok)\"` must print True, and tests/test_f1d_era_switch.py (esp. test_cw_no_test_character, which then asserts exactly 1 built character) must pass.",
+      "effort_estimate": "Small once the layout choice is made (1-3 line YAML edit, or a coord move + exit edit).",
+      "trigger_to_fix": "Before launch (fresh installs need a buildable world) — or whenever the outskirts cardinal pass happens.",
+      "status": "resolved",
+      "resolution_date": "2026-05-31",
+      "resolution": "Option A (Brian's call). data/worlds/clone_wars/planets/tatooine.yaml: moved room 41 (scavenger_market) from (7,3) to desert-side (9,4) SE of the gate, and re-pointed the 40<->41 edge to SE/NW (was the inverted 'west'/'east to Scavenger Market'). This frees room 40's duplicate 'east' slot for the checkpoint (44) and also corrects the 43->41 'east' forward. VERIFIED in sandbox: load_world_dry_run('clone_wars').report.ok flipped False->True, errors 1->0, warnings unchanged at 29 (no regressions; outskirts edges now clean). Final gate: Brian's full pytest on Windows (test_f1d_era_switch::test_cw_no_test_character)."
+    },
+    {
+      "id": "TD.CW_M3_CLICK_TO_WALK_LATERAL",
+      "name": "m3_click_to_walk_cannot_leave_via_non_marker_street_exits",
+      "added_date": "2026-05-31",
+      "added_by": "Brian's 2026-05-31 browser smoke-test of the substrate lane (Mos Eisley district modal)",
+      "priority": "HIGH (launch UX) — a player can get funneled into a dead-end room pair with no clickable way out.",
+      "symptom": "In the TIER-1 DISTRICT modal (Mos Eisley substrate), standing in Bay 94 Entrance (server room 0) the player can only click down->pit(1) and back up; cannot reach the adjacent Tower or anywhere else.",
+      "diagnosis": "Root cause is certain from the graph + the decoration code. Bay 94 Entrance (room 0) has exactly TWO exits: down->pit(1) and north->spaceport-street-hub(7). Everything else on that map (Tower=26, Customs, Speeders, bays) hangs off the hub (room 7). The M3 click-to-walk decoration (static/client.html _buildAdjacencyByRenderId, ~L5770-5875) attaches class=rm-adj + data-travel-dir only to elements carrying data-room-id; the delegated handler reads data-travel-dir and calls sendCmd(dir). The pit is a clickable marker so down/up work, but the one lateral exit out (north->7) leads to a STREET hub. NOTE: under a substrate L_SubstrateRooms DOES emit data-room-id for ALL rooms incl. room 7 (m3_composition_engine ~L255), so the failure is one of: (a) the District/POI render branch in the screenshot is NOT the L_SubstrateRooms path (POI overlay only marks landmark/building rooms), or (b) adjacency resolution (name-match then spatial fallback) fails to bind 'north' to room 7. There is also no pathfinding, so distant POIs (Tower) are not clickable regardless. Multiple render branches; not runtime-verifiable in the AST sandbox -> rendering-layer-phantom risk -> NOT blind-patched.",
+      "verification_probe": "30-sec browser console check in the open District modal: (1) document.querySelectorAll('[data-room-id]').length and whether room 7's render-id appears; (2) inspect the adjacency map for the player's room to see if 'north'->7 is present. Output disambiguates sub-case (a) vs (b).",
+      "remediation_options": [
+        "PREFERRED — view-independent directional exit HUD: render the current room's non-hidden exits as clickable direction controls in the modal chrome (wired to sendCmd(dir)). Always works regardless of which render branch is active or whether the destination has a marker. Best web-first nav.",
+        "Targeted — if the probe shows room 7 HAS a data-room-id cell but isn't decorated, fix adjacency resolution so non-building/street destinations get rm-adj + data-travel-dir. Smaller, reuses the proven path.",
+        "Richer follow-up — pathfinding click-to-walk: clicking any room runs BFS over the exit graph and walks the route (issues the first step). Makes distant POIs (Tower) directly clickable. Larger change."
+      ],
+      "effort_estimate": "small-to-medium once the probe picks the sub-case; HUD is the safe default.",
+      "trigger_to_fix": "Before launch (navigation is core); ship the patch on Brian's go after the probe.",
+      "status": "fix shipped (v2) — pending browser smoke-test (hard-refresh first)",
+      "probe_result": "CONFIRMED sub-case (a). The District-modal render branch does NOT emit data-room-id for street/hub rooms: ids 6,7,8,9,10,11,47 (all streets, incl. the spaceport hub room 7) are absent from document.querySelectorAll('[data-room-id]'); and only ['down','down'] was decorated (doubled = two render passes). So the lone lateral exit out of Bay 94 Entrance (north->hub 7) had no clickable target.",
+      "resolution": "Added an EXIT STRIP to the SECTOR MAP modal (static/client.html): a new #map-modal-exits row, built from the cached current-room exits (lastExits = [{dir,label}]), rendering one clickable button per non-hidden exit regardless of whether the destination has a map marker. Each button issues sendCmd(dir) then closeMapModal() — mirroring the existing marker travel handler (drops the player into the live view in the new room). Edits: HTML container, CSS (.map-modal-exits/.mm-exit-btn, themed to the chrome), clear-on-open, populate in the ground branch, and the _renderModalExitStrip() fn. node --check clean on the inline script block. Once the player steps to the hub via the strip, the surrounding building markers are already click-to-walkable, so full navigation is restored without pathfinding. NOT yet browser-verified (rendering-layer-phantom discipline) — needs Brian's Windows smoke-test.",
+      "resolution_date": "2026-05-31",
+      "v1_ordering_bug": "v1 of the exit strip shipped a runtime ordering bug: _renderModalExitStrip() is called from openMapModal()'s ground branch (~L8189) BEFORE mapModalOpen is set true (~L8202), but the fn guarded on `if (!mapModalOpen) return;` — so it bailed every open and the strip never populated (then :empty hid it). node --check passed (valid syntax, dead at runtime). FIXED in v2: removed the bogus guard. Lesson: trace the call-order, not just syntax, for UI hooks the sandbox can't run."
+    },
+    {
+      "id": "TD.CW_MOVE_BEARING_NAMEERROR",
+      "name": "post_move_bearing_update_NameError_every_move",
+      "added_date": "2026-05-31",
+      "added_by": "Brian's 2026-05-31 server log (main.py run)",
+      "priority": "MEDIUM — fired on EVERY move; bearing/facing chevron never updated. Move itself succeeded (caught warning).",
+      "summary": "parser/builtin_commands.py _post_move_hooks line ~1444 referenced `exit_data` and `direction`, neither of which were parameters of the hook (signature was (self, ctx, session, char, new_room_id)). NameError on exit_data -> 'MoveCommand: bearing update failed' on every move.",
+      "resolution": "Threaded the move context through: added direction=None, exit_data=None params to _post_move_hooks and passed direction (L866) + exit_data (L884, from _match_exit) at the call site (L941). Both are in scope in execute() — verified. AST-parse clean.",
+      "resolution_date": "2026-05-31",
+      "status": "resolved (server restart picks it up)"
+    },
+    {
+      "id": "TD.CW_JEDI_HQ_ROOM_NAME",
+      "name": "jedi_order_hq_room_name_points_at_nonexistent_room",
+      "added_date": "2026-05-31",
+      "added_by": "Q3 intel-handler seed pre-flight (2026-05-31)",
+      "priority": "LOW-MEDIUM — latent. Does NOT affect intel handover (that's room-based on the player's location, and the Jedi handler is tagged on Knight Halen Voss in the real Entrance Hall room). But any system resolving the Jedi HQ by name (housing HQ establishment via organizations.hq_room_id) would fail to find the room.",
+      "detail": "organizations.yaml line ~141 sets jedi_order hq_room_name = 'Coruscant - Jedi Temple Main Hall'. No room with that name exists — the real Temple rooms are 'Jedi Temple - Main Gate', '- Entrance Hall', '- Training Hall', '- Archives', '- Council Antechamber', '- High Council Chamber', '- Meditation Garden', '- Medical Bay', '- Hangar Bay', '- Commissary'. The string 'Jedi Temple Main Hall' appears ONLY at organizations.yaml:141 — nothing else references it (grep-confirmed), so changing it is safe.",
+      "recommended_fix": "Reconcile hq_room_name to a real room — e.g. 'Jedi Temple - Entrance Hall' (aligns with the intel handler now placed there) or 'Jedi Temple - High Council Chamber' (more HQ-like, but restricted). NOT changed in this drop: hq_room_name feeds housing HQ resolution, a separate concern from intel handlers, and the change can't be runtime-verified in the AST sandbox. Flagged for Brian's call (one-line edit).",
+      "status": "open — recommended fix noted; Brian's call (touches housing HQ resolution)"
+    }
+  ],
+  "standing_invariants_quick_ref": [
+    "Web-first directive (arch §4.1)",
+    "WEG-fidelity invariant (arch §4.2)",
+    "Audit discipline - grep before marking delivered (arch §4.3, §6.2)",
+    "Boot ordering for era flag (arch §4.4)",
+    "Seam vs integration discipline (arch §4.5)",
+    "replaces: protocol for era-keyed YAML content (arch §4.6)",
+    "Smoke-test discipline (arch §4.7)",
+    "Test ground-truth split - Windows full pytest, sandbox targeted only (arch §4.8)",
+    "Chunked delivery - one drop per session, never partial (arch §4.9)",
+    "Q1 canonical-character policy (arch §4.16)",
+    "+pvp opt-in invariants (arch §4.17)",
+    "PG.1.death invariants (arch §4.18)",
+    "PG.2.bounty invariants (arch §4.19)",
+    "Cities web-UI safety pattern (arch §4.21)",
+    "Combat-trigger state (arch §4.22)",
+    "Extend-don't-add (new v48 standing principle from WoW.4 retrospective)"
+  ],
+  "phantom_pattern_catalog_summary": [
+    {
+      "id": "P1",
+      "name": "Phantom-delivered",
+      "summary": "Handoff says X shipped, HEAD says no"
+    },
+    {
+      "id": "P2",
+      "name": "Phantom-undelivered",
+      "summary": "Handoff says X pending, HEAD says shipped"
+    },
+    {
+      "id": "P3",
+      "name": "Dual-source drift",
+      "summary": "Content scrubbed in one location but a mirroring literal not scrubbed"
+    },
+    {
+      "id": "P4",
+      "name": "Stale-test-fixture drift",
+      "summary": "Test fixture mirrors live state; state changes but fixture doesn't"
+    },
+    {
+      "id": "P5",
+      "name": "Inverted-narrative phantom",
+      "summary": "userMemories records X as open when X is delivered at HEAD, or vice-versa"
+    },
+    {
+      "id": "P6",
+      "name": "Sandbox-divergence phantom",
+      "summary": "Chat sandbox contains files reported as shipped but never reach Windows via Expand-Archive"
+    },
+    {
+      "id": "P7",
+      "name": "Import-load syntax phantom",
+      "summary": "v48-NEW. Import-load verification statement is syntactically wrong even though underlying symbol exists. Discipline fix: target module-level symbols; for class methods use 'from <module> import <Class>' + assert callable(getattr(Class, method))."
+    },
+    {
+      "id": "P2.a",
+      "name": "TODO drift (P2 sub-pattern)",
+      "summary": "v48-NEW (May 24 combined drop). Items resolved-at-HEAD but tracked-as-pending in TODO.json because the resolving drop didn't update the tracker. Remediation: every feature-closing drop updates TODO.json status in the same drop."
+    }
+  ],
+  "named_disciplines_quick_ref": [
+    {
+      "name": "extend_dont_add",
+      "ref": "WoW.4 retrospective",
+      "rule": "Before creating a new command/file/module, check whether an existing surface already does something semantically adjacent. If yes, extend it as a subform/option/output addition."
+    },
+    {
+      "name": "pre_apply_steps_must_be_section",
+      "ref": "WoW.4 handoff",
+      "rule": "Drops that retire files MUST have a 'Pre-apply step' section in the handoff calling out the deletion explicitly."
+    },
+    {
+      "name": "force_sensitive_is_derived",
+      "rule": "force_sensitive is derived from Force-attribute keys in attributes JSON. NOT a column. Never pass as save_character() kwarg."
+    },
+    {
+      "name": "smoke_uses_slug_lookup",
+      "rule": "Smoke scenarios must use room_id_by_slug(), never hardcoded DB ids."
+    },
+    {
+      "name": "drain_text_needs_ever_nonempty",
+      "rule": "_drain_text ever_nonempty flag must be present - buffer must receive content before declaring quiet."
+    },
+    {
+      "name": "tracker_update_in_same_drop",
+      "ref": "May 24 combined drop",
+      "rule": "Every drop that ships a feature closing a TODO.json item updates that item's status field in the same drop. Same principle as extend-don't-add: tracking discipline matches code-shipping discipline. Prevents P2.a TODO drift."
+    },
+    {
+      "name": "minimal_substrate_first",
+      "ref": "T2.3 → T2.WENC.a pattern",
+      "rule": "Large systems ship in waves where the first wave provides the substrate (schema, selector, integration hook, content) and observable behavior is minimal (a player-visible message). Dispatch logic (NPC spawn, vendor wiring, weather effects) lands in follow-up sub-drops. Same principle that brought the wilderness regions online in T2.3."
+    },
+    {
+      "name": "design_doc_locks_before_drop_sequences",
+      "ref": "Contestable Wilderness pivot May 24 2026",
+      "rule": "Multi-drop pivots (>3 drops in a planned sequence) get a locked design doc BEFORE the first drop ships. The doc names the drop sequence (SYN.0-SYN.N), captures decisions resolved during step-back conversations, and becomes the source of truth that each subsequent drop's handoff references. Mid-sequence design changes require an explicit v.N+1 revision with supersede note; silent drift is a Phantom-1/Phantom-2 violation."
+    },
+    {
+      "name": "competitive_review_for_genre_features",
+      "ref": "Contestable Wilderness pivot May 24 2026",
+      "rule": "When introducing features that have established genre conventions (territory warfare, crafting economies, world bosses), consult the relevant inspirations explicitly before locking design. The competitive review for the May 24 pivot pulled lessons from EVE/Albion/SWG/Foxhole/Eco/RotMG and changed three core knobs (contest centrality, culminating fight, harvest model). Skipping this would have shipped a locally-coherent system that genre veterans would have immediately recognized as missing common patterns."
+    }
+  ]
+}

@@ -67,9 +67,16 @@ class TestGetSeedingEra(unittest.TestCase):
         from engine import era_state
         era_state.set_active_config(self._saved)
 
-    def test_default_returns_gcw(self):
+    def test_default_returns_clone_wars(self):
+        """No registered config → get_seeding_era returns the
+        post-May-18-2026-pivot default, 'clone_wars'.
+
+        Pre-pivot this test was test_default_returns_gcw. The
+        active_era pivot flipped _DEFAULT_ERA in engine/era_state.py
+        from 'gcw' to 'clone_wars'; this test pins the new default.
+        """
         from engine.era_state import get_seeding_era
-        self.assertEqual(get_seeding_era(), "gcw")
+        self.assertEqual(get_seeding_era(), "clone_wars")
 
     def test_with_cfg_returns_cfg_era(self):
         from engine.era_state import get_seeding_era
@@ -156,10 +163,17 @@ class TestResolveEraForSeedingDeprecatedButPreserved(unittest.TestCase):
         )
         self.assertEqual(resolve_era_for_seeding(cfg), "clone_wars")
 
-    def test_default_returns_none(self):
+    def test_default_returns_clone_wars(self):
+        """No registered config → resolve_era_for_seeding returns
+        'clone_wars' post-May-18-2026 pivot.
+
+        Pre-pivot this returned None because the use_yaml_director_data
+        default was False, gating the YAML path off. Post-pivot the
+        flag default is True, so resolve_era_for_seeding returns the
+        active era (the default era — 'clone_wars').
+        """
         from engine.era_state import resolve_era_for_seeding
-        # No registered config; default flag is False
-        self.assertIsNone(resolve_era_for_seeding())
+        self.assertEqual(resolve_era_for_seeding(), "clone_wars")
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -229,49 +243,53 @@ class TestDirectorRuntimeConfigSourceLabel(unittest.TestCase):
     def setUp(self):
         from engine import era_state
         self._saved = era_state._active_config
-        # Mirror production: no cfg registered → defaults to GCW + YAML off
+        # Mirror production: no cfg registered → defaults to CW + YAML on
+        # (post-May-18-2026 pivot in engine/era_state.py).
         era_state.clear_active_config()
 
     def tearDown(self):
         from engine import era_state
         era_state.set_active_config(self._saved)
 
-    def test_default_resolution_uses_yaml_gcw(self):
-        # Re-resolve fresh
-        from engine import director
-        from importlib import reload
-        # Capture the freshly-resolved config via the seam directly
-        # (since module-level VALID_FACTIONS is import-time).
-        from engine.director_config_loader import get_director_runtime_config
-        from engine.era_state import get_seeding_era
-        cfg = get_director_runtime_config(era=get_seeding_era())
-        # GCW YAML must be present for this assertion to be meaningful
-        gcw_dir = os.path.join(PROJECT_ROOT, "data", "worlds", "gcw")
-        if not os.path.isfile(os.path.join(gcw_dir, "director_config.yaml")):
-            self.skipTest("data/worlds/gcw/director_config.yaml not present")
-        self.assertEqual(cfg.source, "yaml-gcw",
-                         "Default GCW boot should now resolve via YAML, "
-                         "not legacy fallback")
+    def test_default_resolution_uses_yaml_clone_wars(self):
+        """No active config → director runtime resolves through CW
+        YAML (post-May-18-2026 pivot default).
 
-    def test_default_factions_match_canonical_gcw_set(self):
-        """The YAML path's resolved factions for GCW must equal the
-        canonical 4-axis-name GCW set. Pre-F.6a.7 Phase 2 this asserted
-        against `_LEGACY_VALID_FACTIONS` directly; Phase 2 deleted that
-        constant, so we hardcode the expected set here as the test's
-        ground truth."""
+        Pre-pivot this asserted 'yaml-gcw'; post-pivot the no-config
+        path lands on 'yaml-clone_wars'.
+        """
         from engine.director_config_loader import get_director_runtime_config
         from engine.era_state import get_seeding_era
-        gcw_dir = os.path.join(PROJECT_ROOT, "data", "worlds", "gcw")
-        if not os.path.isfile(os.path.join(gcw_dir, "director_config.yaml")):
-            self.skipTest("data/worlds/gcw/director_config.yaml not present")
         cfg = get_director_runtime_config(era=get_seeding_era())
-        # The canonical GCW axis-name factions, formerly captured in
-        # `_LEGACY_VALID_FACTIONS`. Pinned here as the test's ground
-        # truth post-F.6a.7-Phase-2.
-        canonical_gcw = frozenset({
-            "imperial", "rebel", "criminal", "independent",
+        # CW YAML must be present for this assertion to be meaningful
+        cw_dir = os.path.join(PROJECT_ROOT, "data", "worlds", "clone_wars")
+        if not os.path.isfile(os.path.join(cw_dir, "director_config.yaml")):
+            self.skipTest("data/worlds/clone_wars/director_config.yaml not present")
+        self.assertEqual(
+            cfg.source, "yaml-clone_wars",
+            "Default boot (post-pivot) should resolve via CW YAML, "
+            "not GCW or legacy fallback"
+        )
+
+    def test_default_factions_match_canonical_clone_wars_set(self):
+        """The YAML path's resolved factions for CW must equal the
+        canonical CW set. Pre-pivot this test was
+        test_default_factions_match_canonical_gcw_set and asserted
+        the 4-axis GCW set; post-pivot the default is CW and the
+        canonical set is the 6-faction CW set."""
+        from engine.director_config_loader import get_director_runtime_config
+        from engine.era_state import get_seeding_era
+        cw_dir = os.path.join(PROJECT_ROOT, "data", "worlds", "clone_wars")
+        if not os.path.isfile(os.path.join(cw_dir, "director_config.yaml")):
+            self.skipTest("data/worlds/clone_wars/director_config.yaml not present")
+        cfg = get_director_runtime_config(era=get_seeding_era())
+        # The canonical CW factions, pinned here as the test's
+        # ground truth post-May-18-2026 pivot.
+        canonical_cw = frozenset({
+            "bhg", "cis", "hutt_cartel", "independent",
+            "jedi_order", "republic",
         })
-        self.assertEqual(cfg.valid_factions, canonical_gcw)
+        self.assertEqual(cfg.valid_factions, canonical_cw)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -357,13 +375,32 @@ class TestRuntimeConfigBehavioralIntegration(unittest.TestCase):
         era_state.set_active_config(self._saved)
 
     def test_resolution_for_gcw_returns_4_factions(self):
+        """Explicit GCW resolution: registering a GCW config produces
+        the canonical 4-faction GCW set.
+
+        Pre-pivot this test relied on the default era being GCW; the
+        clear_active_config call was enough to land on GCW. Post-pivot
+        the default is CW, so this test now registers a GCW config
+        explicitly. The contract being verified is the same: explicit
+        era → expected factions for that era.
+        """
         from engine import era_state
         era_state.clear_active_config()
-        from engine.director_config_loader import get_director_runtime_config
-        from engine.era_state import get_seeding_era
-        cfg = get_director_runtime_config(era=get_seeding_era())
-        self.assertEqual(len(cfg.valid_factions), 4,
-                         f"GCW expects 4 factions, got {cfg.valid_factions}")
+        # Register a GCW config explicitly (the default is now CW).
+        era_state.set_active_config(SimpleNamespace(
+            active_era="gcw",
+            use_yaml_director_data=True,
+        ))
+        try:
+            from engine.director_config_loader import get_director_runtime_config
+            from engine.era_state import get_seeding_era
+            cfg = get_director_runtime_config(era=get_seeding_era())
+            self.assertEqual(
+                len(cfg.valid_factions), 4,
+                f"GCW expects 4 factions, got {cfg.valid_factions}",
+            )
+        finally:
+            era_state.clear_active_config()
 
     def test_resolution_for_clone_wars_returns_6_factions(self):
         from engine import era_state

@@ -1,0 +1,112 @@
+{
+  "area_key": "tatooine.mos_eisley",
+  "display_name": "MOS EISLEY",
+  "substrate": "/static/maps/mos_eisley_substrate.png",
+  "bounds": {
+    "x_min": 2.4,
+    "y_min": -0.4,
+    "x_max": 14.8,
+    "y_max": 7.6
+  },
+  "landmarks": [
+    {
+      "id": "bay94",
+      "icon": "dock",
+      "name": "Docking Bay 94",
+      "distinctive": true,
+      "fx": 0.2581,
+      "fy": 0.3625,
+      "note": "distinctive painted feature — place on the dock",
+      "min_zoom": 2,
+      "max_zoom": 2
+    },
+    {
+      "id": "despot",
+      "icon": "ship",
+      "name": "Lucky Despot",
+      "distinctive": true,
+      "fx": 0.3468,
+      "fy": 0.625,
+      "note": "distinctive painted feature — place on the ship",
+      "min_zoom": 2,
+      "max_zoom": 2
+    },
+    {
+      "id": "dowager",
+      "icon": "wreck",
+      "name": "Dowager Queen",
+      "distinctive": true,
+      "fx": 0.0887,
+      "fy": 0.2375,
+      "note": "distinctive painted feature — place on the wreck",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "chalmun",
+      "icon": "cantina",
+      "name": "Chalmun's Cantina",
+      "distinctive": true,
+      "fx": 0.2097,
+      "fy": 0.4375,
+      "note": "distinctive painted feature — place on the cantina",
+      "min_zoom": 2,
+      "max_zoom": 2
+    },
+    {
+      "id": "kraytgrave",
+      "icon": "bones",
+      "name": "Krayt Graveyard",
+      "distinctive": true,
+      "fx": 0.9355,
+      "fy": 0.4875,
+      "note": "distinctive painted feature — place on the bones",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "jabba_th",
+      "icon": "hutt",
+      "name": "Jabba's Townhouse",
+      "distinctive": false,
+      "fx": 0.3629,
+      "fy": 0.8125,
+      "note": "indistinct / generic — approximate is fine",
+      "min_zoom": 2,
+      "max_zoom": 2
+    },
+    {
+      "id": "beacon",
+      "icon": "beacon",
+      "name": "Hyperspace Beacon",
+      "distinctive": false,
+      "fx": 0.2258,
+      "fy": 0.1125,
+      "note": "indistinct / generic — approximate is fine",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "jabba_p",
+      "icon": "palace",
+      "name": "Jabba's Palace ↗",
+      "distinctive": false,
+      "fx": 0.5242,
+      "fy": 0.625,
+      "note": "off-map pointer — edge is fine",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "sarlacc",
+      "icon": "sarlacc",
+      "name": "The Sarlacc ↗",
+      "distinctive": false,
+      "fx": 0.9435,
+      "fy": 0.175,
+      "note": "off-map pointer — edge is fine",
+      "min_zoom": 2,
+      "max_zoom": 3
+    }
+  ]
+}

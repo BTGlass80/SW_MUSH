@@ -278,7 +278,7 @@ _LEGACY_FACTION_QUARTER_TIERS = {
             "A council suite at the Stalgasin Deep Hive's restricted Council "
             "approach — three chambers, a holotable showing live tactical data "
             "from every Separatist battlefront, and a private antechamber where "
-            "Count Dooku's emissaries are received. Geonosian sentinels stand "
+            "the Confederacy's senior emissaries are received. Geonosian sentinels stand "
             "watch in the outer hall. Few non-Geonosians have ever stood here."
         ),
     },

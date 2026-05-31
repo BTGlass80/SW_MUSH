@@ -181,6 +181,15 @@ class ChargenAPI:
         app.router.add_get(
             "/api/chargen/check-name/{name}", self.handle_check_name
         )
+        # ── Drop 2b (May 19 2026 evening): chain selection endpoint ──
+        # GET /api/chargen/chains returns the tutorial chain list for
+        # the active era plus the is_first_character flag, computed
+        # server-side from the account's character count. The SPA
+        # consumes this to render chain cards on the new tutorial-chain
+        # step. Token-authed (same token issued in chargen_start).
+        app.router.add_get(
+            "/api/chargen/chains", self.handle_chains
+        )
         log.info("Chargen API routes registered")
 
     # ── GET /api/chargen/species ────────────────────────────────────────
@@ -448,6 +457,105 @@ class ChargenAPI:
                 status=500,
             )
 
+    # ── GET /api/chargen/chains ─────────────────────────────────────────
+    #
+    # Drop 2b (May 19 2026 evening). Returns the active era's tutorial
+    # chain list plus the is_first_character flag computed from the
+    # account's character count. Token-authed; same token issued by
+    # game_server._run_web_chargen in the chargen_start payload.
+    #
+    # Response shape:
+    #     {
+    #         "is_first_character": bool,
+    #         "chains": [
+    #             {
+    #                 "chain_id": str,
+    #                 "chain_name": str,
+    #                 "description": str,
+    #                 "archetype_label": str,
+    #                 "faction_alignment": str | None,
+    #                 "duration_minutes": int,
+    #                 "locked": bool,
+    #                 "locked_reason": str,  # "" if not locked
+    #                 "starting_room": str,  # slug; "" for locked stubs
+    #             },
+    #             ...
+    #         ]
+    #     }
+    #
+    # Locked status is computed via
+    # engine.tutorial_chains.is_chain_locked_for_character with the
+    # chargen sentinel `faction_intent="__chargen_any__"` so faction-
+    # gated chains all show at chargen — picking a chain IS the
+    # faction commitment. Jedi-Path chains stay locked at chargen
+    # (require village_chosen_path which doesn't exist yet for a
+    # fresh character).
+    #
+    # If the era has no chains.yaml (e.g. GCW), returns an empty
+    # chains list; the SPA should treat that as "skip this step."
+    async def handle_chains(self, request: web.Request) -> web.Response:
+        # Token from query param so the SPA can use a plain GET.
+        token = request.query.get("token", "")
+        account_id = verify_login_token(token)
+        if account_id is None:
+            return web.json_response(
+                {
+                    "success": False,
+                    "errors": {"auth": ["Invalid or expired session."]},
+                },
+                status=401,
+            )
+
+        # Compute is_first_character. Server is the authority — the
+        # SPA's UI hint is convenience.
+        existing_chars = await self.db.get_characters(account_id)
+        is_first_character = len(existing_chars) == 0
+
+        # Load the chain corpus for the active era.
+        from engine.tutorial_chains import (
+            load_tutorial_chains, is_chain_locked_for_character,
+        )
+        corpus = load_tutorial_chains()
+        if corpus is None or not corpus.ok or not corpus.chains:
+            # Era has no chain-based tutorials (e.g. GCW), or the
+            # corpus failed to load. Return empty list; SPA skips
+            # the chain step.
+            return web.json_response({
+                "is_first_character": is_first_character,
+                "chains": [],
+            })
+
+        # Build per-chain locked status using the chargen sentinel.
+        # See engine/creation_wizard._chargen_attrs_for_chain_check
+        # for the original of this attrs dict.
+        chargen_attrs = {
+            "chargen_complete": True,
+            "faction_intent": "__chargen_any__",
+            "force_sensitive": False,  # neutral; force chains stay locked
+            "jedi_path_unlocked": False,
+        }
+        chains_json = []
+        for chain in corpus.chains:
+            is_locked, reason = is_chain_locked_for_character(
+                chain, chargen_attrs,
+            )
+            chains_json.append({
+                "chain_id": chain.chain_id,
+                "chain_name": chain.chain_name,
+                "description": chain.description,
+                "archetype_label": chain.archetype_label,
+                "faction_alignment": chain.faction_alignment,
+                "duration_minutes": chain.duration_minutes,
+                "locked": bool(is_locked),
+                "locked_reason": reason if is_locked else "",
+                "starting_room": chain.starting_room or "",
+            })
+
+        return web.json_response({
+            "is_first_character": is_first_character,
+            "chains": chains_json,
+        })
+
     # ── POST /api/chargen/create-character ──────────────────────────────
 
     async def handle_create_character(
@@ -523,6 +631,100 @@ class ChargenAPI:
                 status=400,
             )
 
+        # ── Drop 2b (May 19 2026 evening): chain/skip pre-validation ──
+        #
+        # The body may now include `chain_id` (str — selected tutorial
+        # chain) and `skip_tutorial` (bool — alt-character bypass).
+        # Server is the authority here; the SPA's UI hint is
+        # convenience. Rules:
+        #   - skip_tutorial=True is REJECTED when this is the
+        #     account's first character (len(existing_chars)==0).
+        #   - chain_id is validated against the active era's
+        #     chains.yaml. Locked chains (Jedi-Path) are rejected.
+        #   - chain_id and skip_tutorial are mutually exclusive; if
+        #     both are present, skip_tutorial wins ONLY when
+        #     skip_tutorial is True (otherwise chain_id is used).
+        #   - Eras without a chains corpus (GCW) silently ignore both
+        #     fields — no chain, no skip kit, falls back to the
+        #     legacy Landing Pad placement.
+        is_first_character = (len(existing_chars) == 0)
+        chain_id = data.get("chain_id")
+        skip_tutorial = bool(data.get("skip_tutorial", False))
+
+        if skip_tutorial and is_first_character:
+            return web.json_response(
+                {
+                    "success": False,
+                    "errors": {"chain": [
+                        "Skip is not available for your first character. "
+                        "Pick a tutorial chain — every operative needs a "
+                        "starting profession. You can skip on a later "
+                        "character."
+                    ]},
+                },
+                status=400,
+            )
+
+        # Resolve the chain corpus once for the active era.
+        from engine.tutorial_chains import (
+            load_tutorial_chains, is_chain_locked_for_character,
+        )
+        corpus = load_tutorial_chains()
+
+        # If chain_id is given, validate it against the corpus.
+        selected_chain = None
+        if chain_id and not skip_tutorial:
+            if corpus is None or not corpus.ok or not corpus.chains:
+                # No corpus but a chain_id was sent — treat as a
+                # client-side bug. Reject loudly so the SPA can
+                # surface the inconsistency.
+                return web.json_response(
+                    {
+                        "success": False,
+                        "errors": {"chain": [
+                            "This era does not support tutorial "
+                            "chain selection."
+                        ]},
+                    },
+                    status=400,
+                )
+            selected_chain = corpus.by_id().get(chain_id)
+            if selected_chain is None:
+                return web.json_response(
+                    {
+                        "success": False,
+                        "errors": {"chain": [
+                            f"Unknown chain '{chain_id}'."
+                        ]},
+                    },
+                    status=400,
+                )
+            # Re-check lock status with the chargen sentinel — this
+            # mirrors creation_wizard._select_chain_by_id's defense
+            # against direct-id input bypassing the menu filter.
+            _char_body = data.get("character") or {}
+            chargen_attrs = {
+                "chargen_complete": True,
+                "faction_intent": "__chargen_any__",
+                "force_sensitive": bool(
+                    _char_body.get("force_sensitive", False)
+                ),
+                "jedi_path_unlocked": False,
+            }
+            is_locked, reason = is_chain_locked_for_character(
+                selected_chain, chargen_attrs,
+            )
+            if is_locked:
+                return web.json_response(
+                    {
+                        "success": False,
+                        "errors": {"chain": [reason or (
+                            f"Chain '{chain_id}' is not available."
+                        )]},
+                    },
+                    status=400,
+                )
+
         char_data = data.get("character", {})
 
         # Validate character build
@@ -570,24 +772,133 @@ class ChargenAPI:
             if isinstance(cgn, str) and cgn:
                 char_obj.chargen_notes = cgn[:2000]
 
-            # Tutorial Landing Pad placement
-            try:
-                landing_pad_rows = await self.db.fetchall(
-                    "SELECT id FROM rooms WHERE name = 'Landing Pad' "
-                    "AND properties LIKE '%tutorial_zone%' "
-                    "ORDER BY id LIMIT 1"
-                )
-                if landing_pad_rows:
-                    char_obj.room_id = landing_pad_rows[0]["id"]
-            except Exception:
-                log.warning(
-                    "Could not find tutorial Landing Pad", exc_info=True
-                )
+            # ── Drop 2b (May 19 2026 evening): chain-aware placement ──
+            # If a tutorial chain was selected and has a starting_room
+            # slug, resolve the slug to a room_id and place the
+            # character there. Mirrors
+            # server/game_server.py::_run_character_creation
+            # lines ~1078-1124 (Telnet path), so the two paths route
+            # identically.
+            placed_via_chain = False
+            if selected_chain is not None and selected_chain.starting_room:
+                slug = selected_chain.starting_room
+                try:
+                    chain_room_rows = await self.db.fetchall(
+                        "SELECT id FROM rooms WHERE properties LIKE ? "
+                        "ORDER BY id LIMIT 1",
+                        (f'%"slug": "{slug}"%',),
+                    )
+                    if chain_room_rows:
+                        char_obj.room_id = chain_room_rows[0]["id"]
+                        placed_via_chain = True
+                        log.info(
+                            "[Drop 2b] Web chargen routing '%s' to "
+                            "chain starting room %s (id=%d).",
+                            char_obj.name, slug, char_obj.room_id,
+                        )
+                    else:
+                        log.warning(
+                            "[Drop 2b] Chain starting_room slug %r "
+                            "did not resolve; falling back to "
+                            "Landing Pad placement.", slug,
+                        )
+                except Exception:
+                    log.warning(
+                        "[Drop 2b] Chain starting_room lookup failed; "
+                        "falling back to Landing Pad placement.",
+                        exc_info=True,
+                    )
+
+            # Fallback: legacy Landing Pad placement (no chain
+            # selected, or chain slug failed to resolve).
+            if not placed_via_chain:
+                try:
+                    landing_pad_rows = await self.db.fetchall(
+                        "SELECT id FROM rooms WHERE name = 'Landing Pad' "
+                        "AND properties LIKE '%tutorial_zone%' "
+                        "ORDER BY id LIMIT 1"
+                    )
+                    if landing_pad_rows:
+                        char_obj.room_id = landing_pad_rows[0]["id"]
+                except Exception:
+                    log.warning(
+                        "Could not find tutorial Landing Pad",
+                        exc_info=True
+                    )
 
             db_fields = char_obj.to_db_dict()
+
+            # ── Drop 2b (May 19 2026 evening): merge tutorial_chain
+            # block + faction_intent into attributes JSON. Mirrors
+            # server/game_server.py::_run_character_creation
+            # lines ~1129-1165 (Telnet path).
+            if selected_chain is not None:
+                import time as _t
+                try:
+                    attrs_dict = json.loads(
+                        db_fields.get("attributes") or "{}"
+                    )
+                except json.JSONDecodeError:
+                    attrs_dict = {}
+                attrs_dict["tutorial_chain"] = {
+                    "chain_id": selected_chain.chain_id,
+                    "step": 1,
+                    "started_at": _t.time(),
+                    "completed_steps": [],
+                    "completion_state": "active",
+                }
+                if selected_chain.faction_alignment:
+                    attrs_dict["faction_intent"] = (
+                        selected_chain.faction_alignment
+                    )
+                db_fields["attributes"] = json.dumps(attrs_dict)
+
             char_id = await self.db.create_character(
                 account_id=account_id, fields=db_fields
             )
+
+            # ── Drop 2b: skip starter kit application ──
+            # If the alt skipped the tutorial, apply the era's skip
+            # starter kit: credits + inventory items. Resources too,
+            # though CW's kit ships with resources=[].
+            # Reads data/worlds/<era>/skip_starter_kit.yaml via the
+            # era manifest's content_refs.skip_starter_kit.
+            skip_kit_message = ""
+            if skip_tutorial:
+                from engine.tutorial_chains import load_skip_starter_kit
+                kit = load_skip_starter_kit()
+                if kit is not None:
+                    try:
+                        kit_credits = int(kit.get("credits", 0))
+                        if kit_credits > 0:
+                            await self.db.save_character(
+                                char_id, credits=kit_credits,
+                            )
+                        for item in (kit.get("items") or []):
+                            if isinstance(item, dict):
+                                await self.db.add_to_inventory(
+                                    char_id, dict(item),
+                                )
+                        skip_kit_message = kit.get("message", "") or ""
+                        log.info(
+                            "[Drop 2b] Applied skip starter kit to "
+                            "'%s' (id=%d): %d credits, %d items.",
+                            char_obj.name, char_id, kit_credits,
+                            len(kit.get("items") or []),
+                        )
+                    except Exception:
+                        log.warning(
+                            "[Drop 2b] Skip starter kit application "
+                            "failed for char_id=%d; character was "
+                            "created but kit may be incomplete.",
+                            char_id, exc_info=True,
+                        )
+                else:
+                    log.info(
+                        "[Drop 2b] Skip requested but no kit "
+                        "configured for the active era; alt starts "
+                        "with default chargen credits/inventory."
+                    )
 
             log.info(
                 "Web chargen (embedded): character '%s' (id=%d) "
@@ -595,10 +906,13 @@ class ChargenAPI:
                 char_obj.name, char_id, account_id,
             )
 
-            return web.json_response({
+            response_payload = {
                 "success": True,
                 "character_id": char_id,
-            })
+            }
+            if skip_kit_message:
+                response_payload["skip_kit_message"] = skip_kit_message
+            return web.json_response(response_payload)
 
         except Exception as e:
             err_str = str(e)

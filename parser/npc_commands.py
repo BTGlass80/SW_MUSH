@@ -75,6 +75,24 @@ def _get_brain(npc_data: NPCData, ai_manager) -> NPCBrain:
     return _npc_brains[npc_data.id]
 
 
+def _room_desc_for_npc(room: dict | None) -> str:
+    """Pick the richest available room description to ground NPC dialogue.
+
+    The full ``desc_long`` is preferred — that's where authored details
+    like prices, faction control, vendor inventory, and ambient hooks
+    live. Without it, the LLM hallucinates plausible-sounding numbers
+    (e.g. inventing "150 credits/night" for a room whose long desc says
+    "15 credits per night"). Fall back to ``desc_short`` then to the
+    legacy ``description`` column if that's all the room has.
+    """
+    if not room:
+        return ""
+    long_desc = (room.get("desc_long") or "").strip()
+    short_desc = (room.get("desc_short") or "").strip()
+    legacy = (room.get("description") or "").strip()
+    return long_desc or short_desc or legacy
+
+
 async def _handle_skill_trainer(ctx, npc_data, char) -> bool:
     """
     If this NPC is a skill trainer (ai_config has trainer=True + train_skills),
@@ -201,6 +219,17 @@ class TalkCommand(BaseCommand):
             char["room_id"],
             f'  {ansi.player_name(char["name"])} says to {ansi.npc_name(npc_data.name)}, "{message}"',
         )
+        # Mirror the directed say into the IC comms tab so the COMMS pane
+        # shows it alongside ambient chatter. Without this, talk-to-NPC
+        # exchanges only appear in the main pose log, never in IC.
+        try:
+            await ctx.session_mgr.broadcast_chat(
+                "ic", char["name"],
+                f'(to {npc_data.name}) {message}',
+                room_id=char["room_id"], source_char=char,
+            )
+        except Exception:
+            log.warning("broadcast_chat (player→NPC) failed", exc_info=True)
 
         # ── F.7.b: Sister Vitha pre-AI hook ─────────────────────────────
         # The Gate dialogue runtime intercepts talk-to-Vitha for PCs at
@@ -358,24 +387,72 @@ class TalkCommand(BaseCommand):
 
     async def _generate_and_display(self, ctx, char, npc_data, brain,
                                      ai_manager, message, persuasion_context):
-        """Show thinking emote, call AI brain, display NPC response."""
+        """Show thinking emote, call AI brain, display NPC response.
+
+        Hardened against silent failure: any exception in the brain or
+        downstream broadcasting still produces a visible NPC line so the
+        player never sees the "considers..." emote without a follow-up.
+        Also surfaces a one-time-per-session note when the AI provider
+        is unavailable, so canned-fallback responses don't look like
+        the NPC simply being terse.
+        """
         if ai_manager.config.npc_thinking_emote:
             await ctx.session.send_line(
                 f"  {ansi.dim(f'{npc_data.name} considers...')}")
 
-        room = await ctx.db.get_room(char["room_id"])
-        room_desc = room.get("desc_short", "") if room else ""
+        # Detect AI offline up front. If unavailable, the brain will
+        # return its fallback line — but also let the player know once
+        # per session so they understand why responses are terse.
+        ai_offline = False
+        try:
+            ai_offline = not await ai_manager.is_available()
+        except Exception:
+            log.warning("ai_manager.is_available() raised", exc_info=True)
+            ai_offline = True
+        if ai_offline:
+            sess = ctx.session
+            if not getattr(sess, "_ai_offline_notified", False):
+                await sess.send_line(
+                    f"  {ansi.dim('[NPC AI offline — using canned responses.]')}"
+                )
+                try:
+                    sess._ai_offline_notified = True
+                except Exception:
+                    log.debug(
+                        "_ai_offline_notified attr-set raised; "
+                        "session may not allow attr assignment",
+                        exc_info=True,
+                    )
 
-        response = await brain.dialogue(
-            player_input=message,
-            player_name=char["name"],
-            player_char_id=char["id"],
-            room_desc=room_desc,
-            db=ctx.db,
-            persuasion_context=persuasion_context,
-        )
+        room = await ctx.db.get_room(char["room_id"])
+        room_desc = _room_desc_for_npc(room)
+
+        try:
+            response = await brain.dialogue(
+                player_input=message,
+                player_name=char["name"],
+                player_char_id=char["id"],
+                room_desc=room_desc,
+                db=ctx.db,
+                persuasion_context=persuasion_context,
+            )
+        except Exception:
+            log.warning(
+                "brain.dialogue raised for NPC '%s'; using fallback",
+                npc_data.name, exc_info=True,
+            )
+            response = brain._get_fallback()
+
+        # Defensive: brain.dialogue can return empty/None on edge cases.
+        if not response or not response.strip():
+            response = brain._get_fallback()
 
         response = response.strip().strip('"').strip("'").strip('\u201c').strip('\u201d')
+        if not response:
+            # Even the fallback was empty — final safety net so the player
+            # never sees "considers..." with no follow-up line.
+            response = f"{npc_data.name} grunts noncommittally."
+
         # Drop B: NPC dialogue as typed say event so the client gets
         # proper attribution + dedup support and never trips the
         # classifyAndAppend regex into mis-rendering as something else.
@@ -386,9 +463,21 @@ class TalkCommand(BaseCommand):
             text=response,
             npc_id=getattr(npc_data, "id", None),
         )
-        await ctx.session_mgr.broadcast_json_to_room(
-            char["room_id"], "pose_event", ev,
-        )
+        try:
+            await ctx.session_mgr.broadcast_json_to_room(
+                char["room_id"], "pose_event", ev,
+            )
+        except Exception:
+            log.warning("broadcast_json_to_room (NPC say) failed", exc_info=True)
+        # Mirror NPC dialogue into the IC comms tab. Pose events alone
+        # populate the main scene log but never the COMMS pane.
+        try:
+            await ctx.session_mgr.broadcast_chat(
+                "ic", npc_data.name, response,
+                room_id=char["room_id"], source_char=char,
+            )
+        except Exception:
+            log.warning("broadcast_chat (NPC say) failed", exc_info=True)
 
     async def _handle_tutorial_npc(self, ctx, char, npc_row, npc_data, brain, message):
         """Handle tutorial NPC fast-path: scripted greetings + AI response."""
@@ -505,7 +594,7 @@ class TalkCommand(BaseCommand):
                     f"  {ansi.dim(f'{npc_data.name} considers...')}"
                 )
             room = await ctx.db.get_room(char["room_id"])
-            room_desc = room.get("desc_short", "") if room else ""
+            room_desc = _room_desc_for_npc(room)
             response = await brain.dialogue(
                 player_input=message,
                 player_name=char["name"],
@@ -526,6 +615,14 @@ class TalkCommand(BaseCommand):
             await ctx.session_mgr.broadcast_json_to_room(
                 char["room_id"], "pose_event", ev,
             )
+            # Mirror NPC dialogue into IC comms (tutorial fast-path).
+            try:
+                await ctx.session_mgr.broadcast_chat(
+                    "ic", npc_data.name, response,
+                    room_id=char["room_id"], source_char=char,
+                )
+            except Exception:
+                log.warning("broadcast_chat (NPC tutorial say) failed", exc_info=True)
             try:
                 from engine.tutorial_v2 import check_starter_quest
                 await check_starter_quest(
@@ -597,6 +694,16 @@ class TalkCommand(BaseCommand):
             )
         except Exception as _e:
             log.debug("silent except in parser/npc_commands.py village_quest hook: %s", _e, exc_info=True)
+
+        # F.8.c.2.b: CW tutorial chain — talk_to_npc completion
+        try:
+            from engine.chain_events import on_talk_to_npc
+            _adv = await on_talk_to_npc(ctx.db, char, npc_row.get("name", ""))
+            if _adv:
+                from engine.chain_graduation import execute_pending_teleport
+                await execute_pending_teleport(ctx, char)
+        except Exception as _e:
+            log.debug("silent except in parser/npc_commands.py chain_events hook: %s", _e, exc_info=True)
 
 
 

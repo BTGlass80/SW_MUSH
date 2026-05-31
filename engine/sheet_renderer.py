@@ -766,6 +766,12 @@ def build_sheet_payload(char_dict, skill_reg):
         "fp":               int(char.force_points or 0),
         "dsp":              int(char.dark_side_points or 0),
         "force_sensitive":  bool(char.force_sensitive),
+        # +pvp display surface (May 18 2026): expose the opt-in PvP
+        # flag in the sheet payload so the web client can render it
+        # in the status area near force_sensitive. Web-first design;
+        # Telnet sheet text gets the same field via render_game_sheet
+        # in a parallel edit.
+        "pvp_flagged":      bool(char_dict.get("pvp_flagged") or False),
         "credits":          int(char.credits or 0),
     }
 

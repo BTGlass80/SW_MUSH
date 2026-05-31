@@ -31,6 +31,11 @@ zones:
       to somewhere else — they have a war to fight and this dustbowl is not
       it. The Hutts hold the real power here, and they aren't interested in
       either side winning.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: contested
 
   tatooine_spaceport:
     name_match: "spaceport"
@@ -40,6 +45,11 @@ zones:
       Outer Rim freighters and questionable Hutt-flagged vessels. Customs
       inspectors take credits more reliably than contraband. Everyone is
       moving fast and not looking anyone in the eye.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: secured
 
   tatooine_cantina:
     name_match: "cantina"
@@ -49,6 +59,11 @@ zones:
       a drink on leave, a Weequay smuggler arguing about spice prices, an
       Arkanian scholar who wandered in from the desert and looks like he
       regrets it. Nobody asks what side you're on. Nobody cares.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: contested
 
   tatooine_market:
     name_match: "streets"
@@ -58,6 +73,11 @@ zones:
       news filters in from offworld like rumor — nobody trusts it enough
       to act on. The Hutts' pricing adjusts to shortages created by the war,
       which means prices are up and patience is thin.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: contested
 
   tatooine_civic:
     name_match: "civic"
@@ -67,6 +87,11 @@ zones:
       optimistic noises about integrating Tatooine into the war effort,
       and were politely laughed out of the sector. Hutt bureaucracy grinds
       on. Jabba signs what needs to be signed and ignores the rest.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: contested
 
   tatooine_outskirts:
     name_match: "outskirts"
@@ -76,6 +101,11 @@ zones:
       afford to live closer in. Banthas wander. The horizon shimmers.
       War is something that happens offworld — out here the only fight
       is against the heat and the sand.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: lawless
 
   tatooine_jundland:
     name_match: "jundland"
@@ -85,6 +115,11 @@ zones:
       paths. The rock-hewn canyons make sensors unreliable. Out here, the
       war is irrelevant — what matters is water and shelter before the
       twin suns set.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: lawless
 
   tatooine_dune_sea:
     name_match: "dune sea"
@@ -94,6 +129,11 @@ zones:
       sandcrawlers. Something moves in the deep desert that the Jawas refuse
       to approach. The Force is strong here — or at least the old stories say
       so, and the old stories are usually right about things like that.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: lawless
 
   # ── Nar Shaddaa ──────────────────────────────────────────────────────────
   # Nar Shaddaa is the same Smugglers' Moon it has always been.
@@ -110,6 +150,11 @@ zones:
       Hutt customs droids take their percentage without moral objection. On
       Nar Shaddaa, arriving is easy. Leaving with your cargo intact is the
       skill.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: secured
 
   nar_shaddaa_promenade:
     name_match: "promenade"
@@ -120,6 +165,11 @@ zones:
       operatives try to blend in and mostly fail. CIS sympathizers pass
       credits across tables. The Hutts don't care — money is money, and
       the war is printing a lot of it.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: lawless
 
   nar_shaddaa_undercity:
     name_match: "undercity"
@@ -130,6 +180,11 @@ zones:
       natural light in generations. Jury-rigged lighting flickers. Down
       here, Republic and CIS are words for people who have enough food
       to care about ideology.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: lawless
 
   nar_shaddaa_warrens:
     name_match: "warrens"
@@ -139,6 +194,11 @@ zones:
       abandoned by who-knows-which faction litter the corridors. Even the
       Hutt enforcers don't come down here. There are things in the dark
       that predate the war by several centuries.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: lawless
 
   # ── Space zones ──────────────────────────────────────────────────────────
 
@@ -150,6 +210,11 @@ zones:
       flying CIS transponder codes. Smugglers run dark. The twin suns
       create brutal sensor interference close in. A good place to lose
       a tail — if you know which debris fields to hide in.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: contested
 
   space_nar_shaddaa:
     name_match: "nar shaddaa system"
@@ -159,6 +224,11 @@ zones:
       enforce their own interdiction zones — no Republic, no CIS, just
       Hutt profit. The sensor smog from Nar Shaddaa itself makes customs
       enforcement a joke. Everyone is running something.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: contested
 
   space_coruscant:
     name_match: "coruscant system"
@@ -170,6 +240,11 @@ zones:
       between cleared lanes. Senate Guard pickets challenge any flagged
       transponder. CIS infiltrators run quiet, hoping to look unremarkable
       in the shadow of the Republic's flagship class.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: secured
 
   space_kuat:
     name_match: "kuat system"
@@ -181,6 +256,11 @@ zones:
       run a wide perimeter — KDY does not want unauthorized eyes on the
       construction docks. The most concentrated industrial operation in
       the Republic, and one of its most valuable strategic targets.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: secured
 
   space_kamino:
     name_match: "kamino system"
@@ -192,6 +272,11 @@ zones:
       The cloud layers below churn in unending hurricane patterns. Most
       spacers transiting nearby lanes never knew Kamino was here at all,
       and the Republic prefers it that way.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: secured
 
   space_geonosis:
     name_match: "geonosis system"
@@ -203,6 +288,11 @@ zones:
       overwhelming numbers. Wreckage from the first Battle of Geonosis
       still tumbles in slow orbits. The space here is rarely calm and
       never neutral.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: contested
 
   # ── Coruscant (Drop 2) ───────────────────────────────────────────────────
   # Placeholder stubs — full authoring in Drop 2
@@ -215,6 +305,11 @@ zones:
       polished corridors. Emergency powers concentrate authority in the
       Chancellor's office. Everyone knows something is wrong. Nobody
       agrees on what.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: secured
 
   coruscant_temple:
     name_match: "jedi temple"
@@ -225,6 +320,11 @@ zones:
       the wounded, and the troubled. The Force here is deep and old, but
       lately it has felt like static — clouded, the masters say, clouded
       by the dark side.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: secured
 
   coruscant_upper:
     name_match: "upper coruscant"
@@ -234,6 +334,11 @@ zones:
       elsewhere — which, for them, it largely is. War profiteers host
       dinner parties. Senators attend charity galas. The holonet feeds
       reassuring footage of Republic victories.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: secured
 
   coruscant_midlevels:
     name_match: "mid levels"
@@ -243,6 +348,11 @@ zones:
       on leave pass through. War widows sell what they can. Clone
       recruitment holos play on every corner screen. Prices have gone
       up. People are tired.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: secured
 
   coruscant_lower:
     name_match: "lower coruscant"
@@ -251,6 +361,11 @@ zones:
       Refugees from CIS-occupied Outer Rim worlds crowd into warrens
       never meant for permanent habitation. The GAR military police
       patrol the main arteries. The alleys belong to the gangs.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: contested
 
   coruscant_underworld:
     name_match: "coruscant underworld"
@@ -260,6 +375,11 @@ zones:
       inconvenient. CIS agents operate freely here. So do everyone else's
       agents. The architecture is centuries old and the infrastructure is
       failing. The darkness is total and the inhabitants have adapted.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: lawless
 
   coruscant_works:
     name_match: "coruscant works"
@@ -268,6 +388,11 @@ zones:
       mechanical guts of the planet-city. Clone engineers on rotation
       service the grid. Droid workers run their eternal maintenance
       loops. Few people come here on purpose.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: secured
 
   coruscant_gilded_cage:
     name_match: "gilded cage"
@@ -280,6 +405,11 @@ zones:
       old Hutt-mediated charters keep it formally protected. Mosaic
       towers, multi-tongue street markets, and the constant low hum
       of a hundred languages.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: secured
 
   # ── Kuat (Drop 3) ────────────────────────────────────────────────────────
 
@@ -291,6 +421,11 @@ zones:
       the assembly lines in weeks. KDY security is professional and
       humorless. The workers know that what they build today kills
       people tomorrow, and they have learned not to think about it.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: secured
 
   kuat_city_embassy:
     name_match: "kuat city"
@@ -300,6 +435,11 @@ zones:
       houses run the planet with corporate precision. The war is
       good for business, and good business requires stability, and
       stability requires not asking questions about where the ships go.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: secured
 
   kuat_main_spaceport:
     name_match: "kuat transit"
@@ -308,6 +448,11 @@ zones:
       orbital ring. Workers, engineers, and Republic procurement
       officers cycle through constantly. The trams run on time.
       Everything on Kuat runs on time.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: secured
 
   # ── Kamino (Drop 3) ──────────────────────────────────────────────────────
 
@@ -320,6 +465,11 @@ zones:
       The clone troopers march in perfect formation. Visitor protocols are
       strict. There is a quality to the air here — not oppressive, not warm,
       just perfectly controlled — that most visitors find deeply unsettling.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: secured
 
   kamino_cloning_halls:
     name_match: "kamino training"
@@ -330,6 +480,11 @@ zones:
       their large pale eyes and make notes. ARC troopers run separate
       advanced programs in restricted wings. The purpose of this place
       is utterly clear, and that clarity is its own kind of horror.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: secured
 
   kamino_ocean_platform:
     name_match: "kamino ocean"
@@ -337,6 +492,11 @@ zones:
       The ocean platform landing areas. Rain hammers down on the permacrete.
       Republic gunships idle in the hangar bays. The wind off the water is
       cold and loud. Below, something massive and ancient moves in the deep.
+    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
+    # this zone inherit via db.get_room_property zone-walk unless
+    # they declare properties.security or top-level security_level: themselves.
+    properties:
+      security: secured
 
   # ── Geonosis (Drop 4) ────────────────────────────────────────────────────
 
@@ -348,6 +508,11 @@ zones:
       beneath. Geonosian drones rebuild constantly — the same hive-mind that
       built the original Death Star plans continues to serve the Separatist
       cause in silence, underground, out of reach.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: contested
 
   geonosis_foundries:
     name_match: "geonosis foundry"
@@ -358,6 +523,11 @@ zones:
       Republic bombardment craters the surface; the foundries move deeper
       and keep working. The CIS has learned that Geonosis cannot be
       killed from orbit.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: contested
 
   geonosis_surface:
     name_match: "geonosis wastes"
@@ -368,6 +538,11 @@ zones:
       through the waste like ghosts — patient, purposeful, and deeply
       alien. The ruins of their pre-war civilization are already
       being repurposed for the next phase of the conflict.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: contested
 
   geonosis_deep_hive:
     name_match: "geonosis tunnels"
@@ -377,3 +552,8 @@ zones:
       can't map it accurately; CIS droids use it freely. Dark, close,
       and shaped for insectoid bodies. Soldiers on either side find it
       claustrophobic and disorienting.
+    # cities_phase1 (May 22 2026): zone-security declared during the
+    # Player Cities Phase 1 data drop. Bypasses get_zone_security's
+    # contested-fallback for the hard-block eligibility predicate.
+    properties:
+      security: contested

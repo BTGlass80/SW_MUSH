@@ -348,18 +348,19 @@ rooms:
   - id: 413
     slug: geonosis_archduke_approach
     name: "Geonosis - Archduke's Palace Approach"
-    short_desc: "The ceremonial corridor leading to Archduke Poggle the Lesser's audience hall."
+    short_desc: "The ceremonial corridor leading to the Archduke's audience hall."
     description: >
       The approach corridor is the most deliberately intimidating space
       in the Stalgasin Hive. The ceiling rises forty meters; the walls
-      are carved with the lineage history of Poggle's family line going
+      are carved with the lineage history of the ducal family line going
       back three hundred generations. Warrior-caste Geonosians stand at
       attention at five-meter intervals, weapons held at formal rest.
       The floor is smooth black stone, polished by generations of supplicants.
       The Archduke grants audiences at irregular intervals and expects
-      a level of deference that many visitors find challenging. Count
-      Dooku is the only being who has ever spoken to him as an equal
-      and been believed.
+      a level of deference that many visitors find challenging. Only
+      senior CIS leadership has ever spoken to him as an equal and been
+      believed — and those equals are off-world at Confederate command
+      sessions and rarely seen at the hive.
     zone: geonosis_deep_hive
     map_x: 51
     map_y: 7
@@ -372,17 +373,21 @@ rooms:
   - id: 414
     slug: geonosis_archduke_audience_hall
     name: "Geonosis - Archduke's Audience Hall"
-    short_desc: "The audience hall of Archduke Poggle the Lesser, paramount leader of Geonosis and key Separatist Council member."
+    short_desc: "The audience hall of the Archduke — paramount leader of Geonosis and a senior member of the Separatist Council."
     description: >
-      Poggle the Lesser holds court from an elevated throne-platform that
-      keeps his head at the same level as a standing human's — a deliberate
-      architectural choice. The audience hall is walled with CIS military
-      insignia interspersed with Geonosian battle trophies. A holographic
-      display behind the throne shows current droid production figures.
-      Poggle's court translator, a protocol droid with diplomatic subroutines,
-      stands ready. The Archduke speaks only Geonosian and requires
-      translation for all audiences — or claims to. Those who work closely
-      with him suspect he understands Basic perfectly.
+      The throne-platform at the center of the hall is elevated to
+      keep the seated Archduke at the same eye level as a standing
+      human — a deliberate architectural choice. The Archduke is not
+      currently in attendance; he holds court at irregular intervals
+      and the hall stands empty between sessions. The walls are hung
+      with CIS military insignia interspersed with Geonosian battle
+      trophies. A holographic display behind the empty throne shows
+      current droid production figures, updated in real time. A court
+      protocol droid with diplomatic translation subroutines waits at
+      the platform's base, dormant until the next audience is called.
+      The Archduke speaks only Geonosian and requires translation for
+      all audiences — or claims to. Those who work closely with him
+      suspect he understands Basic perfectly.
     zone: geonosis_deep_hive
     map_x: 50
     map_y: 7
@@ -699,7 +704,9 @@ rooms:
       management — every assembly line, every conveyor, every raw material
       feed monitored and adjustable from a central console designed for
       six-fingered hands. The production figures displayed here are the
-      numbers that CIS command reports to Count Dooku. They are impressive.
+      numbers that CIS command reports to the Confederate war council
+      and to its senior leadership, who remain at off-world Council
+      sessions and rarely visit Geonosis in person. They are impressive.
       The numbers that the Geonosian operators actually know — accounting
       for the secondary lines running in the deeper tunnels — are more
       impressive still. Sabotaging this room would not stop production.
@@ -827,9 +834,10 @@ rooms:
       characteristic ball configuration — are staged here for loading
       onto transport ships that dock at the surface platforms above.
       The pace of output has accelerated significantly since the second
-      Republic invasion. Count Dooku had words with the Archduke about
-      the gap between the pre-invasion production rate and what was
-      required. The current rate is the result of that conversation.
+      Republic invasion. CIS senior leadership, off-world at Confederate
+      command sessions, sent a written communique to the Archduke
+      about the gap between the pre-invasion production rate and what
+      was required. The current rate is the result of that exchange.
     zone: geonosis_foundries
     map_x: 49
     map_y: 10

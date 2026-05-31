@@ -61,10 +61,18 @@ DECAY_NO_PRESENCE_HOURS   = 48   # Hours without members before decay starts
 DECAY_RATE_PER_DAY        = 5    # Influence lost per day when decaying
 
 # ── Claim constants (Drop 6B) ───────────────────────────────────────────────
+# DEPRECATED 2026-05-24 — CLAIM_MAX_PER_ZONE and CLAIM_MAX_TOTAL retire in
+# SYN.1 per contestable_wilderness_design_v2.md §6. Region ownership is
+# 1-owner-per-region with no per-org cap — orgs CAN hold every wilderness
+# region simultaneously if they can defend them. (NOTE: the design doc
+# +TODO.json listed these as MAX_CLAIMS_PER_ZONE / MAX_CLAIMS_PER_ORG;
+# the actual symbol names are CLAIM_MAX_PER_ZONE / CLAIM_MAX_TOTAL —
+# SYN.0 pre-flight correction.)
 CLAIM_COST            = 5000   # Credits from org treasury per room claim
 CLAIM_WEEKLY_MAINT    = 200    # Credits per week per claimed room
-CLAIM_MAX_PER_ZONE    = 3      # Max claimed rooms per org per zone
-CLAIM_MAX_TOTAL       = 10     # Max total claimed rooms per org
+# CLAIM_MAX_PER_ZONE and CLAIM_MAX_TOTAL retired in SYN.1.b
+# (2026-05-24). Per design §1.2 region ownership has no per-org
+# cap. Keeping breadcrumb so future greps find this.
 CLAIM_MIN_RANK        = 3      # Minimum org rank to claim/unclaim
 
 # ── Guard constants (Drop 6C) ────────────────────────────────────────────────
@@ -299,20 +307,71 @@ async def ensure_territory_schema(db) -> None:
         await db.commit()
     except Exception as e:
         log.warning("[territory] schema create error: %s", e)
-    # Drop 6D: contests table
-    await ensure_contest_schema(db)
+    # SYN.1.a (May 24 2026): region ownership tables (Contestable
+    # Wilderness pivot). Per contestable_wilderness_design_v2.md §3.1.
+    await ensure_region_ownership_schema(db)
+    # SYN.3 (2026-05-25): region-keyed contest tables
+    # (region_contests + region_contest_cooldowns) per
+    # contestable_wilderness_design_v2.md §2.4 + §3.3. The legacy
+    # Drop 6D ``ensure_contest_schema(db)`` call was deleted in the
+    # same drop — Drop 6D block physically retired.
+    try:
+        from engine.contest import ensure_region_contest_schema
+        await ensure_region_contest_schema(db)
+    except Exception as e:
+        log.warning("[territory] SYN.3 contest schema wire-up failed: %s", e)
+    # SYN.1.b (May 24 2026): one-shot cold-start wipe of
+    # territory_claims per design §1.4. Idempotent via the
+    # syn_migration_state row.
+    await _syn1b_wipe_territory_claims_once(db)
 
 
 # ── Core influence adjustment ────────────────────────────────────────────────
 
 async def adjust_territory_influence(db, org_code: str, zone_id: int,
-                                      delta: int, reason: str = "") -> int:
+                                      delta: int, reason: str = "",
+                                      *,
+                                      region_slug: Optional[str] = None) -> int:
     """
     Adjust territory influence for an org in a zone.
     All influence changes MUST go through this function.
     Returns the new influence score.
+
+    SYN.3 (2026-05-25): optional ``region_slug`` kwarg. When passed
+    and an active region contest exists for that region with this
+    org as a contestant, applies the contest influence multipliers
+    (2× doubling for both sides + 1.5× outnumbered-defender bonus
+    on top, defender-side only) via
+    ``engine.contest.apply_contest_influence_multipliers``. Callers
+    that don't pass ``region_slug`` are unaffected (backward
+    compatible). Domain hooks (missions, bounties, harvests) wire
+    the region context when they land in SYN.5 / SYN.6.
+
+    Also: positive deltas trigger the region-contest auto-trigger
+    check via ``engine.contest.check_and_declare_region_contests``
+    when ``region_slug`` is provided. (The legacy zone-keyed
+    auto-trigger ``check_and_declare_contests`` was removed in SYN.3
+    along with the rest of the Drop 6D contest block.)
     """
     now = time.time()
+
+    # SYN.3: apply contest multipliers to positive deltas when the
+    # caller knows the region context.
+    if region_slug and delta > 0:
+        try:
+            from engine.contest import apply_contest_influence_multipliers
+            multiplied = await apply_contest_influence_multipliers(
+                db, org_code, region_slug, delta)
+            if multiplied != delta:
+                log.info(
+                    "[territory] contest multiplier: %s in %s "
+                    "%d -> %d (reason=%s)",
+                    org_code, region_slug, delta, multiplied, reason)
+            delta = multiplied
+        except Exception:
+            log.warning(
+                "[territory] contest multiplier failed (passthrough)",
+                exc_info=True)
 
     rows = await db.fetchall(
         "SELECT score FROM territory_influence WHERE zone_id = ? AND org_code = ?",
@@ -336,14 +395,17 @@ async def adjust_territory_influence(db, org_code: str, zone_id: int,
                  org_code, zone_id, current, new_score,
                  "+" if delta > 0 else "", delta, reason)
 
-    # After a positive influence change, check if a new contest should be declared.
-    # Pass session_mgr=None here — callers that have it should call
-    # check_and_declare_contests() directly after this if they need notifications.
-    if delta > 0:
+    # SYN.3: region-contest auto-trigger on positive deltas, when the
+    # caller supplied a region slug. The legacy zone-keyed
+    # check_and_declare_contests was removed in SYN.3 along with the
+    # rest of Drop 6D contests.
+    if delta > 0 and region_slug:
         try:
-            await check_and_declare_contests(db, org_code, zone_id)
+            from engine.contest import check_and_declare_region_contests
+            await check_and_declare_region_contests(
+                db, org_code, region_slug)
         except Exception as _e:
-            log.warning("[territory] contest check error in adjust: %s", _e)
+            log.warning("[territory] region contest check error: %s", _e)
 
     return new_score
 
@@ -408,48 +470,123 @@ async def get_zone_security(db, zone_id: int) -> str:
 
 
 # ── Influence earning hooks ──────────────────────────────────────────────────
+#
+# SYN.5 (2026-05-25): two-tier reward rule per design v2 §2.7.
+#   * City-map activity (room has no wilderness_region_id):
+#         rep + credits + CP only. NO influence delta.
+#   * Wilderness activity (room has wilderness_region_id set):
+#         rep + credits + CP + influence delta. The delta is routed
+#         through ``adjust_territory_influence(..., region_slug=...)``
+#         so SYN.3's contest multipliers (2× during active contest;
+#         1.5× outnumbered-defender on top, defender-side only) apply
+#         automatically.
+#
+# All three hooks share the same shape: resolve the room's
+# wilderness_region_id; if it's NULL the hook becomes a no-op for
+# influence purposes (the rep/credit/CP award lives in the caller,
+# not here). If it's set, look up the parent zone for the influence
+# row and pass region_slug down so contest multipliers fire.
+#
+# The rep/credits/CP awards live in their respective subsystems
+# (engine.missions, engine.bounty_board, engine.organizations.adjust_rep,
+# etc.) and are unaffected by this gate — those keep firing on every
+# completion regardless of room location.
+
+async def _resolve_room_region(db, room_id: int) -> tuple[Optional[str], Optional[int]]:
+    """Return (wilderness_region_id, zone_id) for a room.
+
+    Either tuple element may be None: ``wilderness_region_id`` is NULL
+    for city-map rooms; ``zone_id`` is NULL for orphan rooms (no zone
+    declared). Both NULLs are valid runtime states.
+    """
+    try:
+        room = await db.get_room(room_id)
+    except Exception:
+        room = None
+    if not room:
+        return (None, None)
+    return (room.get("wilderness_region_id"), room.get("zone_id"))
+
 
 async def on_npc_kill(db, char: dict, room_id: int) -> None:
-    """Called when a player kills an NPC. Grants influence to their org."""
+    """Called when a player kills an NPC.
+
+    SYN.5: grants influence ONLY in wilderness rooms (rooms with a
+    ``wilderness_region_id``). City-map kills are zero-influence per
+    design §2.7. The 2-influence NPC-kill delta applies via the
+    region-keyed code path so SYN.3 contest multipliers fire.
+    """
     org_code = char.get("faction_id", "independent")
     if not org_code or org_code == "independent":
         return
-    zone_id = await get_room_zone_id(db, room_id)
+    region_slug, zone_id = await _resolve_room_region(db, room_id)
+    if region_slug is None:
+        # City-map NPC kill: no influence delta. The killer's rep +
+        # combat XP awards live in the caller and still fire.
+        return
     if zone_id is None:
+        # Region has no resolvable parent zone — defensive skip.
         return
     await adjust_territory_influence(
         db, org_code, zone_id, INFLUENCE_NPC_KILL,
-        reason=f"NPC kill by {char.get('name', '?')}")
+        reason=f"NPC kill by {char.get('name', '?')} in {region_slug}",
+        region_slug=region_slug)
 
 
 async def on_mission_complete(db, char: dict, room_id: int) -> None:
-    """Called on mission/bounty/smuggling completion. Grants influence."""
+    """Called on mission/bounty/smuggling completion.
+
+    SYN.5: grants influence ONLY in wilderness rooms per design §2.7.
+    The MISSION constant (5) covers all three completion types —
+    missions, bounties, and smuggling — per the design table's
+    matching values.
+    """
     org_code = char.get("faction_id", "independent")
     if not org_code or org_code == "independent":
         return
-    zone_id = await get_room_zone_id(db, room_id)
+    region_slug, zone_id = await _resolve_room_region(db, room_id)
+    if region_slug is None:
+        return
     if zone_id is None:
         return
     await adjust_territory_influence(
         db, org_code, zone_id, INFLUENCE_MISSION,
-        reason=f"mission complete by {char.get('name', '?')}")
+        reason=f"mission complete by {char.get('name', '?')} in {region_slug}",
+        region_slug=region_slug)
 
 
 async def on_pvp_kill(db, winner: dict, loser: dict, room_id: int) -> None:
-    """Called on PvP kill. Winner's org gains influence, loser's loses."""
+    """Called on PvP kill.
+
+    SYN.5: winner's org gains influence, loser's loses — both ONLY in
+    wilderness rooms per design §2.7. The 15-influence PvP-win delta
+    matches the design table; the -5 loser penalty stays as a
+    flat number (penalties don't get contest-multiplied in
+    apply_contest_influence_multipliers — negatives short-circuit).
+
+    Per design §2.7 row "PvP kill": city-map PvP requires consent
+    (which is enforced upstream in combat_commands.py's PvP gate)
+    and yields zero influence either way. Wilderness PvP yields
+    +15 to the winner, -5 to the loser.
+    """
     winner_org = winner.get("faction_id", "independent")
     loser_org = loser.get("faction_id", "independent")
-    zone_id = await get_room_zone_id(db, room_id)
+    region_slug, zone_id = await _resolve_room_region(db, room_id)
+    if region_slug is None:
+        # City-map PvP: consent-gated, no influence delta either way.
+        return
     if zone_id is None:
         return
     if winner_org and winner_org != "independent":
         await adjust_territory_influence(
             db, winner_org, zone_id, INFLUENCE_PVP_WIN,
-            reason=f"PvP victory by {winner.get('name', '?')}")
+            reason=f"PvP victory by {winner.get('name', '?')} in {region_slug}",
+            region_slug=region_slug)
     if loser_org and loser_org != "independent":
         await adjust_territory_influence(
             db, loser_org, zone_id, -5,
-            reason=f"PvP defeat of {loser.get('name', '?')}")
+            reason=f"PvP defeat of {loser.get('name', '?')} in {region_slug}",
+            region_slug=region_slug)
 
 
 async def invest_influence(db, char: dict, org_code: str,
@@ -729,136 +866,30 @@ async def get_org_claims_in_zone(db, org_code: str, zone_id: int) -> list[dict]:
 
 
 async def claim_room(db, char: dict, org_code: str, room_id: int) -> dict:
+    """RETIRED in SYN.1.b (2026-05-24) per
+    ``contestable_wilderness_design_v2.md`` §6. Per-room claim
+    semantics retired in favor of region ownership; use
+    ``claim_region(db, char, org_code, wilderness_region_slug)``.
+
+    Returns a constant rejection. The function remains callable so
+    legacy import sites compile without modification, but no claim
+    ever lands.
     """
-    Claim a room for an organization.
-    Returns {"ok": bool, "msg": str}.
-    """
-    org = await db.get_organization(org_code)
-    if not org:
-        return {"ok": False, "msg": f"Unknown organization: {org_code}"}
-    mem = await db.get_membership(char["id"], org["id"])
-    if not mem or mem.get("rank_level", 0) < CLAIM_MIN_RANK:
-        return {"ok": False,
-                "msg": f"You need rank {CLAIM_MIN_RANK}+ to claim territory."}
-
-    room = await db.get_room(room_id)
-    if not room:
-        return {"ok": False, "msg": "Room not found."}
-    zone_id = room.get("zone_id")
-    if not zone_id:
-        return {"ok": False, "msg": "This room is not in a zone."}
-
-    if char.get("room_id") != room_id:
-        return {"ok": False, "msg": "You must be standing in the room you want to claim."}
-
-    sec = await get_zone_security(db, zone_id)
-    if sec == "secured":
-        return {"ok": False,
-                "msg": "Imperial-controlled territory cannot be claimed by private organizations."}
-
-    influence = await get_territory_influence(db, org_code, zone_id)
-    if influence < THRESHOLD_FOOTHOLD:
-        return {"ok": False,
-                "msg": f"Insufficient influence ({influence}/{THRESHOLD_FOOTHOLD}). "
-                       f"Build presence with combat, missions, and investment first."}
-
-    existing = await get_claim(db, room_id)
-    if existing:
-        if existing["org_code"] == org_code:
-            return {"ok": False, "msg": "Your organization already claims this room."}
-        return {"ok": False,
-                "msg": f"This room is claimed by {existing['org_code'].title()}. "
-                       f"Contest their claim through sustained influence (Drop 6D)."}
-
-    zone_claims = await get_org_claims_in_zone(db, org_code, zone_id)
-    if len(zone_claims) >= CLAIM_MAX_PER_ZONE:
-        return {"ok": False,
-                "msg": f"Maximum {CLAIM_MAX_PER_ZONE} claims per zone reached."}
-
-    all_claims = await get_org_claims(db, org_code)
-    if len(all_claims) >= CLAIM_MAX_TOTAL:
-        return {"ok": False,
-                "msg": f"Maximum {CLAIM_MAX_TOTAL} total claims reached."}
-
-    try:
-        from engine.housing import get_housing_for_room
-        h = await get_housing_for_room(db, room_id)
-        if h:
-            return {"ok": False, "msg": "Player-owned housing cannot be claimed as territory."}
-    except Exception:
-        log.warning("claim_room: unhandled exception", exc_info=True)
-        pass
-
-    if org.get("treasury", 0) < CLAIM_COST:
-        return {"ok": False,
-                "msg": f"Insufficient treasury. Need {CLAIM_COST:,}cr, "
-                       f"have {org.get('treasury', 0):,}cr."}
-
-    new_balance = await db.adjust_org_treasury(org["id"], -CLAIM_COST)
-
-    now = time.time()
-    await db.execute(
-        """INSERT INTO territory_claims
-           (org_code, room_id, zone_id, claimed_by, claimed_at, maintenance)
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        (org_code, room_id, zone_id, char["id"], now, CLAIM_WEEKLY_MAINT),
-    )
-    await db.commit()
-
-    await adjust_territory_influence(
-        db, org_code, zone_id, 20,
-        reason=f"room claim by {char.get('name', '?')}")
-
-    zone_name = await get_zone_name(db, zone_id)
-    room_name = room.get("name", f"Room #{room_id}")
-    log.info("[territory] %s claimed room %d (%s) in zone %d (%s) by char %d",
-             org_code, room_id, room_name, zone_id, zone_name, char["id"])
-
     return {
-        "ok": True,
-        "msg": (f"Territory claimed: {room_name} in {zone_name}. "
-                f"Cost: {CLAIM_COST:,}cr. "
-                f"Maintenance: {CLAIM_WEEKLY_MAINT:,}cr/week. "
-                f"Treasury: {new_balance:,}cr."),
+        "ok": False,
+        "msg": ("Per-room territory claims have been retired. Use "
+                "'faction claim' on a wilderness region instead — "
+                "see help faction territory for details."),
     }
 
 
 async def unclaim_room(db, char: dict, org_code: str, room_id: int) -> dict:
-    """
-    Release a territory claim.
-    Returns {"ok": bool, "msg": str}.
-    """
-    claim = await get_claim(db, room_id)
-    if not claim or claim["org_code"] != org_code:
-        return {"ok": False, "msg": "Your organization doesn't claim this room."}
-
-    org = await db.get_organization(org_code)
-    if org:
-        mem = await db.get_membership(char["id"], org["id"])
-        if not mem or mem.get("rank_level", 0) < CLAIM_MIN_RANK:
-            return {"ok": False,
-                    "msg": f"You need rank {CLAIM_MIN_RANK}+ to release territory."}
-
-    # Remove guard NPC if present
-    if claim.get("guard_npc_id"):
-        try:
-            await db.execute(
-                "DELETE FROM npcs WHERE id = ?", (claim["guard_npc_id"],)
-            )
-        except Exception:
-            log.warning("unclaim_room: unhandled exception", exc_info=True)
-            pass
-
-    await db.execute(
-        "DELETE FROM territory_claims WHERE room_id = ?", (room_id,)
-    )
-    await db.commit()
-
-    room = await db.get_room(room_id)
-    room_name = room.get("name", f"Room #{room_id}") if room else f"Room #{room_id}"
-    log.info("[territory] %s unclaimed room %d (%s)", org_code, room_id, room_name)
-
-    return {"ok": True, "msg": f"Territory released: {room_name}."}
+    """RETIRED in SYN.1.b (2026-05-24). Use ``unclaim_region``."""
+    return {
+        "ok": False,
+        "msg": ("Per-room territory claims have been retired. Use "
+                "'faction unclaim' on the region instead."),
+    }
 
 
 async def get_claim_display_tag(db, room_id: int) -> Optional[str]:
@@ -890,101 +921,57 @@ async def get_claim_display_tag(db, room_id: int) -> Optional[str]:
 
 
 async def is_room_claimed_by(db, room_id: int, org_code: str) -> bool:
-    """Check if a room is claimed by a specific org."""
-    claim = await get_claim(db, room_id)
-    return claim is not None and claim["org_code"] == org_code
+    """RETIRED in SYN.1.b (2026-05-24). Per-room claims no longer
+    exist; this stub always returns False so any remaining consumers
+    behave as if the room is un-claimed (the truth, post-wipe).
+    Region-scope callers should use ``is_region_owned_by`` instead.
+    """
+    return False
 
 
 # ── Claim maintenance tick ───────────────────────────────────────────────────
 
 async def tick_claim_maintenance(db, session_mgr) -> None:
+    """RETIRED in SYN.1.b (2026-05-24). Use ``tick_region_maintenance``.
+
+    No-op stub. The scheduler in server/tick_handlers_economy.py was
+    retargeted to call ``tick_region_maintenance`` instead. If any
+    other caller imports this by name, the call is a safe no-op.
     """
-    Weekly tick: deduct maintenance from org treasuries for claimed rooms.
-    If treasury is empty, the claim decays (influence penalty).
-    Guard upkeep is included in room maintenance cost if guard is stationed.
-    """
-    try:
-        rows = await db.fetchall(
-            "SELECT * FROM territory_claims"
-        )
-        for r in rows:
-            claim = dict(r)
-            org = await db.get_organization(claim["org_code"])
-            if not org:
-                continue
-
-            # Base maintenance + guard upkeep if guard is stationed
-            maint = claim.get("maintenance", CLAIM_WEEKLY_MAINT)
-            if claim.get("guard_npc_id"):
-                maint += GUARD_WEEKLY_UPKEEP
-
-            if org.get("treasury", 0) >= maint:
-                await db.adjust_org_treasury(org["id"], -maint)
-                log.info("[territory] maintenance collected: %s paid %dcr for room %d",
-                         claim["org_code"], maint, claim["room_id"])
-            else:
-                await adjust_territory_influence(
-                    db, claim["org_code"], claim["zone_id"], -10,
-                    reason="unpaid claim maintenance")
-                log.warning("[territory] %s can't pay maintenance for room %d",
-                            claim["org_code"], claim["room_id"])
-
-                # If influence drops below foothold, auto-release
-                inf = await get_territory_influence(
-                    db, claim["org_code"], claim["zone_id"])
-                if inf < THRESHOLD_FOOTHOLD:
-                    # Remove guard if present
-                    if claim.get("guard_npc_id"):
-                        try:
-                            await db.execute(
-                                "DELETE FROM npcs WHERE id = ?",
-                                (claim["guard_npc_id"],),
-                            )
-                        except Exception:
-                            log.warning("tick_claim_maintenance: unhandled exception", exc_info=True)
-                            pass
-                    await db.execute(
-                        "DELETE FROM territory_claims WHERE id = ?",
-                        (claim["id"],),
-                    )
-                    await db.commit()
-                    log.info("[territory] auto-released claim on room %d (influence too low)",
-                             claim["room_id"])
-
-    except Exception as e:
-        log.warning("[territory] claim maintenance tick error: %s", e)
+    return None
 
 
 async def get_claims_status_lines(db, org_code: str) -> list[str]:
-    """Return formatted list of all claimed rooms for an org."""
-    claims = await get_org_claims(db, org_code)
-    if not claims:
+    """Return formatted list of owned regions for an org.
+
+    SYN.1.b (2026-05-24): retargeted from per-room claim display to
+    region ownership display. Function name preserved for caller
+    compatibility (parser/faction_commands.py imports this by name);
+    body iterates ``region_ownership`` instead of ``territory_claims``.
+    """
+    regions = await get_org_regions(db, org_code)
+    if not regions:
         return [
-            "  No territory claimed.",
-            f"  Build influence to {THRESHOLD_FOOTHOLD}+ in a zone, then "
-            f"use \033[1;37mfaction claim\033[0m while standing in the room.",
+            "  No territory owned.",
+            f"  Build influence to {THRESHOLD_FOOTHOLD}+ in a wilderness "
+            f"region, then use \033[1;37mfaction claim\033[0m to claim it.",
         ]
-
-    lines = ["\033[1;37m── Claimed Territory ──\033[0m"]
-    for c in claims:
-        room = await db.get_room(c["room_id"])
-        room_name = room.get("name", f"Room #{c['room_id']}") if room else f"#{c['room_id']}"
-        zone_name = await get_zone_name(db, c["zone_id"])
-        guard_str = "\033[1;32mGuard: Yes\033[0m" if c.get("guard_npc_id") else "\033[2mGuard: No\033[0m"
-        maint = c.get("maintenance", CLAIM_WEEKLY_MAINT)
-        if c.get("guard_npc_id"):
-            maint += GUARD_WEEKLY_UPKEEP
-        lines.append(
-            f"  {room_name:<30} {zone_name:<20} {maint}cr/wk  {guard_str}"
-        )
-    lines.append(f"  ({len(claims)}/{CLAIM_MAX_TOTAL} total claims)")
-
-    # Append active contest info if any
-    contest_lines = await get_contest_status_lines(db, org_code)
+    lines = ["\033[1;37m── Owned Regions ──\033[0m"]
+    for r in regions:
+        slug = r.get("region_slug", "?")
+        upkeep = int(r.get("maintenance") or
+                     (REGION_WEEKLY_MAINT + REGION_GARRISON_WEEKLY))
+        lines.append(f"  {slug:<30}  {upkeep}cr/wk")
+    lines.append(f"  ({len(regions)} region{'s' if len(regions) != 1 else ''} owned)")
+    # Append active region-contest info (SYN.3: region-keyed).
+    try:
+        from engine.contest import get_region_contest_status_lines
+        contest_lines = await get_region_contest_status_lines(db, org_code)
+    except Exception:
+        contest_lines = []
     if contest_lines:
         lines.append("")
         lines.extend(contest_lines)
-
     return lines
 
 
@@ -1052,127 +1039,29 @@ def _build_guard_ai(tmpl: dict, org_code: str) -> dict:
 
 async def spawn_guard_npc(db, org_code: str, room_id: int,
                            char_id: int) -> dict:
+    """RETIRED in SYN.1.b (2026-05-24). Region garrison spawning is
+    automatic on ``claim_region`` — there is no per-room guard
+    stationing under the region model.
     """
-    Spawn a guard NPC in a claimed room.
-    All guard NPC creation MUST go through this function.
-    Returns {"ok": bool, "msg": str, "npc_id": int|None}.
-    """
-    # Validate claim exists and belongs to org
-    claim = await get_claim(db, room_id)
-    if not claim:
-        return {"ok": False, "msg": "Your organization doesn't claim this room.", "npc_id": None}
-    if claim["org_code"] != org_code:
-        return {"ok": False, "msg": "Your organization doesn't claim this room.", "npc_id": None}
-
-    # Check rank
-    org = await db.get_organization(org_code)
-    if not org:
-        return {"ok": False, "msg": f"Unknown organization: {org_code}", "npc_id": None}
-    mem = await db.get_membership(char_id, org["id"])
-    if not mem or mem.get("rank_level", 0) < GUARD_MIN_RANK:
-        return {"ok": False,
-                "msg": f"You need rank {GUARD_MIN_RANK}+ to station a guard.",
-                "npc_id": None}
-
-    # Already has a guard
-    if claim.get("guard_npc_id"):
-        existing_npc = await db.get_npc(claim["guard_npc_id"])
-        if existing_npc:
-            return {"ok": False,
-                    "msg": "A guard is already stationed here. Use 'faction guard remove' first.",
-                    "npc_id": claim["guard_npc_id"]}
-        # Stale reference — clear it
-        await db.execute(
-            "UPDATE territory_claims SET guard_npc_id = NULL WHERE room_id = ?",
-            (room_id,),
-        )
-        await db.commit()
-
-    # Check treasury for one-time cost
-    if org.get("treasury", 0) < GUARD_COST:
-        return {"ok": False,
-                "msg": f"Insufficient treasury. Stationing a guard costs {GUARD_COST:,}cr. "
-                       f"Current balance: {org.get('treasury', 0):,}cr.",
-                "npc_id": None}
-    new_balance = await db.adjust_org_treasury(org["id"], -GUARD_COST)
-
-    # Get template for org
-    tmpl = _GUARD_TEMPLATES.get(org_code, _GUARD_TEMPLATES["_default"])
-
-    # Build NPC
-    room = await db.get_room(room_id)
-    room_name = room.get("name", f"Room #{room_id}") if room else f"Room #{room_id}"
-    guard_name = tmpl["name_prefix"]
-
-    char_sheet = _build_guard_sheet(tmpl)
-    ai_config = _build_guard_ai(tmpl, org_code)
-
-    npc_id = await db.create_npc(
-        name=guard_name,
-        room_id=room_id,
-        species=tmpl["species"],
-        description=tmpl["description"],
-        char_sheet_json=json.dumps(char_sheet),
-        ai_config_json=json.dumps(ai_config),
-    )
-
-    # Link guard to claim
-    await db.execute(
-        "UPDATE territory_claims SET guard_npc_id = ? WHERE room_id = ?",
-        (npc_id, room_id),
-    )
-    await db.commit()
-
-    log.info("[territory] %s stationed guard NPC %d in room %d (%s). Cost: %dcr",
-             org_code, npc_id, room_id, room_name, GUARD_COST)
-
     return {
-        "ok": True,
-        "msg": (f"Guard stationed in {room_name}. "
-                f"Cost: {GUARD_COST:,}cr. Weekly upkeep: +{GUARD_WEEKLY_UPKEEP}cr/wk. "
-                f"Treasury: {new_balance:,}cr."),
-        "npc_id": npc_id,
+        "ok": False,
+        "msg": ("Per-room guard stationing has been retired. Region "
+                "garrisons are deployed automatically when you claim "
+                "a wilderness region."),
+        "npc_id": None,
     }
 
 
 async def remove_guard_npc(db, org_code: str, room_id: int,
-                            char_id: int) -> dict:
+                            char_id: int = 0, **kwargs) -> dict:
+    """RETIRED in SYN.1.b (2026-05-24). No-op stub (per-room guards
+    no longer exist). Accepts ``**kwargs`` because at least one HQ-
+    cleanup caller in engine/housing.py used ``force=True``; that
+    kwarg never matched the old signature either, so the call was
+    silently failing — preserving the kwarg-tolerance keeps the
+    behavior identical.
     """
-    Remove a guard NPC from a claimed room.
-    Returns {"ok": bool, "msg": str}.
-    """
-    claim = await get_claim(db, room_id)
-    if not claim or claim["org_code"] != org_code:
-        return {"ok": False, "msg": "Your organization doesn't claim this room."}
-
-    org = await db.get_organization(org_code)
-    if org:
-        mem = await db.get_membership(char_id, org["id"])
-        if not mem or mem.get("rank_level", 0) < GUARD_MIN_RANK:
-            return {"ok": False,
-                    "msg": f"You need rank {GUARD_MIN_RANK}+ to manage guards."}
-
-    if not claim.get("guard_npc_id"):
-        return {"ok": False, "msg": "No guard is stationed here."}
-
-    npc_id = claim["guard_npc_id"]
-    try:
-        await db.execute("DELETE FROM npcs WHERE id = ?", (npc_id,))
-    except Exception as e:
-        log.warning("[territory] error deleting guard NPC %d: %s", npc_id, e)
-
-    await db.execute(
-        "UPDATE territory_claims SET guard_npc_id = NULL WHERE room_id = ?",
-        (room_id,),
-    )
-    await db.commit()
-
-    room = await db.get_room(room_id)
-    room_name = room.get("name", f"Room #{room_id}") if room else f"Room #{room_id}"
-    log.info("[territory] %s removed guard NPC %d from room %d (%s)",
-             org_code, npc_id, room_id, room_name)
-
-    return {"ok": True, "msg": f"Guard dismissed from {room_name}."}
+    return {"ok": True, "msg": ""}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1191,86 +1080,11 @@ def _get_influence_tier(score: int) -> str:
 
 
 async def tick_resource_nodes(db, session_mgr) -> None:
+    """RETIRED in SYN.1.b (2026-05-24). Use ``tick_region_passive_yield``.
+
+    No-op stub. Active harvest ships in SYN.6.
     """
-    Daily tick: generate passive resources/credits for each claimed room.
-    Yield depends on zone security level and org influence tier.
-    Credits go directly to org treasury.
-    Crafting resources go into org shared storage (properties["org_storage"]).
-    """
-    try:
-        claims = await db.fetchall(
-            "SELECT * FROM territory_claims"
-        )
-        if not claims:
-            return
-
-        for r in claims:
-            claim = dict(r)
-            org_code = claim["org_code"]
-            zone_id = claim["zone_id"]
-            room_id = claim["room_id"]
-
-            org = await db.get_organization(org_code)
-            if not org:
-                continue
-
-            sec = await get_zone_security(db, zone_id)
-            if sec == "secured":
-                continue  # No yield from secured zones
-
-            influence = await get_territory_influence(db, org_code, zone_id)
-            tier = _get_influence_tier(influence)
-            if tier == "none":
-                continue
-
-            yield_key = (sec, tier)
-            yield_table = _RESOURCE_YIELDS.get(yield_key)
-            if not yield_table:
-                continue
-
-            # Pick one yield entry at random from the table for this tick
-            entry = random.choice(yield_table)
-            resource_type, min_qty, max_qty, _bonus = entry
-            qty = random.randint(min_qty, max_qty)
-
-            room = await db.get_room(room_id)
-            room_name = room.get("name", f"Room #{room_id}") if room else f"Room #{room_id}"
-
-            if resource_type == "credits":
-                await db.adjust_org_treasury(org["id"], qty)
-                log.info("[territory] resource node: %s room %d yielded %dcr",
-                         org_code, room_id, qty)
-                # Notify any online members of this org
-                await _notify_org_members(
-                    session_mgr,
-                    org_code,
-                    f"  \033[2m[Territory] Resource node in {room_name} generated {qty:,}cr "
-                    f"for the treasury.\033[0m",
-                )
-            else:
-                # Crafting resource → org storage
-                result = await adjust_org_storage(
-                    db, org_code,
-                    resource_type=resource_type,
-                    quantity=qty,
-                    quality=_random_resource_quality(sec, influence),
-                )
-                if result["ok"]:
-                    log.info("[territory] resource node: %s room %d yielded %d %s (q%d)",
-                             org_code, room_id, qty, resource_type, result.get("quality", 0))
-                    await _notify_org_members(
-                        session_mgr,
-                        org_code,
-                        f"  \033[2m[Territory] Resource node in {room_name} added "
-                        f"{qty}x {resource_type} (quality {result.get('quality', 0)}) "
-                        f"to the faction armory.\033[0m",
-                    )
-                else:
-                    log.warning("[territory] resource node drop failed for %s room %d: %s",
-                                org_code, room_id, result.get("msg", "unknown"))
-
-    except Exception as e:
-        log.warning("[territory] resource node tick error: %s", e)
+    return None
 
 
 def _random_resource_quality(sec: str, influence: int) -> int:
@@ -1428,9 +1242,16 @@ async def armory_deposit_item(db, char: dict, org_code: str,
     room_id = char.get("room_id")
     if not room_id:
         return {"ok": False, "msg": "You're not in a room."}
-    if not await is_room_claimed_by(db, room_id, org_code):
+    # SYN.1.b (2026-05-24): retargeted from per-room
+    # is_room_claimed_by to region-scope is_region_owned_by. Armory
+    # access now requires standing in a room within a wilderness
+    # region owned by the org.
+    _room = await db.get_room(room_id)
+    _region_slug = (_room or {}).get("wilderness_region_id")
+    if not _region_slug or not await is_region_owned_by(db, _region_slug, org_code):
         return {"ok": False,
-                "msg": "You must be in one of your organization's claimed rooms to access the armory."}
+                "msg": ("You must be in one of your organization's owned "
+                        "wilderness regions to access the armory.")}
 
     # Find item in character inventory
     inv_raw = char.get("inventory", "{}")
@@ -1476,9 +1297,16 @@ async def armory_withdraw_item(db, char: dict, org_code: str,
     room_id = char.get("room_id")
     if not room_id:
         return {"ok": False, "msg": "You're not in a room."}
-    if not await is_room_claimed_by(db, room_id, org_code):
+    # SYN.1.b (2026-05-24): retargeted from per-room
+    # is_room_claimed_by to region-scope is_region_owned_by. Armory
+    # access now requires standing in a room within a wilderness
+    # region owned by the org.
+    _room = await db.get_room(room_id)
+    _region_slug = (_room or {}).get("wilderness_region_id")
+    if not _region_slug or not await is_region_owned_by(db, _region_slug, org_code):
         return {"ok": False,
-                "msg": "You must be in one of your organization's claimed rooms to access the armory."}
+                "msg": ("You must be in one of your organization's owned "
+                        "wilderness regions to access the armory.")}
 
     storage = await _get_org_storage(db, org_code)
     armory_items = storage.get("items", [])
@@ -1519,9 +1347,16 @@ async def armory_withdraw_resources(db, char: dict, org_code: str,
     room_id = char.get("room_id")
     if not room_id:
         return {"ok": False, "msg": "You're not in a room."}
-    if not await is_room_claimed_by(db, room_id, org_code):
+    # SYN.1.b (2026-05-24): retargeted from per-room
+    # is_room_claimed_by to region-scope is_region_owned_by. Armory
+    # access now requires standing in a room within a wilderness
+    # region owned by the org.
+    _room = await db.get_room(room_id)
+    _region_slug = (_room or {}).get("wilderness_region_id")
+    if not _region_slug or not await is_region_owned_by(db, _region_slug, org_code):
         return {"ok": False,
-                "msg": "You must be in one of your organization's claimed rooms to access the armory."}
+                "msg": ("You must be in one of your organization's owned "
+                        "wilderness regions to access the armory.")}
 
     storage = await _get_org_storage(db, org_code)
     resources = storage.get("resources", [])
@@ -1579,466 +1414,752 @@ async def armory_withdraw_resources(db, char: dict, org_code: str,
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# DROP 6D: Contesting Territory
+# DROP 6D (Contest State Machine) — RETIRED in SYN.3 (2026-05-25)
 # ══════════════════════════════════════════════════════════════════════════════
-"""
-Contest mechanic (design doc §6):
+#
+# Per ``contestable_wilderness_design_v2.md`` §2.4: contest state moved
+# to ``engine/contest.py`` (region-keyed, not zone-keyed). The 12 surfaces
+# previously in this block — ``territory_contests`` schema,
+# ``ensure_contest_schema``, ``get_active_contest``,
+# ``get_contests_for_org``, ``is_in_active_contest``, ``_declare_contest``,
+# ``check_and_declare_contests``, ``tick_contest_resolution``,
+# ``_transfer_zone_claims``, ``hostile_takeover_claim``,
+# ``get_contest_status_lines``, and the ``CONTEST_*`` constants —
+# are physically deleted. See engine/contest.py for the replacements.
+#
+# Caller retargets shipped in the same drop:
+#   * server/session.py::_hud_territory       — region_ownership + region contest
+#   * parser/combat_commands.py PvP gate      — is_region_in_active_contest
+#   * parser/combat_commands.py NPC death     — on_npc_killed_in_combat (Anchor)
+#   * parser/faction_commands.py::_cmd_seize  — DELETED
+#   * server/tick_handlers_economy.py         — tick_region_contest_resolution
+#
+# ══════════════════════════════════════════════════════════════════════════════
 
-1. Rival org influence reaches 75% of holding org's influence in a zone.
-2. Contest auto-declared. Director notified. 7-day timer starts.
-3. During contest: both orgs' influence decays at 2× normal rate unless
-   maintained by active presence.  Members of both orgs can attack each
-   other without consent in that zone (PvP no-consent override).
-4. After 7 days: if challenger influence > holder influence, all claimed
-   rooms in zone transfer to challenger.  If holder still higher, contest
-   ends, challenger loses 25 influence (failed assault cost).
-5. Lawless-only shortcut: kill the guard NPC in a claimed room AND have
-   50+ influence → immediate hostile takeover of that specific room.
 
-Architecture invariant: all contest state lives in territory_contests table.
-No in-memory caching of contest status — always read from DB.
-"""
+# ══════════════════════════════════════════════════════════════════════════════
+# SYN.1.a (May 24 2026): Region Ownership — Contestable Wilderness pivot
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Per ``contestable_wilderness_design_v2.md`` §2.2 and §3.1.
+#
+# This block ships the *new* surfaces for wilderness-region ownership. The
+# legacy per-room ``claim_room``/``unclaim_room``/``is_room_claimed_by``
+# block above remains operational through SYN.1.a (parallel ship). SYN.1.b
+# will:
+#   * retarget the six known consumers of ``is_room_claimed_by`` (see
+#     SYN.0 Finding 2 in TODO.json),
+#   * retarget ``parser/faction_commands.py::_cmd_claim``/``_cmd_unclaim``,
+#   * invoke ``tools/syn_migration.py::wipe_territory_claims`` and delete
+#     the eight tagged surfaces.
+#
+# Surfaces shipped here (additive — no deletions in SYN.1.a):
+#   * ``REGION_*`` constants (cost, upkeep, garrison count, thresholds)
+#   * ``region_ownership`` table — one row per owned region
+#   * ``region_garrison`` table — region_slug → npc_id mapping
+#   * ``ensure_region_ownership_schema(db)`` — idempotent table create
+#   * ``get_region_owner(db, slug)`` / ``get_org_regions(db, org_code)``
+#   * ``is_region_owned_by(db, slug, org_code)``  (NEW name; old per-room
+#     ``is_room_claimed_by`` still lives above and is the deprecated one)
+#   * ``claim_region(db, char, org_code, slug)``
+#   * ``unclaim_region(db, char, org_code, slug)``
+#   * ``spawn_region_garrison(db, org_code, slug)``
+#   * ``dismiss_region_garrison(db, slug)``
+#   * ``tick_region_maintenance(db, session_mgr)`` — weekly
+#   * ``tick_region_passive_yield(db, session_mgr)`` — daily
+#
+# Design invariants (one-owner-per-region):
+#   * ``region_ownership`` uses ``region_slug`` as PRIMARY KEY — at most
+#     one owner per region. Re-claiming a region while owned by another
+#     org is the contest path (SYN.3); claim_region rejects it here.
+#   * NO per-org cap. An org can own every wilderness region simultaneously
+#     if it can defend them (per design §1.2 and §6, the legacy
+#     ``CLAIM_MAX_*`` caps retire in SYN.1.b).
+#
+# ──────────────────────────────────────────────────────────────────────────────
 
-CONTEST_DURATION_SECS   = 7 * 24 * 3600   # 7 real days
-CONTEST_TRIGGER_RATIO   = 0.75             # challenger / holder ratio that triggers
-CONTEST_DECAY_MULTIPLIER = 2               # influence decay rate during contest
-CONTEST_FAILURE_PENALTY = 25              # influence lost by challenger on failed contest
+# ── Region constants ────────────────────────────────────────────────────────
+REGION_CLAIM_COST            = 5000   # Treasury cost to claim a region
+REGION_CLAIM_MIN_RANK        = 3      # Org rank to claim/unclaim
+REGION_WEEKLY_MAINT          = 2000   # Per design §2.5.4 — base region upkeep
+REGION_GARRISON_WEEKLY       = 1000   # Per design §2.5.4 — garrison upkeep
+REGION_GARRISON_COUNT        = 5      # Per design §3.1 — NPCs per garrison
+REGION_PASSIVE_LAWLESS_MIN   = 100    # Per design §2.5.1 — lawless daily passive (min)
+REGION_PASSIVE_LAWLESS_MAX   = 250    # Per design §2.5.1 — lawless daily passive (max)
+REGION_PASSIVE_CONTESTED_MIN = 50     # Per design §2.5.1 — contested daily passive (min)
+REGION_PASSIVE_CONTESTED_MAX = 150    # Per design §2.5.1 — contested daily passive (max)
 
-TERRITORY_CONTESTS_SCHEMA = """
-CREATE TABLE IF NOT EXISTS territory_contests (
-    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    zone_id             INTEGER NOT NULL,
-    holder_org_code     TEXT    NOT NULL,
-    challenger_org_code TEXT    NOT NULL,
-    started_at          REAL    NOT NULL,
-    ends_at             REAL    NOT NULL,
-    status              TEXT    NOT NULL DEFAULT 'active',
-    UNIQUE(zone_id, status)
+
+# ── Schema ──────────────────────────────────────────────────────────────────
+
+REGION_OWNERSHIP_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS region_ownership (
+    region_slug   TEXT    NOT NULL PRIMARY KEY,
+    org_code      TEXT    NOT NULL,
+    zone_id       INTEGER,
+    claimed_by    INTEGER NOT NULL,
+    claimed_at    REAL    NOT NULL,
+    maintenance   INTEGER NOT NULL DEFAULT 3000
 );
+CREATE INDEX IF NOT EXISTS idx_region_ownership_org
+    ON region_ownership(org_code);
+CREATE TABLE IF NOT EXISTS region_garrison (
+    region_slug TEXT    NOT NULL,
+    npc_id      INTEGER NOT NULL,
+    PRIMARY KEY (region_slug, npc_id)
+);
+CREATE INDEX IF NOT EXISTS idx_region_garrison_slug
+    ON region_garrison(region_slug);
 """
 
 
-async def ensure_contest_schema(db) -> None:
-    """Create territory_contests table if absent. Idempotent."""
+async def ensure_region_ownership_schema(db) -> None:
+    """Create region_ownership + region_garrison tables. Idempotent."""
     try:
-        await db.execute(TERRITORY_CONTESTS_SCHEMA.strip())
+        for stmt in REGION_OWNERSHIP_SCHEMA_SQL.strip().split(";"):
+            stmt = stmt.strip()
+            if stmt:
+                await db.execute(stmt)
         await db.commit()
     except Exception as e:
-        log.warning("[territory] contest schema error: %s", e)
+        log.warning("[territory/region] schema create error: %s", e)
 
 
-async def get_active_contest(db, zone_id: int) -> Optional[dict]:
-    """Return the active contest for a zone, or None."""
+# ── Region introspection helpers ────────────────────────────────────────────
+
+async def _get_region_landmarks(db, region_slug: str) -> list[int]:
+    """Return room_ids of all landmarks in a wilderness region.
+
+    A "landmark" here is any row in ``rooms`` whose
+    ``wilderness_region_id`` matches the slug. The wilderness writer
+    (engine/wilderness_writer.py) populates this column on the rooms
+    it materialises from a region YAML.
+    """
     try:
         rows = await db.fetchall(
-            "SELECT * FROM territory_contests WHERE zone_id = ? AND status = 'active'",
-            (zone_id,),
+            "SELECT id FROM rooms WHERE wilderness_region_id = ? ORDER BY id",
+            (region_slug,),
         )
-        return dict(rows[0]) if rows else None
+        return [int(r["id"]) for r in rows]
     except Exception:
-        log.warning("get_active_contest: unhandled exception", exc_info=True)
+        log.warning("_get_region_landmarks: unhandled exception", exc_info=True)
+        return []
+
+
+async def _get_region_zone(db, region_slug: str) -> Optional[int]:
+    """Derive a region's zone_id from any one of its landmark rooms.
+
+    Wilderness regions inherit their security tier from their parent
+    zone (per ``data/worlds/clone_wars/wilderness/*.yaml::region.zone``).
+    Rather than introduce a separate region→zone mapping table in
+    SYN.1.a, we read it back off any landmark room. Wilderness loaders
+    guarantee every landmark in a region shares the same parent zone.
+    """
+    try:
+        rows = await db.fetchall(
+            "SELECT zone_id FROM rooms "
+            "WHERE wilderness_region_id = ? AND zone_id IS NOT NULL "
+            "LIMIT 1",
+            (region_slug,),
+        )
+        if not rows:
+            return None
+        return int(rows[0]["zone_id"]) if rows[0]["zone_id"] is not None else None
+    except Exception:
+        log.warning("_get_region_zone: unhandled exception", exc_info=True)
         return None
 
 
-async def get_contests_for_org(db, org_code: str) -> list[dict]:
-    """Return all active contests where org is holder or challenger."""
+# ── Region ownership queries ────────────────────────────────────────────────
+
+async def get_region_owner(db, region_slug: str) -> Optional[dict]:
+    """Return ownership row for a region, or None if unowned."""
     try:
         rows = await db.fetchall(
-            """SELECT * FROM territory_contests
-               WHERE (holder_org_code = ? OR challenger_org_code = ?)
-               AND status = 'active'""",
-            (org_code, org_code),
+            "SELECT * FROM region_ownership WHERE region_slug = ?",
+            (region_slug,),
+        )
+        return dict(rows[0]) if rows else None
+    except Exception:
+        log.warning("get_region_owner: unhandled exception", exc_info=True)
+        return None
+
+
+async def get_org_regions(db, org_code: str) -> list[dict]:
+    """Return all regions owned by an org."""
+    try:
+        rows = await db.fetchall(
+            "SELECT * FROM region_ownership WHERE org_code = ? "
+            "ORDER BY claimed_at",
+            (org_code,),
         )
         return [dict(r) for r in rows]
     except Exception:
-        log.warning("get_contests_for_org: unhandled exception", exc_info=True)
+        log.warning("get_org_regions: unhandled exception", exc_info=True)
         return []
 
 
-async def is_in_active_contest(db, zone_id: int,
-                                org_a: str, org_b: str) -> bool:
+async def is_region_owned_by(db, region_slug: str, org_code: str) -> bool:
+    """True if region is currently owned by org_code, False otherwise.
+
+    Replaces the per-room ``is_room_claimed_by`` for region-scope
+    callers. SYN.1.b retargets the six legacy ``is_room_claimed_by``
+    consumers to this function (or inlines the equivalent logic for
+    consumers that don't fit the region model).
     """
-    Return True if org_a and org_b are in an active contest in zone_id.
-    Used by PvP gate to allow no-consent combat between rival orgs.
-    """
-    contest = await get_active_contest(db, zone_id)
-    if not contest:
-        return False
-    orgs = {contest["holder_org_code"], contest["challenger_org_code"]}
-    return org_a in orgs and org_b in orgs
+    row = await get_region_owner(db, region_slug)
+    return row is not None and row["org_code"] == org_code
 
 
-async def _declare_contest(db, zone_id: int,
-                            holder_org: str, challenger_org: str,
-                            session_mgr=None) -> None:
+# ── Region garrison spawning ────────────────────────────────────────────────
+
+async def spawn_region_garrison(
+    db, org_code: str, region_slug: str,
+) -> dict:
+    """Spawn the garrison for an owned region.
+
+    Per ``contestable_wilderness_design_v2.md`` §3.1: 5 NPCs scattered
+    among the region's landmarks. Uses the existing ``_GUARD_TEMPLATES``
+    for org-flavored NPCs; falls back to ``_default`` for unknown orgs.
+
+    Idempotent: if a garrison already exists for the region, returns
+    the existing npc_ids without spawning new ones.
+
+    Returns ``{"ok": bool, "msg": str, "npc_ids": list[int]}``.
     """
-    Declare a territory contest.  Called from check_and_declare_contests().
-    Records contest in DB, notifies online players, pings Director digest.
-    """
-    now = time.time()
-    ends_at = now + CONTEST_DURATION_SECS
+    # Idempotency check — already garrisoned?
     try:
-        await db.execute(
-            """INSERT OR IGNORE INTO territory_contests
-               (zone_id, holder_org_code, challenger_org_code, started_at, ends_at, status)
-               VALUES (?, ?, ?, ?, ?, 'active')""",
-            (zone_id, holder_org, challenger_org, now, ends_at),
+        existing_rows = await db.fetchall(
+            "SELECT npc_id FROM region_garrison WHERE region_slug = ?",
+            (region_slug,),
         )
-        await db.commit()
-    except Exception as e:
-        log.warning("[territory] contest declare error: %s", e)
-        return
+    except Exception:
+        log.warning("spawn_region_garrison: unhandled exception", exc_info=True)
+        existing_rows = []
+    if existing_rows:
+        npc_ids = [int(r["npc_id"]) for r in existing_rows]
+        return {
+            "ok": True,
+            "msg": f"Garrison already present in {region_slug} ({len(npc_ids)} NPCs).",
+            "npc_ids": npc_ids,
+        }
 
-    zone_name = await get_zone_name(db, zone_id)
-    holder_name   = holder_org.replace("_", " ").title()
-    chall_name    = challenger_org.replace("_", " ").title()
+    landmarks = await _get_region_landmarks(db, region_slug)
+    if not landmarks:
+        return {
+            "ok": False,
+            "msg": (f"Region '{region_slug}' has no landmark rooms; "
+                    f"cannot place a garrison."),
+            "npc_ids": [],
+        }
 
-    log.info("[territory] contest declared: %s vs %s in zone %d (%s). Ends in 7 days.",
-             challenger_org, holder_org, zone_id, zone_name)
-
-    # Broadcast to all online players
-    if session_mgr:
-        msg = (
-            f"\n  \033[1;31m[TERRITORY CONTEST]\033[0m "
-            f"\033[1;37m{chall_name}\033[0m is challenging "
-            f"\033[1;37m{holder_name}\033[0m for control of "
-            f"\033[1;36m{zone_name}\033[0m.\n"
-            f"  The contest ends in 7 days. Combat between these factions "
-            f"in {zone_name} requires no consent.\n"
-        )
+    # Pick up to REGION_GARRISON_COUNT random landmarks. If the region
+    # has fewer landmarks than the garrison size, multiple NPCs can
+    # share a room.
+    tmpl = _GUARD_TEMPLATES.get(org_code, _GUARD_TEMPLATES["_default"])
+    npc_ids = []
+    for i in range(REGION_GARRISON_COUNT):
+        room_id = random.choice(landmarks)
+        # Name suffix disambiguates multiple NPCs in the same room.
+        guard_name = f"{tmpl['name_prefix']} #{i + 1}"
+        char_sheet = _build_guard_sheet(tmpl)
+        ai_config = _build_guard_ai(tmpl, org_code)
         try:
-            for sess in session_mgr.all:
-                if sess.is_in_game:
-                    await sess.send_line(msg)
+            npc_id = await db.create_npc(
+                name=guard_name,
+                room_id=room_id,
+                species=tmpl["species"],
+                description=tmpl["description"],
+                char_sheet_json=json.dumps(char_sheet),
+                ai_config_json=json.dumps(ai_config),
+            )
+            npc_ids.append(int(npc_id))
+            await db.execute(
+                "INSERT OR IGNORE INTO region_garrison (region_slug, npc_id) "
+                "VALUES (?, ?)",
+                (region_slug, int(npc_id)),
+            )
         except Exception as e:
-            log.warning("[territory] contest broadcast error: %s", e)
-
-
-async def check_and_declare_contests(db, org_code: str, zone_id: int,
-                                      session_mgr=None) -> None:
-    """
-    After any influence change, check if a new contest should be declared.
-    Called from adjust_territory_influence() for all positive deltas.
-
-    Logic:
-    - Find the current zone holder (org with most influence + ≥1 claim).
-    - If our influence is now ≥ 75% of holder's and we're not the holder,
-      and no active contest exists, declare one.
-    - Also: if we ARE the holder, check if any rival has reached 75%.
-    """
+            log.warning("spawn_region_garrison: create_npc failed (%s)", e)
+            continue
     try:
-        # Get all influence in zone
-        all_inf = await get_zone_territory_all(db, zone_id)
-        if len(all_inf) < 2:
-            return  # Need at least two orgs to contest
-
-        # Find holder: org with claims in this zone (by influence, descending)
-        zone_claims_by_org: dict[str, int] = {}
-        try:
-            rows = await db.fetchall(
-                "SELECT org_code, COUNT(*) as cnt FROM territory_claims WHERE zone_id = ? GROUP BY org_code",
-                (zone_id,),
-            )
-            for r in rows:
-                zone_claims_by_org[r["org_code"]] = r["cnt"]
-        except Exception:
-            log.warning("check_and_declare_contests: unhandled exception", exc_info=True)
-            pass
-
-        if not zone_claims_by_org:
-            return  # Nobody holds claims — no contest possible
-
-        # Holder = org with claims, highest influence
-        holder_org = max(
-            zone_claims_by_org.keys(),
-            key=lambda o: all_inf.get(o, 0),
-            default=None,
-        )
-        if not holder_org:
-            return
-
-        holder_inf = all_inf.get(holder_org, 0)
-        if holder_inf == 0:
-            return
-
-        # Check if any rival (with ≥ THRESHOLD_FOOTHOLD) reaches the trigger ratio
-        existing_contest = await get_active_contest(db, zone_id)
-        if existing_contest:
-            return  # Already contesting — no new declaration
-
-        for rival_code, rival_inf in all_inf.items():
-            if rival_code == holder_org:
-                continue
-            if rival_inf < THRESHOLD_FOOTHOLD:
-                continue
-            ratio = rival_inf / holder_inf
-            if ratio >= CONTEST_TRIGGER_RATIO:
-                # Declare contest: rival is challenging holder
-                await _declare_contest(db, zone_id, holder_org, rival_code,
-                                        session_mgr=session_mgr)
-                return  # Only one contest per zone at a time
-    except Exception as e:
-        log.warning("[territory] contest check error: %s", e)
-
-
-async def tick_contest_resolution(db, session_mgr) -> None:
-    """
-    Hourly tick: check all active contests for expiry and resolve them.
-
-    Resolution rules (design doc §6.1):
-    - If challenger influence > holder influence → challenger wins.
-      All claims in zone transfer to challenger.
-    - If holder influence ≥ challenger → holder wins.
-      Challenger loses CONTEST_FAILURE_PENALTY influence.
-    - Contest status set to 'resolved' or 'failed'.
-    """
-    try:
-        now = time.time()
-        active = await db.fetchall(
-            "SELECT * FROM territory_contests WHERE status = 'active' AND ends_at <= ?",
-            (now,),
-        )
-        for r in active:
-            contest = dict(r)
-            zone_id  = contest["zone_id"]
-            holder   = contest["holder_org_code"]
-            chall    = contest["challenger_org_code"]
-
-            holder_inf = await get_territory_influence(db, holder, zone_id)
-            chall_inf  = await get_territory_influence(db, chall, zone_id)
-            zone_name  = await get_zone_name(db, zone_id)
-
-            if chall_inf > holder_inf:
-                # Challenger wins — transfer all claims in zone
-                await _transfer_zone_claims(db, zone_id, holder, chall)
-                await db.execute(
-                    "UPDATE territory_contests SET status = 'resolved' WHERE id = ?",
-                    (contest["id"],),
-                )
-                await db.commit()
-
-                winner_name = chall.replace("_", " ").title()
-                loser_name  = holder.replace("_", " ").title()
-                msg = (
-                    f"\n  \033[1;31m[TERRITORY SEIZED]\033[0m "
-                    f"\033[1;37m{winner_name}\033[0m has taken control of "
-                    f"\033[1;36m{zone_name}\033[0m from "
-                    f"\033[1;37m{loser_name}\033[0m.\n"
-                )
-                log.info("[territory] contest resolved: %s took %s in zone %d",
-                         chall, holder, zone_id)
-            else:
-                # Holder defends — challenger penalized
-                await adjust_territory_influence(
-                    db, chall, zone_id, -CONTEST_FAILURE_PENALTY,
-                    reason="failed contest penalty",
-                )
-                await db.execute(
-                    "UPDATE territory_contests SET status = 'failed' WHERE id = ?",
-                    (contest["id"],),
-                )
-                await db.commit()
-
-                winner_name = holder.replace("_", " ").title()
-                loser_name  = chall.replace("_", " ").title()
-                msg = (
-                    f"\n  \033[1;33m[TERRITORY DEFENDED]\033[0m "
-                    f"\033[1;37m{winner_name}\033[0m has held "
-                    f"\033[1;36m{zone_name}\033[0m against "
-                    f"\033[1;37m{loser_name}\033[0m's challenge.\n"
-                )
-                log.info("[territory] contest failed: %s held %s in zone %d",
-                         holder, zone_id, zone_id)
-
-            # Broadcast outcome to all online players
-            if session_mgr:
-                try:
-                    for sess in session_mgr.all:
-                        if sess.is_in_game:
-                            await sess.send_line(msg)
-                except Exception as e:
-                    log.warning("[territory] contest outcome broadcast error: %s", e)
-
-    except Exception as e:
-        log.warning("[territory] contest resolution tick error: %s", e)
-
-
-async def _transfer_zone_claims(db, zone_id: int,
-                                  from_org: str, to_org: str) -> None:
-    """
-    Transfer all claims in a zone from one org to another.
-    Called on contest victory.  Guard NPCs are re-flagged to new owner.
-    """
-    try:
-        rows = await db.fetchall(
-            "SELECT * FROM territory_claims WHERE zone_id = ? AND org_code = ?",
-            (zone_id, from_org),
-        )
-        for r in rows:
-            claim = dict(r)
-            await db.execute(
-                "UPDATE territory_claims SET org_code = ? WHERE id = ?",
-                (to_org, claim["id"]),
-            )
-            # Update guard NPC ai_config to reflect new owner
-            if claim.get("guard_npc_id"):
-                try:
-                    npc = await db.get_npc(claim["guard_npc_id"])
-                    if npc:
-                        import json as _j
-                        ai = _j.loads(npc.get("ai_config_json", "{}") or "{}")
-                        ai["guard_for_org"] = to_org
-                        ai["faction"] = to_org.replace("_", " ").title()
-                        await db.update_npc(
-                            claim["guard_npc_id"],
-                            ai_config_json=_j.dumps(ai),
-                        )
-                except Exception as e:
-                    log.warning("[territory] guard NPC retag error: %s", e)
         await db.commit()
-        log.info("[territory] transferred %d claims in zone %d from %s to %s",
-                 len(rows), zone_id, from_org, to_org)
-    except Exception as e:
-        log.warning("[territory] claim transfer error: %s", e)
+    except Exception:
+        log.warning("spawn_region_garrison: commit failed", exc_info=True)
 
-
-async def hostile_takeover_claim(db, char: dict, org_code: str,
-                                   room_id: int) -> dict:
-    """
-    Lawless-zone hostile takeover: claim a room whose guard was just killed.
-    Requirements (design doc §6.3):
-    - Zone must be lawless
-    - Attacking org must have 50+ influence in the zone
-    - The room must currently be claimed by a rival (not us)
-    - The room's guard NPC must be dead / absent (just killed)
-    Returns {"ok": bool, "msg": str}.
-    """
-    room = await db.get_room(room_id)
-    if not room:
-        return {"ok": False, "msg": "Room not found."}
-    zone_id = room.get("zone_id")
-    if not zone_id:
-        return {"ok": False, "msg": "This room is not in a zone."}
-
-    # Must be lawless
-    sec = await get_zone_security(db, zone_id)
-    if sec != "lawless":
-        return {"ok": False,
-                "msg": "Hostile takeover is only possible in lawless zones."}
-
-    # Must have foothold influence
-    influence = await get_territory_influence(db, org_code, zone_id)
-    if influence < THRESHOLD_FOOTHOLD:
-        return {"ok": False,
-                "msg": f"You need {THRESHOLD_FOOTHOLD}+ influence in this zone to seize territory "
-                       f"(current: {influence})."}
-
-    # Room must be claimed by a rival
-    claim = await get_claim(db, room_id)
-    if not claim:
-        return {"ok": False, "msg": "This room isn't claimed — use 'faction claim' instead."}
-    if claim["org_code"] == org_code:
-        return {"ok": False, "msg": "Your organization already controls this room."}
-
-    rival_org = claim["org_code"]
-
-    # Guard must be dead/absent (guard_npc_id should be NULL or NPC deleted)
-    if claim.get("guard_npc_id"):
-        existing_npc = await db.get_npc(claim["guard_npc_id"])
-        if existing_npc:
-            npc_cs = existing_npc.get("char_sheet_json", "{}")
-            try:
-                import json as _j
-                cs_dict = _j.loads(npc_cs)
-                wl = cs_dict.get("wound_level", 0)
-                # wound_level 5+ = incapacitated/dead
-                if wl < 5:
-                    return {"ok": False,
-                            "msg": "The guard still stands. Defeat them first."}
-            except Exception:
-                log.warning("hostile_takeover_claim: unhandled exception", exc_info=True)
-                pass
-        # Guard reference exists but NPC is gone — stale ref, allow takeover
-
-    # Check treasury for claim cost
-    org = await db.get_organization(org_code)
-    if not org:
-        return {"ok": False, "msg": "Unknown organization."}
-    if org.get("treasury", 0) < CLAIM_COST:
-        return {"ok": False,
-                "msg": f"Insufficient treasury. Seizing costs {CLAIM_COST:,}cr "
-                       f"(have {org.get('treasury', 0):,}cr)."}
-
-    # Remove the rival's guard NPC if still present (dead guard cleanup)
-    if claim.get("guard_npc_id"):
-        try:
-            await db.execute(
-                "DELETE FROM npcs WHERE id = ?", (claim["guard_npc_id"],)
-            )
-        except Exception:
-            log.warning("hostile_takeover_claim: unhandled exception", exc_info=True)
-            pass
-
-    # Overwrite claim
-    new_balance = await db.adjust_org_treasury(org["id"], -CLAIM_COST)
-    now = time.time()
-    await db.execute(
-        """UPDATE territory_claims
-           SET org_code = ?, claimed_by = ?, claimed_at = ?, guard_npc_id = NULL
-           WHERE room_id = ?""",
-        (org_code, char["id"], now, room_id),
-    )
-    await db.commit()
-
-    # Influence swing: attacker gains, defender loses
-    await adjust_territory_influence(
-        db, org_code, zone_id, 10,
-        reason=f"hostile takeover by {char.get('name', '?')}")
-    await adjust_territory_influence(
-        db, rival_org, zone_id, -15,
-        reason=f"room seized by {org_code}")
-
-    room_name  = room.get("name", f"Room #{room_id}")
-    zone_name  = await get_zone_name(db, zone_id)
-    rival_name = rival_org.replace("_", " ").title()
-
-    log.info("[territory] hostile takeover: %s seized room %d (%s) from %s in zone %d",
-             org_code, room_id, room_name, rival_org, zone_id)
-
+    log.info("[territory/region] spawned garrison of %d for %s in %s",
+             len(npc_ids), org_code, region_slug)
     return {
         "ok": True,
-        "msg": (f"Territory seized: {room_name} taken from {rival_name}. "
-                f"Cost: {CLAIM_COST:,}cr. Treasury: {new_balance:,}cr."),
-        "rival_org": rival_org,
-        "room_name": room_name,
-        "zone_name": zone_name,
+        "msg": (f"Garrison of {len(npc_ids)} {org_code} NPCs deployed "
+                f"to {region_slug}."),
+        "npc_ids": npc_ids,
     }
 
 
-async def get_contest_status_lines(db, org_code: str) -> list[str]:
-    """Return formatted active contest status for an org."""
-    contests = await get_contests_for_org(db, org_code)
-    if not contests:
-        return []
+async def dismiss_region_garrison(db, region_slug: str) -> dict:
+    """Remove all garrison NPCs for a region.
 
-    lines = ["\033[1;37m── Active Contests ──\033[0m"]
-    now = time.time()
-    for c in contests:
-        zone_name   = await get_zone_name(db, c["zone_id"])
-        holder      = c["holder_org_code"].replace("_", " ").title()
-        chall       = c["challenger_org_code"].replace("_", " ").title()
-        secs_left   = max(0, c["ends_at"] - now)
-        days_left   = int(secs_left // 86400)
-        hours_left  = int((secs_left % 86400) // 3600)
-        role        = "Holder" if c["holder_org_code"] == org_code else "Challenger"
-        role_color  = "\033[1;36m" if role == "Holder" else "\033[1;31m"
+    Deletes both the underlying NPC rows and the ``region_garrison``
+    mapping rows. Called by ``unclaim_region`` and by
+    ``tick_region_maintenance`` when treasury can't cover upkeep.
 
-        holder_inf  = await get_territory_influence(db, c["holder_org_code"], c["zone_id"])
-        chall_inf   = await get_territory_influence(db, c["challenger_org_code"], c["zone_id"])
-
-        lines.append(
-            f"  {zone_name:<30} {role_color}[{role}]\033[0m  "
-            f"{holder} {holder_inf} vs {chall} {chall_inf}  "
-            f"\033[2m{days_left}d {hours_left}h remaining\033[0m"
+    Returns ``{"ok": bool, "msg": str, "removed": int}``.
+    """
+    try:
+        rows = await db.fetchall(
+            "SELECT npc_id FROM region_garrison WHERE region_slug = ?",
+            (region_slug,),
         )
-    return lines
+    except Exception:
+        log.warning("dismiss_region_garrison: unhandled exception", exc_info=True)
+        return {"ok": False, "msg": "Garrison lookup failed.", "removed": 0}
+
+    if not rows:
+        return {"ok": True, "msg": "No garrison present.", "removed": 0}
+
+    removed = 0
+    for r in rows:
+        npc_id = int(r["npc_id"])
+        try:
+            await db.execute("DELETE FROM npcs WHERE id = ?", (npc_id,))
+            removed += 1
+        except Exception:
+            log.warning("dismiss_region_garrison: NPC delete failed (id=%d)", npc_id)
+            continue
+    try:
+        await db.execute(
+            "DELETE FROM region_garrison WHERE region_slug = ?",
+            (region_slug,),
+        )
+        await db.commit()
+    except Exception:
+        log.warning("dismiss_region_garrison: cleanup failed", exc_info=True)
+
+    log.info("[territory/region] dismissed garrison of %d in %s", removed, region_slug)
+    return {
+        "ok": True,
+        "msg": f"Dismissed {removed} garrison NPCs from {region_slug}.",
+        "removed": removed,
+    }
+
+
+# ── Claim / unclaim region ──────────────────────────────────────────────────
+
+async def claim_region(
+    db, char: dict, org_code: str, region_slug: str,
+) -> dict:
+    """Claim a wilderness region for an organization.
+
+    Per ``contestable_wilderness_design_v2.md`` §2.2:
+      * Region must be a valid wilderness region (has landmark rooms).
+      * Region must not already be owned (contest path is SYN.3, not
+        an immediate re-claim).
+      * Acting character must be a member of ``org_code`` with rank
+        ≥ ``REGION_CLAIM_MIN_RANK``.
+      * Org must have at least ``THRESHOLD_FOOTHOLD`` influence in the
+        region's parent zone (transitional rule for SYN.1; SYN.3 will
+        make this strictly per-region once influence is region-keyed).
+      * Org treasury must cover ``REGION_CLAIM_COST``.
+
+    On success:
+      * Inserts a row into ``region_ownership``.
+      * Deducts ``REGION_CLAIM_COST`` from treasury.
+      * Spawns the region garrison (5 NPCs).
+      * Bumps influence +20 in the parent zone (parity with the legacy
+        per-room claim bump in ``claim_room``).
+
+    Returns ``{"ok": bool, "msg": str}``.
+    """
+    org = await db.get_organization(org_code)
+    if not org:
+        return {"ok": False, "msg": f"Unknown organization: {org_code}"}
+
+    mem = await db.get_membership(char["id"], org["id"])
+    if not mem or mem.get("rank_level", 0) < REGION_CLAIM_MIN_RANK:
+        return {"ok": False,
+                "msg": f"You need rank {REGION_CLAIM_MIN_RANK}+ to claim a region."}
+
+    landmarks = await _get_region_landmarks(db, region_slug)
+    if not landmarks:
+        return {"ok": False,
+                "msg": f"'{region_slug}' is not a known wilderness region."}
+
+    existing = await get_region_owner(db, region_slug)
+    if existing:
+        if existing["org_code"] == org_code:
+            return {"ok": False,
+                    "msg": "Your organization already owns this region."}
+        owner_display = existing["org_code"].replace("_", " ").title()
+        return {"ok": False,
+                "msg": (f"This region is owned by {owner_display}. "
+                        f"Contest their ownership through sustained "
+                        f"influence (SYN.3).")}
+
+    zone_id = await _get_region_zone(db, region_slug)
+    if zone_id is not None:
+        sec = await get_zone_security(db, zone_id)
+        if sec == "secured":
+            return {"ok": False,
+                    "msg": ("Imperial-controlled zones cannot be claimed "
+                            "as wilderness regions.")}
+
+        influence = await get_territory_influence(db, org_code, zone_id)
+        if influence < THRESHOLD_FOOTHOLD:
+            return {"ok": False,
+                    "msg": (f"Insufficient influence "
+                            f"({influence}/{THRESHOLD_FOOTHOLD}). "
+                            f"Build presence with combat, missions, and "
+                            f"investment first.")}
+
+    if org.get("treasury", 0) < REGION_CLAIM_COST:
+        return {"ok": False,
+                "msg": (f"Insufficient treasury. Need "
+                        f"{REGION_CLAIM_COST:,}cr, have "
+                        f"{org.get('treasury', 0):,}cr.")}
+
+    new_balance = await db.adjust_org_treasury(org["id"], -REGION_CLAIM_COST)
+
+    now = time.time()
+    upkeep = REGION_WEEKLY_MAINT + REGION_GARRISON_WEEKLY
+    try:
+        await db.execute(
+            """INSERT INTO region_ownership
+               (region_slug, org_code, zone_id, claimed_by, claimed_at, maintenance)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (region_slug, org_code, zone_id, int(char["id"]), now, upkeep),
+        )
+        await db.commit()
+    except Exception as e:
+        log.warning("claim_region: insert failed (%s)", e, exc_info=True)
+        # Best-effort refund on failure
+        try:
+            await db.adjust_org_treasury(org["id"], REGION_CLAIM_COST)
+        except Exception:
+            log.debug(
+                "claim_region: refund after insert failure also "
+                "failed; org %s lost %s credits",
+                org.get("id"), REGION_CLAIM_COST, exc_info=True,
+            )
+        return {"ok": False, "msg": "Claim failed (database error)."}
+
+    # Bump influence for narrative parity with claim_room
+    if zone_id is not None:
+        try:
+            await adjust_territory_influence(
+                db, org_code, zone_id, 20,
+                reason=f"region claim by {char.get('name', '?')}")
+        except Exception:
+            log.warning("claim_region: influence bump failed", exc_info=True)
+
+    # Spawn garrison
+    garrison_result = await spawn_region_garrison(db, org_code, region_slug)
+    garrison_count = len(garrison_result.get("npc_ids", []))
+
+    log.info("[territory/region] %s claimed region '%s' (zone %s) "
+             "by char %d. Garrison: %d NPCs.",
+             org_code, region_slug, str(zone_id), char["id"], garrison_count)
+
+    # SYN.10 (May 25 2026): news-digest broadcast per design §2.6.
+    # Best-effort; never blocks the claim path.
+    try:
+        from engine.territory_display import format_ownership_change_news
+        rows = await db.fetchall(
+            "SELECT name FROM organizations WHERE code = ?",
+            (org_code,),
+        )
+        org_name = dict(rows[0]).get("name") if rows else org_code
+        news = format_ownership_change_news(
+            region_slug, org_name=org_name, action="claimed",
+        )
+        # session_mgr is not in scope here; the broadcast is done by
+        # the caller (parser command) if a session_mgr is available.
+        # We surface the news text in the result dict instead.
+        return {
+            "ok": True,
+            "msg": (f"Region claimed: {region_slug}. "
+                    f"Cost: {REGION_CLAIM_COST:,}cr. "
+                    f"Upkeep: {upkeep:,}cr/week. "
+                    f"Garrison: {garrison_count} NPCs deployed. "
+                    f"Treasury: {new_balance:,}cr."),
+            "news": news,
+        }
+    except Exception:
+        log.warning("[territory/region] news format failed",
+                    exc_info=True)
+        return {
+            "ok": True,
+            "msg": (f"Region claimed: {region_slug}. "
+                    f"Cost: {REGION_CLAIM_COST:,}cr. "
+                    f"Upkeep: {upkeep:,}cr/week. "
+                    f"Garrison: {garrison_count} NPCs deployed. "
+                    f"Treasury: {new_balance:,}cr."),
+        }
+
+
+async def unclaim_region(
+    db, char: dict, org_code: str, region_slug: str,
+) -> dict:
+    """Release ownership of a region.
+
+    Per ``contestable_wilderness_design_v2.md`` §2.5.4 (region upkeep
+    lapse path) and §2.2 (voluntary release):
+      * Region must currently be owned by ``org_code``.
+      * Acting character must be a member with rank
+        ≥ ``REGION_CLAIM_MIN_RANK``.
+      * Garrison NPCs are dismissed.
+      * No partial refund of claim cost (this is a release, not a
+        contest defeat — the lapse path is in ``tick_region_maintenance``).
+
+    Returns ``{"ok": bool, "msg": str}``.
+    """
+    owner = await get_region_owner(db, region_slug)
+    if not owner or owner["org_code"] != org_code:
+        return {"ok": False,
+                "msg": "Your organization doesn't own this region."}
+
+    org = await db.get_organization(org_code)
+    if org:
+        mem = await db.get_membership(char["id"], org["id"])
+        if not mem or mem.get("rank_level", 0) < REGION_CLAIM_MIN_RANK:
+            return {"ok": False,
+                    "msg": (f"You need rank {REGION_CLAIM_MIN_RANK}+ "
+                            f"to release a region.")}
+
+    # Dismiss garrison first (avoids orphan NPC rows on cleanup failure)
+    await dismiss_region_garrison(db, region_slug)
+
+    try:
+        await db.execute(
+            "DELETE FROM region_ownership WHERE region_slug = ?",
+            (region_slug,),
+        )
+        await db.commit()
+    except Exception:
+        log.warning("unclaim_region: delete failed", exc_info=True)
+        return {"ok": False, "msg": "Release failed (database error)."}
+
+    log.info("[territory/region] %s released region '%s'", org_code, region_slug)
+
+    # SYN.10 (May 25 2026): news broadcast per design §2.6.
+    try:
+        from engine.territory_display import format_ownership_change_news
+        rows = await db.fetchall(
+            "SELECT name FROM organizations WHERE code = ?",
+            (org_code,),
+        )
+        org_name = dict(rows[0]).get("name") if rows else org_code
+        news = format_ownership_change_news(
+            region_slug, org_name=org_name, action="unclaimed",
+        )
+        return {
+            "ok": True,
+            "msg": f"Region released: {region_slug}.",
+            "news": news,
+        }
+    except Exception:
+        log.warning("[territory/region] news format failed",
+                    exc_info=True)
+        return {"ok": True, "msg": f"Region released: {region_slug}."}
+
+
+# ── Region maintenance + passive yield ticks ────────────────────────────────
+
+async def tick_region_maintenance(db, session_mgr) -> None:
+    """Weekly tick: deduct region upkeep from owning orgs.
+
+    Per ``contestable_wilderness_design_v2.md`` §2.5.4:
+      * Base region maintenance: 2,000 cr/wk.
+      * Garrison upkeep: 1,000 cr/wk.
+      * If treasury can't cover full upkeep, garrison dismisses first
+        (saves 1,000 cr).
+      * If treasury still can't pay (after garrison dismissed): region
+        lapses — ownership row deleted; org notified.
+
+    Replaces ``tick_claim_maintenance`` for the new region-scope model.
+    The old per-room tick continues running through SYN.1.a; SYN.1.b
+    retires it.
+    """
+    try:
+        rows = await db.fetchall("SELECT * FROM region_ownership")
+    except Exception:
+        log.warning("tick_region_maintenance: read failed", exc_info=True)
+        return
+
+    for r in rows:
+        ownership = dict(r)
+        org_code = ownership["org_code"]
+        region_slug = ownership["region_slug"]
+        upkeep_full = int(ownership.get("maintenance") or
+                          (REGION_WEEKLY_MAINT + REGION_GARRISON_WEEKLY))
+
+        org = await db.get_organization(org_code)
+        if not org:
+            continue
+
+        treasury = int(org.get("treasury", 0) or 0)
+
+        if treasury >= upkeep_full:
+            await db.adjust_org_treasury(org["id"], -upkeep_full)
+            log.info("[territory/region] %s paid %dcr maint for %s",
+                     org_code, upkeep_full, region_slug)
+            continue
+
+        # Step 1: dismiss garrison to save REGION_GARRISON_WEEKLY
+        dismiss_result = await dismiss_region_garrison(db, region_slug)
+        if dismiss_result.get("removed", 0) > 0:
+            await _notify_org_members(
+                session_mgr,
+                org_code,
+                (f"  \033[1;33m[Territory] Treasury short — garrison "
+                 f"dismissed from {region_slug}.\033[0m"),
+            )
+            # Update maintenance row to base-only going forward
+            try:
+                await db.execute(
+                    "UPDATE region_ownership SET maintenance = ? "
+                    "WHERE region_slug = ?",
+                    (REGION_WEEKLY_MAINT, region_slug),
+                )
+                await db.commit()
+            except Exception:
+                log.warning("tick_region_maintenance: upkeep update failed",
+                            exc_info=True)
+
+        # Step 2: check if base upkeep is still unaffordable
+        if treasury >= REGION_WEEKLY_MAINT:
+            # Pay base after garrison saved us
+            await db.adjust_org_treasury(org["id"], -REGION_WEEKLY_MAINT)
+            log.info("[territory/region] %s paid base %dcr maint for %s "
+                     "(garrison dismissed)",
+                     org_code, REGION_WEEKLY_MAINT, region_slug)
+            continue
+
+        # Step 3: lapse — region returns to un-owned
+        try:
+            await db.execute(
+                "DELETE FROM region_ownership WHERE region_slug = ?",
+                (region_slug,),
+            )
+            await db.commit()
+        except Exception:
+            log.warning("tick_region_maintenance: lapse delete failed",
+                        exc_info=True)
+            continue
+
+        await _notify_org_members(
+            session_mgr,
+            org_code,
+            (f"  \033[1;31m[Territory] {region_slug} has lapsed — "
+             f"unable to cover upkeep. Region is now un-owned.\033[0m"),
+        )
+        log.warning("[territory/region] %s lapsed region %s (treasury %d < %d)",
+                    org_code, region_slug, treasury, REGION_WEEKLY_MAINT)
+
+
+async def tick_region_passive_yield(db, session_mgr) -> None:
+    """Daily tick: pay passive credit yield to owners of wilderness regions.
+
+    Per ``contestable_wilderness_design_v2.md`` §2.5.1:
+      * Lawless: 100–250 cr/day.
+      * Contested: 50–150 cr/day.
+      * Secured: no yield (Imperial commons, not contestable).
+
+    Replaces ``tick_resource_nodes`` for the region-scope model. Active
+    harvest (the larger income lever) ships in SYN.6. The old per-room
+    tick continues running through SYN.1.a; SYN.1.b retires it.
+    """
+    try:
+        rows = await db.fetchall("SELECT * FROM region_ownership")
+    except Exception:
+        log.warning("tick_region_passive_yield: read failed", exc_info=True)
+        return
+
+    for r in rows:
+        ownership = dict(r)
+        org_code = ownership["org_code"]
+        region_slug = ownership["region_slug"]
+        zone_id = ownership.get("zone_id")
+
+        org = await db.get_organization(org_code)
+        if not org:
+            continue
+
+        if zone_id is None:
+            zone_id = await _get_region_zone(db, region_slug)
+        sec = await get_zone_security(db, zone_id) if zone_id else "lawless"
+
+        if sec == "secured":
+            continue
+
+        if sec == "contested":
+            yield_cr = random.randint(
+                REGION_PASSIVE_CONTESTED_MIN, REGION_PASSIVE_CONTESTED_MAX,
+            )
+        else:
+            # Default to lawless yield band (covers "lawless" and any
+            # legacy/unrecognised tier).
+            yield_cr = random.randint(
+                REGION_PASSIVE_LAWLESS_MIN, REGION_PASSIVE_LAWLESS_MAX,
+            )
+
+        try:
+            await db.adjust_org_treasury(org["id"], yield_cr)
+        except Exception:
+            log.warning("tick_region_passive_yield: treasury adjust failed",
+                        exc_info=True)
+            continue
+
+        log.info("[territory/region] passive yield: %s +%dcr from %s",
+                 org_code, yield_cr, region_slug)
+        await _notify_org_members(
+            session_mgr,
+            org_code,
+            (f"  \033[2m[Territory] Passive yield from {region_slug}: "
+             f"{yield_cr:,}cr to treasury.\033[0m"),
+        )
+
+
+
+# ── SYN.1.b one-shot cold-start wipe helper ─────────────────────────────────
+
+async def _syn1b_wipe_territory_claims_once(db) -> None:
+    """Idempotent wipe of ``territory_claims`` per
+    ``contestable_wilderness_design_v2.md`` §1.4 (cold start with zero
+    seeded influence). Runs once at first boot post-SYN.1.b apply, then
+    leaves a marker row so re-boots don't wipe again.
+
+    The marker uses ``syn_migration_state``, a tiny table this helper
+    creates on first call. Reuses the same module-level table the
+    rest of the SYN sequence will write to as it transitions surfaces.
+    """
+    try:
+        await db.execute(
+            "CREATE TABLE IF NOT EXISTS syn_migration_state ("
+            "  step_id TEXT PRIMARY KEY, applied_at REAL NOT NULL"
+            ")"
+        )
+        await db.commit()
+        rows = await db.fetchall(
+            "SELECT step_id FROM syn_migration_state WHERE step_id = ?",
+            ("SYN.1.b.wipe_territory_claims",),
+        )
+        if rows:
+            return  # Already wiped
+        # Wipe
+        try:
+            await db.execute("DELETE FROM territory_claims")
+        except Exception:
+            log.warning("[territory/SYN.1.b] wipe failed (table absent?)",
+                        exc_info=True)
+        # Mark applied
+        await db.execute(
+            "INSERT OR IGNORE INTO syn_migration_state (step_id, applied_at) "
+            "VALUES (?, ?)",
+            ("SYN.1.b.wipe_territory_claims", time.time()),
+        )
+        await db.commit()
+        log.info("[territory/SYN.1.b] territory_claims wiped (cold-start)")
+    except Exception:
+        log.warning("[territory/SYN.1.b] migration helper failed", exc_info=True)
+

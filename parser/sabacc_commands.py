@@ -249,11 +249,33 @@ class SabaccCommand(BaseCommand):
             gross_win = bet
             house_rake = max(5, int(gross_win * HOUSE_CUT))
             net_win    = gross_win - house_rake
+
+            # ── Player Cities Phase 4b (May 22 2026): city tax on rake ──
+            # Per design v1.2 §5.1: "Sabacc house rake — City takes
+            # Tax % of the rake (so a 10% rake at 5% city tax = 0.5%
+            # to city)." The city's slice comes out of the rake (the
+            # system's slice), not the player's bet or winnings.
+            # Player's net_win is unchanged; the rake bucket shrinks.
+            city_rake_msg = ""
+            try:
+                from engine.player_cities import apply_city_tax
+                city_take, _, city_name = await apply_city_tax(
+                    ctx.db, char["room_id"], house_rake,
+                )
+                if city_take > 0:
+                    city_rake_msg = (
+                        f" ({city_take:,}cr to {city_name})"
+                    )
+            except Exception:
+                log.warning(
+                    "[sabacc] city tax hook failed", exc_info=True,
+                )
+
             new_credits = credits + net_win
             flavour = random.choice(_CRIT_LINES if outcome == "critical" else _WIN_LINES)
             result_line = (
                 f"  {ansi.BRIGHT_GREEN}YOU WIN{ansi.RESET}  "
-                f"+{net_win:,}cr  (house takes {house_rake:,}cr)"
+                f"+{net_win:,}cr  (house takes {house_rake:,}cr{city_rake_msg})"
             )
             cooldown_ts = now  # Full WIN_COOLDOWN
         else:

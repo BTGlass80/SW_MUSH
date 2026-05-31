@@ -45,31 +45,52 @@ from engine.director_config_loader import (  # noqa: E402
 class TestLegacyPath(unittest.TestCase):
     """Pre-F.6a.7 Phase 2 these were the 'legacy hardcoded constants'
     tests; Phase 2 deleted the constants. era=None now defaults to
-    'gcw' and sources data from data/worlds/gcw/director_config.yaml.
-    Assertions updated to match the new contract.
+    the post-May-18-2026 pivot's clone_wars and sources data from
+    data/worlds/clone_wars/director_config.yaml.
 
     Class name kept as TestLegacyPath for git-blame continuity. The
     'legacy' label in test names refers to the era=None API call shape,
-    not to in-Python data."""
+    not to in-Python data.
+    """
 
     def setUp(self):
-        # The data/worlds/gcw/director_config.yaml file is required for
-        # the post-Phase-2 era=None path to return useful data.
-        gcw_dir = Path(PROJECT_ROOT) / "data" / "worlds" / "gcw"
-        if not (gcw_dir / "director_config.yaml").is_file():
-            self.skipTest("data/worlds/gcw/director_config.yaml not present")
+        # The data/worlds/clone_wars/director_config.yaml file is
+        # required for the post-pivot era=None path to return useful
+        # data.
+        cw_dir = Path(PROJECT_ROOT) / "data" / "worlds" / "clone_wars"
+        if not (cw_dir / "director_config.yaml").is_file():
+            self.skipTest(
+                "data/worlds/clone_wars/director_config.yaml not present"
+            )
 
     def test_legacy_path_returns_hardcoded_constants(self):
-        """era=None now resolves via the YAML path with era='gcw' default."""
+        """era=None now resolves via the YAML path with era='clone_wars'
+        default (post-May-18-2026 pivot)."""
         cfg = get_director_runtime_config(None)
-        self.assertEqual(cfg.source, "yaml-gcw")
+        self.assertEqual(cfg.source, "yaml-clone_wars")
         self.assertIsInstance(cfg.valid_factions, frozenset)
-        # GCW YAML has the canonical 4 director-axis factions
-        self.assertEqual(cfg.valid_factions,
-                         frozenset({"imperial", "rebel", "criminal", "independent"}))
-        # YAML-sourced GCW config has empty rewicker maps (no translation needed)
-        self.assertEqual(cfg.rewicker_factions, {})
-        self.assertEqual(cfg.rewicker_zones, {})
+        # CW YAML has the canonical 6 director-axis factions
+        self.assertEqual(
+            cfg.valid_factions,
+            frozenset({"bhg", "cis", "hutt_cartel",
+                       "independent", "jedi_order", "republic"}),
+        )
+        # CW config has populated rewicker maps that translate the
+        # GCW axis names (imperial/rebel/criminal/independent) into
+        # CW orgs (republic/cis/hutt_cartel/independent). This lets
+        # Director event handlers written against the legacy axis
+        # names still work under CW. The exact contents are pinned
+        # by the dedicated rewicker tests below; here we just check
+        # that the maps are non-empty (pre-pivot under GCW they
+        # were {} because GCW IS the native axis-name basis).
+        self.assertTrue(
+            cfg.rewicker_factions,
+            "CW config should have a populated faction rewicker map.",
+        )
+        self.assertTrue(
+            cfg.rewicker_zones,
+            "CW config should have a populated zone rewicker map.",
+        )
 
     def test_legacy_path_valid_factions_match_director_constants(self):
         """The seam's era=None default must match engine/director.py's
@@ -89,10 +110,12 @@ class TestLegacyPath(unittest.TestCase):
         for zk in DIRECTOR_DI:
             self.assertEqual(cfg.zone_baselines[zk], DIRECTOR_DI[zk])
 
-    def test_legacy_source_label_is_legacy(self):
-        """Post-F.6a.7 Phase 2: source label is now 'yaml-gcw' for the
-        era=None default path (was 'legacy' pre-Phase-2)."""
-        self.assertEqual(get_director_runtime_config(None).source, "yaml-gcw")
+    def test_legacy_source_label_is_clone_wars(self):
+        """Post-May-18-2026 pivot: source label is 'yaml-clone_wars'
+        for the era=None default path (was 'yaml-gcw' pre-pivot)."""
+        self.assertEqual(
+            get_director_runtime_config(None).source, "yaml-clone_wars",
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -225,9 +248,12 @@ class TestFallbackBehavior(unittest.TestCase):
 
 class TestRewickerHelpers(unittest.TestCase):
     def test_apply_rewicker_passthrough_on_unknown(self):
-        # era=None defaults to GCW, which has empty rewicker maps
+        # era=None defaults to CW (post-May-18-2026 pivot); use a
+        # truly unknown faction key that's in neither GCW nor CW
+        # rewicker maps.
         cfg = get_director_runtime_config(None)
-        self.assertEqual(apply_rewicker(cfg, "anything"), "anything")
+        self.assertEqual(apply_rewicker(cfg, "anything_nonexistent"),
+                         "anything_nonexistent")
 
     def test_apply_rewicker_translates_when_present(self):
         # Use a synthetic config to avoid requiring CW data on this test
@@ -242,9 +268,15 @@ class TestRewickerHelpers(unittest.TestCase):
         self.assertEqual(apply_rewicker(cfg, "other"), "other")
 
     def test_apply_zone_rewicker_passthrough_on_unknown(self):
-        # era=None defaults to GCW, which has empty rewicker maps
+        # era=None defaults to CW. Use a zone key that's not in the
+        # CW rewicker map. The CW zone rewicker translates legacy GCW
+        # zone names (spaceport, cantina, etc.) into CW zones; an
+        # arbitrary unknown key must pass through unchanged.
         cfg = get_director_runtime_config(None)
-        self.assertEqual(apply_zone_rewicker(cfg, "spaceport"), "spaceport")
+        self.assertEqual(
+            apply_zone_rewicker(cfg, "completely_unknown_zone"),
+            "completely_unknown_zone",
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -261,16 +293,32 @@ class TestMutability(unittest.TestCase):
         each call freshly loads from YAML so mutation isolation is
         intrinsic; pre-Phase-2 the seam had to deep-copy from the
         in-Python _LEGACY_DEFAULT_INFLUENCE dict.
+
+        Post-May-18-2026 pivot: era=None defaults to CW, so this test
+        exercises the mutation-isolation contract on the CW config.
+        The probe key is tatooine_mos_eisley which has a stable
+        hutt_cartel baseline in CW director_config.yaml.
         """
-        gcw_dir = Path(PROJECT_ROOT) / "data" / "worlds" / "gcw"
-        if not (gcw_dir / "director_config.yaml").is_file():
-            self.skipTest("data/worlds/gcw/director_config.yaml not present")
+        cw_dir = Path(PROJECT_ROOT) / "data" / "worlds" / "clone_wars"
+        if not (cw_dir / "director_config.yaml").is_file():
+            self.skipTest(
+                "data/worlds/clone_wars/director_config.yaml not present"
+            )
         a = get_director_runtime_config(None)
-        a.zone_baselines["spaceport"]["imperial"] = -999
+        # Capture the original value, mutate it, confirm a fresh call
+        # doesn't see the mutation.
+        probe_zone = "tatooine_mos_eisley"
+        probe_faction = "hutt_cartel"
+        original = a.zone_baselines[probe_zone][probe_faction]
+        a.zone_baselines[probe_zone][probe_faction] = -999
         b = get_director_runtime_config(None)
-        self.assertEqual(b.zone_baselines["spaceport"]["imperial"], 65,
-                         "GCW YAML data was corrupted by caller mutation — "
-                         "the seam should not share state across calls")
+        self.assertEqual(
+            b.zone_baselines[probe_zone][probe_faction], original,
+            f"CW YAML data was corrupted by caller mutation — "
+            f"the seam should not share state across calls "
+            f"(expected {original}, got "
+            f"{b.zone_baselines[probe_zone][probe_faction]})",
+        )
 
 
 if __name__ == "__main__":

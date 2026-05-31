@@ -152,13 +152,22 @@ async def log_event(
             attributes=char["attributes"],
         )
 
-        # Award CP ticks for each milestone
+        # Award milestone CP for each crossed threshold.
+        # Per Guide #9 §6: milestone CP bonuses bypass the tick→CP
+        # conversion and the weekly cap entirely — a 50-CP milestone
+        # is a direct character_points grant, not 50 ticks.
+        # CP audit (May 5 2026): this previously called the
+        # nonexistent ``CPEngine.award_ticks`` method, which threw
+        # AttributeError on every milestone and was silently swallowed
+        # by the try/except — milestones never actually awarded any
+        # CP. Switched to ``award_milestone_cp`` which goes through
+        # ``db.cp_add_character_points`` directly.
         for m in triggered:
             if m.get("cp", 0) > 0:
                 try:
                     from engine.cp_engine import get_cp_engine
-                    await get_cp_engine().award_ticks(
-                        char["id"], m["cp"], db,
+                    await get_cp_engine().award_milestone_cp(
+                        db, char["id"], m["cp"],
                         reason=f"Ship's Log milestone: {m['msg']}",
                     )
                 except Exception:

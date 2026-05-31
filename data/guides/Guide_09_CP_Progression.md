@@ -1,4 +1,10 @@
-# SW_MUSH Detailed Systems Guide #9
+---
+category: foundations
+order: 4
+summary: "Character Points: how you earn them, what they cost to raise skills and attributes, and milestone rewards."
+tags: ["cp", "progression", "advancement", "improve", "leveling", "milestones"]
+---
+
 # CP Progression
 
 **SW_MUSH — Star Wars D6 Revised & Expanded**

@@ -588,10 +588,17 @@ rooms:
       and lingering. A hand-painted sign reads 'GOOD DROIDS CHEEP' in
       phonetic Basic.
     zone: tatooine_outskirts
-    map_x: 7
-    map_y: 3
+    map_x: 9
+    map_y: 4
     security_level: contested
     vendor: true
+    # TD.CW_BUILD_EXIT_COLLISION Option A (2026-05-30): moved from (7,3) to
+    # desert-side (9,4), SE of the gate (8,3), so coords + direction +
+    # description agree (the market is "outside the city wall"). This frees
+    # room 40's 'east' slot for the checkpoint (44); the gate<->market link
+    # is now SE/NW. Also corrects the 43->41 'east' forward (was geometrically
+    # west). Pin note: 41 is a generic (in-zone) pin on the Mos Eisley
+    # substrate, so the eastward nudge needs no re-drag.
 
   - id: 42
     slug: outskirts_abandoned_farm
@@ -786,7 +793,7 @@ exits:
   - {from: 0, to: 1, forward: "down", reverse: "up"}
   - {from: 0, to: 7, forward: "north", reverse: "south to Bay 94"}
   - {from: 2, to: 7, forward: "east", reverse: "west to Bay 86"}
-  - {from: 2, to: 0, forward: "south", reverse: "east to Bay 86"}
+  - {from: 2, to: 0, forward: "south", reverse: "northwest"}
   # ── Other bays to Spaceport Row ─────────────────────────────────────────
   - {from: 3, to: 7, forward: "northwest", reverse: "southeast"}
   - {from: 4, to: 7, forward: "west", reverse: "east"}
@@ -818,7 +825,7 @@ exits:
   - {from: 20, to: 9, forward: "east", reverse: "west to Prefect"}
   - {from: 21, to: 9, forward: "west", reverse: "east"}
   - {from: 22, to: 9, forward: "south", reverse: "northeast to Militia HQ"}
-  - {from: 23, to: 22, forward: "north", reverse: "east to Stables"}
+  - {from: 23, to: 22, forward: "north", reverse: "southwest to Stables"}
   # ── Power Station ───────────────────────────────────────────────────────
   - {from: 24, to: 9, forward: "northwest", reverse: "southeast"}
   # ── Hotel -> Spaceport Row ──────────────────────────────────────────────
@@ -852,17 +859,17 @@ exits:
   - {from: 39, to: 10, forward: "north", reverse: "southeast to Notsub"}
   # ── Outskirts ───────────────────────────────────────────────────────────
   - {from: 40, to: 8, forward: "west", reverse: "east to Eastern Gate"}
-  - {from: 41, to: 40, forward: "west", reverse: "east to Scavenger Market"}
+  - {from: 41, to: 40, forward: "northwest", reverse: "southeast to Scavenger Market"}
   - {from: 42, to: 40, forward: "south", reverse: "north to Farm"}
   - {from: 43, to: 41, forward: "east", reverse: "north to Track"}
-  - {from: 44, to: 40, forward: "east", reverse: "south to Checkpoint"}
+  - {from: 44, to: 40, forward: "west", reverse: "east to Checkpoint"}
   - {from: 45, to: 41, forward: "north", reverse: "south to Sandcrawler"}
   - {from: 46, to: 42, forward: "south", reverse: "north to Ridge"}
-  - {from: 47, to: 44, forward: "east", reverse: "west to Junction"}
+  - {from: 47, to: 44, forward: "west", reverse: "east to Junction"}
   # ── Jundland Wastes ─────────────────────────────────────────────────────
-  - {from: 48, to: 47, forward: "east", reverse: "west to Canyon"}
+  - {from: 48, to: 47, forward: "west", reverse: "east to Canyon"}
   - {from: 49, to: 48, forward: "south", reverse: "north to Beggar's Canyon"}
-  - {from: 50, to: 48, forward: "east", reverse: "west to Overlook"}
-  - {from: 51, to: 50, forward: "east", reverse: "west to Graveyard"}
+  - {from: 50, to: 48, forward: "west", reverse: "east to Overlook"}
+  - {from: 51, to: 50, forward: "west", reverse: "east to Graveyard"}
   - {from: 52, to: 48, forward: "hidden", reverse: "out", hidden: true}
-  - {from: 53, to: 51, forward: "south", reverse: "north to Dune Sea"}
+  - {from: 53, to: 51, forward: "west", reverse: "east to Dune Sea"}

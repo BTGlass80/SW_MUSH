@@ -505,6 +505,68 @@ nav .play-btn:active { transform: translateY(1px); }
   line-height: 1.55;
 }
 
+/* ════════════════════════════════════════════════════════════════════
+   GUIDES — category sections + search
+   Reuses .card-grid / .card / .ref-search-wrap from elsewhere; only
+   the per-category header pattern is new.
+   ════════════════════════════════════════════════════════════════════ */
+
+.guide-search-wrap { margin-bottom: 24px; }
+
+.guide-cat {
+  margin-bottom: 36px;
+}
+.guide-cat:last-of-type { margin-bottom: 12px; }
+
+.guide-cat-header {
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 3px;
+  color: var(--accent-dim);
+  text-transform: uppercase;
+  margin: 0 0 4px 0;
+  display: flex; align-items: baseline; gap: 12px;
+}
+.guide-cat-header::before {
+  content: "▸";
+  color: var(--accent);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+.guide-cat-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  margin-left: auto;
+}
+.guide-cat-blurb {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 0 0 14px 24px;  /* indent under the ▸ marker */
+  letter-spacing: 0.3px;
+  line-height: 1.5;
+}
+.guide-cat-empty {
+  display: none;  /* shown by JS when search hides all cards in a section */
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+  margin: 0 0 0 24px;
+}
+.guide-cat.is-empty .guide-cat-empty { display: block; }
+.guide-cat.is-empty .card-grid { display: none; }
+
+.guide-results-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-dim);
+  font-size: 13px;
+  display: none;
+}
+.guide-results-empty.is-visible { display: block; }
+
+.guide-card.is-hidden { display: none; }
+
 .online-dot, .offline-dot {
   display: inline-block; width: 7px; height: 7px;
   border-radius: 50%;
@@ -1495,7 +1557,7 @@ async function renderLanding(el) {
       <div class="landing-desc">
         A text-based multiplayer Star Wars game powered by the classic WEG D6 system.
         An AI Director drives emergent storylines across Tatooine, Nar Shaddaa, Kessel, and Corellia.
-        Smuggle cargo past Imperial patrols. Duel in Chalmun's Cantina. Craft your own weapons.
+        Smuggle cargo past Republic patrols. Duel in Chalmun's Cantina. Craft your own weapons.
         Pilot a freighter through hyperspace. Your story, your way.
       </div>
     </div>
@@ -1896,25 +1958,127 @@ async function renderPlotDetail(el, id) {
 
 /* ════════════════════════════════════════════════════════════════════
    Guides
+
+   The portal JS is intentionally category-agnostic — category keys,
+   labels, blurbs, and display order all come from the server payload.
+   Adding a new category is a one-place edit in web_portal.py's
+   _CATEGORY_TABLE plus frontmatter in the guides that belong to it.
    ════════════════════════════════════════════════════════════════════ */
 async function renderGuides(el) {
   el.innerHTML = '<div class="page"><h2>Game Guides</h2><div class="loading">Loading…</div></div>';
   const data = await api('/api/portal/guides');
   if (!data) { el.querySelector('.loading').textContent = 'Failed to load.'; return; }
 
-  const items = data.guides.map((g, i) => `
-    <div class="card" onclick="navigate('#/guide/${g.slug}')">
-      <div class="card-name">${String(i + 1).padStart(2, '0')}. ${esc(g.title)}</div>
-    </div>
-  `).join('');
+  const guides = Array.isArray(data.guides) ? data.guides : [];
+  const categories = Array.isArray(data.categories) ? data.categories : [];
+
+  // Group guides by category. Guides whose category isn't in the categories
+  // list (shouldn't happen — the server filters — but be defensive) are
+  // collected into a synthetic trailing bucket so they're still reachable.
+  const byCat = new Map();
+  for (const c of categories) byCat.set(c.key, []);
+  const orphans = [];
+  for (const g of guides) {
+    if (byCat.has(g.category)) byCat.get(g.category).push(g);
+    else orphans.push(g);
+  }
+
+  const sections = categories.map(c => {
+    const items = byCat.get(c.key) || [];
+    const cards = items.map(g => `
+      <div class="card guide-card"
+           data-search="${esc((g.title + ' ' + (g.summary || '') + ' ' + (g.tags || []).join(' ')).toLowerCase())}"
+           onclick="navigate('#/guide/${esc(g.slug)}')">
+        <div class="card-name">${esc(g.title)}</div>
+        ${g.summary ? `<div class="card-desc">${esc(g.summary)}</div>` : ''}
+      </div>
+    `).join('');
+    return `
+      <section class="guide-cat" data-cat="${esc(c.key)}">
+        <h3 class="guide-cat-header">
+          <span>${esc(c.label)}</span>
+          <span class="guide-cat-count">${items.length} GUIDE${items.length === 1 ? '' : 'S'}</span>
+        </h3>
+        <p class="guide-cat-blurb">${esc(c.blurb || '')}</p>
+        <div class="card-grid">${cards}</div>
+        <div class="guide-cat-empty">No matches in this section.</div>
+      </section>
+    `;
+  }).join('');
+
+  // Orphan fallback (defensive — shouldn't fire in normal operation)
+  const orphanSection = orphans.length ? `
+    <section class="guide-cat" data-cat="_orphans">
+      <h3 class="guide-cat-header"><span>Other</span>
+        <span class="guide-cat-count">${orphans.length} GUIDE${orphans.length === 1 ? '' : 'S'}</span>
+      </h3>
+      <div class="card-grid">
+        ${orphans.map(g => `
+          <div class="card guide-card"
+               data-search="${esc((g.title + ' ' + (g.summary || '') + ' ' + (g.tags || []).join(' ')).toLowerCase())}"
+               onclick="navigate('#/guide/${esc(g.slug)}')">
+            <div class="card-name">${esc(g.title)}</div>
+            ${g.summary ? `<div class="card-desc">${esc(g.summary)}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+      <div class="guide-cat-empty">No matches in this section.</div>
+    </section>
+  ` : '';
 
   el.innerHTML = `
     <div class="page">
       <h2>Game Guides</h2>
-      <p class="page-subtitle">Long-form guides covering the rules and mechanics. Read before you connect, or keep open as a reference.</p>
-      <div class="card-grid">${items || '<div class="empty">No guides available.</div>'}</div>
+      <p class="page-subtitle">${guides.length} guide${guides.length === 1 ? '' : 's'} covering the rules and mechanics. Read before you connect, or keep one open while you play.</p>
+      <div class="ref-search-wrap guide-search-wrap">
+        <input type="text" id="guide-search" placeholder="Search guides by title, summary, or tag…" autocomplete="off">
+      </div>
+      <div id="guide-sections">
+        ${sections}
+        ${orphanSection}
+      </div>
+      <div class="guide-results-empty" id="guide-results-empty">No guides match your search.</div>
     </div>
   `;
+
+  // Wire up live search filtering. All matching is client-side against
+  // the data-search attribute we baked onto each card above. No new API
+  // call needed per keystroke.
+  const input = document.getElementById('guide-search');
+  if (input) {
+    input.addEventListener('input', () => filterGuides(input.value));
+    input.focus();
+  }
+}
+
+/* Hide cards that don't match the query, hide any section that ends up
+   with zero visible cards, and show the global "no results" banner
+   when nothing matches anywhere. Empty query restores the full view. */
+function filterGuides(query) {
+  const q = (query || '').trim().toLowerCase();
+  const cards = document.querySelectorAll('.guide-card');
+  const sections = document.querySelectorAll('.guide-cat');
+  let anyVisible = false;
+
+  cards.forEach(card => {
+    const haystack = card.getAttribute('data-search') || '';
+    const match = !q || haystack.indexOf(q) !== -1;
+    card.classList.toggle('is-hidden', !match);
+  });
+
+  sections.forEach(sec => {
+    const visible = sec.querySelectorAll('.guide-card:not(.is-hidden)');
+    if (visible.length === 0 && q) {
+      sec.classList.add('is-empty');
+    } else {
+      sec.classList.remove('is-empty');
+      if (visible.length > 0) anyVisible = true;
+    }
+  });
+
+  if (!q) anyVisible = true;
+  const banner = document.getElementById('guide-results-empty');
+  if (banner) banner.classList.toggle('is-visible', !anyVisible);
 }
 
 async function renderGuide(el, slug) {
@@ -2212,6 +2376,20 @@ function renderMarkdown(md) {
   // Bold / italic
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // Links: [label](url) — supports in-portal hash routes (#/guide/...) and
+  // external URLs. The URL is restricted to a conservative character set to
+  // keep the renderer simple and to refuse anything that looks like a
+  // javascript: payload. Hash, http, https, and mailto schemes are allowed.
+  html = html.replace(
+    /\[([^\]]+)\]\(([^)\s]+)\)/g,
+    (_, label, url) => {
+      const safe = /^(#\/|https?:\/\/|mailto:)/i.test(url);
+      if (!safe) return label;  // drop the link if URL scheme isn't allowed
+      const ext = /^https?:/i.test(url);
+      const attrs = ext ? ' target="_blank" rel="noopener noreferrer"' : '';
+      return '<a href="' + url + '"' + attrs + '>' + label + '</a>';
+    }
+  );
   // Horizontal rule
   html = html.replace(/^---+$/gm, '<hr>');
   // Tables (simple: | col | col |)

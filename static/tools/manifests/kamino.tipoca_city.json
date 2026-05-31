@@ -1,0 +1,68 @@
+{
+  "area_key": "kamino.tipoca_city",
+  "display_name": "TIPOCA CITY",
+  "substrate": "/static/maps/kamino_tipoca_substrate.png",
+  "bounds": {
+    "x_min": 0.0,
+    "y_min": 0.0,
+    "x_max": 11.0,
+    "y_max": 8.0
+  },
+  "landmarks": [
+    {
+      "id": "main_corridor",
+      "icon": "palace",
+      "name": "Tipoca Main Corridor",
+      "distinctive": true,
+      "fx": 0.4364,
+      "fy": 0.5,
+      "note": "distinctive painted feature — place on the palace",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "cloning",
+      "icon": "palace",
+      "name": "Cloning Access",
+      "distinctive": true,
+      "fx": 0.6818,
+      "fy": 0.5,
+      "note": "distinctive painted feature — place on the palace",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "growth",
+      "icon": "palace",
+      "name": "Growth Chambers",
+      "distinctive": true,
+      "fx": 0.8091,
+      "fy": 0.5,
+      "note": "distinctive painted feature — place on the palace",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "platform",
+      "icon": "dock",
+      "name": "Landing Platform",
+      "distinctive": true,
+      "fx": 0.1909,
+      "fy": 0.5,
+      "note": "distinctive painted feature — place on the dock",
+      "min_zoom": 2,
+      "max_zoom": 3
+    },
+    {
+      "id": "aiwha",
+      "icon": "beacon",
+      "name": "Aiwha Stable",
+      "distinctive": false,
+      "fx": 0.1909,
+      "fy": 0.8875,
+      "note": "indistinct / generic — approximate is fine",
+      "min_zoom": 2,
+      "max_zoom": 3
+    }
+  ]
+}

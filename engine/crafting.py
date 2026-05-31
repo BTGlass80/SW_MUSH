@@ -32,7 +32,58 @@ log = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-RESOURCE_TYPES = {"metal", "chemical", "organic", "energy", "composite", "rare"}
+RESOURCE_TYPES = {
+    # T1-T4 (era-neutral, exist anywhere)
+    "metal", "chemical", "organic", "energy", "composite", "rare",
+    # T5 wilderness-only materials (SYN.6.c, May 25 2026).
+    # Per contestable_wilderness_design_v2.md §2.5.6:
+    #   - kyber_shard_minor       — force-resonant wilderness landmarks
+    #   - weapons_capacitor_core  — Dune Sea T2 anomaly drops (SYN.7.b)
+    #   - scavenged_republic_tech — Coruscant Underworld harvests (SYN.6.c+)
+    #   - deep_dune_iron          — Dune Sea T3 anomaly drops (SYN.8)
+    #   - composite_chitin        — Maze Predator hunts (Coruscant; SYN.7.b/SYN.8)
+    # All five are gated by their drop source — they can't be acquired by
+    # ordinary harvest. T5 schematics (data/schematics.yaml, key prefix
+    # 't5_') require q75+ on the listed mat AND consume one of these
+    # plus standard T1-T4 components. The drop hooks live in their own
+    # call sites (force-resonant landmark visit, anomaly resolution,
+    # special harvest paths) and use add_resource normally.
+    "kyber_shard_minor",
+    "weapons_capacitor_core",
+    "scavenged_republic_tech",
+    "deep_dune_iron",
+    "composite_chitin",
+}
+
+# Harvestable subset — types that appear on the ordinary harvest yield
+# tables (engine.harvest.YIELD_TABLE) and get weekly quality variance
+# (engine.region_quality.tick_weekly_region_quality). T5 mats are
+# DROP-ONLY: their quality is set by the drop event (skill margin on
+# force-resonant landmark visit, anomaly participation rules), not by
+# the regional weekly roll. Keeping the variance loop scoped to
+# harvestable types keeps the region_quality table small and the
+# semantics clean: "this week the Dune Sea has good metal" makes
+# sense; "this week the Dune Sea has good kyber" does not — kyber
+# quality is determined when the player surveys the specific landmark.
+HARVESTABLE_RESOURCE_TYPES = frozenset({
+    "metal", "chemical", "organic", "energy", "composite", "rare",
+})
+
+# Subset of RESOURCE_TYPES that gates T5 crafting. Used by the T5
+# schematic-validation check: a recipe whose primary mat is in this set
+# is a T5 recipe. Also used by engine.harvest's _T5_RARE_TARGET logic
+# (post-SYN.6.c: the SYN.6.a "rare at q100" bonus still applies, but
+# T5 recipes now have specific drop-only mats listed below).
+T5_WILDERNESS_MATERIALS = frozenset({
+    "kyber_shard_minor",
+    "weapons_capacitor_core",
+    "scavenged_republic_tech",
+    "deep_dune_iron",
+    "composite_chitin",
+})
+
+# Per design §2.5.6: T5 components require quality 75+. Hard floor.
+T5_MIN_QUALITY = 75
 
 # Quality thresholds → item stat effects (applied at craft time)
 QUALITY_TIERS = [

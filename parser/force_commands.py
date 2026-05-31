@@ -173,12 +173,42 @@ class ForceCommand(BaseCommand):
                 )
                 return
 
+        # ── WoW.3c (May 24 2026): Weight-aware fall check ──────────────
+        # If this Jedi has accrued Weight of War, the design §7.1
+        # tier modifier applies to fall-check difficulty (+0 / +2
+        # / +5 / +10 at Weight 0-50 / 51-100 / 101-150 / 151-200)
+        # and Weight ≥ 151 grants 1 extra DSP on a failed fall.
+        # Compute both at the parser site (char_dict has the DB
+        # row) and pass them in keyword-only so older callers and
+        # tests are unaffected.
+        weight_mod = 0
+        extra_dsp = 0
+        try:
+            from engine.weight_of_war import (
+                dsp_resistance_modifier,
+                extra_dsp_on_failed_resist,
+                is_jedi_pc,
+                get_weight,
+            )
+            if is_jedi_pc(char_dict):
+                w = get_weight(char_dict)
+                weight_mod = dsp_resistance_modifier(w)
+                extra_dsp = extra_dsp_on_failed_resist(w)
+        except Exception:
+            log.debug(
+                "[WoW.3c] Weight modifier lookup failed for "
+                "force-power resolution; falling back to "
+                "Weight=0", exc_info=True,
+            )
+
         # ── Resolve the power ──────────────────────────────────────────────
         result = resolve_force_power(
             power_key=power.key,
             char=char_obj,
             skill_reg=sr,
             target_char=target_obj,
+            weight_difficulty_mod=weight_mod,
+            extra_dsp_on_fail=extra_dsp,
         )
 
         # ── Announce to room ───────────────────────────────────────────────

@@ -78,16 +78,32 @@ async def get_effective_security(room_id: int, db, character: dict = None) -> Se
     """
     Return the effective security level for a room.
 
-    Resolution order:
+    Resolution order (SYN.2, 2026-05-24):
       1. Transient Director override on the room's zone_id (int).
       2. Director env override on the zone environment key (string).
       3. Director live influence thresholds (criminal surge / crackdown).
-      4. Room/zone property "security" via get_room_property().
-      5. Default: CONTESTED.
+      4. **Wilderness region ownership branch** (NEW in SYN.2). If the
+         room has ``wilderness_region_id`` set, resolve security from
+         the region's ``default_security`` plus owner status:
+           - Region owned + char in owning org → LAWLESS upgrades to
+             CONTESTED (citadel upgrade). CONTESTED stays CONTESTED.
+           - Region owned + char NOT in owning org → base stands.
+             (Hostile territory.)
+           - Region un-owned → base stands.
+         Terminal for wilderness rooms; skips steps 5-6 (still
+         runs ``_finalize`` for SECMOD.1 faction-override + city
+         upgrade, which are no-ops for typical wilderness rooms
+         and meaningful for wilderness-anchored city citizens).
+      5. Room/zone property "security" via get_room_property().
+      6. Default: CONTESTED.
 
-    After base resolution, if `character` is provided:
-      6. Territory claim upgrade: if room is claimed by character's org,
-         lawless → contested (members are safer in claimed territory).
+    After base resolution, ``_finalize`` applies:
+      - ``_apply_faction_override`` (SECMOD.1): hostile PC in
+        faction-secured room → LAWLESS.
+      - ``_apply_city_upgrade``: citizen in their own city → upgrade.
+    The legacy ``_apply_claim_upgrade`` step retired in SYN.2 along
+    with the per-room claim system (see contestable_wilderness_design_v2.md
+    §3.2 + §6).
     """
     room = await db.get_room(room_id)
     zone_env = ""
@@ -107,9 +123,10 @@ async def get_effective_security(room_id: int, db, character: dict = None) -> Se
             # effectively didn't apply (callers fell through to the
             # un-overridden security tier with a RuntimeWarning).
             # Caught by smoke CX1 driving set_security_override.
-            return await _apply_claim_upgrade(
-                base, room_id, character, db,
-            )
+            #
+            # SECMOD.1 (May 22 2026): routed through _finalize so the
+            # faction-override resolver step runs before claim-upgrade.
+            return await _finalize(base, room, room_id, character, db)
 
         # Resolve zone environment key for steps 2–3
         if zone_id:
@@ -131,7 +148,7 @@ async def get_effective_security(room_id: int, db, character: dict = None) -> Se
     # 2. Env-key override set explicitly by Director
     if zone_env and zone_env in _env_overrides:
         base = _env_overrides[zone_env]
-        return await _apply_claim_upgrade(base, room_id, character, db)
+        return await _finalize(base, room, room_id, character, db)
 
     # 3. Director live influence thresholds
     if zone_env:
@@ -146,21 +163,152 @@ async def get_effective_security(room_id: int, db, character: dict = None) -> Se
                 except ValueError:
                     base = SecurityLevel.CONTESTED
                 base = _apply_director_overlay(base, zs)
-                return await _apply_claim_upgrade(base, room_id, character, db)
+                return await _finalize(base, room, room_id, character, db)
         except Exception:
             pass  # Director unavailable — fall through
 
-    # 4. Property inheritance
+    # 4. Wilderness region ownership branch (SYN.2, 2026-05-24).
+    # Per contestable_wilderness_design_v2.md §2.3: if the room is a
+    # wilderness landmark (carries wilderness_region_id), resolve
+    # security from the region's default_security + ownership state.
+    # Terminal for wilderness rooms — skips the city-map fallback.
+    if room and room.get("wilderness_region_id"):
+        try:
+            region_state = await _get_wilderness_region_state(room, db)
+            if region_state is not None:
+                base = _apply_wilderness_ownership(
+                    region_state["default_security"], character, region_state,
+                )
+                return await _finalize(base, room, room_id, character, db)
+        except Exception:
+            log.warning(
+                "get_effective_security: wilderness branch error", exc_info=True,
+            )
+            # Fall through to city-map path on error — graceful
+
+    # 5. Property inheritance
     raw = await db.get_room_property(room_id, "security")
     if raw:
         try:
             base = SecurityLevel(raw.lower())
-            return await _apply_claim_upgrade(base, room_id, character, db)
+            return await _finalize(base, room, room_id, character, db)
         except ValueError:
             log.warning("[security] unknown security value %r on room %s", raw, room_id)
 
     base = SecurityLevel.CONTESTED
-    return await _apply_claim_upgrade(base, room_id, character, db)
+    return await _finalize(base, room, room_id, character, db)
+
+
+# ── Wilderness branch helpers (SYN.2, 2026-05-24) ────────────────────────────
+
+async def _get_wilderness_region_state(room: dict, db) -> dict | None:
+    """Look up the wilderness region's security + ownership state.
+
+    Args:
+      room: The room dict containing ``wilderness_region_id``.
+      db: Database adapter.
+
+    Returns:
+      A dict with shape
+        ``{"slug": str, "default_security": SecurityLevel,
+           "owner_org": str | None}``
+      or None if the region isn't found in ``wilderness_regions``
+      (e.g. world hasn't been built yet, or a stale
+      ``wilderness_region_id`` on a hand-built room).
+
+    The lookup is two reads:
+      1. ``wilderness_regions.default_security`` for the base tier.
+      2. ``region_ownership.org_code`` for the owner (or None).
+    """
+    slug = room.get("wilderness_region_id")
+    if not slug:
+        return None
+
+    # Read default_security from the wilderness_regions registry
+    try:
+        rows = await db.fetchall(
+            "SELECT default_security FROM wilderness_regions WHERE slug = ?",
+            (slug,),
+        )
+    except Exception:
+        log.warning("_get_wilderness_region_state: registry read failed",
+                    exc_info=True)
+        return None
+    if not rows:
+        # Region isn't registered. The room carries the slug
+        # (probably from a manual write) but the writer hasn't run.
+        # Graceful fallback: treat as un-owned lawless.
+        return None
+
+    default_raw = (rows[0]["default_security"] or "lawless").lower()
+    try:
+        default_security = SecurityLevel(default_raw)
+    except ValueError:
+        log.warning(
+            "[security/wilderness] unknown default_security %r for region %r — "
+            "falling back to LAWLESS",
+            default_raw, slug,
+        )
+        default_security = SecurityLevel.LAWLESS
+
+    # Read owner from region_ownership (SYN.1.a). Absent row → un-owned.
+    owner_org = None
+    try:
+        rows = await db.fetchall(
+            "SELECT org_code FROM region_ownership WHERE region_slug = ?",
+            (slug,),
+        )
+        if rows:
+            owner_org = rows[0]["org_code"]
+    except Exception:
+        log.warning("_get_wilderness_region_state: ownership read failed",
+                    exc_info=True)
+
+    return {
+        "slug": slug,
+        "default_security": default_security,
+        "owner_org": owner_org,
+    }
+
+
+def _apply_wilderness_ownership(
+    base: SecurityLevel, character: dict | None, region_state: dict,
+) -> SecurityLevel:
+    """Apply the wilderness region's ownership rule to ``base``.
+
+    Per ``contestable_wilderness_design_v2.md`` §2.3:
+
+      * Region owned AND character in owning org → citadel upgrade
+        (LAWLESS → CONTESTED). CONTESTED stays CONTESTED (no further
+        promotion; SECURED is impossible in wilderness by design).
+      * Region owned AND character NOT in owning org → base stands.
+        (Hostile territory — outsiders take the frontier risk.)
+      * Region un-owned → base stands.
+      * No character context (NPC observers, system queries) → base
+        stands.
+
+    The function is pure (no DB I/O); the caller (the step 4 branch)
+    handles the DB reads. This separation makes the rule unit-testable
+    without DB setup.
+    """
+    owner_org = region_state.get("owner_org")
+    if not owner_org:
+        return base  # un-owned
+
+    if character is None:
+        return base  # no character context
+
+    char_org = character.get("faction_id", "independent")
+    if not char_org or char_org == "independent":
+        return base  # independent PCs get no faction-based upgrade
+
+    if char_org != owner_org:
+        return base  # hostile territory: base stands
+
+    # Citadel upgrade: LAWLESS → CONTESTED. Other tiers unchanged.
+    if base == SecurityLevel.LAWLESS:
+        return SecurityLevel.CONTESTED
+    return base
 
 
 def _apply_director_overlay(base: SecurityLevel, zs) -> SecurityLevel:
@@ -195,28 +343,158 @@ def _apply_director_overlay(base: SecurityLevel, zs) -> SecurityLevel:
     return result
 
 
-async def _apply_claim_upgrade(base: SecurityLevel, room_id: int,
-                                character: dict | None, db) -> SecurityLevel:
+async def _apply_faction_override(base: SecurityLevel,
+                                   room: dict | None,
+                                   character: dict | None,
+                                   db) -> SecurityLevel:
     """
-    If the room is claimed by the character's org, upgrade lawless → contested.
-    This means org members are safer in their claimed territory.
-    """
-    if character is None:
-        return base
-    if base != SecurityLevel.LAWLESS:
-        return base  # Only lawless gets upgraded
+    SECMOD.1 (security_zones_design_v1.md §3.2): if the room carries a
+    ``faction_override``, and the base level is SECURED, and the
+    character is Hostile or Unfriendly to that faction, downgrade to
+    LAWLESS.
 
-    char_org = character.get("faction_id", "independent")
-    if not char_org or char_org == "independent":
+    Rationale (from design §3.2):
+        Imperial Garrison interior → lawless for non-Imperials
+        Rebel safehouse           → lawless for Imperial-aligned PCs
+        Hutt palace interior      → contested for everyone
+
+    Substrate decisions:
+
+    1. **Only SECURED gets downgraded.** A CONTESTED or LAWLESS room
+       already permits combat; downgrading would be a no-op
+       (CONTESTED → LAWLESS would *enable* PvP without consent in a
+       contested faction stronghold, which is a separate design call).
+       This matches the design doc's wording: "the security level
+       effectively becomes contested or lawless for players who don't
+       belong" — applied as a one-step downgrade to LAWLESS from
+       SECURED. The CONTESTED case in the design fiction maps to a
+       Hutt palace, which the design itself says is "contested for
+       everyone" — so the BASE is already CONTESTED for those rooms;
+       the override doesn't have to downgrade further.
+
+    2. **No character → no downgrade.** Director-driven and
+       admin-issued security overrides resolve without a character
+       context; the faction-override rule is per-character by
+       definition, so it skips when ``character is None``.
+
+    3. **Standing tiers come from REP_TIERS in engine/organizations.py.**
+       Hostile is rep ≤ -50; Unfriendly is rep -49..-25. Anything ≥ -24
+       (wary, unknown, recognized, etc.) is NOT downgraded — wary PCs
+       are merely watched, not treated as enemies of the faction.
+
+    4. **Fail-soft.** If org lookup raises, log and fall through to
+       the base level. Better to leak occasional access than to
+       silently break every secured-zone check on a transient
+       organizations-layer hiccup.
+
+    5. **Room dict may be None.** Callers in get_effective_security
+       always have it (they loaded it for zone_id resolution), but
+       the parameter is typed as Optional so future callers without
+       a pre-loaded room don't need a stub fetch.
+    """
+    if base != SecurityLevel.SECURED:
+        return base
+    if character is None or not room:
+        return base
+
+    override = room.get("faction_override")
+    if not override:
         return base
 
     try:
-        from engine.territory import is_room_claimed_by
-        if await is_room_claimed_by(db, room_id, char_org):
+        from engine.organizations import get_char_faction_rep
+        rep = await get_char_faction_rep(character, override, db)
+        # Hostile (rep ≤ -50) or Unfriendly (-49..-25) → downgrade.
+        # See REP_TIERS in engine/organizations.py for the canonical
+        # tier table.
+        if rep <= -25:
+            return SecurityLevel.LAWLESS
+    except Exception:
+        log.warning(
+            "_apply_faction_override: unhandled exception "
+            "(room=%s, override=%r)",
+            room.get("id"), override, exc_info=True,
+        )
+    return base
+
+
+async def _apply_city_upgrade(base: SecurityLevel, room_id: int,
+                               character: dict | None, db) -> SecurityLevel:
+    """
+    Player Cities Phase 5 (May 22 2026) §6.2: city rooms upgrade for
+    citizens.
+
+    Citizen upgrades (read via engine.player_cities.is_citizen):
+      - CONTESTED → SECURED  (city rooms in contested zones are
+                              safe for citizens)
+      - LAWLESS   → CONTESTED (city rooms in lawless zones become
+                              consent-PvP for citizens; non-
+                              citizens still get full lawless)
+
+    Non-citizens (including guests and outsiders) get NO upgrade.
+    Banished users are non-citizens by definition (banishment
+    supersedes membership per Phase 3 get_city_role).
+
+    This is the most-permissive last word in the _finalize chain:
+    even if faction-override downgraded SECURED → LAWLESS, the
+    city upgrade can lift the character back up. That's the correct
+    behavior: a citizen inside their own city should be safer than
+    a hostile faction's downgrade can make them.
+
+    Fail-soft: any exception in the city lookup falls through to
+    the base level so a transient cities-layer hiccup doesn't
+    silently weaken security for everyone else.
+    """
+    if character is None:
+        return base
+    # Only CONTESTED and LAWLESS get upgraded; SECURED stays.
+    if base not in (SecurityLevel.CONTESTED, SecurityLevel.LAWLESS):
+        return base
+
+    try:
+        from engine.player_cities import get_city_for_room, is_citizen
+        city = await get_city_for_room(db, int(room_id))
+        if not city:
+            return base
+        if not await is_citizen(db, character, city):
+            return base
+        # Citizen — apply the upgrade.
+        if base == SecurityLevel.CONTESTED:
+            return SecurityLevel.SECURED
+        if base == SecurityLevel.LAWLESS:
             return SecurityLevel.CONTESTED
     except Exception:
-        log.warning("_apply_claim_upgrade: unhandled exception", exc_info=True)
-        pass
+        log.warning(
+            "_apply_city_upgrade: unhandled exception "
+            "(room=%s); failing through",
+            room_id, exc_info=True,
+        )
+    return base
+
+
+async def _finalize(base: SecurityLevel,
+                     room: dict | None,
+                     room_id: int,
+                     character: dict | None,
+                     db) -> SecurityLevel:
+    """
+    Apply the post-resolve chain: faction-override first, then
+    city-upgrade. SYN.2 (2026-05-24): the claim-upgrade step retired
+    along with ``_apply_claim_upgrade`` — wilderness region ownership
+    is handled directly in ``get_effective_security`` step 4
+    (terminal for wilderness chars). City-map rooms reach this
+    finalize chain via steps 5-6; wilderness rooms also pass through
+    here so the city-upgrade step still applies for city citizens
+    whose city happens to be anchored at a wilderness landmark
+    (SYN.4 makes this the universal case).
+
+    Order matters — the faction-override downgrade (SECURED →
+    LAWLESS) runs first; the city upgrade is most-permissive last
+    so a citizen inside their own city gets the strongest available
+    security tier.
+    """
+    base = await _apply_faction_override(base, room, character, db)
+    base = await _apply_city_upgrade(base, room_id, character, db)
     return base
 
 

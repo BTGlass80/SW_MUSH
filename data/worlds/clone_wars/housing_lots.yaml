@@ -57,7 +57,7 @@ tier2_faction_quarters:
       room_name: Marshal {name}'s Suite
       room_desc: >-
         A council suite at the Stalgasin Deep Hive's restricted Council approach — three chambers, a holotable showing live
-        tactical data from every Separatist battlefront, and a private antechamber where Count Dooku's emissaries are received.
+        tactical data from every Separatist battlefront, and a private antechamber where the Confederacy's senior emissaries are received.
         Geonosian sentinels stand watch in the outer hall. Few non-Geonosians have ever stood here.
   hutt_cartel:
     tiers:

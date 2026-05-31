@@ -661,6 +661,12 @@ def advance_step(char_attrs: dict,
         completed.append(current_step_num)
     state["completed_steps"] = completed
 
+    # F.8.c.2.b₅ Phase 3: drop sub-step progress when the step
+    # advances. The next step has its own `requires_first` (or
+    # none). Without this, a step that doesn't use requires_first
+    # would inherit stale satisfaction indices from the prior step.
+    state.pop(_STEP_PROGRESS_KEY, None)
+
     next_step_num = current_step_num + 1
     if next_step_num > len(chain.steps):
         state["completion_state"] = "graduated"
@@ -698,3 +704,236 @@ def reset_chain_state(char_attrs: dict) -> None:
     their chain (allowed only via admin command in Phase 1, possibly
     player-facing later). Mutates in place."""
     char_attrs.pop(_TUTORIAL_CHAIN_KEY, None)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# F.8.c.2.b₅ Phase 3 — `requires_first` sub-step progress tracking
+# ─────────────────────────────────────────────────────────────────────
+#
+# Three chain steps use `requires_first` (republic_soldier step 1,
+# smuggler step 5, shipwright_trader step 2). The shape:
+#
+#     completion:
+#       type: talk_to_npc          # main completion
+#       npc: "Major Tarrn"
+#       requires_first:            # prerequisites that must fire
+#         - command: "look"        # before the main completion is
+#         - command: "+sheet"      # accepted
+#
+# State extension added on top of the Phase 1 `tutorial_chain` block:
+#
+#     attributes["tutorial_chain"] = {
+#         "chain_id": ...,
+#         "step": 1,
+#         ...,
+#         "step_progress_satisfied": [0, 1],  # NEW (F.8.c.2.b₅)
+#     }
+#
+# `step_progress_satisfied` is a list of indices into the current
+# step's `requires_first` array. It's per-step — cleared on every
+# advance — because the next step likely has different prerequisites
+# (or none).
+#
+# Why a list of indices and not a list of dicts: the chain corpus is
+# the source of truth for the prerequisite shape. Storing an index
+# means a chain author who swaps prerequisite order during a hotfix
+# would invalidate in-flight character state, but chain corpora are
+# read-only at runtime in this codebase (cache invalidation = process
+# restart). The trade-off is acceptable.
+
+
+_STEP_PROGRESS_KEY = "step_progress_satisfied"
+
+
+def get_satisfied_prereqs(char_attrs: dict) -> list:
+    """Return the list of `requires_first` indices already satisfied
+    for the active step, or an empty list. Read-only helper — never
+    mutates state.
+
+    F.8.c.2.b₅ Phase 3 (May 5 2026)."""
+    state = char_attrs.get(_TUTORIAL_CHAIN_KEY) or {}
+    raw = state.get(_STEP_PROGRESS_KEY)
+    if not isinstance(raw, list):
+        return []
+    # Defensive: only return integer indices. A corrupt save with
+    # mixed types should not crash the matcher.
+    return [int(i) for i in raw if isinstance(i, int)]
+
+
+def record_prereq_satisfied(char_attrs: dict, prereq_index: int) -> bool:
+    """Mark a `requires_first` prerequisite as satisfied for the
+    active step. Idempotent — re-recording an already-satisfied
+    prereq is a no-op.
+
+    Returns True iff this call actually changed state (the caller
+    can use this to decide whether to persist).
+
+    F.8.c.2.b₅ Phase 3 (May 5 2026)."""
+    state = char_attrs.get(_TUTORIAL_CHAIN_KEY)
+    if not state or state.get("completion_state") != "active":
+        return False
+
+    existing = list(state.get(_STEP_PROGRESS_KEY) or [])
+    if prereq_index in existing:
+        return False
+    existing.append(int(prereq_index))
+    state[_STEP_PROGRESS_KEY] = existing
+    return True
+
+
+def clear_step_progress(char_attrs: dict) -> None:
+    """Clear the `requires_first` progress for the current step.
+    Called when the step advances or the chain is reset.
+
+    F.8.c.2.b₅ Phase 3 (May 5 2026)."""
+    state = char_attrs.get(_TUTORIAL_CHAIN_KEY)
+    if state:
+        state.pop(_STEP_PROGRESS_KEY, None)
+
+
+# ── Skip starter kit loader (Drop 2b) ────────────────────────────────────
+#
+# Drop 2b (May 19 2026): companion loader for the alt-character skip
+# starter kit. The kit is defined in
+# data/worlds/<era>/skip_starter_kit.yaml and registered in era.yaml's
+# content_refs as `skip_starter_kit`. Consumed by
+# server/api.py::handle_create_character when an alt skips the
+# tutorial.
+#
+# Schema v1 (matches the YAML file shipped in Drop 2a):
+#     schema_version: 1
+#     credits: <int>
+#     items: [{key, name, quality}, ...]
+#     resources: [{type, quality, quantity}, ...]   (optional)
+#     message: <str>                                (optional)
+#
+# The function is permissive: a missing file returns None (no consumer
+# should hard-fail on a missing kit), a malformed file returns a
+# best-effort dict with whatever fields parsed. Hard errors only on
+# YAML syntax explosions or top-level shape violations.
+
+def load_skip_starter_kit(
+    era: Optional[str] = None,
+    *,
+    worlds_root: Optional[Path] = None,
+) -> Optional[dict]:
+    """Load the alt-character skip starter kit for the given era.
+
+    Resolution order:
+      1. If `era` is None, use engine.era_state.get_active_era().
+      2. Look up era.yaml's `content_refs.skip_starter_kit` and read
+         that filename from the era directory.
+      3. Fall back to `<era>/skip_starter_kit.yaml` if the era manifest
+         lookup fails (defensive — Drop 2a registered it as
+         skip_starter_kit.yaml in era.yaml directly).
+
+    Returns a dict with shape:
+        {
+            "schema_version": int,
+            "credits": int,
+            "items": list[dict],
+            "resources": list[dict],
+            "message": str,
+        }
+    or None if the file is missing / era has no kit (e.g. GCW).
+
+    All fields are filled with safe defaults if absent; consumers can
+    rely on the shape being complete.
+    """
+    if era is None:
+        try:
+            from engine.era_state import get_active_era
+            era = get_active_era()
+        except Exception as e:
+            log.warning(
+                "[skip_starter_kit] era_state import failed (%s); "
+                "defaulting to 'clone_wars'.", e,
+            )
+            era = "clone_wars"
+
+    root = worlds_root or (Path("data") / "worlds")
+    era_dir = Path(root) / era
+
+    # ── Step 1: resolve the kit filename via era.yaml content_refs ──
+    kit_filename = "skip_starter_kit.yaml"  # sensible default
+    era_yaml = era_dir / "era.yaml"
+    if era_yaml.is_file():
+        try:
+            import yaml
+            with open(era_yaml, "r", encoding="utf-8") as f:
+                era_raw = yaml.safe_load(f) or {}
+            refs = (era_raw.get("content_refs") or {})
+            ref = refs.get("skip_starter_kit")
+            if isinstance(ref, str) and ref.strip():
+                kit_filename = ref.strip()
+        except Exception as e:
+            log.warning(
+                "[skip_starter_kit] Could not resolve content_refs "
+                "from %s (%s); using default '%s'.",
+                era_yaml, e, kit_filename,
+            )
+
+    kit_path = era_dir / kit_filename
+    if not kit_path.is_file():
+        log.info(
+            "[skip_starter_kit] No skip kit at %s; this era has no "
+            "alt skip kit (or it hasn't been authored yet).",
+            kit_path,
+        )
+        return None
+
+    try:
+        import yaml
+        with open(kit_path, "r", encoding="utf-8") as f:
+            raw = yaml.safe_load(f) or {}
+    except Exception as e:
+        log.error(
+            "[skip_starter_kit] Failed to parse %s: %s", kit_path, e,
+        )
+        return None
+
+    if not isinstance(raw, dict):
+        log.error(
+            "[skip_starter_kit] %s: top-level must be a mapping, "
+            "got %s.", kit_path, type(raw).__name__,
+        )
+        return None
+
+    # ── Step 2: normalize the shape with safe defaults ──
+    items = raw.get("items") or []
+    if not isinstance(items, list):
+        log.warning(
+            "[skip_starter_kit] %s: items must be a list; coercing "
+            "to empty list.", kit_path,
+        )
+        items = []
+
+    resources = raw.get("resources") or []
+    if not isinstance(resources, list):
+        log.warning(
+            "[skip_starter_kit] %s: resources must be a list; "
+            "coercing to empty list.", kit_path,
+        )
+        resources = []
+
+    try:
+        credits = int(raw.get("credits", 0))
+    except (TypeError, ValueError):
+        log.warning(
+            "[skip_starter_kit] %s: credits not an int; defaulting "
+            "to 0.", kit_path,
+        )
+        credits = 0
+
+    message = raw.get("message") or ""
+    if not isinstance(message, str):
+        message = str(message)
+
+    return {
+        "schema_version": int(raw.get("schema_version", 1)),
+        "credits": credits,
+        "items": items,
+        "resources": resources,
+        "message": message.strip(),
+    }
+

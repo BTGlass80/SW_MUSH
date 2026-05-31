@@ -2548,10 +2548,9 @@ class FireCommand(BaseCommand):
                 f"(Weapon arc: {weapon.fire_arc})")
             return None
 
-        from engine.character import Character, SkillRegistry
+        from engine.character import Character, get_cached_skill_registry
         char_obj = Character.from_db_dict(ctx.session.character)
-        sr = SkillRegistry()
-        sr.load_file("data/skills.yaml")
+        sr = get_cached_skill_registry()
 
         # Gunnery skill — routed by weapon type
         gunnery_skill = weapon.skill.replace("_", " ") if weapon.skill else "starship gunnery"
@@ -2906,10 +2905,9 @@ class CloseRangeCommand(BaseCommand):
         if not template or not target_template:
             await ctx.session.send_line("  Ship data error.")
             return
-        from engine.character import Character, SkillRegistry
+        from engine.character import Character, get_cached_skill_registry
         char_obj = Character.from_db_dict(ctx.session.character)
-        sr = SkillRegistry()
-        sr.load_file("data/skills.yaml")
+        sr = get_cached_skill_registry()
         pilot_pool = char_obj.get_skill_pool("starfighter piloting", sr)
         target_crew = _get_crew(target_ship)
         target_pilot_pool = DicePool(2, 0)
@@ -2979,7 +2977,7 @@ class EvadeCommand(BaseCommand):
     usage = "evade"
     async def execute(self, ctx):
         from engine.starships import resolve_evade, roll_hazard_table
-        from engine.character import Character, SkillRegistry
+        from engine.character import Character, get_cached_skill_registry
 
         ship = await _get_ship_for_player(ctx)
         if not ship:
@@ -3001,8 +2999,7 @@ class EvadeCommand(BaseCommand):
 
         # Build pilot pool — use effective maneuverability
         char_obj = Character.from_db_dict(ctx.session.character)
-        sr = SkillRegistry()
-        sr.load_file("data/skills.yaml")
+        sr = get_cached_skill_registry()
         pilot_pool = char_obj.get_skill_pool("starfighter piloting", sr)
         my_eff = _get_effective_for_ship(ship) or {}
         maneuver_pool = DicePool.parse(my_eff.get("maneuverability", template.maneuverability))
@@ -3086,7 +3083,7 @@ async def _resolve_maneuver_cmd(ctx, maneuver_name: str, base_diff: int,
                                  attacker_bonus: int, breaks_tail: bool,
                                  repositions_flank: bool, num_actions: int):
     """Shared implementation for all evasive maneuver commands."""
-    from engine.character import Character, SkillRegistry
+    from engine.character import Character, get_cached_skill_registry
 
     ship = await _get_ship_for_player(ctx)
     if not ship:
@@ -3123,8 +3120,7 @@ async def _resolve_maneuver_cmd(ctx, maneuver_name: str, base_diff: int,
 
     # Build pilot pool — use effective maneuverability
     char_obj = Character.from_db_dict(ctx.session.character)
-    sr = SkillRegistry()
-    sr.load_file("data/skills.yaml")
+    sr = get_cached_skill_registry()
     pilot_pool = char_obj.get_skill_pool("starfighter piloting", sr)
     my_eff = _get_effective_for_ship(ship) or {}
     maneuver_pool = DicePool.parse(my_eff.get("maneuverability", template.maneuverability))
@@ -3703,10 +3699,9 @@ class ShieldsCommand(BaseCommand):
         difficulty = diff_table.get(arcs_covered, 10)
 
         # Skill roll
-        from engine.character import Character, SkillRegistry
+        from engine.character import Character, get_cached_skill_registry
         char_obj = Character.from_db_dict(ctx.session.character)
-        sr = SkillRegistry()
-        sr.load_file("data/skills.yaml")
+        sr = get_cached_skill_registry()
         if is_capital:
             skill_name = "capital ship shields"
         else:
@@ -4133,6 +4128,27 @@ class BuyCommand(BaseCommand):
         char["equipment"] = serialize_equipment(item)
         await ctx.db.save_character(char["id"], credits=new_credits, equipment=char["equipment"])
 
+        # ── Player Cities Phase 4b (May 22 2026): city tax ──────────────
+        # NPC vendor buy: per Phase 4b design call #2, the player's
+        # debit is unchanged; city revenue funded by the NPC vendor
+        # system. Tax based on the post-bargain, post-faction-adjustment
+        # `price` (the actual transaction value).
+        city_tax_msg = ""
+        try:
+            from engine.player_cities import apply_city_tax
+            city_take, _, city_name = await apply_city_tax(
+                ctx.db, char["room_id"], price,
+            )
+            if city_take > 0:
+                city_tax_msg = (
+                    f"  \033[2m[{city_take:,}cr city tax to "
+                    f"{city_name}]\033[0m"
+                )
+        except Exception:
+            log.warning(
+                "execute: city tax hook failed", exc_info=True,
+            )
+
         # Show haggle result
         pct = haggle["price_modifier_pct"]
         if pct != 0:
@@ -4151,6 +4167,8 @@ class BuyCommand(BaseCommand):
         if faction_msg:
             await ctx.session.send_line(faction_msg)
         await ctx.session.send_line(f"  Condition: {item.condition_bar}")
+        if city_tax_msg:
+            await ctx.session.send_line(city_tax_msg)
 
 
 class DamConCommand(BaseCommand):
@@ -5430,6 +5448,7 @@ async def _handle_buy_cargo(ctx) -> None:
     from engine.trading import (
         TRADE_GOODS, get_planet_price, get_ship_cargo,
         cargo_free, add_cargo, SUPPLY_POOL, volume_premium,
+        get_cargo_tons,
     )
     from engine.starships import get_ship_registry
     from engine.skill_checks import resolve_bargain_check
@@ -5554,6 +5573,28 @@ async def _handle_buy_cargo(ctx) -> None:
     if planet:
         SUPPLY_POOL.consume(planet, good.key, quantity)
 
+    # ── Player Cities Phase 4b (May 22 2026): city tax ──────────────────
+    # Planet-market cargo buy at a spaceport. Per Phase 4b design call
+    # #2, player's debit is unchanged; city revenue funded by the
+    # NPC vendor system. Mostly a no-op (spaceport rooms aren't usually
+    # in player cities), but fires correctly if a city has expanded
+    # to include the dock room.
+    city_tax_msg = ""
+    try:
+        from engine.player_cities import apply_city_tax
+        city_take, _, city_name = await apply_city_tax(
+            ctx.db, char["room_id"], total_price,
+        )
+        if city_take > 0:
+            city_tax_msg = (
+                f"  \033[2m[{city_take:,}cr city tax to "
+                f"{city_name}]\033[0m"
+            )
+    except Exception:
+        log.warning(
+            "_handle_buy_cargo: city tax hook failed", exc_info=True,
+        )
+
     if premium_pct > 0:
         # Round to whole percentage for display so 14.something doesn't surface.
         await ctx.session.send_line(
@@ -5573,6 +5614,8 @@ async def _handle_buy_cargo(ctx) -> None:
             f"{get_cargo_tons(ship) + quantity}t used."
         )
     )
+    if city_tax_msg:
+        await ctx.session.send_line(city_tax_msg)
 
 
 class SalvageCommand(BaseCommand):

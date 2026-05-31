@@ -1503,11 +1503,88 @@ async def faction_payroll_tick(db) -> int:
                     continue
                 current_credits = char_row.get("credits", 0)
 
-                # Pay the stipend
+                # ── PG2.PL.A (May 22 2026): insurance-debt interceptor ──
+                # Per progression_gates_and_consequences_design_v1.md
+                # §4.4 and engine/insurance_debt.py's FACTION_STIPEND
+                # service: if the character has outstanding BH Guild
+                # debt, the stipend is intercepted (fully or partially)
+                # toward the debt instead of paid as credits.
+                #
+                # The intercept does NOT block the org_paid bookkeeping
+                # — the org still spent the stipend, it just went to
+                # the BH Guild instead of the member's pocket.
+                stipend_to_credits = stipend
+                stipend_to_debt = 0
+                try:
+                    debt = await db.get_insurance_debt(mem["char_id"])
+                    if debt and int(debt) > 0:
+                        if int(debt) >= stipend:
+                            # Whole stipend intercepted
+                            stipend_to_debt = stipend
+                            stipend_to_credits = 0
+                        else:
+                            # Partial: debt covered, remainder paid as credits
+                            stipend_to_debt = int(debt)
+                            stipend_to_credits = stipend - int(debt)
+                        # Apply the debt paydown
+                        try:
+                            await db.pay_insurance_debt(
+                                mem["char_id"], stipend_to_debt,
+                            )
+                        except Exception:
+                            log.warning(
+                                "[orgs] PG2.PL.A: pay_insurance_debt "
+                                "failed for char_id=%s",
+                                mem["char_id"], exc_info=True,
+                            )
+                            # On failure, fall back to paying as
+                            # credits — the debt intercept is a
+                            # soft policy.
+                            stipend_to_credits = stipend
+                            stipend_to_debt = 0
+                except Exception:
+                    log.warning(
+                        "[orgs] PG2.PL.A: insurance debt lookup "
+                        "failed for char_id=%s",
+                        mem["char_id"], exc_info=True,
+                    )
+
+                # Pay the stipend (whatever portion survived the intercept)
                 await db.save_character(mem["char_id"],
-                                         credits=current_credits + stipend)
+                                         credits=current_credits + stipend_to_credits)
                 org_paid += stipend
                 total_paid += stipend
+
+                # PG2.PL.A — notify the member if intercept happened.
+                # Mail is best-effort; failure doesn't roll back.
+                if stipend_to_debt > 0:
+                    try:
+                        from engine.mail_utils import send_system_mail
+                        await send_system_mail(
+                            db,
+                            recipient_id=mem["char_id"],
+                            subject=(
+                                "Stipend intercepted by BH Guild"
+                            ),
+                            body=(
+                                f"Your weekly {org_code} stipend of "
+                                f"{stipend} credits has been "
+                                f"intercepted by the Bounty Hunters' "
+                                f"Guild against outstanding insurance "
+                                f"debt.\n\n"
+                                f"Applied to debt: {stipend_to_debt} cr\n"
+                                f"Paid to you: {stipend_to_credits} cr\n\n"
+                                f"Use +pcbounty debt to view current "
+                                f"balance, or +pcbounty pay to clear "
+                                f"the remaining debt."
+                            ),
+                        )
+                    except Exception:
+                        log.warning(
+                            "[orgs] PG2.PL.A: stipend-intercept "
+                            "mail failed (best-effort)",
+                            exc_info=True,
+                        )
 
                 # Log
                 try:

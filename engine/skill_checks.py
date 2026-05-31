@@ -28,6 +28,7 @@ divergent ladder.
 """
 import logging
 from dataclasses import dataclass
+from typing import Optional
 
 from engine.dice import DicePool, roll_d6_pool
 
@@ -78,6 +79,9 @@ def perform_skill_check(
     skill_name: str,
     difficulty: int,
     skill_registry=None,
+    *,
+    lead_bonus: Optional[int] = None,
+    auto_consume_lead: bool = True,
 ) -> SkillCheckResult:
     """
     Perform a skill check for a character dict.
@@ -87,6 +91,16 @@ def perform_skill_check(
         skill_name: Lowercase skill name e.g. "con", "search", "blaster".
         difficulty: Target number.
         skill_registry: SkillRegistry instance (uses module singleton if None).
+        lead_bonus: SRB.3 — explicit bonus in pips to add (1D = 3 pips). If
+            None and ``auto_consume_lead`` is True, the function will look
+            up any active combined-action offer the character is a member
+            of and consume it, applying its bonus_pips to this roll. Pass
+            ``0`` explicitly to suppress the auto-consume.
+        auto_consume_lead: SRB.3 — when True (default), do the
+            combined-action lookup if ``lead_bonus`` is None. When False,
+            the helper never touches the in-memory offers (use for test
+            isolation or for code paths that need to roll independently
+            of any active lead).
 
     Returns:
         SkillCheckResult
@@ -94,21 +108,48 @@ def perform_skill_check(
     if skill_registry is None:
         skill_registry = _get_default_registry()
 
+    # SRB.3 (May 22 2026): resolve a combined-action bonus if applicable.
+    # Per support_role_buffs_design_v1.md §4, a leader who passes their
+    # Command roll stages a pending bonus; the next skill roll from any
+    # member of the lead consumes it. We do the lookup HERE so that
+    # every consumer of perform_skill_check automatically benefits from
+    # an active lead without each call site needing to know about it.
+    effective_lead_pips = 0
+    if lead_bonus is not None:
+        effective_lead_pips = int(lead_bonus)
+    elif auto_consume_lead:
+        try:
+            from engine.combined_actions import consume_lead_bonus
+            char_id = char.get("id")
+            if char_id is not None:
+                effective_lead_pips = consume_lead_bonus(int(char_id))
+        except Exception:
+            log.warning("perform_skill_check: lead-bonus lookup failed",
+                        exc_info=True)
+            effective_lead_pips = 0
+
     # Parse character's skill pool
     dice, pips = _get_skill_pool(char, skill_name, skill_registry)
 
-    # Apply buff/debuff modifiers (in pips)
+    # Apply buff/debuff modifiers (in pips) AND any SRB.3 lead bonus
     try:
         from engine.buffs import get_buff_modifier
         attr_name = _skill_to_attr(skill_name, skill_registry)
         buff_pips = get_buff_modifier(char, attr_name)
-        if buff_pips:
-            total_pips = dice * 3 + pips + buff_pips
+        total_buff_pips = buff_pips + effective_lead_pips
+        if total_buff_pips:
+            total_pips = dice * 3 + pips + total_buff_pips
             total_pips = max(3, total_pips)  # Floor: 1D minimum
             dice = total_pips // 3
             pips = total_pips % 3
     except Exception:
-        pass  # Non-critical — roll without buff adjustment
+        # Even if buff system errors out, apply the lead bonus alone if
+        # we have one — it's an independent mechanic.
+        if effective_lead_pips:
+            total_pips = dice * 3 + pips + effective_lead_pips
+            total_pips = max(3, total_pips)
+            dice = total_pips // 3
+            pips = total_pips % 3
 
     pool = DicePool(dice, pips)
     pool_str = str(pool)
@@ -129,6 +170,112 @@ def perform_skill_check(
         skill_used=skill_name,
         pool_str=pool_str,
     )
+
+
+# ── SRB.2 morale-aware skill check ────────────────────────────────────────
+#
+# Per support_role_buffs_design_v1.md §2.1–§2.3: a successful `perform`
+# in a cantina room creates a morale aura on the room. The aura reduces
+# the difficulty of morale-flavored rolls for everyone in the room.
+#
+# Affected skills (design §2.3):
+#   - Willpower (any check; resisting fear / persuasion / intimidation)
+#   - Command   (when leading a combined action)
+#   - Persuasion / con   (interpersonal / social)
+#   - Dark Side fall check (the high-difficulty Willpower roll)
+#
+# NOT affected: combat skills (blaster/dodge/melee/brawling), technical,
+# mechanical, knowledge, Force-power rolls themselves, damage rolls.
+#
+# Implementation note: `perform_skill_check` is synchronous; the aura
+# lookup requires DB. We expose a separate async wrapper
+# `perform_morale_aware_check` so consumers that want aura-aware checks
+# can opt in without forcing all callers to async. The Fall check is
+# the canonical first consumer.
+
+MORALE_FLAVORED_SKILLS = frozenset({
+    "willpower",
+    "command",
+    "persuasion",
+    "con",  # alias used in some chargen content
+})
+
+
+def is_morale_flavored(skill_name: str) -> bool:
+    """True if a skill is in the aura-affected set per design §2.3.
+
+    Used by both `perform_morale_aware_check` and any consumer that
+    wants to know whether a roll would benefit from a morale aura
+    before doing the DB lookup.
+    """
+    return skill_name.lower() in MORALE_FLAVORED_SKILLS
+
+
+async def get_morale_aura_magnitude(db, room_id: int,
+                                     now: float | None = None) -> int:
+    """Return the active aura magnitude for a room, or 0 if none.
+
+    `now` defaults to the current wall clock. Filters expired auras
+    inline (matches the look-renderer's behavior); the periodic tick
+    reaps the actual rows.
+    """
+    import time as _time
+    if now is None:
+        now = _time.time()
+    try:
+        aura = await db.get_morale_aura(room_id)
+    except Exception:
+        log.warning("get_morale_aura_magnitude: DB error", exc_info=True)
+        return 0
+    if not aura:
+        return 0
+    try:
+        if float(aura.get("expires_at", 0.0)) <= now:
+            return 0
+        return int(aura.get("magnitude", 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+async def perform_morale_aware_check(
+    char: dict,
+    skill_name: str,
+    difficulty: int,
+    *,
+    db,
+    room_id: int | None = None,
+    skill_registry=None,
+) -> SkillCheckResult:
+    """Skill check variant that consults the room morale aura.
+
+    For morale-flavored skills (§2.3), the active aura magnitude is
+    subtracted from the difficulty before the underlying
+    `perform_skill_check` is called. Difficulty has a floor of 1
+    (a 0-or-negative difficulty would auto-succeed even on a fumble,
+    which is undesirable — even a heroic perform doesn't make
+    Willpower trivial).
+
+    For non-morale-flavored skills, this delegates to
+    `perform_skill_check` unchanged (the aura is ignored).
+
+    `room_id` defaults to `char["room_id"]` if not supplied. If
+    neither is available, the aura is treated as 0.
+    """
+    if not is_morale_flavored(skill_name):
+        return perform_skill_check(char, skill_name, difficulty,
+                                    skill_registry=skill_registry)
+
+    effective_room = room_id
+    if effective_room is None:
+        effective_room = char.get("room_id")
+    if effective_room is None or db is None:
+        return perform_skill_check(char, skill_name, difficulty,
+                                    skill_registry=skill_registry)
+
+    magnitude = await get_morale_aura_magnitude(db, effective_room)
+    adjusted = max(1, difficulty - magnitude)
+    return perform_skill_check(char, skill_name, adjusted,
+                                skill_registry=skill_registry)
 
 
 # ── Skill pool extraction ────────────────────────────────────────────────────

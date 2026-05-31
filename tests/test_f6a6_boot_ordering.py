@@ -74,30 +74,37 @@ class TestBootOrderingFlagOff(unittest.TestCase):
 
     def test_default_config_no_active_config_legacy_constants(self):
         # No set_active_config call at all. era_state.get_seeding_era()
-        # returns its default ('gcw'), so director resolves through the
-        # GCW YAML.
+        # returns its default — post-May 18 2026 pivot, 'clone_wars'.
+        # Director resolves through the CW YAML.
+        #
+        # Pre-pivot (Apr 29 2026 F.6a.7 baseline): default was 'gcw'
+        # and this test asserted GCW values. The pivot flipped the
+        # default; this test now pins the post-pivot contract.
         script = textwrap.dedent("""
             import sys
             from engine import director
             print("source:", director._RUNTIME_CFG.source)
             print("factions:", sorted(director.VALID_FACTIONS))
-            print("zones:", sorted(director.DEFAULT_INFLUENCE.keys()))
+            print("zones_count:", len(director.DEFAULT_INFLUENCE))
         """)
         rc, out, err = _run_python(script)
         self.assertEqual(rc, 0, f"subprocess failed: {err}")
-        # Post-F.6a.7: source label is 'yaml-gcw' (was 'legacy' pre-drop).
-        self.assertIn("source: yaml-gcw", out)
-        # Canonical GCW factions — unchanged across the F.6a.7 transition.
+        # Post-May-18-pivot: source label is 'yaml-clone_wars'.
+        self.assertIn("source: yaml-clone_wars", out)
+        # Canonical CW factions.
         self.assertIn(
-            "factions: ['criminal', 'imperial', 'independent', 'rebel']",
+            "factions: ['bhg', 'cis', 'hutt_cartel', 'independent', "
+            "'jedi_order', 'republic']",
             out,
         )
-        # Canonical GCW zones — unchanged across the F.6a.7 transition.
-        self.assertIn(
-            "zones: ['cantina', 'government', 'jabba', 'shops', "
-            "'spaceport', 'streets']",
-            out,
-        )
+        # CW has many more zones than GCW's 6.
+        for line in out.splitlines():
+            if line.startswith("zones_count:"):
+                count = int(line.split(":")[1].strip())
+                self.assertGreater(
+                    count, 10,
+                    f"CW default should have >10 zones, got {count}",
+                )
 
     def test_config_registered_but_flag_off_legacy_constants(self):
         # Pre-F.6a.7: `use_yaml_director_data=False` was the mechanism
@@ -173,13 +180,21 @@ class TestBootOrderingFlagOn(unittest.TestCase):
         #
         # Pre-F.6a.7: wrong ordering meant director defaulted to no-era
         # → legacy hardcoded literals. Source label: 'legacy'.
-        # Post-F.6a.7: wrong ordering means director defaults to 'gcw'
-        # YAML (because era_state.get_active_era() returns _DEFAULT_ERA
-        # when nothing's registered yet). Source label: 'yaml-gcw'.
-        # The user-visible failure is the same: a CW server boots with
-        # GCW Director values because the config wasn't registered in
+        # Apr 29 - May 17 2026: wrong ordering meant director defaulted
+        # to 'gcw' YAML. Source: 'yaml-gcw'.
+        # Post-May-18-2026 pivot: wrong ordering means director
+        # defaults to 'clone_wars' YAML — the new default era. The
+        # user-visible failure is the same shape: a server that
+        # *asked for* a non-default era boots with the default era's
+        # Director values because the config wasn't registered in
         # time. main.py's boot ordering is what prevents this in
         # production.
+        #
+        # This scenario asks for GCW explicitly (the non-default era
+        # post-pivot) and proves that wrong ordering silently uses
+        # the CW default instead. Pre-pivot the test asked for CW
+        # explicitly and proved wrong ordering silently used GCW.
+        # Same contract, different operator intent.
         script = textwrap.dedent("""
             from server.config import Config
             # Director gets imported here — constants resolve with no
@@ -188,7 +203,7 @@ class TestBootOrderingFlagOn(unittest.TestCase):
             # Now register the config — too late, director's constants
             # are already frozen at module-level.
             from engine.era_state import set_active_config
-            cfg = Config(active_era="clone_wars",
+            cfg = Config(active_era="gcw",
                          use_yaml_director_data=True)
             set_active_config(cfg)
             print("source:", director._RUNTIME_CFG.source)
@@ -197,19 +212,21 @@ class TestBootOrderingFlagOn(unittest.TestCase):
         rc, out, err = _run_python(script)
         self.assertEqual(rc, 0, f"subprocess failed: {err}")
         # Director was imported BEFORE the config was registered, so it
-        # captured the default-era state — GCW. Post-F.6a.7 this means
-        # 'yaml-gcw', not 'legacy'. The point of the test is the same:
-        # wrong ordering silently produces GCW values when the operator
-        # asked for CW. main.py's boot ordering is what prevents this.
-        self.assertIn("source: yaml-gcw", out)
+        # captured the default-era state — CW (post-May-18-pivot).
+        # The operator asked for GCW but got CW. The point of the test
+        # is the same: wrong ordering silently produces the default
+        # era's values when the operator asked for something else.
+        # main.py's boot ordering is what prevents this.
+        self.assertIn("source: yaml-clone_wars", out)
         self.assertIn(
-            "factions: ['criminal', 'imperial', 'independent', 'rebel']",
+            "factions: ['bhg', 'cis', 'hutt_cartel', 'independent', "
+            "'jedi_order', 'republic']",
             out,
         )
         # Critical regression-guard assertion: it must NOT have
-        # picked up the CW config registered after-the-fact.
-        self.assertNotIn("yaml-clone_wars", out)
-        self.assertNotIn("republic", out)
+        # picked up the GCW config registered after-the-fact.
+        self.assertNotIn("yaml-gcw", out)
+        self.assertNotIn("imperial", out)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

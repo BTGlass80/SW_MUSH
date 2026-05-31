@@ -293,6 +293,7 @@ npcs:
       - "Has hosted Republic envoys (twice) and CIS envoys (once) since the war began. Both sides recognize Hutt neutrality matters."
       - "Speaks Huttese natively; Basic well enough; Mando'a passably."
       faction: hutt_cartel
+      is_intel_handler: true     # T2.DEF Q3 intel-handler seed (2026-05-31)
       dialogue_style: >-
         Deep Huttese-accented Basic — slow, sibilant, the long
         rolling cadence of a being who lives by centuries.

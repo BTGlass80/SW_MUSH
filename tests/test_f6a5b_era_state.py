@@ -6,9 +6,9 @@ Exercises engine/era_state.py + the two new fields on server/config.py
 (active_era, use_yaml_director_data).
 
 Coverage:
-  - test_default_era_when_no_config_is_gcw
-  - test_default_use_yaml_when_no_config_is_false
-  - test_default_resolve_for_seeding_is_none
+  - test_default_era_when_no_config_is_clone_wars
+  - test_default_use_yaml_when_no_config_is_true
+  - test_default_resolve_for_seeding_returns_clone_wars
   - test_set_active_config_changes_resolution
   - test_clear_active_config_restores_defaults
   - test_explicit_cfg_overrides_registered
@@ -19,6 +19,12 @@ Coverage:
   - test_invalid_use_yaml_type_falls_back_to_default
   - test_empty_string_era_falls_back_to_default
   - test_get_active_era_with_missing_attribute_returns_default
+
+May 18 2026: module-level defaults flipped from ("gcw", False) to
+("clone_wars", True) alongside the production active_era pivot in
+server/config.py. Test names + assertions updated accordingly. The
+_CfgStub default era was also flipped to "clone_wars" so stubs
+created without explicit kwargs mirror the new production default.
 """
 import os
 import sys
@@ -61,16 +67,22 @@ class _EraStateTestBase(unittest.TestCase):
 
 
 class TestDefaults(_EraStateTestBase):
-    def test_default_era_when_no_config_is_gcw(self):
-        self.assertEqual(get_active_era(), "gcw")
+    def test_default_era_when_no_config_is_clone_wars(self):
+        # May 18 2026: default flipped from "gcw" to "clone_wars".
+        self.assertEqual(get_active_era(), "clone_wars")
         self.assertEqual(get_active_era(), _DEFAULT_ERA)
 
-    def test_default_use_yaml_when_no_config_is_false(self):
-        self.assertFalse(use_yaml_director_data())
+    def test_default_use_yaml_when_no_config_is_true(self):
+        # May 18 2026: default flipped from False to True (YAML path
+        # is now the production path).
+        self.assertTrue(use_yaml_director_data())
         self.assertEqual(use_yaml_director_data(), _DEFAULT_USE_YAML)
 
-    def test_default_resolve_for_seeding_is_none(self):
-        self.assertIsNone(resolve_era_for_seeding())
+    def test_default_resolve_for_seeding_returns_clone_wars(self):
+        # Pre-May 18 2026 this returned None because use_yaml default
+        # was False; post-pivot the YAML path is the production path
+        # and resolve_era_for_seeding returns the active era.
+        self.assertEqual(resolve_era_for_seeding(), "clone_wars")
 
 
 class TestRegisteredConfig(_EraStateTestBase):
@@ -84,7 +96,8 @@ class TestRegisteredConfig(_EraStateTestBase):
         set_active_config(_CfgStub(era="clone_wars", use_yaml=True))
         clear_active_config()
         self.assertEqual(get_active_era(), _DEFAULT_ERA)
-        self.assertFalse(use_yaml_director_data())
+        # May 18 2026: default flipped from False to True.
+        self.assertTrue(use_yaml_director_data())
 
     def test_set_active_config_to_none_is_clear(self):
         set_active_config(_CfgStub(era="clone_wars", use_yaml=True))
@@ -134,7 +147,9 @@ class TestRealConfigIntegration(_EraStateTestBase):
         # Round-trip through era_state
         self.assertEqual(get_active_era(cfg), _DEFAULT_ERA)
         self.assertEqual(use_yaml_director_data(cfg), _DEFAULT_USE_YAML)
-        self.assertIsNone(resolve_era_for_seeding(cfg))
+        # May 18 2026: with use_yaml default flipped to True, the
+        # seeding-resolver returns the active era instead of None.
+        self.assertEqual(resolve_era_for_seeding(cfg), _DEFAULT_ERA)
 
     def test_real_config_can_be_registered(self):
         from server.config import Config
@@ -163,7 +178,8 @@ class TestDefensiveTypeChecks(_EraStateTestBase):
         class NoAttrs:
             pass
         self.assertEqual(get_active_era(NoAttrs()), _DEFAULT_ERA)
-        self.assertFalse(use_yaml_director_data(NoAttrs()))
+        # May 18 2026: default flipped from False to True.
+        self.assertTrue(use_yaml_director_data(NoAttrs()))
 
 
 if __name__ == "__main__":

@@ -100,6 +100,28 @@ from engine.village_quest import (
     HERMIT_NAME, check_village_quest,
 )
 
+# F.7.m (May 4 2026): both fakes below now validate save_character()
+# kwargs against the real Database allowlist. The previous "accept any
+# kwarg" posture let phantom-column bugs (e.g. `force_sensitive=1`)
+# pass unit tests and only surface in the smoke harness, where a real
+# Database raises. Importing the allowlist directly — instead of
+# duplicating it — guarantees this validator stays current with
+# schema migrations automatically.
+from db.database import Database as _RealDatabase
+_WRITABLE_COLUMNS = _RealDatabase._CHARACTER_WRITABLE_COLUMNS
+
+
+def _validate_writable(kwargs: dict) -> None:
+    """Mirror Database.save_character's allowlist check. Raises
+    ValueError on any kwarg that isn't a column on the characters
+    table. Both fakes below call this so authoring bugs surface in
+    unit tests rather than only in the smoke harness."""
+    bad = set(kwargs) - _WRITABLE_COLUMNS
+    if bad:
+        raise ValueError(
+            f"save_character: unknown/disallowed columns: {bad}"
+        )
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures
@@ -201,6 +223,9 @@ class FakeDB:
         self._room_name = name
 
     async def save_character(self, char_id, **kwargs):
+        # F.7.m: enforce the same allowlist as the real Database so
+        # phantom-column bugs surface here, not only in smoke.
+        _validate_writable(kwargs)
         self.saves.append(dict(kwargs))
         for k, v in kwargs.items():
             self._char[k] = v
@@ -240,6 +265,8 @@ class MinimalFakeDB:
         self._room_name = name
 
     async def save_character(self, char_id, **kwargs):
+        # F.7.m: same allowlist enforcement as FakeDB above.
+        _validate_writable(kwargs)
         self.saves.append(dict(kwargs))
         for k, v in kwargs.items():
             self._char[k] = v
@@ -683,14 +710,33 @@ class TestPathACommit:
             assert has_chargen_flag(char, "jedi_path_unlocked")
         asyncio.run(_check())
 
-    def test_path_a_narration_mentions_mace_windu(self):
+    def test_path_a_narration_mentions_reception_master(self):
+        """Path A reception scene must include the named NPC who
+        receives the candidate at the Temple gate.
+
+        Note (Q1 history): this test previously asserted "Mace
+        Windu" in the narration. The Q1 audit (May 17 2026)
+        replaced the on-screen Mace Windu with an original non-
+        canonical Master (Tova Resh, the Order's intake-archives
+        liaison) — canonical Council Masters appear only in
+        lore.yaml entries, never as live-scene NPCs. See
+        tests/test_q1_scenes_and_planets.py for the regression-
+        guards locking that policy.
+        """
         async def _check():
             char = _ready_for_choice()
             session = FakeSession(char)
             db = FakeDB(char)
             await attempt_choose_path(session, db, char, path="a")
             output = "\n".join(session.received)
-            assert "Mace Windu" in output
+            assert "Tova Resh" in output or "Master Tova" in output, (
+                "Path A narration must reference Master Tova Resh "
+                "(the replacement reception NPC). If renaming, "
+                "update this test AND test_q1_scenes_and_planets.py."
+            )
+            # Q1 invariant: no canonical figure in the narration.
+            assert "Mace Windu" not in output
+            assert "Master Windu" not in output
             assert "Jedi Order" in output or "Path A" in output
         asyncio.run(_check())
 
@@ -1095,6 +1141,104 @@ class TestPathCommandWiring:
             assert "Usage" in output
             assert is_choice_completed(char) is False
         asyncio.run(_check())
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 11.b F.7.m regression — phantom-column rollback bug
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+class TestF7mPhantomColumnRegression:
+    """F.7.m (May 4 2026) regression guard. The smoke harness (VL7)
+    surfaced that all three `_commit_path_*` functions were calling
+    `db.save_character(force_sensitive=1, ...)` — a kwarg that
+    isn't on the `characters` table allowlist. The real Database
+    raised, the dispatcher in `village_quest.py` swallowed the
+    exception, and the entire path-commit UPDATE rolled back —
+    losing `village_choice_completed` and `village_chosen_path`
+    too, plus everything downstream (chargen_notes, org join,
+    narration, teleport).
+
+    The fix removes the offending kwarg. These tests guard the
+    contract: no commit should ever pass an unknown column to
+    `save_character`. The hardened FakeDB enforces this — but a
+    direct assertion adds a clearer failure message at the
+    relevant call sites if the kwarg is reintroduced.
+    """
+
+    def test_path_a_does_not_pass_force_sensitive_to_save(self):
+        async def _check():
+            char = _ready_for_choice()
+            session = FakeSession(char)
+            db = FakeDB(char)
+            ok = await attempt_choose_path(session, db, char, path="a")
+            assert ok is True
+            for save in db.saves:
+                assert "force_sensitive" not in save, (
+                    "save_character was called with force_sensitive — "
+                    "this raises ValueError on the real Database and "
+                    "rolls back the entire path commit. See F.7.m."
+                )
+        asyncio.run(_check())
+
+    def test_path_b_does_not_pass_force_sensitive_to_save(self):
+        async def _check():
+            char = _ready_for_choice()
+            session = FakeSession(char)
+            db = FakeDB(char)
+            ok = await attempt_choose_path(session, db, char, path="b")
+            assert ok is True
+            for save in db.saves:
+                assert "force_sensitive" not in save
+        asyncio.run(_check())
+
+    def test_path_c_does_not_pass_force_sensitive_to_save(self):
+        async def _check():
+            # Path C requires the dark-pull lockout from Trial of Spirit.
+            char = _ready_for_choice(spirit_path_c_locked=True)
+            session = FakeSession(char)
+            db = FakeDB(char)
+            ok = await attempt_choose_path(session, db, char, path="c")
+            assert ok is True
+            for save in db.saves:
+                assert "force_sensitive" not in save
+
+        asyncio.run(_check())
+
+    def test_path_a_persists_choice_columns_after_fix(self):
+        """The narrative test: Path A graduates leave the commit
+        with `village_choice_completed=1` AND `village_chosen_path='a'`
+        actually written. Before F.7.m, both rolled back when
+        `force_sensitive` raised."""
+        async def _check():
+            char = _ready_for_choice()
+            session = FakeSession(char)
+            db = FakeDB(char)
+            await attempt_choose_path(session, db, char, path="a")
+            # The hardened FakeDB recorded the actual writes — find
+            # the commit save (the one carrying village_choice_completed).
+            commit_saves = [s for s in db.saves
+                            if "village_choice_completed" in s]
+            assert len(commit_saves) >= 1, (
+                "No save_character call wrote village_choice_completed"
+            )
+            commit = commit_saves[0]
+            assert commit["village_choice_completed"] == 1
+            assert commit["village_chosen_path"] == PATH_A
+        asyncio.run(_check())
+
+    def test_writable_columns_validator_catches_bad_kwarg(self):
+        """The validator itself does what it claims — raises on
+        any kwarg outside the real allowlist. If this test fails,
+        the validator wiring is broken and the hardening is not
+        actually enforced."""
+        with pytest.raises(ValueError, match="unknown/disallowed"):
+            _validate_writable({"force_sensitive": 1})
+        with pytest.raises(ValueError, match="unknown/disallowed"):
+            _validate_writable({"this_column_does_not_exist": "x"})
+        # An allowlisted kwarg passes silently
+        _validate_writable({"village_choice_completed": 1})
+        _validate_writable({"chargen_notes": "{}"})
 
 
 # ═════════════════════════════════════════════════════════════════════════════

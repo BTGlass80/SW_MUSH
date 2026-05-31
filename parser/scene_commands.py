@@ -533,7 +533,9 @@ async def _cmd_pose_order(ctx):
     if result["ok"]:
         await ctx.session.send_line(f"\x1b[92m{result['msg']}\x1b[0m")
         # Notify room
-        for s in ctx.session_mgr.sessions_in_room(room_id):
+        # W.2.3.1: source_char filters scene-pose-order notification to
+        # co-located peers. Scenes are tile-scoped in wilderness.
+        for s in ctx.session_mgr.sessions_in_room(room_id, source_char=char):
             if s.character and s.character["id"] != char["id"]:
                 await s.send(
                     ansi.dim(f"[Pose Order] {char['name']} enabled pose order tracking."))

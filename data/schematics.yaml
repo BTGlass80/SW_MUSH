@@ -210,6 +210,69 @@ schematics:
     base_cost: 150
 
   # ──────────────────────────────────────────────────────────────
+  # ADVANCED STIMS — Taught by Heist at the Med Bay
+  # Per support_role_buffs_design_v1.md §3.4 (medic economic loop).
+  # output_key values match parser/medical_commands.py::_STIM_CATALOG
+  # so the `stim <target> with <stim_type>` command can consume the
+  # crafted item once SRB.1 (b) wires consumption to inventory.
+  # All three require (A)medicine — the harder tier per design §3.3.
+  # ──────────────────────────────────────────────────────────────
+
+  - key: adrenaline_shot_field
+    name: "Adrenaline Shot"
+    skill_required: medicine
+    difficulty: 15
+    trainer_npc: Heist
+    components:
+      - type: chemical
+        quantity: 3
+        min_quality: 40
+      - type: organic
+        quantity: 2
+        min_quality: 35
+    output_type: consumable
+    output_key: adrenaline_shot
+    base_cost: 800
+
+  - key: focus_stim_field
+    name: "Focus Stim"
+    skill_required: medicine
+    difficulty: 15
+    trainer_npc: Heist
+    components:
+      - type: chemical
+        quantity: 3
+        min_quality: 40
+      - type: organic
+        quantity: 1
+        min_quality: 35
+      - type: rare
+        quantity: 1
+        min_quality: 30
+    output_type: consumable
+    output_key: focus_stim
+    base_cost: 1200
+
+  - key: combat_stim_field
+    name: "Combat Stim"
+    skill_required: medicine
+    difficulty: 20
+    trainer_npc: Heist
+    components:
+      - type: chemical
+        quantity: 4
+        min_quality: 50
+      - type: organic
+        quantity: 2
+        min_quality: 45
+      - type: rare
+        quantity: 2
+        min_quality: 40
+    output_type: consumable
+    output_key: combat_stim
+    base_cost: 2000
+
+  # ──────────────────────────────────────────────────────────────
   # SHIP COMPONENTS — Taught by Venn Kator at Docking Bay 94
   # Requires ship customization engine (Drop 12).
   # output_type: component produces a ship_component inventory item.
@@ -566,3 +629,142 @@ schematics:
     output_type: equipment
     output_key: tracker_basic
     base_cost: 500
+
+  # ──────────────────────────────────────────────────────────────
+  # T5 — Wilderness-gated master crafting (SYN.6.c, May 25 2026)
+  # Per contestable_wilderness_design_v2.md §2.5.6.
+  #
+  # Each T5 schematic requires:
+  #   1. A wilderness-only T5 material (gated by drop source — see
+  #      engine/crafting.py::T5_WILDERNESS_MATERIALS) at q75+.
+  #   2. Standard T1-T4 components at min_quality bands matching the
+  #      base item's existing schematic.
+  #
+  # T5 outputs reuse existing base-item keys where they exist (lightsaber,
+  # blaster_rifle, bounty_hunter_armor); ship-part outputs (hyperdrive_
+  # surge_converter, mil_spec_ion_engine_core) are forward-references to
+  # a future ship-part item catalogue. The schematics still craft —
+  # an ItemInstance is created with the listed output_key — but
+  # ship-part functional effects in combat/space land in a subsequent
+  # drop alongside the weapons/items YAML extension.
+  #
+  # Difficulty band: 25-28 (Very Difficult on WEG D6 R&E ladder).
+  # Existing schematics top out at 20 (Difficult). T5 is meant to be
+  # genuinely endgame — a Master-level crafter (8D+ in the skill)
+  # with a Wild Die explosion is the typical successful roll.
+  #
+  # Trainers: t5 schematics are NOT taught by ordinary trainer NPCs.
+  # Acquisition is via story/quest-line (Jedi Master, Hutt
+  # weaponsmith, Republic engineer-corps officer). trainer_npc is
+  # left blank as a "find a master" hook; the parser-side
+  # acquisition path is its own future drop.
+
+  - key: t5_master_crafted_lightsaber
+    name: "Master-Crafted Lightsaber"
+    skill_required: craft_lightsaber
+    difficulty: 28
+    trainer_npc: ""
+    components:
+      - type: kyber_shard_minor
+        quantity: 1
+        min_quality: 75
+      - type: metal
+        quantity: 3
+        min_quality: 60
+      - type: composite
+        quantity: 2
+        min_quality: 60
+      - type: energy
+        quantity: 2
+        min_quality: 65
+    output_type: weapon
+    output_key: lightsaber
+    base_cost: 10000
+
+  - key: t5_top_spec_blaster_rifle
+    name: "Top-Spec Blaster Rifle"
+    skill_required: blaster_repair
+    difficulty: 25
+    trainer_npc: ""
+    components:
+      - type: weapons_capacitor_core
+        quantity: 1
+        min_quality: 75
+      - type: metal
+        quantity: 4
+        min_quality: 55
+      - type: energy
+        quantity: 3
+        min_quality: 60
+      - type: composite
+        quantity: 2
+        min_quality: 55
+    output_type: weapon
+    output_key: blaster_rifle
+    base_cost: 7500
+
+  - key: t5_hyperdrive_surge_converter
+    name: "Hyperdrive Surge Converter"
+    skill_required: space_transports_repair
+    difficulty: 26
+    trainer_npc: ""
+    components:
+      - type: scavenged_republic_tech
+        quantity: 1
+        min_quality: 75
+      - type: metal
+        quantity: 5
+        min_quality: 55
+      - type: energy
+        quantity: 4
+        min_quality: 60
+      - type: composite
+        quantity: 3
+        min_quality: 60
+    output_type: equipment
+    output_key: hyperdrive_surge_converter
+    base_cost: 12000
+
+  - key: t5_mil_spec_ion_engine_core
+    name: "Mil-Spec Ion Engine Core"
+    skill_required: space_transports_repair
+    difficulty: 27
+    trainer_npc: ""
+    components:
+      - type: deep_dune_iron
+        quantity: 1
+        min_quality: 75
+      - type: metal
+        quantity: 6
+        min_quality: 60
+      - type: energy
+        quantity: 4
+        min_quality: 65
+      - type: composite
+        quantity: 3
+        min_quality: 60
+    output_type: equipment
+    output_key: mil_spec_ion_engine_core
+    base_cost: 15000
+
+  - key: t5_master_grade_armor
+    name: "Master-Grade Armor"
+    skill_required: armor_repair
+    difficulty: 25
+    trainer_npc: ""
+    components:
+      - type: composite_chitin
+        quantity: 1
+        min_quality: 75
+      - type: composite
+        quantity: 5
+        min_quality: 60
+      - type: metal
+        quantity: 3
+        min_quality: 55
+      - type: organic
+        quantity: 2
+        min_quality: 50
+    output_type: weapon
+    output_key: bounty_hunter_armor
+    base_cost: 8500

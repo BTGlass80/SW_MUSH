@@ -91,7 +91,7 @@ rooms:
       west: coruscant_westport_landing
       north: senate_building_exterior
       east: calocour_heights             # zone-to-zone (senate → upper)
-      south: monument_plaza
+      northeast: monument_plaza
       reception: grand_reception_hall    # named shortcut
 
   - id: 202
@@ -146,7 +146,7 @@ rooms:
     exits:
       west: senate_building_exterior
       north: grand_reception_hall
-      east: legislative_borough
+      northwest: legislative_borough
 
   - id: 205
     slug: grand_reception_hall
@@ -164,7 +164,7 @@ rooms:
     map_y: 8
     exits:
       south: chancellors_avenue
-      east: legislative_borough
+      northwest: legislative_borough
       esplanade: senate_esplanade        # F.4b: pair for esplanade's reception-named exit
 
   - id: 206
@@ -181,9 +181,9 @@ rooms:
     map_x: 21
     map_y: 7
     exits:
-      north: grand_reception_hall
-      west: chancellors_avenue
-      south: monument_plaza
+      east: grand_reception_hall
+      southeast: chancellors_avenue
+      northeast: monument_plaza
       down: coco_town                    # zone-to-zone (senate → midlevels)
       westport: coruscant_westport_landing  # F.4b: pair for westport's legislative-named exit
 
@@ -203,7 +203,7 @@ rooms:
     map_x: 21
     map_y: 6
     exits:
-      north: senate_esplanade
+      south: senate_esplanade
       east: legislative_borough
       museum: galactic_museum            # named: nearby landmark
 
@@ -321,10 +321,12 @@ rooms:
     short_desc: "The Jedi Order's vast Archive Library, one of the most comprehensive information repositories in the galaxy."
     description: >
       Rows of glowing blue data terminals and physical holocron vaults
-      stretch for hundreds of meters. Madame Jocasta Nu, the chief archivist,
-      offers assistance only to those she has decided deserve it. Several
-      terminals display casualty lists from the Outer Rim front; an
-      archivist methodically updates the records of fallen Jedi Knights.
+      stretch for hundreds of meters. The senior archivist on duty
+      offers assistance only to those she has decided deserve it; the
+      Order's chief archivist is rarely seen on the floor and conducts
+      research from her sealed inner study. Several terminals display
+      casualty lists from the Outer Rim front; an archivist methodically
+      updates the records of fallen Jedi Knights.
     zone: coruscant_temple
     map_x: 25
     map_y: 8
@@ -496,6 +498,7 @@ rooms:
       aquaria: royal_icqui_aquaria
       petrax: petrax_quarter             # F.4b: pair for petrax_quarter's south exit (north is taken)
       gilded: gilded_cage_alien_quarter  # F.5a.2.x: zone-to-zone (upper → gilded_cage)
+      tower: falleen_syndicate_tower     # Q1.3 (May 18 2026): reverse-pair for room 230's east-exit. Previously orphaned (Xizor district had no inbound exits at HEAD).
 
   - id: 222
     slug: calocour_heights
@@ -634,15 +637,20 @@ rooms:
       south: upper_city_promenade
 
   - id: 230
-    slug: xizors_tower_district
-    name: "Coruscant - Xizor's Castle District"
-    short_desc: "The district dominated by Prince Xizor's magnificent tower, a monument to corrupt power."
+    slug: falleen_syndicate_tower
+    name: "Coruscant - The Falleen Syndicate Tower"
+    short_desc: "A Falleen-built spire of dark transparisteel and biochemical gardens, the publicly-known seat of Vigo Sethel Vask's Coruscant operations."
     description: >
-      Prince Xizor's castle soars above this district — transparisteel and
-      durasteel inlaid with Falleen biochemical gardens. Ballrooms, combat
-      chambers, and landing pads sprawl across several city blocks. What
-      the public doesn't know is what happens in the castle's sub-levels.
-      Holocameras and armed guards watch from every corner.
+      The tower is unmistakably Falleen — transparisteel and durasteel
+      inlaid with terraced biochemical gardens, the engineered flora
+      releasing slow pheromone gradients into the air around the
+      upper terraces. The lower floors host import-export concerns,
+      art dealerships, and a private members' club. The upper floors
+      host whatever Vigo Sethel Vask has decided they host this
+      season; no one with an opinion about it is allowed to say so
+      in public. Coruscant Security has filed no current writs on
+      this property. Holocameras and armed guards watch from every
+      corner.
     zone: coruscant_upper
     map_x: 17
     map_y: 9
@@ -696,11 +704,14 @@ rooms:
     short_desc: "An unpretentious diner in Coco Town, famous for its cheap food and the encyclopedic knowledge of its owner."
     description: >
       Located in a lower-income Coco Town neighborhood. The food is oily and
-      unhealthy and cheap. Fried nerfsteak, pickled gartro eggs, and Dexter's
-      mysterious ground-meat "sliders" are specialties of the house. The owner,
-      Dexter Jettster — a broad, four-armed Besalisk — knows more about more
-      things than most people would credit. He doesn't volunteer information,
-      but he doesn't turn away the right kind of question either.
+      unhealthy and cheap. Fried nerfsteak, pickled gartro eggs, and the
+      house "sliders" — mysterious ground-meat patties whose recipe the
+      owner has never shared — are specialties. The diner is named after
+      its owner, a broad four-armed Besalisk widely rumored to know more
+      about more things than most people would credit; he keeps his own
+      hours and is rarely seen behind the counter. A staff manager runs
+      the floor day-to-day and handles the right kind of question if
+      asked the right way.
     zone: coruscant_midlevels
     map_x: 20
     map_y: 12

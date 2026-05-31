@@ -42,15 +42,23 @@ from server.tick_handlers_economy import (
     territory_claim_tick,
     territory_resources_tick,
     territory_contests_tick,
+    region_quality_weekly_tick,
+    wilderness_anomaly_tick,
+    tier2_wilderness_anomaly_tick,
+    tier3_wilderness_anomaly_tick,
+    building_construction_tick,
     docking_fee_tick,
     idle_queue_tick,
     bark_seed_tick,
     buff_expiry_tick,
+    morale_aura_expiry_tick,
     hazard_tick,
 )
 from server.tick_handlers_progression import (
     playtime_heartbeat_tick,
     force_sign_emit_tick,
+    pc_bounty_expiry_tick,
+    wow_passive_decay_tick,
 )
 # ── S40 boarding party encounter wiring ────────────────────────────────────
 # ``boarding_encounter_tick`` is the periodic check; it takes (db, session_mgr)
@@ -92,6 +100,7 @@ from parser.cp_commands import register_cp_commands
 from parser.sabacc_commands import register_sabacc_commands
 from parser.crafting_commands import register_crafting_commands
 from parser.tutorial_commands import register_tutorial_commands
+from parser.chain_commands import register_chain_commands
 from parser.faction_commands import register_faction_commands
 from parser.faction_leader_commands import register_faction_leader_commands
 from parser.narrative_commands import register_narrative_commands
@@ -112,6 +121,24 @@ from parser.channel_commands import register_channel_commands
 from parser.party_commands import register_party_commands
 from parser.encounter_commands import register_encounter_commands
 from parser.village_trial_commands import register_village_trial_commands
+from parser.padawan_master_commands import register_padawan_master_commands
+from parser.padawan_master_training_commands import (
+    register_padawan_master_training_commands,
+)
+from parser.padawan_master_trials import register_padawan_master_trials
+from parser.pc_bounty_commands import register_pc_bounty_commands
+from parser.admin_security_commands import register_admin_security_commands
+from parser.lead_commands import register_lead_commands
+from parser.city_commands import register_city_commands
+from parser.admin_city_commands import register_admin_city_commands
+from parser.admin_weight_commands import register_admin_weight_commands
+from parser.meditate_command import register_meditate_command
+from parser.wow_counsel_retreat import register_wow_counsel_retreat_commands
+from parser.harvest_command import register_harvest_command
+from parser.attune_command import register_attune_command
+from parser.anomaly_commands import register_anomaly_commands
+from parser.player_building_commands import register_player_building_commands
+from parser.region_commands import register_region_commands
 from engine.space_encounters import get_encounter_manager
 from engine.bounty_board import get_bounty_board
 from engine.missions import get_mission_board
@@ -171,6 +198,12 @@ class GameServer:
         register_sabacc_commands(self.registry)
         register_crafting_commands(self.registry)
         register_tutorial_commands(self.registry)
+        # ── F.8.c.2.b₆ (May 20 2026): tutorial-chain interaction ──
+        # Adds `chain attempt` (skill_check_passed roll trigger)
+        # and `chain status`. Per design call: explicit player
+        # command, no new YAML schema. See
+        # parser/chain_commands.py module docstring.
+        register_chain_commands(self.registry)
         register_faction_commands(self.registry)
         register_faction_leader_commands(self.registry)
         register_narrative_commands(self.registry)
@@ -191,6 +224,102 @@ class GameServer:
         register_party_commands(self.registry)
         register_encounter_commands(self.registry)
         register_village_trial_commands(self.registry)
+        # ── P-M.2 (May 20 2026): Padawan-Master command layer ────────
+        # Per padawan_master_system_design_v1.md §10 + v45 §8.12.
+        # Adds +master, +padawan, +bond (with accept/decline
+        # subcommands), +release, and admin @bond. No collisions
+        # with existing keys (verified at registration time).
+        register_padawan_master_commands(self.registry)
+        register_padawan_master_training_commands(self.registry)
+        # ── P-M.3 (May 20 2026): Trials + Knight promotion ──────────
+        # Per padawan_master_system_design_v1.md §6 + §10. Adds
+        # +trials, +endorse trials, +trial (+ @trial admin),
+        # +knight (+ @knight admin override). Consumes the v28 DB
+        # API (record_trial_passed, knight_bond) shipped in P-M.1.
+        register_padawan_master_trials(self.registry)
+        # ── PG.2 session 1 (May 20 2026): PC bounty player surface ──
+        # Per progression_gates_and_consequences_design_v1.md §4.
+        # Adds +pcbounty (alias +pb) with post/cancel/board/status
+        # subcommands. Uses the v18 pc_bounties + bounty_cooldowns
+        # tables and the v30 contributors_json sidecar. Session 2
+        # will add BH claim/release + insurance + tick + admin.
+        register_pc_bounty_commands(self.registry)
+        # ── SECMOD.1 (May 22 2026): @security admin command layer ───
+        # Per security_zones_design_v1.md §9 + security_model_design_v1.md
+        # §7.3. Adds `@security <zone>` (show), `@security <zone> = <level>`
+        # (set zone tier), `@security override <room> = <faction>` (set
+        # room faction restriction), and `@security override <room> = none`
+        # (clear). Consumes v31 `rooms.faction_override` + new DB methods
+        # `get_zone_by_name`, `set_zone_property`, `set_room_faction_override`.
+        # All paths AccessLevel.ADMIN. Resolver branch in engine.security
+        # honors `faction_override` post-base-resolution.
+        register_admin_security_commands(self.registry)
+        register_lead_commands(self.registry)
+        # Player Cities Phase 1 (May 22 2026): +city found / +city dissolve.
+        # Phase 2+ subcommands echo a "coming in Phase N" placeholder.
+        register_city_commands(self.registry)
+        # ── Player Cities Phase 6 (May 23 2026): @city admin tools ──
+        # Per player_cities_design_v1_2.md §11.5 + §13 Phase 6. Adds
+        # `@city list`, `@city inspect <name>`, `@city void-banish
+        # <city> = <player>`, `@city set-rate-cap <city> = <pct>`,
+        # `@city dissolve <name>`, `@city rename <old> = <new>`. All
+        # six AccessLevel.ADMIN; consumes Phase 6 engine helpers
+        # (`admin_dissolve_city`, `admin_unbanish`, `admin_set_rate_cap`,
+        # `admin_rename_city`, `list_all_cities`, `format_city_inspect`).
+        register_admin_city_commands(self.registry)
+
+        # WoW.2a (May 22 2026) + WoW.3c (May 24 2026): @weight
+        # umbrella admin command per weight_of_war_design_v1.md
+        # §7.2 + §10 + §14. Four subforms: show current weight +
+        # tier + FP + recent events; set with required audit
+        # note (calls engine.weight_of_war.set_weight_admin);
+        # show event history; grant/deduct FP with §7.2
+        # multiplier applied to positive grants on Jedi PCs.
+        # AccessLevel.ADMIN.
+        register_admin_weight_commands(self.registry)
+
+        # WoW.2b (May 23 2026): +meditate command per
+        # weight_of_war_design_v1.md §5.2 + §10. Jedi PC at Temple
+        # spends 1 FP for -5 Weight, once per day. Uses
+        # engine.cooldowns + engine.weight_of_war.decay_weight.
+        register_meditate_command(self.registry)
+
+        # WoW.2c (May 23 2026): +counsel, +retreat, +return per
+        # weight_of_war_design_v1.md §5.2 + §10. Closes WoW Drop 2.
+        # +counsel: 1x/week, -10 weight, Padawan-in-room-with-Master
+        # OR Knight/Master-in-Council-Chamber. +retreat / +return:
+        # accumulator pattern for -2/day capped at -30 per cycle.
+        # Combat-unavailability flag is set by +retreat but no
+        # combat consumer reads it yet (WoW.3 wiring).
+        register_wow_counsel_retreat_commands(self.registry)
+
+        # ── SYN.6.a (May 25 2026): active wilderness harvest ────────
+        # Per contestable_wilderness_design_v2.md §2.5.2 + §2.5.3.
+        # Player command `harvest` runs a Survival check at a
+        # wilderness room, awards credits + resource stacks (via
+        # engine.crafting.add_resource), routes 15% credit tax to
+        # the owning org if the harvester is a non-member, and sets
+        # a 30-min per-region cooldown. Region-quality multiplier is
+        # a seam at 1.0× until SYN.6.b lands the weekly tick.
+        register_harvest_command(self.registry)
+
+        # ── SYN.6.c (May 25 2026): kyber attunement (T5 lightsaber gate) ──
+        # Per contestable_wilderness_design_v2.md §2.5.6. Force-sensitive
+        # PC at a force_resonant wilderness landmark performs a Knowledge
+        # skill check; on success grants 1 kyber_shard_minor at q75-95.
+        # 24h per-landmark cooldown. Engine: engine/kyber_attunement.py.
+        register_attune_command(self.registry)
+
+        # ── SYN.7.a (May 25 2026): wilderness anomalies Tier 1 ──
+        # Per contestable_wilderness_design_v2.md §2.8. Two commands:
+        # 'anomalies' lists active anomalies in the caller's wilderness
+        # region; 'investigate <id>' attempts to resolve one. Engine:
+        # engine/wilderness_anomalies.py. Tick: wilderness_anomaly_tick
+        # registered above (hourly, per-region spawn-chance roll).
+        register_anomaly_commands(self.registry)
+        register_player_building_commands(self.registry)
+        # SYN.10 (May 25 2026): +region surface per design §2.6.
+        register_region_commands(self.registry)
 
         # ── Achievement System Init ──
         from engine.achievements import load_achievements
@@ -277,6 +406,22 @@ class GameServer:
         self._tick_scheduler.register("asteroid_collision", asteroid_collision_tick, interval=30)
         # ── environment (every 300 ticks ≈ 5 min) ──
         self._tick_scheduler.register("space_anomaly",     space_anomaly_tick,      interval=300)
+        # ── PG.1.death.b (Drop 2d): corpse decay + wound recovery ──
+        # corpse_decay every 5 min (300 ticks). offset=37 so this
+        # doesn't pile on the same wall-clock second as space_anomaly.
+        # wound_recovery every 30 s (30 ticks). offset=15 to phase
+        # with asteroid_collision.
+        from server.tick_handlers_death import (
+            corpse_decay_tick, wound_recovery_tick,
+        )
+        self._tick_scheduler.register(
+            "corpse_decay", corpse_decay_tick,
+            interval=300, offset=37,
+        )
+        self._tick_scheduler.register(
+            "wound_recovery", wound_recovery_tick,
+            interval=30, offset=15,
+        )
         # ── missions & boards (every tick) ──
         self._tick_scheduler.register("space_mission_patrol", space_mission_patrol_tick, interval=1)
         self._tick_scheduler.register("board_housekeeping",   board_housekeeping_tick,   interval=60)
@@ -291,6 +436,38 @@ class GameServer:
         self._tick_scheduler.register("vendor_recall",     vendor_recall_tick,     interval=86400, offset=1)
         self._tick_scheduler.register("housing_rent",      housing_rent_tick,      interval=604800, offset=432000)
         self._tick_scheduler.register("hq_maintenance",    hq_maintenance_tick,    interval=604800, offset=460000)
+        # ── Player Cities Phase 4: weekly revenue rollover (per-city
+        #    week boundaries, so we check daily and reset cities whose
+        #    week has actually elapsed). Offset 75600 to spread load.
+        from server.tick_handlers_economy import city_revenue_rollover_tick
+        self._tick_scheduler.register(
+            "city_revenue_rollover", city_revenue_rollover_tick,
+            interval=86400, offset=75600,
+        )
+        # ── Player Cities Phase 6 (May 23 2026): weekly maintenance
+        #    + 4-week grace state machine. Per-city maint_paid_until
+        #    anchor; tick is idempotent for cities not yet due.
+        #    Offset 480000 (~5.5 days) so the maint tick lands well
+        #    after the hq_maintenance tick (offset 460000) — gives a
+        #    clear ordering: HQ base maintenance debits first, then
+        #    city expansion-room maintenance debits from whatever
+        #    treasury remains.
+        from server.tick_handlers_economy import city_maintenance_tick
+        self._tick_scheduler.register(
+            "city_maintenance", city_maintenance_tick,
+            interval=604800, offset=480000,
+        )
+        # ── SYN.4 (May 25 2026): hourly city vitality check.
+        #    Counts citizens active within 7-day window per HQ-tier
+        #    threshold; transitions active → reduced → dormant per
+        #    14-day grace per design v2 §2.9.4. Offset 1900 to land
+        #    between territory_presence (1800) and territory_contests
+        #    (2700), spreading load on the hourly cadence.
+        from server.tick_handlers_economy import city_vitality_tick
+        self._tick_scheduler.register(
+            "city_vitality", city_vitality_tick,
+            interval=3600, offset=1900,
+        )
         # ── territory (hourly / daily / weekly) ──
         self._tick_scheduler.register("territory_presence",  territory_presence_tick,  interval=3600,   offset=1800)
         self._tick_scheduler.register("territory_decay",     territory_decay_tick,     interval=86400,  offset=43200)
@@ -298,12 +475,43 @@ class GameServer:
         self._tick_scheduler.register("debt_payment",        debt_payment_tick,        interval=604800, offset=345600)
         self._tick_scheduler.register("territory_resources", territory_resources_tick, interval=86400,  offset=64800)
         self._tick_scheduler.register("territory_contests",  territory_contests_tick,  interval=3600,   offset=2700)
+        # ── SYN.6.b (May 25 2026): weekly per-region per-resource-type
+        #    quality variance roll. Per design §2.5.5 "Monday at server
+        #    midnight" cadence. Runs hourly with per-region ISO
+        #    year-week idempotence anchor — only the first call in a
+        #    new week actually rolls; the rest no-op cheaply. Offset
+        #    3300 to land between territory_contests (2700) and the
+        #    nearest other hourly tick.
+        self._tick_scheduler.register("region_quality_weekly", region_quality_weekly_tick, interval=3600, offset=3300)
+        # ── SYN.7.a (May 25 2026): wilderness anomaly spawn + expiry.
+        #    Per design §2.8 "every 2-3 hours per region" Tier 1
+        #    cadence. Runs hourly with per-region spawn-chance roll
+        #    (0.4 → expected ~2.5h between spawns). Module-level
+        #    transient state; restart wipes anomalies. Offset 1500 to
+        #    spread load across the hour.
+        self._tick_scheduler.register("wilderness_anomaly", wilderness_anomaly_tick, interval=3600, offset=1500)
+        # SYN.7.b: Tier 2 anomalies. 6h cadence + 0.20 chance → ~30h avg
+        # interval per region (mid of design's 24-48h). Offset 3300s
+        # so Tier 1 and Tier 2 don't collide on the same tick.
+        self._tick_scheduler.register("tier2_wilderness_anomaly", tier2_wilderness_anomaly_tick, interval=21600, offset=3300)
+        # SYN.8: Tier 3 anomalies (world bosses). Daily cadence + 0.10
+        # chance → ~10-day avg interval per region (mid of design's
+        # 7-14d). Offset 7200s — won't collide with T1 (1500) or T2 (3300).
+        self._tick_scheduler.register("tier3_wilderness_anomaly", tier3_wilderness_anomaly_tick, interval=86400, offset=7200)
+        # SYN.9: Player-constructed building construction tick. Every
+        # 5 minutes. Transitions under_construction → operational at
+        # 24h, and operational-with-evict-notice → evicted at 2-day
+        # notice expiry. Best-effort; per-building exceptions logged
+        # individually.
+        self._tick_scheduler.register("building_construction", building_construction_tick, interval=300, offset=120)
         self._tick_scheduler.register("docking_fee",         docking_fee_tick,         interval=86400,  offset=21600)
         # ── Ollama idle queue (every 30s, offset 15 to avoid pile-up) ──
         self._tick_scheduler.register("idle_queue",           idle_queue_tick,          interval=30,     offset=15)
         self._tick_scheduler.register("bark_seed",            bark_seed_tick,           interval=14400,  offset=60)
         # ── Buff expiry (every 60s) ──
         self._tick_scheduler.register("buff_expiry",          buff_expiry_tick,         interval=60,     offset=45)
+        # ── SRB.2 morale-aura reaper (every 60s, offset 50 to spread load) ──
+        self._tick_scheduler.register("morale_aura_expiry",   morale_aura_expiry_tick,  interval=60,     offset=50)
         # ── Environmental hazards (every 5 min) ──
         self._tick_scheduler.register("hazard_check",          hazard_tick,             interval=300,    offset=120)
         # ── S40 boarding encounters: every 5 ticks (~5s) — checks ships
@@ -324,6 +532,26 @@ class GameServer:
         #    signal). Per progression_gates_and_consequences_design_v1.md
         #    §2.3 / §2.4.
         self._tick_scheduler.register("force_sign_emit",       force_sign_emit_tick,    interval=60,     offset=45)
+        # ── PG.2 session 2 (May 21 2026): PC bounty expiry tick.
+        # Hourly sweep that (a) auto-expires active bounties past
+        # their 30-day window with stake-only refunds to all
+        # contributors, and (b) reverts claimed bounties whose
+        # 7-day BH claim timer has elapsed back to active. Per
+        # progression_gates_and_consequences_design_v1.md §4.3.
+        # Hourly cadence is generous for design (bounties are
+        # 30 days / 7 days; an hour of latency past expiry is
+        # invisible to players); cheap to run; offset 600 to
+        # spread tick load.
+        self._tick_scheduler.register("pc_bounty_expiry",      pc_bounty_expiry_tick,   interval=3600,   offset=600)
+
+        # ── WoW.3b (May 24 2026): passive Weight decay ─────────
+        # Per weight_of_war_design_v1.md §5.1: Jedi PCs with no
+        # Weight events in 7+ real-time days get -1 Weight. The
+        # 7-day threshold means hourly granularity is plenty (a
+        # restart on day-7 won't miss anyone by more than an
+        # hour). Offset 1200 to spread tick load against the
+        # other hourly handlers (pc_bounty_expiry at offset 600).
+        self._tick_scheduler.register("wow_passive_decay",     wow_passive_decay_tick,  interval=3600,   offset=1200)
 
     async def start(self):
         """Initialize database, load game data, and start all listeners."""
@@ -361,6 +589,47 @@ class GameServer:
                          self.config.active_era)
         except Exception as _build_err:
             log.warning("World auto-build skipped: %s", _build_err)
+
+        # F.8.c.2.c (May 4 2026): backfill properties.slug on legacy
+        # rooms that predate F.8.c.1's slug-stamping. Idempotent: rooms
+        # already stamped are skipped at row level. Required for the
+        # chain graduation teleport to resolve drop_room slugs against
+        # rooms that were built before slug-stamping landed in the
+        # world_writer (Apr 30 2026).
+        try:
+            from engine.world_loader import load_world_dry_run
+            from engine.world_writer import backfill_room_slugs
+            _bundle = load_world_dry_run(self.config.active_era)
+            if _bundle is not None and _bundle.report.ok:
+                _backfill = await backfill_room_slugs(self.db, _bundle)
+                if _backfill["backfilled"] > 0:
+                    log.info(
+                        "Room slug backfill: stamped %d legacy rooms "
+                        "(scanned %d, already %d, no_yaml %d, errors %d)",
+                        _backfill["backfilled"], _backfill["scanned"],
+                        _backfill["already_stamped"],
+                        _backfill["no_yaml_match"], _backfill["errors"],
+                    )
+        except Exception as _bf_err:
+            log.warning("Room slug backfill skipped: %s", _bf_err)
+
+        # F.MAP.2 (May 5 2026): Load AreaGeometry registry for the
+        # active era and attach to session_mgr so _hud_area_map can
+        # reach it. This enables the redesigned datapad map (F.MAP.1
+        # renderer) when the player's room slug is covered by an
+        # authored AreaGeometry. Failure-tolerant: a load failure
+        # logs a warning and the registry stays None — the legacy
+        # minimap path keeps working.
+        try:
+            from engine.area_loader import AreaGeometryRegistry
+            registry = AreaGeometryRegistry.load_era(self.config.active_era)
+            self.session_mgr._area_registry = registry
+            log.info("AreaGeometry registry: %d areas, %d slug-indexed rooms",
+                     len(registry.known_areas()),
+                     registry.known_slugs_count())
+        except Exception as _ar_err:
+            log.warning("AreaGeometry registry load skipped: %s", _ar_err)
+            self.session_mgr._area_registry = None
         # Housing schema + lot seeding
         try:
             from engine.housing import ensure_schema as _hs_schema, seed_lots as _hs_lots
@@ -375,6 +644,25 @@ class GameServer:
             await ensure_territory_schema(self.db)
         except Exception as _terr_err:
             log.warning("Territory init skipped: %s", _terr_err)
+
+        # Player Cities Phase 1 schema (May 22 2026). Idempotent
+        # CREATE TABLE IF NOT EXISTS; depends on organizations +
+        # player_housing tables existing (both already up at this
+        # point — housing schema ran just above).
+        try:
+            from engine.player_cities import ensure_schema as _pc_schema
+            await _pc_schema(self.db)
+        except Exception as _pc_err:
+            log.warning("Player Cities init skipped: %s", _pc_err)
+
+        # SYN.9 (May 25 2026): Player-constructed buildings schema.
+        # Idempotent CREATE TABLE IF NOT EXISTS. Depends on rooms +
+        # characters tables (both up well before this point).
+        try:
+            from engine.buildings import ensure_schema as _bldg_schema
+            await _bldg_schema(self.db)
+        except Exception as _bldg_err:
+            log.warning("Buildings schema init skipped: %s", _bldg_err)
 
         # World lore schema + seed data
         try:
@@ -919,9 +1207,18 @@ class GameServer:
         # the character under this account via the REST API
         token = create_login_token(session.account["id"], ttl=1800)  # 30 min
 
+        # Drop 2 (May 19 2026): first-character-mandatory policy. Pass
+        # the flag in chargen_start so the SPA can hide/show the skip
+        # option appropriately. The same flag is enforced server-side
+        # in /api/chargen/create-character (Drop 2b) — the SPA UI hint
+        # is convenience; the server is the authority.
+        existing_chars = await self.db.get_characters(session.account["id"])
+        is_first_character = len(existing_chars) == 0
+
         await session.send_json("chargen_start", {
             "account_id": session.account["id"],
             "token": token,
+            "is_first_character": is_first_character,
         })
 
         # Wait for the client to signal completion
@@ -958,7 +1255,27 @@ class GameServer:
         Run the full interactive character creation flow.
         Returns a DB character dict on success, None on disconnect.
         """
-        wizard = CreationWizard(self.species_reg, self.skill_reg, width=session.wrap_width)
+        # Drop 2 (May 19 2026): first-character-mandatory policy. The
+        # wizard's tutorial-chain step refuses "skip" when this is the
+        # account's first character. Computed once here at entry; alts
+        # (2nd+) see the skip option.
+        try:
+            existing_chars = await self.db.get_characters(session.account["id"])
+            is_first_character = len(existing_chars) == 0
+        except Exception:
+            log.warning(
+                "_run_character_creation: failed to count existing "
+                "characters; defaulting to is_first_character=True "
+                "(conservative — never permits skip on uncertainty).",
+                exc_info=True,
+            )
+            is_first_character = True
+
+        wizard = CreationWizard(
+            self.species_reg, self.skill_reg,
+            width=session.wrap_width,
+            is_first_character=is_first_character,
+        )
 
         # Show initial screen
         display, prompt = wizard.get_initial_display()
@@ -1143,6 +1460,47 @@ class GameServer:
                 if not char:
                     await session.send_line(ansi.error("Failed to load character after save."))
                     return None
+
+                # ── F.8.c.2.b₆: prerequisite chain-event dispatch ──
+                # Per cw_tutorial_chains_design_v1.md §6 step 3 and
+                # the F.8.c.2.b₆ design call (May 20 2026): fire the
+                # `prerequisite` chain-event hook for the flags that
+                # become true at chargen finalize. The hook advances
+                # any chain step whose `completion.type ==
+                # "prerequisite"` matches.
+                #
+                # Flags fired here:
+                #   chargen_complete: True for every newly-created
+                #     character — they just finished chargen.
+                #   force_sensitive: True iff the wizard set it (the
+                #     character's attributes JSON has control/sense/
+                #     alter pools; see engine.character.from_db_dict).
+                #
+                # `jedi_path_unlocked` is NOT fired here — it's set
+                # by the Village quest (engine.village_choice._commit_
+                # path_a), which already fires its own hook.
+                # `tutorial_core_complete` is NOT fired here — it's
+                # set at tutorial-graduation, not chargen.
+                #
+                # Failure-tolerant per the standard chain-events
+                # contract: a hook exception MUST NOT break chargen.
+                try:
+                    from engine.chain_events import (
+                        on_prerequisite_flag_set,
+                    )
+                    await on_prerequisite_flag_set(
+                        self.db, char, "chargen_complete",
+                    )
+                    if bool(getattr(char_obj, "force_sensitive", False)):
+                        await on_prerequisite_flag_set(
+                            self.db, char, "force_sensitive",
+                        )
+                except Exception:
+                    log.debug(
+                        "[F.8.c.2.b₆] post-chargen prerequisite "
+                        "hook dispatch failed for char %s",
+                        char_obj.name, exc_info=True,
+                    )
 
                 await session.send_line(
                     ansi.success(f"Welcome to the galaxy, {char['name']}!")

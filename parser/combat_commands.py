@@ -38,8 +38,21 @@ async def _ach_combat_hook(db, char_id, event, session=None):
 
 log = logging.getLogger(__name__)
 
-# ── Active combats keyed by room_id ──
-_active_combats: dict[int, CombatInstance] = {}
+# ── Active combats: W.2.4 tuple key ──
+#
+# Key shape: (room_id, wilderness_x, wilderness_y).
+#
+# - Regular rooms always key as (room_id, None, None), so non-wilderness
+#   behavior is byte-identical to pre-W.2.4 (the dict accepts both keys).
+# - Wilderness combats key as (sentinel_room_id, wx, wy) so two combats
+#   at different tiles of the same sentinel don't collide on a single
+#   shared CombatInstance.
+#
+# The pre-W.2.4 contract was ``dict[int, CombatInstance]``. v42 §8.9
+# captures the rationale for tuple-key (Option A) over the alternatives
+# (separate _wilderness_combats dict, WildernessCombatInstance subclass).
+_CombatKey = tuple[int, "int | None", "int | None"]
+_active_combats: dict[_CombatKey, CombatInstance] = {}
 
 # ── NPC behavior tracking keyed by NPC character id ──
 # Populated when NPCs are added to combat, read by auto_declare_npcs
@@ -65,35 +78,137 @@ def _get_skill_reg() -> SkillRegistry:
     return reg
 
 
-def _get_or_create_combat(room_id: int, cover_max: int = 0) -> CombatInstance:
-    if room_id not in _active_combats:
-        _active_combats[room_id] = CombatInstance(
-            room_id, _get_skill_reg(), cover_max=cover_max
+def _combat_key_for(char) -> _CombatKey:
+    """W.2.4: derive a combat-instance key from a character.
+
+    Accepts a char dict (the normal Path A shape) or a Character object.
+    Returns ``(room_id, wilderness_x, wilderness_y)`` — wilderness coords
+    are None for regular rooms.
+
+    Two PCs in the same regular room get the same key. Two PCs in
+    wilderness at the same (wx, wy) get the same key. Two PCs in
+    wilderness at different (wx, wy) get DIFFERENT keys, even though
+    their ``room_id`` field is the same sentinel — this is the bug
+    W.2.4 is designed to fix.
+    """
+    if char is None:
+        return (0, None, None)
+    if isinstance(char, dict):
+        room_id = char.get("room_id", 0)
+        slug = char.get("wilderness_region_slug")
+        wx = char.get("wilderness_x")
+        wy = char.get("wilderness_y")
+    else:
+        room_id = getattr(char, "room_id", 0)
+        slug = getattr(char, "wilderness_region_slug", None)
+        wx = getattr(char, "wilderness_x", None)
+        wy = getattr(char, "wilderness_y", None)
+    # Both wilderness coords must be present to count as wilderness;
+    # if either is None we fall back to regular-room keying so the
+    # combat doesn't fragment by stale state.
+    if slug and wx is not None and wy is not None:
+        return (room_id, wx, wy)
+    return (room_id, None, None)
+
+
+def _wilderness_anchor_for(char) -> tuple:
+    """Return (slug, wx, wy) tuple for a char's wilderness anchor.
+
+    For regular-room chars, returns (None, None, None). Used by
+    ``_get_or_create_combat`` to seed the CombatInstance's wilderness
+    fields when creating a new one.
+    """
+    if char is None:
+        return (None, None, None)
+    if isinstance(char, dict):
+        slug = char.get("wilderness_region_slug")
+        wx = char.get("wilderness_x")
+        wy = char.get("wilderness_y")
+    else:
+        slug = getattr(char, "wilderness_region_slug", None)
+        wx = getattr(char, "wilderness_x", None)
+        wy = getattr(char, "wilderness_y", None)
+    if slug and wx is not None and wy is not None:
+        return (slug, wx, wy)
+    return (None, None, None)
+
+
+def _get_or_create_combat(char, cover_max: int = 0) -> CombatInstance:
+    """W.2.4: get-or-create the combat instance for this character.
+
+    Pre-W.2.4 took ``room_id: int``. Now takes a char (dict or Character
+    object) so the keying can include wilderness coords. The new
+    CombatInstance is seeded with the char's wilderness anchor so
+    ``combat.broadcast_source()`` can filter narration to the right
+    tile.
+    """
+    key = _combat_key_for(char)
+    if key not in _active_combats:
+        slug, wx, wy = _wilderness_anchor_for(char)
+        room_id = key[0]
+        _active_combats[key] = CombatInstance(
+            room_id, _get_skill_reg(), cover_max=cover_max,
+            wilderness_region_slug=slug,
+            wilderness_x=wx,
+            wilderness_y=wy,
         )
-    return _active_combats[room_id]
+    return _active_combats[key]
 
 
-def _remove_combat(room_id: int):
-    combat = _active_combats.pop(room_id, None)
+def _remove_combat(char_or_combat):
+    """W.2.4: remove the combat instance for this char (or combat).
+
+    Accepts either:
+      - A char dict / Character object — keys via _combat_key_for
+      - A CombatInstance — keys via the instance's own room_id +
+        wilderness fields
+
+    The second form matters because some teardown paths (auto-resolve,
+    combat-ended) have a ``combat`` in hand and need to remove by the
+    same key it was registered under.
+    """
+    if isinstance(char_or_combat, CombatInstance):
+        combat = char_or_combat
+        key = (combat.room_id,
+               combat.wilderness_x,
+               combat.wilderness_y)
+    else:
+        key = _combat_key_for(char_or_combat)
+    combat = _active_combats.pop(key, None)
     if combat:
         # Clean up NPC behaviors for this combat's combatants
         for cid in list(combat.combatants.keys()):
             _npc_behaviors.pop(cid, None)
 
 
-def _ensure_in_combat(char: dict, room_id: int) -> tuple:
-    """Returns (combat, combatant) or (None, None) if not in combat."""
-    combat = _active_combats.get(room_id)
+def _ensure_in_combat(char: dict, room_id: int = None) -> tuple:
+    """Returns (combat, combatant) or (None, None) if not in combat.
+
+    W.2.4: room_id arg is preserved for back-compat but ignored. The
+    char's wilderness state determines the key. If callers pass a
+    room_id that doesn't match char['room_id'], the char wins.
+    """
+    key = _combat_key_for(char)
+    combat = _active_combats.get(key)
     if not combat:
         return None, None
     combatant = combat.get_combatant(char["id"])
     return combat, combatant
 
 
-async def _broadcast_events(events, session_mgr, room_id, exclude=None):
-    """Send combat events to the room (immediate, no pacing)."""
+async def _broadcast_events(events, session_mgr, room_id, exclude=None,
+                            source_char=None):
+    """Send combat events to the room (immediate, no pacing).
+
+    W.2.4: ``source_char`` is the Path B filter; callers in
+    combat_commands.py pass ``combat.broadcast_source()`` so the
+    broadcast is restricted to the right wilderness tile. In regular
+    rooms source_char is None (or a regular-room dict) and the helper
+    behaves byte-identically to pre-W.2.4.
+    """
     for event in events:
-        await session_mgr.broadcast_to_room(room_id, event.text, exclude=exclude)
+        await session_mgr.broadcast_to_room(
+            room_id, event.text, exclude=exclude, source_char=source_char)
 
 
 def _extract_actor_name(text: str):
@@ -106,20 +221,24 @@ def _extract_actor_name(text: str):
     return parts[0] if parts else None
 
 
-async def _broadcast_separator(session_mgr, room_id):
-    """Emit a visual phase-separator line."""
+async def _broadcast_separator(session_mgr, room_id, source_char=None):
+    """Emit a visual phase-separator line. W.2.4: tile-aware."""
     await session_mgr.broadcast_to_room(
-        room_id, "  " + "─" * 45, exclude=None
+        room_id, "  " + "─" * 45, exclude=None,
+        source_char=source_char,
     )
 
 
 async def _broadcast_events_paced(events, session_mgr, room_id,
-                                   delay: float = 0.6, exclude=None):
+                                   delay: float = 0.6, exclude=None,
+                                   source_char=None):
     """Send combat events with a short delay between each actor's block.
 
     For damage events (event.you_text set, event.targets non-empty), the
     target session receives the personalised ◆ YOU variant; all others see
     the standard room narrative.
+
+    W.2.4: ``source_char`` is the Path B tile filter.
     """
     current_actor = None
     for event in events:
@@ -132,7 +251,8 @@ async def _broadcast_events_paced(events, session_mgr, room_id,
         # Per-session delivery: target sees YOU variant, everyone else sees room text
         if event.you_text and event.targets:
             target_ids = set(event.targets)
-            for sess in session_mgr.sessions_in_room(room_id):
+            for sess in session_mgr.sessions_in_room(
+                    room_id, source_char=source_char):
                 char = getattr(sess, "character", None)
                 if not char:
                     continue
@@ -152,12 +272,15 @@ async def _broadcast_events_paced(events, session_mgr, room_id,
                     await sess.send_json("combat_resolution_event",
                                          event.combat_resolution_event)
         else:
-            await session_mgr.broadcast_to_room(room_id, event.text, exclude=exclude)
+            await session_mgr.broadcast_to_room(
+                room_id, event.text, exclude=exclude,
+                source_char=source_char)
             # Web clients also receive the structured inspector event on room-wide hits
             if event.combat_resolution_event is not None:
                 await session_mgr.broadcast_json_to_room(
                     room_id, "combat_resolution_event",
                     event.combat_resolution_event, exclude=exclude,
+                    source_char=source_char,
                 )
 
 
@@ -166,9 +289,12 @@ async def _send_combat_state(combat, session_mgr):
 
     Telnet sessions receive nothing (send_json is a no-op for them).
     Each player gets a personalised payload with viewer_id set.
+
+    W.2.4: uses combat.broadcast_source() to filter to the right tile.
     """
     room_id = combat.room_id
-    sessions = session_mgr.sessions_in_room(room_id)
+    sessions = session_mgr.sessions_in_room(
+        room_id, source_char=combat.broadcast_source())
     for sess in sessions:
         char = getattr(sess, "character", None)
         viewer_id = char["id"] if char else None
@@ -176,9 +302,15 @@ async def _send_combat_state(combat, session_mgr):
         await sess.send_json("combat_state", payload)
 
 
-async def _send_combat_ended(room_id, session_mgr):
-    """Notify WebSocket clients that combat is over."""
-    for sess in session_mgr.sessions_in_room(room_id):
+async def _send_combat_ended(room_id, session_mgr, source_char=None):
+    """Notify WebSocket clients that combat is over.
+
+    W.2.4: ``source_char`` defaults to None for caller back-compat;
+    every combat_commands.py call site now passes
+    ``combat.broadcast_source()``.
+    """
+    for sess in session_mgr.sessions_in_room(
+            room_id, source_char=source_char):
         await sess.send_json("combat_state", {"active": False})
 
 
@@ -204,10 +336,21 @@ async def _try_auto_resolve(combat, ctx):
         # But we DO need to apply wear and persist wounds immediately
         await _apply_combat_wear(combat, ctx)
 
+        # Phase 7c (May 23 2026): city-guard combat-round triggers.
+        # Check if any city guards in this room should now join
+        # the fight (attacker-of-citizen or bountied-target triggers
+        # per design v1.2 §7.2). Skip if combat is over — no point
+        # adding guards to a finished fight.
+        if not combat.is_over:
+            await _check_city_guard_triggers(combat, ctx)
+
         if combat.is_over:
             # Combat ended — broadcast final events directly, no posing
-            await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id)
-            await _send_combat_ended(combat.room_id, ctx.session_mgr)
+            _src = combat.broadcast_source()
+            await _broadcast_events_paced(events, ctx.session_mgr,
+                                          combat.room_id, source_char=_src)
+            await _send_combat_ended(combat.room_id, ctx.session_mgr,
+                                     source_char=_src)
             # Achievement: combat_victory for surviving PCs
             try:
                 from engine.achievements import on_combat_victory
@@ -218,6 +361,88 @@ async def _try_auto_resolve(combat, ctx):
                             await on_combat_victory(ctx.db, c.id, session=_csess)
             except Exception as _e:
                 log.debug("silent except in parser/combat_commands.py:209: %s", _e, exc_info=True)
+            # F.8.c.2.b: CW tutorial chain — combat_won completion.
+            # Iterate surviving PCs × defeated NPCs and fire the hook
+            # once per combination of (winner, enemy_template). The
+            # template is stashed in ai_config_json.chain_enemy_template
+            # for chain-relevant NPCs; non-chain NPCs simply have no
+            # tag and the hook no-ops on them. Fires BEFORE the NPC
+            # cleanup that nulls room_id, so we still have the
+            # ai_config row available.
+            try:
+                from engine.chain_events import on_combat_won
+                import json as _ccj
+                # Collect defeated NPC templates (incapacitated/dead)
+                _defeated_templates: list = []
+                for c in combat.combatants.values():
+                    if not c.is_npc or not c.char:
+                        continue
+                    if c.char.wound_level.value < 4:
+                        continue
+                    try:
+                        _npc_row = await ctx.db.get_npc(c.id)
+                    except Exception:
+                        _npc_row = None
+                    if not _npc_row:
+                        continue
+                    _ai_raw = _npc_row.get("ai_config_json", "{}") or "{}"
+                    if isinstance(_ai_raw, str):
+                        try:
+                            _ai = _ccj.loads(_ai_raw)
+                        except Exception:
+                            _ai = {}
+                    else:
+                        _ai = _ai_raw or {}
+                    _tpl = (_ai.get("chain_enemy_template") or "").strip()
+                    if _tpl:
+                        _defeated_templates.append(_tpl)
+                # Fire one hook per (surviving PC, template) pair
+                if _defeated_templates:
+                    from collections import Counter
+                    _tpl_counts = Counter(_defeated_templates)
+                    for c in combat.combatants.values():
+                        if c.is_npc or not c.char:
+                            continue
+                        if c.char.wound_level.value >= 5:
+                            continue  # PC went down too
+                        _csess = ctx.session_mgr.find_by_character(c.id)
+                        if not _csess or not _csess.character:
+                            continue
+                        for _tpl, _ct in _tpl_counts.items():
+                            _adv = await on_combat_won(
+                                ctx.db, _csess.character, _tpl, _ct,
+                            )
+                            if _adv:
+                                # F.8.c.2.c: graduation teleport via
+                                # the per-survivor session, not ctx
+                                # — combat resolution is room-scoped
+                                # and ctx.session may belong to any
+                                # combatant.
+                                try:
+                                    from engine.chain_graduation import (
+                                        execute_pending_teleport,
+                                    )
+                                    _grad_ctx = type(ctx)(
+                                        session=_csess,
+                                        raw_input=ctx.raw_input,
+                                        command=ctx.command,
+                                        args=ctx.args,
+                                        args_list=ctx.args_list,
+                                        db=ctx.db,
+                                        session_mgr=ctx.session_mgr,
+                                    )
+                                    await execute_pending_teleport(
+                                        _grad_ctx, _csess.character,
+                                    )
+                                except Exception as _gerr:
+                                    log.debug(
+                                        "[chain_events] combat-graduation "
+                                        "teleport failed: %s",
+                                        _gerr, exc_info=True,
+                                    )
+            except Exception as _ce:
+                log.debug("silent except in parser/combat_commands.py chain_events combat hook: %s",
+                          _ce, exc_info=True)
             # Cleanup: remove incapacitated/dead NPCs from room
             try:
                 for c in combat.combatants.values():
@@ -225,14 +450,101 @@ async def _try_auto_resolve(combat, ctx):
                         await ctx.db.update_npc(c.id, room_id=None)
             except Exception:
                 log.warning("NPC cleanup after combat failed", exc_info=True)
-            _remove_combat(combat.room_id)
+            _remove_combat(combat)
             return
 
         # Combat continues — send private briefings + open posing window
+        await _check_city_guard_engagement(combat, ctx)
         await _send_combat_state(combat, ctx.session_mgr)
         await _send_private_briefings(combat, ctx)
         await _auto_generate_npc_poses(combat)
         await _start_posing_window(combat, ctx)
+
+
+async def _check_city_guard_engagement(combat, ctx):
+    """Phase 7c (May 23 2026): after each combat round, scan the
+    room for city guards that should now engage based on the
+    design v1.2 §7.2 combat-round triggers:
+
+      - The attacker has attacked a citizen of this guard's city
+        in the current combat session.
+      - A combatant has an active bounty whose ``claimed_by`` is
+        a citizen of this guard's city (re-evaluated each round
+        in case a citizen BH claims the bounty mid-fight).
+
+    Newly-engaged guards are added to the combat via
+    ``combat.add_combatant`` so they roll initiative next round
+    and the auto-declare layer picks them up.
+
+    Wilderness combat is skipped — city guards are room-scoped
+    and the design only places them in city rooms. The check is
+    fail-soft: any internal exception logs at warning and combat
+    continues unaffected.
+    """
+    # Phase 7c skips wilderness combat (no city rooms there).
+    if combat.wilderness_region_slug is not None:
+        return
+    try:
+        from engine.city_guard_runtime import (
+            evaluate_combat_round_triggers,
+        )
+        from engine.npc_combat_ai import (
+            build_npc_character, get_npc_behavior,
+        )
+
+        # Pull every NPC currently in the room. Most rooms have
+        # zero city guards, so this is cheap. We re-pull each
+        # round because guards could have been assigned mid-
+        # combat via @city guard-assign (rare but possible).
+        room_npc_rows = await ctx.db.get_npcs_in_room(combat.room_id)
+        if not room_npc_rows:
+            return
+
+        combatant_ids = list(combat.combatants.keys())
+        to_add = await evaluate_combat_round_triggers(
+            ctx.db, combat.room_id, combatant_ids,
+            combat.attacks_made, room_npc_rows,
+        )
+        if not to_add:
+            return
+
+        # Add each engaging guard to the combat. Initiative is
+        # rolled at the start of the next round in the standard
+        # `resolve_round` path, so we don't need to roll it here.
+        for guard_row in to_add:
+            gid = guard_row.get("id")
+            if gid is None:
+                continue
+            if combat.get_combatant(int(gid)):
+                continue  # Defensive: race against another caller
+                          # — already added.
+
+                # build_npc_character handles missing-stats gracefully
+            npc_char = build_npc_character(guard_row)
+            if npc_char is None:
+                log.debug(
+                    "[city_guard_phase7c] guard #%s has no combat "
+                    "stats; skipping engagement", gid,
+                )
+                continue
+            combatant = combat.add_combatant(npc_char)
+            combatant.is_npc = True
+            _npc_behaviors[int(gid)] = get_npc_behavior(guard_row)
+
+            # Roll initiative for the new arrival so they act
+            # on the next round (the standard resolve_round
+            # path increments round_num and re-rolls everyone).
+            log.info(
+                "[city_guard_phase7c] guard #%s engaged in "
+                "combat at room %s (round %s)",
+                gid, combat.room_id, combat.round_num,
+            )
+    except Exception as e:
+        log.warning(
+            "[city_guard_phase7c] _check_city_guard_engagement "
+            "failed (no guards joined this round): %s",
+            e, exc_info=True,
+        )
 
 
 async def _send_private_briefings(combat, ctx):
@@ -300,6 +612,7 @@ async def _pose_grace_timer(combat, ctx, timeout=180, nudge_at=90):
                     ansi.combat_msg(
                         f"Still waiting for narrative poses from: {names}."
                     ),
+                    source_char=combat.broadcast_source(),
                 )
 
         await asyncio.sleep(timeout - nudge_at)
@@ -352,7 +665,11 @@ async def _flush_action_log(combat, ctx):
     )
     footer = ansi.BOLD + "─" * 70 + ansi.RESET
 
-    await ctx.session_mgr.broadcast_to_room(combat.room_id, header)
+    # W.2.4: cache broadcast_source once for all three sends.
+    _src = combat.broadcast_source()
+
+    await ctx.session_mgr.broadcast_to_room(combat.room_id, header,
+                                            source_char=_src)
 
     for init_val, char_id, text in sorted_poses:
         c = combat.get_combatant(char_id)
@@ -361,10 +678,12 @@ async def _flush_action_log(combat, ctx):
             line = f"  (Init {init_val:2d}) [{name}] {text}"
         else:
             line = f"  (Init {init_val:2d}) [{name}] hesitates, doing nothing."
-        await ctx.session_mgr.broadcast_to_room(combat.room_id, line)
+        await ctx.session_mgr.broadcast_to_room(combat.room_id, line,
+                                                source_char=_src)
         await asyncio.sleep(0.5)  # Pacing between combatant poses
 
-    await ctx.session_mgr.broadcast_to_room(combat.room_id, footer)
+    await ctx.session_mgr.broadcast_to_room(combat.room_id, footer,
+                                            source_char=_src)
 
     # Clear pose state
     combat._pose_state = {}
@@ -377,12 +696,15 @@ async def _flush_action_log(combat, ctx):
 async def _advance_to_next_round(combat, ctx):
     """Roll initiative, auto-declare NPCs, prompt players."""
     # Phase separator
+    _src = combat.broadcast_source()
     await asyncio.sleep(1.1)
-    await _broadcast_separator(ctx.session_mgr, combat.room_id)
+    await _broadcast_separator(ctx.session_mgr, combat.room_id,
+                               source_char=_src)
 
     # Auto-roll next initiative
     events = combat.roll_initiative()
-    await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id, delay=0.3)
+    await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id,
+                                  delay=0.3, source_char=_src)
     await _send_combat_state(combat, ctx.session_mgr)
 
     # Auto-declare NPCs for the new round
@@ -397,6 +719,82 @@ async def _advance_to_next_round(combat, ctx):
             await sess.send_line(
                 ansi.combat_msg("Your turn! Declare: attack/dodge/aim/flee")
             )
+
+
+async def _check_city_guard_triggers(combat, ctx):
+    """Phase 7c (May 23 2026): after a combat round resolves,
+    check whether any city guards in the room should now join
+    the fight per design v1.2 §7.2.
+
+    Triggers (both evaluated per round):
+      - Attacker-of-citizen: any combatant attacked a citizen
+        of a guard's city during this combat session.
+      - Bountied-target-claimed-by-citizen-BH: any combatant
+        has a bounty claimed by a citizen of a guard's city.
+
+    Guards that fire engage are added to the existing combat
+    instance as new combatants with hostile NPC behavior. They
+    will auto-declare attacks against the triggering character
+    on the next round via the established `_auto_declare_npc_
+    actions` path.
+
+    Fail-soft: any internal exception is logged at debug; the
+    combat continues without the added guards. A broken guard
+    trigger MUST NOT block combat resolution.
+    """
+    try:
+        from engine.city_guard_runtime import (
+            evaluate_combat_round_triggers,
+        )
+        from engine.npc_combat_ai import (
+            build_npc_character, get_npc_behavior,
+        )
+        from engine.combat import CombatBehavior as _CB
+
+        # Get all NPCs in the combat room. In wilderness combats
+        # combat.room_id is the sentinel; this still works since
+        # city guards live in real rooms.
+        room_npcs = await ctx.db.get_npcs_in_room(combat.room_id)
+        combatant_ids = list(combat.combatants.keys())
+        attacks = getattr(combat, "attacks_made", set()) or set()
+
+        to_add = await evaluate_combat_round_triggers(
+            ctx.db, combat.room_id, combatant_ids,
+            attacks, room_npcs,
+        )
+        if not to_add:
+            return
+
+        added_names = []
+        for npc_row in to_add:
+            npc_id = npc_row.get("id")
+            if npc_id is None:
+                continue
+            if combat.get_combatant(int(npc_id)):
+                continue  # Already in
+            npc_char = build_npc_character(npc_row)
+            if not npc_char:
+                continue
+            combatant = combat.add_combatant(npc_char)
+            combatant.is_npc = True
+            # Force aggressive behavior on triggered guards so
+            # they actually engage (regardless of their stored
+            # combat_behavior). The trigger condition is the
+            # whole point of their joining.
+            _npc_behaviors[int(npc_id)] = _CB.AGGRESSIVE
+            added_names.append(npc_row.get("name", "guard"))
+
+        if added_names:
+            log.info(
+                "[city_guard] Phase 7c triggered engage: %s "
+                "joined combat in room %s",
+                added_names, combat.room_id,
+            )
+    except Exception as e:
+        log.debug(
+            "[city_guard] _check_city_guard_triggers failed "
+            "(no guards added): %s", e, exc_info=True,
+        )
 
 
 async def _auto_declare_npc_actions(combat, ctx):
@@ -464,7 +862,8 @@ async def _auto_declare_npc_actions(combat, ctx):
 
     # Broadcast to any remaining sessions (observers, etc.) not yet notified
     # Only send the generic line to sessions that were not individually notified
-    for sess in ctx.session_mgr.sessions_in_room(combat.room_id):
+    for sess in ctx.session_mgr.sessions_in_room(
+            combat.room_id, source_char=combat.broadcast_source()):
         char = getattr(sess, "character", None)
         if char and char["id"] in notified:
             continue
@@ -548,6 +947,210 @@ async def _apply_combat_wear(combat, ctx):
                                 c.id, _be,
                             )
                     # ── End bounty kill hook ──────────────────────────────
+                    # ── SYN.7.a.fix (May 25 2026): anomaly kill hook ─────
+                    # When an NPC tagged with ``is_anomaly_target`` dies,
+                    # decrement the parent anomaly's live-hostile list.
+                    # When the LAST tagged hostile dies, the anomaly is
+                    # marked resolved and the killer gets the full reward
+                    # (credits + resources + faction influence) — mirrors
+                    # the bounty pattern above. Attribution uses
+                    # ``last_attacker_id`` from the dying combatant, the
+                    # same chain used by the bounty hook and WoW kill
+                    # credit below.
+                    try:
+                        from engine.character import WoundLevel as _WL_ANOM
+                        if c.char.wound_level.value >= _WL_ANOM.DEAD.value:
+                            _anom_killer_id = c.last_attacker_id
+                            try:
+                                _ai_cfg_anom = _json.loads(
+                                    npc_row.get("ai_config_json", "{}")
+                                )
+                            except Exception:
+                                _ai_cfg_anom = {}
+                            if (_ai_cfg_anom.get("is_anomaly_target")
+                                    and _anom_killer_id is not None):
+                                from engine.wilderness_anomalies import (
+                                    award_combat_anomaly_reward,
+                                )
+                                _payout = await award_combat_anomaly_reward(
+                                    ctx.db, int(_anom_killer_id), c.id,
+                                    session_mgr=ctx.session_mgr,
+                                )
+                                if _payout:
+                                    _tier = _payout.get("tier", 1)
+                                    _name = _payout.get("display_name", "the anomaly")
+                                    _inf = _payout.get("influence", 0)
+                                    _named = _payout.get("named_loot")
+                                    if _tier >= 2:
+                                        # ── Tier 2/3 multi-participant payout ──
+                                        # Each participant gets a per-char line;
+                                        # killer also gets named-loot line (T2)
+                                        # and/or scaled T5 mat line (T3).
+                                        _payouts = _payout.get("payouts_per_char", [])
+                                        _killer_id = int(_anom_killer_id)
+                                        # SYN.8: build a quick lookup of scaled T5 grants
+                                        # by char_id for tier=3 surfacing.
+                                        _scaled_grants = _payout.get("scaled_t5_grants", []) or []
+                                        _scaled_by_char = {
+                                            int(g.get("char_id", 0)): g for g in _scaled_grants
+                                        }
+                                        for _pc in _payouts:
+                                            _pcid = int(_pc.get("char_id", 0))
+                                            if _pcid <= 0:
+                                                continue
+                                            _sess_pc = ctx.session_mgr.find_by_character(_pcid)
+                                            if not _sess_pc:
+                                                continue
+                                            _pcred = _pc.get("credits", 0)
+                                            _pstacks = _pc.get("resources", [])
+                                            _ptrophy = _pc.get("trophy")
+                                            # Per-participant headline.
+                                            _tier_label = (
+                                                "[WORLD BOSS DEFEATED]"
+                                                if _tier == 3
+                                                else "[ANOMALY CLEARED]"
+                                            )
+                                            _line = (
+                                                f"  \033[1;32m{_tier_label}\033[0m "
+                                                f"{_name} — +{_pcred:,} credits"
+                                            )
+                                            if _pcid == _killer_id and _inf > 0:
+                                                _line += f", +{_inf} faction inf (killing blow)"
+                                            await _sess_pc.send_line(_line)
+                                            if _pstacks:
+                                                _stack_str = ", ".join(
+                                                    f"{s['quantity']}x {s['type']} "
+                                                    f"(q{s['quality']:.0f})"
+                                                    for s in _pstacks
+                                                )
+                                                await _sess_pc.send_line(
+                                                    f"  \033[2mResources: {_stack_str}\033[0m"
+                                                )
+                                            # SYN.8: Tier 3 trophy line — every participant.
+                                            if _tier == 3 and _ptrophy:
+                                                _t_name = _ptrophy.get("name") or _ptrophy.get("key")
+                                                _t_desc = _ptrophy.get("description", "")
+                                                await _sess_pc.send_line(
+                                                    f"  \033[1;35m[TROPHY]\033[0m {_t_name}"
+                                                )
+                                                if _t_desc:
+                                                    await _sess_pc.send_line(
+                                                        f"  \033[2m{_t_desc}\033[0m"
+                                                    )
+                                            # SYN.8: Tier 3 scaled T5 mat — top participants only.
+                                            if _tier == 3 and _pcid in _scaled_by_char:
+                                                _g = _scaled_by_char[_pcid]
+                                                _gqty = _g.get("quantity", 1)
+                                                _gkey = _g.get("key", "")
+                                                _gqual = _g.get("quality", 70.0)
+                                                _gkills = _g.get("kill_count", 0)
+                                                await _sess_pc.send_line(
+                                                    f"  \033[1;36m[T5 MATERIAL]\033[0m "
+                                                    f"{_gqty}× {_gkey} (q{_gqual:.0f}) "
+                                                    f"— top contributor "
+                                                    f"({_gkills} kills)"
+                                                )
+                                            # Tier 2 named loot — killer only.
+                                            if _tier == 2 and _pcid == _killer_id and _named:
+                                                _ln_name = (
+                                                    _named.get("name")
+                                                    or _named.get("key")
+                                                )
+                                                _ln_qty = _named.get("qty", 1)
+                                                _ln_desc = _named.get("description", "")
+                                                await _sess_pc.send_line(
+                                                    f"  \033[1;36m[NAMED LOOT]\033[0m "
+                                                    f"{_ln_qty}× {_ln_name}"
+                                                )
+                                                if _ln_desc:
+                                                    await _sess_pc.send_line(
+                                                        f"  \033[2m{_ln_desc}\033[0m"
+                                                    )
+                                    else:
+                                        # ── Tier 1 single-participant payout ──
+                                        _sess_a = ctx.session_mgr.find_by_character(
+                                            int(_anom_killer_id)
+                                        )
+                                        if _sess_a:
+                                            _cred = _payout.get("credits", 0)
+                                            _stacks = _payout.get("resources", [])
+                                            _line = (
+                                                f"  \033[1;32m[ANOMALY CLEARED]\033[0m "
+                                                f"{_name} — +{_cred:,} credits"
+                                            )
+                                            if _inf > 0:
+                                                _line += f", +{_inf} faction inf"
+                                            await _sess_a.send_line(_line)
+                                            if _stacks:
+                                                _stack_str = ", ".join(
+                                                    f"{s['quantity']}x {s['type']} "
+                                                    f"(q{s['quality']:.0f})"
+                                                    for s in _stacks
+                                                )
+                                                await _sess_a.send_line(
+                                                    f"  \033[2mResources: {_stack_str}\033[0m"
+                                                )
+                                    log.info(
+                                        "[anomaly] T%d paid out #%s to killer %s: "
+                                        "credits=%s, named_loot=%s, inf=%d",
+                                        _tier,
+                                        _payout.get("anomaly_id"),
+                                        _anom_killer_id,
+                                        _payout.get("credits", 0),
+                                        bool(_named),
+                                        _inf,
+                                    )
+                    except Exception as _ae:
+                        log.warning(
+                            "Anomaly kill hook error for NPC %s: %s",
+                            c.id, _ae, exc_info=True,
+                        )
+                    # ── End anomaly kill hook ────────────────────────────
+                    # ── WoW.3a (May 24 2026): kill credit ────────────────
+                    # When a Jedi PC kills an NPC, accrue +1 Weight
+                    # to the Jedi (capped at +3 per fight; weekly
+                    # cap and 200 hard cap enforced by the
+                    # substrate). The hook reads c.last_attacker_id
+                    # — the same attribution chain that drives
+                    # bounty insurance and the killer-of-PC field
+                    # in on_pc_death. Idempotent on
+                    # (jedi_id, npc_id), so re-running the
+                    # post-resolution pass during a multi-round
+                    # decay-to-DEAD scenario won't double-credit.
+                    #
+                    # Threshold is DEAD (matches the bounty hook
+                    # above). Mortally wounded targets that may
+                    # recover are not yet "killed" for Weight
+                    # purposes.
+                    try:
+                        from engine.character import WoundLevel as _WL3
+                        if c.char.wound_level.value >= _WL3.DEAD.value:
+                            _killer_id = c.last_attacker_id
+                            if _killer_id is not None:
+                                _killer = await ctx.db.get_character(
+                                    int(_killer_id)
+                                )
+                                if _killer:
+                                    from engine.wow_combat_hooks import (
+                                        credit_kill_for_jedi,
+                                    )
+                                    _applied = await credit_kill_for_jedi(
+                                        ctx.db, combat, _killer, c.id,
+                                    )
+                                    if _applied > 0:
+                                        log.debug(
+                                            "[WoW.3a] +%d Weight to "
+                                            "char %s for killing NPC %s "
+                                            "in room %s",
+                                            _applied, _killer_id, c.id,
+                                            combat.room_id,
+                                        )
+                    except Exception as _we:
+                        log.warning(
+                            "[WoW.3a] kill-credit hook error for "
+                            "NPC %s: %s", c.id, _we, exc_info=True,
+                        )
+                    # ── End WoW.3a kill credit ───────────────────────────
                     # ── Dead NPC combatant cleanup ───────────────────────
                     from engine.character import WoundLevel as _WL2
                     if c.char.wound_level.value >= _WL2.DEAD.value:
@@ -573,6 +1176,70 @@ async def _apply_combat_wear(combat, ctx):
             await ctx.db.save_character(
                 c.id, wound_level=c.char.wound_level.value
             )
+
+            # ── PG.1.death (Drop 2c, May 19 2026 evening) ──
+            # If the PC just died, run the death-side-effects hook:
+            # snapshot inventory → corpse, clear live inventory,
+            # apply wound_state='wounded' debuff. Per design §3.5,
+            # secured-zone deaths get no corpse + no debuff
+            # (handled inside on_pc_death by inspecting
+            # security_level). NPCs do NOT go through this path
+            # — they have their own corpse-loot via encounter_*.py.
+            #
+            # The hook runs BEFORE the session-state transition
+            # (the dead-state intercept in parser/commands.py picks
+            # it up at the next command), so the next thing the
+            # player types is "respawn".
+            from engine.character import WoundLevel as _WLD
+            if c.char.wound_level.value >= _WLD.DEAD.value:
+                try:
+                    from engine.death import on_pc_death
+                    from engine.security import get_effective_security
+                    _sec = await get_effective_security(
+                        combat.room_id, ctx.db, sess.character,
+                    )
+                    # PG.2 session 2 (May 21 2026): killer
+                    # attribution. Pull `last_attacker_id` off the
+                    # combatant (stamped in _apply_damage on every
+                    # hit). If the attacker is a BH Guild member,
+                    # set killer_is_bh so on_pc_death can fire the
+                    # insurance hit for any bounty on the target.
+                    _killer_id = c.last_attacker_id
+                    _killer_is_bh = False
+                    if _killer_id is not None:
+                        try:
+                            _k = await ctx.db.get_character(
+                                _killer_id
+                            )
+                            if _k and (_k.get("faction_id") or "") in (
+                                "bh_guild", "bounty_hunters_guild"
+                            ):
+                                _killer_is_bh = True
+                        except Exception:
+                            log.debug(
+                                "PG.2: killer faction lookup "
+                                "failed for char %s",
+                                _killer_id, exc_info=True,
+                            )
+                    await on_pc_death(
+                        ctx.db,
+                        char_id=c.id,
+                        room_id=combat.room_id,
+                        security_level=str(_sec.value)
+                            if hasattr(_sec, "value") else str(_sec),
+                        killer_id=_killer_id,
+                        killer_is_bh=_killer_is_bh,
+                    )
+                    # Sync the session's wound_state cache so the
+                    # respawn command sees it immediately.
+                    sess.character["wound_state"] = "wounded"
+                except Exception:
+                    log.warning(
+                        "PG.1.death: on_pc_death hook failed for "
+                        "char %s in room %s", c.id, combat.room_id,
+                        exc_info=True,
+                    )
+            # ── End PG.1.death hook ──
 
             # Narrative: log combat outcome
             try:
@@ -655,42 +1322,31 @@ async def _apply_combat_wear(combat, ctx):
                                               combat.room_id)
                         except Exception:
                             pass  # graceful-drop
-                        # Drop 6D: hostile takeover check — if the killed NPC
-                        # was a territory guard, the killer's org can seize the room.
+                        # SYN.3 (2026-05-25): Region Anchor kill
+                        # detection. Replaces the Drop 6D hostile-
+                        # takeover-on-guard-kill block (per-room
+                        # claims + zone-keyed contests both retired).
+                        # When any NPC dies in combat, check whether
+                        # it was the Region Anchor for an active
+                        # region contest — if so, the killing-blow
+                        # faction wins the contest and the region
+                        # transfers cleanly.
                         try:
-                            from engine.territory import (
-                                get_claim, get_room_zone_id,
-                                get_zone_security, hostile_takeover_claim,
-                            )
-                            _room_id = combat.room_id
-                            _claim = await get_claim(ctx.db, _room_id)
-                            if _claim and _claim.get("guard_npc_id"):
-                                # Check if the NPC that died is the guard
-                                _dead_guard = False
-                                for _oc in combat.combatants.values():
-                                    if (_oc.is_npc and _oc.id == _claim["guard_npc_id"]
-                                            and _oc.char
-                                            and _oc.char.wound_level.value >= 5):
-                                        _dead_guard = True
-                                        break
-                                if _dead_guard:
-                                    _zone_id = await get_room_zone_id(
-                                        ctx.db, _room_id)
-                                    _sec = await get_zone_security(
-                                        ctx.db, _zone_id) if _zone_id else ""
-                                    if _sec == "lawless":
-                                        # Notify the killer they can seize
-                                        _atk_org = sess.character.get(
-                                            "faction_id", "independent")
-                                        if (_atk_org
-                                                and _atk_org != "independent"
-                                                and _atk_org != _claim["org_code"]):
-                                            await sess.send_line(
-                                                f"  \033[1;31m[TERRITORY]\033[0m The guard"
-                                                f" is down. Use "
-                                                f"\033[1;37mfaction seize\033[0m to"
-                                                f" claim this room for your faction."
-                                            )
+                            from engine.contest import (
+                                on_npc_killed_in_combat)
+                            # Walk the combatants; any dead NPC is a
+                            # potential Anchor candidate. The handler
+                            # is a no-op for non-Anchor NPCs (cheap).
+                            for _oc in combat.combatants.values():
+                                if (_oc.is_npc and _oc.char
+                                        and _oc.char.wound_level.value >= 5):
+                                    await on_npc_killed_in_combat(
+                                        ctx.db,
+                                        _oc.id,
+                                        sess.character,
+                                        combat.room_id,
+                                        session_mgr=ctx.session_mgr,
+                                    )
                         except Exception:
                             pass  # graceful-drop
                         # From Dust to Stars: combat kill hook
@@ -767,24 +1423,42 @@ class AttackCommand(BaseCommand):
         char = ctx.session.character
         room_id = char["room_id"]
 
-        # ── W.2 phase 2: combat-in-wilderness gate ───────────────────
-        # The combat system is keyed by room_id. In wilderness all PCs
-        # share the sentinel room_id, so naive combat would attack
-        # ANYONE in the region. Until wilderness combat is properly
-        # designed (combat key incorporating wilderness coords), we
-        # refuse combat in wilderness entirely. This is the safest
-        # default — protects against the cross-tile damage bug.
-        try:
-            from engine.wilderness_movement import in_wilderness
-            if in_wilderness(char):
-                await ctx.session.send_line(
-                    "  \033[1;33m[NO COMBAT]\033[0m Combat in wilderness "
-                    "regions is not yet supported. The desert is too open; "
-                    "no encounter system has eyes on you here yet."
-                )
-                return
-        except Exception:
-            pass  # If the helper isn't available, fall through
+        # ── WoW.3a/3b (May 24 2026): retreat refusal ──────────────────
+        # If this PC is a Jedi who has declared `+retreat`, refuse
+        # to initiate combat. The retreat flag (wow_retreat_active
+        # in attributes JSON) is set by parser/wow_counsel_retreat
+        # .py::RetreatCommand and cleared by ReturnCommand.
+        #
+        # Scope decision (May 24 2026): only the initiation surface
+        # is gated. Once combat is in progress, defensive actions
+        # (dodge/parry/flee/soak/aim) remain available. The gate
+        # is the choice to swing first.
+        #
+        # WoW.3b also wires this gate into ChallengeCommand and
+        # AcceptCommand below — all three initiation paths share
+        # the same helper for consistency.
+        from engine.wow_combat_hooks import refuse_if_in_retreat
+        if await refuse_if_in_retreat(ctx):
+            return
+
+        # ── W.2.4: wilderness combat is now supported ────────────────
+        # Pre-W.2.4 this site held a [NO COMBAT] gate that refused
+        # combat in wilderness entirely because _active_combats was
+        # keyed by room_id alone, so two combats at different
+        # wilderness tiles would have collapsed into one shared
+        # instance.
+        #
+        # W.2.4 re-keyed ``_active_combats`` to
+        # ``(room_id, wilderness_x, wilderness_y)`` (see
+        # ``_combat_key_for`` / ``_get_or_create_combat`` /
+        # ``CombatInstance.broadcast_source`` above), and migrated
+        # every combat broadcast helper to thread the new
+        # ``source_char`` Path B kwarg so narration filters to the
+        # right tile. The cross-tile damage bug class is closed.
+        #
+        # The gate is therefore removed. Combat now works in
+        # wilderness against PCs and NPCs at the same tile as the
+        # attacker; PCs at other tiles see nothing.
 
         # Phase 1: Security gate
         from engine.security import SecurityLevel
@@ -824,7 +1498,8 @@ class AttackCommand(BaseCommand):
         if new_combat:
             events = combat.roll_initiative()
             await _broadcast_events_paced(
-                events, ctx.session_mgr, room_id, delay=0.3)
+                events, ctx.session_mgr, room_id, delay=0.3,
+                source_char=combat.broadcast_source())
             await _send_combat_state(combat, ctx.session_mgr)
 
         # Phase 8: Stun validation + declare + broadcast
@@ -944,11 +1619,19 @@ class AttackCommand(BaseCommand):
 
         Returns (target_char, target_session, target_is_npc, target_npc_row)
         or None (error already sent).
+
+        W.2.3: ``source_char=char`` is threaded into the match and
+        session lookup so that, in wilderness, target acquisition is
+        constrained to the attacker's tile. Belt-and-braces with the
+        AttackCommand wilderness gate: today the gate makes wilderness
+        combat unreachable; if/when the gate is lifted (W.2.4), this
+        filter is what prevents combat-at-range across the region.
         """
         from engine.matching import match_in_room, MatchResult
         match = await match_in_room(
             target_name, room_id, char["id"], ctx.db,
             session_mgr=ctx.session_mgr,
+            source_char=char,
         )
 
         target_session = None
@@ -962,13 +1645,15 @@ class AttackCommand(BaseCommand):
             if target_is_npc:
                 target_npc_row = match.candidate.data
             if match.candidate.obj_type == "character":
-                for s in ctx.session_mgr.sessions_in_room(room_id):
+                for s in ctx.session_mgr.sessions_in_room(
+                        room_id, source_char=char):
                     if s.character and s.character["id"] == match.id:
                         target_session = s
                         break
         else:
-            # Fall back: check combatants already in active combat
-            combat = _active_combats.get(room_id)
+            # Fall back: check combatants already in active combat.
+            # W.2.4: key by char (tile-aware), not raw room_id.
+            combat = _active_combats.get(_combat_key_for(char))
             if combat:
                 for c in combat.combatants.values():
                     if (c.name.lower().startswith(target_name.lower())
@@ -1017,6 +1702,55 @@ class AttackCommand(BaseCommand):
         if consented:
             return True
 
+        # ── +pvp opt-in flag (v27, May 18 2026) ──
+        # If EITHER attacker or target is flagged for opt-in PvP, treat
+        # as consented in CONTESTED zones. SECURED zones already returned
+        # True above (early-return at sec != CONTESTED); the flag does
+        # NOT override SECURED — per design call in
+        # HANDOFF_MAY18_ROLLUP §"Future improvements" and now-implemented
+        # in HANDOFF_MAY18_PVP_FLAG.
+        #
+        # Mutual-vs-unilateral interpretation: EITHER-party-flagged
+        # unlocks. A flagged player has opted into being-attacked-by-
+        # anyone; an unflagged attacker hitting a flagged target also
+        # consents-by-action (this is the WoW Outland model). The
+        # converse — flagged attacker, unflagged target — also works:
+        # flagging yourself is a public declaration that you're
+        # "hunting" anyone in the zone.
+        #
+        # Defensive: char.get("pvp_flagged") handles missing column
+        # (older test fixtures, mock chars) by treating absence as 0.
+        attacker_flagged = bool(char.get("pvp_flagged") or 0)
+        target_flagged = bool(target_char.get("pvp_flagged") or 0)
+        if attacker_flagged or target_flagged:
+            # Mark both sides as in-active-combat so neither can
+            # unflag for the next 5 minutes (anti-tag-and-flee).
+            # We use engine.cooldowns directly rather than going through
+            # the PvpCommand path because the cooldown timer applies to
+            # the ATTACKER and TARGET alike on engagement, regardless
+            # of who initiated the flag.
+            try:
+                from engine.cooldowns import (
+                    set_cooldown, CD_PVP_UNFLAG, PVP_UNFLAG_COOLDOWN_S,
+                )
+                set_cooldown(char, CD_PVP_UNFLAG, PVP_UNFLAG_COOLDOWN_S)
+                set_cooldown(target_char, CD_PVP_UNFLAG,
+                             PVP_UNFLAG_COOLDOWN_S)
+                # Persist both sides' attribute updates. The cooldowns
+                # module mutates char["attributes"]; we write back here
+                # so the unflag-cooldown survives reload.
+                await ctx.db.save_character(
+                    char["id"], attributes=char["attributes"])
+                await ctx.db.save_character(
+                    target_char["id"],
+                    attributes=target_char["attributes"])
+            except Exception:
+                log.warning(
+                    "+pvp unflag cooldown application failed",
+                    exc_info=True,
+                )
+            return True
+
         # ── Bounty Hunter override (Security Drop 5) ──
         bh_override = await self._check_bh_override(
             ctx, char, target_name, room_id)
@@ -1052,7 +1786,8 @@ class AttackCommand(BaseCommand):
                     room_id,
                     f"  \033[1;31m[BOUNTY HUNTER]\033[0m "
                     f"{char['name']} draws on {target_name}!"
-                    f" [Contract: {contract.id}]"
+                    f" [Contract: {contract.id}]",
+                    source_char=char,
                 )
                 return True
         except Exception:
@@ -1063,7 +1798,15 @@ class AttackCommand(BaseCommand):
     async def _check_territory_contest_override(self, ctx, char, target_char,
                                                 target_name, room_id):
         """True if attacker and target belong to two different non-independent
-        orgs in an active territory contest for this zone."""
+        orgs in an active **region** contest at this room.
+
+        SYN.3 (2026-05-25): retargeted from the deleted zone-keyed
+        ``engine.territory`` contest API to the region-keyed
+        ``engine.contest.is_region_in_active_contest``. The room's
+        ``wilderness_region_id`` is the resolution key — city-map
+        rooms (no wilderness_region_id) cannot host a region contest,
+        so the gate never fires there.
+        """
         try:
             atk_org = char.get("faction_id", "independent")
             def_org = target_char.get("faction_id", "independent")
@@ -1072,20 +1815,25 @@ class AttackCommand(BaseCommand):
                     or def_org == "independent"
                     or atk_org == def_org):
                 return False
-            from engine.territory import (
-                get_room_zone_id, is_in_active_contest)
-            zone_id = await get_room_zone_id(ctx.db, room_id)
-            if not zone_id:
+            # Resolve the room's wilderness region.
+            try:
+                room = await ctx.db.get_room(room_id)
+            except Exception:
+                room = None
+            region_slug = (room or {}).get("wilderness_region_id")
+            if not region_slug:
                 return False
-            active = await is_in_active_contest(
-                ctx.db, zone_id, atk_org, def_org)
+            from engine.contest import is_region_in_active_contest
+            active = await is_region_in_active_contest(
+                ctx.db, region_slug, atk_org, def_org)
             if active:
                 await ctx.session_mgr.broadcast_to_room(
                     room_id,
-                    f"  \033[1;31m[TERRITORY WAR]\033[0m "
+                    f"  \033[1;31m[REGION CONTEST]\033[0m "
                     f"{char['name']} attacks {target_name}! "
                     f"[{atk_org.replace('_', ' ').title()} vs "
                     f"{def_org.replace('_', ' ').title()}]",
+                    source_char=char,
                 )
                 return True
         except Exception:
@@ -1099,9 +1847,12 @@ class AttackCommand(BaseCommand):
         """Get/create combat for room, add both combatants.
         Returns (combat, new_combat_flag) or (None, False) on failure."""
         cover_max = 0
-        if room_id not in _active_combats:
+        # W.2.4: combat is keyed by (room_id, wx, wy); the cover_max
+        # lookup is per-room (cover is a room property), but the
+        # combat-existence check uses the tile-aware key.
+        if _combat_key_for(char) not in _active_combats:
             cover_max = await ctx.db.get_room_property(room_id, "cover_max", 0)
-        combat = _get_or_create_combat(room_id, cover_max=cover_max)
+        combat = _get_or_create_combat(char, cover_max=cover_max)
         new_combat = combat.round_num == 0
 
         # v22 S15: use cached Character object when available
@@ -1174,6 +1925,7 @@ class AttackCommand(BaseCommand):
             ansi.combat_msg(
                 f"{char['name']} prepares to attack {target_char['name']}!"),
             exclude=ctx.session,
+            source_char=char,
         )
 
         # Notify target if they haven't declared (players only; NPCs auto-declare)
@@ -1387,6 +2139,7 @@ class FleeCommand(BaseCommand):
             char["room_id"],
             ansi.combat_msg(f"{char['name']} is trying to run!"),
             exclude=ctx.session,
+            source_char=char,
         )
         await _send_combat_state(combat, ctx.session_mgr)
         await _try_auto_resolve(combat, ctx)
@@ -1459,7 +2212,7 @@ class CombatStatusCommand(BaseCommand):
 
     async def _show_status(self, ctx):
         char = ctx.session.character
-        combat = _active_combats.get(char["room_id"])
+        combat = _active_combats.get(_combat_key_for(char))
         if not combat:
             await ctx.session.send_line("  No active combat here.")
             return
@@ -1470,7 +2223,7 @@ class CombatStatusCommand(BaseCommand):
 
     async def _show_rolls(self, ctx):
         char = ctx.session.character
-        combat = _active_combats.get(char["room_id"])
+        combat = _active_combats.get(_combat_key_for(char))
         if not combat:
             await ctx.session.send_line("  No active combat here.")
             return
@@ -1496,7 +2249,7 @@ class ResolveCommand(BaseCommand):
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
-        combat = _active_combats.get(char["room_id"])
+        combat = _active_combats.get(_combat_key_for(char))
         if not combat:
             await ctx.session.send_line("  No active combat here.")
             return
@@ -1512,10 +2265,19 @@ class ResolveCommand(BaseCommand):
         # Admin resolve skips posing — auto-generate all poses and flush
         await _apply_combat_wear(combat, ctx)
 
+        # Phase 7c: city-guard combat-round triggers (also fires
+        # on admin resolve so the behavior is consistent across
+        # both resolution paths).
+        if not combat.is_over:
+            await _check_city_guard_triggers(combat, ctx)
+
         if combat.is_over:
-            await _broadcast_events_paced(events, ctx.session_mgr, combat.room_id)
-            await _send_combat_ended(combat.room_id, ctx.session_mgr)
-            _remove_combat(combat.room_id)
+            _src = combat.broadcast_source()
+            await _broadcast_events_paced(events, ctx.session_mgr,
+                                          combat.room_id, source_char=_src)
+            await _send_combat_ended(combat.room_id, ctx.session_mgr,
+                                     source_char=_src)
+            _remove_combat(combat)
             return
 
         # Auto-generate poses for everyone and flush immediately
@@ -1534,7 +2296,7 @@ class DisengageCommand(BaseCommand):
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
-        combat = _active_combats.get(char["room_id"])
+        combat = _active_combats.get(_combat_key_for(char))
         if not combat:
             await ctx.session.send_line("  No active combat here.")
             return
@@ -1547,7 +2309,7 @@ class DisengageCommand(BaseCommand):
         if combat.is_over or len(combat.active_combatants) <= 1:
             combat.remove_combatant(char["id"])
             if len(combat.combatants) == 0:
-                _remove_combat(char["room_id"])
+                _remove_combat(combat)
             await ctx.session.send_line(ansi.combat_msg("You disengage from combat."))
         else:
             await ctx.session.send_line(
@@ -1627,6 +2389,7 @@ class RangeCommand(BaseCommand):
             ansi.combat_msg(
                 f"{char['name']} moves to {band.label} range from {target_c.name}."
             ),
+            source_char=char,
         )
 
 
@@ -1726,6 +2489,7 @@ class ForcePointCommand(BaseCommand):
                 f"{char['name']} calls upon the Force!"
             ),
             exclude=ctx.session,
+            source_char=char,
         )
 
 
@@ -1752,8 +2516,9 @@ async def try_nl_combat_action(ctx, raw_input: str) -> bool:
 
     room_id = char.get("room_id")
 
-    # Only intercept if player is in active combat
-    combat = _active_combats.get(room_id)
+    # Only intercept if player is in active combat.
+    # W.2.4: tile-aware key for wilderness compatibility.
+    combat = _active_combats.get(_combat_key_for(char))
     if not combat:
         return False
 
@@ -2059,6 +2824,7 @@ def register_combat_commands(registry):
         RangeCommand(), CoverCommand(), ForcePointCommand(),
         CombatPoseCommand(), CombatRollsCommand(),
         ChallengeCommand(), AcceptCommand(), DeclineCommand(),
+        PvpCommand(),   # v27 (May 18 2026): opt-in PvP flag
     ]
     for cmd in cmds:
         registry.register(cmd)
@@ -2143,6 +2909,15 @@ class ChallengeCommand(BaseCommand):
         char = ctx.session.character
         room_id = char["room_id"]
 
+        # ── WoW.3b (May 24 2026): retreat refusal ─────────────────────
+        # A Jedi who has declared `+retreat` cannot challenge
+        # another PC to combat. Shares the same helper as
+        # AttackCommand and AcceptCommand. See engine/wow_combat_
+        # hooks.py::refuse_if_in_retreat for the dual-gate logic.
+        from engine.wow_combat_hooks import refuse_if_in_retreat
+        if await refuse_if_in_retreat(ctx):
+            return
+
         # Must be in contested or lawless zone to bother
         from engine.security import get_effective_security, SecurityLevel
         sec = await get_effective_security(room_id, ctx.db, character=char)
@@ -2153,10 +2928,13 @@ class ChallengeCommand(BaseCommand):
             return
 
         # Find target player
+        # W.2.3: source_char=char filters target acquisition to the
+        # challenger's wilderness tile (no effect in normal rooms).
         from engine.matching import match_in_room, MatchResult
         match = await match_in_room(
             ctx.args.strip(), room_id, char["id"], ctx.db,
             session_mgr=ctx.session_mgr,
+            source_char=char,
         )
         if not match.found or match.candidate.obj_type != "character":
             await ctx.session.send_line(f"  No player named '{ctx.args.strip()}' here.")
@@ -2186,8 +2964,12 @@ class ChallengeCommand(BaseCommand):
         )
 
         # Notify target
+        # W.2.3: source_char=char filters to the challenger's tile in
+        # wilderness; harmless in normal rooms. The match above already
+        # used source_char, so the target is co-located by construction
+        # — this is belt-and-braces.
         target_sess = None
-        for s in ctx.session_mgr.sessions_in_room(room_id):
+        for s in ctx.session_mgr.sessions_in_room(room_id, source_char=char):
             if s.character and s.character["id"] == target_id:
                 target_sess = s
                 break
@@ -2212,10 +2994,23 @@ class AcceptCommand(BaseCommand):
         char = ctx.session.character
         room_id = char["room_id"]
 
+        # ── WoW.3b (May 24 2026): retreat refusal ─────────────────────
+        # A Jedi who has declared `+retreat` cannot accept a combat
+        # challenge. They may still use `decline` to refuse the
+        # challenge cleanly (decline is non-combat — the polite
+        # exit door).
+        from engine.wow_combat_hooks import refuse_if_in_retreat
+        if await refuse_if_in_retreat(ctx):
+            return
+
+        # W.2.3: source_char=char ensures we only resolve challengers
+        # at the same wilderness tile as the accepter (no effect in
+        # normal rooms).
         from engine.matching import match_in_room
         match = await match_in_room(
             ctx.args.strip(), room_id, char["id"], ctx.db,
             session_mgr=ctx.session_mgr,
+            source_char=char,
         )
         if not match.found or match.candidate.obj_type != "character":
             await ctx.session.send_line(f"  No player named '{ctx.args.strip()}' here.")
@@ -2245,7 +3040,9 @@ class AcceptCommand(BaseCommand):
         )
 
         # Notify challenger
-        for s in ctx.session_mgr.sessions_in_room(room_id):
+        # W.2.3: source_char=char filters to the accepter's wilderness
+        # tile (harmless in normal rooms).
+        for s in ctx.session_mgr.sessions_in_room(room_id, source_char=char):
             if s.character and s.character["id"] == challenger_id:
                 await s.send_line(
                     f"\n  \033[1;31m{char['name']} accepts your challenge!\033[0m "
@@ -2254,11 +3051,15 @@ class AcceptCommand(BaseCommand):
                 break
 
         # Broadcast to room
+        # W.2.3: source_char=char restricts the consent announcement
+        # to onlookers at the accepter's wilderness tile. A third PC
+        # in the same region but a different tile won't see this.
         await ctx.session_mgr.broadcast_to_room(
             room_id,
             f"\033[1;33m{challenger_name} and {char['name']} have agreed to settle "
             f"their differences the old-fashioned way.\033[0m",
             exclude=[challenger_id, t_id],
+            source_char=char,
         )
 
 
@@ -2287,10 +3088,13 @@ class DeclineCommand(BaseCommand):
         challenger_id = None
         challenger_name = "someone"
         if ctx.args:
+            # W.2.3: source_char=char filters to the decliner's tile
+            # in wilderness; harmless in normal rooms.
             from engine.matching import match_in_room
             match = await match_in_room(
                 ctx.args.strip(), char["room_id"], char["id"], ctx.db,
                 session_mgr=ctx.session_mgr,
+                source_char=char,
             )
             if match.found and match.candidate.obj_type == "character":
                 challenger_id = match.id
@@ -2327,12 +3131,174 @@ class DeclineCommand(BaseCommand):
         )
 
         # Notify challenger
-        for s in ctx.session_mgr.sessions_in_room(char["room_id"]):
+        for s in ctx.session_mgr.sessions_in_room(
+                char["room_id"], source_char=char):
             if s.character and s.character["id"] == challenger_id:
                 await s.send_line(
                     f"  \033[2m{char['name']} declines your challenge.\033[0m"
                 )
                 break
+
+
+class PvpCommand(BaseCommand):
+    """``+pvp`` — opt-in PvP flag (v27, May 18 2026).
+
+    Per-character standing flag. When set, the character is open to
+    PvP without the per-pair challenge/accept dance, in CONTESTED
+    zones only. SECURED zones remain absolute — flagging does NOT
+    let anyone attack you in the Jedi Temple or the Senate.
+
+    Subcommands:
+      +pvp on         — flag yourself; broadcast to room
+      +pvp off        — unflag (subject to 5-minute cooldown after
+                        the flag has been active in a combat)
+      +pvp status     — show your current flag state + cooldown remaining
+      +pvp            — alias for `+pvp status`
+
+    Cooldown: once your flag has been "active" in a combat (either
+    you engaged or were engaged-by while flagged), you cannot unflag
+    for 5 minutes. This is the WoW-style anti-tag-and-flee mechanic
+    — without it, griefers would flag, attack, and immediately
+    unflag to dodge consequences.
+
+    The cooldown is set in _check_pvp_consent (above) when the flag
+    is consulted to allow an attack. Here we read it on `+pvp off`
+    and refuse if still active.
+    """
+    key = "+pvp"
+    aliases = ["pvp"]
+    help_text = (
+        "Opt-in PvP flag — toggle yourself open to PvP without "
+        "needing challenge/accept.\n"
+        "\n"
+        "USAGE:\n"
+        "  +pvp on        Flag yourself open to PvP in CONTESTED zones.\n"
+        "  +pvp off       Unflag yourself (5-minute cooldown after a fight).\n"
+        "  +pvp status    Show current flag + cooldown.\n"
+        "  +pvp           Alias for +pvp status.\n"
+        "\n"
+        "RULES:\n"
+        "  * Flag does NOT override SECURED zones (Jedi Temple, "
+        "Senate, etc. remain absolute).\n"
+        "  * If EITHER you or your target is flagged, the attack "
+        "proceeds without challenge/accept (consensual-by-flag).\n"
+        "  * Once your flag has been used in a combat, you cannot "
+        "unflag for 5 minutes (anti-tag-and-flee).\n"
+    )
+    usage = "+pvp [on|off|status]"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line(
+                "  You must be in the game to use +pvp.")
+            return
+
+        sub = (ctx.args or "").strip().lower()
+        if sub in ("", "status"):
+            await self._show_status(ctx, char)
+            return
+        if sub == "on":
+            await self._flag_on(ctx, char)
+            return
+        if sub == "off":
+            await self._flag_off(ctx, char)
+            return
+        await ctx.session.send_line(
+            f"  Unknown +pvp subcommand: {sub!r}\n"
+            f"  Usage: +pvp [on|off|status]"
+        )
+
+    async def _show_status(self, ctx, char):
+        flagged = bool(char.get("pvp_flagged") or 0)
+        from engine.cooldowns import (
+            remaining_cooldown, format_remaining, CD_PVP_UNFLAG,
+        )
+        rem = remaining_cooldown(char, CD_PVP_UNFLAG)
+        if flagged:
+            line = "  \033[1;31m[PvP flag: ON]\033[0m"
+            if rem > 0:
+                line += (
+                    f"  \033[2m(cannot unflag for "
+                    f"{format_remaining(rem)})\033[0m"
+                )
+            else:
+                line += "  \033[2m(can unflag with `+pvp off`)\033[0m"
+        else:
+            line = "  \033[1;32m[PvP flag: OFF]\033[0m"
+            line += "  \033[2m(use `+pvp on` to opt in)\033[0m"
+        await ctx.session.send_line(line)
+
+    async def _flag_on(self, ctx, char):
+        if char.get("pvp_flagged"):
+            await ctx.session.send_line(
+                "  You are already flagged for PvP. "
+                "(`+pvp status` to see cooldown.)"
+            )
+            return
+        # Set the flag in DB. char["pvp_flagged"] is updated
+        # in-place by get_char on next read; we also patch the
+        # session's cached dict so subsequent _check_pvp_consent
+        # calls in the same session see it.
+        await ctx.db.save_character(char["id"], pvp_flagged=1)
+        char["pvp_flagged"] = 1
+        ctx.session.invalidate_char_obj()
+        await ctx.session.send_line(
+            "  \033[1;31m[PvP flag: ON]\033[0m  "
+            "You are now open to PvP in CONTESTED zones. SECURED "
+            "zones remain protected. Use `+pvp off` to disable "
+            "(5-minute cooldown after a fight)."
+        )
+        # Broadcast to the room so others see the change.
+        # W.2 phase 2 Path B: source_char filters to co-located peers
+        # when in wilderness; harmless in normal rooms.
+        try:
+            room_id = char["room_id"]
+            await ctx.session_mgr.broadcast_to_room(
+                room_id,
+                f"  \033[2m{char['name']} flags themselves "
+                f"open to PvP.\033[0m",
+                exclude=ctx.session,
+                source_char=char,
+            )
+        except Exception:
+            log.warning("+pvp on room broadcast failed", exc_info=True)
+
+    async def _flag_off(self, ctx, char):
+        if not char.get("pvp_flagged"):
+            await ctx.session.send_line(
+                "  You are not flagged for PvP."
+            )
+            return
+        from engine.cooldowns import (
+            remaining_cooldown, format_remaining, CD_PVP_UNFLAG,
+        )
+        rem = remaining_cooldown(char, CD_PVP_UNFLAG)
+        if rem > 0:
+            await ctx.session.send_line(
+                f"  You cannot unflag yet — your PvP flag is "
+                f"active in a recent combat. "
+                f"Try again in {format_remaining(rem)}."
+            )
+            return
+        await ctx.db.save_character(char["id"], pvp_flagged=0)
+        char["pvp_flagged"] = 0
+        ctx.session.invalidate_char_obj()
+        await ctx.session.send_line(
+            "  \033[1;32m[PvP flag: OFF]\033[0m  "
+            "You are no longer open to opt-in PvP."
+        )
+        try:
+            room_id = char["room_id"]
+            await ctx.session_mgr.broadcast_to_room(
+                room_id,
+                f"  \033[2m{char['name']} unflags themselves "
+                f"from PvP.\033[0m",
+                exclude=ctx.session,
+                source_char=char,
+            )
+        except Exception:
+            log.warning("+pvp off room broadcast failed", exc_info=True)
 
 
 # ── S54: populate _SWITCH_IMPL after all per-verb classes are defined ──

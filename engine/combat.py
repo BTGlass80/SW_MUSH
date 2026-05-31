@@ -25,6 +25,7 @@ Key R&E mechanics implemented:
 All rolls use the D6 dice engine. This module is pure logic - no I/O.
 """
 import logging
+import time
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Optional
@@ -219,6 +220,18 @@ class Combatant:
     # Cached character data for the combat
     char: Optional[Character] = None
 
+    # PG.2 session 2 (May 21 2026): last-attacker attribution.
+    # When this combatant takes damage from an attack, the
+    # attacker's character id is stamped here. Used by
+    # on_pc_death to determine killer attribution for insurance
+    # hits (per progression_gates_and_consequences_design_v1.md
+    # §4.4 — insurance only fires when killer is a BH Guild
+    # member). Persists across rounds (a player who is shot in
+    # round 1 and bleeds out in round 3 is still "killed" by
+    # the shooter from the bounty system's POV). Reset only
+    # when a new combat starts or the combatant leaves.
+    last_attacker_id: Optional[int] = None
+
 
 # ── Combat Instance ──
 
@@ -353,6 +366,11 @@ def _build_resolution_event(
     damage_margin: int,
     wound_text: str,
     stun_knocked_out: bool,
+    # Drop D Phase 3: surfaced on the wound_outcome payload so the
+    # client can render "2D minutes" KO duration. None when not a
+    # stun-KO.
+    stun_duration_dice: Optional[str] = None,
+    stun_duration_unit: Optional[str] = None,
     round_num: int,
     combat_id,
 ) -> dict:
@@ -462,15 +480,26 @@ def _build_resolution_event(
         }
 
         # ── Wound outcome ──
-        wound_dict = _cevt.build_wound_outcome(
+        # Drop D Phase 3: when stun_knocked_out, pass the rolled
+        # duration dice + unit so the WoundOutcome payload carries
+        # them through to the client inspector. The legacy compat
+        # shim accepts stun_duration_dice/_unit alongside the
+        # hit/wound_text/stun_mode args; build_wound_outcome's own
+        # schema check rejects duration fields on non-KO outcomes,
+        # which is why we only thread them when stun_knocked_out.
+        _wound_kwargs = dict(
             hit=True,
             wound_text=wound_text,
             damage_margin=damage_margin,
             stun_mode=action.stun_mode,
             stun_knocked_out=stun_knocked_out,
-            target_can_act=target_c.char.wound_level.can_act
-                           if target_c.char else True,
+            target_can_act=(target_c.char.can_act_now()
+                            if target_c.char else True),
         )
+        if stun_knocked_out and stun_duration_dice and stun_duration_unit:
+            _wound_kwargs["stun_duration_dice"] = stun_duration_dice
+            _wound_kwargs["stun_duration_unit"] = stun_duration_unit
+        wound_dict = _cevt.build_wound_outcome(**_wound_kwargs)
 
         actor_kind  = "pc" if getattr(actor.char, "is_pc", True) else "npc"
         target_kind = "pc" if getattr(target_c.char, "is_pc", True) else "npc"
@@ -524,7 +553,10 @@ class CombatInstance:
     def __init__(self, room_id: int, skill_reg: SkillRegistry,
                  default_range: RangeBand = RangeBand.SHORT,
                  cover_max: int = COVER_NONE,
-                 theatre: str = "ground"):
+                 theatre: str = "ground",
+                 wilderness_region_slug: Optional[str] = None,
+                 wilderness_x: Optional[int] = None,
+                 wilderness_y: Optional[int] = None):
         # Drop D server-side prereq (Field Kit v2 §6): theatre tags this
         # combat instance as 'ground' or 'space' so the client can pick
         # the correct HUD overlay (amber datapad vs cyan cockpit). Today
@@ -555,6 +587,51 @@ class CombatInstance:
         self._grace_timer_handle = None
         # ISO timestamp deadline for pose window (set by command layer)
         self.pose_deadline: Optional[str] = None
+
+        # W.2.4: Wilderness anchor. In regular rooms these stay None and
+        # the combat keys by room_id alone. In wilderness, _active_combats
+        # is keyed by (room_id, wilderness_x, wilderness_y) so two combats
+        # at different tiles of the same sentinel room don't collide.
+        # The broadcast helpers thread a synthetic source_char built from
+        # these fields (see broadcast_source() below) so Path B filtering
+        # routes combat narration to the right tile.
+        self.wilderness_region_slug: Optional[str] = wilderness_region_slug
+        self.wilderness_x: Optional[int] = wilderness_x
+        self.wilderness_y: Optional[int] = wilderness_y
+
+        # Phase 7c (May 23 2026): attempted-attack tracking for the
+        # "attacked-a-citizen" city-guard trigger (design v1.2 §7.2,
+        # second bullet of the engage list). Set of (attacker_id,
+        # target_id) tuples populated at _resolve_attack entry — the
+        # ATTEMPT counts, not just the hit, so a missed attack still
+        # demonstrates hostile intent and triggers city-guard
+        # engagement. Dies with the CombatInstance.
+        self.attacks_made: set = set()
+
+    def broadcast_source(self) -> dict:
+        """Return a synthetic char-shaped dict for Path B broadcast filtering.
+
+        W.2.4: combat broadcast helpers (``_broadcast_events``,
+        ``_broadcast_separator``, ``_broadcast_events_paced``,
+        ``_send_combat_state``, ``_send_combat_ended``,
+        ``_flush_action_log``, ``_auto_declare_npc_actions``, etc.) need
+        a ``source_char`` to pass through to
+        ``server.session.SessionManager.broadcast_to_room`` / ``sessions_in_room``
+        so the broadcast is filtered to the right wilderness tile.
+
+        In regular rooms (wilderness_*=None), the returned dict has only
+        ``room_id`` set and ``in_wilderness(d)`` returns False, so the
+        broadcast hits everyone in the sentinel — same behavior as
+        pre-W.2.4. In wilderness rooms, the dict carries the slug+coords
+        and the Path B filter restricts to co-located peers.
+        """
+        return {
+            "room_id": self.room_id,
+            "wilderness_region_slug": self.wilderness_region_slug,
+            "wilderness_x": self.wilderness_x,
+            "wilderness_y": self.wilderness_y,
+        }
+
 
     def set_range(self, id_a: int, id_b: int, band: RangeBand):
         """Set the range band between two combatants."""
@@ -587,7 +664,7 @@ class CombatInstance:
     @property
     def active_combatants(self) -> list[Combatant]:
         return [c for c in self.combatants.values()
-                if c.char and c.char.wound_level.can_act and not c.is_fleeing]
+                if c.char and c.char.can_act_now() and not c.is_fleeing]
 
     @property
     def is_over(self) -> bool:
@@ -612,7 +689,7 @@ class CombatInstance:
         events.append(CombatEvent(text=sep))
 
         for c in self.combatants.values():
-            if not c.char or not c.char.wound_level.can_act:
+            if not c.char or not c.char.can_act_now():
                 c.initiative = 0
                 self._last_initiative_rolls[c.name] = "0 (incapacitated)"
                 continue
@@ -638,7 +715,7 @@ class CombatInstance:
         order_parts = [
             f"{self.combatants[cid].name} ({self.combatants[cid].initiative})"
             for cid in self.initiative_order
-            if self.combatants[cid].char and self.combatants[cid].char.wound_level.can_act
+            if self.combatants[cid].char and self.combatants[cid].char.can_act_now()
         ]
         order_text = f" → ".join(order_parts)
         events.append(CombatEvent(
@@ -785,7 +862,7 @@ class CombatInstance:
         c = self.combatants.get(char_id)
         if not c:
             return "Not in combat."
-        if not c.char or not c.char.wound_level.can_act:
+        if not c.char or not c.char.can_act_now():
             return "You can't act in your current condition."
 
         # Full dodge/parry restrictions
@@ -848,7 +925,7 @@ class CombatInstance:
 
         for char_id in self.initiative_order:
             c = self.combatants.get(char_id)
-            if not c or not c.char or not c.char.wound_level.can_act:
+            if not c or not c.char or not c.char.can_act_now():
                 continue
             if c.is_fleeing:
                 continue
@@ -887,7 +964,7 @@ class CombatInstance:
         # Initialise pose state for all active combatants
         self._pose_state = {}
         for c in self.combatants.values():
-            if c.char and c.char.wound_level.can_act and not c.is_fleeing:
+            if c.char and c.char.can_act_now() and not c.is_fleeing:
                 self._pose_state[c.id] = {
                     "status": "pending",
                     "text": None,
@@ -953,6 +1030,12 @@ class CombatInstance:
                 actor_id=actor.id, action=action,
                 narrative=f"  {actor.name} attacks... but the target is gone.",
             )
+
+        # Phase 7c (May 23 2026): record the attack attempt for the
+        # city-guard "attacked-a-citizen" trigger. The ATTEMPT counts,
+        # not the hit — a missed attack on a citizen still demonstrates
+        # hostile intent and triggers guard engagement.
+        self.attacks_made.add((int(actor.id), int(action.target_id)))
 
         char = actor.char
         target = target_c.char
@@ -1358,6 +1441,15 @@ class CombatInstance:
         """
         target = target_c.char
 
+        # PG.2 session 2 (May 21 2026): last-attacker attribution.
+        # Stamp the attacker on the target so on_pc_death can read
+        # killer_id + killer_is_bh for insurance fires. This is
+        # deliberately stamped on every hit (not only on the lethal
+        # one) — if the next hit in the same round kills, we still
+        # have the right attribution. Cleared at start_round.
+        if actor is not None and target_c is not None:
+            target_c.last_attacker_id = actor.id
+
         # Parse damage - handle STR+XD notation for melee weapons
         damage_str = action.weapon_damage or "3D"
         _dmg_skill_dice = 0   # for structured event component_sizes
@@ -1426,14 +1518,35 @@ class CombatInstance:
         # v22 audit #11: stun damage routing per R&E p83
         # "Weapons set for stun roll damage normally, but treat any result
         #  more serious than 'stunned' as 'unconscious for 2D minutes.'"
+        # Drop D Phase 3 (May 28 2026): the STRICT R&E ruling. The KO
+        # branch now rolls 2D and sets target.unconscious_until as a
+        # wall-clock deadline. The duration roll + unit are surfaced on
+        # the resolution event via stun_duration_dice/_unit (the schema
+        # has reserved those fields since v1.1 §4.2). Combat-loop tick
+        # in tick_round_end clears the KO when the deadline passes.
         stun_knocked_out = False
+        stun_duration_dice = None  # type: Optional[str]
+        stun_duration_unit = None  # type: Optional[str]
+        stun_duration_minutes = 0  # for logging only
         if action.stun_mode and damage_margin > 3:
             # Margin > 3 would normally be wounded or worse;
-            # stun caps it at "unconscious for 2D minutes"
+            # stun caps it at "unconscious for 2D minutes" (R&E p83).
             stun_knocked_out = True
-            # Apply as STUNNED wound level but set incapacitated state
+            # Apply as STUNNED wound level (so the existing penalty
+            # ladder still costs -1D once awake). The wall-clock gate
+            # below is the actual KO; wound_level by itself only goes
+            # to STUNNED here, not INCAPACITATED.
             target.apply_wound(1)  # Apply a stun (margin 1 = stunned)
-            wound_text = "Stunned — Unconscious!"
+            # Roll 2D for KO duration (in minutes per R&E p83).
+            duration_roll = roll_d6_pool(DicePool(2, 0))
+            stun_duration_minutes = max(1, duration_roll.total)
+            stun_duration_dice = "2D"
+            stun_duration_unit = "minutes"
+            # Wall-clock deadline: now + (2D × 60) seconds. The unit
+            # decision here is SECONDS (float, time.time()) — matching
+            # wound_clear_at and the rest of the codebase convention.
+            target.unconscious_until = time.time() + (stun_duration_minutes * 60.0)
+            wound_text = f"Stunned — Unconscious! ({stun_duration_minutes} min)"
         elif damage_margin > 0:
             wound = target.apply_wound(damage_margin)
             wound_text = wound.display_name
@@ -1475,7 +1588,7 @@ class CombatInstance:
         if drama:
             narrative += "\n" + _ansi.color(drama, _ansi.DIM)
 
-        if not target.wound_level.can_act:
+        if not target.can_act_now():
             incap_line = (
                 _ansi.BOLD + _ansi.BRIGHT_RED
                 + f"  {target_c.name} is {wound.display_name.upper()}!"
@@ -1494,7 +1607,7 @@ class CombatInstance:
         you_narrative = you_story + "\n" + mech_line
         if drama:
             you_narrative += "\n" + _ansi.color(drama, _ansi.DIM)
-        if not target.wound_level.can_act:
+        if not target.can_act_now():
             you_narrative += "\n" + (
                 _ansi.BOLD + _ansi.BRIGHT_RED
                 + "  YOU are " + wound.display_name.upper() + "!"
@@ -1527,6 +1640,8 @@ class CombatInstance:
                 damage_margin=damage_margin,
                 wound_text=wound_text,
                 stun_knocked_out=stun_knocked_out,
+                stun_duration_dice=stun_duration_dice,
+                stun_duration_unit=stun_duration_unit,
                 round_num=getattr(self, "round_num", 0),
                 combat_id=getattr(self, "combat_id", None),
             ) if _attacker_context is not None else None,
@@ -1694,6 +1809,22 @@ class CombatInstance:
                     events.append(CombatEvent(
                         text=f"  {c.name}'s oldest stun fades ({remaining} stun{'s' if remaining != 1 else ''} still active)."
                     ))
+
+        # Drop D Phase 3: stun-KO wake-up tick (R&E p83 wall-clock).
+        # The 2D-minutes KO deadline almost always outlasts the combat
+        # at ~5s rounds × 12-round-max-2D, but if it does expire during
+        # an active fight, the target wakes up here and gets a narration
+        # line. Outside combat the deadline is checked lazily by
+        # Character.is_stun_unconscious(now) and the field self-clears
+        # at the next can_act_now call.
+        _now = time.time()
+        for c in self.combatants.values():
+            if (c.char and c.char.unconscious_until > 0.0
+                    and _now >= c.char.unconscious_until):
+                c.char.clear_stun_unconscious()
+                events.append(CombatEvent(
+                    text=f"  {c.name} comes to, groggy but conscious."
+                ))
 
         # Mortally wounded death rolls (R&E p59)
         for c in list(self.combatants.values()):

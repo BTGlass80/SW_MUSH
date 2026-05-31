@@ -163,7 +163,219 @@ BUFF_TEMPLATES: dict[str, dict] = {
         "positive": True,
         "source": "force:enhance_attribute",
     },
+    # ── SRB.1 medic stim family ──────────────────────────────────────────
+    # Per support_role_buffs_design_v1.md §3.3.
+    #
+    # `combat_stim` (above) is the third member of this family; it
+    # pre-dates SRB.1 and is left untouched.
+    #
+    # Substrate decisions:
+    #   - All four stims (combat_stim, stimpack, adrenaline_shot,
+    #     focus_stim) share the `stim:` source prefix or a `combat_stim`
+    #     legacy source. The IS_STIM_TYPE set below is the authoritative
+    #     list used by helpers; do not infer stim-ness from source string.
+    #   - `max_stacks: 1` on every stim. Design §3.6 says "at most one
+    #     active stim effect at a time" — cross-type. Within-type
+    #     stacking is already prevented by max_stacks=1. Cross-type
+    #     stacking is prevented by the medic parser (StimCommand) which
+    #     calls has_active_stim() before applying.
+    #   - Duration: design §3.3 says stimpack is "next single roll
+    #     within 5 min." We model that as a 5-minute window; the
+    #     consume-on-use behavior is the medic parser's responsibility
+    #     (it calls remove_buff after the bonus is applied) — the buff
+    #     simply provides the modifier window.
+    #   - stat_modifiers: the design uses domain names ("Strength or
+    #     Dexterity roll", "continuous action", "Knowledge or Technical
+    #     roll"). We map each to the most representative single stat:
+    #     stimpack→strength (covers brawn, brawling, climbing, lifting
+    #     and is also a credible map for dexterity in WEG flavor),
+    #     adrenaline_shot→strength (continuous action is typically
+    #     physical), focus_stim→knowledge. Callers needing finer
+    #     mapping (e.g. dexterity-specific roll) can pass an override
+    #     via add_buff(..., stat_modifiers={...}).
+    "stimpack": {
+        "display_name": "Stimpack",
+        "stat_modifiers": {"strength": 3},  # +1D
+        "duration_seconds": 300,  # 5 min
+        "max_stacks": 1,
+        "positive": True,
+        "source": "stim:stimpack",
+    },
+    "adrenaline_shot": {
+        "display_name": "Adrenaline Shot",
+        "stat_modifiers": {"strength": 6},  # +2D, mirrors Force Point
+        "duration_seconds": 300,  # 5 min
+        "max_stacks": 1,
+        "positive": True,
+        "source": "stim:adrenaline_shot",
+    },
+    "focus_stim": {
+        "display_name": "Focus Stim",
+        "stat_modifiers": {"knowledge": 3},  # +1D Knowledge/Technical
+        "duration_seconds": 300,  # 5 min
+        "max_stacks": 1,
+        "positive": True,
+        "source": "stim:focus_stim",
+    },
 }
+
+
+# ── SRB.1 stim helpers ──────────────────────────────────────────────────────
+#
+# These helpers exist so callers can reason about the "stim" category
+# without having to know which specific buff_types are stims. The
+# canonical set lives here.
+
+IS_STIM_TYPE: frozenset[str] = frozenset({
+    "combat_stim",
+    "stimpack",
+    "adrenaline_shot",
+    "focus_stim",
+})
+
+
+def is_stim_type(buff_type: str) -> bool:
+    """True if ``buff_type`` is in the medic stim family.
+
+    Per support_role_buffs_design_v1.md §3.6, only one stim of any
+    type can be active per character at a time. Use this to gate
+    cross-type stacking (e.g. medic parser checks before applying).
+    """
+    return buff_type in IS_STIM_TYPE
+
+
+def get_active_stim(char: dict) -> Optional[Buff]:
+    """Return the character's currently active stim Buff, or None.
+
+    Filters by IS_STIM_TYPE. If for some reason multiple stims are
+    present (shouldn't happen given the parser-side gate, but defensive
+    against direct add_buff callers), returns the first match.
+    """
+    for buff in get_active_buffs(char):
+        if is_stim_type(buff.buff_type):
+            return buff
+    return None
+
+
+def has_active_stim(char: dict) -> bool:
+    """True if the character has any stim from the IS_STIM_TYPE family
+    active. Convenience wrapper around get_active_stim."""
+    return get_active_stim(char) is not None
+
+
+# ── SRB.1 (b) consumable inventory helpers ──────────────────────────────────
+#
+# Per T2.10.b (SRB.1 follow-up): stims must be present in the medic's
+# kit before they can be administered. Consumables are stored in
+# ``attributes.consumables`` as a dict ``{output_key: count}``, written
+# by the crafting layer (parser/crafting_commands.py for
+# ``output_type: consumable``).
+#
+# Storage-model note: this is one of two parallel consumable-storage
+# models in the codebase (the other is ``inventory.items`` with the
+# ``consumable: true`` flag, used by UseCommand for bacta packs etc.).
+# The bifurcation is documented as tech debt in TODO.json under
+# the "consumable_storage_unification" item. Until that unification
+# drop lands, stims live in the ``attributes.consumables`` model
+# because that's where the crafting layer writes them.
+#
+# These helpers operate on the in-memory char dict; callers must
+# persist ``attributes`` via save_character(..., attributes=...)
+# after a consume_consumable() call to durably record the deduction.
+
+
+def _read_consumables_dict(char: dict) -> dict:
+    """Return the consumables dict from char attributes, or {}.
+
+    Tolerates attributes stored as either a JSON string (DB shape)
+    or a dict (in-memory shape). Returns a *new* dict on each call
+    when the underlying attributes are a string — callers wanting
+    to mutate must use ``_write_consumables_dict``.
+    """
+    attrs = char.get("attributes")
+    if isinstance(attrs, str):
+        try:
+            attrs = json.loads(attrs or "{}")
+        except (json.JSONDecodeError, TypeError):
+            return {}
+    if not isinstance(attrs, dict):
+        return {}
+    consumables = attrs.get("consumables", {})
+    if not isinstance(consumables, dict):
+        return {}
+    return consumables
+
+
+def _write_consumables_dict(char: dict, new_dict: dict) -> None:
+    """Write the consumables dict back into char['attributes'].
+
+    Preserves the storage shape — if attributes was a JSON string,
+    it stays a JSON string; if a dict, stays a dict. Callers are
+    responsible for persisting via save_character(..., attributes=...).
+    """
+    attrs = char.get("attributes")
+    was_string = isinstance(attrs, str)
+    if was_string:
+        try:
+            attrs = json.loads(attrs or "{}")
+        except (json.JSONDecodeError, TypeError):
+            attrs = {}
+    if not isinstance(attrs, dict):
+        attrs = {}
+    attrs["consumables"] = new_dict
+    char["attributes"] = json.dumps(attrs) if was_string else attrs
+
+
+def has_consumable(char: dict, key: str) -> bool:
+    """True if ``char`` has at least one consumable with the given
+    ``output_key`` in their attributes.consumables dict.
+
+    Crafting layer writes here under output_key (see
+    parser/crafting_commands.py::elif output_type == "consumable").
+    The ``key`` argument is the same output_key (e.g. "stimpack",
+    "combat_stim", "adrenaline_shot", "focus_stim").
+    """
+    consumables = _read_consumables_dict(char)
+    count = consumables.get(key, 0)
+    return isinstance(count, int) and count >= 1
+
+
+def get_consumable_count(char: dict, key: str) -> int:
+    """Return the count of ``key`` consumables on ``char`` (0 if none
+    or if the consumables dict is malformed)."""
+    consumables = _read_consumables_dict(char)
+    count = consumables.get(key, 0)
+    return count if isinstance(count, int) and count >= 0 else 0
+
+
+def consume_consumable(char: dict, key: str) -> bool:
+    """Decrement ``char``'s count of ``key`` consumables by 1.
+
+    Returns True if a consumable was consumed (count was ≥1 before
+    the call), False if none was available. On True, the in-memory
+    char['attributes'] is mutated; callers MUST persist via
+    save_character(..., attributes=char['attributes']) to durably
+    record the deduction.
+
+    On False, no mutation occurs.
+
+    If the consumable count drops to 0, the key is removed from
+    the consumables dict entirely (avoids accumulating zero-count
+    entries on long-lived characters).
+    """
+    consumables = _read_consumables_dict(char)
+    count = consumables.get(key, 0)
+    if not isinstance(count, int) or count < 1:
+        return False
+    new_count = count - 1
+    # Copy the dict so we mutate our own version, not a shared one
+    new_dict = dict(consumables)
+    if new_count <= 0:
+        new_dict.pop(key, None)
+    else:
+        new_dict[key] = new_count
+    _write_consumables_dict(char, new_dict)
+    return True
 
 
 # ── Character Buff Access ─────────────────────────────────────────────────────

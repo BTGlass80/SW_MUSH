@@ -1,4 +1,10 @@
-# SW_MUSH Detailed Systems Guide #11
+---
+category: galaxy
+order: 3
+summary: "How factions and organizations claim, hold, and contest territory across the galaxy."
+tags: ["territory", "control", "faction", "claim", "war", "contest"]
+---
+
 # Territory Control
 
 **SW_MUSH — Star Wars D6 Revised & Expanded**
@@ -80,7 +86,7 @@ faction territory             — View all your org's claims
 
 **Claiming rules:**
 - Must be standing in the room to claim
-- Room must be in a contested or lawless zone (secured = Imperial controlled, can't claim)
+- Room must be in a contested or lawless zone (secured = Republic-controlled, can't claim)
 - Maximum 3 claims per zone, 10 total per org
 - Costs 5,000 credits from org treasury (one-time)
 - Weekly maintenance: 200 credits per room from treasury
@@ -117,8 +123,8 @@ faction guard dismiss          — Remove a guard
 ```
 
 Guards are faction-flavored NPCs with appropriate stats, descriptions, and equipment:
-- **Imperial:** Stormtrooper with E-11 rifle, white armor, 5D Blaster
-- **Rebel:** Alliance sentry with A280 rifle, 4D+2 Blaster
+- **Republic:** Clone Trooper with DC-15 rifle, white armor, 5D Blaster
+- **Separatist:** Alliance sentry with A280 rifle, 4D+2 Blaster
 - **Hutt:** Gamorrean enforcer with vibroaxe, 5D Brawling
 - **BH Guild:** Sharp-eyed hunter with heavy blaster, 5D+1 Blaster
 
@@ -174,7 +180,7 @@ Territory influence is visible throughout the game:
 
 For claimed rooms, a claim tag appears:
 ```
-  [CLAIMED: Galactic Empire]
+  [CLAIMED: Galactic Republic]
 ```
 
 **In `faction influence`:** An influence dashboard with per-zone progress bars:

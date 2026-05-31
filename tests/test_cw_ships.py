@@ -120,16 +120,48 @@ class TestEraAwareRegistry(unittest.TestCase):
     def tearDown(self):
         _clear_era()
 
-    def test_default_era_loads_base_only(self):
-        """With no era set, registry equals the base catalog."""
+    def test_default_era_loads_clone_wars_overlay(self):
+        """Post-May-18-2026 pivot: with no era set, the default is
+        'clone_wars' and the CW ship overlay is loaded automatically.
+
+        Pre-pivot this test was test_default_era_loads_base_only and
+        asserted that a no-config registry equaled the base catalog
+        (because the default era was 'gcw' which has no overlay file).
+        The pivot flipped the default era; the no-config registry now
+        equals the CW overlay.
+
+        Tests that need the pure-base-only behavior must register a
+        GCW config explicitly — see test_explicit_gcw_era_loads_base_only
+        below.
+        """
         _clear_era()
+        from engine.starships import get_ship_registry
+        reg = get_ship_registry()
+        # Base catalog still present
+        self.assertIsNotNone(reg.get("yt_1300"),
+                             "yt_1300 (base) should still be in registry")
+        # CW overlay present (because default era is now clone_wars)
+        self.assertIsNotNone(
+            reg.get("venator"),
+            "venator should load when default era is clone_wars "
+            "(post-May-18-2026 pivot)")
+
+    def test_explicit_gcw_era_loads_base_only(self):
+        """With GCW explicitly registered, registry equals the base
+        catalog. GCW has no overlay file so the registry should not
+        include CW-only templates.
+
+        Pre-pivot the no-config case was this test (called
+        test_default_era_loads_base_only). Post-pivot the no-config
+        case loads CW; this explicit-GCW variant takes its place.
+        """
+        _flip_era("gcw")
         from engine.starships import get_ship_registry
         reg = get_ship_registry()
         # Base catalog has the GCW-era staples
         self.assertIsNotNone(reg.get("yt_1300"),
                              "yt_1300 should be in base catalog")
-        # CW templates should NOT be present in pure-base load
-        # (because default era is "gcw", which has no overlay file)
+        # CW templates should NOT be present in pure-base GCW load
         self.assertIsNone(reg.get("venator"),
                           "venator should not load when era is gcw")
 

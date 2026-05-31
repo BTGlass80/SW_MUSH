@@ -31,7 +31,8 @@
 #   - Three farewell variants (Path A/B/C)
 #   - Permanent-fail expulsion narrative
 #   - Padawan Sela's 4-state peer dialogue
-#   - Mace Windu's 3-turn Path A reception scene
+#   - Master Tova Resh's Path A reception scene (intake-archives
+#     liaison; original non-canonical Master per Q1 policy)
 #
 # What still pends a future drop:
 #   (none — this file is content-complete at v2.)
@@ -281,44 +282,58 @@ quest:
         Background presence — gives the Village inhabited feel.
         Generic ambient lines only.
 
-    - id: master_mace_windu
-      display_name: "Master Mace Windu"
-      species: korun
-      role: "Path A reception NPC at Coruscant Temple"
-      age: 53
-      voice: "Master of the Order; severe, formal, but recognizes Yarael's signet"
+    - id: master_tova_resh
+      display_name: "Master Tova Resh"
+      species: iktotchi
+      role: "Path A reception NPC at Coruscant Temple (intake-archives liaison)"
+      age: 67
+      voice: "Dry, precise, occasionally amused; archivist's habit of speaking in file-note shorthand. Not on the Council itself — she runs the Order's intake-archives, which is how she recognises Yarael's signet (the archives remember him even when current Masters do not)."
       home_room: jedi_council_chamber_lobby
-      combat_flagged: false               # Mace is in the live world; Village quest does not put him in combat
+      combat_flagged: false               # Tova is an intake liaison, not a battle Master
+      q1_note: |
+        Original NPC — supersedes the canonical-figure reception scene
+        (previously "Master Mace Windu") to comply with Q1 canonical-
+        character policy. Mace Windu remains in lore.yaml as an off-
+        screen historical/political reference; he does NOT appear as
+        an interactive NPC anywhere in the game.
       dialogue_summary: |
-        Authored. Mace's reception scene fires when a Path A graduate
-        arrives at jedi_council_chamber_lobby (auto-triggered by the
-        engine session's path_choice handler). Three turns:
+        Authored. Tova's reception scene fires when a Path A graduate
+        is committed via engine/village_choice.py::_commit_path_a.
+        The narration is rendered there (not at the Council Chamber
+        lobby — the lobby slug remains the home_room for design
+        bookkeeping, but the actual scene plays at the Temple gate
+        immediately after the player's off-stage transport arrives).
+        Three turns:
 
-        Turn 1 (Mace examines Yarael's seal):
-          "This signet... I have not seen this device since I was a
-          Padawan. Master Yarael was lost to us in my Master's time.
-          He yet lives." [Mace examines the candidate.] "You stand at
-          the door of the Order older than is customary. That is not,
-          in itself, a flaw."
+        Turn 1 (Tova reads the seal):
+          "This seal has not crossed my desk in my tenure. The
+          archives, however, remember it perfectly. Master Yarael
+          Tinré, presumed lost on a Cerean retreat circa thirty-eight
+          BBY. The file note reads: 'returnable.' Which appears to
+          have been accurate."
 
-        Turn 2 (Mace tests):
-          "Tell me — what did Yarael ask of you that the rest of us
-          would not ask?"
-          [Player responds freely; Mace accepts any honest answer. The
-          response is not parsed for content; the act of answering is
-          the test.]
+        Turn 2 (Tova acknowledges the candidate — currently delivered
+        as a single beat, not a parsed exchange. A future drop may
+        expand this to a multi-turn Director-managed dialogue):
+          "Come inside, late-Padawan. The Council has not yet heard
+          your name. By the time they do, the archives will have made
+          a case for you. That is what the archives are for."
 
-        Turn 3 (Mace accepts):
-          "He asked it because he could afford to. We cannot — the war
-          does not give us that time. But the Force is not the war,
-          and the Force is what you came here for. We will receive you.
-          You will be Initiate, then Padawan when a Master takes you.
-          The signet returns to the Archives; the candidate does not."
+        After the scene, the engine grants jedi_order rank 0
+        (Initiate), consumes village_trial_crystal, grants
+        lightsaber_basic, bumps craft_lightsaber skill to 4D minimum
+        (via engine/lightsaber_construction.py — the forge scene
+        Tova also presides over), and drops the player at
+        jedi_temple_gates with the tutorial Jedi Path chain
+        auto-started.
 
-        After Turn 3, the engine grants jedi_order rank 0 (Initiate),
-        consumes village_trial_crystal, grants lightsaber_basic, bumps
-        craft_lightsaber skill to 4D minimum, and drops the player at
-        jedi_temple_gates with the tutorial Jedi Path chain auto-started.
+        Voice consistency note: Tova's speech pattern leans toward
+        archival/file-note language ("the archives remember it,"
+        "the file note reads," "make a case for you"). This is
+        deliberate — it distinguishes her from Yarael (whose voice
+        is slow/gnomic) and from canonical Council Masters whose
+        voices belong to canon. Future authoring of Tova lines
+        should maintain this register.
 
   # ═══════════════════════════════════════════════════════════════════════
   # ROOMS TO BUILD

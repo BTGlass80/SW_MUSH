@@ -14,7 +14,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 # -- Schema version --
-SCHEMA_VERSION = 26
+SCHEMA_VERSION = 35
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -254,7 +254,7 @@ INSERT OR IGNORE INTO exits (id, from_room_id, to_room_id, direction) VALUES (4,
 -- mail tables. F.7.c.1's database.py is the chain's new HEAD.
 CREATE TABLE IF NOT EXISTS mail (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    sender_id       INTEGER NOT NULL REFERENCES characters(id),
+    sender_id       INTEGER NOT NULL,
     subject         TEXT NOT NULL,
     body            TEXT NOT NULL,
     sent_at         TEXT NOT NULL
@@ -274,6 +274,48 @@ CREATE INDEX IF NOT EXISTS idx_mail_recipients_mail_id
     ON mail_recipients(mail_id);
 CREATE INDEX IF NOT EXISTS idx_mail_sender_id
     ON mail(sender_id);
+
+-- v28 (May 19 2026): Padawan-Master bond table (P-M.1 foundation).
+-- Per padawan_master_system_design_v1.md §4.3. The bond is the
+-- mechanical substrate for the Padawan-Master relationship system;
+-- commands, training events, and the Trials build on top of this
+-- table. P-M.1 ships the table + DB methods only — commands and
+-- gameplay surfaces are P-M.2 and beyond.
+--
+-- bond_status values:
+--   'active'    — bond is current; the two PCs are paired
+--   'dissolved' — bond ended without knighting (mutual release,
+--                 staff intervention, master abandonment, etc.)
+--   'knighted'  — Padawan completed Trials and was knighted;
+--                 the bond closes naturally
+--   'fallen'    — Padawan fell to the Dark Side (see design §7)
+--
+-- A Padawan can have at most one bond_status='active' bond at any
+-- time. A Master can have at most one at launch (Council
+-- authorization can raise the cap post-launch via staff
+-- adjudication; the schema does not enforce this — the DB layer's
+-- create_bond method does).
+--
+-- trials_passed_json: JSON array of passed Trial names (Skill,
+-- Courage, Flesh, Spirit, Insight per design doc §6.2). NULL or
+-- '[]' for new bonds.
+CREATE TABLE IF NOT EXISTS master_padawan_bond (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    master_char_id        INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    padawan_char_id       INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    bond_established_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    bond_status           TEXT NOT NULL DEFAULT 'active'
+        CHECK(bond_status IN ('active', 'dissolved', 'knighted', 'fallen')),
+    dissolved_at          TEXT,
+    dissolved_reason      TEXT,
+    knight_promotion_at   TEXT,
+    trials_passed_json    TEXT DEFAULT '[]'
+);
+
+CREATE INDEX IF NOT EXISTS idx_bond_master
+    ON master_padawan_bond(master_char_id, bond_status);
+CREATE INDEX IF NOT EXISTS idx_bond_padawan
+    ON master_padawan_bond(padawan_char_id, bond_status);
 """
 
 # -- Migrations --
@@ -1029,6 +1071,244 @@ MIGRATIONS = {
         "ALTER TABLE characters ADD COLUMN village_standing INTEGER DEFAULT 0",
     ],
 
+    # ── v27 (May 18 2026): +pvp opt-in flag ─────────────────────────────────
+    # Per the userMemory note "+pvp on/off opt-in flag (WoW-Outland-style)".
+    # Per-character standing flag (vs the per-pair _pvp_active dict used by
+    # challenge/accept). When set, the character is open to PvP without
+    # going through challenge/accept in CONTESTED zones. SECURED zones
+    # remain absolute (the flag does NOT override SECURED — design call
+    # recorded in HANDOFF_MAY18_ROLLUP §"Future improvements").
+    #
+    # The flag is stored as INTEGER 0/1 (SQLite has no native BOOL). The
+    # gate logic in parser/combat_commands.py::_check_pvp_consent reads
+    # this column via char.get("pvp_flagged"). Default 0 means existing
+    # characters keep their pre-drop behavior (must use challenge/accept).
+    27: [
+        "ALTER TABLE characters ADD COLUMN pvp_flagged INTEGER DEFAULT 0",
+    ],
+
+    # ── v28 (May 19 2026): Padawan-Master bond table (P-M.1) ───────────────
+    # Per padawan_master_system_design_v1.md §4.3. Foundation layer for
+    # the Padawan-Master relationship system. Commands, training events,
+    # Trials, and the rest of the system layer on top of this table in
+    # P-M.2 and beyond.
+    #
+    # The fresh-DB path applies this via the CREATE TABLE in SCHEMA_SQL.
+    # The migration path (existing DBs at v27) applies the same CREATE
+    # TABLE here. Both paths are idempotent (CREATE TABLE IF NOT EXISTS).
+    28: [
+        """CREATE TABLE IF NOT EXISTS master_padawan_bond (
+            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+            master_char_id        INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+            padawan_char_id       INTEGER NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+            bond_established_at   TEXT NOT NULL DEFAULT (datetime('now')),
+            bond_status           TEXT NOT NULL DEFAULT 'active'
+                CHECK(bond_status IN ('active', 'dissolved', 'knighted', 'fallen')),
+            dissolved_at          TEXT,
+            dissolved_reason      TEXT,
+            knight_promotion_at   TEXT,
+            trials_passed_json    TEXT DEFAULT '[]'
+        )""",
+        """CREATE INDEX IF NOT EXISTS idx_bond_master
+            ON master_padawan_bond(master_char_id, bond_status)""",
+        """CREATE INDEX IF NOT EXISTS idx_bond_padawan
+            ON master_padawan_bond(padawan_char_id, bond_status)""",
+    ],
+
+    # ── v29 (May 20 2026): Padawan-Master command layer (P-M.2) ────────────
+    # Per padawan_master_system_design_v1.md §4.3, design call §8.12 #3:
+    # the launch Master-cap of 1 is held in a per-character DB column so
+    # staff/Council can raise an individual Master's cap (e.g. for a
+    # senior teacher) without a code/config push. The DB-API layer
+    # (P-M.1) remains permissive on the Master side; the command layer
+    # (P-M.2) consults this column to gate +bond.
+    #
+    # Default 1 matches the launch design. Existing characters get 1
+    # via the DEFAULT clause on ALTER. Staff can edit the column for
+    # specific Masters as needed.
+    29: [
+        "ALTER TABLE characters ADD COLUMN master_cap INTEGER DEFAULT 1",
+    ],
+
+    # ── v30 (May 20 2026): PG.2.bounty session 1 — contributors sidecar ─
+    # Per progression_gates_and_consequences_design_v1.md §4.2 +
+    # the May 20 PG.2 design call: when a bounty is stacked (a
+    # second poster contributes credits to an existing bounty on
+    # the same target), we need to track each contributor's gross
+    # stake + posting fee separately. This lets the cancel path
+    # (§4.3) refund each contributor proportionally on primary
+    # cancel.
+    #
+    # Shape: JSON list of {"poster_id": int, "amount": int,
+    # "fee": int, "added_at": float} dicts. The "primary"
+    # contributor is the first entry (matches pc_bounties.poster_id);
+    # subsequent entries are stack-add contributions.
+    #
+    # Existing rows get the default '[]' empty list. Migration is
+    # idempotent (`pc_bounties` already exists from v18).
+    30: [
+        "ALTER TABLE pc_bounties ADD COLUMN contributors_json TEXT "
+        "DEFAULT '[]'",
+    ],
+
+    # ── v31 (May 22 2026): SECMOD.1 — room-level faction override ─────────
+    # Per security_zones_design_v1.md §3.2 + §4.1: rooms inside a
+    # SECURED zone can carry a faction restriction. A non-aligned PC
+    # walking into an Imperial Garrison interior is trespassing, even
+    # though the surrounding zone is secured. The room stamps
+    # `faction_override = "<faction_code>"`; when an outsider with
+    # Hostile/Unfriendly standing toward that faction enters, the
+    # `engine.security.get_effective_security` resolver downgrades
+    # the effective security tier (SECURED → LAWLESS for outsiders).
+    #
+    # NULL on every existing row = inherit zone security (no override).
+    # Builder-set via the `@security override <room> = <faction>`
+    # admin command (SECMOD.1 ships the command + the resolver branch).
+    #
+    # Schema only — no data backfill. Existing rooms keep NULL and
+    # behave exactly as before. The override is opt-in per room.
+    31: [
+        "ALTER TABLE rooms ADD COLUMN faction_override TEXT DEFAULT NULL",
+    ],
+
+    # ── SRB.2 (Support Role Buffs session 2, May 22 2026) ─────────────
+    #
+    # Entertainer morale aura per support_role_buffs_design_v1.md §2.
+    #
+    # `morale_auras`: per-room aura row. One row per room max
+    # (room_id is PRIMARY KEY). Lookup is cheap — a single PK
+    # SELECT on every morale-flavored skill check.
+    #
+    # Performance fatigue columns on characters: track repeated
+    # performances per real-day so a single entertainer can't camp
+    # a cantina indefinitely. -1D penalty after the first perform;
+    # resets after 8 hours of no performance.
+    32: [
+        """CREATE TABLE IF NOT EXISTS morale_auras (
+            room_id         INTEGER PRIMARY KEY,
+            performer_id    INTEGER NOT NULL,
+            magnitude       INTEGER NOT NULL,
+            started_at      REAL    NOT NULL,
+            expires_at      REAL    NOT NULL
+        )""",
+        "ALTER TABLE characters ADD COLUMN perform_fatigue_resets_at REAL DEFAULT 0",
+        "ALTER TABLE characters ADD COLUMN perform_fatigue_count INTEGER DEFAULT 0",
+    ],
+
+    # ── PG2.PL (May 22 2026) ──────────────────────────────────────────
+    #
+    # Relax the mail.sender_id FK so that engine-layer code can send
+    # system mail (stipend interceptor, BH bounty payout notification,
+    # stale-claim warning). Original schema had:
+    #   sender_id INTEGER NOT NULL REFERENCES characters(id)
+    # Per engine/mail_utils.py, system mail uses sender_id=0 with the
+    # subject line carrying source attribution ("From BH Guild —
+    # bounty fulfilled"). SQLite doesn't support ALTER TABLE DROP
+    # CONSTRAINT, so we rebuild the table: create a new table without
+    # the FK, copy data, drop the old, rename.
+    33: [
+        """CREATE TABLE IF NOT EXISTS mail_v33 (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id       INTEGER NOT NULL,
+            subject         TEXT NOT NULL,
+            body            TEXT NOT NULL,
+            sent_at         TEXT NOT NULL
+        )""",
+        "INSERT INTO mail_v33 (id, sender_id, subject, body, sent_at) "
+        "SELECT id, sender_id, subject, body, sent_at FROM mail",
+        "DROP TABLE mail",
+        "ALTER TABLE mail_v33 RENAME TO mail",
+        "CREATE INDEX IF NOT EXISTS idx_mail_sender_id ON mail(sender_id)",
+    ],
+
+    # ── P-M.3 (Padawan-Master training events, May 22 2026) ───────────
+    #
+    # `training_log` — append-only record of Master-Padawan training
+    # events per padawan_master_system_design_v1.md §5.2. Two event
+    # types stored: 'teach' (Master taught Padawan a Force power) and
+    # 'spar' (training duel between bonded pair).
+    #
+    # Used by:
+    #   - The Knight ceremony (§6.4) to verify the Master has actually
+    #     trained the Padawan, not just nominally bonded.
+    #   - Spar cooldown enforcement (§5.2: 1 CP-granting spar per
+    #     in-game day per pair).
+    #   - Master Approval Weight (§5.3) for audit purposes.
+    #
+    # Append-only: no UPDATE/DELETE in normal flow. Indexed on
+    # (bond_id, event_type, created_at) for the cooldown query.
+    34: [
+        """CREATE TABLE IF NOT EXISTS training_log (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            bond_id         INTEGER NOT NULL,
+            master_id       INTEGER NOT NULL,
+            padawan_id      INTEGER NOT NULL,
+            event_type      TEXT    NOT NULL,
+            payload_json    TEXT    NOT NULL DEFAULT '{}',
+            created_at      REAL    NOT NULL
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_training_log_bond "
+        "ON training_log(bond_id, event_type, created_at)",
+        "CREATE INDEX IF NOT EXISTS idx_training_log_padawan "
+        "ON training_log(padawan_id, created_at)",
+    ],
+
+    # ── Weight of War substrate (May 23 2026) ─────────────────────────
+    #
+    # Per weight_of_war_design_v1.md §8 (database schema). This is
+    # Drop 1 of the Weight of War rollout — substrate only. No
+    # combat hooks, no tick handler, no commands. Subsequent drops
+    # (Drop 2 = commands + look self; Drop 3 = combat hooks +
+    # tick handler + DSP/FP modifiers) wire consumers against
+    # the helpers in `engine/weight_of_war.py`.
+    #
+    # Columns on `characters`:
+    #   - weight_of_war            INTEGER, default 0, range [0, 200].
+    #     The cumulative war-strain metric per design §4–§5.
+    #   - weight_last_decay_at     REAL, NULL until first decay event.
+    #     Wall-clock timestamp; used by the future tick handler to
+    #     compute elapsed in-game days for passive decay (§5.1).
+    #   - weight_last_accrual_at   REAL, NULL until first accrual.
+    #     Wall-clock timestamp; used to enforce the weekly accrual
+    #     cap (§4.4) without re-scanning the event log.
+    #
+    # `weight_of_war_events` table — append-only event log:
+    #   - char_id        FK to characters.char_id.
+    #   - event_at       REAL wall-clock when the event was logged.
+    #   - delta          signed int; positive = accrual, negative =
+    #                    decay.
+    #   - trigger_type   short text key (e.g. 'mission_clone_loss',
+    #                    'meditate', 'temple_passive', 'admin_adjust').
+    #   - description    optional human-readable context for staff
+    #                    audit and the future `+history weight`
+    #                    command (§10 post-launch).
+    #
+    # Indexed on (char_id, event_at DESC) per design §8 — the
+    # primary query is "show me this character's recent events
+    # for Director AI prompt context."
+    #
+    # Migration is additive. Default weight_of_war = 0 for all
+    # existing characters (per design §8: "grandfather in beta
+    # activity").
+    35: [
+        "ALTER TABLE characters "
+        "ADD COLUMN weight_of_war INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE characters "
+        "ADD COLUMN weight_last_decay_at REAL",
+        "ALTER TABLE characters "
+        "ADD COLUMN weight_last_accrual_at REAL",
+        """CREATE TABLE IF NOT EXISTS weight_of_war_events (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id         INTEGER NOT NULL,
+            event_at        REAL    NOT NULL,
+            delta           INTEGER NOT NULL,
+            trigger_type    TEXT    NOT NULL,
+            description     TEXT
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_wow_char "
+        "ON weight_of_war_events(char_id, event_at DESC)",
+    ],
+
 }
 
 
@@ -1363,6 +1643,22 @@ class Database:
         "village_trial_insight_attempts",
         "village_trial_insight_correct_fragment",
         "village_trial_insight_pendant_granted",
+        # ── v27 columns (May 18 2026): +pvp opt-in flag ──────────────────
+        "pvp_flagged",
+        # ── v29 columns (May 20 2026): P-M.2 Master-cap (per-char) ──────
+        # Per design §8.12 #3: per-character cap on simultaneous active
+        # Padawan bonds. Default 1 at launch; staff can raise. P-M.2's
+        # +bond command consults this column before calling create_bond.
+        "master_cap",
+        # ── v35 columns (May 23 2026): Weight of War substrate ──────────
+        # Per weight_of_war_design_v1.md §8. The metric itself plus two
+        # bookkeeping timestamps. Range invariant [0, 200] is enforced
+        # in engine/weight_of_war.py rather than at the DB layer, so
+        # callers can save_character(char_id, weight_of_war=N) safely;
+        # the engine's set_weight() helper clamps before writing.
+        "weight_of_war",
+        "weight_last_decay_at",
+        "weight_last_accrual_at",
     })
 
     async def save_character(self, char_id: int, **fields):
@@ -1394,6 +1690,38 @@ class Database:
             "SELECT id, name FROM rooms ORDER BY id"
         )
         return [dict(r) for r in rows]
+
+    async def get_room_by_slug(self, slug: str) -> Optional[dict]:
+        """Fetch a room by its ``properties.slug`` value.
+
+        F.8.c.2.c (May 4 2026): primary consumer is the chain
+        graduation teleport, which resolves
+        ``graduation.drop_room`` (a slug) to a real room id. Also
+        consumed by ``engine/village_choice.py`` (already using
+        ``getattr`` fallback).
+
+        Slugs are stamped onto rooms by ``engine/world_writer.py``
+        per F.8.c.1 (Apr 30 2026). Pre-F.8.c.1 rooms need a DB
+        rebuild migration; see migration ``v18_to_v19_backfill``
+        in this file.
+
+        SQLite's JSON1 ``json_extract`` is the right tool — it's
+        an indexable, nullable extraction. The candidate row is
+        small (always a single match if any) so we don't bother
+        with a generated column index.
+        """
+        if not slug:
+            return None
+        clean = slug.strip()
+        if not clean:
+            return None
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM rooms "
+            "WHERE json_extract(properties, '$.slug') = ? "
+            "LIMIT 1",
+            (clean,),
+        )
+        return dict(rows[0]) if rows else None
 
     async def set_room_map_coords(self, room_id: int,
                                    map_x: float, map_y: float):
@@ -1561,6 +1889,248 @@ class Database:
         )
         await self._db.commit()
         return cursor.lastrowid
+
+    # ── SECMOD.1 (May 22 2026): zone & room admin mutations ────────────────
+    # The `@security` admin command needs to:
+    #   - Look up a zone by its name (so staff can type
+    #     `@security tatooine_market = lawless` instead of an int id).
+    #   - Mutate `zones.properties` JSON to set/update the
+    #     `security` key (the resolver reads from properties).
+    #   - Mutate `rooms.faction_override` column to set/clear the
+    #     v31 room-level override.
+    # These three methods are small, deliberate seams. Builder
+    # tooling consumes them; nothing else mutates zone properties
+    # at runtime (the loader writes properties only on initial
+    # world-build).
+
+    async def get_zone_by_name(self, name: str) -> Optional[dict]:
+        """Fetch a zone by its exact `name` column value.
+
+        SECMOD.1: the `@security <zone>` admin command takes a
+        zone name (which matches the YAML zone slug, e.g.
+        `tatooine_market`), not an integer id. This is the
+        case-insensitive exact-match lookup.
+
+        Returns the zone row dict or None if no match.
+        """
+        if not name:
+            return None
+        clean = name.strip()
+        if not clean:
+            return None
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM zones WHERE LOWER(name) = LOWER(?) LIMIT 1",
+            (clean,),
+        )
+        return dict(rows[0]) if rows else None
+
+    async def set_zone_property(self, zone_id: int, key: str,
+                                 value) -> bool:
+        """Set a single key inside a zone's `properties` JSON blob.
+
+        SECMOD.1: the `@security <zone> = <level>` admin command
+        writes `properties.security = <level>` via this method.
+        Generic enough to support future zone-property mutations
+        without adding more single-purpose methods.
+
+        - If `value` is None, the key is removed from properties.
+        - If `properties` is currently NULL or malformed, it is
+          rebuilt as an empty dict before write.
+        - Returns True on success, False if the zone doesn't exist.
+
+        The write is committed immediately. Effective security
+        reads from properties on every check, so changes apply
+        without a restart (per security_zones_design_v1.md §9).
+        """
+        import json as _json
+        zone = await self.get_zone(zone_id)
+        if not zone:
+            return False
+        props_raw = zone.get("properties") or "{}"
+        if isinstance(props_raw, str):
+            try:
+                props = _json.loads(props_raw)
+            except (ValueError, TypeError):
+                props = {}
+        elif isinstance(props_raw, dict):
+            props = dict(props_raw)
+        else:
+            props = {}
+        if value is None:
+            props.pop(key, None)
+        else:
+            props[key] = value
+        await self._db.execute(
+            "UPDATE zones SET properties = ? WHERE id = ?",
+            (_json.dumps(props), zone_id),
+        )
+        await self._db.commit()
+        return True
+
+    async def set_room_faction_override(self, room_id: int,
+                                         faction: Optional[str]) -> bool:
+        """Set or clear a room's faction_override (v31 column).
+
+        SECMOD.1: backs the `@security override <room> = <faction>`
+        and `@security override <room> = none` admin commands per
+        security_zones_design_v1.md §3.2 + §9.
+
+        - `faction=None` clears the override (SQL NULL).
+        - `faction="empire"` (or any non-empty string) sets it.
+        - Returns True on success, False if the room doesn't exist.
+
+        The resolver reads this column on every effective-security
+        check, so changes apply immediately without a restart.
+        Note: this method does NOT validate that `faction` is a
+        known faction code — that's the parser command's job.
+        Stored value is taken verbatim (lowercased by the parser).
+        """
+        room = await self.get_room(room_id)
+        if not room:
+            return False
+        await self._db.execute(
+            "UPDATE rooms SET faction_override = ? WHERE id = ?",
+            (faction, room_id),
+        )
+        await self._db.commit()
+        return True
+
+    # ── SRB.2 (May 22 2026) — Entertainer morale aura helpers ────────────
+    #
+    # Per support_role_buffs_design_v1.md §2.7:
+    #   morale_auras: per-room aura row (room_id PK, performer_id,
+    #                 magnitude in {1,2,3,5}, started_at, expires_at).
+    #   characters.perform_fatigue_resets_at, perform_fatigue_count.
+    #
+    # The aura is read on every morale-flavored skill check via
+    # engine.skill_checks.perform_morale_aware_check. It's set/refreshed
+    # by parser/entertainer_commands.PerformCommand on a successful
+    # `perform` roll. It's cleared when the performer leaves the room
+    # (MoveCommand hook), expires by tick, or is overwritten by a
+    # higher-magnitude performance from another entertainer.
+
+    async def get_morale_aura(self, room_id: int) -> Optional[dict]:
+        """Return the active morale_auras row for a room, or None.
+
+        Caller is responsible for checking `expires_at` against the
+        current time — this helper does NOT filter expired rows
+        (the periodic tick handler reaps; the look-side renderer
+        does the time check inline).
+        """
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM morale_auras WHERE room_id = ?", (room_id,)
+        )
+        return dict(rows[0]) if rows else None
+
+    async def set_morale_aura(self, *, room_id: int, performer_id: int,
+                               magnitude: int, started_at: float,
+                               expires_at: float) -> None:
+        """Insert or replace the morale aura for a room.
+
+        UPSERT semantics: room_id is PRIMARY KEY. A second performer
+        in the same room overwrites the prior aura row outright.
+        The "higher aura wins" rule per design §2.4 is enforced at
+        the parser layer (it reads the existing aura first and skips
+        the write if its magnitude would be smaller).
+        """
+        await self._db.execute(
+            """INSERT OR REPLACE INTO morale_auras
+               (room_id, performer_id, magnitude, started_at, expires_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (room_id, performer_id, int(magnitude),
+             float(started_at), float(expires_at)),
+        )
+        await self._db.commit()
+
+    async def clear_morale_aura(self, room_id: int) -> bool:
+        """Delete the morale aura for a room. Returns True if removed."""
+        rows = await self._db.execute_fetchall(
+            "SELECT 1 FROM morale_auras WHERE room_id = ?", (room_id,)
+        )
+        if not rows:
+            return False
+        await self._db.execute(
+            "DELETE FROM morale_auras WHERE room_id = ?", (room_id,)
+        )
+        await self._db.commit()
+        return True
+
+    async def clear_morale_auras_for_performer(self, performer_id: int) -> int:
+        """Delete all morale auras created by a given performer.
+
+        Used by the MoveCommand hook: if a performer leaves any room
+        where they're the active performer, that aura is cleared.
+        (A performer can only be performing in one room at a time at
+        the command layer, but this helper is robust to the multi-row
+        case.) Returns count of rows removed.
+        """
+        rows = await self._db.execute_fetchall(
+            "SELECT room_id FROM morale_auras WHERE performer_id = ?",
+            (performer_id,),
+        )
+        if not rows:
+            return 0
+        await self._db.execute(
+            "DELETE FROM morale_auras WHERE performer_id = ?",
+            (performer_id,),
+        )
+        await self._db.commit()
+        return len(rows)
+
+    async def list_expired_morale_auras(self, now: float) -> list[dict]:
+        """Return all aura rows with `expires_at <= now`. Used by tick."""
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM morale_auras WHERE expires_at <= ?", (float(now),)
+        )
+        return [dict(r) for r in rows]
+
+    async def reap_expired_morale_auras(self, now: float) -> int:
+        """Delete all expired aura rows. Returns count removed."""
+        rows = await self._db.execute_fetchall(
+            "SELECT COUNT(*) AS c FROM morale_auras WHERE expires_at <= ?",
+            (float(now),),
+        )
+        count = int(rows[0]["c"]) if rows else 0
+        if count == 0:
+            return 0
+        await self._db.execute(
+            "DELETE FROM morale_auras WHERE expires_at <= ?", (float(now),)
+        )
+        await self._db.commit()
+        return count
+
+    async def get_perform_fatigue(self, char_id: int) -> tuple[float, int]:
+        """Return (resets_at, count) for a character's perform fatigue.
+
+        Both columns default to 0 for unset rows. If the resets_at
+        timestamp has passed, the caller should treat the count as
+        zero — but the column isn't auto-zeroed on read. The
+        PerformCommand resets both columns on the first perform
+        after the window expires.
+        """
+        rows = await self._db.execute_fetchall(
+            "SELECT perform_fatigue_resets_at, perform_fatigue_count "
+            "FROM characters WHERE id = ?",
+            (char_id,),
+        )
+        if not rows:
+            return (0.0, 0)
+        row = rows[0]
+        return (
+            float(row["perform_fatigue_resets_at"] or 0.0),
+            int(row["perform_fatigue_count"] or 0),
+        )
+
+    async def set_perform_fatigue(self, *, char_id: int,
+                                   resets_at: float, count: int) -> None:
+        """Persist a character's perform fatigue state."""
+        await self._db.execute(
+            "UPDATE characters "
+            "SET perform_fatigue_resets_at = ?, perform_fatigue_count = ? "
+            "WHERE id = ?",
+            (float(resets_at), int(count), char_id),
+        )
+        await self._db.commit()
 
     async def get_room_property(self, room_id: int, prop_name: str, default=None):
         """
@@ -2712,6 +3282,829 @@ class Database:
         await self._db.commit()
         return cursor.rowcount
 
+    # -- Master-Padawan Bond Operations (P-M.1, v28) --
+    #
+    # Per padawan_master_system_design_v1.md §4.3. P-M.1 ships the
+    # foundation layer: CRUD on the master_padawan_bond table. Higher-
+    # level surfaces (+master / +padawan commands, training events,
+    # Trials, dark-side fall handling) are P-M.2 and beyond and call
+    # into these methods.
+
+    async def create_bond(
+        self, master_char_id: int, padawan_char_id: int,
+    ) -> int:
+        """Create a new active Master-Padawan bond. Returns the bond id.
+
+        Enforces the design rule that a Padawan can have at most one
+        bond_status='active' bond at a time. If the padawan already
+        has an active bond, raises ValueError without creating a
+        duplicate.
+
+        The master-side cap (1 active bond at launch) is NOT enforced
+        here — the design doc §4.3 says Council authorization can raise
+        the cap post-launch via staff adjudication. The command-level
+        layer (P-M.2) will check Master eligibility and current Padawan
+        count before calling create_bond; create_bond itself is
+        deliberately permissive on the Master side so staff overrides
+        work without going through the Database API.
+        """
+        existing = await self.get_active_bond_for_padawan(padawan_char_id)
+        if existing:
+            raise ValueError(
+                f"Padawan {padawan_char_id} already has an active bond "
+                f"(bond id {existing['id']} with master "
+                f"{existing['master_char_id']})"
+            )
+        cursor = await self._db.execute(
+            """INSERT INTO master_padawan_bond
+               (master_char_id, padawan_char_id, bond_status,
+                trials_passed_json)
+               VALUES (?, ?, 'active', '[]')""",
+            (master_char_id, padawan_char_id),
+        )
+        await self._db.commit()
+        return cursor.lastrowid
+
+    async def get_bond(self, bond_id: int) -> Optional[dict]:
+        """Return a bond row by id, or None."""
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM master_padawan_bond WHERE id = ?",
+            (bond_id,),
+        )
+        return dict(rows[0]) if rows else None
+
+    async def get_active_bond_for_padawan(
+        self, padawan_char_id: int,
+    ) -> Optional[dict]:
+        """Return the Padawan's currently-active bond, or None.
+
+        A Padawan has at most one active bond by the create_bond
+        invariant. Returns the bond row as a dict.
+        """
+        rows = await self._db.execute_fetchall(
+            """SELECT * FROM master_padawan_bond
+               WHERE padawan_char_id = ? AND bond_status = 'active'
+               LIMIT 1""",
+            (padawan_char_id,),
+        )
+        return dict(rows[0]) if rows else None
+
+    async def get_active_bonds_for_master(
+        self, master_char_id: int,
+    ) -> list:
+        """Return all of the Master's currently-active bonds as a list
+        of dicts.
+
+        Note plural: a Master CAN have more than one active bond
+        (Council-authorized post-launch per design §4.3). At launch
+        the gameplay cap is 1, but the schema and this query support
+        multiple.
+        """
+        rows = await self._db.execute_fetchall(
+            """SELECT * FROM master_padawan_bond
+               WHERE master_char_id = ? AND bond_status = 'active'""",
+            (master_char_id,),
+        )
+        return [dict(r) for r in rows]
+
+    async def dissolve_bond(
+        self, bond_id: int, reason: str = "",
+    ) -> bool:
+        """Mark a bond as dissolved with optional reason.
+
+        Returns True if the bond was active and is now dissolved;
+        False if the bond was not in 'active' status (already
+        dissolved, knighted, or fallen — dissolve is a no-op).
+
+        Failure-tolerant: a dissolve on a non-existent bond_id
+        returns False without raising.
+        """
+        cursor = await self._db.execute(
+            """UPDATE master_padawan_bond
+               SET bond_status = 'dissolved',
+                   dissolved_at = datetime('now'),
+                   dissolved_reason = ?
+               WHERE id = ? AND bond_status = 'active'""",
+            (reason, bond_id),
+        )
+        await self._db.commit()
+        return cursor.rowcount > 0
+
+    async def knight_bond(
+        self, bond_id: int, trials_passed: Optional[list] = None,
+    ) -> bool:
+        """Mark a Padawan-Master bond as completed via Knighting.
+
+        The Padawan completed the Trials and was knighted. Records
+        the timestamp and the list of Trials passed (Skill, Courage,
+        Flesh, Spirit, Insight per design §6.2). Returns True if the
+        bond was active and is now knighted; False otherwise.
+
+        trials_passed: list of trial names. If None, the existing
+        trials_passed_json on the row is preserved (the caller may
+        have been recording trial completions piecemeal via
+        record_trial_passed and now just wants to close the bond).
+        """
+        import json as _json
+        if trials_passed is not None:
+            cursor = await self._db.execute(
+                """UPDATE master_padawan_bond
+                   SET bond_status = 'knighted',
+                       knight_promotion_at = datetime('now'),
+                       trials_passed_json = ?
+                   WHERE id = ? AND bond_status = 'active'""",
+                (_json.dumps(trials_passed), bond_id),
+            )
+        else:
+            cursor = await self._db.execute(
+                """UPDATE master_padawan_bond
+                   SET bond_status = 'knighted',
+                       knight_promotion_at = datetime('now')
+                   WHERE id = ? AND bond_status = 'active'""",
+                (bond_id,),
+            )
+        await self._db.commit()
+        return cursor.rowcount > 0
+
+    async def fall_bond(self, bond_id: int, reason: str = "") -> bool:
+        """Mark a bond as 'fallen' (Padawan turned to the Dark Side).
+
+        Per design §7. Returns True if the bond was active and is now
+        fallen; False otherwise. The reason field is reused as a
+        dissolution reason on the dissolved_reason column for
+        narrative continuity (a fall IS a kind of dissolution, just a
+        more dramatic one).
+        """
+        cursor = await self._db.execute(
+            """UPDATE master_padawan_bond
+               SET bond_status = 'fallen',
+                   dissolved_at = datetime('now'),
+                   dissolved_reason = ?
+               WHERE id = ? AND bond_status = 'active'""",
+            (reason, bond_id),
+        )
+        await self._db.commit()
+        return cursor.rowcount > 0
+
+    async def record_trial_passed(
+        self, bond_id: int, trial_name: str,
+    ) -> bool:
+        """Append a passed Trial name to the bond's trials_passed_json.
+
+        Idempotent: if the trial is already in the list, returns False
+        without modifying. Returns True if the trial was newly
+        appended.
+
+        Designed to be called as each Trial is completed, so the bond
+        can be knighted with the full list at the end. The
+        record_trial_passed + knight_bond(trials_passed=None)
+        pattern is the intended flow.
+        """
+        import json as _json
+        bond = await self.get_bond(bond_id)
+        if not bond:
+            return False
+        raw = bond.get("trials_passed_json") or "[]"
+        try:
+            passed = _json.loads(raw)
+            if not isinstance(passed, list):
+                passed = []
+        except (ValueError, TypeError):
+            log.warning(
+                "[bond] malformed trials_passed_json on bond %s: %r",
+                bond_id, raw,
+            )
+            passed = []
+        if trial_name in passed:
+            return False
+        passed.append(trial_name)
+        await self._db.execute(
+            """UPDATE master_padawan_bond
+               SET trials_passed_json = ?
+               WHERE id = ?""",
+            (_json.dumps(passed), bond_id),
+        )
+        await self._db.commit()
+        return True
+
+    async def get_bond_roles_for_chars(
+        self, char_ids: list,
+    ) -> dict:
+        """Return a {char_id: role} dict for the given character ids.
+
+        role ∈ {'master', 'padawan', 'both', None}. None means the
+        char has no active bond as either master or padawan. 'both'
+        means the char is a Master in one active bond AND a Padawan
+        in another (unusual but possible: a Knight who took a
+        Padawan but whose own Master-bond has not yet been
+        marked knighted — schema permits it).
+
+        Batched for use by LookCommand: one SELECT regardless of
+        room population. P-M.2 §8.12 #4 design call.
+
+        Returns {} on empty input (no SQL fired).
+        """
+        if not char_ids:
+            return {}
+        # SQLite IN-clause: build a parameterized list.
+        placeholders = ",".join("?" * len(char_ids))
+        rows = await self._db.execute_fetchall(
+            f"""SELECT master_char_id, padawan_char_id
+                FROM master_padawan_bond
+                WHERE bond_status = 'active'
+                  AND (master_char_id IN ({placeholders})
+                       OR padawan_char_id IN ({placeholders}))""",
+            tuple(char_ids) + tuple(char_ids),
+        )
+        masters = set()
+        padawans = set()
+        wanted = set(char_ids)
+        for r in rows:
+            m_id = r["master_char_id"]
+            p_id = r["padawan_char_id"]
+            if m_id in wanted:
+                masters.add(m_id)
+            if p_id in wanted:
+                padawans.add(p_id)
+        out: dict = {}
+        for cid in char_ids:
+            is_m = cid in masters
+            is_p = cid in padawans
+            if is_m and is_p:
+                out[cid] = "both"
+            elif is_m:
+                out[cid] = "master"
+            elif is_p:
+                out[cid] = "padawan"
+            else:
+                out[cid] = None
+        return out
+
+    # -- P-M.3 training_log helpers (May 22 2026) ----------------------
+    #
+    # Per padawan_master_system_design_v1.md §5.2:
+    #   - `+teach <power>` logs an event_type='teach' row with the
+    #     power key and any CP-spend detail in payload_json.
+    #   - `+spar` logs an event_type='spar' row; design caps "one
+    #     CP-granting spar per in-game day per pair." We enforce that
+    #     by querying last_spar_for_bond.
+    # The table is append-only — no UPDATE/DELETE in normal flow.
+
+    async def insert_training_log(
+        self,
+        *,
+        bond_id: int,
+        master_id: int,
+        padawan_id: int,
+        event_type: str,
+        payload: Optional[dict] = None,
+        created_at: Optional[float] = None,
+    ) -> int:
+        """Append a training-log row. Returns the new row's id."""
+        import time as _time
+        import json as _json
+        if created_at is None:
+            created_at = _time.time()
+        if payload is None:
+            payload = {}
+        cursor = await self._db.execute(
+            """INSERT INTO training_log
+               (bond_id, master_id, padawan_id, event_type,
+                payload_json, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                int(bond_id), int(master_id), int(padawan_id),
+                str(event_type), _json.dumps(payload),
+                float(created_at),
+            ),
+        )
+        await self._db.commit()
+        return int(cursor.lastrowid)
+
+    async def get_last_spar_for_bond(
+        self, bond_id: int,
+    ) -> Optional[dict]:
+        """Return the most recent 'spar' training_log row for this
+        bond, or None. Used by +spar cooldown check."""
+        rows = await self._db.execute_fetchall(
+            """SELECT * FROM training_log
+               WHERE bond_id = ? AND event_type = 'spar'
+               ORDER BY created_at DESC LIMIT 1""",
+            (int(bond_id),),
+        )
+        return dict(rows[0]) if rows else None
+
+    async def get_training_log_for_bond(
+        self, bond_id: int, *, limit: int = 100,
+    ) -> list:
+        """Return training_log rows for a bond (newest first). Used
+        by the Knight ceremony / Master Approval Weight surfaces."""
+        rows = await self._db.execute_fetchall(
+            """SELECT * FROM training_log
+               WHERE bond_id = ?
+               ORDER BY created_at DESC LIMIT ?""",
+            (int(bond_id), int(limit)),
+        )
+        return [dict(r) for r in rows]
+
+    async def count_teach_events_for_bond(
+        self, bond_id: int, *, power_key: Optional[str] = None,
+    ) -> int:
+        """Count 'teach' events for this bond. If `power_key` is
+        given, restricts to that power (used to gate "Padawan
+        already taught this power" idempotency)."""
+        if power_key is None:
+            rows = await self._db.execute_fetchall(
+                """SELECT COUNT(*) AS c FROM training_log
+                   WHERE bond_id = ? AND event_type = 'teach'""",
+                (int(bond_id),),
+            )
+        else:
+            rows = await self._db.execute_fetchall(
+                """SELECT COUNT(*) AS c FROM training_log
+                   WHERE bond_id = ? AND event_type = 'teach'
+                     AND payload_json LIKE ?""",
+                (int(bond_id), f'%"power_key": "{power_key}"%'),
+            )
+        return int(rows[0]["c"]) if rows else 0
+
+    # -- PC Bounty Operations (PG.2 session 1, May 20 2026) --
+    #
+    # Per progression_gates_and_consequences_design_v1.md §4.
+    # Schema is v18 baseline + v30 contributors_json sidecar.
+    # Session 1 ships: post, stack, cancel, get, list, cooldown.
+    # Session 2 ships: claim, release, fulfill, insurance, tick.
+
+    async def get_pc_bounty(self, bounty_id: int) -> Optional[dict]:
+        """Return a bounty row by id, or None if not found."""
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM pc_bounties WHERE id = ?", (bounty_id,),
+        )
+        return dict(rows[0]) if rows else None
+
+    async def get_active_outgoing_for_poster(
+        self, poster_id: int,
+    ) -> Optional[dict]:
+        """Return the poster's currently-active outgoing bounty
+        (they are the primary `poster_id`), or None.
+
+        Per design §4.2: ONE active outgoing bounty per primary
+        poster. Stacking as a secondary contributor does NOT count
+        as outgoing — the secondary is contributing to someone
+        else's primary post.
+        """
+        rows = await self._db.execute_fetchall(
+            """SELECT * FROM pc_bounties
+               WHERE poster_id = ? AND state = 'active'
+               ORDER BY id DESC LIMIT 1""",
+            (poster_id,),
+        )
+        return dict(rows[0]) if rows else None
+
+    async def get_active_incoming_for_target(
+        self, target_id: int,
+    ) -> Optional[dict]:
+        """Return the target's currently-active incoming bounty,
+        or None. Per design §4.2: ONE active incoming bounty per
+        target. Used to drive stacking behavior."""
+        rows = await self._db.execute_fetchall(
+            """SELECT * FROM pc_bounties
+               WHERE target_id = ? AND state = 'active'
+               ORDER BY id DESC LIMIT 1""",
+            (target_id,),
+        )
+        return dict(rows[0]) if rows else None
+
+    async def list_active_pc_bounties(
+        self, limit: int = 100,
+    ) -> list:
+        """Return all active bounties for the BH Guild board.
+
+        Most-recently-posted first. Capped at `limit` to avoid
+        unbounded scans. Session 1: read-only listing for
+        `+bounty board` display; session 2 will add claim.
+        """
+        rows = await self._db.execute_fetchall(
+            """SELECT * FROM pc_bounties
+               WHERE state = 'active'
+               ORDER BY posted_at DESC
+               LIMIT ?""",
+            (limit,),
+        )
+        return [dict(r) for r in rows]
+
+    async def post_pc_bounty(
+        self, *, poster_id: int, target_id: int, amount: int,
+        reason: str, fee: int, duration_seconds: float,
+    ) -> int:
+        """Create a new PC bounty row. Returns the new bounty id.
+
+        Caller is responsible for:
+          - Validating amount range, debiting poster credits,
+            checking outgoing/incoming preconditions, cooldowns.
+          - Logging the credit movements (this method only writes
+            the bounty row).
+
+        The contributors_json sidecar is initialized with the
+        primary poster's stake + fee. Stacking (subsequent
+        contributors) is handled by `stack_pc_bounty`.
+        """
+        import json as _json
+        import time as _time
+        now = _time.time()
+        contributors = [{
+            "poster_id": poster_id,
+            "amount": amount,
+            "fee": fee,
+            "added_at": now,
+        }]
+        cur = await self._db.execute(
+            """INSERT INTO pc_bounties
+               (poster_id, target_id, amount, reason, state,
+                posted_at, expires_at, contributors_json)
+               VALUES (?, ?, ?, ?, 'active', ?, ?, ?)""",
+            (poster_id, target_id, amount, reason, now,
+             now + duration_seconds,
+             _json.dumps(contributors)),
+        )
+        await self._db.commit()
+        return cur.lastrowid
+
+    async def stack_pc_bounty(
+        self, *, bounty_id: int, poster_id: int, amount: int,
+        fee: int,
+    ) -> bool:
+        """Add a secondary contribution to an existing active
+        bounty. Increments amount and appends to contributors_json.
+
+        Returns True iff the bounty was active and the contribution
+        was recorded. False on any precondition failure (bounty
+        not found, not active).
+
+        Caller validates that the secondary poster is NOT the
+        primary, that they're not on cooldown, and debits their
+        credits.
+        """
+        import json as _json
+        import time as _time
+        bounty = await self.get_pc_bounty(bounty_id)
+        if not bounty or bounty["state"] != "active":
+            return False
+        try:
+            contributors = _json.loads(
+                bounty.get("contributors_json") or "[]"
+            )
+            if not isinstance(contributors, list):
+                contributors = []
+        except (ValueError, TypeError):
+            contributors = []
+        now = _time.time()
+        contributors.append({
+            "poster_id": poster_id,
+            "amount": amount,
+            "fee": fee,
+            "added_at": now,
+        })
+        new_total = bounty["amount"] + amount
+        cur = await self._db.execute(
+            """UPDATE pc_bounties
+               SET amount = ?, contributors_json = ?
+               WHERE id = ? AND state = 'active'""",
+            (new_total, _json.dumps(contributors), bounty_id),
+        )
+        await self._db.commit()
+        return cur.rowcount > 0
+
+    async def cancel_pc_bounty(self, bounty_id: int) -> Optional[dict]:
+        """Cancel an active bounty. Returns the bounty row as it
+        was at cancel time (so the caller can read contributors_json
+        for proportional refunds), or None on failure.
+
+        Caller is responsible for the refund arithmetic + credit
+        movements (the DB layer only flips state).
+        """
+        import time as _time
+        bounty = await self.get_pc_bounty(bounty_id)
+        if not bounty or bounty["state"] != "active":
+            return None
+        now = _time.time()
+        cur = await self._db.execute(
+            """UPDATE pc_bounties
+               SET state = 'canceled', resolved_at = ?
+               WHERE id = ? AND state = 'active'""",
+            (now, bounty_id),
+        )
+        await self._db.commit()
+        if cur.rowcount == 0:
+            return None
+        return bounty  # return the pre-cancel snapshot for refund math
+
+    async def get_bounty_cooldown(
+        self, poster_id: int, target_id: int,
+    ) -> float:
+        """Return the unix-ts until which `poster_id` is cooled
+        down from posting against `target_id`. Returns 0.0 if no
+        cooldown is recorded (or it's expired and pruned).
+        """
+        rows = await self._db.execute_fetchall(
+            """SELECT until FROM bounty_cooldowns
+               WHERE poster_id = ? AND target_id = ?""",
+            (poster_id, target_id),
+        )
+        if not rows:
+            return 0.0
+        return float(rows[0]["until"])
+
+    async def set_bounty_cooldown(
+        self, poster_id: int, target_id: int, until_ts: float,
+    ) -> None:
+        """Upsert a cooldown row. `until_ts` is unix epoch
+        seconds when the cooldown lapses. Idempotent."""
+        await self._db.execute(
+            """INSERT OR REPLACE INTO bounty_cooldowns
+               (poster_id, target_id, until)
+               VALUES (?, ?, ?)""",
+            (poster_id, target_id, until_ts),
+        )
+        await self._db.commit()
+
+    # -- PC Bounty Session 2 — BH workflow + insurance + tick (May 21 2026) --
+
+    async def claim_pc_bounty(
+        self, *, bounty_id: int, bh_char_id: int,
+        timer_seconds: float,
+    ) -> bool:
+        """BH Guild member claims an active bounty. Flips state
+        to 'claimed', records claimed_by + claimed_at, and stamps
+        a 7-day claim timer. Returns True on success, False if
+        the bounty isn't active.
+
+        Caller validates BH Guild membership.
+        """
+        import time as _time
+        now = _time.time()
+        # Use claimed_at to encode the timer expiry: claimed_at +
+        # timer_seconds is the deadline. (Schema already has
+        # claimed_at REAL; no new column needed.)
+        cur = await self._db.execute(
+            """UPDATE pc_bounties
+               SET state = 'claimed', claimed_by = ?, claimed_at = ?
+               WHERE id = ? AND state = 'active'""",
+            (bh_char_id, now, bounty_id),
+        )
+        await self._db.commit()
+        return cur.rowcount > 0
+
+    async def release_pc_bounty(self, bounty_id: int) -> bool:
+        """BH releases a claimed bounty back to active. Returns
+        True if the bounty was claimed and is now active again."""
+        cur = await self._db.execute(
+            """UPDATE pc_bounties
+               SET state = 'active', claimed_by = NULL, claimed_at = 0
+               WHERE id = ? AND state = 'claimed'""",
+            (bounty_id,),
+        )
+        await self._db.commit()
+        return cur.rowcount > 0
+
+    async def fulfill_pc_bounty(
+        self, *, bounty_id: int, bh_char_id: Optional[int] = None,
+    ) -> Optional[dict]:
+        """Mark a bounty as fulfilled. Used after a BH kills the
+        target. Returns the pre-fulfill snapshot (so the caller
+        can read amount + contributors for the payout) or None if
+        the bounty isn't in a fulfillable state.
+
+        Acceptable from-states: 'active' (a BH killed an unclaimed
+        target — uncommon but possible) and 'claimed'. The
+        bh_char_id stamps `claimed_by` if it was previously
+        unclaimed.
+        """
+        import time as _time
+        bounty = await self.get_pc_bounty(bounty_id)
+        if not bounty or bounty["state"] not in ("active", "claimed"):
+            return None
+        now = _time.time()
+        # If the bounty was active (no claim) and we have a BH id,
+        # stamp claimed_by + claimed_at so the payout knows who.
+        new_claimed_by = bounty.get("claimed_by") or bh_char_id
+        cur = await self._db.execute(
+            """UPDATE pc_bounties
+               SET state = 'fulfilled',
+                   resolved_at = ?,
+                   claimed_by = ?,
+                   claimed_at = COALESCE(NULLIF(claimed_at, 0), ?)
+               WHERE id = ? AND state IN ('active', 'claimed')""",
+            (now, new_claimed_by, now, bounty_id),
+        )
+        await self._db.commit()
+        if cur.rowcount == 0:
+            return None
+        # Return the pre-fulfill snapshot for payout math.
+        return bounty
+
+    async def void_pc_bounty(
+        self, *, bounty_id: int, reason: str = "",
+    ) -> Optional[dict]:
+        """Admin-only: void a bounty. Returns the pre-void
+        snapshot so the caller can refund all contributors in
+        full (no fees, no cancel cut). Equivalent to admin-
+        commanded cancel without the fee."""
+        import time as _time
+        bounty = await self.get_pc_bounty(bounty_id)
+        if not bounty or bounty["state"] not in (
+            "active", "claimed"
+        ):
+            return None
+        now = _time.time()
+        # Stash the void reason into resolved_at-adjacent storage:
+        # we tack it onto the existing reason field as " | VOIDED:
+        # <reason>" for audit trail. Mild abuse of the column but
+        # cleaner than adding a column for one feature.
+        existing_reason = bounty.get("reason") or ""
+        new_reason = (
+            existing_reason + " | VOIDED: " + reason
+            if reason else existing_reason + " | VOIDED"
+        )
+        cur = await self._db.execute(
+            """UPDATE pc_bounties
+               SET state = 'canceled', resolved_at = ?, reason = ?
+               WHERE id = ? AND state IN ('active', 'claimed')""",
+            (now, new_reason, bounty_id),
+        )
+        await self._db.commit()
+        if cur.rowcount == 0:
+            return None
+        return bounty
+
+    async def expire_pc_bounty(self, bounty_id: int) -> Optional[dict]:
+        """Mark an active bounty as expired. Returns the pre-
+        expire snapshot for refund math, or None if not active.
+
+        Called by run_pc_bounty_expiry_tick when expires_at has
+        passed. Caller refunds escrow minus posting fee (per
+        design §4.3 expired path).
+        """
+        import time as _time
+        bounty = await self.get_pc_bounty(bounty_id)
+        if not bounty or bounty["state"] != "active":
+            return None
+        now = _time.time()
+        cur = await self._db.execute(
+            """UPDATE pc_bounties
+               SET state = 'expired', resolved_at = ?
+               WHERE id = ? AND state = 'active'""",
+            (now, bounty_id),
+        )
+        await self._db.commit()
+        if cur.rowcount == 0:
+            return None
+        return bounty
+
+    async def revert_expired_claim(self, bounty_id: int) -> bool:
+        """If a claim timer has elapsed without fulfillment, revert
+        the bounty from 'claimed' back to 'active' so another BH
+        can take it. Returns True on success.
+
+        Per design §4.3 'Active → Claimed: 7 days to fulfill or
+        contract reverts to Active.'
+        """
+        cur = await self._db.execute(
+            """UPDATE pc_bounties
+               SET state = 'active', claimed_by = NULL, claimed_at = 0
+               WHERE id = ? AND state = 'claimed'""",
+            (bounty_id,),
+        )
+        await self._db.commit()
+        return cur.rowcount > 0
+
+    async def list_expired_active_bounties(self) -> list:
+        """Return active bounties whose expires_at has passed.
+        Used by the expiry tick."""
+        import time as _time
+        rows = await self._db.execute_fetchall(
+            """SELECT * FROM pc_bounties
+               WHERE state = 'active' AND expires_at <= ?
+               ORDER BY id""",
+            (_time.time(),),
+        )
+        return [dict(r) for r in rows]
+
+    async def list_expired_claims(
+        self, claim_window_seconds: float,
+    ) -> list:
+        """Return claimed bounties whose claim timer has elapsed
+        (claimed_at + claim_window_seconds <= now). Used by the
+        expiry tick to revert stale claims."""
+        import time as _time
+        cutoff = _time.time() - claim_window_seconds
+        rows = await self._db.execute_fetchall(
+            """SELECT * FROM pc_bounties
+               WHERE state = 'claimed' AND claimed_at <= ?
+               ORDER BY id""",
+            (cutoff,),
+        )
+        return [dict(r) for r in rows]
+
+    async def list_claims_in_warning_window(
+        self,
+        *,
+        warning_lower_seconds: float,
+        warning_upper_seconds: float,
+    ) -> list:
+        """PG2.PL.C — claims with `warning_lower_seconds` <= elapsed <
+        `warning_upper_seconds`.
+
+        Used by the hourly bounty tick to surface "claim nearing
+        expiry" mail to BHs. Typical call:
+
+            list_claims_in_warning_window(
+                warning_lower_seconds=6*86400,   # 6 days elapsed
+                warning_upper_seconds=7*86400,   # not yet 7d (which expires)
+            )
+
+        Returns claimed-state rows with `claimed_at` falling in the
+        elapsed-time window. Note this is "claimed at most upper
+        seconds ago AND at least lower seconds ago" — the natural
+        date math reverses the bounds.
+        """
+        import time as _time
+        now = _time.time()
+        upper_cutoff = now - float(warning_lower_seconds)  # claimed <= 1d ago (no warn yet)
+        lower_cutoff = now - float(warning_upper_seconds)  # claimed >= 7d ago (already expired)
+        rows = await self._db.execute_fetchall(
+            """SELECT * FROM pc_bounties
+               WHERE state = 'claimed'
+                 AND claimed_at <= ?
+                 AND claimed_at > ?
+               ORDER BY id""",
+            (upper_cutoff, lower_cutoff),
+        )
+        return [dict(r) for r in rows]
+
+    # -- BH Insurance Debt (PG.2 session 2) --
+
+    async def get_insurance_debt(self, char_id: int) -> int:
+        """Return the current insurance debt for char_id, or 0
+        if none. Per design §4.4, debt accrues when a bountied
+        PC is killed by a BH and lacks the credits to cover the
+        10% insurance hit."""
+        rows = await self._db.execute_fetchall(
+            "SELECT amount FROM bh_insurance_debt WHERE char_id = ?",
+            (char_id,),
+        )
+        return int(rows[0]["amount"]) if rows else 0
+
+    async def add_insurance_debt(
+        self, char_id: int, amount: int,
+    ) -> int:
+        """Add `amount` to char_id's insurance debt. Creates the
+        row if it doesn't exist; otherwise sums. Returns the new
+        total debt.
+
+        Per design §4.4: debt persists until paid; while non-zero,
+        Guild services / faction stipends / some BH-tier vendors
+        are affected. Consumer surface lands in session 3+ or in
+        the parser layer of this drop.
+        """
+        import time as _time
+        current = await self.get_insurance_debt(char_id)
+        new_total = current + amount
+        await self._db.execute(
+            """INSERT OR REPLACE INTO bh_insurance_debt
+               (char_id, amount, incurred_at)
+               VALUES (?, ?, ?)""",
+            (char_id, new_total, _time.time()),
+        )
+        await self._db.commit()
+        return new_total
+
+    async def pay_insurance_debt(
+        self, char_id: int, amount: int,
+    ) -> int:
+        """Pay down `amount` of insurance debt. Returns the
+        remaining balance. If amount >= current debt, the row is
+        deleted (clean state).
+        """
+        current = await self.get_insurance_debt(char_id)
+        if current <= 0:
+            return 0
+        if amount >= current:
+            await self._db.execute(
+                "DELETE FROM bh_insurance_debt WHERE char_id = ?",
+                (char_id,),
+            )
+            await self._db.commit()
+            return 0
+        remaining = current - amount
+        await self._db.execute(
+            """UPDATE bh_insurance_debt SET amount = ?
+               WHERE char_id = ?""",
+            (remaining, char_id),
+        )
+        await self._db.commit()
+        return remaining
+
     # -- Inventory Operations --
 
     async def get_inventory(self, char_id: int) -> list:
@@ -2777,6 +4170,19 @@ class Database:
             (_j.dumps(inv), char_id),
         )
         await self._db.commit()
+        # F.8.c.2.b₂: CW tutorial chain — item_acquired completion.
+        # The char-id variant fetches the row and dispatches; the
+        # whole hook is failure-tolerant (errors are swallowed) so
+        # inventory updates always succeed even if chain advancement
+        # is broken. No-ops silently for items without a "key" field.
+        try:
+            from engine.chain_events import on_item_acquired_by_char_id
+            _key = (item or {}).get("key", "") if isinstance(item, dict) else ""
+            if _key:
+                await on_item_acquired_by_char_id(self, char_id, _key)
+        except Exception:
+            log.debug("add_to_inventory: chain_events hook failed",
+                      exc_info=True)
 
     async def remove_from_inventory(self, char_id: int,
                                      item_key: str) -> bool:
@@ -2799,6 +4205,159 @@ class Database:
             )
             await self._db.commit()
         return removed
+
+
+    # ── PG.1.death (May 19 2026) ────────────────────────────────────────
+    #
+    # Corpse object lifecycle + wound_state mutation. Schema columns
+    # (corpses table, characters.wound_state, characters.wound_clear_at)
+    # landed in schema v18; this drop adds the engine-side consumers.
+    #
+    # Design: progression_gates_and_consequences_design_v1.md §3.
+    #
+    # Corpse persists at death location for a bounded window. Decay
+    # window is per the design doc's §3.4/§3.5:
+    #   - secured zones: no corpse created (instant respawn-with-gear)
+    #   - contested:    2 hours
+    #   - lawless:      4 hours
+    # Anyone can `loot <corpse>` while it persists (PG.1.death.b
+    # delivers the parser command). At decay time, bound items
+    # auto-mail to the owner; the rest is destroyed.
+
+    async def create_corpse(self, *, char_id: int, room_id: int,
+                            inventory: list, credits: int = 0,
+                            killer_id: int = None,
+                            killer_is_bh: bool = False,
+                            decay_seconds: float = 7200.0) -> int:
+        """Insert a corpse row. inventory is the items list snapshot
+        (already serialized to a Python list of dicts); credits is the
+        cash on the body at time of death.
+
+        Returns the new corpse id.
+        """
+        import json as _j
+        import time as _t
+        now = _t.time()
+        await self._db.execute(
+            "INSERT INTO corpses (char_id, room_id, died_at, decay_at, "
+            "inventory, credits, killer_id, killer_is_bh, "
+            "bounty_resolved) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
+            (char_id, room_id, now, now + float(decay_seconds),
+             _j.dumps(list(inventory or [])), int(credits or 0),
+             killer_id, 1 if killer_is_bh else 0),
+        )
+        # Return the new id. aiosqlite's lastrowid is on the cursor;
+        # we use a follow-up SELECT for portability with the existing
+        # Database wrapper.
+        rows = await self._db.execute_fetchall(
+            "SELECT last_insert_rowid() AS id"
+        )
+        new_id = int(rows[0]["id"]) if rows else 0
+        await self._db.commit()
+        return new_id
+
+    async def get_corpse(self, corpse_id: int):
+        """Fetch a single corpse row by id, or None."""
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM corpses WHERE id = ?", (corpse_id,),
+        )
+        return rows[0] if rows else None
+
+    async def get_corpses_in_room(self, room_id: int) -> list:
+        """All non-decayed corpses currently in the given room.
+        Ordered by died_at descending (most recent first)."""
+        import time as _t
+        return await self._db.execute_fetchall(
+            "SELECT * FROM corpses WHERE room_id = ? AND decay_at > ? "
+            "ORDER BY died_at DESC",
+            (room_id, _t.time()),
+        )
+
+    async def get_corpses_by_char(self, char_id: int) -> list:
+        """All non-decayed corpses belonging to a given character
+        (the dead PC's id). Used by the LootCommand's owner-route
+        and by tests. PG.1.death.b (Drop 2d)."""
+        import time as _t
+        return await self._db.execute_fetchall(
+            "SELECT * FROM corpses WHERE char_id = ? AND decay_at > ? "
+            "ORDER BY died_at DESC",
+            (char_id, _t.time()),
+        )
+
+    async def get_decayed_corpses(self) -> list:
+        """All corpse rows whose decay_at has passed.
+        Caller is expected to process + delete them (PG.1.death.b
+        wires this into a periodic tick)."""
+        import time as _t
+        return await self._db.execute_fetchall(
+            "SELECT * FROM corpses WHERE decay_at <= ?",
+            (_t.time(),),
+        )
+
+    async def delete_corpse(self, corpse_id: int) -> None:
+        """Remove a corpse row (used after full loot or decay
+        processing)."""
+        await self._db.execute(
+            "DELETE FROM corpses WHERE id = ?", (corpse_id,),
+        )
+        await self._db.commit()
+
+    async def update_corpse_inventory(self, corpse_id: int,
+                                       inventory: list,
+                                       credits: int = None) -> None:
+        """Replace the corpse's inventory snapshot (used by `loot`
+        when items are taken — PG.1.death.b will call this). If
+        credits is given, also overwrite the credit count."""
+        import json as _j
+        if credits is None:
+            await self._db.execute(
+                "UPDATE corpses SET inventory = ? WHERE id = ?",
+                (_j.dumps(list(inventory or [])), corpse_id),
+            )
+        else:
+            await self._db.execute(
+                "UPDATE corpses SET inventory = ?, credits = ? "
+                "WHERE id = ?",
+                (_j.dumps(list(inventory or [])), int(credits),
+                 corpse_id),
+            )
+        await self._db.commit()
+
+    async def set_wound_state(self, char_id: int, *, state: str,
+                              clear_at: float = 0.0) -> None:
+        """Set the new-schema wound_state ('healthy'|'wounded') and
+        wound_clear_at (unix-epoch seconds; 0 means no active
+        recovery clock).
+
+        This is the PG.1.death respawn-Wounded debuff, NOT the WEG
+        wound_level ladder. The two coexist:
+          - wound_level: WEG R&E in-combat ladder (Stunned/Wounded/
+            Incap/MW/Dead). Reset on respawn.
+          - wound_state: post-respawn debuff per design §3.3. −1D
+            to all rolls until clear_at OR until bacta clears it.
+        """
+        if state not in ("healthy", "wounded"):
+            raise ValueError(
+                f"wound_state must be 'healthy' or 'wounded'; got {state!r}"
+            )
+        await self.save_character(
+            char_id, wound_state=state,
+            wound_clear_at=float(clear_at),
+        )
+
+    async def get_wound_state(self, char_id: int) -> tuple:
+        """Read wound_state and wound_clear_at. Returns a
+        ('healthy'|'wounded', float) tuple. Defaults to ('healthy', 0)
+        for rows that predate the v18 migration's defaults."""
+        rows = await self._db.execute_fetchall(
+            "SELECT wound_state, wound_clear_at FROM characters "
+            "WHERE id = ?", (char_id,),
+        )
+        if not rows:
+            return ("healthy", 0.0)
+        row = rows[0]
+        return (row.get("wound_state") or "healthy",
+                float(row.get("wound_clear_at") or 0.0))
 
 
     # -- Narrative Memory Operations --

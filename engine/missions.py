@@ -699,6 +699,20 @@ class MissionBoard:
         # Fill up
         needed = BOARD_MAX - len(self._missions)
         if needed > 0:
+            # If the caller didn't pass a room list (the per-tick board
+            # housekeeping calls ensure_loaded(db) with no rooms), fetch it
+            # here — but only now that we know we're actually filling the
+            # board, so idle ticks pay no DB cost. Without rooms,
+            # generate_mission leaves destination_room_id=None and the
+            # mission's objective can't be placed on the map (the L_Entities
+            # "objective" POI is skipped). Guarded: a fetch failure degrades
+            # to name-only destinations, never breaks the refresh.
+            if rooms is None and hasattr(db, "get_all_rooms"):
+                try:
+                    rooms = await db.get_all_rooms()
+                except Exception as _re:
+                    log.warning("[missions] room fetch for mission "
+                                "destinations failed: %s", _re)
             new_missions = generate_board(
                 destination_rooms=rooms,
                 count=needed,

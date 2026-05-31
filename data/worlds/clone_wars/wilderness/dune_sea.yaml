@@ -74,6 +74,22 @@ grid:
   tile_scale_km: 2                    # 2km per tile = 80×80 km region
   default_terrain: dune
 
+# ─── Landmark sources ────────────────────────────────────────────────
+# Per W.3 (May 24 2026): force-resonant landmarks for this region
+# are authored in force_resonant_landmarks.yaml; the loader merges
+# their richer content with the brief declarations in this file's
+# landmarks: block by matching id. Region-filtered: only entries
+# tagged with region: tatooine_dune_sea are pulled in.
+#
+# Reconciles dune_sea.yaml with the new landmark_includes mechanism
+# used by coruscant_underworld.yaml. The legacy force_resonant_path
+# parameter to load_wilderness_region() still works for backward
+# compatibility but the loader now prefers landmark_includes for
+# both regions.
+
+landmark_includes:
+  - force_resonant_landmarks.yaml
+
 terrains:
   # Authoritative description pools used by the future tile-look
   # engine. Defined here to lock in the content during this drop —
@@ -133,6 +149,112 @@ terrains:
     ambient_hazard: none
     variants:
       - "Hard-packed sand underfoot, low stone walls hand-laid, awnings of woven banthawool overhead."
+
+# ─── Encounters (T2.WENC, May 24 2026) ──────────────────────────────
+# Per wilderness_system_design_v1.md §5. Each in-tile move rolls
+# against base_chance_per_move; on a hit, the pool filters by
+# destination terrain and minimum distance from the region edge,
+# then weighted-random-picks an entry.
+#
+# This is the **minimal-substrate** pool: narrative content only.
+# Actual NPC spawn / vendor caravan / weather effects land in the
+# T2.WENC.b follow-up. Per design §5.2 the type field is the seam
+# the follow-up reads to dispatch the right spawner.
+#
+# faction_gate strings are stored but currently evaluate True
+# everywhere (Director-AI influence wiring lands later).
+encounters:
+  base_chance_per_move: 0.04   # design §5.1 default
+  pool:
+
+    # ── Tuskens — the canonical Dune Sea threat ─────────────────────
+    - id: tusken_scout_party
+      type: hostile
+      weight: 3
+      terrains: [dune, rocky_outcrop, ruins]
+      min_distance_from_edge: 2
+      faction_gate: tusken_pressure_default
+      narrative: "Three bantha-shaped silhouettes crest the next ridge. Tusken scouts. Their gaffi sticks catch the sunlight. They have seen you."
+      payload:
+        npc_template: tusken_warrior
+        count: [2, 3]
+        tier: tier1
+
+    - id: tusken_war_party
+      type: hostile
+      weight: 1
+      terrains: [dune]
+      min_distance_from_edge: 4
+      faction_gate: tusken_pressure_high
+      narrative: "Bantha horns rise on the dune line ahead — six riders, paint-marked, in a hunting wedge. You have wandered into a war party's circuit."
+      payload:
+        npc_template: tusken_warrior
+        count: [4, 6]
+        tier: tier2
+
+    # ── Non-hostile fauna and travellers ────────────────────────────
+    - id: dewback_herd
+      type: non_hostile
+      weight: 2
+      terrains: [dune, rocky_outcrop]
+      narrative: "A small herd of dewbacks passes by, snuffling at the sand for moisture. They regard you with reptilian disinterest and amble on."
+      payload:
+        npc_template: dewback
+        count: [3, 6]
+
+    - id: lone_jawa_scavenger
+      type: non_hostile
+      weight: 2
+      terrains: [dune, rocky_outcrop, ruins]
+      narrative: "A lone Jawa hobbles past at distance, dragging a salvaged power converter twice its size. It chitters something defensive without breaking stride."
+
+    - id: moisture_farmer_speeder
+      type: non_hostile
+      weight: 1
+      terrains: [dune]
+      min_distance_from_edge: 1
+      narrative: "A battered landspeeder slows beside you — a moisture farmer checking on her vaporators. She nods once, asks if you need water, and moves on whether you answer or not."
+
+    # ── Trader caravan ─────────────────────────────────────────────
+    - id: jawa_sandcrawler_stop
+      type: trader_caravan
+      weight: 1
+      terrains: [dune, rocky_outcrop]
+      min_distance_from_edge: 3
+      narrative: "The dust cloud resolves into a sandcrawler grinding to a halt. A ramp lowers; chittering Jawas tumble out, already haggling at you before your feet have stopped moving."
+      payload:
+        vendor_template: jawa_caravan_inventory
+        duration_minutes: 5
+
+    # ── Anomalies (salvage) ────────────────────────────────────────
+    - id: crashed_speeder_wreck
+      type: anomaly
+      weight: 1
+      terrains: [dune, rocky_outcrop]
+      min_distance_from_edge: 2
+      narrative: "Half-buried in the sand: the wreck of a speeder bike, the pilot long-gone, the engine assembly still mostly intact. Salvage may be possible."
+      payload:
+        salvage_table: speeder_wreck_table
+
+    - id: abandoned_moisture_vaporator
+      type: anomaly
+      weight: 1
+      terrains: [dune]
+      narrative: "An abandoned moisture vaporator stands canted against the wind. The collection tank rattles when you tap it — half full, by the sound. The owner is nowhere in sight."
+      payload:
+        salvage_table: vaporator_table
+
+    # ── Weather (region-wide effect) ───────────────────────────────
+    - id: sandstorm_approaching
+      type: weather
+      weight: 1
+      terrains: []   # any terrain — weather is region-wide
+      narrative: "The horizon to the south goes brown. The wind picks up. A sandstorm — perhaps an hour out, perhaps less."
+      payload:
+        effect: sandstorm
+        duration_minutes: 30
+        sight_radius_override: 0
+        hazard_severity_bonus: 1
 
 # Landmarks — the authoritative roster of named places in the region.
 # Each landmark becomes a `rooms` row at world-build time with

@@ -161,7 +161,8 @@ class CreationWizard:
     """
 
     def __init__(self, species_reg: SpeciesRegistry, skill_reg: SkillRegistry,
-                 data_dir: str = "data", width: int = DEFAULT_WIDTH):
+                 data_dir: str = "data", width: int = DEFAULT_WIDTH,
+                 is_first_character: bool = True):
         self.species_reg = species_reg
         self.skill_reg = skill_reg
         self.engine = CreationEngine(species_reg, skill_reg)
@@ -171,6 +172,19 @@ class CreationWizard:
         self.background = ""
         self._force_sensitive = False
         self.fmt = Fmt(width=width)
+
+        # ── Drop 2 (May 19 2026 evening): first-character-mandatory policy ──
+        # When True (default), the tutorial-chain selection step refuses
+        # to accept "skip" / "next" as a way out — the player must pick
+        # a chain. This is the first-character experience: every new
+        # account is taken through the tutorial. Alts (2nd+ characters)
+        # set this False, allowing skip (with a smaller starter kit
+        # granted at character entry; consumer ships in Drop 2b).
+        #
+        # The flag has no effect when self._chains_corpus is None
+        # (eras without chain tutorials, e.g. GCW) — those eras have no
+        # chain step in the first place.
+        self._is_first_character = bool(is_first_character)
 
         # ── F.8.c.1: Era-conditional tutorial chain selection ──
         # The wizard detects whether the active era has chain-based
@@ -674,7 +688,12 @@ class CreationWizard:
 
         lines.append(f"  {_yl('1-' + str(len(self._menu_chains)))}  "
                      f"{_dim('— pick a chain by number')}")
-        lines.append(f"  {_yl('next')}  {_dim('— skip the tutorial (drops you straight into the galaxy)')}")
+        # Drop 2 (May 19 2026): only offer the skip prompt to alts.
+        # First characters MUST pick a chain. See _handle_tutorial_chain.
+        if not self._is_first_character:
+            lines.append(f"  {_yl('next')}  {_dim('— skip the tutorial (drops you straight into the galaxy)')}")
+        else:
+            lines.append(f"  {_dim('(skip is not available for your first character)')}")
         lines.append("")
         lines.append(self.fmt.bar("="))
         return "\n".join(lines)
@@ -684,6 +703,19 @@ class CreationWizard:
         low = text.lower().strip()
 
         if low in ("next", "skip"):
+            # Drop 2 (May 19 2026): first-character-mandatory policy.
+            # The first character on every account must complete a
+            # tutorial chain — skip is rejected at this step. Alts
+            # (2nd+ characters) can skip and receive the skip starter
+            # kit instead of chain graduation rewards.
+            if self._is_first_character:
+                return (
+                    f"  {_dim('Skip is not available for your first character. ')}"
+                    f"{_dim('Pick a tutorial chain by number — every operative ')}"
+                    f"{_dim('needs a starting profession. (You can run a different ')}"
+                    f"{_dim('chain on a later character.)')}\n\n"
+                    + self._render_step()
+                ), self._prompt(), False
             # Skip the tutorial chain entirely; advance to review
             self._selected_chain_id = None
             self.step = self._next_step_after(STEP_TUTORIAL_CHAIN)

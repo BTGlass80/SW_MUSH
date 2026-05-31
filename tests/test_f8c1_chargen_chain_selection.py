@@ -77,7 +77,14 @@ class TestEraDetection(_F8C1IsolatedBase):
     def test_cw_era_loads_chains_corpus(self):
         w = _build_wizard("clone_wars")
         self.assertIsNotNone(w._chains_corpus)
-        self.assertEqual(len(w._chains_corpus.chains), 8)
+        # F.7.l-followup-a (May 4 2026): F.7.j split the formerly-monolithic
+        # Jedi Path into `jedi_path` (Path A → Order, drops at Temple) +
+        # `jedi_path_independent` (Path B → Independent, drops at the
+        # Village). Both are locked, so the user-facing menu count is
+        # unchanged at 7 (see test_render_populates_menu below); the
+        # corpus count is now 9, not 8. test_f8_tutorial_chains_yaml.py
+        # was updated at F.7.j time but this assertion was missed.
+        self.assertEqual(len(w._chains_corpus.chains), 9)
 
     def test_gcw_era_no_chains_corpus(self):
         w = _build_wizard("gcw")
@@ -237,10 +244,36 @@ class TestSelectionByChainId(_F8C1IsolatedBase):
 # ──────────────────────────────────────────────────────────────────────
 
 class TestSkipPath(_F8C1IsolatedBase):
+    """F.8.c.1 skip-path tests, tightened in Drop 2b (May 19 2026
+    evening) per the phantom-pattern note in
+    HANDOFF_MAY19_DROP2A_FIRST_CHARACTER_MANDATORY.md.
+
+    Pre-Drop-2a: a default wizard accepted `next`/`skip` and these
+    tests genuinely exercised skip semantics.
+
+    Drop 2a: the default wizard REFUSES `next`/`skip` because
+    `is_first_character` now defaults to True. Under that default
+    the assertion `_selected_chain_id is None` is still true, but
+    it's vacuously true — skip was refused, the field was never
+    touched. The tests passed for the wrong reason.
+
+    Drop 2b: tests construct the wizard with
+    `is_first_character=False` explicitly to actually exercise the
+    skip branch. They also assert the wizard step ADVANCED past
+    STEP_TUTORIAL_CHAIN, which is the real skip-semantics contract.
+    """
+
+    def _build_alt_wizard(self):
+        _set_era("clone_wars")
+        from engine.creation_wizard import CreationWizard
+        return CreationWizard(
+            _MockReg(), _MockReg(), width=80,
+            is_first_character=False,
+        )
 
     def test_next_skips_chain(self):
         from engine.creation_wizard import STEP_TUTORIAL_CHAIN
-        w = _build_wizard("clone_wars")
+        w = self._build_alt_wizard()
         w.step = STEP_TUTORIAL_CHAIN
         w._render_tutorial_chain()
         try:
@@ -251,10 +284,16 @@ class TestSkipPath(_F8C1IsolatedBase):
             pass
         self.assertIsNone(w.get_selected_chain_id())
         self.assertIsNone(w.get_tutorial_chain_block())
+        # Drop 2b tightening: skip must ADVANCE past the chain step.
+        self.assertNotEqual(
+            w.step, STEP_TUTORIAL_CHAIN,
+            "Skip on an alt wizard must advance past STEP_TUTORIAL_CHAIN; "
+            "if step stays put, skip was refused, not honored.",
+        )
 
     def test_skip_alias_works(self):
         from engine.creation_wizard import STEP_TUTORIAL_CHAIN
-        w = _build_wizard("clone_wars")
+        w = self._build_alt_wizard()
         w.step = STEP_TUTORIAL_CHAIN
         w._render_tutorial_chain()
         try:
@@ -262,6 +301,12 @@ class TestSkipPath(_F8C1IsolatedBase):
         except (TypeError, AttributeError):
             pass
         self.assertIsNone(w.get_selected_chain_id())
+        # Drop 2b tightening: as above.
+        self.assertNotEqual(
+            w.step, STEP_TUTORIAL_CHAIN,
+            "Skip-alias on an alt wizard must advance past "
+            "STEP_TUTORIAL_CHAIN.",
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────

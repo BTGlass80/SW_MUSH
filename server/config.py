@@ -34,22 +34,24 @@ class Config:
     max_sessions_per_account: int = 1
     max_characters_per_account: int = 3
 
-    # ── Era (F.6a.5 / F.6a.6 scaffolding) ──
+    # ── Era (F.6a.5 / F.6a.6 scaffolding; CW pivot completed May 18 2026) ──
     # active_era selects which `data/worlds/<era>/` content set the game
-    # uses. Currently only "gcw" is the live era; "clone_wars" is being
-    # built out behind the F.6a.6 flag flip.
+    # uses. May 18 2026: Clone Wars is now the live launch era; GCW is
+    # deprecated reference content kept on disk for dual-era infrastructure
+    # validation and historical reference, but no longer the boot default.
     #
     # use_yaml_director_data is the F.6a.6 feature flag: when True, the
     # world_lore / Director / ambient_events systems read from the
-    # era YAML via the F.6a.{1..4} loaders / seams. When False (default
-    # until 6a.3-int + 6a.4-int land), they use the legacy hardcoded
-    # constants. The flag is read at boot time only — runtime toggling
-    # is not supported.
+    # era YAML via the F.6a.{1..4} loaders / seams. When False, they use
+    # the legacy hardcoded constants. Default flipped to True in May 2026
+    # alongside the era pivot — the YAML pipeline is the production path
+    # going forward.
     #
-    # Per design doc §3.x: this flag is the single switch that gates
-    # "GCW byte-equivalent on YAML" and "Clone Wars era live."
-    active_era: str = "gcw"
-    use_yaml_director_data: bool = False
+    # Per design doc §3.x: these flags were historically the gating switch
+    # for "GCW byte-equivalent on YAML" and "Clone Wars era live." Both
+    # are now flipped on for production.
+    active_era: str = "clone_wars"
+    use_yaml_director_data: bool = True
 
     # ── Display ──
     default_terminal_width: int = 80

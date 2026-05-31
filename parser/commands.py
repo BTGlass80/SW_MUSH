@@ -338,17 +338,48 @@ class CommandParser:
 
         try:
             await asyncio.wait_for(cmd.execute(ctx), timeout=COMMAND_TIMEOUT)
+            _cmd_succeeded = True
         except asyncio.TimeoutError:
+            _cmd_succeeded = False
             log.warning("Command timed out (%s) for session %s",
                         ctx.command, ctx.session)
             await ctx.session.send_line(
                 "  Command timed out. If this persists, please report it."
             )
         except Exception as e:
+            _cmd_succeeded = False
             log.exception("Command error (%s): %s", ctx.command, e)
             await ctx.session.send_line(
                 f"An error occurred processing your command. ({e})"
             )
+
+        # ── F.8.c.2.b: CW tutorial chain — command_executed completion ──
+        # Fires once per successful command from an in-game character.
+        # Talk- and move-driven chain advances are handled by their own
+        # dedicated hooks (_post_talk_hooks, _post_move_hooks); this
+        # path covers the 16 chain steps whose completion is a generic
+        # command (e.g. `+factions`, `+sheet`, `examine subsystem`,
+        # `say "yes"`).
+        if _cmd_succeeded and ctx.session.is_in_game and ctx.session.character:
+            try:
+                from engine.chain_events import on_command_executed
+                _adv = await on_command_executed(
+                    ctx.db, ctx.session.character,
+                    ctx.command, ctx.args,
+                )
+                if _adv:
+                    # F.8.c.2.c: deliver graduation teleport UI if
+                    # the chain just completed. No-op when no
+                    # graduation is pending.
+                    from engine.chain_graduation import (
+                        execute_pending_teleport,
+                    )
+                    await execute_pending_teleport(
+                        ctx, ctx.session.character,
+                    )
+            except Exception as _ce:
+                log.debug("chain_events command hook error: %s", _ce,
+                          exc_info=True)
 
         # ── HUD update for WebSocket clients ──
         # Send structured state after every command so the browser

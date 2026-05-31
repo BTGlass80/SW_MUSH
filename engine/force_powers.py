@@ -231,6 +231,9 @@ def resolve_force_power(
     skill_reg: SkillRegistry,
     target_char: Optional[Character] = None,
     extra_diff: int = 0,
+    *,
+    weight_difficulty_mod: int = 0,
+    extra_dsp_on_fail: int = 0,
 ) -> ForcePowerResult:
     """
     Resolve a Force power use. Returns a ForcePowerResult.
@@ -241,6 +244,18 @@ def resolve_force_power(
         skill_reg:    Loaded SkillRegistry.
         target_char:  Target character (for targeted powers).
         extra_diff:   Additional difficulty (e.g. range modifier for telekinesis).
+        weight_difficulty_mod:  WoW.3c (May 24 2026): added to the
+                                fall-check difficulty for Jedi PCs
+                                with Weight of War > 50. Caller is
+                                responsible for computing this via
+                                ``engine.weight_of_war.dsp_resistance_modifier``
+                                — keeping the Weight read at the
+                                parser-side keeps this engine module
+                                free of DB I/O and async concerns.
+        extra_dsp_on_fail:      WoW.3c: extra DSP applied on top of
+                                the baseline +1 when a fall check
+                                fails AND the Jedi has Weight ≥ 151.
+                                From ``extra_dsp_on_failed_resist``.
     """
     power = get_power(power_key)
     if power is None:
@@ -316,13 +331,37 @@ def resolve_force_power(
         # Fall check at DSP >= 6
         if char.dark_side_points >= DSP_FALL_THRESHOLD:
             result.fall_check = True
-            fall_result = _resolve_fall_check(char, skill_reg)
+            # WoW.3c (May 24 2026): the caller passes
+            # ``weight_difficulty_mod`` derived from the Jedi's
+            # Weight of War via
+            # ``engine.weight_of_war.dsp_resistance_modifier``.
+            # Defaults to 0 for non-Jedi or low-Weight Jedi, so
+            # all existing callers and tests are unaffected. The
+            # modifier is added to the standard ``DSP × 3``
+            # difficulty inside ``_resolve_fall_check``.
+            fall_result = _resolve_fall_check(
+                char, skill_reg,
+                weight_difficulty_mod=weight_difficulty_mod,
+            )
             result.fall_failed = not fall_result
             if not fall_result:
                 narrative_parts.append(
                     "  THE DARK SIDE CALLS TO YOU. Your will crumbles. "
                     "You have fallen to the dark side."
                 )
+                # WoW.3c: at Weight ≥ 151, a failed fall check
+                # grants ``extra_dsp_on_fail`` additional DSP on
+                # top of the baseline +1 from above. The substrate
+                # value comes from
+                # ``extra_dsp_on_failed_resist(weight)``.
+                if extra_dsp_on_fail > 0:
+                    char.dark_side_points += int(extra_dsp_on_fail)
+                    result.dsp_gained += int(extra_dsp_on_fail)
+                    narrative_parts.append(
+                        f"  The Weight of War weighs you down "
+                        f"further; the dark side claims another "
+                        f"piece of you. (+{int(extra_dsp_on_fail)} DSP)"
+                    )
             else:
                 narrative_parts.append(
                     "  The dark side pulls at you... but you hold firm. For now."
@@ -475,19 +514,43 @@ def _dsp_warning(dsp: int) -> str:
         return f"[DARK SIDE] You gain 1 Dark Side Point. (Total: {dsp})"
 
 
-def _resolve_fall_check(char: Character, skill_reg: SkillRegistry) -> bool:
+def _resolve_fall_check(
+    char: Character,
+    skill_reg: SkillRegistry,
+    weight_difficulty_mod: int = 0,
+) -> bool:
     """
     R&E p118: At DSP >= 6, roll Willpower vs (DSP × 3).
     Returns True if the character resists the fall.
+
+    WoW.3c (May 24 2026): ``weight_difficulty_mod`` is added to the
+    base ``DSP × 3`` difficulty per ``weight_of_war_design_v1.md``
+    §7.1. Values come from
+    ``engine.weight_of_war.dsp_resistance_modifier(weight)`` —
+    0 / +2 / +5 / +10 by Weight tier. The caller is responsible
+    for reading the character's Weight and computing the modifier;
+    this function just adds it to the difficulty so the fall-check
+    log line cleanly shows the contributing components.
     """
     willpower_pool = char.get_skill_pool("willpower", skill_reg)
     roll = roll_d6_pool(willpower_pool)
-    difficulty = char.dark_side_points * 3
+    base_difficulty = char.dark_side_points * 3
+    difficulty = base_difficulty + int(weight_difficulty_mod or 0)
     success = roll.total >= difficulty
-    log.info(
-        f"[force] fall check {char.name}: willpower {roll.total} "
-        f"vs {difficulty} (DSP={char.dark_side_points}) → {'RESIST' if success else 'FALL'}"
-    )
+    if weight_difficulty_mod:
+        log.info(
+            f"[force] fall check {char.name}: willpower "
+            f"{roll.total} vs {difficulty} "
+            f"(DSP={char.dark_side_points} → base {base_difficulty}, "
+            f"+{weight_difficulty_mod} from Weight) "
+            f"→ {'RESIST' if success else 'FALL'}"
+        )
+    else:
+        log.info(
+            f"[force] fall check {char.name}: willpower {roll.total} "
+            f"vs {difficulty} (DSP={char.dark_side_points}) → "
+            f"{'RESIST' if success else 'FALL'}"
+        )
     return success
 
 

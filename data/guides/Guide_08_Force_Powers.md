@@ -1,4 +1,10 @@
-# SW_MUSH Detailed Systems Guide #8
+---
+category: paths
+order: 1
+summary: "Control, Sense, and Alter. How Force-sensitives roll powers, light/dark side, and corruption."
+tags: ["force", "jedi", "sith", "powers", "lightsaber", "control", "sense", "alter"]
+---
+
 # Force Powers
 
 **SW_MUSH — Star Wars D6 Revised & Expanded**

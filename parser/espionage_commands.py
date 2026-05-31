@@ -194,7 +194,17 @@ class EavesdropCommand(BaseCommand):
             await ctx.session.send_line(
                 "  \033[1;31mYou stumble against the wall, making a loud thud.\033[0m"
             )
-            # Alert people in the target room
+            # Alert people in the target room.
+            #
+            # W.2.3.1 note: this broadcast goes to `target_room_id`, a
+            # DIFFERENT room from char. source_char filtering would key
+            # to char's coords, which is meaningless for the target
+            # room's PCs. Eavesdrop targets are regular indoor rooms
+            # today (housing/cantina walls), not wilderness tiles, so
+            # there's no active leak. If a future drop adds wilderness-
+            # tile-to-wilderness-tile eavesdropping, this site needs a
+            # `target_char` (someone known to be in target_room_id) so
+            # the helper can filter by target-side coords.
             for s in ctx.session_mgr.sessions_in_room(target_room_id):
                 if s.is_in_game:
                     await s.send_line(
@@ -329,8 +339,12 @@ class IntelCommand(BaseCommand):
         "  +intel discard          — discard current draft\n"
         "  +intel read <id>        — read a report\n"
         "  +intel give <player> <id> — give a sealed report\n"
+        "  +intel handover [<id>]  — hand a sealed report to your\n"
+        "                            faction's intel handler in this\n"
+        "                            room (SYN.5; converts to credits\n"
+        "                            + influence per intel quality)\n"
     )
-    usage = "+intel [create|add|seal|discard|read|give]"
+    usage = "+intel [create|add|seal|discard|read|give|handover]"
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
@@ -451,6 +465,70 @@ class IntelCommand(BaseCommand):
                 await target_sess.send_line(
                     f"\n  \033[1;33m[INTEL]\033[0m {char['name']} gave you an intel report.\n"
                     f"  Type '+intel' to view your reports.\n"
+                )
+            return
+
+        if sub == "handover":
+            # SYN.5 (2026-05-25): hand a sealed report to a faction
+            # intel handler NPC in the room. Converts to credits +
+            # influence per design v2 §2.7.
+            #
+            # Usage: +intel handover [<id>]
+            #   With no id: pick the player's first sealed report.
+            #   With id: hand that specific sealed report.
+            from engine.intel_handlers import (
+                handover_intel, find_handler_in_room,
+            )
+            # Resolve report id (optional — default to first sealed)
+            handover_parts = rest.split(None, 1) if rest else []
+            target_report_id = None
+            if handover_parts:
+                try:
+                    target_report_id = int(handover_parts[0])
+                except ValueError:
+                    await ctx.session.send_line(
+                        "  Usage: +intel handover [<report_id>]\n"
+                        "  (Omit the id to hand over your first sealed "
+                        "report.)"
+                    )
+                    return
+            if target_report_id is None:
+                reports = get_intel_reports(char)
+                sealed = [r for r in reports if r.get("sealed")]
+                if not sealed:
+                    await ctx.session.send_line(
+                        ansi.error(
+                            "  You have no sealed intel to hand over. "
+                            "Seal a draft first with +intel seal."
+                        )
+                    )
+                    return
+                target_report_id = sealed[0]["id"]
+            # Find a handler in the room that accepts the player's
+            # faction.
+            faction = char.get("faction_id") or "independent"
+            handler = await find_handler_in_room(
+                ctx.db, char.get("room_id"), faction,
+            )
+            if not handler:
+                await ctx.session.send_line(
+                    ansi.error(
+                        "  No intel handler for your faction is here. "
+                        "Travel to your faction's HQ to find one."
+                    )
+                )
+                return
+            result = await handover_intel(
+                ctx.db, char, handler["id"], target_report_id,
+                session_mgr=ctx.session_mgr,
+            )
+            if result.get("ok"):
+                await ctx.session.send_line(
+                    ansi.success(f"  {result['msg']}")
+                )
+            else:
+                await ctx.session.send_line(
+                    ansi.error(f"  {result['msg']}")
                 )
             return
 
@@ -603,12 +681,14 @@ class InterceptCommand(BaseCommand):
             )
             room_id = char.get("room_id")
             if room_id:
+                # W.2.3.1: source_char filters squeal to co-located peers.
                 await ctx.session_mgr.broadcast_to_room(
                     room_id,
                     f"  \033[1;33m{char['name']}'s comlink scanner emits "
                     f"a piercing squeal — they were trying to intercept "
                     f"communications!\033[0m",
                     exclude=ctx.session,
+                    source_char=char,
                 )
             return
 

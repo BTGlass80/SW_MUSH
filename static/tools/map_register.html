@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SW_MUSH · Map Registration</title>
+<!--
+  map_register.html — substrate landmark registration tool (Phase 1).
+
+  Purpose: place landmark pins onto a painted "Nano Banana" substrate so
+  the in-game labels register with the painted features. The painting is
+  ground truth (image-canonical); this tool derives world coordinates
+  FROM where you drop each pin.
+
+  Coordinate model. The substrate is authored NORTH-UP, filling the world
+  bounds rect: image TOP edge = y_max (north), BOTTOM = y_min, LEFT =
+  x_min, RIGHT = x_max. A pin at image-fraction (fx, fy) — fx left→right,
+  fy top→bottom — maps to authored Y-up world coordinates:
+      wx = x_min + fx * (x_max - x_min)
+      wy = y_max - fy * (y_max - y_min)
+  (Inverse, used to pre-place a pin at a known world coord:
+      fx = (wx - x_min) / (x_max - x_min)
+      fy = (y_max - wy) / (y_max - y_min) )
+  This is exact because the renderer (adapter Y-flip + projector) is built
+  to land the north-up image north-up at the bounds rect, so fractional
+  image position is a clean invertible affine to world Y-up.
+
+  Workflow: Claude pre-seeds DISTINCTIVE landmarks at their painted
+  positions (so you confirm/nudge rather than hunt). GENERIC landmarks
+  (indistinct domes) are marked "approx OK" — don't sweat them. Drag,
+  then Export YAML and paste the `landmarks:` block into the area file.
+
+  No build step; vanilla JS. Serve from static/ so the substrate PNG is
+  same-origin (canvas-safe). Load a different area via ?manifest=<url>.
+-->
+<style>
+  :root {
+    --bg: #0c0f0a; --panel: #14200e; --amber: #ffc857; --amber-dim: #8a7a3f;
+    --cyan: #6ee8ff; --ink: #e8dcc0; --ink-dim: #9a8f76; --red: #ff5a4a;
+    --green: #76c043; --line: #3a3320;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  body { display: flex; height: 100vh; overflow: hidden; }
+
+  /* ── Stage (left, fills) ───────────────────────────────────────── */
+  #stage { flex: 1 1 auto; position: relative; overflow: hidden;
+    background: radial-gradient(ellipse at center, #14160f 0%, #0c0f0a 75%); }
+  #stage-inner { position: absolute; top: 0; left: 0; }
+  #substrate { position: absolute; top: 0; left: 0; image-rendering: auto;
+    user-select: none; -webkit-user-drag: none; }
+  #pin-layer { position: absolute; top: 0; left: 0; }
+
+  .pin { position: absolute; transform: translate(-50%, -100%); cursor: grab;
+    touch-action: none; z-index: 5; }
+  .pin.dragging { cursor: grabbing; z-index: 20; }
+  .pin .stem { width: 2px; height: 14px; margin: 0 auto; }
+  .pin .dot { width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid #0c0f0a; margin: 0 auto; }
+  .pin .tag { position: absolute; left: 50%; bottom: 100%;
+    transform: translateX(-50%); white-space: nowrap; font-size: 11px;
+    padding: 2px 6px; border-radius: 3px; pointer-events: none;
+    border: 1px solid; margin-bottom: 2px; letter-spacing: 0.5px; }
+
+  /* distinctive = bright cyan, must-place */
+  .pin.distinctive .dot { background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan); }
+  .pin.distinctive .stem { background: var(--cyan); }
+  .pin.distinctive .tag { color: var(--cyan); border-color: var(--cyan);
+    background: rgba(110,232,255,0.10); }
+  /* confirmed = green */
+  .pin.confirmed .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .pin.confirmed .stem { background: var(--green); }
+  .pin.confirmed .tag { color: var(--green); border-color: var(--green);
+    background: rgba(118,192,67,0.10); }
+  /* generic = dim amber, approx OK */
+  .pin.generic { opacity: 0.55; }
+  .pin.generic .dot { background: var(--amber-dim); width: 10px; height: 10px; }
+  .pin.generic .stem { background: var(--amber-dim); height: 10px; }
+  .pin.generic .tag { color: var(--amber-dim); border-color: var(--amber-dim);
+    background: rgba(138,122,63,0.08); font-size: 10px; }
+  .pin.generic.confirmed { opacity: 1; }
+
+  /* ── Side panel (right) ────────────────────────────────────────── */
+  #panel { flex: 0 0 340px; background: var(--panel);
+    border-left: 1px solid var(--line); display: flex; flex-direction: column;
+    overflow: hidden; }
+  #panel header { padding: 12px 16px; border-bottom: 1px solid var(--line);
+    letter-spacing: 2px; font-size: 12px; color: var(--amber); }
+  #panel header .sub { color: var(--ink-dim); font-size: 10px; letter-spacing: 1px;
+    margin-top: 3px; text-transform: none; }
+  #list { flex: 1 1 auto; overflow-y: auto; padding: 6px 0; }
+  .row { padding: 8px 16px; border-bottom: 1px solid rgba(58,51,32,0.5);
+    cursor: pointer; }
+  .row:hover { background: rgba(255,200,87,0.05); }
+  .row.active { background: rgba(110,232,255,0.07); }
+  .row .name { font-size: 12px; display: flex; align-items: center; gap: 7px; }
+  .row .name .chip { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+  .row .meta { font-size: 10px; color: var(--ink-dim); margin-top: 3px;
+    display: flex; justify-content: space-between; }
+  .row .note { font-size: 10px; color: var(--amber-dim); margin-top: 3px;
+    font-style: italic; }
+  .row .coord { color: var(--cyan); font-variant-numeric: tabular-nums; }
+  .badge { font-size: 9px; padding: 1px 5px; border-radius: 2px; letter-spacing: 1px; }
+  .badge.req { color: var(--cyan); border: 1px solid var(--cyan); }
+  .badge.approx { color: var(--amber-dim); border: 1px solid var(--amber-dim); }
+  .badge.ok { color: var(--green); border: 1px solid var(--green); }
+
+  #controls { flex: 0 0 auto; padding: 12px 16px; border-top: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 8px; }
+  button { font-family: inherit; font-size: 11px; letter-spacing: 1px;
+    padding: 8px 10px; border-radius: 4px; cursor: pointer;
+    background: transparent; color: var(--ink); border: 1px solid var(--ink-dim);
+    transition: border-color .15s, color .15s; }
+  button:hover { border-color: var(--amber); color: var(--amber); }
+  button.primary { border-color: var(--cyan); color: var(--cyan); }
+  button.primary:hover { background: rgba(110,232,255,0.08); }
+  .hint { font-size: 10px; color: var(--ink-dim); line-height: 1.5; }
+  .hint b { color: var(--cyan); }
+  .hint i { color: var(--amber-dim); }
+
+  /* export overlay */
+  #export-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: none; align-items: center; justify-content: center; z-index: 100; }
+  #export-overlay.show { display: flex; }
+  #export-box { width: min(720px, 92vw); max-height: 86vh; background: var(--panel);
+    border: 1px solid var(--amber); border-radius: 6px; display: flex;
+    flex-direction: column; overflow: hidden; }
+  #export-box h3 { margin: 0; padding: 12px 16px; font-size: 12px; letter-spacing: 2px;
+    color: var(--amber); border-bottom: 1px solid var(--line); }
+  #export-text { flex: 1 1 auto; min-height: 320px; margin: 0; padding: 14px 16px;
+    overflow: auto; background: #0c0f0a; color: var(--ink); font-size: 12px;
+    line-height: 1.5; white-space: pre; border: none; resize: none; width: 100%; }
+  #export-actions { padding: 10px 16px; border-top: 1px solid var(--line);
+    display: flex; gap: 8px; justify-content: flex-end; }
+  #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--green); color: var(--green);
+    padding: 8px 14px; border-radius: 4px; font-size: 11px; letter-spacing: 1px;
+    opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 120; }
+  #toast.show { opacity: 1; }
+  #zoomhint { position: absolute; bottom: 10px; left: 12px; font-size: 10px;
+    color: var(--ink-dim); letter-spacing: 1px; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div id="stage-inner">
+      <img id="substrate" alt="substrate" draggable="false">
+      <div id="pin-layer"></div>
+    </div>
+    <div id="zoomhint">scroll = zoom · drag background = pan · drag pin = place</div>
+  </div>
+
+  <div id="panel">
+    <header>
+      ◉ MAP REGISTRATION
+      <div class="sub" id="area-sub">loading…</div>
+    </header>
+    <div id="list"></div>
+    <div id="controls">
+      <div class="hint">
+        <b>Cyan pins</b> = distinctive, place precisely.
+        <i>Dim pins = approximate is fine.</i>
+        Click a row to focus its pin. Drag a pin to place it; it turns
+        <span style="color:var(--green)">green</span> once moved.
+      </div>
+      <button class="primary" id="btn-export">EXPORT YAML ▸</button>
+      <button id="btn-reset">RESET TO PRE-SEED</button>
+      <button id="btn-fit">FIT TO SCREEN</button>
+    </div>
+  </div>
+
+  <div id="export-overlay">
+    <div id="export-box">
+      <h3>◉ LANDMARKS BLOCK — paste into the area YAML</h3>
+      <textarea id="export-text" readonly spellcheck="false"></textarea>
+      <div id="export-actions">
+        <button id="btn-copy" class="primary">COPY</button>
+        <button id="btn-close-export">CLOSE</button>
+      </div>
+    </div>
+  </div>
+  <div id="toast">copied</div>
+
+<script>
+"use strict";
+
+// ── Default manifest: Mos Eisley ─────────────────────────────────────
+// Pre-seeded by Claude from the painted substrate (image-fractional
+// positions read directly off the painting). `distinctive: true` pins
+// are precisely locatable; the rest are unfalsifiable domes / off-map
+// arrows seeded at authored positions and flagged approximate.
+//
+// `fx`,`fy` are image fractions (0..1). They are the source of truth the
+// tool drags; world coords are derived live via the bounds affine.
+var DEFAULT_MANIFEST = {
+  area_key: "tatooine.mos_eisley",
+  display_name: "MOS EISLEY",
+  substrate: "/static/maps/mos_eisley_substrate.png",
+  bounds: { x_min: 2.4, y_min: -0.4, x_max: 14.8, y_max: 7.6 },
+  landmarks: [
+    // ── distinctive (place precisely) ──
+    { id: "bay94",      icon: "dock",    name: "Docking Bay 94",    distinctive: true,
+      fx: 0.250, fy: 0.160, note: "the large circular landing pit, upper-left apron",
+      min_zoom: 2, max_zoom: 2 },
+    { id: "despot",     icon: "ship",    name: "Lucky Despot",      distinctive: true,
+      fx: 0.340, fy: 0.610, note: "the beached/half-buried freighter hull, center",
+      min_zoom: 2, max_zoom: 2 },
+    { id: "dowager",    icon: "wreck",   name: "Dowager Queen",     distinctive: true,
+      fx: 0.085, fy: 0.095, note: "the crashed ship in the top-left corner",
+      min_zoom: 2, max_zoom: 3 },
+    { id: "chalmun",    icon: "cantina", name: "Chalmun's Cantina", distinctive: true,
+      fx: 0.200, fy: 0.440, note: "the prominent rust-red domed building, center-left",
+      min_zoom: 2, max_zoom: 2 },
+    { id: "kraytgrave", icon: "bones",   name: "Krayt Graveyard",   distinctive: true,
+      fx: 0.910, fy: 0.555, note: "the large skeleton on the right desert flat",
+      min_zoom: 2, max_zoom: 3 },
+    { id: "sandcrawler",icon: "ship",    name: "Sandcrawler",       distinctive: true,
+      fx: 0.690, fy: 0.710, note: "the big tracked vehicle, center-right (not yet a YAML landmark — optional add)",
+      min_zoom: 2, max_zoom: 3, optional: true },
+    { id: "ctrltower",  icon: "beacon",  name: "Control Tower",     distinctive: true,
+      fx: 0.370, fy: 0.155, note: "the tall round tower beside the landing pit (optional add)",
+      min_zoom: 2, max_zoom: 3, optional: true },
+    // ── generic / unfalsifiable / off-map (approximate is fine) ──
+    { id: "jabba_th",   icon: "hutt",    name: "Jabba's Townhouse", distinctive: false,
+      fx: 0.325, fy: 0.760, note: "indistinct dome — approximate", min_zoom: 2, max_zoom: 2 },
+    { id: "beacon",     icon: "beacon",  name: "Hyperspace Beacon", distinctive: false,
+      fx: 0.245, fy: 0.115, note: "no painted feature — approximate", min_zoom: 2, max_zoom: 3 },
+    { id: "jabba_p",    icon: "palace",  name: "Jabba's Palace \u2197", distinctive: false,
+      fx: 0.965, fy: 0.265, note: "off-map pointer — edge is fine", min_zoom: 2, max_zoom: 3 },
+    { id: "sarlacc",    icon: "sarlacc", name: "The Sarlacc \u2197",    distinctive: false,
+      fx: 0.965, fy: 0.155, note: "off-map pointer — edge is fine", min_zoom: 2, max_zoom: 3 }
+  ]
+};
+
+// ── State ────────────────────────────────────────────────────────────
+var manifest = null;
+var pins = [];           // [{def, el, fx, fy, moved}]
+var activeId = null;
+var view = { scale: 1, ox: 0, oy: 0 };   // image px -> screen px
+var imgW = 0, imgH = 0;
+
+var stage = document.getElementById('stage');
+var stageInner = document.getElementById('stage-inner');
+var img = document.getElementById('substrate');
+var pinLayer = document.getElementById('pin-layer');
+var listEl = document.getElementById('list');
+
+// ── Coordinate model ────────────────────────────────────────────────
+function fracToWorld(fx, fy) {
+  var b = manifest.bounds;
+  return {
+    x: b.x_min + fx * (b.x_max - b.x_min),
+    y: b.y_max - fy * (b.y_max - b.y_min)
+  };
+}
+function round1(v) { return Math.round(v * 10) / 10; }
+
+// ── Layout / view ────────────────────────────────────────────────────
+function applyView() {
+  stageInner.style.transformOrigin = '0 0';
+  stageInner.style.transform =
+    'translate(' + view.ox + 'px,' + view.oy + 'px) scale(' + view.scale + ')';
+}
+function fitToScreen() {
+  var sw = stage.clientWidth, sh = stage.clientHeight;
+  if (!imgW || !imgH) return;
+  var pad = 24;
+  var s = Math.min((sw - pad * 2) / imgW, (sh - pad * 2) / imgH);
+  view.scale = s;
+  view.ox = (sw - imgW * s) / 2;
+  view.oy = (sh - imgH * s) / 2;
+  applyView();
+}
+
+// ── Pins ─────────────────────────────────────────────────────────────
+function buildPins() {
+  pinLayer.innerHTML = '';
+  pins = [];
+  manifest.landmarks.forEach(function (def) {
+    var el = document.createElement('div');
+    el.className = 'pin ' + (def.distinctive ? 'distinctive' : 'generic');
+    el.innerHTML = '<div class="tag"></div><div class="dot"></div><div class="stem"></div>';
+    el.querySelector('.tag').textContent = def.name;
+    pinLayer.appendChild(el);
+    var pin = { def: def, el: el, fx: def.fx, fy: def.fy, moved: false };
+    pins.push(pin);
+    attachPinDrag(pin);
+    el.addEventListener('mousedown', function () { setActive(def.id); });
+  });
+  positionPins();
+}
+function positionPins() {
+  // pins live inside stage-inner (image space), so position in image px
+  pins.forEach(function (pin) {
+    pin.el.style.left = (pin.fx * imgW) + 'px';
+    pin.el.style.top  = (pin.fy * imgH) + 'px';
+  });
+}
+function attachPinDrag(pin) {
+  var dragging = false, startX, startY, startFx, startFy;
+  pin.el.addEventListener('mousedown', function (ev) {
+    if (ev.button !== 0) return;
+    ev.preventDefault(); ev.stopPropagation();
+    dragging = true; pin.el.classList.add('dragging');
+    startX = ev.clientX; startY = ev.clientY; startFx = pin.fx; startFy = pin.fy;
+  });
+  function move(ev) {
+    if (!dragging) return;
+    // screen delta -> image-fraction delta (divide by scale and image size)
+    var dxImg = (ev.clientX - startX) / view.scale;
+    var dyImg = (ev.clientY - startY) / view.scale;
+    pin.fx = Math.max(0, Math.min(1, startFx + dxImg / imgW));
+    pin.fy = Math.max(0, Math.min(1, startFy + dyImg / imgH));
+    pin.el.style.left = (pin.fx * imgW) + 'px';
+    pin.el.style.top  = (pin.fy * imgH) + 'px';
+    if (!pin.moved) { pin.moved = true; pin.el.classList.add('confirmed'); }
+    renderRow(pin.def.id);
+  }
+  function up() {
+    if (!dragging) return;
+    dragging = false; pin.el.classList.remove('dragging');
+  }
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+}
+
+// ── Side list ────────────────────────────────────────────────────────
+function buildList() {
+  listEl.innerHTML = '';
+  manifest.landmarks.forEach(function (def) {
+    var row = document.createElement('div');
+    row.className = 'row';
+    row.id = 'row-' + def.id;
+    row.addEventListener('click', function () { setActive(def.id); focusPin(def.id); });
+    listEl.appendChild(row);
+    renderRow(def.id);
+  });
+}
+function renderRow(id) {
+  var pin = pins.find(function (p) { return p.def.id === id; });
+  var row = document.getElementById('row-' + id);
+  if (!pin || !row) return;
+  var def = pin.def;
+  var w = fracToWorld(pin.fx, pin.fy);
+  var chipColor = def.distinctive
+    ? (pin.moved ? 'var(--green)' : 'var(--cyan)')
+    : (pin.moved ? 'var(--green)' : 'var(--amber-dim)');
+  var badge = pin.moved
+    ? '<span class="badge ok">✓ PLACED</span>'
+    : (def.distinctive ? '<span class="badge req">PLACE</span>'
+                       : '<span class="badge approx">APPROX</span>');
+  row.classList.toggle('active', activeId === id);
+  row.innerHTML =
+    '<div class="name"><span class="chip" style="background:' + chipColor + '"></span>'
+      + def.name + (def.optional ? ' <span style="color:var(--ink-dim)">(opt)</span>' : '')
+      + '</div>'
+    + '<div class="meta"><span>' + def.icon + '</span>'
+      + '<span class="coord">[' + round1(w.x) + ', ' + round1(w.y) + ']</span>'
+      + badge + '</div>'
+    + (def.note ? '<div class="note">' + def.note + '</div>' : '');
+}
+function setActive(id) {
+  activeId = id;
+  manifest.landmarks.forEach(function (d) {
+    var r = document.getElementById('row-' + d.id);
+    if (r) r.classList.toggle('active', d.id === id);
+  });
+  pins.forEach(function (p) {
+    p.el.style.outline = (p.def.id === id) ? '1px dashed var(--ink)' : 'none';
+    p.el.style.outlineOffset = '4px';
+  });
+}
+function focusPin(id) {
+  var pin = pins.find(function (p) { return p.def.id === id; });
+  if (!pin) return;
+  // center the view on the pin without changing scale
+  var sw = stage.clientWidth, sh = stage.clientHeight;
+  view.ox = sw / 2 - (pin.fx * imgW) * view.scale;
+  view.oy = sh / 2 - (pin.fy * imgH) * view.scale;
+  applyView();
+}
+
+// ── Export ───────────────────────────────────────────────────────────
+function buildYaml() {
+  // Emit a `landmarks:` block in the project's flow-map style. Optional
+  // pins (control tower / sandcrawler) are included as commented hints
+  // since they aren't in the YAML yet — uncomment to add them.
+  var lines = ['landmarks:'];
+  var live = manifest.landmarks.filter(function (d) { return !d.optional; });
+  var opt  = manifest.landmarks.filter(function (d) { return d.optional; });
+  function fmt(pin) {
+    var w = fracToWorld(pin.fx, pin.fy);
+    var idPad = (pin.def.id + ',').padEnd(12);
+    var iconPad = (pin.def.icon + ',').padEnd(9);
+    var namePad = ('"' + pin.def.name + '",').padEnd(22);
+    return '  - {id: ' + idPad + ' icon: ' + iconPad + ' name: ' + namePad
+      + ' pos: [' + round1(w.x) + ', ' + round1(w.y) + '],'
+      + ' min_zoom: ' + (pin.def.min_zoom || 2)
+      + ', max_zoom: ' + (pin.def.max_zoom || 3) + '}';
+  }
+  live.forEach(function (d) {
+    var pin = pins.find(function (p) { return p.def.id === d.id; });
+    lines.push(fmt(pin));
+  });
+  if (opt.length) {
+    lines.push('  # Optional adds (distinctive painted features not yet landmarks):');
+    opt.forEach(function (d) {
+      var pin = pins.find(function (p) { return p.def.id === d.id; });
+      lines.push('  # ' + fmt(pin).slice(2));
+    });
+  }
+  return lines.join('\n');
+}
+function showExport() {
+  document.getElementById('export-text').value = buildYaml();
+  document.getElementById('export-overlay').classList.add('show');
+}
+
+// ── Wiring ───────────────────────────────────────────────────────────
+function bindControls() {
+  document.getElementById('btn-export').addEventListener('click', showExport);
+  document.getElementById('btn-reset').addEventListener('click', function () {
+    pins.forEach(function (p) {
+      p.fx = p.def.fx; p.fy = p.def.fy; p.moved = false;
+      p.el.classList.remove('confirmed');
+      renderRow(p.def.id);
+    });
+    positionPins();
+  });
+  document.getElementById('btn-fit').addEventListener('click', fitToScreen);
+  document.getElementById('btn-close-export').addEventListener('click', function () {
+    document.getElementById('export-overlay').classList.remove('show');
+  });
+  document.getElementById('btn-copy').addEventListener('click', function () {
+    var ta = document.getElementById('export-text');
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    if (navigator.clipboard) { navigator.clipboard.writeText(ta.value).catch(function(){}); ok = true; }
+    if (ok) { var t = document.getElementById('toast'); t.classList.add('show');
+      setTimeout(function () { t.classList.remove('show'); }, 1400); }
+  });
+
+  // Pan (drag background) + zoom (wheel) on the stage
+  var panning = false, panStart = null;
+  stage.addEventListener('mousedown', function (ev) {
+    if (ev.target.closest('.pin')) return;     // pin drag handles itself
+    if (ev.button !== 0) return;
+    panning = true; panStart = { x: ev.clientX, y: ev.clientY, ox: view.ox, oy: view.oy };
+  });
+  window.addEventListener('mousemove', function (ev) {
+    if (!panning) return;
+    view.ox = panStart.ox + (ev.clientX - panStart.x);
+    view.oy = panStart.oy + (ev.clientY - panStart.y);
+    applyView();
+  });
+  window.addEventListener('mouseup', function () { panning = false; });
+  stage.addEventListener('wheel', function (ev) {
+    ev.preventDefault();
+    var rect = stage.getBoundingClientRect();
+    var cx = ev.clientX - rect.left, cy = ev.clientY - rect.top;
+    // world (image) point under cursor stays fixed
+    var ix = (cx - view.ox) / view.scale, iy = (cy - view.oy) / view.scale;
+    var step = ev.deltaY < 0 ? 1.12 : 1 / 1.12;
+    var ns = Math.max(0.1, Math.min(8, view.scale * step));
+    view.scale = ns;
+    view.ox = cx - ix * ns;
+    view.oy = cy - iy * ns;
+    applyView();
+  }, { passive: false });
+
+  window.addEventListener('resize', function () { /* keep current pan/zoom */ });
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────
+// Manifest resolution, in priority order:
+//   ?manifest=<url>     explicit JSON URL (full control)
+//   ?area=<area_key>    convention → manifests/<area_key>.json, generated
+//                       by tools/make_register_manifest.py
+//   (neither)           the baked-in Mos Eisley DEFAULT_MANIFEST
+// On any fetch/parse failure we fall back to DEFAULT_MANIFEST so the tool
+// always renders something draggable.
+function loadManifest() {
+  var params = new URLSearchParams(location.search);
+  var url = params.get('manifest');
+  var area = params.get('area');
+  if (!url && area) {
+    // Resolve relative to this page so it works under any static root.
+    url = 'manifests/' + area + '.json';
+  }
+  if (!url) return Promise.resolve(DEFAULT_MANIFEST);
+  return fetch(url)
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .catch(function (e) {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('manifest load failed (' + url + '), using default:', e);
+      }
+      return DEFAULT_MANIFEST;
+    });
+}
+loadManifest().then(function (m) {
+  manifest = m;
+  document.getElementById('area-sub').textContent =
+    (m.display_name || m.area_key || '') + '  ·  bounds ['
+    + m.bounds.x_min + ',' + m.bounds.y_min + ' → '
+    + m.bounds.x_max + ',' + m.bounds.y_max + ']';
+  img.onload = function () {
+    imgW = img.naturalWidth; imgH = img.naturalHeight;
+    stageInner.style.width = imgW + 'px';
+    stageInner.style.height = imgH + 'px';
+    img.style.width = imgW + 'px'; img.style.height = imgH + 'px';
+    buildPins(); buildList(); bindControls(); fitToScreen();
+  };
+  img.onerror = function () {
+    document.getElementById('area-sub').textContent =
+      'FAILED to load substrate: ' + m.substrate;
+  };
+  img.src = m.substrate;
+});
+</script>
+</body>
+</html>

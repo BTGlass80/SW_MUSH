@@ -238,14 +238,22 @@ archetypes:
       template: firespray
       transponder: spoofed
       crew_skill: "5D"
+      # Q1: no canonical figures as named NPCs, even in dynamic
+      # traffic. This pool was originally seeded with canonical CW
+      # bounty hunters (Cad Bane, Aurra Sing, Embo, Bossk, Sugi).
+      # Replaced May 5 2026 with non-canonical BHG-affiliated
+      # operatives. NOTE: this YAML file is not currently wired into
+      # any consumer (engine reads from npc_space_traffic.py's python
+      # dict). When this YAML gets wired (planned for the era-
+      # parameterized TrafficArchetype refactor), the Q1-clean pool
+      # will be active without further scrubbing needed.
       captain_name_pool:
-        # CW-era hunters. Mix of Boba's father's contemporaries, BHG types.
-        - "Cad Bane"
-        - "Aurra Sing"
-        - "Embo"
-        - "Bossk"
-        - "Sugi"
-        - "An Anonymous Hunter"
+        - "Zek Varro"
+        - "Dara Hess"
+        - "Kresh Vayl"
+        - "Onna Ruul"
+        - "Tarn the Reckoning"
+        - "An Unlisted Hunter"
       behavior_notes: "BHG-affiliated bounty hunter. Personalized hail; locks onto target. Will not engage non-targets unless attacked first."
 
 # ═══════════════════════════════════════════════════════════════════════

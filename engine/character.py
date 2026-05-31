@@ -9,6 +9,7 @@ effective dice pool for any skill check) and serialization to/from the DB.
 import json
 import logging
 import os
+import time
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Optional
@@ -135,6 +136,53 @@ class SkillRegistry:
         return len(self._skills)
 
 
+# ── Cached default registry ───────────────────────────────────────────
+#
+# Many parser sites previously did:
+#     sr = SkillRegistry()
+#     sr.load_file("data/skills.yaml")
+# inside a command handler. That re-parses the YAML synchronously on the
+# asyncio event loop every time the command runs — contributing to
+# "tick loop fell behind" warnings. Use get_cached_skill_registry() for
+# read-only lookups; the registry is loaded once on first use.
+
+_CACHED_SKILL_REG: Optional["SkillRegistry"] = None
+
+
+def get_cached_skill_registry(
+    yaml_path: Optional[str] = None,
+) -> "SkillRegistry":
+    """Return a process-wide cached SkillRegistry, loading on first use.
+
+    The cache is loaded synchronously the first time it's requested.
+    Subsequent calls return the same instance with no I/O. Pass a custom
+    yaml_path to force-reload (used by tests); a custom path always
+    rebuilds the cache.
+
+    The returned registry should be treated as read-only by callers.
+    Mutating it would affect every other caller in the process.
+    """
+    global _CACHED_SKILL_REG
+    if _CACHED_SKILL_REG is not None and yaml_path is None:
+        return _CACHED_SKILL_REG
+
+    reg = SkillRegistry()
+    if yaml_path is None:
+        # Default: data/skills.yaml relative to the project root.
+        _here = os.path.dirname(os.path.abspath(__file__))
+        _root = os.path.dirname(_here)
+        yaml_path = os.path.join(_root, "data", "skills.yaml")
+    reg.load_file(yaml_path)
+    _CACHED_SKILL_REG = reg
+    return reg
+
+
+def reset_cached_skill_registry() -> None:
+    """Drop the cached registry. Tests use this to force a reload."""
+    global _CACHED_SKILL_REG
+    _CACHED_SKILL_REG = None
+
+
 # ── Character ──
 
 @dataclass
@@ -174,6 +222,31 @@ class Character:
     # Stun knockout threshold: len(active_stuns) >= STR dice → unconscious.
     stun_timers: list = field(default_factory=list)  # list[int] — rounds remaining per stun
     mortally_wounded_rounds: int = 0  # Rounds spent mortally wounded (for death roll)
+    # ── PG.1.death wound_state (Drop 2c, May 19 2026 evening) ──
+    # Post-respawn debuff per progression_gates_and_consequences §3.3.
+    # Distinct from wound_level (the WEG R&E in-combat ladder).
+    #   wound_state: 'healthy' | 'wounded'  (DB column wound_state)
+    #   wound_clear_at: unix-epoch seconds; 0 means no active clock.
+    # Contributes +1 to total_penalty_dice when 'wounded' so every
+    # existing dice-pool call site picks up the −1D automatically.
+    wound_state: str = "healthy"
+    wound_clear_at: float = 0.0
+    # ── Drop D Phase 3: STRICT R&E stun-KO (May 28 2026) ──
+    # Wall-clock unconscious gate from R&E p83 stun ruling:
+    # "Weapons set for stun roll damage normally, but treat any result
+    #  more serious than 'stunned' as 'unconscious for 2D minutes.'"
+    # The 2D roll happens when the KO triggers in combat.py; this field
+    # holds the unix-epoch-seconds deadline. 0.0 means no active KO.
+    # Process-state only — NOT persisted to DB. A server restart wakes
+    # everyone up, which is the R&E-friendlier outcome vs. leaving
+    # players KO'd through a deploy.
+    #
+    # Unit decision: SECONDS (float), matching wound_clear_at and the
+    # rest of the codebase's wall-clock convention. The original
+    # design memo named the field `unconscious_until_ms` (ms-suffixed)
+    # but the in-codebase convention is seconds; using ms here would
+    # be inconsistent with every other timer. See handoff §1.3.
+    unconscious_until: float = 0.0
     character_points: int = 5
     force_points: int = 1
     dark_side_points: int = 0
@@ -208,8 +281,58 @@ class Character:
 
     @property
     def total_penalty_dice(self) -> int:
-        """Total dice penalty from wounds + active stuns."""
-        return self.wound_level.penalty_dice + self.active_stun_count
+        """Total dice penalty from wounds + active stuns + PG.1.death
+        respawn-Wounded debuff.
+
+        Drop 2c (May 19 2026 evening): wound_state='wounded' adds +1
+        to the penalty (i.e. −1D to all rolls). The penalty lifts when
+        the wound_state recovery clock expires (engine.death.
+        tick_wound_recovery) or a med-droid clears it (PG.1.death.b).
+        """
+        respawn_debuff = 1 if self.wound_state == "wounded" else 0
+        return (self.wound_level.penalty_dice + self.active_stun_count
+                + respawn_debuff)
+
+    # ── Drop D Phase 3: STRICT R&E stun-KO gate ───────────────────────
+    def is_stun_unconscious(self, now: Optional[float] = None) -> bool:
+        """True while a stun-KO wall-clock is active (R&E p83).
+
+        ``now`` defaults to ``time.time()``; tests pass a fixed value
+        for determinism. The KO clears the moment ``now`` reaches
+        ``unconscious_until`` (strict ``<``); a single-call equality
+        check at the deadline reports awake, matching the existing
+        ``wound_clear_at`` convention in engine.death.
+        """
+        if self.unconscious_until <= 0.0:
+            return False
+        if now is None:
+            now = time.time()
+        return now < self.unconscious_until
+
+    def can_act_now(self, now: Optional[float] = None) -> bool:
+        """True iff the character may declare/resolve combat actions
+        this round. Combines the WEG wound ladder
+        (``wound_level.can_act``) with the Drop-D-Phase-3 stun-KO
+        gate (``is_stun_unconscious``).
+
+        Call sites in combat.py that currently use
+        ``char.wound_level.can_act`` should migrate to this so a
+        stun-KO'd character cannot act even when their wound_level
+        is only STUNNED (the KO branch leaves wound_level at STUNNED
+        per R&E and uses ``unconscious_until`` as the independent
+        gate)."""
+        if not self.wound_level.can_act:
+            return False
+        if self.is_stun_unconscious(now):
+            return False
+        return True
+
+    def clear_stun_unconscious(self) -> None:
+        """Wake the character from a stun-KO. Idempotent — safe to call
+        even when no KO is active. Used by the combat tick loop when
+        the wall-clock deadline passes, and exposed for tests + admin
+        revive commands."""
+        self.unconscious_until = 0.0
 
     def get_attribute(self, name: str) -> DicePool:
         """Get an attribute pool by name."""
@@ -518,6 +641,15 @@ class Character:
         char.dark_side_points = data.get("dark_side_points", 0)
         char.credits = data.get("credits", 1000)
         char.wound_level = WoundLevel(data.get("wound_level", 0))
+        # PG.1.death (Drop 2c): the new wound_state column rides
+        # alongside wound_level. Defaults match the schema migration
+        # ('healthy', 0.0) so pre-migration rows or partial dicts
+        # work cleanly.
+        char.wound_state = data.get("wound_state") or "healthy"
+        try:
+            char.wound_clear_at = float(data.get("wound_clear_at") or 0.0)
+        except (TypeError, ValueError):
+            char.wound_clear_at = 0.0
         # chargen_notes is optional — pre-migration rows return None.
         char.chargen_notes = data.get("chargen_notes", "") or ""
 

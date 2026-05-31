@@ -194,8 +194,11 @@ class TestMedicalUmbrella(unittest.TestCase):
 
     def test_valid_switches(self):
         from parser.medical_commands import MedicalCommand
+        # SRB.1 (May 21 2026): added 'stim' and 'stimaccept' verbs to
+        # the umbrella per support_role_buffs_design_v1.md §3.
         self.assertEqual(set(MedicalCommand.valid_switches),
-                         {"heal", "accept", "rate"})
+                         {"heal", "accept", "rate",
+                          "stim", "stimaccept"})
 
     def test_aliases_cover_bare_verbs(self):
         from parser.medical_commands import MedicalCommand
@@ -204,8 +207,10 @@ class TestMedicalUmbrella(unittest.TestCase):
 
     def test_switch_impl_populated(self):
         from parser.medical_commands import _MEDICAL_SWITCH_IMPL
+        # SRB.1 (May 21 2026): added 'stim' and 'stimaccept' impls.
         self.assertEqual(set(_MEDICAL_SWITCH_IMPL.keys()),
-                         {"heal", "accept", "rate"})
+                         {"heal", "accept", "rate",
+                          "stim", "stimaccept"})
 
 
 class TestMedicalHelpFile(unittest.TestCase):
@@ -283,9 +288,15 @@ class TestFactionUmbrella(unittest.TestCase):
         self.assertNotIn("+faction", FactionCommand.aliases)
 
     def test_switch_impl_populated(self):
+        # SYN.10 (May 25 2026) added contest + resource_outlook handlers
+        # per design §2.6. Both surface engine.territory_display data via
+        # faction-scoped renderers. The umbrella keeps the original four
+        # forwarders (view/guild/specialize/reputation) and gains two
+        # direct handlers, for six total impls.
         from parser.faction_commands import _FACTION_SWITCH_IMPL
         self.assertEqual(set(_FACTION_SWITCH_IMPL.keys()),
-                         {"view", "guild", "specialize", "reputation"})
+                         {"view", "guild", "specialize", "reputation",
+                          "contest", "resource_outlook"})
 
 
 class TestFactionHelpFile(unittest.TestCase):

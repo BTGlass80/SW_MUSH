@@ -4,10 +4,11 @@ engine/lightsaber_construction.py — F.7.g — Path A lightsaber forge scene.
 
 Per ``data/worlds/clone_wars/quests/jedi_village.yaml`` (the path_a
 branch consequences) and design §7.1: when a Village quest player
-commits to Path A (Jedi Order), Master Mace Windu leads them through
-the Coruscant Temple's Apprentice Forge to construct their first
-lightsaber from the Adegan crystal they earned at the Trial of
-Skill.
+commits to Path A (Jedi Order), Master Tova Resh (the Order's
+intake-archives liaison — an original, non-canonical Master per
+Q1 policy) leads them through the Coruscant Temple's Apprentice
+Forge to construct their first lightsaber from the Adegan crystal
+they earned at the Trial of Skill.
 
 The yaml-spec'd consequences are:
 
@@ -24,8 +25,9 @@ Integration point
 =================
 
 ``engine/village_choice.py::_commit_path_a`` calls
-``construct_lightsaber(session, db, char)`` between the Mace Windu
-narration and the teleport to ``jedi_temple_main_gate``. The scene
+``construct_lightsaber(session, db, char)`` between the Master
+Tova Resh reception narration and the teleport to
+``jedi_temple_main_gate``. The scene
 is best-effort: if construction fails for any reason (missing
 crystal, missing skill registry, DB write failure), the Path A
 commit itself is not blocked — the player still teleports, the
@@ -194,7 +196,33 @@ def ensure_skill_floor(char: dict, skill_key: str, floor_dice: int) -> bool:
 
 
 async def _set_chargen_flags(db, char: dict, **flags) -> None:
-    """Update chargen_notes JSON with the given flags and persist."""
+    """Update chargen_notes JSON with the given flags and persist.
+
+    F.8.c.2.b₆ (May 20 2026): delegates to the canonical helper at
+    ``engine.village_choice._set_chargen_flags`` so the prerequisite
+    chain-event hook fires uniformly. The previous in-module copy
+    did not call `on_prerequisite_flag_set`, which was correct at
+    write-time (the only flag this module sets,
+    village_trial_lightsaber_construction_*, isn't in
+    ALLOWED_PREREQUISITE_FLAGS) but became a latent bug as
+    chain authoring evolved. Centralizing prevents the next
+    "we added a new prereq flag and forgot to update both
+    helpers" regression.
+
+    Failure-tolerant: if village_choice can't be imported (test
+    fixture with a minimal engine subset), falls back to the
+    inline write so the lightsaber path still succeeds.
+    """
+    try:
+        from engine.village_choice import (
+            _set_chargen_flags as _canonical,
+        )
+        await _canonical(db, char, **flags)
+        return
+    except ImportError:
+        pass
+    # Fallback path (test fixtures only — production always
+    # imports village_choice).
     notes = _read_chargen_notes(char)
     notes.update(flags)
     serialized = json.dumps(notes)
@@ -210,9 +238,9 @@ async def _emit_construction_scene(session) -> None:
     await session.send_line("")
     await session.send_line(
         "  \033[1;33m*The Apprentice Forge sits one level below the "
-        "main floor of the Temple. Master Windu leads you down. The "
-        "chamber is small, circular, and lit only by the slow blue "
-        "burn of a focusing array.*\033[0m"
+        "main floor of the Temple. Master Tova Resh leads you down. "
+        "The chamber is small, circular, and lit only by the slow "
+        "blue burn of a focusing array.*\033[0m"
     )
     await session.send_line(
         "  \033[1;33m\"Place the crystal on the bench. Show me your "
@@ -222,7 +250,7 @@ async def _emit_construction_scene(session) -> None:
     await session.send_line(
         "  \033[2m*You set the Adegan crystal — the same one you "
         "scored at Daro's anvil weeks ago — onto the bench. Master "
-        "Windu watches without speaking. After a moment he gestures, "
+        "Tova watches without speaking. After a moment she gestures, "
         "and a small machined cylinder rises from the bench's centre "
         "well. It is unfinished. Empty. Waiting.*\033[0m"
     )
@@ -247,7 +275,7 @@ async def _emit_construction_scene(session) -> None:
     )
     await session.send_line("")
     await session.send_line(
-        "  \033[1;33m*Master Windu nods, once.*\033[0m"
+        "  \033[1;33m*Master Tova nods, once.*\033[0m"
     )
     await session.send_line(
         "  \033[1;33m\"Adequate. Practise the form-zero stances "

@@ -177,34 +177,59 @@ class TestSourceLevelDeletionGuards(unittest.TestCase):
 # 3. New behavior — era=None defaults to "gcw"
 # ──────────────────────────────────────────────────────────────────────
 
-class TestEraNoneDefaultsToGCW(unittest.TestCase):
+class TestEraNoneDefaultsToActiveEra(unittest.TestCase):
     """Pre-Phase-2 era=None returned in-Python literals; post-Phase-2
-    it must default to "gcw" (loading from
-    data/worlds/gcw/director_config.yaml)."""
+    it defaults to the active era YAML (loading from
+    data/worlds/<era>/director_config.yaml).
 
-    def test_get_director_runtime_config_era_none_yields_yaml_gcw(self):
+    POST-ACTIVE_ERA-PIVOT (May 18 2026):
+    Originally this class was named ``TestEraNoneDefaultsToGCW`` and
+    asserted era=None → 'gcw'. After the active_era pivot from "gcw"
+    to "clone_wars" (server/config.py + engine/era_state.py), era=None
+    now defaults to "clone_wars". The asserted source label is
+    therefore "yaml-clone_wars", not "yaml-gcw".
+
+    The original "era=None == era=gcw" identity test has been
+    rewritten as "era=None == era=<active_era>" using
+    ``engine.era_state.get_active_era()`` so the test follows future
+    era pivots without needing another edit.
+    """
+
+    def test_get_director_runtime_config_era_none_yields_active_era_yaml(self):
         from engine.director_config_loader import get_director_runtime_config
-        gcw_dir = os.path.join(PROJECT_ROOT, "data", "worlds", "gcw")
-        if not os.path.isfile(os.path.join(gcw_dir, "director_config.yaml")):
-            self.skipTest("data/worlds/gcw/director_config.yaml not present")
+        from engine.era_state import get_active_era
+        active_era = get_active_era()
+        era_dir = os.path.join(PROJECT_ROOT, "data", "worlds", active_era)
+        if not os.path.isfile(
+                os.path.join(era_dir, "director_config.yaml")):
+            self.skipTest(
+                f"data/worlds/{active_era}/director_config.yaml not present"
+            )
         cfg = get_director_runtime_config(era=None)
-        self.assertEqual(cfg.source, "yaml-gcw",
-                         "era=None should default to 'gcw' and produce "
-                         "source='yaml-gcw' (not 'legacy' anymore)")
+        self.assertEqual(
+            cfg.source, f"yaml-{active_era}",
+            f"era=None should default to {active_era!r} and produce "
+            f"source='yaml-{active_era}' (not 'legacy' anymore)",
+        )
         self.assertGreater(len(cfg.valid_factions), 0)
         self.assertGreater(len(cfg.zone_baselines), 0)
 
-    def test_get_director_runtime_config_era_none_equals_era_gcw(self):
-        """era=None and era='gcw' must produce identical configs."""
+    def test_get_director_runtime_config_era_none_equals_active_era(self):
+        """era=None and era=<active_era> must produce identical configs."""
         from engine.director_config_loader import get_director_runtime_config
-        gcw_dir = os.path.join(PROJECT_ROOT, "data", "worlds", "gcw")
-        if not os.path.isfile(os.path.join(gcw_dir, "director_config.yaml")):
-            self.skipTest("data/worlds/gcw/director_config.yaml not present")
+        from engine.era_state import get_active_era
+        active_era = get_active_era()
+        era_dir = os.path.join(PROJECT_ROOT, "data", "worlds", active_era)
+        if not os.path.isfile(
+                os.path.join(era_dir, "director_config.yaml")):
+            self.skipTest(
+                f"data/worlds/{active_era}/director_config.yaml not present"
+            )
         cfg_none = get_director_runtime_config(era=None)
-        cfg_gcw = get_director_runtime_config(era="gcw")
-        self.assertEqual(cfg_none.valid_factions, cfg_gcw.valid_factions)
-        self.assertEqual(cfg_none.zone_baselines, cfg_gcw.zone_baselines)
-        self.assertEqual(cfg_none.system_prompt, cfg_gcw.system_prompt)
+        cfg_active = get_director_runtime_config(era=active_era)
+        self.assertEqual(cfg_none.valid_factions, cfg_active.valid_factions)
+        self.assertEqual(cfg_none.zone_baselines, cfg_active.zone_baselines)
+        self.assertEqual(cfg_none.system_prompt, cfg_active.system_prompt)
 
 
 # ──────────────────────────────────────────────────────────────────────

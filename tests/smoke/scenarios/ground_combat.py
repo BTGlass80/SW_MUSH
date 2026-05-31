@@ -36,10 +36,28 @@ async def _find_hostile_npc(h):
     matching ``engine/npc_combat_ai.is_hostile()``. (The char sheet
     is unrelated to hostility — this was a smoke-harness bug found
     during SH2 development.)
+
+    May 24 2026 — bugfix: filter ``room_id IS NOT NULL`` at the SQL
+    layer. NPCs with ``NULL`` room_id are legitimate (hired-but-
+    unassigned NPCs, ship crew on unassigned ships, despawned-but-
+    not-deleted entities) but they can't host a ground-combat
+    scenario, and SQLite's unordered SELECT was returning them
+    first on Python 3.14 / Windows, which crashed
+    ``int(r["room_id"])`` with a TypeError. The same race surfaced
+    as the long-standing CX4 "+combat produces no output" flake —
+    when an earlier scenario in the class-scoped harness reaches a
+    NULL-room NPC first, the helper raises, and the test's output
+    buffer is left empty.
+
+    ORDER BY id is added for deterministic row order — the same
+    hostile NPC is returned across all callers within one class-
+    scoped harness run, regardless of platform.
     """
     import json as _json
     rows = await h.db.fetchall(
-        "SELECT id, name, room_id, ai_config_json FROM npcs"
+        "SELECT id, name, room_id, ai_config_json FROM npcs "
+        "WHERE room_id IS NOT NULL "
+        "ORDER BY id"
     )
     for r in rows:
         try:

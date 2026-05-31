@@ -475,14 +475,17 @@ async def cleanup_boarding_party(ship_id: int, db) -> int:
     if bridge_room:
         try:
             from parser.combat_commands import _active_combats, _npc_behaviors
-            combat = _active_combats.get(bridge_room)
+            # W.2.4: combat is keyed by tuple (room_id, wx, wy).
+            # Ship bridges are never wilderness rooms, so wx=wy=None.
+            combat_key = (bridge_room, None, None)
+            combat = _active_combats.get(combat_key)
             if combat:
                 for npc_id in npc_ids:
                     combat.remove_combatant(npc_id)
                     _npc_behaviors.pop(npc_id, None)
                 # If combat is now over (only player left), clean it up
                 if combat.is_over:
-                    _active_combats.pop(bridge_room, None)
+                    _active_combats.pop(combat_key, None)
         except Exception:
             log.warning("[boarding_enc] combat cleanup error", exc_info=True)
 
@@ -555,7 +558,7 @@ async def check_boarding_party_status(ship_id: int, db, session_mgr) -> Optional
         # Check combat state — is NPC still able to fight?
         from engine.npc_combat_ai import build_npc_character
         char = build_npc_character(npc)
-        if char and char.wound_level.can_act:
+        if char and char.can_act_now():
             alive_count += 1
 
     if alive_count == 0:

@@ -155,7 +155,7 @@ milestone_events:
     faction: criminal
     threshold: 85
     direction: above
-  headline: Jabba's enforcers patrol the streets. The Empire has lost control.
+  headline: Cartel enforcers patrol the streets openly. The Empire has lost control.
   fires_once: true
 - id: rebel_whispers
   trigger:

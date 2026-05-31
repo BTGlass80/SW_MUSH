@@ -75,7 +75,11 @@ class FactionCommand(BaseCommand):
         "  faction armory deposit <item>      — deposit item into armory\n"
         "  faction armory withdraw <item>     — withdraw item from armory\n"
         "  faction armory withdraw <res> <n>  — withdraw crafting resources\n"
-        "  faction seize             — seize rival room after killing its guard (lawless only)\n"
+        "\n"
+        "RESOURCE OUTLOOK (weekly, per design §2.5.5):\n"
+        "  faction resource_outlook   — show this week's per-region quality\n"
+        "                                multipliers (best/worst types per region).\n"
+        "                                Aliases: outlook, resources.\n"
         "\n"
         "You can only belong to ONE faction at a time.\n"
         "Switching factions has a 7-day cooldown."
@@ -118,9 +122,12 @@ class FactionCommand(BaseCommand):
             "terr": self._cmd_influence,
             "claim": self._cmd_claim,
             "unclaim": self._cmd_unclaim,
+            # ── SYN.6.b (May 25 2026): resource outlook digest ──
+            "resource_outlook": self._cmd_resource_outlook,
+            "outlook": self._cmd_resource_outlook,
+            "resources": self._cmd_resource_outlook,
             "guard": self._cmd_guard,
             "armory": self._cmd_armory,
-            "seize": self._cmd_seize,
             "hq": self._handle_hq,
         }
         handler = _dispatch.get(sub)
@@ -136,7 +143,8 @@ class FactionCommand(BaseCommand):
         await ctx.session.send_line(
             f"  Unknown faction subcommand '{sub}'.\n"
             f"  Try: list, join, leave, info, roster, missions, channel, "
-            f"requisition, invest, influence, claim, unclaim, guard, armory, seize, hq"
+            f"requisition, invest, influence, claim, unclaim, "
+            f"resource_outlook, guard, armory, hq"
         )
 
     async def _cmd_status(self, ctx, char, rest):
@@ -442,13 +450,30 @@ class FactionCommand(BaseCommand):
         # ── faction claim ──
 
     async def _cmd_claim(self, ctx, char, rest):
+        """SYN.1.b (2026-05-24): retargeted from per-room
+        ``claim_room`` to region-scope ``claim_region``. Player must
+        be standing in a room within the wilderness region they want
+        to claim — the room's ``wilderness_region_id`` is the slug
+        passed to ``claim_region``. City-map rooms (no
+        wilderness_region_id) get a clear-message rejection.
+        """
         faction_id = char.get("faction_id", "independent")
         if not faction_id or faction_id == "independent":
             await ctx.session.send_line("  You're not in a faction.")
             return
-        from engine.territory import claim_room
         room_id = char.get("room_id")
-        result = await claim_room(ctx.db, char, faction_id, room_id)
+        room = await ctx.db.get_room(room_id) if room_id else None
+        region_slug = (room or {}).get("wilderness_region_id")
+        if not region_slug:
+            await ctx.session.send_line(
+                "  \033[1;33mTerritory claims are made on wilderness "
+                "regions, not city-map rooms. Travel into a wilderness "
+                "region first, then use 'faction claim' to claim it for "
+                "your organization.\033[0m"
+            )
+            return
+        from engine.territory import claim_region
+        result = await claim_region(ctx.db, char, faction_id, region_slug)
         await ctx.session.send_line(
             f"  \033[1;36m{result['msg']}\033[0m" if result["ok"]
             else f"  \033[1;33m{result['msg']}\033[0m"
@@ -456,8 +481,9 @@ class FactionCommand(BaseCommand):
         if result["ok"]:
             await ctx.session_mgr.broadcast_to_room(
                 room_id,
-                f"  \033[1;37m{char['name']} plants a marker — "
-                f"this room is now claimed by {faction_id.replace('_', ' ').title()}.\033[0m",
+                f"  \033[1;37m{char['name']} plants a banner — "
+                f"this region is now claimed by "
+                f"{faction_id.replace('_', ' ').title()}.\033[0m",
                 exclude=ctx.session,
                 source_char=char,
         )
@@ -466,17 +492,101 @@ class FactionCommand(BaseCommand):
         # ── faction unclaim ──
 
     async def _cmd_unclaim(self, ctx, char, rest):
+        """SYN.1.b (2026-05-24): retargeted from per-room
+        ``unclaim_room`` to region-scope ``unclaim_region``."""
         faction_id = char.get("faction_id", "independent")
         if not faction_id or faction_id == "independent":
             await ctx.session.send_line("  You're not in a faction.")
             return
-        from engine.territory import unclaim_room
         room_id = char.get("room_id")
-        result = await unclaim_room(ctx.db, char, faction_id, room_id)
+        room = await ctx.db.get_room(room_id) if room_id else None
+        region_slug = (room or {}).get("wilderness_region_id")
+        if not region_slug:
+            await ctx.session.send_line(
+                "  \033[1;33mYou must be standing in the wilderness region "
+                "you want to release. City-map rooms aren't claimable.\033[0m"
+            )
+            return
+        from engine.territory import unclaim_region
+        result = await unclaim_region(ctx.db, char, faction_id, region_slug)
         await ctx.session.send_line(
             f"  \033[1;36m{result['msg']}\033[0m" if result["ok"]
             else f"  \033[1;33m{result['msg']}\033[0m"
         )
+        return
+
+        # ── faction resource_outlook ── (SYN.6.b, 2026-05-25)
+        # The Director's "crafter's news feed" — per design §2.5.5,
+        # shows which wilderness regions have the best resource
+        # multipliers this week. Restricted to the caller's owned
+        # regions if they're in a faction; shows everything if
+        # independent (with a "for context only" framing line).
+
+    async def _cmd_resource_outlook(self, ctx, char, rest):
+        """SYN.6.b: weekly resource outlook digest.
+
+        Surfaces the per-region per-resource-type quality multipliers
+        rolled by ``engine.region_quality.tick_weekly_region_quality``.
+        For a faction member: limited to their org's owned regions.
+        For an independent: shows all regions (read-only context).
+
+        Per design §2.5.5: this is the "crafter's news feed" that
+        drives wilderness traffic without forcing combat engagement.
+        """
+        from engine.region_quality import get_outlook, _iso_year_week
+
+        faction_id = char.get("faction_id", "independent")
+        is_independent = (not faction_id) or faction_id == "independent"
+        org_filter = None if is_independent else faction_id
+
+        outlook = await get_outlook(ctx.db, org_filter)
+        current_week = _iso_year_week()
+
+        await ctx.session.send_line(
+            f"  \033[1;36mResource Outlook — week {current_week}\033[0m"
+        )
+        if is_independent:
+            await ctx.session.send_line(
+                "  \033[2m(All wilderness regions; you're not in a "
+                "faction so this is for context only.)\033[0m"
+            )
+        else:
+            org_label = faction_id.replace("_", " ").title()
+            await ctx.session.send_line(
+                f"  \033[2m({org_label} territories)\033[0m"
+            )
+
+        if not outlook:
+            await ctx.session.send_line(
+                "  \033[2mNo region quality data yet. The weekly tick "
+                "rolls Monday at server midnight.\033[0m"
+            )
+            return
+
+        # Sort regions by best-multiplier descending so the most
+        # interesting regions surface first.
+        sorted_regions = sorted(
+            outlook.items(),
+            key=lambda kv: kv[1]["best"][1],
+            reverse=True,
+        )
+        for slug, summary in sorted_regions:
+            best_type, best_mult = summary["best"]
+            worst_type, worst_mult = summary["worst"]
+            slug_label = slug.replace("_", " ").title()
+            # Color-grade by best multiplier: green for ≥1.2×, yellow
+            # for 1.0..1.2×, dim for <1.0×.
+            if best_mult >= 1.2:
+                color = "\033[1;32m"  # bright green
+            elif best_mult >= 1.0:
+                color = "\033[1;33m"  # bright yellow
+            else:
+                color = "\033[2m"     # dim
+            await ctx.session.send_line(
+                f"  {color}{slug_label:<28}\033[0m  "
+                f"best: {best_type:<8} {best_mult:.2f}×   "
+                f"worst: {worst_type:<8} {worst_mult:.2f}×"
+            )
         return
 
         # ── faction guard ──
@@ -485,10 +595,26 @@ class FactionCommand(BaseCommand):
         # faction guard remove   — dismiss the guard from the current claimed room
 
     async def _cmd_guard(self, ctx, char, rest):
+        """SYN.1.b (2026-05-24): per-room guard stationing retired.
+        Region garrisons are deployed automatically by ``claim_region``;
+        there is no player-driven per-room guard command under the
+        region model. Body preserved as a clear-message rejection so
+        existing help text + tab-completion continue to work, but the
+        underlying spawn_guard_npc / remove_guard_npc / get_claim
+        surfaces are stubs now (see engine/territory.py).
+        """
         faction_id = char.get("faction_id", "independent")
         if not faction_id or faction_id == "independent":
             await ctx.session.send_line("  You're not in a faction.")
             return
+        await ctx.session.send_line(
+            "  \033[1;33mPer-room guard stationing has been retired. "
+            "Region garrisons are deployed automatically when your "
+            "faction claims a wilderness region — see "
+            "'faction claim' and 'faction territory'.\033[0m"
+        )
+        return
+        # ── unreachable: preserved for reference until SYN.4 cleanup ──
         room_id = char.get("room_id")
         from engine.territory import (
             get_claim, spawn_guard_npc, remove_guard_npc,
@@ -624,31 +750,12 @@ class FactionCommand(BaseCommand):
         return
 
         # ── faction seize ──
-        # Hostile takeover of a rival-claimed room after killing its guard.
-        # Lawless zones only. Requires 50+ influence and 5,000cr treasury.
+        # RETIRED in SYN.3 (2026-05-25). Per-room seizure is gone
+        # — per-room claims retired in SYN.1.b, and the Drop 6D
+        # hostile-takeover-on-guard-kill flow deleted in SYN.3.
+        # Region-level seizure happens organically through the
+        # contest state machine in engine/contest.py.
 
-    async def _cmd_seize(self, ctx, char, rest):
-        faction_id = char.get("faction_id", "independent")
-        if not faction_id or faction_id == "independent":
-            await ctx.session.send_line("  You're not in a faction.")
-            return
-        from engine.territory import hostile_takeover_claim
-        room_id = char.get("room_id")
-        result = await hostile_takeover_claim(ctx.db, char, faction_id, room_id)
-        await ctx.session.send_line(
-            f"  [1;31m{result['msg']}[0m" if result["ok"]
-            else f"  [1;33m{result['msg']}[0m"
-        )
-        if result["ok"]:
-            await ctx.session_mgr.broadcast_to_room(
-                room_id,
-                f"  [1;31m[TERRITORY SEIZED][0m "
-                f"{char['name']} claims this room for "
-                f"{faction_id.replace('_', ' ').title()}!",
-                exclude=ctx.session,
-                source_char=char,
-        )
-        return
 
         # ── faction hq ──
 
@@ -919,6 +1026,13 @@ _FACTION_ALIAS_TO_SWITCH: dict[str, str] = {
     "info":  "view",
     "rep":   "reputation",
     "spec":  "specialize",
+    # SYN.10 (May 25 2026): contest + resource_outlook subcommands
+    # per design §2.6. Provides faction-scoped views of active
+    # contests and weekly resource quality for owned regions.
+    "contests":         "contest",
+    "outlook":          "resource_outlook",
+    "resource":         "resource_outlook",
+    "quality":          "resource_outlook",
 }
 
 
@@ -937,6 +1051,8 @@ class FactionUmbrellaCommand(BaseCommand):
         "view", "guild", "specialize", "reputation",
         "list", "join", "leave", "roster", "missions",
         "claim", "hq",
+        # SYN.10 (May 25 2026): contest + resource_outlook
+        "contest", "resource_outlook",
     ]
 
     async def execute(self, ctx: CommandContext):
@@ -982,10 +1098,75 @@ def _init_faction_switch_impl():
         ctx.args = rest
         await cmd.execute(ctx)
 
+    # SYN.10 (May 25 2026): contest + resource_outlook handlers.
+    # Per design §2.6. Both surface engine.territory_display data
+    # via faction-scoped renderers. Failure-tolerant: any engine
+    # exception falls back to a one-liner so the umbrella doesn't
+    # become a UX hole.
+    async def _contest(ctx, rest):
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line("  You must be in the game.")
+            return
+        org_code = char.get("faction_id")
+        if not org_code or org_code == "independent":
+            await ctx.session.send_line(
+                "  You aren't a member of a faction. Join one to "
+                "see contests."
+            )
+            return
+        try:
+            from engine.territory_display import (
+                get_faction_contests_lines,
+            )
+            lines = await get_faction_contests_lines(
+                ctx.db, org_code, ansi=True,
+            )
+        except Exception:
+            log.exception("[+faction contest] render failed")
+            await ctx.session.send_line(
+                "  The contests display is offline. Try again."
+            )
+            return
+        await ctx.session.send_line("")
+        for line in lines:
+            await ctx.session.send_line(line)
+
+    async def _resource_outlook(ctx, rest):
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line("  You must be in the game.")
+            return
+        org_code = char.get("faction_id")
+        if not org_code or org_code == "independent":
+            await ctx.session.send_line(
+                "  You aren't a member of a faction. Join one to "
+                "see resource outlook."
+            )
+            return
+        try:
+            from engine.territory_display import (
+                get_faction_resource_outlook_lines,
+            )
+            lines = await get_faction_resource_outlook_lines(
+                ctx.db, org_code, ansi=True,
+            )
+        except Exception:
+            log.exception("[+faction resource_outlook] render failed")
+            await ctx.session.send_line(
+                "  The resource outlook is offline. Try again."
+            )
+            return
+        await ctx.session.send_line("")
+        for line in lines:
+            await ctx.session.send_line(line)
+
     _FACTION_SWITCH_IMPL["view"] = _view
     _FACTION_SWITCH_IMPL["guild"] = _guild
     _FACTION_SWITCH_IMPL["specialize"] = _specialize
     _FACTION_SWITCH_IMPL["reputation"] = _reputation
+    _FACTION_SWITCH_IMPL["contest"] = _contest
+    _FACTION_SWITCH_IMPL["resource_outlook"] = _resource_outlook
 
 
 _init_faction_switch_impl()

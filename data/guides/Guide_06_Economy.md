@@ -1,4 +1,10 @@
-# SW_MUSH Detailed Systems Guide #6
+---
+category: economy
+order: 1
+summary: "Credits, missions, bounties, smuggling, and the daily P2P transfer cap. How money moves."
+tags: ["economy", "credits", "money", "missions", "bounty", "smuggling", "trade"]
+---
+
 # Economy: Missions, Bounties, Smuggling & Trade
 
 **SW_MUSH — Star Wars D6 Revised & Expanded**
@@ -19,7 +25,7 @@ The economy is designed around these targets for an active player:
 | **Living expenses** | 200–400 credits/hour |
 | **Net accumulation** | 300–1,600 credits/hour |
 
-The spread is intentional — a cautious player doing delivery missions earns less but risks nothing. A smuggler running raw spice earns 10x more but can lose half the reward to Imperial fines. Skill, risk tolerance, and time invested all affect income.
+The spread is intentional — a cautious player doing delivery missions earns less but risks nothing. A smuggler running raw spice earns 10x more but can lose half the reward to Republic customs fines. Skill, risk tolerance, and time invested all affect income.
 
 ### 🔧 Developer Internals
 
@@ -130,7 +136,7 @@ bounty collect            — Collect reward after defeating target
 bounty abandon            — Abandon your claimed bounty
 ```
 
-**Target archetypes:** Thugs, smugglers, bounty hunters, scouts, stormtroopers, Imperial officers — procedurally generated with appropriate stats and equipment for their tier.
+**Target archetypes:** Thugs, smugglers, bounty hunters, scouts, B1 droids, CIS agents, Hutt enforcers — procedurally generated with appropriate stats and equipment for their tier.
 
 ### 🔧 Developer Internals
 
@@ -160,7 +166,7 @@ bounty abandon            — Abandon your claimed bounty
 
 ### Player Rules
 
-Smuggling is the high-risk, high-reward income path. You pick up contraband cargo from criminal contacts and deliver it to a dropoff point, hoping to avoid Imperial patrols along the way.
+Smuggling is the high-risk, high-reward income path. You pick up contraband cargo from criminal contacts and deliver it to a dropoff point, hoping to avoid Republic clone patrol along the way.
 
 **4 cargo tiers:**
 

@@ -1,4 +1,10 @@
-# SW_MUSH Detailed Systems Guide #5
+---
+category: galaxy
+order: 2
+summary: "Pilot, navigate, dock, and fight in space. Hyperspace routes, ship combat, and starship roles."
+tags: ["space", "ship", "starship", "pilot", "hyperspace", "navigation", "freighter"]
+---
+
 # Space Systems
 
 **SW_MUSH — Star Wars D6 Revised & Expanded**
@@ -70,16 +76,16 @@ Each planet has a chain: **dock → orbit → deep space → hyperspace lane**. 
 
 | Ship | Hull | Shields | Speed | Maneuver | Weapons | Hyperdrive |
 |------|------|---------|-------|----------|---------|------------|
-| X-Wing | 4D | 1D | 8 | 3D | 4 Laser Cannons (front, 6D) + Torpedoes | x1 |
-| A-Wing | 3D+2 | 1D | 12 | 4D | 2 Laser Cannons (front, 5D) | x1 |
-| Y-Wing | 5D | 1D+1 | 7 | 1D | 2 Laser Cannons + Ion Cannon + Torpedoes | x1 |
+| ARC-170 Starfighter | 4D | 1D | 8 | 3D | 4 Laser Cannons (front, 6D) + Torpedoes | x1 |
+| Eta-2 Actis Interceptor | 3D+2 | 1D | 12 | 4D | 2 Laser Cannons (front, 5D) | x1 |
+| BTL-B Y-Wing | 5D | 1D+1 | 7 | 1D | 2 Laser Cannons + Ion Cannon + Torpedoes | x1 |
 | B-Wing | 6D | 2D+2 | 6 | 1D+1 | 3 Laser/Ion Cannons + Torpedoes | x2 |
-| TIE Fighter | 2D | 0D | 9 | 2D | 2 Laser Cannons (front, 5D) | None |
-| TIE Interceptor | 3D | 0D | 11 | 3D+1 | 4 Laser Cannons (front, 6D) | None |
-| TIE Bomber | 4D | 0D | 6 | 1D | 2 Laser Cannons + Ordnance | None |
+| Vulture Droid Starfighter | 2D | 0D | 9 | 2D | 2 Laser Cannons (front, 5D) | None |
+| Tri-Fighter | 3D | 0D | 11 | 3D+1 | 4 Laser Cannons (front, 6D) | None |
+| Hyena-class Bomber | 4D | 0D | 6 | 1D | 2 Laser Cannons + Ordnance | None |
 | Firespray | 4D+2 | 2D | 7 | 2D | Blaster Cannon + Ion + Tractor | x1 |
 
-**Capital Ships:** Corellian Corvette, Nebulon-B Frigate, Imperial Star Destroyer — all at capital scale (+6D difference from starfighters).
+**Capital Ships:** Corellian Corvette, Nebulon-B Frigate, Venator-class Star Destroyer — all at capital scale (+6D difference from starfighters).
 
 Ships have **mod slots** (typically 3–7) for installing crafted components and a **reactor_power** budget for the power allocation system.
 
@@ -143,7 +149,7 @@ hyperspace <destination>  — Jump to a destination
 1. Navigator (or pilot) rolls Astrogation vs. Moderate difficulty
 2. Success → enter hyperspace. Travel time = base time × hyperdrive multiplier
 3. Failure → misjump (random zone). Critical failure → misjump + potential damage
-4. Some ships have no hyperdrive (TIE Fighters) — they cannot jump
+4. Some ships have no hyperdrive (Vulture Droid Starfighters) — they cannot jump
 
 **Docking:**
 ```
@@ -297,7 +303,7 @@ Ships carry transponder codes that identify them. Players can install countermea
 - **Sensor mask** — Reduce sensor detectability
 - **Comm jammer** — Block communications in your zone
 
-Imperial customs patrols check transponders and levy fines for irregularities per WEG smuggling rules (sourced from Platt's Smugglers Guide WEG40141 and Pirates & Privateers WEG40143).
+Republic customs patrols check transponders and levy fines for irregularities per WEG smuggling rules (sourced from Platt's Smugglers Guide WEG40141 and Pirates & Privateers WEG40143).
 
 ### 🔧 Developer Internals
 
@@ -318,7 +324,7 @@ Seven types of anomalies spawn randomly in space zones:
 | Hidden Cache | 3 | Armored container — requires close approach + security bypass. |
 | Pirate Nest | 2 | 2–3 hostiles waiting in ambush. Salvage on victory. |
 | Asteroid Mineral Vein | 2 | High-grade ore. Technical check to extract resources. |
-| Imperial Dead Drop | 4 | Encrypted intelligence. Difficult slicing check; failure triggers patrol. |
+| Republic Dead Drop | 4 | Encrypted intelligence. Difficult slicing check; failure triggers patrol. |
 | Mynock Colony | 1 | Hull parasites. 1 system damage on approach; Easy piloting to detach. |
 
 **Scanning:** Use `deepscan` to progressively reveal anomaly details. Each scan resolves one level of description (vague → partial → full). Once fully scanned, some can be investigated via `course anomaly <id>`.
@@ -392,7 +398,7 @@ Titles display on your character sheet and in the `who` list.
 
 ### Player Rules
 
-NPC ships travel the spacelanes — freighters hauling cargo, Imperial patrols checking transponders, pirate raiders stalking prey. You'll encounter them as you navigate between zones. Pirates will tail and attack player ships in lawless zones. Imperial patrols hail and scan in contested zones.
+NPC ships travel the spacelanes — freighters hauling cargo, Republic clone patrol checking transponders, pirate raiders stalking prey. You'll encounter them as you navigate between zones. Pirates will tail and attack player ships in lawless zones. Republic clone patrol hail and scan in contested zones.
 
 ### 🔧 Developer Internals
 

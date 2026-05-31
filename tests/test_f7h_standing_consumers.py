@@ -29,7 +29,10 @@ Coverage:
         about the choice, not the trial count)
   3. Yarael's path-completed ack:
        - Path A, low standing → base ack only
-       - Path A, standing ≥ 12 → base ack + Mace Windu line addendum
+       - Path A, standing ≥ 12 → base ack + reception-addendum line
+         (post-Q1: "Tell the Master who receives you...";
+          pre-Q1 was "Tell Master Windu..." — see
+          test_q1_scenes_and_planets.py for the Q1 policy lock)
        - Path B, low standing → base ack only
        - Path B, standing ≥ 12 → base ack + Square place addendum
        - Path C, low standing → base ack
@@ -441,7 +444,12 @@ class TestYaraelStandingAwareAck:
             assert "Coruscant" in output or "Order has you" in output
             # High-standing addendum
             assert "stood in every place" in output or "speak of you" in output
-            assert "Master Windu" in output
+            # Q1 invariant: the line refers to "the Master who receives
+            # you" rather than naming canonical Mace Windu. The pre-Q1
+            # assertion was `assert "Master Windu" in output`; the
+            # current narration uses "the Master who receives you".
+            assert "Master who receives you" in output or "receives you" in output
+            assert "Master Windu" not in output
         asyncio.run(_check())
 
     def test_path_b_low_standing_base_ack(self):

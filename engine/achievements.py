@@ -33,6 +33,7 @@ _BY_EVENT: dict[str, list[dict]] = {}
 CATEGORY_ORDER = [
     "combat", "space", "economy", "crafting",
     "social", "exploration", "smuggling", "force",
+    "profession",
 ]
 
 CATEGORY_LABELS = {
@@ -44,6 +45,7 @@ CATEGORY_LABELS = {
     "exploration": "Exploration",
     "smuggling": "Smuggling",
     "force": "Force",
+    "profession": "Profession",
 }
 
 # ── Loading ───────────────────────────────────────────────────────────────────

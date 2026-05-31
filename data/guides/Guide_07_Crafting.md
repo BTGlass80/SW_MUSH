@@ -1,4 +1,10 @@
-# SW_MUSH Detailed Systems Guide #7
+---
+category: economy
+order: 2
+summary: "Mining, resources, recipes, and turning raw materials into weapons, armor, gear, and ships."
+tags: ["crafting", "mining", "resources", "recipes", "build", "manufacture"]
+---
+
 # Crafting System
 
 **SW_MUSH — Star Wars D6 Revised & Expanded**

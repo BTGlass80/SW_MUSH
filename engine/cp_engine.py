@@ -258,6 +258,49 @@ class CPEngine:
             "ticks_awarded": ticks,
         }
 
+    # ── Milestone CP (direct, bypasses tick→CP conversion + weekly cap) ──
+
+    async def award_milestone_cp(
+        self, db, char_id: int, cp: int, reason: str = "",
+    ) -> dict:
+        """Award direct CP for a milestone — outside the weekly tick cap.
+
+        Per Guide #9 §6: milestone bonuses are instant rewards that
+        bypass the tick→CP conversion and the weekly cap entirely.
+        A 50-CP milestone means 50 character_points credited
+        immediately, not 50 ticks.
+
+        This is the right path for:
+          * Ship's Log milestones (zones visited, ships scanned,
+            anomalies resolved, planets landed, pirate kills,
+            smuggling/trade runs)
+          * Profession chain completion bonuses (when wired)
+          * Any other "achievement" CP grant that should be unaffected
+            by farming-protection mechanics
+
+        Returns {"cp_awarded": int, "dropped": bool}. Graceful-drop
+        like award_ai_trickle: never raises. cp <= 0 is a no-op.
+        """
+        try:
+            cp = int(cp)
+            if cp <= 0:
+                return {"cp_awarded": 0, "dropped": False}
+
+            await db.cp_add_character_points(char_id, cp)
+            log.info(
+                "CP milestone: char %d +%d CP%s",
+                char_id, cp,
+                f" ({reason})" if reason else "",
+            )
+            return {"cp_awarded": cp, "dropped": False}
+
+        except Exception:
+            log.warning(
+                "CP milestone award dropped for char %d", char_id,
+                exc_info=True,
+            )
+            return {"cp_awarded": 0, "dropped": True}
+
     # ── AI evaluator trickle ──────────────────────────────────────────────────
 
     async def award_ai_trickle(self, db, char_id: int, ticks: int) -> dict:

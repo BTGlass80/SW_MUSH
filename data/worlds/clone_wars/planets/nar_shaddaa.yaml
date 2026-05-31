@@ -582,22 +582,22 @@ exits:
   # ── Renna Dox ────────────────────────────────────────────────────────────
   - {from: 74, to: 62, forward: "out", reverse: "workshop"}
   # ── Floating Market ──────────────────────────────────────────────────────
-  - {from: 75, to: 64, forward: "up", reverse: "west to Floating Market"}
+  - {from: 75, to: 64, forward: "up", reverse: "northeast to Floating Market"}
   # ── Enforcer Alley ───────────────────────────────────────────────────────
   - {from: 76, to: 56, forward: "south", reverse: "east through Enforcer Alley"}
-  - {from: 76, to: 55, forward: "north", reverse: "south through Enforcer Alley"}
+  - {from: 76, to: 55, forward: "southwest", reverse: "northeast"}
   # ── Weapons Cache ────────────────────────────────────────────────────────
   - {from: 77, to: 61, forward: "out", reverse: "weapons cache"}
   # ── Observation Level ────────────────────────────────────────────────────
   - {from: 78, to: 55, forward: "down", reverse: "up to Observation Level"}
   # ── Fighting Pits ────────────────────────────────────────────────────────
-  - {from: 69, to: 65, forward: "east", reverse: "west to Fighting Pits"}
+  - {from: 69, to: 65, forward: "west", reverse: "east"}
   # ── Warrens ──────────────────────────────────────────────────────────────
-  - {from: 79, to: 65, forward: "down", reverse: "north to Warrens"}
-  - {from: 80, to: 79, forward: "east", reverse: "west to Shaft"}
-  - {from: 81, to: 79, forward: "south", reverse: "north to Shaft"}
+  - {from: 79, to: 65, forward: "down", reverse: "southeast to Warrens"}
+  - {from: 80, to: 79, forward: "northwest", reverse: "southeast"}
+  - {from: 81, to: 79, forward: "northeast", reverse: "southwest"}
   - {from: 82, to: 80, forward: "east", reverse: "west to Cavern"}
-  - {from: 83, to: 81, forward: "south", reverse: "north to Reactor"}
+  - {from: 83, to: 81, forward: "northeast", reverse: "southwest"}
 
   # F.5a.2.x.1 (Apr 30 2026) — wire orphan housing host rooms into graph
   # Per cw_housing_design_v1.md §7.1 (T3 Warrens) + §9 (T5 Promenade Tower).

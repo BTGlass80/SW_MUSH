@@ -278,3 +278,78 @@ achievements:
     icon: "🌕"
     cp_reward: 3
     trigger: {event: "dark_side_atoned", count: 1}
+
+  # ══════════════════════════════════════════════════════════════
+  # PROFESSION (7 achievements — F.8.c.2.d May 2026)
+  #
+  # One per unlocked CW tutorial chain. Awarded by chain_rewards
+  # at graduation; fires through engine/chain_rewards.py's
+  # apply_graduation_rewards() rather than via event-matching.
+  # The `trigger.event = "chain_graduation"` field is informational
+  # only — the catalog dispatcher does not auto-match this event;
+  # chain_rewards passes the achievement dict to
+  # _complete_achievement() directly when the matching chain
+  # graduates.
+  #
+  # Pre-F.8.c.2.d these keys were referenced in chains.yaml's
+  # `graduation.achievements` list but absent from this catalog;
+  # chain_rewards stamped them onto chargen_notes.graduation_achievements
+  # as a fallback. With these entries authored, the catalog mark
+  # path now fires alongside the chargen_notes stamp.
+  # ══════════════════════════════════════════════════════════════
+
+  - key: sworn_to_the_republic
+    name: "Sworn to the Republic"
+    description: "Graduated the Republic Soldier tutorial chain on Kamino. Major Tarrn signed off."
+    category: profession
+    icon: "🪖"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "republic_soldier"}
+
+  - key: recruited_in_shadow
+    name: "Recruited in Shadow"
+    description: "Graduated the Republic Intelligence tutorial chain. Director Vell knows your name now."
+    category: profession
+    icon: "🕵️"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "republic_intelligence"}
+
+  - key: raised_the_red_flag
+    name: "Raised the Red Flag"
+    description: "Graduated the Separatist Commando tutorial chain on Geonosis. CIS field deployment is yours."
+    category: profession
+    icon: "🚩"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "separatist_commando"}
+
+  - key: sleeper_in_the_capital
+    name: "Sleeper in the Capital"
+    description: "Graduated the Separatist Agent tutorial chain. Your cover holds; Republic eyes don't see you."
+    category: profession
+    icon: "🎭"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "separatist_agent"}
+
+  - key: first_contract
+    name: "First Contract"
+    description: "Graduated the Bounty Hunter tutorial chain on Nar Shaddaa. The Guild knows your face."
+    category: profession
+    icon: "💰"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "bounty_hunter"}
+
+  - key: first_run
+    name: "First Run"
+    description: "Graduated the Smuggler tutorial chain. Hutt Cartel files you under 'reliable'."
+    category: profession
+    icon: "🚀"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "smuggler"}
+
+  - key: first_repair
+    name: "First Repair"
+    description: "Graduated the Shipwright Trader tutorial chain on Kuat. The Apprentice Forge stamped your card."
+    category: profession
+    icon: "🔧"
+    cp_reward: 3
+    trigger: {event: "chain_graduation", count: 1, chain_id: "shipwright_trader"}

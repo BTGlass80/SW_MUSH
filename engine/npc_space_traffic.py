@@ -454,8 +454,16 @@ TRAFFIC_SHIP_TEMPLATES = {
             "template": "firespray",
             "transponder": "hunter",
             "crew_skill": "5D",
+            # Q1: no canonical figures as named NPCs, even in dynamic
+            # traffic. Captain pool was previously seeded with
+            # "Boba Fett" and "The Mandalorian" — both canonical
+            # bounty hunters. Replaced May 5 2026 with non-canonical
+            # hunter aliases of similar tonal weight (Mandalorian-
+            # tradition operatives, freelance contractors, fringe
+            # specialists).
             "captain_name_pool": [
-                "Zek Varro", "Dara Hess", "The Mandalorian", "Boba Fett",
+                "Zek Varro", "Dara Hess", "Kresh Vayl",
+                "An Unlisted Hunter",
             ],
         },
     ],

@@ -131,6 +131,33 @@ class TrainingCommand(BaseCommand):
 
         # -- training skip ----------------------------------------------------
         if args == "skip":
+            # Drop 2 (May 19 2026): retire `training skip` under CW.
+            # The legacy GCW core tutorial (Training Grounds elective
+            # modules with Chalmun's Cantina as the post-tutorial
+            # destination) is era-bound to GCW. Under CW the canonical
+            # tutorial is the chain system selected at chargen, and
+            # the skip path is the alt-character starter kit applied
+            # at character creation (engine/api.py, Drop 2b). There is
+            # no in-game way to "skip" the core tutorial post-creation
+            # under CW — by the time the player runs commands, chargen
+            # has already locked in their tutorial choice.
+            try:
+                from engine.era_state import get_active_era
+                active_era = get_active_era()
+            except Exception:
+                active_era = "clone_wars"  # CW is production default
+
+            if active_era != "gcw":
+                await ctx.session.send_line(
+                    "  The `training skip` command is a legacy of the GCW-era\n"
+                    "  elective tutorial. Under the Clone Wars, your tutorial\n"
+                    "  chain was selected at character creation and is the only\n"
+                    "  path through training. If you want to play without a\n"
+                    "  tutorial, create a second character on this account and\n"
+                    "  pick the skip option in chargen."
+                )
+                return
+
             ts = get_tutorial_state(char)
             if ts["core"] == "complete":
                 await ctx.session.send_line(

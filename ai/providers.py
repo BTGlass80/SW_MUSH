@@ -124,7 +124,16 @@ class OllamaProvider(AIProvider):
         return "ollama"
 
     async def is_available(self) -> bool:
-        """Check if Ollama is running (cached for 30 seconds)."""
+        """Check if Ollama is running (cached for 30 seconds).
+
+        On state transitions (False→True, None→True) we log at INFO so
+        operators can see when the model came online. The "not available"
+        line is logged at WARNING only when this is a *change* from a
+        previously-good state — first-startup misses log at DEBUG to
+        avoid alarming-looking noise during normal Ollama warmup. The
+        probe timeout is 8s because Ollama can be slow to reply during
+        model load on consumer GPUs.
+        """
         if not _AIOHTTP_AVAILABLE:
             self._available = False
             return False
@@ -133,11 +142,12 @@ class OllamaProvider(AIProvider):
         if self._available is not None and (now - self._last_check) < 30:
             return self._available
 
+        prev = self._available
         try:
             async with _aiohttp.ClientSession() as session:
                 async with session.get(
                     f"{self.host}/api/tags",
-                    timeout=_aiohttp.ClientTimeout(total=3),
+                    timeout=_aiohttp.ClientTimeout(total=8),
                 ) as resp:
                     self._available = resp.status == 200
         except Exception:
@@ -145,9 +155,22 @@ class OllamaProvider(AIProvider):
 
         self._last_check = now
         if self._available:
-            log.debug("Ollama is available at %s", self.host)
+            if prev is False:
+                # Recovery: explicit signal that Ollama came back online.
+                log.info("Ollama recovered and is now available at %s", self.host)
+            else:
+                log.debug("Ollama is available at %s", self.host)
         else:
-            log.warning("Ollama is not available at %s", self.host)
+            if prev is True:
+                # Regression from a previously-good state — surface loudly.
+                log.warning(
+                    "Ollama became unavailable at %s (NPC dialogue will use fallbacks)",
+                    self.host,
+                )
+            else:
+                # First-startup miss or still-down: keep at DEBUG so a slow
+                # warmup doesn't read like a fatal error in the log.
+                log.debug("Ollama is not available at %s", self.host)
         return self._available
 
     async def generate(
@@ -340,6 +363,23 @@ class AIManager:
         """Get a provider by name, or the default."""
         name = name or self.config.default_provider
         return self.providers.get(name, self.providers.get("mock"))
+
+    async def is_available(self, provider: str = "") -> bool:
+        """Quick availability check for the default (or named) provider.
+
+        Used by callers that want to surface a one-time UX signal when
+        the LLM backend is offline. Wraps the provider's own probe and
+        treats any exception as unavailable so callers don't need to
+        handle errors themselves.
+        """
+        prov = self.get_provider(provider)
+        if prov is None:
+            return False
+        try:
+            return await prov.is_available()
+        except Exception:
+            log.debug("is_available probe raised", exc_info=True)
+            return False
 
     async def generate(
         self,

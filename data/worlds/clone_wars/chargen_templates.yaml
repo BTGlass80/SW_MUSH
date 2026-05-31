@@ -99,11 +99,11 @@ templates:
     species: Human
     attributes:
       dexterity:  "2D+1"
-      knowledge:  "3D"
+      knowledge:  "3D+2"
       mechanical: "2D+2"
       perception: "2D+2"
       strength:   "2D+2"
-      technical:  "4D+2"
+      technical:  "4D"
     skills:
       computer programming/repair:  "1D+2"
       droid repair:                 "1D"
@@ -168,8 +168,8 @@ templates:
     attributes:
       dexterity:  "3D"
       knowledge:  "2D+2"
-      mechanical: "4D+1"
-      perception: "2D+2"
+      mechanical: "4D"
+      perception: "3D"
       strength:   "2D+2"
       technical:  "2D+2"
     skills:
@@ -189,8 +189,8 @@ templates:
     attributes:
       dexterity:  "3D"
       knowledge:  "2D+2"
-      mechanical: "4D+1"
-      perception: "2D+2"
+      mechanical: "4D"
+      perception: "3D"
       strength:   "2D+2"
       technical:  "2D+2"
     skills:

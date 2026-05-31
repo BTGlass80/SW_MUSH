@@ -218,6 +218,13 @@ class BountyContract:
     claimed_at: Optional[float] = None
     expires_at: Optional[float] = None
     collected_at: Optional[float] = None
+    # F.8.c.2.b₂: Chain-tutorial tag. Set to a chain step's
+    # `bounty_id` (e.g. "tutorial_bhg_tarko_vinn") when the contract
+    # was authored as part of a tutorial chain. Empty string for
+    # ordinary procedurally-generated contracts. The chain_events
+    # dispatcher reads this field on board.claim to advance the
+    # bounty_hunter tutorial chain.
+    chain_bounty_id: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -239,6 +246,7 @@ class BountyContract:
             "claimed_at": self.claimed_at,
             "expires_at": self.expires_at,
             "collected_at": self.collected_at,
+            "chain_bounty_id": self.chain_bounty_id,
         }
 
     @classmethod
@@ -262,6 +270,7 @@ class BountyContract:
             claimed_at=d.get("claimed_at"),
             expires_at=d.get("expires_at"),
             collected_at=d.get("collected_at"),
+            chain_bounty_id=d.get("chain_bounty_id", ""),
         )
 
 

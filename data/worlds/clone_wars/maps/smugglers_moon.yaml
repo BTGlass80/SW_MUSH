@@ -1,0 +1,183 @@
+# ─────────────────────────────────────────────────────────────────────────
+# NAR SHADDAA — the Vertical City (AreaGeometry, server-authoritative)
+#
+# City #3 of the substrate rollout. Lays out the real nar_shaddaa rooms
+# from planets/nar_shaddaa.yaml (ids 54–85, 4 zones) by their slug, so
+# click-to-walk / NPC overlay / landmark resolution bind to real rooms.
+#
+# Nar Shaddaa is a VERTICAL city — one continuous descent. The planet
+# file's map_y stacks the strata (the Grid at top → promenade → landing
+# bays → undercity → warrens at the bottom). Represented here as ONE tall
+# map (portrait bounds) with four vertically-stacked districts, rather
+# than split maps: the descent is contiguous and reads top-to-bottom, so a
+# single tall tile honors the world better than slicing it. (Contrast
+# Coruscant, whose strata are physically separated km apart.)
+#
+# Layout derived from map_x/map_y grid hints (x 13–17, y 1–10), projected
+# into portrait bounds with margins and collisions nudged apart. Y-up
+# authored frame (adapter reflects Y; do not pre-flip). Streets follow
+# grid adjacency (the rooms carry no inline exits; connectivity is the
+# world-writer's, so the map draws the natural spatial spine + crossstreets).
+#
+# substrate_image: add a painted vertical-city tile once generated (see
+# NANO_SUBSTRATE_PLAYBOOK.md). Absent → procedural. Palette nar_shaddaa.
+# ─────────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+area_key: nar_shaddaa.smugglers_moon
+display_name: NAR SHADDAA
+planet: NAR SHADDAA
+era: 20 BBY · Clone Wars
+default_terrain: duracrete
+palette: nar_shaddaa
+
+substrate_image: /static/maps/nar_shaddaa_substrate.png
+
+bounds:
+  x_min: 0.0
+  y_min: 0.0
+  x_max: 9.0
+  y_max: 13.0
+
+# ── DISTRICTS (vertical strata, top → bottom) ────────────────────────────
+districts:
+  - id: promenade
+    name: THE PROMENADE
+    polygon: [[0.4, 7.6], [8.6, 7.6], [8.6, 12.6], [0.4, 12.6]]
+    label_anchor: [7.8, 12.2]
+    rotation: 0
+  - id: landing
+    name: DOCKING BAYS
+    polygon: [[3.0, 6.5], [8.6, 6.5], [8.6, 7.6], [3.0, 7.6]]
+    label_anchor: [8.0, 7.3]
+    rotation: 0
+  - id: undercity
+    name: THE UNDERCITY
+    polygon: [[3.0, 3.9], [8.6, 3.9], [8.6, 6.5], [3.0, 6.5]]
+    label_anchor: [8.0, 6.1]
+    rotation: 0
+  - id: warrens
+    name: THE WARRENS
+    polygon: [[3.4, 0.4], [7.4, 0.4], [7.4, 3.9], [3.4, 3.9]]
+    label_anchor: [6.9, 0.8]
+    rotation: 0
+
+# ── ROOMS (real nar_shaddaa rooms, by slug; collisions nudged apart) ─────
+rooms:
+  # PROMENADE — the great vertical thoroughfare and its towers (top)
+  - {id: 72, slug: "the_grid",                  name: "The Grid",        zone: promenade, x: 4.5, y: 12.2, w: 0.6,  h: 0.5,  style: civic,    symbol: "§"}
+  - {id: 71, slug: "hutt_emissary_tower_audience", name: "Hutt Audience", zone: promenade, x: 4.5, y: 11.0, w: 0.6,  h: 0.5,  style: temple,   symbol: "T"}
+  - {id: 70, slug: "hutt_emissary_tower_lobby", name: "Hutt Lobby",      zone: promenade, x: 4.5, y: 10.0, w: 0.55, h: 0.45, style: temple,   symbol: "T"}
+  - {id: 59, slug: "smugglers_guild_hall",      name: "Smuggler Guild",  zone: promenade, x: 3.6, y: 10.0, w: 0.5,  h: 0.45, style: cantina,  symbol: "Λ"}
+  - {id: 62, slug: "old_corellian_quarter",     name: "Corellian Qtr",   zone: promenade, x: 2.6, y: 9.9, w: 0.5,  h: 0.45, style: housing,  symbol: "⌂"}
+  - {id: 74, slug: "renna_dox_workshop",        name: "Dox Workshop",    zone: promenade, x: 2.6, y: 10.7, w: 0.45, h: 0.4,  style: vendor,   symbol: "$"}
+  - {id: 60, slug: "vertical_bazaar",           name: "Vert. Bazaar",    zone: promenade, x: 6.4, y: 10.0, w: 0.55, h: 0.5,  style: market,   symbol: "#"}
+  - {id: 73, slug: "ship_parts_emporium",       name: "Ship Parts",      zone: promenade, x: 8.0, y: 10.0, w: 0.5,  h: 0.45, style: vendor,   symbol: "$"}
+  - {id: 57, slug: "burning_deck_cantina",      name: "Burning Deck",    zone: promenade, x: 2.6, y: 8.5, w: 0.6,  h: 0.5,  style: cantina,  symbol: "Λ"}
+  - {id: 58, slug: "burning_deck_back_room",    name: "Back Room",       zone: promenade, x: 1.4, y: 8.5, w: 0.45, h: 0.4,  style: cantina,  symbol: "Λ"}
+  - {id: 56, slug: "nar_shaddaa_promenade_main", name: "Promenade",      zone: promenade, x: 4.5, y: 8.5, w: 0.7,  h: 0.6,  style: landmark, symbol: "※"}
+  - {id: 63, slug: "refugee_sector",            name: "Refugee Sector",  zone: promenade, x: 6.2, y: 8.6, w: 0.5,  h: 0.45, style: housing,  symbol: "⌂"}
+  - {id: 76, slug: "enforcer_alley",            name: "Enforcer Alley",  zone: promenade, x: 7.0, y: 8.5, w: 0.45, h: 0.4,  style: street,   symbol: "·"}
+  - {id: 85, slug: "promenade_corporate_tower", name: "Corp. Tower",     zone: promenade, x: 6.4, y: 9.3, w: 0.5,  h: 0.5,  style: civic,    symbol: "§"}
+  - {id: 61, slug: "bounty_hunters_quarter",    name: "Bounty Qtr",      zone: promenade, x: 3.6, y: 7.9, w: 0.5,  h: 0.45, style: cantina,  symbol: "Λ"}
+  - {id: 77, slug: "weapons_cache",             name: "Weapons Cache",   zone: promenade, x: 3.0, y: 6.9, w: 0.45, h: 0.4,  style: vendor,   symbol: "$"}
+  # DOCKING BAYS — arrival
+  - {id: 54, slug: "nar_shaddaa_bay_aurek",     name: "Bay Aurek",       zone: landing,   x: 4.5, y: 7.1, w: 0.7,  h: 0.55, style: dock,     symbol: "◎"}
+  - {id: 55, slug: "westport_arrivals",         name: "Westport",        zone: landing,   x: 6.2, y: 7.1, w: 0.6,  h: 0.5,  style: dock,     symbol: "◎"}
+  - {id: 75, slug: "floating_market",           name: "Floating Mkt",    zone: landing,   x: 7.4, y: 7.1, w: 0.5,  h: 0.45, style: market,   symbol: "#"}
+  - {id: 78, slug: "upper_dock_observation",    name: "Dock Observ.",    zone: landing,   x: 8.2, y: 7.0, w: 0.45, h: 0.4,  style: civic,    symbol: "§"}
+  # UNDERCITY — descent into the dark markets
+  - {id: 64, slug: "undercity_market",          name: "Under Market",    zone: undercity, x: 4.5, y: 5.9, w: 0.6,  h: 0.5,  style: market,   symbol: "#"}
+  - {id: 66, slug: "spice_den",                 name: "Spice Den",       zone: undercity, x: 6.2, y: 5.9, w: 0.5,  h: 0.45, style: cantina,  symbol: "Λ"}
+  - {id: 67, slug: "droid_junkyard",            name: "Droid Junk",      zone: undercity, x: 7.8, y: 5.9, w: 0.5,  h: 0.45, style: vendor,   symbol: "$"}
+  - {id: 65, slug: "undercity_depths",          name: "The Depths",      zone: undercity, x: 4.5, y: 4.7, w: 0.55, h: 0.5,  style: street,   symbol: "·"}
+  - {id: 69, slug: "fighting_pits",             name: "Fighting Pits",   zone: undercity, x: 6.2, y: 4.7, w: 0.6,  h: 0.5,  style: landmark, symbol: "※"}
+  - {id: 68, slug: "black_market_medcenter",    name: "Black Med",       zone: undercity, x: 4.5, y: 4.0, w: 0.5,  h: 0.4,  style: civic,    symbol: "§"}
+  # WARRENS — the bottom (reactor + scavenger squats)
+  - {id: 79, slug: "warrens_entry_shaft",       name: "Entry Shaft",     zone: warrens,   x: 5.4, y: 3.4, w: 0.5,  h: 0.45, style: street,   symbol: "·"}
+  - {id: 80, slug: "warrens_fungal_cavern",     name: "Fungal Cavern",   zone: warrens,   x: 6.4, y: 3.3, w: 0.55, h: 0.5,  style: housing,  symbol: "⌂"}
+  - {id: 81, slug: "warrens_reactor_core",      name: "Reactor Core",    zone: warrens,   x: 4.5, y: 2.1, w: 0.6,  h: 0.55, style: landmark, symbol: "※"}
+  - {id: 82, slug: "warrens_scavenger_den",     name: "Scavenger Den",   zone: warrens,   x: 6.4, y: 2.1, w: 0.5,  h: 0.45, style: vendor,   symbol: "$"}
+  - {id: 83, slug: "warrens_collapsed_plaza",   name: "Collapsed Plaza", zone: warrens,   x: 4.5, y: 0.9, w: 0.55, h: 0.5,  style: street,   symbol: "·"}
+  - {id: 84, slug: "warrens_squat_block",       name: "Squat Block",     zone: warrens,   x: 6.4, y: 0.9, w: 0.5,  h: 0.45, style: housing,  symbol: "⌂"}
+
+# ── EXITS (grid adjacency — the vertical descent spine + crossstreets) ───
+exits:
+  - [72, 71]
+  - [71, 70]
+  - [70, 59]
+  - [70, 60]
+  - [59, 62]
+  - [62, 74]
+  - [60, 73]
+  - [70, 56]
+  - [56, 57]
+  - [57, 58]
+  - [56, 63]
+  - [63, 76]
+  - [76, 85]
+  - [56, 61]
+  - [61, 54]
+  - [56, 77]
+  - [54, 55]
+  - [55, 75]
+  - [75, 78]
+  - [54, 64]
+  - [64, 66]
+  - [66, 67]
+  - [64, 65]
+  - [65, 69]
+  - [65, 68]
+  - [68, 79]
+  - [79, 80]
+  - [79, 81]
+  - [81, 82]
+  - [81, 83]
+  - [83, 84]
+
+exit_paths:
+  # THE GREAT DESCENT — central vertical spine, top to bottom
+  "72-71":  {kind: street, path: [[4.5, 12.2], [4.5, 11.6], [4.5, 11.0]], width: 0.30}
+  "71-70":  {kind: street, path: [[4.5, 11.0], [4.5, 10.5], [4.5, 10.0]], width: 0.30}
+  "70-56":  {kind: street, path: [[4.5, 10.0], [4.5, 9.2], [4.5, 8.5]], width: 0.30}
+  "56-61":  {kind: street, path: [[4.5, 8.5], [4.5, 8.2], [3.6, 7.9]], width: 0.22}
+  "61-54":  {kind: street, path: [[3.6, 7.9], [4.0, 7.5], [4.5, 7.1]], width: 0.30}
+  "54-64":  {kind: street, path: [[4.5, 7.1], [4.5, 6.5], [4.5, 5.9]], width: 0.30}
+  "64-65":  {kind: street, path: [[4.5, 5.9], [4.5, 5.3], [4.5, 4.7]], width: 0.22}
+  "65-68":  {kind: street, path: [[4.5, 4.7], [4.5, 4.35], [4.5, 4.0]], width: 0.22}
+  "68-79":  {kind: street, path: [[4.5, 4.0], [5.0, 3.7], [5.4, 3.4]], width: 0.18}
+  "79-81":  {kind: street, path: [[5.4, 3.4], [4.9, 2.75], [4.5, 2.1]], width: 0.22}
+  "81-83":  {kind: street, path: [[4.5, 2.1], [4.5, 1.5], [4.5, 0.9]], width: 0.22}
+  # PROMENADE crossstreets
+  "70-60":  {kind: road, path: [[4.5, 10.0], [5.5, 10.0], [6.4, 10.0]], width: 0.22}
+  "60-73":  {kind: road, path: [[6.4, 10.0], [7.2, 10.0], [8.0, 10.0]], width: 0.18}
+  "70-59":  {kind: road, path: [[4.5, 10.0], [4.0, 10.0], [3.6, 10.0]], width: 0.18}
+  "59-62":  {kind: alley, path: [[3.6, 10.0], [3.1, 9.95], [2.6, 9.9]], width: 0.18}
+  "56-57":  {kind: road, path: [[4.5, 8.5], [3.6, 8.5], [2.6, 8.5]], width: 0.22}
+  "57-58":  {kind: alley, path: [[2.6, 8.5], [2.0, 8.5], [1.4, 8.5]], width: 0.18}
+  "56-63":  {kind: road, path: [[4.5, 8.5], [5.4, 8.55], [6.2, 8.6]], width: 0.18}
+  # LANDING + UNDERCITY crossstreets
+  "54-55":  {kind: road, path: [[4.5, 7.1], [5.4, 7.1], [6.2, 7.1]], width: 0.22}
+  "55-75":  {kind: road, path: [[6.2, 7.1], [6.8, 7.1], [7.4, 7.1]], width: 0.18}
+  "64-66":  {kind: road, path: [[4.5, 5.9], [5.4, 5.9], [6.2, 5.9]], width: 0.18}
+  "66-67":  {kind: alley, path: [[6.2, 5.9], [7.0, 5.9], [7.8, 5.9]], width: 0.18}
+  "65-69":  {kind: road, path: [[4.5, 4.7], [5.4, 4.7], [6.2, 4.7]], width: 0.18}
+  # WARRENS crossstreets
+  "79-80":  {kind: alley, path: [[5.4, 3.4], [5.9, 3.35], [6.4, 3.3]], width: 0.18}
+  "81-82":  {kind: alley, path: [[4.5, 2.1], [5.4, 2.1], [6.4, 2.1]], width: 0.18}
+  "83-84":  {kind: alley, path: [[4.5, 0.9], [5.4, 0.9], [6.4, 0.9]], width: 0.18}
+
+labels:
+  - {text: "THE  DESCENT", kind: street, path_id: "70-56", t: 0.50, side: 0, offset: 0, size: 8, min_zoom: 1, max_zoom: 2}
+  - {text: "down to the Warrens ↓", kind: flavor, pos: [4.5, 3.7], rot: 0, size: 6, min_zoom: 1, max_zoom: 2}
+  - {text: "Hutt space ↗", kind: flavor, pos: [8.2, 11.3], rot: 0, size: 6, min_zoom: 1, max_zoom: 3}
+
+# ── LANDMARKS ────────────────────────────────────────────────────────────
+# Seeded at painted-feature anchors; re-register against the substrate
+# once the vertical-city tile is painted (NANO_SUBSTRATE_PLAYBOOK.md).
+landmarks:
+  - {id: hutt_tower, icon: palace, name: "Hutt Emissary Tower", pos: [4.5, 10.5], min_zoom: 2, max_zoom: 3}
+  - {id: promenade, icon: cantina, name: "The Promenade", pos: [4.5, 8.5], min_zoom: 2, max_zoom: 2}
+  - {id: bay_aurek, icon: dock, name: "Docking Bay Aurek", pos: [5.5, 7.2], min_zoom: 2, max_zoom: 3}
+  - {id: fight_pits, icon: palace, name: "Fighting Pits", pos: [7.7, 5.2], min_zoom: 2, max_zoom: 3}
+  - {id: reactor, icon: beacon, name: "Reactor Core", pos: [4.4, 1.3], min_zoom: 2, max_zoom: 3}

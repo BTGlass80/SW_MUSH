@@ -108,8 +108,8 @@ _LEGACY_TEMPLATES_GCW: dict = {
     "technician": {
         "label": "Technician",
         "species": "Human",
-        "attributes": {"dexterity": "2D+1", "knowledge": "3D", "mechanical": "2D+2",
-                        "perception": "2D+2", "strength": "2D+2", "technical": "4D+2"},
+        "attributes": {"dexterity": "2D+1", "knowledge": "3D+2", "mechanical": "2D+2",
+                        "perception": "2D+2", "strength": "2D+2", "technical": "4D"},
         "skills": {"computer programming/repair": "1D+2", "droid repair": "1D",
                     "first aid": "1D", "security": "1D", "blaster repair": "1D",
                     "space transport repair": "1D+1"},

@@ -1,0 +1,155 @@
+# ─────────────────────────────────────────────────────────────────────────
+# KAMINO — Tipoca City (AreaGeometry, server-authoritative)
+#
+# City #5 of the substrate rollout (last of the core five). Lays out the
+# real kamino rooms from planets/kamino.yaml (ids 350–375, 3 zones) by
+# their slug. Rooms carry rich inline exits, so streets (here: enclosed
+# corridors/walkways — Tipoca is a sealed stilt-city in a storm ocean)
+# follow the real adjacency graph.
+#
+# Spatial logic (from map_x/map_y, x 38–45 y 8–12): a linear west→east
+# spine. OCEAN PLATFORM west (exterior landing platforms + lower platform
+# dropping to the surface + aiwha stable), TIPOCA CITY center (the great
+# main corridor with admin / PM's office / medical / quarters / library
+# radiating off it), CLONING HALLS east (cloning access hub → growth
+# chambers → training blocks → barracks). The arrivals hall + cloning
+# access are the two interchange hubs.
+#
+# Y-up authored frame (adapter reflects Y; do not pre-flip).
+#
+# substrate_image: add a painted Tipoca City tile once generated (see
+# NANO_SUBSTRATE_PLAYBOOK.md). Absent → procedural. Palette: nar_shaddaa
+# is the closest cool-toned palette shipped today (Kamino has no dedicated
+# palette yet) — swap to a kamino palette (cold blue-grey storm ocean) when
+# one is authored.
+# ─────────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+area_key: kamino.tipoca_city
+display_name: TIPOCA CITY
+planet: KAMINO
+era: 20 BBY · Clone Wars
+default_terrain: duracrete
+palette: nar_shaddaa
+
+substrate_image: /static/maps/kamino_tipoca_substrate.png
+
+bounds:
+  x_min: 0.0
+  y_min: 0.0
+  x_max: 11.0
+  y_max: 8.0
+
+# ── DISTRICTS ────────────────────────────────────────────────────────────
+districts:
+  - id: ocean
+    name: OCEAN PLATFORM
+    polygon: [[0.4, 0.4], [5.6, 0.4], [5.6, 4.8], [0.4, 4.8]]
+    label_anchor: [0.9, 0.8]
+    rotation: 0
+  - id: tipoca
+    name: TIPOCA CITY
+    polygon: [[2.8, 4.8], [7.0, 4.8], [7.0, 7.6], [2.8, 7.6]]
+    label_anchor: [3.3, 7.2]
+    rotation: 0
+  - id: cloning
+    name: CLONING HALLS
+    polygon: [[6.6, 1.6], [10.6, 1.6], [10.6, 7.6], [6.6, 7.6]]
+    label_anchor: [10.1, 7.2]
+    rotation: 0
+
+# ── ROOMS (real kamino rooms, by slug) ───────────────────────────────────
+rooms:
+  # TIPOCA CITY (center) — the great corridor + civic rooms
+  - {id: 358, slug: "tipoca_library",                   name: "Library",        zone: tipoca,  x: 3.5,  y: 7.2, w: 0.5,  h: 0.45, style: civic,    symbol: "§"}
+  - {id: 355, slug: "tipoca_prime_ministers_office",    name: "PM Office",      zone: tipoca,  x: 4.8,  y: 7.2, w: 0.6,  h: 0.5,  style: temple,   symbol: "T"}
+  - {id: 357, slug: "tipoca_medical_bay",               name: "Medical Bay",    zone: tipoca,  x: 6.2,  y: 7.2, w: 0.55, h: 0.5,  style: civic,    symbol: "§"}
+  - {id: 356, slug: "tipoca_kaminoan_quarters",         name: "Kaminoan Qtr",   zone: tipoca,  x: 3.5,  y: 5.6, w: 0.5,  h: 0.45, style: housing,  symbol: "⌂"}
+  - {id: 353, slug: "tipoca_briefing_room",             name: "Briefing Room",  zone: tipoca,  x: 4.8,  y: 5.6, w: 0.5,  h: 0.45, style: civic,    symbol: "§"}
+  - {id: 354, slug: "tipoca_visitor_dining",            name: "Visitor Dining", zone: tipoca,  x: 6.2,  y: 5.6, w: 0.5,  h: 0.45, style: market,   symbol: "#"}
+  - {id: 350, slug: "kamino_arrivals_hall",             name: "Arrivals Hall",  zone: tipoca,  x: 3.5,  y: 4.0, w: 0.6,  h: 0.55, style: dock,     symbol: "◎"}
+  - {id: 351, slug: "tipoca_main_corridor",             name: "Main Corridor",  zone: tipoca,  x: 4.8,  y: 4.0, w: 0.7,  h: 0.6,  style: landmark, symbol: "※"}
+  - {id: 352, slug: "tipoca_administration",            name: "Administration", zone: tipoca,  x: 6.2,  y: 4.0, w: 0.55, h: 0.5,  style: civic,    symbol: "§"}
+  # OCEAN PLATFORM (west) — exterior stilt platforms
+  - {id: 375, slug: "ocean_visiting_officers_quarters", name: "Officer Qtr",    zone: ocean,   x: 2.1,  y: 5.6, w: 0.5,  h: 0.45, style: housing,  symbol: "⌂"}
+  - {id: 369, slug: "kamino_landing_platform_alpha",    name: "Platform Alpha", zone: ocean,   x: 2.1,  y: 4.0, w: 0.7,  h: 0.6,  style: dock,     symbol: "◎"}
+  - {id: 373, slug: "kamino_ocean_surface",             name: "Ocean Surface",  zone: ocean,   x: 0.8,  y: 2.4, w: 0.55, h: 0.5,  style: landmark, symbol: "※"}
+  - {id: 370, slug: "kamino_lower_platform",            name: "Lower Platform", zone: ocean,   x: 2.1,  y: 2.4, w: 0.6,  h: 0.5,  style: dock,     symbol: "◎"}
+  - {id: 371, slug: "kamino_pylon_access",              name: "Pylon Access",   zone: ocean,   x: 3.5,  y: 2.4, w: 0.45, h: 0.4,  style: street,   symbol: "·"}
+  - {id: 372, slug: "kamino_smuggler_dock",             name: "Smuggler Dock",  zone: ocean,   x: 4.8,  y: 2.4, w: 0.55, h: 0.5,  style: cantina,  symbol: "Λ"}
+  - {id: 374, slug: "kamino_aiwha_stable",              name: "Aiwha Stable",   zone: ocean,   x: 2.1,  y: 0.9, w: 0.55, h: 0.5,  style: housing,  symbol: "⌂"}
+  # CLONING HALLS (east) — the cloning industry
+  - {id: 363, slug: "tipoca_advanced_training",         name: "Adv. Training",  zone: cloning, x: 7.5,  y: 7.2, w: 0.5,  h: 0.45, style: civic,    symbol: "§"}
+  - {id: 364, slug: "tipoca_clone_barracks",            name: "Clone Barracks", zone: cloning, x: 8.9,  y: 7.2, w: 0.6,  h: 0.5,  style: housing,  symbol: "⌂"}
+  - {id: 365, slug: "tipoca_clone_mess",                name: "Clone Mess",     zone: cloning, x: 10.2, y: 7.2, w: 0.5,  h: 0.45, style: market,   symbol: "#"}
+  - {id: 362, slug: "tipoca_training_block_alpha",      name: "Training Alpha", zone: cloning, x: 7.5,  y: 5.6, w: 0.55, h: 0.5,  style: civic,    symbol: "§"}
+  - {id: 361, slug: "tipoca_genetics_lab",              name: "Genetics Lab",   zone: cloning, x: 8.9,  y: 5.6, w: 0.6,  h: 0.5,  style: landmark, symbol: "※"}
+  - {id: 366, slug: "tipoca_equipment_bay",             name: "Equipment Bay",  zone: cloning, x: 10.2, y: 5.6, w: 0.5,  h: 0.45, style: vendor,   symbol: "$"}
+  - {id: 359, slug: "tipoca_cloning_access",            name: "Cloning Access", zone: cloning, x: 7.5,  y: 4.0, w: 0.7,  h: 0.6,  style: landmark, symbol: "※"}
+  - {id: 360, slug: "tipoca_growth_chambers",           name: "Growth Chamber", zone: cloning, x: 8.9,  y: 4.0, w: 0.65, h: 0.55, style: temple,   symbol: "T"}
+  - {id: 368, slug: "tipoca_holding_cells",             name: "Holding Cells",  zone: cloning, x: 10.2, y: 4.0, w: 0.5,  h: 0.45, style: civic,    symbol: "§"}
+  - {id: 367, slug: "tipoca_strategic_command",         name: "Strategic Cmd",  zone: cloning, x: 8.9,  y: 2.4, w: 0.6,  h: 0.5,  style: civic,    symbol: "§"}
+
+# ── EXITS (the real intra-zone adjacency graph from the planet file) ─────
+exits:
+  - [350, 351]
+  - [350, 369]
+  - [351, 352]
+  - [351, 353]
+  - [351, 354]
+  - [351, 355]
+  - [351, 356]
+  - [351, 357]
+  - [351, 358]
+  - [351, 359]
+  - [359, 360]
+  - [359, 366]
+  - [359, 367]
+  - [359, 368]
+  - [360, 361]
+  - [360, 362]
+  - [362, 363]
+  - [362, 364]
+  - [364, 365]
+  - [369, 370]
+  - [369, 371]
+  - [369, 375]
+  - [370, 371]
+  - [370, 373]
+  - [370, 374]
+  - [371, 372]
+
+exit_paths:
+  # THE MAIN CORRIDOR — Tipoca's central spine
+  "350-351": {kind: street, path: [[3.5, 4.0], [4.1, 4.0], [4.8, 4.0]], width: 0.30}
+  "351-352": {kind: street, path: [[4.8, 4.0], [5.5, 4.0], [6.2, 4.0]], width: 0.30}
+  "351-353": {kind: road, path: [[4.8, 4.0], [4.8, 4.8], [4.8, 5.6]], width: 0.22}
+  "351-356": {kind: road, path: [[4.8, 4.0], [4.1, 4.8], [3.5, 5.6]], width: 0.18}
+  "353-355": {kind: road, path: [[4.8, 5.6], [4.8, 6.4], [4.8, 7.2]], width: 0.18}
+  # TIPOCA → OCEAN (west, to the platforms)
+  "350-369": {kind: street, path: [[3.5, 4.0], [2.8, 4.0], [2.1, 4.0]], width: 0.30}
+  "369-370": {kind: street, path: [[2.1, 4.0], [2.1, 3.2], [2.1, 2.4]], width: 0.22}
+  "370-374": {kind: road, path: [[2.1, 2.4], [2.1, 1.65], [2.1, 0.9]], width: 0.18}
+  "370-373": {kind: alley, path: [[2.1, 2.4], [1.45, 2.4], [0.8, 2.4]], width: 0.18}
+  "371-372": {kind: alley, path: [[3.5, 2.4], [4.1, 2.4], [4.8, 2.4]], width: 0.18}
+  # TIPOCA → CLONING (east, the deeper industry)
+  "351-359": {kind: street, path: [[4.8, 4.0], [6.1, 4.0], [7.5, 4.0]], width: 0.30}
+  "359-360": {kind: street, path: [[7.5, 4.0], [8.2, 4.0], [8.9, 4.0]], width: 0.22}
+  "360-362": {kind: road, path: [[8.9, 4.0], [8.2, 4.8], [7.5, 5.6]], width: 0.18}
+  "362-364": {kind: road, path: [[7.5, 5.6], [8.2, 6.4], [8.9, 7.2]], width: 0.18}
+  "359-367": {kind: road, path: [[7.5, 4.0], [8.2, 3.2], [8.9, 2.4]], width: 0.18}
+
+labels:
+  - {text: "MAIN  CORRIDOR", kind: street, path_id: "350-351", t: 0.50, side: 0, offset: 0, size: 8, min_zoom: 1, max_zoom: 2}
+  - {text: "the cloning halls →", kind: flavor, pos: [7.5, 4.4], rot: 0, size: 6, min_zoom: 1, max_zoom: 2}
+  - {text: "storm ocean ↓", kind: flavor, pos: [0.8, 1.4], rot: 0, size: 6, min_zoom: 1, max_zoom: 2}
+
+# ── LANDMARKS ────────────────────────────────────────────────────────────
+# Seeded at painted-feature anchors; re-register against the substrate once
+# the Tipoca City tile is painted (NANO_SUBSTRATE_PLAYBOOK.md).
+landmarks:
+  - {id: main_corridor, icon: palace, name: "Tipoca Main Corridor", pos: [4.8, 4.2], min_zoom: 2, max_zoom: 3}
+  - {id: cloning, icon: palace, name: "Cloning Access", pos: [7.5, 4.2], min_zoom: 2, max_zoom: 3}
+  - {id: growth, icon: palace, name: "Growth Chambers", pos: [8.9, 4], min_zoom: 2, max_zoom: 3}
+  - {id: platform, icon: dock, name: "Landing Platform", pos: [2.1, 4], min_zoom: 2, max_zoom: 3}
+  - {id: aiwha, icon: beacon, name: "Aiwha Stable", pos: [1.4, 2.5], min_zoom: 2, max_zoom: 3}
