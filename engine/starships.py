@@ -579,6 +579,40 @@ class ShipRegistry:
             self._templates[key] = template
         log.info("Loaded %d ship templates from %s", len(self._templates), path)
 
+    def apply_era_hints(self, era_path: str) -> None:
+        """Drop the `registry_hints` metadata pseudo-template and enforce the
+        era's `excluded_global_keys` exclusion list.
+
+        `registry_hints` is a metadata block authored in the era overlay (its
+        value is a dict, so the generic load_file loop ingests it as a junk
+        "ship template"). It carries three lists; the one we enforce is
+        `excluded_global_keys` — hulls from the always-loaded base catalog
+        that are forbidden in this era (e.g. Imperial/Rebel ships in the
+        Clone Wars). Tolerant of a missing/blank file or absent hints.
+        """
+        hints = self._templates.pop("registry_hints", None)
+        excluded = []
+        if era_path and os.path.exists(era_path):
+            try:
+                with open(era_path, encoding="utf-8") as f:
+                    raw = yaml.safe_load(f) or {}
+                excluded = (raw.get("registry_hints", {}) or {}).get(
+                    "excluded_global_keys", []) or []
+            except Exception:  # pragma: no cover - defensive
+                log.warning("apply_era_hints: failed reading %s", era_path,
+                            exc_info=True)
+                excluded = []
+        removed = 0
+        for key in excluded:
+            if self._templates.pop(key, None) is not None:
+                removed += 1
+        if hints is not None or removed:
+            log.info(
+                "apply_era_hints: dropped registry_hints meta=%s, "
+                "excluded %d era-breaking hull(s) of %d listed",
+                hints is not None, removed, len(excluded),
+            )
+
     def get(self, key: str) -> Optional[ShipTemplate]:
         return self._templates.get(key.lower())
 
@@ -649,6 +683,16 @@ def get_ship_registry() -> ShipRegistry:
         era_path = os.path.join(data_dir, "worlds", era, "starships.yaml")
         if os.path.exists(era_path):
             _registry.load_file(era_path)
+        # Era-cleanliness pass. The era overlay may carry a `registry_hints`
+        # metadata block (it is data, not a ship — load_file ingests it as a
+        # junk "template" because its value is a dict). Two jobs here:
+        #   1. Drop the junk `registry_hints` pseudo-template.
+        #   2. Honour `excluded_global_keys`: hulls from the always-loaded base
+        #      catalog that must NOT exist in this era (e.g. TIE fighters,
+        #      X-wings, Star Destroyers in the Clone Wars). Before this pass the
+        #      list was authored but wired to nothing, so `@spawn tie_fighter`
+        #      worked and era-breaking hulls leaked into the live registry.
+        _registry.apply_era_hints(era_path)
     return _registry
 
 

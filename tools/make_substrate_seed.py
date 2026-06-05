@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse, sys
 from pathlib import Path
 import yaml
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 # distinct, desaturated district hues (cycled) — must read as SEPARATE zones
 DISTRICT_HUES = [
@@ -215,6 +215,165 @@ def render(area_key: str, era="clone_wars", root="data/worlds",
     return sp, kp
 
 
+# ════════════════════════════════════════════════════════════════════
+# WILDERNESS mode (Drop 4.16) — soft terrain blobs + POI gold-blocks +
+# faint tracks, from a region OVERVIEW spec (terrain_zones / routes /
+# landmarks) rather than a city map (districts / rooms / exit_paths). The
+# seed grammar per the painted-wilderness design §4b: terrain reads as
+# blended zones (NOT hard districts), distinctive POIs get the same gold
+# building-block convention as city landmarks, tracks are faint (NOT bright
+# paved causeways). Same projector + tight semantics as the city mode, so
+# the unified atlas style clause / reference image apply unchanged.
+# ════════════════════════════════════════════════════════════════════
+TERRAIN_HUES = {
+    "dune":       (152, 130, 96),    # warm sand
+    "scrub":      (124, 122, 92),    # olive flats
+    "canyon":     (134, 104, 82),    # rock / badlands
+    "rock":       (122, 112, 96),
+    "ferrocrete": (92, 98, 108),     # cold grey ducrete
+    "duracrete":  (98, 102, 108),
+    "industrial": (104, 92, 100),    # grey-mauve ruin
+    "dark":       (50, 54, 62),      # bottom dark
+}
+TERRAIN_DEFAULT = (112, 110, 104)
+
+
+def _load_overview(area_key, era, root):
+    stem = area_key.rsplit(".", 1)[-1] if "." in area_key else area_key
+    p = Path(root) / era / "maps" / f"{stem}.yaml"
+    if not p.exists():
+        sys.exit(f"overview YAML not found: {p}")
+    raw = yaml.safe_load(p.read_text(encoding="utf-8"))
+    # terrain_zones is optional: a faithful overview generated from real
+    # region data may carry zero invented zones (open desert / dark base +
+    # POIs + routes only). It MUST, however, look like an overview spec and
+    # not a city map — guard against running --wilderness on a districts map.
+    if "terrain_zones" not in raw and "landmarks" not in raw:
+        sys.exit(f"{p} is not an overview spec (no terrain_zones or landmarks). "
+                 f"City maps use the default mode; drop --wilderness.")
+    if "districts" in raw or "rooms" in raw or "exit_paths" in raw:
+        sys.exit(f"{p} looks like a city map (districts/rooms/exit_paths). "
+                 f"Use the default seed mode; drop --wilderness.")
+    raw.setdefault("terrain_zones", [])
+    return raw, stem
+
+
+def render_wilderness(area_key: str, era="clone_wars", root="data/worlds",
+                      out="static/tools/seeds", long_edge=2048, tight=False):
+    raw, stem = _load_overview(area_key, era, root)
+    out_base = raw.get("area_key") or stem
+    b = raw["bounds"]
+    x0, y0, x1, y1 = (float(b["x_min"]), float(b["y_min"]),
+                      float(b["x_max"]), float(b["y_max"]))
+    dx, dy = (x1 - x0) or 1.0, (y1 - y0) or 1.0
+    aspect = dx / dy
+    if aspect >= 1.0:
+        W, H = long_edge, round(long_edge / aspect)
+    else:
+        H, W = long_edge, round(long_edge * aspect)
+
+    def P(wx, wy):
+        # Overview pos is SVG-space (y DOWN, north=top), matching the live
+        # renderer (m3_tier_wilderness_body draws POIs at SVG (x,y)) and the
+        # gen_wilderness_overview projection. NO y-flip here, so a landmark
+        # lands in the same place in the seed, the painting, and the live map.
+        return ((wx - x0) / dx * W, (wy - y0) / dy * H)
+
+    base_tone = tuple((raw.get("base_tone") or [22, 22, 26])[:3])
+    A = (255,)
+
+    def compose():
+        # bg + soft (blurred) terrain blobs + faint routes + POI blocks.
+        zones = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        zd = ImageDraw.Draw(zones)
+        for z in (raw.get("terrain_zones") or []):
+            pts = [P(px, py) for px, py in z["polygon"]]
+            hue = TERRAIN_HUES.get(str(z.get("terrain", "")), TERRAIN_DEFAULT)
+            if z.get("hazard"):
+                # nudge hazard zones warmer + a touch darker so they read apart
+                hue = (min(hue[0] + 16, 255), max(hue[1] - 8, 0), max(hue[2] - 8, 0))
+            alpha = 215 if tight else 160
+            zd.polygon(pts, fill=hue + (alpha,))
+        blur = (max(6, W // 120)) if tight else (max(12, W // 60))
+        zones = zones.filter(ImageFilter.GaussianBlur(blur))
+
+        img = Image.alpha_composite(
+            Image.new("RGBA", (W, H), base_tone + (255,)), zones)
+        d = ImageDraw.Draw(img)
+
+        # faint routes — low-contrast tracks, never bright causeways
+        for rt in (raw.get("routes") or []):
+            path = [P(px, py) for px, py in rt]
+            if len(path) < 2:
+                continue
+            col = (192, 184, 162, 150) if tight else (176, 168, 150, 115)
+            d.line(path, fill=col, width=max(3, W // 360), joint="curve")
+
+        # POIs — gold building-block (distinctive) / grey dot (generic)
+        for lm in (raw.get("landmarks") or []):
+            pos = lm.get("pos")
+            if not pos:
+                continue
+            px, py = P(float(pos[0]), float(pos[1]))
+            if bool(lm.get("distinctive")):
+                bs = (W // 42) if tight else (W // 54)
+                d.rectangle([px - bs, py - bs, px + bs, py + bs],
+                            fill=LM_DIST + A, outline=(20, 20, 24) + A,
+                            width=max(2, W // 520))
+                rr = bs + max(5, W // 200)
+                d.ellipse([px - rr, py - rr, px + rr, py + rr],
+                          outline=LM_DIST + A, width=max(2, W // 640))
+            else:
+                rad = W // 110
+                d.ellipse([px - rad, py - rad, px + rad, py + rad],
+                          fill=LM_GEN + A, outline=(20, 20, 24) + A,
+                          width=max(2, W // 700))
+        return img
+
+    # ── SEED (text-free) ────────────────────────────────────────────────
+    seed = compose().convert("RGB")
+
+    # ── KEYMAP (labeled, reference only) ────────────────────────────────
+    km = compose()
+    d = ImageDraw.Draw(km)
+    fM, fS = _font(max(15, W // 64)), _font(max(12, W // 90))
+    title = (f'{raw.get("display_name", out_base)}   ·   {out_base}   ·   '
+             f'bounds {dx:g}x{dy:g}  aspect {aspect:.2f}   ·   [WILDERNESS')
+    title += " TIGHT]" if tight else "]"
+    d.rectangle([0, 0, W, int(H * 0.06) + 8], fill=(18, 19, 22))
+    d.text((16, 10), title, font=fM, fill=(230, 226, 216))
+    ax, ay = W - int(W * 0.06), int(H * 0.10)
+    d.line([(ax, ay + 30), (ax, ay - 30)], fill=(230, 226, 216), width=4)
+    d.polygon([(ax - 9, ay - 18), (ax + 9, ay - 18), (ax, ay - 34)], fill=(230, 226, 216))
+    d.text((ax - 6, ay + 34), "N", font=fS, fill=(230, 226, 216))
+    # zone names at polygon centroids
+    for z in (raw.get("terrain_zones") or []):
+        poly = z["polygon"]
+        cx = sum(pt[0] for pt in poly) / len(poly)
+        cy = sum(pt[1] for pt in poly) / len(poly)
+        px, py = P(cx, cy)
+        d.text((px, py), str(z.get("name", "")), font=fS,
+               fill=(238, 234, 224), stroke_width=3, stroke_fill=(20, 20, 24),
+               anchor="mm")
+    # POI names
+    for lm in (raw.get("landmarks") or []):
+        pos = lm.get("pos")
+        if not pos:
+            continue
+        px, py = P(float(pos[0]), float(pos[1]))
+        d.text((px + W // 60, py - W // 120), str(lm.get("name", "")), font=fS,
+               fill=(255, 226, 170), stroke_width=3, stroke_fill=(20, 20, 24))
+    km = km.convert("RGB")
+
+    outd = Path(out)
+    outd.mkdir(parents=True, exist_ok=True)
+    suffix = "_tight" if tight else ""
+    sp, kp = outd / f"{out_base}{suffix}_seed.png", outd / f"{out_base}{suffix}_keymap.png"
+    seed.save(sp); km.save(kp)
+    print(f"{out_base:<30} {W}x{H} (aspect {aspect:.3f})  WILDERNESS ->  {sp.name}, {kp.name}")
+    return sp, kp
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("area_keys", nargs="+")
@@ -225,6 +384,13 @@ if __name__ == "__main__":
     ap.add_argument("--tight", action="store_true",
                     help="lock the macro skeleton (crisp districts, cased roads, "
                          "landmark blocks) for high-fidelity img2img backdrops")
+    ap.add_argument("--wilderness", action="store_true",
+                    help="region OVERVIEW seed (soft terrain blobs + POI gold-blocks "
+                         "+ faint tracks) from a *_overview.yaml spec (Drop 4.16)")
     a = ap.parse_args()
     for k in a.area_keys:
-        render(k, era=a.era, root=a.root, out=a.out, long_edge=a.long, tight=a.tight)
+        if a.wilderness:
+            render_wilderness(k, era=a.era, root=a.root, out=a.out,
+                              long_edge=a.long, tight=a.tight)
+        else:
+            render(k, era=a.era, root=a.root, out=a.out, long_edge=a.long, tight=a.tight)

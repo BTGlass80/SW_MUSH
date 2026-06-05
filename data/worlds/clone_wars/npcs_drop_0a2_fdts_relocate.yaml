@@ -1,0 +1,125 @@
+# data/worlds/clone_wars/npcs_drop_0a2_fdts_relocate.yaml
+# Clone Wars Era — Drop 0a-2: "From Dust to Stars" starter-quest relocation.
+# Schema version 1 (mirrors data/npcs_gg7.yaml / npcs_cw_additions.yaml).
+#
+# ─── Why this file exists ─────────────────────────────────────────────
+#
+# The 06-01 era migration removed Kessel and Corellia from the Clone Wars
+# graph, but the FDtS starter-ship quest (engine/spacer_quest.py) still
+# routed its travel objectives and its Phase-5 ship-purchase climax
+# through those deleted planets. from_dust_to_stars_design_v2_clone_wars.md
+# resolves the relocation:
+#
+#   - Travel objectives: Kessel→Kuat, Corellia→Coruscant (quest text only).
+#   - Step 27 ship broker: Lira Shan moves from "CEC broker on Corellia /
+#     Coronet Starport" to a **Kuati Drive Yards (KDY) broker** on Kuat
+#     ("Kuat City spaceport / KDY office"; design v2 §49, §209, §538-546,
+#     §901). She was reserved-for-FDtS in the CW rosters but never seeded,
+#     so step 27 was uncompletable. THIS FILE SEEDS HER.
+#
+# Placement: "Kuat Drive Yards - Commercial Zone" — reachable from the Kuat
+# spaceport arrivals via the Ring Transit Hub (2 hops). Step 27's
+# room_substr is "Kuat Drive Yards". Verified by load_world_dry_run that
+# she resolves to room idx 307 (not the Market Row fallback).
+#
+# ─── What this file deliberately does NOT seed: Venn Kator ────────────
+#
+# v1's step 24 (the crew/shipwright beat) talked to Venn Kator "on
+# Corellia." Design v2 §501-507 RESOLVES this NOT by relocating Venn but
+# by REMOVING him: "Removed Venn Kator (Corellia NPC, doesn't exist in CW
+# manifest). Renna Dox carries the entire briefing." Renna Dox is already
+# seeded on Nar Shaddaa (npcs_drop_g1_nar_shaddaa_topside.yaml, "Nar
+# Shaddaa - Renna Dox's Workshop"), so step 24 is simply retargeted to her
+# in engine/spacer_quest.py — no new NPC needed. (Design v2 §986 notes the
+# alternative "Kuati Drive Yards crew office" NPC is not yet authored, so
+# step 24 accepts Renna Dox alone as the trigger.)
+#
+# Companion edit (separate file): Mak Torvin moved Nar Shaddaa→"Docking
+# Bay 94 - Pit Floor" within npcs_drop_g1_nar_shaddaa_topside.yaml (the
+# quest code's steps 7/13/26 and his own dialogue place him on Tatooine).
+#
+# ─── Broader finding (flagged, out of scope here) ────────────────────
+#
+# The CW era.yaml does NOT load the base roster data/npcs_gg7.yaml (only
+# the GCW era.yaml lists `../../npcs_gg7.yaml`); CW uses bespoke rosters.
+# So GG7 base NPCs (Venn Kator, Kayson, etc.) are ABSENT from CW. Any CW
+# system that still references them by name — e.g. the schematics.yaml /
+# build-tutorial ship-component trainer that names "Venn Kator at Docking
+# Bay 94" — is a dangling reference. That is a pre-existing Mos Eisley
+# roster gap, NOT part of the dead-planet remediation; flagged for a
+# dedicated CW roster audit (see handoff).
+#
+# Lira's stat block is ported from the legacy GCW Lira Shan
+# (data/worlds/gcw/npcs_planet.yaml), re-grounded from CEC/Corellia to
+# KDY/Kuat. Per design v2 §901 she is a transactional, scripted-dialogue
+# broker; her fallback_lines carry that scripted voice.
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+npcs:
+
+  # ─── Lira Shan — KDY ship broker (FDtS Phase 5 climax, step 27) ─────
+  - name: Lira Shan
+    room: "Kuat Drive Yards - Commercial Zone"
+    species: Human
+    description: >-
+      A composed woman in the slate-grey jacket of a Kuat Drive Yards
+      brokerage, a datapad held flat in one hand and a transfer stylus
+      tucked behind one ear. A KDY broker's credential is clipped to
+      her collar. She looks like someone who has read ten thousand
+      registration documents and trusts the paperwork far more than
+      she trusts the people signing it. Professional, direct, and
+      entirely without patience for time-wasters.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 4D
+        mechanical: 2D
+        perception: 3D
+        strength: 3D
+        technical: 2D
+      skills:
+        business: 5D+2
+        bargain: 5D
+        value: 6D
+        bureaucracy: 4D+1
+        space_transports: 3D+2
+      move: 10
+    ai_config:
+      personality: >-
+        Lira Shan is a Kuati Drive Yards licensed ship broker working
+        out of the KDY commercial ring. She handles paperwork, title
+        transfers, and registration for used freighters that pass
+        through Kuat — YT-series, Ghtroc 720s, and the rest. She is
+        central to "From Dust to Stars" Phase 5: she processes the
+        transfer of the Ghtroc 720 "Rusty Mynock" from Mak Torvin to
+        the player. She is completely legitimate, honest to a fault,
+        and allergic to drama. KDY is the dealership; she will note
+        that CEC built the older hulls without any sentiment about it.
+      knowledge:
+      - "Used-ship sales and title transfers"
+      - "Ghtroc 720 and YT-series freighters"
+      - "Ship registration and KDY brokerage paperwork"
+      - "Kuat Drive Yards and the Kuat commercial ring"
+      - "Starship financing and loanshark notes"
+      - "The Mak Torvin / Rusty Mynock transfer (FDtS Phase 5)"
+      faction: "Traders' Coalition"
+      dialogue_style: >-
+        Crisp, professional, faintly impatient. Gives straight answers
+        and exact figures. No interest in gossip, haggling, or small
+        talk — the price is the price and the paperwork is the paperwork.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "*Lira taps her datapad without looking up.* 'Do you have a ship in mind, or are you browsing?'"
+      - "'I don't haggle. The price is the price. Every transfer KDY-certified, no exceptions.'"
+      - "*She glances up briefly.* 'Come back when you're ready to sign. I'll have the file open.'"
+      - "'Kuat builds half the warships in the galaxy and I push transfer documents on a used Ghtroc. The galaxy is funny that way.'"
+      directed_responses:
+        # FDtS Phase 5 flavor — the Rusty Mynock transfer. (The quest
+        # completion text is emitted by spacer_quest.py; this is the
+        # in-character line the broker delivers at the desk.)
+        mynock_transfer:
+        - "*Lira pulls up a file and turns the datapad toward you.* 'Mak Torvin's Ghtroc 720. CEC built her thirty years back — KDY just handles the secondhand paperwork these days. Eight thousand for the purchase price; the Hutt lien is separate and stays your problem, not mine. Thumb here. Registration's filed with the Kuati registry. Congratulations, Captain. She's yours.'"

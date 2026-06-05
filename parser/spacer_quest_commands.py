@@ -195,11 +195,12 @@ class DebtCommand(BaseCommand):
         # Deduct
         debt["principal"] -= amount
         debt["total_paid"] = debt.get("total_paid", 0) + amount
-        char["credits"] = credits - amount
         attrs["hutt_debt"] = debt
         char["attributes"] = json.dumps(attrs)
+        # Ledger chokepoint (F1): debt payment as a logged sink.
+        char["credits"] = await ctx.db.adjust_credits(
+            char["id"], -amount, "debt_payment")
         await ctx.db.save_character(char["id"],
-                                     credits=char["credits"],
                                      attributes=char["attributes"])
 
         await ctx.session.send_line(
@@ -223,11 +224,12 @@ class DebtCommand(BaseCommand):
 
         debt["principal"] = 0
         debt["total_paid"] = debt.get("total_paid", 0) + principal
-        char["credits"] = credits - principal
         attrs["hutt_debt"] = debt
         char["attributes"] = json.dumps(attrs)
+        # Ledger chokepoint (F1): debt payoff as a logged sink.
+        char["credits"] = await ctx.db.adjust_credits(
+            char["id"], -principal, "debt_payment")
         await ctx.db.save_character(char["id"],
-                                     credits=char["credits"],
                                      attributes=char["attributes"])
 
         await ctx.session.send_line(

@@ -49,7 +49,13 @@ except ImportError:
 # pointers (name contains ↗ etc.) are forced non-distinctive regardless
 # of icon, so monumental icons like `palace` are safe here even though
 # Mos Eisley uses `palace` for the off-map Jabba's Palace pointer.
-DISTINCTIVE_ICONS = {"dock", "ship", "wreck", "cantina", "bones", "palace"}
+DISTINCTIVE_ICONS = {
+    # city features
+    "dock", "ship", "wreck", "cantina", "bones", "palace",
+    # wilderness / underworld POI features (Drop 4.16) — distinctive painted
+    # landmarks a player can actually verify on the substrate
+    "farm", "tents", "pit", "spire", "shaft", "factory", "hideout", "maze",
+}
 # Explicit id overrides (e.g. a beacon that IS a painted landmark, or a
 # generic-icon thing you nonetheless want placed precisely).
 DISTINCTIVE_IDS: set[str] = set()
@@ -90,7 +96,10 @@ def build_manifest(area_key: str, *, era: str, worlds_root: Path,
 
     def world_to_frac(wx: float, wy: float) -> tuple[float, float]:
         fx = (wx - x_min) / dx
-        fy = (y_max - wy) / dy           # inverted — matches the tool
+        # Drop 4.17: overview pos is SVG-space (y DOWN, north=top), matching
+        # the seed tool (no-flip) and the renderer; the substrate painting is
+        # in that same space, so the pin fraction must NOT be inverted.
+        fy = (wy - y_min) / dy
         # clamp into [0,1] so off-bounds points still render a draggable pin
         return (min(max(fx, 0.0), 1.0), min(max(fy, 0.0), 1.0))
 

@@ -82,9 +82,10 @@ async def process_all_debts(db, session_mgr):
                 attrs["hutt_debt"] = debt
                 await db.save_character(
                     char_id,
-                    credits=new_credits,
                     attributes=json.dumps(attrs),
                 )
+                # Ledger chokepoint (F1): debt payment as a logged sink.
+                await db.adjust_credits(char_id, -payment, "debt_payment")
 
                 if sess:
                     remaining = debt["principal"]

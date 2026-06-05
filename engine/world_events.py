@@ -38,8 +38,15 @@ _RESET = "\033[0m"
 # ── Event Types ──
 
 class EventType(str, Enum):
-    IMPERIAL_CRACKDOWN = "imperial_crackdown"
-    IMPERIAL_CHECKPOINT = "imperial_checkpoint"
+    # E1 (2026-06-04): the legacy GCW event types (IMPERIAL_CRACKDOWN /
+    # IMPERIAL_CHECKPOINT / REBEL_PROPAGANDA) were renamed to era-clean CW
+    # equivalents. Their player-facing strings broadcast "Imperial /
+    # Stormtrooper / Rebel / The Empire" — a live B3 era-cleanness leak in
+    # the clone_wars production era (tick() fires all defs ungated). The
+    # values are internal identifiers; deprecated GCW director_config.yaml
+    # references were updated in lock-step.
+    SECURITY_CRACKDOWN = "security_crackdown"
+    SECURITY_CHECKPOINT = "security_checkpoint"
     BOUNTY_SURGE = "bounty_surge"
     MERCHANT_ARRIVAL = "merchant_arrival"
     SANDSTORM = "sandstorm"
@@ -48,8 +55,10 @@ class EventType(str, Enum):
     PIRATE_SURGE = "pirate_surge"
     HUTT_AUCTION = "hutt_auction"
     KRAYT_SIGHTING = "krayt_sighting"
-    REBEL_PROPAGANDA = "rebel_propaganda"
+    SEPARATIST_AGITATION = "separatist_agitation"
     TRADE_BOOM = "trade_boom"
+    INTELLIGENCE_THAW = "intelligence_thaw"
+    SPICE_DEMAND = "spice_demand"
 
 
 # Frozenset for validation
@@ -73,31 +82,32 @@ class EventDef:
 
 
 EVENT_DEFS: dict[EventType, EventDef] = {
-    EventType.IMPERIAL_CRACKDOWN: EventDef(
-        event_type=EventType.IMPERIAL_CRACKDOWN,
-        name="Imperial Crackdown",
+    EventType.SECURITY_CRACKDOWN: EventDef(
+        event_type=EventType.SECURITY_CRACKDOWN,
+        name="Security Crackdown",
         announce_text=(
-            f"{_RED}[ALERT]{_RESET} Imperial reinforcements are deploying across "
-            f"{{zone_name}}. Stormtrooper patrols have doubled. "
-            f"Smugglers take note: payouts are up, but so is the heat."
+            f"{_RED}[ALERT]{_RESET} Security forces are flooding "
+            f"{{zone_name}}. Patrols have doubled and inspections are "
+            f"everywhere. Smugglers take note: payouts are up, but so is "
+            f"the heat."
         ),
         expire_text=(
-            f"{_DIM}The Imperial presence in {{zone_name}} returns to normal levels.{_RESET}"
+            f"{_DIM}The security presence in {{zone_name}} eases back to normal levels.{_RESET}"
         ),
         default_duration_min=30, default_duration_max=60,
         timer_probability=1 / (8 * 3600),   # ~1 per 8 hours
         preferred_zones=["spaceport", "streets"],
         mechanical_effects={"smuggling_pay_mult": 1.5, "patrol_spawn_mult": 2.0},
     ),
-    EventType.IMPERIAL_CHECKPOINT: EventDef(
-        event_type=EventType.IMPERIAL_CHECKPOINT,
-        name="Imperial Checkpoint",
+    EventType.SECURITY_CHECKPOINT: EventDef(
+        event_type=EventType.SECURITY_CHECKPOINT,
+        name="Security Checkpoint",
         announce_text=(
-            f"{_YELLOW}[NOTICE]{_RESET} An Imperial checkpoint has been established "
+            f"{_YELLOW}[NOTICE]{_RESET} A security checkpoint has gone up "
             f"in {{zone_name}}. All travelers are subject to inspection."
         ),
         expire_text=(
-            f"{_DIM}The Imperial checkpoint in {{zone_name}} has been dismantled.{_RESET}"
+            f"{_DIM}The checkpoint in {{zone_name}} has been taken down.{_RESET}"
         ),
         default_duration_min=15, default_duration_max=30,
         timer_probability=1 / (2 * 3600),   # ~1 per 2 hours
@@ -198,7 +208,7 @@ EVENT_DEFS: dict[EventType, EventDef] = {
         event_type=EventType.HUTT_AUCTION,
         name="Hutt Auction",
         announce_text=(
-            f"{_YELLOW}[UNDERWORLD]{_RESET} Jabba's agents are running an auction "
+            f"{_YELLOW}[UNDERWORLD]{_RESET} A Hutt kajidic is running an auction "
             f"in {{zone_name}}. Rare items, questionable provenance. "
             f"Criminal reputation required."
         ),
@@ -226,20 +236,23 @@ EVENT_DEFS: dict[EventType, EventDef] = {
         preferred_zones=["streets"],  # outskirts rooms are in streets zone
         mechanical_effects={"krayt_bounty": True},
     ),
-    EventType.REBEL_PROPAGANDA: EventDef(
-        event_type=EventType.REBEL_PROPAGANDA,
-        name="Rebel Propaganda",
+    EventType.SEPARATIST_AGITATION: EventDef(
+        event_type=EventType.SEPARATIST_AGITATION,
+        name="Separatist Agitation",
         announce_text=(
-            f"{_CYAN}[RUMORS]{_RESET} Rebel propaganda holos have appeared on the "
-            f"walls in {{zone_name}}. The Empire won't be pleased."
+            f"{_CYAN}[RUMORS]{_RESET} Separatist agitprop has appeared on the "
+            f"walls in {{zone_name}} \u2014 pro-Confederacy slogans, anti-war "
+            f"screeds. Someone is stirring sympathies."
         ),
         expire_text=(
-            f"{_DIM}Imperial clean-up crews have removed the Rebel propaganda.{_RESET}"
+            f"{_DIM}Local authorities have scrubbed the Separatist holos from {{zone_name}}.{_RESET}"
         ),
         default_duration_min=30, default_duration_max=30,
         timer_probability=1 / (8 * 3600),
         preferred_zones=["streets", "cantina"],
-        mechanical_effects={"rebel_influence_tick": 1},
+        # Dormant effect (no live consumer) \u2014 renamed from the legacy
+        # GCW rebel-influence key as part of the E1 era-cleanness pass.
+        mechanical_effects={"cis_influence_tick": 1},
     ),
     EventType.TRADE_BOOM: EventDef(
         event_type=EventType.TRADE_BOOM,
@@ -255,6 +268,53 @@ EVENT_DEFS: dict[EventType, EventDef] = {
         timer_probability=1 / (6 * 3600),
         preferred_zones=["shops", "streets"],
         mechanical_effects={"sell_price_mult": 1.25},
+    ),
+    EventType.INTELLIGENCE_THAW: EventDef(
+        event_type=EventType.INTELLIGENCE_THAW,
+        name="Intelligence Thaw",
+        announce_text=(
+            f"{_CYAN}[INTEL]{_RESET} The war's loose talk is everywhere right now "
+            f"\\u2014 leaked dispatches, careless comm traffic, defectors with "
+            f"stories to sell. Faction handlers are paying top credit for fresh, "
+            f"actionable intelligence. Double rates for the next 30 minutes."
+        ),
+        expire_text=(
+            f"{_DIM}Intelligence channels go quiet again. Handlers return to "
+            f"standard rates.{_RESET}"
+        ),
+        default_duration_min=30, default_duration_max=30,
+        timer_probability=1 / (6 * 3600),   # ~1 per 6 hours (cf. Bounty Surge)
+        preferred_zones=[],                   # Global \u2014 intel desks are faction-wide
+        # A3 (report): the spy playstyle's "holiday". 2x the credit payout from
+        # handing sealed intel to a faction handler (engine/intel_handlers.py
+        # reads this via get_effect("intel_pay_mult", 1.0)). Influence is NOT
+        # multiplied \u2014 that would distort the territory-contest system; the
+        # thaw is an income opportunity, never a territory lever.
+        mechanical_effects={"intel_pay_mult": 2.0},
+    ),
+    EventType.SPICE_DEMAND: EventDef(
+        event_type=EventType.SPICE_DEMAND,
+        name="Spice Demand",
+        announce_text=(
+            f"{_CYAN}[UNDERWORLD]{_RESET} Spice is moving fast right now \\u2014 "
+            f"the kajidic are paying a premium and every cartel fixer wants "
+            f"product on the move. Smuggling runs are paying double for the "
+            f"next 30 minutes."
+        ),
+        expire_text=(
+            f"{_DIM}The spice rush cools off. Smuggling payouts return to "
+            f"standard rates.{_RESET}"
+        ),
+        default_duration_min=30, default_duration_max=30,
+        timer_probability=1 / (6 * 3600),   # ~1 per 6 hours (cf. Bounty Surge)
+        preferred_zones=[],                   # Global \u2014 the spice trade is galaxy-wide
+        # A5 (report): the Hutt/criminal playstyle's "holiday". 2x the smuggling
+        # payout while active (parser/smuggling_commands.py reads this via
+        # get_effect("smuggling_pay_mult", 1.0)). NOTE: this is the FIRST live
+        # consumer of smuggling_pay_mult \u2014 it was previously dormant (defined on
+        # the legacy crackdown def but never read). Bounded temporary
+        # multiplier on the already-ledger-metered `smuggling` faucet.
+        mechanical_effects={"smuggling_pay_mult": 2.0},
     ),
 }
 
@@ -292,7 +352,7 @@ _ZONE_DISPLAY_NAMES = {
     "streets": "the central streets",
     "cantina": "the Cantina District",
     "shops": "the Commercial District",
-    "jabba": "Jabba's territory",
+    "jabba": "the Hutt quarter",
     "government": "the Government Quarter",
 }
 

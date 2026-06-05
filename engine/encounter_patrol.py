@@ -29,6 +29,42 @@ from engine.starships import SpaceRange
 
 log = logging.getLogger(__name__)
 
+# ── Authority-aware patrol labels (Clone Wars) ───────────────────────────────
+# Patrol identity follows the zone's controlling faction rather than a
+# hardcoded "Imperial" label. Falls back to a neutral sector patrol.
+_PATROL_NAME_BY_AUTHORITY = {
+    "republic":  "Republic Sector Patrol",
+    "cis":       "Separatist Patrol",
+    "hutt":      "Hutt Cartel Customs",
+    "contested": "Sector Patrol",
+    "neutral":   "Sector Customs Patrol",
+}
+_BOARD_PARTY_BY_AUTHORITY = {
+    "republic":  "Clone troopers",
+    "cis":       "B1 battle droids",
+    "hutt":      "Cartel enforcers",
+    "contested": "Boarding troopers",
+    "neutral":   "Customs officers",
+}
+
+
+def _zone_authority(zone_id: str) -> str:
+    try:
+        from engine.npc_space_traffic import ZONES
+        zone = ZONES.get(zone_id)
+        return getattr(zone, "authority", "neutral") if zone else "neutral"
+    except Exception:  # pragma: no cover - defensive
+        return "neutral"
+
+
+def _default_patrol_name(zone_id: str) -> str:
+    return _PATROL_NAME_BY_AUTHORITY.get(_zone_authority(zone_id), "Sector Patrol")
+
+
+def _board_party(zone_id: str) -> str:
+    return _BOARD_PARTY_BY_AUTHORITY.get(_zone_authority(zone_id), "Customs officers")
+
+
 # ── ANSI shortcuts ───────────────────────────────────────────────────────────
 AMBER = "\033[1;33m"
 CYAN = "\033[0;36m"
@@ -82,11 +118,12 @@ async def patrol_setup(encounter, manager, db, session_mgr, **kwargs):
     from engine.npc_space_traffic import get_space_security
 
     zone_sec = get_space_security(encounter.zone_id)
-    patrol_name = encounter.context.get("patrol_name", "Imperial Sector Patrol")
+    patrol_name = encounter.context.get("patrol_name",
+                                        _default_patrol_name(encounter.zone_id))
     ship_name = encounter.context.get("player_ship_name", "your vessel")
 
     encounter.prompt = (
-        f"[IMPERIAL PATROL] {patrol_name} is hailing {ship_name}.\n"
+        f"[PATROL] {patrol_name} is hailing {ship_name}.\n"
         f"  \"{AMBER}Attention freighter — transmit your identification codes "
         f"and stand by for inspection.{RST}\""
     )
@@ -147,7 +184,7 @@ async def patrol_comply(encounter, manager, db, session_mgr, **kwargs):
     """Player chose to comply with inspection."""
     session = kwargs.get("session")
     char_id = kwargs.get("char_id", 0)
-    patrol_name = encounter.context.get("patrol_name", "Imperial Patrol")
+    patrol_name = encounter.context.get("patrol_name", _default_patrol_name(encounter.zone_id))
 
     await manager.broadcast_to_bridge(
         encounter,
@@ -187,7 +224,7 @@ async def patrol_comply(encounter, manager, db, session_mgr, **kwargs):
         if hide_result["success"]:
             await manager.broadcast_to_bridge(
                 encounter,
-                f"  {GREEN}[INSPECTION]{RST} The stormtroopers search the hold but miss "
+                f"  {GREEN}[INSPECTION]{RST} The {_board_party(encounter.zone_id)} search the hold but miss "
                 f"the contraband. You're cleared.\n"
                 f"  {DIM}(Con check: {hide_result['roll']} vs {hide_result['difficulty']} — success){RST}",
                 session_mgr,
@@ -225,7 +262,7 @@ async def patrol_bluff(encounter, manager, db, session_mgr, **kwargs):
     session = kwargs.get("session")
     char_id = kwargs.get("char_id", 0)
     difficulty = encounter.context.get("bluff_difficulty", 15)
-    patrol_name = encounter.context.get("patrol_name", "Imperial Patrol")
+    patrol_name = encounter.context.get("patrol_name", _default_patrol_name(encounter.zone_id))
 
     result = await _skill_check(char_id, "con", difficulty, db)
 
@@ -278,7 +315,7 @@ async def patrol_run(encounter, manager, db, session_mgr, **kwargs):
     """
     session = kwargs.get("session")
     char_id = kwargs.get("char_id", 0)
-    patrol_name = encounter.context.get("patrol_name", "Imperial Patrol")
+    patrol_name = encounter.context.get("patrol_name", _default_patrol_name(encounter.zone_id))
 
     await manager.broadcast_to_bridge(
         encounter,
@@ -297,32 +334,37 @@ async def patrol_run(encounter, manager, db, session_mgr, **kwargs):
         ts = traffic_mgr.get_ship(npc_ship_id)
 
         if ts:
+            # Patrol hull follows the zone's controlling faction (Republic /
+            # CIS / Hutt / neutral), matching the traffic spawner. The old code
+            # hardcoded tie_fighter for "official" transponders — an Imperial
+            # hull that no longer exists in the CW registry.
+            from engine.npc_space_traffic import _pick_patrol_template
+            patrol_tmpl = _pick_patrol_template(encounter.zone_id)
+            patrol_hull = patrol_tmpl.get("template", "z95")
+            patrol_crew = patrol_tmpl.get("crew_skill", "3D+2")
+
             combat_mgr = get_npc_combat_manager()
             combatant = combat_mgr.promote_to_combat(
                 npc_ship_id=npc_ship_id,
                 target_ship_id=encounter.target_ship_id,
                 target_bridge_room=encounter.target_bridge_room,
                 zone_id=encounter.zone_id,
-                template_key=ts.transponder_type == "official" and "tie_fighter" or "z95",
+                template_key=patrol_hull,
                 display_name=ts.display_name,
-                crew_skill="3D+2",
+                crew_skill=patrol_crew,
                 profile="patrol",
                 starting_range=SpaceRange.SHORT,
             )
 
-            # Look up the actual template from traffic ship config
-            from engine.npc_space_traffic import TRAFFIC_SHIP_TEMPLATES, TrafficArchetype
-            templates = TRAFFIC_SHIP_TEMPLATES.get(TrafficArchetype.PATROL, [])
-            if templates:
-                combatant.template_key = templates[0].get("template", "tie_fighter")
-                combatant.crew_skill = templates[0].get("crew_skill", "3D+2")
-                # Recalculate hull from actual template
-                from engine.starships import get_ship_registry
-                actual_tmpl = get_ship_registry().get(combatant.template_key)
-                if actual_tmpl:
-                    from engine.dice import DicePool
-                    combatant.hull_max_pips = DicePool.parse(actual_tmpl.hull).total_pips()
-                    combatant.scale_value = actual_tmpl.scale_value
+            # Apply the resolved patrol template (hull/crew) and recalc stats.
+            combatant.template_key = patrol_hull
+            combatant.crew_skill = patrol_crew
+            from engine.starships import get_ship_registry
+            actual_tmpl = get_ship_registry().get(combatant.template_key)
+            if actual_tmpl:
+                from engine.dice import DicePool
+                combatant.hull_max_pips = DicePool.parse(actual_tmpl.hull).total_pips()
+                combatant.scale_value = actual_tmpl.scale_value
 
             await manager.broadcast_to_bridge(
                 encounter,
@@ -367,7 +409,7 @@ async def patrol_run(encounter, manager, db, session_mgr, **kwargs):
         )
         await _forced_boarding(encounter, manager, db, session_mgr,
                                char_id=char_id, extra_difficulty=10,
-                               reason="Fleeing from Imperial patrol",
+                               reason="Fleeing from patrol",
                                min_infraction_class=3)
 
 
@@ -376,7 +418,7 @@ async def patrol_hide(encounter, manager, db, session_mgr, **kwargs):
     session = kwargs.get("session")
     char_id = kwargs.get("char_id", 0)
     difficulty = encounter.context.get("hide_difficulty", 20)
-    patrol_name = encounter.context.get("patrol_name", "Imperial Patrol")
+    patrol_name = encounter.context.get("patrol_name", _default_patrol_name(encounter.zone_id))
 
     await manager.broadcast_to_bridge(
         encounter,
@@ -447,7 +489,7 @@ async def patrol_hide(encounter, manager, db, session_mgr, **kwargs):
 
 async def patrol_timeout(encounter, manager, db, session_mgr, **kwargs):
     """No response within deadline — forced boarding."""
-    patrol_name = encounter.context.get("patrol_name", "Imperial Patrol")
+    patrol_name = encounter.context.get("patrol_name", _default_patrol_name(encounter.zone_id))
 
     await manager.broadcast_to_bridge(
         encounter,
@@ -471,7 +513,7 @@ async def patrol_timeout(encounter, manager, db, session_mgr, **kwargs):
 
     await _forced_boarding(encounter, manager, db, session_mgr,
                            char_id=char_id, extra_difficulty=0,
-                           reason="Failure to respond to Imperial hail")
+                           reason="Failure to respond to patrol hail")
 
 
 # ── Shared Helpers ───────────────────────────────────────────────────────────
@@ -543,7 +585,7 @@ async def _apply_infraction(encounter, manager, db, session_mgr,
                 credits = char.get("credits", 0)
                 paid = min(credits, fine)
                 new_credits = credits - paid
-                await db.save_character(char_id, credits=new_credits)
+                await db.adjust_credits(char_id, -paid, "space_patrol_fine")
 
                 if paid < fine:
                     lines.append(

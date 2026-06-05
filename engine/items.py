@@ -273,3 +273,24 @@ def serialize_equipment(item: Optional[ItemInstance]) -> str:
     if item is None:
         return "{}"
     return json.dumps(item.to_dict())
+
+
+# ── NPC buyback policy (economy audit §1.3) ─────────────────────────────────
+# NPC vendors must not price-support the player crafted-goods market: a
+# well-made player craft is "too good for scrap," so the NPC refuses it and the
+# player must list it on a vendor droid (where the market discovers its own
+# floor). Low-quality crafts and all factory/vendor items still sell to NPCs as
+# salvage. Tunable: raise to refuse fewer crafts, lower to refuse more.
+CRAFTED_NPC_BUYBACK_MAX_QUALITY = 50
+
+
+def npc_refuses_buyback(item) -> bool:
+    """True if an NPC vendor should refuse to buy ``item`` back.
+
+    Scoped to PLAYER-CRAFTED items (``crafter`` set) at or above the quality
+    threshold; factory/vendor items (no crafter) and low-quality crafts are
+    unaffected. Closes the craft -> NPC-sell price-support loop (economy
+    audit v2 §1.3) by pushing good crafts to the player vendor-droid market.
+    """
+    return bool(getattr(item, "crafter", None)) and \
+        getattr(item, "quality", 0) >= CRAFTED_NPC_BUYBACK_MAX_QUALITY

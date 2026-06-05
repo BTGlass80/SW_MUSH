@@ -11,7 +11,7 @@ v31 additions (Reputation Drop 6 + Era Progression)
 - System prompt updated with FACTION STANDINGS guidance
 - Era-progression milestone system: ERA_MILESTONES, _check_era_milestones()
   Tracks average faction influence; fires one-time events at thresholds
-  (imperial_grip, martial_law, underworld_rising, rebel_uprising, etc.)
+  (republic_ascendant, separatist_surge, underworld_dominion, etc.)
 
 This file contains all LOCAL logic (no API calls). The Claude API
 integration is in ai/claude_provider.py (Drop 4).
@@ -140,26 +140,37 @@ MAX_DELTA = 5
 
 ERA_MILESTONES = [
     # (faction, avg_threshold, era_key, headline, event_type, duration_min)
-    ("imperial", 70, "imperial_grip",
-     "The Empire tightens its grip on Mos Eisley. Stormtrooper patrols double.",
-     "imperial_crackdown", 120),
-    ("imperial", 85, "imperial_martial_law",
-     "Martial law declared! Imperial forces seize all docking bays.",
-     "imperial_crackdown", 240),
-    ("criminal", 70, "underworld_rising",
-     "The criminal underworld surges. Hutts openly challenge Imperial authority.",
+    #
+    # E1 (2026-06-04): re-keyed from the legacy GCW table (imperial / rebel /
+    # criminal) to the live Clone Wars factions. The old table was inert in
+    # CW: _compute_faction_averages() keys on VALID_FACTIONS (republic / cis /
+    # hutt_cartel / ...), so avgs.get("imperial") was always 0 — the six
+    # above-threshold milestones could never fire, and the one below-threshold
+    # milestone (avg < 30) fired spuriously on the first faction turn,
+    # broadcasting GCW content to the news/director log. Every
+    # `faction` below MUST be a member of VALID_FACTIONS for the lookup to
+    # resolve (pinned by tests/test_e1_event_era_cleanness.py). Thresholds are
+    # first-cut, playtest-tunable.
+    ("republic", 60, "republic_ascendant",
+     "Republic forces consolidate their hold. Clone patrols and checkpoints multiply across the sector.",
+     "security_crackdown", 120),
+    ("republic", 75, "republic_martial_footing",
+     "The Republic declares martial authority. The Grand Army locks down strategic districts.",
+     "security_crackdown", 240),
+    ("cis", 40, "separatist_surge",
+     "Confederacy influence spreads. Separatist sympathizers grow bolder and war fever rises.",
+     "separatist_agitation", 120),
+    ("cis", 55, "separatist_offensive",
+     "Separatist cells coordinate openly. The war presses in on the streets.",
+     "separatist_agitation", 180),
+    ("hutt_cartel", 65, "cartels_profit",
+     "The kajidic tighten their grip. To the Hutts, the Clone Wars is just another market to corner.",
      None, 0),
-    ("criminal", 85, "hutt_takeover",
-     "Jabba's enforcers patrol the streets. The Empire has lost control.",
+    ("hutt_cartel", 80, "underworld_dominion",
+     "Neither Republic nor Confederacy writ runs here. The cartels rule unchallenged.",
      None, 0),
-    ("rebel", 35, "rebel_whispers",
-     "Rebel propaganda appears on cantina walls. Something is stirring.",
-     None, 0),
-    ("rebel", 50, "rebel_uprising",
-     "Open revolt! Rebel cells coordinate strikes across the spaceport district.",
-     None, 0),
-    ("imperial", 30, "imperial_retreat",  # avg below 30 = milestone
-     "Imperial forces withdraw to the Government Quarter. The streets belong to no one.",
+    ("republic", 12, "power_vacuum",  # avg below 12 = milestone
+     "Republic authority has all but withdrawn. The streets answer to no banner now.",
      None, 0),
 ]
 
@@ -809,10 +820,11 @@ class DirectorAI:
         # The module-level VALID_FACTIONS is used directly (no shadow).
         VALID_ZONES    = frozenset(self._zones.keys())
         EVENT_TYPES    = frozenset({
-            "imperial_crackdown", "imperial_checkpoint", "bounty_surge",
+            "security_crackdown", "security_checkpoint", "bounty_surge",
             "merchant_arrival", "sandstorm", "cantina_brawl", "distress_signal",
             "pirate_surge", "hutt_auction", "krayt_sighting",
-            "rebel_propaganda", "trade_boom",
+            "separatist_agitation", "trade_boom",
+            "intelligence_thaw", "spice_demand",
         })
 
         adjustments = resp.get("influence_adjustments", [])
@@ -859,8 +871,8 @@ class DirectorAI:
                         )
                         # Apply room states for visual feedback
                         _EVENT_TO_STATE = {
-                            "imperial_crackdown": "imperial_crackdown",
-                            "rebel_propaganda": "rebel_propaganda",
+                            "security_crackdown": "security_crackdown",
+                            "separatist_agitation": "separatist_agitation",
                             "trade_boom": "trade_boom",
                             "bounty_surge": "bounty_surge",
                             "sandstorm": "sandstorm",
@@ -1376,8 +1388,8 @@ class DirectorAI:
 
             avg = avgs.get(faction, 0)
 
-            # Special case: "imperial_retreat" fires when avg is BELOW threshold
-            if era_key == "imperial_retreat":
+            # Special case: "power_vacuum" fires when avg is BELOW threshold
+            if era_key == "power_vacuum":
                 if avg >= threshold:
                     continue  # Not below threshold yet
             else:
@@ -1592,13 +1604,13 @@ class DirectorAI:
         for z in all_zones:
             zone_name_to_id[z["name"].lower()] = z["id"]
 
-        # Check for active Imperial crackdown events
+        # Check for active security crackdown events
         crackdown_zones: set[str] = set()
         try:
             from engine.world_events import get_world_event_manager, EventType
             wem = get_world_event_manager()
             for evt in wem.active_events:
-                if evt.event_type == EventType.IMPERIAL_CRACKDOWN:
+                if evt.event_type == EventType.SECURITY_CRACKDOWN:
                     crackdown_zones.update(evt.zones_affected)
         except Exception:
             log.warning("_apply_security_overlays: unhandled exception", exc_info=True)

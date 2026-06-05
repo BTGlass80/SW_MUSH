@@ -195,6 +195,26 @@ class _MiniDB:
             f"UPDATE characters SET {cols} WHERE id = ?", params)
         await self._db.commit()
 
+    async def adjust_credits(self, char_id, delta, source, *, allow_negative=True):
+        # Mirrors Database.adjust_credits: char_id==0 is a system faucet/sink
+        # (no row), else an atomic credits += delta returning the new balance.
+        if char_id == 0:
+            return 0
+        rows = await self._db.execute_fetchall(
+            "SELECT credits FROM characters WHERE id = ?", (char_id,))
+        if not rows:
+            return None
+        cur = int(rows[0]["credits"] or 0)
+        if delta < 0 and not allow_negative and cur + delta < 0:
+            return None
+        await self._db.execute(
+            "UPDATE characters SET credits = credits + ? WHERE id = ?",
+            (delta, char_id))
+        await self._db.commit()
+        rows = await self._db.execute_fetchall(
+            "SELECT credits FROM characters WHERE id = ?", (char_id,))
+        return int(rows[0]["credits"] or 0)
+
     async def get_membership(self, char_id, org_id):
         rows = await self._db.execute_fetchall(
             "SELECT * FROM org_memberships "

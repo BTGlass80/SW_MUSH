@@ -329,9 +329,9 @@ QUEST_STEPS = [
         "briefing_source": "Mak Torvin",
         "briefing": (
             "Before you go anywhere, you need to understand who runs this "
-            "galaxy. It's not just the Empire — there are factions, guilds, "
-            "cartels, all of them pulling strings. Type 'factions' and "
-            "read up. Knowing who to work for can double your pay."
+            "galaxy. It's not just the Republic and the Confederacy — there "
+            "are factions, guilds, cartels, all of them pulling strings. Type "
+            "'factions' and read up. Knowing who to work for can double your pay."
         ),
         "completion_text": (
             "Mak: \"Good. Most rookies never bother learning the political "
@@ -552,7 +552,7 @@ QUEST_STEPS = [
         "reward_credits": 300,
         "reward_title": None,
         "reward_flags": {},
-        "hint": "In orbit, type 'hyperspace narshaddaa' (or kessel, corellia) to jump.",
+        "hint": "In orbit, type 'hyperspace narshaddaa' (or kuat, coruscant) to jump.",
         "phase_gate": False,
     },
     {
@@ -591,8 +591,9 @@ QUEST_STEPS = [
             "Here's where a ship starts paying for itself. Every planet "
             "produces goods that are cheap locally and expensive elsewhere. "
             "Type 'trade list' to see what's available. Buy low, fly "
-            "somewhere that wants it, sell high. Corellia sells luxury "
-            "goods cheap, and Tatooine can't get enough of them."
+            "somewhere that wants it, sell high. Kuat sells industrial "
+            "components cheap, and the Hutts on Nar Shaddaa pay premium "
+            "for them — they're rebuilding their fleets."
         ),
         "completion_text": (
             "Mak: \"Now you understand why every spacer in the galaxy "
@@ -636,15 +637,16 @@ QUEST_STEPS = [
         "phase": 3,
         "title": "The Grand Tour",
         "objective_type": "visit_planets",
-        "objective_data": {"planets": ["tatooine", "nar_shaddaa", "kessel", "corellia"],
+        "objective_data": {"planets": ["tatooine", "nar_shaddaa", "kuat", "coruscant"],
                            "target": 4},
-        "objective_desc": "Land on all 4 planets: Tatooine, Nar Shaddaa, Kessel, Corellia.",
+        "objective_desc": "Land on all 4 planets: Tatooine, Nar Shaddaa, Kuat, Coruscant.",
         "briefing_source": "Mak Torvin",
         "briefing": (
             "Almost there. I want you to visit every planet we've got "
-            "routes to — Tatooine, Nar Shaddaa, Kessel, and Corellia. "
-            "Land on each one. A good spacer knows every port in their "
-            "territory."
+            "routes to — Tatooine, Nar Shaddaa, Kuat, and Coruscant. "
+            "Land on each one. While you're there, check the local "
+            "mission board, talk to the locals, get a feel for the place. "
+            "A good spacer knows every port in their territory."
         ),
         "completion_text": (
             "Mak: \"Four planets. Four docking bays. You know the territory "
@@ -694,8 +696,8 @@ QUEST_STEPS = [
         "briefing_source": "Mak Torvin",
         "briefing": (
             "The factions are watching. The Bounty Hunters' Guild tracks "
-            "your kills. The Hutts track your deliveries. The Empire and "
-            "the Rebellion track your mission history. Do any two of these: "
+            "your kills. The Hutts track your deliveries. The Republic and "
+            "the Confederacy track your mission history. Do any two of these: "
             "a bounty hunt, a smuggling run, or a mission. Show the galaxy "
             "you're not a one-trick spacer."
         ),
@@ -728,7 +730,7 @@ QUEST_STEPS = [
         "completion_text": (
             "Mak: \"When you've got credits to spare, a place of your "
             "own is worth the investment. Cheapest on Tatooine, nicest "
-            "on Corellia.\""
+            "on Coruscant.\""
         ),
         "reward_credits": 200,
         "reward_title": None,
@@ -741,15 +743,18 @@ QUEST_STEPS = [
         "phase": 4,
         "title": "The Crew Question",
         "objective_type": "talk",
-        "objective_data": {"npc": "venn kator"},
-        "objective_desc": "Talk to a shipwright about NPC crew: Venn Kator (Corellia) or Renna Dox (Nar Shaddaa).",
+        "objective_data": {"npc": "renna dox"},
+        "objective_desc": "Talk to Renna Dox about NPC crew, at her workshop on Nar Shaddaa.",
         "briefing_source": "Mak Torvin",
         "briefing": (
-            "Something to think about: crew. A ship can run solo, but it "
-            "runs better with help. An NPC gunner on the turret while you "
-            "pilot. An engineer who can handle repairs mid-fight. They "
-            "cost wages, but a good crew member can save your life. Talk "
-            "to Venn Kator on Corellia or Renna Dox on Nar Shaddaa."
+            "Something to think about as you fly more: crew. A ship can "
+            "run solo, but it runs better with help. An NPC gunner on the "
+            "turret while you pilot. An engineer who can handle repairs "
+            "mid-fight. They cost wages — 30 to 1,000 credits every four "
+            "hours depending on skill — but a good crew member can save "
+            "your life. Talk to Renna Dox on Nar Shaddaa about hiring "
+            "options, or stop by the Kuati Drive Yards crew office if "
+            "you're up that way."
         ),
         "completion_text": (
             "Mak: \"Good. When you're ready to hire, type 'hire' at any "
@@ -759,7 +764,7 @@ QUEST_STEPS = [
         "reward_credits": 300,
         "reward_title": None,
         "reward_flags": {},
-        "hint": "Travel to Corellia and 'talk venn' or Nar Shaddaa and 'talk renna'.",
+        "hint": "Find Renna Dox at her workshop on Nar Shaddaa and 'talk renna'.",
         "phase_gate": False,
     },
     {
@@ -805,7 +810,7 @@ QUEST_STEPS = [
             "I'll sell her to you for 8,000 credits — my retirement fund. "
             "The other 10,000 goes to Drago the Hutt who holds the note. "
             "You pay that off over time, 500 a week. Talk to Lira Shan "
-            "on Corellia for the paperwork, then Grek on Nar Shaddaa "
+            "on Kuat for the paperwork, then Grek on Nar Shaddaa "
             "about the debt. What do you say?\""
         ),
         "reward_credits": 0,
@@ -821,15 +826,15 @@ QUEST_STEPS = [
         "phase": 5,
         "title": "The Down Payment",
         "objective_type": "talk_with_credits",
-        "objective_data": {"npc": "lira", "room_substr": "Coronet",
+        "objective_data": {"npc": "lira", "room_substr": "Kuat Drive Yards",
                            "cost": 8000},
-        "objective_desc": "Talk to Lira Shan on Corellia with 8,000 credits to buy the ship.",
+        "objective_desc": "Talk to Lira Shan on Kuat with 8,000 credits to buy the ship.",
         "briefing_source": "Mak Torvin",
         "briefing": (
-            "Head to Corellia. Find Lira Shan at the Coronet Starport. "
-            "She's got the title and registration ready. You'll need "
-            "8,000 credits for the purchase price — that's my cut. "
-            "If you don't have it yet, go earn it. I'll wait."
+            "Head to Kuat. Find Lira Shan at the Kuat Drive Yards "
+            "commercial ring. She's got the title and registration ready. "
+            "You'll need 8,000 credits for the purchase price — that's my "
+            "cut. If you don't have it yet, go earn it. I'll wait."
         ),
         "completion_text": (
             "Mak (comlink): \"Lira tells me it's done. She's yours now, "
@@ -839,7 +844,7 @@ QUEST_STEPS = [
         "reward_credits": 0,  # net negative — player pays 8000
         "reward_title": None,
         "reward_flags": {"ship_transferred": True},
-        "hint": "Fly to Corellia. You need at least 8,000 credits. 'talk lira' at Coronet Starport.",
+        "hint": "Fly to Kuat. You need at least 8,000 credits. 'talk lira' at the Kuat Drive Yards.",
         "phase_gate": False,
     },
     {
@@ -928,8 +933,7 @@ async def _grant_reward(session, db, credits: int = 0,
     """Grant credits/title and persist."""
     char = session.character
     if credits > 0:
-        char["credits"] = char.get("credits", 0) + credits
-        await db.save_character(char["id"], credits=char["credits"])
+        char["credits"] = await db.adjust_credits(char["id"], credits, "spacer_quest")
 
     if title:
         # Store in tutorial_titles for consistency
@@ -1006,8 +1010,7 @@ async def _complete_step(session, db, qs: dict, step: dict):
     # Special: Phase 5 Step 27 — deduct 8000 credits for ship purchase
     if step_id == 27:
         cost = step["objective_data"].get("cost", 8000)
-        char["credits"] = char.get("credits", 0) - cost
-        await db.save_character(char["id"], credits=char["credits"])
+        char["credits"] = await db.adjust_credits(char["id"], -cost, "spacer_quest_ship")
         await session.send_line(
             f"  \033[1;31m-{cost:,} credits (ship purchase).{_RESET}")
         transferred = await _transfer_ship_ownership(session, db)
@@ -1087,7 +1090,7 @@ async def _grand_completion(session, db, qs):
         f"\n"
         f"  The profession chains are now available:\n"
         f"    Smuggler's Run  ·  Hunter's Mark  ·  Artisan's Forge\n"
-        f"    Rebel Cell  ·  Imperial Service  ·  Underworld\n"
+        f"    Republic Service  ·  Separatist Contracts  ·  Underworld\n"
         f"\n"
         f"{'='*63}"
     )

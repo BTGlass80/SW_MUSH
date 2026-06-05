@@ -426,6 +426,11 @@ def render_game_sheet(char_dict, skill_reg, width=W):
         f"  CP:{BRIGHT_GREEN}{cp}{RESET}"
         f"  Force:{fs}"
     )
+    # Drop 3 B3: worn vanity title (cosmetic standing) as a dim sub-line.
+    from engine.titles import worn_title as _worn_title
+    _wt = _worn_title(char_dict)
+    if _wt:
+        lines.append(f"  {DIM}{_wt}{RESET}")
     if dsp > 0:
         lines.append(f"  Dark Side: {_dsp_pips(dsp)}")
 
@@ -742,12 +747,17 @@ def build_sheet_payload(char_dict, skill_reg):
     wound_level = WoundLevel(char_dict.get("wound_level", 0))
     wound_label, wound_pen = _wound_label_and_penalty(wound_level)
 
+    # Drop 3 B3: worn vanity title for the web identity panel (cosmetic).
+    from engine.titles import worn_title as _worn_title
+    _worn = _worn_title(char_dict) or ""
+
     # ── Identity ───────────────────────────────────────────────────
     # gender/homeworld/age/height/hair/eyes don't exist in the
     # characters table today — emit empty strings so the client's
     # optional-bio panel renders cleanly when those columns land.
     identity = {
         "name":        char.name,
+        "title":       _worn,
         "species":     char.species_name,
         "template":    char.template or "",
         "gender":      char_dict.get("gender", ""),

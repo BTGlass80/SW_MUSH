@@ -593,18 +593,23 @@ class TestFireInsuranceHappy(unittest.TestCase):
                 amount=10000, reason="r", fee=1000,
                 duration_seconds=86400,
             )
-            from engine.death import _fire_insurance_and_fulfill
+            from engine.death import (
+                _fire_insurance_and_fulfill, INSURANCE_FLAT, INSURANCE_PCT,
+            )
             await _fire_insurance_and_fulfill(
                 db, target_id=chars["T"]["id"],
                 killer_id=bh_chars["BH"]["id"],
                 killer_is_bh=True,
             )
-            # Insurance hit: 10% of 10000 = 1000 cr from target.
+            # Drop 2 rescale: hit = INSURANCE_FLAT + ceil(INSURANCE_PCT% of
+            # the 10000 bounty), debited from the target.
+            hit = INSURANCE_FLAT + (10000 * INSURANCE_PCT + 99) // 100
             t_reloaded = await db.get_character(chars["T"]["id"])
             self.assertEqual(
-                int(t_reloaded["credits"]), 100000 - 1000
+                int(t_reloaded["credits"]), 100000 - hit
             )
-            # BH paid 80% of 10000 = 8000 cr.
+            # BH paid 80% of 10000 = 8000 cr. (Payout split is unchanged by
+            # the hit rescale.)
             bh_reloaded = await db.get_character(
                 bh_chars["BH"]["id"]
             )
@@ -636,13 +641,20 @@ class TestFireInsurancePartialDebt(unittest.TestCase):
                 amount=10000, reason="r", fee=1000,
                 duration_seconds=86400,
             )
-            from engine.death import _fire_insurance_and_fulfill
+            from engine.death import (
+                _fire_insurance_and_fulfill, INSURANCE_FLAT, INSURANCE_PCT,
+            )
             await _fire_insurance_and_fulfill(
                 db, target_id=target_chars["T"]["id"],
                 killer_id=bh_chars["BH"]["id"],
                 killer_is_bh=True,
             )
-            # Target paid 300 cash, owes 700 debt.
+            # Drop 2 rescale: hit = INSURANCE_FLAT + ceil(INSURANCE_PCT% of
+            # the bounty). Target has 300 cash; the shortfall accrues as
+            # debt. Derived from the constants so future tuning of the
+            # flat/pct keeps this test honest.
+            hit = INSURANCE_FLAT + (10000 * INSURANCE_PCT + 99) // 100
+            expected_debt = hit - 300
             t_reloaded = await db.get_character(
                 target_chars["T"]["id"]
             )
@@ -650,7 +662,7 @@ class TestFireInsurancePartialDebt(unittest.TestCase):
             debt = await db.get_insurance_debt(
                 target_chars["T"]["id"]
             )
-            self.assertEqual(debt, 700)
+            self.assertEqual(debt, expected_debt)
         _run(_check())
 
 

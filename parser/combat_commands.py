@@ -925,12 +925,11 @@ async def _apply_combat_wear(combat, ctx):
                                             _killer_id
                                         )
                                         if _sess and _sess.character:
-                                            _cr = _sess.character.get("credits", 0)
-                                            _sess.character["credits"] = _cr + _reward
-                                            await ctx.db.save_character(
-                                                _killer_id,
-                                                credits=_sess.character["credits"],
-                                            )
+                                            # Ledger chokepoint (F1): bounty
+                                            # payout as a logged faucet.
+                                            _sess.character["credits"] = (
+                                                await ctx.db.adjust_credits(
+                                                    _killer_id, _reward, "bounty"))
                                             await _sess.send_line(
                                                 f"  \033[1;33m[BOUNTY COLLECTED]\033[0m "
                                                 f"{_contract.target_name} — "
@@ -1192,53 +1191,103 @@ async def _apply_combat_wear(combat, ctx):
             # player types is "respawn".
             from engine.character import WoundLevel as _WLD
             if c.char.wound_level.value >= _WLD.DEAD.value:
+                # ── Drop 2 follow-up (audit wiring, 2026-06-02): respawn grace ──
+                # on_pc_death writes a `grace_until` timestamp on every PvP
+                # death; get_respawn_grace_until reads it (failing OPEN to 0.0,
+                # so a read error never *grants* invulnerability). If this PC is
+                # still inside that window from a recent death, refuse the
+                # killing blow — anti-spawn-camp. Cap at INCAPACITATED (alive,
+                # downed; does NOT bleed out, since only MORTALLY_WOUNDED does
+                # in the round resolver), re-sync the lowered wound_level to
+                # DB + session, notify the player, and skip the death
+                # side-effects entirely (no corpse / no debuff / no insurance
+                # fire). This is the consumer death.py's get_respawn_grace_until
+                # docstring always described but Drop 2 left unwired.
+                _grace_until = 0.0
                 try:
-                    from engine.death import on_pc_death
-                    from engine.security import get_effective_security
-                    _sec = await get_effective_security(
-                        combat.room_id, ctx.db, sess.character,
-                    )
-                    # PG.2 session 2 (May 21 2026): killer
-                    # attribution. Pull `last_attacker_id` off the
-                    # combatant (stamped in _apply_damage on every
-                    # hit). If the attacker is a BH Guild member,
-                    # set killer_is_bh so on_pc_death can fire the
-                    # insurance hit for any bounty on the target.
-                    _killer_id = c.last_attacker_id
-                    _killer_is_bh = False
-                    if _killer_id is not None:
-                        try:
-                            _k = await ctx.db.get_character(
-                                _killer_id
-                            )
-                            if _k and (_k.get("faction_id") or "") in (
-                                "bh_guild", "bounty_hunters_guild"
-                            ):
-                                _killer_is_bh = True
-                        except Exception:
-                            log.debug(
-                                "PG.2: killer faction lookup "
-                                "failed for char %s",
-                                _killer_id, exc_info=True,
-                            )
-                    await on_pc_death(
-                        ctx.db,
-                        char_id=c.id,
-                        room_id=combat.room_id,
-                        security_level=str(_sec.value)
-                            if hasattr(_sec, "value") else str(_sec),
-                        killer_id=_killer_id,
-                        killer_is_bh=_killer_is_bh,
-                    )
-                    # Sync the session's wound_state cache so the
-                    # respawn command sees it immediately.
-                    sess.character["wound_state"] = "wounded"
+                    from engine.death import get_respawn_grace_until
+                    _grace_until = await get_respawn_grace_until(ctx.db, c.id)
                 except Exception:
-                    log.warning(
-                        "PG.1.death: on_pc_death hook failed for "
-                        "char %s in room %s", c.id, combat.room_id,
-                        exc_info=True,
+                    log.debug(
+                        "PG.1.death: respawn-grace read failed for char %s",
+                        c.id, exc_info=True,
                     )
+                if _grace_until and _time.time() < _grace_until:
+                    c.char.wound_level = _WLD.INCAPACITATED
+                    sess.character["wound_level"] = c.char.wound_level.value
+                    try:
+                        await ctx.db.save_character(
+                            c.id, wound_level=c.char.wound_level.value
+                        )
+                    except Exception:
+                        log.warning(
+                            "PG.1.death: could not re-save grace-protected "
+                            "wound_level for char %s", c.id, exc_info=True,
+                        )
+                    try:
+                        await sess.send_line(
+                            "\033[1;36m[RESPAWN PROTECTION]\033[0m The blow"
+                            " that would have killed you is turned aside —"
+                            " you are still shielded from a recent death."
+                        )
+                    except Exception:
+                        log.debug(
+                            "PG.1.death: grace message send failed for "
+                            "char %s", c.id, exc_info=True,
+                        )
+                    log.info(
+                        "[PG.1.death] respawn-grace protected char %s from "
+                        "re-kill (grace_until=%.0f, now=%.0f).",
+                        c.id, _grace_until, _time.time(),
+                    )
+                else:
+                    try:
+                        from engine.death import on_pc_death
+                        from engine.security import get_effective_security
+                        _sec = await get_effective_security(
+                            combat.room_id, ctx.db, sess.character,
+                        )
+                        # PG.2 session 2 (May 21 2026): killer
+                        # attribution. Pull `last_attacker_id` off the
+                        # combatant (stamped in _apply_damage on every
+                        # hit). If the attacker is a BH Guild member,
+                        # set killer_is_bh so on_pc_death can fire the
+                        # insurance hit for any bounty on the target.
+                        _killer_id = c.last_attacker_id
+                        _killer_is_bh = False
+                        if _killer_id is not None:
+                            try:
+                                _k = await ctx.db.get_character(
+                                    _killer_id
+                                )
+                                if _k and (_k.get("faction_id") or "") in (
+                                    "bh_guild", "bounty_hunters_guild"
+                                ):
+                                    _killer_is_bh = True
+                            except Exception:
+                                log.debug(
+                                    "PG.2: killer faction lookup "
+                                    "failed for char %s",
+                                    _killer_id, exc_info=True,
+                                )
+                        await on_pc_death(
+                            ctx.db,
+                            char_id=c.id,
+                            room_id=combat.room_id,
+                            security_level=str(_sec.value)
+                                if hasattr(_sec, "value") else str(_sec),
+                            killer_id=_killer_id,
+                            killer_is_bh=_killer_is_bh,
+                        )
+                        # Sync the session's wound_state cache so the
+                        # respawn command sees it immediately.
+                        sess.character["wound_state"] = "wounded"
+                    except Exception:
+                        log.warning(
+                            "PG.1.death: on_pc_death hook failed for "
+                            "char %s in room %s", c.id, combat.room_id,
+                            exc_info=True,
+                        )
             # ── End PG.1.death hook ──
 
             # Narrative: log combat outcome

@@ -127,6 +127,11 @@ EXPECTED_SPA_LOAD_ORDER = [
     "m3_tier_system_body.js",
     "m3_tier_planet_body.js",
     "m3_tier_city_body.js",
+    # Drop 4.16/4.17: region overview data module — loaded before the
+    # wilderness body that consumes it (resolveRegion reads this data).
+    # (Repaired in Drop 4.22: the list had drifted out of sync with the
+    # real client.html load order, which has carried this tag since 4.17.)
+    "m3_wilderness_overview_data.js",
     "m3_tier_wilderness_body.js",
     "m3_tier_interior_body.js",
     "m3_tier_registry.js",

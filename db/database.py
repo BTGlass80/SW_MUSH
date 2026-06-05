@@ -14,7 +14,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 # -- Schema version --
-SCHEMA_VERSION = 35
+SCHEMA_VERSION = 40
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -1309,6 +1309,83 @@ MIGRATIONS = {
         "ON weight_of_war_events(char_id, event_at DESC)",
     ],
 
+    36: [
+        # Drop 1.c: persistent economy config (key/value). First key is
+        # 'faucet_throttle_pct' (0-100), the @economy throttle lever — a
+        # global multiplier applied to player credit faucets inside
+        # adjust_credits so an admin can dampen inflation without a code
+        # change. Persisted so the lever survives a restart.
+        """CREATE TABLE IF NOT EXISTS economy_config (
+            key         TEXT PRIMARY KEY,
+            value       REAL NOT NULL,
+            updated_at  REAL NOT NULL
+        )""",
+    ],
+
+    37: [
+        # Drop 2: anti-grief PvP-death ledger. Tracks recent PvP kills so
+        # repeated kills of the same victim by the same killer diminish the
+        # corpse loot the killer can take, and so a freshly-killed victim
+        # gets a short respawn-grace window the combat layer honors. Rows
+        # are short-lived (only the last GRIEF_WINDOW_SECONDS matter); a
+        # periodic prune or a decay job can trim old rows, but staleness is
+        # harmless because lookbacks are time-bounded.
+        """CREATE TABLE IF NOT EXISTS recent_pvp_deaths (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            victim_id   INTEGER NOT NULL,
+            killer_id   INTEGER NOT NULL,
+            died_at     REAL NOT NULL,
+            grace_until REAL
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_rpd_pair "
+        "ON recent_pvp_deaths(victim_id, killer_id, died_at)",
+        "CREATE INDEX IF NOT EXISTS idx_rpd_victim "
+        "ON recent_pvp_deaths(victim_id, died_at)",
+    ],
+
+    38: [
+        # Economy audit v2 §1.5: persist the trade supply/demand pools so a
+        # server restart no longer re-seeds every market to full (a windfall
+        # for the first trader after a bounce) or clears demand depression (a
+        # windfall for the first seller). One KV row per pool, JSON-encoded;
+        # updated_at lets `@economy zones` show which markets ran hot recently.
+        """CREATE TABLE IF NOT EXISTS market_state (
+            key         TEXT PRIMARY KEY,
+            value       TEXT NOT NULL,
+            updated_at  REAL DEFAULT 0
+        )""",
+    ],
+
+    39: [
+        # Drop 3 B4: gear-insurance flag. A one-shot policyholder flag set by
+        # `+insure buy` (after debiting the flat premium through the ledger as
+        # `gear_insurance_premium`, a sink) and consumed on the holder's next
+        # lawless/contested death - engine/death.py then keeps their loose
+        # loadout on them instead of dropping it to a lootable corpse. There is
+        # no credit payout (a payout would be a suicide-faucet, since this death
+        # model sends gear to a re-lootable corpse rather than destroying it);
+        # the premium is the only credit movement. Additive; default 0
+        # (uninsured) for all existing characters.
+        "ALTER TABLE characters "
+        "ADD COLUMN gear_insured INTEGER NOT NULL DEFAULT 0",
+    ],
+
+    40: [
+        # Drop 3 A5: sabacc dens. A Hutt-cartel org "operates" a den in a
+        # cantina room (established via `+den establish` by a sufficiently-ranked
+        # member, who pays a setup-cost sink). While a room is a den, the sabacc
+        # house rake (after the city's slice) routes to that org's treasury as a
+        # TRANSFER: the winning player is debited the full rake on the ledger as
+        # `sabacc_rake`, so the org's receipt is NOT net-new credit creation.
+        # One den per room.
+        "CREATE TABLE IF NOT EXISTS sabacc_dens ("
+        " room_id INTEGER PRIMARY KEY,"
+        " org_id INTEGER NOT NULL,"
+        " org_code TEXT NOT NULL,"
+        " established_by INTEGER,"
+        " established_at REAL NOT NULL DEFAULT 0)",
+    ],
+
 }
 
 
@@ -1318,6 +1395,11 @@ class Database:
     def __init__(self, db_path: str):
         self.db_path = db_path
         self._db: Optional[aiosqlite.Connection] = None
+        # Drop 1.c: cached @economy throttle (percent, 0-100; 100 = no-op).
+        # Lazily loaded from economy_config on first adjust_credits faucet,
+        # refreshed in-process by set_faucet_throttle_pct. None = not yet
+        # loaded.
+        self._faucet_throttle_pct: Optional[int] = None
 
     async def connect(self):
         """Open the database and enable WAL mode."""
@@ -1659,6 +1741,19 @@ class Database:
         "weight_of_war",
         "weight_last_decay_at",
         "weight_last_accrual_at",
+        # ── Drop 3 B3 (Jun 3 2026): vanity titles (cosmetic credit sink) ──
+        # Added to characters via engine/titles.py's own idempotent
+        # ensure_schema column-loop (NOT the main SCHEMA_MIGRATIONS dict, so
+        # no SCHEMA_VERSION bump). purchase_title / set_worn_title write them
+        # through this allowlisted proxy. vanity_titles is a JSON list of owned
+        # title keys; display_title is the literal worn label.
+        "vanity_titles",
+        "display_title",
+        # ── Drop 3 B4 (Jun 4 2026): gear-insurance flag (loadout protection) ──
+        # Added to characters via main schema migration v39. purchase/cancel in
+        # engine/gear_insurance.py write it through this allowlisted proxy;
+        # engine/death.py consumes it (flips 1->0) on a lawless/contested death.
+        "gear_insured",
     })
 
     async def save_character(self, char_id: int, **fields):
@@ -2437,6 +2532,253 @@ class Database:
         except Exception:
             # credit_log table may not exist yet (pre-v12 DB)
             log.debug("log_credit: table may not exist yet", exc_info=True)
+
+    async def adjust_credits(self, char_id: int, delta: int, source: str,
+                             *, allow_negative: bool = True) -> Optional[int]:
+        """Single sanctioned chokepoint for moving credits.
+
+        Atomically applies ``delta`` to a character's balance AND records
+        the movement in ``credit_log``, returning the new balance. This is
+        the only function that should mutate the ``characters.credits``
+        column going forward: routing every faucet and sink through here is
+        what makes the economy measurable (the ``@economy`` dashboard,
+        velocity, and the whale/farming/inflation alerts all read
+        ``credit_log``). Writing credits via ``save_character(credits=...)``
+        bypasses the ledger and is the thing the economy audit (F1) flagged
+        — those sites are being migrated to call this instead.
+
+        Args:
+            char_id: Character whose balance moves. Pass ``0`` for a
+                *system* faucet/sink — credits entering or leaving the
+                player economy with no player on the other side (a treasury
+                sink, a tax). For ``char_id == 0`` no character row is
+                touched; the movement is logged with ``balance=0`` and
+                ``0`` is returned.
+            delta: Signed amount. Positive = faucet (award); negative =
+                sink (charge).
+            source: Short, stable tag for the movement (e.g. ``"mission"``,
+                ``"bounty"``, ``"trade_goods"``, ``"docking_fee"``). Used to
+                group faucets/sinks in the dashboard — reuse an existing tag
+                rather than inventing a near-duplicate.
+            allow_negative: When ``False``, a sink that would overdraw the
+                balance is refused: nothing is applied or logged and
+                ``None`` is returned, so the caller can report "insufficient
+                funds". Defaults ``True`` (behaviour-preserving for callers
+                that pre-check affordability themselves).
+
+        Returns:
+            The new balance (``int``) after applying ``delta``, or ``None``
+            if the movement was refused (``allow_negative=False`` and
+            insufficient funds).
+
+        Notes:
+            - The balance change uses an atomic ``credits = credits + ?``
+              SQL increment rather than a read-then-set, so concurrent
+              movements on the same character cannot clobber each other —
+              an improvement over the legacy ``save_character`` pattern.
+            - Logging is best-effort: a ``credit_log`` failure is swallowed
+              inside ``log_credit`` so a transient ledger problem never
+              blocks a gameplay transaction; the balance change still
+              commits.
+        """
+        # System faucet/sink — no character row to touch, ledger entry only.
+        if char_id == 0:
+            await self.log_credit(0, delta, source, 0)
+            return 0
+
+        # Affordability guard (opt-in). Best-effort read-check; the current
+        # migration leaves this off (callers pre-check), so the small
+        # read-then-write window here is not exercised by live call sites.
+        # Drop 3 can tighten individual sink paths to use it.
+        if delta < 0 and not allow_negative:
+            rows = await self._db.execute_fetchall(
+                "SELECT credits FROM characters WHERE id = ?", (char_id,)
+            )
+            if not rows:
+                return None
+            if int(rows[0]["credits"] or 0) + delta < 0:
+                return None
+
+        # Drop 1.c — faucet throttle. A player *faucet* (delta > 0,
+        # char_id > 0) is scaled by the global @economy throttle so an
+        # admin can dampen inflation without a code change. Sinks
+        # (delta < 0) and system entries (char_id == 0, handled above) are
+        # never throttled. Player-to-player transfers and refunds are NOT
+        # faucets either — a transfer just moves existing credits (zero-sum)
+        # and a refund reverses a prior charge — so they are excluded; only
+        # genuine new-money faucets are cooled. At the default 100% this is
+        # an exact integer no-op — (delta * 100) // 100 == delta — so it is
+        # behaviourally invisible until an admin sets a non-default value.
+        if delta > 0 and not any(
+            tok in source for tok in ("p2p_transfer", "refund")
+        ):
+            pct = await self.get_faucet_throttle_pct()
+            if pct != 100:
+                delta = (delta * pct) // 100
+                if delta == 0:
+                    # Throttled to nothing: no balance change, but log the
+                    # zero faucet so the suppression is visible on @economy.
+                    await self.log_credit(char_id, 0, source, 0)
+                    rows = await self._db.execute_fetchall(
+                        "SELECT credits FROM characters WHERE id = ?",
+                        (char_id,),
+                    )
+                    return int(rows[0]["credits"]) if rows else 0
+
+        # Atomic balance change.
+        await self._db.execute(
+            "UPDATE characters SET credits = credits + ? WHERE id = ?",
+            (delta, char_id),
+        )
+        await self._db.commit()
+
+        # Read the authoritative post-update balance.
+        rows = await self._db.execute_fetchall(
+            "SELECT credits FROM characters WHERE id = ?", (char_id,)
+        )
+        new_balance = int(rows[0]["credits"]) if rows else 0
+
+        # Ledger entry (best-effort — see Notes).
+        await self.log_credit(char_id, delta, source, new_balance)
+        return new_balance
+
+    # -- Faucet throttle (@economy throttle, Drop 1.c) --
+
+    async def get_faucet_throttle_pct(self) -> int:
+        """Return the global player-faucet throttle as a percent (0-100).
+
+        100 means faucets pay in full (the default and the behaviourally
+        invisible no-op); 50 means every player award is halved; 0 means
+        faucets are fully suppressed. Cached in-process after the first
+        read so the adjust_credits hot path does not hit the DB per call.
+        Fails open to 100 on any error (a throttle problem must never block
+        a transaction or silently zero a faucet).
+        """
+        if self._faucet_throttle_pct is not None:
+            return self._faucet_throttle_pct
+        pct = 100
+        try:
+            rows = await self._db.execute_fetchall(
+                "SELECT value FROM economy_config WHERE key = ?",
+                ("faucet_throttle_pct",),
+            )
+            if rows:
+                pct = int(rows[0]["value"])
+        except Exception:
+            # Table may not exist on a pre-v36 DB, or transient error.
+            log.debug("get_faucet_throttle_pct: defaulting to 100",
+                      exc_info=True)
+            pct = 100
+        pct = max(0, min(100, pct))
+        self._faucet_throttle_pct = pct
+        return pct
+
+    async def set_faucet_throttle_pct(self, pct: int) -> int:
+        """Persist the player-faucet throttle (clamped to 0-100) and refresh
+        the in-process cache. Returns the clamped value actually stored."""
+        pct = max(0, min(100, int(pct)))
+        try:
+            await self._db.execute(
+                "INSERT INTO economy_config (key, value, updated_at) "
+                "VALUES (?, ?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value, "
+                "updated_at = excluded.updated_at",
+                ("faucet_throttle_pct", float(pct), time.time()),
+            )
+            await self._db.commit()
+        except Exception:
+            log.warning("set_faucet_throttle_pct: persist failed",
+                        exc_info=True)
+        self._faucet_throttle_pct = pct
+        return pct
+
+    async def get_market_state(self, key: str) -> str | None:
+        """Return the stored JSON blob for a market-state key, or None.
+
+        Backs the trade supply/demand pool persistence (economy audit v2 §1.5).
+        Fails open to None on a pre-v38 DB or transient error.
+        """
+        try:
+            rows = await self._db.execute_fetchall(
+                "SELECT value FROM market_state WHERE key = ?", (key,),
+            )
+            if rows:
+                return rows[0]["value"]
+        except Exception:
+            log.debug("get_market_state(%s): defaulting to None", key, exc_info=True)
+        return None
+
+    async def set_market_state(self, key: str, value: str) -> None:
+        """Upsert a market-state JSON blob with a fresh updated_at."""
+        try:
+            await self._db.execute(
+                "INSERT INTO market_state (key, value, updated_at) "
+                "VALUES (?, ?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value, "
+                "updated_at = excluded.updated_at",
+                (key, value, time.time()),
+            )
+            await self._db.commit()
+        except Exception:
+            log.warning("set_market_state(%s): persist failed", key, exc_info=True)
+
+    async def get_char_credit_breakdown(self, char_id: int,
+                                        seconds: int = 86400) -> dict:
+        """Per-character credit_log breakdown over the last ``seconds``.
+
+        Powers the player-facing ``+finances`` command — the player's own
+        faucet/sink totals grouped by source. Mirrors ``get_credit_velocity``
+        but scoped to one character. Fails open to an empty summary on DB
+        error so ``+finances`` never errors out.
+
+        Returns: {
+            'faucet_total': int, 'sink_total': int, 'net': int,
+            'txn_count': int,
+            'faucets': [(source, total), ...],   # descending by magnitude
+            'sinks':   [(source, total), ...],   # descending by magnitude
+        }
+        """
+        empty = {"faucet_total": 0, "sink_total": 0, "net": 0,
+                 "txn_count": 0, "faucets": [], "sinks": []}
+        try:
+            cutoff = time.time() - seconds
+            rows = await self._db.execute_fetchall(
+                "SELECT source, "
+                "SUM(CASE WHEN delta > 0 THEN delta ELSE 0 END) AS faucet, "
+                "SUM(CASE WHEN delta < 0 THEN delta ELSE 0 END) AS sink, "
+                "COUNT(*) AS cnt "
+                "FROM credit_log "
+                "WHERE char_id = ? AND created_at > ? "
+                "GROUP BY source",
+                (char_id, cutoff),
+            )
+        except Exception:
+            log.debug("get_char_credit_breakdown: failing open", exc_info=True)
+            return empty
+
+        faucets, sinks = [], []
+        faucet_total = sink_total = txn_count = 0
+        for r in rows or []:
+            src = r["source"]
+            f = int(r["faucet"] or 0)
+            s = int(r["sink"] or 0)
+            txn_count += int(r["cnt"] or 0)
+            if f:
+                faucets.append((src, f))
+                faucet_total += f
+            if s:
+                sinks.append((src, s))
+                sink_total += s
+        faucets.sort(key=lambda t: t[1], reverse=True)
+        sinks.sort(key=lambda t: t[1])  # most-negative first
+        return {
+            "faucet_total": faucet_total,
+            "sink_total": sink_total,
+            "net": faucet_total + sink_total,
+            "txn_count": txn_count,
+            "faucets": faucets,
+            "sinks": sinks,
+        }
 
     async def get_credit_velocity(self, seconds: int = 86400) -> dict:
         """Return credit flow summary over the last `seconds`.

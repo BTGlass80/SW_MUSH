@@ -449,9 +449,11 @@ class ShopCommand(BaseCommand):
             )
             return
 
-        # Deduct credits
-        char["credits"] -= upgrade_cost
-        await ctx.db.save_character(char["id"], credits=char["credits"])
+        # Deduct credits — routed through the ledger chokepoint (Drop 1 / F1)
+        # so the vendor-droid upgrade sink is logged on @economy.
+        # adjust_credits applies the delta atomically and returns the balance.
+        char["credits"] = await ctx.db.adjust_credits(
+            char["id"], -upgrade_cost, "vendor_droid_upgrade")
 
         # Update droid tier (inventory carries over)
         data["tier"] = target_num

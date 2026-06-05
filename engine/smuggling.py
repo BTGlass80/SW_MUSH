@@ -5,7 +5,7 @@ SW_MUSH  |  Economy Phase 2
 
 Implements the contraband cargo run system. Distinct from the general
 mission board -- smuggling jobs are available from specific in-world
-contacts (Jabba's, docking bay fixers) and carry risk of Imperial
+contacts (Jabba's, docking bay fixers) and carry risk of customs
 interception during space transit.
 
 Design from economy_design_v02-1.md §3.1:
@@ -47,6 +47,31 @@ from typing import Optional
 
 log = logging.getLogger(__name__)
 
+# ── A5: SPICE_DEMAND world event ─────────────────────────────────────────────
+# The Hutt/criminal playstyle's "holiday" (engine/world_events.py
+# EventType.SPICE_DEMAND). While active it multiplies the smuggling delivery
+# payout. parser/smuggling_commands.py reads the live multiplier via
+# get_effect(SMUGGLING_DEMAND_EFFECT_KEY, 1.0); this helper is the pure math.
+SMUGGLING_DEMAND_EFFECT_KEY = "smuggling_pay_mult"
+
+
+def apply_smuggling_demand(reward: int, mult: float) -> tuple[int, int]:
+    """Apply the SPICE_DEMAND multiplier to a smuggling payout.
+
+    Returns ``(new_reward, bonus)``. Pure: a multiplier <= 1.0 (or
+    non-positive/garbage) is a no-op (bonus 0), so the absence of an active
+    spice-demand event leaves the base reward unchanged. Rounds to int.
+    """
+    try:
+        m = float(mult)
+    except (TypeError, ValueError):
+        return int(reward), 0
+    if m <= 1.0:
+        return int(reward), 0
+    new_reward = int(round(int(reward) * m))
+    return new_reward, max(0, new_reward - int(reward))
+
+
 # ── Constants ────────────────────────────────────────────────────────────────
 
 BOARD_SIZE        = 5     # Max jobs on the board at once
@@ -67,7 +92,7 @@ class CargoTier(int, Enum):
     GREY_MARKET = 0   # Technically legal, just irregular
     BLACK_MARKET = 1  # Weapons parts, stolen goods
     CONTRABAND   = 2  # Glitterstim, controlled substances
-    SPICE        = 3  # Raw spice — maximum Imperial interest
+    SPICE        = 3  # Raw spice — maximum customs interest
 
 TIER_NAMES = {
     CargoTier.GREY_MARKET: "Grey Market",
@@ -75,6 +100,26 @@ TIER_NAMES = {
     CargoTier.CONTRABAND:   "Contraband",
     CargoTier.SPICE:        "Spice Run",
 }
+
+# Fine-on-bust as a fraction of reward, per tier (economy audit v2 §1.4).
+# The high-risk tiers were a -EV bet: at the flat 50% fine the smuggler
+# archetype was economically dominated by bounty hunting (a Core Run EV was
+# ~+150 cr vs a Veteran bounty's ~+1,125). The patrol-chance alone supplies the
+# variance, so the top tiers now keep more on a bust — making the highest-flavour
+# / highest-risk run the apex of the credit curve it is themed to be, without
+# raising gross payouts (a faucet increase). FINE_FRACTION stays as the default
+# for any caller/tier not in the map. Tunable in one place.
+FINE_FRACTION_BY_TIER = {
+    CargoTier.GREY_MARKET:  FINE_FRACTION,   # 0.50 — low stakes, unchanged
+    CargoTier.BLACK_MARKET: FINE_FRACTION,   # 0.50
+    CargoTier.CONTRABAND:   0.25,            # apex-tier: patrol risk is the variance
+    CargoTier.SPICE:        0.25,
+}
+
+
+def _fine_fraction(tier) -> float:
+    """Fine fraction for a cargo tier (falls back to the flat FINE_FRACTION)."""
+    return FINE_FRACTION_BY_TIER.get(tier, FINE_FRACTION)
 
 TIER_PATROL_CHANCE = {
     CargoTier.GREY_MARKET: 0.00,
@@ -97,7 +142,7 @@ CARGO_TYPES = {
     ],
     CargoTier.BLACK_MARKET: [
         "weapons components", "stolen ship parts", "black market implants",
-        "untraceable credits", "classified Imperial schematics",
+        "untraceable credits", "classified Separatist schematics",
     ],
     CargoTier.CONTRABAND: [
         "glitterstim", "ryll spice", "contraband holorecordings",
@@ -114,8 +159,8 @@ CARGO_TYPES = {
 # Routes are assigned per tier:
 #   Tier 1 (local)     — Tatooine only, same as before
 #   Tier 2 (short)     — Tatooine → Nar Shaddaa
-#   Tier 3 (spice run) — Nar Shaddaa → Kessel  (or Tatooine → Kessel)
-#   Tier 4 (core run)  — Any outer rim → Corellia
+#   Tier 3 (spice run) — Outer Rim → Geonosis (CIS war front)
+#   Tier 4 (core run)  — Outer Rim → Coruscant (Republic capital)
 
 ROUTE_TIERS = {
     # (cargo_tier, destination_planet, pay_override, patrol_chance_override)
@@ -123,27 +168,37 @@ ROUTE_TIERS = {
     "local":     (CargoTier.GREY_MARKET,  None,         (200,  500),  0.00),
     "blackmkt":  (CargoTier.BLACK_MARKET, None,         (500,  1500), 0.20),
     "interplan": (CargoTier.BLACK_MARKET, "nar_shaddaa",(1500, 3000), 0.30),
-    "spicerun":  (CargoTier.CONTRABAND,   "kessel",     (3000, 6000), 0.55),
-    "corerun":   (CargoTier.SPICE,        "corellia",   (4000, 8000), 0.65),
+    "spicerun":  (CargoTier.CONTRABAND,   "geonosis",   (3000, 6000), 0.55),
+    "corerun":   (CargoTier.SPICE,        "coruscant",  (4000, 8000), 0.65),
 }
 
-# How often Imperial patrols intercept at arrival by planet
+# How often customs patrols intercept at arrival by planet
 # (extra check on hyperspace arrival; stacks with launch check)
 PLANET_PATROL_FREQUENCY = {
     None:          0.00,   # local — no arrival check
     "tatooine":    0.10,   # Outer Rim — light presence
     "nar_shaddaa": 0.15,   # Hutt space — occasional
-    "kessel":      0.40,   # Maw vicinity — heavy
-    "corellia":    0.60,   # Core World — very heavy
+    "geonosis":    0.50,   # CIS war front — droid patrols, heavy
+    "coruscant":   0.60,   # Republic capital — maximum patrol
 }
 
 # Dock zone suffixes per planet (orbit / dock zone IDs for arrive check)
-PLANET_DOCK_ZONES = {
-    "tatooine":    ["tatooine_dock",      "tatooine_orbit"],
-    "nar_shaddaa": ["nar_shaddaa_dock",   "nar_shaddaa_orbit"],
-    "kessel":      ["kessel_dock",        "kessel_orbit"],
-    "corellia":    ["corellia_dock",      "corellia_orbit"],
-}
+def _planet_dock_zones():
+    """Map planet key → [dock_zone, orbit_zone, ...] from the live zone graph,
+    so smuggling delivery validation follows the active era. The old hardcoded
+    map named GCW planets (kessel, corellia) absent from the Clone Wars graph."""
+    try:
+        from engine.npc_space_traffic import ZONES, ZoneType
+    except Exception:  # pragma: no cover - defensive
+        return {}
+    out: dict[str, list] = {}
+    for z in ZONES.values():
+        if z.planet and z.type in (ZoneType.DOCK, ZoneType.ORBIT):
+            out.setdefault(z.planet, []).append(z.id)
+    return out
+
+
+PLANET_DOCK_ZONES = _planet_dock_zones()
 
 CONTACT_NAMES = [
     "a hooded Twi'lek", "a scarred Weequay", "a nervous Rodian fence",
@@ -260,7 +315,7 @@ def generate_job(
     reward = random.randint(lo, hi)
     # Round to nearest 50cr
     reward = int(round(reward / 50) * 50)
-    fine = int(reward * FINE_FRACTION)
+    fine = int(reward * _fine_fraction(tier))
 
     cargo = random.choice(CARGO_TYPES[tier])
     contact = random.choice(CONTACT_NAMES)
@@ -272,17 +327,17 @@ def generate_job(
             "a Rodian broker at the Smuggler's Moon docks",
             "a Besadii clan representative",
         ])
-    elif destination_planet == "kessel":
+    elif destination_planet == "geonosis":
         dropoff = random.choice([
-            "a Pyke Syndicate collector at Kessel Station",
-            "an independent spice processor at the Maw approach",
-            "a masked buyer near the Kessel mining complex",
+            "a Geonosian foundry quartermaster at the Stalgasin docks",
+            "a Separatist supply officer skimming the war effort",
+            "a Baktoid procurement agent working off the books",
         ])
-    elif destination_planet == "corellia":
+    elif destination_planet == "coruscant":
         dropoff = random.choice([
-            "a CorSec-connected fence in Coronet City",
-            "a corporate buyer at the Corellian Trade Spine exit",
-            "a well-dressed human contact at Corellia Orbital",
+            "a black-market broker in the Coruscant underlevels",
+            "a corrupt Senate-district fixer paying in untraceable credits",
+            "a spice dealer working the Works' industrial sublevels",
         ])
     else:
         dropoff = random.choice(DROPOFF_NAMES)
@@ -322,7 +377,7 @@ def resolve_patrol_encounter(
     lockdown_active: bool = False,
 ) -> dict:
     """
-    Resolve an Imperial patrol encounter during transit.
+    Resolve a customs patrol encounter during transit.
 
     Args:
         job: The active smuggling job.
@@ -360,12 +415,12 @@ def resolve_patrol_encounter(
 
     if not caught:
         msg = (
-            f"  An Imperial patrol hails you. Your story holds — they wave you through.\n"
+            f"  A customs patrol hails you. Your story holds — they wave you through.\n"
             f"  (Roll: {skill_roll} vs difficulty {difficulty})"
         )
     else:
         msg = (
-            f"  An Imperial patrol intercepts you. They find the {job.cargo_type}.\n"
+            f"  A customs patrol intercepts you. They find the {job.cargo_type}.\n"
             f"  Cargo confiscated. Fine: {job.fine:,} credits.\n"
             f"  (Roll: {skill_roll} vs difficulty {difficulty})"
         )
@@ -561,8 +616,8 @@ _RISK_DISPLAY = {
 _DEST_DISPLAY = {
     None:          f"{_DIM}Tatooine (local){_RESET}",
     "nar_shaddaa": f"{_YELLOW}Nar Shaddaa{_RESET}",
-    "kessel":      f"{_RED}Kessel{_RESET}",
-    "corellia":    f"[1;35mCorellia{_RESET}",
+    "geonosis":    f"{_RED}Geonosis{_RESET}",
+    "coruscant":   f"[1;35mCoruscant{_RESET}",
 }
 
 

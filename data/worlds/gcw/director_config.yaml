@@ -129,7 +129,7 @@ milestone_events:
     direction: above
   headline: The Empire tightens its grip on Mos Eisley. Stormtrooper patrols double.
   fires_once: true
-  narrative_event_type: imperial_crackdown
+  narrative_event_type: security_crackdown
   duration_minutes: 120
 - id: imperial_martial_law
   trigger:
@@ -139,7 +139,7 @@ milestone_events:
     direction: above
   headline: Martial law declared! Imperial forces seize all docking bays.
   fires_once: true
-  narrative_event_type: imperial_crackdown
+  narrative_event_type: security_crackdown
   duration_minutes: 240
 - id: underworld_rising
   trigger:

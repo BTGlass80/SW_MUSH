@@ -53,8 +53,8 @@ class TestP2PDailyCapConstants(unittest.TestCase):
 
     def test_cap_constant_exists(self):
         from parser.builtin_commands import P2P_DAILY_CAP
-        # 5,000 cr per day matches audit recommendation
-        self.assertEqual(P2P_DAILY_CAP, 5000)
+        # 1,500 cr/day per audit v2 §2.4 (tightened from the original 5,000)
+        self.assertEqual(P2P_DAILY_CAP, 1500)
 
     def test_window_constant_is_24h(self):
         from parser.builtin_commands import P2P_DAILY_WINDOW_SECONDS

@@ -1128,18 +1128,27 @@ npcs:
   # OLD CORELLIAN QUARTER + REFUGEE SECTOR (2 NPCs)
   # ════════════════════════════════════════════════════════════════════
 
+  # Drop 0a-2 (Jun 2 2026): Mak Torvin RELOCATED Nar Shaddaa → Docking Bay 94
+  # (Tatooine). The FDtS quest code (engine/spacer_quest.py steps 7/13/26) and
+  # from_dust_to_stars_design_v2_clone_wars.md both place him at Docking Bay 94
+  # — and his own contacts_complete line tells the player to "head back to
+  # Tatooine," so the prior Nar Shaddaa placement contradicted his own script
+  # and dead-ended step 7 in Phase 1. His ship, the Rusty Mynock, is parked at
+  # Docking Bay 94 - Pit Floor (data/worlds/clone_wars/ships.yaml). Stat block
+  # and characterization unchanged; description/setting re-grounded to the bay.
   - name: Mak Torvin
-    room: Nar Shaddaa - Old Corellian Quarter
+    room: "Docking Bay 94 - Pit Floor"
     species: Human
     description: >-
-      An older man in a battered flight jacket, sitting on a
-      bench outside a small flat in the Old Corellian Quarter.
-      He is in his early sixties. His hair is silver, kept short.
-      His hands tremble slightly when at rest — a recent
-      development that he hasn't fully made peace with. He is
-      drinking caf out of a thermos and watching foot traffic
-      pass. He looks like a man who has been a captain his
-      entire life and is finally about to stop being one.
+      An older man in a battered flight jacket, sitting on an
+      overturned cargo crate in the shade of a docked Ghtroc 720
+      freighter — the Rusty Mynock, her hull scoured pale by
+      decades of atmosphere. He is in his early sixties. His hair
+      is silver, kept short. His hands tremble slightly when at
+      rest — a recent development that he hasn't fully made peace
+      with. He is drinking caf out of a thermos and watching the
+      bay traffic come and go. He looks like a man who has been a
+      captain his entire life and is finally about to stop being one.
     char_sheet:
       attributes:
         dexterity: 2D+1
@@ -1211,7 +1220,7 @@ npcs:
       combat_behavior: tactical
       fallback_lines:
       - "*Mak looks up from his thermos. 'Off-worlder. You looking for me, or just lost?'*"
-      - "*He gestures at the bench beside him.* 'Sit if you want. Don't sit if you don't.'"
+      - "*He gestures at a second cargo crate beside him.* 'Sit if you want. Don't sit if you don't.'"
       - "'Forty-six years on the freighters. The hands shake now. The mind doesn't, mostly.'"
       - "*He taps the thermos.* 'Caf's free if you brought a cup. I'm not getting up.'"
       - "'The Mynock's for sale. Selling cheap, to the right buyer. The wrong buyer pays double.'"

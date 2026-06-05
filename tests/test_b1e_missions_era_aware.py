@@ -62,12 +62,6 @@ class TestCWFactionsPresent(unittest.TestCase):
                 f"CW faction '{fc}' missing from FACTION_MISSION_CONFIG"
             )
 
-    def test_gcw_factions_still_present(self):
-        """Regression gate: existing factions unchanged."""
-        from engine.missions import FACTION_MISSION_CONFIG
-        for fc in ("empire", "rebel", "hutt", "bh_guild"):
-            self.assertIn(fc, FACTION_MISSION_CONFIG)
-
 
 # ──────────────────────────────────────────────────────────────────────
 # 2. Archetype reuse — CW factions point at the right template tables
@@ -259,55 +253,6 @@ class TestGenerateFactionMissionForCW(unittest.TestCase):
         self.assertIsNone(generate_faction_mission("nonexistent"))
         self.assertIsNone(generate_faction_mission(""))
         self.assertIsNone(generate_faction_mission(None))
-
-
-# ──────────────────────────────────────────────────────────────────────
-# 5. GCW byte-equivalence — empire/rebel/hutt/bh_guild unchanged
-# ──────────────────────────────────────────────────────────────────────
-
-class TestGCWByteEquivalence(unittest.TestCase):
-    """The GCW faction entries in FACTION_MISSION_CONFIG must be
-    byte-identical to pre-B.1.e."""
-
-    def test_empire_config_unchanged(self):
-        from engine.missions import (
-            FACTION_MISSION_CONFIG, _EMPIRE_OBJECTIVES,
-        )
-        cfg = FACTION_MISSION_CONFIG["empire"]
-        self.assertEqual(cfg["badge"], "EMPIRE")
-        self.assertEqual(cfg["reward_mult"], 1.5)
-        self.assertEqual(cfg["rep_required"], 25)
-        self.assertIs(cfg["objectives"], _EMPIRE_OBJECTIVES)
-
-    def test_rebel_config_unchanged(self):
-        from engine.missions import (
-            FACTION_MISSION_CONFIG, _REBEL_OBJECTIVES,
-        )
-        cfg = FACTION_MISSION_CONFIG["rebel"]
-        self.assertEqual(cfg["badge"], "REBEL")
-        self.assertEqual(cfg["reward_mult"], 1.5)
-        self.assertEqual(cfg["rep_required"], 25)
-        self.assertIs(cfg["objectives"], _REBEL_OBJECTIVES)
-
-    def test_hutt_config_unchanged(self):
-        from engine.missions import (
-            FACTION_MISSION_CONFIG, _HUTT_OBJECTIVES,
-        )
-        cfg = FACTION_MISSION_CONFIG["hutt"]
-        self.assertEqual(cfg["badge"], "HUTT")
-        self.assertEqual(cfg["reward_mult"], 1.4)
-        self.assertEqual(cfg["rep_required"], 20)
-        self.assertIs(cfg["objectives"], _HUTT_OBJECTIVES)
-
-    def test_bh_guild_config_unchanged(self):
-        from engine.missions import (
-            FACTION_MISSION_CONFIG, _BH_GUILD_OBJECTIVES,
-        )
-        cfg = FACTION_MISSION_CONFIG["bh_guild"]
-        self.assertEqual(cfg["badge"], "GUILD")
-        self.assertEqual(cfg["reward_mult"], 1.6)
-        self.assertEqual(cfg["rep_required"], 30)
-        self.assertIs(cfg["objectives"], _BH_GUILD_OBJECTIVES)
 
 
 if __name__ == "__main__":

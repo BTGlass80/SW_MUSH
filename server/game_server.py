@@ -53,6 +53,7 @@ from server.tick_handlers_economy import (
     buff_expiry_tick,
     morale_aura_expiry_tick,
     hazard_tick,
+    credit_velocity_alert_tick,
 )
 from server.tick_handlers_progression import (
     playtime_heartbeat_tick,
@@ -107,6 +108,9 @@ from parser.narrative_commands import register_narrative_commands
 from parser.shop_commands import register_shop_commands
 from parser.housing_commands import register_housing_commands
 from parser.spacer_quest_commands import register_spacer_quest_commands
+from parser.shipyard_commands import register_shipyard_commands
+from parser.ship_crew_commands import register_ship_crew_commands
+from parser.finances_commands import register_finances_commands
 from parser.mux_commands import register_mux_commands
 from parser.places_commands import register_places_commands
 from parser.attr_commands import register_attr_commands
@@ -120,6 +124,10 @@ from parser.mail_commands import register_mail_commands
 from parser.channel_commands import register_channel_commands
 from parser.party_commands import register_party_commands
 from parser.encounter_commands import register_encounter_commands
+from parser.title_commands import register_title_commands
+from parser.commissary_commands import register_commissary_commands
+from parser.insurance_commands import register_insurance_commands
+from parser.den_commands import register_den_commands
 from parser.village_trial_commands import register_village_trial_commands
 from parser.padawan_master_commands import register_padawan_master_commands
 from parser.padawan_master_training_commands import (
@@ -210,6 +218,9 @@ class GameServer:
         register_shop_commands(self.registry)
         register_housing_commands(self.registry)
         register_spacer_quest_commands(self.registry)
+        register_shipyard_commands(self.registry)
+        register_ship_crew_commands(self.registry)
+        register_finances_commands(self.registry)
         register_mux_commands(self.registry)
         register_places_commands(self.registry)
         register_attr_commands(self.registry)
@@ -218,6 +229,10 @@ class GameServer:
         register_mail_commands(self.registry)
         register_espionage_commands(self.registry)
         register_achievement_commands(self.registry)
+        register_title_commands(self.registry)
+        register_commissary_commands(self.registry)
+        register_insurance_commands(self.registry)
+        register_den_commands(self.registry)
         register_event_commands(self.registry)
         register_plot_commands(self.registry)
         register_channel_commands(self.registry)
@@ -505,6 +520,10 @@ class GameServer:
         # individually.
         self._tick_scheduler.register("building_construction", building_construction_tick, interval=300, offset=120)
         self._tick_scheduler.register("docking_fee",         docking_fee_tick,         interval=86400,  offset=21600)
+        # Proactive credit-velocity alerting (economy audit #17 / R1): hourly
+        # server-wide net-flow band check; pages staff on breach. offset 2100
+        # keeps it clear of the other hourly ticks (1500/1800/2700/3300).
+        self._tick_scheduler.register("credit_velocity_alert", credit_velocity_alert_tick, interval=3600, offset=2100)
         # ── Ollama idle queue (every 30s, offset 15 to avoid pile-up) ──
         self._tick_scheduler.register("idle_queue",           idle_queue_tick,          interval=30,     offset=15)
         self._tick_scheduler.register("bark_seed",            bark_seed_tick,           interval=14400,  offset=60)
@@ -560,6 +579,15 @@ class GameServer:
         # Database
         await self.db.connect()
         await self.db.initialize()
+
+        # Rehydrate the trade supply/demand pools from the DB (economy audit v2
+        # §1.5) so a restart doesn't re-seed every market to full / clear demand
+        # depression. Fail-open: empty pools = pre-persistence behaviour.
+        try:
+            from engine.trading import load_market_pools
+            await load_market_pools(self.db)
+        except Exception as _mkt_err:
+            log.warning("Market-state hydration skipped: %s", _mkt_err)
 
         # Seed organizations (factions + guilds) — idempotent
         try:
@@ -637,6 +665,15 @@ class GameServer:
             await _hs_lots(self.db)
         except Exception as _hs_err:
             log.warning("Housing init skipped: %s", _hs_err)
+
+        # Vanity-title columns (Drop 3 B3). Idempotent ALTER TABLE ADD COLUMN
+        # via the module's own column-loop — NOT the main SCHEMA_MIGRATIONS
+        # dict, so no SCHEMA_VERSION bump / no concurrent v-number collision.
+        try:
+            from engine.titles import ensure_schema as _title_schema
+            await _title_schema(self.db)
+        except Exception as _title_err:
+            log.warning("Vanity-title schema init skipped: %s", _title_err)
 
         # Territory control schema
         try:

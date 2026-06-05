@@ -318,11 +318,11 @@ class HealAcceptCommand(BaseCommand):
             char["wound_level"] = new_wound
             healer_char["credits"] = healer_credits
 
-            await ctx.db.save_character(char_id,
-                                        credits=new_patient_credits,
-                                        wound_level=new_wound)
-            await ctx.db.save_character(healer_char["id"],
-                                        credits=healer_credits)
+            # Ledger chokepoint (F1): the patient->healer payment as two
+            # logged legs (sink + faucet) instead of raw credit writes.
+            await ctx.db.save_character(char_id, wound_level=new_wound)
+            await ctx.db.adjust_credits(char_id, -rate, "medical")
+            await ctx.db.adjust_credits(healer_char["id"], rate, "medical")
 
             # Notify
             await ctx.session.send_line(

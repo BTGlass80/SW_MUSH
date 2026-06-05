@@ -42,9 +42,9 @@ class TestTradeGoodsPricing:
         from engine.trading import get_planet_price, TRADE_GOODS
         raw_ore = TRADE_GOODS["raw_ore"]
 
-        # Tatooine is source for raw_ore (70%), Corellia is demand (140%)
+        # Tatooine is source for raw_ore (70%), Coruscant is demand (140%) (CW re-map, was Corellia)
         source_price = get_planet_price(raw_ore, "tatooine")
-        demand_price = get_planet_price(raw_ore, "corellia")
+        demand_price = get_planet_price(raw_ore, "coruscant")
         normal_price = get_planet_price(raw_ore, "nar_shaddaa")
 
         assert source_price < normal_price < demand_price

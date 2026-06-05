@@ -88,6 +88,29 @@ _FRESHNESS_WINDOW_SECS = 24 * 3600
 # AI config marker on handler NPCs.
 INTEL_HANDLER_AI_KEY = "is_intel_handler"
 
+# ── A3: INTELLIGENCE_THAW world event ────────────────────────────────────────
+# The spy playstyle's "holiday" (engine/world_events.py EventType.INTELLIGENCE_THAW).
+# While active it multiplies the CREDIT payout from an intel handover; influence
+# is deliberately left unscaled (multiplying influence would distort the
+# territory-contest system). handover_intel reads the live multiplier via
+# get_effect(INTEL_THAW_EFFECT_KEY, 1.0) unless a caller injects one.
+INTEL_THAW_EFFECT_KEY = "intel_pay_mult"
+
+
+def apply_intel_thaw(credits: int, mult: float) -> int:
+    """Apply the INTELLIGENCE_THAW credit multiplier to an intel payout.
+
+    Pure. A multiplier <= 1.0 (or non-positive/garbage) leaves the base payout
+    unchanged, so the absence of an active thaw is a no-op. Rounds to int.
+    """
+    try:
+        m = float(mult)
+    except (TypeError, ValueError):
+        return int(credits)
+    if m <= 1.0:
+        return int(credits)
+    return int(round(int(credits) * m))
+
 
 # ── Region keyword extraction ────────────────────────────────────────────────
 
@@ -343,6 +366,7 @@ async def _resolve_region_zone(db, region_slug: str) -> Optional[int]:
 async def handover_intel(db, char: dict, handler_npc_id: int,
                           report_id: int, *,
                           session_mgr=None,
+                          pay_mult: Optional[float] = None,
                           rng: Optional[random.Random] = None) -> dict:
     """Convert a sealed intel report into credits + influence via a
     faction handler NPC.
@@ -429,6 +453,21 @@ async def handover_intel(db, char: dict, handler_npc_id: int,
     region_slug = evaluation["region_slug"]
     influence, credits = sample_intel_reward(quality, rng=rng)
 
+    # ── A3: INTELLIGENCE_THAW boosts the CREDIT payout while active ───
+    # (the spy playstyle's "holiday"). A caller may inject the multiplier;
+    # otherwise read the live world-event effect defensively. Influence is
+    # left unscaled — the thaw is an income opportunity, not a territory lever.
+    base_credits = credits
+    if pay_mult is None:
+        try:
+            from engine.world_events import get_world_event_manager
+            pay_mult = get_world_event_manager().get_effect(
+                INTEL_THAW_EFFECT_KEY, 1.0)
+        except Exception:
+            pay_mult = 1.0
+    credits = apply_intel_thaw(credits, pay_mult)
+    thaw_active = credits > base_credits
+
     # ── Remove the report from the giver's holdings ──────────────
     _set_intel_reports(char, remaining)
     # Persist the holdings change to DB.
@@ -442,9 +481,7 @@ async def handover_intel(db, char: dict, handler_npc_id: int,
 
     # ── Credit award ─────────────────────────────────────────────
     try:
-        cur_credits = int(char.get("credits", 0) or 0)
-        char["credits"] = cur_credits + credits
-        await db.save_character(char["id"], credits=char["credits"])
+        char["credits"] = await db.adjust_credits(char["id"], credits, "intel_handover")
     except Exception:
         log.warning(
             "[intel_handlers] credit award failed for char %s",
@@ -498,6 +535,8 @@ async def handover_intel(db, char: dict, handler_npc_id: int,
         msg_parts.append(region_msg)
     msg_parts.append(").")
     msg = "".join(msg_parts).replace("(no specific region", " — no specific region")
+    if thaw_active:
+        msg += "  (Intelligence Thaw: double rates!)"
 
     return {
         "ok":          True,
@@ -515,9 +554,11 @@ __all__ = [
     "INTEL_QUALITY_MEDIUM",
     "INTEL_QUALITY_HIGH",
     "INTEL_HANDLER_AI_KEY",
+    "INTEL_THAW_EFFECT_KEY",
     # Pure rules
     "evaluate_intel_quality",
     "sample_intel_reward",
+    "apply_intel_thaw",
     # DB-touching
     "find_handler_in_room",
     "handover_intel",

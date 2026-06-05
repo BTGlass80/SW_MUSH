@@ -641,8 +641,9 @@ async def handle_boarders_defeated(ship_id: int, db, session_mgr) -> None:
                 await db.save_character(
                     ch["id"],
                     character_points=new_cp,
-                    credits=new_credits,
                 )
+                # Ledger chokepoint (F1): credit reward as a logged faucet.
+                await db.adjust_credits(ch["id"], credit_reward, "boarding_reward")
                 try:
                     sessions = session_mgr.sessions_for_character(ch["id"])
                     if sessions:

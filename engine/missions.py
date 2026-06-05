@@ -66,33 +66,51 @@ SPACE_MISSION_TYPES = {
     MissionType.INTERCEPT, MissionType.SURVEY_ZONE,
 }
 
-# Zone targets for space missions (cycles; new zones can be added freely)
-_PATROL_ZONES = [
-    "tatooine_orbit", "tatooine_deep_space",
-    "nar_shaddaa_orbit", "nar_shaddaa_deep_space",
-    "kessel_approach", "kessel_orbit",
-    "corellia_orbit", "corellia_deep_space",
-    "outer_rim_lane_1", "outer_rim_lane_2",
-]
-_SURVEY_ZONES = [
-    "tatooine_deep_space", "tatooine_orbit",
-    "nar_shaddaa_deep_space", "kessel_approach",
-    "corellia_deep_space", "outer_rim_lane_1",
-]
-_INTERCEPT_ZONES = [
-    "tatooine_deep_space", "nar_shaddaa_deep_space",
-    "kessel_approach", "outer_rim_lane_3",
-    "corellia_deep_space",
-]
-# Escort: origin zone → destination zone pairs
-_ESCORT_ROUTES = [
-    ("tatooine_orbit",      "nar_shaddaa_orbit"),
-    ("nar_shaddaa_orbit",   "tatooine_orbit"),
-    ("tatooine_orbit",      "corellia_orbit"),
-    ("corellia_orbit",      "tatooine_orbit"),
-    ("nar_shaddaa_orbit",   "kessel_orbit"),
-    ("outer_rim_lane_1",    "corellia_orbit"),
-]
+# Zone targets for space missions. Derived from the live zone graph
+# (engine.npc_space_traffic.ZONES) so they follow the active era automatically
+# rather than naming era-specific zone ids. The old hardcoded lists named GCW
+# zones (kessel_*, corellia_*, outer_rim_lane_*) that do not exist in the Clone
+# Wars graph, so missions pointed at dead zones after the era pivot.
+def _mission_zone_pools():
+    """Return (patrol, survey, intercept, escort_routes) zone lists built from
+    the live ZONES graph. Falls back to a minimal safe set if the graph is
+    somehow empty."""
+    try:
+        from engine.npc_space_traffic import ZONES, ZoneType
+    except Exception:  # pragma: no cover - defensive
+        ZONES, ZoneType = {}, None
+
+    if not ZONES or ZoneType is None:
+        # Defensive fallback — should not happen in normal boot.
+        base = ["coruscant_orbit", "coruscant_deep_space"]
+        return base, base, base, [(base[0], base[1]), (base[1], base[0])]
+
+    orbits  = [z.id for z in ZONES.values() if z.type == ZoneType.ORBIT]
+    deeps   = [z.id for z in ZONES.values() if z.type == ZoneType.DEEP_SPACE]
+    lanes   = [z.id for z in ZONES.values() if z.type == ZoneType.HYPERSPACE_LANE]
+
+    patrol    = sorted(orbits + deeps)
+    survey    = sorted(deeps + lanes)
+    intercept = sorted(deeps + lanes)
+
+    # Escort routes: pair orbit zones of distinct planets (stable, deterministic).
+    planet_orbit = {}
+    for z in ZONES.values():
+        if z.type == ZoneType.ORBIT and z.planet and z.planet not in planet_orbit:
+            planet_orbit[z.planet] = z.id
+    orbit_ids = [planet_orbit[p] for p in sorted(planet_orbit)]
+    routes = []
+    for i in range(len(orbit_ids)):
+        a = orbit_ids[i]
+        b = orbit_ids[(i + 1) % len(orbit_ids)]
+        if a != b:
+            routes.append((a, b))
+    if not routes and orbit_ids:
+        routes = [(orbit_ids[0], orbit_ids[0])]
+    return patrol, survey, intercept, routes
+
+
+_PATROL_ZONES, _SURVEY_ZONES, _INTERCEPT_ZONES, _ESCORT_ROUTES = _mission_zone_pools()
 
 
 class MissionStatus(str, Enum):
@@ -165,7 +183,7 @@ REQUIRED_SKILLS: dict[MissionType, list[str]] = {
 
 _GIVERS = [
     "A grizzled dockworker", "A nervous Rodian merchant", "A hooded Twi'lek",
-    "A portly Aqualish factor", "A harried Imperial clerk",
+    "A portly Aqualish factor", "A harried Republic clerk",
     "An anonymous data packet", "A scarred human veteran",
     "A Sullustan freighter captain", "A Bothan information broker",
     "A cantina patron nursing a drink", "An aged Mon Calamari trader",
@@ -191,7 +209,7 @@ _INVESTIGATION_OBJECTIVES = [
     "Find out who's been stealing from the warehouses near {dest}.",
     "Track down a missing contact last seen at {dest}.",
     "Investigate the strange signals coming from {dest}.",
-    "Identify the Imperial informant operating around {dest}.",
+    "Identify the Separatist informant operating around {dest}.",
     "Locate a lost droid somewhere near {dest}.",
 ]
 _SOCIAL_OBJECTIVES = [
@@ -219,7 +237,7 @@ _SMUGGLING_OBJECTIVES = [
     "Move a restricted cargo through the checkpoint near {dest}. Don't get scanned.",
     "Deliver this contraband to the contact at {dest}. Avoid patrols.",
     "Run a gray-market shipment to {dest}. The less paperwork, the better.",
-    "Smuggle documents past the Imperial blockade to {dest}.",
+    "Smuggle documents past the Republic blockade to {dest}.",
     "Transport live cargo to {dest}. No manifest. No record.",
 ]
 _BOUNTY_OBJECTIVES = [
@@ -233,7 +251,7 @@ _SLICING_OBJECTIVES = [
     "Slice into the security system at {dest} and extract the data.",
     "Decrypt the locked datacron recovered near {dest}.",
     "Forge transit documents for a contact. Deliver via dead drop at {dest}.",
-    "Access the Imperial records terminal near {dest} without tripping alarms.",
+    "Access the Republic records terminal near {dest} without tripping alarms.",
     "Erase the criminal file from the local database near {dest}.",
 ]
 _SALVAGE_OBJECTIVES = [
@@ -920,48 +938,6 @@ def format_mission_detail(m: Mission) -> list[str]:
 # placeholder (faction missions are ground-flavoured) so the placeholder-fill
 # path can never leak unfilled `{...}` into the rendered objective.
 
-_EMPIRE_OBJECTIVES: dict[MissionType, list[str]] = {
-    MissionType.COMBAT: [
-        "Suppress the rebel cell operating out of {dest}.",
-        "Eliminate the seditious militia that has fortified {dest}.",
-        "Neutralize the dissidents harassing Imperial patrols near {dest}.",
-        "Storm the rebel safehouse at {dest} and clear it room by room.",
-    ],
-    MissionType.INVESTIGATION: [
-        "Identify the rebel sympathizers operating out of {dest}.",
-        "Track the leak that compromised our patrol schedule near {dest}.",
-        "Investigate Imperial deserters last seen at {dest}.",
-        "Find out who is funding rebel activity near {dest}.",
-    ],
-    MissionType.DELIVERY: [
-        "Transport classified Imperial orders to the garrison at {dest}.",
-        "Deliver requisitioned supplies to the Imperial outpost at {dest}.",
-        "Carry sealed orders from sector command to the officer at {dest}.",
-        "Run encrypted communiqu\u00e9s to the listening post at {dest}.",
-    ],
-}
-
-_REBEL_OBJECTIVES: dict[MissionType, list[str]] = {
-    MissionType.COMBAT: [
-        "Sabotage the Imperial supply convoy staging at {dest}.",
-        "Liberate the prisoners held in the Imperial detention block at {dest}.",
-        "Disrupt the Imperial garrison's morning briefing at {dest}.",
-        "Strike the Imperial fuel depot near {dest} and disappear.",
-    ],
-    MissionType.INVESTIGATION: [
-        "Confirm rumours of an Imperial defector operating near {dest}.",
-        "Map the patrol patterns Imperials are running through {dest}.",
-        "Identify the informant feeding the Empire intel from {dest}.",
-        "Investigate suspicious Imperial activity around {dest}.",
-    ],
-    MissionType.SMUGGLING: [
-        "Move medical supplies past the Imperial cordon to the cell at {dest}.",
-        "Smuggle a courier with intel to the safehouse at {dest}.",
-        "Run weapons past patrols to the rebel contact at {dest}.",
-        "Carry refugees on a quiet route to the rendezvous at {dest}.",
-    ],
-}
-
 _HUTT_OBJECTIVES: dict[MissionType, list[str]] = {
     MissionType.SMUGGLING: [
         "Transport a sealed crate to the Hutt's broker at {dest}. No questions.",
@@ -1065,7 +1041,7 @@ _CW_INSURGENT_OBJECTIVES: dict[MissionType, list[str]] = {
 
 # ── FACTION_MISSION_CONFIG ──────────────────────────────────────────────────
 # Test invariants (test_session49_faction_missions.py::TestFactionMissionConfigShape):
-#   - keys: empire, rebel, hutt, bh_guild   (architecture doc v29 §6.5)
+#   - keys: republic, cis, jedi_order, hutt_cartel, bounty_hunters_guild (CW)
 #   - per-faction dict has: badge, givers, mission_types, objectives,
 #     reward_mult, rep_required
 #   - reward_mult is in [1.4, 1.6]
@@ -1074,80 +1050,12 @@ _CW_INSURGENT_OBJECTIVES: dict[MissionType, list[str]] = {
 #   - givers and mission_types are non-empty
 
 FACTION_MISSION_CONFIG: dict[str, dict] = {
-    "empire": {
-        "badge": "EMPIRE",
-        "givers": [
-            "An Imperial recruiter in pressed uniform",
-            "A clerk with an Imperial Security clearance",
-            "A grim-faced ISB officer",
-            "A logistics officer from the local garrison",
-        ],
-        "mission_types": [
-            MissionType.COMBAT,
-            MissionType.INVESTIGATION,
-            MissionType.DELIVERY,
-        ],
-        "objectives": _EMPIRE_OBJECTIVES,
-        "reward_mult": 1.5,
-        "rep_required": 25,
-    },
-    "rebel": {
-        "badge": "REBEL",
-        "givers": [
-            "A nervous contact who keeps glancing at the door",
-            "A scarred veteran with a stripped-down blaster",
-            "A Twi'lek courier in worn flight leathers",
-            "A Mon Calamari quietly nursing a drink",
-        ],
-        "mission_types": [
-            MissionType.COMBAT,
-            MissionType.INVESTIGATION,
-            MissionType.SMUGGLING,
-        ],
-        "objectives": _REBEL_OBJECTIVES,
-        "reward_mult": 1.5,
-        "rep_required": 25,
-    },
-    "hutt": {
-        "badge": "HUTT",
-        "givers": [
-            "A Hutt's smooth-tongued majordomo",
-            "A Niktoo enforcer with a lazy grin",
-            "A Twi'lek protocol attache from the kajidic",
-            "A bored Rodian fixer with a datapad",
-        ],
-        "mission_types": [
-            MissionType.SMUGGLING,
-            MissionType.BOUNTY,
-            MissionType.SOCIAL,
-        ],
-        "objectives": _HUTT_OBJECTIVES,
-        "reward_mult": 1.4,
-        "rep_required": 20,
-    },
-    "bh_guild": {
-        "badge": "GUILD",
-        "givers": [
-            "A weathered Guild handler at the bounty desk",
-            "A Trandoshan with a long-running tally of marks",
-            "A clipped, professional Guild liaison",
-            "A scarred Guild veteran sliding contracts across the bar",
-        ],
-        "mission_types": [
-            MissionType.BOUNTY,
-            MissionType.COMBAT,
-            MissionType.INVESTIGATION,
-        ],
-        "objectives": _BH_GUILD_OBJECTIVES,
-        "reward_mult": 1.6,
-        "rep_required": 30,
-    },
-    # ── B.1.e (Apr 29 2026) — CW factions ─────────────────────────────
-    # Generic per-archetype templates per Brian's Apr 29 decision.
-    # republic + jedi_order share lawful-authority shape (mirrors empire);
-    # cis uses insurgent shape (mirrors rebel);
-    # hutt_cartel reuses _HUTT_OBJECTIVES; bounty_hunters_guild reuses
-    # _BH_GUILD_OBJECTIVES.
+    # ── Clone Wars factions (canonical org slugs from
+    #    data/worlds/clone_wars/organizations.yaml). The GAR/Republic and the
+    #    Jedi Order share the lawful-authority objective shape; the CIS uses the
+    #    insurgent shape; the Hutt Cartel and Bounty Hunters' Guild keep their
+    #    own objective tables. No GCW (empire/rebel) keys — characters are
+    #    migrated to these slugs on login by organizations.apply_org_rewicker.
     "republic": {
         "badge": "REPUBLIC",
         "givers": [

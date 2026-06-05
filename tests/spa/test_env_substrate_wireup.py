@@ -26,7 +26,14 @@ from .spa_dom_harness import run_with_dom  # noqa: E402
 def test_server_emits_environment_in_hud_area_map():
     src = SESSION_PY.read_text(encoding="utf-8")
     start = src.index("async def _hud_area_map")
-    body = src[start: start + 4000]
+    # Bound the slice to the NEXT method definition rather than a fixed
+    # char window. Drop 4.22 added an always-present wilderness_region_id
+    # stamp between the environment block and the registry gate, which
+    # pushed the gate past the old hard-coded 4000-char window and made
+    # this (correct) ordering assertion spuriously fail. Slicing to the
+    # next def keeps the whole function in view and is insertion-proof.
+    _next = re.search(r"\n    (?:async def|def) ", src[start + 10:])
+    body = src[start: start + 10 + _next.start()] if _next else src[start:]
     assert "from engine.world_time import resolve_environment" in body, (
         "_hud_area_map must import the environment resolver"
     )

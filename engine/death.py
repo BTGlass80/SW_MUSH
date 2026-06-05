@@ -68,6 +68,34 @@ WOUND_RECOVERY_SECONDS: float = 3600.0      # 1 real-time hour (§3.3)
 CORPSE_DECAY_SECONDS_CONTESTED: float = 7200.0   # 2 hours (§3.4)
 CORPSE_DECAY_SECONDS_LAWLESS:   float = 14400.0  # 4 hours (§3.5)
 
+# ── Drop 2: anti-griefing ───────────────────────────────────────────────
+#
+# Repeated PvP kills of the SAME victim by the SAME killer inside a short
+# window are presumed griefing, not gameplay. The corpse-loot value the
+# killer can take diminishes on each repeat, reaching zero quickly — there
+# is no profit in farming the same player's body. The victim's loose
+# inventory is still snapshotted to the corpse (so a *third party* or the
+# victim can recover it); what diminishes is the griefer's incentive,
+# expressed as a corpse `loot_factor` (1.0 = full, 0.0 = nothing lootable
+# by the killer). Window resets after GRIEF_WINDOW_SECONDS of no repeat.
+GRIEF_WINDOW_SECONDS: float = 1800.0        # 30 min repeat-kill window
+# loot_factor by repeat index within the window: 1st kill full, then steep
+# falloff. Index past the list clamps to the last value (0.0).
+GRIEF_LOOT_FACTORS = (1.0, 0.5, 0.25, 0.0)
+
+# After dying in PvP, a victim cannot be re-killed for this grace period.
+# Combat may apply this as a damage-immunity / un-targetable flag; the
+# death layer records the grace expiry so the combat layer can honor it.
+RESPAWN_GRACE_SECONDS: float = 60.0         # 1 min respawn protection
+
+# ── Drop 2: insurance rescale (flat + %) ────────────────────────────────
+# The BH insurance hit was a pure percentage, which barely bit on small
+# bounties. Rescaled to a flat floor PLUS a percentage so even a tiny
+# bounty has a meaningful consequence, while large bounties still scale.
+# (The insurance *payout* to the policyholder lands in Drop 3; this is the
+# hit charged to the killed target only.)
+INSURANCE_FLAT: int = 250                   # flat floor, in credits
+
 # Sentinel for secured-zone deaths: no corpse. We don't use a "0
 # seconds" decay because that would create-then-immediately-delete,
 # burning DB write churn for the same observable outcome.
@@ -148,7 +176,140 @@ async def _snapshot_and_clear_inventory(db, char_id: int) -> list:
     return snapshot
 
 
-# ── Public: on_pc_death ─────────────────────────────────────────────────
+# ── Drop 2: anti-grief helpers ──────────────────────────────────────────
+
+async def _record_pvp_death_and_loot_factor(
+    db, *, victim_id: int, killer_id: Optional[int], now: float,
+) -> float:
+    """Record a PvP death and return the corpse loot_factor for the KILLER.
+
+    Looks back GRIEF_WINDOW_SECONDS for prior kills of this victim by this
+    killer; the Nth repeat maps to GRIEF_LOOT_FACTORS[N] (clamped to the
+    last entry, 0.0). A non-PvP death (killer_id is None) always returns
+    1.0 and records nothing — environmental/NPC deaths are never griefing.
+
+    No-throw: any DB error fails OPEN to 1.0 (full loot) so a logging
+    problem can never *deny* a legitimate killer their loot.
+    """
+    if not killer_id:
+        return 1.0
+    try:
+        cutoff = now - GRIEF_WINDOW_SECONDS
+        rows = await db._db.execute_fetchall(  # noqa: SLF001
+            "SELECT COUNT(*) AS n FROM recent_pvp_deaths "
+            "WHERE victim_id = ? AND killer_id = ? AND died_at > ?",
+            (victim_id, killer_id, cutoff),
+        )
+        prior = int(rows[0]["n"]) if rows else 0
+    except Exception:
+        log.warning("[death] grief lookback failed v=%s k=%s; "
+                    "failing open to full loot", victim_id, killer_id,
+                    exc_info=True)
+        prior = 0
+
+    idx = min(prior, len(GRIEF_LOOT_FACTORS) - 1)
+    factor = GRIEF_LOOT_FACTORS[idx]
+
+    try:
+        await db._db.execute(  # noqa: SLF001
+            "INSERT INTO recent_pvp_deaths (victim_id, killer_id, died_at) "
+            "VALUES (?, ?, ?)",
+            (victim_id, killer_id, now),
+        )
+        await db._db.commit()  # noqa: SLF001
+    except Exception:
+        log.warning("[death] could not record pvp death v=%s k=%s",
+                    victim_id, killer_id, exc_info=True)
+
+    if factor < 1.0:
+        log.info("[death] anti-grief: repeat kill #%d of victim %d by "
+                 "killer %d → corpse loot_factor %.2f",
+                 prior + 1, victim_id, killer_id, factor)
+    return factor
+
+
+def _apply_loot_factor(snapshot: list, factor: float) -> list:
+    """Scale the *killer-lootable* portion of a corpse snapshot by `factor`.
+
+    factor >= 1.0 → unchanged. factor <= 0.0 → empty (nothing lootable).
+    Between → keep a proportional prefix of the loose items (resources and
+    bound items are governed by the existing loot rules elsewhere; this is
+    the griefer-incentive lever, deliberately simple and legible). The
+    victim's full inventory was already what we snapshotted; reducing the
+    corpse contents here removes the *griefer's* spoils without inventing a
+    separate per-item economy.
+    """
+    if factor >= 1.0:
+        return snapshot
+    if factor <= 0.0:
+        return []
+    keep = max(0, int(len(snapshot) * factor))
+    return snapshot[:keep]
+
+
+async def get_respawn_grace_until(db, char_id: int) -> float:
+    """Return the wall-clock time until which `char_id` is protected from
+    re-kill after a PvP death, or 0.0 if not currently protected. Read by
+    the combat layer to refuse lethal damage during the grace window.
+
+    No-throw: fails open to 0.0 (no protection) so a read error never
+    *grants* indefinite invulnerability.
+    """
+    try:
+        rows = await db._db.execute_fetchall(  # noqa: SLF001
+            "SELECT grace_until FROM recent_pvp_deaths "
+            "WHERE victim_id = ? ORDER BY died_at DESC LIMIT 1",
+            (char_id,),
+        )
+        if rows and rows[0]["grace_until"] is not None:
+            return float(rows[0]["grace_until"])
+    except Exception:
+        log.debug("[death] respawn-grace read failed for %d", char_id,
+                  exc_info=True)
+    return 0.0
+
+
+# ── Drop 3 B4: gear-insurance consume ────────────────────────────────────
+async def _consume_gear_insurance_if_active(db, char_id: int) -> bool:
+    """If the PC holds an active gear-insurance policy, consume it (flip
+    ``characters.gear_insured`` 1->0) and return True; else return False.
+
+    On True the death flow keeps the PC's LOOSE loadout on them instead of
+    snapshotting it to the corpse - the policy's one-shot loadout protection
+    (a *restoration*, never a credit payout; see engine/gear_insurance.py for
+    why a payout would be a suicide-faucet on this re-lootable-corpse death
+    model). Equipped gear is already preserved unconditionally (Drop 2), so
+    an insured death leaves the PC with everything they were carrying.
+
+    Fail-open: any DB error logs and returns False, so the death falls back
+    to the normal loose-gear drop. We never silently keep BOTH the gear AND
+    the policy. A PC cannot die twice concurrently (deaths are processed
+    serially), so the read-then-clear is race-free without a driver-specific
+    atomic UPDATE.
+    """
+    try:
+        rows = await db._db.execute_fetchall(  # noqa: SLF001
+            "SELECT gear_insured FROM characters WHERE id = ?", (char_id,))
+    except Exception:
+        log.warning("[Drop3.B4] could not read gear_insured for char %d; "
+                    "treating as uninsured.", char_id, exc_info=True)
+        return False
+    insured = bool(rows) and bool(rows[0]["gear_insured"])
+    if not insured:
+        return False
+    try:
+        await db._db.execute(  # noqa: SLF001
+            "UPDATE characters SET gear_insured = 0 WHERE id = ?", (char_id,))
+        await db._db.commit()  # noqa: SLF001
+    except Exception:
+        log.warning("[Drop3.B4] could not consume gear policy for char %d; "
+                    "treating as uninsured (gear drops).", char_id,
+                    exc_info=True)
+        return False
+    log.info("[Drop3.B4] gear insurance consumed for char %d; loose loadout "
+             "protected on death.", char_id)
+    return True
+
 
 async def on_pc_death(
     db,
@@ -198,7 +359,50 @@ async def on_pc_death(
         return None
 
     # ── 1. Snapshot + clear inventory ──
-    inv_snapshot = await _snapshot_and_clear_inventory(db, char_id)
+    # NOTE (Drop 2 / F12 / G2): equipped gear lives in the separate
+    # `equipment` column and is intentionally NOT touched here — it stays
+    # on the character through death. Only loose inventory + held resources
+    # snapshot to the corpse. test_drop2_death_reconciliation pins this so
+    # a future inventory refactor can't silently start dropping equipped
+    # gear.
+    #
+    # Drop 3 B4: if the PC holds an active gear-insurance policy, their LOOSE
+    # loadout is protected too — it stays on them instead of dropping to a
+    # lootable corpse, and the one-shot policy is consumed. The corpse is
+    # still created below (body/decay/wound intact) but holds none of their
+    # gear. RESTORATION model, never a credit payout (a payout would be a
+    # suicide-faucet); see engine/gear_insurance.py. Uninsured deaths drop
+    # loose gear exactly as before, so the consensual gear-loss sink survives.
+    if await _consume_gear_insurance_if_active(db, char_id):
+        inv_snapshot = []
+    else:
+        inv_snapshot = await _snapshot_and_clear_inventory(db, char_id)
+
+    # ── 1b. Anti-grief (Drop 2): diminish repeat-kill corpse loot, and
+    # record a respawn-grace window the combat layer can honor. PvP only;
+    # environmental/NPC deaths pass through at full loot, no grace. ──
+    now_ts = time.time()
+    try:
+        loot_factor = await _record_pvp_death_and_loot_factor(
+            db, victim_id=char_id, killer_id=killer_id, now=now_ts,
+        )
+        if loot_factor < 1.0:
+            inv_snapshot = _apply_loot_factor(inv_snapshot, loot_factor)
+        if killer_id:
+            try:
+                await db._db.execute(  # noqa: SLF001
+                    "UPDATE recent_pvp_deaths SET grace_until = ? "
+                    "WHERE victim_id = ? AND killer_id = ? AND died_at = ?",
+                    (now_ts + RESPAWN_GRACE_SECONDS, char_id, killer_id, now_ts),
+                )
+                await db._db.commit()  # noqa: SLF001
+            except Exception:
+                log.debug("[death] could not set respawn grace for %d",
+                          char_id, exc_info=True)
+    except Exception:
+        # Anti-grief is best-effort; never let it block the death flow.
+        log.warning("[death] anti-grief step failed for char %d", char_id,
+                    exc_info=True)
 
     # ── 2. Create corpse ──
     try:
@@ -310,27 +514,16 @@ async def _fire_insurance_and_fulfill(
     amount = int(bounty["amount"])
 
     # ── Insurance hit on target ──
-    hit_amount = (amount * INSURANCE_PCT + 99) // 100
+    # Drop 2: flat floor PLUS percentage, so small bounties still bite.
+    hit_amount = INSURANCE_FLAT + (amount * INSURANCE_PCT + 99) // 100
     try:
         target = await db.get_character(target_id)
         if target:
             current_cr = int(target.get("credits") or 0)
             if current_cr >= hit_amount:
-                new_balance = current_cr - hit_amount
-                await db.save_character(
-                    target_id, credits=new_balance,
+                await db.adjust_credits(
+                    target_id, -hit_amount, "bh_insurance_hit",
                 )
-                try:
-                    await db.log_credit(
-                        target_id, -hit_amount,
-                        "bh_insurance_hit", new_balance,
-                    )
-                except Exception:
-                    log.debug(
-                        "[PG.2] log_credit failed for "
-                        "insurance hit on %s",
-                        target_id, exc_info=True,
-                    )
                 log.info(
                     "[PG.2] insurance hit: target %d paid "
                     "%d cr (bounty %d, %d%% of %d)",
@@ -342,20 +535,9 @@ async def _fire_insurance_and_fulfill(
                 paid_cash = current_cr
                 debt_added = hit_amount - paid_cash
                 if paid_cash > 0:
-                    await db.save_character(
-                        target_id, credits=0,
+                    await db.adjust_credits(
+                        target_id, -paid_cash, "bh_insurance_hit_partial",
                     )
-                    try:
-                        await db.log_credit(
-                            target_id, -paid_cash,
-                            "bh_insurance_hit_partial", 0,
-                        )
-                    except Exception:
-                        log.debug(
-                            "[PG.2] log_credit failed for "
-                            "partial insurance hit",
-                            exc_info=True,
-                        )
                 new_debt = await db.add_insurance_debt(
                     target_id, debt_added,
                 )
@@ -386,35 +568,16 @@ async def _fire_insurance_and_fulfill(
     try:
         bh = await db.get_character(killer_id)
         if bh:
-            new_bh_balance = int(
-                bh.get("credits") or 0
-            ) + payout
-            await db.save_character(
-                killer_id, credits=new_bh_balance,
+            await db.adjust_credits(
+                killer_id, payout, "bh_bounty_payout",
             )
-            try:
-                await db.log_credit(
-                    killer_id, payout,
-                    "bh_bounty_payout", new_bh_balance,
-                )
-            except Exception:
-                log.debug(
-                    "[PG.2] log_credit failed for BH payout",
-                    exc_info=True,
-                )
-            # Guild treasury sink — log as system sink to
-            # make the economy audit see the destroyed credits.
+            # Guild treasury sink — system sink so the economy audit
+            # sees the destroyed credits.
             sunk = amount - payout
             if sunk > 0:
-                try:
-                    await db.log_credit(
-                        0, -sunk, "bh_guild_treasury_sink", 0,
-                    )
-                except Exception:
-                    log.debug(
-                        "[PG.2] log_credit failed for "
-                        "Guild sink", exc_info=True,
-                    )
+                await db.adjust_credits(
+                    0, -sunk, "bh_guild_treasury_sink",
+                )
             log.info(
                 "[PG.2] bounty %d fulfilled: BH %d paid %d cr; "
                 "Guild treasury sink %d cr",
@@ -810,14 +973,13 @@ async def decay_corpse(
     if credits_returned > 0 and owner_id:
         # Standin for the design's "drop to room (lootable until
         # cleared)" — no room-drop scaffold yet. Document in handoff.
+        # Routed through the ledger chokepoint (F1): the atomic
+        # credits+=delta replaces the prior read-then-save_character, and
+        # the movement is now legible on @economy as corpse_credit_return.
         try:
-            char_row = await db._db.execute_fetchall(  # noqa: SLF001
-                "SELECT credits FROM characters WHERE id = ?",
-                (owner_id,),
+            await db.adjust_credits(
+                owner_id, credits_returned, "corpse_credit_return",
             )
-            if char_row:
-                new_credits = int(char_row[0]["credits"] or 0) + credits_returned
-                await db.save_character(owner_id, credits=new_credits)
         except Exception:
             log.warning(
                 "decay: credits-return failed for owner=%d corpse=%d",

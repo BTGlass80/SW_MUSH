@@ -46,7 +46,7 @@ async def _award_credits(char_id, amount, db):
     try:
         char = await db.get_character(char_id)
         if char:
-            await db.save_character(char_id, credits=dict(char).get("credits", 0) + amount)
+            await db.adjust_credits(char_id, amount, "space_encounter_reward")
     except Exception as e:
         log.warning("[texture] credit award: %s", e)
 

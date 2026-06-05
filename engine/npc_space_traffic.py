@@ -20,8 +20,10 @@ Drop 4 additions:
 import asyncio
 import json
 import logging
+import os
 import random
 import time
+import yaml
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Optional
@@ -90,6 +92,8 @@ class Zone:
     planet:   Optional[str] = None
     desc:     str = ""
     hazards:  dict = None   # e.g. {"asteroid_density": "heavy", "nav_modifier": 5, "sensor_penalty": 2}
+    authority: str = "neutral"  # republic | cis | hutt | contested | neutral
+                                # which faction runs patrols/customs in this zone
 
     def __post_init__(self):
         if self.hazards is None:
@@ -97,7 +101,15 @@ class Zone:
 
 
 # All zones in the galaxy. Adding a new planet = add entries here, nothing else.
-ZONES: dict[str, Zone] = {
+#
+# NOTE (era pivot): this hardcoded dict is the GCW-era fallback graph
+# (Tatooine/Nar Shaddaa/Kessel/Corellia, generic Outer-Rim lanes). The live
+# graph is now loaded from data/worlds/<active_era>/space_zones.yaml when that
+# file exists — see _load_zone_graph() below. The CW file supplies all six
+# launch planets, canonical hyperspace lanes, and per-zone `authority`
+# (republic/cis/hutt/contested) used to pick zone-appropriate patrols. This
+# dict remains the fallback for GCW and for any era without a zone file.
+_GCW_ZONES: dict[str, Zone] = {
     # ── Tatooine ─────────────────────────────────────────────────────────────
     "tatooine_dock": Zone(
         id="tatooine_dock",
@@ -250,17 +262,16 @@ ZONES: dict[str, Zone] = {
     ),
 }
 
-# Zones eligible for random traffic spawn
-SPAWN_ZONES = [
+# Zones eligible for random traffic spawn (GCW fallback).
+_GCW_SPAWN_ZONES = [
     "tatooine_deep_space", "outer_rim_lane_1",
     "nar_shaddaa_deep_space", "outer_rim_lane_2",
     "kessel_approach", "corellia_deep_space",
 ]
 
-# Maps docking bay room names (lowercase substrings) → planet orbit zone id.
-# Used by launch command to assign current_zone without hardcoding.
-# Add entries when new planets are built.
-BAY_PLANET_MAP = {
+# Maps docking bay room names (lowercase substrings) → planet orbit zone id
+# (GCW fallback). Used by launch command to assign current_zone.
+_GCW_BAY_PLANET_MAP = {
     "tatooine": "tatooine_orbit",
     "mos eisley": "tatooine_orbit",
     "docking bay": "tatooine_orbit",   # default fallback for Mos Eisley bays
@@ -270,6 +281,84 @@ BAY_PLANET_MAP = {
     "coronet": "corellia_orbit",
     "corellia": "corellia_orbit",
 }
+_GCW_DEFAULT_ORBIT_ZONE = "tatooine_orbit"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERA-AWARE ZONE GRAPH LOADER
+# ─────────────────────────────────────────────────────────────────────────────
+# The live zone graph follows the active era. For eras that ship a
+# data/worlds/<era>/space_zones.yaml (Clone Wars does), we load ZONES,
+# SPAWN_ZONES, BAY_PLANET_MAP, and the default-orbit fallback from that file.
+# Otherwise we fall back to the hardcoded GCW graph above. This mirrors the
+# single-source-of-truth contract used by get_ship_registry() and the NPC
+# loaders.
+
+def _load_zone_graph():
+    """Return (zones, spawn_zones, bay_map, default_orbit) for the active era.
+
+    Reads data/worlds/<active_era>/space_zones.yaml if present; otherwise the
+    GCW fallback constants. Tolerant of a missing/blank/partial file.
+    """
+    try:
+        from engine.era_state import get_active_era
+        era = get_active_era()
+    except Exception:  # pragma: no cover - defensive
+        era = "gcw"
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+    zpath = os.path.join(data_dir, "worlds", era, "space_zones.yaml")
+    if not os.path.exists(zpath):
+        return (dict(_GCW_ZONES), list(_GCW_SPAWN_ZONES),
+                dict(_GCW_BAY_PLANET_MAP), _GCW_DEFAULT_ORBIT_ZONE)
+    try:
+        with open(zpath, encoding="utf-8") as f:
+            raw = yaml.safe_load(f) or {}
+    except Exception:  # pragma: no cover - defensive
+        log.warning("_load_zone_graph: failed reading %s; using GCW fallback",
+                    zpath, exc_info=True)
+        return (dict(_GCW_ZONES), list(_GCW_SPAWN_ZONES),
+                dict(_GCW_BAY_PLANET_MAP), _GCW_DEFAULT_ORBIT_ZONE)
+
+    zones: dict[str, Zone] = {}
+    for zid, z in (raw.get("zones", {}) or {}).items():
+        try:
+            ztype = ZoneType(z.get("type", "deep_space"))
+        except ValueError:
+            log.warning("_load_zone_graph: bad zone type %r for %s; "
+                        "defaulting to deep_space", z.get("type"), zid)
+            ztype = ZoneType.DEEP_SPACE
+        zones[zid] = Zone(
+            id=zid,
+            name=z.get("name", zid.replace("_", " ").title()),
+            type=ztype,
+            adjacent=list(z.get("adjacent", []) or []),
+            planet=z.get("planet"),
+            desc=(z.get("desc", "") or "").strip(),
+            hazards=dict(z.get("hazards", {}) or {}),
+            authority=z.get("authority", "neutral"),
+        )
+    spawn_zones = list(raw.get("spawn_zones", []) or [])
+    bay_map = dict(raw.get("bay_planet_map", {}) or {})
+    default_orbit = raw.get("default_orbit_zone", _GCW_DEFAULT_ORBIT_ZONE)
+    if not zones:  # malformed file → fall back rather than ship an empty galaxy
+        log.warning("_load_zone_graph: %s parsed but had no zones; "
+                    "using GCW fallback", zpath)
+        return (dict(_GCW_ZONES), list(_GCW_SPAWN_ZONES),
+                dict(_GCW_BAY_PLANET_MAP), _GCW_DEFAULT_ORBIT_ZONE)
+    log.info("_load_zone_graph: loaded %d zones from %s (era=%s)",
+             len(zones), zpath, era)
+    return zones, spawn_zones, bay_map, default_orbit
+
+
+ZONES, SPAWN_ZONES, BAY_PLANET_MAP, _DEFAULT_ORBIT_ZONE = _load_zone_graph()
+
+
+def reload_zone_graph():
+    """Re-read the zone graph for the current active era. For tests/runtime
+    that flip eras; production boot reads it once at import."""
+    global ZONES, SPAWN_ZONES, BAY_PLANET_MAP, _DEFAULT_ORBIT_ZONE
+    ZONES, SPAWN_ZONES, BAY_PLANET_MAP, _DEFAULT_ORBIT_ZONE = _load_zone_graph()
+    return ZONES
 
 def get_orbit_zone_for_room(room_name: str) -> str:
     """Return the orbit zone id for the planet this docking bay is on."""
@@ -277,7 +366,7 @@ def get_orbit_zone_for_room(room_name: str) -> str:
     for key, zone_id in BAY_PLANET_MAP.items():
         if key in name_lower:
             return zone_id
-    return "tatooine_orbit"  # safe fallback
+    return _DEFAULT_ORBIT_ZONE  # era-appropriate fallback
 
 
 def get_deep_space_zone_for_orbit(orbit_zone_id: str) -> str:
@@ -421,13 +510,19 @@ TRAFFIC_SHIP_TEMPLATES = {
     ],
     TrafficArchetype.PATROL: [
         {
+            # Default / neutral fallback. Zone-authority selection (see
+            # _pick_patrol_template) normally overrides this with a faction
+            # variant; this entry covers zones with authority "neutral" or
+            # "contested" and any era without authority data.
             "name_pool": [
-                "Imperial Patrol TK-{n}", "ISB Patrol {n}", "Sector Patrol {n}",
+                "Sector Customs {n}", "Outer Rim Patrol {n}", "Customs Cutter {n}",
             ],
-            "template": "tie_fighter",
+            "template": "consular_cruiser",
             "transponder": "official",
             "crew_skill": "3D+2",
-            "captain_name_pool": ["Lieutenant Varsk", "Sergeant Holt", "Corporal Renn"],
+            "captain_name_pool": ["Inspector V4-K", "Patrol Captain Renn",
+                                  "Customs Officer Tann"],
+            "authority": "neutral",
         },
     ],
     TrafficArchetype.PIRATE: [
@@ -469,6 +564,97 @@ TRAFFIC_SHIP_TEMPLATES = {
     ],
 }
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ZONE-AUTHORITY PATROL TEMPLATES (Clone Wars era)
+# ─────────────────────────────────────────────────────────────────────────────
+# Who runs patrols depends on who controls the zone. Each zone in
+# space_zones.yaml carries an `authority` (republic | cis | hutt | contested |
+# neutral). _pick_patrol_template selects the matching patrol flavor + hull so
+# Republic space gets clone/Judicial patrols in ARC-170s, CIS space gets
+# Separatist droid patrols in Vulture/Tri-fighters, Hutt space gets cartel
+# enforcers, and contested/neutral zones get faction-neutral Sector Customs.
+# All hulls here are era-clean (CW templates or era-agnostic allowed hulls);
+# none reference the GCW catalog excluded by apply_era_hints.
+PATROL_TEMPLATES_BY_AUTHORITY = {
+    "republic": {
+        "name_pool": [
+            "Republic Picket {n}", "Judicial Patrol {n}", "RNS Vigilant Watch {n}",
+            "Home Fleet Patrol {n}",
+        ],
+        "template": "arc_170",
+        "transponder": "official",
+        "crew_skill": "4D",
+        "captain_name_pool": [
+            "Clone Lieutenant CT-{n}", "Commander Vell", "Lieutenant Sarn",
+            "Clone Captain CC-{n}",
+        ],
+        "authority": "republic",
+    },
+    "cis": {
+        "name_pool": [
+            "Separatist Patrol {n}", "CIS Picket {n}", "Confederate Sentinel {n}",
+        ],
+        "template": "vulture_droid",
+        "transponder": "official",
+        "crew_skill": "3D+2",
+        "captain_name_pool": [
+            "Droid Control {n}", "Tactical Droid T-{n}", "OOM Command {n}",
+        ],
+        "authority": "cis",
+    },
+    "hutt": {
+        "name_pool": [
+            "Cartel Enforcer {n}", "Hutt Customs Barge {n}", "Nar Shaddaa Watch {n}",
+        ],
+        "template": "z95",
+        "transponder": "official",
+        "crew_skill": "3D+2",
+        "captain_name_pool": [
+            "Enforcer Grenda", "Bo'tula the Collector", "A Hutt Customs Agent",
+        ],
+        "authority": "hutt",
+    },
+    # contested / neutral fall through to the TRAFFIC_SHIP_TEMPLATES PATROL
+    # default (Sector Customs) — handled in _pick_patrol_template.
+}
+
+
+def _pick_patrol_template(spawn_zone: str) -> dict:
+    """Return the patrol template appropriate to the spawn zone's authority.
+
+    Republic/CIS/Hutt zones get their faction patrol; contested/neutral zones
+    (and any era without authority data) fall back to the neutral Sector
+    Customs entry in TRAFFIC_SHIP_TEMPLATES."""
+    zone = ZONES.get(spawn_zone)
+    authority = getattr(zone, "authority", "neutral") if zone else "neutral"
+    tmpl = PATROL_TEMPLATES_BY_AUTHORITY.get(authority)
+    if tmpl is not None:
+        return tmpl
+    # neutral/contested → default Sector Customs patrol
+    defaults = TRAFFIC_SHIP_TEMPLATES.get(TrafficArchetype.PATROL, [])
+    return defaults[0] if defaults else {}
+
+
+# Player-facing label for the authority that runs patrols in a given zone.
+# Used in hail/inspection text so a Republic picket says "Republic Navy
+# patrol", a CIS picket says "Separatist patrol", etc.
+_PATROL_AUTHORITY_LABELS = {
+    "republic": "Republic Navy patrol",
+    "cis":      "Separatist patrol",
+    "hutt":     "Hutt cartel customs",
+    "contested": "sector patrol",
+    "neutral":  "sector customs patrol",
+}
+
+
+def _patrol_authority_label(zone_id: str) -> str:
+    """Return a player-facing patrol-authority label for the zone."""
+    zone = ZONES.get(zone_id)
+    authority = getattr(zone, "authority", "neutral") if zone else "neutral"
+    return _PATROL_AUTHORITY_LABELS.get(authority, "sector patrol")
+
+
 # Archetype spawn weights (must sum to 100 for clean math, but we normalize anyway)
 TRAFFIC_WEIGHTS = {
     TrafficArchetype.TRADER:        40,
@@ -477,19 +663,6 @@ TRAFFIC_WEIGHTS = {
     TrafficArchetype.PIRATE:        15,
     TrafficArchetype.BOUNTY_HUNTER: 10,  # only used for random; hunters normally event-driven
 }
-
-def _pick_archetype() -> TrafficArchetype:
-    weights = dict(TRAFFIC_WEIGHTS)
-    try:
-        from engine.world_events import get_world_event_manager
-        mult = get_world_event_manager().get_effect('patrol_spawn_mult', 1.0)
-        if mult != 1.0:
-            weights[TrafficArchetype.PATROL] = int(weights[TrafficArchetype.PATROL] * mult)
-    except Exception:
-        log.warning("_pick_archetype: unhandled exception", exc_info=True)
-        pass
-    archetypes = list(weights.keys())
-    return random.choices(archetypes, weights=[weights[a] for a in archetypes], k=1)[0]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -626,7 +799,26 @@ class TrafficShip:
 def _pick_archetype(exclude_hunter: bool = True) -> TrafficArchetype:
     pool = {k: v for k, v in TRAFFIC_WEIGHTS.items()
             if not (exclude_hunter and k == TrafficArchetype.BOUNTY_HUNTER)}
+    # World-event spawn multipliers: SECURITY_CRACKDOWN -> patrol_spawn_mult,
+    # PIRATE_SURGE -> pirate_spawn_mult. No-op (default 1.0) when no event is
+    # active. NOTE (E2 2026-06-04): a second, world-event-aware _pick_archetype
+    # used to live above and was SHADOWED by this definition, so
+    # patrol_spawn_mult had been silently inert; the logic is consolidated here
+    # (the live definition) and pirate_spawn_mult added.
+    try:
+        from engine.world_events import get_world_event_manager
+        _wem = get_world_event_manager()
+        _pmult = _wem.get_effect('patrol_spawn_mult', 1.0)
+        if _pmult != 1.0 and TrafficArchetype.PATROL in pool:
+            pool[TrafficArchetype.PATROL] = max(0, int(pool[TrafficArchetype.PATROL] * _pmult))
+        _pirmult = _wem.get_effect('pirate_spawn_mult', 1.0)
+        if _pirmult != 1.0 and TrafficArchetype.PIRATE in pool:
+            pool[TrafficArchetype.PIRATE] = max(0, int(pool[TrafficArchetype.PIRATE] * _pirmult))
+    except Exception:
+        log.warning("_pick_archetype: world-event multiplier lookup failed", exc_info=True)
     total = sum(pool.values())
+    if total <= 0:
+        return TrafficArchetype.TRADER
     r = random.randint(1, total)
     cumulative = 0
     for archetype, weight in pool.items():
@@ -777,14 +969,22 @@ class NpcSpaceTrafficManager:
         if archetype is None:
             archetype = _pick_archetype()
 
-        templates = TRAFFIC_SHIP_TEMPLATES.get(archetype, [])
-        if not templates:
-            return None
-        tmpl = random.choice(templates)
+        spawn_zone   = random.choice(SPAWN_ZONES)
+
+        # Patrol flavor/hull follows the zone's controlling faction; all other
+        # archetypes use their generic template pool.
+        if archetype == TrafficArchetype.PATROL:
+            tmpl = _pick_patrol_template(spawn_zone)
+            if not tmpl:
+                return None
+        else:
+            templates = TRAFFIC_SHIP_TEMPLATES.get(archetype, [])
+            if not templates:
+                return None
+            tmpl = random.choice(templates)
 
         ship_name    = _make_ship_name(tmpl)
         captain_name = _make_captain_name(tmpl)
-        spawn_zone   = random.choice(SPAWN_ZONES)
 
         # Create ship in DB
         try:
@@ -1093,6 +1293,25 @@ class NpcSpaceTrafficManager:
             log.warning("[traffic] boarding _get_players_in_zone: %s", exc)
             return
 
+        # Authority-aware boarding flavor (Republic / CIS / Hutt / neutral),
+        # replacing the GCW "Imperial / Stormtroopers" hardcoding.
+        zone = ZONES.get(ship.current_zone)
+        authority = getattr(zone, "authority", "neutral") if zone else "neutral"
+        _BOARD = {
+            "republic": ("REPUBLIC BOARDING", "Clone troopers", "REPUBLIC CUSTOMS",
+                         "Failure to respond to Republic Navy hail"),
+            "cis":      ("SEPARATIST BOARDING", "B1 battle droids", "CIS CUSTOMS",
+                         "Failure to respond to Separatist patrol hail"),
+            "hutt":     ("CARTEL BOARDING", "Cartel enforcers", "HUTT CUSTOMS",
+                         "Failure to respond to cartel customs hail"),
+            "contested": ("PATROL BOARDING", "Boarding troopers", "SECTOR CUSTOMS",
+                          "Failure to respond to patrol hail"),
+            "neutral":  ("PATROL BOARDING", "Customs officers", "SECTOR CUSTOMS",
+                         "Failure to respond to customs hail"),
+        }
+        board_tag, board_party, customs_tag, default_reason = _BOARD.get(
+            authority, _BOARD["neutral"])
+
         for sess, ship_name in players:
             try:
                 char = getattr(sess, "character", None)
@@ -1106,7 +1325,7 @@ class NpcSpaceTrafficManager:
                 )
 
                 inf_class = 5
-                inf_reason = "Failure to respond to Imperial hail"
+                inf_reason = default_reason
                 false_tp = sys_data.get("false_transponder")
                 smug_job = sys_data.get("smuggling_job")
 
@@ -1127,11 +1346,11 @@ class NpcSpaceTrafficManager:
                 fine = _rand.randint(fine_lo, fine_hi)
 
                 await sess.send_line(
-                    "\n  " + RED + "[IMPERIAL BOARDING]" + RST
-                    + " Stormtroopers board " + ship_name + " for inspection."
+                    "\n  " + RED + "[" + board_tag + "]" + RST
+                    + " " + board_party + " board " + ship_name + " for inspection."
                 )
                 await sess.send_line(
-                    "  " + RED + "[IMPERIAL CUSTOMS]" + RST
+                    "  " + RED + "[" + customs_tag + "]" + RST
                     + " " + inf["name"] + " infraction: " + inf_reason + "."
                 )
 
@@ -1149,8 +1368,7 @@ class NpcSpaceTrafficManager:
 
                 credits = char.get("credits", 0)
                 paid = min(credits, fine)
-                char["credits"] = credits - paid
-                await db.save_character(char["id"], credits=char["credits"])
+                char["credits"] = await db.adjust_credits(char["id"], -paid, "npc_boarding_fine")
 
                 if paid < fine:
                     await sess.send_line(
@@ -1416,13 +1634,15 @@ class NpcSpaceTrafficManager:
 
     async def _send_patrol_hail(self, ship: TrafficShip, player_session,
                                  player_ship_name: str, session_mgr, db):
-        """Send an Imperial Patrol hail to a player ship."""
+        """Send a patrol hail to a player ship, voiced by the zone's
+        controlling authority (Republic / CIS / Hutt / neutral)."""
         ship.hail_sent = True
         ship.enter_state(TrafficState.HAILING, duration=HAIL_TIMEOUT_SECS)
+        authority_label = _patrol_authority_label(ship.current_zone)
         await self._announce_to_zone(
             ship.current_zone,
             f"  {ansi_yellow}[COMMS]{ansi_reset} {ship.display_name}: "
-            f"\"Attention {player_ship_name} — this is Imperial Sector Patrol. "
+            f"\"Attention {player_ship_name} — this is {authority_label}. "
             f"Transmit your identification codes and stand by for inspection. "
             f"Respond with: comms {ship.sensors_name()} <message>\"",
             session_mgr, db,
@@ -1505,8 +1725,7 @@ class NpcSpaceTrafficManager:
                            f"Demand: {demand:,} cr, You have: {credits:,} cr.")
 
         # Deduct credits
-        player_char["credits"] = credits - demand
-        await db.save_character(player_char["id"], credits=player_char["credits"])
+        player_char["credits"] = await db.adjust_credits(player_char["id"], -demand, "npc_pirate_extortion")
 
         ts.pirate_paid = True
         ts.hail_sent = False
@@ -1537,9 +1756,7 @@ class NpcSpaceTrafficManager:
         awarded = 0
         if ts.archetype == TrafficArchetype.PIRATE:
             awarded = random.randint(PIRATE_CREDIT_MIN, PIRATE_CREDIT_MAX)
-            new_credits = player_char.get("credits", 0) + awarded
-            player_char["credits"] = new_credits
-            await db.save_character(player_char["id"], credits=new_credits)
+            player_char["credits"] = await db.adjust_credits(player_char["id"], awarded, "npc_pirate_bounty")
             log.info(f"[traffic] player destroyed pirate '{ts.display_name}' — awarded {awarded} cr")
         await self._despawn(traffic_ship_id, db, session_mgr)
         return awarded

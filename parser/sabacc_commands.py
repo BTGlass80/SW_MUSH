@@ -256,6 +256,7 @@ class SabaccCommand(BaseCommand):
             # to city)." The city's slice comes out of the rake (the
             # system's slice), not the player's bet or winnings.
             # Player's net_win is unchanged; the rake bucket shrinks.
+            city_take = 0
             city_rake_msg = ""
             try:
                 from engine.player_cities import apply_city_tax
@@ -271,11 +272,33 @@ class SabaccCommand(BaseCommand):
                     "[sabacc] city tax hook failed", exc_info=True,
                 )
 
+            # ── A5 / F15: if this cantina is a Hutt-cartel DEN, the rake
+            # (after the city's slice) flows to the cartel org's treasury —
+            # the criminal-empire loop. The player's net_win is unchanged;
+            # the rake is system-sourced (the NPC house's edge), so it is
+            # logged as a `sabacc_rake` SYSTEM faucet (char_id=0) for the
+            # @economy dashboard (fixes F15: the rake was previously
+            # notional + unlogged). In a public (non-den) cantina the rake
+            # stays the house edge baked into net_win, as before. ──
+            den_msg = ""
+            try:
+                from engine.dens import get_room_den
+                den = await get_room_den(ctx.db, char["room_id"])
+                rake_to_org = house_rake - city_take
+                if den and rake_to_org > 0:
+                    await ctx.db.adjust_org_treasury(den["org_id"], rake_to_org)
+                    await ctx.db.adjust_credits(0, rake_to_org, "sabacc_rake")
+                    den_msg = (
+                        f" ({rake_to_org:,}cr to {den.get('org_code', 'the cartel')})"
+                    )
+            except Exception:
+                log.warning("[sabacc] den rake routing failed", exc_info=True)
+
             new_credits = credits + net_win
             flavour = random.choice(_CRIT_LINES if outcome == "critical" else _WIN_LINES)
             result_line = (
                 f"  {ansi.BRIGHT_GREEN}YOU WIN{ansi.RESET}  "
-                f"+{net_win:,}cr  (house takes {house_rake:,}cr{city_rake_msg})"
+                f"+{net_win:,}cr  (house takes {house_rake:,}cr{city_rake_msg}{den_msg})"
             )
             cooldown_ts = now  # Full WIN_COOLDOWN
         else:
@@ -296,11 +319,10 @@ class SabaccCommand(BaseCommand):
         char["credits"] = new_credits
         new_attrs = _set_last_sabacc(char, cooldown_ts)
         char["attributes"] = new_attrs
-        await ctx.db.save_character(
-            char["id"],
-            credits=new_credits,
-            attributes=new_attrs,
-        )
+        # Ledger chokepoint (F1): the sabacc result as a logged faucet/sink
+        # (delta = net change; the loss branch already clamps at 0 above).
+        await ctx.db.adjust_credits(char["id"], new_credits - credits, "sabacc")
+        await ctx.db.save_character(char["id"], attributes=new_attrs)
 
         # ── Output ────────────────────────────────────────────────────────────
         margin = player_roll - dealer_roll

@@ -1302,9 +1302,8 @@ class BuyResourcesCommand(BaseCommand):
             )
             return
 
-        # Execute purchase
-        char["credits"] = credits - total_cost
-        await ctx.db.save_character(char["id"], credits=char["credits"])
+        # Execute purchase (through the credit chokepoint)
+        char["credits"] = await ctx.db.adjust_credits(char["id"], -total_cost, "resource_vendor")
 
         result_msg = add_resource(char, rtype, qty, NPC_RESOURCE_QUALITY)
         # Save inventory
@@ -1324,12 +1323,7 @@ class BuyResourcesCommand(BaseCommand):
         )
         await ctx.session.send_line(f"  {result_msg}")
 
-        # Credit log
-        try:
-            await ctx.db.log_credit(char["id"], -total_cost, "resource_vendor",
-                                     char["credits"])
-        except Exception:
-            log.warning("BuyResourcesCommand: credit log failed", exc_info=True)
+        # Credit movement recorded via adjust_credits at the purchase site.
 
 
 # ── S56: populate _CRAFT_SWITCH_IMPL after BuyResourcesCommand is defined ──

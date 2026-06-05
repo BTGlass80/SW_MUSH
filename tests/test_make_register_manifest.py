@@ -26,8 +26,13 @@ def _write_map(tmp: Path, place: str, doc: dict) -> None:
 
 def _frac_to_world(b: dict, fx: float, fy: float) -> tuple[float, float]:
     # Mirror of the tool's fracToWorld (the thing we must invert).
+    # Drop 4.17 convention: overview/substrate space is SVG y-DOWN with NO
+    # flip — fy=0 maps to y_min (image top), fy=1 to y_max — matching
+    # build_manifest.world_to_frac and the renderer (which paints the
+    # substrate rect at y_min, height h). A previous version inverted y
+    # (y_max - fy*h), which drifted the round-trip.
     return (b["x_min"] + fx * (b["x_max"] - b["x_min"]),
-            b["y_max"] - fy * (b["y_max"] - b["y_min"]))
+            b["y_min"] + fy * (b["y_max"] - b["y_min"]))
 
 
 class TestManifestGenerator(unittest.TestCase):

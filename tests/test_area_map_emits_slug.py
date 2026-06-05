@@ -67,7 +67,17 @@ class FakeDB:
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    """Run a coroutine to completion in a fresh event loop.
+
+    Uses ``asyncio.new_event_loop().run_until_complete`` — the
+    ``asyncio.get_event_loop()`` pattern broke in Python 3.14 (see
+    BugFix5 / 2026-05-24) and fails in subset runs even on 3.12.
+    """
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 def _build():

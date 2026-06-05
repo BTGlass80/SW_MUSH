@@ -86,7 +86,7 @@ async def hunter_surrender(enc, mgr, db, sm, **kw):
         if char:
             credits = dict(char).get("credits", 0)
             lost = min(credits, penalty)
-            await db.save_character(cid, credits=credits - lost)
+            await db.adjust_credits(cid, -lost, "space_hunter_bounty")
             await mgr.broadcast_to_bridge(enc,
                 f"\n  {AMBER}[COMMS]{RST} You power down weapons and submit.\n"
                 f"  {DIM}{hunter_name}: \"Smart. The bounty's collected.\"{RST}\n"
@@ -130,7 +130,8 @@ async def hunter_negotiate(enc, mgr, db, sm, **kw):
             if char:
                 credits = dict(char).get("credits", 0)
                 paid = min(credits, payment)
-                await db.save_character(cid, credits=credits - paid, bounty=0)
+                await db.save_character(cid, bounty=0)
+                await db.adjust_credits(cid, -paid, "space_hunter_settlement")
         except Exception:
             paid = 0
         await mgr.broadcast_to_bridge(enc,
@@ -148,7 +149,8 @@ async def hunter_negotiate(enc, mgr, db, sm, **kw):
             if char:
                 credits = dict(char).get("credits", 0)
                 paid = min(credits, payment)
-                await db.save_character(cid, credits=credits - paid, bounty=0)
+                await db.save_character(cid, bounty=0)
+                await db.adjust_credits(cid, -paid, "space_hunter_settlement")
         except Exception:
             paid = 0
         await mgr.broadcast_to_bridge(enc,

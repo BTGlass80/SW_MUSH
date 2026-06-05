@@ -2856,9 +2856,8 @@ async def _apply_reward_to_char(
     influence_delta = int(reward.get("influence", 0))
 
     if credits > 0:
-        char["credits"] = int(char.get("credits", 0)) + credits
         try:
-            await db.save_character(char["id"], credits=char["credits"])
+            char["credits"] = await db.adjust_credits(char["id"], credits, "wilderness_anomaly_reward")
         except Exception:
             log.warning("[anomaly] credits save failed", exc_info=True)
 
@@ -3133,8 +3132,7 @@ async def _payout_combat_anomaly(
         granted_trophy = None
         # Credits — equal split.
         try:
-            p["credits"] = int(p.get("credits", 0)) + per_credits
-            await db.save_character(p["id"], credits=p["credits"])
+            p["credits"] = await db.adjust_credits(p["id"], per_credits, "wilderness_anomaly_reward")
         except Exception:
             log.warning("[anomaly] credits save failed (char %s)",
                         p.get("id"), exc_info=True)

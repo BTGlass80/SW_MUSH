@@ -47,7 +47,7 @@ async def _award_credits(char_id, amount, db):
     try:
         char = await db.get_character(char_id)
         if char:
-            await db.save_character(char_id, credits=dict(char).get("credits", 0) + amount)
+            await db.adjust_credits(char_id, amount, "space_anomaly_reward")
     except Exception as e:
         log.warning("[anomaly] credit award: %s", e)
 
@@ -251,12 +251,15 @@ async def mineral_skip(enc, mgr, db, sm, **kw):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# IMPERIAL DEAD DROP
+# ENCRYPTED DEAD DROP (Separatist intel cache)
+# Handler keys / outcomes keep the legacy "imperial_*" identifiers (they are
+# internal registration ids, not era content, and are referenced by string in
+# the handler table below). Only the player-facing display strings are CW.
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def imperial_setup(enc, mgr, db, sm, **kw):
     from engine.space_encounters import EncounterChoice
-    enc.prompt = f"[IMPERIAL DEAD DROP] Encrypted data container.\n  {DIM}Imperial cipher signature.{RST}"
+    enc.prompt = f"[ENCRYPTED DEAD DROP] Encrypted data container.\n  {DIM}Separatist cipher signature.{RST}"
     enc.choices = [
         EncounterChoice(key="slice", label="Slice It",
             description="Computer Programming, Difficult (20). Failure triggers alarm.",
@@ -265,7 +268,7 @@ async def imperial_setup(enc, mgr, db, sm, **kw):
             description="Sell to a fence later. Less reward, no risk.",
             risk="low", icon="package"),
         EncounterChoice(key="leave", label="Leave It",
-            description="Imperial intel is trouble.", risk="none", icon="x-circle"),
+            description="Separatist intel is trouble.", risk="none", icon="x-circle"),
     ]
     enc.choice_deadline = time.time() + 120
 
@@ -282,7 +285,7 @@ async def imperial_slice(enc, mgr, db, sm, **kw):
         mgr.resolve(enc, outcome="imperial_decoded")
     else:
         await mgr.broadcast_to_bridge(enc,
-            f"\n  {RED}[SLICING]{RST} Tamper alarm! Imperial distress beacon activated!\n"
+            f"\n  {RED}[SLICING]{RST} Tamper alarm! Encrypted distress beacon activated!\n"
             f"  {RED}[SENSORS]{RST} Patrol inbound!\n"
             f"  {DIM}(Computer: {r['roll']} vs 20 — failed){RST}", sm)
         mgr.resolve(enc, outcome="imperial_alarm")

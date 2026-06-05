@@ -151,8 +151,15 @@ class TestRoomReferencesResolve(unittest.TestCase):
     def test_all_rooms_are_on_nar_shaddaa(self):
         d = _load_yaml(DROP_G1_YAML)
         ns_rooms = _nar_shaddaa_room_names()
+        # Drop 0a-2 (2026-06-02): Mak Torvin is a bespoke FDtS anchor defined
+        # in this file, but his canonical home is Docking Bay 94 on Tatooine
+        # (the quest code's steps 7/13/26 and his own dialogue require it). He
+        # is the sole documented off-Nar-Shaddaa exception; the invariant still
+        # guards every other NPC against accidental off-planet placement.
+        FDTS_OFF_PLANET_ANCHORS = {"Mak Torvin"}
         off_planet = [(n["name"], n["room"]) for n in d.get("npcs", [])
-                      if n["room"] not in ns_rooms]
+                      if n["room"] not in ns_rooms
+                      and n["name"] not in FDTS_OFF_PLANET_ANCHORS]
         self.assertEqual(off_planet, [],
                          f"NPCs not on Nar Shaddaa: {off_planet}")
 
@@ -316,10 +323,13 @@ class TestEraManifestRef(unittest.TestCase):
 class TestFDtSCharactersPresent(unittest.TestCase):
     """Per from_dust_to_stars_design_v2_clone_wars.md Step 14, the
     player must be able to find Zekka Thansen, Renna Dox, and
-    Doc Myrra on Nar Shaddaa. Mak Torvin is also referenced (the
-    quest-giver who sent the player; he lives on Tatooine in the
-    FDtS framing but appears on Nar Shaddaa in some Phase 3 steps —
-    G1 places him in the Old Corellian Quarter)."""
+    Doc Myrra on Nar Shaddaa. Mak Torvin is also defined in this
+    FDtS-anchor file; as of Drop 0a-2 (2026-06-02) his room field
+    is "Docking Bay 94 - Pit Floor" (Tatooine) — the location the
+    quest code (steps 7/13/26) and the FDtS design both require —
+    not the prior Nar Shaddaa placement. This test only asserts his
+    presence in the file; test_drop0a2_spacer_quest_relocate.py
+    pins his Tatooine room."""
 
     def test_mak_torvin_present(self):
         d = _load_yaml(DROP_G1_YAML)

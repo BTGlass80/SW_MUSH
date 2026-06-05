@@ -263,10 +263,12 @@ async def attempt_pickpocket(
     stolen_amount = max(1, int(target_credits * steal_pct))
 
     # Transfer credits
-    target_char["credits"] -= stolen_amount
-    thief["credits"] = thief.get("credits", 0) + stolen_amount
-    await db.save_character(target_char["id"], credits=target_char["credits"])
-    await db.save_character(thief["id"], credits=thief["credits"])
+    target_char["credits"] = await db.adjust_credits(
+        target_char["id"], -stolen_amount, "theft_loss"
+    )
+    thief["credits"] = await db.adjust_credits(
+        thief["id"], stolen_amount, "theft_gain"
+    )
 
     # Log theft in target's sleeping record
     try:

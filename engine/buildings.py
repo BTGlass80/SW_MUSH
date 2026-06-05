@@ -381,8 +381,7 @@ async def construct_building(
         )
 
     # Deduct.
-    char["credits"] = int(char.get("credits", 0)) - credit_cost
-    await db.save_character(char["id"], credits=char["credits"])
+    char["credits"] = await db.adjust_credits(char["id"], -credit_cost, "player_building_construct")
 
     _deduct_materials(char, material_costs)
     await db.save_character(char["id"], inventory=char["inventory"])

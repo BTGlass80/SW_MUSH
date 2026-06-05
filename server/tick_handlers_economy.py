@@ -184,8 +184,10 @@ async def faction_payroll_tick(ctx: TickContext) -> None:
 
 async def vendor_recall_tick(ctx: TickContext) -> None:
     """Vendor droid auto-recall. Every 86400 ticks (~1 game-day)."""
-    from engine.vendor_droids import tick_auto_recall
+    from engine.vendor_droids import tick_auto_recall, tick_listing_fees
     await tick_auto_recall(ctx.db, ctx.session_mgr)
+    # Recurring relist fee on long-standing listings (audit v2 §2.7).
+    await tick_listing_fees(ctx.db, ctx.session_mgr)
 
 
 async def housing_rent_tick(ctx: TickContext) -> None:
@@ -458,15 +460,21 @@ async def docking_fee_tick(ctx: TickContext) -> None:
             if not char:
                 continue
             old_credits = char.get("credits", 0)
-            if old_credits >= total_fee:
-                new_credits = old_credits - total_fee
-                await ctx.db.save_character(owner_id, credits=new_credits)
-                try:
-                    await ctx.db.log_credit(
-                        owner_id, -total_fee, "docking_fee", new_credits
-                    )
-                except Exception as _e:
-                    log.debug("silent except in server/tick_handlers_economy.py:280: %s", _e, exc_info=True)
+            # Ledger chokepoint (economy audit F1): atomic deduct + credit_log
+            # via adjust_credits, replacing the old non-atomic
+            # save_character(credits=...) + separate log_credit two-step.
+            # allow_negative=False makes affordability the chokepoint's job — a
+            # broke owner is refused (returns None) and keeps parking free, as
+            # before, with no partial/overdrawn state and no desynced ledger.
+            new_credits = await ctx.db.adjust_credits(
+                owner_id, -total_fee, "docking_fee", allow_negative=False
+            )
+            if new_credits is None:
+                log.info(
+                    "[economy] %s (id=%d) cannot pay %d cr docking fee (%d cr balance)",
+                    char.get("name", "?"), owner_id, total_fee, old_credits,
+                )
+            else:
                 # Notify if online
                 try:
                     sess = ctx.session_mgr.find_by_character(owner_id)
@@ -478,12 +486,8 @@ async def docking_fee_tick(ctx: TickContext) -> None:
                             f"{ship_names}. Balance: {new_credits:,} cr."
                         )
                 except Exception as _e:
-                    log.debug("silent except in server/tick_handlers_economy.py:292: %s", _e, exc_info=True)
-            else:
-                log.info(
-                    "[economy] %s (id=%d) cannot pay %d cr docking fee (%d cr balance)",
-                    char.get("name", "?"), owner_id, total_fee, old_credits,
-                )
+                    log.debug("docking_fee_tick: notify failed for owner %d: %s",
+                              owner_id, _e, exc_info=True)
         except Exception:
             log.warning("docking_fee_tick: failed for owner %d", owner_id, exc_info=True)
 
@@ -585,3 +589,76 @@ async def hazard_tick(ctx) -> None:
         logging.getLogger(__name__).warning(
             "hazard_tick failed", exc_info=True
         )
+
+
+# ── Proactive credit-velocity alerting (economy audit #17 / R1) ─────────────
+#
+# economy_audit_v1 #17 shipped the *data* (Database.get_credit_velocity, read
+# on demand by `@economy velocity`/`alerts`) but no proactive paging. R1 in
+# SW_MUSH_Economy_Audit_FINAL explicitly asked for "velocity alerts." This
+# tick closes the gap: each hour it evaluates server-wide net credit flow
+# against tunable bands (engine.economy_alerts), and on a breach it records
+# the alert (surfaced by `@economy alerts`), logs it, and pages online staff.
+#
+# Bidirectional on purpose — economy_audit_v2 notes deflation never trips the
+# farming detector (positive-delta only), so a wage-heavy server can contract
+# silently. The band is on |net|, labelled inflation vs deflation.
+#
+# Cadence: hourly (interval=3600). The 1h window is the trigger; the 24h
+# figure rides along as context. All I/O is best-effort and fails open.
+
+async def _page_economy_alert_staff(session_mgr, line: str) -> None:
+    """Send a one-line economy alert to every online admin/builder session.
+
+    Best-effort and per-session guarded: a single bad session never aborts
+    the page, and a missing session_mgr is a no-op (e.g. headless ticks).
+    """
+    if session_mgr is None:
+        return
+    msg = f"\n  \033[1;31m[ECONOMY ALERT]\033[0m {line}"
+    for s in (getattr(session_mgr, "all", None) or []):
+        try:
+            if not getattr(s, "is_in_game", False):
+                continue
+            ch = getattr(s, "character", None) or {}
+            if ch.get("is_admin") or ch.get("is_builder"):
+                await s.send_line(msg)
+        except Exception:
+            # One uncooperative session must not stop the rest of the page.
+            continue
+
+
+async def credit_velocity_alert_tick(ctx) -> None:
+    """Hourly server-wide credit-velocity check; pages staff on a band breach.
+
+    Reads the 1h (trigger) and 24h (context) velocity, evaluates the bands in
+    engine.economy_alerts, and on a breach records + logs + pages. Entirely
+    best-effort: any failure logs and returns without disturbing the tick loop.
+    """
+    try:
+        from engine.economy_alerts import (
+            evaluate_velocity_alert, record_alert, format_alert_line,
+        )
+        v1h = await ctx.db.get_credit_velocity(3600)
+        v24h = await ctx.db.get_credit_velocity(86400)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            "credit_velocity_alert_tick: velocity fetch failed", exc_info=True
+        )
+        return
+
+    alert = evaluate_velocity_alert(v1h, v24h)
+    if not alert:
+        return
+
+    line = format_alert_line(alert)
+    try:
+        record_alert(alert)
+        log.warning("[ECONOMY ALERT] %s", line)
+    except Exception:
+        log.debug("credit_velocity_alert_tick: record/log failed", exc_info=True)
+    try:
+        await _page_economy_alert_staff(ctx.session_mgr, line)
+    except Exception:
+        log.debug("credit_velocity_alert_tick: staff page failed", exc_info=True)

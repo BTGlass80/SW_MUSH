@@ -7,7 +7,7 @@ Rooms can have transient state flags stored in properties JSON under
 that's appended when a player looks at the room.
 
 States are set by:
-  - Director AI events (imperial_crackdown, rebel_propaganda, etc.)
+  - Director AI events (security_crackdown, separatist_agitation, etc.)
   - Territory claims (faction_presence)
   - Environmental conditions (set via @roomstate)
   - World events (trade_boom, sandstorm, etc.)
@@ -28,15 +28,15 @@ log = logging.getLogger(__name__)
 
 STATE_DESCRIPTIONS: dict[str, str] = {
     # Director events
-    "imperial_crackdown": (
-        "Stormtrooper patrols are more frequent than usual. Citizens "
-        "hurry past with their eyes down. Checkpoints have been set up "
-        "at major intersections."
+    "security_crackdown": (
+        "Security patrols are noticeably heavier than usual. People keep "
+        "their heads down and their datapads pocketed. Checkpoints have "
+        "sprung up at the main intersections."
     ),
-    "rebel_propaganda": (
-        "Crude anti-Imperial slogans have been scrawled on the walls. "
-        "Rebel Alliance symbols are scratched into doorframes. Someone "
-        "is watching from the shadows."
+    "separatist_agitation": (
+        "Pro-Confederacy slogans have been scrawled across the walls. "
+        "Separatist sigils are scratched into doorframes. Someone is "
+        "watching from the shadows."
     ),
     "trade_boom": (
         "The market is busier than usual. Merchants are hawking their "
@@ -61,13 +61,13 @@ STATE_DESCRIPTIONS: dict[str, str] = {
     ),
 
     # Territory / faction presence
-    "imperial_control": (
-        "Imperial banners hang from the walls. Stormtrooper boots echo "
-        "on the duracrete. Order is maintained with visible force."
+    "republic_control": (
+        "Republic banners hang from the walls and clone troopers hold "
+        "the corners. Order here is kept by the Grand Army of the Republic."
     ),
-    "rebel_presence": (
-        "Rebel Alliance markings are discreetly visible — a scratched "
-        "starbird here, a coded signal there. The resistance has a "
+    "cis_presence": (
+        "Separatist markings are discreetly visible \u2014 a scratched "
+        "Confederacy hex here, a coded sigil there. The CIS has a quiet "
         "foothold here."
     ),
     "hutt_territory": (

@@ -30,67 +30,74 @@ class TradeGood:
     name:        str
     base_price:  int          # credits per ton at NORMAL
     description: str
-    source:      list[str]    # planet keys — 50% price
-    demand:      list[str]    # planet keys — 200% price
+    source:      list[str]    # planet keys — 70% price (PRICE_SOURCE)
+    demand:      list[str]    # planet keys — 140% price (PRICE_DEMAND)
     tons_per_unit: int = 1    # minimum buy quantity
 
 
+# Drop 0b (2026-06-02): source/demand re-mapped off the deleted GCW worlds
+# (Kessel/Corellia) onto the six Clone Wars launch worlds, per Economy Audit
+# Appendix C. Every world is now both a source and a demand for *something*,
+# so cargo forms a real multi-world web instead of the single thin route the
+# dead map left (only luxury_goods had a valid pair). Trade resolves the
+# current planet from the live CW zone graph (builtin_commands trade handler),
+# so these keys must be CW worlds with a landable dock zone — all six are.
 TRADE_GOODS: dict[str, TradeGood] = {
     "raw_ore": TradeGood(
         key="raw_ore", name="Raw Ore",
         base_price=100,
         description="Unprocessed mineral ore. Heavy but always in demand at manufacturing hubs.",
-        source=["tatooine", "kessel"],
-        demand=["corellia"],
+        source=["tatooine", "geonosis"],
+        demand=["kuat", "coruscant"],
     ),
     "foodstuffs": TradeGood(
         key="foodstuffs", name="Foodstuffs",
         base_price=80,
-        description="Preserved rations, grain, and packaged food. Essential at mining worlds.",
-        source=["corellia"],
-        demand=["kessel", "nar_shaddaa"],
+        description="Preserved rations, grain, and packaged food. Essential at clone facilities and frontier worlds.",
+        source=["coruscant"],
+        demand=["kamino", "tatooine", "geonosis"],
     ),
     "manufactured_parts": TradeGood(
         key="manufactured_parts", name="Manufactured Parts",
         base_price=200,
         description="Machine components, repair kits, and fabricated goods.",
-        source=["corellia"],
-        demand=["tatooine", "nar_shaddaa"],
+        source=["kuat"],
+        demand=["geonosis", "tatooine"],
     ),
     "medical_supplies": TradeGood(
         key="medical_supplies", name="Medical Supplies",
         base_price=150,
         description="Bacta patches, surgical tools, and pharmaceutical supplies.",
-        source=["corellia"],
-        demand=["kessel", "tatooine"],
+        source=["kamino"],
+        demand=["geonosis", "tatooine", "nar_shaddaa"],
     ),
     "spice_legal": TradeGood(
         key="spice_legal", name="Spice (Legal Grade)",
         base_price=300,
         description="Licensed glitterstim in certified quantities. Still profitable.",
-        source=["kessel"],
-        demand=["nar_shaddaa"],
+        source=["nar_shaddaa"],
+        demand=["coruscant"],
     ),
     "electronics": TradeGood(
         key="electronics", name="Electronics",
         base_price=250,
         description="Sensor arrays, comlink components, and shipboard systems.",
-        source=["corellia"],
-        demand=["tatooine"],
+        source=["geonosis", "kuat"],
+        demand=["coruscant", "nar_shaddaa"],
     ),
     "luxury_goods": TradeGood(
         key="luxury_goods", name="Luxury Goods",
         base_price=400,
         description="Fine textiles, rare spirits, and Outer Rim curiosities.",
-        source=["corellia", "nar_shaddaa"],
-        demand=["tatooine"],
+        source=["nar_shaddaa"],
+        demand=["coruscant", "tatooine"],
     ),
     "weapons_licensed": TradeGood(
         key="weapons_licensed", name="Weapons (Licensed)",
         base_price=350,
         description="Blasters and carbines with valid BoSS documentation.",
-        source=["corellia"],
-        demand=["nar_shaddaa"],
+        source=["nar_shaddaa"],
+        demand=["geonosis", "tatooine"],
     ),
 }
 
@@ -197,13 +204,20 @@ def _max_units(good_key: str) -> int:
 
 
 class SupplyPool:
-    """Per-planet, per-good supply tracker. Process-memory only — the pool
-    resets on restart, which is fine: it's a rate limiter, not game state.
+    """Per-planet, per-good supply tracker.
+
+    Persistence (Economy Audit v2 §1.5): the drawn-down state is snapshotted to
+    the ``market_state`` DB table and rehydrated on startup, so a server restart
+    no longer re-seeds every market to full — closing the "first player after a
+    bounce gets a fresh full pool" windfall. Time-based *refresh* is not
+    persisted (it is reconstructed from the stored ``last_refresh`` timestamps);
+    only consumption — which is not recoverable from time — is.
     """
 
     def __init__(self) -> None:
         # (planet, good_key) -> (units_remaining, last_refresh_ts)
         self._pools: dict[tuple[str, str], tuple[int, float]] = {}
+        self._dirty = False  # set when consumption changes the pool
 
     def _refreshed(self, planet: str, good_key: str) -> int:
         """Return current units after applying any pending refresh."""
@@ -235,6 +249,7 @@ class SupplyPool:
         key = (planet, good_key)
         _, last = self._pools[key]
         self._pools[key] = (avail - units, last)
+        self._dirty = True
         return True
 
     def seconds_until_refresh(self, planet: str, good_key: str) -> int:
@@ -245,6 +260,23 @@ class SupplyPool:
         _, last = self._pools[key]
         remaining = SUPPLY_REFRESH_SECONDS - (time.time() - last)
         return max(0, int(remaining))
+
+    # ── Persistence ──────────────────────────────────────────────────────────
+    def to_records(self) -> list:
+        """Serialize to a JSON-safe list of [planet, good, units, last]."""
+        return [[p, g, int(u), float(ts)] for (p, g), (u, ts) in self._pools.items()]
+
+    def load_records(self, records) -> None:
+        """Replace state from to_records() output. Tolerant of malformed rows."""
+        pools = {}
+        for row in (records or []):
+            try:
+                p, g, u, ts = row
+                pools[(str(p), str(g))] = (int(u), float(ts))
+            except (ValueError, TypeError):
+                continue
+        self._pools = pools
+        self._dirty = False
 
 
 # Module-level singleton. Import as: `from engine.trading import SUPPLY_POOL`
@@ -271,6 +303,7 @@ class DemandPool:
     def __init__(self) -> None:
         # (planet, good_key) -> list of (timestamp, tons_sold)
         self._sales: dict[tuple[str, str], list[tuple[float, int]]] = {}
+        self._dirty = False  # set when a sale is recorded
 
     def record_sale(self, planet: str, good_key: str, tons: int) -> None:
         """Record a cargo sale for demand depression calculation."""
@@ -279,6 +312,7 @@ class DemandPool:
         if key not in self._sales:
             self._sales[key] = []
         self._sales[key].append((now, tons))
+        self._dirty = True
 
     def _prune(self, key: tuple[str, str]) -> None:
         """Remove sales older than the demand window."""
@@ -304,8 +338,76 @@ class DemandPool:
         self._prune(key)
         return sum(t for _, t in self._sales.get(key, []))
 
+    # ── Persistence ──────────────────────────────────────────────────────────
+    def to_records(self) -> list:
+        """Serialize to a JSON-safe list of [planet, good, [[ts, tons], ...]]."""
+        out = []
+        for (p, g), sales in self._sales.items():
+            if sales:
+                out.append([p, g, [[float(ts), int(t)] for ts, t in sales]])
+        return out
+
+    def load_records(self, records) -> None:
+        """Replace state from to_records() output. Tolerant of malformed rows."""
+        sales = {}
+        for row in (records or []):
+            try:
+                p, g, items = row
+                sales[(str(p), str(g))] = [(float(ts), int(t)) for ts, t in items]
+            except (ValueError, TypeError):
+                continue
+        self._sales = sales
+        self._dirty = False
+
 
 DEMAND_POOL = DemandPool()
+
+
+# ── Market-state persistence orchestration (Economy Audit v2 §1.5) ───────────
+#
+# The two pools above are process-memory singletons. Without persistence a
+# server restart re-seeds every supply pool to full (a windfall for the first
+# trader after a bounce) and clears all demand depression (a windfall for the
+# first seller). These functions snapshot both pools to the ``market_state`` DB
+# table and rehydrate them on startup. Snapshots are written immediately after
+# each buy (consume) and sell (record_sale) — at MUSH population the write
+# volume is trivial and immediate flush is the most exploit-tight (no window in
+# which a crash loses consumption). For a high-volume server, swap the per-trade
+# call for a periodic-tick flush; the dirty flag already supports that.
+
+_SUPPLY_KEY = "supply_pools"
+_DEMAND_KEY = "demand_pools"
+
+
+async def load_market_pools(db) -> None:
+    """Rehydrate SUPPLY_POOL and DEMAND_POOL from the DB. Fail-open: a missing
+    table or malformed row just leaves the pools empty (= pre-persistence
+    behaviour), never blocks startup."""
+    import json
+    try:
+        raw_supply = await db.get_market_state(_SUPPLY_KEY)
+        if raw_supply:
+            SUPPLY_POOL.load_records(json.loads(raw_supply))
+        raw_demand = await db.get_market_state(_DEMAND_KEY)
+        if raw_demand:
+            DEMAND_POOL.load_records(json.loads(raw_demand))
+    except Exception:
+        log.warning("load_market_pools failed; starting with empty pools", exc_info=True)
+
+
+async def flush_market_pools(db) -> None:
+    """Snapshot both pools to the DB if either is dirty. Best-effort / fail-open
+    — a failed snapshot must never break a trade; the next trade retries."""
+    import json
+    if not (SUPPLY_POOL._dirty or DEMAND_POOL._dirty):
+        return
+    try:
+        await db.set_market_state(_SUPPLY_KEY, json.dumps(SUPPLY_POOL.to_records()))
+        await db.set_market_state(_DEMAND_KEY, json.dumps(DEMAND_POOL.to_records()))
+        SUPPLY_POOL._dirty = False
+        DEMAND_POOL._dirty = False
+    except Exception:
+        log.warning("flush_market_pools failed; pools stay dirty for retry", exc_info=True)
 
 
 # ── Volume / bulk-purchase pricing (P3 §3.2.D) ────────────────────────────────

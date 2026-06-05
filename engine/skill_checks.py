@@ -74,6 +74,13 @@ class SkillCheckResult:
 
 # ── Core skill check ─────────────────────────────────────────────────────────
 
+# E2: skills affected by the SANDSTORM world event's perception_penalty. Limited
+# to the observation/visual family so the penalty never touches the many social
+# skills (con/persuasion/bargain/intimidation/command) that merely fall back to
+# the PERCEPTION attribute. Tunable.
+_ENV_PERCEPTION_SKILLS = frozenset({"perception", "search"})
+
+
 def perform_skill_check(
     char: dict,
     skill_name: str,
@@ -131,22 +138,37 @@ def perform_skill_check(
     # Parse character's skill pool
     dice, pips = _get_skill_pool(char, skill_name, skill_registry)
 
+    # E2: environmental observation penalty (SANDSTORM world event). Applies a
+    # flat pip modifier to observation checks (the perception/search family)
+    # while a sandstorm is active. Guarded to those skills (see
+    # _ENV_PERCEPTION_SKILLS) and a no-op (default 0) when no event is active —
+    # transparent to the test suite and to every non-observation check, and the
+    # only path here that touches the world-event singleton.
+    env_pips = 0
+    if skill_name in _ENV_PERCEPTION_SKILLS:
+        try:
+            from engine.world_events import get_world_event_manager
+            env_pips = int(get_world_event_manager().get_effect("perception_penalty", 0) or 0)
+        except Exception:
+            env_pips = 0
+
     # Apply buff/debuff modifiers (in pips) AND any SRB.3 lead bonus
     try:
         from engine.buffs import get_buff_modifier
         attr_name = _skill_to_attr(skill_name, skill_registry)
         buff_pips = get_buff_modifier(char, attr_name)
-        total_buff_pips = buff_pips + effective_lead_pips
+        total_buff_pips = buff_pips + effective_lead_pips + env_pips
         if total_buff_pips:
             total_pips = dice * 3 + pips + total_buff_pips
             total_pips = max(3, total_pips)  # Floor: 1D minimum
             dice = total_pips // 3
             pips = total_pips % 3
     except Exception:
-        # Even if buff system errors out, apply the lead bonus alone if
-        # we have one — it's an independent mechanic.
-        if effective_lead_pips:
-            total_pips = dice * 3 + pips + effective_lead_pips
+        # Even if buff system errors out, apply the lead bonus + environmental
+        # penalty alone if present — they're independent mechanics.
+        _fallback_pips = effective_lead_pips + env_pips
+        if _fallback_pips:
+            total_pips = dice * 3 + pips + _fallback_pips
             total_pips = max(3, total_pips)
             dice = total_pips // 3
             pips = total_pips % 3
@@ -351,17 +373,21 @@ def _skill_to_attr(skill_name: str, skill_registry) -> str:
 # ── Mission completion skill check ────────────────────────────────────────────
 
 # Maps mission type -> (skill_name, partial_pay_fraction)
-# partial_pay: what fraction of reward you get on a partial success (margin >= -4)
+# partial_pay: fraction of reward on a partial success (a NEAR-miss, margin >= -2).
+# Audit v2 §2.1: dropped from 0.50-0.75 to 0.40 and the partial window tightened
+# from -4 to -2 — over-reaching by two tiers no longer out-earns staying in lane.
+# 'delivery' stays full-pay: it is the deliberately-easy low-reward tier, not an
+# over-reach exploit.
 MISSION_SKILL_MAP = {
-    "combat":        ("blaster",                    0.50),
-    "smuggling":     ("con",                        0.50),
-    "investigation": ("search",                     0.75),
-    "social":        ("persuasion",                 0.75),
-    "technical":     ("space transports repair",    0.50),
-    "medical":       ("first aid",                  0.75),
-    "slicing":       ("computer programming/repair",0.50),
-    "salvage":       ("search",                     0.75),
-    "bounty":        ("streetwise",                 0.50),
+    "combat":        ("blaster",                    0.40),
+    "smuggling":     ("con",                        0.40),
+    "investigation": ("search",                     0.40),
+    "social":        ("persuasion",                 0.40),
+    "technical":     ("space transports repair",    0.40),
+    "medical":       ("first aid",                  0.40),
+    "slicing":       ("computer programming/repair",0.40),
+    "salvage":       ("search",                     0.40),
+    "bounty":        ("streetwise",                 0.40),
     "delivery":      ("stamina",                    1.00),  # easy, always full pay
 }
 
@@ -422,8 +448,8 @@ def resolve_mission_completion(
             )
         else:
             msg = f"  Job well done. Payment received."
-    elif result.margin >= -4:
-        # Partial success: some pay, but not full
+    elif result.margin >= -2:
+        # Partial success: some pay, but not full (near-miss only, audit v2 §2.1)
         credits = int(reward * partial_frac)
         msg = (
             f"  Close, but not quite. "
@@ -444,7 +470,7 @@ def resolve_mission_completion(
 
     return {
         "success": result.success,
-        "partial": (not result.success and result.margin >= -4),
+        "partial": (not result.success and result.margin >= -2),
         "credits_earned": credits,
         "roll": result.roll,
         "difficulty": difficulty,

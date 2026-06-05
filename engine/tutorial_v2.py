@@ -371,8 +371,7 @@ async def grant_reward(session, db, credits: int = 0, item_key: str = None,
     """Grant credits/item/title to a player and persist to DB."""
     char = session.character
     if credits > 0:
-        char["credits"] = char.get("credits", 0) + credits
-        await db.save_character(char["id"], credits=char["credits"])
+        char["credits"] = await db.adjust_credits(char["id"], credits, "tutorial_reward")
 
     if item_key:
         # Look up item name from weapons registry or use key as fallback
@@ -2184,9 +2183,8 @@ async def _grant_chain_reward(session, db, char: dict, step: dict) -> None:
 
 
 async def _award_credits(session, db, char: dict, amount: int) -> None:
-    new_bal = char.get("credits", 0) + amount
+    new_bal = await db.adjust_credits(char["id"], amount, "tutorial_reward")
     char["credits"] = new_bal
-    await db.save_character(char["id"], credits=new_bal)
     session.character["credits"] = new_bal
 
 

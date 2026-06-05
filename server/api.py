@@ -871,6 +871,13 @@ class ChargenAPI:
                     try:
                         kit_credits = int(kit.get("credits", 0))
                         if kit_credits > 0:
+                            # Chargen initialization, NOT a running-economy
+                            # faucet: this sets a brand-new character's
+                            # starting credits (absolute), consistent with the
+                            # unlogged create_character INSERT on the regular
+                            # tutorial path. Intentionally not routed through
+                            # the adjust_credits delta-chokepoint; allowlisted
+                            # in tests/test_ledger_chokepoint_complete.py.
                             await self.db.save_character(
                                 char_id, credits=kit_credits,
                             )

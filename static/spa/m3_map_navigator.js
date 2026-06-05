@@ -32,13 +32,26 @@
                                        renderers. tierId is one of
                                        '4c', '4a', '3', '2', '1a',
                                        '1b', '0'. args = { p, width,
-                                       height, time, weather }.
+                                       height, time, weather, region,
+                                       regionKey, data }.
                                        Production '1a' wires to
                                        M3CompositionEngine.Tier1aBody.
                                        Other tiers — caller decides
                                        (placeholder, defer, or render
                                        from a future m3_tier_X_body.js
                                        module when it lands).
+     · region / regionKey?             wilderness region for tier '1b'
+                                       (Drop 4.15b). region is a descriptor
+                                       object; regionKey is a slug (e.g.
+                                       'coruscant_underworld'). Both are
+                                       forwarded to getTierRenderer; only
+                                       the '1b' builder reads them. Derive
+                                       from the player's location via
+                                       M3Adapter.regionKeyForArea(geom).
+     · data / areaGeometryData?        live AreaGeometry (from
+                                       M3Adapter.fromAreaGeometry) for the
+                                       '1a' district tier. Forwarded to
+                                       getTierRenderer; only '1a' reads it.
      · onHolocronOpen()                holocron button clicked
      · onHolocronClose()               holocron modal closed
      · holocronModalBuilder(p, h)?     defaults to M3Holocron.buildHolocronModal
@@ -281,6 +294,21 @@ function create(p, hooks) {
         hooks.getTierRenderer ||
         (window.M3TierRegistry && window.M3TierRegistry.getTierRenderer) ||
         _defaultTierRenderer;
+  // Drop 4.15b: wilderness region selection. A region descriptor object
+  // (hooks.region) or a region slug (hooks.regionKey) is forwarded to the
+  // tier-body renderer; only the '1b' (wilderness) builder consumes them —
+  // every other tier ignores the extra opts. With neither supplied, the
+  // '1b' builder falls back to its Dune Sea default (loud-substitution).
+  // The caller derives regionKey from the player's location, e.g.
+  // M3Adapter.regionKeyForArea(window._sw_areaGeom).
+  var region    = hooks.region    || null;
+  var regionKey = hooks.regionKey || null;
+  // Drop 4.15c: live area geometry for the '1a' district tier. The
+  // registry's '1a' renderer (M3CompositionEngine.Tier1aBody) needs real
+  // AreaGeometry data; without it, '1a' shows an "awaiting geometry"
+  // placeholder. Forwarded alongside region/regionKey; demo-fixture tiers
+  // ignore it. Caller supplies M3Adapter.fromAreaGeometry(geom, areaMap).
+  var areaData = hooks.data || hooks.areaGeometryData || null;
   var holocronModalBuilder = hooks.holocronModalBuilder
                           || (window.M3Holocron && window.M3Holocron.buildHolocronModal)
                           || null;
@@ -501,6 +529,7 @@ function create(p, hooks) {
     var bodyEl = getTierRenderer(state.tier, {
       p: p, width: bodyW, height: bodyH,
       time: hooks.time, weather: hooks.weather,
+      region: region, regionKey: regionKey, data: areaData,
     });
     if (bodyEl) zoomWrap.appendChild(bodyEl);
   }
@@ -622,6 +651,7 @@ function create(p, hooks) {
     var initialBody = getTierRenderer(state.tier, {
       p: p, width: bodyW, height: bodyH,
       time: hooks.time, weather: hooks.weather,
+      region: region, regionKey: regionKey, data: areaData,
     });
     if (initialBody) zoomWrap.appendChild(initialBody);
 

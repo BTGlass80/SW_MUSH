@@ -218,10 +218,9 @@ async def purchase_droid(char: dict, tier_key: str, db) -> tuple[bool, str]:
             f"Own a shopfront to increase this limit."
         )
 
-    # Deduct credits
-    new_credits = char["credits"] - cost
+    # Deduct credits (through the credit chokepoint)
+    new_credits = await db.adjust_credits(char["id"], -cost, "vendor_droid_deploy")
     char["credits"] = new_credits
-    await db.save_character(char["id"], credits=new_credits)
 
     # Create droid object (room_id=None = in inventory)
     initial_data = {
@@ -410,6 +409,7 @@ async def stock_droid(char: dict, droid_id: int,
                 abs(slot.get("quality", 0) - quality) <= 5 and
                 slot["price"] == price):
             slot["quantity"] += quantity
+            slot["listed_at"] = time.time()  # re-stocking refreshes the TTL clock
             data["inventory"] = inv
             data["last_owner_ts"] = time.time()
             await db.update_object(droid_id, data=_dump_data(data))
@@ -433,6 +433,7 @@ async def stock_droid(char: dict, droid_id: int,
         "quantity":  quantity,
         "price":     price,
         "crafter":   crafter,
+        "listed_at": time.time(),   # listing-TTL clock (audit v2 §2.7)
     }
     inv.append(new_slot)
     # Re-number slots
@@ -747,9 +748,8 @@ async def buy_from_droid(buyer: dict, droid_id: int,
     except Exception:
         log.warning("[shops] city tax hook failed", exc_info=True)
 
-    # Deduct buyer credits
-    buyer["credits"] -= final_price
-    await db.save_character(buyer["id"], credits=buyer["credits"])
+    # Deduct buyer credits (through the credit chokepoint)
+    buyer["credits"] = await db.adjust_credits(buyer["id"], -final_price, "vendor_purchase")
 
     # ── Add purchased item to buyer's inventory ──
     try:
@@ -842,8 +842,7 @@ async def collect_escrow(char: dict, droid_id: int, db) -> tuple[bool, str]:
     if escrow <= 0:
         return False, "No revenue to collect."
 
-    char["credits"] += escrow
-    await db.save_character(char["id"], credits=char["credits"])
+    char["credits"] = await db.adjust_credits(char["id"], escrow, "vendor_escrow_collect")
 
     data["escrow_credits"] = 0
     data["last_owner_ts"]  = time.time()
@@ -1088,9 +1087,8 @@ async def post_buy_order(
             f"({qty_wanted} × {price_per:,} cr)."
         )
 
-    # Deduct escrow from owner
-    char["credits"] -= escrow_needed
-    await db.save_character(char["id"], credits=char["credits"])
+    # Deduct escrow from owner (through the credit chokepoint)
+    char["credits"] = await db.adjust_credits(char["id"], -escrow_needed, "vendor_buy_order_escrow")
 
     # Add order to droid data
     orders = data.get("buy_orders", [])
@@ -1149,8 +1147,7 @@ async def cancel_buy_order(
     data["buy_orders"] = orders
 
     if refund > 0:
-        char["credits"] += refund
-        await db.save_character(char["id"], credits=char["credits"])
+        char["credits"] = await db.adjust_credits(char["id"], refund, "vendor_buy_order_refund")
 
     data["last_owner_ts"] = time.time()
     await db.update_object(droid_id, data=_dump_data(data))
@@ -1240,9 +1237,9 @@ async def sell_to_droid(
         resources = [r for r in resources if r is not stack]
     inv["resources"] = resources
     seller["inventory"] = _j.dumps(inv)
-    seller["credits"]  += payout
-    await db.save_character(
-        seller["id"], credits=seller["credits"], inventory=seller["inventory"]
+    await db.save_character(seller["id"], inventory=seller["inventory"])
+    seller["credits"] = await db.adjust_credits(
+        seller["id"], payout, "vendor_buy_order_payout"
     )
 
     # Update order
@@ -1306,6 +1303,17 @@ def format_buy_orders(orders: list) -> list[str]:
 
 _WARN_DAYS   = 30   # Notify owner after this many days of inactivity
 _RECALL_DAYS = 60   # Auto-recall after this many days
+
+# Listing TTL / recurring relist fee (economy audit v2 §2.7). A listing that
+# sits forever for one listing fee works against price discovery, so a slot
+# older than this is charged a small recurring fee — turning the one-time
+# listing fee into a recurring cost (the audit's stated goal) without moving or
+# destroying items. Truly-abandoned shops are still cleaned up by the 60-day
+# auto-recall above. Charge is best-effort: a broke owner is warned, never has a
+# listing silently deleted. Tunable here.
+_LISTING_TTL_DAYS = 30      # a listing is "stale" after this many days
+_RELIST_FEE_PCT   = 0.01    # fee = 1% of the slot's total listed value …
+_RELIST_FEE_MIN   = 10      # … with this floor (so cheap listings still pay)
 
 async def tick_auto_recall(db, session_mgr) -> None:
     """
@@ -1404,3 +1412,96 @@ async def tick_auto_recall(db, session_mgr) -> None:
             except Exception:
                 log.warning("tick_auto_recall: unhandled exception", exc_info=True)
                 pass
+
+
+# ── Listing TTL / recurring relist fee (economy audit v2 §2.7) ───────────────
+
+def _stale_listing_fee(slot: dict, now: float) -> int:
+    """Return the relist fee for a slot if it has been listed >= the TTL, else 0.
+
+    Pure: does not mutate the slot. A missing ``listed_at`` is treated as
+    not-yet-stale (the caller stamps it so its TTL clock starts now, rather than
+    billing legacy listings immediately).
+    """
+    listed_at = slot.get("listed_at")
+    if not listed_at:
+        return 0
+    if (now - float(listed_at)) < (_LISTING_TTL_DAYS * 86400):
+        return 0
+    value = int(slot.get("price", 0) or 0) * int(slot.get("quantity", 0) or 0)
+    return max(_RELIST_FEE_MIN, int(value * _RELIST_FEE_PCT))
+
+
+async def tick_listing_fees(db, session_mgr=None) -> None:
+    """Daily pass: charge a small recurring fee on listings older than the TTL.
+
+    Turns the one-time listing fee into a recurring cost so listings don't sit
+    free forever (audit v2 §2.7). Best-effort throughout: a broke owner is
+    warned but never has a listing silently deleted (the 60-day auto-recall in
+    ``tick_auto_recall`` still handles true abandonment). The fee is debited
+    through the ledger chokepoint as ``vendor_relist_fee`` so it shows on
+    ``@economy`` as a sink. ``listed_at`` is refreshed whether or not the charge
+    succeeds, so the fee recurs at most once per TTL period per slot and a
+    legacy slot (no ``listed_at``) simply starts its clock now.
+    """
+    now = time.time()
+    try:
+        rows = await db.fetchall(
+            "SELECT * FROM objects WHERE type = 'vendor_droid' AND room_id IS NOT NULL"
+        )
+    except Exception:
+        log.warning("tick_listing_fees: query failed", exc_info=True)
+        return
+
+    for row in (rows or []):
+        droid = dict(row)
+        data = _load_data(droid)
+        inv = data.get("inventory", [])
+        if not inv:
+            continue
+        owner_id = droid.get("owner_id")
+        shop_name = data.get("shop_name") or droid.get("name", "Vendor Droid")
+
+        total_fee = 0
+        dirty = False
+        for slot in inv:
+            # Legacy slot with no clock: start it now, don't bill this cycle.
+            if not slot.get("listed_at"):
+                slot["listed_at"] = now
+                dirty = True
+                continue
+            fee = _stale_listing_fee(slot, now)
+            if fee <= 0:
+                continue
+            charged = True
+            if owner_id:
+                try:
+                    await db.adjust_credits(owner_id, -fee, "vendor_relist_fee")
+                except Exception:
+                    # Can't charge (broke / transient) — warn, never delete.
+                    charged = False
+                    log.debug("tick_listing_fees: charge failed for owner %s",
+                              owner_id, exc_info=True)
+            if charged:
+                total_fee += fee
+            slot["listed_at"] = now  # restart the clock either way
+            dirty = True
+
+        if dirty:
+            try:
+                await db.update_object(droid["id"], data=_dump_data(data))
+            except Exception:
+                log.warning("tick_listing_fees: persist failed for droid %s",
+                            droid.get("id"), exc_info=True)
+        if total_fee > 0 and owner_id and session_mgr:
+            try:
+                sess = session_mgr.find_by_character(owner_id)
+                if sess:
+                    await sess.send_line(
+                        f"  \033[1;33m[SHOP]\033[0m Relisting fees of "
+                        f"\033[1;33m{total_fee:,}cr\033[0m charged on "
+                        f"\033[1;37m{shop_name}\033[0m for long-standing listings. "
+                        f"Sell or unstock to avoid them."
+                    )
+            except Exception:
+                log.debug("tick_listing_fees: notify failed", exc_info=True)

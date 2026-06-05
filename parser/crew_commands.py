@@ -175,10 +175,9 @@ class HireCommand(BaseCommand):
 
         # Hire the NPC
         await ctx.db.hire_npc(npc["id"], char_id, wage)
-        # Deduct first day's wage immediately
-        new_credits = credits - wage
+        # Deduct first day's wage immediately (through the credit chokepoint)
+        new_credits = await ctx.db.adjust_credits(char_id, -wage, "crew_wage")
         char["credits"] = new_credits
-        await ctx.db.save_character(char_id, credits=new_credits)
 
         await ctx.session.send_line(
             ansi.success(

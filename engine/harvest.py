@@ -796,14 +796,12 @@ async def perform_harvest(
     # ── Step 9: route credits ───────────────────────────────────────────────
     # Harvester gets credits_kept; owner org (if non-member harvest)
     # gets credits_tax routed to treasury.
+    # Routed through the ledger chokepoint (Drop 1 / F1) so the harvest
+    # faucet is logged and visible on @economy. adjust_credits applies the
+    # delta atomically and returns the new balance.
     try:
-        cur_credits = int(char.get("credits") or 0)
-    except (TypeError, ValueError):
-        cur_credits = 0
-    new_credits = cur_credits + payout["credits_kept"]
-    try:
-        await db.save_character(char["id"], credits=new_credits)
-        char["credits"] = new_credits
+        char["credits"] = await db.adjust_credits(
+            char["id"], payout["credits_kept"], "harvest")
     except Exception:
         log.warning("[harvest] credit save failed for char %s",
                     char.get("id"), exc_info=True)

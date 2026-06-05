@@ -54,6 +54,7 @@ zones:
   tatooine_dock:
     name: "Mos Eisley Approach"
     type: dock
+    authority: hutt
     planet: tatooine
     adjacent: [tatooine_orbit]
     desc: >
@@ -65,6 +66,7 @@ zones:
   tatooine_orbit:
     name: "Tatooine Orbit"
     type: orbit
+    authority: hutt
     planet: tatooine
     adjacent: [tatooine_dock, tatooine_deep_space]
     desc: >
@@ -75,6 +77,7 @@ zones:
   tatooine_deep_space:
     name: "Tatooine Deep Space"
     type: deep_space
+    authority: hutt
     planet: tatooine
     adjacent: [tatooine_orbit, corellian_run, triellus_trade_route]
     desc: >
@@ -86,6 +89,7 @@ zones:
   nar_shaddaa_dock:
     name: "Nar Shaddaa Landing Platform"
     type: dock
+    authority: hutt
     planet: nar_shaddaa
     adjacent: [nar_shaddaa_orbit]
     desc: >
@@ -96,6 +100,7 @@ zones:
   nar_shaddaa_orbit:
     name: "Nar Shaddaa Orbit"
     type: orbit
+    authority: hutt
     planet: nar_shaddaa
     adjacent: [nar_shaddaa_dock, nar_shaddaa_deep_space]
     desc: >
@@ -107,6 +112,7 @@ zones:
   nar_shaddaa_deep_space:
     name: "Nar Shaddaa Deep Space"
     type: deep_space
+    authority: hutt
     planet: nar_shaddaa
     adjacent: [nar_shaddaa_orbit, hutt_space_corridor]
     desc: >
@@ -119,6 +125,7 @@ zones:
   coruscant_dock:
     name: "Coruscant Westport Arrivals"
     type: dock
+    authority: republic
     planet: coruscant
     adjacent: [coruscant_orbit]
     desc: >
@@ -130,6 +137,7 @@ zones:
   coruscant_orbit:
     name: "Coruscant Orbit"
     type: orbit
+    authority: republic
     planet: coruscant
     adjacent: [coruscant_dock, coruscant_deep_space]
     desc: >
@@ -141,6 +149,7 @@ zones:
   coruscant_deep_space:
     name: "Coruscant Deep Space"
     type: deep_space
+    authority: republic
     planet: coruscant
     adjacent:
       - coruscant_orbit
@@ -159,6 +168,7 @@ zones:
   kuat_dock:
     name: "Kuat Spaceport Approach"
     type: dock
+    authority: republic
     planet: kuat
     adjacent: [kuat_orbit]
     desc: >
@@ -169,6 +179,7 @@ zones:
   kuat_orbit:
     name: "Kuat Orbital Ring"
     type: orbit
+    authority: republic
     planet: kuat
     adjacent: [kuat_dock, kuat_deep_space]
     desc: >
@@ -181,6 +192,7 @@ zones:
   kuat_deep_space:
     name: "Kuat Deep Space"
     type: deep_space
+    authority: republic
     planet: kuat
     adjacent: [kuat_orbit, hydian_way]
     desc: >
@@ -193,6 +205,7 @@ zones:
   kamino_dock:
     name: "Tipoca City Landing Platform"
     type: dock
+    authority: republic
     planet: kamino
     adjacent: [kamino_orbit]
     desc: >
@@ -205,6 +218,7 @@ zones:
   kamino_orbit:
     name: "Kamino Orbit"
     type: orbit
+    authority: republic
     planet: kamino
     adjacent: [kamino_dock, kamino_deep_space]
     desc: >
@@ -217,6 +231,7 @@ zones:
   kamino_deep_space:
     name: "Kamino Deep Space"
     type: deep_space
+    authority: republic
     planet: kamino
     adjacent: [kamino_orbit, kamino_approach]
     desc: >
@@ -229,6 +244,7 @@ zones:
   geonosis_dock:
     name: "Stalgasin Hive Landing Pads"
     type: dock
+    authority: cis
     planet: geonosis
     adjacent: [geonosis_orbit]
     desc: >
@@ -240,6 +256,7 @@ zones:
   geonosis_orbit:
     name: "Geonosis Orbit"
     type: orbit
+    authority: cis
     planet: geonosis
     adjacent: [geonosis_dock, geonosis_deep_space]
     desc: >
@@ -251,6 +268,7 @@ zones:
   geonosis_deep_space:
     name: "Geonosis Deep Space"
     type: deep_space
+    authority: cis
     planet: geonosis
     adjacent: [geonosis_orbit, triellus_trade_route]
     desc: >
@@ -273,6 +291,7 @@ zones:
   perlemian_trade_route:
     name: "Perlemian Trade Route — Outer Rim Approach"
     type: hyperspace_lane
+    authority: republic
     planet: null
     adjacent: [coruscant_deep_space]
     desc: >
@@ -291,6 +310,7 @@ zones:
   hydian_way:
     name: "Hydian Way — Core Span"
     type: hyperspace_lane
+    authority: republic
     planet: null
     adjacent: [coruscant_deep_space, kuat_deep_space, kamino_approach]
     desc: >
@@ -307,6 +327,7 @@ zones:
   corellian_run:
     name: "Corellian Run"
     type: hyperspace_lane
+    authority: contested
     planet: null
     adjacent: [coruscant_deep_space, tatooine_deep_space]
     desc: >
@@ -323,6 +344,7 @@ zones:
   triellus_trade_route:
     name: "Triellus Trade Route"
     type: hyperspace_lane
+    authority: cis
     planet: null
     adjacent: [tatooine_deep_space, geonosis_deep_space, hutt_space_corridor]
     desc: >
@@ -339,6 +361,7 @@ zones:
   hutt_space_corridor:
     name: "Hutt Space Corridor"
     type: hyperspace_lane
+    authority: hutt
     planet: null
     adjacent: [nar_shaddaa_deep_space, triellus_trade_route]
     desc: >
@@ -354,6 +377,7 @@ zones:
   kamino_approach:
     name: "Kamino Approach — Restricted Lane"
     type: hyperspace_lane
+    authority: republic
     planet: null
     adjacent: [hydian_way, kamino_deep_space]
     desc: >

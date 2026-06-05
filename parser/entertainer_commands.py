@@ -37,6 +37,53 @@ _CRIT_PAY_MIN = 250
 _CRIT_PAY_MAX = 500
 _PARTIAL_PAY = 25
 
+# ── A8 (Jun 4 2026) — audience-weighting (report A8) ─────────────────────
+# Performing to a live crowd of *other online players* in the room lifts the
+# take, so the perform faucet rewards being a social hub instead of a solo
+# timer-tap (report A8: "audience-weight it … so it rewards being a hub").
+# Modest and capped: a solo grinder can't conjure an audience, and the cap
+# bounds alt-parking to a small, high-effort return. The faucet stays metered
+# through the ledger (tag `entertainer`); this only scales the amount.
+_AUDIENCE_BONUS_PER = 0.15   # +15% per other online player present
+_AUDIENCE_CAP = 4            # counted audience capped at 4 heads (max +60%)
+
+
+def audience_multiplier(audience_size: int) -> float:
+    """Payout multiplier from the live audience (other online players in the
+    room). 1.0 at no audience; +``_AUDIENCE_BONUS_PER`` per head up to
+    ``_AUDIENCE_CAP`` heads, so the multiplier is bounded in
+    ``[1.0, 1.0 + _AUDIENCE_CAP * _AUDIENCE_BONUS_PER]`` (1.0–1.6 by default).
+    Pure — the counting glue lives in ``_count_audience``."""
+    n = max(0, int(audience_size or 0))
+    return 1.0 + _AUDIENCE_BONUS_PER * min(n, _AUDIENCE_CAP)
+
+
+def _audience_flavor(n: int) -> str:
+    """A short line acknowledging the crowd that lifted the take."""
+    if n >= _AUDIENCE_CAP:
+        return "A packed house roars its approval."
+    if n >= 2:
+        return "The gathered crowd cheers you on."
+    return "An onlooker tosses a few extra credits your way."
+
+
+def _count_audience(session_mgr, char: dict, room_id: int) -> int:
+    """Count OTHER online players present in ``room_id`` (the live audience).
+
+    ``sessions_in_room`` includes the source character, so we exclude the
+    performer by id. Defensive: any failure (or a missing session manager)
+    yields 0 — performing with no audience simply earns the base take.
+    """
+    try:
+        sessions = session_mgr.sessions_in_room(room_id, source_char=char) or []
+    except Exception:
+        return 0
+    me = char.get("id")
+    return sum(
+        1 for s in sessions
+        if getattr(s, "character", None) and s.character.get("id") != me
+    )
+
 # Performance difficulty
 _PERFORM_DIFFICULTY = 10
 
@@ -266,16 +313,24 @@ class PerformCommand(BaseCommand):
                 payout = int(payout * brawl_mult)
                 flavor = random.choice(_SUCCESS_MESSAGES)
 
-            new_credits = char.get("credits", 0) + payout
-            char["credits"] = new_credits
+            # ── A8 audience-weighting: a live crowd of other online players in
+            # the room lifts the take (modest, capped). Applied before the
+            # ledger call so the logged `entertainer` faucet reflects the real
+            # amount paid. No audience → multiplier 1.0 (base take). ──
+            audience = _count_audience(ctx.session_mgr, char, room_id)
+            if audience > 0:
+                payout = int(payout * audience_multiplier(audience))
+                flavor = flavor + "  " + _audience_flavor(audience)
 
             # Set cooldown
             new_attrs = _set_last_perform(char, now)
             char["attributes"] = new_attrs
 
-            await ctx.db.save_character(
-                char["id"], credits=new_credits, attributes=new_attrs
-            )
+            # Ledger chokepoint (F1): entertainer payout as a logged faucet
+            # (A8: audience-weighted above before this call).
+            char["credits"] = await ctx.db.adjust_credits(
+                char["id"], payout, "entertainer")
+            await ctx.db.save_character(char["id"], attributes=new_attrs)
 
             # ── SRB.2 fatigue: bump count, refresh window ──
             try:
@@ -337,16 +392,15 @@ class PerformCommand(BaseCommand):
         elif result.margin >= -4:
             # Partial: small payout, mild reaction
             payout = int(_PARTIAL_PAY * brawl_mult)
-            new_credits = char.get("credits", 0) + payout
-            char["credits"] = new_credits
 
             # Shorter cooldown for partial (use success cooldown still)
             new_attrs = _set_last_perform(char, now)
             char["attributes"] = new_attrs
 
-            await ctx.db.save_character(
-                char["id"], credits=new_credits, attributes=new_attrs
-            )
+            # Ledger chokepoint (F1): entertainer payout as a logged faucet.
+            char["credits"] = await ctx.db.adjust_credits(
+                char["id"], payout, "entertainer")
+            await ctx.db.save_character(char["id"], attributes=new_attrs)
 
             # SRB.2 fatigue: partials count toward the per-day cap
             # (it's "the audience had to sit through this", not "the

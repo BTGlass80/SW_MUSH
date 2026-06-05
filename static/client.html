@@ -2582,6 +2582,43 @@ a { color: inherit; text-decoration: none; }
 }
 .map-expand-btn:active { transform: translateY(1px); }
 
+/* Holocarta region-map button — sits just left of the ⛶ tactical-expand
+   button in the same .map-frame corner (Drop 4.15c, additive). */
+.map-holocarta-btn { right: 34px; font-size: 12px; }
+
+/* Holocarta region/overview navigator overlay (Drop 4.15c — additive).
+   Mounts M3MapNavigator; distinct from the tactical .map-modal-overlay. */
+.holocarta-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 240;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.82);
+  padding: 24px;
+}
+.holocarta-overlay.show { display: flex; }
+.holocarta-close-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 250;
+  min-width: 44px;
+  height: 24px;
+  padding: 0 8px;
+  background: var(--cock-red, #ff5a4a);
+  color: #1a160c;
+  border: none;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.holocarta-close-btn:hover { filter: brightness(1.1); }
+
 /* The tactical-strip and map-frame need to be positioning contexts. */
 .tactical-strip { position: relative; }
 .map-frame      { position: relative; }
@@ -3652,6 +3689,7 @@ a { color: inherit; text-decoration: none; }
         <div class="map-region-name" id="g-map-region">—</div>
         <div class="map-frame">
           <button class="map-expand-btn" type="button" onclick="openMapModal('ground'); event.stopPropagation();" title="Expand sector map (ESC to close)" aria-label="Expand sector map">⛶</button>
+          <button class="map-expand-btn map-holocarta-btn" type="button" onclick="openRegionMap(); event.stopPropagation();" title="Holocarta map — galaxy ▸ region ▸ interior (ESC to close)" aria-label="Open Holocarta region map">⊕</button>
           <svg id="g-area-map-svg" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
             <text x="200" y="150" text-anchor="middle" style="fill:var(--accent-dim); font-size:11px; font-family:'IBM Plex Mono',monospace;">No map data</text>
           </svg>
@@ -4070,6 +4108,18 @@ a { color: inherit; text-decoration: none; }
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════
+     HOLOCARTA REGION MAP OVERLAY (Drop 4.15c) — additive overview map.
+     Mounts M3MapNavigator (galaxy ▸ system ▸ planet ▸ city ▸ district ▸
+     WILDERNESS ▸ interior). Distinct from the tactical sector modal above
+     (which renders the player's room grid with click-to-walk). The '1b'
+     wilderness tier shows the player's region (Dune Sea vs Coruscant
+     Underworld), derived via M3Adapter.regionKeyForArea. Opened by the ⊕
+     button; closed by ESC, backdrop click, or close button. The navigator
+     element + close button are injected by openRegionMap().
+     ══════════════════════════════════════════════════════════════════ -->
+<div class="holocarta-overlay" id="holocarta-overlay" onclick="regionMapBackdropClick(event)"></div>
+
+<!-- ══════════════════════════════════════════════════════════════════
      SHEET PANEL — slide-in character dashboard
      Driven by the `sheet_data` WebSocket event from `+sheet`. The
      panel inherits theme via .app[data-mode], so no JS theme prop
@@ -4270,6 +4320,7 @@ a { color: inherit; text-decoration: none; }
 <script src="/static/spa/m3_tier_system_body.js"></script>
 <script src="/static/spa/m3_tier_planet_body.js"></script>
 <script src="/static/spa/m3_tier_city_body.js"></script>
+<script src="/static/spa/m3_wilderness_overview_data.js"></script>
 <script src="/static/spa/m3_tier_wilderness_body.js"></script>
 <script src="/static/spa/m3_tier_interior_body.js"></script>
 <script src="/static/spa/m3_tier_registry.js"></script>
@@ -5563,6 +5614,14 @@ function handleHudUpdate(data) {
   //   - we have no cached AreaGeometry from a prior push, OR
   //   - the player walked into a room outside any authored area
   //     (server signals this by omitting both fields).
+  //
+  // Drop 4.22: the player's live wilderness region slug (or null for
+  // city/interior rooms). Captured on EVERY tick, before the branch below,
+  // because wilderness rooms have no AreaGeometry and take the legacy `else`
+  // path that nulls _sw_areaGeom — so this is the only live signal the ⊕
+  // region map has for "which painted wilderness region am I in." Server
+  // emits it on the always-present hud path (server/session.py _hud_area_map).
+  window._sw_wildernessRegion = data.wilderness_region_id || null;
   if (data.area_geometry && typeof window.MapView === 'object') {
     // Full geometry refresh — area transition or first push to session
     window._sw_areaGeom = data.area_geometry;
@@ -8938,8 +8997,165 @@ function _resolveModalLabelCollisions(clone, vbX, vbY, vbW, vbH) {
 })();
 
 // ══════════════════════════════════════════════════════════════════
-// SHEET PANEL — slide-in character dashboard
-// Driven by `sheet_data` event from `+sheet`. Renders identity/points
+//  HOLOCARTA REGION MAP (Drop 4.15c) — additive overview navigator.
+//  A second, zoomable galaxy ▸ system ▸ planet ▸ city ▸ district ▸
+//  WILDERNESS ▸ interior map, mounted from M3MapNavigator. Distinct
+//  from the tactical sector modal (openMapModal), which renders the
+//  player's room grid with click-to-walk. Here the '1b' wilderness tier
+//  shows the player's *region* (Dune Sea vs Coruscant Underworld),
+//  derived from the live area via M3Adapter.regionKeyForArea. Purely
+//  additive — the sector modal is untouched. Opened by the ⊕ button or
+//  a mini-map click; closed by ESC / backdrop / close button.
+// ══════════════════════════════════════════════════════════════════
+var _regionMapHandle = null;
+var _regionMapOpen   = false;
+
+function _regionMapResolvePalette() {
+  // Same area_key→palette heuristic as renderMapV2; always returns a
+  // palette (defaults to tatooine) so the navigator never mounts on null.
+  var geom = window._sw_areaGeom;
+  var paletteKey = 'tatooine';
+  // Drop 4.22: wilderness rooms have no area_geometry, so derive the chrome
+  // palette from the live region slug — otherwise the painted Coruscant
+  // Underworld frame would be tinted with the Tatooine palette.
+  var wreg = window._sw_wildernessRegion;
+  if (typeof wreg === 'string' && wreg.indexOf('coruscant') === 0) {
+    paletteKey = 'coruscant';
+  } else if (geom && typeof geom.palette === 'string' && geom.palette) {
+    paletteKey = geom.palette;
+  } else if (geom && typeof geom.area_key === 'string' &&
+             geom.area_key.indexOf('coruscant') === 0) {
+    paletteKey = 'coruscant';
+  }
+  return (window.M3Palettes && typeof window.M3Palettes.getPalette === 'function')
+           ? window.M3Palettes.getPalette(paletteKey)
+           : null;
+}
+
+function openRegionMap() {
+  var ov = document.getElementById('holocarta-overlay');
+  if (!ov) return;
+  if (!(window.M3MapNavigator &&
+        typeof window.M3MapNavigator.create === 'function')) {
+    // Navigator module absent — leave the sector modal as the map.
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('Holocarta region map: M3MapNavigator not loaded.');
+    }
+    return;
+  }
+  // Tear down any prior instance first (defensive — re-open without leak).
+  closeRegionMap();
+
+  var palette = _regionMapResolvePalette();
+
+  // Player's wilderness region from the live area. Prefer the explicit
+  // per-tick slug the server now stamps for wilderness rooms (Drop 4.22);
+  // fall back to the area_geometry payload (covered city/interior areas,
+  // where it resolves to null and the '1b' tier shows its Dune Sea default).
+  // regionKeyForArea accepts a bare slug and validates it via resolveRegion.
+  var regionKey = (window.M3Adapter &&
+                   typeof window.M3Adapter.regionKeyForArea === 'function')
+                    ? window.M3Adapter.regionKeyForArea(
+                        window._sw_wildernessRegion || window._sw_areaGeom)
+                    : null;
+
+  // Live district geometry for the '1a' tier (so it renders the player's
+  // real area, not an "awaiting geometry" placeholder).
+  var areaData = null;
+  if (window._sw_areaGeom && window.M3Adapter &&
+      typeof window.M3Adapter.fromAreaGeometry === 'function') {
+    try {
+      areaData = window.M3Adapter.fromAreaGeometry(
+        window._sw_areaGeom, window._sw_areaMap);
+    } catch (eAdapt) { areaData = null; }
+  }
+
+  // Size to the viewport (navigator owns its own chrome inset).
+  var w = Math.min(1280, Math.floor((window.innerWidth  || 1024) * 0.94));
+  var h = Math.min(920,  Math.floor((window.innerHeight || 768)  * 0.92));
+
+  var handle = null;
+  try {
+    handle = window.M3MapNavigator.create(palette, {
+      width:  w,
+      height: h,
+      getTierRenderer: null,                 // → M3TierRegistry default (all tiers)
+      region:    null,
+      regionKey: regionKey,                  // '1b' renders this region
+      data:      areaData,                   // '1a' renders the live district
+      // Open on the wilderness overview when the player is in a region;
+      // otherwise on the local district tier.
+      startTier: regionKey ? '1b' : '1a',
+      time:    (typeof _envTime === 'function')    ? _envTime()    : 'day',
+      weather: (typeof _envWeather === 'function') ? _envWeather() : 'clear',
+    });
+  } catch (eNav) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('Holocarta region map failed to mount:', eNav);
+    }
+    return;
+  }
+  if (!handle || !handle.element) return;
+  _regionMapHandle = handle;
+
+  // Centered inner wrapper + close button; mount the navigator inside.
+  var inner = document.createElement('div');
+  inner.id = 'holocarta-overlay-inner';
+  inner.style.position = 'relative';
+
+  var closeBtn = document.createElement('button');
+  closeBtn.id = 'holocarta-close-btn';
+  closeBtn.type = 'button';
+  closeBtn.className = 'holocarta-close-btn';
+  closeBtn.textContent = 'ESC \u00d7';
+  closeBtn.addEventListener('click', closeRegionMap);
+
+  inner.appendChild(handle.element);
+  inner.appendChild(closeBtn);
+  ov.appendChild(inner);
+  ov.classList.add('show');
+  _regionMapOpen = true;
+}
+
+function closeRegionMap() {
+  var ov = document.getElementById('holocarta-overlay');
+  if (_regionMapHandle && typeof _regionMapHandle.destroy === 'function') {
+    try { _regionMapHandle.destroy(); } catch (eDes) { /* ignore */ }
+  }
+  _regionMapHandle = null;
+  _regionMapOpen = false;
+  if (ov) {
+    ov.classList.remove('show');
+    ov.innerHTML = '';   // drop the navigator element + close button
+  }
+}
+
+function regionMapBackdropClick(evt) {
+  // Close when the click lands on the backdrop (outside the inner wrapper).
+  if (!evt || !evt.target) return;
+  var inner = document.getElementById('holocarta-overlay-inner');
+  if (inner && !inner.contains(evt.target)) closeRegionMap();
+}
+
+// ESC closes the region map (persistent listener; mirrors the sector
+// modal's installMapModalKeyHandler).
+(function installRegionMapKeyHandler() {
+  document.addEventListener('keydown', function(e) {
+    if (!_regionMapOpen) return;
+    if (e.key === 'Escape' || e.key === 'Esc') {
+      closeRegionMap();
+      e.preventDefault();
+    }
+  });
+})();
+
+// Expose for inline handlers (the main script is an IIFE) + tooling.
+if (typeof window !== 'undefined') {
+  window.openRegionMap          = openRegionMap;
+  window.closeRegionMap         = closeRegionMap;
+  window.regionMapBackdropClick = regionMapBackdropClick;
+}
+
 // header, vitals column, grouped skill list, force powers, and a
 // context-aware detail drawer with click-to-roll and edit-in-place.
 // Theme inherits via .app[data-mode], so no JS theme prop is needed —

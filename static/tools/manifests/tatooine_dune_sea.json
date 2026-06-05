@@ -1,0 +1,68 @@
+{
+  "area_key": "tatooine_dune_sea",
+  "display_name": "Dune Sea (Tatooine)",
+  "substrate": "/static/maps/tatooine_dune_sea_overview_substrate.png",
+  "bounds": {
+    "x_min": 0.0,
+    "y_min": 0.0,
+    "x_max": 700.0,
+    "y_max": 600.0
+  },
+  "landmarks": [
+    {
+      "id": "tatooine_dune_sea_village",
+      "icon": "tents",
+      "name": "THE HIDDEN VILLAGE",
+      "distinctive": true,
+      "fx": 0.6176,
+      "fy": 0.6633,
+      "note": "distinctive painted feature — place on the tents",
+      "min_zoom": 0,
+      "max_zoom": 1
+    },
+    {
+      "id": "dune_sea_anchor_stones",
+      "icon": "spire",
+      "name": "THE ANCHOR STONES",
+      "distinctive": true,
+      "fx": 0.914,
+      "fy": 0.6838,
+      "note": "distinctive painted feature — place on the spire",
+      "min_zoom": 0,
+      "max_zoom": 1
+    },
+    {
+      "id": "dune_sea_ruined_obelisk",
+      "icon": "spire",
+      "name": "RUINED OBELISK",
+      "distinctive": true,
+      "fx": 0.1394,
+      "fy": 0.1323,
+      "note": "distinctive painted feature — place on the spire",
+      "min_zoom": 0,
+      "max_zoom": 1
+    },
+    {
+      "id": "hermit_hut",
+      "icon": "farm",
+      "name": "HERMIT'S HUT",
+      "distinctive": true,
+      "fx": 0.4837,
+      "fy": 0.8677,
+      "note": "distinctive painted feature — place on the farm",
+      "min_zoom": 0,
+      "max_zoom": 1
+    },
+    {
+      "id": "exit_jundland_dune_sea_edge",
+      "icon": "beacon",
+      "name": "JUNDLAND DUNE SEA EDGE",
+      "distinctive": false,
+      "fx": 0.0,
+      "fy": 0.5,
+      "note": "indistinct / generic — approximate is fine",
+      "min_zoom": 0,
+      "max_zoom": 1
+    }
+  ]
+}

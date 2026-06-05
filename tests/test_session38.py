@@ -253,18 +253,18 @@ class TestFactionMissions:
     """Test faction mission generation and rep-gating."""
 
     def test_faction_mission_config_exists(self):
-        """FACTION_MISSION_CONFIG should define at least empire, rebel, hutt."""
+        """FACTION_MISSION_CONFIG should define at least republic, cis, hutt_cartel."""
         from engine.missions import FACTION_MISSION_CONFIG
-        assert "empire" in FACTION_MISSION_CONFIG
-        assert "rebel" in FACTION_MISSION_CONFIG
-        assert "hutt" in FACTION_MISSION_CONFIG
+        assert "republic" in FACTION_MISSION_CONFIG
+        assert "cis" in FACTION_MISSION_CONFIG
+        assert "hutt_cartel" in FACTION_MISSION_CONFIG
 
     def test_generate_faction_mission_returns_mission(self):
         """generate_faction_mission should return a Mission with faction_code set."""
         from engine.missions import generate_faction_mission
-        m = generate_faction_mission("empire")
+        m = generate_faction_mission("republic")
         assert m is not None
-        assert m.faction_code == "empire"
+        assert m.faction_code == "republic"
         assert m.faction_rep_required > 0
 
     def test_generate_faction_mission_invalid_code_returns_none(self):
@@ -284,34 +284,34 @@ class TestFactionMissions:
             )
 
         # Also verify a faction mission actually has faction_code set
-        m = generate_faction_mission("empire", skill_level=4)
+        m = generate_faction_mission("republic", skill_level=4)
         assert m is not None
-        assert m.faction_code == "empire"
+        assert m.faction_code == "republic"
         assert m.reward > 0
 
     def test_faction_mission_title_has_badge(self):
         """Faction mission titles should be prefixed with [FACTION]."""
         from engine.missions import generate_faction_mission
-        m = generate_faction_mission("rebel")
+        m = generate_faction_mission("cis")
         assert m is not None
-        assert m.title.startswith("[REBEL]")
+        assert m.title.startswith("[CIS]")
 
     def test_mission_to_dict_includes_faction_fields(self):
         """Mission.to_dict() should include faction_code and faction_rep_required."""
         from engine.missions import generate_faction_mission
-        m = generate_faction_mission("hutt")
+        m = generate_faction_mission("hutt_cartel")
         d = m.to_dict()
         assert "faction_code" in d
-        assert d["faction_code"] == "hutt"
+        assert d["faction_code"] == "hutt_cartel"
         assert "faction_rep_required" in d
 
     def test_mission_from_dict_roundtrip(self):
         """Mission should survive to_dict -> from_dict roundtrip."""
         from engine.missions import generate_faction_mission, Mission
-        m = generate_faction_mission("empire")
+        m = generate_faction_mission("republic")
         d = m.to_dict()
         m2 = Mission.from_dict(d)
-        assert m2.faction_code == "empire"
+        assert m2.faction_code == "republic"
         assert m2.faction_rep_required == m.faction_rep_required
         assert m2.reward == m.reward
 
@@ -379,8 +379,8 @@ class TestTradeGoodsPricing:
         """Demand planets should buy at 140% of base price."""
         from engine.trading import TRADE_GOODS, get_planet_price
         good = TRADE_GOODS["raw_ore"]
-        # Raw ore demand = corellia, base = 100
-        price = get_planet_price(good, "corellia")
+        # Raw ore demand = coruscant, base = 100 (CW re-map, was corellia)
+        price = get_planet_price(good, "coruscant")
         assert price == 140, f"Expected 140, got {price}"
 
     def test_normal_price_is_100_percent(self):
@@ -396,7 +396,7 @@ class TestTradeGoodsPricing:
         from engine.trading import TRADE_GOODS, get_planet_price
         good = TRADE_GOODS["raw_ore"]
         buy = get_planet_price(good, "tatooine")
-        sell = get_planet_price(good, "corellia")
+        sell = get_planet_price(good, "coruscant")
         margin = (sell - buy) / buy * 100
         assert 99 <= margin <= 101, f"Expected ~100% margin, got {margin:.1f}%"
 

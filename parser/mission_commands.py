@@ -535,13 +535,14 @@ class CompleteMissionCommand(BaseCommand):
         old_credits = char.get("credits", 0)
         new_credits = old_credits + earned
         char["credits"] = new_credits
-        await ctx.db.save_character(char["id"], credits=new_credits)
-
         if earned > 0:
-            try:
-                await ctx.db.log_credit(char["id"], earned, "mission", new_credits)
-            except Exception as _e:
-                log.debug("_resolve_ground_reward credit log: %s", _e, exc_info=True)
+            # Route the award through the credit chokepoint (atomic + logged).
+            new_credits = await ctx.db.adjust_credits(char["id"], earned, "mission")
+            char["credits"] = new_credits
+        else:
+            # Failed check, no credits earned — credits are unchanged, so
+            # there is nothing to persist and no ledger entry to make.
+            pass
 
         # Display results
         await ctx.session.send_line(
@@ -567,15 +568,9 @@ class CompleteMissionCommand(BaseCommand):
         return earned
 
     async def _award_credits(self, ctx, earned):
-        """Award credits and log the transaction."""
+        """Award credits via the credit chokepoint (atomic + logged)."""
         char = ctx.session.character
-        old_credits = char.get("credits", 0)
-        char["credits"] = old_credits + earned
-        await ctx.db.save_character(char["id"], credits=old_credits + earned)
-        try:
-            await ctx.db.log_credit(char["id"], earned, "mission", old_credits + earned)
-        except Exception as _e:
-            log.debug("_award_credits credit log: %s", _e, exc_info=True)
+        char["credits"] = await ctx.db.adjust_credits(char["id"], earned, "mission")
 
     async def _fire_achievements(self, ctx, earned):
         """Fire mission completion + credits earned achievements."""

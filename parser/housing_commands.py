@@ -1017,7 +1017,7 @@ class HomeUmbrellaCommand(BaseCommand):
     usage = "+home [verb] [args]  — see 'help +home'"
     valid_switches: list[str] = [
         "view", "sethome", "rent", "storage", "trophy",
-        "shopfront", "guest", "visit", "admin",
+        "shopfront", "guest", "visit", "admin", "prestige",
     ]
 
     async def execute(self, ctx: CommandContext):
@@ -1063,9 +1063,54 @@ def _init_home_switch_impl():
         ctx.args = rest
         await cmd.execute(ctx)
 
+    async def _prestige(ctx, rest):
+        # Drop 3 B2: home prestige — an aspirational credit sink.
+        from engine.housing import (
+            get_housing, purchase_home_prestige, home_prestige_status_lines,
+        )
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line("  You must be in-game.")
+            return
+        housing = await get_housing(ctx.db, char["id"])
+        if not housing:
+            await ctx.session.send_line(
+                "  You don't own a home yet. Rent or buy one first "
+                "(see '+home').")
+            return
+
+        sub = (rest or "").strip().lower()
+        if sub in ("buy", "upgrade", "purchase"):
+            result = await purchase_home_prestige(ctx.db, char, housing)
+            if result.get("ok"):
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_GREEN}Home upgraded{ansi.RESET}: your "
+                    f"residence is now {ansi.BOLD}{result['label']}{ansi.RESET} "
+                    f"for {ansi.BRIGHT_YELLOW}{result['cost']:,} cr{ansi.RESET}.\n"
+                    f"    {ansi.DIM}{result['descriptor']}{ansi.RESET}")
+            else:
+                reason = result.get("reason")
+                if reason == "max":
+                    await ctx.session.send_line(
+                        "  Your home already holds the highest prestige.")
+                elif reason == "insufficient":
+                    await ctx.session.send_line(
+                        f"  {result['label']} costs "
+                        f"{ansi.BRIGHT_YELLOW}{result['cost']:,} cr{ansi.RESET} "
+                        f"— you're {result['short']:,} short.")
+                else:
+                    await ctx.session.send_line(
+                        "  The upgrade couldn't be completed; you were not charged.")
+            return
+
+        # No/unknown arg → status.
+        for line in home_prestige_status_lines(housing):
+            await ctx.session.send_line(line)
+
     _HOME_SWITCH_IMPL["view"] = _view
     _HOME_SWITCH_IMPL["sethome"] = _sethome
     _HOME_SWITCH_IMPL["admin"] = _admin
+    _HOME_SWITCH_IMPL["prestige"] = _prestige
 
 
 _init_home_switch_impl()

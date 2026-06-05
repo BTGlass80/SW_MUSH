@@ -17,6 +17,7 @@ from engine.starships import (
     resolve_damage_control, get_effective_stats,
 )
 from engine.dice import DicePool
+from engine.ship_access import is_authorized_pilot, get_authorized_pilots
 from server import ansi
 
 # Achievement hooks (graceful-drop)
@@ -739,6 +740,19 @@ class PilotCommand(BaseCommand):
             return
         crew = _get_crew(ship)
         char_id = ctx.session.character["id"]
+        # ── Ownership gate (open boarding, gated control) ───────────────────
+        # Anyone may board, but only the owner / authorized crew may fly.
+        # Unowned hulls fail open (see engine/ship_access).
+        _acct = getattr(ctx.session, "account", None)
+        _is_admin = bool(_acct and _acct.get("is_admin", 0))
+        if not is_authorized_pilot(
+            char_id, ship.get("owner_id"),
+            get_authorized_pilots(_get_systems(ship)), is_admin=_is_admin,
+        ):
+            await ctx.session.send_line(
+                "  You're not cleared to fly this ship. The owner must "
+                "authorize you (the owner can use '+shipcrew add <you>').")
+            return
         if crew.get("pilot") == char_id:
             await ctx.session.send_line("  You're already the pilot.")
             return
@@ -1179,6 +1193,18 @@ class LaunchCommand(BaseCommand):
         if crew.get("pilot") != ctx.session.character["id"]:
             await ctx.session.send_line("  Only the pilot can launch. Type 'pilot' first.")
             return
+        # Re-verify control authorization at launch — closes the edge where the
+        # owner revoked a co-pilot who was already seated (open boarding,
+        # gated control). Unowned hulls fail open (see engine/ship_access).
+        _acct = getattr(ctx.session, "account", None)
+        if not is_authorized_pilot(
+            ctx.session.character["id"], ship.get("owner_id"),
+            get_authorized_pilots(_get_systems(ship)),
+            is_admin=bool(_acct and _acct.get("is_admin", 0)),
+        ):
+            await ctx.session.send_line(
+                "  Your authorization to fly this ship has been revoked.")
+            return
         systems = _get_systems(ship)
         if not systems.get("engines", True):
             await ctx.session.send_line("  Engines are damaged! Cannot launch.")
@@ -1194,8 +1220,7 @@ class LaunchCommand(BaseCommand):
             await ctx.session.send_line(
                 f"  Not enough credits for fuel! Need {fuel_cost:,}cr, have {credits:,}cr.")
             return
-        char["credits"] = credits - fuel_cost
-        await ctx.db.save_character(char["id"], credits=char["credits"])
+        char["credits"] = await ctx.db.adjust_credits(char["id"], -fuel_cost, "ship_refuel")
         bay_id = ship["docked_at"]
         bay = await ctx.db.get_room(bay_id)
         bay_name = bay["name"] if bay else "the docking bay"
@@ -1272,8 +1297,8 @@ class LandCommand(BaseCommand):
         _BAY_SEARCH = {
             "tatooine": "Docking Bay",
             "nar_shaddaa": "Nar Shaddaa - Docking",
-            "kessel": "Kessel - Spaceport",
-            "corellia": "Coronet City - Starport Docking",
+            "coruscant": "Coruscant - Westport Spaceport",
+            "geonosis": "Geonosis - Separatist Landing Platform",
         }
         _bay_query = _BAY_SEARCH.get(_land_planet, "Docking Bay")
         rooms = await ctx.db.find_rooms(_bay_query)
@@ -1302,13 +1327,7 @@ class LandCommand(BaseCommand):
             await ctx.session.send_line(
                 f"  Not enough credits for docking fee! Need {docking_fee}cr.")
             return
-        char["credits"] = credits - docking_fee
-        await ctx.db.save_character(char["id"], credits=char["credits"])
-        try:
-            await ctx.db.log_credit(char["id"], -docking_fee, "docking_fee",
-                                     char["credits"])
-        except Exception as _e:
-            log.debug("silent except in parser/space_commands.py:1162: %s", _e, exc_info=True)
+        char["credits"] = await ctx.db.adjust_credits(char["id"], -docking_fee, "docking_fee")
         await ctx.db.update_ship(ship["id"], docked_at=bay["id"])
         get_space_grid().remove_ship(ship["id"])
         # Traffic: clear current_zone on land
@@ -1333,9 +1352,10 @@ class LandCommand(BaseCommand):
             pass
 
         # ── Customs check (Drop 18) ─────────────────────────────────────────
-        # Imperial presence at Tatooine orbit and Corellia
-        _IMPERIAL_PLANETS = {"tatooine", "corellia"}
-        if _land_planet in _IMPERIAL_PLANETS:
+        # Customs inspection happens at planets whose orbit zone is run by a
+        # controlling faction (Republic / CIS / Hutt). Derived from the zone
+        # graph's authority data rather than a hardcoded GCW planet set.
+        if _land_planet and _planet_has_customs(_land_planet):
             await _run_customs_check(ctx, ship, _land_planet)
 
         # Ship's log: planet landed
@@ -3553,8 +3573,8 @@ class SpawnShipCommand(BaseCommand):
     async def execute(self, ctx):
         if not ctx.args or " " not in ctx.args:
             await ctx.session.send_line("Usage: @spawn <template> <ship name>")
-            await ctx.session.send_line("  @spawn yt_1300 Millennium Falcon")
-            await ctx.session.send_line("  @spawn x_wing Red Five")
+            await ctx.session.send_line("  @spawn arc_170 Gold Leader")
+            await ctx.session.send_line("  @spawn yt_1300 Wayward Star")
             return
         parts = ctx.args.split(None, 1)
         template_key = parts[0].lower()
@@ -3743,19 +3763,12 @@ class ShieldsCommand(BaseCommand):
 
 # ── Hyperspace Locations ──
 HYPERSPACE_LOCATIONS = {
-    "tatooine": {"name": "Tatooine", "coords": (43, 198)},
-    "alderaan": {"name": "Alderaan", "coords": (34, 205)},
-    "coruscant": {"name": "Coruscant", "coords": (0, 0)},
-    "yavin": {"name": "Yavin IV", "coords": (325, 50)},
-    "hoth": {"name": "Hoth", "coords": (295, 160)},
-    "bespin": {"name": "Bespin", "coords": (296, 248)},
-    "endor": {"name": "Endor", "coords": (260, 335)},
-    "kessel": {"name": "Kessel", "coords": (253, 295)},
-    "corellia": {"name": "Corellia", "coords": (326, 185)},
-    "kashyyyk": {"name": "Kashyyyk", "coords": (260, 175)},
-    "naboo": {"name": "Naboo", "coords": (283, 320)},
-    "dagobah": {"name": "Dagobah", "coords": (295, 215)},
+    "coruscant":   {"name": "Coruscant", "coords": (0, 0)},
+    "kuat":        {"name": "Kuat", "coords": (22, 16)},
     "nar_shaddaa": {"name": "Nar Shaddaa", "coords": (100, 70)},
+    "tatooine":    {"name": "Tatooine", "coords": (43, 198)},
+    "geonosis":    {"name": "Geonosis", "coords": (60, 212)},
+    "kamino":      {"name": "Kamino", "coords": (18, 352)},
 }
 
 
@@ -3865,8 +3878,7 @@ class HyperspaceCommand(BaseCommand):
             misjump_zones = [z for z in _TZ if "deep_space" in z or "orbit" in z]
             misjump_zone = _rnd.choice(misjump_zones) if misjump_zones else "tatooine_deep_space"
             # Charge full fuel for the botched jump
-            char["credits"] = credits - fuel_cost
-            await ctx.db.save_character(char["id"], credits=char["credits"])
+            char["credits"] = await ctx.db.adjust_credits(char["id"], -fuel_cost, "ship_refuel")
             # Move ship to random zone
             get_space_grid().remove_ship(ship["id"])
             systems["current_zone"] = misjump_zone
@@ -3914,8 +3926,7 @@ class HyperspaceCommand(BaseCommand):
             nav_result and nav_result.critical_success) else ""
 
         # Charge fuel
-        char["credits"] = credits - fuel_cost
-        await ctx.db.save_character(char["id"], credits=char["credits"])
+        char["credits"] = await ctx.db.adjust_credits(char["id"], -fuel_cost, "ship_refuel")
 
         # ── Travel time: ticks = hyperdrive_multiplier × 3, clamped 2–12 ──────
         # x1 drive = 3 ticks (~30s), x2 = 6 ticks (~60s), x1/2 = 2 ticks
@@ -4122,11 +4133,10 @@ class BuyCommand(BaseCommand):
                 f"  Not enough credits! {weapon.name} costs {price:,} credits "
                 f"(base {base_price:,}), you have {current_credits:,}.")
             return
-        new_credits = current_credits - price
         item = ItemInstance.new_from_vendor(weapon.key)
-        char["credits"] = new_credits
         char["equipment"] = serialize_equipment(item)
-        await ctx.db.save_character(char["id"], credits=new_credits, equipment=char["equipment"])
+        await ctx.db.save_character(char["id"], equipment=char["equipment"])
+        char["credits"] = await ctx.db.adjust_credits(char["id"], -price, "ship_weapon_purchase")
 
         # ── Player Cities Phase 4b (May 22 2026): city tax ──────────────
         # NPC vendor buy: per Phase 4b design call #2, the player's
@@ -4162,7 +4172,7 @@ class BuyCommand(BaseCommand):
         await ctx.session.send_line(
             ansi.success(
                 f"  Purchased and equipped {weapon.name} for {price:,} credits. "
-                f"({new_credits:,} remaining)")
+                f"({char['credits']:,} remaining)")
         )
         if faction_msg:
             await ctx.session.send_line(faction_msg)
@@ -4337,6 +4347,177 @@ class DamConCommand(BaseCommand):
             await check_spacer_quest(ctx.session, ctx.db, "use_command", command="damcon")
         except Exception:
             pass  # graceful-drop
+
+
+class SpacedockCommand(BaseCommand):
+    """Paid yard repair — the high-tier credit sink (Economy Audit F2).
+
+    `damcon` field-repairs *damaged* systems and hull for free (the skill
+    moment). A spacedock does what `damcon` cannot — restore **destroyed**
+    systems — and can fully restore hull + remaining damage in one paid pass.
+    The fee is a fraction of hull value (see ``engine/ship_repair``) routed
+    through the ledger chokepoint as ``ship_repair``. Only available while
+    docked: the yard is the spacedock `damcon` keeps telling you to find.
+    """
+
+    key = "+spacedock"
+    aliases = ["spacedock", "+yard", "+shiprepair", "+repairship"]
+    help_text = (
+        "Pay a spacedock to fully restore your docked ship — including "
+        "DESTROYED systems that damcon can't touch. `+spacedock` quotes the "
+        "job; `+spacedock repair` pays for it. (damcon field-repair stays free.)"
+    )
+    usage = "+spacedock  |  +spacedock repair"
+
+    async def execute(self, ctx):
+        from engine.ship_repair import quote_yard_repair, apply_yard_repair
+
+        # ── Aboard a ship? ──
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+
+        # ── Docked? The yard only works planetside / at a station. ──
+        if not ship.get("docked_at"):
+            await ctx.session.send_line(
+                "  A spacedock can only service a docked ship. Use "
+                f"{ansi.BRIGHT_CYAN}damcon{ansi.RESET} to field-repair damaged "
+                "systems in flight (destroyed systems need a dock)."
+            )
+            return
+
+        reg = get_ship_registry()
+        template = reg.get(ship["template"])
+        if not template:
+            await ctx.session.send_line("  Ship data error.")
+            return
+
+        systems = _get_systems(ship)
+        hull_damage = ship.get("hull_damage", 0)
+
+        # Hull max from effective stats (mirrors the HUD), so mods are reflected.
+        eff = get_effective_stats(template, systems)
+        hull_pool = DicePool.parse(eff["hull"]) if eff else DicePool.parse(template.hull)
+        hull_max = hull_pool.total_pips()
+
+        quote = quote_yard_repair(template.cost, systems, hull_damage, hull_max)
+
+        # ── No argument: show the quote. ──
+        sub = (ctx.args or "").strip().lower()
+        if not sub:
+            await self._show_quote(ctx, ship, quote)
+            return
+
+        if sub not in ("repair", "fix", "restore", "pay", "yes", "confirm"):
+            await ctx.session.send_line(f"  Usage: {self.usage}")
+            return
+
+        # ── `+spacedock repair`: pay and restore. ──
+        if not quote["needs_repair"]:
+            await ctx.session.send_line(
+                "  All systems operational and the hull is intact — no yard work needed."
+            )
+            return
+
+        cost = quote["cost"]
+        char = ctx.session.character
+        try:
+            bal = int(char.get("credits") or 0)
+        except (TypeError, ValueError):
+            bal = 0
+        if bal < cost:
+            await ctx.session.send_line(
+                f"  The yard quotes {ansi.BRIGHT_YELLOW}{cost:,} cr{ansi.RESET} "
+                f"for the job — you have {bal:,} cr ({cost - bal:,} short)."
+            )
+            return
+
+        # Debit FIRST through the ledger chokepoint (the sink); if persisting the
+        # repair fails, refund — a failed yard job must never eat the player's
+        # credits or leave them paid-but-broken.
+        try:
+            char["credits"] = await ctx.db.adjust_credits(char["id"], -cost, "ship_repair")
+        except Exception:
+            log.warning("[spacedock] debit failed for char %s", char.get("id"), exc_info=True)
+            await ctx.session.send_line(
+                "  Payment could not be processed. Nothing was charged."
+            )
+            return
+
+        new_systems = apply_yard_repair(systems)
+        try:
+            await ctx.db.update_ship(
+                ship["id"], systems=json.dumps(new_systems), hull_damage=0
+            )
+        except Exception:
+            log.warning("[spacedock] update_ship failed for ship %s; refunding",
+                        ship.get("id"), exc_info=True)
+            try:
+                char["credits"] = await ctx.db.adjust_credits(
+                    char["id"], cost, "ship_repair_refund")
+            except Exception:
+                log.error("[spacedock] REFUND FAILED for char %s", char.get("id"), exc_info=True)
+            await ctx.session.send_line(
+                "  The yard hit a snag and couldn't complete the work — "
+                "you were not charged."
+            )
+            return
+
+        # Keep the in-memory ship consistent for any follow-on reads this turn.
+        ship["systems"] = json.dumps(new_systems)
+        ship["hull_damage"] = 0
+
+        restored = len(quote["destroyed"]) + len(quote["damaged"])
+        hull_note = " hull breaches sealed," if quote["hull_damage"] > 0 else ""
+        sys_note = f" {restored} system{'s' if restored != 1 else ''} restored," if restored else ""
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_GREEN}[SPACEDOCK]{ansi.RESET} Yard crews go to work —"
+            f"{hull_note}{sys_note} {ansi.BRIGHT_YELLOW}{cost:,} cr{ansi.RESET} settled. "
+            f"Your ship is fully operational."
+        )
+        try:
+            await ctx.session_mgr.broadcast_to_room(
+                ship["bridge_room_id"],
+                f"  {ansi.DIM}Spacedock crews complete repairs on "
+                f"{ship.get('name', 'the ship')}.{ansi.RESET}"
+            )
+        except Exception:
+            pass  # graceful-drop: cosmetic broadcast only
+
+    async def _show_quote(self, ctx, ship, quote):
+        lines = [f"  {ansi.BOLD}Spacedock — Repair Quote{ansi.RESET}"]
+        if not quote["needs_repair"]:
+            lines.append("    All systems operational and the hull is intact.")
+            await ctx.session.send_line("\n".join(lines))
+            return
+
+        if quote["destroyed"]:
+            lines.append(
+                f"    {ansi.BRIGHT_RED}Destroyed (yard only):{ansi.RESET} "
+                + ", ".join(quote["destroyed"])
+            )
+        if quote["damaged"]:
+            lines.append(
+                f"    {ansi.BRIGHT_YELLOW}Damaged:{ansi.RESET} "
+                + ", ".join(quote["damaged"])
+                + f"  {ansi.DIM}(damcon can field-repair these free){ansi.RESET}"
+            )
+        if quote["hull_damage"] > 0:
+            lines.append(
+                f"    {ansi.BRIGHT_YELLOW}Hull:{ansi.RESET} "
+                f"{quote['hull_damage']}/{quote['hull_max']} damage"
+            )
+        try:
+            bal = int(ctx.session.character.get("credits") or 0)
+        except (TypeError, ValueError):
+            bal = 0
+        lines.append(
+            f"\n    Full restoration: {ansi.BRIGHT_YELLOW}{quote['cost']:,} cr{ansi.RESET} "
+            f"(you have {bal:,} cr)"
+        )
+        lines.append(f"    {ansi.DIM}Pay with: +spacedock repair{ansi.RESET}")
+        await ctx.session.send_line("\n".join(lines))
 
 
 class PayCommand(BaseCommand):
@@ -5015,12 +5196,24 @@ _INFRACTION_CLASSES = {
     1: {"name": "Class One",   "desc": "Espionage / capital crime",          "fine": (0, 0),        "arrest_chance": 1.0},
 }
 
-_IMPERIAL_CUSTOMS_PLANETS = {"tatooine", "corellia"}
+def _planet_has_customs(planet: str) -> bool:
+    """True if the planet's orbit zone is run by a controlling faction
+    (republic / cis / hutt) that enforces customs. Derived from the live
+    zone graph so it follows the active era; contested/neutral planets and
+    planets without an orbit zone do not run customs checks on landing."""
+    try:
+        from engine.npc_space_traffic import ZONES, ZoneType
+    except Exception:  # pragma: no cover - defensive
+        return False
+    for z in ZONES.values():
+        if z.planet == planet and z.type == ZoneType.ORBIT:
+            return getattr(z, "authority", "neutral") in ("republic", "cis", "hutt")
+    return False
 
 
 async def _run_customs_check(ctx, ship, planet: str) -> None:
     """
-    Imperial customs inspection on landing at Tatooine or Corellia.
+    Customs inspection on landing at a faction-controlled world.
     Checks for:
       - Active smuggling run cargo -> Class 3-4
       - False transponder -> Class 2
@@ -5120,8 +5313,7 @@ async def _run_customs_check(ctx, ship, planet: str) -> None:
         # Deduct fine
         credits = char.get("credits", 0)
         paid = min(credits, final_fine)
-        char["credits"] = credits - paid
-        await ctx.db.save_character(char["id"], credits=char["credits"])
+        char["credits"] = await ctx.db.adjust_credits(char["id"], -paid, "space_fine")
 
         if paid < final_fine:
             await ctx.session.send_line(
@@ -5309,8 +5501,10 @@ class MarketCommand(BaseCommand):
                 "nar_shaddaa": "nar_shaddaa",
                 "nar shaddaa": "nar_shaddaa",
                 "smugglers moon": "nar_shaddaa",
-                "kessel": "kessel",
-                "corellia": "corellia",
+                "coruscant": "coruscant",
+                "kuat": "kuat",
+                "geonosis": "geonosis",
+                "kamino": "kamino",
             }
             planet = aliases.get(planet, planet)
             planet_display = planet.replace("_", " ").title()
@@ -5560,18 +5754,19 @@ async def _handle_buy_cargo(ctx) -> None:
     cargo = add_cargo(cargo, good.key, quantity, per_ton)
     await ctx.db.update_ship(ship["id"], cargo=_j.dumps(cargo))
 
-    char["credits"] = current_credits - total_price
-    await ctx.db.save_character(char["id"], credits=char["credits"])
-    try:
-        await ctx.db.log_credit(char["id"], -total_price, "trade_goods",
-                                 char["credits"])
-    except Exception as _e:
-        log.debug("silent except in parser/space_commands.py:5147: %s", _e, exc_info=True)
+    char["credits"] = await ctx.db.adjust_credits(char["id"], -total_price, "trade_goods")
 
     # Drain supply pool AFTER commit so a DB failure doesn't burn
     # supply. (Review fix v1)
     if planet:
         SUPPLY_POOL.consume(planet, good.key, quantity)
+        # Persist the drawn-down pool so a restart can't re-seed it to full
+        # (economy audit v2 §1.5). Best-effort; the next trade retries.
+        try:
+            from engine.trading import flush_market_pools
+            await flush_market_pools(ctx.db)
+        except Exception:
+            log.debug("buy-cargo market-state flush failed", exc_info=True)
 
     # ── Player Cities Phase 4b (May 22 2026): city tax ──────────────────
     # Planet-market cargo buy at a spaceport. Per Phase 4b design call
@@ -6043,6 +6238,7 @@ def register_space_commands(registry):
         ShieldsCommand(), HyperspaceCommand(),
         BuyCommand(), CreditsCommand(),
         DamConCommand(),
+        SpacedockCommand(),
         PayCommand(), HailCommand(), CommsCommand(),
         SpawnShipCommand(), SetBountyCommand(),
         ResistTractorCommand(),
@@ -6422,6 +6618,7 @@ def _init_bridge_switch_impl():
         "transponder": TransponderCommand(),
         "resist":      ResistTractorCommand(),
         "damcon":      DamConCommand(),
+        "spacedock":   SpacedockCommand(),
         "vacate":      VacateCommand(),
         "assist":      AssistCommand(),
         "coordinate":  CoordinateCommand(),

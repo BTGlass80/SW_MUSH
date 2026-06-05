@@ -263,7 +263,7 @@ async def check_hazard_for_character(
                 char["credits"] = char.get("credits", 0) - stolen
                 if db:
                     try:
-                        await db.save_character(char_id, credits=char["credits"])
+                        await db.adjust_credits(char_id, -stolen, "hazard_theft")
                     except Exception as _e:
                         log.debug("silent except in engine/hazards.py:259: %s", _e, exc_info=True)
                 if session:

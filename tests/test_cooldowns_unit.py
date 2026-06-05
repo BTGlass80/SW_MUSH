@@ -345,8 +345,11 @@ class TestConstants(unittest.TestCase):
     def test_trade_key(self):
         self.assertEqual(CD_TRADE, "trade")
 
-    def test_survey_duration_is_5_minutes(self):
-        self.assertEqual(SURVEY_COOLDOWN_S, 300)
+    def test_survey_duration_is_15_minutes(self):
+        # Economy audit #10 (2026-06-02): raised 300 -> 900 so free surveyed
+        # crafting materials feel earned and the craft->NPC-sell faucet input
+        # is throttled. Canonical value.
+        self.assertEqual(SURVEY_COOLDOWN_S, 900)
 
     def test_faction_switch_duration_is_7_days(self):
         # 7 days * 86400 = 604800

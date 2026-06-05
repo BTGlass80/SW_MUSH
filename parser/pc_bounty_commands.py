@@ -179,45 +179,33 @@ async def _is_bh_guild(char: dict) -> bool:
 async def _debit_credits(
     ctx: CommandContext, char_id: int, amount: int, source: str,
 ) -> bool:
-    """Debit `amount` credits from `char_id`. Returns False if
-    the character lacks credits; True on successful debit.
+    """Debit `amount` credits from `char_id`. Returns False if the
+    character lacks credits (or does not exist); True on successful debit.
 
-    Logs to credit_log so the economy audit sees it.
+    Routes through ``db.adjust_credits`` (the credit chokepoint) so the
+    debit is atomic and recorded in credit_log for the economy audit. The
+    ``allow_negative=False`` guard performs the affordability check and
+    refuses (returns None) when funds are short or the character is gone.
     """
     if amount <= 0:
         return True  # No-op
-    char = await ctx.db.get_character(char_id)
-    if not char:
-        return False
-    current = int(char.get("credits") or 0)
-    if current < amount:
-        return False
-    new_balance = current - amount
-    await ctx.db.save_character(char_id, credits=new_balance)
-    try:
-        await ctx.db.log_credit(char_id, -amount, source, new_balance)
-    except Exception:
-        log.debug("log_credit failed for %s/%s", char_id, source,
-                  exc_info=True)
-    return True
+    new_balance = await ctx.db.adjust_credits(
+        char_id, -amount, source, allow_negative=False
+    )
+    return new_balance is not None
 
 
 async def _credit_credits(
     ctx: CommandContext, char_id: int, amount: int, source: str,
 ) -> None:
-    """Add `amount` credits to `char_id`. Logged to credit_log."""
+    """Add `amount` credits to `char_id`. Routes through
+    ``db.adjust_credits`` so the award is recorded in credit_log."""
     if amount <= 0:
         return
-    char = await ctx.db.get_character(char_id)
-    if not char:
+    # Preserve the original no-op-if-missing behaviour.
+    if not await ctx.db.get_character(char_id):
         return
-    new_balance = int(char.get("credits") or 0) + amount
-    await ctx.db.save_character(char_id, credits=new_balance)
-    try:
-        await ctx.db.log_credit(char_id, amount, source, new_balance)
-    except Exception:
-        log.debug("log_credit failed for %s/%s", char_id, source,
-                  exc_info=True)
+    await ctx.db.adjust_credits(char_id, amount, source)
 
 
 async def _log_event(
@@ -1106,16 +1094,9 @@ class BountyCommand(BaseCommand):
             )
             return
 
-        new_balance = current - to_pay
-        await ctx.db.save_character(char["id"], credits=new_balance)
-        try:
-            await ctx.db.log_credit(
-                char["id"], -to_pay, "bh_insurance_pay",
-                new_balance,
-            )
-        except Exception:
-            log.debug("log_credit failed for insurance pay",
-                      exc_info=True)
+        new_balance = await ctx.db.adjust_credits(
+            char["id"], -to_pay, "bh_insurance_pay"
+        )
         remaining = await ctx.db.pay_insurance_debt(
             char["id"], to_pay
         )
@@ -1451,26 +1432,9 @@ async def run_pc_bounty_expiry_tick(db) -> dict:
                     try:
                         target_char = await db.get_character(pid)
                         if target_char:
-                            new_bal = int(
-                                target_char.get("credits") or 0
-                            ) + stake
-                            await db.save_character(
-                                pid, credits=new_bal,
+                            await db.adjust_credits(
+                                pid, stake, "bounty_expire_refund",
                             )
-                            try:
-                                await db.log_credit(
-                                    pid, stake,
-                                    "bounty_expire_refund",
-                                    new_bal,
-                                )
-                            except Exception:
-                                log.debug(
-                                    "[PG.2 tick] expire-refund "
-                                    "credit log failed for poster "
-                                    "%d (audit best-effort; "
-                                    "balance already updated)",
-                                    pid, exc_info=True,
-                                )
                             summary["refunded_total"] += stake
                     except Exception:
                         log.warning(

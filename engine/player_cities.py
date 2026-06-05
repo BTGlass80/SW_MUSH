@@ -2489,6 +2489,11 @@ async def apply_city_tax(
         "WHERE id = ?",
         (take, take, int(city["id"])),
     )
+    # Record the city's slice as a system sink (char_id=0) for economy
+    # visibility. Non-double-counting: char_id=0 entries are excluded from
+    # player faucet/sink totals — this only makes the city-tax drain legible
+    # by source on the @economy dashboard, mirroring p2p_tax.
+    await db.adjust_credits(0, -take, "city_tax")
     await db.commit()
     log.info(
         "[player_cities] city tax: %d cr → '%s' (rate=%.4f, gross=%d)",

@@ -376,14 +376,24 @@ class BountyCollectCommand(BaseCommand):
             reward = int(base_reward * 0.75)  # partial
         else:
             reward = int(base_reward * 0.50)  # poor paperwork
-        old_credits = char.get("credits", 0)
-        new_credits = old_credits + reward
-        char["credits"] = new_credits
-        await ctx.db.save_character(char["id"], credits=new_credits)
+        # E2: BOUNTY_SURGE world event scales bounty payouts while active.
+        # Mirrors the smuggling_pay_mult pattern — read get_effect() before the
+        # metered `bounty` faucet; no-op (default 1.0) when no event is active.
         try:
-            await ctx.db.log_credit(char["id"], reward, "bounty", new_credits)
-        except Exception as _e:
-            log.debug("silent except in parser/bounty_commands.py:343: %s", _e, exc_info=True)
+            from engine.world_events import get_world_event_manager
+            _bmult = get_world_event_manager().get_effect("bounty_reward_mult", 1.0)
+            if _bmult and _bmult != 1.0 and reward > 0:
+                _boosted = int(reward * _bmult)
+                _bonus = _boosted - reward
+                if _bonus > 0:
+                    reward = _boosted
+                    await ctx.session.send_line(
+                        f"  A bounty surge is in effect \u2014 the contract pays "
+                        f"{_bonus:,} credits extra."
+                    )
+        except Exception:
+            pass
+        char["credits"] = await ctx.db.adjust_credits(char["id"], reward, "bounty")
 
         # Clean up NPC if it still exists
         if npc and contract.target_npc_id:
@@ -400,7 +410,7 @@ class BountyCollectCommand(BaseCommand):
             " [PARTIAL]" if _check.margin >= -4 and not _check.success else "")
         await ctx.session.send_line(
             f"  {ansi.BOLD}Reward: +{reward:,} credits{ansi.RESET}{_result_tag}  "
-            f"(Balance: {new_credits:,} cr)"
+            f"(Balance: {char['credits']:,} cr)"
         )
         await ctx.session.send_line(
             f"  Claim quality: {_skill.title()} [{_check.pool_str}]  "

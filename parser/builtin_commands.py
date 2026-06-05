@@ -627,9 +627,14 @@ class LookCommand(BaseCommand):
                 bond_str = f" {MASTER_MARKER}"
             elif role == "both":
                 bond_str = f" {PADAWAN_MARKER} {MASTER_MARKER}"
+            # Drop 3 B3: worn vanity title, rendered as an honorific right
+            # after the name (cosmetic standing; surfaces here for observers).
+            from engine.titles import worn_title as _worn_title
+            _wt = _worn_title(other)
+            title_str = (", " + ansi.dim(_wt)) if _wt else ""
             await session.send_line(
-                f"  {ansi.player_name(other['name'])}{pvp_str}{bond_str} "
-                f"is here{equip_str}."
+                f"  {ansi.player_name(other['name'])}{title_str}"
+                f"{pvp_str}{bond_str} is here{equip_str}."
             )
 
         # NPCs in the room
@@ -1409,7 +1414,10 @@ class MoveCommand(BaseCommand):
     async def _post_move_hooks(self, ctx, session, char, new_room_id,
                                 direction=None, exit_data=None):
         """Post-move effects: lawless warning, hostile NPCs, achievements, barks, tutorial."""
-        # ── Lawless zone entry warning (one-time per session) ────────────
+        # ── Zone-entry death-stakes warning (one-time per session, per
+        # tier). Drop 2: make the loss explicit. LAWLESS is the hard
+        # warning; CONTESTED gets a softer one-time heads-up since a corpse
+        # there is also lootable by others. ────────────
         try:
             from engine.security import get_effective_security, SecurityLevel
             _move_sec = await get_effective_security(new_room_id, ctx.db, character=char)
@@ -1419,7 +1427,17 @@ class MoveCommand(BaseCommand):
                     await session.send_line(
                         "\n  \033[1;31m*** WARNING: You are entering LAWLESS territory. ***\033[0m\n"
                         "  \033[1;31m*** Players and NPCs can attack you freely here. ***\033[0m\n"
-                        "  \033[2mHigher risk, higher rewards. Watch your back.\033[0m\n"
+                        "  \033[1;31m*** Death here means losing everything you carry — \033[0m\n"
+                        "  \033[1;31m*** your loose gear drops to a lootable corpse. ***\033[0m\n"
+                        "  \033[2mYour equipped weapon stays with you. Higher risk, higher rewards.\033[0m\n"
+                    )
+            elif _move_sec == SecurityLevel.CONTESTED:
+                if not getattr(session, "_contested_warned", False):
+                    session._contested_warned = True
+                    await session.send_line(
+                        "\n  \033[1;33m* Entering CONTESTED territory. *\033[0m\n"
+                        "  \033[2mIf you die here, your loose gear drops to a corpse others can loot. "
+                        "Carry only what you can afford to lose.\033[0m\n"
                     )
         except Exception:
             log.warning("execute: unhandled exception", exc_info=True)
@@ -1844,12 +1862,16 @@ class WhoCommand(BaseCommand):
         if not in_game:
             await ctx.session.send_line("  No one is currently in the game.")
         else:
+            from engine.titles import worn_title
             for s in in_game:
                 name = s.character["name"]
                 species = s.character.get("species", "Unknown")
                 proto = s.protocol.value.upper()
+                wt = worn_title(s.character)
+                title_suffix = ("  " + ansi.dim("\u2014 " + wt)) if wt else ""
                 await ctx.session.send_line(
-                    f"  {ansi.player_name(name):30s} {species:15s} [{proto}]"
+                    f"  {ansi.player_name(name):30s} {species:15s} "
+                    f"[{proto}]{title_suffix}"
                 )
         await ctx.session.send_line(
             f"  {ansi.dim(f'{len(in_game)} player(s) online.')}"
@@ -2805,8 +2827,7 @@ class BactaTankCommand(BaseCommand):
         # but charging first means a transient DB blip during
         # apply_bacta_tank doesn't leave the player healed-for-free.
         new_credits = credits - BACTA_TANK_PRICE
-        char["credits"] = new_credits
-        await ctx.db.save_character(char["id"], credits=new_credits)
+        char["credits"] = await ctx.db.adjust_credits(char["id"], -BACTA_TANK_PRICE, "bacta_tank")
 
         cleared = await apply_bacta_tank(ctx.db, char["id"])
         if cleared:
@@ -2825,8 +2846,7 @@ class BactaTankCommand(BaseCommand):
             )
         else:
             # Race: the wound_recovery_tick already cleared. Refund.
-            char["credits"] = credits
-            await ctx.db.save_character(char["id"], credits=credits)
+            char["credits"] = await ctx.db.adjust_credits(char["id"], BACTA_TANK_PRICE, "bacta_tank_refund")
             await ctx.session.send_line(
                 "  The med-droid checks again — you're already healed. "
                 "No charge."
@@ -3205,11 +3225,11 @@ class RepairCommand(BaseCommand):
 
         # Apply repair
         item.repair()
-        new_credits = credits - cost
-        char["credits"] = new_credits
         char["equipment"] = serialize_equipment(item)
+        # Ledger chokepoint (F1): repair cost as a logged sink.
+        char["credits"] = await ctx.db.adjust_credits(char["id"], -cost, "repair")
         await ctx.db.save_character(
-            char["id"], credits=new_credits, equipment=char["equipment"])
+            char["id"], equipment=char["equipment"])
         await ctx.session.send_line(
             ansi.success(
                 f"  {wname} repaired! {item.condition_bar}  "
@@ -3219,7 +3239,7 @@ class RepairCommand(BaseCommand):
 class SellCommand(BaseCommand):
     key = "sell"
     aliases = []
-    help_text = "Sell your equipped weapon to an NPC vendor (25-50% of base value)."
+    help_text = "Sell your equipped weapon to an NPC vendor (25-50% of base value). Well-made crafted items are refused — list those on a vendor droid."
     usage = "sell"
 
     async def execute(self, ctx: CommandContext):
@@ -3249,6 +3269,20 @@ class SellCommand(BaseCommand):
         w = wr.get(item.key)
         wname = w.name if w else item.key
         base_cost = w.cost if w else 500
+
+        # Economy audit v2 §1.3: NPC vendors must not price-support the player
+        # crafted-goods market. A well-made player craft is "too good for
+        # scrap" — the NPC refuses it, pushing it to the vendor-droid market
+        # where it discovers its own floor. Low-quality crafts and all factory
+        # items still sell here as salvage.
+        from engine.items import npc_refuses_buyback
+        if npc_refuses_buyback(item):
+            await ctx.session.send_line(
+                f"  The vendor turns the {wname} over and hands it back. "
+                f"\"Too well-made for scrap — I'd just resell it at a markup. "
+                f"List it on a vendor droid; that's where it'll fetch its real "
+                f"value.\"")
+            return
 
         # Sale price: 25-50% based on condition
         condition_factor = item.condition / max(item.max_condition, 1)
@@ -3299,10 +3333,12 @@ class SellCommand(BaseCommand):
         credits = char.get("credits", 0)
         new_credits = credits + sale_price
 
-        char["credits"] = new_credits
         char["equipment"] = serialize_equipment(None)
+        # Ledger chokepoint (F1): item sale as a logged faucet.
+        char["credits"] = await ctx.db.adjust_credits(
+            char["id"], sale_price, "item_sale")
         await ctx.db.save_character(
-            char["id"], credits=new_credits, equipment=char["equipment"])
+            char["id"], equipment=char["equipment"])
 
         # ── Player Cities Phase 4b (May 22 2026): city tax ─────────────
         # NPC vendor sale: per Phase 4b design call #2, the player's
@@ -3902,7 +3938,14 @@ _TRADE_TTL = 120  # 2 minutes
 # enough for legitimate gifts and small payments while making large alt-farming
 # transfers visible (and ultimately blocked). The window is rolling, not
 # calendar-bound, so a player can't dodge by waiting for midnight UTC.
-P2P_DAILY_CAP             = 5_000   # credits per rolling window
+# Audit v2 §2.4: 1,500 cr/day — a meal-out gift, not a salary. The old 5,000
+# let seven alts wire ~35,000/day to a main *through* the cap. This targets
+# UNATTRIBUTED p2p flow only: vendor-droid purchases and faction-treasury
+# contributions route through their own commands/ledger tags (not
+# get_daily_p2p_outgoing), so they are inherently exempt and uncapped — a player
+# selling to a friend lists on a vendor droid, a backer funds the faction
+# treasury. Tunable in one place.
+P2P_DAILY_CAP             = 1_500   # credits per rolling window
 P2P_DAILY_WINDOW_SECONDS  = 86_400  # 24 hours
 
 
@@ -3946,6 +3989,7 @@ async def _handle_sell_cargo(ctx) -> None:
     from engine.trading import (
         TRADE_GOODS, get_planet_price, get_ship_cargo,
         cargo_quantity, remove_cargo, get_cargo_tons,
+        DEMAND_POOL, flush_market_pools,
     )
     from engine.starships import get_ship_registry
     from engine.skill_checks import resolve_bargain_check
@@ -4012,7 +4056,11 @@ async def _handle_sell_cargo(ctx) -> None:
     from engine.npc_space_traffic import ZONES
     zone_obj = ZONES.get(zone_id)
     planet = zone_obj.planet if zone_obj else ""
-    base_price = get_planet_price(good, planet)
+    # Apply demand depression to the sell price (economy audit v2 §1.5 latent
+    # fix): a saturated market pays less per ton. Previously this passed the
+    # base price and the depression mechanic was inert in production despite the
+    # price-list display advertising it.
+    base_price = get_planet_price(good, planet, include_demand_depression=True)
 
     # Bargain check
     char = ctx.session.character
@@ -4033,12 +4081,17 @@ async def _handle_sell_cargo(ctx) -> None:
 
     new_credits = char.get("credits", 0) + total_revenue
     char["credits"] = new_credits
-    await ctx.db.save_character(char["id"], credits=new_credits)
-    try:
-        await ctx.db.log_credit(char["id"], total_revenue, "trade_goods",
-                                 new_credits)
-    except Exception as _e:
-        log.debug("silent except in parser/builtin_commands.py:2555: %s", _e, exc_info=True)
+    await ctx.db.adjust_credits(char["id"], total_revenue, "trade_goods")
+
+    # Record the sale so demand depresses for the next seller, and persist both
+    # pools (economy audit v2 §1.5). Without this, depression never accumulated
+    # — the audit-praised round-trip profit ceiling was dead in production.
+    if planet:
+        DEMAND_POOL.record_sale(planet, good.key, quantity)
+        try:
+            await flush_market_pools(ctx.db)
+        except Exception:
+            log.debug("sell-cargo market-state flush failed", exc_info=True)
 
     # ── Player Cities Phase 4b (May 22 2026): city tax ──────────────────
     # Planet-market cargo sell at a spaceport. Per Phase 4b design call
@@ -4514,11 +4567,9 @@ class TradeCommand(BaseCommand):
         tax = max(1, amount // 20)  # 5% floor of 1 credit
         received = amount - tax
 
-        offerer["credits"] = offerer.get("credits", 0) - amount
-        char["credits"] = char.get("credits", 0) + received
-
-        await ctx.db.save_character(offerer["id"], credits=offerer["credits"])
-        await ctx.db.save_character(char["id"], credits=char["credits"])
+        offerer["credits"] = await ctx.db.adjust_credits(offerer["id"], -amount, "p2p_transfer")
+        char["credits"] = await ctx.db.adjust_credits(char["id"], received, "p2p_transfer")
+        await ctx.db.adjust_credits(0, -tax, "p2p_tax")
 
         _pending_trades.pop(offer_key, None)
 
@@ -4544,15 +4595,8 @@ class TradeCommand(BaseCommand):
             source_char=char,
         )
 
-        # Credit log (economy hardening v23)
-        try:
-            await ctx.db.log_credit(offerer["id"], -amount, "p2p_transfer",
-                                     offerer["credits"])
-            await ctx.db.log_credit(char["id"], received, "p2p_transfer",
-                                     char["credits"])
-            await ctx.db.log_credit(0, -tax, "p2p_tax", 0)  # char_id=0 = system sink
-        except Exception:
-            log.warning("_accept: credit log failed", exc_info=True)
+        # Credit movements (offerer debit, receiver credit, 5% tax to the
+        # system sink) are recorded via adjust_credits at the transfer site.
 
         # Narrative log
         try:

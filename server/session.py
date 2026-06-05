@@ -1270,6 +1270,23 @@ class Session:
         except Exception:
             log.warning("[hud_area_map] environment resolve failed", exc_info=True)
 
+        # ── Drop 4.22: wilderness region key (always sent when present) ──
+        # `rooms.wilderness_region_id` is a top-level column (NULL for
+        # hand-built city/interior rooms, == region.slug for wilderness
+        # landmarks; set by engine/wilderness_writer.py). The SPA's
+        # M3Adapter.regionKeyForArea prefers this explicit field to decide
+        # WHICH wilderness region the ⊕ Tier-1b map renders, so the painted
+        # wilderness substrate (Drop 4.21) becomes reachable by a live player.
+        #
+        # This MUST ride the always-present path, NOT player_position below:
+        # wilderness rooms are not covered by any AreaGeometry (their overview
+        # YAMLs carry `landmarks:` but no `rooms:`), so the F.MAP.2 path that
+        # emits player_position never fires for them. Emitted only when the
+        # room actually carries the field, so city/interior HUDs are byte-
+        # identical to before.
+        if row and row.get("wilderness_region_id"):
+            hud["wilderness_region_id"] = row["wilderness_region_id"]
+
         # ── F.MAP.2/F.MAP.6 augmentation (best-effort, never raises) ───
         registry = getattr(session_mgr, "_area_registry", None) if session_mgr else None
         if registry is None:
@@ -1298,6 +1315,15 @@ class Session:
                 # their last planar move, so the self-chevron points that way.
                 "bearing":       _bearing_from_attributes(self.character),
             }
+            # Drop 4.22: consistency with the always-present hud field above.
+            # No-op for the city/interior areas that are actually registry-
+            # covered today (their rooms carry no wilderness_region_id); it
+            # populates here only if a wilderness region ever gains an
+            # AreaGeometry, keeping M3Adapter.regionKeyForArea correct whether
+            # it reads the top-level hud field or the player_position payload.
+            if row.get("wilderness_region_id"):
+                hud["player_position"]["wilderness_region_id"] = \
+                    row["wilderness_region_id"]
             # On area transition (or first push), include the full geometry
             if self._last_sent_area_key != entry.area_key:
                 payload = registry.get_payload(entry.area_key)

@@ -1,0 +1,79 @@
+{
+  "area_key": "coruscant_underworld",
+  "display_name": "Coruscant Underworld",
+  "substrate": "/static/maps/coruscant_underworld_overview_substrate.png",
+  "bounds": {
+    "x_min": 0.0,
+    "y_min": 0.0,
+    "x_max": 700.0,
+    "y_max": 600.0
+  },
+  "landmarks": [
+    {
+      "id": "forgotten_jedi_shrine",
+      "icon": "spire",
+      "name": "FORGOTTEN JEDI SHRINE",
+      "distinctive": true,
+      "fx": 0.266,
+      "fy": 0.0257,
+      "note": "distinctive painted feature — place on the spire",
+      "min_zoom": 0,
+      "max_zoom": 1
+    },
+    {
+      "id": "black_sun_crawler_hideout",
+      "icon": "hideout",
+      "name": "BLACK SUN CRAWLER HIDEOUT",
+      "distinctive": true,
+      "fx": 0.5334,
+      "fy": 0.6153,
+      "note": "distinctive painted feature — place on the hideout",
+      "min_zoom": 0,
+      "max_zoom": 1
+    },
+    {
+      "id": "abandoned_factory_dominus",
+      "icon": "factory",
+      "name": "ABANDONED FACTORY DOMINUS",
+      "distinctive": true,
+      "fx": 0.8677,
+      "fy": 0.8718,
+      "note": "distinctive painted feature — place on the factory",
+      "min_zoom": 0,
+      "max_zoom": 1
+    },
+    {
+      "id": "uscru_entertainment_district_fringe",
+      "icon": "shaft",
+      "name": "USCRU ENTERTAINMENT DISTRICT FRINGE",
+      "distinctive": true,
+      "fx": 0.1323,
+      "fy": 0.4872,
+      "note": "distinctive painted feature — place on the shaft",
+      "min_zoom": 0,
+      "max_zoom": 1
+    },
+    {
+      "id": "maze_the_reaper_territory",
+      "icon": "maze",
+      "name": "THE REAPER'S MAZE",
+      "distinctive": true,
+      "fx": 0.7006,
+      "fy": 0.359,
+      "note": "distinctive painted feature — place on the maze",
+      "min_zoom": 0,
+      "max_zoom": 1
+    },
+    {
+      "id": "exit_coruscant_uw_surface_entry",
+      "icon": "beacon",
+      "name": "CORUSCANT UW SURFACE ENTRY",
+      "distinctive": false,
+      "fx": 0.5334,
+      "fy": 0.5642,
+      "note": "indistinct / generic — approximate is fine",
+      "min_zoom": 0,
+      "max_zoom": 1
+    }
+  ]
+}

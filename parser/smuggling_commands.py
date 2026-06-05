@@ -226,13 +226,23 @@ class SmugDeliverCommand(BaseCommand):
             return
 
         reward = completed.reward
-        new_credits = char.get("credits", 0) + reward
-        char["credits"] = new_credits
-        await ctx.db.save_character(char_id, credits=new_credits)
+
+        # ── A5: SPICE_DEMAND boosts smuggling payouts while active ──────
+        # The Hutt/spice "holiday" (engine/world_events.py SPICE_DEMAND).
+        # Reads `smuggling_pay_mult` — this is its FIRST live reader (the
+        # effect was previously dormant: defined on event defs, never read).
+        # Bounded temporary multiplier on the already-ledger-metered
+        # `smuggling` faucet; default 1.0 (no active event) is a no-op.
+        from engine.smuggling import apply_smuggling_demand, SMUGGLING_DEMAND_EFFECT_KEY
         try:
-            await ctx.db.log_credit(char["id"], reward, "smuggling", new_credits)
-        except Exception as _e:
-            log.debug("silent except in parser/smuggling_commands.py:234: %s", _e, exc_info=True)
+            from engine.world_events import get_world_event_manager
+            _smult = get_world_event_manager().get_effect(
+                SMUGGLING_DEMAND_EFFECT_KEY, 1.0)
+        except Exception:
+            _smult = 1.0
+        reward, spice_bonus = apply_smuggling_demand(reward, _smult)
+
+        char["credits"] = await ctx.db.adjust_credits(char_id, reward, "smuggling")
 
         await ctx.session.send_line(
             ansi.success(
@@ -240,6 +250,10 @@ class SmugDeliverCommand(BaseCommand):
                 f"to {completed.dropoff_name}."
             )
         )
+        if spice_bonus > 0:
+            await ctx.session.send_line(
+                f"  Spice is in high demand right now — the run paid "
+                f"{spice_bonus:,}cr extra.")
         # Ship's log: smuggling run completed (Drop 19)
         try:
             from engine.ships_log import log_event as _smlog
@@ -274,7 +288,7 @@ class SmugDeliverCommand(BaseCommand):
         except Exception as _e:
             log.debug("silent except in parser/smuggling_commands.py:274: %s", _e, exc_info=True)
         await ctx.session.send_line(
-            f"  Payment received: {reward:,} credits. Balance: {new_credits:,} credits."
+            f"  Payment received: {reward:,} credits. Balance: {char['credits']:,} credits."
         )
 
         # Director integration: record contraband sale
@@ -353,7 +367,7 @@ class SmugDumpCommand(BaseCommand):
 
 async def check_patrol_on_launch(ctx: CommandContext) -> bool:
     """
-    Check for an Imperial patrol encounter when launching.
+    Check for a customs patrol encounter when launching.
     Call this from the LaunchCommand or hyperspace hook.
 
     Returns True if the player was caught (cargo confiscated, fine applied).
@@ -416,12 +430,7 @@ async def check_patrol_on_launch(ctx: CommandContext) -> bool:
         char = ctx.session.character
         credits = char.get("credits", 0)
         new_credits = max(0, credits - fine)
-        char["credits"] = new_credits
-        await ctx.db.save_character(char_id, credits=new_credits)
-        try:
-            await ctx.db.log_credit(char["id"], -fine, "smuggling_fine", new_credits)
-        except Exception as _e:
-            log.debug("silent except in parser/smuggling_commands.py:423: %s", _e, exc_info=True)
+        char["credits"] = await ctx.db.adjust_credits(char_id, new_credits - credits, "smuggling_fine")
         await board.fail(char_id, ctx.db)
         await ctx.session.send_line(
             f"  Fine deducted: {fine:,} credits. Balance: {new_credits:,} credits."
@@ -436,10 +445,10 @@ async def check_patrol_on_launch(ctx: CommandContext) -> bool:
 
 async def check_patrol_on_arrival(ctx: CommandContext, dest_planet: str) -> bool:
     """
-    Check for an Imperial patrol encounter on hyperspace arrival.
+    Check for a customs patrol encounter on hyperspace arrival.
     Call this from the hyperspace arrival tick in game_server.py.
 
-    dest_planet: e.g. "corellia", "kessel", "nar_shaddaa", "tatooine"
+    dest_planet: e.g. "coruscant", "geonosis", "nar_shaddaa", "tatooine"
     Returns True if the player was caught (cargo confiscated, fine applied).
 
     Only triggers if the character has an active smuggling run with a
@@ -505,7 +514,7 @@ async def check_patrol_on_arrival(ctx: CommandContext, dest_planet: str) -> bool
     planet_name = dest_planet.replace("_", " ").title()
     _CUSTOMS_BOLD_RED = "[1;31m"
     _CUSTOMS_RESET    = "[0m"
-    _customs_msg = _CUSTOMS_BOLD_RED + "[CUSTOMS]" + _CUSTOMS_RESET + " Imperial customs intercepts your ship on arrival at " + planet_name + "!"
+    _customs_msg = _CUSTOMS_BOLD_RED + "[CUSTOMS]" + _CUSTOMS_RESET + " Customs patrol intercepts your ship on arrival at " + planet_name + "!"
     await ctx.session.send_line("  " + _customs_msg)
     await ctx.session.send_line(f"  {outcome['message']}")
 
@@ -513,8 +522,7 @@ async def check_patrol_on_arrival(ctx: CommandContext, dest_planet: str) -> bool
         fine = job.fine
         credits = char.get("credits", 0)
         new_credits = max(0, credits - fine)
-        char["credits"] = new_credits
-        await ctx.db.save_character(char_id, credits=new_credits)
+        char["credits"] = await ctx.db.adjust_credits(char_id, new_credits - credits, "smuggling_fine")
         await board.fail(char_id, ctx.db)
         await ctx.session.send_line(
             f"  Fine deducted: {fine:,} credits. Balance: {new_credits:,} credits."

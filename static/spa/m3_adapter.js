@@ -438,10 +438,52 @@ function fromAreaGeometry(geom, areaMap) {
   return out;
 }
 
+// ─── regionKeyForArea (Drop 4.15b) ───────────────────────────────────
+// Map a live area-geometry payload (or a bare slug) to the wilderness
+// region key consumed by M3TierWildernessBody at tier '1b'. Returns the
+// normalized slug for a *known wilderness region* (e.g. 'coruscant_-
+// underworld', 'tatooine_dune_sea'), or null for city/interior areas and
+// unknown keys.
+//
+// Source-of-truth for "is this a wilderness region" is the wilderness
+// body's own registry (M3TierWildernessBody.resolveRegion) — this helper
+// does not maintain a second list. It reads, in priority order:
+//   geom.region_key            (explicit, if the server emits one)
+//   geom.wilderness_region_id   (server field set on wilderness rooms —
+//                                see server/session.py; == region.slug)
+//   geom.area_key               (fallback; equals the slug for wilderness
+//                                areas whose area_key IS the region slug)
+//
+// Until the server emits a clean region field in the area payload, callers
+// can pass whichever of the above is available; this stays correct because
+// the final guard is resolveRegion(), which only accepts real region slugs.
+function regionKeyForArea(geomOrKey) {
+  if (!geomOrKey) return null;
+  var key;
+  if (typeof geomOrKey === 'string') {
+    key = geomOrKey;
+  } else {
+    key = geomOrKey.region_key ||
+          geomOrKey.wilderness_region_id ||
+          geomOrKey.area_key || null;
+  }
+  if (!key) return null;
+  var W = (typeof window !== 'undefined') && window.M3TierWildernessBody;
+  if (W && typeof W.resolveRegion === 'function') {
+    // resolveRegion returns the region descriptor (or null) for a known
+    // slug/alias; only then is it a wilderness region we can render.
+    if (W.resolveRegion(key)) return String(key).toLowerCase();
+    return null;
+  }
+  // Wilderness body not loaded — cannot validate; be conservative.
+  return null;
+}
+
 // ─── exports ─────────────────────────────────────────────────────────
 window.M3Adapter = {
   SCHEMA_VERSION:    SCHEMA_VERSION,
   fromAreaGeometry:  fromAreaGeometry,
+  regionKeyForArea:  regionKeyForArea,
   _internal: {
     _translateRoom:                     _translateRoom,
     _translateDistrict:                 _translateDistrict,

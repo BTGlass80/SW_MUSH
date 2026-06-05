@@ -215,6 +215,11 @@ var ROUTES = [
 var DUNE_SEA = {
   name: 'DUNE SEA',
   biome: 'TATOOINE \u00b7 OUTER RIM \u00b7 ARID',
+  // NOTE (Drop 4.17): the LIVE Tier-1b map uses the generated faithful
+  // region data (m3_wilderness_overview_data.js), where substrate_image
+  // auto-engages once static/maps/tatooine_dune_sea_substrate.png exists at
+  // generation time. This fixture is now only a showcase/test fallback; do
+  // not hand-wire a substrate here — re-run tools/gen_wilderness_overview.py.
   bounds: { x_min: 0, y_min: 0, x_max: 700, y_max: 600 },
   sub_regions: SUB_REGIONS,
   pois: POIS,
@@ -253,6 +258,11 @@ var DUNE_SEA = {
 var CORUSCANT_UNDERWORLD = {
   name: 'CORUSCANT UNDERWORLD',
   biome: 'GALACTIC CORE \u00b7 UNDERLEVELS',
+  // NOTE (Drop 4.17): the LIVE Tier-1b map uses the generated faithful
+  // region data (m3_wilderness_overview_data.js), where substrate_image
+  // auto-engages once static/maps/coruscant_underworld_substrate.png exists
+  // at generation time. This fixture is now only a showcase/test fallback;
+  // do not hand-wire a substrate here — re-run gen_wilderness_overview.py.
   bounds: { x_min: 0, y_min: 0, x_max: 700, y_max: 600 },
   bg: '#070809',
   ridge_count: 6,            // flattened architectural strata, not dunes
@@ -315,7 +325,18 @@ var REGIONS = {
 
 function resolveRegion(key) {
   if (!key) return null;
-  return REGIONS[String(key).toLowerCase()] || null;
+  var k = String(key).toLowerCase();
+  // Drop 4.17: prefer FAITHFUL overview data generated from the navigable
+  // grid (tools/gen_wilderness_overview.py → m3_wilderness_overview_data.js,
+  // loaded before this module). It projects the real landmark coordinates,
+  // so the Tier-1b map matches where things actually are. The built-in
+  // DUNE_SEA / CORUSCANT_UNDERWORLD objects below remain only as a showcase
+  // fallback (and for bare buildTierOneBBody(p) byte-stability + tests).
+  var gen = (typeof window !== 'undefined' && window.M3WildernessOverviewData)
+            || (typeof M3WildernessOverviewData !== 'undefined'
+                ? M3WildernessOverviewData : null);
+  if (gen && gen[k]) return gen[k];
+  return REGIONS[k] || null;
 }
 
 // ════════════════════════════════════════════════════════════════════

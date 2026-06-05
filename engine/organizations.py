@@ -1549,9 +1549,13 @@ async def faction_payroll_tick(db) -> int:
                         mem["char_id"], exc_info=True,
                     )
 
-                # Pay the stipend (whatever portion survived the intercept)
-                await db.save_character(mem["char_id"],
-                                         credits=current_credits + stipend_to_credits)
+                # Pay the stipend (whatever portion survived the intercept).
+                # Ledger chokepoint (F1): log as a faucet via adjust_credits
+                # rather than a raw credits write. Guard the 0 case (the whole
+                # stipend may have gone to the debt intercept above).
+                if stipend_to_credits:
+                    await db.adjust_credits(
+                        mem["char_id"], stipend_to_credits, "org_stipend")
                 org_paid += stipend
                 total_paid += stipend
 

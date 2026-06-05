@@ -82,7 +82,11 @@
        hook (`hooks.getTierRenderer`). Default behavior: when not
        wired, the mini-map shows "TIER RENDERER NOT WIRED" — same
        seam pattern as m3_map_navigator. The tier-body renderer ports
-       (post-4.12 work) supply the real Tier1aBody.
+       (post-4.12 work) supply the real Tier1aBody. Drop 4.15b adds
+       `hooks.region` / `hooks.regionKey` pass-through: these flow to
+       the map-popup's M3MapNavigator so its tier '1b' renders the
+       player's wilderness region (Dune Sea vs Coruscant Underworld).
+       Derive the key via M3Adapter.regionKeyForArea(geom).
      · Comms tab interactivity. Tabs render with a hard-coded active
        indicator on ALL; clicks are no-ops. Drop 2.5 (vision §6.5)
        lands the dynamic-channel wire-in.
@@ -1250,6 +1254,10 @@ function _buildMapPopupModal(p, hooks) {
       var navHandle = window.M3MapNavigator.create(p, {
         width: 1080, height: 720,
         getTierRenderer: hooks.getTierRenderer || null,
+        // Drop 4.15b: forward the player's wilderness region so tier '1b'
+        // renders the correct overview (Dune Sea vs Coruscant Underworld).
+        region:    hooks.region    || null,
+        regionKey: hooks.regionKey || null,
       });
       mapEl = navHandle.element;
     } catch (e) {
@@ -1537,6 +1545,8 @@ function create(p, hooks) {
         el = _buildMapPopupModal(p, {
           onClose: _closePopup,
           getTierRenderer: hooks.getTierRenderer || null,
+          region:    hooks.region    || null,
+          regionKey: hooks.regionKey || null,
         });
         break;
       default:

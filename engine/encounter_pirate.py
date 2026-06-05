@@ -75,7 +75,7 @@ async def pirate_pay(encounter, manager, db, session_mgr, **kwargs):
                     f"  {RED}[ALERT]{RST} {pirate_name} opens fire!", session_mgr)
                 await _start_pirate_combat(encounter, manager, db, session_mgr)
                 return
-            await db.save_character(char_id, credits=credits - demand)
+            await db.adjust_credits(char_id, -demand, "space_pirate_extortion")
             await manager.broadcast_to_bridge(encounter,
                 f"\n  {AMBER}[COMMS]{RST} You transfer {demand:,} credits.\n"
                 f"  {DIM}\"Pleasure doing business.\"{RST}\n"
@@ -231,12 +231,10 @@ async def _skill_check(char_id, skill_name, difficulty, db):
 
 async def _deduct_credits(char_id, amount, db):
     try:
-        char = await db.get_character(char_id)
-        if char:
-            credits = dict(char).get("credits", 0)
-            if credits >= amount:
-                await db.save_character(char_id, credits=credits - amount)
-                return True
+        new_bal = await db.adjust_credits(
+            char_id, -amount, "space_pirate_extortion", allow_negative=False
+        )
+        return new_bal is not None
     except Exception as e:
         log.warning("[pirate] deduct: %s", e)
     return False

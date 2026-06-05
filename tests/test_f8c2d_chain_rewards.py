@@ -86,6 +86,8 @@ class _MockDB:
         self.inventory_calls = []
         self.rep_calls = []
         self.notes_save_calls = []
+        self.credit_calls = []
+        self.balances = {}
         self.fail_credits = fail_credits
         self.fail_inventory = fail_inventory
         self.organizations = {}
@@ -97,6 +99,22 @@ class _MockDB:
         if "chargen_notes" in kwargs:
             self.notes_save_calls.append((char_id, kwargs["chargen_notes"]))
         self.save_calls.append((char_id, kwargs))
+
+    async def adjust_credits(self, char_id, delta, source, *, allow_negative=True):
+        # Chokepoint shim: credit moves now route here instead of
+        # save_character(credits=...). Preserve the fail_credits failure path,
+        # track a running balance (seed via .balances in tests that assert a
+        # specific total), and mirror the legacy save_character(credits=total)
+        # record so existing save_calls assertions still hold.
+        if self.fail_credits:
+            raise RuntimeError("adjust_credits credits fail")
+        self.credit_calls.append((char_id, delta, source))
+        if char_id == 0:
+            return 0
+        total = self.balances.get(char_id, 0) + delta
+        self.balances[char_id] = total
+        self.save_calls.append((char_id, {"credits": total}))
+        return total
 
     async def add_to_inventory(self, char_id, item):
         if self.fail_inventory:
@@ -189,6 +207,7 @@ class TestRewardsCredits(unittest.TestCase):
         from engine.chain_rewards import apply_graduation_rewards
         db = _MockDB()
         char = _char(credits=200)
+        db.balances[char["id"]] = 200
         attrs = {}
         grad = _MockGraduation(credits=500)
         report = _run(apply_graduation_rewards(
@@ -560,6 +579,7 @@ class TestEndToEndGraduation(unittest.TestCase):
             "chargen_notes": "",
             "faction_id": "independent",
         }
+        db.balances[char["id"]] = char["credits"]
 
         with patch("engine.organizations.adjust_rep",
                    AsyncMock(return_value=50)):

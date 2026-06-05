@@ -732,6 +732,10 @@ ROOMS_HOUSING_ID_SQL = "ALTER TABLE rooms ADD COLUMN housing_id INTEGER DEFAULT 
 CHARACTERS_HOME_SQL  = "ALTER TABLE characters ADD COLUMN home_room_id INTEGER DEFAULT NULL REFERENCES rooms(id);"
 _FACTION_CODE_COL    = "ALTER TABLE player_housing ADD COLUMN faction_code TEXT DEFAULT NULL;"
 _HIDDEN_EXIT_COL     = "ALTER TABLE exits ADD COLUMN hidden_faction TEXT DEFAULT NULL;"
+# Drop 3 B2: home prestige — a cosmetic upgrade level bought with escalating
+# credit sinks (`home_prestige`). Lives on the housing record; no main-schema
+# migration needed (added through the housing module's own idempotent path).
+_PRESTIGE_COL        = "ALTER TABLE player_housing ADD COLUMN prestige_level INTEGER DEFAULT 0;"
 
 
 async def ensure_schema(db) -> None:
@@ -746,7 +750,7 @@ async def ensure_schema(db) -> None:
         log.warning("[housing] schema create error: %s", e)
 
     for sql in (ROOMS_HOUSING_ID_SQL, CHARACTERS_HOME_SQL,
-                _FACTION_CODE_COL, _HIDDEN_EXIT_COL):
+                _FACTION_CODE_COL, _HIDDEN_EXIT_COL, _PRESTIGE_COL):
         try:
             await db.execute(sql)
             await db.commit()
@@ -790,6 +794,142 @@ async def seed_lots(db) -> None:
 
 
 # ── Housing record helpers ────────────────────────────────────────────────────
+
+# ── Drop 3 B2: home prestige (aspirational credit sink) ──────────────────────
+# A homeowner spends escalating sums to raise their residence's prestige — pure
+# cosmetic standing, no mechanical benefit, no payout. This is the load-bearing
+# high-tier *sink* the economy audit calls for (alongside the Kuat ship brokerage
+# and the spacedock repair drain): it gives veteran credit a place to *go*. Costs
+# escalate steeply so the top tier is a genuine money-burn for the wealthy, not a
+# routine purchase. Tunable here; surfaces on `@economy` as `home_prestige`.
+HOME_PRESTIGE_TIERS = [
+    # (label, cost, room descriptor sentence)
+    ("Tastefully Furnished", 5_000,
+     "Quality furnishings lend the place a settled, lived-in warmth."),
+    ("Finely Appointed", 15_000,
+     "Fine art and woven hangings dress the walls; every fitting is well-chosen."),
+    ("Luxuriously Outfitted", 40_000,
+     "Imported luxuries from across the sector fill the rooms — nothing here is ordinary."),
+    ("A Connoisseur's Residence", 100_000,
+     "A curated collection of rare pieces marks this as a connoisseur's home."),
+    ("A Sector-Renowned Estate", 250_000,
+     "This residence is spoken of across the sector — a showpiece of wealth and taste."),
+]
+
+
+def home_prestige_max() -> int:
+    """Highest attainable prestige level (1-based)."""
+    return len(HOME_PRESTIGE_TIERS)
+
+
+def _coerce_level(value) -> int:
+    try:
+        lvl = int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, min(lvl, home_prestige_max()))
+
+
+def prestige_tier(level: int) -> Optional[dict]:
+    """The tier *at* a given 1-based level (None at level 0 / out of range)."""
+    level = _coerce_level(level)
+    if level <= 0:
+        return None
+    label, cost, desc = HOME_PRESTIGE_TIERS[level - 1]
+    return {"level": level, "label": label, "cost": cost, "descriptor": desc}
+
+
+def next_prestige_tier(level: int) -> Optional[dict]:
+    """The next purchasable tier above `level` (None if already maxed)."""
+    level = _coerce_level(level)
+    if level >= home_prestige_max():
+        return None
+    label, cost, desc = HOME_PRESTIGE_TIERS[level]   # 0-based index = next level
+    return {"level": level + 1, "label": label, "cost": cost, "descriptor": desc}
+
+
+def prestige_label(level: int) -> str:
+    t = prestige_tier(level)
+    return t["label"] if t else "Unremarkable"
+
+
+def prestige_descriptor(level: int) -> str:
+    t = prestige_tier(level)
+    return t["descriptor"] if t else ""
+
+
+def home_prestige_status_lines(housing: dict) -> list:
+    """Human-readable status block for `+home prestige`."""
+    level = _coerce_level((housing or {}).get("prestige_level", 0))
+    lines = [f"  Home prestige: {prestige_label(level)} "
+             f"(level {level}/{home_prestige_max()})"]
+    if prestige_descriptor(level):
+        lines.append(f"    {prestige_descriptor(level)}")
+    nxt = next_prestige_tier(level)
+    if nxt:
+        lines.append(f"  Next: {nxt['label']} — {nxt['cost']:,} cr "
+                     f"(buy with: +home prestige buy)")
+    else:
+        lines.append("  Your home has reached the highest prestige.")
+    return lines
+
+
+async def purchase_home_prestige(db, char: dict, housing: dict) -> dict:
+    """Buy the next home-prestige tier for `char`'s residence.
+
+    Debits the cost through the ledger chokepoint as ``home_prestige`` (a pure
+    sink — no payout, no mechanical benefit). Refund-safe: the cost is taken
+    before the level is persisted, and a ``home_prestige_refund`` fires if the
+    persist fails. Returns a result dict the command renders.
+    """
+    if not housing:
+        return {"ok": False, "reason": "no_home"}
+
+    level = _coerce_level(housing.get("prestige_level", 0))
+    nxt = next_prestige_tier(level)
+    if nxt is None:
+        return {"ok": False, "reason": "max", "level": level}
+
+    cost = int(nxt["cost"])
+    try:
+        balance = int(char.get("credits") or 0)
+    except (TypeError, ValueError):
+        balance = 0
+    if balance < cost:
+        return {"ok": False, "reason": "insufficient", "cost": cost,
+                "short": cost - balance, "label": nxt["label"]}
+
+    # Debit FIRST (the sink), then persist the new level; refund on failure so a
+    # failed upgrade never eats credits.
+    try:
+        char["credits"] = await db.adjust_credits(char["id"], -cost, "home_prestige")
+    except Exception:
+        log.warning("[housing] prestige debit failed for char %s",
+                    char.get("id"), exc_info=True)
+        return {"ok": False, "reason": "charge_failed"}
+
+    new_level = level + 1
+    try:
+        await db.execute(
+            "UPDATE player_housing SET prestige_level = ?, last_activity = ? WHERE id = ?",
+            (new_level, time.time(), housing["id"]),
+        )
+        await db.commit()
+        housing["prestige_level"] = new_level
+    except Exception:
+        log.warning("[housing] prestige persist failed for housing %s; refunding",
+                    housing.get("id"), exc_info=True)
+        try:
+            char["credits"] = await db.adjust_credits(
+                char["id"], cost, "home_prestige_refund")
+        except Exception:
+            log.error("[housing] prestige REFUND FAILED for char %s",
+                      char.get("id"), exc_info=True)
+        return {"ok": False, "reason": "persist_failed"}
+
+    return {"ok": True, "new_level": new_level, "label": nxt["label"],
+            "cost": cost, "descriptor": nxt["descriptor"]}
+
 
 async def get_housing(db, char_id: int) -> Optional[dict]:
     rows = await db.fetchall(
@@ -898,8 +1038,7 @@ async def rent_room(db, char: dict, lot_id: int) -> dict:
                                         f"{char['name']}'s room")
     exit_out_id = await db.create_exit(new_room_id, entry_room, "out", "Exit")
 
-    char["credits"] = char.get("credits", 0) - total_cost
-    await db.save_character(char_id, credits=char["credits"])
+    char["credits"] = await db.adjust_credits(char_id, -total_cost, "housing_purchase")
 
     now = time.time()
     cursor = await db.execute(
@@ -976,8 +1115,7 @@ async def checkout_room(db, char: dict) -> dict:
     # Refund deposit (faction quarters have 0)
     refund = h["deposit"] if h["rent_overdue"] == 0 else 0
     if refund > 0:
-        char["credits"] = char.get("credits", 0) + refund
-        await db.save_character(char_id, credits=char["credits"])
+        char["credits"] = await db.adjust_credits(char_id, refund, "housing_deposit_refund")
 
     # Remove exits
     try:
@@ -1124,8 +1262,7 @@ async def tick_housing_rent(db, session_mgr) -> None:
             char = dict(char_rows[0])
 
             if char.get("credits", 0) >= h["weekly_rent"]:
-                new_credits = char["credits"] - h["weekly_rent"]
-                await db.save_character(char["id"], credits=new_credits)
+                new_credits = await db.adjust_credits(char["id"], -h["weekly_rent"], "housing_rent")
                 await db.execute(
                     "UPDATE player_housing SET rent_paid_until = ?, rent_overdue = 0, last_activity = ? WHERE id = ?",
                     (now + RENT_TICK_INTERVAL, now, h["id"]),
@@ -1372,8 +1509,7 @@ async def set_room_name(db, char: dict, housing_id: int, new_name: str) -> dict:
             return {"ok": False,
                     "msg": f"Renaming again costs {DESC_RENAME_COST:,}cr. "
                            f"You have {char.get('credits', 0):,}cr."}
-        char["credits"] -= DESC_RENAME_COST
-        await db.save_character(char["id"], credits=char["credits"])
+        char["credits"] = await db.adjust_credits(char["id"], -DESC_RENAME_COST, "housing_rename")
 
     props["rename_count"] = rename_count + 1
     old_name = room_row.get("name", "your room")
@@ -1987,8 +2123,7 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
                              planet_descs[min(i, len(planet_descs) - 1)][0])
 
     # Charge credits
-    char["credits"] = char.get("credits", 0) - cfg["cost"]
-    await db.save_character(char_id, credits=char["credits"])
+    char["credits"] = await db.adjust_credits(char_id, -cfg["cost"], "housing_upgrade")
 
     # If they have existing Tier 1/2 housing, evict it first
     if existing:
@@ -2075,8 +2210,7 @@ async def sell_home(db, char: dict) -> dict:
             "SELECT credits FROM characters WHERE id = ?", (char_id,)
         )
         if char_row:
-            new_credits = char_row[0]["credits"] + refund
-            await db.save_character(char_id, credits=new_credits)
+            await db.adjust_credits(char_id, refund, "housing_refund")
             await db.commit()
 
     msg = f"Home sold. Refund: {refund:,}cr (50% of purchase price)."
@@ -2526,8 +2660,7 @@ async def purchase_shopfront(db, char: dict, lot_id: int,
                               "out", pdesc_a)
 
     # Charge credits
-    char["credits"] = char.get("credits", 0) - cfg["cost"]
-    await db.save_character(char_id, credits=char["credits"])
+    char["credits"] = await db.adjust_credits(char_id, -cfg["cost"], "shopfront_purchase")
 
     # Create housing record
     now = time.time()
@@ -2636,8 +2769,7 @@ async def sell_shopfront(db, char: dict) -> dict:
     # Refund
     refund = h.get("purchase_price", 0) // 2
     if refund > 0:
-        char["credits"] = char.get("credits", 0) + refund
-        await db.save_character(char_id, credits=char["credits"])
+        char["credits"] = await db.adjust_credits(char_id, refund, "shopfront_refund")
 
     # Remove exits
     for exit_id in (h.get("exit_id_in"), h.get("exit_id_out")):

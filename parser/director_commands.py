@@ -361,13 +361,21 @@ class EconomyCommand(BaseCommand):
         "  @economy zones     — Director zone influence + alert levels\n"
         "  @economy velocity  — credit faucet/sink flow (1h, 24h, 7d)\n"
         "  @economy alerts    — whale transactions, farming alerts, inflation metrics\n"
+        "  @economy throttle [0-100] — show/set the global player-faucet throttle\n"
         "  @economy           — all of the above"
     )
-    usage = "@economy [shops|credits|zones|velocity|alerts]"
+    usage = "@economy [shops|credits|zones|velocity|alerts|throttle [0-100]]"
 
     async def execute(self, ctx: CommandContext):
         parts = (ctx.args or "").split()
         sub   = parts[0].lower() if parts else "all"
+
+        # Drop 1.c — faucet throttle lever (show/set). Intercept before the
+        # dashboard render so `@economy throttle` doesn't fall through to an
+        # empty board.
+        if sub == "throttle":
+            await self._handle_throttle(ctx, parts[1:])
+            return
 
         lines = ["\033[1;36m══════════════════════════════════════════\033[0m",
                  "  \033[1;37m@ECONOMY DASHBOARD\033[0m",
@@ -582,11 +590,72 @@ class EconomyCommand(BaseCommand):
                     f"    Circulation   : {infl['circulation']:,} cr",
                     f"    Flow / circ   : {pct_color}{pct:+.1f}%\033[0m",
                 ]
+
+                # Recent proactive velocity alerts (economy audit #17 / R1):
+                # the hourly credit_velocity_alert_tick records band breaches in
+                # engine.economy_alerts; surface the most recent so a GM reading
+                # @economy alerts sees what already paged, not just live reads.
+                try:
+                    from engine.economy_alerts import recent_alerts as _recent_velocity_alerts
+                    import time as _t_alerts
+                    _va = _recent_velocity_alerts(5)
+                    if _va:
+                        lines.append("  \033[1mRecent velocity alerts:\033[0m")
+                        for _a in _va:
+                            _age = max(0, int((_t_alerts.time() - _a.get("ts", 0)) / 60))
+                            _sevc = "\033[1;31m" if _a.get("severity") == "critical" else "\033[1;33m"
+                            lines.append(
+                                f"    {_sevc}{str(_a.get('severity', '?')).upper():<8}\033[0m "
+                                f"{_a.get('direction', '?'):<9} "
+                                f"net {_a.get('net_1h', 0):+,} cr/hr  ({_age}m ago)"
+                            )
+                    else:
+                        lines.append("  Recent velocity alerts: none")
+                except Exception:
+                    log.debug("@economy alerts: render failed", exc_info=True)
             except Exception as e:
                 lines.append(f"  Alerts error: {e}")
 
         lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
         await ctx.session.send_line("\n".join(lines))
+
+    async def _handle_throttle(self, ctx: CommandContext, args):
+        """`@economy throttle [0-100]` — show or set the global player-faucet
+        throttle (Drop 1.c). The lever is applied inside Database.adjust_credits;
+        sinks, system entries, p2p transfers, and refunds are exempt."""
+        if not args:
+            pct = await ctx.db.get_faucet_throttle_pct()
+            if pct == 100:
+                state = "no-op — faucets pay in full"
+            elif pct == 0:
+                state = "FAUCETS FULLY SUPPRESSED"
+            else:
+                state = f"player faucets pay {pct}%"
+            await ctx.session.send_line(
+                f"  Faucet throttle: \033[1;37m{pct}%\033[0m — {state}.\n"
+                f"  Set with:  @economy throttle <0-100>\n"
+                f"  (scales genuine player credit faucets only; sinks, "
+                f"transfers, and refunds are exempt.)")
+            return
+
+        raw = args[0]
+        try:
+            want = int(raw)
+        except (TypeError, ValueError):
+            await ctx.session.send_line(
+                f"  '{raw}' isn't a number. Usage: @economy throttle <0-100>.")
+            return
+
+        pct = await ctx.db.set_faucet_throttle_pct(want)
+        clamp = f" (clamped from {want})" if want != pct else ""
+        tail = ("" if pct == 100 else
+                "\n  New player faucets are now scaled; existing balances "
+                "are unchanged.")
+        await ctx.session.send_line(
+            ansi.success(f"  Faucet throttle set to {pct}%{clamp}.") + tail)
+        log.info("[economy] faucet throttle set to %d%% by %s",
+                 pct, getattr(ctx.session, "account", {}).get("username", "admin")
+                 if getattr(ctx.session, "account", None) else "admin")
 
 
 class LoreCommand(BaseCommand):

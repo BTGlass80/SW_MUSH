@@ -24,13 +24,13 @@ Why this runs after the teleport persist
 ----------------------------------------
 ``apply_graduation`` mutates ``char["room_id"]``. Reward delivery
 calls ``adjust_rep`` which reads ``char["id"]``, and
-``add_to_inventory`` / ``save_character(credits=...)`` which
+``add_to_inventory`` / ``adjust_credits`` which
 read fresh DB state. None of these need the room change to be in
 the DB first, but running rewards AFTER the teleport persist
 gives the player a single coherent save chain:
 
   1. ``save_character(room_id=...)``   (apply_graduation)
-  2. ``save_character(credits=...)``   (this module, credit award)
+  2. ``adjust_credits``               (this module, credit award via the F1 ledger chokepoint)
   3. ``adjust_rep`` per faction        (this module, rep awards)
   4. ``add_to_inventory`` per item     (this module, item grants)
   5. ``_persist_attrs`` (chain state with pending_drop_room_id +
@@ -312,10 +312,7 @@ async def apply_graduation_rewards(db, char: dict, attrs: dict,
     credits_amount = int(getattr(graduation, "credits", 0) or 0)
     if credits_amount > 0:
         try:
-            current = int(char.get("credits", 0) or 0)
-            new_total = current + credits_amount
-            await db.save_character(char["id"], credits=new_total)
-            char["credits"] = new_total
+            char["credits"] = await db.adjust_credits(char["id"], credits_amount, "chain_reward")
             report["credits_awarded"] = credits_amount
             log.info("[chain_rewards] char %s +%d credits (chain=%s)",
                      char.get("id"), credits_amount, chain_id)

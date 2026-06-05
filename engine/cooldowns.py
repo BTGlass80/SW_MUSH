@@ -171,7 +171,7 @@ CD_TRADE          = "trade"
 CD_PVP_UNFLAG     = "pvp_unflag"   # v27 (May 18 2026): +pvp off cooldown
 
 # Durations (seconds)
-SURVEY_COOLDOWN_S         = 300   # 5 minutes
+SURVEY_COOLDOWN_S         = 900   # 15 minutes (economy audit #10: free surveyed crafting materials should feel earned; also throttles the survey->craft->NPC-sell faucet input)
 FACTION_SWITCH_COOLDOWN_S = 604800  # 7 days
 TRADE_COOLDOWN_S          = 30    # 30 seconds between trades
 # +pvp unflag cooldown: after attacking or being attacked while flagged,

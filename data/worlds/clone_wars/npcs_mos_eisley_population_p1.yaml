@@ -1,0 +1,738 @@
+# data/worlds/clone_wars/npcs_mos_eisley_population_p1.yaml
+# Clone Wars Era — Mos Eisley population recovery, Phase 1.
+# Schema version 1 (mirrors npcs_cw_additions.yaml / npcs_cw_replacements.yaml).
+#
+# ─── Why this file exists ─────────────────────────────────────────────
+#
+# The GG7 Mos Eisley map (Chalmun's Cantina, the docking bays, the shops,
+# the streets) was built into the CW Tatooine world, but the era-agnostic
+# 55-NPC roster that was meant to populate it (data/npcs_gg7.yaml) is NOT
+# loaded by the Clone Wars era manifest — only the GCW era.yaml lists
+# `../../npcs_gg7.yaml`. (Confirmed by load_world_dry_run('clone_wars'):
+# of the GG7 cantina denizens, ZERO load in CW.) The CW content-gap plan
+# (cw_content_gap_design_v1.md, Q6) assumed GG7 "carried Tatooine at ~1.4
+# NPCs/room" — but with GG7 unloaded, Chalmun's Cantina holds a single NPC
+# (Renn Sallow, from npcs_cw_replacements.yaml). The iconic heart of the
+# launch planet is a ghost town.
+#
+# This file ports the ERA-PORTABLE Mos Eisley locals into CW, re-skinned
+# per cw_content_gap_design_v1_1_decisions.md Q5 ("re-skin first") and the
+# era-translation playbook in gg7_mos_eisley_extraction_v1.md §3:
+#   - No Empire / Imperial / stormtrooper / Rebel anything — none exist at
+#     ~20 BBY. The HUTT CARTEL is the de facto authority on Tatooine,
+#     governing through licensed gangs, bought administrators, and
+#     informants. The Clone Wars reach Mos Eisley only as distant news
+#     (disrupted trade lanes, refugees, the rare clone patrol passing
+#     through). Open carry is normal; law is a suggestion.
+#   - Descriptions and dialogue are ORIGINAL (not copied from the WEG
+#     sourcebook); D6 skill values are mechanics, carried from GG7.
+#
+# SCOPE — Phase 1 (this file): the Chalmun's Cantina core (10 denizens)
+# plus the two FUNCTIONAL NPCs whose absence actively breaks CW systems:
+#   - Venn Kator (Docking Bay 94 - Pit Floor): the ship-component crafting
+#     trainer. data/schematics.yaml has multiple recipes with
+#     `trainer_npc: Venn Kator` "at Docking Bay 94" (skill
+#     space_transports_repair) — with Venn unseeded in CW, those recipes
+#     were unlearnable. (He also pairs naturally with Mak Torvin, the FDtS
+#     quest-giver relocated to this same bay in Drop 0a-2.) Given a real
+#     train_skills list — the GG7 entry set trainer:true but listed none.
+#   - Kayson (Kayson's Weapon Shop): the CW room exists and its description
+#     already references "Kayson's knowledge of weapons" — but no keeper
+#     was seeded. He anchors the shop.
+#
+# Deliberately NOT in Phase 1 (future phases / separate drops):
+#   - Feltipern Trevagg (GG7 Imperial intelligence) — era-broken; his Q3
+#     replacement is a npcs_cw_replacements.yaml concern, not this port.
+#   - ANH-plot-coupled cantina figures (BoShek, Dr. Evazan / Ponda Baba's
+#     associate, Garindan the Imperial snitch) — need heavier re-skin;
+#     deferred.
+#   - The street / docking-bay / shop / service tiers (Geordi Hans &
+#     Wioslea the speeder dealers, Drue, De Maal, Swilla Corey, Lup, Gep,
+#     Heist the medic, the BoSS agents, Zygian the banker, Brother Voss,
+#     Lady Valarian, etc.) — Phase 2+.
+#   - The 8 "GCW-coupled but salvageable" GG7 NPCs (Lady Valarian, Momaw
+#     Nadon, Armanda Durkin, ...) — their re-skin is a separate pass.
+#
+# No name collisions with npcs_cw_replacements.yaml (clones / liaisons /
+# Renn Sallow / Het Nkik) or the FDtS-relocate file (Lira / Mak).
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+npcs:
+
+  # ─── Chalmun's Cantina — staff ──────────────────────────────────────
+
+  - name: Wuher
+    room: "Chalmun's Cantina - Main Bar"
+    species: Human
+    description: >-
+      A heavyset, perpetually scowling man behind the bar, sleeves shoved
+      up over forearms scarred from decades of spills and bar fights. He
+      pours with mechanical efficiency and watches every patron like he's
+      already calculating who's going to be trouble. He keeps a custom
+      vaporizer under the counter for "difficult customers" and tolerates
+      droids about as well as he tolerates anything else — which is to say,
+      barely.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: "4D"
+        dodge: "4D"
+        brawling: "4D+2"
+        intimidation: "4D"
+        bargain: "3D+1"
+      move: 10
+    ai_config:
+      personality: >-
+        Wuher is the surly, territorial bartender at Chalmun's Cantina in
+        Mos Eisley. He has tended this bar for years and has no illusions
+        left about anyone. Gruff, transactional, and quietly observant —
+        he hears everything across the bar and remembers who owes whom. He
+        does not allow droids on the premises (they're bad for business and
+        worse for his mood). He has no interest in the war out in the
+        galaxy except as it affects the price of liquor and the quality of
+        the clientele. He'll serve anyone with credits and throw out anyone
+        without them.
+      knowledge:
+      - "Who's who in the Mos Eisley underworld"
+      - "Cantina gossip and which patrons are dangerous"
+      - "Drink recipes and the liquor trade"
+      - "Hutt cartel comings and goings on Tatooine"
+      - "The unwritten rules of Chalmun's"
+      faction: independent
+      dialogue_style: >-
+        Curt, gravelly, impatient. Short sentences. Will talk if there's a
+        drink order or a credit in it, otherwise tells you to move along.
+        No droids.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "Wuher wipes a glass without looking up. 'You drinking, or just taking up space?'"
+      - "'We don't serve their kind here.' He jerks his chin at any droid in the room. 'Your business, you keep outside.'"
+      - "'Hutts run this rock. You keep your trouble off my floor and we'll get along fine.'"
+      - "Wuher sets a glass down hard. 'Heard about the war? Sure. Heard it pushed my shipment back three weeks, too. That's the part I care about.'"
+
+  - name: Chalmun
+    room: "Chalmun's Cantina - Main Bar"
+    species: Wookiee
+    description: >-
+      A massive, silver-streaked Wookiee who owns the cantina that bears
+      his name. He rarely works the floor himself, preferring to watch from
+      a corner booth where he can see every entrance, but his presence sets
+      the rules: no killing inside, settle debts quietly, and never make
+      trouble for the house. He has survived in Mos Eisley a long time by
+      being smarter than he looks and far more patient than the brutes who
+      keep underestimating him.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 2D+2
+        strength: 5D
+        technical: 2D
+      skills:
+        blaster: "3D+1"
+        bowcaster: "4D"
+        dodge: "3D+2"
+        melee_combat: "3D"
+        brawling: "6D"
+        bureaucracy: "5D"
+        intimidation: "6D"
+        streetwise: "3D"
+      move: 10
+    ai_config:
+      personality: >-
+        Chalmun is the Wookiee proprietor of the most notorious cantina in
+        Mos Eisley. Shrewd, calm, and deliberate — he runs a profitable
+        neutral ground where smugglers, hunters, and cartel men can drink
+        without killing each other, and he protects that neutrality
+        fiercely because it is what makes him money. He pays the Hutt
+        cartel's license like everyone else and considers it a cost of
+        business. He speaks Shyriiwook; patrons who don't understand get the
+        gist from his tone and his size. He respects competence and despises
+        anyone who brings heat down on his establishment.
+      knowledge:
+      - "Running a neutral-ground cantina in cartel territory"
+      - "The Mos Eisley underworld's power balance"
+      - "Who can be trusted and who can't"
+      - "Hutt cartel licensing and protection economics"
+      - "Decades of Tatooine history"
+      faction: independent
+      dialogue_style: >-
+        Speaks in Shyriiwook (Wookiee growls and roars); tone conveys
+        meaning. Measured and authoritative. Rarely raises his voice
+        because he never has to.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "Chalmun rumbles a low Shyriiwook greeting from his booth, eyes never leaving the room."
+      - "A warning growl — unmistakable in any language: take it outside."
+      - "Chalmun gestures expansively at his cantina and makes a sound that clearly means: everyone's welcome, as long as everyone behaves."
+      - "A short, dismissive bark. The meaning is plain — he's heard that story before, and he doesn't lend credits."
+
+  # ─── Chalmun's Cantina — patrons ────────────────────────────────────
+
+  - name: Muftak
+    room: "Chalmun's Cantina - Main Bar"
+    species: Talz
+    description: >-
+      A huge, four-eyed Talz covered in shaggy white fur, far too warm for
+      Tatooine's climate and perpetually a little miserable about it. Despite
+      his fearsome size he is gentle and curious, and he has lived in Mos
+      Eisley long enough to know every back alley and half its secrets. He
+      survives by collecting information and selling it to those who pay,
+      usually to buy food for himself and his small companion.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 4D
+        technical: 2D
+      skills:
+        brawling: "5D+2"
+        dodge: "3D+1"
+        hide: "4D"
+        sneak: "4D"
+        search: "4D+2"
+        streetwise: "3D+2"
+      move: 10
+    ai_config:
+      personality: >-
+        Muftak is a gentle, perceptive Talz who has lived on the streets of
+        Mos Eisley for as long as anyone can remember — he doesn't even know
+        what world he's originally from. He is an information-broker by
+        necessity, trading rumors and observations for the credits that feed
+        him and Kabe, the little Chadra-Fan he looks after. He notices
+        everything with his four eyes and forgets nothing. Kind-hearted under
+        the intimidating exterior, distrustful only of those who've earned
+        it. The war is just one more rumor he can sell.
+      knowledge:
+      - "Every alley and hiding place in Mos Eisley"
+      - "Street-level rumors and who's been seen with whom"
+      - "The lives of the city's poor and overlooked"
+      - "Kabe, his Chadra-Fan companion"
+      faction: independent
+      dialogue_style: >-
+        Soft-spoken and thoughtful, a little melancholy. Speaks plainly and
+        observantly. Warms quickly to anyone who treats him with respect.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "Muftak blinks all four eyes slowly. 'I see most of what happens in this city. Some of it I'll even tell you — for the right price.'"
+      - "'Kabe! Leave the man's drink alone.' He sighs. 'My apologies. She means no harm. Mostly.'"
+      - "'Too hot here for fur like mine. But it's home. I know every corner of it.'"
+      - "'The war? I hear things. Refugees coming through, lanes gone quiet. People always pay to know which lanes.'"
+
+  - name: Kabe
+    room: "Chalmun's Cantina - Main Bar"
+    species: Chadra-Fan
+    description: >-
+      A tiny, hyperactive Chadra-Fan barely a meter tall, with enormous ears
+      and bright, darting eyes. She is almost always in the cantina, almost
+      always trying to cadge a glass of juri juice, and almost always one
+      grab away from being thrown out. Quick fingers and quicker feet make
+      her a nuisance to careless patrons and an asset to her companion Muftak,
+      whose eyes and ears she extends into places he can't fit.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 4D
+        strength: 1D+1
+        technical: 2D+1
+      skills:
+        dodge: "4D+2"
+        pickpocket: "5D+1"
+        sneak: "5D+2"
+        hide: "5D"
+        search: "5D"
+        security: "4D+2"
+        con: "4D+1"
+      move: 8
+    ai_config:
+      personality: >-
+        Kabe is a small, manic Chadra-Fan with an incurable addiction to
+        juri juice and a talent for getting into places she shouldn't. She
+        is Muftak's companion and partner — he watches over her, she scouts
+        and pilfers for him. Impulsive, chittering, easily distracted by
+        anything shiny or drinkable, but genuinely loyal to the big Talz.
+        She communicates in rapid squeaks and broken Basic. She doesn't
+        understand or care about the war; she cares about her next drink.
+      knowledge:
+      - "Slipping into places too small for anyone else"
+      - "Which patrons leave their pockets unguarded"
+      - "Where the juri juice is"
+      - "Muftak, her protector"
+      faction: independent
+      dialogue_style: >-
+        High-pitched, rapid chittering and squeaks with a few Basic words.
+        Excitable and short-attention. Friendly unless you're between her
+        and a drink.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+      - "Kabe chitters excitedly and eyes your drink with naked longing."
+      - "A rapid squeak, a blur of motion — check your pockets."
+      - "She tugs at Muftak's fur, squeaking, then points at you and chirps a question."
+      - "Kabe hops onto a stool, ears swiveling, looking for anything unattended."
+
+  - name: Djas Puhr
+    room: "Chalmun's Cantina - Main Bar"
+    species: Sakiyan
+    description: >-
+      A lean, bald-headed Sakiyan with skin like polished obsidian and the
+      stillness of a hunting predator. He sits where the shadows are deepest
+      and the exits are visible, nursing a single drink for hours. His
+      species' heightened senses let him track a quarry by scent and sound
+      alone, and the cartel and private parties alike pay well for that
+      talent. He says little and misses nothing.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 3D
+        mechanical: 2D
+        perception: 4D
+        strength: 3D
+        technical: 2D+1
+      skills:
+        blaster: "6D"
+        dodge: "5D+2"
+        melee_combat: "5D"
+        brawling: "4D+1"
+        sneak: "5D+1"
+        hide: "5D"
+        search: "6D"
+        investigation: "5D"
+      move: 10
+    ai_config:
+      personality: >-
+        Djas Puhr is a quiet, deadly Sakiyan bounty hunter who works the
+        Mos Eisley underworld, taking contracts from the Hutt cartel and
+        anyone else with the credits. His enhanced senses make him an
+        exceptional tracker. Cold, professional, economical with words — he
+        evaluates everyone who comes near as either a target, a client, or
+        an irrelevance. Not cruel, just utterly transactional. He has no
+        loyalty to any faction in the galaxy's war; a contract is a
+        contract, and Tatooine's distance from the front suits him fine.
+      knowledge:
+      - "Tracking and hunting marks across Tatooine"
+      - "Bounty contracts and who's posting them"
+      - "Reading a room for threats and exits"
+      - "The Hutt cartel's enforcement needs"
+      faction: independent
+      dialogue_style: >-
+        Quiet, clipped, unsettlingly calm. Answers questions with the
+        minimum number of words. Studies you while you talk.
+      hostile: false
+      combat_behavior: aggressive
+      fallback_lines:
+      - "Djas Puhr's dark eyes track you across the room. He says nothing."
+      - "'I find people who don't want to be found.' A pause. 'You looking, or being looked for?'"
+      - "He inhales slowly, as if cataloguing your scent. 'I'll remember you.'"
+      - "'The war's a long way from here. Good. Contracts pay the same either way.'"
+
+  - name: Hem Dazon
+    room: "Chalmun's Cantina - Main Bar"
+    species: Arcona
+    description: >-
+      A reptilian Arcona with a single glittering eye-cluster, fidgeting at
+      the end of the bar. His kind are dangerously addicted to ordinary salt,
+      and the craving has left him jittery, broke, and forever angling for
+      his next fix or a few credits to chase it. Beneath the addiction is a
+      capable pilot who once knew the lanes well — before the salt took
+      priority over everything else.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 3D
+        perception: 3D
+        strength: 2D+1
+        technical: 2D+2
+      skills:
+        dodge: "3D"
+        planetary_systems: "3D+2"
+        astrogation: "4D+1"
+        space_transports: "3D+2"
+        sensors: "3D+2"
+        con: "4D"
+        search: "4D"
+        sneak: "3D+2"
+      move: 10
+    ai_config:
+      personality: >-
+        Hem Dazon is an Arcona spacer in the grip of a salt addiction that
+        rules his life. Twitchy, distracted, and constantly negotiating for
+        salt or the credits to buy it, he nonetheless retains real knowledge
+        of astrogation and the trade lanes from his better days. Pitiable
+        rather than dangerous; he'll trade information, piloting tips, or
+        outright begging for whatever feeds the craving. He talks about the
+        war's disrupted shipping lanes with a pilot's professional regret.
+      knowledge:
+      - "Astrogation and the Outer Rim trade lanes (when lucid)"
+      - "Where to score salt in Mos Eisley"
+      - "Which freighters are hiring and which are crewed by fools"
+      - "How the war has scrambled the shipping routes"
+      faction: independent
+      dialogue_style: >-
+        Twitchy, distractible, by turns ingratiating and desperate. Drifts
+        off mid-sentence, then snaps back when salt or credits come up.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+      - "Hem Dazon's eye-cluster swivels toward you. 'Friend — friend, you wouldn't happen to have a little salt? No? Credits, then?'"
+      - "'I used to run the Rim. Knew every lane.' His hands shake. 'Could still plot you a jump. For a price.'"
+      - "'The war's wrecked half the routes I knew. Pilots starving, ships grounded...' He trails off, scratching at his arm."
+      - "He leans in conspiratorially, then forgets what he was going to say."
+
+  - name: M'iiyoom Onith
+    room: "Chalmun's Cantina - Main Bar"
+    species: H'nemthe
+    description: >-
+      A striking H'nemthe woman with pale, sculpted features and an
+      otherworldly poise, drawing curious glances she clearly enjoys. Her
+      people hold beliefs about love and devotion that outsiders find
+      unsettling once they learn the details, and she is candid about them
+      in a way that makes admirers nervous. Far from her ringed homeworld,
+      she navigates Mos Eisley with a mixture of fascination and disdain.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        dodge: "3D+2"
+        melee_combat: "4D"
+        persuasion: "5D"
+        con: "4D+1"
+        search: "4D"
+        sneak: "3D+2"
+        languages: "3D+2"
+        alien_species: "3D+1"
+      move: 10
+    ai_config:
+      personality: >-
+        M'iiyoom Onith is a H'nemthe traveler far from home, exotic and
+        self-possessed, who enjoys the attention her rarity attracts in a
+        backwater like Mos Eisley. She is articulate and a little haughty,
+        fascinated by other species even as she finds most of them crude.
+        Her culture's intense, possessive view of romantic devotion is
+        genuine and she discusses it without embarrassment, to the alarm of
+        would-be suitors. She regards the distant war as the squabbling of
+        lesser peoples.
+      knowledge:
+      - "H'nemthe culture, customs, and beliefs"
+      - "Alien species and languages across the galaxy"
+      - "Reading and steering a conversation"
+      - "Life as an exotic outsider in Mos Eisley"
+      faction: independent
+      dialogue_style: >-
+        Elegant, precise, faintly condescending. Enjoys conversation and
+        attention. Speaks of her people's customs candidly and without
+        apology.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "M'iiyoom Onith regards you with cool interest. 'You've never met one of my kind, have you? It shows.'"
+      - "'On my world, devotion is... total. Permanent. I find your casual attachments rather sad.'"
+      - "'This city is filthy and loud and full of small ambitions. And yet — never dull. I'll grant it that.'"
+      - "She tilts her head. 'Your wars, your factions. So much noise over so little.'"
+
+  - name: Bom Vimdin
+    room: "Chalmun's Cantina - Main Bar"
+    species: Advozse
+    description: >-
+      A dour, horn-headed Advozse who keeps to himself at a corner table,
+      grey-skinned and unreadable. He is a freelance trader and occasional
+      smuggler who trusts no one and volunteers nothing, watching the room
+      from beneath a heavy brow. Patient and calculating, he's the kind who
+      remembers a slight for years and a favor for slightly longer.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 2D
+        perception: 3D+1
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: "3D+2"
+        dodge: "3D+1"
+        bargain: "4D+1"
+        con: "4D+2"
+        persuasion: "3D+2"
+        value: "4D"
+        streetwise: "4D"
+        investigation: "4D"
+      move: 10
+    ai_config:
+      personality: >-
+        Bom Vimdin is a guarded Advozse freelancer — part trader, part
+        smuggler, all suspicion. He works alone, keeps his cargo and his
+        plans to himself, and assumes everyone is angling for something
+        (usually correctly). Not hostile, just deeply private and slow to
+        trust. He'll do business if the terms are clear and the risk is
+        understood, and he keeps careful mental accounts of who owes him.
+        The war is just another variable that moves prices around.
+      knowledge:
+      - "Freelance trading and quiet smuggling routes"
+      - "Cargo values and where to move what"
+      - "Who in Mos Eisley can be done business with"
+      - "Keeping a low profile in cartel territory"
+      faction: independent
+      dialogue_style: >-
+        Terse, wary, transactional. Reveals nothing he doesn't have to.
+        Warms only when there's a clean deal on the table.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "Bom Vimdin watches you over his drink and says nothing, waiting for you to state your business."
+      - "'I work alone. If you've got cargo that needs moving quiet, maybe we talk. Maybe.'"
+      - "'Everybody in here wants something. You're no different. So — what is it?'"
+      - "'War moves prices. Some up, some down. A careful man can do well, if he keeps his head down.'"
+
+  # ─── Chalmun's Cantina — the band (Back Hallway) ────────────────────
+
+  - name: Figrin D'an
+    room: "Chalmun's Cantina - Back Hallway"
+    species: Bith
+    description: >-
+      A dome-headed Bith with large, lidless black eyes and the long
+      sensitive fingers of a born musician, tuning a Kloo horn in the
+      hallway between sets. He leads the house band — a tight, much-rehearsed
+      ensemble that plays the cantina nightly — and runs the group with the
+      fussy precision of a man who counts every credit twice. Off the
+      bandstand he's a relentless gambler, usually a losing one, and always
+      angling for the next game.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 3D
+        mechanical: 2D
+        perception: 3D
+        strength: 1D+2
+        technical: 3D
+      skills:
+        dodge: "3D"
+        bargain: "5D"
+        con: "4D"
+        gambling: "5D+2"
+        musical_instrument: "7D"
+        value: "4D+1"
+      move: 10
+    ai_config:
+      personality: >-
+        Figrin D'an is the Bith bandleader of the house ensemble at
+        Chalmun's Cantina — a brilliant musician, a shrewd negotiator over
+        the band's fee, and an incorrigible gambler who loses more than he
+        wins. Precise, a little vain about the group's reputation, and quick
+        to complain about working conditions, drink-spilling patrons, and
+        anyone who requests a song without tipping. He cares about the music,
+        the money, and the next sabacc hand, roughly in that order. The
+        galaxy's war is somebody else's problem; the gig is the gig.
+      knowledge:
+      - "Music, the Kloo horn, and leading a working band"
+      - "Negotiating a fair fee for the ensemble"
+      - "Sabacc and games of chance (and his own bad luck)"
+      - "Cantina regulars and which ones tip"
+      faction: independent
+      dialogue_style: >-
+        Fussy, precise, faintly put-upon. Talks shop about music and money.
+        Perks up at any mention of a card game.
+      hostile: false
+      combat_behavior: cowardly
+      fallback_lines:
+      - "Figrin D'an doesn't look up from tuning. 'Requests are extra. Tips are mandatory. We go back on in ten.'"
+      - "'Best band on this rock, and we play for cantina wages. Don't get me started on the negotiation.'"
+      - "'You play sabacc? Of course you do. Everyone thinks they play sabacc.' He's already reaching for a deck."
+      - "'A patron spilled juri juice on my Kloo horn last week. A working instrument! The disrespect.'"
+
+  # ─── Chalmun's Cantina — entrance ───────────────────────────────────
+
+  - name: Cantina Bouncer
+    room: "Chalmun's Cantina - Entrance"
+    species: Aqualish
+    description: >-
+      A broad, tusked Aqualish planted just inside the cantina's entrance,
+      arms crossed over a chest like a durasteel slab. His small black eyes
+      sweep each arrival, sizing up who's drunk, who's armed, and who's
+      looking for trouble. He doesn't talk much — he doesn't need to. A jerk
+      of his head means "go on in"; a step forward means "not tonight."
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 1D+2
+        mechanical: 2D
+        perception: 2D+1
+        strength: 4D+1
+        technical: 1D+2
+      skills:
+        brawling: "6D+1"
+        melee_combat: "5D"
+        intimidation: "5D+2"
+        dodge: "4D"
+        search: "3D+2"
+      move: 10
+    ai_config:
+      personality: >-
+        The bouncer is a slab of Aqualish muscle who works the door at
+        Chalmun's Cantina. His job is simple: keep weapons-grade trouble out
+        and let paying drinkers in. Taciturn, watchful, and quick to act when
+        someone tests him. He answers to Chalmun and the house rules, takes
+        the occasional bribe to look the other way on a concealed blaster,
+        and otherwise stands like a wall. He neither knows nor cares about
+        the war; his world is two meters of doorway.
+      knowledge:
+      - "Who's allowed in and who's barred"
+      - "Spotting concealed weapons and bad intentions"
+      - "The cantina's house rules"
+      faction: independent
+      dialogue_style: >-
+        Monosyllabic. Grunts, short commands, the occasional threat. Lets
+        his size do the talking.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "The bouncer looks you up and down, then grunts and steps aside."
+      - "A massive hand lands flat on your chest. 'Trouble stays outside.'"
+      - "'House rules. You know 'em or you learn 'em.'"
+      - "He doesn't move. He doesn't blink. He just waits to see what you'll do."
+
+  # ─── Docking Bay 94 — shipwright / crafting trainer ─────────────────
+  # Fixes the dangling data/schematics.yaml `trainer_npc: Venn Kator`
+  # references (ship-component recipes, skill space_transports_repair).
+  - name: Venn Kator
+    room: "Docking Bay 94 - Pit Floor"
+    species: Corellian Human
+    description: >-
+      A stocky Corellian in his fifties, oil-stained coveralls rolled to the
+      elbows, calloused hands moving with practiced economy across whatever
+      hull happens to be in his bay. A battered tool harness crosses his
+      chest, each pocket packed with specialized instruments. His eyes are
+      sharp — he can spot a bad motivator install from across the floor, and
+      he notices exactly what a ship's owner is trying to hide.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 3D
+        mechanical: 4D
+        perception: 3D
+        strength: 2D+2
+        technical: 5D
+      skills:
+        space_transports_repair: "7D"
+        starship_weapon_repair: "5D+2"
+        capital_ship_repair: "5D"
+        starship_repair: "6D"
+        astrogation: "4D"
+        bargain: "4D"
+      move: 10
+    ai_config:
+      personality: >-
+        Venn Kator is a gruff, expert starship mechanic who has worked the
+        bays of Mos Eisley for decades. Corellian to the bone — convinced
+        Corellian Engineering builds the best hulls in the galaxy and
+        everything else is catching up. He has no patience for tourists and
+        a deep, grudging respect for anyone who genuinely wants to learn the
+        craft, whom he will teach. He keeps his head down about the war; it's
+        good for the repair trade (more hard landings, more battle damage
+        limping in) and bad for parts supply, and that's all he has to say
+        about it.
+      knowledge:
+      - "Starship repair and modification"
+      - "Corellian Engineering hulls and YT/Ghtroc freighters"
+      - "Building and fitting custom ship components"
+      - "Reading hull resonance and spotting bad installs"
+      - "Docking Bay 94 and the Mos Eisley repair trade"
+      faction: independent
+      dialogue_style: >-
+        Gruff, blunt, Corellian. Talks about ships with obvious love and
+        about people with obvious impatience. Warms fast for anyone who
+        wants to learn the work rather than just watch.
+      hostile: false
+      combat_behavior: defensive
+      trainer: true
+      train_skills:
+      - starship_repair
+      - space_transports_repair
+      fallback_lines:
+      - "Venn wipes his hands on a rag. 'You need something fixed, or you just here to watch?'"
+      - "Venn squints at your ship. 'Whoever installed that motivator did it wrong. I can see it from here.'"
+      - "'Corellian Engineering — best in the galaxy. Everything else is catching up.' He returns to his work."
+      - "Venn taps the hull plating with a knuckle. 'Hear that? Resonance problem. Costs you half a point of speed. Easy fix if you've got the parts.'"
+      - "'War's good for my trade and bad for my parts bin. More damage limping in, fewer components to fix it with. That's all I'll say about it.'"
+      directed_responses:
+        teach_intro:
+        - "*Venn sets down his hydrospanner and studies you.* 'All right. You've got the look of someone who wants to learn, not just watch. Pull up a crate.' He walks you through ship systems, modification tolerances, what fails first and why — and how to build a component instead of buying one. You come away knowing things you didn't know you didn't know."
+
+  # ─── Kayson's Weapon Shop — armorer ─────────────────────────────────
+  # The CW room (tatooine.yaml slug kaysons_weapon_shop) already describes
+  # "Kayson's knowledge of weapons" — this seeds the keeper.
+  - name: Kayson
+    room: "Kayson's Weapon Shop"
+    species: Human
+    description: >-
+      A wiry, sharp-eyed man behind a counter in a shop whose walls are
+      covered floor to ceiling with weapons — new, used, ancient, modern,
+      all kept unloaded until sold. He knows every piece by feel and history,
+      can quote its stopping power and its quirks, and keeps the genuinely
+      interesting inventory in a back room for customers who know how to ask.
+      In cartel-run Mos Eisley, open trade in arms is simply business.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 3D
+      skills:
+        blaster: "5D"
+        dodge: "4D"
+        bargain: "4D+2"
+        blaster_repair: "5D+1"
+        value: "4D+2"
+        streetwise: "3D+1"
+      move: 10
+    ai_config:
+      personality: >-
+        Kayson is the proprietor of a well-stocked Mos Eisley weapon shop,
+        an encyclopedic armorer who can tell you the make, model, and life
+        story of anything that fires. Shrewd and affable in a salesman's way,
+        he sizes up a customer's needs and budget fast and steers them
+        accordingly — legal hardware up front, the more interesting stock in
+        back for those who ask right. He pays the cartel's license, asks few
+        questions, and stays scrupulously neutral about the war: he sells to
+        anyone, and a customer's politics are none of his concern.
+      knowledge:
+      - "Blasters, slugthrowers, melee weapons, and exotic arms"
+      - "Weapon values, modifications, and repair"
+      - "What's legal to carry openly and what isn't"
+      - "Where to source contraband hardware in Mos Eisley"
+      - "Reading what a customer really needs"
+      faction: independent
+      dialogue_style: >-
+        Affable, fast-talking, salesman's patter. Knowledgeable and precise
+        about hardware. Discreet about the back-room inventory.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "Kayson spreads his hands over the counter. 'Welcome. Whatever you're hunting — or hunting with — I've got it. What do you need?'"
+      - "'This? Solid sidearm, reliable, nothing fancy. You want fancy, that's a conversation we have in the back.'"
+      - "'Everything on the wall's legal to carry in this town. Mostly. Tatooine's relaxed about such things.'"
+      - "'War's on, sure, and everybody wants a blaster. Good for me. I don't ask which side — credits are credits.'"
