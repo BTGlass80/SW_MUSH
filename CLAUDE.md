@@ -9,7 +9,7 @@ Sole developer: Brian. Web-first design policy — new features target the web c
 1. `TODO.json` + `CHANGELOG.md` (repo root) — authoritative for current state.
 2. Most recent `docs/design/HANDOFF_*.md` for the subsystem.
 3. Most recent versioned design doc in `docs/design/` (`*_v2` beats `*_v1`).
-4. `docs/design/sw_d6_mush_architecture_v51.md` — KNOWN STALE, pending v52 reconciliation. Never trust it over CHANGELOG/TODO.
+4. `docs/design/sw_d6_mush_architecture_v52.md` — current architecture-of-record (2026-06-12; reconciles the v51 invariant collision, folds in the June waves + the Gundark crafting lane). `v51` is superseded — kept on disk only as the detailed reference for sections v52 folds forward. Never trust either over CHANGELOG/TODO.
 
 See `docs/design/INDEX.md` for the full categorized document map.
 
@@ -30,6 +30,12 @@ See `docs/design/INDEX.md` for the full categorized document map.
 - **Equipment:** per-slot ItemInstance is canonical via `read_equipment` / `equipment_keys` / `write_equipment` in `engine/items.py`. Known bounded debt: `Character.equipped_weapon` / `worn_armor` still hold bare key strings (`TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES`).
 - **Shop commands:** `vendor_kind` branches buy/sell — there is no unified "buy <slot#> from <shop>" pattern. Ground break-free is automatic at round-end; there is no `breakfree` verb.
 
+## Sourcebook PDFs
+
+- `docs/sourcebooks/` is **never committed** (gitignored — size + copyright). It holds the WEG sourcebook PDFs and their text sidecars, local-only on Brian's box.
+- **`WEG40120` is the ultimate mechanics authority.** It outranks every extraction/markdown doc (`*_extraction_v*.md`, design docs, this file). When a rule is in dispute, the PDF wins.
+- **How to use it:** grep the sidecar `docs/sourcebooks/WEG40120.txt` to *find* a rule, dice code, or table (the sidecar carries dice-code tokens like `4D+1`, `3D+2`). Then **verify the dice codes and tables against the PDF page itself** (`docs/sourcebooks/WEG40120.pdf`) before relying on them — the sidecar is OCR-grade text and can mangle pips, table alignment, and columns. Cite the value as confirmed against the PDF, not the sidecar alone.
+
 ## Testing protocol
 
 - Ground truth: full suite via `run_all_tests.bat` (~7,700+ tests) on this Windows box.
@@ -45,6 +51,29 @@ See `docs/design/INDEX.md` for the full categorized document map.
 3. Update `CHANGELOG.md` and `TODO.json` in the same commit as the code.
 4. Brian runs `run_all_tests.bat`; merge to main only on a green full suite.
 5. Genuine design forks: do not guess. Log them in `design_calls_pending_brian` (in TODO.json) and ask. Resolved calls move to `design_calls_resolved_recent`.
+
+## Agent roster & delegation
+
+Subagents live in `.claude/agents/`. The main session runs on Opus — keep
+the judgment endpoints here and delegate the mechanical middle to Sonnet
+for cost. Default pipeline for a non-trivial drop:
+
+1. **Plan + design forks → Opus (this session).** Planning, novel systems,
+   anything invariant-ambiguous, and the final integration call stay here.
+   For design/economy/balance review before building, spawn
+   **`design-reviewer`** (Opus, read-only).
+2. **Settled, mechanical implementation → `drop-implementer`** (Sonnet).
+   Use it once the spec is decided and the work is execution: rostering a
+   data entry + its consumer, wiring a consumer to an existing seam,
+   applying a rubric, mechanical refactors. It follows the hard invariants
+   and stops on any genuine fork instead of guessing. Do NOT delegate
+   design calls or invariant-bending changes to it.
+3. **Verify the diff → `invariant-auditor`** (Sonnet, read-only) **+
+   `test-runner`** (Sonnet) before handing back to Brian.
+
+Cheap, parallel, read-only fan-out (searches across many files) → `Explore`
+or `general-purpose`. Prefer delegating implementation + verification so
+this session spends Opus tokens on judgment, not boilerplate.
 
 ## Communication style
 

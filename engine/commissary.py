@@ -102,6 +102,52 @@ def commissary_stock_for(faction_code, rank_level):
     return [it for it in _stock(faction_code) if it["min_rank"] <= rl]
 
 
+def commissary_vendor_payload(faction_code, rank_level, balance=0) -> dict:
+    """Web panel payload for the shop_state mode:'vendor' push.
+
+    Returns a dict that ``send_json("shop_state", ...)`` can emit directly.
+    Reuses ``commissary_status_lines`` / ``_stock`` for the item+mark
+    derivation — no mark logic is duplicated here. Header strings from
+    ``commissary_status_lines`` are stripped; only the item dicts are kept.
+
+    Shape::
+
+        {
+            "mode": "vendor",
+            "vendor_kind": "commissary",
+            "faction_code": <str, normalised lower>,
+            "rank_level": <int>,
+            "balance": <int>,
+            "items": [
+                {"key", "name", "slot", "cost", "min_rank", "desc", "mark"},
+                ...
+            ]
+        }
+
+    If the faction has no commissary, ``items`` is an empty list so the panel
+    can show a "no commissary" state without extra branches on the caller.
+    """
+    fc = str(faction_code or "").strip().lower()
+    try:
+        rl = int(rank_level or 0)
+    except (TypeError, ValueError):
+        rl = 0
+    try:
+        bal = int(balance or 0)
+    except (TypeError, ValueError):
+        bal = 0
+    rows = commissary_status_lines(fc, rl, bal)
+    items = [r for r in rows if not isinstance(r, str)]
+    return {
+        "mode": "vendor",
+        "vendor_kind": "commissary",
+        "faction_code": fc,
+        "rank_level": rl,
+        "balance": bal,
+        "items": items,
+    }
+
+
 def commissary_status_lines(faction_code, rank_level, balance=0):
     """Plain-text status block for the +commissary command (the command styles)."""
     lines = []

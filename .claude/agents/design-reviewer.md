@@ -11,7 +11,7 @@ Grounding documents (consult the ones relevant to the proposal; `docs/design/IND
 
 - Economy: `economy_design_v02-1.md`, `SW_MUSH_Economy_Audit_FINAL.md`, `economy_hardening_design_v1.md`, `economy_audit_v2.md`, `economy_tuning_open_questions_v1.md`
 - Mechanics ground rules: `Guide_01_WEG_D6_Core_Mechanics.md` — WEG R&E D6 only; WotC sources are lore-only and must be re-statted
-- Current state: repo-root `TODO.json` + `CHANGELOG.md` outrank every design doc; `sw_d6_mush_architecture_v51.md` is stale
+- Current state: repo-root `TODO.json` + `CHANGELOG.md` outrank every design doc; `sw_d6_mush_architecture_v52.md` is the architecture-of-record (`v51` superseded)
 - Era: Clone Wars ~20 BBY only (`clone_wars_era_design_v3.md`); GCW is retired
 
 Review for:

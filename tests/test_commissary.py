@@ -30,6 +30,7 @@ if PROJECT_ROOT not in sys.path:
 from engine.commissary import (                                        # noqa: E402
     COMMISSARY_STOCK, faction_has_commissary, commissary_item,
     commissary_stock_for, commissary_status_lines, purchase_commissary,
+    commissary_vendor_payload,
 )
 
 
@@ -252,6 +253,84 @@ class TestRealDBHappyPath(unittest.TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# commissary_vendor_payload — shape, marks, purity
+# ─────────────────────────────────────────────────────────────────────────────
+class TestVendorPayload(unittest.TestCase):
+    def test_shape_and_constants(self):
+        p = commissary_vendor_payload("republic", 1, 5000)
+        self.assertEqual(p["mode"], "vendor")
+        self.assertEqual(p["vendor_kind"], "commissary")
+        self.assertEqual(p["faction_code"], "republic")
+        self.assertEqual(p["rank_level"], 1)
+        self.assertEqual(p["balance"], 5000)
+        self.assertIn("items", p)
+
+    def test_faction_code_normalised_lower(self):
+        p = commissary_vendor_payload("CIS", 0, 0)
+        self.assertEqual(p["faction_code"], "cis")
+
+    def test_item_keys_present(self):
+        p = commissary_vendor_payload("republic", 1, 5000)
+        for it in p["items"]:
+            for k in ("key", "name", "slot", "cost", "min_rank", "desc", "mark"):
+                self.assertIn(k, it, "item missing key %r" % k)
+
+    def test_no_header_strings_in_items(self):
+        # commissary_status_lines emits a header string as the first row;
+        # commissary_vendor_payload must strip all string rows.
+        p = commissary_vendor_payload("republic", 1, 5000)
+        for it in p["items"]:
+            self.assertIsInstance(it, dict)
+
+    def test_marks_by_rank_and_balance(self):
+        # republic: rank-0 items are republic_uniform (150) + dc17_pistol (500);
+        # rank-1 items are dc15_blaster_rifle (1200) + republic_light_armor (900).
+        # With rank=0, balance=200: uniform→buy, pistol→short, rank-1 items→rank.
+        p = commissary_vendor_payload("republic", 0, 200)
+        marks = {it["key"]: it["mark"] for it in p["items"]}
+        self.assertEqual(marks["republic_uniform"], "buy")      # 150 <= 200, rank 0
+        self.assertEqual(marks["dc17_pistol"], "short")         # 500 > 200, rank 0
+        self.assertEqual(marks["dc15_blaster_rifle"], "rank")   # min_rank 1 > 0
+        self.assertEqual(marks["republic_light_armor"], "rank") # min_rank 1 > 0
+
+    def test_rank_locked_item_has_mark_rank(self):
+        # rank-1 item with rank=0 member → mark "rank"
+        p = commissary_vendor_payload("republic", 0, 99999)
+        marks = {it["key"]: it["mark"] for it in p["items"]}
+        self.assertEqual(marks["dc15_blaster_rifle"], "rank")
+
+    def test_affordable_item_has_mark_buy(self):
+        p = commissary_vendor_payload("republic", 1, 99999)
+        marks = {it["key"]: it["mark"] for it in p["items"]}
+        self.assertEqual(marks["dc15_blaster_rifle"], "buy")
+
+    def test_unaffordable_item_has_mark_short(self):
+        p = commissary_vendor_payload("republic", 1, 100)  # all items cost > 100
+        marks = {it["key"]: it["mark"] for it in p["items"]}
+        for mark in marks.values():
+            self.assertIn(mark, ("short", "rank"))
+
+    def test_no_commissary_faction_returns_empty_items(self):
+        # Jedi Order has no commissary; items must be [].
+        p = commissary_vendor_payload("jedi_order", 5, 99999)
+        self.assertEqual(p["mode"], "vendor")
+        self.assertEqual(p["items"], [])
+
+    def test_independent_returns_empty_items(self):
+        p = commissary_vendor_payload("independent", 0, 0)
+        self.assertEqual(p["items"], [])
+
+    def test_pure_no_side_effects(self):
+        # Calling the function twice with the same args returns equal results
+        # and does not mutate COMMISSARY_STOCK or any shared state.
+        import copy
+        stock_before = copy.deepcopy(COMMISSARY_STOCK)
+        commissary_vendor_payload("republic", 1, 5000)
+        commissary_vendor_payload("hutt_cartel", 0, 200)
+        self.assertEqual(COMMISSARY_STOCK, stock_before)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Structural pins
 # ─────────────────────────────────────────────────────────────────────────────
 def _read(*parts):
@@ -266,6 +345,26 @@ class TestStructural(unittest.TestCase):
         self.assertIn('"commissary_purchase_refund"', src)
         # No schema change — the commissary uses existing tables only.
         self.assertNotIn("ADD COLUMN", src)
+
+    def test_vendor_payload_symbol_exported(self):
+        # commissary_vendor_payload must be importable from engine.commissary.
+        src = _read("engine", "commissary.py")
+        self.assertIn("def commissary_vendor_payload", src)
+        # No schema/credit side effects in the payload function.
+        # Quick heuristic: it must not call adjust_credits or add_to_inventory.
+        import ast
+        tree = ast.parse(src)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name == "commissary_vendor_payload":
+                func_src = ast.unparse(node)
+                self.assertNotIn("adjust_credits", func_src)
+                self.assertNotIn("add_to_inventory", func_src)
+
+    def test_parser_sends_web_panel(self):
+        src = _read("parser", "commissary_commands.py")
+        self.assertIn("commissary_vendor_payload", src)
+        self.assertIn('"shop_state"', src)
+        self.assertIn("Protocol.WEBSOCKET", src)
 
     def test_command_registered(self):
         src = _read("parser", "commissary_commands.py")

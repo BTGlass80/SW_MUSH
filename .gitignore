@@ -45,3 +45,9 @@ logs/
 *.pem
 secrets.yaml
 config.local.yaml
+
+# WEG sourcebook PDFs + text sidecars — local only (size/copyright)
+docs/sourcebooks/
+
+# Claude Code local settings — per-machine (holds the unattended bypassPermissions mode); never commit
+.claude/settings.local.json

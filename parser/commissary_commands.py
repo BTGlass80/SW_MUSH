@@ -18,6 +18,7 @@ from parser.commands import BaseCommand, CommandContext, AccessLevel
 from server import ansi
 from engine.commissary import (
     faction_has_commissary, commissary_status_lines, purchase_commissary,
+    commissary_vendor_payload,
 )
 
 log = logging.getLogger(__name__)
@@ -99,6 +100,17 @@ class CommissaryCommand(BaseCommand):
                 lines.append("        " + ansi.dim(row["desc"]))
         lines.append("")
         await ctx.session.send_line("\n".join(lines))
+        # Web panel: push vendor payload alongside the text block (WS only;
+        # Telnet keeps text above as the graceful-degradation surface).
+        try:
+            from server.session import Protocol
+            if ctx.session.protocol == Protocol.WEBSOCKET:
+                await ctx.session.send_json(
+                    "shop_state",
+                    commissary_vendor_payload(faction_code, rank_level, balance),
+                )
+        except Exception:
+            pass  # Non-critical — text output already sent
 
     async def _buy(self, ctx, char, key):
         if not key:
@@ -114,6 +126,20 @@ class CommissaryCommand(BaseCommand):
             await ctx.session.send_line(ansi.success(
                 "  Requisitioned {} for {:,} credits.".format(
                     res["name"], res["cost"])))
+            # Re-push the vendor panel so balances/marks refresh in the live web
+            # panel; balance is read from char AFTER the buy (purchase_commissary
+            # updated char["credits"] on success).
+            try:
+                from server.session import Protocol
+                if ctx.session.protocol == Protocol.WEBSOCKET:
+                    updated_balance = int(char.get("credits") or 0)
+                    await ctx.session.send_json(
+                        "shop_state",
+                        commissary_vendor_payload(
+                            faction_code, rank_level, updated_balance),
+                    )
+            except Exception:
+                pass  # Non-critical — purchase already confirmed above
             return
         reason = res.get("reason")
         if reason == "no_commissary":

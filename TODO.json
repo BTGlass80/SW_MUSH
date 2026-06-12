@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "last_updated": "2026-06-12",
-  "architecture_of_record": "sw_d6_mush_architecture_v51.md",
+  "architecture_of_record": "sw_d6_mush_architecture_v52.md",
   "_notes": [
     "Machine-readable companion to the architecture doc's \u00a73.2 priority ranking and \u00a78 outstanding decisions.",
     "Architecture doc is authoritative on narrative/rationale; this file is authoritative on what to grep on session pickup.",
@@ -271,10 +271,28 @@
   ],
   "tier_2_queued": [
     {
+      "id": "PRELAUNCH.help_guides_rework",
+      "title": "Rework in-game help + Codex guides to capture all shipped changes (pre-release)",
+      "lane": "content+docs",
+      "effort": "medium (~1-2 sess)",
+      "status": "queued — PRE-RELEASE: do near the end once the feature suite is stable",
+      "spec": "Audit every in-game help_text and the Codex guides (Guide_01..26) against shipped systems and re-author for accuracy + onboarding. Major deltas since the guides were written: the Gundark crafting lane A-G (~40 recipes, learn/tuition, contraband + patrol boardings, vendor_stocked + vendor-presence buy gates, skill-key canonicalization), the commissary web panel, market segmentation, P2P cap removal, world-event passive effects, the communal objective, creature spoils, the SPA + hybrid-substrate map. Sequence at end-of-roadmap so it captures the final state, not a moving target.",
+      "raised": "2026-06-12 (Brian)"
+    },
+    {
+      "id": "PRELAUNCH.web_landing_retention",
+      "title": "Relook the web login/landing page (pre-gameplay) as a retention hook (pre-release)",
+      "lane": "web-client+design",
+      "effort": "medium (~1-2 sess)",
+      "status": "queued — PRE-RELEASE: do near the end with the full feature suite available",
+      "spec": "Review the PUBLIC-facing landing/login surface (NOT the in-game gameplay client): login, guides/help surfacing, character list + creation entry, the world pitch. Brian suspects it is not fully accurate and underperforms as a retention hook. Re-author for accuracy against the shipped feature set and optimize the first-impression conversion (clear pitch, what's playable, onboarding path). Towards the end once everything is implemented so the page reflects the real game.",
+      "raised": "2026-06-12 (Brian)"
+    },
+    {
       "id": "WEBIFY.commissary_vendor_mode",
       "title": "Commissary fold-in: shop_state mode:'vendor' (decision 8a)",
-      "status": "queued \u2014 accepted 2026-06-10",
-      "spec": "Render rank-gated commissary stock in m3_shop.js via a mode:'vendor' slot in the same shop_state message; stage +commissary buy <key>; npc_refuses_buyback sellback rules. Reserved-shape note in protocol ledger v1_4 \u00a72."
+      "status": "DELIVERED 2026-06-12 (same-day drop 12) \u2014 buy-side only; sellback deferred",
+      "delivered_note": "commissary_vendor_payload() in engine/commissary.py; _status()/_buy() push shop_state via ctx.session.send_json (WS-only guard); renderVendor in m3_shop.js branches on mode:'vendor'; staged action +commissary buy <key>; rank-locked rows no BUY button; stale comment updated. Protocol ledger v1_4 \u00a72 updated RESERVED->SHIPPED. Sellback deferred \u2014 see ECON.commissary_sellback_model."
     },
     {
       "id": "CRAFT.HOOK.force_detector",
@@ -1596,11 +1614,10 @@
   ],
   "design_calls_pending_brian": [
     {
-      "id": "CRAFT.schematic_tuition",
-      "raised": "2026-06-11",
-      "question": "Brian: are we charging to learn schematics? Graduated scale? PC-teach cost? HEAD facts: trainer learning is FREE and ALL-AT-ONCE \u2014 talk <trainer> grants every matching schematic in one shot (handle_trainer_teach, crafting_commands.py:896); with Drop B that is 16+ schematics on one `talk kayson`. PC teach verb is FREE (same-room gate only). base_cost feeds only repair/salvage pricing \u2014 no tuition consumer.",
-      "recommendation": "a \u2014 graduated tuition at trainers: trainer lists teachable schematics with prices; new `learn <schematic> from <npc>` charges via adjust_credits(.., \"schematic_tuition\") and grants ONE schematic. Price = 50% of base_cost, min 50 cr (scales with desirability automatically; Avail-1 DL-22=250, Avail-3 Satskar=350; T5 stays drop-only). PC teach stays FREE per Brian's lean \u2014 payment is RP + the trade verb, making crafter-apprentice a social loop. CAVEATS to resolve in-drop: tutorial chains that say \"talk <trainer>\" then craft (e.g. Heist/medpac) need first-schematic-free or chain-grant exemption; pre-launch chars who already free-learned keep their lists (no clawback). Natural home: its own small drop before Drop G, or folded into G.",
-      "status": "pending Brian (a=50%-of-base tuition + free PC teach; b=flat per-band 100/250/500; c=keep learning free)"
+      "id": "ECON.commissary_sellback_model",
+      "raised": "2026-06-12",
+      "question": "Should commissary/faction-issued gear be sellable back, at what price, and is it bind-on-pickup? npc_refuses_buyback only gates player-crafted quality>=50 items, so it does NOT cover faction-issued gear. Questions: (1) Can a player sell back faction gear to any vendor? (2) At what rate (e.g. 50% of commissary cost)? (3) Is faction-issued gear bind-on-pickup (cannot trade/sell at all)? These three sub-decisions gate any sellback drop.",
+      "status": "pending Brian"
     }
   ],
   "design_calls_resolved_recent": [

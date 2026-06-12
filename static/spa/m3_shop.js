@@ -12,14 +12,16 @@
                           {owner_name, total_escrow, droids:[{...,escrow,inventory,
                            sales:[{ts,item,qty,net,buyer}]}]}
 
-   No engine change — a pure render of an already-public message. Real verbs
-   only: the single staged action is BUY → `buy <slot> from <shop name>`
-   (parser routes `buy <X> from <Y>` to _handle_buy_from_droid). Owner shop
-   management (stock/price/collect escrow) stays in the text `+shop` flow, so
-   the dashboard is display-only here. Haggling stays text.
+   No engine change for browse/dashboard — a pure render of an already-public
+   message. Real verbs only: the single staged action is BUY → `buy <slot>
+   from <shop name>` (parser routes `buy <X> from <Y>` to
+   _handle_buy_from_droid). Owner shop management (stock/price/collect escrow)
+   stays in the text `+shop` flow, so the dashboard is display-only here.
+   Haggling stays text.
 
-   The commissary (faction requisition, `+commissary buy <key>`) is a SEPARATE
-   system, not folded in here — see CHANGELOG/TODO for the flagged fork.
+   mode:'vendor' (SHIPPED — WEBIFY.commissary_vendor_mode drop 2026-06-12):
+   the commissary fold-in. Staged action: `+commissary buy <key>`.
+   Sellback is explicitly deferred (no sellback this drop).
 
    Token-only (reuses the shared .inv-modal chrome + inv-pip gauge); B3-clean.
    ============================================================================ */
@@ -176,6 +178,54 @@ function renderDashboard(container, data){
   });
 }
 
+// ── vendor mode (commissary — mode:'vendor', vendor_kind:'commissary') ────────
+function vendorItemRow(item, onCommand){
+  var row = el('div', { 'class': 'shop-item' });
+  var head = el('div', { 'class': 'shop-item-head' }, [
+    el('span', { 'class': 'shop-item-slot', text: item.slot }),
+    el('span', { 'class': 'shop-item-name', text: item.name }),
+    el('span', { 'class': 'shop-item-price', text: credits(item.cost) })
+  ]);
+  row.appendChild(head);
+  if (item.desc){
+    row.appendChild(el('div', { 'class': 'shop-item-meta' }, [
+      el('span', { 'class': 'inv-crafter', text: item.desc })
+    ]));
+  }
+  if (item.mark === 'buy'){
+    // Affordable and rank-cleared: show a BUY button staging +commissary buy <key>.
+    var btn = el('button', { 'class': 'inv-btn', type: 'button', text: 'BUY' });
+    btn.addEventListener('click', function(){ onCommand('+commissary buy ' + item.key); });
+    row.appendChild(btn);
+  } else if (item.mark === 'rank'){
+    // Rank-locked: greyed out indicator, no action.
+    row.appendChild(el('span', { 'class': 'shop-tag-unplaced',
+      text: 'rank ' + item.min_rank + ' required' }));
+  } else {
+    // 'short': can't afford; show disabled state.
+    row.appendChild(el('span', { 'class': 'shop-tag-unplaced', text: 'short' }));
+  }
+  return row;
+}
+
+function renderVendor(container, data, onCommand){
+  var fc = data.faction_code || 'faction';
+  container.appendChild(el('div', { 'class': 'shop-dash-head' }, [
+    el('span', { 'class': 'shop-dash-title',
+      text: fc.charAt(0).toUpperCase() + fc.slice(1).replace(/_/g, ' ') + ' Commissary' }),
+    el('span', { 'class': 'shop-dash-escrow', text: 'Balance ' + credits(data.balance) })
+  ]));
+  var items = data.items || [];
+  if (items.length === 0){
+    container.appendChild(el('div', { 'class': 'inv-empty-note',
+      text: 'No commissary stock available.' }));
+    return;
+  }
+  var detail = el('div', { 'class': 'shop-detail' });
+  items.forEach(function(item){ detail.appendChild(vendorItemRow(item, onCommand)); });
+  container.appendChild(detail);
+}
+
 // ── public render ───────────────────────────────────────────────────────────────
 function render(container, data, onCommand){
   if (!container) return container;
@@ -183,6 +233,7 @@ function render(container, data, onCommand){
   onCommand = onCommand || function(){};
   container.innerHTML = '';
   if (data.mode === 'dashboard') renderDashboard(container, data);
+  else if (data.mode === 'vendor') renderVendor(container, data, onCommand);
   else renderBrowse(container, data, onCommand);
   return container;
 }

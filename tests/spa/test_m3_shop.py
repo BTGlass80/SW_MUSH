@@ -105,6 +105,129 @@ def test_dashboard_shows_escrow_and_sales_display_only():
     assert out["buyButtons"] == 0           # dashboard is display-only (no BUY)
 
 
+_VENDOR_JS = """
+var cmds = [];
+function onCmd(c){ cmds.push(c); }
+var data = {
+    mode: 'vendor',
+    vendor_kind: 'commissary',
+    faction_code: 'republic',
+    rank_level: 0,
+    balance: 200,
+    items: [
+        { key:'republic_uniform', name:'Republic Service Uniform', slot:'armor',
+          cost:150, min_rank:0, desc:'Off-white tunic.', mark:'buy' },
+        { key:'dc17_pistol',      name:'DC-17 Hand Blaster',       slot:'weapon',
+          cost:500, min_rank:0, desc:'Republic sidearm.',  mark:'short' },
+        { key:'dc15_blaster_rifle', name:'DC-15A Blaster Rifle',   slot:'weapon',
+          cost:1200, min_rank:1, desc:'Clone rifle.',      mark:'rank' }
+    ]
+};
+var box = document.createElement('div');
+document.body.appendChild(box);
+"""
+
+
+def test_vendor_mode_renders_commissary_panel():
+    """Vendor mode renders: title, balance, item rows; BUY only for mark=buy;
+    rank-locked row has no BUY button; short row has no BUY button;
+    staged action is '+commissary buy <key>' (not bare 'buy ...'); no sell verb."""
+    out = run_with_dom([M3_SHOP], _VENDOR_JS + """
+        window.M3Shop.render(box, data, onCmd);
+
+        // Title contains faction name
+        var titleText = box.querySelector('.shop-dash-title') ?
+            box.querySelector('.shop-dash-title').textContent : '';
+
+        // Balance appears somewhere
+        var balanceText = box.querySelector('.shop-dash-escrow') ?
+            box.querySelector('.shop-dash-escrow').textContent : '';
+
+        // Count item rows
+        var itemCount = box.querySelectorAll('.shop-item').length;
+
+        // BUY the affordable row (republic_uniform)
+        var allBtns = box.querySelectorAll('.shop-item .inv-btn');
+        var buyBtnCount = allBtns.length;
+        if (allBtns.length > 0) allBtns[0].click();
+
+        // Rank-locked row must have no button — check text for 'rank'
+        var rankTag = box.querySelector('.shop-tag-unplaced');
+        var rankTagText = rankTag ? rankTag.textContent : '';
+
+        result = {
+            titleText: titleText,
+            balanceText: balanceText,
+            itemCount: itemCount,
+            buyBtnCount: buyBtnCount,
+            cmds: cmds,
+            joined: cmds.join(' | '),
+            rankTagText: rankTagText
+        };
+    """)
+    # Panel header rendered
+    assert "commissary" in out["titleText"].lower() or "republic" in out["titleText"].lower()
+    # Balance shown
+    assert "200" in out["balanceText"] or "cr" in out["balanceText"]
+    # All 3 items rendered
+    assert out["itemCount"] == 3
+    # Only the mark:'buy' item gets a button (1 of 3)
+    assert out["buyBtnCount"] == 1
+    # The staged command is the commissary verb, not the bare shop buy verb
+    assert out["cmds"] == ["+commissary buy republic_uniform"]
+    assert "buy " not in out["joined"].replace("+commissary buy ", "")
+    # No sell/estate verbs
+    assert "sell" not in out["joined"]
+    assert "drop" not in out["joined"]
+    assert "give" not in out["joined"]
+    # Rank-locked row shows rank indicator
+    assert "rank" in out["rankTagText"].lower()
+
+
+def test_vendor_mode_rank_locked_no_buy_button():
+    """Rank-locked items (mark:'rank') never have a BUY button."""
+    out = run_with_dom([M3_SHOP], """
+        var box = document.createElement('div');
+        document.body.appendChild(box);
+        var data = {
+            mode: 'vendor', vendor_kind: 'commissary',
+            faction_code: 'republic', rank_level: 0, balance: 50000,
+            items: [
+                { key:'dc15_blaster_rifle', name:'DC-15A Blaster Rifle',
+                  slot:'weapon', cost:1200, min_rank:1, desc:'Clone rifle.',
+                  mark:'rank' }
+            ]
+        };
+        window.M3Shop.render(box, data, function(){});
+        result = {
+            buyBtns: box.querySelectorAll('.inv-btn').length,
+            rankTag: !!box.querySelector('.shop-tag-unplaced')
+        };
+    """)
+    assert out["buyBtns"] == 0
+    assert out["rankTag"] is True
+
+
+def test_vendor_mode_empty_commissary():
+    """Empty items list (faction with no commissary) shows empty-note."""
+    out = run_with_dom([M3_SHOP], """
+        var box = document.createElement('div');
+        document.body.appendChild(box);
+        var data = {
+            mode: 'vendor', vendor_kind: 'commissary',
+            faction_code: 'jedi_order', rank_level: 5, balance: 99999,
+            items: []
+        };
+        window.M3Shop.render(box, data, function(){});
+        result = {
+            note: !!box.querySelector('.inv-empty-note'),
+            buyBtns: box.querySelectorAll('.inv-btn').length
+        };
+    """)
+    assert out["note"] is True
+    assert out["buyBtns"] == 0
+
+
 def test_browse_empty_room_note():
     out = run_with_dom([M3_SHOP], """
         var box = document.createElement('div');

@@ -206,10 +206,16 @@ only), shown only while a chain is active; replayable via the panel-head
   tail). Gated on a buff↔combat-push integration: no producer at HEAD
   (no `Combatant.buffs`; the combat `Character` isn't dict-like for
   `engine.buffs.get_active_buffs`).
-- **`shop_state` `mode:'vendor'` / `vendor_kind`** — the commissary fold-in,
-  pending Brian's call on `UI-4b.commissary_vendor_merge`
-  (`design_calls_pending_brian`). Would render rank-gated stock,
-  `+commissary buy <key>` staging, and `npc_refuses_buyback` sellback rules.
+- **`shop_state` `mode:'vendor'` / `vendor_kind`** — **SHIPPED
+  2026-06-12 (WEBIFY.commissary_vendor_mode drop).** Buy-side commissary
+  fold-in; sellback explicitly deferred. Payload shape:
+  `{"mode":"vendor","vendor_kind":"commissary","faction_code":<str lower>,
+  "rank_level":<int>,"balance":<int>,"items":[{"key","name","slot","cost",
+  "min_rank","desc","mark"}]}` where `mark` ∈ `{"buy","rank","short"}`.
+  Pushed by `_status()` and re-pushed after a successful `_buy()` in
+  `parser/commissary_commands.py`; rendered by `renderVendor` in
+  `m3_shop.js`. Staged action: `+commissary buy <key>`. Sellback pending
+  design call (bind-on-pickup / price model for faction-issued gear).
 - **UI-8 crafting messages** — undesigned; after
   `T2.CRAFT.integration_design_pass`.
 - **UI-7 Phase 2 candidates** (`web_onboarding_design_v1.md` §5):
