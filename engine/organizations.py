@@ -141,7 +141,7 @@ EQUIPMENT_CATALOG = {
     # Bounty Hunters
     "binder_cuffs":          {"name": "Binder Cuffs",               "slot": "misc",   "description": "Durasteel restraints. Required for live capture."},
     "guild_license":         {"name": "Guild License",              "slot": "misc",   "description": "Official Bounty Hunters' Guild authorization."},
-    "tracking_fob":          {"name": "Tracking Fob",               "slot": "misc",   "description": "Short-range biometric tracker. +1D to Search for targets."},
+    "tracking_fob":          {"name": "Tracking Fob",               "slot": "misc",   "description": "Short-range biometric tracker. +1D to Search for targets.", "skill_bonus": {"skill": "search", "bonus": "+1D"}},
     # Generic
     "medpac":                {"name": "Medpac",                     "slot": "misc",   "description": "Standard medpac. Heals 1D Stun damage when applied."},
     # ── B.1.b.1 (Apr 29 2026) — CW equipment ─────────────────────────
@@ -288,15 +288,22 @@ async def issue_equipment(char: dict, org_code: str, db,
                 continue
 
             item_name = catalog_entry["name"]
-            # Add to inventory
-            await db.add_to_inventory(char["id"], {
+            # Build the inventory payload; conditionally pass skill_bonus
+            # when the catalog entry carries one (generic passthrough —
+            # future tools need only the data field, not code changes).
+            inv_item = {
                 "key":         key,
                 "name":        item_name,
                 "slot":        catalog_entry.get("slot", "misc"),
                 "description": catalog_entry.get("description", ""),
                 "faction_issued": True,
                 "faction_code":   org_code,
-            })
+            }
+            sb = catalog_entry.get("skill_bonus")
+            if isinstance(sb, dict):
+                inv_item["skill_bonus"] = dict(sb)
+            # Add to inventory
+            await db.add_to_inventory(char["id"], inv_item)
             # Record issuance
             await db.issue_equipment(char["id"], org["id"], key, item_name)
             issued_names.append(item_name)

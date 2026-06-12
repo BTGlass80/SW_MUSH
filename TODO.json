@@ -2339,8 +2339,8 @@
     {
       "id": "OBS.buy_verb_followups",
       "raised": "2026-06-12",
-      "note": "(a) RESOLVED drop 11 \u2014 vendor-presence gate shipped (decision a + vendor flag). Remaining: (b) \"ship_weapon_purchase\" tag rename during T3.19 (ledger continuity caveat). (c) commissary tracking_fob \"+1D Search\" has no consumer \u2014 skill_bonus one-field candidate for the Drop F seam, pending landing-shape check.",
-      "status": "OPEN \u2014 (b) and (c) remain, small, none blocking"
+      "note": "(a) RESOLVED drop 11 \u2014 vendor-presence gate shipped (decision a + vendor flag). (b) RESOLVED drop 13 \u2014 \"ship_weapon_purchase\" renamed to \"ground_weapon_purchase\"; historical rows stay under old tag (ledger-continuity caveat, no migration). (c) RESOLVED drop 13 \u2014 tracking_fob skill_bonus added to both EQUIPMENT_CATALOG and COMMISSARY_STOCK; issue_equipment + purchase_commissary pass it through to inventory; fob now grants +1D Search via perform_skill_check. Known residual: bounty_commands direct-pool path does not call the chokepoint \u2014 fob does not help the bounty investigation roll (architectural gap, not regression).",
+      "status": "RESOLVED \u2014 all sub-items closed"
     },
     {
       "id": "OBS.quality_and_boosts_not_combat_read",

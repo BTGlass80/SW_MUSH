@@ -69,7 +69,8 @@ COMMISSARY_STOCK = {
         {"key": "guild_license",        "name": "Guild License",            "slot": "misc",   "cost":  100, "min_rank": 0,
          "desc": "Official Bounty Hunters' Guild authorization."},
         {"key": "tracking_fob",         "name": "Tracking Fob",             "slot": "misc",   "cost":  350, "min_rank": 1,
-         "desc": "Short-range biometric tracker. +1D to Search for targets."},
+         "desc": "Short-range biometric tracker. +1D to Search for targets.",
+         "skill_bonus": {"skill": "search", "bonus": "+1D"}},
     ],
 }
 
@@ -219,7 +220,10 @@ async def purchase_commissary(db, char: dict, faction_code, rank_level, key) -> 
         return {"ok": False, "reason": "charge_failed"}
 
     try:
-        await db.add_to_inventory(char["id"], {
+        # Build the inventory payload; conditionally pass skill_bonus
+        # when the stock entry carries one (generic passthrough —
+        # future tools need only the data field, not code changes).
+        inv_item = {
             "key":            item["key"],
             "name":           item["name"],
             "slot":           item["slot"],
@@ -227,7 +231,11 @@ async def purchase_commissary(db, char: dict, faction_code, rank_level, key) -> 
             "faction_issued": True,
             "faction_code":   str(faction_code).strip().lower(),
             "commissary":     True,
-        })
+        }
+        sb = item.get("skill_bonus")
+        if isinstance(sb, dict):
+            inv_item["skill_bonus"] = dict(sb)
+        await db.add_to_inventory(char["id"], inv_item)
     except Exception:
         log.warning("[commissary] grant failed for char %s; refunding",
                     char.get("id"), exc_info=True)

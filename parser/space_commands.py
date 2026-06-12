@@ -4181,7 +4181,11 @@ class BuyCommand(BaseCommand):
                     name=(_d_w.name if _d_w else _slots["weapon"].key)))
         char["equipment"] = write_equipment(weapon=item, armor=_slots["armor"])
         await ctx.db.save_character(char["id"], equipment=char["equipment"])
-        char["credits"] = await ctx.db.adjust_credits(char["id"], -price, "ship_weapon_purchase")
+        # Tag renamed from "ship_weapon_purchase" — this path now only sells
+        # character-scale ground commons (vendor_stocked Avail-1 personal
+        # weapons). Historical ledger rows stay under the old tag; only
+        # forward ground buys carry the new tag (no data migration — intended).
+        char["credits"] = await ctx.db.adjust_credits(char["id"], -price, "ground_weapon_purchase")
 
         # ── Player Cities Phase 4b (May 22 2026): city tax ──────────────
         # NPC vendor buy: per Phase 4b design call #2, the player's

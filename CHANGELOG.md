@@ -6,6 +6,15 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-12 — Buy-verb tail: tracking_fob search seam + ground ledger tag — *same-day drop 13*
+`OBS.buy_verb_followups` (b) and (c) resolved.
+- **(c) tracking_fob now actually grants +1D Search.** The item's advert ("Short-range biometric tracker. +1D to Search for targets.") finally has a consumer. Added `"skill_bonus": {"skill": "search", "bonus": "+1D"}` to both source catalogs (`EQUIPMENT_CATALOG["tracking_fob"]` in `engine/organizations.py` and the `bounty_hunters_guild` entry in `engine/commissary.py`). The `issue_equipment` and `purchase_commissary` functions each got a generic passthrough: when a catalog/stock entry carries a `skill_bonus` dict it is copied into the `add_to_inventory` payload verbatim — future tools need only the data field, not a code change. The bonus flows through `_best_tool_bonus` → `perform_skill_check` (the Drop F seam) for all out-of-combat search/inspect callers. **Known residual:** `parser/bounty_commands.py` builds its dice pool directly via `roll_d6_pool` and never calls `perform_skill_check` — the fob does NOT help the direct-pool bounty investigation roll. This is an architectural gap, not a regression; it was the same before this drop.
+- **(b) `ship_weapon_purchase` → `ground_weapon_purchase` ledger tag rename.** `parser/space_commands.py` line ~4184: the `buy` path now only sells character-scale ground commons (the 11 `vendor_stocked` Avail-1 personal weapons after market segmentation, drop 10). Renamed the tag to match. Historical ledger rows stay under the old tag; only forward ground buys carry the new tag (no data migration — intended, documented).
+- **Files:** `engine/organizations.py`, `engine/commissary.py`, `parser/space_commands.py`, `tests/test_buy_verb_tail.py` (new), `CHANGELOG.md`, `TODO.json`.
+- **Tests:** `tests/test_buy_verb_tail.py` — 9 cases: catalog data pins (EQUIPMENT_CATALOG has skill_bonus; COMMISSARY_STOCK has skill_bonus; both agree); end-to-end seam (fob grants +1D to search; does NOT buff blaster; does NOT buff brawling); structural source pins (issue_equipment passthrough wired; purchase_commissary passthrough wired); ledger tag rename (new tag present; old tag absent from executable lines).
+
+---
+
 ### 2026-06-12 — Commissary web panel: mode:'vendor' fold-in — *same-day drop 12*
 `WEBIFY.commissary_vendor_mode` delivered — **buy-side only; sellback explicitly deferred.**
 - **`commissary_vendor_payload(faction_code, rank_level, balance) -> dict`** added to `engine/commissary.py`. Pure function; reuses `commissary_status_lines`/`_stock` for mark logic (no duplication). Returns `{mode:"vendor", vendor_kind:"commissary", faction_code, rank_level, balance, items:[{key,name,slot,cost,min_rank,desc,mark}]}`. Factions with no commissary return `items:[]`. No schema change; no credit/grant logic touched.
