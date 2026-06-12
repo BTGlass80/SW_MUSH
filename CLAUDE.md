@@ -68,8 +68,15 @@ for cost. Default pipeline for a non-trivial drop:
    applying a rubric, mechanical refactors. It follows the hard invariants
    and stops on any genuine fork instead of guessing. Do NOT delegate
    design calls or invariant-bending changes to it.
-3. **Verify the diff → `invariant-auditor`** (Sonnet, read-only) **+
-   `test-runner`** (Sonnet) before handing back to Brian.
+3. **Verify the diff (read-only Sonnet fan-out, run in parallel) before
+   handing back to Brian:** **`invariant-auditor`** (domain invariants:
+   era, funnels, phantom producers/consumers, faucet/sink, hygiene) **+
+   `code-reviewer`** (correctness bugs the tests miss: async/aiosqlite,
+   edge cases, leaks, D6 math, web producer/consumer contracts) **+
+   `test-runner`** (targeted unit tests for touched modules) **+
+   `smoke-verifier`** (runtime truth — the app still boots and responds,
+   in-process via `tests/smoke/ -m smoke`). The Opus main session
+   adjudicates their findings.
 
 Cheap, parallel, read-only fan-out (searches across many files) → `Explore`
 or `general-purpose`. Prefer delegating implementation + verification so
