@@ -339,7 +339,18 @@ class TestT5SchematicsLoadable(unittest.TestCase):
                                      f"{key} T5 mat min_quality below 75")
 
     def test_t5_difficulties_are_above_t4_ceiling(self):
-        """T5 difficulty should sit above existing T1-T4 ceiling (20)."""
+        """Every T5 difficulty sits above the *legal* non-T5 crafting ceiling.
+
+        Originally this pinned T5 above the dynamic max of all non-T5
+        schematics. The Gundark Drop G **contraband** band (predator_rifle,
+        anti_vehicle_grenade @ diff 26 — the Heroic cap, the catalog's
+        "worst pages") later reached the same difficulty ceiling via a
+        *different* axis (illegality / experimental-prototype danger), not
+        crafting tier. So T5 is the hardest *legal* crafting lane, but the
+        contraband band is a deliberately-extreme separate category.
+        Exclude ``contraband`` schematics from the ceiling so the invariant
+        guards what it means to guard: T5 > every lawful non-T5 recipe.
+        """
         from engine.crafting import get_all_schematics
         max_non_t5 = 0
         t5_difficulties = []
@@ -347,11 +358,12 @@ class TestT5SchematicsLoadable(unittest.TestCase):
             diff = schem.get("difficulty", 0)
             if key.startswith("t5_"):
                 t5_difficulties.append(diff)
-            else:
+            elif not schem.get("contraband"):
                 max_non_t5 = max(max_non_t5, diff)
         for d in t5_difficulties:
             self.assertGreater(d, max_non_t5,
-                               f"T5 difficulty {d} not above non-T5 max {max_non_t5}")
+                               f"T5 difficulty {d} not above non-T5 "
+                               f"legal max {max_non_t5}")
 
 
 # ──────────────────────────────────────────────────────────────────────

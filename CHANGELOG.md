@@ -6,6 +6,14 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-12 — Triage: T5-difficulty invariant vs the Drop G contraband band — *same-day drop 15*
+Pre-existing red fixed (found while verifying drop 14; confirmed red on HEAD before drops 13-14, unrelated to either). `tests/test_syn6c_t5_crafting_and_harvest_nodes.py::test_t5_difficulties_are_above_t4_ceiling` asserted every `t5_*` schematic out-ranks the *dynamic* max difficulty of all non-T5 schematics. That invariant predates **Gundark Drop G**, whose contraband band (`predator_rifle`, `anti_vehicle_grenade` @ diff 26 — the Heroic cap, the catalog's "worst pages") legitimately reached the same difficulty ceiling via a **different axis** (illegality / experimental-prototype danger), not crafting tier. So three T5 rows (top_spec_blaster_rifle 25, master_grade_armor 25, hyperdrive_surge_converter 26) failed a strict `> 26` test.
+- **Resolution: fix the test, not the data.** The contraband difficulties are correct per Drop G's rubric; the T5 difficulties (25-28) are correct per their design; only the test's assumption that the two never collide was stale. The test now **excludes `contraband` schematics** from the ceiling, preserving a strong, meaningful invariant: every T5 difficulty exceeds the hardest *legal* non-T5 recipe (max legal = `comm_jammer` @ 24; all T5 ≥ 25 ✓). T5 is the hardest lawful crafting lane; the contraband band is a deliberately-extreme separate category.
+- **No data/balance change.** Test docstring rewritten to document the axis distinction. 40/40 in the file green.
+- **Files:** `tests/test_syn6c_t5_crafting_and_harvest_nodes.py`, `CHANGELOG.md`, `TODO.json`.
+
+---
+
 ### 2026-06-12 — T5 drop hooks closed: Coruscant scavenge faucet — *same-day drop 14*
 `T2.DEF.t5_drop_hooks` fully closed. `scavenged_republic_tech` now faucets from Coruscant Underworld harvest via a region-keyed, tier-independent 7% bonus roll (+1 stack @ q75), reusing the existing `compute_harvest_payout` → `add_resource` path with no new system. The other 3 hooks landed in SYN.7.b (weapons_capacitor_core, composite_chitin) and SYN.8 (deep_dune_iron); this is the 4th and last.
 - **Mechanism:** `_REGION_SCAVENGE_BONUS` dict keyed on `region_slug`, checked after the existing `t5_rare` block. Fires on any successful harvest in `"coruscant_underworld"` regardless of influence/ownership tier (contrast: `_t5_rare_chance` only appears on Control-tier YIELD_TABLE rows). q75 chosen as the T5 min-quality floor — q100 stays reserved for SYN.8 anomaly drops per the `TUN.harvest.t5_rare_chance` concern note.
