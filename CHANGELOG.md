@@ -6,6 +6,19 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-12 — T5 drop hooks closed: Coruscant scavenge faucet — *same-day drop 14*
+`T2.DEF.t5_drop_hooks` fully closed. `scavenged_republic_tech` now faucets from Coruscant Underworld harvest via a region-keyed, tier-independent 7% bonus roll (+1 stack @ q75), reusing the existing `compute_harvest_payout` → `add_resource` path with no new system. The other 3 hooks landed in SYN.7.b (weapons_capacitor_core, composite_chitin) and SYN.8 (deep_dune_iron); this is the 4th and last.
+- **Mechanism:** `_REGION_SCAVENGE_BONUS` dict keyed on `region_slug`, checked after the existing `t5_rare` block. Fires on any successful harvest in `"coruscant_underworld"` regardless of influence/ownership tier (contrast: `_t5_rare_chance` only appears on Control-tier YIELD_TABLE rows). q75 chosen as the T5 min-quality floor — q100 stays reserved for SYN.8 anomaly drops per the `TUN.harvest.t5_rare_chance` concern note.
+- **New tunable:** `TUN.harvest.coruscant_scavenge_chance` — `_CORUSCANT_SCAVENGE_CHANCE = 0.07` in `engine/harvest.py` (band 5-10%). ~1 per ~7h solo harvesting at baseline.
+- **`compute_harvest_payout` changes:** new kwarg `region_slug: Optional[str] = None`; `"scavenge_bonus": bool` added to both the success-path and failed-check return dicts for consistent shape. `_format_success_msg` appends `[Salvage: scavenged Republic tech!]` when `scavenge_bonus` is true.
+- **`perform_harvest` changes:** passes `region_slug` into `compute_harvest_payout`; propagates `scavenge_bonus` in both the Step 8 (failed-check) and Step 11 (success) result dicts.
+- **Parser unchanged:** `parser/harvest_command.py` surfaces `result["msg"]` and `result["resource_stacks"]` generically — the new stack and flag flow through automatically.
+- **Files:** `engine/harvest.py`, `tests/test_t5_scavenge_hook.py` (new), `CHANGELOG.md`, `TODO.json`.
+- **Tests:** 20 new cases across 7 test classes: fires/misses (roll-controlled stub RNG); region-scoped (dune_sea / None / "" never fire); tier-independent (foothold and dominant tiers both fire); quality pin (75.0 not 100.0); failed-check shape (scavenge_bonus key present with False); structural pins (RESOURCE_TYPES membership; T5_WILDERNESS_MATERIALS membership; tunable band 5-10%). All 77 (20 new + 57 existing syn6a) pass; 0 regressions.
+- **Closes:** `T2.DEF.t5_drop_hooks.scavenged_republic_tech` and the top-level `T2.DEF.t5_drop_hooks` (all 4 hooks now closed).
+
+---
+
 ### 2026-06-12 — Buy-verb tail: tracking_fob search seam + ground ledger tag — *same-day drop 13*
 `OBS.buy_verb_followups` (b) and (c) resolved.
 - **(c) tracking_fob now actually grants +1D Search.** The item's advert ("Short-range biometric tracker. +1D to Search for targets.") finally has a consumer. Added `"skill_bonus": {"skill": "search", "bonus": "+1D"}` to both source catalogs (`EQUIPMENT_CATALOG["tracking_fob"]` in `engine/organizations.py` and the `bounty_hunters_guild` entry in `engine/commissary.py`). The `issue_equipment` and `purchase_commissary` functions each got a generic passthrough: when a catalog/stock entry carries a `skill_bonus` dict it is copied into the `add_to_inventory` payload verbatim — future tools need only the data field, not a code change. The bonus flows through `_best_tool_bonus` → `perform_skill_check` (the Drop F seam) for all out-of-combat search/inspect callers. **Known residual:** `parser/bounty_commands.py` builds its dice pool directly via `roll_d6_pool` and never calls `perform_skill_check` — the fob does NOT help the direct-pool bounty investigation roll. This is an architectural gap, not a regression; it was the same before this drop.

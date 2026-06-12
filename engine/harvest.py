@@ -184,6 +184,29 @@ COOLDOWN_KEY_PREFIX = "harvest_"
 # decide which stack receives the +1 T5-rare bonus.
 _T5_RARE_TARGET = "rare"
 
+# ── Region-keyed scavenge bonus (Drop 14 — Coruscant Underworld) ─────────────
+#
+# This is DISTINCT from the generic ``_t5_rare_chance`` in the YIELD_TABLE:
+#   * ``_t5_rare_chance`` is tier-dependent (only fires at Control tier rows),
+#     appends a generic "rare" stack at q100, and is reserved for the
+#     SYN.8 anomaly-quality reserved range.
+#   * ``_REGION_SCAVENGE_BONUS`` is region-keyed and TIER-INDEPENDENT — it
+#     fires on ANY successful harvest in the named region regardless of which
+#     org owns it (or if it is un-owned / foothold tier). It appends the
+#     specific T5 material named in the table at q75 — the T5 min-quality
+#     floor, NOT q100. Quality 100 stays reserved for SYN.8 anomaly drops
+#     per the ``TUN.harvest.t5_rare_chance`` concern note.
+#
+# Adding a new region: append a row here; no other code changes needed.
+_CORUSCANT_SCAVENGE_CHANCE = 0.07  # TUN.harvest.coruscant_scavenge_chance (band 5-10%)
+_REGION_SCAVENGE_BONUS: dict[str, dict] = {
+    "coruscant_underworld": {
+        "target":  "scavenged_republic_tech",
+        "chance":  _CORUSCANT_SCAVENGE_CHANCE,
+        "quality": 75.0,
+    },
+}
+
 
 # ── Pure helpers (no DB) ─────────────────────────────────────────────────────
 
@@ -298,6 +321,7 @@ def compute_harvest_payout(
     is_owner_member: bool = True,
     owner_exists: bool = True,
     rng: Optional[random.Random] = None,
+    region_slug: Optional[str] = None,
 ) -> dict:
     """Full deterministic harvest payout computation (no DB writes).
 
@@ -322,6 +346,13 @@ def compute_harvest_payout(
     Missing types in the dict fall back to 1.0 — defensive against
     partial rolls.
 
+    The ``region_slug`` parameter enables region-keyed bonus rolls
+    (see ``_REGION_SCAVENGE_BONUS``). It is tier-independent: the
+    bonus fires on any successful harvest in the named region,
+    regardless of ownership or influence tier. Pass ``None`` (default)
+    to skip all region-keyed bonuses — safe for callers that do not
+    know the region slug.
+
     Returns a dict:
       ``{
           "credits_gross":     int,    # before tax
@@ -329,6 +360,7 @@ def compute_harvest_payout(
           "credits_tax":       int,    # owner's cut (0 if owner-member)
           "resource_stacks":   list,   # [{type, quantity, quality}, ...]
           "t5_rare":           bool,   # rolled t5_rare bonus?
+          "scavenge_bonus":    bool,   # rolled region scavenge bonus?
           "yield_band":        (min, max),  # post-skill-margin band
           "stack_qualities":   dict,   # {type: 1..100 quality, ...}
                                        # NEW in SYN.6.b — per-type
@@ -360,6 +392,7 @@ def compute_harvest_payout(
             "credits_tax":     0,
             "resource_stacks": [],
             "t5_rare":         False,
+            "scavenge_bonus":  False,
             "yield_band":      (0, 0),
             "stack_qualities": {},
             "stack_quality":   0.0,
@@ -417,6 +450,21 @@ def compute_harvest_payout(
             "quality":  _T5_RARE_QUALITY,
         })
 
+    # ── Region-keyed scavenge bonus (tier-independent) ───────────────────────
+    # Fires AFTER the generic t5_rare block. Keyed on region_slug, not on
+    # the influence tier — Coruscant Underworld grants scavenged_republic_tech
+    # at q75 (T5 floor) whether the region is un-owned or at Control tier.
+    # See _REGION_SCAVENGE_BONUS for the full rationale.
+    scavenge_bonus = False
+    _sb = _REGION_SCAVENGE_BONUS.get((region_slug or "").strip().lower())
+    if _sb and rng.random() < float(_sb["chance"]):
+        scavenge_bonus = True
+        resource_stacks.append({
+            "type":     _sb["target"],
+            "quantity": 1,
+            "quality":  float(_sb["quality"]),
+        })
+
     credits_kept, credits_tax = _compute_tax(
         credits_gross, is_owner_member, owner_exists=owner_exists,
     )
@@ -436,6 +484,7 @@ def compute_harvest_payout(
         "credits_tax":     credits_tax,
         "resource_stacks": resource_stacks,
         "t5_rare":         t5_rare,
+        "scavenge_bonus":  scavenge_bonus,
         "yield_band":      scaled_band,
         "stack_qualities": stack_qualities,
         "stack_quality":   legacy_stack_quality,
@@ -760,6 +809,7 @@ async def perform_harvest(
         is_owner_member=is_owner_member,
         owner_exists=(owner_code is not None),
         rng=rng,
+        region_slug=region_slug,
     )
 
     # ── Step 7: cooldown set (even on failed check) ─────────────────────────
@@ -784,6 +834,7 @@ async def perform_harvest(
             "credits_tax":     0,
             "resource_stacks": [],
             "t5_rare":         False,
+            "scavenge_bonus":  False,
             "region_slug":     region_slug,
             "owner_code":      owner_code,
             "skill_roll":      sc.roll,
@@ -852,6 +903,7 @@ async def perform_harvest(
         "credits_tax":     payout["credits_tax"],
         "resource_stacks": payout["resource_stacks"],
         "t5_rare":         payout["t5_rare"],
+        "scavenge_bonus":  payout.get("scavenge_bonus", False),
         "region_slug":     region_slug,
         "owner_code":      owner_code,
         "skill_roll":      sc.roll,
@@ -882,4 +934,6 @@ def _format_success_msg(
         parts.append(f"(tax {payout['credits_tax']:,}cr → {owner_code})")
     if payout.get("t5_rare"):
         parts.append("[T5 rare!]")
+    if payout.get("scavenge_bonus"):
+        parts.append("[Salvage: scavenged Republic tech!]")
     return " ".join(parts)
