@@ -101,6 +101,21 @@ async def _seed_room(db, zone_id: int, name: str = "Room") -> int:
     return cur.lastrowid
 
 
+async def _seed_vendor_npc(db, room_id: int, name: str = "Test Vendor") -> int:
+    """Seed an NPC flagged ``ai_config.vendor: true`` in the room.
+
+    The vendor-presence gate (ECON.vendor_presence_gate, 2026-06-12 drop 11)
+    made ``buy`` refuse unless a flagged vendor NPC is present in the room.
+    These Phase-4b city-tax tests predate that gate; seeding a vendor here
+    exercises the actual purchase + city-tax path rather than the gate
+    refusal (the buy would otherwise early-return before apply_city_tax).
+    """
+    return await db.create_npc(
+        name=name, room_id=room_id,
+        ai_config_json=json.dumps({"vendor": True}),
+    )
+
+
 async def _seed_char(
     db, name: str, faction_id: str = "",
     room_id: int | None = None, credits: int = 100_000,
@@ -718,6 +733,7 @@ class TestBuyCmdInCityTaxed(unittest.TestCase):
             await db.save_character(
                 ctx["founder"]["id"], room_id=ctx["hq_room_ids"][0],
             )
+            await _seed_vendor_npc(db, ctx["hq_room_ids"][0])
             char = await db.get_character(ctx["founder"]["id"])
 
             # Find a purchasable weapon (with a cost) that isn't armor
@@ -749,6 +765,7 @@ class TestBuyCmdOutsideCity(unittest.TestCase):
             await db.save_character(
                 ctx["founder"]["id"], room_id=ctx["outside_room"],
             )
+            await _seed_vendor_npc(db, ctx["outside_room"])
             char = await db.get_character(ctx["founder"]["id"])
 
             wr = get_weapon_registry()
@@ -781,6 +798,7 @@ class TestBuyCmdPlayerAccountingUnchanged(unittest.TestCase):
             await db.save_character(
                 ctx["founder"]["id"], room_id=ctx["hq_room_ids"][0],
             )
+            await _seed_vendor_npc(db, ctx["hq_room_ids"][0])
             char = await db.get_character(ctx["founder"]["id"])
             credits_before = int(char["credits"])
 

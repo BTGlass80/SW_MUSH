@@ -6,6 +6,14 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-12 — Triage: city-tax buy tests vs the vendor-presence gate (watch item #7) — *same-day drop 17*
+Pre-existing red fixed (found while verifying drop 16; confirmed red on the pre-session base commit 3c33074 — predates drops 13-16). `tests/test_cities_phase4b.py`'s three `BuyCommand` city-tax tests (`TestBuyCmdInCityTaxed`, `TestBuyCmdOutsideCity`, `TestBuyCmdPlayerAccountingUnchanged`) were written before **`ECON.vendor_presence_gate`** (drop 11, prior session) made `buy` refuse unless an NPC with `ai_config.vendor:true` is in the room. With no vendor seeded, `BuyCommand` early-returned with "No merchant here sells weapons" **before** `apply_city_tax` ran, so the city's `revenue_total` stayed 0 and the purchase message never printed — exactly the HANDOFF §7 watch-item #7 flip ("buy gates on vendor presence").
+- **Resolution: fix the tests, not the gate.** Added a `_seed_vendor_npc(db, room_id)` helper (uses the canonical `db.create_npc` seam with `ai_config_json={"vendor":true}`) and seeded a vendor in the room for all three buy tests, so they exercise the real purchase + city-tax path the gate now requires — rather than asserting the OLD ungated-buy behavior. `TestBuyCmdOutsideCity` previously passed only trivially (the blocked buy left revenue at 0 for the wrong reason); it now buys successfully outside any city and meaningfully asserts no city take. The weapon the tests pick (`hold_out_blaster`, the first cost>0 non-armor) is `vendor_stocked`, so the drop-10 stock gate is satisfied; only the vendor-presence gate was blocking.
+- **No production/data change.** Test-only. File is 16/16 green; cities/buy blast radius 158/158 green.
+- **Files:** `tests/test_cities_phase4b.py`, `CHANGELOG.md`, `TODO.json`.
+
+---
+
 ### 2026-06-12 — T2.DEF.handler_npcs closed: dynamic-HQ intel contact — *same-day drop 16*
 Player-org HQ establishment now spawns a faction-coded intel handler NPC in the HQ entrance room (`purchase_hq` in `engine/housing.py`), closing the espionage-redemption gap for player-org members — previously only the 5 static-HQ canonical factions (Jedi/Republic/CIS/Hutt/BHG) had a reachable handler. The NPC is torn down on `sell_hq` so it isn't orphaned (`delete_room` does not cascade to NPCs). Reachable via the existing `find_handler_in_room` consumer in `parser/espionage_commands.py` — no new mechanic. Also fixes a pre-existing FK ordering bug in `sell_hq`: `player_housing.entry_room_id → rooms(id)` and `rooms.housing_id → player_housing(id)` created a mutual reference; `sell_hq` now clears `rooms.housing_id` first, then deletes the `player_housing` record, then deletes rooms — satisfying both FK constraints. This was masked in prior testing because no test ever called `sell_hq` end-to-end.
 - **Files:** `engine/housing.py`, `tests/test_t2def_dynamic_hq_handler.py` (new, 5 cases), `CHANGELOG.md`, `TODO.json`.
