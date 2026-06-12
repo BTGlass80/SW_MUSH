@@ -1,0 +1,212 @@
+# data/worlds/clone_wars/wilderness/coruscant_underworld_se_mazefringe.yaml
+# Clone Wars Era — Coruscant Underworld SE quadrant: The Maze Fringe
+# Schema version 1
+#
+# Per clone_wars_era_design_v3.md §7.2, Coruscant Underworld region
+# build-out — handoff item 4, southeast quadrant.
+#
+# These three landmarks form the periphery of the existing
+# maze_the_reaper_territory anchor. They are NOT a second Maze and NOT
+# the Maze core. They are the approach zone: navigational traps, a
+# predator-haunted sublevel, and the outermost boundary-marker where
+# sane travelers turn back.
+#
+# Threat gradient (outward → inward):
+#   se_last_ward_marker      [37, 23]  low     — last warning; some still
+#                                                 turn back from here
+#   se_collapse_gallery      [33, 30]  lethal  — geometry wrong, feeding sign
+#   se_sublevel_shriek_dark  [29, 36]  lethal  — predator-active; Maze edge
+#
+# All three: region = coruscant_underworld, level = bottom
+# No adjacency field — coordinate-placed pattern only.
+#
+# Author zone: SE quadrant only. Disjoint from all other author files.
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+landmarks:
+
+  # ─── Last Ward Marker ────────────────────────────────────────────────
+  - id: se_last_ward_marker
+    name: "The Last Ward Marker"
+    region: coruscant_underworld
+    coordinates: [37, 23]
+    level: bottom
+    short_desc: >
+      A Public Works boundary post — ancient, defaced, plastered with
+      kill-tally graffiti from scavengers who dared the fringe and came
+      back. Beyond this point the air changes and the lights stop.
+      Most who reach it choose to leave.
+    description: |
+      The post is durasteel, bolted into the ferrocrete floor in some
+      prior century when the Public Works authority still pretended this
+      level was managed. The official stencil — SECTOR BOUNDARY /
+      AUTHORIZED PERSONNEL ONLY — is almost gone, worn to ghost-marks by
+      the damp. What replaced it is worse: kill-tallies scratched into
+      the post by scavengers and hunters who made it this far and
+      turned around. There are a great many tallies. The most recent
+      looks recent.
+
+      The corridor ahead does not look different from the corridor behind.
+      That is the wrong conclusion to draw. The smell is different —
+      something musky, organic, with a low mineral undertone that does
+      not belong to mold or standing water. The lighting beyond the post
+      is degraded to a faint amber wash and then nothing. The ambient
+      audio profile changes at the post's edge: quieter, with an
+      occasional subsonic resonance that registers as unease before it
+      registers as sound.
+
+      Experienced Underworld residents leave marks here: chalk, cut
+      notches, a bent wire in a junction box — private signals that mean
+      "I was here, I turned back, be smart." None of the marks are from
+      anyone who went further and returned to add them.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      faction_anchor: null
+      hostile_default: false
+      threat_tier: low
+      low_level_warning: true
+    terrain: bottom_dark
+    ambient_lines:
+      - text: "The kill-tally marks on the post go all the way around the base. Someone ran out of room on the front."
+      - text: "A bent wire in the junction box at post-height. Someone's private signal. The wire is old."
+      - text: "The smell from the corridor ahead is organic and wrong. Not rot. Something that has recently eaten."
+      - text: "Your shadow falls forward, toward the dark. There is nothing ahead to cast it back."
+      - text: "A sound — subsonic, felt in the chest rather than heard — pulses once from the corridor beyond the marker, then stops."
+      - text: "A chalk mark on the ferrocrete floor, just past the post. Three lines, one crossed. You do not know what it means. Whoever left it does."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out)
+
+  # ─── Collapse Gallery ────────────────────────────────────────────────
+  - id: se_collapse_gallery
+    name: "The Collapse Gallery"
+    region: coruscant_underworld
+    coordinates: [33, 30]
+    level: bottom
+    short_desc: >
+      A sub-level section where the floor buckled inward centuries ago
+      and was never repaired. The geometry is wrong; walls meet at
+      angles that should not exist. Something feeds here — the evidence
+      is recent.
+    description: |
+      The floor of this section dropped two meters when a sub-level
+      support structure failed — no record of when; the Public Works
+      incident database stops before it reaches this depth. The result
+      is a gallery of terraced ferrocrete slabs, angled and heaped,
+      with gaps between them wide enough to drop through and narrow
+      enough that a body could wedge. Walls that were parallel now
+      converge at irregular angles, creating dead-end alcoves and
+      false corridors that show as passages until they do not.
+
+      There is feeding sign. Bone fragments in the gaps between slabs,
+      partially stripped — the method is not gnawing, it is something
+      else. Drag marks on two of the upper terraces, wide enough to
+      suggest mass. The freshness of the sign is not historical; this
+      is current. Whatever uses this gallery comes here regularly.
+
+      The cartography does not hold. Travelers who attempt to retrace
+      their route report that the arrangement of slabs and passages is
+      not what they entered. Whether this is a feature of the damaged
+      architecture or of something more deliberate, accounts disagree.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      faction_anchor: null
+      gameplay_role: lethal_deterrent
+      hostile_default: true
+      threat_tier: lethal
+      low_level_warning: true
+      cartography_unstable: true
+    terrain: bottom_dark
+    ambient_lines:
+      - text: "Bone in a gap between slabs. Stripped clean. The method is not teeth."
+      - text: "A drag mark on the upper terrace — wide, deliberate, recent. It leads to a gap in the floor."
+      - text: "You retrace your path and the slabs are not in the arrangement you remember. You are certain you remember correctly."
+      - text: "An alcove that showed as a through-passage is a wall. It is smooth. It has always been a wall."
+      - text: "The subsonic resonance from the corridor behind you — it has gotten louder since you entered."
+      - text: "Something wet on the ferrocrete of the lower terrace. You look once and keep moving."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out)
+
+  # ─── Sublevel Shriek-Dark ─────────────────────────────────────────────
+  - id: se_sublevel_shriek_dark
+    name: "The Shriek-Dark Sublevel"
+    region: coruscant_underworld
+    coordinates: [29, 36]
+    level: bottom
+    short_desc: >
+      The deepest fringe before the Maze proper. Shredder-bat roosts
+      above, spor-crawlers in the floor seams, and something larger that
+      the bats will not fly toward. The maps end here. What lies beyond
+      is maze_the_reaper_territory.
+    description: |
+      The ceiling here is lost to black. At some height above the floor
+      — four meters, ten, the echo does not resolve it — shredder-bat
+      colonies roost in the infrastructure. Their wing-sound is
+      continuous, a dry papery susurrus that fills every quiet moment.
+      They do not descend to the floor. That is notable. Shredder bats
+      descend to feed on anything that moves at floor level. They are
+      not descending.
+
+      Spor-crawlers work the floor seams — pale, segmented, the length
+      of a forearm, emerging briefly from cracks to drag debris back
+      below. They scatter from light, which means the light still works
+      here, barely: a single amber emergency strip on the east wall,
+      flickering on a damaged cycle, throwing shadows that move when
+      nothing else does.
+
+      The corridor at the far end of the sublevel does not show up in
+      any cartographic record that post-dates the Old Republic surveys.
+      What lies beyond it is what the Underworld calls the Reaper's
+      Maze. The shredder bats will not fly in that direction. Travelers
+      who have stood at this threshold and looked down that corridor
+      describe no particular anomaly. The ones who went further are
+      not available for follow-up.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      faction_anchor: null
+      gameplay_role: lethal_deterrent
+      hostile_default: true
+      threat_tier: lethal
+      low_level_warning: true
+      cartography_unstable: true
+    terrain: bottom_dark
+    ambient_lines:
+      - text: "The shredder-bat colony above shifts — thousands of them moving at once. Then stillness. They are listening."
+      - text: "A spor-crawler emerges from a floor seam, pauses, retreats. The gap it came from is sealed again."
+      - text: "The emergency strip flickers. In the half-second of dark, the sounds in the corridor ahead are different. When the light returns, there is nothing to see."
+      - text: "The bats will not fly toward the far corridor. They circle, they descend, they feed everywhere else. Not there."
+      - text: "You are at the edge of the known cartography. The room beyond this one does not appear on any map made after the Old Republic. Your map ends here."
+      - text: "A smell from the Maze corridor — cold iron, ozone, and something organic that has no name in any bestiary you have read."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out)
+
+# ═══════════════════════════════════════════════════════════════════════
+# DESIGN NOTES
+# ═══════════════════════════════════════════════════════════════════════
+# These three landmarks form a threat gradient approaching the existing
+# maze_the_reaper_territory anchor from the southeast:
+#
+#   [37,23] se_last_ward_marker      threat_tier: low    (last safe-ish point)
+#   [33,30] se_collapse_gallery      threat_tier: lethal (active feeding sign)
+#   [29,36] se_sublevel_shriek_dark  threat_tier: lethal (Maze threshold)
+#
+# cartography_unstable: true on the two lethal landmarks mirrors the
+# existing Maze flag. This is a property flag only — no new engine
+# support required; engine reads it the same way it reads the flag on
+# maze_the_reaper_territory.
+#
+# The apex predator is intentionally unnamed and ambiguous throughout,
+# consistent with the Reaper anchor's "accounts disagree" register.
+# Creature fauna (shredder bats, spor-crawlers) is drawn from the
+# Coruscant Underworld's established city-bred fauna register.
+#
+# Era: Clone Wars ~20 BBY. B3-clean: no post-Republic / GCW-era faction terms.
+# No canonical Clone Wars figures appear. All named fauna is original.
+# ═══════════════════════════════════════════════════════════════════════

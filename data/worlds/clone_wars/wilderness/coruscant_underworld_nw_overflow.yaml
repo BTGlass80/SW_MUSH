@@ -1,0 +1,213 @@
+# data/worlds/clone_wars/wilderness/coruscant_underworld_nw_overflow.yaml
+# Clone Wars Era — Coruscant Underworld: Northwest Quadrant "Industrial Overflow"
+# Schema version 1
+#
+# Per clone_wars_era_design_v3.md §7.2, this file authors three new
+# wilderness landmarks in the northwest quadrant of the Coruscant
+# Underworld region. The quadrant sits directly beneath the Uscru
+# entertainment district — commercial and industrial overflow,
+# stacked warehouse rows, a refugee thoroughfare and market, and
+# defunct sublevel infrastructure.
+#
+# Population: working-poor, transient, off-shift labor. No dominant gang.
+# Level band: mid. Tone: grittier and more industrial than the Uscru
+# Fringe anchor to the southeast, but sharing its independent-faction
+# character.
+#
+# Landmark roster (this file):
+#
+#   ▸ nw_tier_seven_warehouse_row      [6,  7]  — industrial ruin
+#   ▸ nw_overflow_thoroughfare_market  [14, 11]  — refugee market / jobs hub
+#   ▸ nw_sublevel_pump_station_nine    [10, 18]  — defunct infrastructure
+#
+# Included by the Coruscant Underworld wilderness builder alongside:
+#   coruscant_underworld_landmarks.yaml
+#   force_resonant_landmarks.yaml
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+landmarks:
+
+  # ─── Tier-Seven Warehouse Row ──────────────────────────────────────────
+  - id: nw_tier_seven_warehouse_row
+    name: "Tier-Seven Warehouse Row"
+    region: coruscant_underworld
+    coordinates: [6, 7]
+    level: mid
+    short_desc: >
+      A sealed block of Republic-corporate warehouses shuttered when
+      their freight-lift access collapsed. The loading bays still
+      smell of rust-oil and old grain. Squatters have forced the
+      shutter seals on at least three units.
+    description: |
+      Eight warehouses, each the width of a city block, pressed
+      shoulder-to-shoulder along a ferrocrete service corridor that
+      has not been on a Public Works manifest for forty years. The
+      freight lifts that fed this row were decommissioned when the
+      shaft above Tier Seven was reused for a luxury-tower foundation;
+      after that the warehouses were sealed from the corporate side and
+      simply left. The signage is still up — stamped metal plaques
+      reading MERIDIAN BULK TRANSPORT, CRESHALDYNE INDUSTRIAL STORAGE,
+      a third whose name has corroded to a smear of orange rust.
+
+      Squatters have forced the shutter seals on Units 3, 5, and 7.
+      Unit 3 holds a family of eight Aqualish who arrived during the
+      Outer Rim refugee surge two years ago and have not found reason
+      to leave. Unit 5 is someone's workshop — the smell of soldering
+      flux and scorched insulation seeps under the shutter at all
+      hours. Unit 7 is dark and quiet and its shutter has not moved in
+      weeks, which does not mean it is empty.
+
+      The overhead ferrocrete is low enough that a tall human must
+      duck under the conduit runs. Neon from the Uscru levels above
+      never reaches this row; the only light is a string of maintenance
+      glow-rods that someone has run along the eaves, half of them
+      blown.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      faction_anchor: independent
+      hostile_default: false
+      threat_tier: low
+    terrain: industrial_ruin
+    ambient_lines:
+      - text: "Unit 7's shutter is sealed. A thin line of light shows at the bottom. It was not there earlier."
+      - text: "From Unit 5, a sustained hiss of a plasma cutter, then silence."
+      - text: "One of the Aqualish children from Unit 3 watches you from behind the shutter gap, eyes wide, then is pulled back inside."
+      - text: "The MERIDIAN BULK TRANSPORT sign groans in the thermal draft from the ventilation shaft above. The rivets are working loose."
+      - text: "A dragged smear of rust-oil traces a path from the loading dock of Unit 5 to a drain grate, and stops. The grate is welded shut."
+      - text: "Ferrocrete dust sifts down from the conduit run overhead. A vibration somewhere above — repulsorlift traffic, two levels up."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out)
+
+  # ─── Overflow Thoroughfare Market ─────────────────────────────────────
+  - id: nw_overflow_thoroughfare_market
+    name: "Overflow Thoroughfare Market"
+    region: coruscant_underworld
+    coordinates: [14, 11]
+    level: mid
+    short_desc: >
+      A refugee-and-transient market that runs the length of a
+      sealed-off transit corridor. Vendors stake claims on the wall
+      with cargo staples. A jobs-chit board near the south entrance
+      turns over faster than any holonet feed. This is the nearest
+      thing the Northwest Overflow has to a center of commerce.
+    description: |
+      The thoroughfare was built as a pedestrian transit corridor
+      linking two cargo tram stations; when the tram line was rerouted
+      two decades ago both stations were sealed, and the corridor
+      became the longest uncontested stretch of flat, dry, enclosed
+      floor in the Northwest Overflow. The market followed.
+
+      Vendors string tarps from pipe runs and bolt partition-racks
+      to the old tram guide-rail. The stock is whatever came off the
+      back of a hauler or out of a sealed warehouse: reclaimed power
+      cells, mismatched ration blocks, secondhand garments, parts of
+      uncertain provenance. Three stalls specialize in nothing but
+      reselling rumors. A Duros who calls herself Veth Onas has held
+      the same corner near the south entrance for six years and trades
+      in both cargo manifests and the kind of work that does not
+      appear on cargo manifests.
+
+      The jobs-chit board is a corrugated metal panel on the corridor
+      wall beside Veth Onas's stall. Chits are attached with cargo
+      staples. The board updates every few hours and tracks work
+      across the Overflow and into the broader Underworld. Some of the
+      work is licensed. Most of it is the other kind.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: true
+      faction_anchor: independent
+      gameplay_role: jobs_hub
+      hostile_default: false
+      threat_tier: none
+      npc_cluster: true
+      job_board: true
+    terrain: ferrocrete_corridor
+    ambient_lines:
+      - text: "Veth Onas turns a cargo chit over in her fingers without looking up. 'That one's already spoken for. Unless you're faster.'"
+      - text: "A Weequay vendor shouts prices in three languages, none of them Basic, and everyone in earshot knows exactly what they mean."
+      - text: "The jobs board has a fresh chit pinned over two older ones. The credits offered are higher than they should be for the job described."
+      - text: "From somewhere deeper in the corridor, a child's voice counting in Huttese. A lesson, or a game, or something that counts for both."
+      - text: "Two off-shift laborers share a ration block on the corridor floor, backs to the wall. They are watching the north entrance."
+      - text: "The lights flicker once — three seconds of dark — and when they return, one stall has changed hands. No one mentions it."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out)
+
+  # ─── Sublevel Pump Station Nine ───────────────────────────────────────
+  - id: nw_sublevel_pump_station_nine
+    name: "Sublevel Pump Station Nine"
+    region: coruscant_underworld
+    coordinates: [10, 18]
+    level: mid
+    short_desc: >
+      A city water-reclamation pump station decommissioned a generation
+      ago. The pump housings are dry and cold. Someone has rigged a
+      shelter inside the main housing vault; the people who use it
+      would prefer not to have visitors.
+    description: |
+      Pump Station Nine was part of the Northwest Overflow's original
+      water-reclamation grid — the infrastructure that kept the mid-
+      level habitation blocks from flooding when the levels above
+      shed condensation. The grid was superseded by a newer system
+      three decades ago and the station was sealed. The pumps — six
+      of them, each the size of a cargo speeder, ribbed ferrosteel
+      housings still faintly warm where the insulation survives —
+      sit in a row inside the main vault, inert.
+
+      The vault ceiling is seven meters high, which makes it among
+      the largest open interior spaces in this quadrant. Someone
+      noticed. The space between Pump Four and Pump Five has been
+      converted into a rough shelter: salvaged panels for walls,
+      a heat coil wired to a pirated grid tap, a cookpot that has
+      seen regular use. The people who live here are not hostile
+      unless they feel cornered. They have been cornered before.
+
+      Old city signage stenciled on the vault wall in fading white:
+      MUNICIPAL WORKS AUTHORITY — RESTRICTED ACCESS — AUTHORIZED
+      PERSONNEL ONLY. The authority that painted it dissolved in a
+      budget restructuring a decade ago. The sign remains because
+      no one has been paid to remove it.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      faction_anchor: independent
+      hostile_default: false
+      threat_tier: low
+    terrain: service_tunnel
+    ambient_lines:
+      - text: "The pump housings tick faintly as the vault temperature shifts. The sound is regular enough to mistake for a heartbeat."
+      - text: "A cookpot smell — something fatty and overseasoned — from between Pump Four and Five. Whoever is in there heard you come in."
+      - text: "The stenciled RESTRICTED ACCESS lettering on the north wall is faded to near-nothing. Someone has traced one letter back in with a blunt tool: the R."
+      - text: "A grid-tap wire runs from the wall conduit to the shelter. The splice is competent. Someone who knows what they are doing lives here."
+      - text: "From the shelter, the sound of movement — deliberate, not startled. They are not running. They are deciding."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out)
+
+# ═══════════════════════════════════════════════════════════════════════
+# ENGINE INTEGRATION NOTES
+# ═══════════════════════════════════════════════════════════════════════
+# When the Coruscant Underworld wilderness builder reads this file:
+#
+# 1. All three landmarks set director_managed: false except
+#    nw_overflow_thoroughfare_market, which sets director_managed: true
+#    with npc_cluster: true and job_board: true — consistent with the
+#    uscru_entertainment_district_fringe pattern (one Director-flavored
+#    jobs hub per quadrant).
+#
+# 2. All three entries carry faction_anchor: independent. No gang
+#    claims this quadrant; threat_tier is low or none throughout.
+#
+# 3. Coordinates [6,7], [14,11], [10,18] were supplied as
+#    collision-free by the level designer. They are not to be moved.
+#
+# 4. This file is included alongside coruscant_underworld_landmarks.yaml
+#    and force_resonant_landmarks.yaml. The include line is wired by
+#    the level designer, not by this file.
+#
+# ═══════════════════════════════════════════════════════════════════════

@@ -1,0 +1,237 @@
+# data/worlds/clone_wars/wilderness/coruscant_underworld_sw_deepwarren.yaml
+# Clone Wars Era — Coruscant Underworld, Southwest Quadrant: "The Deep Warren"
+# Schema version 1
+#
+# Per clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out),
+# this file authors THREE landmarks for the Southwest quadrant — the low-to-bottom
+# deep underlevels. These are mundane, non-force-resonant sites sharing the
+# "unimaginably old, half-buried, forgotten" register of the forgotten_jedi_shrine
+# (q.v. force_resonant_landmarks.yaml) but without the Force-sign trigger.
+#
+# Coordinates (collision-free, confirmed against all existing landmark files):
+#   sw_ancient_pipe_market          [4, 28]   low    — refugee enclave / trade node
+#   sw_foundation_stratum_museum    [15, 25]  low    — archaeological ruin, scavengers
+#   sw_null_gallery                 [9, 34]   bottom — dangerous pre-city bottom strata
+#
+# Population register:
+#   People the city has forgotten. Refugees, scavengers, ferrocrete archaeologists
+#   who measure their finds in centuries, not decades. The city overhead is an
+#   abstraction here — only the weight of it is real.
+#
+# Era: Clone Wars ~20 BBY. B3-clean: no post-Republic / GCW-era faction terms.
+#   Republic + Jedi are live institutions; named canonical figures do not appear.
+#   All named characters are original.
+#
+# This file is a SOLO WRITE — Southwest quadrant only. Do not merge content
+# authored by other quadrant agents into this file.
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+landmarks:
+
+  # ─── Ancient Pipe Market ─────────────────────────────────────────────
+  - id: sw_ancient_pipe_market
+    name: "The Ancient Pipe Market"
+    region: coruscant_underworld
+    coordinates: [4, 28]
+    level: low
+    short_desc: >
+      A sprawling refugee market inside a cluster of decommissioned
+      coolant mains, each pipe wide enough to walk through upright.
+      Hundreds have made homes here; the smell of cooking and old
+      metal never quite clears.
+    description: |
+      Four decommissioned coolant mains — each several meters in
+      diameter, their ferrocrete casings cracked and stained with
+      centuries of mineral seep — converge here at a junction that
+      the city's builders probably intended as a maintenance hub.
+      What it became instead is a market. The pipes are dry now; no
+      one alive knows when they last carried anything. Their interiors
+      have been subdivided by salvaged panel and welded rebar into
+      stalls, sleeping cubbies, storage alcoves, and two small
+      communal cooking areas where condensation from the upper strata
+      collects in catchment bowls.
+
+      Several hundred people live here — refugees from Outer Rim
+      displacement zones, workers whose labor contracts dissolved
+      mid-war, displaced families who arrived on Coruscant with
+      enough credits for the transit and nothing left for housing.
+      They have made the pipes into something that functions. A
+      woman named Orveth Callo runs the market's unwritten order:
+      no weapons drawn inside the junction, disputes go to her, she
+      keeps twenty percent of nothing because everything here is
+      near-nothing. It mostly holds.
+
+      The smell is cooking fat, iron oxide, human proximity, and
+      somewhere above and behind it all, the faint sulfur of a
+      leaking conduit that nobody has located in three years of
+      searching. Vendors sell salvaged components, secondhand
+      clothing, and cooked food from bowls that do not quite match.
+      The people who live here have not seen the open sky in months
+      or years. Most have stopped expecting to.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: true
+      npc_cluster: true
+      faction_anchor: independent
+      hostile_default: false
+      threat_tier: low
+    terrain: service_tunnel
+    ambient_lines:
+      - text: "A child sits at the mouth of the nearest pipe, watching you. She does not speak. She does not look away."
+      - text: "The smell of rendered cooking fat and iron oxide hangs in the junction. Somewhere, a pot is boiling."
+      - text: "A man is selling bolts and durasteel scraps from a cloth spread on the pipe floor. He glances up, prices you, looks back down."
+      - text: "Orveth Callo stands near the center of the junction, arms folded, watching the stalls. She has already noticed you."
+      - text: "Someone has chalked a rough map of the surrounding corridors onto the pipe wall. Half the passages have question marks."
+      - text: "From deeper inside one of the pipes, the sound of a Republic-era work hymn, hummed flat, off-key, quietly."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out)
+
+  # ─── Foundation Stratum Museum ───────────────────────────────────────
+  - id: sw_foundation_stratum_museum
+    name: "The Foundation Stratum"
+    region: coruscant_underworld
+    coordinates: [15, 25]
+    level: low
+    short_desc: >
+      A collapse has exposed a cross-section of Coruscant's oldest
+      ferrocrete strata — construction layers centuries deep, each
+      band a different color. Scavengers pick the exposed seams.
+      A self-appointed archaeologist keeps watch.
+    description: |
+      Centuries ago, a load-bearing column gave way — or was
+      demolished, or simply fell — and the collapse it triggered
+      opened a shaft through the accumulated construction strata
+      of the low-level Underworld. The shaft is perhaps forty
+      meters across and drops another twenty before hitting a
+      compacted rubble floor. The exposed walls are a cross-section
+      of Coruscant's history in ferrocrete: band after band of
+      different composition, color, and texture, each representing
+      a generation of builders who laid their foundations on top of
+      the previous generation's ruins without ever removing them.
+
+      The oldest visible band — dull grey-green, stone aggregate
+      rather than processed ferrocrete, near the shaft bottom —
+      predates any construction record in the Public Works
+      database. An independent scholar named Feliss Drayne has
+      been camped at the shaft rim for eight months, cataloguing
+      exposed artifacts and running a quiet one-person campaign
+      to get the site officially protected. She has not received
+      an official reply. She has received two requests from
+      unnamed parties to vacate the site. She has not.
+
+      Scavengers work the seams for piping, fasteners, and
+      whatever machinery the strata entombed. The oldest layers
+      have yielded things Drayne will not sell and will not
+      explain. The shaft edge is not railed. The rubble floor
+      forty meters down is a real consequence of a careless step.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      faction_anchor: independent
+      hostile_default: false
+      threat_tier: low
+      structural_hazard: true
+    terrain: industrial_ruin
+    ambient_lines:
+      - text: "The exposed strata in the shaft wall are banded in layers — grey, red-brown, grey-green, something almost black at the bottom. Each band is a different century."
+      - text: "Feliss Drayne crouches at the rim with a light-pen, annotating a hand-drawn cross-section. She does not look up when you approach."
+      - text: "A scavenger is working a seam in the mid-stratum, prying at something embedded in the ferrocrete. Whatever it is, it has not moved in a long time."
+      - text: "From the shaft bottom, forty meters down, comes the occasional soft sound of settling rubble. Nothing visible moves."
+      - text: "Drayne's camp is a bedroll, three crates of labelled specimen bags, and a hand-lettered sign that reads ACTIVE ARCHAEOLOGICAL SITE — NO REMOVAL. No one paid the sign much attention."
+      - text: "The oldest stratum near the shaft floor is the color of weathered stone, not fabricated ferrocrete. Whatever it is, it was here before the builders."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out)
+
+  # ─── The Null Gallery ────────────────────────────────────────────────
+  - id: sw_null_gallery
+    name: "The Null Gallery"
+    region: coruscant_underworld
+    coordinates: [9, 34]
+    level: bottom
+    short_desc: >
+      A pre-city void at the absolute base of the construction
+      strata — an arched gallery cut directly from the original
+      Coruscant bedrock, before the first ferrocrete was poured.
+      The dark here is total. Things use it as a transit corridor.
+      Threat tier: lethal.
+    description: |
+      Before the first prefabricated ferrocrete panel was poured
+      on Coruscant, there was rock — dense basaltic rock, the
+      actual ground of an actual planet. The Null Gallery is a
+      naturally-formed arched void in that rock, and then later
+      a hand-cut extension of it, and then a place that was
+      apparently used for something and is no longer, and then
+      simply a place that exists, unmapped, at the absolute
+      bottom of the construction strata.
+
+      The gallery runs approximately two hundred meters, its
+      ceiling a low arch, its floor original bedrock levelled
+      by hand tools so old the cut marks have rounded smooth.
+      The bottom of the shaft from the Foundation Stratum opens
+      into one end of it, though the drop down is not survivable
+      without equipment. The only safe entry is a maintenance
+      crawl accessible from the transit shaft network, known to
+      perhaps a dozen living people.
+
+      The dark here is total without a light source. Not deep
+      dark — total dark, the dark of a place where light has
+      never existed naturally and where the city's ambient
+      electrical bleed does not reach. Things move through the
+      gallery. Predator species from the deep-underbelly
+      ecosystem treat it as a transit corridor. The scavengers
+      who know about this place call it the Null Gallery because
+      of what the survey instruments do when you point them at
+      the bedrock walls — they read null, which is impossible,
+      which is the only interesting thing left to say about it.
+
+      Low-level characters have no business here. The things
+      that transit the gallery do not distinguish between
+      trespassers and prey.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      faction_anchor: independent
+      hostile_default: true
+      threat_tier: lethal
+      low_level_warning: true
+      structural_hazard: true
+    terrain: bottom_dark
+    ambient_lines:
+      - text: "The light from your source reaches perhaps ten meters. The gallery extends much further than that in both directions."
+      - text: "Something moves at the edge of your light. You point the light there. Nothing."
+      - text: "The bedrock walls are cut smooth — hand tools, not machines. The cut marks have rounded over. Whatever made them is not in any Republic survey record."
+      - text: "The silence is not quiet. It is the absence of the ambient hum the city produces at every other level. You did not realize how constant that hum was until now."
+      - text: "Your survey instrument reads null on the bedrock face. You check the calibration. You check it again."
+      - text: "At the far end of the gallery — beyond your light, beyond certainty — something breathes. You are not sure it is breathing. You are not sure it is not."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out)
+
+# ═══════════════════════════════════════════════════════════════════════
+# ENGINE INTEGRATION NOTES
+# ═══════════════════════════════════════════════════════════════════════
+# 1. None of these landmarks set force_resonant: true. The Force-sign
+#    accumulation path is gated on that flag (per jedi_village_quest_design_v1.md
+#    §3.1). These are mundane sites; omitting the flag is intentional.
+#
+# 2. sw_ancient_pipe_market sets director_managed: true + npc_cluster: true,
+#    matching the pattern of uscru_entertainment_district_fringe. The Director
+#    NPC cluster spawns here; hand-authored NPC Orveth Callo is flavor text.
+#
+# 3. sw_foundation_stratum_museum.structural_hazard: true signals the engine
+#    that movement toward the shaft edge should risk a falling event. The
+#    shaft drop is narrative (40 meters) — implementation is engine-side.
+#
+# 4. sw_null_gallery.threat_tier: lethal + low_level_warning: true matches
+#    the maze_the_reaper_territory pattern. The engine surfaces a threshold
+#    warning on entry for under-level characters.
+#
+# 5. sw_null_gallery.terrain: bottom_dark is permitted only for a genuine
+#    bottom-level site per content authoring rules. [9, 34] is bottom level.
+#
+# ═══════════════════════════════════════════════════════════════════════

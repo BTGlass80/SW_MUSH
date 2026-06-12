@@ -1,0 +1,226 @@
+# data/worlds/clone_wars/wilderness/coruscant_underworld_ne_smuggler.yaml
+# Clone Wars Era — Coruscant Underworld, Northeast Quadrant: Smuggler Reaches
+# Schema version 1
+#
+# Three wilderness landmarks for the NE "Smuggler Reaches" quadrant,
+# in the vicinity of abandoned_factory_dominus (coordinates [30, 5]).
+# Cargo moves at odd intervals through this stretch; no faction claims
+# ownership; surveillance is stripped. Black Sun's reach is felt but
+# these sites are independent — the gang anchor remains
+# black_sun_crawler_hideout (coordinates [20, 15]).
+#
+# Per clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out)
+#
+#   ▸ ne_derelict_loading_docks          (Low, [34,  9]) — collapsed docks
+#   ▸ ne_contraband_transfer_point       (Low, [27, 13]) — smuggler cache
+#   ▸ ne_stripped_cargo_lift_hub         (Low, [37,  3]) — frozen lifts
+#
+# All faction_anchor: independent — these are NOT a second Black Sun anchor.
+# Authored disjoint from coruscant_underworld_landmarks.yaml; do not merge
+# into that file without verifying the coordinate golden-snapshot guard.
+#
+# ═══════════════════════════════════════════════════════════════════════
+
+schema_version: 1
+
+landmarks:
+
+  # ─── Derelict Loading Docks ──────────────────────────────────────────
+  - id: ne_derelict_loading_docks
+    name: "Derelict Loading Docks"
+    region: coruscant_underworld
+    coordinates: [34, 9]
+    short_desc: >
+      A row of collapsed cargo bays at the eastern margin of Factory
+      Dominus's old supply corridor. Dock arms hang at broken angles;
+      the floor is cracked through. Something is cached in the intact
+      bay on the far end, but the approach is not safe.
+    description: |
+      Six loading bays were carved into the underside of the Dominus
+      supply corridor when the factory was operating. Five of them have
+      partially collapsed — dock arms bent at wrong angles, ferrocrete
+      floor cracked into tilted slabs where the support columns gave
+      way. Cabling hangs loose from the ceiling and trails into the
+      gaps. The smell is old lubricant and standing water from the
+      level below.
+
+      The sixth bay, farthest from the approach, has held. Its dock
+      arm is frozen in the extended position, pointing at nothing —
+      whatever freighter it was reaching for departed a long time ago.
+      The bay floor is sound, and someone has been using it. Crate
+      marks ring the edges, worn into the ferrocrete by years of
+      sliding. The marks are recent enough that the dust has not
+      resettled over them.
+
+      The approach crosses three cracked slab sections. A misstep drops
+      a person into the drainage gap between levels. The dock's
+      surveillance housings are empty — the sensors were stripped first,
+      the housings left in place to confuse a quick look from the
+      corridor.
+
+      Nobody posts a sign here. The intact bay is either a dead drop
+      or a very short-term storage relay; the traffic in and out is
+      never observed directly.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      faction_anchor: independent
+      hostile_default: false
+      threat_tier: low
+      structural_hazard: true
+    terrain: industrial_ruin
+    ambient_lines:
+      - text: "A dock arm overhead creaks in a pressure differential from somewhere far above. It does not fall."
+      - text: "One of the cracked slab sections has a rope tied to a coupling bolt — someone's way across. The rope is frayed at the knot."
+      - text: "The sixth bay is empty right now. The crate marks are fresh enough that the load cleared out within the last day."
+      - text: "Water ticks from a seam in the collapsed ceiling into the drainage gap below. Steady, slow, like a clock."
+      - text: "A surveillance housing stares blankly from the corner. The socket where the sensor sat is clean — removed with care, not smashed."
+      - text: "Boot prints in the ferrocrete dust: two sets coming in, one set going out. The outgoing set leaves deeper impressions."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out)
+
+  # ─── Contraband Transfer Point ───────────────────────────────────────
+  - id: ne_contraband_transfer_point
+    name: "Contraband Transfer Point"
+    region: coruscant_underworld
+    coordinates: [27, 13]
+    short_desc: >
+      A service alcove off the old Dominus freight lane, now a known
+      relay for goods that do not appear on any manifest. Crates cycle
+      through on schedules nobody publishes. Neutral ground by
+      convention, not by treaty.
+    description: |
+      The alcove was originally a maintenance break room — a wide
+      recess off the main freight lane with a sealed door, a dead
+      comm panel, and two conduit shafts running up the wall. The
+      door has been removed. The conduit shafts are how smaller loads
+      travel: lower the crate on a line, collect it one level down,
+      no corridor footprint.
+
+      The floor is sealed durasteel, a deliberate choice by whoever
+      commissioned the modification — no dust, no footprints. The
+      walls have been painted over so many times that the layers
+      form a palimpsest of old corporate markings, spray tags,
+      and a partial manifest list in three languages that was
+      painted in and then painted over but still readable under
+      a good light source.
+
+      This is neutral ground by long convention. No single operator
+      runs the Transfer Point; whoever leaves a crate here expects
+      it to still be there when the pickup arrives. The convention
+      holds because breaking it would close the facility for
+      everyone, and closing it would cost more than the contents
+      of any single load. Black Sun knows the Point exists. Black
+      Sun does not run it.
+
+      Players who wait long enough will observe a handoff. Nobody
+      who makes a handoff here stays longer than necessary.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      faction_anchor: independent
+      gameplay_role: smuggler_contraband_cache
+      hostile_default: false
+      threat_tier: low
+    terrain: ferrocrete_corridor
+    ambient_lines:
+      - text: "Two crates sit against the far wall. Neither is marked. One of them has a small heat signature if you know how to look."
+      - text: "The conduit shaft hatch opens briefly, then closes. Nothing comes up. Nothing goes down. Just a pressure check."
+      - text: "The painted-over manifest on the west wall is in Basic, Huttese, and something you can not immediately identify. The items listed are listed by weight, not description."
+      - text: "Someone has left a single credit chip on the floor in the center of the room. It is not a payment. It is a signal. You do not know what it means."
+      - text: "A faint mechanical hum from the conduit shaft — a line rig running empty, cycling through to confirm the path is clear."
+      - text: "The dead comm panel's indicator light is dark, but the unit is warm to the touch."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out)
+
+  # ─── Stripped Cargo-Lift Hub ──────────────────────────────────────────
+  - id: ne_stripped_cargo_lift_hub
+    name: "Stripped Cargo-Lift Hub"
+    region: coruscant_underworld
+    coordinates: [37, 3]
+    short_desc: >
+      A wide circular chamber where three cargo-lift shafts meet. All
+      three lifts are frozen mid-shaft; the control consoles are
+      gutted. The chamber is used as a staging ground for loads too
+      large for the conduit relays.
+    description: |
+      Three cargo-lift shafts converge on this chamber from different
+      quadrants of the Dominus supply network — a hub designed so
+      that a single operator could route freight between levels
+      without walking the corridors. The lifts would have made the
+      factory's logistical core nearly self-contained. None of them
+      move now.
+
+      Lift One is frozen eight meters up, its platform visible as a
+      dark rectangle in the shaft ceiling. Lift Two descended
+      partially and stopped; its edge is flush with the chamber
+      floor on the south side, creating a three-meter step down
+      into the shaft pit. Lift Three's cables were cut — the
+      platform dropped to the bottom of the shaft, which is seven
+      meters below the chamber floor and no longer accessible
+      without equipment.
+
+      The control consoles were gutted — not vandalized, stripped
+      with purpose. The component housings are clean and empty,
+      the wiring harnesses pulled out in neat coils, the
+      indicator boards removed from their brackets and presumably
+      sold. Only the console shells remain, bolted to the wall
+      like hollow armor.
+
+      Smugglers stage large loads here. The chamber is wide enough
+      for a full pallet, and the frozen Lift One platform can
+      be reached from above with a grapple line, giving the
+      chamber a second storage tier that is not visible from
+      the entrance. The hub is never claimed, always used.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+      director_managed: false
+      faction_anchor: independent
+      hostile_default: false
+      threat_tier: low
+    terrain: industrial_ruin
+    ambient_lines:
+      - text: "Lift Two's edge is flush with the floor on the south side. Leaning over shows the shaft pit below — three meters of frozen machinery and old carbon scoring."
+      - text: "A grapple line is tied off to a strut above Lift One's shaft opening. Someone used it recently; the anchor knot is still tight."
+      - text: "The console shells are empty to the last component. Even the indicator light bezels have been pried off and taken."
+      - text: "A large crate sits under Lift One's frozen platform, half-shadowed. The crate's manifest tag has been removed with a blade — the adhesive ghost is still there."
+      - text: "The three shaft openings create a low persistent draft in the chamber. Ferrocrete dust drifts in slow spirals near the floor."
+      - text: "No sound from the lift cables. No hum, no creak, no tension. Three shafts that have given up pretending they are functional."
+    cross_references:
+      - clone_wars_era_design_v3.md §7.2 (Coruscant Underworld region build-out)
+
+# ═══════════════════════════════════════════════════════════════════════
+# ENGINE INTEGRATION NOTES
+# ═══════════════════════════════════════════════════════════════════════
+# These three landmarks are additive to the Coruscant Underworld
+# landmark set. The wilderness builder reads all landmark YAML files
+# for the region simultaneously; these entries will be included in
+# the same pass as coruscant_underworld_landmarks.yaml.
+#
+# 1. ne_derelict_loading_docks.structural_hazard: true signals that
+#    the cracked slab approach should trigger a hazard check consistent
+#    with the pattern set by abandoned_factory_dominus. Engine-side.
+#
+# 2. ne_contraband_transfer_point.gameplay_role: smuggler_contraband_cache
+#    matches abandoned_factory_dominus; the engine's contraband loot
+#    table should fire for this landmark the same way it does for Dominus.
+#    These are distinct sites — do not collapse them to a single room.
+#
+# 3. ne_stripped_cargo_lift_hub has no gameplay_role to remain consistent
+#    with sibling entries that omit it when the role is staging/flavor
+#    rather than a cache or hub function with a live consumer.
+#
+# 4. All three landmarks: faction_anchor: independent. The existing
+#    black_sun_crawler_hideout at [20, 15] remains the sole BHG anchor
+#    for the Coruscant Underworld region.
+#
+# 5. Coordinate collision check (at authoring time):
+#    [34, 9]  — clear of all existing coruscant_underworld_landmarks.yaml coords
+#    [27, 13] — clear of all existing coruscant_underworld_landmarks.yaml coords
+#    [37,  3] — clear of all existing coruscant_underworld_landmarks.yaml coords
+#    Existing occupied: [20,15], [30,5], [8,20], [25,25], [22,20], [18,32], [20,17]
+#
+# ═══════════════════════════════════════════════════════════════════════

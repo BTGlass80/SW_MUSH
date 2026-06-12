@@ -164,6 +164,16 @@ landmark_includes:
   # surface_manhole_to_southern_underground).
   - coruscant_underworld_landmarks.yaml
 
+  # ─── Region build-out (2026-06-12, drop 18) ──────────────────────────
+  # 12 secondary landmarks filling the 40x40 grid beyond the 8 design-doc
+  # anchors — one disjoint-quadrant file each, coordinate-placed (no
+  # adjacency, matching the anchor pattern). NW=industrial overflow,
+  # NE=smuggler reaches, SW=the deep warren, SE=the Maze fringe.
+  - coruscant_underworld_nw_overflow.yaml
+  - coruscant_underworld_ne_smuggler.yaml
+  - coruscant_underworld_sw_deepwarren.yaml
+  - coruscant_underworld_se_mazefringe.yaml
+
 # ─── Edges ────────────────────────────────────────────────────────────
 # Per W.2 phase 2: edges connect hand-built rooms (city-side) to
 # specific coordinates inside the wilderness grid.
