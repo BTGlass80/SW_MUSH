@@ -30,6 +30,7 @@ from engine.crafting import (
     get_known_schematics,
     add_known_schematic,
     can_craft,
+    check_resources,
     resolve_craft,
     get_survey_resources,
     survey_quality_from_margin,
@@ -71,12 +72,11 @@ def _new_crafted_item(key, quality, crafter, max_condition):
     return ItemInstance.new_crafted(key, quality, crafter, max_condition)
 
 
-def _give_item_to_char(ctx, item):
-    """Place an ItemInstance into the character's carried items via game_server registry."""
-    try:
-        ctx.session.items.append(item)
-    except AttributeError as _e:
-        log.debug("silent except in parser/crafting_commands.py:78: %s", _e, exc_info=True)
+# CRAFT.P0.2: the former _give_item_to_char helper appended to
+# ctx.session.items — an attribute that exists nowhere — inside a swallowed
+# AttributeError, so crafted items silently evaporated. All landings now go
+# through db.add_to_inventory (which also fires the F.8.c.2.b₂ item_acquired
+# tutorial hook the old path bypassed).
 
 
 # ---------------------------------------------------------------------------
@@ -153,12 +153,22 @@ class SurveyCommand(BaseCommand):
             add_resource(char, r["type"], r["amount"], r["quality"])
             added.append(f"{r['amount']}x {r['type']} (q{r['quality']})")
 
-        # Apply cooldown + save
+        # Apply cooldown + save. CRAFT.P1: explicit both-column save —
+        # survey mutates inventory (add_resource) AND attributes
+        # (set_cooldown) dict-side; the old _save_char persisted neither.
         set_cooldown(char, CD_SURVEY, SURVEY_COOLDOWN_S)
         await ctx.session.send_line(
             f"  You find: {', '.join(added)}. {margin_note}"
         )
-        await _save_char(ctx)
+        try:
+            await ctx.db.save_character(
+                char["id"],
+                attributes=char["attributes"],
+                inventory=char["inventory"],
+            )
+        except Exception:
+            log.warning("survey: save failed", exc_info=True)
+        await _push_crafting_state(ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -186,10 +196,15 @@ class ResourcesCommand(BaseCommand):
 
         lines = ["  Crafting Resources:"]
         for r in res_list:
+            # CRAFT.P0.1 (phantom re-delivery, Bug B2): stacks store
+            # 'quantity'; the old r['amount'] bracket-read raised KeyError
+            # for any character actually holding resources.
             lines.append(
-                f"    {r['type']:16s} x{r['amount']:3d}  quality {r['quality']}"
+                f"    {r['type']:16s} x{int(r.get('quantity', 0)):3d}"
+                f"  quality {r.get('quality', 0)}"
             )
         await ctx.session.send_line("\n".join(lines))
+        await _push_crafting_state(ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -221,14 +236,28 @@ class SchematicsCommand(BaseCommand):
         for key in known:
             schem = all_schem.get(key)
             if schem:
-                reqs = schem.get("resource_requirements", {})
-                req_str = ", ".join(f"{v}x {k}" for k, v in reqs.items())
+                # CRAFT.P0.1 (phantom re-delivery, Bug B1): schematics carry
+                # 'components' + 'skill_required'; the old code read
+                # 'resource_requirements' (no schematic has it) + 'skill',
+                # printing "Needs: none" under "[craft]" for all recipes.
+                comps = schem.get("components", [])
+                req_str = ", ".join(
+                    f"{c['quantity']}x {c['type']}"
+                    + (f" (q{c['min_quality']}+)" if c.get("min_quality", 1) > 1
+                       else "")
+                    for c in comps
+                )
+                craftable, _ = check_resources(char, comps)
+                flag = "[*] " if craftable else "    "
                 lines.append(
-                    f"    {schem['name']:24s}  [{schem.get('skill','craft')}]  "
+                    f"  {flag}{schem['name']:24s}"
+                    f"  [{schem.get('skill_required', 'craft')}]  "
                     f"Needs: {req_str or 'none'}"
                 )
+        lines.append("  [*] = you have the components to craft this now")
 
         await ctx.session.send_line("\n".join(lines))
+        await _push_crafting_state(ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -270,22 +299,49 @@ class CraftCommand(BaseCommand):
             await ctx.session.send_line(f"  {reason}")
             return
 
-        # Skill check
-        skill = schematic.get("skill", "repair")
+        # CRAFT.P0.1 (phantom re-delivery, Bugs C + D):
+        #  C — schematics carry 'skill_required'; the old
+        #      schematic.get("skill", "repair") rolled a nonexistent
+        #      "repair" skill, dropping every craft to the [auto]
+        #      quality-60 path and divorcing quality from crafter skill.
+        #  D — resolve_craft requires the SkillCheckResult object; the
+        #      old code passed quality_base (a float), so EVERY craft
+        #      raised AttributeError('float' has no attribute 'fumble').
+        #      The except-branch now builds a clean auto-success result
+        #      object instead of None so the fallback path also works.
+        skill = schematic.get("skill_required", "repair")
         difficulty = schematic.get("difficulty", 10)
         try:
             result = _skill_check(char, skill, difficulty)
-            quality_base = survey_quality_from_margin(result.margin)
             roll_note = (
                 f"[{skill}: {result.pool_str} vs {difficulty} — "
                 f"roll {result.roll}, margin {result.margin}]"
             )
         except Exception:
-            result = None
-            quality_base = 60
+            from types import SimpleNamespace
+            log.warning("CraftCommand: skill check failed; using auto path",
+                        exc_info=True)
+            result = SimpleNamespace(
+                success=True, fumble=False, critical_success=False,
+                margin=0, roll=0, pool_str="auto",
+            )
             roll_note = "[auto]"
 
-        craft_result = resolve_craft(char, schematic, quality_base)
+        craft_result = resolve_craft(char, schematic, result)
+
+        # CRAFT.P1: resolve_craft consumed components DICT-side
+        # (remove_resource → char["inventory"]). Persist that NOW —
+        # before _deliver_item, whose db.add_to_inventory does its own
+        # DB read-modify-write and must see the post-consumption row.
+        # (Saving inventory AFTER delivery would clobber the landed
+        # item with this pre-delivery dict.) With the old no-op
+        # _save_char, consumption never persisted at all: infinite
+        # materials across reload, for every output type.
+        try:
+            await ctx.db.save_character(
+                char["id"], inventory=char["inventory"])
+        except Exception:
+            log.warning("craft: consumption save failed", exc_info=True)
         await ctx.session.send_line(
             f"  {roll_note}\n  {craft_result['message']}"
         )
@@ -317,7 +373,32 @@ class CraftCommand(BaseCommand):
             except Exception:
                 pass  # graceful-drop
 
+        # Webify UI-8: refresh the crafting panel with the resolved
+        # outcome (stocks changed; last_result drives the result banner).
+        await _push_crafting_state(ctx, last_result={
+            "success": craft_result.get("success", False),
+            "partial": craft_result.get("partial", False),
+            "fumble":  craft_result.get("fumble", False),
+            "quality": craft_result.get("quality", 0),
+            "name":    schematic.get("name", ""),
+        })
         await _save_char(ctx)
+
+
+async def _push_crafting_state(ctx: CommandContext, last_result: dict = None):
+    """WS-gated crafting_state push (Webify UI-8). Non-blocking — a push
+    failure never breaks the text verbs; Telnet falls through silently.
+    Same Protocol gate as the UI-4a/UI-5 pushes."""
+    try:
+        from server.session import Protocol
+        if ctx.session.protocol != Protocol.WEBSOCKET:
+            return
+        from engine.crafting import build_crafting_state
+        payload = build_crafting_state(
+            ctx.session.character, last_result=last_result)
+        await ctx.session.send_json("crafting_state", payload)
+    except Exception:
+        log.debug("_push_crafting_state failed", exc_info=True)
 
 
 # ---------------------------------------------------------------------------
@@ -438,8 +519,11 @@ class ExperimentCommand(BaseCommand):
 
         Returns (item, schematic, axes, max_exp) or None (error already sent).
         """
-        from engine.items import parse_equipment_json
-        item = parse_equipment_json(char.get("equipment", "{}"))
+        # Canonical per-slot read (equipment-instance untangle). The old
+        # parse_equipment_json returned None under canonical storage, so
+        # `experiment` always reported "no weapon equipped".
+        from engine.items import read_equipment
+        item = read_equipment(char.get("equipment", "{}"))["weapon"]
         if not item:
             await ctx.session.send_line(
                 "  You don't have a weapon equipped. "
@@ -510,14 +594,19 @@ class ExperimentCommand(BaseCommand):
                              set_cooldown, format_remaining,
                              CD_EXPERIMENT, EXPERIMENT_FAIL_COOLDOWN_S):
         """Fumble or margin-≤-5 failure: roll on breakdown table."""
-        from engine.items import serialize_equipment
+        from engine.items import read_equipment, write_equipment
         breakdown_type = params.get("breakdown_type", "lethal")
         outcome = resolve_experiment_failure(result.margin, breakdown_type)
         set_cooldown(char, CD_EXPERIMENT, EXPERIMENT_FAIL_COOLDOWN_S)
+        # Worn armor must survive every fumble outcome — only the weapon
+        # slot is at stake. (The old serialize_equipment / "{}" writes
+        # clobbered the armor slot.)
+        _armor = read_equipment(char.get("equipment", "{}"))["armor"]
 
         if outcome == "exploded":
-            char["equipment"] = "{}"
-            await ctx.db.save_character(char["id"], equipment="{}")
+            char["equipment"] = write_equipment(weapon=None, armor=_armor)
+            await ctx.db.save_character(
+                char["id"], equipment=char["equipment"])
             await ctx.session.send_line(
                 f"  \033[1;31m*BOOM*\033[0m Your {_weapon_name(item.key)} "
                 f"explodes in a shower of sparks and molten metal! "
@@ -525,14 +614,15 @@ class ExperimentCommand(BaseCommand):
             await ctx.session.send_line(
                 f"  \033[1;33mYou take minor burns from the explosion.\033[0m")
         elif outcome == "broken":
-            char["equipment"] = "{}"
-            await ctx.db.save_character(char["id"], equipment="{}")
+            char["equipment"] = write_equipment(weapon=None, armor=_armor)
+            await ctx.db.save_character(
+                char["id"], equipment=char["equipment"])
             await ctx.session.send_line(
                 f"  \033[1;31m*CRACK*\033[0m Critical components shatter. "
                 f"Your {_weapon_name(item.key)} is destroyed beyond repair.")
         elif outcome == "jammed":
             item.apply_jam()
-            char["equipment"] = serialize_equipment(item)
+            char["equipment"] = write_equipment(weapon=item, armor=_armor)
             await ctx.db.save_character(
                 char["id"], equipment=char["equipment"])
             await ctx.session.send_line(
@@ -542,7 +632,7 @@ class ExperimentCommand(BaseCommand):
         elif outcome == "quality_loss":
             loss = abs(result.margin) * 2
             item.quality = max(1, item.quality - loss)
-            char["equipment"] = serialize_equipment(item)
+            char["equipment"] = write_equipment(weapon=item, armor=_armor)
             await ctx.db.save_character(
                 char["id"], equipment=char["equipment"])
             await ctx.session.send_line(
@@ -564,10 +654,11 @@ class ExperimentCommand(BaseCommand):
                                       CD_EXPERIMENT,
                                       EXPERIMENT_FAIL_COOLDOWN_S):
         """Non-fumble failure: small quality loss, fail-cooldown applied."""
-        from engine.items import serialize_equipment
+        from engine.items import read_equipment, write_equipment
         loss = abs(result.margin) * 2
         item.quality = max(1, item.quality - loss)
-        char["equipment"] = serialize_equipment(item)
+        _armor = read_equipment(char.get("equipment", "{}"))["armor"]
+        char["equipment"] = write_equipment(weapon=item, armor=_armor)
         await ctx.db.save_character(char["id"], equipment=char["equipment"])
         set_cooldown(char, CD_EXPERIMENT, EXPERIMENT_FAIL_COOLDOWN_S)
         await ctx.session.send_line(
@@ -581,7 +672,7 @@ class ExperimentCommand(BaseCommand):
                               CD_EXPERIMENT, EXPERIMENT_COOLDOWN_S):
         """Success (or crit): apply boost + tradeoff, persist, narrate,
         log to narrative memory."""
-        from engine.items import serialize_equipment
+        from engine.items import read_equipment, write_equipment
         exp_result = resolve_experiment_result(
             result.margin, axis_def, is_critical=result.critical_success)
 
@@ -591,7 +682,8 @@ class ExperimentCommand(BaseCommand):
             exp_result.get("tradeoff"),
         )
 
-        char["equipment"] = serialize_equipment(item)
+        _armor = read_equipment(char.get("equipment", "{}"))["armor"]
+        char["equipment"] = write_equipment(weapon=item, armor=_armor)
         await ctx.db.save_character(char["id"], equipment=char["equipment"])
         set_cooldown(char, CD_EXPERIMENT, EXPERIMENT_COOLDOWN_S)
 
@@ -786,9 +878,11 @@ class TeachCommand(BaseCommand):
         except Exception:
             log.warning("TeachCommand: send to target failed", exc_info=True)
 
-        # Save target character
+        # Save target character. CRAFT.P1: the no-kwargs form was a
+        # no-op — PC-taught schematics never persisted across reload.
         try:
-            await ctx.db.save_character(target_char["id"])
+            await ctx.db.save_character(
+                target_char["id"], attributes=target_char["attributes"])
         except Exception:
             log.warning("TeachCommand: target save failed", exc_info=True)
 
@@ -799,64 +893,210 @@ class TeachCommand(BaseCommand):
 # NPC Trainer helper (called by npc_commands.py when player talks to a trainer NPC)
 # ---------------------------------------------------------------------------
 
+def _free_lessons(char: dict) -> dict:
+    """Per-trainer first-lesson-free record, stored in the attributes
+    blob (the established misc-state home). {trainer_lower: True}."""
+    try:
+        attrs = json.loads(char.get("attributes", "{}") or "{}")
+        rec = attrs.get("trainer_free_lessons", {})
+        return rec if isinstance(rec, dict) else {}
+    except Exception:
+        return {}
+
+
+def _mark_free_lesson(char: dict, trainer_lower: str) -> None:
+    try:
+        attrs = json.loads(char.get("attributes", "{}") or "{}")
+        if not isinstance(attrs, dict):
+            attrs = {}
+        rec = attrs.get("trainer_free_lessons")
+        if not isinstance(rec, dict):
+            rec = {}
+        rec[trainer_lower] = True
+        attrs["trainer_free_lessons"] = rec
+        char["attributes"] = json.dumps(attrs)
+    except Exception:
+        log.debug("free-lesson mark failed", exc_info=True)
+
+
+def trainer_curriculum(npc_name: str) -> list[tuple[str, dict]]:
+    """All (key, schematic) pairs this trainer teaches, cheapest first."""
+    out = [
+        (key, s) for key, s in get_all_schematics().items()
+        if s.get("trainer_npc", "").lower() == npc_name.lower()
+    ]
+    out.sort(key=lambda kv: int(kv[1].get("base_cost", 0) or 0))
+    return out
+
+
 async def handle_trainer_teach(ctx: CommandContext, npc_name: str) -> bool:
     """
-    Called from npc_commands.py TalkCommand when the NPC is a schematic trainer.
-    Grants all schematics whose trainer_npc matches this NPC name.
-    Returns True if any schematics were taught, False otherwise.
+    Called from npc_commands.py TalkCommand when the NPC is a schematic
+    trainer.
+
+    CRAFT.schematic_tuition = a (Gundark Drop G, 2026-06-12): the old
+    behavior granted the trainer's ENTIRE catalog free on talk. Now:
+      • the trainer's FIRST lesson per character is free — the cheapest
+        recipe they teach, granted right here on talk ("first lesson's
+        on the house"). This preserves any talk-then-craft flow and is
+        good diegesis besides.
+      • the rest are LISTED with tuition (50% of base_cost, min 50 cr —
+        engine.crafting.schematic_tuition) and bought one at a time via
+        `learn <schematic>` (LearnCommand below).
+      • PC-to-PC teaching (TeachCommand) stays free, untouched.
+    Returns True if the trainer had anything to say about schematics.
     """
     char = ctx.session.character
     if not char:
         return False
 
-    all_schem = get_all_schematics()
-    taught = []
-    already_known = []
+    curriculum = trainer_curriculum(npc_name)
+    if not curriculum:
+        return False
 
-    for key, schem in all_schem.items():
-        if schem.get("trainer_npc", "").lower() == npc_name.lower():
-            added = add_known_schematic(char, key)
-            if added:
-                taught.append(schem["name"])
-            else:
-                already_known.append(schem["name"])
+    from engine.crafting import schematic_tuition
+    known = set(get_known_schematics(char))
+    trainer_lower = npc_name.lower()
 
-    if taught:
+    unknown = [(k, s) for k, s in curriculum if k not in known]
+    already_known = [s["name"] for k, s in curriculum if k in known]
+
+    taught_free = None
+    if unknown and not _free_lessons(char).get(trainer_lower):
+        free_key, free_schem = unknown[0]  # cheapest first
+        if add_known_schematic(char, free_key):
+            _mark_free_lesson(char, trainer_lower)
+            taught_free = free_schem["name"]
+            unknown = unknown[1:]
+
+    if taught_free:
         await ctx.session.send_line(
-            f"  {npc_name} shows you some techniques. You learn: {', '.join(taught)}."
+            f"  {npc_name} walks you through the {taught_free}. "
+            f"\033[2m\"First lesson's on the house.\"\033[0m"
         )
+    if unknown:
+        await ctx.session.send_line(
+            f"  {npc_name} can also teach (tuition, `learn <name>`):"
+        )
+        for key, s in unknown:
+            await ctx.session.send_line(
+                f"    {s['name']:<28} {schematic_tuition(s):>6,} cr"
+            )
     if already_known:
         await ctx.session.send_line(
             f"  You already know: {', '.join(already_known)}."
         )
-    if taught or already_known:
+
+    if taught_free:
         await _save_char(ctx)
-        return True
-    return False
+    return bool(taught_free or unknown or already_known)
+
+
+class LearnCommand(BaseCommand):
+    key = "learn"
+    aliases = []
+    help_text = (
+        "Pay tuition to learn a schematic from a trainer in the room.\n"
+        "Tuition is half the schematic's base cost (minimum 50 cr).\n"
+        "Each trainer's first lesson is free — just `talk` to them.\n"
+        "\n"
+        "USAGE: learn <schematic name>"
+    )
+    usage = "learn <schematic name>"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            return
+        arg = (ctx.args or "").strip().lower()
+        if not arg:
+            await ctx.session.send_line(
+                "  Learn what? Usage: learn <schematic name>")
+            return
+
+        # Resolve against EVERY trainer-bound schematic (not just known
+        # ones — that's the point), exact key/name first, then prefix.
+        all_schem = get_all_schematics()
+        candidates = [(k, s) for k, s in all_schem.items()
+                      if s.get("trainer_npc")]
+        match = None
+        for k, s in candidates:
+            if arg == k or arg == s["name"].lower():
+                match = (k, s)
+                break
+        if match is None:
+            pref = [(k, s) for k, s in candidates
+                    if k.startswith(arg) or s["name"].lower().startswith(arg)]
+            if len(pref) == 1:
+                match = pref[0]
+            elif len(pref) > 1:
+                names = ", ".join(s["name"] for _, s in pref[:5])
+                await ctx.session.send_line(
+                    f"  Which one? Matches: {names}.")
+                return
+        if match is None:
+            await ctx.session.send_line(
+                f"  No trainer teaches a schematic matching '{arg}'.")
+            return
+
+        key, schem = match
+        if key in get_known_schematics(char):
+            await ctx.session.send_line(
+                f"  You already know the {schem['name']} schematic.")
+            return
+
+        trainer = schem["trainer_npc"]
+        # The teacher must actually be here.
+        npcs = await ctx.db.get_npcs_in_room(char["room_id"])
+        present = any(
+            (n.get("name") or "").lower() == trainer.lower() for n in npcs
+        )
+        if not present:
+            await ctx.session.send_line(
+                f"  {trainer} teaches that, and {trainer} isn't here.")
+            return
+
+        from engine.crafting import schematic_tuition
+        trainer_lower = trainer.lower()
+        free = not _free_lessons(char).get(trainer_lower)
+        tuition = 0 if free else schematic_tuition(schem)
+
+        if tuition and int(char.get("credits", 0) or 0) < tuition:
+            await ctx.session.send_line(
+                f"  Tuition for the {schem['name']} is {tuition:,} cr — "
+                f"you have {int(char.get('credits', 0) or 0):,}.")
+            return
+
+        if tuition:
+            char["credits"] = await ctx.db.adjust_credits(
+                char["id"], -tuition, "schematic_tuition")
+        if free:
+            _mark_free_lesson(char, trainer_lower)
+
+        add_known_schematic(char, key)
+        await _save_char(ctx)
+
+        if free:
+            await ctx.session.send_line(
+                f"  {trainer} walks you through the {schem['name']}. "
+                f"\033[2m\"First lesson's on the house.\"\033[0m")
+        else:
+            await ctx.session.send_line(
+                f"  You pay {tuition:,} cr. {trainer} walks you through "
+                f"the {schem['name']}. "
+                f"\033[2m(Balance: {int(char.get('credits', 0) or 0):,} cr)\033[0m")
 
 
 # ---------------------------------------------------------------------------
 # Consumable item creation helper
 # ---------------------------------------------------------------------------
 
-_CONSUMABLE_STATS = {
-    "medpac": {
-        "name": "Medpac",
-        "heal_wounds": 1,
-        "description": "A standard bacta medpac.",
-    },
-    "medpac_advanced": {
-        "name": "Advanced Medpac",
-        "heal_wounds": 2,
-        "description": "A high-grade medpac with concentrated bacta.",
-    },
-    "stimpack": {
-        "name": "Field Stimpack",
-        "heal_wounds": 1,
-        "stun_only": True,
-        "description": "A stimpack for rapid field stabilisation (stun damage only).",
-    },
-}
+# _CONSUMABLE_STATS migrated to data/consumables.yaml + engine/consumables.py
+# (CRAFT.P2 / Gundark Drop A, 2026-06-10 — design pass §3.3). The old dict's
+# `heal_wounds` field was a phantom (nothing read it); the migrated family
+# now has a REAL mechanical consumer: the medpac entries in
+# parser/medical_commands.py::_STIM_CATALOG, whose `heal_wound_levels` the
+# stim success path applies to the wound ladder.
 
 
 # ---------------------------------------------------------------------------
@@ -926,15 +1166,28 @@ async def _deliver_item(ctx: CommandContext, schematic: dict, craft_result: dict
     max_condition = stats.get("max_condition", 100)
 
     if output_type == "weapon":
+        # CRAFT.P0.2: persist via db.add_to_inventory — the old
+        # ctx.session.items.append() raised a swallowed AttributeError
+        # (no Session.items exists), so the weapon EVAPORATED while the
+        # player was told it was added. add_to_inventory also fires the
+        # item_acquired tutorial hook the old path bypassed.
         try:
             item = _new_crafted_item(output_key, quality, crafter, max_condition)
-            try:
-                ctx.session.items.append(item)
-            except AttributeError as _e:
-                log.debug("silent except in parser/crafting_commands.py:888: %s", _e, exc_info=True)
+            item_dict = item.to_dict()
+            item_dict["type"] = "weapon"
+            item_dict["name"] = schematic["name"]
+            # Gundark Drop G (2026-06-12, decision 3a): contraband
+            # recipes flag the LANDED item — patrol boardings sweep
+            # carried inventory for this (engine/encounter_patrol).
+            if schematic.get("contraband"):
+                item_dict["contraband"] = True
+            await ctx.db.add_to_inventory(char["id"], item_dict)
             await ctx.session.send_line(
                 f"  The {schematic['name']} has been added to your inventory. "
                 f"(max_condition: {max_condition})"
+            )
+            await ctx.session.send_line(
+                f"  \033[2mUse 'equip {schematic['name']}' to wield it.\033[0m"
             )
         except Exception as e:
             await ctx.session.send_line(
@@ -957,25 +1210,20 @@ async def _deliver_item(ctx: CommandContext, schematic: dict, craft_result: dict
         consumables[output_key] = current + 1
         char["attributes"] = json.dumps(attrs)
 
-        display_name = _CONSUMABLE_STATS.get(output_key, {}).get("name", output_key)
+        from engine.consumables import consumable_display_name
+        display_name = consumable_display_name(output_key)
         await ctx.session.send_line(
             f"  The {display_name} has been added to your consumables. "
             f"(quality {quality:.0f}/100)"
         )
 
     elif output_type == "component":
-        # Ship component — stored as a dict in the character's inventory JSON list.
-        # +ship/install reads items where item["type"] == "ship_component".
-        # Fields: type, key, name, quality, stat_target, stat_boost,
-        #         cargo_weight, craft_difficulty.
-        inv_raw = char.get("inventory", "[]")
-        try:
-            inv = json.loads(inv_raw) if isinstance(inv_raw, str) else inv_raw
-            if not isinstance(inv, list):
-                inv = []
-        except Exception:
-            inv = []
-
+        # Ship component — +ship/install reads items where
+        # item["type"] == "ship_component".
+        # CRAFT.P0.3: persist via db.add_to_inventory. The old branch
+        # parsed the inventory column expecting a bare list; under the
+        # current dict format it reset to [] and wrote a bare list back,
+        # DESTROYING the character's items and resource stacks.
         component_item = {
             "type":             "ship_component",
             "key":              output_key,
@@ -987,8 +1235,7 @@ async def _deliver_item(ctx: CommandContext, schematic: dict, craft_result: dict
             "craft_difficulty": schematic.get("difficulty", 16),
             "crafter":          crafter,
         }
-        inv.append(component_item)
-        char["inventory"] = json.dumps(inv)
+        await ctx.db.add_to_inventory(char["id"], component_item)
 
         await ctx.session.send_line(
             f"  The {schematic['name']} has been added to your inventory as a "
@@ -998,19 +1245,21 @@ async def _deliver_item(ctx: CommandContext, schematic: dict, craft_result: dict
             f"  Use '+ship/install {schematic['name']}' while docked to install it."
         )
 
-    elif output_type == "survival_gear":
-        # Survival gear — durable items stored in inventory, mitigate hazards.
-        # Checked by engine/hazards.py _has_mitigation() against item key.
-        inv_raw = char.get("inventory", "[]")
-        try:
-            inv = json.loads(inv_raw) if isinstance(inv_raw, str) else inv_raw
-            if not isinstance(inv, list):
-                inv = []
-        except Exception:
-            inv = []
-
+    elif output_type in ("gear", "survival_gear"):
+        # Field/utility gear — durable items; hazard-mitigating entries
+        # are matched by KEY (engine/hazards.py _has_mitigation), so the
+        # CRAFT.P2 type fold below is hazard-safe.
+        # CRAFT.P2 / Gundark Drop A (decision 2a): `survival_gear` FOLDS
+        # into `gear`. The branch accepts both spellings (existing
+        # schematics re-typed in the same drop; the legacy alias stays
+        # so a stale data file can't strand a craft), and new landings
+        # carry type "gear". Existing player inventories holding
+        # {"type": "survival_gear"} items are untouched — every reader
+        # of these items matches by key, not type.
+        # CRAFT.P0.3: persist via db.add_to_inventory (same bare-list
+        # data-loss bug as the component branch).
         gear_item = {
-            "type":     "survival_gear",
+            "type":     "gear",
             "key":      output_key,
             "name":     schematic["name"],
             "quality":  round(quality, 1),
@@ -1018,8 +1267,14 @@ async def _deliver_item(ctx: CommandContext, schematic: dict, craft_result: dict
             "uses":     schematic.get("max_uses", 0),  # 0 = unlimited
             "max_uses": schematic.get("max_uses", 0),
         }
-        inv.append(gear_item)
-        char["inventory"] = json.dumps(inv)
+        # Gundark Drop F: tool gear carries its skill bonus on the item
+        # dict (gear has no stat registry — the carried dict IS the
+        # record). engine.skill_checks._best_tool_bonus reads it.
+        if isinstance(schematic.get("skill_bonus"), dict):
+            gear_item["skill_bonus"] = dict(schematic["skill_bonus"])
+        if schematic.get("contraband"):
+            gear_item["contraband"] = True
+        await ctx.db.add_to_inventory(char["id"], gear_item)
 
         uses_str = f" ({schematic.get('max_uses', 0)} uses)" if schematic.get("max_uses") else " (durable)"
         await ctx.session.send_line(
@@ -1030,13 +1285,84 @@ async def _deliver_item(ctx: CommandContext, schematic: dict, craft_result: dict
             f"  \033[2mThis item mitigates environmental hazards when carried.\033[0m"
         )
 
+    elif output_type == "equipment":
+        # CRAFT.P0.4: durable gear (comlink bug, lockpick, lectroticker,
+        # tracker, ...). This branch DID NOT EXIST — equipment-type
+        # schematics rolled the skill check, consumed components on
+        # success, and produced NOTHING, silently. Each item's gameplay
+        # consumer is named in its schematics.yaml use_hook comment
+        # (mechanical-use mandate, design pass §3.2a).
+        gear_item = {
+            "type":     "equipment",
+            "key":      output_key,
+            "name":     schematic["name"],
+            "quality":  round(quality, 1),
+            "crafter":  crafter,
+        }
+        await ctx.db.add_to_inventory(char["id"], gear_item)
+        await ctx.session.send_line(
+            f"  The {schematic['name']} has been added to your inventory. "
+            f"(quality {quality:.0f}/100)"
+        )
+
+    elif output_type == "armor":
+        # CRAFT.P2 / Gundark Drop A foundation: armor landing branch.
+        # Mirrors the weapon branch — an ItemInstance-shaped carried
+        # dict so `wear` (the P0.9 inventory-aware path) can slot it
+        # with condition/quality/crafter intact. Content shipped in
+        # Gundark Drop C (2026-06-11): armor rows live in
+        # data/weapons.yaml as `type: armor` (the live registry that
+        # wear/soak/sheet read — the plan's separate armor.yaml was
+        # superseded by extend-don't-add); trainer is Sela Tarn.
+        armor_item = {
+            "type":      "armor",
+            "key":       output_key,
+            "name":      schematic["name"],
+            "quality":   round(quality, 1),
+            "condition": 100,
+            "crafter":   crafter,
+        }
+        await ctx.db.add_to_inventory(char["id"], armor_item)
+        await ctx.session.send_line(
+            f"  The {schematic['name']} has been added to your "
+            f"inventory. (quality {quality:.0f}/100 — `wear` it to "
+            f"don it)"
+        )
+
+    else:
+        # Unknown output_type: components were already consumed by
+        # resolve_craft — never swallow that silently again.
+        log.error("craft: schematic %r has unhandled output_type %r",
+                  schematic.get("key"), output_type)
+        await ctx.session.send_line(
+            f"  The {schematic['name']} was assembled, but its type "
+            f"({output_type}) has no delivery path. Contact an admin — "
+            f"your components were consumed."
+        )
+
 
 async def _save_char(ctx: CommandContext):
-    """Best-effort character save."""
+    """Persist the session character's ATTRIBUTES column.
+
+    CRAFT.P1 (2026-06-10): this was `save_character(char["id"])` with no
+    kwargs — which `db.save_character` treats as a NO-OP (`if not fields:
+    return`). Every caller believed it was saving; nothing was. E7 caught
+    it on its first Windows run (craft reported success, consumable count
+    stayed 0 on re-fetch).
+
+    Deliberately attributes-only: `inventory` is NOT saved here because
+    `db.add_to_inventory` does its own DB read-modify-write — blanket-
+    writing the session dict's inventory string after a delivery would
+    clobber the just-landed item (the F2 evaporation, reborn as a stale-
+    dict overwrite). Sites that mutate inventory dict-side (survey's
+    add_resource, craft's component consumption) save that column
+    explicitly at the correct moment.
+    """
     try:
         char = ctx.session.character
-        if char:
-            await ctx.db.save_character(char["id"])
+        if char and char.get("attributes") is not None:
+            await ctx.db.save_character(
+                char["id"], attributes=char["attributes"])
     except Exception:
         log.warning("_save_char: unhandled exception", exc_info=True)
 
@@ -1069,6 +1395,7 @@ def register_crafting_commands(registry) -> None:
         CraftCommand(),
         ExperimentCommand(),
         TeachCommand(),
+        LearnCommand(),
         BuyResourcesCommand(),
     ]:
         registry.register(cmd)

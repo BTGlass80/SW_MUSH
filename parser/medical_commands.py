@@ -529,6 +529,52 @@ _STIM_CATALOG: dict[str, dict] = {
             "narrows badly."
         ),
     },
+    # ── Medpac family (CRAFT.P2 / Gundark Drop A, 2026-06-10) ───────
+    # Heal-kind entries: `heal_wound_levels` (the resurrected
+    # _CONSUMABLE_STATS `heal_wounds` field, which was a phantom —
+    # nothing ever read it) is applied by the success branch of
+    # _execute_stim_roll, REDUCING the wound_level column instead of
+    # adding a buff. Crafted medpacs land in attributes.consumables
+    # (parser/crafting_commands.py consumable branch) and were INERT
+    # until these entries — the first mandate fix of the Gundark
+    # integration: items ship only with their consumer.
+    # All three are buff_type: None — the heal IS the effect.
+    "medpac": {
+        "skill": "first aid",
+        "difficulty": 10,
+        "buff_type": None,
+        "heal_wound_levels": 1,
+        "self_administration_ok": True,
+        "side_effect_buff_type": None,
+        "fail_msg": (
+            "  The bacta doesn't take — the wound is too ragged for a "
+            "field dressing. The medpac is spent."
+        ),
+    },
+    "medpac_advanced": {
+        "skill": "first aid",
+        "difficulty": 12,           # stronger kit, fussier application
+        "buff_type": None,
+        "heal_wound_levels": 2,
+        "self_administration_ok": True,
+        "side_effect_buff_type": None,
+        "fail_msg": (
+            "  The concentrated bacta pools uselessly — a wasted "
+            "advanced medpac."
+        ),
+    },
+    "medpac_fastflesh": {
+        "skill": "first aid",
+        "difficulty": 8,            # the FastFlesh pitch: easy to apply
+        "buff_type": None,
+        "heal_wound_levels": 1,
+        "self_administration_ok": True,
+        "side_effect_buff_type": None,
+        "fail_msg": (
+            "  The synthflesh sets crooked and peels away. The "
+            "FastFlesh pack is spent."
+        ),
+    },
 }
 
 # Synonyms / canonicalization for consumable names entered by the user.
@@ -542,6 +588,13 @@ _STIM_ALIAS: dict[str, str] = {
     "combatstim": "combat_stim",
     "focus": "focus_stim",
     "focusstim": "focus_stim",
+    # Medpac family (CRAFT.P2)
+    "med": "medpac",
+    "medkit": "medpac",
+    "advanced_medpac": "medpac_advanced",
+    "advancedmedpac": "medpac_advanced",
+    "fastflesh": "medpac_fastflesh",
+    "fastflesh_medpac": "medpac_fastflesh",
 }
 
 
@@ -576,12 +629,21 @@ class StimCommand(BaseCommand):
     key = "stim"
     aliases = []
     help_text = (
-        "Administer a stim to a player in the same room. Default is "
-        "stimpack (Easy First Aid). Other forms: 'stim <player> with "
-        "adrenaline_shot', '... with combat_stim', '... with "
-        "focus_stim'. Target must type 'stimaccept'."
+        "Administer a stim or medpac to a player in the same room. "
+        "Default is stimpack (Easy First Aid). Other forms: 'stim "
+        "<player> with adrenaline_shot', '... with combat_stim', '... "
+        "with focus_stim', '... with medpac' (heals 1 wound level), "
+        "'... with medpac_advanced' (heals 2), '... with "
+        "medpac_fastflesh' (easiest to apply). Target must type "
+        "'stimaccept'. A target may only carry one active stim at a "
+        "time; use 'stim/force <player>' to push a second stim through "
+        "at overdose risk (+5 difficulty, and a failed overdose "
+        "incapacitates the target). Medpacs and stimpacks can be "
+        "self-administered ('stim me with medpac') at a -1D penalty."
     )
-    usage = "stim <player> [with <stimpack|adrenaline_shot|combat_stim|focus_stim>]"
+    usage = ("stim[/force] <player> [with <stimpack|adrenaline_shot|"
+             "combat_stim|focus_stim|medpac|medpac_advanced|"
+             "medpac_fastflesh>]")
 
     async def execute(self, ctx: CommandContext):
         if not ctx.args:
@@ -686,7 +748,15 @@ class StimCommand(BaseCommand):
             )
             return
 
-        # Cross-type stim block (design §3.6)
+        # Cross-type stim block + force/overdose path (design §3.6).
+        # Default: refuse a second stim while one is active. The
+        # `stim/force` switch overrides this at overdose risk — +5
+        # difficulty in the roll, and a *failed* overdose incapacitates
+        # the target (T2.10.c, Brian decision 2026-06-05). Incapacitation
+        # is a recoverable wound level (heals via the normal medical
+        # path), not death.
+        force = "force" in (getattr(ctx, "switches", None) or [])
+        overdose = False
         try:
             from engine.buffs import get_active_stim
             existing = get_active_stim(target_char)
@@ -694,13 +764,29 @@ class StimCommand(BaseCommand):
             log.warning("StimCommand: get_active_stim failed",
                         exc_info=True)
             existing = None
+        # CRAFT.P2: heal-kind entries (medpac family) apply no buff —
+        # an active stim doesn't block a bandage, and a medpac over a
+        # stim is not an overdose. The gate is for the buff family only.
+        if spec.get("heal_wound_levels", 0):
+            existing = None
         if existing is not None:
+            if not force:
+                await ctx.session.send_line(
+                    f"  {target_name} already has an active stim "
+                    f"({existing.display_name}). Wait for it to clear "
+                    "before applying another — or use stim/force to push "
+                    "a second stim through at overdose risk (+5 "
+                    "difficulty; a failed overdose incapacitates the "
+                    "target)."
+                )
+                return
+            # Force path: overlay a second stim despite the active one.
+            overdose = True
             await ctx.session.send_line(
-                f"  {target_name} already has an active stim "
-                f"({existing.display_name}). Wait for it to clear "
-                "before applying another."
+                f"  \033[1;33mForcing a second stim into {target_name} "
+                f"over an active {existing.display_name} — overdose risk "
+                f"(+5 difficulty).\033[0m"
             )
-            return
 
         # Wound guard — refuse to stim the dead
         target_wound = target_char.get("wound_level", 0)
@@ -717,6 +803,7 @@ class StimCommand(BaseCommand):
             "medic_name": char.get("name", "Unknown"),
             "consumable_key": consumable_key,
             "is_self": is_self,
+            "overdose": overdose,
             "offered_at": time.time(),
         }
 
@@ -869,6 +956,11 @@ async def _execute_stim_roll(ctx: CommandContext, target_session,
         # Per design §3.7: self-stim takes -1D (-3 pips) penalty;
         # we model this by raising effective difficulty by 3.
         difficulty += 3
+    overdose = offer.get("overdose", False)
+    if overdose:
+        # §3.6 overdose risk: forcing a second stim over an active one
+        # is harder (+5 difficulty). T2.10.c.
+        difficulty += 5
 
     result = perform_skill_check(
         medic_char, spec["skill"], difficulty,
@@ -880,9 +972,12 @@ async def _execute_stim_roll(ctx: CommandContext, target_session,
 
     # ── Fumble (Wild Die 1): 2 wound levels, no buff ────────────────
     if result.fumble:
-        new_wound = min(
-            target_char.get("wound_level", 0) + 2, _WL_DEAD,
-        )
+        base_wound = target_char.get("wound_level", 0) + 2
+        if overdose:
+            # A fumbled overdose is at least as bad as a failed one
+            # (T2.10.c): floor at incapacitated.
+            base_wound = max(base_wound, _WL_INCAPACITATED)
+        new_wound = min(base_wound, _WL_DEAD)
         try:
             await ctx.db.save_character(
                 target_char["id"], wound_level=new_wound,
@@ -893,11 +988,19 @@ async def _execute_stim_roll(ctx: CommandContext, target_session,
                 "_execute_stim_roll: save_character fumble-wound failed",
                 exc_info=True,
             )
-        msg = (
-            f"  \033[1;31mFumble.\033[0m {medic_name}'s {display} "
-            f"application went badly wrong. {target_name} takes 2 "
-            f"wound levels of chemistry shock."
-        )
+        if overdose:
+            msg = (
+                f"  \033[1;31mFumble.\033[0m {medic_name} forces the "
+                f"{display} in and it all goes wrong at once. "
+                f"{target_name} convulses and collapses — incapacitated "
+                f"by the overdose."
+            )
+        else:
+            msg = (
+                f"  \033[1;31mFumble.\033[0m {medic_name}'s {display} "
+                f"application went badly wrong. {target_name} takes 2 "
+                f"wound levels of chemistry shock."
+            )
         await medic_session.send_line(msg)
         if not is_self:
             await target_session.send_line(msg)
@@ -910,13 +1013,17 @@ async def _execute_stim_roll(ctx: CommandContext, target_session,
 
     # ── Failure (not fumble) ────────────────────────────────────────
     if not result.success:
-        # Optional wound escalation (adrenaline shot)
+        # Wound escalation: per-consumable failure_wound_levels (e.g.
+        # adrenaline shot) plus the overdose-incapacitation floor.
         wound_levels = spec.get("failure_wound_levels", 0)
-        if wound_levels:
-            new_wound = min(
-                target_char.get("wound_level", 0) + wound_levels,
-                _WL_DEAD,
-            )
+        new_wound = target_char.get("wound_level", 0) + wound_levels
+        if overdose:
+            # T2.10.c: a failed overdose incapacitates the target.
+            # Incapacitated is a recoverable wound level (heals via the
+            # normal medical path), not death.
+            new_wound = max(new_wound, _WL_INCAPACITATED)
+        new_wound = min(new_wound, _WL_DEAD)
+        if new_wound != target_char.get("wound_level", 0):
             try:
                 await ctx.db.save_character(
                     target_char["id"], wound_level=new_wound,
@@ -944,13 +1051,63 @@ async def _execute_stim_roll(ctx: CommandContext, target_session,
                     exc_info=True,
                 )
 
-        await medic_session.send_line(spec["fail_msg"])
+        if overdose:
+            fail_text = (
+                f"  The overdose hits hard. {target_name} seizes, then "
+                f"goes limp — incapacitated."
+            )
+        else:
+            fail_text = spec["fail_msg"]
+        await medic_session.send_line(fail_text)
         if not is_self:
-            await target_session.send_line(spec["fail_msg"])
+            await target_session.send_line(fail_text)
         log.info(
-            "[stim] failure: medic=%s target=%s consumable=%s margin=%s",
+            "[stim] failure: medic=%s target=%s consumable=%s "
+            "margin=%s overdose=%s",
             medic_char.get("id"), target_char.get("id"),
-            offer["consumable_key"], result.margin,
+            offer["consumable_key"], result.margin, overdose,
+        )
+        return
+
+    # ── Success ─────────────────────────────────────────────────────
+    # CRAFT.P2: heal-kind entries (medpac family) reduce the wound
+    # ladder instead of applying a buff — the inverse of the fumble
+    # branch above. Floor at 0 (healthy). buff_type is None for these.
+    heal_levels = spec.get("heal_wound_levels", 0)
+    if heal_levels:
+        old_wound = target_char.get("wound_level", 0)
+        new_wound = max(0, old_wound - heal_levels)
+        if new_wound != old_wound:
+            try:
+                await ctx.db.save_character(
+                    target_char["id"], wound_level=new_wound,
+                )
+                target_char["wound_level"] = new_wound
+            except Exception:
+                log.warning(
+                    "_execute_stim_roll: heal wound-save failed",
+                    exc_info=True,
+                )
+            msg = (
+                f"  \033[1;32m{display} takes hold.\033[0m "
+                f"{target_name}'s wounds knit — "
+                f"{old_wound - new_wound} wound level"
+                f"{'s' if old_wound - new_wound != 1 else ''} treated."
+            )
+        else:
+            msg = (
+                f"  \033[1;32m{display} applied cleanly.\033[0m "
+                f"{target_name} wasn't wounded — the kit is spent "
+                f"for nothing."
+            )
+        await medic_session.send_line(msg)
+        if not is_self:
+            await target_session.send_line(msg)
+        log.info(
+            "[stim] heal-success: medic=%s target=%s consumable=%s "
+            "wound %s->%s",
+            medic_char.get("id"), target_char.get("id"),
+            offer["consumable_key"], old_wound, new_wound,
         )
         return
 

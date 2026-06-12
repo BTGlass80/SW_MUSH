@@ -252,16 +252,18 @@ class TestResourceTypeConstants(unittest.TestCase):
 
     def test_resource_types_has_12_entries(self):
         from engine.crafting import RESOURCE_TYPES
-        # T1-T4 (6) + T5 (5) = 11? No — original was 6 (rare + 5 others)
-        # T1-T4 set: {metal, chemical, organic, energy, composite, rare} = 6
-        # T5 set:    {kyber, capacitor, republic_tech, dune_iron, chitin} = 5
-        # Total: 11
-        self.assertEqual(len(RESOURCE_TYPES), 11)
+        # CRAFT.P0.6 (2026-06-10, Gundark decision 1a): 'electronic'
+        # formalized as the 7th base type (it was consumed by
+        # sensor_mask/comm_jammer but never declared).
+        # T1-T4 base (7) + T5 drop-only (5) = 12.
+        self.assertEqual(len(RESOURCE_TYPES), 12)
 
     def test_harvestable_subset_is_t1_t4_only(self):
         from engine.crafting import HARVESTABLE_RESOURCE_TYPES
+        # CRAFT.P0.6: electronic joins the harvestable set (urban/tech
+        # zone survey yields). T5 mats remain drop-only.
         expected = {"metal", "chemical", "organic", "energy",
-                    "composite", "rare"}
+                    "composite", "rare", "electronic"}
         self.assertEqual(set(HARVESTABLE_RESOURCE_TYPES), expected)
 
     def test_t5_wilderness_materials_is_5_entries(self):

@@ -268,11 +268,28 @@ class TestComposeBuriedMemory:
         out = _compose_buried_memory(char, "")
         assert "regs" in out.lower() or "kill" in out.lower()
 
-    def test_uses_faction_template_when_bg_empty_separatist(self):
-        char = _make_char(faction="separatist")
+    def test_uses_faction_template_when_bg_empty_cis(self):
+        char = _make_char(faction="cis")
         out = _compose_buried_memory(char, "")
-        # Separatist template mentions signing off / numbers
+        # CIS template mentions signing off / numbers
         assert "signed" in out.lower() or "numbers" in out.lower()
+
+    def test_uses_faction_template_when_bg_empty_jedi_order(self):
+        # CW re-key: was "imperial"; the "order said don't" lands for a Jedi.
+        char = _make_char(faction="jedi_order")
+        out = _compose_buried_memory(char, "")
+        assert "order" in out.lower() and "stop" in out.lower()
+
+    def test_uses_faction_template_when_bg_empty_independent(self):
+        # CW re-key: was "rebel"; "the cause" fits an idealist.
+        char = _make_char(faction="independent")
+        out = _compose_buried_memory(char, "")
+        assert "cause" in out.lower() or "trusted" in out.lower()
+
+    def test_courage_templates_have_no_dead_gcw_keys(self):
+        from engine.village_trials import _COURAGE_TEMPLATES_BY_FACTION
+        for dead in ("separatist", "imperial", "rebel"):
+            assert dead not in _COURAGE_TEMPLATES_BY_FACTION, dead
 
     def test_uses_faction_template_when_bg_empty_hutt(self):
         char = _make_char(faction="hutt_cartel")
@@ -510,7 +527,7 @@ class TestAttemptCourageInitiate:
         # initiate must not crash — falls back to template.
         async def _check():
             char = _make_char(
-                audience_done=True, skill_done=True, faction="separatist",
+                audience_done=True, skill_done=True, faction="cis",
             )
             session = FakeSession(char)
 

@@ -417,7 +417,19 @@ async def check_patrol_on_launch(ctx: CommandContext) -> bool:
     roll_total = result.roll
     display_skill = skill_name.title()
 
-    outcome = resolve_patrol_encounter(job, roll_total, lockdown_active)
+    # SECURITY_CHECKPOINT (contraband_scan): heightened scrutiny on top of any
+    # lockdown. Read the world-event effect at the faucet (the §4.29 pattern).
+    contraband_scan = False
+    try:
+        from engine.world_events import get_world_event_manager
+        contraband_scan = bool(
+            get_world_event_manager().get_effect("contraband_scan", False)
+        )
+    except Exception:
+        log.debug("contraband_scan effect lookup failed (launch)", exc_info=True)
+
+    outcome = resolve_patrol_encounter(
+        job, roll_total, lockdown_active, contraband_scan)
 
     if not outcome["intercepted"]:
         return False
@@ -506,7 +518,19 @@ async def check_patrol_on_arrival(ctx: CommandContext, dest_planet: str) -> bool
     roll_total = result.roll
     display_skill = skill_name.title()
 
-    outcome = resolve_patrol_encounter(job, roll_total, lockdown_active)
+    # SECURITY_CHECKPOINT (contraband_scan): heightened scrutiny on top of any
+    # lockdown. Read the world-event effect at the faucet (the §4.29 pattern).
+    contraband_scan = False
+    try:
+        from engine.world_events import get_world_event_manager
+        contraband_scan = bool(
+            get_world_event_manager().get_effect("contraband_scan", False)
+        )
+    except Exception:
+        log.debug("contraband_scan effect lookup failed (arrival)", exc_info=True)
+
+    outcome = resolve_patrol_encounter(
+        job, roll_total, lockdown_active, contraband_scan)
 
     if not outcome["intercepted"]:
         return False

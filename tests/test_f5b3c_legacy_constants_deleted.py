@@ -288,33 +288,18 @@ class TestEndToEndPostDeletion(unittest.TestCase):
         from engine.housing_lots_provider import clear_lots_cache
         clear_lots_cache()
 
-    def test_gcw_t3_produces_seven_lots_post_deletion(self):
-        from engine.housing_lots_provider import get_tier3_lots
-        t3 = get_tier3_lots("gcw")
-        self.assertEqual(
-            len(t3), 7,
-            "GCW T3 must produce 7 lots from YAML (matches legacy "
-            "TIER3 cardinality)",
-        )
-
-    def test_gcw_t3_includes_known_label(self):
-        from engine.housing_lots_provider import get_tier3_lots
-        t3 = get_tier3_lots("gcw")
-        labels = [lot[2] for lot in t3]
-        self.assertIn("South End Residences", labels)
-
-    def test_gcw_all_tiers_total_24(self):
-        """All four GCW tiers combined produce 24 lots
-        (5+7+6+6 = the F.5b.3.a YAML inventory cardinality)."""
+    def test_retired_gcw_era_yields_empty_not_crash(self):
+        """Post-GCW-retirement: the deleted 'gcw' era resolves to an
+        empty inventory via the provider's fail-loud path (no crash,
+        no stale data). Live-era cardinality is covered by
+        test_f5b2_housing_lots_provider.TestCWPath."""
         from engine.housing_lots_provider import (
             get_tier1_lots, get_tier3_lots, get_tier4_lots, get_tier5_lots,
         )
-        total = (
-            len(get_tier1_lots("gcw")) + len(get_tier3_lots("gcw"))
-            + len(get_tier4_lots("gcw")) + len(get_tier5_lots("gcw"))
-        )
-        self.assertEqual(total, 24)
-
+        self.assertEqual(get_tier1_lots("gcw"), [])
+        self.assertEqual(get_tier3_lots("gcw"), [])
+        self.assertEqual(get_tier4_lots("gcw"), [])
+        self.assertEqual(get_tier5_lots("gcw"), [])
 
 if __name__ == "__main__":
     unittest.main()

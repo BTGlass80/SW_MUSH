@@ -105,10 +105,11 @@ class TestDifficultyConstants(unittest.TestCase):
 
 
 class TestPowersDict(unittest.TestCase):
-    def test_eight_powers_defined(self):
-        # Per the module docstring: 3 Control + 2 Sense + 1 Alter +
-        # 1 combination + 1 dark-side Alter = 8 powers.
-        self.assertEqual(len(POWERS), 8)
+    def test_thirteen_powers_defined(self):
+        # 3 Control + 2 Sense + 2 Alter + 2 combination (Drop 4a) = 9, then
+        # Drop 4a.2 (2026-06-04) added 4 more Sense powers (telepathy,
+        # sense_lie, farseeing, danger_sense) = 13.
+        self.assertEqual(len(POWERS), 13)
 
     def test_each_power_key_matches_its_key_field(self):
         for k, p in POWERS.items():
@@ -145,12 +146,12 @@ class TestPowersDict(unittest.TestCase):
                                f"{k} description too short to be useful")
 
     def test_dark_side_powers_explicitly_marked(self):
-        # Per the module docstring: only injure_kill and affect_mind
-        # award DSP. If a future power gets added with dark_side=True
-        # that should be deliberate; this test catches accidental
-        # additions.
+        # Drop 4a (2026-06-04): the mind-trick SPLIT moved affect_mind out
+        # of the dark set (it is now a light suggestion, no DSP) and added
+        # dominate_mind (coercion) in its place. injure_kill is unchanged.
+        # This test still catches accidental dark_side=True additions.
         dark = {k for k, p in POWERS.items() if p.dark_side}
-        self.assertEqual(dark, {"injure_kill", "affect_mind"})
+        self.assertEqual(dark, {"injure_kill", "dominate_mind"})
 
     def test_dark_side_powers_warn_in_description(self):
         # All dark_side=True powers should mention DSP in their

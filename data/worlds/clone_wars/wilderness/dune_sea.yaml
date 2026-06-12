@@ -256,6 +256,87 @@ encounters:
         sight_radius_override: 0
         hazard_severity_bonus: 1
 
+    # ── Wildlife (Lane A creatures — Creatures of the Galaxy §2.1) ──
+    # Narrative fires live now. payload.npc_template resolves to an id in
+    # data/npcs_creatures.yaml; it is consumed by the Phase B encounter->
+    # spawner bridge (validated today by test_lane_a_creatures_tatooine.py).
+    - id: worrt_cluster
+      type: non_hostile
+      weight: 3
+      terrains: [dune, rocky_outcrop, ruins]
+      narrative: "Squat toad-like shapes hunch in the shade of a low rise — worrts, half a dozen of them, motionless but for their bulging eyes. As you pass, a tongue lashes out at a scuttling beetle and snaps back. They are harmless. They are also everywhere."
+      payload:
+        npc_template: worrt
+        count: [1, 3]
+
+    - id: glim_worm_strike
+      type: hostile
+      weight: 2
+      terrains: [dune, rocky_outcrop]
+      min_distance_from_edge: 3
+      narrative: "The sand ahead is smooth, untouched — and then it heaves. Something is moving fast beneath the dune, straight toward you. A glim worm, tracking your footfalls by their tremor, about to erupt from underneath."
+      payload:
+        npc_template: glim_worm
+        count: [1, 2]
+
+    - id: hitcher_crab_buried
+      type: hostile
+      weight: 1
+      terrains: [dune, rocky_outcrop, ruins]
+      narrative: "Your boot comes down on something that is not rock. Spines rake your shin and a spiked, sand-coloured crustacean heaves up out of its scrape, claws wide — a hitcher crab, roused and aggrieved, venom beading on its pincers."
+      payload:
+        npc_template: hitcher_crab
+        count: [1, 1]
+
+    - id: magus_burrower
+      type: non_hostile
+      weight: 2
+      terrains: [dune, rocky_outcrop]
+      narrative: "A low armoured shape the length of your forearm freezes in the open, watching you with small black eyes. A magus. For a heartbeat neither of you moves — then it bolts under the sand in a spray of grit, leaving behind a sharp, eye-watering reek."
+      payload:
+        npc_template: magus
+        count: [1, 2]
+
+    - id: stalker_lizard_hunt
+      type: hostile
+      weight: 1
+      terrains: [dune, rocky_outcrop, canyon]
+      min_distance_from_edge: 3
+      narrative: "You have had the feeling of being followed for a while now. It resolves all at once: a low, fast, dune-blue shape breaking from cover at a dead sprint, coils already gathering. A stalker lizard has chosen you, and it takes one kill at a time."
+      payload:
+        npc_template: stalker_lizard
+        count: [1, 1]
+
+    # ── Cross-biome wildcards (Creatures of the Galaxy §3) ─────────
+    - id: voroos_ambush
+      type: hostile
+      weight: 1
+      terrains: [dune, rocky_outcrop]
+      min_distance_from_edge: 2
+      narrative: "The low mound ahead is just sand — until the 'sand' splits along a wet seam and a tongue lashes out at your ankle. A voroos, patient and perfectly disguised, has been waiting under the dune for exactly this."
+      payload:
+        npc_template: voroos
+        count: [1, 1]
+
+    - id: wrix_pack
+      type: hostile
+      weight: 1
+      terrains: [rocky_outcrop, canyon]
+      min_distance_from_edge: 5
+      narrative: "A howl rolls down the rocks and freezes you mid-step — which is the point. By the time it fades, the wrix pack has fanned out across the high ground above you, lean and unhurried, between you and the open."
+      payload:
+        npc_template: wrix
+        count: [3, 5]
+
+    - id: shredder_bat_swarm
+      type: hostile
+      weight: 1
+      terrains: [rocky_outcrop, canyon, ruins]
+      narrative: "A dry rattle of wings swells out of a crevice in the rocks — and then the air is full of them, eyeless and diving, homing on the sound of your heartbeat. Shredder bats, a whole pack, and they have already found the arteries."
+      payload:
+        npc_template: shredder_bat
+        count: [6, 12]
+
 # Landmarks — the authoritative roster of named places in the region.
 # Each landmark becomes a `rooms` row at world-build time with
 # `wilderness_region_id = 'tatooine_dune_sea'` and coordinates stored

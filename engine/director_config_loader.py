@@ -18,7 +18,8 @@ Director needs:
     system_prompt:     str
     rewicker_factions: dict[str, str]   # {"imperial": "republic", ...}
 
-`era` defaults to "gcw" when None. The values are sourced from
+`era` defaults to "clone_wars" when None (post-May-18-2026 pivot;
+the GCW era has since been retired). The values are sourced from
 `data/worlds/<era>/director_config.yaml` via the F.6a.1 loader.
 
 History
@@ -27,13 +28,11 @@ History
   (`_LEGACY_VALID_FACTIONS`, `_LEGACY_DEFAULT_INFLUENCE`,
   `_LEGACY_SYSTEM_PROMPT`) as a rollback safety net while the F.6a
   integration drops landed.
-- F.6a.7 Phase 1 (Apr 29): production boot wired to pass `era="gcw"`
-  via `engine.era_state.get_seeding_era()` so legacy fallbacks became
-  unreached from production.
+- F.6a.7 Phase 1 (Apr 29): production boot wired to pass an explicit
+  era via `engine.era_state.get_seeding_era()` so legacy fallbacks
+  became unreached from production.
 - F.6a.7 Phase 2 (Apr 29): legacy constants and `_legacy()` factory
-  deleted. `era=None` now defaults to "gcw" so backward-compat with
-  existing test fixtures is preserved (they get YAML-sourced data
-  byte-equivalent to what the deleted constants used to provide).
+  deleted. `era=None` now defaults to the production era (clone_wars).
   YAML load failures return an empty config + ERROR log instead of
   silent fallback to stale literals.
 

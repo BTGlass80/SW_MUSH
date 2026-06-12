@@ -364,17 +364,18 @@ class TestResolveMissionCompletion(unittest.TestCase):
         self.assertIn("Bonus", result["message"])
 
     def test_partial_success_pays_fraction(self):
-        # 'investigation' partial fraction = 0.75
-        # Reward 500 -> difficulty 11
-        # Need margin in [-4, -1] : roll between 7 and 10
-        # 3D pool: [3, 3] + wild=2 = 8, margin = 8-11 = -3 -> partial
+        # Audit v2 §2.1 tightened the partial window to margin >= -2 and
+        # dropped the investigation partial fraction to 0.40.
+        # Reward 500 -> difficulty 11.
+        # Need margin in [-2, -1] : roll 9 or 10.
+        # 3D pool: [3, 4] + wild=2 = 9, margin = 9-11 = -2 -> partial
         char = make_char(attrs={"perception": "3D"})
-        with self._patch_dice([3, 3, 2]):
+        with self._patch_dice([3, 4, 2]):
             result = resolve_mission_completion(char, "investigation", 500)
         self.assertFalse(result["success"])
         self.assertTrue(result["partial"])
-        # 0.75 * 500 = 375
-        self.assertEqual(result["credits_earned"], 375)
+        # 0.40 * 500 = 200
+        self.assertEqual(result["credits_earned"], 200)
 
     def test_clean_fail_no_pay(self):
         # margin < -4, no fumble — just failure

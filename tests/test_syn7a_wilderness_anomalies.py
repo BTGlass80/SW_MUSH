@@ -157,6 +157,20 @@ class _MiniDB:
             "SELECT * FROM characters WHERE id = ?", (char_id,))
         return dict(rows[0]) if rows else None
 
+    async def adjust_credits(self, char_id, delta, source, **kwargs):
+        # Drop-1 ledger chokepoint shim: mirror Database.adjust_credits
+        # enough for tests (atomic increment + return new balance).
+        # char_id == 0 is a system faucet/sink with no row to touch.
+        if char_id == 0:
+            return 0
+        await self._db.execute(
+            "UPDATE characters SET credits = credits + ? WHERE id = ?",
+            (delta, char_id))
+        await self._db.commit()
+        rows = await self._db.execute_fetchall(
+            "SELECT credits FROM characters WHERE id = ?", (char_id,))
+        return int(rows[0]["credits"]) if rows else 0
+
     async def save_character(self, char_id, **kwargs):
         if not kwargs:
             return
@@ -757,6 +771,14 @@ class TestResolveAnomalySuccess(_AnomalyTestCase):
                                    "technical": "12D",
                                    "knowledge": "12D",
                                    "blaster": "12D"})
+        # Seed the char row so the ledger chokepoint (db.adjust_credits,
+        # Drop 1) has a row to update. _make_char only builds the in-memory
+        # dict; the migrated reward path now writes credits through the DB,
+        # so an unseeded char would leave credits at 0 (same-connection
+        # visibility means no explicit commit is needed here).
+        mdb._db._conn.execute(
+            "INSERT INTO characters (id, credits, faction_id) VALUES (?, ?, ?)",
+            (char["id"], char.get("credits", 0), faction_id))
         return mdb, char, a
 
     def test_high_skill_succeeds_with_credits(self):

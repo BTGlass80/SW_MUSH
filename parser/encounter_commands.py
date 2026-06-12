@@ -23,7 +23,7 @@ class RespondCommand(BaseCommand):
         "  respond 1       — choose option #1\n"
         "  respond bluff   — choose by name\n"
         "\n"
-        "When an encounter presents choices (Imperial patrol, pirate demand, etc.),\n"
+        "When an encounter presents choices (customs patrol, pirate demand, etc.),\n"
         "use this command to select your response. The choice may trigger skill checks\n"
         "depending on the option selected."
     )

@@ -872,7 +872,7 @@ async def _auto_declare_npc_actions(combat, ctx):
 
 async def _apply_combat_wear(combat, ctx):
     """Apply weapon condition wear and persist wound states after resolution."""
-    from engine.items import parse_equipment_json, serialize_equipment
+    from engine.items import read_equipment, write_equipment
     import json as _json
 
     for c in combat.combatants.values():
@@ -1278,6 +1278,7 @@ async def _apply_combat_wear(combat, ctx):
                                 if hasattr(_sec, "value") else str(_sec),
                             killer_id=_killer_id,
                             killer_is_bh=_killer_is_bh,
+                            session_mgr=ctx.session_mgr,
                         )
                         # Sync the session's wound_state cache so the
                         # respawn command sees it immediately.
@@ -1398,6 +1399,47 @@ async def _apply_combat_wear(combat, ctx):
                                     )
                         except Exception:
                             pass  # graceful-drop
+                        # hunter.2 (2026-06-05): DSP-hunter defeat. Any dead NPC
+                        # tagged as a runtime-spawned Dark-Side hunter ends its
+                        # quarry's pursuit (defeating it IS the prestige-domain
+                        # reward). No-op for every other dead NPC (cheap).
+                        try:
+                            from engine.dsp_hunter_runtime import (
+                                on_dsp_hunter_killed)
+                            for _oc in combat.combatants.values():
+                                if (_oc.is_npc and _oc.char
+                                        and _oc.char.wound_level.value >= 5):
+                                    await on_dsp_hunter_killed(
+                                        ctx.db,
+                                        _oc.id,
+                                        sess.character,
+                                        combat.room_id,
+                                        session_mgr=ctx.session_mgr,
+                                    )
+                        except Exception:
+                            pass  # graceful-drop
+                        # Lane A Phase C (2026-06-05): creature spoils. Any dead
+                        # NPC that is a runtime-spawned wilderness creature is
+                        # field-dressed by the killer (Survival check → resource
+                        # stack into inventory.resources, a crafting sink — no
+                        # credits) and the carcass despawned. No-op for every
+                        # non-wilderness-creature NPC (cheap). Closes econ-audit
+                        # v1 #16 (loot-on-kill).
+                        try:
+                            from engine.wilderness_encounter_runtime import (
+                                on_wild_creature_killed)
+                            for _oc in combat.combatants.values():
+                                if (_oc.is_npc and _oc.char
+                                        and _oc.char.wound_level.value >= 5):
+                                    await on_wild_creature_killed(
+                                        ctx.db,
+                                        _oc.id,
+                                        sess.character,
+                                        combat.room_id,
+                                        session_mgr=ctx.session_mgr,
+                                    )
+                        except Exception:
+                            pass  # graceful-drop
                         # From Dust to Stars: combat kill hook
                         try:
                             from engine.spacer_quest import check_spacer_quest
@@ -1414,7 +1456,11 @@ async def _apply_combat_wear(combat, ctx):
         if not sess or not sess.character:
             continue
 
-        item = parse_equipment_json(sess.character.get("equipment", "{}"))
+        # Canonical per-slot read/write: the old parse_equipment_json
+        # returned None under canonical storage (wear never applied), and
+        # serialize_equipment(item) wrote legacy shape 2, clobbering armor.
+        _slots = read_equipment(sess.character.get("equipment", "{}"))
+        item = _slots["weapon"]
         if not item:
             continue
 
@@ -1427,8 +1473,9 @@ async def _apply_combat_wear(combat, ctx):
         wear = 2 if "lightsaber" in skill_used else 1
         item.apply_wear(wear)
 
-        # Persist
-        sess.character["equipment"] = serialize_equipment(item)
+        # Persist (armor slot preserved)
+        sess.character["equipment"] = write_equipment(
+            weapon=item, armor=_slots["armor"])
         await ctx.db.save_character(c.id, equipment=sess.character["equipment"])
 
         # Notify if weapon is getting damaged
@@ -1456,7 +1503,7 @@ class AttackCommand(BaseCommand):
         "  stun          -- fire in stun mode (blasters only)\n"
         "\n"
         "EXAMPLES:\n"
-        "  attack stormtrooper\n"
+        "  attack pirate\n"
         "  attack thug with brawling\n"
         "  attack bounty hunter cp 2\n"
         "  attack guard stun"
@@ -1552,10 +1599,36 @@ class AttackCommand(BaseCommand):
             await _send_combat_state(combat, ctx.session_mgr)
 
         # Phase 8: Stun validation + declare + broadcast
-        await self._declare_and_broadcast(
+        declared = await self._declare_and_broadcast(
             ctx, combat, char, target_char, target_session,
             skill, damage, cp_spend, stun_mode,
             equipped_weapon, default_damage, room_id)
+
+        # Phase 8b: consume single-use ordnance (Gundark Drop D,
+        # 2026-06-11). Faucets and sinks land together: craftable
+        # explosives without consumption would be a permanent-weapon
+        # printer (ammo is otherwise unmodeled at HEAD — frag/thermal
+        # were infinite-use until their rows gained `single_use`).
+        # Consumed at DECLARATION — the throw is committed; round
+        # resolution rolls the action's CAPTURED skill/damage strings,
+        # never a live equipment re-read, so clearing the slot now is
+        # safe. The `damage == default_damage` test is the same
+        # "this attack actually uses the equipped weapon" condition
+        # the declare broadcast uses; an explicit `with .. damage ..`
+        # override is some OTHER attack and must not eat the grenade.
+        if (declared and equipped_weapon
+                and getattr(equipped_weapon, "single_use", False)
+                and damage == default_damage):
+            from engine.items import read_equipment, write_equipment
+            _slots = read_equipment(char.get("equipment", "{}"))
+            if _slots["weapon"] is not None and                     _slots["weapon"].key == equipped_weapon.key:
+                char["equipment"] = write_equipment(
+                    weapon=None, armor=_slots["armor"])
+                await ctx.db.save_character(
+                    char["id"], equipment=char["equipment"])
+                await ctx.session.send_line(
+                    f"  \033[2mYour {equipped_weapon.name} is expended "
+                    f"with the throw. (Equip another to throw again.)\033[0m")
 
         # Phase 9: Auto-resolve if everyone has declared
         await _send_combat_state(combat, ctx.session_mgr)
@@ -1566,7 +1639,7 @@ class AttackCommand(BaseCommand):
     async def _usage_help(self, ctx):
         await ctx.session.send_line(
             "Usage: attack <target> [with <skill>] [damage <dice>] [cp <N>]")
-        await ctx.session.send_line("  attack stormtrooper")
+        await ctx.session.send_line("  attack pirate")
         await ctx.session.send_line("  attack han with blaster damage 4D")
         await ctx.session.send_line(
             "  attack han with melee combat damage STR+2D cp 2")
@@ -1590,15 +1663,12 @@ class AttackCommand(BaseCommand):
         default_damage = "4D"
         equipped_weapon = None
 
-        equip_data = char.get("equipment", "{}")
-        if isinstance(equip_data, str):
-            try:
-                equip_data = _json.loads(equip_data)
-            except Exception:
-                log.warning("attack: equipment JSON parse failed", exc_info=True)
-                equip_data = {}
-        weapon_key = (equip_data.get("key", "")
-                      if isinstance(equip_data, dict) else "")
+        # Canonical per-slot read (equipment-instance untangle). The old code
+        # read a top-level "key" field — legacy shape 2 — which silently
+        # returned "" under canonical storage, so `attack` ignored the
+        # equipped weapon and fell back to the default blaster.
+        from engine.items import equipment_keys
+        weapon_key = equipment_keys(char.get("equipment", "{}"))["weapon"]
         if weapon_key:
             from engine.weapons import get_weapon_registry
             wr = get_weapon_registry()
@@ -1809,9 +1879,9 @@ class AttackCommand(BaseCommand):
 
         if not bh_override and not contest_override:
             await ctx.session.send_line(
-                f"  \033[1;33mImperial law prohibits unprovoked assault here.\033[0m\n"
+                f"  \033[1;33mLocal law prohibits unprovoked assault here.\033[0m\n"
                 f"  Use \033[1;37mchallenge {target_name}\033[0m to issue a formal challenge.\n"
-                f"  (Or find a lawless zone where Imperial law doesn't reach.)"
+                f"  (Or find a lawless zone where local law doesn't reach.)"
             )
             return False
         return True
@@ -1943,6 +2013,13 @@ class AttackCommand(BaseCommand):
             await ctx.session.send_line(
                 f"  {equipped_weapon.name} cannot be set to stun.")
             stun_mode = False
+        # CRAFT.P0.7: dedicated stun weapons fire stun bolts ONLY —
+        # the mode is forced regardless of how the attack was declared.
+        if equipped_weapon and getattr(equipped_weapon, "stun_only", False) \
+                and not stun_mode:
+            await ctx.session.send_line(
+                f"  {equipped_weapon.name} only fires stun bolts.")
+            stun_mode = True
 
         action = CombatAction(
             action_type=ActionType.ATTACK,
@@ -1955,7 +2032,7 @@ class AttackCommand(BaseCommand):
         err = combat.declare_action(char["id"], action)
         if err:
             await ctx.session.send_line(f"  {err}")
-            return
+            return False
 
         cp_msg = f", spending {cp_spend} CP" if cp_spend > 0 else ""
         stun_msg = " [STUN]" if stun_mode else ""
@@ -1987,6 +2064,7 @@ class AttackCommand(BaseCommand):
                     f"Declare: dodge/attack/flee"
                 )
             )
+        return True
 
 
 class DodgeCommand(BaseCommand):
@@ -2375,8 +2453,8 @@ class RangeCommand(BaseCommand):
         "BANDS: pointblank (5), short (10), medium (15), long (20)\n"
         "\n"
         "EXAMPLES:\n"
-        "  range stormtrooper        -- check range\n"
-        "  range stormtrooper short  -- set to short"
+        "  range pirate        -- check range\n"
+        "  range pirate short  -- set to short"
     )
     usage = "range <target> <band>  (bands: pointblank, short, medium, long)"
 
@@ -2916,7 +2994,7 @@ class CombatPoseCommand(BaseCommand):
             )
             await ctx.session.send_line(
                 "  Example: cpose Tundra dives behind the crate, "
-                "firing two quick shots at the stormtrooper."
+                "firing two quick shots at the pirate."
             )
             return
 
@@ -2972,7 +3050,7 @@ class ChallengeCommand(BaseCommand):
         sec = await get_effective_security(room_id, ctx.db, character=char)
         if sec == SecurityLevel.SECURED:
             await ctx.session.send_line(
-                "  \033[1;33mImperial security would immediately stop any duel here.\033[0m"
+                "  \033[1;33mLocal security would immediately stop any duel here.\033[0m"
             )
             return
 

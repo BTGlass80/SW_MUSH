@@ -26,6 +26,7 @@ Note: mission_difficulty() uses intermediate values (8, 11, 14, etc.)
 for game-specific reward scaling. These are deliberate tuning, not a
 divergent ladder.
 """
+import json
 import logging
 from dataclasses import dataclass
 from typing import Optional
@@ -70,6 +71,12 @@ class SkillCheckResult:
     fumble: bool        # Wild Die came up 1 (complication)
     skill_used: str
     pool_str: str       # e.g. "4D+2"
+    # Gundark Drop F (2026-06-12): carried-tool bonus surface. Both
+    # default-valued — additive-safe for every existing constructor and
+    # consumer. tool_name is set when a tool contributed, for UIs that
+    # want to credit it ("Code Slicer +1D").
+    tool_pips: int = 0
+    tool_name: "Optional[str]" = None
 
 
 # ── Core skill check ─────────────────────────────────────────────────────────
@@ -79,6 +86,57 @@ class SkillCheckResult:
 # skills (con/persuasion/bargain/intimidation/command) that merely fall back to
 # the PERCEPTION attribute. Tunable.
 _ENV_PERCEPTION_SKILLS = frozenset({"perception", "search"})
+
+
+def _best_tool_bonus(char: dict, skill_name: str) -> tuple[int, "Optional[str]"]:
+    """Gundark Drop F (2026-06-12): carried-tool skill bonus.
+
+    Scan the character's carried items for gear dicts bearing a
+    ``skill_bonus`` mapping ({"skill": <key>, "bonus": "+1D"}) whose
+    skill canonicalizes to this check's skill, and return the single
+    BEST one as (pips, item_name). Tools never stack — the best one
+    applies (carrying two medscanners is one medscanner that beeps
+    twice). Inventory source + shape tolerance mirror
+    engine.hazards._has_mitigation. Fail-open: a malformed item must
+    never break a roll.
+
+    Lives at the chokepoint for the same reason SRB.3's lead bonus
+    does — every out-of-combat caller benefits without knowing the
+    mechanic exists. Combat is structurally untouched: engine/combat
+    builds its pools directly and never calls perform_skill_check.
+    """
+    best_pips = 0
+    best_name = None
+    try:
+        inv = char.get("inventory", "[]")
+        if isinstance(inv, str):
+            inv = json.loads(inv) if inv else {}
+        items = inv.get("items", []) if isinstance(inv, dict) else (
+            inv if isinstance(inv, list) else [])
+        if not items:
+            return 0, None
+        from engine.character import canonical_skill_key
+        from engine.dice import DicePool
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            sb = item.get("skill_bonus")
+            if not isinstance(sb, dict):
+                continue
+            if canonical_skill_key(str(sb.get("skill", ""))) != skill_name:
+                continue
+            try:
+                p = DicePool.parse(str(sb.get("bonus", "")).lstrip("+"))
+                pips = p.dice * 3 + p.pips
+            except Exception:
+                continue
+            if pips > best_pips:
+                best_pips = pips
+                best_name = item.get("name", item.get("key", "tool"))
+    except Exception:
+        log.debug("tool-bonus scan failed (roll unaffected)", exc_info=True)
+        return 0, None
+    return best_pips, best_name
 
 
 def perform_skill_check(
@@ -114,6 +172,18 @@ def perform_skill_check(
     """
     if skill_registry is None:
         skill_registry = _get_default_registry()
+
+    # 2026-06-11 skill-key unification: canonicalize ONCE at the
+    # chokepoint ingress so every downstream consumer (_get_skill_pool,
+    # _skill_to_attr, the env-perception gate) sees one dialect.
+    # schematics.yaml passes underscore-form ("blaster_repair"),
+    # MISSION_SKILL_MAP passes space-form ("space transports repair") —
+    # before this, underscore callers resolved as UNTRAINED **and**
+    # mapped to the wrong governing attribute (the "perception"
+    # default): a Blaster Repair 3D / Technical 3D crafter rolled raw
+    # 2D Perception. See engine.character.canonical_skill_key.
+    from engine.character import canonical_skill_key
+    skill_name = canonical_skill_key(skill_name)
 
     # SRB.3 (May 22 2026): resolve a combined-action bonus if applicable.
     # Per support_role_buffs_design_v1.md §4, a leader who passes their
@@ -152,12 +222,15 @@ def perform_skill_check(
         except Exception:
             env_pips = 0
 
+    # Gundark Drop F: carried-tool bonus (best single tool, no stacking).
+    tool_pips, tool_name = _best_tool_bonus(char, skill_name)
+
     # Apply buff/debuff modifiers (in pips) AND any SRB.3 lead bonus
     try:
         from engine.buffs import get_buff_modifier
         attr_name = _skill_to_attr(skill_name, skill_registry)
         buff_pips = get_buff_modifier(char, attr_name)
-        total_buff_pips = buff_pips + effective_lead_pips + env_pips
+        total_buff_pips = buff_pips + effective_lead_pips + env_pips + tool_pips
         if total_buff_pips:
             total_pips = dice * 3 + pips + total_buff_pips
             total_pips = max(3, total_pips)  # Floor: 1D minimum
@@ -166,7 +239,7 @@ def perform_skill_check(
     except Exception:
         # Even if buff system errors out, apply the lead bonus + environmental
         # penalty alone if present — they're independent mechanics.
-        _fallback_pips = effective_lead_pips + env_pips
+        _fallback_pips = effective_lead_pips + env_pips + tool_pips
         if _fallback_pips:
             total_pips = dice * 3 + pips + _fallback_pips
             total_pips = max(3, total_pips)
@@ -191,6 +264,8 @@ def perform_skill_check(
         fumble=roll.complication,
         skill_used=skill_name,
         pool_str=pool_str,
+        tool_pips=tool_pips,
+        tool_name=tool_name if tool_pips else None,
     )
 
 
@@ -219,7 +294,16 @@ MORALE_FLAVORED_SKILLS = frozenset({
     "willpower",
     "command",
     "persuasion",
-    "con",  # alias used in some chargen content
+    "con",         # alias used in some chargen content
+    # T2.11.b (2026-06-05): broadened beyond v1 to the cantina-social core.
+    # A performance lifts the mood, so deals, the sabacc table, and working
+    # the room all get easier. Intimidation is deliberately EXCLUDED — the
+    # aura uplifts, while intimidation instills fear; a warm, lively room
+    # makes it harder, not easier. Combat/technical/mechanical/knowledge/
+    # Force-power rolls remain unaffected.
+    "bargain",     # haggling buoyed by good cheer
+    "gambling",    # confidence at the sabacc table (the cantina's heart)
+    "streetwise",  # working a lively room for information / connections
 })
 
 
@@ -308,7 +392,10 @@ def _get_skill_pool(char: dict, skill_name: str, skill_registry) -> tuple[int, i
     Falls back to raw attribute if skill not trained.
     """
     import json as _json
-    key = skill_name.lower()
+    from engine.character import canonical_skill_key
+    # 2026-06-11: canonical key — direct callers of this helper (the
+    # haggle path, tests) may bypass perform_skill_check's ingress.
+    key = canonical_skill_key(skill_name)
 
     # Look up attribute for this skill
     attr_name = _skill_to_attr(key, skill_registry)
@@ -330,6 +417,15 @@ def _get_skill_pool(char: dict, skill_name: str, skill_registry) -> tuple[int, i
 
     bonus_str = skills.get(key)
     if not bonus_str:
+        # 2026-06-11: tolerate non-canonical STORED keys — NPC yaml
+        # skill blocks are predominantly underscore-form ("first_aid:
+        # 4D"), PC chargen writes space-form. Scan is O(n) over a
+        # small dict and only on the primary-key miss path.
+        for k, v in skills.items():
+            if canonical_skill_key(k) == key:
+                bonus_str = v
+                break
+    if not bonus_str:
         # Untrained: roll raw attribute
         return attr_dice, attr_pips
 
@@ -340,6 +436,11 @@ def _get_skill_pool(char: dict, skill_name: str, skill_registry) -> tuple[int, i
 
 def _skill_to_attr(skill_name: str, skill_registry) -> str:
     """Get the governing attribute for a skill."""
+    from engine.character import canonical_skill_key
+    # 2026-06-11: canonical key — registry keys and the fallback map
+    # below are space-form; underscore data-form callers previously
+    # missed BOTH and landed on the "perception" default.
+    skill_name = canonical_skill_key(skill_name)
     if skill_registry:
         try:
             skill_def = skill_registry.get(skill_name)
@@ -366,6 +467,12 @@ def _skill_to_attr(skill_name: str, skill_registry) -> str:
         "starfighter repair": "technical", "capital ship repair": "technical",
         "starship weapon repair": "technical",
         "musical instrument": "perception",
+        # 2026-06-11: sanctioned non-registry craft skill — the T5
+        # master-lightsaber schematic's skill_required. Not in
+        # data/skills.yaml (nothing trains it); rolls raw Technical.
+        # Exempted by name in tests/test_skill_key_resolution.py's
+        # whole-catalog pin.
+        "craft lightsaber": "technical",
     }
     return _FALLBACK.get(skill_name, "perception")
 

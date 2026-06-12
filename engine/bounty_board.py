@@ -628,3 +628,174 @@ def format_contract_detail(c: BountyContract) -> list[str]:
         lines.append(f"  {_DIM}Engage and defeat them to collect the reward.{_RESET}")
     lines.append(f"{_BOLD}{'='*58}{_RESET}")
     return lines
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Webify UI-5 (2026-06-10): board_state producer for the web client
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_board_state(posted: list["BountyContract"],
+                      claimed: "BountyContract | None" = None,
+                      now: "float | None" = None) -> dict:
+    """Assemble the `board_state` push for the web bounty-board modal.
+
+    Pinned ABI (web_client_vision_and_protocol — Webify UI-5)::
+
+        { "contracts": [ BountyContract.to_dict()
+                         + {"expires_in_secs": int|None} ],
+          "claimed_id": str|None }
+
+    `posted` is the caller's already-visibility-filtered POSTED list
+    (the chain-tutorial filter in BountiesCommand applies before this).
+    `claimed` is the viewer's active CLAIMED contract, if any — it is
+    prepended to the list so the card renders inline with its TRACK
+    action, and its id becomes `claimed_id`.
+
+    `expires_in_secs` is derived server-side (remaining seconds,
+    clamped ≥ 0; None when the contract has no expiry) so the client
+    never has to trust its own clock against `expires_at` epochs.
+
+    Pure + sync: no DB, no singletons; never raises on a malformed
+    contract (it is skipped). This keeps the NPC contract board only —
+    Dark-Side Notoriety (prestige, no credits) is a different surface
+    on the PC bounty board and is NOT part of this message.
+    """
+    ts = time.time() if now is None else now
+
+    def _entry(c) -> "dict | None":
+        try:
+            d = c.to_dict()
+            exp = d.get("expires_at")
+            d["expires_in_secs"] = (
+                max(0, int(exp - ts)) if isinstance(exp, (int, float)) and exp
+                else None
+            )
+            return d
+        except Exception:
+            log.debug("build_board_state: skipping malformed contract",
+                      exc_info=True)
+            return None
+
+    contracts: list[dict] = []
+    claimed_id = None
+    if claimed is not None:
+        e = _entry(claimed)
+        if e is not None:
+            contracts.append(e)
+            claimed_id = e.get("id")
+    for c in posted or []:
+        if claimed is not None and getattr(c, "id", None) == claimed_id:
+            continue  # never duplicate the viewer's own contract
+        e = _entry(c)
+        if e is not None:
+            contracts.append(e)
+
+    return {"contracts": contracts, "claimed_id": claimed_id}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Drop 4b (2026-06-04): Dark-Side Notoriety — auto-DSP bounty
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Per the Part V / Drop 4 locked decision (c): a high-DSP character draws a
+# bounty automatically. This is DETERMINISTIC and DSP-DERIVED (no new table,
+# no AI cost) — the "wanted" state is computed from dark_side_points exactly
+# the way force_sensitive is derived from the force attributes. It is
+# FACTION-AGNOSTIC (it tracks the dark side, not any player faction) and the
+# reward is STATUS / PRESTIGE only (never credits, never the insurance/claim
+# flow that the credit-bounty pc_bounties system carries).
+#
+# This module provides the pure helpers; the parser surfaces them on the BH
+# board (parser/pc_bounty_commands.py) and fires the threshold-crossing
+# notice (parser/force_commands.py).
+
+# A bounty appears once a Jedi reaches the "Danger Zone" (DSP 4) — the same
+# band the forcestatus display flags as dangerous.
+DSP_BOUNTY_THRESHOLD = 4
+
+# Mirror of force_powers.DSP_FALL_THRESHOLD (kept local to avoid an
+# engine-module import here): at/over this the notoriety reads as "Hunted".
+DSP_FALL_THRESHOLD = 6
+
+
+def is_dsp_wanted(dsp: int) -> bool:
+    """True iff this Dark Side Point total draws an automatic bounty."""
+    try:
+        return int(dsp or 0) >= DSP_BOUNTY_THRESHOLD
+    except (TypeError, ValueError):
+        return False
+
+
+def crossed_into_wanted(old_dsp: int, new_dsp: int) -> bool:
+    """True iff a DSP change pushes a character across the wanted threshold
+    for the first time (so the parser fires the notice exactly once)."""
+    return (not is_dsp_wanted(old_dsp)) and is_dsp_wanted(new_dsp)
+
+
+def dsp_bounty_tier(dsp: int) -> str:
+    """Status tier label for a DSP total (prestige, not credits)."""
+    d = int(dsp or 0)
+    if d >= 9:
+        return "Darkest of the Dark"
+    if d >= 6:
+        return "Hunted"          # at/over the fall threshold
+    return "Marked"              # 4-5: Danger Zone
+
+
+# Faction-agnostic poster: the hunt for a fallen Force-user is its own
+# pull, not any one organization's contract.
+DSP_BOUNTY_POSTER = "Anonymous — a standing call among hunters"
+
+
+def format_dsp_notoriety_line(name: str, dsp: int, suffix: str = "") -> str:
+    """One board line for a dark-side-wanted character (status reward).
+
+    ``suffix`` (optional) appends the live roaming-hunter pursuit state
+    (Drop 4b hunter.1), e.g. "— hunter closing".
+    """
+    tier = dsp_bounty_tier(dsp)
+    color = _RED if int(dsp or 0) >= DSP_FALL_THRESHOLD else _YELLOW
+    return (
+        f"  {color}{tier:<20}{_RESET} "
+        f"on {_BOLD}{name:<20s}{_RESET} "
+        f"{_DIM}(prestige — no credits){_RESET}{suffix or ''}"
+    )
+
+
+def format_dsp_notoriety_section(wanted: list, pursuits: "dict | None" = None) -> list:
+    """Render the Dark-Side Notoriety section for the BH board.
+
+    ``wanted`` is a list of rows/dicts with 'id', 'name' and 'dark_side_points'.
+    ``pursuits`` (optional) maps char_id -> a pursuit row (with a 'stage'); when
+    supplied, each line is annotated with that character's roaming-hunter
+    pursuit state (Drop 4b hunter.1). Returns [] when no one is wanted, so the
+    caller can skip the header.
+    """
+    rows = [w for w in (wanted or [])
+            if is_dsp_wanted((w or {}).get("dark_side_points", 0))]
+    if not rows:
+        return []
+    rows.sort(key=lambda w: int(w.get("dark_side_points", 0) or 0), reverse=True)
+
+    # Lazy import to avoid a module-load cycle (dsp_hunter imports this module).
+    _board_suffix = None
+    if pursuits:
+        try:
+            from engine.dsp_hunter import board_suffix as _board_suffix
+        except Exception:
+            _board_suffix = None
+
+    lines = [
+        f"{_BOLD}  Dark-Side Notoriety{_RESET}  "
+        f"{_DIM}(auto-posted; reward is prestige, not credits){_RESET}",
+        f"{_DIM}  {'-'*56}{_RESET}",
+    ]
+    for w in rows:
+        suffix = ""
+        if _board_suffix is not None:
+            p = pursuits.get(w.get("id"))
+            if p:
+                suffix = _board_suffix(p.get("stage", ""))
+        lines.append(format_dsp_notoriety_line(
+            w.get("name", "?"), w.get("dark_side_points", 0), suffix))
+    return lines

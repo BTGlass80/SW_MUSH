@@ -39,7 +39,7 @@ missions:
       for active deployment. Standard escort-and-secure rotation;
       you're filling out a clone squad short two troopers.
     destination: "Coruscant - The Works, Landing Zone"
-    destination_slug: coruscant_works_landing_zone
+    destination_slug: commercial_district_landing_zone
     reward: 300
     required_skill: blaster
     # Optional: faction_code/faction_rep_required default to None/0
@@ -64,7 +64,7 @@ missions:
       sympathizer contact. Recording is sufficient; do not engage.
       File the report via `complete` once the recording is captured.
     destination: "Coruscant - Mid-Levels Freight District"
-    destination_slug: coruscant_midlevels_freight_district
+    destination_slug: commercial_district_freight_district
     reward: 200
     required_skill: search
     # Pre-accepted: chain dispatcher seeds this directly into the

@@ -166,18 +166,94 @@ POWERS: dict[str, ForcePower] = {
         ),
     ),
     # ── Combination ───────────────────────────────────────────────────────────
+    # Drop 4a (2026-06-04): mind-trick SPLIT.
+    #   affect_mind   = the light "Jedi mind trick" — a *suggestion* on
+    #                   the weak-minded. Contested by the target's will
+    #                   (resolved deterministically vs an NPC; offered to
+    #                   a PC who RPs it). NO Dark Side Point. dark_side=False.
+    #   dominate_mind = coercion / domination — bending a will against
+    #                   itself. Stays dark. dark_side=True (auto DSP).
+    # Per Part V / Drop 4 locked decision (a): affect_mind was dark_side=True
+    # and is now split so the canonical Jedi suggestion is not self-corrupting.
     "affect_mind": ForcePower(
         key="affect_mind",
-        name="Affect Mind",
+        name="Affect Mind (Suggestion)",
         skills=["control", "sense", "alter"],
         base_diff=MODERATE,
+        dark_side=False,
+        target="target",
+        description=(
+            "Plant a gentle suggestion in a weak mind — the classic Jedi "
+            "mind trick. Roll lowest of Control/Sense/Alter, contested by "
+            "the target's will. On an NPC the engine resolves the effect "
+            "(distract a guard, pry loose a fact); on a player it is offered "
+            "for them to play out. No Dark Side Point."
+        ),
+    ),
+    "dominate_mind": ForcePower(
+        key="dominate_mind",
+        name="Dominate Mind (Coercion)",
+        skills=["control", "sense", "alter"],
+        base_diff=DIFFICULT,
         dark_side=True,
         target="target",
         description=(
-            "Reach into a being's mind and implant a suggestion or emotion. "
-            "Roll lowest of Control/Sense/Alter vs difficulty (Moderate for "
-            "simple suggestions; higher for complex commands). "
-            "DARK SIDE: using this power earns 1 Dark Side Point."
+            "Force a will to break — coercion and domination, not mere "
+            "suggestion. Stronger and harder than Affect Mind, it overrides "
+            "resistance the suggestion cannot. DARK SIDE: using this power "
+            "earns 1 Dark Side Point."
+        ),
+    ),
+    # ── Drop 4a.2 (2026-06-04): further Sense powers (light) ────────────────
+    "telepathy": ForcePower(
+        key="telepathy",
+        name="Telepathy",
+        skills=["sense"],
+        base_diff=MODERATE,
+        target="target",
+        description=(
+            "Touch another mind with the Force. Between a Master and Padawan "
+            "who share an active bond it reaches across any distance and you "
+            "feel their condition; otherwise it is a wordless mind-touch "
+            "(offered to a player to answer), or a skim of an NPC's surface "
+            "thoughts."
+        ),
+    ),
+    "sense_lie": ForcePower(
+        key="sense_lie",
+        name="Sense Deception",
+        skills=["sense"],
+        base_diff=MODERATE,
+        target="target",
+        description=(
+            "Weigh another's sincerity against the Force. On a being who is "
+            "concealing something you sense the deceit (and may glimpse what "
+            "lies beneath); on an honest one you feel their truth. A player "
+            "target is offered the read to play out."
+        ),
+    ),
+    "farseeing": ForcePower(
+        key="farseeing",
+        name="Farseeing",
+        skills=["sense"],
+        base_diff=DIFFICULT,
+        target="self",
+        description=(
+            "Let the Force show you what it will — a simple portent of danger "
+            "near at hand. Difficult, and never precise: the future is always "
+            "in motion."
+        ),
+    ),
+    "danger_sense": ForcePower(
+        key="danger_sense",
+        name="Danger Sense",
+        skills=["sense"],
+        base_diff=MODERATE,
+        target="self",
+        description=(
+            "Feel a threat an instant before it strikes. In combat you react "
+            "first — your next initiative is rerolled, keeping the better. "
+            "Out of combat it is an early warning."
         ),
     ),
 }
@@ -223,6 +299,17 @@ class ForcePowerResult:
     pain_suppressed: bool = False # True if control_pain succeeded
     targets_felt: list = field(default_factory=list)   # life_sense results
     damage_dealt: int = 0         # injure_kill margin
+    # ── Drop 4a (2026-06-04): structured effect signals ───────────────
+    # The engine stays pure (no DB / no async). When a social/sense/
+    # alter power resolves to a real mechanical outcome, the engine
+    # records *what* happened here and the parser (which owns DB +
+    # room context) performs the application. effect_kind is one of:
+    #   "" | "suggestion" | "domination" | "disarm"
+    #   | "life_sense" | "sense_force"
+    # effect_payload carries kind-specific detail (e.g. strength tier).
+    effect_kind:    str = ""
+    effect_payload: dict = field(default_factory=dict)
+    disarm:         bool = False   # telekinesis -> parser unequips target weapon
 
 
 def resolve_force_power(
@@ -234,6 +321,7 @@ def resolve_force_power(
     *,
     weight_difficulty_mod: int = 0,
     extra_dsp_on_fail: int = 0,
+    target_is_npc: bool = False,
 ) -> ForcePowerResult:
     """
     Resolve a Force power use. Returns a ForcePowerResult.
@@ -256,6 +344,19 @@ def resolve_force_power(
                                 the baseline +1 when a fall check
                                 fails AND the Jedi has Weight ≥ 151.
                                 From ``extra_dsp_on_failed_resist``.
+        target_is_npc:          Drop 4a (2026-06-04): when True for a
+                                mind power (affect_mind / dominate_mind),
+                                the target's resistance is resolved as a
+                                real OPPOSED willpower roll (WEG R&E mind
+                                influence is opposed, not flat-difficulty;
+                                a weak-minded being resists with its low
+                                governing attribute and is easily swayed).
+                                When False, the difficulty stays the base
+                                complexity — used for PC targets, whose
+                                outcome the parser OFFERS rather than
+                                auto-rolls (player agency). The caller
+                                tells us which because only it knows
+                                whether the target row is a PC or an NPC.
     """
     power = get_power(power_key)
     if power is None:
@@ -279,6 +380,24 @@ def resolve_force_power(
     # ── Roll ──────────────────────────────────────────────────────────────────
     roll_result = roll_d6_pool(skill_pool)
     difficulty = power.base_diff + extra_diff
+
+    # ── Drop 4a (2026-06-04): opposed resistance for mind powers ───────────────
+    # WEG R&E mind influence is an OPPOSED roll — the target resists with
+    # willpower (untrained → its governing attribute, so a weak-minded
+    # being resists poorly and is easily swayed). For an NPC the engine
+    # rolls that resistance now and the base complexity acts as a floor:
+    # the suggestion must clear both the inherent difficulty and the will
+    # actively resisting it. For a PC (target_is_npc False) the difficulty
+    # stays the base complexity and the parser OFFERS the formed suggestion
+    # rather than auto-rolling the other player's mind (agency).
+    mind_resist_total = None
+    if (target_char is not None and target_is_npc
+            and power_key in ("affect_mind", "dominate_mind")):
+        resist_pool = target_char.get_skill_pool("willpower", skill_reg)
+        resist_roll = roll_d6_pool(resist_pool)
+        mind_resist_total = resist_roll.total
+        difficulty = max(difficulty, mind_resist_total)
+
     margin = roll_result.total - difficulty
     success = margin >= 0
 
@@ -288,6 +407,10 @@ def resolve_force_power(
         f"{power.name}: {skill_label} roll {roll_result.display()} "
         f"vs difficulty {difficulty} → {'SUCCESS' if success else 'FAILURE'}"
     ]
+    if mind_resist_total is not None:
+        narrative_parts.append(
+            f"  ({target_char.name} resists with willpower {mind_resist_total})"
+        )
 
     result = ForcePowerResult(
         power=power,
@@ -316,10 +439,25 @@ def resolve_force_power(
             _resolve_injure_kill(result, char, target_char, margin, narrative_parts)
         elif power_key == "affect_mind":
             _resolve_affect_mind(result, char, target_char, margin, narrative_parts)
+        elif power_key == "dominate_mind":
+            _resolve_dominate_mind(result, char, target_char, margin, narrative_parts)
+        elif power_key == "telepathy":
+            _resolve_telepathy(result, char, target_char, margin, narrative_parts)
+        elif power_key == "sense_lie":
+            _resolve_sense_lie(result, char, target_char, margin, narrative_parts)
+        elif power_key == "farseeing":
+            _resolve_farseeing(result, char, narrative_parts)
+        elif power_key == "danger_sense":
+            _resolve_danger_sense(result, char, narrative_parts)
     else:
         narrative_parts.append(
             "The Force slips from your grasp. The power has no effect."
         )
+
+    # Record the opposed resistance roll (if any) so the parser/tests can
+    # surface it regardless of success.
+    if mind_resist_total is not None:
+        result.effect_payload["resist_roll"] = mind_resist_total
 
     # ── DSP award ─────────────────────────────────────────────────────────────
     if power.dark_side:
@@ -410,9 +548,13 @@ def _resolve_remain_conscious(result: ForcePowerResult, char: Character, parts: 
 
 
 def _resolve_life_sense(result: ForcePowerResult, char: Character, parts: list):
-    """Detect living presences in the room. R&E p114."""
-    # Caller fills targets_felt from the live session list; engine just narrates.
-    result.targets_felt = ["(beings detected — see room context)"]
+    """Detect living presences in the room. R&E p114.
+
+    Drop 4a: the engine only confirms success + flavor; the parser owns
+    the room/session/NPC context and fills ``targets_felt`` with the real
+    list of beings (see effect_kind="life_sense").
+    """
+    result.effect_kind = "life_sense"
     parts.append(
         "You reach out with your feelings. The living Force flows through all "
         "beings nearby — you sense their presence and emotional state."
@@ -420,7 +562,12 @@ def _resolve_life_sense(result: ForcePowerResult, char: Character, parts: list):
 
 
 def _resolve_sense_force(result: ForcePowerResult, char: Character, parts: list):
-    """Detect Force users and dark side presence. R&E p114."""
+    """Detect Force users and dark side presence. R&E p114.
+
+    Drop 4a: effect_kind="sense_force" tells the parser to enumerate the
+    real Force-sensitive / dark-tinged beings in the room.
+    """
+    result.effect_kind = "sense_force"
     parts.append(
         "You open yourself to the currents of the Force. "
         "Force-sensitive beings and echoes of the dark side shimmer "
@@ -430,12 +577,27 @@ def _resolve_sense_force(result: ForcePowerResult, char: Character, parts: list)
 
 def _resolve_telekinesis(result: ForcePowerResult, char: Character,
                           target_char: Optional[Character], margin: int, parts: list):
-    """Move object or disarm. R&E p116."""
+    """Move object or disarm. R&E p116.
+
+    Drop 4a: against a *target* with enough margin, this is a real disarm
+    (the parser unequips the target's weapon). margin gates it so a bare
+    success can shove without stripping the weapon.
+    """
+    DISARM_MARGIN = 3  # need to beat the grip, not just touch the object
     if target_char:
-        parts.append(
-            f"The Force reaches out. {target_char.name} strains against "
-            f"the invisible grip. (Margin: {margin})"
-        )
+        if margin >= DISARM_MARGIN:
+            result.disarm = True
+            result.effect_kind = "disarm"
+            result.effect_payload = {"margin": margin}
+            parts.append(
+                f"The Force closes around {target_char.name}'s weapon and "
+                f"wrenches — their grip fails. (Margin: {margin})"
+            )
+        else:
+            parts.append(
+                f"The Force shoves {target_char.name} back a step, but their "
+                f"hold doesn't break. (Margin: {margin})"
+            )
     else:
         parts.append(
             f"The object rises, held by the Force. "
@@ -473,28 +635,130 @@ def _resolve_injure_kill(result: ForcePowerResult, char: Character,
         )
 
 
+def _strength_tier(margin: int) -> tuple[str, str]:
+    """Map a contest margin to a (tier, detail) pair shared by the two
+    mind powers."""
+    if margin >= 10:
+        return "strong", "The suggestion takes firm hold."
+    if margin >= 5:
+        return "moderate", "The idea takes root, though it may not last."
+    return "weak", "A faint impression only — it may be shaken off."
+
+
 def _resolve_affect_mind(result: ForcePowerResult, char: Character,
                           target_char: Optional[Character], margin: int, parts: list):
     """
-    Implant suggestion on NPC. R&E p117. Always awards 1 DSP.
-    Complexity of suggestion determines effective difficulty.
+    Light suggestion — the Jedi mind trick. R&E p117.
+
+    Drop 4a: no DSP (dark_side=False on the power). The engine confirms the
+    contest and records ``effect_kind="suggestion"`` + a strength tier; the
+    parser applies the real outcome (distract a guard, pry a fact) for an NPC,
+    or *offers* it to a PC target who plays it out (never auto-override).
     """
     if target_char is None:
         parts.append("No target specified.")
         result.success = False
         return
-    if margin >= 10:
-        strength = "strong"
-        detail = "The suggestion takes firm hold."
-    elif margin >= 5:
-        strength = "moderate"
-        detail = "The idea takes root, though the target may resist later."
-    else:
-        strength = "weak"
-        detail = "A faint impression only — the target may shake it off."
+    strength, detail = _strength_tier(margin)
+    result.effect_kind = "suggestion"
+    result.effect_payload = {"strength": strength, "margin": margin}
     parts.append(
-        f"You reach into {target_char.name}'s mind. A {strength} suggestion "
-        f"settles over their thoughts. {detail} (Margin: {margin})"
+        f"You press a quiet suggestion toward {target_char.name}. "
+        f"A {strength} impulse settles over their thoughts. {detail} "
+        f"(Margin: {margin})"
+    )
+
+
+def _resolve_dominate_mind(result: ForcePowerResult, char: Character,
+                            target_char: Optional[Character], margin: int, parts: list):
+    """
+    Coercion / domination — the dark counterpart to Affect Mind. R&E p117.
+    Always awards 1 DSP (dark_side=True, handled in the caller).
+
+    Drop 4a: ``effect_kind="domination"`` — a forced compliance the parser
+    applies more strongly than a suggestion (it can override a will that a
+    suggestion cannot, and against an NPC it never merely "may be shaken off").
+    """
+    if target_char is None:
+        parts.append("No target specified.")
+        result.success = False
+        return
+    strength, _ = _strength_tier(margin)
+    result.effect_kind = "domination"
+    result.effect_payload = {"strength": strength, "margin": margin}
+    parts.append(
+        f"You seize {target_char.name}'s will and bend it to yours. "
+        f"Resistance buckles — they will do as you command. (Margin: {margin})"
+    )
+
+
+# ── Drop 4a.2 (2026-06-04): telepathy / sense-lie / farseeing / danger-sense ──
+# All Sense powers (light; dark_side=False). The engine confirms success +
+# records effect_kind; the parser performs the DB / combat / bond-aware
+# application (mirrors the 4a contract).
+
+def _resolve_telepathy(result: ForcePowerResult, char: Character,
+                        target_char: Optional[Character], margin: int, parts: list):
+    """Mind-to-mind contact. R&E p115.
+
+    Parser side: between two PCs with an active Master-Padawan bond this is a
+    deep communion across distance; otherwise an in-room mind-touch (offered
+    to a PC to RP). Against an NPC it skims surface thoughts.
+    """
+    if target_char is None:
+        parts.append("No target specified.")
+        result.success = False
+        return
+    result.effect_kind = "telepathy"
+    result.effect_payload = {"margin": margin}
+    parts.append(
+        f"You reach out toward {target_char.name}'s mind with the Force. "
+        f"(Margin: {margin})"
+    )
+
+
+def _resolve_sense_lie(result: ForcePowerResult, char: Character,
+                        target_char: Optional[Character], margin: int, parts: list):
+    """Sense deception — receptive reading of sincerity. R&E p115.
+
+    Parser side: reveals whether an NPC is concealing something (reads real
+    deception / hidden-intent flags); a PC target is offered the read to RP.
+    """
+    if target_char is None:
+        parts.append("No target specified.")
+        result.success = False
+        return
+    result.effect_kind = "sense_lie"
+    result.effect_payload = {"margin": margin}
+    parts.append(
+        f"You weigh the truth of {target_char.name}'s words against the Force. "
+        f"(Margin: {margin})"
+    )
+
+
+def _resolve_farseeing(result: ForcePowerResult, char: Character, parts: list):
+    """A glimpse beyond the present. R&E p114.
+
+    Parser side: a simple portent tied to real nearby danger (rich, scripted
+    visions are tracked for a later wave — G5).
+    """
+    result.effect_kind = "farseeing"
+    parts.append(
+        "You still your mind and let the Force show you what it will. "
+        "Images rise, half-formed."
+    )
+
+
+def _resolve_danger_sense(result: ForcePowerResult, char: Character, parts: list):
+    """Premonition of imminent threat. R&E p114.
+
+    Parser side: in combat this lets the Jedi react first (an initiative
+    reroll, keeping the better); out of combat it is an early warning.
+    """
+    result.effect_kind = "danger_sense"
+    parts.append(
+        "Your senses sharpen — the Force tugs at the edge of your awareness, "
+        "alert to danger before it strikes."
     )
 
 

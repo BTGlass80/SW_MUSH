@@ -468,7 +468,7 @@ class TestNoCollisionsWithOtherDrops(unittest.TestCase):
         "npcs_drop_g1_nar_shaddaa_topside.yaml",
         "npcs_drop_g2_nar_shaddaa_lower.yaml",
         "npcs_drop_b_mos_eisley.yaml",
-        "npcs_drop_c2_coruscant_lower.yaml",
+        "npcs_drop_c2_southern_underground.yaml",
     )
 
     def test_no_name_collision(self):

@@ -38,46 +38,6 @@ def _query(db_path, sql, params=()):
 # ──────────────────────────────────────────────────────────────────────────
 
 
-class TestGcwBuildPostF1d:
-    """GCW build remains identical to pre-F.1d behaviour."""
-
-    @pytest.fixture(scope="class")
-    def gcw_db(self):
-        path = _run_build("gcw")
-        yield path
-        if os.path.exists(path):
-            os.unlink(path)
-
-    def test_room_count(self, gcw_db):
-        rows = _query(gcw_db, "SELECT COUNT(*) AS n FROM rooms")
-        # F.0 Pass B baseline: 120 YAML + 7 ship bridges = 127 (per summary
-        # box). DB row count includes 3 seed rooms created by
-        # Database.initialize() before build() runs (Landing Pad / Street /
-        # Cantina), so total = 130.
-        assert rows[0]["n"] == 130
-
-    def test_npc_count(self, gcw_db):
-        rows = _query(gcw_db, "SELECT COUNT(*) AS n FROM npcs")
-        # F.1a: 98 planet + 4 hireable = 102
-        assert rows[0]["n"] == 102
-
-    def test_ship_count(self, gcw_db):
-        rows = _query(gcw_db, "SELECT COUNT(*) AS n FROM ships")
-        assert rows[0]["n"] == 7
-
-    def test_test_character_present(self, gcw_db):
-        rows = _query(gcw_db, "SELECT name FROM characters WHERE name='Test Jedi'")
-        assert len(rows) == 1
-
-    def test_seed_room_linking_applied(self, gcw_db):
-        """Seed room 1 (Landing Pad) gets a 'north' exit to spaceport row."""
-        rows = _query(
-            gcw_db,
-            "SELECT direction FROM exits WHERE from_room_id=1 AND direction='north'"
-        )
-        assert len(rows) >= 1
-
-
 class TestCloneWarsBuildPostF1d:
     """CW build runs end-to-end. NPC replacements apply. No seed-room
     linking (era != gcw). Hireable/ships/test-character files don't exist
@@ -200,11 +160,11 @@ class TestCloneWarsBuildPostF1d:
 class TestBuildSignature:
     """The build() signature is the F.1d contract surface."""
 
-    def test_default_era_is_gcw(self):
+    def test_default_era_is_clone_wars(self):
         import inspect
         sig = inspect.signature(build)
         assert "era" in sig.parameters
-        assert sig.parameters["era"].default == "gcw"
+        assert sig.parameters["era"].default == "clone_wars"
 
     def test_db_path_default_unchanged(self):
         import inspect

@@ -81,6 +81,25 @@ class BountiesCommand(BaseCommand):
         for line in format_bounty_board(contracts):
             await ctx.session.send_line(line)
 
+        # ── Webify UI-5: WebSocket clients also get a structured
+        # board_state for the bounty-board modal. `contracts` is the
+        # SAME chain-visibility-filtered list the text path just
+        # rendered, so tutorial-tagged bounties never leak to the web
+        # surface either. Telnet behavior above is unchanged.
+        try:
+            from server.session import Protocol
+            if ctx.session.protocol == Protocol.WEBSOCKET:
+                from engine.bounty_board import build_board_state
+                claimed = None
+                if ctx.session.character:
+                    claimed = await _get_active_contract(
+                        str(ctx.session.character["id"]), board)
+                payload = build_board_state(contracts, claimed)
+                await ctx.session.send_json("board_state", payload)
+        except Exception:
+            log.debug("BountiesCommand: board_state push failed",
+                      exc_info=True)
+
 
 class BountyClaimCommand(BaseCommand):
     key = "bountyclaim"
@@ -392,7 +411,8 @@ class BountyCollectCommand(BaseCommand):
                         f"{_bonus:,} credits extra."
                     )
         except Exception:
-            pass
+            log.debug("bounty surge multiplier calc failed (non-fatal)",
+                      exc_info=True)
         char["credits"] = await ctx.db.adjust_credits(char["id"], reward, "bounty")
 
         # Clean up NPC if it still exists

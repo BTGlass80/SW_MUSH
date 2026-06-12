@@ -1016,6 +1016,7 @@ npcs:
       character_points: 5
       dark_side_points: 0
     ai_config:
+      vendor: true   # decision a + vendor flag (2026-06-12): sells open-market commons
       personality: >-
         Independent trader, three years operating out of the
         Geonosis Offworld Quarter. Supplies imported luxuries to

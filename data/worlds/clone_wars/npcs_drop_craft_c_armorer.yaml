@@ -1,0 +1,87 @@
+# data/worlds/clone_wars/npcs_drop_craft_c_armorer.yaml
+# Clone Wars Era — CRAFT.GUNDARK Drop C (2026-06-11): the armorer trainer.
+# Schema version 1 (mirrors npcs_drop_0a2_fdts_relocate.yaml).
+#
+# ─── Why this file exists ─────────────────────────────────────────────
+#
+# Drop C ships the non-powered armor schematic family (10 recipes,
+# skill_required: armor_repair, trainer_npc: Sela Tarn). Per the
+# mechanical-use mandate the full loop lands in one drop: output rows
+# (weapons.yaml `type: armor`), the use-time consumer (wear → soak,
+# already live), AND the teacher. No armorer existed anywhere in the
+# CW roster — this file seeds her.
+#
+# Placement: Kayson's Weapon Shop. The 2026-06-02 density directive
+# caps Tatooine NPC sprawl ("flavor and utility — PCs are the focus"),
+# and an armor counter inside the arms shop is diegetic: one storefront,
+# two trades. `talk sela` reaches her by the room matcher; schematic
+# binding is by exact name (handle_trainer_teach, case-insensitive).
+#
+# Era notes: original character (Q1 — no canon figures). Her Judicial
+# Department history is pre-war Republic texture; in cartel-run Mos
+# Eisley she keeps the same studied neutrality as Kayson.
+
+schema_version: 1
+
+npcs:
+
+  # ─── Sela Tarn — armorer + armor_repair skill trainer ──────────────
+  - name: Sela Tarn
+    room: "Kayson's Weapon Shop"
+    species: Human
+    description: >-
+      A broad-shouldered woman at a fitting bench along the shop's side
+      wall, surrounded by torso rigs, plate sections, and a half-stripped
+      hardsuit hung like a butchered carcass. Her hands are scarred from
+      rivet guns and her measuring cord hangs around her neck the way
+      other people wear jewelry. A faded Judicial Department quartermaster
+      tattoo shows at her wrist when she reaches for a clamp. She sizes
+      you up the moment you walk in — not as a threat, as a fitting.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D+2
+        mechanical: 2D
+        perception: 3D
+        strength: 3D
+        technical: 3D+2
+      skills:
+        armor_repair: "5D+2"
+        blaster_repair: "3D+1"
+        value: "4D+1"
+        bargain: "4D"
+        brawling: "3D+2"
+      move: 10
+    ai_config:
+      vendor: true   # decision a + vendor flag (2026-06-12): sells open-market commons
+      trainer: true
+      train_skills:
+      - armor_repair
+      personality: >-
+        Sela Tarn fits armor in the back half of Kayson's shop — a former
+        Republic Judicial Department quartermaster who mustered out before
+        the war and drifted to where the work pays. She is exacting,
+        unhurried, and physical about her trade: she will grab your
+        shoulder, measure your reach, and tell you flatly that the suit
+        you want will get you killed and the one you need is cheaper.
+        She teaches armorsmithing to anyone with the patience to learn it
+        properly, holds strong opinions about plate seams, and shares
+        Kayson's professional neutrality about the war — armor doesn't
+        care who's wearing it.
+      knowledge:
+      - "Armor patterns, fitting, and repair — vests to full suits"
+      - "What protection is worth against blasters versus blades"
+      - "Coynite weave, Twi'lek craftwork, and how to spot off-world fakes"
+      - "Old Republic and Judicial-issue armor patterns"
+      - "Which armorers' marks mean quality and which mean paint"
+      faction: independent
+      dialogue_style: >-
+        Blunt, tactile, professionally exact. Talks about armor the way
+        a surgeon talks about anatomy. Economical with praise.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "Sela glances up from the fitting bench. 'Weapons are Kayson's wall. Keeping you alive when the other fellow has one — that's mine.'"
+      - "'Off-world Coynite weave. See the slack in the fibre? Fake. The real article would stop a vibroblade cold.'"
+      - "'I can teach you the trade if you've got the hands for it. Armor's honest work — it either holds or it doesn't.'"
+      - "'War's good for the armor business. I'd rather it weren't. Stand still — your shoulder seam is wrong.'"

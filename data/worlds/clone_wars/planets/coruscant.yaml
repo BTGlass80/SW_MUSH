@@ -11,12 +11,12 @@
 #   - One-way exits annotated with one_way: true
 #
 # ZONE LAYOUT:
-#   coruscant_senate    — Senate District, government, spaceport (10 rooms)
-#   coruscant_temple    — Jedi Temple interior (11 rooms, incl. new crafting alcove)
-#   coruscant_upper     — Upper city above smog line, luxury districts (10 rooms)
-#   coruscant_midlevels — Working city, Coco Town, Outlander Club (10 rooms)
-#   coruscant_lower     — Below mid-levels, Southern Underground, lower city (10 rooms)
-#   coruscant_works     — Industrial sublevel, power/atmosphere infrastructure (4 rooms)
+#   senate_district    — Senate District, government, spaceport (10 rooms)
+#   jedi_temple    — Jedi Temple interior (11 rooms, incl. new crafting alcove)
+#   monumental_district     — Upper city above smog line, luxury districts (10 rooms)
+#   commercial_district — Working city, Coco Town, Outlander Club (10 rooms)
+#   southern_underground     — Below mid-levels, Southern Underground, lower city (10 rooms)
+#   commercial_district     — Industrial sublevel, power/atmosphere infrastructure (4 rooms)
 #
 # Room IDs: assigned positionally starting at 200.
 # Do NOT reorder existing rooms — slug is the stable reference.
@@ -61,7 +61,7 @@ rooms:
       at the main terminal. Floating platforms in the traffic lanes mark
       berthing assignments. The air carries the omnipresent tang of recycled
       atmosphere and repulsorlift exhaust.
-    zone: coruscant_senate
+    zone: senate_district
     map_x: 20
     map_y: 10
     exits:
@@ -84,7 +84,7 @@ rooms:
       Galactic Fair transforms this avenue into a parade of military might and
       patriotic display. Today a clone honor squad marches in formation
       past a knot of protesters holding signs about Outer Rim relief funding.
-    zone: coruscant_senate
+    zone: senate_district
     map_x: 21
     map_y: 10
     exits:
@@ -104,7 +104,7 @@ rooms:
       Clone trooper honor guards flank the entrance in spotless white armor.
       A HoloNet news terminal in the forecourt shows footage from the Outer
       Rim front; a small crowd watches in uneasy silence.
-    zone: coruscant_senate
+    zone: senate_district
     map_x: 21
     map_y: 9
     exits:
@@ -123,7 +123,7 @@ rooms:
       the Republic. A massive holographic display rotates scenes of Republic
       military victories. Near the back, a crowded information desk processes
       petitions to the Senate floor — the queue stretches back forty beings.
-    zone: coruscant_senate
+    zone: senate_district
     map_x: 21
     map_y: 8
     security_level: secured
@@ -140,7 +140,7 @@ rooms:
       small groups between government buildings. Senate Commando guards in
       blue armor stand at the avenue's gate, scanning pedestrians with
       practiced efficiency.
-    zone: coruscant_senate
+    zone: senate_district
     map_x: 22
     map_y: 9
     exits:
@@ -159,7 +159,7 @@ rooms:
       foreign dignitaries here. Today it hosts official state receptions
       with the hollow pomp of a government trying to convince itself it
       is not losing.
-    zone: coruscant_senate
+    zone: senate_district
     map_x: 22
     map_y: 8
     exits:
@@ -177,7 +177,7 @@ rooms:
       requisitions processed in triplicate. A GAR logistics center occupies
       an entire block, its loading docks busy around the clock. The air
       smells of recycled oxygen and bureaucratic anxiety.
-    zone: coruscant_senate
+    zone: senate_district
     map_x: 21
     map_y: 7
     exits:
@@ -199,7 +199,7 @@ rooms:
       Flames of Umate meditate while touching the rock in an effort to
       commune with what they call the "world-spirit" in Coruscant's
       molten core.
-    zone: coruscant_senate
+    zone: senate_district
     map_x: 21
     map_y: 6
     exits:
@@ -218,7 +218,7 @@ rooms:
       curated display of ancient lightsabers and holocrons that draws
       reverent crowds. Security is top-notch. Anyone who visits has their
       image captured by security cameras.
-    zone: coruscant_senate
+    zone: senate_district
     map_x: 22
     map_y: 6
     exits:
@@ -227,7 +227,7 @@ rooms:
   - id: 209
     slug: opera_house
     name: "Coruscant - Coruscant Opera House"
-    short_desc: "One of Imperial City's most ornate landmarks, bearing the elaborate design of indulgent pre-Republic architecture."
+    short_desc: "One of Galactic City's most ornate landmarks, bearing the elaborate design of indulgent old-Republic architecture."
     description: >
       The Opera House has never once gone dark. A traditional orchestra pit,
       tiered seating, and private balconies accommodate two thousand in the
@@ -235,7 +235,7 @@ rooms:
       real-time hologram from the gallery beneath the floor. A private box
       near the stage is reserved, the placard reading simply "Office of
       the Supreme Chancellor."
-    zone: coruscant_senate
+    zone: senate_district
     map_x: 22
     map_y: 10
     exits:
@@ -264,7 +264,7 @@ rooms:
       brown robes, their expressions patient and watchful. Most Knights and
       Masters are gone, deployed to the front. What remains feels quiet in
       a way that has become unsettling.
-    zone: coruscant_temple
+    zone: jedi_temple
     map_x: 24
     map_y: 10
     faction_override: jedi_order
@@ -283,7 +283,7 @@ rooms:
       groups. An elderly Master sits on a stone bench near the central
       fountain, eyes closed. The walls display friezes depicting legendary
       Jedi whose names are now known only to archivists.
-    zone: coruscant_temple
+    zone: jedi_temple
     map_x: 24
     map_y: 9
     faction_override: jedi_order
@@ -308,7 +308,7 @@ rooms:
       them with unhurried corrections. Remote training spheres drift in lazy
       arcs, occasionally zapping a student who has let their concentration
       slip. The smell of exertion and ozone.
-    zone: coruscant_temple
+    zone: jedi_temple
     map_x: 25
     map_y: 9
     faction_override: jedi_order
@@ -327,7 +327,7 @@ rooms:
       research from her sealed inner study. Several terminals display
       casualty lists from the Outer Rim front; an archivist methodically
       updates the records of fallen Jedi Knights.
-    zone: coruscant_temple
+    zone: jedi_temple
     map_x: 25
     map_y: 8
     faction_override: jedi_order
@@ -345,7 +345,7 @@ rooms:
       has fewer members present at any given time than it once did. Through
       the chamber's narrow windows, Coruscant's skyline extends in every
       direction, the city an unbroken gray-silver ocean to the horizon.
-    zone: coruscant_temple
+    zone: jedi_temple
     map_x: 24
     map_y: 7
     faction_override: jedi_order
@@ -365,7 +365,7 @@ rooms:
       empty, their occupants deployed or fallen. The Force feels heavy here.
       When the Council is not in session, a single Knight stands guard and
       the chamber is closed to all visitors.
-    zone: coruscant_temple
+    zone: jedi_temple
     map_x: 24
     map_y: 6
     faction_override: jedi_order
@@ -383,7 +383,7 @@ rooms:
       over gravel paths and a shallow reflecting pool. A Togrutan Padawan
       eats alone, her montrals drooping with exhaustion, looking at the
       pool and not seeing it.
-    zone: coruscant_temple
+    zone: jedi_temple
     map_x: 23
     map_y: 9
     faction_override: jedi_order
@@ -400,7 +400,7 @@ rooms:
       patients with focused calm. A Knight sits upright in a bed, staring
       at nothing, apparently unhurt. A healer checks on him every few
       minutes with patient eyes.
-    zone: coruscant_temple
+    zone: jedi_temple
     map_x: 23
     map_y: 8
     faction_override: jedi_order
@@ -417,7 +417,7 @@ rooms:
       work in silence. A LAAT/i gunship idles near the exit ramp, side
       doors open, waiting for a deployment order that hasn't come yet.
       Or one that just did.
-    zone: coruscant_temple
+    zone: jedi_temple
     map_x: 23
     map_y: 10
     faction_override: jedi_order
@@ -434,7 +434,7 @@ rooms:
       cloth over it. Clone trooper mess is served at the far end — a
       practical accommodation the Order made at the war's start and has
       not revisited.
-    zone: coruscant_temple
+    zone: jedi_temple
     map_x: 25
     map_y: 7
     faction_override: jedi_order
@@ -453,7 +453,7 @@ rooms:
       focusing minerals that amplify the builder's connection to the
       crystal. A supervising Knight is present during construction
       sessions. The alcove smells faintly of ozone and heated metal.
-    zone: coruscant_temple
+    zone: jedi_temple
     map_x: 23
     map_y: 7
     faction_override: jedi_order
@@ -485,7 +485,7 @@ rooms:
       Airspeeder traffic flows in orderly lanes below. War has been good
       for some businesses here — the restaurants are packed and the prices
       have doubled.
-    zone: coruscant_upper
+    zone: monumental_district
     map_x: 19
     map_y: 10
     exits:
@@ -511,7 +511,7 @@ rooms:
       War has been good for business — recruitment holos compete with
       luxury goods pitches, and the subliminal messaging is thick enough
       to taste.
-    zone: coruscant_upper
+    zone: monumental_district
     map_x: 20
     map_y: 9
     exits:
@@ -530,7 +530,7 @@ rooms:
       ravenous plants in the Carnivorous Flora exhibit. The Poisonous Flora
       exhibit is off-limits to anyone not wearing a biological hazard suit.
       Stepping through the main doors is like stepping off Coruscant entirely.
-    zone: coruscant_upper
+    zone: monumental_district
     map_x: 19
     map_y: 9
     exits:
@@ -546,10 +546,10 @@ rooms:
       Air bridges and private transit tubes connect them. During the Clone
       Wars, several towers have gone dark entirely as their systems fell
       under CIS control.
-    zone: coruscant_upper
+    zone: monumental_district
     map_x: 19
     map_y: 8
-    security_level: contested
+    security_level: secured
     exits:
       south: upper_city_promenade
 
@@ -563,7 +563,7 @@ rooms:
       all-hours entertainment clubs line the fabricated shore. Long-winged
       sea shrikes circle the towers. In wartime, the clubs are packed
       every night — people are spending money they might not live to save.
-    zone: coruscant_upper
+    zone: monumental_district
     map_x: 18
     map_y: 10
     exits:
@@ -580,7 +580,7 @@ rooms:
       returning from the front is a celebrity. The businesspeople of the
       Commons consider it their solemn obligation to keep the public informed.
       Their definition of "informed" is commercially calibrated.
-    zone: coruscant_upper
+    zone: monumental_district
     map_x: 18
     map_y: 9
     exits:
@@ -596,7 +596,7 @@ rooms:
       Naboo. Admission is 10 credits per person. The Aquaria has plenty
       of side passages for quiet conversation, and the number of tourists
       makes it difficult for any faction to set up an ambush.
-    zone: coruscant_upper
+    zone: monumental_district
     map_x: 18
     map_y: 8
     exits:
@@ -613,7 +613,7 @@ rooms:
       rings of Sittana-marble benches. The observation droids ringing
       the outer wall are not for crowd control — they are for intelligence
       gathering.
-    zone: coruscant_upper
+    zone: monumental_district
     map_x: 20
     map_y: 8
     exits:
@@ -630,7 +630,7 @@ rooms:
       samples, recovering cups, styluses, and occasionally lightsaber
       handles that predate any known Jedi Order. Middle-income residents
       employed in service and manufacturing live here.
-    zone: coruscant_upper
+    zone: monumental_district
     map_x: 20
     map_y: 7
     exits:
@@ -651,10 +651,10 @@ rooms:
       in public. Coruscant Security has filed no current writs on
       this property. Holocameras and armed guards watch from every
       corner.
-    zone: coruscant_upper
+    zone: monumental_district
     map_x: 17
     map_y: 9
-    security_level: contested
+    security_level: secured
     exits:
       east: upper_city_promenade
 
@@ -681,10 +681,10 @@ rooms:
       leave cluster around a food stall, helmets clipped to their belts,
       studying the menu with the careful attention of people who have not
       been given many choices lately.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 20
     map_y: 11
-    security_level: contested
+    security_level: secured
     exits:
       up: legislative_borough            # zone-to-zone (midlevels → senate)
       north: mid_transit_hub
@@ -712,10 +712,10 @@ rooms:
       hours and is rarely seen behind the counter. A staff manager runs
       the floor day-to-day and handles the right kind of question if
       asked the right way.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 20
     map_y: 12
-    security_level: contested
+    security_level: secured
     vendor: true
     exits:
       out: coco_town
@@ -730,7 +730,7 @@ rooms:
       taxi staging pads. Screens display route information in forty languages.
       Pickpockets work the crowd with professional efficiency while security
       droids run random scans.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 21
     map_y: 11
     exits:
@@ -747,7 +747,7 @@ rooms:
       starship components. Republic war bonds posters cover the walls
       between storefronts, some defaced with anti-war graffiti. A Rodian
       herbalist argues pricing with a Mon Calamari customer at the far end.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 22
     map_y: 11
     vendor: true
@@ -765,7 +765,7 @@ rooms:
       the Outer Rim Refugees Aid Society. The war has deposited new faces
       in the building recently — people with the particular exhaustion of
       those who have lost more than a home.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 22
     map_y: 10
     housing: true
@@ -781,10 +781,10 @@ rooms:
       Invisible Sector. Clone troopers patrol the borders, making sure
       that anyone passing has proper documentation. The walling-off has only
       recently begun; the resentment is still building.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 20
     map_y: 10
-    security_level: contested
+    security_level: secured
     exits:
       east: mid_transit_hub
       in: invisec_main_street
@@ -799,10 +799,10 @@ rooms:
       resistance organization — has cells operating openly here. The troopers
       who occasionally patrol the interior have learned that aggressively
       pursuing rumors leads to ambushes and paperwork.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 19
     map_y: 10
-    security_level: contested
+    security_level: secured
     exits:
       out: invisec_border
 
@@ -817,10 +817,10 @@ rooms:
       broadcast nuna-ball to illegal Podracing. The true owner is local
       crime kingpin Volven Roxe; the droids-staffed sports book covers
       his margins.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 19
     map_y: 11
-    security_level: contested
+    security_level: secured
     exits:
       out: coco_town
       backrooms: outlander_cantina       # F.5a.2.x: T1 host
@@ -835,7 +835,7 @@ rooms:
       forbidden non-Humans from applying and expelled those already studying.
       The district still bears the energy of an academic neighborhood, but
       the faces on the streets have become disturbingly uniform.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 21
     map_y: 12
     exits:
@@ -852,10 +852,10 @@ rooms:
       the air seethes with their flying currents and the keening of a
       feeding cry. The Lost Ones gang uses it as an initiation site. The
       floor is buried beneath a centimeters-thick layer of guano.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 19
     map_y: 12
-    security_level: contested
+    security_level: secured
     exits:
       north: outlander_club
 
@@ -885,10 +885,10 @@ rooms:
       isn't. The lower city runs on jury-rigged lighting, stolen power,
       and the social rules of people who have been abandoned by the
       civilization above their heads.
-    zone: coruscant_lower
+    zone: southern_underground
     map_x: 20
     map_y: 13
-    security_level: lawless
+    security_level: contested
     exits:
       up: coco_town                      # zone-to-zone (lower → midlevels)
       south: southern_underground
@@ -908,10 +908,10 @@ rooms:
       the drinks will." Down here you keep one hand on your credit pouch
       and the other on your blaster. A bhg chapter house operates near
       the back, technically off the books but openly known.
-    zone: coruscant_lower
+    zone: southern_underground
     map_x: 20
     map_y: 14
-    security_level: lawless
+    security_level: contested
     exits:
       north: lower_descent
       cantina: crystal_jewel_cantina
@@ -930,10 +930,10 @@ rooms:
       named Vella has been working this bar for fifteen years. She gives
       good advice and doesn't charge for it, which is the most remarkable
       thing about the place.
-    zone: coruscant_lower
+    zone: southern_underground
     map_x: 19
     map_y: 14
-    security_level: lawless
+    security_level: contested
     exits:
       out: southern_underground
       back: crystal_jewel_back_rooms     # F.5a.2.x.1: pair for back-rooms host
@@ -951,7 +951,7 @@ rooms:
       equipment shop in the back specializes in tracking devices and
       restraints. The Guild chapter head, a Chagrian named Doss Vek,
       maintains strict neutrality and will kill anyone who violates it.
-    zone: coruscant_lower
+    zone: southern_underground
     map_x: 21
     map_y: 14
     security_level: contested
@@ -970,10 +970,10 @@ rooms:
       a corner booth and seems to know more about the war than the Senate does.
       Republic Security hasn't been seen at this level in years. The market
       polices itself, brutally and effectively.
-    zone: coruscant_lower
+    zone: southern_underground
     map_x: 21
     map_y: 13
-    security_level: lawless
+    security_level: contested
     vendor: true
     exits:
       west: lower_descent
@@ -989,10 +989,10 @@ rooms:
       access corridors, now packed with makeshift shelters and shared heating
       vents. Republic relief organizations maintain a distribution point here,
       but the queue is always longer than the supplies.
-    zone: coruscant_lower
+    zone: southern_underground
     map_x: 21
     map_y: 15
-    security_level: lawless
+    security_level: contested
     exits:
       north: lower_market
 
@@ -1007,10 +1007,10 @@ rooms:
       freezing. Curators who pace the empty tunnels at night swear they
       can hear the echoes of the dead, whispering the mysterious words
       "kerait mahtah..."
-    zone: coruscant_lower
+    zone: southern_underground
     map_x: 19
     map_y: 13
-    security_level: lawless
+    security_level: contested
     hazard_type: cold
     exits:
       out: lower_descent
@@ -1026,10 +1026,10 @@ rooms:
       use the district's low profile to hide the existence of Coruscant-based
       operations. A secret hangar maintained for a senior Sith's apprentice
       is rumored to exist somewhere in this block.
-    zone: coruscant_lower
+    zone: southern_underground
     map_x: 18
     map_y: 13
-    security_level: lawless
+    security_level: contested
     exits:
       east: lower_descent
 
@@ -1044,10 +1044,10 @@ rooms:
       the war started. She knows more about the lower city's population
       than any government official, and has no interest in sharing what
       she knows with them.
-    zone: coruscant_lower
+    zone: southern_underground
     map_x: 22
     map_y: 13
-    security_level: lawless
+    security_level: contested
     exits:
       west: lower_market
 
@@ -1062,10 +1062,10 @@ rooms:
       no one has catalogued. Artifacts surface regularly. Occasionally a
       lightsaber handle pre-dating any known Jedi Order is found and quietly
       passed to a collector rather than reported to the Museum.
-    zone: coruscant_lower
+    zone: southern_underground
     map_x: 20
     map_y: 12
-    security_level: lawless
+    security_level: contested
     exits:
       up: lower_descent
 
@@ -1076,7 +1076,7 @@ rooms:
   # ══════════════════════════════════════════════════════════════════════
 
   - id: 251
-    slug: coruscant_works_main
+    slug: commercial_district_main
     name: "Coruscant Works - Industrial Sublevel"
     short_desc: "The industrial sublevel where the city's power and life support infrastructure is maintained."
     description: >
@@ -1085,18 +1085,18 @@ rooms:
       civilian maintenance workers. The air smells of hot metal and ozone.
       Few people come here on purpose; those who do are usually trying to
       stay unseen.
-    zone: coruscant_works
+    zone: commercial_district
     map_x: 20
     map_y: 15
-    security_level: contested
+    security_level: secured
     exits:
       up: lower_descent
-      east: coruscant_works_atmospheric
-      west: coruscant_works_power_grid
-      south: coruscant_works_hab
+      east: commercial_district_atmospheric
+      west: commercial_district_power_grid
+      south: commercial_district_hab
 
   - id: 252
-    slug: coruscant_works_atmospheric
+    slug: commercial_district_atmospheric
     name: "Coruscant Works - Atmospheric Processing Plant"
     short_desc: "One of thousands of atmospheric recycling stations keeping Coruscant's air breathable."
     description: >
@@ -1105,15 +1105,15 @@ rooms:
       long that no one remembers what they were originally warning about.
       The plant runs on a skeleton crew; much of the work is automated.
       The automation has not been updated since the late Old Republic.
-    zone: coruscant_works
+    zone: commercial_district
     map_x: 21
     map_y: 15
-    security_level: contested
+    security_level: secured
     exits:
-      west: coruscant_works_main
+      west: commercial_district_main
 
   - id: 253
-    slug: coruscant_works_power_grid
+    slug: commercial_district_power_grid
     name: "Coruscant Works - Central Power Grid Station"
     short_desc: "A power distribution hub feeding energy to surrounding megablocks, protected by clone engineering corps."
     description: >
@@ -1123,15 +1123,15 @@ rooms:
       attempts have been documented in the past year. The station commander,
       a veteran clone trooper who goes by "Bolt," runs the station with
       military precision and a healthy paranoia about visitors.
-    zone: coruscant_works
+    zone: commercial_district
     map_x: 19
     map_y: 15
-    security_level: contested
+    security_level: secured
     exits:
-      east: coruscant_works_main
+      east: commercial_district_main
 
   - id: 254
-    slug: coruscant_works_hab
+    slug: commercial_district_hab
     name: "Coruscant Works - Engineering Corps Habitation Block"
     short_desc: "The barracks and off-duty space for the Works maintenance crews."
     description: >
@@ -1141,12 +1141,12 @@ rooms:
       has been running continuously for three years, and a wall of personal
       photos that has grown into something almost moving. A clone trooper's
       portion of the wall is notable for its absence.
-    zone: coruscant_works
+    zone: commercial_district
     map_x: 20
     map_y: 16
     housing: true
     exits:
-      north: coruscant_works_main
+      north: commercial_district_main
 
   # ══════════════════════════════════════════════════════════════════════
   # UNDERWORLD SURFACE ENTRY (lawless) — 1 room (F.4b shim)
@@ -1185,7 +1185,7 @@ rooms:
   # These rooms are anchors for housing-lot inventories; the lot YAML
   # records that F.5a.3 will deliver reference these rooms by slug.
   # Each room is in its district's existing zone (or in the new
-  # coruscant_gilded_cage zone for the Gilded Cage trio).
+  # entertainment_district zone for the Gilded Cage trio).
   # ══════════════════════════════════════════════════════════════════════
 
   # T1 host (senate-district hotel, transient lodging)
@@ -1203,7 +1203,7 @@ rooms:
       Republic contractors, war correspondents, refugees with
       transit papers, and the occasional senator's aide running an
       errand they'd rather not be seen running.
-    zone: coruscant_senate
+    zone: senate_district
     map_x: 21
     map_y: 11
     security_level: secured
@@ -1224,10 +1224,10 @@ rooms:
       sells caf and protein wrappers. Children play a complicated
       ball-game between the support pylons. This is where Coruscant's
       working class actually lives.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 21
     map_y: 11
-    security_level: contested
+    security_level: secured
     housing: true
     exits:
       out: coco_town
@@ -1244,10 +1244,10 @@ rooms:
       mid-level officers who want more space than the standard
       apartment towers offer. A wartime art collective has murals on
       every blank wall.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 22
     map_y: 11
-    security_level: contested
+    security_level: secured
     housing: true
     exits:
       out: coco_town
@@ -1266,10 +1266,10 @@ rooms:
       that file the right paperwork. Recruitment posters cover every
       wall. A clone trooper veterans' lodge does steady business at
       the corner cantina.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 21
     map_y: 10
-    security_level: contested
+    security_level: secured
     housing: true
     exits:
       out: coco_town
@@ -1288,10 +1288,10 @@ rooms:
       where Coco Town does its shopping, and small operators with the
       right rental contract can do reasonable business. Foot traffic
       is constant from morning to late evening.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 20
     map_y: 11
-    security_level: contested
+    security_level: secured
     housing: true
     exits:
       out: coco_town
@@ -1310,7 +1310,7 @@ rooms:
       who prefer the Heights' anonymity to the senatorial towers'
       formality. The view through the smog-filter glass is
       cinematic.
-    zone: coruscant_upper
+    zone: monumental_district
     map_x: 20
     map_y: 8
     security_level: secured
@@ -1330,7 +1330,7 @@ rooms:
       cloud line. Discreet security checks at the lobby; private
       turbolifts to each unit. The kind of address that signals
       status without announcing it.
-    zone: coruscant_upper
+    zone: monumental_district
     map_x: 19
     map_y: 8
     security_level: secured
@@ -1352,7 +1352,7 @@ rooms:
       gift-buying errands, war profiteers' wives, the occasional
       Hutt envoy with credits to burn. A merchant who can hold a
       lease here is a merchant who has arrived.
-    zone: coruscant_upper
+    zone: monumental_district
     map_x: 21
     map_y: 8
     security_level: secured
@@ -1375,10 +1375,10 @@ rooms:
       a free clinic on the third floor of Tower 3. The Lost Ones
       gang controls the courtyard but generally leaves the tenements
       themselves alone.
-    zone: coruscant_lower
+    zone: southern_underground
     map_x: 21
     map_y: 14
-    security_level: lawless
+    security_level: contested
     housing: true
     exits:
       out: southern_underground
@@ -1396,15 +1396,15 @@ rooms:
       foot traffic for clients to find them, far enough back that
       the wrong kind of attention slides past. Every door has its
       own rules. The cantina staff knows everyone but says nothing.
-    zone: coruscant_lower
+    zone: southern_underground
     map_x: 19
     map_y: 14
-    security_level: lawless
+    security_level: contested
     housing: true
     exits:
       out: crystal_jewel_cantina
 
-  # Gilded Cage district trio (T3 + T4 + T5) — new zone coruscant_gilded_cage
+  # Gilded Cage district trio (T3 + T4 + T5) — new zone entertainment_district
   - id: 266
     slug: gilded_cage_alien_quarter
     name: "Coruscant - Gilded Cage - Alien Quarter"
@@ -1419,10 +1419,10 @@ rooms:
       Republic has never bothered to translate. Coruscant tolerates
       the district because its old Hutt-mediated charters predate the
       modern Senate.
-    zone: coruscant_gilded_cage
+    zone: entertainment_district
     map_x: 18
     map_y: 9
-    security_level: contested
+    security_level: secured
     housing: true
     exits:
       out: upper_city_promenade
@@ -1444,10 +1444,10 @@ rooms:
       species the central archives have stopped tracking. Merchants
       here pay rent under the old charters, not to the modern
       bureaucracy. Republic patrols rarely come this far in.
-    zone: coruscant_gilded_cage
+    zone: entertainment_district
     map_x: 18
     map_y: 8
-    security_level: contested
+    security_level: secured
     housing: true
     exits:
       gilded: gilded_cage_alien_quarter
@@ -1466,10 +1466,10 @@ rooms:
       tradition. War has filled the courtyard with new factions —
       refugee organizations from CIS-occupied worlds, mutual-defense
       pacts among off-world residents — alongside the old.
-    zone: coruscant_gilded_cage
+    zone: entertainment_district
     map_x: 17
     map_y: 9
-    security_level: contested
+    security_level: secured
     housing: true
     exits:
       gilded: gilded_cage_alien_quarter
@@ -1487,10 +1487,10 @@ rooms:
       hunters between contracts, off-world contractors, and the
       occasional senator's adjutant on a discreet errand make up the
       regular trade.
-    zone: coruscant_midlevels
+    zone: commercial_district
     map_x: 19
     map_y: 12
-    security_level: contested
+    security_level: secured
     housing: true
     exits:
       out: outlander_club
@@ -1516,10 +1516,10 @@ rooms:
       low for a contract. Wesseri's motto, if she had one, would be
       that she does not care who you are or what you did, only that
       you pay on time and don't bring trouble onto her floor.
-    zone: coruscant_lower
+    zone: southern_underground
     map_x: 19
     map_y: 14
-    security_level: lawless
+    security_level: contested
     housing: true
     exits:
       out: crystal_jewel_cantina
@@ -1539,10 +1539,10 @@ rooms:
       modest expense accounts. Rooms are clean, the breakfast is
       genuinely good, and Iri runs a tight desk. The rate is thirty-
       eight credits per night.
-    zone: coruscant_gilded_cage
+    zone: entertainment_district
     map_x: 18
     map_y: 9
-    security_level: contested
+    security_level: secured
     housing: true
     exits:
       out: gilded_cage_alien_quarter

@@ -591,7 +591,7 @@ class CreationWizard:
         lines.extend(self.fmt.wrap(
             "Every character has a story. What brings you to Mos Eisley? "
             "Are you running from something? Looking for work? Chasing a "
-            "bounty? Hiding from the Empire?"
+            "bounty? Hiding from a syndicate?"
         ))
         lines.append("")
         lines.extend(self.fmt.wrap(

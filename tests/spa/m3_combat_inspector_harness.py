@@ -199,7 +199,7 @@ def run_with_d_prime_block(setup_js: str, extra_stubs: str = "") -> dict:
         """
         proc = subprocess.run(
             ["node", "-e", wrapper],
-            capture_output=True, text=True, timeout=20,
+            capture_output=True, text=True, encoding="utf-8", timeout=20,
         )
         if proc.returncode != 0:
             pytest.fail(

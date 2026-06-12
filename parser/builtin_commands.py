@@ -509,10 +509,11 @@ class LookCommand(BaseCommand):
             await ctx.session.send_line(f"    Species: {species}")
             # Show equipped weapon
             try:
-                eq = _json.loads(c.data.get("equipment", "{}") or "{}")
-                if eq.get("weapon"):
+                from engine.items import equipment_keys
+                wkey = equipment_keys(c.data.get("equipment", "{}"))["weapon"]
+                if wkey:
                     from engine.weapons import get_weapon_registry
-                    w = get_weapon_registry().get(eq["weapon"])
+                    w = get_weapon_registry().get(wkey)
                     if w:
                         await ctx.session.send_line(f"    Wielding: {w.name}")
             except Exception:
@@ -598,12 +599,12 @@ class LookCommand(BaseCommand):
             MASTER_MARKER = ""
         for other in present:
             equip_str = ""
-            import json as _json
             try:
-                eq = _json.loads(other.get("equipment", "{}") or "{}")
-                if eq.get("weapon"):
+                from engine.items import equipment_keys
+                wkey = equipment_keys(other.get("equipment", "{}"))["weapon"]
+                if wkey:
                     from engine.weapons import get_weapon_registry
-                    w = get_weapon_registry().get(eq["weapon"])
+                    w = get_weapon_registry().get(wkey)
                     if w:
                         equip_str = f", wielding a {w.name}"
             except Exception:
@@ -1299,6 +1300,18 @@ class MoveCommand(BaseCommand):
         # discipline.
         try:
             from engine.wilderness_encounters import roll_encounter
+            # Gundark Drop E: carried-gear gate. One inventory read per
+            # wilderness move feeds the animal-excluder aversion (and
+            # any future carried-key encounter gates) — roll_encounter
+            # is sync, so the async caller fetches.
+            try:
+                _carried = await ctx.db.get_inventory(char["id"])
+                _carried_keys = {
+                    d.get("key", "").lower()
+                    for d in _carried if isinstance(d, dict)
+                }
+            except Exception:
+                _carried_keys = None
             enc_result = roll_encounter(
                 region,
                 new_x=result.new_x,
@@ -1306,13 +1319,35 @@ class MoveCommand(BaseCommand):
                 terrain=result.terrain or region.default_terrain,
                 char=char,
                 db=ctx.db,
+                carried_keys=_carried_keys,
             )
+            if (not enc_result.fired
+                    and enc_result.reason == "averted_by_excluder"):
+                await session.send_line(
+                    "  \033[2mSomething large shifts in the dark — then "
+                    "your animal excluder's ultrasonic whine turns it "
+                    "away.\033[0m")
             if enc_result.fired and enc_result.entry is not None:
                 narrative = enc_result.entry.narrative or (
                     f"[Something stirs nearby — {enc_result.entry.id}.]"
                 )
                 await session.send_line("")
                 await session.send_line(f"[ENCOUNTER] {narrative}")
+                # Lane A Phase B (T2.WENC.b): a hostile/non_hostile encounter
+                # whose payload.npc_template resolves in the creature library
+                # spawns the creature(s) with faithful stats; a hostile one
+                # starts combat immediately. Failure-tolerant in the bridge,
+                # and guarded again by the enclosing try/except.
+                _etype = getattr(enc_result.entry, "type", "")
+                _pl = getattr(enc_result.entry, "payload", None) or {}
+                if _etype in ("hostile", "non_hostile") and _pl.get("npc_template"):
+                    from engine.wilderness_encounter_runtime import (
+                        resolve_encounter_spawn,
+                    )
+                    await resolve_encounter_spawn(
+                        ctx.db, ctx.session_mgr, enc_result.entry,
+                        char["room_id"],
+                    )
         except Exception as _e:
             # Encounters must never sink a move. Log and continue.
             import logging as _enc_log
@@ -2071,14 +2106,11 @@ class InventoryCommand(BaseCommand):
 
         await ctx.session.send_line(ansi.header("=== Inventory ==="))
 
-        # ── Equipped items from equipment JSON ───────────────────────────────
-        eq = {}
-        try:
-            eq = _json.loads(char.get("equipment", "{}") or "{}")
-        except Exception as _e:
-            log.debug("silent except in parser/builtin_commands.py:1032: %s", _e, exc_info=True)
-        weapon_key  = eq.get("weapon", "")
-        armor_key   = eq.get("armor", "")
+        # ── Equipped items from equipment JSON (tolerant of all shapes) ──────
+        from engine.items import equipment_keys
+        _eqk = equipment_keys(char.get("equipment", "{}"))
+        weapon_key = _eqk["weapon"]
+        armor_key  = _eqk["armor"]
 
         if weapon_key or armor_key:
             await ctx.session.send_line(f"  {ansi.BOLD}Equipped:{ansi.RESET}")
@@ -2134,6 +2166,20 @@ class InventoryCommand(BaseCommand):
             f"  {ansi.BOLD}Credits:{ansi.RESET} {ansi.color(f'{credits:,} cr', ansi.YELLOW)}"
         )
         await ctx.session.send_line("")
+
+        # ── WebSocket clients: emit a structured inventory_state for the panel ──
+        # (Webify UI-4a) The browser modal renders equipped + carried with
+        # per-item condition/quality/value/stats; Telnet falls through to the
+        # text dump above. Non-blocking — a push failure never breaks `inventory`.
+        from server.session import Protocol
+        if ctx.session.protocol == Protocol.WEBSOCKET:
+            try:
+                from engine.items import build_inventory_state
+                payload = build_inventory_state(char.get("equipment", "{}"), inv)
+                await ctx.session.send_json("inventory_state", payload)
+            except Exception:
+                log.debug("InventoryCommand: inventory_state push failed",
+                          exc_info=True)
 
 
 class SheetCommand(BaseCommand):
@@ -3008,9 +3054,9 @@ class EquipCommand(BaseCommand):
     async def execute(self, ctx: CommandContext):
         if not ctx.args:
             # Show currently equipped weapon with condition
-            from engine.items import parse_equipment_json
+            from engine.items import read_equipment
             from engine.weapons import get_weapon_registry
-            item = parse_equipment_json(ctx.session.character.get("equipment", "{}"))
+            item = read_equipment(ctx.session.character.get("equipment", "{}"))["weapon"]
             if item and not item.is_broken:
                 wr = get_weapon_registry()
                 w = wr.get(item.key)
@@ -3025,23 +3071,63 @@ class EquipCommand(BaseCommand):
                 await ctx.session.send_line("  Nothing equipped. Type 'weapons' to see options.")
             return
 
+        # CRAFT.P0.9: equip from CARRIED INVENTORY only. The old path
+        # minted a fresh vendor-grade ItemInstance straight from the
+        # registry — a free, unlogged weapon faucet (no ownership check,
+        # no credit cost) that also made crafted/modified instances
+        # unequippable (equip conjured a pristine copy instead). Now the
+        # carried instance itself moves into the slot, and any displaced
+        # weapon returns to inventory — nothing minted, nothing destroyed.
         from engine.weapons import get_weapon_registry
-        from engine.items import ItemInstance, serialize_equipment
+        from engine.items import (
+            read_equipment, write_equipment,
+            find_carried_gear, carried_to_instance, instance_to_carried,
+        )
         wr = get_weapon_registry()
-        weapon = wr.find_by_name(ctx.args.strip())
-        if not weapon:
-            await ctx.session.send_line(f"  Unknown weapon '{ctx.args}'. Type 'weapons' to see the list.")
-            return
-        if weapon.is_armor:
-            await ctx.session.send_line(f"  {weapon.name} is armor, not a weapon.")
+        char = ctx.session.character
+        carried = await ctx.db.get_inventory(char["id"])
+        idx, gear_dict, weapon = find_carried_gear(
+            carried, ctx.args, wr, want_armor=False)
+        if weapon is None:
+            # Helpful refusal: distinguish "no such weapon" from
+            # "exists but you don't own one".
+            known = wr.find_by_name(ctx.args.strip())
+            if known and not known.is_armor:
+                await ctx.session.send_line(
+                    f"  You don't have a {known.name}. Buy one from a "
+                    f"vendor, craft one, or loot one.")
+            elif known and known.is_armor:
+                await ctx.session.send_line(
+                    f"  {known.name} is armor, not a weapon. Use 'wear'.")
+            else:
+                await ctx.session.send_line(
+                    f"  You aren't carrying a weapon matching "
+                    f"'{ctx.args}'. Type 'inventory' to see what you have.")
             return
 
-        item = ItemInstance.new_from_vendor(weapon.key)
-        char = ctx.session.character
-        char["equipment"] = serialize_equipment(item)
+        item = carried_to_instance(gear_dict)
+        if item is None:
+            await ctx.session.send_line(
+                "  That item is damaged beyond recognition. Contact an admin.")
+            return
+
+        # Remove the carried copy, swap any displaced weapon back in.
+        await ctx.db.remove_from_inventory(char["id"], item.key)
+        _slots = read_equipment(char.get("equipment", "{}"))
+        displaced = _slots["weapon"]
+        if displaced is not None:
+            d_w = wr.get(displaced.key)
+            await ctx.db.add_to_inventory(
+                char["id"],
+                instance_to_carried(
+                    displaced, name=(d_w.name if d_w else displaced.key)))
+        char["equipment"] = write_equipment(weapon=item, armor=_slots["armor"])
         await ctx.db.save_character(char["id"], equipment=char["equipment"])
+        crafter = f" (crafted by {item.crafter})" if item.crafter else ""
         await ctx.session.send_line(
-            ansi.success(f"  You equip your {weapon.name}. ({weapon.damage} damage, skill: {weapon.skill})")
+            ansi.success(
+                f"  You equip your {weapon.name}.{crafter} "
+                f"({weapon.damage} damage, skill: {weapon.skill})")
         )
         await ctx.session.send_line(f"  Condition: {item.condition_bar}")
 
@@ -3056,10 +3142,11 @@ class UnequipCommand(BaseCommand):
         # Route cargo sales to trade handler
         if ctx.args and ctx.args.strip().lower().startswith("cargo"):
             return await _handle_sell_cargo(ctx)
-        from engine.items import parse_equipment_json, serialize_equipment
+        from engine.items import read_equipment, write_equipment
         from engine.weapons import get_weapon_registry
 
-        item = parse_equipment_json(ctx.session.character.get("equipment", "{}"))
+        _slots = read_equipment(ctx.session.character.get("equipment", "{}"))
+        item = _slots["weapon"]
         if not item:
             await ctx.session.send_line("  You don't have a weapon equipped.")
             return
@@ -3068,7 +3155,15 @@ class UnequipCommand(BaseCommand):
         wname = w.name if w else item.key
 
         char = ctx.session.character
-        char["equipment"] = serialize_equipment(None)
+        # CRAFT.P0.9: return the instance to carried inventory — the old
+        # path cleared the slot and DESTROYED the instance (condition,
+        # quality, crafter, experiment state gone).
+        from engine.items import instance_to_carried
+        await ctx.db.add_to_inventory(
+            char["id"], instance_to_carried(item, name=wname))
+        # Clear only the weapon slot — preserve worn armor. (The old
+        # serialize_equipment(None) wrote "{}" and wiped armor too.)
+        char["equipment"] = write_equipment(weapon=None, armor=_slots["armor"])
         await ctx.db.save_character(char["id"], equipment=char["equipment"])
         await ctx.session.send_line(ansi.success(f"  You put away your {wname}."))
 
@@ -3087,12 +3182,8 @@ class WearCommand(BaseCommand):
         if not ctx.args:
             # Show currently worn armor
             char = ctx.session.character
-            try:
-                equip = _json.loads(char.get("equipment", "{}")) if isinstance(
-                    char.get("equipment"), str) else char.get("equipment", {})
-            except Exception:
-                equip = {}
-            armor_key = equip.get("armor", "")
+            from engine.items import equipment_keys
+            armor_key = equipment_keys(char.get("equipment", "{}"))["armor"]
             if armor_key:
                 wr = get_weapon_registry()
                 a = wr.get(armor_key)
@@ -3108,24 +3199,51 @@ class WearCommand(BaseCommand):
                 await ctx.session.send_line("  No armor worn. Type 'armor' to see available armor.")
             return
 
+        # CRAFT.P0.9: wear from CARRIED INVENTORY only — the old path
+        # minted a fresh vendor-grade instance from the registry (free
+        # armor faucet, same hole as `equip`). Displaced armor returns
+        # to inventory.
         wr = get_weapon_registry()
-        armor = wr.find_by_name(ctx.args.strip())
-        if not armor:
-            await ctx.session.send_line(f"  Unknown armor '{ctx.args}'. Type 'armor' to see options.")
-            return
-        if not armor.is_armor:
-            await ctx.session.send_line(f"  {armor.name} is a weapon, not armor. Use 'equip' instead.")
+        from engine.items import (
+            read_equipment, write_equipment,
+            find_carried_gear, carried_to_instance, instance_to_carried,
+        )
+        char = ctx.session.character
+        carried = await ctx.db.get_inventory(char["id"])
+        idx, gear_dict, armor = find_carried_gear(
+            carried, ctx.args, wr, want_armor=True)
+        if armor is None:
+            known = wr.find_by_name(ctx.args.strip())
+            if known and known.is_armor:
+                await ctx.session.send_line(
+                    f"  You don't have a {known.name}. Buy one from a "
+                    f"vendor, craft one, or loot one.")
+            elif known:
+                await ctx.session.send_line(
+                    f"  {known.name} is a weapon, not armor. Use 'equip' instead.")
+            else:
+                await ctx.session.send_line(
+                    f"  You aren't carrying armor matching '{ctx.args}'. "
+                    f"Type 'inventory' to see what you have.")
             return
 
-        # Update equipment JSON, preserving weapon
-        char = ctx.session.character
-        try:
-            equip = _json.loads(char.get("equipment", "{}")) if isinstance(
-                char.get("equipment"), str) else char.get("equipment", {})
-        except Exception:
-            equip = {}
-        equip["armor"] = armor.key
-        char["equipment"] = _json.dumps(equip)
+        item = carried_to_instance(gear_dict)
+        if item is None:
+            await ctx.session.send_line(
+                "  That item is damaged beyond recognition. Contact an admin.")
+            return
+
+        await ctx.db.remove_from_inventory(char["id"], item.key)
+        _slots = read_equipment(char.get("equipment", "{}"))
+        displaced = _slots["armor"]
+        if displaced is not None:
+            d_a = wr.get(displaced.key)
+            await ctx.db.add_to_inventory(
+                char["id"],
+                instance_to_carried(
+                    displaced, name=(d_a.name if d_a else displaced.key),
+                    gear_type="armor"))
+        char["equipment"] = write_equipment(weapon=_slots["weapon"], armor=item)
         await ctx.db.save_character(char["id"], equipment=char["equipment"])
 
         dex_note = ""
@@ -3157,13 +3275,9 @@ class RemoveArmorCommand(BaseCommand):
             return
 
         char = ctx.session.character
-        try:
-            equip = _json.loads(char.get("equipment", "{}")) if isinstance(
-                char.get("equipment"), str) else char.get("equipment", {})
-        except Exception:
-            equip = {}
-
-        armor_key = equip.get("armor", "")
+        from engine.items import read_equipment, write_equipment
+        _slots = read_equipment(char.get("equipment", "{}"))
+        armor_key = _slots["armor"].key if _slots["armor"] else ""
         if not armor_key:
             await ctx.session.send_line("  You're not wearing any armor.")
             return
@@ -3172,8 +3286,15 @@ class RemoveArmorCommand(BaseCommand):
         a = wr.get(armor_key)
         aname = a.name if a else armor_key
 
-        del equip["armor"]
-        char["equipment"] = _json.dumps(equip)
+        # CRAFT.P0.9: return the worn instance to carried inventory —
+        # the old path cleared the slot and destroyed it.
+        from engine.items import instance_to_carried
+        await ctx.db.add_to_inventory(
+            char["id"],
+            instance_to_carried(_slots["armor"], name=aname,
+                                gear_type="armor"))
+        # Clear only the armor slot — preserve the equipped weapon.
+        char["equipment"] = write_equipment(weapon=_slots["weapon"], armor=None)
         await ctx.db.save_character(char["id"], equipment=char["equipment"])
         await ctx.session.send_line(ansi.success(f"  You remove your {aname}."))
 
@@ -3185,11 +3306,12 @@ class RepairCommand(BaseCommand):
     usage = "repair"
 
     async def execute(self, ctx: CommandContext):
-        from engine.items import parse_equipment_json, serialize_equipment
+        from engine.items import read_equipment, write_equipment
         from engine.weapons import get_weapon_registry
 
         char = ctx.session.character
-        item = parse_equipment_json(char.get("equipment", "{}"))
+        _slots = read_equipment(char.get("equipment", "{}"))
+        item = _slots["weapon"]
         if not item:
             await ctx.session.send_line("  Nothing equipped to repair.")
             return
@@ -3225,7 +3347,9 @@ class RepairCommand(BaseCommand):
 
         # Apply repair
         item.repair()
-        char["equipment"] = serialize_equipment(item)
+        # Canonical per-slot write — preserve worn armor (the old
+        # serialize_equipment(item) clobbered the armor slot).
+        char["equipment"] = write_equipment(weapon=item, armor=_slots["armor"])
         # Ledger chokepoint (F1): repair cost as a logged sink.
         char["credits"] = await ctx.db.adjust_credits(char["id"], -cost, "repair")
         await ctx.db.save_character(
@@ -3233,14 +3357,103 @@ class RepairCommand(BaseCommand):
         await ctx.session.send_line(
             ansi.success(
                 f"  {wname} repaired! {item.condition_bar}  "
-                f"({cost:,} credits spent, {new_credits:,} remaining)"))
+                f"({cost:,} credits spent, {char['credits']:,} remaining)"))
+
+
+# ── Vendor sale helpers (Vendor V1, 2026-06-05) ─────────────────────────────
+# Shared by the equipped-weapon sale and the new carried-item sale so both
+# price identically and the economy-audit §1.3 craft-refusal guard applies
+# uniformly.
+
+# Fields a non-weapon carried item may carry a sale value under. Items with a
+# weapons-registry key price off that; items with none of these and no
+# registry entry (quest tokens, crafting inputs) are NOT NPC-sellable — they
+# go to the vendor-droid market or storage (Vendor V1 DD-1: value-bearing
+# only, not a blanket floor, so quest items can't be sold by accident).
+_CARRIED_VALUE_FIELDS = ("value", "cost", "base_cost")
+
+
+def _npc_salvage_price(item, base_cost: int) -> int:
+    """Pre-haggle NPC salvage price for an ItemInstance: condition-scaled
+    base (25% broken → 50% new), the crafted-quality bonus, and the live
+    sell-price world-event multiplier. Identical math to the long-standing
+    equipped-weapon path (now shared)."""
+    condition_factor = item.condition / max(item.max_condition, 1)
+    sale_pct = 0.25 + (condition_factor * 0.25)
+    price = max(10, int(base_cost * sale_pct))
+    if item.quality >= 80:
+        price = int(price * 1.3)
+    elif item.quality >= 60:
+        price = int(price * 1.15)
+    try:
+        from engine.world_events import get_world_event_manager
+        _m = get_world_event_manager().get_effect("sell_price_mult", 1.0)
+        if _m != 1.0:
+            price = int(price * _m)
+    except Exception:
+        log.warning("_npc_salvage_price: world-event mult failed", exc_info=True)
+    return price
+
+
+def _find_carried_item_by_name(items: list, name: str):
+    """First carried-item dict whose name (or registry key) matches *name*,
+    case-insensitive — exact match first, then a prefix match. Returns the
+    dict or None."""
+    n = (name or "").strip().lower()
+    if not n:
+        return None
+    for it in items:
+        if isinstance(it, dict) and (
+            str(it.get("name", "")).lower() == n
+            or str(it.get("key", "")).lower() == n
+        ):
+            return it
+    for it in items:
+        if isinstance(it, dict) and (
+            str(it.get("name", "")).lower().startswith(n)
+            or str(it.get("key", "")).lower().startswith(n)
+        ):
+            return it
+    return None
+
+
+def _resolve_carried_sale(item_dict: dict, wr):
+    """Resolve a carried item's NPC sale basis.
+
+    Returns ``(item_instance, base_cost, display_name)``. If the item has no
+    resolvable value (not a weapons/armor registry key and no stored value
+    field), ``item_instance`` and ``base_cost`` are ``None`` — the vendor
+    won't buy it."""
+    from engine.items import ItemInstance
+    key = str(item_dict.get("key", "") or "")
+    name = str(item_dict.get("name", "") or key or "item")
+    wd = wr.get(key) if key else None
+    if wd is not None:
+        # Weapon or armor: full ItemInstance (condition/quality/crafter if
+        # present on the dict), priced off the registry cost.
+        try:
+            inst = ItemInstance.from_dict(item_dict)
+        except Exception:
+            inst = ItemInstance(key=key)
+        return inst, int(getattr(wd, "cost", 0) or 0), (wd.name or name)
+    # Non-registry item with an explicit stored value.
+    for fld in _CARRIED_VALUE_FIELDS:
+        val = item_dict.get(fld)
+        if isinstance(val, (int, float)) and val > 0:
+            inst = ItemInstance(key=key or name, condition=100,
+                                max_condition=100, quality=50)
+            return inst, int(val), name
+    return None, None, name
 
 
 class SellCommand(BaseCommand):
     key = "sell"
     aliases = []
-    help_text = "Sell your equipped weapon to an NPC vendor (25-50% of base value). Well-made crafted items are refused — list those on a vendor droid."
-    usage = "sell"
+    help_text = ("Sell your equipped weapon, or a carried item by name "
+                 "(`sell <item>`), to an NPC vendor (25-50% of base value). "
+                 "Well-made crafted items are refused — list those on a "
+                 "vendor droid.")
+    usage = "sell [<item name>]"
 
     async def execute(self, ctx: CommandContext):
         # Route 'sell <resource> to <shop>' to vendor droid buy-order system
@@ -3255,12 +3468,27 @@ class SellCommand(BaseCommand):
             # Route 'sell cargo' to trade handler
             if arg_lower.startswith("cargo"):
                 return await _handle_sell_cargo(ctx)
+            # Vendor V1 (2026-06-05): 'sell <item name>' liquidates a carried
+            # inventory item to an NPC vendor. The GENERIC words 'weapon' /
+            # 'equipped' instead target the equipped weapon (which lives in
+            # char['equipment'], NOT inventory['items'], so the carried path
+            # can't find it). This keeps Vendor V1's sell-a-named-carried-item
+            # semantics while restoring the pre-V1 `sell weapon` UX and the
+            # city-tax-on-sale invariant the player-cities tests pin. Bare
+            # `sell` (no arg) is the equipped-weapon default handled below.
+            if arg_lower not in ("weapon", "equipped", "equipped weapon"):
+                return await self._sell_carried_item(ctx, ctx.args.strip())
+            # else: fall through to the equipped-weapon sale below.
 
-        from engine.items import parse_equipment_json, serialize_equipment
+        from engine.items import read_equipment, write_equipment
         from engine.weapons import get_weapon_registry
 
         char = ctx.session.character
-        item = parse_equipment_json(char.get("equipment", "{}"))
+        # Canonical per-slot read (equipment-instance untangle). The old
+        # parse_equipment_json returned None under canonical storage, so
+        # selling the equipped weapon always reported "Nothing equipped".
+        _slots = read_equipment(char.get("equipment", "{}"))
+        item = _slots["weapon"]
         if not item:
             await ctx.session.send_line("  Nothing equipped to sell.")
             return
@@ -3284,26 +3512,9 @@ class SellCommand(BaseCommand):
                 f"value.\"")
             return
 
-        # Sale price: 25-50% based on condition
-        condition_factor = item.condition / max(item.max_condition, 1)
-        sale_pct = 0.25 + (condition_factor * 0.25)  # 25% at broken, 50% at new
-        base_sale_price = max(10, int(base_cost * sale_pct))
-
-        # Quality bonus for crafted items
-        if item.quality >= 80:
-            base_sale_price = int(base_sale_price * 1.3)
-        elif item.quality >= 60:
-            base_sale_price = int(base_sale_price * 1.15)
-
-        # World event sell price multiplier (e.g. trade_boom: +25%)
-        try:
-            from engine.world_events import get_world_event_manager
-            _smult = get_world_event_manager().get_effect('sell_price_mult', 1.0)
-            if _smult != 1.0:
-                base_sale_price = int(base_sale_price * _smult)
-        except Exception:
-            log.warning("execute: unhandled exception", exc_info=True)
-            pass
+        # Sale price: condition/quality/world-event salvage (shared helper —
+        # identical math now used by the carried-item sale below).
+        base_sale_price = _npc_salvage_price(item, base_cost)
 
         # ── Bargain haggle: player vs vendor ──
         npc_dice, npc_pips = 3, 0  # Default generic vendor: 3D Bargain
@@ -3333,7 +3544,9 @@ class SellCommand(BaseCommand):
         credits = char.get("credits", 0)
         new_credits = credits + sale_price
 
-        char["equipment"] = serialize_equipment(None)
+        # Clear the weapon slot, preserving worn armor. (The old
+        # serialize_equipment(None) wrote "{}" and wiped armor too.)
+        char["equipment"] = write_equipment(weapon=None, armor=_slots["armor"])
         # Ledger chokepoint (F1): item sale as a logged faucet.
         char["credits"] = await ctx.db.adjust_credits(
             char["id"], sale_price, "item_sale")
@@ -3378,6 +3591,124 @@ class SellCommand(BaseCommand):
         if city_tax_msg:
             await ctx.session.send_line(city_tax_msg)
 
+    async def _sell_carried_item(self, ctx, name: str):
+        """Vendor V1: sell a named carried item from ``inventory['items']`` to
+        an NPC vendor. Reuses the equipped-weapon salvage math, the §1.3
+        craft-refusal guard, the bargain haggle, the city tax, and the ledger
+        chokepoint. Items with no resolvable value (quest tokens, crafting
+        inputs) are refused rather than floored."""
+        import json as _json
+        from engine.items import npc_refuses_buyback
+        from engine.weapons import get_weapon_registry
+        from engine.skill_checks import resolve_bargain_check
+
+        char = ctx.session.character
+        try:
+            items = await ctx.db.get_inventory(char["id"])
+        except Exception:
+            log.warning("_sell_carried_item: get_inventory failed", exc_info=True)
+            items = []
+
+        item_dict = _find_carried_item_by_name(items or [], name)
+        if not item_dict:
+            if name.strip().lower() == "armor":
+                await ctx.session.send_line(
+                    "  You have no carried item by that name. To sell worn "
+                    "armor, `unequip armor` first, then `sell <name>`.")
+            else:
+                await ctx.session.send_line(
+                    f"  You're not carrying anything called \"{name}\".")
+            return
+
+        wr = get_weapon_registry()
+        inst, base_cost, display_name = _resolve_carried_sale(item_dict, wr)
+        if inst is None:
+            await ctx.session.send_line(
+                f"  The vendor has no use for the {display_name}. "
+                f"\"Not something I can move — try a vendor droid.\"")
+            return
+
+        # §1.3 craft-refusal guard: well-made player crafts go to the droid market.
+        if npc_refuses_buyback(inst):
+            await ctx.session.send_line(
+                f"  The vendor turns the {display_name} over and hands it back. "
+                f"\"Too well-made for scrap — list it on a vendor droid.\"")
+            return
+
+        try:
+            qty = max(1, int(item_dict.get("qty", item_dict.get("quantity", 1))))
+        except (TypeError, ValueError):
+            qty = 1
+
+        unit_price = _npc_salvage_price(inst, base_cost)
+
+        # Bargain haggle vs the room vendor (same as the equipped path).
+        npc_dice, npc_pips = 3, 0
+        try:
+            npcs = await ctx.db.get_npcs_in_room(char["room_id"])
+            for npc in npcs:
+                sheet = _json.loads(npc.get("char_sheet_json", "{}"))
+                bargain_str = sheet.get("skills", {}).get("bargain", "")
+                if bargain_str:
+                    from engine.skill_checks import _parse_dice_str
+                    npc_dice, npc_pips = _parse_dice_str(bargain_str)
+                    break
+        except Exception:
+            log.warning("_sell_carried_item: vendor bargain lookup failed",
+                        exc_info=True)
+
+        haggle = resolve_bargain_check(
+            char, unit_price,
+            npc_bargain_dice=npc_dice, npc_bargain_pips=npc_pips,
+            is_buying=False,
+        )
+        sale_price = haggle["adjusted_price"] * qty
+
+        # Remove the item (whole dict) from inventory, then credit through the
+        # ledger chokepoint. (Stacks sell whole for V1; per-unit selling is a
+        # documented follow-up.)
+        try:
+            removed = await ctx.db.remove_from_inventory(
+                char["id"], str(item_dict.get("key", "")))
+        except Exception:
+            log.warning("_sell_carried_item: remove_from_inventory failed",
+                        exc_info=True)
+            removed = False
+        if not removed:
+            await ctx.session.send_line(
+                "  Something went wrong removing that item from your pack.")
+            return
+
+        char["credits"] = await ctx.db.adjust_credits(
+            char["id"], sale_price, "item_sale")
+
+        # City tax (funded from thin air; player receipt unchanged).
+        city_tax_msg = ""
+        try:
+            from engine.player_cities import apply_city_tax
+            city_take, _, city_name = await apply_city_tax(
+                ctx.db, char["room_id"], sale_price)
+            if city_take > 0:
+                city_tax_msg = (f"  \033[2m[{city_take:,}cr city tax to "
+                                f"{city_name}]\033[0m")
+        except Exception:
+            log.warning("_sell_carried_item: city tax hook failed", exc_info=True)
+
+        pct = haggle.get("price_modifier_pct", 0)
+        if pct:
+            direction = "bonus" if pct > 0 else "penalty"
+            await ctx.session.send_line(
+                f"  {ansi.DIM}Bargain {haggle['player_pool']}: "
+                f"{haggle['player_roll']} vs vendor {haggle['npc_pool']}: "
+                f"{haggle['npc_roll']} → {abs(pct)}% {direction}{ansi.RESET}")
+        await ctx.session.send_line(haggle["message"])
+        qty_str = f"{qty}x " if qty > 1 else ""
+        await ctx.session.send_line(ansi.success(
+            f"  Sold {qty_str}{display_name} for {sale_price:,} credits. "
+            f"Balance: {char['credits']:,} credits."))
+        if city_tax_msg:
+            await ctx.session.send_line(city_tax_msg)
+
 
 class WeaponsListCommand(BaseCommand):
     key = "+weapons"
@@ -3396,14 +3727,21 @@ class WeaponsListCommand(BaseCommand):
                 ranges = f"{w.ranges[1]:>5d} {w.ranges[2]:>5d} {w.ranges[3]:>5d}"
             else:
                 ranges = "Melee"
-            cost_str = f"{w.cost:,}cr" if w.cost else "--"
+            # segmentation a: the cost column is the SHOP signal — only
+            # vendor_stocked rows show a price; the rest read "craft"
+            # (the list stays a full stats reference either way).
+            if getattr(w, "vendor_stocked", False) and w.cost:
+                cost_str = f"{w.cost:,}cr"
+            else:
+                cost_str = "craft"
             await ctx.session.send_line(
                 f"  {w.name:<22s} {w.damage:>6s}  {w.skill:<14s} {ranges}  {cost_str:>8s}"
             )
 
-        # Show currently equipped with condition
-        from engine.items import parse_equipment_json
-        item = parse_equipment_json(ctx.session.character.get("equipment", "{}"))
+        # Show currently equipped with condition (canonical per-slot read)
+        from engine.items import read_equipment
+        item = read_equipment(
+            ctx.session.character.get("equipment", "{}"))["weapon"]
         if item:
             w = wr.get(item.key)
             wname = w.name if w else item.key
@@ -3437,14 +3775,12 @@ class ArmorListCommand(BaseCommand):
                 f"  {a.name:<28s} {a.protection_energy:>8s} "
                 f"{a.protection_physical:>10s} {dex:>8s} {cost_str:>8s}")
 
-        # Show currently worn
+        # Show currently worn (canonical per-slot read; the old raw
+        # equip.get("armor") returned an instance dict under canonical
+        # storage, not a key)
         char = ctx.session.character
-        try:
-            equip = _json.loads(char.get("equipment", "{}")) if isinstance(
-                char.get("equipment"), str) else char.get("equipment", {})
-        except Exception:
-            equip = {}
-        armor_key = equip.get("armor", "")
+        from engine.items import equipment_keys
+        armor_key = equipment_keys(char.get("equipment", "{}"))["armor"]
         if armor_key:
             a = wr.get(armor_key)
             aname = a.name if a else armor_key
@@ -3494,7 +3830,7 @@ class PicklockCommand(BaseCommand):
         "Difficulties:\n"
         "  Contested zone: Very Difficult (25)\n"
         "  Lawless zone:   Difficult (20)\n"
-        "  Secured zone:   Impossible (Imperial security seals)\n"
+        "  Secured zone:   Impossible (heavy security seals)\n"
         "\n"
         "Failed attempts may alert the owner. A critical failure jams the lock."
     )
@@ -3880,6 +4216,99 @@ class CoordsCommand(BaseCommand):
             )
 
 
+# ── Lane E2b: +weather / +time ──────────────────────────────────────────────
+
+def _storm_pips_to_dice(pips: int) -> str:
+    """Render a negative pip penalty as a D6 die count, e.g. -3 -> '-1D',
+    -6 -> '-2D', -9 -> '-3D'; partials as '-ND+r' / '-r pip(s)'."""
+    n = -int(pips)
+    d, r = divmod(n, 3)
+    if d and not r:
+        return f"-{d}D"
+    if d and r:
+        return f"-{d}D+{r}"
+    return f"-{r} pip" + ("s" if r != 1 else "")
+
+
+class WeatherCommand(BaseCommand):
+    """Show the local time-of-day (in the planet's idiom where one exists) and
+    any active weather. The clock idiom comes from the room's inherited
+    `time_vocab` zone property (or the wilderness region's planet); active storms
+    come from the world-event manager. Both platforms; no renderer dependency."""
+    key = "+weather"
+    aliases = ["+time", "weather"]
+    help_text = (
+        "Show the local time of day and any active weather.\n"
+        "On Tatooine the clock reads in the local idiom (First Dawn, High Noon, "
+        "Second Twilight, ...). Active sandstorms / gravel storms / sandwhirls are "
+        "listed with their effect on Perception and ranged fire."
+    )
+    usage = "+weather"
+
+    async def execute(self, ctx: CommandContext):
+        session = ctx.session
+        char = session.character
+        if not char:
+            await session.send_line("You must be in the game to check the weather.")
+            return
+
+        # Resolve the local clock idiom (planet vocab). Wilderness tiles derive it
+        # from the region's planet (their sentinel room isn't in a planet zone);
+        # everything else uses the room->zone `time_vocab` property zone-walk.
+        vocab = None
+        room_id = char.get("room_id")
+        try:
+            from engine.wilderness_movement import (
+                in_wilderness, get_wilderness_coords, get_or_load_region,
+            )
+            if in_wilderness(char) and ctx.db is not None:
+                coords = get_wilderness_coords(char)
+                if coords:
+                    region = await get_or_load_region(ctx.db, coords[0])
+                    if region is not None:
+                        vocab = getattr(region, "planet", None)
+        except Exception:
+            vocab = None
+        if vocab is None and ctx.db is not None and room_id:
+            try:
+                vocab = await ctx.db.get_room_property(room_id, "time_vocab")
+            except Exception:
+                vocab = None
+
+        from engine.world_time import resolve_period_label
+        period = resolve_period_label(vocab)
+
+        lines = [ansi.header("=== Local Conditions ===")]
+        lines.append(f"  {ansi.cyan('Time:')}    {period}")
+
+        # Active weather events (sandstorm / gravel_storm / sandwhirl).
+        try:
+            from engine.world_events import get_world_event_manager
+            active = get_world_event_manager().get_status()
+        except Exception:
+            active = []
+        _WEATHER = {"sandstorm", "gravel_storm", "sandwhirl", "flood"}
+        storms = [e for e in active if e.get("type") in _WEATHER]
+        if storms:
+            for e in storms:
+                eff = e.get("effects", {}) or {}
+                bits = []
+                if eff.get("perception_penalty"):
+                    bits.append(f"Perception {_storm_pips_to_dice(eff['perception_penalty'])}")
+                if eff.get("ranged_penalty"):
+                    bits.append(f"ranged fire {_storm_pips_to_dice(eff['ranged_penalty'])}")
+                effstr = ("  " + ansi.dim("\u2014 " + ", ".join(bits))) if bits else ""
+                rem = e.get("remaining_minutes", 0)
+                lines.append(
+                    f"  {ansi.cyan('Weather:')} {e.get('name', e.get('type'))}{effstr}"
+                    f"  {ansi.dim(f'(~{rem}m remaining)')}"
+                )
+        else:
+            lines.append(f"  {ansi.cyan('Weather:')} Clear.")
+
+        await session.send_line("\n".join(lines))
+
+
 def register_all(registry):
     """Register all built-in commands with the registry."""
     commands = [
@@ -3894,6 +4323,7 @@ def register_all(registry):
         WhisperCommand(),
         EmoteCommand(),
         WhoCommand(),
+        WeatherCommand(),
         InventoryCommand(),
         UseCommand(),
         SheetCommand(),
@@ -3945,7 +4375,19 @@ _TRADE_TTL = 120  # 2 minutes
 # get_daily_p2p_outgoing), so they are inherently exempt and uncapped — a player
 # selling to a friend lists on a vendor droid, a backer funds the faction
 # treasury. Tunable in one place.
-P2P_DAILY_CAP             = 1_500   # credits per rolling window
+# contributions route through their own commands/ledger tags (not
+# get_daily_p2p_outgoing), so they are inherently exempt and uncapped — a player
+# selling to a friend lists on a vendor droid, a backer funds the faction
+# treasury. Tunable in one place.
+#
+# ECON.p2p_cap_review = a (2026-06-11): the S51/audit-v2 HARD CAP
+# (P2P_DAILY_CAP = 1,500) is REMOVED — vendor segmentation (a) makes
+# crafters the supply chain, and a single quality item legitimately
+# trades above the old cap. What survives: the 5% tax (p2p_tax sink),
+# the p2p_transfer ledger tag, the alt-trade block, and this rolling
+# window — now feeding a fail-open VELOCITY ALERT
+# (engine.economy_alerts.evaluate_p2p_velocity_alert, thresholds live
+# there) instead of a block. Nothing in the trade path refuses on volume.
 P2P_DAILY_WINDOW_SECONDS  = 86_400  # 24 hours
 
 
@@ -4367,30 +4809,6 @@ class TradeCommand(BaseCommand):
             )
             return
 
-        # ── S51 daily P2P transfer cap ────────────────────────────────────
-        # Block at offer time so the player gets immediate feedback rather
-        # than discovering the limit only when their target tries to
-        # accept. The same check fires again on accept so two simultaneous
-        # offers can't sum past the cap.
-        try:
-            already_sent = await ctx.db.get_daily_p2p_outgoing(
-                char["id"], seconds=P2P_DAILY_WINDOW_SECONDS,
-            )
-            if already_sent + amount > P2P_DAILY_CAP:
-                remaining = max(0, P2P_DAILY_CAP - already_sent)
-                await ctx.session.send_line(
-                    f"  \033[1;31m[TRADE BLOCKED]\033[0m Daily transfer "
-                    f"cap is {P2P_DAILY_CAP:,} cr. You have already sent "
-                    f"{already_sent:,} cr in the last 24 hours; you can "
-                    f"send at most {remaining:,} cr more today."
-                )
-                return
-        except Exception:
-            # Fail open — a credit_log outage must not freeze every trade
-            # in the game. The audit logger picks up the actual movement
-            # and admin tooling can backfill caps later.
-            log.debug("p2p cap check failed, allowing trade", exc_info=True)
-
         offer_key = (char["id"], target["id"])
 
         _pending_trades[offer_key] = {
@@ -4536,33 +4954,6 @@ class TradeCommand(BaseCommand):
             )
             return
 
-        # ── S51 daily P2P cap (race-safe re-check at accept time) ────────
-        # Two simultaneous offers from the same offerer would otherwise be
-        # able to sum past the cap — both pass the offer-time check, then
-        # both succeed at accept. Re-check here against the live total so
-        # the cap holds even with concurrent acceptors.
-        try:
-            already_sent = await ctx.db.get_daily_p2p_outgoing(
-                offerer["id"], seconds=P2P_DAILY_WINDOW_SECONDS,
-            )
-            if already_sent + amount > P2P_DAILY_CAP:
-                _pending_trades.pop(offer_key, None)
-                remaining = max(0, P2P_DAILY_CAP - already_sent)
-                await ctx.session.send_line(
-                    f"  \033[1;31m[TRADE BLOCKED]\033[0m {offerer['name']} "
-                    f"has hit their daily transfer cap. Trade cancelled."
-                )
-                await offerer_sess.send_line(
-                    f"  \033[1;31m[TRADE BLOCKED]\033[0m Daily transfer "
-                    f"cap is {P2P_DAILY_CAP:,} cr. You have already sent "
-                    f"{already_sent:,} cr in the last 24 hours; you can "
-                    f"send at most {remaining:,} cr more today."
-                )
-                return
-        except Exception:
-            log.debug("p2p cap accept-side recheck failed, allowing trade",
-                      exc_info=True)
-
         # Execute transfer with 5% transaction tax (economy hardening v23)
         tax = max(1, amount // 20)  # 5% floor of 1 credit
         received = amount - tax
@@ -4570,6 +4961,31 @@ class TradeCommand(BaseCommand):
         offerer["credits"] = await ctx.db.adjust_credits(offerer["id"], -amount, "p2p_transfer")
         char["credits"] = await ctx.db.adjust_credits(char["id"], received, "p2p_transfer")
         await ctx.db.adjust_credits(0, -tax, "p2p_tax")
+
+        # ── P2P velocity alert (ECON.p2p_cap_review = a, 2026-06-11) ─────
+        # The old hard cap's threshold, repurposed as fail-open telemetry:
+        # read the sender's rolling 24h outgoing (now including this
+        # trade) and record an @economy alert on a band breach. NEVER
+        # blocks — a telemetry failure must not disturb a completed trade
+        # (mirrors the faucet throttle's fail-open posture).
+        try:
+            from engine.economy_alerts import (
+                evaluate_p2p_velocity_alert, record_alert,
+                format_alert_line,
+            )
+            rolling = await ctx.db.get_daily_p2p_outgoing(
+                offerer["id"], seconds=P2P_DAILY_WINDOW_SECONDS,
+            )
+            alert = evaluate_p2p_velocity_alert(
+                offerer["name"], offerer["id"], char["name"],
+                rolling, amount=amount,
+            )
+            if alert:
+                record_alert(alert)
+                log.info("p2p velocity alert: %s", format_alert_line(alert))
+        except Exception:
+            log.debug("p2p velocity alert failed (trade unaffected)",
+                      exc_info=True)
 
         _pending_trades.pop(offer_key, None)
 

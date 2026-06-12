@@ -52,18 +52,22 @@ def _make_session():
     return Session.__new__(Session)  # bare instance; we only call the method
 
 
-def test_build_area_pois_maps_covered_bounties():
+def test_build_area_pois_maps_covered_bounties(monkeypatch):
     import engine.bounty_board as bb
     sess = _make_session()
     room_map = {101: _FakeEntry(10, 20), 102: _FakeEntry(30, 40)}
 
-    bb.get_bounty_board = lambda: type("B", (), {
+    # Use the monkeypatch fixture (auto-restored after the test) so this fake
+    # board never leaks into later tests in the session -- e.g.
+    # test_singleton_bindings, which asserts GameServer.bounty_board is the
+    # SAME object the real get_bounty_board() returns.
+    monkeypatch.setattr(bb, "get_bounty_board", lambda: type("B", (), {
         "posted_contracts": lambda self: [
             type("C", (), {"target_room_id": 101})(),   # covered
             type("C", (), {"target_room_id": 999})(),   # not in area
             type("C", (), {"target_room_id": None})(),  # no room
         ],
-    })()
+    })())
 
     pois = asyncio.run(sess._build_area_pois(
         db=None, registry=_FakeRegistry(room_map), area_key="tatooine.mos_eisley"))
@@ -77,13 +81,16 @@ def test_build_area_pois_empty_room_map():
     assert pois == []
 
 
-def test_build_area_pois_swallows_board_errors():
+def test_build_area_pois_swallows_board_errors(monkeypatch):
     import engine.bounty_board as bb
     sess = _make_session()
 
     def boom():
         raise RuntimeError("boom")
-    bb.get_bounty_board = boom
+    # monkeypatch fixture auto-restores get_bounty_board after the test, so the
+    # raise-getter cannot leak into later tests (test_singleton_bindings would
+    # otherwise call this boom()).
+    monkeypatch.setattr(bb, "get_bounty_board", boom)
     pois = asyncio.run(sess._build_area_pois(
         db=None, registry=_FakeRegistry({1: _FakeEntry(0, 0)}), area_key="x"))
     assert pois == []  # error swallowed, not raised into the HUD

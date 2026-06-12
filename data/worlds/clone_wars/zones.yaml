@@ -36,6 +36,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: contested
+      time_vocab: tatooine
 
   tatooine_spaceport:
     name_match: "spaceport"
@@ -50,6 +51,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: secured
+      time_vocab: tatooine
 
   tatooine_cantina:
     name_match: "cantina"
@@ -64,6 +66,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: contested
+      time_vocab: tatooine
 
   tatooine_market:
     name_match: "streets"
@@ -78,6 +81,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: contested
+      time_vocab: tatooine
 
   tatooine_civic:
     name_match: "civic"
@@ -92,6 +96,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: contested
+      time_vocab: tatooine
 
   tatooine_outskirts:
     name_match: "outskirts"
@@ -106,6 +111,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: lawless
+      time_vocab: tatooine
 
   tatooine_jundland:
     name_match: "jundland"
@@ -120,6 +126,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: lawless
+      time_vocab: tatooine
 
   tatooine_dune_sea:
     name_match: "dune sea"
@@ -134,6 +141,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: lawless
+      time_vocab: tatooine
 
   # ── Nar Shaddaa ──────────────────────────────────────────────────────────
   # Nar Shaddaa is the same Smugglers' Moon it has always been.
@@ -297,7 +305,7 @@ zones:
   # ── Coruscant (Drop 2) ───────────────────────────────────────────────────
   # Placeholder stubs — full authoring in Drop 2
 
-  coruscant_senate:
+  senate_district:
     name_match: "senate district"
     narrative_tone: >
       The heart of the Republic, where power is debated endlessly while
@@ -311,7 +319,7 @@ zones:
     properties:
       security: secured
 
-  coruscant_temple:
+  jedi_temple:
     name_match: "jedi temple"
     narrative_tone: >
       The Jedi Temple rises above the cityscape like a monument to a way
@@ -326,7 +334,7 @@ zones:
     properties:
       security: secured
 
-  coruscant_upper:
+  monumental_district:
     name_match: "upper coruscant"
     narrative_tone: >
       Gleaming towers and air-traffic lanes above the smog line. The
@@ -340,7 +348,7 @@ zones:
     properties:
       security: secured
 
-  coruscant_midlevels:
+  commercial_district:
     name_match: "mid levels"
     narrative_tone: >
       The middle layers of Coruscant-city. Shops, transit hubs, and
@@ -354,7 +362,7 @@ zones:
     properties:
       security: secured
 
-  coruscant_lower:
+  southern_underground:
     name_match: "lower coruscant"
     narrative_tone: >
       Below the sanctioned levels, the city gets older and darker.
@@ -381,20 +389,7 @@ zones:
     properties:
       security: lawless
 
-  coruscant_works:
-    name_match: "coruscant works"
-    narrative_tone: >
-      Industrial sublevel. Power conduits, maintenance ducts, and the
-      mechanical guts of the planet-city. Clone engineers on rotation
-      service the grid. Droid workers run their eternal maintenance
-      loops. Few people come here on purpose.
-    # S-RES.2 (May 18 2026): zone-level security default. Rooms in
-    # this zone inherit via db.get_room_property zone-walk unless
-    # they declare properties.security or top-level security_level: themselves.
-    properties:
-      security: secured
-
-  coruscant_gilded_cage:
+  entertainment_district:
     name_match: "gilded cage"
     narrative_tone: >
       The Gilded Cage district sits in Coruscant's mid-upper levels —
@@ -506,7 +501,7 @@ zones:
       The great Petranaki Arena is a ruin now, scarred by the first battle.
       The Republic occupies the approaches but can't hold the rock tunnels
       beneath. Geonosian drones rebuild constantly — the same hive-mind that
-      built the original Death Star plans continues to serve the Separatist
+      drafted the original superweapon schematics continues to serve the Separatist
       cause in silence, underground, out of reach.
     # cities_phase1 (May 22 2026): zone-security declared during the
     # Player Cities Phase 1 data drop. Bypasses get_zone_security's
@@ -557,3 +552,35 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: contested
+
+  geonosis_barracks:
+    name_match: "gladiator barracks"
+    narrative_tone: >
+      Beneath the Petranaki Arena, the gladiator barracks is the
+      slavemaster's domain — holding cells, a training pit, an armory,
+      and the staging ramp for the capture runs out to the Ebon Sea.
+      Debtors, captured soldiers, and the hive's condemned are penned,
+      drilled, and spent here for the wagering above. Acklay Chopper runs
+      it without sentiment; the only law is his, and his only interest is
+      whether a body is worth another bout.
+    # Lane D interior tier (2026-06-07): the arena's holding/training
+    # complex, reached from geonosis_arena_prep_room. Lawless — deep in a
+    # Stalgasin-held slaver operation, no outside authority reaches here.
+    properties:
+      security: lawless
+
+  geonosis_ey_akh:
+    name_match: "e'y-akh"
+    narrative_tone: >
+      The E'Y-Akh is the low, featureless dune sea that makes up most of
+      the Stalgasin hive's surface territory — heat, red sand, and the
+      things that live in it, running on to the N'G'Zi badlands and the
+      stagnant black water of the Ebon Sea. Subterranean aquifers overflow
+      it in the annual flood; before the water comes, the drones drive
+      merdeths down into the low desert to drown. Wild acklays and worse
+      hunt out here, far from any law.
+    # Lane D wilderness tier (2026-06-07): zone for the E'Y-Akh
+    # coordinate-grid wilderness region (wilderness/ey_akh.yaml) and its
+    # on-foot edge room (ey_akh_desert_edge). Lawless open desert.
+    properties:
+      security: lawless

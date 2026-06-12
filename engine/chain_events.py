@@ -1072,4 +1072,84 @@ def get_active_step_info(char: dict, era: Optional[str] = None
         # fallback/on_fail payload. dict() copy so callers can't
         # accidentally mutate the corpus.
         "completion": dict(step.completion or {}),
+        # ── Webify UI-7 (2026-06-10): additive fields for the web
+        # onboarding panel. Existing consumers (chain status/attempt,
+        # tests) read named keys and are unaffected. list() copies so
+        # callers can't mutate the corpus.
+        "chain_total_steps": len(chain.steps),
+        "teaches": list(step.teaches or []),
+        "npc_role": step.npc_role,
+        "npc_intro": step.npc_intro,
+        "completed_steps": list(
+            (attrs.get("tutorial_chain") or {}).get("completed_steps") or []
+        ),
     }
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Webify UI-7 (2026-06-10) — onboarding_state producer for the web client
+# ─────────────────────────────────────────────────────────────────────
+
+
+def build_onboarding_state(char: dict, era: Optional[str] = None
+                           ) -> Optional[dict]:
+    """Assemble the `onboarding_state` push for the web training panel.
+
+    Pinned ABI (web_client_vision_and_protocol_v1_4.md §1.8)::
+
+        active chain  → { active: True, chain_id, chain_name,
+                          step, total_steps, completed_steps,
+                          title, objective, location, npc, npc_role,
+                          npc_intro, teaches, completion_type }
+        graduated     → { active: False, graduated: True,
+                          chain_id, chain_name }
+        no chain ever → None
+
+    The graduated payload fires on EVERY call once
+    `completion_state == "graduated"` — push-once gating is the
+    session's job (the `_last_chain_step` memo), so a reconnect after
+    graduation pushes nothing. Layered on the same cached corpus as
+    `get_active_step_info`; pure aside from that cache; never raises
+    (malformed attrs → None).
+    """
+    try:
+        info = get_active_step_info(char, era)
+        if info is not None:
+            return {
+                "active": True,
+                "chain_id": info["chain_id"],
+                "chain_name": info["chain_name"],
+                "step": info["step"],
+                "total_steps": info["chain_total_steps"],
+                "completed_steps": info["completed_steps"],
+                "title": info["title"],
+                "objective": info["objective"],
+                "location": info["location"],
+                "npc": info["npc"],
+                "npc_role": info["npc_role"],
+                "npc_intro": info["npc_intro"],
+                "teaches": info["teaches"],
+                "completion_type": info["completion_type"],
+            }
+
+        # No ACTIVE chain — distinguish "graduated" from "never had one".
+        attrs = _load_attrs(char)
+        state = attrs.get("tutorial_chain") or {}
+        if state.get("completion_state") != "graduated":
+            return None
+        chain_id = state.get("chain_id") or ""
+        chain_name = chain_id
+        corpus = _get_corpus(era)
+        if corpus is not None:
+            chain = corpus.by_id().get(chain_id)
+            if chain is not None:
+                chain_name = chain.chain_name
+        return {
+            "active": False,
+            "graduated": True,
+            "chain_id": chain_id,
+            "chain_name": chain_name,
+        }
+    except Exception:
+        log.debug("build_onboarding_state failed", exc_info=True)
+        return None

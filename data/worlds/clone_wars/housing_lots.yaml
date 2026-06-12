@@ -175,7 +175,7 @@ tier1_rentals:
   # ── Coruscant T1 (4 lots) ──────────────────────────────────────────────────
   - id: westport_travelers_hotel
     planet: coruscant
-    zone: coruscant_senate
+    zone: senate_district
     host_room: westport_arrivals_hotel_lobby
     npc: rental_clerk_wx9
     slots: 6
@@ -183,7 +183,7 @@ tier1_rentals:
     description_theme: corporate_chain
   - id: outlander_rooms
     planet: coruscant
-    zone: coruscant_midlevels
+    zone: commercial_district
     host_room: outlander_cantina
     npc: doola_bartender
     slots: 5
@@ -191,7 +191,7 @@ tier1_rentals:
     description_theme: cantina_back_room
   - id: crystal_jewel_rooms
     planet: coruscant
-    zone: coruscant_lower
+    zone: southern_underground
     host_room: crystal_jewel_back_rooms
     npc: wesseri_innkeeper
     slots: 6
@@ -199,7 +199,7 @@ tier1_rentals:
     description_theme: lower_city_flop
   - id: mosaic_hotel_rentals
     planet: coruscant
-    zone: coruscant_gilded_cage
+    zone: entertainment_district
     host_room: mosaic_hotel
     npc: iri_camas
     slots: 4
@@ -294,42 +294,42 @@ tier3_lots:
   # ── Coruscant T3 (6 lots) ──────────────────────────────────────────────────
   - id: coco_town_residential_walk
     planet: coruscant
-    zone: coruscant_midlevels
+    zone: commercial_district
     host_room: coco_town_residential_walk
     max_homes: 4
     allowed_types: [studio, standard, deluxe]
     description_theme: midlevel_apartment
   - id: coco_town_loft_district
     planet: coruscant
-    zone: coruscant_midlevels
+    zone: commercial_district
     host_room: coco_town_loft_district
     max_homes: 3
     allowed_types: [standard, deluxe]
     description_theme: midlevel_loft
   - id: calocour_marketing_row
     planet: coruscant
-    zone: coruscant_upper
+    zone: monumental_district
     host_room: calocour_marketing_row
     max_homes: 2
     allowed_types: [deluxe]
     description_theme: luxury_marketing
   - id: calocour_overlook_terrace
     planet: coruscant
-    zone: coruscant_upper
+    zone: monumental_district
     host_room: calocour_overlook_terrace
     max_homes: 2
     allowed_types: [deluxe]
     description_theme: skyview_condo
   - id: underground_tenement_block
     planet: coruscant
-    zone: coruscant_lower
+    zone: southern_underground
     host_room: underground_tenement_block
     max_homes: 4
     allowed_types: [studio, standard]
     description_theme: lower_city_tenement
   - id: gilded_cage_alien_quarter
     planet: coruscant
-    zone: coruscant_gilded_cage
+    zone: entertainment_district
     host_room: gilded_cage_alien_quarter
     max_homes: 4
     allowed_types: [studio, standard, deluxe]
@@ -426,7 +426,7 @@ tier4_lots:
   # ── Coruscant T4 (3 lots — Coco Town flagship + Calocour + Gilded Cage) ───
   - id: coco_town_market_arcade
     planet: coruscant
-    zone: coruscant_midlevels
+    zone: commercial_district
     host_room: coco_town_market_arcade
     max_homes: 4
     allowed_types: [stall, merchant, trading]
@@ -434,14 +434,14 @@ tier4_lots:
     market_search_priority: 100   # F.5a.3: flagship CW shopfront (design §8)
   - id: calocour_boutique_row
     planet: coruscant
-    zone: coruscant_upper
+    zone: monumental_district
     host_room: calocour_boutique_row
     max_homes: 2
     allowed_types: [merchant, trading]
     description_theme: luxury_boutique
   - id: gilded_cage_bazaar
     planet: coruscant
-    zone: coruscant_gilded_cage
+    zone: entertainment_district
     host_room: gilded_cage_bazaar
     max_homes: 3
     allowed_types: [stall, merchant]
@@ -491,7 +491,7 @@ tier5_lots:
   # ── Coruscant T5 (4 lots) ──────────────────────────────────────────────────
   - id: coco_town_civic_block
     planet: coruscant
-    zone: coruscant_midlevels
+    zone: commercial_district
     host_room: coco_town_civic_block
     max_homes: 1
     allowed_types: [outpost, chapter_house, fortress]
@@ -499,7 +499,7 @@ tier5_lots:
     recommended_faction: republic
   - id: bhg_chapter_house
     planet: coruscant
-    zone: coruscant_lower
+    zone: southern_underground
     host_room: bhg_chapter_house
     max_homes: 1
     allowed_types: [chapter_house, fortress]
@@ -507,14 +507,14 @@ tier5_lots:
     recommended_faction: bounty_hunters_guild
   - id: crystal_jewel_alley
     planet: coruscant
-    zone: coruscant_lower
+    zone: southern_underground
     host_room: crystal_jewel_alley
     max_homes: 1
     allowed_types: [outpost, chapter_house]
     description_theme: independent_merc
   - id: gilded_cage_courtyard
     planet: coruscant
-    zone: coruscant_gilded_cage
+    zone: entertainment_district
     host_room: gilded_cage_courtyard
     max_homes: 1
     allowed_types: [outpost, chapter_house]

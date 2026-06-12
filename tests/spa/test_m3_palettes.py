@@ -72,6 +72,7 @@ def _run_js_in_node(setup_js: str) -> dict:
         ["node", "-e", wrapper],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=10,
     )
     if proc.returncode != 0:
@@ -96,6 +97,7 @@ def test_module_syntax_valid() -> None:
         ["node", "--check", str(MODULE_PATH)],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=10,
     )
     assert proc.returncode == 0, f"Syntax check failed:\n{proc.stderr}"

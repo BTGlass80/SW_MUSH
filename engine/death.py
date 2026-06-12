@@ -319,6 +319,7 @@ async def on_pc_death(
     security_level: Optional[str] = None,
     killer_id: Optional[int] = None,
     killer_is_bh: bool = False,
+    session_mgr=None,
 ) -> Optional[int]:
     """Run the post-death side-effects for a PC.
 
@@ -347,6 +348,22 @@ async def on_pc_death(
     )
 
     corpse_id: Optional[int] = None
+
+    # Drop 4b (hunter, PC-death collect-consequence): if a runtime-spawned DSP
+    # hunter was on this PC, the hunter has now COLLECTED its bounty — despawn it,
+    # fire the collect beat, and reset the pursuit to a fresh start. Placed BEFORE
+    # the secured-zone early return so it fires on every death path. No-op (cheap)
+    # when no hunter is attached. Best-effort: never aborts the death side-effects.
+    try:
+        from engine.dsp_hunter_runtime import on_quarry_collected
+        await on_quarry_collected(
+            db, char_id, session_mgr=session_mgr, room_id=room_id,
+        )
+    except Exception:
+        log.debug(
+            "[dsp_hunter] collect-consequence hook failed for PC %d",
+            char_id, exc_info=True,
+        )
 
     if decay_window is NO_CORPSE:
         # Secured zone or equivalent: no corpse, no wound_state, no

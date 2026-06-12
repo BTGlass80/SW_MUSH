@@ -527,7 +527,7 @@ class TestCombatTemplateNoNameDup(unittest.TestCase):
         "npcs_drop_g1_nar_shaddaa_topside.yaml",
         "npcs_drop_g2_nar_shaddaa_lower.yaml",
         "npcs_drop_b_mos_eisley.yaml",
-        "npcs_drop_c2_coruscant_lower.yaml",
+        "npcs_drop_c2_southern_underground.yaml",
         "npcs_drop_f8c2a_chain_anchors.yaml",
     )
 
@@ -664,11 +664,11 @@ class TestRepublicSoldierE2EPhase2(_F8C2B2IsolatedBase):
         self.assertTrue(_run(on_mission_accepted(
             db, char, "tutorial_republic_first_deployment")))
 
-        # Step 4: room_entered coruscant_works_landing_zone (Phase 1)
+        # Step 4: room_entered commercial_district_landing_zone (Phase 1)
         self.assertEqual(get_active_step_info(char)["completion_type"],
                          "room_entered")
         self.assertTrue(_run(on_room_entered(
-            db, char, "coruscant_works_landing_zone")))
+            db, char, "commercial_district_landing_zone")))
 
         # Step 5: command_executed +factions (Phase 1) → graduates
         self.assertEqual(get_active_step_info(char)["completion_type"],

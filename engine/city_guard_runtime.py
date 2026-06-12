@@ -157,6 +157,23 @@ async def should_city_guard_engage(
         if char_id is None:
             return False
 
+        # ── Drop 4a (2026-06-04): Affect Mind (suggestion) pacify ───────
+        # If this character is carrying an active "unseen" mind-trick
+        # buff, the guard's attention slides off them — they do not
+        # engage while the suggestion holds ("you don't need to see his
+        # identification"). has_buff prunes expired buffs, so a lapsed
+        # trick stops working on its own. Fail-soft: any error here
+        # falls through to the normal banished/bounty checks below.
+        try:
+            from engine.buffs import has_buff
+            if has_buff(entering_char, "mind_trick_unseen"):
+                return False
+        except Exception as _e:
+            log.debug(
+                "[city_guard_runtime] mind_trick_unseen check failed "
+                "(ignored, falling through): %s", _e, exc_info=True,
+            )
+
         # Late import — engine.player_cities is the orchestrator
         # and importing it at module load would create a cycle
         # if engine.player_cities ever wants to call into this

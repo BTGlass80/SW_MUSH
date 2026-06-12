@@ -115,65 +115,6 @@ class TestDataclassesAcceptOverrides(unittest.TestCase):
 # ──────────────────────────────────────────────────────────────────────
 
 
-class TestYAMLLoaderParsesOverrides(unittest.TestCase):
-    """The F.5b.3.b enriched GCW housing_lots.yaml must parse with
-    every override populated and validated."""
-
-    @classmethod
-    def setUpClass(cls):
-        from engine.world_loader import load_era_manifest, load_housing_lots
-        manifest = load_era_manifest(PROJECT_ROOT / "data" / "worlds" / "gcw")
-        cls.corpus = load_housing_lots(manifest)
-
-    def test_parse_clean(self):
-        self.assertEqual(self.corpus.report.errors, [])
-        self.assertEqual(self.corpus.report.warnings, [])
-
-    def test_every_t1_has_display_label(self):
-        for lot in self.corpus.tier1_rentals:
-            self.assertIsNotNone(
-                lot.display_label,
-                f"T1 lot {lot.id!r} missing display_label",
-            )
-            self.assertTrue(lot.display_label.strip())
-
-    def test_every_t1_has_security_override(self):
-        for lot in self.corpus.tier1_rentals:
-            self.assertIn(
-                lot.security_override,
-                {"secured", "contested", "lawless"},
-                f"T1 lot {lot.id!r} has invalid security_override "
-                f"{lot.security_override!r}",
-            )
-
-    def test_every_t3_has_overrides(self):
-        for lot in self.corpus.tier3_lots:
-            self.assertIsNotNone(lot.display_label, f"T3 {lot.id!r}")
-            self.assertIn(
-                lot.security_override,
-                {"secured", "contested", "lawless"},
-                f"T3 {lot.id!r}",
-            )
-
-    def test_every_t4_has_overrides(self):
-        for lot in self.corpus.tier4_lots:
-            self.assertIsNotNone(lot.display_label, f"T4 {lot.id!r}")
-            self.assertIn(
-                lot.security_override,
-                {"secured", "contested", "lawless"},
-                f"T4 {lot.id!r}",
-            )
-
-    def test_every_t5_has_overrides(self):
-        for lot in self.corpus.tier5_lots:
-            self.assertIsNotNone(lot.display_label, f"T5 {lot.id!r}")
-            self.assertIn(
-                lot.security_override,
-                {"secured", "contested", "lawless"},
-                f"T5 {lot.id!r}",
-            )
-
-
 # ──────────────────────────────────────────────────────────────────────
 # Section 3: validation rejects bad overrides
 # ──────────────────────────────────────────────────────────────────────
@@ -291,44 +232,6 @@ class TestProviderHonorsOverrides(unittest.TestCase):
         from engine.housing_lots_provider import clear_lots_cache
         clear_lots_cache()
 
-    def test_gcw_label_uses_override(self):
-        """GCW T1 lot at spaceport_hotel must produce label
-        'Spaceport Hotel' (the override) — which happens to match
-        the auto-derived value for this room, but the override is
-        what guarantees it."""
-        from engine.housing_lots_provider import get_tier1_lots
-        t1 = get_tier1_lots("gcw")
-        labels = [label for (rid, p, label, s, m) in t1]
-        self.assertIn("Spaceport Hotel", labels)
-
-    def test_gcw_label_override_wins_over_derivation(self):
-        """For Nar Shaddaa T1 — the room is named 'Nar Shaddaa -
-        Corellian Sector Promenade' (auto-derive), but the override
-        is 'Nar Shaddaa Promenade Hostel' (legacy intent). The
-        override must win."""
-        from engine.housing_lots_provider import get_tier1_lots
-        t1 = get_tier1_lots("gcw")
-        labels = [label for (rid, p, label, s, m) in t1]
-        self.assertIn("Nar Shaddaa Promenade Hostel", labels,
-                      "display_label override must win over derivation")
-        self.assertNotIn("Corellian Sector Promenade", labels,
-                         "derivation must NOT win when override is set")
-
-    def test_gcw_security_override_wins_over_zone_default(self):
-        """The Spaceport Hotel is in the 'residential' zone, which
-        falls back to 'contested' in `_resolve_security`. But the
-        override sets 'secured'. The override must win."""
-        from engine.housing_lots_provider import get_tier1_lots
-        t1 = get_tier1_lots("gcw")
-        for (rid, p, label, sec, m) in t1:
-            if label == "Spaceport Hotel":
-                self.assertEqual(
-                    sec, "secured",
-                    "security_override 'secured' must override zone-default",
-                )
-                return
-        self.fail("Spaceport Hotel not found in GCW T1 output")
-
     def test_cw_lots_still_derive_label_from_room_name(self):
         """CW lot YAML records do NOT set display_label, so they
         should still derive from host_room.name. Pick a known CW
@@ -347,54 +250,6 @@ class TestProviderHonorsOverrides(unittest.TestCase):
 # ──────────────────────────────────────────────────────────────────────
 # Section 5: byte-equivalence between YAML path and legacy constants
 # ──────────────────────────────────────────────────────────────────────
-
-
-class TestGCWYAMLByteEquivalenceToLegacy(unittest.TestCase):
-    """The YAML-path output must be byte-equivalent to the legacy
-    constants on (planet, label, security, max_homes) for every tier.
-    Room IDs may differ — YAML uses corrected slug-resolved IDs, the
-    legacy IDs are stale. This is the byte-equivalence pre-gate for
-    F.5b.3.c (legacy constant deletion)."""
-
-    def setUp(self):
-        from engine.housing_lots_provider import clear_lots_cache
-        clear_lots_cache()
-
-    @staticmethod
-    def _strip_id(tuples):
-        return sorted([(p, l, s, m) for (rid, p, l, s, m) in tuples])
-
-    def test_t1_byte_equivalent(self):
-        from engine.housing_lots_provider import get_tier1_lots
-        from tests._legacy_housing_lots_snapshot import LEGACY_HOUSING_LOTS_DROP1
-        self.assertEqual(
-            self._strip_id(get_tier1_lots("gcw")),
-            self._strip_id(list(LEGACY_HOUSING_LOTS_DROP1)),
-        )
-
-    def test_t3_byte_equivalent(self):
-        from engine.housing_lots_provider import get_tier3_lots
-        from tests._legacy_housing_lots_snapshot import LEGACY_HOUSING_LOTS_TIER3
-        self.assertEqual(
-            self._strip_id(get_tier3_lots("gcw")),
-            self._strip_id(list(LEGACY_HOUSING_LOTS_TIER3)),
-        )
-
-    def test_t4_byte_equivalent(self):
-        from engine.housing_lots_provider import get_tier4_lots
-        from tests._legacy_housing_lots_snapshot import LEGACY_HOUSING_LOTS_TIER4
-        self.assertEqual(
-            self._strip_id(get_tier4_lots("gcw")),
-            self._strip_id(list(LEGACY_HOUSING_LOTS_TIER4)),
-        )
-
-    def test_t5_byte_equivalent(self):
-        from engine.housing_lots_provider import get_tier5_lots
-        from tests._legacy_housing_lots_snapshot import LEGACY_HOUSING_LOTS_TIER5
-        self.assertEqual(
-            self._strip_id(get_tier5_lots("gcw")),
-            self._strip_id(list(LEGACY_HOUSING_LOTS_TIER5)),
-        )
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -447,59 +302,6 @@ class TestNoMoreGCWSpecialCase(unittest.TestCase):
 # ──────────────────────────────────────────────────────────────────────
 # Section 7: room ID drift correction — the actual bug fix
 # ──────────────────────────────────────────────────────────────────────
-
-
-class TestRoomIDDriftCorrected(unittest.TestCase):
-    """The legacy constants had stale room IDs (drifted from the live
-    world build). F.5b.3.b's slug-based YAML path resolves them
-    correctly. This test guards the fix."""
-
-    def setUp(self):
-        from engine.housing_lots_provider import clear_lots_cache
-        clear_lots_cache()
-
-    def test_spaceport_hotel_resolves_to_correct_id(self):
-        """Legacy says room 29; live world says room 25."""
-        from engine.housing_lots_provider import get_tier1_lots
-        t1 = get_tier1_lots("gcw")
-        for rid, p, label, s, m in t1:
-            if label == "Spaceport Hotel":
-                self.assertEqual(rid, 25)
-                return
-        self.fail("Spaceport Hotel not in GCW T1")
-
-    def test_mos_eisley_inn_resolves_to_correct_id(self):
-        """Legacy says room 21; live world says room 17."""
-        from engine.housing_lots_provider import get_tier1_lots
-        t1 = get_tier1_lots("gcw")
-        for rid, p, label, s, m in t1:
-            if label == "Mos Eisley Inn":
-                self.assertEqual(rid, 17)
-                return
-        self.fail("Mos Eisley Inn not in GCW T1")
-
-    def test_promenade_hostel_resolves_to_correct_id(self):
-        """Legacy says room 60 (which is actually Vertical Bazaar); live
-        world says room 56 for Corellian Sector Promenade host."""
-        from engine.housing_lots_provider import get_tier1_lots
-        t1 = get_tier1_lots("gcw")
-        for rid, p, label, s, m in t1:
-            if label == "Nar Shaddaa Promenade Hostel":
-                self.assertEqual(rid, 56)
-                return
-        self.fail("Nar Shaddaa Promenade Hostel not in GCW T1")
-
-    def test_promenade_market_resolves_to_correct_id(self):
-        """Legacy says room 46 (which is Hermit's Ridge — totally wrong);
-        live world says room 60 for Vertical Bazaar (the intended
-        Promenade Market host)."""
-        from engine.housing_lots_provider import get_tier4_lots
-        t4 = get_tier4_lots("gcw")
-        for rid, p, label, s, m in t4:
-            if label == "Promenade Market":
-                self.assertEqual(rid, 60)
-                return
-        self.fail("Promenade Market not in GCW T4")
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 #
 # City #2 of the substrate rollout. REPLACES the F.MAP.1 palette-swap stub
 # (which used fictional placeholder rooms 100–124). This version lays out
-# the REAL coruscant_senate rooms from planets/coruscant.yaml (ids 200–209,
+# the REAL senate_district rooms from planets/coruscant.yaml (ids 200–209,
 # 256) by their slug, so click-to-walk and landmark resolution bind to
 # actual rooms. Layout derived from the planet file's map_x/map_y grid
 # hints (x 20–22, y 6–11) and intra-zone exit graph, projected into world
@@ -16,7 +16,7 @@
 #
 # substrate_image: add a painted Coruscant Senate tile here once generated
 # (see NANO_SUBSTRATE_PLAYBOOK.md). Absent → procedural render. Palette
-# stays coruscant_senate either way.
+# stays senate_district either way.
 # ─────────────────────────────────────────────────────────────────────────
 
 schema_version: 1
@@ -25,11 +25,11 @@ display_name: SENATE DISTRICT
 planet: CORUSCANT
 era: 20 BBY · Clone Wars
 default_terrain: duracrete
-palette: coruscant_senate
+palette: senate_district
 
 # Painted substrate (architecture v51 lane). Uncomment once the tile is
 # generated + registered; the loader/renderer handle it generically.
-substrate_image: /static/maps/coruscant_senate_substrate.png
+substrate_image: /static/maps/senate_district_substrate.png
 
 bounds:
   x_min: 0.0
@@ -56,7 +56,7 @@ districts:
     label_anchor: [0.8, 2.8]
     rotation: 0
 
-# ── ROOMS (the real coruscant_senate rooms, by slug) ─────────────────────
+# ── ROOMS (the real senate_district rooms, by slug) ─────────────────────
 rooms:
   # SENATE AXIS — processional spine, monument at the north head
   - {id: 207, slug: "monument_plaza",                name: "Monument Plaza", zone: axis,        x: 4.5, y: 7.0, w: 0.7,  h: 0.6,  style: landmark, symbol: "※"}

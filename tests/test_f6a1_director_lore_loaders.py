@@ -229,10 +229,10 @@ class TestCloneWarsRealData(_RealEraTestBase):
 
     def test_cw_baselines_temple_high_jedi_score(self):
         dc = load_director_config(self.manifest)
-        if dc is None or "coruscant_temple" not in dc.zone_baselines:
-            self.skipTest("coruscant_temple not in baselines")
+        if dc is None or "jedi_temple" not in dc.zone_baselines:
+            self.skipTest("jedi_temple not in baselines")
         self.assertGreaterEqual(
-            dc.zone_baselines["coruscant_temple"].get("jedi_order", 0), 90,
+            dc.zone_baselines["jedi_temple"].get("jedi_order", 0), 90,
             "Jedi Temple should have jedi_order >= 90"
         )
 

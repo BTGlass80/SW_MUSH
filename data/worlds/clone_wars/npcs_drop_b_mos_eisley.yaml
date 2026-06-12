@@ -499,6 +499,7 @@ npcs:
       character_points: 6
       dark_side_points: 0
     ai_config:
+      vendor: true   # decision a + vendor flag (2026-06-12): sells open-market commons
       personality: >-
         Jawa trade-elder, 9 years in role. The trading post is the
         city-fixed half of a Jawa scavenger operation; the

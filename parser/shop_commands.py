@@ -684,9 +684,12 @@ def _find_in_inventory(char: dict, name_arg: str):
 
     # Check equipped weapon
     try:
-        from engine.items import parse_equipment_json
+        # Canonical per-slot read (equipment-instance untangle). The old
+        # parse_equipment_json returned None under canonical storage, so
+        # the equipped weapon could never be stocked on a vendor droid.
+        from engine.items import read_equipment
         from engine.weapons import get_weapon_registry
-        item = parse_equipment_json(char.get("equipment", "{}"))
+        item = read_equipment(char.get("equipment", "{}"))["weapon"]
         if item and not item.is_broken:
             wr = get_weapon_registry()
             w  = wr.get(item.key)

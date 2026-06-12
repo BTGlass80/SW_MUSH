@@ -360,9 +360,24 @@ class TestCWOrgsYamlRewickerSection(unittest.TestCase):
             )
 
     def test_factions_section_unchanged_count(self):
-        """Adding legacy_rewicker must not have disturbed the factions
-        section (regression gate against accidental edits)."""
-        self.assertEqual(len(self.data.get("factions", [])), 8)
+        """Guard against *accidental* edits to the factions section
+        (added with the B.5 legacy_rewicker block). Intentional
+        additions are recorded here so the gate stays meaningful:
+        Lane D1 (2026-06-07) added the two Geonosian hive orgs
+        (stalgasin, gehenbar) as NPC-only Director factions, taking the
+        roster from 8 to 10. The canonical 8 must all still be present."""
+        codes = [f["code"] for f in self.data.get("factions", [])]
+        self.assertEqual(len(codes), 10)
+        canonical_8 = {
+            "republic", "cis", "jedi_order", "hutt_cartel",
+            "bounty_hunters_guild", "independent", "sith",
+            "separatist_council",
+        }
+        self.assertTrue(
+            canonical_8.issubset(set(codes)),
+            f"Canonical faction roster disturbed; missing: "
+            f"{sorted(canonical_8 - set(codes))}",
+        )
 
 
 if __name__ == "__main__":

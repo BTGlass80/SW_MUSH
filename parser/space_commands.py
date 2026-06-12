@@ -1450,7 +1450,7 @@ class ShipCommand(BaseCommand):
         "\n"
         "EXAMPLES:\n"
         "  +ship              -- your ship's status\n"
-        "  +ship/info x-wing  -- X-Wing stats\n"
+        "  +ship/info z95     -- Z-95 Headhunter stats\n"
         "  +ship/list         -- browse ship catalog\n"
         "  +ship/mine         -- your fleet\n"
         "  +ship/rename Millennium Falcon  -- rename your ship\n"
@@ -4036,11 +4036,22 @@ class BuyCommand(BaseCommand):
                 return await _handle_buy_from_droid(ctx, item_part, shop_part)
 
         from engine.weapons import get_weapon_registry
-        from engine.items import ItemInstance, serialize_equipment
+        from engine.items import ItemInstance, read_equipment, write_equipment
         wr = get_weapon_registry()
         weapon = wr.find_by_name(ctx.args.strip())
         if not weapon:
             await ctx.session.send_line(f"  Unknown item: '{ctx.args}'. Type 'weapons' to see the list.")
+            return
+        # CRAFT.market_segmentation_impl (2026-06-12, decision a): the
+        # open market sells ONLY vendor_stocked rows (Avail-1 commons at
+        # book cost). Until this gate, bare `buy` resolved the entire
+        # registry — band-2/3 craftables and the Drop G contraband band
+        # included, with no vendor even required in the room. Band 2-3:
+        # craft it, loot it, or find a player shop. Band 4/X: Gundark.
+        if not getattr(weapon, "vendor_stocked", False):
+            await ctx.session.send_line(
+                f"  No open vendor stocks the {weapon.name}. "
+                f"Craft it, check player shops — or know the right people.")
             return
         if weapon.is_armor:
             await ctx.session.send_line("  Armor purchases coming soon.")
@@ -4050,19 +4061,42 @@ class BuyCommand(BaseCommand):
             base_price = 500
         char = ctx.session.character
 
-        # ── Bargain haggle: player vs vendor ──
-        npc_dice, npc_pips = 3, 0  # Default generic vendor: 3D Bargain
+        # ── Vendor-presence gate (OBS.buy_verb_followups (a), decision
+        # a + vendor flag, 2026-06-12): buying requires an NPC with
+        # ai_config.vendor: true in the room — the trainer: true
+        # precedent applied to commerce. Disentangles VENDORS from mere
+        # HAGGLERS: before this, any Bargain-skilled NPC (or nobody at
+        # all — a phantom 3D fallback) would do, so the deep desert
+        # sold blasters and Lup the grocer was implicitly an arms
+        # dealer. The haggle now uses THE VENDOR'S Bargain, which also
+        # fixes the old first-Bargain-NPC-in-the-room bug. ──
+        vendor_npc = None
         try:
             import json as _json
             npcs = await ctx.db.get_npcs_in_room(char["room_id"])
             for npc in npcs:
-                sheet = _json.loads(npc.get("char_sheet_json", "{}"))
-                npc_skills = sheet.get("skills", {})
-                bargain_str = npc_skills.get("bargain", "")
-                if bargain_str:
-                    from engine.skill_checks import _parse_dice_str
-                    npc_dice, npc_pips = _parse_dice_str(bargain_str)
-                    break  # Use first vendor NPC with Bargain skill
+                ai_cfg = npc.get("ai_config_json", "{}")
+                if isinstance(ai_cfg, str):
+                    ai_cfg = _json.loads(ai_cfg) if ai_cfg else {}
+                if ai_cfg.get("vendor"):
+                    vendor_npc = npc
+                    break
+        except Exception:
+            log.warning("vendor scan failed", exc_info=True)
+        if vendor_npc is None:
+            await ctx.session.send_line(
+                "  No merchant here sells weapons. Find a shop.")
+            return
+
+        # ── Bargain haggle: player vs THE vendor ──
+        npc_dice, npc_pips = 3, 0  # vendor without Bargain: generic 3D
+        try:
+            import json as _json
+            sheet = _json.loads(vendor_npc.get("char_sheet_json", "{}"))
+            bargain_str = sheet.get("skills", {}).get("bargain", "")
+            if bargain_str:
+                from engine.skill_checks import _parse_dice_str
+                npc_dice, npc_pips = _parse_dice_str(bargain_str)
         except Exception:
             log.warning("execute: unhandled exception", exc_info=True)
             pass
@@ -4134,7 +4168,18 @@ class BuyCommand(BaseCommand):
                 f"(base {base_price:,}), you have {current_credits:,}.")
             return
         item = ItemInstance.new_from_vendor(weapon.key)
-        char["equipment"] = serialize_equipment(item)
+        _slots = read_equipment(char.get("equipment", "{}"))
+        # CRAFT.P0.9: a purchase that displaces an equipped weapon returns
+        # it to carried inventory (the old write destroyed it).
+        if _slots["weapon"] is not None:
+            from engine.items import instance_to_carried
+            _d_w = wr.get(_slots["weapon"].key)
+            await ctx.db.add_to_inventory(
+                char["id"],
+                instance_to_carried(
+                    _slots["weapon"],
+                    name=(_d_w.name if _d_w else _slots["weapon"].key)))
+        char["equipment"] = write_equipment(weapon=item, armor=_slots["armor"])
         await ctx.db.save_character(char["id"], equipment=char["equipment"])
         char["credits"] = await ctx.db.adjust_credits(char["id"], -price, "ship_weapon_purchase")
 
@@ -5286,7 +5331,7 @@ async def _run_customs_check(ctx, ship, planet: str) -> None:
         base_fine = _r.randint(fine_lo, fine_hi)
 
         await ctx.session.send_line(
-            f"  {ansi.BRIGHT_RED}[IMPERIAL CUSTOMS]{ansi.RESET} "
+            f"  {ansi.BRIGHT_RED}[CUSTOMS]{ansi.RESET} "
             f"{inf['name']} infraction: {infraction_reason}."
         )
 
@@ -5914,13 +5959,16 @@ class SalvageCommand(BaseCommand):
             qty = max(qty, qty_range[1])  # max quantity on crit
 
         if rtype == "credits":
-            # Credits: pay directly
+            # Credits: pay directly. CRAFT.P1: was a dict mutation +
+            # no-kwargs save_character (a no-op) — salvage credits never
+            # persisted AND bypassed the adjust_credits ledger chokepoint.
             credit_amt = _rnd.randint(*qty_range)
             if critical:
                 credit_amt = qty_range[1]
-            old_credits = char.get("credits", 0)
-            char["credits"] = old_credits + credit_amt
-            await ctx.db.save_character(char["id"])
+            new_bal = await ctx.db.adjust_credits(
+                char["id"], credit_amt, "space_salvage")
+            if new_bal is not None:
+                char["credits"] = new_bal
             await ctx.session.send_line(
                 f"  {ansi.BRIGHT_GREEN}[SALVAGE]{ansi.RESET} "
                 f"{'Critical find! ' if critical else ''}"
@@ -5929,7 +5977,11 @@ class SalvageCommand(BaseCommand):
         else:
             quality = float(_rnd.randint(*qual_range))
             summary = add_resource(char, rtype, qty, quality)
-            await ctx.db.save_character(char["id"])
+            # CRAFT.P1: add_resource mutates char["inventory"] dict-side;
+            # the no-kwargs save was a no-op — salvaged resources never
+            # persisted across reload.
+            await ctx.db.save_character(
+                char["id"], inventory=char["inventory"])
             await ctx.session.send_line(
                 f"  {ansi.BRIGHT_GREEN}[SALVAGE]{ansi.RESET} "
                 f"{'Critical find! ' if critical else ''}"

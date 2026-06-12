@@ -37,8 +37,8 @@ class TestEconomyExtended:
     async def test_ee7_sell_resource_to_droid_routes(self, harness):
         await economy_extended.ee7_sell_resource_to_droid_routes(harness)
 
-    async def test_ee8_p2p_cap_blocks_over_limit(self, harness):
-        await economy_extended.ee8_p2p_cap_blocks_over_limit(harness)
+    async def test_ee8_p2p_large_trade_flows_and_alerts(self, harness):
+        await economy_extended.ee8_p2p_large_trade_flows_and_alerts(harness)
 
     async def test_ee9_buy_cargo_no_ship_refuses_cleanly(self, harness):
         await economy_extended.ee9_buy_cargo_no_ship_refuses_cleanly(harness)

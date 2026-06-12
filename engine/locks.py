@@ -140,16 +140,11 @@ class LockHasObject(LockNode):
                 if item.lower() == self.object_name:
                     return True
 
-        # Check equipped weapon
-        equipment = char.get("equipment", "{}")
-        if isinstance(equipment, str):
-            try:
-                equipment = json.loads(equipment)
-            except (json.JSONDecodeError, TypeError):
-                equipment = {}
-        if isinstance(equipment, dict):
-            if equipment.get("weapon", "").lower() == self.object_name:
-                return True
+        # Check equipped weapon (tolerant of all equipment shapes — a shape-3
+        # per-slot dict here would otherwise crash the old .get('weapon').lower()).
+        from engine.items import equipment_keys
+        if equipment_keys(char.get("equipment", "{}"))["weapon"].lower() == self.object_name:
+            return True
 
         return False
 

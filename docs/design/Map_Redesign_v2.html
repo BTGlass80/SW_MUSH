@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>SW MUSH · Map Redesign v2 — Five Fixes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin:0; padding:0; min-height:100%; background:#020a0e;
+               font-family:'IBM Plex Sans', system-ui, sans-serif; color:#cfe9f0; }
+  *, *::before, *::after { box-sizing: border-box; }
+
+  /* ── Showcase chrome (the wrapping page, NOT the in-game HUD) ─── */
+  .page {
+    max-width: 1440px; margin: 0 auto; padding: 28px 32px 80px;
+  }
+  .page h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500; letter-spacing: 4px; font-size: 16px;
+    color: #ffa640; margin: 0 0 4px;
+  }
+  .page .sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 2px;
+    color: #5e8590; margin: 0 0 28px;
+  }
+
+  .row {
+    display: flex; flex-wrap: wrap; gap: 24px;
+    margin-bottom: 32px;
+  }
+  .col-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 2px; color: #5e8590;
+    text-transform: uppercase; margin: 0 0 8px;
+  }
+  .col-label .strong { color: #ffa640; }
+  .col-label .strong-cyan { color: #6ee8ff; }
+
+  .callouts {
+    background: rgba(7, 24, 31, 0.5);
+    border: 1px solid #163844;
+    padding: 16px 20px;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-size: 13px; line-height: 1.6; color: #cfe9f0;
+    max-width: 320px;
+  }
+  .callouts h3 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 2px; color: #ffa640;
+    margin: 0 0 8px; text-transform: uppercase;
+    font-weight: 500;
+  }
+  .callouts p { margin: 0 0 10px; }
+  .callouts p:last-child { margin-bottom: 0; }
+  .callouts code {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+    color: #ffd089; background: rgba(255,166,64,0.08);
+    padding: 1px 4px;
+  }
+
+  hr.sep {
+    border: 0; border-top: 1px dashed #163844; margin: 36px 0;
+  }
+
+  /* ── In-game HUD chrome v2 (Fix #4) ─────────────────────────── */
+  /* Bezel with chamfered corners, inset shadow line, screen-glare,
+     and a slow scan flicker overlay. */
+  .hud-v2 {
+    position: relative;
+    background: #04141a;
+    color: #cfe9f0;
+    font-family: 'IBM Plex Mono', monospace;
+    /* 4-corner chamfer — 12px cut */
+    clip-path: polygon(
+      12px 0, calc(100% - 12px) 0, 100% 12px,
+      100% calc(100% - 12px), calc(100% - 12px) 100%,
+      12px 100%, 0 calc(100% - 12px), 0 12px
+    );
+    overflow: hidden;
+  }
+  .hud-v2::before {
+    /* inset bezel highlight — a 1px etched line just inside the chamfer */
+    content: ""; position: absolute;
+    top: 1px; left: 1px; right: 1px; bottom: 1px;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(110,232,255,0.06) 0%, transparent 12%, transparent 88%, rgba(0,0,0,0.4) 100%);
+    /* match parent clip path inset by 1px */
+    clip-path: polygon(
+      11px 0, calc(100% - 11px) 0, 100% 11px,
+      100% calc(100% - 11px), calc(100% - 11px) 100%,
+      11px 100%, 0 calc(100% - 11px), 0 11px
+    );
+  }
+  .hud-v2::after {
+    /* slow scan flicker — a single thin line drifting top-to-bottom */
+    content: ""; position: absolute; left: 0; right: 0;
+    height: 2px; background: rgba(110, 232, 255, 0.06);
+    pointer-events: none;
+    animation: scan 6.4s linear infinite;
+    will-change: top;
+  }
+  @keyframes scan {
+    0%   { top: -2px; opacity: 0; }
+    10%  { opacity: 0.5; }
+    90%  { opacity: 0.5; }
+    100% { top: 100%; opacity: 0; }
+  }
+  .hud-v2 .strip {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 16px;
+    font-size: 10px; letter-spacing: 2.5px; color: #2e7080;
+    text-transform: uppercase;
+    background:
+      linear-gradient(180deg, rgba(7,24,31,1) 0%, rgba(7,24,31,0.85) 100%);
+    border-bottom: 1px solid #0f2a33;
+    box-shadow: inset 0 -1px 0 rgba(110,232,255,0.04);
+  }
+  .hud-v2 .strip .title {
+    color: #ffa640; font-weight: 600; letter-spacing: 3px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hud-v2 .strip .title::before {
+    /* etched leading bar */
+    content: ""; width: 10px; height: 10px;
+    background: #ffa640; clip-path: polygon(0 0, 70% 0, 100% 100%, 30% 100%);
+  }
+  .hud-v2 .strip .crumb {
+    color: #cfe9f0; opacity: 0.85; letter-spacing: 1.6px;
+  }
+  .hud-v2 .strip .ctrls {
+    color: #5e8590;
+  }
+  .hud-v2 .region-strip {
+    padding: 4px 16px; font-size: 11px; letter-spacing: 3px;
+    color: #ffa640; text-transform: uppercase;
+    background: rgba(255,166,64,0.05);
+    border-bottom: 1px dashed #1d3a44;
+  }
+  .hud-v2 .map-area {
+    position: relative; overflow: hidden;
+  }
+  .hud-v2 .map-area::after {
+    /* very subtle screen-glare diagonal — bottom-left to top-right */
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background:
+      linear-gradient(120deg, rgba(255,255,255,0.03) 0%,
+                              rgba(255,255,255,0.0) 35%,
+                              rgba(255,255,255,0.0) 65%,
+                              rgba(110,232,255,0.025) 100%);
+  }
+  .hud-v2 .footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 16px;
+    font-size: 10px; letter-spacing: 1.5px;
+    color: #2e7080;
+    background: rgba(7,24,31,0.85);
+    border-top: 1px solid #0f2a33;
+    box-shadow: inset 0 1px 0 rgba(110,232,255,0.04);
+  }
+
+  /* Tier badge (top-left overlay, lives inside .map-area) */
+  .tier-badge {
+    position: absolute; left: 12px; top: 10px;
+    padding: 3px 8px; font-size: 9px; letter-spacing: 2.5px;
+    color: #ffa640; border: 1px solid #ffa640;
+    background: rgba(4,20,26,0.7);
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+  }
+  /* Compass dial — bigger, owns its corner */
+  .compass {
+    position: absolute; right: 12px; top: 10px;
+    width: 56px; height: 56px;
+    border: 1px solid #2e7080; border-radius: 50%;
+    background: rgba(4,20,26,0.7);
+    color: #6ee8ff;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    display: grid; place-items: center;
+  }
+  .compass .n { position: absolute; top: 4px; color: #ffa640; font-weight: 600; }
+  .compass .s { position: absolute; bottom: 4px; color: #2e7080; font-size: 8px; }
+  .compass .e { position: absolute; right: 4px; color: #2e7080; font-size: 8px; }
+  .compass .w { position: absolute; left: 4px; color: #2e7080; font-size: 8px; }
+  .compass .needle {
+    width: 2px; height: 22px; background: #ffa640;
+    transform: translateY(-3px);
+    box-shadow: 0 0 4px rgba(255,166,64,0.7);
+  }
+  .scale-bar {
+    position: absolute; left: 12px; bottom: 10px;
+    color: #2e7080; font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; letter-spacing: 1.5px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .scale-bar .bar {
+    width: 60px; height: 6px; border: 1px solid #2e7080;
+    background: linear-gradient(90deg, #2e7080 50%, transparent 50%);
+  }
+
+  /* Marker chip (used in legend rows below the artboards) */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 1px;
+    color: #cfe9f0; padding: 6px 0;
+  }
+  .legend span { color: #cfe9f0; }
+  .legend .amber { color: #ffa640; }
+  .legend .cyan { color: #6ee8ff; }
+  .legend .red { color: #ff5a4a; }
+
+  /* Footnote */
+  .foot {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 1px; color: #5e8590;
+    margin-top: 24px; max-width: 720px; line-height: 1.7;
+  }
+  .foot .key { color: #ffa640; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+<h1>▮▮ MAP REDESIGN · V2 · FIVE FIXES</h1>
+<p class="sub">SW MUSH · MOS EISLEY pilot · 2026-05-04</p>
+
+<!-- ============================================================
+     ROW 1 · Tier-1 District — baseline vs v2 + callout panel
+     ============================================================ -->
+<p class="col-label"><span class="strong">01 · Tier-1 District (Mos Eisley · Spaceport)</span> — same fixture, same viewBox</p>
+
+<div class="row">
+  <div>
+    <p class="col-label">A · BASELINE (current prototype)</p>
+    <div id="baseline-tier1" class="hud-baseline"></div>
+  </div>
+  <div>
+    <p class="col-label"><span class="strong">B · V2</span> — fixes 1, 2, 3, 4 applied</p>
+    <div id="v2-tier1"></div>
+  </div>
+  <div>
+    <div class="callouts">
+      <h3>What changed (1-4)</h3>
+      <p><span style="color:#ffa640;">①</span> <b>Per-style room footprints.</b> Docks gain a notched bay door, cantinas read as pills, civic structures gain a pediment, gates a chevron, landmarks a hex, hutt structures a doubled border. The <code>style</code> field already in the schema drives the silhouette; no data changes.</p>
+      <p><span style="color:#ffa640;">②</span> <b>Layered substrate.</b> Three patterns now stack: low-frequency dune undulation, mid-frequency grit, sparse high-contrast debris. Reads as desert, not noise.</p>
+      <p><span style="color:#ffa640;">③</span> <b>Street ribbon depth.</b> Each ribbon is shoulder-gradient + core surface + lighter centerline, with intermittent foot-traffic hatching. Now reads as road.</p>
+      <p><span style="color:#ffa640;">④</span> <b>HUD chrome.</b> Chamfered bezel, etched 1px highlight, slow scan flicker, screen-glare. Compass dial enlarged to own its corner.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="sep"/>
+
+<!-- ============================================================
+     ROW 2 · Tier-2/3 transition — fix #5
+     ============================================================ -->
+<p class="col-label"><span class="strong">02 · Fix ⑤ — Tier 2 → 3 continuity</span> · the city's polygon survives as a glowing pin on the planet</p>
+
+<div class="row">
+  <div>
+    <p class="col-label">FRAME 1 · TIER 2 (CITY)</p>
+    <div id="t2-frame"></div>
+  </div>
+  <div>
+    <p class="col-label"><span class="strong">FRAME 2 · TRANSIT (~250 ms)</span></p>
+    <div id="t23-frame"></div>
+  </div>
+  <div>
+    <p class="col-label">FRAME 3 · TIER 3 (PLANET)</p>
+    <div id="t3-frame"></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="callouts" style="max-width:none; flex:1;">
+    <h3>What changed (5)</h3>
+    <p>The Tier-2 city's <b>district polygon outlines</b> are extracted at transition start, animated to the city's pin location on the planet sphere, and held as a glowing pulse for ~600 ms before fading. The pin underneath fades in from 0 → full opacity over the same window. The viewer sees the city <i>become</i> the pin instead of cutting between two unrelated visual systems.</p>
+    <p>Implementation cost is small: keep the Tier-2 SVG mounted, lerp its `viewBox` toward the planet `viewBox`, and animate a new <code>&lt;g class="city-trail"&gt;</code> with the polygons translated and shrunk. The planet sphere fades in below it. The polygons land on the city pin's coordinates and disappear.</p>
+  </div>
+</div>
+
+<hr class="sep"/>
+
+<!-- ============================================================
+     ROW 3 · Coruscant palette swap — proves theme-agnosticism still holds
+     ============================================================ -->
+<p class="col-label"><span class="strong-cyan">03 · Same five fixes · Coruscant palette</span> — proves the renderer is still theme-agnostic</p>
+<div class="row">
+  <div>
+    <p class="col-label">CORUSCANT SENATE · TIER 1 · V2 (panel-grid substrate, metallic ribbons, cyan bezel)</p>
+    <div id="v2-coruscant"></div>
+  </div>
+  <div class="callouts" style="max-width:300px;">
+    <h3>Substrate swap</h3>
+    <p>Tatooine's three substrate layers — dunes, grit, debris — become Coruscant's three: an etched panel grid, a fine scan hairline, and sparse spire-light dots. Same z-ordering, same render cost, different planet.</p>
+    <p>Street ribbons map cleanly: <code>streetShoulder</code> stays dark steel, <code>streetSurface</code> is brushed cyan-steel, the lighter centerline becomes a faint magnetic-track stripe. Foot-traffic hatching is replaced by occasional scan-pulse dashes.</p>
+    <p>HUD bezel uses the same chamfer geometry; the etched highlight shifts from amber to cyan. Compass needle stays amber so the orientation cue is consistent across planets.</p>
+  </div>
+</div>
+
+<p class="foot">
+  <span class="key">Renderer changes:</span> ① ~30 lines in <code>map-view.jsx</code> Rooms component (shape resolver). ② ~25 lines in Substrate (two new <code>&lt;pattern&gt;</code> defs + a debris layer). ③ ~20 lines in StreetRibbon (shoulder gradient + centerline). ④ pure CSS in <code>tokens.js</code>/<code>artboards.jsx</code> HudFrame — no SVG. ⑤ new <code>TransitionLayer</code> component, ~60 lines.
+  <br/><span class="key">Data-model changes:</span> none. The <code>style</code> field already in <code>AreaGeometry</code> drives the new room shapes. Substrate variants and ribbon details are render-time only.
+</p>
+
+</div>
+
+<!-- ============================================================
+     Renderer (vanilla JS — no React, no Babel)
+     ============================================================ -->
+<script src="reference/data/mos-eisley.js"></script>
+<script src="reference/tokens.js"></script>
+<script>
+/* ─────────────────────────────────────────────────────────────────
+   Tatooine palette v2 — extends tokens.js with new substrate layers
+   and ribbon shoulder/centerline tints. Backwards-compatible.
+   ───────────────────────────────────────────────────────────────── */
+const PAL_T = Object.assign({}, window.PALETTES.tatooine, {
+  duneShade:   "#3a2c1a",  // low-freq dune undulation stroke
+  duneHighlight:"#5a4528", // dune crest tint
+  debris:      "#a87a3c",  // sparse rock/scrap accent
+  streetCenter:"#d8a865",  // brighter centerline (was #b08855)
+  streetShoulderDark: "#1a1208",
+  streetWear:  "#3d2e15",  // foot-traffic hatch
+});
+const PAL_C = Object.assign({}, window.PALETTES.coruscant_senate, {
+  duneShade:   "#0a121a",
+  duneHighlight:"#1d2c38",
+  debris:      "#6ee8ff",
+  streetCenter:"#5a82a0",
+  streetShoulderDark: "#0c1820",
+  streetWear:  "#2a4458",
+});
+
+const ME = window.MOS_EISLEY;
+
+/* ─── Pattern definitions ──────────────────────────────────────── */
+function substrateDefs(id, palette, mode/*'tatooine'|'coruscant'*/) {
+  if (mode === 'coruscant') {
+    return `
+      <pattern id="grit-${id}" width="0.4" height="0.4" patternUnits="userSpaceOnUse">
+        <rect width="0.4" height="0.4" fill="${palette.sand}"/>
+        <line x1="0" y1="0" x2="0.4" y2="0" stroke="${palette.duneHighlight}" stroke-width="0.005" opacity="0.6"/>
+        <line x1="0" y1="0.2" x2="0.4" y2="0.2" stroke="${palette.duneHighlight}" stroke-width="0.003" opacity="0.4"/>
+        <line x1="0" y1="0" x2="0" y2="0.4" stroke="${palette.duneHighlight}" stroke-width="0.005" opacity="0.6"/>
+        <line x1="0.2" y1="0" x2="0.2" y2="0.4" stroke="${palette.duneHighlight}" stroke-width="0.003" opacity="0.4"/>
+      </pattern>
+      <pattern id="scan-${id}" width="1" height="0.06" patternUnits="userSpaceOnUse">
+        <rect width="1" height="0.06" fill="transparent"/>
+        <rect width="1" height="0.008" fill="#000" opacity="0.18"/>
+      </pattern>
+      <pattern id="debris-${id}" width="2" height="2" patternUnits="userSpaceOnUse">
+        <rect width="2" height="2" fill="transparent"/>
+        <circle cx="0.4" cy="1.2" r="0.018" fill="${palette.debris}" opacity="0.45"/>
+        <circle cx="1.5" cy="0.4" r="0.014" fill="${palette.debris}" opacity="0.35"/>
+        <circle cx="1.7" cy="1.7" r="0.020" fill="${palette.debris}" opacity="0.50"/>
+      </pattern>
+    `;
+  }
+  // Tatooine: dunes + grit + debris
+  return `
+    <pattern id="dunes-${id}" width="3.2" height="1.2" patternUnits="userSpaceOnUse">
+      <path d="M0 0.6 Q0.8 0.2 1.6 0.6 T3.2 0.6"
+            fill="none" stroke="${palette.duneShade}" stroke-width="0.018" opacity="0.55"/>
+      <path d="M0 1.0 Q0.8 0.7 1.6 1.0 T3.2 1.0"
+            fill="none" stroke="${palette.duneHighlight}" stroke-width="0.010" opacity="0.45"/>
+    </pattern>
+    <pattern id="grit-${id}" width="0.4" height="0.4" patternUnits="userSpaceOnUse">
+      <rect width="0.4" height="0.4" fill="transparent"/>
+      <circle cx="0.08" cy="0.12" r="0.012" fill="${palette.sandLit}" opacity="0.5"/>
+      <circle cx="0.32" cy="0.28" r="0.010" fill="${palette.sandLit}" opacity="0.4"/>
+      <circle cx="0.20" cy="0.36" r="0.008" fill="${palette.sandLit}" opacity="0.3"/>
+    </pattern>
+    <pattern id="scan-${id}" width="1" height="0.06" patternUnits="userSpaceOnUse">
+      <rect width="1" height="0.06" fill="transparent"/>
+      <rect width="1" height="0.012" fill="#000" opacity="0.18"/>
+    </pattern>
+    <pattern id="debris-${id}" width="2.4" height="2.4" patternUnits="userSpaceOnUse">
+      <rect width="2.4" height="2.4" fill="transparent"/>
+      <ellipse cx="0.4" cy="1.4" rx="0.030" ry="0.014" fill="${palette.debris}" opacity="0.40"/>
+      <ellipse cx="1.6" cy="0.5" rx="0.024" ry="0.012" fill="${palette.debris}" opacity="0.35"/>
+      <ellipse cx="2.0" cy="1.9" rx="0.034" ry="0.016" fill="${palette.debris}" opacity="0.45"/>
+      <circle cx="1.0" cy="2.1" r="0.014" fill="${palette.duneHighlight}" opacity="0.5"/>
+    </pattern>
+  `;
+}
+
+/* ─── Substrate stack — fix #2 ───────────────────────────────────
+   Three layers: dune undulation (or panel grid) → grit/scan → debris.
+   Each layer is a tiled <rect> with a different pattern. */
+function substrate(id, palette, bounds, mode) {
+  const w = bounds.x_max - bounds.x_min;
+  const h = bounds.y_max - bounds.y_min;
+  const x = bounds.x_min, y = bounds.y_min;
+  const baseFill = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${palette.sand}"/>`;
+  if (mode === 'coruscant') {
+    return baseFill +
+      `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#grit-${id})"/>` +
+      `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#scan-${id})"/>` +
+      `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#debris-${id})"/>`;
+  }
+  return baseFill +
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#dunes-${id})"/>` +
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#grit-${id})"/>` +
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#scan-${id})"/>` +
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#debris-${id})"/>`;
+}
+
+/* ─── Baseline substrate (prototype-equivalent) ──────────────── */
+function baselineSubstrate(id, palette, bounds) {
+  const w = bounds.x_max - bounds.x_min;
+  const h = bounds.y_max - bounds.y_min;
+  const x = bounds.x_min, y = bounds.y_min;
+  return `
+    <pattern id="grit-${id}" width="0.4" height="0.4" patternUnits="userSpaceOnUse">
+      <rect width="0.4" height="0.4" fill="${palette.sand}"/>
+      <circle cx="0.08" cy="0.12" r="0.012" fill="${palette.sandLit}" opacity="0.5"/>
+      <circle cx="0.32" cy="0.28" r="0.010" fill="${palette.sandLit}" opacity="0.4"/>
+      <circle cx="0.20" cy="0.36" r="0.008" fill="${palette.sandLit}" opacity="0.3"/>
+    </pattern>
+    <pattern id="scan-${id}" width="1" height="0.06" patternUnits="userSpaceOnUse">
+      <rect width="1" height="0.06" fill="transparent"/>
+      <rect width="1" height="0.012" fill="#000" opacity="0.18"/>
+    </pattern>
+  </defs><defs>` /* close & reopen so caller's <defs> is intact */
+  ;
+}
+
+/* ─── Districts ────────────────────────────────────────────────── */
+function districts(geom, palette, opts={}) {
+  const showLabels = opts.showLabels !== false;
+  const showFills  = opts.showFills  !== false;
+  let svg = '<g>';
+  if (showFills) {
+    for (const d of geom.districts) {
+      const pts = d.polygon.map(p => p.join(",")).join(" ");
+      svg += `<polygon points="${pts}" fill="${palette.districtFill}" `
+           + `stroke="${palette.districtBorder}" stroke-width="0.04" `
+           + (palette.districtBorderDash ? `stroke-dasharray="${palette.districtBorderDash}" ` : '')
+           + `vector-effect="non-scaling-stroke"/>`;
+    }
+  }
+  if (showLabels) {
+    for (const d of geom.districts) {
+      const [lx, ly] = d.label_anchor;
+      const rot = d.rotation || 0;
+      svg += `<g transform="translate(${lx} ${ly}) scale(1 -1) rotate(${rot})">`
+           + `<text text-anchor="middle" dominant-baseline="middle" `
+           + `font-family="'IBM Plex Mono', monospace" font-size="0.34" letter-spacing="0.06" `
+           + `stroke="${palette.sand}" stroke-width="0.16" stroke-linejoin="round" `
+           + `stroke-opacity="0.85" fill="none" paint-order="stroke fill" `
+           + `vector-effect="non-scaling-stroke" `
+           + `style="text-transform:uppercase">${d.name}</text>`
+           + `<text text-anchor="middle" dominant-baseline="middle" `
+           + `font-family="'IBM Plex Mono', monospace" font-size="0.34" letter-spacing="0.06" `
+           + `fill="${palette.districtLabel}" opacity="0.9" `
+           + `style="text-transform:uppercase">${d.name}</text></g>`;
+    }
+  }
+  return svg + '</g>';
+}
+
+/* ─── Street ribbons — fix #3 (v2) and baseline ───────────────── */
+function pathD(pts) { return "M" + pts.map(p => p.join(" ")).join(" L "); }
+function pathLen(pts) {
+  let t = 0;
+  for (let i = 1; i < pts.length; i++) {
+    t += Math.hypot(pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]);
+  }
+  return t;
+}
+
+function streetRibbonsBaseline(geom, palette) {
+  let svg = '<g>';
+  const pths = geom.exit_paths || {};
+  const styles = window.MAP_TOKENS.pathStyle;
+  for (const k of Object.keys(pths)) {
+    const ep = pths[k]; const ps = styles[ep.kind] || styles.street;
+    const w = ep.width || ps.width;
+    svg += `<path d="${pathD(ep.path)}" stroke="${palette.streetSurface}" stroke-width="${w}" `
+         + `stroke-linecap="round" stroke-linejoin="round" fill="none"`
+         + (ps.dash ? ` stroke-dasharray="${ps.dash}"` : '') + `/>`;
+  }
+  return svg + '</g>';
+}
+
+function streetRibbonsV2(geom, palette) {
+  let svg = '<g>';
+  const pths = geom.exit_paths || {};
+  const styles = window.MAP_TOKENS.pathStyle;
+  // Three passes: shoulder (wide), surface (core), centerline (thin lighter)
+  // Pass 1 — dark shoulder (significantly wider and darker)
+  for (const k of Object.keys(pths)) {
+    const ep = pths[k]; const ps = styles[ep.kind] || styles.street;
+    const w = (ep.width || ps.width) * 1.32;
+    svg += `<path d="${pathD(ep.path)}" stroke="${palette.streetShoulderDark}" `
+         + `stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+  }
+  // Pass 2 — core surface
+  for (const k of Object.keys(pths)) {
+    const ep = pths[k]; const ps = styles[ep.kind] || styles.street;
+    const w = ep.width || ps.width;
+    svg += `<path d="${pathD(ep.path)}" stroke="${palette.streetSurface}" `
+         + `stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"`
+         + (ps.dash ? ` stroke-dasharray="${ps.dash}"` : '') + `/>`;
+  }
+  // Pass 3 — wear hatching first (so centerline overlays cleanly on top)
+  for (const k of Object.keys(pths)) {
+    const ep = pths[k]; if (ep.kind === 'trail') continue;
+    const w = (ep.width || styles[ep.kind].width) * 0.55;
+    svg += `<path d="${pathD(ep.path)}" stroke="${palette.streetWear}" `
+         + `stroke-width="${w}" stroke-linecap="butt" fill="none" `
+         + `stroke-dasharray="0.06 0.4" opacity="0.55"/>`;
+  }
+  // Pass 4 — bright centerline (only on streets and roads)
+  for (const k of Object.keys(pths)) {
+    const ep = pths[k]; if (ep.kind !== 'street' && ep.kind !== 'road') continue;
+    const w = (ep.width || styles[ep.kind].width) * 0.13;
+    svg += `<path d="${pathD(ep.path)}" stroke="${palette.streetCenter}" `
+         + `stroke-width="${w}" stroke-linecap="round" fill="none" opacity="0.85"`
+         + ` stroke-dasharray="0.4 0.18"/>`;
+  }
+  return svg + '</g>';
+}
+
+/* ─── Room footprint by style — fix #1 ─────────────────────────
+   Returns an SVG fragment for a single room. Y-up, so we draw in
+   the world-flipped coord space. */
+function roomShape(r, palette, mode/*'baseline'|'v2'*/) {
+  const x = r.x, y = r.y, w = r.w, h = r.h, st = r.style || 'civic';
+  const styleColor = (window.STYLE_TAGS && window.STYLE_TAGS[st]) || { tint:"#cfe9f0", weight:500 };
+  const tint = styleColor.tint;
+
+  if (mode === 'baseline') {
+    // Original: simple dark rect, thin amber-ish stroke, glyph centered
+    return `<g>`
+         + `<rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" `
+         + `rx="0.04" fill="${palette.roomFill}" stroke="${palette.roomStroke}" `
+         + `stroke-width="0.02" vector-effect="non-scaling-stroke"/>`
+         + `<g transform="translate(${x} ${y}) scale(1 -1)">`
+         + `<text text-anchor="middle" dominant-baseline="central" `
+         + `font-family="'IBM Plex Mono', monospace" font-size="${Math.min(w, h)*0.55}" `
+         + `font-weight="${styleColor.weight}" fill="${tint}">${r.symbol || '·'}</text></g></g>`;
+  }
+
+  // V2 — per-style silhouette
+  let shape = '';
+  const fill = palette.roomFill, stroke = palette.roomStroke;
+
+  if (st === 'dock') {
+    // Rounded rect with a notched bay door at the south edge (a small
+    // inward U). The notch points away from the player default — but
+    // since direction is fixture-specific, we draw a generic notch.
+    const notchW = w * 0.36, notchH = h * 0.16;
+    const x0 = x - w/2, y0 = y - h/2;
+    const path = [
+      `M ${x0 + 0.06} ${y0}`,
+      `L ${x - notchW/2} ${y0}`,
+      `L ${x - notchW/2 + 0.04} ${y0 + notchH}`,
+      `L ${x + notchW/2 - 0.04} ${y0 + notchH}`,
+      `L ${x + notchW/2} ${y0}`,
+      `L ${x0 + w - 0.06} ${y0}`,
+      `Q ${x0 + w} ${y0} ${x0 + w} ${y0 + 0.06}`,
+      `L ${x0 + w} ${y0 + h - 0.06}`,
+      `Q ${x0 + w} ${y0 + h} ${x0 + w - 0.06} ${y0 + h}`,
+      `L ${x0 + 0.06} ${y0 + h}`,
+      `Q ${x0} ${y0 + h} ${x0} ${y0 + h - 0.06}`,
+      `L ${x0} ${y0 + 0.06}`,
+      `Q ${x0} ${y0} ${x0 + 0.06} ${y0}`,
+      'Z'
+    ].join(' ');
+    shape = `<path d="${path}" fill="${fill}" stroke="${stroke}" `
+          + `stroke-width="0.025" vector-effect="non-scaling-stroke"/>`;
+  } else if (st === 'cantina') {
+    // Stadium pill — wider rx
+    const rx = Math.min(w, h) * 0.5;
+    shape = `<rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" `
+          + `rx="${rx}" fill="${fill}" stroke="${stroke}" `
+          + `stroke-width="0.025" vector-effect="non-scaling-stroke"/>`;
+  } else if (st === 'civic') {
+    // Pediment — chamfered top corners (cut at 25% width)
+    const cx = w * 0.18;
+    const x0 = x - w/2, y0 = y - h/2;
+    const path = [
+      `M ${x0} ${y0}`,
+      `L ${x0 + w} ${y0}`,
+      `L ${x0 + w} ${y0 + h - cx}`,
+      `L ${x0 + w - cx} ${y0 + h}`,
+      `L ${x0 + cx} ${y0 + h}`,
+      `L ${x0} ${y0 + h - cx}`,
+      'Z'
+    ].join(' ');
+    shape = `<path d="${path}" fill="${fill}" stroke="${stroke}" `
+          + `stroke-width="0.025" vector-effect="non-scaling-stroke"/>`;
+  } else if (st === 'temple') {
+    // Pediment + double inner border
+    const cx = w * 0.22;
+    const x0 = x - w/2, y0 = y - h/2;
+    const path = [
+      `M ${x0} ${y0}`,
+      `L ${x0 + w} ${y0}`,
+      `L ${x0 + w} ${y0 + h - cx}`,
+      `L ${x0 + w/2} ${y0 + h + cx*0.3}`,
+      `L ${x0} ${y0 + h - cx}`,
+      'Z'
+    ].join(' ');
+    shape = `<path d="${path}" fill="${fill}" stroke="${stroke}" `
+          + `stroke-width="0.025" vector-effect="non-scaling-stroke"/>`;
+  } else if (st === 'gate') {
+    // Chevron-cut — opens to the east (or up; we go east by default)
+    const cx = w * 0.28;
+    const x0 = x - w/2, y0 = y - h/2;
+    const path = [
+      `M ${x0} ${y0}`,
+      `L ${x0 + w - cx} ${y0}`,
+      `L ${x0 + w} ${y}`,
+      `L ${x0 + w - cx} ${y0 + h}`,
+      `L ${x0} ${y0 + h}`,
+      'Z'
+    ].join(' ');
+    shape = `<path d="${path}" fill="${fill}" stroke="${stroke}" `
+          + `stroke-width="0.025" vector-effect="non-scaling-stroke"/>`;
+  } else if (st === 'landmark') {
+    // Hexagon
+    const r = Math.min(w, h) / 2;
+    const pts = [];
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+      pts.push(`${x + Math.cos(a) * r},${y + Math.sin(a) * r}`);
+    }
+    shape = `<polygon points="${pts.join(' ')}" fill="${fill}" stroke="${stroke}" `
+          + `stroke-width="0.025" vector-effect="non-scaling-stroke"/>`;
+  } else if (st === 'hutt') {
+    // Doubled border
+    const inset = 0.04;
+    shape = `<rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" `
+          + `rx="0.05" fill="${fill}" stroke="${stroke}" `
+          + `stroke-width="0.025" vector-effect="non-scaling-stroke"/>`
+          + `<rect x="${x - w/2 + inset}" y="${y - h/2 + inset}" `
+          + `width="${w - inset*2}" height="${h - inset*2}" rx="0.03" fill="none" `
+          + `stroke="${stroke}" stroke-width="0.018" opacity="0.7" `
+          + `vector-effect="non-scaling-stroke"/>`;
+  } else if (st === 'vendor' || st === 'market') {
+    // Tag/awning — a rect with a small peaked overhang on top
+    const x0 = x - w/2, y0 = y - h/2;
+    shape = `<rect x="${x0}" y="${y0}" width="${w}" height="${h * 0.85}" `
+          + `rx="0.03" fill="${fill}" stroke="${stroke}" `
+          + `stroke-width="0.025" vector-effect="non-scaling-stroke"/>`
+          + `<polygon points="${x0},${y0 + h*0.85} ${x0 + w},${y0 + h*0.85} `
+          + `${x0 + w*0.85},${y0 + h} ${x0 + w*0.15},${y0 + h}" `
+          + `fill="${stroke}" opacity="0.55" stroke="${stroke}" `
+          + `stroke-width="0.015" vector-effect="non-scaling-stroke"/>`;
+  } else if (st === 'housing') {
+    // Simple rect, slight rounded corners
+    shape = `<rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" `
+          + `rx="0.03" fill="${fill}" stroke="${stroke}" `
+          + `stroke-width="0.022" vector-effect="non-scaling-stroke"/>`;
+  } else if (st === 'street') {
+    // Diamond junction (rotated square)
+    const r = Math.min(w, h) / 2 * 0.85;
+    const pts = `${x},${y - r} ${x + r},${y} ${x},${y + r} ${x - r},${y}`;
+    shape = `<polygon points="${pts}" fill="${fill}" stroke="${stroke}" `
+          + `stroke-width="0.022" vector-effect="non-scaling-stroke"/>`;
+  } else if (st === 'medical') {
+    // Rect with subtle plus-cut top corners — distinctive without being literal
+    const cx = w * 0.10;
+    const x0 = x - w/2, y0 = y - h/2;
+    shape = `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" `
+          + `rx="0.03" fill="${fill}" stroke="${stroke}" `
+          + `stroke-width="0.025" vector-effect="non-scaling-stroke"/>`
+          + `<rect x="${x - cx*0.4}" y="${y0 - cx*0.6}" width="${cx*0.8}" height="${cx*0.6}" `
+          + `fill="${tint}" opacity="0.7"/>`;
+  } else if (st === 'ruin') {
+    // Broken outline — rect with a missing corner
+    const x0 = x - w/2, y0 = y - h/2;
+    const path = [
+      `M ${x0} ${y0}`,
+      `L ${x0 + w} ${y0}`,
+      `L ${x0 + w} ${y0 + h*0.6}`,
+      `L ${x0 + w*0.7} ${y0 + h}`,
+      `L ${x0 + w*0.4} ${y0 + h*0.85}`,
+      `L ${x0} ${y0 + h*0.95}`,
+      'Z'
+    ].join(' ');
+    shape = `<path d="${path}" fill="${fill}" stroke="${stroke}" `
+          + `stroke-width="0.022" vector-effect="non-scaling-stroke" `
+          + `stroke-dasharray="0.08 0.04" opacity="0.85"/>`;
+  } else if (st === 'wilderness') {
+    // Dashed outline rect — softer territory
+    shape = `<rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" `
+          + `rx="0.03" fill="${fill}" stroke="${stroke}" stroke-dasharray="0.10 0.06" `
+          + `stroke-width="0.022" vector-effect="non-scaling-stroke" opacity="0.85"/>`;
+  } else if (st === 'hidden') {
+    // Hollow rect — implies discoverable
+    shape = `<rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" `
+          + `rx="0.03" fill="none" stroke="${stroke}" stroke-dasharray="0.05 0.05" `
+          + `stroke-width="0.022" vector-effect="non-scaling-stroke" opacity="0.7"/>`;
+  } else if (st === 'hostile') {
+    // Sharp triangular roof — distinctive silhouette
+    const x0 = x - w/2, y0 = y - h/2;
+    const path = [
+      `M ${x0} ${y0}`,
+      `L ${x0 + w} ${y0}`,
+      `L ${x0 + w} ${y0 + h*0.7}`,
+      `L ${x0 + w/2} ${y0 + h}`,
+      `L ${x0} ${y0 + h*0.7}`,
+      'Z'
+    ].join(' ');
+    shape = `<path d="${path}" fill="${fill}" stroke="#ff5a4a" `
+          + `stroke-width="0.025" vector-effect="non-scaling-stroke"/>`;
+  } else {
+    // Fallback — plain rect
+    shape = `<rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" `
+          + `rx="0.03" fill="${fill}" stroke="${stroke}" `
+          + `stroke-width="0.022" vector-effect="non-scaling-stroke"/>`;
+  }
+
+  // Glyph (always centered, in the room's tint)
+  const glyph = `<g transform="translate(${x} ${y}) scale(1 -1)">`
+              + `<text text-anchor="middle" dominant-baseline="central" `
+              + `font-family="'IBM Plex Mono', monospace" `
+              + `font-size="${Math.min(w, h) * 0.55}" `
+              + `font-weight="${styleColor.weight}" fill="${tint}">`
+              + `${r.symbol || '·'}</text></g>`;
+
+  return `<g>${shape}${glyph}</g>`;
+}
+
+function rooms(geom, palette, mode) {
+  let svg = '<g>';
+  for (const r of geom.rooms) svg += roomShape(r, palette, mode);
+  return svg + '</g>';
+}
+
+/* ─── Player marker (simple — same in baseline + v2) ──────────── */
+function playerMarker(geom, palette) {
+  const p = geom.player;
+  return `<g transform="translate(${p.x} ${p.y})">`
+       + `<circle r="0.42" fill="none" stroke="#6ee8ff" stroke-width="0.04" opacity="0.5">`
+       + `<animate attributeName="r" values="0.30;0.55;0.30" dur="2.4s" repeatCount="indefinite"/>`
+       + `<animate attributeName="opacity" values="0.7;0.05;0.7" dur="2.4s" repeatCount="indefinite"/>`
+       + `</circle>`
+       + `<circle r="0.20" fill="none" stroke="#6ee8ff" stroke-width="0.06"/>`
+       + `<g transform="scale(1 -1)">`
+       + `<polygon points="0,-0.16 0.12,0.08 0,0.02 -0.12,0.08" fill="#6ee8ff" stroke="#04141a" stroke-width="0.018"/>`
+       + `</g></g>`;
+}
+
+/* ─── Contacts (PCs + NPCs) ────────────────────────────────────── */
+function contacts(geom) {
+  let svg = '<g>';
+  for (const c of geom.contacts || []) {
+    if (c.kind === 'pc') {
+      svg += `<g transform="translate(${c.x} ${c.y}) scale(1 -1)">`
+           + `<polygon points="0,-0.13 0.10,0.07 0,0.02 -0.10,0.07" `
+           + `fill="#6ee8ff" opacity="0.85" stroke="#04141a" stroke-width="0.014"/></g>`;
+    } else if (c.kind === 'npc_friend') {
+      svg += `<circle cx="${c.x}" cy="${c.y}" r="0.09" fill="#ffa640"/>`;
+    } else if (c.kind === 'npc_hostile') {
+      svg += `<g transform="translate(${c.x} ${c.y}) scale(1 -1)">`
+           + `<polygon points="0,-0.14 0.13,0.09 -0.13,0.09" fill="#ff5a4a"/></g>`;
+    } else if (c.kind === 'npc_neutral') {
+      svg += `<circle cx="${c.x}" cy="${c.y}" r="0.08" fill="#7a8a90"/>`;
+    }
+  }
+  return svg + '</g>';
+}
+
+/* ─── Labels (street + flavor) ─────────────────────────────────── */
+function pointAlongPolyline(pts, t) {
+  if (!pts || pts.length < 2) return null;
+  const segs = []; let total = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const dx = pts[i+1][0] - pts[i][0];
+    const dy = pts[i+1][1] - pts[i][1];
+    const len = Math.hypot(dx, dy);
+    segs.push({ a: pts[i], b: pts[i+1], len, dx, dy });
+    total += len;
+  }
+  if (total === 0) return { x: pts[0][0], y: pts[0][1], angleDeg: 0, pathLen: 0 };
+  let target = Math.max(0, Math.min(1, t)) * total;
+  for (const s of segs) {
+    if (target <= s.len || s === segs[segs.length - 1]) {
+      const k = s.len === 0 ? 0 : target / s.len;
+      return {
+        x: s.a[0] + s.dx * k, y: s.a[1] + s.dy * k,
+        angleDeg: Math.atan2(s.dy, s.dx) * 180 / Math.PI, pathLen: total,
+      };
+    }
+    target -= s.len;
+  }
+  return null;
+}
+
+function labels(geom, palette) {
+  let svg = '<g>';
+  for (const lbl of geom.labels || []) {
+    let anchor = null;
+    if (lbl.path_id) {
+      const ep = geom.exit_paths && geom.exit_paths[lbl.path_id];
+      if (ep) anchor = pointAlongPolyline(ep.path, lbl.t ?? 0.5);
+    } else if (lbl.between) {
+      const byId = Object.fromEntries(geom.rooms.map(r => [r.id, r]));
+      const a = byId[lbl.between[0]], b = byId[lbl.between[1]];
+      if (a && b) anchor = pointAlongPolyline([[a.x, a.y], [b.x, b.y]], lbl.t ?? 0.5);
+    } else if (lbl.pos) {
+      anchor = { x: lbl.pos[0], y: lbl.pos[1], angleDeg: lbl.rot ?? 0, pathLen: 0 };
+    }
+    if (!anchor) continue;
+    let { x, y, angleDeg, pathLen } = anchor;
+    let flipped = false;
+    if (angleDeg > 90) { angleDeg -= 180; flipped = true; }
+    if (angleDeg < -90) { angleDeg += 180; flipped = true; }
+
+    const isStreet = lbl.kind === 'street';
+    const isFlavor = lbl.kind === 'flavor';
+    let sz = (lbl.size || 8) / 22;
+    const isAllCaps = isStreet && /[A-Z]{3,}/.test(lbl.text);
+    let tracking = isStreet ? (isAllCaps ? sz * 0.18 : sz * 0.06) : sz * 0.04;
+    if (isStreet && pathLen) {
+      const charAdv = sz * 0.6 + tracking;
+      const approxW = lbl.text.length * charAdv;
+      const cap = pathLen * 0.98;
+      if (approxW > cap) { const k = cap / approxW; sz *= k; tracking *= k; }
+      const ribbonW = 0.30 * 0.75; if (sz > ribbonW) { const k = ribbonW / sz; sz *= k; tracking *= k; }
+    }
+    const weight = lbl.weight || (isStreet && isAllCaps ? 500 : 400);
+    const fill = isFlavor ? "#7a8a90" : palette.streetLabel;
+    const opacity = isFlavor ? 0.7 : 0.95;
+    const halo = palette.labelHalo || palette.sandLit;
+    const fontStyle = isFlavor ? 'italic' : 'normal';
+
+    svg += `<g transform="translate(${x} ${y}) scale(1 -1) rotate(${-angleDeg})">`
+         + `<text text-anchor="middle" dominant-baseline="middle" `
+         + `font-family="'IBM Plex Mono', monospace" font-size="${sz}" font-weight="${weight}" `
+         + `font-style="${fontStyle}" letter-spacing="${tracking}" `
+         + `stroke="${halo}" stroke-width="${sz * 0.5}" stroke-linejoin="round" `
+         + `stroke-opacity="0.95" fill="${halo}" fill-opacity="0.95" paint-order="stroke fill" `
+         + `vector-effect="non-scaling-stroke">${lbl.text}</text>`
+         + `<text text-anchor="middle" dominant-baseline="middle" `
+         + `font-family="'IBM Plex Mono', monospace" font-size="${sz}" font-weight="${weight}" `
+         + `font-style="${fontStyle}" letter-spacing="${tracking}" fill="${fill}" opacity="${opacity}">${lbl.text}</text></g>`;
+  }
+  return svg + '</g>';
+}
+
+/* ─── Compose a full Tier-1 SVG ───────────────────────────────── */
+function buildTier1SVG(geom, palette, mode, sw, sh, viewBox, opts) {
+  opts = opts || {};
+  const id = `t1-${mode}-${Math.random().toString(36).slice(2,7)}`;
+  const [vx, vy, vw, vh] = viewBox;
+  const bounds = geom.bounds;
+
+  const defsBlock = `<defs>${substrateDefs(id, palette, opts.substrateMode || (mode === 'baseline' ? 'tatooine' : 'tatooine'))}</defs>`;
+
+  const substrateBlock = (mode === 'baseline')
+    ? // baseline = grit + scan only
+      `<rect x="${bounds.x_min}" y="${bounds.y_min}" `
+      + `width="${bounds.x_max - bounds.x_min}" height="${bounds.y_max - bounds.y_min}" fill="url(#grit-${id})"/>`
+      + `<rect x="${bounds.x_min}" y="${bounds.y_min}" `
+      + `width="${bounds.x_max - bounds.x_min}" height="${bounds.y_max - bounds.y_min}" fill="url(#scan-${id})"/>`
+    : substrate(id, palette, bounds, opts.substrateMode || 'tatooine');
+
+  const ribbonBlock = (mode === 'baseline')
+    ? streetRibbonsBaseline(geom, palette)
+    : streetRibbonsV2(geom, palette);
+
+  return `<svg width="${sw}" height="${sh}" viewBox="${vx} ${vy} ${vw} ${vh}" `
+       + `preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">`
+       + defsBlock
+       + `<g transform="translate(0 ${(bounds.y_min + bounds.y_max) - 0}) scale(1 -1)">`
+       + substrateBlock
+       + districts(geom, palette, { showLabels: false, showFills: true })
+       + ribbonBlock
+       + rooms(geom, palette, mode)
+       + labels(geom, palette)
+       + contacts(geom)
+       + playerMarker(geom, palette)
+       + `</g></svg>`;
+}
+
+/* ─── HUD frame (v2) wrapper ──────────────────────────────────── */
+function hudFrameV2(opts) {
+  const { title, region, breadcrumb, controls, w, h, body, legend, footerRight, tierLabel } = opts;
+  return `<div class="hud-v2" style="width:${w}px; height:${h}px;">
+    <div class="strip">
+      <span class="title">${title}</span>
+      <span class="crumb">${breadcrumb || ''}</span>
+      <span class="ctrls">${controls || ''}</span>
+    </div>
+    ${region ? `<div class="region-strip">${region}</div>` : ''}
+    <div class="map-area" style="position:relative; flex:1; height:${h - 80}px;">
+      ${body}
+      ${tierLabel ? `<div class="tier-badge">${tierLabel}</div>` : ''}
+      <div class="compass">
+        <span class="n">N</span><span class="s">S</span><span class="e">E</span><span class="w">W</span>
+        <div class="needle"></div>
+      </div>
+      <div class="scale-bar"><div class="bar"></div><span>50 m</span></div>
+    </div>
+    ${legend ? `<div class="footer"><span>${legend}</span><span style="color:#ffa640;">${footerRight || ''}</span></div>` : ''}
+  </div>`;
+}
+
+/* ─── Baseline HUD (prototype-equivalent — flat bezel) ───────── */
+function hudFrameBaseline(opts) {
+  const { title, region, breadcrumb, controls, w, h, body, legend, footerRight, tierLabel } = opts;
+  return `<div style="width:${w}px; height:${h}px; background:#020a0e; color:#cfe9f0;
+    font-family:'IBM Plex Mono', monospace; position:relative;
+    border:1px solid #163844; box-shadow:inset 0 0 0 1px #000;
+    display:flex; flex-direction:column;">
+    <div style="display:flex; justify-content:space-between; align-items:center;
+      padding:6px 10px; border-bottom:1px solid #163844; font-size:10px;
+      letter-spacing:2px; color:#2e7080; text-transform:uppercase; background:#07181f;">
+      <span style="color:#ffa640; font-weight:600;">▮▮ ${title}</span>
+      <span style="color:#cfe9f0; opacity:0.85; letter-spacing:1px; font-size:10px;">${breadcrumb || ''}</span>
+      <span>${controls || ''}</span>
+    </div>
+    ${region ? `<div style="padding:4px 10px; font-size:11px; letter-spacing:3px; color:#ffa640;
+      text-transform:uppercase; border-bottom:1px dashed #163844;
+      background:rgba(255,166,64,0.04);">${region}</div>` : ''}
+    <div style="flex:1; position:relative; overflow:hidden;">
+      ${body}
+      ${tierLabel ? `<div style="position:absolute; left:10px; top:8px;
+        padding:2px 6px; font-size:9px; letter-spacing:2px; color:#6ee8ff;
+        border:1px solid #2e7080; background:rgba(4,20,26,0.6);">${tierLabel}</div>` : ''}
+      <div style="position:absolute; right:10px; top:8px; width:46px; height:46px;
+        border:1px solid #2e7080; border-radius:50%; color:#6ee8ff;
+        font-family:'IBM Plex Mono', monospace; font-size:9px;
+        display:grid; place-items:center; background:rgba(4,20,26,0.6);">
+        <div style="position:absolute; top:2px; font-size:9px; color:#ffa640;">N</div>
+        <div style="position:absolute; bottom:2px; font-size:8px; color:#2e7080;">S</div>
+        <div style="position:absolute; left:3px; font-size:8px; color:#2e7080;">W</div>
+        <div style="position:absolute; right:3px; font-size:8px; color:#2e7080;">E</div>
+        <div style="width:2px; height:18px; background:#ffa640; transform:translateY(-2px);"></div>
+      </div>
+      <div style="position:absolute; left:10px; bottom:8px; color:#2e7080;
+        font-family:'IBM Plex Mono', monospace; font-size:9px; letter-spacing:1.5px;
+        display:flex; align-items:center; gap:6px;">
+        <div style="width:60px; height:6px; border:1px solid #2e7080;
+          background:linear-gradient(90deg, #2e7080 50%, transparent 50%);"></div>
+        <span>50 m</span>
+      </div>
+    </div>
+    ${legend ? `<div style="padding:5px 10px; font-size:10px; letter-spacing:1.5px;
+      color:#2e7080; border-top:1px solid #163844; background:#07181f;
+      display:flex; justify-content:space-between;">
+      <span>${legend}</span><span style="color:#ffa640;">${footerRight || ''}</span></div>` : ''}
+  </div>`;
+}
+
+/* ─── Tier 1 — baseline mount ────────────────────────────────── */
+const tier1Body = (mode, palette) => buildTier1SVG(
+  ME, palette, mode, 540, 380,
+  [2.4, -0.4, 12.4, 7.8],
+  { substrateMode: palette === PAL_C ? 'coruscant' : 'tatooine' }
+);
+
+document.getElementById('baseline-tier1').innerHTML = hudFrameBaseline({
+  title: 'MAP · DISTRICT VIEW', w: 540, h: 460,
+  region: 'TATOOINE › MOS EISLEY › SPACEPORT › BAY 94 PIT',
+  breadcrumb: 'BASELINE',
+  controls: '−  ▮  +   ESC',
+  body: tier1Body('baseline', window.PALETTES.tatooine),
+  legend: '◉ YOU · ▾ PC · ● NPC FRIENDLY · ▲ HOSTILE',
+  footerRight: '20 BBY · CW',
+  tierLabel: 'TIER 1 · DISTRICT',
+});
+
+document.getElementById('v2-tier1').innerHTML = hudFrameV2({
+  title: 'MAP · DISTRICT VIEW', w: 540, h: 460,
+  region: 'TATOOINE › MOS EISLEY › SPACEPORT › BAY 94 PIT',
+  breadcrumb: 'V2',
+  controls: '−  ▮  +   ESC',
+  body: tier1Body('v2', PAL_T),
+  legend: '◉ YOU · ▾ PC · ● NPC FRIENDLY · ▲ HOSTILE',
+  footerRight: '20 BBY · CW',
+  tierLabel: 'TIER 1 · DISTRICT',
+});
+
+/* ─── Coruscant Senate v2 ─────────────────────────────────────── */
+const ME_SEN = Object.assign({}, ME, {
+  display_name: 'SENATE DISTRICT',
+  districts: ME.districts.map((d, i) => ({ ...d, name:
+    ['SENATE PLAZA','DIPLOMATIC ROW','ROTUNDA','WORKS','SKYBRIDGE','UPPER SPIRES','REPULSORLANES'][i] || d.name }))
+});
+
+document.getElementById('v2-coruscant').innerHTML = hudFrameV2({
+  title: 'MAP · SENATE DISTRICT', w: 720, h: 460,
+  region: 'CORUSCANT › SENATE DISTRICT › ROTUNDA APPROACH',
+  breadcrumb: 'V2 · PALETTE SWAP',
+  controls: '−  ▮  +   ESC',
+  body: buildTier1SVG(ME_SEN, PAL_C, 'v2', 720, 380, [2.4, -0.4, 12.4, 7.8], { substrateMode: 'coruscant' }),
+  legend: 'Same renderer · same data shape · CORUSCANT palette overlay',
+  footerRight: '20 BBY · CW',
+  tierLabel: 'TIER 1 · DISTRICT',
+});
+
+/* ─── Tier-2 → Tier-3 transition (fix #5) ──────────────────── */
+function buildTier2SVG(geom, palette, sw, sh) {
+  const id = `t2-${Math.random().toString(36).slice(2, 7)}`;
+  const bounds = geom.bounds;
+  const defsBlock = `<defs>${substrateDefs(id, palette, 'tatooine')}</defs>`;
+  // Tier-2: rooms collapse to dots, district fills + labels visible
+  let dots = '<g>';
+  for (const r of geom.rooms) {
+    if (r.style === 'street') continue;
+    const tint = (window.STYLE_TAGS[r.style] || {}).tint || palette.accent;
+    dots += `<circle cx="${r.x}" cy="${r.y}" r="0.10" fill="${tint}" opacity="0.85"/>`;
+  }
+  dots += '</g>';
+  return `<svg width="${sw}" height="${sh}" viewBox="2.4 -0.6 12.6 8.4" `
+       + `preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">`
+       + defsBlock
+       + `<g transform="translate(0 ${bounds.y_min + bounds.y_max}) scale(1 -1)">`
+       + substrate(id, palette, bounds, 'tatooine')
+       + districts(geom, palette, { showLabels: true, showFills: true })
+       + streetRibbonsV2(geom, palette)
+       + dots
+       + playerMarker(geom, palette)
+       + `</g></svg>`;
+}
+
+document.getElementById('t2-frame').innerHTML = hudFrameV2({
+  title: 'MAP · CITY', w: 380, h: 360,
+  region: 'TATOOINE › MOS EISLEY',
+  breadcrumb: 'T = 0 ms',
+  controls: '−  ▮  +   ESC',
+  body: buildTier2SVG(ME, PAL_T, 380, 280),
+  legend: 'DISTRICTS · LANDMARKS · ◉ YOU',
+  footerRight: 'TIER 2',
+  tierLabel: 'TIER 2 · CITY',
+});
+
+/* ─── Transit frame: a real cross-fade — Tier-2 city dimming on the
+       left, planet sphere emerging on the right, with the spaceport
+       polygon mid-flight as a highlighted motion gesture. ───────── */
+function buildTransitSVG(sw, sh) {
+  const id = `tr-${Math.random().toString(36).slice(2, 7)}`;
+  // Layout: city occupies left half, planet occupies right half, both
+  // visible at half opacity so the eye reads them as cross-fading layers.
+  const cityScale = 22;
+  const cityCx = 110, cityCy = sh / 2;          // center of dimmed city
+  const planetCx = sw - 110, planetCy = sh / 2; // center of emerging planet
+  const planetR = 95;
+  // The destination pin lives on the planet at Mos Eisley's position.
+  // In the planet view, Mos Eisley is at world (5.0, 5.0) on a [0..10] scale.
+  // Planet sphere has r=planetR centered at (planetCx, planetCy).
+  // Convert (5.0, 5.0) on a 10-unit world to pin offset:
+  //   dx = (5.0 - 5) * (planetR / 5) = 0
+  //   dy = -((5.0 - 5) * (planetR / 5)) = 0  (Y-up flip)
+  const pinX = planetCx, pinY = planetCy;
+
+  // The mid-flight polygon: halfway between the city and the pin.
+  const flightX = (cityCx + pinX) / 2;
+  const flightY = (cityCy + pinY) / 2 - 28;  // lifted a bit on the arc
+  const sp = ME.districts.find(d => d.id === 'spaceport');
+  const polyPts = sp.polygon.map(p => p.join(',')).join(' ');
+
+  return `<svg width="${sw}" height="${sh}" viewBox="0 0 ${sw} ${sh}" `
+       + `preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">`
+       + `<defs>
+            <radialGradient id="planet-${id}" cx="0.42" cy="0.38" r="0.75">
+              <stop offset="0%"   stop-color="#c4a060"/>
+              <stop offset="55%"  stop-color="#7a5a30"/>
+              <stop offset="100%" stop-color="#3a2c1a"/>
+            </radialGradient>
+            <radialGradient id="atmo-${id}" cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0%"   stop-color="#5a4528" stop-opacity="0"/>
+              <stop offset="80%"  stop-color="#5a4528" stop-opacity="0"/>
+              <stop offset="92%"  stop-color="#ffa640" stop-opacity="0.18"/>
+              <stop offset="100%" stop-color="#ffa640" stop-opacity="0"/>
+            </radialGradient>
+            <pattern id="dunesT-${id}" width="0.25" height="0.25" patternUnits="userSpaceOnUse">
+              <path d="M0 0.20 Q0.06 0.10 0.12 0.20 T0.25 0.20"
+                    fill="none" stroke="#5a4528" stroke-width="0.012" opacity="0.55"/>
+            </pattern>
+          </defs>`
+       + `<rect width="${sw}" height="${sh}" fill="#070503"/>`
+       // --- Layer 1: dimmed Tier-2 city on the LEFT, fading out ---
+       + `<g transform="translate(${cityCx} ${cityCy}) scale(${cityScale} -${cityScale}) translate(-5.4 -3.5)" opacity="0.28">`
+       + districts(ME, PAL_T, { showLabels: false, showFills: true })
+       + streetRibbonsV2(ME, PAL_T)
+       + `</g>`
+       + `<text x="${cityCx}" y="${sh - 18}" text-anchor="middle" `
+       + `font-family="'IBM Plex Mono', monospace" font-size="9" letter-spacing="2" fill="#5e8590">CITY · FADING</text>`
+       // --- Layer 2: forming planet on the RIGHT, fading in ---
+       + `<g opacity="0.78">`
+       + `<circle cx="${planetCx}" cy="${planetCy}" r="${planetR * 1.15}" fill="url(#atmo-${id})"/>`
+       + `<circle cx="${planetCx}" cy="${planetCy}" r="${planetR}" fill="url(#planet-${id})"/>`
+       + `<circle cx="${planetCx}" cy="${planetCy}" r="${planetR}" fill="url(#dunesT-${id})" opacity="0.65"/>`
+       + `<circle cx="${planetCx}" cy="${planetCy}" r="${planetR}" fill="none" stroke="#ffa640" `
+       + `stroke-width="0.6" stroke-dasharray="3 2" opacity="0.7"/>`
+       + `</g>`
+       + `<text x="${planetCx}" y="${sh - 18}" text-anchor="middle" `
+       + `font-family="'IBM Plex Mono', monospace" font-size="9" letter-spacing="2" fill="#5e8590">PLANET · EMERGING</text>`
+       // --- Layer 3: the motion arc — dashed Bézier from city to pin ---
+       + `<path d="M ${cityCx + 26} ${cityCy} Q ${flightX} ${flightY} ${pinX - 8} ${pinY}" `
+       + `fill="none" stroke="#ffd089" stroke-width="0.8" stroke-dasharray="3 3" opacity="0.6"/>`
+       // --- Layer 4: the spaceport polygon, mid-flight, highlighted ---
+       + `<g transform="translate(${flightX} ${flightY}) scale(8 -8) translate(-5.4 -3.5)" opacity="0.85">`
+       + `<polygon points="${polyPts}" fill="#ffd089" fill-opacity="0.30" `
+       + `stroke="#ffd089" stroke-width="0.10" vector-effect="non-scaling-stroke"/>`
+       + `</g>`
+       + `<text x="${flightX}" y="${flightY - 32}" text-anchor="middle" `
+       + `font-family="'IBM Plex Mono', monospace" font-size="9" letter-spacing="1.5" fill="#ffd089">SPACEPORT POLYGON · IN TRANSIT</text>`
+       // --- Layer 5: the destination pin, just lighting up ---
+       + `<circle cx="${pinX}" cy="${pinY}" r="14" fill="none" stroke="#ffd089" stroke-width="1.2" opacity="0.7">`
+       + `<animate attributeName="r" values="6;18;6" dur="1.8s" repeatCount="indefinite"/>`
+       + `<animate attributeName="opacity" values="0.9;0.2;0.9" dur="1.8s" repeatCount="indefinite"/></circle>`
+       + `<polygon points="${pinX},${pinY - 4} ${pinX + 4},${pinY} ${pinX},${pinY + 4} ${pinX - 4},${pinY}" fill="#ffd089"/>`
+       + `<text x="${pinX + 8}" y="${pinY + 3}" font-family="'IBM Plex Mono', monospace" `
+       + `font-size="10" letter-spacing="1" fill="#ffd089" font-weight="500">MOS EISLEY</text>`
+       + `</svg>`;
+}
+
+document.getElementById('t23-frame').innerHTML = hudFrameV2({
+  title: 'MAP · TRANSITION', w: 480, h: 360,
+  region: 'TATOOINE › MOS EISLEY ⇢ PLANET',
+  breadcrumb: 'T = 250 ms',
+  controls: '−  ▮  +   ESC',
+  body: buildTransitSVG(480, 280),
+  legend: 'City polygons → planet pin · 250 ms ease',
+  footerRight: 'TIER 2 → 3',
+  tierLabel: 'TRANSIT',
+});
+
+/* ─── Tier 3 — planet view with the pin lit ─────────────────── */
+function buildTier3SVG(sw, sh) {
+  const id = `t3-${Math.random().toString(36).slice(2, 7)}`;
+  return `<svg width="${sw}" height="${sh}" viewBox="0 0 10 10" `
+       + `preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">`
+       + `<defs>
+            <radialGradient id="atmo-${id}" cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0%"   stop-color="#5a4528" stop-opacity="0"/>
+              <stop offset="80%"  stop-color="#5a4528" stop-opacity="0"/>
+              <stop offset="92%"  stop-color="#ffa640" stop-opacity="0.20"/>
+              <stop offset="100%" stop-color="#ffa640" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="planet-${id}" cx="0.42" cy="0.38" r="0.75">
+              <stop offset="0%"   stop-color="#c4a060"/>
+              <stop offset="55%"  stop-color="#7a5a30"/>
+              <stop offset="100%" stop-color="#3a2c1a"/>
+            </radialGradient>
+            <pattern id="dunes3-${id}" width="0.25" height="0.25" patternUnits="userSpaceOnUse">
+              <path d="M0 0.20 Q0.06 0.10 0.12 0.20 T0.25 0.20"
+                    fill="none" stroke="#5a4528" stroke-width="0.012" opacity="0.55"/>
+            </pattern>
+          </defs>`
+       + `<rect width="10" height="10" fill="#070503"/>`
+       + `<circle cx="5" cy="5" r="4.2" fill="url(#atmo-${id})"/>`
+       + `<circle cx="5" cy="5" r="3.6" fill="url(#planet-${id})"/>`
+       + `<circle cx="5" cy="5" r="3.6" fill="url(#dunes3-${id})" opacity="0.7"/>`
+       + `<circle cx="5" cy="5" r="3.6" fill="none" stroke="#ffa640" stroke-width="0.02" stroke-dasharray="0.1 0.06" vector-effect="non-scaling-stroke"/>`
+       + `<circle cx="1.4" cy="1.5" r="0.20" fill="#ffd089"/>`
+       + `<circle cx="2.0" cy="1.0" r="0.14" fill="#ffd089" opacity="0.85"/>`
+       // Cities
+       + `<polygon points="4.2,4.2 4.3,4.3 4.2,4.4 4.1,4.3" fill="#ffa640"/>`
+       + `<text x="4.4" y="4.28" font-family="'IBM Plex Mono', monospace" font-size="0.14" fill="#ffa640" letter-spacing="0.05">MOS ESPA</text>`
+       + `<polygon points="5.6,3.6 5.7,3.7 5.6,3.8 5.5,3.7" fill="#ffa640"/>`
+       + `<text x="5.8" y="3.68" font-family="'IBM Plex Mono', monospace" font-size="0.14" fill="#ffa640" letter-spacing="0.05">BESTINE</text>`
+       + `<polygon points="5.4,6.0 5.5,6.1 5.4,6.2 5.3,6.1" fill="#ffa640"/>`
+       + `<text x="5.6" y="6.08" font-family="'IBM Plex Mono', monospace" font-size="0.14" fill="#ffa640" letter-spacing="0.05">ANCHORHEAD</text>`
+       + `<polygon points="6.6,5.7 6.7,5.8 6.6,5.9 6.5,5.8" fill="#ffd089"/>`
+       + `<text x="6.8" y="5.78" font-family="'IBM Plex Mono', monospace" font-size="0.14" fill="#ffd089" letter-spacing="0.05">JABBA'S PALACE</text>`
+       // Mos Eisley — YOU ARE HERE — with arriving polygon ghost
+       + `<g>`
+       // Pulse ring (just landed)
+       + `<circle cx="5.0" cy="5.0" r="0.30" fill="none" stroke="#6ee8ff" stroke-width="0.025">`
+       + `<animate attributeName="r" values="0.20;0.55;0.20" dur="2.4s" repeatCount="indefinite"/>`
+       + `<animate attributeName="opacity" values="0.8;0.05;0.8" dur="2.4s" repeatCount="indefinite"/></circle>`
+       // The recently-arrived polygon ghost (residual from the transit)
+       // Mos Eisley spaceport polygon, scaled down dramatically and pinned to the city.
+       + `<g transform="translate(5.0 5.0) scale(0.10 -0.10) translate(-5.4 -5.5)" opacity="0.65">`
+       + `<polygon points="${ME.districts.find(d=>d.id==='spaceport').polygon.map(p=>p.join(',')).join(' ')}" `
+       + `fill="#6ee8ff" fill-opacity="0.50" stroke="#6ee8ff" stroke-width="0.18" vector-effect="non-scaling-stroke">`
+       + `<animate attributeName="opacity" values="0.85;0.20;0.85" dur="2.0s" repeatCount="indefinite"/>`
+       + `</polygon>`
+       + `</g>`
+       + `<polygon points="5.0,4.86 5.10,5.08 5.0,5.04 4.90,5.08" fill="#6ee8ff" stroke="#04141a" stroke-width="0.018"/>`
+       + `<text x="5.16" y="5.06" font-family="'IBM Plex Mono', monospace" font-size="0.16" fill="#6ee8ff" letter-spacing="0.05" font-weight="500">MOS EISLEY</text>`
+       + `</g>`
+       + `</svg>`;
+}
+
+document.getElementById('t3-frame').innerHTML = hudFrameV2({
+  title: 'MAP · PLANET', w: 380, h: 360,
+  region: 'TATOOINE · OUTER RIM · ARKANIS SECTOR',
+  breadcrumb: 'T = 500 ms',
+  controls: '−  ▮  +   ESC',
+  body: buildTier3SVG(380, 280),
+  legend: '◆ CITY · ◉ YOU (RESIDUAL POLYGON FADING)',
+  footerRight: 'TIER 3',
+  tierLabel: 'TIER 3 · PLANET',
+});
+
+</script>
+
+</body>
+</html>

@@ -270,8 +270,14 @@ class TestStructural(unittest.TestCase):
         self.assertIn('key = "+den"', cmd)
 
     def test_v40_migration_present(self):
+        import re
         db_src = _src("db", "database.py")
-        self.assertIn("SCHEMA_VERSION = 40", db_src)
+        # SCHEMA_VERSION advances on every later migration (Drop 4b added v41,
+        # etc.), so assert it's at least 40 rather than pinning the exact
+        # latest-version literal; pin the v40 migration's own deliverable below.
+        m = re.search(r"SCHEMA_VERSION\s*=\s*(\d+)", db_src)
+        self.assertIsNotNone(m, "SCHEMA_VERSION not found in database.py")
+        self.assertGreaterEqual(int(m.group(1)), 40)
         self.assertIn("40: [", db_src)
         self.assertIn("CREATE TABLE IF NOT EXISTS sabacc_dens", db_src)
 

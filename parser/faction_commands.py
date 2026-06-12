@@ -18,7 +18,7 @@ Commands:
   guild join <code>   — join a guild (max 3)
   guild leave <code>  — leave a guild
 
-  specialize <1-4>    — choose Imperial specialization
+  specialize <1-4>    — choose your faction specialization
 """
 import logging
 from parser.commands import BaseCommand, CommandContext, AccessLevel
@@ -34,6 +34,7 @@ from parser.commands import BaseCommand, CommandContext, AccessLevel
 # truth full-suite run. The guild-side imports stay local because
 # GuildCommand.execute is still inline (no `_cmd_*` split there).
 from engine.organizations import (
+    format_org_posture_line,
     join_faction, leave_faction,
     format_faction_status, format_faction_list,
 )
@@ -237,6 +238,9 @@ class FactionCommand(BaseCommand):
             f"\033[1;36m──────────────────────────────────────────\033[0m",
             f"  Rank Table:",
         ]
+        _posture = format_org_posture_line(org)
+        if _posture:
+            lines.insert(3, _posture)
         for r in ranks:
             lines.append(
                 f"    [{r['rank_level']}] {r['title']:<18}  "
@@ -912,10 +916,10 @@ class SpecializeCommand(BaseCommand):
     key = "specialize"
     aliases = ["specialise"]
     help_text = (
-        "Select your faction specialization (only available after joining a "
-        "faction with specializations: Empire or Republic).\n"
-        "  Imperial:  1 = Stormtrooper  2 = TIE Pilot  3 = Naval Officer  4 = Intelligence\n"
-        "  Republic:  1 = Clone Trooper 2 = Clone Pilot 3 = Clone Officer  4 = Republic Intelligence"
+        "Select your faction specialization. Available once you've joined a "
+        "faction that offers onboarding specializations.\n"
+        "  Type `specialize <1-4>` — the roles available to your faction "
+        "are listed when you run it."
     )
     usage = "specialize <1-4>"
 
@@ -934,7 +938,7 @@ class SpecializeCommand(BaseCommand):
         if not faction_has_specialization(faction_code):
             await ctx.session.send_line(
                 "  This command is only available to faction members "
-                "with onboarding specializations (currently: Empire or Republic)."
+                "whose faction offers onboarding specializations."
             )
             return
 

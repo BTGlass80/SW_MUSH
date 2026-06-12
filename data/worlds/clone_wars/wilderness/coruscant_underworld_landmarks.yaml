@@ -325,7 +325,7 @@ transit_nodes:
     # remains for the city-side handoff. Reconciliation into a single
     # room is a follow-up drop tracked under TD.2.
     connects_levels: [mid]
-    connects_to_zone: coruscant_lower     # the city-side zone slug
+    connects_to_zone: southern_underground     # the city-side zone slug
     connects_to_room: southern_underground
     short_desc: >
       The single explicit handoff between Coruscant city and the

@@ -51,29 +51,16 @@ _lots_cache: dict[str, dict] = {}
 # specified security tier. Default is "contested" for unmapped zones — this
 # is the design's "permissive default" for new content not yet classified.
 _ZONE_SECURITY = {
-    # Coruscant
-    "coruscant_senate": "secured",
-    "coruscant_temple": "secured",
-    "coruscant_upper": "secured",
-    "coruscant_midlevels": "contested",
-    "coruscant_lower": "lawless",
-    "coruscant_underworld": "lawless",
-    "coruscant_works": "contested",
-    "coruscant_gilded_cage": "contested",
-    # Kuat
     "kuat_main_spaceport": "secured",
     "kuat_city_embassy": "secured",
     "kdy_orbital_ring": "secured",
-    # Kamino
     "kamino_tipoca_city": "secured",
     "kamino_cloning_halls": "secured",
     "kamino_ocean_platform": "contested",
-    # Geonosis
     "geonosis_surface": "lawless",
     "geonosis_petranaki": "contested",
     "geonosis_deep_hive": "lawless",
     "geonosis_foundries": "lawless",
-    # Tatooine
     "tatooine_spaceport": "secured",
     "tatooine_mos_eisley": "secured",
     "tatooine_market": "contested",
@@ -82,11 +69,17 @@ _ZONE_SECURITY = {
     "tatooine_outskirts": "contested",
     "tatooine_jundland": "lawless",
     "tatooine_dune_sea": "lawless",
-    # Nar Shaddaa
     "nar_shaddaa_landing": "contested",
     "nar_shaddaa_promenade": "contested",
     "nar_shaddaa_undercity": "lawless",
     "nar_shaddaa_warrens": "lawless",
+    "senate_district": "secured",
+    "jedi_temple": "secured",
+    "monumental_district": "secured",
+    "commercial_district": "secured",
+    "entertainment_district": "secured",
+    "southern_underground": "contested",
+    "coruscant_underworld": "lawless",
 }
 
 

@@ -34,7 +34,13 @@ log = logging.getLogger(__name__)
 
 RESOURCE_TYPES = {
     # T1-T4 (era-neutral, exist anywhere)
+    # CRAFT.P0.6 / Gundark decision 1a (2026-06-10): "electronic" is the
+    # formalized 7th base type. sensor_mask + comm_jammer consumed it from
+    # day one, but it was never declared — add_resource rejected it, so
+    # both recipes were permanently uncraftable. Harvested from urban /
+    # tech zones (engine.harvest.YIELD_TABLE).
     "metal", "chemical", "organic", "energy", "composite", "rare",
+    "electronic",
     # T5 wilderness-only materials (SYN.6.c, May 25 2026).
     # Per contestable_wilderness_design_v2.md §2.5.6:
     #   - kyber_shard_minor       — force-resonant wilderness landmarks
@@ -67,6 +73,7 @@ RESOURCE_TYPES = {
 # quality is determined when the player surveys the specific landmark.
 HARVESTABLE_RESOURCE_TYPES = frozenset({
     "metal", "chemical", "organic", "energy", "composite", "rare",
+    "electronic",   # CRAFT.P0.6: urban/tech-zone yields
 })
 
 # Subset of RESOURCE_TYPES that gates T5 crafting. Used by the T5
@@ -503,6 +510,12 @@ def check_resources(char: dict, components: list) -> tuple[bool, str]:
     """
     Verify the character has all required components (type, qty, min_quality).
     Returns (ok: bool, message: str).
+
+    CRAFT.P0.1 (phantom re-delivery, Bug A — T2.DEF.t5_discoverability):
+    distinguishes QUANTITY-blocked ("need Nx — you have none/too few") from
+    QUALITY-blocked ("have 5x but only 0x at q75+, best grade q72"), so a
+    player holding plenty of low-grade material is told to refine or survey
+    higher-grade rather than to gather more.
     """
     resources = _get_resource_list(char)
     missing = []
@@ -510,14 +523,26 @@ def check_resources(char: dict, components: list) -> tuple[bool, str]:
         rtype    = comp["type"]
         required = comp["quantity"]
         min_q    = comp.get("min_quality", 1)
-        available = sum(
+        stacks = [s for s in resources if s.get("type") == rtype]
+        total_any = sum(int(s.get("quantity", 0)) for s in stacks)
+        qualified = sum(
             int(s.get("quantity", 0))
-            for s in resources
-            if s.get("type") == rtype and float(s.get("quality", 0)) >= min_q
+            for s in stacks
+            if float(s.get("quality", 0)) >= min_q
         )
-        if available < required:
+        if qualified >= required:
+            continue
+        if total_any < required:
+            # Quantity-blocked: not enough of the type at any grade.
+            have_str = f"you have {total_any}x" if total_any else "you have none"
+            missing.append(f"need {required}x {rtype} — {have_str}")
+        else:
+            # Quality-blocked: enough material, too low-grade.
+            best = max(float(s.get("quality", 0)) for s in stacks)
             missing.append(
-                f"{required - available}x more {rtype} (min quality {min_q})"
+                f"{rtype}: have {total_any}x but only {qualified}x at "
+                f"q{min_q}+, best grade q{best:.0f} — refine or survey "
+                f"higher-grade"
             )
     if missing:
         return False, "Missing components: " + "; ".join(missing)
@@ -590,6 +615,21 @@ def get_known_schematics(char: dict) -> list:
     if not isinstance(attrs, dict):
         attrs = {}
     return list(attrs.get("schematics", []))
+
+
+def schematic_tuition(schematic: dict) -> int:
+    """CRAFT.schematic_tuition = a (2026-06-12, Gundark Drop G):
+    trainer-taught recipes cost 50% of base_cost, floored at 50 cr.
+    PC-to-PC teaching stays free; each trainer's first lesson is free
+    (the tutorial-chain safety, kept as diegesis even though no chain
+    turned out to depend on it). Charged via
+    adjust_credits(..., "schematic_tuition") — a real credit sink.
+    """
+    try:
+        base = int(schematic.get("base_cost", 0) or 0)
+    except (TypeError, ValueError):
+        base = 0
+    return max(50, base // 2)
 
 
 def add_known_schematic(char: dict, schematic_key: str) -> bool:
@@ -774,7 +814,9 @@ def get_survey_resources(zone_name: str, quality: float = 50.0) -> list[dict]:
     Return a list of resource dicts a character finds by surveying in a zone.
 
     Each dict: {"type": str, "amount": int, "quality": float}
-    Outdoor zones yield metal + organic; city zones yield chemical + energy.
+    Outdoor zones yield metal + organic; city zones yield chemical +
+    energy + electronic (CRAFT.P0.6 — urban tech scrap is the supply
+    line for the formalized 7th resource type).
     Amount scales with quality: higher quality → more resources.
     """
     import random
@@ -782,7 +824,7 @@ def get_survey_resources(zone_name: str, quality: float = 50.0) -> list[dict]:
     if any(kw in lz for kw in _OUTDOOR_ZONE_KEYWORDS):
         types = ["metal", "organic"]
     else:
-        types = ["chemical", "energy"]
+        types = ["chemical", "energy", "electronic"]
 
     results = []
     for rtype in types:
@@ -815,3 +857,89 @@ def survey_quality_from_margin(margin: int, is_outdoor: bool = False) -> float:
     # +2 quality per margin point above 0, up to ceiling
     quality = base + max(0, margin) * 2.0
     return round(min(quality, ceiling), 1)
+
+
+# ── crafting_state payload (Webify UI-8 crafting panel) ─────────────────────
+#
+# ABI pinned in web_client_vision_and_protocol_v1_4.md §1.9 and accepted by
+# Brian 2026-06-10 (design pass §3.4 / decision 7). The panel renders ONLY
+# what the engine already computes — `craftable` and the per-component
+# have / have_at_quality numbers are exactly the CRAFT.P0.1 check_resources
+# diagnostics, exposed structurally instead of as prose. No producer-less
+# fields; real verbs staged client-side (`craft <name>`, `survey`,
+# `buyresources <type> <qty>`), never auto-sent.
+
+def component_availability(char: dict, comp: dict) -> dict:
+    """Per-component availability for one schematic requirement.
+
+    Returns {"type", "quantity", "min_quality", "have", "have_at_quality"}
+    where `have` counts the type at ANY grade and `have_at_quality` counts
+    only stacks meeting min_quality — the same split check_resources uses
+    for its quantity-vs-quality diagnostics.
+    """
+    rtype = comp["type"]
+    min_q = comp.get("min_quality", 1)
+    stacks = [s for s in _get_resource_list(char) if s.get("type") == rtype]
+    have = sum(int(s.get("quantity", 0)) for s in stacks)
+    have_q = sum(int(s.get("quantity", 0)) for s in stacks
+                 if float(s.get("quality", 0)) >= min_q)
+    return {
+        "type": rtype,
+        "quantity": int(comp.get("quantity", 1)),
+        "min_quality": int(min_q),
+        "have": have,
+        "have_at_quality": have_q,
+    }
+
+
+def build_crafting_state(char: dict, last_result: dict = None) -> dict:
+    """Assemble the ``crafting_state`` push for the web crafting panel.
+
+    Pure/sync. Known schematics only (the panel is not a catalog browser —
+    discovery stays with trainers, per the teach/trainer loop). Malformed
+    schematic rows are skipped, never raised. ``last_result`` is the
+    parser-shaped summary of the craft that just resolved (None outside
+    the craft verb's own push).
+    """
+    out = {"schematics": [], "resources": [], "last_result": None}
+    try:
+        all_schem = get_all_schematics()
+        for key in get_known_schematics(char):
+            schem = all_schem.get(key)
+            if not isinstance(schem, dict):
+                continue
+            try:
+                comps = [component_availability(char, c)
+                         for c in schem.get("components", [])]
+                craftable = all(
+                    c["have_at_quality"] >= c["quantity"] for c in comps)
+                out["schematics"].append({
+                    "key":         key,
+                    "name":        schem.get("name", key),
+                    "skill":       schem.get("skill_required", ""),
+                    "difficulty":  schem.get("difficulty", 10),
+                    "craftable":   craftable,
+                    "components":  comps,
+                    "output_type": schem.get("output_type", ""),
+                    "t5":          key.startswith("t5_"),
+                })
+            except Exception:
+                continue   # one malformed row never sinks the panel
+        out["resources"] = [
+            {"type": s.get("type", ""),
+             "quantity": int(s.get("quantity", 0)),
+             "quality": float(s.get("quality", 0))}
+            for s in _get_resource_list(char)
+            if s.get("type")
+        ]
+        if isinstance(last_result, dict):
+            out["last_result"] = {
+                "success": bool(last_result.get("success")),
+                "partial": bool(last_result.get("partial")),
+                "fumble":  bool(last_result.get("fumble")),
+                "quality": float(last_result.get("quality", 0) or 0),
+                "name":    str(last_result.get("name", "")),
+            }
+    except Exception:
+        log.debug("build_crafting_state failed", exc_info=True)
+    return out

@@ -80,7 +80,7 @@ class Config:
         "\r\n"
         "\033[33m  Mos Eisley Spaceport.\033[0m\r\n"
         "\033[2m  You will never find a more wretched hive of scum and\r\n"
-        "  villainy.  Smugglers, bounty hunters, and Imperial patrols\r\n"
+        "  villainy.  Smugglers, bounty hunters, and cartel enforcers\r\n"
         "  fill its dusty streets.  Your story begins here.\033[0m\r\n"
         "\r\n"
         "\033[36m  ───────────────────────────────────────────────────────────\033[0m\r\n"

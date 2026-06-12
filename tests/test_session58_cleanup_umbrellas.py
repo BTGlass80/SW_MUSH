@@ -249,7 +249,7 @@ class TestHomeUmbrella(unittest.TestCase):
     def test_switch_impl_populated(self):
         from parser.housing_commands import _HOME_SWITCH_IMPL
         self.assertEqual(set(_HOME_SWITCH_IMPL.keys()),
-                         {"view", "sethome", "admin"})
+                         {"view", "sethome", "admin", "prestige"})
 
 
 class TestHomeHelpFile(unittest.TestCase):

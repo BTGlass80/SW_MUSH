@@ -125,17 +125,16 @@ def _ai(personality="", knowledge=None, faction="Neutral", style="",
 # BUILD FUNCTION
 # ==============================================================
 
-async def build(db_path="sw_mush.db", era="gcw"):
+async def build(db_path="sw_mush.db", era="clone_wars"):
     """
     Build the world for the given era.
 
     Args:
         db_path: SQLite DB path. Created if missing.
-        era: Era code matching a directory under data/worlds/. As of
-             F.1d, "gcw" is the only fully-supported era; "clone_wars"
-             content exists at data/worlds/clone_wars/ but is gated
-             behind separate work (organizations.yaml engine integration,
-             space_zones engine refactor — see CW preflight checklist).
+        era: Era code matching a directory under data/worlds/. Defaults
+             to "clone_wars", the production era. (The legacy "gcw" tree
+             was retired by T2.CW.gcw_retirement; only clone_wars content
+             ships now.)
 
     The era selects:
         * zones / rooms / exits (via load_world_dry_run(era))
@@ -144,7 +143,7 @@ async def build(db_path="sw_mush.db", era="gcw"):
         * Test character (via era.yaml::content_refs.test_character)
 
     All era-specific content is data-driven; this function holds no
-    GCW-specific literals after the F.0/F.1 series.
+    era-specific literals after the F.0/F.1 series.
     """
     db = Database(db_path)
     await db.connect()
@@ -544,8 +543,8 @@ async def auto_build_if_needed(db_path="sw_mush.db", era=None):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Build the SW_MUSH world for an era.")
-    parser.add_argument("--era", default="gcw",
-                        help="Era code (default: gcw). Must match a directory under data/worlds/.")
+    parser.add_argument("--era", default="clone_wars",
+                        help="Era code (default: clone_wars). Must match a directory under data/worlds/.")
     parser.add_argument("--db", default="sw_mush.db",
                         help="Path to the SQLite database file (default: sw_mush.db).")
     args = parser.parse_args()

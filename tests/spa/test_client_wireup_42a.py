@@ -8,8 +8,8 @@ wired into static/client.html (render-only — no interaction handlers
 in 4.2a). They cover:
 
 1. STATIC CHECKS (no jsdom needed):
-   - All 9 expected SPA script tags appear in client.html in the
-     correct dependency order.
+   - All expected SPA script tags (EXPECTED_SPA_LOAD_ORDER) appear in
+     client.html in the correct dependency order.
    - The legacy <svg id="g-area-map-svg"> slot still exists.
    - renderMapV2() carries both the M3 branch and the legacy fallback.
 
@@ -135,6 +135,19 @@ EXPECTED_SPA_LOAD_ORDER = [
     "m3_tier_wilderness_body.js",
     "m3_tier_interior_body.js",
     "m3_tier_registry.js",
+    # Webify Drop UI-2: region-control side panel (renders the region_state
+    # push). Independent module; loaded after the tier stack.
+    "m3_region.js",
+    # Webify Drop UI-4a: inventory modal (renders the inventory_state push).
+    "m3_inventory.js",
+    # Webify Drop UI-4b: shop card (renders the shop_state browse/dashboard push).
+    "m3_shop.js",
+    # Webify Drop UI-5: bounty-board modal (renders the board_state push).
+    "m3_board.js",
+    # Webify Drop UI-7: onboarding/training panel (renders the
+    # onboarding_state push).
+    "m3_onboard.js",
+    "m3_craft.js",
 ]
 
 

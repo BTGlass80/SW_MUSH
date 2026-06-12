@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-engine/encounter_patrol.py — Imperial Patrol Encounter
+engine/encounter_patrol.py — Authority-Aware Sector Patrol Encounter
 Space Overhaul v3, Drop 2
 
 Four-choice branching encounter replacing the old hail→timeout→credits flow.
@@ -78,7 +78,7 @@ RST = "\033[0m"
 
 # Bluff difficulty by zone security level
 BLUFF_DIFFICULTY = {
-    "secured":   20,   # Hard — CorSec/Imperial are competent
+    "secured":   20,   # Hard — sector security is competent
     "contested": 15,   # Moderate — standard patrol
     "lawless":   10,   # Easy — lone patrol doesn't want trouble
 }
@@ -111,6 +111,25 @@ CLEARED_DURATION = 900  # 15 minutes
 
 
 # ── Handler Functions ────────────────────────────────────────────────────────
+
+async def _carried_contraband(db, char_id: int) -> list[str]:
+    """Gundark Drop G (2026-06-12, decision 3a): names of carried items
+    flagged `contraband: true` — crafted black-market goods (disruptors,
+    anti-vehicle ordnance, the Drop G band). The first contraband recipe
+    ships WITH this scan hook, per the decision's faucet/sink pairing.
+    Fail-open: a read error must not break a boarding.
+    """
+    try:
+        items = await db.get_inventory(char_id)
+        return [
+            (it.get("name") or it.get("key") or "contraband item")
+            for it in items
+            if isinstance(it, dict) and it.get("contraband")
+        ]
+    except Exception:
+        log.debug("carried-contraband sweep failed", exc_info=True)
+        return []
+
 
 async def patrol_setup(encounter, manager, db, session_mgr, **kwargs):
     """Setup handler: build the 4-choice patrol encounter."""
@@ -237,11 +256,52 @@ async def patrol_comply(encounter, manager, db, session_mgr, **kwargs):
                                     reason="Contraband detected in cargo hold",
                                     char_id=char_id,
                                     hide_result=hide_result)
+    elif (carried := await _carried_contraband(db, char_id)):
+        # Gundark Drop G: carried crafted contraband (no smuggling cargo
+        # aboard, but the PILOT's pockets are dirty). Same Con-to-hide
+        # flow as cargo; personal-scale = Class 4. On a failed hide the
+        # goods are CONFISCATED — the black-market band's risk-side sink.
+        hide_result = await _skill_check(char_id, "con", 15, db)
+        if hide_result["success"]:
+            await manager.broadcast_to_bridge(
+                encounter,
+                f"  {GREEN}[INSPECTION]{RST} The {_board_party(encounter.zone_id)} pat you down "
+                f"and miss what you're carrying.\n"
+                f"  {DIM}(Con check: {hide_result['roll']} vs {hide_result['difficulty']} — success){RST}",
+                session_mgr,
+            )
+            manager.resolve(encounter, outcome="comply_clean")
+            return
+        else:
+            confiscated = []
+            try:
+                items = await db.get_inventory(char_id)
+                for it in list(items):
+                    if isinstance(it, dict) and it.get("contraband"):
+                        await db.remove_from_inventory(
+                            char_id, it.get("key", ""))
+                        confiscated.append(
+                            it.get("name") or it.get("key") or "item")
+            except Exception:
+                log.debug("contraband confiscation failed", exc_info=True)
+            await manager.broadcast_to_bridge(
+                encounter,
+                f"  {RED}[INSPECTION]{RST} The {_board_party(encounter.zone_id)} find "
+                f"{', '.join(confiscated) or 'contraband'} on you. Confiscated.\n"
+                f"  {DIM}(Con check: {hide_result['roll']} vs {hide_result['difficulty']} — failed){RST}",
+                session_mgr,
+            )
+            await _apply_infraction(encounter, manager, db, session_mgr,
+                                    inf_class=4,
+                                    reason="Restricted goods on person",
+                                    char_id=char_id,
+                                    hide_result=hide_result)
     else:
         # Clean ship — cleared!
         await manager.broadcast_to_bridge(
             encounter,
-            f"  {GREEN}[INSPECTION]{RST} Stormtroopers inspect the hold and find nothing.\n"
+            f"  {GREEN}[INSPECTION]{RST} {_board_party(encounter.zone_id)} "
+            f"inspect the hold and find nothing.\n"
             f"  {DIM}\"All clear. You're free to go. Safe travels.\"{RST}\n"
             f"  {GREEN}Cleared status granted — reduced patrol risk for 15 minutes.{RST}",
             session_mgr,
@@ -560,9 +620,17 @@ async def _apply_infraction(encounter, manager, db, session_mgr,
     fine_lo, fine_hi = inf["fine"]
     fine = random.randint(fine_lo, fine_hi) if fine_hi > 0 else 0
 
+    # B3 era-cleanness: the boarding authority follows the zone's controlling
+    # faction (Republic / CIS / Hutt / neutral), never a hardcoded "Imperial"
+    # label or "Stormtroopers". Mirrors the patrol_name cached in
+    # encounter.context that the rest of the encounter already uses.
+    ctx = getattr(encounter, "context", None) or {}
+    patrol_name = ctx.get("patrol_name", _default_patrol_name(encounter.zone_id))
+    party = _board_party(encounter.zone_id)
+
     lines = [
-        f"\n  {RED}[IMPERIAL BOARDING]{RST} Stormtroopers board for inspection.",
-        f"  {RED}[IMPERIAL CUSTOMS]{RST} {inf['name']} infraction: {reason}.",
+        f"\n  {RED}[{patrol_name}]{RST} {party} board for inspection.",
+        f"  {RED}[{patrol_name}]{RST} {inf['name']} infraction: {reason}.",
     ]
 
     if hide_result and not hide_result.get("success"):
@@ -573,7 +641,7 @@ async def _apply_infraction(encounter, manager, db, session_mgr,
 
     if fine == 0 and inf_class == 1:
         lines.append(
-            f"  {RED}[IMPERIAL CUSTOMS]{RST} You are being detained."
+            f"  {RED}[{patrol_name}]{RST} You are being detained."
             f" (Roleplay with staff or wait for release.)"
         )
     elif fine > 0 and char_id:
@@ -601,7 +669,7 @@ async def _apply_infraction(encounter, manager, db, session_mgr,
             log.warning("[patrol] credit deduction error: %s", e)
 
     lines.append(
-        f"  {DIM}[IMPERIAL BOARDING] Troops withdraw. "
+        f"  {DIM}[{patrol_name}] The boarding party withdraws. "
         f"You are cleared to proceed.{RST}"
     )
 
@@ -647,7 +715,7 @@ async def _forced_boarding(encounter, manager, db, session_mgr,
 # ── Registration ─────────────────────────────────────────────────────────────
 
 def register_patrol_handlers(enc_manager) -> None:
-    """Register all Imperial Patrol encounter handlers."""
+    """Register all sector-patrol encounter handlers."""
     enc_manager.register_handler("patrol", "setup",          patrol_setup)
     enc_manager.register_handler("patrol", "choice_comply",  patrol_comply)
     enc_manager.register_handler("patrol", "choice_bluff",   patrol_bluff)

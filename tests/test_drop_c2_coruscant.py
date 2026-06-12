@@ -41,7 +41,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 CW_DIR = os.path.join(PROJECT_ROOT, "data", "worlds", "clone_wars")
-DROP_C2_YAML = os.path.join(CW_DIR, "npcs_drop_c2_coruscant_lower.yaml")
+DROP_C2_YAML = os.path.join(CW_DIR, "npcs_drop_c2_southern_underground.yaml")
 
 
 def _load_yaml(path):
@@ -287,7 +287,7 @@ class TestEraManifestRef(unittest.TestCase):
     def test_era_yaml_includes_drop_c2(self):
         era = _load_yaml(os.path.join(CW_DIR, "era.yaml"))
         npcs_refs = era.get("content_refs", {}).get("npcs", []) or []
-        self.assertIn("npcs_drop_c2_coruscant_lower.yaml", npcs_refs)
+        self.assertIn("npcs_drop_c2_southern_underground.yaml", npcs_refs)
 
     def test_pre_existing_npc_files_still_referenced(self):
         era = _load_yaml(os.path.join(CW_DIR, "era.yaml"))

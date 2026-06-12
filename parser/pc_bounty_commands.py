@@ -844,30 +844,58 @@ class BountyCommand(BaseCommand):
             return
 
         bounties = await ctx.db.list_active_pc_bounties(limit=50)
-        if not bounties:
+
+        # Drop 4b: dark-side notoriety section — derived from DSP, no rows.
+        notoriety_lines = []
+        try:
+            from engine.bounty_board import (
+                DSP_BOUNTY_THRESHOLD, format_dsp_notoriety_section,
+            )
+            wanted = await ctx.db.get_dsp_wanted_characters(DSP_BOUNTY_THRESHOLD)
+            # hunter.1: annotate each wanted line with its live pursuit state.
+            pursuits = {}
+            try:
+                pursuits = {p["char_id"]: p
+                            for p in await ctx.db.get_all_dsp_pursuits()}
+            except Exception:
+                log.debug("[pcbounty] dsp pursuits fetch failed", exc_info=True)
+            notoriety_lines = format_dsp_notoriety_section(wanted, pursuits)
+        except Exception:
+            log.debug("[pcbounty] dsp notoriety section failed", exc_info=True)
+
+        if not bounties and not notoriety_lines:
             await ctx.session.send_line(
                 "  No active bounties on the board."
             )
             return
 
-        await ctx.session.send_line(
-            f"  {ansi.cyan('Active PC Bounties')} "
-            f"({len(bounties)}):"
-        )
-        for b in bounties:
-            target = await ctx.db.get_character(b["target_id"])
-            t_name = target["name"] if target else "?"
-            remaining = _format_remaining(float(b["expires_at"]))
+        if bounties:
             await ctx.session.send_line(
-                f"  [{b['id']:>4}] "
-                f"{ansi.bold(_format_credits(int(b['amount']))):>20s} "
-                f"on {ansi.bold(t_name):<20s} ({remaining})"
+                f"  {ansi.cyan('Active PC Bounties')} "
+                f"({len(bounties)}):"
             )
-            # Show reason on the next line, indented + dimmed.
-            await ctx.session.send_line(
-                f"         {ansi.DIM}reason: {b['reason']}"
-                f"{ansi.RESET}"
-            )
+            for b in bounties:
+                target = await ctx.db.get_character(b["target_id"])
+                t_name = target["name"] if target else "?"
+                remaining = _format_remaining(float(b["expires_at"]))
+                await ctx.session.send_line(
+                    f"  [{b['id']:>4}] "
+                    f"{ansi.bold(_format_credits(int(b['amount']))):>20s} "
+                    f"on {ansi.bold(t_name):<20s} ({remaining})"
+                )
+                # Show reason on the next line, indented + dimmed.
+                await ctx.session.send_line(
+                    f"         {ansi.DIM}reason: {b['reason']}"
+                    f"{ansi.RESET}"
+                )
+
+        # Dark-side notoriety (auto-posted, prestige-only) below the credit
+        # bounties.
+        if notoriety_lines:
+            if bounties:
+                await ctx.session.send_line("")
+            for line in notoriety_lines:
+                await ctx.session.send_line(line)
 
     # ─── +bounty status ───────────────────────────────────────────────────
 

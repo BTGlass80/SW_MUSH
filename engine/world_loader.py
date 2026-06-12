@@ -957,7 +957,7 @@ class AmbientPools:
               weight: 0.7   # optional, default 1.0
             - text: "..."
 
-    Zone keys can be specific (e.g. `coruscant_senate`) or generic
+    Zone keys can be specific (e.g. `senate_district`) or generic
     (e.g. `cantina`). Drop 6a.4's merge logic decides which key wins
     when both are defined; this loader simply preserves the era's
     declarations.

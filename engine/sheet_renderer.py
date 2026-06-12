@@ -346,13 +346,8 @@ def render_combat_sheet(char_dict, skill_reg, width=W):
 
     # Equipped weapon
     lines.append("")
-    equip_data = char_dict.get("equipment", "{}")
-    if isinstance(equip_data, str):
-        try:
-            equip_data = _json.loads(equip_data)
-        except Exception:
-            equip_data = {}
-    weapon_key = equip_data.get("key", "") if isinstance(equip_data, dict) else ""
+    from engine.items import equipment_keys
+    weapon_key = equipment_keys(char_dict.get("equipment", "{}"))["weapon"]
     if weapon_key:
         from engine.weapons import get_weapon_registry
         wr = get_weapon_registry()
@@ -462,13 +457,9 @@ def render_game_sheet(char_dict, skill_reg, width=W):
     lines.append(f"  {_wound_display(wound)}")
 
     # ── Equipped Weapon ──
-    equip_data = char_dict.get("equipment", "{}")
-    if isinstance(equip_data, str):
-        try:
-            equip_data = _json.loads(equip_data)
-        except Exception:
-            equip_data = {}
-    weapon_key = equip_data.get("key", "") if isinstance(equip_data, dict) else ""
+    from engine.items import equipment_keys
+    _eq_keys = equipment_keys(char_dict.get("equipment", "{}"))
+    weapon_key = _eq_keys["weapon"]
     if weapon_key:
         from engine.weapons import get_weapon_registry
         wr = get_weapon_registry()
@@ -493,7 +484,7 @@ def render_game_sheet(char_dict, skill_reg, width=W):
         lines.append(f"  {BOLD}Weapon:{RESET} {DIM}(none){RESET}")
 
     # ── Worn Armor ──
-    armor_key = equip_data.get("armor", "") if isinstance(equip_data, dict) else ""
+    armor_key = _eq_keys["armor"]
     if armor_key:
         from engine.weapons import get_weapon_registry as _wr_get
         wr2 = _wr_get()
@@ -890,15 +881,11 @@ def build_sheet_payload(char_dict, skill_reg):
     # ── Weapon / Armor ─────────────────────────────────────────────
     weapon_payload = None
     armor_payload = None
-    equip_data = char_dict.get("equipment", "{}")
-    if isinstance(equip_data, str):
-        try:
-            equip_data = _json.loads(equip_data)
-        except (ValueError, TypeError):
-            equip_data = {}
-    if isinstance(equip_data, dict):
-        weapon_key = equip_data.get("weapon", "") or ""
-        armor_key = equip_data.get("armor", "") or ""
+    from engine.items import equipment_keys
+    _eqk = equipment_keys(char_dict.get("equipment", "{}"))
+    if True:
+        weapon_key = _eqk["weapon"]
+        armor_key = _eqk["armor"]
         if weapon_key:
             try:
                 from engine.weapons import get_weapon_registry

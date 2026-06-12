@@ -103,9 +103,79 @@ def evaluate_velocity_alert(
     }
 
 
+# ── P2P trade-velocity alert (ECON.p2p_cap_review = a, 2026-06-11) ──────
+# The S51/audit-v2 hard cap (1,500 cr per rolling 24h per sender) is
+# REMOVED — under vendor segmentation (a), crafters are the supply chain
+# and a single quality item legitimately trades above the old cap. The
+# threshold survives as TELEMETRY: cross it and an alert lands in the
+# ring buffer for @economy review; nothing is ever blocked. Alt-funneling
+# is fought at the faucet throttle + admin action, not by capping trade.
+# Thresholds are tunables (fold into T3.19's per-domain config pass).
+P2P_VELOCITY_CAUTION_24H: int = 1_500    # the old cap value
+P2P_VELOCITY_CRITICAL_24H: int = 7_500   # 5× — sustained funneling shape
+
+
+def evaluate_p2p_velocity_alert(
+    sender: str,
+    sender_id: int,
+    recipient: str,
+    rolling_24h: int,
+    amount: int = 0,
+    *,
+    caution: int = P2P_VELOCITY_CAUTION_24H,
+    critical: int = P2P_VELOCITY_CRITICAL_24H,
+) -> Optional[dict]:
+    """Return an alert dict if a sender's rolling 24-hour outgoing P2P
+    credit volume breaches a band, else ``None``.
+
+    `rolling_24h` is `db.get_daily_p2p_outgoing(...)` INCLUDING the trade
+    that just completed. Fails safe: malformed input yields ``None`` —
+    telemetry must never disturb a trade.
+
+    The dict carries the generic severity/direction/net fields so the
+    existing `@economy` readouts render it without changes, plus
+    `kind: "p2p_velocity"` for the dedicated `format_alert_line` branch.
+    """
+    try:
+        total = int(rolling_24h)
+    except (TypeError, ValueError):
+        return None
+    if total >= critical:
+        severity = "critical"
+    elif total >= caution:
+        severity = "caution"
+    else:
+        return None
+    try:
+        amt = int(amount)
+    except (TypeError, ValueError):
+        amt = 0
+    return {
+        "ts": time.time(),
+        "kind": "p2p_velocity",
+        "severity": severity,            # "caution" | "critical"
+        "direction": "p2p-volume",       # renders sanely in generic readouts
+        "net_1h": total,                 # generic-field compatibility
+        "sender": str(sender or "?"),
+        "sender_id": sender_id,
+        "recipient": str(recipient or "?"),
+        "rolling_24h": total,
+        "amount": amt,
+        "drivers": [],
+    }
+
+
 def format_alert_line(alert: dict) -> str:
     """One-line human-readable summary for logs, staff pages, and the
     ``@economy alerts`` readout."""
+    if alert.get("kind") == "p2p_velocity":
+        # ECON.p2p_cap_review = a (2026-06-11): per-sender trade-volume
+        # alert — the old hard cap's threshold, repurposed as telemetry.
+        sev = str(alert.get("severity", "?")).upper()
+        return (f"{sev} p2p-volume: {alert.get('sender', '?')} has sent "
+                f"{alert.get('rolling_24h', 0):,} cr in 24h "
+                f"(latest {alert.get('amount', 0):,} cr → "
+                f"{alert.get('recipient', '?')})")
     sev = str(alert.get("severity", "?")).upper()
     direction = alert.get("direction", "?")
     net = alert.get("net_1h", 0)

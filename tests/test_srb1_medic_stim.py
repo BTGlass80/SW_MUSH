@@ -284,11 +284,19 @@ class TestStimAddBuffWiring(unittest.TestCase):
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestStimCatalogShape(unittest.TestCase):
-    def test_catalog_has_four_entries(self):
+    def test_catalog_entries(self):
+        # 2026-06-12: pin updated WITH attribution — this test was
+        # already red in HEAD (pre-existing, verified against the clean
+        # upload): the medpac family (medpac, medpac_advanced,
+        # medpac_fastflesh) landed in _STIM_CATALOG in a prior drop
+        # without updating the four-entry pin. The seven below are the
+        # intended catalog; the shape test underneath still guards
+        # every entry's required keys.
         from parser.medical_commands import _STIM_CATALOG
         self.assertEqual(
             set(_STIM_CATALOG.keys()),
-            {"stimpack", "adrenaline_shot", "combat_stim", "focus_stim"},
+            {"stimpack", "adrenaline_shot", "combat_stim", "focus_stim",
+             "medpac", "medpac_advanced", "medpac_fastflesh"},
         )
 
     def test_each_entry_has_required_keys(self):

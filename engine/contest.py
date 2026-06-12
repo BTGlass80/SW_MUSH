@@ -159,6 +159,18 @@ REGION_ANCHOR_REINFORCEMENT_THRESHOLD = 100
 # the threshold. Per design's worked example.
 REGION_ANCHOR_REINFORCEMENT_PER = 25
 
+# Lane D2 (GG11 §8B): the challenger org's Violence Index modulates how
+# many bodies it commits to the culminating fight. Bands mirror
+# ``engine.organizations.violence_descriptor`` exactly so the mechanical
+# effect and the narrated posture stay legible together: a "bloody"
+# challenger (>=70) brings +1 reinforcement, a "range war" challenger
+# (>=85) brings +2. A None / sub-"bloody" posture is unchanged
+# (backward-compatible). The bonus only applies to a challenger that
+# already fields reinforcements by influence — posture scales a real
+# force, it does not manufacture one from nothing.
+REGION_CONTEST_BLOODY_VI = 70
+REGION_CONTEST_RANGE_WAR_VI = 85
+
 # Outnumbered-defender bonus multiplier (anti-zerg, Albion lesson).
 # Applied to defender's influence-gain rate during accumulation
 # when challenger faction has more registered members than the
@@ -264,26 +276,53 @@ def compute_anchor_hp(defender_influence: int) -> int:
     return REGION_ANCHOR_BASE_HP + bonus
 
 
-def compute_anchor_reinforcements(challenger_influence: int) -> int:
+def compute_anchor_reinforcements(
+    challenger_influence: int,
+    challenger_violence_index: Optional[int] = None,
+) -> int:
     """Compute extra Tier-1 reinforcement NPCs alongside the Anchor.
 
     Per design §2.4:
         Challenger below 50 influence: Anchor stays tier2 (0 reinforce).
         Challenger above 100: +1 reinforce per 25 influence above 100.
 
-    Examples:
+    Lane D2 (GG11 §8B): ``challenger_violence_index`` modulates the
+    influence-derived count. A "bloody"-band challenger (VI >= 70) brings
+    +1; a "range war"-band challenger (VI >= 85) brings +2. The posture
+    bonus only applies once the challenger already fields reinforcements
+    by influence (a base of 0 stays 0 — posture scales a real force, it
+    does not manufacture one). ``None`` (the default) leaves the count at
+    its pre-D2 value, so existing callers are unaffected.
+
+    Examples (no posture / posture=None — pre-D2 behaviour preserved):
         challenger_influence=40   → 0 reinforce  (below 50 floor)
         challenger_influence=80   → 0 reinforce  (between 50 and 100)
         challenger_influence=100  → 0 reinforce  (at threshold)
         challenger_influence=125  → 1 reinforce
         challenger_influence=149  → 1 reinforce  (24 above, not 25)
-        challenger_influence=150  → 2 reinforce  (cap)
+        challenger_influence=150  → 2 reinforce  (influence cap)
+
+    Examples (with posture):
+        influence=150, VI=88  → 4 reinforce  (2 + 2 range-war bonus)
+        influence=125, VI=72  → 2 reinforce  (1 + 1 bloody bonus)
+        influence=125, VI=40  → 1 reinforce  (sub-bloody → no bonus)
+        influence=80,  VI=95  → 0 reinforce  (below floor → no bonus)
     """
     inf = int(challenger_influence) if challenger_influence is not None else 0
     if inf <= REGION_ANCHOR_REINFORCEMENT_THRESHOLD:
-        return 0
-    over = inf - REGION_ANCHOR_REINFORCEMENT_THRESHOLD
-    return over // REGION_ANCHOR_REINFORCEMENT_PER
+        base = 0
+    else:
+        over = inf - REGION_ANCHOR_REINFORCEMENT_THRESHOLD
+        base = over // REGION_ANCHOR_REINFORCEMENT_PER
+    if base <= 0:
+        return base
+    vi = challenger_violence_index
+    if isinstance(vi, (int, float)) and not isinstance(vi, bool):
+        if vi >= REGION_CONTEST_RANGE_WAR_VI:
+            base += 2
+        elif vi >= REGION_CONTEST_BLOODY_VI:
+            base += 1
+    return base
 
 
 def compute_outnumbered_defender_multiplier(
@@ -307,6 +346,43 @@ def compute_outnumbered_defender_multiplier(
     if c > d:
         return OUTNUMBERED_DEFENDER_INFLUENCE_MULTIPLIER
     return 1.0
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Violence Index → turf-dispute narration (Lane D2)
+# ──────────────────────────────────────────────────────────────────────
+#
+# The challenger org's Violence Index colours both the contest mechanics
+# (the reinforcement count, above) and the player-facing narration (the
+# declaration broadcast + the ``faction status`` contest line). The clause
+# map is keyed on ``violence_descriptor``'s band labels so the narrated
+# intensity always tracks the mechanical posture.
+
+_CONTEST_POSTURE_CLAUSE = {
+    "surgical":  "Expect a contained, surgical operation.",
+    "pointed":   "Expect a pointed, disciplined fight.",
+    "heated":    "Expect heated, escalating violence.",
+    "bloody":    "Expect a bloody fight with little restraint.",
+    "range war": "Expect an all-out range war.",
+}
+
+
+async def _org_violence_index(db, org_code: Optional[str]) -> Optional[int]:
+    """Best-effort lookup of an org's Violence Index (0-100), or None.
+
+    Used by the contest narration + reinforcement seams. Tolerant of a
+    missing org, a DB without ``get_organization``, or any read error —
+    returns None so the caller silently falls back to posture-free
+    behaviour (the contest still declares/resolves; it just isn't
+    coloured by posture)."""
+    if not org_code:
+        return None
+    try:
+        from engine.organizations import get_org_violence_index
+        org = await db.get_organization(org_code)
+        return get_org_violence_index(org)
+    except Exception:
+        return None
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -525,6 +601,13 @@ async def declare_region_contest(
 
     if session_mgr is not None:
         # Per design §2.4 — contest visible to all online players.
+        # Lane D2: colour the announcement by the challenger's posture.
+        _chal_vi = await _org_violence_index(db, challenger_org_code)
+        _posture_clause = ""
+        if _chal_vi is not None:
+            from engine.organizations import violence_descriptor
+            _posture_clause = _CONTEST_POSTURE_CLAUSE.get(
+                violence_descriptor(_chal_vi), "")
         msg = (
             f"\n  \033[1;31m[REGION CONTEST]\033[0m "
             f"\033[1;37m{challenger_display}\033[0m is challenging "
@@ -532,6 +615,8 @@ async def declare_region_contest(
             f"\033[1;36m{region_slug}\033[0m.\n"
             f"  The contest ends in 7 days. The culminating fight begins "
             f"4 hours before resolution.\n"
+            + (f"  \033[2m{_posture_clause}\033[0m\n"
+               if _posture_clause else "")
         )
         try:
             for sess in session_mgr.all:
@@ -874,11 +959,21 @@ async def get_region_contest_status_lines(
         phase_tag = (" \033[1;31m[ANCHOR PHASE]\033[0m"
                      if in_culminating else "")
 
+        # Lane D2: challenger posture tag (GG11 §8B). Best-effort; a
+        # None VI (or a posture-free challenger) shows no tag.
+        _vi = await _org_violence_index(db, challenger)
+        posture_tag = ""
+        if _vi is not None:
+            from engine.organizations import violence_descriptor
+            _pc = ("\033[1;31m" if _vi >= REGION_CONTEST_BLOODY_VI
+                   else "\033[2m")
+            posture_tag = f" {_pc}[{violence_descriptor(_vi)}]\033[0m"
+
         lines.append(
             f"  {region_slug:<32} {role_color}[{role}]\033[0m  "
             f"{challenger_display} vs {defender_display}  "
             f"\033[2m{_secs_to_human(secs_left)} remaining\033[0m"
-            f"{phase_tag}"
+            f"{phase_tag}{posture_tag}"
         )
     return lines
 
@@ -1215,7 +1310,11 @@ async def _spawn_region_anchor(
                         exc_info=True)
 
     anchor_hp = compute_anchor_hp(defender_inf)
-    reinforce_count = compute_anchor_reinforcements(challenger_inf)
+    # Lane D2: a high-posture challenger commits more bodies to the
+    # culminating fight (GG11 §8B). Best-effort VI lookup; None → the
+    # pre-D2 influence-only count.
+    challenger_vi = await _org_violence_index(db, challenger_org)
+    reinforce_count = compute_anchor_reinforcements(challenger_inf, challenger_vi)
 
     # Anchor template — flavored to defender (un-owned → _default)
     tmpl_key = defender_org if defender_org else "_default"

@@ -288,33 +288,6 @@ class TestWildernessAdjacency:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class TestGcwHasNoWilderness:
-    """GCW era.yaml has no content_refs.wilderness entry, so a GCW
-    build must produce zero wilderness landmarks. This guards
-    against accidentally hard-coding Dune Sea into a non-CW build
-    path."""
-
-    @pytest.fixture(scope="class")
-    def gcw_db(self):
-        path = _run_build("gcw")
-        yield path
-        if os.path.exists(path):
-            os.unlink(path)
-
-    def test_gcw_no_wilderness_landmarks(self, gcw_db):
-        rows = _query(
-            gcw_db,
-            "SELECT COUNT(*) AS n FROM rooms "
-            "WHERE wilderness_region_id IS NOT NULL",
-        )
-        assert rows[0]["n"] == 0, (
-            f"GCW build wrote {rows[0]['n']} wilderness landmarks; "
-            f"expected 0 (GCW era.yaml has no content_refs.wilderness). "
-            f"Did the wilderness loader start defaulting to a region "
-            f"when none is registered?"
-        )
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. Source-level marker for the drop
 # ─────────────────────────────────────────────────────────────────────────────

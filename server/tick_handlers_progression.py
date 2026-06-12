@@ -315,3 +315,199 @@ async def wow_passive_decay_tick(ctx: "TickContext") -> None:
             "[wow_passive_decay] tick handler raised",
             exc_info=True,
         )
+
+
+# ── Drop 4b (hunter.1): roaming Dark-Side bounty hunter tick ────────────────
+
+
+async def dsp_hunter_tick(ctx: "TickContext") -> None:
+    """Advance every active Dark-Side hunter pursuit by one step.
+
+    Per the III.3 persistent-threat design + the locked hunter decisions:
+
+      - Every character at/over the DSP wanted threshold has a named, non-canon
+        hunter on their trail. Each tick the hunter *closes in* by a step keyed
+        to the quarry's DSP tier (deeper fall → faster hunt). The pursuit is the
+        only persistent state; the wanted flag itself stays derived from
+        dark_side_points.
+
+      - When a pursuit enters a new stage (tracking → closing → imminent →
+        at_heels), the hunted character — if online and in-game — gets a single
+        escalating warning. ``last_notified_stage`` prevents repeats, so the
+        held "at your heels" climax doesn't spam.
+
+      - A character who **atones** (drops back under the threshold) has their
+        pursuit cleared — "the trail goes cold" — the intended escape hatch.
+
+    Prestige-domain, faction-agnostic, deterministic, era/Q1-clean. The live
+    fightable-hunter climax + reward-on-defeat loop lands in hunter.2 (the pure
+    spawn/reward functions are documented as that drop's seam).
+
+    Cadence: registered at interval≈120 ticks (~2 min) so the dread builds over
+    a real-time window rather than instantly. Failure-tolerant: the whole body
+    and each per-character step are guarded; a bad row never aborts the rest.
+    """
+    try:
+        from engine.bounty_board import DSP_BOUNTY_THRESHOLD
+        from engine import dsp_hunter as H
+    except Exception:
+        log.warning("[dsp_hunter] module import failed", exc_info=True)
+        return
+
+    try:
+        wanted = await ctx.db.get_dsp_wanted_characters(DSP_BOUNTY_THRESHOLD)
+    except Exception:
+        log.warning("[dsp_hunter] wanted query failed", exc_info=True)
+        return
+
+    # Map of in-game character id -> session (for warning delivery).
+    online: dict = {}
+    try:
+        for s in ctx.session_mgr.all:
+            if s.is_in_game and s.character:
+                cid = s.character.get("id")
+                if cid is not None:
+                    online[cid] = s
+    except Exception:
+        log.debug("[dsp_hunter] session enumeration failed", exc_info=True)
+
+    wanted_ids = set()
+    advanced = 0
+    warned = 0
+
+    for w in (wanted or []):
+        try:
+            cid = w.get("id")
+            if cid is None:
+                continue
+            wanted_ids.add(cid)
+            dsp = w.get("dark_side_points", 0)
+
+            row = await ctx.db.get_dsp_pursuit(cid)
+            hunter = (row or {}).get("hunter_name") or H.hunter_for(cid)
+            progress = (row or {}).get("progress", 0)
+            last_notified = (row or {}).get("last_notified_stage", "") or ""
+
+            new_progress = H.advance_progress(progress, dsp)
+            new_stage = H.pursuit_stage(new_progress)
+
+            sess = online.get(cid)
+            stage_changed = (new_stage != last_notified)
+            if stage_changed and sess is not None:
+                line = H.warning_for_stage(new_stage, hunter)
+                if line:
+                    try:
+                        await sess.send_line(line)
+                        warned += 1
+                    except Exception:
+                        log.debug("[dsp_hunter] warn send failed for %s", cid,
+                                  exc_info=True)
+                # Mark this stage as delivered so we don't repeat it.
+                await ctx.db.upsert_dsp_pursuit(
+                    cid, hunter, new_progress, new_stage,
+                    last_notified_stage=new_stage)
+            else:
+                # Advance silently; leave last_notified_stage intact (so an
+                # offline quarry still gets warned for the current stage once
+                # they log back in).
+                await ctx.db.upsert_dsp_pursuit(
+                    cid, hunter, new_progress, new_stage)
+
+            # ── hunter.2: live-spawn climax + escape reconcile ──────────────
+            # At `at_heels`, an online quarry gets a real, fightable hunter
+            # spawned into their room (idempotent). If a hunter was previously
+            # spawned but the quarry slipped it, despawn and reset the dread to
+            # `imminent` so it rebuilds toward another climax.
+            try:
+                from engine import dsp_hunter_runtime as HR
+                prev_spawn = (row or {}).get("spawned_npc_id")
+                if new_stage == H.STAGE_AT_HEELS and sess is not None:
+                    await HR.spawn_hunter(
+                        ctx.db, ctx.session_mgr, sess.character, dsp)
+                elif prev_spawn:
+                    cur_npc = await ctx.db.get_npc(prev_spawn)
+                    quarry_room = (sess.character.get("room_id")
+                                   if sess is not None else None)
+                    if cur_npc is None:
+                        # Hunter gone (defeated/removed) — drop the stale ref.
+                        await ctx.db.set_dsp_pursuit_spawn(cid, None)
+                    elif (quarry_room is not None
+                          and cur_npc.get("room_id") != quarry_room):
+                        await HR.despawn_hunter(
+                            ctx.db, prev_spawn, quarry_id=cid,
+                            session_mgr=ctx.session_mgr,
+                            room_id=cur_npc.get("room_id"),
+                            line=H.collected_line(hunter))
+                        await ctx.db.upsert_dsp_pursuit(
+                            cid, hunter, H._IMMINENT_AT, H.STAGE_IMMINENT)
+            except Exception:
+                log.debug("[dsp_hunter] spawn/reconcile failed for %s", cid,
+                          exc_info=True)
+            advanced += 1
+        except Exception:
+            log.warning("[dsp_hunter] pursuit advance failed for %r",
+                        w.get("id") if isinstance(w, dict) else w, exc_info=True)
+
+    # Clear pursuits for anyone no longer wanted (they atoned).
+    cleared = 0
+    try:
+        for p in await ctx.db.get_all_dsp_pursuits():
+            pid = p.get("char_id")
+            if pid is None or pid in wanted_ids:
+                continue
+            try:
+                # hunter.2: if a live hunter was spawned, remove it too.
+                spawned = p.get("spawned_npc_id")
+                if spawned:
+                    try:
+                        from engine import dsp_hunter_runtime as HR
+                        await HR.despawn_hunter(
+                            ctx.db, spawned, quarry_id=pid,
+                            session_mgr=ctx.session_mgr)
+                    except Exception:
+                        log.debug("[dsp_hunter] atone-despawn failed for %s",
+                                  pid, exc_info=True)
+                await ctx.db.clear_dsp_pursuit(pid)
+                cleared += 1
+                sess = online.get(pid)
+                if sess is not None:
+                    await sess.send_line(
+                        H.trail_cold_line(p.get("hunter_name") or ""))
+            except Exception:
+                log.debug("[dsp_hunter] clear failed for %s", pid, exc_info=True)
+    except Exception:
+        log.warning("[dsp_hunter] pursuit sweep failed", exc_info=True)
+
+    if advanced or warned or cleared:
+        log.debug("[dsp_hunter] tick=%d advanced=%d warned=%d cleared=%d",
+                  ctx.tick_count, advanced, warned, cleared)
+
+
+async def communal_objective_tick(ctx: "TickContext") -> None:
+    """Drive the dark-side cult communal objective (design III.3, the rally villain).
+
+    Counterpart to dsp_hunter_tick. Where that closes a per-PC hunt, this runs the
+    COMMUNAL beat: each cadence it (1) posts a fresh uprising when none is active
+    and the repost cooldown has elapsed, and (2) escalates the active uprising's
+    menace and resolves win/lose — paying Republic rep + a III.2 status flag to
+    contributors on a win (prestige-domain; no credits).
+
+    All work lives in engine/communal_objective_runtime (IO) over the pure
+    engine/communal_objective state machine. Best-effort: a failure logs and the
+    next cadence retries; it never aborts the tick.
+
+    Cadence: registered at interval≈120 ticks (~2 min), matching the hunter, so the
+    menace builds over a real-time window rather than instantly.
+    """
+    try:
+        import engine.communal_objective_runtime as COR
+    except Exception:
+        log.warning("[communal_obj] runtime import failed", exc_info=True)
+        return
+
+    try:
+        posted = await COR.maybe_post(ctx.db, ctx.session_mgr)
+        if posted is None:
+            await COR.advance_and_resolve(ctx.db, ctx.session_mgr)
+    except Exception:
+        log.warning("[communal_obj] tick body failed", exc_info=True)

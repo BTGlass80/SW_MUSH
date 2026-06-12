@@ -154,6 +154,46 @@ schematics:
     output_key: blaster_carbine
     base_cost: 900
 
+  # ── CRAFT.P2 / Gundark Drop A (2026-06-10): first Avail-band ──────
+  # Difficulty by the §5.1 rubric (gundark_crafting_integration_design
+  # §10 worked sample, signed off): BASE(damage) + AVAIL_MOD; min_quality
+  # 40 = Avail-2 band (§5.2). Lawful items only — contraband waits for
+  # Drop G's gating (no `contraband:` field ships before its enforcer).
+  - key: heavy_blaster_pistol_t6
+    name: "Heavy Blaster Pistol (Thunderer)"
+    skill_required: blaster_repair
+    difficulty: 20            # BASE 6D→18 + Avail(2,R)→+2
+    trainer_npc: Kayson
+    components:               # blaster mix: metal / energy / composite
+      - type: metal
+        quantity: 3
+        min_quality: 40
+      - type: energy
+        quantity: 2
+        min_quality: 40
+      - type: composite
+        quantity: 1
+        min_quality: 40
+    output_type: weapon
+    output_key: heavy_blaster_pistol_t6
+    base_cost: 750
+
+  - key: vibrorapier_duelist
+    name: "Vibrorapier (Duelist)"
+    skill_required: melee_combat
+    difficulty: 17            # BASE 5D-equiv→15 + Avail(2,R)→+2
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 2
+        min_quality: 40
+      - type: composite
+        quantity: 1
+        min_quality: 40
+    output_type: weapon
+    output_key: vibrorapier_duelist
+    base_cost: 300
+
   # ──────────────────────────────────────────────────────────────
   # CONSUMABLES — Taught by Heist at the Clinic
   # ──────────────────────────────────────────────────────────────
@@ -476,7 +516,7 @@ schematics:
       - type: metal
         quantity: 1
         min_quality: 25
-    output_type: survival_gear
+    output_type: gear   # CRAFT.P2: survival_gear folded into gear (decision 2a)
     output_key: cooling_unit
     base_cost: 200
     max_uses: 0
@@ -493,7 +533,7 @@ schematics:
       - type: composite
         quantity: 1
         min_quality: 25
-    output_type: survival_gear
+    output_type: gear   # CRAFT.P2: survival_gear folded into gear (decision 2a)
     output_key: breath_mask
     base_cost: 150
     max_uses: 0
@@ -510,7 +550,7 @@ schematics:
       - type: rare
         quantity: 1
         min_quality: 40
-    output_type: survival_gear
+    output_type: gear   # CRAFT.P2: survival_gear folded into gear (decision 2a)
     output_key: radiation_suit
     base_cost: 500
     max_uses: 10
@@ -527,7 +567,7 @@ schematics:
       - type: chemical
         quantity: 1
         min_quality: 20
-    output_type: survival_gear
+    output_type: gear   # CRAFT.P2: survival_gear folded into gear (decision 2a)
     output_key: anti_theft_alarm
     base_cost: 100
     max_uses: 1
@@ -541,7 +581,7 @@ schematics:
       - type: metal
         quantity: 1
         min_quality: 15
-    output_type: survival_gear
+    output_type: gear   # CRAFT.P2: survival_gear folded into gear (decision 2a)
     output_key: water_canteen
     base_cost: 50
     max_uses: 0
@@ -721,8 +761,17 @@ schematics:
       - type: composite
         quantity: 3
         min_quality: 60
-    output_type: equipment
+    # CRAFT.P0.4 (2026-06-10): re-typed equipment → component. These two
+    # T5 recipes are ship parts; as 'equipment' they fell into a branch
+    # that didn't exist (components consumed, nothing produced) and even
+    # post-P0.4 the gear branch can't feed +ship/install. stat_target /
+    # stat_boost per the T5 tier (top-spec, +3 over the standard mk2-class
+    # +1/+2 boosts).
+    output_type: component
     output_key: hyperdrive_surge_converter
+    stat_target: hyperdrive
+    stat_boost: 3
+    cargo_weight: 14
     base_cost: 12000
 
   - key: t5_mil_spec_ion_engine_core
@@ -743,8 +792,14 @@ schematics:
       - type: composite
         quantity: 3
         min_quality: 60
-    output_type: equipment
+    # CRAFT.P0.4 (2026-06-10): re-typed equipment → component (see the
+    # surge-converter note above). stat_boost 2 reaches the _MOD_MAX_SPEED
+    # cap in a single slot — the T5 value proposition vs two mk-class parts.
+    output_type: component
     output_key: mil_spec_ion_engine_core
+    stat_target: speed
+    stat_boost: 2
+    cargo_weight: 16
     base_cost: 15000
 
   - key: t5_master_grade_armor
@@ -768,3 +823,687 @@ schematics:
     output_type: weapon
     output_key: bounty_hunter_armor
     base_cost: 8500
+
+  # ── CRAFT.GUNDARK Drop B (2026-06-11): lawful Avail 1–3 weapons band ──
+  # 14 schematics, §5 rubric-derived (difficulty = BASE(by damage) +
+  # AVAIL_MOD; min_quality = §5.2 band 25/40/55; base_cost = book).
+  # Difficulties are RECOMPUTED in tests/test_craft_p2_gundark_drop_b.py —
+  # if a number here drifts from the rubric, the suite fails.
+  # Decision (a)=b (2026-06-11): Kayson teaches the full lawful 1–3 set;
+  # the q55 band + difficulty gate Avail-3 economically until Drop G adds
+  # R/X enforcement. STR+nD melee maps to (n+2)D-equiv per the signed-off
+  # §10 sample (vibrorapier precedent).
+
+  # — Avail 1 (q25) —
+  - key: vibrosaw_greel
+    name: "Vibro-saw"
+    skill_required: melee_combat
+    difficulty: 12            # STR+2D+1 → 4D-equiv BASE 12 + Avail 1 → +0
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 3
+        min_quality: 25
+      - type: composite
+        quantity: 1
+        min_quality: 25
+    output_type: weapon
+    output_key: vibrosaw_greel
+    base_cost: 400
+
+  - key: blaster_pistol_dl22
+    name: "Blaster Pistol (DL-22)"
+    skill_required: blaster_repair
+    difficulty: 12            # 4D+1 → BASE 12 + Avail 1 → +0
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 3
+        min_quality: 25
+      - type: energy
+        quantity: 2
+        min_quality: 25
+      - type: composite
+        quantity: 1
+        min_quality: 25
+    output_type: weapon
+    output_key: blaster_pistol_dl22
+    base_cost: 500
+
+  - key: heavy_blaster_pistol_dl6h
+    name: "Heavy Blaster Pistol (DL-6H)"
+    skill_required: blaster_repair
+    difficulty: 15            # 5D → BASE 15 + Avail 1 → +0
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 3
+        min_quality: 25
+      - type: energy
+        quantity: 2
+        min_quality: 25
+      - type: composite
+        quantity: 1
+        min_quality: 25
+    output_type: weapon
+    output_key: heavy_blaster_pistol_dl6h
+    base_cost: 800
+
+  # — Avail 2 (q40) —
+  - key: vibrodagger_talon
+    name: "Vibrodagger (Talon)"
+    skill_required: melee_combat
+    difficulty: 14            # STR+2D → 4D-equiv BASE 12 + Avail 2 → +2
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 2
+        min_quality: 40
+      - type: composite
+        quantity: 1
+        min_quality: 40
+    output_type: weapon
+    output_key: vibrodagger_talon
+    base_cost: 50
+
+  - key: stun_gauntlets_ppg
+    name: "Stun Gauntlets"
+    skill_required: melee_combat
+    difficulty: 14            # STR+2D → 4D-equiv BASE 12 + Avail 2 → +2
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 2
+        min_quality: 40
+      - type: energy
+        quantity: 1
+        min_quality: 40
+      - type: composite
+        quantity: 1
+        min_quality: 40
+    output_type: weapon
+    output_key: stun_gauntlets_ppg
+    base_cost: 300
+
+  - key: contact_stunner_c512
+    name: "Contact Stunner"
+    skill_required: melee_combat
+    difficulty: 14            # 4D+2 → BASE 12 + Avail 2 → +2
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 2
+        min_quality: 40
+      - type: energy
+        quantity: 1
+        min_quality: 40
+      - type: composite
+        quantity: 1
+        min_quality: 40
+    output_type: weapon
+    output_key: contact_stunner_c512
+    base_cost: 575
+
+  - key: autocaster_drolan
+    name: "Auto-caster"
+    skill_required: missile_weapons
+    difficulty: 12            # 3D → BASE 10 + Avail 2 → +2 (book "1,2": priced 700, treated Avail 2)
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 3
+        min_quality: 40
+      - type: composite
+        quantity: 2
+        min_quality: 40
+    output_type: weapon
+    output_key: autocaster_drolan
+    base_cost: 700
+
+  - key: holdout_blaster_b22
+    name: "Hold-out Blaster (B22)"
+    skill_required: blaster_repair
+    difficulty: 12            # 3D → BASE 10 + Avail 2 → +2
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 2
+        min_quality: 40
+      - type: energy
+        quantity: 1
+        min_quality: 40
+      - type: composite
+        quantity: 1
+        min_quality: 40
+    output_type: weapon
+    output_key: holdout_blaster_b22
+    base_cost: 300
+
+  - key: sniper_rifle_x45
+    name: "Sniper Rifle (X-45)"
+    skill_required: blaster_repair
+    difficulty: 17            # 5D → BASE 15 + Avail 2 → +2
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 4
+        min_quality: 40
+      - type: energy
+        quantity: 2
+        min_quality: 40
+      - type: composite
+        quantity: 1
+        min_quality: 40
+    output_type: weapon
+    output_key: sniper_rifle_x45
+    base_cost: 750
+
+  - key: blaster_rifle_firelance
+    name: "Blaster Rifle (Firelance)"
+    skill_required: blaster_repair
+    difficulty: 17            # 5D → BASE 15 + Avail 2 → +2
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 4
+        min_quality: 40
+      - type: energy
+        quantity: 2
+        min_quality: 40
+      - type: composite
+        quantity: 2
+        min_quality: 40
+    output_type: weapon
+    output_key: blaster_rifle_firelance
+    base_cost: 1200
+
+  - key: riot_gun_bt500
+    name: "Riot Gun"
+    skill_required: blaster_repair
+    difficulty: 17            # 5D+1 → BASE 15 + Avail 2 → +2
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 4
+        min_quality: 40
+      - type: energy
+        quantity: 3
+        min_quality: 40
+      - type: composite
+        quantity: 2
+        min_quality: 40
+    output_type: weapon
+    output_key: riot_gun_bt500
+    base_cost: 1500
+
+  # — Avail 3 (q55) —
+  - key: satskar_ekkar
+    name: "Sat'skar"
+    skill_required: melee_combat
+    difficulty: 19            # STR+3D+1 → 5D-equiv BASE 15 + Avail 3 → +4
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 3
+        min_quality: 55
+      - type: composite
+        quantity: 2
+        min_quality: 55
+    output_type: weapon
+    output_key: satskar_ekkar
+    base_cost: 700
+
+  - key: coynskar_ekkar
+    name: "Coyn'skar"
+    skill_required: melee_combat
+    difficulty: 16            # STR+2D → 4D-equiv BASE 12 + Avail 3 → +4
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 3
+        min_quality: 55
+      - type: composite
+        quantity: 2
+        min_quality: 55
+    output_type: weapon
+    output_key: coynskar_ekkar
+    base_cost: 400
+
+  - key: flash_pistol_sevari
+    name: "Sevari Flash-Pistol"
+    skill_required: firearms
+    difficulty: 16            # 4D+2 → BASE 12 + Avail 3 → +4
+    trainer_npc: Kayson
+    components:
+      - type: metal
+        quantity: 2
+        min_quality: 55
+      - type: chemical
+        quantity: 1
+        min_quality: 55
+      - type: composite
+        quantity: 1
+        min_quality: 55
+    output_type: weapon
+    output_key: flash_pistol_sevari
+    base_cost: 300
+
+  # ── CRAFT.GUNDARK Drop C (2026-06-11): non-powered armor, lawful 1–3 ──
+  # 10 schematics, §5 rubric-derived. Armor BASE unit per the signed-off
+  # §10 sample (blast_vest_corondexx = 14): total protection DICE across
+  # both tracks, loose pips summing to 3+ round up one unit
+  # (1–2 units→12, 3–4→15, 5–6→18). Mix per §4: composite primary,
+  # metal secondary. min_quality = §5.2 band (25/40/55). base_cost = book.
+  # Trainer: Sela Tarn (NEW armorer, Kayson's Weapon Shop — this drop).
+  # Recomputed in tests/test_craft_p2_gundark_drop_c.py.
+
+  # — Avail 1 (q25) —
+  - key: koromondain_vest_mk45
+    name: "Koromondain Vest (Mk 45)"
+    skill_required: armor_repair
+    difficulty: 12            # +1D+2/+2 → 1D + 4 pips → 2 units BASE 12 + Avail 1 → +0
+    trainer_npc: Sela Tarn
+    components:
+      - type: composite
+        quantity: 2
+        min_quality: 25
+      - type: metal
+        quantity: 1
+        min_quality: 25
+    output_type: armor
+    output_key: koromondain_vest_mk45
+    base_cost: 250
+
+  - key: concussion_vest_cv14
+    name: "Concussion Vest (CV14-B)"
+    skill_required: armor_repair
+    difficulty: 12            # +1D/— → 1 unit BASE 12 + Avail 1 → +0
+    trainer_npc: Sela Tarn
+    components:
+      - type: composite
+        quantity: 3
+        min_quality: 25
+      - type: metal
+        quantity: 2
+        min_quality: 25
+    output_type: armor
+    output_key: concussion_vest_cv14
+    base_cost: 500
+
+  - key: link_armor_supralink
+    name: "Link Armor (SupraLink)"
+    skill_required: armor_repair
+    difficulty: 12            # +1D/+2 → 1D + 2 pips → 1 unit BASE 12 + Avail 1 → +0
+    trainer_npc: Sela Tarn
+    components:
+      - type: composite
+        quantity: 4
+        min_quality: 25
+      - type: metal
+        quantity: 2
+        min_quality: 25
+    output_type: armor
+    output_key: link_armor_supralink
+    base_cost: 500
+
+  # — Avail 2 (q40) —
+  - key: riot_armor_creshaldyne
+    name: "Riot Armor"
+    skill_required: armor_repair
+    difficulty: 17            # +2D/+1D → 3 units BASE 15 + Avail 2 → +2
+    trainer_npc: Sela Tarn
+    components:
+      - type: composite
+        quantity: 3
+        min_quality: 40
+      - type: metal
+        quantity: 2
+        min_quality: 40
+    output_type: armor
+    output_key: riot_armor_creshaldyne
+    base_cost: 500
+
+  - key: camo_armor_creshaldyne
+    name: "Camo Scout Armor"
+    skill_required: armor_repair
+    difficulty: 14            # +1D/+2 → 1 unit BASE 12 + Avail 2 → +2
+    trainer_npc: Sela Tarn
+    components:
+      - type: composite
+        quantity: 4
+        min_quality: 40
+      - type: metal
+        quantity: 2
+        min_quality: 40
+    output_type: armor
+    output_key: camo_armor_creshaldyne
+    base_cost: 1500
+
+  - key: blast_vest_corondexx
+    name: "Blast Vest (ablative)"
+    skill_required: armor_repair
+    difficulty: 14            # +2/+1D → 1 unit BASE 12 + Avail 2 → +2 (§10 worked-sample anchor)
+    trainer_npc: Sela Tarn
+    components:
+      - type: composite
+        quantity: 3
+        min_quality: 40
+      - type: metal
+        quantity: 2
+        min_quality: 40
+    output_type: armor
+    output_key: blast_vest_corondexx
+    base_cost: 3000
+
+  # — Avail 3 (q55) —
+  - key: castaan_staad
+    name: "Castaan Staad"
+    skill_required: armor_repair
+    difficulty: 16            # +1D/+1D → 2 units BASE 12 + Avail 3 → +4
+    trainer_npc: Sela Tarn
+    components:
+      - type: composite
+        quantity: 2
+        min_quality: 55
+      - type: metal
+        quantity: 1
+        min_quality: 55
+    output_type: armor
+    output_key: castaan_staad
+    base_cost: 750
+
+  - key: coynite_battle_armor
+    name: "Coynite Battle Armor"
+    skill_required: armor_repair
+    difficulty: 19            # +2D/+2D → 4 units BASE 15 + Avail 3 → +4
+    trainer_npc: Sela Tarn
+    components:
+      - type: composite
+        quantity: 4
+        min_quality: 55
+      - type: metal
+        quantity: 2
+        min_quality: 55
+    output_type: armor
+    output_key: coynite_battle_armor
+    base_cost: 150
+
+  - key: ubese_raider_armor
+    name: "Ubese Raider Armor"
+    skill_required: armor_repair
+    difficulty: 19            # +2D/+1D → 3 units BASE 15 + Avail 3 → +4
+    trainer_npc: Sela Tarn
+    components:
+      - type: composite
+        quantity: 3
+        min_quality: 55
+      - type: metal
+        quantity: 2
+        min_quality: 55
+    output_type: armor
+    output_key: ubese_raider_armor
+    base_cost: 1000
+
+  - key: flex_armor_ty1
+    name: "Flex-Armor (TY1)"
+    skill_required: armor_repair
+    difficulty: 16            # +1D/+1D → 2 units BASE 12 + Avail 3 → +4
+    trainer_npc: Sela Tarn
+    components:
+      - type: composite
+        quantity: 4
+        min_quality: 55
+      - type: metal
+        quantity: 2
+        min_quality: 55
+    output_type: armor
+    output_key: flex_armor_ty1
+    base_cost: 2000
+
+  # ── CRAFT.GUNDARK Drop D (2026-06-11): ordnance — demolitions (b=a) ──
+  # 3 schematics, §5 rubric (weapons damage BASE table + avail), §4 mix:
+  # chemical primary / rare / metal casing. Ships WITH the single-use
+  # consumption mechanic — a crafted grenade is one throw (the Merr-Sonn
+  # stun pattern is the book-sanctioned reusable exception). Recomputed
+  # in tests/test_craft_p2_gundark_drop_d.py. Trainer: Kayson (lawful
+  # per a=b; his back-room stock is canon-textual — Drop G re-binds
+  # R-flag enforcement).
+
+  - key: incendiary_grenade
+    name: "Incendiary Grenade"
+    skill_required: demolitions
+    difficulty: 12            # 4D → BASE 12 + Avail 1 → +0
+    trainer_npc: Kayson
+    components:
+      - type: chemical
+        quantity: 2
+        min_quality: 25
+      - type: rare
+        quantity: 1
+        min_quality: 25
+    output_type: weapon
+    output_key: incendiary_grenade
+    base_cost: 300
+
+  - key: frag_grenade
+    name: "Frag Grenade"
+    skill_required: demolitions
+    difficulty: 17            # 5D → BASE 15 + Avail 2 → +2
+    trainer_npc: Kayson
+    components:
+      - type: chemical
+        quantity: 2
+        min_quality: 40
+      - type: rare
+        quantity: 1
+        min_quality: 40
+      - type: metal
+        quantity: 1
+        min_quality: 40
+    output_type: weapon
+    output_key: frag_grenade
+    base_cost: 200
+
+  - key: stun_grenade_merr_sonn
+    name: "Stun Grenade"
+    skill_required: demolitions
+    difficulty: 20            # 6D → BASE 18 + Avail 2 → +2
+    trainer_npc: Kayson
+    components:
+      - type: chemical
+        quantity: 2
+        min_quality: 40
+      - type: rare
+        quantity: 1
+        min_quality: 40
+      - type: metal
+        quantity: 1
+        min_quality: 40
+    output_type: weapon
+    output_key: stun_grenade_merr_sonn
+    base_cost: 450
+
+  # ── CRAFT.GUNDARK Drop E (2026-06-11): field & survival gear ──
+  # Two new schematics riding consumers that this drop made REAL:
+  # the luma flare (attack path + Drop D single-use) and the animal
+  # excluder (the new wilderness-encounter aversion seam). Trainer:
+  # Vek Nurren — the dangling trainer this drop finally SEEDS (his five
+  # existing gear schematics were unlearnable phantom-teaching).
+
+  - key: luma_flare
+    name: "Luma Flare"
+    skill_required: demolitions
+    difficulty: 14            # 4D → BASE 12 + Avail 2 → +2
+    trainer_npc: Vek Nurren
+    components:
+      - type: chemical
+        quantity: 2
+        min_quality: 40
+      - type: rare
+        quantity: 1
+        min_quality: 40
+    output_type: weapon
+    output_key: luma_flare
+    base_cost: 100
+
+  - key: animal_excluder
+    name: "Animal Excluder"
+    skill_required: security
+    difficulty: 14            # device, Avail 2 → gear BASE 12 + 2 (anti_theft_alarm precedent: security devices at 14)
+    trainer_npc: Vek Nurren
+    components:
+      - type: electronic
+        quantity: 2
+        min_quality: 40
+      - type: composite
+        quantity: 1
+        min_quality: 40
+    output_type: gear
+    output_key: animal_excluder
+    base_cost: 350
+
+  # ── CRAFT.GUNDARK Drop F (2026-06-12): espionage kit — tool bonuses ──
+  # 3 schematics riding the NEW carried-tool seam in perform_skill_check
+  # (skill_bonus on the landed gear dict; best single tool, no stacking;
+  # out-of-combat only by construction — combat never calls the
+  # chokepoint). §4 mix: spy gear = electronic / energy / rare. Device
+  # BASE 12 + avail. Trainers: Renna Dox (the existing sensor_mask /
+  # comm_jammer slicer-tech, Nar Shaddaa) and Heist (the Cutting Edge
+  # medic) — zero new NPCs. Force detector stays OUT
+  # (CRAFT.HOOK.force_detector): quest-artifact recast only, never a
+  # recipe. Qualifier-bound bonuses (DataSearch "info search only",
+  # geological scanner "survey only") are DEFERRED rather than
+  # over-broadly granted — the no-rewrite rule.
+
+  - key: code_slicer
+    name: "Code Slicer"
+    skill_required: computer_prog
+    difficulty: 16            # device BASE 12 + Avail 3 → +4
+    trainer_npc: Renna Dox
+    components:
+      - type: electronic
+        quantity: 2
+        min_quality: 55
+      - type: rare
+        quantity: 1
+        min_quality: 55
+    output_type: gear
+    output_key: code_slicer
+    base_cost: 2000
+    skill_bonus:
+      skill: security
+      bonus: "+1D"
+
+  - key: unitech_patch
+    name: "UniTech Patch"
+    skill_required: computer_prog
+    difficulty: 14            # device BASE 12 + Avail 2 → +2
+    trainer_npc: Renna Dox
+    components:
+      - type: electronic
+        quantity: 2
+        min_quality: 40
+      - type: energy
+        quantity: 1
+        min_quality: 40
+    output_type: gear
+    output_key: unitech_patch
+    base_cost: 5200
+    skill_bonus:
+      skill: security
+      bonus: "+1D+2"
+
+  - key: medscanner
+    name: "Medscanner"
+    skill_required: computer_prog
+    difficulty: 14            # device BASE 12 + Avail 2 → +2
+    trainer_npc: Heist
+    components:
+      - type: electronic
+        quantity: 2
+        min_quality: 40
+      - type: rare
+        quantity: 1
+        min_quality: 40
+    output_type: gear
+    output_key: medscanner
+    base_cost: 3000
+    skill_bonus:
+      skill: first_aid
+      bonus: "+1D"
+
+  # ── CRAFT.GUNDARK Drop G (2026-06-12): the black-market band ──
+  # Lane finale per decisions 3a + (a)=b + tuition=a. Avail 4/X recipes,
+  # q70 materials gate, `contraband: true` (landed items carry the flag;
+  # patrol boardings sweep for it — the scan hook ships WITH the first
+  # contraband recipe, as 3a requires). Trainer: Gundark — the catalog's
+  # own in-fiction compiler, dealing from the Nar Shaddaa Undercity
+  # Market (seeded this drop). Tuition applies like anywhere else; his
+  # first lesson is free too — a taste to hook you. Rubric: damage BASE
+  # extrapolates +3/die past 6D, Avail-4 mod +6, capped at Heroic 26.
+  # STILL EXCLUDED (pinned/standing): thermal_detonator (X-class icon —
+  # call resolved: stays uncraftable, vendor/loot mystique preserved),
+  # Lowickan Firegems (natural gems, not craftable — cartel plot device,
+  # logged), heavy disruptor (book quirk: weaker than the standard),
+  # pulse rifle (cone-primary unmodeled), the plot-artifact-priced
+  # espionage X-devices (master coder, lock breaker, voice box, bubble).
+
+  - key: disruptor_pistol
+    name: "Disruptor Pistol"
+    skill_required: blaster_repair
+    difficulty: 24            # 6D+2 → BASE 18 (pips don't bump) + Avail 4 → +6
+    trainer_npc: Gundark
+    contraband: true
+    components:
+      - type: metal
+        quantity: 3
+        min_quality: 70
+      - type: energy
+        quantity: 2
+        min_quality: 70
+      - type: composite
+        quantity: 1
+        min_quality: 70
+    output_type: weapon
+    output_key: disruptor_pistol
+    base_cost: 3000
+
+  - key: predator_rifle
+    name: "Predator Rifle (EXP-7a)"
+    skill_required: blaster_repair
+    difficulty: 26            # 7D → BASE 21 (extrapolated) + 6 → capped at Heroic 26
+    trainer_npc: Gundark
+    contraband: true
+    components:
+      - type: metal
+        quantity: 4
+        min_quality: 70
+      - type: energy
+        quantity: 2
+        min_quality: 70
+      - type: composite
+        quantity: 1
+        min_quality: 70
+    output_type: weapon
+    output_key: predator_rifle
+    base_cost: 7000
+
+  - key: anti_vehicle_grenade
+    name: "Anti-Vehicle Grenade"
+    skill_required: demolitions
+    difficulty: 26            # 7D → BASE 21 + Avail 4 → +6, capped at 26
+    trainer_npc: Gundark
+    contraband: true
+    components:
+      - type: chemical
+        quantity: 2
+        min_quality: 70
+      - type: rare
+        quantity: 1
+        min_quality: 70
+      - type: metal
+        quantity: 1
+        min_quality: 70
+    output_type: weapon
+    output_key: anti_vehicle_grenade
+    base_cost: 750

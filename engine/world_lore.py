@@ -292,12 +292,9 @@ async def seed_lore(db, era: Optional[str] = None) -> int:
     wired production boot to pass an explicit era, the literal
     became dead code.
 
-    Backward-compat: when `era` is None, defaults to "gcw" so any
-    existing caller that doesn't pass an era still seeds GCW lore.
-    The F.6a.{2,3}-int byte-equivalence test fixtures that pass
-    `era=None` continue to exercise the same data path they always
-    did — sourced from YAML now instead of an in-Python literal,
-    but with byte-equivalent results.
+    Backward-compat: when `era` is None, defaults to the production
+    era (clone_wars) so any existing caller that doesn't pass an era
+    still seeds current-era lore from YAML.
 
     On YAML load failure (missing file, parse error, validation
     error), this function logs an ERROR and returns 0 — there is no
@@ -306,9 +303,9 @@ async def seed_lore(db, era: Optional[str] = None) -> int:
     than silently shipping outdated literal data.
     """
     if era is None:
-        # F.6a.7 Phase 2: era=None defaults to GCW (was the legacy
-        # SEED_ENTRIES path pre-Phase-2).
-        era = "gcw"
+        # era=None defaults to the production era. The GCW tree has been
+        # retired, so there is no gcw fallback to seed.
+        era = "clone_wars"
 
     try:
         from pathlib import Path

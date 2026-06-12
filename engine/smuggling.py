@@ -83,6 +83,14 @@ JOB_ACTIVE_TTL    = 14400 # 4h accepted
 # Patrol encounter base difficulty by tier
 PATROL_DIFFICULTY = {0: 0, 1: 10, 2: 15, 3: 20}
 
+# A SECURITY_CHECKPOINT world event (mechanical_effects {"contraband_scan": True})
+# raises smuggling scrutiny — a lighter, zone-wide version of a spaceport LOCKDOWN
+# (which adds +0.30 patrol chance / +5 difficulty). The two STACK (a checkpoint
+# during a lockdown applies both). Named so the config/telemetry pass (T3.19) can
+# lift them into a tunables file alongside the lockdown values.
+CHECKPOINT_PATROL_BOOST: float = 0.15
+CHECKPOINT_DIFFICULTY_BOOST: int = 3
+
 # Fine = this fraction of the job's reward
 FINE_FRACTION = 0.50
 
@@ -375,6 +383,7 @@ def resolve_patrol_encounter(
     job: SmugglingJob,
     skill_roll: int,
     lockdown_active: bool = False,
+    contraband_scan: bool = False,
 ) -> dict:
     """
     Resolve a customs patrol encounter during transit.
@@ -396,6 +405,9 @@ def resolve_patrol_encounter(
     if lockdown_active and patrol_chance < 1.0:
         # Lockdown: shift up one tier's worth of patrol risk
         patrol_chance = min(1.0, patrol_chance + 0.30)
+    if contraband_scan and patrol_chance < 1.0:
+        # SECURITY_CHECKPOINT: a lighter, zone-wide scan on top of any lockdown
+        patrol_chance = min(1.0, patrol_chance + CHECKPOINT_PATROL_BOOST)
 
     # Roll whether patrol intercepts at all
     if random.random() > patrol_chance:
@@ -410,16 +422,21 @@ def resolve_patrol_encounter(
     difficulty = PATROL_DIFFICULTY[job.tier]
     if lockdown_active:
         difficulty += 5  # Lockdown raises inspection difficulty
+    if contraband_scan:
+        difficulty += CHECKPOINT_DIFFICULTY_BOOST  # checkpoint scan tightens it
 
     caught = skill_roll < difficulty
+    scan_note = "  Security checkpoint: scanners are up.\n" if contraband_scan else ""
 
     if not caught:
         msg = (
+            f"{scan_note}"
             f"  A customs patrol hails you. Your story holds — they wave you through.\n"
             f"  (Roll: {skill_roll} vs difficulty {difficulty})"
         )
     else:
         msg = (
+            f"{scan_note}"
             f"  A customs patrol intercepts you. They find the {job.cargo_type}.\n"
             f"  Cargo confiscated. Fine: {job.fine:,} credits.\n"
             f"  (Roll: {skill_roll} vs difficulty {difficulty})"

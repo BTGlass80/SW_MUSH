@@ -73,7 +73,11 @@ HAZARD_TYPES: dict[str, dict] = {
         "skill": "perception",
         "base_difficulty": 10,
         "buff_type": None,  # Special: credit theft, not a buff
-        "mitigation_items": [],
+        # Gundark Drop E (2026-06-11): the anti_theft_alarm schematic
+        # existed with NO consumer — this is its loop. max_uses: 1, so
+        # with the consume-on-mitigation mechanic it defeats exactly one
+        # pickpocket attempt and is spent.
+        "mitigation_items": ["anti_theft_alarm"],
         "warning_text": (
             "You feel eyes on you from the shadows. This neighborhood "
             "has a reputation for a reason."
@@ -115,6 +119,19 @@ _hazard_timers: dict[tuple[int, int], float] = {}
 HAZARD_CHECK_INTERVAL = 300
 
 
+# Lane E2b (Secrets of Tatooine §3): time-of-day grading for the extreme_heat
+# hazard — worst under the noon suns ("day"), eased after dark ("night"). Steps
+# are -1D-band (3 pips); the caller floors the result. Pure + table-driven so it
+# is unit-testable independent of the skill-check randomness.
+_EXTREME_HEAT_TOD_MOD = {"day": 3, "dusk": 0, "night": -4}
+
+
+def _extreme_heat_time_mod(time_of_day: str) -> int:
+    """Difficulty modifier for extreme_heat by clock band (day hotter, night eased).
+    Unknown/None -> 0 (no-op)."""
+    return _EXTREME_HEAT_TOD_MOD.get((time_of_day or "").strip().lower(), 0)
+
+
 # ── Hazard Resolution ─────────────────────────────────────────────────────────
 
 def get_room_hazard(room: dict) -> Optional[dict]:
@@ -146,29 +163,152 @@ def _mark_checked(char_id: int, room_id: int) -> None:
 
 
 def _has_mitigation(char: dict, mitigation_items: list[str]) -> bool:
-    """Check if character has any mitigation item in inventory or equipment."""
+    """Check if character has any mitigation item in inventory or equipment.
+
+    CRAFT.P0.5: the old code iterated the raw inventory top-level — under
+    the current dict format ({"items": [...], "resources": [...]}) that
+    iterated the KEY STRINGS, so survival gear never mitigated anything.
+    It also read char["equipped_weapon"]/["worn_armor"], which are not row
+    columns (those live in the equipment JSON) — both checks were dead.
+    """
     if not mitigation_items:
         return False
     try:
         inv = char.get("inventory", "[]")
         if isinstance(inv, str):
-            inv = json.loads(inv)
-        equipped = char.get("equipped_weapon", "")
-        # Check inventory item keys
-        for item in inv:
+            inv = json.loads(inv) if inv else {}
+        # Tolerate both shapes: dict format carries the list under "items".
+        items = inv.get("items", []) if isinstance(inv, dict) else (
+            inv if isinstance(inv, list) else [])
+        for item in items:
             key = item.get("key", "") if isinstance(item, dict) else str(item)
             if key.lower() in mitigation_items:
                 return True
-        # Check equipped
-        if equipped and equipped.lower() in mitigation_items:
+        # Equipped weapon / worn armor (canonical per-slot read)
+        from engine.items import equipment_keys
+        keys = equipment_keys(char.get("equipment", "{}"))
+        if keys["weapon"] and keys["weapon"].lower() in mitigation_items:
             return True
-        # Check worn armor
-        armor = char.get("worn_armor", "")
-        if armor and armor.lower() in mitigation_items:
+        if keys["armor"] and keys["armor"].lower() in mitigation_items:
             return True
     except Exception as _e:
-        log.debug("silent except in engine/hazards.py:169: %s", _e, exc_info=True)
+        log.debug("silent except in engine/hazards.py:_has_mitigation: %s",
+                  _e, exc_info=True)
     return False
+
+
+def _find_mitigation_item(char: dict, mitigation_items: list[str]):
+    """Locate the FIRST mitigation match. Returns (source, item) where
+    source is "inventory" (item = the carried dict) or "equipment"
+    (item = the slot key string), or (None, None).
+
+    Mirrors _has_mitigation's search order exactly — the two must agree
+    or a player could pass the presence check and dodge the consume.
+    """
+    if not mitigation_items:
+        return None, None
+    mitigation_items = [m.lower() for m in mitigation_items]
+    try:
+        # Same source + shape tolerance as _has_mitigation: the char
+        # row's inventory JSON ({"items": [...]} dict format, or a bare
+        # legacy list). The two functions MUST agree or a player could
+        # pass the presence check and dodge the consume.
+        inv = char.get("inventory", "[]")
+        if isinstance(inv, str):
+            inv = json.loads(inv) if inv else {}
+        items = inv.get("items", []) if isinstance(inv, dict) else (
+            inv if isinstance(inv, list) else [])
+        for item in items:
+            key = item.get("key", "") if isinstance(item, dict) else str(item)
+            if key.lower() in mitigation_items:
+                return "inventory", item
+    except Exception as _e:
+        log.debug("silent except in _find_mitigation_item inv: %s",
+                  _e, exc_info=True)
+    try:
+        from engine.items import equipment_keys
+        keys = equipment_keys(char.get("equipment", "{}"))
+        if keys["weapon"] and keys["weapon"].lower() in mitigation_items:
+            return "equipment", keys["weapon"]
+        if keys["armor"] and keys["armor"].lower() in mitigation_items:
+            return "equipment", keys["armor"]
+    except Exception as _e:
+        log.debug("silent except in _find_mitigation_item eq: %s",
+                  _e, exc_info=True)
+    return None, None
+
+
+async def _consume_mitigation_use(char: dict, item: dict, db,
+                                  session=None) -> None:
+    """Gundark Drop E (2026-06-11): mitigation gear with max_uses > 0
+    spends a use each time it actually averts a hazard; at zero it is
+    removed with a message. Until this drop, `uses` landed on crafted
+    gear and NOTHING decremented it — radiation_suit's max_uses: 10 and
+    anti_theft_alarm's max_uses: 1 were decorative.
+
+    Durable gear (max_uses absent or 0) is untouched. Equipment-slot
+    matches are ItemInstances without uses semantics — treated as
+    durable (the caller passes inventory dicts only). Fail-open: a db
+    hiccup must never punish the player mid-hazard.
+    """
+    try:
+        if not isinstance(item, dict):
+            return
+        max_uses = int(item.get("max_uses", 0) or 0)
+        if max_uses <= 0:
+            return  # durable
+        uses = int(item.get("uses", max_uses) or 0)
+        new_uses = max(0, uses - 1)
+        key = item.get("key", "")
+        name = item.get("name", key)
+
+        # DB mirror (source of truth across sessions)
+        await db.remove_from_inventory(char["id"], key)
+        if new_uses > 0:
+            mutated = dict(item)
+            mutated["uses"] = new_uses
+            await db.add_to_inventory(char["id"], mutated)
+
+        # Session-dict sync: the hazard tick passes the LIVE session
+        # character dict and re-reads char["inventory"] on every check —
+        # without this rewrite a spent item would keep mitigating until
+        # relog (db.add/remove only touch the row, never the dict).
+        try:
+            inv = char.get("inventory", "[]")
+            if isinstance(inv, str):
+                inv = json.loads(inv) if inv else {}
+            if isinstance(inv, dict):
+                items = inv.get("items", [])
+            elif isinstance(inv, list):
+                items = inv
+                inv = {"items": items}
+            else:
+                items = []
+                inv = {"items": items}
+            for i, it in enumerate(items):
+                if isinstance(it, dict) and it.get("key") == key:
+                    if new_uses > 0:
+                        items[i] = dict(it)
+                        items[i]["uses"] = new_uses
+                    else:
+                        items.pop(i)
+                    break
+            char["inventory"] = json.dumps(inv)
+        except Exception as _e:
+            log.debug("consume_mitigation dict-sync failed: %s",
+                      _e, exc_info=True)
+
+        if new_uses > 0:
+            note = f"[{name}] {new_uses}/{max_uses} uses remain."
+        else:
+            note = (f"[{name}] is spent and falls apart — "
+                    f"craft or buy a replacement.")
+        if session:
+            from engine.pose_events import make_system_event
+            await session.send_json("pose_event", make_system_event(note))
+    except Exception as _e:
+        log.debug("silent except in _consume_mitigation_use: %s",
+                  _e, exc_info=True)
 
 
 async def check_hazard_for_character(
@@ -197,8 +337,34 @@ async def check_hazard_for_character(
     # Scale difficulty with severity
     difficulty += (severity - 1) * 3
 
-    # Check mitigation
-    if _has_mitigation(char, template["mitigation_items"]):
+    # Lane E2b (Secrets of Tatooine §3): the desert heat-and-thirst hazard is
+    # graded by the twin-sun clock — at its worst under the noon suns, eased
+    # after dark. Applies ONLY to extreme_heat; the band comes from the room's
+    # time-of-day (authored override -> global day cycle, so wilderness tiles get
+    # the live day/night swing). No-op-safe and floored at the Very-Easy band so
+    # night relief never drives the check negative.
+    if hazard_type == "extreme_heat":
+        try:
+            from engine.world_time import resolve_time_of_day
+            _rprops = room.get("properties", "{}")
+            if isinstance(_rprops, str):
+                _rprops = json.loads(_rprops)
+            if not isinstance(_rprops, dict):
+                _rprops = {}
+            _tod = resolve_time_of_day(_rprops)
+            difficulty = max(5, difficulty + _extreme_heat_time_mod(_tod))
+        except Exception as _e:
+            log.debug("silent except in engine/hazards.py extreme_heat tod mod: %s",
+                      _e, exc_info=True)
+
+    # Check mitigation — Gundark Drop E: gear with max_uses now SPENDS a
+    # use when it actually averts the hazard (inventory dicts only;
+    # equipment-slot and legacy string matches are durable by shape).
+    _mit_src, _mit_item = _find_mitigation_item(
+        char, template["mitigation_items"])
+    if _mit_src is not None:
+        if _mit_src == "inventory" and isinstance(_mit_item, dict):
+            await _consume_mitigation_use(char, _mit_item, db, session)
         return {"checked": True, "passed": True, "msg": "", "mitigated": True}
 
     # Perform skill check

@@ -131,6 +131,15 @@ class TrainCommand(BaseCommand):
             await ctx.session.send_line(ansi.dim("Example: train blaster  |  train space transports"))
             return
 
+        # 2026-06-11 skill-key unification: canonicalize BEFORE the
+        # registry check and BEFORE storage. SkillRegistry.get now
+        # accepts underscore-form input ("train blaster_repair"), so
+        # without this the raw form would be STORED and create a
+        # split-key skills dict ("blaster repair" from chargen +
+        # "blaster_repair" from train).
+        from engine.character import canonical_skill_key
+        skill_name = canonical_skill_key(skill_name)
+
         skill_reg = _get_skill_reg()
         skill_def = skill_reg.get(skill_name)
         if not skill_def:

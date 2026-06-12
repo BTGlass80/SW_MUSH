@@ -527,11 +527,11 @@ def security_refuse_msg(level: SecurityLevel, target_is_npc: bool) -> str:
     if level == SecurityLevel.SECURED:
         if target_is_npc:
             return (
-                "\033[1;33mImperial security patrols this area. "
+                "\033[1;33mHeavy security patrols this area. "
                 "The guards would be on you before you could draw.\033[0m"
             )
         return (
-            "\033[1;33mImperial security is too heavy here. "
+            "\033[1;33mSecurity here is too heavy. "
             "You'd be gunned down before you drew.\033[0m"
         )
     return "\033[1;33mCombat is not permitted here.\033[0m"

@@ -24,7 +24,7 @@ What this suite validates:
         - is_path_c_locked / is_spirit_trial_started
         - is_spirit_unlocked respects the audience+skill+courage+flesh chain
   3. Dark-future-self speech composer:
-        - Per-faction templates (republic/separatist/hutt/imperial/rebel)
+        - Per-faction templates (republic/cis/jedi_order/hutt_cartel/bounty_hunters_guild/independent)
         - Generic fallback for unknown/empty factions
         - Each turn 1..7 has a distinct speech
         - Out-of-range turn falls back to last turn rather than crashing
@@ -293,17 +293,17 @@ class TestComposeDarkFutureSpeech:
         # Every turn produces a different speech
         assert len(set(speeches)) == SPIRIT_MAX_TURNS
 
-    def test_republic_turn_mentions_regs_or_orders(self):
+    def test_republic_vision_is_the_imperial_future(self):
+        # CW re-key (2026-06-05): a Republic/clone-aligned player sees the
+        # GAR -> Empire arc — the showpiece "the Empire does not exist yet".
         char = _make_char(faction="republic")
-        # Pull all 7 turns; Republic theme should be present somewhere
         all_text = " ".join(_compose_dark_future_speech(char, t)
                             for t in range(1, SPIRIT_MAX_TURNS + 1))
-        assert ("reg" in all_text.lower() or
-                "order" in all_text.lower() or
-                "Republic" in all_text)
+        assert ("Empire" in all_text or "Emperor" in all_text or
+                "Imperial" in all_text)
 
-    def test_separatist_turn_mentions_cis_or_dooku(self):
-        char = _make_char(faction="separatist")
+    def test_cis_turn_mentions_confederacy(self):
+        char = _make_char(faction="cis")
         all_text = " ".join(_compose_dark_future_speech(char, t)
                             for t in range(1, SPIRIT_MAX_TURNS + 1))
         assert ("cis" in all_text.lower() or
@@ -316,17 +316,35 @@ class TestComposeDarkFutureSpeech:
                             for t in range(1, SPIRIT_MAX_TURNS + 1))
         assert "Cartel" in all_text or "Hutt" in all_text
 
-    def test_imperial_turn_mentions_empire(self):
-        char = _make_char(faction="imperial")
+    def test_jedi_order_vision_is_the_war_machine(self):
+        # CW re-key: a Jedi sees the Order's war-machine complicity —
+        # "the Order will use you", clones sent to die.
+        char = _make_char(faction="jedi_order")
         all_text = " ".join(_compose_dark_future_speech(char, t)
                             for t in range(1, SPIRIT_MAX_TURNS + 1))
-        assert "Empire" in all_text or "Emperor" in all_text or "Imperial" in all_text
+        assert ("Order" in all_text or "clone" in all_text.lower() or
+                "reg" in all_text.lower())
 
-    def test_rebel_turn_mentions_rebellion(self):
-        char = _make_char(faction="rebel")
+    def test_independent_vision_is_the_rebellion(self):
+        # CW re-key: an idealist sees the Rebellion to come.
+        char = _make_char(faction="independent")
         all_text = " ".join(_compose_dark_future_speech(char, t)
                             for t in range(1, SPIRIT_MAX_TURNS + 1))
-        assert "Rebellion" in all_text
+        assert "Rebellion" in all_text or "tyranny" in all_text.lower()
+
+    def test_all_cw_factions_reachable_no_dead_gcw_keys(self):
+        # Every CW faction resolves to a non-empty, per-turn-distinct vision,
+        # and no pre-CW faction key lingers in the registry.
+        from engine.village_trials import _SPIRIT_TURNS_BY_FACTION
+        for f in ("republic", "cis", "jedi_order",
+                  "hutt_cartel", "bounty_hunters_guild", "independent"):
+            char = _make_char(faction=f)
+            turns = [_compose_dark_future_speech(char, t)
+                     for t in range(1, SPIRIT_MAX_TURNS + 1)]
+            assert all(len(x) > 30 for x in turns), f
+            assert len(set(turns)) == SPIRIT_MAX_TURNS, f
+        for dead in ("separatist", "imperial", "rebel"):
+            assert dead not in _SPIRIT_TURNS_BY_FACTION, dead
 
     def test_unknown_faction_falls_back_to_generic(self):
         char_unknown = _make_char(faction="something_unknown")

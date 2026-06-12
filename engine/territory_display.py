@@ -131,6 +131,7 @@ def _format_secs_short(secs: float) -> str:
 
 async def get_region_data_block(
     db, region_slug: str,
+    *, viewer_org_code: Optional[str] = None,
 ) -> dict:
     """Read the region's full state and return a structured dict.
 
@@ -138,6 +139,7 @@ async def get_region_data_block(
 
         {
           "region_slug": str,
+          "viewer_org": str | None,       # the viewer's faction code, if passed
           "region_name": str,             # human-readable from YAML
           "planet": str | None,           # if known
           "security": str,                # 'lawless' | 'contested' | 'secured'
@@ -149,9 +151,15 @@ async def get_region_data_block(
             "claimed_at": float | None,
           } | None,
           "influence": [                  # sorted by score desc
-            {"org_code": str, "score": int, "tier": str},
+            {"org_code": str, "org_name": str, "score": int,
+             "tier": str, "is_viewer": bool},
             ...
           ],
+
+    ``viewer_org_code`` (optional, keyword-only): when given, the influence
+    ladder flags the viewer's row (``is_viewer``) and the top-level
+    ``viewer_org`` echoes the code, so the web Region panel can box the
+    player's own faction row. Read-only; purely additive to the contract.
           "resource_outlook": {
             "best": {"type": str, "multiplier": float} | None,
             "worst": {"type": str, "multiplier": float} | None,
@@ -171,6 +179,7 @@ async def get_region_data_block(
     """
     out = {
         "region_slug": region_slug,
+        "viewer_org": viewer_org_code,
         "region_name": _humanize_slug(region_slug),
         "planet": None,
         "security": "lawless",
@@ -239,8 +248,12 @@ async def get_region_data_block(
             for org_code, score in (scores or {}).items():
                 influence_list.append({
                     "org_code": org_code,
+                    "org_name": await _resolve_org_name(db, org_code),
                     "score": int(score),
                     "tier": _influence_tier(int(score)),
+                    "is_viewer": bool(
+                        viewer_org_code and org_code == viewer_org_code
+                    ),
                 })
             # Sort highest-first.
             influence_list.sort(key=lambda x: -x["score"])

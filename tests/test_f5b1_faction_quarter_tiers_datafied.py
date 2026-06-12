@@ -111,11 +111,6 @@ class TestBothErasMerged(unittest.TestCase):
         from engine.housing import FACTION_QUARTER_TIERS
         cls.factions = sorted(set(fc for (fc, _) in FACTION_QUARTER_TIERS.keys()))
 
-    def test_gcw_factions_present(self):
-        for fc in ("empire", "rebel", "hutt"):
-            self.assertIn(fc, self.factions,
-                          f"GCW faction {fc!r} missing from resolved dict")
-
     def test_cw_factions_present(self):
         for fc in ("republic", "cis", "jedi_order", "hutt_cartel"):
             self.assertIn(fc, self.factions,
@@ -250,12 +245,6 @@ class TestConsumerBackwardCompat(unittest.TestCase):
     consumers of FACTION_QUARTER_TIERS. They must work the same way
     pre- and post-F.5b.1."""
 
-    def test_faction_min_rank_gcw(self):
-        from engine.housing import _faction_min_rank
-        self.assertEqual(_faction_min_rank("empire"), 0)
-        self.assertEqual(_faction_min_rank("rebel"), 1)
-        self.assertEqual(_faction_min_rank("hutt"), 2)
-
     def test_faction_min_rank_cw(self):
         from engine.housing import _faction_min_rank
         self.assertEqual(_faction_min_rank("republic"), 0)
@@ -271,19 +260,6 @@ class TestConsumerBackwardCompat(unittest.TestCase):
         """BHG isn't in FACTION_QUARTER_TIERS (no faction quarters)."""
         from engine.housing import _faction_min_rank
         self.assertIsNone(_faction_min_rank("bounty_hunters_guild"))
-
-    def test_best_tier_for_rank_picks_highest_qualifying(self):
-        from engine.housing import _best_tier_for_rank
-        # GCW empire ranks: 0, 2, 4, 6
-        # Rank 5 should pick rank-4 tier (officer suite)
-        cfg = _best_tier_for_rank("empire", 5)
-        self.assertIsNotNone(cfg)
-        self.assertIn("Officer's Suite", cfg["label"])
-
-        # Rank 7 should pick rank-6 tier (commander quarters)
-        cfg = _best_tier_for_rank("empire", 7)
-        self.assertIsNotNone(cfg)
-        self.assertIn("Commander", cfg["label"])
 
     def test_best_tier_for_rank_below_minimum_returns_none(self):
         from engine.housing import _best_tier_for_rank

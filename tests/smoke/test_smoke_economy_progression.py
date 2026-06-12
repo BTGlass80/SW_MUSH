@@ -33,3 +33,9 @@ class TestEconomyProgression:
 
     async def test_e6_survey_runs_with_skill(self, harness):
         await economy_progression.e6_survey_runs_with_skill(harness)
+
+    async def test_e7_full_craft_loop(self, harness):
+        await economy_progression.e7_full_craft_loop(harness)
+
+    async def test_e8_experiment_paths(self, harness):
+        await economy_progression.e8_experiment_paths(harness)

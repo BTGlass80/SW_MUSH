@@ -183,7 +183,7 @@ _GCW_ZONES: dict[str, Zone] = {
         planet="kessel",
         adjacent=["kessel_orbit"],
         desc="A rough-hewn spaceport carved into Kessel's dark surface. "
-             "Imperial garrison towers overlook every pad. "
+             "Weathered watchtowers overlook every pad. "
              "Spice processing plants hum in the distance.",
     ),
     "kessel_orbit": Zone(
@@ -258,7 +258,7 @@ _GCW_ZONES: dict[str, Zone] = {
         type=ZoneType.HYPERSPACE_LANE,
         adjacent=["corellia_deep_space", "outer_rim_lane_1"],
         desc="One of the galaxy's major trade arteries. Heavy freighter traffic "
-             "and Imperial customs interdiction make this a busy corridor.",
+             "and customs interdiction patrols make this a busy corridor.",
     ),
 }
 
@@ -304,7 +304,7 @@ def _load_zone_graph():
         from engine.era_state import get_active_era
         era = get_active_era()
     except Exception:  # pragma: no cover - defensive
-        era = "gcw"
+        era = "clone_wars"
     data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
     zpath = os.path.join(data_dir, "worlds", era, "space_zones.yaml")
     if not os.path.exists(zpath):
@@ -1266,7 +1266,7 @@ class NpcSpaceTrafficManager:
     async def _run_boarding_inspection(
         self, ship: TrafficShip, db, session_mgr
     ) -> None:
-        """Imperial patrol boarding inspection after failed hail.
+        """Patrol boarding inspection after failed hail.
 
         Finds all player ships in the patrol zone, checks each for
         contraband / false transponder, and applies a WEG40141 infraction
@@ -1356,7 +1356,7 @@ class NpcSpaceTrafficManager:
 
                 if fine == 0:
                     await sess.send_line(
-                        "  " + RED + "[IMPERIAL CUSTOMS]" + RST
+                        "  " + RED + "[" + customs_tag + "]" + RST
                         + " You are being detained."
                         + " (Roleplay with staff or wait for release.)"
                     )
@@ -1384,7 +1384,7 @@ class NpcSpaceTrafficManager:
                     )
 
                 await sess.send_line(
-                    "  " + DIM + "[IMPERIAL BOARDING]"
+                    "  " + DIM + "[" + board_tag + "]"
                     + " Troops withdraw. You are cleared to proceed." + RST
                 )
                 log.info(

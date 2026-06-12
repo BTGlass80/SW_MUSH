@@ -76,6 +76,48 @@ class WoundLevel(IntEnum):
 
 # ── Skill Registry ──
 
+# ── Skill-key canonicalization (2026-06-11) ──────────────────────────
+# The repo carries two live key dialects for the SAME skills:
+#   • space-form      — SkillRegistry keys ("blaster repair"), chargen
+#     templates, train/CP writes, MISSION_SKILL_MAP, combat literals.
+#   • underscore-form — data/schematics.yaml skill_required values and
+#     most NPC yaml skill blocks (46× melee_combat, 43× first_aid, …).
+# Until 2026-06-11 nothing translated between dialects, so every lookup
+# that crossed them silently resolved as UNTRAINED — and in
+# skill_checks._skill_to_attr, to the wrong governing attribute
+# (default "perception"). Net effect: crafter training never counted
+# for any underscore skill_required (trained Blaster Repair 3D PCs
+# rolled raw 2D Perception to craft), technical-mission rolls ignored
+# Space Transport Repair training (plural/singular drift), and every
+# melee_combat-keyed NPC attacked and parried at raw attribute.
+# canonical_skill_key() is the single translation point; both
+# resolution surfaces (Character.get_skill_pool and
+# skill_checks._get_skill_pool / _skill_to_attr) route through it.
+_SKILL_KEY_ALIASES = {
+    # data-form (lowered, post-separator-normalization) → the
+    # registry-canonical name from data/skills.yaml. Keep this map
+    # SMALL and sanctioned: tests/test_skill_key_resolution.py pins
+    # that every schematics.yaml skill_required resolves through here
+    # to a registered skill, so new data-side spellings fail loudly at
+    # data-entry time instead of silently rolling untrained.
+    "computer prog": "computer programming/repair",
+    "computer programming": "computer programming/repair",
+    "space transports repair": "space transport repair",
+    "pickpocket": "pick pocket",
+}
+
+
+def canonical_skill_key(name: str) -> str:
+    """Normalize a skill name to its registry-canonical lookup key.
+
+    Lowercase, strip, underscores→spaces, then the sanctioned
+    ``_SKILL_KEY_ALIASES`` map. Idempotent. ``canonical_skill_key("")``
+    is ``""`` (never raises on None/empty).
+    """
+    key = (name or "").strip().lower().replace("_", " ")
+    return _SKILL_KEY_ALIASES.get(key, key)
+
+
 @dataclass
 class SkillDef:
     """Definition of a skill from the YAML."""
@@ -118,7 +160,10 @@ class SkillRegistry:
         log.info("Loaded %d skill definitions from %s", count, path)
 
     def get(self, name: str) -> Optional[SkillDef]:
-        return self._skills.get(name.lower())
+        # 2026-06-11: canonicalize so underscore-form data keys
+        # ("blaster_repair") and sanctioned aliases ("computer prog")
+        # resolve to the registered SkillDef instead of None.
+        return self._skills.get(canonical_skill_key(name))
 
     def get_attribute_for(self, skill_name: str) -> Optional[str]:
         sd = self.get(skill_name)
@@ -263,6 +308,21 @@ class Character:
     description: str = ""
     equipped_weapon: str = ""  # weapon key from weapons.yaml (e.g. "blaster_pistol")
     worn_armor: str = ""       # v22: armor key from weapons.yaml (e.g. "blast_vest")
+    # Lane A Phase B: a creature's faithful natural attack (skill + concrete
+    # dice), set from the char_sheet's `natural_attack` marker. Empty for
+    # ordinary characters. Honored first by npc_combat_ai._get_npc_weapon so
+    # creatures fight with their source damage instead of bare-STR brawling.
+    natural_attack_skill: str = ""
+    natural_attack_damage: str = ""
+
+    # Lane A tail (2026-06-06): a creature's WEG special-attack riders, parsed
+    # from the char_sheet's `special_attack` block at spawn. Empty dicts for
+    # ordinary characters. Read by combat._resolve_melee_attack on a landed
+    # natural-attack hit to inject the matching in-combat condition (poison
+    # DoT / grapple-constriction restraint). NOT persisted — creature-template
+    # state, set fresh each spawn (mirrors natural_attack_*).
+    special_attack_poison: dict = field(default_factory=dict)
+    special_attack_restraint: dict = field(default_factory=dict)
 
     # Movement
     move: int = 10
@@ -356,13 +416,23 @@ class Character:
         If the character has dice in the skill, pool = attribute + skill bonus.
         If not, they roll the raw attribute (untrained use).
         """
-        key = skill_name.lower()
+        key = canonical_skill_key(skill_name)
         skill_def = skill_registry.get(key)
         if skill_def is None:
             return DicePool(0, 0)
 
         attr_pool = self.get_attribute(skill_def.attribute)
         bonus = self.skills.get(key)
+        if not bonus:
+            # 2026-06-11: tolerate non-canonical STORED keys. Most NPC
+            # yaml skill blocks are underscore-form ("melee_combat:
+            # 5D"), while combat queries space-form ("melee combat") —
+            # before this scan every such NPC attacked and parried at
+            # raw attribute. O(n) over a small dict, miss path only.
+            for k, v in self.skills.items():
+                if canonical_skill_key(k) == key:
+                    bonus = v
+                    break
         if bonus:
             return attr_pool + bonus
         return attr_pool
@@ -423,7 +493,16 @@ class Character:
             armor = wr.get(self.worn_armor)
             if not armor or not armor.is_armor or not armor.dexterity_penalty:
                 return DicePool(0, 0)
-            return DicePool.parse(armor.dexterity_penalty)
+            # 2026-06-11 (Gundark Drop C): data stores penalties SIGNED
+            # per the book ("-1D"), but DicePool is unsigned —
+            # DicePool.parse("-1D") silently returned (0,0), so every
+            # armor dex penalty has been a no-op since v22 (Bounty
+            # Hunter Armor included). All three combat consumers
+            # subtract the returned pool's magnitude
+            # (apply_wound_penalty(pool, pen.dice)), so the producer
+            # returns the MAGNITUDE here.
+            pen_str = armor.dexterity_penalty.strip().lstrip("-")
+            return DicePool.parse(pen_str)
         except Exception as _e:
             log.debug("silent except in engine/character.py:297: %s", _e, exc_info=True)
         return DicePool(0, 0)
@@ -434,7 +513,10 @@ class Character:
         Cost = current number of dice in the skill.
         If skill is above attribute, cost is doubled.
         """
-        key = skill_name.lower()
+        # 2026-06-11: store registry-canonical keys only — prevents the
+        # split-key write ("blaster repair" from chargen + "blaster_repair"
+        # from a train alias) now that SkillRegistry.get accepts both forms.
+        key = canonical_skill_key(skill_name)
         skill_def = skill_registry.get(key)
         if not skill_def:
             return 0
@@ -623,6 +705,16 @@ class Character:
         # Weapon
         char.equipped_weapon = sheet.get("weapon", "")
 
+        # Lane A Phase B: faithful creature natural attack (skill + dice).
+        _na = sheet.get("natural_attack") or {}
+        char.natural_attack_skill = str(_na.get("skill", "") or "")
+        char.natural_attack_damage = str(_na.get("damage", "") or "")
+
+        # Lane A tail: WEG special-attack riders (poison DoT / restraint).
+        _sa = sheet.get("special_attack") or {}
+        char.special_attack_poison = dict(_sa.get("poison") or {})
+        char.special_attack_restraint = dict(_sa.get("restraint") or {})
+
         return char
 
     @classmethod
@@ -682,16 +774,15 @@ class Character:
         for skill_name, pool_str in skills.items():
             char.skills[skill_name.lower()] = DicePool.parse(pool_str)
 
-        # Parse equipment
-        equip = data.get("equipment", "{}")
-        if isinstance(equip, str):
-            try:
-                equip = json.loads(equip)
-            except (json.JSONDecodeError, TypeError):
-                equip = {}
-        if isinstance(equip, dict):
-            char.equipped_weapon = equip.get("weapon", "")
-            char.worn_armor = equip.get("armor", "")
+        # Parse equipment — tolerant of all historical on-disk shapes
+        # (flat key, top-level single instance, per-slot instance) via
+        # engine.items.equipment_keys. The Character object holds bare keys,
+        # not instances (see read_equipment notes); instance condition/quality
+        # lives in the DB JSON, read directly by the inventory surfaces.
+        from engine.items import equipment_keys
+        _eq = equipment_keys(data.get("equipment", "{}"))
+        char.equipped_weapon = _eq["weapon"]
+        char.worn_armor = _eq["armor"]
 
         return char
 

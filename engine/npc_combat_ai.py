@@ -226,6 +226,13 @@ def _get_npc_weapon(char: Character) -> tuple[str, str, str]:
 
     Falls back to brawling if no weapon is equipped.
     """
+    # Lane A Phase B: a creature with a faithful natural attack fights with it
+    # (e.g. brawling at "5D+2") rather than the bare-STR unarmed default below.
+    na_dmg = getattr(char, "natural_attack_damage", "")
+    if na_dmg:
+        na_skill = getattr(char, "natural_attack_skill", "") or "brawling"
+        return na_skill, na_dmg, ""
+
     if char.equipped_weapon:
         wr = get_weapon_registry()
         weapon = wr.get(char.equipped_weapon)

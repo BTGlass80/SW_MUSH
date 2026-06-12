@@ -49,12 +49,13 @@ def _run(coro):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestP2PDailyCapConstants(unittest.TestCase):
-    """Sanity checks on the cap constants."""
+    """Policy reversed 2026-06-11 (ECON.p2p_cap_review = a): the hard cap
+    is gone; the rolling window survives to feed the velocity alert."""
 
-    def test_cap_constant_exists(self):
-        from parser.builtin_commands import P2P_DAILY_CAP
-        # 1,500 cr/day per audit v2 §2.4 (tightened from the original 5,000)
-        self.assertEqual(P2P_DAILY_CAP, 1500)
+    def test_cap_constant_removed(self):
+        import parser.builtin_commands as bc
+        self.assertFalse(hasattr(bc, "P2P_DAILY_CAP"),
+                         "decision a: alert, never block")
 
     def test_window_constant_is_24h(self):
         from parser.builtin_commands import P2P_DAILY_WINDOW_SECONDS

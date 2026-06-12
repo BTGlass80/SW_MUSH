@@ -794,7 +794,7 @@ _COURAGE_TEMPLATES_BY_FACTION = {
         "though, does it? You wonder if you saw what you needed to see, "
         "or only what you were told."
     ),
-    "separatist": (
+    "cis": (                       # was "separatist" — CW faction key is `cis`
         "You signed off on something that you knew, when you signed it, "
         "wasn't right. The numbers worked. The logic worked. It still "
         "wasn't right. You have not told anyone. I am telling you that "
@@ -805,13 +805,13 @@ _COURAGE_TEMPLATES_BY_FACTION = {
         "way because someone above you said walk. They didn't make it. "
         "You did. You haven't told a soul. I am telling you that I see it."
     ),
-    "imperial": (
-        "There was a moment when you could have stopped a thing and you "
+    "jedi_order": (                 # was "imperial" — the "order said don't"
+        "There was a moment when you could have stopped a thing and you "  # double meaning (Council orders / moral order) lands for a Jedi
         "didn't, because the order said don't. The thing happened. You "
         "tell yourself the order absolved you. You know it didn't. I see "
         "that you know it didn't."
     ),
-    "rebel": (
+    "independent": (               # was "rebel" — "the cause" fits an idealist
         "Someone trusted you and you used them. Maybe the cause was "
         "good. Maybe it was. They did not get to choose. You haven't "
         "told a soul what you spent on the ledger. I am telling you "
@@ -1997,12 +1997,25 @@ _SPIRIT_TURNS_REBEL = [
 ]
 
 
+# The dark-future-self shows the player the FUTURE their present allegiance
+# leads to, so each CW faction maps to its canonical destiny. This is the one
+# sanctioned place Imperial/Rebel imagery appears in the production game: it is
+# explicitly a Force-vision of a future that does not exist yet (the Imperial
+# variant says exactly that in-fiction — "you will be told the Empire does not
+# exist yet"). The B3 era-cleanness regime applies to the *present* setting;
+# a prophecy of the dark age to come is its deliberate exception.
+#
+# Re-keyed 2026-06-05: pre-CW this dict was keyed on dead GCW faction names
+# (separatist/imperial/rebel) that no CW character carries, so the Imperial and
+# Rebel visions were unreachable dead code. The rewire routes present CW
+# factions to the apt future-vision; every variant below is now reachable.
 _SPIRIT_TURNS_BY_FACTION = {
-    "republic": _SPIRIT_TURNS_REPUBLIC,
-    "separatist": _SPIRIT_TURNS_SEPARATIST,
+    "republic":    _SPIRIT_TURNS_IMPERIAL,     # the GAR → Empire arc (~1yr to Order 66)
+    "cis":         _SPIRIT_TURNS_SEPARATIST,   # the Confederacy's reckoning
+    "jedi_order":  _SPIRIT_TURNS_REPUBLIC,     # the Order's war-machine complicity ("the Order will use you")
     "hutt_cartel": _SPIRIT_TURNS_HUTT_CARTEL,
-    "imperial": _SPIRIT_TURNS_IMPERIAL,
-    "rebel": _SPIRIT_TURNS_REBEL,
+    "bounty_hunters_guild": _SPIRIT_TURNS_HUTT_CARTEL,  # hunters end up Cartel-owned
+    "independent": _SPIRIT_TURNS_REBEL,        # idealist → the Rebellion to come
 }
 
 

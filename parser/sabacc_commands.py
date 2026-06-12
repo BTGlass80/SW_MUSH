@@ -169,7 +169,7 @@ class SabaccCommand(BaseCommand):
         bet_max = BET_MAX_DEFAULT
         try:
             from engine.world_events import get_world_event_manager
-            if get_world_event_manager().is_active("cantina_brawl"):
+            if "cantina_brawl" in get_world_event_manager().active_event_types:
                 bet_max = BET_MAX_DEFAULT * 2
         except Exception:
             log.warning("execute: unhandled exception", exc_info=True)

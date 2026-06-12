@@ -46,6 +46,7 @@ factions:
     properties:
       color: "\033[1;34m"    # Blue
       axis: republic
+      violence_index: 25
       hq_room_name: "Nar Shaddaa - Corellian Sector Promenade"
       description: >
         The thousand-year-old democratic Republic is fighting for its
@@ -94,6 +95,7 @@ factions:
     properties:
       color: "\033[1;31m"    # Red
       axis: separatist
+      violence_index: 60
       hq_room_name: "Nar Shaddaa - The Burning Deck Cantina"
       description: >
         The Separatist alliance draws its membership from systems that
@@ -138,7 +140,8 @@ factions:
     properties:
       color: "\033[1;33m"    # Yellow
       axis: jedi
-      hq_room_name: "Coruscant - Jedi Temple Main Hall"  # Drop 2
+      violence_index: 15
+      hq_room_name: "Jedi Temple - Entrance Hall"  # TD.CW_JEDI_HQ_ROOM_NAME fix 2026-06-05 (previously pointed at a room name that did not exist; aligns with the intel handler on Knight Halen Voss in this room)
       description: >
         The Jedi Order serves the Republic as generals while upholding
         their ancient mandate as guardians of peace. A Jedi's faction
@@ -171,6 +174,8 @@ factions:
     properties:
       color: "\033[0;33m"    # Dark yellow/gold
       axis: criminal
+      scale: empire        # GG11 §3A five-tier criminal scale (E1)
+      violence_index: 88   # GG11 §8B Violence Index, 0-100
       hq_room_name: "Nar Shaddaa - Hutt Emissary Tower - Audience Chamber"
       description: >
         The Hutts are neutral in the Clone Wars and intend to stay that
@@ -213,6 +218,8 @@ factions:
     properties:
       color: "\033[0;35m"    # Magenta
       axis: independent
+      scale: guild
+      violence_index: 55
       hq_room_name: "Nar Shaddaa - Bounty Hunters' Quarter"
       description: >
         The Guild doesn't take sides in the war — it takes contracts.
@@ -255,6 +262,7 @@ factions:
     properties:
       color: "\033[0m"       # Default/white
       axis: independent
+      violence_index: 30
       description: >
         No allegiance. No faction benefits, no faction obligations.
         The galaxy is full of people who just want to survive the war
@@ -276,6 +284,7 @@ factions:
     properties:
       color: "\033[1;31m"    # Red
       axis: sith
+      violence_index: 95
       description: >
         The Sith Order is publicly believed extinct, destroyed a thousand
         years ago by the Jedi — but a master-apprentice pair has operated
@@ -301,6 +310,7 @@ factions:
     properties:
       color: "\033[0;31m"    # Dark red
       axis: separatist
+      violence_index: 65
       description: >
         The Separatist Council is the corporate oligarchy that funds
         and directs CIS war policy at the institutional level — Trade
@@ -315,6 +325,67 @@ factions:
     ranks:
       - level: 0
         title: "Council Member"
+        min_rep: 0
+
+  # ── Stalgasin Hive (Geonosis — NPC, Director-narrated) ────────────────
+  # Lane D foundation. Geonosian hives are political/military powers, not
+  # criminal orgs, so they carry a violence_index (turf-dispute posture)
+  # but no `scale` — matching the E1 rule (scale only on criminal orgs;
+  # state/military factions get a tone, no scale). The contest-aggression
+  # consumer for violence_index lands in Lane D2.
+  - code: stalgasin
+    name: "Stalgasin Hive"
+    director_managed: true
+    npc_only: true
+    properties:
+      color: "\033[1;33m"    # Amber — foundry fire
+      axis: separatist
+      violence_index: 88
+      description: >
+        The dominant hive of Geonosis and seat of its ruling archduke,
+        Stalgasin controls the deepest droid foundries and the Petranaki
+        execution arena. Its aristocrats meet off-worlders only in the
+        foundry's tower conference rooms; the kilometres of drone
+        catacombs and the queen's chamber below are closed to outsiders.
+        Stalgasin holds its place the Geonosian way — soldier-drone
+        tunnel wars against rival hives, and reprisals so absolute that
+        when one subordinate hive's drones rose in revolt, the
+        aristocrats answered by bombing the entire spire to slag. In the
+        war it has thrown its foundries behind the Confederacy. Acklay
+        Chopper, the scarred old drone who runs the arena barracks,
+        speaks for the hive on the sand. NPC-only — the Director narrates
+        Stalgasin as the entrenched power of Geonosis; the archduke
+        himself stays off-stage.
+    ranks:
+      - level: 0
+        title: "Hive Drone"
+        min_rep: 0
+
+  # ── Gehenbar Hive (Geonosis — NPC, Director-narrated) ─────────────────
+  - code: gehenbar
+    name: "Gehenbar Hive"
+    director_managed: true
+    npc_only: true
+    properties:
+      color: "\033[1;32m"    # Green — rival-hive banners
+      axis: republic
+      violence_index: 84
+      description: >
+        Stalgasin's primary rival and the second power among the hives.
+        Gehenbar is led by Typtus of the 33rd Egg, a young aristocrat who
+        has revived the old warrior-cult of Typtus the First and is openly
+        mustering a strike to bring the dominant hive down. Gehenbar wages
+        the same vast underground wars — soldier drones and sonic cannon
+        in the dark between the spires — and Typtus rewards those who
+        serve his cause as readily as he crushes those who stand in his
+        way. He will take help wherever it is offered, which makes
+        Gehenbar the opening any outside power needs to pry at Stalgasin's
+        grip on Geonosis. NPC-only — the Director narrates Gehenbar as the
+        ambitious challenger; Typtus is a faction patron, not a
+        player-reachable scene.
+    ranks:
+      - level: 0
+        title: "Hive Drone"
         min_rep: 0
 
 # ── Guilds (era-agnostic, carry over from GCW) ───────────────────────────

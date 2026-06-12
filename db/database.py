@@ -14,7 +14,7 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 # -- Schema version --
-SCHEMA_VERSION = 40
+SCHEMA_VERSION = 43
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -1384,6 +1384,58 @@ MIGRATIONS = {
         " org_code TEXT NOT NULL,"
         " established_by INTEGER,"
         " established_at REAL NOT NULL DEFAULT 0)",
+    ],
+
+    41: [
+        # Drop 4b (hunter.1): the roaming Dark-Side bounty hunter. Once a
+        # character's dark_side_points cross the wanted threshold (DSP 4 — the
+        # same band the BH board flags), a named non-canon hunter picks up the
+        # trail and closes in over time. This table is the ONLY persistent state
+        # for that pursuit; the "wanted" status itself stays derived from
+        # dark_side_points (no bounty rows, no credits — prestige-domain, exactly
+        # like the existing DSP-notoriety surface). One pursuit per character;
+        # cleared when the character atones (drops back under the threshold).
+        # See engine/dsp_hunter.py + server/tick_handlers_progression.py.
+        "CREATE TABLE IF NOT EXISTS dsp_hunter_pursuit ("
+        " char_id INTEGER PRIMARY KEY,"
+        " hunter_name TEXT NOT NULL,"
+        " progress INTEGER NOT NULL DEFAULT 0,"
+        " stage TEXT NOT NULL DEFAULT 'tracking',"
+        " last_notified_stage TEXT DEFAULT '',"
+        " updated_at REAL NOT NULL DEFAULT 0)",
+    ],
+
+    # hunter.2 (2026-06-05): the live-spawn climax records which NPC was spawned
+    # for a quarry so it can be reconciled/despawned (atonement, escape) without
+    # scanning every room. NULL = no live hunter currently spawned.
+    42: [
+        "ALTER TABLE dsp_hunter_pursuit ADD COLUMN spawned_npc_id INTEGER DEFAULT NULL",
+    ],
+
+    # Drop 4b (the communal-rally villain): the dark-side cult communal objective
+    # (design III.3). One row per uprising the Director posts; the active one is
+    # the latest row with state='active'. `menace` (0..100) RISES over time and
+    # players push it DOWN via `rally strike`; routed at <=0 (won), ascendant/
+    # deadline-passed = lost. `contributions_json` is {char_id: {points,
+    # last_strike_at}} so per-contributor reward shares + the per-character strike
+    # cooldown need no extra table. Prestige-domain: rewards are Republic rep +
+    # a III.2 status flag, never credits.
+    43: [
+        "CREATE TABLE IF NOT EXISTS communal_objective ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " cult_key TEXT NOT NULL,"
+        " zone_key TEXT NOT NULL DEFAULT '',"
+        " zone_label TEXT NOT NULL DEFAULT '',"
+        " menace REAL NOT NULL DEFAULT 0,"
+        " state TEXT NOT NULL DEFAULT 'active',"
+        " contributions_json TEXT NOT NULL DEFAULT '{}',"
+        " rotation INTEGER NOT NULL DEFAULT 0,"
+        " started_at REAL NOT NULL DEFAULT 0,"
+        " deadline_at REAL NOT NULL DEFAULT 0,"
+        " advanced_at REAL NOT NULL DEFAULT 0,"
+        " resolved_at REAL NOT NULL DEFAULT 0)",
+        "CREATE INDEX IF NOT EXISTS idx_communal_objective_state "
+        "ON communal_objective(state)",
     ],
 
 }
@@ -4034,6 +4086,108 @@ class Database:
             (limit,),
         )
         return [dict(r) for r in rows]
+
+    async def get_dsp_wanted_characters(
+        self, threshold: int, limit: int = 50,
+    ) -> list:
+        """Drop 4b: return active characters whose Dark Side Points are at
+        or above `threshold`, highest first.
+
+        Powers the Dark-Side Notoriety section of the BH board. This is a
+        derived, read-only view (no bounty rows are written) — the "wanted"
+        state lives entirely in dark_side_points, like force_sensitive.
+        """
+        rows = await self._db.execute_fetchall(
+            """SELECT id, name, dark_side_points
+               FROM characters
+               WHERE dark_side_points >= ? AND is_active = 1
+               ORDER BY dark_side_points DESC
+               LIMIT ?""",
+            (int(threshold), int(limit)),
+        )
+        return [dict(r) for r in rows]
+
+    # ── Drop 4b (hunter.1): roaming Dark-Side hunter pursuit state ──────────
+    # One row per hunted character; the only persistent state for the pursuit
+    # (the "wanted" flag itself stays derived from dark_side_points). See
+    # engine/dsp_hunter.py and the dsp_hunter_tick driver.
+
+    async def get_dsp_pursuit(self, char_id: int) -> Optional[dict]:
+        """Return the pursuit row for a character, or None if no hunter is
+        currently on their trail."""
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM dsp_hunter_pursuit WHERE char_id = ?", (int(char_id),)
+        )
+        return dict(rows[0]) if rows else None
+
+    async def get_all_dsp_pursuits(self) -> list:
+        """Return every active pursuit row (powers the BH-board pursuit suffix
+        and lets the tick clear pursuits whose quarry has atoned)."""
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM dsp_hunter_pursuit"
+        )
+        return [dict(r) for r in rows]
+
+    async def upsert_dsp_pursuit(
+        self, char_id: int, hunter_name: str, progress: int, stage: str,
+        last_notified_stage: Optional[str] = None,
+    ) -> None:
+        """Insert or update a character's pursuit. ``last_notified_stage`` is
+        only written when provided (the tick sets it once it has actually
+        delivered the stage-change warning), so a None leaves the existing
+        value intact on update."""
+        import time as _t
+        now = _t.time()
+        if last_notified_stage is None:
+            await self._db.execute(
+                """INSERT INTO dsp_hunter_pursuit
+                       (char_id, hunter_name, progress, stage, updated_at)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(char_id) DO UPDATE SET
+                       hunter_name = excluded.hunter_name,
+                       progress    = excluded.progress,
+                       stage       = excluded.stage,
+                       updated_at  = excluded.updated_at""",
+                (int(char_id), hunter_name, int(progress), stage, now),
+            )
+        else:
+            await self._db.execute(
+                """INSERT INTO dsp_hunter_pursuit
+                       (char_id, hunter_name, progress, stage,
+                        last_notified_stage, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(char_id) DO UPDATE SET
+                       hunter_name         = excluded.hunter_name,
+                       progress            = excluded.progress,
+                       stage               = excluded.stage,
+                       last_notified_stage = excluded.last_notified_stage,
+                       updated_at          = excluded.updated_at""",
+                (int(char_id), hunter_name, int(progress), stage,
+                 last_notified_stage, now),
+            )
+        await self._db.commit()
+
+    async def clear_dsp_pursuit(self, char_id: int) -> bool:
+        """End a pursuit (the quarry atoned / the trail went cold). Returns
+        True if a row was removed."""
+        cur = await self._db.execute(
+            "DELETE FROM dsp_hunter_pursuit WHERE char_id = ?", (int(char_id),)
+        )
+        await self._db.commit()
+        return bool(getattr(cur, "rowcount", 0))
+
+    async def set_dsp_pursuit_spawn(self, char_id: int,
+                                    spawned_npc_id: Optional[int]) -> None:
+        """Record (or clear, with None) the live hunter NPC spawned for a
+        quarry at the at-heels climax (hunter.2). No-op if the pursuit row
+        doesn't exist."""
+        await self._db.execute(
+            "UPDATE dsp_hunter_pursuit SET spawned_npc_id = ? WHERE char_id = ?",
+            (int(spawned_npc_id) if spawned_npc_id is not None else None,
+             int(char_id)),
+        )
+        await self._db.commit()
+
 
     async def post_pc_bounty(
         self, *, poster_id: int, target_id: int, amount: int,

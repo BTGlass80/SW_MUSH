@@ -256,7 +256,11 @@ class ItemInstance:
 # -- Module-level helpers --
 
 def parse_equipment_json(raw: str) -> Optional[ItemInstance]:
-    """Parse a character's equipment JSON into an ItemInstance, or None."""
+    """LEGACY (shape-2 only) — do NOT use in new code; use ``read_equipment``.
+
+    Parses ONLY the legacy top-level single-instance shape and returns None
+    for the canonical per-slot shape. Retained for test fixtures that
+    exercise legacy-shape tolerance."""
     if not raw:
         return None
     try:
@@ -269,10 +273,269 @@ def parse_equipment_json(raw: str) -> Optional[ItemInstance]:
 
 
 def serialize_equipment(item: Optional[ItemInstance]) -> str:
-    """Serialize an ItemInstance (or None) to a JSON string for DB storage."""
+    """LEGACY (writes shape 2; clobbers the armor slot) — do NOT use in new
+    code; use ``write_equipment``. Retained for test fixtures only."""
     if item is None:
         return "{}"
     return json.dumps(item.to_dict())
+
+
+# ── Canonical per-slot equipment helpers (equipment-instance untangle) ──────
+#
+# Historically the character ``equipment`` column has been written in THREE
+# mutually-incompatible shapes that silently corrupted each other:
+#   1. flat key strings        {"weapon": "blaster_pistol", "armor": "..."}
+#   2. top-level single inst.   {"key": "blaster_pistol", "condition": ...}  (weapon-only)
+#   3. per-slot ItemInstance    {"weapon": {<inst>}, "armor": {<inst>}}      (CANONICAL)
+# (e.g. `equip` wrote shape 2 and clobbered armor; `wear` wrote shape 1; the
+# sheet read only shape 2.) These helpers make shape 3 canonical, give every
+# reader a single tolerant entry point that accepts all three, and provide one
+# writer that preserves both slots. Note: the Character object still holds
+# equipped_weapon/worn_armor as bare KEY strings, so Character.to_dict() can't
+# carry instance condition/quality — but to_dict() is NOT an equipment
+# persistence path (every durable write goes through save_character(equipment=)),
+# so the DB JSON written by the equip/wear/craft commands remains the source of
+# truth for instance data. (A Character-object-holds-instances refactor is a
+# separate, larger pass — flagged in TODO.)
+
+def read_equipment(raw) -> dict:
+    """Tolerant reader → ``{"weapon": ItemInstance|None, "armor": ItemInstance|None}``.
+
+    Normalizes all three historical shapes (and empty/list/None) so consumers
+    read one structure regardless of which writer last touched the column.
+    Read-only and exception-tolerant: a malformed column yields two None slots
+    rather than raising.
+    """
+    out = {"weapon": None, "armor": None}
+    if not raw:
+        return out
+    d = raw
+    if isinstance(d, str):
+        try:
+            d = json.loads(d or "{}")
+        except (json.JSONDecodeError, TypeError):
+            return out
+    if not isinstance(d, dict):
+        return out  # legacy list/other → empty
+    # Shape 2: top-level single instance (legacy weapon-only) — has "key" but
+    # no slot wrappers.
+    if "key" in d and "weapon" not in d and "armor" not in d:
+        try:
+            out["weapon"] = ItemInstance.from_dict(d)
+        except Exception:
+            out["weapon"] = None
+        return out
+    for slot in ("weapon", "armor"):
+        v = d.get(slot)
+        if not v:
+            continue
+        if isinstance(v, str):
+            out[slot] = ItemInstance(key=v)          # shape 1: flat key → default inst
+        elif isinstance(v, dict) and v.get("key"):
+            try:
+                out[slot] = ItemInstance.from_dict(v)  # shape 3
+            except Exception:
+                out[slot] = None
+    return out
+
+
+def equipment_keys(raw) -> dict:
+    """Tolerant key-only view → ``{"weapon": str, "armor": str}`` ("" when empty).
+
+    Drop-in for display/lookup sites that only need the registry key (sheet,
+    locks, HUD); they get the right key from ANY stored shape.
+    """
+    slots = read_equipment(raw)
+    return {
+        "weapon": slots["weapon"].key if slots["weapon"] else "",
+        "armor":  slots["armor"].key  if slots["armor"]  else "",
+    }
+
+
+def write_equipment(weapon: Optional[ItemInstance] = None,
+                    armor: Optional[ItemInstance] = None) -> str:
+    """The one true writer: canonical per-slot JSON. Empty slots are omitted;
+    both-empty yields ``"{}"``. Always round-trips through ``read_equipment``."""
+    out = {}
+    if weapon is not None:
+        out["weapon"] = weapon.to_dict()
+    if armor is not None:
+        out["armor"] = armor.to_dict()
+    return json.dumps(out)
+
+
+# ── Carried-gear helpers (CRAFT.P0.9 — inventory-aware equip/wear) ──────────
+#
+# Pre-P0.9, the gear surface leaked in three directions: `equip <name>` and
+# `wear <name>` MINTED a fresh vendor-grade ItemInstance from the registry
+# with no ownership check or credit cost (an unlogged faucet that also made
+# crafted/modified instances unequippable — equip conjured a pristine copy
+# instead); `unequip`/`remove` DESTROYED the slotted instance; and `buy`
+# destroyed whatever the new purchase displaced. These helpers give the verb
+# layer one matching + conversion surface so instances ROUND-TRIP between the
+# carried list (db inventory `items`) and the equipment slots, preserving
+# condition/quality/crafter/experiment state. Acquisition is now exclusively
+# buy (credits-charged), craft, loot, or trade.
+
+def instance_to_carried(item: "ItemInstance", name: str = None,
+                        gear_type: str = "weapon") -> dict:
+    """ItemInstance → carried-inventory dict (db.add_to_inventory shape)."""
+    d = item.to_dict()
+    d["type"] = gear_type
+    if name:
+        d["name"] = name
+    return d
+
+
+def carried_to_instance(d: dict) -> Optional["ItemInstance"]:
+    """Carried-inventory dict → ItemInstance (None if not instance-shaped)."""
+    if not isinstance(d, dict) or not d.get("key"):
+        return None
+    try:
+        return ItemInstance.from_dict(d)
+    except Exception:
+        return None
+
+
+def find_carried_gear(carried: list, name_arg: str, registry,
+                      want_armor: bool = False):
+    """Find a weapon/armor item in the carried list by name.
+
+    Matches case-insensitive substring against the registry display name,
+    the item dict's own name, and the registry key. Skips non-gear entries
+    (ship components, survival gear, etc.) and entries whose key doesn't
+    resolve in the registry. Returns (index, item_dict, weapon_data) or
+    (None, None, None).
+    """
+    needle = (name_arg or "").strip().lower()
+    if not needle:
+        return None, None, None
+    for i, d in enumerate(carried or []):
+        if not isinstance(d, dict):
+            continue
+        if d.get("type") in ("ship_component", "survival_gear", "equipment"):
+            continue
+        key = d.get("key", "")
+        if not key:
+            continue
+        w = registry.get(key)
+        if not w or bool(getattr(w, "is_armor", False)) != want_armor:
+            continue
+        names = (w.name.lower(), str(d.get("name", "")).lower(), key.lower())
+        if any(needle in n for n in names if n):
+            return i, d, w
+    return None, None, None
+
+
+# ── inventory_state payload (Webify UI-4a inventory panel) ──────────────────
+#
+# Assembles the structured push the web inventory modal renders. The registry
+# (engine.weapons.get_weapon_registry) is the producer for name / slot / value
+# (WeaponData.cost) / comparable stats; per-item condition/quality/crafter come
+# from the stored ItemInstance (equipped) or carried item dict. No container /
+# carry-weight: there is no encumbrance model at HEAD, so the panel omits the
+# weight bar rather than render a field with no producer.
+
+def _inv_item_slot(w) -> str:
+    """Slot for a registry entry: 'weapon' | 'armor' (None → 'misc')."""
+    if w is None:
+        return "misc"
+    return "armor" if w.is_armor else "weapon"
+
+
+def _inv_item_stats(w) -> dict:
+    """Comparable stat axes for the delta preview, from a WeaponData.
+
+    Weapons expose ``damage`` (dice string) and, when ranged, a display-only
+    ``range`` triple. Armor exposes ``energy`` / ``physical`` protection dice
+    and any ``dex_penalty``. Values are the raw dice/strings; the client turns
+    dice into D6 pips (1D=3) for the from→to arrows.
+    """
+    if w is None:
+        return {}
+    if w.is_armor:
+        s = {}
+        if w.protection_energy:
+            s["energy"] = w.protection_energy
+        if w.protection_physical:
+            s["physical"] = w.protection_physical
+        if w.dexterity_penalty:
+            s["dex_penalty"] = w.dexterity_penalty
+        return s
+    s = {}
+    if w.damage:
+        s["damage"] = w.damage
+    if getattr(w, "is_ranged", False) and w.ranges and len(w.ranges) == 4:
+        s["range"] = f"{w.ranges[1]}/{w.ranges[2]}/{w.ranges[3]}"
+    return s
+
+
+def _resolve_inv_item(src, registry) -> dict:
+    """Build one inventory_state item entry.
+
+    ``src`` is an ItemInstance (equipped slot) OR a carried item dict
+    (db.get_inventory). Name / slot / value / stats resolve from the registry
+    by key; condition / quality / crafter / experiment_count / quantity come
+    from the instance or dict (with safe defaults).
+    """
+    if isinstance(src, ItemInstance):
+        key = src.key
+        quality, condition = src.quality, src.condition
+        max_condition = src.max_condition
+        crafter = src.crafter
+        experiment_count = src.experiment_count
+        quantity = 1
+        d = {}
+    else:
+        d = src or {}
+        key = d.get("key", "")
+        quality = d.get("quality", 50)
+        condition = d.get("condition", d.get("max_condition", 100))
+        max_condition = d.get("max_condition", 100)
+        crafter = d.get("crafter")
+        experiment_count = d.get("experiment_count", 0)
+        quantity = d.get("quantity", d.get("qty", 1))
+    w = registry.get(key) if (registry and key) else None
+    name = (w.name if w else None) or d.get("name") or key or "Unknown item"
+    slot = _inv_item_slot(w) if w else d.get("slot", "misc")
+    value = (w.cost if w else 0) or d.get("value", 0) or 0
+    return {
+        "key": key,
+        "name": name,
+        "slot": slot,
+        "quality": quality,
+        "condition": condition,
+        "max_condition": max_condition,
+        "quantity": quantity,
+        "crafter": crafter or "",
+        "experiment_count": experiment_count,
+        "stats": _inv_item_stats(w),
+        "value": value,
+    }
+
+
+def build_inventory_state(equipment_raw, carried, registry=None) -> dict:
+    """Assemble the ``inventory_state`` push for the web inventory panel.
+
+    ``equipment_raw`` — the char['equipment'] column (any shape; read via the
+    tolerant ``read_equipment``). ``carried`` — db.get_inventory() (list of
+    item dicts). ``registry`` defaults to engine.weapons.get_weapon_registry().
+    Returns ``{"equipped": {"weapon": item|None, "armor": item|None},
+    "carried": [item, ...]}`` (no container — see module note).
+    """
+    if registry is None:
+        from engine.weapons import get_weapon_registry
+        registry = get_weapon_registry()
+    slots = read_equipment(equipment_raw)
+    equipped = {
+        "weapon": _resolve_inv_item(slots["weapon"], registry) if slots["weapon"] else None,
+        "armor":  _resolve_inv_item(slots["armor"], registry) if slots["armor"] else None,
+    }
+    carried_out = [
+        _resolve_inv_item(it, registry)
+        for it in (carried or []) if isinstance(it, dict)
+    ]
+    return {"equipped": equipped, "carried": carried_out}
 
 
 # ── NPC buyback policy (economy audit §1.3) ─────────────────────────────────

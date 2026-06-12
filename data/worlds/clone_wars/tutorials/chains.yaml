@@ -109,7 +109,7 @@ chains:
         republic: 50
       items: ["dc15_blaster_rifle", "republic_light_armor", "comlink_basic"]
       achievements: ["sworn_to_the_republic"]
-      drop_room: coruscant_works_landing_zone
+      drop_room: commercial_district_landing_zone
       follow_up_hint: >
         Report to the duty officer at Coruscant Works for your first
         mission. The Republic mission board (`+missions republic`) is
@@ -198,7 +198,7 @@ chains:
           Coruscant. Boring. Don't lose your gear in the cabin."
         completion:
           type: room_entered
-          room: coruscant_works_landing_zone
+          room: commercial_district_landing_zone
         npc_complete: >
           "Welcome to Coruscant. There's your air. Try not to choke on
           it. Sergeant Drix is the one in 212th colors over there."
@@ -209,7 +209,7 @@ chains:
 
       - step: 5
         title: "First Day on Coruscant"
-        location: coruscant_works_landing_zone
+        location: commercial_district_landing_zone
         npc: "Sergeant Drix"
         npc_role: contact
         teaches: ["talk", "+factions"]
@@ -240,7 +240,7 @@ chains:
       Coruscant midlevels. Clean, careful work — not stand-up combat.
     archetype_label: "Republic Intelligence Officer"
     faction_alignment: republic
-    starting_zone: coruscant_upper
+    starting_zone: monumental_district
     starting_room: republic_intel_safehouse_alpha
     prerequisites:
       - chargen_complete
@@ -254,7 +254,7 @@ chains:
         republic: 40
       items: ["concealed_blaster", "civilian_disguise_kit", "encrypted_comlink"]
       achievements: ["recruited_in_shadow"]
-      drop_room: coruscant_upper_judicial_plaza
+      drop_room: monumental_district_judicial_plaza
       follow_up_hint: >
         Your handler will contact you via comlink with field assignments.
         Republic Intelligence missions on `+missions republic` are
@@ -310,7 +310,7 @@ chains:
 
       - step: 3
         title: "Tailing the Contact"
-        location: coruscant_midlevels_freight_district
+        location: commercial_district_freight_district
         npc: "Bren Kost"
         npc_role: antagonist
         teaches: ["sneak", "follow"]
@@ -332,7 +332,7 @@ chains:
 
       - step: 4
         title: "The Intercept"
-        location: coruscant_midlevels_freight_district
+        location: commercial_district_freight_district
         npc: "Bren Kost"
         npc_role: antagonist
         teaches: ["+missions", "complete"]
@@ -356,7 +356,7 @@ chains:
 
       - step: 5
         title: "Formal Induction"
-        location: coruscant_upper_judicial_plaza
+        location: monumental_district_judicial_plaza
         npc: "Coordinator Sehrra"
         npc_role: contact
         teaches: ["+factions"]
@@ -666,7 +666,7 @@ chains:
       packet, and survive your first close call with Republic Security.
     archetype_label: "CIS Infiltrator / Diplomat"
     faction_alignment: cis
-    starting_zone: coruscant_lower
+    starting_zone: southern_underground
     starting_room: crystal_jewel_cantina
     prerequisites:
       - chargen_complete
@@ -680,7 +680,7 @@ chains:
         cis: 40
       items: ["concealed_blaster", "civilian_disguise_kit", "fake_republic_id"]
       achievements: ["sleeper_in_the_capital"]
-      drop_room: coruscant_lower_freight_dock
+      drop_room: southern_underground_freight_dock
       follow_up_hint: >
         Your handler will contact you via the fake comlink. CIS-aligned
         missions on `+missions cis` are flagged "deep cover." Avoid
@@ -713,7 +713,7 @@ chains:
 
       - step: 2
         title: "Reading the Packet"
-        location: coruscant_midlevels_freight_district
+        location: commercial_district_freight_district
         npc: "(none)"
         npc_role: contact
         teaches: ["examine", "use"]
@@ -734,7 +734,7 @@ chains:
 
       - step: 3
         title: "The Dead Drop"
-        location: coruscant_works_lockers
+        location: commercial_district_lockers
         npc: "(none)"
         npc_role: contact
         teaches: ["sneak", "use"]
@@ -758,7 +758,7 @@ chains:
 
       - step: 4
         title: "Close Call"
-        location: coruscant_works_freight_corridor
+        location: commercial_district_freight_corridor
         npc: "Republic Security Officer Daln"
         npc_role: antagonist
         teaches: ["bluff", "say"]
@@ -784,7 +784,7 @@ chains:
 
       - step: 5
         title: "Operational Confirmation"
-        location: coruscant_lower_freight_dock
+        location: southern_underground_freight_dock
         npc: "Sevra Toryn"
         npc_role: contact
         teaches: ["+factions"]

@@ -35,9 +35,9 @@ class BackgroundCommand(BaseCommand):
         "person — who you are, where you came from, what drives you.\n"
         "\n"
         "EXAMPLE:\n"
-        "  +background A former Imperial TIE pilot who defected after\n"
-        "  witnessing the destruction of an innocent colony. Now works\n"
-        "  as a freelance pilot, taking jobs that don't involve civilians."
+        "  +background A former cargo pilot who walked away from a hauling\n"
+        "  contract after witnessing the destruction of an innocent colony.\n"
+        "  Now works freelance, taking jobs that don't involve civilians."
     )
     usage = "+background [<text>]"
 

@@ -14,9 +14,10 @@ Coverage:
       added here for end-to-end smoke pairing)
 
 E7 (full crafting roll loop) and E8 (experiment success/fail paths)
-are deferred — they have rich state and depend on resource nodes that
-require harness extensions (advance_ticks for cooldowns, resource
-seeding for nodes).
+were deferred at first (rich state, resource-node/cooldown harness
+gaps) and are now LIVE (CRAFT.P0, 2026-06-10): direct DB state
+seeding (schematic grant + component stacks + canonical equipment
+write) sidesteps both gaps — no cooldown ticking, no node seeding.
 """
 from __future__ import annotations
 
@@ -132,3 +133,122 @@ async def e6_survey_runs_with_skill(h):
     )
     # Some output: success, refusal, or "no resources here" — all fine.
     assert out and out.strip(), "survey produced no output"
+
+
+async def e7_full_craft_loop(h):
+    """E7 — the full craft loop: learn → check → craft → item lands.
+
+    Previously deferred for harness reasons (survey cooldowns, resource
+    nodes); un-deferred by CRAFT.P0 via DIRECT STATE SEEDING — the
+    schematic is granted and the components written straight to the DB,
+    so no cooldown ticking or node seeding is needed. This is the
+    scenario that would have caught the F1.D float→resolve_craft crash
+    (every `craft` invocation raised for at least 8 days) and the F2
+    evaporation (crafted weapons never landed anywhere).
+
+    Asserts the strongest invariant the verb owns: after a `craft` that
+    reports success, the item EXISTS in db.get_inventory. RNG note: the
+    skill check can fail/fumble — components are seeded generously and
+    the assertion branches on the reported outcome, so a legitimate
+    failed roll doesn't flake the smoke; a crash or a success-without-
+    item always fails it.
+    """
+    import json as _json
+
+    s = await h.login_as(
+        "E7Crafter", room_id=1,
+        skills={"first_aid": "6D"},   # medpac_basic rolls first_aid vs 10
+    )
+    char_id = s.character["id"]
+
+    # Seed: known schematic (attributes) + components (inventory).
+    attrs = _json.loads(s.character.get("attributes") or "{}")
+    attrs.setdefault("schematics", [])
+    if "medpac_basic" not in attrs["schematics"]:
+        attrs["schematics"].append("medpac_basic")
+    inv = {"items": [], "resources": [
+        {"type": "chemical", "quantity": 6, "quality": 60.0},
+        {"type": "organic",  "quantity": 4, "quality": 60.0},
+    ]}
+    await h.db.save_character(
+        char_id,
+        attributes=_json.dumps(attrs),
+        inventory=_json.dumps(inv),
+    )
+    s.character = await h.get_char(char_id)
+    s.session.invalidate_char_obj()
+
+    # The listing must render (F1.B1/B2 both crashed or lied here).
+    out = await h.cmd(s, "schematics")
+    assert "traceback" not in out.lower(), f"schematics raised: {out[:400]!r}"
+    assert "medpac" in out.lower(), f"known schematic missing: {out[:400]!r}"
+    out = await h.cmd(s, "resources")
+    assert "traceback" not in out.lower(), f"resources raised: {out[:400]!r}"
+    assert "chemical" in out.lower(), f"seeded stack missing: {out[:400]!r}"
+
+    # The craft itself (F1.C/D + landing F2).
+    out = await h.cmd(s, "craft medpac")
+    low = out.lower()
+    assert "error occurred" not in low and "traceback" not in low, (
+        f"craft raised: {out[:500]!r}")
+
+    if "added to your consumables" in low:
+        # Success path: the consumable token must actually exist.
+        fresh = await h.get_char(char_id)
+        fattrs = _json.loads(fresh.get("attributes") or "{}")
+        count = (fattrs.get("consumables") or {}).get("medpac", 0)
+        assert count >= 1, (
+            f"craft reported success but consumables.medpac={count}")
+    else:
+        # Legit failed/fumbled roll: output must say so, not be empty.
+        assert any(k in low for k in
+                   ("fail", "fumble", "can't quite", "ruined",
+                    "struggle")), (
+            f"craft neither succeeded nor reported failure: {out[:500]!r}")
+
+
+async def e8_experiment_paths(h):
+    """E8 — `experiment` runs against an equipped craftable weapon.
+
+    Previously deferred; un-deferred by direct equipment-column seeding
+    (canonical per-slot write). This is the scenario class that would
+    have caught the pre-untangle parse_equipment_json regression
+    ("no weapon equipped" forever). One experiment only — the cooldown
+    never gates the first attempt. Outcome (success/failure/fumble) is
+    RNG; the assertions accept any resolved outcome and reject crashes,
+    "no weapon equipped", and silent no-ops.
+    """
+    import json as _json
+    from engine.items import ItemInstance, write_equipment
+
+    s = await h.login_as(
+        "E8Tinkerer", room_id=1,
+        skills={"blaster_repair": "5D"},
+    )
+    char_id = s.character["id"]
+
+    equipment = write_equipment(
+        weapon=ItemInstance(key="blaster_pistol", condition=100,
+                            quality=70, crafter="E8Tinkerer"))
+    await h.db.save_character(char_id, equipment=equipment)
+    s.character = await h.get_char(char_id)
+    s.session.invalidate_char_obj()
+
+    # Status listing must see the equipped weapon.
+    out = await h.cmd(s, "experiment list")
+    low = out.lower()
+    assert "traceback" not in low, f"experiment list raised: {out[:400]!r}"
+    assert "no weapon equipped" not in low, (
+        f"equipped weapon not seen (reader regression): {out[:400]!r}")
+    assert "experimentation" in low, f"status panel missing: {out[:400]!r}"
+
+    # One real experiment on the damage axis.
+    out = await h.cmd(s, "experiment damage")
+    low = out.lower()
+    assert "error occurred" not in low and "traceback" not in low, (
+        f"experiment raised: {out[:500]!r}")
+    assert any(k in low for k in
+               ("experiment success", "experiment fails",
+                "experiment doesn't work", "boom", "crack", "clunk",
+                "close call")), (
+        f"experiment produced no resolved outcome: {out[:500]!r}")

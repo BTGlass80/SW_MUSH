@@ -371,6 +371,19 @@ class _FakeDB:
     async def get_character(self, char_id):
         return self.characters.get(int(char_id))
 
+    async def adjust_credits(self, char_id, delta, source, **kwargs):
+        # Drop-1 ledger chokepoint shim (dict-backed). apply_city_tax
+        # records the sink via adjust_credits(0, -take, "city_tax");
+        # char_id == 0 is a system sink with no character row to touch.
+        self.writes.append(("adjust_credits", char_id, delta, source))
+        if char_id == 0:
+            return 0
+        ch = self.characters.get(int(char_id))
+        if ch is None:
+            return None
+        ch["credits"] = int(ch.get("credits", 0)) + int(delta)
+        return ch["credits"]
+
 
 # ═════════════════════════════════════════════════════════════════════
 # 1. TestConstants

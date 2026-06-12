@@ -1,0 +1,58 @@
+# =============================================================================
+# data/consumables.yaml — consumable identity registry
+#
+# CRAFT.P2 / Gundark Drop A (2026-06-10): migrated out of the parser-local
+# `_CONSUMABLE_STATS` dict (crafting_integration_design_pass_v1.md §3.3) so
+# consumable families are data drops, not parser edits. Loaded by
+# engine/consumables.py.
+#
+# Division of responsibility (the storage-bifurcation tech-debt note in
+# parser/medical_commands.py still applies; unification stays tracked):
+#   • THIS FILE     — identity: name / description / category, one entry per
+#                     crafting output_key. Read at craft time for the
+#                     success line, and by anything that needs a display
+#                     name for a consumable token.
+#   • _STIM_CATALOG — mechanics: skill / difficulty / buff_type /
+#                     heal_wound_levels / self-administration / failure
+#                     side-effects (parser/medical_commands.py). The
+#                     catalog is the gate for the `stim` verb.
+# Every key below has a live consumer: all seven are crafting output_keys
+# (data/schematics.yaml) landing in attributes.consumables, and all seven
+# resolve in _STIM_CATALOG for use-time mechanics.
+# =============================================================================
+
+consumables:
+  medpac:
+    name: "Medpac"
+    category: medical
+    description: "A standard bacta medpac. Treats one wound level with a steady hand (first aid)."
+
+  medpac_advanced:
+    name: "Advanced Medpac"
+    category: medical
+    description: "A high-grade medpac with concentrated bacta. Treats up to two wound levels."
+
+  medpac_fastflesh:
+    name: "FastFlesh Medpac"
+    category: medical
+    description: "Synthflesh-laced field medpac — quicker to apply than a standard kit."
+
+  stimpack:
+    name: "Field Stimpack"
+    category: stim
+    description: "A stimpack for rapid field stabilisation. Sharpens the next physical effort."
+
+  adrenaline_shot:
+    name: "Adrenaline Shot"
+    category: stim
+    description: "Pressure-injected adrenal compound. Dangerous if the dose is misjudged."
+
+  focus_stim:
+    name: "Focus Stim"
+    category: stim
+    description: "A clarity compound favored by slicers and sharpshooters."
+
+  combat_stim:
+    name: "Combat Stim"
+    category: stim
+    description: "Military-grade combat stimulant. The crash afterward is part of the price."

@@ -710,6 +710,7 @@ npcs:
         streetwise: "3D+1"
       move: 10
     ai_config:
+      vendor: true   # decision a + vendor flag (2026-06-12): sells open-market commons
       personality: >-
         Kayson is the proprietor of a well-stocked Mos Eisley weapon shop,
         an encyclopedic armorer who can tell you the make, model, and life

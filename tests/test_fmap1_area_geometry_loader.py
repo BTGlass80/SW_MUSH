@@ -207,7 +207,7 @@ class TestSenateFixtureLoads(unittest.TestCase):
 
     def test_senate_loads_with_coruscant_palette(self):
         self.assertEqual(self.geom.area_key, "coruscant.senate_district")
-        self.assertEqual(self.geom.palette, "coruscant_senate")
+        self.assertEqual(self.geom.palette, "senate_district")
         self.assertEqual(self.geom.planet, "CORUSCANT")
 
     def test_senate_has_some_rooms_and_districts(self):

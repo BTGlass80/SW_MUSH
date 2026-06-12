@@ -21,7 +21,7 @@ order is:
      for any colliding zone keys; additive for new zone keys)
 
 Per design doc §3.3 + the CW ambient_events.yaml header: era-specific
-keys are wrapped under `ambient_events:` (e.g. coruscant_senate); legacy
+keys are wrapped under `ambient_events:` (e.g. senate_district); legacy
 keys are at the top level (cantina, spaceport, etc.). The CW file
 intentionally does NOT redefine the legacy generic keys — those continue
 to be served by the legacy file in both eras. The merge logic just

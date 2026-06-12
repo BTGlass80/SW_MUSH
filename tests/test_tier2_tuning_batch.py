@@ -105,15 +105,24 @@ class TestMissionPartialPay(unittest.TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# #7 — P2P cap
+# #7 — P2P cap → velocity alert (ECON.p2p_cap_review = a, 2026-06-11)
 # ─────────────────────────────────────────────────────────────────────────────
 class TestP2PCap(unittest.TestCase):
-    def test_cap_lowered_to_1500(self):
-        from parser.builtin_commands import P2P_DAILY_CAP
-        self.assertEqual(P2P_DAILY_CAP, 1_500)
+    def test_hard_cap_constant_removed(self):
+        # The S51/audit-v2 hard cap is reversed by explicit sign-off:
+        # decision a removes the block; the threshold lives on as the
+        # alert band in engine.economy_alerts.
+        import parser.builtin_commands as bc
+        self.assertFalse(hasattr(bc, "P2P_DAILY_CAP"),
+                         "P2P_DAILY_CAP must not exist — decision a")
 
-    def test_cap_keyed_on_p2p_outgoing_only(self):
-        """Vendor/faction flows are exempt because the cap reads
+    def test_alert_threshold_keeps_old_value(self):
+        from engine.economy_alerts import P2P_VELOCITY_CAUTION_24H
+        self.assertEqual(P2P_VELOCITY_CAUTION_24H, 1_500)
+
+    def test_alert_keyed_on_p2p_outgoing_only(self):
+        """Vendor/faction flows stay exempt from the ALERT for the same
+        reason they were exempt from the cap: the read is
         get_daily_p2p_outgoing, which they don't increment."""
         with open(os.path.join(PROJECT_ROOT, "parser", "builtin_commands.py"),
                   encoding="utf-8") as fh:

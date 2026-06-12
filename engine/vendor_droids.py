@@ -358,9 +358,12 @@ async def stock_droid(char: dict, droid_id: int,
     # ── Remove the item from character BEFORE adding to droid ──
     try:
         if source_type == "equipment":
-            # Unequip the weapon
-            char["equipment"] = "{}"
-            await db.save_character(char["id"], equipment="{}")
+            # Unequip the weapon — clear ONLY the weapon slot. (The old
+            # equipment="{}" write wiped the worn-armor slot too.)
+            from engine.items import read_equipment, write_equipment
+            _armor = read_equipment(char.get("equipment", "{}"))["armor"]
+            char["equipment"] = write_equipment(weapon=None, armor=_armor)
+            await db.save_character(char["id"], equipment=char["equipment"])
             # Equipment is always qty 1
             quantity = 1
         elif source_type == "resource":

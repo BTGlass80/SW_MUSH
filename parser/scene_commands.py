@@ -18,7 +18,7 @@ Commands:
 import logging
 import time
 
-from parser.commands import BaseCommand, CommandContext
+from parser.commands import BaseCommand, CommandContext, AccessLevel
 from server import ansi
 
 log = logging.getLogger(__name__)
@@ -633,7 +633,58 @@ async def _cmd_pose_mode(ctx, mode: str):
 
 # ── Registration ───────────────────────────────────────────────────────────────
 
+class CantinaEncounterCommand(BaseCommand):
+    """Staff/GM scene tool: roll the d66 Cantina Encounter Table (Wretched Hive
+    §2C) and pose the result to the room. Intentional scene-seeding — distinct
+    from the passive ambient cantina pool (many beats here are plot hooks a GM
+    fires on purpose, not background flavor)."""
+    key = "+cantina"
+    aliases = ["+cantinaroll"]
+    access_level = AccessLevel.BUILDER
+    help_text = (
+        "Roll the d66 Cantina Encounter Table and pose the result to the room.\n"
+        "A GM scene-seeding tool (staff only): 36 cantina beats from a classic WEG\n"
+        "table, era-translated. Drop a beat into a scene on purpose.\n\n"
+        "  +cantina           Roll a random encounter and pose it here\n"
+        "  +cantina <code>    Pose a specific d66 entry (11-16, 21-26, ... 61-66)"
+    )
+    usage = "+cantina [d66 code]"
+
+    async def execute(self, ctx: CommandContext):
+        from engine.cantina_encounters import (
+            roll_cantina_encounter, CANTINA_ENCOUNTERS,
+        )
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line("You must be in the game to use this.")
+            return
+        arg = ctx.args.strip()
+        if arg:
+            try:
+                code = int(arg)
+            except ValueError:
+                await ctx.session.send_line("Usage: +cantina [d66 code 11-66].")
+                return
+            text = CANTINA_ENCOUNTERS.get(code)
+            if not text:
+                await ctx.session.send_line(
+                    "No such d66 code. Valid: 11-16, 21-26, 31-36, 41-46, 51-56, 61-66."
+                )
+                return
+        else:
+            code, text = roll_cantina_encounter()
+        room_id = char.get("room_id")
+        line = ansi.dim(text)
+        if room_id and ctx.session_mgr is not None:
+            await ctx.session_mgr.broadcast_to_room(room_id, line, source_char=char)
+        else:
+            await ctx.session.send_line(line)
+        # Private confirmation to the GM, with the rolled code.
+        await ctx.session.send_line(ansi.dim(f"  (d66 {code} posed to the room)"))
+
+
 def register_scene_commands(registry) -> None:
     registry.register(SceneCommand())
     registry.register(ScenesListCommand())
+    registry.register(CantinaEncounterCommand())
     log.info("[scenes] scene commands registered")

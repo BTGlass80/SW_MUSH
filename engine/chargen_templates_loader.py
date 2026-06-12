@@ -29,27 +29,21 @@ side-effects on the seam's internal cache.
 Source preference order
 -----------------------
 1. YAML at `data/worlds/<era>/chargen_templates.yaml` (per F.7.1)
-2. In-Python legacy fallback `_LEGACY_TEMPLATES_GCW` defined in this
-   module. Only used during Phase 1 — F.7.b removes this branch.
+2. Empty-fallback seam (the GCW in-Python literal was retired with the
+   GCW era). Returns an empty dict on YAML failure.
 
 Architecture note
 -----------------
-The legacy fallback lives in this module (NOT in engine/creation.py)
+The empty-fallback seam lives in this module (NOT in engine/creation.py)
 to avoid a circular import: engine/creation.py reads from this seam
-at module-import time, so this seam cannot depend on engine/creation.py
-for its fallback. F.7.b Phase 2 deletes _LEGACY_TEMPLATES_GCW from
-this module entirely.
+at module-import time, so this seam cannot depend on engine/creation.py.
 
-The legacy-fallback branch logs INFO when taken (not ERROR — Phase 1
-expects this to fire for any era without a chargen_templates.yaml ref
-yet authored). Once F.7.b retires the fallback, missing/broken YAMLs
-log ERROR and return an empty dict.
+A missing/broken YAML logs an ERROR/INFO and returns an empty dict.
 
 Tested by tests/test_f7_chargen_templates_loader.py.
 """
 from __future__ import annotations
 
-import copy
 import logging
 from pathlib import Path
 from typing import Optional
@@ -57,95 +51,24 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 
-# ── Phase 1 (F.7) — Legacy fallback ──────────────────────────────────────
-# `_LEGACY_TEMPLATES_GCW` is the byte-equivalent in-Python copy of the
-# 7 GCW archetypes authored at data/worlds/gcw/chargen_templates.yaml.
-# Phase 2 (F.7.b) deletes this constant; the seam will then return an
-# empty dict on YAML failure, matching F.6a.3 / F.6a.7 Phase 2
-# conventions.
-#
-# The values below match the pre-F.7 in-Python TEMPLATES literal at
-# engine/creation.py L42–L101 byte-for-byte. Tests in
-# tests/test_f7_chargen_templates_loader.py prove byte-equivalence
-# against the GCW YAML; the F.7 byte-equivalence guards keep this
-# constant and the YAML in lockstep until Phase 2 retires the
-# constant.
-
-_LEGACY_TEMPLATES_GCW: dict = {
-    "smuggler": {
-        "label": "Smuggler",
-        "species": "Human",
-        "attributes": {"dexterity": "3D+1", "knowledge": "2D+1", "mechanical": "4D",
-                        "perception": "3D+1", "strength": "2D+2", "technical": "2D+1"},
-        "skills": {"blaster": "1D+1", "dodge": "1D", "space transports": "1D+2",
-                    "starship gunnery": "1D", "streetwise": "1D", "bargain": "1D"},
-    },
-    "bounty_hunter": {
-        "label": "Bounty Hunter",
-        "species": "Human",
-        "attributes": {"dexterity": "3D+2", "knowledge": "2D+1", "mechanical": "2D+2",
-                        "perception": "3D+1", "strength": "3D+1", "technical": "2D+2"},
-        "skills": {"blaster": "2D", "dodge": "1D", "brawling": "1D",
-                    "search": "1D", "sneak": "1D", "security": "1D"},
-    },
-    "rebel_pilot": {
-        "label": "Rebel Pilot",
-        "species": "Human",
-        "attributes": {"dexterity": "3D", "knowledge": "2D+2", "mechanical": "4D+1",
-                        "perception": "2D+2", "strength": "2D+2", "technical": "2D+2"},
-        "skills": {"blaster": "1D", "starfighter piloting": "2D",
-                    "starship gunnery": "1D", "astrogation": "1D", "sensors": "1D",
-                    "starfighter repair": "1D"},
-    },
-    "scoundrel": {
-        "label": "Scoundrel",
-        "species": "Human",
-        "attributes": {"dexterity": "3D", "knowledge": "3D", "mechanical": "2D+2",
-                        "perception": "4D", "strength": "2D+2", "technical": "2D+2"},
-        "skills": {"blaster": "1D", "dodge": "1D", "con": "1D+2",
-                    "persuasion": "1D", "gambling": "1D", "sneak": "1D+1"},
-    },
-    "technician": {
-        "label": "Technician",
-        "species": "Human",
-        "attributes": {"dexterity": "2D+1", "knowledge": "3D+2", "mechanical": "2D+2",
-                        "perception": "2D+2", "strength": "2D+2", "technical": "4D"},
-        "skills": {"computer programming/repair": "1D+2", "droid repair": "1D",
-                    "first aid": "1D", "security": "1D", "blaster repair": "1D",
-                    "space transport repair": "1D+1"},
-    },
-    "jedi_apprentice": {
-        "label": "Jedi Apprentice",
-        "species": "Human",
-        "attributes": {"dexterity": "3D+1", "knowledge": "3D", "mechanical": "2D+1",
-                        "perception": "3D+2", "strength": "3D", "technical": "2D+2"},
-        "skills": {"lightsaber": "1D+2", "dodge": "1D", "scholar": "1D",
-                    "willpower": "1D", "sneak": "1D", "climbing/jumping": "1D+1"},
-    },
-    "soldier": {
-        "label": "Soldier",
-        "species": "Human",
-        "attributes": {"dexterity": "3D+2", "knowledge": "2D+2", "mechanical": "2D+2",
-                        "perception": "2D+2", "strength": "3D+2", "technical": "2D+2"},
-        "skills": {"blaster": "1D+2", "dodge": "1D", "brawling": "1D",
-                    "grenade": "1D", "tactics": "1D", "stamina": "1D+1"},
-    },
-}
+# ── Empty-fallback seam ───────────────────────────────────────────────────
+# The in-Python GCW template literal (_LEGACY_TEMPLATES_GCW) was retired
+# with the GCW era. Chargen templates are now sourced exclusively from
+# data/worlds/<era>/chargen_templates.yaml. On YAML failure this seam
+# returns an empty dict (a broken-but-survivable state — the chargen
+# wizard handles an empty template list), matching the F.6a.3 / F.6a.7
+# Phase 2 conventions.
 
 
 def _legacy_templates_dict() -> dict:
-    """Return a deep copy of the legacy in-Python templates dict.
+    """Return the empty-fallback template dict.
 
-    Used as Phase 1 fallback when the era's chargen_templates.yaml is
-    not present (or the era manifest doesn't declare the ref). The
-    deep copy is per-call so callers cannot mutate the legacy literal
-    by accident.
-
-    Phase 2 (F.7.b) deletes `_LEGACY_TEMPLATES_GCW` and this helper
-    along with it. The seam will then return an empty dict on YAML
-    failure.
+    Used when the era's chargen_templates.yaml is not present (or the
+    era manifest doesn't declare the ref). The GCW in-Python literal
+    that this once returned was retired with the GCW era; the seam now
+    returns an empty dict on YAML failure.
     """
-    return copy.deepcopy(_LEGACY_TEMPLATES_GCW)
+    return {}
 
 
 def get_chargen_templates(
@@ -174,11 +97,12 @@ def get_chargen_templates(
 
     Resolution order
     ----------------
-    1. era=None → engine.era_state.get_active_era() (defaults to "gcw")
+    1. era=None → engine.era_state.get_active_era() (defaults to the
+       production era, clone_wars)
     2. Try data/worlds/<era>/chargen_templates.yaml via
        engine.world_loader.{load_era_manifest, load_chargen_templates}
-    3. On any failure, fall back to _LEGACY_TEMPLATES_GCW (the
-       in-Python legacy literal). Logs INFO when this happens.
+    3. On any failure, return an empty dict (the GCW in-Python literal
+       was retired with the GCW era). Logs INFO/ERROR when this happens.
     """
     if era is None:
         try:
@@ -187,9 +111,9 @@ def get_chargen_templates(
         except Exception as e:
             log.warning(
                 "[chargen_templates_loader] era_state import failed (%s); "
-                "defaulting to 'gcw'.", e,
+                "defaulting to 'clone_wars'.", e,
             )
-            era = "gcw"
+            era = "clone_wars"
 
     try:
         from engine.world_loader import (
@@ -198,7 +122,7 @@ def get_chargen_templates(
     except Exception as e:
         log.error(
             "[chargen_templates_loader] world_loader import failed (%s); "
-            "falling back to legacy templates literal.", e,
+            "returning empty template set (GCW literal retired).", e,
         )
         return _legacy_templates_dict()
 
@@ -209,7 +133,7 @@ def get_chargen_templates(
     except Exception as e:
         log.info(
             "[chargen_templates_loader] Era %r manifest unavailable "
-            "(%s); falling back to legacy templates literal.", era, e,
+            "(%s); returning empty template set (GCW literal retired).", era, e,
         )
         return _legacy_templates_dict()
 
@@ -229,7 +153,7 @@ def get_chargen_templates(
     except Exception as e:
         log.error(
             "[chargen_templates_loader] Era %r chargen_templates load "
-            "failed (%s); falling back to legacy templates literal.",
+            "failed (%s); returning empty template set (GCW literal retired).",
             era, e,
         )
         return _legacy_templates_dict()
@@ -240,7 +164,7 @@ def get_chargen_templates(
         # If we got here it's a defensive fall-through.
         log.info(
             "[chargen_templates_loader] Era %r chargen_templates returned "
-            "None unexpectedly; falling back to legacy templates literal.",
+            "None unexpectedly; returning empty template set (GCW literal retired).",
             era,
         )
         return _legacy_templates_dict()

@@ -579,25 +579,6 @@ class TestSmokeD1_ChalmunCantinaRoomsHaveZone(unittest.TestCase):
             f"room."
         )
 
-    def test_gcw_chalmun_rooms_all_have_zone(self):
-        chalmun_rooms = self._chalmun_rooms(GCW_TATOOINE_YAML)
-        self.assertGreaterEqual(
-            len(chalmun_rooms), 3,
-            f"Expected at least 3 Chalmun's Cantina rooms in GCW "
-            f"tatooine.yaml. Found {len(chalmun_rooms)}."
-        )
-        unzoned = [
-            (r.get("id"), r.get("slug"))
-            for r in chalmun_rooms
-            if not r.get("zone")
-        ]
-        self.assertEqual(
-            unzoned, [],
-            f"GCW Chalmun's Cantina rooms with NULL/missing zone: "
-            f"{unzoned}. Restore the `zone: cantina` field on each "
-            f"affected room."
-        )
-
     def test_cw_chalmun_rooms_all_share_a_zone(self):
         """Sanity: every Chalmun's room should share the same zone
         value (it's a single building). Mixed zone fields would
@@ -610,17 +591,6 @@ class TestSmokeD1_ChalmunCantinaRoomsHaveZone(unittest.TestCase):
             f"{zones}. All rooms in the cantina complex should share "
             f"one zone."
         )
-
-    def test_gcw_chalmun_rooms_all_share_a_zone(self):
-        chalmun_rooms = self._chalmun_rooms(GCW_TATOOINE_YAML)
-        zones = {r.get("zone") for r in chalmun_rooms}
-        self.assertEqual(
-            len(zones), 1,
-            f"GCW Chalmun's Cantina rooms span multiple zones: "
-            f"{zones}. All rooms in the cantina complex should share "
-            f"one zone."
-        )
-
 
 # ═════════════════════════════════════════════════════════════════════
 # 6. Meta — chalmuans_* slug stability (intentional CW typo)

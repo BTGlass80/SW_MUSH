@@ -90,13 +90,22 @@ if str(PROJECT_ROOT) not in sys.path:
 
 
 def _all_stim_schematics() -> dict:
-    """Return {schematic_key: schematic_dict} for all stim schematics."""
+    """Return {schematic_key: schematic_dict} for all stim schematics.
+
+    2026-06-12: the filter previously hardcoded the original four stim
+    keys, so when the medpac family (medpac, medpac_advanced,
+    medpac_fastflesh) landed in _STIM_CATALOG with its own consumable
+    schematics, this helper couldn't see them and the loop-closure test
+    went red against perfectly-closed data (pre-existing in the clean
+    upload; same root as the four-entry count pin). Filter by the LIVE
+    catalog instead — the test's intent is catalog↔schematic agreement,
+    so the selector must follow the catalog.
+    """
     from engine.crafting import get_all_schematics
+    catalog_keys = _stim_catalog_keys()
     return {
         key: s for key, s in get_all_schematics().items()
-        if s.get("output_key") in {
-            "stimpack", "adrenaline_shot", "focus_stim", "combat_stim",
-        }
+        if s.get("output_key") in catalog_keys
     }
 
 

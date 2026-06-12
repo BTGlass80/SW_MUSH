@@ -35,7 +35,7 @@ ambient_events:
   # CORUSCANT
   # ═══════════════════════════════════════════════════════════════════════
 
-  coruscant_senate:
+  senate_district:
     - text: "A senator's aide hurries past, datapad in hand and stress in his face."
     - text: "Two Senate Guards in blue and gold helmets stand at attention by an arched doorway."
     - text: "A holovid crew sets up for a sound bite. The senator they're waiting for is, predictably, late."
@@ -45,7 +45,7 @@ ambient_events:
     - text: "A pair of Senators converse in low tones, faces carefully neutral. One glances over their shoulder."
       weight: 0.7
 
-  coruscant_temple:
+  jedi_temple:
     - text: "A Padawan crosses the colonnade with a Master, listening intently to a quiet lesson."
     - text: "A pair of Initiates pause to bow as a Council member passes."
     - text: "The chime of the Temple bells marks an Order observance somewhere above."
@@ -55,7 +55,7 @@ ambient_events:
     - text: "Distant footsteps in the upper galleries. A door closes softly. The quiet returns."
       weight: 0.6
 
-  coruscant_upper:
+  monumental_district:
     - text: "A luxury aircar idles at a private landing pad, awaiting its very late passenger."
     - text: "Holographic ad displays cycle past — high-end fashion, exclusive vintage spirits, war bonds."
     - text: "Two patrons of an establishment exchange a coded handshake before entering."
@@ -63,7 +63,7 @@ ambient_events:
     - text: "Kuat-imported wine glasses clink at an outdoor cafe. Nobody mentions the war."
     - text: "Senate Guards on detail watch the boulevard, eyes moving without their heads."
 
-  coruscant_midlevels:
+  commercial_district:
     - text: "Air traffic three layers up roars in muted thunder. Down here, life continues."
     - text: "A construction droid welds something on a balcony. Sparks rain down two floors before fading."
     - text: "A working-class diner does brisk lunch trade. Clone troopers on leave eat at the counter."
@@ -71,8 +71,17 @@ ambient_events:
     - text: "Datapads buzz with afternoon news. A handful of patrons watch the holovid behind the bar."
     - text: "A Coruscant Security officer walks his beat, nodding to shopkeepers he knows by name."
     - text: "The smell of caf and roasted nerf drifts from a corner stall."
+    # merged from the former coruscant_works (industrial sublevels) on the
+    # 2026-06-05 §3 re-zoning — these rooms are now commercial_district.
+    - text: "Heavy machinery cycles somewhere below. The floor vibrates faintly."
+    - text: "A maintenance worker in a stained jumpsuit checks readouts on a wall-mounted panel."
+    - text: "Steam vents in a regular rhythm — climate control, atmospheric processing, something."
+    - text: "The lighting flickers and re-stabilizes. Nobody around comments."
+    - text: "A repulsorlift platform descends with cargo nobody bothers to label."
+    - text: "Distant alarms whoop briefly in the maintenance levels. They cut off without being responded to."
+      weight: 0.5
 
-  coruscant_lower:
+  southern_underground:
     - text: "Steam vents from a maintenance grate. The shadows move with it. Or it just looks like they do."
     - text: "A pair of toughs argue in Huttese, then resume their disagreement in a quieter language."
     - text: "Neon flickers on a cantina sign two intersections away. The colors are wrong somehow."
@@ -82,15 +91,6 @@ ambient_events:
     - text: "A street vendor offers identification chips at suspiciously good prices."
     - text: "Far above, you can sometimes see daylight. Not today."
       weight: 0.6
-
-  coruscant_works:
-    - text: "Heavy machinery cycles somewhere below. The floor vibrates faintly."
-    - text: "A maintenance worker in a stained jumpsuit checks readouts on a wall-mounted panel."
-    - text: "Steam vents in a regular rhythm — climate control, atmospheric processing, something."
-    - text: "The lighting flickers and re-stabilizes. Nobody around comments."
-    - text: "A repulsorlift platform descends with cargo nobody bothers to label."
-    - text: "Distant alarms whoop briefly, somewhere in the works. They cut off without being responded to."
-      weight: 0.5
 
   # ═══════════════════════════════════════════════════════════════════════
   # KUAT
@@ -325,7 +325,7 @@ era_additions:
 # 1. Loader reads the global data/ambient_events.yaml AND, when era ==
 #    clone_wars, this file's `ambient_events` block AND `era_additions`.
 # 2. Per-zone-key dispatch checks the era-specific zone keys first
-#    (e.g. coruscant_senate). If absent, falls back to legacy generic
+#    (e.g. senate_district). If absent, falls back to legacy generic
 #    keys (cantina, streets, etc.).
 # 3. For legacy generic keys, the era_additions entries are merged into
 #    the global pool. Weights stay independent — a 0.5-weight addition

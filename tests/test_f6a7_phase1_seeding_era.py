@@ -374,34 +374,6 @@ class TestRuntimeConfigBehavioralIntegration(unittest.TestCase):
         from engine import era_state
         era_state.set_active_config(self._saved)
 
-    def test_resolution_for_gcw_returns_4_factions(self):
-        """Explicit GCW resolution: registering a GCW config produces
-        the canonical 4-faction GCW set.
-
-        Pre-pivot this test relied on the default era being GCW; the
-        clear_active_config call was enough to land on GCW. Post-pivot
-        the default is CW, so this test now registers a GCW config
-        explicitly. The contract being verified is the same: explicit
-        era → expected factions for that era.
-        """
-        from engine import era_state
-        era_state.clear_active_config()
-        # Register a GCW config explicitly (the default is now CW).
-        era_state.set_active_config(SimpleNamespace(
-            active_era="gcw",
-            use_yaml_director_data=True,
-        ))
-        try:
-            from engine.director_config_loader import get_director_runtime_config
-            from engine.era_state import get_seeding_era
-            cfg = get_director_runtime_config(era=get_seeding_era())
-            self.assertEqual(
-                len(cfg.valid_factions), 4,
-                f"GCW expects 4 factions, got {cfg.valid_factions}",
-            )
-        finally:
-            era_state.clear_active_config()
-
     def test_resolution_for_clone_wars_returns_6_factions(self):
         from engine import era_state
         from engine.director_config_loader import get_director_runtime_config

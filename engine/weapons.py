@@ -49,13 +49,16 @@ class WeaponData:
     """Parsed weapon stats from weapons.yaml."""
     key: str
     name: str
-    weapon_type: str          # blaster, melee, lightsaber, grenade, bowcaster
+    weapon_type: str          # blaster, melee, lightsaber, grenade, bowcaster, firearms
     skill: str                # Skill used to fire/wield
     damage: str               # Damage dice string (e.g. "4D", "STR+2D")
     scale: str = "character"
     cost: int = 0
     ammo: int = 0
     stun_capable: bool = False
+    # CRAFT.P0.7: weapon fires stun bolts ONLY (dedicated stun sidearms).
+    # The attack path forces stun mode for these — see combat_commands.
+    stun_only: bool = False
     notes: str = ""
 
     # Range data (for ranged weapons only)
@@ -67,6 +70,17 @@ class WeaponData:
 
     # Grenade blast radius data
     blast_radius: list[int] = field(default_factory=list)
+    # Gundark Drop D (2026-06-11): single-use ordnance — consumed from the
+    # equipment slot at attack declaration. Explicit per-row, never
+    # type-derived (the Merr-Sonn stun grenade is book-rechargeable).
+    single_use: bool = False
+    # CRAFT.market_segmentation_impl (2026-06-12, decision a): open-
+    # vendor stock flag. The bare `buy` verb resolved the ENTIRE
+    # registry — every row including the contraband band was credit-
+    # purchasable anywhere. Default CLOSED: only explicitly flagged
+    # Avail-1 commons sell at book cost; everything else is craft /
+    # loot / player-shop (band 2-3) or Gundark-taught (4/X).
+    vendor_stocked: bool = False
     blast_damage: list[str] = field(default_factory=list)
 
     # Armor fields (for armor items)
@@ -158,10 +172,13 @@ class WeaponRegistry:
                 cost=entry.get("cost", 0),
                 ammo=entry.get("ammo", 0),
                 stun_capable=entry.get("stun_capable", False),
+                stun_only=entry.get("stun_only", False),
                 notes=entry.get("notes", ""),
                 ranges=entry.get("ranges", []),
                 melee_difficulty=entry.get("difficulty", ""),
                 blast_radius=entry.get("blast_radius", []),
+                single_use=entry.get("single_use", False),
+                vendor_stocked=entry.get("vendor_stocked", False),
                 blast_damage=entry.get("blast_damage", []),
                 protection_energy=entry.get("protection_energy", ""),
                 protection_physical=entry.get("protection_physical", ""),

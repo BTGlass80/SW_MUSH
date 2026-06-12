@@ -382,18 +382,15 @@ async def ee7_sell_resource_to_droid_routes(h):
 # EE8 — P2P trade cap (5,000 cr/24h)
 # ──────────────────────────────────────────────────────────────────────────
 
-async def ee8_p2p_cap_blocks_over_limit(h):
-    """EE8 — `trade Bob 6000 credits` from a fresh char is blocked
-    by the P2P daily cap (5,000 cr per 24h rolling window).
+async def ee8_p2p_large_trade_flows_and_alerts(h):
+    """EE8 — policy reversed 2026-06-11 (ECON.p2p_cap_review = a):
+    a 6,000-cr trade — far above the old 1,500 hard cap — SUCCEEDS
+    end-to-end, the 5% tax still applies, and the sender's volume
+    lands in the @economy velocity-alert ring buffer instead of a
+    block. The old cap-block scenario pinned the reversed policy.
 
-    REGRESSION GUARD for the S51 economy hardening. Unit-tested in
-    `test_session51_economy_hardening.py` against mock helpers; this
-    scenario verifies the wiring through the live `trade` command +
-    real `db.get_daily_p2p_outgoing` against the credit_log table.
-
-    The cap fires at offer time so the player gets immediate
-    feedback. We also confirm an under-cap trade succeeds end-to-end
-    so the test isn't asserting on a generic-failure refusal.
+    Verifies the live `trade` wiring + real
+    `db.get_daily_p2p_outgoing` + the fail-open alert hook.
     """
     alice = await h.login_as("EE8Alice", room_id=1, credits=10000)
     bob = await h.login_as("EE8Bob", room_id=1)
@@ -417,17 +414,37 @@ async def ee8_p2p_cap_blocks_over_limit(h):
     # 2. Over-cap trade refused at offer time. Alice has already
     # sent 1000 today; cap is 5000; 6000 attempt would bring total
     # to 7000 which exceeds the cap.
+    # 2. A trade ABOVE the old cap succeeds end-to-end (decision a).
+    from engine.economy_alerts import clear_alerts, recent_alerts
+    clear_alerts()
     out3 = await h.cmd(alice, "trade EE8Bob 6000 credits")
     assert "traceback" not in out3.lower(), (
-        f"trade over-cap raised: {out3[:500]!r}"
+        f"large trade offer raised: {out3[:500]!r}"
     )
-    out_lc = out3.lower()
-    assert (
-        "trade blocked" in out_lc or "daily transfer cap" in out_lc or
-        ("cap" in out_lc and "5,000" in out3)
-    ), (
-        f"Over-cap trade didn't surface the cap-blocked message. "
+    assert "blocked" not in out3.lower(), (
+        f"Large trade must NOT be blocked (decision a). "
         f"Output: {out3[:500]!r}"
+    )
+    out4 = await h.cmd(bob, "trade accept EE8Alice")
+    assert "traceback" not in out4.lower(), (
+        f"large trade accept raised: {out4[:500]!r}"
+    )
+    assert "TRADE COMPLETE" in out4 or "complete" in out4.lower(), (
+        f"Large trade should complete. Output: {out4[:400]!r}"
+    )
+    bob_after = await h.get_credits(bob.character["id"])
+    # 6000 less 5% tax = 5700, on top of the earlier 950.
+    assert bob_after >= bob_credits + 5500, (
+        f"Bob should have received ~5,700 more cr. "
+        f"Before: {bob_credits}, after: {bob_after}."
+    )
+    # 3. The velocity alert recorded the sender's volume (7,000 cr
+    # rolling > 1,500 caution band) without touching the trade.
+    alerts = [a for a in recent_alerts(10)
+              if a.get("kind") == "p2p_velocity"]
+    assert alerts, "expected a p2p_velocity alert in the ring buffer"
+    assert alerts[-1].get("rolling_24h", 0) >= 6000, (
+        f"alert should carry the rolling total: {alerts[-1]!r}"
     )
 
 

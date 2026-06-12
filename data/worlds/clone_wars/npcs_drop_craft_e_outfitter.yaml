@@ -1,0 +1,87 @@
+# data/worlds/clone_wars/npcs_drop_craft_e_outfitter.yaml
+# Clone Wars Era — CRAFT.GUNDARK Drop E (2026-06-11): the field outfitter.
+# Schema version 1 (mirrors npcs_drop_craft_c_armorer.yaml).
+#
+# ─── Why this file exists ─────────────────────────────────────────────
+#
+# FIVE existing gear schematics (cooling_unit, breath_mask,
+# radiation_suit, anti_theft_alarm, water_canteen) carry
+# `trainer_npc: Vek Nurren` — and Vek Nurren was seeded NOWHERE. The
+# whole survival-gear teaching loop was phantom: the hazard system
+# consumed the items, the craft branch could land them, and no player
+# could ever learn to make one. (Distinct from Venn Kator, the
+# Docking Bay 94 ship-component trainer — the near-collision in names
+# is probably how the dangle survived audits.) This file seeds him,
+# plus he teaches Drop E's two new recipes (luma_flare,
+# animal_excluder).
+#
+# Placement: Lup's General Store — the canteen-and-rations storefront
+# is the diegetic home for field outfitting, and co-location honors the
+# 2026-06-02 Tatooine density directive (precedent: Sela Tarn at
+# Kayson's). Original character per Q1.
+
+schema_version: 1
+
+npcs:
+
+  # ─── Vek Nurren — field outfitter + survival skill trainer ─────────
+  - name: Vek Nurren
+    room: "Lup's General Store"
+    species: Sullustan
+    description: >-
+      A Sullustan perched on a stool behind Lup's side counter, half
+      hidden by hanging canteens, breath masks, coiled syntherope, and
+      a disassembled moisture trap whose parts are sorted onto a cloth
+      with surgical neatness. His jowls are sun-creased and his jacket
+      carries the bleach of a hundred desert crossings. A clicking
+      radiation counter hangs from his belt like a talisman. He watches
+      you take inventory of his inventory, and approves.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 3D
+        mechanical: 2D+2
+        perception: 3D+1
+        strength: 2D
+        technical: 3D+1
+      skills:
+        survival: "5D+1"
+        first_aid: "4D"
+        security: "3D+2"
+        droid_repair: "3D+1"
+        armor_repair: "3D"
+        value: "4D"
+      move: 10
+    ai_config:
+      trainer: true
+      train_skills:
+      - survival
+      personality: >-
+        Vek Nurren outfits people who intend to walk out of Mos Eisley
+        and come back alive. A Sullustan ex-scout who guided survey
+        teams through the Jundland before his knees gave out, he now
+        sells and builds field gear from Lup's side counter — canteens,
+        filters, coolers, alarms — and teaches the craft to anyone who
+        listens to the whole lecture. He is cheerfully morbid about the
+        desert ("the sand keeps what it catches"), fastidious about
+        equipment maintenance, and rates customers by how they treat
+        their canteen. The war means little to him; the suns were
+        killing people long before the Republic and they'll be at it
+        long after.
+      knowledge:
+      - "Desert survival — water discipline, heat, sandwhirl shelter"
+      - "Field gear: canteens, breath masks, coolers, radiation suits"
+      - "Building and maintaining survival equipment from parts"
+      - "Wilderness animal behavior and how to NOT meet an acklay"
+      - "What the Jundland Wastes do to the unprepared"
+      faction: independent
+      dialogue_style: >-
+        Cheerful, methodical, faintly morbid. Lectures in checklists.
+        Warms instantly to anyone who maintains their gear.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "Vek taps your canteen with one finger. 'Half empty. Out there, that's a verdict. Fill it, then we talk.'"
+      - "'The sand keeps what it catches. My job is making sure it doesn't catch you. Gear, training, or both?'"
+      - "'I can teach you to build all of this. The desert doesn't care what you bought — it cares what you can fix.'"
+      - "'Excluder, set low, clipped to the pack frame. The wildlife hears it before it smells you. Usually.'"

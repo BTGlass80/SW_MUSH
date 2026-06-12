@@ -20,6 +20,32 @@ cantina:
   - text: "Someone at a back table is counting credits. A lot of credits."
     weight: 0.5
   - text: "The cantina door swings open. Everyone looks. Nobody interesting."
+  # ── Lane E3: atmospheric entries from the d66 Cantina Encounter Table ──
+  # (Wretched Hive §2C, era-neutral subset). The disruptive plot-hook entries
+  # (explosions, hostages, arrests, the deed-handoff) are NOT here — those are
+  # GM-triggered on purpose via the +cantina command, not background flavor.
+  - text: "A vendor works the tables, hawking exotic -- and clearly illegal -- goods."
+  - text: "Drunken starfighter pilots loudly embellish their latest exploits."
+  - text: "A nervous stranger nurses one drink and keeps one eye on the entrance."
+  - text: "Someone is quietly shopping the room for passage offworld."
+  - text: "A knot of gamblers is deep in a high-stakes sabacc hand."
+  - text: "A bounty hunter leans on the bartender, asking pointed questions."
+    weight: 0.5
+  - text: "Two beings argue furiously at the next table, voices climbing."
+  - text: "A lost child wanders in, looking for its parents."
+    weight: 0.5
+  - text: "A face famous across the sector is, improbably, drinking here tonight."
+    weight: 0.5
+  - text: "An attractive stranger buys one of the patrons a drink."
+  - text: "Someone drops a loaded cred-stick on their way out the door."
+    weight: 0.5
+  - text: "A nasty-looking alien fixes an unblinking stare on a patron."
+    weight: 0.5
+  - text: "A pair of mercenaries is openly looking for bodyguard work."
+  - text: "A furtive figure peddles a datacard of stolen secrets."
+    weight: 0.5
+  - text: "A private investigator quietly nurses a drink, watching the regulars."
+    weight: 0.5
 
 spaceport:
   - text: "A freighter's engines cycle up somewhere overhead -- the heat blast is momentary."

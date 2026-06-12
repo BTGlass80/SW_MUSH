@@ -115,9 +115,9 @@ class TestSlugResolver(unittest.TestCase):
     def test_resolves_known_slug(self):
         from engine.chain_graduation import resolve_drop_room_id
         db = _MockDB()
-        db.add_room(42, "Coruscant Works LZ", "coruscant_works_landing_zone")
+        db.add_room(42, "Coruscant Works LZ", "commercial_district_landing_zone")
         result = _run(resolve_drop_room_id(
-            db, "coruscant_works_landing_zone"))
+            db, "commercial_district_landing_zone"))
         self.assertEqual(result, 42)
 
     def test_returns_none_for_unknown_slug(self):
@@ -595,13 +595,13 @@ class TestEndToEndGraduation(unittest.TestCase):
 
     def test_graduating_chain_fires_apply_graduation(self):
         # Use republic_soldier — a chain whose graduation drop_room
-        # is `coruscant_works_landing_zone`. We stage that room in
+        # is `commercial_district_landing_zone`. We stage that room in
         # the mock DB so the slug resolves.
         from engine.chain_events import on_command_executed
 
         db = _MockDB()
         db.add_room(500, "The Works LZ",
-                    "coruscant_works_landing_zone")
+                    "commercial_district_landing_zone")
 
         # Build a republic_soldier char one step from graduation:
         # step 5 (final) — completes via `command_executed: +factions`.

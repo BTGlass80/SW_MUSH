@@ -62,7 +62,7 @@ rooms:
   # ════════════════════════════════════════════════════════════════════
   # REPUBLIC SOLDIER PATH (3 rooms)
   # Chain: republic_soldier — Tipoca City barracks → combat sim →
-  # transport pad. Step 5 graduates to coruscant_works_landing_zone.
+  # transport pad. Step 5 graduates to commercial_district_landing_zone.
   # ════════════════════════════════════════════════════════════════════
 
   # republic_soldier step 1/3 anchors at the live-world Kamino room
@@ -118,7 +118,7 @@ rooms:
   # `dexters_diner` is the existing live-world room (chains.yaml updated
   # to reference it directly). Only the safehouse, freight district,
   # and judicial plaza are NEW tutorial-zone rooms.
-  # `coruscant_works_landing_zone` is shared with republic_soldier
+  # `commercial_district_landing_zone` is shared with republic_soldier
   # step 5 / graduation.
   # ════════════════════════════════════════════════════════════════════
 
@@ -135,13 +135,13 @@ rooms:
       datapads stacked beside her. The place smells of cold caf and
       circuit oil. Records say the previous handler died here last
       cycle. Nobody mentions it.
-    zone: coruscant_upper
+    zone: monumental_district
     properties:
       tutorial_zone: true
       cover_max: 2
 
   - id: 603
-    slug: coruscant_midlevels_freight_district
+    slug: commercial_district_freight_district
     name: "Coruscant - Mid-Levels Freight District"
     short_desc: "A noisy commercial sub-level where droids haul cargo skiffs through narrow lanes."
     description: >
@@ -152,13 +152,13 @@ rooms:
       thrum of repulsorlift engines. The walls are tagged with rival
       union markings. This is where Republic supplies move and where
       Separatist agents try to interrupt them.
-    zone: coruscant_midlevels
+    zone: commercial_district
     properties:
       tutorial_zone: true
       cover_max: 4
 
   - id: 604
-    slug: coruscant_upper_judicial_plaza
+    slug: monumental_district_judicial_plaza
     name: "Coruscant - Upper City Judicial Plaza"
     short_desc: "A wide ceremonial plaza where the Republic Judicial Department conducts public business."
     description: >
@@ -170,13 +170,13 @@ rooms:
       hurry between annexes with stacks of flimsi. A statue of
       Justice stands at center. The plaza is a place of formal
       transitions — sentences delivered, careers begun, oaths sworn.
-    zone: coruscant_upper
+    zone: monumental_district
     properties:
       tutorial_zone: true
       cover_max: 2
 
   - id: 605
-    slug: coruscant_works_landing_zone
+    slug: commercial_district_landing_zone
     name: "Coruscant - The Works, Landing Zone"
     short_desc: "An industrial landing platform on the edge of Coruscant's Works district."
     description: >
@@ -188,7 +188,7 @@ rooms:
       transit chips against a manifest. The smell is fuel and
       ozone. New deployments come through here; so does materiel
       bound for the front. So does intelligence, going either way.
-    zone: coruscant_works
+    zone: commercial_district
     properties:
       tutorial_zone: true
       cover_max: 2
@@ -262,7 +262,7 @@ rooms:
   # ════════════════════════════════════════════════════════════════════
 
   - id: 609
-    slug: coruscant_works_lockers
+    slug: commercial_district_lockers
     name: "Coruscant Works - Worker Lockers"
     short_desc: "A long row of dented metal lockers in a freight crew changing room."
     description: >
@@ -275,13 +275,13 @@ rooms:
       well-placed agent can plant items unobserved. The smell is
       sweat, machine oil, and the rust of poorly-maintained
       atmosphere processors.
-    zone: coruscant_works
+    zone: commercial_district
     properties:
       tutorial_zone: true
       cover_max: 4
 
   - id: 610
-    slug: coruscant_works_freight_corridor
+    slug: commercial_district_freight_corridor
     name: "Coruscant Works - Freight Corridor"
     short_desc: "A long industrial corridor with cargo lifts at every junction."
     description: >
@@ -293,13 +293,13 @@ rooms:
       materiel moves between the upper district and the lower
       docks; an agent who can read manifests and slip a tracker
       into the right crate can move information across the war.
-    zone: coruscant_works
+    zone: commercial_district
     properties:
       tutorial_zone: true
       cover_max: 5
 
   - id: 611
-    slug: coruscant_lower_freight_dock
+    slug: southern_underground_freight_dock
     name: "Coruscant - Lower City Freight Dock"
     short_desc: "A grim concrete loading dock at the edge of Coruscant's lower city."
     description: >
@@ -311,7 +311,7 @@ rooms:
       contact in Separatist pay can buy passage to almost
       anywhere from here, including off-world bolt-holes that the
       Republic doesn't know exist.
-    zone: coruscant_lower
+    zone: southern_underground
     properties:
       tutorial_zone: true
       cover_max: 3
@@ -419,8 +419,8 @@ rooms:
       here sell things that aren't officially in the market's
       registry: black-market spice, Hutt-stamped contraband,
       restricted weapons. The vendors keep one eye on customers
-      and one on the alley mouths for Imperial — well, Republic
-      — patrols. A Rodian named Ghirak handles introductions for
+      and one on the alley mouths for Republic
+      patrols. A Rodian named Ghirak handles introductions for
       a finder's fee; he can put a smuggler in touch with a
       hot-cargo job in under ten minutes.
     zone: tatooine_market

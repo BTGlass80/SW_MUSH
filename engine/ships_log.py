@@ -54,7 +54,7 @@ MILESTONES: list[dict] = [
     {"category": "pirate_kills",       "threshold": 100,"cp": 50, "title": "Pirate Hunter",   "msg": "100 pirates down. The spacelanes breathe easier."},
     # Smuggling runs
     {"category": "smuggling_runs",     "threshold": 5,  "cp": 10, "title": None,              "msg": "5 smuggling runs completed."},
-    {"category": "smuggling_runs",     "threshold": 20, "cp": 25, "title": None,              "msg": "20 runs under Imperial noses."},
+    {"category": "smuggling_runs",     "threshold": 20, "cp": 25, "title": None,              "msg": "20 runs under the noses of the law."},
     {"category": "smuggling_runs",     "threshold": 50, "cp": 50, "title": "Ace Smuggler",    "msg": "50 runs. You're a legend in the underworld."},
     # Trade runs
     {"category": "trade_runs",         "threshold": 10, "cp": 10, "title": None,              "msg": "10 profitable cargo runs."},

@@ -1,0 +1,85 @@
+# data/worlds/clone_wars/npcs_drop_craft_g_gundark.yaml
+# Clone Wars Era — CRAFT.GUNDARK Drop G (2026-06-12): the lane finale's
+# black-market dealer. Schema version 1.
+#
+# ─── Why this file exists ─────────────────────────────────────────────
+#
+# Drop G ships the contraband band (disruptor_pistol, predator_rifle,
+# anti_vehicle_grenade — Avail 4/X, q70, contraband: true) and per the
+# mechanical-use mandate the teacher lands with the recipes. The
+# trainer is GUNDARK — the in-fiction compiler of "Gundark's Personal
+# Gear" itself, which makes the lane's finale its own bookend: the
+# catalog's author, dealing the catalog's worst pages from a stall in
+# the Nar Shaddaa Undercity Market. WEG original persona, not a canon
+# figure (Q1-safe), era-flexible.
+#
+# Tuition (decision a) applies to him like any trainer — first lesson
+# free ("a taste"), the rest at half base cost. The recipes he teaches
+# are exactly the ones patrols confiscate; he is candid about that.
+
+schema_version: 1
+
+npcs:
+
+  # ─── Gundark — black-market arms dealer + contraband recipe trainer ──
+  - name: Gundark
+    room: "Nar Shaddaa - Undercity Market"
+    species: Whiphid
+    description: >-
+      A mountain of matted fur and old scar tissue behind a stall that
+      sells, ostensibly, "surplus." The Whiphid's tusks are capped in
+      tarnished silver and his small eyes do constant inventory of
+      every weapon in the room, including yours. Crates behind him are
+      stenciled with shipping codes that don't survive scrutiny. A
+      battered datapad chained to his wrist holds, it is said, the most
+      complete catalog of personal armament in the Outer Rim — most of
+      it legal somewhere, none of it legal here.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 3D+1
+        mechanical: 2D+1
+        perception: 4D
+        strength: 4D+2
+        technical: 3D+2
+      skills:
+        blaster: "5D"
+        blaster_repair: "5D+2"
+        demolitions: "5D"
+        value: "5D+1"
+        bargain: "5D"
+        con: "4D+2"
+        intimidation: "5D+2"
+      move: 10
+    ai_config:
+      trainer: true
+      train_skills:
+      - blaster_repair
+      personality: >-
+        Gundark compiled the galaxy's most exhaustive catalog of
+        personal weaponry as a hobby and sells the restricted half of
+        it as a living. He is genial in the way of something enormous
+        that has decided not to eat you yet — patient, professorial
+        about armament, scrupulously honest about prices and
+        scrupulously dishonest about provenance. He teaches the
+        building of banned hardware to anyone with the credits and the
+        hands, and tells every student the same thing: the patrols
+        confiscate what they find, so don't be found. He has no
+        politics. The war is, in his words, "a seller's market."
+      knowledge:
+      - "Restricted and banned personal weaponry — every maker, every mark"
+      - "Disruptor mechanisms and why every court bans them"
+      - "What patrol boardings look for and what they miss"
+      - "Outer Rim arms prices, lawful and otherwise"
+      - "Which buyers are entrapment and which are merely desperate"
+      faction: independent
+      dialogue_style: >-
+        Slow, rumbling, professorial. Quotes catalog entries from
+        memory. Genially threatening when shortchanged.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "Gundark turns a disruptor cell over in one enormous paw. 'Banned on twelve thousand worlds. Beautiful, isn't it.'"
+      - "'First lesson's free. After that, tuition. Knowledge is the only cargo the patrols can't confiscate.'"
+      - "'Everything on this table is legal somewhere. We are not, regrettably, somewhere.'"
+      - "'Carry it past a boarding and it's theirs, not yours. I teach you to BUILD it so the loss is survivable. That's the whole business model.'"

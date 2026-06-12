@@ -60,6 +60,8 @@ from server.tick_handlers_progression import (
     force_sign_emit_tick,
     pc_bounty_expiry_tick,
     wow_passive_decay_tick,
+    dsp_hunter_tick,
+    communal_objective_tick,
 )
 # ── S40 boarding party encounter wiring ────────────────────────────────────
 # ``boarding_encounter_tick`` is the periodic check; it takes (db, session_mgr)
@@ -145,6 +147,7 @@ from parser.wow_counsel_retreat import register_wow_counsel_retreat_commands
 from parser.harvest_command import register_harvest_command
 from parser.attune_command import register_attune_command
 from parser.anomaly_commands import register_anomaly_commands
+from parser.communal_commands import register_communal_commands
 from parser.player_building_commands import register_player_building_commands
 from parser.region_commands import register_region_commands
 from engine.space_encounters import get_encounter_manager
@@ -332,6 +335,7 @@ class GameServer:
         # engine/wilderness_anomalies.py. Tick: wilderness_anomaly_tick
         # registered above (hourly, per-region spawn-chance roll).
         register_anomaly_commands(self.registry)
+        register_communal_commands(self.registry)
         register_player_building_commands(self.registry)
         # SYN.10 (May 25 2026): +region surface per design §2.6.
         register_region_commands(self.registry)
@@ -571,6 +575,13 @@ class GameServer:
         # hour). Offset 1200 to spread tick load against the
         # other hourly handlers (pc_bounty_expiry at offset 600).
         self._tick_scheduler.register("wow_passive_decay",     wow_passive_decay_tick,  interval=3600,   offset=1200)
+
+        # Drop 4b (hunter.1): the roaming Dark-Side bounty hunter closes in on
+        # high-DSP characters. ~2-minute cadence so the pursuit dread builds
+        # over a real-time window; offset off the minute-handlers so it doesn't
+        # pile on the same tick. Prestige-domain, deterministic, era/Q1-clean.
+        self._tick_scheduler.register("dsp_hunter",            dsp_hunter_tick,         interval=120,    offset=75)
+        self._tick_scheduler.register("communal_objective",   communal_objective_tick, interval=120,    offset=90)
 
     async def start(self):
         """Initialize database, load game data, and start all listeners."""

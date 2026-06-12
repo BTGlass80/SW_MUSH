@@ -397,16 +397,6 @@ class TestGCWUnchanged(unittest.TestCase):
         self.assertGreaterEqual(reg.count, base_count,
                                 "GCW registry should have at least the base count")
 
-    def test_gcw_ship_loader_still_works(self):
-        """GCW docked roster still loads correctly (regression guard)."""
-        _flip_era("gcw")
-        from engine.ship_loader import load_era_ships
-        gcw_room_names = _all_room_names_for_era(GCW_DIR)
-        name_map = {n: i for i, n in enumerate(sorted(gcw_room_names))}
-        ships = load_era_ships(GCW_DIR, name_map)
-        self.assertGreater(len(ships), 0,
-                           "GCW ship_loader regression: returned empty roster")
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 8. Source-level marker (catches accidental revert in starships.py)

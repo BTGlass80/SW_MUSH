@@ -59,11 +59,8 @@ REP_GAINS = {
 
 # Cross-faction penalties: gaining rep with key triggers penalty for values
 CROSS_FACTION_PENALTIES = {
-    "empire": {"rebel": -0.5},
-    "rebel":  {"empire": -0.5},
-    # ── B.1.b.1 (Apr 29 2026) — CW mirror ────────────────────────────
     # Republic and CIS are direct adversaries — gaining rep with one
-    # damages standing with the other at the same -0.5 ratio as GCW.
+    # damages standing with the other at a -0.5 ratio.
     # Jedi Order does NOT cross-penalize: per CW v3 §3.1 the Jedi
     # serve the Republic but their faction is "a way of life," and
     # joining the Jedi is village-quest-gated, not a political
@@ -99,36 +96,13 @@ REP_TIER_NAMES = {
 
 # Weekly stipend in credits (faction_code, rank_level) -> amount
 STIPEND_TABLE = {
-    ("empire",   1): 50,
-    ("empire",   2): 100,
-    ("empire",   3): 200,
-    ("empire",   4): 350,
-    ("empire",   5): 500,
-    ("empire",   6): 500,
-    ("rebel",    1): 25,
-    ("rebel",    2): 50,
-    ("rebel",    3): 100,
-    ("rebel",    4): 200,
-    ("rebel",    5): 300,
-    ("rebel",    6): 300,
-    ("hutt",     1): 75,
-    ("hutt",     2): 150,
-    ("hutt",     3): 300,
-    ("hutt",     4): 500,
-    ("hutt",     5): 750,
-    ("bh_guild", 1): 25,
-    ("bh_guild", 2): 75,
-    ("bh_guild", 3): 150,
-    ("bh_guild", 4): 300,
-    ("bh_guild", 5): 500,
-    # ── B.1.b.1 (Apr 29 2026) — CW stipends ──────────────────────────
-    # Mirrors the GCW shape per faction archetype:
-    #   republic       — lawful state, mirrors empire pay scale
-    #   cis            — insurgent, mirrors rebel pay scale
+    # Faction pay scales by archetype:
+    #   republic       — lawful state pay scale
+    #   cis            — insurgent pay scale
     #   jedi_order     — modest stipend (Order is austere; rank 0 is
     #                    Padawan, rank 1 Knight, rank 2 Master)
-    #   hutt_cartel    — direct rename of hutt; same scale
-    #   bounty_hunters_guild — direct rename of bh_guild; same scale
+    #   hutt_cartel    — criminal patronage; highest base scale
+    #   bounty_hunters_guild — contract-based stipend
     ("republic", 1): 50,
     ("republic", 2): 100,
     ("republic", 3): 200,
@@ -157,24 +131,13 @@ STIPEND_TABLE = {
 # ── Equipment catalog ────────────────────────────────────────────────────────
 
 EQUIPMENT_CATALOG = {
-    # Imperial
-    "imperial_uniform":      {"name": "Imperial Officer's Uniform", "slot": "armor", "description": "Standard grey-green Imperial uniform."},
-    "se_14c_pistol":         {"name": "SE-14C Blaster Pistol",      "slot": "weapon", "description": "Standard Imperial sidearm. 4D damage."},
-    "e11_blaster_rifle":     {"name": "E-11 Blaster Rifle",         "slot": "weapon", "description": "Standard stormtrooper weapon. 5D damage."},
-    "stormtrooper_armor":    {"name": "Stormtrooper Armor",         "slot": "armor", "description": "Full plastoid composite. +2D physical, +1D energy soak."},
+    # Shared / cross-faction gear
     "improved_armor":        {"name": "Improved Body Armor",        "slot": "armor", "description": "Officer-grade composite. +2D+1 physical, +1D+2 energy soak."},
-    "officers_sidearm":      {"name": "Officer's Blaster Pistol",   "slot": "weapon", "description": "DL-44 variant issued to Imperial officers. 5D damage."},
-    "officers_uniform":      {"name": "Naval Officer's Uniform",    "slot": "armor", "description": "Crisp black Imperial Navy dress uniform."},
-    "datapad_imperial":      {"name": "Imperial Datapad",           "slot": "misc",   "description": "Encrypted military datapad with logistics software."},
-    "flight_suit_imperial":  {"name": "TIE Pilot Flight Suit",      "slot": "armor", "description": "Pressure suit with life support. +1D physical soak."},
+    "officers_sidearm":      {"name": "Officer's Blaster Pistol",   "slot": "weapon", "description": "DL-44 variant issued to senior officers. 5D damage."},
     "civilian_cover":        {"name": "Civilian Cover Identity",    "slot": "misc",   "description": "Forged credentials and civilian wardrobe for intelligence ops."},
     "slicing_kit":           {"name": "Slicing Kit",                "slot": "misc",   "description": "Electronic intrusion toolkit. +1D to computer slicing."},
-    # Rebel
-    "encrypted_comlink":     {"name": "Encrypted Comlink",          "slot": "misc",   "description": "Rebel-coded comlink. Secure channel access."},
-    "blaster_pistol":        {"name": "DH-17 Blaster Pistol",      "slot": "weapon", "description": "Reliable Rebel sidearm. 4D damage."},
-    "flight_suit":           {"name": "Rebel Flight Suit",          "slot": "armor", "description": "Pilot flight suit with survival pack. +1D physical soak."},
-    "rebel_combat_vest":     {"name": "Combat Vest",                "slot": "armor", "description": "Reinforced vest. +1D+2 physical soak."},
-    "a280_rifle":            {"name": "A280 Blaster Rifle",         "slot": "weapon", "description": "Standard Rebel long arm. 5D+1 damage."},
+    "encrypted_comlink":     {"name": "Encrypted Comlink",          "slot": "misc",   "description": "Securely-coded comlink. Secure channel access."},
+    "blaster_pistol":        {"name": "DH-17 Blaster Pistol",      "slot": "weapon", "description": "Reliable sidearm. 4D damage."},
     # Bounty Hunters
     "binder_cuffs":          {"name": "Binder Cuffs",               "slot": "misc",   "description": "Durasteel restraints. Required for live capture."},
     "guild_license":         {"name": "Guild License",              "slot": "misc",   "description": "Official Bounty Hunters' Guild authorization."},
@@ -189,14 +152,13 @@ EQUIPMENT_CATALOG = {
     # Republic
     "republic_uniform":      {"name": "Republic Service Uniform",   "slot": "armor", "description": "Off-white Republic-issue tunic and trousers. Worn by clones and conscripts off-duty."},
     "dc17_pistol":           {"name": "DC-17 Hand Blaster",         "slot": "weapon", "description": "Republic sidearm. 4D damage. Issued to clone troopers and Republic officers."},
-    "dc15_blaster_rifle":    {"name": "DC-15A Blaster Rifle",       "slot": "weapon", "description": "Standard clone trooper rifle. 5D damage. Heavier than Imperial E-11; longer range."},
+    "dc15_blaster_rifle":    {"name": "DC-15A Blaster Rifle",       "slot": "weapon", "description": "Standard clone trooper rifle. 5D damage. Heavy build with long effective range."},
     "republic_light_armor":  {"name": "Republic Combat Plate",      "slot": "armor", "description": "Phase II clone trooper armor segments adapted for non-clone wearers. +1D+2 physical soak."},
-    # ── B.1.b.2 (Apr 29 2026) — Republic specialization gear ─────────
-    # Mirrors the Imperial spec-equipment shape (flight_suit_imperial,
-    # officers_uniform, datapad_imperial) for the Republic clone-pilot
-    # and clone-officer specs. The republic_intelligence spec reuses
-    # civilian_cover + slicing_kit since those items are era-agnostic
-    # spy gear (forged ID, slicing toolkit).
+    # ── Republic specialization gear ─────────────────────────────────
+    # Pilot and officer spec gear for the clone-pilot and clone-officer
+    # specs. The republic_intelligence spec reuses civilian_cover +
+    # slicing_kit since those items are era-agnostic spy gear (forged
+    # ID, slicing toolkit).
     "flight_suit_republic":  {"name": "Republic Pilot Flight Suit",   "slot": "armor", "description": "Sealed flight suit with life support and Republic comm rig. +1D physical soak."},
     "officers_uniform_republic": {"name": "Republic Officer's Uniform", "slot": "armor", "description": "Pressed Republic Navy dress uniform with junior-officer insignia."},
     "datapad_republic":      {"name": "Republic Datapad",             "slot": "misc",   "description": "Encrypted Republic-issue datapad with logistics and comms software."},
@@ -212,28 +174,18 @@ EQUIPMENT_CATALOG = {
 
 # Rank-0 equipment per faction
 RANK_0_EQUIPMENT = {
-    "empire":   ["imperial_uniform", "se_14c_pistol"],
-    "rebel":    ["encrypted_comlink"],
-    "hutt":     [],   # Hutts don't issue gear to associates
-    "bh_guild": ["binder_cuffs", "guild_license"],
-    # ── B.1.b.1 (Apr 29 2026) — CW rank-0 ────────────────────────────
     # Mirrors data/worlds/clone_wars/organizations.yaml::ranks[level=0].equipment.
     # Kept in sync with the YAML so the in-Python issuance path matches
     # the YAML-driven seeding path byte-for-byte.
     "republic":             ["republic_uniform", "dc17_pistol"],
     "cis":                  ["encrypted_comlink"],
     "jedi_order":           ["padawan_robes", "jedi_utility_belt"],
-    "hutt_cartel":          ["blaster_pistol"],   # CW Hutts issue a sidearm; YAML differs from GCW empty list
+    "hutt_cartel":          ["blaster_pistol"],   # CW Hutts issue a sidearm
     "bounty_hunters_guild": ["binder_cuffs", "guild_license"],
 }
 
 # Rank-1 equipment per faction (adds to rank 0)
 RANK_1_EQUIPMENT = {
-    "empire":   [],   # Handled by specialization instead
-    "rebel":    ["blaster_pistol", "flight_suit"],
-    "hutt":     [],
-    "bh_guild": ["tracking_fob"],
-    # ── B.1.b.1 (Apr 29 2026) — CW rank-1 ────────────────────────────
     # Mirrors data/worlds/clone_wars/organizations.yaml::ranks[level=1].equipment.
     # republic at rank 1 is "Private" (DC-15A + light armor); CIS at
     # rank 1 is "Operative" (sidearm + civvies); jedi rank 1 is the
@@ -246,25 +198,12 @@ RANK_1_EQUIPMENT = {
     "bounty_hunters_guild": ["tracking_fob"],
 }
 
-# Imperial specialization equipment
-IMPERIAL_SPEC_EQUIPMENT = {
-    "stormtrooper":  ["e11_blaster_rifle", "stormtrooper_armor"],
-    "tie_pilot":     ["flight_suit_imperial"],
-    "naval_officer": ["officers_uniform", "datapad_imperial"],
-    "intelligence":  ["civilian_cover", "slicing_kit"],
-}
-
-# ── B.1.b.2 (Apr 29 2026) — Republic specialization equipment ───────
-# Mirrors IMPERIAL_SPEC_EQUIPMENT shape per the Apr 29 design lock-in:
-# four Republic specs analogous to the four Imperial ones. Issued by
-# `complete_republic_specialization` after a Republic PC selects via
-# the `specialize <1-4>` command.
-#
-# Mapping rationale:
-#   clone_trooper        ↔ stormtrooper     (ground combat)
-#   clone_pilot          ↔ tie_pilot        (space combat)
-#   clone_officer        ↔ naval_officer    (command/support)
-#   republic_intelligence↔ intelligence     (stealth/slicing — gear reused)
+# Republic specialization equipment.
+# Four Republic specs (clone_trooper / clone_pilot / clone_officer /
+# republic_intelligence). Issued by `complete_republic_specialization`
+# after a Republic PC selects via the `specialize <1-4>` command. The
+# republic_intelligence spec reuses civilian_cover + slicing_kit
+# (era-agnostic spy gear: forged ID, slicing toolkit).
 REPUBLIC_SPEC_EQUIPMENT = {
     "clone_trooper":         ["dc15_blaster_rifle", "republic_light_armor"],
     "clone_pilot":           ["flight_suit_republic"],
@@ -277,7 +216,6 @@ REPUBLIC_SPEC_EQUIPMENT = {
 # any future caller that needs to look up "what's the spec equipment
 # for this faction's spec key?" without hardcoding the faction code.
 SPEC_EQUIPMENT_BY_FACTION = {
-    "empire":   IMPERIAL_SPEC_EQUIPMENT,
     "republic": REPUBLIC_SPEC_EQUIPMENT,
 }
 
@@ -412,38 +350,13 @@ async def reclaim_equipment(char: dict, org_code: str, db,
 # choice index → spec_key, and per-spec display label.
 #
 # This config drives the generic `prompt_specialization` and
-# `complete_specialization` helpers below. The legacy
-# `prompt_imperial_specialization` / `complete_imperial_specialization`
-# functions are kept as thin shims for byte-equivalence with any
-# external caller that imports them by name (notably
+# `complete_specialization` helpers below. Republic also exposes the
+# named `prompt_republic_specialization` / `complete_republic_specialization`
+# wrappers for callers that import by name (notably
 # `parser/faction_commands.py::SpecializeCommand`).
 _SPEC_CONFIG_BY_FACTION = {
-    "empire": {
-        "header_color": "\033[1;34m",
-        "header_label": "[IMPERIAL ONBOARDING]",
-        "menu_lines": [
-            "  \033[1;33m1\033[0m  Stormtrooper    — Ground combat. E-11 rifle, armor.",
-            "  \033[1;33m2\033[0m  TIE Pilot       — Space combat. Flight suit, TIE assignment at rank 4.",
-            "  \033[1;33m3\033[0m  Naval Officer   — Command/support. Uniform, datapad, crew bonuses.",
-            "  \033[1;33m4\033[0m  Intelligence    — Stealth/slicing. Civilian cover, slicing kit.",
-        ],
-        "spec_map": {
-            1: "stormtrooper",
-            2: "tie_pilot",
-            3: "naval_officer",
-            4: "intelligence",
-        },
-        "spec_labels": {
-            "stormtrooper":  "Stormtrooper",
-            "tie_pilot":     "TIE Pilot",
-            "naval_officer": "Naval Officer",
-            "intelligence":  "Intelligence Agent",
-        },
-    },
-    # ── B.1.b.2 (Apr 29 2026) — Republic specialization config ───────
-    # Mirrors the Imperial four-choice prompt with CW-flavored copy.
-    # Republic blue header instead of Imperial blue (same color code
-    # since both are state authorities).
+    # Republic specialization config — four-choice onboarding prompt
+    # presented to a newly-joined Republic PC.
     "republic": {
         "header_color": "\033[1;34m",
         "header_label": "[REPUBLIC ONBOARDING]",
@@ -569,41 +482,11 @@ async def complete_specialization(char: dict, db, choice: int,
     )
 
 
-# ── Imperial specialization (legacy named API — preserved for callers) ────────
-# These two functions are now thin shims over the generic helpers above.
-# Their signatures and behavior on the Imperial path are byte-equivalent
-# to pre-B.1.b.2 — `parser/faction_commands.py::SpecializeCommand` and
-# any other caller that imports by name continues to work unchanged.
-
-async def prompt_imperial_specialization(char: dict, db, session) -> bool:
-    """
-    Present Imperial specialization choice to a newly-joined Imperial character.
-    Stores selection in attributes and issues spec equipment.
-    Returns True if selection was made.
-
-    (Thin shim; delegates to `prompt_specialization(..., "empire")`.)
-    """
-    return await prompt_specialization(char, db, session, "empire")
-
-
-async def complete_imperial_specialization(char: dict, db,
-                                            choice: int, session=None) -> tuple:
-    """
-    Process specialization choice (1-4). Issues equipment, stores in attributes.
-    Returns (success, message).
-
-    (Thin shim; delegates to `complete_specialization(..., "empire", ...)`.)
-    """
-    return await complete_specialization(char, db, choice,
-                                          faction_code="empire",
-                                          session=session)
-
-
-# ── B.1.b.2 (Apr 29 2026) — Republic specialization (named API) ───────────────
-# Symmetric named functions for the Republic faction. New callers can
-# either import these by name or use the generic helpers above with
-# `faction_code="republic"`. Both paths land in the same generic
-# implementation.
+# ── Republic specialization (named API) ───────────────────────────────────────
+# Named functions for the Republic faction. Callers can either import
+# these by name or use the generic `prompt_specialization` /
+# `complete_specialization` helpers with `faction_code="republic"`.
+# Both paths land in the same generic implementation.
 
 async def prompt_republic_specialization(char: dict, db, session) -> bool:
     """
@@ -637,19 +520,13 @@ async def seed_organizations(db, era: str | None = None) -> None:
     Args:
         db: Database handle.
         era: Optional era code. If None, resolves from
-             `engine.era_state.get_active_era()` (defaults to "gcw" when
-             no Config is registered).
+             `engine.era_state.get_active_era()` (defaults to the
+             production era — clone_wars — when no Config is registered).
 
     Path resolution:
-        - era="gcw"  -> data/organizations.yaml (legacy top-level path,
-                       byte-equivalent to pre-B.4 production)
-        - other      -> data/worlds/<era>/organizations.yaml
+        - data/worlds/<era>/organizations.yaml
 
-    B.4 (Apr 28 2026): added `era` kwarg + per-era path resolution. Before
-    this change, seed_organizations ignored era entirely and always read
-    `data/organizations.yaml` (GCW). When the F.6a.6 dev flag flipped era
-    to clone_wars, this seeded GCW orgs into a CW DB, which is what made
-    `+faction` crash and Tatooine look unchanged.
+    If the per-era file is missing, the seed is skipped with a warning.
     """
     import yaml
     if era is None:
@@ -657,13 +534,8 @@ async def seed_organizations(db, era: str | None = None) -> None:
         era = get_active_era()
 
     project_root = os.path.dirname(os.path.dirname(__file__))
-    if era == "gcw":
-        # Legacy GCW path. Top-level data/organizations.yaml IS the GCW
-        # source of truth — there is no data/worlds/gcw/organizations.yaml.
-        yaml_path = os.path.join(project_root, "data", "organizations.yaml")
-    else:
-        yaml_path = os.path.join(project_root, "data", "worlds", era,
-                                 "organizations.yaml")
+    yaml_path = os.path.join(project_root, "data", "worlds", era,
+                             "organizations.yaml")
 
     if not os.path.exists(yaml_path):
         log.warning("[orgs] organizations.yaml not found at %s — skipping seed (era=%s)",
@@ -705,6 +577,82 @@ async def seed_organizations(db, era: str | None = None) -> None:
         )
 
     log.info("[orgs] Organizations seeded from %s (era=%s)", yaml_path, era)
+
+
+# ── E1 (GG11 §3A/§8B): org scale + Violence Index ────────────────────────────
+# Additive org metadata stored in the organizations.properties JSON blob (no
+# schema change). `scale` is GG11's five-tier criminal-org taxonomy and is
+# ABSENT for state/military factions (and unset player orgs). `violence_index`
+# (0-100) is a turf-dispute tone knob: >70 ruthless, <30 low-key (GG11 §8B).
+# `violence_descriptor` is the narration primitive the territory/Director
+# turf-dispute layer consumes; Lane D wires the contest-aggression math against
+# the same value (plugging into the existing faction-intent/contest machinery,
+# not a second system).
+
+ORG_SCALES = ("gang", "guild", "cartel", "syndicate", "empire")
+
+
+def _org_props(org) -> dict:
+    """Return an org's properties dict. Accepts an org row (properties as a
+    JSON string or already a dict) or a bare properties dict."""
+    if org is None:
+        return {}
+    if isinstance(org, dict) and "properties" in org:
+        props = org["properties"]
+    else:
+        props = org
+    if isinstance(props, str):
+        props = safe_json_loads(props, {})
+    return props if isinstance(props, dict) else {}
+
+
+def get_org_scale(org):
+    """GG11 criminal-org scale (gang|guild|cartel|syndicate|empire), or None
+    if the org carries no scale (state/military factions, or unset)."""
+    val = _org_props(org).get("scale")
+    if isinstance(val, str) and val.strip().lower() in ORG_SCALES:
+        return val.strip().lower()
+    return None
+
+
+def get_org_violence_index(org, default=None):
+    """GG11 Violence Index (0-100), clamped. Returns `default` when unset so
+    the display can stay silent for orgs that never set a posture."""
+    val = _org_props(org).get("violence_index")
+    if isinstance(val, bool) or not isinstance(val, (int, float)):
+        return default
+    return max(0, min(100, int(val)))
+
+
+def violence_descriptor(vi: int) -> str:
+    """Map a Violence Index to a turf-dispute tone phrase (GG11 §8B / E1)."""
+    vi = max(0, min(100, int(vi)))
+    if vi < 30:
+        return "surgical"
+    if vi < 55:
+        return "pointed"
+    if vi < 70:
+        return "heated"
+    if vi < 85:
+        return "bloody"
+    return "range war"
+
+
+def format_org_posture_line(org):
+    """`faction info` display line: scale (if any) + violence posture.
+    Returns None when the org carries neither field (e.g. craft guilds)."""
+    scale = get_org_scale(org)
+    vi = get_org_violence_index(org)
+    if scale is None and vi is None:
+        return None
+    parts = []
+    if scale is not None:
+        parts.append(f"Scale: \033[1;37m{scale.title()}\033[0m")
+    if vi is not None:
+        parts.append(
+            f"Posture: \033[1;37m{violence_descriptor(vi)}\033[0m ({vi}/100)"
+        )
+    return "  " + "   ".join(parts)
 
 
 # ── Join / leave ─────────────────────────────────────────────────────────────
@@ -907,8 +855,8 @@ async def get_org_rewicker_map(db, era: str | None = None) -> dict:
     Load the organization-axis legacy rewicker map for the active era.
 
     Returns a dict mapping legacy faction codes -> current era codes.
-    For GCW (or any era without a `legacy_rewicker` section in its
-    organizations.yaml), returns an empty dict (no-op semantics).
+    For any era without a `legacy_rewicker` section in its
+    organizations.yaml, returns an empty dict (no-op semantics).
 
     Never raises. On any I/O or parse error, logs a warning and returns
     an empty dict so the caller can proceed safely.
@@ -916,12 +864,6 @@ async def get_org_rewicker_map(db, era: str | None = None) -> dict:
     if era is None:
         from engine.era_state import get_active_era
         era = get_active_era()
-
-    # GCW has no rewicker — it IS the legacy era. Returning {} means
-    # apply_org_rewicker becomes a no-op when era="gcw", preserving
-    # byte-equivalence for production.
-    if era == "gcw":
-        return {}
 
     try:
         import yaml
@@ -986,8 +928,9 @@ async def apply_org_rewicker(char: dict, db, era: str | None = None,
       - Never rewickers a code that has no rewicker target (e.g., a
         random unknown code like `'nonexistent'` is left as-is to
         surface via B.6's stale-record advisory).
-      - Never crosses the GCW→GCW or CW→CW boundary (the rewicker map
-        is empty on GCW, so no-op there).
+      - Never rewickers within the current era (the rewicker map only
+        contains legacy→current entries, so a current-era code with no
+        legacy alias is a no-op).
       - The migration is a single atomic update via save_character;
         if it fails mid-way, the rewicker_map's empty fallback keeps
         the character in a consistent state.

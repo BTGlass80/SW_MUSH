@@ -821,7 +821,8 @@ class DirectorAI:
         VALID_ZONES    = frozenset(self._zones.keys())
         EVENT_TYPES    = frozenset({
             "security_crackdown", "security_checkpoint", "bounty_surge",
-            "merchant_arrival", "sandstorm", "cantina_brawl", "distress_signal",
+            "merchant_arrival", "sandstorm", "gravel_storm", "sandwhirl",
+            "cantina_brawl", "distress_signal",
             "pirate_surge", "hutt_auction", "krayt_sighting",
             "separatist_agitation", "trade_boom",
             "intelligence_thaw", "spice_demand",
@@ -856,15 +857,24 @@ class DirectorAI:
                 try:
                     from engine.world_events import get_world_event_manager
                     wem = get_world_event_manager()
-                    activated = await wem.activate_event(
-                        db, session_mgr,
-                        event_type=evt_type,
-                        zones_affected=zones,
+                    # activate_event is SYNC with signature
+                    # (event_type, zones, duration_minutes, headline) and does NOT
+                    # broadcast; the timer path calls _broadcast_activation after.
+                    # (Prior code awaited a 6-arg async form with db/session_mgr/
+                    # source kwargs that never existed -> guaranteed TypeError, so
+                    # every Director-fired narrative event was silently dead.)
+                    activated = wem.activate_event(
+                        evt_type,
+                        zones=zones,
                         duration_minutes=duration,
                         headline=headline,
-                        source="director",
                     )
                     if activated:
+                        try:
+                            await wem._broadcast_activation(activated, session_mgr)
+                        except Exception:
+                            log.debug("[director] Narrative event broadcast failed",
+                                      exc_info=True)
                         log.info(
                             "[director] Narrative event activated: %s (zones: %s)",
                             evt_type, zones,
@@ -1418,10 +1428,15 @@ class DirectorAI:
                 try:
                     from engine.world_events import get_world_event_manager
                     wem = get_world_event_manager()
-                    await wem.create_event(
-                        db, evt_type,
+                    # activate_event is SYNC (event_type, zones, duration_minutes,
+                    # headline). Prior code called a non-existent async create_event
+                    # -> swallowed AttributeError, so era-milestone world events
+                    # never fired. The era headline is broadcast separately below,
+                    # so we activate without a second announce.
+                    wem.activate_event(
+                        evt_type,
+                        zones=list(VALID_ZONES),
                         duration_minutes=duration,
-                        zones_affected=list(VALID_ZONES),
                         headline=headline,
                     )
                 except Exception:

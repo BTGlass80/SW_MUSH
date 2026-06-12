@@ -400,6 +400,72 @@ function appendPoolRow(parent, pool, label) {
   }
 }
 
+// ── UI-3: combat condition chip rail (Lane-A creature conditions) ─────
+// Surfaces the poison DoT + restraint that the engine already tracks but the
+// HUD never showed. Fields are normalized onto each combatant in the
+// combat_state push (engine/combat.py to_hud_dict):
+//   poison_stacks: [{source, damage, onset, ticks_left}]   (onset>0 = pre-bite)
+//   restraint:     {grappler_id, kind, hold_damage, source} | null
+// Returns a .combatant-chips element, or null when the combatant carries no
+// condition (so non-creature fights add zero DOM). `isYou` tunes the restraint
+// note (the held player needs to know WHY their flee is blocked). NO command
+// is staged: ground break-free is automatic at round end (combat.py
+// _resolve_flee), so the restraint chip is display-only — there is no ground
+// breakfree verb (that exists only for space boarding).
+var RESTRAINT_LABELS = { grapple: 'GRAPPLED', constriction: 'CONSTRICTED', choke: 'CHOKED' };
+
+function buildConditionChips(c, isYou) {
+  c = c || {};
+  var poison = c.poison_stacks || [];
+  var restraint = c.restraint || null;
+  if (poison.length === 0 && !restraint) return null;
+
+  var rail = document.createElement('div');
+  rail.className = 'combatant-chips';
+
+  // Poison — one aggregate chip. Biting (onset 0) pulses and shows the worst
+  // active stack; pre-onset shows the soonest onset countdown.
+  if (poison.length) {
+    var biting = poison.filter(function(s){ return (s.onset | 0) <= 0; });
+    var chip = document.createElement('span');
+    chip.className = 'cmb-chip poison';
+    var detail;
+    if (biting.length) {
+      chip.classList.add('biting');  // pulses — actively dealing damage
+      var worst = biting.reduce(function(a, b){ return (b.ticks_left | 0) > (a.ticks_left | 0) ? b : a; });
+      detail = (worst.damage != null ? worst.damage + '\u00B7' : '') + (worst.ticks_left | 0) + 't';
+      chip.title = 'Poisoned — taking damage at round end';
+    } else {
+      var soonest = poison.reduce(function(a, b){ return (b.onset | 0) < (a.onset | 0) ? b : a; });
+      detail = 'onset ' + (soonest.onset | 0);
+      chip.title = 'Poisoned — damage begins after onset';
+    }
+    chip.textContent = '\u2623 POISON \u00D7' + poison.length + ' \u00B7 ' + detail;
+    rail.appendChild(chip);
+  }
+
+  // Restraint — display-only. Shows the hold kind + per-round hold damage; the
+  // chip pulses (active threat). The held actor cannot flee and the break-free
+  // roll runs automatically at round end, so NO button is staged.
+  if (restraint) {
+    var kind = String(restraint.kind || 'grapple').toLowerCase();
+    var rchip = document.createElement('span');
+    rchip.className = 'cmb-chip restraint';  // pulses
+    var label = RESTRAINT_LABELS[kind] || 'HELD';
+    var hold = restraint.hold_damage ? (' \u00B7 ' + restraint.hold_damage) : '';
+    rchip.textContent = '\u26D3 ' + label + hold;
+    rchip.title = 'Held — cannot flee; automatic break-free roll at round end (no action required)';
+    rail.appendChild(rchip);
+    if (isYou) {
+      var note = document.createElement('div');
+      note.className = 'combatant-restraint-note';
+      note.textContent = "\u270B can't flee \u2014 auto break-free at round end";
+      rail.appendChild(note);
+    }
+  }
+  return rail;
+}
+
 function buildDieChip(d) {
   d = d || {};
   var el = document.createElement('span');
@@ -555,6 +621,8 @@ window.M3CombatInspector = {
 
   // DOM renderers
   buildCombatResultRow:          buildCombatResultRow,
+  buildConditionChips:           buildConditionChips,
+  RESTRAINT_LABELS:              RESTRAINT_LABELS,
   buildCombatHeadlineHtml:       buildCombatHeadlineHtml,
   buildAttackerSection:          buildAttackerSection,
   buildDefenderSection:          buildDefenderSection,

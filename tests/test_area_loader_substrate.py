@@ -117,9 +117,9 @@ class TestRealFixtureSubstrate(unittest.TestCase):
         # synthetic no-substrate fixtures above.)
         geom = load_area_geometry("coruscant.senate_district")
         self.assertEqual(geom.substrate_image,
-                         "/static/maps/coruscant_senate_substrate.png")
+                         "/static/maps/senate_district_substrate.png")
         self.assertEqual(geom.to_dict().get("substrate_image"),
-                         "/static/maps/coruscant_senate_substrate.png")
+                         "/static/maps/senate_district_substrate.png")
 
 
 if __name__ == "__main__":

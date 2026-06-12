@@ -83,7 +83,7 @@ class TestCloneWarsMergedPath(unittest.TestCase):
 
     def test_clone_wars_adds_new_zone_keys(self):
         # CW intentionally does NOT redefine the legacy generic keys.
-        # Instead, it adds per-planet zones like coruscant_senate.
+        # Instead, it adds per-planet zones like senate_district.
         cw_only_keys = [zk for zk in self.merged.pools
                         if zk.startswith("coruscant_") or zk.startswith("kuat_")]
         self.assertGreater(len(cw_only_keys), 0,

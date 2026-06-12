@@ -1675,3 +1675,161 @@ npcs:
         sent_by_mak:
         - "*Doc Myrra's expression warms — slightly, briefly, completely.* 'Any friend of Mak's is a friend of mine. Remember where I am — when you take a blaster bolt in somewhere you shouldn't, I'm cheaper than the official medics and I won't report it.'"
         - "*She rinses her hands again, deliberately.* 'How is he? The hands worse, I'd guess. Tell him to come see me. He won't. He never does. Tell him anyway.'"
+
+  # ════════════════════════════════════════════════════════════════════
+  # T2.DEF.handler_npcs — Republic & CIS covert-contact intel handlers
+  # (Brian decision 2026-06-05: option A — add dedicated covert-contact
+  # NPCs rather than relocate the HQs or mis-tag the existing canon-faithful
+  # HQ residents). These complete the 5-of-5 static-HQ handler roster:
+  # the prior 3 (Borka/hutt_cartel, Drel Mok/bounty_hunters_guild,
+  # Halen Voss/jedi_order) were faction-clean to tag; Republic and CIS
+  # could not be (their Nar Shaddaa HQ residents are 'independent' and
+  # 'hutt_cartel'). On a Hutt moon a Republic or Separatist handler keeps
+  # deep cover — so the in-room presentation is neutral/guarded; the
+  # faction tag (used by engine/intel_handlers.py to match an agent's
+  # faction to a handler) is what wires the mechanical handover. Era-clean
+  # (B3) and canon-clean (Q1): no canonical names, no Imperial strings.
+  # ════════════════════════════════════════════════════════════════════
+
+  - name: Tomar Vell
+    room: Nar Shaddaa - Corellian Sector Promenade
+    species: Human
+    description: >-
+      A nondescript human in a mid-grade business tunic, the sort of
+      traveller the Promenade produces by the hundred — a datapad, a
+      shipping-line lanyard, shoes worn for walking docks rather than
+      offices. He works a folding stool near the cargo-registry kiosks
+      and introduces himself, when introduced at all, as a claims
+      adjuster for a Core underwriter chasing insured freight. He is
+      patient, forgettable, and always seems to be waiting for someone
+      who is running late.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D+2
+        mechanical: 2D+1
+        perception: 4D+1
+        strength: 2D+1
+        technical: 3D
+      skills:
+        bargain: 4D
+        blaster: 3D
+        bureaucracy: 4D+2
+        con: 5D
+        dodge: 3D+1
+        forgery: 4D
+        hide: 4D+1
+        investigation: 4D+2
+        languages: 4D
+        persuasion: 4D+2
+        sneak: 4D
+        streetwise_outer_rim: 4D
+        value: 3D+2
+        willpower: 4D+1
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 1
+      character_points: 6
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A Republic intelligence field handler working the Nar Shaddaa
+        commercial level under a shipping-insurance cover. His real job
+        is receiving and routing what Republic-aligned agents bring out
+        of the Hutt moon. He is unfailingly low-key: he never claims the
+        Republic in open conversation, never first raises politics, and
+        deflects direct questions with the small grievances of a man who
+        chases cargo paperwork for a living. To an agent who actually has
+        Republic business with him, he is brisk, careful, and entirely
+        professional. He assumes the room is watched, because it is.
+      knowledge:
+      - "TRUE ALLEGIANCE: Republic intelligence (covert). Cover identity: freight-insurance claims adjuster."
+      - "Handles intel handover for Republic-aligned agents on Nar Shaddaa. Does not advertise this."
+      - "Operates on the Corellian Sector Promenade because it is Hutt-commercial and busy — easy to be one more suit."
+      - "Pays the Cartel's incidental fees without comment; does not antagonize Hutt enforcement; survival depends on being boring."
+      - "Will not discuss the Republic, the war, or his work with anyone who has not come to him on Republic business."
+      - "Knows the Promenade's watchers, the kiosk clerks, and which fixers sell information to both sides."
+      faction: republic
+      is_intel_handler: true     # T2.DEF.handler_npcs (Brian decision A, 2026-06-05)
+      dialogue_style: >-
+        Flat, unremarkable Core-standard Basic. Tired-bureaucrat register
+        with strangers; clipped and exact with anyone he is actually
+        handling. Never warm, never hostile — forgettable on purpose.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "*Tomar glances up from his datapad, mildly.* 'Are you the consignee? No? Then I'm afraid I can't help you. I'm waiting on a consignee.'"
+      - "'Claims adjusting. Insured freight. Dull work, mostly.' *He returns to the datapad.*"
+      - "*He shifts on the folding stool.* 'If this is about a missing container, take it to the registry kiosk. They log everything. Eventually.'"
+      - "'I don't follow politics, friend. Bad for business, following politics. Here, of all places.'"
+      - "*He looks at you a moment longer than the conversation warranted, then away.* 'Was there something specific?'"
+
+  - name: Vexen Daro
+    room: Nar Shaddaa - The Burning Deck Cantina
+    species: Muun
+    description: >-
+      A tall, narrow-faced Muun in a sober grey financier's coat,
+      conspicuously sober amid the Burning Deck's noise. He keeps a
+      corner table, a cooling pot of caf, and a ledger-pad he never
+      seems to actually write in. He presents as a liquidity liaison
+      for an off-world investment house — the kind of man who lends
+      to spacers against their next cargo and is owed favours all
+      over the lower decks. His attention is total and very quiet.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 4D
+        mechanical: 2D
+        perception: 4D+2
+        strength: 2D
+        technical: 3D+1
+      skills:
+        bargain: 5D
+        bureaucracy: 4D+2
+        business: 5D
+        con: 4D+2
+        dodge: 3D
+        hide: 3D+2
+        investigation: 4D+1
+        languages: 4D+1
+        persuasion: 4D+2
+        sneak: 3D+1
+        streetwise_outer_rim: 4D
+        value: 5D+1
+        willpower: 4D+2
+      weapon: hold_out_blaster
+      move: 10
+      force_points: 1
+      character_points: 6
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A Separatist intelligence contact working the Burning Deck under
+        a Banking Clan investment cover. He receives and routes what
+        CIS-aligned agents carry out of Nar Shaddaa. He is glacially
+        polite and never first to mention the Confederacy; he talks
+        interest rates, cargo liens, and the reliability of spacers
+        until he is certain who he is talking to. To a CIS-aligned agent
+        on actual business he is precise and discreet. He regards open
+        partisanship on a Hutt moon as a failure of professionalism.
+      knowledge:
+      - "TRUE ALLEGIANCE: Confederacy (CIS) intelligence, covert. Cover identity: Banking Clan liquidity liaison."
+      - "Handles intel handover for CIS-aligned agents on Nar Shaddaa. Treats it as just another confidential account."
+      - "Works the Burning Deck because money and rumour both pool in cantinas, and a financier asking questions raises no eyebrows."
+      - "Lends to spacers against future cargo; the debt buys him eyes across the lower decks."
+      - "Will not acknowledge the Confederacy to anyone who has not come to him on CIS business — discretion is the entire job."
+      - "Keeps the Cartel paid and uninterested; a quiet account is a safe account."
+      faction: cis
+      is_intel_handler: true     # T2.DEF.handler_npcs (Brian decision A, 2026-06-05)
+      dialogue_style: >-
+        Precise, unhurried, faintly accented Basic with the long vowels
+        of a Muun financier. Courteous to everyone; candid with no one
+        until terms are clear. Speaks in the vocabulary of money.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+      - "*Vexen sets down his cup with great care.* 'If you are here about a loan, I am listening. If you are here about anything else, I am still listening, but charging by the minute.'"
+      - "'Liquidity. Liens. The occasional sympathetic restructuring. That is my trade. And yours?'"
+      - "*He studies you the way an auditor studies a discrepancy.* 'You do not look like a creditor. You do not quite look like a debtor either. Interesting.'"
+      - "'Politics? On Nar Shaddaa one invests in outcomes, friend, not in flags. Far more reliable.'"
+      - "*A small, exact smile.* 'You have the look of someone about to ask me something specific. Please. The caf is getting cold.'"

@@ -36,6 +36,28 @@ description: >
   no non-Geonosian has ever fully mapped. On the surface, the scars of two Republic
   invasions are still visible. Underground, the droid foundries have never stopped.
 
+
+  Geonosian society is a rigid caste order. A single immobile queen, hidden in the
+  deepest catacomb, lays the egg-clusters that populate a hive. Above her rule the
+  aristocrats — a winged few, barely a twentieth of the population, who command
+  everything and almost never do their own fighting; an off-worlder deals with the
+  aristocrats and no one else. Beneath them toil the drones: the nameless,
+  biologically distinct labour subcastes whose work the war's battle droids are
+  steadily taking over. That displacement is the hive-world's live wound — drone
+  discontent that has already boiled into open revolt, and into total reprisal.
+
+
+  The hives themselves are spire-cities of bone-like rock, grown from farmed
+  parasite-paste: airy aristocrat halls at the top, kilometres of drone catacombs
+  below, the queen at the very bottom. Their foundries fill caverns nearly a
+  kilometre deep, lit by ore-smelting superlasers and worked with no regard for the
+  drones who die on the line daily. Honour among Geonosians is settled in the
+  Petranaki arena — the ancient art of gladiatorial combat — where the games and
+  the world's executions have long since merged into a single spectacle. Between
+  the spires, rival hives wage vast underground wars with soldier drones and sonic
+  cannon: Stalgasin, the dominant hive and seat of the archduke, against challengers
+  like Gehenbar who would pull it down.
+
 rooms:
 
   # ══════════════════════════════════════════════════════════════════════
@@ -201,6 +223,7 @@ rooms:
     security_level: lawless
     exits:
       east: geonosis_landing_pad
+      desert: ey_akh_desert_edge          # zone-to-zone (surface → E'Y-Akh wilderness, Lane D wilderness tier)
 
   - id: 407
     slug: geonosis_hive_entrance
@@ -596,6 +619,7 @@ rooms:
       floor: geonosis_arena_floor
       entrance: petranaki_arena_entrance
       pens: geonosis_creature_pens       # F.4b: pair for creature_pens' prep exit
+      barracks: barracks_muster_yard     # zone-to-zone (petranaki → gladiator barracks, Lane D interior tier)
 
   - id: 424
     slug: geonosis_creature_pens
@@ -617,6 +641,151 @@ rooms:
     security_level: lawless
     exits:
       prep: geonosis_arena_prep_room
+
+  # ══════════════════════════════════════════════════════════════════════
+  # GLADIATOR BARRACKS (lawless) — 6 rooms     [Lane D interior tier]
+  # The slavemaster's domain beneath the Petranaki Arena. Acklay Chopper
+  # houses, drills, and spends the arena's fighters here, and musters the
+  # prisoner work-parties sent out to the Ebon Sea to net live acklays.
+  # Own zone (geonosis_barracks); reached from the arena prep room.
+  # Instanced-combat / quest candidate. The work-party staging room is the
+  # narrative hook to the future Ebon Sea wilderness tier.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 438
+    slug: barracks_muster_yard
+    name: "Geonosis - Gladiator Barracks - Muster Yard"
+    short_desc: "The sand-floored muster yard where the arena's slavemaster forms up his fighters."
+    description: >
+      A low, rock-cut yard open to a sliver of ochre sky, walled on every
+      side by the barracks blocks. This is where the day's fighters are
+      counted, sorted, and marched up to the prep room above. Acklay
+      Chopper runs it — an aged, scarred, limping drone who earned a name
+      the only way a drone can, by beheading the acklay that crippled him,
+      and who now owns every life that passes through these gates. A rack
+      of practice staves leans by the up-ramp. Soldier drones with goads
+      watch from the wall perches, bored and attentive at once. The smell
+      is sweat, blood, and the particular reek of the creature pens
+      carried on the draft.
+    zone: geonosis_barracks
+    map_x: 50
+    map_y: 10
+    security_level: lawless
+    exits:
+      arena: geonosis_arena_prep_room    # zone-to-zone (barracks → petranaki)
+      cells: barracks_slave_cells
+      pit: barracks_training_pit
+      armory: barracks_armory
+      den: slavemaster_den
+      staging: barracks_workparty_staging
+
+  - id: 439
+    slug: barracks_slave_cells
+    name: "Geonosis - Gladiator Barracks - Holding Cells"
+    short_desc: "Rows of cramped rock cells where the arena's fighters are penned between bouts."
+    description: >
+      Two long rows of cells face each other across a narrow aisle, each
+      barely tall enough to stand in, sealed with iron lattice cast in the
+      foundries above. The occupants are a cross-section of everyone who
+      has crossed the wrong hive: debtors handed over by off-world
+      merchants, captured soldiers awaiting the games, and a few
+      long-timers who have survived enough bouts to be worth feeding.
+      Nobody speaks much. The drones who deliver the water-paste do not
+      answer questions. A tally scratched beside each cell counts bouts
+      survived; most of the numbers are low.
+    zone: geonosis_barracks
+    map_x: 49
+    map_y: 10
+    security_level: lawless
+    exits:
+      yard: barracks_muster_yard
+
+  - id: 440
+    slug: barracks_training_pit
+    name: "Geonosis - Gladiator Barracks - Training Pit"
+    short_desc: "A sunken practice pit where new fighters are drilled before they are sent to fight."
+    description: >
+      A shallow pit of packed sand, ringed by a viewing ledge where the
+      slavemaster and his goad-drones assess the new stock. There is no
+      kindness in the training — a fighter who survives the pit might
+      survive the arena and earn the hive a few more bouts of wagering,
+      and that is the whole of the calculation. Blunted arena weapons hang
+      on a frame: a force-pike with the charge drained, a net, a pair of
+      vibro-blades dulled to bruising. Older fighters drill the newer ones
+      under watch, because a drone's time is worth more spent observing
+      than teaching.
+    zone: geonosis_barracks
+    map_x: 50
+    map_y: 11
+    security_level: lawless
+    exits:
+      yard: barracks_muster_yard
+      staging: barracks_workparty_staging
+
+  - id: 441
+    slug: barracks_armory
+    name: "Geonosis - Gladiator Barracks - Armory"
+    short_desc: "The locked store of arena weapons and restraints, issued only at the slavemaster's word."
+    description: >
+      A barred alcove cut into the rock, stacked with the tools of the
+      games: arena blades and force-pikes racked by length, coils of
+      restraint-wire, goads, muzzles sized for a dozen species, and the
+      heavy gauntlets the handlers wear when they move a fresh capture.
+      Nothing here is issued without Acklay Chopper's mark, and nothing
+      sharp leaves the barracks except up the ramp to the pit. A
+      quartermaster-drone keeps the count on a slate, and the count is
+      always exact — a missing blade is the kind of thing that ends with
+      someone in a cell.
+    zone: geonosis_barracks
+    map_x: 51
+    map_y: 10
+    security_level: lawless
+    exits:
+      yard: barracks_muster_yard
+
+  - id: 442
+    slug: slavemaster_den
+    name: "Geonosis - Gladiator Barracks - Slavemaster's Den"
+    short_desc: "Acklay Chopper's cramped, trophy-strewn den, from which he runs the barracks and the capture runs."
+    description: >
+      The slavemaster's den is a rock cell made comfortable the way a hard
+      old drone reckons comfort: a slab to sleep on, a brazier against the
+      tunnel chill, and the skull of the acklay that crippled him mounted
+      over the doorway, its great curved beak split where he took it off.
+      He keeps his accounts here — who owes the hive a death, who has
+      earned another bout, which prisoners are fit to be marched out to
+      the Ebon Sea to net live acklays for the pens. He will deal with an
+      off-worlder who has something he wants, and set the goad-drones on
+      one who wastes his time; he stopped finding the difference
+      interesting a long time ago.
+    zone: geonosis_barracks
+    map_x: 50
+    map_y: 9
+    security_level: lawless
+    exits:
+      yard: barracks_muster_yard
+
+  - id: 443
+    slug: barracks_workparty_staging
+    name: "Geonosis - Gladiator Barracks - Work-Party Staging"
+    short_desc: "The mustering point for prisoner work-parties sent into the desert to capture live arena creatures."
+    description: >
+      A wide gate at the back of the barracks opens onto a loading ramp
+      and the gear for the worst duty the hive assigns: the capture runs.
+      From here the slavemaster musters prisoner work-parties and marches
+      them out across the wastes to the Ebon Sea, where live acklays are
+      netted and dragged back for the creature pens. Coils of cable,
+      sand-sleds, restraint-frames sized for something far larger than a
+      man, and the long shock-goads the handlers use on a thrashing
+      capture are stacked and ready. Few who are sent on a capture run
+      come back from every trip; the gear stays here, the faces change.
+    zone: geonosis_barracks
+    map_x: 49
+    map_y: 11
+    security_level: lawless
+    exits:
+      yard: barracks_muster_yard
+      pit: barracks_training_pit
 
   # ══════════════════════════════════════════════════════════════════════
   # DROID FOUNDRIES (lawless) — 10 rooms
@@ -930,3 +1099,33 @@ rooms:
     housing: true
     exits:
       out: geonosis_surface_market
+
+  # ══════════════════════════════════════════════════════════════════════
+  # E'Y-AKH WILDERNESS EDGE (lawless) — 1 room     [Lane D wilderness tier]
+  # The on-foot gateway from the surface into the E'Y-Akh coordinate-grid
+  # wilderness region (wilderness/ey_akh.yaml). Own zone (geonosis_ey_akh).
+  # The desert tiles are wired by the wilderness loader from that region's
+  # edges: block (room_slug: ey_akh_desert_edge); this room only needs its
+  # return exit to the surface.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: 444
+    slug: ey_akh_desert_edge
+    name: "Geonosis - E'Y-Akh Desert - Edge"
+    short_desc: "Where the rock spires give way to the open dunes of the E'Y-Akh."
+    description: >
+      The ground falls away from the spires here into the E'Y-Akh — a low,
+      featureless sea of red dune that runs to the horizon and, the
+      Geonosians say, on past it to the N'G'Zi badlands and the black water
+      of the Ebon Sea. Most of the Stalgasin hive's surface territory is out
+      there, and almost none of it is worth holding: heat, sand, and the
+      things that live in it. Before the annual flood the drones drive
+      merdeths down this slope to drown them. A scattering of bleached
+      shell-fragments, far too large to be anything small, marks how far the
+      water reached last time.
+    zone: geonosis_ey_akh
+    map_x: 48
+    map_y: 10
+    security_level: lawless
+    exits:
+      ruins: geonosis_surface_ruins        # zone-to-zone (E'Y-Akh edge → surface)

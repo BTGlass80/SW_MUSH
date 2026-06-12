@@ -1,0 +1,866 @@
+SW_MUSH Systems Reference
+
+**SW_MUSH**
+
+Comprehensive Systems Reference
+
+Star Wars D6 MUSH — WEG Revised & Expanded
+
+Galactic Civil War Era
+
+BTGlass80 — April 2026
+
+Architecture v21 — ~63,000 lines Python + 4,100 lines client HTML
+
+# Table of Contents
+
+# 1. What Is SW_MUSH?
+
+SW_MUSH is a Star Wars text-based multiplayer game — a MUSH (Multi-User Shared Hallucination) — built in Python. It faithfully implements the **West End Games D6 Revised ****&**** Expanded** tabletop RPG ruleset in a persistent online world set during the Galactic Civil War era. Players connect via a web browser or a Telnet client and interact entirely through typed commands and text output.
+
+The game world spans four planets (Tatooine, Nar Shaddaa, Kessel, and Corellia) with 120 rooms, 16 space zones, and roughly 39 named NPCs. Two AI systems drive the living world: **Ollama/Mistral 7B** powers individual NPC dialogue, and **Claude Haiku** runs the Director AI — a macro-level storytelling engine that shifts faction influence, triggers world events, and manages NPC faction orders.
+
+## 1.1 Technical Stack
+
+| **Component** | **Detail** |
+| --- | --- |
+| Language | Python 3.x, asyncio |
+| Database | SQLite via aiosqlite (schema v10, 30+ tables) |
+| NPC AI | Ollama / Mistral 7B (RTX 3070 8GB VRAM) |
+| Director AI | Claude Haiku 4.5 API (macro storytelling + narrative summaries) |
+| Transport | Telnet (port 4000) + WebSocket (port 4001) + HTTP (port 8080) |
+| Ruleset | WEG D6 Revised & Expanded (2nd Edition) |
+| Codebase | ~63,000 lines Python, ~4,100 lines HTML/CSS/JS client |
+| Commands | ~240+ across 25 command modules |
+
+## 1.2 The Dual-Interface Principle
+
+Every feature works over the plain-text Telnet interface. The web browser client adds visual conveniences — a HUD sidebar, zone maps, SVG tactical radar, combat wound pips, quick-action buttons — but never gates any content behind the web UI. Text output is canonical. If it doesn't work in Telnet, it doesn't ship.
+
+# 2. WEG D6 Core Mechanics
+
+Everything in the game is built on the West End Games D6 dice system. Understanding this is the foundation for understanding every other system.
+
+## 2.1 Dice Pools
+
+Every ability is expressed as a dice pool like **4D+2** — meaning "roll four six-sided dice and add 2." The notation is always XD+Y where X is the number of dice and Y is 0–2 bonus pips. Three pips automatically rolls up to another die (3D+3 = 4D).
+
+Your six attributes (Dexterity, Knowledge, Mechanical, Perception, Strength, Technical) are dice pools. Skills are built on top of their parent attribute. If your Dexterity is 3D+1 and you've added 1D to Blaster, your Blaster skill is 4D+1. If you haven't trained a skill at all, you roll the raw attribute.
+
+## 2.2 The Wild Die
+
+One die in every roll is the **Wild Die**. If it comes up 6, it "explodes" — you keep the 6 and roll again, adding to the total. If that extra roll is also a 6, you keep rolling. This means any roll has theoretically unlimited upside.
+
+If the Wild Die comes up 1, it's a **mishap** (sometimes called a "complication"). The game drops the highest regular die from your total and something bad may happen narratively. This creates genuine tension on every roll.
+
+## 2.3 Difficulty Numbers
+
+When you attempt something, the game sets a target number. You roll your dice pool (with Wild Die) and compare:
+
+| **Difficulty** | **Target Number** | **Example** |
+| --- | --- | --- |
+| Very Easy | 5–6 | Climbing a ladder |
+| Easy | 8–10 | Picking a simple lock |
+| Moderate | 11–15 | Tracking someone through a crowd |
+| Difficult | 16–20 | Hotshot piloting maneuver |
+| Very Difficult | 21–25 | Repairing a damaged hyperdrive under fire |
+| Heroic | 26+ | Threading an asteroid field blind |
+
+## 2.4 Opposed Rolls
+
+When two characters act against each other — attacking vs. dodging, haggling a price, chasing someone — both sides roll their relevant dice pools. The higher total wins. The margin (difference between the two rolls) determines how dramatically one side prevails.
+
+## 2.5 The Skill Check Engine
+
+All out-of-combat dice rolls in the game are routed through a single function: **perform_skill_check()**. This ensures every roll uses the same Wild Die logic, the same difficulty scale, and the same partial-success mechanic (if you miss by 4 or fewer points, you get a partial result). No command file ever rolls dice directly.
+
+The result of every skill check includes: raw roll total, difficulty, success/fail, margin, whether the Wild Die exploded (critical success), whether it came up 1 (fumble), the skill used, and the dice pool string. This standardization is what makes the game mechanically consistent across all its systems.
+
+## 2.6 Multiple Actions & Wound Penalties
+
+If you try to do more than one thing in a combat round (shoot and dodge, for example), each action after the first reduces ALL your rolls by 1D. Declaring three actions means every roll is at −2D.
+
+Wounds also penalize your rolls. Being Stunned or Wounded costs −1D to all actions. Wounded Twice costs −2D. Incapacitated or worse means you can't act at all.
+
+# 3. Character System
+
+## 3.1 Species
+
+Nine playable species are available, each loaded from YAML templates with distinct attribute ranges and special abilities:
+
+| **Species** | **Homeworld** | **Attribute Dice** | **Skill Dice** | **Notable Trait** |
+| --- | --- | --- | --- | --- |
+| Human | Various | 12D | 7D | Versatile, no special limits |
+| Wookiee | Kashyyyk | 12D | 7D | Berserker rage, climbing claws, +2D Strength min |
+| Twi'lek | Ryloth | 12D | 7D | Head-tails (lekku), persuasion bonuses |
+| Rodian | Rodia | 12D | 7D | Enhanced vision, hunting instincts |
+| Bothan | Bothawui | 12D | 7D | Espionage network, political savvy |
+| Duros | Duro | 12D | 7D | Natural pilots, space affinity |
+| Mon Calamari | Mon Cala | 12D | 7D | Aquatic, moist environment preference |
+| Sullustan | Sullust | 12D | 7D | Direction sense, enhanced hearing |
+| Trandoshan | Trandosha | 12D | 7D | Claws, regeneration, Wookiee enmity |
+
+## 3.2 Character Creation
+
+Character creation uses a free-form editor where you can set fields in any order. You get a species-determined number of attribute dice (typically 12D) to distribute among six attributes, each within species-defined min/max ranges. Then you get skill dice (typically 7D) to distribute among 75 available skills.
+
+For quick starts, pre-built templates are available: Smuggler, Bounty Hunter, Soldier, Pilot, Diplomat, and Technician. These set reasonable attribute and skill distributions that you can then customize.
+
+**Commands:** name, species, set <attribute> <dice>, skill <skill> <dice>, unskill <skill>, template <name>, undo, sheet, done, help.
+
+## 3.3 Attributes & Skills
+
+Six attributes govern everything your character can do. Each has associated skills (75 total across all attributes):
+
+| **Attribute** | **Governs** | **Key Skills** |
+| --- | --- | --- |
+| Dexterity | Physical agility, combat accuracy | Blaster, Dodge, Melee Combat, Brawling, Lightsaber |
+| Knowledge | Education, awareness of the galaxy | Alien Species, Bureaucracy, Languages, Streetwise, Willpower |
+| Mechanical | Operating vehicles and ships | Astrogation, Space Transports, Starship Gunnery, Sensors, Repulsorlift |
+| Perception | Social skills, alertness | Bargain, Con, Gambling, Search, Persuasion, Sneak |
+| Strength | Physical power, toughness | Brawling, Climbing/Jumping, Stamina, Swimming, Lifting |
+| Technical | Repair, medicine, crafting | Blaster Repair, Computer Programming, Droid Repair, First Aid, Security |
+
+# 4. Ground Combat
+
+Personal combat faithfully implements the WEG D6 R&E rules across 19 commands, with NPC AI opponents using five distinct combat profiles.
+
+## 4.1 Combat Flow
+
+Each combat round follows four phases:
+
+- **Initiative:** All combatants roll Perception. Highest goes first. Ties broken by Perception dice pool size.
+
+- **Declaration:** Each combatant declares what they'll do this round (attack, dodge, aim, flee, use a power). Multi-action penalties are applied here.
+
+- **Resolution:** Actions resolve in initiative order. Attacks are opposed rolls (your attack skill vs. their dodge/parry). If the attack wins, damage is rolled vs. the defender's Strength (soak roll).
+
+- **Cleanup:** Stunned characters recover, fleeing characters exit the room, mortally wounded characters roll to stay alive.
+
+## 4.2 Wound Levels
+
+Damage results are determined by the margin between the damage roll and the soak roll:
+
+| **Damage Margin** | **Wound Level** | **Effect** |
+| --- | --- | --- |
+| 0 or less | No damage | Attack absorbed |
+| 1–3 | Stunned | −1D to all actions, recovers next round |
+| 4–8 | Wounded | −1D to all actions (permanent until healed) |
+| 9–12 | Incapacitated | Cannot act, unconscious |
+| 13–15 | Mortally Wounded | Dying; roll Strength each round to survive |
+| 16+ | Dead | Character is killed |
+
+Getting Wounded while already Wounded escalates to **Wounded Twice** (−2D penalty). The wound color escalation system in the web client uses progressively more alarming colors as wounds worsen.
+
+## 4.3 Defense Options
+
+- **Dodge** defends against ranged attacks (blasters, grenades). It's a Dexterity-based skill.
+
+- **Melee Parry / Brawling Parry** defends against melee attacks. Armed vs. unarmed penalties apply per R&E: an unarmed defender against an armed attacker takes +10 difficulty; an armed parry against an unarmed attacker gets +5 bonus.
+
+- **Full Dodge/Parry** dedicates your entire round to defense, adding your roll to the difficulty of ALL incoming attacks.
+
+- **Lightsaber** uniquely serves as both attack AND parry skill.
+
+## 4.4 Other Combat Actions
+
+- **Aim:** Spend a round aiming to get a bonus on your next attack.
+
+- **Flee:** Attempt to leave combat. Requires surviving a round of opportunity attacks.
+
+- **Cover:** Environmental protection that adds to your dodge difficulty.
+
+- **Force Points:** Spend a Force Point to double all dice pools for one round (see Force Powers section).
+
+- **Character Points (CP):** Spend CP mid-combat to add extra dice to a single roll.
+
+## 4.5 Death & Respawn
+
+When killed, your character respawns at a safe location. Equipment is preserved for recovery. This is a gameplay convenience; there's no permadeath.
+
+## 4.6 NPC Combat AI
+
+NPCs use five combat profiles that determine their behavior in combat: **aggressive** (always attacks), **defensive** (prioritizes dodge), **tactical** (adapts based on health), **sniper** (aims and fires from range), and **coward** (flees when wounded). Each profile has different action selection logic, retreat thresholds, and target prioritization.
+
+## 4.7 Combat Commands Quick Reference
+
+**attack ****<****target****>** — Attack someone. **dodge** — Declare a dodge. **aim** — Aim at your current target. **flee** — Try to run away. **challenge ****<****player****>** — Request PvP consent in contested zones. **accept / decline** — Respond to a PvP challenge. **combat rolls** — Show detailed dice results.
+
+# 5. Security Zones
+
+Every zone in the game has a security level that governs what combat is allowed:
+
+| **Security Level** | **PvE Combat** | **PvP Combat** | **Example Zones** |
+| --- | --- | --- | --- |
+| Secured | Blocked entirely | Blocked entirely | Mos Eisley Core, Imperial Garrison, Coronet Gov't |
+| Contested | NPC combat allowed | Requires challenge/accept consent | Spaceport District, Cantina, most urban zones |
+| Lawless | Unrestricted | Unrestricted | Jundland Wastes, Nar Shaddaa Undercity, Spice Mines |
+
+The **Director AI** can dynamically override security levels. An Imperial crackdown can push a contested zone to secured. A criminal surge can push a contested zone toward lawless. These are temporary overlays that revert when the event ends.
+
+**Bounty Hunter Override:** Members of the Bounty Hunters' Guild with an active claimed contract can bypass PvP consent requirements in contested zones for ground combat — their target is fair game.
+
+**Territory Claims:** When a player organization claims a lawless room, that room is treated as contested for the org's members (they get PvP consent protection on their own turf).
+
+**Space security** follows a parallel scheme: DOCK zones block fire; ORBIT and HYPERSPACE require PvP consent; DEEP_SPACE is unrestricted.
+
+# 6. Space Systems
+
+The space system is the largest single subsystem in the game — 49 commands across 5,184 lines of code. It covers everything from buying and flying a ship to full starship combat, cargo trading, smuggling, anomaly scanning, and ship customization.
+
+## 6.1 The Galaxy Map
+
+The galaxy consists of 16 space zones connected by 3 hyperspace lanes. Four planets provide docking destinations:
+
+| **Planet** | **Docking Zones** | **Notable Features** |
+| --- | --- | --- |
+| Tatooine | Mos Eisley Orbit, Mos Eisley Docking Bay | Game hub; most NPCs and services |
+| Nar Shaddaa | Nar Shaddaa Orbit, Docking Platform | Criminal underworld; smuggling hub |
+| Kessel | Kessel Orbit, Mining Station | Spice trade; dangerous deep mines |
+| Corellia | Corellia Orbit, Coronet Starport | CEC shipyards; legal commerce hub |
+
+Between planets, deep space zones and hyperspace lanes connect the galaxy. Travel between planets requires plotting an astrogation course, entering hyperspace, and waiting out the transit time (calculated from hyperdrive multiplier and distance).
+
+## 6.2 Crew Stations
+
+Ships operate with seven crew stations. On a solo flight, one character can handle everything, but larger ships benefit from dedicated crew:
+
+| **Station** | **Skill Used** | **What It Does** |
+| --- | --- | --- |
+| Pilot | Space Transports / Starfighter Piloting | Flies the ship, maneuvers in combat, docks/launches |
+| Copilot | Space Transports | Assists pilot (+1D bonus via Coordinate) |
+| Gunner | Starship Gunnery | Fires weapons, manages lock-on, chooses fire arcs |
+| Engineer | Starship Repair / Space Transports Repair | Damage control, power allocation, shield redistribution |
+| Navigator | Astrogation | Plots hyperspace courses, calculates jump times |
+| Commander | Command | Issues tactical orders that buff the whole crew |
+| Sensors | Sensors | Scans for ships, anomalies, and threats |
+
+NPC crew members can be hired to fill stations. They draw wages (30–1,000 credits every 4 hours depending on skill level) and use their own skill dice for station rolls.
+
+## 6.3 Space Navigation
+
+- **course ****<****destination****>** — Set a sublight course to another zone. Requires a Piloting check. Travel time varies by zone distance.
+
+- **jump ****<****planet****>** — Plot and execute a hyperspace jump. The Navigator rolls Astrogation against a difficulty. Failure means a misjump (end up in a random zone). The hyperdrive multiplier determines travel time.
+
+- **land** — Dock at a planet. Only works in the planet's docking zone.
+
+- **launch** — Leave dock and enter orbit.
+
+## 6.4 Space Combat
+
+Space combat uses the same D6 opposed-roll framework as ground combat but at ship scale:
+
+- **fire ****<****target****>** — Fire your ship's weapons. The Gunner rolls Starship Gunnery + fire control vs. the target's maneuvering. Damage is weapon damage vs. hull/shields.
+
+- **lockon ****<****target****>** — Spend a round locking on for bonus damage on the next shot.
+
+- **evade** — Perform evasive maneuvers (Jink, Barrel Roll, Loop, Slip). Each has different trade-offs between defense bonus and movement restrictions.
+
+- **shields ****<****arc****>** — Redistribute shield dice between fore/aft/port/starboard arcs.
+
+- **damcon ****<****system****>** — The Engineer attempts to repair a damaged system mid-combat.
+
+- **ion** — Ion weapons disable systems without destroying the ship. Ion damage decays over time.
+
+- **tractor ****<****target****>** — Lock a tractor beam onto a target. Reels them in over multiple rounds.
+
+## 6.5 Capital Ship Rules
+
+Capital-scale ships (Corellian Corvette, Nebulon-B Frigate, Imperial Star Destroyer) use structure points instead of hull dice, have multiple weapon batteries, and fight at a different scale. Cross-scale combat applies the D6 scale modifier: a starfighter attacking a capital ship adds 6D to its damage, but a capital ship's weapons against a fighter are at +6D fire control.
+
+## 6.6 Power Allocation
+
+Ships have a reactor power budget. The Engineer allocates power across five subsystems: engines, shields, weapons, sensors, and life support. **Overcharging** a system (allocating extra power) boosts its performance but draws power from other systems. **Silent running** (cutting non-essentials) reduces sensor detectability. All allocation is transient and resets on dock.
+
+## 6.7 Captain's Orders
+
+The Commander station can issue 8 tactical orders that provide ship-wide modifiers. The Commander rolls their Command skill; the margin determines the bonus. Orders include: All Ahead Full (+speed), Battle Stations (+fire control), Evasive (+maneuverability), Hold the Line (+shields), and others. Only one order can be active at a time.
+
+## 6.8 Transponder Codes
+
+Ships carry transponder codes that identify them. Players can install a **false transponder** to disguise their ship's identity, a **sensor mask** to reduce detectability, or a **comm jammer** to block communications in their zone. Imperial customs patrols check transponders and levy fines for irregularities per the WEG smuggling rules.
+
+## 6.9 Ship Customization & Modifications
+
+Ships have **mod slots** (varies by template, typically 3–7). Crafted ship components can be installed to boost stats:
+
+| **Component** | **Stat Boosted** | **Craft Skill** | **Resource Requirements** |
+| --- | --- | --- | --- |
+| Engine Booster | Speed | Space Transports Repair | Metal, Energy, Composite |
+| Shield Generator Mk2 | Shields | Starship Repair | Metal, Energy, Rare |
+| Armor Plating | Hull | Armor Repair | Metal, Composite |
+| Sensor Suite Enhanced | Sensors | Sensors Repair | Energy, Rare |
+| Maneuvering Thrusters | Maneuverability | Space Transports Repair | Metal, Energy |
+| Weapon Upgrade FC | Fire Control | Starship Weapons Repair | Metal, Energy, Rare |
+| Hyperdrive Tuning | Hyperdrive | Space Transports Repair | Energy, Composite, Rare |
+
+Installation requires docking at a planet and passing a skill check. Stats are computed at read-time via **get_effective_stats()** — template stats are never permanently modified. Mods are stored in the ship's systems JSON.
+
+## 6.10 Space Anomalies & Salvage
+
+Seven types of anomalies spawn randomly in space zones: derelicts, distress signals, debris fields, energy signatures, asteroid clusters, nebula pockets, and sensor ghosts. Using **deepscan**, the Sensors operator progressively reveals what an anomaly is. Once fully scanned, some can be salvaged for crafting resources or investigated for missions.
+
+Anomaly state is transient (memory only, not database) — server restarts wipe them, and they respawn on timers. This is intentional, matching how SpaceGrid-style space games work.
+
+## 6.11 Ship's Log & Titles
+
+The ship's log tracks 17 milestones across categories: zones visited, ships scanned, anomalies resolved, planets landed, pirate kills, smuggling runs, and trade runs. Reaching milestone thresholds awards CP ticks and earns titles (Explorer, Spotter, Archaeologist, Galactic Traveler, Pirate Hunter, Ace Smuggler, Merchant Prince) that display on your character sheet and in the who list.
+
+# 7. Economy
+
+The credit economy is designed so an active player earns 500–2,000 credits/hour, with living expenses running 200–400 credits/hour — leaving net accumulation of 300–1,600 credits/hour depending on risk and skill.
+
+## 7.1 Earning Credits (Faucets)
+
+- **Missions** (14 types) — The mission board holds 5–8 procedurally generated jobs. Types include delivery, combat, investigation, social, technical, medical, smuggling, bounty, slicing, salvage, plus 4 space types (patrol, escort, intercept, survey). Board refreshes every 30 minutes. One active mission at a time.
+
+- **Bounties** (5 tiers) — The bounty board holds 3–5 contracts. Targets are actual NPCs spawned in the world. You have to track them (Search/Streetwise/Tracking check) and then defeat them in combat. Payouts range from 100–300 cr (extra tier) up to 3,000–10,000 cr (superior tier). Board refreshes every 45 minutes.
+
+- **Smuggling** (4 tiers) — Contraband cargo runs with escalating risk. Tier 0 (medical supplies, legal grey area) pays 200–500 cr with no patrol risk. Tier 3 (raw spice) pays 5,000–15,000 cr but has 80% chance of an Imperial patrol check. Failure means cargo confiscated plus a fine of 50% of the reward.
+
+- **Trade Goods** (8 goods, 4 planets) — Buy-low-sell-high cargo trading. Each planet has goods it produces cheaply (50% price) and goods it demands (200% price). You buy cargo at one planet, fly to another, and sell. A Bargain skill check affects your prices.
+
+- **Faction Stipends** — Weekly payroll from your faction's treasury. Empire pays the best (50–500 cr/week by rank); Rebels pay less; Hutts pay only higher ranks; Bounty Hunters' Guild pays nothing (you earn from bounties).
+
+- **Entertainment ****&**** Medical** — Entertainers earn tips via the perform command (cantina zones only). Medics earn by healing other players (P2P payment).
+
+- **Sabacc** — Gambling card game. Zero-sum between players with a 10% house rake (net credit sink).
+
+## 7.2 Spending Credits (Sinks)
+
+- **Ship Operations** — Fuel (50–600 cr per event), docking fees (25–38 cr per landing), NPC crew wages (30–1,000 cr every 4 hours per crew member).
+
+- **Weapons ****&**** Equipment** — NPC weapon purchases (275–5,000 cr), weapon repair (50–250 cr when condition degrades).
+
+- **Vendor Droids** — Purchasing a droid (2,000–12,000 cr by tier), listing fees (1–2% of each sale).
+
+- **Housing** — Rent deposit (500 cr) + weekly rent (50 cr/week for Tier 1). Tier 3 private residences cost thousands to purchase.
+
+- **Smuggling Fines** — Getting caught costs 50% of the job reward.
+
+- **Crafting** — Resource acquisition (planned: NPC vendors with price floors).
+
+- **Sabacc Rake** — 10% of every pot removed from circulation.
+
+## 7.3 Known Economic Issues
+
+The economy has six structural vulnerabilities identified in a recent audit. The most critical: trade goods are a "solved game" with static price multipliers that can generate 120x the design target income rate. Luxury Goods on a Corellia-to-Tatooine route in a YT-1300 yield ~240,000 cr/hr vs. the 2,000 cr/hr design target. Fixes planned include dynamic supply pools, Bargain skill check gates, and per-planet inventory limits.
+
+# 8. Character Point (CP) Progression
+
+Character Points are the advancement currency. You spend CP to improve skills. The system uses a tick-based economy to gate progression speed.
+
+## 8.1 Earning CP Ticks
+
+300 ticks = 1 CP. Weekly hard cap: 300 ticks (max 1 CP/week from tick accumulation). Four income sources:
+
+- **Passive Participation** — Floor income. 5 ticks/day just for being logged in.
+
+- **Scene Completion** — Pose-count reward when a roleplay scene ends. 2 ticks per pose above a 3-pose minimum, capped at 60 ticks per scene. 10-minute cooldown between scene bonuses.
+
+- **Kudos** — The dominant source. Other players award you kudos for good roleplay. 35 ticks per kudos received. Max 3 kudos receivable per week. 7-day lockout per giver-target pair to prevent farming.
+
+- **AI Evaluator** — The Director AI can award up to 15 ticks per evaluation for quality roleplay. Lowest priority; degrades gracefully when GPU is busy.
+
+## 8.2 Spending CP
+
+The **train** command improves a skill. The cost follows the WEG advancement table: raising a skill costs its current die code in CP. Going from 4D to 4D+1 costs 4 CP. Going from 4D+2 to 5D costs 4 CP. Guild membership gives a 20% discount on training costs.
+
+**Target progression:** ~1 CP per 10–12 days for active players. Advancing a skill from 3D to 5D takes roughly 7 months. This is intentionally slow to create long-term engagement.
+
+## 8.3 Milestones & Titles
+
+The ship's log milestone system provides CP bonuses for space achievements. Profession chain completion also awards CP. These are outside the weekly tick cap — they're one-time bonuses that reward exploration and content completion.
+
+# 9. Crafting System
+
+An SWG-lite crafting pipeline inspired by Star Wars Galaxies. The loop is: survey for resources, gather materials, learn schematics from NPCs, craft items.
+
+## 9.1 Resources
+
+Six resource types exist: **metal, chemical, organic, energy, composite, rare.** Resources are gathered via the **survey** command, which generates a random resource of the types available in your current zone. Resources have quality ratings (1–100) that directly affect the quality of crafted items.
+
+Resource stacks merge when same type AND quality is within 5 points. Inventory management uses character JSON storage.
+
+## 9.2 Schematics
+
+20 schematics are available across four categories:
+
+- **Weapons (8):** Blaster Pistol, Sporting Blaster, Blaster Rifle, Hold-Out Blaster, Vibroblade, Vibroaxe, Stun Pistol, Blaster Carbine.
+
+- **Consumables (3):** Medpac (Basic), Medpac (Advanced), Stimpack.
+
+- **Ship Components (7):** Engine Booster, Shield Generator, Armor Plating, Sensor Suite, Maneuvering Thrusters, Weapon Upgrade, Hyperdrive Tuning.
+
+- **Countermeasures (2):** Sensor Mask, Comm Jammer.
+
+Schematics are learned from trainer NPCs in the world. Kayson at the Weapon Shop teaches weapon schematics. Shipwright NPCs (Venn Kator on Tatooine, Renna Dox on Nar Shaddaa) teach ship components.
+
+## 9.3 Assembly & Quality
+
+The **craft ****<****schematic****>** command consumes required resources and rolls a skill check against the schematic's difficulty. The result determines quality:
+
+- **Critical Success** (Wild Die exploded + succeeded): Quality multiplied by 1.5x.
+
+- **Success:** Base quality from components, multiplied by up to 1.3x based on margin.
+
+- **Partial Success** (missed by 4 or less): Quality halved.
+
+- **Failure:** Resources consumed, nothing produced.
+
+- **Fumble** (Wild Die = 1): Resources consumed, possible equipment damage.
+
+## 9.4 Experimentation
+
+The **experiment** command lets you attempt to improve an already-crafted item. This is a harder check with higher risk — failure can reduce quality — but a critical success on experimentation gives a 2.0x quality multiplier. This is how you create truly exceptional items.
+
+## 9.5 Teaching
+
+Players who know a schematic can teach it to others using the **teach** command, spreading crafting knowledge through the player community.
+
+# 10. Force Powers
+
+Eight Force powers are implemented across three disciplines, faithful to the WEG D6 R&E Chapter 12 rules.
+
+## 10.1 Control Powers
+
+- **Accelerate Healing** — Heal one wound level. Difficulty: Moderate (15). Roll Control.
+
+- **Control Pain** — Ignore wound penalties for the rest of the scene. Difficulty: Easy (10).
+
+- **Remain Conscious** — Stay up at Incapacitated (once per scene). Difficulty: Difficult (20).
+
+## 10.2 Sense Powers
+
+- **Life Sense** — Detect living beings in the current room. Difficulty: Easy (10).
+
+- **Sense Force** — Detect Force users and dark side presence nearby. Difficulty: Easy (10).
+
+## 10.3 Alter Powers
+
+- **Telekinesis** — Move or disarm objects at range. Difficulty: Difficult (10+range modifier).
+
+## 10.4 Combination & Dark Side Powers
+
+- **Affect Mind** (Control+Sense+Alter) — Implant a suggestion in an NPC's mind. Difficulty: 15+. **Awards 1 Dark Side Point on use.**
+
+- **Injure/Kill** (Alter, dark side) — Force-damage a target. Opposed Alter vs. Strength. **Awards 1 Dark Side Point on use.**
+
+## 10.5 Dark Side Points & Falling
+
+Using dark side powers (Affect Mind, Injure/Kill) automatically gives you 1 Dark Side Point (DSP). At DSP ≥ 6, a fall check is triggered: you roll Willpower vs. (DSP × 3). Failure means your character permanently falls to the dark side. This creates genuine moral stakes for Force users.
+
+## 10.6 Force Commands
+
+**force ****<****power****>**** [target]** — Use a Force power. **powers** — List available powers. **forcestatus** — Show your Force points, Dark Side Points, and known powers.
+
+# 11. Organizations & Factions
+
+## 11.1 Factions
+
+Five factions represent the major political powers. You can belong to one faction at a time.
+
+| **Faction** | **Code** | **Flavor** | **Stipend Range** |
+| --- | --- | --- | --- |
+| Galactic Empire | empire | Order, military hierarchy, equipment | 50–500 cr/week |
+| Rebel Alliance | rebel | Freedom, underdog operations | 25–300 cr/week |
+| Hutt Cartel | hutt | Crime, smuggling, muscle | 100–500 cr/week (rank 3+) |
+| Bounty Hunters' Guild | bh_guild | Contracts, PvP override | None (earn from bounties) |
+| Independent | independent | No affiliation | None |
+
+**Joining** requires meeting any prerequisites. **Leaving** has a 7-day cooldown before you can join another faction, returns all issued equipment, and may have standing consequences. Faction rank progresses through reputation gains (combat kills, missions, profession chains). Leaders (rank 5+) can promote, demote, warn, expel members, manage treasury, and post faction missions.
+
+## 11.2 Guilds
+
+Six guilds provide passive membership perks. You can belong to up to 3 guilds simultaneously:
+
+| **Guild** | **Requirement** | **Benefit** |
+| --- | --- | --- |
+| Mechanics' Union | Any repair skill 4D+ | 15% discount on repair parts |
+| Shipwrights' Union | 2+ ship component schematics | 15% discount on ship parts |
+| Medical Corps | First Aid 4D+ | Restricted medical supplies, +1D heal in med bays |
+| Slicers' Network | Computer Prog/Repair 4D+ | Slicing tools vendor, intelligence data |
+| Entertainers' Guild | Perform requirement | Entertainment perks |
+| Scouts' Guild | Exploration requirement | Navigation bonuses |
+
+Guild membership gives a **20% discount on CP training costs** for related skills.
+
+## 11.3 Faction Equipment Issuance
+
+When you join a faction or get promoted, you receive rank-appropriate equipment. Imperial recruits get a uniform and SE-14C pistol. Rebels get an encrypted comlink and DL-18 pistol. Higher ranks unlock better gear: stormtrooper armor, E-11 rifles, DL-44 heavy blasters, and faction-specific special items. Equipment is reclaimed when you leave.
+
+## 11.4 Territory & Influence
+
+See the Territory Control section (§13) for how factions compete for physical territory.
+
+# 12. Player Housing
+
+## 12.1 Housing Tiers
+
+| **Tier** | **Type** | **Cost** | **Storage** | **Features** |
+| --- | --- | --- | --- | --- |
+| 1 | Rented Room | 500 cr deposit + 50 cr/week | 20 slots | Personal room, storage, set as home |
+| 2 | Faction Quarters | Free (rank-based) | 10–60 slots | Auto-assigned by faction rank; thematic desc |
+| 3 | Private Residence | Thousands (varies by type) | 50–120 slots | Multi-room, guest lists, purchasable from NPC |
+
+## 12.2 Housing Commands
+
+**rent** — Rent a room in a housing district. **checkout** — Leave and get your deposit back. **storage** — View and manage stored items. **sethome** — Set your current room as home. **home** — Teleport to your home room. **describe** — Enter the multi-line description editor to customize your room's look. **trophy** — Mount a trophy item on display. **name** — Rename your room.
+
+## 12.3 Faction Quarters
+
+Faction quarters are automatically assigned based on rank. The Empire assigns barracks bunks (rank 0), private quarters (rank 2), officer suites (rank 4), and commander's quarters (rank 5+). Each faction has thematic descriptions and escalating storage capacity. Quarters are revoked on faction leave or demotion below the qualifying rank.
+
+## 12.4 Rent & Eviction
+
+Tier 1 rent is charged weekly via the housing rent tick (game server offset 432,000). If you miss 2 weeks, you get an eviction warning. If you miss 4 weeks, you're evicted: items are moved to a recovery location, and the room is freed.
+
+# 13. Territory Control
+
+The territory system lets player organizations compete for physical control of zones and rooms. It uses a separate influence tracking table from the Director AI's narrative faction influence.
+
+## 13.1 Earning Influence
+
+- **Member presence** — 1 influence per member per hour spent in a zone.
+
+- **NPC kills** — 2 influence per NPC killed in the zone.
+
+- **Missions/bounties/smuggling** — 5 influence per completion in the zone.
+
+- **PvP wins** — 15 influence per player kill in contested/lawless zones.
+
+- **Treasury investment** — 10 influence per 1,000 credits invested (1,000–10,000 cr range).
+
+## 13.2 Influence Thresholds
+
+| **Threshold** | **Level** | **Effect** |
+| --- | --- | --- |
+| 25 | Presence | Org name appears in room descriptions |
+| 50 | Foothold | Can claim rooms |
+| 75 | Dominance | Security upgrade + passive income (planned) |
+| 100 | Control | Full zone branding (planned) |
+
+Influence decays if no members are present in a zone for 48+ hours. The cap is 150 per org per zone.
+
+## 13.3 Room Claiming
+
+Once influence reaches 50 (Foothold), members of rank 3+ can claim specific rooms using **faction claim**. Claiming requires a treasury payment. Claimed rooms get a tag in the room description and a security upgrade (lawless rooms become contested for org members). Max 3 claims per zone, 10 total per organization. Weekly maintenance costs are deducted from treasury.
+
+## 13.4 Commands
+
+**faction invest ****<****amount****>** — Convert treasury credits into zone influence. **faction influence** — View your org's influence across all zones. **faction claim** — Claim the current room. **faction unclaim** — Release a claim. **faction territory** — Overview of all claims.
+
+# 14. Player Shops (Vendor Droids)
+
+Players can purchase vendor droids, place them in public rooms, and stock them with items for other players to buy. This is the player-to-player economy infrastructure.
+
+## 14.1 Droid Tiers
+
+| **Tier** | **Droid Model** | **Cost** | **Slots** | **Special** |
+| --- | --- | --- | --- | --- |
+| 1 | GN-4 | 2,000 cr | 6 slots | Basic vending |
+| 2 | GN-7 | 6,000 cr | 12 slots | Named shop, description |
+| 3 | GN-12 | 12,000 cr | 24 slots | Buy orders, premium features |
+
+## 14.2 Shop Lifecycle
+
+- **Buy a droid** from an NPC droid dealer.
+
+- **shop place** — Place it in a public room. Max 2 droids per room, 3 per character.
+
+- **shop stock ****<****item****>**** ****<****price****>** — Stock an item from your inventory at a set price. Price floor is 50% of NPC buy-back value.
+
+- **browse** — Browse all vendor droids in your current room.
+
+- **buy ****<****item****>**** from ****<****droid****>** — Purchase an item. A Bargain check may reduce the price.
+
+- **shop collect** — Collect accumulated sales revenue from your droid.
+
+- **shop recall** — Pick up your droid and return it to inventory.
+
+## 14.3 Anti-Exploit Protections
+
+Same-account purchase block prevents buying from your own droids. Faction-issued items can't be stocked. Listing fees (1–2% of sale price) act as a credit sink. Droids auto-recall after 60 days of inactivity. Bulk trade cargo can't be stocked.
+
+# 15. Director AI
+
+The Director AI is a macro-level storytelling engine that runs on Claude Haiku. It evaluates the state of the game world every 30 minutes and takes actions that shape the narrative.
+
+## 15.1 How It Works
+
+Every 30 minutes, the Director compiles a world-state digest: faction influence scores per zone, recent player actions, active world events, zone alert levels, faction status, and PC narrative records. This digest is sent to Claude Haiku with a system prompt that defines the Director's role. Haiku responds with structured actions.
+
+## 15.2 What the Director Can Do
+
+- **Shift faction influence** in zones (Imperial crackdown, criminal surge, rebel activity).
+
+- **Trigger world events** (Imperial patrols, cantina brawls, smuggler alerts, bounty announcements).
+
+- **Issue faction orders** (promote/demote members, post faction missions, make announcements).
+
+- **Post news articles** to the in-game news board.
+
+- **Adjust security levels** dynamically (push zones toward secured or lawless temporarily).
+
+- **Award CP ticks** for quality roleplay observed through the narrative system.
+
+## 15.3 Budget & Circuit Breaker
+
+The Director operates within a $20/month budget. A circuit breaker shared with the PC Narrative Memory system prevents runaway API costs. If the budget is exceeded, the Director falls back to local-only mode: influence still changes from player actions, alert levels still update, and world events still fire on timers — but Haiku-driven narrative responses stop.
+
+## 15.4 Zone Influence Model
+
+Each zone tracks four faction axes: Imperial, Rebel, Criminal, and Independent. Influence scores range 0–100. Player actions shift these scores (killing Imperial NPCs boosts Rebel and Criminal influence, etc.). The Director uses these scores to determine zone "mood" and narrative events.
+
+# 16. PC Narrative Memory
+
+Every significant action your character takes is logged and periodically summarized by AI into a persistent narrative record.
+
+## 16.1 Action Logging
+
+16 action types are automatically recorded: combat victories/defeats, mission completions/failures, bounty collections, smuggling deliveries/captures, crafting completions, skill training, planet visits, faction joins/leaves, guild joins, purchases, travel, and tutorial completions.
+
+## 16.2 Two-Tier Records
+
+- **Short Record** (~150 words) — Injected into NPC brain prompts so Mistral 7B can reference your history in dialogue. Only contains public knowledge.
+
+- **Long Record** (~800 words) — Passed to the Director AI for faction digests and narrative decisions.
+
+## 16.3 Nightly Summarization
+
+At 3:00 AM daily, a nightly job sends recent action logs + your player-written background to Claude Haiku, which regenerates both records. Your hand-written **+background** is never overwritten by AI — it's an input to the summarization, not something the AI modifies.
+
+## 16.4 Commands
+
+**+background** — Write/view your character's backstory. **+recap** — View your AI-generated narrative summary. **+quests** — View your personal quest log.
+
+# 17. Tutorial System
+
+A multi-phase tutorial guides new players through the game's systems.
+
+## 17.1 Core Tutorial
+
+A 6-room guided experience that teaches: basic movement, looking at things, talking to NPCs, combat basics, skill checks, and how to leave the tutorial zone. Tutorial zones have special protections: no ambient events, no world events, no NPC traffic, no CP tick accrual, and tutorial ships can't be permanently destroyed.
+
+## 17.2 Elective Modules
+
+8 optional modules covering: space flight basics, advanced combat, crafting introduction, the economy, communication channels, Force powers (if applicable), faction overview, and the mission system.
+
+## 17.3 Starter Quest Chain
+
+A 10-step guided quest (including step 5.5 "The Powers That Be") that walks players through the game world, introducing key NPCs, locations, and systems in Mos Eisley.
+
+## 17.4 Profession Chains
+
+Six profession chains provide mid-game directed content. Each requires meeting an entry gate (e.g., 1+ smuggling run completed, 3+ bounties collected, 3+ items crafted) before a contact NPC unlocks the chain:
+
+| **Chain** | **Contact NPC** | **Entry Gate** | **Reward** |
+| --- | --- | --- | --- |
+| Smuggler's Run | Kessa (Cantina) | 1+ smuggling run | ~6,800 cr + "Veteran Smuggler" title |
+| Hunter's Mark | Ssk'rath (Bounty Office) | 3+ bounties collected | ~3,100 cr + "Guild Hunter" title |
+| Artisan's Forge | Vek Nurren (Workshop) | 3+ items crafted | ~3,500 cr + "Master Artisan" title |
+| Rebel Cell | Fulcrum comlink | 2+ missions complete | ~4,000 cr + "Rebel Sympathizer" title |
+| Imperial Service | Sgt. Kreel (Police) | 2+ missions complete | ~5,300 cr + "Imperial Associate" title |
+| Underworld | Gep (Grill) | 3+ smuggling runs | ~7,300 cr + "Made Man" title |
+
+# 18. NPC Systems
+
+## 18.1 NPC AI Dialogue
+
+NPCs use Ollama/Mistral 7B for dialogue generation. When you **talk** to an NPC or **ask** them a question, the game builds a scene context (room, NPCs present, your character's narrative record) and sends it to Mistral. The NPC responds in character. The **talk** and **ask** commands are gated by a Persuasion check — you have to convince the NPC to engage with you.
+
+NPC memory persists via the **npc_memory** database table, so NPCs can recall previous interactions within limits.
+
+## 18.2 NPC Space Traffic
+
+The game server's tick loop continuously spawns NPC ships that fly between planets, creating a living galaxy. Traffic types include freighters, patrol craft, pirate raiders, and Imperial customs vessels. Imperial patrols can initiate boarding inspections (with WEG40141-compliant customs infraction fines). Pirates will tail and attack player ships. Per-zone pirate caps prevent spam.
+
+## 18.3 NPC Crew
+
+NPC crew members can be hired to fill ship crew stations. They use their own skill dice for station rolls. Wages are deducted every 4 hours from the hiring player's credits. Commands: **hire ****<****npc****>**, **fire ****<****npc****>**, **assign ****<****npc****>**** ****<****station****>**, **dismiss**, **order**.
+
+## 18.4 Planet NPCs
+
+~39 named NPCs are placed across the four planets via the world builder. These include trainers (Old Prospector teaches survival/search; Venn Kator and Renna Dox teach shipwright schematics), hostile NPCs (Tusken Raiders, Energy Spiders, Gamorrean enforcers), merchants, quest givers, and flavor characters. An additional set of Galaxy Guide 7 NPCs are loaded from YAML data.
+
+# 19. Communication & Social Systems
+
+## 19.1 Channels
+
+- **OOC** — Out-of-character global chat. Also accessible via newbie/oocsay.
+
+- **Comlink** — In-character global communication (like a radio).
+
+- **Faction Channel** — Private channel for your faction. Encrypted comlink for Rebels, Imperial comm for Empire, etc.
+
+- **Custom Frequencies** — Tune in/out of custom radio frequencies for group coordination.
+
+## 19.2 Local Communication
+
+**say ****<****message****>** — Speak to everyone in the room. **pose ****<****action****>** or **:****<****action****>** — Describe your character's action (roleplay emote). **whisper ****<****player****>**** ****<****message****>** — Private message to someone in the room.
+
+## 19.3 Party System
+
+**+party invite ****<****player****>**, **+party join**, **+party leave**, **+party list**, **+party kick**, **+party disband**. Parties allow coordinated group activities.
+
+## 19.4 News Board
+
+**+news** — Read the galactic news board. News articles are posted by the Director AI based on world events, faction shifts, and player actions.
+
+# 20. World & Environment Systems
+
+## 20.1 The Game World
+
+120 rooms across 4 planets, organized into 20 security zones. Rooms are connected by exits (some hidden). The world builder script creates the entire map, places NPCs, and sets security levels. Zones provide ambient flavor text and determine what activities are available.
+
+## 20.2 World Events
+
+The Director AI and timer-based systems trigger world events: Imperial patrols sweeping through districts, cantina brawls breaking out, smuggler alerts when customs ramp up, bounty announcements for high-profile targets, and faction power shifts. These appear as broadcasts to affected zones and update the web client's world event banner.
+
+## 20.3 Ambient Events
+
+Zone-based ambient flavor text fires periodically to create atmosphere: marketplace chatter in the shops, Jawa scavenging in the outskirts, stormtrooper patrols in the government district. These are cosmetic and don't affect gameplay.
+
+## 20.4 Medical System
+
+Player-to-player healing uses a two-step consent flow: **heal ****<****player****>** makes an offer, **healaccept** accepts it. The healer rolls First Aid to determine healing effectiveness. No self-healing is allowed. **+healrate** shows healing cooldowns.
+
+## 20.5 Entertainment
+
+The **perform** command lets characters entertain in cantina-zone rooms for tips. This is a Perception-based check that rewards credits based on performance quality.
+
+## 20.6 Sabacc (Gambling)
+
+A fully implemented Sabacc card game. **sabacc join**, **sabacc bet**, **sabacc fold**, **sabacc call**, **sabacc raise**, **sabacc leave**. Zero-sum between players with a 10% house rake acting as a credit sink. Cooldown-gated to prevent farming.
+
+# 21. Web Client
+
+The browser client at port 8080 is a 4,118-line HTML/CSS/JavaScript application that provides a rich interface on top of the text-based game.
+
+## 21.1 Core Features
+
+- **Split-pane layout** — Main text output on the left, HUD sidebar on the right.
+
+- **ANSI-to-HTML rendering** — Full translation of ANSI color codes to styled HTML.
+
+- **Command history** — Arrow keys cycle through previous commands.
+
+- **Mobile responsive** — Adapts to phone and tablet screens.
+
+- **Context-sensitive quick buttons** — Action buttons change based on your current situation (in space, in combat, at a vendor, in housing). Each button has tooltip descriptions.
+
+## 21.2 Space HUD
+
+- **Zone Map SVG** — Visual map of the galaxy with your current location highlighted.
+
+- **Tactical Radar SVG** — Real-time display of ships in your zone.
+
+- **Ship Status Schematic** — SVG showing your ship's systems status.
+
+- **Power Allocation Bar** — Visual display of your reactor power distribution.
+
+- **Captain****'****s Order Badge** — Shows the active tactical order.
+
+- **Station-Aware Quick Buttons** — Buttons change based on your crew station.
+
+## 21.3 Combat Panel
+
+- **Wound Pips** — Color-coded health indicators for all combatants.
+
+- **Initiative Order** — Turn order display.
+
+- **Declared Actions** — What each combatant is doing this round.
+
+- **★ Viewer Marker** — Your character highlighted in the list.
+
+- **Phase Labels ****&**** Round Badge** — Current combat phase and round number.
+
+## 21.4 Other Panels
+
+- **Security Zone Badge** — Color-coded (green/yellow/red) security level display.
+
+- **Director AI Alert Badges** — World event notifications.
+
+- **World Event Banners** — Breaking news across the top of the screen.
+
+- **Ambient Mood Theming** — Background/color shifts based on your zone's environment.
+
+# 22. Building & Administration
+
+22 building commands let staff create and modify the game world. All prefixed with @:
+
+**@dig ****<****direction****>**** ****<****name****>** — Create a new room with an exit. **@describe ****<****text****>** — Set a room description. **@create ****<****item****>** — Create an object. **@teleport ****<****room****>** — Jump to a room. **@examine ****<****target****>** — View detailed object data. **@rooms** — List all rooms. **@zone** — Assign rooms to zones. **@lock** / **@set** / **@link** / **@unlink** — Configure exits and permissions. **@grant** — Give credits or items.
+
+Admin commands include: **@director** (manage the Director AI), **@ai** (check Ollama status), **@faction** (manage factions), **@narrative** (view/reset narrative records), **@security** (set zone security levels), **@economy** (economy monitoring stub).
+
+# 23. Starship Templates
+
+19 ship templates are defined in the game, ranging from light freighters to capital ships:
+
+## 23.1 Light Freighters & Transports
+
+| **Ship** | **Hull** | **Shields** | **Speed** | **Hyper** | **Weapons** | **Cargo** |
+| --- | --- | --- | --- | --- | --- | --- |
+| YT-1300 Transport | 4D | 1D | 4 | x2 | 1 Laser Cannon (turret) | 100 tons |
+| GhTroc 720 Freighter | 3D+2 | 1D | 3 | x2 | 1 Laser Cannon (front) | 135 tons |
+| Lambda Shuttle | 3D+1 | 1D | 5 | x1 | 2 Laser Cannons + 2 Blasters | 80 tons |
+| Sentinel Shuttle | 3D+2 | 1D+2 | 5 | x1 | Laser Cannons + Ion | 180 tons |
+| Firespray Patrol Craft | 4D | 2D | 5 | x1.5 | 2 Laser Cannons + Ion + Tractor | 40 tons |
+
+## 23.2 Starfighters
+
+| **Ship** | **Hull** | **Shields** | **Speed** | **Hyper** | **Weapons** |
+| --- | --- | --- | --- | --- | --- |
+| X-Wing | 4D | 1D | 8 | x1 | 4 Laser Cannons + 2 Proton Torpedoes |
+| Y-Wing | 4D+2 | 1D+1 | 5 | x1 | 2 Laser Cannons + Ion + Proton Torpedoes |
+| A-Wing | 2D+2 | 1D | 12 | x1 | 2 Laser Cannons + 2 Missiles |
+| B-Wing | 4D | 1D+2 | 6 | x2 | 3 Laser Cannons + Ion + Proton Torpedoes |
+| TIE Fighter | 2D | — | 9 | — | 2 Laser Cannons |
+| TIE Interceptor | 3D | — | 11 | — | 4 Laser Cannons |
+| TIE Bomber | 3D+1 | — | 5 | — | 2 Laser Cannons + Proton Torpedoes + Bombs |
+| Z-95 Headhunter | 3D | 1D | 7 | x1 | 2 Laser Cannons |
+
+## 23.3 Capital Ships
+
+| **Ship** | **Hull** | **Shields** | **Speed** | **Weapons** | **Scale** |
+| --- | --- | --- | --- | --- | --- |
+| Corellian Corvette (CR90) | Structure Points | 2D | 6 | 6 Turbolasers | Capital |
+| Nebulon-B Frigate | Structure Points | 2D+1 | 4 | 12 Turbolasers + Tractor | Capital |
+| Imperial Star Destroyer | Structure Points | 3D | 6 | 60 Turbolasers + Ion + Tractor | Capital |
+
+# 24. System Count Summary
+
+A meta-level view of everything implemented:
+
+| **System** | **Engine Lines** | **Parser Lines** | **Commands** | **Status** |
+| --- | --- | --- | --- | --- |
+| Ground Combat | 1,596 + 226 | 1,820 | 19 | Fully Delivered |
+| Space Systems | 1,891 + 324 + 241 + 264 | 5,184 | 49 | Fully Delivered |
+| Economy (Trading) | 241 | (in space_commands) | 3 | Delivered (audit pending) |
+| Missions | 855 | 580 | 5 | Fully Delivered |
+| Bounty Board | 552 | 410 | 5 | Fully Delivered |
+| Smuggling | 623 | 480 | 5 | Fully Delivered |
+| Crafting | 482 | 560 | 6 | Fully Delivered |
+| Force Powers | 508 | 380 | 3 | Fully Delivered |
+| CP Progression | 426 | 330 | 4 | Fully Delivered |
+| Organizations | 986 | 960 | 5+ | Fully Delivered |
+| Territory Control | 1,926 | (in faction_commands) | 4 | Drops 6A/6B Done |
+| Player Housing | 2,165 | 620 | 9+ | Drops 1–4 of 9 |
+| Player Shops | 1,277 | 890 | 3+ | Fully Delivered |
+| Director AI | 1,483 | 280 | 1 | Fully Delivered |
+| Narrative Memory | 448 | 430 | 7 | Fully Delivered |
+| Tutorial | 2,129 | 210 | 1 | Fully Delivered |
+| NPC Systems | 460 + 336 + 475 + 1,667 | 1,130 | 6 | Fully Delivered |
+| Security Zones | 246 | (in combat_commands) | — | Drops 1–5 Done |
+| Communication | — | 450 | 10 | Fully Delivered |
+| Medical/Entertain | — | 450 | 4 | Fully Delivered |
+| Sabacc | — | 360 | 1 | Fully Delivered |
+| Building | — | 1,080 | 22 | Fully Delivered |
+| Web Client | — | — | — | 4,118 lines HTML |
+
+**Total:** ~63,000 lines Python + 4,118 lines client HTML. ~240+ commands across 25 parser modules. 120 rooms, 4 planets, 16 space zones, 19 ship templates, 22 weapon types, 20 crafting schematics, 9 species, 75 skills, 39 named NPCs, 5 factions, 6 guilds, 14 mission types, 5 bounty tiers, 4 smuggling tiers, 8 trade goods, 7 anomaly types, 8 Force powers, 17 ship log milestones, 6 profession chains, 5 NPC combat profiles, 3 housing tiers, 3 vendor droid tiers.
+
+*End of SW_MUSH Systems Reference — v21 — April 2026*
+
+Page

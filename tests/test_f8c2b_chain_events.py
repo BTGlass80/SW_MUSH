@@ -317,22 +317,22 @@ class TestRoomEnteredMatcher(_F8C2BIsolatedBase):
 
     def test_slug_match_case_insensitive(self):
         from engine.chain_events import _match_room_entered
-        c = {"room": "coruscant_works_landing_zone"}
+        c = {"room": "commercial_district_landing_zone"}
         self.assertTrue(_match_room_entered(
-            c, "coruscant_works_landing_zone"))
+            c, "commercial_district_landing_zone"))
         self.assertTrue(_match_room_entered(
-            c, "CORUSCANT_WORKS_LANDING_ZONE"))
+            c, "COMMERCIAL_DISTRICT_LANDING_ZONE"))
 
     def test_slug_mismatch(self):
         from engine.chain_events import _match_room_entered
-        c = {"room": "coruscant_works_landing_zone"}
+        c = {"room": "commercial_district_landing_zone"}
         self.assertFalse(_match_room_entered(c, "tipoca_briefing_room"))
         self.assertFalse(_match_room_entered(c, ""))
 
     def test_empty_completion_room_no_match(self):
         from engine.chain_events import _match_room_entered
         self.assertFalse(_match_room_entered(
-            {}, "coruscant_works_landing_zone"))
+            {}, "commercial_district_landing_zone"))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -451,13 +451,13 @@ class TestOnCombatWonDispatch(_F8C2BIsolatedBase):
 class TestOnRoomEnteredDispatch(_F8C2BIsolatedBase):
 
     def test_advances_on_correct_slug(self):
-        # republic_soldier step 4: room_entered coruscant_works_landing_zone
+        # republic_soldier step 4: room_entered commercial_district_landing_zone
         from engine.chain_events import on_room_entered
         db = _make_fake_db()
         char = _char_with_chain("republic_soldier", step=4,
                                 completed=[1, 2, 3])
         result = _run(on_room_entered(
-            db, char, "coruscant_works_landing_zone"))
+            db, char, "commercial_district_landing_zone"))
         self.assertTrue(result)
         attrs = json.loads(char["attributes"])
         self.assertEqual(attrs["tutorial_chain"]["step"], 5)
@@ -550,7 +550,7 @@ class TestNoActiveChainNoOp(_F8C2BIsolatedBase):
         db = _make_fake_db()
         char = _char_no_chain()
         self.assertFalse(_run(on_room_entered(
-            db, char, "coruscant_works_landing_zone")))
+            db, char, "commercial_district_landing_zone")))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -678,12 +678,12 @@ class TestRepublicSoldierE2E(_F8C2BIsolatedBase):
         advance_step(attrs, corpus)
         char["attributes"] = json.dumps(attrs)
 
-        # Step 4: room_entered coruscant_works_landing_zone
+        # Step 4: room_entered commercial_district_landing_zone
         info = get_active_step_info(char)
         self.assertEqual(info["step"], 4)
         self.assertEqual(info["completion_type"], "room_entered")
         self.assertTrue(_run(on_room_entered(
-            db, char, "coruscant_works_landing_zone")))
+            db, char, "commercial_district_landing_zone")))
 
         # Step 5: command_executed +factions
         info = get_active_step_info(char)

@@ -202,6 +202,7 @@ npcs:
         stamina: "3D"
       move: 10
     ai_config:
+      vendor: true   # decision a + vendor flag (2026-06-12): sells open-market commons
       personality: >-
         Lup is the Ithorian owner of Mos Eisley's best-stocked general store
         — gentle, patient, and methodical in the way of his herd-minded

@@ -328,6 +328,19 @@ class _LiveHarness:
         except Exception:
             log.warning("smoke harness: territory init failed", exc_info=True)
 
+        # ── Player-cities schema ──
+        # GameServer initializes this at boot (server/game_server.py); the
+        # smoke harness must mirror it because the death / corpse / security
+        # path queries player_cities (room-in-city security lookup). Without
+        # it, smoke scenarios that kill a PC fail with "no such table:
+        # player_cities" (e.g. the BH insurance loop, BTY-6).
+        try:
+            from engine.player_cities import ensure_schema as _pc_schema
+            await _pc_schema(srv.db)
+        except Exception:
+            log.warning("smoke harness: player_cities init failed",
+                        exc_info=True)
+
         # ── World lore ──
         try:
             from engine.world_lore import ensure_lore_schema, seed_lore

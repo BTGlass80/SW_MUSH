@@ -72,125 +72,10 @@ RENT_TICK_INTERVAL = 604_800  # game ticks per week (1 tick = 1 second)
 # different source.
 
 _LEGACY_FACTION_QUARTER_TIERS = {
-    # ── Empire ──
-    ("empire", 0): {
-        "label": "Imperial Barracks — Shared Bunk",
-        "storage_max": 10,
-        "room_name": "{name}'s Bunk",
-        "room_desc": (
-            "A narrow bunk in the Imperial garrison barracks. A thin mattress sits on "
-            "a durasteel frame, with a locker bolted to the wall. The steady hum of "
-            "the garrison's power generator vibrates through the floor. Stormtrooper "
-            "boots echo in the corridor outside."
-        ),
-    },
-    ("empire", 2): {
-        "label": "Imperial Garrison — Private Quarters",
-        "storage_max": 30,
-        "room_name": "{name}'s Quarters",
-        "room_desc": (
-            "A private room in the Imperial garrison's officer wing. A proper bed, "
-            "a desk with a holoterminal, and a reinforced locker. The door has a "
-            "coded lock. A viewport shows {planet_view}."
-        ),
-    },
-    ("empire", 4): {
-        "label": "Imperial Garrison — Officer's Suite",
-        "storage_max": 50,
-        "room_name": "{name}'s Officer Suite",
-        "room_desc": (
-            "A spacious officer's suite in the garrison command level. A large desk "
-            "dominates one wall, flanked by a personal holoterminal and a weapons rack. "
-            "The bed is military-neat with Imperial-issue sheets. A viewport offers "
-            "a commanding view of {planet_view}. A private refresher adjoins."
-        ),
-    },
-    ("empire", 6): {
-        "label": "Imperial Garrison — Commander's Quarters",
-        "storage_max": 100,
-        "room_name": "Commander {name}'s Quarters",
-        "room_desc": (
-            "The garrison commander's private quarters. Spartan Imperial efficiency "
-            "meets the privileges of rank: a full-size desk with encrypted terminal, "
-            "a conference table for four, personal weapons vault, and a viewport "
-            "spanning the entire wall showing {planet_view}. A private meeting room "
-            "adjoins through a blast-rated door."
-        ),
-    },
-    # ── Rebel ──
-    ("rebel", 1): {
-        "label": "Rebel Safehouse — Shared Bunk",
-        "storage_max": 20,
-        "room_name": "Safehouse Bunk",
-        "room_desc": (
-            "A cramped bunk in a hidden Rebel safehouse. The walls are bare ferrocrete, "
-            "the lighting dim and powered by a tapped junction. Cargo crates serve as "
-            "furniture. A small locker is bolted under the bunk. The air tastes of "
-            "recycled atmosphere and quiet defiance."
-        ),
-    },
-    ("rebel", 3): {
-        "label": "Rebel Safehouse — Private Cell",
-        "storage_max": 40,
-        "room_name": "{name}'s Cell",
-        "room_desc": (
-            "A private room in the safehouse's inner section. A bunk, a secured locker, "
-            "and a small desk with an encrypted datapad. Alliance propaganda posters "
-            "line one wall — hand-painted Starbird symbols. The door has an old-fashioned "
-            "mechanical lock, harder to slice than electronic ones."
-        ),
-    },
-    ("rebel", 5): {
-        "label": "Rebel Command Quarters",
-        "storage_max": 80,
-        "room_name": "Commander {name}'s Quarters",
-        "room_desc": (
-            "The cell commander's quarters deep in the safehouse. A planning table "
-            "covered in holographic terrain maps, an encrypted terminal with a "
-            "direct HoloNet relay, and a weapons cache behind a false wall. The "
-            "spartan furnishings can't hide the weight of responsibility that "
-            "fills this room."
-        ),
-    },
-    # ── Hutt Cartel ──
-    ("hutt", 2): {
-        "label": "Hutt Cartel — Enforcer's Safehouse",
-        "storage_max": 30,
-        "room_name": "Enforcer's Room",
-        "room_desc": (
-            "A functional safehouse room in the Hutt-controlled undercity. The door "
-            "is reinforced durasteel with three separate locks. A weapons rack, a bunk, "
-            "and a hidden floor compartment for 'special deliveries.' The walls are "
-            "covered in cheap soundproofing material. Comfort was never the point."
-        ),
-    },
-    ("hutt", 3): {
-        "label": "Hutt Cartel — Lieutenant's Suite",
-        "storage_max": 50,
-        "room_name": "{name}'s Suite",
-        "room_desc": (
-            "A well-appointed suite in a Hutt-controlled building. The decor is "
-            "gaudy — gold trim, velvet cushions, a bubbling hookah stand. A heavy "
-            "curtain hides a hidden compartment large enough to hold a small arsenal. "
-            "A viewport shows {planet_view}. The Hutts take care of their own."
-        ),
-    },
-    ("hutt", 5): {
-        "label": "Hutt Vigo — Luxury Penthouse",
-        "storage_max": 100,
-        "room_name": "Vigo {name}'s Penthouse",
-        "room_desc": (
-            "A luxury penthouse dripping with Hutt-style opulence. Gold-plated fixtures, "
-            "a sunken conversation pit with plush cushions, a fully stocked bar of "
-            "exotic spirits, and a panoramic viewport showing {planet_view}. A private "
-            "turbolift connects to the street below. Armed guards patrol the corridor "
-            "outside. This is what power looks like in the Outer Rim."
-        ),
-    },
-    # ── B.1.d.1 (Apr 29 2026) — CW faction quarter tiers ─────────────────────────────
+    # ── CW faction quarter tiers ─────────────────────────────────────────────
     # Per cw_housing_design_v1.md §5. Republic on Coruscant Coco Town,
     # CIS in Stalgasin Deep Hive on Geonosis, Jedi Order in Coruscant
-    # Jedi Temple, Hutt Cartel identical to GCW Hutt with renamed key.
+    # Jedi Temple, Hutt Cartel in the Nar Shaddaa undercity.
     # Bounty Hunters' Guild has no faction quarters per design §5.5.
     ("republic", 0): {
         "label": "Republic Guard Barracks — Shared Bunk",
@@ -389,17 +274,14 @@ _LEGACY_FACTION_QUARTER_TIERS = {
 # pattern as engine/director.py's `_resolve_director_runtime_config()`.
 
 def _resolve_faction_quarter_tiers() -> dict:
-    """Resolve FACTION_QUARTER_TIERS from BOTH GCW and CW housing_lots.yaml,
+    """Resolve FACTION_QUARTER_TIERS from the active era's housing_lots.yaml,
     merged into a single (faction_code, rank) -> cfg dict.
 
-    Pre-F.5b.1 the in-Python literal mashed both eras' faction data
-    into one dict (B.1.d.1 added CW factions inline alongside GCW
-    ones). The YAML split (F.5a.1) stores them per-era, but consumer
-    code in this module (`_faction_min_rank`, `_best_tier_for_rank`)
-    expects faction-level coverage regardless of active era — a CW PC
-    in GCW DB still needs a recognizable faction code, and the
-    soft-bail in B.1.d.2 only fires when the faction IS in the dict
-    but its (faction, planet) lot ID isn't built yet.
+    The YAML is the source of truth (F.5a.1); consumer code in this
+    module (`_faction_min_rank`, `_best_tier_for_rank`) expects
+    faction-level coverage for the active era's factions. The soft-bail
+    in B.1.d.2 only fires when the faction IS in the dict but its
+    (faction, planet) lot ID isn't built yet.
 
     Falls back to _LEGACY_FACTION_QUARTER_TIERS on any failure
     (logs WARNING). The fallback is byte-equivalent to the merged
@@ -422,7 +304,7 @@ def _resolve_faction_quarter_tiers() -> dict:
     out: dict = {}
     eras_loaded: list = []
     eras_failed: list = []
-    for era in ("gcw", "clone_wars"):
+    for era in ("clone_wars",):
         try:
             era_dir = Path("data") / "worlds" / era
             if not era_dir.is_dir():
@@ -501,7 +383,7 @@ FACTION_QUARTER_TIERS = _resolve_faction_quarter_tiers()
 # below was not. Net effect pre-F.5d: a Jedi PC promoted to any rank hit
 # `_faction_quarters_locatable("jedi_order") == False` and silently no-op'd.
 #
-# Anchor room: 211 (jedi_temple_entrance_hall, coruscant_temple zone). The
+# Anchor room: 211 (jedi_temple_entrance_hall, jedi_temple zone). The
 # entrance hall is the right anchor — it's the inside-the-Temple analogue
 # of Jabba's Audience Chamber for hutt or the Tatooine Militia HQ for
 # empire. The main gate (210) is a public outdoor concourse and would be
@@ -539,12 +421,6 @@ FACTION_QUARTER_TIERS = _resolve_faction_quarter_tiers()
 #                 where Hutt business is conducted, and the suites/
 #                 penthouses described in the ladder branch from there.
 FACTION_QUARTER_LOTS = {
-    ("empire", "tatooine"):    22,   # Tatooine Militia HQ / Garrison
-    ("empire", "corellia"):    107,  # CorSec HQ (Imperial liaison)
-    ("rebel", "tatooine"):     47,   # Outskirts - Abandoned Compound
-    ("rebel", "nar_shaddaa"):  69,   # Undercity - Deep Warrens access
-    ("hutt", "tatooine"):      19,   # Jabba's Townhouse - Audience Chamber
-    ("hutt", "nar_shaddaa"):   72,   # Hutt Emissary Tower area
     # ── F.5d (Apr 30 2026): CW jedi_order anchor ─────────────────────────────
     ("jedi_order", "coruscant"): 211,  # Jedi Temple - Entrance Hall
     # ── B.1.d.3 (Apr 30 2026): remaining CW faction anchors ──────────────────
@@ -554,15 +430,12 @@ FACTION_QUARTER_LOTS = {
 }
 
 FACTION_HOME_PLANET = {
-    "empire": "tatooine",
-    "rebel":  "tatooine",
-    "hutt":   "nar_shaddaa",
-    # ── B.1.d.1 (Apr 29 2026) — CW faction home planets ────────────────────────────
+    # ── CW faction home planets ────────────────────────────────────────────────
     # Per cw_housing_design_v1.md §5: Republic on Coruscant, CIS on
-    # Geonosis, Jedi Order on Coruscant, Hutt Cartel on Nar Shaddaa
-    # (rename of GCW hutt). Bounty Hunters' Guild has no faction
-    # quarters per design §5.5 and is intentionally absent — it lands
-    # on the "tatooine" default via _planet_for_faction's .get fallback.
+    # Geonosis, Jedi Order on Coruscant, Hutt Cartel on Nar Shaddaa.
+    # Bounty Hunters' Guild has no faction quarters per design §5.5 and
+    # is intentionally absent — it lands on the "tatooine" default via
+    # _planet_for_faction's .get fallback.
     "republic":    "coruscant",
     "cis":         "geonosis",
     "jedi_order":  "coruscant",
@@ -651,27 +524,6 @@ _TIER3_ROOM_DESCS = {
         ("Storage Bay", "A sealed compartment with its own door lock. The walls are "
          "insulated — sounds don't carry in or out. Previous owners clearly valued "
          "privacy over comfort."),
-    ],
-    "kessel": [
-        ("Main Module", "A pressurized habitation module, standard Imperial mining colony "
-         "issue. Functional gray walls, a fold-out bunk, and a small viewport showing "
-         "the barren surface of Kessel."),
-        ("Secondary Module", "An adjoining module connected by a sealed corridor. "
-         "Climate control hums steadily. The air tastes of recycled atmosphere "
-         "and distant spice processing."),
-        ("Utility Pod", "A cramped utility pod adapted for storage. Environmental "
-         "seals keep the contents safe from Kessel's unpredictable atmosphere."),
-    ],
-    "corellia": [
-        ("Living Room", "A proper Corellian townhouse room with real wooden floors "
-         "and plastered walls. Light streams through tall windows. A fireplace — real "
-         "fire, not holographic — occupies one wall."),
-        ("Bedroom", "An upstairs room with a proper bed, not a bunk. Corellian "
-         "craftsmanship shows in the woodwork around the windows and doorframe. "
-         "A small balcony overlooks the street."),
-        ("Study", "A cozy room lined with shelves. A desk faces the window, with "
-         "enough space for a holoterminal and personal effects. The door has a "
-         "mechanical lock — Corellians trust old technology."),
     ],
 }
 
@@ -1458,8 +1310,6 @@ def _planet_view(planet: str) -> str:
     views = {
         "tatooine":    "twin suns baking the dusty street below",
         "nar_shaddaa": "neon-lit Nar Shaddaa skyline",
-        "kessel":      "grey mine exhaust drifting past the porthole",
-        "corellia":    "Coronet City spires glinting in the morning light",
         # ── B.1.d.1 (Apr 29 2026) — CW planet views ────────────────────────────────
         # Used by faction-quarter and HQ description "{planet_view}"
         # placeholder substitutions. CW planets per cw_housing_design_v1.md §4.
@@ -1681,25 +1531,16 @@ def _entry_room_for_faction(faction_code: str, planet: str = None) -> Optional[i
     return FACTION_QUARTER_LOTS.get((faction_code, planet))
 
 
-# ── B.1.d.2 (Apr 29 2026) — Insurgent-faction generalization ─────────────────
-# The pre-B.1.d.2 code hardcoded `is_rebel = faction_code == "rebel"`
-# to decide whether a faction-quarter entry exit should be hidden from
-# non-members. The semantic is "this faction is the era's insurgent
-# challenger; their safehouses shouldn't be discoverable by walking
-# down the hall." Generalizing it to a module-level set lets CW's
-# CIS quarters use the same insurgent-quarter pattern as GCW Rebel
-# safehouses without further code changes.
-#
-# Mapping rationale:
-#   GCW: `rebel` is the insurgent (the empire is the lawful state)
-#   CW:  `cis` is the insurgent (the republic is the lawful state)
-#
-# Republic, Empire, Jedi Order, Hutt Cartel, BHG quarters are all
-# either lawful-state or independent-criminal — overt enough to not
-# need exit hiding. Adding a faction here is opt-in; a faction not
-# in this set keeps its exits visible (the GCW pre-drop default for
-# all non-rebel factions).
-INSURGENT_FACTIONS = frozenset({"rebel", "cis"})
+# ── Insurgent-faction generalization ────────────────────────────────────────
+# A faction-quarter entry exit is hidden from non-members when the
+# faction is an insurgent challenger whose safehouses shouldn't be
+# discoverable by walking down the hall. In the Clone Wars the CIS is
+# that insurgent (the Republic is the lawful state). Republic, Jedi
+# Order, Hutt Cartel and BHG quarters are lawful-state or
+# independent-criminal — overt enough not to need exit hiding. Adding
+# a faction here is opt-in; a faction not in this set keeps its exits
+# visible.
+INSURGENT_FACTIONS = frozenset({"cis"})
 
 
 def is_insurgent_faction(faction_code: str) -> bool:
@@ -1708,7 +1549,7 @@ def is_insurgent_faction(faction_code: str) -> bool:
     Used by `assign_faction_quarters` to decide whether to mark the
     new exit with `hidden_faction = faction_code`. The semantic is
     "insurgent safehouse" — the exit is invisible to anyone outside
-    the faction, mirroring how Rebel safehouses worked in GCW.
+    the faction.
     """
     return faction_code in INSURGENT_FACTIONS
 
@@ -1844,11 +1685,10 @@ async def assign_faction_quarters(db, char: dict, faction_code: str,
 
     exit_in_id = await db.create_exit(entry_room_id, new_room_id, door_dir,
                                        room_name)
-    # ── B.1.d.2 (Apr 29 2026) — Generalized insurgent-exit hiding ──────
-    # Insurgent factions (rebel in GCW, cis in CW) get hidden entry
-    # exits — only members can see the way in. Lawful-state and
-    # independent factions get visible exits (the GCW pre-drop default
-    # for all non-rebel factions).
+    # ── Generalized insurgent-exit hiding ──────
+    # Insurgent factions (cis in CW) get hidden entry exits — only
+    # members can see the way in. Lawful-state and independent
+    # factions get visible exits.
     #
     # The hidden_faction column stores the actual faction_code, so a
     # CIS PC entering a CIS safehouse will see the exit while a
@@ -2413,18 +2253,6 @@ _TIER4_SHOP_DESCS = {
          "Promenade's older architecture. Track lighting illuminates display cases. "
          "The place smells faintly of coolant and freshly minted credit chips."),
     ],
-    "kessel": [
-        ("Station Kiosk", "A pressurized commercial module mounted to the station ring. "
-         "Viewport shows the pocked surface of Kessel. Display panels glow with inventory "
-         "listings. Climate-controlled and professionally maintained."),
-    ],
-    "corellia": [
-        ("Shopfront", "A proper Corellian commercial space with wide display windows facing "
-         "the street. Hardwood floors, plastered walls, and a hand-lettered sign space above "
-         "the doorway. Smells like lacquer and honest commerce."),
-        ("Trade Floor", "A two-storey commercial space with a mezzanine viewing gallery. "
-         "CorSec-approved safety seals are visible on the exits. Good bones."),
-    ],
 }
 
 # Private room descriptions (back rooms, owner-only)
@@ -2444,19 +2272,6 @@ _TIER4_PRIVATE_DESCS = {
          "a biometric reader. Whatever's in here, it stays in here."),
         ("Private Office", "A small office with a desk, a secure comms terminal, "
          "and a view of the building's internal corridors. No windows — intentional."),
-    ],
-    "kessel": [
-        ("Hab Module", "A standard-issue habitat pod adjoining the commercial kiosk. "
-         "Bunk, storage, and a sealed airlock connecting to the shop side."),
-        ("Supply Room", "A pressurized storage compartment. Cold, quiet, and very locked."),
-    ],
-    "corellia": [
-        ("Living Quarters", "Upstairs from the shop, a proper apartment. "
-         "Wooden floors, tall windows, and a kitchen alcove. Smells like home."),
-        ("Storeroom", "A ground-floor back room with reinforced shelving and a "
-         "loading door to the alley. Good for bulk goods."),
-        ("Upstairs Office", "A private office above the shop floor. A desk faces "
-         "a window overlooking the commercial quarter. Lockable from inside."),
     ],
 }
 
@@ -3132,7 +2947,7 @@ async def attempt_lockpick(db, char: dict, room_id: int,
     difficulty = LOCKPICK_DIFFICULTY.get(zone_sec, 999)
     if difficulty >= 999:
         return {"ok": False,
-                "msg": "Imperial security seals on this door cannot be picked.",
+                "msg": "Heavy security seals on this door cannot be picked.",
                 "entered": False}
 
     # Skill check via perform_skill_check()
@@ -3255,7 +3070,7 @@ async def attempt_theft(db, char: dict, room_id: int,
 
     if zone_sec == "secured":
         return {"ok": False,
-                "msg": "Imperial surveillance makes theft impossible here.", "item": None}
+                "msg": "Constant surveillance makes theft impossible here.", "item": None}
 
     difficulty = THEFT_DIFFICULTY.get(zone_sec, 999)
     if difficulty >= 999:
@@ -3427,93 +3242,10 @@ TIER5_TYPES = {
 # via engine/housing_lots_provider.get_tier5_lots().
 
 _TIER5_ROOM_DESCS = {
-    "empire": {
-        "entrance": ("Imperial Outpost — Entry",
-            "A reinforced blast door opens into a stark, well-lit entry hall. The Imperial "
-            "insignia is painted on the far wall. Security cameras track every corner."),
-        "meeting":  ("Briefing Room",
-            "A circular table with a holographic projector dominates this windowless room. "
-            "Star charts and tactical overlays glow on the walls."),
-        "armory":   ("Imperial Armory",
-            "Racks of blaster rifles in regulation rows. A locked durasteel cage holds "
-            "heavier ordnance. The air smells of weapon lubricant and ozone."),
-        "barracks": ("Garrison Barracks",
-            "Double-stacked bunks in regulation configuration with sealed footlockers. "
-            "Everything is spotlessly clean."),
-        "barracks2":("Personnel Quarters",
-            "Individual sleeping compartments. A shared common area has a holotable "
-            "and beverage dispenser."),
-        "comm":     ("Communications Station",
-            "Banks of encrypted military-band transceivers, a subspace relay, and "
-            "monitoring screens showing local sensor feeds."),
-        "quarters": ("Commander's Quarters",
-            "A spacious private suite. Proper bed, secure holoterminal, weapons rack, "
-            "and viewport. Dual-lock door — code and biometric."),
-        "cell":     ("Detention Block",
-            "A reinforced cell with a ray-shielded door. Metal slab bench. "
-            "Surveillance cameras cover every angle."),
-        "hangar":   ("Vehicle Bay",
-            "A cavernous bay with durasteel floor plating scored by repulsor wash. "
-            "Maintenance gantries line the walls."),
-    },
-    "rebel": {
-        "entrance": ("Rebel Safehouse — Entry",
-            "A concealed entrance into a cramped, dimly-lit foyer. A handwritten sign "
-            "reads 'HOPE.' Someone has added 'and blasters.'"),
-        "meeting":  ("Command Center",
-            "A makeshift war room with a salvaged holotable displaying Alliance-coded "
-            "star maps. Mismatched chairs. The air is thick with caf."),
-        "armory":   ("Supply Cache",
-            "Weapons in crates, wall racks, even a hollowed-out cargo pod. Nothing "
-            "matches, but everything works."),
-        "barracks": ("Rebel Quarters",
-            "Bunks and hammocks wherever space permits. It's cramped, messy, and "
-            "feels like home."),
-        "barracks2":("Crew Bunks",
-            "A secondary sleeping area. Someone hung a Rebel Alliance banner on the "
-            "wall. A repair droid trundles between the bunks."),
-        "comm":     ("Comm Shack",
-            "Jury-rigged from salvaged components. Despite appearances, the "
-            "encryption is military-grade. Cold caf on the console."),
-        "quarters": ("Cell Leader's Room",
-            "The only private room. A cot, datapads, and a locked strongbox. A "
-            "blaster hangs within arm's reach of the pillow."),
-        "cell":     ("Secure Room",
-            "Reinforced room — brig or panic room. Door locks from both sides."),
-        "hangar":   ("Hidden Dock",
-            "Camouflaged landing pad. Room for a small freighter. Fuel drums and "
-            "spare parts fill the corners."),
-    },
-    "hutt": {
-        "entrance": ("Hutt Stronghold — Entry",
-            "An opulent entryway designed to intimidate. Heavy curtains, garish "
-            "trophies, and two guard alcoves flanking the door."),
-        "meeting":  ("Audience Chamber",
-            "A lavish chamber with a raised dais. Plush cushions, hookah pipes, "
-            "and a sunken pit for 'entertainment.' Sound-dampened walls."),
-        "armory":   ("Weapons Vault",
-            "Reinforced vault crammed with weapons. Everything has a price tag — "
-            "the Hutts never give anything away."),
-        "barracks": ("Enforcers' Den",
-            "Rough dormitory for cartel muscle. Bunks with weapon racks underneath. "
-            "A sabacc table occupies the center."),
-        "barracks2":("Crew Quarters",
-            "Actual mattresses and personal lockers. Reserved for trusted operatives."),
-        "comm":     ("Operations Center",
-            "Surprisingly sophisticated. Encrypted channels, slicing terminals, and "
-            "a live feed of local law enforcement comms."),
-        "quarters": ("Boss's Suite",
-            "Obscenely luxurious. Massive bed, private refresher with actual water, "
-            "and a safe the size of a speeder."),
-        "cell":     ("Prisoner Cell",
-            "Bare cell. Chains bolted to the wall. A drain in the floor."),
-        "hangar":   ("Smuggling Bay",
-            "Concealed loading dock with hidden compartments and false walls."),
-    },
-    # ── B.1.d.1 (Apr 29 2026) — CW org-HQ room descriptions ──────────────────────────
+    # ── CW org-HQ room descriptions ──────────────────────────────────────────
     # Per architecture v38 §19 territory-control: any org with an HQ
-    # gets per-room flavor when built. Adds 5 CW factions; falls
-    # through to "default" for any unmapped code.
+    # gets per-room flavor when built. Falls through to "default" for
+    # any unmapped code.
     "republic": {
         "entrance": ("Republic Forward Compound — Entry",
             "A reinforced compound entry with a wide blast door. The Republic "

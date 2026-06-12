@@ -265,7 +265,12 @@ class TestMigrationWired(unittest.TestCase):
         with open(os.path.join(PROJECT_ROOT, "db", "database.py"),
                   encoding="utf-8") as fh:
             src = fh.read()
-        self.assertIn("SCHEMA_VERSION = 38", src)
+        # SCHEMA_VERSION advances on every migration; assert it is at least
+        # 38 (the version that introduced the market_state table) rather than
+        # pinning an exact value that goes stale on every later schema bump.
+        _idx = src.index("SCHEMA_VERSION = ")
+        _ver = int(src[_idx + len("SCHEMA_VERSION = "):].split()[0])
+        self.assertGreaterEqual(_ver, 38)
         # v38 migration creates the market_state table
         i = src.index("38: [")
         nxt = src.index("\n}", i)

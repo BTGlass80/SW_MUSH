@@ -355,9 +355,9 @@ async def cargo_timeout(enc, mgr, db, sm, **kw):
 
 CONTACT_SCENARIOS = [
     ("yacht",     30, "Luxury yacht with broken nav computer"),
-    ("racer",     25, "Smuggler blasting through at max speed, TIEs pursuing"),
+    ("racer",     25, "Smuggler blasting through at max speed, patrol fighters pursuing"),
     ("adrift",    25, "Freighter adrift — power but no comms response"),
-    ("probe",     20, "Imperial probe droid deployment ship"),
+    ("probe",     20, "Separatist probe droid deployment ship"),
 ]
 
 
@@ -378,14 +378,14 @@ async def contact_setup(enc, mgr, db, sm, **kw):
                 description="Not your problem.", risk="none", icon="x-circle"),
         ]
     elif scenario[0] == "racer":
-        enc.prompt = (f"[SENSORS] Contact — ship at max speed, two TIE fighters in pursuit!\n"
+        enc.prompt = (f"[SENSORS] Contact — ship at max speed, two Republic patrol fighters in pursuit!\n"
                       f"  {AMBER}\"Help! They're going to blow me apart!\"{RST}")
         enc.choices = [
             EncounterChoice(key="help", label="Intervene",
-                description="Engage the TIEs. Risky but rewarding.",
+                description="Engage the patrol fighters. Risky but rewarding.",
                 risk="high", icon="crosshair"),
-            EncounterChoice(key="hail_imps", label="Hail Imperials",
-                description="Report to the patrol. Small reputation boost.",
+            EncounterChoice(key="hail_imps", label="Hail the Patrol",
+                description="Report to the Republic patrol. Small reputation boost.",
                 risk="none", icon="radio"),
             EncounterChoice(key="ignore", label="Stay Out of It",
                 description="Not your fight.", risk="none", icon="x-circle"),
@@ -402,11 +402,11 @@ async def contact_setup(enc, mgr, db, sm, **kw):
                 risk="none", icon="x-circle"),
         ]
     elif scenario[0] == "probe":
-        enc.prompt = (f"[SENSORS] Imperial probe droid carrier detected.\n"
+        enc.prompt = (f"[SENSORS] Separatist probe droid carrier detected.\n"
                       f"  {DIM}Deploying surveillance probes across the sector.{RST}")
         enc.choices = [
             EncounterChoice(key="destroy", label="Destroy Probes",
-                description="Gunnery check. Rebel contacts will pay for this.",
+                description="Gunnery check. Republic contacts will pay for this.",
                 risk="medium", icon="crosshair", skill="Starship Gunnery", difficulty="Moderate (15)"),
             EncounterChoice(key="ignore", label="Avoid",
                 description="Stay clear. Not worth the attention.",
@@ -440,7 +440,7 @@ async def contact_help(enc, mgr, db, sm, **kw):
         # Combat encounter with TIEs — use pirate combat spawn
         from engine.starships import SpaceRange
         await mgr.broadcast_to_bridge(enc,
-            f"\n  {RED}[COMBAT]{RST} Engaging Imperial fighters!", sm)
+            f"\n  {RED}[COMBAT]{RST} Engaging the patrol fighters!", sm)
         from engine.encounter_anomaly import _spawn_pirate_combat
         await _spawn_pirate_combat(enc, mgr, db, sm, "aggressive", SpaceRange.MEDIUM)
         if enc.context.get("combat_active"):
@@ -471,21 +471,21 @@ async def contact_help(enc, mgr, db, sm, **kw):
             cr = random.randint(1500, 4000)
             await mgr.broadcast_to_bridge(enc,
                 f"\n  {GREEN}[WEAPONS]{RST} Probes destroyed before they could transmit!\n"
-                f"  {CYAN}[INTEL]{RST} A Rebel contact transfers {cr:,} credits for the service.", sm)
+                f"  {CYAN}[INTEL]{RST} A Republic intelligence contact transfers {cr:,} credits for the service.", sm)
             await _award_credits(cid, cr, db)
             mgr.resolve(enc, outcome="contact_probe_destroyed")
         else:
             await mgr.broadcast_to_bridge(enc,
                 f"\n  {RED}[WEAPONS]{RST} Missed! Probes scatter and transmit.\n"
-                f"  {AMBER}Imperial attention in this sector just increased.{RST}\n"
+                f"  {AMBER}Separatist attention in this sector just increased.{RST}\n"
                 f"  {DIM}(Gunnery: {r['roll']} vs 15 — failed){RST}", sm)
             mgr.resolve(enc, outcome="contact_probe_alerted")
 
 
 async def contact_hail_imps(enc, mgr, db, sm, **kw):
     await mgr.broadcast_to_bridge(enc,
-        f"\n  {DIM}[COMMS] You report the smuggler's position to Imperial patrol.\n"
-        f"  \"Noted. The Empire appreciates loyal citizens.\"{RST}", sm)
+        f"\n  {DIM}[COMMS] You report the smuggler's position to the Republic patrol.\n"
+        f"  \"Noted. The Republic appreciates loyal citizens.\"{RST}", sm)
     mgr.resolve(enc, outcome="contact_racer_reported")
 
 

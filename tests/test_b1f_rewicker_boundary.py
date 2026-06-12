@@ -88,33 +88,6 @@ class TestEspionageFactionFindingsKeysExtended(unittest.TestCase):
         self.assertGreater(len(_FACTION_FINDINGS["bounty_hunters_guild"]), 0)
 
 
-class TestEspionageFactionFindingsGCWByteEquivalence(unittest.TestCase):
-    """GCW factions retain identical entries to pre-drop."""
-
-    def test_empire_findings_unchanged(self):
-        from engine.espionage import _FACTION_FINDINGS
-        empire = _FACTION_FINDINGS["empire"]
-        self.assertEqual(len(empire), 3)
-        self.assertIn("Imperial insignia scratched into the underside of a table.",
-                      empire)
-        self.assertIn("Boot polish residue — Imperial regulation formula.",
-                      empire)
-
-    def test_rebel_findings_unchanged(self):
-        from engine.espionage import _FACTION_FINDINGS
-        rebel = _FACTION_FINDINGS["rebel"]
-        self.assertEqual(len(rebel), 3)
-        self.assertIn("Alliance code cylinders hidden in a false-bottom container.",
-                      rebel)
-
-    def test_hutt_findings_unchanged(self):
-        from engine.espionage import _FACTION_FINDINGS
-        hutt = _FACTION_FINDINGS["hutt"]
-        self.assertEqual(len(hutt), 3)
-        self.assertIn("Spice residue in the cracks between floor plates.",
-                      hutt)
-
-
 class TestEspionageFactionFindingsCWThemed(unittest.TestCase):
     """CW pools mention era-appropriate flavor (Republic / Separatist /
     Jedi / Cartel / Guild) and avoid GCW-only references like Empire,
@@ -193,9 +166,12 @@ class TestEspionageFindingsLookupBehavior(unittest.IsolatedAsyncioTestCase):
             f"No Republic finding emitted: {findings!r}",
         )
 
-    async def test_gcw_empire_claim_byte_equivalent(self):
-        """GCW Empire claim still produces the same Empire finding shape."""
+    async def test_retired_gcw_org_code_produces_no_faction_finding(self):
+        """A retired GCW org_code (empire) is no longer in _FACTION_FINDINGS;
+        the era-agnostic .get(org, []) lookup yields no faction-themed finding."""
         from engine import espionage
+
+        self.assertNotIn("empire", espionage._FACTION_FINDINGS)
 
         room = {"id": 100}
         char = {"id": 1, "name": "Tester", "faction_id": "empire"}
@@ -209,15 +185,11 @@ class TestEspionageFindingsLookupBehavior(unittest.IsolatedAsyncioTestCase):
                        side_effect=fake_get_claim):
                 db = MagicMock()
                 db.fetchall = AsyncMock(return_value=[])
+                # Must not raise; empire simply has no themed pool now.
                 findings = await espionage.generate_investigation_findings(
                     db, char, room, margin=3,
                 )
-
-        empire_pool = espionage._FACTION_FINDINGS["empire"]
-        self.assertTrue(
-            any(emp in findings for emp in empire_pool),
-            f"No Empire finding emitted: {findings!r}",
-        )
+        self.assertIsInstance(findings, list)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -271,10 +243,10 @@ class TestSpecializationGateBehavior(unittest.TestCase):
     """faction_has_specialization() returns the right answers for the
     factions that drive the rank-1 gate."""
 
-    def test_empire_has_specialization(self):
-        """GCW Empire still has specialization (byte-equivalence)."""
+    def test_empire_no_specialization_post_retirement(self):
+        """GCW Empire no longer has a specialization flow (retired)."""
         from engine.organizations import faction_has_specialization
-        self.assertTrue(faction_has_specialization("empire"))
+        self.assertFalse(faction_has_specialization("empire"))
 
     def test_republic_has_specialization(self):
         """CW Republic has specialization (B.1.b.2 added this)."""

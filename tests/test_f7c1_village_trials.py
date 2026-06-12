@@ -301,8 +301,18 @@ class TestVillageTrialNPCsPlaced:
         # Falleen Black Sun Vigo backing the Falleen Syndicate Tower
         # rewrite of coruscant room 230; see
         # data/worlds/clone_wars/npcs_drop_i_falleen_syndicate.yaml).
+        #
+        # 2026-06-05 reconciliation: a clean build_mos_eisley produced 196 NPCs
+        # (verified: 196 rows, 196 DISTINCT names, no duplicates). The 177
+        # baseline had drifted +19 across intervening content drops that added
+        # NPCs without updating this whole-table count guard.
+        # 2026-06-06 (Drop A hygiene): +2 more from content drops since the
+        # 2026-06-05 pin -> re-verified 198 rows / 198 DISTINCT names via a
+        # clean build_mos_eisley (era=clone_wars), no duplicates. NOTE: this is
+        # a brittle total-count assertion; the by-name village-NPC placement
+        # checks elsewhere in this class are the substantive guarantees.
         rows = _query(self.db_path, "SELECT COUNT(*) AS c FROM npcs")
-        assert rows[0]["c"] == 177
+        assert rows[0]["c"] == 198
 
     def test_smith_daro_at_forge(self):
         rows = _query(

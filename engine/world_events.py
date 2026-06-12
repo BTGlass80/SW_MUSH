@@ -50,6 +50,8 @@ class EventType(str, Enum):
     BOUNTY_SURGE = "bounty_surge"
     MERCHANT_ARRIVAL = "merchant_arrival"
     SANDSTORM = "sandstorm"
+    GRAVEL_STORM = "gravel_storm"   # Lane E2a: worse sandstorm (Secrets of Tatooine §3)
+    SANDWHIRL = "sandwhirl"         # Lane E2a: violent sand-funnel set-piece (SoT §3)
     CANTINA_BRAWL = "cantina_brawl"
     DISTRESS_SIGNAL = "distress_signal"
     PIRATE_SURGE = "pirate_surge"
@@ -59,6 +61,7 @@ class EventType(str, Enum):
     TRADE_BOOM = "trade_boom"
     INTELLIGENCE_THAW = "intelligence_thaw"
     SPICE_DEMAND = "spice_demand"
+    FLOOD = "flood"                 # Lane D: the E'Y-Akh annual flood (Geonosis & Outer Rim §1.4)
 
 
 # Frozenset for validation
@@ -79,6 +82,9 @@ class EventDef:
     timer_probability: float        # Per-tick chance (1/N per second)
     preferred_zones: list[str]      # Zone keys this event favors
     mechanical_effects: dict        # Key-value effects the game can read
+    effect_text: str = ""           # Short player-facing effect summary for the
+                                    # web-client structured payload (optional;
+                                    # empty for events with no metered effect).
 
 
 EVENT_DEFS: dict[EventType, EventDef] = {
@@ -149,7 +155,8 @@ EVENT_DEFS: dict[EventType, EventDef] = {
         name="Sandstorm",
         announce_text=(
             f"{_YELLOW}[WEATHER]{_RESET} A sandstorm sweeps through {{zone_name}}. "
-            f"Visibility is near zero. Perception checks are at \u22121D."
+            f"Visibility drops to near zero and blowing grit fouls ranged fire "
+            f"(Perception \u22121D, ranged attacks \u22121D)."
         ),
         expire_text=(
             f"{_DIM}The sandstorm subsides. Dust settles on everything.{_RESET}"
@@ -157,7 +164,54 @@ EVENT_DEFS: dict[EventType, EventDef] = {
         default_duration_min=10, default_duration_max=20,
         timer_probability=1 / (4 * 3600),
         preferred_zones=["streets"],
-        mechanical_effects={"perception_penalty": -3},  # -1D = -3 pips
+        # Lane E2a re-tune (SoT §3): sandstorms block vision AND cripple ranged
+        # energy/missile fire. -1D = -3 pips on each. perception_penalty is
+        # consumed by skill_checks.perform_skill_check (observation family);
+        # ranged_penalty by combat._resolve_ranged_attack.
+        mechanical_effects={"perception_penalty": -3, "ranged_penalty": -3},
+        effect_text="Perception \u22121D, ranged fire \u22121D",
+    ),
+    # ── Lane E2a (Secrets of Tatooine §3): graded sand-weather above SANDSTORM ──
+    # Three tiers, ×1 / ×2 / ×3 the -1D base, on the two effects that have live
+    # consumers (perception_penalty → skill_checks; ranged_penalty → combat).
+    # d20 source DCs/damage discarded; re-stat to D6 per the WEG mandate. The
+    # space form of the sandwhirl (dragging a starship) is DEFERRED to the space
+    # lane — there is no space-weather consumer in HEAD; flight effects are not
+    # declared here so no effect ships without a consumer (anti-phantom).
+    EventType.GRAVEL_STORM: EventDef(
+        event_type=EventType.GRAVEL_STORM,
+        name="Gravel Storm",
+        announce_text=(
+            f"{_YELLOW}[WEATHER]{_RESET} A gravel storm scours {{zone_name}} — a sandstorm "
+            f"shot through with flying stone. Even shorter sightlines, even worse shooting "
+            f"(Perception \u22122D, ranged attacks \u22122D)."
+        ),
+        expire_text=(
+            f"{_DIM}The gravel storm blows itself out, leaving grit and dented plating behind.{_RESET}"
+        ),
+        default_duration_min=10, default_duration_max=18,
+        timer_probability=1 / (8 * 3600),   # rarer than a plain sandstorm
+        preferred_zones=["streets", "spaceport"],
+        mechanical_effects={"perception_penalty": -6, "ranged_penalty": -6},  # -2D / -2D
+        effect_text="Perception \u22122D, ranged fire \u22122D",
+    ),
+    EventType.SANDWHIRL: EventDef(
+        event_type=EventType.SANDWHIRL,
+        name="Sandwhirl",
+        announce_text=(
+            f"{_RED}[WEATHER]{_RESET} A sandwhirl tears across {{zone_name}} without warning — "
+            f"a towering funnel of sand with winds ten times a storm's, strong enough to drag a "
+            f"light freighter off its struts and fling a bantha like chaff. Find solid shelter NOW "
+            f"(Perception \u22123D, ranged attacks \u22123D)."
+        ),
+        expire_text=(
+            f"{_DIM}The sandwhirl wanders off as fast as it came, its roar fading to the hiss of settling sand.{_RESET}"
+        ),
+        default_duration_min=3, default_duration_max=6,   # short-lived but violent
+        timer_probability=1 / (10 * 3600),                # rarest
+        preferred_zones=["streets", "spaceport"],
+        mechanical_effects={"perception_penalty": -9, "ranged_penalty": -9},  # -3D / -3D
+        effect_text="Perception \u22123D, ranged fire \u22123D",
     ),
     EventType.CANTINA_BRAWL: EventDef(
         event_type=EventType.CANTINA_BRAWL,
@@ -316,6 +370,35 @@ EVENT_DEFS: dict[EventType, EventDef] = {
         # multiplier on the already-ledger-metered `smuggling` faucet.
         mechanical_effects={"smuggling_pay_mult": 2.0},
     ),
+
+    # ── Lane D (Geonosis & Outer Rim §1.4): the E'Y-Akh annual flood ──────────
+    # A rare, region-specific weather set-piece. Like the storms it broadcasts
+    # globally naming its locale (the world-event audience is not yet zoned —
+    # the same coarse-zone tech-debt the storms carry; flagged in TODO). Its one
+    # declared effect, perception_penalty, has a LIVE consumer
+    # (skill_checks.perform_skill_check, observation family) — the flooded
+    # desert is murk, spray, and thrashing drowning creatures. Mechanical
+    # flood->encounter wiring (drowning merdeths, shell-salvage) is a follow-up
+    # for when the zone-aware effect model lands.
+    EventType.FLOOD: EventDef(
+        event_type=EventType.FLOOD,
+        name="E'Y-Akh Flood",
+        announce_text=(
+            f"{_CYAN}[WEATHER]{_RESET} The aquifers beneath the E'Y-Akh overflow and the "
+            f"annual flood rolls out across the low desert. Geonosian drones drive merdeths "
+            f"down into the rising water to drown them; the flood churns with the things it "
+            f"has caught, and murk and spray foul sight across the wastes (Perception \u22121D)."
+        ),
+        expire_text=(
+            f"{_DIM}The flood drains back out of the E'Y-Akh, leaving a glitter of bleached "
+            f"merdeth shells strewn across the drying sand.{_RESET}"
+        ),
+        default_duration_min=60, default_duration_max=120,   # a long event, not a squall
+        timer_probability=1 / (18 * 3600),                   # rarest weather — the season comes round
+        preferred_zones=["geonosis_ey_akh"],
+        mechanical_effects={"perception_penalty": -3},       # -1D; consumed by skill_checks
+        effect_text="Perception \u22121D",
+    ),
 }
 
 
@@ -354,6 +437,7 @@ _ZONE_DISPLAY_NAMES = {
     "shops": "the Commercial District",
     "jabba": "the Hutt quarter",
     "government": "the Government Quarter",
+    "geonosis_ey_akh": "the E'Y-Akh",
 }
 
 

@@ -90,6 +90,10 @@ class EncounterEntry:
     terrains: list = field(default_factory=list)  # empty = all terrains
     min_distance_from_edge: int = 0
     faction_gate: str = ""                     # design §5.3 — name only for now
+    event_gate: str = ""                       # Lane D: world-event gate (e.g. "flood");
+                                               # entry only eligible while that event is
+                                               # active in the region's zone. Zone-aware
+                                               # (unlike the global storm get_effect path).
     narrative: str = ""                        # player-facing line on fire
     # Forward-compat metadata: spawn refs, item drops, weather config.
     # The selector doesn't read these — they're consumed by follow-up
@@ -147,6 +151,35 @@ def evaluate_faction_gate(gate: str, char, db=None) -> bool:
     return True
 
 
+def evaluate_event_gate(gate: str, region) -> bool:
+    """Lane D: gate an encounter on an active world event in the region's zone.
+
+    Unlike the storms' mechanical effects (consumed via the GLOBAL
+    ``get_effect`` path — the coarse-zone tech-debt), this check is
+    ZONE-AWARE: the encounter is eligible only when a world event whose
+    ``event_type`` matches ``gate`` is active AND affects this region's
+    zone (its ``zones_affected`` contains the region's zone, or is global).
+
+    Empty gate → always eligible (the common case). Any failure resolving
+    the manager / region zone fails CLOSED (encounter not eligible) so a
+    flood-only encounter never leaks into normal play.
+    """
+    if not gate:
+        return True
+    try:
+        from engine.world_events import get_world_event_manager
+        zone = getattr(region, "zone", None)
+        for ev in get_world_event_manager().active_events:
+            if ev.event_type.value != gate:
+                continue
+            zones = getattr(ev, "zones_affected", None) or []
+            if not zones or zone in zones:
+                return True
+    except Exception:
+        return False
+    return False
+
+
 def _filter_pool(
     entries: Sequence[EncounterEntry],
     *,
@@ -154,6 +187,7 @@ def _filter_pool(
     distance_from_edge: int,
     char,
     db=None,
+    region=None,
 ) -> list:
     """Filter the encounter pool by per-tile criteria.
 
@@ -172,6 +206,10 @@ def _filter_pool(
             continue
         # Faction gate (currently stub-True)
         if e.faction_gate and not evaluate_faction_gate(e.faction_gate, char, db=db):
+            continue
+        # Event gate (Lane D) — zone-aware: a flood-only entry is eligible
+        # only while its gating world event is active in this region's zone.
+        if e.event_gate and not evaluate_event_gate(e.event_gate, region):
             continue
         out.append(e)
     return out
@@ -210,6 +248,19 @@ def clear_cooldowns() -> None:
     _encounter_cooldowns.clear()
 
 
+# ── Animal excluder (Gundark Drop E, 2026-06-11) ────────────────────────
+# Merr-Sonn Animal Excluder (extraction §4.4): an ultrasonic deterrent
+# field. Modeled as a post-pick AVERSION — when a creature-templated
+# encounter is chosen and the character carries the device, it has a
+# flat chance to turn the animal away (flavor line via the caller's
+# "averted_by_excluder" reason). Cooldown still marks: the animal
+# approached and was repelled. The book's three power settings and
+# willpower-vs-setting roll stay notes until a willpower-graded
+# consumer exists. Tunables → T3.19.
+ANIMAL_EXCLUDER_KEY = "animal_excluder"
+ANIMAL_EXCLUDER_AVERT_CHANCE = 0.5
+
+
 def roll_encounter(
     region,
     *,
@@ -220,6 +271,7 @@ def roll_encounter(
     db=None,
     rng=None,
     now: Optional[float] = None,
+    carried_keys: Optional[set] = None,
 ) -> EncounterRollResult:
     """Roll for a wilderness encounter at ``(new_x, new_y)``.
 
@@ -278,6 +330,7 @@ def roll_encounter(
         distance_from_edge=dist,
         char=char,
         db=db,
+        region=region,
     )
     if not eligible:
         # Per design §5.1: "If no encounters match filters, move
@@ -297,6 +350,22 @@ def roll_encounter(
         if pick <= acc:
             chosen = e
             break
+
+    # Animal excluder aversion (Gundark Drop E): applies only to
+    # creature-templated entries — hostile/non_hostile picks whose
+    # payload names an npc_template (the creature-library spawn path).
+    # Caravans, weather, and templateless flavor entries pass through.
+    if carried_keys and ANIMAL_EXCLUDER_KEY in carried_keys:
+        _etype = getattr(chosen, "type", "")
+        _payload = getattr(chosen, "payload", None) or {}
+        if (_etype in ("hostile", "non_hostile")
+                and _payload.get("npc_template")
+                and (rng or random).random() < ANIMAL_EXCLUDER_AVERT_CHANCE):
+            _mark_cooldown(char_id, now=now)
+            return EncounterRollResult(
+                fired=False,
+                reason="averted_by_excluder",
+            )
 
     # Record the cooldown and return
     _mark_cooldown(char_id, now=now)
@@ -399,6 +468,7 @@ def parse_encounter_pool(raw: dict, *, terrains: dict, report) -> EncounterPool:
             terrains=good_terrains,
             min_distance_from_edge=max(0, int(e.get("min_distance_from_edge", 0))),
             faction_gate=str(e.get("faction_gate", "")),
+            event_gate=str(e.get("event_gate", "")),
             narrative=str(e.get("narrative", "")),
             payload=dict(e.get("payload") or {}),
         )

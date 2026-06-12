@@ -40,6 +40,8 @@ valid_factions:
 npc_only_factions:
   - sith                  # Dooku/Sidious axis — covert, atmospheric
   - separatist_council    # CIS oligarchy — narrated as CIS overlay
+  - stalgasin             # Geonosis dominant hive (CIS-leaning) — turf-dispute narration
+  - gehenbar              # Geonosis rival hive (Republic-backable) — Stalgasin's challenger
 
 # Influence score range
 influence_min: 0
@@ -92,12 +94,11 @@ zone_baselines:
   # ── Coruscant — Republic capital, Jedi heart ──────────────────────────
   # High Republic presence everywhere. Jedi Order spike at the Temple.
   # Hutt presence increases in the lower levels; CIS presence is covert.
-  coruscant_senate:       { republic: 90, cis: 5,  jedi_order: 25, hutt_cartel: 5,  bhg: 5,  independent: 30 }
-  coruscant_temple:       { republic: 70, cis: 0,  jedi_order: 95, hutt_cartel: 0,  bhg: 0,  independent: 15 }
-  coruscant_upper:        { republic: 80, cis: 5,  jedi_order: 15, hutt_cartel: 5,  bhg: 5,  independent: 45 }
-  coruscant_midlevels:    { republic: 60, cis: 10, jedi_order: 10, hutt_cartel: 20, bhg: 15, independent: 65 }
-  coruscant_lower:        { republic: 40, cis: 15, jedi_order: 5,  hutt_cartel: 35, bhg: 30, independent: 60 }
-  coruscant_works:        { republic: 35, cis: 20, jedi_order: 5,  hutt_cartel: 40, bhg: 25, independent: 55 }
+  senate_district:       { republic: 90, cis: 5,  jedi_order: 25, hutt_cartel: 5,  bhg: 5,  independent: 30 }
+  jedi_temple:       { republic: 70, cis: 0,  jedi_order: 95, hutt_cartel: 0,  bhg: 0,  independent: 15 }
+  monumental_district:        { republic: 80, cis: 5,  jedi_order: 15, hutt_cartel: 5,  bhg: 5,  independent: 45 }
+  commercial_district:    { republic: 60, cis: 10, jedi_order: 10, hutt_cartel: 20, bhg: 15, independent: 65 }
+  southern_underground:        { republic: 40, cis: 15, jedi_order: 5,  hutt_cartel: 35, bhg: 30, independent: 60 }
   coruscant_underworld:   { republic: 15, cis: 25, jedi_order: 5,  hutt_cartel: 55, bhg: 40, independent: 50 }
 
   # ── Kuat — Republic shipyard world ────────────────────────────────────
@@ -227,7 +228,7 @@ milestone_events:
   - id: separatist_offensive
     trigger:
       type: cis_influence_spike
-      zones: [coruscant_senate, coruscant_upper, kuat_orbital]
+      zones: [senate_district, monumental_district, kuat_orbital]
       threshold_delta: 10
     cooldown_hours: 96
     narrative_priority: medium
@@ -320,4 +321,4 @@ rewicker:
     cantina:    tatooine_cantina
     shops:      tatooine_market
     jabba:      tatooine_civic
-    government: coruscant_senate
+    government: senate_district

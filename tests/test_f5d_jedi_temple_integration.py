@@ -190,17 +190,6 @@ class TestFactionQuarterLotsHasJediEntry(unittest.TestCase):
             "— NOT 210 (main gate, public concourse)",
         )
 
-    def test_existing_gcw_entries_unchanged(self):
-        """F.5d is purely additive — it must not touch the GCW entries."""
-        from engine.housing import FACTION_QUARTER_LOTS
-        self.assertEqual(FACTION_QUARTER_LOTS[("empire", "tatooine")], 22)
-        self.assertEqual(FACTION_QUARTER_LOTS[("empire", "corellia")], 107)
-        self.assertEqual(FACTION_QUARTER_LOTS[("rebel", "tatooine")], 47)
-        self.assertEqual(FACTION_QUARTER_LOTS[("rebel", "nar_shaddaa")], 69)
-        self.assertEqual(FACTION_QUARTER_LOTS[("hutt", "tatooine")], 19)
-        self.assertEqual(FACTION_QUARTER_LOTS[("hutt", "nar_shaddaa")], 72)
-
-
 # ──────────────────────────────────────────────────────────────────────
 # 2. _faction_quarters_locatable for jedi_order
 # ──────────────────────────────────────────────────────────────────────

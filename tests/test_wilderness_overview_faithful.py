@@ -51,6 +51,11 @@ ERA_DIRTY = ["empire", "imperial", "stormtrooper", "tie fighter", "x-wing",
 
 
 def _load_tool(path, name):
+    # The substrate-seed tool imports Pillow (PIL) for raster rendering.
+    # Skip (don't fail) the tests that load it when Pillow isn't installed
+    # — these are optional art-pipeline tool tests, not core game logic.
+    if "make_substrate_seed" in str(path):
+        pytest.importorskip("PIL", reason="make_substrate_seed.py requires Pillow")
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
     sys.modules[name] = mod

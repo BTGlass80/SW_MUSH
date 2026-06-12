@@ -22,9 +22,9 @@ Substrate decisions
    future design refinement (e.g. a faster "campaign day" loop)
    knows where to look.
 
-2. **"At Temple" = zone name == 'coruscant_temple'.** Resolved
+2. **"At Temple" = zone name == 'jedi_temple'.** Resolved
    via room → zone_id → zones.name. The Jedi Temple has 11 rooms
-   under the `coruscant_temple` zone per data/worlds/clone_wars/
+   under the `jedi_temple` zone per data/worlds/clone_wars/
    planets/coruscant.yaml. Any room within that zone qualifies —
    the Council Chamber, the Archives, the meditation chamber, the
    main gate. Design call: this is intentional. A Jedi who walks
@@ -83,8 +83,8 @@ _MEDITATE_FP_COST = 1
 _MEDITATE_WEIGHT_DECAY = 5
 
 # Per data/worlds/clone_wars/planets/coruscant.yaml: 11-room temple
-# under zone name 'coruscant_temple'.
-_TEMPLE_ZONE_NAME = "coruscant_temple"
+# under zone name 'jedi_temple'.
+_TEMPLE_ZONE_NAME = "jedi_temple"
 
 
 class MeditateCommand(BaseCommand):

@@ -150,42 +150,7 @@ class TestHermitInWildernessSubstrate:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. GCW does NOT load the Hermit (era isolation)
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-class TestGcwHasNoHermit:
-    """A GCW build must not produce a Hermit NPC.
-
-    The Hermit is a CW-era construct; the Village quest is CW-only.
-    A GCW build using a stale era.yaml that accidentally imported
-    wilderness_npcs would silently leak the Hermit into the wrong
-    era. Guard against that.
-    """
-
-    @classmethod
-    def setup_class(cls):
-        cls.db_path = _run_build("gcw")
-
-    @classmethod
-    def teardown_class(cls):
-        try:
-            os.unlink(cls.db_path)
-        except FileNotFoundError:
-            pass
-
-    def test_gcw_has_zero_hermits(self):
-        rows = _query(
-            self.db_path,
-            "SELECT COUNT(*) AS n FROM npcs WHERE name = 'the Hermit'",
-        )
-        assert rows[0]["n"] == 0, (
-            "A GCW build must not produce the CW-era Hermit NPC."
-        )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. Gate seam: engine/hermit.py respects force_signs threshold
+# 2. Gate seam: engine/hermit.py respects force_signs threshold
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -290,25 +255,6 @@ class TestHermitGateConfigParser:
 
 class TestWildernessNpcLoader:
     """load_wilderness_npcs has the right scope and behavior."""
-
-    def test_gcw_era_returns_empty_list(self, tmp_path):
-        # A GCW build has no wilderness_npcs registered. The loader
-        # must return [] cleanly, not crash.
-        from db.database import Database
-        from engine.npc_loader import load_wilderness_npcs
-
-        async def _run():
-            db_file = str(tmp_path / "scratch.db")
-            db = Database(db_file)
-            await db.connect()
-            await db.initialize()
-            era_dir = os.path.join(PROJECT_ROOT, "data", "worlds", "gcw")
-            tuples = await load_wilderness_npcs(era_dir, db)
-            await db.close()
-            return tuples
-
-        tuples = asyncio.run(_run())
-        assert tuples == []
 
     def test_returns_empty_for_missing_era_yaml(self, tmp_path):
         from db.database import Database

@@ -201,28 +201,9 @@ _SECURITY_FINDINGS = [
 ]
 
 _FACTION_FINDINGS = {
-    # ── GCW factions (era=gcw) ──────────────────────────────────────
-    "empire": [
-        "Imperial insignia scratched into the underside of a table.",
-        "A coded frequency list tucked behind a wall panel — ISB standard.",
-        "Boot polish residue — Imperial regulation formula.",
-    ],
-    "rebel": [
-        "A scratched starbird symbol on the inside of a cabinet door.",
-        "Alliance code cylinders hidden in a false-bottom container.",
-        "Rebel recruitment flimsi concealed behind a loose tile.",
-    ],
-    "hutt": [
-        "Hutt Cartel accounting ledger fragments — mostly credits owed.",
-        "Spice residue in the cracks between floor plates.",
-        "A Hutt clan tattoo sketched on the wall — recent.",
-    ],
-    # ── B.1.f (Apr 29 2026) — CW faction findings ───────────────────
-    # Lookup is keyed by `claim.org_code` which already varies by era;
-    # extending the dict keeps the lookup site (line ~242) era-agnostic
-    # and additive — GCW orgs (empire/rebel/hutt) keep their pools
-    # byte-identical, CW orgs (republic/cis/jedi_order/hutt_cartel/
-    # bounty_hunters_guild) get era-themed clues.
+    # Keyed by `claim.org_code`. CW orgs (republic/cis/jedi_order/
+    # hutt_cartel/bounty_hunters_guild) get era-themed investigation
+    # clues. Unmapped codes fall through to an empty pool via .get().
     "republic": [
         "Republic seal stamped on a discarded ration tin — fresh print.",
         "An encrypted clone-trooper tactical frequency list, partially burned.",

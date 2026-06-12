@@ -629,7 +629,7 @@ class TestRepublicSoldierE2EPhase3(_IsolatedBase):
 
         # Step 4 → 5
         self.assertTrue(_run(on_room_entered(
-            db, char, "coruscant_works_landing_zone")))
+            db, char, "commercial_district_landing_zone")))
 
         # Step 5 → graduated
         self.assertTrue(_run(on_command_executed(

@@ -127,6 +127,7 @@ def test_client_html_inline_script_parses_under_node():
         input=body,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=30,
     )
     if proc.returncode != 0:

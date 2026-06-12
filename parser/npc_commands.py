@@ -140,7 +140,13 @@ async def _handle_skill_trainer(ctx, npc_data, char) -> bool:
         skill_def = skill_reg.get(skill_name.lower())
         if not skill_def:
             continue
-        key = skill_name.lower()
+        # 2026-06-11 skill-key unification ripple: train_skills lists use
+        # underscore data-form ("space_transports_repair") while PC skills
+        # dicts store space-form — the raw .get below showed a trained
+        # PC's bonus as 0 (and pre-unification, underscore entries were
+        # silently OMITTED from the menu via the registry miss above).
+        from engine.character import canonical_skill_key
+        key = canonical_skill_key(skill_name)
         current_bonus = character.skills.get(key, DicePool(0, 0))
         attr_pool = character.get_attribute(skill_def.attribute)
         total_pool = attr_pool + current_bonus
@@ -717,7 +723,7 @@ class AskCommand(BaseCommand):
         if not ctx.args or " about " not in ctx.args.lower():
             await ctx.session.send_line("Usage: ask <npc> about <topic>")
             await ctx.session.send_line("  ask wuher about the cantina")
-            await ctx.session.send_line("  ask trooper about the imperial garrison")
+            await ctx.session.send_line("  ask trooper about the local garrison")
             return
 
         # Split on "about"

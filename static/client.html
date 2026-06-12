@@ -184,6 +184,28 @@ a { color: inherit; text-decoration: none; }
 .combatant-wound.hurt    { color: var(--accent); }
 .combatant-wound.bad     { color: var(--warn); }
 
+/* UI-3 — combat condition chip rail (poison / restraint). Token-only; the
+   biting-poison and restraint chips pulse (opacity + a currentColor glow) to
+   read as active threats. Display-only — no chip stages a command. */
+.combatant-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.cmb-chip {
+  font-size: 8px; letter-spacing: 0.5px; line-height: 1.45;
+  padding: 1px 5px; border: 1px solid currentColor; border-radius: 2px;
+  white-space: nowrap;
+}
+.cmb-chip.poison    { color: var(--self); }
+.cmb-chip.restraint { color: var(--warn); }
+.cmb-chip.poison.biting,
+.cmb-chip.restraint { animation: m3-chip-pulse 1.1s ease-in-out infinite; }
+.combatant-restraint-note {
+  font-size: 8px; letter-spacing: 0.3px; color: var(--warn);
+  margin-top: 2px; opacity: 0.85;
+}
+@keyframes m3-chip-pulse {
+  0%, 100% { opacity: 1;    box-shadow: 0 0 0 0 transparent; }
+  50%      { opacity: 0.55; box-shadow: 0 0 5px -1px currentColor; }
+}
+
 /* ─────────────────────────────────────────────────────────────────
    FIELD KIT v2 — Drop D-client.1 (Foundation)
    Theatre-aware combat HUD theming + canonical 7-rung wound ladder.
@@ -997,6 +1019,15 @@ a { color: inherit; text-decoration: none; }
 .app[data-mode="space"] .row-room-enter {
   background: linear-gradient(90deg, rgba(110,232,255,0.10), transparent 70%);
 }
+/* UI-1 (scroll-on-move): one-beat highlight sweep applied when a room change
+   re-anchors the stream to the new-room banner. Token-only (glows the existing
+   --accent left border); mode-aware for free via the switched accent tokens. */
+@keyframes m3-room-sweep {
+  0%   { box-shadow: -5px 0 14px -2px var(--accent); border-left-color: var(--accent-bright); }
+  60%  { box-shadow: -4px 0 9px -2px var(--accent); }
+  100% { box-shadow: 0 0 0 0 transparent;           border-left-color: var(--accent-bright); }
+}
+.row-room-enter.room-enter-sweep { animation: m3-room-sweep 1000ms ease-out 1; }
 .room-enter-label {
   font-size: 9px; letter-spacing: 3px; color: var(--accent-dim);
   margin-bottom: 6px;
@@ -1514,6 +1545,87 @@ a { color: inherit; text-decoration: none; }
 .side-panel.collapsed .sp-toggle { transform: rotate(-90deg); }
 .side-panel.collapsed .side-panel-body { display: none; }
 .side-panel-body { font-size: 11px; }
+
+/* ── Region-control panel (Webify UI-2) — token-only, slots into .side-panel ── */
+.rgn-root { display: flex; flex-direction: column; gap: 11px; }
+.rgn-name-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.rgn-name {
+  font-family: var(--font-display); font-size: 15px; font-weight: 600;
+  color: var(--accent-bright); text-shadow: 0 0 8px var(--accent);
+}
+.rgn-planet { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); }
+.rgn-desc { font-size: 11px; line-height: 1.45; color: var(--text); }
+.rgn-block { display: flex; flex-direction: column; gap: 5px; }
+.rgn-sec-label {
+  display: flex; justify-content: space-between;
+  font-size: 9px; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase;
+}
+.rgn-sec-right { color: var(--text-dim); letter-spacing: 1px; }
+.rgn-empty { color: var(--text-dim); font-style: italic; font-size: 11px; }
+.rgn-own { display: flex; align-items: center; gap: 8px; }
+.rgn-own-dot {
+  width: 8px; height: 8px; background: var(--accent);
+  box-shadow: 0 0 6px var(--accent); border-radius: 1px;
+}
+.rgn-own-name { color: var(--accent-bright); font-size: 12px; }
+/* influence ladder */
+.rgn-inf-wrap { display: flex; flex-direction: column; gap: 7px; }
+.rgn-inf-row { padding: 0; }
+.rgn-inf-row.me {
+  padding: 3px 5px; margin: 0 -5px;
+  border: 1px solid var(--accent-dim); background: rgba(255,200,87,0.05);
+}
+.app[data-mode="space"] .rgn-inf-row.me { background: rgba(110,232,255,0.06); }
+.rgn-inf-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 11px; margin-bottom: 2px;
+}
+.rgn-inf-name { color: var(--text); }
+.rgn-inf-row.me .rgn-inf-name { color: var(--accent-bright); }
+.rgn-inf-you { color: var(--accent); font-size: 9px; }
+.rgn-inf-score { font-family: var(--font-display); color: var(--accent); }
+.rgn-inf-tier { font-size: 8px; color: var(--text-dim); letter-spacing: 1px; }
+.rgn-inf-track {
+  position: relative; height: 4px; background: var(--screen-dim);
+  border: 1px solid var(--accent-dim);
+}
+.rgn-inf-track.glow { box-shadow: 0 0 6px var(--accent); }
+.rgn-inf-fill { position: absolute; inset: 0; background: var(--accent); transition: width .4s; }
+.rgn-inf-tick { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--text-dim); }
+.rgn-inf-scale {
+  display: flex; justify-content: space-between;
+  font-size: 8px; color: var(--text-dim); letter-spacing: 1px; padding-top: 1px;
+}
+/* resource chips */
+.rgn-res-wrap { display: flex; flex-wrap: wrap; gap: 5px; }
+.rgn-res-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px;
+  font-size: 10px; font-family: var(--font-mono);
+  border: 1px solid var(--accent-dim); color: var(--text);
+}
+.rgn-res-chip .rgn-res-mult { color: var(--text-dim); font-weight: 600; }
+.rgn-res-chip.good .rgn-res-mult { color: var(--self); }
+.rgn-res-chip.bad  .rgn-res-mult { color: var(--warn); }
+.rgn-res-chip.best { border-color: var(--self); box-shadow: 0 0 6px rgba(124,224,104,0.35); }
+.rgn-res-chip.best.bad { border-color: var(--warn); box-shadow: 0 0 6px rgba(255,110,74,0.35); }
+/* active-contest sub-card */
+.rgn-contest {
+  border: 1px solid var(--warn); border-left: 3px solid var(--warn);
+  background: rgba(255,110,74,0.06); padding: 8px 10px;
+}
+.rgn-contest-head { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+.rgn-contest-title { color: var(--warn); font-size: 10px; letter-spacing: 2px; font-weight: 600; flex: 1; }
+.rgn-contest-timer { font-size: 10px; color: var(--warn); font-family: var(--font-mono); }
+.rgn-contest-names { display: flex; justify-content: space-between; font-size: 10.5px; margin-bottom: 3px; }
+.rgn-side-ch { color: var(--warn); }
+.rgn-side-df { color: var(--accent); }
+.rgn-side-num { color: var(--text-dim); }
+.rgn-tug { position: relative; height: 6px; background: var(--accent); border: 1px solid var(--accent-dim); }
+.rgn-tug-fill { position: absolute; inset: 0; background: var(--warn); transition: width .5s; }
+.rgn-tug-mid { position: absolute; top: -2px; bottom: -2px; left: 50%; width: 1px; background: var(--accent-bright); }
+/* unaligned observer state — disabled, not hidden */
+.rgn-spectating { opacity: 0.55; }
+.rgn-spectate-note { font-size: 9.5px; color: var(--text-dim); font-style: italic; letter-spacing: 0.5px; }
 
 /* Faction rep bars */
 .rep-row {
@@ -2901,6 +3013,255 @@ a { color: inherit; text-decoration: none; }
 }
 .sheet-panel.show { transform: translateX(0); }
 
+/* ── Inventory modal (Webify UI-4a) — token-only ── */
+.inv-modal-overlay {
+  position: fixed; inset: 0; z-index: 2100;
+  background: rgba(2,5,8,0.74);
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+  opacity: 0; pointer-events: none; transition: opacity 0.18s ease-out;
+}
+.inv-modal-overlay.show { opacity: 1; pointer-events: auto; }
+.inv-modal {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -48%) scale(0.98);
+  width: 720px; max-width: 94vw; max-height: 88vh; z-index: 2101;
+  background: var(--screen); border: 1px solid var(--accent);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.55), inset 0 0 60px rgba(0,0,0,0.4);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+  display: flex; flex-direction: column; overflow: hidden;
+  font-family: var(--font-mono); color: var(--text);
+}
+.inv-modal.show { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+.inv-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--accent-dim);
+}
+.inv-modal-title { font-family: var(--font-display); letter-spacing: 2px; color: var(--accent-bright); }
+.inv-modal-close {
+  background: none; border: 1px solid var(--accent-dim); color: var(--text-dim);
+  width: 26px; height: 26px; cursor: pointer; line-height: 1;
+}
+.inv-modal-close:hover { color: var(--text); border-color: var(--accent); }
+.inv-modal-body { padding: 12px 14px; overflow-y: auto; }
+
+.inv-cols { display: flex; gap: 14px; align-items: flex-start; }
+.inv-col { flex: 1 1 50%; min-width: 0; }
+.inv-col-h { font-size: 11px; letter-spacing: 1px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px; }
+
+.inv-card { border: 1px solid var(--accent-dim); padding: 8px; margin-bottom: 8px; }
+.inv-card.empty { opacity: 0.55; }
+.inv-card-top { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.inv-card-slot { font-size: 10px; letter-spacing: 1px; color: var(--text-dim); text-transform: uppercase; }
+.inv-card-name { color: var(--accent-bright); font-weight: bold; }
+.inv-card-meta, .inv-row-meta { display: flex; align-items: center; gap: 10px; margin: 5px 0; }
+.inv-crafter { font-size: 11px; color: var(--text-dim); font-style: italic; }
+.inv-mod { font-size: 10px; color: var(--self); }
+.inv-empty-note { font-size: 11px; color: var(--text-dim); }
+
+.inv-quality { display: inline-flex; gap: 2px; }
+.inv-pip { width: 7px; height: 7px; border: 1px solid var(--accent-dim); border-radius: 1px; }
+.inv-pip.on { background: var(--accent); border-color: var(--accent); }
+
+.inv-cond { position: relative; display: inline-block; width: 80px; height: 3px; background: rgba(255,255,255,0.08); }
+.inv-cond-fill { position: absolute; left: 0; top: 0; bottom: 0; }
+.inv-cond.ok .inv-cond-fill { background: var(--self); }
+.inv-cond.warn .inv-cond-fill { background: var(--accent); }
+.inv-cond.low .inv-cond-fill { background: var(--warn); }
+
+.inv-statchips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.inv-statchip { font-size: 10px; padding: 1px 5px; border: 1px solid var(--accent-dim); color: var(--text-dim); border-radius: 2px; }
+
+.inv-row { border: 1px solid transparent; border-bottom: 1px solid var(--accent-dim); padding: 6px; cursor: pointer; }
+.inv-row:hover { background: rgba(255,255,255,0.03); }
+.inv-row.selected { border-color: var(--accent); background: rgba(255,255,255,0.05); }
+.inv-row-main { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.inv-row-name { color: var(--text); }
+.inv-slot-tag { font-size: 9px; letter-spacing: 1px; color: var(--text-dim); text-transform: uppercase; border: 1px solid var(--accent-dim); padding: 0 3px; }
+.inv-row-actions { display: flex; gap: 6px; margin-top: 5px; }
+
+.inv-btn { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; padding: 2px 8px; cursor: pointer; background: var(--accent); color: var(--screen-dim); border: 1px solid var(--accent); }
+.inv-btn:hover { background: var(--accent-bright); }
+.inv-btn.ghost { background: none; color: var(--text-dim); }
+.inv-btn.ghost:hover { color: var(--text); border-color: var(--accent); }
+
+.inv-delta { margin-top: 12px; border-top: 1px solid var(--accent-dim); padding-top: 8px; }
+.inv-delta-hint { font-size: 11px; color: var(--text-dim); font-style: italic; }
+.inv-delta-title { font-size: 12px; color: var(--accent-bright); margin-bottom: 5px; }
+.inv-delta-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 1px 0; }
+.inv-delta-axis { min-width: 42px; color: var(--text-dim); font-size: 10px; letter-spacing: 1px; }
+.inv-delta-from { color: var(--text-dim); }
+.inv-delta-arrow { color: var(--text-dim); }
+.inv-delta-to { color: var(--text); }
+.inv-delta-mark.up { color: var(--self); }
+.inv-delta-mark.down { color: var(--warn); }
+.inv-delta-mark.eq { color: var(--text-dim); }
+
+@media (max-width: 640px) { .inv-cols { flex-direction: column; } .inv-col { flex-basis: auto; width: 100%; } }
+
+/* ── Shop card (Webify UI-4b) — shares .inv-modal chrome + .inv-pip gauge ── */
+.shop-picklist { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.shop-pick { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 4px 8px; background: none; border: 1px solid var(--accent-dim); color: var(--text-dim); cursor: pointer; font-family: var(--font-mono); }
+.shop-pick:hover { color: var(--text); border-color: var(--accent); }
+.shop-pick.on { border-color: var(--accent); color: var(--accent-bright); background: rgba(255,255,255,0.04); }
+.shop-pick-name { font-size: 12px; }
+.shop-pick-tier { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); }
+.shop-pick-count { font-size: 9px; color: var(--text-dim); }
+.shop-detail-name { color: var(--accent-bright); font-weight: bold; font-size: 14px; }
+.shop-detail-desc { font-size: 11px; color: var(--text-dim); font-style: italic; margin: 2px 0 8px; }
+.shop-item { border-bottom: 1px solid var(--accent-dim); padding: 6px 0; }
+.shop-item-head { display: flex; align-items: baseline; gap: 8px; }
+.shop-item-slot { font-size: 10px; color: var(--text-dim); min-width: 26px; }
+.shop-item-name { color: var(--text); flex: 1 1 auto; }
+.shop-item-price { color: var(--accent); font-weight: bold; }
+.shop-item-meta { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
+.shop-dash-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--accent-dim); }
+.shop-dash-title { font-family: var(--font-display); letter-spacing: 1px; color: var(--accent-bright); }
+.shop-dash-escrow { color: var(--accent); font-size: 12px; }
+.shop-dash-droid { border: 1px solid var(--accent-dim); padding: 8px; margin-bottom: 8px; }
+.shop-dash-droid-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.shop-dash-line { display: flex; align-items: baseline; gap: 8px; font-size: 12px; padding: 1px 0; color: var(--text-dim); }
+.shop-tag-placed { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--self); border: 1px solid var(--accent-dim); padding: 0 3px; }
+.shop-tag-unplaced { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--warn); border: 1px solid var(--accent-dim); padding: 0 3px; }
+.shop-sales-h { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); margin: 6px 0 2px; }
+.shop-sale { display: flex; gap: 8px; font-size: 11px; color: var(--text-dim); padding: 1px 0; }
+.shop-sale-net { color: var(--self); }
+.shop-sale-buyer { color: var(--text-dim); font-style: italic; }
+
+/* ── Bounty board (Webify UI-5) — shares .inv-modal chrome ── */
+.m3b-meta { display: flex; align-items: center; font-size: 10px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 8px; }
+.m3b-filter { display: flex; flex-wrap: wrap; gap: 5px; padding-bottom: 9px; margin-bottom: 10px; border-bottom: 1px solid var(--accent-dim); }
+.m3b-chip { background: none; border: 1px solid var(--accent-dim); color: var(--text-dim); cursor: pointer; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; }
+.m3b-chip:hover { color: var(--text); }
+.m3b-chip.active { border-color: var(--accent); color: var(--accent-bright); background: rgba(255,255,255,0.04); }
+.m3b-list { display: flex; flex-direction: column; gap: 10px; }
+.m3b-empty { color: var(--text-dim); font-size: 11.5px; padding: 14px 4px; font-style: italic; }
+.m3b-card { display: flex; gap: 12px; padding: 10px 12px; border: 1px solid var(--accent-dim); border-left-width: 3px; background: rgba(0,0,0,0.25); }
+.m3b-card.claimed { border-color: var(--self); background: rgba(124,224,104,0.06); border-left-width: 3px; }
+.m3b-stud { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 56px; flex-shrink: 0; }
+.m3b-stud-ring { width: 30px; height: 30px; border: 1.5px solid var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-family: var(--font-display); }
+.m3b-stud-label { font-size: 8px; letter-spacing: 1px; text-transform: uppercase; }
+.m3b-body { flex: 1; min-width: 0; }
+.m3b-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.m3b-name { color: var(--accent-bright); font-size: 14px; font-family: var(--font-display); }
+.m3b-sub { font-size: 10px; color: var(--text-dim); }
+.m3b-badge { font-size: 8.5px; letter-spacing: 1px; padding: 1px 6px; border: 1px solid var(--accent-dim); color: var(--text-dim); }
+.m3b-badge.claimed { border-color: var(--self); color: var(--self); }
+.m3b-badge.chain { border-color: var(--accent); color: var(--accent); }
+.m3b-crime { font-size: 11.5px; color: var(--text); margin: 4px 0 6px; line-height: 1.45; }
+.m3b-pay { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.m3b-reward { font-family: var(--font-display); font-size: 16px; color: var(--accent-bright); }
+.m3b-cr { font-size: 10px; color: var(--accent-dim); }
+.m3b-alive { font-size: 10px; color: var(--self); }
+.m3b-spacer { flex: 1; }
+.m3b-count { font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); }
+.m3b-count.urgent { color: var(--warn); }
+.m3b-details { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--accent-dim); font-size: 11px; line-height: 1.6; }
+.m3b-kv { display: flex; gap: 8px; }
+.m3b-k { color: var(--text-dim); min-width: 72px; }
+.m3b-v { color: var(--text); }
+.m3b-v.mono { font-family: var(--font-mono); }
+.m3b-tip { color: var(--text-dim); font-style: italic; margin-top: 4px; }
+.m3b-actions { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+.m3b-act { background: none; border: 1px solid var(--accent-dim); color: var(--text-dim); cursor: pointer; font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; padding: 4px 10px; }
+.m3b-act:hover { color: var(--text); border-color: var(--accent); }
+.m3b-act.accept { border-color: var(--accent); color: var(--accent); }
+.m3b-act.accept:hover { color: var(--accent-bright); border-color: var(--accent-bright); }
+.m3b-act.primary { border-color: var(--self); color: var(--self); }
+.m3b-foot { padding-top: 9px; margin-top: 10px; border-top: 1px solid var(--accent-dim); font-size: 9.5px; color: var(--text-dim); letter-spacing: 0.5px; }
+
+/* ── Crafting panel (Webify UI-8) — token-only, shares .inv-modal chrome ── */
+.m3c-result { padding: 6px 9px; margin-bottom: 10px; font-size: 11px; letter-spacing: 0.5px; border: 1px solid var(--accent-dim); border-left-width: 3px; }
+.m3c-result.success { color: var(--self); border-left-color: var(--self); }
+.m3c-result.partial { color: var(--accent-bright); border-left-color: var(--accent-bright); }
+.m3c-result.fail    { color: var(--text-dim); border-left-color: var(--text-dim); }
+.m3c-result.fumble  { color: var(--warn); border-left-color: var(--warn); }
+.m3c-card { border: 1px solid var(--accent-dim); margin-bottom: 6px; background: rgba(0,0,0,0.15); }
+.m3c-card.craftable { border-left: 3px solid var(--self); }
+.m3c-head { display: flex; align-items: center; gap: 7px; padding: 6px 8px; cursor: pointer; }
+.m3c-head:hover { background: rgba(255,255,255,0.03); }
+.m3c-stud { width: 7px; height: 7px; flex: 0 0 auto; }
+.m3c-name { font-size: 11.5px; color: var(--text); letter-spacing: 0.5px; flex: 1 1 auto; }
+.m3c-t5 { font-size: 8.5px; letter-spacing: 1px; color: var(--accent-bright); border: 1px solid var(--accent-bright); padding: 0 4px; }
+.m3c-skill { font-size: 9.5px; color: var(--text-dim); letter-spacing: 0.5px; }
+.m3c-blocked { font-size: 9px; color: var(--text-dim); letter-spacing: 0.5px; text-transform: uppercase; }
+.m3c-btn { background: none; border: 1px solid var(--accent); color: var(--accent); cursor: pointer; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1px; padding: 3px 9px; }
+.m3c-btn:hover { color: var(--accent-bright); border-color: var(--accent-bright); }
+.m3c-comps { padding: 2px 8px 7px 22px; border-top: 1px dashed var(--accent-dim); }
+.m3c-comp { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 0.5px; padding: 2px 0; }
+.m3c-res-head { margin: 12px 0 6px; font-size: 9.5px; color: var(--text-dim); letter-spacing: 2px; border-bottom: 1px solid var(--accent-dim); padding-bottom: 4px; }
+.m3c-res-row { display: flex; align-items: center; gap: 10px; font-size: 10.5px; color: var(--text); padding: 2px 0; }
+.m3c-res-row > span:first-child { flex: 1 1 auto; }
+.m3c-res-q { color: var(--text-dim); }
+.m3c-buy { background: none; border: 1px solid var(--accent-dim); color: var(--text-dim); cursor: pointer; font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 1px; padding: 1px 6px; }
+.m3c-buy:hover { color: var(--accent); border-color: var(--accent); }
+.m3c-foot { display: flex; align-items: center; gap: 10px; padding-top: 9px; margin-top: 10px; border-top: 1px solid var(--accent-dim); }
+.m3c-foot-note { font-size: 9px; color: var(--text-dim); letter-spacing: 0.5px; }
+.m3c-empty { font-size: 10.5px; color: var(--text-dim); padding: 8px 2px; letter-spacing: 0.5px; }
+.m3c-empty code { color: var(--accent); }
+
+/* ── Objective line (Webify UI-6) — boxed atop the vitals card ── */
+.g-objective { display: none; margin: 6px 0 8px; padding: 5px 8px; border: 1px solid var(--accent-dim); border-left: 3px solid var(--accent); background: rgba(0,0,0,0.2); }
+.g-objective.show { display: block; }
+.g-objective .g-obj-label { display: block; font-size: 8px; letter-spacing: 2px; color: var(--accent-dim); margin-bottom: 2px; }
+.g-objective .g-obj-text { font-size: 11px; color: var(--accent-bright); line-height: 1.4; }
+
+/* ── Reward toast (Webify UI-6 juice) — rides credit_event ── */
+.reward-toast { position: fixed; top: 18px; left: 50%; transform: translate(-50%, -8px); z-index: 240; padding: 7px 16px; border: 1px solid var(--self); background: var(--screen); color: var(--self); font-family: var(--font-display); font-size: 14px; letter-spacing: 1px; opacity: 0; pointer-events: none; transition: opacity 0.25s ease, transform 0.25s ease; box-shadow: 0 0 14px rgba(124,224,104,0.25); }
+.reward-toast.negative { border-color: var(--warn); color: var(--warn); box-shadow: 0 0 14px rgba(255,110,74,0.25); }
+.reward-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ── Onboarding / training panel (Webify UI-7) ── */
+.m3o-tour-replay { background: none; border: 1px solid var(--accent-dim); color: var(--accent-dim); font-family: var(--font-mono); font-size: 10px; width: 16px; height: 16px; line-height: 1; cursor: pointer; border-radius: 50%; margin-left: auto; margin-right: 6px; padding: 0; }
+.m3o-tour-replay:hover { color: var(--accent-bright); border-color: var(--accent); }
+.m3o-meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px; }
+.m3o-chain-name { color: var(--accent-bright); font-family: var(--font-display); font-size: 12px; letter-spacing: 1px; }
+.m3o-step-count { margin-left: auto; font-size: 9px; letter-spacing: 1px; color: var(--text-dim); }
+.m3o-flash { text-align: center; font-size: 10px; letter-spacing: 2px; color: var(--self); border: 1px solid var(--self); padding: 3px 0; margin-bottom: 7px; animation: m3o-flash-fade 2.4s ease forwards; }
+@keyframes m3o-flash-fade { 0% { opacity: 0; } 12% { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0.45; } }
+.m3o-rail { display: flex; gap: 6px; margin-bottom: 9px; }
+.m3o-dot { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--accent-dim); background: transparent; }
+.m3o-dot.done { background: var(--self); border-color: var(--self); }
+.m3o-dot.current { border-color: var(--accent-bright); box-shadow: 0 0 5px rgba(255,200,87,0.4); }
+.m3o-dot.pop { animation: m3o-dot-pop 0.7s ease; }
+@keyframes m3o-dot-pop { 0% { transform: scale(1); } 40% { transform: scale(1.7); } 100% { transform: scale(1); } }
+.m3o-title { color: var(--text); font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+.m3o-npc { font-size: 10px; margin-bottom: 6px; }
+.m3o-npc-name { color: var(--accent); }
+.m3o-npc-role { color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; font-size: 9px; }
+.m3o-brief { font-size: 10.5px; color: var(--text-dim); font-style: italic; line-height: 1.5; border-left: 2px solid var(--accent-dim); padding-left: 7px; margin-bottom: 8px; max-height: 110px; overflow-y: auto; }
+.m3o-objective { border: 1px solid var(--accent-dim); border-left: 3px solid var(--accent); background: rgba(0,0,0,0.2); padding: 5px 8px; margin-bottom: 8px; }
+.m3o-obj-label { display: block; font-size: 8px; letter-spacing: 2px; color: var(--accent-dim); margin-bottom: 2px; }
+.m3o-obj-text { font-size: 11px; color: var(--accent-bright); line-height: 1.4; }
+.m3o-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.m3o-chip { background: none; border: 1px solid var(--accent-dim); color: var(--accent); cursor: pointer; font-family: var(--font-mono); font-size: 10px; padding: 3px 8px; }
+.m3o-chip:hover { color: var(--accent-bright); border-color: var(--accent-bright); }
+.m3o-chip.attempt { border-color: var(--self); color: var(--self); }
+.m3o-grad { text-align: center; padding: 10px 4px; }
+.m3o-grad-glyph { font-size: 22px; color: var(--self); animation: m3o-dot-pop 0.9s ease; }
+.m3o-grad-title { font-family: var(--font-display); font-size: 13px; letter-spacing: 3px; color: var(--self); margin-top: 4px; }
+.m3o-grad-name { font-size: 11px; color: var(--accent-bright); margin-top: 2px; }
+.m3o-grad-sub { font-size: 10px; color: var(--text-dim); margin: 7px 0 10px; }
+.m3o-grad-dismiss { background: none; border: 1px solid var(--accent-dim); color: var(--text-dim); cursor: pointer; font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; padding: 4px 12px; }
+.m3o-grad-dismiss:hover { color: var(--text); border-color: var(--accent); }
+
+/* Quick-action coach pulse (finite — ~6 beats then still; no nag) */
+.qa-btn.m3o-pulse { animation: m3o-qa-pulse 0.55s ease-in-out 6; }
+@keyframes m3o-qa-pulse { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 9px rgba(255,200,87,0.55); border-color: var(--accent-bright); } }
+
+/* First-run tour overlay */
+.m3o-tour-overlay { position: fixed; inset: 0; z-index: 230; background: rgba(0,0,0,0.55); display: none; }
+.m3o-tour-overlay.show { display: block; }
+.m3o-tour-ring { position: fixed; border: 2px solid var(--accent-bright); box-shadow: 0 0 0 4000px rgba(0,0,0,0.55), 0 0 14px rgba(255,200,87,0.5); pointer-events: none; transition: all 0.25s ease; }
+.m3o-tour-overlay.show { background: transparent; }  /* the ring's spread shadow does the dimming */
+.m3o-tour-card { position: fixed; background: var(--screen); border: 1px solid var(--accent); padding: 10px 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+.m3o-tour-step { font-size: 9px; letter-spacing: 2px; color: var(--accent-dim); margin-bottom: 4px; }
+.m3o-tour-text { font-size: 11.5px; color: var(--text); line-height: 1.5; margin-bottom: 9px; }
+.m3o-tour-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.m3o-tour-btn { background: none; border: 1px solid var(--accent-dim); color: var(--text-dim); cursor: pointer; font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; padding: 4px 10px; }
+.m3o-tour-btn.next { border-color: var(--accent); color: var(--accent); }
+.m3o-tour-btn:hover { color: var(--accent-bright); border-color: var(--accent-bright); }
+
 /* Top bar: identity + points strip */
 .sheet-head {
   flex: 0 0 auto;
@@ -3593,6 +3954,13 @@ a { color: inherit; text-decoration: none; }
         <div class="char-name" id="g-char-name">—</div>
         <div class="char-meta" id="g-char-meta">—</div>
 
+        <!-- Webify UI-6: objective line. Server sends hud_update.objective
+             ("" = hide). Boxed atop the vitals card for orientation. -->
+        <div class="g-objective" id="g-objective">
+          <span class="g-obj-label">▮▮ OBJECTIVE</span>
+          <span class="g-obj-text" id="g-objective-text"></span>
+        </div>
+
         <div class="section-label spaced">▮▮ VITALS</div>
         <div class="wound-block">
           <div class="wound-head">
@@ -3702,6 +4070,20 @@ a { color: inherit; text-decoration: none; }
         </div>
 
         <!-- Side panels (collapsible) -->
+        <!-- Webify UI-7: onboarding/training panel. Driven by the
+             onboarding_state push; visible only while a tutorial chain
+             is active (one final graduation card on completion). First
+             in the stack — it's the new player's primary surface. -->
+        <div class="side-panel" id="onboard-panel" style="display:none;">
+          <div class="side-panel-head" onclick="toggleSidePanel('onboard-panel')">
+            <span class="sp-title">TRAINING</span>
+            <button class="m3o-tour-replay" type="button" title="Replay interface tour"
+                    onclick="event.stopPropagation(); showOnboardTour(true);">?</button>
+            <span class="sp-toggle">▾</span>
+          </div>
+          <div class="side-panel-body" id="onboard-body"></div>
+        </div>
+
         <div class="side-panel" id="rep-panel" style="display:none;">
           <div class="side-panel-head" onclick="toggleSidePanel('rep-panel')">
             <span class="sp-title">FACTION STANDING</span>
@@ -3745,6 +4127,15 @@ a { color: inherit; text-decoration: none; }
             <span class="sp-toggle">▾</span>
           </div>
           <div class="side-panel-body" id="city-body"></div>
+        </div>
+
+        <!-- Webify UI-2: region-control panel (wilderness regions only) -->
+        <div class="side-panel" id="region-panel" style="display:none;">
+          <div class="side-panel-head" onclick="toggleSidePanel('region-panel')">
+            <span class="sp-title">REGION CONTROL</span>
+            <span class="sp-toggle">▾</span>
+          </div>
+          <div class="side-panel-body" id="region-body"></div>
         </div>
       </div>
 
@@ -3989,6 +4380,9 @@ a { color: inherit; text-decoration: none; }
       <button class="qa-btn" data-qa="LOOK" data-cmd="look" data-action="send">LOOK</button>
       <button class="qa-btn" data-qa="POSE" data-cmd="pose " data-action="stage">POSE</button>
       <button class="qa-btn" data-qa="SAY"  data-cmd="say "  data-action="stage">SAY</button>
+      <button class="qa-btn" data-qa="INV"  data-cmd="inventory" data-action="send" title="Open inventory">INV</button>
+      <button class="qa-btn" data-qa="JOBS" data-cmd="bounties" data-action="send" title="Open bounty board">JOBS</button>
+      <button class="qa-btn" data-qa="CRAFT" data-cmd="schematics" data-action="send" title="Open crafting panel">CRAFT</button>
       <!-- Direction buttons appended dynamically based on exits -->
     </div>
     <div class="cmd-bar" id="cmd-bar-ground">
@@ -4196,6 +4590,71 @@ a { color: inherit; text-decoration: none; }
      LOGIN / BOOT OVERLAY (FK login datapad)
      States: 'boot' (connecting) → 'login' (credentials) → 'charselect' → hidden
      ══════════════════════════════════════════════════════════════════ -->
+<!-- Inventory modal (Webify UI-4a). Driven by the inventory_state WebSocket
+     event from `inventory`/`inv`/`i`. Telnet falls through to the text dump. -->
+<div class="inv-modal-overlay" id="inv-modal-overlay" onclick="invModalBackdropClick(event)"></div>
+<aside class="inv-modal" id="inv-modal" role="dialog" aria-label="Inventory" aria-modal="true">
+  <div class="inv-modal-head">
+    <span class="inv-modal-title">Inventory</span>
+    <button class="inv-modal-close" type="button" onclick="closeInventoryModal()" aria-label="Close">&#215;</button>
+  </div>
+  <div class="inv-modal-body" id="inv-modal-body"></div>
+</aside>
+
+<!-- Shop modal (Webify UI-4b). Driven by the shop_state push (browse/dashboard)
+     already emitted by `browse`/`+shop`. Shares the .inv-modal chrome. -->
+<div class="inv-modal-overlay" id="shop-modal-overlay" onclick="shopModalBackdropClick(event)"></div>
+<aside class="inv-modal" id="shop-modal" role="dialog" aria-label="Shop" aria-modal="true">
+  <div class="inv-modal-head">
+    <span class="inv-modal-title" id="shop-modal-title">Shop</span>
+    <button class="inv-modal-close" type="button" onclick="closeShopModal()" aria-label="Close">&#215;</button>
+  </div>
+  <div class="inv-modal-body" id="shop-modal-body"></div>
+</aside>
+
+<!-- Bounty board modal (Webify UI-5). Driven by the board_state push emitted
+     by the `bounties` verb. Shares the .inv-modal chrome. -->
+<div class="inv-modal-overlay" id="board-modal-overlay" onclick="boardModalBackdropClick(event)"></div>
+<aside class="inv-modal" id="board-modal" role="dialog" aria-label="Bounty Board" aria-modal="true">
+  <div class="inv-modal-head">
+    <span class="inv-modal-title" id="board-modal-title">Bounty Board</span>
+    <button class="inv-modal-close" type="button" onclick="closeBoardModal()" aria-label="Close">&#215;</button>
+  </div>
+  <div class="inv-modal-body" id="board-modal-body"></div>
+</aside>
+
+<!-- Crafting panel modal (Webify UI-8). Driven by the crafting_state push
+     emitted by the schematics / resources / craft verbs. Shares the
+     .inv-modal chrome. -->
+<div class="inv-modal-overlay" id="craft-modal-overlay" onclick="craftModalBackdropClick(event)"></div>
+<aside class="inv-modal" id="craft-modal" role="dialog" aria-label="Crafting" aria-modal="true">
+  <div class="inv-modal-head">
+    <span class="inv-modal-title" id="craft-modal-title">Crafting</span>
+    <button class="inv-modal-close" type="button" onclick="closeCraftModal()" aria-label="Close">&#215;</button>
+  </div>
+  <div class="inv-modal-body" id="craft-modal-body"></div>
+</aside>
+
+<!-- Reward toast (Webify UI-6 juice). Rides credit_event; shown by
+     handleCreditEvent for ~2.6s on any nonzero delta. -->
+<div class="reward-toast" id="reward-toast" aria-live="polite"></div>
+
+<!-- First-run client tour (Webify UI-7). Four coach marks over the chrome,
+     shown once per browser (localStorage m3_onboard_tour_done) and only
+     while a tutorial chain is active. The ? in the TRAINING panel head
+     replays it on demand. -->
+<div class="m3o-tour-overlay" id="m3o-tour-overlay">
+  <div class="m3o-tour-ring" id="m3o-tour-ring"></div>
+  <div class="m3o-tour-card" id="m3o-tour-card">
+    <div class="m3o-tour-step" id="m3o-tour-step"></div>
+    <div class="m3o-tour-text" id="m3o-tour-text"></div>
+    <div class="m3o-tour-actions">
+      <button class="m3o-tour-btn skip" type="button" onclick="endOnboardTour()">SKIP TOUR</button>
+      <button class="m3o-tour-btn next" type="button" onclick="advanceOnboardTour()" id="m3o-tour-next">NEXT</button>
+    </div>
+  </div>
+</div>
+
 <div class="boot-overlay show" id="boot-overlay">
   <div class="boot-datapad" id="boot-datapad">
     <div class="rivet-edge top"    style="--rivets:14;"></div>
@@ -4324,6 +4783,12 @@ a { color: inherit; text-decoration: none; }
 <script src="/static/spa/m3_tier_wilderness_body.js"></script>
 <script src="/static/spa/m3_tier_interior_body.js"></script>
 <script src="/static/spa/m3_tier_registry.js"></script>
+<script src="/static/spa/m3_region.js"></script>
+<script src="/static/spa/m3_inventory.js"></script>
+<script src="/static/spa/m3_shop.js"></script>
+<script src="/static/spa/m3_board.js"></script>
+<script src="/static/spa/m3_onboard.js"></script>
+<script src="/static/spa/m3_craft.js"></script>
 
 <script>
 /* ════════════════════════════════════════════════════════════════════
@@ -4605,6 +5070,17 @@ function renderEventToActiveLog(ev) {
   var atBottom = (log.scrollHeight - log.scrollTop - log.clientHeight) < AUTOSCROLL_THRESHOLD_PX;
   var rowEl = buildRow(ev);
   if (rowEl) log.appendChild(rowEl);
+  // UI-1 — scroll-on-move fix. A room change is an explicit navigation the
+  // player initiated, so re-anchor to the new-room banner regardless of the
+  // current scroll position. (Otherwise, when scrolled up in history, a move
+  // silently bumps the unread pill and the player never visibly "lands" in
+  // the new room — the clunk.) A one-beat highlight sweep draws the eye to the
+  // landing. Mode-agnostic via activeLogEl(); client render only, so the
+  // Telnet text path is untouched.
+  if (rowEl && ev.t === 'room-enter') {
+    anchorRoomEnterRow(log, rowEl);
+    return;
+  }
   if (atBottom) {
     requestAnimationFrame(function(){ log.scrollTop = log.scrollHeight; });
     newSinceScroll = 0;
@@ -4614,6 +5090,35 @@ function renderEventToActiveLog(ev) {
     activePillCountEl().textContent = newSinceScroll;
     activePillEl().classList.add('show');
   }
+}
+
+function anchorRoomEnterRow(log, rowEl) {
+  // Pin the just-appended room banner to the top of the log viewport. We
+  // operate on log.scrollTop directly (consistent with the bottom-pin idiom
+  // above) using a layout-robust element→container delta, with offsetTop as a
+  // fallback. The desc/exits rows for the same room are appended in this same
+  // synchronous tick, so a rAF re-assert pins the banner once they lay out
+  // (for an at-bottom walker their scroll-to-bottom rAFs run later in the
+  // frame and win, preserving today's behavior; for a scrolled-up walker they
+  // don't schedule any, so this pin is authoritative). Landing on a new room
+  // means you're current → clear the unread pill.
+  var pin = function() {
+    var target = rowEl.offsetTop || 0;
+    if (log.getBoundingClientRect && rowEl.getBoundingClientRect) {
+      var lr = log.getBoundingClientRect();
+      var rr = rowEl.getBoundingClientRect();
+      if (rr.top || lr.top) target = log.scrollTop + (rr.top - lr.top);
+    }
+    log.scrollTop = target;
+  };
+  pin();
+  if (window.requestAnimationFrame) requestAnimationFrame(pin);
+  // One-beat highlight sweep (CSS one-shot; clear so a re-entry re-triggers it).
+  rowEl.classList.add('room-enter-sweep');
+  setTimeout(function(){ rowEl.classList.remove('room-enter-sweep'); }, 1000);
+  newSinceScroll = 0;
+  var pill = activePillEl();
+  if (pill) pill.classList.remove('show');
 }
 
 function reRenderAllEventsToActiveLog() {
@@ -5506,6 +6011,19 @@ function handleHudUpdate(data) {
     $('g-credits').textContent = formatNum(data.credits);
   }
 
+  // Webify UI-6: objective line. "" or absent → hide the box.
+  if (data.objective !== undefined) {
+    var objBox = $('g-objective'), objTxt = $('g-objective-text');
+    if (objBox && objTxt) {
+      if (data.objective) {
+        objTxt.textContent = data.objective;
+        objBox.classList.add('show');
+      } else {
+        objBox.classList.remove('show');
+      }
+    }
+  }
+
   // CP — server sends character_points as int and cp_progress as
   // { ticks_to_next, ticks_per_cp, ticks_this_week, weekly_cap, pct }.
   if (data.character_points !== undefined) {
@@ -5575,6 +6093,11 @@ function handleHudUpdate(data) {
         zone: data.zone_name || '',
         security: data.security_level || '',
       });
+      // Webify UI-2: a room change clears the region panel by default; the
+      // region_state push that follows (same send_hud_update) re-shows it iff
+      // the new room is in a wilderness region, so leaving a region to a city
+      // hides it cleanly.
+      hideRegionPanel();
       // Then desc
       if (data.room_description) {
         appendEvent({ t: 'desc', text: data.room_description });
@@ -7115,6 +7638,27 @@ function handlePlacesStatus(data) {
   });
 }
 
+// Webify UI-2: region-control panel. The server pushes region_state only when
+// the player stands in a wilderness region (see _hud_sidebar_region); other
+// rooms send nothing, so hideRegionPanel() (called on every room change in
+// handleHudUpdate) keeps it from going stale. Render delegates to M3Region.
+function handleRegionState(data) {
+  var block = (data && data.region) || data;
+  var panel = $('region-panel');
+  if (!panel) return;
+  if (!block || !block.region_slug || !window.M3Region) { hideRegionPanel(); return; }
+  var body = $('region-body');
+  body.innerHTML = '';
+  body.appendChild(M3Region.render(block));
+  panel.style.display = '';
+}
+
+function hideRegionPanel() {
+  var panel = $('region-panel');
+  if (panel) panel.style.display = 'none';
+  if (window.M3Region) M3Region.stop();
+}
+
 // Reputation panel — server emits hud.reputation as a dict keyed by faction
 // code: { republic: {rep, tier_key, tier_name, rank, rank_level, is_member}, ... }
 // We render members first, then non-zero rep, with tier name + numeric score.
@@ -7364,6 +7908,7 @@ function closeCityModal(ev) {
     __cityPendingTimer = null;
   }
 }
+window.closeCityModal = closeCityModal;  // inline-onclick export
 
 function _cityModalKeyHandler(e) {
   if (e.key === 'Escape') closeCityModal();
@@ -8129,6 +8674,48 @@ function handleRepChange(data) {
     sub: data.reason || ''
   });
 }
+var _creditAnimHandle = null;
+var _rewardToastTimer = null;
+
+function animateCreditsTo(target, delta) {
+  // Webify UI-6 juice: count g-credits up/down from (target - delta) to
+  // target over ~700ms, cubic ease-out. Order-independent of the
+  // hud_update render (start value is derived, not read from the DOM).
+  var elC = $('g-credits');
+  if (!elC) return;
+  if (typeof requestAnimationFrame !== 'function') {
+    elC.textContent = formatNum(target);
+    return;
+  }
+  if (_creditAnimHandle != null) cancelAnimationFrame(_creditAnimHandle);
+  var from = target - delta;
+  var dur = 700, t0 = null;
+  function step(ts) {
+    if (t0 === null) t0 = ts;
+    var p = Math.min(1, (ts - t0) / dur);
+    var eased = 1 - Math.pow(1 - p, 3);  // cubic ease-out
+    elC.textContent = formatNum(Math.round(from + (target - from) * eased));
+    if (p < 1) _creditAnimHandle = requestAnimationFrame(step);
+    else _creditAnimHandle = null;
+  }
+  _creditAnimHandle = requestAnimationFrame(step);
+}
+
+function showRewardToast(delta) {
+  var t = $('reward-toast');
+  if (!t) return;
+  t.textContent = (delta > 0 ? '+' : '\u2212') + formatNum(Math.abs(delta)) + ' cr';
+  t.classList.remove('show', 'negative');
+  void t.offsetWidth;  // restart transition
+  if (delta < 0) t.classList.add('negative');
+  t.classList.add('show');
+  if (_rewardToastTimer != null) clearTimeout(_rewardToastTimer);
+  _rewardToastTimer = setTimeout(function(){
+    t.classList.remove('show');
+    _rewardToastTimer = null;
+  }, 2600);
+}
+
 function handleCreditEvent(data) {
   // Show delta in credits panel
   var delta = data.delta || 0;
@@ -8139,6 +8726,9 @@ function handleCreditEvent(data) {
   void el.offsetWidth;  // restart
   el.classList.add('show', delta > 0 ? 'positive' : 'negative');
   setTimeout(function(){ el.classList.remove('show'); }, 2000);
+  // Webify UI-6 juice: count-up + reward toast on the same real event.
+  if (data.credits !== undefined) animateCreditsTo(data.credits, delta);
+  showRewardToast(delta);
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -9864,7 +10454,9 @@ function handleBoardingResolved(msg) {
    { active, round, phase: 'initiative|declaration|resolution|posing|ended',
      combatants: [{id, name, is_player, wound_level, wound_name,
                     initiative, declared, action_summary, pose_status,
-                    cover, aim_bonus, is_fleeing}],
+                    cover, aim_bonus, is_fleeing,
+                    poison_stacks:[{source,damage,onset,ticks_left}],
+                    restraint:{grappler_id,kind,hold_damage,source}|null}],
      your_actions: [str], waiting_for: [name], pose_deadline: int|null }
    ════════════════════════════════════════════════════════════════════ */
 var lastCombatViewerName = null;
@@ -10188,6 +10780,14 @@ function handleCombatState(data) {
       '<div class="combatant-action' + (c.action_summary ? '' : ' empty') + '" title="' + actionTxt + '">' +
         actionTxt +
       '</div>';
+    // UI-3 — condition chip rail (poison / restraint). M3CombatInspector owns
+    // the render and returns null for non-creature fights, so this adds zero
+    // DOM in ordinary combat. No command is staged (ground break-free is
+    // automatic at round end).
+    if (window.M3CombatInspector && M3CombatInspector.buildConditionChips) {
+      var chipRail = M3CombatInspector.buildConditionChips(c, isYou);
+      if (chipRail) pip.appendChild(chipRail);
+    }
     stripEl.appendChild(pip);
   });
 
@@ -10224,9 +10824,239 @@ function handleCombatState(data) {
   // its own 500ms tick when visible; cleared when hidden.
   renderPosingPanel(data, theatre);
 }
-function handleShopState(_data) {
-  // Shop browse is text-driven. Future enhancement: render an inline shop card.
+// ── Inventory panel (Webify UI-4a) ──────────────────────────────────────────
+// Opened by the inventory_state push (from `inventory`/`inv`/`i`, incl. the INV
+// quick-action). State-changing actions are STAGED into the input, never
+// auto-sent — the player reviews and presses Enter.
+function handleInventoryState(msg) {
+  if (!window.M3Inventory) return;
+  M3Inventory.resetSelection();
+  M3Inventory.render($('inv-modal-body'), msg, stageFromInventory);
+  openInventoryModal();
 }
+function stageRawCommand(cmd) {
+  var inp = activeInputEl();
+  if (!inp) return;
+  inp.value = cmd;
+  inp.focus();
+  setTimeout(function(){ inp.setSelectionRange(inp.value.length, inp.value.length); }, 0);
+}
+function stageFromInventory(cmd) {
+  closeInventoryModal();
+  stageRawCommand(cmd);
+}
+function openInventoryModal() {
+  var ov = $('inv-modal-overlay'), pn = $('inv-modal');
+  if (!ov || !pn) return;
+  ov.classList.add('show'); pn.classList.add('show');
+}
+function closeInventoryModal() {
+  var ov = $('inv-modal-overlay'), pn = $('inv-modal');
+  if (!ov || !pn) return;
+  ov.classList.remove('show'); pn.classList.remove('show');
+}
+function invModalBackdropClick(evt) {
+  if (evt && evt.target && evt.target.id === 'inv-modal-overlay') closeInventoryModal();
+}
+// Inline onclick attributes resolve in GLOBAL scope at click time; this
+// whole client script is a strict-mode IIFE, so every handler an
+// onclick references MUST be exported. tests/spa/
+// test_client_onclick_exports.py sweeps the file and fails on any gap.
+window.closeInventoryModal = closeInventoryModal;
+window.invModalBackdropClick = invModalBackdropClick;
+function handleShopState(data) {
+  // Webify UI-4b: render the shop_state push (browse / dashboard modes) in a
+  // modal. BUY stages a real `buy <slot> from <shop>` command (never auto-sent);
+  // owner management stays in the text `+shop` flow.
+  if (!window.M3Shop) return;
+  M3Shop.resetFocus();
+  var t = $('shop-modal-title');
+  if (t) t.textContent = M3Shop.titleFor(data);
+  M3Shop.render($('shop-modal-body'), data, stageFromShop);
+  openShopModal();
+}
+function stageFromShop(cmd) {
+  closeShopModal();
+  stageRawCommand(cmd);
+}
+function openShopModal() {
+  var ov = $('shop-modal-overlay'), pn = $('shop-modal');
+  if (!ov || !pn) return;
+  ov.classList.add('show'); pn.classList.add('show');
+}
+function closeShopModal() {
+  var ov = $('shop-modal-overlay'), pn = $('shop-modal');
+  if (!ov || !pn) return;
+  ov.classList.remove('show'); pn.classList.remove('show');
+}
+function shopModalBackdropClick(evt) {
+  if (evt && evt.target && evt.target.id === 'shop-modal-overlay') closeShopModal();
+}
+window.closeShopModal = closeShopModal;             // inline-onclick export
+window.shopModalBackdropClick = shopModalBackdropClick;
+function handleBoardState(data) {
+  // Webify UI-5: render the board_state push (bounty contracts + the viewer's
+  // claimed_id) in a modal. ACCEPT stages `bountyclaim <id>`, TRACK stages
+  // `bountytrack` — staged, never auto-sent. Claiming/abandoning resolution
+  // stays server-side; there is no abandon verb.
+  if (!window.M3Board) return;
+  M3Board.resetState();
+  var t = $('board-modal-title');
+  if (t) t.textContent = M3Board.titleFor(data);
+  M3Board.render($('board-modal-body'), data, stageFromBoard);
+  openBoardModal();
+}
+function stageFromBoard(cmd) {
+  closeBoardModal();
+  stageRawCommand(cmd);
+}
+function openBoardModal() {
+  var ov = $('board-modal-overlay'), pn = $('board-modal');
+  if (!ov || !pn) return;
+  ov.classList.add('show'); pn.classList.add('show');
+}
+function closeBoardModal() {
+  var ov = $('board-modal-overlay'), pn = $('board-modal');
+  if (window.M3Board) M3Board.stop();  // drain the countdown interval
+  if (!ov || !pn) return;
+  ov.classList.remove('show'); pn.classList.remove('show');
+}
+function boardModalBackdropClick(evt) {
+  if (evt && evt.target && evt.target.id === 'board-modal-overlay') closeBoardModal();
+}
+window.closeBoardModal = closeBoardModal;           // inline-onclick export
+window.boardModalBackdropClick = boardModalBackdropClick;
+
+/* ── Webify UI-8: crafting panel modal ─────────────────────────────── */
+
+function handleCraftingState(data) {
+  // Renders the crafting_state push (known schematics with live
+  // craftable/have-at-quality diagnostics + material stacks + the last
+  // craft result). CRAFT stages `craft <name>`, BUY stages
+  // `buyresources <type> `, SURVEY stages `survey` — staged, never
+  // auto-sent. Known schematics only; the panel cannot invent a recipe.
+  if (!window.M3Craft) return;
+  var t = $('craft-modal-title');
+  if (t) t.textContent = M3Craft.titleFor(data);
+  M3Craft.render($('craft-modal-body'), data, stageFromCraft);
+  openCraftModal();
+}
+function stageFromCraft(cmd) {
+  closeCraftModal();
+  stageRawCommand(cmd);
+}
+function openCraftModal() {
+  var ov = $('craft-modal-overlay'), pn = $('craft-modal');
+  if (!ov || !pn) return;
+  ov.classList.add('show'); pn.classList.add('show');
+}
+function closeCraftModal() {
+  var ov = $('craft-modal-overlay'), pn = $('craft-modal');
+  if (window.M3Craft) M3Craft.stop();  // convention symmetry (no timers)
+  if (!ov || !pn) return;
+  ov.classList.remove('show'); pn.classList.remove('show');
+}
+function craftModalBackdropClick(evt) {
+  if (evt && evt.target && evt.target.id === 'craft-modal-overlay') closeCraftModal();
+}
+window.closeCraftModal = closeCraftModal;           // inline-onclick export
+window.craftModalBackdropClick = craftModalBackdropClick;
+
+/* ── Webify UI-7: onboarding/training panel + first-run tour ───────── */
+
+function handleOnboardingState(data) {
+  var panel = $('onboard-panel');
+  if (!panel || !window.M3Onboard || !data) return;
+  if (!data.active && !data.graduated) { panel.style.display = 'none'; return; }
+  M3Onboard.render($('onboard-body'), data, stageFromOnboard, hideOnboardPanel);
+  panel.style.display = '';
+  if (data.active) maybeShowOnboardTour();
+}
+function stageFromOnboard(cmd) {
+  // Panel, not modal — stays open while the player works the step.
+  stageRawCommand(cmd);
+}
+function hideOnboardPanel() {
+  var panel = $('onboard-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+var ONBOARD_TOUR_KEY = 'm3_onboard_tour_done';
+var _onboardTourSteps = [
+  { sel: '#cmd-bar-ground',  text: 'Commands live here. Type, then Enter — the galaxy listens.' },
+  { sel: '#qa-row',          text: 'Quick actions stage common commands into the input for you.' },
+  { sel: '#g-objective',     text: 'Your current objective. It updates as you progress.' },
+  { sel: '#onboard-panel',   text: 'Your training chain. Tap a command chip to stage it, then send.' }
+];
+var _onboardTourIdx = -1;
+
+function _tourSeen() {
+  try { return localStorage.getItem(ONBOARD_TOUR_KEY) === '1'; }
+  catch (_) { return true; }   // storage unavailable → never loop the tour
+}
+function maybeShowOnboardTour() {
+  if (_onboardTourIdx >= 0) return;        // already running
+  if (_tourSeen()) return;
+  showOnboardTour(false);
+}
+function showOnboardTour(force) {
+  if (!force && _tourSeen()) return;
+  var panel = $('onboard-panel');
+  if (!panel || panel.style.display === 'none') return;  // tour needs the panel
+  _onboardTourIdx = 0;
+  _positionOnboardTour();
+}
+function _positionOnboardTour() {
+  var ov = $('m3o-tour-overlay'), ring = $('m3o-tour-ring'),
+      card = $('m3o-tour-card');
+  if (!ov || !ring || !card) return;
+  // Skip steps whose anchor is missing or hidden (e.g. objective box
+  // not shown yet) rather than spotlighting nothing.
+  while (_onboardTourIdx < _onboardTourSteps.length) {
+    var t = document.querySelector(_onboardTourSteps[_onboardTourIdx].sel);
+    if (t && t.offsetParent !== null) break;
+    _onboardTourIdx++;
+  }
+  if (_onboardTourIdx >= _onboardTourSteps.length) { endOnboardTour(); return; }
+  var step = _onboardTourSteps[_onboardTourIdx];
+  var target = document.querySelector(step.sel);
+  var r = target.getBoundingClientRect();
+  var pad = 6;
+  ring.style.left   = (r.left - pad) + 'px';
+  ring.style.top    = (r.top - pad) + 'px';
+  ring.style.width  = (r.width + pad * 2) + 'px';
+  ring.style.height = (r.height + pad * 2) + 'px';
+  // Card below the target; clamp to viewport, flip above if cramped.
+  var ch = 110, cw = Math.min(300, window.innerWidth - 24);
+  var cx = Math.max(12, Math.min(r.left, window.innerWidth - cw - 12));
+  var cy = r.bottom + 12;
+  if (cy + ch > window.innerHeight) cy = Math.max(12, r.top - ch - 12);
+  card.style.left = cx + 'px';
+  card.style.top  = cy + 'px';
+  card.style.width = cw + 'px';
+  $('m3o-tour-step').textContent =
+      (_onboardTourIdx + 1) + ' / ' + _onboardTourSteps.length;
+  $('m3o-tour-text').textContent = step.text;
+  $('m3o-tour-next').textContent =
+      (_onboardTourIdx === _onboardTourSteps.length - 1) ? 'DONE' : 'NEXT';
+  ov.classList.add('show');
+}
+function advanceOnboardTour() {
+  _onboardTourIdx++;
+  if (_onboardTourIdx >= _onboardTourSteps.length) { endOnboardTour(); return; }
+  _positionOnboardTour();
+}
+function endOnboardTour() {
+  var ov = $('m3o-tour-overlay');
+  if (ov) ov.classList.remove('show');
+  _onboardTourIdx = -1;
+  try { localStorage.setItem(ONBOARD_TOUR_KEY, '1'); } catch (_) {}
+}
+// UI-7 tour controls live on inline onclick (NEXT / SKIP TOUR / the
+// TRAINING-head ? replay) — they were dead until exported.
+window.showOnboardTour = showOnboardTour;
+window.advanceOnboardTour = advanceOnboardTour;
+window.endOnboardTour = endOnboardTour;
 function handleAmbientBark(msg) {
   if (msg.text || msg.data) {
     appendEvent({ t: 'desc-inline', text: msg.text || msg.data });
@@ -10898,6 +11728,7 @@ function connect() {
         case 'achievements_status':   handleAchievementsStatus(msg); return;
         case 'mail_status':           handleMailStatus(msg); return;
         case 'places_status':         handlePlacesStatus(msg); return;
+        case 'region_state':          handleRegionState(msg); return;
         case 'space_choices':         handleSpaceChoices(msg); return;
         case 'space_choices_dismiss': dismissEncounter(); return;
         case 'space_choices_countdown': updateChoiceCountdown(msg); return;
@@ -10906,6 +11737,10 @@ function connect() {
         case 'combat_state':          handleCombatState(msg); return;
         case 'combat_resolution_event': handleCombatResolutionEvent(msg); return;
         case 'shop_state':            handleShopState(msg); return;
+        case 'inventory_state':       handleInventoryState(msg); return;
+        case 'board_state':           handleBoardState(msg); return;
+        case 'crafting_state':        handleCraftingState(msg); return;
+        case 'onboarding_state':      handleOnboardingState(msg); return;
         case 'sheet_data':            handleSheetData(msg); return;
         case 'skill_descriptions':    handleSkillDescriptions(msg); return;
         case 'pose_event':

@@ -45,51 +45,6 @@ if PROJECT_ROOT not in sys.path:
 # 1. GCW byte-equivalence — the F.7.b gate
 # ──────────────────────────────────────────────────────────────────────
 
-class TestGCWByteEquivalence(unittest.TestCase):
-    """The GCW chargen_templates.yaml MUST match the in-Python
-    _LEGACY_TEMPLATES_GCW literal byte-for-byte. F.7.b Phase 2 will
-    retire the legacy constant once this byte-equivalence has been
-    proven in production for some period; the assertion below is
-    that gate."""
-
-    def test_gcw_yaml_matches_legacy_literal(self):
-        from engine.chargen_templates_loader import (
-            get_chargen_templates, _LEGACY_TEMPLATES_GCW,
-        )
-        gcw = get_chargen_templates(era="gcw")
-        self.assertEqual(
-            gcw, _LEGACY_TEMPLATES_GCW,
-            "GCW chargen_templates.yaml must match _LEGACY_TEMPLATES_GCW "
-            "byte-for-byte. If you intentionally changed one, update "
-            "the other in lockstep until F.7.b Phase 2 retires the "
-            "legacy constant.",
-        )
-
-    def test_gcw_has_seven_templates(self):
-        from engine.chargen_templates_loader import get_chargen_templates
-        gcw = get_chargen_templates(era="gcw")
-        self.assertEqual(len(gcw), 7)
-
-    def test_gcw_template_keys(self):
-        from engine.chargen_templates_loader import get_chargen_templates
-        gcw = get_chargen_templates(era="gcw")
-        expected = {
-            "smuggler", "bounty_hunter", "rebel_pilot", "scoundrel",
-            "technician", "jedi_apprentice", "soldier",
-        }
-        self.assertEqual(set(gcw.keys()), expected)
-
-    def test_gcw_template_order_preserved(self):
-        """The chargen wizard relies on preserved YAML order for the
-        numbered template-selection menu. The first option in GCW is
-        Smuggler; the last is Soldier."""
-        from engine.chargen_templates_loader import get_chargen_templates
-        gcw = get_chargen_templates(era="gcw")
-        keys = list(gcw.keys())
-        self.assertEqual(keys[0], "smuggler")
-        self.assertEqual(keys[-1], "soldier")
-
-
 # ──────────────────────────────────────────────────────────────────────
 # 2. CW corpus loads correctly
 # ──────────────────────────────────────────────────────────────────────
@@ -149,20 +104,6 @@ class TestCWCorpusLoads(unittest.TestCase):
             cw["separatist_pilot"]["skills"],
         )
 
-    def test_cw_era_neutral_carryovers_match_gcw(self):
-        """smuggler / bounty_hunter / scoundrel / technician are
-        byte-equivalent across eras per the YAML rationale comment."""
-        from engine.chargen_templates_loader import get_chargen_templates
-        gcw = get_chargen_templates(era="gcw")
-        cw = get_chargen_templates(era="clone_wars")
-        for key in ("smuggler", "bounty_hunter", "scoundrel", "technician"):
-            self.assertEqual(
-                gcw[key], cw[key],
-                f"Era-neutral template {key!r} should be byte-identical "
-                f"across GCW and CW",
-            )
-
-
 # ──────────────────────────────────────────────────────────────────────
 # 3. Seam return shape
 # ──────────────────────────────────────────────────────────────────────
@@ -174,7 +115,7 @@ class TestSeamReturnShape(unittest.TestCase):
 
     def test_each_template_has_required_fields(self):
         from engine.chargen_templates_loader import get_chargen_templates
-        gcw = get_chargen_templates(era="gcw")
+        gcw = get_chargen_templates(era="clone_wars")
         for key, tmpl in gcw.items():
             self.assertIn("label", tmpl, f"{key} missing label")
             self.assertIn("species", tmpl, f"{key} missing species")
@@ -187,7 +128,7 @@ class TestSeamReturnShape(unittest.TestCase):
 
     def test_attributes_are_dice_pool_strings(self):
         from engine.chargen_templates_loader import get_chargen_templates
-        gcw = get_chargen_templates(era="gcw")
+        gcw = get_chargen_templates(era="clone_wars")
         for key, tmpl in gcw.items():
             for attr_name, attr_value in tmpl["attributes"].items():
                 self.assertIsInstance(
@@ -200,9 +141,9 @@ class TestSeamReturnShape(unittest.TestCase):
         """Seam returns a fresh dict per call; mutating the result
         must not poison subsequent callers."""
         from engine.chargen_templates_loader import get_chargen_templates
-        gcw1 = get_chargen_templates(era="gcw")
+        gcw1 = get_chargen_templates(era="clone_wars")
         gcw1["smuggler"]["label"] = "MUTATED"
-        gcw2 = get_chargen_templates(era="gcw")
+        gcw2 = get_chargen_templates(era="clone_wars")
         self.assertEqual(gcw2["smuggler"]["label"], "Smuggler",
                          "Mutating one call's result poisoned a later call")
 
@@ -217,21 +158,17 @@ class TestSeamFallbackPaths(unittest.TestCase):
     chargen_templates.yaml authored yet (or any era with a manifest
     parse error)."""
 
-    def test_unknown_era_falls_back_to_legacy(self):
-        from engine.chargen_templates_loader import (
-            get_chargen_templates, _LEGACY_TEMPLATES_GCW,
-        )
-        # Era 'fake_era_for_test' doesn't exist on disk; the seam
-        # should fall back to legacy without raising.
+    def test_unknown_era_returns_empty(self):
+        from engine.chargen_templates_loader import get_chargen_templates
+        # Post-GCW-retirement there is no in-Python legacy fallback;
+        # an unknown era resolves to an empty dict without raising.
         result = get_chargen_templates(era="fake_era_for_test")
-        self.assertEqual(result, _LEGACY_TEMPLATES_GCW)
+        self.assertEqual(result, {})
 
     def test_worlds_root_override_with_no_chargen_ref(self):
         """If the worlds_root override points at a tmp dir with an
-        era.yaml but no chargen_templates ref, fallback fires."""
-        from engine.chargen_templates_loader import (
-            get_chargen_templates, _LEGACY_TEMPLATES_GCW,
-        )
+        era.yaml but no chargen_templates ref, the result is empty."""
+        from engine.chargen_templates_loader import get_chargen_templates
         with tempfile.TemporaryDirectory() as tmp:
             tmp_root = Path(tmp)
             era_dir = tmp_root / "tmpera"
@@ -253,17 +190,7 @@ class TestSeamFallbackPaths(unittest.TestCase):
                 era="tmpera",
                 worlds_root=tmp_root,
             )
-            self.assertEqual(result, _LEGACY_TEMPLATES_GCW)
-
-    def test_legacy_dict_is_deep_copied(self):
-        """Calling _legacy_templates_dict() twice returns independent
-        dicts so callers can't accidentally pollute the constant."""
-        from engine.chargen_templates_loader import _legacy_templates_dict
-        d1 = _legacy_templates_dict()
-        d1["smuggler"]["label"] = "POISONED"
-        d2 = _legacy_templates_dict()
-        self.assertEqual(d2["smuggler"]["label"], "Smuggler")
-
+            self.assertEqual(result, {})
 
 # ──────────────────────────────────────────────────────────────────────
 # 5. world_loader.load_chargen_templates corpus shape
@@ -272,18 +199,6 @@ class TestSeamFallbackPaths(unittest.TestCase):
 class TestWorldLoaderCorpus(unittest.TestCase):
     """The world_loader.load_chargen_templates function produces a
     ChargenTemplatesCorpus dataclass with parsed templates."""
-
-    def test_gcw_corpus_loads(self):
-        from engine.world_loader import (
-            load_era_manifest, load_chargen_templates,
-        )
-        manifest = load_era_manifest(Path("data") / "worlds" / "gcw")
-        corpus = load_chargen_templates(manifest)
-        self.assertIsNotNone(corpus)
-        self.assertEqual(corpus.schema_version, 1)
-        self.assertEqual(len(corpus.templates), 7)
-        self.assertFalse(corpus.report.errors,
-                         f"GCW corpus had errors: {corpus.report.errors}")
 
     def test_cw_corpus_loads(self):
         from engine.world_loader import (
@@ -301,7 +216,7 @@ class TestWorldLoaderCorpus(unittest.TestCase):
         from engine.world_loader import (
             load_era_manifest, load_chargen_templates, ChargenTemplate,
         )
-        manifest = load_era_manifest(Path("data") / "worlds" / "gcw")
+        manifest = load_era_manifest(Path("data") / "worlds" / "clone_wars")
         corpus = load_chargen_templates(manifest)
         for tmpl in corpus.templates:
             self.assertIsInstance(tmpl, ChargenTemplate)
@@ -345,16 +260,6 @@ class TestEraManifestPath(unittest.TestCase):
     """The chargen_templates_path field is wired through
     load_era_manifest from era.yaml's content_refs.chargen_templates."""
 
-    def test_gcw_manifest_has_chargen_path(self):
-        from engine.world_loader import load_era_manifest
-        manifest = load_era_manifest(Path("data") / "worlds" / "gcw")
-        self.assertIsNotNone(manifest.chargen_templates_path)
-        self.assertTrue(manifest.chargen_templates_path.is_file())
-        self.assertEqual(
-            manifest.chargen_templates_path.name,
-            "chargen_templates.yaml",
-        )
-
     def test_cw_manifest_has_chargen_path(self):
         from engine.world_loader import load_era_manifest
         manifest = load_era_manifest(Path("data") / "worlds" / "clone_wars")
@@ -374,7 +279,6 @@ class TestF7DocstringMarkers(unittest.TestCase):
         """The seam module exists and exports get_chargen_templates."""
         from engine import chargen_templates_loader
         self.assertTrue(hasattr(chargen_templates_loader, "get_chargen_templates"))
-        self.assertTrue(hasattr(chargen_templates_loader, "_LEGACY_TEMPLATES_GCW"))
 
     def test_creation_module_no_inline_templates_literal(self):
         """engine/creation.py must NOT contain the pre-F.7 in-Python

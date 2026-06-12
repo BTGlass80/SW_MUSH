@@ -26,7 +26,15 @@ CLIENT_HTML = REPO_ROOT / "static" / "client.html"
 def test_move_command_records_bearing():
     src = BUILTINS.read_text(encoding="utf-8")
     start = src.index("async def _post_move_hooks")
-    body = src[start: start + 3000]
+    # Scope to the whole _post_move_hooks body. The hook has grown well past
+    # any fixed-size window (it is ~12.8k chars), pushing the bearing block
+    # past an arbitrary 3000-char slice; bound to the next method def instead
+    # so the bearing wiring is always in range. The attributes-write count
+    # assertion below is still exact because save_character(char["id"],
+    # attributes=...) appears exactly once in the function.
+    import re as _re
+    _m = _re.search(r"\n    (?:async def|def) ", src[start + 1:])
+    body = src[start: start + 1 + _m.start()] if _m else src[start:]
     assert "from engine.bearing import bearing_for_direction" in body, (
         "MoveCommand must derive bearing from the move direction"
     )

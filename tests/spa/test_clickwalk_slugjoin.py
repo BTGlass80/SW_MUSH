@@ -68,12 +68,23 @@ def _clickwalk_block() -> str:
 
 
 def _run_node(script: str) -> dict:
-    if subprocess.run(["node", "--version"], capture_output=True).returncode != 0:
+    # On Windows, running a missing executable raises FileNotFoundError BEFORE
+    # returncode can be inspected, so the bare returncode check below never got
+    # the chance to skip -- the probe itself crashed the test. Catch the spawn
+    # failure and skip, which is the intended "node not available" behaviour.
+    try:
+        if subprocess.run(["node", "--version"], capture_output=True).returncode != 0:
+            pytest.skip("node not available")
+    except (FileNotFoundError, OSError):
         pytest.skip("node not available")
-    with tempfile.NamedTemporaryFile("w", suffix=".mjs", delete=False) as f:
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".mjs", delete=False, encoding="utf-8"
+    ) as f:
         f.write(script)
         path = f.name
-    proc = subprocess.run(["node", path], capture_output=True, text=True)
+    proc = subprocess.run(
+        ["node", path], capture_output=True, text=True, encoding="utf-8"
+    )
     assert proc.returncode == 0, f"node failed:\n{proc.stderr}\n{proc.stdout}"
     return json.loads(proc.stdout)
 

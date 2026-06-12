@@ -1,0 +1,335 @@
+# data/worlds/clone_wars/wilderness/ey_akh.yaml
+#
+# Sourcebook Enrichment — Lane D (Geonosis), wilderness tier.
+# The E'Y-Akh: the low dune sea that makes up most of the Stalgasin hive's
+# surface territory, ending at the N'G'Zi badlands and the stagnant Ebon Sea.
+# Modeled on wilderness/dune_sea.yaml (the reference region). Coordinate-grid
+# geometry per wilderness_system_design_v1.md; landmarks anchor inside the grid.
+#
+# ── PROVENANCE / DISCIPLINE ─────────────────────────────────────────────────
+# Source is "Geonosis and the Outer Rim Worlds" (WotC d20) §1.4/§1.8 — setting
+# only; all d20 stats discarded. The creatures this region's encounter pool
+# spawns (acklay, mutant_acklay, merdeth, mip_swarm) are D6 re-stats authored
+# in data/npcs_creatures.yaml; every payload.npc_template below resolves to an
+# id there (validated by tests/test_lane_d_geonosis_wilderness.py — a real
+# contract, not a phantom). B3 era-clean; Q1 — no canon figures (the ruling
+# archduke and Golbah's fall are lore/absence framing only).
+#
+# ── LANDED (this region's arc) ──────────────────────────────────────────────
+#   * The annual-flood mechanic (EventType.FLOOD in engine/world_events.py,
+#     riding the storm machinery like the Lane E storms) + the zone-aware
+#     flood→encounter wiring (event_gate: flood on the two flood encounters
+#     below).
+#   * Marmio Mio's wrecked freighter (an original-NPC info-broker SITE — she is
+#     named atmospherically, not an interactive NPC entity; see its block).
+#   * The N'G'Zi badlands as a named landmark on the existing `badlands`
+#     terrain (the lighter path — a terminus POI, NOT a distinct sub-region;
+#     see its block for the rationale).
+#
+# ── DEFERRED (follow-ups, flagged in TODO) ──────────────────────────────────
+#   * A toxin ambient_hazard at Golbah's Pit — NOT added: the hazard engine has
+#     no toxin consumer yet (only extreme_heat), so the poison stays in the
+#     landmark lore rather than shipping a mechanical field with no reader.
+#   * A full interactive Marmio Mio (the spy role as a quest-giver, the hidden
+#     speeder bike, the probe-droid network) — an NPC-system drop, not a
+#     wilderness-region content drop.
+#   * Then the Kamino build (the other half of the §1.x extraction).
+
+schema_version: 1
+
+region:
+  slug: geonosis_ey_akh
+  name: "The E'Y-Akh"
+  planet: geonosis
+  zone: geonosis_ey_akh               # inherits security from this zone
+  default_security: lawless
+  narrative_tone_key: geonosis_wastes
+
+grid:
+  width: 30                           # x-coords 0..29
+  height: 30                          # y-coords 0..29
+  tile_scale_km: 2                    # 2km per tile = 60×60 km region
+  default_terrain: dune
+
+terrains:
+  dune:
+    move_cost: 2
+    sight_radius: 1
+    ambient_hazard: extreme_heat
+    hazard_severity: 2
+    variants:
+      - "Low red dunes run flat to the horizon, shimmering in the heat. Nothing breaks the line of them."
+      - "A sea of fine ochre sand. The wind erases your tracks almost as fast as you make them."
+      - "Featureless dune after featureless dune. The spires of the hive have dropped below the skyline behind you."
+    time_overlays:
+      night: "The heat breaks fast after dark and the cold comes up out of the sand. The dunes go grey-blue under the stars."
+
+  badlands:
+    # The approach to the N'G'Zi badlands — broken rock, ravines, hunting ground.
+    move_cost: 3
+    sight_radius: 2
+    ambient_hazard: extreme_heat
+    hazard_severity: 1
+    variants:
+      - "The sand gives way to broken red rock, shattered into ravines and standing stones. Good cover, and good ambush ground."
+      - "Wind-cut buttes and rubble slopes — the leading edge of the N'G'Zi badlands. Something has denned among the rocks."
+
+  ebon_sea_shore:
+    # The margin of the Ebon Sea — stagnant, scum-filmed water and black mud.
+    move_cost: 3
+    sight_radius: 2
+    ambient_hazard: none
+    variants:
+      - "Cracked black mudflats slope down to a sheet of still, scum-filmed water. The smell of it reaches you first."
+      - "The shore of the Ebon Sea: stagnant water under a skin of green-black scum, dead still, and far too quiet."
+
+  crater:
+    # Golbah's Pit — the poisoned crater of a hive that was bombed to silence.
+    move_cost: 3
+    sight_radius: 2
+    ambient_hazard: none
+    variants:
+      - "The ground tilts down into a vast crater of glassed rock and bubbling black muck. Nothing grows on the rim."
+
+# ─── Encounters ──────────────────────────────────────────────────────────────
+# Per wilderness_system_design_v1.md §5: each in-tile move rolls against
+# base_chance_per_move; on a hit the pool filters by destination terrain and
+# minimum distance from the region edge, then weighted-random-picks an entry.
+# Every hostile payload.npc_template resolves to a creature id in
+# data/npcs_creatures.yaml (acklay / mutant_acklay / merdeth / mip_swarm).
+encounters:
+  base_chance_per_move: 0.05
+  pool:
+
+    # ── Merdeth — the slow catastrophe of the deep desert ────────────────
+    - id: merdeth_advance
+      type: hostile
+      weight: 1
+      terrains: [dune, badlands]
+      min_distance_from_edge: 4
+      faction_gate: ey_akh_default
+      narrative: "The dune ahead is moving. Not sand — a shell the size of a freight barge, hauling itself toward you on barbed tentacles, with a humming haze of parasites riding above it. A merdeth. It has already chosen its line."
+      payload:
+        npc_template: merdeth
+        count: [1, 1]
+        tier: tier2
+
+    # ── Mip swarm — the merdeth's outriders, or a leftover cloud ──────────
+    - id: mip_scouts
+      type: hostile
+      weight: 2
+      terrains: [dune, badlands]
+      min_distance_from_edge: 2
+      faction_gate: ey_akh_default
+      narrative: "A stinging cloud boils up out of a hollow ahead and comes straight for you — mips, scouting food for a merdeth somewhere close. The air fills with them."
+      payload:
+        npc_template: mip_swarm
+        count: [1, 1]
+        tier: tier1
+
+    # ── Wild acklay — escaped arena stock gone feral ─────────────────────
+    - id: wild_acklay_hunt
+      type: hostile
+      weight: 2
+      terrains: [badlands, ebon_sea_shore]
+      min_distance_from_edge: 3
+      faction_gate: ey_akh_default
+      narrative: "A drumming starts in the rocks — legs, many of them, on stone. An acklay comes over the ridge at a dead run, six bladed legs throwing grit, and it has the angle on you already."
+      payload:
+        npc_template: acklay
+        count: [1, 1]
+        tier: tier2
+
+    # ── Mutant acklay — up out of the black water ────────────────────────
+    - id: ebon_sea_ambush
+      type: hostile
+      weight: 2
+      terrains: [ebon_sea_shore]
+      min_distance_from_edge: 2
+      faction_gate: ey_akh_default
+      narrative: "The scum film bulges, breaks, and the Ebon Sea gives up what was waiting under it — an acklay, but wrong: bigger, black-shelled, streaming stagnant water as it rises between you and the shore."
+      payload:
+        npc_template: mutant_acklay
+        count: [1, 1]
+        tier: tier2
+
+    # ── Non-hostile environmental beat ───────────────────────────────────
+    - id: merdeth_shell_field
+      type: non_hostile
+      weight: 2
+      terrains: [dune]
+      narrative: "You pass through a field of bleached merdeth shells, half-sunk in the sand and big as hab-domes — where last year's flood caught a herd and drowned it. Salvagers have been here; not recently."
+
+    # ── Flood-gated (Lane D): only eligible WHILE the E'Y-Akh flood is active ──
+    # in this zone (event_gate: flood; evaluated zone-aware in the selector).
+    # The flood drives merdeths down to drown and pushes the wild acklays up
+    # onto whatever high ground remains.
+    - id: flood_drowning_merdeth
+      type: hostile
+      weight: 3
+      terrains: [dune, ebon_sea_shore]
+      min_distance_from_edge: 2
+      event_gate: flood
+      narrative: "A merdeth is foundering in the rising floodwater ahead, shell half-submerged, barbed tentacles lashing at everything within reach as it goes under. Driven down off the high desert to drown — and taking whatever it can with it."
+      payload:
+        npc_template: merdeth
+        count: [1, 1]
+        tier: tier2
+
+    - id: flood_displaced_acklay
+      type: hostile
+      weight: 3
+      terrains: [badlands]
+      min_distance_from_edge: 2
+      event_gate: flood
+      narrative: "The flood has pushed the wild things up onto the rock. An acklay, soaked and furious at being cornered on shrinking ground, wheels toward you the instant you crest the ridge."
+      payload:
+        npc_template: acklay
+        count: [1, 1]
+        tier: tier2
+
+# ─── Landmarks ───────────────────────────────────────────────────────────────
+landmarks:
+
+  - id: ebon_sea
+    name: "The Ebon Sea"
+    coordinates: [24, 12]
+    terrain: ebon_sea_shore
+    short_desc: "A rare permanent body of stagnant, scum-covered water — and the worst hunting ground on Geonosis."
+    description: |
+      The Ebon Sea is the one place on this part of Geonosis where water
+      stands year-round: a wide sheet of stagnant, scum-filmed black water
+      that never moves and never clears. Acklays that slipped their handlers
+      took to it generations ago, and the chemical sludge bleeding in from
+      Golbah's Pit changed the ones that stayed — the mutant strain hunts the
+      lightless water beneath the film and comes up onto the shore to feed.
+      This is where the arena's slavemaster sends prisoner work-parties to net
+      live acklays for the pens; most of the parties come back smaller than
+      they left.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - golbah_pit
+
+  - id: golbah_pit
+    name: "Golbah's Pit"
+    coordinates: [18, 22]
+    terrain: crater
+    short_desc: "A poisoned, kilometers-wide crater where a hive was bombed to silence."
+    description: |
+      Golbah's Pit is a kilometers-wide wound in the desert, a crater of
+      glassed rock and slowly bubbling black muck that nothing will grow on.
+      The Golbah hive stood here once and built war machines under contract to
+      off-world financiers; when its drones rose against the aristocrats, the
+      aristocrats answered by bombing the entire hive into the ground, drones
+      and halls and all. What leaked out of the ruin afterward ran downslope
+      into the Ebon Sea and is still leaking. The Geonosians do not come here,
+      and they have no word that translates as "regret."
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - ebon_sea
+
+  # ── Marmio Mio's Freighter (Geonosis & Outer Rim §1.4) ──────────────────
+  # An original-NPC info-broker site. Marmio Mio is named in the description
+  # ATMOSPHERICALLY only (like Acklay Chopper in the barracks) — she is NOT an
+  # interactive NPC entity here. A full interactive Marmio Mio (with the spy
+  # role surfaced as a quest-giver, the hidden speeder bike, the probe-droid
+  # network) is an NPC-system drop, not a wilderness-region content drop.
+  # NO ambient_lines: that field is written into room props by the wilderness
+  # writer but has no runtime reader at HEAD (see TODO tech_debt), so all flavor
+  # lives in `description` — the look-time path ebon_sea/golbah_pit already use.
+  - id: marmio_mio_freighter
+    name: "Marmio Mio's Freighter"
+    coordinates: [14, 12]
+    terrain: dune
+    short_desc: "A wrecked Action IV transport half-buried in the dunes, ringed by six colossal merdeth shells."
+    description: |
+      A Corellian Action IV transport lies half-buried nose-down in the open
+      sand, its spine broken and its hull scoured paintless by years of wind.
+      Six colossal merdeth shells ring it in a rough circle, bleached and
+      hollow and big as hab-domes — last year's flood caught a herd here, and
+      the old wreck is what the survivors of that drowning fetched up against.
+
+      Someone lives in it. Marmio Mio, the desert folk call her: a Human who
+      drifted in out of the dunes seasons ago and never drifted out, and whom
+      everyone agrees the sun has long since cooked past sense. She will trade
+      what she knows — where the merdeths are running, how deep the groundwater
+      sits under a given dune, which low ground the flood will take first — to
+      anyone who comes bearing water, or news, or a reason to talk. The lore is
+      good. It is always good.
+
+      What the desert folk do not say, because they have not looked closely, is
+      that a speeder bike sits under a sand-colored tarp in the shadow of the
+      hull, fueled and ready, and that small probe droids range out across the
+      dunes after dark and come back before the suns. Marmio Mio is no
+      castaway. She sells each hive's movements to its rivals and every hive's
+      secrets to whatever off-worlder pays best, and her loyalties run in as
+      many directions as there are buyers. When the flood comes, the old
+      transport rides it out on its ballast tanks while the desert drowns
+      around it — which is the whole reason she has lasted out here, and the
+      whole reason she means to keep lasting.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - ng_zi_badlands
+
+  # ── The N'G'Zi badlands (Geonosis & Outer Rim §1.4) ─────────────────────
+  # The eastern terminus where the dune sea breaks against rock — "the E'Y-Akh
+  # ... ending at the N'G'Zi badlands." DESIGN CALL (lighter path): a named
+  # landmark anchored to the existing `badlands` terrain, NOT its own 30×30
+  # region. The source frames the N'G'Zi as the dune sea's boundary feature
+  # rather than a distinct sub-geography, and the region already carries a
+  # `badlands` terrain authored as "the leading edge of the N'G'Zi badlands."
+  # This is the terminus POI for that terrain — the acklay hunting ground the
+  # wild_acklay_hunt encounter (terrains [badlands, ebon_sea_shore]) lives in.
+  - id: ng_zi_badlands
+    name: "The N'G'Zi Badlands"
+    coordinates: [26, 8]
+    terrain: badlands
+    short_desc: "Shattered red rock at the eastern edge of the dunes — the wild acklays' hunting ground."
+    description: |
+      The dune sea does not so much end as break apart. The sand thins, then
+      gives out entirely, and the ground rears up into the N'G'Zi: a country of
+      shattered red rock, wind-cut buttes, ravines that knife down out of
+      sight, and slopes of rubble that shift and slide underfoot. After the
+      flat erasure of the open desert it is a relief and a danger both — every
+      standing stone is cover, and every ravine mouth is an ambush waiting to
+      be sprung.
+
+      This is where the wild things den. The acklays that slipped the arena's
+      handlers took to the rocks generations ago; the N'G'Zi gives them the
+      high ground to run prey down and the broken country to vanish into
+      afterward, and the drumming of bladed legs on stone is the last sound
+      more than one salvager has heard. Beyond the badlands the ground falls
+      away again toward the black water of the Ebon Sea. Geonosian scouts mark
+      the N'G'Zi as the edge of the hive's reach: past these rocks the spires
+      do not bother to send patrols, and what happens out here is the desert's
+      business, not theirs.
+    properties:
+      wilderness_landmark: true
+      ambient_disabled: false
+    adjacency:
+      - ebon_sea
+
+# ─── Edges ───────────────────────────────────────────────────────────────────
+# The on-foot gateway from the surface. ey_akh_desert_edge is authored in
+# planets/geonosis.yaml (zone geonosis_ey_akh); the loader wires the
+# bidirectional edge-room <-> region-tile link from this declaration.
+edges:
+  - room_slug: ey_akh_desert_edge
+    coords: [0, 15]
+    direction_from_room: east
+    direction_back_to_room: west
+    enter_message: |
+      You step off the last of the rock and out onto open sand. The spires
+      drop behind you and the E'Y-Akh opens flat to every horizon. The heat
+      settles on you like a weight.
+    exit_message: |
+      You climb back up toward the spires, the dunes falling away behind you.
+      The shade of the rock, when you reach it, feels like cold water.
+
+unwalkable_tiles: []

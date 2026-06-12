@@ -207,27 +207,14 @@ class TestFactionQuarterLotsHasCWAnchors(unittest.TestCase):
                          71, "Hutt Cartel anchor should be room 71 "
                          "(hutt_emissary_tower_audience)")
 
-    def test_existing_entries_unchanged(self):
-        """B.1.d.3 is purely additive — F.5d + GCW entries unchanged."""
-        from engine.housing import FACTION_QUARTER_LOTS
-        # GCW
-        self.assertEqual(FACTION_QUARTER_LOTS[("empire", "tatooine")], 22)
-        self.assertEqual(FACTION_QUARTER_LOTS[("empire", "corellia")], 107)
-        self.assertEqual(FACTION_QUARTER_LOTS[("rebel", "tatooine")], 47)
-        self.assertEqual(FACTION_QUARTER_LOTS[("rebel", "nar_shaddaa")], 69)
-        self.assertEqual(FACTION_QUARTER_LOTS[("hutt", "tatooine")], 19)
-        self.assertEqual(FACTION_QUARTER_LOTS[("hutt", "nar_shaddaa")], 72)
-        # F.5d
-        self.assertEqual(FACTION_QUARTER_LOTS[("jedi_order", "coruscant")],
-                         211)
-
     def test_dict_size_after_b1d3(self):
-        """6 GCW + 1 F.5d + 3 B.1.d.3 = 10 entries."""
+        """After GCW retirement: 4 CW entries (republic + cis +
+        hutt_cartel + jedi_order)."""
         from engine.housing import FACTION_QUARTER_LOTS
         self.assertEqual(
-            len(FACTION_QUARTER_LOTS), 10,
-            "Post-B.1.d.3 FACTION_QUARTER_LOTS should have exactly "
-            "10 entries (6 GCW + 1 F.5d jedi + 3 B.1.d.3 CW)",
+            len(FACTION_QUARTER_LOTS), 4,
+            "Post-GCW-retirement FACTION_QUARTER_LOTS should have "
+            "exactly 4 CW entries (republic + cis + hutt_cartel + jedi)",
         )
 
 

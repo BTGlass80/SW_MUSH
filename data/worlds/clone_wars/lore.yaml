@@ -201,7 +201,7 @@ entries:
     keywords: "jedi council,master yoda,mace windu,obi-wan,plo koon,ki-adi-mundi,kit fisto"
     category: "organization"
     priority: 9
-    zone_scope: "coruscant_temple"
+    zone_scope: "jedi_temple"
     content: >
       The Jedi High Council is the Order's governing body — twelve
       Masters who set policy, assign missions, and rule on matters of
@@ -216,7 +216,7 @@ entries:
     keywords: "jedi temple,temple,archives,council chamber,coruscant temple"
     category: "location"
     priority: 9
-    zone_scope: "coruscant_temple"
+    zone_scope: "jedi_temple"
     content: >
       The Jedi Temple on Coruscant is the Order's spiritual and
       operational heart — a five-tower ziggurat housing roughly ten
@@ -391,7 +391,7 @@ entries:
     keywords: "coruscant,galactic city,senate,republic capital,trillion souls"
     category: "location"
     priority: 9
-    zone_scope: "coruscant_senate,coruscant_temple,coruscant_upper,coruscant_midlevels,coruscant_lower,coruscant_works"
+    zone_scope: "senate_district,jedi_temple,monumental_district,commercial_district,southern_underground,commercial_district"
     content: >
       Coruscant is the capital of the Galactic Republic — a planet-wide
       city of one trillion sentients. The skyline is dominated by
@@ -407,7 +407,7 @@ entries:
     keywords: "senate,galactic senate,senator,convocation chamber,republic senate"
     category: "organization"
     priority: 7
-    zone_scope: "coruscant_senate"
+    zone_scope: "senate_district"
     content: >
       The Galactic Senate is the Republic's elected legislature —
       thousands of Senators representing star systems, sector
@@ -437,7 +437,7 @@ entries:
     keywords: "underworld,lower levels,southern underground,uscru,coco town,coruscant underworld"
     category: "location"
     priority: 7
-    zone_scope: "coruscant_lower,coruscant_works"
+    zone_scope: "southern_underground,commercial_district"
     content: >
       The Coruscant Underworld is the planet's accumulated lower
       levels — sublevels 1313 through dim memory, where sunlight has
@@ -453,7 +453,7 @@ entries:
     keywords: "coco town,dex,dexter jettster,diner,collective commerce"
     category: "location"
     priority: 4
-    zone_scope: "coruscant_midlevels"
+    zone_scope: "commercial_district"
     content: >
       CoCo Town (Collective Commerce) is a working-class Coruscant
       district known for its mixed-species clientele and reasonably
@@ -814,3 +814,395 @@ entries:
       In wartime it has been variously a Republic command post, a CIS
       rallying ground, and a contested battleground. Its tiered stone
       benches still bear the scoring of vibroblades.
+
+  # ── Species (Lane A creatures — Creatures of the Galaxy §2.1) ────────────
+  # Launch-tier Tatooine fauna, so the Director digest and the NPC brain have
+  # context and players can look them up. Era/Q1-clean; stats live in
+  # data/npcs_creatures.yaml. zone_scope is best-effort retrieval bias.
+
+  - title: "The Worrt"
+    keywords: "worrt,tatooine,desert,tongue,predator,pest,fauna,creature"
+    category: "species"
+    priority: 4
+    zone_scope: "tatooine_dune_sea,tatooine_mos_eisley"
+    content: >
+      Worrts are blindly stupid desert ambush predators native to Tatooine.
+      Squat and toad-like, they sit motionless and snap a long sticky tongue
+      at anything their own size or smaller that passes — prey, droid, or
+      drifting debris. They are harmless to a grown being but a constant
+      nuisance in the wastes and around the dominant Hutt cartel's holdings,
+      where they gather wherever there is shade and small prey.
+
+  - title: "Glim Worms"
+    keywords: "glim worm,tatooine,desert,sand,burrower,ambush,fauna,creature"
+    category: "species"
+    priority: 3
+    zone_scope: "tatooine_dune_sea"
+    content: >
+      Glim worms are Tatooine sand-tunnellers that hunt by vibration, racing
+      beneath the dunes at speed and bursting up directly beneath their prey
+      to wrap it in adhesive scales and roll it to a ring of teeth. They
+      travel in small knots of three or four and leave no warning on the
+      surface — the first sign of one is usually the ground giving way
+      underfoot. Experienced wastes-travellers learn to read the faint
+      tell-tale ripple of a worm closing in.
+
+  - title: "Hitcher Crabs"
+    keywords: "hitcher crab,tatooine,desert,crustacean,venom,water,fauna,creature"
+    category: "species"
+    priority: 3
+    zone_scope: "tatooine_dune_sea"
+    content: >
+      The hitcher crab is a spiked desert crustacean that burrows to wait out
+      the heat, which makes it dangerously easy to step on unseen. Its claws
+      carry a slow-acting venom — painful but rarely dangerous to a treated
+      being — and its body holds water sacs prized by anyone trying to survive
+      the open desert. Moisture farmers and scavengers hunt them for the water,
+      carefully.
+
+  - title: "The Magus"
+    keywords: "magus,tatooine,desert,burrower,hide,hunting,fauna,creature"
+    category: "species"
+    priority: 3
+    zone_scope: "tatooine_dune_sea"
+    content: >
+      The magus is a small, peaceful desert burrower armoured in a hide tough
+      enough that it is hunted commercially for the material. It wants no
+      trouble: threatened, it bolts beneath the sand and releases a foul
+      defensive oil whose reek keeps predators — and hunters — at arm's length.
+      Magus-hide goods turn up in markets across the Outer Rim.
+
+  - title: "Stalker Lizards"
+    keywords: "stalker lizard,tatooine,desert,plains,constrictor,predator,fauna,creature"
+    category: "species"
+    priority: 4
+    zone_scope: "tatooine_dune_sea"
+    content: >
+      The stalker lizard is a low, fast plains constrictor, purple-blue to
+      match the dune-grass of its range. It shadows a chosen target across
+      open ground, sprints the final stretch, and throws its coils to crush
+      the windpipe. Solitary and patient, it takes one kill at a time — which
+      makes it a genuine danger to a lone traveller and a reason the desert
+      wise do not wander the dunes alone.
+
+  # ── Species (Lane A creatures — Creatures of the Galaxy §2.4: urban vermin) ─
+  # The built-world / station pest layer. Encountered in the Coruscant
+  # underworld; Nar Shaddaa runs the same. Sensor Stars are security flavor
+  # (no encounter). Era/Q1-clean; stats in data/npcs_creatures.yaml.
+
+  - title: "Yeomet Vermin"
+    keywords: "yeomet,vermin,station,ship,cable,conduit,pest,disease,nar shaddaa,coruscant,underworld,creature"
+    category: "species"
+    priority: 4
+    zone_scope: "coruscant_underworld,nar_shaddaa"
+    content: >
+      Yeomets are reptilian vermin that thrive on built worlds, ships, and
+      stations. They chew through cables and conduits — starting electrical
+      fires — spread disease, and breed in non-hierarchical herds that sleep in
+      heaped piles. They flee unless cornered. Exterminators who track and clear
+      them are well respected in the lower levels of any world that has them,
+      which is most of them.
+
+  - title: "The Borcatu"
+    keywords: "borcatu,scavenger,stowaway,cargo,dock,slum,pest,creature"
+    category: "species"
+    priority: 3
+    zone_scope: "coruscant_underworld,nar_shaddaa"
+    content: >
+      The borcatu is a bad-tempered little scavenger that rode out from its
+      desert homeworld in cargo holds and now infests urban slums galaxy-wide.
+      Armoured, dig-clawed, and quick to bite anything that grabs it, it is the
+      bane of dockworkers and the kind of nuisance that is far easier to curse
+      than to be rid of.
+
+  - title: "Spor Crawlers"
+    keywords: "spor crawler,assassin,poison,sting,hive,nar bo shalla,nar shaddaa,black market,creature"
+    category: "species"
+    priority: 3
+    zone_scope: "coruscant_underworld,nar_shaddaa"
+    content: >
+      Spor crawlers are tiny, lethal insects kept — illegally — as assassins'
+      pets. They hide in dirt, drawers, and bedding, and sting with a venom
+      that kills slowly and painfully; disturb a hive and the whole nest swarms.
+      Ownership is tightly regulated across the Republic, which has done nothing
+      to slow the black market in them on worlds like Nar Shaddaa.
+
+  - title: "Tymps"
+    keywords: "tymp,urban,pest,trash,grain,night,forager,creature"
+    category: "species"
+    priority: 3
+    zone_scope: "coruscant_underworld,nar_shaddaa"
+    content: >
+      The tymp was once a harmless forest forager. A city-bred subspecies has
+      since turned aggressive, raiding refuse and grain stores after dark and,
+      more and more often, attacking the people it meets there. Tusked and a
+      strong climber, the urban tymp is a standing hazard in the lower levels
+      after the lights go down — which, in the underworld, is always.
+
+  - title: "The Somago"
+    keywords: "somago,ambush,net,choke,helmet,corridor,trap,creature"
+    category: "species"
+    priority: 3
+    zone_scope: "coruscant_underworld,nar_shaddaa"
+    content: >
+      The somago is a net-shaped ambush creature that comes in several
+      body-forms; the so-called "helmet" form is sized to a humanoid head and
+      drops from above to choke its prey head-first. Its origin is disputed —
+      widely rumoured to be engineered, though no one agrees by whom. It favours
+      cramped interiors and ship corridors, where it waits overhead for
+      something to walk underneath.
+
+  - title: "Sensor Stars"
+    keywords: "sensor star,alarm,security,subsonic,danger,stronghold,den,force,creature"
+    category: "species"
+    priority: 2
+    zone_scope: "coruscant_underworld,nar_shaddaa"
+    content: >
+      Sensor stars are five-limbed creatures with an almost supernatural
+      sensory array, sensitive across a broad band of the spectrum. They emit
+      subsonic "danger" tones detectable for hundreds of metres, which makes
+      them prized as living alarm systems — a quiet fixture in many a den or
+      stronghold. There is a persistent, unconfirmed rumour that they react to
+      disturbances in the Force; those who keep them tend to believe it.
+
+  # ── Species (Lane A creatures — Creatures of the Galaxy §3: cross-biome) ───
+  # Wildcard creatures that turn up across many worlds. Stats in
+  # data/npcs_creatures.yaml (Slimy Nonakara is lore-only — no live water tile).
+
+  - title: "The Voroos"
+    keywords: "voroos,ambush,camouflage,terrain,mimic,tongue,desert,bog,creature"
+    category: "species"
+    priority: 3
+    zone_scope: "tatooine_dune_sea"
+    content: >
+      The voroos is a stationary ambush predator that disguises itself as a
+      feature of the landscape — a mossy hill, a dune, a mound of snow — and
+      tongue-grabs anything that wanders within reach, hauling it in to feed.
+      It has been reported in bog, desert, and frozen waste alike. The larger
+      ones are strong enough that tearing free is nearly impossible. Seasoned
+      travellers learn to distrust ground that looks a little too convenient.
+
+  - title: "Shredder Bats"
+    keywords: "shredder bat,blood,swarm,pack,eyeless,hearing,dive,cave,creature"
+    category: "species"
+    priority: 3
+    zone_scope: "tatooine_dune_sea,coruscant_underworld"
+    content: >
+      Shredder bats are eyeless flying blood-drinkers that hunt entirely by
+      hearing, picking out prey from kilometres away and diving for the artery.
+      They travel in packs of twenty or more — sometimes hundreds — and have
+      spread to a thousand worlds, roosting anywhere with caves or structure.
+      A cloud of them rising out of the dark is among the worse things a
+      traveller can hear before they can see it.
+
+  - title: "The Wrix"
+    keywords: "wrix,pack,carnivore,mountain,howl,bantha,livestock,desert,creature"
+    category: "species"
+    priority: 3
+    zone_scope: "tatooine_dune_sea"
+    content: >
+      The wrix is a pack carnivore of mountain folklore, a raider of banthas and
+      herd stock that drifts toward the edges of settlements in search of easier
+      prey. Its howl is built to freeze prey for the half-second the pack needs.
+      Larger subspecies reach three and a half metres; none of them hunt alone,
+      which is what makes a wrix pack a genuine danger on the desert fringe.
+
+  - title: "Winged Xendrites"
+    keywords: "winged xendrite,swarm,insect,pest control,ecology,overpopulation,creature"
+    category: "species"
+    priority: 2
+    zone_scope: "coruscant_underworld"
+    content: >
+      Winged xendrites are pinpoint insect-hunters that were introduced, world
+      after world, to clear infestations — and then bred past all control and
+      overran the ecosystems they were meant to protect. One is harmless. A
+      swarm is an ecological alarm bell, and a thick enough cloud of them
+      sweeping a passage is a hazard in its own right.
+
+  - title: "The Slimy Nonakara"
+    keywords: "slimy nonakara,slime,eel,water,pool,parasite,larva,fatigue,creature"
+    category: "species"
+    priority: 2
+    content: >
+      The slimy nonakara is a slime-eel that fouls and poisons its own pool,
+      then migrates overland to the next — and on the way, its larvae implant in
+      passing animals, a slow hidden parasite that drains the host's strength
+      over days. It is the kind of hazard whose bite you never notice; the
+      fatigue starts later, after the water, and the cause is rarely guessed in
+      time.
+
+  # ── GG11 Criminal Organizations (WEG40075) — era-translated to ~20 BBY ──
+  # Lane E1: underworld lore (org tiers, occupations, kajidic, indentured
+  # servitude, haven worlds, the black-market code, spice, slaver guilds,
+  # Sector Rangers). Entries extend — never restate — the existing Hutt
+  # Cartel / black-market lore.
+  - title: "Criminal Organization Tiers"
+    keywords: "crime,gang,cartel,syndicate,guild,organization,turf,underworld,scale"
+    category: "faction"
+    priority: 6
+    content: >
+      Criminal groups come in five sizes, defined by scope. A TERRITORIAL GANG
+      controls a few rackets in a finite area, usually one city or district
+      (bookmaking, protection, extortion); most are urban and openly
+      competitive, fighting turf wars over boundaries. A CRIME GUILD pools the
+      talent of specialists across many systems toward one trade (slaving,
+      smuggling), assigning members exclusive zones and buying off competition
+      rather than holding ground. A CARTEL spans multiple systems and sectors to
+      monopolize a single commodity or activity (spice, gunrunning), ruled by a
+      central committee that uses monopoly profits to buy influence. A SYNDICATE
+      is an alliance of cartels controlling all criminal activity in a region,
+      often with members seated in local government. A CRIMINAL EMPIRE combines
+      all of the above into one conspiracy; the Hutt kajidics are the archetype.
+      The test is the group's aim: limited rackets in a finite area is a gang;
+      corner one market broadly is a cartel; control everything broadly is a
+      syndicate.
+
+  - title: "Criminal Occupations"
+    keywords: "criminal,occupation,assassin,enforcer,fence,slicer,fixer,counterfeiter,informant,marketeer"
+    category: "faction"
+    priority: 5
+    content: >
+      The underworld runs on specialists. An ASSASSIN (called 'exterminator' on
+      the Rim) eliminates targets for hire. An ENFORCER is criminal muscle,
+      keeping the rabble in line through fear. A BLACK MARKETEER moves
+      contraband through covert networks, respectable by day. A DEALMAKER
+      (fence) buys stolen goods low and sells high behind a legitimate business
+      front. A SLICER breaks unbreakable computer systems; a DATA FIXER blends
+      slicing and forgery to insert falsified records and erase their tracks. A
+      COUNTERFEITER mass-produces forged currency. An INFORMANT sells hard data
+      for hard credits; the trick is selling the same information to multiple
+      buyers without either learning of the other. A LOAN SHARK lends at ruinous
+      interest with violent collection. A SPICE-JACKER hijacks cargo, preferring
+      smugglers (who cannot go to the authorities) over company ships. Con
+      artists and kidnappers exist too but are rarer.
+
+  - title: "The Kajidic"
+    keywords: "kajidic,hutt,clan,desilijic,business,enterprise,crime,empire"
+    category: "faction"
+    priority: 5
+    content: >
+      Kajidic is a Huttese term meaning roughly 'the means by which we prosper';
+      it names any organized Hutt business venture, legal or illegal, and
+      increasingly the individual clan crime empires themselves. Hutts are long-
+      lived, patient, and grudge-keeping; they prefer to work behind the scenes
+      as the galaxy's perfect middlemen, financing a rising crimelord with
+      credits, enforcers, and technical support in exchange for a cut that
+      escalates over years until the partner is effectively enslaved by debt.
+      The Hutt clans gained their homeworld Nal Hutta by trading technology to
+      the native Evocii for land until three-quarters of the planet was theirs,
+      then relocating the Evocii, a pattern repeated on many worlds since. A
+      Hutt reveals only its first name to outsiders; the clan name is kept
+      private. Clan competition is savage, but the clans share a belief in their
+      own superiority and a doctrine that displays of wealth signal the power
+      that keeps rivals at bay.
+
+  - title: "Indentured Servitude"
+    keywords: "indenture,servitude,labor,contract,hutt,debt,bondage,slavery"
+    category: "faction"
+    priority: 5
+    content: >
+      Distinct from outright slavery, indentured servitude is the Hutt clans'
+      preferred labor system because it avoids the discipline problems and
+      rebellions of slave labor. A person sells their services for a fixed term
+      (typically six months to ten years) under a contract that has a credit
+      value and can be bought and sold between Hutts and Hutt businesses. Hutt
+      courts impose draconian sentences on debtors and agitators, so many
+      volunteer for indenture rather than face the alternative. In theory,
+      contracts forbid unsafe work and define fair treatment; in practice, a
+      thicket of regulations lets contract-holders levy fines for infractions
+      that extend the term indefinitely, and safety inspections are conducted
+      over dinner at the manager's estate. The indentured worker has no avenue
+      of appeal. The system supplies cheap labor to mines and industries across
+      Hutt Space and the Outer Rim.
+
+  - title: "Haven Worlds"
+    keywords: "haven,lawless,crime,planet,open,neutral,outer rim,fringe,sanctuary"
+    category: "location"
+    priority: 5
+    content: >
+      A haven world is a planet where criminals can safely ply their trade; many
+      acts that are crimes elsewhere are legal there, protected by the tacit
+      support (or outright ownership) of the local government. Havens cluster in
+      the Outer Rim, where they serve as outlets for illegal commerce, sources
+      of contraband and gear, and neutral ground for deals. Some declare
+      themselves open planets, welcoming anyone who leaves their politics at the
+      door; in wartime this neutrality is a survival strategy that lets a world
+      dodge both sides' attention. The price is a leadership that courts
+      criminal gangs with hard cash and no questions asked, and a population
+      slowly remade in the underworld's image. A haven's underworld can supply
+      equipment, information, and contacts unavailable anywhere else, if you
+      live to collect.
+
+  - title: "The Black Market Code"
+    keywords: "black market,deal,dealer,marketeer,rules,contraband,fence,buy,sell"
+    category: "trade"
+    priority: 4
+    content: >
+      Dealing the invisible market follows four steps, establish contact, strike
+      a deal, take delivery, and walk away in one piece, governed by seven
+      unwritten rules. One: never give away too much too quickly, money or
+      information. Two: there is no such thing as a perfect deal; the art is
+      getting most of the details in your favor. Three: never pay credits up
+      front. Four: never appear to lose control of the situation. Five: always
+      have insurance, backup muscle, a contact in officialdom, or a clever
+      escrow. Six: never turn your back on the other party; they expect you to
+      cheat them and may strike first in self-defense. Seven: never make the
+      other person feel they lost out, since wounded pride brings retaliation.
+      Dealers never come to a buyer; the buyer finds them, in any place people
+      gather in numbers and law enforcement avoids. Best practice: never deal
+      with the same operator twice in a row.
+
+  - title: "Spice"
+    keywords: "spice,glitterstim,ryll,kessel,ryloth,sevarcos,drug,contraband,smuggling"
+    category: "trade"
+    priority: 5
+    content: >
+      'Spice' is a catch-all slang term for substances used to artificially
+      enhance, to spice up, physical or mental attributes. There are many kinds:
+      glitterstim from Kessel, ryll from Ryloth, Sevarcos spice, and others. Not
+      all spice is addictive or even illegal; some is processed into legitimate
+      pharmaceuticals by major corporations, while other batches are cooked in
+      back-room labs. Whether a given substance is legal or contraband varies
+      from system to system by economic, political, and religious factors, so
+      the same product may be sold openly in one place and be a capital offense
+      in the next. Control of the spice trade is one of the most lucrative
+      prizes in the underworld, and the trade can include legal as well as
+      illegal goods.
+
+  - title: "Slaver Guilds"
+    keywords: "slaver,slavery,zygerian,thalassian,karazak,guild,kidnapping,captives"
+    category: "faction"
+    priority: 5
+    content: >
+      Organized slaving is concentrated in the Outer Rim, where restrictions are
+      rarely enforced, and run by competing guilds. The ZYGERIANS are the best-
+      known and harshest, disciplinarians with a slaving tradition stretching
+      back generations. The THALASSIANS are the oldest, preferring to work
+      within society, supplying contract labor to large corporations (often
+      covertly) for new colonies. The KARAZAKS are the newest and most
+      professional; they run slaving as a single-minded specialty with planned,
+      low-risk operations and famously take care of their own, bailing out
+      captured members within a day and providing for the families of those
+      killed. Many in the Republic publicly condemn slavery while quietly
+      tolerating it; the Hutt clans keep personal slaves as prestige but
+      consider mass slave labor economically impractical, preferring indentured
+      servitude. There is no such thing as an honest slaver.
+
+  - title: "Sector Rangers"
+    keywords: "sector ranger,law,enforcement,judicial,fugitive,extradition,jurisdiction"
+    category: "faction"
+    priority: 5
+    content: >
+      Sector Rangers are an interstellar law-enforcement corps created under the
+      Old Republic, authorized by the Senate so regional governors could pursue
+      criminals across the many newly colonized worlds. Where local police are
+      bound to a single city or system, a Ranger can pursue a fugitive anywhere
+      in their sector, demand extradition of prisoners, and escort captives
+      between systems for trial. Rangers are reserved for the most dangerous and
+      notorious criminals and are empowered to deputize civilian assistants and,
+      in rare cases, suspend the authority of local officials suspected of
+      aiding criminals. The best Rangers are promoted to Special Enforcement
+      Officers, who can cross sector boundaries entirely in pursuit and who
+      specialize in anti-trafficking, kidnapping recovery, and undercover
+      infiltration of gangs.
+

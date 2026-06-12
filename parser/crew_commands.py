@@ -427,7 +427,7 @@ class OrderCommand(BaseCommand):
             await ctx.session.send_line(
                 "Usage: order <station> <action>\n"
                 "  Examples: order pilot tail Interceptor-3\n"
-                "            order gunner fire TIE-Alpha\n"
+                "            order gunner fire Raider-2\n"
                 "            order engineer repair shields")
             return
 

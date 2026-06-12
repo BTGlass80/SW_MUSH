@@ -109,7 +109,7 @@ class _Harness:
         )
         cur = await self.db._db.execute(
             "INSERT INTO zones (name, properties) VALUES (?, ?)",
-            ("coruscant_temple", "{}"),
+            ("jedi_temple", "{}"),
         )
         temple_zone = cur.lastrowid
         cur = await self.db._db.execute(

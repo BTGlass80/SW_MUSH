@@ -81,7 +81,7 @@ def parse_args():
     parser.add_argument(
         "--era", type=str, default=None,
         help=(
-            "Active era code (e.g. 'gcw', 'clone_wars'). When set, "
+            "Active era code (e.g. 'clone_wars'). When set, "
             "overrides Config.active_era. Use only on a dev DB; "
             "production gating is preflight B.1."
         ),
@@ -104,7 +104,7 @@ async def main():
 
     # Build the Config first. CLI era flags override the dataclass
     # defaults when provided; otherwise the production defaults
-    # (active_era="gcw", use_yaml_director_data=False) apply.
+    # (active_era="clone_wars", use_yaml_director_data=False) apply.
     config_kwargs = dict(
         telnet_port=args.telnet_port,
         websocket_port=args.ws_port,

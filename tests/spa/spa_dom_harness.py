@@ -102,6 +102,7 @@ def run_with_dom(script_paths: Iterable[Path | str], setup_js: str) -> dict:
         ["node", "-e", wrapper],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=20,
     )
     if proc.returncode != 0:

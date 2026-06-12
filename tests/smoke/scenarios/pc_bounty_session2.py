@@ -145,10 +145,11 @@ async def bty_6_full_insurance_loop(h):
     )
     assert row["claimed_by"] == bh.character["id"]
 
-    # Insurance hit: 10% of 10000 = 1000 cr from target.
+    # Insurance hit (Drop 2 flat+% rescale, engine/death.py): INSURANCE_FLAT
+    # 250 + INSURANCE_PCT 10% of 10000 = 250 + 1000 = 1250 cr from target.
     target_post = await h.db.get_character(target.character["id"])
-    assert int(target_post["credits"]) == int(target_pre["credits"]) - 1000, (
-        f"Target should have lost 1000 cr to insurance; "
+    assert int(target_post["credits"]) == int(target_pre["credits"]) - 1250, (
+        f"Target should have lost 1250 cr to insurance (250 flat + 10%); "
         f"pre={target_pre['credits']} post={target_post['credits']}"
     )
 

@@ -120,3 +120,57 @@ def resolve_environment(room_props: Optional[dict] = None,
         "time_of_day": resolve_time_of_day(room_props, zone_props, now, day_length_seconds),
         "weather": resolve_weather(room_props, zone_props),
     }
+
+
+# ── Lane E2b: planet-flavored clock vocabulary ──────────────────────────────
+# A *display label* layered over the same day cycle. The renderer is untouched
+# (resolve_time_of_day still returns day/dusk/night for OV_TimeOfDay); this is a
+# finer, planet-keyed name for the current period, surfaced to players in text
+# (the +weather command). Each planet's bands are authored to NEST inside the
+# day/dusk/night cycle bands above, so a label never disagrees with the renderer.
+#
+# Resolution of WHICH planet's idiom to use is the caller's job (e.g. +weather
+# reads the room's inherited `time_vocab` zone property via db.get_room_property);
+# this module just maps (vocab, clock-fraction) -> label, with a generic fallback.
+#
+# Tatooine (Secrets of Tatooine §1): a binary-sun day named by its sun-events —
+# First Dawn / Second Dawn (the two sunrises), High Noon (both suns at zenith —
+# the killing midday), First Twilight / Second Twilight (the two sunsets; after
+# Second Twilight the streets turn dangerous).
+PLANET_PERIOD_LABELS: dict[str, tuple] = {
+    "tatooine": (
+        (0.22, "Deep Night"),
+        (0.26, "First Dawn"),
+        (0.30, "Second Dawn"),
+        (0.46, "Morning"),
+        (0.54, "High Noon"),
+        (0.70, "Afternoon"),
+        (0.74, "First Twilight"),
+        (0.78, "Second Twilight"),
+        (1.00, "Night"),
+    ),
+}
+
+
+def resolve_period_label(vocab: Optional[str] = None,
+                         now: Optional[float] = None,
+                         day_length_seconds: Optional[float] = None) -> str:
+    """A planet-flavored name for the current clock period.
+
+    ``vocab`` selects a planet idiom in ``PLANET_PERIOD_LABELS`` (e.g.
+    ``"tatooine"``). When it is absent or unknown, falls back to a generic
+    capitalized day/dusk/night label. NEVER affects the renderer — the SVG
+    layers still read ``resolve_time_of_day`` (day/dusk/night) unchanged.
+    Deterministic for a given ``now`` (pass it in tests)."""
+    if now is None:
+        now = _time.time()
+    span = day_length_seconds if day_length_seconds and day_length_seconds > 0 else DAY_LENGTH_SECONDS
+    frac = (now % span) / span
+    bands = PLANET_PERIOD_LABELS.get((vocab or "").strip().lower())
+    if bands:
+        for upper, label in bands:
+            if frac < upper:
+                return label
+        return bands[-1][1]
+    # Generic fallback: the coarse renderer band, capitalized ("Day"/"Dusk"/"Night").
+    return global_time_of_day(now, day_length_seconds).capitalize()

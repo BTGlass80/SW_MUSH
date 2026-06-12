@@ -39,6 +39,7 @@ from engine.character import Character, SkillRegistry, ATTRIBUTE_NAMES, WoundLev
 from engine.weapons import RangeBand, WeaponData, get_weapon_registry
 from server import ansi as _ansi
 import engine.combat_events as _cevt
+import engine.creature_special_attacks as _csa
 
 log = logging.getLogger(__name__)
 
@@ -231,6 +232,24 @@ class Combatant:
     # the shooter from the bounty system's POV). Reset only
     # when a new combat starts or the combatant leaves.
     last_attacker_id: Optional[int] = None
+
+    # Drop 4a.2 (2026-06-04): Danger Sense one-shot initiative reroll.
+    # Set by the Force power danger_sense (via parser). When True,
+    # roll_initiative rolls twice for this combatant and keeps the better
+    # total, then clears the flag. Default False = no behavior change.
+    initiative_reroll: bool = False
+
+    # Lane A tail (2026-06-06): WEG creature special-attack conditions.
+    # Process-state, combat-scoped, NOT persisted (matches the codebase's
+    # restart-clears-combat convention). Populated when a creature lands a
+    # natural-attack hit that carries the rider; ticked at round end in
+    # _cleanup.
+    #   poison_stacks — list of active poison dicts
+    #                   {damage, rounds_left, onset_left, source}
+    #   restraint     — the active hold dict or None
+    #                   {grappler_id, kind, hold_damage, source}
+    poison_stacks: list = field(default_factory=list)
+    restraint: Optional[dict] = None
 
 
 # ── Combat Instance ──
@@ -697,6 +716,14 @@ class CombatInstance:
             pool = c.char.get_attribute("perception")
             pool = apply_wound_penalty(pool, c.char.total_penalty_dice)
             result = roll_d6_pool(pool)
+            # Drop 4a.2: Danger Sense lets a Jedi react first — reroll
+            # initiative once and keep the better result. One-shot: the
+            # flag is consumed here so it applies to a single round.
+            if getattr(c, "initiative_reroll", False):
+                reroll = roll_d6_pool(pool)
+                if reroll.total > result.total:
+                    result = reroll
+                c.initiative_reroll = False
             c.initiative = result.total
             c.actions = []
             c.has_acted = False
@@ -736,6 +763,35 @@ class CombatInstance:
 
         Returns a plain dict safe for json.dumps().
         """
+        def _conditions(cb):
+            # Lane-A creature-condition rider, normalized for the web chip
+            # rail (UI-3). Engine keys onset_left / rounds_left map to the
+            # push's onset / ticks_left. Buffs are intentionally NOT exposed
+            # here: they are not wired into the combat layer at HEAD (no
+            # Combatant.buffs field, and the Character object is not dict-like
+            # for engine.buffs.get_active_buffs), so the buff chip is deferred
+            # rather than shipped with no producer (see TODO / CHANGELOG).
+            return {
+                "poison_stacks": [
+                    {
+                        "source": s.get("source"),
+                        "damage": s.get("damage"),
+                        "onset": int(s.get("onset_left", 0) or 0),
+                        "ticks_left": int(s.get("rounds_left", 0) or 0),
+                    }
+                    for s in (cb.poison_stacks or [])
+                ],
+                "restraint": (
+                    {
+                        "grappler_id": cb.restraint.get("grappler_id"),
+                        "kind": cb.restraint.get("kind"),
+                        "hold_damage": cb.restraint.get("hold_damage"),
+                        "source": cb.restraint.get("source"),
+                    }
+                    if cb.restraint else None
+                ),
+            }
+
         combatants_data = []
         for cid in self.initiative_order:
             c = self.combatants.get(cid)
@@ -765,6 +821,7 @@ class CombatInstance:
                 "cover": c.cover_level,
                 "aim_bonus": c.aim_bonus,
                 "is_fleeing": c.is_fleeing,
+                **_conditions(c),
             })
 
         # Add any combatants not yet in initiative order (new joiners)
@@ -784,6 +841,7 @@ class CombatInstance:
                     "cover": c.cover_level,
                     "aim_bonus": c.aim_bonus,
                     "is_fleeing": c.is_fleeing,
+                    **_conditions(c),
                 })
 
         # Viewer-specific fields
@@ -1050,6 +1108,15 @@ class CombatInstance:
         attack_pool = apply_wound_penalty(attack_pool, char.total_penalty_dice)
         attack_pool = apply_multi_action_penalty(attack_pool, num_actions)
 
+        # Lane A tail: a grabbed attacker is badly hampered (R&E). While the
+        # actor is held, their attack pool drops by GRAPPLE_ATTACK_PENALTY_DICE
+        # (reusing the wound-penalty reducer). They can still swing — at a cost
+        # — or spend the round struggling free (resolved at round end).
+        if actor.restraint:
+            attack_pool = apply_wound_penalty(
+                attack_pool, _csa.GRAPPLE_ATTACK_PENALTY_DICE
+            )
+
         # v22: armor Dexterity penalty applies to all combat skills
         armor_dex_pen = char.get_armor_dex_penalty()
         if not armor_dex_pen.is_zero():
@@ -1222,6 +1289,25 @@ class CombatInstance:
         else:
             total_difficulty = base_difficulty + dodge_bonus + cover_bonus
 
+        # Lane E2a (SoT §3): sand-weather fouls ranged fire. An active
+        # sandstorm/gravel-storm/sandwhirl declares a NEGATIVE `ranged_penalty`
+        # (pips); we RAISE the ranged difficulty by that magnitude. Ranged-only
+        # (this resolver) — melee is unaffected, per the source. No-op (0) when
+        # no storm is active. NOTE: get_effect() is global, so this is not yet
+        # gated to outdoor/desert rooms — the same coarseness the SANDSTORM
+        # perception_penalty already has; both are resolved by the future
+        # zone-model fix (TD.WORLD_EVENT_ZONE_MODEL).
+        _storm_diff = 0
+        try:
+            from engine.world_events import get_world_event_manager
+            _rp = int(get_world_event_manager().get_effect("ranged_penalty", 0) or 0)
+            if _rp < 0:
+                _storm_diff = -_rp   # e.g. -3 pips -> +3 to difficulty
+        except Exception:
+            _storm_diff = 0
+        total_difficulty += _storm_diff
+        storm_text = f" + Storm {_storm_diff}" if _storm_diff else ""
+
         # Roll attack vs difficulty
         attack_roll = roll_d6_pool(attack_pool)
         attack_total = attack_roll.total
@@ -1236,7 +1322,7 @@ class CombatInstance:
 
         hit = attack_total >= total_difficulty
 
-        diff_display = f"{range_label}({base_difficulty}){dodge_text}{cover_text} = {total_difficulty}"
+        diff_display = f"{range_label}({base_difficulty}){dodge_text}{cover_text}{storm_text} = {total_difficulty}"
 
         if not hit:
             _miss_margin = total_difficulty - attack_total
@@ -1407,13 +1493,76 @@ class CombatInstance:
                 "defense_display": f"{def_label}: {def_total}",
                 "attack_margin":  attack_total - def_total,
             })
-        return self._apply_damage(
+        _hit_result = self._apply_damage(
             actor, target_c, action,
             attack_total,
             f"{def_label}: {def_total}",
             cp_text,
             _attacker_context=_attacker_ctx,
         )
+        # Lane A tail: if the attacker is a creature whose natural attack
+        # carries a WEG rider (poison / grapple-constriction-choke), a landed
+        # hit injects the matching condition on the defender. Note the bite/
+        # grab connected on the *hit* — independent of whether the contact
+        # damage was soaked.
+        _sa_note = self._apply_special_attack_on_hit(actor, target_c)
+        if _sa_note:
+            _hit_result.narrative = (_hit_result.narrative or "") + "\n" + _sa_note
+        return _hit_result
+
+    def _apply_special_attack_on_hit(
+        self, actor: Combatant, target_c: Combatant
+    ) -> str:
+        """Apply a creature's WEG special-attack rider on a landed melee hit.
+
+        Reads the attacker Character's parsed ``special_attack_poison`` /
+        ``special_attack_restraint`` (empty for ordinary characters, so this is
+        a cheap no-op for normal combat). Mutates the defender Combatant's
+        in-combat conditions and returns a player-facing note (or "").
+        """
+        if not actor.char or not target_c.char:
+            return ""
+        notes: list[str] = []
+
+        poison_spec = getattr(actor.char, "special_attack_poison", None) or {}
+        if poison_spec.get("damage"):
+            stack = _csa.make_active_poison(poison_spec, source=actor.name)
+            # Re-envenomation by the same source refreshes the clock rather
+            # than stacking unboundedly (keeps the DoT bounded per fight).
+            existing = next(
+                (p for p in target_c.poison_stacks
+                 if p.get("source") == stack["source"]),
+                None,
+            )
+            if existing:
+                existing["rounds_left"] = max(
+                    existing["rounds_left"], stack["rounds_left"]
+                )
+                existing["onset_left"] = min(
+                    existing["onset_left"], stack["onset_left"]
+                )
+            else:
+                target_c.poison_stacks.append(stack)
+                notes.append(_csa.poison_inflicted_line(
+                    target_c.name, stack["source"]
+                ))
+
+        restraint_spec = getattr(actor.char, "special_attack_restraint", None) or {}
+        if restraint_spec.get("kind"):
+            # Don't re-grab if this creature already holds the target.
+            already = (
+                target_c.restraint
+                and target_c.restraint.get("grappler_id") == actor.id
+            )
+            if not already:
+                target_c.restraint = _csa.make_active_restraint(
+                    restraint_spec, grappler_id=actor.id, source=actor.name
+                )
+                notes.append(_csa.grabbed_line(
+                    target_c.name, actor.name, target_c.restraint["kind"]
+                ))
+
+        return "\n".join(notes)
 
     def _apply_damage(
         self, actor: Combatant, target_c: Combatant,
@@ -1739,6 +1888,14 @@ class CombatInstance:
     def _resolve_flee(self, actor: Combatant, action: CombatAction,
                       num_actions: int) -> ActionResult:
         """Attempt to flee. Opposed roll vs highest-initiative enemy."""
+        # Lane A tail: a grabbed combatant cannot break away — they must win
+        # free of the hold first (the break-free roll runs at round end).
+        if actor.restraint:
+            return ActionResult(
+                actor_id=actor.id, action=action, success=False,
+                narrative=_csa.cannot_flee_grappled_line(actor.name),
+            )
+
         # Find the highest-initiative opponent
         opponents = [c for c in self.active_combatants if c.id != actor.id]
         if not opponents:
@@ -1848,6 +2005,101 @@ class CombatInstance:
                             f"(Death roll: {death_roll.total} vs {rounds_mw} rounds)"
                         ),
                     ))
+
+        # ── Lane A tail: WEG creature special-attack conditions ──────────
+        def _tick_wound_text(margin: int) -> str:
+            inc = WoundLevel.from_damage_margin(margin)
+            if inc == WoundLevel.HEALTHY:
+                return "no damage"
+            return inc.name.replace("_", " ").lower()
+
+        # Poison damage-over-time. Each stack counts down its onset (slow-
+        # acting venom) or rolls its damage vs the victim's Strength (poison
+        # is internal — no armor soak) on the normal R&E wound ladder. Ticks
+        # regardless of whether the victim can act. Spent stacks are removed.
+        for c in list(self.combatants.values()):
+            if not c.char or not c.poison_stacks:
+                continue
+            surviving = []
+            had_stacks = True
+            for stack in c.poison_stacks:
+                if stack.get("onset_left", 0) > 0:
+                    stack["onset_left"] -= 1
+                    surviving.append(stack)
+                    continue
+                dmg_pool = _csa.resolve_damage_pool(stack["damage"], DicePool(0, 0))
+                resist_pool = apply_wound_penalty(
+                    c.char.get_attribute("strength"), c.char.total_penalty_dice
+                )
+                margin = roll_d6_pool(dmg_pool).total - roll_d6_pool(resist_pool).total
+                if margin > 0:
+                    c.char.apply_wound(margin)
+                events.append(CombatEvent(
+                    text=_csa.poison_tick_line(c.name, _tick_wound_text(margin))
+                ))
+                stack["rounds_left"] -= 1
+                if stack["rounds_left"] > 0:
+                    surviving.append(stack)
+            if had_stacks and not surviving:
+                events.append(CombatEvent(text=_csa.poison_faded_line(c.name)))
+            c.poison_stacks = surviving
+
+        # Restraint (grapple / constriction / choke). A held victim struggles
+        # each round (opposed break-free); constriction/choke also squeeze for
+        # per-round Strength-based damage. The hold lifts when the victim wins,
+        # the grappler is gone, or the victim is down (struggle pauses).
+        for c in list(self.combatants.values()):
+            if not c.char or not c.restraint:
+                continue
+            grappler = self.combatants.get(c.restraint.get("grappler_id"))
+            grappler_gone = (
+                grappler is None
+                or not grappler.char
+                or grappler.char.wound_level == WoundLevel.DEAD
+                or grappler.is_fleeing
+            )
+            if grappler_gone:
+                events.append(CombatEvent(text=_csa.restraint_released_line(c.name)))
+                c.restraint = None
+                continue
+            if not c.char.can_act_now():
+                # Victim is down — the hold persists but they can't struggle,
+                # and we don't pile squeeze damage onto a downed target.
+                continue
+
+            kind = c.restraint.get("kind", "grapple")
+            if _csa.restraint_is_escalating(c.restraint) and c.restraint.get("hold_damage"):
+                hold_pool = _csa.resolve_damage_pool(
+                    c.restraint["hold_damage"], grappler.char.get_attribute("strength")
+                )
+                resist_pool = apply_wound_penalty(
+                    c.char.get_attribute("strength"), c.char.total_penalty_dice
+                )
+                sq_margin = roll_d6_pool(hold_pool).total - roll_d6_pool(resist_pool).total
+                if sq_margin > 0:
+                    c.char.apply_wound(sq_margin)
+                events.append(CombatEvent(
+                    text=_csa.squeeze_tick_line(c.name, kind, _tick_wound_text(sq_margin))
+                ))
+                # A squeeze can finish a victim — if so, the hold is moot and
+                # the dead-removal pass below clears the combatant.
+                if c.char.wound_level == WoundLevel.DEAD:
+                    continue
+
+            # Opposed break-free (R&E grappling): victim brawling/STR vs the
+            # grappler's. The holder keeps the hold on a tie.
+            v_pool = apply_wound_penalty(
+                c.char.get_skill_pool("brawling", self.skill_reg),
+                c.char.total_penalty_dice,
+            )
+            g_pool = grappler.char.get_skill_pool("brawling", self.skill_reg)
+            if _csa.break_free_succeeds(
+                roll_d6_pool(v_pool).total, roll_d6_pool(g_pool).total
+            ):
+                events.append(CombatEvent(text=_csa.break_free_success_line(c.name)))
+                c.restraint = None
+            else:
+                events.append(CombatEvent(text=_csa.break_free_fail_line(c.name)))
 
         # Remove fled combatants
         fled = [c for c in self.combatants.values() if c.is_fleeing]

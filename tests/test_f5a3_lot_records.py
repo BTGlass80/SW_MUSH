@@ -148,7 +148,7 @@ class TestLotRecordIntegrity(unittest.TestCase):
         lawless. We check by zone name keyword since lawless tagging
         lives on the room (not the lot)."""
         lawless_zones = {
-            "coruscant_lower",       # Southern Underground = lawless
+            "southern_underground",       # Southern Underground = lawless
             "geonosis_surface",      # Stalgasin Hive Surface = lawless
             "tatooine_jundland",     # Jundland Wastes = lawless
             "nar_shaddaa_undercity", # Undercity = lawless

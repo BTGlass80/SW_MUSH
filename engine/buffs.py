@@ -163,6 +163,20 @@ BUFF_TEMPLATES: dict[str, dict] = {
         "positive": True,
         "source": "force:enhance_attribute",
     },
+    # ── Drop 4a (2026-06-04): Affect Mind (suggestion) on a guard ────────
+    # A flag-only buff (no stat modifier). While active, a city guard who
+    # would otherwise engage this character looks the other way — the
+    # "these aren't the droids you're looking for" effect. Consumed by
+    # engine/city_guard_runtime.should_city_guard_engage. Time-boxed so
+    # the suggestion fades; re-cast to refresh.
+    "mind_trick_unseen": {
+        "display_name": "Unseen (Mind Trick)",
+        "stat_modifiers": {},  # presence-only; no roll modifier
+        "duration_seconds": 300,  # 5 minutes
+        "max_stacks": 1,
+        "positive": True,
+        "source": "force:affect_mind",
+    },
     # ── SRB.1 medic stim family ──────────────────────────────────────────
     # Per support_role_buffs_design_v1.md §3.3.
     #

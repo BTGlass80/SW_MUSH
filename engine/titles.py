@@ -179,7 +179,8 @@ async def ensure_schema(db):
     try:
         await db.commit()
     except Exception:
-        pass
+        log.debug("titles: commit after column-add failed (non-fatal)",
+                  exc_info=True)
 
 
 # ── The sink: buy a title ────────────────────────────────────────────────────

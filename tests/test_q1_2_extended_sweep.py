@@ -567,91 +567,6 @@ class TestChainAnchorsPoggleAbsenceFraming(unittest.TestCase):
 
 
 # ═════════════════════════════════════════════════════════════════════
-# 4. Targeted guard — gcw director_config.yaml hutt_takeover headline
-# ═════════════════════════════════════════════════════════════════════
-
-
-GCW_DIRECTOR_YAML = (PROJECT_ROOT / "data" / "worlds" / "gcw"
-                     / "director_config.yaml")
-
-
-class TestGcwDirectorConfigHuttTakeoverHeadline(unittest.TestCase):
-    """Q1.2 fix #4: the ``hutt_takeover`` milestone headline must not
-    name Jabba (or any canonical Hutt) in present-tense activity.
-
-    Pre-fix: ``headline: Jabba's enforcers patrol the streets. The
-    Empire has lost control.`` Two issues with this string: (a) Q1
-    present-tense canonical activity attribution; (b) GCW chronology
-    — Jabba dies at ROTJ (4 ABY), within the GCW era. The replacement
-    "Cartel enforcers patrol the streets openly" matches the parallel
-    L150 ``underworld_rising`` headline pattern ("Hutts openly
-    challenge Imperial authority") which already correctly speaks at
-    the cartel-collective level.
-    """
-
-    @classmethod
-    def setUpClass(cls):
-        cls.corpus = _read_yaml(GCW_DIRECTOR_YAML)
-
-    def _find_milestone(self, milestone_id: str):
-        for m in (self.corpus.get("milestone_events") or []):
-            if m.get("id") == milestone_id:
-                return m
-        return None
-
-    def test_hutt_takeover_milestone_exists(self):
-        m = self._find_milestone("hutt_takeover")
-        self.assertIsNotNone(
-            m,
-            "gcw/director_config.yaml is missing the 'hutt_takeover' "
-            "milestone event. Removing it would weaken the criminal-"
-            "axis narrative arc."
-        )
-
-    def test_hutt_takeover_headline_no_canonical_hutts(self):
-        m = self._find_milestone("hutt_takeover")
-        headline = (m or {}).get("headline", "")
-        for forbidden in ("Jabba", "Jabba the Hutt",
-                          "Jabba Desilijic Tiure", "Jabba's",
-                          "Bib Fortuna", "Salacious Crumb"):
-            self.assertFalse(
-                _has_word(headline, forbidden),
-                f"gcw/director_config.yaml::hutt_takeover.headline "
-                f"names canonical Hutt {forbidden!r}. Reverting to "
-                f"the pre-fix wording would re-open both the Q1 hit "
-                f"and the GCW chronology error. Headline: "
-                f"{headline!r}"
-            )
-
-    def test_hutt_takeover_headline_substance_preserved(self):
-        """Sanity: the replacement headline must still convey the
-        cartel-pressure narrative. If it gets reduced to "Bad things "
-        "happen." this test catches the substance loss."""
-        m = self._find_milestone("hutt_takeover")
-        headline = (m or {}).get("headline", "") or ""
-        # Two distinct elements: cartel-collective subject + empire-
-        # losing-control consequence. The headline should reference
-        # both narrative beats.
-        h_low = headline.lower()
-        has_cartel_subject = any(
-            tok in h_low for tok in
-            ("cartel", "hutts", "criminal", "syndicate")
-        )
-        has_empire_consequence = any(
-            tok in h_low for tok in
-            ("empire", "imperial", "control", "garrison",
-             "stormtrooper")
-        )
-        self.assertTrue(
-            has_cartel_subject and has_empire_consequence,
-            f"gcw/director_config.yaml::hutt_takeover.headline has "
-            f"lost its narrative substance. Should reference both a "
-            f"cartel-collective subject and an Empire-consequence. "
-            f"Got: {headline!r}"
-        )
-
-
-# ═════════════════════════════════════════════════════════════════════
 # 5. General-sweep — engine/missions.py + encounter_*.py +
 #    combat_flavor.py + spacer_quest.py
 # ═════════════════════════════════════════════════════════════════════
@@ -778,7 +693,6 @@ class TestDirectorConfigYamlsClean(unittest.TestCase):
 
     YAMLS = [
         ("clone_wars", CW_DIRECTOR_YAML),
-        ("gcw", GCW_DIRECTOR_YAML),
     ]
 
     def test_each_director_config_clean(self):
@@ -889,7 +803,7 @@ class TestCrossCuttingCwContentYamlMeta(unittest.TestCase):
     unframed canonical reference.
     """
 
-    ERAS = ("clone_wars", "gcw")
+    ERAS = ("clone_wars",)
 
     def _yaml_files_in_era(self, era: str):
         era_root = PROJECT_ROOT / "data" / "worlds" / era

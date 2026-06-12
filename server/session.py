@@ -269,6 +269,55 @@ def _build_loadout(char: dict) -> dict:
     return loadout
 
 
+# ── Webify UI-6: one-line objective from the active_jobs list ──
+
+_OBJECTIVE_MAX_LEN = 96
+
+
+def _objective_line(jobs: list) -> str:
+    """Derive the single `hud_update.objective` string from active_jobs.
+
+    The FIRST job in the list wins (the producer orders them by
+    orientation priority: tutorial step → mission → bounty → smuggle →
+    spacer quest). Returns "" when there is nothing to surface, which
+    the client treats as hide-the-box. Pure + sync; never raises.
+    """
+    for j in jobs or []:
+        try:
+            jtype = j.get("type", "")
+            label = str(j.get("label", "") or "").strip()
+            obj = str(j.get("objective", "") or "").strip()
+            reward = j.get("reward")
+            if jtype == "tutorial":
+                line = obj or label
+            elif jtype == "bounty":
+                target = str(j.get("target", "") or "").strip() or label
+                line = f"Hunt {target}"
+                if reward:
+                    line += f" — {reward:,} cr bounty"
+            elif jtype == "mission":
+                line = label
+                if obj:
+                    line += f" — {obj}"
+            elif jtype == "smuggle":
+                line = label
+                if reward:
+                    line += f" — {reward:,} cr"
+            elif jtype == "quest":
+                line = obj or label
+            else:
+                line = obj or label
+            line = line.strip()
+            if not line:
+                continue
+            if len(line) > _OBJECTIVE_MAX_LEN:
+                line = line[:_OBJECTIVE_MAX_LEN - 1].rstrip() + "…"
+            return line
+        except Exception:
+            continue
+    return ""
+
+
 class Session:
     """
     Unified session wrapping either a Telnet or WebSocket connection.
@@ -316,6 +365,12 @@ class Session:
 
         # Track last sent credits value to detect changes for credit_event (Drop 9)
         self._last_sent_credits: Optional[int] = None
+
+        # Webify UI-7: last (chain_id, step) pushed as onboarding_state.
+        # Gates the graduation payload to push exactly once (only when the
+        # chain was active THIS session) — a reconnect after graduation
+        # pushes nothing.
+        self._last_chain_step: Optional[tuple] = None
 
         # F.MAP.2: Track the last AreaGeometry we pushed to this session.
         # The full payload (~22KB) only ships on area transitions; per-tick
@@ -533,16 +588,26 @@ class Session:
         return hud
 
     def _hud_equipped_weapon(self, hud: dict) -> None:
-        """Add equipped weapon name to HUD from character equipment."""
-        equip = self.character.get("equipment")
-        if equip:
-            equip = safe_json_loads(
-                equip, default={},
-                context=f"char {self.character.get('id')} equipment",
-            )
-            weapon_data = equip.get("weapon")
-            if weapon_data and isinstance(weapon_data, dict):
-                hud["equipped_weapon"] = weapon_data.get("name", "")
+        """Add equipped weapon name to HUD from character equipment.
+
+        Tolerant of all equipment shapes, and resolves the display NAME from
+        the weapon registry (the stored ItemInstance carries only the key, not
+        a name — the old code read a "name" field that was never serialized,
+        so the HUD weapon name was effectively always blank).
+        """
+        from engine.items import read_equipment
+        weapon = read_equipment(self.character.get("equipment")).get("weapon")
+        if not weapon:
+            return
+        name = weapon.key
+        try:
+            from engine.weapons import get_weapon_registry
+            w = get_weapon_registry().get(weapon.key)
+            if w and w.name:
+                name = w.name
+        except Exception:
+            log.debug("_hud_equipped_weapon: registry lookup failed", exc_info=True)
+        hud["equipped_weapon"] = name
 
     def _hud_loadout(self, hud: dict) -> None:
         """Build loadout summary for sidebar display."""
@@ -1630,6 +1695,30 @@ class Session:
         jobs = []
         char_id_str = str(char["id"])
 
+        # Active tutorial-chain step (Webify UI-6) — FIRST: a player in
+        # the tutorial is the player who most needs the objective line.
+        # Corpus access goes through chain_events' cached loader (the
+        # chain subsystem's runtime facade) so the HUD tick never
+        # re-reads chains.yaml.
+        try:
+            from engine.chain_events import _get_corpus
+            from engine.tutorial_chains import get_current_step
+            attrs = char.get("attributes", "{}")
+            if isinstance(attrs, str):
+                attrs = json.loads(attrs) if attrs else {}
+            corpus = _get_corpus()
+            if corpus is not None and isinstance(attrs, dict):
+                step = get_current_step(attrs, corpus)
+                if step is not None:
+                    jobs.append({
+                        "type": "tutorial",
+                        "label": step.title,
+                        "objective": step.objective,
+                    })
+        except Exception:
+            log.debug("_hud_active_jobs: tutorial chain lookup failed",
+                      exc_info=True)
+
         # Active mission
         try:
             from engine.missions import get_mission_board, MissionStatus
@@ -1652,8 +1741,13 @@ class Session:
             from engine.bounty_board import get_bounty_board
             bboard = get_bounty_board()
             for c in bboard._contracts.values():
-                if (getattr(c, "accepted_by", None) == char_id_str and
-                        getattr(c, "status", "") == "accepted"):
+                # Webify UI-6 fix: BountyContract's fields are
+                # `claimed_by` + status "claimed" (BountyStatus.CLAIMED,
+                # a str-enum). The old `accepted_by`/"accepted" check
+                # matched no contract ever, so the bounty job never
+                # appeared in the HUD.
+                if (getattr(c, "claimed_by", None) == char_id_str and
+                        getattr(c, "status", "") == "claimed"):
                     jobs.append({
                         "type": "bounty",
                         "label": f"Bounty: {c.target_name}",
@@ -1703,6 +1797,9 @@ class Session:
             log.debug("_hud_active_jobs: spacer quest lookup failed", exc_info=True)
 
         hud["active_jobs"] = jobs
+        # Webify UI-6: single orientation line for the vitals card.
+        # "" = nothing to surface (client hides the box).
+        hud["objective"] = _objective_line(jobs)
 
     async def _hud_send_credit_event(self, hud: dict) -> None:
         """Send credit_event message if credits changed since last tick."""
@@ -1718,6 +1815,29 @@ class Session:
             }))
         if new_credits is not None:
             self._last_sent_credits = new_credits
+
+    async def _hud_sidebar_onboarding(self, char) -> None:
+        """Webify UI-7: push onboarding_state for the training panel.
+
+        Active chain → push every tick (idempotent render). Graduated →
+        push ONCE, gated on the `_last_chain_step` memo showing the chain
+        was active this session; then clear the memo so reconnects after
+        graduation stay silent. No chain ever → nothing.
+        """
+        from engine.chain_events import build_onboarding_state
+        payload = build_onboarding_state(char)
+        if payload is None:
+            self._last_chain_step = None
+            return
+        if payload.get("active"):
+            self._last_chain_step = (payload.get("chain_id"),
+                                     payload.get("step"))
+            await self.send_json("onboarding_state", payload)
+            return
+        # Graduated payload: only on the active→graduated transition.
+        if payload.get("graduated") and self._last_chain_step is not None:
+            self._last_chain_step = None
+            await self.send_json("onboarding_state", payload)
 
     async def _hud_sidebar_mail(self, db, char_id) -> None:
         """Send mail_status sidebar message."""
@@ -1797,6 +1917,32 @@ class Session:
         await self._send(json.dumps({
             "type": "places_status",
             "places": places_out,
+        }))
+
+    async def _hud_sidebar_region(self, db, room_id) -> None:
+        """Send a region_state sidebar message when the player stands in a
+        wilderness region (UI-2 Region panel).
+
+        City / ship / interior rooms carry no ``wilderness_region_id`` and so
+        emit nothing — the web Region panel hides itself. This is add-beside:
+        the region description prose still flows through the live stream and
+        the ``region`` text command, so the Telnet path is untouched.
+        """
+        try:
+            room = await db.get_room(room_id)
+        except Exception:
+            room = None
+        region_slug = (room or {}).get("wilderness_region_id")
+        if not region_slug:
+            return
+        from engine.territory_display import get_region_data_block
+        viewer_org = (self.character or {}).get("faction_id") or None
+        block = await get_region_data_block(
+            db, region_slug, viewer_org_code=viewer_org,
+        )
+        await self._send(json.dumps({
+            "type": "region_state",
+            "region": block,
         }))
 
     # ── Main HUD orchestrator ─────────────────────────────────────────────
@@ -1948,6 +2094,13 @@ class Session:
             return  # Don't attempt sidebar panels if main HUD failed
 
         # ── 19. Sidebar panels (separate lightweight messages) ──
+        # Webify UI-7: onboarding/training panel (needs only char — no db).
+        if char_id:
+            try:
+                await self._hud_sidebar_onboarding(char)
+            except Exception:
+                log.debug("send_hud_update: sidebar onboarding failed",
+                          exc_info=True)
         if db and char_id:
             try:
                 await self._hud_sidebar_mail(db, char_id)
@@ -1964,6 +2117,11 @@ class Session:
                 await self._hud_sidebar_places(db, room_id)
             except Exception:
                 pass  # Places tables may not exist
+
+            try:
+                await self._hud_sidebar_region(db, room_id)
+            except Exception:
+                pass  # Wilderness-region tables may not exist
 
     # ── Input ──
 

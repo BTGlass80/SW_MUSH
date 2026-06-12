@@ -57,8 +57,13 @@ async def _award_resources(char_id, rtype, qty, quality, db):
         char = await db.get_character(char_id)
         if char:
             from engine.crafting import add_resource
-            add_resource(dict(char), rtype, qty, float(quality))
-            await db.save_character(char_id)
+            # CRAFT.P1: was `add_resource(dict(char), ...)` followed by a
+            # no-kwargs save — mutated a throwaway copy, then saved
+            # nothing. Doubly broken; anomaly resource rewards never
+            # landed. Mutate a real working dict, persist its inventory.
+            work = dict(char)
+            add_resource(work, rtype, qty, float(quality))
+            await db.save_character(char_id, inventory=work["inventory"])
     except Exception as e:
         log.warning("[anomaly] resource award: %s", e)
 

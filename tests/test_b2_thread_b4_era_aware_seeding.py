@@ -256,14 +256,15 @@ class TestSeedOrganizationsPathResolution(unittest.TestCase):
             f"got {paths}"
         )
 
-    def test_explicit_gcw_era_reads_legacy_path(self):
-        """era='gcw' explicit -> reads data/organizations.yaml (legacy)."""
+    def test_explicit_gcw_era_seeds_nothing_post_retirement(self):
+        """era='gcw' is retired: seed_organizations resolves to
+        data/worlds/gcw/organizations.yaml, which no longer exists, so it
+        skips gracefully (no crash) and opens no organizations.yaml — in
+        particular it does not fall back to a legacy top-level path."""
         paths = self._run_seed_with_path_capture(era="gcw")
-        self.assertTrue(len(paths) >= 1)
-        self.assertTrue(
-            any(p.endswith(os.path.join("data", "organizations.yaml"))
-                for p in paths),
-            f"Expected legacy data/organizations.yaml; got {paths}"
+        self.assertEqual(
+            paths, [],
+            f"Retired gcw era should open no organizations.yaml; got {paths}",
         )
 
     def test_clone_wars_era_reads_cw_path(self):

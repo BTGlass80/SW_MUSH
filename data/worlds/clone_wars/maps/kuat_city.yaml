@@ -31,7 +31,7 @@
 #
 # substrate_image: add a painted Kuat City tile once generated (see
 # NANO_SUBSTRATE_PLAYBOOK.md). Absent → procedural render. Palette:
-# coruscant_senate is the closest Core-World palette shipped today (Kuat
+# senate_district is the closest Core-World palette shipped today (Kuat
 # has no dedicated palette yet) — swap to a kuat palette (warm terraformed
 # garden world: greens + pale duracrete + gold) when one is authored.
 # ─────────────────────────────────────────────────────────────────────────
@@ -42,7 +42,7 @@ display_name: KUAT CITY
 planet: KUAT
 era: 20 BBY · Clone Wars
 default_terrain: duracrete
-palette: coruscant_senate
+palette: senate_district
 
 # Painted substrate (architecture v51 lane). Uncomment once the tile is
 # generated + registered; the loader/renderer handle it generically.

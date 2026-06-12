@@ -66,6 +66,7 @@ class DirectorCommand(BaseCommand):
             "log":       self._log,
             "reset":     self._reset,
             "narrative": self._narrative,
+            "cult":      self._cult,
         }
         handler = dispatch.get(subcmd)
         if handler is None:
@@ -74,6 +75,79 @@ class DirectorCommand(BaseCommand):
             )
             return
         await handler(ctx, subargs)
+
+    async def _cult(self, ctx: CommandContext, subargs: str) -> None:
+        """Operate the dark-side cult communal objective (design III.3).
+
+        @director cult                  — show the active uprising board
+        @director cult post [cult_key]  — force-post a fresh uprising NOW
+        @director cult advance          — run one escalate/resolve cycle
+        @director cult win | resolve     — force-resolve as a WIN (pays rewards)
+        @director cult lose             — force-resolve as a LOSS
+        @director cult clear            — silently cancel the active uprising
+        """
+        try:
+            import engine.communal_objective_runtime as COR
+            from engine import communal_objective as CO
+        except Exception as exc:
+            await ctx.session.send_line(ansi.error(f"  Cult system not loaded: {exc}"))
+            return
+
+        parts = (subargs or "").split()
+        action = parts[0].lower() if parts else ""
+
+        if action == "post":
+            cult_key = parts[1].lower() if len(parts) > 1 else None
+            row = await COR.force_post(ctx.db, ctx.session_mgr, cult_key=cult_key)
+            if row:
+                cult = CO.CULT_BY_KEY.get(row["cult_key"])
+                name = cult.name if cult else row["cult_key"]
+                await ctx.session.send_line(
+                    ansi.green(f"  Posted uprising: {name} on {row['zone_label']} "
+                               f"(menace {int(float(row['menace']))}).")
+                )
+            else:
+                await ctx.session.send_line(ansi.error("  Failed to post uprising."))
+            return
+
+        if action == "advance":
+            state = await COR.advance_and_resolve(ctx.db, ctx.session_mgr)
+            await ctx.session.send_line(
+                ansi.dim(f"  advance_and_resolve -> {state or 'no active uprising'}")
+            )
+            return
+
+        if action in ("win", "resolve"):
+            state = await COR.force_resolve(ctx.db, ctx.session_mgr, won=True)
+            await ctx.session.send_line(
+                ansi.green(f"  Forced resolve (win): {state or 'no active uprising'}.")
+            )
+            return
+
+        if action == "lose":
+            state = await COR.force_resolve(ctx.db, ctx.session_mgr, won=False)
+            await ctx.session.send_line(
+                ansi.yellow(f"  Forced resolve (loss): {state or 'no active uprising'}.")
+            )
+            return
+
+        if action == "clear":
+            ok = await COR.force_clear(ctx.db, ctx.session_mgr)
+            await ctx.session.send_line(
+                ansi.dim("  Active uprising cleared." if ok else "  No active uprising.")
+            )
+            return
+
+        # default: show the board
+        active = await COR.get_active(ctx.db)
+        await ctx.session.send_line(ansi.header("=== Communal Cult Objective ==="))
+        for ln in COR.render_board(active):
+            await ctx.session.send_line("  " + ln)
+        rosters = ", ".join(c.key for c in CO.CULT_ROSTER)
+        await ctx.session.send_line(
+            ansi.dim(f"  Admin: @director cult [post [key]|advance|win|lose|clear]")
+        )
+        await ctx.session.send_line(ansi.dim(f"  Cult keys: {rosters}"))
 
     async def _status(self, ctx: CommandContext, _args: str) -> None:
         try:

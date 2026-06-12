@@ -20,6 +20,7 @@ hold_out_blaster:
   scale: character
   stun_capable: true
   notes: "Easily concealed. Illegal or regulated in most systems."
+  vendor_stocked: true   # segmentation a: Avail-1 common, open at book cost
 
 blaster_pistol:
   name: "Blaster Pistol"
@@ -32,6 +33,37 @@ blaster_pistol:
   scale: character
   stun_capable: true
   notes: "Standard sidearm throughout the galaxy."
+  vendor_stocked: true   # segmentation a: Avail-1 common, open at book cost
+
+# CRAFT.P0.7 (2026-06-10, decision 6a): these two keys were schematic
+# output_keys (stun_pistol_basic, blaster_carbine_custom) with NO registry
+# entry — a crafted instance carried a key nothing could resolve. Stats
+# re-statted to WEG D6 from gundarks_personal_gear_extraction_v1.md
+# (WEG40158; lore-clean recasts — see extraction §8 era notes).
+stun_pistol:
+  name: "Stun Pistol"
+  type: blaster
+  skill: "blaster"
+  damage: "2D"
+  ranges: [3, 10, 30, 60]
+  ammo: 10
+  cost: 300
+  scale: character
+  stun_capable: true
+  stun_only: true
+  notes: "A weak dedicated stun sidearm — fires stun bolts only. Favored by bail agents and bouncers who need targets breathing."
+
+blaster_carbine:
+  name: "Blaster Carbine"
+  type: blaster
+  skill: "blaster"
+  damage: "5D"
+  ranges: [3, 25, 50, 250]
+  ammo: 100
+  cost: 900
+  scale: character
+  stun_capable: true
+  notes: "BlasTech StarSlasher-pattern carbine. Rifle punch in a shorter frame; restricted in most systems."
 
 heavy_blaster_pistol:
   name: "Heavy Blaster Pistol"
@@ -44,6 +76,7 @@ heavy_blaster_pistol:
   scale: character
   stun_capable: true
   notes: "Powerful but shorter range than standard pistols."
+  vendor_stocked: true   # segmentation a: Avail-1 common, open at book cost
 
 blaster_rifle:
   name: "Blaster Rifle"
@@ -68,6 +101,7 @@ sporting_blaster:
   scale: character
   stun_capable: true
   notes: "Light civilian blaster, common on frontier worlds."
+  vendor_stocked: true   # segmentation a: Avail-1 common, open at book cost
 
 light_repeating_blaster:
   name: "Light Repeating Blaster"
@@ -105,6 +139,7 @@ sporting_blaster_rifle:
   scale: character
   stun_capable: true
   notes: "Hunting rifle. +1D bonus with scope after 1 round aiming."
+  vendor_stocked: true   # segmentation a: Avail-1 common, open at book cost
 
 # ═══════════════════════════════════════
 # BOWCASTER
@@ -135,6 +170,7 @@ knife:
   cost: 25
   scale: character
   notes: "Common blade."
+  vendor_stocked: true   # segmentation a: Avail-1 common, open at book cost
 
 vibroblade:
   name: "Vibroblade"
@@ -145,6 +181,7 @@ vibroblade:
   cost: 250
   scale: character
   notes: "Max damage 6D+2."
+  vendor_stocked: true   # segmentation a: Avail-1 common, open at book cost
 
 vibroaxe:
   name: "Vibroaxe"
@@ -164,7 +201,7 @@ force_pike:
   difficulty: "moderate"
   cost: 500
   scale: character
-  notes: "Energy weapon used by Imperial guards."
+  notes: "Energy polearm favored by ceremonial and elite guards."
 
 gaderffii:
   name: "Gaderffii (Gaffi Stick)"
@@ -186,6 +223,7 @@ stun_baton:
   scale: character
   stun_only: true
   notes: "Stun damage only."
+  vendor_stocked: true   # segmentation a: Avail-1 common, open at book cost
 
 # ═══════════════════════════════════════
 # LIGHTSABER
@@ -215,6 +253,7 @@ frag_grenade:
   blast_damage: ["5D", "4D", "3D", "2D"]
   cost: 200
   scale: character
+  single_use: true   # Drop D: one throw, one grenade (consumption mechanic)
 
 thermal_detonator:
   name: "Thermal Detonator"
@@ -227,6 +266,7 @@ thermal_detonator:
   cost: 2000
   scale: character
   notes: "Class A restricted item. Possession is a serious offense."
+  single_use: true   # Drop D: one throw, one grenade (consumption mechanic)
 
 # ═══════════════════════════════════════
 # ARMOR
@@ -248,16 +288,6 @@ blast_helmet:
   covers: ["head"]
   cost: 100
 
-stormtrooper_armor:
-  name: "Stormtrooper Armor"
-  type: armor
-  protection_energy: "+1D"
-  protection_physical: "+2D"
-  covers: ["head", "torso", "arms", "legs"]
-  dexterity_penalty: "-1D"
-  cost: 0  # military issue
-  notes: "Includes comlink, filtermask. -1D Dexterity penalty."
-
 bounty_hunter_armor:
   name: "Bounty Hunter Armor"
   type: armor
@@ -276,3 +306,443 @@ bounty_hunter_armor:
 #   Medium range: Moderate (15)
 #   Long range: Difficult (20)
 # ═══════════════════════════════════════
+
+# ── CRAFT.P2 / Gundark Drop A (2026-06-10): first Avail-band craftables ──
+# Stats normalized from gundarks_personal_gear_extraction_v1.md (WEG-canon
+# numbers, D6-native). Both lawful Avail-2; contraband waits for Drop G's
+# gating. Difficulty/components in schematics.yaml derived by the §5
+# rubric (signed-off worked sample, gundark_crafting_integration §10).
+
+heavy_blaster_pistol_t6:
+  name: "Heavy Blaster Pistol (Thunderer-pattern)"
+  type: blaster
+  skill: "blaster"
+  damage: "6D+2"
+  ranges: [3, 7, 25, 50]
+  ammo: 25
+  cost: 750
+  scale: character
+  stun_capable: false
+  notes: "BlasTech T-6 pattern — the hardest-hitting heavy pistol on the lawful market. No stun setting; the T-6 trades it for raw output."
+
+vibrorapier_duelist:
+  name: "Vibrorapier (Duelist-pattern)"
+  type: melee
+  skill: "melee combat"
+  damage: "STR+3D"
+  difficulty: moderate
+  ranges: [1, 1, 1, 1]
+  ammo: 0
+  cost: 300
+  scale: character
+  stun_capable: false
+  notes: "LaserHone Duelist — ultrasonic edge, near-silent. A boarding-action favorite. (WEG caps it at 7D total; the engine applies no cap — same as the vibroaxe — so the cap stays book-lore until a cap mechanic exists.)"
+
+# ── CRAFT.GUNDARK Drop B (2026-06-11): the lawful Avail 1–3 weapons band ──
+# Source: gundarks_personal_gear_extraction_v1.md (WEG40158), §2.1–2.3.
+# Stats are the extraction's normalized WEG D6 numbers — never WotC, never
+# invented. Availability per the §2.4 master gate under decision (a)=b
+# (2026-06-11): Kayson teaches the full lawful 1–3 set; the §5.2
+# min-quality bands (25/40/55) and §5.1 difficulties do the tier gating
+# until Drop G ships R/X legality enforcement. Curation per decision 4a —
+# near-duplicates (Quickfire-4, Renegade) and items whose PRIMARY mechanic
+# has no engine consumer yet (dart payloads, blast arcs, combo weapons)
+# are deliberately absent; see the Drop B handoff's deferred table.
+
+vibrodagger_talon:
+  name: "Vibrodagger (Talon-pattern)"
+  type: melee
+  skill: "melee combat"
+  damage: "STR+2D"
+  difficulty: easy
+  ranges: [1, 1, 1, 1]
+  ammo: 0
+  cost: 50
+  scale: character
+  stun_capable: false
+  notes: "LaserHone Talon — ultrasonic edge, near-silent. The fringe's favorite boot knife. (WEG caps it at 6D total; cap stays book-lore, same as the vibroaxe.)"
+
+vibrosaw_greel:
+  name: "Vibro-saw"
+  type: melee
+  skill: "melee combat"
+  damage: "STR+2D+1"
+  difficulty: moderate
+  ranges: [1, 1, 1, 1]
+  ammo: 0
+  cost: 400
+  scale: character
+  stun_capable: false
+  notes: "Greel Wood Logging industrial cutter — a legal tool that happens to go through bulkheads. Heavy, loud, unsubtle."
+  vendor_stocked: true   # segmentation a: Avail-1 common, open at book cost
+
+stun_gauntlets_ppg:
+  name: "Stun Gauntlets"
+  type: melee
+  skill: "brawling"
+  damage: "STR+2D"
+  difficulty: easy
+  ranges: [1, 1, 1, 1]
+  ammo: 10
+  cost: 300
+  scale: character
+  stun_capable: false
+  notes: "Palandrix PPG — charged knuckle plates. Ten discharges per power cell; hits land as electrified impact."
+
+contact_stunner_c512:
+  name: "Contact Stunner"
+  type: melee
+  skill: "melee combat"
+  damage: "4D+2"
+  difficulty: very easy
+  ranges: [1, 1, 1, 1]
+  ammo: 0
+  cost: 575
+  scale: character
+  stun_capable: true
+  stun_only: true
+  notes: "SoroSuub C5-12 Stun Master — palm-press stun device, runs on a standard energy cell. Favored by skip tracers; its anti-detector shielding is bookkeeping for the Drop F scan loop."
+
+satskar_ekkar:
+  name: "Sat'skar"
+  type: melee
+  skill: "melee combat"
+  damage: "STR+3D+1"
+  difficulty: difficult
+  ranges: [1, 1, 1, 1]
+  ammo: 0
+  cost: 700
+  scale: character
+  stun_capable: false
+  notes: "Ekkar Arms — the Coynite greatsword. Brutal two-handed work; one-handed use drops it to STR+1D (book rule, kept as lore until a grip mechanic exists)."
+
+coynskar_ekkar:
+  name: "Coyn'skar"
+  type: melee
+  skill: "melee combat"
+  damage: "STR+2D"
+  difficulty: moderate
+  ranges: [1, 1, 1, 1]
+  ammo: 0
+  cost: 400
+  scale: character
+  stun_capable: false
+  notes: "Ekkar Arms bladed pole — Coynite honor weapon. The hook-disarm trick (Very Difficult) stays book-lore until a disarm-maneuver consumer exists."
+
+autocaster_drolan:
+  name: "Auto-caster"
+  type: bowcaster
+  skill: "missile weapons"
+  damage: "3D"
+  ranges: [3, 8, 20, 35]
+  ammo: 20
+  cost: 700
+  scale: character
+  stun_capable: false
+  notes: "Drolan Plasteel repeating crossbow — auto-loads the next quarrel. Silent, cheap to feed, beats energy scanners."
+
+flash_pistol_sevari:
+  name: "Sevari Flash-Pistol"
+  type: firearms
+  skill: "firearms"
+  damage: "4D+2"
+  ranges: [3, 10, 30, 60]
+  ammo: 1
+  cost: 300
+  scale: character
+  stun_capable: false
+  notes: "Hand-finished single-shot archaic pistol with an integral blade (STR+1D, book-lore). Misfires on a wild 1 in the book — flavor until a misfire mechanic exists."
+
+holdout_blaster_b22:
+  name: "Hold-out Blaster"
+  type: blaster
+  skill: "blaster"
+  damage: "3D"
+  ranges: [3, 4, 8, 12]
+  ammo: 10
+  cost: 300
+  scale: character
+  stun_capable: true
+  notes: "Merr-Sonn B22 — palm-sized insurance. Short legs, easy to hide."
+
+blaster_pistol_dl22:
+  name: "Blaster Pistol (DL-22)"
+  type: blaster
+  skill: "blaster"
+  damage: "4D+1"
+  ranges: [3, 10, 30, 120]
+  ammo: 100
+  cost: 500
+  scale: character
+  stun_capable: true
+  notes: "BlasTech DL-22 — the DL-18's successor. A half-pip hotter than the standard pattern; otherwise the same dependable sidearm."
+  vendor_stocked: true   # segmentation a: Avail-1 common, open at book cost
+
+heavy_blaster_pistol_dl6h:
+  name: "Heavy Blaster Pistol (DL-6H)"
+  type: blaster
+  skill: "blaster"
+  damage: "5D"
+  ranges: [3, 10, 30, 120]
+  ammo: 25
+  cost: 800
+  scale: character
+  stun_capable: true
+  notes: "BlasTech DL-6H — a heavy that keeps standard-pistol range. The long-arm answer for shooters who won't carry a rifle."
+  vendor_stocked: true   # segmentation a: Avail-1 common, open at book cost
+
+sniper_rifle_x45:
+  name: "Sniper Rifle (X-45)"
+  type: blaster
+  skill: "blaster"
+  damage: "5D"
+  ranges: [1, 25, 100, 250]
+  ammo: 25
+  cost: 750
+  scale: character
+  stun_capable: false
+  notes: "SoroSuub X-45 — integral scope steadies long-range work (book: long range fires at Moderate; flat bonus pending a scope mechanic)."
+
+blaster_rifle_firelance:
+  name: "Blaster Rifle (Firelance)"
+  type: blaster
+  skill: "blaster"
+  damage: "5D"
+  ranges: [3, 30, 100, 300]
+  ammo: 100
+  cost: 1200
+  scale: character
+  stun_capable: true
+  notes: "SoroSuub Firelance — production-line rifle with the serials conveniently absent. The hunter's gun that doesn't ask questions."
+
+riot_gun_bt500:
+  name: "Riot Gun"
+  type: blaster
+  skill: "blaster"
+  damage: "5D+1"
+  ranges: [3, 30, 100, 300]
+  ammo: 300
+  cost: 1500
+  scale: character
+  stun_capable: false
+  notes: "BlasTech 500 — a 300-shot drum built for sustained suppression. Constant-fire rules stay book-lore until a suppression mechanic exists."
+
+# ── CRAFT.GUNDARK Drop C (2026-06-11): non-powered armor, lawful Avail 1–3 ──
+# Source: gundarks_personal_gear_extraction_v1.md §3.1 (WEG40158 Ch. 6).
+# Registry reality: armor lives HERE as `type: armor` rows (wear/soak/sheet
+# all read the weapon registry) — the integration plan's "new armor.yaml"
+# predates that audit; extend-don't-add wins. Protection strings parse as
+# DicePool ("+1D+2", pip-only "+2" both valid). Sub-systems with no engine
+# consumer (camo spot bonus, IR alarms, servo boosts, enviro filters, swim
+# modifiers, layering) are book-lore in notes — never phantom fields.
+# Powered/space suits (§3.2) are DEFERRED: `powersuit operation` is not a
+# registered skill and weapon mounts have no consumer; that family needs
+# its own design pass before any row ships.
+
+koromondain_vest_mk45:
+  name: "Koromondain Vest (Mk 45)"
+  type: armor
+  protection_energy: "+2"
+  protection_physical: "+1D+2"
+  covers: ["torso"]
+  dexterity_penalty: ""
+  cost: 250
+  notes: "Mk 45 Personal Deflection System — a thin civilian underlayer. The book lets it nest beneath heavier suits; the engine wears one armor at a time, so layering stays lore."
+
+concussion_vest_cv14:
+  name: "Concussion Vest (CV14-B)"
+  type: armor
+  protection_energy: ""
+  protection_physical: "+1D"
+  covers: ["torso"]
+  dexterity_penalty: ""
+  cost: 500
+  notes: "Core World Arms padding — pure impact protection, nothing against blasters. The book counts crash and fall damage as physical; so does the engine."
+
+link_armor_supralink:
+  name: "Link Armor (SupraLink)"
+  type: armor
+  protection_energy: "+2"
+  protection_physical: "+1D"
+  covers: ["head", "torso", "arms", "legs"]
+  dexterity_penalty: "-1D"
+  cost: 500
+  notes: "ProTech micro-link mesh of a pattern Jedi wore centuries ago. Full coverage, slightly stiff. The book's double-suit modification stays lore until layering exists."
+
+riot_armor_creshaldyne:
+  name: "Riot Armor"
+  type: armor
+  protection_energy: "+1D"
+  protection_physical: "+2D"
+  covers: ["torso", "legs"]
+  dexterity_penalty: ""
+  cost: 500
+  notes: "Creshaldyne crowd-control plate. The integral IR motion alarm (30 m) is book-lore pending a sensor consumer."
+
+camo_armor_creshaldyne:
+  name: "Camo Scout Armor"
+  type: armor
+  protection_energy: "+2"
+  protection_physical: "+1D"
+  covers: ["torso", "arms", "legs"]
+  dexterity_penalty: ""
+  cost: 1500
+  notes: "Creshaldyne holo-camouflage weave. The +1D to avoid being spotted while motionless joins the Drop F hide/scan loop; until then it's lore."
+
+blast_vest_corondexx:
+  name: "Blast Vest (ablative)"
+  type: armor
+  protection_energy: "+1D"
+  protection_physical: "+2"
+  covers: ["torso"]
+  dexterity_penalty: ""
+  cost: 3000
+  notes: "Corondexx ablative weave — eats blaster fire, drinks power cells (25 cr each, book-lore). The premium energy vest over the standard pattern."
+
+castaan_staad:
+  name: "Castaan Staad"
+  type: armor
+  protection_energy: "+1D"
+  protection_physical: "+1D"
+  covers: ["torso"]
+  dexterity_penalty: ""
+  cost: 750
+  notes: "Twi'lek craftwork — thin, flexible, wearable under street clothes without a silhouette. Discreet protection for people who'd rather not look armored."
+
+coynite_battle_armor:
+  name: "Coynite Battle Armor"
+  type: armor
+  protection_energy: "+2D"
+  protection_physical: "+2D"
+  covers: ["head", "torso", "arms", "legs"]
+  dexterity_penalty: "-1D"
+  cost: 150
+  notes: "Ekkar Arms plant-fibre weave, absurdly cheap off Coyn and astonishingly tough when genuine. Off-world fakes are inferior — the book's warning, the fence's opportunity."
+
+ubese_raider_armor:
+  name: "Ubese Raider Armor"
+  type: armor
+  protection_energy: "+1D"
+  protection_physical: "+2D"
+  covers: ["head", "torso"]
+  dexterity_penalty: ""
+  cost: 1000
+  notes: "Stock Ubese pattern — full mobility, sealed helm. The Type-II enviro filter and flash-guard visor (book: nullifies visual stuns) are lore until enviro/flash mechanics exist."
+
+flex_armor_ty1:
+  name: "Flex-Armor (TY1)"
+  type: armor
+  protection_energy: "+1D"
+  protection_physical: "+1D"
+  covers: ["head", "torso", "arms", "legs"]
+  dexterity_penalty: "-1D"
+  cost: 2000
+  notes: "Drolan Plasteel full-body suit of an Old Republic design that survived the Sith Wars. The book's plate-reinforcement modification stays lore until an armor-mod system exists."
+
+# ── CRAFT.GUNDARK Drop D (2026-06-11): craftable ordnance, lawful 1–2 ──
+# Source: gundarks_personal_gear_extraction_v1.md §2.5. Ships WITH the
+# single-use consumption mechanic (faucets and sinks land together —
+# ammo is otherwise unmodeled, so unflagged explosives would be
+# permanent weapons). Blast radii are carried as data per the existing
+# frag/thermal convention; combat resolves single-target until a blast
+# consumer exists. Deferred wholesale: gas/spore/glop/smoke (effect-
+# primary, unmodeled), mines + breaching charges + detonite (placement/
+# demolition mechanics), nets (restraint-gated), missiles (launcher-
+# gated), anti-vehicle + Firegems (contraband band → Drop G).
+
+incendiary_grenade:
+  name: "Incendiary Grenade"
+  type: grenade
+  skill: "grenade"
+  damage: "4D"
+  ranges: [3, 7, 20, 40]
+  blast_radius: [0, 2, 4, 6]
+  ammo: 1
+  cost: 300
+  scale: character
+  stun_capable: false
+  single_use: true
+  notes: "Greff-Timms 0033X — Old Republic jump-trooper issue, still in production. Burns hot and clings; the book's per-round burn falloff (4D/3D/2D/1D by blast band) is lore until blast handling exists."
+
+stun_grenade_merr_sonn:
+  name: "Stun Grenade"
+  type: grenade
+  skill: "grenade"
+  damage: "6D"
+  ranges: [1, 8, 16, 25]
+  blast_radius: [0, 2, 20, 40]
+  ammo: 1
+  cost: 450
+  scale: character
+  stun_capable: true
+  stun_only: true
+  single_use: false
+  notes: "Merr-Sonn riot pattern — rechargeable and reusable per the book, which is why it is NOT single_use: recover it after the riot and recharge it. Stun-only by design."
+
+# ── CRAFT.GUNDARK Drop E (2026-06-11): field-gear weapon row ──
+# The luma flare's PRIMARY combat use (a thrown 4D burn) rides the
+# existing attack path + the Drop D single-use mechanic; the 300 m
+# illumination and ≤50 m blind effects are book-lore until light/blind
+# mechanics exist.
+
+luma_flare:
+  name: "Luma Flare"
+  type: grenade
+  skill: "grenade"
+  damage: "4D"
+  ranges: [3, 7, 20, 40]
+  blast_radius: [0, 2, 4, 6]
+  ammo: 1
+  cost: 100
+  scale: character
+  stun_capable: false
+  single_use: true
+  notes: "Salamini Model-3287 — a signal flare that doubles as a weapon in a pinch: 4D burn on a direct hit. Book: 300 m illumination for 3 minutes, blinds within 50 m — lore until light and blind mechanics exist."
+
+# ── CRAFT.GUNDARK Drop G (2026-06-12): the contraband band ──
+# Source: extraction §2.3/§2.5 Avail 4/X rows held back from Drops B/D
+# per decision 3a. These are BLACK-MARKET goods: crafted instances land
+# with `contraband: true` and patrol boardings sweep for them
+# (engine/encounter_patrol — confiscation + Class-4 infraction on a
+# failed Con hide). Disruptor "vaporize" lore and the anti-vehicle
+# grenade's no-scale-reduction rule stay notes (no consumers).
+
+disruptor_pistol:
+  name: "Disruptor Pistol"
+  type: blaster
+  skill: "blaster"
+  damage: "6D+2"
+  ranges: [1, 3, 5, 7]
+  ammo: 5
+  cost: 3000
+  scale: character
+  stun_capable: false
+  single_use: false
+  notes: "Banned on every world with a functioning court — the book's 'blaster: disruptor' specialization, point-blank reach, hideous wounds. Possession alone is an infraction; patrols confiscate on sight."
+
+predator_rifle:
+  name: "Predator Rifle (EXP-7a)"
+  type: blaster
+  skill: "blaster"
+  damage: "7D"
+  ranges: [3, 30, 80, 350]
+  ammo: 8
+  cost: 7000
+  scale: character
+  stun_capable: false
+  single_use: false
+  notes: "Exotac's prototype hunting rifle — eight shots of 7D and a recoil that the book gates behind a Moderate Strength roll (lore until a recoil mechanic exists). Fire-control 2D. Never went to lawful market."
+
+anti_vehicle_grenade:
+  name: "Anti-Vehicle Grenade"
+  type: grenade
+  skill: "grenade"
+  damage: "7D"
+  ranges: [3, 7, 20, 40]
+  blast_radius: [0, 2, 4, 6]
+  ammo: 1
+  cost: 750
+  scale: character
+  stun_capable: false
+  single_use: true
+  notes: "Galentro Armaments shaped-charge grenade. The book waives scale reduction against speeder-class vehicles — lore until vehicle-scale combat exists. Restricted everywhere; carrying one past a patrol is a bad day."

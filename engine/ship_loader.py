@@ -18,7 +18,7 @@ Schema (per data/worlds/<era>/ships.yaml):
 Usage in build_mos_eisley.py:
     from engine.ship_loader import load_era_ships
 
-    era_dir = "data/worlds/gcw"
+    era_dir = "data/worlds/clone_wars"
     room_name_map = {r.name: r.id for r in bundle.rooms.values()}
     ships = load_era_ships(era_dir, room_name_map)
 

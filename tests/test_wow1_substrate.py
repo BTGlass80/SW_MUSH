@@ -204,8 +204,12 @@ def _new_db(initial_weight: int = 0, char_id: int = 1) -> "_AsyncSqlite":
 
 class TestSchemaVersionBumped(unittest.TestCase):
     def test_schema_version_is_35(self):
+        # WoW.1 introduced its migration at v35. SCHEMA_VERSION advances on
+        # every later migration, so assert >= 35 rather than pinning the
+        # exact value (TestMigrationV35Present below pins the v35 migration
+        # itself, which is the durable guard).
         from db.database import SCHEMA_VERSION
-        self.assertEqual(SCHEMA_VERSION, 35)
+        self.assertGreaterEqual(SCHEMA_VERSION, 35)
 
 
 class TestMigrationV35Present(unittest.TestCase):

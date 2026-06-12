@@ -97,8 +97,7 @@ class TrainingCommand(BaseCommand):
     async def execute(self, ctx: CommandContext):
         from engine.tutorial_v2 import (
             format_status, set_return_room, get_tutorial_state,
-            set_tutorial_core, start_starter_quest, ELECTIVE_LABELS,
-            CORE_REWARD_CREDITS, grant_reward,
+            ELECTIVE_LABELS,
         )
 
         char = ctx.session.character
@@ -131,53 +130,18 @@ class TrainingCommand(BaseCommand):
 
         # -- training skip ----------------------------------------------------
         if args == "skip":
-            # Drop 2 (May 19 2026): retire `training skip` under CW.
-            # The legacy GCW core tutorial (Training Grounds elective
-            # modules with Chalmun's Cantina as the post-tutorial
-            # destination) is era-bound to GCW. Under CW the canonical
-            # tutorial is the chain system selected at chargen, and
-            # the skip path is the alt-character starter kit applied
-            # at character creation (engine/api.py, Drop 2b). There is
-            # no in-game way to "skip" the core tutorial post-creation
-            # under CW — by the time the player runs commands, chargen
-            # has already locked in their tutorial choice.
-            try:
-                from engine.era_state import get_active_era
-                active_era = get_active_era()
-            except Exception:
-                active_era = "clone_wars"  # CW is production default
-
-            if active_era != "gcw":
-                await ctx.session.send_line(
-                    "  The `training skip` command is a legacy of the GCW-era\n"
-                    "  elective tutorial. Under the Clone Wars, your tutorial\n"
-                    "  chain was selected at character creation and is the only\n"
-                    "  path through training. If you want to play without a\n"
-                    "  tutorial, create a second character on this account and\n"
-                    "  pick the skip option in chargen."
-                )
-                return
-
-            ts = get_tutorial_state(char)
-            if ts["core"] == "complete":
-                await ctx.session.send_line(
-                    "  You've already completed the core tutorial."
-                )
-                return
-            # Mark complete and grant reward without requiring room traversal
-            set_tutorial_core(char, "complete", step=5)
-            start_starter_quest(char)
-            await ctx.db.save_character(char["id"],
-                                        attributes=char.get("attributes", "{}"))
-            await grant_reward(
-                ctx.session, ctx.db,
-                credits=CORE_REWARD_CREDITS,
-                message=(
-                    "Core tutorial skipped. "
-                    f"+{CORE_REWARD_CREDITS:,} credits granted.\n"
-                    "  Find Kessa Dray in Chalmun's Cantina for the starter quest chain.\n"
-                    "  Type 'training list' to see available training modules."
-                ),
+            # The core tutorial can no longer be skipped post-creation.
+            # The canonical tutorial is the chain system selected at
+            # chargen, and the no-tutorial path is the alt-character
+            # starter kit applied at character creation (engine/api.py).
+            # By the time the player runs commands, chargen has already
+            # locked in their tutorial choice.
+            await ctx.session.send_line(
+                "  The `training skip` command is no longer available. Your\n"
+                "  tutorial chain was selected at character creation and is\n"
+                "  the path through training. If you want to play without a\n"
+                "  tutorial, create a second character on this account and\n"
+                "  pick the skip option in chargen."
             )
             return
 

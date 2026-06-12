@@ -542,7 +542,7 @@ class TestEndToEndGraduation(unittest.TestCase):
         # Add the room so the teleport resolves
         db_rooms = {500: {"id": 500, "name": "Coruscant Works LZ",
                           "properties": json.dumps({
-                              "slug": "coruscant_works_landing_zone"
+                              "slug": "commercial_district_landing_zone"
                           })}}
         db.rooms = db_rooms
 

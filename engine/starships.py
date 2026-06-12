@@ -679,7 +679,7 @@ def get_ship_registry() -> ShipRegistry:
             from engine.era_state import get_active_era
             era = get_active_era()
         except Exception:  # pragma: no cover - defensive
-            era = "gcw"
+            era = "clone_wars"
         era_path = os.path.join(data_dir, "worlds", era, "starships.yaml")
         if os.path.exists(era_path):
             _registry.load_file(era_path)
