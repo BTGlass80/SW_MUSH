@@ -47,5 +47,30 @@
       "PowerShell(Remove-Item:*)",
       "PowerShell(rm -rf:*)"
     ]
+  },
+  "_hooks_comment": "Deterministic enforcement layer for unattended runs (active in ALL permission modes, incl. bypassPermissions). PreToolUse world_yaml_additive_guard.py hard-blocks (exit 2) any Edit/Write/MultiEdit that would net-delete lines from data/worlds/clone_wars/{planets,maps}/*.yaml (map-safety invariant). PostToolUse post_edit_validate.py py_compiles edited *.py and yaml.safe_loads edited *.yaml, surfacing syntax errors back to Claude (exit 2). Command prefers venv python (has PyYAML), falls back to PATH python; ${CLAUDE_PROJECT_DIR:-.} resolves absolute at hook runtime or relative to cwd. Hooks reload on settings change / session start. Scripts are committed under .claude/hooks/.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "P=\"${CLAUDE_PROJECT_DIR:-.}/venv/Scripts/python.exe\"; [ -f \"$P\" ] || P=python; \"$P\" \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/world_yaml_additive_guard.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "P=\"${CLAUDE_PROJECT_DIR:-.}/venv/Scripts/python.exe\"; [ -f \"$P\" ] || P=python; \"$P\" \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/post_edit_validate.py\""
+          }
+        ]
+      }
+    ]
   }
 }
