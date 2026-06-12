@@ -3544,6 +3544,30 @@ async def purchase_hq(db, char: dict, org_code: str, hq_type: str,
     await db.execute(
         "UPDATE organizations SET hq_room_id = ? WHERE id = ?",
         (room_ids[0], org["id"]))
+
+    # T2.DEF.handler_npcs — dynamic-HQ hook (arch §10.6 / §8.18): place a
+    # faction-coded covert intel-contact in the HQ entrance so the org's own
+    # members can redeem espionage intel at their HQ, mirroring the 5
+    # pre-seeded static-HQ canonical-faction handlers. The static handlers
+    # are YAML-seeded; player orgs get theirs when they establish an HQ.
+    # Non-fatal — an HQ purchase must still succeed if the spawn fails.
+    try:
+        await db.create_npc(
+            name=f"{org_name} Covert Contact",
+            room_id=room_ids[0],
+            species="Human",
+            description=("A discreet intelligence liaison who quietly accepts "
+                         "field reports on the organization's behalf."),
+            ai_config_json=json.dumps({
+                "is_intel_handler": True,
+                "faction": org_code.strip().lower(),
+                "hostile": False,
+            }),
+        )
+    except Exception:
+        log.warning("[housing] HQ intel-contact spawn failed for org %s",
+                    org_code, exc_info=True)
+
     await db.commit()
 
     log.info("[housing] org %s purchased %s HQ at lot %d, rooms %s",
@@ -3580,22 +3604,42 @@ async def sell_hq(db, char: dict, org_code: str) -> dict:
         except Exception:
             log.warning("[housing] HQ sell: armory return failed", exc_info=True)
 
-    # Remove guards + delete rooms
+    # Remove guards + delete rooms.
+    # FK ordering: rooms.housing_id → player_housing(id) and
+    # player_housing.entry_room_id → rooms(id) create a mutual reference.
+    # Clear rooms.housing_id first, then remove the player_housing record,
+    # so the subsequent delete_room calls satisfy both FK constraints.
     room_ids = _room_ids(h)
     for rid in room_ids:
-        try:
-            from engine.territory import remove_guard_npc
-            await remove_guard_npc(db, org_code, rid, force=True)
-        except Exception as _e:
-            log.debug("silent except in engine/housing.py:2999: %s", _e, exc_info=True)
-        await db.delete_room(rid)
-
+        await db.execute("UPDATE rooms SET housing_id = NULL WHERE id = ?", (rid,))
     await db.execute("DELETE FROM player_housing WHERE id = ?", (h["id"],))
     await db.execute(
         "UPDATE housing_lots SET current_homes = MAX(0, current_homes - 1) "
         "WHERE room_id = ?", (h["entry_room_id"],))
     await db.execute(
         "UPDATE organizations SET hq_room_id = NULL WHERE id = ?", (org["id"],))
+    for rid in room_ids:
+        try:
+            from engine.territory import remove_guard_npc
+            await remove_guard_npc(db, org_code, rid, force=True)
+        except Exception as _e:
+            log.debug("silent except in engine/housing.py:2999: %s", _e, exc_info=True)
+        # Remove the dynamic-HQ intel-contact before the room is deleted —
+        # delete_room does not cascade to NPCs (T2.DEF.handler_npcs).
+        try:
+            from engine.intel_handlers import INTEL_HANDLER_AI_KEY
+            for npc in await db.get_npcs_in_room(rid):
+                ai = npc.get("ai_config_json") or "{}"
+                try:
+                    ai = json.loads(ai) if isinstance(ai, str) else (ai or {})
+                except Exception:
+                    ai = {}
+                if ai.get(INTEL_HANDLER_AI_KEY):
+                    await db.delete_npc(npc["id"])
+        except Exception as _e:
+            log.debug("[housing] HQ intel-contact cleanup skipped: %s", _e,
+                      exc_info=True)
+        await db.delete_room(rid)
 
     refund = h.get("purchase_price", 0) // 4
     new_treasury = await db.adjust_org_treasury(org["id"], refund)

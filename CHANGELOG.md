@@ -6,6 +6,13 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-12 — T2.DEF.handler_npcs closed: dynamic-HQ intel contact — *same-day drop 16*
+Player-org HQ establishment now spawns a faction-coded intel handler NPC in the HQ entrance room (`purchase_hq` in `engine/housing.py`), closing the espionage-redemption gap for player-org members — previously only the 5 static-HQ canonical factions (Jedi/Republic/CIS/Hutt/BHG) had a reachable handler. The NPC is torn down on `sell_hq` so it isn't orphaned (`delete_room` does not cascade to NPCs). Reachable via the existing `find_handler_in_room` consumer in `parser/espionage_commands.py` — no new mechanic. Also fixes a pre-existing FK ordering bug in `sell_hq`: `player_housing.entry_room_id → rooms(id)` and `rooms.housing_id → player_housing(id)` created a mutual reference; `sell_hq` now clears `rooms.housing_id` first, then deletes the `player_housing` record, then deletes rooms — satisfying both FK constraints. This was masked in prior testing because no test ever called `sell_hq` end-to-end.
+- **Files:** `engine/housing.py`, `tests/test_t2def_dynamic_hq_handler.py` (new, 5 cases), `CHANGELOG.md`, `TODO.json`.
+- **Tests:** 5 new + 7 existing (`test_t2def_covert_handlers.py`) all green.
+
+---
+
 ### 2026-06-12 — Triage: T5-difficulty invariant vs the Drop G contraband band — *same-day drop 15*
 Pre-existing red fixed (found while verifying drop 14; confirmed red on HEAD before drops 13-14, unrelated to either). `tests/test_syn6c_t5_crafting_and_harvest_nodes.py::test_t5_difficulties_are_above_t4_ceiling` asserted every `t5_*` schematic out-ranks the *dynamic* max difficulty of all non-T5 schematics. That invariant predates **Gundark Drop G**, whose contraband band (`predator_rifle`, `anti_vehicle_grenade` @ diff 26 — the Heroic cap, the catalog's "worst pages") legitimately reached the same difficulty ceiling via a **different axis** (illegality / experimental-prototype danger), not crafting tier. So three T5 rows (top_spec_blaster_rifle 25, master_grade_armor 25, hyperdrive_surge_converter 26) failed a strict `> 26` test.
 - **Resolution: fix the test, not the data.** The contraband difficulties are correct per Drop G's rubric; the T5 difficulties (25-28) are correct per their design; only the test's assumption that the two never collide was stale. The test now **excludes `contraband` schematics** from the ceiling, preserving a strong, meaningful invariant: every T5 difficulty exceeds the hardest *legal* non-T5 recipe (max legal = `comm_jammer` @ 24; all T5 ≥ 25 ✓). T5 is the hardest lawful crafting lane; the contraband band is a deliberately-extreme separate category.
