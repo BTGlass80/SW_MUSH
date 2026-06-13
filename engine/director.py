@@ -44,6 +44,34 @@ log = logging.getLogger(__name__)
 
 FACTION_TURN_INTERVAL = 1800  # 30 minutes in seconds
 
+# ── Adaptive-spend governor (DIRECTOR.adaptive_spend) ─────────────────────
+# Cadence is the ONLY spend dimension that scales API cost (design
+# director_scope_and_adaptive_spend_v1.md §4-5): breadth/depth/memory/the
+# Ollama texture layer are always-on constants, not knobs. The SpendGovernor
+# is therefore a CADENCE controller — it moves _turn_interval within a
+# monthly budget ceiling, and skips the paid turn entirely on an empty
+# server (Brian decision D). Manual fidelity + the LLM advisory field land
+# in a follow-up slice.
+FIDELITY_INTERVALS = {          # tier -> seconds between faction turns
+    "eco":      3600,           # 60 min — quiet-server floor
+    "standard": FACTION_TURN_INTERVAL,  # 30 min — the $20 default
+    "high":     1080,           # 18 min — auto-escalation ceiling (~$30)
+    "max":       900,           # 15 min — manual $40 tier only (slice 2)
+}
+# Soft monthly ceilings (USD) per the autonomy tiers (Brian decision E):
+# the auto-governor may self-escalate up to AUTO, manual max unlocks $40.
+# The ClaudeProvider circuit breaker (monthly_budget_cents) is the HARD
+# backstop underneath all of these.
+GOVERNOR_AUTO_CEILING_USD = 30.0
+GOVERNOR_MANUAL_MAX_CEILING_USD = 40.0
+GOVERNOR_BASELINE_CEILING_USD = 20.0
+# Skip-empty-turns (Brian decision D): skip the paid turn at or below this
+# many online players, with a bounded overnight catch-up so the world still
+# visibly moves by morning after an active day.
+SKIP_EMPTY_MAX_PLAYERS = 1
+OVERNIGHT_CATCHUP_SECONDS = 6 * 3600    # stale gap before a catch-up turn
+OVERNIGHT_CATCHUP_LOOKBACK = 24 * 3600  # only if players were seen this recently
+
 # F.6a.3-int: VALID_FACTIONS and DEFAULT_INFLUENCE are derived from the
 # F.6a.3 director_config_loader seam at module load. When the active-era
 # flag (Config.use_yaml_director_data) is off — the production default —
@@ -415,6 +443,11 @@ class DirectorAI:
         self._turn_interval = FACTION_TURN_INTERVAL
         # Era progression: set of era_key strings already fired
         self._fired_eras: set[str] = set()
+        # ── Adaptive-spend governor state (DIRECTOR.adaptive_spend) ──
+        self._last_executed_turn_time = 0.0   # when a turn actually RAN (skip-aware)
+        self._last_populated_time = 0.0       # last tick with >SKIP_EMPTY_MAX_PLAYERS online
+        self._manual_fidelity: Optional[str] = None  # None=auto; else a FIDELITY_INTERVALS key
+        self._last_fidelity_reason = "baseline"  # for @director status / telemetry
 
     @property
     def enabled(self) -> bool:
@@ -1880,11 +1913,107 @@ class DirectorAI:
         self._tick_counter += 1
         now = time.time()
 
+        # Track server population for the skip-empty / overnight-catch-up logic.
+        online = self._count_online(session_mgr)
+        if online > SKIP_EMPTY_MAX_PLAYERS:
+            self._last_populated_time = now
+
         # Faction Turn check — spawn as background task, don't await
         if now - self._last_turn_time >= self._turn_interval:
             self._last_turn_time = now  # Set immediately to prevent re-fire
             import asyncio
-            asyncio.create_task(self._safe_faction_turn(db, session_mgr))
+            asyncio.create_task(
+                self._governed_turn(db, session_mgr, online, now))
+
+    @staticmethod
+    def _count_online(session_mgr) -> int:
+        """Count players currently in-game (skip-empty / governor signal)."""
+        try:
+            return sum(1 for s in session_mgr.all
+                       if getattr(s, "is_in_game", False))
+        except Exception:
+            return 0
+
+    def _should_skip_turn(self, online: int, now: float) -> tuple[bool, str]:
+        """Skip-empty-turns (Brian decision D): don't pay to narrate to an
+        empty server, but fire ONE bounded overnight catch-up so the world
+        still visibly moved by morning after an active day."""
+        if online > SKIP_EMPTY_MAX_PLAYERS:
+            return (False, "")
+        stale = (now - self._last_executed_turn_time) >= OVERNIGHT_CATCHUP_SECONDS
+        recently_active = (now - self._last_populated_time) <= OVERNIGHT_CATCHUP_LOOKBACK
+        if stale and recently_active and self._last_executed_turn_time > 0:
+            hrs = int((now - self._last_executed_turn_time) / 3600)
+            return (False, f"overnight catch-up ({online} online, stale {hrs}h)")
+        return (True, f"skip-empty ({online} online)")
+
+    def _digest_high_roi(self) -> bool:
+        """Cheap proxy for a high-ROI window from signals the digest already
+        gathers. (Richer economy signals arrive with the economy-eyes work;
+        this is the conservative slice-1 heuristic.)"""
+        d = self._digest
+        return (sum(d.missions_by_type.values()) >= 5
+                or d.bounties_claimed >= 3
+                or d.contraband_sold >= 5)
+
+    async def _apply_governor(self, db, online: int) -> None:
+        """Set _turn_interval (cadence) for subsequent turns. Manual fidelity
+        pins the tier; otherwise the auto-governor picks a tier from a cheap
+        ROI heuristic, never auto-escalating past the AUTO ($30) ceiling
+        (the ClaudeProvider breaker is the hard backstop under that)."""
+        if self._manual_fidelity in FIDELITY_INTERVALS:
+            tier = self._manual_fidelity
+            self._turn_interval = FIDELITY_INTERVALS[tier]
+            self._last_fidelity_reason = f"manual fidelity={tier}"
+            return
+        if online >= 4 or self._digest_high_roi():
+            tier, reason = "high", f"auto-escalate ({online} online / high-ROI window)"
+        elif online <= SKIP_EMPTY_MAX_PLAYERS:
+            tier, reason = "eco", f"auto: quiet ({online} online)"
+        else:
+            tier, reason = "standard", f"auto: steady ({online} online)"
+        # Budget guard: never AUTO-escalate to the faster tier past $30/mo.
+        if tier == "high":
+            try:
+                spent = (await self.get_budget_stats(db)).get("estimated_cost_usd", 0.0)
+            except Exception:
+                spent = 0.0
+            if spent >= GOVERNOR_AUTO_CEILING_USD:
+                tier = "standard"
+                reason = (f"auto: budget guard (${spent:.2f} >= "
+                          f"${GOVERNOR_AUTO_CEILING_USD:.0f}); held at standard")
+        self._turn_interval = FIDELITY_INTERVALS[tier]
+        self._last_fidelity_reason = reason
+
+    def governor_state(self) -> dict:
+        """Snapshot for @director status / telemetry (slice-2 display)."""
+        interval = self._turn_interval
+        tier = next((k for k, v in FIDELITY_INTERVALS.items() if v == interval),
+                    "custom")
+        return {
+            "tier": tier,
+            "interval_seconds": interval,
+            "interval_minutes": round(interval / 60, 1),
+            "manual_fidelity": self._manual_fidelity,
+            "reason": self._last_fidelity_reason,
+        }
+
+    async def _governed_turn(self, db, session_mgr, online: int, now: float):
+        """Adaptive-spend entry point for a due faction turn: skip an empty
+        server, else set cadence for subsequent turns and run the turn."""
+        skip, reason = self._should_skip_turn(online, now)
+        if skip:
+            self._last_fidelity_reason = reason
+            # Relax cadence so we don't re-evaluate an empty server too often.
+            self._turn_interval = FIDELITY_INTERVALS["eco"]
+            log.debug("[director] %s — paid turn skipped", reason)
+            return
+        if reason:  # overnight catch-up
+            self._last_fidelity_reason = reason
+            log.info("[director] %s", reason)
+        await self._apply_governor(db, online)
+        self._last_executed_turn_time = now
+        await self._safe_faction_turn(db, session_mgr)
 
     async def _safe_faction_turn(self, db, session_mgr):
         """Wrapper for faction_turn that catches and logs all errors."""
