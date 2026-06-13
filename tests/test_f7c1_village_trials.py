@@ -308,11 +308,17 @@ class TestVillageTrialNPCsPlaced:
         # NPCs without updating this whole-table count guard.
         # 2026-06-06 (Drop A hygiene): +2 more from content drops since the
         # 2026-06-05 pin -> re-verified 198 rows / 198 DISTINCT names via a
-        # clean build_mos_eisley (era=clone_wars), no duplicates. NOTE: this is
-        # a brittle total-count assertion; the by-name village-NPC placement
-        # checks elsewhere in this class are the substantive guarantees.
+        # clean build_mos_eisley (era=clone_wars), no duplicates.
+        # 2026-06-12 reconciliation: a clean build_mos_eisley (era=clone_wars)
+        # now produces 201 NPCs. The 198 pin had drifted -3: the crafting-lane
+        # NPCs (Gundark + Sela Tarn + Vek Nurren) were bundled into the
+        # big_catchup squash without reconciling this whole-table count.
+        # Re-verified 201 rows / 201 DISTINCT names, no duplicate-load. NOTE:
+        # this is a brittle total-count assertion; the by-name village-NPC
+        # placement checks elsewhere in this class are the substantive
+        # guarantees.
         rows = _query(self.db_path, "SELECT COUNT(*) AS c FROM npcs")
-        assert rows[0]["c"] == 198
+        assert rows[0]["c"] == 201
 
     def test_smith_daro_at_forge(self):
         rows = _query(
