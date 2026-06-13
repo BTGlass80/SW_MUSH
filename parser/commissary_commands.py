@@ -115,7 +115,10 @@ class CommissaryCommand(BaseCommand):
                     commissary_vendor_payload(faction_code, rank_level, balance),
                 )
         except Exception:
-            pass  # Non-critical — text output already sent
+            # Non-critical — text output already sent. Log at debug so a
+            # broken web push is visible without breaking the text surface
+            # (matches the bounty/inventory/crafting best-effort idiom).
+            log.debug("[commissary] list shop_state push failed", exc_info=True)
 
     async def _buy(self, ctx, char, key):
         if not key:
@@ -144,7 +147,8 @@ class CommissaryCommand(BaseCommand):
                             faction_code, rank_level, updated_balance),
                     )
             except Exception:
-                pass  # Non-critical — purchase already confirmed above
+                # Non-critical — purchase already confirmed above.
+                log.debug("[commissary] buy shop_state push failed", exc_info=True)
             return
         reason = res.get("reason")
         if reason == "no_commissary":
@@ -195,7 +199,8 @@ class CommissaryCommand(BaseCommand):
                             int(char.get("credits") or 0)),
                     )
             except Exception:
-                pass
+                # Non-critical — sellback already confirmed above.
+                log.debug("[commissary] sell shop_state push failed", exc_info=True)
             return
         reason = res.get("reason")
         if reason == "no_commissary":

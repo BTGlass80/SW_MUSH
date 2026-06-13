@@ -95,6 +95,38 @@ def _all_cw_room_names():
     return set(_all_cw_rooms().values())
 
 
+def _all_authored_npc_names():
+    """Union of every NPC `name` across ALL rosters the era manifest
+    actually loads (`era.yaml::content_refs.npcs`), not just the
+    F.8.c.2.a anchor roster.
+
+    Coverage rationale (T5-questline arc B, drops 34–35, Jun 13 2026):
+    the chain-anchor role is no longer carried by a single roster file.
+    `chains.yaml` now also references the five t5 master-trainer NPCs
+    (Master Vehn Tasaal, Vossk the Armorer, Lieutenant Corso Venn,
+    Chief Dax Orrin, Sabra the Smith), which are authored in
+    `npcs_drop_b_t5_trainers.yaml` and wired into `era.yaml`. The
+    runtime talk_to_npc lookup searches the room for the NPC by name
+    regardless of which roster authored it, so chain-NPC coverage must
+    be validated against the union of all era-loaded rosters — exactly
+    the set the engine loads. (Per-file schema/identity checks below
+    stay scoped to DROP_YAML.)"""
+    era = _load_yaml(ERA_YAML) or {}
+    roster_files = (era.get("content_refs", {}) or {}).get("npcs", []) or []
+    names = set()
+    for fn in roster_files:
+        path = os.path.join(CW_DIR, fn)
+        if not os.path.exists(path):
+            continue
+        d = _load_yaml(path) or {}
+        if not isinstance(d, dict):
+            continue
+        for n in (d.get("npcs") or []):
+            if isinstance(n, dict) and n.get("name"):
+                names.add(n["name"])
+    return names
+
+
 def _chain_npcs():
     """Map of NPC name → set of (chain_id, anchor_slug) pairs from
     the unlocked tutorial chains."""
@@ -217,18 +249,25 @@ class TestRequiredFieldsPresent(unittest.TestCase):
 
 class TestChainNPCCoverage(unittest.TestCase):
     """Every NPC referenced by an unlocked chain step must exist in
-    this roster. F.8.c.2.b's event-hook wiring will fail at runtime
-    for any step whose NPC is missing; this test catches that
-    statically."""
+    some era-loaded roster. F.8.c.2.b's event-hook wiring will fail at
+    runtime for any step whose NPC is missing; this test catches that
+    statically.
+
+    Coverage is validated against the union of ALL rosters in
+    `era.yaml::content_refs.npcs` (not just the F.8.c.2.a anchor
+    roster) — the runtime talk_to_npc lookup is roster-agnostic, and
+    since the T5-questline arc (drops 34–35) chain NPCs are authored
+    across more than one roster."""
 
     def test_every_chain_npc_is_authored(self):
         chain_npcs = _chain_npcs()
-        d = _load_yaml(DROP_YAML)
-        authored = {n["name"] for n in d.get("npcs", [])}
+        authored = _all_authored_npc_names()
         missing = sorted(set(chain_npcs) - authored)
         self.assertEqual(missing, [],
-            f"Chain steps reference NPCs that don't exist in this roster: "
-            f"{missing}. Either add them to F.8.c.2.a or update the chain.")
+            f"Chain steps reference NPCs that no era-loaded roster "
+            f"authors: {missing}. Either author them (and wire the "
+            f"roster into era.yaml::content_refs.npcs) or update the "
+            f"chain.")
 
     def test_no_extra_npcs(self):
         """Conversely: the roster shouldn't carry NPCs that no chain

@@ -132,8 +132,17 @@ def test_tier1abody_with_substrate_emits_image_and_skips_procedural() -> None:
 
     Procedural tatooine/day = 15 children (see composition-engine z-order
     test). Substrate mode removes districts+security+streets+twin-sun+
-    buildings+furniture (6) and swaps the substrate rect for an <image>:
-    15 - 6 = 9 children, exactly one of them an <image>."""
+    buildings+furniture (6) and swaps the procedural substrate rect for an
+    <image>, then ADDS L_SubstrateRooms (the tier<=1 tactical click-target
+    layer that replaces the skipped L_Buildings cells under a painting):
+    15 - 6 + 1 = 10 children, exactly one of them an <image>.
+
+    Count attribution (2026-06-13, xdist triage): the original pin was 9,
+    computed as 15-6 and predating L_SubstrateRooms — which landed in the
+    SAME squash commit (`catchup_01`) but was never exercised because jsdom
+    wasn't resolvable, so this test always skipped. With repo-local
+    node_modules now present (drop 26), the test runs and the
+    substrate-rooms layer is correctly counted: 10, not 9."""
     data_with = dict(_BASE_DATA)
     data_with["substrate_image"] = "/static/maps/mos_eisley_substrate.png"
     result = run_with_dom(ENGINE_SCRIPTS, """
@@ -150,21 +159,30 @@ def test_tier1abody_with_substrate_emits_image_and_skips_procedural() -> None:
             if (t === 'image') images++;
         }
         var img = svg.querySelectorAll('image');
+        var subRooms = svg.querySelectorAll('g.substrate-rooms');
+        var clickTargets = svg.querySelectorAll('g.substrate-rooms g[data-room-id]');
         result = {
             count: svg.childNodes.length,
             images: images,
             tags: tags,
-            imageHref: img.length ? img[0].getAttribute('href') : null
+            imageHref: img.length ? img[0].getAttribute('href') : null,
+            substrateRoomsLayers: subRooms.length,
+            clickTargets: clickTargets.length
         };
     """ % json.dumps(data_with))
-    assert result["count"] == 9, f"expected 9 children, got {result['count']}"
+    assert result["count"] == 10, f"expected 10 children, got {result['count']}"
     assert result["images"] == 1, "expected exactly one <image> substrate"
     assert result["imageHref"] == "/static/maps/mos_eisley_substrate.png"
+    # The skipped procedural L_Buildings is replaced by L_SubstrateRooms,
+    # which paints one click-target <g data-room-id> per non-street room so
+    # click-to-walk still works under a painting. _BASE_DATA has 3 rooms,
+    # one of style 'street' (skipped) → 2 click targets.
+    assert result["substrateRoomsLayers"] == 1, "substrate mode must add L_SubstrateRooms"
+    assert result["clickTargets"] == 2, (
+        f"expected 2 non-street room click targets, got {result['clickTargets']}")
     # Atmosphere (a <g>) is retained and sits BEHIND the substrate; the
     # painted <image> immediately follows it. The two leading <defs> blocks
-    # (terrain + haze gradients) are always present. count==9 (down from the
-    # procedural 15) already proves the six geometry layers are skipped — a
-    # surviving procedural L_Substrate would push count to 10.
+    # (terrain + haze gradients) are always present.
     assert result["tags"][0] == "defs" and result["tags"][1] == "defs"
     assert result["tags"][2] == "g", "atmosphere layer must be retained"
     assert result["tags"][3] == "image", "substrate must render right after atmosphere"

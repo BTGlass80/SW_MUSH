@@ -131,7 +131,8 @@ def test_zoom_reveals_more_rooms(tmp_path):
         var s1=buildSvg([100,101,102,103,107,200]); L(s1,geom);           // default = fit
         var s2=buildSvg([100,101,102,103,107,200]); L(s2,geom,{zoom:1.8,viewScale:0.55});
         var s3=buildSvg([100,101,102,103,107,200]); L(s3,geom,{zoom:2.5,viewScale:0.4});
-        L(s3,geom,{zoom:1,viewScale:1});  // re-run to test idempotency
+        var farLabels = labelled(s3);     // snapshot BEFORE the idempotency re-run
+        L(s3,geom,{zoom:1,viewScale:1});  // re-run at fit zoom to test idempotency
 
         result = {
           fit:        labelled(s1),
@@ -141,8 +142,8 @@ def test_zoom_reveals_more_rooms(tmp_path):
           mid:        labelled(s2),
           mid_far_fill: fillOf(s2,102),
           mid_fs_cur: fsOf(s2,100),
-          far:        labelled(s3),
-          reidempotent: labelled(s3)   // after the zoom:1 re-run above
+          far:        farLabels,         // far-zoom set, captured pre-collapse
+          reidempotent: labelled(s3)     // same svg AFTER the zoom:1 re-run
         };
     """
     out = run_with_dom([mod_path], setup_js)  # auto-skips without jsdom
