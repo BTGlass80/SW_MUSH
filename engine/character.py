@@ -527,6 +527,60 @@ class Character:
             log.debug("silent except in engine/character.py:297: %s", _e, exc_info=True)
         return DicePool(0, 0)
 
+    def has_skill_dice(self, skill_name: str) -> bool:
+        """True if the character has any nonzero dice TRAINED in a skill.
+
+        Tolerates both stored key dialects (space-form / underscore-form) via the
+        canonical key, mirroring get_skill_pool's fallback scan, and treats a
+        zero-valued entry (DicePool(0,0)) as UNTRAINED — DicePool has no __bool__,
+        so a bare ``self.skills.get(key)`` truthiness test would wrongly count a
+        0D entry as trained."""
+        key = canonical_skill_key(skill_name)
+        v = self.skills.get(key)
+        if v is None:
+            for k, vv in self.skills.items():
+                if canonical_skill_key(k) == key:
+                    v = vv
+                    break
+        return v is not None and not v.is_zero()
+
+    def get_powersuit_strength_bonus(self) -> DicePool:
+        """The servo-assisted Strength bonus a worn POWERED suit grants, gated by
+        Powersuit Operation proficiency and HARD-CAPPED at +1D (no power creep).
+
+        CRAFT.powered_suit_design. Returns DicePool(0,0) unless the worn armor is
+        a POWERED suit (powersuit_skill flag + a strength_bonus). A wearer with NO
+        Powersuit Operation skill dice fights the servos — they get only HALF the
+        (capped) bonus, rounded down (untrained-use penalty). v1 applies this to
+        the combat SOAK roll only (powered armor = tankier); Strength-based melee
+        is a future increment.
+        """
+        if not self.worn_armor:
+            return DicePool(0, 0)
+        try:
+            from engine.weapons import get_weapon_registry
+            wr = get_weapon_registry()
+            armor = wr.get(self.worn_armor)
+            # The powersuit_skill flag MARKS an armor row as a powered suit — only
+            # flagged suits grant the servo bonus + carry the training penalty.
+            if (not armor or not armor.is_armor or not armor.powersuit_skill
+                    or not armor.strength_bonus):
+                return DicePool(0, 0)
+            bonus = DicePool.parse(armor.strength_bonus)
+            # Hard cap at +1D (3 pips) so a powered suit is BETTER but not
+            # game-warping vs the strongest unpowered armor's soak.
+            bonus_pips = min(bonus.dice * 3 + bonus.pips, 3)
+            # Untrained-use penalty: no trained Powersuit Operation dice → half.
+            if not self.has_skill_dice("powersuit operation"):
+                bonus_pips = bonus_pips // 2
+            if bonus_pips <= 0:
+                return DicePool(0, 0)
+            return DicePool(bonus_pips // 3, bonus_pips % 3)
+        except Exception as _e:
+            log.debug("silent except in get_powersuit_strength_bonus: %s",
+                      _e, exc_info=True)
+        return DicePool(0, 0)
+
     @property
     def equipped_weapon_inst(self):
         """The equipped-weapon ItemInstance (condition/quality/crafter/mods), or

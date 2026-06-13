@@ -1668,6 +1668,14 @@ class CombatInstance:
             armor_pool = armor_pool + _armor_pips
         if not armor_pool.is_zero():
             soak_pool = soak_pool + armor_pool
+        # CRAFT.powered_suit_design: a worn POWERED suit adds its servo-assisted
+        # Strength bonus to the soak roll (powered armor = tankier). Hard-capped
+        # +1D and HALVED for a wearer with no Powersuit Operation skill — the
+        # producer (get_powersuit_strength_bonus) does the cap + the gate, so
+        # this is a no-op for ordinary armor / unpowered wearers.
+        _powersuit_bonus = target.get_powersuit_strength_bonus()
+        if not _powersuit_bonus.is_zero():
+            soak_pool = soak_pool + _powersuit_bonus
         # v22 audit #10: wound penalty applies to soak roll per R&E
         soak_pool = apply_wound_penalty(soak_pool, target.total_penalty_dice)
 

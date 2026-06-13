@@ -41,6 +41,12 @@ mechanical:
   - { name: Communications, specializations: [] }
   - { name: Ground Vehicle Operation, specializations: ["Landspeeder", "AT-ST"] }
   - { name: Hover Vehicle Operation, specializations: [] }
+  # CRAFT.powered_suit_design (2026-06-13): WEG Mechanical skill (WEG40120 —
+  # "Powersuit operation", a reaction-capable operation skill, sibling of the
+  # other *Operation skills). Governs wearing/using a powered exo-armor suit;
+  # untrained wear is penalized. Spec-free (no Imperial powersuit models in the
+  # Clone Wars era).
+  - { name: Powersuit Operation, specializations: [] }
   - { name: Repulsorlift Operation, specializations: [] }
   - { name: Sensors, specializations: [] }
   - { name: Space Transports, specializations: ["YT-1300", "Lambda Shuttle"] }

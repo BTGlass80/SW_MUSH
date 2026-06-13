@@ -1293,6 +1293,29 @@ schematics:
     output_key: flex_armor_ty1
     base_cost: 2000
 
+  # CRAFT.powered_suit_design (2026-06-13): the first POWERED suit. A clear tier
+  # above flex-armor — higher difficulty, a rare power-cell/servo component, the
+  # q70 band. Armor Repair craft (Sela Tarn). Wearing it well needs the new
+  # Powersuit Operation skill (else half the Strength bonus).
+  - key: labor_exo_frame_pl9
+    name: "Loader Exo-Frame (PL-9)"
+    skill_required: armor_repair
+    difficulty: 20
+    trainer_npc: Sela Tarn
+    components:
+      - type: composite
+        quantity: 5
+        min_quality: 70
+      - type: metal
+        quantity: 3
+        min_quality: 70
+      - type: rare
+        quantity: 1
+        min_quality: 70
+    output_type: armor
+    output_key: labor_exo_frame_pl9
+    base_cost: 6000
+
   # ── CRAFT.GUNDARK Drop D (2026-06-11): ordnance — demolitions (b=a) ──
   # 3 schematics, §5 rubric (weapons damage BASE table + avail), §4 mix:
   # chemical primary / rare / metal casing. Ships WITH the single-use

@@ -88,6 +88,13 @@ class WeaponData:
     protection_physical: str = ""
     covers: list[str] = field(default_factory=list)
     dexterity_penalty: str = ""
+    # CRAFT.powered_suit_design: a powered exo-suit's servo-assisted Strength
+    # bonus (a D6 code, e.g. "+1D"). Empty for ordinary armor. Consumed in
+    # combat (soak + Strength-based melee), GATED by Powersuit Operation
+    # proficiency and hard-capped. Presence of a non-empty value is what marks
+    # an armor row as "powered" (powersuit_skill below is the gate flag).
+    strength_bonus: str = ""
+    powersuit_skill: bool = False   # True = wearing it well needs Powersuit Operation
 
     @property
     def is_ranged(self) -> bool:
@@ -184,6 +191,8 @@ class WeaponRegistry:
                 protection_physical=entry.get("protection_physical", ""),
                 covers=entry.get("covers", []),
                 dexterity_penalty=entry.get("dexterity_penalty", ""),
+                strength_bonus=entry.get("strength_bonus", ""),
+                powersuit_skill=entry.get("powersuit_skill", False),
             )
             self._weapons[key] = weapon
 

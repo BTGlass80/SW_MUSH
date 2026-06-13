@@ -1713,7 +1713,8 @@
       "open_calls": "Design doc s8: solo_penalty magnitude, failure cost (rec retry-allowed + small resource cost), alt_skills breadth (rec 1-2), first-challenge location/theme (rec Coruscant Underworld vault), and whether a unique gated drop is added later vs v1's t5-mats."
     }
   ],
-  "design_calls_pending_brian": [
+  "design_calls_pending_brian": [],
+  "design_calls_resolved_recent": [
     {
       "id": "CRAFT.powered_suit_design",
       "raised": "2026-06-12",
@@ -1721,10 +1722,16 @@
       "question": "Powered armor / exoskeleton design pass. Non-powered armor rows exist; no powered schematics; blocked on the same TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES dual-format debt as OBS armor Option C. Integrated-weapon-mount mechanic (the COMPLEXITY_MOD path) is undefined.",
       "recommendation": "Sequence: equipment-instance migration -> armor soak (OBS Option C) -> powered-suit. v1 = armor-slot item with soak (via the Option C path) + a STR bonus + the already-live armor Dex penalty; DEFER integrated weapon mounts (the COMPLEXITY_MOD long pole) to a later increment. Hard-cap so it never beats a tier jump (same principle as Drop 19's +1D cap); gate behind T4/T5 crafting + faction. Decision for Brian: confirm post-migration sequencing + exclude weapon mounts from v1 (rec).",
       "logged": "2026-06-12 (design-review batch; arch §3.2 deferred long-pole)",
-      "status": "UNBLOCKED 2026-06-13 (Brian ruled the equipment-instance migration PRE-LAUNCH; drop 47 shipped the accessor it needs). Build per the v1 recommendation under the decide+build charter. Remaining design specifics (mine to decide): the `powersuit operation` skill (not yet registered) + whether the STR bonus needs a new combat consumer. See HANDOFF_brian_launch_scope_rulings_2026-06-13.md Ruling 1."
-    }
-  ],
-  "design_calls_resolved_recent": [
+      "status": "UNBLOCKED 2026-06-13 (Brian ruled the equipment-instance migration PRE-LAUNCH; drop 47 shipped the accessor it needs). Build per the v1 recommendation under the decide+build charter. Remaining design specifics (mine to decide): the `powersuit operation` skill (not yet registered) + whether the STR bonus needs a new combat consumer. See HANDOFF_brian_launch_scope_rulings_2026-06-13.md Ruling 1.",
+      "v1_decision": "Brian (2026-06-13): REGISTER A NEW `powersuit operation` SKILL (the WEG-faithful path). Build shape: (sub-drop 1) register the skill in the skill registry + chargen/advancement; (sub-drop 2) the powered-armor item (armor-slot, soak via the crafted-quality path) + a HARD-CAPPED STR bonus gated/penalized by powersuit-operation proficiency + the existing armor Dex penalty. DEFER integrated weapon mounts. Conservative caps throughout. STR bonus needs a NEW combat consumer (no armor->attribute-bonus reader exists today).",
+      "resolution": "BUILT 2026-06-13 (drop 50). Registered the Powersuit Operation skill (Mechanical); added strength_bonus + powersuit_skill armor fields; get_powersuit_strength_bonus folds a HARD-CAPPED (+1D) servo Strength bonus into the combat soak roll, HALVED for untrained wearers, gated on the powersuit_skill flag. First powered suit: labor_exo_frame_pl9 (Armor Repair/Sela Tarn/diff20, 6000cr sink). 16 tests; 3 review findings fixed (phantom flag, 0D-skill-truthiness, underscore-key). Integrated weapon mounts + Strength-melee deferred. CRAFT.powered_suit_design CLOSED.",
+      "resolved_date": "2026-06-13"
+    },
+    {
+      "id": "DIRECTOR.adaptive_spend_autonomy",
+      "resolved_date": "2026-06-13",
+      "resolution": "AUTO-ESCALATE WITHIN A CEILING (Brian). Baseline $20 always-on; the Director autonomously escalates Claude spend up to a hard $ ceiling on high-ROI moments, PLUS a manual `@director fidelity` override. Resolves the open sub-question from launch Ruling 4. Build alongside DIRECTOR.multizone_living_galaxy / per director_scope_and_adaptive_spend_v1.md."
+    },
     {
       "id": "FORCE.sensitivity_failsafe_to_jedi",
       "resolved_date": "2026-06-13",

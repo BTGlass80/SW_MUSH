@@ -274,9 +274,14 @@ class TestDropCTrainer(unittest.TestCase):
             if schem.get("trainer_npc", "").lower() == "sela tarn":
                 if add_known_schematic(char, key):
                     granted.append(key)
-        self.assertEqual(sorted(granted), sorted(NEW_KEYS))
-        self.assertEqual(sorted(get_known_schematics(char)),
-                         sorted(NEW_KEYS))
+        # Drop C binds all 10 armor schematics to Sela Tarn. Sela may teach MORE
+        # over time (e.g. the powered exo-frame, CRAFT.powered_suit_design drop
+        # 50), so assert the drop-C set is a SUBSET of what she grants, not an
+        # exact match (which would drift on every new Sela schematic).
+        self.assertTrue(set(NEW_KEYS).issubset(set(granted)),
+                        f"Sela must teach all drop-C armor; missing "
+                        f"{set(NEW_KEYS) - set(granted)}")
+        self.assertTrue(set(NEW_KEYS).issubset(set(get_known_schematics(char))))
 
     def test_train_skill_resolves_post_drop1(self):
         from engine.character import SkillRegistry, canonical_skill_key

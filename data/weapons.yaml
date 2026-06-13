@@ -639,6 +639,25 @@ flex_armor_ty1:
   cost: 2000
   notes: "Drolan Plasteel full-body suit of an Old Republic design that survived the Sith Wars. The book's plate-reinforcement modification stays lore until an armor-mod system exists."
 
+# ── CRAFT.powered_suit_design (2026-06-13): powered exo-armor ──────────────
+# The first POWERED suit (strength_bonus + powersuit_skill). Soak via the
+# normal armor path (and the crafted-quality soak pip); the servo-assisted
+# Strength bonus is read by get_powersuit_strength_bonus (combat soak),
+# hard-capped +1D and HALVED for a wearer with no Powersuit Operation skill.
+# Clone Wars era: an industrial loader exo-frame up-armored for combat — no
+# Imperial powersuit models. Integrated weapon mounts stay deferred (lore).
+labor_exo_frame_pl9:
+  name: "Loader Exo-Frame (PL-9)"
+  type: armor
+  protection_energy: "+1D+1"
+  protection_physical: "+1D+2"
+  covers: ["torso", "arms", "legs"]
+  dexterity_penalty: "-1D"
+  strength_bonus: "+1D"
+  powersuit_skill: true
+  cost: 6000
+  notes: "A Pelagia Heavy Industries cargo-loader exo-frame, plated and re-servo'd for the field. The hydraulics lend a wearer real lifting power; without Powersuit Operation training the servos fight you (half benefit). Integrated tool/weapon mounts are book-lore until a mount system ships."
+
 # ── CRAFT.GUNDARK Drop D (2026-06-11): craftable ordnance, lawful 1–2 ──
 # Source: gundarks_personal_gear_extraction_v1.md §2.5. Ships WITH the
 # single-use consumption mechanic (faucets and sinks land together —
