@@ -771,6 +771,14 @@ rooms:
     security_level: lawless
     hidden_exit: true
     # Clone Wars reskin: Rebel symbol → ambiguous contact mark (CIS sympathizer / neutral)
+    # CRAFT.breaching_obstacle_placement (2026-06-13): the tumbled-boulder
+    # screen across a sealed inner recess is a diegetic breach target.
+    # breach <boulders>.
+    breachables:
+      - name: "Tumbled-boulder screen"
+        breach_difficulty: 15
+        description: "A rockfall of tumbled boulders sealing a recess at the back of the cave."
+        reveal: "The boulders blow apart in a cloud of grit — a hidden recess opens behind them."
 
   - id: 53
     slug: jundland_dune_sea_edge

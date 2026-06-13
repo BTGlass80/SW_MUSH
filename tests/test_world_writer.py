@@ -371,3 +371,62 @@ class TestRefusesUnvalidated:
         finally:
             # Restore for any later test
             bundle.report.errors[:] = original_errors
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CRAFT.breaching_obstacle_placement (2026-06-13) — world-seeded breachables
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestBreachables:
+    """The `breachables:` world-data seeding path: authored obstacles land
+    as `breachable` objects, idempotently."""
+
+    # The 3 obstacles authored across the CW world (Geonosis / Nar Shaddaa
+    # / Tatooine). Keyed by room slug -> (object name, breach_difficulty).
+    EXPECTED = {
+        "barracks_armory": ("Mark-locked armory grate", 22),
+        "warrens_collapsed_plaza": ("Rubble-choked Evocii doorway", 18),
+        "jundland_hidden_cave": ("Tumbled-boulder screen", 15),
+    }
+
+    def test_authored_breachables_in_db(self, write_result,
+                                        event_loop_for_tests):
+        import json as _j
+        db, result = write_result
+        for slug, (name, diff) in self.EXPECTED.items():
+            room_id = result.room_ids.get(slug)
+            assert room_id is not None, f"{slug} not written"
+            async def _q(rid=room_id):
+                return await db._db.execute_fetchall(
+                    "SELECT name, data FROM objects "
+                    "WHERE type = 'breachable' AND room_id = ?", (rid,))
+            rows = event_loop_for_tests.run_until_complete(_q())
+            names = [r["name"] for r in rows]
+            assert name in names, f"{slug}: {name!r} not seeded (got {names})"
+            row = next(r for r in rows if r["name"] == name)
+            data = _j.loads(row["data"])
+            assert int(data["breach_difficulty"]) == diff
+            assert data.get("reveal")  # has reveal flavor
+
+    def test_seeding_is_idempotent(self, write_result, event_loop_for_tests):
+        # Re-running _write_breachables must NOT duplicate obstacles.
+        from engine.world_writer import _write_breachables
+        db, result = write_result
+
+        async def _count():
+            rows = await db._db.execute_fetchall(
+                "SELECT COUNT(*) AS n FROM objects WHERE type = 'breachable'")
+            return rows[0]["n"]
+
+        before = event_loop_for_tests.run_until_complete(_count())
+        # Re-run the seeding against the already-seeded DB.
+        from db.database import Database  # noqa: F401 (clarity)
+        # We need the same bundle the fixture used; reload (module-cached).
+        from engine.world_loader import load_world_dry_run
+        bundle = load_world_dry_run("clone_wars")
+        written = event_loop_for_tests.run_until_complete(
+            _write_breachables(bundle.rooms, result.room_ids, db))
+        after = event_loop_for_tests.run_until_complete(_count())
+        assert written == 0, "re-seed should write 0 (dedup)"
+        assert after == before, "re-seed must not duplicate obstacles"

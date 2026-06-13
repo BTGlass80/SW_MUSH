@@ -6,6 +6,16 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-13 — Breaching obstacle placement: world-data seeding + authored obstacles — *drop 42*
+Gives the breach verb (drop 40) real authored targets, resolving the placement half of CRAFT.breaching_obstacle_placement (Brian: "seed objects now, exits later"). Adds the FIRST object-seeding-at-world-build path (objects were runtime-only before — corpses, drops, admin).
+- **`engine/world_writer.py::_write_breachables`** (called from `write_world_bundle` after exits): for each room with an optional `breachables:` list in its YAML (additive — captured in `room.raw`), creates a `breachable` object (type/name/room_id/data.breach_difficulty/data.reveal). **Idempotent** — dedup by (type, name, room_id) so a rebuild/restart never piles up duplicate obstacles (mirrors create_exit's no-op-on-duplicate). `owner_id=NULL` (world-placed; `owner_id=0` would violate the objects→characters FK — caught by the real-DB test). Failure-tolerant per entry.
+- **3 authored obstacles** (additive YAML, 8 lines each, 0 deleted — map-safe), each diegetic to a room whose description already implies a seal, all in Contested/Wilds zones: Geonosis `barracks_armory` "Mark-locked armory grate" (diff 22), Nar Shaddaa `warrens_collapsed_plaza` "Rubble-choked Evocii doorway" (diff 18), Tatooine `jundland_hidden_cave` "Tumbled-boulder screen" (diff 15). A player can now craft a breaching_charge and breach a real target end-to-end.
+- **Deferred (logged):** gating real MAP EXITS with breach (the map-entangled option) stays a future increment per Brian.
+- **Verified:** `tests/test_world_writer.py::TestBreachables` (2 — the 3 obstacles seed with correct difficulty/reveal against the REAL CW world in an in-memory DB; re-seed writes 0 / no duplicates) + 65-test world-loader/writer/breaching regression + smoke green.
+- **Files:** `engine/world_writer.py`, `data/worlds/clone_wars/planets/{geonosis,nar_shaddaa,tatooine}.yaml`, `tests/test_world_writer.py`, `CHANGELOG.md`, `TODO.json`.
+
+---
+
 ### 2026-06-13 — Harvest per-region skill override (Republic-tech salvage → Search) — *drop 41*
 Resolves CRAFT.harvest_skill_flavor (Brian's call: per-region override). Harvest defaults to wilderness Survival, but salvage regions yield tech, not flora/fauna — recovering usable Republic tech from the Coruscant Underworld reads as Search (scavenging/recovering), not Survival.
 - **`engine/harvest.py`:** new `_REGION_HARVEST_SKILL` map (region slug → skill, default `survival`) + `harvest_skill_for_region(slug)` helper, mirroring the existing `_REGION_SCAVENGE_BONUS` region-keyed table. `coruscant_underworld → search`. The active-harvest skill check now rolls the region's skill (difficulty unchanged at Easy 6). Pure data add — a new region is one row, no other code change. (Search chosen over a raw Technical-attribute roll: it's a real skill and reads as "scavenging".)

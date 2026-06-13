@@ -742,6 +742,14 @@ rooms:
     security_level: lawless
     exits:
       yard: barracks_muster_yard
+    # CRAFT.breaching_obstacle_placement (2026-06-13): the barred,
+    # mark-locked armory is a diegetic breach target — blow the lock to
+    # reach the racked arena weapons. breach <lock>.
+    breachables:
+      - name: "Mark-locked armory grate"
+        breach_difficulty: 22
+        description: "A barred durasteel grate, locked to the slavemaster's mark."
+        reveal: "The grate blows off its mountings — the arena's weapon racks are yours to reach."
 
   - id: 442
     slug: slavemaster_den

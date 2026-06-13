@@ -281,6 +281,79 @@ async def _write_exits(exits: list[Exit],
 # ── Top-level entrypoint ─────────────────────────────────────────────────────
 
 
+async def _write_breachables(rooms: "dict[int, Room]",
+                             slug_to_id: "dict[str, int]", db) -> int:
+    """Seed world-authored breachable obstacles (CRAFT.breaching_obstacle_
+    placement, 2026-06-13). A room may carry an optional `breachables:`
+    list in its YAML (additive — captured in room.raw); each entry becomes
+    an `objects` row of type 'breachable' that the `breach` verb targets.
+
+    Schema per entry: {name, breach_difficulty:int, description?, reveal?}.
+
+    IDEMPOTENT: dedup by (type, name, room_id) — a rebuild/restart skips
+    obstacles that already exist (so they don't pile up on every boot),
+    and a newly-authored obstacle is created. Mirrors create_exit's
+    no-op-on-duplicate contract. Returns the count newly written.
+
+    This is the FIRST object-seeding-at-world-build path (objects were
+    runtime-only before). Failure-tolerant per entry — a bad row logs and
+    is skipped, never aborting the world write."""
+    written = 0
+    for yaml_id in sorted(rooms.keys()):
+        room = rooms[yaml_id]
+        breachables = room.raw.get("breachables") or []
+        if not breachables:
+            continue
+        room_id = slug_to_id.get(room.slug)
+        if room_id is None:
+            log.warning("[breachable] room %s has no DB id; skipping %d",
+                        room.slug, len(breachables))
+            continue
+        for spec in breachables:
+            if not isinstance(spec, dict):
+                log.warning("[breachable] non-dict entry in %s; skipping",
+                            room.slug)
+                continue
+            name = str(spec.get("name", "")).strip()
+            if not name:
+                log.warning("[breachable] entry in %s missing name; skipping",
+                            room.slug)
+                continue
+            try:
+                difficulty = int(spec.get("breach_difficulty", 20) or 20)
+            except (TypeError, ValueError):
+                difficulty = 20
+            description = str(spec.get("description", "") or "")
+            reveal = str(spec.get("reveal", "") or "")
+            # Idempotent dedup.
+            try:
+                existing = await db._db.execute_fetchall(
+                    "SELECT id FROM objects WHERE type = ? AND name = ? "
+                    "AND room_id = ?", ("breachable", name, room_id),
+                )
+            except Exception:
+                existing = None
+            if existing:
+                continue
+            try:
+                # owner_id=None (NULL) — world-placed, no character owner.
+                # owner_id=0 would violate the objects.owner_id FK to
+                # characters(id) (no char 0 exists).
+                await db.create_object(
+                    type="breachable", name=name, owner_id=None,
+                    room_id=room_id, description=description,
+                    data=json.dumps({
+                        "breach_difficulty": difficulty,
+                        "reveal": reveal,
+                    }),
+                )
+                written += 1
+            except Exception:
+                log.warning("[breachable] create failed for '%s' in %s",
+                            name, room.slug, exc_info=True)
+    return written
+
+
 async def write_world_bundle(bundle: WorldBundle, db) -> WriteResult:
     """Write a fully-validated WorldBundle to the database.
 
@@ -327,6 +400,12 @@ async def write_world_bundle(bundle: WorldBundle, db) -> WriteResult:
 
     exits_written = await _write_exits(bundle.exits, yaml_to_db, db)
     log.info("  Wrote %d exit rows", exits_written)
+
+    # CRAFT.breaching_obstacle_placement (2026-06-13): seed world-authored
+    # breachable obstacles (idempotent). Optional `breachables:` per room.
+    breachables_written = await _write_breachables(bundle.rooms, slug_to_id, db)
+    if breachables_written:
+        log.info("  Wrote %d breachable obstacles", breachables_written)
 
     return WriteResult(
         zone_ids=zone_ids,

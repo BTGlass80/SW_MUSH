@@ -505,6 +505,14 @@ rooms:
     map_x: 15
     map_y: 10
     security_level: lawless
+    # CRAFT.breaching_obstacle_placement (2026-06-13): a collapsed
+    # doorway in the rubble seals off an Evocii-era cache — a diegetic
+    # breach target in the deep Warrens. breach <rubble>.
+    breachables:
+      - name: "Rubble-choked Evocii doorway"
+        breach_difficulty: 18
+        description: "A doorway from the buried plaza, packed solid with collapsed ferrocrete."
+        reveal: "The charge clears the rubble — a dust-choked Evocii chamber opens beyond."
 
   # ══════════════════════════════════════════════════════════════════════
   # HOUSING HOST ROOMS (F.5a.2.x — Apr 30 2026) — 2 rooms
