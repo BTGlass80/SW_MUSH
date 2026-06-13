@@ -1652,6 +1652,60 @@
       "recommendation": "Preliminary (main-session reasoning 2026-06-12, NOT yet design-reviewer-validated — Brian should ratify): the binding constraint is credit-laundering. Commissary gear is bought at a requisition DISCOUNT through the commissary_purchase sink; if it sells back to open-market vendors at standard rate, players run buy-cheap/sell-high to mint credits, inverting the sink into a faucet. Recommended model: (1) NO open-market sellback — faction-issued/commissary gear is refused by ordinary vendors (extend the npc_refuses_buyback gate to cover faction_issued:true items, which the landed dict already carries). (2) Sellback ONLY to the issuing faction's own commissary, as a partial REFUND at <=50% of that item's requisition cost, debited... i.e. credited via a commissary_sellback faucet tag that is by construction smaller than the commissary_purchase sink that created it (net player loss => no laundering loop). (3) NOT strictly bind-on-pickup — players recoup half through the faction channel — but bound to that channel (no fencing to outsiders). Effort: small (reuse commissary command surface + the faction_issued flag + a refund branch). Open sub-fork for Brian: should faction gear be TRADEABLE among same-faction members (redistribution) while non-sellable to outsiders? Recommend yes (intra-faction trade is lore-apt and laundering-neutral since no credits are minted).",
       "logged": "2026-06-12 (recommendation added drop 18 session; reasoned not formally reviewed)",
       "status": "pending Brian"
+    },
+    {
+      "id": "WORLDEVENT.flag_effect_consumers",
+      "raised": "2026-06-12",
+      "priority": "MEDIUM (high flavor ROI, not launch-blocking)",
+      "question": "Five world-event FLAG effects are DEFINED and fired but have ZERO consumers (verified: no get_effect() reader for any of them) — pure phantom-consumer gap: rare_vendor (MERCHANT_ARRIVAL), hutt_auction (HUTT_AUCTION, gated criminal_rep>=30), krayt_bounty (KRAYT_SIGHTING), brawl_active (CANTINA_BRAWL), distress_active (DISTRESS_SIGNAL). contraband_scan was wired 2026-06-06 as the precedent (event flag -> get_effect() at an existing system's seam -> modulates outcome). What player interaction should each flag create, and what is the command surface?",
+      "recommendation": "Build them as THIN CONSUMERS over existing systems (extend-don't-add), mirroring contraband_scan->smuggling — NOT five new subsystems. Mapping: rare_vendor -> time-boxed rare-stock/discount injection on an EXISTING vendor (reuse buy/vendor gate); krayt_bounty -> inject a high-value hunt onto the EXISTING bounty board + reuse the SYN.8 world-boss spawn; brawl_active -> room-scoped joinable NPC brawl via EXISTING combat + NPC spawn ('join brawl'); distress_active -> mission-style accept ('answer') -> existing encounter -> reward. hutt_auction: SIMPLIFY to a rep-gated rare PURCHASE while active (existing buy sink), NOT a live multi-player bidding loop (bidding is the only one implying a real new system — don't build it). Ship one flag per small drop. Decision for Brian: (a) verb surface per flag as above; (b) hutt_auction = simplified purchase, not bidding.",
+      "logged": "2026-06-12 (design-review batch; T2.E3 / arch §8.19; 5 of 6 flags remain after contraband_scan)",
+      "status": "pending Brian"
+    },
+    {
+      "id": "DIRECTOR.faction_model_cw_mapping",
+      "raised": "2026-06-12",
+      "priority": "LOW-MEDIUM (internal-only; no player-facing leak)",
+      "question": "The LLM Director's faction-order validation uses GCW-era codes: VALID_FACTION_CODES = {empire, rebel, hutt, bh_guild} at engine/director.py:964, so CW faction-orders (republic/cis) are rejected and the Director literally can't issue era-correct orders. NOTE the imperial/rebel ZONE-TONE axis keys (ZoneState) are a DIFFERENT, sanctioned do-not-touch surface (per CLAUDE.md) — this call is only about the order/digest boundary. Re-key the internal model, or add a CW mapping layer?",
+      "recommendation": "Mapping layer at the TWO boundaries only — compile_digest output (what the LLM sees) + VALID_FACTION_CODES/order application — translating to CW codes (republic/cis/hutt_cartel/bh_guild). LEAVE the sanctioned ZoneState axis math untouched. Unblocks CW faction_orders without a risky deep re-key of the influence math. Defer the full internal re-key indefinitely (internal-only, the Director still functions today — this is a capability gap, not a bug).",
+      "logged": "2026-06-12 (design-review batch; tech_debt TD.DIRECTOR_FACTION_MODEL_GCW)",
+      "status": "pending Brian"
+    },
+    {
+      "id": "CRAFT.HOOK.restraints_state_model",
+      "raised": "2026-06-12",
+      "priority": "MEDIUM (long-pole; sequence after equipment-instance migration)",
+      "question": "Restraint/handcuff system (CRAFT.HOOK long-pole). Today: combat grapple has an EPHEMERAL CombatBracket.restraint (Str-vs-Str escape, combat-only, not persisted); no handcuff items exist. Needs a restraint STATE model, escape checks, and PvP-consent norms before any content ships.",
+      "recommendation": "(1) Persistent character-level restraint state {applied_by, item_key, escape_difficulty} — survives logout (a cuffed prisoner stays cuffed), distinct from combat's ephemeral grapple. (2) Blocks attack/move/equip; allows social verbs (mirror the grapple restriction set). (3) Escape = WEG Strength (or Security to pick the lock) check vs. difficulty, as an action; 'unlock' releases. (4) PvP-consent (the crux): REUSE the existing PvP/security-zone gate — you may only cuff a player you could legally attack, and only one already DEFEATED/incapacitated (no full-health griefing); NPCs unrestricted. No new consent system. Decision for Brian: persistent state (rec yes) + reuse-existing-PvP-gate (rec yes). Sequence AFTER the equipment-instance migration (touches Character state + equip).",
+      "logged": "2026-06-12 (design-review batch; CRAFT.HOOK.restraints tier_2 long-pole)",
+      "status": "pending Brian"
+    },
+    {
+      "id": "CRAFT.HOOK.force_detector_model",
+      "raised": "2026-06-12",
+      "priority": "LOW (weak era fit -> recommend DEFER)",
+      "question": "Force-use detection surface (CRAFT.HOOK long-pole). force_sensitive is derived from control/sense/alter; force_commands execute; no detection/alert mechanic exists. Needs trigger/range/ownership/counter-play design before content.",
+      "recommendation": "DEFER to post-launch. Era-fit is weak: in the Clone Wars (~20 BBY) Jedi are the ESTABLISHMENT, not hunted — Force-detection-as-anti-Jedi is a GCW/Inquisitor trope. If built later: trigger on ACTIVE power use only (not passive aura — punishing mere force-sensitivity has no counter-play); reveal 'a disturbance is sensed', identity gated on a Sense(detector)-vs-Control(user) opposed roll (masking = counter-play); FACTION-gated carried scanner (CIS/cartel), not a general craftable. Decision for Brian: defer (rec) vs. build now; if build, active-use-only + faction-gated.",
+      "logged": "2026-06-12 (design-review batch; CRAFT.HOOK.force_detector tier_2 long-pole)",
+      "status": "pending Brian"
+    },
+    {
+      "id": "CRAFT.powered_suit_design",
+      "raised": "2026-06-12",
+      "priority": "MEDIUM (BLOCKED on equipment-instance migration)",
+      "question": "Powered armor / exoskeleton design pass. Non-powered armor rows exist; no powered schematics; blocked on the same TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES dual-format debt as OBS armor Option C. Integrated-weapon-mount mechanic (the COMPLEXITY_MOD path) is undefined.",
+      "recommendation": "Sequence: equipment-instance migration -> armor soak (OBS Option C) -> powered-suit. v1 = armor-slot item with soak (via the Option C path) + a STR bonus + the already-live armor Dex penalty; DEFER integrated weapon mounts (the COMPLEXITY_MOD long pole) to a later increment. Hard-cap so it never beats a tier jump (same principle as Drop 19's +1D cap); gate behind T4/T5 crafting + faction. Decision for Brian: confirm post-migration sequencing + exclude weapon mounts from v1 (rec).",
+      "logged": "2026-06-12 (design-review batch; arch §3.2 deferred long-pole)",
+      "status": "pending Brian"
+    },
+    {
+      "id": "CRAFT.mines_breaching_split",
+      "raised": "2026-06-12",
+      "priority": "MEDIUM (breaching) / LOW-DEFER (placed mines)",
+      "question": "Mines/breaching design pass. Grenades are single-use COMBAT weapons (consumed on declaration, Drop D); blast_radius is data-only (no consumer); no placement system exists. Mines need placement + detonation + blast resolution + PvP/griefing controls.",
+      "recommendation": "SPLIT the two halves. (A) Breaching charges (detonite/shaped/thermite) -> a 'breach <target>' verb, single-use consume (Drop D precedent) + a demolitions check vs. the obstacle's difficulty, NO blast-on-players — safe, useful (unlocks locked content/shortcuts), reuses existing seams. BUILD THIS FIRST. (B) Placed proximity mines (E-Mag mine) -> require persistent world-placed trigger objects + a blast resolver + anti-grief controls = a real new subsystem. DEFER. Decision for Brian: split + build breaching, defer placed mines (rec).",
+      "logged": "2026-06-12 (design-review batch; Drop D deferred 'mines/breaching placement mechanics')",
+      "status": "pending Brian"
     }
   ],
   "design_calls_resolved_recent": [
@@ -1660,6 +1714,16 @@
       "date_resolved": "2026-06-12",
       "decision": "Option b (data-driven) delivered — Drop 23. CommandParser.process now merges a data-driven set into its routable-direction check: engine.wilderness_movement.get_custom_edge_directions() harvests every wilderness-edge direction_from_room word from the region YAMLs (currently {deeper, east}; 'deeper' is the Coruscant Underworld edge that previously hit 'Unknown command'). Cached after first scan, reset by clear_region_cache(), and sourced from the YAML text so it is boot-warm regardless of region-cache state — a player can type 'deeper' on the first attempt after boot. New regions/edge words auto-route on the next boot with no per-direction code edit. MoveCommand._try_wilderness_entry already matched arbitrary direction strings, so the dispatch gate was the entire gap. tests/test_parser_custom_edge_directions.py (9) pins the harvest + the dispatch predicate; 203/203 across wilderness + combat-wilderness + parser-command suites.",
       "files": "parser/commands.py (_MOVEMENT_DIRECTIONS frozenset + data-driven dispatch), engine/wilderness_movement.py (get_custom_edge_directions + clear_region_cache reset), tests/test_parser_custom_edge_directions.py (new)"
+    },
+    {
+      "id": "EAVESDROP.target_char",
+      "date_resolved": "2026-06-12 (design-review batch — confirmed NOT an open fork)",
+      "decision": "No decision needed. The forward-compat note at parser/espionage_commands.py:199-207 documents a SEAM for FUTURE wilderness-tile-to-tile eavesdropping (where the fumble broadcast would need a specific target_char to filter the target room's inhabitants by coordinates). Indoor rooms have no coordinate problem today, and the wilderness substrate already shipped — so this is a standing forward-compat note, not a pending design call. The blocking question only arises if/when tile-to-tile eavesdrop is actually built. Was carried since v45 as T1.1 (resolved_deferred); this confirms it stays deferred-as-documented."
+    },
+    {
+      "id": "CRAFT.market_segmentation_grandfather_vs_withdraw",
+      "date_resolved": "2026-06-12 (design-review batch — confirmed ALREADY resolved in drops 10-11)",
+      "decision": "Not an open fork. The anticipated 'per-vendor-family grandfather-vs-withdraw' decision never materialized because there were no open shop stock lists to withdraw from — the segmentation violation was the bare `buy` verb FALLTHROUGH (whole registry resolvable by name, anywhere, no vendor gate), not stocked inventory. WeaponData.vendor_stocked (default false) closed the gate FORWARD-ONLY (drops 10-11): the 11 Avail-1 commons are stocked, everything else refuses with a craft/shop redirect, and owned items were never touched (zero inventory rips). Nothing needed grandfathering."
     },
     {
       "id": "MISSION.persistence_id_mismatch",
