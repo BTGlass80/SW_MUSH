@@ -101,11 +101,42 @@ def test_attempt_chip_only_for_skill_checks_and_stages_real_verb():
                          completion_type: 'skill_check_passed' }),
             onCmd, onDismiss);
         var attempt = box.querySelector('.m3o-chip.attempt');
+        // drop 26: on a skill_check step the descriptive teach tokens
+        // are suppressed — ONLY the ATTEMPT chip renders (the teach
+        // tokens are not actionable; `chain attempt` is the only
+        // command that advances the step).
+        var teachChips = box.querySelectorAll('.m3o-chip:not(.attempt)').length;
         attempt.click();
-        result = { hasAttempt: !!attempt, cmds: cmds };
+        result = { hasAttempt: !!attempt, cmds: cmds,
+                   teachChips: teachChips };
     """)
     assert out["hasAttempt"] is True
     assert out["cmds"] == ["chain attempt"]
+    assert out["teachChips"] == 0      # drop 26: teach chips suppressed
+
+
+def test_next_hint_renders_and_suppressed_when_empty():
+    out = run_with_dom([M3_ONBOARD], _BASE_JS + """
+        window.M3Onboard.resetState();
+        // With a next_hint → a NEXT line renders.
+        window.M3Onboard.render(box,
+            mkState(1, { next_hint: 'Head to the back wall.' }),
+            onCmd, onDismiss);
+        var withHint = box.querySelectorAll('.m3o-next').length;
+        var hintText = (box.querySelector('.m3o-next-text') || {}).textContent || '';
+
+        // Without next_hint → no NEXT line.
+        window.M3Onboard.resetState();
+        window.M3Onboard.render(box, mkState(1, { next_hint: '' }),
+                                onCmd, onDismiss);
+        var withoutHint = box.querySelectorAll('.m3o-next').length;
+
+        result = { withHint: withHint, hintText: hintText,
+                   withoutHint: withoutHint };
+    """)
+    assert out["withHint"] == 1
+    assert out["hintText"] == "Head to the back wall."
+    assert out["withoutHint"] == 0      # empty next_hint → no NEXT line
 
 
 def test_step_advance_flash_and_dot_pop():

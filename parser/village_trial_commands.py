@@ -249,15 +249,31 @@ class ExamineCommand(BaseCommand):
         except Exception:
             log.debug("examine_insight_fragment failed", exc_info=True)
 
-        # Try the player's own inventory before emitting the generic fallback.
+        # drop 26 (2026-06-13): delegate to LookCommand._look_at for
+        # room NPCs / characters / objects / room_details AND the
+        # player's own inventory. Before this, `examine <booth>` /
+        # `examine kost` / `examine crate` (the republic_intelligence s2,
+        # smuggler s2, separatist_agent s2 examine steps) hit the flat
+        # "nothing special" fallback even though their `command_executed`
+        # completion fired — a poor UX at exactly the moment a new player
+        # is learning `examine`. _look_at already resolves NPCs (via
+        # match_in_room, include_npcs=True by default), characters, room
+        # objects, the room_details keyword map, AND falls back to the
+        # player's inventory (_describe_inventory_item) before emitting
+        # its own "You don't see 'X' here." — so a single delegation
+        # covers everything. (We do NOT pre-check inventory here: that
+        # would issue a second get_inventory round-trip, since _look_at
+        # already checks it.)
         try:
-            from parser.builtin_commands import _describe_inventory_item
-            if await _describe_inventory_item(ctx, char, arg):
-                return
+            from parser.builtin_commands import LookCommand
+            look = LookCommand()
+            await look._look_at(ctx)
+            return
         except Exception:
-            log.debug("examine: _describe_inventory_item failed", exc_info=True)
+            log.debug("examine: LookCommand delegation failed",
+                      exc_info=True)
 
-        # Fall-through: nothing else handles `examine`
+        # Fall-through (only if the delegation itself raised): generic.
         await ctx.session.send_line(
             f"  You see nothing special about '{arg}'."
         )

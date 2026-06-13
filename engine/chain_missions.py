@@ -394,6 +394,51 @@ async def _spawn_bounty(db, char: dict, entry: dict) -> Optional[str]:
     if contract is None:
         return None
 
+    # drop 26 (2026-06-13): bind the tutorial bounty's target NPC + room
+    # so `bountytrack` works. `_materialize_bounty` leaves
+    # target_npc_id / target_room_id None (it's sync, no DB); the
+    # tutorial_bounties.yaml entry carries `target_room_slug`, and the
+    # anchor NPC (e.g. Tarko Vinn) is placed in that room by the world
+    # build. Resolve the slug → room id, then find the NPC by
+    # `target_name` in that room and bind both. Best-effort: an
+    # unresolvable slug or absent NPC logs and leaves the contract
+    # unbound (the chain still drives capture via `chain attempt` +
+    # `combat_won`, so this is quality, not a hard dependency). Without
+    # it, BountyTrackCommand hard-errors "Contract data error — target
+    # NPC not found" on the tutorial contract.
+    target_slug = entry.get("target_room_slug")
+    if target_slug:
+        try:
+            room = await db.get_room_by_slug(target_slug)
+            if room:
+                room_id = int(room["id"])
+                contract.target_room_id = room_id
+                npc_rows = await db.fetchall(
+                    "SELECT id FROM npcs WHERE name = ? AND room_id = ?",
+                    (contract.target_name, room_id),
+                )
+                if npc_rows:
+                    contract.target_npc_id = int(npc_rows[0]["id"])
+                else:
+                    log.info(
+                        "[chain_missions] tutorial bounty %s: target NPC "
+                        "%r not found in room %s (slug %s) — bountytrack "
+                        "will be unavailable for this contract",
+                        contract.id, contract.target_name, room_id,
+                        target_slug,
+                    )
+            else:
+                log.info(
+                    "[chain_missions] tutorial bounty %s: target_room_slug "
+                    "%r did not resolve to a room", contract.id,
+                    target_slug,
+                )
+        except Exception as e:
+            log.warning(
+                "[chain_missions] tutorial bounty %s target binding "
+                "failed: %s", contract.id, e,
+            )
+
     board = get_bounty_board()
 
     # Idempotent

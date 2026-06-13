@@ -35,6 +35,7 @@ def _mk_corpus():
         npc_intro="Another one. Sit down.",
         teaches=["look", "+sheet"],
         completion={"type": "command_executed", "command": "+sheet"},
+        next_hint="The board is on the back wall — pick a contract.",
     )
     step2 = SimpleNamespace(
         step=2, title="Take a Contract",
@@ -44,6 +45,7 @@ def _mk_corpus():
         npc_intro="The board is on the back wall.",
         teaches=["+bounties"],
         completion={"type": "bounty_accepted"},
+        next_hint="Track your mark down in the warrens.",
     )
     step3 = SimpleNamespace(
         step=3, title="Prove Your Aim",
@@ -54,6 +56,7 @@ def _mk_corpus():
         teaches=["attack"],
         completion={"type": "skill_check_passed", "skill": "blaster",
                     "difficulty": 10},
+        next_hint="Qualification passed — collect your card.",
     )
     chain = SimpleNamespace(
         chain_id="bounty_hunter", chain_name="Bounty Hunter",
@@ -93,6 +96,8 @@ def test_active_payload_shape_and_passthrough(stub_corpus):
     assert s["npc_intro"] == "The board is on the back wall."
     assert s["teaches"] == ["+bounties"]
     assert s["completion_type"] == "bounty_accepted"
+    # drop 26: next_hint threaded into the active payload.
+    assert s["next_hint"] == "Track your mark down in the warrens."
 
 
 def test_skill_check_step_exposes_completion_type(stub_corpus):

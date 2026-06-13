@@ -558,6 +558,23 @@ def get_bounty_board() -> BountyBoard:
     return _board
 
 
+def reset_bounty_board() -> None:
+    """Test hook: drop the module-level board singleton so the next
+    `get_bounty_board()` builds a fresh, empty board.
+
+    Production code does NOT call this. The board is a process-level
+    singleton (`_board`) whose in-memory `_contracts` survive across
+    test-harness boots within one pytest process — so a contract spawned
+    (and claimed) by one test leaks into the next test's board, where the
+    idempotent-spawn check in engine/chain_missions._spawn_bounty then
+    skips respawning it and the next test sees a stale CLAIMED contract
+    instead of a fresh POSTED one. The smoke harness resets this at boot
+    (same model as the world-events `_manager` reset documented in the
+    testing protocol). drop 26 (2026-06-13)."""
+    global _board
+    _board = None
+
+
 # ── Display helpers ────────────────────────────────────────────────────────────
 
 _BOLD  = "\033[1m"

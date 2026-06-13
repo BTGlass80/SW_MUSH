@@ -1158,6 +1158,10 @@ def get_active_step_info(char: dict, era: Optional[str] = None
         "teaches": list(step.teaches or []),
         "npc_role": step.npc_role,
         "npc_intro": step.npc_intro,
+        # drop 26 (2026-06-13): surface the authored `next_hint` so the
+        # web onboarding panel can render a NEXT line under the
+        # objective (it was authored in the corpus but never sent).
+        "next_hint": step.next_hint or "",
         "completed_steps": list(
             (attrs.get("tutorial_chain") or {}).get("completed_steps") or []
         ),
@@ -1178,10 +1182,14 @@ def build_onboarding_state(char: dict, era: Optional[str] = None
         active chain  → { active: True, chain_id, chain_name,
                           step, total_steps, completed_steps,
                           title, objective, location, npc, npc_role,
-                          npc_intro, teaches, completion_type }
+                          npc_intro, teaches, completion_type,
+                          next_hint }
         graduated     → { active: False, graduated: True,
                           chain_id, chain_name }
         no chain ever → None
+
+    drop 26 (2026-06-13): `next_hint` added to the active payload
+    (additive — pre-existing consumers ignore the new key).
 
     The graduated payload fires on EVERY call once
     `completion_state == "graduated"` — push-once gating is the
@@ -1208,6 +1216,10 @@ def build_onboarding_state(char: dict, era: Optional[str] = None
                 "npc_intro": info["npc_intro"],
                 "teaches": info["teaches"],
                 "completion_type": info["completion_type"],
+                # drop 26 (2026-06-13): authored pointer to the next
+                # step / graduation, rendered as a NEXT line in the
+                # web panel.
+                "next_hint": info.get("next_hint", ""),
             }
 
         # No ACTIVE chain — distinguish "graduated" from "never had one".

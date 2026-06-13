@@ -243,7 +243,7 @@ class BountyTrackCommand(BaseCommand):
 
         # Roll investigation skill — use best available
         from engine.dice import DicePool, roll_d6_pool
-        from engine.character import Character, SkillRegistry
+        from engine.character import Character
 
         # Load character for skill lookup
         char_row = await ctx.db.get_character(char["id"])
@@ -251,8 +251,15 @@ class BountyTrackCommand(BaseCommand):
             await ctx.session.send_line("  Character data error.")
             return
 
-        skill_reg = SkillRegistry()
-        char_obj = Character.from_db_dict(char_row, skill_reg)
+        # drop 26 (2026-06-13): Character.from_db_dict takes only the
+        # row dict — the prior `(char_row, skill_reg)` call crashed
+        # ("takes 2 positional arguments but 3 were given"). This line
+        # was never reached before because BountyTrackCommand
+        # hard-errored on an unbound target_npc_id (tutorial contracts
+        # left it None); binding the tutorial bounty's target NPC
+        # (engine/chain_missions._spawn_bounty) made it reachable and
+        # surfaced this latent crash.
+        char_obj = Character.from_db_dict(char_row)
 
         # Try search, streetwise, tracking — take the best pool
         investigation_skills = ["search", "streetwise", "tracking"]

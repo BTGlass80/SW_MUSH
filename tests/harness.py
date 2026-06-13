@@ -283,6 +283,23 @@ class _LiveHarness:
         transport.
         """
         srv = self._server
+
+        # ── Process-singleton resets (test isolation) ──
+        # Module-level singletons survive across harness boots within one
+        # pytest process. Reset the ones whose in-memory state would leak
+        # between class-scoped harnesses. The bounty board (drop 26) is
+        # the canary: a chain bounty spawned + claimed by one test
+        # otherwise leaks into the next test's board, where the
+        # idempotent-spawn check skips respawn and the next test sees a
+        # stale CLAIMED contract. (World-events `_manager` is reset
+        # per-test elsewhere; this covers the boot-time board.)
+        try:
+            from engine.bounty_board import reset_bounty_board
+            reset_bounty_board()
+        except Exception:
+            log.debug("smoke harness: bounty board reset failed",
+                      exc_info=True)
+
         # ── Database ──
         await srv.db.connect()
         await srv.db.initialize()

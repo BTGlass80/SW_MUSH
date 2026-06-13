@@ -145,14 +145,63 @@ async def e1_examine_exact_key(h):
 
 
 async def e2_examine_nonexistent(h):
-    """E2 — examine <nonexistent arg> still says 'You see nothing special'."""
+    """E2 — examine <nonexistent arg> reports a clean not-found.
+
+    drop 26 (2026-06-13): `examine` now delegates to LookCommand._look_at
+    after the fragment + inventory checks miss, so a nonexistent target
+    yields _look_at's "You don't see 'X' here." rather than the old flat
+    "You see nothing special about 'X'." Either is a valid not-found
+    response; the point is no crash and no false match."""
     s = await h.login_as("E2Examiner", room_id=1)
     await _seed_items(h, s)
 
     out = await h.cmd(s, "examine xyzzy_nonexistent_thing_zz9plural")
-    assert "you see nothing special" in out.lower(), (
-        f"E2: Missing 'you see nothing special' for nonexistent examine.\n"
+    out_lc = out.lower()
+    assert ("you see nothing special" in out_lc
+            or "you don't see" in out_lc), (
+        f"E2: Missing a clean not-found message for nonexistent examine.\n"
         f"  Output: {out[:400]!r}"
+    )
+    assert "traceback" not in out_lc, (
+        f"E2: examine of nonexistent thing raised: {out[:400]!r}"
+    )
+
+
+async def e3_examine_room_npc(h):
+    """E3 (drop 26) — examine <room NPC> renders the NPC's description.
+
+    Before drop 26, `examine <npc>` hit the flat "nothing special"
+    fallback because ExamineCommand only checked fragments + inventory.
+    It now delegates to LookCommand._look_at, which resolves room NPCs
+    via match_in_room. We place the player in a room with a known NPC
+    and assert the NPC's name + species render (the same output `look`
+    gives)."""
+    # Dexter's Diner (live CW room) has a seeded NPC. Resolve it.
+    try:
+        room_id = await h.room_id_by_slug("dexters_diner")
+    except LookupError:
+        return  # room not in this world/era — skip
+    rows = await h.db.fetchall(
+        "SELECT name FROM npcs WHERE room_id = ? LIMIT 1", (room_id,))
+    if not rows:
+        return  # no NPC to examine — skip
+    npc_name = rows[0]["name"]
+    token = npc_name.split()[0]
+
+    s = await h.login_as("E3Examiner", room_id=room_id)
+    out = await h.cmd(s, f"examine {token}")
+    out_lc = out.lower()
+    assert "traceback" not in out_lc, (
+        f"E3: 'examine {token}' raised: {out[:400]!r}"
+    )
+    assert "you see nothing special" not in out_lc, (
+        f"E3: 'examine {token}' fell through to the flat generic "
+        f"fallback instead of rendering the room NPC. Output: "
+        f"{out[:400]!r}"
+    )
+    assert token.lower() in out_lc, (
+        f"E3: 'examine {token}' did not render the NPC. Output: "
+        f"{out[:400]!r}"
     )
 
 
@@ -178,3 +227,6 @@ class TestLookExamineInventory:
 
     async def test_e2_examine_nonexistent(self, harness):
         await e2_examine_nonexistent(harness)
+
+    async def test_e3_examine_room_npc(self, harness):
+        await e3_examine_room_npc(harness)

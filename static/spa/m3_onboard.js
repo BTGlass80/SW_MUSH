@@ -88,15 +88,26 @@ function stepRail(total, current, completed){
 
 function teachChips(data, stage){
   var row = el('div', {class: 'm3o-chips'});
-  (data.teaches || []).forEach(function(tok){
-    if (!tok) return;
-    row.appendChild(el('button', {
-      class: 'm3o-chip', type: 'button',
-      'data-teach': tok,
-      text: tok
-    }));
-  });
-  if (data.completion_type === 'skill_check_passed'){
+  // drop 26 (2026-06-13): on a skill_check_passed step the ONLY action
+  // that advances the chain is `chain attempt` \u2014 the authored `teaches`
+  // tokens on those steps (historically scan/search/sneak/etc.) are
+  // descriptive, not actionable, and rendering them as clickable chips
+  // misleads a new player into typing a command that does nothing. So
+  // for skill_check_passed steps we render ONLY the ATTEMPT chip and
+  // suppress the teach chips. For every other completion type the
+  // teach tokens ARE the actionable commands, so they render as before.
+  var skillStep = (data.completion_type === 'skill_check_passed');
+  if (!skillStep){
+    (data.teaches || []).forEach(function(tok){
+      if (!tok) return;
+      row.appendChild(el('button', {
+        class: 'm3o-chip', type: 'button',
+        'data-teach': tok,
+        text: tok
+      }));
+    });
+  }
+  if (skillStep){
     row.appendChild(el('button', {
       class: 'm3o-chip attempt', type: 'button',
       'data-teach-cmd': 'chain attempt',
@@ -195,6 +206,16 @@ function render(bodyEl, data, stage, onDismiss){
     bodyEl.appendChild(el('div', {class: 'm3o-objective'}, [
       el('span', {class: 'm3o-obj-label', text: 'OBJECTIVE'}),
       el('span', {class: 'm3o-obj-text', text: data.objective})
+    ]));
+  }
+  // drop 26 (2026-06-13): render the authored NEXT pointer (next_hint)
+  // below the objective so a player who finishes the step knows where
+  // the chain takes them. Authored in the corpus; now threaded through
+  // build_onboarding_state. Suppressed when empty.
+  if (data.next_hint){
+    bodyEl.appendChild(el('div', {class: 'm3o-next'}, [
+      el('span', {class: 'm3o-next-label', text: 'NEXT'}),
+      el('span', {class: 'm3o-next-text', text: data.next_hint})
     ]));
   }
   bodyEl.appendChild(teachChips(data, stage));
