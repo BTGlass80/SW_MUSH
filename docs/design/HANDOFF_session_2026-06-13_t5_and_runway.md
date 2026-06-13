@@ -1,8 +1,27 @@
 # HANDOFF — Session 2026-06-13 (t5-trainer arc + runway)
 
-**Branch:** `drop/t5-questline-engine` (built on `roadmap`, which carries
-the overnight drops 25–32). **NOT merged to main or roadmap** — your
-`run_all_tests.bat` gate.
+> **THIS IS THE FRESH-CHAT PICKUP POINT** for continuing main development.
+> Read this top section first; the rest is the full session detail.
+
+**Status: MERGED + PUSHED.** `main` = origin/main = **`07fbd70`** (drops
+24–43 + bookkeeping; fast-forwarded, no merge commit). The feature branch
+`drop/t5-questline-engine` is also pushed. The full single-threaded suite
+did NOT complete in the merge agent's harness; merge signal was **565
+targeted tests green + the 2 known count-pin canaries reconciled + 8
+clean 227-test smoke runs**. A **separate xdist session** is running the
+full suite to triage anything that slipped — see
+`HANDOFF_xdist_suite_triage_2026-06-13.md`.
+
+**Gates lifted** (per Brian): `git merge`, `git push`, and
+`run_all_tests.bat` removed from the settings.json deny list; destructive
+guardrails (reset --hard, checkout, clean, rebase, rm -rf, Remove-Item)
+kept. `pytest-xdist 3.8.0` installed.
+
+**Companion handoffs:** `HANDOFF_xdist_suite_triage_2026-06-13.md` (the
+full-suite triage session); `HANDOFF_crafting_integration_review_2026-06-13.md`
+(the parallel crafting audit — its 2 forks are now DECIDED, see below).
+
+**Branch:** built on `roadmap` (overnight drops 25–32) → now all on `main`.
 **Author:** Claude Opus 4.8 (1M), attended → autonomous session with Brian.
 
 ---
@@ -126,39 +145,53 @@ modulo the exact ×0.66; if you want the aboard-vs-shipyard reduced-boost
 split specifically, that's a small follow-up on the working base — noted,
 not built, since the base already installs+effects correctly.)
 
-## NEW pending forks (from the crafting-integration review — your call)
-The parallel review landed mid-session; I integrated the safe finding and
-logged its 2 real forks:
-1. **`CRAFT.quality_combat_read_armor_consumables`** — crafted quality
-   reaches combat for WEAPONS only; for ARMOR/CONSUMABLES it's decoration
-   (a q95 vest soaks like q40). Make it real (precedent-consistent but
-   power-creep-sensitive) vs stop promising it? Balance call; gates 2
-   HIGH-collision combat-file wirings (bundle armor with the
-   equipment-instance migration). Logged with a recommendation.
-2. **`CRAFT.rare_resource_no_vendor`** — `rare` is the only base type with
-   no vendor buy entry (harvest-only). Intentional (looks deliberate) or
-   close with one line? Quick confirm.
+## Crafting-integration review — landed + handled (both forks DECIDED)
+The parallel review (`HANDOFF_crafting_integration_review_2026-06-13.md`)
+landed mid-session. I integrated the safe finding (dropped a phantom
+craft-message that promised a combat bonus no code delivers, drop 43) and
+Brian DECIDED both real forks:
+1. **`CRAFT.quality_combat_read_armor_consumables` → BUILD IT (Option A).**
+   Crafted quality SHOULD matter for armor + consumables (like weapons).
+   **Queued as `CRAFT.armor_consumable_quality_combat`** (tier_2) — NOT yet
+   built; it's a careful combat-collision drop: read the worn-armor
+   INSTANCE quality in `get_armor_protection` and fold a HARD-CAPPED soak
+   delta (mirror the weapon +1D pip-cap, no power creep); **bundle the
+   armor half with the `TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES`
+   migration**; land solo on a quiet combat window (combat.py/items.py/
+   character.py are HIGH collision). Consumable half threads quality into
+   potency, sequenced after — and consider a separate (tighter) cap there,
+   since potion-potency is the riskier power-creep knob. **This is the top
+   real build item for the next dev session.**
+2. **`CRAFT.rare_resource_no_vendor` → RESOLVED, keep gated.** Rare
+   materials stay player-sourced (harvest/hunt → give/trade to crafters);
+   intentional sink-side design. No change made.
 
-(Plus the standing pending calls from before — see
-`design_calls_pending_brian`.)
+(Plus the standing pending calls — see `design_calls_pending_brian`.)
 
 ## State of the suite
-- Every drop's targeted tests green. Full chain/questline/crafting/rewards/
-  economy/director/breaching/ship-part/world-writer regressions green.
-  **227-test smoke green after every code drop** (8 smoke passes this
-  session). Reachability invariant green for all chains.
-- **I did NOT run `run_all_tests.bat`** (the full ~7,700 Windows suite) —
-  that's your merge gate. I expect green; the authoritative run is yours.
+- **565 targeted tests green** across every module touched this session +
+  the 2 count-pin canaries reconciled (`test_f7c1_village_trials` NPC
+  count 201→211 = the 10 t5-trainer NPCs; coruscant-landmark already
+  clean). **227-test smoke green after every code drop** (8 passes).
+  Reachability invariant green for all chains.
+- The **full single-threaded `run_all_tests.bat`** did NOT complete in the
+  merge agent's harness (background reaping + self-inflicted contention).
+  The **xdist session** (`HANDOFF_xdist_suite_triage_2026-06-13.md`) is the
+  full-suite gate — run it / check its results before treating main as
+  fully green.
 
 ## Suggested next session
-1. Run `run_all_tests.bat`; merge `drop/t5-questline-engine` (drops 33–43)
-   if green. (Separately decide on `roadmap` 25–32.)
-2. Apply `TOOL.settings_apply` after the parallel session's settings.json
-   lands.
-3. The 2 NEW crafting-review forks above (armor/consumable quality — the
-   balance call; rare-vendor — a quick confirm), plus the standing forks.
+1. **Confirm the full suite** via the xdist session (or `run_all_tests.bat`
+   directly now that it's un-gated) — the targeted + smoke signal is
+   strong but not a substitute for the full run.
+2. **Build `CRAFT.armor_consumable_quality_combat`** (Brian-greenlit, top
+   item) — the careful combat-collision drop above; bundle armor with the
+   equipment-instance migration.
+3. The standing forks in `design_calls_pending_brian` (several crafting
+   long-poles + the world-event/director calls).
 4. Pre-launch: ambient-life **Phase 0** DB scaffolding (T3.22). Post-launch
    designs ready: ambient life (T3.22), party skill challenges (T3.23).
+5. Apply the rest of `TOOL.settings_apply` if the tooling session hasn't.
 
 ## Untracked strays (NOT mine — parallel sessions)
 `data/guides/*`, `Guide_27`, `tools/guide_lint.py`, `docs/dev/` (guides
