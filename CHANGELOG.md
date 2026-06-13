@@ -6,6 +6,15 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-13 — DIFF.4: threat-band reward scaling at the bounty payout — *drop 31*
+The reward gradient that makes difficulty tiers matter economically. Per difficulty_tiers_design_v1.md §7.
+- **Band multiplier at the bounty payout** (`parser/bounty_commands.py::BountyCollectCommand`): the payout now scales by the threat band of where the TARGET was (`contract.target_room_id`, bound in drop 26) — hunting a mark in the Deep Wilds pays the danger premium (2.0×), running down a Frontier-zone target pays 0.6×. So a veteran can't farm newbie contracts for full rate, and pushing into higher bands is the natural income gradient. Inserted right before the metered `bounty` `adjust_credits` faucet, mirroring the existing `bounty_reward_mult` surge pattern — rides the SAME faucet (no new credit source, faucet discipline intact). Surfaces a "Danger premium (Deep Wilds): +N credits" / "Low-threat contract (Frontier): -N credits" line. Failure-tolerant: a contract with no bound room (legacy/unbound) or any error leaves the reward unscaled (×1.0).
+- **Economist's note:** the multipliers (0.6/1.0/1.4/2.0) are the design's first-guess tunables — post-launch telemetry tunes them. Applied only at the bounty faucet for now (the design's named lever + the cleanest difficulty→reward link, since the target's room band is unambiguous). Mission/encounter reward scaling can extend the same `reward_multiplier(band)` helper in a follow-up if telemetry shows the gradient needs more surface.
+- **Verified:** `tests/test_diff4_bounty_band_multiplier.py` (structural pin — multiplier wired before the faucet, rides the existing `bounty` faucet; math — band→× mapping, Wilds pays >3× a Frontier contract) + `test_e2_dormant_effects` (the surge-multiplier ordering pin still holds) + 207-test bounty regression green.
+- **Files:** `parser/bounty_commands.py`, `tests/test_diff4_bounty_band_multiplier.py` (new), `CHANGELOG.md`, `TODO.json`.
+
+---
+
 ### 2026-06-13 — DIFF.3: tiered wilderness-encounter eligibility by threat band — *drop 30*
 The first GAMEPLAY-impacting difficulty-tiers phase: the threat band now gates which encounters a wilderness tile can roll. Per difficulty_tiers_design_v1.md §6.
 - **Band eligibility on encounter entries** (`engine/wilderness_encounters.py`): `EncounterEntry` gains `min_band` / `max_band` (numeric ratings, default 1..4 = eligible everywhere — an un-banded pool is unchanged). `_filter_pool` gates an entry out of a tile whose band rating is outside `[min_band, max_band]`: a Frontier tile (rating 1) draws only the trivial fauna / low-tier hostiles; a Deep Wilds tile (rating 4) unlocks the minibosses gated out everywhere else. The loader (`parse_encounter_pool`) parses + clamps to [1,4] + normalizes a reversed pair to "eligible everywhere" (a typo can't silently zero an entry).

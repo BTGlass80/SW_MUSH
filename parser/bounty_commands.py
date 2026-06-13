@@ -420,6 +420,38 @@ class BountyCollectCommand(BaseCommand):
         except Exception:
             log.debug("bounty surge multiplier calc failed (non-fatal)",
                       exc_info=True)
+        # DIFF.4 (2026-06-13): threat-band reward scaling. The payout
+        # scales by the THREAT BAND of where the target was — hunting a
+        # mark in the Deep Wilds pays the danger premium; running down a
+        # Frontier-zone target pays 0.6x, so a veteran can't farm newbie
+        # contracts for full rate. Per difficulty_tiers_design_v1.md §7.
+        # Scaled off contract.target_room_id (bound in drop 26); if the
+        # contract has no bound room (legacy / unbound), the multiplier
+        # is 1.0 (no change). Rides the same `bounty` faucet — no new
+        # credit source. Failure-tolerant: any error leaves reward as-is.
+        try:
+            if reward > 0 and getattr(contract, "target_room_id", None):
+                from engine.threat_band import (
+                    get_effective_threat, reward_multiplier, threat_name,
+                )
+                _band = await get_effective_threat(
+                    contract.target_room_id, ctx.db)
+                _tmult = reward_multiplier(_band)
+                if _tmult != 1.0:
+                    _scaled = int(reward * _tmult)
+                    _delta = _scaled - reward
+                    reward = _scaled
+                    if _delta > 0:
+                        await ctx.session.send_line(
+                            f"  Danger premium ({threat_name(_band)}): "
+                            f"+{_delta:,} credits.")
+                    elif _delta < 0:
+                        await ctx.session.send_line(
+                            f"  Low-threat contract ({threat_name(_band)}): "
+                            f"{_delta:,} credits.")
+        except Exception:
+            log.debug("bounty threat-band multiplier calc failed "
+                      "(non-fatal)", exc_info=True)
         char["credits"] = await ctx.db.adjust_credits(char["id"], reward, "bounty")
 
         # Clean up NPC if it still exists
