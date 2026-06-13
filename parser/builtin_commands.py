@@ -4375,6 +4375,64 @@ class CoordsCommand(BaseCommand):
             )
 
 
+# ── Newbie-friendly redirect stubs: get / take / drop ───────────────────────
+#
+# A new player reflexively types `get <x>` / `take <x>` / `drop <x>` —
+# verbs from every other text game. SW_MUSH has no ground-item system
+# (items come from examining the world, commissaries/shops, loot, and
+# crafting; a free-standing ground get/drop is a deliberate DESIGN
+# NON-goal, not an oversight — see the drop-24 onboarding handoff). These
+# stubs turn the dead-end "Huh? Unknown command." into a helpful pointer
+# to the REAL mechanics. They are pure redirects — no state change, no
+# ground-item system. Per the drop-24 P2.4 deferral.
+
+class GetTakeCommand(BaseCommand):
+    """`get` / `take` — redirect to how items actually reach you."""
+    key = "get"
+    aliases = ["take", "pickup", "grab"]
+    help_text = (
+        "SW_MUSH has no loose ground items to `get`. Items come from:\n"
+        "  • examining the world — `examine <thing>` can turn up gear\n"
+        "  • commissaries & shops — `buy` from a vendor or commissary\n"
+        "  • loot — `loot` a defeated enemy\n"
+        "  • crafting — `+craft` what you can make\n"
+        "To receive an item another player is handing you, they use "
+        "`give`."
+    )
+    usage = "get <item>  (see help — items don't sit on the ground here)"
+
+    async def execute(self, ctx: CommandContext):
+        await ctx.session.send_line(
+            "  There's nothing here to pick up — SW_MUSH has no loose "
+            "ground items.")
+        await ctx.session.send_line(
+            "  Gear comes from: \033[1;33mexamine\033[0m-ing the world, "
+            "\033[1;33mbuy\033[0m at a commissary/shop, \033[1;33mloot\033[0m "
+            "a defeated enemy, or \033[1;33m+craft\033[0m. Type "
+            "\033[1;33mhelp get\033[0m for more.")
+
+
+class DropStubCommand(BaseCommand):
+    """`drop` — redirect to sell/unequip (no ground-drop system)."""
+    key = "drop"
+    aliases = ["discard"]
+    help_text = (
+        "SW_MUSH has no ground to `drop` items onto. Instead:\n"
+        "  • `sell <item>` at a vendor to turn gear into credits\n"
+        "  • `unequip <item>` to take off something you're wearing/wielding\n"
+        "  • `give <item> to <player>` to hand it to someone\n"
+        "Your inventory is yours — items don't litter the floor here."
+    )
+    usage = "drop <item>  (see help — use sell / unequip / give instead)"
+
+    async def execute(self, ctx: CommandContext):
+        await ctx.session.send_line(
+            "  You can't drop items on the ground here. Instead: "
+            "\033[1;33msell\033[0m it at a vendor, \033[1;33munequip\033[0m "
+            "it, or \033[1;33mgive\033[0m it to another player. Type "
+            "\033[1;33mhelp drop\033[0m for more.")
+
+
 # ── DIFF.2: +threat / threat — zoned difficulty band ────────────────────────
 
 class ThreatCommand(BaseCommand):
@@ -4829,6 +4887,10 @@ def register_all(registry):
         BuffsCommand(),
         # DIFF.2 (2026-06-13): zoned-difficulty surface.
         ThreatCommand(),
+        # drop 32 (2026-06-13): newbie-friendly redirect stubs for the
+        # reflexive get/take/drop verbs (no ground-item system here).
+        GetTakeCommand(),
+        DropStubCommand(),
     ]
     for cmd in commands:
         registry.register(cmd)

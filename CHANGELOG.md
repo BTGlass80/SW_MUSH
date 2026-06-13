@@ -6,6 +6,16 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-13 — Newbie-friendly get / take / drop redirect stubs — *drop 32*
+Closes the drop-24 onboarding handoff's deferred P2.4. A new player reflexively types `get <x>` / `take <x>` / `drop <x>` (verbs from every other text game), and hit a dead-end "Huh? Unknown command." SW_MUSH has no ground-item system — items come from examining the world, commissaries/shops, loot, and crafting; a free-standing ground get/drop is a deliberate DESIGN NON-goal, not an oversight. These purely-additive redirect stubs replace the dead-end with a helpful pointer to the real mechanics.
+- **`GetTakeCommand`** (`get` + aliases `take`/`pickup`/`grab`): "There's nothing here to pick up" → points at `examine`, `buy` (commissary/shop), `loot`, `+craft`, and `give` (to receive a hand-off). 
+- **`DropStubCommand`** (`drop` + alias `discard`): "You can't drop items on the ground here" → points at `sell`, `unequip`, `give`.
+- Pure redirects: no state change, no ground-item system, no collision with existing commands (`loot`/`give`/`sell` intact; verified). Registered in `register_all`.
+- **Verified:** `tests/test_get_drop_redirect_stubs.py` (aliases resolve, no clobber of existing builtins, help text points at the real acquisition/disposal paths) + 112-test builtin regression green.
+- **Files:** `parser/builtin_commands.py`, `tests/test_get_drop_redirect_stubs.py` (new), `CHANGELOG.md`, `TODO.json`.
+
+---
+
 ### 2026-06-13 — DIFF.4: threat-band reward scaling at the bounty payout — *drop 31*
 The reward gradient that makes difficulty tiers matter economically. Per difficulty_tiers_design_v1.md §7.
 - **Band multiplier at the bounty payout** (`parser/bounty_commands.py::BountyCollectCommand`): the payout now scales by the threat band of where the TARGET was (`contract.target_room_id`, bound in drop 26) — hunting a mark in the Deep Wilds pays the danger premium (2.0×), running down a Frontier-zone target pays 0.6×. So a veteran can't farm newbie contracts for full rate, and pushing into higher bands is the natural income gradient. Inserted right before the metered `bounty` `adjust_credits` faucet, mirroring the existing `bounty_reward_mult` surge pattern — rides the SAME faucet (no new credit source, faucet discipline intact). Surfaces a "Danger premium (Deep Wilds): +N credits" / "Low-threat contract (Frontier): -N credits" line. Failure-tolerant: a contract with no bound room (legacy/unbound) or any error leaves the reward unscaled (×1.0).
