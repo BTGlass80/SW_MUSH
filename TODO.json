@@ -340,7 +340,8 @@
       "id": "CRAFT.HOOK.restraints",
       "title": "Restraint/handcuff mechanical system (long pole — mechanical-use mandate T-C)",
       "spec": "Design first: a restraint state for PCs/NPCs (movement/action restrictions, escape checks vs WEG R&E, combat interaction, PvP consent norms). Handcuff/binders schematics + vendor items stay OUT of the game until this ships.",
-      "status": "queued — design pass required before any content"
+      "status": "queued — design pass required before any content",
+      "engine_core_status": "DONE 2026-06-13 (drop 48): engine/restraints.py — persistent attributes.restraint state (no migration), consent/defeat gate (Brian's PvP norm), escape=lifting(Strength)-vs-15 funnel-routed, captor-or-admin release. 21 tests. INERT (no callers). REMAINING slice: the binders item + cuff/uncuff/escape/allow-restrain verbs + the move/attack/equip gates (wires the core to the player surface — touches hot command paths, ships separately)."
     },
     {
       "id": "T2.DEF.tier1_combat_polish",
