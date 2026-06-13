@@ -11,7 +11,9 @@ drop on `roadmap`, no pushes/merges/full-suite runs.
 ## TL;DR — what got done
 
 **All four "implementable now" queue items (handoff §5 items 1–4) are DONE**,
-plus two pre-existing watch-item reds fixed, plus design calls queued for you.
+two pre-existing watch-item reds fixed, **plus the highest-value design call
+(`OBS.quality_and_boosts`) ratified-and-implemented (Drop 19)**, plus more
+design calls queued for you.
 
 | Drop | What | Tests | Verified |
 |------|------|-------|----------|
@@ -21,18 +23,31 @@ plus two pre-existing watch-item reds fixed, plus design calls queued for you.
 | 16 | `T2.DEF.handler_npcs` CLOSED: dynamic-HQ housing hook — `purchase_hq` spawns a faction-coded intel handler in the HQ entrance, `sell_hq` tears it down (+ latent `sell_hq` FK-ordering fix) | new `test_t2def_dynamic_hq_handler.py` (5) | auditor CLEAN + 12/12, 158-blast-radius clean |
 | 17 | **Triage** (pre-existing red): `test_cities_phase4b` 3 BuyCommand city-tax tests — seed a vendor NPC (watch-item #7: they predated the vendor-presence gate) | fixed in place | 16/16 file, 158-blast-radius |
 | 18 | `Coruscant Underworld` region build-out: **+12 landmarks** across 4 quadrants (parallel content-author fan-out, 4 new include files) | new `test_coruscant_underworld_buildout.py` (9) | loader 0-error/20-landmarks; era sweeps green |
+| 19 | **`OBS.quality_and_boosts_not_combat_read` RESOLVED** (Option B, you ratified): crafted weapon **quality + experiment boosts now modify combat** — WEG-faithful pip delta to damage (cap +1D) + accuracy (+1 pip); armor deferred (Option C, blocked-on the equipment-instance migration) | new `test_obs_quality_combat.py` (43) | 143/143 across new + Drop D + Drop F + straggler + combat-mechanics + equipment suites |
 
-Plus **3 design calls queued** in `TODO.json::design_calls_pending_brian`
-(see §4 below).
+**Drop 19 process note (ultracode):** built via a 5-reader *understanding* workflow
+(which empirically proved the craft→equip→combat-read data lineage is lossless —
+the make-or-break no-op risk) → `drop-implementer` → deterministic + suite
+verification. An adversarial-skeptic *review* workflow was launched but stalled
+(0-byte output); I covered all four of its dimensions by hand instead
+(end-to-end trace, backward-compat via `read_equipment`, cap/edge math live-smoke,
+Drop D/F isolation pins) and the regression suites are green — so Drop 19 stands
+verified, but a fresh adversarial pass wouldn't hurt before merge.
+
+Plus **2 design calls still queued** in `TODO.json::design_calls_pending_brian`
+(`ECON.commissary_sellback_model`, `CRAFT.harvest_skill_flavor` — see §4).
 
 ---
 
 ## 1. Git state & what YOU do next
 
-- Everything is committed on `roadmap` (drops 13–18 + the design-call commits).
+- Everything is committed on `roadmap` (drops 13–19 + the design-call commits).
   Your own infra commits (`enforcement hooks`, `code-reviewer/smoke-verifier
-  agents`) interleaved cleanly — I stage files explicitly per drop, never
-  `git add -A`, so nothing of yours was swept in.
+  agents`, `smoke-coverage restore`) interleaved cleanly — I stage files
+  explicitly per drop, never `git add -A`, so nothing of yours was swept in.
+  At handoff the working tree has only YOUR uncommitted artifacts (the
+  `HANDOFF_smoke_coverage_gap` edit + the new `commissary_loop`/`smuggling_loop`
+  smoke files from commit `8c258e1`) plus `node_modules` — I left them alone.
 - **The full Windows suite has NOT been run** (deny-listed in-session). It is
   the gate before merge, exactly as before.
 
@@ -93,24 +108,32 @@ tests to the NEW (correct) numbers, not the old bug** — same rule as §7.
    encounter-spawner phase). My build-out reused only the established vocabulary
    (no invented/phantom keys) so it surfaces for free when those phases land.
    The **consumed** payload today is the reachable described room itself.
-3. **`OBS.quality_and_boosts_not_combat_read` is HIGH-value and mostly
-   unblocked** — see §4. Crafted quality is currently a pure credit sink with
-   zero combat payoff. The weapon path is one parameter-pass from working.
+3. **Crafted quality now matters in combat (Drop 19, shipped).** Previously
+   crafted quality was a pure credit sink with zero combat payoff; combat read
+   the registry baseline by key and discarded the equipped instance's quality +
+   experiment mods. Now `_resolve_equipped_weapon` reads the instance and folds
+   a capped pip delta into damage (+1D max) + accuracy (+1 pip). The
+   make-or-break risk — does crafted quality survive craft→equip→combat-read? —
+   was *empirically proven lossless* by the understanding workflow (the
+   equipment-JSON blob retains the instance; the `TD.EQUIPMENT_*` debt only
+   affects the unused `Character` dataclass fields). Armor is the remaining half
+   (Option C, blocked-on the migration; §5).
 
 ---
 
-## 4. Design calls queued for you (`design_calls_pending_brian`, 3 pending)
+## 4. Design calls — 1 RESOLVED this session, 2 still queued
 
-1. **`OBS.quality_and_boosts_not_combat_read`** (HIGH) — design-reviewer'd,
-   decision-ready. Combat reads registry baseline by key; the crafted
-   `ItemInstance` (quality + `effective_mods`) is read for wear at
-   `combat_commands.py:1462` then **discarded at :1671**. Recommendation:
-   **Option B** — wire weapon damage+accuracy now (unblocked, no migration),
-   defer armor soak (blocked-on `TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES`).
-   WEG-faithful pip caps (+1D max over vendor). **Two forks need your call:**
-   (a) sanction the combat-isolation breach for *equipped crafted gear* (Drop F
-   pinned combat tool-immune — this is a different, intended seam); (b) the pip
-   cap (+1D vs +2 pips). *This one is ready to implement the moment you ratify.*
+**RESOLVED & SHIPPED:**
+- **`OBS.quality_and_boosts_not_combat_read`** → **Drop 19** (moved to
+  `design_calls_resolved_recent`). You ratified ("go ahead with your
+  recommendations"), so both forks landed as recommended: combat-isolation
+  breach **sanctioned** for equipped crafted gear (it's the equipped-instance
+  seam, NOT the carried-tool/`perform_skill_check` seam — those stay isolated);
+  pip cap **+1D**. Armor soak (Option C) remains future, blocked-on the
+  equipment-instance migration. See the Drop 19 CHANGELOG entry for the exact
+  numbers.
+
+**STILL QUEUED (`design_calls_pending_brian`, 2):**
 2. **`ECON.commissary_sellback_model`** — added a preliminary (reasoned, not
    formally reviewed) anti-laundering model: no open-market sellback for
    `faction_issued` gear; faction-commissary partial refund ≤50% of requisition
@@ -128,17 +151,32 @@ clean batch for a future design-only session.
 
 ---
 
-## 5. Next implementable work (for the next session)
+## 5. Next implementable work (for the next session / fresh chat)
 
-- **Implement `OBS.quality_and_boosts_not_combat_read` Option B** once you
-  ratify — it's the highest-value unblocked drop on the board (makes the whole
-  crafting-quality economy matter in combat). Spec is 90% written in the design
-  call.
+- **`OBS` armor follow-up (Option C)** — Drop 19 shipped the weapon half;
+  armor-soak from crafted quality is the symmetric other half but is
+  **blocked-on `TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES`** (do the
+  equipment-instance migration first, then `Character.get_armor_protection`
+  reads the worn instance's quality). The migration itself is a worthwhile
+  standalone drop that also unblocks other per-instance gear behavior.
+- **A fresh adversarial review of Drop 19** before merge — my skeptic-workflow
+  stalled; I verified by hand + green suites, but Drop 19 touches combat, so a
+  clean second look is cheap insurance. (`/code-review` on the branch, or just
+  re-run the regression suites in §1's list.)
 - **Coruscant Underworld §4a renderer generalization** — the playability gate
-  (your Windows/browser involvement needed).
-- **Design-review-then-log the rest of §4** — single-threaded design session.
+  (your Windows/browser involvement needed; sandbox can't render-verify).
+- **Design-review-then-log the rest of §4** (powered-suit, mines/breaching,
+  `CRAFT.HOOK.restraints`/`force_detector`, world-event 6 FLAG effects,
+  `TD.DIRECTOR_FACTION_MODEL_GCW`, eavesdrop `target_char`, market-seg
+  grandfather-vs-withdraw) — single-threaded design session.
 - Pre-release items (`PRELAUNCH.help_guides_rework`, `web_landing_retention`,
   browser smoke-tests) remain explicitly deferred to end-of-roadmap.
+
+**For a fresh chat instance:** start from `TODO.json` + `CHANGELOG.md` (drops
+13–19 are the recent history), this handoff, and the original setup handoff
+(`HANDOFF_autonomous_roadmap_setup_2026-06-12.md`). Authority order and
+invariants are unchanged. Nothing is mid-flight — every drop is committed and
+self-contained; there is no partial work to resume.
 
 ---
 
