@@ -160,6 +160,7 @@ Migrated from the claude.ai Project knowledge base on 2026-06-12. This folder is
 - `player_cities_design_v1_2.md`
 - `player_housing_design_v1.md`
 - `player_shops_design_v1.md`
+- `difficulty_tiers_design_v1.md` — zoned difficulty / threat bands (Frontier/Settled/Contested Marches/Deep Wilds); orthogonal-to-security axis on zones, tiered spawn eligibility, reward scaling, UI surfacing. Resolves T2.DIFF.
 - `progression_gates_and_consequences_design_v1.md`
 - `security_drop6_territory_control_design_v1.md`
 - `security_zones_design_v1.md`

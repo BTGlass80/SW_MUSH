@@ -741,6 +741,39 @@ def validate_world(zones: dict[str, Zone],
                 f"references nonexistent zone '{r.zone}'."
             )
 
+    # 7. DIFF.1 — threat-band / security cross-axis constraint.
+    # Per difficulty_tiers_design_v1.md §7: a FRONTIER (newbie) zone or
+    # room must NOT also be LAWLESS (open PvP) — a newbie area can't be a
+    # free-fire zone. This is the ONLY hard coupling of the two
+    # orthogonal axes; a violation is a load error so it can't ship by
+    # accident. (Empty/unset on either side never conflicts — they
+    # resolve to safe defaults.)
+    from engine.threat_band import frontier_lawless_conflict
+
+    def _props(raw_obj) -> dict:
+        p = (raw_obj or {}).get("properties")
+        return p if isinstance(p, dict) else {}
+
+    for slug, z in zones.items():
+        zp = _props(z.raw)
+        if frontier_lawless_conflict(zp.get("threat_band"),
+                                     zp.get("security")):
+            report.errors.append(
+                f"Zone '{slug}': declares threat_band=frontier AND "
+                f"security=lawless — a newbie zone cannot be an open-PvP "
+                f"(lawless) zone (difficulty_tiers_design_v1.md §7)."
+            )
+    for r in rooms.values():
+        rp = _props(r.raw)
+        if frontier_lawless_conflict(rp.get("threat_band"),
+                                     rp.get("security")):
+            report.errors.append(
+                f"Room {r.id} ({r.slug}) on {r.planet}: declares "
+                f"threat_band=frontier AND security=lawless — a newbie "
+                f"room cannot be an open-PvP (lawless) room "
+                f"(difficulty_tiers_design_v1.md §7)."
+            )
+
     # ── Warnings ────────────────────────────────────────────────────────
 
     # Orphan rooms — zero connections in or out
