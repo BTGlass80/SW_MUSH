@@ -65,3 +65,13 @@ consumables:
     name: "Breaching Charge"
     category: ordnance
     description: "A shaped charge for blowing open sealed doors, gates, and barriers. Single use; breaches obstacles, not people."
+
+  # CRAFT.HOOK.restraints (2026-06-13): NOT a stim — its use-time consumer is
+  # the `cuff` verb (engine/restraints.py::attempt_cuff), not _STIM_CATALOG.
+  # Stored in attributes.consumables like the others; consumed via
+  # engine.buffs.consume_consumable on a successful cuff. A captor may only cuff
+  # a defeated or consenting target (the consent/defeat PvP norm).
+  binders:
+    name: "Stun Cuffs"
+    category: restraint
+    description: "A pair of magnetic stun-cuffs. Bind the wrists of a subdued or willing target; they hold until the prisoner breaks free (a hard Strength effort) or a captor releases them. Single use to apply."

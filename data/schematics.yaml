@@ -1565,3 +1565,23 @@ schematics:
     output_type: consumable
     output_key: breaching_charge
     base_cost: 150
+
+  # CRAFT.HOOK.restraints (2026-06-13): stun-cuffs (binders). output_type:
+  # consumable (lands in attributes.consumables; consumed by the `cuff` verb,
+  # engine/restraints.py — NOT a combat weapon). Security craft (law-enforcement
+  # gear, like the lockpicks/alarms Vek Nurren teaches). Difficulty 14.
+  - key: binders
+    name: "Stun Cuffs"
+    skill_required: security
+    difficulty: 14
+    trainer_npc: Vek Nurren
+    components:
+      - type: metal
+        quantity: 1
+        min_quality: 40
+      - type: composite
+        quantity: 1
+        min_quality: 40
+    output_type: consumable
+    output_key: binders
+    base_cost: 120

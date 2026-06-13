@@ -340,8 +340,9 @@
       "id": "CRAFT.HOOK.restraints",
       "title": "Restraint/handcuff mechanical system (long pole — mechanical-use mandate T-C)",
       "spec": "Design first: a restraint state for PCs/NPCs (movement/action restrictions, escape checks vs WEG R&E, combat interaction, PvP consent norms). Handcuff/binders schematics + vendor items stay OUT of the game until this ships.",
-      "status": "queued — design pass required before any content",
-      "engine_core_status": "DONE 2026-06-13 (drop 48): engine/restraints.py — persistent attributes.restraint state (no migration), consent/defeat gate (Brian's PvP norm), escape=lifting(Strength)-vs-15 funnel-routed, captor-or-admin release. 21 tests. INERT (no callers). REMAINING slice: the binders item + cuff/uncuff/escape/allow-restrain verbs + the move/attack/equip gates (wires the core to the player surface — touches hot command paths, ships separately)."
+      "status": "DONE 2026-06-13 (drops 48 engine core + 49 verb layer)",
+      "engine_core_status": "DONE 2026-06-13 (drop 48): engine/restraints.py — persistent attributes.restraint state (no migration), consent/defeat gate (Brian's PvP norm), escape=lifting(Strength)-vs-15 funnel-routed, captor-or-admin release. 21 tests. INERT (no callers). REMAINING slice: the binders item + cuff/uncuff/escape/allow-restrain verbs + the move/attack/equip gates (wires the core to the player surface — touches hot command paths, ships separately).",
+      "verb_layer_status": "DONE 2026-06-13 (drop 49): binders craftable consumable (Security/Vek Nurren/diff14, pure sink, registered in NON_STIM_CONSUMERS) + cuff/uncuff/escape/allowrestrain verbs (parser/restraints_commands.py) + is_restrained gates at 6 sites (move/attack/4 equip verbs) + async orchestration (attempt_cuff/uncuff/escape/consent). 16 verb tests + 21 engine tests. Invariant-auditor CLEAN, smoke BOOTS CLEAN (227). v1 PCs-only (NPC capture = future increment); fixed DC 15. CRAFT.HOOK.restraints CLOSED."
     },
     {
       "id": "T2.DEF.tier1_combat_polish",
@@ -1708,16 +1709,6 @@
   ],
   "design_calls_pending_brian": [
     {
-      "id": "CRAFT.HOOK.restraints_state_model",
-      "raised": "2026-06-12",
-      "priority": "MEDIUM (long-pole; sequence after equipment-instance migration)",
-      "question": "Restraint/handcuff system (CRAFT.HOOK long-pole). Today: combat grapple has an EPHEMERAL CombatBracket.restraint (Str-vs-Str escape, combat-only, not persisted); no handcuff items exist. Needs a restraint STATE model, escape checks, and PvP-consent norms before any content ships.",
-      "recommendation": "(1) Persistent character-level restraint state {applied_by, item_key, escape_difficulty} — survives logout (a cuffed prisoner stays cuffed), distinct from combat's ephemeral grapple. (2) Blocks attack/move/equip; allows social verbs (mirror the grapple restriction set). (3) Escape = WEG Strength (or Security to pick the lock) check vs. difficulty, as an action; 'unlock' releases. (4) PvP-consent (the crux): REUSE the existing PvP/security-zone gate — you may only cuff a player you could legally attack, and only one already DEFEATED/incapacitated (no full-health griefing); NPCs unrestricted. No new consent system. Decision for Brian: persistent state (rec yes) + reuse-existing-PvP-gate (rec yes). Sequence AFTER the equipment-instance migration (touches Character state + equip).",
-      "logged": "2026-06-12 (design-review batch; CRAFT.HOOK.restraints tier_2 long-pole)",
-      "status": "UNBLOCKED — PvP norm decided (consent/defeat-gated); build per the recommendation",
-      "pvp_consent_resolution": "RESOLVED 2026-06-13 (Brian): restraints are CONSENT/DEFEAT-GATED — a PC may only cuff another PC who CONSENTS or who has been DEFEATED (incapacitated/surrendered in combat), never a healthy unwilling PC. Capture is an outcome of winning a fight or a willing RP scene, not a surprise grief vector. The rest of the recommendation (persistent character-level restraint state {applied_by, item_key, escape_difficulty} surviving logout; blocks attack/move/equip, allows social verbs; escape = WEG Strength check) stands — build per that. Now UNBLOCKED for implementation under the decide+build charter."
-    },
-    {
       "id": "CRAFT.powered_suit_design",
       "raised": "2026-06-12",
       "priority": "MEDIUM (BLOCKED on equipment-instance migration)",
@@ -1737,6 +1728,18 @@
     }
   ],
   "design_calls_resolved_recent": [
+    {
+      "id": "CRAFT.HOOK.restraints_state_model",
+      "raised": "2026-06-12",
+      "priority": "MEDIUM (long-pole; sequence after equipment-instance migration)",
+      "question": "Restraint/handcuff system (CRAFT.HOOK long-pole). Today: combat grapple has an EPHEMERAL CombatBracket.restraint (Str-vs-Str escape, combat-only, not persisted); no handcuff items exist. Needs a restraint STATE model, escape checks, and PvP-consent norms before any content ships.",
+      "recommendation": "(1) Persistent character-level restraint state {applied_by, item_key, escape_difficulty} — survives logout (a cuffed prisoner stays cuffed), distinct from combat's ephemeral grapple. (2) Blocks attack/move/equip; allows social verbs (mirror the grapple restriction set). (3) Escape = WEG Strength (or Security to pick the lock) check vs. difficulty, as an action; 'unlock' releases. (4) PvP-consent (the crux): REUSE the existing PvP/security-zone gate — you may only cuff a player you could legally attack, and only one already DEFEATED/incapacitated (no full-health griefing); NPCs unrestricted. No new consent system. Decision for Brian: persistent state (rec yes) + reuse-existing-PvP-gate (rec yes). Sequence AFTER the equipment-instance migration (touches Character state + equip).",
+      "logged": "2026-06-12 (design-review batch; CRAFT.HOOK.restraints tier_2 long-pole)",
+      "status": "UNBLOCKED — PvP norm decided (consent/defeat-gated); build per the recommendation",
+      "pvp_consent_resolution": "RESOLVED 2026-06-13 (Brian): restraints are CONSENT/DEFEAT-GATED — a PC may only cuff another PC who CONSENTS or who has been DEFEATED (incapacitated/surrendered in combat), never a healthy unwilling PC. Capture is an outcome of winning a fight or a willing RP scene, not a surprise grief vector. The rest of the recommendation (persistent character-level restraint state {applied_by, item_key, escape_difficulty} surviving logout; blocks attack/move/equip, allows social verbs; escape = WEG Strength check) stands — build per that. Now UNBLOCKED for implementation under the decide+build charter.",
+      "resolution": "BUILT 2026-06-13 (drops 48+49). Consent/defeat-gated per Brian; persistent attributes.restraint state (no migration); escape=lifting(Strength)-vs-15; binders sink; captor-or-admin release; 6 gates; v1 PCs-only. CRAFT.HOOK.restraints closed.",
+      "resolved_date": "2026-06-13"
+    },
     {
       "id": "POSTURE.autonomy_charter_2026_06_13",
       "resolved_date": "2026-06-13",

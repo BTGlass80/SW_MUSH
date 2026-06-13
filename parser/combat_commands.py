@@ -1519,6 +1519,16 @@ class AttackCommand(BaseCommand):
         char = ctx.session.character
         room_id = char["room_id"]
 
+        # CRAFT.HOOK.restraints: bound hands can't wield a weapon. A cuffed
+        # prisoner can't initiate an attack (mirrors the retreat-refusal gate
+        # below — only the initiation surface is gated; struggle free first).
+        from engine.restraints import is_restrained
+        if is_restrained(char):
+            await ctx.session.send_line(
+                "  You're bound — you can't attack until you break free "
+                "(try `escape`).")
+            return
+
         # ── WoW.3a/3b (May 24 2026): retreat refusal ──────────────────
         # If this PC is a Jedi who has declared `+retreat`, refuse
         # to initiate combat. The retreat flag (wow_retreat_active

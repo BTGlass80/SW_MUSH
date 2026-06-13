@@ -1016,6 +1016,14 @@ class MoveCommand(BaseCommand):
         if not char:
             return
 
+        # CRAFT.HOOK.restraints: a cuffed prisoner can't walk off.
+        from engine.restraints import is_restrained
+        if is_restrained(char):
+            await session.send_line(
+                "  You're bound — you can't move until you break free "
+                "(try `escape`).")
+            return
+
         direction = ctx.args.lower().strip()
         if not direction:
             await session.send_line("Move where? Specify a direction.")
@@ -3244,6 +3252,13 @@ class EquipCommand(BaseCommand):
         )
         wr = get_weapon_registry()
         char = ctx.session.character
+        # CRAFT.HOOK.restraints: bound hands can't change gear.
+        from engine.restraints import is_restrained
+        if is_restrained(char):
+            await ctx.session.send_line(
+                "  You're bound — you can't change your gear until you break "
+                "free (try `escape`).")
+            return
         carried = await ctx.db.get_inventory(char["id"])
         idx, gear_dict, weapon = find_carried_gear(
             carried, ctx.args, wr, want_armor=False)
@@ -3319,6 +3334,13 @@ class UnequipCommand(BaseCommand):
         wname = w.name if w else item.key
 
         char = ctx.session.character
+        # CRAFT.HOOK.restraints: bound hands can't change gear.
+        from engine.restraints import is_restrained
+        if is_restrained(char):
+            await ctx.session.send_line(
+                "  You're bound — you can't change your gear until you break "
+                "free (try `escape`).")
+            return
         # CRAFT.P0.9: return the instance to carried inventory — the old
         # path cleared the slot and DESTROYED the instance (condition,
         # quality, crafter, experiment state gone).
@@ -3378,6 +3400,13 @@ class WearCommand(BaseCommand):
             find_carried_gear, carried_to_instance, instance_to_carried,
         )
         char = ctx.session.character
+        # CRAFT.HOOK.restraints: bound hands can't change gear.
+        from engine.restraints import is_restrained
+        if is_restrained(char):
+            await ctx.session.send_line(
+                "  You're bound — you can't change your gear until you break "
+                "free (try `escape`).")
+            return
         carried = await ctx.db.get_inventory(char["id"])
         idx, gear_dict, armor = find_carried_gear(
             carried, ctx.args, wr, want_armor=True)
@@ -3449,6 +3478,13 @@ class RemoveArmorCommand(BaseCommand):
             return
 
         char = ctx.session.character
+        # CRAFT.HOOK.restraints: bound hands can't change gear.
+        from engine.restraints import is_restrained
+        if is_restrained(char):
+            await ctx.session.send_line(
+                "  You're bound — you can't change your gear until you break "
+                "free (try `escape`).")
+            return
         from engine.items import read_equipment, write_equipment
         _slots = read_equipment(char.get("equipment", "{}"))
         armor_key = _slots["armor"].key if _slots["armor"] else ""

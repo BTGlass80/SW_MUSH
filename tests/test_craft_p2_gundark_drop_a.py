@@ -84,6 +84,9 @@ class TestThreeWayConsumableParity(unittest.TestCase):
         # CRAFT.mines_breaching_split (2026-06-13): consumed by the
         # `breach` verb -> engine/breaching.py::attempt_breach.
         "breaching_charge": "engine/breaching.py::attempt_breach",
+        # CRAFT.HOOK.restraints (2026-06-13): consumed by the `cuff` verb
+        # -> engine/restraints.py::attempt_cuff (spent on a successful cuff).
+        "binders": "engine/restraints.py::attempt_cuff",
     }
 
     def test_schematic_outputs_have_identity_and_mechanics(self):
@@ -107,6 +110,11 @@ class TestThreeWayConsumableParity(unittest.TestCase):
         from engine.breaching import attempt_breach, BREACHING_CHARGE_KEY
         self.assertEqual(BREACHING_CHARGE_KEY, "breaching_charge")
         self.assertTrue(callable(attempt_breach))
+
+    def test_binders_has_a_real_consumer(self):
+        from engine.restraints import attempt_cuff, BINDERS_KEY
+        self.assertEqual(BINDERS_KEY, "binders")
+        self.assertTrue(callable(attempt_cuff))
 
     def test_catalog_has_no_orphans(self):
         from engine.consumables import get_all_consumables

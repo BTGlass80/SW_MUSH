@@ -165,3 +165,138 @@ def attempt_escape(char: dict) -> tuple[bool, int]:
     from engine.skill_checks import perform_skill_check
     result = perform_skill_check(char, ESCAPE_SKILL, difficulty)
     return bool(result.success), difficulty
+
+
+# ── Async orchestration (the verb-layer back ends, mirror engine/breaching) ──
+
+BINDERS_KEY = "binders"
+
+
+async def attempt_cuff(db, char: dict, target_name: str, *,
+                       session_mgr=None) -> dict:
+    """Resolve `target_name` in the room, apply the consent/defeat gate, consume
+    one binders item, and cuff them. Returns {ok, msg, target_name?}.
+
+    The actor must hold a binders consumable. The target must be DEFEATED or
+    CONSENTING (PC) — NPCs are exempt. Mirrors engine/breaching.attempt_breach:
+    the engine does the work; the parser is a thin front end."""
+    from engine.matching import match_in_room
+    from engine.buffs import has_consumable, consume_consumable
+
+    target_name = (target_name or "").strip()
+    if not target_name:
+        return {"ok": False, "msg": "  Cuff whom?"}
+
+    if not has_consumable(char, BINDERS_KEY):
+        return {"ok": False,
+                "msg": "  You don't have any binders to cuff someone with."}
+
+    match = await match_in_room(
+        target_name, char.get("room_id"), char["id"], db,
+        session_mgr=session_mgr, source_char=char)
+    if not match.found:
+        return {"ok": False, "msg": f"  {match.error_message(target_name)}"}
+
+    target = match.candidate.data
+    is_npc = match.candidate.obj_type == "npc"
+    if not is_npc and match.candidate.id == char["id"]:
+        return {"ok": False, "msg": "  You can't cuff yourself."}
+
+    # v1 cuffs PCs only. NPC capture needs the restraint state to live in the
+    # NPC's char_sheet_json (NPCs have no `attributes` column) — a future
+    # increment; the consent/defeat gate is fundamentally a PvP feature anyway.
+    if is_npc:
+        return {"ok": False,
+                "msg": "  You can't get binders on a creature like that "
+                       "(restraining NPCs isn't supported yet)."}
+
+    ok, reason = can_be_restrained(target, is_npc=is_npc)
+    if not ok:
+        return {"ok": False, "msg": f"  {reason}"}
+
+    # Apply, then consume the binders (a successful cuff spends them).
+    apply_restraint(target, applied_by=char.get("name", "someone"),
+                    applied_by_id=char["id"], item_key=BINDERS_KEY)
+    consume_consumable(char, BINDERS_KEY)
+    try:
+        await db.save_character(char["id"], attributes=char.get("attributes"))
+        await db.save_character(target["id"],
+                                attributes=target.get("attributes"))
+    except Exception:
+        log.warning("[restraints] cuff persist failed", exc_info=True)
+
+    tname = match.candidate.name
+    return {"ok": True, "target_name": tname, "target_id": target["id"],
+            "msg": f"  You snap the binders onto {tname}. They're restrained."}
+
+
+async def attempt_uncuff(db, char: dict, target_name: str, *,
+                         session_mgr=None, is_admin: bool = False) -> dict:
+    """Release `target_name`'s restraint, if the actor is the captor or an admin.
+    Returns {ok, msg}."""
+    from engine.matching import match_in_room
+
+    target_name = (target_name or "").strip()
+    if not target_name:
+        return {"ok": False, "msg": "  Uncuff whom?"}
+
+    match = await match_in_room(
+        target_name, char.get("room_id"), char["id"], db,
+        session_mgr=session_mgr, source_char=char)
+    if not match.found:
+        return {"ok": False, "msg": f"  {match.error_message(target_name)}"}
+
+    target = match.candidate.data
+    r = get_restraint(target)
+    if not r:
+        return {"ok": False, "msg": f"  {match.candidate.name} isn't restrained."}
+
+    if not can_release(r, char["id"], is_admin=is_admin):
+        return {"ok": False,
+                "msg": "  Only the one who cuffed them (or an admin) can "
+                       "release them."}
+
+    release_restraint(target)
+    try:
+        await db.save_character(target["id"],
+                                attributes=target.get("attributes"))
+    except Exception:
+        log.warning("[restraints] uncuff persist failed", exc_info=True)
+
+    return {"ok": True, "target_name": match.candidate.name,
+            "msg": f"  You release {match.candidate.name} from their binders."}
+
+
+async def attempt_escape_action(db, char: dict) -> dict:
+    """The `escape` verb back end: try to break free, persist on success.
+    Returns {ok, escaped, msg}."""
+    if not is_restrained(char):
+        return {"ok": False, "escaped": False,
+                "msg": "  You aren't restrained."}
+    escaped, difficulty = attempt_escape(char)
+    if escaped:
+        release_restraint(char)
+        try:
+            await db.save_character(char["id"],
+                                    attributes=char.get("attributes"))
+        except Exception:
+            log.warning("[restraints] escape persist failed", exc_info=True)
+        return {"ok": True, "escaped": True,
+                "msg": "  With a surge of effort you wrench free of the "
+                       "binders!"}
+    return {"ok": True, "escaped": False,
+            "msg": "  You strain against the binders but can't break free."}
+
+
+async def set_consent_action(db, char: dict, value: bool) -> dict:
+    """The `allow restrain` toggle: opt in/out of being restrained. Persists."""
+    set_consent(char, value)
+    try:
+        await db.save_character(char["id"], attributes=char.get("attributes"))
+    except Exception:
+        log.warning("[restraints] consent persist failed", exc_info=True)
+    if value:
+        return {"ok": True, "msg": "  You signal that you'll allow yourself to "
+                                   "be restrained (for willing captures / RP)."}
+    return {"ok": True, "msg": "  You will no longer allow being restrained "
+                              "unless subdued."}

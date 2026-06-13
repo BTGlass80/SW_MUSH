@@ -115,6 +115,11 @@ ephemeral grapple.)
 
 ## 4. Out of scope v1 (future increments)
 
+- **Cuffing NPCs.** v1 cuffs PCs only — NPCs have no `attributes` column (their
+  state lives in `char_sheet_json`), so persistent NPC restraint needs separate
+  plumbing. The consent/defeat gate is fundamentally a PvP feature anyway; "capture
+  the bandit" is a later increment. (Decided 2026-06-13 under the conservative
+  charter — keep the slice bounded.)
 - Cuff *quality* affecting escape difficulty (folds into the crafted-quality
   system once binders are craftable with quality).
 - Timed auto-release / struggle-progress bars.

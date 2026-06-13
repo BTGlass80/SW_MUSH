@@ -106,6 +106,7 @@ from parser.tutorial_commands import register_tutorial_commands
 from parser.chain_commands import register_chain_commands
 from parser.questline_commands import register_questline_commands
 from parser.demolitions_commands import register_demolitions_commands
+from parser.restraints_commands import register_restraints_commands
 from parser.faction_commands import register_faction_commands
 from parser.faction_leader_commands import register_faction_leader_commands
 from parser.narrative_commands import register_narrative_commands
@@ -223,6 +224,8 @@ class GameServer:
         register_questline_commands(self.registry)
         # CRAFT.mines_breaching_split (2026-06-13): the `breach` command.
         register_demolitions_commands(self.registry)
+        # CRAFT.HOOK.restraints (2026-06-13): cuff/uncuff/escape/allowrestrain.
+        register_restraints_commands(self.registry)
         register_faction_commands(self.registry)
         register_faction_leader_commands(self.registry)
         register_narrative_commands(self.registry)

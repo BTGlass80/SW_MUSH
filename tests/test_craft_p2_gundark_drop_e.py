@@ -41,6 +41,10 @@ REPO = Path(__file__).resolve().parent.parent
 VEK_SCHEMATICS = [
     "cooling_unit", "breath_mask", "radiation_suit", "anti_theft_alarm",
     "water_canteen", "luma_flare", "animal_excluder",
+    # CRAFT.HOOK.restraints (drop 49, 2026-06-13): binders (stun-cuffs) are a
+    # Security craft Vek Nurren teaches, like the anti-theft alarm. This roster
+    # is a complete "what Vek grants" check, so the new schematic belongs here.
+    "binders",
 ]
 
 
@@ -107,7 +111,7 @@ class TestVekNurrenSeed(unittest.TestCase):
                "era.yaml").read_text(encoding="utf-8")
         self.assertIn("npcs_drop_craft_e_outfitter.yaml", era)
 
-    def test_all_seven_schematics_grant_on_talk(self):
+    def test_all_vek_schematics_grant_on_talk(self):
         from engine.crafting import add_known_schematic, \
             get_known_schematics, get_all_schematics
         char = {"attributes": json.dumps({})}
