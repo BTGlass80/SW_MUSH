@@ -1605,31 +1605,37 @@
     {
       "id": "T3.13",
       "title": "Padawan-Master post-launch expansion (council, lineage trees, re-assignment)",
-      "design_doc": "padawan_master_system_design_v1.md"
+      "design_doc": "padawan_master_system_design_v1.md",
+      "launch_ruling": "POST-LAUNCH body; PRE-LAUNCH scaffolding obligation (schema/state + UI seams, no live migration)."
     },
     {
       "id": "T3.14",
       "title": "Cities post-launch expansion (multi-city-per-org, paged list sub-modals, P2P discovery)",
-      "design_doc": "player_cities_design_v1_2.md"
+      "design_doc": "player_cities_design_v1_2.md",
+      "launch_ruling": "POST-LAUNCH body; PRE-LAUNCH scaffolding obligation (schema/state + UI seams, no live migration)."
     },
     {
       "id": "T3.15",
-      "title": "Director AI Clone-Wars tuning"
+      "title": "Director AI Clone-Wars tuning",
+      "launch_ruling": "PULLED PRE-LAUNCH (Director tuning; superseded/widened by director_scope_and_adaptive_spend_v1 + the multi-zone pull)."
     },
     {
       "id": "T3.16",
       "title": "Space Wildspace expansion",
-      "design_doc": "space_wildspace_design_v1.md"
+      "design_doc": "space_wildspace_design_v1.md",
+      "launch_ruling": "POST-LAUNCH body; PRE-LAUNCH scaffolding obligation (schema/state + UI seams, no live migration)."
     },
     {
       "id": "T3.17",
       "title": "Sheet redesign",
-      "design_doc": "sheet_redesign_design_v1.md"
+      "design_doc": "sheet_redesign_design_v1.md",
+      "launch_ruling": "POST-LAUNCH (Phase-2 web-client sheet redesign; partial m3_sheet.js shipped)."
     },
     {
       "id": "T3.18",
       "title": "Ground UX overhaul",
-      "design_doc": "ground_ux_overhaul_design_v1.md"
+      "design_doc": "ground_ux_overhaul_design_v1.md",
+      "launch_ruling": "POST-LAUNCH (Phase-2 web-client ground-UX; folded into post-launch web Phase 2)."
     },
     {
       "id": "T3.19",
@@ -1711,11 +1717,28 @@
     {
       "id": "CRAFT.powered_suit_design",
       "raised": "2026-06-12",
-      "priority": "MEDIUM (BLOCKED on equipment-instance migration)",
+      "priority": "MEDIUM (unblocked; next feature under features-first sequencing)",
       "question": "Powered armor / exoskeleton design pass. Non-powered armor rows exist; no powered schematics; blocked on the same TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES dual-format debt as OBS armor Option C. Integrated-weapon-mount mechanic (the COMPLEXITY_MOD path) is undefined.",
       "recommendation": "Sequence: equipment-instance migration -> armor soak (OBS Option C) -> powered-suit. v1 = armor-slot item with soak (via the Option C path) + a STR bonus + the already-live armor Dex penalty; DEFER integrated weapon mounts (the COMPLEXITY_MOD long pole) to a later increment. Hard-cap so it never beats a tier jump (same principle as Drop 19's +1D cap); gate behind T4/T5 crafting + faction. Decision for Brian: confirm post-migration sequencing + exclude weapon mounts from v1 (rec).",
       "logged": "2026-06-12 (design-review batch; arch §3.2 deferred long-pole)",
-      "status": "pending Brian"
+      "status": "UNBLOCKED 2026-06-13 (Brian ruled the equipment-instance migration PRE-LAUNCH; drop 47 shipped the accessor it needs). Build per the v1 recommendation under the decide+build charter. Remaining design specifics (mine to decide): the `powersuit operation` skill (not yet registered) + whether the STR bonus needs a new combat consumer. See HANDOFF_brian_launch_scope_rulings_2026-06-13.md Ruling 1."
+    }
+  ],
+  "design_calls_resolved_recent": [
+    {
+      "id": "FORCE.sensitivity_failsafe_to_jedi",
+      "resolved_date": "2026-06-13",
+      "resolution": "PRE-LAUNCH (Brian Ruling 5; T3.20 blocker-2). A path-committed character whose attributes JSON is unreadable must load force_sensitive=True (fail-safe to Jedi) + log the corruption loudly — never silently lose Force-sensitivity. Build item under T3.20 state-preservation."
+    },
+    {
+      "id": "DIRECTOR.multizone_living_galaxy",
+      "resolved_date": "2026-06-13",
+      "resolution": "PRE-LAUNCH (Brian Ruling 4). Load the already-authored multi-zone config + per-zone Director tracking so every planet runs, not just 6 Mos Eisley zones. Bundle the 2 verified director.py bugs (dead _apply_influence_delta; cost-telemetry logs zeros). Build item — see director_scope_and_adaptive_spend_v1.md. Adaptive-spend autonomy is an open non-blocking sub-question."
+    },
+    {
+      "id": "LAUNCH.scope_rulings_2026_06_13",
+      "resolved_date": "2026-06-13",
+      "resolution": "Brian's authoritative launch-scope rulings (HANDOFF_brian_launch_scope_rulings_2026-06-13.md), reconciled into TODO. (1) Equipment-instance migration PRE-LAUNCH (done drop 47) -> unblocks powered_suit + restraints (restraints done drops 48-49). (3) T3.13/14/16 stay POST-LAUNCH but owe PRE-LAUNCH scaffolding (schema/state seams + UI seams, no live migration); T3.15 Director tuning PULLED PRE-LAUNCH (superseded/widened by director_scope_and_adaptive_spend_v1). T3.17 sheet + T3.18 ground-UX confirmed POST (Phase-2). (4) Director multi-zone 'living galaxy' PRE-LAUNCH (cheap config-load + per-zone tracking; bundle the 2 verified director.py bugs: dead _apply_influence_delta lever + cost-telemetry-zeros). (5) Force-sensitivity fail-safe = FAIL-SAFE-TO-JEDI (path-committed char with unreadable attrs loads force_sensitive=True + loud warning) — T3.20 blocker-2 fix. Open sub-question (non-blocking): Director adaptive-spend autonomy (auto-escalate within ceiling vs manual toggle)."
     },
     {
       "id": "OBS.silent_except_invariant_reconfigure_carveout",
@@ -1724,10 +1747,10 @@
       "question": "Cross-session collision surfaced by the xdist full-suite triage. tests/test_session38.py::TestSilentExceptInvariant::test_no_silent_except_pass_in_production walks the whole tree (skips only venv/__pycache__/tests/.git) and flags two UNTRACKED files from the guides-rework session — tools/guide_lint.py:39 and tools/split_guide_dev_track.py:35. HEAD-verified: both use the benign console-bootstrap idiom `for s in (stdout,stderr): try: getattr(sys,s).reconfigure(encoding='utf-8') except Exception: pass`; the reconfigure idiom appears in NO other .py in the tree (only these 2); the scanner has no allowlist/noqa mechanism. The full pytest suite cannot go green while these sit in the working tree. The triage session does not own these files (per the xdist handoff: don't touch other sessions' uncommitted strays) — Brian decided 2026-06-13 to FLAG, not touch. NOTE: the one REAL production silent-except this invariant caught (parser/commissary_commands.py — bare except:pass at :197 + two comment-masked siblings at :117/:146) was already fixed by the triage session: all three now log.debug(..., exc_info=True) per the bounty/inventory/crafting best-effort idiom.",
       "recommendation": "Owner = the guides-rework session. Resolve by (A) giving both reconfigure blocks a real `log.debug('stream reconfigure failed', exc_info=True)` (matches the codebase best-effort idiom; keeps the invariant strict with zero carve-outs; 2-line change in each owning file) — RECOMMENDED — or (B) teach the test_session38 scanner to skip a try/except:pass whose body is only a `sys.std*.reconfigure(...)` console-UTF-8 bootstrap (a known-safe class). Rec (A): a hygiene invariant with no exceptions is more durable than one with a special case, and the cost is trivial. Until then the full suite carries exactly these 2 reds, both isolated to non-production tooling.",
       "logged": "2026-06-13 (xdist full-suite triage session; F4 of 4 — the only residual outside the triage session's lane)",
-      "status": "pending Brian"
-    }
-  ],
-  "design_calls_resolved_recent": [
+      "status": "pending Brian",
+      "resolution": "FIXED + CLOSED 2026-06-13 (Brian Ruling 6). The two guide-tool reconfigure blocks got a justified non-pass body; test_no_silent_except_pass_in_production is green. Verified at HEAD this session.",
+      "resolved_date": "2026-06-13"
+    },
     {
       "id": "CRAFT.HOOK.restraints_state_model",
       "raised": "2026-06-12",
