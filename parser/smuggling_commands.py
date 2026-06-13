@@ -33,12 +33,17 @@ log = logging.getLogger(__name__)
 _BOARD_ROOM_KEYWORDS = ["jabba", "cantina", "docking bay", "docking", "spaceport"]
 
 
-def _in_board_room(ctx: CommandContext) -> bool:
-    """True if the player's current room gives access to the board."""
-    room = ctx.session.current_room
+async def _in_board_room(ctx: CommandContext) -> bool:
+    """True if the player's current room gives access to the board.
+
+    Fixed: was reading ctx.session.current_room (phantom attribute, never
+    assigned) → AttributeError. Now reads room from DB via char room_id,
+    matching the established idiom (builtin_commands.py:180 et al.).
+    """
+    room = await ctx.db.get_room(ctx.session.character["room_id"])
     if not room:
         return False
-    name = room.get("name", "").lower()
+    name = (room.get("name") or "").lower()
     return any(kw in name for kw in _BOARD_ROOM_KEYWORDS)
 
 
@@ -57,7 +62,7 @@ class SmugJobsCommand(BaseCommand):
     usage = "smugjobs"
 
     async def execute(self, ctx: CommandContext) -> None:
-        if not _in_board_room(ctx):
+        if not await _in_board_room(ctx):
             await ctx.session.send_line(
                 "  You need to be near a cantina, docking bay, or Jabba's contacts "
                 "to access the underground job board."
@@ -80,7 +85,7 @@ class SmugAcceptCommand(BaseCommand):
     usage = "smugaccept <id>"
 
     async def execute(self, ctx: CommandContext) -> None:
-        if not _in_board_room(ctx):
+        if not await _in_board_room(ctx):
             await ctx.session.send_line(
                 "  You need to be near a contact to accept a job."
             )

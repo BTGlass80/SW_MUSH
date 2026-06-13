@@ -47,6 +47,13 @@ if errorlevel 1 (
 )
 echo.
 
+REM Hard-exit the pytest process once the summary is written, to dodge the
+REM post-run interpreter-exit hang (a leaked non-daemon resource keeps the
+REM process alive after all tests finish, so the run never returns and has to
+REM be Ctrl+C'd). The results are already complete at that point. The guard is
+REM in tests/conftest.py::pytest_sessionfinish and only fires under this env.
+set "SW_MUSH_HARD_EXIT=1"
+
 python -m pytest tests/ -p no:cacheprovider --continue-on-collection-errors --maxfail=999 %TIMEOUT_ARGS% -o addopts= -q > tests_output.log 2>&1
 
 echo.

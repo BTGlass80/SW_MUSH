@@ -28,11 +28,14 @@ import json
 import os
 import sys
 
-# Protected world-map YAML: deletions here drop pinned rooms/coordinates.
+# Protected world YAML: deletions drop pinned rooms / coordinates / region
+# data. Widened 2026-06-12 (Brian) from planets+maps to the WHOLE world tree —
+# quests, jedi_village, wilderness, tutorials included. The map-safety
+# invariant ("world YAML edits are purely additive, zero deleted lines")
+# applies to all world content, not just the coordinate files.
 # Matched as forward-slash, lowercased substrings of the normalized file path.
 PROTECTED_SUBPATHS = (
-    "data/worlds/clone_wars/planets/",
-    "data/worlds/clone_wars/maps/",
+    "data/worlds/",
 )
 YAML_EXTS = (".yaml", ".yml")
 

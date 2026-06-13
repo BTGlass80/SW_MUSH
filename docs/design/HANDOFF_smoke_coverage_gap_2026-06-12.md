@@ -1,5 +1,24 @@
 # HANDOFF — Smoke-test coverage gap & discipline restoration (2026-06-12)
 
+## RESOLUTION (same session, post-Brian decisions) — drops 20/21
+
+The gap analysis below is the original audit. Final state after Brian's calls:
+
+- **All P1/P2/P3 gap-matrix scenarios are built and green** (the 6 loops:
+  mission, buy_vendor_gate, craft_trainer, commissary, smuggling, underworld).
+- **Bug #1 (mission persistence)** — FIXED (Brian: option b, persist).
+  `accept/complete/abandon_mission` now match by the string id in the JSON
+  `data` column; `mission_loop` ML2 asserts persistence. (`MISSION.persistence_id_mismatch` resolved.)
+- **Bug #2 (smuggling board unreachable)** — FIXED (Brian: option a, localize).
+  `_in_board_room` now reads the room via `db.get_room(char["room_id"])`;
+  `smuggling_loop` is 4/4 passing (xfails removed). (`SMUGGLING.board_current_room_phantom` resolved.)
+- **Bug #3 (NEW, surfaced by `underworld_loop`)** — natural entry into
+  `coruscant_underworld` is blocked: `CommandParser.process` doesn't route the
+  region's custom `deeper` edge direction to `MoveCommand`. Filed
+  `PARSER.custom_edge_directions_not_routed` (design_calls_pending_brian); the
+  scenario uses the synthetic `_drop_into_wilderness` path meanwhile.
+- **Map-safety hook** widened to the whole `data/worlds/` tree (Brian).
+
 ## Why this exists
 
 Brian flagged a suspicion: regression/unit tests keep landing per-drop, but the

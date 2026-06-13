@@ -63,15 +63,12 @@ def _make_delivery_mission(*, room_id: int, status="available",
 async def _inject_mission(h, mission) -> None:
     """Persist *mission* to DB and register in board memory.
 
-    DB persistence: save_mission uses WHERE data LIKE '%"id": "..."'
-    so it works correctly for both INSERT and UPDATE paths. However,
-    accept_mission/complete_mission/abandon_mission use WHERE id=<string>
-    against an INTEGER PK and silently miss. To avoid stale accepted rows
-    in the DB (which ActiveMissionCommand's DB fallback finds even after
-    board.abandon() clears in-memory state), we ALWAYS save to DB with
-    status='available' and set the desired in-memory status separately.
-    This keeps the DB clean and lets the board's in-memory state govern
-    the command flow (which is how the live server operates anyway).
+    Both save_mission and (since the 2b fix) accept/complete/abandon_mission
+    match the row by the string id in the JSON ``data`` column, so DB writes
+    work correctly for the "m-..." string ids. We seed the DB copy as
+    status='available' and set the desired in-memory status separately, so each
+    scenario starts from a clean board+DB state regardless of test order under
+    the class-scoped harness.
     """
     from engine.missions import get_mission_board, MissionStatus
     import copy
@@ -173,10 +170,6 @@ async def ml2_accept_shows_active(h):
     )
 
     # Board in-memory verification: mission must be ACCEPTED for this char.
-    # NOTE: accept_mission() DB persistence uses WHERE id=<string> against an
-    # INTEGER PK, so the DB row is not updated; the board works in-memory and
-    # falls back to DB only on server restart. The command-level assertion
-    # above (active mission header + ID in output) is the canonical test.
     from engine.missions import get_mission_board, MissionStatus
     board = get_mission_board()
     m_in_board = board._missions.get(m.id)
@@ -189,6 +182,16 @@ async def ml2_accept_shows_active(h):
     assert m_in_board.accepted_by == str(char_id), (
         f"Mission {m.id!r} accepted_by={m_in_board.accepted_by!r}, "
         f"expected {char_id!r}"
+    )
+
+    # DB persistence (fix 2b): accept now writes accepted_by to the row by
+    # matching the string id in the JSON data column, so the mission survives a
+    # server restart. Before the fix this returned None — accept_mission's
+    # `WHERE id=<string>` missed the INTEGER-PK row entirely.
+    db_active = await h.db.get_active_mission(str(char_id))
+    assert db_active is not None, (
+        f"accept did not persist to the DB: get_active_mission({char_id!r}) is "
+        f"None after accept — the string-id / int-PK persistence bug is back."
     )
 
 

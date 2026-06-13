@@ -1628,6 +1628,24 @@
   ],
   "design_calls_pending_brian": [
     {
+      "id": "TEST.exit_hang_leaked_resource",
+      "raised": "2026-06-12",
+      "priority": "MEDIUM",
+      "question": "The full pytest suite (and any harness-booting run: full smoke, test_cities_phase4b, the combat suite) writes its summary then HANGS at process exit — a leaked non-daemon-thread-backed resource keeps the interpreter alive, so run_all_tests.bat never returns and orphaned pytest processes accumulate. Drop 22 added an env-gated os._exit workaround (SW_MUSH_HARD_EXIT, set by run_all_tests.bat) so the gate finishes cleanly, but the leak itself is unfixed. Which test/fixture leaks, and what is the resource (stray aiosqlite connection? a threading.Thread without daemon=True? a ThreadPoolExecutor not shut down)?",
+      "recommendation": "Bisect: foundation smoke EXITS CLEAN but full smoke HANGS, so a specific scenario triggers it. Prime suspects: a scenario/engine path opening an aiosqlite connection outside the harness-tracked srv.db and never closing it (the per-connection thread lingers), or a Thread/executor started without daemon=True. To name the survivor, enumerate threading.enumerate() (non-daemon) in pytest_unconfigure just before the os._exit, or run a hanging subset under faulthandler.dump_traceback_later to capture the alive thread's stack. Fix the offending teardown, then REMOVE the conftest band-aid. MEDIUM — the band-aid unblocks the gate; this is hygiene + resource waste.",
+      "logged": "2026-06-12 (surfaced while diagnosing Brian's run_all_tests.bat freeze, drop 22)",
+      "status": "pending Brian"
+    },
+    {
+      "id": "PARSER.custom_edge_directions_not_routed",
+      "raised": "2026-06-12",
+      "priority": "LOW",
+      "question": "Natural wilderness entry into the coruscant_underworld region is blocked at the PARSER level. CommandParser.process (parser/commands.py ~line 270) routes only a hardcoded set of direction words (compass + enter/leave) to MoveCommand, which is what runs _try_wilderness_entry. The coruscant_underworld edge YAML declares direction_from_room: 'deeper', which is NOT in that set, so typing 'deeper' returns 'Unknown command: deeper' and the region is reachable only via the synthetic _drop_into_wilderness path (which the new underworld_loop smoke uses). How should custom edge-directions be routed to MoveCommand?",
+      "recommendation": "(a) add 'deeper' (+ any other custom edge words) to the static dispatch list — a one-liner if 'deeper' is the only one; or (b) make the dispatch data-driven, loading the set of custom edge directions from the loaded wilderness regions at server boot (auto-covers future custom directions). Either is mechanical once chosen. LOW urgency: synthetic entry works for tests; the player-facing gap is that the Coruscant Underworld cannot be walked into yet.",
+      "logged": "2026-06-12 (surfaced by the new underworld_loop smoke, drop 21)",
+      "status": "pending Brian"
+    },
+    {
       "id": "CRAFT.harvest_skill_flavor",
       "raised": "2026-06-12",
       "priority": "LOW",
@@ -1646,6 +1664,16 @@
     }
   ],
   "design_calls_resolved_recent": [
+    {
+      "id": "MISSION.persistence_id_mismatch",
+      "date_resolved": "2026-06-12",
+      "decision": "Option b (persist) — Drop 21, surfaced by the new mission_loop smoke. Board mission ids are 'm-'+uuid STRINGS but accept_mission/complete_mission/abandon_mission (db/database.py) did UPDATE ... WHERE id=? against missions.id INTEGER PRIMARY KEY AUTOINCREMENT, silently affecting 0 rows — so an accepted mission was never persisted and was LOST on server restart (ActiveMissionCommand checks the in-memory board first and falls back to get_active_mission only after restart, where accepted_by had never been written). Within a single session the in-memory board masked it. FIX: the three funcs now match the row by the string id embedded in the JSON data column (WHERE data LIKE the save_mission idiom), and accept upserts (INSERT if the available mission was never written) so accepted_by lands correctly. mission_loop ML2 now asserts get_active_mission(char_id) is non-None after accept (the persistence proof; it returned None pre-fix). 69 mission unit + 4 smoke green."
+    },
+    {
+      "id": "SMUGGLING.board_current_room_phantom",
+      "date_resolved": "2026-06-12",
+      "decision": "Option a (localize) — Drop 21, surfaced by the new smuggling_loop smoke. _in_board_room (parser/smuggling_commands.py) read ctx.session.current_room, a PHANTOM attribute never assigned anywhere in server/parser/engine (confirmed sole reader) — so every +smugjobs/smugaccept raised AttributeError, caught by dispatch as 'An error occurred', leaving the smuggling board UNREACHABLE in the live server (undetected because the loop was only ever 'smoke it live, later'). FIX: _in_board_room is now async and reads the room from the DB via ctx.db.get_room(ctx.session.character['room_id']) — the idiom every other room-gated command uses; both call sites (SmugJobsCommand, SmugAcceptCommand) awaited. smuggling_loop now 4 smoke passing (was 1 pass + 3 xfail) + 80 smuggling unit tests green."
+    },
     {
       "id": "OBS.quality_and_boosts_not_combat_read",
       "date_resolved": "2026-06-12",

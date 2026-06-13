@@ -2496,29 +2496,52 @@ class Database:
         await self._db.commit()
 
     async def accept_mission(self, mission_id, character_id, expires_at, data: dict):
-        """Mark a mission accepted by a character."""
+        """Mark a mission accepted by a character.
+
+        Board mission ids are strings ("m-..."); the missions table PK is an
+        INTEGER autoincrement, so the old ``WHERE id=?`` matched 0 rows and the
+        accept was never persisted (mission silently lost on restart). Match by
+        the string id stored in the JSON ``data`` column — save_mission's proven
+        idiom — and upsert if the available mission was never written, so the
+        row carries the correct ``accepted_by`` for get_active_mission().
+        """
         import json as _json
-        await self._db.execute(
-            "UPDATE missions SET status='accepted', accepted_by=?, expires_at=?, data=? WHERE id=?",
-            (character_id, expires_at, _json.dumps(data), mission_id),
+        cur = await self._db.execute(
+            "UPDATE missions SET status='accepted', accepted_by=?, expires_at=?, "
+            "data=? WHERE data LIKE ?",
+            (character_id, expires_at, _json.dumps(data),
+             f'%"id": "{mission_id}"%'),
         )
+        if cur.rowcount == 0:
+            await self._db.execute(
+                "INSERT INTO missions (mission_type, title, description, reward, "
+                "skill_required, accepted_by, status, expires_at, data) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    data.get("mission_type"), data.get("title"),
+                    data.get("objective", ""), data.get("reward"),
+                    data.get("required_skill", ""), character_id,
+                    "accepted", expires_at, _json.dumps(data),
+                ),
+            )
         await self._db.commit()
 
     async def complete_mission(self, mission_id, data: dict):
-        """Mark a mission complete."""
+        """Mark a mission complete (match by the string id in the data column)."""
         import json as _json
         await self._db.execute(
-            "UPDATE missions SET status='completed', data=? WHERE id=?",
-            (_json.dumps(data), mission_id),
+            "UPDATE missions SET status='completed', data=? WHERE data LIKE ?",
+            (_json.dumps(data), f'%"id": "{mission_id}"%'),
         )
         await self._db.commit()
 
     async def abandon_mission(self, mission_id, data: dict):
-        """Return an accepted mission to available status."""
+        """Return an accepted mission to available status (match by string id)."""
         import json as _json
         await self._db.execute(
-            "UPDATE missions SET status='available', accepted_by=NULL, data=? WHERE id=?",
-            (_json.dumps(data), mission_id),
+            "UPDATE missions SET status='available', accepted_by=NULL, data=? "
+            "WHERE data LIKE ?",
+            (_json.dumps(data), f'%"id": "{mission_id}"%'),
         )
         await self._db.commit()
 

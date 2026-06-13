@@ -143,3 +143,42 @@ def pytest_runtest_makereport(item, call):
     except RuntimeError:
         # No loop available (post-teardown). Skip dump.
         pass
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# Process-exit hard-stop (2026-06-12 — run_all_tests.bat hang workaround)
+# ───────────────────────────────────────────────────────────────────────────
+#
+# Symptom: the full suite (and ANY harness-booting run) writes its pytest
+# summary, then HANGS — the `python -m pytest` process never returns, so
+# run_all_tests.bat never reaches its completion echo and the run must be
+# Ctrl+C'd. Confirmed a process-EXIT hang (post-summary), NOT a hung test:
+# the 120s pytest-timeout never fires, and the orphaned pytest processes pile
+# up in the task list. Root cause is a leaked non-daemon-thread-backed
+# resource (e.g. a stray aiosqlite connection a non-foundation test opens and
+# never closes) keeping the interpreter alive after the loop is gone.
+# Tracked as TEST.exit_hang_leaked_resource (TODO design_calls_pending_brian).
+#
+# The test RESULTS are already complete when pytest_sessionfinish runs, so —
+# when SW_MUSH_HARD_EXIT is set (run_all_tests.bat sets it) — flush the log
+# and hard-exit with the real pytest status. trylast so the terminal summary
+# is printed first. Opt-in via env var so interactive / IDE runs are
+# unaffected. Remove once the leaked resource is fixed.
+
+_HARD_EXIT = {"status": 0}
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_sessionfinish(session, exitstatus):
+    # Capture the real status; the hard-exit happens later in unconfigure so
+    # the terminal summary (counts + the FAILED/ERROR lines run_all_tests.bat
+    # greps for) is fully written first.
+    _HARD_EXIT["status"] = int(exitstatus)
+
+
+def pytest_unconfigure(config):
+    if os.environ.get("SW_MUSH_HARD_EXIT"):
+        import sys
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(_HARD_EXIT["status"])

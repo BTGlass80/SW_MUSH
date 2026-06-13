@@ -12,28 +12,14 @@ Coverage:
   SL4: `+smugjobs` from a room whose name contains NONE of the board
        keywords returns the "near a cantina" refusal.
 
-CONFIRMED PRODUCTION BUG (SL1/SL2/SL4 are xfail until it is fixed):
-  `_in_board_room` (parser/smuggling_commands.py:38) reads
-  `ctx.session.current_room` — an attribute that is **never assigned**
-  anywhere in server/, parser/, or engine/ (every other room-gated command
-  reads `char["room_id"]`). Accessing it raises AttributeError, which the
-  dispatch wrapper catches and renders as "An error occurred...". So in the
-  live server `+smugjobs` / `smugaccept` ALWAYS error and the smuggling board
-  is **unreachable**. This was never caught because the loop was only ever
-  "smoke-tested live, later" (a CHANGELOG "Pending" note) — exactly the drift
-  this work exists to close.
-
-  SL1/SL2/SL4 drive the commands FAITHFULLY (no workaround) and are therefore
-  marked `xfail` in the test entry, documenting the bug the way the S12-lockon
-  xfail documents its bug. They flip to XPASS the moment `current_room` is set
-  correctly (or `_in_board_room` is rewritten to use `char["room_id"]` + a DB
-  lookup) — at which point the xfail marks should be removed and the arms
-  become live, asserting the board/accept/gate logic. We deliberately do NOT
-  seed `session.current_room` to force them green: that would test a code path
-  production can never reach and report a false "smuggling works".
-
-  SL3 is independent of the bug — `smugdeliver` never calls `_in_board_room`
-  (it gates on an active job + a docked ship), so it is a real passing test.
+Bug FIXED (2026-06-12): `_in_board_room` (parser/smuggling_commands.py) was
+reading `ctx.session.current_room` — an attribute that was **never assigned**
+anywhere in server/, parser/, or engine/ (every other room-gated command
+reads `char["room_id"]`). Accessing it raised AttributeError, which the
+dispatch wrapper caught and rendered as "An error occurred...". The fix rewrites
+`_in_board_room` as `async def` and reads the room from the DB via
+`ctx.db.get_room(ctx.session.character["room_id"])`, matching the established
+idiom (e.g. builtin_commands.py:180). All four arms are now live passing tests.
 
 Board singleton is reset before each scenario (`_reset_board`) to avoid
 cross-scenario pollution under the class-scoped harness.
@@ -87,18 +73,13 @@ def _inject_active_job(char_id: int, board) -> "engine.smuggling.SmugglingJob":
     return job
 
 
-# ── SL1 — board renders in a board-eligible room (xfail: current_room bug) ────
+# ── SL1 — board renders in a board-eligible room ─────────────────────────────
 
 async def sl1_board_renders_in_cantina(h):
     """SL1 — `+smugjobs` renders the board without crash when the player is in
     a board-eligible room.
 
-    XFAIL until the `current_room` wiring bug is fixed (see module docstring):
-    the gate raises AttributeError → dispatch returns "An error occurred", so
-    the `error occurred` assertion below fails. Driven faithfully (NO
-    `current_room` seed) so this honestly reflects the live server.
-
-    Asserts (the behaviour we want once fixed):
+    Asserts:
       - No traceback / error-occurred in output.
       - "smuggling" header visible.
       - At least one job id ("smug-") present.
@@ -124,17 +105,13 @@ async def sl1_board_renders_in_cantina(h):
     )
 
 
-# ── SL2 — accept → active cargo (xfail: current_room bug) ─────────────────────
+# ── SL2 — accept → active cargo ───────────────────────────────────────────────
 
 async def sl2_accept_and_view_active_run(h):
     """SL2 — `smugaccept <id>` marks a job accepted; `+smugjob` shows the
     active run.
 
-    XFAIL until the `current_room` wiring bug is fixed: `+smugjobs` errors
-    before any job is seeded, so `board.available_jobs()` is empty and the
-    assertion below fails. Driven faithfully (no workaround).
-
-    Asserts (once fixed):
+    Asserts:
       - `smugaccept <id>` confirms acceptance + reward.
       - `+smugjob` renders "ACTIVE SMUGGLING RUN".
       - Board state: job ACCEPTED, accepted_by == char_id.
@@ -232,18 +209,15 @@ async def sl3_deliver_refusal_not_docked(h):
     )
 
 
-# ── SL4 — board refuses from a non-board room (xfail: current_room bug) ────────
+# ── SL4 — board refuses from a non-board room ─────────────────────────────────
 
 async def sl4_board_refused_outside_eligible_room(h):
     """SL4 — `+smugjobs` refuses with the "near a cantina" message when the
     player is in a room whose name has none of the board keywords.
 
-    XFAIL until the `current_room` wiring bug is fixed: with the gate broken,
-    `+smugjobs` errors (AttributeError) before it can evaluate the room name,
-    so the refusal string never appears. Once `current_room` is set, room 2
-    ("Mos Eisley Street" — no board keyword) yields the proper refusal.
+    Room 2 ("Mos Eisley Street") has no board keyword → proper refusal.
 
-    Asserts (once fixed):
+    Asserts:
       - No traceback / error-occurred.
       - Output contains the cantina/docking-bay/underground refusal.
       - No board job id rendered.
