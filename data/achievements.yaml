@@ -366,3 +366,38 @@ achievements:
     icon: "🗡️"
     cp_reward: 5
     trigger: {event: "chain_graduation", count: 1, chain_id: "master_jedi_lightsaber"}
+
+  # T5-questline arc Drop B slices 2-5 (2026-06-13): the remaining four
+  # master-trainer questlines. Same end-game cp_reward as the Hermit's
+  # Trial — these are dangerous trials, not tutorials.
+  - key: pit_bosss_favor
+    name: "The Pit Boss's Favor"
+    description: "Earned Vossk the Armorer's respect in the Nar Shaddaa fighting pits. The top-spec blaster rifle is within your reach."
+    category: profession
+    icon: "🔫"
+    cp_reward: 5
+    trigger: {event: "chain_graduation", count: 1, chain_id: "master_hutt_blaster"}
+
+  - key: field_test_hyperdrive
+    name: "Field Test: Hyperdrive"
+    description: "Passed Lieutenant Corso Venn's field test on Geonosis. The hyperdrive surge converter is within your reach."
+    category: profession
+    icon: "🛠️"
+    cp_reward: 5
+    trigger: {event: "chain_graduation", count: 1, chain_id: "master_republic_hyperdrive"}
+
+  - key: power_run_ion
+    name: "Power Run: Ion Core"
+    description: "Hand-tuned a salvaged powerplant under fire for Chief Dax Orrin. The mil-spec ion engine core is within your reach."
+    category: profession
+    icon: "⚡"
+    cp_reward: 5
+    trigger: {event: "chain_graduation", count: 1, chain_id: "master_republic_ion"}
+
+  - key: warrens_forge
+    name: "The Warrens Forge"
+    description: "Survived Tonnika the Smith's trial in the Nar Shaddaa Warrens. Master-grade armor is within your reach."
+    category: profession
+    icon: "🛡️"
+    cp_reward: 5
+    trigger: {event: "chain_graduation", count: 1, chain_id: "master_armorer_armor"}

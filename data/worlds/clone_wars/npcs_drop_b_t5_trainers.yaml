@@ -143,3 +143,412 @@ npcs:
         - "*The krayt-spawn lets out a bone-rattling roar.*"
         - "*It lunges, claws raking the air where you stood.*"
         - "*The creature circles, low and predatory, between you and the canyon mouth.*"
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Q2. HUTT WEAPONSMITH — Vossk the Armorer
+  # Trainer for: t5_top_spec_blaster_rifle | Questline: master_hutt_blaster
+  # Placement: Nar Shaddaa - Fighting Pits (nar_shaddaa_undercity, contested)
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Vossk the Armorer
+    room: "Nar Shaddaa - Fighting Pits"
+    species: Trandoshan
+    description: >-
+      A heavyset Trandoshan hunched over a workbench wedged into an alcove
+      above the fighting pits, where the roar of the crowd covers the whine
+      of his tools. Scaled hands that could crush a skull instead move with
+      a gunsmith's precision over a half-built blaster. He runs the cartel's
+      real iron — the top-spec work that never sees a topside shelf — and he
+      sizes up everyone who approaches by exactly one measure: are you
+      useful? His workbench is scattered with capacitor cores worth more
+      than most of the fighters bleeding in the pit below.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+2
+        mechanical: 2D+1
+        perception: 3D
+        strength: 4D
+        technical: 4D+2
+      skills:
+        blaster: 5D
+        blaster_repair: 8D+1
+        brawling: 4D+2
+        intimidation: 4D
+        streetwise: 4D+1
+        bargain: 3D+2
+      weapon: blaster_rifle
+      move: 9
+      force_points: 1
+      character_points: 6
+      dark_side_points: 1
+    ai_config:
+      trainer: true
+      train_skills: []
+      personality: >-
+        A cartel weaponsmith — gruff, transactional, respects competence
+        and nothing else. Tests whether a seeker is USEFUL to the cartel
+        before teaching. Not cruel, but not warm; the pits burned the warm
+        out of him a long time ago.
+      knowledge:
+        - "He builds top-spec blasters for the Hutt cartel; the spec is taught only to those who prove useful AND earn cartel standing (rep 50+)."
+        - "He works the Nar Shaddaa fighting pits because the noise hides his real trade."
+        - "He will not name his Hutt patron, and steers off questions about cartel leadership."
+      faction: hutt_cartel
+      dialogue_style: >-
+        Trandoshan rasp, clipped. Calls people 'soft-skin' when annoyed.
+        Punctuates with a short 'Heh.'
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'Useful, or in my way. Pick one, soft-skin.'"
+        - "*Vossk doesn't look up from the blaster he's tuning.*"
+        - "'Heh. The cartel pays for results, not talk.'"
+
+  - name: Undercity Cartel Enforcer
+    room: "Nar Shaddaa - Undercity Depths"
+    species: Weequay
+    description: >-
+      A slab of a Weequay in scarred armor plate, working the Undercity for
+      a rival cartel. He carries a vibro-axe like he's used it more than
+      he's cleaned it, and he's decided that anyone collecting debts on his
+      turf is fair game to roll. He plants himself between you and the way
+      out, axe already swinging up.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 1D+2
+        mechanical: 2D
+        perception: 2D+2
+        strength: 4D+1
+        technical: 1D+2
+      skills:
+        brawling: 4D+2
+        melee_combat: 4D+1
+        dodge: 3D+1
+        intimidation: 4D
+      weapon: vibroaxe
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      chain_enemy_template: undercity_cartel_enforcer
+      personality: >-
+        A rival-cartel muscle, aggressive and territorial. No real
+        dialogue beyond threats; he's a combat obstacle on the way out.
+      knowledge:
+        - "A rival enforcer; speaks only threats, fights to win."
+      faction: criminal
+      dialogue_style: >-
+        Short Weequay threats and grunts.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Wrong turf, debt-runner.'"
+        - "*The enforcer hefts his vibro-axe and grins.*"
+        - "*He swings, the axe humming past your head.*"
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Q3. REPUBLIC HYPERDRIVE SPECIALIST — Lieutenant Corso Venn
+  # Trainer for: t5_hyperdrive_surge_converter | Questline: master_republic_hyperdrive
+  # Placement: Geonosis - CIS Field Command Post (geonosis_deep_hive, contested)
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Lieutenant Corso Venn
+    room: "Geonosis - CIS Field Command Post"
+    species: Human
+    description: >-
+      A wiry Republic engineer-corps officer in field-stained fatigues,
+      working out of a captured CIS command post with a downed gunship
+      drive cracked open on a bench beside her. Grease to the elbows, a
+      datapad in one hand and a hydrospanner in the other, she runs her
+      forward repair station with the brisk economy of someone who has
+      fixed drives under fire before and expects to again. She grades
+      engineers by what they can do with a damaged drive and a deadline,
+      not by their requisition paperwork.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 3D
+        mechanical: 3D+1
+        perception: 3D
+        strength: 2D+1
+        technical: 4D+2
+      skills:
+        blaster: 4D
+        space_transports_repair: 8D+2
+        capital_ship_repair: 5D
+        dodge: 3D+1
+        command: 3D+2
+        tactics: 3D
+      weapon: blaster_rifle
+      move: 10
+      force_points: 1
+      character_points: 6
+      dark_side_points: 0
+    ai_config:
+      trainer: true
+      train_skills: []
+      personality: >-
+        A Republic engineer-corps officer, brisk and field-practical.
+        Teaches by doing, tests under pressure. Fair, demanding, dry sense
+        of humor about how often things explode.
+      knowledge:
+        - "She signs off on the hyperdrive surge converter spec only after a field test, and only for engineers the Republic trusts (rep 50+)."
+        - "She holds a forward engineer-corps post on Geonosis, repairing battle-damaged drives near the line."
+        - "She keeps off canonical command figures and the politics of the war; her war is the drive on the bench."
+      faction: republic
+      dialogue_style: >-
+        Clipped military-engineer cadence. 'Field rule one,' etc.
+      hostile: false
+      combat_behavior: tactical
+      fallback_lines:
+        - "'Field rule one: read it before you touch it.'"
+        - "*Corso wipes grease from a coupling and squints at you.*"
+        - "'Talk's cheap, engineer. The drive isn't.'"
+
+  - name: Geonosis B1 Patrol Droid
+    room: "Geonosis - Upper Hive Tunnel"
+    species: Droid
+    description: >-
+      A CIS B1 battle droid on probe-and-patrol through the hive tunnels,
+      blaster carbine up, photoreceptor sweeping. Drawn to the forward
+      post by the reactor draw of a live engineering test, it advances up
+      the tunnel with the loose-limbed, expendable confidence of factory
+      war materiel.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D
+        strength: 2D
+        technical: 1D
+      skills:
+        blaster: 3D+1
+        dodge: 2D+2
+      weapon: blaster_carbine
+      move: 9
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      chain_enemy_template: geonosis_b1_patrol_droid
+      personality: >-
+        A standard CIS B1 patrol droid. Mechanical, expendable, fights to
+        protocol. Combat foil for the hold-the-line beat.
+      knowledge:
+        - "A battle droid; stock CIS phrases only."
+      faction: cis
+      dialogue_style: >-
+        B1 stock phrases. 'Roger roger.'
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Roger roger.'"
+        - "'Halt! Identify!'"
+        - "*The droid raises its carbine and fires.*"
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Q4. REPUBLIC ION-ENGINE SPECIALIST — Chief Dax Orrin
+  # Trainer for: t5_mil_spec_ion_engine_core | Questline: master_republic_ion
+  # Placement: Geonosis - Main Hive Chamber (geonosis_deep_hive, contested)
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Chief Dax Orrin
+    room: "Geonosis - Main Hive Chamber"
+    species: Human
+    description: >-
+      A broad, soft-spoken Republic chief petty officer with a powerplant
+      specialist's burn-scarred forearms, holding a Geonosis hive chamber
+      around a salvaged CIS reactor that he treats with the wary respect of
+      a man who has seen one go critical. He tunes powerplants by ear and
+      by feel as much as by gauge, and he teaches the ion-core spec only to
+      engineers who can do the same — by hand, under pressure, without
+      cooking the chamber.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 2D+2
+        mechanical: 3D
+        perception: 3D+1
+        strength: 3D
+        technical: 4D+2
+      skills:
+        blaster: 4D
+        space_transports_repair: 8D+1
+        capital_ship_repair: 5D+1
+        dodge: 3D
+        brawling: 3D+2
+      weapon: blaster_rifle
+      move: 10
+      force_points: 1
+      character_points: 6
+      dark_side_points: 0
+    ai_config:
+      trainer: true
+      train_skills: []
+      personality: >-
+        A Republic powerplant chief — calm, careful, teaches by feel.
+        Soft-spoken but exacting; the kind of engineer who is never rushed
+        because rushing a reactor kills people.
+      knowledge:
+        - "He signs off on the mil-spec ion engine core spec only after a hand-tuning test, for engineers the Republic trusts (rep 50+)."
+        - "He holds a Geonosis hive chamber around a salvaged CIS reactor."
+        - "He doesn't discuss the war's command or politics; his concern is the powerplant in front of him."
+      faction: republic
+      dialogue_style: >-
+        Low, measured, unhurried. 'Easy,' is his most common word.
+      hostile: false
+      combat_behavior: tactical
+      fallback_lines:
+        - "'Easy. A powerplant punishes a rushed hand.'"
+        - "*Dax rests a palm on the reactor housing, listening.*"
+        - "'You tune by feel, or you don't tune at all.'"
+
+  - name: Geonosis Drone-Warrior
+    room: "Geonosis - Warrior Caste Barracks"
+    species: Geonosian
+    description: >-
+      A Geonosian drone-warrior of the soldier caste, chitinous and
+      wing-folded, force pike in its claws. The reactor draw of an
+      off-worlder's tuning run rings through the hive like an alarm, and
+      the drone has come to reclaim what its hive built. It drops from a
+      barracks tunnel, pike leveled, hive-fury in its faceted eyes.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 1D+1
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+1
+        technical: 1D+2
+      skills:
+        melee_combat: 4D+2
+        brawling: 4D
+        dodge: 3D+2
+        blaster: 3D
+      weapon: force_pike
+      move: 12
+      force_points: 0
+      character_points: 1
+      dark_side_points: 0
+    ai_config:
+      chain_enemy_template: geonosis_drone_warrior
+      personality: >-
+        A hive soldier-caste warrior defending its reactor. No negotiation;
+        pure hive-defense combat. Foil for the defend-the-chamber beat.
+      knowledge:
+        - "A Geonosian drone; communicates only in hive-clicks and aggression."
+      faction: cis
+      dialogue_style: >-
+        Geonosian clicks and chittering; no Basic.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The drone-warrior clicks furiously and levels its force pike.*"
+        - "*It lunges, wings buzzing, pike thrumming.*"
+        - "*The Geonosian shrieks a hive-call and presses the attack.*"
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Q5. MASTER ARMORER — Sabra the Smith
+  # Trainer for: t5_master_grade_armor | Questline: master_armorer_armor
+  # Placement: Nar Shaddaa - The Warrens - Scavenger Den (nar_shaddaa_warrens, wilds)
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Sabra the Smith
+    room: "Nar Shaddaa - The Warrens - Scavenger Den"
+    species: Zabrak
+    description: >-
+      A lean, horned Zabrak woman working a forge cobbled together from
+      salvage in the deepest scavenger den of the Warrens, where the air
+      tastes of fungus and hot metal. Her arms are a map of old burns and
+      her eyes miss nothing. She left the guilds and the topside trade
+      years ago to work plate the way she wants, for people who can survive
+      coming to find her. She judges a seeker by their hands and their
+      nerve — the Warrens sort out the rest.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+1
+        mechanical: 2D+2
+        perception: 3D+1
+        strength: 3D+1
+        technical: 4D+2
+      skills:
+        blaster: 4D
+        armor_repair: 8D+2
+        brawling: 4D+1
+        dodge: 3D+2
+        survival: 4D
+        search: 4D+1
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 1
+      character_points: 6
+      dark_side_points: 0
+    ai_config:
+      trainer: true
+      train_skills: []
+      personality: >-
+        An independent master armorer, blunt and self-reliant. Left the
+        guilds to work on her own terms. Respects work and nerve; has no
+        patience for anyone who expects the spec handed to them.
+      knowledge:
+        - "She teaches master-grade armor only to those who prove they can work AND survive the Warrens, and who earn independent standing (rep 50+)."
+        - "She works a hidden forge in the deepest Warrens scavenger den."
+        - "She left the crafting guilds and won't be drawn into guild or faction politics."
+      faction: independent
+      dialogue_style: >-
+        Dry, direct, Warrens-hardened. Says 'by hand' a lot.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'Plate's earned, not bought. By hand or not at all.'"
+        - "*Sabra sets down her hammer and looks you over.*"
+        - "'The Warrens'll tell me if you're worth teaching.'"
+
+  - name: Warrens Stalker
+    room: "Nar Shaddaa - The Warrens - Collapsed Plaza"
+    species: Creature
+    description: >-
+      A pale, many-legged predator bred in the lightless depths of the
+      Warrens — all hooks and silence, hunting by sound. The whine of a
+      forge test rig drew it, and now it has driven you into the collapsed
+      plaza where it does its killing. It moves without a sound until it
+      strikes.
+    char_sheet:
+      attributes:
+        dexterity: 4D
+        knowledge: 1D
+        mechanical: 1D
+        perception: 4D+1
+        strength: 4D
+        technical: 1D
+      skills:
+        brawling: 5D
+        dodge: 4D+1
+        sneak: 5D+2
+        search: 4D+2
+      weapon: claws
+      move: 13
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      chain_enemy_template: warrens_stalker
+      personality: >-
+        A silent ambush predator. No dialogue; hunts by sound, strikes
+        from cover. Combat foil for the Warrens guardian beat.
+      knowledge:
+        - "A Warrens beast; silent, no communication but the hunt."
+      faction: wildlife
+      dialogue_style: >-
+        Utterly silent until it strikes; then a high, chittering shriek.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*Something pale and many-legged shifts in the rubble — silent.*"
+        - "*The stalker strikes from cover, hooks raking.*"
+        - "*It shrieks, high and grating, and circles for another pass.*"

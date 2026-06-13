@@ -1519,6 +1519,615 @@ chains:
           Trial complete. `talk` to Master Vehn to learn the
           Master-Crafted Lightsaber (Jedi Order rep 50+ required).
 
+  # ─── Q2. HUTT WEAPONSMITH — "The Pit Boss's Favor" → t5 blaster ──────
+  - chain_id: master_hutt_blaster
+    chain_name: "The Pit Boss's Favor"
+    description: >
+      A Hutt-cartel weaponsmith who runs guns out of the Nar Shaddaa
+      fighting pits will teach the building of a top-spec blaster rifle —
+      to someone who proves useful, settles a debt in the Undercity, and
+      walks back out of the pits alive. Rich, dangerous, end-game.
+    archetype_label: "Top-Spec Blaster Rifle Trial"
+    faction_alignment: hutt_cartel
+    starting_zone: nar_shaddaa_undercity
+    starting_room: fighting_pits
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 40
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 500
+      faction_rep:
+        hutt_cartel: 3
+      items: []
+      achievements: ["pit_bosss_favor"]
+      drop_room: fighting_pits
+      follow_up_hint: >
+        Vossk will now build you a Top-Spec Blaster Rifle. With the Hutt
+        Cartel honored (rep 50+) you can `learn` it — `talk` to begin,
+        then bring a q75+ weapons capacitor core and craft.
+
+    steps:
+      - step: 1
+        title: "The Weaponsmith of the Pits"
+        location: fighting_pits
+        npc: "Vossk the Armorer"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Find Vossk the Armorer at the fighting pits."
+        npc_intro: >
+          "You want the good iron — the top-spec work, not the junk the
+          cartel sells topside. Heh. Everyone does. I build for those who
+          are USEFUL to the cartel. First, `search` the pits — somebody
+          stashed a debt-marker chit down here and the boss wants it
+          found before the next fight."
+        completion:
+          type: talk_to_npc
+          npc: "Vossk the Armorer"
+        npc_complete: >
+          "Go on. `search` the pits. The chit's here somewhere — under a
+          loose grate, behind the betting cage. Bring it to me."
+        reward:
+          faction_rep:
+            hutt_cartel: 2
+        next_hint: "Find the debt-marker — `search` the fighting pits."
+
+      - step: 2
+        title: "The Debt-Marker"
+        location: fighting_pits
+        npc: "Vossk the Armorer"
+        npc_role: instructor
+        teaches: ["search"]
+        objective: "Search the fighting pits for the cartel's debt-marker."
+        npc_intro: >
+          "It's down here. Cartel chits don't walk off on their own —
+          someone hid it. `search`. Use your eyes; the pit crowd won't
+          help you."
+        completion:
+          type: command_executed
+          command: "search"
+        npc_complete: >
+          "There it is. Good. Now — the deadbeat who owes on that chit is
+          holed up in the Spice Den, and he won't pay quiet. Lean on him.
+          You'll need to `intimidate` your way past his nerve."
+        reward:
+          faction_rep:
+            hutt_cartel: 2
+        next_hint: "Collect the debt at the Spice Den — `chain attempt`."
+
+      - step: 3
+        title: "Collecting the Debt"
+        location: spice_den
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["intimidate"]
+        objective: "Intimidate the deadbeat into paying the cartel's debt."
+        npc_intro: >
+          [The deadbeat is slumped in a Spice Den booth, glassy-eyed but
+          armed. The chit says he owes. Vossk says collect.] "Make him
+          understand," Vossk had said. Steady your nerve and lean hard —
+          `chain attempt` to apply pressure.
+        completion:
+          type: skill_check_passed
+          skill: "intimidation"
+          difficulty: 10
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [He pays — fast, hands shaking. But debt-collecting in the
+          Undercity draws attention, and a pit enforcer who works the
+          OTHER cartel decides you're worth rolling on your way out.]
+        reward:
+          faction_rep:
+            hutt_cartel: 3
+        next_hint: "An enforcer blocks your way out. Fight."
+
+      - step: 4
+        title: "No Quiet Exit"
+        location: undercity_depths
+        npc: "(none)"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Defeat the rival-cartel enforcer."
+        npc_intro: >
+          [The enforcer corners you in the Undercity depths — a slab of
+          muscle with a vibro-axe and a grudge. No talking past this one.
+          `attack` him, `dodge` the axe.]
+        completion:
+          type: combat_won
+          enemy_template: "undercity_cartel_enforcer"
+          enemy_count: 1
+        npc_complete: >
+          [The enforcer goes down hard. The depths go quiet. You've got
+          the cartel's credits and a story Vossk will like. Back to the
+          pits.]
+        reward:
+          credits: 200
+          faction_rep:
+            hutt_cartel: 4
+        next_hint: "Return to Vossk at the fighting pits."
+
+      - step: 5
+        title: "Useful Enough"
+        location: fighting_pits
+        npc: "Vossk the Armorer"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Vossk to finish the job."
+        npc_intro: >
+          "Debt collected, enforcer flat, and you walked back. Heh. The
+          boss noticed. THAT'S useful."
+        completion:
+          type: talk_to_npc
+          npc: "Vossk the Armorer"
+        npc_complete: >
+          "I'll build you the top-spec iron. Come back when the cartel
+          trusts you proper — and bring me a capacitor core worth the
+          work. Don't make me regret it."
+        reward:
+          faction_rep:
+            hutt_cartel: 3
+        next_hint: >
+          Trial complete. `talk` to Vossk to learn the Top-Spec Blaster
+          Rifle (Hutt Cartel rep 50+ required).
+
+  # ─── Q3. REPUBLIC HYPERDRIVE SPECIALIST — "Field Test" → t5 hyperdrive ─
+  - chain_id: master_republic_hyperdrive
+    chain_name: "Field Test: Hyperdrive"
+    description: >
+      A Republic engineer-corps officer dug into a forward position on
+      Geonosis will teach the building of a hyperdrive surge converter —
+      to an engineer who can diagnose a battle-damaged drive under fire
+      and hold the line while the test runs. Rich, dangerous, end-game.
+    archetype_label: "Hyperdrive Surge Converter Trial"
+    faction_alignment: republic
+    starting_zone: geonosis_deep_hive
+    starting_room: geonosis_cis_command_post
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 40
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 500
+      faction_rep:
+        republic: 3
+      items: []
+      achievements: ["field_test_hyperdrive"]
+      drop_room: geonosis_cis_command_post
+      follow_up_hint: >
+        Lieutenant Corso will sign off on the Hyperdrive Surge Converter.
+        With the Republic honored (rep 50+) you can `learn` it — `talk`
+        to begin, then bring q75+ scavenged Republic tech and craft.
+
+    steps:
+      - step: 1
+        title: "The Engineer-Corps Forward Post"
+        location: geonosis_cis_command_post
+        npc: "Lieutenant Corso Venn"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Report to Lieutenant Corso Venn at the forward post."
+        npc_intro: >
+          "Engineer-corps, forward of the line. You want the surge-
+          converter spec — that's drive work nobody hands out on a
+          requisition form. We earn it in the field. There's a downed
+          gunship drive on this position took a hit in the push. `scan`
+          it, tell me what's wrong with it."
+        completion:
+          type: talk_to_npc
+          npc: "Lieutenant Corso Venn"
+        npc_complete: >
+          "Drive's on the bench behind me. `scan` the hyperdrive — read
+          its diagnostic before you touch anything. Field rule one."
+        reward:
+          faction_rep:
+            republic: 2
+        next_hint: "Diagnose the drive — `scan` the hyperdrive."
+
+      - step: 2
+        title: "Reading the Damage"
+        location: geonosis_cis_command_post
+        npc: "Lieutenant Corso Venn"
+        npc_role: instructor
+        teaches: ["scan"]
+        objective: "Scan the battle-damaged hyperdrive."
+        npc_intro: >
+          "`scan` the drive. A surge converter only works if you know
+          where the surge went WRONG. Read it."
+        completion:
+          type: command_executed
+          command: "scan"
+        npc_complete: >
+          "Surge-line burnout — textbook. Now the field part: I need you
+          to bench-test a converter prototype while it's live. That's a
+          `space transports repair` job under pressure. `chain attempt`
+          when you're ready to run the test."
+        reward:
+          faction_rep:
+            republic: 2
+        next_hint: "Run the live bench test — `chain attempt`."
+
+      - step: 3
+        title: "The Live Test"
+        location: geonosis_cis_command_post
+        npc: "Lieutenant Corso Venn"
+        npc_role: instructor
+        teaches: ["repair"]
+        objective: "Bench-test the surge converter prototype."
+        npc_intro: >
+          [The prototype is live on the bench, drawing power off the
+          forward post's reactor. One wrong move and it overloads.]
+          "Steady hands, engineer. `chain attempt` — `space transports
+          repair` against the test rig."
+        completion:
+          type: skill_check_passed
+          skill: "space_transports_repair"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The converter holds — clean surge, no overload. Then the post
+          alarm goes: a CIS droid probe-and-patrol found your position,
+          drawn by the reactor draw. They're inbound. Hold the line.]
+        reward:
+          faction_rep:
+            republic: 3
+        next_hint: "CIS droids inbound. Defend the post."
+
+      - step: 4
+        title: "Hold the Line"
+        location: geonosis_upper_tunnel
+        npc: "(none)"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Defeat the CIS droid patrol."
+        npc_intro: >
+          [B1s push up the hive tunnel toward the post, blasters up. The
+          test's done; now you cover the withdrawal. `attack` the
+          droids, `dodge` their fire.]
+        completion:
+          type: combat_won
+          enemy_template: "geonosis_b1_patrol_droid"
+          enemy_count: 1
+        npc_complete: >
+          [The last droid drops, optics dark. The post holds. Corso's
+          prototype data is safe — and so is your field record.]
+        reward:
+          credits: 200
+          faction_rep:
+            republic: 4
+        next_hint: "Report back to Lieutenant Corso."
+
+      - step: 5
+        title: "Field-Certified"
+        location: geonosis_cis_command_post
+        npc: "Lieutenant Corso Venn"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Report your field test to Lieutenant Corso."
+        npc_intro: >
+          "Converter test green, position held, droids down. That's a
+          field cert in my book — the kind requisition forms can't give."
+        completion:
+          type: talk_to_npc
+          npc: "Lieutenant Corso Venn"
+        npc_complete: >
+          "I'll sign you for the surge-converter spec. Come back when the
+          Republic trusts you proper, with scavenged drive tech worth
+          building on. Dismissed, engineer."
+        reward:
+          faction_rep:
+            republic: 3
+        next_hint: >
+          Trial complete. `talk` to Lieutenant Corso to learn the
+          Hyperdrive Surge Converter (Republic rep 50+ required).
+
+  # ─── Q4. REPUBLIC ION-ENGINE SPECIALIST — "Power Run" → t5 ion core ──
+  - chain_id: master_republic_ion
+    chain_name: "Power Run: Ion Core"
+    description: >
+      A Republic engineer-corps powerplant specialist holding a Geonosis
+      hive chamber will teach the building of a mil-spec ion engine core
+      — to an engineer who can tune a salvaged powerplant by hand and
+      defend the chamber when the tuning draws the hive. Rich, dangerous,
+      end-game.
+    archetype_label: "Mil-Spec Ion Engine Core Trial"
+    faction_alignment: republic
+    starting_zone: geonosis_deep_hive
+    starting_room: geonosis_hive_main_chamber
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 40
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 500
+      faction_rep:
+        republic: 3
+      items: []
+      achievements: ["power_run_ion"]
+      drop_room: geonosis_hive_main_chamber
+      follow_up_hint: >
+        Chief Petty Officer Dax will sign off on the Mil-Spec Ion Engine
+        Core. With the Republic honored (rep 50+) you can `learn` it —
+        `talk` to begin, then bring q75+ deep-dune iron and craft.
+
+    steps:
+      - step: 1
+        title: "The Powerplant Chief"
+        location: geonosis_hive_main_chamber
+        npc: "Chief Dax Orrin"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Report to Chief Dax Orrin in the hive chamber."
+        npc_intro: >
+          "Mil-spec ion core, eh? That's a powerplant secret, not a parts
+          list. We hold this chamber because the salvaged CIS reactor in
+          it is worth more than the position. You want the core spec, you
+          help me tame it. `examine` the reactor housing first — tell me
+          what we're working with."
+        completion:
+          type: talk_to_npc
+          npc: "Chief Dax Orrin"
+        npc_complete: >
+          "Reactor's against the far wall. `examine` the housing — careful,
+          it's salvage, not spec. Then we tune."
+        reward:
+          faction_rep:
+            republic: 2
+        next_hint: "Inspect the reactor — `examine` the housing."
+
+      - step: 2
+        title: "Salvaged Power"
+        location: geonosis_hive_main_chamber
+        npc: "Chief Dax Orrin"
+        npc_role: instructor
+        teaches: ["examine"]
+        objective: "Examine the salvaged CIS reactor housing."
+        npc_intro: >
+          "`examine` the housing. You can't tune a powerplant you don't
+          understand — and CIS salvage doesn't read like Republic kit."
+        completion:
+          type: command_executed
+          command: "examine"
+        npc_complete: >
+          "Now you see the problem — the regulator's fighting the core.
+          Tuning it by hand is the test. `chain attempt` — that's a
+          `space transports repair` job, and the margins are tight."
+        reward:
+          faction_rep:
+            republic: 2
+        next_hint: "Tune the powerplant by hand — `chain attempt`."
+
+      - step: 3
+        title: "Tuning by Hand"
+        location: geonosis_hive_main_chamber
+        npc: "Chief Dax Orrin"
+        npc_role: instructor
+        teaches: ["repair"]
+        objective: "Hand-tune the salvaged ion powerplant."
+        npc_intro: >
+          [The regulator hums wrong, power surging against the core's
+          limits. Tune it live or it cooks.] "Easy," Dax murmurs.
+          "`chain attempt` — `space transports repair`, and feel the
+          margin."
+        completion:
+          type: skill_check_passed
+          skill: "space_transports_repair"
+          difficulty: 11
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The powerplant settles into a clean, deep hum — mil-spec
+          steady. But a full reactor draw rings through the hive, and the
+          Geonosians who built this place come to reclaim it.]
+        reward:
+          faction_rep:
+            republic: 3
+        next_hint: "Geonosian warriors converge. Defend the chamber."
+
+      - step: 4
+        title: "Reclaimers"
+        location: geonosis_warrior_barracks
+        npc: "(none)"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Defeat the Geonosian warrior."
+        npc_intro: >
+          [A Geonosian drone-warrior drops from a barracks tunnel, sonic
+          pike leveled, hive-furious that off-worlders woke its reactor.
+          `attack`, `dodge` the pike.]
+        completion:
+          type: combat_won
+          enemy_template: "geonosis_drone_warrior"
+          enemy_count: 1
+        npc_complete: >
+          [The warrior falls; the chamber holds. The powerplant still
+          hums clean behind you — and Dax has his proof.]
+        reward:
+          credits: 200
+          faction_rep:
+            republic: 4
+        next_hint: "Report back to Chief Dax."
+
+      - step: 5
+        title: "Powerplant-Certified"
+        location: geonosis_hive_main_chamber
+        npc: "Chief Dax Orrin"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Report your tuning run to Chief Dax."
+        npc_intro: >
+          "Tuned by hand, held the chamber, and that core's still singing
+          mil-spec. That's the run. Not many finish it."
+        completion:
+          type: talk_to_npc
+          npc: "Chief Dax Orrin"
+        npc_complete: >
+          "I'll sign you for the ion-core spec. Come back when the
+          Republic trusts you proper, with deep-dune iron worth the
+          build. Good run, engineer."
+        reward:
+          faction_rep:
+            republic: 3
+        next_hint: >
+          Trial complete. `talk` to Chief Dax to learn the Mil-Spec Ion
+          Engine Core (Republic rep 50+ required).
+
+  # ─── Q5. MASTER ARMORER — "The Warrens Forge" → t5 armor ─────────────
+  - chain_id: master_armorer_armor
+    chain_name: "The Warrens Forge"
+    description: >
+      An independent master armorer who works a hidden forge in the Nar
+      Shaddaa Warrens will teach the crafting of master-grade armor — to
+      one who can scavenge the right composite, prove the plate against a
+      real edge, and survive what the Warrens send. Rich, dangerous,
+      end-game.
+    archetype_label: "Master-Grade Armor Trial"
+    faction_alignment: independent
+    starting_zone: nar_shaddaa_warrens
+    starting_room: warrens_scavenger_den
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 40
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 500
+      faction_rep:
+        independent: 3
+      items: []
+      achievements: ["warrens_forge"]
+      drop_room: warrens_scavenger_den
+      follow_up_hint: >
+        Sabra will teach Master-Grade Armor. With the independents
+        honored (rep 50+) you can `learn` it — `talk` to begin, then
+        bring q75+ composite chitin and craft.
+
+    steps:
+      - step: 1
+        title: "The Armorer of the Warrens"
+        location: warrens_scavenger_den
+        npc: "Sabra the Smith"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Find Sabra the Smith in the scavenger den."
+        npc_intro: >
+          "Master-grade plate. You came to the right hole in the ground —
+          and the most dangerous one. I don't sell the spec; I teach it to
+          people who can WORK. The Warrens are full of good composite if
+          you know where to dig. `search` the den — find me a chitin
+          plate worth forging."
+        completion:
+          type: talk_to_npc
+          npc: "Sabra the Smith"
+        npc_complete: >
+          "Go dig. `search` the scavenger den. The good chitin's buried
+          under the junk — most folk walk right past it."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Scavenge composite — `search` the scavenger den."
+
+      - step: 2
+        title: "Good Composite"
+        location: warrens_scavenger_den
+        npc: "Sabra the Smith"
+        npc_role: instructor
+        teaches: ["search"]
+        objective: "Search the scavenger den for composite chitin."
+        npc_intro: >
+          "`search`. Chitin plate, not scrap — you'll know it by the
+          weight. The Warrens don't give up the good stuff easy."
+        completion:
+          type: command_executed
+          command: "search"
+        npc_complete: >
+          "That's the one. Heavy, clean. Now — plate's no good if it
+          can't take an edge. There's a test rig in the fungal cavern.
+          Prove the chitin holds: `chain attempt`, armor work, by hand."
+        reward:
+          faction_rep:
+            independent: 2
+        next_hint: "Prove the plate in the fungal cavern — `chain attempt`."
+
+      - step: 3
+        title: "Proving the Plate"
+        location: warrens_fungal_cavern
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["repair"]
+        objective: "Work the chitin plate against the test rig."
+        npc_intro: >
+          [The test rig is a brutal old thing — a powered edge that bites
+          armor to grade it. Set the plate, work it true.] "By hand,"
+          Sabra had said. "`chain attempt` — `armor repair`, and feel
+          where it wants to fail."
+        completion:
+          type: skill_check_passed
+          skill: "armor_repair"
+          difficulty: 10
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [The plate takes the edge and holds — master-grade. But the
+          rig's noise carries in the Warrens, and a fungal-cavern stalker
+          that hunts by sound comes for you.]
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: "A stalker hunts the noise. Defend yourself."
+
+      - step: 4
+        title: "What the Warrens Send"
+        location: warrens_collapsed_plaza
+        npc: "(none)"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Defeat the Warrens stalker."
+        npc_intro: >
+          [It drives you into the collapsed plaza — a pale, many-legged
+          Warrens predator, all hooks and silence. `attack` it, `dodge`
+          its lunges. Your new plate earns its first scars here.]
+        completion:
+          type: combat_won
+          enemy_template: "warrens_stalker"
+          enemy_count: 1
+        npc_complete: >
+          [The stalker shrieks and folds. The plaza goes still. The plate
+          held — and so did you. Back to the forge.]
+        reward:
+          credits: 200
+          faction_rep:
+            independent: 4
+        next_hint: "Return to Sabra at the scavenger den."
+
+      - step: 5
+        title: "Forge-Proven"
+        location: warrens_scavenger_den
+        npc: "Sabra the Smith"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Sabra to finish the trial."
+        npc_intro: >
+          "Scavenged it, proved it, wore it against a stalker, and walked
+          back to my forge. That's the trial. The Warrens keep the rest."
+        completion:
+          type: talk_to_npc
+          npc: "Sabra the Smith"
+        npc_complete: >
+          "I'll teach you master-grade plate. Come back when the
+          independents trust you proper, with chitin worth the forge. Now
+          get out of my den — you've earned the right to come back."
+        reward:
+          faction_rep:
+            independent: 3
+        next_hint: >
+          Trial complete. `talk` to Sabra to learn Master-Grade Armor
+          (independent rep 50+ required).
+
 # ═══════════════════════════════════════════════════════════════════════
 # ENGINE INTEGRATION NOTES
 # ═══════════════════════════════════════════════════════════════════════

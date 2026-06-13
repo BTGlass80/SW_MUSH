@@ -734,7 +734,13 @@ schematics:
     name: "Top-Spec Blaster Rifle"
     skill_required: blaster_repair
     difficulty: 25
-    trainer_npc: ""
+    # T5-questline arc Drop B (2026-06-13): taught by Vossk the Armorer
+    # in the Nar Shaddaa fighting pits. GATED on the "The Pit Boss's
+    # Favor" questline + Hutt Cartel rep >= 50.
+    trainer_npc: "Vossk the Armorer"
+    gated_by_questline: master_hutt_blaster
+    gated_faction: hutt_cartel
+    gated_min_rep: 50
     components:
       - type: weapons_capacitor_core
         quantity: 1
@@ -756,7 +762,13 @@ schematics:
     name: "Hyperdrive Surge Converter"
     skill_required: space_transports_repair
     difficulty: 26
-    trainer_npc: ""
+    # T5-questline arc Drop B (2026-06-13): signed off by Lieutenant
+    # Corso Venn at the Geonosis forward post. GATED on the "Field Test:
+    # Hyperdrive" questline + Republic rep >= 50.
+    trainer_npc: "Lieutenant Corso Venn"
+    gated_by_questline: master_republic_hyperdrive
+    gated_faction: republic
+    gated_min_rep: 50
     components:
       - type: scavenged_republic_tech
         quantity: 1
@@ -787,7 +799,13 @@ schematics:
     name: "Mil-Spec Ion Engine Core"
     skill_required: space_transports_repair
     difficulty: 27
-    trainer_npc: ""
+    # T5-questline arc Drop B (2026-06-13): signed off by Chief Dax Orrin
+    # in the Geonosis hive chamber. GATED on the "Power Run: Ion Core"
+    # questline + Republic rep >= 50.
+    trainer_npc: "Chief Dax Orrin"
+    gated_by_questline: master_republic_ion
+    gated_faction: republic
+    gated_min_rep: 50
     components:
       - type: deep_dune_iron
         quantity: 1
@@ -815,7 +833,13 @@ schematics:
     name: "Master-Grade Armor"
     skill_required: armor_repair
     difficulty: 25
-    trainer_npc: ""
+    # T5-questline arc Drop B (2026-06-13): taught by Sabra the Smith
+    # in the Nar Shaddaa Warrens. GATED on the "The Warrens Forge"
+    # questline + independent rep >= 50.
+    trainer_npc: "Sabra the Smith"
+    gated_by_questline: master_armorer_armor
+    gated_faction: independent
+    gated_min_rep: 50
     components:
       - type: composite_chitin
         quantity: 1

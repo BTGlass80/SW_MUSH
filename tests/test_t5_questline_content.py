@@ -181,6 +181,129 @@ class TestHermitsTrialWalkthrough(_RealCorpusBase):
         self.assertEqual(_qstate(char).get("step"), 1)
 
 
+class TestAllQuestlinesWalkable(_RealCorpusBase):
+    """Data-driven: EVERY kind: questline chain in the real corpus walks
+    from start to graduation through the production dispatcher, driving
+    whatever completion type each step authors. Catches an authored step
+    whose completion shape the dispatcher can't satisfy — for ALL
+    questlines, including ones added after this test was written."""
+
+    async def _walk(self, db, char, chain):
+        from engine.chain_events import (
+            start_questline, on_talk_to_npc, on_command_executed,
+            on_skill_check_passed, on_combat_won, on_mission_accepted,
+            on_mission_completed, on_bounty_accepted,
+        )
+        from engine.tutorial_chains import (
+            get_current_step, load_tutorial_chains, _QUESTLINE_KEY,
+        )
+        corpus = load_tutorial_chains("clone_wars")
+        ok, msg = await start_questline(db, char, chain.chain_id)
+        assert ok, f"{chain.chain_id}: start failed: {msg}"
+        # Walk up to len(steps) transitions; assert each one advances.
+        for guard in range(len(chain.steps) + 1):
+            attrs = _attrs(char)
+            step = get_current_step(attrs, corpus, _QUESTLINE_KEY)
+            if step is None:
+                return  # graduated
+            comp = step.completion or {}
+            ctype = comp.get("type")
+            before = (_attrs(char).get(_QUESTLINE_KEY) or {}).get("step")
+            if ctype == "talk_to_npc":
+                await on_talk_to_npc(db, char, comp.get("npc", ""))
+            elif ctype == "command_executed":
+                await on_command_executed(
+                    db, char, comp.get("command", ""),
+                    comp.get("target_contains", "") or "")
+            elif ctype == "skill_check_passed":
+                await on_skill_check_passed(
+                    db, char, comp.get("skill", ""), True,
+                    difficulty=comp.get("difficulty", 0))
+            elif ctype == "combat_won":
+                # satisfy enemy_count cumulative kills
+                for _ in range(int(comp.get("enemy_count", 1) or 1)):
+                    await on_combat_won(
+                        db, char, comp.get("enemy_template", ""), 1)
+            elif ctype == "mission_accepted":
+                await on_mission_accepted(db, char, comp.get("mission_id", ""))
+            elif ctype == "mission_completed":
+                await on_mission_completed(db, char, comp.get("mission_id", ""))
+            elif ctype == "bounty_accepted":
+                await on_bounty_accepted(db, char, comp.get("bounty_id", ""))
+            else:
+                raise AssertionError(
+                    f"{chain.chain_id} step {before}: unhandled completion "
+                    f"type {ctype!r} in the walker")
+            after = (_attrs(char).get(_QUESTLINE_KEY) or {}).get("step")
+            grad = (_attrs(char).get(_QUESTLINE_KEY) or {}).get(
+                "completion_state") == "graduated"
+            assert after != before or grad, (
+                f"{chain.chain_id} step {before} ({ctype}) did not advance")
+
+    def test_every_questline_walks_to_graduation(self):
+        from engine.chain_events import list_questlines
+        from engine.tutorial_chains import is_chain_complete, _QUESTLINE_KEY
+        qls = list_questlines()
+        self.assertGreaterEqual(len(qls), 5)  # the 5 master trainers
+        for chain in qls:
+            char = _char()
+            db = _make_fake_db()
+            _run(self._walk(db, char, chain))
+            self.assertTrue(
+                is_chain_complete(_attrs(char), _QUESTLINE_KEY),
+                f"{chain.chain_id} did not reach graduation",
+            )
+
+
+class TestAllT5SchematicsGated(_RealCorpusBase):
+    """Every t5_* schematic now has a trainer + a gate pointing at a real
+    questline. No t5 recipe is teachable without earning it. Pins the
+    full slice-1..5 wiring: 5 schematics, 5 trainers, 5 questlines."""
+
+    EXPECTED = {
+        "t5_master_crafted_lightsaber": ("Master Vehn Tasaal",
+                                         "master_jedi_lightsaber", "jedi_order"),
+        "t5_top_spec_blaster_rifle": ("Vossk the Armorer",
+                                      "master_hutt_blaster", "hutt_cartel"),
+        "t5_hyperdrive_surge_converter": ("Lieutenant Corso Venn",
+                                          "master_republic_hyperdrive", "republic"),
+        "t5_mil_spec_ion_engine_core": ("Chief Dax Orrin",
+                                        "master_republic_ion", "republic"),
+        "t5_master_grade_armor": ("Sabra the Smith",
+                                  "master_armorer_armor", "independent"),
+    }
+
+    def test_all_t5_gated_to_real_questlines(self):
+        from engine.crafting import get_all_schematics
+        from engine.chain_events import list_questlines
+        schems = get_all_schematics()
+        ql_ids = {q.chain_id for q in list_questlines()}
+        # No t5_* schematic may have an empty trainer_npc or a dangling gate.
+        for key, schem in schems.items():
+            if not key.startswith("t5_"):
+                continue
+            self.assertIn(key, self.EXPECTED,
+                          f"t5 schematic {key} not in the expected gate map "
+                          f"— a new t5 recipe must ship a trainer+gate")
+            npc, quest, faction = self.EXPECTED[key]
+            self.assertEqual(schem.get("trainer_npc"), npc, key)
+            self.assertEqual(schem.get("gated_by_questline"), quest, key)
+            self.assertEqual(schem.get("gated_faction"), faction, key)
+            self.assertEqual(int(schem.get("gated_min_rep", 0)), 50, key)
+            # the gate's questline must really exist in the corpus
+            self.assertIn(quest, ql_ids,
+                          f"{key} gated on questline {quest} not in corpus")
+
+    def test_no_t5_schematic_left_ungated(self):
+        from engine.crafting import get_all_schematics
+        for key, schem in get_all_schematics().items():
+            if key.startswith("t5_"):
+                self.assertTrue(
+                    schem.get("gated_by_questline"),
+                    f"t5 schematic {key} has no gated_by_questline — it "
+                    f"would be teachable without earning it")
+
+
 class TestT5LightsaberGate(_RealCorpusBase):
     """The schematic gate: t5 lightsaber hidden until questline done +
     Jedi Order rep >= 50."""

@@ -201,8 +201,9 @@ gate fields} + test extensions). To keep the "rich = stranding" risk
   schematic gate), proven by the static reachability invariant AND a
   content walkthrough test that drives start→graduation through the real
   dispatcher hooks. This establishes the template.
-- **Drop B slices 2–5 (companion drop):** the remaining masters, each a
-  mechanical repeat of slice 1's proven template:
+- **Drop B slices 2–5 (LANDED 2026-06-13, drop 35):** the remaining
+  masters, each a mechanical repeat of slice 1's proven template, all
+  walkthrough-proven by the data-driven all-questlines test:
   - Hutt weaponsmith → `t5_top_spec_blaster_rifle` (Nar Shaddaa
     `fighting_pits`, hutt_cartel)
   - Republic hyperdrive specialist → `t5_hyperdrive_surge_converter`
