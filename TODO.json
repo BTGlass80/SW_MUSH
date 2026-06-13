@@ -2345,6 +2345,15 @@
       "status": "open",
       "severity": "low",
       "summary": "The DB equipment column was canonicalized on per-slot ItemInstance (engine/items.py read_equipment/equipment_keys/write_equipment), but the Character object still stores equipped_weapon/worn_armor as BARE KEY strings, so Character.to_dict() emits only keys (no condition/quality). Safe today: to_dict() is NOT an equipment-persistence path — every durable write goes through save_character(equipment=...), and the tolerant readers handle to_dict's flat-key output. A full fix (Character holds ItemInstances) ripples through combat/sheet/every equipped_weapon-as-key use; deferred as a separate larger pass. Folds toward T3.20 reload-invariant work."
+    },
+    {
+      "id": "TD.ONBOARDING_CHAIN_REACHABILITY_COVERAGE",
+      "name": "No player-path coverage that a tutorial chain is walkable from a real chargen",
+      "added_date": "2026-06-12",
+      "added_by": "drop 24 onboarding playability (F.8.c.2.e)",
+      "status": "open",
+      "severity": "medium",
+      "summary": "All 7 chains were non-completable (inter-step strand + unregistered +factions + unreachable room_entered) and the entire chain test+smoke layer missed it: tests inject chain state, pre-supply destination slugs, or pre-place the player at a slugless room (so the location guard short-circuits) -- none walk a real chargen through the command registry. Drop 24 fixed the chains + added inline guards (no room_entered/item_acquired completion may reappear; +factions resolves through a real CommandRegistry). The durable net is still TODO: (1) a static reachability invariant (pure-YAML: every consecutive-step location change has a teleport seam; every completion command: resolves through the live registry; every skill: resolves to skills.yaml) and (2) a per-chain walkthrough smoke that runs a real chargen and drives each step with player-only commands, asserting current_room_slug == step.location before each step. Needs a start_chain(name, chain_id) harness helper. Principle: smoke must drive through the registry from a real character -- never inject state or pre-supply the answer."
     }
   ],
   "standing_invariants_quick_ref": [

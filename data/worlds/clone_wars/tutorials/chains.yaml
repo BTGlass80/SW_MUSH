@@ -138,7 +138,9 @@ chains:
           cleared for Mission Cycle 11. The combat sims are through that
           hatch."
         reward: {}
-        next_hint: "The combat simulator hatch is east. Type `east`."
+        # F.8.c.2.e: text-only — tutorial rooms have no exits; step advance
+        # teleports the player to the sim room automatically.
+        next_hint: "The combat simulator is waiting. Advance to the sim room and prepare to fight."
 
       - step: 2
         title: "Combat Sim Drill"
@@ -184,21 +186,30 @@ chains:
           He's a clone like you — listen to him. Transport's at the
           north dock. Move."
         reward: {}
-        next_hint: "The transport is north. Board it to ship to Coruscant."
+        # F.8.c.2.e: text-only — no exits; the chain teleports the player to
+        # the transport pad on advance. Talk to Pilot CT-7567 when you arrive.
+        next_hint: "You'll be teleported to the transport pad. Talk to Pilot CT-7567 to ship out."
 
       - step: 4
         title: "Transit to Coruscant"
         location: tipoca_transport_pad
         npc: "Pilot CT-7567"
         npc_role: contact
-        teaches: ["board", "depart"]
-        objective: "Board the transport and arrive at Coruscant Works."
+        teaches: ["talk"]
+        objective: "Report to Pilot CT-7567 to ship out to Coruscant."
         npc_intro: >
           "On time, trooper. Strap in. Three-hour hyperspace jump to
-          Coruscant. Boring. Don't lose your gear in the cabin."
+          Coruscant. Boring. Don't lose your gear in the cabin. Talk
+          to me when you're aboard and we'll lift."
+        # F.8.c.2.e: was `room_entered: commercial_district_landing_zone`
+        # — unreachable, because tutorial rooms have no exits and the
+        # inter-step teleport (not a directional move) never fires the
+        # room_entered hook. Re-anchored to talking to the pilot (who is
+        # present at the transport pad); advancing then teleports the
+        # player to step 5's room, commercial_district_landing_zone.
         completion:
-          type: room_entered
-          room: commercial_district_landing_zone
+          type: talk_to_npc
+          npc: "Pilot CT-7567"
         npc_complete: >
           "Welcome to Coruscant. There's your air. Try not to choke on
           it. Sergeant Drix is the one in 212th colors over there."
@@ -283,7 +294,9 @@ chains:
           the next hour at Dex's Diner. Watch him. Don't approach."
         reward:
           items: ["concealed_blaster", "civilian_disguise_kit"]
-        next_hint: "Take the speeder line to Dex's Diner. Type `out`."
+        # F.8.c.2.e: text-only — no exits in tutorial rooms; the chain
+        # teleports the player to Dex's Diner on advance.
+        next_hint: "You'll be brought to Dex's Diner. Find Bren Kost and use `examine` on his booth."
 
       - step: 2
         title: "Surveillance at Dex's"
@@ -306,19 +319,25 @@ chains:
         reward:
           faction_rep:
             republic: 5
-        next_hint: "Take the lift down to Coruscant midlevels."
+        # F.8.c.2.e: text-only — no exits; the chain teleports the player
+        # to the midlevels freight district on advance.
+        next_hint: "You'll be brought to the midlevels. Type `chain attempt` to tail Kost unseen."
 
       - step: 3
         title: "Tailing the Contact"
         location: commercial_district_freight_district
         npc: "Bren Kost"
         npc_role: antagonist
-        teaches: ["sneak", "follow"]
+        # F.8.c.2.e: text-only — `follow` is not a command; `sneak` is a skill,
+        # not a standalone command. The skill_check_passed completion fires via
+        # `chain attempt` only. teaches updated to reflect the real trigger.
+        teaches: ["chain attempt"]
         objective: "Tail Kost to his meeting without being spotted."
         npc_intro: >
-          [Vell]: "He's two streets ahead, walking east. Use `sneak`
-          to follow without alerting him. If your stealth fails he
-          spots you and the operation aborts. Patience."
+          [Vell]: "He's two streets ahead. Type `chain attempt` to roll
+          your Sneak (vs difficulty 8) and shadow him without alerting
+          him. If your stealth fails he spots you and the operation
+          aborts. Patience."
         completion:
           type: skill_check_passed
           skill: "sneak"
@@ -352,7 +371,9 @@ chains:
           induct you."
         reward:
           credits: 200
-        next_hint: "Take the lift up. Judicial Plaza is at street level."
+        # F.8.c.2.e: text-only — no exits; the chain teleports the player
+        # to the Judicial Plaza on advance.
+        next_hint: "You'll be brought to the Judicial Plaza. Talk to Coordinator Sehrra for your credentials."
 
       - step: 5
         title: "Formal Induction"
@@ -567,18 +588,24 @@ chains:
           than droid units. Inefficient. Acceptable. Proceed to the
           training pit."
         reward: {}
-        next_hint: "The training pit is south. Move."
+        # F.8.c.2.e: text-only — no exits; the chain teleports the player
+        # to the drill pit on advance.
+        next_hint: "You'll be brought to the training pit. Engage the Republic simulants when combat begins."
 
       - step: 2
         title: "Joint Operations Drill"
         location: geonosis_foundry_drill_pit
         npc: "Squad-Lead B2-7745"
         npc_role: instructor
-        teaches: ["attack", "follow"]
+        # F.8.c.2.e: text-only — `follow` is not a real command; combat_won
+        # advances automatically when the enemies are defeated. teaches updated
+        # to reflect only the real player command used here.
+        teaches: ["attack"]
         objective: "Defeat two republic combat sims with droid support."
         npc_intro: >
-          "[B2-7745]: Sentient unit, follow my movement. Engage hostiles
-          on contact. Two Republic clone-troop simulants. Begin."
+          "[B2-7745]: Sentient unit, move in alongside droid units.
+          Engage hostiles on contact. Two Republic clone-troop simulants.
+          Use `attack` to fight. Begin."
         completion:
           type: combat_won
           enemy_template: "republic_clone_sim"
@@ -610,7 +637,9 @@ chains:
           "[TQ-89]: Tatooine. Hutt-aligned territory. Republic presence
           minimal. Optimal infiltration scenario. Embark."
         reward: {}
-        next_hint: "Board the transport at the foundry pad."
+        # F.8.c.2.e: text-only — no exits; the chain teleports the player
+        # to the Tatooine safehouse on advance. Talk to Mira Kavin on arrival.
+        next_hint: "You'll be transported to Tatooine. Make contact with Cell Leader Mira Kavin."
 
       - step: 4
         title: "Insertion on Tatooine"
@@ -709,7 +738,9 @@ chains:
           read it here. Find a quiet place."
         reward:
           items: ["sealed_data_packet"]
-        next_hint: "Find a quiet place. The freight dock is two levels up."
+        # F.8.c.2.e: text-only — no exits; the chain teleports the player
+        # to the freight district on advance. Use the sealed packet there.
+        next_hint: "You'll be brought to a quiet location. Use the sealed packet (`use sealed_data_packet`)."
 
       - step: 2
         title: "Reading the Packet"
@@ -730,19 +761,25 @@ chains:
           locker 144. Drop the packet there before midnight. Don't be
           followed."
         reward: {}
-        next_hint: "Coruscant Works is one level down. Take the lift."
+        # F.8.c.2.e: text-only — no exits; the chain teleports the player
+        # to the locker area on advance. Type `chain attempt` to make the drop.
+        next_hint: "You'll be brought to Coruscant Works. Type `chain attempt` to place the packet at locker 144 unseen."
 
       - step: 3
         title: "The Dead Drop"
         location: commercial_district_lockers
         npc: "(none)"
         npc_role: contact
-        teaches: ["sneak", "use"]
+        # F.8.c.2.e: text-only — `sneak` is a skill, not a command; `use` is
+        # not the wiring for skill_check_passed. The Sneak roll fires via
+        # `chain attempt` only. teaches updated; `use` dropped (not load-bearing).
+        teaches: ["chain attempt"]
         objective: "Place the courier packet at locker 144 unseen."
         npc_intro: >
-          [Comlink, Sevra]: "There are Republic Security cameras. Use
-          `sneak` before approaching the locker. If your stealth fails,
-          abort and move on — we don't repeat-attempt."
+          [Comlink, Sevra]: "There are Republic Security cameras. Type
+          `chain attempt` to roll your Sneak (vs difficulty 9) and
+          approach the locker unseen. If your stealth fails, abort and
+          move on — we don't repeat-attempt."
         completion:
           type: skill_check_passed
           skill: "sneak"
@@ -754,18 +791,26 @@ chains:
         reward:
           faction_rep:
             cis: 15
-        next_hint: "Move. Republic patrol incoming."
+        # F.8.c.2.e: text-only — no exits; "Move." was an impossible
+        # directional hint. Step advances automatically on skill success.
+        next_hint: "Drop made. The chain will advance automatically."
 
       - step: 4
         title: "Close Call"
         location: commercial_district_freight_corridor
         npc: "Republic Security Officer Daln"
         npc_role: antagonist
-        teaches: ["bluff", "say"]
+        # F.8.c.2.e: text-only — `bluff` is not a command; the skill rolled is
+        # Con (not Bluff). `say` is not the wiring for skill_check_passed.
+        # `chain attempt` is the only trigger. teaches updated; `say` dropped
+        # (not load-bearing for completion). If Con roll fails, fight instead.
+        teaches: ["chain attempt"]
         objective: "Talk past Republic Security."
         npc_intro: >
           "You. Stop. ID and reason for being on this level. Cargo
           handlers were dismissed an hour ago. Speak."
+          [Type `chain attempt` to talk your way past (Con vs difficulty 10).
+          If the bluff fails you'll have to fight.]
         completion:
           type: skill_check_passed
           skill: "con"
@@ -780,7 +825,9 @@ chains:
           credits: 100
           faction_rep:
             cis: 5
-        next_hint: "Get to the freight dock and stay there."
+        # F.8.c.2.e: text-only — no exits in tutorial rooms; chain teleports
+        # the player to the freight dock on advance.
+        next_hint: "You'll be brought to the freight dock. Find Sevra Toryn to confirm your status."
 
       - step: 5
         title: "Operational Confirmation"
@@ -877,18 +924,26 @@ chains:
           alive — capture pays better than corpse on tier-1. The
           warrens are downstairs."
         reward: {}
-        next_hint: "Take the lift down to the warrens."
+        # F.8.c.2.e: text-only — no exits in tutorial rooms; the chain
+        # teleports the player to the warrens on advance.
+        next_hint: "You'll be brought to the warrens. Type `chain attempt` to track down Tarko Vinn."
 
       - step: 3
         title: "Tracking the Mark"
         location: nar_shaddaa_warrens_safehouse  # F.8.b: re-targeted from a zone slug to a real tutorial-zone room.
         npc: "Tarko Vinn"
         npc_role: antagonist
-        teaches: ["scan", "search"]
-        objective: "Locate Tarko Vinn in the warrens."
+        teaches: ["chain attempt"]
+        objective: "Search the warrens for Tarko Vinn (chain attempt)."
         npc_intro: >
-          [Tracking fob beeps]: "Tarko Vinn — proximity 30m. Use `scan`
-          to check the alley, `search` to check rooms. He's hiding."
+          [Tracking fob beeps]: "Tarko Vinn — proximity 30m. He's
+          hiding in here somewhere. Type `chain attempt` to search the
+          warrens and run him down."
+        # F.8.c.2.e: the npc used to say "use scan/search", but `scan`
+        # is the ship command (errors dirtside) and `search` runs an
+        # unrelated room check — neither advances the chain. The Search
+        # roll for this step fires via `chain attempt` (the wiring for
+        # every skill_check_passed step).
         completion:
           type: skill_check_passed
           skill: "search"
@@ -906,8 +961,8 @@ chains:
         location: nar_shaddaa_warrens_safehouse  # F.8.b: re-targeted from a zone slug to a real tutorial-zone room.
         npc: "Tarko Vinn"
         npc_role: antagonist
-        teaches: ["stun", "attack"]
-        objective: "Subdue Tarko Vinn (stun preferred)."
+        teaches: ["attack"]
+        objective: "Subdue Tarko Vinn — `attack Tarko Vinn stun` pays more."
         npc_intro: >
           [Vinn, drawing hold-out blaster]: "Last warning, hunter."
         completion:
@@ -919,7 +974,11 @@ chains:
           I'm cooperating."
         reward:
           credits: 0          # paid at chain graduation
-        next_hint: "Drag him back to the chapter house. Type `up`."
+        # F.8.c.2.e: `stun` is not a standalone command — it's a mode
+        # of `attack` (`attack <target> stun`). next_hint no longer
+        # says "type up": the chain teleports the player back to the
+        # chapter house on advance (tutorial rooms have no exits).
+        next_hint: "Vinn is down — your Guild card is waiting back at the chapter house."
 
       - step: 5
         title: "Collecting the Bounty"
@@ -996,7 +1055,9 @@ chains:
           "Good enough. Welcome aboard. We've got a run to Nar Shaddaa
           tonight. Cargo's coming up from the bazaar. Help me load."
         reward: {}
-        next_hint: "Bazaar's south. Move."
+        # F.8.c.2.e: text-only — no exits in tutorial rooms; the chain
+        # teleports the player to the market on advance.
+        next_hint: "You'll be brought to the market. Find Hutt Broker Vresh and `examine` the cargo crate."
 
       - step: 2
         title: "The Cargo"
@@ -1025,15 +1086,20 @@ chains:
         location: tatooine_spaceport_dock_94
         npc: "Captain Reggi Voss"
         npc_role: instructor
-        teaches: ["board", "depart"]
-        objective: "Board the *Mynock's Promise* and depart for Nar Shaddaa."
+        teaches: ["talk"]
+        objective: "Report to Captain Voss to lift off for Nar Shaddaa."
         npc_intro: >
           "Cargo aboard? Good. Strap in. I'll handle the controls — you
-          watch the sensor board. Type `board` then `depart`. Welcome
-          to the trade."
+          watch the sensor board. Tell me when you're set and we'll
+          lift. Welcome to the trade."
+        # F.8.c.2.e: was `room_entered: tatooine_smuggler_holdout` —
+        # unreachable (no exits; the inter-step teleport doesn't fire
+        # the room_entered hook). Re-anchored to talking to Captain Voss
+        # (present at Docking Bay 94); advancing teleports the player to
+        # step 4's room, smuggler_ship_cockpit (in transit).
         completion:
-          type: room_entered
-          room: tatooine_smuggler_holdout  # F.8.b: re-targeted from a zone slug to a real tutorial-zone room (back room above cantina).
+          type: talk_to_npc
+          npc: "Captain Reggi Voss"
         npc_complete: >
           "Hyperspace in three. Smooth so far. The dangerous part's
           dropping out — Nar Shaddaa orbital screens harder than
@@ -1046,18 +1112,26 @@ chains:
         location: smuggler_ship_cockpit  # F.8.b: re-targeted from a zone slug to a real tutorial-zone room (in-transit ship cockpit).
         npc: "Customs Inspector Drall"
         npc_role: antagonist
-        teaches: ["bluff", "say"]
-        objective: "Talk past Nar Shaddaa customs (or run for the dock)."
+        # F.8.c.2.e: text-only — `bluff` is not a command; the skill rolled is
+        # Con. `say` is not the wiring for skill_check_passed. `chain attempt`
+        # is the only trigger. teaches updated; `say` dropped (not load-bearing).
+        teaches: ["chain attempt"]
+        objective: "Talk past Nar Shaddaa customs (or outfly them)."
         npc_intro: >
           "[Customs, on comm]: *Mynock's Promise*. Routine inspection.
           State cargo manifest and prepare for boarding."
+          [Type `chain attempt` to bluff customs (Con vs difficulty 9).
+          If that fails, Voss can try to outfly them (Space Transports vs 10).]
         completion:
           type: skill_check_passed
           skill: "con"
           difficulty: 9
           fallback:
             type: skill_check_passed
-            skill: "starship_piloting"
+            # F.8.c.2.e: was `starship_piloting` (not a real WEG skill).
+            # `space_transports` is the canonical skill for flying a
+            # YT-1300 and resolves in data/skills.yaml.
+            skill: "space_transports"
             difficulty: 10
             on_fail_narrative: "Cargo seized — Voss covers, you owe him."
         npc_complete: >
@@ -1066,7 +1140,9 @@ chains:
         reward:
           faction_rep:
             independent: 10
-        next_hint: "Dock E. Voss handles the comms — you handle the cargo."
+        # F.8.c.2.e: text-only — no exits; the chain teleports the player
+        # to Dock E on advance. Talk to Underworld Contact Dyn there.
+        next_hint: "You'll be brought to Dock E. Deliver the cargo to Dyn with `give`."
 
       - step: 5
         title: "Delivery and Pay"
@@ -1186,20 +1262,26 @@ chains:
         location: kdy_apprentice_parts_crib
         npc: "(none)"
         npc_role: contact
-        teaches: ["+survey", "+craft"]
-        objective: "Pull a capacitor coil from the parts crib."
+        teaches: ["survey", "+craft"]
+        objective: "Requisition a capacitor coil from the parts crib."
         npc_intro: >
-          [Comlink, Purkis]: "`+survey` shows what's in stock. The coil
-          you want is `capacitor_coil_t1`. Use `+craft fetch capacitor_coil_t1`
-          and bring it back."
+          [Comlink, Purkis]: "`survey` shows what's in stock. The part
+          you want is a capacitor coil. Type `+craft` to open the
+          requisition interface and pull it, then bring it back."
+        # F.8.c.2.e: was `item_acquired: capacitor_coil_t1` via the
+        # phantom `+craft fetch` subcommand — no such producer existed,
+        # the part was granted nowhere, so the step was unfinishable.
+        # Now completes on the real `+craft` command and grants the
+        # coil as this step's reward (delivered on advance) so the
+        # repair bench step has the part in hand.
         completion:
-          type: item_acquired
-          item: "capacitor_coil_t1"
-          method: "+craft fetch"
+          type: command_executed
+          command: "+craft"
         npc_complete: >
           [Comlink, Purkis]: "Got it. Back to the bench. Don't drop it
           — KDY apprentice damage tickets come out of your pay."
-        reward: {}
+        reward:
+          items: ["capacitor_coil_t1"]
         next_hint: "Back to the diagnostic bench."
 
       - step: 4
@@ -1216,7 +1298,11 @@ chains:
           and start over — no charge to you on the first attempt."
         completion:
           type: skill_check_passed
-          skill: "starship_repair"
+          # F.8.c.2.e: was `starship_repair` — not a real WEG skill, so
+          # it silently rolled raw Perception. `space_transport_repair`
+          # is the canonical skill (the bench piece is from a YT-class
+          # space transport) and resolves in data/skills.yaml.
+          skill: "space_transport_repair"
           difficulty: 8
           on_fail: "retry_allowed"
         npc_complete: >

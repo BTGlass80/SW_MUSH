@@ -142,6 +142,132 @@ async def _check_hostile_npcs(ctx: CommandContext, room_id: int):
     )
 
 
+async def _describe_inventory_item(ctx: "CommandContext", char: dict,
+                                   arg: str) -> bool:
+    """Try to resolve *arg* against the player's carried inventory and
+    print the item's description.
+
+    Resolution (same 3-pass shape as UseCommand):
+      Pass 1 — exact ``key`` match (case-sensitive)
+      Pass 2 — exact ``name`` match (case-insensitive)
+      Pass 3 — unique substring on name or key (case-insensitive);
+                multiple partial hits → "Which one?" and return True
+
+    Description source priority:
+      1. ``description`` or ``desc`` key in the inventory dict
+      2. ``engine.organizations.EQUIPMENT_CATALOG[key]['description']``
+      3. Equipped weapon/armor keys (via ``engine.items.equipment_keys``)
+         resolved against EQUIPMENT_CATALOG — so ``look <equipped item>``
+         also works.
+      4. "You see nothing special about it."
+
+    Returns True  when the arg was *handled* (item found, or ambiguous).
+    Returns False when no inventory item matched so the caller can
+    fall through to its existing room/error message.
+
+    This is a READ-ONLY helper — no credits, no dice, no state change.
+    """
+    # ── fetch inventory ───────────────────────────────────────────────────
+    try:
+        inv = await ctx.db.get_inventory(char["id"])
+    except Exception:
+        log.debug("_describe_inventory_item: get_inventory failed", exc_info=True)
+        return False
+
+    inv = [item for item in (inv or []) if isinstance(item, dict)]
+
+    # ── also expose equipped slots as pseudo-items for lookup ─────────────
+    # We build a small list of {key, name, description} dicts from the
+    # equipped weapon/armor keys so `look <equipped weapon>` works even
+    # when the equipped item isn't separately tracked in the carried list.
+    equip_items: list[dict] = []
+    try:
+        from engine.items import equipment_keys
+        from engine.organizations import EQUIPMENT_CATALOG
+        eq_keys = equipment_keys(char.get("equipment", "{}") or "{}")
+        for slot_key in (eq_keys.get("weapon", ""), eq_keys.get("armor", "")):
+            if not slot_key:
+                continue
+            # Only add if not already in inv (avoid double-match)
+            already = any(i.get("key") == slot_key for i in inv)
+            if not already:
+                cat = EQUIPMENT_CATALOG.get(slot_key, {})
+                equip_items.append({
+                    "key": slot_key,
+                    "name": cat.get("name", slot_key),
+                    "description": cat.get("description", ""),
+                    "_from_equip": True,
+                })
+    except Exception:
+        log.debug("_describe_inventory_item: equip lookup failed", exc_info=True)
+
+    all_items = inv + equip_items
+
+    if not all_items:
+        return False
+
+    target = arg.strip()
+    target_lower = target.lower()
+    matched = None
+
+    # Pass 1: exact key
+    for item in all_items:
+        if item.get("key") == target:
+            matched = item
+            break
+
+    # Pass 2: exact name (case-insensitive)
+    if matched is None:
+        for item in all_items:
+            if (item.get("name", "") or "").lower() == target_lower:
+                matched = item
+                break
+
+    # Pass 3: unique substring on name or key
+    if matched is None:
+        partial = []
+        for item in all_items:
+            name = (item.get("name", "") or "").lower()
+            key = (item.get("key", "") or "").lower()
+            if target_lower in name or target_lower in key:
+                partial.append(item)
+        if len(partial) == 1:
+            matched = partial[0]
+        elif len(partial) > 1:
+            names = [p.get("name") or p.get("key") or "?" for p in partial]
+            await ctx.session.send_line(
+                f"  Which one? {', '.join(names)}"
+            )
+            return True  # handled (ambiguous — caller must not emit "not found")
+
+    if matched is None:
+        return False  # not an inventory item — let caller handle
+
+    # ── resolve description ───────────────────────────────────────────────
+    item_key = matched.get("key", "") or ""
+    item_name = matched.get("name") or item_key or "the item"
+
+    # Priority 1: inline description/desc on the item dict
+    desc = matched.get("description") or matched.get("desc") or ""
+
+    # Priority 2: EQUIPMENT_CATALOG fallback
+    if not desc and item_key:
+        try:
+            from engine.organizations import EQUIPMENT_CATALOG
+            desc = EQUIPMENT_CATALOG.get(item_key, {}).get("description", "")
+        except Exception:
+            log.debug("_describe_inventory_item: EQUIPMENT_CATALOG lookup failed",
+                      exc_info=True)
+
+    # Priority 3: generic fallback
+    if not desc:
+        desc = "You see nothing special about it."
+
+    await ctx.session.send_line(f"  {ansi.color(item_name, ansi.BOLD)}")
+    await ctx.session.send_line(f"  {desc}")
+    return True
+
+
 class LookCommand(BaseCommand):
     key = "look"
     aliases = ["l"]
@@ -486,6 +612,9 @@ class LookCommand(BaseCommand):
                         return
                 except Exception:
                     log.warning("_look_at: room_details lookup failed", exc_info=True)
+            # Try the player's own inventory before giving up entirely.
+            if await _describe_inventory_item(ctx, char, ctx.args):
+                return
             await ctx.session.send_line(f"  You don't see '{ctx.args}' here.")
             return
 
@@ -4309,6 +4438,279 @@ class WeatherCommand(BaseCommand):
         await session.send_line("\n".join(lines))
 
 
+class GiveCommand(BaseCommand):
+    """``give <item> to <player-or-NPC>`` — one-way item hand-off.
+
+    Distinct from ``trade`` (two-party, consented, 5%-taxed exchange):
+    ``give`` is an immediate, one-way ITEM transfer to a character or
+    NPC in the same room.
+
+    Credits deliberately route through ``trade`` instead. A one-way
+    untaxed credit ``give`` would bypass both the trade 5% sink and the
+    consent gate — a mule/laundering channel — so ``give ... credits``
+    redirects the player to ``trade``.
+
+      give <item> to <player>  → the item moves to that PC at once.
+      give <item> to <npc>     → you hand the item over; the NPC
+                                 accepts it (quests that watch for a
+                                 hand-off, e.g. the Smuggler chain's
+                                 "give crate to Dyn", advance via the
+                                 standard command hook).
+
+    Anti-dupe ordering: the item is removed from the giver FIRST; only
+    then is it added to a PC recipient. If that add fails it is rolled
+    back to the giver (lose-nothing), never duplicated.
+    """
+    key = "give"
+    aliases = ["hand"]
+    help_text = (
+        "Give an inventory item to another player or an NPC in the "
+        "room.\n"
+        "\n"
+        "USAGE:\n"
+        "  give <item> to <player>   — hand an item to another player\n"
+        "  give <item> to <npc>      — hand an item to an NPC (quests)\n"
+        "\n"
+        "Both of you must be in the same room. To move CREDITS, use "
+        "`trade` —\n"
+        "credit transfers are consented and taxed; `give` is for "
+        "items only.\n"
+        "\n"
+        "EXAMPLES:\n"
+        "  give sealed cargo crate to Dyn\n"
+        "  give blaster to Tundra"
+    )
+    usage = "give <item> to <player or NPC>"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line(
+                "  You must be in the game to give things.")
+            return
+
+        args = (ctx.args or "").strip()
+        if not args:
+            await ctx.session.send_line(
+                "  Usage: give <item> to <player or NPC>")
+            return
+
+        # ── Parse "<item> to <target>" ──────────────────────────────
+        low = args.lower()
+        if " to " in low:
+            idx = low.rfind(" to ")
+            item_part = args[:idx].strip()
+            target_part = args[idx + 4:].strip()
+        else:
+            # Friendly fallback: last token is the target, the rest is
+            # the item. (`give crate Dyn` works; `give crate` does not.)
+            toks = args.split()
+            if len(toks) < 2:
+                await ctx.session.send_line(
+                    "  Give what to whom? "
+                    "Usage: give <item> to <player or NPC>")
+                return
+            target_part = toks[-1]
+            item_part = " ".join(toks[:-1])
+
+        if not item_part or not target_part:
+            await ctx.session.send_line(
+                "  Usage: give <item> to <player or NPC>")
+            return
+
+        # ── Credits route through `trade` (consented + taxed sink) ──
+        ip_tokens = item_part.lower().split()
+        looks_like_credits = (
+            (ip_tokens and ip_tokens[0].lstrip("+").isdigit())
+            or any(t in ("credit", "credits", "cred", "creds", "cr")
+                   for t in ip_tokens)
+        )
+        if looks_like_credits:
+            await ctx.session.send_line(
+                "  To transfer credits, use "
+                f"{ansi.cyan('trade <player> <amount> credits')} — it's "
+                "consented and taxed. `give` is for items only.")
+            return
+
+        # ── Self-give guard (own name / me / self) ──────────────────
+        # match_in_room only resolves self via the "me"/"self" tokens,
+        # never by the player's own name — so catch both here for a
+        # clear message instead of a misleading "you don't see".
+        if target_part.lower() in ("me", "self", "myself") or \
+                target_part.lower() == (char.get("name") or "").lower():
+            await ctx.session.send_line(
+                "  You can't give something to yourself.")
+            return
+
+        # ── Resolve the target (a PC or NPC in the room) ────────────
+        from engine.matching import match_in_room
+        match = await match_in_room(
+            target_part, char["room_id"], char["id"], ctx.db,
+            session_mgr=ctx.session_mgr, source_char=char,
+        )
+        if not match.found:
+            await ctx.session.send_line(
+                f"  {match.error_message(target_part)}")
+            return
+        cand = match.candidate
+        if cand.obj_type not in ("character", "npc"):
+            await ctx.session.send_line(
+                f"  You can't give things to {cand.name}.")
+            return
+        if cand.obj_type == "character" and cand.id == char["id"]:
+            await ctx.session.send_line(
+                "  You can't give something to yourself.")
+            return
+
+        # ── Resolve the item in the giver's inventory (3-pass) ──────
+        try:
+            inv = await ctx.db.get_inventory(char["id"])
+        except Exception:
+            log.warning("GiveCommand: get_inventory failed", exc_info=True)
+            await ctx.session.send_line(
+                "  You can't access your inventory right now.")
+            return
+        if not inv:
+            await ctx.session.send_line(
+                "  You're not carrying anything to give.")
+            return
+
+        matched = self._resolve_item(inv, item_part)
+        if matched == "AMBIGUOUS":
+            await ctx.session.send_line(
+                f"  You're carrying more than one thing like "
+                f"'{item_part}'. Be more specific.")
+            return
+        if matched is None:
+            await ctx.session.send_line(
+                f"  You don't have anything called '{item_part}'.")
+            return
+
+        item_key = matched.get("key", "") or ""
+        item_name = matched.get("name") or item_key or "the item"
+        if not item_key:
+            # remove_from_inventory keys off `key`; a keyless item can't
+            # be cleanly transferred.
+            await ctx.session.send_line(
+                f"  You can't give the {item_name} away.")
+            return
+
+        target_name = cand.name
+
+        # ── Remove from the giver FIRST (lose-not-dupe ordering) ────
+        try:
+            removed = await ctx.db.remove_from_inventory(
+                char["id"], item_key)
+        except Exception:
+            log.warning("GiveCommand: remove_from_inventory failed for "
+                        "%s", item_key, exc_info=True)
+            await ctx.session.send_line(
+                "  Something went wrong handing that over.")
+            return
+        if not removed:
+            await ctx.session.send_line(
+                f"  You don't have a {item_name} to give.")
+            return
+
+        # ── NPC hand-off: the NPC accepts the item (consumed) ───────
+        if cand.obj_type == "npc":
+            await ctx.session.send_line(
+                f"  You hand the {item_name} to {target_name}.")
+            try:
+                await ctx.session_mgr.broadcast_to_room(
+                    char["room_id"],
+                    f"{char['name']} hands something to {target_name}.",
+                    exclude=[char["id"]], source_char=char,
+                )
+            except Exception:
+                log.debug("GiveCommand: npc room broadcast failed",
+                          exc_info=True)
+            # The post-execute on_command_executed hook (parser/
+            # commands.py) advances any chain step whose completion /
+            # requires_first is `give <item> to <npc>` — nothing to do
+            # here.
+            return
+
+        # ── PC recipient: add to their inventory, rollback on failure ──
+        try:
+            await ctx.db.add_to_inventory(cand.id, matched)
+        except Exception:
+            log.warning("GiveCommand: add_to_inventory to char %s "
+                        "failed; rolling back to giver %s",
+                        cand.id, char["id"], exc_info=True)
+            try:
+                # fire_chain_hook=False: a compensating re-add, not a
+                # genuine acquisition — must not advance the giver's
+                # chain on an item_acquired step.
+                await ctx.db.add_to_inventory(
+                    char["id"], matched, fire_chain_hook=False)
+            except Exception:
+                log.error("GiveCommand: ROLLBACK re-add failed — item "
+                          "%s lost from char %s", item_key, char["id"],
+                          exc_info=True)
+            await ctx.session.send_line(
+                f"  You couldn't give the {item_name} to {target_name}.")
+            return
+
+        await ctx.session.send_line(
+            f"  You give the {item_name} to "
+            f"{ansi.player_name(target_name)}.")
+
+        # Notify the recipient if they're present in the room.
+        try:
+            for s in ctx.session_mgr.sessions_in_room(
+                    char["room_id"], source_char=char):
+                if s.character and s.character.get("id") == cand.id:
+                    await s.send_line(
+                        f"  {ansi.player_name(char['name'])} gives you "
+                        f"the {item_name}.")
+                    break
+        except Exception:
+            log.debug("GiveCommand: recipient notify failed",
+                      exc_info=True)
+
+        # Room broadcast (everyone but giver + recipient).
+        try:
+            await ctx.session_mgr.broadcast_to_room(
+                char["room_id"],
+                f"{char['name']} gives something to {target_name}.",
+                exclude=[char["id"], cand.id], source_char=char,
+            )
+        except Exception:
+            log.debug("GiveCommand: pc room broadcast failed",
+                      exc_info=True)
+
+    @staticmethod
+    def _resolve_item(inv: list, target: str):
+        """3-pass inventory match (mirrors UseCommand): exact key →
+        exact name (ci) → unique partial. Returns the item dict, None
+        (no match), or the sentinel "AMBIGUOUS"."""
+        target_lower = target.lower()
+        # Pass 1: exact key
+        for item in inv:
+            if isinstance(item, dict) and item.get("key") == target:
+                return item
+        # Pass 2: exact name (case-insensitive)
+        for item in inv:
+            if isinstance(item, dict) and \
+                    (item.get("name", "") or "").lower() == target_lower:
+                return item
+        # Pass 3: unique partial on name or key
+        partial = []
+        for item in inv:
+            if not isinstance(item, dict):
+                continue
+            name = (item.get("name", "") or "").lower()
+            key = (item.get("key", "") or "").lower()
+            if target_lower in name or target_lower in key:
+                partial.append(item)
+        if len(partial) == 1:
+            return partial[0]
+        if len(partial) > 1:
+            return "AMBIGUOUS"
+        return None
+
+
 def register_all(registry):
     """Register all built-in commands with the registry."""
     commands = [
@@ -4348,6 +4750,7 @@ def register_all(registry):
         BactaTankCommand(),
         SemiposeCommand(),
         TradeCommand(),
+        GiveCommand(),
         ThinkCommand(),
         BuffsCommand(),
     ]

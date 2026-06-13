@@ -1043,7 +1043,21 @@ _FACTION_ALIAS_TO_SWITCH: dict[str, str] = {
 class FactionUmbrellaCommand(BaseCommand):
     """`+faction` umbrella — see module docstring for forwarding rules."""
     key = "+faction"
-    aliases: list[str] = []
+    # F.8.c.2.e (2026-06-12): `+factions` is an alias. The CW
+    # tutorial-chain graduation step (final step of all 7 unlocked
+    # chains) completes on `command_executed: +factions`, and every
+    # step's npc text instructs the player to "run +factions". Without
+    # this alias the registry prefix-match fails (no key STARTS WITH
+    # the longer "+factions"), the parser returns "Huh? Unknown
+    # command" before the chain hook fires, and no chain can graduate
+    # in the live client. The chain matcher keys off the RAW typed
+    # token (ctx.command), so this alias makes the command execute AND
+    # the completion fire — but ONLY for the exact literal "+factions".
+    # We deliberately do NOT alias the bare "factions": it would run
+    # the command yet ctx.command would be "factions", which does not
+    # match the "+factions" completion — a silent "did the step but
+    # didn't advance" trap. The npc text only ever says "+factions".
+    aliases: list[str] = ["+factions"]
     help_text = (
         "Faction membership and operations. Try '+faction', "
         "'+faction list', '+faction join <code>', '+faction guild', "

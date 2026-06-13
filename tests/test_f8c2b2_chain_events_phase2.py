@@ -260,16 +260,25 @@ class TestOnBountyAccepted(_F8C2B2IsolatedBase):
 
 
 class TestOnItemAcquired(_F8C2B2IsolatedBase):
+    """The `on_item_acquired` hook stays live — `add_to_inventory`
+    fires it for every item (including the `give` command and per-step
+    rewards). But as of F.8.c.2.e no chain step uses an `item_acquired`
+    completion: shipwright_trader step 3 was the only one, and its
+    `capacitor_coil_t1` had no producer (the phantom `+craft fetch`),
+    so it was re-authored to `command_executed: +craft` with the coil
+    delivered as a step reward. The hook is therefore DORMANT for chain
+    advancement — it must safely no-op rather than false-advance."""
 
-    def test_advances_when_item_key_matches(self):
-        # shipwright_trader step 3: item_acquired capacitor_coil_t1
+    def test_item_acquired_dormant_no_false_advance(self):
+        # shipwright_trader step 3 is now command_executed (+craft).
+        # Acquiring the coil must NOT advance — the hook stays dormant.
         from engine.chain_events import on_item_acquired
         db = _make_fake_db()
         char = _char_with_chain("shipwright_trader", step=3,
                                 completed=[1, 2])
         result = _run(on_item_acquired(
             db, char, "capacitor_coil_t1"))
-        self.assertTrue(result)
+        self.assertFalse(result)
 
     def test_does_not_advance_on_irrelevant_item(self):
         from engine.chain_events import on_item_acquired
@@ -278,6 +287,29 @@ class TestOnItemAcquired(_F8C2B2IsolatedBase):
                                 completed=[1, 2])
         result = _run(on_item_acquired(db, char, "blaster_pistol"))
         self.assertFalse(result)
+
+    def test_no_chain_step_uses_item_acquired(self):
+        """Guard: a future drop re-introducing an item_acquired
+        completion must ship a real producer (the phantom +craft fetch
+        is what made shipwright s3 unfinishable). Fails loudly if one
+        reappears so the producer question gets answered."""
+        import yaml
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent
+        path = (root / "data" / "worlds" / "clone_wars" /
+                "tutorials" / "chains.yaml")
+        corpus = yaml.safe_load(path.read_text(encoding="utf-8"))
+        offenders = [
+            f"{c['chain_id']} step {s['step']}"
+            for c in corpus["chains"]
+            for s in (c.get("steps") or [])
+            if (s.get("completion") or {}).get("type") == "item_acquired"
+        ]
+        self.assertEqual(
+            offenders, [],
+            "item_acquired completions need a real producer for the "
+            "item. Offenders: " + ", ".join(offenders),
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -288,6 +320,10 @@ class TestOnItemAcquired(_F8C2B2IsolatedBase):
 class TestOnItemAcquiredByCharId(_F8C2B2IsolatedBase):
 
     def test_fetches_char_and_dispatches(self):
+        # The char-id variant must fetch the row and dispatch through
+        # on_item_acquired. Post-F.8.c.2.e no chain uses item_acquired
+        # so the dispatch no-ops (returns False) — but the FETCH path
+        # (the point of this variant) must still run exactly once.
         from engine.chain_events import on_item_acquired_by_char_id
         char = _char_with_chain("shipwright_trader", step=3,
                                 completed=[1, 2])
@@ -295,7 +331,7 @@ class TestOnItemAcquiredByCharId(_F8C2B2IsolatedBase):
         db.get_character = AsyncMock(return_value=char)
         result = _run(on_item_acquired_by_char_id(
             db, 42, "capacitor_coil_t1"))
-        self.assertTrue(result)
+        self.assertFalse(result)
         db.get_character.assert_awaited_once_with(42)
 
     def test_no_char_returns_false(self):
@@ -664,11 +700,12 @@ class TestRepublicSoldierE2EPhase2(_F8C2B2IsolatedBase):
         self.assertTrue(_run(on_mission_accepted(
             db, char, "tutorial_republic_first_deployment")))
 
-        # Step 4: room_entered commercial_district_landing_zone (Phase 1)
+        # Step 4: talk_to_npc Pilot CT-7567 (F.8.c.2.e — was the
+        # unreachable room_entered commercial_district_landing_zone).
+        from engine.chain_events import on_talk_to_npc
         self.assertEqual(get_active_step_info(char)["completion_type"],
-                         "room_entered")
-        self.assertTrue(_run(on_room_entered(
-            db, char, "commercial_district_landing_zone")))
+                         "talk_to_npc")
+        self.assertTrue(_run(on_talk_to_npc(db, char, "Pilot CT-7567")))
 
         # Step 5: command_executed +factions (Phase 1) → graduates
         self.assertEqual(get_active_step_info(char)["completion_type"],

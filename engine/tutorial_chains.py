@@ -437,7 +437,11 @@ def _parse_step(sb: dict, cid: str, sidx: int) -> tuple:
         TutorialStep(
             step=int(sb["step"]),
             title=str(sb["title"]),
-            location=str(sb["location"]),
+            # `or ""` so a missing/`null` location loads as "" (which
+            # apply_step_teleport / the web panel treat as "no move")
+            # rather than the literal string "None", which would slip
+            # past the empty-slug guard and emit a spurious WARNING.
+            location=str(sb.get("location") or ""),
             npc=str(sb["npc"]),
             npc_role=str(sb["npc_role"]),
             teaches=list(sb["teaches"]),

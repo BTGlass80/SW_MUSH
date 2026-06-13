@@ -627,9 +627,10 @@ class TestRepublicSoldierE2EPhase3(_IsolatedBase):
         self.assertTrue(_run(on_mission_accepted(
             db, char, "tutorial_republic_first_deployment")))
 
-        # Step 4 → 5
-        self.assertTrue(_run(on_room_entered(
-            db, char, "commercial_district_landing_zone")))
+        # Step 4 → 5 (F.8.c.2.e: talk_to_npc Pilot CT-7567, was the
+        # unreachable room_entered commercial_district_landing_zone).
+        from engine.chain_events import on_talk_to_npc
+        self.assertTrue(_run(on_talk_to_npc(db, char, "Pilot CT-7567")))
 
         # Step 5 → graduated
         self.assertTrue(_run(on_command_executed(

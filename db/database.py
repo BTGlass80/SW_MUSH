@@ -4679,8 +4679,18 @@ class Database:
             return {"items": parsed, "resources": []}
         return {"items": [], "resources": []}
 
-    async def add_to_inventory(self, char_id: int, item: dict):
-        """Append an item dict to character inventory and persist."""
+    async def add_to_inventory(self, char_id: int, item: dict,
+                               *, fire_chain_hook: bool = True):
+        """Append an item dict to character inventory and persist.
+
+        ``fire_chain_hook`` (default True) controls whether the
+        ``item_acquired`` chain-event hook fires. Pass ``False`` when
+        the add is a COMPENSATING action rather than a genuine
+        acquisition — e.g. the ``give`` command's rollback re-add to
+        the giver after a failed transfer (F.8.c.2.e). Firing the hook
+        there would let a rolled-back give falsely advance a giver who
+        happened to be on an ``item_acquired`` chain step.
+        """
         import json as _j
         inv = await self._get_inventory_raw(char_id)
         inv["items"].append(item)
@@ -4694,6 +4704,8 @@ class Database:
         # whole hook is failure-tolerant (errors are swallowed) so
         # inventory updates always succeed even if chain advancement
         # is broken. No-ops silently for items without a "key" field.
+        if not fire_chain_hook:
+            return
         try:
             from engine.chain_events import on_item_acquired_by_char_id
             _key = (item or {}).get("key", "") if isinstance(item, dict) else ""

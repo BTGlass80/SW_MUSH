@@ -249,7 +249,15 @@ class ExamineCommand(BaseCommand):
         except Exception:
             log.debug("examine_insight_fragment failed", exc_info=True)
 
-        # Fall-through: nothing else handles `examine` yet
+        # Try the player's own inventory before emitting the generic fallback.
+        try:
+            from parser.builtin_commands import _describe_inventory_item
+            if await _describe_inventory_item(ctx, char, arg):
+                return
+        except Exception:
+            log.debug("examine: _describe_inventory_item failed", exc_info=True)
+
+        # Fall-through: nothing else handles `examine`
         await ctx.session.send_line(
             f"  You see nothing special about '{arg}'."
         )

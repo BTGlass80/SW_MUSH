@@ -449,18 +449,56 @@ class TestOnCombatWonDispatch(_F8C2BIsolatedBase):
 
 
 class TestOnRoomEnteredDispatch(_F8C2BIsolatedBase):
+    """The `on_room_entered` hook is still wired (MoveCommand fires it
+    on every move) and the `_match_room_entered` matcher is unit-tested
+    separately. But as of F.8.c.2.e NO chain step uses a `room_entered`
+    completion: such steps are unreachable in exit-less tutorial rooms
+    (the inter-step teleport never fires the move hook), so the two that
+    existed (republic_soldier s4, smuggler s3) were re-authored to
+    talk_to_npc. The hook is therefore DORMANT — it must safely no-op
+    against the live corpus rather than false-advance a non-room_entered
+    step. These tests pin that dormant-but-safe behavior. The positive
+    advance path is exercised by the matcher unit tests
+    (TestMatchRoomEntered) without depending on a corpus step that would
+    re-introduce the stranding bug."""
 
-    def test_advances_on_correct_slug(self):
-        # republic_soldier step 4: room_entered commercial_district_landing_zone
+    def test_room_entered_dormant_does_not_false_advance(self):
+        # republic_soldier step 4 is now talk_to_npc (was room_entered).
+        # Entering its former target room must NOT advance the chain —
+        # the hook stays dormant because no step's completion is
+        # room_entered.
         from engine.chain_events import on_room_entered
         db = _make_fake_db()
         char = _char_with_chain("republic_soldier", step=4,
                                 completed=[1, 2, 3])
         result = _run(on_room_entered(
             db, char, "commercial_district_landing_zone"))
-        self.assertTrue(result)
+        self.assertFalse(result)
         attrs = json.loads(char["attributes"])
-        self.assertEqual(attrs["tutorial_chain"]["step"], 5)
+        self.assertEqual(attrs["tutorial_chain"]["step"], 4)
+
+    def test_no_chain_step_uses_room_entered(self):
+        """Guard: if a future drop re-introduces a room_entered
+        completion, this fails — forcing a deliberate decision about
+        reachability (the F.8.c.2.e invariant)."""
+        import yaml
+        from pathlib import Path
+        root = Path(__file__).resolve().parent.parent
+        path = (root / "data" / "worlds" / "clone_wars" /
+                "tutorials" / "chains.yaml")
+        corpus = yaml.safe_load(path.read_text(encoding="utf-8"))
+        offenders = []
+        for c in corpus["chains"]:
+            for s in c.get("steps") or []:
+                if (s.get("completion") or {}).get("type") == "room_entered":
+                    offenders.append(f"{c['chain_id']} step {s['step']}")
+        self.assertEqual(
+            offenders, [],
+            "room_entered completions are unreachable in exit-less "
+            "tutorial rooms (F.8.c.2.e). Re-author to a producible "
+            "completion or wire an exit/teleport that fires "
+            "on_room_entered. Offenders: " + ", ".join(offenders),
+        )
 
     def test_does_not_advance_on_wrong_slug(self):
         from engine.chain_events import on_room_entered
@@ -678,12 +716,14 @@ class TestRepublicSoldierE2E(_F8C2BIsolatedBase):
         advance_step(attrs, corpus)
         char["attributes"] = json.dumps(attrs)
 
-        # Step 4: room_entered commercial_district_landing_zone
+        # Step 4: talk_to_npc Pilot CT-7567 (F.8.c.2.e — was
+        # room_entered commercial_district_landing_zone, which is
+        # unreachable in exit-less tutorial rooms; re-anchored to
+        # talking to the pilot present at the transport pad).
         info = get_active_step_info(char)
         self.assertEqual(info["step"], 4)
-        self.assertEqual(info["completion_type"], "room_entered")
-        self.assertTrue(_run(on_room_entered(
-            db, char, "commercial_district_landing_zone")))
+        self.assertEqual(info["completion_type"], "talk_to_npc")
+        self.assertTrue(_run(on_talk_to_npc(db, char, "Pilot CT-7567")))
 
         # Step 5: command_executed +factions
         info = get_active_step_info(char)

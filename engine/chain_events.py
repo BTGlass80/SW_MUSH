@@ -1007,6 +1007,31 @@ async def _try_advance(db, char: dict, *, event_type: str,
             log.debug("[chain_events] graduation reward delivery "
                       "failed: %s", e, exc_info=True)
 
+    # F.8.c.2.e (2026-06-12): inter-step teleport (non-graduation
+    # advance). Move the player to the NEW step's authored `location`
+    # so the exit-less tutorial rooms connect via the state machine —
+    # the movement rooms.yaml's EXIT POLICY always assumed but which
+    # was only ever implemented for graduation, stranding players at
+    # the first step whose room differed from `starting_room`. Runs
+    # BEFORE _persist_attrs so the pending_step_room_id flag and the
+    # advanced step save in the same write. apply_step_teleport no-ops
+    # when the new step shares the current room or has no location
+    # slug; it is failure-tolerant (a bad slug logs and leaves the
+    # player put rather than stranding them worse).
+    elif new_step is not None:
+        try:
+            from engine.chain_graduation import apply_step_teleport
+            await apply_step_teleport(
+                db, char, attrs, new_step.location,
+            )
+        except Exception as e:
+            # WARNING (not DEBUG): a real save_character/DB failure here
+            # leaves the player in the wrong room — worth an operational
+            # signal. The advance itself already persisted; this is the
+            # convenience move.
+            log.warning("[chain_events] inter-step teleport failed: %s",
+                        e, exc_info=True)
+
     await _persist_attrs(db, char, attrs)
 
     log.info("[chain_events] char %s advanced chain %r past step %d "

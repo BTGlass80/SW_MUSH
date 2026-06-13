@@ -63,6 +63,11 @@ log = logging.getLogger(__name__)
 
 _TUTORIAL_CHAIN_KEY = "tutorial_chain"
 _PENDING_DROP_ROOM_KEY = "pending_drop_room_id"
+# F.8.c.2.e (2026-06-12): inter-step teleport. Distinct from the
+# graduation flag so the parser finisher delivers a light "you move on"
+# arrival (synthetic look) instead of the graduation flavor + reward
+# summary. Stamped only by apply_step_teleport.
+_PENDING_STEP_ROOM_KEY = "pending_step_room_id"
 
 
 # ── Slug resolution ─────────────────────────────────────────────────
@@ -181,6 +186,72 @@ async def apply_graduation(db, char: dict, attrs: dict,
     return new_room_id
 
 
+# ── Engine-layer: inter-step teleport (F.8.c.2.e) ──────────────────
+
+
+async def apply_step_teleport(db, char: dict, attrs: dict,
+                              step_location_slug: str) -> Optional[int]:
+    """Engine-layer inter-step move. When a chain advances to a new
+    (non-graduation) step whose authored ``location`` differs from the
+    player's current room, resolve that slug and move the player there.
+
+    This is the movement the tutorial-room EXIT POLICY always assumed
+    (``data/worlds/clone_wars/tutorials/rooms.yaml`` header): tutorial
+    rooms carry no walkable exits because the state machine relays the
+    player between step rooms. Graduation had this (apply_graduation);
+    the inter-step case was missing, which stranded players at the
+    first step whose room differed from the chain's ``starting_room``.
+
+    Mirrors apply_graduation: resolves the slug, persists the room
+    change, mutates the in-tick ``char`` dict, and stamps a pending
+    flag (``pending_step_room_id``) for the parser finisher to deliver
+    the session-aware look. Uses a DISTINCT flag from graduation so the
+    finisher renders an ordinary arrival, not the graduation summary.
+
+    No-ops (returns None) when: the slug is empty, it fails to resolve,
+    or it resolves to the room the player is already in. Failure-
+    tolerant by design — a bad slug logs at WARNING and leaves the
+    player where they are rather than stranding them in limbo. The
+    chain step still advanced; only the convenience move is skipped.
+    """
+    if not step_location_slug or not str(step_location_slug).strip():
+        return None
+
+    new_room_id = await resolve_drop_room_id(db, step_location_slug)
+    if new_room_id is None:
+        log.warning(
+            "[chain_graduation] step location slug %r failed to "
+            "resolve; char %s stays in room %s",
+            step_location_slug, char.get("id"), char.get("room_id"),
+        )
+        return None
+
+    if int(char.get("room_id") or 0) == new_room_id:
+        # Step's location is the room the player is already standing in
+        # (e.g. two consecutive steps share a room). No move, no flag.
+        return new_room_id
+
+    try:
+        await db.save_character(char["id"], room_id=new_room_id)
+    except Exception:
+        log.warning("[chain_graduation] step teleport save_character "
+                    "failed for char %s", char.get("id"), exc_info=True)
+        return None
+
+    prev_room_id = char.get("room_id")
+    char["room_id"] = new_room_id
+
+    state = attrs.setdefault(_TUTORIAL_CHAIN_KEY, {})
+    state[_PENDING_STEP_ROOM_KEY] = new_room_id
+
+    log.info("[chain_graduation] char %s step-advance teleport %s -> %s "
+             "(slug=%r)",
+             char.get("id"), prev_room_id, new_room_id,
+             step_location_slug)
+
+    return new_room_id
+
+
 # ── Parser-layer: session-aware finish ─────────────────────────────
 
 
@@ -215,7 +286,18 @@ async def execute_pending_teleport(ctx, char: dict) -> bool:
         return False
 
     state = attrs.get(_TUTORIAL_CHAIN_KEY) or {}
-    pending = state.get(_PENDING_DROP_ROOM_KEY)
+    # Graduation takes priority over an inter-step move if both are
+    # somehow stamped (graduation is terminal). The two flags drive
+    # different player-facing deliveries below. Use KEY PRESENCE (not
+    # value truthiness) to classify: a room id of 0 would wrongly read
+    # as "no graduation" under bool(). Room ids autoincrement from 1 so
+    # 0 never occurs in practice, but key-presence is unambiguous.
+    if _PENDING_DROP_ROOM_KEY in state:
+        is_graduation = True
+        pending = state.get(_PENDING_DROP_ROOM_KEY)
+    else:
+        is_graduation = False
+        pending = state.get(_PENDING_STEP_ROOM_KEY)
     if not pending:
         return False
 
@@ -251,21 +333,26 @@ async def execute_pending_teleport(ctx, char: dict) -> bool:
         log.debug("[chain_graduation] session.character sync failed",
                   exc_info=True)
 
-    # Send graduation flavor + auto-look. The flavor line is
-    # generic; chains can override later via `graduation.flavor`
-    # in their YAML if needed (Phase 2 polish).
+    # Player-facing arrival. Graduation gets the terminal "training
+    # complete" flavor; an inter-step move gets a light relocation
+    # line. Both precede the synthetic look. Chains can override the
+    # graduation flavor later via `graduation.flavor` (Phase 2 polish).
     try:
-        await ctx.session.send_line("")
-        await ctx.session.send_line(
-            "  \033[1;33mYour training is complete. The world opens "
-            "before you.\033[0m"
-        )
-        await ctx.session.send_line("")
-
         room_name = room.get("name") or "your destination"
-        await ctx.session.send_line(
-            f"  \033[1;36mYou step out into {room_name}.\033[0m"
-        )
+        await ctx.session.send_line("")
+        if is_graduation:
+            await ctx.session.send_line(
+                "  \033[1;33mYour training is complete. The world opens "
+                "before you.\033[0m"
+            )
+            await ctx.session.send_line("")
+            await ctx.session.send_line(
+                f"  \033[1;36mYou step out into {room_name}.\033[0m"
+            )
+        else:
+            await ctx.session.send_line(
+                f"  \033[1;36mYou make your way to {room_name}.\033[0m"
+            )
         await ctx.session.send_line("")
     except Exception:
         log.debug("[chain_graduation] flavor lines failed",
@@ -288,17 +375,19 @@ async def execute_pending_teleport(ctx, char: dict) -> bool:
         log.debug("[chain_graduation] synthetic look failed",
                   exc_info=True)
 
-    # F.8.c.2.d: graduation reward summary. Reads the
+    # F.8.c.2.d: graduation reward summary — graduation only. Reads the
     # graduation_summary block stamped onto chargen_notes by
     # apply_graduation_rewards (engine layer) and delivers the
-    # multi-line player-visible summary. No-op if no summary
-    # block exists.
-    try:
-        from engine.chain_rewards import send_graduation_summary
-        await send_graduation_summary(ctx.session, char)
-    except Exception:
-        log.debug("[chain_graduation] reward summary send failed",
-                  exc_info=True)
+    # multi-line player-visible summary. No-op if no summary block
+    # exists. Skipped entirely for an inter-step move (no rewards to
+    # summarize there).
+    if is_graduation:
+        try:
+            from engine.chain_rewards import send_graduation_summary
+            await send_graduation_summary(ctx.session, char)
+        except Exception:
+            log.debug("[chain_graduation] reward summary send failed",
+                      exc_info=True)
 
     # Clear the pending flag and persist.
     await _clear_pending(ctx.db, char, attrs)
@@ -307,13 +396,18 @@ async def execute_pending_teleport(ctx, char: dict) -> bool:
 
 
 async def _clear_pending(db, char: dict, attrs: dict) -> None:
-    """Internal helper. Drops the pending_drop_room_id key from
-    the chain state and re-persists attrs."""
+    """Internal helper. Drops any pending teleport flag
+    (``pending_drop_room_id`` and/or ``pending_step_room_id``) from the
+    chain state and re-persists attrs."""
     import json as _gj
     try:
         state = attrs.get(_TUTORIAL_CHAIN_KEY) or {}
-        if _PENDING_DROP_ROOM_KEY in state:
-            del state[_PENDING_DROP_ROOM_KEY]
+        removed = False
+        for _key in (_PENDING_DROP_ROOM_KEY, _PENDING_STEP_ROOM_KEY):
+            if _key in state:
+                del state[_key]
+                removed = True
+        if removed:
             attrs[_TUTORIAL_CHAIN_KEY] = state
             await db.save_character(
                 char["id"],

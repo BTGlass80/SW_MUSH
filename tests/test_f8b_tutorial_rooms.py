@@ -326,14 +326,23 @@ class TestF8BZoneFixesApplied(unittest.TestCase):
             step4["location"], "nar_shaddaa_warrens_safehouse",
         )
 
-    def test_smuggler_step3_completion_uses_holdout(self):
+    def test_smuggler_step3_completion_is_talk_voss(self):
+        """F.8.c.2.e superseded F.8.b's `room_entered: tatooine_smuggler_
+        holdout` completion: a `room_entered` step is unreachable in an
+        exit-less tutorial room (the inter-step teleport never fires the
+        move hook), so step 3 now completes by talking to Captain Reggi
+        Voss (present at Docking Bay 94). Advancing then teleports the
+        player to step 4's room."""
         chains = _load_chains_yaml()
         chains_by_id = {c["chain_id"]: c for c in chains["chains"]}
         sm = chains_by_id["smuggler"]
         step3 = next(s for s in sm["steps"] if s["step"] == 3)
+        self.assertEqual(step3["completion"].get("type"), "talk_to_npc")
         self.assertEqual(
-            step3["completion"].get("room"), "tatooine_smuggler_holdout",
+            step3["completion"].get("npc"), "Captain Reggi Voss",
         )
+        # The old room_entered shape must be gone.
+        self.assertIsNone(step3["completion"].get("room"))
 
     def test_smuggler_step4_uses_ship_cockpit(self):
         chains = _load_chains_yaml()

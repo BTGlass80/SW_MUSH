@@ -1138,7 +1138,7 @@ function renderStep0() {
     html += `<div class="card" data-key="${t.key}" onclick="selectTemplate('${t.key}')">
       <div class="card-name">${escHtml(t.label)}</div>
       <div class="card-tag">${escHtml(t.tagline||'')}</div>
-      <div class="card-body">${escHtml(truncate(t.description, 160))}</div>
+      <div class="card-body" data-tip="${escAttr(t.description||'')}">${escHtml(truncate(t.description, 160))}</div>
       <div class="card-detail">
         <div style="margin-bottom:6px;color:var(--text-primary)">${escHtml(t.gameplay||'')}</div>
         ${t.key_skills && t.key_skills.length ? '<div style="color:var(--accent-cyan)">Key skills: '+t.key_skills.map(escHtml).join(', ')+'</div>' : ''}
@@ -1205,7 +1205,7 @@ function renderStep1() {
       ${sel?'<div class="card-badge">SELECTED</div>':''}
       <div class="card-name">${escHtml(sp.name)}</div>
       <div class="card-tag">${escHtml(sp.homeworld)}</div>
-      <div class="card-body">${escHtml(truncate(sp.description, 120))}</div>
+      <div class="card-body" data-tip="${escAttr(sp.description||'')}">${escHtml(truncate(sp.description, 120))}</div>
       <div style="margin-top:8px;font-size:12px;color:var(--text-dim)">
         STR ${strStr} · Move ${sp.move} ${abCount>0?'· '+abCount+' abilit'+(abCount>1?'ies':'y'):''}
       </div>
@@ -1218,7 +1218,7 @@ function renderStep1() {
         }).join('')}
         ${sp.special_abilities && sp.special_abilities.length > 0 ?
           '<div style="margin-top:8px"><strong style="color:var(--text-bright)">Special Abilities:</strong></div>' +
-          sp.special_abilities.map(a => '<div style="margin-top:4px"><span style="color:var(--accent-amber)">'+escHtml(a.name)+'</span>: <span style="color:var(--text-dim)">'+escHtml(truncate(a.description,200))+'</span></div>').join('')
+          sp.special_abilities.map(a => '<div style="margin-top:4px"><span style="color:var(--accent-amber)">'+escHtml(a.name)+'</span>: <span style="color:var(--text-dim)" data-tip="'+escAttr(a.description||'')+'">'+escHtml(truncate(a.description,200))+'</span></div>').join('')
           : ''}
         ${sp.story_factors && sp.story_factors.length > 0 ?
           '<div style="margin-top:8px"><strong style="color:var(--text-bright)">Story Factors:</strong></div>' +
