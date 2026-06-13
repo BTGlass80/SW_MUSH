@@ -47,8 +47,8 @@ let recent drops outrun their drivers.
 | 1 | `mission_loop` (missions→accept→mission→complete reward→abandon) | P1 | Faction/Mission core loop — **zero** e2e coverage | **closed this pass** |
 | 2 | `buy_vendor_gate` (refusal w/o vendor · success w/ vendor · stock gate) | P2 | Open-market buy gate (Drops 10–11) | **closed this pass** |
 | 3 | `craft_trainer` (`learn` usage · trainer-absent refusal · paid/free lesson) | P1 | Crafting trainer lane (Drop 9) | **closed this pass** |
-| 4 | `commissary_gear_loop` (faction/rank gate → buy → inventory → skill bonus) | P1 | Commissary + `tracking_fob` (Drop 13) | **remaining** |
-| 5 | `smuggling_job_loop` (board → accept → active job → deliver-refusal) | P2 | Smuggling jobs (2026-06-01) | **remaining** |
+| 4 | `commissary_loop` (rank gate → buy → 350cr debit → inventory skill_bonus → austere-refusal negative) | P1 | Commissary + `tracking_fob` (Drop 13) | **closed (3 pass)** |
+| 5 | `smuggling_loop` (board → accept → active run → deliver-refusal) | P2 | Smuggling jobs (2026-06-01) | **closed — SL3 pass; SL1/SL2/SL4 xfail (bug #2 below)** |
 | 6 | `craft_quality_buyback_gate` (q≥50 refuse vs q<50 sell) | P3 | NPC buyback quality gate (2026-06-02) | **remaining** |
 | 7 | `underworld_anomaly_loot` (region reachability + anomalies/loot) | P3 | Coruscant Underworld (2026-06-12) | **deferred — region in flight in a parallel session** |
 
@@ -69,6 +69,19 @@ let recent drops outrun their drivers.
 
 No `pytest.skip`/`xfail`; all hard-fail assertions; no existing test flipped.
 
+### Closed this pass — batch 2 (P1/P2): `4 passed, 3 xfailed`
+
+- **`commissary_loop`** (3 scenarios): rank-1 BHG member sees `tracking_fob` →
+  `+commissary buy` debits exactly 350 cr and lands the item in the inventory
+  blob with its `skill_bonus` dict intact → `jedi_order` austere-refusal with no
+  debit. Legitimate seeding (a real member *has* a rank-1 `org_memberships`
+  row); strong assertions; no masking.
+- **`smuggling_loop`** (4 scenarios): SL3 (`smugdeliver` docked-ship gate) is a
+  real pass; SL1/SL2/SL4 are honest **`xfail`** documenting bug #2 (driven
+  faithfully, no workaround — they XPASS when `current_room` is wired). This is
+  deliberately *not* seeded-to-green: that would falsely report a broken loop as
+  working.
+
 ## Bug surfaced by `mission_loop` (CONFIRMED — needs a separate fix + a design call)
 
 The new mission smoke immediately surfaced a real **silent DB-persistence
@@ -85,6 +98,35 @@ written). NOT fixed here (scope = smoke coverage), and it carries a design fork:
 is DB persistence even wanted given the board is the in-memory source of truth,
 or should the dead DB calls be removed? → Brian's call. The scenario
 deliberately mirrors the in-memory board and does not depend on the broken path.
+
+## Bug #2 surfaced by `smuggling_loop` (CONFIRMED — smuggling board unreachable in prod)
+
+A second, more serious latent bug. `_in_board_room`
+(`parser/smuggling_commands.py:38`) reads `ctx.session.current_room` — an
+attribute that is **never assigned anywhere** in server/, parser/, or engine/
+(verified: every other room-gated command reads `char["room_id"]`; nothing ever
+sets `session.current_room`). Accessing it raises `AttributeError`, which the
+dispatch wrapper catches and renders as "An error occurred…". Net effect:
+`+smugjobs` / `smugaccept` **always error in the live server — the smuggling
+board is unreachable.** It went undetected because the loop was only ever
+"smoke-tested live, later" (a recurring CHANGELOG "Pending" note) — the precise
+failure mode this work targets.
+
+Handling: `mission_loop` was committed seeding around its bug only because the
+in-memory board is genuinely how the live server governs that state. The
+smuggling bug is different — `current_room` is supposed to exist at runtime and
+doesn't — so seeding it would test a path production can't reach and report a
+false "smuggling works". Instead, `smuggling_loop` SL1/SL2/SL4 are driven
+faithfully and marked **`xfail`** (matching the S12-lockon precedent): they
+document the bug, keep the suite green, and **XPASS the moment `current_room` is
+wired** (then remove the marks). SL3 (`smugdeliver` docked-ship gate) is
+independent of the bug and is a real passing test.
+
+Fix (Brian's call — a design fork): either set
+`session.current_room = await db.get_room(char["room_id"])` in the dispatch loop
+before command execution (helps any future command that wants the room object),
+or rewrite `_in_board_room` to use `char["room_id"]` + a DB lookup like every
+other gated command. Not fixed here (scope = smoke coverage).
 
 ## Root-cause fix — stop the drift, don't just patch it
 
