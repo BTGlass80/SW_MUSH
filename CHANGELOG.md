@@ -6,6 +6,17 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-13 — Commissary sellback model (anti-laundering refund + bind-to-channel) — *drop 38*
+Resolves the ECON.commissary_sellback design call in full (all 3 pieces — Brian ratified incl. same-faction trade). Faction-issued / commissary gear can no longer be bought at the requisition discount and resold on the open market for profit (the laundering loop), and it stays within its issuing faction.
+- **Piece 1 — vendor refusal (the anti-laundering lock):** `engine/items.py::npc_refuses_buyback` now also refuses any `faction_issued` item (was crafted-quality-only). Works on both ItemInstance and plain inventory dicts (new `_item_attr` shim). Ordinary vendors hand faction gear back. (The vendor-droid path already refused it — this closes the NPC-vendor `sell` path too.)
+- **Piece 2 — the commissary refund channel:** `engine/commissary.py::sell_commissary` + `+commissary sell <key>`. Faction gear sells back ONLY to the issuing faction's commissary, refunding `COMMISSARY_SELLBACK_RATE` (50%) of the item's requisition cost via the metered `commissary_sellback` faucet — BY CONSTRUCTION smaller than the `commissary_purchase` sink that created it, so the buy→sellback round trip is a strict NET LOSS (pinned by `TestNoLaunderingLoop`). The requisition cost is now stamped on the item at purchase (`requisition_cost`), with a stock-price fallback for legacy items. Refund-safe ordering (remove item, then credit; restore on credit failure). Channel-bound: you sell Republic gear to the Republic commissary, not the Hutts'.
+- **Piece 3 — bind-to-channel transfer:** `engine/items.py::faction_bound_transfer_blocked` gates `give` (PC→PC) and `trade` so faction-issued gear only transfers to a SAME-FACTION member (intra-faction redistribution is lore-apt + laundering-neutral; outsiders refused). NPC hand-off unaffected (consumed). Items without a `faction_code` fall back to not-blocked (the vendor lock is the real laundering guard).
+- **Faucet/sink:** the only new tag is the `commissary_sellback` faucet, paired with + smaller than the existing `commissary_purchase` sink. Routed through `adjust_credits` (auto-visible on `@economy`).
+- **Verified:** `tests/test_commissary_sellback.py` (18 — all 3 pieces incl. the net-loss invariant, wrong-channel refusal, legacy stock fallback, refund-safe restore) + 110-test commissary/buyback/vendor-sell/give/trade/builtin regression green + smoke.
+- **Files:** `engine/items.py`, `engine/commissary.py`, `parser/commissary_commands.py`, `parser/builtin_commands.py`, `tests/test_commissary_sellback.py`, `CHANGELOG.md`, `TODO.json`.
+
+---
+
 ### 2026-06-13 — World-event flag consumers (3 of 5): distress + hutt_auction + brawl — *drop 37*
 Completes the WORLDEVENT.flag_effect_consumers gap — all 5 dead world-event FLAG effects now have thin consumers over existing systems (the design call is now fully resolved). Same pattern throughout: a pure modulator (unit-tested without the manager) read at one existing seam.
 - **`distress_active` (DISTRESS_SIGNAL → mission board):** `engine/missions.py::distress_mission_bonus` (+30% emergency pay, `DISTRESS_REWARD_BONUS`). In `generate_mission`, while the signal is live, the rolled type is forced to MEDICAL (a distress call IS a medical/rescue job), the reward gets the premium, and the title becomes "DISTRESS: <dest>". Mirrors the existing Director-alert-level bias in `_pick_type`.

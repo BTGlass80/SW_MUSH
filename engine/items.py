@@ -547,16 +547,59 @@ def build_inventory_state(equipment_raw, carried, registry=None) -> dict:
 CRAFTED_NPC_BUYBACK_MAX_QUALITY = 50
 
 
+def _item_attr(item, key, default=None):
+    """Read an attribute from either an ItemInstance (getattr) or a plain
+    inventory dict (get). Both shapes reach the buyback gate — equipped
+    weapons arrive as ItemInstance, carried/commissary items as dicts."""
+    if isinstance(item, dict):
+        return item.get(key, default)
+    return getattr(item, key, default)
+
+
+def faction_bound_transfer_blocked(item, giver_faction, recipient_faction
+                                   ) -> bool:
+    """ECON.commissary_sellback (2026-06-13), piece 3 — bind-to-channel.
+    Faction-issued gear may change hands only WITHIN the issuing faction:
+    a same-faction member can receive it (redistribution is lore-apt and
+    laundering-neutral — no credits minted), an outsider cannot.
+
+    Returns True iff this PC->PC transfer must be BLOCKED: the item is
+    faction-issued AND the recipient is not in the item's faction. Items
+    that aren't faction-issued are never blocked. The check uses the
+    item's own `faction_code` (stamped at issue/purchase); if the item
+    has no faction_code it falls back to not-blocking (can't prove a
+    channel, so don't punish — the vendor-refusal lock already prevents
+    laundering)."""
+    if not _item_attr(item, "faction_issued"):
+        return False
+    item_fac = str(_item_attr(item, "faction_code") or "").strip().lower()
+    if not item_fac:
+        return False
+    recip = str(recipient_faction or "").strip().lower()
+    return recip != item_fac
+
+
 def npc_refuses_buyback(item) -> bool:
     """True if an NPC vendor should refuse to buy ``item`` back.
 
-    Scoped to PLAYER-CRAFTED items (``crafter`` set) at or above the quality
-    threshold; factory/vendor items (no crafter) and low-quality crafts are
-    unaffected. Closes the craft -> NPC-sell price-support loop (economy
-    audit v2 §1.3) by pushing good crafts to the player vendor-droid market.
-    """
-    return bool(getattr(item, "crafter", None)) and \
-        getattr(item, "quality", 0) >= CRAFTED_NPC_BUYBACK_MAX_QUALITY
+    Two scopes:
+      1. PLAYER-CRAFTED items (``crafter`` set) at or above the quality
+         threshold — closes the craft -> NPC-sell price-support loop
+         (economy audit v2 §1.3); pushes good crafts to the player
+         vendor-droid market.
+      2. FACTION-ISSUED / commissary gear (``faction_issued`` true) —
+         ECON.commissary_sellback (2026-06-13): ordinary vendors refuse it
+         so it can't be bought at the requisition discount and resold on
+         the open market for a profit (the laundering loop). Faction gear
+         sells back ONLY through the issuing commissary (`+commissary
+         sell`), at a partial refund smaller than the purchase sink.
+
+    Works on both ItemInstance and plain inventory dicts (equipped vs
+    carried/commissary)."""
+    if _item_attr(item, "faction_issued"):
+        return True
+    return bool(_item_attr(item, "crafter")) and \
+        int(_item_attr(item, "quality", 0) or 0) >= CRAFTED_NPC_BUYBACK_MAX_QUALITY
 
 
 # ── Crafted-weapon combat pip helpers (Drop 19 — OBS.quality_and_boosts_not_combat_read, Option B) ──

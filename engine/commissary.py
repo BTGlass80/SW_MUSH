@@ -231,6 +231,11 @@ async def purchase_commissary(db, char: dict, faction_code, rank_level, key) -> 
             "faction_issued": True,
             "faction_code":   str(faction_code).strip().lower(),
             "commissary":     True,
+            # ECON.commissary_sellback (2026-06-13): the item carries its
+            # own requisition cost so the sellback refund (<=50%) is
+            # computable from the instance, robust to later stock-price
+            # changes (same idea as crafted items carrying `quality`).
+            "requisition_cost": cost,
         }
         sb = item.get("skill_bonus")
         if isinstance(sb, dict):
@@ -248,3 +253,101 @@ async def purchase_commissary(db, char: dict, faction_code, rank_level, key) -> 
         return {"ok": False, "reason": "grant_failed"}
 
     return {"ok": True, "key": item["key"], "name": item["name"], "cost": cost}
+
+
+# ── Sellback (ECON.commissary_sellback, 2026-06-13) ──────────────────
+#
+# Faction-issued / commissary gear cannot be sold to ordinary vendors
+# (npc_refuses_buyback now refuses faction_issued — closes the buy-at-
+# discount / resell-on-open-market laundering loop). It sells back ONLY
+# here, to the issuing faction's commissary, as a PARTIAL refund at
+# COMMISSARY_SELLBACK_RATE of the item's requisition cost. The refund is
+# BY CONSTRUCTION smaller than the commissary_purchase sink that created
+# the item, so the buy->sellback round trip is a NET LOSS — no laundering.
+
+COMMISSARY_SELLBACK_RATE = 0.50  # refund fraction of requisition cost
+
+
+def _refund_amount(item: dict, faction_code) -> int:
+    """The sellback refund for a commissary item: COMMISSARY_SELLBACK_RATE
+    of its requisition cost. Prefer the cost stamped on the item at
+    purchase; fall back to the current stock price for legacy items that
+    predate the stamped field. Returns 0 if neither is available."""
+    cost = item.get("requisition_cost")
+    if cost is None:
+        stock = commissary_item(faction_code, item.get("key"))
+        cost = stock["cost"] if stock else 0
+    try:
+        return max(0, int(int(cost) * COMMISSARY_SELLBACK_RATE))
+    except (TypeError, ValueError):
+        return 0
+
+
+async def sell_commissary(db, char: dict, faction_code, key) -> dict:
+    """Sell a faction-issued commissary item back to the issuing
+    commissary for a partial refund. Returns a result dict the command
+    renders.
+
+    Validation: the item must be in inventory, be faction_issued, and
+    belong to THIS faction's channel (you sell Republic gear to the
+    Republic commissary, not the Hutts'). Refund-safe: the item is
+    removed FIRST, then the refund credited — so a credit can never be
+    paid for an item the player keeps."""
+    fc = str(faction_code or "").strip().lower()
+    if not faction_has_commissary(fc):
+        return {"ok": False, "reason": "no_commissary"}
+
+    # Find the matching faction-issued item in inventory.
+    try:
+        inv = await db.get_inventory(char["id"])
+    except Exception:
+        log.warning("[commissary] sell: get_inventory failed for char %s",
+                    char.get("id"), exc_info=True)
+        return {"ok": False, "reason": "lookup_failed"}
+
+    match = None
+    for it in (inv or []):
+        if not isinstance(it, dict):
+            continue
+        if it.get("key") == key and it.get("faction_issued"):
+            match = it
+            break
+    if match is None:
+        return {"ok": False, "reason": "not_owned"}
+
+    # Channel-bound: only the issuing faction buys it back.
+    item_fac = str(match.get("faction_code") or "").strip().lower()
+    if item_fac and item_fac != fc:
+        return {"ok": False, "reason": "wrong_channel",
+                "item_faction": item_fac, "name": match.get("name", key)}
+
+    refund = _refund_amount(match, fc)
+
+    # Remove FIRST (refund-safe), then credit.
+    try:
+        removed = await db.remove_from_inventory(char["id"], key)
+    except Exception:
+        log.warning("[commissary] sell: remove failed for char %s",
+                    char.get("id"), exc_info=True)
+        return {"ok": False, "reason": "remove_failed"}
+    if not removed:
+        return {"ok": False, "reason": "not_owned"}
+
+    if refund > 0:
+        try:
+            char["credits"] = await db.adjust_credits(
+                char["id"], refund, "commissary_sellback")
+        except Exception:
+            # Credit failed AFTER removing the item — restore it so the
+            # player isn't out both item and refund.
+            log.error("[commissary] sellback credit failed for char %s; "
+                      "restoring item", char.get("id"), exc_info=True)
+            try:
+                await db.add_to_inventory(char["id"], match)
+            except Exception:
+                log.error("[commissary] RESTORE FAILED for char %s",
+                          char.get("id"), exc_info=True)
+            return {"ok": False, "reason": "credit_failed"}
+
+    return {"ok": True, "key": key, "name": match.get("name", key),
+            "refund": refund}

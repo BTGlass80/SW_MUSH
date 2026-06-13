@@ -18,7 +18,7 @@ from parser.commands import BaseCommand, CommandContext, AccessLevel
 from server import ansi
 from engine.commissary import (
     faction_has_commissary, commissary_status_lines, purchase_commissary,
-    commissary_vendor_payload,
+    commissary_vendor_payload, sell_commissary, COMMISSARY_SELLBACK_RATE,
 )
 
 log = logging.getLogger(__name__)
@@ -50,9 +50,12 @@ class CommissaryCommand(BaseCommand):
         "faction rank; the Jedi Order keeps no commissary.\n"
         "\n"
         "  +commissary            — your faction's requisition list + prices\n"
-        "  +commissary buy <key>  — requisition an item"
+        "  +commissary buy <key>  — requisition an item\n"
+        "  +commissary sell <key> — sell faction gear back to the commissary\n"
+        "                           for a partial refund (faction gear can't\n"
+        "                           be sold to ordinary vendors)"
     )
-    usage = "+commissary [buy <key>]"
+    usage = "+commissary [buy <key> | sell <key>]"
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
@@ -71,6 +74,8 @@ class CommissaryCommand(BaseCommand):
 
         if sub in ("buy", "requisition", "req", "purchase"):
             await self._buy(ctx, char, rest)
+        elif sub in ("sell", "sellback", "refund"):
+            await self._sell(ctx, char, rest)
         else:
             await self._status(ctx, char)
 
@@ -160,6 +165,55 @@ class CommissaryCommand(BaseCommand):
             await ctx.session.send_line(ansi.error(
                 "  The requisition couldn't be completed. "
                 "No credits were spent."))
+
+
+    async def _sell(self, ctx, char, key):
+        if not key:
+            await ctx.session.send_line("  Usage: +commissary sell <key>")
+            return
+        faction_code, _rank = await _resolve_faction_rank(ctx, char)
+        if not faction_has_commissary(faction_code):
+            await ctx.session.send_line(
+                "  Your faction does not maintain a commissary.")
+            return
+        res = await sell_commissary(ctx.db, char, faction_code, key)
+        if res.get("ok"):
+            pct = int(COMMISSARY_SELLBACK_RATE * 100)
+            await ctx.session.send_line(ansi.success(
+                "  Sold {} back to the commissary for {:,} credits "
+                "({}% requisition refund).".format(
+                    res["name"], res["refund"], pct)))
+            # Refresh the web vendor panel balance.
+            try:
+                from server.session import Protocol
+                if ctx.session.protocol == Protocol.WEBSOCKET:
+                    _, rank_level = await _resolve_faction_rank(ctx, char)
+                    await ctx.session.send_json(
+                        "shop_state",
+                        commissary_vendor_payload(
+                            faction_code, rank_level,
+                            int(char.get("credits") or 0)),
+                    )
+            except Exception:
+                pass
+            return
+        reason = res.get("reason")
+        if reason == "no_commissary":
+            await ctx.session.send_line(
+                "  Your faction does not maintain a commissary.")
+        elif reason == "not_owned":
+            await ctx.session.send_line(
+                "  You're not carrying any faction-issued '{}'. "
+                "(Only commissary/faction gear sells back here.)".format(key))
+        elif reason == "wrong_channel":
+            await ctx.session.send_line(ansi.error(
+                "  That's {}-issued gear — sell it back through THEIR "
+                "commissary, not yours.".format(
+                    res.get("item_faction", "another faction"))))
+        else:
+            await ctx.session.send_line(ansi.error(
+                "  The sellback couldn't be completed. "
+                "Nothing was changed."))
 
 
 def register_commissary_commands(registry):

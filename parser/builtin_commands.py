@@ -4729,6 +4729,28 @@ class GiveCommand(BaseCommand):
 
         target_name = cand.name
 
+        # ── ECON.commissary_sellback piece 3 (2026-06-13): faction gear
+        # is bind-to-channel — a PC may only hand faction-issued gear to a
+        # SAME-FACTION member (redistribution is laundering-neutral; an
+        # outsider can't receive it). NPC hand-off is unaffected (consumed).
+        if cand.obj_type == "character":
+            try:
+                from engine.items import faction_bound_transfer_blocked
+                recip_row = await ctx.db.get_character(cand.id)
+                recip_fac = (recip_row or {}).get("faction_id") if recip_row \
+                    else None
+                if faction_bound_transfer_blocked(matched, None, recip_fac):
+                    await ctx.session.send_line(
+                        f"  The {item_name} is faction-issued — only a member "
+                        f"of the issuing faction can carry it. {target_name} "
+                        f"can't take it.")
+                    return
+            except Exception:
+                log.warning("GiveCommand: faction-bind check failed",
+                            exc_info=True)
+                # Fail-OPEN here is acceptable: the vendor-refusal lock is
+                # the laundering guard; this is the lore bind-to-channel.
+
         # ── Remove from the giver FIRST (lose-not-dupe ordering) ────
         try:
             removed = await ctx.db.remove_from_inventory(
@@ -5436,6 +5458,28 @@ class TradeCommand(BaseCommand):
                     f"  Trade with {char['name']} cancelled — you no longer have {item_name}."
                 )
                 return
+
+            # ECON.commissary_sellback piece 3 (2026-06-13): faction gear
+            # is bind-to-channel — it can only be traded TO a same-faction
+            # member (here `char` is the recipient/accepter). Blocks
+            # cross-faction trades of faction-issued gear; ordinary items
+            # are unaffected.
+            try:
+                from engine.items import faction_bound_transfer_blocked
+                if faction_bound_transfer_blocked(
+                        item_data, offerer.get("faction_id"),
+                        char.get("faction_id")):
+                    _pending_trades.pop(offer_key, None)
+                    await ctx.session.send_line(
+                        f"  {item_name} is faction-issued — only a member of "
+                        f"the issuing faction can carry it. Trade cancelled.")
+                    await offerer_sess.send_line(
+                        f"  Trade cancelled — {char['name']} can't carry "
+                        f"faction-issued {item_name}.")
+                    return
+            except Exception:
+                log.warning("TradeCommand: faction-bind check failed",
+                            exc_info=True)
 
             # Execute item transfer atomically
             removed = await ctx.db.remove_from_inventory(offerer["id"], item_key)
