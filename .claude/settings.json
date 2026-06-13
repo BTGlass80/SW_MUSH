@@ -28,21 +28,14 @@
       "Bash(echo:*)"
     ],
     "deny": [
-      "Bash(git push:*)",
-      "Bash(git push)",
       "Bash(git reset --hard:*)",
       "Bash(git checkout:*)",
       "Bash(git clean:*)",
-      "Bash(git merge:*)",
       "Bash(git rebase:*)",
       "Bash(rm -rf:*)",
       "Bash(rm -rf /)",
       "Bash(rm -rf ~)",
-      "Bash(run_all_tests.bat)",
-      "Bash(./run_all_tests.bat)",
-      "PowerShell(git push:*)",
       "PowerShell(git reset --hard:*)",
-      "PowerShell(git merge:*)",
       "PowerShell(git rebase:*)",
       "PowerShell(Remove-Item:*)",
       "PowerShell(rm -rf:*)"
