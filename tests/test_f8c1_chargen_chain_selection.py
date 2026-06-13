@@ -84,7 +84,12 @@ class TestEraDetection(_F8C1IsolatedBase):
         # unchanged at 7 (see test_render_populates_menu below); the
         # corpus count is now 9, not 8. test_f8_tutorial_chains_yaml.py
         # was updated at F.7.j time but this assertion was missed.
-        self.assertEqual(len(w._chains_corpus.chains), 9)
+        # T5-questline arc (2026-06-13): the corpus also carries mid-game
+        # questline-kind chains (excluded from the chargen picker), so
+        # pin the ONBOARDING subset at 9 rather than the raw corpus count.
+        onboarding = [c for c in w._chains_corpus.chains
+                      if getattr(c, "kind", "tutorial") != "questline"]
+        self.assertEqual(len(onboarding), 9)
 
     def test_gcw_era_no_chains_corpus(self):
         w = _build_wizard("gcw")

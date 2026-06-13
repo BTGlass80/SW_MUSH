@@ -199,30 +199,44 @@ async def apply_step_rewards(db, char: dict, step,
     successfully advances. Reads ``step.reward`` (a dict on the
     Step dataclass) and delivers any rewards declared:
 
-      * ``items: list[str]`` — item keys to grant (the only
-        per-step reward type currently used; other keys are
-        accepted but not yet consumed)
+      * ``items: list[str]`` — item keys to grant (narrative props
+        the next step uses/examines)
+      * ``credits: int`` — credits via the metered ``adjust_credits``
+        faucet (tag ``chain_step_reward``)
+      * ``faction_rep: {code: delta}`` — rep via the ``adjust_rep``
+        funnel
+
+    T5-questline arc (2026-06-13): credits + faction_rep are now
+    CONSUMED (previously items-only — authored per-step credits/rep
+    were silently dropped, a phantom-producer gap). The richer
+    master-trainer questlines award incremental rep across their
+    steps, so per-step rep delivery is load-bearing for them; the
+    onboarding chains that carried per-step rep now deliver it too
+    (latent debt closed). All movement goes through the same funnels
+    graduation uses — no raw credit/rep writes.
 
     Per-step rewards are simpler than graduation rewards — most
-    chain steps have no rewards (``reward: {}``). When they do,
-    the items are typically narrative props (``sealed_data_packet``,
-    a comlink, a key card) that the next step uses or examines.
+    chain steps have no rewards (``reward: {}``).
 
     Idempotent at the chain dispatcher level — ``_try_advance``
     only fires this once per step transition. Failure-tolerant:
-    item grant errors are logged and swallowed; the chain
+    each reward slot's errors are logged and swallowed; the chain
     advancement itself never blocks on reward delivery.
 
     Returns a small report dict:
         {
           "items_granted": [item_key, ...],
           "items_failed":  [item_key, ...],
+          "credits_awarded": int,
+          "rep_awarded":   {code: new_score, ...},
           "errors":        [error_str, ...],
         }
     """
     report = {
         "items_granted": [],
         "items_failed": [],
+        "credits_awarded": 0,
+        "rep_awarded": {},
         "errors": [],
     }
 
@@ -233,28 +247,73 @@ async def apply_step_rewards(db, char: dict, step,
     if not isinstance(rewards, dict):
         return report
 
-    items_list = rewards.get("items") or []
-    if not isinstance(items_list, list):
-        return report
-
     step_num = int(getattr(step, "step", 0) or 0)
 
-    for item_key in items_list:
-        if not item_key or not isinstance(item_key, str):
-            continue
+    # ── Credits (metered faucet) ────────────────────────────────────
+    credits_amount = int(rewards.get("credits", 0) or 0)
+    if credits_amount > 0:
         try:
-            item_dict = _build_step_item(
-                item_key, chain_id, step_num)
-            await db.add_to_inventory(char["id"], item_dict)
-            report["items_granted"].append(item_key)
-            log.info("[chain_rewards] step item %s granted to char %s "
+            char["credits"] = await db.adjust_credits(
+                char["id"], credits_amount, "chain_step_reward")
+            report["credits_awarded"] = credits_amount
+            log.info("[chain_rewards] step +%d credits to char %s "
                      "(chain=%s, step=%d)",
-                     item_key, char.get("id"), chain_id, step_num)
+                     credits_amount, char.get("id"), chain_id, step_num)
         except Exception as e:
-            log.warning("[chain_rewards] step item grant failed "
-                        "for %s: %s", item_key, e, exc_info=True)
-            report["items_failed"].append(item_key)
-            report["errors"].append(f"item[{item_key}]: {e}")
+            log.warning("[chain_rewards] step credits award failed "
+                        "for char %s: %s", char.get("id"), e,
+                        exc_info=True)
+            report["errors"].append(f"credits: {e}")
+
+    # ── Faction rep (funnel) ────────────────────────────────────────
+    rep_block = rewards.get("faction_rep") or {}
+    if isinstance(rep_block, dict) and rep_block:
+        try:
+            from engine.organizations import adjust_rep
+        except Exception:
+            adjust_rep = None
+            report["errors"].append("faction_rep: adjust_rep unavailable")
+        if adjust_rep is not None:
+            for faction_code, delta in rep_block.items():
+                try:
+                    delta_int = int(delta)
+                    if delta_int == 0:
+                        continue
+                    new_score = await adjust_rep(
+                        char, faction_code, db,
+                        delta=delta_int,
+                        reason=f"chain_step:{chain_id}:{step_num}",
+                    )
+                    report["rep_awarded"][faction_code] = new_score
+                    log.info("[chain_rewards] step char %s rep %s %+d "
+                             "(new=%s, chain=%s, step=%d)",
+                             char.get("id"), faction_code, delta_int,
+                             new_score, chain_id, step_num)
+                except Exception as e:
+                    log.warning("[chain_rewards] step rep adjust failed "
+                                "for %s/%s: %s", char.get("id"),
+                                faction_code, e, exc_info=True)
+                    report["errors"].append(f"rep[{faction_code}]: {e}")
+
+    # ── Items ───────────────────────────────────────────────────────
+    items_list = rewards.get("items") or []
+    if isinstance(items_list, list):
+        for item_key in items_list:
+            if not item_key or not isinstance(item_key, str):
+                continue
+            try:
+                item_dict = _build_step_item(
+                    item_key, chain_id, step_num)
+                await db.add_to_inventory(char["id"], item_dict)
+                report["items_granted"].append(item_key)
+                log.info("[chain_rewards] step item %s granted to char %s "
+                         "(chain=%s, step=%d)",
+                         item_key, char.get("id"), chain_id, step_num)
+            except Exception as e:
+                log.warning("[chain_rewards] step item grant failed "
+                            "for %s: %s", item_key, e, exc_info=True)
+                report["items_failed"].append(item_key)
+                report["errors"].append(f"item[{item_key}]: {e}")
 
     return report
 

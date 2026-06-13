@@ -118,8 +118,27 @@ class TestChainsYAMLShape(unittest.TestCase):
         # (`jedi_path`) and Path-B (`jedi_path_independent`)
         # flavors. See chains.yaml footer note 5 and the F.7.j
         # handoff for design rationale.
+        #
+        # T5-questline arc (2026-06-13): the 9-count pins the ONBOARDING
+        # chains (kind != "questline"). Mid-game master-trainer
+        # questlines (kind: questline) are counted separately below so
+        # this invariant stays meaningful as questlines are added.
         data = _load_chains_yaml()
-        self.assertEqual(len(data["chains"]), 9)
+        onboarding = [c for c in data["chains"]
+                      if c.get("kind", "tutorial") != "questline"]
+        self.assertEqual(len(onboarding), 9)
+
+    def test_questline_chains_are_kind_questline(self):
+        # Every non-onboarding chain must be explicitly kind: questline
+        # (so the chargen picker excludes it and the `mastery` surface
+        # lists it). T5-questline arc (2026-06-13).
+        data = _load_chains_yaml()
+        questlines = [c for c in data["chains"]
+                      if c.get("kind", "tutorial") == "questline"]
+        # At least the first vertical slice (the Jedi lightsaber trial).
+        self.assertGreaterEqual(len(questlines), 1)
+        for c in questlines:
+            self.assertEqual(c.get("kind"), "questline")
 
     def test_each_chain_has_required_fields(self):
         data = _load_chains_yaml()
@@ -391,9 +410,13 @@ class TestLoaderHappyPath(unittest.TestCase):
         # F.7.j (May 4 2026) — count grew 8 → 9 with the Jedi Path
         # split into Path-A (`jedi_path`) and Path-B
         # (`jedi_path_independent`) flavored chains.
+        # T5-questline arc (2026-06-13): pin counts the ONBOARDING
+        # chains; mid-game questlines (kind: questline) are separate.
         from engine.tutorial_chains import load_tutorial_chains
         corpus = load_tutorial_chains(era="clone_wars")
-        self.assertEqual(len(corpus.chains), 9)
+        onboarding = [c for c in corpus.chains
+                      if getattr(c, "kind", "tutorial") != "questline"]
+        self.assertEqual(len(onboarding), 9)
 
     def test_corpus_by_id_lookup(self):
         from engine.tutorial_chains import load_tutorial_chains
@@ -726,10 +749,13 @@ class TestF8DocstringMarkers(unittest.TestCase):
     def test_chains_yaml_has_nine_chain_entries(self):
         # F.7.j (May 4 2026) — count grew 8 → 9 with the Jedi Path
         # split.
-        with open(CHAINS_PATH, "r", encoding="utf-8") as f:
-            src = f.read()
-        # 9 chain_id entries
-        self.assertEqual(src.count("chain_id:"), 9)
+        # T5-questline arc (2026-06-13): the 9 pins ONBOARDING chains;
+        # questline-kind entries are excluded. Count via parsed kind
+        # rather than a raw text count so questlines don't inflate it.
+        data = _load_chains_yaml()
+        onboarding = [c for c in data["chains"]
+                      if c.get("kind", "tutorial") != "questline"]
+        self.assertEqual(len(onboarding), 9)
 
 
 if __name__ == "__main__":

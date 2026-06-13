@@ -106,7 +106,7 @@ chains:
     graduation:
       credits: 500
       faction_rep:
-        republic: 50
+        republic: 3
       items: ["dc15_blaster_rifle", "republic_light_armor", "comlink_basic"]
       achievements: ["sworn_to_the_republic"]
       drop_room: commercial_district_landing_zone
@@ -163,7 +163,7 @@ chains:
         reward:
           credits: 0
           faction_rep:
-            republic: 5
+            republic: 3
         next_hint: "Report back to Major Tarrn for your assignment."
 
       - step: 3
@@ -239,7 +239,7 @@ chains:
         reward:
           credits: 0
           faction_rep:
-            republic: 10
+            republic: 3
         next_hint: "Chain complete — you're cleared for live deployment."
 
   # ─── 2. REPUBLIC INTELLIGENCE ─────────────────────────────────────────
@@ -262,7 +262,7 @@ chains:
     graduation:
       credits: 600
       faction_rep:
-        republic: 40
+        republic: 2
       items: ["concealed_blaster", "civilian_disguise_kit", "encrypted_comlink"]
       achievements: ["recruited_in_shadow"]
       drop_room: monumental_district_judicial_plaza
@@ -318,7 +318,7 @@ chains:
           tonight. Track him. Don't lose him."
         reward:
           faction_rep:
-            republic: 5
+            republic: 3
         # F.8.c.2.e: text-only — no exits; the chain teleports the player
         # to the midlevels freight district on advance.
         next_hint: "You'll be brought to the midlevels. Type `chain attempt` to tail Kost unseen."
@@ -346,7 +346,7 @@ chains:
           [Vell]: "He's at the meet. Hold position. Listen."
         reward:
           faction_rep:
-            republic: 10
+            republic: 5
         next_hint: "Hold and listen — the meet is happening now."
 
       - step: 4
@@ -396,7 +396,7 @@ chains:
         reward:
           items: ["encrypted_comlink"]
           faction_rep:
-            republic: 15
+            republic: 2
         next_hint: "Chain complete. Your handler will reach you in the field."
 
   # ─── 3. JEDI PATH — ORDER (LOCKED STUB) ───────────────────────────────
@@ -559,7 +559,7 @@ chains:
     graduation:
       credits: 500
       faction_rep:
-        cis: 50
+        cis: 3
       items: ["e5_blaster_rifle", "cis_field_armor", "comlink_basic"]
       achievements: ["raised_the_red_flag"]
       drop_room: tatooine_outskirts_cis_safehouse
@@ -616,7 +616,7 @@ chains:
           acceptable parameters. Proceed for assignment."
         reward:
           faction_rep:
-            cis: 5
+            cis: 3
         next_hint: "Return to Tactical Droid TQ-89 for your assignment."
 
       - step: 3
@@ -683,7 +683,7 @@ chains:
           elsewhere — your job is to keep it that way for our cell."
         reward:
           faction_rep:
-            cis: 10
+            cis: 5
         next_hint: "Chain complete. Mira Kavin is your contact for ops."
 
   # ─── 6. SEPARATIST AGENT ──────────────────────────────────────────────
@@ -706,7 +706,7 @@ chains:
     graduation:
       credits: 600
       faction_rep:
-        cis: 40
+        cis: 2
       items: ["concealed_blaster", "civilian_disguise_kit", "fake_republic_id"]
       achievements: ["sleeper_in_the_capital"]
       drop_room: southern_underground_freight_dock
@@ -790,7 +790,7 @@ chains:
           passes through in two minutes."
         reward:
           faction_rep:
-            cis: 15
+            cis: 3
         # F.8.c.2.e: text-only — no exits; "Move." was an impossible
         # directional hint. Step advances automatically on skill success.
         next_hint: "Drop made. The chain will advance automatically."
@@ -824,7 +824,7 @@ chains:
         reward:
           credits: 100
           faction_rep:
-            cis: 5
+            cis: 3
         # F.8.c.2.e: text-only — no exits in tutorial rooms; chain teleports
         # the player to the freight dock on advance.
         next_hint: "You'll be brought to the freight dock. Find Sevra Toryn to confirm your status."
@@ -850,7 +850,7 @@ chains:
         reward:
           items: ["fake_republic_id", "encrypted_comlink"]
           faction_rep:
-            cis: 15
+            cis: 3
         next_hint: "Chain complete. Stay quiet. Stay alive."
 
   # ─── 7. BOUNTY HUNTER ─────────────────────────────────────────────────
@@ -873,7 +873,7 @@ chains:
     graduation:
       credits: 700              # higher because Guild bounty paid out
       faction_rep:
-        bounty_hunters_guild: 50
+        bounty_hunters_guild: 3
       items: ["bhg_license_card", "tracking_fob", "stun_baton"]
       achievements: ["first_contract"]
       drop_room: nar_shaddaa_promenade_bhg_lounge
@@ -953,7 +953,7 @@ chains:
           Look — I can pay. I can pay more than the bounty. Listen —"
         reward:
           faction_rep:
-            bounty_hunters_guild: 5
+            bounty_hunters_guild: 3
         next_hint: "Capture him. Stun preferred — pay's better."
 
       - step: 4
@@ -1001,7 +1001,7 @@ chains:
         reward:
           items: ["bhg_license_card", "tracking_fob"]
           faction_rep:
-            bounty_hunters_guild: 15
+            bounty_hunters_guild: 5
         next_hint: "Chain complete. The board updates hourly."
 
   # ─── 8. SMUGGLER ──────────────────────────────────────────────────────
@@ -1024,8 +1024,8 @@ chains:
     graduation:
       credits: 800
       faction_rep:
-        independent: 30
-        hutt_cartel: 15        # graduating with a Hutt favor on file
+        independent: 5
+        hutt_cartel: 3        # graduating with a Hutt favor on file
       items: ["spacer_ident", "comlink_basic", "smugglers_baffle_kit"]
       achievements: ["first_run"]
       drop_room: nar_shaddaa_landing_dock_e
@@ -1139,7 +1139,7 @@ chains:
           " [Voss, off-comm]: Nice work. Crate's still ours."
         reward:
           faction_rep:
-            independent: 10
+            independent: 5
         # F.8.c.2.e: text-only — no exits; the chain teleports the player
         # to Dock E on advance. Talk to Underworld Contact Dyn there.
         next_hint: "You'll be brought to Dock E. Deliver the cargo to Dyn with `give`."
@@ -1170,7 +1170,7 @@ chains:
           credits: 200
           items: ["spacer_ident", "smugglers_baffle_kit"]
           faction_rep:
-            hutt_cartel: 10
+            hutt_cartel: 5
         next_hint: "Chain complete. Voss is at the cantina if you want steady work."
 
   # ─── 9. SHIPWRIGHT / TRADER ───────────────────────────────────────────
@@ -1194,8 +1194,8 @@ chains:
     graduation:
       credits: 400              # lower cash, more gear
       faction_rep:
-        shipwrights_guild: 40
-        mechanics_guild: 10
+        shipwrights_guild: 3
+        mechanics_guild: 2
       items:
         - "shipwright_toolkit"
         - "diagnostic_scanner"
@@ -1254,7 +1254,7 @@ chains:
           parts pool; `+craft fetch` pulls the part."
         reward:
           faction_rep:
-            shipwrights_guild: 5
+            shipwrights_guild: 3
         next_hint: "Parts crib via `+survey`."
 
       - step: 3
@@ -1312,7 +1312,7 @@ chains:
         reward:
           credits: 100
           faction_rep:
-            shipwrights_guild: 10
+            shipwrights_guild: 5
         next_hint: "Apprentice lounge for Guild signing."
 
       - step: 5
@@ -1340,8 +1340,184 @@ chains:
             - "diagnostic_scanner"
             - "kdy_apprentice_pass"
           faction_rep:
-            shipwrights_guild: 15
+            shipwrights_guild: 2
         next_hint: "Chain complete. The contract board is yours."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # MASTER-TRAINER QUESTLINES (kind: questline) — T5 schematic unlocks
+  # ═══════════════════════════════════════════════════════════════════════
+  # Drop B of the T5-questline arc (2026-06-13). These are MID-GAME
+  # questlines, NOT chargen-assigned: a veteran starts one deliberately
+  # via `mastery start <id>` (or an NPC offer on talk). `kind: questline`
+  # keeps them out of the chargen picker (engine/creation_wizard.py) and
+  # into the `quests`/`mastery` surface. Completing one + holding faction
+  # rep >= 50 unlocks the trainer's t5 schematic (the gate lives on the
+  # schematic via gated_by_questline / gated_faction / gated_min_rep,
+  # enforced in parser/crafting_commands.py::trainer_curriculum).
+  #
+  # Reachability rules these MUST satisfy (tests/test_chain_corpus_
+  # reachability_invariant.py): every `location` is a REAL world-room
+  # slug; NO room_entered / item_acquired completions; every command
+  # literal is registered; every skill_check skill is canonical. These
+  # questlines run in real, exit-bearing world rooms (Jundland Wastes,
+  # contested band) — the state-machine inter-step teleport relays the
+  # player between them.
+
+  # ─── Q1. JEDI MASTER — "The Hermit's Trial" → t5 lightsaber ───────────
+  - chain_id: master_jedi_lightsaber
+    chain_name: "The Hermit's Trial"
+    description: >
+      A reclusive Jedi Master in the Jundland Wastes will teach the
+      forging of a master-crafted lightsaber — but only to one who can
+      find the kyber's song, face the desert's guardians, and return
+      with a still mind. Rich, dangerous, end-game.
+    archetype_label: "Master-Crafted Lightsaber Trial"
+    faction_alignment: jedi_order
+    starting_zone: tatooine_jundland
+    starting_room: jundland_hidden_cave
+    prerequisites:
+      - chargen_complete
+    duration_minutes: 40
+    locked: false
+    kind: questline
+
+    graduation:
+      credits: 500
+      faction_rep:
+        jedi_order: 3
+      items: []
+      achievements: ["hermits_trial"]
+      drop_room: jundland_hidden_cave
+      follow_up_hint: >
+        Master Vehn will now teach the Master-Crafted Lightsaber. With
+        the Jedi Order honored (rep 50+) you can `learn` it from him —
+        `talk` to begin, then gather q75+ kyber and craft.
+
+    steps:
+      - step: 1
+        title: "The Hermit in the Wastes"
+        location: jundland_hidden_cave
+        npc: "Master Vehn Tasaal"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Speak with Master Vehn Tasaal in his hidden cave."
+        npc_intro: >
+          "You found the cave. Few do. I am Vehn Tasaal — once of the
+          Order, now of the desert. You seek the forging of a true
+          blade. That knowledge is not given; it is earned. First, sit.
+          `meditate`. The wastes are loud to those who cannot quiet
+          themselves."
+        completion:
+          type: talk_to_npc
+          npc: "Master Vehn Tasaal"
+        npc_complete: >
+          "Good. You came, and you listened. Now — quiet your mind.
+          `meditate` here, and tell me what you hear beneath the wind."
+        # Per-step credits/faction_rep ARE consumed as of the
+        # apply_step_rewards extension (T5-questline arc, 2026-06-13).
+        reward:
+          faction_rep:
+            jedi_order: 2
+        next_hint: "Quiet your mind — `meditate` in the cave."
+
+      - step: 2
+        title: "A Still Mind"
+        location: jundland_hidden_cave
+        npc: "Master Vehn Tasaal"
+        npc_role: instructor
+        teaches: ["meditate"]
+        objective: "Meditate to hear the kyber's resonance."
+        npc_intro: >
+          "Sit. Breathe. `meditate`. The crystal you will one day bind
+          into a blade sings even now, out in the canyons. You cannot
+          forge what you cannot hear."
+        completion:
+          type: command_executed
+          command: "meditate"
+        npc_complete: >
+          "There. You felt it — a thread of song, eastward, through
+          Beggar's Canyon. Follow it. `search` the canyon until you
+          find its source. The desert will not make it easy."
+        reward:
+          faction_rep:
+            jedi_order: 3
+        next_hint: "Track the resonance — `search` in Beggar's Canyon."
+
+      - step: 3
+        title: "The Kyber's Song"
+        location: jundland_beggars_canyon
+        npc: "(none)"
+        npc_role: contact
+        teaches: ["search"]
+        objective: "Search Beggar's Canyon for the kyber resonance."
+        npc_intro: >
+          [The song is faint here, woven into the canyon's echoes.]
+          "Trust the Force, not your eyes," Vehn's voice lingers in your
+          memory. "`search` — and let the song guide your hands."
+        completion:
+          type: skill_check_passed
+          skill: "search"
+          difficulty: 10
+          on_fail: "retry_allowed"
+        npc_complete: >
+          [You find it — a seam of raw kyber, humming, in the canyon
+          wall. But you are not alone. A krayt-spawn has been stalking
+          the song too, and it has found YOU.]
+        reward:
+          faction_rep:
+            jedi_order: 3
+        next_hint: "Something hunts the song. Defend yourself."
+
+      - step: 4
+        title: "The Desert's Guardian"
+        location: jundland_krayt_graveyard
+        npc: "(none)"
+        npc_role: antagonist
+        teaches: ["attack", "dodge"]
+        objective: "Defeat the canyon krayt-spawn."
+        npc_intro: >
+          [The krayt-spawn drives you back through the canyon to the
+          dragon graveyard — a place of bones and old death. Here it
+          turns to fight. `attack` it, `dodge` its lunges. The kyber's
+          song steadies your hand.]
+        completion:
+          type: combat_won
+          enemy_template: "jundland_krayt_spawn"
+          enemy_count: 1
+        npc_complete: >
+          [The guardian falls among the bones of its elders. The song
+          is yours now — and so is the silence after. Return to Master
+          Vehn.]
+        reward:
+          credits: 200
+          faction_rep:
+            jedi_order: 4
+        next_hint: "Return to Master Vehn in the hidden cave."
+
+      - step: 5
+        title: "The Trial's End"
+        location: jundland_hidden_cave
+        npc: "Master Vehn Tasaal"
+        npc_role: instructor
+        teaches: ["talk"]
+        objective: "Return to Master Vehn to complete the trial."
+        npc_intro: >
+          "You came back. With the song, with a still mind, with the
+          desert's dust on you and its guardian behind you. That is the
+          trial. Few finish it. Fewer deserve to."
+        completion:
+          type: talk_to_npc
+          npc: "Master Vehn Tasaal"
+        npc_complete: >
+          "I will teach you the forging of a master-crafted blade. Talk
+          to me when the Order trusts you as I now do — and bring kyber
+          worthy of the work. Go in the Light."
+        reward:
+          faction_rep:
+            jedi_order: 3
+        next_hint: >
+          Trial complete. `talk` to Master Vehn to learn the
+          Master-Crafted Lightsaber (Jedi Order rep 50+ required).
 
 # ═══════════════════════════════════════════════════════════════════════
 # ENGINE INTEGRATION NOTES

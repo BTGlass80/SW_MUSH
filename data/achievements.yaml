@@ -353,3 +353,16 @@ achievements:
     icon: "🔧"
     cp_reward: 3
     trigger: {event: "chain_graduation", count: 1, chain_id: "shipwright_trader"}
+
+  # T5-questline arc Drop B (2026-06-13): the first master-trainer
+  # questline (kind: questline, not a chargen chain). Earned by
+  # completing "The Hermit's Trial" — the path to the master-crafted
+  # lightsaber. cp_reward higher than the onboarding chains: this is an
+  # end-game trial, not a tutorial.
+  - key: hermits_trial
+    name: "The Hermit's Trial"
+    description: "Completed Master Vehn Tasaal's trial in the Jundland Wastes. The forging of a master-crafted lightsaber is within your reach."
+    category: profession
+    icon: "🗡️"
+    cp_reward: 5
+    trigger: {event: "chain_graduation", count: 1, chain_id: "master_jedi_lightsaber"}

@@ -227,6 +227,68 @@ class TestApplyStepRewards(unittest.TestCase):
         self.assertEqual(report["items_failed"], ["item_a"])
         self.assertEqual(len(report["errors"]), 1)
 
+    # ── T5-questline arc (2026-06-13): per-step credits + rep consumer ──
+
+    def test_grants_step_credits_via_metered_faucet(self):
+        from engine.chain_rewards import apply_step_rewards
+        db = _MockDB()
+        seen = {}
+
+        async def _adjust_credits(char_id, delta, tag):
+            seen["call"] = (char_id, delta, tag)
+            return 1200  # new balance
+
+        db.adjust_credits = _adjust_credits
+        char = _char(char_id=5)
+        char["credits"] = 1000
+        step = types.SimpleNamespace(step=4, reward={"credits": 200})
+        report = _run(apply_step_rewards(db, char, step, "test_chain"))
+        self.assertEqual(report["credits_awarded"], 200)
+        # Rode the metered adjust_credits faucet with the step tag.
+        self.assertEqual(seen["call"], (5, 200, "chain_step_reward"))
+        self.assertEqual(char["credits"], 1200)
+
+    def test_grants_step_faction_rep_via_funnel(self):
+        from engine.chain_rewards import apply_step_rewards
+        import engine.organizations as orgs
+        db = _MockDB()
+        calls = []
+
+        async def _fake_adjust_rep(char, faction_code, db, *, delta, reason):
+            calls.append((faction_code, delta, reason))
+            return 28  # new score
+
+        orig = orgs.adjust_rep
+        orgs.adjust_rep = _fake_adjust_rep
+        try:
+            char = _char(char_id=7)
+            step = types.SimpleNamespace(
+                step=2, reward={"faction_rep": {"jedi_order": 4}})
+            report = _run(apply_step_rewards(db, char, step, "ql_chain"))
+        finally:
+            orgs.adjust_rep = orig
+        self.assertEqual(report["rep_awarded"].get("jedi_order"), 28)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], "jedi_order")
+        self.assertEqual(calls[0][1], 4)
+        self.assertIn("chain_step:ql_chain:2", calls[0][2])
+
+    def test_zero_credits_and_zero_rep_no_funnel_calls(self):
+        from engine.chain_rewards import apply_step_rewards
+        db = _MockDB()
+        called = {"credits": False}
+
+        async def _adjust_credits(char_id, delta, tag):
+            called["credits"] = True
+            return 0
+        db.adjust_credits = _adjust_credits
+        char = _char()
+        step = types.SimpleNamespace(
+            step=1, reward={"credits": 0, "faction_rep": {"x": 0}})
+        report = _run(apply_step_rewards(db, char, step, "t"))
+        self.assertEqual(report["credits_awarded"], 0)
+        self.assertFalse(called["credits"])  # 0 credits -> no faucet call
+
 
 # ─────────────────────────────────────────────────────────────────────
 # 3. sealed_data_packet authored entry

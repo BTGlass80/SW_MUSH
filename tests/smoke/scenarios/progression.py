@@ -58,6 +58,11 @@ async def pr1_chain_corpus_loads_with_jedi_locked(h):
     Path-B-flavored `jedi_path_independent`. Both remain locked at
     chargen; both surface the same in-fiction discovery message
     via PR2.
+
+    T5-questline arc (2026-06-13) — the corpus now also carries
+    mid-game `kind: questline` chains (excluded from the chargen
+    picker). This assertion pins the ONBOARDING chains (kind !=
+    questline) at 9; questlines are counted separately.
     """
     from engine.tutorial_chains import load_tutorial_chains
 
@@ -69,9 +74,11 @@ async def pr1_chain_corpus_loads_with_jedi_locked(h):
     assert corpus.ok, (
         f"chains.yaml has structural errors: {corpus.errors!r}"
     )
-    assert len(corpus.chains) == 9, (
-        f"Expected 9 CW chains; got {len(corpus.chains)}. "
-        f"chain_ids: {[c.chain_id for c in corpus.chains]!r}"
+    onboarding = [c for c in corpus.chains
+                  if getattr(c, "kind", "tutorial") != "questline"]
+    assert len(onboarding) == 9, (
+        f"Expected 9 CW onboarding chains; got {len(onboarding)}. "
+        f"chain_ids: {[c.chain_id for c in onboarding]!r}"
     )
     locked = [c for c in corpus.chains if c.locked]
     locked_ids = {c.chain_id for c in locked}

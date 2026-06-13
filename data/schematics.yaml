@@ -703,7 +703,16 @@ schematics:
     name: "Master-Crafted Lightsaber"
     skill_required: craft_lightsaber
     difficulty: 28
-    trainer_npc: ""
+    # T5-questline arc Drop B (2026-06-13): taught by Master Vehn Tasaal
+    # (npcs_drop_b_t5_trainers.yaml) in the Jundland Wastes hidden cave.
+    # GATED: visible in his curriculum (parser/crafting_commands.py
+    # trainer_curriculum) only after completing the "The Hermit's Trial"
+    # questline AND reaching Jedi Order rep >= 50 (honored). See
+    # docs/design/t5_trainer_questlines_design_v1.md.
+    trainer_npc: "Master Vehn Tasaal"
+    gated_by_questline: master_jedi_lightsaber
+    gated_faction: jedi_order
+    gated_min_rep: 50
     components:
       - type: kyber_shard_minor
         quantity: 1

@@ -919,12 +919,74 @@ def _mark_free_lesson(char: dict, trainer_lower: str) -> None:
         log.debug("free-lesson mark failed", exc_info=True)
 
 
-def trainer_curriculum(npc_name: str) -> list[tuple[str, dict]]:
-    """All (key, schematic) pairs this trainer teaches, cheapest first."""
-    out = [
+async def _schematic_gate_met(char: dict, schem: dict, db) -> bool:
+    """T5-questline arc (2026-06-13): a schematic may carry a
+    questline+rep gate (the t5 master recipes). Return True iff the
+    character has cleared it.
+
+    Gate fields on the schematic (all optional; absent => ungated):
+      gated_by_questline: <chain_id>   — must have GRADUATED this questline
+      gated_faction:      <code>       — faction whose rep is checked
+      gated_min_rep:      <int=50>     — rep floor (default honored, 50)
+
+    A gated schematic with NO char/db context (legacy/test callers that
+    don't pass them) is treated as GATED-OUT for safety — but the live
+    teach flow always passes them. An ungated schematic is always met."""
+    quest_id = schem.get("gated_by_questline")
+    faction = schem.get("gated_faction")
+    if not quest_id and not faction:
+        return True  # ungated
+    if char is None:
+        # Gated, but no char context to evaluate against -> fail closed
+        # (hide). Log so a future ungated-in-intent schematic that
+        # accidentally acquires a gate key + reaches a char=None caller
+        # is traceable rather than silently vanishing.
+        log.debug("[crafting] schematic %r gated but no char context; "
+                  "hiding (fail-closed)", schem.get("key"))
+        return False
+    # 1) Questline completion (durable graduated marker in either slot).
+    if quest_id:
+        try:
+            from engine.tutorial_chains import has_completed_chain
+            import json as _j
+            raw = char.get("attributes") or "{}"
+            attrs = raw if isinstance(raw, dict) else _j.loads(raw or "{}")
+            if not has_completed_chain(attrs, quest_id):
+                return False
+        except Exception:
+            return False
+    # 2) Faction rep floor.
+    if faction:
+        try:
+            from engine.organizations import get_char_faction_rep
+            min_rep = int(schem.get("gated_min_rep", 50) or 50)
+            rep = await get_char_faction_rep(char, faction, db)
+            if int(rep) < min_rep:
+                return False
+        except Exception:
+            return False
+    return True
+
+
+async def trainer_curriculum(npc_name: str, char: dict = None,
+                             db=None) -> list[tuple[str, dict]]:
+    """All (key, schematic) pairs this trainer teaches, cheapest first.
+
+    T5-questline arc (2026-06-13): now async + gate-aware. A schematic
+    carrying a questline/rep gate (the t5 master recipes) is filtered
+    OUT unless the character has cleared it (see _schematic_gate_met).
+    This is the load-bearing seam — keeping the gated recipe out of the
+    curriculum means the 'first lesson free' logic and `learn` can never
+    hand out a t5 recipe the player hasn't earned. Ungated schematics
+    are unaffected, so existing trainers behave exactly as before."""
+    candidates = [
         (key, s) for key, s in get_all_schematics().items()
         if s.get("trainer_npc", "").lower() == npc_name.lower()
     ]
+    out = []
+    for key, s in candidates:
+        if await _schematic_gate_met(char, s, db):
+            out.append((key, s))
     out.sort(key=lambda kv: int(kv[1].get("base_cost", 0) or 0))
     return out
 
@@ -950,7 +1012,7 @@ async def handle_trainer_teach(ctx: CommandContext, npc_name: str) -> bool:
     if not char:
         return False
 
-    curriculum = trainer_curriculum(npc_name)
+    curriculum = await trainer_curriculum(npc_name, char, ctx.db)
     if not curriculum:
         return False
 
@@ -963,11 +1025,22 @@ async def handle_trainer_teach(ctx: CommandContext, npc_name: str) -> bool:
 
     taught_free = None
     if unknown and not _free_lessons(char).get(trainer_lower):
-        free_key, free_schem = unknown[0]  # cheapest first
-        if add_known_schematic(char, free_key):
-            _mark_free_lesson(char, trainer_lower)
-            taught_free = free_schem["name"]
-            unknown = unknown[1:]
+        # T5-questline arc (2026-06-13): the free first lesson is for
+        # inexpensive starter recipes only — never an earned GATED (t5)
+        # master recipe, which always costs tuition. Pick the cheapest
+        # UNGATED unknown recipe as the freebie; if the trainer teaches
+        # only gated recipes (e.g. a t5-only master), there is no free
+        # lesson. (Mirrors the LearnCommand gate-tuition rule.)
+        free_candidates = [
+            (k, s) for k, s in unknown
+            if not (s.get("gated_by_questline") or s.get("gated_faction"))
+        ]
+        if free_candidates:
+            free_key, free_schem = free_candidates[0]  # cheapest ungated
+            if add_known_schematic(char, free_key):
+                _mark_free_lesson(char, trainer_lower)
+                taught_free = free_schem["name"]
+                unknown = [(k, s) for k, s in unknown if k != free_key]
 
     if taught_free:
         await ctx.session.send_line(
@@ -1056,9 +1129,24 @@ class LearnCommand(BaseCommand):
                 f"  {trainer} teaches that, and {trainer} isn't here.")
             return
 
+        # T5-questline arc (2026-06-13): enforce the schematic gate HERE
+        # too, not just in trainer_curriculum/talk. A player who knows
+        # the key could otherwise `learn` a gated t5 recipe directly,
+        # bypassing the questline + rep requirement (review BLOCKER).
+        if not await _schematic_gate_met(char, schem, ctx.db):
+            await ctx.session.send_line(
+                f"  {trainer} will not teach you the {schem['name']} yet. "
+                f"\033[2mYou must prove yourself first.\033[0m")
+            return
+
         from engine.crafting import schematic_tuition
         trainer_lower = trainer.lower()
-        free = not _free_lessons(char).get(trainer_lower)
+        # Gated (t5) schematics ALWAYS cost tuition — the "first lesson
+        # free" convenience is for inexpensive starter recipes, not a
+        # zero-cost path to a 10k earned master recipe (review MAJOR).
+        is_gated = bool(schem.get("gated_by_questline")
+                        or schem.get("gated_faction"))
+        free = (not is_gated) and not _free_lessons(char).get(trainer_lower)
         tuition = 0 if free else schematic_tuition(schem)
 
         if tuition and int(char.get("credits", 0) or 0) < tuition:

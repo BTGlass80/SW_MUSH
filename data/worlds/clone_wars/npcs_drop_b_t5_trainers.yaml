@@ -1,0 +1,145 @@
+# Drop B (T5-questline arc, 2026-06-13) — Master-Trainer NPCs + their
+# questline enemies.
+#
+# These NPCs back the `kind: questline` master-trainer chains in
+# data/worlds/clone_wars/tutorials/chains.yaml. Each master is a
+# SCHEMATIC TRAINER (schematics carry `trainer_npc: "<name>"`) placed in
+# a Contested-Marches / Wilds (threat_band) room, and is also the
+# start-NPC of a questline (the questline's step-1 `npc`). The questline
+# must be COMPLETED + faction rep >= 50 before the trainer's t5 recipe
+# appears in their curriculum (the gate lives on the schematic and is
+# enforced in parser/crafting_commands.py::trainer_curriculum).
+#
+# Questline `combat_won` steps reference enemy NPCs by their
+# `ai_config.chain_enemy_template` (the same mechanism the onboarding
+# chains use). Those enemies are hostile, single-instance, placed in the
+# combat step's room.
+#
+# This file ships the FIRST vertical slice (Jedi Master / lightsaber).
+# The remaining four masters (Hutt weaponsmith, Republic hyperdrive +
+# ion-engine specialists, master armorer) follow the same template in a
+# companion drop once this slice is proven walkable end-to-end.
+
+schema_version: 1
+
+npcs:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Q1. JEDI MASTER — Master Vehn Tasaal
+  # Trainer for: t5_master_crafted_lightsaber
+  # Questline: master_jedi_lightsaber ("The Hermit's Trial")
+  # Placement: Jundland Wastes - Hidden Cave (tatooine_jundland,
+  #            threat_band contested_marches)
+  # ═══════════════════════════════════════════════════════════════════
+
+  - name: Master Vehn Tasaal
+    room: "Jundland Wastes - Hidden Cave"
+    species: Human
+    description: >-
+      A weathered human in sun-bleached robes the color of the wastes,
+      seated cross-legged on a worn mat at the back of the cave. His
+      beard is grey, his eyes clear and unhurried, and a lightsaber hilt
+      of old, hand-worked design rests on his knee — not hidden, not
+      brandished, simply there. He carries the stillness of someone who
+      stopped needing the Order's walls a long time ago, and the quiet
+      authority of a Master who never stopped being one. He watches you
+      the way the desert watches: patiently, completely, missing nothing.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 3D+1
+        mechanical: 2D+2
+        perception: 4D
+        strength: 2D+2
+        technical: 3D+1
+      skills:
+        lightsaber: 8D
+        control: 7D
+        sense: 7D+2
+        alter: 6D+2
+        search: 5D
+        survival: 5D+1
+        scholar_jedi_lore: 6D
+        craft_lightsaber: 8D
+      weapon: lightsaber
+      move: 10
+      force_points: 3
+      character_points: 12
+      dark_side_points: 0
+    ai_config:
+      # Schematic-trainer flags (consumed by handle_trainer_teach via the
+      # schematic's trainer_npc match — the `trainer` bool marks him so
+      # the talk hook engages the teach flow).
+      trainer: true
+      train_skills: []
+      personality: >-
+        A Jedi Master in exile-by-choice, living as a desert hermit. Speaks
+        in measured, unhurried sentences. Tests before he teaches. Warm
+        underneath, but he will not be rushed and he does not flatter. He
+        believes the forging of a blade is a spiritual act, not a technical
+        one, and he tests the seeker's patience and connection to the Force
+        before their craft.
+      knowledge:
+        - "He once trained at the Jedi Temple but withdrew to the Outer Rim before the war; he keeps his own counsel on why."
+        - "He teaches the forging of a master-crafted lightsaber only to those who complete his trial AND have earned the Order's trust (rep 50+)."
+        - "The kyber crystal must be heard before it is bound; the craft is the easy part."
+        - "He will not discuss the Order's leadership or the war directly — the desert has no side."
+      faction: jedi_order
+      dialogue_style: >-
+        Calm, spare, a little oracular. Old-Jedi cadence. Never raises his
+        voice. Refers to the Force as 'the Light' or 'the song'.
+      hostile: false
+      combat_behavior: defensive
+      fallback_lines:
+        - "'The desert teaches patience to those who survive it.'"
+        - "*The old Master's gaze rests on you, unhurried.*"
+        - "'Quiet your mind. The answer is already in the wind.'"
+
+  # ── Questline enemy: the krayt-spawn (combat step 4) ────────────────
+  # Single hostile instance in the Krayt Dragon Graveyard. Matches the
+  # master_jedi_lightsaber step-4 combat_won enemy_template.
+
+  - name: Canyon Krayt-Spawn
+    room: "Jundland Wastes - Krayt Dragon Graveyard"
+    species: Creature
+    description: >-
+      A juvenile krayt dragon — "spawn" by the standards of the leviathans
+      whose bleached bones litter this graveyard, but three meters of
+      armored hide, raking claws, and a maw of back-curved teeth all the
+      same. It has been stalking the kyber's resonance through the canyons,
+      drawn to the song the way you were. Its eyes fix on you with cold,
+      ancient hunger as it puts itself between you and the way out.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 1D
+        mechanical: 1D
+        perception: 3D
+        strength: 5D+2
+        technical: 1D
+      skills:
+        brawling: 5D+1
+        dodge: 3D+2
+        search: 4D
+      weapon: claws
+      move: 14
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      chain_enemy_template: jundland_krayt_spawn
+      personality: >-
+        A wild predator. No dialogue, no negotiation — it fights to kill
+        and does not flee until badly wounded. Pure combat foil for the
+        questline's guardian beat.
+      knowledge:
+        - "A beast; does not speak or respond to anything but threat."
+      faction: wildlife
+      dialogue_style: >-
+        Beast vocalizations only — roars, hisses, the scrape of claw on bone.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The krayt-spawn lets out a bone-rattling roar.*"
+        - "*It lunges, claws raking the air where you stood.*"
+        - "*The creature circles, low and predatory, between you and the canyon mouth.*"

@@ -188,6 +188,60 @@ callers / tests), behavior is unchanged (no t5 in the base seed data
 today, so no regression). The trainer's faction comes from the NPC's
 `ai_config.faction`.
 
+## 5.3 Build sequencing decision (main session, 2026-06-13)
+
+Drop B is large (5 trainers × {NPC + enemy template + 5-step rich chain +
+gate fields} + test extensions). To keep the "rich = stranding" risk
+(drops 24/25) contained under unattended work, Drop B ships as
+**one proven vertical slice at a time**, not 5 chains at once:
+
+- **Drop B slice 1 (LANDED 2026-06-13):** the Jedi Master / lightsaber
+  questline ("The Hermit's Trial", `master_jedi_lightsaber`) — the
+  complete path end-to-end (NPC + krayt-spawn enemy + 5-step chain +
+  schematic gate), proven by the static reachability invariant AND a
+  content walkthrough test that drives start→graduation through the real
+  dispatcher hooks. This establishes the template.
+- **Drop B slices 2–5 (companion drop):** the remaining masters, each a
+  mechanical repeat of slice 1's proven template:
+  - Hutt weaponsmith → `t5_top_spec_blaster_rifle` (Nar Shaddaa
+    `fighting_pits`, hutt_cartel)
+  - Republic hyperdrive specialist → `t5_hyperdrive_surge_converter`
+    (Geonosis `geonosis_cis_command_post`, republic)
+  - Republic ion-engine specialist → `t5_mil_spec_ion_engine_core`
+    (Geonosis, republic) — split from the hyperdrive trainer so each
+    questline is 1:1 with one schematic (cleaner than one engineer
+    gating two recipes), preserving the "5 trainers" shape.
+  - Master armorer → `t5_master_grade_armor` (Nar Shaddaa
+    `warrens_scavenger_den`, independent)
+
+  Each gets its own `gated_by_questline`/`gated_faction` fields, its own
+  reachability-invariant pass, and its own walkthrough test.
+
+## 5.4 Rep economy (Brian, 2026-06-13) — the per-step reward consumer
+
+Drop B's review found that per-step `credits`/`faction_rep` rewards were
+authored across ALL chains but never delivered (`apply_step_rewards` was
+items-only). Brian's call: **make the consumer real for all chains, and
+tune the rep so no one walks out of a short questline maxed on faction
+rep.** Implemented:
+
+- `apply_step_rewards` now delivers per-step credits (metered
+  `chain_step_reward` faucet) + rep (`adjust_rep` funnel).
+- Because per-step rep now stacks on graduation rep, all chain rep
+  totals were rebalanced. **Invariant (pinned by
+  `TestChainRepEconomyCeiling`): no chain may leave a player at ≥
+  honored (rep 50) in any one faction from the chain alone.** Honored is
+  the t5 gate and the threshold for serious faction standing — it is
+  earned through play, never handed out by a tutorial/questline.
+- Result (after Brian's "tune lower" follow-up — 20–40 read as too
+  generous): onboarding chains land **recognized (~8–13**, ≈10% of max —
+  "the faction knows your name"); "The Hermit's Trial" lands jedi_order =
+  18. The t5 lightsaber's rep-50 gate therefore requires a substantial
+  ~32 rep of post-questline Jedi play — the **questline gate and the rep
+  gate are genuinely separate** (completing the trial is necessary but
+  far from sufficient). Hard ceiling of 22 pinned in
+  `TestChainRepEconomyCeiling` so the tuning can't silently drift up.
+
 ## 6. Drop plan
 
 - **Drop A (engine, behavior-neutral):** multi-slot `state_key` param +
