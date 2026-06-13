@@ -315,29 +315,43 @@ def _apply_director_overlay(base: SecurityLevel, zs) -> SecurityLevel:
     """
     Shift base security level based on Director influence thresholds.
 
-    Criminal surge (criminal >= 80): downgrade one tier.
-    Imperial crackdown (imperial >= 75): upgrade one tier.
-    Martial law (imperial >= 90): force SECURED regardless.
+    Underworld surge (underworld axis >= 80): downgrade one tier.
+    Authority crackdown (authority axis >= 75): upgrade one tier.
+    Martial law (authority axis >= 90): force SECURED regardless.
     Both rules apply in sequence — crackdown can partially cancel a surge.
+
+    Reads the era-resolved alert axes via ZoneState.get_faction so it works
+    on the native CW faction set (republic/cis/hutt_cartel) instead of the
+    retired GCW attribute names (DIRECTOR.zonestate_cw_faction_axis).
     """
+    from engine.director import ALERT_AXIS
+
+    def _axis(role: str) -> int:
+        # ZoneState exposes get_faction; fall back to a bare attr/0 for any
+        # duck-typed stub passed in tests.
+        getter = getattr(zs, "get_faction", None)
+        if callable(getter):
+            return getter(ALERT_AXIS[role])
+        return getattr(zs, ALERT_AXIS[role], 0)
+
     result = base
 
-    # Criminal surge — underworld fills vacuum
-    if getattr(zs, "criminal", 0) >= 80:
+    # Underworld surge — criminal element fills the vacuum
+    if _axis("underworld") >= 80:
         if result == SecurityLevel.SECURED:
             result = SecurityLevel.CONTESTED
         elif result == SecurityLevel.CONTESTED:
             result = SecurityLevel.LAWLESS
 
-    # Imperial crackdown — raise one tier
-    if getattr(zs, "imperial", 0) >= 75:
+    # Authority crackdown — raise one tier
+    if _axis("authority") >= 75:
         if result == SecurityLevel.LAWLESS:
             result = SecurityLevel.CONTESTED
         elif result == SecurityLevel.CONTESTED:
             result = SecurityLevel.SECURED
 
-    # Martial law — extreme dominance
-    if getattr(zs, "imperial", 0) >= 90:
+    # Martial law — extreme authority dominance
+    if _axis("authority") >= 90:
         result = SecurityLevel.SECURED
 
     return result

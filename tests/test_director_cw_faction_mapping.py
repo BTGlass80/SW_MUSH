@@ -16,8 +16,10 @@ Pins:
   1. normalize_faction_order_code — CW codes pass through, GCW aliases map
      forward, garbage -> "".
   2. The digest carries faction_order_codes (the CW org codes) +
-     faction_axis_to_org (the legend) — and zone_influence STILL uses the
-     untouched axis keys.
+     faction_axis_to_org (the back-compat legend) — and zone_influence now
+     uses the NATIVE CW factions (DIRECTOR.zonestate_cw_faction_axis,
+     Option A, 2026-06-13 — supersedes the drop-39 "axis untouched"
+     contract; ZoneState was rewritten to hold the era faction set).
 """
 from __future__ import annotations
 
@@ -84,28 +86,30 @@ class TestDigestFactionLegend(unittest.TestCase):
     class _StubSessionMgr:
         all = []
 
-    def test_digest_has_cw_legend_and_untouched_axis(self):
+    def test_digest_has_cw_legend_and_native_axis(self):
         from engine.director import CW_FACTION_ORDER_CODES
         d = self._director()
         digest = self._run(d.compile_digest(self._StubSessionMgr()))
         # The CW order codes are advertised to the LLM.
         self.assertEqual(set(digest["faction_order_codes"]),
                          set(CW_FACTION_ORDER_CODES))
-        # The legend maps axis -> CW org.
+        # The back-compat legend (GCW axis -> CW org) is retained as a hint.
         legend = digest["faction_axis_to_org"]
         self.assertEqual(legend["imperial"], "republic")
         self.assertEqual(legend["rebel"], "cis")
         self.assertEqual(legend["criminal"], "hutt_cartel")
         self.assertEqual(legend["independent"], "independent")
-        # The ZoneState axis math is untouched: zone_influence still keys
-        # on the sanctioned axis labels.
+        # DIRECTOR.zonestate_cw_faction_axis (Brian 2026-06-13, Option A):
+        # zone_influence now carries the NATIVE CW factions, not the legacy
+        # GCW axis labels. (Supersedes the drop-39 "axis untouched" contract.)
         zi = digest["zone_influence"]
-        if zi:  # at least one zone
+        if zi:  # at least one zone loaded
             sample = next(iter(zi.values()))
-            self.assertIn("imperial", sample)
-            self.assertIn("rebel", sample)
-            self.assertIn("criminal", sample)
-            self.assertIn("independent", sample)
+            for f in ("republic", "cis", "jedi_order", "hutt_cartel",
+                      "bhg", "independent"):
+                self.assertIn(f, sample)
+            self.assertNotIn("imperial", sample)
+            self.assertNotIn("criminal", sample)
 
 
 if __name__ == "__main__":

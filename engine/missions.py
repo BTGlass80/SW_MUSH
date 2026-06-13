@@ -412,18 +412,27 @@ def _pick_type() -> MissionType:
     try:
         from engine.director import get_director, AlertLevel
         director = get_director()
-        # Use the most dramatic alert level across all zones
-        alert_levels = [zs.alert_level for zs in director._zones.values()]
-        if AlertLevel.LOCKDOWN in alert_levels:
-            # Lockdown: smuggling pays more (risk premium)
-            weights[MissionType.SMUGGLING] = weights.get(MissionType.SMUGGLING, 5) + 10
-        elif AlertLevel.UNDERWORLD in alert_levels:
-            # Underworld: criminal jobs abundant
-            weights[MissionType.SMUGGLING] = weights.get(MissionType.SMUGGLING, 5) + 5
-            weights[MissionType.BOUNTY]    = weights.get(MissionType.BOUNTY, 5) + 5
-        elif AlertLevel.UNREST in alert_levels:
-            # Unrest: rebel-adjacent combat jobs
-            weights[MissionType.COMBAT] = weights.get(MissionType.COMBAT, 8) + 5
+        # Bias by the galaxy's PREVAILING alert: apply a spawn bias only when
+        # a dramatic alert dominates a meaningful share of zones (>=40%), so a
+        # baseline mixed galaxy keeps neutral weights (no permanent skew) and
+        # the bias reflects a genuine galaxy-wide shift. Pre-multi-zone this
+        # checked "any zone" — degenerate once the Director tracks 34 zones.
+        # (DIRECTOR.zonestate_cw_faction_axis, 2026-06-13.)
+        levels = [zs.alert_level for zs in director._zones.values()]
+        if levels:
+            n = len(levels)
+            def _share(lvl):
+                return sum(1 for x in levels if x == lvl) / n
+            if _share(AlertLevel.LOCKDOWN) >= 0.4:
+                # Lockdown: smuggling pays more (risk premium)
+                weights[MissionType.SMUGGLING] = weights.get(MissionType.SMUGGLING, 5) + 10
+            elif _share(AlertLevel.UNDERWORLD) >= 0.4:
+                # Underworld: criminal jobs abundant
+                weights[MissionType.SMUGGLING] = weights.get(MissionType.SMUGGLING, 5) + 5
+                weights[MissionType.BOUNTY]    = weights.get(MissionType.BOUNTY, 5) + 5
+            elif _share(AlertLevel.UNREST) >= 0.4:
+                # Unrest: war-adjacent combat jobs
+                weights[MissionType.COMBAT] = weights.get(MissionType.COMBAT, 8) + 5
     except Exception:
         pass  # director not loaded yet — use base weights
     types = list(weights.keys())

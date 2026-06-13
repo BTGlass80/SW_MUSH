@@ -298,32 +298,36 @@ class DirectorCommand(BaseCommand):
 
     async def _influence_cmd(self, ctx: CommandContext, _args: str) -> None:
         try:
-            from engine.director import get_director
+            from engine.director import get_director, ALERT_AXIS
         except ImportError as exc:
             await ctx.session.send_line(ansi.error(f"  Director not loaded: {exc}"))
             return
 
         director = get_director()
+        # Show the three era-resolved alert axes per zone + computed alert.
+        # (Native CW factions — DIRECTOR.zonestate_cw_faction_axis.)
+        _auth = ALERT_AXIS["authority"]
+        _war = ALERT_AXIS["warfront"]
+        _und = ALERT_AXIS["underworld"]
         await ctx.session.send_line(ansi.header("=== Zone Influence Table ==="))
         await ctx.session.send_line(
-            f"  {'Zone':<14} {'Imperial':>9} {'Rebel':>6} {'Criminal':>9} {'Indep.':>7}"
+            f"  {'Zone':<22} {_auth[:10]:>10} {_war[:6]:>6} {_und[:11]:>11} {'Alert':>10}"
         )
-        await ctx.session.send_line("  " + "-" * 50)
+        await ctx.session.send_line("  " + "-" * 64)
         for zone_key, zs in sorted(director._zones.items()):
-            imp = zs.imperial
-            reb = zs.rebel
-            cri = zs.criminal
-            ind = zs.independent
-            imp_s = ansi.red(f"{imp:>9}") if imp >= 70 else f"{imp:>9}"
-            reb_s = ansi.green(f"{reb:>6}") if reb >= 40 else f"{reb:>6}"
-            cri_s = ansi.yellow(f"{cri:>9}") if cri >= 70 else f"{cri:>9}"
+            au = zs.get_faction(_auth)
+            wf = zs.get_faction(_war)
+            uw = zs.get_faction(_und)
+            au_s = ansi.red(f"{au:>10}") if au >= 70 else f"{au:>10}"
+            wf_s = ansi.green(f"{wf:>6}") if wf >= 40 else f"{wf:>6}"
+            uw_s = ansi.yellow(f"{uw:>11}") if uw >= 70 else f"{uw:>11}"
             await ctx.session.send_line(
-                f"  {zone_key:<14} {imp_s} {reb_s} {cri_s} {ind:>7}"
+                f"  {zone_key:<22} {au_s} {wf_s} {uw_s} {zs.alert_level.value:>10}"
             )
         await ctx.session.send_line("")
         await ctx.session.send_line(
-            f"  {ansi.red('Red')} >= 70 (Lockdown/Underworld)  "
-            f"{ansi.green('Green')} >= 40 Rebel (Unrest)"
+            f"  Axes: authority={_auth} warfront={_war} underworld={_und}  "
+            f"({ansi.red('red')}>=70  {ansi.green('grn')}>=40)"
         )
 
     async def _log(self, ctx: CommandContext, args: str) -> None:
@@ -537,12 +541,17 @@ class EconomyCommand(BaseCommand):
         # ── Zone influence ────────────────────────────────────────────────
         if show_zones:
             try:
-                from engine.director import get_director
+                from engine.director import get_director, ALERT_AXIS
                 director = get_director()
                 states   = director.get_all_zone_states()
+                # Native CW axes (DIRECTOR.zonestate_cw_faction_axis): show the
+                # three alert-driving axes resolved for the era + computed alert.
+                _auth, _war, _und = (ALERT_AXIS["authority"],
+                                     ALERT_AXIS["warfront"],
+                                     ALERT_AXIS["underworld"])
                 lines.append("  \033[1;33mZONE INFLUENCE\033[0m")
                 lines.append(
-                    f"  {'Zone':<14} {'Imp':>4} {'Reb':>4} {'Cri':>4} {'Ind':>4}  Alert"
+                    f"  {'Zone':<22} {_auth[:4]:>4} {_war[:4]:>4} {_und[:4]:>4}  Alert"
                 )
                 for zk, zs in sorted(states.items()):
                     alert = zs.get("alert_level", "standard")
@@ -553,11 +562,10 @@ class EconomyCommand(BaseCommand):
                         "lax":        "\033[2m",
                     }.get(alert, "")
                     lines.append(
-                        f"  {zk:<14} "
-                        f"{zs['imperial']:>4} "
-                        f"{zs['rebel']:>4} "
-                        f"{zs['criminal']:>4} "
-                        f"{zs['independent']:>4}  "
+                        f"  {zk:<22} "
+                        f"{zs.get(_auth, 0):>4} "
+                        f"{zs.get(_war, 0):>4} "
+                        f"{zs.get(_und, 0):>4}  "
                         f"{alert_color}{alert}\033[0m"
                     )
             except Exception as e:

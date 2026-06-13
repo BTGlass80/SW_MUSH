@@ -279,44 +279,47 @@ class TestSpecializationGateBehavior(unittest.TestCase):
 
 
 class TestB1fNonChangeSites(unittest.TestCase):
-    """The audit listed two more sites that verification confirmed are
-    already era-clean. These tests guard against future regressions
-    that might re-introduce GCW-only assumptions at those sites."""
+    """The audit listed two more sites verification once confirmed era-clean
+    via the GCW axis names. DIRECTOR.zonestate_cw_faction_axis (Brian
+    2026-06-13, Option A) rewrote ZoneState to hold the NATIVE era faction
+    set, so both sites now read the alert axes through the era-resolved
+    ALERT_AXIS / ZoneState.get_faction instead of hardcoded GCW attributes.
+    These pins guard the new native contract + the no-faction-code-compare
+    rule that still holds."""
 
-    def test_security_uses_axis_name_not_faction_code(self):
-        """`engine/security.py::_apply_director_overlay` reads `zs.imperial`,
-        which is the Director **axis name** (era-stable per B.1.c
-        `ORG_TO_AXIS`), not the faction code. Both empire (GCW) and
-        republic (CW) map onto the `imperial` axis, so this code path
-        is era-correct without changes."""
+    def test_security_reads_axis_via_get_faction(self):
+        """`engine/security.py::_apply_director_overlay` reads the alert axes
+        through ALERT_AXIS + get_faction (native CW set), not the retired
+        getattr(zs, "imperial"/"criminal") attributes — and never compares a
+        faction code literal."""
         import engine.security as sec
         path = sec.__file__
         with open(path, "r", encoding="utf-8") as fh:
             src = fh.read()
-        # Should still read from the imperial axis
-        self.assertIn('zs, "imperial"', src,
-                      "_apply_director_overlay should still read zs.imperial axis")
-        # Should NOT have introduced any era-specific check
-        self.assertNotIn('== "empire"', src,
-                         "security.py should not compare to faction code 'empire'")
-        self.assertNotIn('== "republic"', src,
-                         "security.py should not compare to faction code 'republic'")
+        self.assertIn("ALERT_AXIS", src,
+                      "_apply_director_overlay should read via ALERT_AXIS")
+        self.assertNotIn('getattr(zs, "imperial"', src,
+                         "security.py must not read the retired imperial attr")
+        self.assertNotIn('getattr(zs, "criminal"', src,
+                         "security.py must not read the retired criminal attr")
+        # Still must not compare against a faction code literal.
+        self.assertNotIn('== "empire"', src)
+        self.assertNotIn('== "republic"', src)
 
-    def test_session_hud_uses_axis_names_in_factions_dict(self):
-        """`server/session.py::_hud_alert_level` builds a factions dict
-        keyed by Director axis names, not faction codes. The HUD's
-        `alert_faction` field is era-stable plumbing for future web
-        HUD consumers."""
+    def test_session_hud_uses_native_faction_set(self):
+        """`server/session.py::_hud_alert_level` now builds the factions dict
+        from the era's VALID_FACTIONS via get_faction (native CW), not the
+        retired GCW axis literals."""
         import server.session as sess
         path = sess.__file__
         with open(path, "r", encoding="utf-8") as fh:
             src = fh.read()
-        # Should still build the axis-keyed dict
-        self.assertIn('"imperial": zs.imperial', src,
-                      "session.py should still use 'imperial' axis key")
-        self.assertIn('"rebel": zs.rebel', src)
-        self.assertIn('"criminal": zs.criminal', src)
-        self.assertIn('"independent": zs.independent', src)
+        self.assertIn("VALID_FACTIONS", src,
+                      "session.py HUD should iterate VALID_FACTIONS")
+        self.assertIn("zs.get_faction(f)", src,
+                      "session.py HUD should read via get_faction")
+        self.assertNotIn('"imperial": zs.imperial', src,
+                         "session.py must not use the retired imperial literal")
 
 
 if __name__ == "__main__":

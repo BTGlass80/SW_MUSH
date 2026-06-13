@@ -686,7 +686,7 @@ class Session:
 
     def _hud_alert_level(self, hud: dict) -> None:
         """Resolve Director AI alert level and dominant faction."""
-        from engine.director import get_director
+        from engine.director import get_director, VALID_FACTIONS
         director = get_director()
         zone_key = hud.get("zone_type", "")
         if zone_key:
@@ -694,9 +694,11 @@ class Session:
             hud["alert_level"] = alert.value if alert else ""
             zs = director.get_zone_state(zone_key)
             if zs:
-                factions = {"imperial": zs.imperial, "rebel": zs.rebel,
-                            "criminal": zs.criminal, "independent": zs.independent}
-                hud["alert_faction"] = max(factions, key=factions.get)
+                # Dominant faction across the era's native faction set
+                # (DIRECTOR.zonestate_cw_faction_axis).
+                factions = {f: zs.get_faction(f) for f in VALID_FACTIONS}
+                if factions and any(v for v in factions.values()):
+                    hud["alert_faction"] = max(factions, key=factions.get)
 
     async def _hud_security(self, hud: dict, db, room_id) -> str:
         """Resolve effective security level. Returns the level string."""

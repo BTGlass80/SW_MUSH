@@ -104,16 +104,20 @@ _RUNTIME_CFG = _resolve_director_runtime_config()
 # the resolution logic, not the call sites.
 VALID_FACTIONS = _RUNTIME_CFG.valid_factions
 
-# Zone keys matching ROOM_ZONES in build_mos_eisley.py
-VALID_ZONES = frozenset({
-    "spaceport", "streets", "cantina", "shops",
-    "jabba", "government",
-})
-
-# Starting influence scores for Mos Eisley (from design doc)
+# Per-zone day-one influence baselines, era-resolved from
+# data/worlds/<era>/director_config.yaml (CW: 34 zones across every planet
+# + space; the emergency fallback: the 6 legacy Mos Eisley zones).
 DEFAULT_INFLUENCE = {
     k: dict(v) for k, v in _RUNTIME_CFG.zone_baselines.items()
 }
+
+# The zones the Director tracks ARE exactly the zones the era config
+# defines baselines for. Historically this was 6 hardcoded Mos Eisley keys
+# that did not even match the CW config keys — so every CW zone silently
+# seeded to the 30-fallback and read a stale alert. Deriving it from the
+# config unblocks the full multi-zone "living galaxy"
+# (DIRECTOR.zonestate_cw_faction_axis, Brian 2026-06-13).
+VALID_ZONES = frozenset(DEFAULT_INFLUENCE.keys())
 
 log.info(
     "[director] Runtime config resolved (source=%s, factions=%d, zones=%d)",
@@ -128,6 +132,25 @@ MAX_INFLUENCE = 100
 
 # Max delta per Director adjustment
 MAX_DELTA = 5
+
+
+# ── Alert-level axis resolution (DIRECTOR.zonestate_cw_faction_axis) ──────
+# The alert model has three roles: an AUTHORITY axis (lawful control), a
+# WARFRONT axis (open conflict), and an UNDERWORLD axis (criminal rule).
+# Which era faction fills each role is resolved from the director_config
+# rewicker (the canonical GCW->CW faction map): the legacy GCW axis names
+# imperial/rebel/criminal ARE those three roles, and the rewicker maps them
+# to the live era's factions. For Clone Wars that yields republic / cis /
+# hutt_cartel; for the emergency GCW fallback (no rewicker) it stays
+# imperial / rebel / criminal. compute_alert() reads ZoneState.scores
+# through these role keys, so a zone's alert reflects REAL era influence
+# instead of a dead hardcoded attribute. (Brian 2026-06-13, Option A.)
+_REWICKER_FACTIONS = dict(getattr(_RUNTIME_CFG, "rewicker_factions", {}) or {})
+ALERT_AXIS = {
+    "authority":  _REWICKER_FACTIONS.get("imperial", "imperial"),
+    "warfront":   _REWICKER_FACTIONS.get("rebel", "rebel"),
+    "underworld": _REWICKER_FACTIONS.get("criminal", "criminal"),
+}
 
 
 # ── Faction-order code mapping (DIRECTOR.faction_model_cw_mapping) ────────
@@ -213,49 +236,66 @@ ERA_MILESTONES = [
 
 
 # ── Alert Levels ──
+# The alert vocabulary is faction-agnostic; the three axes that DRIVE it
+# (authority / warfront / underworld) are era-resolved via ALERT_AXIS.
+# The comments below name the axis ROLE, not a specific faction.
 
 class AlertLevel(str, Enum):
-    LOCKDOWN = "lockdown"       # Imperial >= 70
-    HIGH_ALERT = "high_alert"   # Imperial 50-69
-    STANDARD = "standard"       # Imperial 30-49
-    LAX = "lax"                 # Imperial < 30
-    UNDERWORLD = "underworld"   # Criminal >= 70
-    UNREST = "unrest"           # Rebel >= 40
+    LOCKDOWN = "lockdown"       # authority >= 70
+    HIGH_ALERT = "high_alert"   # authority 50-69
+    STANDARD = "standard"       # mixed / contested
+    LAX = "lax"                 # authority < 30, no threat axis dominant
+    UNDERWORLD = "underworld"   # underworld >= 70
+    UNREST = "unrest"           # warfront >= 40
 
 
 @dataclass
 class ZoneState:
-    """Computed state for a single zone."""
+    """Computed state for a single zone.
+
+    Influence scores live in a faction-agnostic ``scores`` dict keyed by the
+    active era's VALID_FACTIONS (CW: republic/cis/jedi_order/hutt_cartel/
+    bhg/independent). ``compute_alert`` reads them through the era-resolved
+    ALERT_AXIS roles, so alerts reflect real influence in every era — this
+    is the DIRECTOR.zonestate_cw_faction_axis native rewrite (Brian
+    2026-06-13, Option A), replacing the old hardcoded GCW attributes that
+    silently orphaned every CW ``set_faction`` call.
+    """
     zone_key: str
-    imperial: int = 50
-    rebel: int = 10
-    criminal: int = 50
-    independent: int = 30
+    scores: dict = field(default_factory=dict)
     alert_level: AlertLevel = AlertLevel.STANDARD
 
     def compute_alert(self) -> AlertLevel:
-        """Derive alert level from faction influence scores."""
-        # Priority order: most dramatic condition wins
-        if self.imperial >= 70:
+        """Derive alert level from era-resolved faction influence axes.
+
+        Priority: most disruptive condition wins. Mirrors the GCW ordering
+        this replaces (authority<-imperial, underworld<-criminal,
+        warfront<-rebel). jedi_order and bhg are atmospheric overlays, not
+        primary alert drivers in v1 (thresholds are playtest-tunable).
+        """
+        authority = self.scores.get(ALERT_AXIS["authority"], 0)
+        warfront = self.scores.get(ALERT_AXIS["warfront"], 0)
+        underworld = self.scores.get(ALERT_AXIS["underworld"], 0)
+        if authority >= 70:
             self.alert_level = AlertLevel.LOCKDOWN
-        elif self.criminal >= 70:
+        elif underworld >= 70:
             self.alert_level = AlertLevel.UNDERWORLD
-        elif self.rebel >= 40:
+        elif warfront >= 40:
             self.alert_level = AlertLevel.UNREST
-        elif self.imperial < 30:
+        elif authority < 30 and warfront < 40 and underworld < 40:
             self.alert_level = AlertLevel.LAX
-        elif self.imperial >= 50:
+        elif authority >= 50:
             self.alert_level = AlertLevel.HIGH_ALERT
         else:
             self.alert_level = AlertLevel.STANDARD
         return self.alert_level
 
     def get_faction(self, faction: str) -> int:
-        return getattr(self, faction, 0)
+        return self.scores.get(faction, 0)
 
     def set_faction(self, faction: str, value: int):
-        value = max(MIN_INFLUENCE, min(MAX_INFLUENCE, value))
-        setattr(self, faction, value)
+        self.scores[faction] = max(
+            MIN_INFLUENCE, min(MAX_INFLUENCE, int(value)))
 
 
 # ── Player Action Tracking ──
@@ -266,16 +306,14 @@ class ActionDigest:
     Accumulated player actions since last Faction Turn.
     Reset after each turn. Used to compile the API digest.
     """
-    kills_by_faction: dict = field(default_factory=lambda: {
-        "imperial": 0, "rebel": 0, "criminal": 0, "independent": 0
-    })
+    kills_by_faction: dict = field(
+        default_factory=lambda: {f: 0 for f in VALID_FACTIONS})
     missions_by_type: dict = field(default_factory=dict)
     bounties_claimed: int = 0
     bounties_by_tier: dict = field(default_factory=dict)
     contraband_sold: int = 0
-    faction_talks: dict = field(default_factory=lambda: {
-        "imperial": 0, "rebel": 0, "criminal": 0, "independent": 0
-    })
+    faction_talks: dict = field(
+        default_factory=lambda: {f: 0 for f in VALID_FACTIONS})
 
     def record_kill(self, faction: str, zone: str = ""):
         """Record an NPC kill by faction."""
@@ -526,30 +564,34 @@ class DirectorAI:
                 current = zs.get_faction(faction)
                 zs.set_faction(faction, current - delta)
 
-        # Smuggling missions boost criminal influence
+        # Era-resolved alert axes (republic / cis / hutt_cartel in CW).
+        _authority = ALERT_AXIS["authority"]
+        _underworld = ALERT_AXIS["underworld"]
+
+        # Smuggling missions boost the underworld axis (and erode authority).
         smuggling = d.missions_by_type.get("smuggling", 0)
         if smuggling > 0:
             delta = min(smuggling * 2, MAX_DELTA)
             for zs in self._zones.values():
-                zs.set_faction("criminal", zs.criminal + delta)
-                zs.set_faction("imperial", zs.imperial - 1)
+                zs.set_faction(_underworld, zs.get_faction(_underworld) + delta)
+                zs.set_faction(_authority, zs.get_faction(_authority) - 1)
 
-        # Imperial missions boost imperial influence
-        imperial_missions = d.missions_by_type.get("combat", 0)
-        if imperial_missions > 0:
-            delta = min(imperial_missions, MAX_DELTA)
-            for zone_key in ["spaceport", "government"]:
-                if zone_key in self._zones:
-                    zs = self._zones[zone_key]
-                    zs.set_faction("imperial", zs.imperial + delta)
+        # Combat/security missions strengthen the authority axis where it
+        # already holds (era-robust: no hardcoded zone keys).
+        combat_missions = d.missions_by_type.get("combat", 0)
+        if combat_missions > 0:
+            delta = min(combat_missions, MAX_DELTA)
+            for zs in self._zones.values():
+                if zs.get_faction(_authority) >= 50:
+                    zs.set_faction(_authority, zs.get_faction(_authority) + delta)
 
-        # Contraband sales boost criminal
+        # Contraband sales strengthen the underworld axis where it has a
+        # foothold.
         if d.contraband_sold > 0:
             delta = min(d.contraband_sold, MAX_DELTA)
-            for zone_key in ["cantina", "shops"]:
-                if zone_key in self._zones:
-                    zs = self._zones[zone_key]
-                    zs.set_faction("criminal", zs.criminal + delta)
+            for zs in self._zones.values():
+                if zs.get_faction(_underworld) >= 50:
+                    zs.set_faction(_underworld, zs.get_faction(_underworld) + delta)
 
         # Recompute all alert levels
         for zs in self._zones.values():
@@ -566,10 +608,7 @@ class DirectorAI:
         zone_influence = {}
         for zone_key, zs in self._zones.items():
             zone_influence[zone_key] = {
-                "imperial": zs.imperial,
-                "rebel": zs.rebel,
-                "criminal": zs.criminal,
-                "independent": zs.independent,
+                f: zs.get_faction(f) for f in sorted(VALID_FACTIONS)
             }
 
         # Active world events
@@ -595,14 +634,14 @@ class DirectorAI:
             "zone_influence": zone_influence,
             "active_events": active_events,
             "player_count": player_count,
-            # DIRECTOR.faction_model_cw_mapping (2026-06-13): the
-            # zone_influence keys above are the ZoneState zone-tone AXIS
-            # (imperial/rebel/criminal/independent — sanctioned, unchanged).
-            # This legend tells the LLM which CW ORG code to use when it
-            # issues a faction_order, so its orders target real Clone Wars
-            # orgs (republic/cis/...) instead of dead GCW codes. The order
-            # boundary (normalize_faction_order_code) accepts either, but
-            # the legend steers the LLM to the correct era codes up front.
+            # zone_influence above now carries the NATIVE era factions
+            # (CW: republic/cis/jedi_order/hutt_cartel/bhg/independent) — the
+            # DIRECTOR.zonestate_cw_faction_axis native rewrite (Brian
+            # 2026-06-13). faction_order_codes advertises the joinable CW
+            # orgs the LLM may target with a faction_order; the legacy
+            # axis->org legend below is retained as a harmless back-compat
+            # hint for any GCW-trained reasoning (the order boundary
+            # normalize_faction_order_code still accepts either form).
             "faction_order_codes": sorted(CW_FACTION_ORDER_CODES),
             "faction_axis_to_org": {
                 "imperial": "republic",
@@ -1737,14 +1776,14 @@ class DirectorAI:
             # Compute effective security from influence
             effective = base
 
-            # Rule 1: Criminal surge (criminal ≥ 80) → downgrade one tier
-            if zs.criminal >= 80:
+            # Rule 1: Underworld surge (underworld axis ≥ 80) → downgrade one tier
+            if zs.get_faction(ALERT_AXIS["underworld"]) >= 80:
                 if effective == SecurityLevel.SECURED:
                     effective = SecurityLevel.CONTESTED
                 elif effective == SecurityLevel.CONTESTED:
                     effective = SecurityLevel.LAWLESS
 
-            # Rule 2: Imperial collapse (imperial < 30, LAX) → downgrade one tier
+            # Rule 2: Authority collapse (LAX alert) → downgrade one tier
             elif zs.alert_level == AlertLevel.LAX:
                 if effective == SecurityLevel.SECURED:
                     effective = SecurityLevel.CONTESTED
@@ -1772,16 +1811,16 @@ class DirectorAI:
                 for dir_zone_key, zs in self._zones.items():
                     base_str = self._BASE_SECURITY.get(dir_zone_key, "contested")
                     base = SecurityLevel(base_str)
-                    if zs.criminal >= 80:
+                    if zs.get_faction(ALERT_AXIS["underworld"]) >= 80:
                         shifted_names.append(
                             f"{_zone_display(dir_zone_key)} "
-                            f"(\033[1;31mdowngraded — criminal surge\033[0m)"
+                            f"(\033[1;31mdowngraded — underworld surge\033[0m)"
                         )
                     elif zs.alert_level == AlertLevel.LAX:
                         if base == SecurityLevel.SECURED:
                             shifted_names.append(
                                 f"{_zone_display(dir_zone_key)} "
-                                f"(\033[1;33mdowngraded — weak Imperial presence\033[0m)"
+                                f"(\033[1;33mdowngraded — authority waning\033[0m)"
                             )
                 if shifted_names and session_mgr:
                     msg = (
@@ -1808,15 +1847,15 @@ class DirectorAI:
         # Find the most interesting zone state
         for zs in self._zones.values():
             if zs.alert_level == AlertLevel.LOCKDOWN:
-                return f"Imperial forces maintain lockdown in {_zone_display(zs.zone_key)}."
+                return f"Republic forces lock down {_zone_display(zs.zone_key)}."
             if zs.alert_level == AlertLevel.UNDERWORLD:
-                return f"Criminal activity surges in {_zone_display(zs.zone_key)}."
+                return f"Cartel activity surges in {_zone_display(zs.zone_key)}."
             if zs.alert_level == AlertLevel.UNREST:
-                return f"Rebel sympathizers grow bolder in {_zone_display(zs.zone_key)}."
+                return f"Separatist agitation grows in {_zone_display(zs.zone_key)}."
             if zs.alert_level == AlertLevel.LAX:
-                return f"Imperial presence wanes in {_zone_display(zs.zone_key)}."
+                return f"Authority thins across {_zone_display(zs.zone_key)}."
 
-        return "Mos Eisley continues under the twin suns. Business as usual."
+        return "The war grinds on across the sector. Business as usual."
 
     # ── Tick ──
 
@@ -1869,10 +1908,7 @@ class DirectorAI:
         """Get all zone states as a serializable dict."""
         return {
             zk: {
-                "imperial": zs.imperial,
-                "rebel": zs.rebel,
-                "criminal": zs.criminal,
-                "independent": zs.independent,
+                **{f: zs.get_faction(f) for f in sorted(VALID_FACTIONS)},
                 "alert_level": zs.alert_level.value,
             }
             for zk, zs in self._zones.items()
@@ -1905,7 +1941,7 @@ _ZONE_DISPLAY = {
 }
 
 def _zone_display(zone_key: str) -> str:
-    return _ZONE_DISPLAY.get(zone_key, zone_key)
+    return _ZONE_DISPLAY.get(zone_key) or zone_key.replace("_", " ").title()
 
 
 # ── Module-level singleton ──
