@@ -317,8 +317,16 @@ class TestVillageTrialNPCsPlaced:
         # this is a brittle total-count assertion; the by-name village-NPC
         # placement checks elsewhere in this class are the substantive
         # guarantees.
+        # 2026-06-13 reconciliation: +10 -> 211. The T5-questline arc
+        # (drops 34-35) added npcs_drop_b_t5_trainers.yaml: 5 master
+        # trainers (Vehn Tasaal/Vossk/Corso Venn/Dax Orrin/Sabra) + 5
+        # questline combat enemies (krayt-spawn/cartel enforcer/B1 patrol/
+        # drone-warrior/Warrens stalker). All 10 are legitimate content;
+        # the count guard was the only thing pinned to 201. (This canary
+        # drifts on every content drop — see the 177->196->198->201 trail
+        # above; the by-name placement checks are the real guarantee.)
         rows = _query(self.db_path, "SELECT COUNT(*) AS c FROM npcs")
-        assert rows[0]["c"] == 201
+        assert rows[0]["c"] == 211
 
     def test_smith_daro_at_forge(self):
         rows = _query(
