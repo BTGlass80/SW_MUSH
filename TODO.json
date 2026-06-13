@@ -1713,7 +1713,8 @@
       "question": "Restraint/handcuff system (CRAFT.HOOK long-pole). Today: combat grapple has an EPHEMERAL CombatBracket.restraint (Str-vs-Str escape, combat-only, not persisted); no handcuff items exist. Needs a restraint STATE model, escape checks, and PvP-consent norms before any content ships.",
       "recommendation": "(1) Persistent character-level restraint state {applied_by, item_key, escape_difficulty} — survives logout (a cuffed prisoner stays cuffed), distinct from combat's ephemeral grapple. (2) Blocks attack/move/equip; allows social verbs (mirror the grapple restriction set). (3) Escape = WEG Strength (or Security to pick the lock) check vs. difficulty, as an action; 'unlock' releases. (4) PvP-consent (the crux): REUSE the existing PvP/security-zone gate — you may only cuff a player you could legally attack, and only one already DEFEATED/incapacitated (no full-health griefing); NPCs unrestricted. No new consent system. Decision for Brian: persistent state (rec yes) + reuse-existing-PvP-gate (rec yes). Sequence AFTER the equipment-instance migration (touches Character state + equip).",
       "logged": "2026-06-12 (design-review batch; CRAFT.HOOK.restraints tier_2 long-pole)",
-      "status": "pending Brian"
+      "status": "UNBLOCKED — PvP norm decided (consent/defeat-gated); build per the recommendation",
+      "pvp_consent_resolution": "RESOLVED 2026-06-13 (Brian): restraints are CONSENT/DEFEAT-GATED — a PC may only cuff another PC who CONSENTS or who has been DEFEATED (incapacitated/surrendered in combat), never a healthy unwilling PC. Capture is an outcome of winning a fight or a willing RP scene, not a surprise grief vector. The rest of the recommendation (persistent character-level restraint state {applied_by, item_key, escape_difficulty} surviving logout; blocks attack/move/equip, allows social verbs; escape = WEG Strength check) stands — build per that. Now UNBLOCKED for implementation under the decide+build charter."
     },
     {
       "id": "CRAFT.powered_suit_design",
@@ -1735,6 +1736,11 @@
     }
   ],
   "design_calls_resolved_recent": [
+    {
+      "id": "POSTURE.autonomy_charter_2026_06_13",
+      "resolved_date": "2026-06-13",
+      "resolution": "Brian set a standing autonomy charter for running toward launch: (1) DECIDE+BUILD+LOG — make design/balance/economy calls myself, log them, stop only for the truly irreversible (live-DB-breaking schema, content deletion, external sends). (2) BALANCE = CONSERVATIVE default (err tight/low when unsure, pair with T3.19 tunables for live retune). (3) SEQUENCE = features-first, harden-last (cluster T3.19/20/21 + arch reconciliation at the end). (4) Restraints PvP = consent/defeat-gated. Recorded in memory overnight-autonomy-posture. This supersedes the 'log every fork + wait' base workflow for non-irreversible work."
+    },
     {
       "id": "CRAFT.consumable_quality_potency_model",
       "logged": "2026-06-13",
