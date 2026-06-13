@@ -6,6 +6,14 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-13 — Harvest per-region skill override (Republic-tech salvage → Search) — *drop 41*
+Resolves CRAFT.harvest_skill_flavor (Brian's call: per-region override). Harvest defaults to wilderness Survival, but salvage regions yield tech, not flora/fauna — recovering usable Republic tech from the Coruscant Underworld reads as Search (scavenging/recovering), not Survival.
+- **`engine/harvest.py`:** new `_REGION_HARVEST_SKILL` map (region slug → skill, default `survival`) + `harvest_skill_for_region(slug)` helper, mirroring the existing `_REGION_SCAVENGE_BONUS` region-keyed table. `coruscant_underworld → search`. The active-harvest skill check now rolls the region's skill (difficulty unchanged at Easy 6). Pure data add — a new region is one row, no other code change. (Search chosen over a raw Technical-attribute roll: it's a real skill and reads as "scavenging".)
+- **Verified:** `tests/test_harvest_skill_override.py` (4 — default Survival, Coruscant→Search, case-insensitive, override-is-canonical) + 97-test harvest regression (test_syn6a + test_syn6c) green. Engine-internal (no command/boot/schema surface).
+- **Files:** `engine/harvest.py`, `tests/test_harvest_skill_override.py` (new), `CHANGELOG.md`, `TODO.json`.
+
+---
+
 ### 2026-06-13 — Breaching charges (breach verb + demolitions check) — *drop 40*
 Builds the breaching half of CRAFT.mines_breaching_split (Brian greenlit the split — build breaching, defer placed mines). A `breach <target>` verb blows open a sealed obstacle with a single-use breaching charge and a Demolitions check vs the obstacle's difficulty. Safe by design (breaches obstacles, not people — no blast-on-players); placed proximity mines remain a separate deferred subsystem.
 - **Engine core** (`engine/breaching.py::attempt_breach`, mirrors `engine/housing.py::attempt_force_door`): finds a `breachable` room object (type `breachable`, `data.breach_difficulty`), requires + consumes a breaching charge (via `engine.buffs.consume_consumable` — the charge is a crafted consumable in `attributes.consumables`, spent on the ATTEMPT whether or not it succeeds, grenade single-use precedent), runs `perform_skill_check("demolitions", difficulty)`, and on success deletes the obstacle and reveals its `data.reveal` flavor. Failure-tolerant throughout (`find_breachable` handles no-target / ambiguous / mismatch).

@@ -1686,7 +1686,7 @@
       "question": "scavenged_republic_tech harvests on the generic Survival check (DC 6). Flavor-wise, salvaging Republic tech reads as Technical (salvage) or Search, not wilderness Survival. Ship Survival now (engine hardwires HARVEST_SKILL), or invest post-launch in a per-region harvest-skill override?",
       "recommendation": "Survival now (consistent with the harvest engine; Easy-6 is WEG-ladder-correct); per-region skill override is a larger change — defer to post-launch flavor polish. Low priority; not launch-blocking.",
       "logged": "2026-06-12 (drop 14, design-reviewer)",
-      "status": "pending Brian (NO BUILD pending — the rec IS the status quo: HARVEST_SKILL='survival' is already live, engine/harvest.py:153, verified 2026-06-13. This is purely Brian's FLAVOR call: leave Survival, or invest post-launch in a per-region Technical/Search override. Left pending rather than self-resolved because it's a taste judgment, not a mechanical fix; not blocking.)"
+      "status": "DONE 2026-06-13 (drop 41; Brian chose the per-region override). engine/harvest.py: _REGION_HARVEST_SKILL map + harvest_skill_for_region(slug); coruscant_underworld -> search (Republic-tech salvage reads as scavenging, not wilderness Survival); default stays survival; difficulty unchanged (Easy 6). Search chosen over a raw Technical-attribute roll (real skill, scavenging flavor). tests/test_harvest_skill_override.py (4) + 97 harvest regression green."
     },
     {
       "id": "ECON.commissary_sellback_model",

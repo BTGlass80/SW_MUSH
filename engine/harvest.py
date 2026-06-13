@@ -207,6 +207,28 @@ _REGION_SCAVENGE_BONUS: dict[str, dict] = {
     },
 }
 
+# ── Region-keyed harvest-skill override (CRAFT.harvest_skill_flavor) ──────────
+#
+# (2026-06-13, Brian) The default harvest skill is wilderness Survival
+# (HARVEST_SKILL). But some regions yield SALVAGE, not flora/fauna —
+# recovering usable Republic tech from the Coruscant Underworld reads as
+# Search (scavenging/recovering), not wilderness Survival. This map keys a
+# region slug to the skill its harvest rolls; absent => the default
+# Survival. Difficulty is unchanged (Easy 6 — a routine action). Adding a
+# region: append a row; no other code change. Pure data — the only
+# consumer is harvest_skill_for_region below.
+_REGION_HARVEST_SKILL: dict[str, str] = {
+    "coruscant_underworld": "search",
+}
+
+
+def harvest_skill_for_region(region_slug: str) -> str:
+    """The skill a harvest in `region_slug` rolls — the region override
+    (CRAFT.harvest_skill_flavor) or the default HARVEST_SKILL (survival).
+    Case-insensitive on the slug."""
+    return _REGION_HARVEST_SKILL.get(
+        (region_slug or "").strip().lower(), HARVEST_SKILL)
+
 
 # ── Pure helpers (no DB) ─────────────────────────────────────────────────────
 
@@ -787,9 +809,13 @@ async def perform_harvest(
             influence_tier = _UNOWNED_FALLBACK_TIER
 
     # ── Step 5: skill check ─────────────────────────────────────────────────
+    # CRAFT.harvest_skill_flavor (2026-06-13): salvage regions roll their
+    # own skill (Coruscant Underworld -> Search) instead of wilderness
+    # Survival; default unchanged. Difficulty is the same Easy 6.
     from engine.skill_checks import perform_skill_check
+    _harvest_skill = harvest_skill_for_region(region_slug)
     try:
-        sc = perform_skill_check(char, HARVEST_SKILL, HARVEST_DIFFICULTY)
+        sc = perform_skill_check(char, _harvest_skill, HARVEST_DIFFICULTY)
     except Exception:
         log.warning("[harvest] perform_skill_check raised", exc_info=True)
         # Cooldown is NOT set if the engine itself errors — a real
