@@ -3,139 +3,143 @@
 **Branch:** `drop/t5-questline-engine` (built on `roadmap`, which carries
 the overnight drops 25–32). **NOT merged to main or roadmap** — your
 `run_all_tests.bat` gate.
-**Author:** Claude Opus 4.8 (1M), attended session with Brian.
+**Author:** Claude Opus 4.8 (1M), attended → autonomous session with Brian.
 
 ---
 
 ## TL;DR
 
-Shipped the **T5 master-trainer questline arc end-to-end** (3 drops: the
-engine + all 5 questlines + gates), wrote the **ambient-NPC-life
-post-launch design** you asked for, logged the **parallel tooling
-session's** CHANGELOG/TODO, and started the **world-event flag-consumer**
-runway (2 of 5 done). Every drop verified (targeted unit + reachability
-invariant + content walkthrough + 227-test smoke + the read-only verify
-fan-out). All on the feature branch; nothing merged.
+Eight drops (33–40), all committed + verified, on the feature branch.
+Completed the **T5 master-trainer questline arc** end-to-end, wrote the
+**ambient-NPC-life** post-launch design you asked for, logged the
+**parallel tooling session's** records, and cleared the **entire greenlit
+runway**: all 5 world-event flag consumers, commissary sellback,
+Director CW faction mapping, and breaching charges. Then hit the edge of
+what's design-resolved and **logged 2 genuine forks** (with recommended
+shapes) rather than build them blind. Every drop: targeted tests +
+reachability/walkthrough where relevant + the read-only verify fan-out +
+227-test smoke green. Nothing merged.
 
 ---
 
-## Commits this session (on `drop/t5-questline-engine`, oldest→newest)
+## Commits this session (`drop/t5-questline-engine`, oldest→newest)
 
 | Commit | Drop | What |
 | --- | --- | --- |
 | `e811ab5` | 33 | T5-questline arc A — multi-slot chain engine + `mastery` verb |
 | `ec79109` | 34 | T5-questline arc B slice 1 — "The Hermit's Trial" (Jedi/lightsaber) + the schematic gate + per-step reward consumer + rep tuning |
 | `c6931ff` | 35 | T5-questline arc B slices 2–5 — the other 4 master trainers + tooling-session CHANGELOG/TODO log |
-| *(uncommitted at write time)* | 36 | World-event flag consumers 2 of 5 (rare_vendor + krayt_bounty) — committing on the green smoke |
+| `294679b` | 36 | World-event flag consumers 2/5 (rare_vendor + krayt_bounty) + this handoff |
+| `698dade` | 37 | World-event flag consumers 3/5 (distress + hutt_auction + brawl) — all 5 done |
+| `1c0376c` | 38 | Commissary sellback (anti-laundering refund + bind-to-channel) |
+| `ec92ea8` | 39 | Director CW faction-order mapping layer |
+| `0afece2` | 40 | Breaching charges (breach verb + demolitions check) |
 
 ---
 
 ## What landed, by area
 
-### T5 master-trainer questlines (the roadmap item `T2.DEF.t5_trainer_storyline` — DONE)
+### T5 master-trainer questlines — roadmap item `T2.DEF.t5_trainer_storyline` DONE
+Design: `docs/design/t5_trainer_questlines_design_v1.md`. Your 4 resolved
+forks (gated questline EACH, RICH, rep≥50 + Contested/Wilds, generalize
+the chain engine).
+- **Engine (33):** single-slot chargen-only chain engine → 2nd mid-game
+  questline slot (`active_questline`) via a `state_key` param (onboarding
+  byte-neutral), `kind: questline` field, slot-aware dispatcher +
+  teleport, the `mastery [start|status|abandon]` command + NPC-offer hook.
+- **Content (34–35):** 5 rich 5-step questlines, each unlocking one t5
+  schematic, each with an original CW trainer + themed enemy in a
+  Contested/Wilds zone (Vehn Tasaal/lightsaber, Vossk/blaster,
+  Corso Venn/hyperdrive, Dax Orrin/ion, Sabra/armor). Data-driven
+  walkthrough test walks ALL 5 to graduation through the live dispatcher;
+  all-5-gated invariant.
+- **The gate:** t5 recipe hidden until questline graduated AND faction
+  rep ≥ 50, enforced in both `talk`/teach and `learn`.
 
-Design: `docs/design/t5_trainer_questlines_design_v1.md`. Your four
-resolved forks: gated questline EACH, RICH (combat+travel+NPC web),
-faction rep ≥ 50 + Contested/Wilds placement, generalize-the-chain-engine
-architecture.
+### Two mid-arc decisions you made (both implemented + pinned)
+1. **Per-step chain rewards → ship for all chains** (`apply_step_rewards`
+   was items-only; now delivers credits via a metered faucet + rep via
+   the funnel).
+2. **Faction rep → "tune lower"** (twice): every onboarding chain now
+   leaves a player at **recognized (~8–13)**, the questline at **18** —
+   the rep-50 t5 gate is earned through play. Pinned by a ceiling test.
 
-- **Engine (Drop 33):** the single-slot chargen-only chain engine now
-  supports a 2nd mid-game **questline slot** (`active_questline`) — every
-  state helper took a `state_key` param (onboarding behavior byte-neutral,
-  298 legacy chain tests green), a `kind: questline` chain field (chargen
-  picker skips them), a slot-aware dispatcher (`_try_advance_all_slots`),
-  slot-aware teleport/pending-flag (review caught + fixed a slot-corruption
-  blocker here), and the **`mastery [start|status|abandon]`** command +
-  an NPC-offer-on-talk hook. Verb is `mastery` because quest/quests/+quests/
-  train/training/trial were all already taken.
-- **Content (Drops 34–35):** 5 rich 5-step questlines (meet → flavor
-  command → skill check → themed combat → certify), each unlocking ONE t5
-  schematic, each in a Contested/Wilds zone with an original CW-era trainer
-  + a themed enemy:
-  - Jedi Master **Vehn Tasaal** (Jundland) → lightsaber
-  - Trandoshan **Vossk the Armorer** (Nar Shaddaa pits) → blaster rifle
-  - Lt. **Corso Venn** (Geonosis) → hyperdrive surge converter
-  - Chief **Dax Orrin** (Geonosis) → ion engine core
-  - Zabrak **Sabra the Smith** (Nar Shaddaa Warrens) → master-grade armor
-- **The gate:** `trainer_curriculum` is async + gate-aware; a t5 schematic
-  carrying `gated_by_questline`/`gated_faction`/`gated_min_rep` is hidden
-  until the player GRADUATED the questline AND holds rep ≥ 50 — enforced in
-  both the `talk`/teach flow AND `learn` (review BLOCKER), and gated recipes
-  always cost tuition (review MAJOR).
-- **Verification:** a DATA-DRIVEN content walkthrough test walks EVERY
-  questline start→graduation through the production dispatcher; an
-  all-5-t5-gated invariant; the static reachability invariant (every slug/
-  command/skill resolves) extended to the questline kind.
-
-### Two decisions you made mid-session (both implemented + pinned)
-
-1. **Per-step chain rewards → ship for all chains.** `apply_step_rewards`
-   was items-only; per-step `credits`/`faction_rep` were authored across
-   ALL chains but silently dropped. Now delivered (metered
-   `chain_step_reward` faucet + `adjust_rep` funnel).
-2. **Faction rep → "tune lower."** After ratcheting twice on your
-   feedback: every onboarding chain now leaves a player at **recognized
-   (~8–13**, ≈10% of max); the t5 questline at **18**. NO chain reaches
-   honored (50) — the t5 rep-50 gate is earned through post-questline play.
-   Pinned by `TestChainRepEconomyCeiling` (hard ceiling 22).
-
-### Ambient NPC life (your post-launch feature request)
-
+### Ambient NPC life (your post-launch request)
 `docs/design/ambient_npc_life_design_v1.md` + TODO **T3.22**. Idle-Ollama
-background world sim: NPCs with goals that move + interact with each other,
-Python-first / Ollama-last-and-preemptible, **no unprompted PC interaction
-v1**. Verified the codebase is ready (idle_queue.py already has the
-priority/backoff/preemption model; tick scheduler; space-traffic movement
-pattern to mirror). **DB scaffolding lands pre-launch** (empty CREATE TABLE
-+ JSON `extra` future-proof columns — your "blanks" instinct, done the
-SQLite-idiomatic way) so the post-launch build never migrates a live DB.
+background sim, Python-first/Ollama-preemptible, no unprompted PC
+interaction v1, **DB scaffolding lands pre-launch** (empty CREATE TABLE +
+JSON `extra` columns) so the post-launch build never migrates a live DB.
 
-### Parallel tooling session (logged per your request)
+### World-event flag consumers — ALL 5 done (drops 36–37)
+The WORLDEVENT.flag_effect_consumers gap is fully closed. Thin consumers
+over existing seams (contraband_scan pattern): `rare_vendor` (buy
+discount), `krayt_bounty` (bounty tier-bump), `distress_active` (forces a
+MEDICAL/premium mission), `hutt_auction` (rep-gated rare purchase at +40%,
+fail-closed), `brawl_active` (forces the d66 brawl beat).
 
-`CHANGELOG` + TODO (`TOOL.tooling_additions` done, `TOOL.settings_apply`
-pending you). That session shipped 2 agents (break-it-tester, handoff-
-writer), 4 slash commands (/verify-drop, /break-it, /log-design-call,
-/handoff), and the upload-zip slimming. The deferred `.claude/settings.json`
-allow/deny changes are captured with exact lines + the `python main.py`
-caveat — apply after the parallel session commits its settings.json edits.
+### Commissary sellback (drop 38) — `ECON.commissary_sellback` DONE (all 3 pieces)
+Vendor refusal of faction-issued gear + a `+commissary sell` 50%-refund
+channel (faucet smaller than the purchase sink → buy/sell is a net loss,
+pinned) + bind-to-channel give/trade (same-faction-only).
 
-### World-event flag consumers (runway item 1 — 2 of 5)
+### Director CW faction mapping (drop 39) — `DIRECTOR.faction_model_cw_mapping` DONE
+The LLM Director can now issue CW faction-orders: `normalize_faction_order_code`
+maps GCW aliases → CW org codes at the order boundary; the digest carries
+a CW faction legend. ZoneState axis math untouched. Partially retires
+`TD.DIRECTOR_FACTION_MODEL_GCW`.
 
-Drop 36: `rare_vendor` (MERCHANT_ARRIVAL → buy-command pre-haggle 15%
-discount) + `krayt_bounty` (KRAYT_SIGHTING → bounty tier-bump toward
-SUPERIOR). Thin consumers over existing seams, mirroring contraband_scan;
-each a pure modulator + manager-driven flag-path test. **Remaining 3**
-(brawl_active, distress_active, hutt_auction) each want their own small
-drop (combat-spawn / mission-injection / rep-gated-purchase seams).
+### Breaching charges (drop 40) — `CRAFT.mines_breaching_split` breaching half DONE
+`breach <target>` + `engine/breaching.py` (Demolitions check vs a
+`breachable` room object, single-use charge, no blast-on-players) +
+craftable `breaching_charge`. Placed mines stay deferred.
+
+### Parallel tooling session — logged per your request
+CHANGELOG + TODO (`TOOL.tooling_additions` done, `TOOL.settings_apply`
+pending you — the deferred settings.json allow/deny lines).
 
 ---
 
-## State of the suite
+## Forks I LOGGED instead of building (your judgment needed)
 
-- Every drop's targeted tests green. The full chain/questline/crafting/
-  rewards/achievements regression (~430 tests) green. The **227-test smoke
-  suite green** after drops 33–35 (drop 36's smoke run is the gate on its
-  commit). Reachability invariant green for all 5 questlines.
+I cleared everything design-resolved, then stopped at genuine forks
+rather than guess (your "log real forks" rule):
+1. **`CRAFT.breaching_obstacle_placement`** (drop 40) — the breach
+   mechanic works, but no world-data object-seeding path exists, so
+   obstacles are admin-placeable now but not authored at scale. Open:
+   seeding loader vs admin-only vs gate-real-map-exits (the map-entangled
+   option). Rec: small additive object-seeding loader; defer exit-gating.
+2. **`T2.DEF.t5_ship_part_items`** — the hyperdrive/ion t5 parts craft but
+   are inert in space; wiring them needs a NEW install mechanic (no
+   `install` verb / ship-component apply path exists). Logged with a
+   recommended shape (player `install <part>` at a shipyard, consume on
+   install, one-per-stat cap, write to ships.systems, owner-gated). Not
+   built blind.
+3. **`CRAFT.harvest_skill_flavor`** — confirmed `HARVEST_SKILL='survival'`
+   is live (the rec's status quo). Left as your flavor call (Survival vs a
+   post-launch Technical/Search override); no build, not blocking.
+
+(Plus the standing pending calls from before this session — see
+`design_calls_pending_brian`.)
+
+## State of the suite
+- Every drop's targeted tests green. Full chain/questline/crafting/
+  rewards/economy/director/breaching regressions green. **227-test smoke
+  green after each drop.** Reachability invariant green for all chains.
 - **I did NOT run `run_all_tests.bat`** (the full ~7,700 Windows suite) —
   that's your merge gate. I expect green; the authoritative run is yours.
 
 ## Suggested next session
-
-1. Run `run_all_tests.bat`. If green, merge `drop/t5-questline-engine`
-   (drops 33–36) — and separately decide on merging `roadmap` (25–32).
-2. Apply `TOOL.settings_apply` (the deferred settings.json allow/deny)
-   after the parallel session's settings.json edits land.
-3. Continue the runway (all greenlit by you, in order): the **3 remaining
-   world-event flags** → **commissary sellback** → **breaching charges** →
-   **Director CW faction mapping**.
-4. Pre-launch: schedule the ambient-life **Phase 0** DB scaffolding (T3.22)
-   — the only pre-launch piece of that feature.
+1. Run `run_all_tests.bat`; merge `drop/t5-questline-engine` (33–40) if
+   green. (Separately decide on `roadmap` 25–32.)
+2. Apply `TOOL.settings_apply` after the parallel session's settings.json
+   lands.
+3. The 3 forks above when you want to steer them.
+4. Pre-launch: ambient-life **Phase 0** DB scaffolding (T3.22).
 
 ## Untracked strays (NOT mine — parallel sessions)
-
-`data/guides/*` + `Guide_27` + `tools/guide_lint.py` + `docs/dev/` (the
-guides-rework session); `sw_d6_mush_architecture_v52.md` +
-`HANDOFF_readiness_sequencing_review_2026-06-13.md` (the readiness session);
+`data/guides/*`, `Guide_27`, `tools/guide_lint.py`, `docs/dev/` (guides
+session); `sw_d6_mush_architecture_v52.md`,
+`HANDOFF_readiness_sequencing_review_2026-06-13.md` (readiness session);
 `.claude/settings.json`/`.gitignore`/`make_upload_zip.ps1`/`.claude/agents`/
-`.claude/commands`/`package*.json`/`node_modules` (the tooling session).
-I left all of these untouched and out of my commits.
+`.claude/commands`/`package*.json`/`node_modules` (tooling session). All
+left untouched and out of my commits.

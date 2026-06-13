@@ -467,7 +467,8 @@
       "status": "queued",
       "design_doc": "TBD — likely a data/items.yaml extension; depends on whether ship parts use the existing weapons.yaml schema or get a new shape",
       "scope": "Two T5 schematics craft items with no functional combat/space effects today: t5_hyperdrive_surge_converter and t5_mil_spec_ion_engine_core. The crafted ItemInstance rows land in inventory correctly, but the items don't yet do anything in combat/space. Needs: data/items.yaml entries (or extension of weapons.yaml / starships.yaml) defining the per-item stat effects (hyperdrive efficiency, ion engine output bonus). Also needs an item-mod-to-ship application surface — likely a parser command like 'install <item>' or admin-applies-to-ship.",
-      "engine_state": "Schematics craft into inventory. Items are inert in combat/space.",
+      "engine_state": "Schematics craft into inventory (the parts ALREADY carry stat_target=hyperdrive/speed + stat_boost=3/2, data/schematics.yaml). Items are inert: NO install/apply surface exists (verified 2026-06-13 — no `install` verb, no ship-component application path in engine/crafting.py / shipyard_commands.py / ship_crew_commands.py). This is a NEW MECHANIC (how a crafted part attaches to a ship + modifies its stats), not a thin consumer-wire — flagged a design fork rather than built blind during the 2026-06-13 autonomous runway.",
+      "design_fork_for_brian": "The install mechanic shape is unspecified and guessing wrong is expensive (it touches ship stat state + persistence). Open sub-decisions: (1) SURFACE — a player `install <part>` command (player-driven, lore-apt) vs admin-applies-to-ship vs auto-apply-on-craft? Rec: player `install <part>` at a shipyard/while aboard your owned ship. (2) CONSUME — does install CONSUME the part (one-shot upgrade) or is it removable/transferable? Rec: consume on install (matches the craft->upgrade economy; uninstall is a later increment). (3) STACKING/CAP — the parts carry stat_boost 3 (hyperdrive) / 2 (speed, which already hits _MOD_MAX_SPEED in one slot per the schematic note); cap one part per stat_target per ship so a player can't stack five ion cores. (4) APPLICATION — write the boost into the ship's systems JSON (ships.systems) read by the space-stat resolver; confirm the space engine reads a per-ship stat override. Effort once shaped: small-medium. Owner gate: needs _is_authorized_for_ship (see T2.ECON.ship_ownership_gate) so you can't install on someone else's ship.",
       "promoted_from_changelog": "SYN.6.c (2026-05-25)",
       "carried_since": "2026-05-25"
     },
@@ -1685,7 +1686,7 @@
       "question": "scavenged_republic_tech harvests on the generic Survival check (DC 6). Flavor-wise, salvaging Republic tech reads as Technical (salvage) or Search, not wilderness Survival. Ship Survival now (engine hardwires HARVEST_SKILL), or invest post-launch in a per-region harvest-skill override?",
       "recommendation": "Survival now (consistent with the harvest engine; Easy-6 is WEG-ladder-correct); per-region skill override is a larger change — defer to post-launch flavor polish. Low priority; not launch-blocking.",
       "logged": "2026-06-12 (drop 14, design-reviewer)",
-      "status": "pending Brian"
+      "status": "pending Brian (NO BUILD pending — the rec IS the status quo: HARVEST_SKILL='survival' is already live, engine/harvest.py:153, verified 2026-06-13. This is purely Brian's FLAVOR call: leave Survival, or invest post-launch in a per-region Technical/Search override. Left pending rather than self-resolved because it's a taste judgment, not a mechanical fix; not blocking.)"
     },
     {
       "id": "ECON.commissary_sellback_model",
