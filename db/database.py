@@ -14,7 +14,12 @@ from typing import Optional
 log = logging.getLogger(__name__)
 
 # -- Schema version --
-SCHEMA_VERSION = 43
+# v44 (T3.22 Phase 0, 2026-06-13): ambient NPC life scaffolding —
+# npc_ambient_state + npc_ambient_relationship. INERT pre-launch (read by
+# nothing until the post-launch sim ships); landed now so the post-launch
+# build never migrates a live, populated DB. See
+# docs/design/ambient_npc_life_design_v1.md §5-6.
+SCHEMA_VERSION = 44
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -316,6 +321,34 @@ CREATE INDEX IF NOT EXISTS idx_bond_master
     ON master_padawan_bond(master_char_id, bond_status);
 CREATE INDEX IF NOT EXISTS idx_bond_padawan
     ON master_padawan_bond(padawan_char_id, bond_status);
+
+-- Ambient NPC life (T3.22 Phase 0 — INERT scaffolding, read by nothing
+-- until the post-launch sim ships). Per-NPC runtime goal/movement state;
+-- ambient config rides the existing npcs.ai_config_json (no schema change).
+-- Both tables carry a JSON `extra` future-proof blank (the SQLite-idiomatic
+-- "blank space" — new fields go into JSON with zero migration, like
+-- characters.attributes). See docs/design/ambient_npc_life_design_v1.md §5.2.
+CREATE TABLE IF NOT EXISTS npc_ambient_state (
+    npc_id          INTEGER PRIMARY KEY REFERENCES npcs(id),
+    current_goal    TEXT DEFAULT '',
+    current_room_id INTEGER REFERENCES rooms(id),
+    dest_room_id    INTEGER REFERENCES rooms(id),
+    move_started_at REAL,
+    move_duration   REAL,
+    last_tick_at    REAL,
+    activity        TEXT DEFAULT '',
+    extra           TEXT DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_npc_ambient_room
+    ON npc_ambient_state(current_room_id);
+
+CREATE TABLE IF NOT EXISTS npc_ambient_relationship (
+    npc_id_a   INTEGER NOT NULL REFERENCES npcs(id),
+    npc_id_b   INTEGER NOT NULL REFERENCES npcs(id),
+    affinity   INTEGER DEFAULT 0,
+    extra      TEXT DEFAULT '{}',
+    PRIMARY KEY (npc_id_a, npc_id_b)
+);
 """
 
 # -- Migrations --
@@ -1436,6 +1469,33 @@ MIGRATIONS = {
         " resolved_at REAL NOT NULL DEFAULT 0)",
         "CREATE INDEX IF NOT EXISTS idx_communal_objective_state "
         "ON communal_objective(state)",
+    ],
+
+    # T3.22 Phase 0 — ambient NPC life scaffolding (INERT pre-launch; read by
+    # nothing until the post-launch sim ships). Mirrors the SCHEMA_SQL block;
+    # CREATE TABLE IF NOT EXISTS so a fresh DB (already created by SCHEMA_SQL)
+    # and an upgrading DB both land idempotently. Lowest-risk migration class:
+    # NEW empty tables, no ALTER on a hot table. See
+    # docs/design/ambient_npc_life_design_v1.md §5.2.
+    44: [
+        "CREATE TABLE IF NOT EXISTS npc_ambient_state ("
+        " npc_id INTEGER PRIMARY KEY REFERENCES npcs(id),"
+        " current_goal TEXT DEFAULT '',"
+        " current_room_id INTEGER REFERENCES rooms(id),"
+        " dest_room_id INTEGER REFERENCES rooms(id),"
+        " move_started_at REAL,"
+        " move_duration REAL,"
+        " last_tick_at REAL,"
+        " activity TEXT DEFAULT '',"
+        " extra TEXT DEFAULT '{}')",
+        "CREATE INDEX IF NOT EXISTS idx_npc_ambient_room "
+        "ON npc_ambient_state(current_room_id)",
+        "CREATE TABLE IF NOT EXISTS npc_ambient_relationship ("
+        " npc_id_a INTEGER NOT NULL REFERENCES npcs(id),"
+        " npc_id_b INTEGER NOT NULL REFERENCES npcs(id),"
+        " affinity INTEGER DEFAULT 0,"
+        " extra TEXT DEFAULT '{}',"
+        " PRIMARY KEY (npc_id_a, npc_id_b))",
     ],
 
 }
@@ -3501,6 +3561,59 @@ class Database:
             f"UPDATE cp_ticks SET {set_clause} WHERE char_id = ?", values
         )
         await self._db.commit()
+
+    # ── Ambient NPC life (T3.22 Phase 0 — INERT accessor stubs) ──────────
+    # These read/write the npc_ambient_state table the schema scaffolds. They
+    # have NO callers yet — the post-launch ambient-life sim (Phases 1-4) will
+    # use them. Shipped now with the schema so Phase 1 is pure feature code
+    # against a present table + present accessors (no DB-layer change races a
+    # live player). Mirror the cp_ticks trio. See
+    # docs/design/ambient_npc_life_design_v1.md §6 Phase 0.
+
+    _NPC_AMBIENT_STATE_WRITABLE = frozenset({
+        "current_goal", "current_room_id", "dest_room_id", "move_started_at",
+        "move_duration", "last_tick_at", "activity", "extra",
+    })
+
+    async def ambient_state_get(self, npc_id: int) -> Optional[dict]:
+        """Return the npc_ambient_state row for an NPC, or None."""
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM npc_ambient_state WHERE npc_id = ?", (npc_id,)
+        )
+        return dict(rows[0]) if rows else None
+
+    async def ambient_state_ensure_row(self, npc_id: int) -> None:
+        """Insert a default npc_ambient_state row if one does not exist."""
+        await self._db.execute(
+            "INSERT OR IGNORE INTO npc_ambient_state (npc_id) VALUES (?)",
+            (npc_id,),
+        )
+        await self._db.commit()
+
+    async def ambient_state_update(self, npc_id: int, **fields) -> None:
+        """Update npc_ambient_state fields (allowlisted columns only)."""
+        if not fields:
+            return
+        bad = set(fields) - self._NPC_AMBIENT_STATE_WRITABLE
+        if bad:
+            raise ValueError(
+                f"ambient_state_update: unknown/disallowed columns: {bad}")
+        set_clause = ", ".join(f"{k} = ?" for k in fields)
+        values = list(fields.values()) + [npc_id]
+        await self._db.execute(
+            f"UPDATE npc_ambient_state SET {set_clause} WHERE npc_id = ?",
+            values,
+        )
+        await self._db.commit()
+
+    async def ambient_state_in_room(self, room_id: int) -> list:
+        """Return all npc_ambient_state rows currently in a room (uses the
+        idx_npc_ambient_room index). The sim's co-location query."""
+        rows = await self._db.execute_fetchall(
+            "SELECT * FROM npc_ambient_state WHERE current_room_id = ?",
+            (room_id,),
+        )
+        return [dict(r) for r in rows]
 
     async def cp_add_character_points(self, char_id: int, amount: int) -> None:
         """Add CP to characters.character_points (floor at 0)."""
