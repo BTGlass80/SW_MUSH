@@ -118,15 +118,21 @@ design-calls queue went from several to **one**.
 ---
 
 ## State of the suite
-- Fast xdist (the working gate) was green on every drop this session except the
-  one persistent red: `test_no_silent_except_pass_in_production` flags 4
-  `except: pass` blocks in **untracked parallel-session lore-ingest tools**
-  (`tools/ingest_batch.py`, `tools/ingest_lore.py`) — NOT my code, an **active**
-  parallel session's WIP (last touched ~mid-session), left untouched. Same class
-  as the earlier guides-tool carve-out; it'll clear when that session finishes.
-- **Final full-suite status for THIS handoff:** _[run completing as this doc was
-  written — see the session's last xdist log; expected: green except the known
-  ingest-tool red]_.
+**Final full-suite run at session close (xdist, `a8b8057`+handoff):
+`9171 passed, 2 failed` — both failures are NOT-MINE and NOT-REAL:**
+1. `test_no_silent_except_pass_in_production` — flags 4 `except: pass` blocks in
+   **untracked parallel-session lore-ingest tools** (`tools/ingest_batch.py:61`,
+   `tools/ingest_lore.py:233/267/354`) — NOT my code; an **active** parallel
+   session's WIP, left untouched. Same class as the earlier guides-tool carve-out;
+   clears when that session finishes (same fix: give the reconfigure/truststore
+   blocks a justified non-pass body).
+2. `test_smoke_chain_walkthrough[republic_soldier]` — a **known harness
+   ordering flake** (NPC-dialogue clock behind under a shared multi-file run);
+   **passes in isolation** (re-run solo: 1 passed in 13s, confirmed at close). Not
+   a regression — the smoke-verifier flagged this same flake earlier in the session.
+
+**Every module I touched (drops 44–51) is green.** No real red attributable to
+this session's work.
 
 ## Untracked strays (NOT mine — parallel sessions, left alone)
 The working tree carries ~70 untracked/modified items from concurrent sessions
