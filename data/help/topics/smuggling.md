@@ -7,7 +7,7 @@ aliases: [smuggle, contraband]
 see_also: [trading, +smugjobs]
 ---
 Smuggling is high-risk, high-reward work. You transport illegal or
-restricted cargo between locations while avoiding Imperial patrols.
+restricted cargo between locations while avoiding security patrols.
 
 HOW IT WORKS
   '+smugjobs' shows available smuggling contracts.
@@ -15,7 +15,7 @@ HOW IT WORKS
   Fly to the destination and 'smugdeliver' to collect payment.
 
 RISKS
-  Imperial patrols may intercept you on launch. A Perception check
+  Security patrols may intercept you on launch. A Perception check
   determines if they scan your ship. If caught with contraband:
   fines, confiscation, or combat.
 

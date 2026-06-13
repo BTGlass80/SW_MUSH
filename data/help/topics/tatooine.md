@@ -22,7 +22,7 @@ INHABITANTS
     outsiders. They roam the Jundland Wastes and beyond.
   Hutts control much of the planet's underworld from their palaces.
 
-IMPERIAL PRESENCE
-The Empire maintains a garrison in Mos Eisley, but Tatooine is far
-from a priority. Stormtrooper patrols are routine but not thorough.
+REPUBLIC PRESENCE
+The Republic maintains a small garrison in Mos Eisley, but Tatooine is far
+from a priority. Clone trooper patrols are routine but not thorough.
 The real power lies with the Hutts and the criminal syndicates.

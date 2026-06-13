@@ -26,12 +26,12 @@ examples:
     description: "Loop (Immelmann) — reverse course mid-fight, reposition for the next pass."
   - cmd: "+pilot/slip"
     description: "Side slip — lateral evasion, subtle but effective vs lock-on."
-  - cmd: "+pilot/tail TIE-3"
-    description: "Attempt to get on TIE-3's six — Piloting vs Piloting opposed roll."
-  - cmd: "+pilot/outmaneuver TIE-3"
+  - cmd: "+pilot/tail VD-3"
+    description: "Attempt to get on VD-3's six — Piloting vs Piloting opposed roll."
+  - cmd: "+pilot/outmaneuver VD-3"
     description: "Break an opponent's tail — shake a pursuer off your own six."
-  - cmd: "+pilot/close TIE-3"
-    description: "Close range with TIE-3 — Piloting roll to reduce range band by one."
+  - cmd: "+pilot/close VD-3"
+    description: "Close range with VD-3 — Piloting roll to reduce range band by one."
   - cmd: "+pilot/flee"
     description: "Attempt to break off combat entirely. Piloting opposed roll vs nearest hostile."
   - cmd: "+pilot/course"
@@ -118,7 +118,7 @@ but only if used to escape a losing fight rather than as a feint.
 
 EXAMPLES
 
-  (aboard an X-Wing)
+  (aboard an ARC-170)
   +pilot
   → "You take the pilot seat. Controls are live."
 
@@ -126,8 +126,8 @@ EXAMPLES
   +pilot/evade
   → "You jink and weave — +2D defense this round."
 
-  +pilot/tail TIE-3
-  → Opposed Space Transports vs TIE-3. Success: claim rear arc.
+  +pilot/tail VD-3
+  → Opposed Space Transports vs VD-3. Success: claim rear arc.
 
   +pilot/course deep_space_tat
   → "Plotting course to Tatooine deep space. ETA 20 seconds."

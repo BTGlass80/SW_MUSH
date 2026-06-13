@@ -77,6 +77,6 @@ CHEAT SHEET
   +sabacc reveal    = showdown
 
 Sources: Sabacc rules adapted from canonical Star Wars sources
-(Han Solo winning the Millennium Falcon from Lando being the
-archetypal example). Betting and bluffing mechanics are
+(a hard-bitten smuggler winning a freighter from a rival at cards
+being the archetypal example). Betting and bluffing mechanics are
 game-original; use standard R&E Gambling / Con rolls where relevant.

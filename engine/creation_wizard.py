@@ -571,8 +571,8 @@ class CreationWizard:
         lines.append("")
         lines.append(f"  {_yl('no')}  — {_hdr('Not Force-Sensitive')} {_dim('(default)')}")
         lines.append(f"    {_cy('Start with 1 Force Point. Cannot learn Force powers.')}")
-        lines.append(f"    {_cy('No behavioral restrictions. You can be as mercenary as')}")
-        lines.append(f"    {_cy('Han Solo at the start of A New Hope.')}")
+        lines.append(f"    {_cy('No behavioral restrictions. You can be as mercenary')}")
+        lines.append(f"    {_cy('as any hard-bitten smuggler running spice off Nar Shaddaa.')}")
         lines.append("")
         lines.append(f"  {_dim('Type')} {_yl('yes')} {_dim('or')} "
                      f"{_yl('no')}{_dim(', or')} {_yl('next')} {_dim('to default to No.')}")

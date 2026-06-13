@@ -85,8 +85,8 @@ Tier       Cargo                Pay            Patrol   Difficulty
   3 Spice  Raw spice            5,000–15,000   80%      Difficult (20)
 
 Grey-market cargo never triggers patrols — it's legal, just unusual.
-Black-market and up earn the Empire's attention. Spice runs are the
-big-ticket jobs that built careers like Han Solo's.
+Black-market and up earn security attention. Spice runs are the
+big-ticket jobs that built careers for hard-bitten smugglers.
 
 INTERPLANETARY ROUTES (5 route tiers)
 
@@ -108,7 +108,7 @@ Two checks can trigger a patrol encounter:
      planet. Per-planet probability (PLANET_PATROL_FREQUENCY):
        Corellia     0.60  (Core World — heavy customs)
        Nar Shaddaa  0.25  (Hutt space, but ISB cares)
-       Kessel       0.20  (Imperial mining controlled)
+       Kessel       0.20  (Outer Rim — heavy corporate security)
        Tatooine     0.10  (Outer Rim — low patrol presence)
 
 If intercepted, you roll Con OR Sneak (whichever pool is higher)
@@ -131,12 +131,12 @@ Smuggling contraband for credits is morally grey, not dark — the
 game does NOT apply a DSP for taking a run. However, if your smuggling
 supplies a faction whose agenda is harmful (e.g., weapons to a slave
 operation), the mission-specific hooks may apply a DSP on delivery.
-Smuggling medical supplies during an Imperial blockade may grant
+Smuggling medical supplies through a security blockade may grant
 light-side rep instead. See '+help darkside' for the model.
 
 "Dark side pays more" applies — spice runs are the most lucrative
 path in the entire economy, and they are also the one most likely
-to put you in Imperial custody. (R&E p.135 for Force Points; the
+to put you in patrol custody. (R&E p.135 for Force Points; the
 choice is always yours.)
 
 /accept <id>

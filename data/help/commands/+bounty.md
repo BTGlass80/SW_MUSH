@@ -84,7 +84,7 @@ Tier        Pay Range         Target        Track Diff.
 Extras are the most common postings (weight 5 in the spawn table);
 Superiors are rare (weight 1) — they represent significant criminal
 figures and are priced accordingly. GG10 p.11–20 outlines the tier
-archetypes: petty thieves up to high-profile smugglers and Rebel
+archetypes: petty thieves up to high-profile smugglers and Separatist
 agents.
 
 TARGETS ARE REAL NPCS
@@ -98,8 +98,8 @@ and will defend themselves. Archetypes include:
   - Smugglers
   - Bounty hunters (PvP-like challenge)
   - Scouts
-  - Stormtroopers (rare — Alliance-posted)
-  - Imperial officers (rare — underworld-posted)
+  - Clone troopers (rare — CIS-posted)
+  - Republic officers (rare — underworld-posted)
 
 They are placed in non-obvious rooms (never in docking bays where
 patrols would arrest them). The only way to find them is /track.
@@ -111,7 +111,7 @@ Lists posted contracts with:
   - Target name + race/description
   - Tier (Extra → Superior)
   - Reward
-  - Posting org (Alliance, Empire, Hutt, Black Sun, Civilian)
+  - Posting org (Separatist, Republic, Hutt, Black Sun, Civilian)
 
 /claim <id>
 
@@ -166,15 +166,15 @@ Requirements:
   - Partial (miss by ≤4): 75% [PARTIAL]
   - Failure: 50% [POOR PAPERWORK]
 
-This system models the difference between a clean Imperial-style
+This system models the difference between a clean guild-certified
 capture and a messy bounty — the corpse is the same but the
 paperwork and the story are what you're selling.
 
 FACTION REPUTATION
 
 Every successful /collect grants +reputation with your primary
-faction (complete_bounty action). Alliance-posted bounties grant
-bonus rep to the Rebellion; Empire-posted to the Imperials. See
+faction (complete_bounty action). Separatist-posted bounties grant
+bonus rep to the Confederacy; Republic-posted to Republic factions. See
 '+help reputation'.
 
 POST-COLLECTION HOOKS
@@ -195,8 +195,8 @@ Collecting 3 bounties unlocks the Bounty Hunter profession chain
 "DARK SIDE PAYS MORE" HOOKS
 
 Some bounties are posted by factions whose agenda tilts dark —
-taking an Imperial contract against a Rebel agent may grant DSP on
-collection. Similarly, an Alliance contract against an Imperial
+taking a Separatist contract against a Republic agent may grant DSP on
+collection. Similarly, a Republic contract against a Separatist
 officer may grant light-side rep. The mission data flags determine
 this. See '+help darkside'.
 
@@ -225,7 +225,7 @@ EXAMPLES
   +bounty/collect
   → "Bounty collected: Fenn Shysa. Reward: +2,400 credits
     (Balance: 8,540 cr). Claim quality: Streetwise [4D]
-    Roll 23 vs 11. Posted by: Alliance Intelligence."
+    Roll 23 vs 11. Posted by: Republic Intelligence."
 
 CHEAT SHEET
   +bounty/board    = browse

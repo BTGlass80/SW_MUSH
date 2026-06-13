@@ -49,7 +49,17 @@ import pytest
 REPO_ROOT       = Path(__file__).resolve().parent.parent.parent
 CLIENT_HTML     = REPO_ROOT / "static" / "client.html"
 INSPECTOR_MODULE = REPO_ROOT / "static" / "spa" / "m3_combat_inspector.js"
-NODE_MODULES    = "/tmp/node_modules"
+# drop 26 (2026-06-13): prefer the repo-local node_modules (where jsdom
+# actually lives) over the legacy /tmp location; forward slashes for the
+# JS require(). See spa_dom_harness._resolve_node_modules.
+def _resolve_node_modules() -> str:
+    for c in (REPO_ROOT / "node_modules", Path("/tmp/node_modules")):
+        if (c / "jsdom").exists():
+            return c.as_posix()
+    return (REPO_ROOT / "node_modules").as_posix()
+
+
+NODE_MODULES    = _resolve_node_modules()
 
 
 # ── Stubs prepended before the module loads ─────────────────────────

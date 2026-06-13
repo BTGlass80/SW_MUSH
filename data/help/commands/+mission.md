@@ -121,7 +121,7 @@ FACTION REPUTATION
 
 Completing a mission grants +3 reputation to your primary faction
 (if any) via the 'complete_faction_mission' action. Some missions
-are faction-flagged (e.g. Alliance courier runs) — these grant rep
+are faction-flagged (e.g. Republic courier runs) — these grant rep
 to the flagged faction instead. See '+help reputation'.
 
 POST-COMPLETION HOOKS

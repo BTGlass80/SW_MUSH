@@ -9,7 +9,7 @@ see_also: [cantina, tatooine, empire]
 "You will never find a more wretched hive of scum and villainy."
 
 Mos Eisley is Tatooine's largest spaceport — a dusty, dangerous city
-of smugglers, bounty hunters, moisture farmers, and Imperial patrols.
+of smugglers, bounty hunters, moisture farmers, and Republic security patrols.
 It sprawls across the desert floor, its domed buildings and landing
 bays baking under the twin suns.
 
@@ -20,7 +20,7 @@ commerce. The Docking Bays ring the city's edge. The Outskirts fade
 into open desert where Tusken Raiders roam.
 
 LIFE IN MOS EISLEY
-Credits talk. The Empire maintains a garrison but can't control
+Credits talk. The Republic maintains a small security post but can't control
 everything — the underworld thrives in the shadows. Deals are struck
 in cantina booths, cargo changes hands in darkened bays, and those
 who ask too many questions tend to disappear.

@@ -25,7 +25,7 @@ The navigator (or pilot if no navigator) rolls Astrogation:
 A navigator at the sensors station grants +1D to the astrogation roll.
 
 HYPERDRIVE MULTIPLIERS
-  x1 = standard (Millennium Falcon)
+  x1 = standard (fast YT-1300 freighter)
   x2 = common freighter
   x3+ = slow, older ships
   Lower multiplier = faster travel.

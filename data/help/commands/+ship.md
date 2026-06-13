@@ -22,8 +22,8 @@ examples:
     description: "Same as +ship/list (bare alias preserved)."
   - cmd: "shiplist"
     description: "Another bare alias for /list."
-  - cmd: "+ship/info x-wing"
-    description: "Show stats for the X-Wing template — speed, hull, weapons, crew slots."
+  - cmd: "+ship/info arc-170"
+    description: "Show stats for the ARC-170 template — speed, hull, weapons, crew slots."
   - cmd: "shipinfo yt-1300"
     description: "Same as +ship/info yt-1300 (bare alias preserved)."
   - cmd: "si yt-1300"
@@ -32,9 +32,9 @@ examples:
     description: "List every ship you own. Shows name, template, current zone / dock."
   - cmd: "myships"
     description: "Same as +ship/mine (bare alias preserved)."
-  - cmd: "+ship/rename Millennium Falcon"
+  - cmd: "+ship/rename Dusty Mynock"
     description: "Rename your owned ship (S57a). You must own the ship; 2–40 chars, alphanumerics + spaces/hyphens/apostrophes."
-  - cmd: "shipname Millennium Falcon"
+  - cmd: "shipname Dusty Mynock"
     description: "Same as +ship/rename (bare alias preserved)."
   - cmd: "+ship/repair"
     description: "Engineer-station action — roll Space Transports Repair against a damaged system."
@@ -138,8 +138,8 @@ Rename your owned ship. Rules:
   - Must be the ship you're aboard? No — works on any owned ship
 
 Example:
-  +ship/rename Millennium Falcon
-  → "Ship renamed: Old Scrap → Millennium Falcon"
+  +ship/rename Dusty Mynock
+  → "Ship renamed: Old Scrap → Dusty Mynock"
 
 Triggers the spacer-quest `use_command` hook with command=shipname
 (legacy trigger name preserved for FDTS progression).
@@ -200,13 +200,13 @@ flavor effects).
 
 SHIP CLASSES AND WHAT THEY CAN DO
 
-  fighter         X-Wing, TIE, Y-Wing — small, agile, NOT boardable,
+  fighter         ARC-170, Vulture droid, V-19 — small, agile, NOT boardable,
                   no cargo missions
-  patrol_craft    Imperial patrol ships — midweight, boardable
+  patrol_craft    Republic or CIS patrol craft — midweight, boardable
   light_freighter YT-1300, YT-2400, Corellian Action VI — cargo-
                   capable, crew of 2+, boardable
   shuttle         Lambda, Sentinel — passenger-focused, slow combat
-  capital         Star Destroyer, Nebulon-B, Mon Cal — massive
+  capital         Venator-class cruiser, Providence-class — massive
                   crews, scale 4, different ruleset
 
 Your ship class gates which encounter types apply to you (fighters
@@ -222,14 +222,14 @@ EXAMPLES
   +ship/list
   → Browse all templates in the catalog.
 
-  +ship/info x-wing
-  → X-Wing stats.
+  +ship/info arc-170
+  → ARC-170 stats.
 
   +ship/mine
   → "You own 1 ship: Old Scrap (yt-1300) — docked at Mos Eisley Bay 94"
 
-  +ship/rename Millennium Falcon
-  → "Ship renamed: Old Scrap → Millennium Falcon"
+  +ship/rename Dusty Mynock
+  → "Ship renamed: Old Scrap → Dusty Mynock"
 
   (after combat damage)
   +ship

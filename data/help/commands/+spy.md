@@ -30,15 +30,15 @@ examples:
     description: "Open your intel report workspace — list drafts, view sealed reports."
   - cmd: "intel"
     description: "Same as +spy/intel (bare alias preserved)."
-  - cmd: "+spy/intel create Imperial Patrol Routes"
+  - cmd: "+spy/intel create Republic Patrol Routes"
     description: "Create a new intel report draft."
   - cmd: "+spy/intel add Patrols rotate at 0600 standard"
     description: "Add a line to the current draft."
   - cmd: "+spy/intel seal"
     description: "Finalize the draft — becomes a sealed intel report (valuable to faction agents)."
-  - cmd: "+spy/intercept imperial_comms"
+  - cmd: "+spy/intercept republic_comms"
     description: "Attempt to wiretap a comms channel. Slicer + Computer Programming roll."
-  - cmd: "wiretap imperial_comms"
+  - cmd: "wiretap republic_comms"
     description: "Same as +spy/intercept (bare alias preserved)."
 ---
 
@@ -92,14 +92,14 @@ positional subcommands:
   +spy/intel discard            Discard the current draft
   +spy/intel list               List your sealed reports
 
-Sealed reports are valuable — faction agents (Rebel, Imperial)
+Sealed reports are valuable — faction agents (Separatist, Republic)
 pay credits and reputation for sealed intel relevant to their
 ongoing operations. See `+help intel` for the economy of intel.
 
 /intercept
 
 Attempt to wiretap a comms channel. Slicer + Computer Programming
-vs the channel's encryption difficulty. Imperial channels are
+vs the channel's encryption difficulty. Republic military channels are
 Heroic (30+); civilian channels are Moderate (15). Failed attempts
 alert the channel owner.
 

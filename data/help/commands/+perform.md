@@ -62,8 +62,8 @@ DIFFICULTY SCALES WITH VENUE
   Standing-room    Difficult  (20)
   Concert hall     Heroic     (30)
 
-Rebel Alliance outposts give a +1D reputation bonus for Light-
-aligned performers; Imperial venues ban certain "subversive" acts.
+Republic outposts give a +1D reputation bonus for Light-
+aligned performers; Separatist-controlled venues ban certain "subversive" acts.
 
 WHY NO UMBRELLA CLASS?
 

@@ -16,11 +16,11 @@ examples:
     description: "Another bare alias for the commander seat."
   - cmd: "+bridge/order pilot evade"
     description: "Captain-order — direct the pilot at the pilot station to evade this round."
-  - cmd: "order gunner fire TIE-3"
+  - cmd: "order gunner fire VD-3"
     description: "Same as +bridge/order (bare alias preserved — but collides with +crew/order)."
-  - cmd: "+bridge/hail TIE-3"
-    description: "Open a comms channel with target TIE-3."
-  - cmd: "hail TIE-3"
+  - cmd: "+bridge/hail VD-3"
+    description: "Open a comms channel with target VD-3."
+  - cmd: "hail VD-3"
     description: "Same as +bridge/hail (bare alias preserved)."
   - cmd: "+bridge/comms"
     description: "Show available comms channels on your ship."
@@ -35,7 +35,7 @@ examples:
   - cmd: "+bridge/transponder off"
     description: "Turn off your transponder — ship stops broadcasting ID (illegal in most space, Customs flag)."
   - cmd: "+bridge/transponder spoofed IMP_CUSTOMS"
-    description: "Broadcast a spoofed Imperial Customs ID — requires crafted slicer module."
+    description: "Broadcast a spoofed Customs Authority ID — requires crafted slicer module."
   - cmd: "+bridge/resist"
     description: "Resist a tractor beam lock via Piloting + Commander synergy."
   - cmd: "resist"
@@ -89,8 +89,8 @@ CAPTAIN-ORDERS (R&E + game-original)
 Examples:
 
   +bridge/order pilot evade         Pilot must /evade this round
-  +bridge/order pilot close TIE-3   Pilot closes range
-  +bridge/order gunner fire TIE-3   Gunner fires at target
+  +bridge/order pilot close VD-3   Pilot closes range
+  +bridge/order gunner fire VD-3   Gunner fires at target
   +bridge/order engineer repair shields  Engineer priorities repairs
 
 The commander rolls Command vs Difficulty 10. Success: the crew
@@ -159,7 +159,7 @@ Success: break free. Failure: continue to be pulled in.
 
 EXAMPLES
 
-  (aboard the Millennium Falcon, combat begins)
+  (aboard your freighter, combat begins)
   +bridge
   → "You take the commander seat. Tactical station active."
 
@@ -169,8 +169,8 @@ EXAMPLES
   +bridge/order pilot evade
   → "Kessa: 'Evasive action, aye!' (+1D defense from captain-order)"
 
-  +bridge/hail TIE-3
-  → "Opening channel to TIE-3..."
+  +bridge/hail VD-3
+  → "Opening channel to VD-3..."
 
   +bridge/resist
   → "Rolling Piloting + Commander vs tractor beam... Success! You
@@ -191,8 +191,7 @@ CHEAT SHEET
   +bridge/coordinate  = cross-station (also: coordinate, coord)
 
 Sources: R&E p.89 (Command skill, Coordinate), R&E p.97+
-(space-combat actions), Imperial Sourcebook chapters on ship
-command for flavor. Transponder mechanics are game-original.
+(space-combat actions). Transponder mechanics are game-original.
 
 THE ORDER COLLISION — FOR THE RECORD
 

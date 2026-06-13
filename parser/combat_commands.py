@@ -1641,9 +1641,9 @@ class AttackCommand(BaseCommand):
         await ctx.session.send_line(
             "Usage: attack <target> [with <skill>] [damage <dice>] [cp <N>]")
         await ctx.session.send_line("  attack pirate")
-        await ctx.session.send_line("  attack han with blaster damage 4D")
+        await ctx.session.send_line("  attack thug with blaster damage 4D")
         await ctx.session.send_line(
-            "  attack han with melee combat damage STR+2D cp 2")
+            "  attack raider with melee combat damage STR+2D cp 2")
         await ctx.session.send_line(
             "  (Uses equipped weapon if no skill/damage specified)")
 

@@ -38,9 +38,27 @@ from typing import Iterable
 import pytest
 
 
-# Path to jsdom — installed in /tmp/node_modules during 4.1b drop setup.
-# Production CI will install jsdom into a more permanent path.
-NODE_MODULES = "/tmp/node_modules"
+# Path to jsdom. drop 26 (2026-06-13): resolve dynamically instead of
+# hardcoding /tmp/node_modules — the repo root carries its own
+# node_modules (installed by the VSCode extension's npm) which is where
+# jsdom actually lives on a dev box, so the SPA DOM tests now run for
+# anyone with the repo deps installed, no manual /tmp setup. Candidates
+# are tried in order; the first whose `jsdom/` exists wins. Forward
+# slashes throughout (the path is interpolated into a JS require()).
+def _resolve_node_modules() -> str:
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    candidates = [
+        repo_root / "node_modules",   # repo-local deps (preferred)
+        Path("/tmp/node_modules"),    # legacy 4.1b drop-setup location
+    ]
+    for c in candidates:
+        if (c / "jsdom").exists():
+            return c.as_posix()
+    # None resolved — return the repo-local path for the skip message.
+    return (repo_root / "node_modules").as_posix()
+
+
+NODE_MODULES = _resolve_node_modules()
 
 
 def require_node_and_jsdom() -> None:
@@ -50,7 +68,7 @@ def require_node_and_jsdom() -> None:
     if not Path(NODE_MODULES, "jsdom").exists():
         pytest.skip(
             f"jsdom not installed at {NODE_MODULES}/jsdom. "
-            "Run `npm install jsdom` in that directory."
+            "Run `npm install jsdom` in the repo root (or /tmp/node_modules)."
         )
 
 

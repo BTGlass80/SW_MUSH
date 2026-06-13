@@ -72,7 +72,7 @@ a personal quest: a short-form story hook that makes sense for your
 character specifically.
 
 A smuggler with a debt to Jabba may see quests about repaying it.
-A former Imperial might see quests about confronting their past.
+A former soldier might see quests about confronting their past.
 A Jedi sympathizer might see quests about finding a lost holocron.
 
 Quests DO NOT pay credits. They are markers of story progress —

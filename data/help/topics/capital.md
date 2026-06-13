@@ -2,11 +2,11 @@
 key: capital
 title: Capital Ships
 category: "Rules: Space"
-summary: "Capital ships (corvettes, frigates, Star Destroyers) play by different rules than starfighters."
+summary: "Capital ships (corvettes, frigates, Venator-class cruisers) play by different rules than starfighters."
 aliases: [capitalships, capitalscale]
 see_also: [spacecombat, scale, shields, crew]
 ---
-Capital ships (corvettes, frigates, Star Destroyers) play by different
+Capital ships (corvettes, frigates, Venator-class cruisers) play by different
 rules than starfighters.
 
 SCALE DIFFERENCE

@@ -132,11 +132,11 @@ OPTIONS
                  Damage becomes stun damage — knocks out, doesn't kill.
 
 EXAMPLES
-  +combat/attack stormtrooper
+  +combat/attack battle_droid
   +combat/attack thug with brawling
   +combat/attack greedo cp 2
   +combat/attack guard stun
-  attack stormtrooper           (bare alias, identical)
+  attack battle_droid           (bare alias, identical)
 
 ──────────────────────────────────────────────────────────────────────
   /dodge   /fulldodge   /parry   /fullparry
@@ -162,7 +162,7 @@ WHEN TO GO FULL
   Outnumbered 3+ enemies shooting you  → /fulldodge (one -1D hit is
                                           better than three clean ones)
   Badly wounded and can't afford a hit → /fulldodge or /fullparry
-  Stormtroopers at short range          → /fulldodge; their accuracy
+  Battle droids at short range          → /fulldodge; their accuracy
                                           is bad but numbers are scary
 
 See '+help dodge' and '+help melee' for the skill mechanics.
@@ -237,7 +237,7 @@ BANDS (WEG 5-10-15-20 progression)
 Shortforms accepted: pb, s, med/m, l
 
 Range changes cost movement. The engine tracks per-target ranges
-independently — you can be at short to the stormtrooper and long
+independently — you can be at short to the battle droid and long
 to the sniper simultaneously.
 
 ──────────────────────────────────────────────────────────────────────

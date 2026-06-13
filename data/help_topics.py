@@ -644,10 +644,10 @@ from smallest to largest:
 
   Character ........ People, creatures, droids
   Speeder .......... Landspeeders, swoops (modifier: 2D)
-  Walker ........... AT-ST, AT-AT (modifier: 4D)
-  Starfighter ...... X-Wing, TIE Fighter (modifier: 6D)
-  Capital .......... Star Destroyers, frigates (modifier: 12D)
-  Death Star ....... The big one (modifier: 24D)
+  Walker ........... AT-TE, spider droids (modifier: 4D)
+  Starfighter ...... V-19, Vulture droid (modifier: 6D)
+  Capital .......... Venator, Providence frigates (modifier: 12D)
+  Battlestation .... The big one (modifier: 24D)
 
 CROSS-SCALE COMBAT
 When shooting at a different scale, apply the difference:
@@ -1375,8 +1375,8 @@ offline. A destroyed shield system means 0D shields until repaired.""",
         aliases=["capitalships", "capitalscale"],
         see_also=["spacecombat", "scale", "shields", "crew"],
         body="""\
-Capital ships (corvettes, frigates, Star Destroyers) play by different
-rules than starfighters.
+Capital ships (corvettes, frigates, Venator-class cruisers) play by
+different rules than starfighters.
 
 SCALE DIFFERENCE
 A 6D modifier separates starfighter and capital scale:

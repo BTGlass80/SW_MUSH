@@ -88,7 +88,7 @@ SENSOR DIFFICULTIES (R&E p.93)
   Anomaly detection        Difficult (20) — anomalies are subtle
 
 Wild Die affects precision. Critical successes reveal unusual details
-(like a rebel-aligned pilot's discreet faction emblem). Fumbles may
+(like a Separatist-aligned pilot's discreet faction emblem). Fumbles may
 return false data.
 
 EXAMPLES
@@ -98,13 +98,13 @@ EXAMPLES
   → "You take the sensors seat. Stations online."
 
   +sensors/scan
-  → "Contacts in zone: 3. [1] TIE-Alpha (range medium, hostile),
+  → "Contacts in zone: 3. [1] VD-Alpha (range medium, hostile),
      [2] Jex's Freighter (range short, friendly), [3] Unknown
      (range long, transponder=CORUSCANT_03142)"
 
   +sensors/deepscan 3
   → "Deep scan of Unknown... spoofed transponder detected. True
-     ID: GR-75 medium transport. Hull damage: light. Rebel Alliance
+     ID: GR-75 medium transport. Hull damage: light. Separatist
      markings visible on underside."
 
 CHEAT SHEET

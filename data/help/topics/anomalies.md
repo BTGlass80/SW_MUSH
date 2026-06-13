@@ -28,7 +28,7 @@ ANOMALY TYPES (7 total)
   Hidden Cache (15%)      Credits, rare resources, schematics
   Pirate Nest (15%)       2-3 hostile pirates, good salvage
   Mineral Vein (10%)      High-quality crafting resources
-  Imperial Dead Drop (5%) Big credits, but Imperial patrol risk
+  Military Dead Drop (5%) Big credits, but patrol risk
   Mynock Colony (5%)      Hull parasites — nuisance only
 
 INVESTIGATING

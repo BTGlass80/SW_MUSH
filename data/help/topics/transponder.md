@@ -19,7 +19,7 @@ When another ship scans you, their Sensors roll contests your Con roll.
 If they win, the forgery is detected. Critical scan success reveals your
 real identity.
 
-IMPERIAL CUSTOMS INFRACTIONS
+CUSTOMS AUTHORITY INFRACTIONS
   Class 5:  Safety violations, expired permits (100-500cr fine)
   Class 4:  Minor contraband (1,000-5,000cr fine)
   Class 3:  Weapons trafficking (up to 5,000cr + impound risk)

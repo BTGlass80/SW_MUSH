@@ -18,8 +18,8 @@ examples:
     description: "Same as default — faction status."
   - cmd: "+faction/list"
     description: "List all factions you can join (forwarded to FactionCommand)."
-  - cmd: "+faction/join rebel"
-    description: "Join the Rebel Alliance (forwarded to FactionCommand's positional parser)."
+  - cmd: "+faction/join separatist"
+    description: "Join the Separatist Alliance (forwarded to FactionCommand's positional parser)."
   - cmd: "+faction/leave"
     description: "Leave your current faction (forwarded)."
   - cmd: "+faction/roster"
@@ -47,8 +47,8 @@ examples:
 All faction verbs live under +faction/<switch>. Bare forms (faction,
 guild, specialize, reputation, rep) still work as aliases.
 
-See `+help factions` for the conceptual overview of the Rebellion,
-Empire, criminal cartels, and independent factions. This page is
+See `+help factions` for the conceptual overview of the Republic,
+Confederacy, criminal cartels, and independent factions. This page is
 the command reference.
 
 SWITCH REFERENCE
@@ -85,8 +85,8 @@ FACTION OVERVIEW
 Factions are organized groups with ranks, shared resources, and
 missions. The core factions include:
 
-  Rebel Alliance      — insurgency against the Empire (Light)
-  Galactic Empire     — official galactic government (Dark)
+  Separatist Alliance — Confederacy of Independent Systems (Dark-lean)
+  Galactic Republic   — official galactic government (Light-lean)
   Hutt Cartel         — crime syndicate (Neutral, dark-lean)
   Czerka Corporation  — mega-corp (Neutral, greedy)
   + independent factions (Mandalorians, Bounty Hunter Guild, etc.)
@@ -121,12 +121,12 @@ THE UMBRELLA FORWARDING PATTERN (S58)
 FactionCommand uses positional-argument subcommands (join, leave,
 list, roster, missions, etc.) rather than switch syntax. The
 +faction umbrella recognizes all FactionCommand subcommands as
-switches and forwards them — so `+faction/join rebel` reaches
-FactionCommand as `faction join rebel` and works identically.
+switches and forwards them — so `+faction/join separatist` reaches
+FactionCommand as `faction join separatist` and works identically.
 
 This forwarding is transparent — you can type either form:
-  +faction/join rebel         (canonical)
-  faction join rebel          (legacy bare form)
+  +faction/join separatist    (canonical)
+  faction join separatist     (legacy bare form)
 Both reach the same code.
 
 CHEAT SHEET
@@ -142,6 +142,6 @@ CHEAT SHEET
   +faction/claim       = take territory (forwarded, leader-only)
 
 Sources: Faction system is game-original (inspired by
-SWG Rebel/Imperial split, EVE sovereignty, TORN crime). R&E
+SWG faction systems, EVE sovereignty, TORN crime). R&E
 Command skill (p.89) informs leader coordination rolls. Organ-
 ization mechanics live in `engine/organizations.py`.

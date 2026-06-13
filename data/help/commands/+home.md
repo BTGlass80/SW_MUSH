@@ -116,6 +116,6 @@ CHEAT SHEET
   @housing           = admin (NATIVE @-PREFIX)
 
 Sources: Residence system is game-original (inspired by SWG
-houses + EVE station/alliance structures). Storage and shopfront
+houses + EVE station structures). Storage and shopfront
 mechanics tie into the economy — see `+help shops` and
 `+help economy`.

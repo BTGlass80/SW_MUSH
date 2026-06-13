@@ -151,9 +151,15 @@ def test_vendor_mode_renders_commissary_panel():
         var buyBtnCount = allBtns.length;
         if (allBtns.length > 0) allBtns[0].click();
 
-        // Rank-locked row must have no button — check text for 'rank'
-        var rankTag = box.querySelector('.shop-tag-unplaced');
-        var rankTagText = rankTag ? rankTag.textContent : '';
+        // Rank-locked row must have no button — check text for 'rank'.
+        // The fixture has TWO unplaced tags (a 'short' row AND a 'rank'
+        // row); querySelector returns the first (short), so collect ALL
+        // tag texts and let the assertion look for the rank one.
+        var rankTags = box.querySelectorAll('.shop-tag-unplaced');
+        var rankTagText = '';
+        for (var i = 0; i < rankTags.length; i++){
+            rankTagText += rankTags[i].textContent + ' | ';
+        }
 
         result = {
             titleText: titleText,
