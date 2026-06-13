@@ -287,6 +287,31 @@ def _pick_tier() -> BountyTier:
     return random.choices(tiers, weights=weights, k=1)[0]
 
 
+# Tier order low->high for the krayt-sighting upgrade.
+_TIER_ORDER = [
+    BountyTier.EXTRA, BountyTier.AVERAGE, BountyTier.NOVICE,
+    BountyTier.VETERAN, BountyTier.SUPERIOR,
+]
+
+
+def krayt_upgrade_tier(tier: BountyTier, krayt_active: bool) -> BountyTier:
+    """WORLDEVENT.flag_effect_consumers (2026-06-13): KRAYT_SIGHTING /
+    `krayt_bounty` consumer. A krayt sighting means a dangerous, high-value
+    quarry is loose, so a newly-posted contract during the event is bumped
+    one tier toward SUPERIOR (a richer, deadlier hunt). Pure function — the
+    flag is read by generate_bounty via
+    get_world_event_manager().get_effect('krayt_bounty', False).
+
+    Already-SUPERIOR contracts are unchanged (top of the ladder)."""
+    if not krayt_active:
+        return tier
+    try:
+        idx = _TIER_ORDER.index(tier)
+    except ValueError:
+        return tier
+    return _TIER_ORDER[min(idx + 1, len(_TIER_ORDER) - 1)]
+
+
 def _scale_reward(tier: BountyTier) -> int:
     lo, hi = PAY_RANGES[tier]
     raw = random.randint(lo, hi)
@@ -316,6 +341,20 @@ async def generate_bounty(db, rooms: Optional[list[dict]] = None) -> Optional[Bo
     from ai.npc_brain import NPCConfig
 
     tier = _pick_tier()
+    # WORLDEVENT.flag_effect_consumers (2026-06-13): a KRAYT_SIGHTING
+    # event ('krayt_bounty' flag) means a dangerous high-value quarry is
+    # loose — bump a newly-posted contract one tier toward SUPERIOR.
+    # Failure-tolerant: a flag-lookup hiccup leaves the rolled tier as-is.
+    krayt_active = False
+    try:
+        from engine.world_events import get_world_event_manager
+        krayt_active = bool(
+            get_world_event_manager().get_effect("krayt_bounty", False))
+        if krayt_active:
+            tier = krayt_upgrade_tier(tier, True)
+    except Exception:
+        log.warning("[bounty] krayt_bounty flag lookup failed",
+                    exc_info=True)
     archetype = random.choice(FUGITIVE_ARCHETYPES)
 
     # Generate stat block

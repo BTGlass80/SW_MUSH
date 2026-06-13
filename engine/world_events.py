@@ -712,3 +712,33 @@ def get_world_event_manager() -> WorldEventManager:
     if _manager is None:
         _manager = WorldEventManager()
     return _manager
+
+
+# ── Flag consumers (thin modulators over existing systems) ──
+#
+# WORLDEVENT.flag_effect_consumers (2026-06-13): the MERCHANT_ARRIVAL /
+# HUTT_AUCTION / KRAYT_SIGHTING / CANTINA_BRAWL / DISTRESS_SIGNAL events
+# set boolean FLAG effects that were fired but never consumed. Per the
+# design call these wire as THIN consumers over existing systems
+# (extend-don't-add), mirroring the contraband_scan precedent
+# (engine/smuggling.py): read the flag at one existing seam, modulate a
+# deterministic outcome. Each consumer is a pure function so it unit-tests
+# without the manager (the manager-driven path is integration-tested).
+
+# A "rare merchant has arrived" event discounts open-vendor stock for the
+# duration. First-guess tunable (post-launch telemetry tunes it).
+RARE_VENDOR_DISCOUNT = 0.15  # 15% off the pre-haggle base price
+
+
+def apply_rare_vendor_discount(base_price: int,
+                               rare_vendor_active: bool) -> int:
+    """MERCHANT_ARRIVAL / `rare_vendor` consumer. When the event is
+    active, knock RARE_VENDOR_DISCOUNT off the vendor's pre-haggle base
+    price (the haggle + faction mods then work from the lower base).
+    Returns the (possibly discounted) price, floored at 1.
+
+    Pure function — pass the flag in; the buy command reads it via
+    get_world_event_manager().get_effect('rare_vendor', False)."""
+    if not rare_vendor_active or base_price <= 0:
+        return base_price
+    return max(1, int(round(base_price * (1.0 - RARE_VENDOR_DISCOUNT))))

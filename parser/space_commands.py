@@ -4061,6 +4061,28 @@ class BuyCommand(BaseCommand):
             base_price = 500
         char = ctx.session.character
 
+        # WORLDEVENT.flag_effect_consumers (2026-06-13): a MERCHANT_ARRIVAL
+        # event ('rare_vendor' flag) discounts open-vendor stock for its
+        # duration. Applied to the pre-haggle base so the haggle + faction
+        # mods work from the lower price. Mirrors the contraband_scan
+        # consumer pattern. Failure-tolerant: a flag-lookup hiccup leaves
+        # the price unchanged.
+        rare_vendor_msg = ""
+        try:
+            from engine.world_events import (
+                get_world_event_manager, apply_rare_vendor_discount,
+            )
+            if get_world_event_manager().get_effect("rare_vendor", False):
+                _discounted = apply_rare_vendor_discount(base_price, True)
+                if _discounted < base_price:
+                    base_price = _discounted
+                    rare_vendor_msg = (
+                        "\n  \033[1;32m[A rare merchant's arrival has cut "
+                        "prices across the market.]\033[0m"
+                    )
+        except Exception:
+            log.warning("rare_vendor discount lookup failed", exc_info=True)
+
         # ── Vendor-presence gate (OBS.buy_verb_followups (a), decision
         # a + vendor flag, 2026-06-12): buying requires an NPC with
         # ai_config.vendor: true in the room — the trainer: true
@@ -4225,6 +4247,8 @@ class BuyCommand(BaseCommand):
         )
         if faction_msg:
             await ctx.session.send_line(faction_msg)
+        if rare_vendor_msg:
+            await ctx.session.send_line(rare_vendor_msg)
         await ctx.session.send_line(f"  Condition: {item.condition_bar}")
         if city_tax_msg:
             await ctx.session.send_line(city_tax_msg)
