@@ -471,6 +471,31 @@ class DirectorAI:
         except Exception as e:
             log.debug("[director] Failed to write influence: %s", e)
 
+    async def _apply_influence_delta(self, db, zone: str, faction: str,
+                                     delta: int) -> None:
+        """Apply an LLM-chosen influence delta to one zone/faction and persist.
+
+        This was the Director's MAIN lever — and it was DEAD: _run_api_turn
+        called self._apply_influence_delta(...) but no such method existed, so
+        every API turn that returned influence_adjustments raised an uncaught
+        AttributeError (the influence never applied AND the narrative event after
+        it never ran). Now defined, mirroring apply_player_action_deltas: mutate
+        the in-memory ZoneState (set_faction clamps to [MIN,MAX]) then upsert via
+        _set_influence. This is the Director's OWN influence model (the
+        zone_influence table, string zone keys) — distinct from the player
+        territory funnel adjust_territory_influence (org_code + int zone_id), so
+        it correctly does NOT route there.
+        """
+        if delta == 0:
+            return
+        zs = self._zones.get(zone)
+        if zs is None:
+            log.debug("[director] _apply_influence_delta: unknown zone %r", zone)
+            return
+        new_score = zs.get_faction(faction) + int(delta)
+        zs.set_faction(faction, new_score)              # clamps to [MIN, MAX]
+        await self._set_influence(db, zone, faction, zs.get_faction(faction))
+
     async def save_all_influence(self, db):
         """Persist all zone influence scores to DB."""
         for zone_key, zs in self._zones.items():
@@ -1086,13 +1111,17 @@ class DirectorAI:
         news_headline = str(resp.get("news_headline", "Faction Turn complete."))[:200]
         details_json  = _json.dumps(resp, ensure_ascii=False)[:4000]
 
-        # Get token counts from ClaudeProvider budget stats
-        stats      = claude.get_budget_stats()
-        # Approximate call tokens — ClaudeProvider tracks cumulatively.
-        # For the log we store 0/0 (exact per-call tracking would require
-        # returning from generate(); good enough for audit purposes).
-        tok_in  = 0
-        tok_out = 0
+        # Real per-call token counts (cost-telemetry fix): the provider now
+        # exposes the last call's usage via last_usage(), so director_log records
+        # actual tokens instead of 0/0 — which the estimated_cost_usd telemetry
+        # and the adaptive-spend ceiling depend on. Fail-safe to 0/0 if a provider
+        # lacks the accessor (e.g. a stub/mock).
+        try:
+            _usage  = claude.last_usage()
+            tok_in  = int(_usage.get("input_tokens", 0))
+            tok_out = int(_usage.get("output_tokens", 0))
+        except Exception:
+            tok_in = tok_out = 0
 
         await self.log_event(
             db,

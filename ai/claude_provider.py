@@ -29,6 +29,28 @@ except ImportError:
     log.error("aiohttp not installed — ClaudeProvider will be permanently unavailable.")
 
 
+def _build_ssl_context():
+    """SSL context that trusts the OS (Windows) cert store, not just certifi.
+
+    Brian's box runs Norton Antivirus, whose "Web/Mail Shield" intercepts HTTPS
+    and re-signs certs with a private root that lives in the WINDOWS cert store —
+    certifi/aiohttp's default doesn't read that store, so the handshake to
+    api.anthropic.com fails with CERTIFICATE_VERIFY_FAILED ("Basic Constraints of
+    CA cert not marked critical"). truststore makes ssl read the OS store →
+    Norton's root is trusted there → the call succeeds. (Verified live
+    2026-06-13.) Returns None if truststore is unavailable, so aiohttp falls back
+    to its certifi default (correct on any non-intercepting box). See the
+    anthropic-api-box-blockers memory."""
+    try:
+        import ssl
+        import truststore
+        return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    except Exception as _e:  # truststore missing / import error → certifi default
+        log.debug("ClaudeProvider: truststore SSL context unavailable (%s); "
+                  "using aiohttp default.", _e)
+        return None
+
+
 # ── Pricing constants ──────────────────────────────────────────────────────────
 # Cents per token (fractional)
 _INPUT_CENTS_PER_TOKEN  = 1.0 / 1_000_000    # $1 / MTok
@@ -70,6 +92,10 @@ class ClaudeProvider:
         self._month_spent_cents: float = 0.0
         self._call_count: int = 0
         self._lock = asyncio.Lock()
+        # Last successful call's token usage (DIRECTOR cost-telemetry bug fix):
+        # the Director's _run_api_turn used to log 0/0 because generate() returns
+        # only the text. It now reads last_usage after a call to log real tokens.
+        self._last_usage: dict = {"input_tokens": 0, "output_tokens": 0}
 
     # ── AIProvider interface ───────────────────────────────────────────────────
 
@@ -133,7 +159,12 @@ class ClaudeProvider:
         }
 
         try:
-            async with _aiohttp.ClientSession() as session:
+            # Trust the OS cert store (Norton's TLS-scanning root lives there) —
+            # see _build_ssl_context. None → aiohttp's certifi default.
+            _ssl_ctx = _build_ssl_context()
+            _connector = (_aiohttp.TCPConnector(ssl=_ssl_ctx)
+                          if _ssl_ctx is not None else None)
+            async with _aiohttp.ClientSession(connector=_connector) as session:
                 async with session.post(
                     self.ENDPOINT,
                     json=payload,
@@ -178,6 +209,10 @@ class ClaudeProvider:
         usage = data.get("usage", {})
         input_tokens  = int(usage.get("input_tokens", 0))
         output_tokens = int(usage.get("output_tokens", 0))
+        # Expose this call's usage so the caller (Director) can log real token
+        # counts instead of 0/0 (cost-telemetry bug). Overwritten each call.
+        self._last_usage = {"input_tokens": input_tokens,
+                            "output_tokens": output_tokens}
         call_cost_cents = (
             input_tokens  * _INPUT_CENTS_PER_TOKEN
             + output_tokens * _OUTPUT_CENTS_PER_TOKEN
@@ -225,6 +260,13 @@ class ClaudeProvider:
         return self._month_spent_cents >= threshold
 
     # ── Status / introspection ─────────────────────────────────────────────────
+
+    def last_usage(self) -> dict:
+        """Token usage of the most recent successful generate() call:
+        ``{"input_tokens": int, "output_tokens": int}``. The Director reads this
+        right after a call to log REAL token costs to director_log (the cost
+        telemetry previously hardcoded 0/0). Zeros if no call has succeeded yet."""
+        return dict(self._last_usage)
 
     def get_budget_stats(self) -> dict:
         """
