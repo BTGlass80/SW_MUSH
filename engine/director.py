@@ -130,6 +130,43 @@ MAX_INFLUENCE = 100
 MAX_DELTA = 5
 
 
+# ── Faction-order code mapping (DIRECTOR.faction_model_cw_mapping) ────────
+# (2026-06-13) The faction_order boundary historically validated against
+# GCW ORG codes {empire, rebel, hutt, bh_guild}, so the LLM Director could
+# never issue era-correct Clone Wars orders (the orgs are republic / cis /
+# hutt_cartel / bounty_hunters_guild) — _apply_faction_order's
+# get_organization(code) lookup would miss every time. Per the design call
+# this is a MAPPING LAYER at the order boundary ONLY: accept either the CW
+# org code or its legacy GCW alias, and normalize to the CW code before
+# the org lookup. The sanctioned ZoneState zone-tone AXIS keys
+# (imperial/rebel/criminal/independent) are a DIFFERENT surface and are
+# left entirely untouched (CLAUDE.md do-not-touch). Mirrors the canonical
+# legacy_rewicker.factions map in data/worlds/clone_wars/organizations.yaml.
+_GCW_TO_CW_FACTION = {
+    "empire": "republic",
+    "rebel": "cis",
+    "hutt": "hutt_cartel",
+    "bh_guild": "bounty_hunters_guild",
+}
+# The CW org codes a faction_order may target (the canonical 4 joinable
+# command factions with a membership/rank surface _apply_faction_order
+# acts on).
+CW_FACTION_ORDER_CODES = frozenset({
+    "republic", "cis", "hutt_cartel", "bounty_hunters_guild",
+})
+
+
+def normalize_faction_order_code(code: str) -> str:
+    """Normalize a Director faction_order `faction` to a CW org code.
+    Accepts a CW org code (returned as-is) OR a legacy GCW alias (mapped
+    forward via _GCW_TO_CW_FACTION). Returns "" for anything unrecognized
+    so the caller can skip it. Case-insensitive."""
+    c = str(code or "").strip().lower()
+    if c in CW_FACTION_ORDER_CODES:
+        return c
+    return _GCW_TO_CW_FACTION.get(c, "")
+
+
 # ── Era Progression (Tier 3 Feature #15) ─────────────────────────────────
 # Tracks cumulative faction dominance across all zones. When average
 # influence crosses a threshold, the Director fires a one-time era event
@@ -533,6 +570,21 @@ class DirectorAI:
             "zone_influence": zone_influence,
             "active_events": active_events,
             "player_count": player_count,
+            # DIRECTOR.faction_model_cw_mapping (2026-06-13): the
+            # zone_influence keys above are the ZoneState zone-tone AXIS
+            # (imperial/rebel/criminal/independent — sanctioned, unchanged).
+            # This legend tells the LLM which CW ORG code to use when it
+            # issues a faction_order, so its orders target real Clone Wars
+            # orgs (republic/cis/...) instead of dead GCW codes. The order
+            # boundary (normalize_faction_order_code) accepts either, but
+            # the legend steers the LLM to the correct era codes up front.
+            "faction_order_codes": sorted(CW_FACTION_ORDER_CODES),
+            "faction_axis_to_org": {
+                "imperial": "republic",
+                "rebel": "cis",
+                "criminal": "hutt_cartel",
+                "independent": "independent",
+            },
         }
         digest.update(self._digest.to_digest_dict())
 
@@ -961,17 +1013,19 @@ class DirectorAI:
                 "patrol", "delivery", "combat", "investigation",
                 "bounty", "smuggling", "social",
             })
-            VALID_FACTION_CODES = frozenset({
-                "empire", "rebel", "hutt", "bh_guild",
-            })
             orders_applied = 0
             for order in faction_orders[:3]:  # Hard cap: 3 orders per turn
                 if not isinstance(order, dict):
                     continue
-                faction_code = order.get("faction", "")
+                # DIRECTOR.faction_model_cw_mapping (2026-06-13): accept a
+                # CW org code OR a legacy GCW alias, normalize to the CW
+                # code the org system actually knows. Unrecognized -> "".
+                faction_code = normalize_faction_order_code(
+                    order.get("faction", ""))
                 action       = order.get("action", "")
-                if faction_code not in VALID_FACTION_CODES:
-                    log.debug("[director] faction_order: invalid faction '%s'", faction_code)
+                if not faction_code:
+                    log.debug("[director] faction_order: invalid faction '%s'",
+                              order.get("faction", ""))
                     continue
                 if action not in VALID_FACTION_ACTIONS:
                     log.debug("[director] faction_order: invalid action '%s'", action)

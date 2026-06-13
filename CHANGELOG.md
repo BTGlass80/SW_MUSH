@@ -6,6 +6,17 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-13 — Director CW faction-order mapping layer — *drop 39*
+Resolves DIRECTOR.faction_model_cw_mapping. The LLM Director's faction_order boundary validated against GCW ORG codes `{empire, rebel, hutt, bh_guild}` (`engine/director.py:964`), so it could never issue era-correct Clone Wars orders — `_apply_faction_order`'s `get_organization(code)` lookup missed every time (republic/cis/hutt_cartel/bounty_hunters_guild are the real CW orgs). Per the design call this is a MAPPING LAYER at the two boundaries ONLY; the sanctioned ZoneState zone-tone AXIS keys (imperial/rebel/criminal/independent) are left entirely untouched.
+- **Order boundary:** new `normalize_faction_order_code` accepts a CW org code (pass-through) OR a legacy GCW alias (`_GCW_TO_CW_FACTION` forward-map, mirroring `organizations.yaml`'s `legacy_rewicker.factions`), normalizing to the CW code the org system knows before `_apply_faction_order`. Garbage / axis-only keys → "" (skipped). Replaced the dead hardcoded `VALID_FACTION_CODES` frozenset.
+- **Digest boundary:** `compile_digest` now carries `faction_order_codes` (the 4 CW org codes) + a `faction_axis_to_org` legend (imperial→republic, rebel→cis, criminal→hutt_cartel, independent→independent), so the LLM issues CW-correct codes up front. `zone_influence` STILL keys on the untouched axis labels (the ZoneState math is unchanged).
+- **Era note:** the new `empire`/`rebel` strings are GCW→CW *mapping keys* (CLAUDE.md-sanctioned, era-mapping-key exempt), confirmed by the 178-test era-cleanness sweep staying green.
+- **Closes tech_debt `TD.DIRECTOR_FACTION_MODEL_GCW`** (the capability gap; the full internal re-key stays deferred indefinitely — internal-only, not a bug).
+- **Verified:** `tests/test_director_cw_faction_mapping.py` (6 — normalizer pass-through/forward-map/case/garbage/axis-not-an-order-code + the digest legend + untouched-axis pin) + 80-director regression + 178 era-cleanness + smoke green.
+- **Files:** `engine/director.py`, `tests/test_director_cw_faction_mapping.py` (new), `CHANGELOG.md`, `TODO.json`.
+
+---
+
 ### 2026-06-13 — Commissary sellback model (anti-laundering refund + bind-to-channel) — *drop 38*
 Resolves the ECON.commissary_sellback design call in full (all 3 pieces — Brian ratified incl. same-faction trade). Faction-issued / commissary gear can no longer be bought at the requisition discount and resold on the open market for profit (the laundering loop), and it stays within its issuing faction.
 - **Piece 1 — vendor refusal (the anti-laundering lock):** `engine/items.py::npc_refuses_buyback` now also refuses any `faction_issued` item (was crafted-quality-only). Works on both ItemInstance and plain inventory dicts (new `_item_attr` shim). Ordinary vendors hand faction gear back. (The vendor-droid path already refused it — this closes the NPC-vendor `sell` path too.)
