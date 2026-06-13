@@ -1676,6 +1676,19 @@
       "live_safety": "ambient_enabled defaults false (zero behavior change until opt-in); sim NEVER calls Ollama on the tick path (world cadence independent of Ollama load); AmbientLifeTask below all idle tasks + PC talk bypasses the queue (can never delay a player); ambient acts have NO mechanical effects in v1 (no market/combat/faction state change -> faucet/sink-neutral); Phase-0 DB scaffolding is empty CREATE TABLE landed pre-launch (lowest-risk migration class), so the post-launch sim is pure feature code.",
       "ties_into": "T3.20 (state-preservation/safe-migration -- Phase 0 IS a safe-migration exemplar); T3.19 (telemetry -- ambient ticks should emit the same structured telemetry); T3.15 (Director AI -- optional future read-coupling: world events / Director mood could nudge ambient goals).",
       "open_calls": "Logged in the design doc §8 for when this comes off the shelf: (1) intra-zone vs cross-zone movement (rec intra-zone v1); (2) ambient-NPC population cap for tick budget; (3) observability surface (room channel vs ambient channel vs look-only); (4) the PC-interaction boundary (OUT for v1, revisit after)."
+    },
+    {
+      "id": "T3.23",
+      "title": "Party skill challenges (D&D-style skill-diverse team content)",
+      "design_doc": "party_skill_challenges_design_v1.md (2026-06-13)",
+      "lane": "engine (extend wilderness_anomalies) + content",
+      "effort": "medium (engine seam small; content authoring open-ended)",
+      "requested_by": "Brian 2026-06-13 (sparked by breaching charges)",
+      "timing": "POST-LAUNCH. Optional tiny pre-launch hook: land the `skill_gate` anomaly-phase field inert (same land-the-seam-early pattern as ambient-life T3.22). Otherwise pure post-launch content + small-engine drop.",
+      "goal": "End-game content that rewards a skill-diverse TEAM (rogue=locks, face=social, cleric=medicine, wizard=Force, demolitions=breach, fighters) the way a D&D party does. A multi-phase encounter where each phase gates a DIFFERENT skill, so no single character has all the end-game-depth skills to clear it efficiently.",
+      "brian_calls": "(1) SOFT-REQUIRE: soloable but punishing (a solo_penalty raises gate difficulty for a lone wolf; NO hard min-party-size lock in v1 -> no dead content at low pop). (2) Rewards = PARTICIPATION-SCALED t5 mats + credits (reuse the T3 anomaly reward model; feeds the t5 master-trainer crafting economy from drops 33-35). (3) Full design doc written now, build post-launch.",
+      "extend_not_add": "EXTENDS engine/wilderness_anomalies.py: the multi-phase + participation (kill_counts) + skill-check (investigate) + participation-scaled-reward (_payout_combat_anomaly) substrate ALL exist. New: an additive per-phase `skill_gate` field (skill/difficulty/alt_skills/solo_penalty), a contribution_log extending participation to non-combat clears. Existing combat-only anomalies unchanged (no skill_gate = today's behavior). No new top-level system, command, schema migration, or reward faucet. All role skills already exist as live verbs (breach, picklock, stim, Force, social, combat).",
+      "open_calls": "Design doc s8: solo_penalty magnitude, failure cost (rec retry-allowed + small resource cost), alt_skills breadth (rec 1-2), first-challenge location/theme (rec Coruscant Underworld vault), and whether a unique gated drop is added later vs v1's t5-mats."
     }
   ],
   "design_calls_pending_brian": [
