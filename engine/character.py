@@ -865,13 +865,50 @@ class Character:
                 log.warning("Malformed attributes JSON for char %s: %s",
                             data.get("id", "?"), _e)
                 attrs = {}
+        # BLOCKER 1 (T3.20 safe-load): guard each DicePool.parse so ONE
+        # corrupted attribute value (e.g. "4X+2") skips that field with a
+        # warning instead of raising and aborting the whole character load —
+        # which would lock the player out entirely. Mirrors the skills-loop
+        # guard below (the earlier char-load hardening guarded skills but left
+        # this attributes loop unguarded).
         for attr_name in ATTRIBUTE_NAMES:
             if attr_name in attrs:
-                char.set_attribute(attr_name, DicePool.parse(attrs[attr_name]))
+                try:
+                    char.set_attribute(attr_name, DicePool.parse(attrs[attr_name]))
+                except (ValueError, TypeError, AttributeError) as _e:
+                    log.warning("Malformed attribute %r=%r for char %s: %s — skipped",
+                                attr_name, attrs.get(attr_name), data.get("id", "?"), _e)
         for force_attr in ("control", "sense", "alter"):
             if force_attr in attrs:
-                char.set_attribute(force_attr, DicePool.parse(attrs[force_attr]))
+                try:
+                    char.set_attribute(force_attr, DicePool.parse(attrs[force_attr]))
+                    char.force_sensitive = True
+                except (ValueError, TypeError, AttributeError) as _e:
+                    log.warning("Malformed force attribute %r=%r for char %s: %s — skipped",
+                                force_attr, attrs.get(force_attr), data.get("id", "?"), _e)
+
+        # BLOCKER 2 / FORCE.sensitivity_failsafe_to_jedi (Brian Ruling 5,
+        # T3.20 blocker-2): force_sensitive is DERIVED from control/sense/alter
+        # in the attributes JSON. If that blob is unreadable/corrupt (attrs fell
+        # back to {} above) or predates the derivation, a path-committed Jedi
+        # would silently reconstruct as force_sensitive=False — losing their
+        # Force on that login. The committed path is recorded in the
+        # village_chosen_path TYPED COLUMN, which survives blob corruption, so
+        # FAIL SAFE TO JEDI: a committed path with no recovered Force attrs loads
+        # force_sensitive=True with a LOUD warning (the Force dice then need a
+        # backfill) rather than a silent downgrade. force_sensitive stays derived
+        # state — never written back (save_character's allowlist already blocks
+        # persisting it), so this re-asserts safely on every load.
+        if not char.force_sensitive:
+            _chosen_path = str(data.get("village_chosen_path") or "").strip().lower()
+            if _chosen_path in ("a", "b", "c"):
                 char.force_sensitive = True
+                log.warning(
+                    "[force-failsafe] char %s is committed to Force path %r but "
+                    "parsed attributes carry no control/sense/alter — failing SAFE "
+                    "to force_sensitive=True (attributes JSON corrupt or "
+                    "pre-derivation; Force attributes need a backfill).",
+                    data.get("id", "?"), _chosen_path)
 
         # Parse skills
         skills = data.get("skills", "{}")

@@ -1772,7 +1772,8 @@
     {
       "id": "FORCE.sensitivity_failsafe_to_jedi",
       "resolved_date": "2026-06-13",
-      "resolution": "PRE-LAUNCH (Brian Ruling 5; T3.20 blocker-2). A path-committed character whose attributes JSON is unreadable must load force_sensitive=True (fail-safe to Jedi) + log the corruption loudly — never silently lose Force-sensitivity. Build item under T3.20 state-preservation."
+      "resolution": "PRE-LAUNCH (Brian Ruling 5; T3.20 blocker-2). A path-committed character whose attributes JSON is unreadable must load force_sensitive=True (fail-safe to Jedi) + log the corruption loudly — never silently lose Force-sensitivity. Build item under T3.20 state-preservation.",
+      "built_2026_06_13": "BUILT (branch drop/t3-20-safe-load, via clean worktree). engine/character.py::from_db_dict: a committed village_chosen_path (a/b/c — a TYPED COLUMN that survives attrs-blob corruption) with no recovered control/sense/alter now fails SAFE to force_sensitive=True + a loud [force-failsafe] warning. force_sensitive stays derived (never persisted; save_character allowlist blocks it). Bundled the related T3.20 BLOCKER 1 fix in the same drop: the attributes + force-attr DicePool.parse loops are now guarded (a corrupted attribute value no longer aborts the whole character load / login). Tests: tests/test_t3_20_safe_load.py (9). DEFERRED follow-up: the idempotent Force-attribute backfill RUNNER (write-side restore of lost control/sense/alter) + the other T3.20 HIGH/MEDIUM risks from HANDOFF_t3_20_state_preservation."
     },
     {
       "id": "DIRECTOR.multizone_living_galaxy",
