@@ -36,6 +36,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: contested
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
       time_vocab: tatooine
 
   tatooine_spaceport:
@@ -51,6 +52,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: secured
+      threat_band: frontier     # DIFF.2 (2026-06-13): zoned difficulty band
       time_vocab: tatooine
 
   tatooine_cantina:
@@ -66,6 +68,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: contested
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
       time_vocab: tatooine
 
   tatooine_market:
@@ -81,6 +84,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: contested
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
       time_vocab: tatooine
 
   tatooine_civic:
@@ -96,6 +100,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: contested
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
       time_vocab: tatooine
 
   tatooine_outskirts:
@@ -111,6 +116,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: lawless
+      threat_band: contested_marches     # DIFF.2 (2026-06-13): zoned difficulty band
       time_vocab: tatooine
 
   tatooine_jundland:
@@ -126,6 +132,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: lawless
+      threat_band: contested_marches     # DIFF.2 (2026-06-13): zoned difficulty band
       time_vocab: tatooine
 
   tatooine_dune_sea:
@@ -141,6 +148,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: lawless
+      threat_band: wilds     # DIFF.2 (2026-06-13): zoned difficulty band
       time_vocab: tatooine
 
   # ── Nar Shaddaa ──────────────────────────────────────────────────────────
@@ -163,6 +171,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: secured
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
 
   nar_shaddaa_promenade:
     name_match: "promenade"
@@ -178,6 +187,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: lawless
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
 
   nar_shaddaa_undercity:
     name_match: "undercity"
@@ -193,6 +203,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: lawless
+      threat_band: contested_marches     # DIFF.2 (2026-06-13): zoned difficulty band
 
   nar_shaddaa_warrens:
     name_match: "warrens"
@@ -207,6 +218,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: lawless
+      threat_band: wilds     # DIFF.2 (2026-06-13): zoned difficulty band
 
   # ── Space zones ──────────────────────────────────────────────────────────
 
@@ -223,6 +235,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: contested
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
 
   space_nar_shaddaa:
     name_match: "nar shaddaa system"
@@ -237,6 +250,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: contested
+      threat_band: contested_marches     # DIFF.2 (2026-06-13): zoned difficulty band
 
   space_coruscant:
     name_match: "coruscant system"
@@ -253,6 +267,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: secured
+      threat_band: frontier     # DIFF.2 (2026-06-13): zoned difficulty band
 
   space_kuat:
     name_match: "kuat system"
@@ -269,6 +284,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: secured
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
 
   space_kamino:
     name_match: "kamino system"
@@ -285,6 +301,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: secured
+      threat_band: frontier     # DIFF.2 (2026-06-13): zoned difficulty band
 
   space_geonosis:
     name_match: "geonosis system"
@@ -301,6 +318,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: contested
+      threat_band: contested_marches     # DIFF.2 (2026-06-13): zoned difficulty band
 
   # ── Coruscant (Drop 2) ───────────────────────────────────────────────────
   # Placeholder stubs — full authoring in Drop 2
@@ -318,6 +336,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: secured
+      threat_band: frontier     # DIFF.2 (2026-06-13): zoned difficulty band
 
   jedi_temple:
     name_match: "jedi temple"
@@ -333,6 +352,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: secured
+      threat_band: frontier     # DIFF.2 (2026-06-13): zoned difficulty band
 
   monumental_district:
     name_match: "upper coruscant"
@@ -347,6 +367,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: secured
+      threat_band: frontier     # DIFF.2 (2026-06-13): zoned difficulty band
 
   commercial_district:
     name_match: "mid levels"
@@ -361,6 +382,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: secured
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
 
   southern_underground:
     name_match: "lower coruscant"
@@ -374,6 +396,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: contested
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
 
   coruscant_underworld:
     name_match: "coruscant underworld"
@@ -388,6 +411,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: lawless
+      threat_band: contested_marches     # DIFF.2 (2026-06-13): zoned difficulty band
 
   entertainment_district:
     name_match: "gilded cage"
@@ -405,6 +429,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: secured
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
 
   # ── Kuat (Drop 3) ────────────────────────────────────────────────────────
 
@@ -421,6 +446,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: secured
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
 
   kuat_city_embassy:
     name_match: "kuat city"
@@ -435,6 +461,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: secured
+      threat_band: frontier     # DIFF.2 (2026-06-13): zoned difficulty band
 
   kuat_main_spaceport:
     name_match: "kuat transit"
@@ -448,6 +475,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: secured
+      threat_band: frontier     # DIFF.2 (2026-06-13): zoned difficulty band
 
   # ── Kamino (Drop 3) ──────────────────────────────────────────────────────
 
@@ -465,6 +493,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: secured
+      threat_band: frontier     # DIFF.2 (2026-06-13): zoned difficulty band
 
   kamino_cloning_halls:
     name_match: "kamino training"
@@ -480,6 +509,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: secured
+      threat_band: frontier     # DIFF.2 (2026-06-13): zoned difficulty band
 
   kamino_ocean_platform:
     name_match: "kamino ocean"
@@ -492,6 +522,7 @@ zones:
     # they declare properties.security or top-level security_level: themselves.
     properties:
       security: secured
+      threat_band: contested_marches     # DIFF.2 (2026-06-13): zoned difficulty band
 
   # ── Geonosis (Drop 4) ────────────────────────────────────────────────────
 
@@ -508,6 +539,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: contested
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
 
   geonosis_foundries:
     name_match: "geonosis foundry"
@@ -523,6 +555,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: contested
+      threat_band: frontier     # DIFF.2 (2026-06-13): zoned difficulty band
 
   geonosis_surface:
     name_match: "geonosis wastes"
@@ -538,6 +571,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: contested
+      threat_band: settled     # DIFF.2 (2026-06-13): zoned difficulty band
 
   geonosis_deep_hive:
     name_match: "geonosis tunnels"
@@ -552,6 +586,7 @@ zones:
     # contested-fallback for the hard-block eligibility predicate.
     properties:
       security: contested
+      threat_band: contested_marches     # DIFF.2 (2026-06-13): zoned difficulty band
 
   geonosis_barracks:
     name_match: "gladiator barracks"
@@ -568,6 +603,7 @@ zones:
     # Stalgasin-held slaver operation, no outside authority reaches here.
     properties:
       security: lawless
+      threat_band: contested_marches     # DIFF.2 (2026-06-13): zoned difficulty band
 
   geonosis_ey_akh:
     name_match: "e'y-akh"
@@ -584,3 +620,4 @@ zones:
     # on-foot edge room (ey_akh_desert_edge). Lawless open desert.
     properties:
       security: lawless
+      threat_band: wilds     # DIFF.2 (2026-06-13): zoned difficulty band

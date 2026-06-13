@@ -328,6 +328,24 @@ class LookCommand(BaseCommand):
         except Exception:
             log.warning("_room_header: security tag failed", exc_info=True)
 
+        # DIFF.2 (2026-06-13): threat-band tag alongside security. The
+        # band is orthogonal to security — security says whether combat
+        # is allowed, the band says how dangerous it is. Surfaced so
+        # "players see where the tiers are" (the KNOWN lines). Settled
+        # (the default mid-game band) is suppressed to keep the header
+        # quiet for the common case; the off-default bands (Frontier /
+        # Contested Marches / Deep Wilds) show.
+        _threat_tag = ""
+        try:
+            from engine.threat_band import (
+                get_effective_threat, threat_label, ThreatBand,
+            )
+            _band = await get_effective_threat(char["room_id"], ctx.db)
+            if _band is not ThreatBand.SETTLED:
+                _threat_tag = " " + threat_label(_band)
+        except Exception:
+            log.warning("_room_header: threat tag failed", exc_info=True)
+
         _housing_tag = ""
         try:
             from engine.housing import get_room_housing_display
@@ -359,8 +377,8 @@ class LookCommand(BaseCommand):
             log.warning("_room_header: city tag failed", exc_info=True)
 
         await session.send_line(
-            ansi.room_name(room["name"]) + _sec_tag + _housing_tag
-            + _claim_tag + _city_tag)
+            ansi.room_name(room["name"]) + _sec_tag + _threat_tag
+            + _housing_tag + _claim_tag + _city_tag)
 
     async def _room_environment(self, ctx, session, char):
         """Environment flavor line (lighting, cover)."""
@@ -4345,6 +4363,50 @@ class CoordsCommand(BaseCommand):
             )
 
 
+# ── DIFF.2: +threat / threat — zoned difficulty band ────────────────────────
+
+class ThreatCommand(BaseCommand):
+    """Show the current area's threat band (zoned difficulty).
+
+    Per difficulty_tiers_design_v1.md §8/§11. The band is orthogonal to
+    security: security says whether combat/PvP is allowed here, the
+    threat band says how dangerous the hostiles are. The band is also
+    shown in the `look` room header (off-default bands only), so this is
+    the dedicated "tell me more" surface.
+    """
+    key = "+threat"
+    aliases = ["threat"]
+    help_text = (
+        "Show how dangerous the current area is — its THREAT BAND.\n\n"
+        "Difficulty is separate from security: a Lawless zone can still\n"
+        "be a Frontier (newbie) area, and a Secured city can be deep in\n"
+        "the Deep Wilds. The band tells you how tough the hostiles are.\n\n"
+        "Bands (low to high): Frontier, Settled, Contested Marches,\n"
+        "Deep Wilds. The band also appears in the room header on `look`."
+    )
+    usage = "+threat"
+
+    async def execute(self, ctx: CommandContext):
+        session = ctx.session
+        char = session.character
+        if not char:
+            return
+        try:
+            from engine.threat_band import (
+                get_effective_threat, threat_name, threat_blurb,
+                threat_color_code,
+            )
+            band = await get_effective_threat(char["room_id"], ctx.db)
+        except Exception:
+            await session.send_line("  Threat information is unavailable here.")
+            return
+        color = threat_color_code(band)
+        await session.send_line(
+            f"  Threat band: {color}{threat_name(band)}\033[0m "
+            f"(level {band.rating}/4)")
+        await session.send_line(f"  \033[2m{threat_blurb(band)}\033[0m")
+
+
 # ── Lane E2b: +weather / +time ──────────────────────────────────────────────
 
 def _storm_pips_to_dice(pips: int) -> str:
@@ -4753,6 +4815,8 @@ def register_all(registry):
         GiveCommand(),
         ThinkCommand(),
         BuffsCommand(),
+        # DIFF.2 (2026-06-13): zoned-difficulty surface.
+        ThreatCommand(),
     ]
     for cmd in commands:
         registry.register(cmd)
