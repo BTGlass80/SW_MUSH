@@ -648,6 +648,58 @@ def crafted_combat_pips(inst) -> tuple:
         return 0, 0
 
 
+def crafted_armor_soak_pips(inst) -> int:
+    """Soak-pip delta a crafted ARMOR instance contributes to combat.
+
+    The armor mirror of ``crafted_combat_pips``: crafted quality stored on a
+    worn-armor ItemInstance used to be combat-decoration (``get_armor_protection``
+    read only the bare ``worn_armor`` key, so a q95 vest soaked like a q40 one —
+    OBS.quality_and_boosts armor half). This funnels that quality into the soak
+    roll, hard-capped to avoid power creep.
+
+    Reuses the weapon quality band verbatim (``_quality_band_pips``): ≤49=-1,
+    50-69=0, 70-89=+1, 90-100=+2. Armor has NO experiment-mod axis in the
+    registry (weapons.yaml carries only protection_energy/protection_physical,
+    no protection_mod), so — unlike weapons — there is no experiment-boost term;
+    the cap is naturally +2 (vs the weapon's +3 = +1D once the boost is added).
+    Returns 0 for None / non-instances (fail-open); a vendor instance (q50)
+    yields 0.
+
+    Like crafted_combat_pips, this is one of the ONLY places crafted quality
+    becomes a combat number — never inline the band math at a call site.
+    """
+    if inst is None:
+        return 0
+    try:
+        return max(-1, min(2, _quality_band_pips(getattr(inst, "quality", 50))))
+    except Exception:
+        return 0
+
+
+def crafted_consumable_potency_pips(quality) -> int:
+    """Potency-pip delta a crafted CONSUMABLE (stim) contributes to its buff.
+
+    The consumable mirror of crafted_armor_soak_pips, but TIGHTER. Consumables
+    are NOT ItemInstances — they store a per-key quality int in
+    attributes.consumables[key]["quality"] — so this takes the quality int
+    directly (not an instance).
+
+    Capped at +1 (NOT the weapon/armor +2): a stim buff base is only +1D = 3
+    pips, so even a single pip is a +33% boost; a +2 would push a q95 stim to
+    +67% and collapse the consumable tier ladder (it would rival the next-tier
+    stim's base). The whole "good crafted" band (70-100) therefore yields exactly
+    +1 — quality buys RELIABILITY of hitting +1, not a runaway magnitude. See
+    docs/design/consumable_quality_potency_v1.md §3.
+
+    Band: ≤49=-1 (shoddy), 50-69=0 (vendor baseline), 70-100=+1. Fail-open: 0 for
+    bad input; vendor q50 = 0.
+    """
+    try:
+        return max(-1, min(1, _quality_band_pips(quality)))
+    except Exception:
+        return 0
+
+
 def apply_damage_pips(damage_str: str, pips: int) -> str:
     """Add `pips` to a D6 damage code, preserving a leading attribute token (STR+...).
 

@@ -308,6 +308,13 @@ class Character:
     description: str = ""
     equipped_weapon: str = ""  # weapon key from weapons.yaml (e.g. "blaster_pistol")
     worn_armor: str = ""       # v22: armor key from weapons.yaml (e.g. "blast_vest")
+    # Crafted-armor soak quality, folded into the combat soak roll
+    # (CRAFT.armor_soak_quality). The Character holds only the bare worn_armor
+    # KEY (the instance quality is discarded by from_db_dict), so the soak-pip
+    # is computed ONCE at load — where the equipment JSON is still in hand —
+    # and cached here as a primitive, mirroring the Drop-19 weapon-pip isolation
+    # (combat never re-reads equipment). 0 = vendor baseline / no crafted armor.
+    armor_soak_pips: int = 0
     # Lane A Phase B: a creature's faithful natural attack (skill + concrete
     # dice), set from the char_sheet's `natural_attack` marker. Empty for
     # ordinary characters. Honored first by npc_combat_ai._get_npc_weapon so
@@ -779,10 +786,17 @@ class Character:
         # engine.items.equipment_keys. The Character object holds bare keys,
         # not instances (see read_equipment notes); instance condition/quality
         # lives in the DB JSON, read directly by the inventory surfaces.
-        from engine.items import equipment_keys
-        _eq = equipment_keys(data.get("equipment", "{}"))
-        char.equipped_weapon = _eq["weapon"]
-        char.worn_armor = _eq["armor"]
+        # read_equipment recovers the full per-slot ItemInstances; we keep only
+        # the bare keys on the Character (the instance condition/quality lives in
+        # the DB JSON, read directly by inventory surfaces) — EXCEPT the
+        # crafted-armor soak quality, which we capture here as a primitive pip
+        # (CRAFT.armor_soak_quality) because the equipment JSON is discarded
+        # past this point and the combat soak site holds only the Character.
+        from engine.items import read_equipment, crafted_armor_soak_pips
+        _slots = read_equipment(data.get("equipment", "{}"))
+        char.equipped_weapon = _slots["weapon"].key if _slots["weapon"] else ""
+        char.worn_armor = _slots["armor"].key if _slots["armor"] else ""
+        char.armor_soak_pips = crafted_armor_soak_pips(_slots["armor"])
 
         return char
 

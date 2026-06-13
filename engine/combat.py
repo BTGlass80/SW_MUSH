@@ -1651,6 +1651,21 @@ class CombatInstance:
         # v22 audit #9: armor adds to Strength for soak per R&E p83
         is_energy = not damage_str.upper().startswith("STR")  # ranged = energy, melee = physical
         armor_pool = target.get_armor_protection(energy=is_energy)
+        # CRAFT.armor_soak_quality: fold the crafted-armor quality pip (captured
+        # once at load — Character.armor_soak_pips, hard-capped +2/floor -1) into
+        # the protection pool BEFORE it joins Strength and BEFORE the wound
+        # penalty, so a q95 vest soaks more than a q40 one. DicePool + int carries
+        # pips (3 pips = +1D). The `not armor_pool.is_zero()` guard means quality
+        # only AMPLIFIES protection the armor already provides for THIS damage
+        # type — a q95 physical-only vest gains no energy soak from its quality,
+        # and a character with no armor (_armor_pips==0 via the field default)
+        # short-circuits on the falsy pip. Edge note: a sub-1D base (DicePool(0,1))
+        # with a -1 pip collapses to zero — fine today (no registry armor is
+        # sub-1D), but a future sub-1D armor would see its whole contribution
+        # drop, not merely shrink by a pip.
+        _armor_pips = getattr(target, "armor_soak_pips", 0)
+        if _armor_pips and not armor_pool.is_zero():
+            armor_pool = armor_pool + _armor_pips
         if not armor_pool.is_zero():
             soak_pool = soak_pool + armor_pool
         # v22 audit #10: wound penalty applies to soak roll per R&E
