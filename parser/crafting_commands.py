@@ -1293,9 +1293,21 @@ async def _deliver_item(ctx: CommandContext, schematic: dict, craft_result: dict
         if not isinstance(attrs, dict):
             attrs = {}
 
+        # CRAFT.consumable_quality_potency: persist crafted quality per-key
+        # alongside the count, taking the MAX on re-craft so a better craft always
+        # upgrades the stack (quality is per-key — stims are fungible). Tolerant of
+        # the legacy bare-int shape (reads as q50 baseline). See
+        # docs/design/consumable_quality_potency_v1.md §4.
+        from engine.buffs import _normalize_consumable_entry
         consumables = attrs.setdefault("consumables", {})
-        current = consumables.get(output_key, 0)
-        consumables[output_key] = current + 1
+        existing = _normalize_consumable_entry(consumables.get(output_key, 0))
+        consumables[output_key] = {
+            "count": existing["count"] + 1,
+            # round() (not int()) so the stored quality matches the displayed
+            # `:.0f` value AND the band boundary — int(69.9) would store 69 (0
+            # pips) while the player was shown "70" (which earns +1 pip).
+            "quality": max(existing["quality"], round(quality)),
+        }
         char["attributes"] = json.dumps(attrs)
 
         from engine.consumables import consumable_display_name

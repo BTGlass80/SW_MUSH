@@ -1318,14 +1318,16 @@
     },
     {
       "id": "CRAFT.armor_consumable_quality_combat",
-      "title": "Crafted quality -> combat for ARMOR + CONSUMABLES (Option A, Brian-greenlit)",
+      "title": "Crafted quality -> combat for ARMOR + CONSUMABLES (Option A, Brian-greenlit) — DONE",
       "lane": "engine (combat/equipment + crafting) — HIGH collision; sequence carefully",
-      "effort": "medium (armor half bundles with the equipment-instance migration)",
-      "status": "GREENLIT 2026-06-13 (Brian: 'quality should absolutely matter'). Not started. Build as its OWN drop on a quiet combat window — NOT concurrent with combat/equipment edits.",
+      "effort": "armor half DONE (drop 44); consumable half ~3-4h once the potency-model design doc lands",
+      "status": "DONE 2026-06-13. ARMOR half drop 44 (crafted_armor_soak_pips, cap +2/floor -1, folded at the combat soak site). CONSUMABLE half drop 45 (crafted_consumable_potency_pips cap +1 — tighter for the small stim base; storage migration bare-int -> {count,quality} with lazy-coerce + max-on-recraft; consume_consumable kept a bool, new get_consumable_quality reader; stims scale buff magnitude, medpacs get a First-Aid roll reliability bonus, heal stays discrete). Both hard-capped, no power creep (q95 stim < next tier base, pinned). Design: docs/design/consumable_quality_potency_v1.md.",
       "design_doc": "Decision in design_calls_pending_brian CRAFT.quality_combat_read_armor_consumables (Option A); crafting-integration review HANDOFF_crafting_integration_review_2026-06-13.md items 3-5.",
       "scope": "Make crafted quality affect combat for armor + consumables the way it already does for weapons (engine/items.py crafted_combat_pips, Drop 19). ARMOR: get_armor_protection (engine/character.py:457) currently reads the bare worn_armor KEY -> a q95 vest soaks like q40. Read the worn-armor INSTANCE quality and fold a HARD-CAPPED quality delta into soak (mirror the weapon +1D pip-cap so no power creep). BUNDLE with TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES (get_armor_protection needs the instance). CONSUMABLES: thread quality into potency (heal amount / buff magnitude), capped; touches the consumable storage shape (count -> quality-bearing) at parser/crafting_commands.py:1296 + medical_commands.py; migration-tolerant read; sequence AFTER in-flight crafting edits settle.",
-      "collision_note": "Review flagged combat.py / items.py / character.py as HIGH collision (shared with any combat/equipment edit). Land solo. The consumable half is in the same crafting_commands.py hot region recent drops edited — sequence after.",
-      "balance_note": "Power-creep-sensitive. Cap the quality delta (e.g. the +1D / +3-pip weapon precedent) so a q95 item is BETTER but not game-warping vs vendor baseline. Consider deciding armor and consumable caps separately (potion-potency is the riskier knob)."
+      "collision_note": "ARMOR HALF (drop 44) did NOT bundle the equipment migration (primitive-threading instead). CONSUMABLE HALF touches engine/buffs.py + parser/crafting_commands.py + parser/medical_commands.py — sequence after any in-flight crafting/medical edits; not concurrent.",
+      "balance_note": "Power-creep-sensitive. Cap the quality delta (e.g. the +1D / +3-pip weapon precedent) so a q95 item is BETTER but not game-warping vs vendor baseline. Consider deciding armor and consumable caps separately (potion-potency is the riskier knob).",
+      "armor_half_resolution": "Drop 44. The armor decoration gap (q95 vest soaked like q40) is closed WITHOUT the equipment-instance migration: instead of making get_armor_protection take an instance, the soak pip is computed ONCE in from_db_dict (where the equipment JSON is still live) and cached as a primitive int on the Character (Drop-19 weapon-pip isolation pattern), then folded into armor_pool at engine/combat.py _apply_damage before Strength-add. get_armor_protection UNCHANGED (gundark registry pins safe). NO bundling with TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES needed — the primitive-threading gets correctness without the multi-day refactor. Funnel reuses _quality_band_pips verbatim; armor has no experiment axis (weapons.yaml has no protection_mod) so cap is +2 not +3.",
+      "consumable_half_note": "DONE drop 45. Refined the design doc's consume_consumable return-type change to a separate get_consumable_quality reader (less blast radius — consume_consumable stays bool, no caller ripple)."
     }
   ],
   "tunable_open_questions": {
@@ -1704,56 +1706,12 @@
   ],
   "design_calls_pending_brian": [
     {
-      "id": "CRAFT.harvest_skill_flavor",
-      "raised": "2026-06-12",
-      "priority": "LOW",
-      "question": "scavenged_republic_tech harvests on the generic Survival check (DC 6). Flavor-wise, salvaging Republic tech reads as Technical (salvage) or Search, not wilderness Survival. Ship Survival now (engine hardwires HARVEST_SKILL), or invest post-launch in a per-region harvest-skill override?",
-      "recommendation": "Survival now (consistent with the harvest engine; Easy-6 is WEG-ladder-correct); per-region skill override is a larger change — defer to post-launch flavor polish. Low priority; not launch-blocking.",
-      "logged": "2026-06-12 (drop 14, design-reviewer)",
-      "status": "DONE 2026-06-13 (drop 41; Brian chose the per-region override). engine/harvest.py: _REGION_HARVEST_SKILL map + harvest_skill_for_region(slug); coruscant_underworld -> search (Republic-tech salvage reads as scavenging, not wilderness Survival); default stays survival; difficulty unchanged (Easy 6). Search chosen over a raw Technical-attribute roll (real skill, scavenging flavor). tests/test_harvest_skill_override.py (4) + 97 harvest regression green."
-    },
-    {
-      "id": "ECON.commissary_sellback_model",
-      "raised": "2026-06-12",
-      "question": "Should commissary/faction-issued gear be sellable back, at what price, and is it bind-on-pickup? npc_refuses_buyback only gates player-crafted quality>=50 items, so it does NOT cover faction-issued gear. Questions: (1) Can a player sell back faction gear to any vendor? (2) At what rate (e.g. 50% of commissary cost)? (3) Is faction-issued gear bind-on-pickup (cannot trade/sell at all)? These three sub-decisions gate any sellback drop.",
-      "recommendation": "Preliminary (main-session reasoning 2026-06-12, NOT yet design-reviewer-validated — Brian should ratify): the binding constraint is credit-laundering. Commissary gear is bought at a requisition DISCOUNT through the commissary_purchase sink; if it sells back to open-market vendors at standard rate, players run buy-cheap/sell-high to mint credits, inverting the sink into a faucet. Recommended model: (1) NO open-market sellback — faction-issued/commissary gear is refused by ordinary vendors (extend the npc_refuses_buyback gate to cover faction_issued:true items, which the landed dict already carries). (2) Sellback ONLY to the issuing faction's own commissary, as a partial REFUND at <=50% of that item's requisition cost, debited... i.e. credited via a commissary_sellback faucet tag that is by construction smaller than the commissary_purchase sink that created it (net player loss => no laundering loop). (3) NOT strictly bind-on-pickup — players recoup half through the faction channel — but bound to that channel (no fencing to outsiders). Effort: small (reuse commissary command surface + the faction_issued flag + a refund branch). Open sub-fork for Brian: should faction gear be TRADEABLE among same-faction members (redistribution) while non-sellable to outsiders? Recommend yes (intra-faction trade is lore-apt and laundering-neutral since no credits are minted).",
-      "logged": "2026-06-12 (recommendation added drop 18 session; reasoned not formally reviewed)",
-      "status": "DONE 2026-06-13 (drop 38; Brian RATIFIED all 3 pieces incl. same-faction trade). (1) npc_refuses_buyback now refuses faction_issued -> no open-market sellback. (2) +commissary sell -> sell_commissary refunds 50% (COMMISSARY_SELLBACK_RATE) of requisition_cost via the commissary_sellback faucet, by construction smaller than the commissary_purchase sink (buy->sellback nets a loss; pinned by TestNoLaunderingLoop). (3) faction_bound_transfer_blocked gates give+trade to same-faction-only. requisition_cost now stamped on the item at purchase (stock fallback for legacy). 18 sellback tests + 110 regression green."
-    },
-    {
-      "id": "WORLDEVENT.flag_effect_consumers",
-      "raised": "2026-06-12",
-      "priority": "MEDIUM (high flavor ROI, not launch-blocking)",
-      "question": "Five world-event FLAG effects are DEFINED and fired but have ZERO consumers (verified: no get_effect() reader for any of them) — pure phantom-consumer gap: rare_vendor (MERCHANT_ARRIVAL), hutt_auction (HUTT_AUCTION, gated criminal_rep>=30), krayt_bounty (KRAYT_SIGHTING), brawl_active (CANTINA_BRAWL), distress_active (DISTRESS_SIGNAL). contraband_scan was wired 2026-06-06 as the precedent (event flag -> get_effect() at an existing system's seam -> modulates outcome). What player interaction should each flag create, and what is the command surface?",
-      "recommendation": "Build them as THIN CONSUMERS over existing systems (extend-don't-add), mirroring contraband_scan->smuggling — NOT five new subsystems. Mapping: rare_vendor -> time-boxed rare-stock/discount injection on an EXISTING vendor (reuse buy/vendor gate); krayt_bounty -> inject a high-value hunt onto the EXISTING bounty board + reuse the SYN.8 world-boss spawn; brawl_active -> room-scoped joinable NPC brawl via EXISTING combat + NPC spawn ('join brawl'); distress_active -> mission-style accept ('answer') -> existing encounter -> reward. hutt_auction: SIMPLIFY to a rep-gated rare PURCHASE while active (existing buy sink), NOT a live multi-player bidding loop (bidding is the only one implying a real new system — don't build it). Ship one flag per small drop. Decision for Brian: (a) verb surface per flag as above; (b) hutt_auction = simplified purchase, not bidding.",
-      "logged": "2026-06-12 (design-review batch; T2.E3 / arch §8.19; 5 of 6 flags remain after contraband_scan)",
-      "status": "DONE 2026-06-13 (Brian greenlit thin-consumer + one-per-increment). ALL 5 flags wired (drops 36-37): rare_vendor -> buy pre-haggle 15% discount (apply_rare_vendor_discount); krayt_bounty -> generate_bounty tier-bump toward SUPERIOR (krayt_upgrade_tier); distress_active -> generate_mission forces MEDICAL +30% emergency pay 'DISTRESS:' title (distress_mission_bonus); hutt_auction -> rep-gated (hutt_cartel >= criminal_rep_gate 30) unstocked-item purchase at +40% markup, the ONLY market-segmentation bypass, fail-closed (hutt_auction_purchase_allowed + apply_hutt_auction_markup); brawl_active -> +cantina random roll forces the brawl beat (code 12). Each a pure modulator + manager-driven flag-path test (tests/test_worldevent_flag_consumers.py, 26). contraband_scan precedent followed throughout; no new subsystems."
-    },
-    {
-      "id": "DIRECTOR.faction_model_cw_mapping",
-      "raised": "2026-06-12",
-      "priority": "LOW-MEDIUM (internal-only; no player-facing leak)",
-      "question": "The LLM Director's faction-order validation uses GCW-era codes: VALID_FACTION_CODES = {empire, rebel, hutt, bh_guild} at engine/director.py:964, so CW faction-orders (republic/cis) are rejected and the Director literally can't issue era-correct orders. NOTE the imperial/rebel ZONE-TONE axis keys (ZoneState) are a DIFFERENT, sanctioned do-not-touch surface (per CLAUDE.md) — this call is only about the order/digest boundary. Re-key the internal model, or add a CW mapping layer?",
-      "recommendation": "Mapping layer at the TWO boundaries only — compile_digest output (what the LLM sees) + VALID_FACTION_CODES/order application — translating to CW codes (republic/cis/hutt_cartel/bh_guild). LEAVE the sanctioned ZoneState axis math untouched. Unblocks CW faction_orders without a risky deep re-key of the influence math. Defer the full internal re-key indefinitely (internal-only, the Director still functions today — this is a capability gap, not a bug).",
-      "logged": "2026-06-12 (design-review batch; tech_debt TD.DIRECTOR_FACTION_MODEL_GCW)",
-      "status": "DONE 2026-06-13 (drop 39) — the recommended two-boundary mapping layer. Order boundary: normalize_faction_order_code accepts a CW org code OR a legacy GCW alias (_GCW_TO_CW_FACTION, mirrors organizations.yaml legacy_rewicker) -> CW code before _apply_faction_order; replaced the dead VALID_FACTION_CODES. Digest boundary: compile_digest carries faction_order_codes + faction_axis_to_org legend so the LLM issues CW codes. ZoneState axis math left untouched (zone_influence still keys imperial/rebel/criminal/independent). Partially retires TD.DIRECTOR_FACTION_MODEL_GCW surface (6) [VALID_FACTION_CODES] + improves (2) [digest LLM reporting]; the deeper internal re-key (ZoneState static fields, AlertLevel thresholds) stays deferred per the original option-A call. tests/test_director_cw_faction_mapping.py (6) + 80 director + 178 era-cleanness green."
-    },
-    {
       "id": "CRAFT.HOOK.restraints_state_model",
       "raised": "2026-06-12",
       "priority": "MEDIUM (long-pole; sequence after equipment-instance migration)",
       "question": "Restraint/handcuff system (CRAFT.HOOK long-pole). Today: combat grapple has an EPHEMERAL CombatBracket.restraint (Str-vs-Str escape, combat-only, not persisted); no handcuff items exist. Needs a restraint STATE model, escape checks, and PvP-consent norms before any content ships.",
       "recommendation": "(1) Persistent character-level restraint state {applied_by, item_key, escape_difficulty} — survives logout (a cuffed prisoner stays cuffed), distinct from combat's ephemeral grapple. (2) Blocks attack/move/equip; allows social verbs (mirror the grapple restriction set). (3) Escape = WEG Strength (or Security to pick the lock) check vs. difficulty, as an action; 'unlock' releases. (4) PvP-consent (the crux): REUSE the existing PvP/security-zone gate — you may only cuff a player you could legally attack, and only one already DEFEATED/incapacitated (no full-health griefing); NPCs unrestricted. No new consent system. Decision for Brian: persistent state (rec yes) + reuse-existing-PvP-gate (rec yes). Sequence AFTER the equipment-instance migration (touches Character state + equip).",
       "logged": "2026-06-12 (design-review batch; CRAFT.HOOK.restraints tier_2 long-pole)",
-      "status": "pending Brian"
-    },
-    {
-      "id": "CRAFT.HOOK.force_detector_model",
-      "raised": "2026-06-12",
-      "priority": "LOW (weak era fit -> recommend DEFER)",
-      "question": "Force-use detection surface (CRAFT.HOOK long-pole). force_sensitive is derived from control/sense/alter; force_commands execute; no detection/alert mechanic exists. Needs trigger/range/ownership/counter-play design before content.",
-      "recommendation": "DEFER to post-launch. Era-fit is weak: in the Clone Wars (~20 BBY) Jedi are the ESTABLISHMENT, not hunted — Force-detection-as-anti-Jedi is a GCW/Inquisitor trope. If built later: trigger on ACTIVE power use only (not passive aura — punishing mere force-sensitivity has no counter-play); reveal 'a disturbance is sensed', identity gated on a Sense(detector)-vs-Control(user) opposed roll (masking = counter-play); FACTION-gated carried scanner (CIS/cartel), not a general craftable. Decision for Brian: defer (rec) vs. build now; if build, active-use-only + faction-gated.",
-      "logged": "2026-06-12 (design-review batch; CRAFT.HOOK.force_detector tier_2 long-pole)",
       "status": "pending Brian"
     },
     {
@@ -1766,22 +1724,27 @@
       "status": "pending Brian"
     },
     {
-      "id": "CRAFT.mines_breaching_split",
-      "raised": "2026-06-12",
-      "priority": "MEDIUM (breaching) / LOW-DEFER (placed mines)",
-      "question": "Mines/breaching design pass. Grenades are single-use COMBAT weapons (consumed on declaration, Drop D); blast_radius is data-only (no consumer); no placement system exists. Mines need placement + detonation + blast resolution + PvP/griefing controls.",
-      "recommendation": "SPLIT the two halves. (A) Breaching charges (detonite/shaped/thermite) -> a 'breach <target>' verb, single-use consume (Drop D precedent) + a demolitions check vs. the obstacle's difficulty, NO blast-on-players — safe, useful (unlocks locked content/shortcuts), reuses existing seams. BUILD THIS FIRST. (B) Placed proximity mines (E-Mag mine) -> require persistent world-placed trigger objects + a blast resolver + anti-grief controls = a real new subsystem. DEFER. Decision for Brian: split + build breaching, defer placed mines (rec).",
-      "logged": "2026-06-12 (design-review batch; Drop D deferred 'mines/breaching placement mechanics')",
-      "status": "BREACHING HALF DONE 2026-06-13 (drop 40; Brian greenlit the split + build-breaching). Shipped: `breach <target>` verb (parser/demolitions_commands.py), engine/breaching.py::attempt_breach (Demolitions check vs obstacle difficulty, NO blast-on-players), single-use breaching_charge consumable (schematic + consumables.yaml, consumed via engine.buffs.consume_consumable on the attempt whether or not it succeeds). Operates on a `breachable` room object (data.breach_difficulty). 9 breaching tests + parity invariant updated. PLACED MINES (B) remain DEFERRED (real new subsystem). OPEN: the obstacle-placement path (no world-data object-seeding exists) -> logged as CRAFT.breaching_obstacle_placement (the mechanic works admin-placed today; the seeding/exit-gating path is the pending call)."
-    },
-    {
-      "id": "CRAFT.breaching_obstacle_placement",
+      "id": "OBS.silent_except_invariant_reconfigure_carveout",
       "raised": "2026-06-13",
-      "priority": "MEDIUM (the breach MECHANIC shipped drop 40; this is its world-placement path)",
-      "question": "The breach verb + engine + craftable charge shipped (drop 40), operating on a `breachable` ROOM OBJECT (objects table, type 'breachable', data.breach_difficulty). But there is NO world-data object-seeding path today — objects are only created at runtime (corpses, dropped items, admin via create_object). So breachable obstacles can be placed by an admin/builder NOW, but none are AUTHORED into the world. How should breachable obstacles be placed at scale: (a) a new world-data object-seeding loader (author `objects:`/`breachables:` blocks in room YAML -> create_object at world build); (b) keep it admin/builder-placed only (staff drops a breachable obstacle when a scene wants one); (c) gate MAP EXITS instead (add breach_difficulty to the exit/lock_data model + the world loader + MoveCommand) so breaching opens shortcuts/locked passages — the richer but map-entangled option the survey flagged as higher-risk?",
-      "recommendation": "Defer the heavy option (c) — gating real map exits touches the exit schema, the world loader, MoveCommand, and the map-safety invariant; it's a real new surface, not a thin add. Recommend (a) a small additive object-seeding loader: author `breachables:` entries in room YAML (name + breach_difficulty + reveal), seeded via the existing create_object at world build — additive, no exit/loader/movement surgery, and gives breaching real authored targets. (b) admin-placed works as an interim with zero new code (the mechanic already supports it). The MECHANIC is done + tested either way; this call only picks the placement path + whether breaching ever opens map shortcuts (c) as a later, steered increment.",
-      "logged": "2026-06-13 (drop 40 — the breach mechanic shipped against the objects-system placement target; the seeding path is the open call)",
-      "status": "DONE 2026-06-13 (drop 42; Brian chose 'seed objects now, exits later' = option a + interim b). engine/world_writer.py::_write_breachables seeds `breachable` objects from an additive per-room `breachables:` YAML block at world build (idempotent dedup by type+name+room_id; owner_id NULL; the FIRST object-seeding-at-build path). 3 diegetic obstacles authored (Geonosis barracks_armory diff22, Nar Shaddaa warrens_collapsed_plaza diff18, Tatooine jundland_hidden_cave diff15). Admin placement (b) also works (zero extra code). DEFERRED: option (c) gating real MAP EXITS with breach (map-entangled) — future steered increment. tests/test_world_writer.py::TestBreachables (real-DB seed + idempotency) green."
+      "priority": "LOW (blocks only a fully-green full suite, via two non-production tooling files owned by the parallel guides-rework session)",
+      "question": "Cross-session collision surfaced by the xdist full-suite triage. tests/test_session38.py::TestSilentExceptInvariant::test_no_silent_except_pass_in_production walks the whole tree (skips only venv/__pycache__/tests/.git) and flags two UNTRACKED files from the guides-rework session — tools/guide_lint.py:39 and tools/split_guide_dev_track.py:35. HEAD-verified: both use the benign console-bootstrap idiom `for s in (stdout,stderr): try: getattr(sys,s).reconfigure(encoding='utf-8') except Exception: pass`; the reconfigure idiom appears in NO other .py in the tree (only these 2); the scanner has no allowlist/noqa mechanism. The full pytest suite cannot go green while these sit in the working tree. The triage session does not own these files (per the xdist handoff: don't touch other sessions' uncommitted strays) — Brian decided 2026-06-13 to FLAG, not touch. NOTE: the one REAL production silent-except this invariant caught (parser/commissary_commands.py — bare except:pass at :197 + two comment-masked siblings at :117/:146) was already fixed by the triage session: all three now log.debug(..., exc_info=True) per the bounty/inventory/crafting best-effort idiom.",
+      "recommendation": "Owner = the guides-rework session. Resolve by (A) giving both reconfigure blocks a real `log.debug('stream reconfigure failed', exc_info=True)` (matches the codebase best-effort idiom; keeps the invariant strict with zero carve-outs; 2-line change in each owning file) — RECOMMENDED — or (B) teach the test_session38 scanner to skip a try/except:pass whose body is only a `sys.std*.reconfigure(...)` console-UTF-8 bootstrap (a known-safe class). Rec (A): a hygiene invariant with no exceptions is more durable than one with a special case, and the cost is trivial. Until then the full suite carries exactly these 2 reds, both isolated to non-production tooling.",
+      "logged": "2026-06-13 (xdist full-suite triage session; F4 of 4 — the only residual outside the triage session's lane)",
+      "status": "pending Brian"
+    }
+  ],
+  "design_calls_resolved_recent": [
+    {
+      "id": "CRAFT.consumable_quality_potency_model",
+      "logged": "2026-06-13",
+      "logged_by": "drop 44 (armor half) — consumable half follow-up",
+      "premise": "Option A (crafted quality SHOULD affect consumable combat output, like weapons/armor) is already Brian-greenlit under CRAFT.quality_combat_read_armor_consumables. What's OPEN is the POTENCY MODEL + scope — a balance call, not mechanical. HEAD-verified: stims grant +1D/+2D = 3-6 pips of stat_modifier via add_buff (engine/buffs.py), far above the weapon ±2-pip band; medpacs heal discrete wound levels (1/2/1) from _STIM_CATALOG in medical_commands.py; consumables store as a bare int count today (no quality persisted past the craft message).",
+      "question": "(1) Potency model: P1 = pip-delta-on-base (mirror weapons/armor — q-band [-1..+2] added to the buff's pip magnitude, hard-capped +2; a q95 stim = +1D+2 instead of +1D) vs P2 = quality-factor multiplier (mirror starship _quality_factor — scale the whole modifier ×0.5/0.75/1.0; reduces low-q rather than boosting high). (2) Do MEDPAC heal levels scale with quality at all? Recommend NO (keep discrete 1/2/1; route quality to a First-Aid roll bonus instead) — scaling heal magnitude blows up balance + churns the gundark drop-A heal pins. (3) Per-key vs per-unit quality when a stack mixes q40+q90 stims? Recommend per-key, max-on-recraft. (4) breaching_charge quality — recommend inert (ordnance, no potency mechanic).",
+      "recommendation": "P1 pip-delta cap +2 (consistent with the ratified weapon/armor band + the 'hard-capped, no power creep' greenlight); medpac heal stays discrete with quality -> First-Aid roll bonus; per-key max-on-recraft; breaching_charge inert. I'll write a short design doc (docs/design/consumable_quality_potency_v1.md) laying this out with the balance math before building, per Brian's 'design doc first if you need it' steer.",
+      "blocks": "CRAFT.armor_consumable_quality_combat consumable half (drop 45)",
+      "severity": "balance (power-creep-sensitive)",
+      "resolution": "RESOLVED 2026-06-13 on the recommended defaults (Brian: 'move forward with the consumable work… don't stall'). Built in drop 45: P1 pip-delta model, cap +1 (tighter than armor/weapon +2 for the small 3-pip stim base); medpac heal stays discrete (quality -> First-Aid roll bonus, not magnitude); per-key quality, max-on-recraft; breaching_charge quality inert. Power-creep guard pinned (q95 stim < adrenaline base). Brian can still retune any of the 4 knobs — all are single-constant changes in crafted_consumable_potency_pips or the medical_commands hook.",
+      "resolved_date": "2026-06-13"
     },
     {
       "id": "CRAFT.quality_combat_read_armor_consumables",
@@ -1790,19 +1753,50 @@
       "question": "Crafted QUALITY reaches combat for WEAPONS ONLY (Drop 19: engine/items.py crafted_combat_pips reads the equipped ItemInstance quality -> damage/accuracy, hard-capped). For ARMOR and CONSUMABLES, quality is stored-but-DECORATION: get_armor_protection (engine/character.py:457) reads only the bare worn_armor KEY (a q95 vest soaks like a q40), and crafted consumables carry no potency-from-quality. Surfaced by the crafting-integration review (2026-06-13, item 3). Option A = make them real (consistent with the Drop-19 weapon precedent); Option B = stop rendering the promise (like the stat_bonus message just dropped in drop 43). Which?",
       "recommendation": "This is a genuine BALANCE fork, not mechanical — armor-soak-by-quality + consumable-potency-by-quality are power-creep-sensitive (a q95 armor soaking far above vendor baseline shifts combat math). NOT safe to guess. If A (make real): mirror the weapon pip path (read the INSTANCE, hard-cap the quality delta like the +1D weapon cap) and BUNDLE the armor half with the TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES migration (get_armor_protection needs the instance, not the key) — land it solo on a quiet combat window, never concurrent with combat/equipment edits (review flagged combat.py/items.py/character.py as HIGH collision). The consumable half touches parser/crafting_commands.py:1296 (the consumable-deliver branch) + medical_commands.py and changes the consumable storage shape (count -> quality-bearing) — sequence AFTER any in-flight crafting edits. If B: drop the quality-implies-better framing for armor/consumables. Rec: A for armor (precedent + player expectation), but as its own carefully-sequenced drop; decide consumables separately (potion-potency power creep is the riskier half).",
       "logged": "2026-06-13 (crafting-integration review item 3; review doc HANDOFF_crafting_integration_review_2026-06-13.md). Per the main-session watch protocol: STOP+log, do not blind-integrate (HIGH combat-file collision + balance call).",
-      "status": "DECIDED 2026-06-13 — Brian: OPTION A, quality should absolutely matter for armor AND consumables (precedent-consistent with weapons). NOT YET BUILT — this is a careful, combat-collision-prone drop, greenlit with direction: (armor) read the worn-armor INSTANCE quality in get_armor_protection and fold a HARD-CAPPED quality delta into soak (mirror the weapon +1D pip-cap discipline so no power creep); BUNDLE with the TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES migration (get_armor_protection needs the instance, not the bare key) and land solo on a quiet combat window (review flagged combat.py/items.py/character.py as HIGH collision). (consumables) thread quality into potency (heal amount / buff magnitude), capped; touches the consumable storage shape (count -> quality-bearing) + medical_commands.py, sequence AFTER any in-flight crafting edits. Build as its own drop, not blind same-day. Promoted to a tier_1/tier_2 build item."
+      "status": "DECIDED 2026-06-13 — Brian: OPTION A, quality should absolutely matter for armor AND consumables (precedent-consistent with weapons). NOT YET BUILT — this is a careful, combat-collision-prone drop, greenlit with direction: (armor) read the worn-armor INSTANCE quality in get_armor_protection and fold a HARD-CAPPED quality delta into soak (mirror the weapon +1D pip-cap discipline so no power creep); BUNDLE with the TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES migration (get_armor_protection needs the instance, not the bare key) and land solo on a quiet combat window (review flagged combat.py/items.py/character.py as HIGH collision). (consumables) thread quality into potency (heal amount / buff magnitude), capped; touches the consumable storage shape (count -> quality-bearing) + medical_commands.py, sequence AFTER any in-flight crafting edits. Build as its own drop, not blind same-day. Promoted to a tier_1/tier_2 build item.",
+      "resolution": "RESOLVED Option A (Brian: 'quality should absolutely matter'). ARMOR half shipped drop 44. CONSUMABLE half's remaining OPEN question is the potency MODEL — re-logged as CRAFT.consumable_quality_potency_model. This umbrella fork is closed.",
+      "resolved_date": "2026-06-13"
     },
     {
       "id": "CRAFT.rare_resource_no_vendor",
-      "raised": "2026-06-13",
-      "priority": "LOW (loop closes via harvest; non-blocking)",
-      "question": "`rare` is the only base resource type with no `buyresources` entry — NPC_RESOURCE_PRICES (parser/crafting_commands.py:1580-1587) omits it, so a non-wilderness player can't BUY past a rare-material bottleneck (they must harvest it). Surfaced by the crafting-integration review (item 1). Is the rare-no-vendor gate INTENTIONAL (rare = earned through harvest/hunts, looks deliberate), or an oversight to close with one NPC_RESOURCE_PRICES line?",
-      "recommendation": "Looks deliberate (rare materials being harvest/hunt-gated rather than purchasable is a sensible sink-side design — it keeps the wilderness loop relevant and stops a credits-rich player from buying past content). Recommend CONFIRM intentional + leave as-is. If Brian wants it buyable: one line in NPC_RESOURCE_PRICES (trivial, no other change). Quick confirm, not a build.",
-      "logged": "2026-06-13 (crafting-integration review item 1)",
-      "status": "RESOLVED 2026-06-13 — Brian: KEEP rare materials gated (intentional sink-side design). Rare is PLAYER-SOURCED, not vendor-bought: adventurers harvest/hunt it (krayt dragons -> deep_dune_iron; Coruscant Underworld harvest -> scavenged_republic_tech; anomalies) and crafters acquire it from them via player give/trade. This is the intended crafter<->adventurer economic interdependence. No NPC_RESOURCE_PRICES line added. No further action."
-    }
-  ],
-  "design_calls_resolved_recent": [
+      "date_resolved": "2026-06-13",
+      "decision": "RESOLVED per recommendation: KEEP rare materials harvest/hunt-gated (not vendor-purchasable). Confirmed deliberate by the crafting-integration review (HANDOFF_crafting_integration_review_2026-06-13.md) — it's a sensible sink-side design that keeps the wilderness loop meaningful. Non-blocking. (LOW call closed.)"
+    },
+    {
+      "id": "CRAFT.breaching_obstacle_placement",
+      "date_resolved": "2026-06-13",
+      "decision": "DELIVERED Drop 42 (commit a7f40e3) — breaching-obstacle world-data seeding + authored obstacles, the world-placement path for the Drop-40 breach mechanic. Heavy option (c) gating real map exits correctly deferred per the recommendation (touches exit schema + map-safety)."
+    },
+    {
+      "id": "CRAFT.mines_breaching_split",
+      "date_resolved": "2026-06-13",
+      "decision": "RESOLVED + part DELIVERED. Split per the recommendation: (A) breaching charges shipped Drop 40 (commit 0afece2 — breach verb + demolitions check, single-use consume). (B) placed mines remain LOW-DEFER to post-launch."
+    },
+    {
+      "id": "CRAFT.HOOK.force_detector_model",
+      "date_resolved": "2026-06-13",
+      "decision": "RESOLVED per recommendation: DEFER to post-launch. Era-fit is weak — in the Clone Wars (~20 BBY) Jedi are the ESTABLISHMENT, not hunted; Force-detection-as-anti-Jedi is a GCW/Inquisitor trope. If built later: trigger on ACTIVE power use only, faction-gated. (LOW call closed as DEFER.)"
+    },
+    {
+      "id": "DIRECTOR.faction_model_cw_mapping",
+      "date_resolved": "2026-06-13",
+      "decision": "DELIVERED Drop 39 (commit ec92ea8) — Director CW faction-order mapping layer at the two boundaries (compile_digest output + VALID_FACTION_CODES/order application) per the recommendation. (Note: the broader Director scope review 2026-06-13 found the digest still keys zones by the imperial/rebel axis — a separate, larger item, see director_scope_and_adaptive_spend_v1.md.)"
+    },
+    {
+      "id": "WORLDEVENT.flag_effect_consumers",
+      "date_resolved": "2026-06-13",
+      "decision": "DELIVERED Drops 36-37 (commits 294679b, 698dade) — the 5 world-event FLAG effects (rare_vendor, krayt_bounty, distress, hutt_auction, brawl) built as THIN CONSUMERS over existing systems per the recommendation, pinned by tests/test_worldevent_flag_consumers.py. Design question moot."
+    },
+    {
+      "id": "ECON.commissary_sellback_model",
+      "date_resolved": "2026-06-13",
+      "decision": "DELIVERED Drop 38 (commit 1c0376c) — anti-laundering refund + bind-to-channel sellback model shipped, addressing the credit-laundering binding constraint the preliminary reasoning identified."
+    },
+    {
+      "id": "CRAFT.harvest_skill_flavor",
+      "date_resolved": "2026-06-13",
+      "decision": "RESOLVED per recommendation: Survival baseline + per-region skill override. The per-region override even shipped Drop 41 (commit 54a9375, Republic-tech salvage -> Search). WEG-ladder-correct, consistent with the harvest engine. (Brian-resolvable LOW call closed under the standing overnight-autonomy posture.)"
+    },
     {
       "id": "TEST.exit_hang_leaked_resource",
       "date_resolved": "2026-06-12",

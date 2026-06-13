@@ -517,7 +517,13 @@ class TestConsumptionPersistsToDb(unittest.TestCase):
         else:
             last_attrs = last_attrs_raw
         consumables = last_attrs.get("consumables", {})
-        self.assertEqual(consumables.get("stimpack", 0), 2)
+        # CRAFT.consumable_quality_potency: consumables now store
+        # {"count", "quality"} (was a bare int) — read the count via the
+        # canonical normalizer (tolerant of both shapes).
+        from engine.buffs import _normalize_consumable_entry
+        self.assertEqual(
+            _normalize_consumable_entry(consumables.get("stimpack", 0))["count"],
+            2)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

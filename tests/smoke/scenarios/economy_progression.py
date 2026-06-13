@@ -194,11 +194,16 @@ async def e7_full_craft_loop(h):
 
     if "added to your consumables" in low:
         # Success path: the consumable token must actually exist.
+        # CRAFT.consumable_quality_potency: consumables now store a
+        # {"count", "quality"} dict (was a bare int) — read the count via the
+        # canonical normalizer so this tolerates both shapes.
+        from engine.buffs import _normalize_consumable_entry
         fresh = await h.get_char(char_id)
         fattrs = _json.loads(fresh.get("attributes") or "{}")
-        count = (fattrs.get("consumables") or {}).get("medpac", 0)
+        raw = (fattrs.get("consumables") or {}).get("medpac", 0)
+        count = _normalize_consumable_entry(raw)["count"]
         assert count >= 1, (
-            f"craft reported success but consumables.medpac={count}")
+            f"craft reported success but consumables.medpac={raw}")
     else:
         # Legit failed/fumbled roll: output must say so, not be empty.
         assert any(k in low for k in

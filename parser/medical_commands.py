@@ -907,6 +907,16 @@ async def _execute_stim_roll(ctx: CommandContext, target_session,
     # Re-check at consume time defends against the rare case where
     # the medic offered, then somehow lost the stim (admin tool,
     # crash recovery, etc.) before the target accepted.
+    # CRAFT.consumable_quality_potency: read the crafted quality BEFORE consuming
+    # (quality is per-key, so order is moot — but reading first keeps
+    # consume_consumable a clean bool). Threaded into the buff magnitude (stims)
+    # or the heal roll (medpacs) below. Default 50 (vendor) → 0-pip, no change.
+    try:
+        from engine.buffs import get_consumable_quality
+        _consumable_quality = get_consumable_quality(
+            medic_char, offer["consumable_key"])
+    except Exception:
+        _consumable_quality = 50
     try:
         from engine.buffs import consume_consumable
         consumed = consume_consumable(medic_char, offer["consumable_key"])
@@ -961,6 +971,17 @@ async def _execute_stim_roll(ctx: CommandContext, target_session,
         # §3.6 overdose risk: forcing a second stim over an active one
         # is harder (+5 difficulty). T2.10.c.
         difficulty += 5
+
+    # CRAFT.consumable_quality_potency: for HEAL-kind consumables (medpacs),
+    # crafted quality makes the kit more RELIABLE rather than larger — its heal
+    # magnitude stays discrete (1/2/1), but the quality pip eases the First-Aid
+    # roll (lower effective difficulty). A fine medpac is easier to apply
+    # cleanly; a shoddy one is fussier. Stims get their boost in magnitude
+    # instead (above), so they don't also get this — no double-dip. q50 → 0.
+    # See docs/design/consumable_quality_potency_v1.md §3.
+    if spec.get("heal_wound_levels", 0):
+        from engine.items import crafted_consumable_potency_pips
+        difficulty -= crafted_consumable_potency_pips(_consumable_quality)
 
     result = perform_skill_check(
         medic_char, spec["skill"], difficulty,
@@ -1112,8 +1133,26 @@ async def _execute_stim_roll(ctx: CommandContext, target_session,
         return
 
     # ── Success: apply the buff ────────────────────────────────────
+    # CRAFT.consumable_quality_potency: scale the buff magnitude by the crafted
+    # quality pip (cap +1, floor -1 — see docs/design/consumable_quality_potency_v1.md).
+    # The funnel converts quality→pip; we add it to each stat in the template's
+    # stat_modifiers (floored at 0 so a shoddy stim is weaker but never a debuff)
+    # and pass the scaled dict as an add_buff override. q50 → 0 pip → template
+    # unchanged (vendor parity), so this is a no-op for legacy/vendor stims.
     try:
-        add_buff(target_char, spec["buff_type"])
+        from engine.buffs import BUFF_TEMPLATES
+        from engine.items import crafted_consumable_potency_pips
+        _potency = crafted_consumable_potency_pips(_consumable_quality)
+        if _potency:
+            _base_mods = BUFF_TEMPLATES.get(
+                spec["buff_type"], {}).get("stat_modifiers", {})
+            _scaled = {
+                stat: max(0, pips + _potency)
+                for stat, pips in _base_mods.items()
+            }
+            add_buff(target_char, spec["buff_type"], stat_modifiers=_scaled)
+        else:
+            add_buff(target_char, spec["buff_type"])
         await ctx.db.save_character(
             target_char["id"],
             attributes=target_char.get("attributes", "{}"),

@@ -298,6 +298,37 @@ def has_active_stim(char: dict) -> bool:
 # after a consume_consumable() call to durably record the deduction.
 
 
+def _normalize_consumable_entry(v) -> dict:
+    """Coerce one consumables[key] value to the canonical ``{"count", "quality"}``
+    shape, tolerating BOTH storage generations (CRAFT.consumable_quality_potency).
+
+    - legacy bare int  → ``{"count": v, "quality": 50}``  (vendor baseline —
+      pre-migration stims keep working at q50 potency, no DB migration needed)
+    - new dict         → ``{"count": int(...), "quality": int(...)}``  (defaults
+      a missing/garbled quality to 50)
+    - anything else    → ``{"count": 0, "quality": 50}``
+
+    Quality is per-KEY (stims are fungible); the delivery write takes the max on
+    re-craft so a better craft always upgrades the stack. See
+    docs/design/consumable_quality_potency_v1.md §4.
+    """
+    if isinstance(v, bool):  # guard: bool is an int subclass
+        return {"count": 0, "quality": 50}
+    if isinstance(v, int):
+        return {"count": v if v >= 0 else 0, "quality": 50}
+    if isinstance(v, dict):
+        try:
+            cnt = int(v.get("count", 0))
+        except (TypeError, ValueError):
+            cnt = 0
+        try:
+            q = int(v.get("quality", 50))
+        except (TypeError, ValueError):
+            q = 50
+        return {"count": cnt if cnt >= 0 else 0, "quality": q}
+    return {"count": 0, "quality": 50}
+
+
 def _read_consumables_dict(char: dict) -> dict:
     """Return the consumables dict from char attributes, or {}.
 
@@ -305,6 +336,10 @@ def _read_consumables_dict(char: dict) -> dict:
     or a dict (in-memory shape). Returns a *new* dict on each call
     when the underlying attributes are a string — callers wanting
     to mutate must use ``_write_consumables_dict``.
+
+    The per-key VALUES are returned as-stored (legacy bare int OR the new
+    ``{"count", "quality"}`` dict) — use ``_normalize_consumable_entry`` to read
+    a value uniformly.
     """
     attrs = char.get("attributes")
     if isinstance(attrs, str):
@@ -350,16 +385,26 @@ def has_consumable(char: dict, key: str) -> bool:
     "combat_stim", "adrenaline_shot", "focus_stim").
     """
     consumables = _read_consumables_dict(char)
-    count = consumables.get(key, 0)
-    return isinstance(count, int) and count >= 1
+    return _normalize_consumable_entry(consumables.get(key, 0))["count"] >= 1
 
 
 def get_consumable_count(char: dict, key: str) -> int:
     """Return the count of ``key`` consumables on ``char`` (0 if none
     or if the consumables dict is malformed)."""
     consumables = _read_consumables_dict(char)
-    count = consumables.get(key, 0)
-    return count if isinstance(count, int) and count >= 0 else 0
+    return _normalize_consumable_entry(consumables.get(key, 0))["count"]
+
+
+def get_consumable_quality(char: dict, key: str) -> int:
+    """Return the per-key crafted quality of ``char``'s ``key`` consumables.
+
+    Vendor baseline (50) when absent, legacy bare-int (no stored quality), or
+    malformed (CRAFT.consumable_quality_potency). The potency consumer reads this
+    BEFORE consume_consumable to scale the buff/roll — quality is per-key, so the
+    read order doesn't matter, but reading first keeps consume_consumable a clean
+    bool and avoids a signature ripple across its callers."""
+    consumables = _read_consumables_dict(char)
+    return _normalize_consumable_entry(consumables.get(key, 0))["quality"]
 
 
 def consume_consumable(char: dict, key: str) -> bool:
@@ -373,21 +418,28 @@ def consume_consumable(char: dict, key: str) -> bool:
 
     On False, no mutation occurs.
 
-    If the consumable count drops to 0, the key is removed from
-    the consumables dict entirely (avoids accumulating zero-count
-    entries on long-lived characters).
+    Migration-tolerant (CRAFT.consumable_quality_potency): reads legacy bare-int
+    AND the new ``{"count", "quality"}`` shape; on decrement it PRESERVES the
+    per-key quality (a partly-used stack keeps its quality) and REWRITES the entry
+    in the canonical dict shape. If the count drops to 0, the key is removed
+    entirely (avoids accumulating zero-count entries on long-lived characters) —
+    quality is moot once the stack is empty.
+
+    Quality of the consumed unit is available via get_consumable_quality(); this
+    stays a bool so its callers (engine/breaching.py, parser/medical_commands.py)
+    keep their truthiness contract.
     """
     consumables = _read_consumables_dict(char)
-    count = consumables.get(key, 0)
-    if not isinstance(count, int) or count < 1:
+    entry = _normalize_consumable_entry(consumables.get(key, 0))
+    if entry["count"] < 1:
         return False
-    new_count = count - 1
+    new_count = entry["count"] - 1
     # Copy the dict so we mutate our own version, not a shared one
     new_dict = dict(consumables)
     if new_count <= 0:
         new_dict.pop(key, None)
     else:
-        new_dict[key] = new_count
+        new_dict[key] = {"count": new_count, "quality": entry["quality"]}
     _write_consumables_dict(char, new_dict)
     return True
 
@@ -483,6 +535,14 @@ def add_buff(char: dict, buff_type: str, **overrides) -> dict:
             break
 
     if existing:
+        # CRAFT.consumable_quality_potency: when the re-application carries an
+        # EXPLICIT stat_modifiers override (a higher-quality crafted stim), apply
+        # it to the existing buff — otherwise refreshing a max-stacks buff would
+        # silently keep the OLD (lower-quality) magnitude and discard the new
+        # craft's potency. Only honor an explicitly-passed override (not the
+        # template default), so a plain re-apply doesn't reset to template.
+        if "stat_modifiers" in overrides:
+            existing.stat_modifiers = overrides["stat_modifiers"]
         if existing.stacks < existing.max_stacks:
             existing.stacks += 1
             existing.started_at = time.time()  # Refresh duration
