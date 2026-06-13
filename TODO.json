@@ -1637,15 +1637,6 @@
       "status": "pending Brian"
     },
     {
-      "id": "PARSER.custom_edge_directions_not_routed",
-      "raised": "2026-06-12",
-      "priority": "LOW",
-      "question": "Natural wilderness entry into the coruscant_underworld region is blocked at the PARSER level. CommandParser.process (parser/commands.py ~line 270) routes only a hardcoded set of direction words (compass + enter/leave) to MoveCommand, which is what runs _try_wilderness_entry. The coruscant_underworld edge YAML declares direction_from_room: 'deeper', which is NOT in that set, so typing 'deeper' returns 'Unknown command: deeper' and the region is reachable only via the synthetic _drop_into_wilderness path (which the new underworld_loop smoke uses). How should custom edge-directions be routed to MoveCommand?",
-      "recommendation": "(a) add 'deeper' (+ any other custom edge words) to the static dispatch list — a one-liner if 'deeper' is the only one; or (b) make the dispatch data-driven, loading the set of custom edge directions from the loaded wilderness regions at server boot (auto-covers future custom directions). Either is mechanical once chosen. LOW urgency: synthetic entry works for tests; the player-facing gap is that the Coruscant Underworld cannot be walked into yet.",
-      "logged": "2026-06-12 (surfaced by the new underworld_loop smoke, drop 21)",
-      "status": "pending Brian"
-    },
-    {
       "id": "CRAFT.harvest_skill_flavor",
       "raised": "2026-06-12",
       "priority": "LOW",
@@ -1664,6 +1655,12 @@
     }
   ],
   "design_calls_resolved_recent": [
+    {
+      "id": "PARSER.custom_edge_directions_not_routed",
+      "date_resolved": "2026-06-12",
+      "decision": "Option b (data-driven) delivered — Drop 23. CommandParser.process now merges a data-driven set into its routable-direction check: engine.wilderness_movement.get_custom_edge_directions() harvests every wilderness-edge direction_from_room word from the region YAMLs (currently {deeper, east}; 'deeper' is the Coruscant Underworld edge that previously hit 'Unknown command'). Cached after first scan, reset by clear_region_cache(), and sourced from the YAML text so it is boot-warm regardless of region-cache state — a player can type 'deeper' on the first attempt after boot. New regions/edge words auto-route on the next boot with no per-direction code edit. MoveCommand._try_wilderness_entry already matched arbitrary direction strings, so the dispatch gate was the entire gap. tests/test_parser_custom_edge_directions.py (9) pins the harvest + the dispatch predicate; 203/203 across wilderness + combat-wilderness + parser-command suites.",
+      "files": "parser/commands.py (_MOVEMENT_DIRECTIONS frozenset + data-driven dispatch), engine/wilderness_movement.py (get_custom_edge_directions + clear_region_cache reset), tests/test_parser_custom_edge_directions.py (new)"
+    },
     {
       "id": "MISSION.persistence_id_mismatch",
       "date_resolved": "2026-06-12",

@@ -655,10 +655,55 @@ def find_entry_edges_for_room(region, room_slug: str) -> list:
 
 _REGION_CACHE: dict = {}
 
+# Custom (non-compass) wilderness edge directions, harvested once from the
+# region YAMLs. The command dispatcher always routes compass words +
+# enter/leave to MoveCommand; a region edge may declare a CUSTOM
+# `direction_from_room` word (e.g. the Coruscant Underworld's "deeper")
+# that must ALSO route to MoveCommand so `_try_wilderness_entry` runs.
+# Without this the dispatcher rejects "deeper" as an unknown command and
+# the region can't be walked into. Data-driven: new regions/edge words are
+# picked up on the next server boot (PARSER.custom_edge_directions).
+_EDGE_DIRECTIONS_CACHE = None
+
 
 def get_cached_region(slug: str):
     """Return the cached WildernessRegion for this slug, or None."""
     return _REGION_CACHE.get(slug)
+
+
+def get_custom_edge_directions() -> frozenset:
+    """Lowercased set of wilderness-edge `direction_from_room` words across
+    all region YAMLs (e.g. ``{"deeper", "east"}``). Cached after the first
+    scan; ``clear_region_cache()`` resets it. Sourced from the YAML text so
+    it is independent of DB/region-cache warmth — the dispatcher can route a
+    custom edge word on the very first attempt after boot.
+    """
+    global _EDGE_DIRECTIONS_CACHE
+    if _EDGE_DIRECTIONS_CACHE is not None:
+        return _EDGE_DIRECTIONS_CACHE
+    import os
+    import re
+    import glob
+    # Only matches the data key (`  direction_from_room: deeper`), never the
+    # word inside a comment line (those start with `#`).
+    pat = re.compile(r"^\s*direction_from_room:\s*['\"]?([A-Za-z_][\w-]*)")
+    wild_dir = os.path.join(
+        "data", "worlds", "clone_wars", "wilderness")
+    dirs: set = set()
+    try:
+        for path in glob.glob(os.path.join(wild_dir, "*.yaml")):
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    for line in fh:
+                        m = pat.match(line)
+                        if m:
+                            dirs.add(m.group(1).lower())
+            except OSError:
+                continue
+    except Exception:
+        log.debug("get_custom_edge_directions scan failed", exc_info=True)
+    _EDGE_DIRECTIONS_CACHE = frozenset(dirs)
+    return _EDGE_DIRECTIONS_CACHE
 
 
 def cache_region(region) -> None:
@@ -672,7 +717,9 @@ def cache_region(region) -> None:
 
 def clear_region_cache() -> None:
     """Wipe the region cache (used by tests)."""
+    global _EDGE_DIRECTIONS_CACHE
     _REGION_CACHE.clear()
+    _EDGE_DIRECTIONS_CACHE = None
 
 
 async def get_or_load_region(db, slug: str):

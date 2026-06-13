@@ -26,6 +26,16 @@ RATE_LIMIT_BUCKET = 30      # Max burst
 RATE_LIMIT_REFILL = 5       # Tokens per second
 COMMAND_TIMEOUT = 30.0       # Seconds before a command is killed
 
+# Direction words an unregistered command is routed to MoveCommand as.
+# Compass + enter/leave are static; wilderness regions may add CUSTOM edge
+# words (e.g. "deeper") that are merged in data-driven at dispatch time via
+# engine.wilderness_movement.get_custom_edge_directions().
+_MOVEMENT_DIRECTIONS = frozenset({
+    "north", "south", "east", "west", "up", "down",
+    "northeast", "northwest", "southeast", "southwest",
+    "enter", "leave",
+})
+
 
 
 class AccessLevel:
@@ -266,12 +276,14 @@ class CommandParser:
         cmd = self.registry.get(cmd_name)
 
         if cmd is None:
-            # Try treating it as a direction (movement command)
-            if cmd_name in (
-                "north", "south", "east", "west", "up", "down",
-                "northeast", "northwest", "southeast", "southwest",
-                "enter", "leave",
-            ):
+            # Try treating it as a direction (movement command). Compass
+            # words + enter/leave always route; wilderness regions may also
+            # declare a CUSTOM edge word (e.g. the Coruscant Underworld's
+            # "deeper") that must route to MoveCommand so wilderness entry
+            # runs — loaded data-driven (PARSER.custom_edge_directions).
+            from engine.wilderness_movement import get_custom_edge_directions
+            if (cmd_name in _MOVEMENT_DIRECTIONS
+                    or cmd_name in get_custom_edge_directions()):
                 move_cmd = self.registry.get("move")
                 if move_cmd:
                     ctx.args = cmd_name
