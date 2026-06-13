@@ -557,3 +557,70 @@ def npc_refuses_buyback(item) -> bool:
     """
     return bool(getattr(item, "crafter", None)) and \
         getattr(item, "quality", 0) >= CRAFTED_NPC_BUYBACK_MAX_QUALITY
+
+
+# ── Crafted-weapon combat pip helpers (Drop 19 — OBS.quality_and_boosts_not_combat_read, Option B) ──
+#
+# These are the ONLY places where quality/experiment data translates to combat
+# numbers. All call sites must go through crafted_combat_pips / apply_damage_pips
+# — never inline the math at the call site (funnel discipline).
+
+def _quality_band_pips(quality: int) -> int:
+    """Crafted-quality → damage pip delta. Vendor (q50) = 0; shoddy = -1; fine = +1/+2."""
+    try:
+        q = int(quality)
+    except (TypeError, ValueError):
+        return 0
+    if q <= 49:
+        return -1
+    if q <= 69:
+        return 0
+    if q <= 89:
+        return 1
+    return 2  # 90-100
+
+
+def crafted_combat_pips(inst) -> tuple:
+    """(damage_pips, accuracy_pips) a crafted weapon instance contributes to combat.
+
+    WEG-faithful, hard-capped to avoid power creep (max +1D damage / +1 pip
+    to-hit over a vendor weapon). Returns (0, 0) for None / non-instances
+    (fail-open). Vendor/legacy weapons (q50, no mods) yield (0, 0).
+
+    Quality band → damage pips: ≤49=-1, 50-69=0, 70-89=+1, 90-100=+2.
+    Damage-mod boost: every full +2.0 damage_mod = +1 pip, capped +1, never
+    negative. Combined damage cap: +3 pips (= +1D), floor -1.
+    Accuracy-mod boost: every full +2.0 accuracy_mod = +1 pip, floor 0, cap +1.
+    """
+    if inst is None:
+        return 0, 0
+    try:
+        q_pips = _quality_band_pips(getattr(inst, "quality", 50))
+        # experiment damage boost: every full +2.0 damage_mod = +1 pip, capped +1, never negative
+        boost_pips = max(0, min(1, int(inst.get_mod("damage") // 2.0)))
+        dmg_pips = max(-1, min(3, q_pips + boost_pips))   # combined cap +3 (=+1D), floor -1
+        acc_pips = max(0, min(1, int(inst.get_mod("accuracy") // 2.0)))  # floor 0, cap +1
+        return dmg_pips, acc_pips
+    except Exception:
+        return 0, 0
+
+
+def apply_damage_pips(damage_str: str, pips: int) -> str:
+    """Add `pips` to a D6 damage code, preserving a leading attribute token (STR+...).
+
+    ``str(DicePool.parse(code) + pips)`` carries/borrows automatically (3 pips = 1D).
+    For 'STR+2D' (melee), parse() rejects the STR token, so add to the bonus portion
+    only and re-emit 'STR+'. Fail-open: a malformed code returns unchanged.
+    """
+    if not pips:
+        return damage_str
+    from engine.dice import DicePool
+    s = (damage_str or "").strip()
+    up = s.upper()
+    try:
+        if up.startswith("STR"):
+            bonus = up[3:].lstrip("+").strip() or "0D"
+            return f"STR+{DicePool.parse(bonus) + pips}"
+        return str(DicePool.parse(s) + pips)
+    except Exception:
+        return damage_str

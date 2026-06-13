@@ -1563,7 +1563,7 @@ class AttackCommand(BaseCommand):
             return
 
         # Phase 2: Resolve equipped weapon defaults
-        equipped_weapon, default_skill, default_damage = \
+        equipped_weapon, default_skill, default_damage, accuracy_pips = \
             self._resolve_equipped_weapon(char)
 
         # Phase 3: Parse args → target_name, skill, damage, cp, stun
@@ -1602,7 +1602,8 @@ class AttackCommand(BaseCommand):
         declared = await self._declare_and_broadcast(
             ctx, combat, char, target_char, target_session,
             skill, damage, cp_spend, stun_mode,
-            equipped_weapon, default_damage, room_id)
+            equipped_weapon, default_damage, room_id,
+            accuracy_pips=accuracy_pips)
 
         # Phase 8b: consume single-use ordnance (Gundark Drop D,
         # 2026-06-11). Faucets and sinks land together: craftable
@@ -1658,25 +1659,30 @@ class AttackCommand(BaseCommand):
         return sec
 
     def _resolve_equipped_weapon(self, char):
-        """Return (equipped_weapon_or_None, default_skill, default_damage)."""
+        """Return (equipped_weapon, default_skill, default_damage, accuracy_pips).
+
+        default_damage now carries the crafted-quality + experiment damage pip
+        delta (OBS.quality_and_boosts_not_combat_read, Option B). accuracy_pips
+        is the to-hit delta, applied later at declaration. Vendor/legacy weapons
+        (q50, no mods) yield a zero delta, so existing behavior is unchanged.
+        """
         default_skill = "blaster"
         default_damage = "4D"
         equipped_weapon = None
+        accuracy_pips = 0
 
-        # Canonical per-slot read (equipment-instance untangle). The old code
-        # read a top-level "key" field — legacy shape 2 — which silently
-        # returned "" under canonical storage, so `attack` ignored the
-        # equipped weapon and fell back to the default blaster.
-        from engine.items import equipment_keys
-        weapon_key = equipment_keys(char.get("equipment", "{}"))["weapon"]
+        from engine.items import read_equipment, crafted_combat_pips, apply_damage_pips
+        inst = read_equipment(char.get("equipment", "{}"))["weapon"]
+        weapon_key = inst.key if inst else ""
         if weapon_key:
             from engine.weapons import get_weapon_registry
-            wr = get_weapon_registry()
-            equipped_weapon = wr.get(weapon_key)
+            equipped_weapon = get_weapon_registry().get(weapon_key)
             if equipped_weapon:
                 default_skill = equipped_weapon.skill
                 default_damage = equipped_weapon.damage
-        return equipped_weapon, default_skill, default_damage
+                dmg_pips, accuracy_pips = crafted_combat_pips(inst)
+                default_damage = apply_damage_pips(default_damage, dmg_pips)
+        return equipped_weapon, default_skill, default_damage, accuracy_pips
 
     def _parse_attack_args(self, raw_args, default_skill, default_damage):
         """Parse 'attack <target> [cp N] [stun] [with <skill>] [damage <dice>]'.
@@ -2005,7 +2011,8 @@ class AttackCommand(BaseCommand):
     async def _declare_and_broadcast(self, ctx, combat, char, target_char,
                                      target_session, skill, damage, cp_spend,
                                      stun_mode, equipped_weapon,
-                                     default_damage, room_id):
+                                     default_damage, room_id,
+                                     accuracy_pips=0):
         """Validate stun, declare the ATTACK action, broadcast to attacker,
         room, and target session if applicable."""
         # v22: validate stun mode against weapon capability
@@ -2028,6 +2035,13 @@ class AttackCommand(BaseCommand):
             weapon_damage=damage,
             cp_spend=cp_spend,
             stun_mode=stun_mode,
+            # Drop 19: accuracy pip bonus from crafted weapon quality/experiments.
+            # Apply only when this attack uses the equipped weapon (not an explicit
+            # override). Same guard as the Drop D consume block and the weapon_name
+            # tag: if damage == default_damage, the equipped weapon is in play.
+            accuracy_bonus_pips=(
+                accuracy_pips if (equipped_weapon and damage == default_damage) else 0
+            ),
         )
         err = combat.declare_action(char["id"], action)
         if err:

@@ -173,6 +173,10 @@ class CombatAction:
     cp_spend: int = 0         # Character Points to spend on this action
     stun_mode: bool = False   # v22: weapon set to stun — caps result at unconscious
     description: str = ""     # Flavor text
+    # Drop 19 (OBS.quality_and_boosts_not_combat_read, Option B): pip bonus from
+    # crafted-weapon accuracy experiments. Captured at declaration as a primitive
+    # int so _resolve_attack never re-reads equipment (combat isolation preserved).
+    accuracy_bonus_pips: int = 0
 
 
 @dataclass
@@ -1133,6 +1137,14 @@ class CombatInstance:
         if actor.aim_bonus > 0:
             attack_pool = DicePool(attack_pool.dice + actor.aim_bonus, attack_pool.pips)
             actor.aim_bonus = 0
+
+        # Drop 19 (OBS.quality_and_boosts_not_combat_read, Option B): add the
+        # crafted-weapon accuracy pip bonus captured at declaration. A sub-3-pip
+        # bonus stays sub-die; __post_init__ normalises carry automatically.
+        # NPCs and explicit-override attacks default to accuracy_bonus_pips=0.
+        _acc_pips = getattr(action, "accuracy_bonus_pips", 0)
+        if _acc_pips:
+            attack_pool = DicePool(attack_pool.dice, attack_pool.pips + _acc_pips)
 
         # ── Find defender's defensive action ──
         defense_action = None
