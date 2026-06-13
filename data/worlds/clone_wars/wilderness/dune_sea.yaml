@@ -186,6 +186,9 @@ encounters:
       terrains: [dune]
       min_distance_from_edge: 4
       faction_gate: tusken_pressure_high
+      min_band: 3            # DIFF.3: a six-rider Tusken war party is a
+                             # Contested-Marches+ threat — the deep-desert
+                             # encounter, gated out of a Frontier edge tile.
       narrative: "Bantha horns rise on the dune line ahead — six riders, paint-marked, in a hunting wedge. You have wandered into a war party's circuit."
       payload:
         npc_template: tusken_warrior

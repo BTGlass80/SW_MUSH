@@ -1459,6 +1459,17 @@ class MoveCommand(BaseCommand):
                 }
             except Exception:
                 _carried_keys = None
+            # DIFF.3 (2026-06-13): resolve the destination tile's threat
+            # band so the encounter selector can gate the pool by tier
+            # (Frontier tiles draw trivial fauna only; Deep Wilds unlock
+            # minibosses). Failure-tolerant — a read error resolves to
+            # the Settled default rating (2).
+            try:
+                from engine.threat_band import get_effective_threat
+                _tile_band = (await get_effective_threat(
+                    char["room_id"], ctx.db)).rating
+            except Exception:
+                _tile_band = 2
             enc_result = roll_encounter(
                 region,
                 new_x=result.new_x,
@@ -1467,6 +1478,7 @@ class MoveCommand(BaseCommand):
                 char=char,
                 db=ctx.db,
                 carried_keys=_carried_keys,
+                tile_band_rating=_tile_band,
             )
             if (not enc_result.fired
                     and enc_result.reason == "averted_by_excluder"):

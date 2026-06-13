@@ -150,8 +150,17 @@ class TestTextureEncounterTick:
         triggered_lawless = 0
         iterations = 5000
 
-        for security, zone in [("secured", "corellia_orbit"),
-                               ("lawless", "kessel_approach")]:
+        # drop 30 (2026-06-13): retargeted from the GCW zones
+        # corellia_orbit / kessel_approach — those are NOT in the CW
+        # engine.npc_space_traffic.ZONES map (post GCW-retirement), so
+        # _texture_trigger_probability fell back to _TEXTURE_BASE_PROB
+        # for BOTH, making this a pure RNG coin-flip that failed
+        # consistently. coruscant_orbit (Republic core, prob 0.005) vs
+        # nar_shaddaa_orbit (Hutt space, prob 0.010) are real CW zones
+        # with a 2× probability gap, so the assertion is now
+        # deterministic over 5000 iterations.
+        for security, zone in [("secured", "coruscant_orbit"),
+                               ("lawless", "nar_shaddaa_orbit")]:
             ship = self._make_ship(sublight=True, zone=zone)
             mock_session = MagicMock()
             mock_session.character = {"id": 1}

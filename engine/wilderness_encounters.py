@@ -94,6 +94,16 @@ class EncounterEntry:
                                                # entry only eligible while that event is
                                                # active in the region's zone. Zone-aware
                                                # (unlike the global storm get_effect path).
+    # DIFF.3 (2026-06-13): threat-band eligibility. The entry is eligible
+    # only when the destination tile's threat-band RATING (1=Frontier ..
+    # 4=Deep Wilds, from engine.threat_band) falls in [min_band, max_band].
+    # Defaults (1, 4) = eligible in every band — so an un-banded pool is
+    # unchanged. A Frontier tile (rating 1) draws only min_band==1 entries
+    # (trivial fauna / low thugs); a Deep Wilds tile (rating 4) unlocks the
+    # min_band>=3 minibosses gated out everywhere else. Per
+    # difficulty_tiers_design_v1.md §6.
+    min_band: int = 1
+    max_band: int = 4
     narrative: str = ""                        # player-facing line on fire
     # Forward-compat metadata: spawn refs, item drops, weather config.
     # The selector doesn't read these — they're consumed by follow-up
@@ -188,13 +198,20 @@ def _filter_pool(
     char,
     db=None,
     region=None,
+    tile_band_rating: int = 2,
 ) -> list:
     """Filter the encounter pool by per-tile criteria.
 
-    Per design §5.1:
+    Per design §5.1 + DIFF.3:
       1. terrain match (empty terrains list = applies to all terrains)
       2. min_distance_from_edge satisfied
       3. faction_gate evaluates True
+      4. event_gate evaluates True
+      5. threat-band eligibility: the tile's band rating
+         (1=Frontier .. 4=Deep Wilds) falls in [min_band, max_band].
+
+    ``tile_band_rating`` defaults to 2 (Settled) so a caller that doesn't
+    resolve the band still gets sane mid-tier behavior.
     """
     out = []
     for e in entries:
@@ -203,6 +220,11 @@ def _filter_pool(
             continue
         # Distance-from-edge filter
         if distance_from_edge < e.min_distance_from_edge:
+            continue
+        # DIFF.3 threat-band eligibility: a too-hot entry is gated out of
+        # a low-band tile (no miniboss in Frontier) and a trivial entry
+        # capped below the tile's band is gated out of a high-band tile.
+        if not (e.min_band <= tile_band_rating <= e.max_band):
             continue
         # Faction gate (currently stub-True)
         if e.faction_gate and not evaluate_faction_gate(e.faction_gate, char, db=db):
@@ -272,6 +294,7 @@ def roll_encounter(
     rng=None,
     now: Optional[float] = None,
     carried_keys: Optional[set] = None,
+    tile_band_rating: int = 2,
 ) -> EncounterRollResult:
     """Roll for a wilderness encounter at ``(new_x, new_y)``.
 
@@ -331,6 +354,7 @@ def roll_encounter(
         char=char,
         db=db,
         region=region,
+        tile_band_rating=tile_band_rating,
     )
     if not eligible:
         # Per design §5.1: "If no encounters match filters, move
@@ -461,6 +485,18 @@ def parse_encounter_pool(raw: dict, *, terrains: dict, report) -> EncounterPool:
                     f"region.terrains; dropping that reference."
                 )
 
+        # DIFF.3: threat-band eligibility bounds. Clamp to [1, 4] and
+        # normalize a reversed pair (min>max) to "eligible everywhere" so
+        # a corpus typo can't silently zero out an entry.
+        _min_band = max(1, min(4, int(e.get("min_band", 1))))
+        _max_band = max(1, min(4, int(e.get("max_band", 4))))
+        if _min_band > _max_band:
+            report.warnings.append(
+                f"encounter {eid!r}: min_band {_min_band} > max_band "
+                f"{_max_band}; treating as eligible in all bands."
+            )
+            _min_band, _max_band = 1, 4
+
         entry = EncounterEntry(
             id=eid,
             type=etype,
@@ -469,6 +505,8 @@ def parse_encounter_pool(raw: dict, *, terrains: dict, report) -> EncounterPool:
             min_distance_from_edge=max(0, int(e.get("min_distance_from_edge", 0))),
             faction_gate=str(e.get("faction_gate", "")),
             event_gate=str(e.get("event_gate", "")),
+            min_band=_min_band,
+            max_band=_max_band,
             narrative=str(e.get("narrative", "")),
             payload=dict(e.get("payload") or {}),
         )

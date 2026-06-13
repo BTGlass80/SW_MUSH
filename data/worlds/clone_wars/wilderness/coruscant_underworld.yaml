@@ -232,6 +232,9 @@ encounters:
       terrains: [bottom_dark, service_tunnel]
       min_distance_from_edge: 4
       faction_gate: underworld_gang_pressure_high
+      min_band: 3            # DIFF.3: the Maze's tier-2 predators are a
+                             # Contested-Marches+ threat — gated out of
+                             # any Frontier/Settled sub-tile.
       narrative: "Something moves in the shadow ahead — not human. The shape resolves into multiple smaller shapes, low to the ground, eyes catching what little light there is. The Maze has scouts here, and they have seen you first."
       payload:
         npc_template: maze_predator
