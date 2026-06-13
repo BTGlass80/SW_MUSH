@@ -6,6 +6,17 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-13 — T5 ship-part effects verified + crafting-review integration — *drop 43*
+Closes T2.DEF.t5_ship_part_items and integrates the safe findings from the parallel crafting-integration review (`HANDOFF_crafting_integration_review_2026-06-13.md`), per the main-session watch protocol (integrate non-conflicting, STOP+log real forks).
+- **T5 ship parts — verified ALREADY WORKING, NOT rebuilt.** The TODO's "items are inert in combat/space" was STALE: the full loop exists (CRAFT.P0.3/P0.4) — `output_type: component` craft → `type: ship_component` item carrying quality → `+ship/install` (`_install_mod`: owner+docked-gated, reads the component quality via `_quality_factor`, caps via `_MOD_MAX_*`, install skill check) → `get_effective_stats` applies the quality-scaled boost to live ship stats. The review's "thread the INSTANCE quality, don't key off the bare key" trap is already handled correctly here (unlike the armor bug). Building a new install mechanic would've been a redundant parallel system — so I verified instead of rebuilt. `tests/test_t5_ship_part_effects.py` (5) locks in craft-shape → install → quality-scaled effective-stat boost end-to-end, with a regression guard that quality is genuinely consulted (not decoration).
+- **Review item 2 integrated (contained, safe):** dropped the phantom `stat_note` in `engine/crafting.py::resolve_craft` that promised "a minor/significant combat bonus" off `QUALITY_TIERS.stat_bonus` — which NO combat code reads (the real crafted-weapon bonus is the independent `items.py` pip path). Stopped rendering a promise the engine doesn't honor. No test asserted the old strings.
+- **Review items 1 & 3 LOGGED as design calls (Brian's, not built):** `CRAFT.quality_combat_read_armor_consumables` (item 3 — the balance-sensitive fork: should crafted armor-soak / consumable-potency scale with quality like weapons do? gates 2 HIGH-collision combat-file wirings; bundle armor with the equipment-instance migration) + `CRAFT.rare_resource_no_vendor` (item 1 — confirm the rare-material no-vendor gate is intentional). Neither blind-integrated (HIGH combat-file collision + balance judgment).
+- **No conflict with any shipped drop** — the review verified the crafting/harvest/economy backbone (incl. the t5 trainers, commissary sellback, breaching consumable) is clean.
+- **Verified:** `tests/test_t5_ship_part_effects.py` (5) + 99-test crafting regression + smoke green.
+- **Files:** `engine/crafting.py`, `tests/test_t5_ship_part_effects.py` (new), `CHANGELOG.md`, `TODO.json`.
+
+---
+
 ### 2026-06-13 — Breaching obstacle placement: world-data seeding + authored obstacles — *drop 42*
 Gives the breach verb (drop 40) real authored targets, resolving the placement half of CRAFT.breaching_obstacle_placement (Brian: "seed objects now, exits later"). Adds the FIRST object-seeding-at-world-build path (objects were runtime-only before — corpses, drops, admin).
 - **`engine/world_writer.py::_write_breachables`** (called from `write_world_bundle` after exits): for each room with an optional `breachables:` list in its YAML (additive — captured in `room.raw`), creates a `breachable` object (type/name/room_id/data.breach_difficulty/data.reveal). **Idempotent** — dedup by (type, name, room_id) so a rebuild/restart never piles up duplicate obstacles (mirrors create_exit's no-op-on-duplicate). `owner_id=NULL` (world-placed; `owner_id=0` would violate the objects→characters FK — caught by the real-DB test). Failure-tolerant per entry.

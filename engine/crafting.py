@@ -761,11 +761,17 @@ def resolve_craft(
     char_name = char.get("name", "Unknown")
     stats = quality_to_stats(final_quality)
 
+    # CRAFT integration review (2026-06-13, item 2): the old stat_note
+    # promised "a minor/significant combat bonus" off QUALITY_TIERS'
+    # `stat_bonus`, but NOTHING in combat reads stat_bonus — the real
+    # crafted-WEAPON quality bonus is the independent pip path in
+    # engine/items.py (crafted_combat_pips, Drop 19), which folds quality
+    # into damage/accuracy directly. The message was a phantom promise.
+    # Dropped (the review's "stop rendering the promise" option) rather
+    # than leave a claim the engine doesn't honor. (Whether armor/
+    # consumable quality SHOULD reach combat is the separate balance fork
+    # CRAFT.quality_combat_read_armor_consumables.)
     stat_note = ""
-    if stats.get("stat_bonus") == "minor":
-        stat_note = " It carries a minor combat bonus."
-    elif stats.get("stat_bonus") == "moderate":
-        stat_note = " It bears a significant combat enhancement."
 
     consume_components(char, schematic["components"])
 
