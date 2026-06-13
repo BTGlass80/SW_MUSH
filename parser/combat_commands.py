@@ -1721,9 +1721,15 @@ class AttackCommand(BaseCommand):
             target_name = before_with.strip()
             remainder = after_with.strip()
             if " damage " in remainder.lower():
-                skill_part, dmg_part = remainder.lower().split(" damage ", 1)
-                skill = skill_part.strip()
-                damage = dmg_part.strip()
+                # Slice the original-case `remainder` (not .lower()) so an
+                # explicit dice token keeps its case (e.g. 4D+2). The bare
+                # `damage` path below already preserves case; keeping the two
+                # consistent matters because `damage == default_damage` gates
+                # the crafted accuracy-pip bonus AND the single-use consume —
+                # a lowercased "4d+2" would never equal the uppercase default.
+                _idx = remainder.lower().index(" damage ")
+                skill = remainder[:_idx].strip().lower()
+                damage = remainder[_idx + len(" damage "):].strip()
             else:
                 skill = remainder
         elif " damage " in al:

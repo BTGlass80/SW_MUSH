@@ -620,7 +620,15 @@ def apply_damage_pips(damage_str: str, pips: int) -> str:
     try:
         if up.startswith("STR"):
             bonus = up[3:].lstrip("+").strip() or "0D"
-            return f"STR+{DicePool.parse(bonus) + pips}"
+            bonus_pool = DicePool.parse(bonus) + pips
+            # When the bonus collapses to zero dice, emit a clean "STR+N" /
+            # "STR" rather than "STR+0D+1" / "STR+0D". Same combat value
+            # (combat parses "+N" as N pips), without the "0D" noise. A -1
+            # pip on a bare STR can't borrow below STR, so it collapses to a
+            # plain "STR" — the sub-die penalty is unrepresentable.
+            if bonus_pool.dice == 0:
+                return f"STR+{bonus_pool.pips}" if bonus_pool.pips > 0 else "STR"
+            return f"STR+{bonus_pool}"
         return str(DicePool.parse(s) + pips)
     except Exception:
         return damage_str

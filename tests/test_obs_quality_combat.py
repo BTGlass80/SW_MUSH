@@ -175,6 +175,22 @@ class TestApplyDamagePips(unittest.TestCase):
         # lowercase str+2D should also work
         self.assertEqual(self.f("str+2D", 3), "STR+3D")
 
+    def test_bare_str_add_1_clean(self):
+        # bare "STR" (no bonus dice) + 1 pip → clean "STR+1", not "STR+0D+1"
+        self.assertEqual(self.f("STR", 1), "STR+1")
+
+    def test_bare_str_add_2_clean(self):
+        self.assertEqual(self.f("STR", 2), "STR+2")
+
+    def test_bare_str_add_3_carries_to_die(self):
+        # 3 pips = +1D even off a bare STR base
+        self.assertEqual(self.f("STR", 3), "STR+1D")
+
+    def test_bare_str_subtract_1_collapses_to_str(self):
+        # a -1 pip can't borrow below STR (no bonus dice); re-emit clean "STR"
+        # (same combat value as the old "STR+0D"). The penalty is unrepresentable.
+        self.assertEqual(self.f("STR", -1), "STR")
+
     def test_malformed_fail_open(self):
         # unrecognised code returns unchanged
         self.assertEqual(self.f("xyz", 2), "xyz")
@@ -182,6 +198,41 @@ class TestApplyDamagePips(unittest.TestCase):
     def test_malformed_empty_parses_as_zero_die(self):
         # DicePool.parse("") returns DicePool(0,0); +1 pip → "0D+1" (not an error)
         self.assertEqual(self.f("", 1), "0D+1")
+
+
+class TestParseAttackArgsDamageCase(unittest.TestCase):
+    """Drop 19 review follow-up: the explicit `with <skill> damage <dice>`
+    path must preserve the dice token's case, so an explicit override that
+    equals the (always-uppercase) default_damage compares EQUAL. That guard
+    gates both the crafted accuracy-pip bonus and the single-use consume —
+    a lowercased "4d+2" would silently differ from the default "4D+2"."""
+
+    def _parser(self):
+        from parser.combat_commands import AttackCommand
+        return AttackCommand.__new__(AttackCommand)
+
+    def test_with_damage_path_preserves_case(self):
+        cmd = self._parser()
+        _, skill, damage, _, _ = cmd._parse_attack_args(
+            "pirate with blaster damage 4D+2", "blaster", "4D")
+        self.assertEqual(damage, "4D+2")  # not "4d+2"
+        self.assertEqual(skill, "blaster")
+
+    def test_bare_damage_path_preserves_case(self):
+        # the non-`with` path always preserved case; pin it so the two stay aligned
+        cmd = self._parser()
+        _, _, damage, _, _ = cmd._parse_attack_args(
+            "pirate damage 4D+2", "blaster", "4D")
+        self.assertEqual(damage, "4D+2")
+
+    def test_explicit_override_equal_to_default_compares_equal(self):
+        # q95 weapon → default_damage "4D+2"; typing it back via the `with`
+        # path must round-trip equal so the equipped-weapon guards still fire.
+        cmd = self._parser()
+        default_damage = "4D+2"
+        _, _, damage, _, _ = cmd._parse_attack_args(
+            "pirate with blaster damage 4D+2", "blaster", default_damage)
+        self.assertEqual(damage, default_damage)
 
 
 class TestResolveEquippedWeaponIntegration(unittest.TestCase):

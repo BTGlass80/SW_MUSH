@@ -1139,8 +1139,9 @@ class CombatInstance:
             actor.aim_bonus = 0
 
         # Drop 19 (OBS.quality_and_boosts_not_combat_read, Option B): add the
-        # crafted-weapon accuracy pip bonus captured at declaration. A sub-3-pip
-        # bonus stays sub-die; __post_init__ normalises carry automatically.
+        # crafted-weapon accuracy pip bonus captured at declaration. __post_init__
+        # normalises the pip carry automatically — the +1 pip may promote a die
+        # boundary when the pool already carries 2 pips (e.g. 5D+2 -> 6D).
         # NPCs and explicit-override attacks default to accuracy_bonus_pips=0.
         _acc_pips = getattr(action, "accuracy_bonus_pips", 0)
         if _acc_pips:
