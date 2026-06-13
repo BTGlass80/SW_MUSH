@@ -25,6 +25,43 @@ from tests.harness import harness  # noqa: F401  (fixture re-export)
 
 
 # ───────────────────────────────────────────────────────────────────────────
+# aiosqlite worker threads -> daemon (2026-06-12 — root fix for the exit hang)
+# ───────────────────────────────────────────────────────────────────────────
+#
+# aiosqlite runs each connection on a dedicated worker thread (a
+# threading.Thread blocked on a queue waiting for the next DB op); it only
+# stops when the connection is explicitly closed. Any test that opens a
+# Database/connection without closing it in teardown leaves that NON-DAEMON
+# worker thread alive, which blocks interpreter exit — so `python -m pytest`
+# hangs after writing its summary, and orphaned processes pile up. A
+# post-pytest thread audit confirmed these ``_connection_worker_thread``
+# threads (aiosqlite/core.py) are the SOLE survivors.
+#
+# Marking the worker threads daemon lets the interpreter exit cleanly even
+# when a test leaks a connection — idle worker threads (blocked on the op
+# queue) are killed at shutdown, which is safe. This is the real fix; it
+# replaces the SW_MUSH_HARD_EXIT os._exit band-aid from drop 22.
+try:
+    import aiosqlite as _aiosqlite
+
+    _orig_conn_init = _aiosqlite.Connection.__init__
+
+    def _daemon_conn_init(self, *args, **kwargs):
+        _orig_conn_init(self, *args, **kwargs)
+        try:
+            # aiosqlite spawns self._thread = Thread(target=_connection_worker_
+            # thread) (core.py:90) with no daemon flag. Mark it daemon so a
+            # leaked (unclosed) connection can't block interpreter exit.
+            self._thread.daemon = True
+        except Exception:
+            pass
+
+    _aiosqlite.Connection.__init__ = _daemon_conn_init
+except Exception:
+    pass
+
+
+# ───────────────────────────────────────────────────────────────────────────
 # Stale-duplicate-tree guard (May 19 2026 packaging-phantom remediation)
 # ───────────────────────────────────────────────────────────────────────────
 #
@@ -143,42 +180,3 @@ def pytest_runtest_makereport(item, call):
     except RuntimeError:
         # No loop available (post-teardown). Skip dump.
         pass
-
-
-# ───────────────────────────────────────────────────────────────────────────
-# Process-exit hard-stop (2026-06-12 — run_all_tests.bat hang workaround)
-# ───────────────────────────────────────────────────────────────────────────
-#
-# Symptom: the full suite (and ANY harness-booting run) writes its pytest
-# summary, then HANGS — the `python -m pytest` process never returns, so
-# run_all_tests.bat never reaches its completion echo and the run must be
-# Ctrl+C'd. Confirmed a process-EXIT hang (post-summary), NOT a hung test:
-# the 120s pytest-timeout never fires, and the orphaned pytest processes pile
-# up in the task list. Root cause is a leaked non-daemon-thread-backed
-# resource (e.g. a stray aiosqlite connection a non-foundation test opens and
-# never closes) keeping the interpreter alive after the loop is gone.
-# Tracked as TEST.exit_hang_leaked_resource (TODO design_calls_pending_brian).
-#
-# The test RESULTS are already complete when pytest_sessionfinish runs, so —
-# when SW_MUSH_HARD_EXIT is set (run_all_tests.bat sets it) — flush the log
-# and hard-exit with the real pytest status. trylast so the terminal summary
-# is printed first. Opt-in via env var so interactive / IDE runs are
-# unaffected. Remove once the leaked resource is fixed.
-
-_HARD_EXIT = {"status": 0}
-
-
-@pytest.hookimpl(trylast=True)
-def pytest_sessionfinish(session, exitstatus):
-    # Capture the real status; the hard-exit happens later in unconfigure so
-    # the terminal summary (counts + the FAILED/ERROR lines run_all_tests.bat
-    # greps for) is fully written first.
-    _HARD_EXIT["status"] = int(exitstatus)
-
-
-def pytest_unconfigure(config):
-    if os.environ.get("SW_MUSH_HARD_EXIT"):
-        import sys
-        sys.stdout.flush()
-        sys.stderr.flush()
-        os._exit(_HARD_EXIT["status"])

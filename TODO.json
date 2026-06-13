@@ -1628,15 +1628,6 @@
   ],
   "design_calls_pending_brian": [
     {
-      "id": "TEST.exit_hang_leaked_resource",
-      "raised": "2026-06-12",
-      "priority": "MEDIUM",
-      "question": "The full pytest suite (and any harness-booting run: full smoke, test_cities_phase4b, the combat suite) writes its summary then HANGS at process exit — a leaked non-daemon-thread-backed resource keeps the interpreter alive, so run_all_tests.bat never returns and orphaned pytest processes accumulate. Drop 22 added an env-gated os._exit workaround (SW_MUSH_HARD_EXIT, set by run_all_tests.bat) so the gate finishes cleanly, but the leak itself is unfixed. Which test/fixture leaks, and what is the resource (stray aiosqlite connection? a threading.Thread without daemon=True? a ThreadPoolExecutor not shut down)?",
-      "recommendation": "Bisect: foundation smoke EXITS CLEAN but full smoke HANGS, so a specific scenario triggers it. Prime suspects: a scenario/engine path opening an aiosqlite connection outside the harness-tracked srv.db and never closing it (the per-connection thread lingers), or a Thread/executor started without daemon=True. To name the survivor, enumerate threading.enumerate() (non-daemon) in pytest_unconfigure just before the os._exit, or run a hanging subset under faulthandler.dump_traceback_later to capture the alive thread's stack. Fix the offending teardown, then REMOVE the conftest band-aid. MEDIUM — the band-aid unblocks the gate; this is hygiene + resource waste.",
-      "logged": "2026-06-12 (surfaced while diagnosing Brian's run_all_tests.bat freeze, drop 22)",
-      "status": "pending Brian"
-    },
-    {
       "id": "CRAFT.harvest_skill_flavor",
       "raised": "2026-06-12",
       "priority": "LOW",
@@ -1709,6 +1700,11 @@
     }
   ],
   "design_calls_resolved_recent": [
+    {
+      "id": "TEST.exit_hang_leaked_resource",
+      "date_resolved": "2026-06-12",
+      "decision": "ROOT-FIXED (Drop 22). Diagnosed via a post-pytest threading.enumerate() audit: the suite completes (8333 passed) but hangs at process EXIT because aiosqlite spawns one NON-DAEMON threading.Thread(target=_connection_worker_thread) per connection (aiosqlite/core.py:90, v0.22.1), and tests that open a Database without closing it leave that thread alive (blocked on its op-queue), blocking interpreter exit (test_cities_phase4b alone leaked 15). FIX: tests/conftest.py wraps aiosqlite.Connection.__init__ to set self._thread.daemon = True at import, so a leaked connection can't block exit and the interpreter exits naturally with full teardown. Proven: cities + harness smoke (all previously hung) return rc=0 on their own (26 passed, no env var, no timeout-kill). The interim SW_MUSH_HARD_EXIT os._exit band-aid (conftest + run_all_tests.bat) was REMOVED. Residual hygiene: tests still don't close their connections (now harmless since the threads are daemon); a later pass could close them in teardown."
+    },
     {
       "id": "PARSER.custom_edge_directions_not_routed",
       "date_resolved": "2026-06-12",
