@@ -1540,3 +1540,28 @@ schematics:
     output_type: weapon
     output_key: anti_vehicle_grenade
     base_cost: 750
+
+  # CRAFT.mines_breaching_split (2026-06-13): the breaching charge — a
+  # shaped charge for blowing open sealed obstacles (the `breach` verb).
+  # output_type: consumable (lands in attributes.consumables; consumed by
+  # engine/breaching.py, NOT a combat weapon — it breaches obstacles, not
+  # people). Lawful demolitions craft (taught by Kayson, like the lawful
+  # grenades). Difficulty 17 = 5D ladder + Avail 2.
+  - key: breaching_charge
+    name: "Breaching Charge"
+    skill_required: demolitions
+    difficulty: 17
+    trainer_npc: Kayson
+    components:
+      - type: chemical
+        quantity: 2
+        min_quality: 40
+      - type: metal
+        quantity: 1
+        min_quality: 40
+      - type: rare
+        quantity: 1
+        min_quality: 40
+    output_type: consumable
+    output_key: breaching_charge
+    base_cost: 150

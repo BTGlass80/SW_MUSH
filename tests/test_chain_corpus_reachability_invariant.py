@@ -154,6 +154,7 @@ def _build_command_registry():
     from parser.chain_commands import register_chain_commands
     from parser.questline_commands import register_questline_commands
     from parser.meditate_command import register_meditate_command
+    from parser.demolitions_commands import register_demolitions_commands
     from parser.faction_commands import register_faction_commands
     from parser.faction_leader_commands import (
         register_faction_leader_commands)
@@ -215,6 +216,7 @@ def _build_command_registry():
     register_chain_commands(registry)
     register_questline_commands(registry)
     register_meditate_command(registry)
+    register_demolitions_commands(registry)
     register_faction_commands(registry)
     register_faction_leader_commands(registry)
     register_narrative_commands(registry)

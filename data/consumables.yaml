@@ -56,3 +56,12 @@ consumables:
     name: "Combat Stim"
     category: stim
     description: "Military-grade combat stimulant. The crash afterward is part of the price."
+
+  # CRAFT.mines_breaching_split (2026-06-13): NOT a stim — its use-time
+  # consumer is the `breach` verb (engine/breaching.py::attempt_breach),
+  # not _STIM_CATALOG. Stored in attributes.consumables like the others;
+  # consumed via engine.buffs.consume_consumable.
+  breaching_charge:
+    name: "Breaching Charge"
+    category: ordnance
+    description: "A shaped charge for blowing open sealed doors, gates, and barriers. Single use; breaches obstacles, not people."

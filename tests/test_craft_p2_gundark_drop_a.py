@@ -69,24 +69,44 @@ class TestConsumablesRegistry(unittest.TestCase):
 
 
 class TestThreeWayConsumableParity(unittest.TestCase):
-    """Every consumable output_key must exist in BOTH the identity
-    registry (data/consumables.yaml) and the mechanics catalog
-    (_STIM_CATALOG) — and the catalog must carry no orphans. This is
-    the pin that keeps the bifurcated design honest."""
+    """Every consumable output_key must exist in the identity registry
+    (data/consumables.yaml) and have a real USE-TIME mechanic — either in
+    the stim/medical mechanics catalog (_STIM_CATALOG) OR in a sanctioned
+    non-stim consumer (NON_STIM_CONSUMERS below). No inert tokens; the
+    catalog must carry no orphans. This pin keeps the bifurcated design
+    honest while allowing non-stim consumables (which have their mechanic
+    in a dedicated verb, not _STIM_CATALOG)."""
+
+    # Consumables whose use-time mechanic lives OUTSIDE _STIM_CATALOG.
+    # Each maps to where its real consumer is — so this stays an explicit,
+    # documented exception, not a silent gap.
+    NON_STIM_CONSUMERS = {
+        # CRAFT.mines_breaching_split (2026-06-13): consumed by the
+        # `breach` verb -> engine/breaching.py::attempt_breach.
+        "breaching_charge": "engine/breaching.py::attempt_breach",
+    }
 
     def test_schematic_outputs_have_identity_and_mechanics(self):
         from engine.consumables import get_all_consumables
         from parser.medical_commands import _STIM_CATALOG
         identity = set(get_all_consumables())
-        mechanics = set(_STIM_CATALOG)
+        mechanics = set(_STIM_CATALOG) | set(self.NON_STIM_CONSUMERS)
         outputs = {s["output_key"] for s in _schematics()
                    if s["output_type"] == "consumable"}
         self.assertEqual(outputs - identity, set(),
                          "craftable consumables missing identity rows")
         self.assertEqual(outputs - mechanics, set(),
                          "craftable consumables with NO use-time "
-                         "mechanics (inert tokens — the mandate "
-                         "violation this drop fixed)")
+                         "mechanics (inert tokens — either add to "
+                         "_STIM_CATALOG or NON_STIM_CONSUMERS with its "
+                         "real consumer)")
+
+    def test_breaching_charge_has_a_real_consumer(self):
+        # The non-stim exception must point at a real module/symbol — not
+        # a way to smuggle in inert tokens.
+        from engine.breaching import attempt_breach, BREACHING_CHARGE_KEY
+        self.assertEqual(BREACHING_CHARGE_KEY, "breaching_charge")
+        self.assertTrue(callable(attempt_breach))
 
     def test_catalog_has_no_orphans(self):
         from engine.consumables import get_all_consumables

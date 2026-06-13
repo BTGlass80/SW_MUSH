@@ -105,6 +105,7 @@ from parser.crafting_commands import register_crafting_commands
 from parser.tutorial_commands import register_tutorial_commands
 from parser.chain_commands import register_chain_commands
 from parser.questline_commands import register_questline_commands
+from parser.demolitions_commands import register_demolitions_commands
 from parser.faction_commands import register_faction_commands
 from parser.faction_leader_commands import register_faction_leader_commands
 from parser.narrative_commands import register_narrative_commands
@@ -220,6 +221,8 @@ class GameServer:
         # abandon surface (the `quests` command). Onboarding chains are
         # chargen-assigned; questlines are started deliberately mid-game.
         register_questline_commands(self.registry)
+        # CRAFT.mines_breaching_split (2026-06-13): the `breach` command.
+        register_demolitions_commands(self.registry)
         register_faction_commands(self.registry)
         register_faction_leader_commands(self.registry)
         register_narrative_commands(self.registry)
