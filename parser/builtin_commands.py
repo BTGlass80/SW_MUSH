@@ -3282,6 +3282,11 @@ class EquipCommand(BaseCommand):
                     displaced, name=(d_w.name if d_w else displaced.key)))
         char["equipment"] = write_equipment(weapon=item, armor=_slots["armor"])
         await ctx.db.save_character(char["id"], equipment=char["equipment"])
+        # The equipment JSON changed → drop the cached Character object so the
+        # next get_char_obj() rebuilds its load-time snapshots (armor_soak_pips +
+        # _equipment_slots) from the fresh equipment. Without this, a consumer of
+        # those cached fields would read pre-equip state mid-session.
+        ctx.session.invalidate_char_obj()
         crafter = f" (crafted by {item.crafter})" if item.crafter else ""
         await ctx.session.send_line(
             ansi.success(
@@ -3324,6 +3329,11 @@ class UnequipCommand(BaseCommand):
         # serialize_equipment(None) wrote "{}" and wiped armor too.)
         char["equipment"] = write_equipment(weapon=None, armor=_slots["armor"])
         await ctx.db.save_character(char["id"], equipment=char["equipment"])
+        # The equipment JSON changed → drop the cached Character object so the
+        # next get_char_obj() rebuilds its load-time snapshots (armor_soak_pips +
+        # _equipment_slots) from the fresh equipment. Without this, a consumer of
+        # those cached fields would read pre-equip state mid-session.
+        ctx.session.invalidate_char_obj()
         await ctx.session.send_line(ansi.success(f"  You put away your {wname}."))
 
 
@@ -3404,6 +3414,11 @@ class WearCommand(BaseCommand):
                     gear_type="armor"))
         char["equipment"] = write_equipment(weapon=_slots["weapon"], armor=item)
         await ctx.db.save_character(char["id"], equipment=char["equipment"])
+        # The equipment JSON changed → drop the cached Character object so the
+        # next get_char_obj() rebuilds its load-time snapshots (armor_soak_pips +
+        # _equipment_slots) from the fresh equipment. Without this, a consumer of
+        # those cached fields would read pre-equip state mid-session.
+        ctx.session.invalidate_char_obj()
 
         dex_note = ""
         if armor.dexterity_penalty:
@@ -3455,6 +3470,11 @@ class RemoveArmorCommand(BaseCommand):
         # Clear only the armor slot — preserve the equipped weapon.
         char["equipment"] = write_equipment(weapon=_slots["weapon"], armor=None)
         await ctx.db.save_character(char["id"], equipment=char["equipment"])
+        # The equipment JSON changed → drop the cached Character object so the
+        # next get_char_obj() rebuilds its load-time snapshots (armor_soak_pips +
+        # _equipment_slots) from the fresh equipment. Without this, a consumer of
+        # those cached fields would read pre-equip state mid-session.
+        ctx.session.invalidate_char_obj()
         await ctx.session.send_line(ansi.success(f"  You remove your {aname}."))
 
 
@@ -3513,6 +3533,8 @@ class RepairCommand(BaseCommand):
         char["credits"] = await ctx.db.adjust_credits(char["id"], -cost, "repair")
         await ctx.db.save_character(
             char["id"], equipment=char["equipment"])
+        # Equipment condition changed → invalidate the cached Character snapshot.
+        ctx.session.invalidate_char_obj()
         await ctx.session.send_line(
             ansi.success(
                 f"  {wname} repaired! {item.condition_bar}  "
@@ -3711,6 +3733,8 @@ class SellCommand(BaseCommand):
             char["id"], sale_price, "item_sale")
         await ctx.db.save_character(
             char["id"], equipment=char["equipment"])
+        # Sold a slotted item → invalidate the cached Character snapshot.
+        ctx.session.invalidate_char_obj()
 
         # ── Player Cities Phase 4b (May 22 2026): city tax ─────────────
         # NPC vendor sale: per Phase 4b design call #2, the player's

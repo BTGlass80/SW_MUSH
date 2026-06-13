@@ -60,8 +60,13 @@ def generate_scan_result(
     }
     condition = wound_descs.get(wound, "Healthy")
 
-    # Equipped weapon
-    weapon = target.get("equipped_weapon", "")
+    # Equipped weapon. The char DICT has no "equipped_weapon" column (that's a
+    # Character-object attribute) — the loadout lives in the "equipment" JSON, so
+    # read the slot key via equipment_keys (the old dict read was dead and always
+    # reported "Unarmed"). TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES Stage 1.
+    from engine.items import equipment_keys
+    _eq = equipment_keys(target.get("equipment", "{}"))
+    weapon = _eq["weapon"]
     armed = f"Yes ({weapon.replace('_', ' ').title()})" if weapon else "Unarmed"
 
     demeanor = random.choice(_DEMEANORS)
@@ -96,8 +101,9 @@ def generate_scan_result(
                 f"affiliated"
             )
 
-        # Check for armor
-        armor = target.get("worn_armor", "")
+        # Check for armor (same dead-dict-read fix as the weapon above — read
+        # the slot key from the equipment JSON, not the absent dict column).
+        armor = _eq["armor"]
         if armor:
             lines.append(
                 f"  \033[1mArmor:\033[0m      {armor.replace('_', ' ').title()}"

@@ -285,6 +285,10 @@ def _make_sabacc_ctx(db, char):
             self.sent = []
         async def send_line(self, line):
             self.sent.append(line)
+        def invalidate_char_obj(self):
+            # No-op cache hook (the real Session caches a Character object;
+            # equip/sell call this to drop the stale snapshot).
+            pass
 
     class _SM:
         async def broadcast_to_room(self, *_, **__):
@@ -584,6 +588,10 @@ def _make_basic_ctx(db, char, command: str, args: str):
             self.sent = []
         async def send_line(self, line):
             self.sent.append(line)
+        def invalidate_char_obj(self):
+            # No-op cache hook (the real Session caches a Character object;
+            # equip/sell call this to drop the stale snapshot).
+            pass
 
     class _SM:
         async def broadcast_to_room(self, *_, **__):

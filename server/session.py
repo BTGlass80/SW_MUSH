@@ -198,26 +198,39 @@ def _build_loadout(char: dict) -> dict:
     }
 
     try:
-        equip = char.get("equipment")
-        if equip:
-            if isinstance(equip, str):
-                equip = json.loads(equip)
+        # The equipment column stores per-slot ItemInstances whose to_dict()
+        # emits key/condition/quality/crafter — NOT name/damage/type. The old
+        # code read those never-present keys, so the web loadout sidebar was
+        # always blank. Resolve the display fields from the weapon REGISTRY (by
+        # key) and the per-instance state (condition/quality/crafter) from the
+        # ItemInstance (TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES Stage 1).
+        from engine.items import read_equipment
+        from engine.weapons import get_weapon_registry
+        slots = read_equipment(char.get("equipment", "{}"))
+        wr = get_weapon_registry()
 
-            weapon_data = equip.get("weapon")
-            if weapon_data and isinstance(weapon_data, dict):
-                loadout["weapon"] = {
-                    "name": weapon_data.get("name", ""),
-                    "damage": weapon_data.get("damage", ""),
-                    "type": weapon_data.get("type", ""),
-                }
+        # Emit ONLY the name the SPA actually consumes (client.html reads
+        # loadout.weapon.name / loadout.armor.name). Resolve it from the weapon
+        # REGISTRY by key — the old code read name/damage/type off the equipment
+        # JSON, but that's the ItemInstance.to_dict() shape (key/condition/
+        # quality/crafter), so the name was always blank. Richer per-instance
+        # display (condition/quality/crafter) is deferred to a drop that ships
+        # the SPA consumer alongside it — no phantom producer fields here.
+        winst = slots.get("weapon")
+        if winst:
+            wdef = wr.get(winst.key)
+            loadout["weapon"] = {
+                "name": (wdef.name if wdef
+                         else winst.key.replace("_", " ").title()),
+            }
 
-            armor_data = equip.get("armor")
-            if armor_data and isinstance(armor_data, dict):
-                loadout["armor"] = {
-                    "name": armor_data.get("name", ""),
-                    "location": armor_data.get("location", ""),
-                    "bonus": armor_data.get("bonus", ""),
-                }
+        ainst = slots.get("armor")
+        if ainst:
+            adef = wr.get(ainst.key)
+            loadout["armor"] = {
+                "name": (adef.name if adef
+                         else ainst.key.replace("_", " ").title()),
+            }
     except Exception as _e:
         log.debug("silent except in server/session.py:197: %s", _e, exc_info=True)
 

@@ -315,6 +315,19 @@ class Character:
     # and cached here as a primitive, mirroring the Drop-19 weapon-pip isolation
     # (combat never re-reads equipment). 0 = vendor baseline / no crafted armor.
     armor_soak_pips: int = 0
+    # Load-time snapshot of the per-slot equipment ItemInstances
+    # (TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES Stage 1). from_db_dict
+    # already calls read_equipment to derive the bare keys; we keep the parsed
+    # instances here too, so a consumer that needs condition/quality/crafter/mods
+    # can read them off the Character WITHOUT re-parsing the equipment JSON. The
+    # bare-key fields above stay canonical for registry lookups (the 56 key-only
+    # consumers are untouched). Exposed via the equipped_weapon_inst /
+    # worn_armor_inst properties below. NOT live — like armor_soak_pips this is a
+    # one-shot-at-load snapshot; equip/wear/craft mutate char['equipment'] on the
+    # session dict, so MUTATION sites must read_equipment(char['equipment'])
+    # directly, never trust this cache for post-load mods.
+    _equipment_slots: dict = field(
+        default_factory=lambda: {"weapon": None, "armor": None})
     # Lane A Phase B: a creature's faithful natural attack (skill + concrete
     # dice), set from the char_sheet's `natural_attack` marker. Empty for
     # ordinary characters. Honored first by npc_combat_ai._get_npc_weapon so
@@ -514,6 +527,22 @@ class Character:
             log.debug("silent except in engine/character.py:297: %s", _e, exc_info=True)
         return DicePool(0, 0)
 
+    @property
+    def equipped_weapon_inst(self):
+        """The equipped-weapon ItemInstance (condition/quality/crafter/mods), or
+        None. Load-time snapshot — see the _equipment_slots field note. Bare-key
+        registry lookups should still use self.equipped_weapon; this is for
+        consumers that need the richer per-instance state without re-parsing the
+        equipment JSON (TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES Stage 1)."""
+        return self._equipment_slots.get("weapon")
+
+    @property
+    def worn_armor_inst(self):
+        """The worn-armor ItemInstance (condition/quality/crafter/mods), or None.
+        Load-time snapshot — see the _equipment_slots field note. Bare-key
+        registry lookups should still use self.worn_armor."""
+        return self._equipment_slots.get("armor")
+
     def advance_skill(self, skill_name: str, skill_registry: SkillRegistry) -> int:
         """
         Advance a skill by 1 pip. Returns CP cost.
@@ -631,6 +660,13 @@ class Character:
 
         skills = {k: str(v) for k, v in self.skills.items()}
 
+        # HAZARD (TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES): this writes
+        # the equipment column as BARE KEYS, dropping the instance condition/
+        # quality/crafter that _equipment_slots holds. to_db_dict is NOT an
+        # equipment-persistence path — durable equipment writes go through
+        # save_character(equipment=write_equipment(...)) at the verb layer, which
+        # preserves the instance. Do not route an equipped-gear save through
+        # to_db_dict or it silently downgrades the slot to vendor defaults.
         equipment = {}
         if self.equipped_weapon:
             equipment["weapon"] = self.equipped_weapon
@@ -711,6 +747,16 @@ class Character:
 
         # Weapon
         char.equipped_weapon = sheet.get("weapon", "")
+        # Keep the instance snapshot consistent with the bare key (sheet NPCs are
+        # vendor-grade, so a default ItemInstance is correct) so equipped_weapon_inst
+        # doesn't return None for an armed NPC. worn_armor isn't set from the
+        # sheet here, so the armor slot stays None.
+        if char.equipped_weapon:
+            from engine.items import ItemInstance
+            char._equipment_slots = {
+                "weapon": ItemInstance(key=char.equipped_weapon),
+                "armor": None,
+            }
 
         # Lane A Phase B: faithful creature natural attack (skill + dice).
         _na = sheet.get("natural_attack") or {}
@@ -797,6 +843,9 @@ class Character:
         char.equipped_weapon = _slots["weapon"].key if _slots["weapon"] else ""
         char.worn_armor = _slots["armor"].key if _slots["armor"] else ""
         char.armor_soak_pips = crafted_armor_soak_pips(_slots["armor"])
+        # Cache the parsed instances for equipped_weapon_inst / worn_armor_inst
+        # (Stage 1 of the equipment-instance untangle) — see the field note.
+        char._equipment_slots = _slots
 
         return char
 
