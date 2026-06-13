@@ -9,16 +9,20 @@ the overnight drops 25–32). **NOT merged to main or roadmap** — your
 
 ## TL;DR
 
-Eight drops (33–40), all committed + verified, on the feature branch.
-Completed the **T5 master-trainer questline arc** end-to-end, wrote the
-**ambient-NPC-life** post-launch design you asked for, logged the
-**parallel tooling session's** records, and cleared the **entire greenlit
-runway**: all 5 world-event flag consumers, commissary sellback,
-Director CW faction mapping, and breaching charges. Then hit the edge of
-what's design-resolved and **logged 2 genuine forks** (with recommended
-shapes) rather than build them blind. Every drop: targeted tests +
-reachability/walkthrough where relevant + the read-only verify fan-out +
-227-test smoke green. Nothing merged.
+**11 drops (33–43) + 2 bookkeeping commits + 2 post-launch design docs**,
+all committed + verified, on the feature branch. Completed the **T5
+master-trainer questline arc** end-to-end; cleared the **entire greenlit
+runway** (all 5 world-event flag consumers, commissary sellback, Director
+CW faction mapping, breaching charges + world-seeded obstacles, harvest
+skill override); **verified the t5 ship-part install loop already works**
+(didn't rebuild a redundant mechanic); wrote **3 post-launch designs**
+(ambient NPC life T3.22, party skill challenges T3.23) + logged the
+parallel tooling session's records. **Coordinated live with the parallel
+crafting-integration review**: read its findings when they landed,
+integrated the safe one (dropped a phantom craft-message promise), logged
+its 2 real forks for you, and confirmed zero conflict with shipped work.
+Every drop: targeted tests + reachability/walkthrough where relevant +
+227-test smoke green. **Nothing merged** — your `run_all_tests.bat` gate.
 
 ---
 
@@ -34,6 +38,11 @@ reachability/walkthrough where relevant + the read-only verify fan-out +
 | `1c0376c` | 38 | Commissary sellback (anti-laundering refund + bind-to-channel) |
 | `ec92ea8` | 39 | Director CW faction-order mapping layer |
 | `0afece2` | 40 | Breaching charges (breach verb + demolitions check) |
+| `68470a7` | — | Bookkeeping: handoff refresh + 2 logged forks |
+| `54a9375` | 41 | Harvest per-region skill override (Republic-tech salvage → Search) |
+| `a7f40e3` | 42 | Breaching obstacle placement — world-data seeding + 3 authored obstacles |
+| `254b7e1` | — | Design: party skill challenges (post-launch, T3.23) |
+| `5160eec` | 43 | T5 ship-part effects VERIFIED (already working) + crafting-review integration |
 
 ---
 
@@ -99,42 +108,57 @@ pending you — the deferred settings.json allow/deny lines).
 
 ---
 
-## Forks I LOGGED instead of building (your judgment needed)
+## The 3 "go for all 3" items — all resolved
+After I logged them as forks, you said "go for all 3." Final state:
+1. **Harvest skill override (drop 41)** — you chose per-region override;
+   `coruscant_underworld → search` for Republic-tech salvage. DONE.
+2. **Breaching obstacle placement (drop 42)** — you chose "seed objects
+   now, exits later"; added the first object-seeding-at-world-build path +
+   3 authored obstacles. DONE (map-exit gating deferred).
+3. **T5 ship-part install (drop 43)** — turned out **already working** (the
+   "inert" claim was stale; CRAFT.P0.3/P0.4 wired it). I verified instead
+   of rebuilding (a new mechanic would've been redundant) and closed the
+   verification gap with `test_t5_ship_part_effects.py`. DONE.
 
-I cleared everything design-resolved, then stopped at genuine forks
-rather than guess (your "log real forks" rule):
-1. **`CRAFT.breaching_obstacle_placement`** (drop 40) — the breach
-   mechanic works, but no world-data object-seeding path exists, so
-   obstacles are admin-placeable now but not authored at scale. Open:
-   seeding loader vs admin-only vs gate-real-map-exits (the map-entangled
-   option). Rec: small additive object-seeding loader; defer exit-gating.
-2. **`T2.DEF.t5_ship_part_items`** — the hyperdrive/ion t5 parts craft but
-   are inert in space; wiring them needs a NEW install mechanic (no
-   `install` verb / ship-component apply path exists). Logged with a
-   recommended shape (player `install <part>` at a shipyard, consume on
-   install, one-per-stat cap, write to ships.systems, owner-gated). Not
-   built blind.
-3. **`CRAFT.harvest_skill_flavor`** — confirmed `HARVEST_SKILL='survival'`
-   is live (the rec's status quo). Left as your flavor call (Survival vs a
-   post-launch Technical/Search override); no build, not blocking.
+(Your install sub-decisions — shipyard full vs aboard ×0.66, consume,
+one-per-stat cap — are how the EXISTING `_install_mod` already behaves,
+modulo the exact ×0.66; if you want the aboard-vs-shipyard reduced-boost
+split specifically, that's a small follow-up on the working base — noted,
+not built, since the base already installs+effects correctly.)
 
-(Plus the standing pending calls from before this session — see
+## NEW pending forks (from the crafting-integration review — your call)
+The parallel review landed mid-session; I integrated the safe finding and
+logged its 2 real forks:
+1. **`CRAFT.quality_combat_read_armor_consumables`** — crafted quality
+   reaches combat for WEAPONS only; for ARMOR/CONSUMABLES it's decoration
+   (a q95 vest soaks like q40). Make it real (precedent-consistent but
+   power-creep-sensitive) vs stop promising it? Balance call; gates 2
+   HIGH-collision combat-file wirings (bundle armor with the
+   equipment-instance migration). Logged with a recommendation.
+2. **`CRAFT.rare_resource_no_vendor`** — `rare` is the only base type with
+   no vendor buy entry (harvest-only). Intentional (looks deliberate) or
+   close with one line? Quick confirm.
+
+(Plus the standing pending calls from before — see
 `design_calls_pending_brian`.)
 
 ## State of the suite
-- Every drop's targeted tests green. Full chain/questline/crafting/
-  rewards/economy/director/breaching regressions green. **227-test smoke
-  green after each drop.** Reachability invariant green for all chains.
+- Every drop's targeted tests green. Full chain/questline/crafting/rewards/
+  economy/director/breaching/ship-part/world-writer regressions green.
+  **227-test smoke green after every code drop** (8 smoke passes this
+  session). Reachability invariant green for all chains.
 - **I did NOT run `run_all_tests.bat`** (the full ~7,700 Windows suite) —
   that's your merge gate. I expect green; the authoritative run is yours.
 
 ## Suggested next session
-1. Run `run_all_tests.bat`; merge `drop/t5-questline-engine` (33–40) if
-   green. (Separately decide on `roadmap` 25–32.)
+1. Run `run_all_tests.bat`; merge `drop/t5-questline-engine` (drops 33–43)
+   if green. (Separately decide on `roadmap` 25–32.)
 2. Apply `TOOL.settings_apply` after the parallel session's settings.json
    lands.
-3. The 3 forks above when you want to steer them.
-4. Pre-launch: ambient-life **Phase 0** DB scaffolding (T3.22).
+3. The 2 NEW crafting-review forks above (armor/consumable quality — the
+   balance call; rare-vendor — a quick confirm), plus the standing forks.
+4. Pre-launch: ambient-life **Phase 0** DB scaffolding (T3.22). Post-launch
+   designs ready: ambient life (T3.22), party skill challenges (T3.23).
 
 ## Untracked strays (NOT mine — parallel sessions)
 `data/guides/*`, `Guide_27`, `tools/guide_lint.py`, `docs/dev/` (guides
