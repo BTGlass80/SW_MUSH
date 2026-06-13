@@ -221,19 +221,29 @@ async def _persist_attrs(db, char: dict, attrs: dict) -> None:
 # ── Step-matching helpers ─────────────────────────────────────────────
 
 
-def _get_active_step(char_attrs: dict, corpus):
+def _get_active_step(char_attrs: dict, corpus,
+                     state_key: str = None):
     """Return (chain, current_step) or (None, None) if no active chain.
 
     Wraps tutorial_chains.get_current_step but also returns the chain
-    (which the matcher needs for the eventual advance call)."""
-    from engine.tutorial_chains import get_current_step, get_active_chain_id
-    chain_id = get_active_chain_id(char_attrs)
+    (which the matcher needs for the eventual advance call).
+
+    T5-questline arc (2026-06-13): `state_key` selects which slot to
+    read — the onboarding `tutorial_chain` or the mid-game
+    `active_questline`. Defaults to the onboarding slot
+    (_TUTORIAL_CHAIN_KEY) so legacy callers are unchanged."""
+    from engine.tutorial_chains import (
+        get_current_step, get_active_chain_id, _TUTORIAL_CHAIN_KEY,
+    )
+    if state_key is None:
+        state_key = _TUTORIAL_CHAIN_KEY
+    chain_id = get_active_chain_id(char_attrs, state_key)
     if not chain_id:
         return None, None
     chain = corpus.by_id().get(chain_id)
     if chain is None:
         return None, None
-    step = get_current_step(char_attrs, corpus)
+    step = get_current_step(char_attrs, corpus, state_key)
     return chain, step
 
 
@@ -413,7 +423,7 @@ async def on_command_executed(db, char: dict, command: str,
     (HUD update, prompt) regardless of whether chain advancement
     works."""
     try:
-        return await _try_advance(
+        return await _try_advance_all_slots(
             db, char,
             event_type="command_executed",
             matcher=lambda c: _match_command_executed(c, command, args),
@@ -434,7 +444,7 @@ async def on_talk_to_npc(db, char: dict, npc_name: str) -> bool:
     after the NPC dialogue dispatched. Returns True iff a chain step
     advanced."""
     try:
-        return await _try_advance(
+        return await _try_advance_all_slots(
             db, char,
             event_type="talk_to_npc",
             matcher=lambda c: _match_talk_to_npc(c, npc_name),
@@ -474,28 +484,45 @@ async def on_combat_won(db, char: dict, defeated_template: str,
         # Resolve the active step's combat_won template (if any) so we
         # only accumulate kills that count toward THIS step. This is a
         # cheap pre-check; _try_advance re-resolves the step itself.
-        cumulative = defeated_count
+        #
+        # T5-questline arc (2026-06-13): the cumulative tally is
+        # per-slot (onboarding vs questline), so we accumulate into
+        # whichever slot has a matching multi-enemy combat step and
+        # remember that slot's running total. A player is only ever on
+        # ONE combat step at a time, so at most one slot accumulates;
+        # the matcher then uses that slot's total. Slots without a
+        # matching multi-enemy step contribute the raw `defeated_count`
+        # (single-kill steps need no accumulation).
+        from engine.tutorial_chains import (
+            CHAIN_STATE_KEYS, record_combat_kills,
+        )
+        # Map each slot to the kill total the matcher should see for it.
+        slot_totals: dict = {k: defeated_count for k in CHAIN_STATE_KEYS}
         try:
             corpus = _get_corpus()
             if corpus is not None:
                 attrs = _load_attrs(char)
-                _chain, step = _get_active_step(attrs, corpus)
-                completion = (step.completion or {}) if step else {}
-                if (completion.get("type") == "combat_won"
-                        and (completion.get("enemy_template") or "").strip()
-                        == (defeated_template or "").strip()
-                        and int(completion.get("enemy_count") or 1) > 1):
-                    from engine.tutorial_chains import record_combat_kills
-                    cumulative = record_combat_kills(
-                        attrs, defeated_template.strip(), defeated_count,
-                    )
-                    # Persist the running tally even if the step does not
-                    # advance yet — otherwise the next combat would start
-                    # the count over and the step could never complete.
+                changed = False
+                for skey in CHAIN_STATE_KEYS:
+                    _chain, step = _get_active_step(attrs, corpus, skey)
+                    completion = (step.completion or {}) if step else {}
+                    if (completion.get("type") == "combat_won"
+                            and (completion.get("enemy_template") or "").strip()
+                            == (defeated_template or "").strip()
+                            and int(completion.get("enemy_count") or 1) > 1):
+                        slot_totals[skey] = record_combat_kills(
+                            attrs, defeated_template.strip(),
+                            defeated_count, skey,
+                        )
+                        changed = True
+                if changed:
+                    # Persist the running tally even if no step advances
+                    # yet — otherwise the next combat would restart the
+                    # count and the step could never complete.
                     await _persist_attrs(db, char, attrs)
         except Exception as e:  # pragma: no cover — defensive
             # WARNING, not DEBUG: if accumulation fails for a multi-enemy
-            # step, cumulative falls back to this combat's count alone
+            # step, the totals fall back to this combat's count alone
             # (e.g. 1), which never reaches enemy_count>1 — the step
             # would silently stall forever. An operational signal is
             # warranted so a stuck combat step is visible in logs.
@@ -503,15 +530,25 @@ async def on_combat_won(db, char: dict, defeated_template: str,
                         "for char %s (template=%s): %s",
                         char.get("id"), defeated_template, e,
                         exc_info=True)
-            cumulative = defeated_count
+            slot_totals = {k: defeated_count for k in CHAIN_STATE_KEYS}
 
-        return await _try_advance(
-            db, char,
-            event_type="combat_won",
-            matcher=lambda c: _match_combat_won(
-                c, defeated_template, cumulative
-            ),
-        )
+        # Per-slot dispatch so each slot's matcher sees its own tally.
+        advanced_any = False
+        for skey in CHAIN_STATE_KEYS:
+            try:
+                if await _try_advance(
+                    db, char,
+                    event_type="combat_won",
+                    matcher=lambda c, _t=slot_totals[skey]: _match_combat_won(
+                        c, defeated_template, _t),
+                    state_key=skey,
+                ):
+                    advanced_any = True
+            except Exception as e:  # pragma: no cover — defensive
+                log.warning(
+                    "[chain_events] combat_won slot %r advance failed: %s",
+                    skey, e, exc_info=True)
+        return advanced_any
     except Exception as e:
         log.warning("[chain_events] on_combat_won failed: %s", e,
                     exc_info=True)
@@ -531,7 +568,7 @@ async def on_room_entered(db, char: dict, room_slug: str) -> bool:
     if not room_slug:
         return False
     try:
-        return await _try_advance(
+        return await _try_advance_all_slots(
             db, char,
             event_type="room_entered",
             matcher=lambda c: _match_room_entered(c, room_slug),
@@ -663,7 +700,7 @@ async def on_mission_accepted(db, char: dict,
     if not chain_mission_id:
         return False
     try:
-        return await _try_advance(
+        return await _try_advance_all_slots(
             db, char,
             event_type="mission_accepted",
             matcher=lambda c: _match_mission_accepted(
@@ -686,7 +723,7 @@ async def on_mission_completed(db, char: dict,
     if not chain_mission_id:
         return False
     try:
-        return await _try_advance(
+        return await _try_advance_all_slots(
             db, char,
             event_type="mission_completed",
             matcher=lambda c: _match_mission_accepted(
@@ -709,7 +746,7 @@ async def on_bounty_accepted(db, char: dict,
     if not chain_bounty_id:
         return False
     try:
-        return await _try_advance(
+        return await _try_advance_all_slots(
             db, char,
             event_type="bounty_accepted",
             matcher=lambda c: _match_bounty_accepted(
@@ -732,7 +769,7 @@ async def on_item_acquired(db, char: dict, item_key: str) -> bool:
     if not item_key:
         return False
     try:
-        return await _try_advance(
+        return await _try_advance_all_slots(
             db, char,
             event_type="item_acquired",
             matcher=lambda c: _match_item_acquired(c, item_key),
@@ -781,7 +818,7 @@ async def on_item_used(db, char: dict, item_key: str) -> bool:
     if not item_key:
         return False
     try:
-        return await _try_advance(
+        return await _try_advance_all_slots(
             db, char,
             event_type="item_used",
             matcher=lambda c: _match_item_used(c, item_key),
@@ -822,7 +859,7 @@ async def on_prerequisite_flag_set(db, char: dict,
     if not flag_name:
         return False
     try:
-        return await _try_advance(
+        return await _try_advance_all_slots(
             db, char,
             event_type="prerequisite",
             matcher=lambda c: _match_prerequisite(c, flag_name),
@@ -872,7 +909,7 @@ async def on_skill_check_passed(db, char: dict, skill_name: str,
     if not skill_name:
         return False
     try:
-        return await _try_advance(
+        return await _try_advance_all_slots(
             db, char,
             event_type="skill_check_passed",
             matcher=lambda c: _match_skill_check_passed(
@@ -890,11 +927,54 @@ async def on_skill_check_passed(db, char: dict, skill_name: str,
 # ── Internal: shared advance-the-chain machinery ─────────────────────
 
 
+async def _try_advance_all_slots(db, char: dict, *, event_type: str,
+                                 matcher, prereq_matcher=None) -> bool:
+    """T5-questline arc (2026-06-13): run `_try_advance` against every
+    chain slot a player can carry (onboarding `tutorial_chain` +
+    mid-game `active_questline`), returning True iff ANY slot advanced.
+
+    Walks slots in `CHAIN_STATE_KEYS` order (onboarding first). In
+    practice at most one slot has a matching active step — a new player
+    has only the onboarding chain; a veteran's onboarding chain is long
+    graduated — but the engine supports both being active at once. Each
+    slot is evaluated independently; a match/advance in one does not
+    short-circuit evaluation of the other, so an event that legitimately
+    completes a step in both slots advances both.
+
+    Failure-tolerant per slot: an exception advancing one slot is logged
+    and does not prevent the other slot from being tried."""
+    from engine.tutorial_chains import CHAIN_STATE_KEYS
+    advanced_any = False
+    for state_key in CHAIN_STATE_KEYS:
+        try:
+            if await _try_advance(
+                db, char,
+                event_type=event_type,
+                matcher=matcher,
+                prereq_matcher=prereq_matcher,
+                state_key=state_key,
+            ):
+                advanced_any = True
+        except Exception as e:  # pragma: no cover — defensive
+            log.warning(
+                "[chain_events] slot %r advance failed (event=%s): %s",
+                state_key, event_type, e, exc_info=True,
+            )
+    return advanced_any
+
+
 async def _try_advance(db, char: dict, *, event_type: str,
-                       matcher, prereq_matcher=None) -> bool:
+                       matcher, prereq_matcher=None,
+                       state_key: str = None) -> bool:
     """Common implementation: load attrs, find active step, check
     match, advance, persist. Returns True iff a step actually
     advanced.
+
+    T5-questline arc (2026-06-13): `state_key` selects the slot
+    (onboarding vs questline). Defaults to the onboarding slot. The
+    public hooks call this once per slot via `_try_advance_all_slots`
+    so a single runtime event advances whichever slot owns a matching
+    active step.
 
     `matcher` is a callable taking the completion dict and returning
     True iff the event satisfies the step's completion criteria.
@@ -928,12 +1008,16 @@ async def _try_advance(db, char: dict, *, event_type: str,
     steps in chains.yaml use non-command prereqs today, so leaving
     other dispatchers (talk_to_npc, combat_won, etc.) at the default
     is correct."""
+    from engine.tutorial_chains import _TUTORIAL_CHAIN_KEY
+    if state_key is None:
+        state_key = _TUTORIAL_CHAIN_KEY
+
     corpus = _get_corpus()
     if corpus is None:
         return False
 
     attrs = _load_attrs(char)
-    chain, step = _get_active_step(attrs, corpus)
+    chain, step = _get_active_step(attrs, corpus, state_key)
     if chain is None or step is None:
         return False
 
@@ -950,7 +1034,7 @@ async def _try_advance(db, char: dict, *, event_type: str,
             from engine.tutorial_chains import (
                 get_satisfied_prereqs, record_prereq_satisfied,
             )
-            already_satisfied = get_satisfied_prereqs(attrs)
+            already_satisfied = get_satisfied_prereqs(attrs, state_key)
             for i, prereq in enumerate(requires_first):
                 if i in already_satisfied:
                     continue
@@ -966,7 +1050,7 @@ async def _try_advance(db, char: dict, *, event_type: str,
                     )
                     continue
                 # Match. Record and persist; return without advancing.
-                if record_prereq_satisfied(attrs, i):
+                if record_prereq_satisfied(attrs, i, state_key):
                     await _persist_attrs(db, char, attrs)
                     log.info(
                         "[chain_events] char %s satisfied prereq "
@@ -993,7 +1077,7 @@ async def _try_advance(db, char: dict, *, event_type: str,
     satisfied = []
     if completion.get("requires_first"):
         from engine.tutorial_chains import get_satisfied_prereqs
-        satisfied = get_satisfied_prereqs(attrs)
+        satisfied = get_satisfied_prereqs(attrs, state_key)
     if not _all_prereqs_satisfied(completion, satisfied):
         log.debug(
             "[chain_events] char %s hit main completion of chain %r "
@@ -1006,7 +1090,7 @@ async def _try_advance(db, char: dict, *, event_type: str,
 
     # Advance
     from engine.tutorial_chains import advance_step
-    new_step, graduated = advance_step(attrs, corpus)
+    new_step, graduated = advance_step(attrs, corpus, state_key)
 
     # F.8.c.2.b₄: per-step reward delivery. The just-completed
     # step's reward (typically narrative-prop items like
@@ -1029,7 +1113,7 @@ async def _try_advance(db, char: dict, *, event_type: str,
         try:
             from engine.chain_graduation import apply_graduation
             await apply_graduation(
-                db, char, attrs, chain.graduation.drop_room,
+                db, char, attrs, chain.graduation.drop_room, state_key,
             )
         except Exception as e:
             log.debug("[chain_events] graduation teleport persist "
@@ -1075,7 +1159,7 @@ async def _try_advance(db, char: dict, *, event_type: str,
         try:
             from engine.chain_graduation import apply_step_teleport
             await apply_step_teleport(
-                db, char, attrs, new_step.location,
+                db, char, attrs, new_step.location, state_key,
             )
         except Exception as e:
             # WARNING (not DEBUG): a real save_character/DB failure here
@@ -1115,7 +1199,8 @@ async def _try_advance(db, char: dict, *, event_type: str,
 # ── Optional: introspection helpers used by tests + UI ───────────────
 
 
-def get_active_step_info(char: dict, era: Optional[str] = None
+def get_active_step_info(char: dict, era: Optional[str] = None,
+                         state_key: str = None,
                          ) -> Optional[dict]:
     """Return a small JSON-friendly view of the character's current
     chain step, or None if no active chain. Used by web HUD, by
@@ -1128,12 +1213,20 @@ def get_active_step_info(char: dict, era: Optional[str] = None
     difficulty, on_fail behavior, fallback) can read it without
     a second corpus walk. Pre-extension consumers reading only
     `completion_type` still work — the new key is additive.
+
+    T5-questline arc (2026-06-13): `state_key` selects which slot to
+    introspect. Defaults to the onboarding slot (so the web HUD and
+    `chain status` are unchanged); the `quests` command passes the
+    questline slot.
     """
+    from engine.tutorial_chains import _TUTORIAL_CHAIN_KEY
+    if state_key is None:
+        state_key = _TUTORIAL_CHAIN_KEY
     corpus = _get_corpus(era)
     if corpus is None:
         return None
     attrs = _load_attrs(char)
-    chain, step = _get_active_step(attrs, corpus)
+    chain, step = _get_active_step(attrs, corpus, state_key)
     if chain is None or step is None:
         return None
     return {
@@ -1163,9 +1256,183 @@ def get_active_step_info(char: dict, era: Optional[str] = None
         # objective (it was authored in the corpus but never sent).
         "next_hint": step.next_hint or "",
         "completed_steps": list(
-            (attrs.get("tutorial_chain") or {}).get("completed_steps") or []
+            (attrs.get(state_key) or {}).get("completed_steps") or []
         ),
     }
+
+
+# ─────────────────────────────────────────────────────────────────────
+# T5-questline arc (2026-06-13) — mid-game questline start surface
+# ─────────────────────────────────────────────────────────────────────
+#
+# A questline is a `kind: questline` chain a veteran starts deliberately
+# mid-game (vs. an onboarding chain assigned at chargen). It lives in the
+# `active_questline` attributes slot. These functions back the `quests` /
+# `quest start` player commands (parser/questline_commands.py) and the
+# NPC-offer surface (a questline-giver NPC names the questline it offers
+# via its ai_config `offers_questline` field).
+#
+# Eligibility reuses `is_chain_locked_for_character` against the
+# questline's `prerequisites` — which is where the rep-floor /
+# faction-intent gate is authored. A player may carry at most ONE active
+# questline at a time (the single `active_questline` slot); they must
+# finish or abandon it before starting another.
+
+
+def list_questlines(era: Optional[str] = None) -> list:
+    """Return every `kind: questline` chain in the corpus (TutorialChain
+    objects). Empty list if the era has no chains or no questlines."""
+    corpus = _get_corpus(era)
+    if corpus is None:
+        return []
+    return [c for c in corpus.chains
+            if getattr(c, "kind", "tutorial") == "questline"]
+
+
+def get_questline_status(char: dict, era: Optional[str] = None
+                         ) -> Optional[dict]:
+    """Step-info view of the character's ACTIVE questline, or None.
+
+    Thin wrapper over get_active_step_info pinned to the questline
+    slot."""
+    from engine.tutorial_chains import _QUESTLINE_KEY
+    return get_active_step_info(char, era, _QUESTLINE_KEY)
+
+
+def has_active_questline(char: dict) -> bool:
+    """True iff the character currently has an active (non-graduated)
+    questline in the questline slot."""
+    from engine.tutorial_chains import get_active_chain_id, _QUESTLINE_KEY
+    attrs = _load_attrs(char)
+    return get_active_chain_id(attrs, _QUESTLINE_KEY) is not None
+
+
+def get_questline_offer(char: dict, npc_name: str,
+                        era: Optional[str] = None) -> Optional[dict]:
+    """If `npc_name` is the start-NPC of a questline the character is
+    ELIGIBLE for and has not already started/completed, return a small
+    offer dict {chain_id, chain_name, description, locked, reason}.
+    Returns None when there's nothing to offer.
+
+    "Start-NPC" = the questline's step-1 `npc`. This reuses the existing
+    talk_to_npc seam: when a player talks to a questline's step-1 NPC and
+    has no active questline + meets prereqs, the talk surfaces this offer.
+
+    Eligibility is `is_chain_locked_for_character` against the
+    questline's prerequisites (the rep/faction gate). An already-active
+    or already-graduated questline of the same id is never re-offered."""
+    from engine.tutorial_chains import (
+        is_chain_locked_for_character, has_completed_chain,
+        get_active_chain_id, _QUESTLINE_KEY,
+    )
+    if not npc_name:
+        return None
+    attrs = _load_attrs(char)
+    # One questline at a time: if any questline is active, no new offers.
+    if get_active_chain_id(attrs, _QUESTLINE_KEY) is not None:
+        return None
+    npc_lower = npc_name.strip().lower()
+    # Each t5 trainer is the start-NPC of exactly ONE questline (design
+    # intent), so first-match is the common path. Defensive against a
+    # future author wiring two questlines to one NPC: prefer an UNLOCKED
+    # match (return immediately), and fall back to a locked match only
+    # if no unlocked one is found — so a locked questline can't suppress
+    # a valid offer the player IS eligible for.
+    locked_fallback = None
+    for ql in list_questlines(era):
+        if not ql.steps:
+            continue
+        start_npc = (ql.steps[0].npc or "").strip().lower()
+        if start_npc != npc_lower:
+            continue
+        if has_completed_chain(attrs, ql.chain_id):
+            continue  # already done — don't re-offer
+        locked, reason = is_chain_locked_for_character(ql, attrs)
+        offer = {
+            "chain_id": ql.chain_id,
+            "chain_name": ql.chain_name,
+            "description": ql.description,
+            "locked": locked,
+            "reason": reason,
+        }
+        if not locked:
+            return offer
+        if locked_fallback is None:
+            locked_fallback = offer
+    return locked_fallback
+
+
+async def start_questline(db, char: dict, chain_id: str,
+                          era: Optional[str] = None) -> tuple:
+    """Begin a questline for the character. Returns (ok: bool,
+    message: str). Persists the new questline slot on success.
+
+    Validation (in order):
+      - corpus loads + chain_id resolves to a `kind: questline` chain
+      - the character has no active questline already (one at a time)
+      - the character hasn't already completed this questline
+      - the chain is unlocked for the character
+        (is_chain_locked_for_character — the rep/faction gate)
+
+    On success the questline slot is initialized at step 1 and the
+    character is teleported to step 1's location (reusing the same
+    inter-step teleport the dispatcher uses on advance), so the player
+    lands where the questline begins."""
+    from engine.tutorial_chains import (
+        is_chain_locked_for_character, has_completed_chain,
+        get_active_chain_id, select_chain, _QUESTLINE_KEY,
+    )
+    corpus = _get_corpus(era)
+    if corpus is None:
+        return False, "Questlines are unavailable right now."
+    chain = corpus.by_id().get(chain_id)
+    if chain is None or getattr(chain, "kind", "tutorial") != "questline":
+        return False, f"No questline '{chain_id}'."
+
+    attrs = _load_attrs(char)
+    active = get_active_chain_id(attrs, _QUESTLINE_KEY)
+    if active is not None:
+        return False, ("You're already on a questline. Finish or "
+                       "abandon it before starting another.")
+    if has_completed_chain(attrs, chain.chain_id):
+        return False, "You've already completed that questline."
+
+    locked, reason = is_chain_locked_for_character(chain, attrs)
+    if locked:
+        return False, reason or "You don't meet the requirements yet."
+
+    select_chain(attrs, chain, state_key=_QUESTLINE_KEY)
+    # Teleport to step 1's location so the player lands at the start.
+    first_loc = chain.steps[0].location if chain.steps else ""
+    if first_loc:
+        try:
+            from engine.chain_graduation import apply_step_teleport
+            await apply_step_teleport(db, char, attrs, first_loc,
+                                      _QUESTLINE_KEY)
+        except Exception as e:
+            log.warning("[chain_events] questline start teleport "
+                        "failed: %s", e, exc_info=True)
+    await _persist_attrs(db, char, attrs)
+    log.info("[chain_events] char %s started questline %r",
+             char.get("id"), chain.chain_id)
+    return True, f"You begin: {chain.chain_name}."
+
+
+async def abandon_questline(db, char: dict) -> tuple:
+    """Abandon the character's active questline. Returns (ok, message).
+    Clears the questline slot; the player may re-start it later (subject
+    to the same gate)."""
+    from engine.tutorial_chains import (
+        get_active_chain_id, reset_chain_state, _QUESTLINE_KEY,
+    )
+    attrs = _load_attrs(char)
+    if get_active_chain_id(attrs, _QUESTLINE_KEY) is None:
+        return False, "You have no active questline to abandon."
+    reset_chain_state(attrs, _QUESTLINE_KEY)
+    await _persist_attrs(db, char, attrs)
+    log.info("[chain_events] char %s abandoned their questline",
+             char.get("id"))
+    return True, "You abandon your current questline."
 
 
 # ─────────────────────────────────────────────────────────────────────

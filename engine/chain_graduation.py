@@ -124,7 +124,9 @@ async def resolve_drop_room_id(db, drop_room_slug: str) -> Optional[int]:
 
 
 async def apply_graduation(db, char: dict, attrs: dict,
-                           drop_room_slug: str) -> Optional[int]:
+                           drop_room_slug: str,
+                           state_key: str = _TUTORIAL_CHAIN_KEY,
+                           ) -> Optional[int]:
     """Engine-layer graduation handler. Resolves slug, persists
     room change, stamps the ``pending_drop_room_id`` flag for the
     parser to pick up.
@@ -132,6 +134,13 @@ async def apply_graduation(db, char: dict, attrs: dict,
     Mutates ``attrs`` in place (caller will re-persist). Mutates
     ``char["room_id"]`` to the new id so subsequent in-tick code
     that re-reads ``char`` sees the right room.
+
+    T5-questline arc (2026-06-13): ``state_key`` selects which chain
+    slot the pending flag is stamped on — the onboarding
+    ``tutorial_chain`` (default) or the mid-game ``active_questline``.
+    Stamping the wrong slot would corrupt a graduated onboarding block
+    on a veteran finishing a questline, so the caller passes the slot
+    whose chain just graduated.
 
     Returns the new room id on success, or None on failure (no
     teleport happens; the player keeps their pre-graduation room).
@@ -154,7 +163,7 @@ async def apply_graduation(db, char: dict, attrs: dict,
         # Already in the drop room (rare but possible if the chain
         # ends in the room itself). Skip the move; still stamp the
         # pending flag so the parser sends the graduation flavor.
-        state = attrs.setdefault(_TUTORIAL_CHAIN_KEY, {})
+        state = attrs.setdefault(state_key, {})
         state[_PENDING_DROP_ROOM_KEY] = new_room_id
         return new_room_id
 
@@ -175,7 +184,7 @@ async def apply_graduation(db, char: dict, attrs: dict,
     char["room_id"] = new_room_id
 
     # Stamp the pending flag for the parser hook site.
-    state = attrs.setdefault(_TUTORIAL_CHAIN_KEY, {})
+    state = attrs.setdefault(state_key, {})
     state[_PENDING_DROP_ROOM_KEY] = new_room_id
 
     log.info("[chain_graduation] char %s graduated; teleport %s -> %s "
@@ -190,7 +199,9 @@ async def apply_graduation(db, char: dict, attrs: dict,
 
 
 async def apply_step_teleport(db, char: dict, attrs: dict,
-                              step_location_slug: str) -> Optional[int]:
+                              step_location_slug: str,
+                              state_key: str = _TUTORIAL_CHAIN_KEY,
+                              ) -> Optional[int]:
     """Engine-layer inter-step move. When a chain advances to a new
     (non-graduation) step whose authored ``location`` differs from the
     player's current room, resolve that slug and move the player there.
@@ -241,7 +252,7 @@ async def apply_step_teleport(db, char: dict, attrs: dict,
     prev_room_id = char.get("room_id")
     char["room_id"] = new_room_id
 
-    state = attrs.setdefault(_TUTORIAL_CHAIN_KEY, {})
+    state = attrs.setdefault(state_key, {})
     state[_PENDING_STEP_ROOM_KEY] = new_room_id
 
     log.info("[chain_graduation] char %s step-advance teleport %s -> %s "
@@ -285,19 +296,34 @@ async def execute_pending_teleport(ctx, char: dict) -> bool:
                   exc_info=True)
         return False
 
-    state = attrs.get(_TUTORIAL_CHAIN_KEY) or {}
-    # Graduation takes priority over an inter-step move if both are
-    # somehow stamped (graduation is terminal). The two flags drive
-    # different player-facing deliveries below. Use KEY PRESENCE (not
-    # value truthiness) to classify: a room id of 0 would wrongly read
-    # as "no graduation" under bool(). Room ids autoincrement from 1 so
-    # 0 never occurs in practice, but key-presence is unambiguous.
-    if _PENDING_DROP_ROOM_KEY in state:
-        is_graduation = True
-        pending = state.get(_PENDING_DROP_ROOM_KEY)
-    else:
-        is_graduation = False
-        pending = state.get(_PENDING_STEP_ROOM_KEY)
+    # T5-questline arc (2026-06-13): a pending teleport flag may live in
+    # EITHER chain slot (onboarding `tutorial_chain` or mid-game
+    # `active_questline`). Walk both and act on whichever carries a
+    # pending flag — onboarding first, so a graduating onboarding chain
+    # is handled before a questline if both somehow stamped at once.
+    from engine.tutorial_chains import CHAIN_STATE_KEYS
+    state = {}
+    pending_state_key = _TUTORIAL_CHAIN_KEY
+    is_graduation = False
+    pending = None
+    for _skey in CHAIN_STATE_KEYS:
+        _st = attrs.get(_skey) or {}
+        # Graduation takes priority over an inter-step move if both are
+        # somehow stamped (graduation is terminal). The two flags drive
+        # different player-facing deliveries below. Use KEY PRESENCE (not
+        # value truthiness) to classify: a room id of 0 would wrongly read
+        # as "no graduation" under bool(). Room ids autoincrement from 1 so
+        # 0 never occurs in practice, but key-presence is unambiguous.
+        if _PENDING_DROP_ROOM_KEY in _st:
+            state, pending_state_key = _st, _skey
+            is_graduation = True
+            pending = _st.get(_PENDING_DROP_ROOM_KEY)
+            break
+        if _PENDING_STEP_ROOM_KEY in _st:
+            state, pending_state_key = _st, _skey
+            is_graduation = False
+            pending = _st.get(_PENDING_STEP_ROOM_KEY)
+            break
     if not pending:
         return False
 
@@ -305,7 +331,7 @@ async def execute_pending_teleport(ctx, char: dict) -> bool:
         new_room_id = int(pending)
     except (TypeError, ValueError):
         # Bad data; clear and bail.
-        await _clear_pending(ctx.db, char, attrs)
+        await _clear_pending(ctx.db, char, attrs, pending_state_key)
         return False
 
     # Verify the room still exists.
@@ -319,7 +345,7 @@ async def execute_pending_teleport(ctx, char: dict) -> bool:
     if not room:
         log.warning("[chain_graduation] pending teleport room %s "
                     "doesn't exist; clearing flag", new_room_id)
-        await _clear_pending(ctx.db, char, attrs)
+        await _clear_pending(ctx.db, char, attrs, pending_state_key)
         return False
 
     # Sync session state. The engine-side apply_graduation already
@@ -395,20 +421,26 @@ async def execute_pending_teleport(ctx, char: dict) -> bool:
     return True
 
 
-async def _clear_pending(db, char: dict, attrs: dict) -> None:
+async def _clear_pending(db, char: dict, attrs: dict,
+                         state_key: str = _TUTORIAL_CHAIN_KEY) -> None:
     """Internal helper. Drops any pending teleport flag
     (``pending_drop_room_id`` and/or ``pending_step_room_id``) from the
-    chain state and re-persists attrs."""
+    given chain slot and re-persists attrs.
+
+    T5-questline arc (2026-06-13): ``state_key`` selects the slot the
+    flag was stamped on (matched by execute_pending_teleport's slot
+    walk), so a questline's pending flag is cleared from the questline
+    slot — not the onboarding slot."""
     import json as _gj
     try:
-        state = attrs.get(_TUTORIAL_CHAIN_KEY) or {}
+        state = attrs.get(state_key) or {}
         removed = False
         for _key in (_PENDING_DROP_ROOM_KEY, _PENDING_STEP_ROOM_KEY):
             if _key in state:
                 del state[_key]
                 removed = True
         if removed:
-            attrs[_TUTORIAL_CHAIN_KEY] = state
+            attrs[state_key] = state
             await db.save_character(
                 char["id"],
                 attributes=_gj.dumps(attrs),

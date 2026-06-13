@@ -72,6 +72,11 @@ ALLOWED_COMPLETION_TYPES = frozenset({
 
 ALLOWED_NPC_ROLES = frozenset({"instructor", "contact", "antagonist"})
 
+# T5-questline arc (2026-06-13): chain kinds. "tutorial" is the launch
+# default (chargen-assigned onboarding); "questline" is a mid-game chain
+# started via the `quest start` verb / an NPC offer.
+ALLOWED_CHAIN_KINDS = frozenset({"tutorial", "questline"})
+
 ALLOWED_PREREQUISITE_FLAGS = frozenset({
     "chargen_complete",
     "force_sensitive",
@@ -145,6 +150,13 @@ class TutorialChain:
     graduation: Graduation
     steps: list  # list[TutorialStep]
     locked_message: str = ""
+    # T5-questline arc (2026-06-13): "tutorial" = chargen-assigned
+    # onboarding chain (the launch default; chargen picker lists these);
+    # "questline" = deliberately-started mid-game chain (the `quests` /
+    # `quest start` surface lists these, chargen never does). Additive —
+    # absent `kind:` loads as "tutorial", so every existing chain keeps
+    # its behavior with no YAML edit.
+    kind: str = "tutorial"
 
 
 @dataclass
@@ -363,6 +375,15 @@ def _parse_chain(cb: dict, idx: int) -> tuple:
         follow_up_hint=str(grad_block.get("follow_up_hint") or ""),
     )
 
+    # T5-questline arc: validate optional `kind`. Absent => "tutorial".
+    kind = str(cb.get("kind") or "tutorial").strip().lower()
+    if kind not in ALLOWED_CHAIN_KINDS:
+        errors.append(
+            f"chain[{idx}] ({cid}): kind {kind!r} not in allowed set "
+            f"{sorted(ALLOWED_CHAIN_KINDS)}",
+        )
+        return None, errors, warnings
+
     chain = TutorialChain(
         chain_id=str(cb["chain_id"]),
         chain_name=str(cb["chain_name"]),
@@ -377,6 +398,7 @@ def _parse_chain(cb: dict, idx: int) -> tuple:
         graduation=graduation,
         steps=steps,
         locked_message=str(cb.get("locked_message") or ""),
+        kind=kind,
     )
 
     return chain, errors, warnings
@@ -480,6 +502,21 @@ def _parse_step(sb: dict, cid: str, sidx: int) -> tuple:
 
 _TUTORIAL_CHAIN_KEY = "tutorial_chain"
 
+# T5-questline arc (2026-06-13): mid-game questlines live in a SECOND
+# attributes slot, distinct from the chargen-assigned onboarding chain.
+# The state-machine helpers below take an optional `state_key` param
+# defaulting to _TUTORIAL_CHAIN_KEY, so every legacy onboarding call
+# site is byte-for-byte unchanged; questline callers pass
+# _QUESTLINE_KEY. Both slots run on the same engine and corpus.
+_QUESTLINE_KEY = "active_questline"
+
+# Every attributes slot a player may carry an active/graduated chain in.
+# The event dispatcher walks this so a matching event advances whichever
+# slot owns the matching step. Order is onboarding-first (the common
+# case for new players); a veteran's onboarding slot is long graduated
+# so only the questline slot will match.
+CHAIN_STATE_KEYS = (_TUTORIAL_CHAIN_KEY, _QUESTLINE_KEY)
+
 
 def is_chain_locked_for_character(
     chain: TutorialChain,
@@ -579,7 +616,8 @@ def is_chain_locked_for_character(
 
 
 def select_chain(char_attrs: dict, chain: TutorialChain,
-                 *, now: Optional[float] = None) -> dict:
+                 *, now: Optional[float] = None,
+                 state_key: str = _TUTORIAL_CHAIN_KEY) -> dict:
     """Initialize tutorial-chain state for the character.
 
     Mutates `char_attrs` in place AND returns the new state block for
@@ -589,8 +627,10 @@ def select_chain(char_attrs: dict, chain: TutorialChain,
     via `is_chain_locked_for_character`. This function does NOT
     re-validate; it trusts the caller.
 
-    Sets:
-      attributes["tutorial_chain"] = {
+    `state_key` selects which attributes slot to write — the default
+    onboarding slot (`tutorial_chain`) or a mid-game questline slot
+    (`active_questline`). Both run on the same state shape:
+      attributes[state_key] = {
         "chain_id": chain.chain_id,
         "step": 1,
         "started_at": now or time.time(),
@@ -599,21 +639,25 @@ def select_chain(char_attrs: dict, chain: TutorialChain,
       }
     """
     import time
-    char_attrs[_TUTORIAL_CHAIN_KEY] = {
+    char_attrs[state_key] = {
         "chain_id": chain.chain_id,
         "step": 1,
         "started_at": now if now is not None else time.time(),
         "completed_steps": [],
         "completion_state": "active",
     }
-    return char_attrs[_TUTORIAL_CHAIN_KEY]
+    return char_attrs[state_key]
 
 
 def get_current_step(char_attrs: dict,
-                     corpus: TutorialChainsCorpus) -> Optional[TutorialStep]:
+                     corpus: TutorialChainsCorpus,
+                     state_key: str = _TUTORIAL_CHAIN_KEY,
+                     ) -> Optional[TutorialStep]:
     """Return the current step the character is on, or None if no
-    chain is active or the chain has graduated."""
-    state = char_attrs.get(_TUTORIAL_CHAIN_KEY)
+    chain is active or the chain has graduated.
+
+    `state_key` selects which slot to read (onboarding vs questline)."""
+    state = char_attrs.get(state_key)
     if not state or state.get("completion_state") != "active":
         return None
 
@@ -637,7 +681,8 @@ def get_current_step(char_attrs: dict,
 
 
 def advance_step(char_attrs: dict,
-                 corpus: TutorialChainsCorpus) -> tuple:
+                 corpus: TutorialChainsCorpus,
+                 state_key: str = _TUTORIAL_CHAIN_KEY) -> tuple:
     """Mark the current step complete and advance to the next.
 
     Returns (new_step: TutorialStep or None, graduated: bool).
@@ -648,9 +693,11 @@ def advance_step(char_attrs: dict,
 
     Mutates `char_attrs` in place. Caller persists.
 
+    `state_key` selects which slot to advance (onboarding vs questline).
+
     No-ops (returns (None, False)) if no active chain.
     """
-    state = char_attrs.get(_TUTORIAL_CHAIN_KEY)
+    state = char_attrs.get(state_key)
     if not state or state.get("completion_state") != "active":
         return None, False
 
@@ -693,25 +740,47 @@ def advance_step(char_attrs: dict,
     return None, False
 
 
-def is_chain_complete(char_attrs: dict) -> bool:
-    """True iff the character has graduated their current chain."""
-    state = char_attrs.get(_TUTORIAL_CHAIN_KEY) or {}
+def is_chain_complete(char_attrs: dict,
+                      state_key: str = _TUTORIAL_CHAIN_KEY) -> bool:
+    """True iff the character has graduated the chain in `state_key`."""
+    state = char_attrs.get(state_key) or {}
     return state.get("completion_state") == "graduated"
 
 
-def get_active_chain_id(char_attrs: dict) -> Optional[str]:
-    """Return the active chain_id or None."""
-    state = char_attrs.get(_TUTORIAL_CHAIN_KEY) or {}
+def has_completed_chain(char_attrs: dict, chain_id: str) -> bool:
+    """True iff the character has graduated the named chain in EITHER
+    slot. Durable check the t5 curriculum uses to confirm a questline
+    was finished (the onboarding slot may have been overwritten, so a
+    questline's graduation marker lives in the questline slot — but we
+    check both for forward-safety).
+
+    T5-questline arc (2026-06-13)."""
+    if not chain_id:
+        return False
+    for key in CHAIN_STATE_KEYS:
+        state = char_attrs.get(key) or {}
+        if (state.get("chain_id") == chain_id
+                and state.get("completion_state") == "graduated"):
+            return True
+    return False
+
+
+def get_active_chain_id(char_attrs: dict,
+                        state_key: str = _TUTORIAL_CHAIN_KEY,
+                        ) -> Optional[str]:
+    """Return the active chain_id in `state_key` or None."""
+    state = char_attrs.get(state_key) or {}
     if state.get("completion_state") == "active":
         return state.get("chain_id")
     return None
 
 
-def reset_chain_state(char_attrs: dict) -> None:
-    """Clear the tutorial_chain block. Used when a character abandons
-    their chain (allowed only via admin command in Phase 1, possibly
-    player-facing later). Mutates in place."""
-    char_attrs.pop(_TUTORIAL_CHAIN_KEY, None)
+def reset_chain_state(char_attrs: dict,
+                      state_key: str = _TUTORIAL_CHAIN_KEY) -> None:
+    """Clear the chain block in `state_key`. Used when a character
+    abandons their chain (admin command for onboarding; the `quest
+    abandon` verb for questlines). Mutates in place."""
+    char_attrs.pop(state_key, None)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -753,13 +822,14 @@ def reset_chain_state(char_attrs: dict) -> None:
 _STEP_PROGRESS_KEY = "step_progress_satisfied"
 
 
-def get_satisfied_prereqs(char_attrs: dict) -> list:
+def get_satisfied_prereqs(char_attrs: dict,
+                          state_key: str = _TUTORIAL_CHAIN_KEY) -> list:
     """Return the list of `requires_first` indices already satisfied
     for the active step, or an empty list. Read-only helper — never
     mutates state.
 
     F.8.c.2.b₅ Phase 3 (May 5 2026)."""
-    state = char_attrs.get(_TUTORIAL_CHAIN_KEY) or {}
+    state = char_attrs.get(state_key) or {}
     raw = state.get(_STEP_PROGRESS_KEY)
     if not isinstance(raw, list):
         return []
@@ -768,7 +838,8 @@ def get_satisfied_prereqs(char_attrs: dict) -> list:
     return [int(i) for i in raw if isinstance(i, int)]
 
 
-def record_prereq_satisfied(char_attrs: dict, prereq_index: int) -> bool:
+def record_prereq_satisfied(char_attrs: dict, prereq_index: int,
+                            state_key: str = _TUTORIAL_CHAIN_KEY) -> bool:
     """Mark a `requires_first` prerequisite as satisfied for the
     active step. Idempotent — re-recording an already-satisfied
     prereq is a no-op.
@@ -777,7 +848,7 @@ def record_prereq_satisfied(char_attrs: dict, prereq_index: int) -> bool:
     can use this to decide whether to persist).
 
     F.8.c.2.b₅ Phase 3 (May 5 2026)."""
-    state = char_attrs.get(_TUTORIAL_CHAIN_KEY)
+    state = char_attrs.get(state_key)
     if not state or state.get("completion_state") != "active":
         return False
 
@@ -789,12 +860,13 @@ def record_prereq_satisfied(char_attrs: dict, prereq_index: int) -> bool:
     return True
 
 
-def clear_step_progress(char_attrs: dict) -> None:
+def clear_step_progress(char_attrs: dict,
+                        state_key: str = _TUTORIAL_CHAIN_KEY) -> None:
     """Clear the `requires_first` progress for the current step.
     Called when the step advances or the chain is reset.
 
     F.8.c.2.b₅ Phase 3 (May 5 2026)."""
-    state = char_attrs.get(_TUTORIAL_CHAIN_KEY)
+    state = char_attrs.get(state_key)
     if state:
         state.pop(_STEP_PROGRESS_KEY, None)
 
@@ -821,7 +893,8 @@ def clear_step_progress(char_attrs: dict) -> None:
 _COMBAT_TALLY_KEY = "step_combat_kills"
 
 
-def record_combat_kills(char_attrs: dict, template: str, count: int) -> int:
+def record_combat_kills(char_attrs: dict, template: str, count: int,
+                        state_key: str = _TUTORIAL_CHAIN_KEY) -> int:
     """Add `count` defeats of `template` to the active step's running
     tally and return the NEW cumulative total for that template.
 
@@ -833,7 +906,7 @@ def record_combat_kills(char_attrs: dict, template: str, count: int) -> int:
     drop 25 (2026-06-12)."""
     if not template:
         return 0
-    state = char_attrs.get(_TUTORIAL_CHAIN_KEY)
+    state = char_attrs.get(state_key)
     if not state or state.get("completion_state") != "active":
         return 0
     tally = dict(state.get(_COMBAT_TALLY_KEY) or {})
@@ -842,12 +915,13 @@ def record_combat_kills(char_attrs: dict, template: str, count: int) -> int:
     return tally[template]
 
 
-def get_combat_kills(char_attrs: dict, template: str) -> int:
+def get_combat_kills(char_attrs: dict, template: str,
+                     state_key: str = _TUTORIAL_CHAIN_KEY) -> int:
     """Return the cumulative defeats of `template` recorded for the
     active step, or 0. Read-only. drop 25 (2026-06-12)."""
     if not template:
         return 0
-    state = char_attrs.get(_TUTORIAL_CHAIN_KEY) or {}
+    state = char_attrs.get(state_key) or {}
     tally = state.get(_COMBAT_TALLY_KEY) or {}
     try:
         return int(tally.get(template, 0))

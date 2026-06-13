@@ -663,6 +663,12 @@ class CreationWizard:
         self._menu_chains = []  # ordered list of selectable chain_ids
         idx = 1
         for chain in self._chains_corpus.chains:
+            # T5-questline arc (2026-06-13): questline-kind chains are
+            # mid-game (started via `quest start` / an NPC offer), never
+            # chargen-assigned. Skip them in the chargen picker entirely
+            # (not even shown greyed-out — they aren't a chargen option).
+            if getattr(chain, "kind", "tutorial") == "questline":
+                continue
             is_locked, reason = is_chain_locked_for_character(chain, char_attrs)
             if is_locked:
                 # Show locked entry but greyed-out, no number

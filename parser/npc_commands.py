@@ -711,6 +711,35 @@ class TalkCommand(BaseCommand):
         except Exception as _e:
             log.debug("silent except in parser/npc_commands.py chain_events hook: %s", _e, exc_info=True)
 
+        # T5-questline arc (2026-06-13): questline-offer surface. If this
+        # NPC is the start-NPC of a questline the player is eligible for
+        # (and isn't already on / hasn't finished), surface the offer so
+        # they know they can `quest start <id>`. Failure-tolerant and
+        # purely additive — never blocks the talk.
+        try:
+            from engine.chain_events import get_questline_offer
+            offer = get_questline_offer(char, npc_row.get("name", ""))
+            if offer is not None:
+                if offer.get("locked"):
+                    # Eligible-to-see but gate not met: show the why.
+                    await ctx.session.send_line(
+                        f"  \033[2m{npc_row.get('name', 'They')} could "
+                        f"teach you more, but: {offer.get('reason', '')}"
+                        f"\033[0m"
+                    )
+                else:
+                    await ctx.session.send_line(
+                        f"  \033[1;33m{npc_row.get('name', 'They')} "
+                        f"offers you a task:\033[0m "
+                        f"\033[1m{offer['chain_name']}\033[0m"
+                    )
+                    await ctx.session.send_line(
+                        f"  \033[2mType \033[0m\033[1;33mmastery start "
+                        f"{offer['chain_id']}\033[0m\033[2m to begin.\033[0m"
+                    )
+        except Exception as _e:
+            log.debug("silent except in parser/npc_commands.py questline-offer hook: %s", _e, exc_info=True)
+
 
 
 class AskCommand(BaseCommand):
