@@ -92,6 +92,13 @@ rooms:
     properties:
       tutorial_zone: true
       cover_max: 3
+      # drop 25 (2026-06-12): the combat-sim deck is a sanctioned drill
+      # arena — the republic_soldier chain's step-2 `combat_won` against
+      # the B1 sim droids happens here. The Kamino zone is SECURED (a
+      # Republic cloning facility), which blocks all combat; override to
+      # CONTESTED so the drill actually runs. Without this the chain
+      # strands at step 2 with "Heavy security patrols this area."
+      security: contested
 
   - id: 601
     slug: tipoca_transport_pad
@@ -234,6 +241,12 @@ rooms:
     properties:
       tutorial_zone: true
       cover_max: 4
+      # drop 25 (2026-06-12): live-fire drill pit — the
+      # separatist_commando chain's step-2 `combat_won` against the
+      # Republic clone simulants happens here. The Geonosis foundries
+      # zone is SECURED (CIS military facility); override to CONTESTED
+      # so the drill runs instead of stranding the chain at step 2.
+      security: contested
 
   - id: 608
     slug: tatooine_outskirts_cis_safehouse

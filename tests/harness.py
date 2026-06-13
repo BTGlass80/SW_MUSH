@@ -779,6 +779,97 @@ class _LiveHarness:
             )
         return int(row["id"])
 
+    async def room_slug_by_id(self, room_id: int) -> Optional[str]:
+        """Resolve a room DB id back to its ``properties.slug`` value.
+
+        The inverse of ``room_id_by_slug``. Used by the chain
+        walkthrough smoke (drop 25) to assert the player has actually
+        been moved (by the product's inter-step teleport) to each
+        chain step's authored ``location`` slug before attempting that
+        step's completion — the reachability gate. Returns None if the
+        room has no slug (legacy / unmigrated room).
+        """
+        rows = await self.db.fetchall(
+            "SELECT json_extract(properties, '$.slug') AS slug "
+            "FROM rooms WHERE id = ?",
+            (room_id,),
+        )
+        if not rows:
+            return None
+        return rows[0]["slug"]
+
+    async def start_chain(self, name: str, chain_id: str, *,
+                          skills: Optional[dict] = None,
+                          credits: int = 500,
+                          **login_kwargs) -> "_ClientSession":
+        """Log in a fresh PC placed in `chain_id`'s REAL starting room
+        with the tutorial-chain state seeded to step 1.
+
+        This is the entry point for the per-chain walkthrough smoke
+        (drop 25). Unlike the `_inject_chain` helper in
+        scenarios/chain_attempt.py — which pre-places the player at a
+        slugless room (room 1) so the reachability gate short-circuits —
+        `start_chain` places the player in the chain's authored
+        `starting_room`, so the walkthrough exercises the SAME
+        reachability path a real chargen graduate walks.
+
+        Seeds the `tutorial_chain` attrs block by mirroring
+        `engine.tutorial_chains.select_chain`'s shape (step 1, active,
+        no completed steps). It does NOT call any chain-event hook and
+        does NOT pre-place the player at any step beyond 1 — all
+        subsequent movement must come from the product (the inter-step
+        teleport on advance).
+
+        Raises LookupError if the chain has no starting_room (locked
+        stubs) — those are not walkable and the scenario should skip
+        them.
+        """
+        import json as _json
+        from engine.tutorial_chains import (
+            load_tutorial_chains, select_chain,
+        )
+
+        corpus = load_tutorial_chains(self._era)
+        if corpus is None:
+            raise LookupError(
+                f"start_chain: era {self._era!r} has no tutorial chains "
+                f"corpus (load_tutorial_chains returned None)."
+            )
+        chain = corpus.by_id().get(chain_id)
+        if chain is None:
+            raise LookupError(
+                f"start_chain: no chain {chain_id!r} in the "
+                f"{self._era!r} corpus."
+            )
+        if not chain.starting_room:
+            raise LookupError(
+                f"start_chain: chain {chain_id!r} has no starting_room "
+                f"(locked stub?) — not walkable."
+            )
+
+        start_room_id = await self.room_id_by_slug(chain.starting_room)
+        s = await self.login_as(
+            name, room_id=start_room_id, credits=credits,
+            skills=skills, **login_kwargs,
+        )
+
+        char_id = s.character["id"]
+        char = await self.get_char(char_id)
+        if char is None:
+            raise LookupError(
+                f"start_chain: character {name!r} (id {char_id}) not "
+                f"found after login_as — the row was not created."
+            )
+        attrs = _json.loads(char.get("attributes") or "{}")
+        select_chain(attrs, chain, now=1000000)
+        await self.db.save_character(char_id, attributes=_json.dumps(attrs))
+        s.character = await self.get_char(char_id)
+        try:
+            s.session.invalidate_char_obj()
+        except AttributeError:
+            pass
+        return s
+
     async def get_char(self, char_id: int) -> Optional[dict]:
         """Reload a character row by ID. Used by tests after actions
         that mutate state on the server.

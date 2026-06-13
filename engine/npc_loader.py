@@ -331,6 +331,21 @@ def _build_ai_config(ai: dict, name: str) -> dict:
     if ai.get("is_intel_handler"):
         config["is_intel_handler"] = True
 
+    # Preserve the CW tutorial-chain combat-enemy marker (F.8.c.2.b₂
+    # combat templates; drop 25 fix, 2026-06-12). A combat-template NPC
+    # tagged `chain_enemy_template: <id>` in YAML is recognized by the
+    # `combat_won` chain hook in parser/combat_commands.py (~line 396),
+    # which reads this key out of ai_config_json to match the defeated
+    # enemy against the active chain step's `enemy_template`. Without
+    # this pass-through the marker was silently dropped by the fixed
+    # whitelist above — so the three chains with `combat_won` steps
+    # (republic_soldier s2, separatist_commando s2, bounty_hunter s4)
+    # could never advance for a real player, since the defeated NPC
+    # carried no template tag. Same silent-drop class as `skills` /
+    # `is_intel_handler` above.
+    if ai.get("chain_enemy_template"):
+        config["chain_enemy_template"] = ai["chain_enemy_template"]
+
     return config
 
 

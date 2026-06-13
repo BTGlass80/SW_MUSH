@@ -456,13 +456,60 @@ async def on_combat_won(db, char: dict, defeated_template: str,
 
     `defeated_template` is the engine NPC template id (e.g.
     "b1_battle_droid_sim"). The chain step's `enemy_template` is
-    matched against this exactly."""
+    matched against this exactly.
+
+    drop 25 (2026-06-12): cumulative-kill accumulation. A
+    `combat_won` step with `enemy_count > 1` (republic_soldier s2,
+    separatist_commando s2) is met across MULTIPLE combats, because
+    the paired drill enemies don't aggro together — the player fights
+    them one at a time. We accumulate defeats of the step's template
+    on the chain-step state and match against the running total, so
+    two sequential count=1 wins satisfy enemy_count=2. The tally is
+    keyed by template and cleared on step advance (see
+    engine.tutorial_chains.record_combat_kills / get_combat_kills).
+    Accumulation only fires when the defeated template matches the
+    active step's `enemy_template`, so unrelated combats never
+    pollute the tally."""
     try:
+        # Resolve the active step's combat_won template (if any) so we
+        # only accumulate kills that count toward THIS step. This is a
+        # cheap pre-check; _try_advance re-resolves the step itself.
+        cumulative = defeated_count
+        try:
+            corpus = _get_corpus()
+            if corpus is not None:
+                attrs = _load_attrs(char)
+                _chain, step = _get_active_step(attrs, corpus)
+                completion = (step.completion or {}) if step else {}
+                if (completion.get("type") == "combat_won"
+                        and (completion.get("enemy_template") or "").strip()
+                        == (defeated_template or "").strip()
+                        and int(completion.get("enemy_count") or 1) > 1):
+                    from engine.tutorial_chains import record_combat_kills
+                    cumulative = record_combat_kills(
+                        attrs, defeated_template.strip(), defeated_count,
+                    )
+                    # Persist the running tally even if the step does not
+                    # advance yet — otherwise the next combat would start
+                    # the count over and the step could never complete.
+                    await _persist_attrs(db, char, attrs)
+        except Exception as e:  # pragma: no cover — defensive
+            # WARNING, not DEBUG: if accumulation fails for a multi-enemy
+            # step, cumulative falls back to this combat's count alone
+            # (e.g. 1), which never reaches enemy_count>1 — the step
+            # would silently stall forever. An operational signal is
+            # warranted so a stuck combat step is visible in logs.
+            log.warning("[chain_events] combat-kill accumulation failed "
+                        "for char %s (template=%s): %s",
+                        char.get("id"), defeated_template, e,
+                        exc_info=True)
+            cumulative = defeated_count
+
         return await _try_advance(
             db, char,
             event_type="combat_won",
             matcher=lambda c: _match_combat_won(
-                c, defeated_template, defeated_count
+                c, defeated_template, cumulative
             ),
         )
     except Exception as e:
@@ -1013,9 +1060,15 @@ async def _try_advance(db, char: dict, *, event_type: str,
     # the movement rooms.yaml's EXIT POLICY always assumed but which
     # was only ever implemented for graduation, stranding players at
     # the first step whose room differed from `starting_room`. Runs
-    # BEFORE _persist_attrs so the pending_step_room_id flag and the
-    # advanced step save in the same write. apply_step_teleport no-ops
-    # when the new step shares the current room or has no location
+    # BEFORE the final _persist_attrs so the stamped pending_step_room_id
+    # flag rides that attrs write. NOTE: apply_step_teleport issues its
+    # OWN save_character(room_id=...) for the move, so the room change
+    # and the pending flag are TWO separate writes, not one atomic write
+    # — a crash between them would advance room_id without the pending
+    # flag (the parser finisher then just skips the arrival UI; the
+    # player is in the right room, only the "you make your way" flavor
+    # is lost). apply_step_teleport no-ops when the new step shares the
+    # current room or has no location
     # slug; it is failure-tolerant (a bad slug logs and leaves the
     # player put rather than stranding them worse).
     elif new_step is not None:

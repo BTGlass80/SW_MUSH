@@ -670,6 +670,10 @@ def advance_step(char_attrs: dict,
     # none). Without this, a step that doesn't use requires_first
     # would inherit stale satisfaction indices from the prior step.
     state.pop(_STEP_PROGRESS_KEY, None)
+    # drop 25 (2026-06-12): drop the cumulative combat-kill tally on
+    # advance for the same reason — a later combat_won step must not
+    # inherit the prior step's running kill count.
+    state.pop(_COMBAT_TALLY_KEY, None)
 
     next_step_num = current_step_num + 1
     if next_step_num > len(chain.steps):
@@ -793,6 +797,62 @@ def clear_step_progress(char_attrs: dict) -> None:
     state = char_attrs.get(_TUTORIAL_CHAIN_KEY)
     if state:
         state.pop(_STEP_PROGRESS_KEY, None)
+
+
+# ── Cumulative combat-kill tally (drop 25, 2026-06-12) ────────────────
+#
+# A `combat_won` step with `enemy_count > 1` (republic_soldier s2 and
+# separatist_commando s2 both want TWO defeated enemies) cannot be met
+# in a single combat by natural play: the paired drill enemies do NOT
+# aggro together — attacking one pulls only that one into combat, so the
+# player fights them one at a time, in two SEPARATE combats. Each combat
+# resolves with `on_combat_won(template, count=1)`, and a single
+# count=1 hit never satisfies enemy_count=2. Before this fix the chain
+# stranded at the combat step.
+#
+# Rather than rework combat AI (broad, risky) to make partners aggro
+# together, we accumulate defeats of the step's template across combats
+# on the chain-step state. Two sequential count=1 wins sum to 2 and the
+# step advances. The tally is keyed by template and lives under the
+# active step; it is cleared on every step advance (same lifecycle as
+# _STEP_PROGRESS_KEY) so a later step's enemy can't inherit a stale
+# count.
+
+_COMBAT_TALLY_KEY = "step_combat_kills"
+
+
+def record_combat_kills(char_attrs: dict, template: str, count: int) -> int:
+    """Add `count` defeats of `template` to the active step's running
+    tally and return the NEW cumulative total for that template.
+
+    Returns 0 (without mutating) if there is no active chain. Idempotent
+    only in the sense that the caller is responsible for not double-
+    counting the SAME combat — each `on_combat_won` dispatch represents
+    a distinct resolved combat, so accumulation is correct.
+
+    drop 25 (2026-06-12)."""
+    if not template:
+        return 0
+    state = char_attrs.get(_TUTORIAL_CHAIN_KEY)
+    if not state or state.get("completion_state") != "active":
+        return 0
+    tally = dict(state.get(_COMBAT_TALLY_KEY) or {})
+    tally[template] = int(tally.get(template, 0)) + int(count)
+    state[_COMBAT_TALLY_KEY] = tally
+    return tally[template]
+
+
+def get_combat_kills(char_attrs: dict, template: str) -> int:
+    """Return the cumulative defeats of `template` recorded for the
+    active step, or 0. Read-only. drop 25 (2026-06-12)."""
+    if not template:
+        return 0
+    state = char_attrs.get(_TUTORIAL_CHAIN_KEY) or {}
+    tally = state.get(_COMBAT_TALLY_KEY) or {}
+    try:
+        return int(tally.get(template, 0))
+    except (TypeError, ValueError):
+        return 0
 
 
 # ── Skip starter kit loader (Drop 2b) ────────────────────────────────────
