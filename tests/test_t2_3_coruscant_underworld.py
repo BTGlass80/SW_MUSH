@@ -435,11 +435,13 @@ class TestCoruscantUnderworldLoads(unittest.TestCase):
                         msg=f"errors: {rep.errors}; warnings: {rep.warnings}")
 
     def test_eight_landmarks_total(self):
-        """5 named landmarks (4 non-resonant + 1 force-resonant) plus
-        3 transit nodes = 8 entries after region-filtered include."""
+        """8 anchor entries (4 non-resonant + 1 force-resonant + 3 transit)
+        PLUS the Drop 18 region build-out of 12 secondary landmarks
+        (NW/NE/SW/SE quadrant include files) = 20 total. The original 8
+        anchors remain pinned by name in the sibling tests below."""
         from engine.wilderness_loader import load_wilderness_region
         rep = load_wilderness_region(_CORUSCANT_YAML)
-        self.assertEqual(len(rep.region.landmarks), 8)
+        self.assertEqual(len(rep.region.landmarks), 20)
 
     def test_all_five_design_landmarks_present(self):
         """Per clone_wars_era_design_v3.md §7.2 the region must have
