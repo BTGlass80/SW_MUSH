@@ -6,6 +6,13 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-13 — Character-load skill robustness (adversarial-sweep hardening) — *fixup*
+A break-it-tester sweep of drops 44-50 (all confirmed robust) surfaced 2 character-load crash paths — both fixed defensively (no behavior change for valid data):
+- **`from_db_dict` skills loop** (`engine/character.py:882`) had no per-entry guard, so a corrupted `skills` column value (a non-D6 string like `"TRAINED"`) raised an uncaught `ValueError`/`AttributeError` that aborted the whole character load AND leaked raw Python error text to the player (`get_char_obj` is on the `attack`/`+sheet`/HUD path). Now skips a malformed entry with a warning, matching the JSON-decode tolerance already on the blob. **Pre-existing** (predates drop 44); reachable only via DB corruption, but it's the only CRASH+LEAK the sweep found.
+- **`Character.has_skill_dice`** (drop 50) raised `AttributeError` on a non-`DicePool` skills value (caught upstream today by `get_powersuit_strength_bonus`, but a footgun for any future caller). Now an `isinstance` guard treats junk as untrained.
+- **Verified:** `tests/test_powered_suit.py` (18 — +2 robustness pins) + 548-test character/skill/chargen/powered regression green.
+- **Files:** `engine/character.py`, `tests/test_powered_suit.py`, `CHANGELOG.md`.
+
 ### 2026-06-13 — Powered armor: the Powersuit Operation skill + the first exo-suit — *drop 50*
 Closes `CRAFT.powered_suit_design` (the other HOOK long-pole). Brian ruled "register a new powersuit skill"; this lands the skill + the first POWERED armor whose servo-assisted Strength bonus reaches combat, gated by proficiency and hard-capped (conservative charter). Unblocked by drop 47's equipment-instance accessor.
 - **New skill** (`data/skills.yaml`): `Powersuit Operation` under **Mechanical** (WEG40120's "Powersuit operation", a reaction-capable *Operation skill, sibling of Ground-Vehicle/Walker/Repulsorlift Operation). The registry is data-driven, so it auto-registers with the right governing attribute — `_skill_to_attr` resolves it to `mechanical` (no hardcoded-map edit, unlike the restraints-escape `lifting` case). Spec-free (no Imperial powersuit models in the Clone Wars era). Skill count 75→76.

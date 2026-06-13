@@ -188,5 +188,32 @@ class TestExoSchematic(unittest.TestCase):
             self.assertIn(c["type"], RESOURCE_TYPES)
 
 
+class TestSkillLoadRobustness(unittest.TestCase):
+    """Hardening from the drop-44-50 adversarial sweep (2026-06-13)."""
+
+    def test_has_skill_dice_tolerates_non_dicepool(self):
+        # A non-DicePool value in skills must read as untrained, not crash
+        # (has_skill_dice has no live unguarded caller, but it's a footgun).
+        ch = Character()
+        ch.skills["powersuit operation"] = "2D"   # junk string, not DicePool
+        self.assertFalse(ch.has_skill_dice("powersuit operation"))
+        ch.skills["powersuit operation"] = DicePool.parse("2D")
+        self.assertTrue(ch.has_skill_dice("powersuit operation"))
+
+    def test_from_db_dict_skips_unparseable_skill(self):
+        # A corrupted skills column (a non-D6 string) must NOT abort the whole
+        # character load + leak a raw Python error to the player.
+        import json
+        data = {
+            "id": 1, "name": "T",
+            "attributes": json.dumps({"strength": "3D"}),
+            "skills": json.dumps({"blaster": "TRAINED", "sneak": "2D"}),
+            "equipment": "{}", "wound_level": 0,
+        }
+        ch = Character.from_db_dict(data)          # must not raise
+        self.assertNotIn("blaster", ch.skills)     # bad entry skipped
+        self.assertIn("sneak", ch.skills)          # good entry kept
+
+
 if __name__ == "__main__":
     unittest.main()

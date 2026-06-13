@@ -542,7 +542,11 @@ class Character:
                 if canonical_skill_key(k) == key:
                     v = vv
                     break
-        return v is not None and not v.is_zero()
+        # Defensive: char.skills should hold DicePools, but guard a non-DicePool
+        # value (the from_db_dict skills loop now skips malformed entries, but a
+        # synthetic Character could still carry junk) — treat it as untrained
+        # rather than raise AttributeError on .is_zero().
+        return isinstance(v, DicePool) and not v.is_zero()
 
     def get_powersuit_strength_bonus(self) -> DicePool:
         """The servo-assisted Strength bonus a worn POWERED suit grants, gated by
@@ -879,7 +883,16 @@ class Character:
                             data.get("id", "?"), _e)
                 skills = {}
         for skill_name, pool_str in skills.items():
-            char.skills[skill_name.lower()] = DicePool.parse(pool_str)
+            # Tolerate a malformed individual skill value (a non-D6 string like
+            # "TRAINED", or a non-str like an int) the way the JSON-decode above
+            # tolerates a bad blob — skip the bad entry with a warning rather than
+            # let DicePool.parse's ValueError/AttributeError abort the whole
+            # character load (which leaked raw Python error text to the player).
+            try:
+                char.skills[skill_name.lower()] = DicePool.parse(str(pool_str))
+            except (ValueError, TypeError, AttributeError) as _e:
+                log.warning("Malformed skill %r=%r for char %s: %s — skipped",
+                            skill_name, pool_str, data.get("id", "?"), _e)
 
         # Parse equipment — tolerant of all historical on-disk shapes
         # (flat key, top-level single instance, per-slot instance) via
