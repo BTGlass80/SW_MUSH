@@ -1315,6 +1315,17 @@
       ],
       "claude_todo_flag": "DESIGN PASS FIRST (doc), then build — per the standing 're-think before building' rule. Surface findings + the integration plan to Brian before wiring drops.",
       "ref": "gundark_crafting_integration_design_v1.md; sourcebook_mining_crafting_exp_design_v1.md; economy_design_v02-1.md; economy_audit_v2.md; sourcebook_enrichment_roadmap_v1.md (Lane C); Guide_07_Crafting.md; Guide_06_Economy.md"
+    },
+    {
+      "id": "CRAFT.armor_consumable_quality_combat",
+      "title": "Crafted quality -> combat for ARMOR + CONSUMABLES (Option A, Brian-greenlit)",
+      "lane": "engine (combat/equipment + crafting) — HIGH collision; sequence carefully",
+      "effort": "medium (armor half bundles with the equipment-instance migration)",
+      "status": "GREENLIT 2026-06-13 (Brian: 'quality should absolutely matter'). Not started. Build as its OWN drop on a quiet combat window — NOT concurrent with combat/equipment edits.",
+      "design_doc": "Decision in design_calls_pending_brian CRAFT.quality_combat_read_armor_consumables (Option A); crafting-integration review HANDOFF_crafting_integration_review_2026-06-13.md items 3-5.",
+      "scope": "Make crafted quality affect combat for armor + consumables the way it already does for weapons (engine/items.py crafted_combat_pips, Drop 19). ARMOR: get_armor_protection (engine/character.py:457) currently reads the bare worn_armor KEY -> a q95 vest soaks like q40. Read the worn-armor INSTANCE quality and fold a HARD-CAPPED quality delta into soak (mirror the weapon +1D pip-cap so no power creep). BUNDLE with TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES (get_armor_protection needs the instance). CONSUMABLES: thread quality into potency (heal amount / buff magnitude), capped; touches the consumable storage shape (count -> quality-bearing) at parser/crafting_commands.py:1296 + medical_commands.py; migration-tolerant read; sequence AFTER in-flight crafting edits settle.",
+      "collision_note": "Review flagged combat.py / items.py / character.py as HIGH collision (shared with any combat/equipment edit). Land solo. The consumable half is in the same crafting_commands.py hot region recent drops edited — sequence after.",
+      "balance_note": "Power-creep-sensitive. Cap the quality delta (e.g. the +1D / +3-pip weapon precedent) so a q95 item is BETTER but not game-warping vs vendor baseline. Consider deciding armor and consumable caps separately (potion-potency is the riskier knob)."
     }
   ],
   "tunable_open_questions": {
@@ -1779,7 +1790,7 @@
       "question": "Crafted QUALITY reaches combat for WEAPONS ONLY (Drop 19: engine/items.py crafted_combat_pips reads the equipped ItemInstance quality -> damage/accuracy, hard-capped). For ARMOR and CONSUMABLES, quality is stored-but-DECORATION: get_armor_protection (engine/character.py:457) reads only the bare worn_armor KEY (a q95 vest soaks like a q40), and crafted consumables carry no potency-from-quality. Surfaced by the crafting-integration review (2026-06-13, item 3). Option A = make them real (consistent with the Drop-19 weapon precedent); Option B = stop rendering the promise (like the stat_bonus message just dropped in drop 43). Which?",
       "recommendation": "This is a genuine BALANCE fork, not mechanical — armor-soak-by-quality + consumable-potency-by-quality are power-creep-sensitive (a q95 armor soaking far above vendor baseline shifts combat math). NOT safe to guess. If A (make real): mirror the weapon pip path (read the INSTANCE, hard-cap the quality delta like the +1D weapon cap) and BUNDLE the armor half with the TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES migration (get_armor_protection needs the instance, not the key) — land it solo on a quiet combat window, never concurrent with combat/equipment edits (review flagged combat.py/items.py/character.py as HIGH collision). The consumable half touches parser/crafting_commands.py:1296 (the consumable-deliver branch) + medical_commands.py and changes the consumable storage shape (count -> quality-bearing) — sequence AFTER any in-flight crafting edits. If B: drop the quality-implies-better framing for armor/consumables. Rec: A for armor (precedent + player expectation), but as its own carefully-sequenced drop; decide consumables separately (potion-potency power creep is the riskier half).",
       "logged": "2026-06-13 (crafting-integration review item 3; review doc HANDOFF_crafting_integration_review_2026-06-13.md). Per the main-session watch protocol: STOP+log, do not blind-integrate (HIGH combat-file collision + balance call).",
-      "status": "pending Brian"
+      "status": "DECIDED 2026-06-13 — Brian: OPTION A, quality should absolutely matter for armor AND consumables (precedent-consistent with weapons). NOT YET BUILT — this is a careful, combat-collision-prone drop, greenlit with direction: (armor) read the worn-armor INSTANCE quality in get_armor_protection and fold a HARD-CAPPED quality delta into soak (mirror the weapon +1D pip-cap discipline so no power creep); BUNDLE with the TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES migration (get_armor_protection needs the instance, not the bare key) and land solo on a quiet combat window (review flagged combat.py/items.py/character.py as HIGH collision). (consumables) thread quality into potency (heal amount / buff magnitude), capped; touches the consumable storage shape (count -> quality-bearing) + medical_commands.py, sequence AFTER any in-flight crafting edits. Build as its own drop, not blind same-day. Promoted to a tier_1/tier_2 build item."
     },
     {
       "id": "CRAFT.rare_resource_no_vendor",
@@ -1788,7 +1799,7 @@
       "question": "`rare` is the only base resource type with no `buyresources` entry — NPC_RESOURCE_PRICES (parser/crafting_commands.py:1580-1587) omits it, so a non-wilderness player can't BUY past a rare-material bottleneck (they must harvest it). Surfaced by the crafting-integration review (item 1). Is the rare-no-vendor gate INTENTIONAL (rare = earned through harvest/hunts, looks deliberate), or an oversight to close with one NPC_RESOURCE_PRICES line?",
       "recommendation": "Looks deliberate (rare materials being harvest/hunt-gated rather than purchasable is a sensible sink-side design — it keeps the wilderness loop relevant and stops a credits-rich player from buying past content). Recommend CONFIRM intentional + leave as-is. If Brian wants it buyable: one line in NPC_RESOURCE_PRICES (trivial, no other change). Quick confirm, not a build.",
       "logged": "2026-06-13 (crafting-integration review item 1)",
-      "status": "pending Brian"
+      "status": "RESOLVED 2026-06-13 — Brian: KEEP rare materials gated (intentional sink-side design). Rare is PLAYER-SOURCED, not vendor-bought: adventurers harvest/hunt it (krayt dragons -> deep_dune_iron; Coruscant Underworld harvest -> scavenged_republic_tech; anomalies) and crafters acquire it from them via player give/trade. This is the intended crafter<->adventurer economic interdependence. No NPC_RESOURCE_PRICES line added. No further action."
     }
   ],
   "design_calls_resolved_recent": [
