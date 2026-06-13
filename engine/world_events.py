@@ -742,3 +742,34 @@ def apply_rare_vendor_discount(base_price: int,
     if not rare_vendor_active or base_price <= 0:
         return base_price
     return max(1, int(round(base_price * (1.0 - RARE_VENDOR_DISCOUNT))))
+
+
+# A live Hutt auction lets a sufficiently-connected criminal buy a
+# normally-unstocked item at a premium markup (the simplified rep-gated
+# purchase, NOT a bidding loop — per the WORLDEVENT design call).
+HUTT_AUCTION_MARKUP = 0.40  # +40% over book for auction access
+
+
+def hutt_auction_purchase_allowed(criminal_rep: int,
+                                  hutt_auction_active: bool,
+                                  rep_gate: int = 30) -> bool:
+    """HUTT_AUCTION / `hutt_auction` consumer (gate half). True iff the
+    auction is active AND the player's criminal (hutt_cartel) rep meets
+    the event's criminal_rep_gate. Pure function — the buy command reads
+    the flags + rep and passes them in."""
+    if not hutt_auction_active:
+        return False
+    try:
+        return int(criminal_rep) >= int(rep_gate)
+    except (TypeError, ValueError):
+        return False
+
+
+def apply_hutt_auction_markup(base_price: int,
+                              hutt_auction_active: bool) -> int:
+    """HUTT_AUCTION / `hutt_auction` consumer (price half). Auction access
+    costs a premium: marks up the base price by HUTT_AUCTION_MARKUP while
+    active. Pure function. Returns the marked-up price (floored at 1)."""
+    if not hutt_auction_active or base_price <= 0:
+        return base_price
+    return max(1, int(round(base_price * (1.0 + HUTT_AUCTION_MARKUP))))

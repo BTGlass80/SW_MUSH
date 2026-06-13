@@ -431,6 +431,25 @@ def _pick_type() -> MissionType:
     return random.choices(types, weights=wlist, k=1)[0]
 
 
+# WORLDEVENT.flag_effect_consumers (2026-06-13): DISTRESS_SIGNAL /
+# `distress_active` consumer. While a distress signal is live, the board
+# starts surfacing urgent MEDICAL/rescue work at an emergency premium.
+# First-guess tunable (post-launch telemetry tunes it).
+DISTRESS_REWARD_BONUS = 0.30  # +30% emergency pay on a distress mission
+
+
+def distress_mission_bonus(reward: int, distress_active: bool) -> int:
+    """Apply the distress emergency premium to a mission reward when the
+    DISTRESS_SIGNAL event is active. Pure function — generate_mission
+    reads the flag via get_world_event_manager().get_effect(
+    'distress_active', False) and passes it in. Returns the (possibly
+    boosted) reward, rounded to 50cr."""
+    if not distress_active or reward <= 0:
+        return reward
+    boosted = int(reward * (1.0 + DISTRESS_REWARD_BONUS))
+    return int(round(boosted / 50) * 50)
+
+
 def _scale_reward(mission_type: MissionType, skill_level: int = 3) -> int:
     """
     Scale reward within the type's pay range based on the board's current
@@ -464,6 +483,21 @@ def generate_mission(
     """
     mtype = _pick_type()
 
+    # WORLDEVENT.flag_effect_consumers (2026-06-13): while a DISTRESS_SIGNAL
+    # is live, the board surfaces urgent MEDICAL/rescue work (a distress
+    # call IS a medical job) at an emergency premium. Failure-tolerant: a
+    # flag-lookup hiccup leaves the rolled type/reward as-is.
+    distress_active = False
+    try:
+        from engine.world_events import get_world_event_manager
+        distress_active = bool(
+            get_world_event_manager().get_effect("distress_active", False))
+        if distress_active:
+            mtype = MissionType.MEDICAL
+    except Exception:
+        log.warning("[missions] distress_active flag lookup failed",
+                    exc_info=True)
+
     # Pick destination
     dest_room_id = None
     if destination_rooms:
@@ -488,6 +522,10 @@ def generate_mission(
     title = f"{type_display}: {dest_name}"
 
     reward = _scale_reward(mtype, skill_level)
+    # Distress premium + flavored title when the signal is live.
+    if distress_active:
+        reward = distress_mission_bonus(reward, True)
+        title = f"DISTRESS: {dest_name}"
 
     now = time.time()
     return Mission(

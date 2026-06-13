@@ -672,7 +672,18 @@ class CantinaEncounterCommand(BaseCommand):
                 )
                 return
         else:
-            code, text = roll_cantina_encounter()
+            # WORLDEVENT.flag_effect_consumers (2026-06-13): if a
+            # CANTINA_BRAWL event is live, a random +cantina roll surfaces
+            # the brawl beat (the event is actually happening). Explicit
+            # `+cantina <code>` above is unaffected. Failure-tolerant.
+            _brawl = False
+            try:
+                from engine.world_events import get_world_event_manager
+                _brawl = bool(
+                    get_world_event_manager().get_effect("brawl_active", False))
+            except Exception:
+                _brawl = False
+            code, text = roll_cantina_encounter(brawl_active=_brawl)
         room_id = char.get("room_id")
         line = ansi.dim(text)
         if room_id and ctx.session_mgr is not None:

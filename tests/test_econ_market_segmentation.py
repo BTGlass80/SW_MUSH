@@ -104,12 +104,17 @@ class TestBuyGate(unittest.TestCase):
 
     def test_buy_refuses_unstocked(self):
         code = self._code("parser/space_commands.py")
-        idx = code.index('vendor_stocked", False)')
-        window = code[idx - 400:idx + 400]
-        # the gate sits between name resolution and the armor check,
-        # and refuses with the craft/player-shop redirect
-        self.assertIn("find_by_name", window)
-        self.assertIn("No open vendor stocks", window)
+        gate_idx = code.index('vendor_stocked", False)')
+        # Order invariant (not a fixed char-window — the WORLDEVENT
+        # hutt_auction consumer 2026-06-13 inserts a rep-gated unlock
+        # branch between the gate and the refusal): the unstocked-item
+        # refusal still exists AND fires AFTER the vendor_stocked check,
+        # below the name-resolution gate. The segmentation gate holds;
+        # only eligible (hutt_auction + rep) players bypass it.
+        self.assertIn("find_by_name", code[:gate_idx])
+        refusal_idx = code.index("No open vendor stocks")
+        self.assertGreater(refusal_idx, gate_idx,
+                           "refusal must come after the vendor_stocked check")
 
     def test_listing_prices_only_stocked(self):
         code = self._code("parser/builtin_commands.py")

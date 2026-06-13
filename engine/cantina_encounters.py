@@ -73,11 +73,27 @@ CANTINA_ENCOUNTERS: dict[int, str] = {
 }
 
 
-def roll_cantina_encounter(rng: Optional[_random.Random] = None) -> Tuple[int, str]:
+# The barroom-brawl beat — the canonical CANTINA_BRAWL outcome.
+BRAWL_CODE = 12
+
+
+def roll_cantina_encounter(rng: Optional[_random.Random] = None,
+                           brawl_active: bool = False) -> Tuple[int, str]:
     """Roll the d66 cantina table. Returns (code, beat_text).
 
     True WEG d66: two independent d6 read as tens/ones (NOT 2d6 summed), so all
-    36 codes are equally likely. Pass a seeded Random for deterministic tests."""
+    36 codes are equally likely. Pass a seeded Random for deterministic tests.
+
+    WORLDEVENT.flag_effect_consumers (2026-06-13): CANTINA_BRAWL /
+    `brawl_active` consumer. While a cantina brawl is the live world event,
+    a random roll FORCES the barroom-brawl beat (code 12) — the event is
+    literally happening, so the table surfaces it. Pure function — the
+    +cantina command reads the flag via
+    get_world_event_manager().get_effect('brawl_active', False) and passes
+    it in. (An explicit `+cantina <code>` still poses exactly that code;
+    only the no-arg random roll is steered.)"""
+    if brawl_active:
+        return BRAWL_CODE, CANTINA_ENCOUNTERS[BRAWL_CODE]
     r = rng or _random
     tens = r.randint(1, 6)
     ones = r.randint(1, 6)

@@ -4048,18 +4048,54 @@ class BuyCommand(BaseCommand):
         # registry — band-2/3 craftables and the Drop G contraband band
         # included, with no vendor even required in the room. Band 2-3:
         # craft it, loot it, or find a player shop. Band 4/X: Gundark.
+        char = ctx.session.character
+        # WORLDEVENT.flag_effect_consumers (2026-06-13): HUTT_AUCTION /
+        # `hutt_auction` consumer. While a Hutt auction is live, a
+        # connected criminal (hutt_cartel rep >= the event's
+        # criminal_rep_gate, default 30) can BUY a normally-unstocked item
+        # — at a premium markup. Per the design call this is the SIMPLIFIED
+        # rep-gated rare PURCHASE, NOT a live bidding loop. The auction is
+        # the ONLY way the segmentation gate (open market = vendor_stocked
+        # only) is bypassed, and only for eligible players, and only while
+        # active. Failure-tolerant: any error falls through to the normal
+        # refusal (never accidentally opens the gate).
+        hutt_auction_unlocked = False
+        hutt_auction_msg = ""
         if not getattr(weapon, "vendor_stocked", False):
-            await ctx.session.send_line(
-                f"  No open vendor stocks the {weapon.name}. "
-                f"Craft it, check player shops — or know the right people.")
-            return
+            try:
+                from engine.world_events import get_world_event_manager
+                _mgr = get_world_event_manager()
+                if _mgr.get_effect("hutt_auction", False):
+                    _gate = int(_mgr.get_effect("criminal_rep_gate", 30) or 30)
+                    from engine.organizations import get_char_faction_rep
+                    _rep = await get_char_faction_rep(
+                        char, "hutt_cartel", ctx.db)
+                    from engine.world_events import (
+                        hutt_auction_purchase_allowed,
+                    )
+                    if hutt_auction_purchase_allowed(_rep, True, _gate):
+                        hutt_auction_unlocked = True
+                        hutt_auction_msg = (
+                            "\n  \033[1;33m[Hutt auction: your standing buys "
+                            "you a seat at the table — at auction prices.]\033[0m"
+                        )
+            except Exception:
+                log.warning("hutt_auction unlock check failed", exc_info=True)
+            if not hutt_auction_unlocked:
+                await ctx.session.send_line(
+                    f"  No open vendor stocks the {weapon.name}. "
+                    f"Craft it, check player shops — or know the right people.")
+                return
         if weapon.is_armor:
             await ctx.session.send_line("  Armor purchases coming soon.")
             return
         base_price = weapon.cost
         if base_price <= 0:
             base_price = 500
-        char = ctx.session.character
+        # Auction markup applies to the auction-unlocked item's base price.
+        if hutt_auction_unlocked:
+            from engine.world_events import apply_hutt_auction_markup
+            base_price = apply_hutt_auction_markup(base_price, True)
 
         # WORLDEVENT.flag_effect_consumers (2026-06-13): a MERCHANT_ARRIVAL
         # event ('rare_vendor' flag) discounts open-vendor stock for its
@@ -4249,6 +4285,8 @@ class BuyCommand(BaseCommand):
             await ctx.session.send_line(faction_msg)
         if rare_vendor_msg:
             await ctx.session.send_line(rare_vendor_msg)
+        if hutt_auction_msg:
+            await ctx.session.send_line(hutt_auction_msg)
         await ctx.session.send_line(f"  Condition: {item.condition_bar}")
         if city_tax_msg:
             await ctx.session.send_line(city_tax_msg)

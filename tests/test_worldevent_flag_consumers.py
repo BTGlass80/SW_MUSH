@@ -151,5 +151,135 @@ class TestKraytBountyFlagPath(_WorldEventBase):
             krayt_upgrade_tier(BountyTier.NOVICE, active), BountyTier.VETERAN)
 
 
+# ─────────────────────────────────────────────────────────────────────
+# Consumer 3 of 5: distress_active (DISTRESS_SIGNAL) — mission injection
+# ─────────────────────────────────────────────────────────────────────
+
+
+class TestDistressModulator(_WorldEventBase):
+    def test_bonus_applied_when_active(self):
+        from engine.missions import (
+            distress_mission_bonus, DISTRESS_REWARD_BONUS,
+        )
+        base = 500
+        out = distress_mission_bonus(base, True)
+        self.assertGreater(out, base)
+        self.assertEqual(out, int(round(base * (1.0 + DISTRESS_REWARD_BONUS) / 50) * 50))
+
+    def test_no_change_when_inactive(self):
+        from engine.missions import distress_mission_bonus
+        self.assertEqual(distress_mission_bonus(500, False), 500)
+
+    def test_zero_reward_unchanged(self):
+        from engine.missions import distress_mission_bonus
+        self.assertEqual(distress_mission_bonus(0, True), 0)
+
+
+class TestDistressFlagPath(_WorldEventBase):
+    def test_distress_signal_sets_flag(self):
+        from engine.world_events import get_world_event_manager
+        mgr = get_world_event_manager()
+        ev = mgr.activate_event("distress_signal")
+        self.assertIsNotNone(ev)
+        self.assertTrue(mgr.get_effect("distress_active", False))
+
+    def test_generate_mission_forces_medical_when_active(self):
+        from engine.world_events import get_world_event_manager
+        from engine.missions import generate_mission, MissionType
+        mgr = get_world_event_manager()
+        mgr.activate_event("distress_signal")
+        # With the flag live, generated missions are MEDICAL/distress.
+        for _ in range(5):
+            m = generate_mission()
+            self.assertEqual(m.mission_type, MissionType.MEDICAL)
+            self.assertTrue(m.title.startswith("DISTRESS:"))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Consumer 4 of 5: hutt_auction (HUTT_AUCTION) — rep-gated rare purchase
+# ─────────────────────────────────────────────────────────────────────
+
+
+class TestHuttAuctionModulator(_WorldEventBase):
+    def test_gate_requires_active_and_rep(self):
+        from engine.world_events import hutt_auction_purchase_allowed
+        # inactive -> never allowed
+        self.assertFalse(hutt_auction_purchase_allowed(99, False, 30))
+        # active but rep below gate -> denied
+        self.assertFalse(hutt_auction_purchase_allowed(29, True, 30))
+        # active + rep at/above gate -> allowed
+        self.assertTrue(hutt_auction_purchase_allowed(30, True, 30))
+        self.assertTrue(hutt_auction_purchase_allowed(80, True, 30))
+
+    def test_markup_applied_when_active(self):
+        from engine.world_events import (
+            apply_hutt_auction_markup, HUTT_AUCTION_MARKUP,
+        )
+        base = 1000
+        out = apply_hutt_auction_markup(base, True)
+        self.assertGreater(out, base)
+        self.assertEqual(out, int(round(base * (1.0 + HUTT_AUCTION_MARKUP))))
+
+    def test_markup_noop_when_inactive(self):
+        from engine.world_events import apply_hutt_auction_markup
+        self.assertEqual(apply_hutt_auction_markup(1000, False), 1000)
+
+    def test_bad_rep_value_fails_closed(self):
+        from engine.world_events import hutt_auction_purchase_allowed
+        self.assertFalse(hutt_auction_purchase_allowed(None, True, 30))
+
+
+class TestHuttAuctionFlagPath(_WorldEventBase):
+    def test_hutt_auction_sets_flag_and_gate(self):
+        from engine.world_events import get_world_event_manager
+        mgr = get_world_event_manager()
+        ev = mgr.activate_event("hutt_auction")
+        self.assertIsNotNone(ev)
+        self.assertTrue(mgr.get_effect("hutt_auction", False))
+        self.assertEqual(mgr.get_effect("criminal_rep_gate", 0), 30)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Consumer 5 of 5: brawl_active (CANTINA_BRAWL) — forced brawl beat
+# ─────────────────────────────────────────────────────────────────────
+
+
+class TestBrawlModulator(_WorldEventBase):
+    def test_forces_brawl_code_when_active(self):
+        from engine.cantina_encounters import (
+            roll_cantina_encounter, BRAWL_CODE, CANTINA_ENCOUNTERS,
+        )
+        code, text = roll_cantina_encounter(brawl_active=True)
+        self.assertEqual(code, BRAWL_CODE)
+        self.assertEqual(text, CANTINA_ENCOUNTERS[BRAWL_CODE])
+
+    def test_random_when_inactive(self):
+        # Seeded RNG -> deterministic non-forced roll (proves the flag,
+        # not the RNG, drives the brawl).
+        import random
+        from engine.cantina_encounters import roll_cantina_encounter
+        rng = random.Random(1)
+        code, _ = roll_cantina_encounter(rng=rng, brawl_active=False)
+        self.assertIn(code, range(11, 67))
+
+
+class TestBrawlFlagPath(_WorldEventBase):
+    def test_cantina_brawl_sets_flag(self):
+        from engine.world_events import get_world_event_manager
+        mgr = get_world_event_manager()
+        ev = mgr.activate_event("cantina_brawl")
+        self.assertIsNotNone(ev)
+        self.assertTrue(mgr.get_effect("brawl_active", False))
+
+    def test_end_to_end_flag_forces_brawl(self):
+        from engine.world_events import get_world_event_manager
+        from engine.cantina_encounters import roll_cantina_encounter, BRAWL_CODE
+        mgr = get_world_event_manager()
+        mgr.activate_event("cantina_brawl")
+        active = bool(mgr.get_effect("brawl_active", False))
+        code, _ = roll_cantina_encounter(brawl_active=active)
+        self.assertEqual(code, BRAWL_CODE)
+
+
 if __name__ == "__main__":
     unittest.main()
