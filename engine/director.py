@@ -483,6 +483,7 @@ class DirectorAI:
         self._manual_fidelity: Optional[str] = None  # None=auto; else a FIDELITY_INTERVALS key
         self._last_fidelity_reason = "baseline"  # for @director status / telemetry
         self._last_economic_seed_time = 0.0  # cooldown for soft economic nudges (decision A)
+        self._last_recommend_fidelity: Optional[dict] = None  # LLM spend advisory (slice 2)
 
     @property
     def enabled(self) -> bool:
@@ -1228,6 +1229,11 @@ class DirectorAI:
 
             if delivered:
                 log.info("[director] Delivered %d pc_hook(s) this turn.", delivered)
+
+        # ── recommend_fidelity advisory (adaptive-spend slice 2, decision F) ─
+        # The Director may flag a high-ROI window where faster cadence would
+        # pay off; advisory only — surfaced to admin, never auto-acted.
+        self._set_recommend_fidelity(resp.get("recommend_fidelity"))
 
         # ── Write director log ─────────────────────────────────────────────
         news_headline = str(resp.get("news_headline", "Faction Turn complete."))[:200]
@@ -2216,7 +2222,49 @@ class DirectorAI:
             "interval_minutes": round(interval / 60, 1),
             "manual_fidelity": self._manual_fidelity,
             "reason": self._last_fidelity_reason,
+            "recommend_fidelity": self._last_recommend_fidelity,
         }
+
+    def set_manual_fidelity(self, tier: Optional[str]) -> tuple[bool, str]:
+        """Manual cadence override (adaptive-spend slice 2; Brian decision E/G).
+        A `FIDELITY_INTERVALS` key pins cadence (incl. the manual-only `max`
+        $40 tier the auto-governor never reaches); ``"auto"``/``None`` hands
+        control back to the auto-governor. Applied immediately. In-memory only
+        for now — a restart reverts to AUTO (persistence is a noted follow-up);
+        spend stays bounded by the ClaudeProvider circuit breaker regardless.
+        Returns (ok, admin-facing message)."""
+        if tier is not None:
+            tier = tier.strip().lower()  # normalize BEFORE the clear-path check
+        if tier in (None, "auto", "off", ""):
+            self._manual_fidelity = None
+            self._last_fidelity_reason = "manual cleared -> auto"
+            return (True, "Cadence governor returned to AUTO.")
+        if tier not in FIDELITY_INTERVALS:
+            return (False, f"Unknown tier '{tier}'. Choose: "
+                           f"{', '.join(FIDELITY_INTERVALS)} or auto.")
+        self._manual_fidelity = tier
+        self._turn_interval = FIDELITY_INTERVALS[tier]
+        self._last_fidelity_reason = f"manual fidelity={tier}"
+        mins = round(FIDELITY_INTERVALS[tier] / 60, 1)
+        extra = " ($40 burst tier)" if tier == "max" else ""
+        return (True, f"Cadence pinned to {tier.upper()} (~{mins}m/turn){extra}.")
+
+    def _set_recommend_fidelity(self, rec) -> None:
+        """Store the LLM's optional ``recommend_fidelity`` advisory (slice 2;
+        Brian decision F). Advisory ONLY — surfaced to admin via @director
+        status/fidelity, never auto-acted. A turn that doesn't recommend
+        clears the stale advisory (it's a momentary 'spend here now' flag).
+        Accepts a bare tier string or ``{tier, reason}``."""
+        if isinstance(rec, str) and rec.lower() in FIDELITY_INTERVALS:
+            self._last_recommend_fidelity = {"tier": rec.lower(), "reason": ""}
+        elif (isinstance(rec, dict)
+              and str(rec.get("tier", "")).lower() in FIDELITY_INTERVALS):
+            self._last_recommend_fidelity = {
+                "tier": str(rec["tier"]).lower(),
+                "reason": str(rec.get("reason", ""))[:200],
+            }
+        else:
+            self._last_recommend_fidelity = None
 
     async def _governed_turn(self, db, session_mgr, online: int, now: float):
         """Adaptive-spend entry point for a due faction turn: skip an empty
@@ -2224,8 +2272,11 @@ class DirectorAI:
         skip, reason = self._should_skip_turn(online, now)
         if skip:
             self._last_fidelity_reason = reason
-            # Relax cadence so we don't re-evaluate an empty server too often.
-            self._turn_interval = FIDELITY_INTERVALS["eco"]
+            # Relax cadence so we don't re-evaluate an empty server too often —
+            # but NEVER override an explicit manual fidelity pin (a skip must
+            # not silently demote a pinned tier to eco).
+            if not self._manual_fidelity:
+                self._turn_interval = FIDELITY_INTERVALS["eco"]
             log.debug("[director] %s — paid turn skipped", reason)
             return
         if reason:  # overnight catch-up
