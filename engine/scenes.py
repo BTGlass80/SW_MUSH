@@ -390,6 +390,20 @@ async def stop_scene(db, char: dict, room_id: int) -> dict:
         pose_counts = {r["char_id"]: r["cnt"] for r in pose_rows}
         total_poses = sum(pose_counts.values())
 
+        # Achievement hook: scene completed (unblocks `storyteller`, complete 5
+        # RP scenes). Award every IC participant (the pose_counts keys), not
+        # just whoever ran +scene/stop — they all completed the scene. This is
+        # the ENGINE-side completion seam (the parser +scene/stop calls here),
+        # so the emit is parallel-safe. count-increment + idempotent in
+        # check_achievement; graceful-drop so a hook failure can't break the
+        # scene stop. (Defect-hunt finding: hook defined, never emitted.)
+        try:
+            from engine.achievements import on_scene_completed
+            for _pid in pose_counts:
+                await on_scene_completed(db, _pid)
+        except Exception as e:
+            log.debug("[scenes] scene-completed achievement hook failed: %s", e)
+
         log.info("[scenes] scene %d stopped in room %d. %d total IC poses.",
                  scene_id, room_id, total_poses)
         return {
