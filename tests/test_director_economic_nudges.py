@@ -189,6 +189,17 @@ class TestSeeder(unittest.TestCase):
         self.assertTrue(get_world_event_manager().get_effect("rare_vendor", False))
         self.assertGreaterEqual(db.executed, 1)  # director_log written
 
+    def test_fires_on_trade_boom_window(self):
+        from engine.director import DirectorAI
+        from engine.world_events import get_world_event_manager
+        self._reset_events()
+        d = DirectorAI()
+        result = _run(d._seed_economic_opportunities(
+            _EcoDB(_TRADE_BOOM_ROWS), _SessionMgr(), online=2, now=10000.0))
+        self.assertEqual(result, "trade_boom")
+        self.assertEqual(d._last_economic_seed_time, 10000.0)
+        self.assertTrue(get_world_event_manager().get_effect("rare_vendor", False))
+
     def test_no_seed_when_economy_quiet(self):
         from engine.director import DirectorAI
         self._reset_events()

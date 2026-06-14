@@ -1696,16 +1696,21 @@ class DirectorAI:
             except Exception:
                 log.debug("[director] economic-seed broadcast failed", exc_info=True)
             self._last_economic_seed_time = now
-            await self.log_event(
-                db,
-                event_type="economic_nudge",
-                summary=seed["headline"],
-                details={
-                    "condition": seed["condition"],
-                    "reason": seed["reason"],
-                    "event_type": seed["event_type"],
-                },
-            )
+            try:
+                await self.log_event(
+                    db,
+                    event_type="economic_nudge",
+                    summary=seed["headline"],
+                    details={
+                        "condition": seed["condition"],
+                        "reason": seed["reason"],
+                        "event_type": seed["event_type"],
+                    },
+                )
+            except Exception:
+                # Telemetry only — a log hiccup must not swallow a successful
+                # seed (the event already fired + broadcast).
+                log.debug("[director] economic-seed log failed", exc_info=True)
             log.info("[director] economic nudge: seeded %s (%s)",
                      seed["event_type"], seed["reason"])
             return seed["condition"]
