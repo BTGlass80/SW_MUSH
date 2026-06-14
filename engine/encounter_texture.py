@@ -32,11 +32,18 @@ RST = "\033[0m"
 async def _skill_check(char_id, skill_name, difficulty, db):
     try:
         from engine.skill_checks import perform_skill_check
-        r = await perform_skill_check(char_id=char_id, skill_name=skill_name,
-                                       difficulty=difficulty, db=db)
-        return {"success": r.success, "critical": getattr(r, "critical", False),
-                "roll": getattr(r, "roll_total", 0), "difficulty": difficulty}
+        char = await db.get_character(char_id)
+        if char is None:
+            raise ValueError("character %s not found" % char_id)
+        # perform_skill_check is SYNCHRONOUS and takes the char DICT positionally
+        # (no char_id/db kwargs). The previous async/kwarg call ALWAYS raised, so
+        # every encounter check silently fell back to skill-ignoring raw 3D.
+        r = perform_skill_check(char, skill_name, difficulty)
+        return {"success": r.success, "critical": r.critical_success,
+                "roll": r.roll, "difficulty": difficulty}
     except Exception:
+        log.warning("[encounter] skill check fell back to raw 3D (char %s, %s)",
+                    char_id, skill_name, exc_info=True)
         roll = sum(random.randint(1, 6) for _ in range(3))
         return {"success": roll >= difficulty, "critical": roll >= difficulty + 10,
                 "roll": roll, "difficulty": difficulty}
