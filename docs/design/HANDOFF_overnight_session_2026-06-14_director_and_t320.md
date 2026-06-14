@@ -36,6 +36,15 @@
 4. **`director-economy-prompt`** (`6fb1079`) — prompt-tuning. `director_config.yaml` ECONOMY + SPEND
    ADVISORY sections so the LLM actually USES `digest['economy']` (decision A/B) and may return
    `recommend_fidelity` (decision F). 4 tests.
+5. **`character-reload-roundtrip`** (`88bde33`) — T3.20 slice (`scope_notes` c). `tests/test_character_reload_roundtrip.py`
+   locks the Character `to_db_dict`↔`from_db_dict` CORE-field contract (every core field survives a reload
+   round-trip incl. force_sensitive/attrs/skills/equip-keys; `to_db_dict` stable under round-trip) — the
+   player-save (de)serialization invariant. **F.7.n force_sensitive reload already covered** by
+   `test_f7n_force_attribute_seeding.py` — closed as not-a-bug. 7 tests. NOTE: this drop's full-suite gate
+   HUNG in the background (xdist orphan swarm, ~4.8h) and was killed; merged on test-only + targeted-green +
+   collection-clean (it changes zero production code). **Lesson:** never let the harness keep a `pytest -n auto`
+   run in the background — if the output file stays 0 bytes with a stale mtime, it's the orphan swarm
+   (`wmic` CPU/age → `taskkill //F //IM python.exe` once you confirm no live run, then re-run foreground).
 
 **Net: the Director scope expansion (`director_scope_and_adaptive_spend_v1.md`) is COMPLETE** —
 multi-zone (prior) + economy-eyes (prior) + economy nudges + adaptive-spend slices 1&2 + the LLM
