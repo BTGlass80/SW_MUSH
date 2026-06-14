@@ -82,6 +82,12 @@
   ],
   "tier_1_active": [
     {
+      "id": "WILD.phantom_creature_templates",
+      "title": "Wilderness encounters: close 4 phantom-producer creature templates + global resolution guard",
+      "status": "DELIVERED 2026-06-13 (parallel content session; pending Brian full-suite gate)",
+      "delivered_note": "No-phantom-producers fix: dewback / tusken_warrior (dune_sea) + maze_predator / underworld_thug (coruscant_underworld) were referenced by live hostile/non_hostile encounters but absent from the creature library, so wilderness_encounter_runtime.spawn_encounter_creatures returned [] (encounter fired narrative, spawned nothing). Added all 4 faithful WEG R&E D6 stat blocks to data/npcs_creatures.yaml (beasts keep KNO/MEC/TEC=0D; sentients tusken/thug tagged intelligent:true with real attributes); rewrote the misleading dedup header comment that was the root cause (it assumed a sourcebook-appendix loader that does not exist). New global guard tests/test_wilderness_encounter_template_resolution.py walks every live region via load_era_wilderness_regions and asserts every template resolves via creature_library.get_creature (no curated allow-list � the old per-biome contracts only checked their own subset, which is why the 4 slipped through); relaxed test_lane_a_creatures_tatooine.py 0D-KMT assertion to non-intelligent creatures only. Verified: 27 contract+guard tests + 118 spawner/spoils/ey_akh regression + end-to-end spawn proof (all 4 spawn 2/3/3/2; unknown template still returns []). Parallel-safe: data+tests only, no engine/parser/server edits. See TD.ENCOUNTER_COUNT_RANGE_IGNORED for the count-range quirk discovered + deliberately deferred."
+    },
+    {
       "id": "ECON.vendor_presence_gate",
       "title": "Vendor-presence gate + vendor/haggler disentangle",
       "status": "DELIVERED 2026-06-12 (same-day drop 11)",
@@ -2237,6 +2243,14 @@
     }
   ],
   "tech_debt": [
+    {
+      "id": "TD.ENCOUNTER_COUNT_RANGE_IGNORED",
+      "name": "encounter_count_range_falls_back_to_pack_min",
+      "added_date": "2026-06-13",
+      "added_by": "drop wilderness-phantom-creatures (discovered while verifying the 4 new spawns; PRE-EXISTING, not introduced here)",
+      "status": "flagged",
+      "summary": "engine/creature_library.creature_spawn_count cannot parse an encounter payload's [lo,hi] range count: int([4,6]) raises TypeError -> caught -> it falls back to creature pack_count[0]. EVERY wilderness creature encounter authors count as a range ([lo,hi]) in the region YAML (dune_sea/coruscant_underworld/ey_akh), and EncounterEntry.payload stores it raw (engine/wilderness_encounters.py:112) with no roll in roll_encounter/resolve_encounter_spawn. So every encounter � the existing 18 creatures too � spawns the pack minimum regardless of its authored range (verified: tusken_war_party count:[4,6] spawns 2; gang_patrol [2,4] spawns 2; maze_ambush [3,5] spawns 3). Fix is a small contained change to the pure function creature_spawn_count (roll random.randint(lo,hi) when count is a 2-list), BUT honoring the ranges would raise spawn counts across the WHOLE wilderness system (a galaxy-wide difficulty shift), so it is deliberately NOT slipped into a content-fix drop � it warrants a conscious balance decision. Until then, creature pack_count minimums are set to sane spawn counts. Parallel-safe to fix later (creature_library.py is in neither live session's avoid set)."
+    },
     {
       "id": "TD.WILDERNESS_AMBIENT_LINES_DEAD_WRITE",
       "name": "wilderness_ambient_lines_no_reader",

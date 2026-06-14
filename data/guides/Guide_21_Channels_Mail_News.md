@@ -478,7 +478,7 @@ Five concrete pictures.
 | Inbox sort | Unread first, then by date |
 | News bulletin | 10 most recent events |
 | Time-ago formatting | "just now" / "X minutes ago" / "X hours ago" / "yesterday" / "X days ago" |
-| Faction prefixes in fcomm | Republic / Empire / CIS / Hutt / etc. |
+| Faction prefixes in fcomm | Republic / CIS / Hutt / etc. |
 | `who` displays | Player name + location + status |
 
 ---

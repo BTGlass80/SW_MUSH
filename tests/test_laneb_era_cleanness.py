@@ -36,6 +36,11 @@ _BANNED = (
     "Stormtrooper", "stormtrooper",
     "Empire", "Rebel", "rebel",
     "TIE fighter", "TIE-", "X-Wing", "x-wing",
+    # Post-Clone-Wars / GCW / New-Republic-era tokens (added 2026-06-13 — the
+    # lore-ingestion LLM quality-gate caught these slipping past the original
+    # Empire/Imperial list; see tools/ingest_lore.py for the shared copy):
+    "New Republic", "Grand Moff", "Death Star", "Order 66",
+    "Order Sixty-Six", "New Order", "Galactic Civil War",
 )
 
 

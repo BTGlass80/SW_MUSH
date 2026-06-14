@@ -15,8 +15,6 @@ tags: ["economy", "credits", "money", "missions", "bounty", "smuggling", "trade"
 
 ## 1. Economic Design Targets
 
-### Player Rules
-
 The economy is designed around these targets for an active player:
 
 | Metric | Target |
@@ -27,17 +25,9 @@ The economy is designed around these targets for an active player:
 
 The spread is intentional — a cautious player doing delivery missions earns less but risks nothing. A smuggler running raw spice earns 10x more but can lose half the reward to Republic customs fines. Skill, risk tolerance, and time invested all affect income.
 
-### 🔧 Developer Internals
-
-**Design doc:** `economy_design_v02-1.md`. Full audit in `economy_audit_v1.md`.
-
-The economy audit identified six structural vulnerabilities, the most critical being that trade goods are a "solved game" (static price multipliers can theoretically generate 120x the design target). The audit recommends dynamic supply pools, Bargain skill gates on bulk purchases, and per-planet inventory limits. These are documented but not yet implemented.
-
 ---
 
 ## 2. Mission Board
-
-### Player Rules
 
 The mission board is the primary reliable income source. It holds **5–8 procedurally generated jobs** spanning 14 mission types. The board refreshes every 30 minutes, and completed missions are replaced immediately.
 
@@ -78,34 +68,9 @@ mission abandon           — Abandon your active mission
 
 **Completion:** When you type `mission complete` at the appropriate location, the game rolls the relevant skill against a difficulty scaled by the reward amount. Full success pays full reward. Partial success (miss by ≤4) pays a fraction. Failure pays nothing. Critical success (Wild Die exploded) gives a bonus. Fumble (Wild Die = 1) may impose a penalty.
 
-### 🔧 Developer Internals
-
-**File:** `engine/missions.py` (~856 lines):
-
-**`MissionType` enum** (lines 46–62): 14 types including 4 space types (PATROL, ESCORT, INTERCEPT, SURVEY_ZONE).
-
-**`MissionStatus` enum**: AVAILABLE, ACCEPTED, COMPLETE, EXPIRED, FAILED.
-
-**`PAY_RANGES` dict** (lines 109–127): Min/max pay per type. Space missions pay 300–2,500 cr.
-
-**Board management:**
-- `BOARD_MIN = 5`, `BOARD_MAX = 8`
-- `REFRESH_SECONDS = 1800` (30 minutes)
-- `MISSION_TTL = 3600` (1 hour unclaimed)
-- `MISSION_ACTIVE_TTL = 7200` (2 hours accepted)
-- Board maintains the AVAILABLE pool and replaces completed missions immediately
-
-**Mission generation:** Procedural — picks random type, generates reward within range, assigns destination rooms based on type, creates flavor text. Space missions reference specific zone targets from `_PATROL_ZONES`, `_SURVEY_ZONES`, `_INTERCEPT_ZONES`, `_ESCORT_ROUTES`.
-
-**Completion skill check:** Routes through `skill_checks.py::resolve_mission_completion()` which calls `perform_skill_check()`. Difficulty scales with reward via `mission_difficulty()` (intermediate values 8–21, not the canonical R&E ladder).
-
-**File:** `parser/mission_commands.py` (~600 lines): 5 commands — missions, mission accept, mission info, mission complete, mission abandon.
-
 ---
 
 ## 3. Bounty Board
-
-### Player Rules
 
 The bounty board offers **hunting contracts** — targets are actual NPCs spawned in the game world. You have to find them and defeat them in combat.
 
@@ -138,33 +103,9 @@ bounty abandon            — Abandon your claimed bounty
 
 **Target archetypes:** Thugs, smugglers, bounty hunters, scouts, B1 droids, CIS agents, Hutt enforcers — procedurally generated with appropriate stats and equipment for their tier.
 
-### 🔧 Developer Internals
-
-**File:** `engine/bounty_board.py` (~554 lines):
-
-**`BountyTier` enum** (lines 53–58): EXTRA through SUPERIOR.
-
-**`TIER_WEIGHTS` dict** (lines 70–76): Extras are 5x more common than Superiors.
-
-**`FUGITIVE_ARCHETYPES`** (lines 79–82): 6 archetype strings that make sense as fugitives.
-
-**Board management:**
-- `BOARD_SIZE = 4`, `BOARD_MIN = 2`
-- `REFRESH_SECONDS = 2700` (45 minutes)
-- `BOUNTY_TTL = 10800` (3 hours unclaimed)
-- `CLAIMED_TTL = 14400` (4 hours claimed)
-
-**Target spawning:** NPCs are actually spawned in the world using `engine/npc_generator.py`. They're placed in non-obvious rooms (avoids docking bays). Their stats match the tier difficulty.
-
-**Completion:** Requires the target NPC to be killed or incapacitated. The combat system has a bounty kill hook that triggers when a bounty target is defeated.
-
-**File:** `parser/bounty_commands.py` (~410 lines): 5 commands.
-
 ---
 
 ## 4. Smuggling
-
-### Player Rules
 
 Smuggling is the high-risk, high-reward income path. You pick up contraband cargo from criminal contacts and deliver it to a dropoff point, hoping to avoid Republic clone patrol along the way.
 
@@ -202,31 +143,9 @@ smugdeliver               — Deliver cargo at the dropoff
 smugdump                  — Dump contraband (avoid fines, lose cargo)
 ```
 
-### 🔧 Developer Internals
-
-**File:** `engine/smuggling.py` (~625 lines):
-
-**`CargoTier` IntEnum** (lines 102–106): GREY_MARKET(0), BLACK_MARKET(1), CONTRABAND(2), SPICE(3).
-
-**`ROUTE_TIERS` dict** (lines 72–80): 5 route configurations with tier, destination planet, pay override, and patrol chance.
-
-**`PLANET_PATROL_FREQUENCY` dict** (lines 84–89): Per-planet arrival intercept probability. Corellia = 0.60 (Core World).
-
-**Board management:**
-- `BOARD_SIZE = 5`, `BOARD_MIN = 3`
-- `REFRESH_SECONDS = 2700` (45 minutes)
-- `JOB_TTL = 7200` (2 hours unclaimed)
-- `JOB_ACTIVE_TTL = 14400` (4 hours accepted)
-
-**Patrol resolution:** Random check against `TIER_PATROL_CHANCE[tier]`. If triggered, player rolls Con or Sneak vs. `PATROL_DIFFICULTY[tier]`. Failure: cargo confiscated, fine = `FINE_FRACTION (0.50) × reward`.
-
-**File:** `parser/smuggling_commands.py` (~480 lines): 5 commands.
-
 ---
 
 ## 5. Cargo Trading
-
-### Player Rules
 
 (Detailed in Guide #5, section 8 — summarized here for completeness.)
 
@@ -237,8 +156,6 @@ Buy-low-sell-high speculative trading between planets. 8 trade goods with planet
 ---
 
 ## 6. Other Income Sources
-
-### Player Rules
 
 **Entertainment:** The `perform` command in cantina zones rolls a Perception-based check. Success earns credits based on performance quality. A niche but risk-free income.
 
@@ -251,8 +168,6 @@ Buy-low-sell-high speculative trading between planets. 8 trade goods with planet
 ---
 
 ## 7. Credit Sinks (Where Money Goes)
-
-### Player Rules
 
 | Sink | Cost | Frequency |
 |------|------|-----------|
@@ -271,17 +186,9 @@ Buy-low-sell-high speculative trading between planets. 8 trade goods with planet
 
 **Weapon durability** creates an ongoing repair cycle — every attack degrades weapon condition by 1 point. When condition hits 0, the weapon needs repair from an NPC. This is a well-designed lifecycle sink.
 
-### 🔧 Developer Internals
-
-**From economy audit:** ~50% of designed sinks are not yet wired. Missing: transaction tax (5%), recurring daily docking fees, ammo costs, medical NPC treatment costs, crafting material NPC vendors. The most damaging gap is free crafting materials via the `survey` command (zero input cost, output worth hundreds/thousands).
-
-**What's working well (per audit — don't touch):** Weapon durability/repair cycle, vendor droid listing fees, crew wages, smuggling risk/reward.
-
 ---
 
 ## 8. The Bargain Skill
-
-### Player Rules
 
 Many economic transactions involve a **Bargain skill check** — an opposed roll between your Bargain skill and the NPC vendor's bargain dice. The margin determines a price modifier:
 
@@ -290,10 +197,6 @@ Many economic transactions involve a **Bargain skill check** — an opposed roll
 - Fumble inverts the modifier and guarantees at least 2% swing against you
 
 When buying, a positive margin means a cheaper price. When selling, it means a higher sell price. A skilled haggler saves/earns 10% on every transaction.
-
-### 🔧 Developer Internals
-
-**File:** `engine/skill_checks.py` — `resolve_bargain_check()` (lines 297–428). Both player and NPC roll through `roll_d6_pool()`. NPC bargain dice auto-detected from room NPCs; falls back to 3D generic vendor. Result dict includes `adjusted_price`, `price_modifier_pct`, `margin`, `critical`, `fumble`, and narrative `message`.
 
 ---
 
@@ -309,25 +212,3 @@ When buying, a positive margin means a cheaper price. When selling, it means a h
 
 ---
 
-## 10. File Reference
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `engine/missions.py` | ~856 | 14 mission types, board management, generation, completion |
-| `engine/bounty_board.py` | ~554 | 5 bounty tiers, target spawning, tracking, collection |
-| `engine/smuggling.py` | ~625 | 4 cargo tiers, 5 route tiers, patrol encounters, fines |
-| `engine/trading.py` | ~335 | 8 trade goods, planet price tables, cargo hold |
-| `engine/skill_checks.py` | ~590 | Bargain, mission completion, repair resolvers |
-| `parser/mission_commands.py` | ~600 | 5 mission commands |
-| `parser/bounty_commands.py` | ~410 | 5 bounty commands |
-| `parser/smuggling_commands.py` | ~480 | 5 smuggling commands |
-| `parser/builtin_commands.py` | ~1,872 | sell, repair, credits commands |
-| `economy_design_v02-1.md` | — | Economy design document |
-| `economy_audit_v1.md` | — | Full economy audit with 6 vulnerability findings |
-
-**Total economy system:** ~3,845 lines of engine code + ~1,490 lines of parser code + ~335 lines of trading = ~5,670 lines dedicated to the credit economy.
-
----
-
-*End of Guide #6 — Economy*
-*Next: Guide #7 — Crafting*

@@ -145,7 +145,6 @@ Founders are usually but not always the active Mayor too. A founder might step b
 - Add and remove **guests**.
 - **Banish and unbanish** players from the city.
 - Flag rooms as **citizen-only**.
-- Set the city guards (a planned later feature — placeholder for now).
 
 Mayor is the executive office of the city. The Founder is the sovereign; the Mayor is the prime minister.
 
@@ -285,8 +284,6 @@ Use guests deliberately. A guest is "this person is welcome to walk through our 
 **`+city unbanish <player>`** — clear the banishment early. Sometimes the right call after a cooling-off period. Sometimes you just leave it.
 
 **`+city citizenroom on/off`** — flag the current room as citizen-only. Capped at 30% of non-HQ expansion rooms. Use sparingly.
-
-**`+city guards`** — placeholder for a future feature. The Mayor will eventually be able to station NPC guards at specific city rooms. Not live yet.
 
 ---
 
@@ -457,7 +454,6 @@ That's the daily texture of citizenship: small conveniences, public benefits, a 
 | `+city tax set` | `+city tax set <decimal>` | Mayor or Founder |
 | `+city tax ratecap` | `+city tax ratecap <decimal>` | Founder |
 | `+city home` | `+city home` | Citizens |
-| `+city guards` | `+city guards` | Mayor or Founder (planned feature) |
 
 ---
 

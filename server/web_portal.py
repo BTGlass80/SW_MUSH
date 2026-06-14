@@ -83,6 +83,11 @@ _CATEGORY_TABLE: list[dict] = [
         "label": "Community & Story",
         "blurb": "Factions, cities, communication, and the Director AI.",
     },
+    {
+        "key": "admin",
+        "label": "Administration",
+        "blurb": "Running the game. Admin-only — players never see this section.",
+    },
 ]
 
 # Order index → faster sort key lookup. Built at first load.
@@ -183,6 +188,14 @@ def _load_guides() -> None:
             tags = []
         # normalize tags to lowercase strings
         tags = [str(t).lower() for t in tags if t]
+        # access_level gates a guide the same way it gates a help entry:
+        # 0/absent = anyone; >= ADMIN(3) hides it from non-admin callers. Lets an
+        # admin-only guide (e.g. Administration) ship in data/guides/ without being
+        # served to players. Filtered per-caller in handle_guides / handle_guide_content.
+        try:
+            access_level = int(meta.get("access_level", 0) or 0)
+        except (TypeError, ValueError):
+            access_level = 0
 
         entries.append({
             "slug": slug,
@@ -191,6 +204,7 @@ def _load_guides() -> None:
             "category": category,
             "summary": summary,
             "tags": tags,
+            "access_level": access_level,
         })
         _GUIDE_CONTENT[slug] = content
 
@@ -818,10 +832,20 @@ class PortalAPI:
         on the client — so adding/renaming a category is a one-place edit on
         the server (the ``_CATEGORY_TABLE`` constant above) plus a frontmatter
         update in the guides that should live there.
+
+        Guides are filtered by the caller's access_level so an admin-only guide
+        (frontmatter ``access_level: 3``) never reaches a player — mirroring the
+        help-reference gating.
         """
+        max_level = await self._caller_max_access_level(request)
+        guides = [g for g in _GUIDE_INDEX if g.get("access_level", 0) <= max_level]
+        # Categories with no visible guide drop out, so a fully-gated category
+        # (e.g. 'admin') never shows a header to players.
+        visible_cats = {g["category"] for g in guides}
+        categories = [c for c in _GUIDE_CATEGORIES if c.get("key") in visible_cats]
         return self._json({
-            "guides": _GUIDE_INDEX,
-            "categories": _GUIDE_CATEGORIES,
+            "guides": guides,
+            "categories": categories,
         })
 
     async def handle_guide_content(self, request) -> web.Response:
@@ -831,12 +855,20 @@ class PortalAPI:
         if content is None:
             return self._json({"error": "Guide not found"}, 404)
 
-        # Find title from index
+        # Find title + access_level from index
         title = slug.replace("-", " ").title()
+        access_level = 0
         for g in _GUIDE_INDEX:
             if g["slug"] == slug:
                 title = g["title"]
+                access_level = g.get("access_level", 0)
                 break
+
+        # Gate admin-only guide content: a player hitting the slug directly gets
+        # the same 404 as a missing guide (don't leak its existence).
+        max_level = await self._caller_max_access_level(request)
+        if access_level > max_level:
+            return self._json({"error": "Guide not found"}, 404)
 
         return self._json({"slug": slug, "title": title, "content": content})
 

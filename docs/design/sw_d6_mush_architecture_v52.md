@@ -80,16 +80,16 @@ numbering and folds in the June waves, while explicitly folding v51's
 durable sections forward by reference (see the header). `TODO.json
 architecture_of_record` should now read `sw_d6_mush_architecture_v52.md`.
 
-### §1.3 Code-state baseline (grounded in HEAD, 2026-06-12)
+### §1.3 Code-state baseline (grounded in HEAD, 2026-06-13 — drops 34–43)
 
-| Surface | v51 doc (on-disk, May 30 snapshot) | v52 (HEAD, Jun 12) | Note |
-|---|---:|---:|---|
-| Engine modules (`engine/*.py`) | 122 | **139** | +17 since the May-30 snapshot across the June waves (world-event wiring, `creature_spoils.py`, communal-objective pair, vendor-sell helpers, the Gundark-lane engine mechanics live mostly *inside* `crafting.py`/`weapons.py`/`character.py`/`skill_checks.py` rather than as new modules). v51's later point-updates had re-counted to 134; HEAD is now 139. |
-| Parser modules (`parser/*.py`) | 60 | **67** | +7 (communal `rally`, the `learn` tuition flow lives in `crafting_commands.py`, vendor/sell surfaces in `builtin_commands.py`). |
-| Server modules (`server/*.py`) | 16 | **16** | 0. |
-| Schema version | 35 (header) / 43 (live) | **43** | Live value is and has been **43** (migration 41 `dsp_hunter_pursuit`, 42 `spawned_npc_id`, 43 `communal_objective`). The June 11–12 Gundark lane is **schema-neutral** (data + read-path + funnel-routed credit sinks only). |
-| Test files (`tests/test_*.py`) | 253 | **319** | +66, incl. the 7 Gundark drop suites (A–G), `test_skill_key_resolution.py`, `test_vendor_sell_carried.py`, `test_ledger_chokepoint_complete.py`, and the June-wave suites. |
-| SPA test files (`tests/spa/test_*.py`) | 37 | **49** | +12, incl. `test_client_onclick_exports.py` (the inline-handler wiring sweep). |
+| Surface | v52 (Jun 12) | drops 24–33 | HEAD (drops 34–43) | Note |
+|---|---:|---:|---:|---|
+| Engine modules (`engine/*.py`) | 139 | 140 | **141** | +1: `engine/breaching.py` (drop 40). |
+| Parser modules (`parser/*.py`) | 67 | 68 | **69** | +1: `parser/demolitions_commands.py` (drop 40, `breach` verb). |
+| Server modules (`server/*.py`) | 16 | 16 | **16** | 0. |
+| Schema version | 43 | 43 | **43** | Still 43 — **all of drops 34–43 are schema-neutral.** The additive-on-43 fields (chain `kind`, multi-slot questline keys, zone `threat_band`, encounter `min_band`/`max_band`) remain a **T3.20 state-preservation/backfill obligation** for pre-existing saves (see §1.5). |
+| Test files (`tests/test_*.py`) | 319 | 335 | **342** | +7: T5-questline content/gating suites (drops 34–35), world-event flag-consumer suites (36–37), breaching suites (40/42). |
+| SPA test files (`tests/spa/test_*.py`) | 49 | 49 | **49** | 0. |
 
 **Schema-neutrality of the June 11–12 wave is load-bearing.** The entire
 Gundark crafting lane (drops 1–11) added recipes, NPCs, and six engine
@@ -188,6 +188,36 @@ presence. Each is a *deliberate* behavior change; any suite test that
 flips is pinning a now-fixed bug (the "pinning the bug" class — flag the
 flip direction so triage is five minutes).
 
+**N. Onboarding + difficulty-tiers + mid-game questline wave (drops
+24–33, 2026-06-12..13).** The post-v52 wave; the arch doc body above was
+cut at drop 23, so this is the catch-up block. Four threads:
+
+- **Onboarding playability (drops 24–26).** All 7 chargen tutorial chains
+  were non-completable pre-launch (inter-step teleport gap + a `+factions`
+  registry miss); fixed with `engine/chain_graduation.py::apply_step_teleport`
+  and a reachability coverage net (`test_chain_corpus_reachability_invariant.py`)
+  that catches the stranding class statically. The `give` command shipped
+  here. See the CW-tutorial-chains record.
+- **B3 era sweep of the help corpus (drop 27).** Player-facing help/Codex
+  strings de-Imperialized; SPA DOM tests unblocked. (Companion to the
+  separate guide-cleanup effort in `help_guides_rework_plan_v1.md`.)
+- **Difficulty-tiers / threat-band axis (drops 28–31, DIFF.1–4).** A NEW
+  orthogonal world axis — see the new §3.5 below. `engine/threat_band.py`
+  (`ThreatBand` FRONTIER/SETTLED/CONTESTED_MARCHES/WILDS), zone labeling,
+  encounter-pool band gating, and bounty-reward scaling. Design:
+  `difficulty_tiers_design_v1.md`.
+- **Mid-game questline / multi-slot chain engine (drops 32–33).** The
+  chargen-only tutorial-chain engine generalized to dual-slot to carry
+  mid-game questlines — see the new §3.6 below. Drop 32's get/take/drop
+  redirect stubs (`parser/builtin_commands.py`) are a pure-additive
+  newbie-friendliness fix.
+
+In flight (uncommitted at the time of this update): the **T5 master-trainer
+questline** (`T2.DEF.t5_trainer_storyline`) — `kind: questline` chains
+gating a master's T5 recipe behind a completed quest + faction rep ≥ 50,
+riding the drop-33 multi-slot engine. First vertical slice (Jedi /
+lightsaber master, `npcs_drop_b_t5_trainers.yaml`); 4 masters to follow.
+
 ### §1.5 What's still open
 
 **Web client** (unchanged from v51 §1.5): mission-**giver** POI pins
@@ -222,13 +252,34 @@ blocked the onboarding browser walk.
 - **`WEBIFY.commissary_vendor_mode`** · Lane C remainder + Lane F · Kamino ·
   Drop-5 farming controls.
 
-**Carried forward from v51** (unchanged): the world-event 6 FLAG effects
-(`T2.E3`, §8.19); the Director internal faction model re-key
-(`TD.DIRECTOR_FACTION_MODEL_GCW`); Coruscant Underworld full 40×40×3 region
-build (§8.13); intel-handler NPC seeding (§8.18); the engine Tier-2
-launch-flexible items (Weight of War full impl, PG.2.bounty follow-ups,
-PG.3 Act 3, F.7.n Force-attribute seeding); the eavesdrop `target_char`
-design call. Vendor V1 Part B (web vendor panel) is post-launch.
+**Carried forward from v51** (unchanged): Coruscant Underworld full 40×40×3
+region build (§8.13); intel-handler NPC seeding (§8.18); the engine Tier-2
+launch-flexible items (PG.2.bounty follow-ups, PG.3 Act 3, F.7.n
+Force-attribute seeding); the eavesdrop `target_char` design call. Vendor
+V1 Part B (web vendor panel) is post-launch.
+
+**RESOLVED since v52 (no longer open — see v52.2):** the world-event FLAG
+effects (`T2.E3`) shipped in drops 36–37 (all **5**, not 6 — the "6" was a
+miscount); the Director CW faction-model mapping (`TD.DIRECTOR_FACTION_MODEL_GCW`)
+shipped drop 39 (a boundary mapping layer; the deeper internal re-key is still
+correctly deferred, and the Director-scope review found the digest still uses the
+`imperial`/`rebel` axis — a separate larger item).
+
+**Correction (verified HEAD 2026-06-13):** **Weight of War is SHIPPED**, not
+a pending follow-up — `engine/weight_of_war.py` (19 functions) +
+`engine/wow_combat_hooks.py`, wired into `parser/combat_commands.py` (retreat
+refusal + WoW hooks at three sites). Earlier doc copy listed "Weight of War
+full impl" as a launch-flexible item; that is stale. (If a specific WoW
+sub-feature remains, name it against HEAD — the base system and combat
+integration are live.)
+
+**State-preservation obligation (NEW, drops 28–33):** the additive
+persisted fields shipped without a schema bump — chain-record `kind`,
+multi-slot questline state keys, zone `threat_band`, encounter
+`min_band`/`max_band` — MUST be covered by **T3.20** migration/backfill on
+pre-existing characters and saves. The "launch = whole backlog to avoid
+post-launch state surgery" rationale is breached at launch if these
+new-on-43 fields aren't backfilled.
 
 ### §1.6 What's been steady
 
@@ -244,10 +295,13 @@ visual port + hybrid raster substrate map lane remain shipped and closed.
 
 ### §3.1 Lanes (status at v52)
 
-- **Engine lane — closed for launch.** SYN.0→10 shipped (v51); the June
-  economy-hardening, creature, Force, and communal-objective waves shipped;
-  the Gundark crafting lane (A→G) shipped. Remaining engine work is
-  post-launch follow-ups (Weight of War full impl, PG.2/PG.3, F.7.n) + the
+- **Engine lane — substantially closed; the difficulty + questline axes
+  reopened it briefly.** SYN.0→10 shipped (v51); the June economy-hardening,
+  creature, Force, and communal-objective waves shipped; the Gundark
+  crafting lane (A→G) shipped; Weight of War is shipped (§1.5 correction);
+  the difficulty-tiers axis (§3.5) and the mid-game questline engine (§3.6)
+  shipped post-v52 (drops 28–33). Remaining engine work is the in-flight T5
+  master-trainer questline content (§1.4-N), PG.2/PG.3, F.7.n, and the
   crafting design passes in §1.5.
 - **Web-client lane — substantially shipped** (v51). The Drop-3 onclick
   fix closed the last known interaction-wiring gap. Remaining: the
@@ -296,7 +350,43 @@ headline — **the entire Gundark crafting lane, drops 1–11 (§1.4-M)**, plus
 the web onclick-export fix, market segmentation, and the vendor-presence
 buy gate. Three CRAFT design letters resolved (`market_segmentation = a`,
 `schematic_tuition = a`, `p2p_cap_review = a`) and one OBS call
-(`buy_verb_followups = a`).
+(`buy_verb_followups = a`). **Post-v52 (drops 24–33, §1.4-N):** onboarding
+playability, the help-corpus era sweep, the difficulty-tiers axis (§3.5),
+and the mid-game questline engine (§3.6).
+
+### §3.5 Difficulty-tiers / threat-band axis (NEW, drops 28–31)
+
+A NEW world axis orthogonal to security. `engine/threat_band.py`:
+`ThreatBand` enum (1–4: FRONTIER / SETTLED / CONTESTED_MARCHES / WILDS),
+`get_effective_threat()` (zone-inheritance resolver, same pattern as
+security), `reward_multiplier()` (0.6× / 1.0× / 1.4× / 2.0×), and the
+`frontier_lawless_conflict` validator (world_loader load-time check #7).
+Wiring: `zones.yaml` `properties.threat_band` (default SETTLED if absent);
+`wilderness_encounters.py` `min_band`/`max_band` pool filtering (now
+**behavior-affecting**, drop 30); `bounty_commands.py` reward scaling at
+the existing bounty faucet (drop 31); `builtin_commands.py` look-header
+band tags + the read-only `+threat` command. **Invariant — orthogonal
+axes:** threat (difficulty) is independent of security (combat-allowance);
+the ONLY coupling is `frontier_lawless_conflict` (a tile cannot be both
+FRONTIER-threat and lawless-security). Design:
+`difficulty_tiers_design_v1.md`.
+
+### §3.6 Mid-game questline / multi-slot chain engine (NEW, drop 33)
+
+`engine/tutorial_chains.py` generalized from single-slot (chargen
+onboarding only) to **dual-slot**: the legacy `_TUTORIAL_CHAIN_KEY` plus a
+new `_QUESTLINE_KEY`, tracked in `CHAIN_STATE_KEYS`. Chain records gain a
+`kind` field (default `"tutorial"`, validated against
+`ALLOWED_CHAIN_KINDS`); every public chain hook gains an optional
+`state_key` param defaulting to the tutorial slot (back-compat for all
+legacy callers). `chain_events.py` walks all slots per event
+(`_try_advance_all_slots`); `has_completed_chain` is a durable check used
+for downstream gating. Player surface: `parser/questline_commands.py`
+`mastery` verb (start/status/abandon/list) + an NPC-offer talk hook.
+**Engine is behavior-neutral for onboarding** — the dual-slot machine
+reduces to the old single-slot behavior when only the tutorial slot is
+populated. This is the substrate the in-flight T5 master-trainer questline
+(§1.4-N) rides on.
 
 ---
 
@@ -560,6 +650,42 @@ naming (§8.5); eavesdrop `target_char` (carried since v45).
 ---
 
 ## §9. Version history
+
+- **v52.2 (Jun 13 2026)** — drops 34–43 catch-up. Folds in the post-v52.1 wave:
+  **T5 master-trainer questline COMPLETE** (drops 34–35 — 5 trainers in
+  `npcs_drop_b_t5_trainers.yaml`, 5 questlines, all T5 schematic gates, per-step
+  reward consumer in `engine/chain_rewards.py`) — this **supersedes the v52.1
+  "in-flight T5 questline" note**; **all 5 world-event FLAG consumers wired**
+  (drops 36–37 — rare_vendor, krayt_bounty, distress, hutt_auction, brawl in
+  `engine/world_events.py`) — **resolves T2.E3 / the "6 FLAG effects open" item,
+  which was always 5 not 6**; commissary sellback (38), Director CW faction-order
+  mapping `normalize_faction_order_code` (39), **breaching CHARGES + obstacle
+  placement** (`engine/breaching.py` + `world_writer.py::_write_breachables`,
+  drops 40/42 — only placed proximity MINES remain deferred), per-region harvest
+  override (41), T5 ship-part effects verified (43). Counts: engine 141, parser
+  69, tests 342; server 16, spa 49, schema 43 (all drops schema-neutral). NO new
+  §4 invariants. **8 design calls resolved** (flag_consumers, commissary,
+  faction_mapping, breaching split + placement, harvest_skill, rare_no_vendor,
+  force_detector-DEFER — moved to `design_calls_resolved_recent`); **3 forks
+  remain pending Brian** (quality_combat_armor/consumables, powered_suit,
+  restraints — all balance/equipment-migration-gated). NEW finding folded into
+  the roadmap: the **Director AI runs only 6 Mos Eisley zones** and its primary
+  influence lever is a dead call (`director.py:896` → undefined
+  `_apply_influence_delta`); see `director_scope_and_adaptive_spend_v1.md` — a
+  pre-launch scope-expansion candidate, not a tuning item.
+
+- **v52.1 (Jun 13 2026)** — post-v52 catch-up pass (drops 24–33). The
+  v52 body was cut at drop 23; this pass folds in the onboarding-playability
+  + difficulty-tiers + mid-game-questline wave (§1.4-N). NEW subsystem
+  descriptions: **§3.5 difficulty-tiers / threat-band axis** (`engine/threat_band.py`,
+  drops 28–31) and **§3.6 mid-game questline / multi-slot chain engine**
+  (drop 33). Corrected §1.3 HEAD counts (engine 140, parser 68, tests 335);
+  corrected the stale "Weight of War pending" claim (it is shipped). Flagged
+  the **T3.20 state-preservation obligation** for the additive-on-schema-43
+  fields (chain `kind`, questline slots, `threat_band`, encounter bands).
+  `SCHEMA_VERSION` still 43. The in-flight T5 master-trainer questline noted
+  as building on §3.6. (Sequencing/readiness analysis lives in the session
+  handoff, not the arch doc.)
 
 - **v52 (Jun 12 2026)** — reconciliation + delta. (1) **Fixes the v51
   invariant-numbering collision** the 2026-06-06 audit flagged: restores

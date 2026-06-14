@@ -1,0 +1,5 @@
+{
+  "_schema": 1,
+  "_note": "Toe-the-line memory: the known-good BOLDEST term-ladder rung that cleared Nano's content filter AND screened on-theme. Populated by the batch loop (tools/mapgen/batch.py) on each on-theme keeper; only tightens toward bolder. Hand-editable. Empty until the first live batch runs.",
+  "terms": {}
+}

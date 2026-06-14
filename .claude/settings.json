@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "_comment": "Committed, always-on. The 'deny' list is the hard safety backstop (enforced even under bypassPermissions). The 'allow' list reduces prompts when running in a prompting mode (default/plan). Unattended auto-run lives in the gitignored .claude/settings.local.json (defaultMode: bypassPermissions) so it stays on Brian's machine only.",
+  "_comment": "Committed, always-on. The 'deny' list is the hard safety backstop (enforced even under bypassPermissions). The 'allow' list reduces prompts when running in a prompting mode (default/plan). Unattended auto-run lives in the gitignored .claude/settings.local.json (defaultMode: bypassPermissions) so it stays on Brian's machine only. The 'python main.py' deny entries turn smoke-verifier's prose 'never launch the real server' rule into a deterministic guard (the real server binds :8080/:4000 and mutates the live sw_mush.db, colliding with a running instance or the parallel dev session); the in-process smoke harness boots no listeners so tests are unaffected. NOTE for Brian: this blocks an interactive 'python main.py' launch from INSIDE a Claude Code session (your documented restart path) — launch the server from a plain terminal outside Claude Code, or temporarily remove the entry. PowerShell read-only allow entries mirror the already-trusted Bash set for shell parity on this Windows box.",
   "permissions": {
     "allow": [
       "Bash(python -m pytest:*)",
@@ -11,6 +11,9 @@
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git show:*)",
+      "Bash(git --no-pager diff:*)",
+      "Bash(git --no-pager log:*)",
+      "Bash(git --no-pager show:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git branch:*)",
@@ -25,7 +28,14 @@
       "Bash(head:*)",
       "Bash(tail:*)",
       "Bash(wc:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "PowerShell(python -m pytest:*)",
+      "PowerShell(python -m py_compile:*)",
+      "PowerShell(git status:*)",
+      "PowerShell(git diff:*)",
+      "PowerShell(git log:*)",
+      "PowerShell(git show:*)",
+      "PowerShell(git branch:*)"
     ],
     "deny": [
       "Bash(git reset --hard:*)",
@@ -38,7 +48,15 @@
       "PowerShell(git reset --hard:*)",
       "PowerShell(git rebase:*)",
       "PowerShell(Remove-Item:*)",
-      "PowerShell(rm -rf:*)"
+      "PowerShell(rm -rf:*)",
+      "Bash(python main.py:*)",
+      "Bash(python3 main.py:*)",
+      "Bash(py main.py:*)",
+      "Bash(python -m main:*)",
+      "PowerShell(python main.py:*)",
+      "PowerShell(python3 main.py:*)",
+      "Bash(rm sw_mush.db:*)",
+      "Bash(rm -f sw_mush.db:*)"
     ]
   },
   "_hooks_comment": "Deterministic enforcement layer for unattended runs (active in ALL permission modes, incl. bypassPermissions). PreToolUse world_yaml_additive_guard.py hard-blocks (exit 2) any Edit/Write/MultiEdit that would net-delete lines from data/worlds/clone_wars/{planets,maps}/*.yaml (map-safety invariant). PostToolUse post_edit_validate.py py_compiles edited *.py and yaml.safe_loads edited *.yaml, surfacing syntax errors back to Claude (exit 2). Command prefers venv python (has PyYAML), falls back to PATH python; ${CLAUDE_PROJECT_DIR:-.} resolves absolute at hook runtime or relative to cwd. Hooks reload on settings change / session start. Scripts are committed under .claude/hooks/.",
