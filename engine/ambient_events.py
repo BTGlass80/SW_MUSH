@@ -28,6 +28,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from engine.era_validator import era_violations
+
 log = logging.getLogger(__name__)
 
 # ── Constants ──
@@ -195,6 +197,7 @@ class AmbientEventManager:
             lines_by_zone: {"cantina": ["line1", "line2"], ...}
         """
         self._dynamic_pool.clear()
+        dropped = 0
         for zone_key, lines in lines_by_zone.items():
             validated = []
             for line in lines:
@@ -202,9 +205,21 @@ class AmbientEventManager:
                 line = line.strip()
                 if not line or len(line) > 120:
                     continue
+                # Era-guard: these lines are LLM-generated (the Director's
+                # ambient_pool) and reach every player in a room. The Director
+                # filters length/keywords/player-names but NOT era, so a
+                # GCW-era leak ("Imperial patrols...") would surface here. Drop
+                # any off-era line before it enters the pool (the static pool
+                # still covers the zone). Same boundary discipline as the Ollama
+                # idle-queue guard in engine/idle_queue.py.
+                if era_violations(line):
+                    dropped += 1
+                    continue
                 validated.append(AmbientLine(text=line))
             if validated:
                 self._dynamic_pool[zone_key] = validated
+        if dropped:
+            log.info("[ambient] Dropped %d off-era dynamic line(s)", dropped)
         if self._dynamic_pool:
             total = sum(len(v) for v in self._dynamic_pool.values())
             log.info("[ambient] Dynamic pool updated: %d lines", total)
