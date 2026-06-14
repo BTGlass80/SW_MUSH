@@ -2706,6 +2706,11 @@
   ],
   "named_disciplines_quick_ref": [
     {
+      "name": "no_passive_notification_wait",
+      "ref": "durable_loop drop 2026-06-14 (Brian ruling)",
+      "rule": "Never end a turn waiting on a long task's completion notification (it can fail to fire = stall). Run long tasks FOREGROUND-BLOCKING with a generous timeout, or actively re-check after expected-duration+margin. For cross-restart durability of the unattended dev loop (in-session CronCreate timers are session-only here), use tools/durable_loop.py: a disk-persisted Windows Task Scheduler wrapper that launches headless `claude -p` (auth inherited from the user-scope ANTHROPIC_API_KEY; MultipleInstancesPolicy=IgnoreNew so runs never overlap on git). arm/list/status/disarm; arm only when instructed."
+    },
+    {
       "name": "extend_dont_add",
       "ref": "WoW.4 retrospective",
       "rule": "Before creating a new command/file/module, check whether an existing surface already does something semantically adjacent. If yes, extend it as a subform/option/output addition."
