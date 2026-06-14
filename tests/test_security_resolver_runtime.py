@@ -26,9 +26,13 @@ import sys
 import unittest
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+pytestmark = pytest.mark.slow  # heavy: per-test in-memory DB + full migration chain
 
 from db.database import Database  # noqa: E402
 from engine.world_loader import Room  # noqa: E402

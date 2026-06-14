@@ -142,6 +142,7 @@ class TestTextureEncounterTick:
                 mock_mgr.create_encounter.assert_called_once()
 
     @pytest.mark.asyncio
+    @pytest.mark.slow  # heavy
     async def test_security_scaling(self):
         """Secured zones should have much lower trigger chance."""
         from server.tick_handlers_ships import texture_encounter_tick

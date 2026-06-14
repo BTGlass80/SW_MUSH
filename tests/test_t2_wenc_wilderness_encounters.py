@@ -66,6 +66,8 @@ import sys
 import tempfile
 import unittest
 
+import pytest
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(HERE, ".."))
@@ -662,6 +664,7 @@ class TestRollEncounterNoEligibleEntries(unittest.TestCase):
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.slow  # heavy: subprocess
 class TestWildernessHazardTickPath(unittest.TestCase):
     """Verify that hazards.hazard_tick walks the wilderness path.
 

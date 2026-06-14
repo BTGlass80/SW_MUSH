@@ -18,6 +18,9 @@ import os
 import re
 import unittest
 
+import pytest
+
+pytestmark = pytest.mark.slow  # heavy: regex scans over full client.html
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(HERE, ".."))

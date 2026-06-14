@@ -33,6 +33,8 @@ import os
 import sys
 import pytest
 
+pytestmark = pytest.mark.slow  # heavy: 76 regex scans over full client.html
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 CLIENT_PATH = os.path.join(

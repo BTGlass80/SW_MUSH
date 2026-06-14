@@ -28,6 +28,8 @@ import sys
 import unittest
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -73,6 +75,7 @@ class TestNormalizeFactionOrderCode(unittest.TestCase):
                 self.assertNotIn(res, ("imperial", "criminal"))
 
 
+@pytest.mark.slow  # heavy: async
 class TestDigestFactionLegend(unittest.TestCase):
     def _run(self, coro):
         loop = asyncio.new_event_loop()

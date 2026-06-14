@@ -307,6 +307,7 @@ class TestMissionSkillChecks:
         # Should get some partials with 5D vs ~12 difficulty
         # (not asserting count — dice are random)
 
+    @pytest.mark.slow  # heavy
     def test_mission_complete_command_uses_skill_check(self, harness):
         """
         The actual CompleteMissionCommand should call resolve_mission_completion.
@@ -336,6 +337,7 @@ class TestCraftingEconomics:
         assert SURVEY_COOLDOWN_S >= 120, \
             f"Survey cooldown {SURVEY_COOLDOWN_S}s is too short (min 120s)"
 
+    @pytest.mark.slow  # heavy
     async def test_survey_cooldown_enforced(self, harness):
         """Consecutive surveys should be blocked by cooldown."""
         s = await harness.login_as("SurveyCD", room_id=2,
@@ -424,6 +426,7 @@ class TestCPProgression:
         assert KUDOS_TICKS > PASSIVE_TICKS_PER_DAY, \
             f"Kudos ticks ({KUDOS_TICKS}) should exceed passive/day ({PASSIVE_TICKS_PER_DAY})"
 
+    @pytest.mark.slow  # heavy
     async def test_cp_display_shows_progression(self, harness):
         """The +cp command should show meaningful progression info."""
         s = await harness.login_as("CPInfo", room_id=2)
@@ -439,6 +442,7 @@ class TestCPProgression:
 class TestCreditSinks:
     """Verify implemented sinks are functional."""
 
+    @pytest.mark.slow  # heavy
     async def test_weapon_repair_costs_credits(self, harness):
         """Repairing a weapon should cost credits."""
         s = await harness.login_as("Repairer", room_id=2, credits=5000)
@@ -456,6 +460,7 @@ class TestCreditSinks:
             # If repair happened, credits should decrease
             assert after <= before, "Repair should cost credits"
 
+    @pytest.mark.slow  # heavy
     async def test_shop_buy_is_sink(self, harness):
         """Buying from NPC shops should remove credits."""
         s = await harness.login_as("ShopSink", room_id=19, credits=50000)
@@ -495,6 +500,7 @@ class TestCreditSinks:
 class TestEconomyMonitoring:
     """Verify credit_log infrastructure exists."""
 
+    @pytest.mark.slow  # heavy
     async def test_credit_log_table_exists(self, harness):
         """credit_log table should exist in schema."""
         try:
@@ -522,6 +528,7 @@ class TestEconomyMonitoring:
                 "Economy audit recommends adding it."
             )
 
+    @pytest.mark.slow  # heavy
     async def test_economy_admin_command(self, harness):
         """@economy command should exist for admin monitoring."""
         s = await harness.login_as("EconAdmin", room_id=2, is_admin=True)

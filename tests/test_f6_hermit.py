@@ -82,6 +82,7 @@ def _query(db_path, sql, params=()):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.slow  # heavy: build
 class TestHermitInWildernessSubstrate:
     """A fresh CW world build must place the Hermit in Hermit's Hut."""
 

@@ -16,6 +16,8 @@ import sys
 import unittest
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -184,6 +186,7 @@ class TestRewardMultiplier(unittest.TestCase):
 # Live world loads clean with the new validation
 # ──────────────────────────────────────────────────────────────────────
 
+@pytest.mark.slow  # heavy: build
 class TestWorldLoadsCleanWithValidation(unittest.TestCase):
     """DIFF.1 adds a frontier≠lawless validator to validate_world. The
     live CW world (no threat_band tags yet) must still load with zero

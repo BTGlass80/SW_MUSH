@@ -145,6 +145,7 @@ class FakeDB:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.slow  # heavy: build
 class TestSchemaV21:
 
     @classmethod
@@ -189,6 +190,7 @@ class TestSchemaV21:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.slow  # heavy: build
 class TestVillageNPCsPlaced:
 
     @classmethod

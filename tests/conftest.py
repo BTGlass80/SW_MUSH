@@ -62,36 +62,6 @@ except Exception:
 
 
 # ───────────────────────────────────────────────────────────────────────────
-# Stale-duplicate-tree guard (May 19 2026 packaging-phantom remediation)
-# ───────────────────────────────────────────────────────────────────────────
-#
-# A May 18 [2] drop intended to ship test files at:
-#   tests/test_pvf5_schema_seed_collision.py
-#   tests/smoke/test_smoke_wilderness_combat.py
-#   tests/smoke/scenarios/pvp_flag.py  (update)
-#   tests/smoke/scenarios/wilderness_combat.py  (update)
-# but the zip was packaged with an extra "tests/" prefix, so the
-# files landed at tests/tests/* instead. Pytest then discovered AND
-# ran them from that duplicate path, where the harness fixture from
-# tests/conftest.py is in scope but the imports resolve to the WRONG
-# (stale) scenario modules under tests/tests/smoke/scenarios/.
-#
-# The correct-path versions of these files are now shipped (this
-# drop), and the stale duplicate tree at tests/tests/ should be
-# deleted from the working copy. This collect_ignore is a
-# belt-and-suspenders measure that prevents the duplicate tree from
-# being collected by pytest in case the directory is not yet
-# manually removed.
-#
-# Once the duplicate tree is deleted from disk, this collect_ignore
-# becomes a no-op and can be removed in a later cleanup pass.
-
-collect_ignore = [
-    "tests",  # stale duplicate tree from May 18 [2] packaging phantom
-]
-
-
-# ───────────────────────────────────────────────────────────────────────────
 # CLI options
 # ───────────────────────────────────────────────────────────────────────────
 
