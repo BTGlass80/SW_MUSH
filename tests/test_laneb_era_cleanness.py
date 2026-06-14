@@ -31,17 +31,10 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 # GCW tokens that must not appear in *production* (CW-reachable) strings.
-_BANNED = (
-    "Imperial", "IMPERIAL", "imperial",
-    "Stormtrooper", "stormtrooper",
-    "Empire", "Rebel", "rebel",
-    "TIE fighter", "TIE-", "X-Wing", "x-wing",
-    # Post-Clone-Wars / GCW / New-Republic-era tokens (added 2026-06-13 — the
-    # lore-ingestion LLM quality-gate caught these slipping past the original
-    # Empire/Imperial list; see tools/ingest_lore.py for the shared copy):
-    "New Republic", "Grand Moff", "Death Star", "Order 66",
-    "Order Sixty-Six", "New Order", "Galactic Civil War",
-)
+# Single source of truth: engine/era_validator.py. This test, the lore-ingestion
+# quality-gate (tools/ingest_lore.py), and the Ollama runtime guard
+# (engine/idle_queue.py) all import the SAME tuple so they can never drift.
+from engine.era_validator import BANNED_ERA_TOKENS as _BANNED
 
 
 def _read(relpath):
