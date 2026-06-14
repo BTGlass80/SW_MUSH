@@ -82,6 +82,25 @@ Cheap, parallel, read-only fan-out (searches across many files) → `Explore`
 or `general-purpose`. Prefer delegating implementation + verification so
 this session spends Opus tokens on judgment, not boilerplate.
 
+### Skills (`.claude/skills/`)
+
+Skills are auto-surfaced procedures for **this (main) session's inline work**,
+complementary to agents (isolated, must be spawned) and the `/`-commands
+(manual rituals). They auto-trigger by `description` match, so you don't have to
+remember to invoke them. Current set:
+
+- **`stat-d6`** — the canonical WEG-D6 statting/authoring procedure (provenance
+  re-stat, WEG40120 lookup, funnel functions, `force_sensitive` derivation,
+  phantom-consumer + era rules). Fires when you stat/balance content, assign or
+  verify a dice code, or look up a D6 rule inline. The `content-author` agent is
+  its bulk/parallel counterpart.
+- **`world-yaml`** — safe-editing procedure for `data/worlds/**` (additive-only,
+  comment-preserving string-replacement, pinned coords, post-edit validators).
+  Proactive partner to the deletion-blocking `world_yaml_additive_guard` hook.
+
+`tests/test_claude_skills_integrity.py` guards skill frontmatter + reference
+integrity (no phantom file pointers). Add a skill = new `.claude/skills/<name>/SKILL.md`.
+
 ## Communication style
 
 Brian communicates tersely ("B, go", "Continue", "A"). Self-direct with minimal check-ins; surface only genuine design forks, real blockers, and completed-drop summaries. Don't narrate routine steps or ask permission for standard workflow actions.
