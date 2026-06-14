@@ -13,6 +13,7 @@ from typing import Optional
 
 from ai.providers import AIManager
 from engine.json_safe import safe_json_loads
+from engine.era_validator import era_violations, ERA_PROMPT_HINT
 
 log = logging.getLogger(__name__)
 
@@ -126,9 +127,14 @@ class NPCBrain:
         cfg = self.npc.ai_config
         parts = []
 
+        # Era framing FIRST so the model generates FROM the Clone Wars era
+        # rather than its GCW-saturated default (the positive half of the
+        # era-guard; era_violations() below is the negative half).
+        parts.append(ERA_PROMPT_HINT)
+
         # Identity
         parts.append(
-            f"You are {self.npc.name}, a {self.npc.species} in a Star Wars setting."
+            f"You are {self.npc.name}, a {self.npc.species}."
         )
         if self.npc.description:
             parts.append(f"Your appearance: {self.npc.description}")
@@ -307,6 +313,11 @@ class NPCBrain:
         if _idle_q:
             _idle_q.notify_player_request()
 
+        # Pick the fallback ONCE so the era-guard and the memory-save guard
+        # below compare against a stable value (_get_fallback chooses randomly
+        # each call, so calling it twice could mismatch).
+        fallback = self._get_fallback()
+
         response = await self.ai.generate(
             system_prompt=system_prompt,
             messages=self.conversation_history,
@@ -315,8 +326,19 @@ class NPCBrain:
             temperature=self.npc.ai_config.temperature,
             model=self._get_model(),
             provider=self.npc.ai_config.provider_override,
-            fallback_text=self._get_fallback(),
+            fallback_text=fallback,
         )
+
+        # Era-guard: a local model prompted for Star Wars can emit GCW-era
+        # content (Empire/stormtroopers/canonical figures) even with the era
+        # hint in the system prompt. If the generated line leaks off-era,
+        # speak a canned in-era fallback instead of saying it to the player.
+        if response and response != fallback and era_violations(response):
+            log.info(
+                "[npc_brain] %s dialogue dropped (off-era), using fallback",
+                self.npc.name,
+            )
+            response = fallback
 
         # Add response to history
         self.conversation_history.append({
@@ -324,8 +346,8 @@ class NPCBrain:
             "content": response,
         })
 
-        # Save memory asynchronously
-        if db and player_char_id and response != self._get_fallback():
+        # Save memory asynchronously — never persist a fallback / dropped line.
+        if db and player_char_id and response != fallback:
             try:
                 await self._save_memory(db, player_char_id, player_input, response)
             except Exception as e:
