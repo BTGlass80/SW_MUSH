@@ -175,6 +175,18 @@ class _MiniDB:
             f"UPDATE characters SET {cols} WHERE id = ?", params)
         await self._db.commit()
 
+    async def adjust_credits(self, char_id, delta, reason=""):
+        # See test_syn6a: the harvest write-failure-honesty fix (2026-06-14)
+        # surfaces a failed credit write, so this fake must implement
+        # adjust_credits (apply the delta to the row, return the new balance).
+        await self._db.execute(
+            "UPDATE characters SET credits = credits + ? WHERE id = ?",
+            (delta, char_id))
+        await self._db.commit()
+        rows = await self._db.execute_fetchall(
+            "SELECT credits FROM characters WHERE id = ?", (char_id,))
+        return int(rows[0]["credits"]) if rows else 0
+
     async def adjust_org_treasury(self, org_id, delta):
         self.treasury_log.append((org_id, delta))
         self._db._conn.execute(

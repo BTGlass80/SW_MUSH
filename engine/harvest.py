@@ -838,21 +838,22 @@ async def perform_harvest(
         region_slug=region_slug,
     )
 
-    # ── Step 7: cooldown set (even on failed check) ─────────────────────────
-    # A failed skill check still consumes the cooldown — otherwise a
-    # player could spam-roll until they nail a Wild Die. Design
-    # intent is for harvest to feel like a measured action, not a
-    # slot-machine pull.
-    set_cooldown(char, cd_key, HARVEST_COOLDOWN_SECS)
-    try:
-        await db.save_character(char["id"], attributes=char["attributes"])
-    except Exception:
-        log.warning("[harvest] cooldown save failed", exc_info=True)
-        # Continue — the in-memory cooldown is set, the DB write
-        # didn't take. Logged for ops, not a hard fail.
-
-    # ── Step 8: handle failed-check exit ────────────────────────────────────
+    # ── Step 7: a FAILED skill check consumes the cooldown and exits ────────
+    # A failed skill check still consumes the cooldown — otherwise a player
+    # could spam-roll until they nail a Wild Die (design intent: a measured
+    # action, not a slot-machine pull). On the SUCCESS path the cooldown is
+    # consumed LATER (Step 10b), only after the credit grant has actually
+    # committed — so an engine fault during the WRITE never locks the player
+    # out of a payout they never received (mirrors the Step-5 posture above).
     if not sc.success:
+        set_cooldown(char, cd_key, HARVEST_COOLDOWN_SECS)
+        try:
+            await db.save_character(char["id"], attributes=char["attributes"])
+        except Exception:
+            log.warning("[harvest] cooldown save failed", exc_info=True)
+            # Continue — the in-memory cooldown is set, the DB write
+            # didn't take. Logged for ops, not a hard fail.
+        # ── Step 8: failed-check exit ───────────────────────────────────────
         return {
             "ok":              True,   # cooldown set, no payout
             "msg":             "You search but turn up nothing of value.",
@@ -870,7 +871,7 @@ async def perform_harvest(
             "influence_tier":  influence_tier,
         }
 
-    # ── Step 9: route credits ───────────────────────────────────────────────
+    # ── Step 9: route credits (the first COMMITTING write) ──────────────────
     # Harvester gets credits_kept; owner org (if non-member harvest)
     # gets credits_tax routed to treasury.
     # Routed through the ledger chokepoint (Drop 1 / F1) so the harvest
@@ -882,9 +883,15 @@ async def perform_harvest(
     except Exception:
         log.warning("[harvest] credit save failed for char %s",
                     char.get("id"), exc_info=True)
-        # Credits failed to write; we proceed but log loud. The
-        # cooldown is set, so the player can't immediately retry —
-        # they should report this and an admin can compensate.
+        # Nothing has committed yet and the cooldown is NOT set — return an
+        # HONEST failure (mirrors the Step-5 skill-check-error posture) so the
+        # player can retry, instead of being told they harvested credits they
+        # never received and then being locked out for the cooldown window.
+        return {
+            "ok": False,
+            "msg": "Your survey rig glitches and the haul slips away before "
+                   "you can bank it. Try again.",
+        }
 
     # Owner treasury tax routing — only if non-member AND owner exists.
     if payout["credits_tax"] > 0 and owner_code is not None:
@@ -907,8 +914,11 @@ async def perform_harvest(
             # doesn't see the tax this round. Logged for ops.
 
     # ── Step 10: grant resource stacks to harvester ─────────────────────────
-    # Use engine.crafting.add_resource so the harvested stacks land in
-    # the existing inventory.resources list with proper merging.
+    # Credits already committed above, so a resource hiccup here reports the
+    # ACTUAL haul rather than failing the whole harvest — failing now would
+    # let the player re-roll for double credits. Use engine.crafting.add_resource
+    # so the stacks land in inventory.resources with proper merging.
+    granted_stacks: list = []
     if payout["resource_stacks"]:
         try:
             from engine.crafting import add_resource
@@ -916,18 +926,31 @@ async def perform_harvest(
                 add_resource(char, stack["type"],
                              stack["quantity"], stack["quality"])
             await db.save_character(char["id"], inventory=char["inventory"])
+            granted_stacks = payout["resource_stacks"]
         except Exception:
             log.warning("[harvest] resource grant failed", exc_info=True)
-            # Same posture as credits — log and continue.
+            # granted_stacks stays empty — the result reports only what
+            # actually landed, never an overstated haul.
 
-    # ── Step 11: assemble success result ────────────────────────────────────
+    # ── Step 10b: consume the cooldown now that the credit grant committed ──
+    set_cooldown(char, cd_key, HARVEST_COOLDOWN_SECS)
+    try:
+        await db.save_character(char["id"], attributes=char["attributes"])
+    except Exception:
+        log.warning("[harvest] cooldown save failed", exc_info=True)
+        # In-memory cooldown is set; DB write didn't take. Logged for ops.
+
+    # ── Step 11: assemble success result (reports the resources that ACTUALLY
+    # landed, not the requested payout) ─────────────────────────────────────
+    result_payout = dict(payout)
+    result_payout["resource_stacks"] = granted_stacks
     return {
         "ok":              True,
-        "msg":             _format_success_msg(payout, region_slug,
+        "msg":             _format_success_msg(result_payout, region_slug,
                                                 owner_code),
         "credits_kept":    payout["credits_kept"],
         "credits_tax":     payout["credits_tax"],
-        "resource_stacks": payout["resource_stacks"],
+        "resource_stacks": granted_stacks,
         "t5_rare":         payout["t5_rare"],
         "scavenge_bonus":  payout.get("scavenge_bonus", False),
         "region_slug":     region_slug,

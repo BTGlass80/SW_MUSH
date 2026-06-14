@@ -158,6 +158,19 @@ class _MiniDB:
             f"UPDATE characters SET {cols} WHERE id = ?", params)
         await self._db.commit()
 
+    async def adjust_credits(self, char_id, delta, reason=""):
+        # The harvest write-failure-honesty fix (2026-06-14) makes perform_harvest
+        # surface a failed credit write (honest ok=False) instead of swallowing it,
+        # so this fake must implement adjust_credits — mirror production: apply the
+        # delta to the row and return the new balance.
+        await self._db.execute(
+            "UPDATE characters SET credits = credits + ? WHERE id = ?",
+            (delta, char_id))
+        await self._db.commit()
+        rows = await self._db.execute_fetchall(
+            "SELECT credits FROM characters WHERE id = ?", (char_id,))
+        return int(rows[0]["credits"]) if rows else 0
+
     async def adjust_org_treasury(self, org_id, delta):
         """Mirror the production adjust_org_treasury behaviour and
         capture the (org_id, delta) for assertions."""
