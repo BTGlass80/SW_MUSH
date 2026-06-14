@@ -5083,6 +5083,15 @@ var inSpaceMode = false;
 var dockedOnShip = false;
 var cleanMode = false;
 
+// ── G8: Smart quick-button context state ────────────────────────────
+var _combatWasActive   = false;   // detect active→false transition
+var _postCombatMode    = false;
+var _postCombatTimer   = null;
+var _roomHasTrainer    = false;
+var _roomHasCrafting   = false;
+var _playerCP          = 0;
+var _lastWoundLevel    = 0;
+
 // Pose log state — both ground and space share the same log array; we render to whichever is visible.
 var poseEvents = [];           // typed events
 var newSinceScroll = 0;
@@ -5922,6 +5931,144 @@ function rebuildDirectionButtons(exits) {
   }
 }
 
+/* ════════════════════════════════════════════════════════════════════
+   G8: Context-sensitive quick-action buttons
+   Modes: explore (default) / wound / trainer / crafting / postcombat
+   ════════════════════════════════════════════════════════════════════ */
+
+// EXPLORE buttons MUST exactly replicate the static markup buttons:
+// same label text, same data-qa, same data-cmd, same data-action.
+// POSE and SAY use action="stage" so they prefix the input box.
+var QUICK_MODES = {
+  explore: [
+    { label: 'LOOK',  qa: 'LOOK',  cmd: 'look',       action: 'send',  tip: 'Look around — see the room, exits, and who is here' },
+    { label: 'POSE',  qa: 'POSE',  cmd: 'pose ',      action: 'stage', tip: 'Stage a pose for roleplay' },
+    { label: 'SAY',   qa: 'SAY',   cmd: 'say ',       action: 'stage', tip: 'Stage a say command' },
+    { label: 'INV',   qa: 'INV',   cmd: 'inventory',  action: 'send',  tip: 'Open inventory' },
+    { label: 'JOBS',  qa: 'JOBS',  cmd: 'bounties',   action: 'send',  tip: 'Open bounty board' },
+    { label: 'CRAFT', qa: 'CRAFT', cmd: 'schematics', action: 'send',  tip: 'Open crafting panel' },
+  ],
+  postcombat: [
+    { label: 'LOOK',  qa: 'LOOK',  cmd: 'look',      action: 'send',  tip: 'Survey the area after combat' },
+    { label: 'LOOT',  qa: 'LOOT',  cmd: 'loot',      action: 'send',  tip: 'Search fallen enemies for gear' },
+    { label: 'HEAL',  qa: 'HEAL',  cmd: 'heal',      action: 'send',  tip: 'Use a medpac to treat wounds' },
+    { label: 'INV',   qa: 'INV',   cmd: 'inventory', action: 'send',  tip: 'Check your inventory' },
+  ],
+};
+
+var MODE_LABELS = {
+  explore:    'Quick',
+  postcombat: 'Post-Combat',
+  trainer:    'Training',
+  crafting:   'Crafting',
+  wound:      'Wounded',
+};
+
+// Resolve which quick-button mode is active right now.
+// Priority: postcombat > wound > crafting context > trainer context > explore.
+function getQuickMode() {
+  if (_postCombatMode)   return 'postcombat';
+  if (_lastWoundLevel > 0) return 'wound';     // non-zero = show heal shortcut in explore build
+  if (_roomHasCrafting)  return 'crafting';
+  if (_roomHasTrainer)   return 'trainer';
+  return 'explore';
+}
+
+// Build the explore button list, optionally injecting context buttons.
+// Returns an array of button-descriptor objects (label/qa/cmd/action/tip).
+function _buildExploreButtons() {
+  var base = QUICK_MODES.explore.slice();
+  var inject = [];
+
+  if (_lastWoundLevel > 0) {
+    inject.push({ label: 'HEAL', qa: 'HEAL', cmd: 'heal',
+                  action: 'send', tip: 'Use a medpac to treat your wounds' });
+  }
+  if (_roomHasTrainer && _playerCP > 0) {
+    inject.push({ label: 'TRAIN', qa: 'TRAIN', cmd: 'train',
+                  action: 'send', tip: 'Spend CP to improve a skill (costs Character Points)' });
+  }
+  if (_roomHasCrafting) {
+    inject.push({ label: 'CRAFT', qa: 'CRAFT', cmd: 'schematics',
+                  action: 'send', tip: 'Open the crafting interface' });
+  }
+
+  if (inject.length > 0) {
+    // Insert context buttons right after LOOK (index 0)
+    return [base[0]].concat(inject).concat(base.slice(1));
+  }
+  return base;
+}
+
+// Rebuild #qa-row innerHTML from the active mode, then re-wire click handlers.
+// Direction buttons (data-action="move") are preserved across rebuilds.
+function updateQuickButtons() {
+  var qaRow = $('qa-row');
+  if (!qaRow) return;
+
+  var mode = getQuickMode();
+  var btns;
+  if (mode === 'explore' || mode === 'wound' || mode === 'trainer' || mode === 'crafting') {
+    btns = _buildExploreButtons();
+  } else {
+    btns = QUICK_MODES[mode] || QUICK_MODES.explore;
+  }
+
+  // Capture any existing direction buttons so they survive the rebuild
+  var dirBtns = [];
+  qaRow.querySelectorAll('[data-action="move"]').forEach(function(b) {
+    dirBtns.push(b.cloneNode(true));
+  });
+
+  // Clear and repopulate static quick-action buttons
+  qaRow.innerHTML = '';
+  for (var i = 0; i < btns.length; i++) {
+    var b = btns[i];
+    var btn = document.createElement('button');
+    btn.className = 'qa-btn';
+    btn.setAttribute('data-qa',     b.qa);
+    btn.setAttribute('data-cmd',    b.cmd);
+    btn.setAttribute('data-action', b.action);
+    btn.textContent = b.label;
+    if (b.tip) btn.title = b.tip;
+    qaRow.appendChild(btn);
+  }
+
+  // Re-append direction buttons
+  for (var j = 0; j < dirBtns.length; j++) {
+    dirBtns[j].dataset.wired = '';   // reset wired flag so wireQuickActions re-binds
+    qaRow.appendChild(dirBtns[j]);
+  }
+
+  // Re-wire click handlers on all newly created buttons
+  wireQuickActions();
+}
+
+// Switch to the post-combat button set for 30s, then revert.
+// Called from handleCombatState when active transitions from true → false.
+function enterPostCombatMode() {
+  _postCombatMode = true;
+  // Rebuild postcombat list with wound-aware HEAL button
+  var pcBtns = [
+    { label: 'LOOK', qa: 'LOOK', cmd: 'look',      action: 'send', tip: 'Survey the area after combat' },
+    { label: 'LOOT', qa: 'LOOT', cmd: 'loot',      action: 'send', tip: 'Search fallen enemies for gear' },
+    { label: 'INV',  qa: 'INV',  cmd: 'inventory', action: 'send', tip: 'Check your inventory' },
+  ];
+  if (_lastWoundLevel > 0) {
+    // Insert HEAL at front when wounded
+    pcBtns.unshift({ label: 'HEAL', qa: 'HEAL', cmd: 'heal',
+                     action: 'send', tip: 'Use a medpac to treat your wounds' });
+  }
+  QUICK_MODES.postcombat = pcBtns;
+  if (_postCombatTimer) clearTimeout(_postCombatTimer);
+  _postCombatTimer = setTimeout(function() {
+    _postCombatMode = false;
+    _postCombatTimer = null;
+    updateQuickButtons();
+  }, 30000);
+  updateQuickButtons();
+}
+
 function wireFireAndSwitches() {
   var fire = $('fire-btn');
   if (fire && !fire.dataset.wired) {
@@ -6298,6 +6445,28 @@ function handleHudUpdate(data) {
   renderHerePanel(data);
   // G7: active jobs full-list panel
   renderActiveJobsPanel(data);
+
+  // G8: derive context flags for smart quick-button row.
+  // Trainer: room_contents has an NPC with role 'trainer', OR room_services includes 'trainer'.
+  // Crafting: room_services includes 'crafting', OR room_contents has role 'mechanic'.
+  if (data.room_contents !== undefined || data.room_services !== undefined) {
+    var contents = Array.isArray(data.room_contents) ? data.room_contents : [];
+    var services = Array.isArray(data.room_services)  ? data.room_services  : [];
+    _roomHasTrainer  = services.indexOf('trainer') !== -1 ||
+                       contents.some(function(n) { return n && n.role === 'trainer'; });
+    _roomHasCrafting = services.indexOf('crafting') !== -1 ||
+                       contents.some(function(n) { return n && n.role === 'mechanic'; });
+  }
+  // Wound level (numeric rung 0=healthy … 6=dead)
+  if (data.wound_level !== undefined) {
+    _lastWoundLevel = Math.max(0, Number(data.wound_level) || 0);
+  }
+  // Character Points (for trainer gating) — server key is character_points
+  if (data.character_points !== undefined) {
+    _playerCP = Number(data.character_points) || 0;
+  }
+  // Rebuild quick-action row with current context
+  updateQuickButtons();
 
   // ── Sector map ────────────────────────────────────────────────────
   // F.MAP.2: when the server includes an `area_geometry` payload (the
@@ -11380,6 +11549,13 @@ function handleCombatState(data) {
 
   var strip = $('combat-strip');
   if (!data || !data.active) {
+    // G8: detect active → false transition to enter post-combat mode
+    if (_combatWasActive) {
+      _combatWasActive = false;
+      enterPostCombatMode();
+    } else {
+      updateQuickButtons();
+    }
     strip.classList.remove('show');
     strip.className = 'combat-strip';
     strip.removeAttribute('data-theatre');
@@ -11393,6 +11569,9 @@ function handleCombatState(data) {
     _stopPosingPanelTimer();
     return;
   }
+  // G8: track that combat is now active
+  _combatWasActive = true;
+  updateQuickButtons();
   strip.classList.add('show');
   // Phase styling
   var phase = (data.phase || '').toLowerCase();

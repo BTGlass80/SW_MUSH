@@ -6,6 +6,14 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-14 — Ground-UX smart quick-buttons (T3.18 G8) — *drop gnd-ux-smart-buttons*
+Closes the last *clean* T3.18 client gap from the gap-check (`HANDOFF_t317_t318_gapcheck_2026-06-14.md`): the context-aware quick-button system existed only in the retired `static/client_legacy.html` and was never ported to the live client. Client-only (`static/client.html`); the static `#qa-row` becomes mode-driven while the **explore default is byte-for-byte behavior-preserved**.
+- **Modes (`getQuickMode`, priority postcombat > wound > crafting > trainer > explore):** `explore` reproduces the existing 6 buttons exactly (LOOK/POSE/SAY/INV/JOBS/CRAFT — POSE/SAY still `data-action="stage"`); `postcombat` (LOOK/LOOT/HEAL/INV) fires for 30s after a combat→idle transition then auto-reverts; wound state injects a **HEAL** button (out of combat); a present trainer + spare CP injects **TRAIN**; a crafting bench injects **CRAFT**.
+- **`updateQuickButtons`** rebuilds `#qa-row` from the active mode, **preserves the direction chips** (`data-action="move"`), and re-runs `wireQuickActions()` so send/stage clicks keep working after every rebuild. Called from `handleHudUpdate` (context flags derived from `room_contents`/`room_services`/`wound_level`/`character_points` — all already emitted) and from the combat-state handler.
+- **No phantom verbs:** every contextual button sends a REAL parser command — `heal` (parser/medical_commands.py), `train` (parser/cp_commands.py), `loot` (parser/builtin_commands.py); `rest`/`skills`/`medpac` were omitted (no such verb). No new inline `onclick` (all `addEventListener`). Era-clean.
+- **Verified:** new `tests/spa/test_gnd_ux_smart_buttons.py` (23) + the four prior ground-UX/sheet suites + onclick-exports regression — **102 passed** together (`-o addopts=`, since the SPA suite is `slow`-marked).
+- **Files:** `static/client.html`, `tests/spa/test_gnd_ux_smart_buttons.py` (new), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-14 — Kyber attunement → weekly-ceremonial (Brian roadmap decision 3) — *drop kyber-weekly-ceremonial*
 Executes `BRIAN_ROADMAP_DECISIONS.2026-06-14` #3 (resolves `TUN.kyber.cooldown` / `.quality_band` / `.skill_difficulty`): kyber is **ceremonial-for-Jedi, not a common harvest.** Engine-only tuning in `engine/kyber_attunement.py`; no schema/funnel change.
 - **Difficulty 11 → 15** (`ATTUNE_DIFFICULTY`): Moderate → Difficult — a Padawan no longer auto-passes.

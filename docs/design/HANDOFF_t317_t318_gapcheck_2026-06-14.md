@@ -76,15 +76,17 @@ validate, then full-suite gate + merge to main (full autonomy).
 *All file:line evidence captured in the gap-check workflow run wf_40bc8b53-fd4.*
 
 ## STATUS (end of main-march session, 2026-06-14)
-**SHIPPED** on `drop/gnd-ux-client-parity` (3 commits, client-only, `static/client.html` + 3 new `tests/spa` files, 75 new tests):
-- G1 Room Detail Card, G9 Nearby Services, G12 Zone Influence (CW-era fix) — context-panel cards.
-- G5 (client half) HERE room-contents panel, G7 Active Jobs — sidebar panels.
-- S4 (client half) sheet specializations / PvP badge / notes / description / guarded bio.
+**SHIPPED + MERGED to main:**
+- `drop/gnd-ux-client-parity` (3 commits, client-only, 75 tests) — G1 Room Detail Card, G9 Nearby Services, G12 Zone Influence (CW-era fix), G5 (client half) HERE room-contents panel, G7 Active Jobs, S4 (client half) sheet specializations/PvP/notes/description/guarded-bio. (merge `1be49a9`)
+- `drop/gnd-ux-smart-buttons` (T3.18 **G8**) — context-aware quick-buttons (postcombat/wound/trainer/crafting modes), explore default preserved, real verbs only. `tests/spa/test_gnd_ux_smart_buttons.py` (23); 102 client tests green.
 
-**DEFERRED** (with rationale):
-- **G8** smart quick-buttons — client-only but *replaces* the live `#qa-row` component (higher regression risk; the static buttons work). Port `client_legacy.html` QUICK_MODES (~5540-5701). Good next client drop.
-- **G3** area-map polish (two-hop node dimming + per-move transition) — cosmetic, low value; POI already works in the M3 geometry path.
-- **G4** combat events array + initiative-ladder wiring — needs `engine/combat.py` (server) + wiring `m3_combat_theater.js`.
-- **G5 server-half** — add `wound_level` to npc entries + quest-giver branch in `_classify_npc_role()` (`server/session.py` ~1268). Small.
+**DEFERRED** (with rationale — updated by the no-phantom findings):
+- **G3** area-map polish (two-hop node dimming + per-move transition) — cosmetic, low value; POI already works in the M3 geometry path. The legacy `renderAreaMap` path is only a fallback when no AreaGeometry covers the room. Lowest priority.
+- **G4** combat events array + initiative-ladder wiring — needs `engine/combat.py` (server `to_hud_dict` `events[]`) + wiring scaffold `m3_combat_theater.js` to live `combat_state`.
+- **G5 server-half — NOT a quick add (no-phantom):** the `npcs` table has **no `wound_level` column** (NPC wounds are transient combat-state, not persisted) and there is **no quest-giver marker field** in `ai_config`. So `n.get("wound_level",0)` would be a phantom always-0 field, and `_classify_npc_role` can't return `quest` without a real marker convention. Needs real infra (combat-state wound wiring + a quest-giver `ai_config` flag + content authoring), not a one-liner. The shipped client (drop B) already does hostile-tint via the REAL `npc.hostile` field.
+- **+forcebond — NOT a gap; it's a DESIGN FORK (log for Brian):** the devs **deliberately did not build `+forcebond`** — `MasterCommand`/`PadawanCommand` fold bond-sensing in (WoW.4, `parser/padawan_master_commands.py:263-270`: "the bond IS the sensing"). The design (§5.1) wants an FP-gated deeper location-sense; the current impl gives free sensing via `+master`/`+padawan`. **Fork:** keep free-via-`+master` (current), or add the FP-gated `+forcebond` on top? Don't unilaterally override the deliberate choice — log + ask.
 - **G13** director zone-scoped news feed — needs `engine/director.py`, **the parallel engine session's lane; coordinate before touching.**
 - **G10** ring-buffer/reason for credit ticker — deliberate downscope (pinned ABI is `{type,credits,delta}`); skip unless requested.
+
+## NOTE for the big bodies (T3.13/14/16)
+All three are **substantially built** (verified at HEAD): T3.13 Padawan/Master (schema + ~14 commands + trials), T3.14 Cities (`engine/player_cities.py` + `parser/city_commands.py`), T3.16 likely the least-built (design doc exists, space subsystem large). They need **real gap-checks** (like this one), NOT blind implementation of a TODO command list — several "missing" items turn out to be deliberate-design or need-infra (see G5-server, +forcebond above). Run the gap-check, log forks, then close cleanly.
