@@ -72,6 +72,40 @@ SKIP_EMPTY_MAX_PLAYERS = 1
 OVERNIGHT_CATCHUP_SECONDS = 6 * 3600    # stale gap before a catch-up turn
 OVERNIGHT_CATCHUP_LOOKBACK = 24 * 3600  # only if players were seen this recently
 
+# ── Soft economic NUDGES (director_scope_and_adaptive_spend_v1.md §4 step 4;
+# Brian decision A) ───────────────────────────────────────────────────────
+# After the economy-eyes PERCEPTION layer (_compile_economy_digest), the
+# Director ACTS on macro economic signals by SEEDING an opportunity players
+# can take or ignore — a merchant caravan when the market is hot or wealth is
+# piling up. Decision A is SEEDS, never LEVERS: this NEVER changes
+# prices/yields directly and adds NO new credit flow. It only fires an
+# EXISTING world event (merchant_arrival / `rare_vendor`, whose faucet/sink
+# balance shipped with it and whose live consumer is parser/space_commands.py
+# apply_rare_vendor_discount) through the WorldEventManager seam — which has
+# its own cooldown / max-concurrent / no-repeat guards. Deterministic + free
+# (no API call) ⇒ an always-on aliveness layer, independent of the paid LLM
+# turn. Thresholds are first-cut / playtest-tunable (lift to config in the
+# T3.19 tunables sweep).
+ECONOMIC_SEED_COOLDOWN_SECONDS = 3600  # >= 1h between Director economic seeds
+ECONOMIC_SEED_MIN_PLAYERS = 2          # need a populated server (never seed for nobody)
+ECON_BUSY_TXNS = 15                    # credit movements in-window ⇒ a busy market
+ECON_SURPLUS_RATIO = 3.0               # faucets >= ratio × sinks ⇒ wealth accumulating
+ECON_MIN_FLOW = 2000                   # credit floor so trivial windows never trigger
+# Faucet-source tag fragments that read as commerce (a trade-flavored faucet).
+ECON_TRADE_SOURCE_HINTS = (
+    "smuggl", "trade", "spice", "sell", "sale", "cargo",
+    "vendor", "market", "mission", "delivery", "bounty",
+)
+# The ONLY event the economic seeder fires: a decision-A-SAFE opportunity (a
+# merchant caravan — content + a credit SINK to spend a hot/surplus economy
+# into). Deliberately NOT the price/yield-LEVER events (trade_boom /
+# spice_demand / bounty_surge / intelligence_thaw), which decision A forbids
+# the Director from pulling as an economic intervention.
+ECON_SEED_EVENT = "merchant_arrival"
+ECON_FORBIDDEN_LEVER_EVENTS = frozenset({
+    "trade_boom", "spice_demand", "bounty_surge", "intelligence_thaw",
+})
+
 # F.6a.3-int: VALID_FACTIONS and DEFAULT_INFLUENCE are derived from the
 # F.6a.3 director_config_loader seam at module load. When the active-era
 # flag (Config.use_yaml_director_data) is off — the production default —
@@ -448,6 +482,7 @@ class DirectorAI:
         self._last_populated_time = 0.0       # last tick with >SKIP_EMPTY_MAX_PLAYERS online
         self._manual_fidelity: Optional[str] = None  # None=auto; else a FIDELITY_INTERVALS key
         self._last_fidelity_reason = "baseline"  # for @director status / telemetry
+        self._last_economic_seed_time = 0.0  # cooldown for soft economic nudges (decision A)
 
     @property
     def enabled(self) -> bool:
@@ -1568,6 +1603,121 @@ class DirectorAI:
             "top_sinks": _top(sinks),
         }
 
+    @staticmethod
+    def _classify_economic_seed(eco: dict) -> Optional[dict]:
+        """Pure map: economy digest → at most ONE opportunity seed, or None.
+
+        Decision A (seeds, never levers): the only outcome is a merchant
+        caravan — an opportunity AND a credit SINK — chosen when wealth is
+        piling up faster than it's spent, or the market is busy with
+        commerce. Pure + side-effect-free so the threshold logic is
+        unit-testable; firing / cooldown / gating live in the caller.
+        """
+        if not eco:
+            return None
+        total_faucet = int(eco.get("total_faucet", 0) or 0)
+        total_sink = int(eco.get("total_sink", 0) or 0)
+        txns = int(eco.get("transactions", 0) or 0)
+        if total_faucet < ECON_MIN_FLOW:
+            return None  # trivial window — nothing worth reacting to
+
+        # WEALTH SURGE: faucets far outpace sinks ⇒ credits piling up with
+        # nowhere to go. A caravan is the healthy answer (somewhere to spend),
+        # not a price lever.
+        if total_faucet >= ECON_SURPLUS_RATIO * max(total_sink, 1):
+            return {
+                "event_type": ECON_SEED_EVENT,
+                "condition": "wealth_surge",
+                "headline": ("Word of flush pockets travels the lanes — a "
+                             "merchant caravan arrives, eager to deal."),
+                "reason": (f"wealth surge (faucet {total_faucet} vs sink "
+                           f"{total_sink}, {txns} txns)"),
+            }
+
+        # TRADE BOOM: a busy window whose dominant faucet reads as commerce.
+        if txns >= ECON_BUSY_TXNS:
+            top = eco.get("top_faucets") or []
+            dominant = ""
+            if top and isinstance(top[0], (list, tuple)) and top[0]:
+                dominant = str(top[0][0]).lower()
+            if any(h in dominant for h in ECON_TRADE_SOURCE_HINTS):
+                return {
+                    "event_type": ECON_SEED_EVENT,
+                    "condition": "trade_boom",
+                    "headline": ("Brisk trade draws a merchant caravan to the "
+                                 "market, wares in tow."),
+                    "reason": (f"trade boom ({txns} txns, top faucet "
+                               f"'{dominant}' {total_faucet} credits)"),
+                }
+        return None
+
+    async def _seed_economic_opportunities(
+        self, db, session_mgr, online: int, now: Optional[float] = None,
+    ) -> Optional[str]:
+        """Soft economic NUDGE (decision A): SEED an opportunity from the live
+        economy digest. Deterministic + free (no API call) so economic
+        reactivity is always-on, independent of the governed/paid LLM turn.
+
+        Gated on a populated server + a self cooldown, then fires an EXISTING
+        world event (which has its OWN cooldown / max-concurrent / no-repeat
+        guards) through the WorldEventManager seam. Touches NO prices / yields /
+        credits directly and adds NO new credit flow. Returns the condition tag
+        when a seed fired (for tests / telemetry), else None. Fail-open — it
+        never breaks a faction turn.
+        """
+        if online < ECONOMIC_SEED_MIN_PLAYERS:
+            return None
+        now = now if now is not None else time.time()
+        if (now - self._last_economic_seed_time) < ECONOMIC_SEED_COOLDOWN_SECONDS:
+            return None
+        try:
+            eco = await self._compile_economy_digest(db)
+        except Exception:
+            return None
+        seed = self._classify_economic_seed(eco)
+        if not seed:
+            return None
+        try:
+            from engine.world_events import get_world_event_manager
+            wem = get_world_event_manager()
+            activated = wem.activate_event(
+                seed["event_type"],
+                zones=None,            # use the event's own preferred_zones;
+                duration_minutes=None,  # rare_vendor flag is read globally anyway
+                headline=seed["headline"],
+            )
+            if not activated:
+                # WorldEventManager guard (cooldown / already active / max
+                # concurrent) declined — not an error, and we do NOT burn the
+                # seed cooldown so the next window can retry.
+                return None
+            try:
+                await wem._broadcast_activation(activated, session_mgr)
+            except Exception:
+                log.debug("[director] economic-seed broadcast failed", exc_info=True)
+            self._last_economic_seed_time = now
+            try:
+                await self.log_event(
+                    db,
+                    event_type="economic_nudge",
+                    summary=seed["headline"],
+                    details={
+                        "condition": seed["condition"],
+                        "reason": seed["reason"],
+                        "event_type": seed["event_type"],
+                    },
+                )
+            except Exception:
+                # Telemetry only — a log hiccup must not swallow a successful
+                # seed (the event already fired + broadcast).
+                log.debug("[director] economic-seed log failed", exc_info=True)
+            log.info("[director] economic nudge: seeded %s (%s)",
+                     seed["event_type"], seed["reason"])
+            return seed["condition"]
+        except Exception:
+            log.debug("[director] economic seed failed", exc_info=True)
+            return None
+
     async def get_budget_stats(self, db) -> dict:
         """Get current month's API token usage from director_log."""
         try:
@@ -2084,6 +2234,13 @@ class DirectorAI:
         await self._apply_governor(db, online)
         self._last_executed_turn_time = now
         await self._safe_faction_turn(db, session_mgr)
+        # Soft economic NUDGE (decision A): seed an opportunity from the live
+        # economy — deterministic + free, so economic reactivity runs on every
+        # executed turn regardless of the paid LLM path. Fail-open.
+        try:
+            await self._seed_economic_opportunities(db, session_mgr, online, now)
+        except Exception:
+            log.debug("[director] economic seed skipped", exc_info=True)
 
     async def _safe_faction_turn(self, db, session_mgr):
         """Wrapper for faction_turn that catches and logs all errors."""
