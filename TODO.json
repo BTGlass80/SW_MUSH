@@ -1376,6 +1376,7 @@
     "syn6_questions": [
       {
         "id": "TUN.kyber.cooldown",
+        "decided_2026_06_14": "WEEKLY CEREMONIAL (Brian): ATTUNE_COOLDOWN_SECS -> 7d AND cooldown key per-CHARACTER GLOBAL (not per-landmark). Build per design_calls_resolved_recent BRIAN_ROADMAP_DECISIONS.2026-06-14 decision 3.",
         "value": "24h per-landmark per-character",
         "site": "engine/kyber_attunement.py::ATTUNE_COOLDOWN_SECS",
         "alternatives": [
@@ -1389,6 +1390,7 @@
       },
       {
         "id": "TUN.kyber.quality_band",
+        "decided_2026_06_14": "WEEKLY CEREMONIAL (Brian): allow OCCASIONAL DUDS — lower QUALITY_FLOOR (~65) so marginal successes yield sub-q75 (unusable) shards; only good margins reach q75+. Build per BRIAN_ROADMAP_DECISIONS.2026-06-14 decision 3.",
         "value": "q75 floor, q95 ceiling, +5Q per skill margin band",
         "site": "engine/kyber_attunement.py::QUALITY_FLOOR, QUALITY_CEILING",
         "alternatives": [
@@ -1402,6 +1404,7 @@
       },
       {
         "id": "TUN.kyber.skill_difficulty",
+        "decided_2026_06_14": "WEEKLY CEREMONIAL (Brian): ATTUNE_DIFFICULTY 11 -> 15 (Difficult). Build per BRIAN_ROADMAP_DECISIONS.2026-06-14 decision 3.",
         "value": "DC 11 (Moderate), Knowledge attribute or scholar/willpower skill",
         "site": "engine/kyber_attunement.py::ATTUNE_DIFFICULTY",
         "alternatives": [
@@ -1460,6 +1463,7 @@
       },
       {
         "id": "TUN.harvest.skill_margin_credit_bonus",
+        "decided_2026_06_14": "CAP at +100% (Brian): cap bands at 5 so the credit multiplier maxes at 2.0x (was uncapped). Build per BRIAN_ROADMAP_DECISIONS.2026-06-14 decision 4.",
         "value": "+20% credits per 5-pt margin band, no cap",
         "site": "engine/harvest.py::_MARGIN_CREDIT_BONUS_PER_BAND",
         "alternatives": [
@@ -1761,7 +1765,7 @@
       "raised_date": "2026-06-14",
       "raised_by": "drop tutorial-v2-era-remediation (overnight defect-hunt sweep)",
       "severity": "blocker-class (B3 era-cleanness; launch criterion)",
-      "status": "pending",
+      "status": "RESOLVED 2026-06-14: OPTION A (DELETE) — Brian. Execution recorded in design_calls_resolved_recent BRIAN_ROADMAP_DECISIONS.2026-06-14 (decision 1). A grooming pass can archive this entry out of the pending array.",
       "premise_verified_at_head": "Confirmed at HEAD: engine/tutorial_v2.py defines REBEL_CELL + IMPERIAL_SERVICE — full 5-step Galactic-Civil-War profession chains (Rebel Alliance recruitment via 'Fulcrum'; Imperial Service under 'Sergeant Kreel'). check_profession_chains() (the dispatch) is LIVE — wired from parser/mission_commands.py, parser/npc_commands.py (talk_rebel_contact), parser/smuggling_commands.py, parser/space_commands.py. Pre-fix, _can_start_rebel_cell/_can_start_imperial_service gated ONLY on missions_complete>=2 (NO era check), and get_chain_status_lines unconditionally listed both chains — so a Clone Wars player completing 2 missions was offered off-era GCW content. An AST scan of the file found 53 banned-era-token strings; the pre-existing era-cleanness test (tests/test_laneb_era_cleanness.py) is deliberately surgical (curated (file,string) pairs) and never scanned this file (same partial-coverage blind spot the wilderness/chain drops hit).",
       "interim_mitigation_shipped": "This drop made the violation UNREACHABLE without destroying content: added module flag _GCW_PROFESSION_CHAINS_ENABLED=False gating both _can_start_* to return False and hiding both rows from get_chain_status_lines; reworded the 5 scattered LIVE off-era barks (DISCOVERY_QUESTS Nar Shaddaa/Kessel/Corellia welcomes, Smuggler's Run step 2 task, Kessa's Kreel teaser) to CW-clean flavor (Imperial->Republic; Empire->Hutt cartels; Rebel sympathizers->independents; Imperial patrol->Republic customs patrol). Guard: tests/test_tutorial_v2_era_cleanness.py walks the LIVE chain objects with no allow-list + pins the two chains dormant. REBEL_CELL/IMPERIAL_SERVICE definitions + dispatch remain in source (unreachable).",
       "fork": "What is the PERMANENT disposition of the two dormant GCW chains (REBEL_CELL, IMPERIAL_SERVICE)? They are currently inert but their off-era source strings still live in engine/tutorial_v2.py.",
@@ -1775,6 +1779,17 @@
     }
   ],
   "design_calls_resolved_recent": [
+    {
+      "id": "BRIAN_ROADMAP_DECISIONS.2026-06-14",
+      "resolved_date": "2026-06-14",
+      "resolved_by": "Brian (interactive batch ruling)",
+      "note": "RECORD-ONLY for the MAIN development session to EXECUTE as each comes up in the roadmap. The parallel defect-hunt session logged these decisions but did NOT implement them. Five items:",
+      "decision_1_gcw_chains_DELETE": "ERA.tutorial_v2_gcw_profession_chains => OPTION A (DELETE). engine/tutorial_v2.py: remove the REBEL_CELL + IMPERIAL_SERVICE list definitions, their dispatch elif-blocks in check_profession_chains(), the two rows in get_chain_status_lines(), _can_start_rebel_cell + _can_start_imperial_service, and the _GCW_PROFESSION_CHAINS_ENABLED flag. tests/test_tutorial_v2_era_cleanness.py: drop the TestGcwChainsDormant dormancy assertions, instead assert the two chains are GONE (no REBEL_CELL/IMPERIAL_SERVICE module attrs); KEEP the live-chain no-allow-list era walk. NOTE: this deletes only the 2 off-era GCW arcs — the rest of the tutorial_v2 profession-chain system (Smuggler's Run, Hunter's Mark, Artisan's Forge, Underworld) STAYS. Currently dormant + era-clean, so this is cleanup, not a blocker.",
+      "decision_2_tier3_13_18_FULL_BODY_PRE_LAUNCH": "T3.13-T3.18 are FULL BODIES PRE-LAUNCH (not scaffolding-only) — resolves the tier_3_post_launch bucket-name landmine. GROOM the now-SUPERSEDED launch_ruling fields on T3.13 (Padawan-Master), T3.14 (Cities), T3.16 (Space Wildspace), T3.17 (Sheet redesign), T3.18 (Ground UX): change from 'POST-LAUNCH body'/'POST-LAUNCH' to 'FULL BODY PRE-LAUNCH (Brian 2026-06-14)'. T3.15 already pulled pre-launch. VERIFY (Brian believes already done): T3.18 ground-UX overhaul believed DONE — gap-check vs ground_ux_overhaul_design_v1.md; T3.17 sheet redesign believed substantially addressed by the Webify UI-1..UI-8 wave + m3_sheet.js — gap-check vs sheet_redesign_design_v1.md. RUNWAY IMPACT: full bodies pre-launch adds weeks vs the scaffolding-only reading.",
+      "decision_3_kyber_WEEKLY_CEREMONIAL": "TUN.kyber.* => weekly ceremonial (kyber is ceremonial-for-Jedi, not common). engine/kyber_attunement.py: (a) ATTUNE_DIFFICULTY 11->15; (b) ATTUNE_COOLDOWN_SECS 24h->7d (7*24*60*60) AND change the cooldown key from per-landmark (cd_key = f'{COOLDOWN_KEY_PREFIX}{room_id}') to per-CHARACTER GLOBAL (one weekly draw across ALL landmarks, not per-room); (c) quality band allows OCCASIONAL DUDS — lower QUALITY_FLOOR (~65) so a marginal success yields a sub-q75 'dud' shard (below the q75 lightsaber requirement) and only a good skill margin reaches q75+. Also update economy_tuning_open_questions_v1.md kyber entries + the per-entry decided markers in tunable_open_questions.",
+      "decision_4_harvest_credit_bonus_CAP": "TUN.harvest.skill_margin_credit_bonus => CAP at +100%. engine/harvest.py (~line 284, the _scale helper): where multiplier = 1.0 + bands * _MARGIN_CREDIT_BONUS_PER_BAND, cap bands at 5 so multiplier maxes at 2.0x (was uncapped; a 50-pt margin gave ~11x = credit-faucet outlier). Update economy_tuning_open_questions_v1.md harvest entry.",
+      "decision_5_other_tunables_HOLD": "The remaining ~18 tunables in tunable_open_questions / economy_tuning_open_questions_v1.md HOLD at their current design-number values — do NOT hand-tune now. They are externalized + telemetry-instrumented under T3.19 and tuned from real play data post-launch."
+    },
     {
       "id": "BALANCE.encounter_spawn_count_range",
       "resolved_date": "2026-06-13",
