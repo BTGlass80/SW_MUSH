@@ -1188,6 +1188,19 @@ async def promote(char: dict, org_code: str, db,
         details += f" by {promoter_char['name']}"
     await db.log_faction_action(char["id"], org["id"], "promote", details)
 
+    # Achievement hook: org rank reached (unblocks `faction_loyalist`, which
+    # triggers at org_rank_reached count 3). Both manual `promote` and
+    # `check_auto_promote` flow through here, so one emit covers both paths.
+    # High-water-mark + idempotent, so firing on every promotion is safe;
+    # promote() carries no session, so it records progress silently (the player
+    # sees it in their achievements list). Graceful-drop so a hook failure can
+    # never block a promotion. (Defect-hunt finding: hook defined, never emitted.)
+    try:
+        from engine.achievements import on_org_rank_reached
+        await on_org_rank_reached(db, char["id"], next_level)
+    except Exception as e:
+        log.debug("[organizations] org-rank achievement hook failed: %s", e)
+
     # Issue rank-specific equipment (from YAML equipment field)
     try:
         new_equip = json.loads(next_rank.get("equipment", "[]"))

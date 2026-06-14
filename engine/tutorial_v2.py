@@ -593,7 +593,7 @@ STARTER_QUEST_STEPS = [
         "next_comlink": (
             "Kessa: \"One more -- Sergeant Kreel at the Police Station "
             "has pest control work. Good combat pay if you're looking for a fight. "
-            "He also runs Imperial liaison work if you're interested in that side of things.\""
+            "He also runs courier security contracts if you're interested in that side of things.\""
         ),
     },
     # Step 7 -- Police Station / Kreel
@@ -710,7 +710,7 @@ DISCOVERY_QUESTS = {
         "contact_name": "Zekka Thansen",
         "welcome_msg": (
             "Zekka Thansen (comlink): \"Fresh arrival on the Moon? Smart move picking "
-            "Nar Shaddaa. No Imperials, no questions. Head to the Corellian Promenade "
+            "Nar Shaddaa. No patrols, no questions. Head to the Corellian Promenade "
             "and find me -- I'll get you oriented. "
             "The Hutts run everything here -- run their smuggling contracts "
             "and they'll notice fast.\""
@@ -739,7 +739,7 @@ DISCOVERY_QUESTS = {
             "Skrizz (comlink): \"Psst! New arrival! You made it to Kessel alive -- "
             "most do, most wish they hadn't. Find the black market tunnel if you "
             "want to know how things really work here. "
-            "The Empire controls the spice mines -- the Traders' Coalition runs the "
+            "The Hutt cartels control the spice mines -- the Traders' Coalition runs the "
             "legitimate trade. Pick your side carefully.\""
         ),
         "title": "(Kessel Runner)",
@@ -766,9 +766,9 @@ DISCOVERY_QUESTS = {
             "Jorek Madine (comlink): \"Welcome to Corellia, friend. Best planet "
             "in the Core -- don't let anyone tell you different. Find me at the "
             "Corellian Slice cantina on Treasure Ship Row. "
-            "Coronet City is officially Imperial territory, but the Corellian spirit "
+            "Coronet City is officially Republic territory, but the Corellian spirit "
             "is independent. The Traders' Coalition has their headquarters here -- "
-            "and the Rebel sympathizers are careful. CorSec keeps the peace.\""
+            "and the independents keep their heads down. CorSec keeps the peace.\""
         ),
         "title": "(Honorary Corellian)",
         "steps": [
@@ -1317,7 +1317,7 @@ SMUGGLERS_RUN = [
             "  get spotted. Next job's hotter — contraband, patrol route runs right through\n"
             "  your corridor. You'll need to time your jump or talk your way through.\n"
             "  Pick up the next package from the same docks.\"\033[0m\n"
-            "  \033[2mTask: Complete a smuggling delivery while evading an Imperial patrol. Reward: 800cr on delivery.\033[0m"
+            "  \033[2mTask: Complete a smuggling delivery while evading a Republic customs patrol. Reward: 800cr on delivery.\033[0m"
         ),
         "reward_credits": 500,
         "reward_faction": "hutt",
@@ -1851,12 +1851,28 @@ def _can_start_artisans_forge(char: dict) -> bool:
     return get_ships_log(char).get("crafting_complete", 0) >= 3
 
 
+# REBEL_CELL + IMPERIAL_SERVICE are GCW-era (Galactic Civil War) profession
+# chains authored before this deployment settled on the Clone Wars era (~20 BBY,
+# WEG R&E). A Rebel Alliance / Galactic Empire recruitment arc is OFF-ERA here
+# and must never reach a player (era-cleanness invariant B3). They are held
+# DORMANT — unstartable + hidden from the chain-status display — pending a
+# decision to CW-rewrite or delete them (design_calls_pending_brian
+# ERA.tutorial_v2_gcw_profession_chains). Their definitions/dispatch remain in
+# source (unreachable) so that decision stays non-destructive. Guard:
+# tests/test_tutorial_v2_era_cleanness.py.
+_GCW_PROFESSION_CHAINS_ENABLED = False
+
+
 def _can_start_rebel_cell(char: dict) -> bool:
+    if not _GCW_PROFESSION_CHAINS_ENABLED:
+        return False
     from engine.ships_log import get_ships_log
     return get_ships_log(char).get("missions_complete", 0) >= 2
 
 
 def _can_start_imperial_service(char: dict) -> bool:
+    if not _GCW_PROFESSION_CHAINS_ENABLED:
+        return False
     from engine.ships_log import get_ships_log
     return get_ships_log(char).get("missions_complete", 0) >= 2
 
@@ -2227,13 +2243,17 @@ def get_chain_status_lines(char: dict) -> list:
     af_hint = "" if (af  > 0 or can_af)  else "  \033[2m(req: 3 items crafted)\033[0m"
     lines.append(f"    Artisan's Forge   [{af_bar}]{af_hint}")
 
-    rc_bar  = _bar(rc,  REBEL_CELL_TOTAL,       6)
-    rc_hint = "" if (rc  > 0 or can_rc)  else "  \033[2m(req: 2 missions complete)\033[0m"
-    lines.append(f"    Rebel Cell        [{rc_bar}]{rc_hint}")
+    # Rebel Cell / Imperial Service are GCW-era content held dormant in CW
+    # (see _GCW_PROFESSION_CHAINS_ENABLED) — hidden from the status display so
+    # no off-era chain is offered to a Clone Wars player.
+    if _GCW_PROFESSION_CHAINS_ENABLED:
+        rc_bar  = _bar(rc,  REBEL_CELL_TOTAL,       6)
+        rc_hint = "" if (rc  > 0 or can_rc)  else "  \033[2m(req: 2 missions complete)\033[0m"
+        lines.append(f"    Rebel Cell        [{rc_bar}]{rc_hint}")
 
-    ims_bar = _bar(ims, IMPERIAL_SERVICE_TOTAL, 6)
-    ims_hint= "" if (ims > 0 or can_ims) else "  \033[2m(req: 2 missions complete)\033[0m"
-    lines.append(f"    Imperial Service  [{ims_bar}]{ims_hint}")
+        ims_bar = _bar(ims, IMPERIAL_SERVICE_TOTAL, 6)
+        ims_hint= "" if (ims > 0 or can_ims) else "  \033[2m(req: 2 missions complete)\033[0m"
+        lines.append(f"    Imperial Service  [{ims_bar}]{ims_hint}")
 
     uw_bar  = _bar(uw,  UNDERWORLD_TOTAL,       6)
     uw_hint = "" if (uw  > 0 or can_uw)  else "  \033[2m(req: 3 smuggling runs)\033[0m"

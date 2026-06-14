@@ -586,21 +586,22 @@ async def _skill_check(char_id: int, skill_name: str, difficulty: int,
     """
     try:
         from engine.skill_checks import perform_skill_check
-        result = await perform_skill_check(
-            char_id=char_id,
-            skill_name=skill_name,
-            difficulty=difficulty,
-            db=db,
-        )
+        char = await db.get_character(char_id)
+        if char is None:
+            raise ValueError("character %s not found" % char_id)
+        # perform_skill_check is SYNCHRONOUS and takes the char DICT positionally
+        # (no char_id/db kwargs). The previous async/kwarg call ALWAYS raised, so
+        # every patrol check silently fell back to skill-ignoring raw 3D.
+        result = perform_skill_check(char, skill_name, difficulty)
         return {
             "success": result.success,
-            "critical": getattr(result, "critical", False),
-            "fumble": getattr(result, "fumble", False),
-            "roll": getattr(result, "roll_total", 0),
+            "critical": result.critical_success,
+            "fumble": result.fumble,
+            "roll": result.roll,
             "difficulty": difficulty,
         }
     except Exception as e:
-        log.warning("[patrol] skill check fallback: %s", e)
+        log.warning("[patrol] skill check fell back to raw 3D: %s", e, exc_info=True)
         # Fallback: simple random roll if skill engine unavailable
         roll = sum(random.randint(1, 6) for _ in range(3))
         return {
