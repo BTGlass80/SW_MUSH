@@ -415,8 +415,13 @@ async def execute_pending_teleport(ctx, char: dict) -> bool:
             log.debug("[chain_graduation] reward summary send failed",
                       exc_info=True)
 
-    # Clear the pending flag and persist.
-    await _clear_pending(ctx.db, char, attrs)
+    # Clear the pending flag and persist. MUST pass the slot the flag was
+    # found on (pending_state_key) — defaulting to the onboarding slot would
+    # leave a QUESTLINE graduation's flag in the active_questline slot intact,
+    # so execute_pending_teleport would re-fire the graduation flavor + a
+    # synthetic look on every subsequent command until restart. (The two
+    # earlier _clear_pending calls already pass pending_state_key.)
+    await _clear_pending(ctx.db, char, attrs, pending_state_key)
 
     return True
 
