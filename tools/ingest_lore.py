@@ -50,34 +50,16 @@ for _s in ("stdout", "stderr"):
         _ENC_FALLBACK = True
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-# ── Era canon (kept in sync with tests/test_laneb_era_cleanness.py::_BANNED) ──
-# The single source of truth for "this string is off-era for Clone Wars."
-# When engine/era_validator.py is built (shared with T3.22 + the enrichment
-# pools, per the pipeline doc STEP 0), import from there instead.
-_BANNED = (
-    "Imperial", "IMPERIAL", "imperial",
-    "Stormtrooper", "stormtrooper",
-    "Empire", "Rebel", "rebel",
-    "TIE fighter", "TIE-", "X-Wing", "x-wing",
-    # Post-Clone-Wars / GCW era tokens (added 2026-06-13 after the LLM
-    # quality-gate caught these leaking past the original literal list —
-    # "Empire"/"Imperial" alone don't catch the New-Republic-era residue):
-    "New Republic", "Grand Moff", "Death Star", "Order 66",
-    "Order Sixty-Six", "New Order", "Galactic Civil War",
-)
-# Canonical figures that must never become named NPCs (Q1 policy). Reduced to
-# archetypes by the extractor; flagged here as a belt-and-suspenders content check.
-_CANONICAL_FIGURES = (
-    "Anakin", "Ahsoka", "Obi-Wan", "Obi Wan", "Palpatine", "Sidious",
-    "Dooku", "Grievous", "Maul", "Yoda", "Windu", "Padme", "Padmé",
-    "Jabba", "Ventress", "Cad Bane", "Bossk", "Aurra Sing", "Boba",
-    # Added 2026-06-13 — figures the quality-gate caught in ingested lore
-    # (matched case-insensitively as substrings, so "Mothma" catches "Mon
-    # Mothma", "Gunray" catches "Nute Gunray", "Tarkin" catches "Tarkin's"):
-    "Jango", "Tarkin", "Mon Mothma", "Mothma", "Talzin", "Valorum",
-    "Nute Gunray", "Gunray", "Hondo", "Wat Tambor", "Sio Bibble",
-    "Lama Su", "Taun We", "Shaak Ti", "Mas Amedda",
+# ── Era canon ── single source of truth: engine/era_validator.py ──────────────
+# Shared with the era-cleanness tests and the Ollama runtime guard
+# (engine/idle_queue.py) so the three former copies can never drift. STAGE 3
+# validate() below matches these against each extracted entry's content+title.
+from engine.era_validator import (  # noqa: E402  (after sys.path bootstrap)
+    BANNED_ERA_TOKENS as _BANNED,
+    CANONICAL_FIGURES as _CANONICAL_FIGURES,
 )
 
 SURFACE_AFFINITIES = ("dialogue", "encounter", "bounty", "news", "ambient", "general")

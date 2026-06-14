@@ -23,6 +23,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 
+from engine.era_validator import era_violations, is_era_clean, ERA_PROMPT_HINT
+
 if TYPE_CHECKING:
     from ai.providers import AIManager
 
@@ -66,7 +68,8 @@ class AmbientBarkTask(IdleTask):
 
     async def execute(self, ai: "AIManager", db) -> None:
         system_prompt = (
-            f"You are {self.npc_name}, a {self.species} in a Star Wars setting.\n"
+            ERA_PROMPT_HINT + "\n\n"
+            f"You are {self.npc_name}, a {self.species}.\n"
             f"Personality: {self.personality}\n"
             f"Faction: {self.faction}\n"
             f"Location: {self.room_name}\n"
@@ -104,11 +107,22 @@ class AmbientBarkTask(IdleTask):
             barks = json.loads(cleaned)
             if isinstance(barks, list) and barks:
                 # Filter: only keep strings, strip, limit length
-                valid = [
+                candidates = [
                     s.strip().strip('"').strip("'")
                     for s in barks
                     if isinstance(s, str) and 3 < len(s.strip()) < 120
                 ]
+                # Era-guard: drop any bark that names an off-era token or a
+                # canonical figure before it can be served to players. Mistral
+                # invents Stormtroopers/Empire/Anakin even when prompted CW; a
+                # dropped bark just shrinks the pool (static room flavor covers).
+                valid = [b for b in candidates if is_era_clean(b)]
+                dropped = len(candidates) - len(valid)
+                if dropped:
+                    log.info(
+                        "[idle_queue] Dropped %d off-era bark(s) for %s (npc_id=%d)",
+                        dropped, self.npc_name, self.npc_id,
+                    )
                 if valid:
                     # Store in the queue's bark cache
                     _bark_cache[self.npc_id] = {
@@ -138,7 +152,8 @@ class SceneSummaryTask(IdleTask):
 
     async def execute(self, ai: "AIManager", db) -> None:
         system_prompt = (
-            "Summarize this Star Wars roleplay scene in 2-3 sentences. "
+            ERA_PROMPT_HINT + "\n\n"
+            "Summarize this roleplay scene in 2-3 sentences. "
             "Focus on what happened, who was involved, and the outcome. "
             "Write in past tense, third person. Be concise. "
             "Output only the summary, no preamble."
@@ -158,6 +173,15 @@ class SceneSummaryTask(IdleTask):
                 provider="ollama",
             )
             if summary and db:
+                # Era-guard: an off-era summary is dropped (column stays NULL,
+                # same as when Ollama is down) rather than persisted to players.
+                bad = era_violations(summary)
+                if bad:
+                    log.warning(
+                        "[idle_queue] Scene %d summary dropped (off-era: %s)",
+                        self.scene_id, ", ".join(bad[:3]),
+                    )
+                    return
                 await db.execute(
                     "UPDATE scenes SET summary = ? WHERE id = ?",
                     (summary.strip(), self.scene_id),
@@ -185,7 +209,8 @@ class EventRewriteTask(IdleTask):
 
     async def execute(self, ai: "AIManager", db) -> None:
         system_prompt = (
-            "Rewrite this Star Wars news headline to be more vivid and specific. "
+            ERA_PROMPT_HINT + "\n\n"
+            "Rewrite this news headline to be more vivid and specific. "
             "Keep the same meaning but add atmospheric detail. "
             "One sentence, max 25 words. No quotes. No preamble. "
             "Output only the rewritten headline."
@@ -209,6 +234,15 @@ class EventRewriteTask(IdleTask):
                 return  # Keep original
 
             rewrite = rewrite.strip().rstrip(".")
+            # Era-guard: if the rewrite leaked an off-era token, keep the
+            # original template headline rather than broadcast the leak.
+            bad = era_violations(rewrite)
+            if bad:
+                log.warning(
+                    "[idle_queue] Event %d rewrite dropped (off-era: %s)",
+                    self.event_id, ", ".join(bad[:3]),
+                )
+                return  # Keep original
             # Update the director_log entry
             if db and self.event_id:
                 await db.execute(
@@ -251,11 +285,11 @@ class HousingDescTask(IdleTask):
 
     async def execute(self, ai: "AIManager", db) -> None:
         system_prompt = (
-            "You are a Star Wars room description writer for a text-based "
-            "multiplayer game set during the Galactic Civil War era. Write a "
-            "vivid, atmospheric room description in second person present "
-            "tense. 2-4 sentences, under 400 characters. Focus on sensory "
-            "details. Output ONLY the description text."
+            ERA_PROMPT_HINT + "\n\n"
+            "You are a room description writer for a text-based multiplayer "
+            "game. Write a vivid, atmospheric room description in second "
+            "person present tense. 2-4 sentences, under 400 characters. "
+            "Focus on sensory details. Output ONLY the description text."
         )
         parts = [
             f"Room name: {self.room_name}",
@@ -276,6 +310,15 @@ class HousingDescTask(IdleTask):
                 provider="ollama",
             )
             if desc and len(desc.strip()) > 20:
+                # Era-guard: don't cache an off-era description; leaving the
+                # cache empty makes `.suggest` fall through to its normal path.
+                bad = era_violations(desc)
+                if bad:
+                    log.warning(
+                        "[idle_queue] Housing %d desc dropped (off-era: %s)",
+                        self.housing_id, ", ".join(bad[:3]),
+                    )
+                    return
                 _housing_desc_cache[self.housing_id] = desc.strip()
                 log.info("[idle_queue] Housing %d desc pre-generated (%d chars)",
                          self.housing_id, len(desc))
