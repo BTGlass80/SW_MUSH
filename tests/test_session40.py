@@ -452,6 +452,7 @@ class TestHudPayloadBoardingFields:
 # 11. Web Client Boarding UI
 # ═══════════════════════════════════════════════════════════════════════
 
+@pytest.mark.slow  # heavy: regex
 class TestWebClientBoardingUI:
     """Verify web client has boarding alert and status UI."""
 

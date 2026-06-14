@@ -23,6 +23,9 @@ from tools.mapgen import (  # noqa: E402
 )
 from tools.mapgen import term_substitutions as tsub  # noqa: E402
 from tools.mapgen.nano_client import create_nano_client  # noqa: E402
+import pytest
+
+pytestmark = pytest.mark.slow  # heavy: full world build (build_mos_eisley / load_world_dry_run)
 
 
 def _run(coro):

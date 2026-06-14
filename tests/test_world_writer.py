@@ -44,6 +44,7 @@ from engine.world_writer import (
     _split_exit,
 )
 
+pytestmark = pytest.mark.slow  # heavy: full world build (build_mos_eisley / load_world_dry_run)
 
 # ── Event loop fixture (Python 3.14 compatibility) ─────────────────────────────
 # Same pattern as tests/test_plots.py — aiosqlite connections are loop-bound,

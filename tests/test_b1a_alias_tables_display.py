@@ -17,6 +17,8 @@ import pytest
 
 from build_mos_eisley import build
 
+pytestmark = pytest.mark.slow  # heavy: full world build (build_mos_eisley / load_world_dry_run)
+
 
 def _run_build(era):
     """Run build() in a fresh temp DB, return path."""

@@ -377,6 +377,7 @@ class TestWoundMechanics:
 # Statistical Combat Outcomes
 # ═══════════════════════════════════════════════════════════════════
 
+@pytest.mark.slow  # heavy: statistical
 class TestCombatStatistics:
     def test_high_skill_wins_more(self):
         """A 8D attacker should hit a 3D dodger more than 50% of the time."""

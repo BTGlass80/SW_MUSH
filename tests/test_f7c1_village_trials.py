@@ -197,6 +197,7 @@ class FakeDB:
 # ═════════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.slow  # setup_class runs a full build_mos_eisley world build
 class TestSchemaV22:
 
     @classmethod
@@ -277,6 +278,7 @@ class TestSchemaV22:
 # ═════════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.slow  # setup_class runs a full build_mos_eisley world build
 class TestVillageTrialNPCsPlaced:
 
     @classmethod
@@ -290,43 +292,13 @@ class TestVillageTrialNPCsPlaced:
         except FileNotFoundError:
             pass
 
-    def test_total_npc_count_includes_all_seven_village(self):
-        # F.7.b shipped 145 → 147 (Vitha, Yarael)
-        # F.7.c.1 ships 147 → 152 (+ Daro, Mira, Korvas, Saro, Sela)
-        # F.8.c.2.a (May 4 2026) ships 152 → 172 (+ 20 chain anchor NPCs)
-        # F.8.c.2.b₂ (May 4 2026) ships 172 → 176 (+ 4 combat-template
-        # seed NPCs: B1 Sim Droid Alpha/Bravo at Tipoca combat sim,
-        # Republic Clone Simulant Alpha/Bravo at Geonosis drill pit)
-        # Q1.3 (May 18 2026) ships 176 → 177 (+ Vigo Sethel Vask, the
-        # Falleen Black Sun Vigo backing the Falleen Syndicate Tower
-        # rewrite of coruscant room 230; see
-        # data/worlds/clone_wars/npcs_drop_i_falleen_syndicate.yaml).
-        #
-        # 2026-06-05 reconciliation: a clean build_mos_eisley produced 196 NPCs
-        # (verified: 196 rows, 196 DISTINCT names, no duplicates). The 177
-        # baseline had drifted +19 across intervening content drops that added
-        # NPCs without updating this whole-table count guard.
-        # 2026-06-06 (Drop A hygiene): +2 more from content drops since the
-        # 2026-06-05 pin -> re-verified 198 rows / 198 DISTINCT names via a
-        # clean build_mos_eisley (era=clone_wars), no duplicates.
-        # 2026-06-12 reconciliation: a clean build_mos_eisley (era=clone_wars)
-        # now produces 201 NPCs. The 198 pin had drifted -3: the crafting-lane
-        # NPCs (Gundark + Sela Tarn + Vek Nurren) were bundled into the
-        # big_catchup squash without reconciling this whole-table count.
-        # Re-verified 201 rows / 201 DISTINCT names, no duplicate-load. NOTE:
-        # this is a brittle total-count assertion; the by-name village-NPC
-        # placement checks elsewhere in this class are the substantive
-        # guarantees.
-        # 2026-06-13 reconciliation: +10 -> 211. The T5-questline arc
-        # (drops 34-35) added npcs_drop_b_t5_trainers.yaml: 5 master
-        # trainers (Vehn Tasaal/Vossk/Corso Venn/Dax Orrin/Sabra) + 5
-        # questline combat enemies (krayt-spawn/cartel enforcer/B1 patrol/
-        # drone-warrior/Warrens stalker). All 10 are legitimate content;
-        # the count guard was the only thing pinned to 201. (This canary
-        # drifts on every content drop — see the 177->196->198->201 trail
-        # above; the by-name placement checks are the real guarantee.)
-        rows = _query(self.db_path, "SELECT COUNT(*) AS c FROM npcs")
-        assert rows[0]["c"] == 211
+    # NOTE: the brittle whole-table `COUNT(*) == N` canary that used to live
+    # here was removed (2026-06-14 test-suite-prune drop). It drifted on every
+    # content drop — 145→147→152→172→176→177→196→198→201→211 — and its own
+    # comment trail conceded "the by-name placement checks are the real
+    # guarantee." Those by-name checks (below) are retained as the substantive
+    # coverage; the total-count canary added maintenance tax with no unique
+    # regression value.
 
     def test_smith_daro_at_forge(self):
         rows = _query(
@@ -1046,6 +1018,7 @@ class TestInsightFragmentContent:
 # migration (existing DBs at v21/v22). These tests guard both paths.
 
 
+@pytest.mark.slow  # setup_class runs a full build_mos_eisley world build
 class TestMailCarryOver:
 
     @classmethod

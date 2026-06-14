@@ -5,7 +5,7 @@ harness did.
 
 Drop 4.4 (Tier 1 #4) · May 27 2026.
 
-Replaces tests/spa/combat_inspector_extract.py, which sliced the D'
+Supersedes the former marker-extract harness, which sliced the D'
 rendering block out of client.html via comment markers. Drop 4.4 moved
 that block into a proper SPA module (static/spa/m3_combat_inspector.js),
 so the slicing trick is no longer needed. We load the module the same

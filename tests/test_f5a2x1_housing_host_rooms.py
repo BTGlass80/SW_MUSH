@@ -32,10 +32,13 @@ import sys
 import unittest
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+pytestmark = pytest.mark.slow  # heavy: full world build (build_mos_eisley / load_world_dry_run)
 
 # Per cw_housing_design_v1.md §6/§7/§8/§9, these are the host_room slugs
 # expected to be live in the CW world for the lot inventory to anchor on.

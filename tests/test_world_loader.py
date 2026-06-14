@@ -19,6 +19,8 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(HERE, ".."))
 if PROJECT_ROOT not in sys.path:
@@ -429,6 +431,7 @@ class TestValidation(unittest.TestCase):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.slow  # heavy: build
 class TestCloneWarsRealData(unittest.TestCase):
     """Run against the actual data/worlds/clone_wars/ in the repo.
 

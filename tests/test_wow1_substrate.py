@@ -111,6 +111,8 @@ import time
 import unittest
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -223,6 +225,7 @@ class TestMigrationV35Present(unittest.TestCase):
         self.assertEqual(len(MIGRATIONS[35]), 5)
 
 
+@pytest.mark.slow  # heavy: migration
 class TestMigrationV35AppliesCleanly(unittest.TestCase):
     """Apply migrations 2..35 to a fresh DB and verify the v35
     surface lands."""
@@ -276,6 +279,7 @@ class TestMigrationV35AppliesCleanly(unittest.TestCase):
                 os.unlink(tmp)
 
 
+@pytest.mark.slow  # heavy: migration
 class TestMigrationV35Idempotent(unittest.TestCase):
     """Re-applying v35 should fail with 'duplicate column' (a known-
     benign error the _run_migrations loop already catches), not with
@@ -1032,6 +1036,7 @@ class _ProductionDbHarness:
         self.char_id = 42
 
 
+@pytest.mark.slow  # heavy: migration
 class TestProductionSchemaIntegration(unittest.TestCase):
     """Run engine/weight_of_war.py against a real Database.
 

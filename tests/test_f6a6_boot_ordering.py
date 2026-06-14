@@ -36,6 +36,8 @@ import sys
 import textwrap
 import unittest
 
+import pytest
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(HERE, ".."))
 
@@ -60,6 +62,7 @@ def _run_python(script: str, timeout: int = 30) -> tuple[int, str, str]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.slow  # heavy: subprocess
 class TestBootOrderingFlagOff(unittest.TestCase):
     """With no active_config registered (or `use_yaml_director_data`
     off), director's constants must resolve to the canonical GCW
@@ -137,6 +140,7 @@ class TestBootOrderingFlagOff(unittest.TestCase):
         )
 
 
+@pytest.mark.slow  # heavy: subprocess
 class TestBootOrderingFlagOn(unittest.TestCase):
     """With the flag ON and config registered BEFORE director import,
     director's constants must reflect the era YAML."""
@@ -234,6 +238,7 @@ class TestBootOrderingFlagOn(unittest.TestCase):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.slow  # heavy: subprocess
 class TestMainCLIFlags(unittest.TestCase):
     """Verify main.py's argparse exposes the F.6a.6 flags. We can't
     actually start the server in a test, but we can inspect the

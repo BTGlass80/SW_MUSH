@@ -31,10 +31,14 @@ import time
 import unittest
 from pathlib import Path
 
+import pytest
+
 HERE = Path(__file__).resolve().parent
 PROJECT_ROOT = HERE.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+pytestmark = pytest.mark.slow  # heavy: per-test in-memory DB + full migration chain
 
 
 def _run(coro):

@@ -22,6 +22,7 @@ import unittest
 from pathlib import Path
 
 import aiosqlite
+import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(HERE, ".."))
@@ -155,6 +156,7 @@ class TestDefaultPath(_LoreSeedTestBase):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.slow  # heavy: build
 class TestCloneWarsErapath(_LoreSeedTestBase):
     async def test_clone_wars_loads_at_least_32_entries(self):
         cw_yaml = (Path(PROJECT_ROOT) / "data" / "worlds" / "clone_wars" /

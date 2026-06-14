@@ -36,6 +36,7 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.slow  # heavy: spawns node --check subprocess
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CLIENT_HTML = REPO_ROOT / "static" / "client.html"

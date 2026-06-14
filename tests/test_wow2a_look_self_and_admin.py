@@ -105,10 +105,14 @@ import sys
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(HERE, ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
+
+pytestmark = pytest.mark.slow  # heavy: per-test in-memory DB + full migration chain
 
 
 def _run(coro):

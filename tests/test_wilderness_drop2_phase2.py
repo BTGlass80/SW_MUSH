@@ -52,6 +52,7 @@ from engine.wilderness_movement import (
     move_in_wilderness,
 )
 
+pytestmark = pytest.mark.slow  # heavy: full world build (build_mos_eisley / load_world_dry_run)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures

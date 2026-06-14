@@ -399,6 +399,7 @@ class TestStep2Arrival:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.slow  # heavy: build
 class TestWildernessWriterEmitsSlug:
     """A fresh CW build must produce wilderness rooms with properties.slug
     set to the YAML landmark id."""
