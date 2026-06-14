@@ -6,6 +6,12 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-14 — Groom T3.13–18 launch_ruling → "FULL BODY PRE-LAUNCH" + record gap-check verification (Brian decision 2) — *drop t3-launch-ruling-groom*
+Executes `BRIAN_ROADMAP_DECISIONS.2026-06-14` #2 (TODO-only bookkeeping; no code). Changed the `launch_ruling` field on **T3.13** (Padawan-Master), **T3.14** (Cities), **T3.16** (Wildspace), **T3.17** (Sheet), **T3.18** (Ground-UX) from the now-superseded "POST-LAUNCH body" to **"FULL BODY PRE-LAUNCH"** — resolving the `tier_3_post_launch` bucket-name landmine.
+- **Recorded the believed-done VERIFICATION** decision 2 asked for: T3.17 (sheet) and T3.18 (ground-UX) were gap-checked this session (`HANDOFF_t317_t318_gapcheck_2026-06-14.md`) and substantially closed — T3.17 "believed-done" was correct; T3.18's server was built but its live client had **regressed in the legacy→SPA rewrite** (now restored: room detail / nearby services / zone influence / HERE / active jobs / smart quick-buttons). Remaining T3.18 items (G4 combat events, G5 server-half, G13 director) need engine/Director work.
+- **Flagged for the build sessions:** T3.13/T3.14/T3.16 are each already substantially BUILT — they need real gap-checks (the no-phantom discipline already caught deliberate-design and need-infra items masquerading as "missing"), not blind implementation of a TODO command list.
+- **Files:** `TODO.json`, `CHANGELOG.md`.
+
 ### 2026-06-14 — Ground-UX smart quick-buttons (T3.18 G8) — *drop gnd-ux-smart-buttons*
 Closes the last *clean* T3.18 client gap from the gap-check (`HANDOFF_t317_t318_gapcheck_2026-06-14.md`): the context-aware quick-button system existed only in the retired `static/client_legacy.html` and was never ported to the live client. Client-only (`static/client.html`); the static `#qa-row` becomes mode-driven while the **explore default is byte-for-byte behavior-preserved**.
 - **Modes (`getQuickMode`, priority postcombat > wound > crafting > trainer > explore):** `explore` reproduces the existing 6 buttons exactly (LOOK/POSE/SAY/INV/JOBS/CRAFT — POSE/SAY still `data-action="stage"`); `postcombat` (LOOK/LOOT/HEAL/INV) fires for 30s after a combat→idle transition then auto-reverts; wound state injects a **HEAL** button (out of combat); a present trainer + spare CP injects **TRAIN**; a crafting bench injects **CRAFT**.
