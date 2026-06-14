@@ -6,6 +6,14 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-13 — Director "economy eyes": faucet/sink digest perception — *drop director-economy-eyes*
+Gives the LLM Director macro **economic perception** (`director_scope_and_adaptive_spend_v1.md §3`) — step 3 of the Director scope expansion, after multi-zone (§2/§6) and adaptive-spend (§5). Previously the Director's only economic signal was per-org treasury; it ran a war narrative blind to the crafting/trade/bounty economy. Now it sees where credits flow.
+- **Pure read, funnel-clean (`engine/director.py::_compile_economy_digest`):** every credit movement already routes through `db.adjust_credits(char_id, delta, source)`, which logs to `credit_log(source, delta, created_at)`. The new method rolls that up over the faction-turn window (30 min) into compact macro signals — `total_faucet`, `total_sink`, `net_flow`, `transactions`, and the top-5 `source` tags each way — and `compile_digest` injects it as `digest["economy"]`. **No new write seam**; it reads the credit funnel, honoring the funnel invariant.
+- **Cheap + fail-open:** one indexed `GROUP BY source` query (`idx_credit_log_source`); returns `{}` on an idle window (adds nothing to the digest) or a read failure (e.g. pre-`credit_log` DB), and is skipped entirely when `compile_digest` is called without a `db`. Tiny token cost (per the design's "breadth is nearly free").
+- **Perception only (this drop):** the Director can now factor a smuggling boom / deflation / a player getting rich into its narrative + hooks. ACTING on it with soft opportunity nudges (Brian decision A — seeds, never price/yield levers) is the separate next step (§4). Prompt-tuning to explicitly leverage the economy block is a follow-up (the prompt lives in `director_config.yaml`).
+- **Verified:** new `tests/test_director_economy_eyes.py` (8 — totals/net, sorted+capped top lists, empty/zero-movement → `{}`, read-failure fail-open, digest integration with/without db) + director-suite regression green (cw-mapping / adaptive-spend / living-galaxy / bugfixes).
+- **Files:** `engine/director.py`, `tests/test_director_economy_eyes.py` (new), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-13 — T3.20 safe character-load: guard attrs parse + force-sensitivity fail-safe — *drop t3-20-safe-load*
 Fixes the two T3.20 launch-blockers (`HANDOFF_t3_20_state_preservation`) — a live save that couldn't load right — both in `engine/character.py::from_db_dict`, read-side, no schema change.
 - **Blocker 1 — corrupted attribute locked the player out:** the attributes + force-attribute loops called `DicePool.parse()` **unguarded** (the earlier char-load hardening guarded only the skills loop), so one bad value (e.g. `"4X+2"`) raised and aborted the WHOLE character load — that character could not log in. Now each parse is wrapped (mirrors the skills-loop guard): the bad field is skipped with a warning, the rest of the character loads.

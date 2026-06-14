@@ -685,6 +685,21 @@ class DirectorAI:
         }
         digest.update(self._digest.to_digest_dict())
 
+        # ── Economy eyes (pure read; DIRECTOR.economy_digest) ──────────────
+        # Give the Director macro economic PERCEPTION: a faucet/sink rollup of
+        # the credit_log over the faction-turn window. Every credit movement
+        # already funnels through adjust_credits(..., source), so this is a
+        # READ-ONLY rollup — no new write seam, obeys the funnel invariant. It
+        # lets the Director see a smuggling boom, a deflation, or a player
+        # getting rich, and respond with SOFT nudges (Brian decision A).
+        if db is not None:
+            try:
+                _eco = await self._compile_economy_digest(db)
+                if _eco:
+                    digest["economy"] = _eco
+            except Exception:
+                log.debug("[director] economy digest skipped", exc_info=True)
+
         # ── Online PC short records (narrative AI, gated) ──────────────────
         # Inject short_record for each online player so the Director can
         # generate personalised pc_hooks. Only included when narrative AI
@@ -1497,6 +1512,61 @@ class DirectorAI:
         except Exception:
             log.warning("get_recent_log: unhandled exception", exc_info=True)
             return []
+
+    async def _compile_economy_digest(self, db, window_seconds: int = 1800) -> dict:
+        """Faucet/sink rollup of credit_log over the last ``window_seconds``.
+
+        Pure read of the credit funnel (adjust_credits writes credit_log with a
+        ``source`` tag). Returns compact macro signals — total faucet/sink, net
+        flow, and the top-5 sources each way — the Director can factor into its
+        narrative/hooks. Perception only (economy-eyes); acting on it with soft
+        opportunity nudges is a separate step. Empty dict when there's no
+        movement (so an idle window adds nothing to the digest).
+        """
+        try:
+            since = time.time() - window_seconds
+            rows = await db.fetchall(
+                "SELECT source, "
+                "SUM(CASE WHEN delta > 0 THEN delta ELSE 0 END) AS faucet, "
+                "SUM(CASE WHEN delta < 0 THEN -delta ELSE 0 END) AS sink, "
+                "COUNT(*) AS n "
+                "FROM credit_log WHERE created_at >= ? GROUP BY source",
+                (since,),
+            )
+        except Exception:
+            return {}  # table may not exist yet / read failed — fail-open
+        if not rows:
+            return {}
+
+        def _top(d: dict) -> list:
+            # lists (not tuples) so the digest serializes cleanly to JSON.
+            ranked = sorted(d.items(), key=lambda kv: kv[1], reverse=True)[:5]
+            return [[k, v] for k, v in ranked]
+
+        total_faucet = total_sink = txns = 0
+        faucets: dict = {}
+        sinks: dict = {}
+        for r in rows:
+            f = int(r["faucet"] or 0)
+            s = int(r["sink"] or 0)
+            total_faucet += f
+            total_sink += s
+            txns += int(r["n"] or 0)
+            if f:
+                faucets[str(r["source"])] = f
+            if s:
+                sinks[str(r["source"])] = s
+        if txns == 0:
+            return {}
+        return {
+            "window_minutes": round(window_seconds / 60),
+            "total_faucet": total_faucet,
+            "total_sink": total_sink,
+            "net_flow": total_faucet - total_sink,
+            "transactions": txns,
+            "top_faucets": _top(faucets),
+            "top_sinks": _top(sinks),
+        }
 
     async def get_budget_stats(self, db) -> dict:
         """Get current month's API token usage from director_log."""
