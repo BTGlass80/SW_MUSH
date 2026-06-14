@@ -647,9 +647,59 @@ quality→combat (`OBS.quality_and_boosts_not_combat_read`) design passes;
 the CRAFT.HOOK passes (restraints, anti-Jedi quest pair); Coruscant zone
 naming (§8.5); eavesdrop `target_char` (carried since v45).
 
+**Update (v52.3, Jun 14):** most of the above is now resolved — FLAG consumers
+wired (v52.2, resolves `T2.E3`), restraints + powered-suit + breaching all BUILT
+(v52.3 §9), only **quality→combat** remains of that cluster (still open, balance-gated).
+**NEW pending design call: `ERA.tutorial_v2_gcw_profession_chains`** (the one item in
+`design_calls_pending_brian`) — the now-dormant GCW REBEL_CELL/IMPERIAL_SERVICE chains
+need a permanent disposition: **(A)** delete, **(B)** keep dormant, or **(C)** CW-rewrite;
+recommendation B-now / C-or-A depending on whether the legacy `tutorial_v2` profession-chain
+system is kept vs deprecated for the `chains.yaml` questline engine. **NEW candidate (method):**
+a broad allow-listed AST era scan over `engine/*.py` player-facing string constants, to close
+the *partial-coverage test blind spot* that let the `tutorial_v2` era blocker (and the
+wilderness/chain phantom refs) slip past the surgical curated-list tests.
+
 ---
 
 ## §9. Version history
+
+- **v52.3 (Jun 14 2026)** — Jun 13–14 hardening + Director-scope wave (≈30 drops, multi-session
+  parallel). Five themes, all schema-additive (`SCHEMA_VERSION 43→44`, migration-gated):
+  **(1) Director scope expansion — COMPLETE, resolves the v52.2 finding.** The "Director runs
+  only 6 Mos Eisley zones + dead `_apply_influence_delta`" item is closed: native CW faction axis
+  over 34 zones (`director-living-galaxy`), live API path (SSL fix + 2 real bugs, drop 51),
+  adaptive-spend governor (skip-empty-turns + auto cadence + `@director fidelity` toggle),
+  **economy perception** (`_compile_economy_digest` — a pure read of the `credit_log` funnel, no
+  new write seam), soft **economic NUDGES** (decision A — opportunity seeds only, never
+  price/yield levers), and economy prompt-tuning. Per `director_scope_and_adaptive_spend_v1.md`.
+  **(2) Runtime era-guard layer (NEW cross-cutting hardening theme).** `engine/era_validator.py`
+  is now the single source of truth for the banned-GCW-token + canonical-figure canon, and EVERY
+  LLM→player surface validates against it at runtime: the Ollama idle queue (`ollama-era-guard`),
+  the ambient dynamic pool (`ambient-dynamic-pool-era-guard`), the primary `talk <npc>` dialogue
+  path (`npc-dialogue-era-guard`), and the new idle-GPU ambient-flavor feeder. The static side
+  closed a **live era BLOCKER**: `tutorial_v2.py`'s GCW REBEL_CELL/IMPERIAL_SERVICE profession
+  chains were reachable in CW and are now gated dormant (`tutorial-v2-era-remediation`). This
+  closes the LLM-era-leak class — era invariant B3 now holds at the *generation* boundary, not
+  just over static strings. **(3) Equipment/combat forks BUILT** (the v52.2 "3 pending"): per-slot
+  equipment-instance accessor stage 1 (drop 47), restraints/handcuffs engine + verb layer (drops
+  48–49, consent/defeat-gated), powered armor + the Powersuit Operation skill (drop 50).
+  **(4) State-preservation / migration safety (T3.20 underway).** Safe character-load (guarded
+  attrs/force parse + force-sensitivity fail-safe, Ruling 5) + a migration-framework integrity
+  harness (`SCHEMA_VERSION == max(MIGRATIONS)` + reboot data-preservation, schema 43→44).
+  **(5) Defect-hunt remediation wave** (adversarial workflow → verify → fix): encounter spawn-count
+  range honored (bias-low, `TD.ENCOUNTER_COUNT_RANGE_IGNORED` resolved), 4 phantom wilderness
+  creatures + global resolution guard, chain combat-fallback reachability Class 5, questline
+  graduation re-fire, idle-queue broadcast/persist coupling, breaching honest-failure, and the
+  **space-encounter skill-check funnel bypass** (all 5 `encounter_*.py` `_skill_check` helpers
+  always fell back to skill-ignoring raw 3D → now call the sync `perform_skill_check` correctly).
+  Plus lore ingestion (sourcebooks → ~1,978-entry grounded lorebook), 2 achievement hooks wired
+  (`on_scene_completed`/`on_org_rank_reached` — others remain defined-but-unwired, see
+  `HANDOFF_defect_hunt_findings_2026-06-14.md`), and `stat-d6`/`world-yaml` agent skills. Counts:
+  engine 143, parser 70, tests 370, spa 49, schema 44. **1 NEW design call pending Brian**
+  (`ERA.tutorial_v2_gcw_profession_chains` — delete vs keep-dormant vs CW-rewrite the now-dormant
+  GCW chains). NEW method finding (see §8): the **partial-coverage test blind spot** — surgical
+  curated-list tests (era-cleanness, per-biome reachability) miss whole files/objects; the era
+  blocker + the wilderness/chain phantom refs all slipped through that gap.
 
 - **v52.2 (Jun 13 2026)** — drops 34–43 catch-up. Folds in the post-v52.1 wave:
   **T5 master-trainer questline COMPLETE** (drops 34–35 — 5 trainers in
@@ -754,5 +804,7 @@ CHANGELOG truth, verified at HEAD) and folds in the June 2026 waves,
 headlined by the Gundark crafting lane (drops 1–11): a complete
 equipment-crafting economy delivered A→G, schema-neutral, with four new
 invariants and every faucet shipped beside its sink. Current
-`SCHEMA_VERSION = 43`. v51 stays on disk as the detailed reference for the
-sections v52 folds forward.*
+`SCHEMA_VERSION = 44` (the v52.1–v52.3 §9 catch-up entries fold the Jun 13–14
+waves forward — Director scope, the runtime era-guard layer, equipment forks,
+and the defect-hunt remediation). v51 stays on disk as the detailed reference
+for the sections v52 folds forward.*
