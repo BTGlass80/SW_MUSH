@@ -978,10 +978,12 @@ async def checkout_room(db, char: dict) -> dict:
     except Exception as e:
         log.warning("[housing] checkout exit removal error: %s", e)
 
-    # Delete rooms
+    # Delete rooms. db.delete_room also removes both directions of every exit
+    # touching the room; a raw "DELETE FROM rooms" left a multi-room home's
+    # internal room<->room exits dangling.
     for rid in room_ids:
         try:
-            await db.execute("DELETE FROM rooms WHERE id = ?", (rid,))
+            await db.delete_room(rid)
         except Exception as e:
             log.warning("[housing] checkout room delete error: %s", e)
 
@@ -1969,46 +1971,62 @@ async def purchase_home(db, char: dict, lot_id: int, home_type: str) -> dict:
     if existing:
         await checkout_room(db, char)
 
-    # Create housing record
+    # Create housing record. The charge above is the sink; persist the record
+    # and REFUND on any failure so a failed purchase never eats the player's
+    # credits (mirrors purchase_home_prestige). Previously an INSERT/commit
+    # failure here left the player charged with nothing to show for it.
     now = time.time()
-    cursor = await db.execute(
-        """INSERT INTO player_housing
-           (char_id, tier, housing_type, entry_room_id, room_ids, storage,
-            storage_max, weekly_rent, deposit, purchase_price,
-            rent_paid_until, door_direction,
-            exit_id_in, exit_id_out, created_at, last_activity)
-           VALUES (?, 3, 'private_residence', ?, ?, '[]', ?,
-                   ?, 0, ?, ?, ?, ?, ?, ?, ?)""",
-        (char_id, entry_room_id, json.dumps(room_ids), cfg["storage_max"],
-         cfg["weekly_rent"], cfg["cost"],
-         now + RENT_TICK_INTERVAL, door_dir,
-         exit_in_id, exit_out_id, now, now),
-    )
-    housing_id = cursor.lastrowid
-
-    # Mark all rooms as housing-owned
-    for rid in room_ids:
-        await db.execute(
-            "UPDATE rooms SET housing_id = ? WHERE id = ?", (housing_id, rid)
-        )
-
-    # Update lot occupancy
-    await db.execute(
-        "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
-        (lot_id,),
-    )
-
-    # Set as home
     try:
-        await db.execute(
-            "UPDATE characters SET home_room_id = ? WHERE id = ?",
-            (room_ids[0], char_id),
+        cursor = await db.execute(
+            """INSERT INTO player_housing
+               (char_id, tier, housing_type, entry_room_id, room_ids, storage,
+                storage_max, weekly_rent, deposit, purchase_price,
+                rent_paid_until, door_direction,
+                exit_id_in, exit_id_out, created_at, last_activity)
+               VALUES (?, 3, 'private_residence', ?, ?, '[]', ?,
+                       ?, 0, ?, ?, ?, ?, ?, ?, ?)""",
+            (char_id, entry_room_id, json.dumps(room_ids), cfg["storage_max"],
+             cfg["weekly_rent"], cfg["cost"],
+             now + RENT_TICK_INTERVAL, door_dir,
+             exit_in_id, exit_out_id, now, now),
         )
-    except Exception:
-        log.warning("purchase_home: unhandled exception", exc_info=True)
-        pass
+        housing_id = cursor.lastrowid
 
-    await db.commit()
+        # Mark all rooms as housing-owned
+        for rid in room_ids:
+            await db.execute(
+                "UPDATE rooms SET housing_id = ? WHERE id = ?", (housing_id, rid)
+            )
+
+        # Update lot occupancy
+        await db.execute(
+            "UPDATE housing_lots SET current_homes = current_homes + 1 WHERE id = ?",
+            (lot_id,),
+        )
+
+        # Set as home
+        try:
+            await db.execute(
+                "UPDATE characters SET home_room_id = ? WHERE id = ?",
+                (room_ids[0], char_id),
+            )
+        except Exception:
+            log.warning("purchase_home: unhandled exception", exc_info=True)
+            pass
+
+        await db.commit()
+    except Exception:
+        log.warning("[housing] purchase_home persist failed for char %s; "
+                    "refunding", char_id, exc_info=True)
+        try:
+            char["credits"] = await db.adjust_credits(
+                char_id, cfg["cost"], "housing_upgrade_refund")
+        except Exception:
+            log.error("[housing] purchase_home REFUND FAILED for char %s",
+                      char_id, exc_info=True)
+        return {"ok": False, "reason": "persist_failed",
+                "msg": ("The purchase could not be completed and your "
+                        f"{cfg['cost']:,}cr was refunded. Please try again.")}
 
     log.info("[housing] char %d purchased %s at lot %d (%s), rooms %s",
              char_id, home_type, lot_id, lot["label"], room_ids)
@@ -2595,12 +2613,16 @@ async def sell_shopfront(db, char: dict) -> dict:
                 log.warning("sell_shopfront: unhandled exception", exc_info=True)
                 pass
 
-    # Remove all housing rooms
+    # Remove all housing rooms. db.delete_room deletes both directions of every
+    # exit touching the room (via the correct from_room_id/to_room_id columns)
+    # then the room itself — the previous raw "DELETE FROM exits WHERE from_room
+    # = ? OR to_room = ?" named columns that DON'T EXIST (the schema is
+    # from_room_id/to_room_id), so it raised, the room delete on the next line
+    # never ran, and every shopfront room + its exits leaked while the sale still
+    # reported success.
     for rid in room_ids:
         try:
-            await db.execute("DELETE FROM exits WHERE from_room = ? OR to_room = ?",
-                                  (rid, rid))
-            await db.execute("DELETE FROM rooms WHERE id = ?", (rid,))
+            await db.delete_room(rid)
         except Exception:
             log.warning("sell_shopfront: unhandled exception", exc_info=True)
             pass
@@ -2864,9 +2886,16 @@ async def get_housing_for_private_room(db, room_id: int) -> Optional[dict]:
 
 
 def is_on_guest_list(h: dict, char_id: int) -> bool:
-    """Check if a character is on a housing record's guest list."""
+    """Check if a character is on a housing record's guest list.
+
+    The guest list is stored as a list of dicts ({"id": int, "name": str},
+    written by guest_add) — a bare ``char_id in guests`` is therefore always
+    False against dict entries, so an explicitly-added guest was never
+    recognized. Compare on each entry's id (tolerating a legacy bare-int entry).
+    """
     guests = _guest_list(h)
-    return char_id in guests
+    return any((g.get("id") if isinstance(g, dict) else g) == char_id
+               for g in guests)
 
 
 async def can_enter_housing_room(db, char: dict, room_id: int) -> tuple[bool, str]:
