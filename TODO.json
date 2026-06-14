@@ -1753,6 +1753,12 @@
   "design_calls_pending_brian": [],
   "design_calls_resolved_recent": [
     {
+      "id": "BALANCE.encounter_spawn_count_range",
+      "resolved_date": "2026-06-13",
+      "resolution": "SHIP, BIAS LOW (Brian, 2026-06-13). TD.ENCOUNTER_COUNT_RANGE_IGNORED: wilderness encounters authored count as a [lo,hi] range but creature_library.creature_spawn_count could not parse a list (int([4,6]) raised -> swallowed -> always fell back to the creature pack_count minimum), so EVERY ranged encounter (the existing 18 too) spawned its floor. Honoring the range raises spawn counts galaxy-wide -> a conscious balance call. Brian ruled: fix the bug but tune conservatively. Implemented engine/creature_library._roll_low_biased(lo,hi) = min(randint,randint) (mean ~a third up the range, e.g. [4,6]->~4.56 vs uniform 5.0 vs old always-4); creature_spawn_count now routes a 2-list count through it (scalar/edge/malformed paths unchanged; reversed range sorted; 1-list treated as scalar). Still often spawns the minimum, so the difficulty creep is gentle. Verified: new tests/test_encounter_count_range.py (14 — bounds, low-bias mean below uniform midpoint, full-range span, no-longer-always-min, reversed/scalar/malformed/no-count edges, end-to-end through spawn_encounter_creatures) + spawner/resolution regression (34 together). Parallel-safe: engine/creature_library.py (not in either session's avoid-set) + new test. drop encounter-count-range.",
+      "mapping_decided_by_me": "Bias mechanism (min-of-two uniform rolls) chosen under decide+build+log to satisfy 'bias low' deterministically and without a magic skew constant: it provably keeps the mean below the uniform midpoint while still spanning the full authored range and frequently returning the floor (so no encounter ever spawns FEWER than before, and the cap is the authored hi). pack_count minimums were already tuned as sane floors under the old always-min behavior, so they remain valid as the low end."
+    },
+    {
       "id": "DIRECTOR.zonestate_cw_faction_axis",
       "resolved_date": "2026-06-13",
       "resolution": "OPTION A — NATIVE CW AXIS REWRITE (Brian, 2026-06-13). ZoneState rewritten to hold a faction-agnostic `scores` dict keyed by the era VALID_FACTIONS (CW: republic/cis/jedi_order/hutt_cartel/bhg/independent); compute_alert() reads the three alert ROLES (authority/warfront/underworld) resolved from the director_config rewicker (imperial->republic, rebel->cis, criminal->hutt_cartel) so it is era-robust (CW + the emergency GCW fallback). VALID_ZONES now derives from the era config (34 CW zones) instead of 6 stale hardcoded keys that did not even match the CW config. Built on branch drop/director-living-galaxy.",
@@ -2262,7 +2268,10 @@
       "name": "encounter_count_range_falls_back_to_pack_min",
       "added_date": "2026-06-13",
       "added_by": "drop wilderness-phantom-creatures (discovered while verifying the 4 new spawns; PRE-EXISTING, not introduced here)",
-      "status": "flagged",
+      "status": "resolved",
+      "resolved_date": "2026-06-13",
+      "resolved_by": "drop encounter-count-range (Brian ruling: ship, bias low — see design_calls_resolved_recent BALANCE.encounter_spawn_count_range)",
+      "resolved_note": "Fixed in engine/creature_library.creature_spawn_count via _roll_low_biased (min of two uniform rolls => low-biased roll within the authored [lo,hi]). Ranged encounters now honor their authored spread instead of always spawning the pack floor, tuned conservatively per the balance ruling. Guard: tests/test_encounter_count_range.py.",
       "summary": "engine/creature_library.creature_spawn_count cannot parse an encounter payload's [lo,hi] range count: int([4,6]) raises TypeError -> caught -> it falls back to creature pack_count[0]. EVERY wilderness creature encounter authors count as a range ([lo,hi]) in the region YAML (dune_sea/coruscant_underworld/ey_akh), and EncounterEntry.payload stores it raw (engine/wilderness_encounters.py:112) with no roll in roll_encounter/resolve_encounter_spawn. So every encounter � the existing 18 creatures too � spawns the pack minimum regardless of its authored range (verified: tusken_war_party count:[4,6] spawns 2; gang_patrol [2,4] spawns 2; maze_ambush [3,5] spawns 3). Fix is a small contained change to the pure function creature_spawn_count (roll random.randint(lo,hi) when count is a 2-list), BUT honoring the ranges would raise spawn counts across the WHOLE wilderness system (a galaxy-wide difficulty shift), so it is deliberately NOT slipped into a content-fix drop � it warrants a conscious balance decision. Until then, creature pack_count minimums are set to sane spawn counts. Parallel-safe to fix later (creature_library.py is in neither live session's avoid set)."
     },
     {

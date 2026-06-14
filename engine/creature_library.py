@@ -36,6 +36,7 @@ faithful base damage now.
 from __future__ import annotations
 
 import os
+import random
 import re
 import logging
 from typing import Optional
@@ -217,14 +218,49 @@ def build_creature_ai_config(creature: dict, encounter_id: str = "",
     return cfg
 
 
+def _roll_low_biased(lo: int, hi: int) -> int:
+    """Roll an int in the inclusive range ``[lo, hi]`` with a deliberate LOW bias.
+
+    Takes the ``min`` of two uniform rolls, so the mean sits ~a third of the way
+    up the range (e.g. ``[4,6]`` -> mean ~4.56, vs uniform 5.0, vs the old
+    always-4). This honors an encounter's authored spawn spread without the
+    galaxy-wide difficulty spike a uniform roll would cause, while still often
+    spawning the minimum (Brian ruling on TD.ENCOUNTER_COUNT_RANGE_IGNORED:
+    "ship, bias low").
+    """
+    if hi <= lo:
+        return lo
+    return min(random.randint(lo, hi), random.randint(lo, hi))
+
+
 def creature_spawn_count(creature: dict, payload: Optional[dict] = None) -> int:
-    """Resolve how many to spawn: explicit payload.count wins, else pack low."""
+    """Resolve how many to spawn: explicit payload.count wins, else pack low.
+
+    ``payload["count"]`` may be a scalar (``3``) or an authored ``[lo, hi]``
+    range (``[4, 6]`` — the live region YAMLs author ranges). A range is now
+    rolled LOW-biased via :func:`_roll_low_biased`. Previously ``int([4, 6])``
+    raised ``TypeError``, was swallowed, and EVERY ranged encounter silently
+    fell back to the creature ``pack_count`` minimum
+    (TD.ENCOUNTER_COUNT_RANGE_IGNORED).
+    """
     payload = payload or {}
-    if payload.get("count") is not None:
-        try:
-            return max(1, int(payload["count"]))
-        except (TypeError, ValueError):
-            pass
+    count = payload.get("count")
+    if count is not None:
+        if isinstance(count, (list, tuple)):
+            try:
+                vals = [int(x) for x in count]
+            except (TypeError, ValueError):
+                vals = []
+            if len(vals) == 1:
+                return max(1, vals[0])
+            if len(vals) >= 2:
+                return max(1, _roll_low_biased(min(vals), max(vals)))
+            # malformed/empty list -> fall through to pack logic below
+        else:
+            try:
+                return max(1, int(count))
+            except (TypeError, ValueError):
+                pass
     pc = creature.get("pack_count")
     if isinstance(pc, (list, tuple)) and pc:
         try:
