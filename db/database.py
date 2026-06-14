@@ -1686,10 +1686,19 @@ class Database:
             if datetime.now(timezone.utc) < locked:
                 return None  # Still locked out
 
-        # Verify password
-        if bcrypt.checkpw(
-            password.encode("utf-8"), account["password_hash"].encode("utf-8")
-        ):
+        # Verify password. Guard bcrypt.checkpw, which RAISES (ValueError
+        # "Invalid salt" / TypeError) on a stored hash that isn't a valid
+        # bcrypt string — e.g. a legacy SHA-256 hex digest written by the
+        # pre-fix @newpassword bug. Fail CLOSED (treat as a bad password)
+        # instead of letting the exception escape the login path.
+        try:
+            _password_ok = bcrypt.checkpw(
+                password.encode("utf-8"),
+                account["password_hash"].encode("utf-8"),
+            )
+        except (ValueError, TypeError):
+            _password_ok = False
+        if _password_ok:
             # Reset failures and update last_login
             await self._db.execute(
                 "UPDATE accounts SET login_failures = 0, last_login = datetime('now') WHERE id = ?",

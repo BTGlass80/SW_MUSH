@@ -2784,8 +2784,8 @@
     {
       "id": "OBS.quality_and_boosts_not_combat_read",
       "raised": "2026-06-11",
-      "note": "Combat sources weapon damage AND armor protection from the REGISTRY by key (attack helper combat_commands.py:~1635; get_armor_protection) — crafted quality and experiment stat boosts on the ItemInstance are never read by combat math. Quality today = condition/max_condition/value/experiment-base only. Convention-consistent across weapons+armor (Drop C matches weapons deliberately), but it means the economy's \"better crafted gear\" promise is decay/value-side, not roll-side, and EXPERIMENT BOOSTS MAY BE DISPLAY-ONLY. Related: TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES. Needs a deliberate quality->combat-stats design pass (candidate for the crafting follow-up lane); flagged, not half-built.",
-      "status": "OPEN — design pass candidate"
+      "note": "RESOLVED (2026-06-14 doc-hygiene close; the work shipped earlier). The whole cluster is built and combat-read with hard pip caps: WEAPONS Drop 19 (engine/items.py::crafted_combat_pips read in parser/combat_commands.py::_resolve_equipped_weapon; quality band + experiment damage/accuracy, cap +3 dmg / +1 acc); ARMOR Drop 44 (engine/items.py::crafted_armor_soak_pips -> Character.armor_soak_pips captured at load engine/character.py, folded into soak in engine/combat.py::_apply_damage, cap +2); CONSUMABLES Drop 45 (engine/items.py::crafted_consumable_potency_pips consumed in parser/medical_commands.py, cap +1). Experiment boosts are NOT display-only — get_mod('damage'/'accuracy') is read by crafted_combat_pips. The ratified design call is design_calls_resolved_recent/OBS.quality_and_boosts_not_combat_read (date_resolved 2026-06-12, Option B). This OBS sat OPEN by oversight and seeded a false 'P1 launch blocker' in the 2026-06-14 external audit (see docs/design/06_Claude_Response_and_Action_Items.md). Related: TD.EQUIPMENT_CHARACTER_HOLDS_KEYS_NOT_INSTANCES.",
+      "status": "RESOLVED — shipped Drops 19/44/45 (weapons/armor/consumables), hard-capped"
     },
     {
       "id": "PHANTOM.t2_def_t5_discoverability",
