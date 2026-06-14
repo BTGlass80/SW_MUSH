@@ -385,6 +385,69 @@ class TestPendingTeleport(unittest.TestCase):
         )
 
 
+class TestQuestlinePendingTeleportClearsSlot(unittest.TestCase):
+    """Regression (break-it 2026-06-13): a QUESTLINE graduation stamps its
+    pending teleport flag on the ``active_questline`` slot, NOT the onboarding
+    ``tutorial_chain`` slot. The success-path ``_clear_pending`` call must
+    clear the slot the flag was found on (``pending_state_key``); previously it
+    defaulted to the onboarding slot, so a questline graduation's flag survived
+    and ``execute_pending_teleport`` re-fired the graduation flavor + a
+    synthetic look on EVERY subsequent command until server restart.
+
+    Onboarding graduation (TestPendingTeleport above) was unaffected because
+    its flag lives in the default slot — which is why the chain-walkthrough
+    smoke never caught this."""
+
+    QSLOT = "active_questline"
+
+    def _setup_questline(self, char_room_id=10, pending_room_id=99):
+        db = _MockDB()
+        db.add_room(pending_room_id, "Mastery Hall", "mastery_slug")
+        db.add_room(char_room_id, "Old Room", "old_slug")
+        attrs = {self.QSLOT: {
+            "chain_id": "master_jedi_lightsaber", "step": 5,
+            "completion_state": "graduated",
+            "pending_drop_room_id": pending_room_id,
+        }}
+        char = _char(char_id=7, room_id=char_room_id, attrs=attrs)
+        session = _MockSession()
+        session.character = char
+        session_mgr = _MockSessionMgr()
+        look = _MockLookCommand()
+        session_mgr._registry["look"] = look
+        ctx = _MockCtx(db, session, session_mgr)
+        return db, char, session, ctx, look
+
+    def test_questline_graduation_clears_questline_slot(self):
+        from engine.chain_graduation import execute_pending_teleport
+        db, char, session, ctx, look = self._setup_questline()
+        result = _run(execute_pending_teleport(ctx, char))
+        self.assertTrue(result)
+        self.assertEqual(look.calls, 1)
+        attrs = json.loads(char["attributes"])
+        self.assertNotIn(
+            "pending_drop_room_id", attrs.get(self.QSLOT, {}),
+            "questline pending flag must clear from the active_questline slot",
+        )
+
+    def test_no_refire_on_second_command(self):
+        """The core defect: pre-fix the flag survived in the questline slot, so
+        the NEXT command re-fired graduation (flavor + synthetic look)."""
+        from engine.chain_graduation import execute_pending_teleport
+        db, char, session, ctx, look = self._setup_questline()
+        first = _run(execute_pending_teleport(ctx, char))
+        self.assertTrue(first)
+        # Simulate the next command: reset observable effects, fire again.
+        look.calls = 0
+        session.lines.clear()
+        second = _run(execute_pending_teleport(ctx, char))
+        self.assertFalse(
+            second, "graduation must not re-fire on the next command")
+        self.assertEqual(look.calls, 0, "no synthetic look on the second call")
+        self.assertEqual(
+            len(session.lines), 0, "no graduation flavor re-sent")
+
+
 # ─────────────────────────────────────────────────────────────────────
 # 4. db.get_room_by_slug
 # ─────────────────────────────────────────────────────────────────────
