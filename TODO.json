@@ -83,6 +83,12 @@
   ],
   "tier_1_active": [
     {
+      "id": "CHAIN.questline_graduation_refire",
+      "title": "Questline graduation infinite re-fire: clear pending flag from the correct slot",
+      "status": "DELIVERED 2026-06-13 (parallel session; full-suite gated + pushed)",
+      "delivered_note": "BLOCKER found by adversarial break-it pass. engine/chain_graduation.py::execute_pending_teleport's success-path _clear_pending call (line 419) omitted pending_state_key, defaulting to the onboarding tutorial_chain slot. A QUESTLINE graduation's flag lives in active_questline, so it never cleared => execute_pending_teleport returned True on every subsequent command, re-firing 'Your training is complete' flavor + a synthetic look until server restart. Onboarding graduation unaffected (flag in the default slot) => the chain-walkthrough smoke missed it. Fix: pass pending_state_key (1 line, matches the other two call sites). Regression test tests/test_f8c2c_chain_graduation.py::TestQuestlinePendingTeleportClearsSlot asserts the questline slot clears AND a second call returns False (no re-fire). Verified 83 targeted green + full suite. Parallel-safe: engine/chain_graduation.py + test only. The same break-it pass re-confirmed TD.ENCOUNTER_COUNT_RANGE_IGNORED (still a deferred balance decision)."
+    },
+    {
       "id": "CHAIN.combat_fallback_stranding",
       "title": "Chain combat fallback: tag Daln (republic_security_officer) + reachability Class 5",
       "status": "DELIVERED 2026-06-13 (parallel content session; pending Brian full-suite gate)",
