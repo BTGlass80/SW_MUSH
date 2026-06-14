@@ -47,8 +47,8 @@ class DirectorCommand(BaseCommand):
     key = "@director"
     aliases = []
     access_level = AccessLevel.ADMIN
-    help_text = "Manage the Director AI system. Sub-commands: status enable disable trigger budget influence log reset narrative"
-    usage = "@director status|enable|disable|trigger|budget|influence|log [n]|reset|narrative [enable|disable|status]"
+    help_text = "Manage the Director AI system. Sub-commands: status enable disable trigger budget fidelity influence log reset narrative"
+    usage = "@director status|enable|disable|trigger|budget|fidelity [tier|auto]|influence|log [n]|reset|narrative [enable|disable|status]"
 
     async def execute(self, ctx: CommandContext) -> None:
         args = (ctx.args or "").strip().lower()
@@ -62,6 +62,7 @@ class DirectorCommand(BaseCommand):
             "disable":   self._disable,
             "trigger":   self._trigger,
             "budget":    self._budget,
+            "fidelity":  self._fidelity,
             "influence": self._influence_cmd,
             "log":       self._log,
             "reset":     self._reset,
@@ -197,6 +198,23 @@ class DirectorCommand(BaseCommand):
         else:
             await ctx.session.send_line("  Next Turn:   (director disabled)")
 
+        # Cadence governor (adaptive-spend slice 2)
+        try:
+            gs = director.governor_state()
+            _mode = "manual" if gs.get("manual_fidelity") else "auto"
+            await ctx.session.send_line(
+                f"  Cadence:     {str(gs.get('tier','?')).upper()} "
+                f"(~{gs.get('interval_minutes','?')}m, {_mode}) — {gs.get('reason','')}"
+            )
+            _rec = gs.get("recommend_fidelity")
+            if _rec:
+                _line = f"  Advises:     {str(_rec.get('tier','')).upper()}"
+                if _rec.get("reason"):
+                    _line += f" — {_rec['reason']}"
+                await ctx.session.send_line(ansi.yellow(_line))
+        except Exception:
+            log.debug("_status: governor block skipped", exc_info=True)
+
         # Active events
         active = wem.get_status()
         if active:
@@ -295,6 +313,46 @@ class DirectorCommand(BaseCommand):
             pct = stats.get("pct_used", 0)
             bar = "X" * int(pct / 5) + "." * (20 - int(pct / 5))
             await ctx.session.send_line(f"  [{bar}] {pct:.1f}%")
+
+    async def _fidelity(self, ctx: CommandContext, subargs: str) -> None:
+        """Adaptive-spend slice 2: view / pin the cadence governor.
+
+        @director fidelity                    — show the governor + any LLM advisory
+        @director fidelity <eco|standard|high|max>  — pin cadence (manual)
+        @director fidelity auto                — hand control back to the auto-governor
+        """
+        try:
+            from engine.director import get_director, FIDELITY_INTERVALS
+        except ImportError as exc:
+            await ctx.session.send_line(ansi.error(f"  Director not loaded: {exc}"))
+            return
+        director = get_director()
+        tier = (subargs or "").strip().lower()
+        if not tier:
+            gs = director.governor_state()
+            mode = "MANUAL" if gs.get("manual_fidelity") else "AUTO"
+            await ctx.session.send_line(ansi.header("=== Director Cadence Governor ==="))
+            await ctx.session.send_line(f"  Mode:    {mode}")
+            await ctx.session.send_line(
+                f"  Tier:    {str(gs.get('tier','?')).upper()}  "
+                f"(~{gs.get('interval_minutes','?')}m/turn)"
+            )
+            await ctx.session.send_line(f"  Reason:  {gs.get('reason','')}")
+            rec = gs.get("recommend_fidelity")
+            if rec:
+                line = f"  Director advises: {str(rec.get('tier','')).upper()}"
+                if rec.get("reason"):
+                    line += f" — {rec['reason']}"
+                await ctx.session.send_line(ansi.yellow(line))
+            await ctx.session.send_line(ansi.dim(
+                f"  Set: @director fidelity {'|'.join(FIDELITY_INTERVALS)}|auto"
+            ))
+            return
+        ok, msg = director.set_manual_fidelity(tier)
+        await ctx.session.send_line((ansi.success if ok else ansi.error)("  " + msg))
+        if ok:
+            log.info("[director] Cadence fidelity set to '%s' by admin %s.",
+                     tier, ctx.session.char_name)
 
     async def _influence_cmd(self, ctx: CommandContext, _args: str) -> None:
         try:
