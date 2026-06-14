@@ -1681,6 +1681,64 @@ a { color: inherit; text-decoration: none; }
 .inf-fill  { position: absolute; inset: 0; transition: width .4s; }
 .inf-pct   { width: 30px; text-align: right; flex-shrink: 0; color: var(--text-dim); font-size: 9px; }
 
+/* ── Ground-UX: HERE panel (room_contents — NPCs / players / vendor droids) ── */
+.here-entry {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 0; border-bottom: 1px dashed var(--accent-dim);
+  flex-wrap: wrap;
+}
+.here-entry:last-child { border-bottom: none; }
+.here-role-icon { font-size: 13px; flex-shrink: 0; }
+.here-name {
+  flex: 1; font-size: 11px; color: var(--text); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.here-name.hostile { color: var(--warn); }
+.here-name.guard   { color: var(--pad-amber); }
+.here-name.trainer { color: var(--self); }
+.here-name.mechanic { color: var(--accent); }
+.here-name.bartender { color: var(--pad-amber); }
+.here-name.player  { color: var(--accent-bright); }
+.here-actions { display: flex; gap: 3px; flex-wrap: wrap; }
+.here-btn {
+  padding: 1px 5px; font-size: 9px; letter-spacing: 1px;
+  border: 1px solid var(--accent-dim); background: transparent;
+  color: var(--text-dim); cursor: pointer; font-family: var(--font-mono);
+}
+.here-btn:hover { border-color: var(--accent); color: var(--accent); }
+.here-btn.btn-attack  { color: var(--warn);       border-color: var(--warn); }
+.here-btn.btn-attack:hover { background: rgba(255,110,74,0.15); }
+.here-btn.btn-buy     { color: var(--pad-amber);   }
+.here-btn.btn-train   { color: var(--self);         }
+.here-btn.btn-repair  { color: var(--accent);       }
+
+/* ── Ground-UX: ACTIVE JOBS panel (active_jobs) ── */
+.job-entry {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 4px 0; border-bottom: 1px dashed var(--accent-dim);
+}
+.job-entry:last-child { border-bottom: none; }
+.job-icon { font-size: 13px; flex-shrink: 0; padding-top: 1px; }
+.job-info { flex: 1; min-width: 0; }
+.job-label {
+  font-size: 11px; color: var(--accent-bright);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.job-label.tutorial { color: var(--self); }
+.job-label.bounty   { color: var(--warn); }
+.job-label.smuggle  { color: var(--pad-amber); }
+.job-label.quest    { color: var(--accent-bright); }
+.job-label.mission  { color: var(--accent-bright); }
+.job-sub {
+  font-size: 9px; color: var(--text-dim); margin-top: 2px;
+  letter-spacing: 0.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.job-reward {
+  font-size: 9px; color: var(--self); flex-shrink: 0;
+  font-family: var(--font-mono); padding-top: 3px;
+}
+
 /* Faction rep bars */
 .rep-row {
   display: block;
@@ -4223,6 +4281,26 @@ a { color: inherit; text-decoration: none; }
           </div>
           <div class="side-panel-body" id="influence-body"></div>
         </div>
+
+        <!-- Ground-UX: HERE panel — persistent room occupants (G5) -->
+        <div class="side-panel" id="here-panel" style="display:none;">
+          <div class="side-panel-head" onclick="toggleSidePanel('here-panel')">
+            <span class="sp-title">HERE</span>
+            <span class="sp-count" id="here-count"></span>
+            <span class="sp-toggle">▾</span>
+          </div>
+          <div class="side-panel-body" id="here-body"></div>
+        </div>
+
+        <!-- Ground-UX: Active Jobs panel — full job list (G7) -->
+        <div class="side-panel" id="activejobs-panel" style="display:none;">
+          <div class="side-panel-head" onclick="toggleSidePanel('activejobs-panel')">
+            <span class="sp-title">ACTIVE JOBS</span>
+            <span class="sp-count" id="activejobs-count"></span>
+            <span class="sp-toggle">▾</span>
+          </div>
+          <div class="side-panel-body" id="activejobs-body"></div>
+        </div>
       </div>
 
     </div>
@@ -6216,6 +6294,10 @@ function handleHudUpdate(data) {
   renderRoomDetailPanel(data);
   renderNearbyServices(data);
   renderZoneInfluence(data);
+  // G5: persistent HERE panel (room_contents — NPCs/players/vendor droids)
+  renderHerePanel(data);
+  // G7: active jobs full-list panel
+  renderActiveJobsPanel(data);
 
   // ── Sector map ────────────────────────────────────────────────────
   // F.MAP.2: when the server includes an `area_geometry` payload (the
@@ -7976,6 +8058,236 @@ function renderZoneInfluence(data) {
     row.appendChild(track);
     row.appendChild(pctEl);
     body.appendChild(row);
+  }
+}
+
+// D) HERE Panel — persistent list of room occupants (G5 client gap).
+// Consumes hud_update.room_contents = {npcs, players, vendor_droids}.
+// Command format: "<action> <npc.name>" — same as legacy updateRoomContents.
+var _HERE_ROLE_ICONS = {
+  guard:     '🛡',   // shield
+  trainer:   '🎓',   // graduation cap
+  vendor:    '🛒',   // shopping cart
+  mechanic:  '⚙',         // gear
+  bartender: '🍺',   // beer mug
+  civilian:  '💬',   // speech bubble
+  neutral:   '💬',
+};
+var _HERE_BTN_CLASS = {
+  attack: 'btn-attack',
+  buy:    'btn-buy',
+  sell:   'btn-buy',
+  train:  'btn-train',
+  repair: 'btn-repair',
+};
+
+function renderHerePanel(data) {
+  var panel = $('here-panel');
+  var body  = $('here-body');
+  var countEl = $('here-count');
+  if (!panel || !body) return;
+
+  var rc = data.room_contents;
+  if (!rc || typeof rc !== 'object') {
+    panel.style.display = 'none';
+    return;
+  }
+
+  var npcs    = rc.npcs          || [];
+  var players = rc.players       || [];
+  var vdroids = rc.vendor_droids || [];
+  var total   = npcs.length + players.length + vdroids.length;
+
+  if (total === 0) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = '';
+  body.innerHTML = '';
+  if (countEl) countEl.textContent = total > 0 ? String(total) : '';
+
+  // ── NPCs with role icons and server-driven action buttons ──
+  for (var i = 0; i < npcs.length; i++) {
+    (function(npc) {
+      var role = npc.role || 'neutral';
+      var row  = document.createElement('div');
+      row.className = 'here-entry';
+
+      var iconEl = document.createElement('span');
+      iconEl.className = 'here-role-icon';
+      iconEl.textContent = (role === 'hostile' || npc.hostile)
+        ? '⚔️'                          // swords for hostile
+        : (_HERE_ROLE_ICONS[role] || '○');
+      iconEl.title = role.charAt(0).toUpperCase() + role.slice(1);
+      row.appendChild(iconEl);
+
+      var nameEl = document.createElement('span');
+      var nameCls = 'here-name npc';
+      if (role === 'hostile' || npc.hostile) nameCls += ' hostile';
+      else if (role === 'guard')     nameCls += ' guard';
+      else if (role === 'trainer')   nameCls += ' trainer';
+      else if (role === 'mechanic')  nameCls += ' mechanic';
+      else if (role === 'bartender') nameCls += ' bartender';
+      nameEl.className = nameCls;
+      nameEl.textContent = npc.name;
+      row.appendChild(nameEl);
+
+      // Action buttons — server sends the valid verb list
+      var actions = npc.actions || ['look', 'talk'];
+      var actionsWrap = document.createElement('div');
+      actionsWrap.className = 'here-actions';
+      for (var ai = 0; ai < actions.length; ai++) {
+        (function(action) {
+          var btn = document.createElement('button');
+          var btnCls = 'here-btn';
+          if (_HERE_BTN_CLASS[action]) btnCls += ' ' + _HERE_BTN_CLASS[action];
+          btn.className = btnCls;
+          btn.textContent = action;
+          if (action === 'attack') btn.title = 'Attack ' + npc.name;
+          else if (action === 'buy')    btn.title = 'Browse ' + npc.name + '\'s wares';
+          else if (action === 'train')  btn.title = 'Train with ' + npc.name;
+          else if (action === 'repair') btn.title = 'Request repairs from ' + npc.name;
+          btn.addEventListener('click', function() {
+            sendCmd(action + ' ' + npc.name);
+          });
+          actionsWrap.appendChild(btn);
+        })(actions[ai]);
+      }
+      row.appendChild(actionsWrap);
+      body.appendChild(row);
+    })(npcs[i]);
+  }
+
+  // ── Other players ──
+  for (var j = 0; j < players.length; j++) {
+    (function(pc) {
+      var row = document.createElement('div');
+      row.className = 'here-entry';
+
+      var iconEl = document.createElement('span');
+      iconEl.className = 'here-role-icon';
+      iconEl.textContent = '👤';  // person silhouette
+      row.appendChild(iconEl);
+
+      var nameEl = document.createElement('span');
+      nameEl.className = 'here-name player';
+      nameEl.textContent = pc.name;
+      row.appendChild(nameEl);
+
+      var actionsWrap = document.createElement('div');
+      actionsWrap.className = 'here-actions';
+      var btnLook = document.createElement('button');
+      btnLook.className = 'here-btn';
+      btnLook.textContent = 'look';
+      btnLook.addEventListener('click', function() { sendCmd('look ' + pc.name); });
+      actionsWrap.appendChild(btnLook);
+      row.appendChild(actionsWrap);
+      body.appendChild(row);
+    })(players[j]);
+  }
+
+  // ── Vendor droids ──
+  for (var k = 0; k < vdroids.length; k++) {
+    (function(vd) {
+      var row = document.createElement('div');
+      row.className = 'here-entry';
+
+      var iconEl = document.createElement('span');
+      iconEl.className = 'here-role-icon';
+      iconEl.textContent = '🛒';  // shopping cart
+      row.appendChild(iconEl);
+
+      var nameEl = document.createElement('span');
+      nameEl.className = 'here-name';
+      nameEl.textContent = vd.name || 'Vendor Droid';
+      row.appendChild(nameEl);
+
+      var actionsWrap = document.createElement('div');
+      actionsWrap.className = 'here-actions';
+      var btnBuy = document.createElement('button');
+      btnBuy.className = 'here-btn btn-buy';
+      btnBuy.textContent = 'buy';
+      btnBuy.addEventListener('click', function() { sendCmd('buy ' + (vd.name || '')); });
+      actionsWrap.appendChild(btnBuy);
+      row.appendChild(actionsWrap);
+      body.appendChild(row);
+    })(vdroids[k]);
+  }
+}
+
+// E) Active Jobs Panel — full job list (G7 client gap).
+// Consumes hud_update.active_jobs = [{type, label, objective?, reward?, target?}].
+// type ∈ {tutorial, mission, bounty, smuggle, quest}.
+function renderActiveJobsPanel(data) {
+  var panel   = $('activejobs-panel');
+  var body    = $('activejobs-body');
+  var countEl = $('activejobs-count');
+  if (!panel || !body) return;
+
+  var jobs = data.active_jobs;
+  if (!Array.isArray(jobs) || jobs.length === 0) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = '';
+  body.innerHTML = '';
+  if (countEl) countEl.textContent = String(jobs.length);
+
+  // Type icons — era-neutral glyphs; tutorial/mission/bounty/smuggle/quest
+  var JOB_ICONS = {
+    tutorial: '📘',   // blue book
+    mission:  '📋',   // clipboard
+    bounty:   '🎯',   // target
+    smuggle:  '📦',   // package
+    quest:    '✶',         // six-pointed star (era-neutral glyph)
+  };
+
+  for (var ji = 0; ji < jobs.length; ji++) {
+    var job = jobs[ji];
+    var entry = document.createElement('div');
+    entry.className = 'job-entry';
+
+    // Type icon
+    var iconEl = document.createElement('span');
+    iconEl.className = 'job-icon';
+    iconEl.textContent = JOB_ICONS[job.type] || '○';
+    entry.appendChild(iconEl);
+
+    // Info block: label + optional sub-line
+    var infoEl = document.createElement('div');
+    infoEl.className = 'job-info';
+
+    var labelEl = document.createElement('div');
+    labelEl.className = 'job-label ' + (job.type || 'mission');
+    labelEl.textContent = job.label || '';
+    infoEl.appendChild(labelEl);
+
+    // Sub-line: objective, or target for bounty
+    var subText = '';
+    if (job.type === 'bounty' && job.target) {
+      subText = 'Target: ' + job.target;
+    } else if (job.objective) {
+      subText = job.objective;
+    }
+    if (subText) {
+      var subEl = document.createElement('div');
+      subEl.className = 'job-sub';
+      subEl.textContent = subText;
+      infoEl.appendChild(subEl);
+    }
+    entry.appendChild(infoEl);
+
+    // Reward badge (right-aligned)
+    if (job.reward !== undefined && job.reward !== null && job.reward !== '') {
+      var rewardEl = document.createElement('span');
+      rewardEl.className = 'job-reward';
+      rewardEl.textContent = '+' + String(job.reward) + 'cr';
+      entry.appendChild(rewardEl);
+    }
+
+    body.appendChild(entry);
   }
 }
 

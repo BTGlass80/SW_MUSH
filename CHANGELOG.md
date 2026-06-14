@@ -6,6 +6,14 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-14 — Ground-UX client parity (2/3): sidebar panels — HERE (room contents) + Active Jobs — *drop gnd-ux-client-parity*
+Second slice of the T3.17/T3.18 gap-close (`HANDOFF_t317_t318_gapcheck_2026-06-14.md`). Two more already-emitted HUD fields the live client under-rendered after the legacy→SPA rewrite, ported as `.side-panel` cards (client-only, no server/engine change).
+- **HERE panel (`here-panel`, G5 client):** persistent room-contents card consuming `hud.room_contents` (`{npcs:[{id,name,role,hostile,actions}], players, vendor_droids}`). The live client previously had only a TRANSIENT scroll-log "◆ ALSO HERE" event. Each NPC row: role icon (`_HERE_ROLE_ICONS` — CW-clean: guard/trainer/vendor/mechanic/bartender/civilian, hostile→red tint via `npc.hostile`) + name + an inline interaction menu rendering the server-computed `actions` verbs as buttons. Click sends `sendCmd(action + ' ' + npc.name)` — identical to the retired legacy client's `updateRoomContents` command format (parity restore). Players + vendor droids also listed.
+- **Active Jobs panel (`activejobs-panel`, G7):** full `hud.active_jobs[]` list (type icon + label + objective/target/reward sub-line) for type ∈ {tutorial,mission,bounty,smuggle,quest} — beyond the existing single-line `g-objective` box (kept).
+- **Safety:** all server strings via `textContent` (no HTML-injection); panels show on data / hide when empty.
+- **Verified:** new `tests/spa/test_gnd_ux_sidebar_panels.py` (29) + drop-A `test_gnd_ux_context_panel.py` regression green (22). Era-clean (no GCW tokens in the added panels).
+- **Files:** `static/client.html`, `tests/spa/test_gnd_ux_sidebar_panels.py` (new), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-14 — Ground-UX client parity (1/3): context-panel cards — room detail, nearby services, zone influence — *drop gnd-ux-client-parity*
 First slice of closing the T3.17/T3.18 gap-check (`HANDOFF_t317_t318_gapcheck_2026-06-14.md`). The verification found the **server already emits** the ground-UX HUD fields but the **live client (`static/client.html`) regressed in the legacy→SPA rewrite** — a tier of ground-UX panels exists fully in the retired `static/client_legacy.html` and was never ported forward. This drop ports three context-panel cards into the live client's `.side-panel` idiom (NOT the legacy `ctx-*` markup), all rendering already-emitted `hud_update` fields — **client-only, no server/engine change**.
 - **Room Detail Card (`roomdetail-panel`, G1):** persistent LOCATION card — security badge (secured→green / contested→amber / else→red), room description with a >180-char expand toggle, and a service-icon row (vendor/trainer/mechanic/cantina/medical/docking/crafting). Consumes `room_description`, `room_services`, `security_level` (previously `room_description` only hit the scroll log).
