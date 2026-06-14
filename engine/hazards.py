@@ -333,9 +333,15 @@ async def check_hazard_for_character(
     hazard_type = hazard_cfg["type"]
     template = HAZARD_TYPES[hazard_type]
     severity = hazard_cfg.get("severity", 1)
-    difficulty = hazard_cfg.get("difficulty", template["base_difficulty"])
-    # Scale difficulty with severity
-    difficulty += (severity - 1) * 3
+    # The hazard config's stored "difficulty" is ALREADY severity-scaled by its
+    # producers (set_room_hazard and the wilderness synthesizer both store
+    # base_difficulty + (severity-1)*3). Adopt it as-is; only the fallback — a
+    # config that carries a severity but no pre-computed difficulty — applies
+    # the scaling here. The previous unconditional `difficulty += (severity-1)*3`
+    # DOUBLE-scaled every stored hazard (e.g. severity-2 extreme_heat resolved to
+    # 16 instead of the intended 13).
+    difficulty = hazard_cfg.get(
+        "difficulty", template["base_difficulty"] + (severity - 1) * 3)
 
     # Lane E2b (Secrets of Tatooine §3): the desert heat-and-thirst hazard is
     # graded by the twin-sun clock — at its worst under the noon suns, eased
@@ -426,13 +432,28 @@ async def check_hazard_for_character(
                 max(50, severity * 100),  # 50-300 cr cap
             )
             if stolen > 0 and char.get("credits", 0) >= stolen:
-                char["credits"] = char.get("credits", 0) - stolen
+                # Canonical credit funnel: the ledger write is authoritative —
+                # adopt its returned balance (char["credits"] = await
+                # adjust_credits(...)) instead of pre-mutating with a local guess
+                # and discarding the return; and only narrate the loss AFTER the
+                # credits have actually moved (a swallowed write must not tell the
+                # player they lost credits the ledger never took).
+                theft_applied = False
                 if db:
                     try:
-                        await db.adjust_credits(char_id, -stolen, "hazard_theft")
+                        new_bal = await db.adjust_credits(
+                            char_id, -stolen, "hazard_theft")
+                        if new_bal is not None:
+                            char["credits"] = new_bal
+                            theft_applied = True
                     except Exception as _e:
-                        log.debug("silent except in engine/hazards.py:259: %s", _e, exc_info=True)
-                if session:
+                        log.debug("silent except in engine/hazards.py "
+                                  "urban_danger theft: %s", _e, exc_info=True)
+                else:
+                    # No-db path (detached / tests): apply the decrement locally.
+                    char["credits"] = char.get("credits", 0) - stolen
+                    theft_applied = True
+                if theft_applied and session:
                     # Drop B: pickpocket narrative as desc-inline (no
                     # attribution — the pickpocket is anonymous flavor).
                     from engine.pose_events import make_ambient_event
