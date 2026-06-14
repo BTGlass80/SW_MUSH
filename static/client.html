@@ -10639,10 +10639,14 @@ function renderSheetPoints(p) {
   var fsCls = pts.force_sensitive ? 'fs' : 'fs dim';
   var fsText = pts.force_sensitive ? 'YES' : '—';
   var creditsText = (pts.credits || 0).toLocaleString();
+  // PvP badge — only when the character has opted in (pvp_flagged truthy).
+  var pvpBadge = pts.pvp_flagged ?
+    '<span class="sp-label">PvP</span><span class="sp-value sp-pvp-badge">PvP</span>' : '';
   host.innerHTML =
     '<span class="sp-label">Credits</span>'        + '<span class="sp-value credits">' + escapeHtml(creditsText) + '</span>' +
     '<span class="sp-label">Move</span>'           + '<span class="sp-value">' + escapeHtml(String(id.move || 10)) + '</span>' +
-    '<span class="sp-label">Force Sensitive</span>'+ '<span class="sp-value ' + fsCls + '">' + fsText + '</span>';
+    '<span class="sp-label">Force Sensitive</span>'+ '<span class="sp-value ' + fsCls + '">' + fsText + '</span>' +
+    pvpBadge;
 }
 
 function renderSheetCenter() {
@@ -10751,6 +10755,21 @@ function renderSheetCenter() {
       host.appendChild(makeSheetSkillRow(group[gi], skills[group[gi]]));
     }
   }
+
+  // Specializations sub-section — only on FULL and SKILLS tabs (not COMBAT).
+  // Payload: p.specializations is a list of {skill, name, bonus:{d,p}, total:{d,p}}.
+  if (sheetActiveTab !== 'combat') {
+    var specs = (p.specializations || []);
+    if (specs.length > 0) {
+      var specHead = document.createElement('div');
+      specHead.className = 'sheet-skill-group-head';
+      specHead.innerHTML = '<span>SPECIALIZATIONS</span><span class="ssg-pool"></span>';
+      host.appendChild(specHead);
+      for (var si = 0; si < specs.length; si++) {
+        host.appendChild(makeSheetSpecRow(specs[si]));
+      }
+    }
+  }
 }
 
 function makeSheetSkillRow(skillKey, skillData) {
@@ -10774,6 +10793,21 @@ function makeSheetSkillRow(skillKey, skillData) {
     e.stopPropagation();
     sendSheetRoll(skillKey, skillData.total);
   });
+  return row;
+}
+
+// Specialization row — indented child row under the SPECIALIZATIONS header.
+// spec: {skill, name, bonus:{d,p}, total:{d,p}}
+function makeSheetSpecRow(spec) {
+  var row = document.createElement('div');
+  row.className = 'sheet-skill-row sheet-spec-row';
+  var bonus = spec.bonus || { d: 0, p: 0 };
+  var total = spec.total || { d: 0, p: 0 };
+  row.innerHTML =
+    '<span class="ssr-name ssr-spec-name">  ↳ ' + escapeHtml(spec.name || spec.skill || '') + '</span>' +
+    '<span class="ssr-bonus">+' + escapeHtml(sheetPoolToStr(bonus)) + '</span>' +
+    '<span class="ssr-total">' + escapeHtml(sheetPoolToStr(total)) + '</span>' +
+    '<span class="ssr-spec-parent">' + escapeHtml((spec.skill || '').replace(/_/g, ' ')) + '</span>';
   return row;
 }
 
@@ -10914,8 +10948,34 @@ function renderSheetDetail() {
 
 function renderSheetBackground(host, hooksHtml) {
   var p = sheetPanelData || {};
+  var id = p.identity || {};
   var bg = (p.background || '').trim();
   var cgn = (p.chargen_notes || '').trim();
+
+  // Physical description — only when non-empty (identity.description).
+  var descBlock = '';
+  var descText = (id.description || '').trim();
+  if (descText) {
+    descBlock =
+      '<div class="sd-section">DESCRIPTION</div>' +
+      '<div class="sd-bg-text">' + escapeHtml(descText) + '</div>';
+  }
+
+  // Bio line — one compact row per truthy field; guarded individually.
+  // Fields (gender/homeworld/age/height/hair/eyes) are empty strings today
+  // until the DB columns land; when truthy they auto-appear here.
+  var bioParts = [];
+  if (id.gender)    bioParts.push(escapeHtml(id.gender));
+  if (id.homeworld) bioParts.push(escapeHtml(id.homeworld));
+  if (id.age)       bioParts.push('Age ' + escapeHtml(String(id.age)));
+  if (id.height)    bioParts.push(escapeHtml(String(id.height)));
+  if (id.hair)      bioParts.push('Hair: ' + escapeHtml(id.hair));
+  if (id.eyes)      bioParts.push('Eyes: ' + escapeHtml(id.eyes));
+  var bioBlock = '';
+  if (bioParts.length > 0) {
+    bioBlock =
+      '<div class="sd-bio-line">' + bioParts.join(' · ') + '</div>';
+  }
   var bgEditing  = sheetEditMode === 'background';
   var cgnEditing = sheetEditMode === 'chargen_notes';
 
@@ -10965,7 +11025,16 @@ function renderSheetBackground(host, hooksHtml) {
       );
   }
 
-  host.innerHTML = bgBlock + cgnBlock + hooksHtml;
+  // Player notes — distinct from background/chargen_notes; only when non-empty.
+  var notesText = (p.notes || '').trim();
+  var notesBlock = '';
+  if (notesText) {
+    notesBlock =
+      '<div class="sd-section" style="margin-top:18px;">NOTES</div>' +
+      '<div class="sd-bg-text">' + escapeHtml(notesText) + '</div>';
+  }
+
+  host.innerHTML = descBlock + bioBlock + bgBlock + cgnBlock + notesBlock + hooksHtml;
 
   // Auto-focus the textarea when entering edit mode.
   if (bgEditing) {

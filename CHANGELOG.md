@@ -6,6 +6,17 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-14 — Sheet content surfacing (3/3): specializations, PvP, notes, description, guarded bio — *drop gnd-ux-client-parity*
+Closes the T3.17 client gap (S4) found by the gap-check: `build_sheet_payload` (engine/sheet_renderer.py:717) assembled several fields the live `+sheet` panel never rendered. Client-only; additive to the existing sheet renderers (`handleSheetData`/`renderSheetPanel`/`renderSheetCenter`/`renderSheetBackground`).
+- **Specializations** — now rendered as indented child rows (`↳`) under the skills view with their dice pool. A core D6 sheet element that was previously INVISIBLE in the GUI.
+- **PvP badge** — `points.pvp_flagged` now surfaces a "PvP" chip beside Force Sensitive (guarded on truthy; Force Sensitive row preserved).
+- **Notes** — the player's own `notes` (distinct from background/chargen_notes) now render in the right rail, guarded on non-empty.
+- **Description** — `identity.description` (physical description, distinct from background) rendered at the top of the rail when present.
+- **Bio fields** (gender/homeworld/age/height/hair/eyes) — rendered as a compact bio line, **each guarded on truthy.** These columns don't exist in the characters table yet (the payload emits empty strings — engine/sheet_renderer.py:746-748), so nothing shows today (no phantom-empty rows) and they auto-appear if/when the schema lands.
+- **Safety:** all payload strings escaped via `escapeHtml`; no existing sheet rendering removed; tab behavior intact.
+- **Verified:** new `tests/spa/test_sheet_content_surface.py` (24) + the two ground-UX parity suites + onclick regression all green (79 together).
+- **Files:** `static/client.html`, `tests/spa/test_sheet_content_surface.py` (new), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-14 — Ground-UX client parity (2/3): sidebar panels — HERE (room contents) + Active Jobs — *drop gnd-ux-client-parity*
 Second slice of the T3.17/T3.18 gap-close (`HANDOFF_t317_t318_gapcheck_2026-06-14.md`). Two more already-emitted HUD fields the live client under-rendered after the legacy→SPA rewrite, ported as `.side-panel` cards (client-only, no server/engine change).
 - **HERE panel (`here-panel`, G5 client):** persistent room-contents card consuming `hud.room_contents` (`{npcs:[{id,name,role,hostile,actions}], players, vendor_droids}`). The live client previously had only a TRANSIENT scroll-log "◆ ALSO HERE" event. Each NPC row: role icon (`_HERE_ROLE_ICONS` — CW-clean: guard/trainer/vendor/mechanic/bartender/civilian, hostile→red tint via `npc.hostile`) + name + an inline interaction menu rendering the server-computed `actions` verbs as buttons. Click sends `sendCmd(action + ' ' + npc.name)` — identical to the retired legacy client's `updateRoomContents` command format (parity restore). Players + vendor droids also listed.
