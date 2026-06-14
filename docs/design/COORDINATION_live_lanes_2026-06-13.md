@@ -60,6 +60,30 @@ deliberately-deferred quirk: `TD.ENCOUNTER_COUNT_RANGE_IGNORED` (encounters
 ignore their `[lo,hi]` count range and spawn the pack minimum; honoring it is a
 galaxy-wide difficulty decision, not a content-drop change).
 
+## Session D — (this session) free-LLM enrichment + era-guard — ACTIVE
+
+**Acting MAIN for now** (owns commit/merge/push this shift; `main` = `e564a2e`,
+pushed). Lane = Session A's deferred #5 "free-LLM enrichment, route templated
+surfaces through local Ollama," now opened.
+
+**Shipped (merged + pushed):** Ollama runtime era-guard — new
+`engine/era_validator.py` (single-source era canon + `era_violations`/
+`is_era_clean`/`ERA_PROMPT_HINT`) wired into `engine/idle_queue.py`'s 4 tasks;
+`tools/ingest_lore.py` + `tests/test_laneb_era_cleanness.py` migrated onto the
+shared tuple.
+
+**Files I own this shift (AVOID — I'm actively in these):**
+`engine/era_validator.py`, `engine/idle_queue.py`, `tools/ingest_lore.py`, a
+forthcoming `engine/variant_pool.py` (generic keyed variant-pool pre-generator,
+generalizing the bark cache), and `tests/test_era_validator.py` +
+`tests/test_idle_queue_*.py` + `tests/test_variant_pool*.py`.
+
+**Explicitly NOT touching** (other lanes): `parser/` (Session B), and the
+combat-economy engine files `engine/combat.py`/`items.py`/`character.py`/
+`director.py` (Session A). Enrichment surfaces that live in those files
+(combat prose, mission/bounty one-liners in `parser/`) are DEFERRED until those
+lanes clear — I'll only wire surfaces in files no one else owns.
+
 ## ⚠️ SHARED WORKING TREE — concurrent edits to the SAME FILE clobber
 Both sessions edit ONE working tree (not isolated git worktrees). Two sessions
 writing the same file = last-write-wins, **silent data loss** (NOT a git merge
