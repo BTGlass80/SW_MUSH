@@ -351,8 +351,10 @@ class DirectorCommand(BaseCommand):
         ok, msg = director.set_manual_fidelity(tier)
         await ctx.session.send_line((ansi.success if ok else ansi.error)("  " + msg))
         if ok:
-            log.info("[director] Cadence fidelity set to '%s' by admin %s.",
-                     tier, ctx.session.char_name)
+            _what = ("cleared -> auto" if tier in ("auto", "off", "")
+                     else f"set to '{tier}'")
+            log.info("[director] Cadence fidelity %s by admin %s.",
+                     _what, ctx.session.char_name)
 
     async def _influence_cmd(self, ctx: CommandContext, _args: str) -> None:
         try:

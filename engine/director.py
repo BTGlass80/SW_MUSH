@@ -2233,11 +2233,12 @@ class DirectorAI:
         for now — a restart reverts to AUTO (persistence is a noted follow-up);
         spend stays bounded by the ClaudeProvider circuit breaker regardless.
         Returns (ok, admin-facing message)."""
+        if tier is not None:
+            tier = tier.strip().lower()  # normalize BEFORE the clear-path check
         if tier in (None, "auto", "off", ""):
             self._manual_fidelity = None
             self._last_fidelity_reason = "manual cleared -> auto"
             return (True, "Cadence governor returned to AUTO.")
-        tier = tier.lower()
         if tier not in FIDELITY_INTERVALS:
             return (False, f"Unknown tier '{tier}'. Choose: "
                            f"{', '.join(FIDELITY_INTERVALS)} or auto.")
@@ -2271,8 +2272,11 @@ class DirectorAI:
         skip, reason = self._should_skip_turn(online, now)
         if skip:
             self._last_fidelity_reason = reason
-            # Relax cadence so we don't re-evaluate an empty server too often.
-            self._turn_interval = FIDELITY_INTERVALS["eco"]
+            # Relax cadence so we don't re-evaluate an empty server too often —
+            # but NEVER override an explicit manual fidelity pin (a skip must
+            # not silently demote a pinned tier to eco).
+            if not self._manual_fidelity:
+                self._turn_interval = FIDELITY_INTERVALS["eco"]
             log.debug("[director] %s — paid turn skipped", reason)
             return
         if reason:  # overnight catch-up

@@ -18,6 +18,13 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 
+def _run(coro):
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
+
+
 class TestManualFidelity(unittest.TestCase):
     def test_pin_valid_tier_applies_interval(self):
         from engine.director import DirectorAI, FIDELITY_INTERVALS
@@ -68,6 +75,43 @@ class TestManualFidelity(unittest.TestCase):
         ok, _ = d.set_manual_fidelity("HIGH")
         self.assertTrue(ok)
         self.assertEqual(d._manual_fidelity, "high")
+
+    def test_uppercase_auto_clears(self):
+        # The clear-path must normalize case (code-review finding 2).
+        from engine.director import DirectorAI
+        d = DirectorAI()
+        d.set_manual_fidelity("high")
+        ok, _ = d.set_manual_fidelity("AUTO")
+        self.assertTrue(ok)
+        self.assertIsNone(d._manual_fidelity)
+
+    def test_off_and_whitespace_clear(self):
+        from engine.director import DirectorAI
+        d = DirectorAI()
+        d.set_manual_fidelity("high")
+        ok, _ = d.set_manual_fidelity("  OFF  ")
+        self.assertTrue(ok)
+        self.assertIsNone(d._manual_fidelity)
+
+
+class TestSkipPathRespectsPin(unittest.TestCase):
+    """An empty-server skip must not demote a manual pin to eco (finding 1).
+    The skip branch of _governed_turn uses neither db nor session_mgr."""
+
+    def test_skip_preserves_manual_pin(self):
+        from engine.director import DirectorAI, FIDELITY_INTERVALS
+        d = DirectorAI()
+        d.set_manual_fidelity("high")
+        _run(d._governed_turn(None, None, online=0, now=10000.0))  # empty -> skip
+        self.assertEqual(d._turn_interval, FIDELITY_INTERVALS["high"])
+        self.assertEqual(d._manual_fidelity, "high")
+
+    def test_skip_relaxes_to_eco_when_auto(self):
+        from engine.director import DirectorAI, FIDELITY_INTERVALS
+        d = DirectorAI()
+        d._turn_interval = FIDELITY_INTERVALS["high"]  # was fast, but auto-mode
+        _run(d._governed_turn(None, None, online=0, now=10000.0))  # empty -> skip
+        self.assertEqual(d._turn_interval, FIDELITY_INTERVALS["eco"])
 
     def test_governor_state_reflects_pin(self):
         from engine.director import DirectorAI
