@@ -38,8 +38,12 @@ log = logging.getLogger(__name__)
 MIN_INTERVAL = 120   # 2 minutes
 MAX_INTERVAL = 300   # 5 minutes
 
-# Ratio: chance of drawing from dynamic pool when it's available
+# Ratio: chance of drawing from a LIVE line (Director dynamic + Ollama idle
+# pools) when any exists; otherwise the static YAML pool is used.
 DYNAMIC_DRAW_RATIO = 0.3
+
+# Max Ollama-generated ambient lines kept per zone (the idle-queue feeder).
+MAX_IDLE_LINES_PER_ZONE = 8
 
 # ANSI formatting for ambient text
 AMBIENT_COLOR = "\033[2;37m"   # dim white
@@ -128,6 +132,11 @@ class AmbientEventManager:
     def __init__(self):
         self._static_pool: dict[str, list[AmbientLine]] = {}
         self._dynamic_pool: dict[str, list[AmbientLine]] = {}
+        # Ollama-generated ambient lines (the idle-queue AmbientFlavorTask).
+        # SEPARATE from _dynamic_pool (the Director's Haiku lines) so the two
+        # LLM writers never clobber each other; _pick_line draws from both.
+        self._idle_pool: dict[str, list[AmbientLine]] = {}
+        self._idle_pool_ts: dict[str, float] = {}  # zone_key -> last gen time
         self._room_timers: dict[int, RoomTimer] = {}
         self._zone_cache: dict[int, str] = {}  # zone_id -> zone_key
         self._loaded = False
@@ -199,23 +208,8 @@ class AmbientEventManager:
         self._dynamic_pool.clear()
         dropped = 0
         for zone_key, lines in lines_by_zone.items():
-            validated = []
-            for line in lines:
-                # Content safety: max length, no game commands
-                line = line.strip()
-                if not line or len(line) > 120:
-                    continue
-                # Era-guard: these lines are LLM-generated (the Director's
-                # ambient_pool) and reach every player in a room. The Director
-                # filters length/keywords/player-names but NOT era, so a
-                # GCW-era leak ("Imperial patrols...") would surface here. Drop
-                # any off-era line before it enters the pool (the static pool
-                # still covers the zone). Same boundary discipline as the Ollama
-                # idle-queue guard in engine/idle_queue.py.
-                if era_violations(line):
-                    dropped += 1
-                    continue
-                validated.append(AmbientLine(text=line))
+            validated, d = self._validate_lines(lines)
+            dropped += d
             if validated:
                 self._dynamic_pool[zone_key] = validated
         if dropped:
@@ -224,16 +218,72 @@ class AmbientEventManager:
             total = sum(len(v) for v in self._dynamic_pool.values())
             log.info("[ambient] Dynamic pool updated: %d lines", total)
 
+    def _validate_lines(self, lines) -> tuple[list[AmbientLine], int]:
+        """Validate + era-guard raw LLM ambient lines into AmbientLine objects.
+
+        Returns ``(kept, dropped_count)``. Drops empties, >120-char lines, and
+        any line failing the shared `engine.era_validator` guard — these lines
+        are LLM-generated and reach every player in a room, so a GCW-era leak
+        ("Imperial patrols…") must never enter a pool. Shared by both LLM
+        writers: the Director's `set_dynamic_pool` and the Ollama feeder's
+        `set_idle_pool`.
+        """
+        kept: list[AmbientLine] = []
+        dropped = 0
+        for line in lines:
+            line = (line or "").strip()
+            if not line or len(line) > 120:
+                continue
+            if era_violations(line):
+                dropped += 1
+                continue
+            kept.append(AmbientLine(text=line))
+        return kept, dropped
+
+    def set_idle_pool(self, zone_key: str, lines: list) -> int:
+        """Replace the Ollama-generated idle ambient lines for one zone.
+
+        Called by the idle-queue ``AmbientFlavorTask``. Validated + era-guarded
+        through the SAME `_validate_lines` path as the Director pool, and capped
+        at ``MAX_IDLE_LINES_PER_ZONE``. Stored in `_idle_pool` (separate from the
+        Director's `_dynamic_pool`) so the two writers never clobber; `_pick_line`
+        draws from both. Always stamps the refresh timestamp (even when every
+        line was dropped) so a garbage batch isn't retried immediately. Returns
+        the number of lines kept.
+        """
+        validated, dropped = self._validate_lines(lines)
+        if validated:
+            self._idle_pool[zone_key] = validated[:MAX_IDLE_LINES_PER_ZONE]
+        else:
+            self._idle_pool.pop(zone_key, None)
+        self._idle_pool_ts[zone_key] = time.time()
+        kept = len(self._idle_pool.get(zone_key, []))
+        if dropped:
+            log.info("[ambient] Dropped %d off-era idle line(s) for zone %s",
+                     dropped, zone_key)
+        if kept:
+            log.info("[ambient] Idle pool for %s: %d Ollama line(s)",
+                     zone_key, kept)
+        return kept
+
+    def idle_pool_needs_refresh(self, zone_key: str, max_age_secs: float) -> bool:
+        """True if `zone_key` has no Ollama idle lines yet or they're stale."""
+        if zone_key not in self._idle_pool_ts:
+            return True
+        return (time.time() - self._idle_pool_ts.get(zone_key, 0.0)) > max_age_secs
+
     def _pick_line(self, zone_key: str) -> Optional[str]:
         """
         Pick a weighted random ambient line for a zone.
-        70% chance static pool, 30% chance dynamic pool (if available).
+        70% chance static pool, 30% chance a LIVE line — the Director's dynamic
+        pool and the Ollama idle pool combined — when any live line exists.
         """
-        has_dynamic = zone_key in self._dynamic_pool
-        use_dynamic = has_dynamic and random.random() < DYNAMIC_DRAW_RATIO
+        live = (self._dynamic_pool.get(zone_key, [])
+                + self._idle_pool.get(zone_key, []))
+        use_live = bool(live) and random.random() < DYNAMIC_DRAW_RATIO
 
-        if use_dynamic:
-            pool = self._dynamic_pool[zone_key]
+        if use_live:
+            pool = live
         else:
             pool = self._static_pool.get(zone_key)
             if not pool:

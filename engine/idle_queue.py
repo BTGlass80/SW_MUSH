@@ -37,6 +37,7 @@ BARK_REFRESH_HOURS = 4      # Regenerate barks every N hours
 BARK_COOLDOWN_SECS = 30.0   # Per-NPC per-player cooldown between barks
 MAX_BARKS_PER_NPC = 8       # Number of barks to pre-generate per NPC
 MAX_QUEUE_SIZE = 200         # Hard cap on pending tasks
+AMBIENT_FLAVOR_REFRESH_HOURS = 4   # Regenerate Ollama ambient room lines every N hours
 
 
 # ── Task Types ────────────────────────────────────────────────────────────────
@@ -330,6 +331,73 @@ class HousingDescTask(IdleTask):
                         self.housing_id, e)
 
 
+@dataclass
+class AmbientFlavorTask(IdleTask):
+    """Generate ambient room one-liners for a zone, fed to the room ambient pool.
+
+    The free local analogue of the Director's paid `ambient_pool`: Ollama
+    pre-generates atmospheric room lines per zone during idle time. They're
+    era-guarded + capped on ingest by `AmbientEventManager.set_idle_pool`, which
+    stores them in a pool SEPARATE from the Director's (no clobber) that the
+    ambient tick draws from. Valuable on a box where the paid Director is gated.
+    """
+    priority: int = 2
+    task_type: str = "ambient_flavor"
+    zone_key: str = ""
+    zone_tone: str = ""
+    room_name: str = ""
+
+    async def execute(self, ai: "AIManager", db) -> None:
+        system_prompt = (
+            ERA_PROMPT_HINT + "\n\n"
+            "Generate short ambient atmosphere lines for a location in a "
+            "text game. Each line is a single sentence (max 15 words) "
+            "describing a sound, sight, or small background event in the room "
+            "-- NOT dialogue, NOT addressed to anyone, no game commands or "
+            "stats. Vary the mood.\n"
+        )
+        if self.room_name:
+            system_prompt += f"Location: {self.room_name}\n"
+        if self.zone_tone:
+            system_prompt += f"Atmosphere: {self.zone_tone[:200]}\n"
+        system_prompt += "\nOutput a JSON array of 5 strings, nothing else."
+
+        try:
+            raw = await ai.generate(
+                system_prompt=system_prompt,
+                messages=[{"role": "user", "content": "Generate the ambient lines now."}],
+                max_tokens=220,
+                temperature=0.85,
+                json_mode=True,
+                provider="ollama",
+            )
+            if not raw:
+                return
+
+            cleaned = raw.strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.split("\n", 1)[-1]
+                if cleaned.endswith("```"):
+                    cleaned = cleaned[:-3].strip()
+
+            lines = json.loads(cleaned)
+            if not isinstance(lines, list):
+                return
+            lines = [
+                s.strip().strip('"').strip("'")
+                for s in lines if isinstance(s, str)
+            ]
+            # set_idle_pool era-guards, length-caps, and limits the count.
+            from engine.ambient_events import get_ambient_manager
+            get_ambient_manager().set_idle_pool(self.zone_key, lines)
+        except json.JSONDecodeError:
+            log.debug("[idle_queue] Ambient flavor JSON parse failed for zone %s",
+                      self.zone_key)
+        except Exception as e:
+            log.warning("[idle_queue] Ambient flavor failed for zone %s: %s",
+                        self.zone_key, e)
+
+
 # ── Bark Cache ────────────────────────────────────────────────────────────────
 
 # {npc_id: {"barks": [...], "generated_at": float, "npc_name": str}}
@@ -508,6 +576,20 @@ class IdleQueue:
             faction=faction, zone_tone=zone_tone,
         ))
 
+    def enqueue_ambient_flavor(self, zone_key: str, zone_tone: str = "",
+                               room_name: str = "") -> bool:
+        """Convenience: enqueue an Ollama ambient-flavor task for a zone."""
+        if not zone_key:
+            return False
+        # Don't re-queue if already pending for this zone.
+        for t in self._queue:
+            if (t.task_type == "ambient_flavor"
+                    and getattr(t, "zone_key", "") == zone_key):
+                return False
+        return self.enqueue(AmbientFlavorTask(
+            zone_key=zone_key, zone_tone=zone_tone, room_name=room_name,
+        ))
+
     def get_cached_description(self, housing_id: int) -> Optional[str]:
         """Return a pre-generated description from cache, or None."""
         return _housing_desc_cache.pop(housing_id, None)
@@ -540,6 +622,7 @@ async def seed_barks_for_populated_rooms(idle_queue: IdleQueue, db,
     Returns number of tasks queued.
     """
     queued = 0
+    seeded_zones: set[str] = set()   # ambient-flavor: one task per zone, not per room
     try:
         # Get rooms that have online players
         occupied_rooms: set[int] = set()
@@ -564,6 +647,22 @@ async def seed_barks_for_populated_rooms(idle_queue: IdleQueue, db,
                 zone_tone = await get_zone_tone(db, room_id)
             except Exception as _e:
                 log.debug("silent except in engine/idle_queue.py:519: %s", _e, exc_info=True)
+
+            # Seed Ollama ambient-flavor for this room's zone (once per zone,
+            # refresh-gated). The free local analogue of the Director's paid
+            # ambient_pool, served via the ambient manager's idle pool.
+            try:
+                from engine.ambient_events import get_ambient_manager
+                _mgr = get_ambient_manager()
+                _zk = await _mgr._get_zone_key(room_id, db)
+                if (_zk not in seeded_zones and _mgr.idle_pool_needs_refresh(
+                        _zk, AMBIENT_FLAVOR_REFRESH_HOURS * 3600)):
+                    if idle_queue.enqueue_ambient_flavor(_zk, zone_tone, room_name):
+                        seeded_zones.add(_zk)
+                        queued += 1
+            except Exception as _e:
+                log.debug("[idle_queue] ambient-flavor seed skipped for room %d: %s",
+                          room_id, _e, exc_info=True)
 
             for npc in npcs:
                 npc_id = npc.get("id", 0)
@@ -607,6 +706,6 @@ async def seed_barks_for_populated_rooms(idle_queue: IdleQueue, db,
         log.warning("[idle_queue] seed_barks failed: %s", e)
 
     if queued:
-        log.info("[idle_queue] Seeded %d bark tasks for %d occupied rooms",
-                 queued, len(occupied_rooms))
+        log.info("[idle_queue] Seeded %d idle tasks (barks + ambient flavor) "
+                 "for %d occupied rooms", queued, len(occupied_rooms))
     return queued
