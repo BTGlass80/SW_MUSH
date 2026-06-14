@@ -663,6 +663,42 @@ wilderness/chain phantom refs) slip past the surgical curated-list tests.
 
 ## §9. Version history
 
+- **v52.4 (Jun 14 2026)** — parallel **defect-hunt lane** (the `c:/SW_MUSH` live-engine session,
+  concurrent with the main-march web-client-verify lane and the test-suite-prune lane; on
+  `drop/t3-20-safe-load`, integrator-carried to main). A **second** adversarial find→verify
+  Workflow — this one over five COLD engine subsystems (`harvest`/`housing`/`contest`/`dens`/
+  `hazards`) — confirmed **16 parallel-safe runtime defects** the curated suite never asserts,
+  recorded in NEW `HANDOFF_engine_defect_hunt_2026-06-14.md` (distinct from the v52.3 first-wave
+  `HANDOFF_defect_hunt_findings_2026-06-14.md`). **8 fixed this lane, ~8 remain** as a clean drop
+  backlog. Fixes — **housing ×4:** `sell_shopfront`/`checkout_room` room+exit **leaks** (deleted
+  exits via nonexistent `from_room`/`to_room` columns → `OperationalError` swallowed, rooms+exits
+  leaked while the sale reported `ok=True`; now route through `db.delete_room`), `is_on_guest_list`
+  always-False (`int in [dicts]`), `purchase_home` charge-before-persist with no refund (now wraps
+  persist + refunds, mirroring `purchase_home_prestige`). **harvest ×2:** false-success + an
+  unfair 30-min cooldown on a credit-write failure (the cooldown is now consumed only **after** the
+  credit grant commits; a failed write returns honest `ok=False`, safe to retry), plus the
+  resource-grant false-success. **hazards ×2:** hazard difficulty **double-scaled by severity** (a
+  severity-2 extreme_heat tile rolled 16 instead of the intended 13 — the producers already store
+  the scaled value and the check re-scaled), and the `urban_danger` pickpocket **credit desync**
+  (pre-mutated `char['credits']` + discarded the `adjust_credits` return + narrated the loss on a
+  failed write → now the canonical funnel: adopt the ledger balance, narrate only after the credits
+  move). Plus a **wilderness content** drop: +11 terrain/band-gated `encounter_pool` entries giving
+  the four thin Coruscant Underworld sub-regions their own flavor (reuse-only, additive, pool
+  17→28). **Schema-neutral** (engine bug-fixes + additive YAML); each fix carries a behavioral
+  per-drop test that fails against the unfixed code, gated on the full `-n auto` suite (only the
+  known chain-walkthrough Ollama-dialogue smoke flakes fail, stash-exonerated). **Method finding
+  (reinforces the §8 partial-coverage blind spot):** the recurring root class is
+  **false-success-despite-write-failure / wrong-DB-primitive-leaks-state** — the same class as the
+  v52.3 breaching + encounter-funnel fixes; curated tests never exercise the failure branch.
+  Candidate to formalize as a **"write-failure honesty"** discipline (credit movement must adopt
+  `adjust_credits`' return, never pre-mutate a local guess; a swallowed write must not report
+  success) — flagged for Brian, **not yet a §4 invariant**. **Remaining backlog (~8, in the new
+  handoff doc):** `contest.py` ×4 (anchor NPC + reinforcements never despawned on resolution →
+  leak; stale-anchor reuse via `create_npc` name-dedup; spawn non-idempotent on pin-failure;
+  resolution UPDATE missing an `AND status='active'` compare-and-swap), `dens.py` ×3 (establish
+  refund not rollback-safe; read-swallow turns a DB error into "no den"; abandon zero-row false
+  success), `harvest.py` ×1 LOW (payout reported pre-throttle). No new §4 invariants ratified.
+
 - **v52.3 (Jun 14 2026)** — Jun 13–14 hardening + Director-scope wave (≈30 drops, multi-session
   parallel). Five themes, all schema-additive (`SCHEMA_VERSION 43→44`, migration-gated):
   **(1) Director scope expansion — COMPLETE, resolves the v52.2 finding.** The "Director runs
