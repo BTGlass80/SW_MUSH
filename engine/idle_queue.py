@@ -251,8 +251,11 @@ class EventRewriteTask(IdleTask):
                 )
                 await db.commit()
 
-            # Re-broadcast to web clients
-            if self.session_mgr:
+            # Re-broadcast to web clients — gated on the SAME (db and event_id)
+            # condition as the persist above, so clients never receive a live
+            # rewrite that wasn't written to director_log (which would contradict
+            # the original headline they'd get on reconnect/reload).
+            if self.session_mgr and db and self.event_id:
                 try:
                     import json as _ej
                     for _s in self.session_mgr.all:
