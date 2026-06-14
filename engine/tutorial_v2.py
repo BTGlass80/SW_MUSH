@@ -1471,7 +1471,6 @@ HUNTERS_MARK = [
 HUNTERS_MARK_TOTAL = 5
 
 
-
 # ── Drop 10: Artisan's Forge — 5 steps ───────────────────────────────────────
 # Contact: Vek Nurren (Crafter's Workshop, room 141)
 # Entry: crafting_complete >= 3
@@ -1555,199 +1554,6 @@ ARTISANS_FORGE = [
     },
 ]
 ARTISANS_FORGE_TOTAL = 5
-
-
-# ── Drop 11A: Rebel Cell — 5 steps ───────────────────────────────────────────
-# Contact: "Fulcrum" comlink (auto-fires after 2+ missions completed)
-# No specific NPC needed — comlink message
-
-REBEL_CELL = [
-    {   # Step 1 — auto-fires via mission_complete after entry req met
-        "trigger": "mission_complete",
-        "msg": (
-            "\n  \033[1;33m[REBEL CELL — Step 1/5]\033[0m\n"
-            "  Your comlink crackles with an encrypted signal.\n"
-            "  \033[3m\"This is Fulcrum. The Rebel Alliance has been watching your work.\n"
-            "  You have skills we need — and a low enough profile the Empire hasn't\n"
-            "  noticed you yet. Complete this operation and the Alliance considers\n"
-            "  you a friend. That means Rebel-only missions, covert supply drops,\n"
-            "  and allies who'll watch your back.\n"
-            "  Meet my contact in the back room of Chalmun's Cantina.\n"
-            "  Ask for 'the starbird.' They'll know.\"\033[0m\n"
-            "  \033[2mTask: Go to Chalmun's Cantina and 'talk' to the Rebel contact there.\033[0m"
-        ),
-        "reward_credits": 0,
-    },
-    {   # Step 2 — triggered by talk at cantina (talk trigger, cantina room)
-        "trigger": "talk_rebel_contact",
-        "msg": (
-            "\n  \033[1;33m[REBEL CELL — Step 2/5]\033[0m\n"
-            "  The hooded figure slides a datapad across the table.\n"
-            "  \033[3m\"There's a cell on Nar Shaddaa that needs supplies. Imperial\n"
-            "  customs is watching the docks. We need someone who can move cargo\n"
-            "  quietly. Take the datapad to our contact there.\n"
-            "  Don't get scanned.\"\033[0m\n"
-            "  +200cr operating expenses.\n"
-            "  \033[2mTask: Complete a smuggling delivery to Nar Shaddaa without getting caught.\033[0m"
-        ),
-        "reward_credits": 200,
-        "reward_faction": "rebel",
-        "reward_rep": 5,
-        "reward_rep_reason": "Rebel Cell: supply run",
-    },
-    {   # Step 3 — triggered by smuggling_complete to nar_shaddaa
-        "trigger": "smuggling_complete",
-        "msg": (
-            "\n  \033[1;33m[REBEL CELL — Step 3/5]\033[0m\n"
-            "  Fulcrum's voice on the comlink: \033[3m\"The datapad arrived. Good work.\n"
-            "  Next task: intelligence. We need patrol patterns.\n"
-            "  Scan three Imperial patrol ships in Tatooine space.\n"
-            "  Don't engage — just scan and pull their routing data.\"\033[0m\n"
-            "  +500cr.\n"
-            "  \033[2mTask: Use 'scan' in Tatooine orbit or deep space on 3 Imperial patrol contacts.\033[0m"
-        ),
-        "reward_credits": 500,
-        "reward_faction": "rebel",
-        "reward_rep": 5,
-        "reward_rep_reason": "Rebel Cell: intel delivery",
-    },
-    {   # Step 4 — triggered after 3 scans of patrol ships (scan_patrols trigger)
-        "trigger": "scan_patrols_complete",
-        "msg": (
-            "\n  \033[1;33m[REBEL CELL — Step 4/5]\033[0m\n"
-            "  \033[3m\"The patrol data is exactly what we needed. One more op.\n"
-            "  An Imperial supply convoy is making a run through the Outer Rim Lane.\n"
-            "  Intercept it. You don't need to destroy them — just disrupt the delivery.\n"
-            "  One hit and break off. Don't get caught.\"\033[0m\n"
-            "  +800cr.\n"
-            "  \033[2mTask: Attack and break off from an Imperial ship in deep space. "
-            "Use 'fire' then 'flee'. Reward: 1,000cr on extraction.\033[0m"
-        ),
-        "reward_credits": 800,
-        "reward_faction": "rebel",
-        "reward_rep": 5,
-        "reward_rep_reason": "Rebel Cell: patrol disruption",
-    },
-    {   # Step 5 — triggered by docking after combat (planet_land after space combat)
-        "trigger": "mission_complete",
-        "msg": (
-            "\n  \033[1;33m[REBEL CELL — COMPLETE]\033[0m\n"
-            "  Fulcrum's signal comes through clearer than before.\n"
-            "  \033[3m\"You've proven yourself. The Alliance is in your debt.\n"
-            "  From here, Rebel-flagged missions will appear on your job board.\n"
-            "  When the time comes, and it will — we'll be in touch.\n"
-            "  May the Force be with you.\"\033[0m\n"
-            "  +1,500cr. Title: (Rebel Sympathizer).\n"
-            "  \033[1;32mRebel Cell complete!\033[0m"
-        ),
-        "reward_credits": 1500,
-        "reward_title": "Rebel Sympathizer",
-        "reward_faction": "rebel",
-        "reward_rep": 15,
-        "reward_rep_action": "complete_chain_final",
-        "reward_rep_reason": "Rebel Cell complete!",
-    },
-]
-REBEL_CELL_TOTAL = 5
-
-
-# ── Drop 11B: Imperial Service — 5 steps ─────────────────────────────────────
-# Contact: Sergeant Kreel (Police Station, room 25)
-# Entry: missions_complete >= 2
-
-IMPERIAL_SERVICE = [
-    {   # Step 1 — talk to Kreel after entry req met
-        "trigger": "talk_kreel",
-        "msg": (
-            "\n  \033[1;33m[IMPERIAL SERVICE — Step 1/5]\033[0m\n"
-            "  Sergeant Kreel looks you over with cold appraisal.\n"
-            "  \033[3m\"The garrison is... short-handed on certain off-the-books matters.\n"
-            "  Complete this assignment and the Empire remembers its friends.\n"
-            "  You'll have Imperial standing — military contracts, garrison discounts,\n"
-            "  a name that opens doors at every checkpoint in the sector.\n"
-            "  First task: there's a suspected smuggler operating in Mos Eisley.\n"
-            "  Find them. Use Investigation. Bring me a name.\"\033[0m\n"
-            "  \033[2mTask: Use Investigation/Streetwise in Mos Eisley to find the smuggler. "
-            "Type 'investigate' in the Market or Cantina area.\033[0m"
-        ),
-        "reward_credits": 300,
-        "reward_faction": "empire",
-        "reward_rep": 5,
-        "reward_rep_reason": "Imperial Service: investigation",
-    },
-    {   # Step 2 — triggered by mission_complete (any)
-        "trigger": "mission_complete",
-        "msg": (
-            "\n  \033[1;33m[IMPERIAL SERVICE — Step 2/5]\033[0m\n"
-            "  Kreel reviews your report and grants a thin smile.\n"
-            "  \033[3m\"Good work. Now something more visible.\n"
-            "  An Imperial convoy needs an escort through the Outer Rim Lane.\n"
-            "  Unauthorized ships in that corridor are to be discouraged.\n"
-            "  You have authorization to fire first if approached.\"\033[0m\n"
-            "  +800cr advance.\n"
-            "  \033[2mTask: Complete a space ESCORT or PATROL mission. Reward: 1,200cr.\033[0m"
-        ),
-        "reward_credits": 800,
-        "reward_faction": "empire",
-        "reward_rep": 5,
-        "reward_rep_reason": "Imperial Service: convoy escort",
-    },
-    {   # Step 3 — triggered by mission_complete (space mission)
-        "trigger": "mission_complete",
-        "msg": (
-            "\n  \033[1;33m[IMPERIAL SERVICE — Step 3/5]\033[0m\n"
-            "  Kreel meets you at the docks personally.\n"
-            "  \033[3m\"The convoy arrived intact. The Admiral is pleased.\n"
-            "  There's a merchant in the Coronet City district who has been\n"
-            "  avoiding his Imperial tax obligations. Persuade him to reconsider.\n"
-            "  Diplomacy preferred. Results required.\"\033[0m\n"
-            "  +1,200cr.\n"
-            "  \033[2mTask: Fly to Corellia and 'talk' to the merchant in Coronet City. "
-            "A Persuasion or Intimidation check will determine outcome.\033[0m"
-        ),
-        "reward_credits": 1200,
-        "reward_faction": "empire",
-        "reward_rep": 5,
-        "reward_rep_reason": "Imperial Service: tax enforcement",
-    },
-    {   # Step 4 — triggered by planet_land_corellia at step 3
-        "trigger": "planet_land_corellia",
-        "msg": (
-            "\n  \033[1;33m[IMPERIAL SERVICE — Step 4/5]\033[0m\n"
-            "  Kreel's message awaits you on return.\n"
-            "  \033[3m\"The tax situation resolved itself. Interesting.\n"
-            "  Final assignment: Rebel supply ship has been spotted near the\n"
-            "  Outer Rim Lane. Intercept and destroy it. This one is official —\n"
-            "  you'll have Imperial cover if local authorities ask questions.\"\033[0m\n"
-            "  +1,000cr.\n"
-            "  \033[2mTask: Destroy a Rebel-flagged NPC ship in space. Any deep space zone. Reward: 2,000cr.\033[0m"
-        ),
-        "reward_credits": 1000,
-        "reward_faction": "empire",
-        "reward_rep": 5,
-        "reward_rep_reason": "Imperial Service: Rebel intercept",
-    },
-    {   # Step 5 — triggered by mission_complete (intercept type)
-        "trigger": "mission_complete",
-        "msg": (
-            "\n  \033[1;33m[IMPERIAL SERVICE — COMPLETE]\033[0m\n"
-            "  Kreel hands you a data chip with the Imperial seal.\n"
-            "  \033[3m\"This identifies you as an Imperial Associate — a friend of order.\n"
-            "  The garrison mission board is open to you. Military contracts,\n"
-            "  supply runs, and the occasional off-the-books job.\n"
-            "  The Empire remembers its debts, freelancer. Don't forget ours.\"\033[0m\n"
-            "  +2,000cr. Title: (Imperial Associate).\n"
-            "  \033[1;32mImperial Service complete!\033[0m"
-        ),
-        "reward_credits": 2000,
-        "reward_title": "Imperial Associate",
-        "reward_faction": "empire",
-        "reward_rep": 15,
-        "reward_rep_action": "complete_chain_final",
-        "reward_rep_reason": "Imperial Service complete!",
-    },
-]
-IMPERIAL_SERVICE_TOTAL = 5
 
 
 # ── Drop 11C: Underworld — 5 steps ───────────────────────────────────────────
@@ -1851,37 +1657,9 @@ def _can_start_artisans_forge(char: dict) -> bool:
     return get_ships_log(char).get("crafting_complete", 0) >= 3
 
 
-# REBEL_CELL + IMPERIAL_SERVICE are GCW-era (Galactic Civil War) profession
-# chains authored before this deployment settled on the Clone Wars era (~20 BBY,
-# WEG R&E). A Rebel Alliance / Galactic Empire recruitment arc is OFF-ERA here
-# and must never reach a player (era-cleanness invariant B3). They are held
-# DORMANT — unstartable + hidden from the chain-status display — pending a
-# decision to CW-rewrite or delete them (design_calls_pending_brian
-# ERA.tutorial_v2_gcw_profession_chains). Their definitions/dispatch remain in
-# source (unreachable) so that decision stays non-destructive. Guard:
-# tests/test_tutorial_v2_era_cleanness.py.
-_GCW_PROFESSION_CHAINS_ENABLED = False
-
-
-def _can_start_rebel_cell(char: dict) -> bool:
-    if not _GCW_PROFESSION_CHAINS_ENABLED:
-        return False
-    from engine.ships_log import get_ships_log
-    return get_ships_log(char).get("missions_complete", 0) >= 2
-
-
-def _can_start_imperial_service(char: dict) -> bool:
-    if not _GCW_PROFESSION_CHAINS_ENABLED:
-        return False
-    from engine.ships_log import get_ships_log
-    return get_ships_log(char).get("missions_complete", 0) >= 2
-
-
 def _can_start_underworld(char: dict) -> bool:
     from engine.ships_log import get_ships_log
     return get_ships_log(char).get("smuggling_runs", 0) >= 3
-
-
 
 
 def _can_start_smugglers_run(char: dict) -> bool:
@@ -2043,88 +1821,6 @@ async def check_profession_chains(session, db, trigger: str, **kwargs) -> None:
             pq["artisans_forge"] = 6
             changed = True
 
-        # ── Rebel Cell ───────────────────────────────────────────────────────
-        rc = pq.get("rebel_cell", 0)
-
-        if rc == 0 and trigger == "mission_complete" and _can_start_rebel_cell(char):
-            await session.send_line(REBEL_CELL[0]["msg"])
-            pq["rebel_cell"] = 1
-            changed = True
-
-        elif rc == 1 and trigger == "talk_rebel_contact":
-            step = REBEL_CELL[1]
-            await session.send_line(step["msg"])
-            await _grant_chain_reward(session, db, char, step)
-            pq["rebel_cell"] = 2
-            changed = True
-
-        elif rc == 2 and trigger == "smuggling_complete":
-            dest = kwargs.get("dest_planet", "")
-            if "nar_shaddaa" in dest.lower():
-                step = REBEL_CELL[2]
-                await session.send_line(step["msg"])
-                await _grant_chain_reward(session, db, char, step)
-                pq["rebel_cell"] = 3
-                changed = True
-
-        elif rc == 3 and trigger == "scan_patrols_complete":
-            step = REBEL_CELL[3]
-            await session.send_line(step["msg"])
-            await _grant_chain_reward(session, db, char, step)
-            pq["rebel_cell"] = 4
-            changed = True
-
-        elif rc == 4 and trigger == "mission_complete":
-            step = REBEL_CELL[4]
-            await session.send_line(step["msg"])
-            await _grant_chain_reward(session, db, char, step)
-            if step.get("reward_title"):
-                await grant_reward(session, db, credits=0,
-                                   title=step["reward_title"], message="")
-            pq["rebel_cell"] = 6
-            changed = True
-
-        # ── Imperial Service ─────────────────────────────────────────────────
-        ims = pq.get("imperial_service", 0)
-
-        if trigger == "talk_kreel" and ims == 0 and _can_start_imperial_service(char):
-            step = IMPERIAL_SERVICE[0]
-            await session.send_line(step["msg"])
-            await _grant_chain_reward(session, db, char, step)
-            pq["imperial_service"] = 1
-            changed = True
-
-        elif ims == 1 and trigger == "mission_complete":
-            step = IMPERIAL_SERVICE[1]
-            await session.send_line(step["msg"])
-            await _grant_chain_reward(session, db, char, step)
-            pq["imperial_service"] = 2
-            changed = True
-
-        elif ims == 2 and trigger == "mission_complete":
-            step = IMPERIAL_SERVICE[2]
-            await session.send_line(step["msg"])
-            await _grant_chain_reward(session, db, char, step)
-            pq["imperial_service"] = 3
-            changed = True
-
-        elif ims == 3 and trigger == "planet_land_corellia":
-            step = IMPERIAL_SERVICE[3]
-            await session.send_line(step["msg"])
-            await _grant_chain_reward(session, db, char, step)
-            pq["imperial_service"] = 4
-            changed = True
-
-        elif ims == 4 and trigger == "mission_complete":
-            step = IMPERIAL_SERVICE[4]
-            await session.send_line(step["msg"])
-            await _grant_chain_reward(session, db, char, step)
-            if step.get("reward_title"):
-                await grant_reward(session, db, credits=0,
-                                   title=step["reward_title"], message="")
-            pq["imperial_service"] = 6
-            changed = True
-
         # ── Underworld ───────────────────────────────────────────────────────
         uw = pq.get("underworld", 0)
 
@@ -2211,8 +1907,6 @@ def get_chain_status_lines(char: dict) -> list:
     sr  = pq.get("smugglers_run",    0)
     hm  = pq.get("hunters_mark",     0)
     af  = pq.get("artisans_forge",   0)
-    rc  = pq.get("rebel_cell",       0)
-    ims = pq.get("imperial_service", 0)
     uw  = pq.get("underworld",       0)
 
     def _bar(step, total, complete_val):
@@ -2225,8 +1919,6 @@ def get_chain_status_lines(char: dict) -> list:
     can_sr  = _can_start_smugglers_run(char)
     can_hm  = _can_start_hunters_mark(char)
     can_af  = _can_start_artisans_forge(char)
-    can_rc  = _can_start_rebel_cell(char)
-    can_ims = _can_start_imperial_service(char)
     can_uw  = _can_start_underworld(char)
 
     lines.append("  \033[1;36mProfession Chains:\033[0m")
@@ -2243,17 +1935,6 @@ def get_chain_status_lines(char: dict) -> list:
     af_hint = "" if (af  > 0 or can_af)  else "  \033[2m(req: 3 items crafted)\033[0m"
     lines.append(f"    Artisan's Forge   [{af_bar}]{af_hint}")
 
-    # Rebel Cell / Imperial Service are GCW-era content held dormant in CW
-    # (see _GCW_PROFESSION_CHAINS_ENABLED) — hidden from the status display so
-    # no off-era chain is offered to a Clone Wars player.
-    if _GCW_PROFESSION_CHAINS_ENABLED:
-        rc_bar  = _bar(rc,  REBEL_CELL_TOTAL,       6)
-        rc_hint = "" if (rc  > 0 or can_rc)  else "  \033[2m(req: 2 missions complete)\033[0m"
-        lines.append(f"    Rebel Cell        [{rc_bar}]{rc_hint}")
-
-        ims_bar = _bar(ims, IMPERIAL_SERVICE_TOTAL, 6)
-        ims_hint= "" if (ims > 0 or can_ims) else "  \033[2m(req: 2 missions complete)\033[0m"
-        lines.append(f"    Imperial Service  [{ims_bar}]{ims_hint}")
 
     uw_bar  = _bar(uw,  UNDERWORLD_TOTAL,       6)
     uw_hint = "" if (uw  > 0 or can_uw)  else "  \033[2m(req: 3 smuggling runs)\033[0m"
