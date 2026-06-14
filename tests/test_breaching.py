@@ -150,6 +150,24 @@ class TestAttemptBreach(unittest.TestCase):
         self.assertFalse(res["ok"])
         self.assertEqual(db.deleted, [])
 
+    def test_delete_failure_reports_honest_failure_not_false_success(self):
+        # Regression (defect-hunt): a passing demolitions check followed by a
+        # delete_object that RAISES must NOT tell the player the breach opened.
+        from engine.breaching import attempt_breach
+
+        class _DeleteRaisesDB(_StubDB):
+            async def delete_object(self, object_id):
+                raise RuntimeError("simulated DB failure")
+
+        db = _DeleteRaisesDB([_obstacle(difficulty=10)])
+        char = _char(charges=1, demolitions="12D")  # skill check passes
+        res = _run(attempt_breach(db, char, ""))
+        # The obstacle is still there -> the breach did NOT succeed.
+        self.assertFalse(res["breached"],
+                         "delete failure must not report a successful breach")
+        self.assertNotIn("blows", res["msg"].lower())   # no false success line
+        self.assertIn("still blocked", res["msg"].lower())
+
 
 if __name__ == "__main__":
     unittest.main()

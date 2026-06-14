@@ -173,11 +173,20 @@ async def attempt_breach(db, char: dict, target: str = "") -> dict:
                     "spent." % (name, result.roll, difficulty)),
         }
 
-    # Success — remove the obstacle, reveal what's behind it.
+    # Success — remove the obstacle, reveal what's behind it. If the removal
+    # itself fails, the obstacle is still there: report an HONEST failure rather
+    # than a false "breach success" (the obstacle would otherwise persist while
+    # the player was told the way was clear).
     try:
         await db.delete_object(obstacle["id"])
     except Exception:
         log.warning("[breaching] obstacle delete failed", exc_info=True)
+        return {
+            "ok": True, "breached": False,
+            "msg": ("  The charge detonates against %s — but when the smoke "
+                    "clears, the way is still blocked. (The rubble couldn't be "
+                    "cleared; try again.)" % name),
+        }
     reveal = data.get("reveal") or data.get("breached_desc") or (
         "The way is clear.")
     return {
