@@ -876,6 +876,14 @@ npcs:
       character_points: 3
       dark_side_points: 1
     ai_config:
+      # Chain combat-template tag. The separatist_agent tutorial chain's
+      # step 4 "Talk past Republic Security" completes primarily on a Con
+      # check (chains.yaml), but its FALLBACK ("if the bluff fails you'll
+      # have to fight") is a combat_won keyed to `republic_security_officer`.
+      # The combat-won matcher (engine/chain_events._match_combat_won) reads
+      # this field on the defeated NPC; without it the fail-the-bluff path
+      # could never advance — the player who is told to fight was stranded.
+      chain_enemy_template: republic_security_officer
       personality: >-
         Career Republic Security officer, twenty-two years on the
         Coruscant Works freight beat. Decent enough by his own

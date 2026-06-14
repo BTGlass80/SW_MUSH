@@ -519,6 +519,113 @@ class TestSkillCheckSkillsResolve(unittest.TestCase):
 
 
 # ──────────────────────────────────────────────────────────────────────
+# Class 5 — every combat_won enemy_template resolves to a tagged NPC
+# ──────────────────────────────────────────────────────────────────────
+
+def _chain_enemy_template_tags() -> set:
+    """Every `ai_config.chain_enemy_template` value an NPC carries, across
+    the WHOLE Clone Wars data tree.
+
+    The combat-won matcher (engine/chain_events._match_combat_won) advances a
+    step only when the DEFEATED NPC's `ai_config.chain_enemy_template` equals
+    the step's `enemy_template`. The tag can live in any loaded NPC source —
+    the `content_refs.npcs` manifests AND tutorial_bounties.yaml (bounty
+    targets are spawned and defeatable too) — so this walks every `*.yaml` in
+    the tree, structure-agnostic (bare-list npc files, `npcs:`-keyed files,
+    bounty blocks), collecting the tag wherever it appears."""
+    tags: set = set()
+
+    def _walk(node):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if (k == "chain_enemy_template"
+                        and isinstance(v, str) and v.strip()):
+                    tags.add(v.strip())
+                else:
+                    _walk(v)
+        elif isinstance(node, list):
+            for item in node:
+                _walk(item)
+
+    cw_dir = PROJECT_ROOT / "data" / "worlds" / "clone_wars"
+    for path in cw_dir.rglob("*.yaml"):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                _walk(yaml.safe_load(f))
+        except Exception:
+            # A malformed data file is a different test's concern; this guard
+            # only collects tags it can read.
+            continue
+    return tags
+
+
+class TestCombatWonEnemyTemplatesResolve(unittest.TestCase):
+    """Every `combat_won` completion `enemy_template` (and a `fallback` of
+    type combat_won) in an unlocked chain must resolve to at least one NPC
+    carrying that `ai_config.chain_enemy_template` tag — otherwise defeating
+    the step's NPC never advances the step and the player on the (sometimes
+    FORCED, e.g. bluff-fail) fight path is stranded.
+
+    This is the combat analogue of Class 3 (commands) / Class 4 (skills). It
+    would have caught the dangling `republic_security_officer` fallback on the
+    separatist_agent chain's "Talk past Republic Security" step — which the
+    skill/command/room classes missed because the dangling reference is a
+    combat enemy_template, not a skill or command."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.chains = _load_chains_yaml()
+        cls.tags = _chain_enemy_template_tags()
+
+    def _walk_combat_templates(self):
+        for c in _unlocked_chains(self.chains):
+            cid = c.get("chain_id", "?")
+            for step in c.get("steps") or []:
+                comp = step.get("completion") or {}
+                sn = step.get("step")
+                yield from self._walk_completion_combat(
+                    cid, sn, comp, "completion")
+
+    def _walk_completion_combat(self, cid, sn, comp, prefix):
+        if not isinstance(comp, dict):
+            return
+        if comp.get("type") == "combat_won" and comp.get("enemy_template"):
+            yield (cid, f"step{sn}.{prefix}.enemy_template",
+                   comp["enemy_template"])
+        fb = comp.get("fallback")
+        if isinstance(fb, dict):
+            # a fallback may itself be combat_won (the skill_check_passed
+            # primary + combat_won fallback shape — separatist_agent s4)
+            yield from self._walk_completion_combat(
+                cid, sn, fb, f"{prefix}.fallback")
+
+    def test_every_combat_won_enemy_template_resolves(self):
+        unresolved = []
+        checked = 0
+        for cid, where, tmpl in self._walk_combat_templates():
+            checked += 1
+            if str(tmpl).strip() not in self.tags:
+                unresolved.append((cid, where, tmpl))
+        # Anti-vacuous: the corpus DOES use combat_won steps/fallbacks; zero
+        # means the walk broke and the guard would pass empty.
+        self.assertGreater(
+            checked, 0,
+            "no combat_won enemy_template found in any unlocked chain — the "
+            "guard is vacuous (the walk or corpus changed shape)",
+        )
+        if unresolved:
+            lines = [f"  {cid:<24} {where:<40} -> {t!r}"
+                     for cid, where, t in unresolved]
+            self.fail(
+                f"{len(unresolved)} combat_won enemy_template(s) have NO NPC "
+                f"carrying that ai_config.chain_enemy_template tag — defeating "
+                f"the step's NPC can never advance it, stranding the player on "
+                f"the (sometimes forced) fight path. Tag a real NPC's "
+                f"ai_config or fix the corpus value:\n" + "\n".join(lines)
+            )
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Registry-parity sentinel — keep the test's registration in sync with
 # the server's
 # ──────────────────────────────────────────────────────────────────────

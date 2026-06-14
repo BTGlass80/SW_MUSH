@@ -82,6 +82,12 @@
   ],
   "tier_1_active": [
     {
+      "id": "CHAIN.combat_fallback_stranding",
+      "title": "Chain combat fallback: tag Daln (republic_security_officer) + reachability Class 5",
+      "status": "DELIVERED 2026-06-13 (parallel content session; pending Brian full-suite gate)",
+      "delivered_note": "Onboarding-stranding fix (same class as WILD.phantom_creature_templates, in tutorial chains). separatist_agent chain step 4 'Talk past Republic Security' completes on a Con check with a combat_won FALLBACK keyed to enemy_template republic_security_officer; NO npc carried ai_config.chain_enemy_template:republic_security_officer, so engine/chain_events._match_combat_won could never fire => player who failed the bluff and was told to fight was stranded. comm -23 of chain enemy_templates vs tagged NPCs showed exactly one dangling value. Fix (data): added the tag to Daln's ai_config (npcs_drop_f8c2a_chain_anchors.yaml; npc_role antagonist, combat-capable, hostile:false preserved = player initiates the fallback fight). Hardened guard: tests/test_chain_corpus_reachability_invariant.py Class 5 asserts every combat_won enemy_template (incl. combat_won fallback) resolves to a tagged NPC, scanning the whole CW tree (catches npc manifests + tutorial_bounties.yaml); the existing Class 1-4 missed it because the dangling ref is a combat template, not a skill/command/room. Proof: pre-fix Class 5 flags exactly separatist_agent step4.fallback->republic_security_officer; post-fix clean. Verified 159 targeted green. Parallel-safe: data+test only, no engine/parser edits."
+    },
+    {
       "id": "WILD.phantom_creature_templates",
       "title": "Wilderness encounters: close 4 phantom-producer creature templates + global resolution guard",
       "status": "DELIVERED 2026-06-13 (parallel content session; pending Brian full-suite gate)",
