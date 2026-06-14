@@ -1751,7 +1751,25 @@
       "requested_by": "Brian 2026-06-13"
     }
   ],
-  "design_calls_pending_brian": [],
+  "design_calls_pending_brian": [
+    {
+      "id": "ERA.tutorial_v2_gcw_profession_chains",
+      "raised_date": "2026-06-14",
+      "raised_by": "drop tutorial-v2-era-remediation (overnight defect-hunt sweep)",
+      "severity": "blocker-class (B3 era-cleanness; launch criterion)",
+      "status": "pending",
+      "premise_verified_at_head": "Confirmed at HEAD: engine/tutorial_v2.py defines REBEL_CELL + IMPERIAL_SERVICE — full 5-step Galactic-Civil-War profession chains (Rebel Alliance recruitment via 'Fulcrum'; Imperial Service under 'Sergeant Kreel'). check_profession_chains() (the dispatch) is LIVE — wired from parser/mission_commands.py, parser/npc_commands.py (talk_rebel_contact), parser/smuggling_commands.py, parser/space_commands.py. Pre-fix, _can_start_rebel_cell/_can_start_imperial_service gated ONLY on missions_complete>=2 (NO era check), and get_chain_status_lines unconditionally listed both chains — so a Clone Wars player completing 2 missions was offered off-era GCW content. An AST scan of the file found 53 banned-era-token strings; the pre-existing era-cleanness test (tests/test_laneb_era_cleanness.py) is deliberately surgical (curated (file,string) pairs) and never scanned this file (same partial-coverage blind spot the wilderness/chain drops hit).",
+      "interim_mitigation_shipped": "This drop made the violation UNREACHABLE without destroying content: added module flag _GCW_PROFESSION_CHAINS_ENABLED=False gating both _can_start_* to return False and hiding both rows from get_chain_status_lines; reworded the 5 scattered LIVE off-era barks (DISCOVERY_QUESTS Nar Shaddaa/Kessel/Corellia welcomes, Smuggler's Run step 2 task, Kessa's Kreel teaser) to CW-clean flavor (Imperial->Republic; Empire->Hutt cartels; Rebel sympathizers->independents; Imperial patrol->Republic customs patrol). Guard: tests/test_tutorial_v2_era_cleanness.py walks the LIVE chain objects with no allow-list + pins the two chains dormant. REBEL_CELL/IMPERIAL_SERVICE definitions + dispatch remain in source (unreachable).",
+      "fork": "What is the PERMANENT disposition of the two dormant GCW chains (REBEL_CELL, IMPERIAL_SERVICE)? They are currently inert but their off-era source strings still live in engine/tutorial_v2.py.",
+      "options": [
+        "A) DELETE them outright (definitions + dispatch + status + _can_start + the GCW flag) — cleanest era-cleanness, loses ~190 lines of GCW content that would need full re-authoring if a GCW era is ever added.",
+        "B) KEEP dormant as-is (current state) — content preserved for a future GCW era behind the flag; off-era strings remain in source but unreachable. Lowest effort, mild source-hygiene cost.",
+        "C) CW-REWRITE them into era-appropriate Clone Wars profession chains (e.g. a Republic Intelligence arc replacing Imperial Service; a Separatist-sympathizer or neutral-faction arc replacing Rebel Cell) — most content value, most effort, needs design + a reachability/era pass."
+      ],
+      "recommendation": "B for now (already shipped, invariant restored), then C as a post-launch content drop IF the legacy profession-chain system is being kept. If the tutorial_v2 profession-chain system is slated for deprecation in favor of the chains.yaml questline engine, then A (delete) is correct. NEEDS Brian: is the tutorial_v2 profession-chain system staying, or being migrated to chains.yaml?",
+      "related": "Broader: the same surgical-era-test blind spot means other hardcoded-Python content modules may carry uncaught off-era strings. A follow-up could add a broad (allow-listed) AST era scan over engine/*.py player-facing string constants, complementing the curated test. Logged as a candidate, not done here."
+    }
+  ],
   "design_calls_resolved_recent": [
     {
       "id": "BALANCE.encounter_spawn_count_range",
