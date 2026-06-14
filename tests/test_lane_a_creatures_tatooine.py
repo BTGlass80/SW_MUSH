@@ -77,10 +77,23 @@ class TestCreatureLibrary(unittest.TestCase):
                  "knowledge", "mechanical", "technical"},
                 f"{n['id']} attribute keys",
             )
-            # Beasts have no knowledge/mechanical/technical (faithful + stops a
-            # future loader defaulting them to 2D).
-            for a in ("knowledge", "mechanical", "technical"):
-                self.assertEqual(attrs[a], "0D", f"{n['id']}.{a}")
+            # Non-intelligent creatures (beasts) have no knowledge/mechanical/
+            # technical — faithful to the WEG creature convention and stops a
+            # future loader defaulting them to 2D. SENTIENT spawn templates
+            # (Tusken Raiders, underworld thugs) are tagged `intelligent: true`
+            # and carry real KNO/MEC/TEC, so the 0D rule applies to beasts only.
+            if not n.get("intelligent"):
+                for a in ("knowledge", "mechanical", "technical"):
+                    self.assertEqual(attrs[a], "0D", f"{n['id']}.{a}")
+            else:
+                # An intelligent template must actually USE the exemption (a
+                # beast mistagged `intelligent` would silently lose the 0D guard).
+                self.assertTrue(
+                    any(attrs[a] != "0D"
+                        for a in ("knowledge", "mechanical", "technical")),
+                    f"{n['id']} is tagged intelligent but has 0D KNO/MEC/TEC "
+                    f"— drop the flag or give it real attributes",
+                )
             self.assertIn("natural_attack", n, f"{n['id']} natural_attack")
             self.assertTrue(n.get("description"), f"{n['id']} description")
             self.assertTrue(n.get("source"), f"{n['id']} source")

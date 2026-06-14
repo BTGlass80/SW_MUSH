@@ -57,6 +57,7 @@ PORTAL_HTML = os.path.join(PROJECT_ROOT, "static", "portal.html")
 # fails loudly rather than silently routing guides into "Other".
 KNOWN_CATEGORIES = {
     "foundations", "combat", "galaxy", "economy", "paths", "community",
+    "admin",   # Guide_27_Administration (access_level 3, admin-only)
 }
 
 
@@ -91,11 +92,12 @@ class TestGuideFrontmatterAudit(unittest.TestCase):
         )
 
     def test_expected_guide_count(self):
-        """24 guides currently ship. The number is asserted exactly so
-        adding or removing a guide is a deliberate test edit."""
+        """25 guides currently ship (24 player + Guide_27 Administration,
+        admin-only). The number is asserted exactly so adding or removing a
+        guide is a deliberate test edit."""
         self.assertEqual(
-            len(self.files), 24,
-            f"expected 24 guides in {GUIDES_DIR}, found {len(self.files)}: "
+            len(self.files), 25,
+            f"expected 25 guides in {GUIDES_DIR}, found {len(self.files)}: "
             f"{self.files}"
         )
 
@@ -215,8 +217,8 @@ class TestLoaderBehaviour(unittest.TestCase):
         wp._load_guides()
         self.wp = wp
 
-    def test_all_24_guides_loaded(self):
-        self.assertEqual(len(self.wp._GUIDE_INDEX), 24)
+    def test_all_25_guides_loaded(self):
+        self.assertEqual(len(self.wp._GUIDE_INDEX), 25)
 
     def test_all_present_categories_in_payload(self):
         """Every category that has at least one guide is in
@@ -354,6 +356,71 @@ class TestGuideEndpoints(unittest.TestCase):
         req = _FakeReq(match_info={"slug": "totally-not-a-real-guide"})
         resp = _run(self.api.handle_guide_content(req))
         self.assertEqual(resp.status, 404)
+
+
+# ── C2. Admin-guide access gating ──────────────────────────────────────────
+
+class TestGuideAccessGating(unittest.TestCase):
+    """An admin-only guide (frontmatter ``access_level: 3``) must be hidden from
+    a player in the index AND 404 on direct slug access, but visible to admins.
+    Pins the Guide_27 Administration gating (PRELAUNCH.help_guides_rework)."""
+
+    ADMIN_SLUG = "administration"   # Guide_27_Administration.md → 'administration'
+
+    def setUp(self):
+        import importlib
+        import server.web_portal as wp
+        importlib.reload(wp)
+        self.wp = wp
+        wp._load_guides()
+        self.api = wp.PortalAPI(db=None, session_mgr=None, game=None)
+
+    def _patch_level(self, level):
+        """Force _caller_max_access_level to a fixed level (bypass DB/auth)."""
+        async def _fixed(_request):
+            return level
+        self.api._caller_max_access_level = _fixed
+
+    def test_admin_guide_is_loaded_with_access_level_3(self):
+        entry = next((g for g in self.wp._GUIDE_INDEX
+                      if g["slug"] == self.ADMIN_SLUG), None)
+        self.assertIsNotNone(entry, "Administration guide not loaded")
+        self.assertEqual(entry.get("access_level"), 3)
+        self.assertEqual(entry.get("category"), "admin")
+
+    def test_player_index_excludes_admin_guide(self):
+        self._patch_level(self.wp._ACCESS_PLAYER)
+        body = json.loads(_run(self.api.handle_guides(_FakeReq())).body)
+        slugs = [g["slug"] for g in body["guides"]]
+        self.assertNotIn(self.ADMIN_SLUG, slugs)
+        self.assertEqual(len(body["guides"]), 24)
+        # The admin category header must not appear for a player either.
+        self.assertNotIn("admin", [c["key"] for c in body["categories"]])
+
+    def test_admin_index_includes_admin_guide(self):
+        self._patch_level(self.wp._ACCESS_ADMIN)
+        body = json.loads(_run(self.api.handle_guides(_FakeReq())).body)
+        slugs = [g["slug"] for g in body["guides"]]
+        self.assertIn(self.ADMIN_SLUG, slugs)
+        self.assertEqual(len(body["guides"]), 25)
+        self.assertIn("admin", [c["key"] for c in body["categories"]])
+
+    def test_player_direct_slug_access_404s(self):
+        """A player hitting the admin guide's slug directly gets a 404 — the
+        guide's existence is not leaked."""
+        self._patch_level(self.wp._ACCESS_PLAYER)
+        req = _FakeReq(match_info={"slug": self.ADMIN_SLUG})
+        resp = _run(self.api.handle_guide_content(req))
+        self.assertEqual(resp.status, 404)
+
+    def test_admin_direct_slug_access_succeeds(self):
+        self._patch_level(self.wp._ACCESS_ADMIN)
+        req = _FakeReq(match_info={"slug": self.ADMIN_SLUG})
+        resp = _run(self.api.handle_guide_content(req))
+        self.assertEqual(resp.status, 200)
+        body = json.loads(resp.body)
+        self.assertEqual(body["slug"], self.ADMIN_SLUG)
+        self.assertTrue(body["content"])
 
 
 # ── D. Portal HTML contract ────────────────────────────────────────────────

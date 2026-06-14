@@ -19,11 +19,21 @@
 # that every payload.npc_template in the live regions resolves to an `id` here
 # (a validated contract, not a dead drop).
 #
-# ── DEDUP ───────────────────────────────────────────────────────────────────
-# The R&E core appendix (WEG40120) already ships bantha, dewback, krayt,
-# tauntaun, rancor, ronto, eopie, mynock, ghest, etc. Those are NOT re-stated
-# here (the existing dune_sea pool already references `dewback`). COTG is
-# purely additive over the core, so everything below is net-new.
+# ── SPAWN RESOLUTION (read before assuming a creature "already exists") ──────
+# The runtime spawn bridge resolves `payload.npc_template` ONLY through
+# engine.creature_library.get_creature, which loads ONLY this file. There is NO
+# loader that reads creature stats out of a sourcebook appendix. So a creature
+# referenced by a live hostile/non_hostile encounter MUST have an `id:` entry
+# HERE or the encounter fires its narrative and spawns NOTHING
+# (wilderness_encounter_runtime.spawn_encounter_creatures returns [] on a miss).
+# An earlier note here wrongly assumed R&E-core beasts (dewback, etc.) resolved
+# without an entry "because the core ships them" — they do not; that gap left
+# dewback / tusken_warrior / maze_predator / underworld_thug as phantom
+# producers until this drop added them below. The contract guard is
+# tests/test_wilderness_encounter_template_resolution.py (walks every live
+# region; fails on any dangling template). COTG (WEG40080) remains the stat
+# source for the original Lane-A beasts; the four core/bespoke entries added in
+# this drop are calibrated to the R&E creature/NPC conventions in WEG40120.
 #
 # ── SCHEMA (per creature) ────────────────────────────────────────────────────
 #   id              short key; the encounter payload.npc_template value
@@ -835,3 +845,188 @@ npcs:
       - "Distraction: a target engulfed suffers a penalty to actions (calibrate on the dev box)."
       - "Screens and scouts for its host merdeth; disperses if the host dies."
     source: "Geonosis & Outer Rim (WotC d20) §1.8 — D6 re-stat from scratch; calibrate on dev box."
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Phantom-producer closure (2026-06-13): four creatures referenced by LIVE
+  # encounters whose templates did not resolve (the encounter fired narrative
+  # but spawned nothing). dewback + tusken_warrior wire dune_sea.yaml; maze_
+  # predator + underworld_thug wire coruscant_underworld.yaml. See the SPAWN
+  # RESOLUTION note in the header for why a sourcebook-canon creature still has
+  # to live in THIS file to spawn.
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Dewback ───────────────────────────────────────────────────────────────
+  # Consumer: dune_sea.yaml `dewback_herd` (non_hostile, count [3,6]).
+  - id: dewback
+    name: Dewback
+    species: Dewback
+    scale: creature
+    size: "2-2.5m at the shoulder"
+    hostile: false          # docile reptilian pack/riding beast; fights only if cornered
+    pack_count: [3, 6]
+    description: >-
+      A heavy, four-legged desert reptile the colour of weathered sandstone,
+      thick-tailed and slow-blinking. Dewbacks are docile beasts of burden —
+      the moisture farmers and Tusken bands of the Dune Sea ride them where a
+      repulsorlift would choke on grit. Left alone they amble and graze; pressed
+      into a corner, the tail comes around like a dropped girder. Their pebbled
+      hide turns a glancing blow that would open softer skin.
+    char_sheet:
+      attributes:
+        dexterity: 1D+2
+        perception: 1D
+        strength: 5D          # between the Ukian torbull (4D) and the bantha (8D), per the R&E pack-beast family
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills:
+        brawling: 3D+2        # the tail-lash / bite when provoked
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: tail and bite
+      to_hit_skill: brawling
+      damage: "STR+1D"        # STR 5D -> 6D when it does lash out
+    special:
+      - "Riding beast: an orneriness-coded mount in WEG; the spawn path uses it only as fauna."
+      - "Thick scaled hide turns light blows (flavor; creature-armour soak is not wired in the spawn path)."
+    source: "WEG D6 dewback (Galaxy Guide 1 / Creatures of the Galaxy); the block is not in the on-box WEG40120 PDF, so stats are calibrated to the statted R&E pack-beast family in WEG40120 ch. Creatures (bantha STR 8D, Ukian torbull STR 4D + tough hide, tauntaun STR 4D). Confirm on the dev box if the GG1 block is recovered."
+
+  # ── Tusken Warrior ──────────────────────────────────────────────────────────
+  # Consumer: dune_sea.yaml `tusken_scout_party` (hostile, count [2,3]) and
+  # `tusken_war_party` (hostile, count [4,6], min_band 3). SENTIENT — carries
+  # real KNO/MEC/TEC (see `intelligent: true`), unlike the beasts above.
+  - id: tusken_warrior
+    name: Tusken Raider
+    species: Tusken Raider
+    scale: character
+    intelligent: true        # sentient: exempt from the non-intelligent 0D-KMT contract
+    hostile: true
+    pack_count: [2, 3]        # scout party; the war party overrides via payload.count [4,6]
+    description: >-
+      A desert warrior wrapped head to foot in stained bandages and salvaged
+      cloth, eye-lenses and a breath-mask hiding any face beneath. Tuskens move
+      in disciplined bands across the Dune Sea, gaderffii sticks held ready and
+      a settler's stolen slugthrower slung across the back. They do not parley
+      with offworlders. The bandages and the silence are the only warning you
+      will get before the first one is already inside your guard.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        perception: 3D
+        strength: 3D
+        knowledge: 2D         # desert lore, raiding craft
+        mechanical: 2D        # bantha riding
+        technical: 1D+2       # jury-rigging stolen settler tech
+      skills:
+        melee combat: 4D      # the gaderffii
+        brawling: 3D+2
+        dodge: 3D+1
+        firearms: 3D+1        # the prized stolen slugthrower / cycler rifle
+        sneak: 3D+2           # desert ambush
+        survival: 4D
+        intimidation: 3D
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: gaderffii
+      to_hit_skill: melee combat
+      damage: "STR+1D"        # STR 3D -> 4D; the brutal two-headed gaffi stick, kept conservative
+    special:
+      - "Carries a stolen slugthrower (cycler rifle) as a ranged option; modelled as flavor — the spawn fights with the gaderffii."
+      - "Hunts in coordinated bands; the war party (4-6) is a deep-desert, Contested-Marches+ threat."
+    source: "D6 stats from scratch per docs/design/secrets_of_tatooine_extraction_v1.md (SoT is d20; that block is discarded under the WEG-only invariant). Calibrated to the R&E NPC-template conventions in WEG40120 (e.g. the trained-trooper template: DEX 3D, STR 3D+1, brawling 4D+1)."
+
+  # ── Maze Predator ─────────────────────────────────────────────────────────
+  # Consumer: coruscant_underworld.yaml `maze_ambush` (hostile, count [3,5],
+  # min_band 3). Bespoke Coruscant-deep-level pack predator; the scaled-up
+  # versions are engine/wilderness_anomalies.py maze_predator_outbreak (T2) and
+  # maze_predator_apex (T3). This is the base pack member.
+  - id: maze_predator
+    name: Maze Predator
+    species: Maze Predator
+    scale: creature
+    hostile: true
+    pack_count: [3, 5]
+    description: >-
+      Low to the ground, grey as the ferrocrete it hunts across, a maze predator
+      is all shoulder and jaw — a pack carnivore bred by a hundred generations of
+      the abandoned deep levels into something fast, silent and patient. They run
+      down prey in coordinated packs, eyes catching what little light filters
+      through the grates, and the first sign you have of them is usually the musk
+      and ozone smell a heartbeat before they break cover. Singly dangerous; in a
+      pack, the reason the lower warrens are quiet.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        perception: 3D+1
+        strength: 4D
+        knowledge: 0D
+        mechanical: 0D
+        technical: 0D
+      skills:
+        brawling: 4D+2        # fangs and foreclaws
+        sneak: 4D             # ambush from the dark
+        search: 4D            # tracks prey by scent and vibration
+      move: 13                # fast — runs prey down
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: fangs and foreclaws
+      to_hit_skill: brawling
+      damage: "STR+1D"        # STR 4D -> 5D; deadly in the pack of 3-5 the encounter spawns
+    special:
+      - "Pack hunter: maze predators attack in coordinated packs (3-5); isolating one is the only mercy."
+      - "Ambush from darkness: undetected approach is their advantage (flavor; calibrate on the dev box)."
+    source: "Bespoke Coruscant Underworld creature (D6 from scratch). Anchored to the in-repo anomaly canon (engine/wilderness_anomalies.py maze_predator_outbreak / maze_predator_apex — the T2/T3 escalations) and the R&E predator conventions in WEG40120 ch. Creatures (ghest/wampa family)."
+
+  # ── Underworld Thug ─────────────────────────────────────────────────────────
+  # Consumer: coruscant_underworld.yaml `gang_patrol` (hostile, count [2,4]).
+  # SENTIENT — carries real KNO/MEC/TEC (see `intelligent: true`). Named in
+  # docs/design/difficulty_tiers_design_v1.md as the canonical Frontier-tier
+  # urban hostile.
+  - id: underworld_thug
+    name: Underworld Thug
+    species: Human
+    scale: character
+    intelligent: true        # sentient: exempt from the non-intelligent 0D-KMT contract
+    hostile: true
+    pack_count: [2, 4]
+    description: >-
+      Gang muscle from the lower levels — tattooed knuckles, mismatched armour
+      scraps over a flightsuit, a blaster pistol already clearing its holster.
+      The underworld's gangs run these toughs in packs of two to four to work a
+      corridor, lean on a stranger, and take what isn't bolted down. Not trained,
+      not subtle, but there are always more of them and they shoot first.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        perception: 2D+1
+        strength: 3D
+        knowledge: 2D         # streetwise
+        mechanical: 1D+2
+        technical: 2D         # cracking a lock, jury-rigging a sidearm
+      skills:
+        blaster: 3D+1
+        brawling: 3D+2
+        dodge: 3D
+        melee combat: 3D+1    # the vibroblade backup
+        streetwise: 4D
+        intimidation: 3D+1
+      move: 10
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    natural_attack:
+      name: blaster pistol
+      to_hit_skill: blaster
+      damage: "4D"            # standard WEG blaster pistol; absolute (independent of STR)
+    special:
+      - "Armed: blaster pistol (4D) with a vibroblade backup; gangs travel 2-4 strong."
+      - "Black Sun / Pyke street-level muscle — the canonical Frontier-tier underworld hostile."
+    source: "D6 stats from scratch — R&E NPC-template conventions in WEG40120 (trained-trooper / pirate-sentry templates: DEX 3D, STR 3D, blaster 3D+1, brawling 3D+2). Flavor from GG11 Criminal Organizations + the Coruscant underworld lore."

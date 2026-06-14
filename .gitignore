@@ -18,6 +18,9 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+
+# ── Lore-ingestion scratch (review files + logs; canonical home is lore.yaml) ──
+ingest_review/
 .eggs/
 
 # ── Virtual environment ───────────────────────────────────────
@@ -25,6 +28,13 @@ venv/
 .venv/
 env/
 .env/
+
+# ── Node / VSCode-extension deps ──────────────────────────────
+# node_modules is pulled in by the Claude Code VSCode extension's npm install.
+# It must never be committed (~25 MB of deps) and must never reach the AI upload
+# zip (make_upload_zip.ps1 drives its file list from git, so this line keeps the
+# ~1,500 dep files out automatically). package.json / package-lock.json DO ship.
+node_modules/
 
 # ── OS / Editor ───────────────────────────────────────────────
 .DS_Store

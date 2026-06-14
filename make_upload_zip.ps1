@@ -1,46 +1,53 @@
 # ============================================================================
 # make_upload_zip.ps1 -- Build a clean upload zip for Claude/AI sessions.
 #
-# Strips bloat that .gitignore already knows about but Compress-Archive
-# (and File Explorer's "Send to > Compressed folder") do NOT honor:
+# WHAT IT SHIPS (2026-06-12 rewrite): exactly the files git considers part of
+# the project -- tracked files PLUS new untracked work -- and nothing git
+# ignores. The file list comes from git, not a whole-tree walk + blacklist:
 #
-#   - venv/                     (~37 MB, never needed in chat)
-#   - .git/                     (~24 MB, full git history)
-#   - __pycache__/ everywhere   (~9 MB, regenerated on first import)
-#   - .pytest_cache/            (test runner cache)
-#   - *.pyc                     (compiled bytecode)
-#   - *.log                     (test/runtime logs)
-#   - *.db, *.db-wal, *.db-shm  (live SQLite database)
+#     git ls-files                          (everything tracked)
+#   + git ls-files --others --exclude-standard   (new files not yet committed,
+#                                                  e.g. a drop you haven't
+#                                                  committed yet)
 #
-#   *** NEW (2026-05-30): static/maps/ painted substrates ***
-#   The six *_substrate.png paintings are ~9.3 MB raw and ~9 MB even
-#   zipped (PNG is already compressed), i.e. the bulk of the upload.
-#   They are LIVE runtime assets (declared in area YAML, loaded by
-#   engine/area_loader.py) -- so they stay on disk and in git -- but
-#   the AI session does not need the binaries to work on code/design.
-#   Excluding them takes the upload from ~15 MB to ~5 MB with zero
-#   semantic loss. When a specific map's painting matters for a
-#   session, attach that one PNG to the chat directly.
+# Because .gitignore is the authority, ALL of the bloat is excluded for free,
+# now and for any FUTURE bloat, with no list to maintain:
 #
-#   Need them in the zip anyway?  ->  .\make_upload_zip.ps1 -IncludeMaps
+#   - venv/ (~87 MB)            - node_modules/ (~25 MB, VSCode ext deps)
+#   - .git/ (~24 MB)            - docs/sourcebooks/ (~23 MB WEG PDFs, copyright)
+#   - __pycache__/, *.pyc       - .pytest_cache/, .mypy_cache/, .ruff_cache/
+#   - *.db / *.db-wal / *.db-shm (live SQLite)   - *.log
 #
-# Result: ~36 MB raw tree -> ~5 MB upload zip. Faster uploads, lower
-# token cost, no semantic loss -- everything stripped is regenerable,
-# lives in git, or can be attached on demand.
+# The OLD script walked the entire 36 MB+ tree and hand-excluded a fixed list;
+# when node_modules/ and the sourcebook PDF appeared (untracked, so NOT on the
+# list) the zip ballooned 5 MB -> 30 MB+. Driving the list from git fixes that
+# class of regression permanently: anything .gitignore knows about can never
+# leak in again.
+#
+# MAP SUBSTRATES: static/maps/*_substrate.png are tracked (live runtime assets)
+# but are ~9 MB of already-compressed PNG that an AI session doesn't need to
+# work on code/design. Excluded by default; -IncludeMaps ships them. When one
+# specific map's painting matters, attach that PNG to the chat directly.
+#
+# Result: ~5 MB upload zip, no semantic loss -- everything omitted is in git,
+# regenerable, or attachable on demand.
 #
 # Usage (from C:\SW_MUSH):
-#   .\make_upload_zip.ps1                 # default: maps excluded
-#   .\make_upload_zip.ps1 -IncludeMaps    # include the substrates
+#   .\make_upload_zip.ps1                 # default: full tracked source, maps excluded (~8 MB)
+#   .\make_upload_zip.ps1 -Lean           # also drop tests/ -- progress/design review (~6 MB)
+#   .\make_upload_zip.ps1 -IncludeMaps    # add the static/maps substrates back (~17 MB)
+#   .\make_upload_zip.ps1 -Lean -IncludeMaps   # flags compose
 #
 # Output:
 #   %USERPROFILE%\Downloads\SW_MUSH_upload_<timestamp>.zip
 #
 # To verify what's in the zip without extracting:
-#   Get-ChildItem ..\SW_MUSH_upload_*.zip | Select-Object Length,Name
+#   Get-ChildItem $env:USERPROFILE\Downloads\SW_MUSH_upload_*.zip | Select-Object Length,Name
 # ============================================================================
 
 param(
-    [switch]$IncludeMaps   # opt back in to shipping static/maps/*.png
+    [switch]$IncludeMaps,  # opt back in to shipping static/maps/*.png
+    [switch]$Lean          # drop tests/ (the suite source) for a smaller progress-review zip
 )
 
 $ErrorActionPreference = 'Stop'
@@ -56,13 +63,18 @@ try {
         Write-Error "Doesn't look like SW_MUSH root (no main.py + engine/). Aborting."
         exit 1
     }
+    # Sanity: we drive the file list from git, so we must be in a git work tree.
+    & git rev-parse --is-inside-work-tree *> $null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Not inside a git work tree -- this script builds the file list from 'git ls-files'. Aborting."
+        exit 1
+    }
 
     $timestamp = Get-Date -Format 'yyyyMMdd_HHmm'
     $zipPath = Join-Path $env:USERPROFILE "Downloads\SW_MUSH_upload_$timestamp.zip"
-    # Remove old zip with same timestamp if present (safety)
     if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 
-    Write-Host "=== Building clean upload zip ===" -ForegroundColor Cyan
+    Write-Host "=== Building clean upload zip (git-driven file list) ===" -ForegroundColor Cyan
     Write-Host "Source:      $projectRoot"
     Write-Host "Destination: $zipPath"
     if ($IncludeMaps) {
@@ -70,80 +82,68 @@ try {
     } else {
         Write-Host "Maps:        excluded (static/maps/ substrates skipped)" -ForegroundColor Gray
     }
+    if ($Lean) {
+        Write-Host "Tests:       excluded (-Lean -- progress/design review zip)" -ForegroundColor Yellow
+    } else {
+        Write-Host "Tests:       included (pass -Lean to drop the suite source)" -ForegroundColor Gray
+    }
     Write-Host ""
 
-    # Patterns to exclude (matched against full relative path with backslashes)
-    $excludePatterns = @(
-        '\\venv\\',
-        '\\\.git\\',
-        '\\__pycache__\\',
-        '\\\.pytest_cache\\',
-        '\\\.mypy_cache\\',
-        '\\\.ruff_cache\\'
-    )
+    # ---- File list = tracked + new-untracked, straight from git --------------
+    # git ls-files                       -> all tracked files
+    # git ls-files --others --exclude-standard -> untracked files NOT ignored by
+    #   .gitignore (so a drop you've written but not committed still ships, while
+    #   venv/node_modules/sourcebooks/caches stay out automatically).
+    Write-Host "Resolving file list from git..." -ForegroundColor Gray
+    $tracked   = & git ls-files
+    $untracked = & git ls-files --others --exclude-standard
+    $relList   = @($tracked) + @($untracked) | Where-Object { $_ -and ($_.Trim().Length -gt 0) } | Sort-Object -Unique
 
-    # The painted map substrates -- the bulk of the upload weight.
-    # Skipped by default; -IncludeMaps puts them back.
+    # Map-substrate exclusion (the one thing we drop that git DOES track).
     if (-not $IncludeMaps) {
-        $excludePatterns += '\\static\\maps\\'
+        $relList = $relList | Where-Object { $_ -notmatch '^static/maps/' }
     }
 
-    $excludeExtensions = @(
-        '.pyc',
-        '.pyo',
-        '.log',
-        '.db',
-        '.db-wal',
-        '.db-shm'
-    )
+    # Lean mode: drop the test suite source (tests/ is ~7 MB, ~28% of the zip).
+    # The AI session needs it to debug a specific failing test, but NOT to weigh
+    # in on progress/design -- the common case. Default ships tests; -Lean omits.
+    if ($Lean) {
+        $relList = $relList | Where-Object { $_ -notmatch '^tests/' }
+    }
 
-    Write-Host "Scanning files..." -ForegroundColor Gray
-    $allFiles = Get-ChildItem -Path $projectRoot -Recurse -File -Force
-
-    $kept = New-Object System.Collections.Generic.List[System.IO.FileInfo]
-    foreach ($f in $allFiles) {
-        $rel = $f.FullName.Substring($projectRoot.Length)
-
-        # Path-segment excludes
-        $skip = $false
-        foreach ($pat in $excludePatterns) {
-            if ($rel -match $pat) { $skip = $true; break }
+    # git returns forward-slash relative paths; resolve to files on disk and
+    # skip any that vanished between the git call and now (rare, but safe).
+    $kept = New-Object System.Collections.Generic.List[object]
+    $missing = 0
+    foreach ($rel in $relList) {
+        $full = Join-Path $projectRoot ($rel -replace '/', '\')
+        if (Test-Path -LiteralPath $full -PathType Leaf) {
+            $kept.Add([pscustomobject]@{ Rel = $rel; Full = (Resolve-Path -LiteralPath $full).Path }) | Out-Null
+        } else {
+            $missing++
         }
-        if ($skip) { continue }
-
-        # Extension excludes
-        if ($excludeExtensions -contains $f.Extension.ToLower()) { continue }
-
-        $kept.Add($f) | Out-Null
     }
 
-    $totalSize = ($kept | Measure-Object -Property Length -Sum).Sum
+    $totalSize = ($kept | ForEach-Object { (Get-Item -LiteralPath $_.Full).Length } | Measure-Object -Sum).Sum
     $totalMB = [math]::Round($totalSize / 1MB, 2)
 
     Write-Host "Files included: $($kept.Count)" -ForegroundColor Green
+    if ($missing -gt 0) { Write-Host "Skipped (listed by git but not on disk): $missing" -ForegroundColor DarkGray }
     Write-Host "Uncompressed:   $totalMB MB" -ForegroundColor Green
     Write-Host ""
     Write-Host "Compressing..." -ForegroundColor Gray
 
-    # Compress-Archive needs a relative-path layout to keep folder structure clean.
-    # We stage paths relative to projectRoot.
-    $relativePaths = $kept | ForEach-Object {
-        $_.FullName.Substring($projectRoot.Length + 1)
-    }
-
-    # Compress-Archive can't take 8000+ paths cleanly on every Windows version,
-    # so use .NET ZipFile directly for reliability.
+    # Use .NET ZipFile directly (Compress-Archive chokes on thousands of paths).
     Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
 
     $zip = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
     try {
         foreach ($f in $kept) {
-            $rel = $f.FullName.Substring($projectRoot.Length + 1).Replace('\','/')
-            $entry = $zip.CreateEntry($rel, [System.IO.Compression.CompressionLevel]::Optimal)
+            $entry  = $zip.CreateEntry($f.Rel, [System.IO.Compression.CompressionLevel]::Optimal)
             $stream = $entry.Open()
             try {
-                $bytes = [System.IO.File]::ReadAllBytes($f.FullName)
+                $bytes = [System.IO.File]::ReadAllBytes($f.Full)
                 $stream.Write($bytes, 0, $bytes.Length)
             } finally {
                 $stream.Dispose()
@@ -161,7 +161,12 @@ try {
     Write-Host "Zip size:    $zipMB MB" -ForegroundColor Green
     Write-Host "Output:      $zipPath" -ForegroundColor Green
     Write-Host ""
-    Write-Host "Upload this file to Claude. The previous zip is no longer needed." -ForegroundColor Yellow
+    if ($zipMB -gt 25) {
+        Write-Host "WARNING: zip is unexpectedly large (>25 MB). Something tracked-or-new is heavy --" -ForegroundColor Red
+        Write-Host "         run:  git ls-files | % { [pscustomobject]@{ MB=[math]::Round((Get-Item `$_ -EA SilentlyContinue).Length/1MB,2); F=`$_ } } | sort MB -desc | select -First 15" -ForegroundColor Red
+    } else {
+        Write-Host "Upload this file to Claude. The previous zip is no longer needed." -ForegroundColor Yellow
+    }
 }
 finally {
     Pop-Location

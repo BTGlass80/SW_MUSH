@@ -1,0 +1,541 @@
+# Ingested lore — REVIEW before appending to data/worlds/clone_wars/lore.yaml
+# 45 clean entr(ies); 13 flagged (shown commented-out at the bottom for manual era-translation).
+
+  - title: "Jury-Rigging Equipment"
+    keywords: "jury-rig,modify,improve,breakdown,malfunction,repair,tinker"
+    category: "concept"
+    priority: 5
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Field modification of equipment — called jury-rigging — can temporarily boost a device's performance by up to 3D, but the improvement is unreliable. Jury-rigged equipment has a chance of breakdown every time it is used. The more powerful the modification, the greater the risk. Modifications take about an hour, or one minute if rushed at higher difficulty. When jury-rigged equipment fails, weapons may explode, vehicles may lose power, and non-lethal devices simply stop working.
+
+  - title: "Transponder Codes"
+    keywords: "transponder,code,identity,ship,boss,registration,signal"
+    category: "concept"
+    priority: 6
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Every starship has a unique transponder code burned into its sublight engine. The code broadcasts the ship's name, type, owner, and registration data continuously. The code is extremely difficult to alter because it is embedded in the engine itself — tampering can fuse the wiring irreparably. False transponder codes can be added by analyzing the ship's signal and overlaying matching frequencies, but more than three false codes begin to bleed into each other and look suspicious on scanners.
+
+  - title: "Cybernetic Enhancements"
+    keywords: "cybernetics,prosthetic,enhancement,cyborg,implant,machine"
+    category: "concept"
+    priority: 4
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Cybernetic enhancements are available but deeply stigmatized across the galaxy. The average citizen fears the blurring line between being and machine. People with visible prosthetics face discrimination and curtailment of civil rights. Enhanced beings often hide their modifications. The technology improves physical abilities but reportedly reduces empathy and emotional connection. Force users with cybernetics find it harder to tap the Force and are more vulnerable to the Dark Side.
+
+  - title: "How Blasters Work"
+    keywords: "blaster,gas,xciter,galven,power pack,tibanna,bolt"
+    category: "concept"
+    priority: 4
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Blasters fire by exciting gas in a chamber. The trigger opens the energy converter valve, releasing gas into the XCiter where it is energized by the power pack. The excited gas passes through the Actuating Blaster Module and is focused by the galven pattern in the barrel into a beam of intense energy. The visible light is a byproduct — the energy itself is what causes damage. Different gases produce different power levels and bolt colors. Tibanna gas from Cloud City is among the most powerful but hardest to acquire.
+
+  - title: "Computer Data Files in the Galaxy"
+    keywords: "computer,data,file,datapad,holistic,hdt,slicing,portable"
+    category: "concept"
+    priority: 4
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Computer data files in the Star Wars galaxy use Holistic Data Transfer languages — AI-enhanced shorthand that lets files provide more information than they literally contain by making educated deductions. Files are rated by die codes from 1D to 13D, with higher ratings exponentially more expensive. A 4D file costs 1,000 credits while a 10D file costs 100,000. Pocket datapads store up to 5D of files, portable computers up to 20D, and capital starship computers up to 30D. MicroThrust portable computers can add their power rating as bonus dice to a programmer's skill.
+
+  - title: "The Worrt"
+    keywords: "worrt,tatooine,desert,tongue,predator,pest"
+    category: "concept"
+    priority: 4
+    planet: "all"
+    surface_affinity: "general"
+    zone_scope: "tatooine_outskirts,tatooine_mos_eisley"
+    content: |
+      Worrts are blindly stupid desert ambush predators on Tatooine. Squat and toad-like, they sit motionless and snap a long tongue at anything their own size or smaller. They are harmless to a grown Humanoid but a constant nuisance in the wastes and around the cartel's holdings.
+
+  - title: "Yeomet Vermin"
+    keywords: "yeomet,vermin,station,ship,cable,pest,nar shaddaa,underworld"
+    category: "concept"
+    priority: 4
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Yeomets are reptilian vermin that thrive on built worlds, ships, and stations. They chew through cables and conduits, spread disease, and breed in non-hierarchical herds. Exterminators who track and clear them are well respected in the lower levels.
+
+  - title: "The Bounty Hunter Creed"
+    keywords: "bounty,hunter,creed,acquisition,code,ethics,honor"
+    category: "faction"
+    priority: 6
+    planet: "all"
+    surface_affinity: "dialogue"
+    content: |
+      Most bounty hunters adhere to an unwritten code of ethics called the Bounty Hunter Creed. Three rules define it. First: People Don't Have Bounties, Only Acquisitions Have Bounties — once a bounty is posted, the target loses their rights and becomes an 'acquisition.' Second: Capture By Design, Kill By Necessity — killing is business, but unnecessary killing is murder. Third: No Hunter Shall Slay Another Hunter — hunters consider themselves a special breed and never take up arms against a fellow hunter who follows the creed. Those who break the creed become acquisitions themselves.
+
+  - title: "The SEPI Principle"
+    keywords: "sepi,selection,evaluation,preparation,implementation,hunt,method,bounty"
+    category: "faction"
+    priority: 4
+    planet: "all"
+    surface_affinity: "dialogue"
+    content: |
+      Experienced bounty hunters follow the SEPI principle — Selection, Evaluation, Preparation, and Implementation. Selection means choosing the right target based on bounty value, danger, and the hunter's strengths. Evaluation means researching the target's habits, associates, hideouts, and capabilities. Preparation means acquiring permits, equipment, transportation, and local contacts before beginning the hunt. Implementation is the hunt itself. Hunters who skip steps — especially Evaluation and Preparation — tend to end up dead.
+
+  - title: "Criminal Organization Tiers"
+    keywords: "crime,gang,cartel,syndicate,guild,organization,turf,underworld,scale"
+    category: "faction"
+    priority: 6
+    planet: "all"
+    surface_affinity: "dialogue"
+    content: |
+      Criminal groups come in five sizes, defined by scope. A TERRITORIAL GANG controls a few rackets in a finite area, usually one city or district (bookmaking, protection, extortion); most are urban and openly competitive, fighting turf wars over boundaries. A CRIME GUILD pools the talent of specialists across many systems toward one trade (slaving, smuggling), assigning members exclusive zones and buying off competition rather than holding ground. A CARTEL spans multiple systems and sectors to monopolize a single commodity or activity (spice, gunrunning), ruled by a central committee that uses monopoly profits to buy influence. A SYNDICATE is an alliance of cartels controlling ALL criminal activity in a region, often with members seated in local government. A CRIMINAL EMPIRE combines all of the above into one conspiracy; the Hutt kajidics are the archetype. The test is the group's aim: limited rackets in a finite area = gang; corner one market broadly = cartel; control everything broadly = syndicate.
+
+  - title: "Criminal Occupations"
+    keywords: "criminal,occupation,assassin,enforcer,fence,slicer,fixer,counterfeiter,informant,marketeer"
+    category: "faction"
+    priority: 5
+    planet: "all"
+    surface_affinity: "dialogue"
+    content: |
+      The underworld runs on specialists. An ASSASSIN (called 'exterminator' on the Rim, 'problem solver' in the Corporate Sector) eliminates targets for hire. An ENFORCER is criminal muscle — back-alley thugs who keep the rabble in line through fear. A BLACK MARKETEER moves contraband through covert networks, respectable by day. A DEALMAKER (fence) buys stolen goods low and sells high behind a legitimate business front. A SLICER breaks unbreakable computer systems; a DATA FIXER blends slicing and forgery to insert falsified records and erase their tracks. A COUNTERFEITER mass-produces forged currency. An INFORMANT sells hard data for hard credits — the trick is selling the same information to multiple buyers without either learning of the other. A LOAN SHARK lends at 300-500% interest with violent collection. A SPICE-JACKER hijacks cargo, preferring smugglers (who can't go to the authorities) over company ships. Con artists and kidnappers exist too but are rarer.
+
+  - title: "The Kajidic"
+    keywords: "kajidic,hutt,clan,desilijic,business,enterprise,crime,empire"
+    category: "faction"
+    priority: 5
+    planet: "all"
+    surface_affinity: "dialogue"
+    content: |
+      Kajidic is a Huttese term meaning roughly 'the means by which we prosper' — it names any organized Hutt business venture, legal or illegal, and increasingly the individual clan crime empires themselves. Hutts are long-lived, patient, and grudge-keeping; they prefer to work behind the scenes as 'the galaxy's perfect middlemen,' financing a rising crimelord with credits, enforcers, and technical support in exchange for a cut that escalates over years until the partner is effectively enslaved by debt. The Hutt clans gained their homeworld Nal Hutta by trading technology to the native Evocii for land until three-quarters of the planet was theirs, then relocating the Evocii — a pattern repeated on many worlds since. A Hutt reveals only its first name to outsiders; the clan name (its cuirvas) is kept private. Clan competition is savage, but the clans share a belief in their own superiority and a doctrine that displays of wealth signal the power that keeps rivals at bay.
+
+  - title: "Indentured Servitude"
+    keywords: "indenture,servitude,labor,contract,hutt,debt,bondage,slavery"
+    category: "faction"
+    priority: 5
+    planet: "all"
+    surface_affinity: "dialogue"
+    content: |
+      Distinct from outright slavery, indentured servitude is the Hutt clans' preferred labor system because it avoids the discipline problems and rebellions of slave labor. A person sells their services for a fixed term (typically six months to ten years) under a contract that has a credit value and can be bought and sold between Hutts and Hutt businesses. Hutt courts impose draconian sentences on debtors and 'agitators,' so many 'volunteer' for indenture rather than face the alternative. In theory, contracts forbid unsafe work and define fair treatment; in practice, a thicket of regulations lets contract-holders levy fines for infractions that extend the term indefinitely, and 'safety inspections' are conducted over dinner at the manager's estate. The indentured worker has no avenue of appeal. The system supplies cheap labor to mines and industries across Hutt Space and the Outer Rim.
+
+  - title: "Haven Worlds"
+    keywords: "haven,lawless,crime,planet,open,neutral,outer rim,fringe,sanctuary"
+    category: "location"
+    priority: 5
+    planet: "all"
+    surface_affinity: "ambient"
+    content: |
+      A haven world is a planet where criminals can safely ply their trade — many acts that are crimes elsewhere are legal there, protected by the tacit support (or outright ownership) of the local government. Havens cluster in the Outer Rim, where they serve as outlets for illegal commerce, sources of contraband and gear, and neutral ground for deals. Some declare themselves 'open planets,' welcoming anyone who leaves their politics at the door; in wartime this neutrality is a survival strategy that lets a world dodge both sides' attention. The price is a leadership that courts criminal gangs with hard cash and no questions asked — and a population slowly remade in the underworld's image. A haven's underworld can supply equipment, information, and contacts unavailable anywhere else, if you live to collect.
+
+  - title: "The Black Market Code"
+    keywords: "black market,deal,dealer,marketeer,rules,contraband,fence,buy,sell"
+    category: "faction"
+    priority: 4
+    planet: "all"
+    surface_affinity: "dialogue"
+    content: |
+      Dealing the invisible market follows four steps — establish contact, strike a deal, take delivery, walk away in one piece — governed by seven unwritten rules. (1) Never give away too much too quickly, money OR information. (2) There is no such thing as a perfect deal; the art is getting most of the details in your favor. (3) Never pay credits up front. (4) Never appear to lose control of the situation. (5) Always have insurance — backup muscle, a contact in officialdom, or a clever escrow. (6) Never turn your back on the other party; they expect you to cheat them and may strike first in 'self-defense.' (7) Never make the other person feel they lost out — wounded pride brings retaliation. Dealers never come to a buyer; the buyer finds them, in any place people gather in numbers and law enforcement avoids. Best practice: never deal with the same operator twice in a row.
+
+  - title: "Spice"
+    keywords: "spice,glitterstim,ryll,kessel,ryloth,sevarcos,drug,contraband,smuggling"
+    category: "concept"
+    priority: 5
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      'Spice' is a catch-all slang term for substances used to artificially enhance — to 'spice up' — physical or mental attributes. There are many kinds: glitterstim from Kessel, ryll from Ryloth, Sevarcos spice, and others. Not all spice is addictive or even illegal; some is processed into legitimate pharmaceuticals by major corporations, while other batches are cooked in back-room labs. Whether a given substance is legal contraband varies from system to system by economic, political, and religious factors, so the same product may be sold openly in one place and be a capital offense in the next. Control of the spice trade is one of the most lucrative prizes in the underworld, and the trade can include legal as well as illegal goods.
+
+  - title: "Slaver Guilds"
+    keywords: "slaver,slavery,zygerian,thalassian,karazak,guild,kidnapping,captives"
+    category: "faction"
+    priority: 5
+    planet: "all"
+    surface_affinity: "dialogue"
+    content: |
+      Organized slaving is concentrated in the Outer Rim, where restrictions are rarely enforced, and run by competing guilds. The ZYGERIANS are the best-known and harshest, disciplinarians with a slaving tradition stretching back generations. The THALASSIANS are the oldest, preferring to work within society, supplying contract labor to large corporations (often covertly) for new colonies. The KARAZAKS are the newest and most professional — they run slaving as a single-minded specialty with planned, low-risk operations and famously 'take care of their own,' bailing out captured members within a day and providing for the families of those killed. Many in the Republic publicly condemn slavery while quietly tolerating it; the Hutt clans keep personal slaves as prestige but consider mass slave labor economically impractical, preferring indentured servitude (which see). There is no such thing as an honest slaver.
+
+  - title: "Sector Rangers"
+    keywords: "sector ranger,law,enforcement,judicial,fugitive,extradition,jurisdiction"
+    category: "faction"
+    priority: 5
+    planet: "all"
+    surface_affinity: "dialogue"
+    content: |
+      Sector Rangers are an interstellar law-enforcement corps created under the Old Republic, authorized by the Senate so regional governors could pursue criminals across the many newly colonized worlds. Where local police are bound to a single city or system, a Ranger can pursue a fugitive anywhere in their sector, demand extradition of prisoners, and escort captives between systems for trial. Rangers are reserved for the most dangerous and notorious criminals and are empowered to deputize civilian assistants and, in rare cases, suspend the authority of local officials suspected of aiding criminals. The best Rangers are promoted to Special Enforcement Officers, who can cross sector boundaries entirely in pursuit and who specialize in anti-trafficking, kidnapping recovery, and undercover infiltration of gangs.
+
+  - title: "Tramp Freighter"
+    keywords: "tramp,freighter,independent,trader,captain,smuggler,light freighter,small ship"
+    category: "concept"
+    priority: 7
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      A tramp freighter is an independent, owner-operated cargo ship — typically a stock light freighter modified by its captain. Tramp captains take whatever work they can find: legitimate cargo runs (drop-point delivery), speculative trading (buying low and selling high across planets), smuggling, salvage, and the occasional dangerous courier job. The life is precarious — over 60 percent of one-ship operations fail in their first year — but the freedom is unmatched. Most tramp captains carry significant debt to a loanshark or a bank, and many spend their careers chasing the next score that will let them pay it off.
+
+  - title: "Drop-Point Delivery"
+    keywords: "drop,point,delivery,dpd,cargo,run,freight,hauling,contract"
+    category: "concept"
+    priority: 7
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Drop-Point Delivery is the standard contract structure for tramp freighters: a captain is hired to carry cargo from one specified location to another for a specified fee. Standard fees run between five and 10 credits per ton per day, calculated on a baseline x2 hyperdrive engine, one day to load and depart, one day to arrive and unload. Modifiers apply for time pressure, dangerous routes, hazardous cargo, and the captain's reputation. Most tramps live primarily on DPD income, supplementing with speculative trading when capital allows.
+
+  - title: "Speculative Trading"
+    keywords: "speculative,trading,trade,goods,markets,profit,cargo,tech level,planets"
+    category: "concept"
+    priority: 7
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Speculative trading is the high-risk, high-reward complement to drop-point delivery: the captain purchases cargo from their own pocket on one planet, transports it, and sells it for (hopefully) a profit on another. Roughly twenty percent of even experienced tramps' speculative deals go sour. The rules of the game are governed by tech-level differentials between worlds — primitive worlds will pay fortunes for manufactured goods, while industrial planets crave raw materials. The galaxy's tech-level classifications are Stone, Feudal, Industrial, Atomic, Hyperspace, and Hyperspace+1. A captain who can read these gradients can make a killing; one who can't will be skinned by the established trading houses, who hate freighter competition.
+
+  - title: "The Black Market"
+    keywords: "black,market,illegal,goods,contraband,smuggling,fence,broker,underground"
+    category: "concept"
+    priority: 6
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Every populated planet has a black market — an illegal economy that runs alongside the legitimate one. What it carries varies: weapons and drugs on most worlds, banned holos on repressive worlds, mind-altering substances like alcohol on highly religious worlds, animal products on environmentalist worlds. The first contact is the hard part. Spaceport personnel — purchasing agents, shippers, warehouse managers — form the visible edge of every black market, and a polite inquiry at a spacer's bar (with a small fee) usually produces a contact. Local Customs agents are sometimes intimately involved themselves. After the first connection is made, repeat business runs smoothly.
+
+  - title: "Loan Sharks"
+    keywords: "loan,shark,debt,interest,creditor,goon,enforcer,payment,hutt,broken,kneecap"
+    category: "concept"
+    priority: 8
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Most legitimate financial institutions will not loan tramp freighter captains money at any price — the risks are too high, the collateral (a highly mobile ship that can be re-registered in weeks) too unreliable. Loan sharks fill this gap. They charge brutal rates: 300 percent over 30 months, 10 percent of principal per month, no early-repayment discount. They have no qualms about using force to remind customers of payment dates, and they hunt down defaulters as a matter of policy. Despite the rates, they remain the only credit available for someone trying to buy their first ship — every spacer in the galaxy knows someone who is making payments to one. The Twi'lek Yerkys ne Dago is the most famous of these loansharks in the Outer Rim, but every sector has its own.
+
+  - title: "Loan Shark Discipline"
+    keywords: "missed,payment,goon,broken,finger,beating,debtor,enforcer,delinquent"
+    category: "concept"
+    priority: 5
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      A loanshark's discipline ladder is canonical and predictable. A first missed payment doubles next month's bill (the missed payment plus a penalty payment of equal size). A second missed payment in a row brings goons to the debtor's door — a violent demonstration that typically ends with broken fingers and a wound. A third missed payment means being dragged to the loanshark's office, where the debtor must talk their way out via Con or Bargain rolls; failure on those rolls runs from beaten to mortally wounded to dead, depending on how poorly the rolls go. Note that the loanshark always gives the debtor the chance to make their case; the violence is not malice, it is policy. Loansharks who break this convention lose customers — and the customers' debts.
+
+  - title: "The Tramp Freighter and Its Captain"
+    keywords: "freighter,modification,ship,captain,upgrade,hyperdrive,personality,modify"
+    category: "concept"
+    priority: 6
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Stock light freighters are slow, unmaneuverable, and lightly armed when they leave the factory. Most freighter captains plow a substantial portion of their profits back into modifying their ship — bigger hyperdrive, better ion drive, sensor masks, hidden compartments, occasionally illegal weapons systems. A tramp captain's ship is rarely sold; it accumulates the captain's investments, quirks, and history over decades. A famous saying in the trade: 'A tramp captain marries her ship before she marries anything else.' The conventional view among captains is that the ship has a personality of its own, that this personality is shaped by the captain's modifications, and that mistreating the ship will eventually cost the captain dearly.
+
+  - title: "Hyperdrive Class and Cost"
+    keywords: "hyperdrive,class,multiplier,cost,jump,starship,upgrade,x1,x2,x3"
+    category: "concept"
+    priority: 6
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Hyperdrive performance is rated by multiplier. A x1 hyperdrive (15,000 credits, 18 tons, civilian-best) covers a route in standard time. A x2 hyperdrive (10,000 credits, 15 tons) takes twice as long. The standard tramp freighter hyperdrive is x2; serious smugglers and racing operations upgrade to x1. A x1/2 hyperdrive (military-grade, 30,000 credits on the black market when available, 20 tons) is the only thing faster, and most tramps will never own one. Slower hyperdrives — x3, x4, x5 — are progressively cheaper and lighter, but the time penalty makes them suitable only for budget operations. Hyperdrive multipliers are also the conversational shorthand by which captains size each other up; 'she's a x1 ship' carries weight at any spacer's bar.
+
+  - title: "Standard Maintenance and Restocking"
+    keywords: "maintenance,restock,consumables,fuel,oxygen,fluid,ship,upkeep"
+    category: "concept"
+    priority: 4
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Every Standard-class or better spaceport will automatically perform standard restock and maintenance on any ship that lands, typically within 24 hours. Restocking includes water, lubricating fluids, coolants, oxygen, basic protein for food converters, and waste removal. The standard maintenance package covers air filters, gravitational disks, ablative heat shields, ion engine recalibration, and basic hyperdrive maintenance. Cost is calculated as 10 credits multiplied by the ship's total crew and passenger capacity, multiplied by the consumables duration in days. Ships that skip restocking risk being stranded with a depleted oxygen supply — which has killed crews more often than pirates have.
+
+  - title: "Hyperdrive Overhaul"
+    keywords: "overhaul,hyperdrive,maintenance,malfunction,jump,inspection,replacement"
+    category: "concept"
+    priority: 5
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      After every twenty hyperspace jumps, a ship's hyperdrive should receive a complete overhaul — replacement of certain key components, inspection of the rest. The cost is approximately 1,000 credits at most spaceports. Captains who skip overhauls accumulate a malfunction risk: roughly three percent per subsequent jump (mechanically, a roll of 2 on 2D6 produces a malfunction). A malfunction during a long jump can leave a ship adrift in deep space for days — long enough that the consumables countdown becomes lethal before rescue can arrive. Tramp captains who skip overhauls to save credits usually only make this mistake once.
+
+  - title: "Outer Rim Trade Routes"
+    keywords: "outer rim,trade,route,smuggler,hyperlane,corridor,run,frontier"
+    category: "concept"
+    priority: 6
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      The Outer Rim Territories are the natural habitat of the tramp freighter. Distance from Core World authority means lighter customs enforcement, sparser official patrols, and no large trading houses with the political clout to muscle out independent operators. The trade-off is risk: pirates, less-regulated economies that can collapse mid-route, planets where the local government is hostile or absent, and routes that take longer because the safe lanes are not always the direct lanes. A captain who learns the unmarked hyperlanes — the routes that bypass the popular space lanes where Customs corvettes wait — earns more per run, but the routes themselves are jealously-guarded knowledge. New captains buy this knowledge from old captains, in trade for favors or future cargo discounts; a route never appears in print.
+
+  - title: "The Jedi Praxeum"
+    keywords: "praxeum,jedi,temple,training,academy,karena,learning,action"
+    category: "concept"
+    priority: 8
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Praxeum is an ancient Jedi word — first coined by the scholar Karena, distilling the concepts of learning combined with action — that names a place where Jedi training happens. A praxeum is not a monastery for contemplation; it is a place for the learning of action. The Jedi saying holds: 'A Jedi is aware, but does not waste time in mindless contemplation. When action is required, a Jedi acts.' The Jedi Temple on Coruscant is the largest praxeum in the galaxy, though smaller Jedi enclaves on worlds such as Dantooine and Ossus function by the same principle.
+
+  - title: "The Dangers of Training Jedi"
+    keywords: "training,padawan,jedi,dark side,temptation,pace,discipline,bodo baas"
+    category: "concept"
+    priority: 8
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Jedi Masters have long warned that training an apprentice is the most perilous duty a Knight can undertake. The Bodo Baas Holocron preserves the warning: 'Never, Oh master Jedi, rest easy when your pupil begins to grow anxious to learn at a pace greater than that which you have set for him. Such impatience is natural in the young and inexperienced, and a commendable trait in a student. But it also signals a time when the pupil is most open to the temptation of stepping onto the broad path of instant gratification and easy advancement that leads to the dark side.' A student who disdains 'pointless exercises' and craves the 'true' powers of the Force has already taken the first step toward falling.
+
+  - title: "The Humility Principle"
+    keywords: "humility,jedi,power,service,code,padawan,training"
+    category: "concept"
+    priority: 7
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      The ancient Jedi masters taught that Force power gathered too quickly can corrupt even the most selfless and devout apprentice. A Jedi student must be properly humble in their powers, and mature enough to embrace the tremendous responsibility that comes with wielding the Force. The Jedi does not crave power, but seeks to serve others, without the expectation of becoming 'great in the Force.' True Jedi are cautious, and reluctant to learn too much too quickly. Overeager students run a fearful risk of opening themselves up to the temptations of the easy path.
+
+  - title: "The Jedi High Council"
+    keywords: "council,jedi,high council,coruscant,temple,leadership"
+    category: "concept"
+    priority: 9
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      The Jedi High Council is the governing body of the Jedi Order. Convened in the Council Chamber at the apex of the Jedi Temple on Coruscant, it sets policy for the Order, assigns Masters to critical missions, hears matters of grave concern, and passes judgment on Jedi who have broken the Code. Membership is reserved for Masters of exceptional wisdom and experience. During the Clone Wars, the Council's burdens have multiplied: Jedi generals are dispatched to every front, seats are left empty as their occupants die in combat, and debate over the Order's role as warriors has grown increasingly fractious.
+
+  - title: "The Bodo Baas Holocron"
+    keywords: "holocron,bodo baas,jedi,artifact,knowledge,ancient,training"
+    category: "concept"
+    priority: 7
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      A Holocron is an ancient Jedi artifact, a crystalline device that stores the accumulated knowledge, teachings, and recorded counsel of long-dead Jedi Masters. The Bodo Baas Holocron is one of the most revered — Bodo Baas himself was a Jedi Master of the Old Sith Wars era, and the Holocron preserves not only his wisdom but also echoes of every Master who later contributed. Holocrons are consulted by senior Jedi for guidance on precedent, obscure Force techniques, and history. They are typically kept in the restricted archives beneath the Jedi Temple and accessed only by Masters and Council members.
+
+  - title: "Jedi Code (Old Republic Framing)"
+    keywords: "jedi code,old republic,values,philosophy,peace,emotion,knowledge,serenity"
+    category: "concept"
+    priority: 9
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      The Jedi Code has been the foundation of Jedi training for millennia. It teaches that a Jedi uses the Force for knowledge and defense, never for attack; that a Jedi acts from calm and control, manipulating the Force passively rather than bending the universe to personal will. The Code's discipline stands in direct opposition to Sith philosophy. Even the minor powers of the Sith are extremely dangerous for Jedi to touch, since they lead directly to the dark side. The Order's teachers watch their apprentices for telltale signs of the headstrong student who wants more than they are ready for — a pattern that has ended in tragedy more than once in the long history of the Order.
+
+  - title: "Master and Padawan"
+    keywords: "master,padawan,apprentice,training,jedi,pedagogy,lineage"
+    category: "concept"
+    priority: 8
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      The Master/Padawan relationship is the core of Jedi training. A Master takes one Padawan at a time and is responsible for that apprentice's instruction in the Force, the lightsaber, the Code, and the duties of a Knight. The relationship is intimate and long-lasting — a Padawan typically trains under a single Master for a decade or more before undertaking the Trials. Training lineages stretch back across generations: a Master's style and temperament shape their Padawan, who in turn shapes their own. When a lineage produces a fallen Jedi, the entire chain is called into question, and the surviving Masters in that line bear a special burden of vigilance.
+
+  - title: "The Jedi Trials"
+    keywords: "trials,jedi,knight,padawan,test,ritual,elevation"
+    category: "concept"
+    priority: 7
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Before a Padawan is elevated to Knight, they must pass the Jedi Trials — a set of tests designed to reveal whether the apprentice has mastered themselves sufficiently to wield the Force without oversight. The Trials are not a single event. They include the Trial of Skill (a demonstration of lightsaber and Force mastery), the Trial of Courage (a task requiring the Padawan to face what they most fear), the Trial of Flesh (endurance of pain or deprivation), the Trial of Spirit (confronting one's own darkness), and the Trial of Insight (perceiving truth despite deception). A Padawan who fails a Trial is not cast out — they return to their Master to continue training until they are ready.
+
+  - title: "Jedi Pedagogy — Wilderness Exercises"
+    keywords: "training,wilderness,padawan,jedi,concentration,sensing,exercise"
+    category: "concept"
+    priority: 6
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      A traditional Jedi training exercise sends Padawans in pairs into wilderness with nothing but their wits and the Force. Stripped of tools and distractions, with no abilities but their own, the students work on concentration, sensing and studying other lifeforms, and touching the Force directly. The exercise is drawn from ancient training methods and is as old as the Order itself. On Coruscant, where wilderness is scarce, the Temple maintains dedicated meditation chambers and simulation halls that approximate the exercise — though most Masters still send their Padawans offworld to a wilder planet when the time is right.
+
+  - title: "Jedi and Sith — The Core Contrast"
+    keywords: "jedi,sith,philosophy,force,contrast,dark side,passion,control"
+    category: "concept"
+    priority: 9
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      The Sith philosophy is fundamentally opposed to the Jedi Code. Where a Jedi uses the Force for knowledge and defense, a Sith uses the Force to bend the universe to their will. The Jedi manipulates the Force passively, while in a state of calm and control. The Sith gives themselves over to their passions, and channels the Force by harnessing the power of anger, hate, love, and jealousy. To use any Sith power is to relinquish any claim to call oneself a Jedi. Even the minor powers of the Sith are extremely dangerous for Jedi to touch, since every use of such a power draws the wielder further toward the dark side.
+
+  - title: "Cautionary Tale — The Arrogant Apprentice"
+    keywords: "exar kun,cautionary tale,dark side,jedi,apprentice,arrogance,sith"
+    category: "concept"
+    priority: 7
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Every Jedi disciple soon hears the cautionary tale of the arrogant apprentice — the gifted Jedi who wanted more than their Master was ready to teach, who believed they could embrace forbidden teachings and not be dominated by them, and who was ultimately lost to the dark side by that arrogance. The classic example is Exar Kun, a prodigy of the Old Sith Wars era whose fall left scars on the Force that lingered for millennia. The tale is told and retold at every level of training, and its warning is sharp: if a great Jedi Master could fall this way, their teachers told them, they themselves must tread with special care.
+
+  - title: "The Lightsaber Constructed in Secret"
+    keywords: "lightsaber,construction,padawan,secret,double-bladed,sith,forbidden"
+    category: "concept"
+    priority: 6
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      A Padawan's first lightsaber is traditionally constructed under the guidance of their Master, in a ritual that serves as both technical exercise and spiritual rite — the student gathers the components, meditates on the crystal, assembles the hilt, and presents the finished weapon to their Master for approval. A Padawan who builds a lightsaber in secret, outside their Master's sight, has broken the training discipline in a way that rarely goes unnoticed. In the most troubling cases, the secretly-built weapon takes unusual forms — notably the double-bladed lightsaber, a design favored by certain Sith lineages and considered dangerous in the hands of an untested student.
+
+  - title: "Force-Sensitive Detection"
+    keywords: "force sensitive,detection,jedi,search,identification,awareness"
+    category: "concept"
+    priority: 6
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Identifying Force-sensitive individuals in a galaxy of trillions is a perennial challenge for the Jedi. The deep subconscious of a Force-sensitive person is shielded by a protective barrier that pushes back against probing — the shield is involuntary and maintained by every Force-sensitive, whether or not they are aware of their talent. A skilled Jedi can use the Sense Force Potential power to probe a target's mind; if the target is Force-sensitive, the probe will be rebuffed with a backlash proportional to the target's strength in the Force. Those with little training will reel; those with great raw talent may hurl the probing Jedi physically across the room. This 'shield-test' is the most reliable way to confirm Force-sensitivity — though it is considered intrusive, and the Order uses it sparingly.
+
+  - title: "The Life Bond"
+    keywords: "life bond,jedi,master,padawan,force,link,telepathy,bond,connection"
+    category: "concept"
+    priority: 8
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      The Life Bond is one of the most profound and perilous commitments a Jedi can make. Through deep meditation and mutual consent, two Force-sensitives can permanently link their minds and their life forces. Bonded pairs are aware of each other's location and emotional state across any distance, and can sense each other's injuries as if they were their own. Masters and Padawans sometimes form such bonds, though the Order's teachers warn that the bond is not to be taken lightly — when one half of a life bond dies, the survivor enters a state of grief so profound it echoes in the Force itself. A life bond cannot be severed while both parties live.
+
+  - title: "Battle Meditation"
+    keywords: "battle meditation,jedi,war,army,force,nomi sunrider,general"
+    category: "concept"
+    priority: 7
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      Battle Meditation is among the rarest and most powerful abilities in the Jedi Order's arsenal — and among the most troubling. A Jedi who has mastered this power can extend her awareness across an entire battlefield, strengthening the resolve and coordination of her allies while sowing confusion and doubt among her enemies. Nomi Sunrider was perhaps the most gifted practitioner of her age, capable of turning the tide of engagements involving thousands of combatants. In the Clone Wars, Jedi generals commanding clone armies sometimes employ this power in desperate moments. The Council debates whether doing so makes the Order complicit in the war in ways that will take generations to undo.
+
+  - title: "The Adegan Crystal"
+    keywords: "adegan crystal,lightsaber,kyber,jedi,construction,force,crystal,weapon"
+    category: "concept"
+    priority: 8
+    planet: "all"
+    surface_affinity: "general"
+    content: |
+      The Adegan crystal — sometimes called a kyber crystal in archaic Jedi texts — is the heart of every lightsaber. Found on only a handful of remote worlds, these rare gems possess a natural affinity for the Force that makes them ideal focusing elements for the blade. When arranged within the lightsaber's internal lattice, an Adegan crystal channels and focuses the weapon's energy field into the distinctive blade. Jedi Masters traditionally present Adegan crystals to their Padawans when the time comes to construct their first lightsaber — the quality of the crystal shapes the weapon's character, and finding one's crystal is considered a formative act of self-discovery.
+
+
+# ─── FLAGGED (fix the era/canon issue, then move up) ───
+# REJECTED [era:Imperial, era:Empire, era:Rebel]:
+#   - title: "General Airen Cracken"
+#     keywords: "cracken,rebel,general,intelligence,contruum,sabotage"
+#     category: "concept"
+#     priority: 5
+#     planet: "all"
+#     surface_affinity: "general"
+#     content: |
+#       General Airen Cracken is the Rebel Alliance's chief intelligence officer. Born on Contruum, he ran a mechanic's shop before the Empire arrived. When Imperial Command demanded the planet's borium, Cracken organized his employees into a guerrilla force specializing in mechanical sabotage. His saboteurs left calling cards reading 'Cracken's Crew Says Hello.' He eventually joined the Alliance formally and rose to command through field ingenuity rather than military academy training.
+
+# REJECTED [era:Empire]:
+#   - title: "Bureau of Ships and Services (BoSS)"
+#     keywords: "boss,bureau,ships,services,registration,transponder,gatherers"
+#     category: "faction"
+#     priority: 5
+#     planet: "all"
+#     surface_affinity: "dialogue"
+#     content: |
+#       The Bureau of Ships and Services is one of the oldest institutions in the galaxy, predating the Empire by millennia. BoSS maintains records on every registered starship via transponder code tracking. The organization is technically independent — BoSS families pass positions by heredity and keep their files in nearly indecipherable internal codes. The Empire tolerates BoSS because it needs the registration system. BoSS field operatives, called Gatherers, collect data across the galaxy and are trained in computer skills, espionage, and sometimes combat.
+
+# REJECTED [era:Imperial, era:Empire, era:Rebel]:
+#   - title: "Acquiring Blaster Gas"
+#     keywords: "blaster,gas,tibanna,supply,piracy,donation,black market,mining"
+#     category: "concept"
+#     priority: 4
+#     planet: "all"
+#     surface_affinity: "general"
+#     content: |
+#       The Rebel Alliance acquires blaster gas through three channels: donations from sympathetic mining colonies, piracy of Imperial-allied corporate transports, and black market purchases. Cloud City is a reliable source for spin-sealed Tibanna gas, though officially the city only sells 'star drive engine coolant' to avoid Imperial attention. The Empire controls gas distribution by granting munitions monopolies to loyal corporations, making supply a constant challenge for the Alliance.
+
+# REJECTED [era:Imperial]:
+#   - title: "Imperial Lift-Mines"
+#     keywords: "mine,lift-mine,repulsorlift,norsam,blockade,minefield"
+#     category: "concept"
+#     priority: 4
+#     planet: "all"
+#     surface_affinity: "general"
+#     content: |
+#       The Norsam DR-X55 Imperial lift-mine floats above a planet's surface using repulsorlifts, set at specific altitudes to intercept speeders and low-flying vehicles. Top-of-the-line models detect craft up to 100 meters away and adjust altitude to intercept. Imperial policy staggers mines at different heights — low mines against speeder bikes, mid-range against landspeeders, high against airspeeders. Mine fields require a piloting maneuver roll for every mine within 20 meters of the flight path.
+
+# REJECTED [era:Imperial]:
+#   - title: "Merr-Sonn Defender Ion Mines"
+#     keywords: "ion,mine,space,blockade,merr-sonn,defender,cloaking"
+#     category: "concept"
+#     priority: 5
+#     planet: "all"
+#     surface_affinity: "general"
+#     content: |
+#       Merr-Sonn Defender Ion Mines are space-based weapons used to blockade planets. The mines use cloaking revvers and scatter particle beams to remain nearly invisible. When a ship comes within ten kilometers, the mine fires a powerful ion attack that neutralizes the vessel, leaving it adrift until Imperial forces arrive to board. Getting through a Defender blockade requires detecting the mines with an Easy Mechanical roll, then a starship piloting maneuver action opposed by each mine's 6D fire control.
+
+# REJECTED [era:Imperial, era:Empire]:
+#   - title: "Imperial Peace-Keeping Certificate"
+#     keywords: "ipkc,license,bounty,hunter,permit,imperial,certificate,legal"
+#     category: "faction"
+#     priority: 5
+#     planet: "all"
+#     surface_affinity: "dialogue"
+#     content: |
+#       An Imperial Peace-Keeping Certificate is the license required to operate as a bounty hunter in the Empire. It costs 500 credits and must be renewed annually. The IPKC entitles the holder to carry weapons that would otherwise be illegal and to transport captured individuals. It is valid in most regions, though some Core Worlds prohibit bounty hunting entirely. Imperial officials review the holder's record at each renewal — flagrant violations of Imperial law can result in revocation, though the Empire usually prefers token fines and stern warnings.
+
+# REJECTED [era:Imperial, era:Empire]:
+#   - title: "Imperial Enforcement DataCore"
+#     keywords: "datacore,bounty,ioci,database,posting,wanted,criminal"
+#     category: "faction"
+#     priority: 5
+#     planet: "all"
+#     surface_affinity: "dialogue"
+#     content: |
+#       The Imperial Enforcement DataCore is a specialized database maintained by the Imperial Office of Criminal Investigations. It lists all legal bounties in the Empire — who is wanted, by whom, and for how much. Hunters access it at local Imperial offices or through posting agencies and guild houses. A datacard listing a specific bounty costs 10 credits. Searching boards on other planets costs 50 credits. Posting agencies charge 10 to 25 credits per day for DataCore access and maintain their own supplemental intelligence on targets.
+
+# REJECTED [era:Imperial, era:Empire]:
+#   - title: "Bounty Classifications"
+#     keywords: "bounty,classification,most wanted,galactic,regional,sector,local,corporate"
+#     category: "faction"
+#     priority: 5
+#     planet: "all"
+#     surface_affinity: "dialogue"
+#     content: |
+#       Imperial bounties fall under eight classifications. Most Wanted and Galactic postings appear on all DataCore boards across the Empire. Regional bounties cover multiple sectors. Sector, System, and Local bounties are progressively more limited in scope. Corporate bounties are posted by companies and are only legally binding within that company's territory. A separate 'Locate and Detain' list covers individuals the Empire wants alive for questioning — killing a Locate and Detain target can result in penalties up to and including execution of the hunter.
+
+# REJECTED [era:Imperial]:
+#   - title: "Bounty Hunter Guilds"
+#     keywords: "guild,syndicate,house,benelex,paramexor,neuvalis,renliss,membership"
+#     category: "faction"
+#     priority: 5
+#     planet: "all"
+#     surface_affinity: "dialogue"
+#     content: |
+#       Bounty hunter guilds — also called syndicates or houses — are privately established organizations that broker contracts between hunters and those posting bounties. Major guilds include House Benelex (kidnapping retrievals, Outer Rim), House Neuvalis (the largest, 6,790 hunters, bounties under 20,000 credits only), House Paramexor (murder contracts exclusively), and House Renliss (female hunters only, bounties on males). Guilds take a 'gap' of 3 to 10 percent from each bounty's face value. In return they provide equipment, repairs, training, intelligence, legal mediation, and sanctuary from Imperial officials.
+
+# REJECTED [era:Imperial, era:Empire]:
+#   - title: "Three Types of Bounty Hunters"
+#     keywords: "imperial hunter,guild hunter,independent,bounty,category,type"
+#     category: "faction"
+#     priority: 4
+#     planet: "all"
+#     surface_affinity: "dialogue"
+#     content: |
+#       Bounty hunters fall into three categories. Imperial hunters work exclusively for the Empire, taking only government-authorized bounties — they are often ex-military and receive equipment discounts and subsidized transport. Guild hunters operate through their syndicate, which assigns contracts and takes a percentage — they get equipment, training, and sanctuary but have no choice in assignments. Independent hunters work alone, taking any contract from any source — they keep everything they earn but bear all expenses and have no institutional support. Most hunters are independents, but most successful hunters belong to a guild.
+
+# REJECTED [era:Imperial]:
+#   - title: "Bounty Posting Format"
+#     keywords: "bounty,posting,wanted,format,alive,dead,originator,receiver,application"
+#     category: "faction"
+#     priority: 4
+#     planet: "all"
+#     surface_affinity: "dialogue"
+#     content: |
+#       Official Imperial bounty postings follow a standard format: the target's name, species, sex, age, homeworld, and known associates; the bounty amount in credits; the classification (Galactic, Regional, Sector, etc.); application conditions (Alive, Dead or Alive, or Dead); any bonus for special conditions; determents or restrictions on methods; the crimes warranting the bounty; the originator who posted it; and the receiver to whom the acquisition must be delivered. A brief narrative describes the circumstances. Typical bounties range from 2,000 credits for minor sector violations to 25,000 or more for galactic-class fugitives.
+
+# REJECTED [era:Imperial]:
+#   - title: "Spaceport Classes"
+#     keywords: "spaceport,landing field,limited,standard,stellar,imperial,docking,fees"
+#     category: "concept"
+#     priority: 5
+#     planet: "all"
+#     surface_affinity: "general"
+#     content: |
+#       Spaceports are classified by the official galactic bureaucracy into five tiers: Landing Field (a flat space cleared on the ground; no services, no control tower, ships risk collisions on landing), Limited Services (a small tower, basic refueling, limited maintenance), Standard Class (full control tower, restocking, minor repairs and modifications, possibly at premium), Stellar Class (multiple shipyards capable of major repair and customization, usually with a Customs office on site), and Imperial Class (luxurious, lavish facilities, expensive services, well-staffed Customs office with portable scanners). Docking fees scale with class: Standard runs 50 credits per day; busy Imperial-class ports may charge up to 150 per day. The class-name is era-agnostic in galactic usage; non-Imperial governments use the same five-tier scale for their own spaceports.
+
+# REJECTED [era:Imperial, era:Empire]:
+#   - title: "The Force Detector"
+#     keywords: "force detector,force sensitivity,dark side,inquisitor,imperial,jedi,scan,aura"
+#     category: "concept"
+#     priority: 6
+#     planet: "all"
+#     surface_affinity: "general"
+#     content: |
+#       The Force detector is a rare Imperial scanning device, originally commissioned to hunt down Jedi survivors of the Purge. The three-component system — a control pack and two crystal paddle readers — scans a subject from head to toe and generates a wire-frame hologram overlaid with a color-coded aura. A blue aura indicates Force sensitivity; the stronger the corona, the stronger the connection to the Force. Those who carry the stain of the dark side show an aura tinged with red. Fewer than ten thousand were ever produced, most now lost or destroyed. The Jedi Council regards them with deep unease: a device that reduces a person's soul to a readout is, they argue, precisely the kind of technology the Order should not use — and precisely the kind the Empire will.
+
