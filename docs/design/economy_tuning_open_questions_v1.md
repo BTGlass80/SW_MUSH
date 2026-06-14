@@ -131,6 +131,16 @@ append.
 
 ## SYN.6.c — T5 crafting + kyber attune (shipped 2026-05-25)
 
+> **✅ DECIDED + SHIPPED 2026-06-14 (Brian: "kyber is ceremonial-for-Jedi, not common"):**
+> all three kyber tunables below are now resolved & implemented in `engine/kyber_attunement.py`
+> (drop *kyber-weekly-ceremonial*). **TUN.kyber.cooldown →** `ATTUNE_COOLDOWN_SECS = 7d` AND the
+> cooldown key is now **per-CHARACTER global** (`attune_weekly`, not per-landmark) — one draw per
+> Jedi per week across ALL resonant sites. **TUN.kyber.quality_band →** `QUALITY_FLOOR = 65` (was
+> 75): a marginal attune yields a **sub-q75 "dud"** below the lightsaber gate; only a +10 skill
+> margin reaches q75, +30 caps at q95 — **duds now exist** (reverses the prior no-duds design).
+> **TUN.kyber.skill_difficulty →** `ATTUNE_DIFFICULTY = 15` (Difficult, was 11/Moderate). The
+> alternatives below are retained for the historical record.
+
 ### TUN.kyber.cooldown — 24h per-landmark per-character ⚠ HIGH PRIORITY
 
 - **Site:** `engine/kyber_attunement.py::ATTUNE_COOLDOWN_SECS`

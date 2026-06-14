@@ -46,11 +46,12 @@ log = logging.getLogger(__name__)
 # ── Constants ────────────────────────────────────────────────────────────────
 
 # Skill check difficulty — design language is "force-resonant
-# landmark" → "minor kyber shard". The shard is "minor" (not the
-# heart-of-a-temple kyber the Jedi spec needed). Moderate difficulty
-# (11 on WEG D6 R&E ladder) is the right band — Easy would mean any
-# Padawan auto-passes; Difficult would mean only Masters succeed.
-ATTUNE_DIFFICULTY = 11
+# landmark" → "minor kyber shard". Brian decision (2026-06-14): kyber is
+# CEREMONIAL-for-Jedi, not a common harvest. Difficult (15 on the WEG D6
+# R&E ladder) is the band: a Padawan no longer auto-passes, and a
+# marginal pass yields a sub-q75 "dud" (see QUALITY_FLOOR) — only a good
+# skill margin produces a lightsaber-grade crystal.
+ATTUNE_DIFFICULTY = 15
 ATTUNE_SKILL = "knowledge"  # raw attribute fallback; see _resolve_skill
 
 # Skill alternatives — if the character has one of these as a trained
@@ -58,23 +59,26 @@ ATTUNE_SKILL = "knowledge"  # raw attribute fallback; see _resolve_skill
 # the raw attribute). Picked from the existing SW_MUSH skill catalogue.
 ATTUNE_PREFERRED_SKILLS = ("scholar", "willpower")
 
-# 24h per-landmark cooldown. Kyber shards are not a renewable harvest
-# — once a Jedi has attuned to a specific resonant site, the
-# resonance settles for a day before another shard surfaces. Design
-# intent is scarcity; this also prevents farming.
-ATTUNE_COOLDOWN_SECS = 24 * 60 * 60
+# 7-day, per-CHARACTER cooldown (Brian decision 2026-06-14: kyber is
+# weekly-ceremonial). Kyber shards are not a renewable harvest — a Jedi
+# draws ONE shard a week across ALL resonant sites (the cooldown key is
+# character-global, not per-landmark; see cd_key below), so a Jedi can't
+# circuit between landmarks to farm. Design intent is scarcity + ritual.
+ATTUNE_COOLDOWN_SECS = 7 * 24 * 60 * 60
 COOLDOWN_KEY_PREFIX = "attune_"
 
-# Output quality band. Floor matches the T5 component min_quality
-# (engine.crafting.T5_MIN_QUALITY = 75). Ceiling stays below q100 to
-# reserve top-of-band for the Tier-3 anomaly drops (SYN.8) which
-# represent the *major* kyber finds — a Jedi pulling a perfect crystal
-# off a krayt dragon's bone-bed, not surveying a resonance pillar.
-QUALITY_FLOOR = 75
+# Output quality band. Floor (65) sits intentionally BELOW the T5
+# component min_quality (engine.crafting.T5_MIN_QUALITY = 75) — Brian
+# decision (2026-06-14): a marginal attune produces a "dud" shard too
+# clouded to anchor a lightsaber; only a good skill margin clears q75+.
+# Ceiling stays below q100 to reserve top-of-band for the Tier-3 anomaly
+# drops (SYN.8) — the *major* kyber finds, not a resonance-pillar survey.
+QUALITY_FLOOR = 65
 QUALITY_CEILING = 95
 
 # Margin scaling: 5-pt skill margin bands give +5 quality each.
-# WEG margin tradition. 0 margin → q75, +10 margin → q85, +20+ → q95.
+# WEG margin tradition. With the q65 floor: 0 margin → q65 (dud),
+# +10 margin → q75 (the lightsaber threshold), +30 → q95 (capped).
 _MARGIN_BAND_SIZE = 5
 _QUALITY_BONUS_PER_BAND = 5
 
@@ -124,12 +128,13 @@ def _room_is_force_resonant(room: dict) -> bool:
 
 
 def _compute_kyber_quality(margin: int) -> float:
-    """Map skill-check margin → kyber shard quality (75..95).
+    """Map skill-check margin → kyber shard quality (65..95).
 
     A negative margin doesn't reach here — the caller short-circuits
     on failed skill check. At margin 0 (exact-DC success), the shard
-    is q75 (the T5 floor). Each 5-pt margin band adds +5 quality,
-    capped at q95.
+    is q65 — a "dud" below the q75 lightsaber threshold (Brian decision
+    2026-06-14). Each 5-pt margin band adds +5 quality, so a +10 margin
+    reaches q75 (usable) and +30 caps at q95.
     """
     if margin < 0:
         return float(QUALITY_FLOOR)  # defensive; not normally reached
@@ -239,18 +244,21 @@ async def attune_to_landmark(
             "cooldown_set": False,
         }
 
-    # ── Step 4: cooldown check (per-landmark) ───────────────────────────────
+    # ── Step 4: cooldown check (per-CHARACTER, weekly) ──────────────────────
+    # Brian decision 2026-06-14: ONE kyber draw per week across ALL
+    # landmarks — the cooldown key is character-global (not per-room), so
+    # a Jedi can't circuit between resonant sites to farm shards.
     from engine.cooldowns import (
         check_cooldown, remaining_cooldown, set_cooldown, format_remaining,
     )
-    cd_key = f"{COOLDOWN_KEY_PREFIX}{room_id}"
+    cd_key = f"{COOLDOWN_KEY_PREFIX}weekly"
     if not check_cooldown(char, cd_key):
         rem = remaining_cooldown(char, cd_key)
         return {
             "ok": False,
-            "msg": (f"The resonance here is silent — you've drawn from "
-                    f"this place too recently. ({format_remaining(rem)} "
-                    f"remaining.)"),
+            "msg": (f"The resonance is silent — you've drawn a shard from "
+                    f"the Force too recently. The attunement renews weekly. "
+                    f"({format_remaining(rem)} remaining.)"),
             "quality": None,
             "skill_used": "",
             "skill_roll": 0,
@@ -291,7 +299,7 @@ async def attune_to_landmark(
         return {
             "ok": True,  # call succeeded, payout empty
             "msg": ("You reach for the resonance but cannot find the "
-                    "shard's pattern. Return tomorrow."),
+                    "shard's pattern. The attunement renews in a week."),
             "quality": None,
             "skill_used": skill,
             "skill_roll": sc.roll,
@@ -324,11 +332,20 @@ async def attune_to_landmark(
         char.get("name", "?"), quality, room_id, sc.margin,
     )
 
+    # A sub-q75 shard is a "dud" — too clouded to anchor a lightsaber
+    # (engine.crafting.T5_MIN_QUALITY); say so plainly so the player
+    # understands the marginal draw (Brian decision 2026-06-14).
+    from engine.crafting import T5_MIN_QUALITY
+    if quality < T5_MIN_QUALITY:
+        quality_note = (" Its core is clouded — too impure to anchor a "
+                        "lightsaber, though it will serve a lesser focus.")
+    else:
+        quality_note = " It rings true — pure enough to anchor a blade."
     return {
         "ok": True,
         "msg": (f"The resonance crystallises. You hold a minor kyber "
                 f"shard, its facets faint but unmistakable. "
-                f"(quality {quality:.0f}/100)"),
+                f"(quality {quality:.0f}/100){quality_note}"),
         "quality": quality,
         "skill_used": skill,
         "skill_roll": sc.roll,

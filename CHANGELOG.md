@@ -6,6 +6,14 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-14 — Kyber attunement → weekly-ceremonial (Brian roadmap decision 3) — *drop kyber-weekly-ceremonial*
+Executes `BRIAN_ROADMAP_DECISIONS.2026-06-14` #3 (resolves `TUN.kyber.cooldown` / `.quality_band` / `.skill_difficulty`): kyber is **ceremonial-for-Jedi, not a common harvest.** Engine-only tuning in `engine/kyber_attunement.py`; no schema/funnel change.
+- **Difficulty 11 → 15** (`ATTUNE_DIFFICULTY`): Moderate → Difficult — a Padawan no longer auto-passes.
+- **Cooldown 24h → 7d + per-CHARACTER global** (`ATTUNE_COOLDOWN_SECS = 7*24*60*60`; `cd_key` changed from per-landmark `attune_{room_id}` to the character-global `attune_weekly`): **one kyber draw per Jedi per week across ALL resonant sites** — closes the prior 4-shards/day farm (4 landmarks × 24h) by making the cooldown character-scoped, not site-scoped.
+- **Quality floor 75 → 65** (`QUALITY_FLOOR`): a marginal attune now yields a **sub-q75 "dud"** below the `T5_MIN_QUALITY=75` lightsaber gate. With the +5Q/5-margin band, a **+10 skill margin** reaches q75 (usable) and +30 caps q95 — reverses the prior "no duds, every success is lightsaber-grade" design. The success message now flags dud-vs-true ("its core is clouded… a lesser focus" / "it rings true… anchor a blade"); the cooldown/fail flavor updated to weekly.
+- **Verified:** `tests/test_syn6c_t5_crafting_and_harvest_nodes.py` updated to the new band (margin 0 → q65 dud, +10 → q75) + new tests for the dud-vs-T5-gate and the **global cooldown blocking a *different* landmark**; 43 passed. Also updated `docs/design/economy_tuning_open_questions_v1.md` (3 kyber entries marked decided+shipped) + `TODO.json` tunable marker.
+- **Files:** `engine/kyber_attunement.py`, `tests/test_syn6c_t5_crafting_and_harvest_nodes.py`, `docs/design/economy_tuning_open_questions_v1.md`, `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-14 — Sheet content surfacing (3/3): specializations, PvP, notes, description, guarded bio — *drop gnd-ux-client-parity*
 Closes the T3.17 client gap (S4) found by the gap-check: `build_sheet_payload` (engine/sheet_renderer.py:717) assembled several fields the live `+sheet` panel never rendered. Client-only; additive to the existing sheet renderers (`handleSheetData`/`renderSheetPanel`/`renderSheetCenter`/`renderSheetBackground`).
 - **Specializations** — now rendered as indented child rows (`↳`) under the skills view with their dice pool. A core D6 sheet element that was previously INVISIBLE in the GUI.

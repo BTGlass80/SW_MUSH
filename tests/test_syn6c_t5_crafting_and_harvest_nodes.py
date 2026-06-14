@@ -19,7 +19,9 @@ Pins:
   * engine/kyber_attunement.py (new) — attune_to_landmark engine
     entry point: force-sensitive PC at force_resonant landmark
     performs Knowledge skill check; success grants 1 kyber_shard_minor
-    at q75-95 with 24h per-landmark cooldown.
+    at q65-95 with a 7-day per-CHARACTER cooldown (kyber is
+    weekly-ceremonial — Brian decision 2026-06-14; a marginal pass
+    yields a sub-q75 dud).
   * parser/attune_command.py (new) — AttuneCommand player surface.
 
 Test sections
@@ -557,23 +559,32 @@ class TestAttuneRoomFlag(unittest.TestCase):
 # ──────────────────────────────────────────────────────────────────────
 
 class TestAttuneQualityScaling(unittest.TestCase):
-    """_compute_kyber_quality margin → quality mapping."""
+    """_compute_kyber_quality margin → quality mapping (q65 dud-floor;
+    Brian decision 2026-06-14 — kyber is weekly-ceremonial, marginal
+    passes yield a sub-q75 dud, only a good margin reaches lightsaber
+    grade)."""
 
-    def test_margin_zero_q75(self):
+    def test_margin_zero_q65_dud(self):
         from engine.kyber_attunement import _compute_kyber_quality
-        self.assertEqual(_compute_kyber_quality(0), 75.0)
+        # Exact-DC success now yields a q65 DUD (below the q75 saber gate)
+        self.assertEqual(_compute_kyber_quality(0), 65.0)
 
-    def test_margin_5_q80(self):
+    def test_margin_5_q70_still_dud(self):
         from engine.kyber_attunement import _compute_kyber_quality
-        self.assertEqual(_compute_kyber_quality(5), 80.0)
+        self.assertEqual(_compute_kyber_quality(5), 70.0)
 
-    def test_margin_10_q85(self):
+    def test_margin_10_q75_lightsaber_threshold(self):
         from engine.kyber_attunement import _compute_kyber_quality
-        self.assertEqual(_compute_kyber_quality(10), 85.0)
+        # +10 margin is the first lightsaber-grade (q75) draw
+        self.assertEqual(_compute_kyber_quality(10), 75.0)
 
-    def test_margin_20_q95(self):
+    def test_margin_20_q85(self):
         from engine.kyber_attunement import _compute_kyber_quality
-        self.assertEqual(_compute_kyber_quality(20), 95.0)
+        self.assertEqual(_compute_kyber_quality(20), 85.0)
+
+    def test_margin_30_q95(self):
+        from engine.kyber_attunement import _compute_kyber_quality
+        self.assertEqual(_compute_kyber_quality(30), 95.0)
 
     def test_margin_huge_capped_at_q95(self):
         from engine.kyber_attunement import _compute_kyber_quality
@@ -581,8 +592,17 @@ class TestAttuneQualityScaling(unittest.TestCase):
 
     def test_negative_margin_defensive_floor(self):
         from engine.kyber_attunement import _compute_kyber_quality
-        # Caller short-circuits on failure, but defensive return is q75
-        self.assertEqual(_compute_kyber_quality(-1), 75.0)
+        # Caller short-circuits on failure, but defensive return is q65
+        self.assertEqual(_compute_kyber_quality(-1), 65.0)
+
+    def test_dud_below_t5_min_quality(self):
+        # The mechanical point of the dud-floor: a marginal success
+        # (margin < 10) is below the T5 lightsaber gate.
+        from engine.kyber_attunement import _compute_kyber_quality
+        from engine.crafting import T5_MIN_QUALITY
+        self.assertLess(_compute_kyber_quality(0), T5_MIN_QUALITY)
+        self.assertLess(_compute_kyber_quality(5), T5_MIN_QUALITY)
+        self.assertGreaterEqual(_compute_kyber_quality(10), T5_MIN_QUALITY)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -674,10 +694,11 @@ class TestAttuneSuccessPath(unittest.TestCase):
     def test_jedi_with_high_skill_acquires_shard(self):
         from engine.kyber_attunement import attune_to_landmark
         mdb = self._setup_resonant()
-        # 12D scholar — always passes DC 11
+        # 15D scholar — passes DC 15 with a wide margin (>=10), so the
+        # high-skill draw reliably clears the q75 lightsaber threshold.
         char = _make_char(
             char_id=1, room_id=10, faction_id="jedi_order",
-            skills={"scholar": "12D"},
+            skills={"scholar": "15D"},
         )
         result = _run(attune_to_landmark(mdb, char, 10))
         self.assertTrue(result["ok"])
@@ -702,9 +723,10 @@ class TestAttuneSuccessPath(unittest.TestCase):
             skills={"scholar": "12D"},
         )
         _run(attune_to_landmark(mdb, char, 10))
-        cd_key = f"{COOLDOWN_KEY_PREFIX}10"
+        # Cooldown key is character-global ("attune_weekly"), not per-room
+        cd_key = f"{COOLDOWN_KEY_PREFIX}weekly"
         rem = remaining_cooldown(char, cd_key)
-        # Cooldown remaining ≈ full 24h
+        # Cooldown remaining ≈ full 7 days
         self.assertGreater(rem, ATTUNE_COOLDOWN_SECS - 10)
 
     def test_second_attempt_blocked_by_cooldown(self):
@@ -716,6 +738,26 @@ class TestAttuneSuccessPath(unittest.TestCase):
         )
         _run(attune_to_landmark(mdb, char, 10))
         result2 = _run(attune_to_landmark(mdb, char, 10))
+        self.assertFalse(result2["ok"])
+        self.assertIn("silent", result2["msg"].lower())
+
+    def test_global_cooldown_blocks_a_different_landmark(self):
+        # Brian decision 2026-06-14: ONE weekly draw across ALL landmarks.
+        # After attuning at room 10, a DIFFERENT resonant room is also
+        # blocked (the cooldown is per-character, not per-room).
+        from engine.kyber_attunement import attune_to_landmark
+        mdb = self._setup_resonant()
+        mdb.seed_room(room_id=20, zone_id=1,
+                       wilderness_region_id="r1",
+                       properties={"force_resonant": True})
+        char = _make_char(
+            char_id=1, room_id=10, faction_id="jedi_order",
+            skills={"scholar": "12D"},
+        )
+        _run(attune_to_landmark(mdb, char, 10))
+        # Move to a different resonant landmark and try again
+        char["room_id"] = 20
+        result2 = _run(attune_to_landmark(mdb, char, 20))
         self.assertFalse(result2["ok"])
         self.assertIn("silent", result2["msg"].lower())
 
@@ -737,7 +779,7 @@ class TestAttuneFailedSkillPath(unittest.TestCase):
         mdb.seed_room(room_id=10, zone_id=1,
                        wilderness_region_id="r1",
                        properties={"force_resonant": True})
-        # 1D knowledge, no scholar → very likely to fail vs DC 11
+        # 1D knowledge, no scholar → very likely to fail vs DC 15
         # (min roll 1 + Wild Die explosion needed; explicitly weak)
         char = _make_char(
             char_id=1, room_id=10, faction_id="jedi_order",
@@ -745,7 +787,7 @@ class TestAttuneFailedSkillPath(unittest.TestCase):
             skills={},
         )
         # Seed Python RNG to force a clear failure
-        random.seed(1)  # 1D vs DC 11 — depends on Wild Die; seed picks fail
+        random.seed(1)  # 1D vs DC 15 — depends on Wild Die; seed picks fail
         # Run multiple attempts to find a failed seed
         # (We can't fully control the WEG dice without monkey-patching.
         # If this run happens to succeed, that's fine — the test for the
@@ -753,8 +795,8 @@ class TestAttuneFailedSkillPath(unittest.TestCase):
         # fails, which it does most of the time at 1D vs DC 11.)
         result = _run(attune_to_landmark(mdb, char, 10))
         # Either way, the function returned ok=True (call succeeded)
-        # and the cooldown was set.
-        cd_key = f"{COOLDOWN_KEY_PREFIX}10"
+        # and the cooldown was set (character-global "attune_weekly" key).
+        cd_key = f"{COOLDOWN_KEY_PREFIX}weekly"
         self.assertFalse(check_cooldown(char, cd_key),
                           "cooldown should be active after attune attempt")
 
