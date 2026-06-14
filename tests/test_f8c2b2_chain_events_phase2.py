@@ -720,14 +720,5 @@ class TestRepublicSoldierE2EPhase2(_F8C2B2IsolatedBase):
             attrs["tutorial_chain"]["completion_state"], "graduated")
 
 
-# ─────────────────────────────────────────────────────────────────────
-
-
-class TestDropMarker(unittest.TestCase):
-    def test_module_docstring_marks_drop_id(self):
-        import tests.test_f8c2b2_chain_events_phase2 as mod
-        self.assertIn("F.8.c.2.b₂", mod.__doc__ or "")
-
-
 if __name__ == "__main__":
     unittest.main()

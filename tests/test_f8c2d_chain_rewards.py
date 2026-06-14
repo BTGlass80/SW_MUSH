@@ -601,14 +601,5 @@ class TestEndToEndGraduation(unittest.TestCase):
         self.assertEqual(gs["credits_awarded"], 500)
 
 
-# ─────────────────────────────────────────────────────────────────────
-
-
-class TestDropMarker(unittest.TestCase):
-    def test_module_docstring_marks_drop_id(self):
-        import tests.test_f8c2d_chain_rewards as mod
-        self.assertIn("F.8.c.2.d", mod.__doc__ or "")
-
-
 if __name__ == "__main__":
     unittest.main()

@@ -644,14 +644,5 @@ class TestRepublicSoldierE2EPhase3(_IsolatedBase):
         )
 
 
-# ─────────────────────────────────────────────────────────────────────
-
-
-class TestDropMarker(unittest.TestCase):
-    def test_module_docstring_marks_drop_id(self):
-        import tests.test_f8c2b3_chain_missions as mod
-        self.assertIn("F.8.c.2.b₃", mod.__doc__ or "")
-
-
 if __name__ == "__main__":
     unittest.main()

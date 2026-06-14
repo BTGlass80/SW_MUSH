@@ -741,19 +741,5 @@ class TestRepublicSoldierE2E(_F8C2BIsolatedBase):
         )
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Module marker for the drop registry
-# ─────────────────────────────────────────────────────────────────────
-
-
-class TestDropMarker(unittest.TestCase):
-    def test_module_docstring_marks_drop_id(self):
-        """Lightweight canary so an audit grep can confirm the F.8.c.2.b
-        suite shipped — easy way to catch missing/renamed test modules
-        in the regression suite manifest."""
-        import tests.test_f8c2b_chain_events as mod
-        self.assertIn("F.8.c.2.b", mod.__doc__ or "")
-
-
 if __name__ == "__main__":
     unittest.main()

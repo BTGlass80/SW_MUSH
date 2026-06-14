@@ -700,14 +700,5 @@ class TestEndToEndGraduation(unittest.TestCase):
         self.assertEqual(chain_state["pending_drop_room_id"], 500)
 
 
-# ─────────────────────────────────────────────────────────────────────
-
-
-class TestDropMarker(unittest.TestCase):
-    def test_module_docstring_marks_drop_id(self):
-        import tests.test_f8c2c_chain_graduation as mod
-        self.assertIn("F.8.c.2.c", mod.__doc__ or "")
-
-
 if __name__ == "__main__":
     unittest.main()

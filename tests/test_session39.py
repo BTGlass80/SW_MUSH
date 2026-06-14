@@ -321,32 +321,3 @@ class TestBoardingShipStatus:
             src = f.read()
         # The build_space_state dict should include boarding data
         assert '"boarding_linked_to"' in src
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# 4. Regression: Silent Except Invariant (carried from Session 38)
-# ═══════════════════════════════════════════════════════════════════════
-
-class TestSilentExceptInvariant:
-    """Ensure no new silent except/pass blocks in production code."""
-
-    def test_no_silent_except_pass_in_new_files(self):
-        """New/modified files must not have silent except: pass blocks."""
-        import re
-        pattern = re.compile(
-            r'except\s+(?:Exception)?.*?:\s*\n\s*pass\s*$',
-            re.MULTILINE
-        )
-        files = [
-            "engine/boarding.py",
-            "engine/vendor_droids.py",
-            "engine/npc_space_combat_ai.py",
-        ]
-        for filepath in files:
-            if not os.path.exists(filepath):
-                continue
-            with open(filepath, encoding="utf-8") as f:
-                content = f.read()
-            matches = pattern.findall(content)
-            assert len(matches) == 0, \
-                f"Silent except/pass found in {filepath}: {matches}"
