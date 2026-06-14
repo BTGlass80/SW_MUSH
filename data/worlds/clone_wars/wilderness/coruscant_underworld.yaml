@@ -378,6 +378,94 @@ encounters:
         npc_template: winged_xendrite
         count: [10, 20]
 
+    # ═══ Region build-out depth (2026-06-14): sub-region flavor encounters ═══
+    # Per HANDOFF_parallel_defect_hunt_session_2026-06-14.md lane 1. The four thin
+    # Coruscant Underworld sub-regions shared the region pool but had no flavor of
+    # their own; these reinforce each quadrant's established register (smuggler
+    # reaches / industrial overflow / Maze fringe / deep warren), reusing only
+    # already-resolvable creatures + salvage tables (no new stat blocks). Deep
+    # bottom_dark entries are min_band:3 gated like maze_ambush.
+
+    # ── NE Smuggler Reaches — contraband / cargo flavor ──
+    - id: contraband_courier_passing
+      type: non_hostile
+      weight: 2
+      terrains: [industrial_ruin, ferrocrete_corridor]
+      min_distance_from_edge: 1
+      narrative: "A single figure comes through fast and low, a sealed cargo cylinder slung tight across the back, eyes forward and never once on you. No greeting, no slow-down, no footprints left to read. By the time the corridor settles, the courier is two turns gone and the load with them."
+    - id: stripped_surveillance_housing
+      type: non_hostile
+      weight: 2
+      terrains: [industrial_ruin, ferrocrete_corridor]
+      min_distance_from_edge: 1
+      narrative: "A surveillance housing hangs from the corner bracket, its sensor socket clean and empty — pulled with care, not smashed, the shell left in place to fool a glance from the corridor. Below it, a maintenance droid lies on its side, chassis open, the comm board and optics already gone. Whatever it recorded went with them."
+    - id: rival_cargo_crew
+      type: hostile
+      weight: 1
+      terrains: [industrial_ruin, ferrocrete_corridor]
+      min_distance_from_edge: 3
+      faction_gate: underworld_gang_pressure_default
+      narrative: "Two figures are crouched over an opened crate that is not theirs — a third stands watch, hand already on a sidearm. They are not gang colors and not the owners; they are claim-jumpers who got here first and do not intend to share what the dead drop was holding. The watcher's eyes settle on you, and the math is plain."
+      payload:
+        npc_template: underworld_thug
+        count: [2, 3]
+        tier: tier1
+
+    # ── NW Industrial Overflow — working-poor / refugee / labor flavor ──
+    - id: off_shift_ration_share
+      type: non_hostile
+      weight: 3
+      terrains: [industrial_ruin, ferrocrete_corridor]
+      narrative: "Four off-shift laborers sit against a loading-bay wall, passing a single ration block hand to hand, each taking the smallest bite that still counts. None of them look at you. All of them are watching the entrance you came through."
+    - id: forced_shutter_family
+      type: non_hostile
+      weight: 3
+      terrains: [service_tunnel, industrial_ruin]
+      narrative: "A warehouse shutter has been forced a hand's width and propped — behind it, the orange flicker of a heat coil and the shapes of people who have made a home of a sealed bay. A child stands in the gap, watching, until an adult hand closes on a shoulder and draws the child back into the dark."
+    - id: grid_tap_rumor_runner
+      type: non_hostile
+      weight: 2
+      terrains: [ferrocrete_corridor, service_tunnel]
+      narrative: "A pirated grid-tap splice arcs blue against the conduit overhead, throwing the corridor into stutter-light. Beneath it a runner works the foot traffic in a low voice — fresh chits off the board, who's hiring, who isn't paying — and quotes you a price for the same before you've said a word."
+
+    # ── SE Maze Fringe — apex-predator dread + a lost hunter's cache (deep, band-gated) ──
+    - id: maze_fringe_apex_sign
+      type: non_hostile
+      weight: 1
+      terrains: [bottom_dark]
+      min_distance_from_edge: 4
+      min_band: 3
+      narrative: "A drag-trail crosses the floor ahead — wide, single, deliberate, leading off into the dark with no return mark. Beside it a forearm bone lies stripped to a polish, and the stripping was not done by teeth; the surface is scored in long parallel troughs, as if the meat was drawn off whole. The shredder bats overhead are wheeling away from one direction and only one, and a low subsonic pulse rolls through your chest before you hear it, then stops."
+    - id: maze_fringe_lost_hunters_cache
+      type: anomaly
+      weight: 1
+      terrains: [bottom_dark]
+      min_distance_from_edge: 5
+      min_band: 3
+      narrative: "A scavenger's kit lies open against the wall, neat and deliberate: a sealed water bulb, a still-working glowrod set to its lowest burn, a notebook of chalked route-marks. Whoever packed it knew this depth and meant to come back, and did not. A boot remains where the wall meets the floor, and the rest of the trail leads the wrong way, into the dark, ending at a smear the glowrod will not quite reach."
+      payload:
+        salvage_table: tech_cache_table
+
+    # ── SW Deep Warren — forgotten-people vignettes + the Null Gallery (deep, band-gated) ──
+    - id: stratum_archaeologist_at_work
+      type: non_hostile
+      weight: 2
+      terrains: [service_tunnel, industrial_ruin]
+      min_distance_from_edge: 1
+      narrative: "Someone has chalked a measuring grid across an exposed ferrocrete seam, band over band, each marked with a date and a question mark. A figure crouches at the lowest band with a light-pen, brushing grit from something the color of old stone. 'Four hundred years,' they say, not turning. 'Maybe six. Nobody poured this. It was already here.'"
+    - id: pipe_market_cookfire
+      type: non_hostile
+      weight: 3
+      terrains: [service_tunnel, industrial_ruin]
+      narrative: "A salvaged heat element glows under a battered pot, and a half-circle of people wait around it with their own bowls already in hand — none of them matching. An old man ladles out portions too small to be a meal and too deliberate to refuse, counting heads as he goes so the last in line still gets something. Nobody is eating yet. They are waiting until everyone has been served."
+    - id: null_gallery_transit
+      type: non_hostile
+      weight: 1
+      terrains: [bottom_dark]
+      min_distance_from_edge: 4
+      min_band: 3
+      narrative: "Your light dies at ten meters into a dark that the city's ambient bleed never reaches. The survey instrument reads null on the bedrock — impossible, and steady. At the edge of the light, something long passes from one wall to the other without hurry, without sound, and is gone before you can fix on it. It was not coming for you. It was only passing through."
+
 # ─── Sign-off ───────────────────────────────────────────────────────
 # Drop T2.3 (May 24 2026). Single-level Coruscant Underworld
 # wilderness region, parity with Dune Sea's minimal substrate.
