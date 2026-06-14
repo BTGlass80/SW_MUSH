@@ -1627,6 +1627,60 @@ a { color: inherit; text-decoration: none; }
 .rgn-spectating { opacity: 0.55; }
 .rgn-spectate-note { font-size: 9.5px; color: var(--text-dim); font-style: italic; letter-spacing: 0.5px; }
 
+/* ── Ground-UX context panels: roomdetail, nearby, influence ── */
+/* Security badge */
+.rd-sec-badge {
+  display: inline-block; padding: 1px 6px; font-size: 9px;
+  letter-spacing: 2px; font-weight: 600; text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.rd-sec-badge.sec-secured   { color: var(--self);         border: 1px solid var(--self); }
+.rd-sec-badge.sec-contested  { color: var(--pad-amber);    border: 1px solid var(--pad-amber); }
+.rd-sec-badge.sec-lawless    { color: var(--warn);         border: 1px solid var(--warn); }
+.rd-sec-badge.sec-other      { color: var(--text-dim);     border: 1px solid var(--text-dim); }
+/* Room description with expand/collapse */
+.rd-desc-text {
+  font-size: 11px; line-height: 1.45; color: var(--text);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.rd-desc-text.expanded { display: block; }
+.rd-desc-toggle {
+  margin-top: 3px; font-size: 10px; color: var(--accent-dim);
+  cursor: pointer; user-select: none;
+}
+.rd-desc-toggle:hover { color: var(--accent); }
+/* Service icon row */
+.rd-svc-row {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px;
+}
+.rd-svc-icon {
+  font-size: 14px; cursor: default;
+}
+/* Nearby services rows */
+.nb-item {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 0; border-bottom: 1px dashed var(--accent-dim);
+  cursor: pointer; font-size: 10.5px;
+}
+.nb-item:last-child { border-bottom: none; }
+.nb-item:hover { color: var(--accent-bright); }
+.nb-icon { font-size: 13px; flex-shrink: 0; }
+.nb-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-dist { color: var(--text-dim); font-size: 9px; flex-shrink: 0; }
+.nb-dir  { color: var(--accent); font-size: 9px; min-width: 18px; text-align: right; flex-shrink: 0; }
+/* Zone influence gauge bars */
+.inf-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 0; font-size: 10px;
+}
+.inf-org  { width: 90px; flex-shrink: 0; color: var(--text); font-size: 9px; letter-spacing: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inf-track {
+  flex: 1; height: 5px; background: var(--screen-dim);
+  border: 1px solid var(--accent-dim); position: relative;
+}
+.inf-fill  { position: absolute; inset: 0; transition: width .4s; }
+.inf-pct   { width: 30px; text-align: right; flex-shrink: 0; color: var(--text-dim); font-size: 9px; }
+
 /* Faction rep bars */
 .rep-row {
   display: block;
@@ -4142,6 +4196,33 @@ a { color: inherit; text-decoration: none; }
           </div>
           <div class="side-panel-body" id="region-body"></div>
         </div>
+
+        <!-- Ground-UX: room detail card — security + desc + services -->
+        <div class="side-panel" id="roomdetail-panel" style="display:none;">
+          <div class="side-panel-head" onclick="toggleSidePanel('roomdetail-panel')">
+            <span class="sp-title">LOCATION</span>
+            <span class="sp-toggle">▾</span>
+          </div>
+          <div class="side-panel-body" id="roomdetail-body"></div>
+        </div>
+
+        <!-- Ground-UX: nearby services panel -->
+        <div class="side-panel" id="nearby-panel" style="display:none;">
+          <div class="side-panel-head" onclick="toggleSidePanel('nearby-panel')">
+            <span class="sp-title">NEARBY SERVICES</span>
+            <span class="sp-toggle">▾</span>
+          </div>
+          <div class="side-panel-body" id="nearby-body"></div>
+        </div>
+
+        <!-- Ground-UX: zone influence gauge -->
+        <div class="side-panel" id="influence-panel" style="display:none;">
+          <div class="side-panel-head" onclick="toggleSidePanel('influence-panel')">
+            <span class="sp-title">ZONE INFLUENCE</span>
+            <span class="sp-toggle">▾</span>
+          </div>
+          <div class="side-panel-body" id="influence-body"></div>
+        </div>
       </div>
 
     </div>
@@ -6130,6 +6211,12 @@ function handleHudUpdate(data) {
     rebuildDirectionButtons([]);
   }
 
+  // Ground-UX context panels: room detail, nearby services, zone influence.
+  // Each renderer checks for its field's presence and shows/hides its panel.
+  renderRoomDetailPanel(data);
+  renderNearbyServices(data);
+  renderZoneInfluence(data);
+
   // ── Sector map ────────────────────────────────────────────────────
   // F.MAP.2: when the server includes an `area_geometry` payload (the
   // redesigned datapad map from F.MAP.1), the new MapView renderer
@@ -7662,6 +7749,234 @@ function hideRegionPanel() {
   var panel = $('region-panel');
   if (panel) panel.style.display = 'none';
   if (window.M3Region) M3Region.stop();
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   GROUND-UX CONTEXT PANELS
+   roomdetail · nearby services · zone influence
+   Driven by hud_update fields: room_description, room_services,
+   security_level, nearby_services, zone_influence.
+   ════════════════════════════════════════════════════════════════════ */
+
+// A) Room Detail Card — security badge, description, service icons.
+function renderRoomDetailPanel(data) {
+  var panel = $('roomdetail-panel');
+  var body  = $('roomdetail-body');
+  if (!panel || !body) return;
+
+  var hasDesc = (data.room_description !== undefined && data.room_description !== null);
+  var hasSec  = (data.security_level  !== undefined && data.security_level  !== null);
+  var hasSvc  = (Array.isArray(data.room_services) && data.room_services.length > 0);
+
+  if (!hasDesc && !hasSec && !hasSvc) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = '';
+  body.innerHTML = '';
+
+  // Security badge
+  if (hasSec) {
+    var sec = String(data.security_level).toLowerCase();
+    var secBadge = document.createElement('div');
+    var secCls = (sec === 'secured') ? 'sec-secured'
+               : (sec === 'contested') ? 'sec-contested'
+               : (sec === 'lawless')   ? 'sec-lawless'
+               : 'sec-other';
+    secBadge.className = 'rd-sec-badge ' + secCls;
+    secBadge.textContent = data.security_level;
+    body.appendChild(secBadge);
+  }
+
+  // Room description with expand toggle
+  if (hasDesc && data.room_description) {
+    var desc = String(data.room_description);
+    var descEl = document.createElement('div');
+    descEl.className = 'rd-desc-text';
+    descEl.textContent = desc;
+    body.appendChild(descEl);
+
+    // Show expand toggle when text exceeds ~180 chars
+    if (desc.length > 180) {
+      var toggleEl = document.createElement('div');
+      toggleEl.className = 'rd-desc-toggle';
+      toggleEl.innerHTML = '&#9662; show more';
+      (function(d, t) {
+        t.addEventListener('click', function() {
+          if (d.classList.contains('expanded')) {
+            d.classList.remove('expanded');
+            t.innerHTML = '&#9662; show more';
+          } else {
+            d.classList.add('expanded');
+            t.innerHTML = '&#9652; show less';
+          }
+        });
+      })(descEl, toggleEl);
+      body.appendChild(toggleEl);
+    }
+  }
+
+  // Service icon row
+  if (hasSvc) {
+    var SVC_ICONS = {
+      vendor:   '🛒',  // 🛒
+      trainer:  '🎓',  // 🎓
+      mechanic: '⚙',        // ⚙
+      cantina:  '🍺',  // 🍺
+      medical:  '✚',        // ✚
+      docking:  '🚀',  // 🚀
+      crafting: '⚒'         // ⚒
+    };
+    var row = document.createElement('div');
+    row.className = 'rd-svc-row';
+    for (var si = 0; si < data.room_services.length; si++) {
+      var svc = data.room_services[si];
+      var sp = document.createElement('span');
+      sp.className = 'rd-svc-icon';
+      sp.textContent = SVC_ICONS[svc] || '○';
+      sp.title = svc.charAt(0).toUpperCase() + svc.slice(1);
+      row.appendChild(sp);
+    }
+    body.appendChild(row);
+  }
+}
+
+// B) Nearby Services Panel — clickable rows; click sends direction cmd.
+function renderNearbyServices(data) {
+  var panel = $('nearby-panel');
+  var body  = $('nearby-body');
+  if (!panel || !body) return;
+
+  if (!Array.isArray(data.nearby_services) || data.nearby_services.length === 0) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = '';
+  body.innerHTML = '';
+
+  var NB_ICONS = {
+    vendor:   '🛒',
+    trainer:  '🎓',
+    mechanic: '⚙',
+    cantina:  '🍺',
+    medical:  '✚',
+    docking:  '🚀',
+    crafting: '⚒'
+  };
+
+  for (var ni = 0; ni < data.nearby_services.length; ni++) {
+    var ns = data.nearby_services[ni];
+    var item = document.createElement('div');
+    item.className = 'nb-item';
+    item.title = 'Walk to ' + (ns.name || '') + ' — ' + (ns.distance || '?') + ' rooms away';
+
+    var iconEl = document.createElement('span');
+    iconEl.className = 'nb-icon';
+    iconEl.textContent = NB_ICONS[ns.type] || '○';
+
+    var nameEl = document.createElement('span');
+    nameEl.className = 'nb-name';
+    var displayName = (ns.name || '');
+    if (displayName.length > 22) displayName = displayName.substring(0, 20) + '…';
+    nameEl.textContent = displayName;
+
+    var distEl = document.createElement('span');
+    distEl.className = 'nb-dist';
+    distEl.textContent = '(' + (ns.distance || '?') + ')';
+
+    var dirEl = document.createElement('span');
+    dirEl.className = 'nb-dir';
+    dirEl.textContent = ns.direction || '';
+
+    item.appendChild(iconEl);
+    item.appendChild(nameEl);
+    item.appendChild(distEl);
+    if (ns.direction) item.appendChild(dirEl);
+
+    // Click sends the direction command one hop toward this service
+    (function(direction) {
+      item.addEventListener('click', function() {
+        if (direction) sendCmd(direction);
+      });
+    })(ns.direction);
+
+    body.appendChild(item);
+  }
+}
+
+// C) Zone Influence Gauge — CW-era org codes only.
+// Org colors keyed on Clone Wars factions; no GCW codes here.
+function renderZoneInfluence(data) {
+  var panel = $('influence-panel');
+  var body  = $('influence-body');
+  if (!panel || !body) return;
+
+  var inf = data.zone_influence;
+  if (!inf || typeof inf !== 'object') {
+    panel.style.display = 'none';
+    return;
+  }
+
+  var orgs = Object.keys(inf).filter(function(k) { return (inf[k] || 0) > 0; });
+  if (orgs.length === 0) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = '';
+  body.innerHTML = '';
+
+  // CW-era org display names and colors
+  var CW_ORG_LABELS = {
+    republic:    'Republic',
+    cis:         'Separatist',
+    hutt_cartel: 'Hutt Cartel',
+    bhg:         'Bounty Hunters\' Guild',
+    jedi_order:  'Jedi Order',
+    independent: 'Independent'
+  };
+  var CW_ORG_COLORS = {
+    republic:    '#c0392b',   // crimson
+    cis:         '#7f8c9a',   // steel-blue/grey
+    hutt_cartel: '#8a7a1a',   // olive
+    bhg:         '#c07010',   // amber
+    jedi_order:  '#6ee8ff',   // cyan (pad: var(--cock-cyan))
+    independent: '#5a5a5a'    // dim grey
+  };
+
+  for (var ii = 0; ii < orgs.length; ii++) {
+    var org = orgs[ii];
+    var pct = inf[org] || 0;
+
+    var row = document.createElement('div');
+    row.className = 'inf-row';
+
+    var orgLabel = document.createElement('span');
+    orgLabel.className = 'inf-org';
+    // Use mapped label; fall back to title-cased key for unknown codes
+    var labelText = CW_ORG_LABELS[org] || org.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+    orgLabel.textContent = labelText;
+    orgLabel.title = org;
+
+    var track = document.createElement('div');
+    track.className = 'inf-track';
+    var fill = document.createElement('div');
+    fill.className = 'inf-fill';
+    fill.style.width = pct + '%';
+    fill.style.background = CW_ORG_COLORS[org] || 'var(--accent-dim)';
+    track.appendChild(fill);
+
+    var pctEl = document.createElement('span');
+    pctEl.className = 'inf-pct';
+    pctEl.textContent = pct + '%';
+
+    row.appendChild(orgLabel);
+    row.appendChild(track);
+    row.appendChild(pctEl);
+    body.appendChild(row);
+  }
 }
 
 // Reputation panel — server emits hud.reputation as a dict keyed by faction
