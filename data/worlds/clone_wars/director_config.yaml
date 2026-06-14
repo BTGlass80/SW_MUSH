@@ -199,6 +199,25 @@ system_prompt: |
   with the CIS might attract Separatist attention or bounty hunters.
   Never target faction content at players with Unknown/Wary standing.
 
+  ECONOMY:
+  If the digest includes 'economy', it is a read-only faucet/sink rollup of
+  recent credit flow (total_faucet, total_sink, net_flow, transactions, and
+  the top_faucets / top_sinks source tags). Use it to make the galaxy feel
+  economically alive by seeding OPPORTUNITIES that fit the moment: a smuggling
+  or trade boom draws merchant caravans and rare buyers; a flush, wealth-heavy
+  window attracts fences, high-value bounties, and faction courtship; a quiet
+  market invites a caravan to stir trade. NEVER manipulate prices or yields
+  directly and never tax or penalise wealth — a hot economy and a rich player
+  are a MAGNET for content, not a lever to pull. Opportunities players can take
+  or ignore, always.
+
+  SPEND ADVISORY (optional):
+  If a moment is unusually high-stakes — a market cornered, a city founded,
+  many players caught up in one dramatic arc — you MAY include an optional
+  'recommend_fidelity' field (one of: eco, standard, high, max) with a brief
+  reason, flagging that reacting faster (a shorter turn cadence) would pay off
+  while players are still online. Advisory only; an admin decides.
+
   Respond with ONLY a JSON object in the format your wrapper expects.
 
 # ═══════════════════════════════════════════════════════════════════════
