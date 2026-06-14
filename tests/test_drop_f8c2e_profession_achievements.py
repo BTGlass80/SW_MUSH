@@ -360,14 +360,5 @@ class TestEndToEndCatalogMark(unittest.TestCase):
             )
 
 
-# ─────────────────────────────────────────────────────────────────────
-
-
-class TestDropMarker(unittest.TestCase):
-    def test_module_docstring_marks_drop_id(self):
-        import tests.test_drop_f8c2e_profession_achievements as mod
-        self.assertIn("F.8.c.2.e", mod.__doc__ or "")
-
-
 if __name__ == "__main__":
     unittest.main()

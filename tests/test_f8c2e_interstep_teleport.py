@@ -444,14 +444,5 @@ class TestFactionsAlias(unittest.TestCase):
         self.assertIsNone(reg.get("factions"))
 
 
-# ─────────────────────────────────────────────────────────────────────
-
-
-class TestDropMarker(unittest.TestCase):
-    def test_module_docstring_marks_drop_id(self):
-        import tests.test_f8c2e_interstep_teleport as mod
-        self.assertIn("F.8.c.2.e", mod.__doc__ or "")
-
-
 if __name__ == "__main__":
     unittest.main()

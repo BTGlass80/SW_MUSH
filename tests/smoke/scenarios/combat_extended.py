@@ -31,39 +31,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-
-# ──────────────────────────────────────────────────────────────────────────
-# Helpers
-# ──────────────────────────────────────────────────────────────────────────
-
-async def _find_hostile_npc(h):
-    """Locate any hostile NPC in the spawned world.
-
-    Mirrors tests/smoke/scenarios/ground_combat._find_hostile_npc.
-    Returns (npc_name, room_id) or (None, None).
-
-    May 24 2026 — bugfix: see the matching docstring in
-    ``tests/smoke/scenarios/ground_combat._find_hostile_npc``. The
-    SQL is filtered to ``room_id IS NOT NULL`` and ordered by id
-    for deterministic selection. NULL-room hostile NPCs (hired-but-
-    unassigned, ship crew, despawned entities) are not valid
-    ground-combat targets and were crashing this helper with a
-    TypeError on Python 3.14 / Windows where the unordered SQLite
-    result returned them first.
-    """
-    rows = await h.db.fetchall(
-        "SELECT id, name, room_id, ai_config_json FROM npcs "
-        "WHERE room_id IS NOT NULL "
-        "ORDER BY id"
-    )
-    for r in rows:
-        try:
-            ai = json.loads(r["ai_config_json"] or "{}")
-        except Exception:
-            ai = {}
-        if ai.get("hostile") is True:
-            return r["name"], int(r["room_id"])
-    return None, None
+from tests.smoke.scenarios.ground_combat import _find_hostile_npc
 
 
 # ──────────────────────────────────────────────────────────────────────────

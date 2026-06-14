@@ -521,32 +521,6 @@ class TestWebClientBoardingUI:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 12. No Silent Except Pass (Invariant)
-# ═══════════════════════════════════════════════════════════════════════
-
-class TestNoSilentExceptPass:
-    """Ensure new code maintains the zero-silent-except invariant."""
-
-    def test_encounter_boarding_no_silent_except(self):
-        """encounter_boarding.py must not have bare except: pass."""
-        with open("engine/encounter_boarding.py", "r", encoding="utf-8") as f:
-            src = f.read()
-        import re
-        matches = re.findall(r'except\s+\w*.*?:\s*\n\s*pass\b', src)
-        assert len(matches) == 0, \
-            f"Found {len(matches)} silent except:pass in encounter_boarding.py"
-
-    def test_npc_combat_ai_no_silent_except(self):
-        """Modified npc_space_combat_ai.py must not have bare except: pass."""
-        with open("engine/npc_space_combat_ai.py", "r", encoding="utf-8") as f:
-            src = f.read()
-        import re
-        matches = re.findall(r'except\s+\w*.*?:\s*\n\s*pass\b', src)
-        assert len(matches) == 0, \
-            f"Found {len(matches)} silent except:pass in npc_space_combat_ai.py"
-
-
-# ═══════════════════════════════════════════════════════════════════════
 # 13. AST Validation
 # ═══════════════════════════════════════════════════════════════════════
 

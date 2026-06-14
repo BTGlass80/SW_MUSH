@@ -6,6 +6,21 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-14 — Test-fragment prune: remove verified-redundant test fragments (resolves TD.TEST_FRAGMENT_PRUNES_DEFERRED) — *drop test-fragment-prune*
+Cleared the deferred-fragment backlog from the test-suite audit, verifying each target per-HEAD (the audit ran on a stale tree). The discipline here was *don't delete coverage to satisfy a checklist* — two flagged items turned out NOT to be safe and were kept.
+- **Eliminated (verified redundant/tautological):**
+  - **8 `TestDropMarker` classes** (audit said 6 — a suite-wide scan found **8**: `f8c2b/b2/b3/b4/c/d/e` + `drop_f8c2e_profession_achievements`). Each asserted only that its own module docstring contained its own drop id — pure self-reference, guards nothing.
+  - **s43 `TestEncounterBoardingModule`** (16 methods). Verified it exercises the *same* `engine.encounter_boarding` module that **s40** covers with 39 methods across dedicated classes (`TestTierCalculation`, `TestShouldNpcBoard`, `TestBoarderSheetBuilder`, …) — a true subset. s43's unique `TestBoardingPoseEvent` / `TestClientBoardingUI` classes are kept.
+  - **Narrow silent-except guards** — s39 `TestSilentExceptInvariant` + s40 `TestNoSilentExceptPass`. The canonical guard is **s38**'s repo-wide walk; a scan found **7 legitimate `except <Specific>: pass`** blocks in production, confirming the project's policy *allows* narrow swallows — so the narrow per-file guards were vestigial over-strict. (s38 left intact.)
+  - **`combat_extended.py` `_find_hostile_npc`** copy-paste → now `from tests.smoke.scenarios.ground_combat import _find_hostile_npc` (the path `era_clone_wars.py` already uses; logic equivalent).
+- **Kept — audit overclaimed, verified NOT safe to remove:**
+  - `test_director_adaptive_spend` **`TestManualFidelityPin`** tests the `_apply_governor` heuristic-override (online=0 → stays `max`), a *different entry point* than slice2's `set_manual_fidelity` API coverage.
+  - `test_orphan_wireup` **xfail tests** are *live forward-intent* markers — the `register_*_handlers` wire-up is still absent from `server/`, so they document pending work, not dead symbols.
+- **Consciously NOT done — the 3 consolidate-parametrize candidates** (gundark ×7, NPC roster ×6, SPA tier-body static ×6): these are maintenance-only DRY refactors of green, passing, *self-contained* tests (no dead weight; the SPA static tests are already `slow`-marked). Each file interleaves unique tests with the boilerplate, so a parametrize merge carries real silent-coverage-loss risk disproportionate to the readability payoff on an already-green suite. Left as an optional focused refactor (TD note); say the word to do it.
+- **Verified:** new `tests/test_fragment_prune_contract.py` (self-enforcing: no `TestDropMarker` reappears, the removed classes stay gone, the *kept* canonical guards — s38, s40 boarding — remain, combat_extended imports the shared helper). Touched files collect clean; spot executions green. **Gate: `run_all_tests.bat`.**
+- **Files:** removed 8 `TestDropMarker` classes + s43 `TestEncounterBoardingModule` + s39/s40 narrow except-guards across `tests/test_f8c2*.py`, `test_drop_f8c2e_profession_achievements.py`, `test_session39/40/43.py`; `tests/smoke/scenarios/combat_extended.py` (dedup); `tests/test_fragment_prune_contract.py` (new); `CHANGELOG.md`, `TODO.json`.
+
+
 ### 2026-06-14 — Kyber attunement → weekly-ceremonial (Brian roadmap decision 3) — *drop kyber-weekly-ceremonial*
 Executes `BRIAN_ROADMAP_DECISIONS.2026-06-14` #3 (resolves `TUN.kyber.cooldown` / `.quality_band` / `.skill_difficulty`): kyber is **ceremonial-for-Jedi, not a common harvest.** Engine-only tuning in `engine/kyber_attunement.py`; no schema/funnel change.
 - **Difficulty 11 → 15** (`ATTUNE_DIFFICULTY`): Moderate → Difficult — a Padawan no longer auto-passes.
