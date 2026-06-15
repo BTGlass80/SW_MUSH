@@ -185,7 +185,7 @@ DEV_TEST_CACHE_POOL: dict[str, CacheDef] = {
 
 _WILDSPACE_THEATER_FILES = {
     "sieges": "sieges.yaml",
-    # "hutt_frontier": "hutt_frontier.yaml",   # Drop 3
+    "hutt_frontier": "hutt_frontier.yaml",   # Drop 3
 }
 
 _WILDSPACE_POOLS_CACHE: Optional[dict[str, dict[str, CacheDef]]] = None

@@ -1,0 +1,185 @@
+# data/worlds/clone_wars/wildspace/hutt_frontier.yaml
+# Hutt Frontier Theater — wildspace cache pools   [T3.16 Drop 3]
+# space_wildspace_design_v1.md §3.2, §4
+#
+# Loaded by engine/space_caches.py::_load_wildspace_pools() into CacheDef
+# objects keyed {zone_key: {cache_def_id: CacheDef}}. Consumed by the `mine`
+# command (mining nodes) and the `harvest` command (faction_cache markers) in
+# parser/space_commands.py.
+#
+# Schema (mirrors engine/space_caches.CacheDef — identical to sieges.yaml):
+#   zones.<zone_key>.theater          str   flavor tag (hutt_frontier)
+#   zones.<zone_key>.caches.<def_id>:
+#       kind            "mining" | "faction_cache" | "derelict"
+#       visibility      "universal" | [faction_code, ...] | "hidden"
+#       respawn_minutes int   cooldown length
+#       density         int   avg instances active at once
+#       yield_table     list of [weight, rtype, qty_min, qty_max, qual_min, qual_max]
+#       rep_reward      optional {faction_code: delta}
+#
+# THEATER NOTES (design §3.2): lawless smuggling periphery beyond Tatooine and
+# Nar Shaddaa. Criminal-flavored. Faction stakes are hutt_cartel and
+# bounty_hunters_guild (Republic/CIS/Jedi do not operate here, so they get NO
+# faction-visible content — design §3.2.1/§3.2.2). Hutt Frontier rewards Mining
+# Laser investment, so universal asteroid/mineral nodes run at higher density
+# than the Sieges debris fields (design §7).
+#
+# Independent-visible "spacer mutual-aid" caches (design §3.2 cache lists +
+# open-question #3) are DEFERRED: `independent` is the no-faction sentinel, not
+# a real organization, so an [independent]-visibility cache would never pass the
+# rep>=0 gate and adjust_rep('independent') is a no-op. Shipping it needs the
+# open-question resolved + an Independent rep track — neither exists. Universal
+# nodes (60-70% of caches per §8) already keep an Independent spacer earning.
+#
+# rep rewards are PERSONAL faction standing routed through
+# engine.organizations.adjust_rep (the same rep the visibility gate reads), per
+# Drop 2b. Small (2-3) supplementary grind per §4.4. NO kyber faucet here — the
+# Sieges Jedi recovery beacon is the sole player-reachable kyber_shard_minor
+# source in wildspace.
+#
+# rtype values must be registered in engine.crafting.RESOURCE_TYPES:
+#   metal, composite, rare, energy, electronic, chemical
+# (chemical = spice / contraband flavor.)
+
+schema_version: 1
+
+zones:
+
+  # ── Jundland Drift — Hutt smuggling staging / freighter graveyard (LOW) ────
+  jundland_drift:
+    theater: hutt_frontier
+    caches:
+
+      # Universal: mineral-rich asteroid drift past Tatooine's outer ring.
+      # Mining-laser optimized — highest-density node in the theater (§7).
+      asteroid_mineral_cluster:
+        kind: mining
+        visibility: universal
+        respawn_minutes: 40
+        density: 6
+        yield_table:
+          # [weight, rtype, qty_min, qty_max, qual_min, qual_max]
+          - [55, metal,     3, 8, 35, 65]
+          - [30, rare,      1, 2, 45, 70]
+          - [15, composite, 1, 3, 35, 60]
+
+      abandoned_freighter_wreck:
+        kind: mining
+        visibility: universal
+        respawn_minutes: 50
+        density: 4
+        yield_table:
+          - [50, composite,  2, 6, 35, 60]
+          - [30, electronic, 1, 3, 40, 65]
+          - [20, metal,      2, 4, 35, 60]
+
+      scattered_cargo_drift:
+        kind: mining
+        visibility: universal
+        respawn_minutes: 45
+        density: 3
+        yield_table:
+          - [50, composite, 2, 5, 35, 60]
+          - [30, energy,    1, 3, 40, 65]
+          - [20, metal,     1, 3, 35, 55]
+
+      # Hutt-visible: pre-marked Cartel salvage wrecks (gear, not rep).
+      hutt_marked_wreck:
+        kind: mining
+        visibility: [hutt_cartel]
+        respawn_minutes: 60
+        density: 2
+        yield_table:
+          - [50, metal,      2, 5, 40, 65]
+          - [30, composite,  1, 3, 45, 70]
+          - [20, electronic, 1, 2, 45, 70]
+
+      # ── Faction caches (Drop 3) — `harvest <id>`, no skill check ───────────
+
+      # Hutt-visible: marked smuggling caches — spice, weapons, contraband.
+      hutt_smuggling_cache:
+        kind: faction_cache
+        visibility: [hutt_cartel]
+        respawn_minutes: 90
+        density: 2
+        rep_reward: {hutt_cartel: 2}
+        yield_table:
+          - [45, chemical, 1, 3, 45, 75]
+          - [30, rare,     1, 2, 50, 75]
+          - [25, metal,    2, 4, 45, 70]
+
+      # BHG-visible: fugitive ship wreckage with bounty markers / dead-drop intel.
+      bhg_fugitive_wreckage:
+        kind: faction_cache
+        visibility: [bounty_hunters_guild]
+        respawn_minutes: 120
+        density: 1
+        rep_reward: {bounty_hunters_guild: 2}
+        yield_table:
+          - [50, electronic, 1, 3, 50, 75]
+          - [30, rare,       1, 2, 55, 80]
+          - [20, metal,      1, 2, 45, 70]
+
+  # ── Smuggler's Run Periphery — Hutt back-route lanes, jamming (MEDIUM) ─────
+  smugglers_run_periphery:
+    theater: hutt_frontier
+    caches:
+
+      # Universal: cargo dumped in rushed jumps, pirate prize wrecks.
+      drifting_cargo_crates:
+        kind: mining
+        visibility: universal
+        respawn_minutes: 45
+        density: 4
+        yield_table:
+          - [50, composite, 2, 5, 40, 65]
+          - [30, energy,    1, 3, 45, 70]
+          - [20, metal,     1, 3, 40, 60]
+
+      pirate_prize_wreck:
+        kind: mining
+        visibility: universal
+        respawn_minutes: 50
+        density: 3
+        yield_table:
+          - [50, metal,      2, 6, 40, 65]
+          - [30, rare,       1, 2, 50, 75]
+          - [20, electronic, 1, 2, 45, 70]
+
+      # Hutt-visible: salvage tucked in sensor-jamming pockets (gear, not rep).
+      jamming_pocket_salvage:
+        kind: mining
+        visibility: [hutt_cartel]
+        respawn_minutes: 65
+        density: 2
+        yield_table:
+          - [45, electronic, 2, 4, 45, 70]
+          - [35, rare,       1, 2, 55, 80]
+          - [20, composite,  1, 3, 50, 75]
+
+      # ── Faction caches (Drop 3) — `harvest <id>`, no skill check ───────────
+
+      # Hutt-visible: premium caches in the jamming pockets — better yields.
+      premium_hutt_cache:
+        kind: faction_cache
+        visibility: [hutt_cartel]
+        respawn_minutes: 120
+        density: 1
+        rep_reward: {hutt_cartel: 3}
+        yield_table:
+          - [40, chemical, 2, 4, 55, 90]
+          - [30, rare,     1, 3, 60, 90]
+          - [20, energy,   2, 4, 55, 85]
+          - [10, metal,    2, 5, 50, 80]
+
+      # BHG-visible: top-tier bounty bait — high-value dead drops.
+      bhg_high_value_bait:
+        kind: faction_cache
+        visibility: [bounty_hunters_guild]
+        respawn_minutes: 150
+        density: 1
+        rep_reward: {bounty_hunters_guild: 3}
+        yield_table:
+          - [50, electronic, 1, 3, 55, 85]
+          - [30, rare,       1, 2, 60, 90]
+          - [20, energy,     1, 2, 55, 80]

@@ -79,7 +79,7 @@ zones:
     type: deep_space
     authority: hutt
     planet: tatooine
-    adjacent: [tatooine_orbit, corellian_run, triellus_trade_route]
+    adjacent: [tatooine_orbit, corellian_run, triellus_trade_route, jundland_drift]
     desc: >
       The dark space beyond Tatooine's gravity well. The Corellian Run
       arrives from coreward; the Triellus Trade Route arcs along the
@@ -114,7 +114,7 @@ zones:
     type: deep_space
     authority: hutt
     planet: nar_shaddaa
-    adjacent: [nar_shaddaa_orbit, hutt_space_corridor]
+    adjacent: [nar_shaddaa_orbit, hutt_space_corridor, smugglers_run_periphery]
     desc: >
       The open space beyond Nar Shaddaa's gravity well. Hutt Space
       sprawls in every direction, lawless and profitable. The Hutt
@@ -402,8 +402,8 @@ zones:
 # deliberately NOT in spawn_zones (no friendly NPC traffic — design §6.2).
 # Adjacency is bidirectional with the parent zone (one transit each way);
 # the two theaters are not directly connected (design §3.3).
-# Hutt Frontier theater (jundland_drift, smugglers_run_periphery) ships
-# in Drop 3.
+# Hutt Frontier theater (jundland_drift, smugglers_run_periphery) is the
+# second wildspace block, defined further down in this file (Drop 3).
 
   geonosis_front:
     name: "Geonosis Front"
@@ -437,6 +437,53 @@ zones:
       moved on and left the hulks behind. Big derelicts, picked over but
       still rewarding for the patient. Patrol presence is minimal; the only
       company out here is other scavengers.
+
+# ═══════════════════════════════════════════════════════════════════════
+# WILDSPACE ZONES — Hutt Frontier Theater (space_wildspace_design_v1.md §3.2)
+# ═══════════════════════════════════════════════════════════════════════
+# Same wildspace mechanics as the Sieges Theater above (deep_space type →
+# lawless by default; NOT in spawn_zones → no friendly traffic; bidirectional
+# adjacency with the parent zone). Content set = wildspace/hutt_frontier.yaml.
+# Lawless smuggling periphery beyond Tatooine and Nar Shaddaa — criminal tone,
+# hutt_cartel + bounty_hunters_guild faction stakes (no Republic/CIS/Jedi).
+
+  jundland_drift:
+    name: "Jundland Drift"
+    type: deep_space
+    authority: hutt
+    planet: null
+    adjacent: [tatooine_deep_space]
+    wildspace: true
+    wildspace_theater: hutt_frontier
+    desc: >
+      The asteroid drift past Tatooine's outer ring — a Hutt smuggling
+      staging ground and a graveyard for ships that needed to disappear.
+      Mineral-rich rock tumbles among the hulks of abandoned freighters.
+      Cartel collector ships work the field, and pirate skiffs work the
+      Cartel; transponders out here mean nothing.
+    hazards:
+      asteroid_density: light
+      nav_modifier: 2
+
+  smugglers_run_periphery:
+    name: "Smuggler's Run Periphery"
+    type: deep_space
+    authority: hutt
+    planet: null
+    adjacent: [nar_shaddaa_deep_space]
+    wildspace: true
+    wildspace_theater: hutt_frontier
+    desc: >
+      The unofficial back-route lanes the Hutts use to dodge Republic
+      inspection. Sensor-jamming nebula clouds swallow approaching ships;
+      the Cartel seeds the pockets with orbital mines and premium caches
+      in equal measure. Heavy Hutt presence — but they tax rather than
+      fight, if you've got cred with them. If you don't, the enforcers
+      come.
+    hazards:
+      asteroid_density: light
+      nav_modifier: 2
+      sensor_penalty: 3
 
 # ═══════════════════════════════════════════════════════════════════════
 # SPAWN ZONES
