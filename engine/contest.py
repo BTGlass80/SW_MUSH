@@ -821,6 +821,39 @@ async def tick_region_contest_resolution(db, session_mgr=None) -> None:
         await _resolve_defender_win(db, contest, session_mgr=session_mgr)
 
 
+async def _despawn_contest_anchor(db, contest: dict) -> None:
+    """Delete a resolved contest's Region Anchor NPC + its reinforcements.
+
+    Without this, every contest that reached the culminating fight orphaned
+    1-5 permanent hostile NPCs in the landmark room: the Anchor is created via
+    ``db.create_npc`` and never registered in ``region_garrison``, so
+    ``dismiss_region_garrison`` (which only deletes garrison-table rows) could
+    never reach it, and no reaper tick exists. Called from BOTH resolution
+    paths (defender-win + challenger-win), which between them cover every
+    outcome (tick-expiry, killing-blow, no-clear-killer). Best-effort: a delete
+    failure logs but never blocks resolution.
+    """
+    anchor_id = contest.get("anchor_npc_id")
+    contest_id = contest.get("id")
+    if anchor_id:
+        try:
+            await db.delete_npc(int(anchor_id))
+        except Exception:
+            log.warning("[contest] anchor despawn failed (npc=%s)", anchor_id,
+                        exc_info=True)
+    if contest_id is not None:
+        try:
+            await db.execute(
+                "DELETE FROM npcs WHERE "
+                "json_extract(ai_config_json, '$.anchor_reinforcement_for') = ?",
+                (int(contest_id),),
+            )
+            await db.commit()
+        except Exception:
+            log.warning("[contest] reinforcement despawn failed (contest=%s)",
+                        contest_id, exc_info=True)
+
+
 async def _resolve_defender_win(
     db, contest: dict, *, session_mgr=None,
 ) -> None:
@@ -836,16 +869,23 @@ async def _resolve_defender_win(
     defender_org = contest.get("defender_org_code")
     zone_id = contest.get("zone_id")
 
-    # Mark resolved
+    # Mark resolved — compare-and-swap on status='active' so a concurrent
+    # killing-blow challenger-win at the ends_at boundary cannot be double-
+    # resolved (the second writer sees rowcount 0 and bails before applying a
+    # duplicate penalty/cooldown/despawn).
     try:
-        await db.execute(
+        cur = await db.execute(
             "UPDATE region_contests SET status = 'resolved_defender' "
-            "WHERE id = ?",
+            "WHERE id = ? AND status = 'active'",
             (contest_id,),
         )
         await db.commit()
     except Exception:
         log.warning("[contest] resolve update failed", exc_info=True)
+        return
+    if getattr(cur, "rowcount", 1) == 0:
+        log.info("[contest] defender-win skipped: contest %s already resolved",
+                 contest_id)
         return
 
     # Apply failure penalty to challenger (zone-keyed influence in
@@ -892,6 +932,9 @@ async def _resolve_defender_win(
         except Exception:
             log.warning("[contest] resolve broadcast failed",
                         exc_info=True)
+
+    # Despawn the Anchor + reinforcements now the contest is over.
+    await _despawn_contest_anchor(db, contest)
 
 
 async def _set_contest_cooldown(
@@ -1285,6 +1328,12 @@ async def _spawn_region_anchor(
     challenger_org = contest["challenger_org_code"]
     zone_id = contest.get("zone_id")
 
+    # Idempotency, defense-in-depth: if this contest already has a pinned
+    # Anchor, don't spawn a second one. Phase A's `anchor_npc_id IS NULL` SQL
+    # filter is the primary guard; this catches a stale / re-entrant dict.
+    if contest.get("anchor_npc_id"):
+        return int(contest["anchor_npc_id"])
+
     # Pick a landmark
     landmarks = await _get_region_landmarks(db, region_slug)
     if not landmarks:
@@ -1321,7 +1370,10 @@ async def _spawn_region_anchor(
     tmpl = _REGION_ANCHOR_TEMPLATES.get(
         tmpl_key, _REGION_ANCHOR_TEMPLATES["_default"])
 
-    anchor_name = f"{tmpl['name_prefix']} of {region_slug}"
+    # Per-contest-unique name so create_npc's (name, room_id) de-dup guard
+    # can't silently hand back a leftover Anchor from a prior contest on the
+    # same landmark (belt-and-suspenders with despawn-on-resolution).
+    anchor_name = f"{tmpl['name_prefix']} of {region_slug} (#{contest_id})"
     sheet = _build_anchor_sheet(tmpl, anchor_hp)
     ai = _build_anchor_ai(tmpl, defender_org, region_slug, contest_id)
 
@@ -1349,8 +1401,18 @@ async def _spawn_region_anchor(
         )
         await db.commit()
     except Exception:
-        log.warning("[contest] anchor pin to contest failed",
+        # The Anchor NPC exists but couldn't be pinned to the contest row.
+        # Leaving it would orphan an unkillable-for-resolution hostile AND let
+        # the next tick (anchor_npc_id still NULL) spawn a SECOND anchor. Remove
+        # the orphan and bail; the next tick re-spawns cleanly.
+        log.warning("[contest] anchor pin to contest failed; removing orphan",
                     exc_info=True)
+        try:
+            await db.delete_npc(int(anchor_npc_id))
+        except Exception:
+            log.warning("[contest] orphan anchor cleanup failed",
+                        exc_info=True)
+        return None
 
     # Reinforcement NPCs — share the Anchor's landmark
     reinforce_ids = []
@@ -1539,17 +1601,24 @@ async def _resolve_challenger_win(
     defender_org = contest.get("defender_org_code")
     zone_id = contest.get("zone_id")
 
-    # Mark resolved + dismiss the Anchor + reinforcements
+    # Mark resolved — compare-and-swap on status='active' so a concurrent
+    # tick-expiry defender-win at the ends_at boundary cannot double-resolve
+    # (the second writer sees rowcount 0 and bails). The Anchor +
+    # reinforcements are despawned at the end via _despawn_contest_anchor.
     try:
-        await db.execute(
+        cur = await db.execute(
             "UPDATE region_contests SET status = 'resolved_challenger' "
-            "WHERE id = ?",
+            "WHERE id = ? AND status = 'active'",
             (contest_id,),
         )
         await db.commit()
     except Exception:
         log.warning("[contest] challenger-win update failed",
                     exc_info=True)
+        return
+    if getattr(cur, "rowcount", 1) == 0:
+        log.info("[contest] challenger-win skipped: contest %s already resolved",
+                 contest_id)
         return
 
     # Transfer region ownership
@@ -1641,6 +1710,9 @@ async def _resolve_challenger_win(
         except Exception:
             log.warning("[contest] seize broadcast failed",
                         exc_info=True)
+
+    # Despawn the (now-dead) Anchor row + its reinforcements.
+    await _despawn_contest_anchor(db, contest)
 
 
 # ──────────────────────────────────────────────────────────────────────
