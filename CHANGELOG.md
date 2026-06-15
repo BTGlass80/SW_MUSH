@@ -6,6 +6,13 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-14 — Web a11y: prefers-reduced-motion + modal return-focus (audit UX-6) — *drop a11y-reduced-motion-focus*
+Picks up the unclaimed accessibility item from the ChatGPT-audit response (`docs/design/06_Claude_Response_and_Action_Items.md`, Section B / UX-6). Client-only, purely additive (+42 lines, 0 removed) to `static/client.html`.
+- **`prefers-reduced-motion`:** a `@media (prefers-reduced-motion: reduce)` block neutralizes animation/transition duration + iteration globally (the standard near-zero pattern, not hard `none`, to avoid `transitionend`/`animationend` timing bugs) — respects the OS/browser reduced-motion preference for vestibular-sensitive players. Only active when requested.
+- **Modal return-focus:** `_a11yRememberOpener()` / `_a11yRestoreFocus()` capture `document.activeElement` on modal open and restore it on close, wired into all 5 `role="dialog"` modals (sheet-panel, inv/shop/board/craft); the existing Escape→close handlers inherit it. (Full Tab focus-trap deferred — it needs runtime verification; map/region/city panels aren't `role="dialog"` so out of scope.)
+- **Verified:** new `tests/spa/test_a11y_reduced_motion_focus.py` (22) + onclick-exports regression (4) green. No existing behavior altered.
+- **Files:** `static/client.html`, `tests/spa/test_a11y_reduced_motion_focus.py` (new), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-14 — Cities client polish (T3.14 C6+C15) + gap-check — *drop cities-client-polish*
 T3.14 Player-Cities gap-check (16 areas, adversarially verified; `HANDOFF_t314_cities_gapcheck_2026-06-14.md`) found the core **heavily built** (8 areas DONE — founding/expansion/banishment/taxation/schema/look-tag/client-panel). Closed two clean client-only gaps (wiring already-built parser commands; no server/engine change):
 - **C6 — citizen-benefit buttons:** added the missing web controls to the city modal's action section — a **citizen-room ON/OFF** toggle (room-id input, numeric-validated, mayor/founder-gated) and a **City Home** teleport button (citizen+). Both fire existing `+city citizenroom on|off <id>` / `+city home` parser commands (previously typed-only).

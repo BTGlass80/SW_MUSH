@@ -4028,6 +4028,18 @@ a { color: inherit; text-decoration: none; }
   .sheet-tab { padding: 8px 12px; font-size: 9px; letter-spacing: 2px; }
 }
 
+/* ── Accessibility: honour OS/browser reduced-motion preference ──────────
+   Uses the robust near-zero pattern so transitions complete instantly
+   rather than being hard-cut (avoids JS timing bugs on transitionend). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -10791,10 +10803,31 @@ function pickDefaultSkill(payload) {
   return keys[0];
 }
 
+/* ── Accessibility: return-focus helpers (UX-6 Section B) ─────────────────
+   Called from every modal open/close path so keyboard users land back on
+   the trigger element after dismissing a dialog.  Single shared slot is
+   fine — only one role="dialog" modal is open at a time. */
+var _a11yOpenerEl = null;
+
+function _a11yRememberOpener() {
+  try { _a11yOpenerEl = document.activeElement || null; } catch (_) { _a11yOpenerEl = null; }
+}
+
+function _a11yRestoreFocus() {
+  try {
+    if (_a11yOpenerEl && typeof _a11yOpenerEl.focus === 'function' &&
+        document.body && document.body.contains(_a11yOpenerEl)) {
+      _a11yOpenerEl.focus();
+    }
+  } catch (_) { /* ignore */ }
+  _a11yOpenerEl = null;
+}
+
 function openSheetPanel() {
   var ov = $('sheet-panel-overlay');
   var pn = $('sheet-panel');
   if (!ov || !pn) return;
+  _a11yRememberOpener();
   ov.classList.add('show');
   pn.classList.add('show');
   sheetPanelOpen = true;
@@ -10808,6 +10841,7 @@ function closeSheetPanel() {
   pn.classList.remove('show');
   sheetPanelOpen = false;
   sheetEditMode = null;
+  _a11yRestoreFocus();
 }
 
 function sheetPanelBackdropClick(evt) {
@@ -11878,12 +11912,14 @@ function stageFromInventory(cmd) {
 function openInventoryModal() {
   var ov = $('inv-modal-overlay'), pn = $('inv-modal');
   if (!ov || !pn) return;
+  _a11yRememberOpener();
   ov.classList.add('show'); pn.classList.add('show');
 }
 function closeInventoryModal() {
   var ov = $('inv-modal-overlay'), pn = $('inv-modal');
   if (!ov || !pn) return;
   ov.classList.remove('show'); pn.classList.remove('show');
+  _a11yRestoreFocus();
 }
 function invModalBackdropClick(evt) {
   if (evt && evt.target && evt.target.id === 'inv-modal-overlay') closeInventoryModal();
@@ -11912,12 +11948,14 @@ function stageFromShop(cmd) {
 function openShopModal() {
   var ov = $('shop-modal-overlay'), pn = $('shop-modal');
   if (!ov || !pn) return;
+  _a11yRememberOpener();
   ov.classList.add('show'); pn.classList.add('show');
 }
 function closeShopModal() {
   var ov = $('shop-modal-overlay'), pn = $('shop-modal');
   if (!ov || !pn) return;
   ov.classList.remove('show'); pn.classList.remove('show');
+  _a11yRestoreFocus();
 }
 function shopModalBackdropClick(evt) {
   if (evt && evt.target && evt.target.id === 'shop-modal-overlay') closeShopModal();
@@ -11943,6 +11981,7 @@ function stageFromBoard(cmd) {
 function openBoardModal() {
   var ov = $('board-modal-overlay'), pn = $('board-modal');
   if (!ov || !pn) return;
+  _a11yRememberOpener();
   ov.classList.add('show'); pn.classList.add('show');
 }
 function closeBoardModal() {
@@ -11950,6 +11989,7 @@ function closeBoardModal() {
   if (window.M3Board) M3Board.stop();  // drain the countdown interval
   if (!ov || !pn) return;
   ov.classList.remove('show'); pn.classList.remove('show');
+  _a11yRestoreFocus();
 }
 function boardModalBackdropClick(evt) {
   if (evt && evt.target && evt.target.id === 'board-modal-overlay') closeBoardModal();
@@ -11978,6 +12018,7 @@ function stageFromCraft(cmd) {
 function openCraftModal() {
   var ov = $('craft-modal-overlay'), pn = $('craft-modal');
   if (!ov || !pn) return;
+  _a11yRememberOpener();
   ov.classList.add('show'); pn.classList.add('show');
 }
 function closeCraftModal() {
@@ -11985,6 +12026,7 @@ function closeCraftModal() {
   if (window.M3Craft) M3Craft.stop();  // convention symmetry (no timers)
   if (!ov || !pn) return;
   ov.classList.remove('show'); pn.classList.remove('show');
+  _a11yRestoreFocus();
 }
 function craftModalBackdropClick(evt) {
   if (evt && evt.target && evt.target.id === 'craft-modal-overlay') closeCraftModal();
