@@ -727,10 +727,7 @@ class TestDissolveCityNonLeader(unittest.TestCase):
 class TestDissolveCityHappyPath(unittest.TestCase):
     def test_dissolution_refund_and_state_flip(self):
         async def _t():
-            from engine.player_cities import (
-                dissolve_city, found_city, FOUNDING_COSTS,
-                DISSOLUTION_REFUND_PCT,
-            )
+            from engine.player_cities import dissolve_city, found_city
             db = await _fresh_db()
             char, org, _, _, _ = await _full_setup(
                 db, treasury=100_000, storage_max=100)
@@ -741,14 +738,12 @@ class TestDissolveCityHappyPath(unittest.TestCase):
 
             ok, _ = await dissolve_city(db, char, "Test City")
             self.assertTrue(ok)
-            # Refund 50% of 25_000 = 12_500
-            expected_refund = (
-                FOUNDING_COSTS["outpost"] * DISSOLUTION_REFUND_PCT
-            ) // 100
+            # Brian 2026-06-14 (fork CITY.dissolution_refund_formula = align
+            # to spec §8.3): refund is 25% of EXPANSION-room claim costs, NOT
+            # a fraction of the HQ founding cost. A freshly-founded city with
+            # no expansion rooms gets NO refund (the HQ cost is sunk).
             org_post = await db.get_organization(org["code"])
-            self.assertEqual(
-                org_post["treasury"], 75_000 + expected_refund,
-            )
+            self.assertEqual(org_post["treasury"], 75_000)
             # State flipped
             rows = await db.fetchall(
                 "SELECT state FROM player_cities "
@@ -758,21 +753,55 @@ class TestDissolveCityHappyPath(unittest.TestCase):
         _run(_t())
 
 
-class TestDissolveCityRefundsPerTier(unittest.TestCase):
-    def test_fortress_refund_100k(self):
+class TestDissolveCityRefundExpansionBased(unittest.TestCase):
+    """Refund tracks EXPANSION-room count (25% of claim costs), NOT the HQ
+    tier — Brian 2026-06-14 fork CITY.dissolution_refund_formula = spec §8.3."""
+
+    def test_no_expansion_refund_is_zero_regardless_of_tier(self):
+        # A fortress (200k founding) with no expansion rooms now refunds
+        # NOTHING — proving the refund is no longer a fraction of the HQ tier.
         async def _t():
-            from engine.player_cities import (
-                dissolve_city, found_city,
-            )
+            from engine.player_cities import dissolve_city, found_city
             db = await _fresh_db()
             char, org, _, _, _ = await _full_setup(
                 db, treasury=500_000, storage_max=400)
             await found_city(db, char, "Test Fortress")
-            # 500_000 - 200_000 = 300_000
+            # 500_000 - 200_000 (fortress founding) = 300_000
             await dissolve_city(db, char, "Test Fortress")
-            # Refund 100_000
             org_post = await db.get_organization(org["code"])
-            self.assertEqual(org_post["treasury"], 300_000 + 100_000)
+            self.assertEqual(org_post["treasury"], 300_000)  # no refund
+        _run(_t())
+
+    def test_refund_scales_with_expansion_rooms(self):
+        # 2 expansion rooms -> refund = 25% of 2 * EXPANSION_CLAIM_COST.
+        async def _t():
+            from engine.player_cities import (
+                dissolve_city, found_city, get_city_by_name,
+                EXPANSION_CLAIM_COST, DISSOLUTION_REFUND_PCT,
+            )
+            db = await _fresh_db()
+            char, org, _, zone_id, _ = await _full_setup(
+                db, treasury=100_000, storage_max=100)
+            await found_city(db, char, "Test City")  # -25_000 -> 75_000
+            city = await get_city_by_name(db, "Test City")
+            # Add 2 expansion (non-center) rooms directly. Real seeded rooms
+            # keep the room_id FK valid; we bypass the claim machinery since
+            # this test exercises the refund formula, not claiming.
+            for i in range(2):
+                rid = await _seed_room(db, zone_id, f"Expansion {i}")
+                await db.execute(
+                    "INSERT INTO player_city_rooms "
+                    "(city_id, room_id, is_center, citizen_only, claimed_at) "
+                    "VALUES (?, ?, 0, 0, 0)",
+                    (city["id"], rid),
+                )
+            await db.commit()
+            await dissolve_city(db, char, "Test City")
+            expected_refund = (
+                2 * EXPANSION_CLAIM_COST * DISSOLUTION_REFUND_PCT) // 100
+            self.assertEqual(expected_refund, 2_500)  # 2 * 5000 * 25 // 100
+            org_post = await db.get_organization(org["code"])
+            self.assertEqual(org_post["treasury"], 75_000 + expected_refund)
         _run(_t())
 
 

@@ -6,6 +6,13 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-14 — City dissolution refund → spec-aligned (Brian fork ruling, decision A) — *drop cities-dissolution-refund*
+Brian approved all 3 logged forks ("go with your recommendations"). This ships the one with code impact — `CITY.dissolution_refund_formula` = OPTION A (align to design §8.3). Engine-only; faucet shape on city teardown.
+- **`engine/player_cities.py::dissolve_city`:** the dissolution refund is now **25% of the EXPANSION-room claim costs** (`expansion_rooms × EXPANSION_CLAIM_COST × 25 // 100`) instead of 50% of the HQ founding cost. `DISSOLUTION_REFUND_PCT` 50 → 25. The HQ founding cost is now treated as sunk; a city with **no expansion rooms refunds 0**, and the refund **scales with how much was actually built** (not the HQ tier).
+- **Verified:** `tests/test_cities_phase1.py` updated — the happy-path (no-expansion) now asserts a 0 refund + state flip; `TestDissolveCityRefundExpansionBased` replaces the dead per-tier test (no-expansion fortress → 0 refund [tier-independent]; 2 expansion rooms → 2,500 refund). 136 cities tests pass.
+- **Also resolved (no code here): `PM.approval_pending_store` = OPTION C** (pre-authorization-only at launch) — recorded for the loop to build (+authorize + gated-action pre-auth checks; skip the per-action block-and-wait flow). `ERA.tutorial_v2_gcw_profession_chains` already resolved.
+- **Files:** `engine/player_cities.py`, `tests/test_cities_phase1.py`, `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-14 — T3.13 Padawan/Master: +leave-master + +padawan trials parity + gap-check — *drop pm-leave-master*
 T3.13 gap-check (14 areas, adversarial; `HANDOFF_t313_padawan_master_gapcheck_2026-06-14.md`) — bond + trials core solid (P1/P2/P7 DONE). Closed the one clean parser-lane gap (no engine/db change):
 - **`+leave-master`** (P9/P11): Padawan-initiated voluntary bond dissolution — the mirror of the Master-side `+release` (padawans previously had **no way to leave their Master**). A reason is REQUIRED (design §8, to "discourage impulsive breaks"); dissolves via the existing `dissolve_bond(reason="padawan_voluntary: <text>")`, notifies the Master, and writes a bilateral audit log. Alias `leavemaster`.

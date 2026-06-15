@@ -356,11 +356,13 @@ MAX_EXPANSION_ROOMS: dict[str, int] = {
     "fortress":      20,
 }
 
-# Refund on dissolution — 50% of founding cost per design §5
-# ("Treasury depletion → dissolved" path implies the city's
-# invested resources have to come back somewhere; 50% is a
-# reasonable sink-honest number that doesn't make founding free).
-DISSOLUTION_REFUND_PCT = 50
+# Refund on dissolution — 25% of the EXPANSION-ROOM claim costs, per
+# design §8.3 (Brian 2026-06-14, fork CITY.dissolution_refund_formula =
+# OPTION A "align to spec"). The HQ founding cost is treated as a sunk
+# commitment (you don't get the city back); only a fraction of what was
+# spent expanding it is recovered, and it scales with how much was built
+# rather than a flat fraction of the HQ tier. See dissolve_city().
+DISSOLUTION_REFUND_PCT = 25
 
 # Per design v1.2 §2.1: 50 influence threshold (matches single-room
 # claim threshold from Drop 6 territory).
@@ -1050,9 +1052,12 @@ async def dissolve_city(db, char: dict, name: str) -> tuple[bool, str]:
     if not membership or (membership.get("rank_level") or 0) < MIN_RANK_LEVEL_TO_FOUND:
         return False, "Only the organization leader can dissolve a city."
 
-    # Refund 50% of founding cost
-    hq_type = city.get("hq_tier") or "outpost"
-    refund = (FOUNDING_COSTS.get(hq_type, 0) * DISSOLUTION_REFUND_PCT) // 100
+    # Refund 25% of the expansion-room claim costs (design §8.3; Brian
+    # 2026-06-14 fork CITY.dissolution_refund_formula = align-to-spec).
+    # The HQ founding cost is sunk; only built-up expansion is partly
+    # recovered, and the refund scales with how much was actually built.
+    expansion_rooms = await get_city_expansion_count(db, city["id"])
+    refund = (expansion_rooms * EXPANSION_CLAIM_COST * DISSOLUTION_REFUND_PCT) // 100
     if refund > 0:
         await db.adjust_org_treasury(org["id"], refund)
 
