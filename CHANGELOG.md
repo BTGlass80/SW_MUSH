@@ -6,6 +6,15 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-14 — Cities client polish (T3.14 C6+C15) + gap-check — *drop cities-client-polish*
+T3.14 Player-Cities gap-check (16 areas, adversarially verified; `HANDOFF_t314_cities_gapcheck_2026-06-14.md`) found the core **heavily built** (8 areas DONE — founding/expansion/banishment/taxation/schema/look-tag/client-panel). Closed two clean client-only gaps (wiring already-built parser commands; no server/engine change):
+- **C6 — citizen-benefit buttons:** added the missing web controls to the city modal's action section — a **citizen-room ON/OFF** toggle (room-id input, numeric-validated, mayor/founder-gated) and a **City Home** teleport button (citizen+). Both fire existing `+city citizenroom on|off <id>` / `+city home` parser commands (previously typed-only).
+- **C15 — paged sub-modals:** new `_cityPagedListSection` (pageSize 10, independent per-list page state, Prev/Next via `addEventListener`) for the citizens / guests / banishments lists (were flat single-pass renders).
+- **Verified:** new `tests/spa/test_cities_client_polish.py` (21) + onclick-exports regression (4) green (`-o addopts=`, SPA suite is `slow`-marked). Era-clean; server strings via `escapeHtml`/`textContent`.
+- **Logged for Brian:** design fork `CITY.dissolution_refund_formula` (C8) — the dissolution refund (50% of HQ founding cost) diverges from design §8.3 (25% of expansion-room claim costs); needs a balance call before alignment.
+- **Deferred (rationale in the handoff):** C9 director-integration (parallel session's lane), C7 guards (combat-adjacent), C8 hostile-takeover (gated on Drop 6D), C14 multi-city (Brian decided **tier/size-gated**; large refactor), C16 P2P discovery (gated on SYN.4), `+city events` (Director-dependent).
+- **Files:** `static/client.html`, `tests/spa/test_cities_client_polish.py` (new), `docs/design/HANDOFF_t314_cities_gapcheck_2026-06-14.md` (new), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-14 — Groom T3.13–18 launch_ruling → "FULL BODY PRE-LAUNCH" + record gap-check verification (Brian decision 2) — *drop t3-launch-ruling-groom*
 Executes `BRIAN_ROADMAP_DECISIONS.2026-06-14` #2 (TODO-only bookkeeping; no code). Changed the `launch_ruling` field on **T3.13** (Padawan-Master), **T3.14** (Cities), **T3.16** (Wildspace), **T3.17** (Sheet), **T3.18** (Ground-UX) from the now-superseded "POST-LAUNCH body" to **"FULL BODY PRE-LAUNCH"** — resolving the `tier_3_post_launch` bucket-name landmine.
 - **Recorded the believed-done VERIFICATION** decision 2 asked for: T3.17 (sheet) and T3.18 (ground-UX) were gap-checked this session (`HANDOFF_t317_t318_gapcheck_2026-06-14.md`) and substantially closed — T3.17 "believed-done" was correct; T3.18's server was built but its live client had **regressed in the legacy→SPA rewrite** (now restored: room detail / nearby services / zone influence / HERE / active jobs / smart quick-buttons). Remaining T3.18 items (G4 combat events, G5 server-half, G13 director) need engine/Director work.

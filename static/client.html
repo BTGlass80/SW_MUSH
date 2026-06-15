@@ -8742,20 +8742,20 @@ function renderCityModal(p) {
   if (!p.admin_only) {
     body.appendChild(_cityStatsSection(p));
     body.appendChild(_cityActionsSection(p));
-    body.appendChild(_cityListSection('citizens',
+    body.appendChild(_cityPagedListSection('citizens',
       'CITIZENS (' + (p.citizens_count || 0) + ')',
       p.citizens || [], function(c) {
         return '<span class="cl-name">' + escapeHtml(c.name) +
           '</span><span class="cl-meta">rank ' + (c.rank || 0) +
           '</span>';
-      }));
-    body.appendChild(_cityListSection('guests',
+      }, 10));
+    body.appendChild(_cityPagedListSection('guests',
       'GUESTS (' + (p.guests_count || 0) + ')',
       p.guests || [], function(g) {
         return '<span class="cl-name">' + escapeHtml(g.name) +
           '</span><span class="cl-meta">id ' + g.id + '</span>';
-      }));
-    body.appendChild(_cityListSection('banishments',
+      }, 10));
+    body.appendChild(_cityPagedListSection('banishments',
       'BANISHMENTS (' + (p.banishments_count || 0) + ')',
       p.banishments || [], function(b) {
         var until = b.until ? new Date(b.until * 1000)
@@ -8764,7 +8764,7 @@ function renderCityModal(p) {
         return '<span class="cl-name">' + escapeHtml(b.name) +
           '</span><span class="cl-meta">until ' + until +
           '</span>';
-      }));
+      }, 10));
     body.appendChild(_cityListSection('guards',
       'GUARDS (' + (p.guard_slots_used || 0) + '/' +
       (p.guard_slots_total || 0) + ')',
@@ -8845,6 +8845,111 @@ function _cityListSection(key, title, items, fmt) {
       '(showing first 25 — type the matching +city command for the full list)';
     list.appendChild(more);
   }
+  return sec;
+}
+
+/* ── Paged list section ───────────────────────────────────────── */
+// Page state keyed by list key so citizens/guests/banishments page
+// independently across modal opens.
+var _cityPageState = {};
+
+function _cityPagedListSection(key, title, items, fmt, pageSize) {
+  pageSize = pageSize || 10;
+  var sec = document.createElement('div');
+  sec.className = 'city-modal-section';
+  // If list is short enough, fall back to flat rendering (no controls).
+  if (!items || items.length <= pageSize) {
+    sec.innerHTML =
+      '<div class="city-modal-section-title">' + escapeHtml(title) +
+      '</div><div class="city-list"></div>';
+    var list = sec.querySelector('.city-list');
+    if (!items || items.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'city-list-empty';
+      empty.textContent = '(none)';
+      list.appendChild(empty);
+    } else {
+      items.forEach(function(item) {
+        var row = document.createElement('div');
+        row.className = 'city-list-row';
+        row.innerHTML = fmt(item);
+        list.appendChild(row);
+      });
+    }
+    return sec;
+  }
+
+  // Multi-page: ensure page index is in range
+  var totalPages = Math.ceil(items.length / pageSize);
+  if (!_cityPageState[key] || _cityPageState[key] >= totalPages) {
+    _cityPageState[key] = 0;
+  }
+
+  function _renderPage(container, pageIdx) {
+    container.innerHTML = '';
+    var start = pageIdx * pageSize;
+    var end = Math.min(start + pageSize, items.length);
+    var slice = items.slice(start, end);
+    slice.forEach(function(item) {
+      var row = document.createElement('div');
+      row.className = 'city-list-row';
+      row.innerHTML = fmt(item);
+      container.appendChild(row);
+    });
+  }
+
+  sec.innerHTML =
+    '<div class="city-modal-section-title">' + escapeHtml(title) +
+    '</div><div class="city-list city-list-paged"></div>' +
+    '<div class="city-pager"></div>';
+  var listEl = sec.querySelector('.city-list-paged');
+  var pagerEl = sec.querySelector('.city-pager');
+
+  _renderPage(listEl, _cityPageState[key]);
+
+  // Prev button
+  var prevBtn = document.createElement('button');
+  prevBtn.className = 'city-pager-btn';
+  prevBtn.textContent = '‹ Prev';
+  prevBtn.addEventListener('click', function() {
+    if (_cityPageState[key] > 0) {
+      _cityPageState[key] -= 1;
+      _renderPage(listEl, _cityPageState[key]);
+      pageLabel.textContent =
+        'page ' + (_cityPageState[key] + 1) + '/' + totalPages;
+      prevBtn.disabled = (_cityPageState[key] === 0);
+      nextBtn.disabled = (_cityPageState[key] >= totalPages - 1);
+    }
+  });
+
+  // Page label
+  var pageLabel = document.createElement('span');
+  pageLabel.className = 'city-pager-label';
+  pageLabel.textContent =
+    'page ' + (_cityPageState[key] + 1) + '/' + totalPages;
+
+  // Next button
+  var nextBtn = document.createElement('button');
+  nextBtn.className = 'city-pager-btn';
+  nextBtn.textContent = 'Next ›';
+  nextBtn.addEventListener('click', function() {
+    if (_cityPageState[key] < totalPages - 1) {
+      _cityPageState[key] += 1;
+      _renderPage(listEl, _cityPageState[key]);
+      pageLabel.textContent =
+        'page ' + (_cityPageState[key] + 1) + '/' + totalPages;
+      prevBtn.disabled = (_cityPageState[key] === 0);
+      nextBtn.disabled = (_cityPageState[key] >= totalPages - 1);
+    }
+  });
+
+  prevBtn.disabled = (_cityPageState[key] === 0);
+  nextBtn.disabled = (_cityPageState[key] >= totalPages - 1);
+
+  pagerEl.appendChild(prevBtn);
+  pagerEl.appendChild(pageLabel);
+  pagerEl.appendChild(nextBtn);
+
   return sec;
 }
 
@@ -9178,6 +9283,51 @@ function _cityActionsSection(p) {
   guardRow.appendChild(guardNpcInp);
   guardRow.appendChild(guardRm);
   sec.appendChild(guardRow);
+
+  // ── Row: citizen-room toggle (mayor/founder only) ──
+  var crRow = document.createElement('div');
+  crRow.className = 'city-action-row';
+  var crInp = _cityMakeInput('Room id…', '110px');
+  crInp.type = 'number';
+  crRow.appendChild(crInp);
+  var crOnBtn = document.createElement('button');
+  crOnBtn.className = 'city-action-btn';
+  crOnBtn.textContent = 'CITIZENROOM ON';
+  crOnBtn.onclick = function() {
+    var v = crInp.value.trim();
+    if (!v || !/^\d+$/.test(v)) return;
+    _cityFireCommand('+city citizenroom on ' + v);
+    crInp.value = '';
+  };
+  var crOffBtn = document.createElement('button');
+  crOffBtn.className = 'city-action-btn';
+  crOffBtn.textContent = 'CITIZENROOM OFF';
+  crOffBtn.onclick = function() {
+    var v = crInp.value.trim();
+    if (!v || !/^\d+$/.test(v)) return;
+    _cityFireCommand('+city citizenroom off ' + v);
+    crInp.value = '';
+  };
+  crRow.appendChild(crOnBtn);
+  crRow.appendChild(crOffBtn);
+  sec.appendChild(crRow);
+
+  // ── Row: city home (citizen/mayor/founder) ──
+  var canHome = (p.role === 'citizen' || p.role === 'mayor' ||
+                 p.role === 'founder');
+  if (canHome) {
+    var homeRow = document.createElement('div');
+    homeRow.className = 'city-action-row';
+    var homeBtn = document.createElement('button');
+    homeBtn.className = 'city-action-btn';
+    homeBtn.textContent = 'CITY HOME';
+    homeBtn.onclick = function() {
+      _cityFireCommand('+city home');
+      setTimeout(closeCityModal, 100);
+    };
+    homeRow.appendChild(homeBtn);
+    sec.appendChild(homeRow);
+  }
 
   // ── Row: founder-only — DISSOLVE (DANGER) ──
   if (canFounder) {
