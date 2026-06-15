@@ -1,0 +1,138 @@
+# data/worlds/clone_wars/wildspace/sieges.yaml
+# Sieges Theater — wildspace cache pools   [T3.16 Drop 2]
+# space_wildspace_design_v1.md §3.1, §4.1
+#
+# Loaded by engine/space_caches.py::_load_wildspace_pools() into CacheDef
+# objects keyed {zone_key: {cache_def_id: CacheDef}}. Consumed by the `mine`
+# command (parser/space_commands.py MineCommand).
+#
+# Schema (mirrors engine/space_caches.CacheDef):
+#   zones.<zone_key>.theater          str   flavor tag (sieges)
+#   zones.<zone_key>.caches.<def_id>:
+#       kind            "mining" | "faction_cache" | "derelict"
+#       visibility      "universal" | [faction_code, ...] | "hidden"
+#       respawn_minutes int   cooldown length
+#       density         int   avg instances active at once
+#       yield_table     list of [weight, rtype, qty_min, qty_max, qual_min, qual_max]
+#       rep_reward      optional {faction_code: delta}
+#
+# DROP 2 SCOPE — mining only. All caches are kind: mining with NO rep_reward,
+# so the harvest rep path (adjust_territory_influence with the flagged
+# zone_id=0 placeholder) is never exercised by player-reachable content. The
+# rep-bearing faction_cache content (clone survival pods, Jedi recovery
+# beacons, BHG dead drops) is DEFERRED to a follow-up that first resolves the
+# wildspace→territory rep mapping. Faction VISIBILITY is live now (republic/
+# cis-gated mining nodes) — that needs no rep wiring.
+#
+# rtype values must be registered in engine.crafting.RESOURCE_TYPES:
+#   metal, composite, rare, energy, electronic, scavenged_republic_tech
+
+schema_version: 1
+
+zones:
+
+  # ── Geonosis Front — fresh CIS/Republic battle debris (MEDIUM theme) ──────
+  geonosis_front:
+    theater: sieges
+    caches:
+
+      # Universal: every PC sees these on `mine`.
+      droid_scrap_cluster:
+        kind: mining
+        visibility: universal
+        respawn_minutes: 45
+        density: 5
+        yield_table:
+          # [weight, rtype, qty_min, qty_max, qual_min, qual_max]
+          - [50, metal,      2, 6, 40, 70]
+          - [30, electronic, 1, 3, 35, 65]
+          - [20, composite,  1, 2, 45, 75]
+
+      munitions_debris:
+        kind: mining
+        visibility: universal
+        respawn_minutes: 50
+        density: 3
+        yield_table:
+          - [55, energy,    2, 5, 45, 75]
+          - [30, metal,     1, 3, 40, 65]
+          - [15, rare,      1, 2, 55, 85]
+
+      hull_plating_drift:
+        kind: mining
+        visibility: universal
+        respawn_minutes: 40
+        density: 4
+        yield_table:
+          - [60, metal,     3, 7, 35, 60]
+          - [40, composite, 1, 3, 40, 70]
+
+      # Republic-visible: rep >= 0 with `republic` to detect. No rep reward
+      # (the rep-bearing clone survival pods are the deferred faction_cache).
+      republic_supply_debris:
+        kind: mining
+        visibility: [republic]
+        respawn_minutes: 60
+        density: 2
+        yield_table:
+          - [55, metal,     2, 5, 50, 75]
+          - [30, energy,    1, 3, 45, 70]
+          - [15, composite, 1, 2, 50, 80]
+
+      # CIS-visible: intact battle-droid platoons stripped as parts.
+      cis_droid_platoon_scrap:
+        kind: mining
+        visibility: [cis]
+        respawn_minutes: 60
+        density: 2
+        yield_table:
+          - [50, electronic,              2, 5, 45, 70]
+          - [30, scavenged_republic_tech, 1, 2, 50, 75]
+          - [20, metal,                   2, 4, 40, 65]
+
+  # ── Outer Rim Sieges Drift — older, picked-over debris (LOW theme) ────────
+  outer_rim_sieges_drift:
+    theater: sieges
+    caches:
+
+      derelict_hull_salvage:
+        kind: mining
+        visibility: universal
+        respawn_minutes: 55
+        density: 4
+        yield_table:
+          - [55, metal,     3, 8, 30, 55]
+          - [30, composite, 1, 4, 35, 60]
+          - [15, rare,      1, 1, 50, 70]
+
+      drifting_cargo_containers:
+        kind: mining
+        visibility: universal
+        respawn_minutes: 50
+        density: 3
+        yield_table:
+          - [50, composite, 2, 5, 35, 65]
+          - [30, energy,    1, 3, 40, 65]
+          - [20, metal,     1, 3, 35, 60]
+
+      # Republic-visible: mothballed supply caches (gear, not rep).
+      mothballed_republic_supply:
+        kind: mining
+        visibility: [republic]
+        respawn_minutes: 70
+        density: 2
+        yield_table:
+          - [50, metal,     2, 5, 45, 70]
+          - [30, energy,    1, 3, 45, 70]
+          - [20, composite, 1, 2, 50, 75]
+
+      # CIS-visible: abandoned field-HQ tech.
+      abandoned_cis_cache:
+        kind: mining
+        visibility: [cis]
+        respawn_minutes: 70
+        density: 2
+        yield_table:
+          - [50, electronic,              2, 4, 45, 70]
+          - [30, scavenged_republic_tech, 1, 2, 50, 75]
+          - [20, rare,                    1, 1, 55, 80]

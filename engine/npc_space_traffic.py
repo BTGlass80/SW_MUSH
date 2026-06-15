@@ -94,6 +94,15 @@ class Zone:
     hazards:  dict = None   # e.g. {"asteroid_density": "heavy", "nav_modifier": 5, "sensor_penalty": 2}
     authority: str = "neutral"  # republic | cis | hutt | contested | neutral
                                 # which faction runs patrols/customs in this zone
+    # ── Wildspace (space_wildspace_design_v1.md §6.4) ────────────────────────
+    # `wildspace` marks a designated grind zone (mining/salvage caches, no RP
+    # hooks). `wildspace_theater` selects content flavor ("sieges" |
+    # "hutt_frontier"). Consumers: parser.space_commands.MineCommand (theater
+    # banner + cache loop). The §6.4 Director/traffic knobs (friendly_traffic_
+    # density etc.) are NOT added here yet — their only consumers live in the
+    # Director lane and adding them now would be phantom fields.
+    wildspace:          bool = False
+    wildspace_theater:  Optional[str] = None
 
     def __post_init__(self):
         if self.hazards is None:
@@ -336,6 +345,8 @@ def _load_zone_graph():
             desc=(z.get("desc", "") or "").strip(),
             hazards=dict(z.get("hazards", {}) or {}),
             authority=z.get("authority", "neutral"),
+            wildspace=bool(z.get("wildspace", False)),
+            wildspace_theater=z.get("wildspace_theater"),
         )
     spawn_zones = list(raw.get("spawn_zones", []) or [])
     bay_map = dict(raw.get("bay_planet_map", {}) or {})

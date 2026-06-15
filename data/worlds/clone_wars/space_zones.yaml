@@ -270,7 +270,7 @@ zones:
     type: deep_space
     authority: cis
     planet: geonosis
-    adjacent: [geonosis_orbit, triellus_trade_route]
+    adjacent: [geonosis_orbit, triellus_trade_route, geonosis_front]
     desc: >
       The open space beyond Geonosis's gravity well. The Triellus Trade
       Route arcs through here — formerly a smuggler's bypass, now also
@@ -293,7 +293,7 @@ zones:
     type: hyperspace_lane
     authority: republic
     planet: null
-    adjacent: [coruscant_deep_space]
+    adjacent: [coruscant_deep_space, outer_rim_sieges_drift]
     desc: >
       The Perlemian Trade Route arcs toward the Outer Rim Sieges. Republic
       naval traffic dominates — Venator squadrons in transit, Acclamators
@@ -390,6 +390,53 @@ zones:
       asteroid_density: light
       nav_modifier: 4
       sensor_penalty: 3
+
+# ═══════════════════════════════════════════════════════════════════════
+# WILDSPACE ZONES — Sieges Theater (space_wildspace_design_v1.md §3.1)
+# ═══════════════════════════════════════════════════════════════════════
+# Designated grind zones branching off "civilized" deep space. `wildspace:
+# true` marks them as cache-grind / no-RP-hook zones; `wildspace_theater`
+# selects the cache content set (data/worlds/clone_wars/wildspace/<theater>.yaml).
+# They are deep_space type, so get_space_security() returns "lawless"
+# (open PvP) by the type default — no security override needed. They are
+# deliberately NOT in spawn_zones (no friendly NPC traffic — design §6.2).
+# Adjacency is bidirectional with the parent zone (one transit each way);
+# the two theaters are not directly connected (design §3.3).
+# Hutt Frontier theater (jundland_drift, smugglers_run_periphery) ships
+# in Drop 3.
+
+  geonosis_front:
+    name: "Geonosis Front"
+    type: deep_space
+    authority: cis
+    planet: null
+    adjacent: [geonosis_deep_space]
+    wildspace: true
+    wildspace_theater: sieges
+    desc: >
+      The freshest battle debris in the Geonosian sector. Vulture-droid
+      wreckage and shattered Munificent hull plating drift in slow tumbles;
+      CIS supply convoys still occasionally transit the edges, and Republic
+      counter-patrols sweep through without warning. Recovery beacons blink
+      among the hulks — some Republic, some not yet claimed by anyone.
+    hazards:
+      asteroid_density: light
+      nav_modifier: 2
+
+  outer_rim_sieges_drift:
+    name: "Outer Rim Sieges Drift"
+    type: deep_space
+    authority: contested
+    planet: null
+    adjacent: [perlemian_trade_route]
+    wildspace: true
+    wildspace_theater: sieges
+    desc: >
+      Older battle debris, settled into stable drift orbits well off the
+      Perlemian supply lane. Neither side contests it any longer — the war
+      moved on and left the hulks behind. Big derelicts, picked over but
+      still rewarding for the patient. Patrol presence is minimal; the only
+      company out here is other scavengers.
 
 # ═══════════════════════════════════════════════════════════════════════
 # SPAWN ZONES

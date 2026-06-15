@@ -6286,6 +6286,21 @@ async def _resolve_contact(ctx, ship, contact_num: int):
     return contacts[contact_num - 1]
 
 
+# Theater orientation banners (space_wildspace_design_v1.md §9): tell the
+# player what kind of wildspace zone they've flown into so the "no friendly
+# traffic, combat likely" feel reads as intentional, not broken.
+_WILDSPACE_THEATER_BANNERS = {
+    "sieges": (
+        f"{ansi.BRIGHT_RED}*** SIEGES THEATER ***{ansi.RESET} "
+        "Active war debris field. Combat encounters likely; no friendly traffic."
+    ),
+    "hutt_frontier": (
+        f"{ansi.BRIGHT_RED}*** HUTT FRONTIER ***{ansi.RESET} "
+        "Lawless smuggling periphery. Hostile traffic; no friendly contacts."
+    ),
+}
+
+
 class MineCommand(BaseCommand):
     """Mine a wildspace cache node.
 
@@ -6329,6 +6344,7 @@ class MineCommand(BaseCommand):
             is_cache_visible, harvest_mining,
         )
         from engine.organizations import get_all_faction_reps
+        from engine.npc_space_traffic import ZONES
 
         systems  = _get_systems(ship)
         zone_key = systems.get("current_zone", "")
@@ -6363,6 +6379,15 @@ class MineCommand(BaseCommand):
                     "This is not a wildspace zone, or content hasn't shipped yet."
                 )
                 return
+
+            # Theater banner (§9): orient the player to this wildspace zone.
+            _zone = ZONES.get(zone_key)
+            if _zone is not None and getattr(_zone, "wildspace", False):
+                _banner = _WILDSPACE_THEATER_BANNERS.get(
+                    getattr(_zone, "wildspace_theater", None)
+                )
+                if _banner:
+                    await ctx.session.send_line("  " + _banner)
 
             rows = await get_zone_caches(ctx.db, zone_key)
             visible = [

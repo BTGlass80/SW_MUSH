@@ -37,10 +37,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import random
 import time
 from dataclasses import dataclass, field
 from typing import Optional
+
+import yaml
 
 log = logging.getLogger(__name__)
 
@@ -158,16 +161,103 @@ DEV_TEST_CACHE_POOL: dict[str, CacheDef] = {
 }
 
 
+# ── Real wildspace cache pools (loaded from YAML) ────────────────────────────
+#
+# Drop 2: Sieges Theater content lives in
+#   data/worlds/<era>/wildspace/sieges.yaml
+# loaded into {zone_key: {def_id: CacheDef}} and cached at module level
+# (mirrors engine.npc_space_traffic._load_zone_graph's caching). Hutt
+# Frontier (hutt_frontier.yaml) is wired in by adding its filename here in
+# Drop 3 — no code change beyond the table entry.
+
+_WILDSPACE_THEATER_FILES = {
+    "sieges": "sieges.yaml",
+    # "hutt_frontier": "hutt_frontier.yaml",   # Drop 3
+}
+
+_WILDSPACE_POOLS_CACHE: Optional[dict[str, dict[str, CacheDef]]] = None
+
+
+def _wildspace_dir() -> str:
+    """Return data/worlds/<active_era>/wildspace for the active era."""
+    try:
+        from engine.era_state import get_active_era
+        era = get_active_era()
+    except Exception:  # pragma: no cover - defensive
+        era = "clone_wars"
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+    return os.path.join(data_dir, "worlds", era, "wildspace")
+
+
+def _cache_def_from_yaml(def_id: str, c: dict) -> CacheDef:
+    """Build a CacheDef from one YAML cache entry. yield_table rows are
+    lists in YAML and become tuples (harvest_mining unpacks 6 fields)."""
+    return CacheDef(
+        id=def_id,
+        kind=c.get("kind", "mining"),
+        visibility=c.get("visibility", "universal"),
+        respawn_minutes=int(c.get("respawn_minutes", 60)),
+        density=int(c.get("density", 1)),
+        yield_table=[tuple(row) for row in (c.get("yield_table") or [])],
+        rep_reward=dict(c.get("rep_reward", {}) or {}),
+    )
+
+
+def _load_wildspace_pools() -> dict[str, dict[str, CacheDef]]:
+    """Load + cache all wildspace cache pools for the active era.
+
+    Returns {zone_key: {cache_def_id: CacheDef}}. Tolerant of a missing or
+    malformed theater file (logs + skips). Cached at module level; call
+    ``reload_wildspace_pools()`` to re-read (tests / era flips).
+    """
+    global _WILDSPACE_POOLS_CACHE
+    if _WILDSPACE_POOLS_CACHE is not None:
+        return _WILDSPACE_POOLS_CACHE
+
+    pools: dict[str, dict[str, CacheDef]] = {}
+    base = _wildspace_dir()
+    for theater, fname in _WILDSPACE_THEATER_FILES.items():
+        fpath = os.path.join(base, fname)
+        if not os.path.exists(fpath):
+            continue
+        try:
+            with open(fpath, encoding="utf-8") as f:
+                raw = yaml.safe_load(f) or {}
+        except Exception:
+            log.warning("[space_caches] failed reading %s", fpath, exc_info=True)
+            continue
+        for zone_key, zdata in (raw.get("zones", {}) or {}).items():
+            zone_pool: dict[str, CacheDef] = {}
+            for def_id, c in ((zdata or {}).get("caches", {}) or {}).items():
+                try:
+                    zone_pool[def_id] = _cache_def_from_yaml(def_id, c)
+                except Exception:
+                    log.warning("[space_caches] bad cache def %s/%s in %s",
+                                zone_key, def_id, fname, exc_info=True)
+            if zone_pool:
+                pools[zone_key] = zone_pool
+
+    _WILDSPACE_POOLS_CACHE = pools
+    return pools
+
+
+def reload_wildspace_pools() -> dict[str, dict[str, CacheDef]]:
+    """Drop the module cache and re-read wildspace pools. For tests/era flips."""
+    global _WILDSPACE_POOLS_CACHE
+    _WILDSPACE_POOLS_CACHE = None
+    return _load_wildspace_pools()
+
+
 def get_cache_pool(zone_key: str) -> dict[str, CacheDef]:
     """Return the cache-def pool for a zone key.
 
-    Drop 1a: only the DEV test zone is wired. Real zones (Geonosis Front,
-    Hutt Frontier) are loaded here in Drops 2/3 via YAML.
+    The DEV test zone uses the in-module constant pool; all real zones load
+    from data/worlds/<era>/wildspace/*.yaml (Sieges Theater in Drop 2, Hutt
+    Frontier in Drop 3). Unknown zones return {} (not a wildspace zone).
     """
     if zone_key == DEV_TEST_ZONE_KEY:
         return DEV_TEST_CACHE_POOL
-    # Future: load from data/worlds/clone_wars/wildspace/<theater>.yaml
-    return {}
+    return _load_wildspace_pools().get(zone_key, {})
 
 
 # ── Instance lifecycle ─────────────────────────────────────────────────────────
