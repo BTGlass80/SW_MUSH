@@ -16,16 +16,21 @@
 #       yield_table     list of [weight, rtype, qty_min, qty_max, qual_min, qual_max]
 #       rep_reward      optional {faction_code: delta}
 #
-# DROP 2 SCOPE — mining only. All caches are kind: mining with NO rep_reward,
-# so the harvest rep path (adjust_territory_influence with the flagged
-# zone_id=0 placeholder) is never exercised by player-reachable content. The
-# rep-bearing faction_cache content (clone survival pods, Jedi recovery
-# beacons, BHG dead drops) is DEFERRED to a follow-up that first resolves the
-# wildspace→territory rep mapping. Faction VISIBILITY is live now (republic/
-# cis-gated mining nodes) — that needs no rep wiring.
+# DROP 2  — mining nodes (kind: mining), universal + republic/cis faction
+#           visibility. Harvested via the `mine` command (Pilot skill check).
+# DROP 2b — rep-bearing faction caches (kind: faction_cache) added below each
+#           zone: clone survival pods (republic), Jedi recovery beacons
+#           (jedi_order), CIS recovery markers (cis), clone-bounty dead drops
+#           (bounty_hunters_guild), Hutt salvage claims (hutt_cartel). These
+#           are markers, not nodes — harvested via the `harvest` command (NO
+#           skill check, §4.3), granting resources + a small (2–5) faction rep
+#           reward through engine.organizations.adjust_rep (personal faction
+#           standing — the same rep the visibility gate reads). The Drop-1a
+#           adjust_territory_influence(zone_id=0) placeholder is GONE.
 #
 # rtype values must be registered in engine.crafting.RESOURCE_TYPES:
-#   metal, composite, rare, energy, electronic, scavenged_republic_tech
+#   metal, composite, rare, energy, electronic, scavenged_republic_tech,
+#   kyber_shard_minor
 
 schema_version: 1
 
@@ -90,6 +95,58 @@ zones:
           - [30, scavenged_republic_tech, 1, 2, 50, 75]
           - [20, metal,                   2, 4, 40, 65]
 
+      # ── Faction caches (Drop 2b) — `harvest <id>`, no skill check ──────────
+
+      # Republic-visible: downed clone trooper survival pods (rep + supplies).
+      clone_survival_pod:
+        kind: faction_cache
+        visibility: [republic]
+        respawn_minutes: 90
+        density: 2
+        rep_reward: {republic: 2}
+        yield_table:
+          - [50, metal,     2, 4, 50, 75]
+          - [30, energy,    1, 3, 50, 75]
+          - [20, composite, 1, 2, 55, 80]
+
+      # Jedi-visible: recovery beacons for downed Jedi pilots. Big rep;
+      # kyber fragments + lightsaber components. Density 1, long respawn —
+      # the only player-reachable kyber_shard_minor faucet in wildspace.
+      jedi_recovery_beacon:
+        kind: faction_cache
+        visibility: [jedi_order]
+        respawn_minutes: 180
+        density: 1
+        rep_reward: {jedi_order: 5}
+        yield_table:
+          - [45, electronic,        1, 3, 55, 80]
+          - [35, rare,              1, 2, 60, 85]
+          - [20, kyber_shard_minor, 1, 1, 55, 80]
+
+      # CIS-visible: recovery markers planted by retreating droid command.
+      cis_recovery_marker:
+        kind: faction_cache
+        visibility: [cis]
+        respawn_minutes: 90
+        density: 2
+        rep_reward: {cis: 2}
+        yield_table:
+          - [50, electronic,              2, 4, 50, 75]
+          - [30, scavenged_republic_tech, 1, 2, 55, 80]
+          - [20, rare,                    1, 1, 55, 80]
+
+      # BHG-visible: deserter-clone bounty dead drops (contract bait).
+      clone_bounty_dead_drop:
+        kind: faction_cache
+        visibility: [bounty_hunters_guild]
+        respawn_minutes: 120
+        density: 1
+        rep_reward: {bounty_hunters_guild: 2}
+        yield_table:
+          - [55, electronic, 1, 3, 50, 75]
+          - [25, rare,       1, 2, 55, 80]
+          - [20, energy,     1, 2, 50, 70]
+
   # ── Outer Rim Sieges Drift — older, picked-over debris (LOW theme) ────────
   outer_rim_sieges_drift:
     theater: sieges
@@ -136,3 +193,32 @@ zones:
           - [50, electronic,              2, 4, 45, 70]
           - [30, scavenged_republic_tech, 1, 2, 50, 75]
           - [20, rare,                    1, 1, 55, 80]
+
+      # ── Faction caches (Drop 2b) — `harvest <id>`, no skill check ──────────
+
+      # Jedi-visible: lost artifact beacons settled into the old debris field
+      # (Force-attuned items / fragment holocrons — flavored rare + tech, no
+      # raw kyber; the fresh battlefield beacon at Geonosis is the kyber source).
+      lost_jedi_artifact_beacon:
+        kind: faction_cache
+        visibility: [jedi_order]
+        respawn_minutes: 180
+        density: 1
+        rep_reward: {jedi_order: 4}
+        yield_table:
+          - [55, electronic, 1, 3, 55, 80]
+          - [30, rare,       1, 2, 60, 85]
+          - [15, composite,  1, 2, 55, 75]
+
+      # Hutt-visible: pre-marked salvage claims. Working the Cartel's wrecks
+      # earns standing with them.
+      hutt_salvage_claim:
+        kind: faction_cache
+        visibility: [hutt_cartel]
+        respawn_minutes: 120
+        density: 2
+        rep_reward: {hutt_cartel: 3}
+        yield_table:
+          - [50, metal,     2, 5, 45, 70]
+          - [30, composite, 1, 3, 50, 75]
+          - [20, rare,      1, 1, 55, 80]

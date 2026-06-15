@@ -16,7 +16,10 @@ Architecture
   hidden → never.
 - ``harvest_mining`` runs a ``perform_skill_check`` (Pilot/Mechanical averaged,
   difficulty 10) and grants resources via ``engine.crafting.add_resource``.
-  Rep reward (when present) goes through ``adjust_territory_influence``.
+- ``harvest_faction_cache`` (no skill check, §4.3) grants resources + rep.
+- Rep reward (when present) goes through ``engine.organizations.adjust_rep``
+  (personal faction standing — the same rep the visibility gate reads), via
+  the shared ``_apply_rep_rewards`` helper.
 
 Drop 1a scope:
   - Schema + ensure_schema
@@ -25,12 +28,22 @@ Drop 1a scope:
   - Visibility check
   - harvest_mining (skill check, resource grant, cooldown set)
 
+Drop 2 (Sieges Theater): real zone YAML pools (mining), faction visibility.
+
+Drop 2b (this drop):
+  - Resolve the rep funnel: adjust_territory_influence(zone_id=0) →
+    adjust_rep (personal faction standing). See _apply_rep_rewards.
+  - harvest_faction_cache (no skill check; resources + rep; cooldown).
+  - spawn_zone_caches counts non-depleted (not just available) against
+    density — fixes the cooldown-flip-back density inflation and honours
+    respawn_minutes.
+  - Rep-bearing faction_cache content in sieges.yaml.
+
 Deferred to later drops:
-  - salvage / faction_cache harvest paths
-  - Real zone YAML content (Geonosis Front, Hutt Frontier, etc.)
-  - scan-output merge
-  - Equipment mod bonuses (Mining Laser)
-  - Web client panel
+  - salvage extension for kind: derelict caches (multi-stage)
+  - Hutt Frontier zone YAML content (Drop 3)
+  - Equipment mod bonuses (Mining Laser / Salvage Arm) (Drop 4)
+  - Web client panel (Drop 5)
 """
 
 from __future__ import annotations
@@ -278,10 +291,23 @@ async def spawn_zone_caches(db, zone_key: str) -> int:
 
     created = 0
     for def_id, cache_def in pool.items():
-        # How many active instances already exist?
+        # How many live (non-depleted) instances already exist?
+        #
+        # Count BOTH 'available' and 'cooldown' against density — a node
+        # that's recharging still occupies one of the zone's density slots.
+        # Counting only 'available' (the Drop 1a behaviour) over-spawned:
+        # each harvest sent a node to cooldown, the next spawn topped the
+        # available count back to density, and when the cooled-down node
+        # later flipped back via tick_cache_respawns the zone ended up with
+        # density+N active nodes — unbounded growth across play. Counting
+        # non-depleted keeps `density` = max concurrent nodes and lets
+        # respawn_minutes actually gate re-availability (the same instance
+        # comes back when its cooldown elapses, rather than a fresh one
+        # spawning instantly). 'depleted' nodes are permanently consumed and
+        # never count.
         rows = await db.fetchall(
             "SELECT COUNT(*) AS cnt FROM space_caches "
-            "WHERE zone_key = ? AND cache_def_id = ? AND state = 'available'",
+            "WHERE zone_key = ? AND cache_def_id = ? AND state != 'depleted'",
             (zone_key, def_id),
         )
         existing = int(rows[0]["cnt"]) if rows else 0
@@ -415,6 +441,45 @@ def is_cache_visible(cache_row: dict, char_rep_flat: dict) -> bool:
     return False
 
 
+# ── Rep rewards ────────────────────────────────────────────────────────────────
+
+async def _apply_rep_rewards(db, char: dict, rep_reward: dict,
+                             *, reason: str) -> dict:
+    """Apply a cache's ``rep_reward`` map to a character's faction standing.
+
+    Cache rep rewards are *personal faction reputation* — the exact standing
+    the cache-visibility gate reads via ``organizations.get_all_faction_reps``
+    (``is_cache_visible``). They are NOT territory zone-control influence, so
+    the canonical funnel is ``organizations.adjust_rep`` (personal rep), not
+    ``territory.adjust_territory_influence`` (per-zone org influence).
+
+    This resolves the Drop 1a placeholder: ``harvest_mining`` previously wrote
+    the reward through ``adjust_territory_influence(..., zone_id=0, ...)``, but
+    wildspace zones have no row in the territory table, so the reward landed on
+    a phantom zone 0 that no display ever reads. Routing through ``adjust_rep``
+    makes the reward real and visible (rep tier, shop discounts, cache
+    visibility) and keeps the small 1–5 wildspace rep gains as supplementary
+    faction grinding per design §4.4.
+
+    Returns ``{faction_code: delta}`` for the deltas actually applied (used by
+    the command layer to surface a [REP] line). Tolerant: a bad faction code
+    or a missing org is logged and skipped, never raised.
+    """
+    rep_applied: dict = {}
+    for faction_code, delta in (rep_reward or {}).items():
+        if not delta:
+            continue
+        try:
+            from engine.organizations import adjust_rep
+            await adjust_rep(char, faction_code, db,
+                             delta=int(delta), reason=reason)
+            rep_applied[faction_code] = int(delta)
+        except Exception as exc:
+            log.warning("[space_caches] rep reward failed for %s: %s",
+                        faction_code, exc, exc_info=True)
+    return rep_applied
+
+
 # ── Harvest: mining ────────────────────────────────────────────────────────────
 
 # Mining difficulty: Moderate (15) per WEG D6 moderate task. The skill used
@@ -467,7 +532,7 @@ async def harvest_mining(
     Funnel callers:
     - Skill check  : engine.skill_checks.perform_skill_check
     - Resource grant: engine.crafting.add_resource  (mutates char["inventory"])
-    - Rep reward   : engine.territory.adjust_territory_influence
+    - Rep reward   : engine.organizations.adjust_rep (via _apply_rep_rewards)
     - DOES NOT touch credits (no adjust_credits call — mining yields resources)
     """
     # 1. Load instance
@@ -574,22 +639,8 @@ async def harvest_mining(
                              cache_def.respawn_minutes)
 
     # Rep reward via funnel
-    rep_applied: dict = {}
-    for faction_code, delta in (cache_def.rep_reward or {}).items():
-        try:
-            from engine.territory import adjust_territory_influence
-            # zone_id: territory uses int zone IDs; wildspace zones are
-            # not in the territory table — pass 0 (no-op zone). The rep
-            # reward lands as a flat influence delta on the org. The caller
-            # (MineCommand) logs this for the player.
-            await adjust_territory_influence(
-                db, faction_code, 0, delta,
-                reason="space_cache_mining",
-            )
-            rep_applied[faction_code] = delta
-        except Exception as exc:
-            log.warning("[space_caches] rep reward failed for %s: %s",
-                        faction_code, exc, exc_info=True)
+    rep_applied = await _apply_rep_rewards(db, char, cache_def.rep_reward,
+                                           reason="space_cache_mining")
 
     return MineResult(
         success=True,
@@ -605,4 +656,99 @@ async def harvest_mining(
             f"{'Critical extraction! ' if critical else ''}"
             f"Extracted {qty}x {rtype} (quality {quality:.0f})."
         ),
+    )
+
+
+# ── Harvest: faction cache ──────────────────────────────────────────────────────
+
+
+async def harvest_faction_cache(
+    db,
+    char: dict,
+    cache_instance_id: int,
+) -> MineResult:
+    """Harvest a ``kind: faction_cache`` cache (clone pod, Jedi beacon, etc.).
+
+    Per design §4.3 a faction cache is a *marker*, not a challenge: it uses
+    NO skill check. Harvesting it grants the configured yield (resources) plus
+    its small faction rep reward, then consumes the instance into cooldown so
+    it respawns after ``respawn_minutes``.
+
+    Reuses ``MineResult`` (the skill-roll fields stay zeroed — there is no
+    roll). Funnel callers:
+    - Resource grant: engine.crafting.add_resource (mutates char["inventory"])
+    - Rep reward    : engine.organizations.adjust_rep (via _apply_rep_rewards)
+    - DOES NOT touch credits (faction caches yield resources + rep, no creds —
+      keeps the wildspace loop off the credit faucet/sink ledger).
+    """
+    row = await get_cache_instance(db, cache_instance_id)
+    if row is None:
+        return MineResult(success=False, not_found=True,
+                          message=f"Cache #{cache_instance_id} not found.")
+
+    if row["state"] == "cooldown":
+        remaining = int(row.get("next_available_at", 0) or 0) - int(time.time())
+        if remaining > 0:
+            mins = remaining // 60
+            secs = remaining % 60
+            return MineResult(
+                success=False, on_cooldown=True,
+                message=f"Cache #{cache_instance_id} has already been claimed "
+                        f"(another will surface in {mins}m {secs}s).",
+            )
+        await db.execute(
+            "UPDATE space_caches SET state = 'available' "
+            "WHERE cache_instance_id = ?",
+            (cache_instance_id,),
+        )
+        await db.commit()
+        row = await get_cache_instance(db, cache_instance_id)
+
+    if row["state"] == "depleted":
+        return MineResult(success=False,
+                          message=f"Cache #{cache_instance_id} is fully depleted.")
+
+    zone_key  = row["zone_key"]
+    def_id    = row["cache_def_id"]
+    pool      = get_cache_pool(zone_key)
+    cache_def = pool.get(def_id)
+    if cache_def is None:
+        return MineResult(success=False,
+                          message=f"Cache def '{def_id}' not found for zone '{zone_key}'.")
+
+    if cache_def.kind != "faction_cache":
+        return MineResult(success=False, wrong_kind=True,
+                          message=f"Cache #{cache_instance_id} is not a faction cache "
+                                  f"(kind='{cache_def.kind}'). Use the appropriate command.")
+
+    # No skill check — roll the yield table directly.
+    table = cache_def.yield_table
+    if not table:
+        rtype, qty_min, qty_max, qmin, qmax = "metal", 1, 3, 50, 70
+    else:
+        weights = [row_t[0] for row_t in table]
+        chosen  = random.choices(table, weights=weights, k=1)[0]
+        _, rtype, qty_min, qty_max, qmin, qmax = chosen
+
+    qty     = random.randint(qty_min, qty_max)
+    quality = float(random.randint(qmin, qmax))
+
+    from engine.crafting import add_resource
+    add_resource(char, rtype, qty, quality)
+    await db.save_character(char["id"], inventory=char["inventory"])
+
+    # Consume into cooldown (one-shot; respawns when next_available_at passes).
+    await set_cache_cooldown(db, cache_instance_id, char["id"],
+                             cache_def.respawn_minutes)
+
+    rep_applied = await _apply_rep_rewards(db, char, cache_def.rep_reward,
+                                           reason="space_faction_cache")
+
+    return MineResult(
+        success=True,
+        resource_type=rtype,
+        resource_qty=qty,
+        resource_quality=quality,
+        rep_rewards=rep_applied,
+        message=f"Recovered {qty}x {rtype} (quality {quality:.0f}).",
     )

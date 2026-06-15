@@ -72,6 +72,18 @@ class HarvestCommand(BaseCommand):
             )
             return
 
+        # Space context: aboard a ship in open space, `harvest` means
+        # wildspace faction caches (space_wildspace_design_v1 §4.3). The
+        # space handler returns True when it took the command; otherwise
+        # fall through to ground wilderness harvest. One verb, no
+        # colliding second registration (extend, don't add).
+        try:
+            from parser.space_commands import handle_space_harvest
+            if await handle_space_harvest(ctx):
+                return
+        except Exception:
+            log.exception("[harvest] space dispatch raised; falling back to ground")
+
         room_id = char.get("room_id")
         if not room_id:
             await ctx.session.send_line(

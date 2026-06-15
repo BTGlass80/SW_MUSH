@@ -12,12 +12,12 @@ zones that exist in the CW zone graph:
                         wildspace/wildspace_theater, are bidirectionally
                         adjacent to their parents, are LAWLESS (deep_space
                         default), and are NOT friendly-traffic spawn zones.
-  2. TestCachePools   — get_cache_pool loads the YAML pools; all caches are
-                        kind=mining with NO rep_reward (the flagged zone_id=0
-                        rep path is never exercised by player content);
-                        yields are 6-tuples; rtypes are registered.
-  3. TestVisibility   — universal vs republic/cis faction gating against the
-                        real sieges cache defs.
+  2. TestCachePools   — get_cache_pool loads the YAML pools; mining nodes are
+                        rep-free; Drop 2b faction caches carry a small (1-5)
+                        rep reward against a real CW faction code; yields are
+                        6-tuples; rtypes are registered.
+  3. TestVisibility   — universal vs republic/cis/jedi/hutt/bhg faction gating
+                        against the real sieges cache defs.
   4. TestEndToEnd     — DB-backed: spawn + harvest a real geonosis_front node
                         yields a resource and sets cooldown.
 """
@@ -43,6 +43,13 @@ from engine.space_caches import (  # noqa: E402
 )
 
 SIEGES_ZONES = ("geonosis_front", "outer_rim_sieges_drift")
+
+# CW faction org codes a faction cache may key its rep reward to. Must
+# resolve via db.get_organization (adjust_rep funnel) AND be org_type=faction
+# so get_all_faction_reps (the visibility gate) returns them.
+VALID_FACTION_CODES = {
+    "republic", "cis", "jedi_order", "hutt_cartel", "bounty_hunters_guild",
+}
 
 
 def _run(coro):
@@ -102,7 +109,8 @@ class TestZoneGraph(unittest.TestCase):
 
 
 class TestCachePools(unittest.TestCase):
-    """The YAML cache pools load and stay mining-only / rep-free for Drop 2."""
+    """The YAML cache pools load: mining nodes rep-free, faction caches
+    rep-bearing (Drop 2b)."""
 
     def setUp(self):
         reload_wildspace_pools()
@@ -121,14 +129,35 @@ class TestCachePools(unittest.TestCase):
         from engine.space_caches import DEV_TEST_ZONE_KEY, DEV_TEST_CACHE_POOL
         self.assertEqual(get_cache_pool(DEV_TEST_ZONE_KEY), DEV_TEST_CACHE_POOL)
 
-    def test_all_mining_no_rep_reward(self):
-        """Drop 2 ships mining-only with NO rep_reward, so the flagged
-        adjust_territory_influence(zone_id=0) path is never reached by any
-        player-reachable cache."""
+    def test_mining_nodes_have_no_rep_reward(self):
+        """Mining nodes are pure skill-grind: resources only, no rep."""
         for zk in SIEGES_ZONES:
             for did, cd in get_cache_pool(zk).items():
-                self.assertEqual(cd.kind, "mining", f"{zk}/{did} not mining")
-                self.assertFalse(cd.rep_reward, f"{zk}/{did} carries rep_reward")
+                if cd.kind == "mining":
+                    self.assertFalse(cd.rep_reward,
+                                     f"{zk}/{did} mining node carries rep_reward")
+
+    def test_faction_caches_present_and_rep_bearing(self):
+        """Drop 2b: faction caches exist, are faction-gated (never universal),
+        and grant a small (1-5) rep reward to a real CW faction code that the
+        adjust_rep funnel can resolve."""
+        found = 0
+        for zk in SIEGES_ZONES:
+            for did, cd in get_cache_pool(zk).items():
+                if cd.kind != "faction_cache":
+                    continue
+                found += 1
+                self.assertTrue(cd.rep_reward,
+                                f"{zk}/{did} faction cache lacks rep_reward")
+                self.assertIsInstance(cd.visibility, list,
+                                      f"{zk}/{did} faction cache not faction-gated")
+                for code, delta in cd.rep_reward.items():
+                    self.assertIn(code, VALID_FACTION_CODES,
+                                  f"{zk}/{did} bad faction code {code}")
+                    self.assertTrue(1 <= int(delta) <= 5,
+                                    f"{zk}/{did} rep delta {delta} not in 1-5")
+        self.assertGreaterEqual(found, 5,
+                                "expected several faction caches across the theater")
 
     def test_yield_tables_are_six_tuples(self):
         for zk in SIEGES_ZONES:
@@ -180,6 +209,18 @@ class TestVisibility(unittest.TestCase):
     def test_faction_hidden_with_negative_rep(self):
         self.assertFalse(
             is_cache_visible(self._row("republic_supply_debris"), {"republic": -1}))
+
+    def test_faction_cache_jedi_beacon_gated(self):
+        """Drop 2b faction cache: jedi_order-gated, visible at rep >= 0."""
+        self.assertFalse(is_cache_visible(self._row("jedi_recovery_beacon"), {}))
+        self.assertTrue(
+            is_cache_visible(self._row("jedi_recovery_beacon"), {"jedi_order": 0}))
+
+    def test_faction_cache_bhg_dead_drop_gated(self):
+        self.assertFalse(is_cache_visible(self._row("clone_bounty_dead_drop"), {}))
+        self.assertTrue(
+            is_cache_visible(self._row("clone_bounty_dead_drop"),
+                             {"bounty_hunters_guild": 3}))
 
 
 class TestEndToEnd(unittest.TestCase):

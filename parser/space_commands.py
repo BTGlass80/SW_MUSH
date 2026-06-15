@@ -6390,20 +6390,28 @@ class MineCommand(BaseCommand):
                     await ctx.session.send_line("  " + _banner)
 
             rows = await get_zone_caches(ctx.db, zone_key)
+
+            def _is_mining(r):
+                cdef = pool.get(r["cache_def_id"])
+                return cdef is not None and cdef.kind == "mining"
+
             visible = [
                 r for r in rows
-                if r["state"] == "available" and is_cache_visible(r, char_rep_flat)
+                if r["state"] == "available" and _is_mining(r)
+                and is_cache_visible(r, char_rep_flat)
             ]
             cooling = [
                 r for r in rows
-                if r["state"] == "cooldown" and is_cache_visible(r, char_rep_flat)
+                if r["state"] == "cooldown" and _is_mining(r)
+                and is_cache_visible(r, char_rep_flat)
             ]
 
             if not visible and not cooling:
                 await ctx.session.send_line(
                     f"  {ansi.BRIGHT_YELLOW}[MINE]{ansi.RESET} "
                     "No mining nodes visible in this zone. "
-                    "Nodes may be on cooldown or faction-gated."
+                    "Nodes may be on cooldown or faction-gated. "
+                    f"({ansi.DIM}faction caches: use 'harvest'{ansi.RESET})"
                 )
                 return
 
@@ -6510,6 +6518,186 @@ class MineCommand(BaseCommand):
                 f"{char['name']} initiates a mining run on a nearby cache node.",
                 exclude_session=ctx.session,
             )
+
+
+async def handle_space_harvest(ctx) -> bool:
+    """Space-side dispatch for the ``harvest`` verb (faction caches).
+
+    Extends the one ``harvest`` verb (parser/harvest_command.HarvestCommand,
+    ground wilderness) rather than registering a colliding second command:
+    when the player is aboard a ship (on its bridge), ``harvest`` means
+    *space faction caches*; otherwise it falls through to ground harvest.
+
+    Returns True if it handled the command (player is in a space context),
+    False to let the ground harvest run.
+
+    Mirrors MineCommand but for ``kind: faction_cache`` nodes, which take no
+    skill check (design §4.3) and grant resources + faction rep.
+    """
+    ship = await _get_ship_for_player(ctx)
+    if not ship:
+        return False  # Not aboard a ship → ground harvest handles it.
+
+    # From here on the player is in a space context: handle fully (return True).
+    if ship["docked_at"]:
+        await ctx.session.send_line(
+            "  Cache recovery requires open space. Launch first."
+        )
+        return True
+
+    from engine.space_caches import (
+        get_zone_caches, spawn_zone_caches,
+        tick_cache_respawns, get_cache_pool,
+        is_cache_visible, harvest_faction_cache,
+    )
+    from engine.organizations import get_all_faction_reps
+    from engine.npc_space_traffic import ZONES
+
+    systems  = _get_systems(ship)
+    zone_key = systems.get("current_zone", "")
+    char     = ctx.session.character
+
+    pool = get_cache_pool(zone_key)
+    if not pool:
+        await ctx.session.send_line(
+            f"  {ansi.DIM}[HARVEST]{ansi.RESET} "
+            "No cache nodes are registered for this zone. "
+            "This is not a wildspace zone, or content hasn't shipped yet."
+        )
+        return True
+
+    try:
+        await spawn_zone_caches(ctx.db, zone_key)
+        await tick_cache_respawns(ctx.db, zone_key)
+    except Exception as _e:
+        log.warning("[harvest] spawn/tick failed: %s", _e, exc_info=True)
+
+    try:
+        rep_full = await get_all_faction_reps(char, ctx.db)
+        char_rep_flat = {
+            fc: int(info.get("rep", 0)) if isinstance(info, dict) else int(info)
+            for fc, info in (rep_full or {}).items()
+        }
+    except Exception:
+        char_rep_flat = {}
+
+    def _is_faction_cache(r):
+        cdef = pool.get(r["cache_def_id"])
+        return cdef is not None and cdef.kind == "faction_cache"
+
+    args_stripped = (ctx.args or "").strip()
+
+    # ── harvest (no arg) ─ list visible faction caches ──────────────────────
+    if not args_stripped:
+        _zone = ZONES.get(zone_key)
+        if _zone is not None and getattr(_zone, "wildspace", False):
+            _banner = _WILDSPACE_THEATER_BANNERS.get(
+                getattr(_zone, "wildspace_theater", None)
+            )
+            if _banner:
+                await ctx.session.send_line("  " + _banner)
+
+        rows = await get_zone_caches(ctx.db, zone_key)
+        visible = [
+            r for r in rows
+            if r["state"] == "available" and _is_faction_cache(r)
+            and is_cache_visible(r, char_rep_flat)
+        ]
+        cooling = [
+            r for r in rows
+            if r["state"] == "cooldown" and _is_faction_cache(r)
+            and is_cache_visible(r, char_rep_flat)
+        ]
+
+        if not visible and not cooling:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_YELLOW}[HARVEST]{ansi.RESET} "
+                "No faction caches visible in this zone. "
+                "Caches may be claimed (cooling down) or keyed to a faction "
+                "you lack standing with."
+            )
+            return True
+
+        lines = [
+            f"  {ansi.BRIGHT_CYAN}[HARVEST]{ansi.RESET} "
+            f"Faction caches in {zone_key}:"
+        ]
+        for r in visible:
+            inst_id = r["cache_instance_id"]
+            def_id = r["cache_def_id"]
+            lines.append(f"    #{inst_id:>4}  {def_id:<32}  READY")
+        for r in cooling:
+            inst_id = r["cache_instance_id"]
+            def_id = r["cache_def_id"]
+            import time as _time
+            remaining = int(r.get("next_available_at", 0) or 0) - int(_time.time())
+            mins = max(0, remaining) // 60
+            lines.append(f"    #{inst_id:>4}  {def_id:<32}  claimed ({mins}m)")
+        lines.append(
+            f"  Use {ansi.BRIGHT_WHITE}harvest <id>{ansi.RESET} to recover a cache."
+        )
+        for ln in lines:
+            await ctx.session.send_line(ln)
+        return True
+
+    # ── harvest <id> ─ recover a faction cache ──────────────────────────────
+    try:
+        cache_id = int(args_stripped)
+    except ValueError:
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_RED}[HARVEST]{ansi.RESET} "
+            "Usage: harvest <cache_id>  (use 'harvest' to list caches)"
+        )
+        return True
+
+    rows = await get_zone_caches(ctx.db, zone_key)
+    instance_in_zone = next(
+        (r for r in rows if r["cache_instance_id"] == cache_id), None
+    )
+    if instance_in_zone is None:
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_RED}[HARVEST]{ansi.RESET} "
+            f"Cache #{cache_id} is not in this zone. "
+            "Use 'harvest' to see available caches."
+        )
+        return True
+    if not is_cache_visible(instance_in_zone, char_rep_flat):
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_RED}[HARVEST]{ansi.RESET} "
+            f"Cache #{cache_id} is not detectable by your ship's sensors."
+        )
+        return True
+
+    result = await harvest_faction_cache(ctx.db, char, cache_id)
+
+    if result.on_cooldown:
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_YELLOW}[HARVEST]{ansi.RESET} {result.message}"
+        )
+        return True
+    if result.not_found or result.wrong_kind or not result.success:
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_RED}[HARVEST]{ansi.RESET} {result.message}"
+        )
+        return True
+
+    await ctx.session.send_line(
+        f"  {ansi.BRIGHT_GREEN}[HARVEST]{ansi.RESET} {result.message} "
+        f"Cache claimed."
+    )
+    for fc, delta in (result.rep_rewards or {}).items():
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_CYAN}[REP]{ansi.RESET} +{delta} {fc} standing."
+        )
+
+    if ship.get("bridge_room_id"):
+        await ctx.session_mgr.broadcast_to_room(
+            ship["bridge_room_id"],
+            f"  {ansi.BRIGHT_CYAN}[HARVEST]{ansi.RESET} "
+            f"{char['name']} recovers a faction cache.",
+            exclude_session=ctx.session,
+        )
+    return True
 
 
 def register_space_commands(registry):
