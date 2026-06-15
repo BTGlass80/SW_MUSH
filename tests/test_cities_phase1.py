@@ -1042,7 +1042,23 @@ class TestParserFoundDispatch(unittest.TestCase):
 
 
 class TestParserDissolveDispatch(unittest.TestCase):
-    def test_dissolve_after_found_works(self):
+    def test_dissolve_with_confirm_works(self):
+        async def _t():
+            from parser.city_commands import CityCommand
+            from engine.player_cities import (
+                found_city, get_city_by_name,
+            )
+            db = await _fresh_db()
+            char, _, _, _, _ = await _full_setup(db)
+            await found_city(db, char, "Doomed City")
+            session = _FakeSession(character=char)
+            ctx = _ctx_for(session, db, "+city",
+                           "dissolve Doomed City confirm")
+            await CityCommand().execute(ctx)
+            self.assertIsNone(await get_city_by_name(db, "Doomed City"))
+        _run(_t())
+
+    def test_dissolve_without_confirm_warns_and_preserves(self):
         async def _t():
             from parser.city_commands import CityCommand
             from engine.player_cities import (
@@ -1055,7 +1071,11 @@ class TestParserDissolveDispatch(unittest.TestCase):
             ctx = _ctx_for(session, db, "+city",
                            "dissolve Doomed City")
             await CityCommand().execute(ctx)
-            self.assertIsNone(await get_city_by_name(db, "Doomed City"))
+            # No confirm -> warning shown, city still alive.
+            text = "\n".join(session.sent)
+            self.assertIn("confirm", text.lower())
+            self.assertIn("cannot be undone", text.lower())
+            self.assertIsNotNone(await get_city_by_name(db, "Doomed City"))
         _run(_t())
 
 

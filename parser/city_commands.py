@@ -155,8 +155,8 @@ class CityCommand(BaseCommand):
             "Available now:",
             "  +city found <name>         Found a city (org leader, "
             "tier-5 HQ, 50 influence, treasury).",
-            "  +city dissolve <name>      Dissolve a city (org "
-            "leader only; refunds 50% of founding cost).",
+            "  +city dissolve <name> confirm  Dissolve a city (org "
+            "leader only; refunds 25% of expansion-room costs).",
             "  +city claim <direction>    Claim an adjacent room as "
             "expansion (org leader).",
             "  +city claim <room_id>      Claim by explicit room id "
@@ -273,14 +273,34 @@ class CityCommand(BaseCommand):
     ) -> None:
         if not args:
             await ctx.session.send_line(
-                "  Usage: +city dissolve <name>"
+                "  Usage: +city dissolve <name> confirm"
+            )
+            return
+
+        # Two-step confirm gate (dissolution is destructive + irreversible;
+        # mirrors the `housing sell confirm` pattern). The trailing word
+        # `confirm` is stripped off the city name to arm the action.
+        name = args
+        confirmed = False
+        head, _, tail = args.rpartition(" ")
+        if head and tail.lower() == "confirm":
+            name, confirmed = head, True
+
+        if not confirmed:
+            await ctx.session.send_line(
+                f"  {ansi.YELLOW}Dissolving '{name}' permanently removes the "
+                f"city. Your organization is refunded 25% of its "
+                f"expansion-room claim costs to the treasury; HQ rooms "
+                f"remain. This cannot be undone.{ansi.RESET}\n"
+                f"  Type {ansi.BOLD}+city dissolve {name} confirm{ansi.RESET} "
+                f"to proceed."
             )
             return
 
         from engine.player_cities import dissolve_city
 
         try:
-            ok, message = await dissolve_city(ctx.db, char, args)
+            ok, message = await dissolve_city(ctx.db, char, name)
         except Exception as e:
             log.exception("[city.dissolve] error: %s", e)
             await ctx.session.send_line(

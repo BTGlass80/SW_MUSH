@@ -6,6 +6,13 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-15 — Cities C8: +city dissolve confirm-gate + 50%-doc-drift fix — *drop city-dissolve-confirm*
+Closes the T3.14 Cities C8 sub-item (b) deferred in the cities gap-check (`HANDOFF_t314_cities_gapcheck_2026-06-14.md`): `+city dissolve` is destructive + irreversible but fired immediately with no confirmation. Adds a stateless two-step confirm gate (mirrors the `housing sell confirm` pattern). Parser-only; no engine/schema change.
+- **`+city dissolve <name>`** now shows a warning (permanent removal; refund = 25% of expansion-room claim costs to the org treasury; HQ rooms remain; cannot be undone) and requires **`+city dissolve <name> confirm`** to execute. The trailing `confirm` token is stripped off the city name (`rpartition`) to arm the action — names stay multi-word-safe.
+- **Doc-drift fix (no behavior change):** the `dissolve_city` docstring and the `+city` bare-help line both still claimed *"50% of founding cost"* — stale since the `CITY.dissolution_refund_formula` fork resolved to **25% of expansion-room costs** in drop cities-dissolution-refund (`aff8c9e`). Corrected both to match the live faucet.
+- **Verified:** `tests/test_cities_phase1.py::TestParserDissolveDispatch` — confirm path dissolves (renamed `test_dissolve_with_confirm_works`); new `test_dissolve_without_confirm_warns_and_preserves` asserts the warning renders + the city survives. 59 phase-1 city tests pass.
+- **Files:** `parser/city_commands.py`, `engine/player_cities.py` (docstring), `tests/test_cities_phase1.py`, `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-14 — T3.13 Padawan/Master: +authorize Master pre-authorization (P5, OPT C) — *drop pm-authorize*
 Builds the resolved design fork `PM.approval_pending_store` = **OPTION C** (pre-authorization-only at launch). Closes the T3.13 P5 approval-weight gap (design §5.3) **without** the cross-cutting per-action `+approve`/`+deny` block-and-wait interception layer (deferred post-launch). Parser-only; no engine/schema change.
 - **`+authorize <padawan> <category> [off]`** (`parser/padawan_master_trials.py`, new `AuthorizeCommand`, alias `authorise`): a Master grants/revokes a **standing** pre-authorization for a category of otherwise approval-gated action. Three categories map to the §5.3 gated actions — `offworld` (leave Coruscant for non-sanctioned missions), `powers` (use Force powers in the field), `trials` (attempt the Trials without a fresh `+endorse`). Forms: `<padawan> <category>`, sole-bond shorthand `<category>`, list `<padawan>`, and a bare context list (Padawan sees their own clearances; Master sees their sole Padawan's). Master-or-staff gated; both sides notified + bilateral audit log (`pm_authorization`).

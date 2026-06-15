@@ -1013,7 +1013,9 @@ async def dissolve_city(db, char: dict, name: str) -> tuple[bool, str]:
     """Dissolve a player city (founder/leader only, by name).
 
     Phase 1 behavior:
-      - Refunds 50% of the founding cost to org treasury.
+      - Refunds 25% of the expansion-room claim costs to org treasury
+        (design §8.3; fork CITY.dissolution_refund_formula resolved
+        align-to-spec, Brian 2026-06-14). The HQ founding cost is sunk.
       - Removes all player_city_rooms rows (HQ rooms lose city
         designation but remain HQ rooms — only the city overlay
         lifts).
