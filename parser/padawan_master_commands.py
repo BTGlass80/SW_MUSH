@@ -12,6 +12,7 @@ Per padawan_master_system_design_v1.md (full design) and v45 §8.12
   +bond decline <m>    — Padawan: decline a pending bond proposal
   +release [reason]    — Master: voluntarily dissolve an active bond
                                    with the chosen Padawan
+  +leave-master <r>    — Padawan: voluntarily leave bond (reason req.)
   @bond <m> = <p>      — Admin/staff: directly establish a bond
                                    (skips player-flow, no consent
                                    prompt — for mediated assignments)
@@ -397,6 +398,21 @@ class PadawanCommand(BaseCommand):
                         "failed for padawan=%s",
                         padawan.get("id"), exc_info=True,
                     )
+            # Trials parity: mirror the MasterCommand trials block.
+            # A Padawan's Trials progress is written on the bond row
+            # (trials_passed_json); Masters see it here per §8.12.
+            import json as _json
+            try:
+                passed = _json.loads(
+                    bond.get("trials_passed_json") or "[]"
+                )
+                if isinstance(passed, list):
+                    await ctx.session.send_line(
+                        f"      {ansi.cyan('Trials passed:')} "
+                        f"{len(passed)} of 5"
+                    )
+            except (ValueError, TypeError):
+                pass
 
 
 # ─── +bond (with subcommands) ─────────────────────────────────────────────
@@ -952,6 +968,117 @@ class AdminBondCommand(BaseCommand):
         )
 
 
+# ─── +leave-master ────────────────────────────────────────────────────────
+
+class LeaveMasterCommand(BaseCommand):
+    """``+leave-master`` — Padawan-initiated voluntary bond dissolution.
+
+    Per design §8: a Padawan may voluntarily leave their Master. A
+    reason is REQUIRED to discourage impulsive breaks. The dissolution
+    is logged on both sides (narrative-memory cross-write, same seam
+    as ReleaseCommand) and the Master is notified if online. No
+    staff-approval gate in this drop (noted: staff can review logs).
+
+    Usage:
+      +leave-master <reason>    Dissolve active bond. Reason required.
+    """
+    key = "+leave-master"
+    aliases = ["leavemaster"]
+    help_text = (
+        "Voluntarily leave your Master-Padawan bond (Padawan-side).\n"
+        "\n"
+        "USAGE:\n"
+        "  +leave-master <reason>   Dissolve your bond. A reason is "
+        "required.\n"
+        "\n"
+        "The dissolution is logged on both characters' narrative records\n"
+        "and your Master is notified. Masters: use +release instead.\n"
+    )
+    usage = "+leave-master <reason>"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line(
+                "  You must be in the game to use +leave-master.")
+            return
+
+        bond = await ctx.db.get_active_bond_for_padawan(char["id"])
+        if not bond:
+            await ctx.session.send_line(
+                "  You have no active Master bond.\n"
+                "  (Masters: use +release.)"
+            )
+            return
+
+        reason = (ctx.args or "").strip()
+        if not reason:
+            await ctx.session.send_line(
+                "  A reason is required to leave your Master.\n"
+                f"  Usage: {self.usage}"
+            )
+            return
+
+        master = await ctx.db.get_character(bond["master_char_id"])
+        if master is None:
+            await ctx.session.send_line(
+                "  Master record missing. Please notify staff.")
+            return
+
+        # Incorporate the player's reason into the dissolved_reason
+        # column using the same pattern as ReleaseCommand: we pass
+        # a prefixed string so staff audit logs show initiative.
+        dissolved = await ctx.db.dissolve_bond(
+            bond["id"], reason=f"padawan_voluntary: {reason}",
+        )
+        if not dissolved:
+            await ctx.session.send_line(
+                "  Bond could not be dissolved (may already be "
+                "inactive). Please notify staff."
+            )
+            return
+
+        # Padawan-side echo
+        await ctx.session.send_line(
+            f"  {ansi.cyan('You step back from the bond with')} "
+            f"{ansi.bold(master['name'])}"
+            f"{ansi.cyan('.')}\n"
+            f"  Reason recorded: {reason}"
+        )
+
+        # Master notification (online delivery, best-effort).
+        delivered = await _notify_char_if_online(
+            ctx, master["id"],
+            f"\n  {ansi.dim('You feel the bond with')} "
+            f"{ansi.bold(char['name'])} "
+            f"{ansi.dim('release. They have stepped back.')}\n"
+            f"  Reason given: {reason}\n",
+        )
+
+        # Audit log on BOTH sides — narrative-memory cross-write,
+        # mirrors the two _log_bond_event calls in ReleaseCommand.
+        padawan_summary = (
+            f"Left bond with Master {master['name']} "
+            f"(reason: {reason})."
+        )
+        master_summary = (
+            f"Padawan {char['name']} left bond "
+            f"(reason: {reason})."
+        )
+        await _log_bond_event(
+            ctx, char["id"], "bond_dissolved", padawan_summary,
+        )
+        await _log_bond_event(
+            ctx, master["id"], "bond_dissolved", master_summary,
+        )
+
+        if not delivered:
+            await ctx.session.send_line(
+                f"  ({master['name']} is offline; the dissolution "
+                f"is recorded.)"
+            )
+
+
 # ─── registration ─────────────────────────────────────────────────────────
 
 def register_padawan_master_commands(registry) -> None:
@@ -960,8 +1087,8 @@ def register_padawan_master_commands(registry) -> None:
     Called from server/game_server.py during registry init, after
     register_all (builtin_commands). The order is irrelevant
     because none of these commands collide with existing keys
-    (verified: +master, +padawan, +bond, +release, @bond are all
-    new).
+    (verified: +master, +padawan, +bond, +release, @bond,
+    +leave-master are all new).
     """
     for cmd in (
         MasterCommand(),
@@ -969,5 +1096,6 @@ def register_padawan_master_commands(registry) -> None:
         BondCommand(),
         ReleaseCommand(),
         AdminBondCommand(),
+        LeaveMasterCommand(),
     ):
         registry.register(cmd)

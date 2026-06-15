@@ -6,6 +6,15 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-14 — T3.13 Padawan/Master: +leave-master + +padawan trials parity + gap-check — *drop pm-leave-master*
+T3.13 gap-check (14 areas, adversarial; `HANDOFF_t313_padawan_master_gapcheck_2026-06-14.md`) — bond + trials core solid (P1/P2/P7 DONE). Closed the one clean parser-lane gap (no engine/db change):
+- **`+leave-master`** (P9/P11): Padawan-initiated voluntary bond dissolution — the mirror of the Master-side `+release` (padawans previously had **no way to leave their Master**). A reason is REQUIRED (design §8, to "discourage impulsive breaks"); dissolves via the existing `dissolve_bond(reason="padawan_voluntary: <text>")`, notifies the Master, and writes a bilateral audit log. Alias `leavemaster`.
+- **+padawan trials parity** (P3): the Master's `+padawan` view now shows each Padawan's "Trials passed: N of 5" (previously only `+master` did).
+- **Verified:** new `tests/test_pm_leave_master.py` (13 — dissolves with padawan_voluntary reason, no-bond message, reason-required guard, Master notified, +padawan trials line) + `test_pm2_commands.py` regression (34) green.
+- **Logged for Brian:** design fork `PM.approval_pending_store` — the Master-approval mechanics (P5: +approve/+deny/+authorize) need a where-to-store + how-much-at-launch decision before building (the gating layer is cross-cutting; recommend pre-authorization-only at launch).
+- **Deferred (rationale in handoff):** P5 approval trio (large + fork), P4 +spar combat-mode + P3 +who marker + P9 master_killed hook (combat/audit-adjacent lanes), P6 shared-memory, P8 falls, P10 director (avoid lane), P12 council / P13 lineage / P14 re-assignment+waitlist (expansion).
+- **Files:** `parser/padawan_master_commands.py`, `tests/test_pm_leave_master.py` (new), `docs/design/HANDOFF_t313_padawan_master_gapcheck_2026-06-14.md` (new), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-14 — Web a11y: prefers-reduced-motion + modal return-focus (audit UX-6) — *drop a11y-reduced-motion-focus*
 Picks up the unclaimed accessibility item from the ChatGPT-audit response (`docs/design/06_Claude_Response_and_Action_Items.md`, Section B / UX-6). Client-only, purely additive (+42 lines, 0 removed) to `static/client.html`.
 - **`prefers-reduced-motion`:** a `@media (prefers-reduced-motion: reduce)` block neutralizes animation/transition duration + iteration globally (the standard near-zero pattern, not hard `none`, to avoid `transitionend`/`animationend` timing bugs) — respects the OS/browser reduced-motion preference for vestibular-sensitive players. Only active when requested.
