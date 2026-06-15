@@ -102,6 +102,83 @@ FIVE_TRIALS = (
 FIVE_TRIALS_SET = frozenset(FIVE_TRIALS)
 
 
+# ── Master pre-authorization categories (P5 approval-weight, §5.3) ─────────
+# A Master can pre-authorize a Padawan for a category of otherwise
+# approval-gated action via +authorize, so routine activity doesn't need
+# per-action sign-off. Resolved design fork PM.approval_pending_store =
+# OPTION C (pre-authorization only at launch): this ships the STORE +
+# display surface; the per-action +approve/+deny block-and-wait flow is
+# deferred post-launch. The gated actions read these standing
+# pre-authorizations when/where they are built (offworld travel, field
+# Force-power use) — no cross-cutting action-interception layer at launch.
+#
+# The three categories map to the §5.3 approval-gated actions:
+#   offworld — leaving Coruscant for a non-Council-sanctioned mission
+#   powers   — using a Force power not authorized for field use
+#   trials   — attempting a formal Trial (a STANDING endorsement, the
+#              persistent complement to the one-shot +endorse)
+#
+# Storage mirrors +endorse: a JSON key (`master_authorizations`, a sorted
+# list of canonical category strings) on the Padawan's chargen_notes. No
+# schema change, per-Padawan, granted-by audit via `..._by_id`.
+AUTHORIZE_CATEGORIES = {
+    "offworld": "leave Coruscant for non-sanctioned missions",
+    "powers": "use Force powers in the field",
+    "trials": "attempt the Trials without a fresh +endorse",
+}
+# Convenience aliases → canonical category.
+_AUTHORIZE_ALIASES = {
+    "travel": "offworld", "mission": "offworld", "off-world": "offworld",
+    "force": "powers", "power": "powers", "field": "powers",
+    "trial": "trials",
+}
+
+
+def _normalize_category(raw: str) -> str | None:
+    """Normalize a user-typed authorization category to canonical, or
+    None if unrecognized. Case-insensitive; accepts a few aliases."""
+    if not raw:
+        return None
+    n = raw.strip().lower()
+    if n in AUTHORIZE_CATEGORIES:
+        return n
+    return _AUTHORIZE_ALIASES.get(n)
+
+
+def _load_authorizations(char: dict) -> list:
+    """Return the canonical categories the Padawan's Master has
+    pre-authorized, decoded from chargen_notes. Defensive against
+    malformed JSON / unknown categories. Returns a fresh list."""
+    raw = char.get("chargen_notes") or "{}"
+    try:
+        notes = json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(notes, dict):
+        return []
+    stored = notes.get("master_authorizations")
+    if not isinstance(stored, list):
+        return []
+    out = []
+    for c in stored:
+        if (isinstance(c, str) and c in AUTHORIZE_CATEGORIES
+                and c not in out):
+            out.append(c)
+    return out
+
+
+def _has_oneshot_endorsement(char: dict) -> bool:
+    """True if the Padawan currently holds a one-shot +endorse flag
+    (consumed on the next recorded Trial)."""
+    raw = char.get("chargen_notes") or "{}"
+    try:
+        notes = json.loads(raw)
+    except (ValueError, TypeError):
+        return False
+    return bool(isinstance(notes, dict)
+                and notes.get("trial_endorsement_active"))
+
+
 def _canon_trial_name(raw: str) -> str | None:
     """Normalize a user-typed Trial name to its canonical form, or
     None if not recognized.
@@ -393,6 +470,30 @@ class TrialsCommand(BaseCommand):
             f"  {ansi.cyan('Passed:')} "
             f"{ansi.bold(str(len(passed)))} of 5"
         )
+        # Endorsement / pre-authorization status (P5 approval-weight,
+        # §5.3/§6.3). A standing `trials` pre-authorization (+authorize)
+        # is the persistent complement to the one-shot +endorse; this
+        # line is the player-facing consumer of both.
+        if bond.get("bond_status") == "active" and padawan:
+            if "trials" in _load_authorizations(padawan):
+                await ctx.session.send_line(
+                    f"  {ansi.cyan('Endorsement:')} "
+                    f"{ansi.green('standing')} — Master has pre-authorized "
+                    f"Trial attempts ({ansi.yellow('+authorize')})."
+                )
+            elif _has_oneshot_endorsement(padawan):
+                await ctx.session.send_line(
+                    f"  {ansi.cyan('Endorsement:')} "
+                    f"{ansi.green('ready')} — Master endorsed your next "
+                    f"attempt."
+                )
+            else:
+                await ctx.session.send_line(
+                    f"  {ansi.cyan('Endorsement:')} "
+                    f"{ansi.yellow('none')} — Master must "
+                    f"{ansi.yellow('+endorse')} (or "
+                    f"{ansi.yellow('+authorize')}) before a Trial attempt."
+                )
         if len(passed) == 5 and bond.get("bond_status") == "active":
             await ctx.session.send_line(
                 f"  {ansi.green('Eligible for knighting.')} "
@@ -506,6 +607,306 @@ class EndorseCommand(BaseCommand):
             ctx, padawan["id"], "trial_endorsement",
             f"Endorsed for Trial attempt by Master {char['name']}.",
         )
+
+
+# ─── +authorize — Master pre-authorization (P5 approval-weight, OPT C) ─────
+
+
+class AuthorizeCommand(BaseCommand):
+    """``+authorize <padawan> <category> [off]`` — Master pre-authorizes
+    a Padawan for a category of otherwise approval-gated action.
+
+    Per design §5.3, several Padawan actions are gated by Master
+    approval. Rather than a per-action block-and-wait flow (deferred
+    post-launch — resolved fork PM.approval_pending_store = OPTION C),
+    launch ships the standing pre-authorization surface: a Master grants
+    a category once and routine activity in that category no longer needs
+    per-action sign-off.
+
+    Categories (design §5.3): offworld, powers, trials.
+
+    Forms::
+
+      +authorize <padawan> <category>       Grant a category.
+      +authorize <padawan> <category> off   Revoke a category.
+      +authorize <category> [off]           Sole-bond Master shorthand.
+      +authorize <padawan>                  List a Padawan's grants.
+      +authorize                            Context list (your sole
+                                            Padawan's grants, or — as a
+                                            Padawan — what your Master
+                                            has pre-authorized for you).
+
+    The grants are stored on the Padawan's chargen_notes
+    (`master_authorizations`), mirroring +endorse. The `trials` category
+    is a standing endorsement: it surfaces in +trials as
+    "Endorsement: standing", complementing the one-shot +endorse.
+    """
+    key = "+authorize"
+    aliases = ["authorise"]
+    help_text = (
+        "Pre-authorize a Padawan for approval-gated actions (Master).\n"
+        "\n"
+        "USAGE:\n"
+        "  +authorize <padawan> <category>       Grant a category.\n"
+        "  +authorize <padawan> <category> off   Revoke a category.\n"
+        "  +authorize <category> [off]           If you have 1 Padawan.\n"
+        "  +authorize <padawan>                  List a Padawan's grants.\n"
+        "  +authorize                            Show standing grants.\n"
+        "\n"
+        "CATEGORIES:\n"
+        "  offworld   Leave Coruscant for non-sanctioned missions.\n"
+        "  powers     Use Force powers in the field.\n"
+        "  trials     Attempt the Trials without a fresh +endorse.\n"
+        "\n"
+        "Pre-authorization avoids needing per-action approval for "
+        "routine activity\n(design §5.3). Padawans: use bare +authorize "
+        "to see what you're cleared for.\n"
+    )
+    usage = "+authorize <padawan> <category> [off]"
+
+    async def execute(self, ctx: CommandContext):
+        char = ctx.session.character
+        if not char:
+            await ctx.session.send_line(
+                "  You must be in the game to use +authorize.")
+            return
+
+        parts = (ctx.args or "").split()
+
+        # Strip a trailing on/off toggle word, if present.
+        toggle = None
+        if parts and parts[-1].lower() in (
+            "on", "off", "grant", "revoke", "remove", "clear",
+        ):
+            toggle = ("off" if parts[-1].lower() in
+                      ("off", "revoke", "remove", "clear") else "on")
+            parts = parts[:-1]
+
+        # 0 tokens → context list.
+        if not parts:
+            if toggle is not None:
+                await ctx.session.send_line(f"  Usage: {self.usage}")
+                return
+            await self._list_context(ctx, char)
+            return
+
+        # 1 token → category (sole-bond grant) or padawan name (list).
+        if len(parts) == 1:
+            cat = _normalize_category(parts[0])
+            if cat is not None:
+                await self._grant_sole_bond(
+                    ctx, char, cat, toggle or "on")
+                return
+            if toggle is not None:
+                await ctx.session.send_line(
+                    "  Specify a category: "
+                    "+authorize <padawan> <category> [off]")
+                return
+            await self._list_for_padawan_name(ctx, char, parts[0])
+            return
+
+        # 2+ tokens → <padawan> <category>.
+        padawan_name = parts[0]
+        cat = _normalize_category(parts[1])
+        if cat is None:
+            await ctx.session.send_line(
+                f"  '{parts[1]}' isn't an authorization category.\n"
+                f"  Valid: {', '.join(sorted(AUTHORIZE_CATEGORIES))}"
+            )
+            return
+        await self._grant_named(
+            ctx, char, padawan_name, cat, toggle or "on")
+
+    # ── grant / revoke ────────────────────────────────────────────────
+
+    async def _grant_sole_bond(self, ctx, master, cat, toggle):
+        bonds = await ctx.db.get_active_bonds_for_master(master["id"])
+        if not bonds:
+            await ctx.session.send_line(
+                "  You have no active Padawan bond. "
+                "Use +authorize <padawan> <category>."
+            )
+            return
+        if len(bonds) > 1:
+            await ctx.session.send_line(
+                f"  You have {len(bonds)} active Padawan bonds. "
+                f"Specify which: +authorize <padawan> {cat}."
+            )
+            return
+        padawan = await ctx.db.get_character(bonds[0]["padawan_char_id"])
+        if padawan is None:
+            await ctx.session.send_line(
+                "  Bond character record is missing. Notify staff.")
+            return
+        await self._apply_authorization(ctx, master, padawan, cat, toggle)
+
+    async def _grant_named(self, ctx, master, padawan_name, cat, toggle):
+        padawan = await _find_pc_by_name_anywhere(ctx, padawan_name)
+        if padawan is None:
+            await ctx.session.send_line(
+                f"  No active character named '{padawan_name}'.")
+            return
+        bond = await ctx.db.get_active_bond_for_padawan(padawan["id"])
+        if bond is None:
+            await ctx.session.send_line(
+                f"  {padawan['name']} has no active Padawan-Master "
+                f"bond. Pre-authorization requires an active bond."
+            )
+            return
+        is_admin = bool(
+            ctx.session.account
+            and ctx.session.account.get("is_admin", 0)
+        )
+        if bond["master_char_id"] != master["id"] and not is_admin:
+            await ctx.session.send_line(
+                f"  You are not {padawan['name']}'s Master.")
+            return
+        await self._apply_authorization(ctx, master, padawan, cat, toggle)
+
+    async def _apply_authorization(self, ctx, master, padawan, cat, toggle):
+        notes_raw = padawan.get("chargen_notes") or "{}"
+        try:
+            notes = json.loads(notes_raw)
+            if not isinstance(notes, dict):
+                notes = {}
+        except (ValueError, TypeError):
+            notes = {}
+        current = notes.get("master_authorizations")
+        if not isinstance(current, list):
+            current = []
+        current = [c for c in current
+                   if isinstance(c, str) and c in AUTHORIZE_CATEGORIES]
+
+        if toggle == "off":
+            if cat not in current:
+                await ctx.session.send_line(
+                    f"  {padawan['name']} is not pre-authorized for "
+                    f"'{cat}'. Nothing to revoke."
+                )
+                return
+            current = [c for c in current if c != cat]
+            past = "revoked"
+        else:
+            if cat in current:
+                await ctx.session.send_line(
+                    f"  {padawan['name']} is already pre-authorized "
+                    f"for '{cat}'."
+                )
+                return
+            current.append(cat)
+            past = "granted"
+
+        notes["master_authorizations"] = sorted(set(current))
+        notes["master_authorizations_by_id"] = master["id"]
+        await ctx.db.save_character(
+            padawan["id"], chargen_notes=json.dumps(notes),
+        )
+
+        desc = AUTHORIZE_CATEGORIES[cat]
+        if past == "granted":
+            head = ansi.green("Pre-authorization granted:")
+            body = f"{ansi.bold(padawan['name'])} may {ansi.cyan(desc)}"
+        else:
+            head = ansi.yellow("Pre-authorization revoked:")
+            body = (f"{ansi.bold(padawan['name'])} no longer cleared to "
+                    f"{ansi.cyan(desc)}")
+        await ctx.session.send_line(
+            f"  {head} {body} ({ansi.bold(cat)}).")
+        notify_verb = past
+        await _notify_char_if_online(
+            ctx, padawan["id"],
+            f"\n  {ansi.bold(master['name'])} has {notify_verb} your "
+            f"pre-authorization to {ansi.cyan(desc)} "
+            f"({ansi.bold(cat)}).\n"
+        )
+        await _log_event(
+            ctx, padawan["id"], "pm_authorization",
+            f"Master {master['name']} {past} pre-authorization "
+            f"'{cat}'.",
+        )
+        await _log_event(
+            ctx, master["id"], "pm_authorization",
+            f"{past.capitalize()} '{cat}' pre-authorization for "
+            f"Padawan {padawan['name']}.",
+        )
+
+    # ── list / display (consumers) ────────────────────────────────────
+
+    async def _list_context(self, ctx, char):
+        # Padawan path: bare +authorize shows what your Master cleared.
+        own_bond = await ctx.db.get_active_bond_for_padawan(char["id"])
+        if own_bond is not None:
+            await self._render_authorizations(
+                ctx, char, padawan_view=True)
+            return
+        # Master path: sole bond convenience.
+        bonds = await ctx.db.get_active_bonds_for_master(char["id"])
+        if not bonds:
+            await ctx.session.send_line(
+                "  You have no active bond. Masters: "
+                "+authorize <padawan> <category>. Padawans: bare "
+                "+authorize shows what you're cleared for."
+            )
+            return
+        if len(bonds) > 1:
+            await ctx.session.send_line(
+                f"  You have {len(bonds)} active Padawan bonds. "
+                f"Specify which: +authorize <padawan>."
+            )
+            return
+        padawan = await ctx.db.get_character(bonds[0]["padawan_char_id"])
+        if padawan is None:
+            await ctx.session.send_line(
+                "  Bond character record is missing. Notify staff.")
+            return
+        await self._render_authorizations(ctx, padawan, padawan_view=False)
+
+    async def _list_for_padawan_name(self, ctx, char, padawan_name):
+        padawan = await _find_pc_by_name_anywhere(ctx, padawan_name)
+        if padawan is None:
+            await ctx.session.send_line(
+                f"  No active character named '{padawan_name}'.")
+            return
+        bond = await ctx.db.get_active_bond_for_padawan(padawan["id"])
+        if bond is None:
+            await ctx.session.send_line(
+                f"  {padawan['name']} has no active Padawan-Master bond.")
+            return
+        is_admin = bool(
+            ctx.session.account
+            and ctx.session.account.get("is_admin", 0)
+        )
+        is_padawan = (padawan["id"] == char["id"])
+        is_master = (bond["master_char_id"] == char["id"])
+        if not (is_admin or is_padawan or is_master):
+            await ctx.session.send_line(
+                "  You aren't part of that bond. Only the Padawan, "
+                "their Master, or staff can view pre-authorizations."
+            )
+            return
+        await self._render_authorizations(
+            ctx, padawan, padawan_view=is_padawan)
+
+    async def _render_authorizations(self, ctx, padawan, *, padawan_view):
+        granted = _load_authorizations(padawan)
+        if padawan_view:
+            await ctx.session.send_line(
+                f"  {ansi.cyan('Your Master has pre-authorized:')}")
+        else:
+            await ctx.session.send_line(
+                f"  {ansi.cyan('Pre-authorizations for')} "
+                f"{ansi.bold(padawan['name'])}{ansi.cyan(':')}")
+        for cat in sorted(AUTHORIZE_CATEGORIES):
+            desc = AUTHORIZE_CATEGORIES[cat]
+            if cat in granted:
+                mark = f"{ansi.GREEN}✓{ansi.RESET}"
+                state = ansi.green("CLEARED")
+            else:
+                mark = f"{ansi.YELLOW}·{ansi.RESET}"
+                state = ansi.yellow("needs approval")
+            await ctx.session.send_line(
+                f"    {mark}  {cat:<10} {state}  "
+                f"{ansi.cyan('(' + desc + ')')}")
 
 
 # ─── +trial / @trial — record a Trial pass ────────────────────────────────
@@ -1090,6 +1491,7 @@ def register_padawan_master_trials(registry) -> None:
     for cmd in (
         TrialsCommand(),
         EndorseCommand(),
+        AuthorizeCommand(),
         TrialCommand(),
         AdminTrialCommand(),
         KnightCommand(),
