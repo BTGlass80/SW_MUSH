@@ -5224,7 +5224,12 @@ function stripAnsi(text) {
    pose-self, sys-event, sys-ok, sys-arrival, sys, comm-in, ooc, plain.
 
    Event shape:
-     { t: 'pose', who, mode, text, time, html?, raw? }
+     { t: 'pose', who, mode, text, time, raw? }
+   NOTE: there is deliberately NO `html` field. All user-reachable text is
+   rendered through ansiToHtml(ev.text) (which escapes via escapeHtml) so a
+   producer can never inject raw markup. The old per-event html fast-path
+   was removed (XSS hardening, audit DEV-5/UX-8); the no-html-event-field
+   invariant is enforced by tests/test_xss_hardening_invariant.py.
    ════════════════════════════════════════════════════════════════════ */
 
 function appendEvent(ev) {
@@ -5338,14 +5343,14 @@ function buildRow(ev) {
     case 'desc': {
       var d = document.createElement('div');
       d.className = 'desc-text';
-      d.innerHTML = ev.html || ansiToHtml(ev.text || '');
+      d.innerHTML = ansiToHtml(ev.text || '');
       row.appendChild(d);
       break;
     }
     case 'desc-inline': {
       var d2 = document.createElement('div');
       d2.className = 'desc-text';
-      d2.innerHTML = ev.html || ansiToHtml(ev.text || '');
+      d2.innerHTML = ansiToHtml(ev.text || '');
       row.appendChild(d2);
       break;
     }
@@ -5385,7 +5390,7 @@ function buildRow(ev) {
         '<span class="' + nameCls + '">' + escapeHtml(ev.who || '—') + '</span>' +
         '<span class="pose-meta">' + escapeHtml(modeStr) + escapeHtml(toStr) + ' · ' + rel + '</span>' +
         '</div>';
-      var body = '<div class="pose-body">' + (ev.html || ansiToHtml(ev.text || '')) + '</div>';
+      var body = '<div class="pose-body">' + (ansiToHtml(ev.text || '')) + '</div>';
       row.innerHTML = head + body;
       break;
     }
@@ -5396,25 +5401,25 @@ function buildRow(ev) {
         '<span class="comm-name">' + escapeHtml(ev.who || '—') + '</span>' +
         '<span class="pose-meta">' + rel + '</span>' +
         '</div>';
-      row.innerHTML = cHead + '<div class="pose-body">' + (ev.html || ansiToHtml(ev.text || '')) + '</div>';
+      row.innerHTML = cHead + '<div class="pose-body">' + (ansiToHtml(ev.text || '')) + '</div>';
       break;
     }
     case 'sys-event':
-      row.innerHTML = '<span class="sys-text">⚠ ' + (ev.html || ansiToHtml(ev.text || '')) + '</span>';
+      row.innerHTML = '<span class="sys-text">⚠ ' + (ansiToHtml(ev.text || '')) + '</span>';
       break;
     case 'sys-ok':
-      row.innerHTML = '<span class="sys-text">✓ ' + (ev.html || ansiToHtml(ev.text || '')) + '</span>';
+      row.innerHTML = '<span class="sys-text">✓ ' + (ansiToHtml(ev.text || '')) + '</span>';
       break;
     case 'sys-arrival':
-      row.innerHTML = '<span class="sys-text">▸ ' + (ev.html || ansiToHtml(ev.text || '')) + '</span>';
+      row.innerHTML = '<span class="sys-text">▸ ' + (ansiToHtml(ev.text || '')) + '</span>';
       break;
     case 'sys':
-      row.innerHTML = '<span class="sys-text">› ' + (ev.html || ansiToHtml(ev.text || '')) + '</span>';
+      row.innerHTML = '<span class="sys-text">› ' + (ansiToHtml(ev.text || '')) + '</span>';
       break;
     case 'ooc': {
       var ohtml = '<span class="ooc-text"><span class="ooc-tag">[OOC]</span> ' +
         (ev.who ? '<span class="ooc-name">' + escapeHtml(ev.who) + '</span>: ' : '') +
-        (ev.html || ansiToHtml(ev.text || '')) + '</span>';
+        (ansiToHtml(ev.text || '')) + '</span>';
       row.innerHTML = ohtml;
       break;
     }
@@ -5427,7 +5432,7 @@ function buildRow(ev) {
     }
     case 'plain':
     default:
-      row.innerHTML = '<div class="plain-text">' + (ev.html || ansiToHtml(ev.text || '')) + '</div>';
+      row.innerHTML = '<div class="plain-text">' + (ansiToHtml(ev.text || '')) + '</div>';
   }
   return row;
 }
@@ -5461,15 +5466,15 @@ function buildCommsRow(ev) {
     row.innerHTML = timeSpan +
       '<span class="cr-chan">◉ ' + escapeHtml(ch.toUpperCase()) + '</span>' +
       '<span class="cr-who">' + escapeHtml(ev.who || '') + ':</span> ' +
-      (ev.html || ansiToHtml(ev.text || ''));
+      (ansiToHtml(ev.text || ''));
   } else if (ev.t === 'ooc') {
     row.innerHTML = timeSpan +
       '<span class="cr-chan" style="color:var(--accent-amber)">[OOC]</span>' +
       (ev.who ? '<span class="cr-who"> ' + escapeHtml(ev.who) + ':</span> ' : ' ') +
-      (ev.html || ansiToHtml(ev.text || ''));
+      (ansiToHtml(ev.text || ''));
   } else {
     // sys-*
-    row.innerHTML = timeSpan + '<span style="opacity:0.6">› </span>' + (ev.html || ansiToHtml(ev.text || ''));
+    row.innerHTML = timeSpan + '<span style="opacity:0.6">› </span>' + (ansiToHtml(ev.text || ''));
   }
   return row;
 }
