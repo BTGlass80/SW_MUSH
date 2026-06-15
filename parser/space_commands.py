@@ -6286,6 +6286,207 @@ async def _resolve_contact(ctx, ship, contact_num: int):
     return contacts[contact_num - 1]
 
 
+class MineCommand(BaseCommand):
+    """Mine a wildspace cache node.
+
+    Usage:
+      mine           — list visible mining caches in the current zone
+      mine <id>      — harvest cache instance <id> (must be kind: mining)
+
+    Requires the ship to be in space (not docked). No station required —
+    anyone aboard can attempt a mine run.
+
+    Telnet note (§4.3): the cache list is a simple text table; no web-only
+    content here. The web client panel (cache density, yield projection) is
+    deferred to Drop 5.
+    """
+    key = "mine"
+    aliases = []
+    help_text = (
+        "Mine a wildspace cache node.\n"
+        "\n"
+        "  mine         — list visible mining caches in your current zone\n"
+        "  mine <id>    — harvest the cache with the given ID\n"
+        "\n"
+        "You must be in a wildspace zone. No station assignment required."
+    )
+    usage = "mine [<cache_id>]"
+
+    async def execute(self, ctx):
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        if ship["docked_at"]:
+            await ctx.session.send_line(
+                "  Mining operations require open space. Launch first."
+            )
+            return
+
+        from engine.space_caches import (
+            get_zone_caches, spawn_zone_caches,
+            tick_cache_respawns, get_cache_pool,
+            is_cache_visible, harvest_mining,
+        )
+        from engine.organizations import get_all_faction_reps
+
+        systems  = _get_systems(ship)
+        zone_key = systems.get("current_zone", "")
+        char     = ctx.session.character
+
+        # Pre-warm: spawn instances up to density, tick expired cooldowns.
+        try:
+            await spawn_zone_caches(ctx.db, zone_key)
+            await tick_cache_respawns(ctx.db, zone_key)
+        except Exception as _e:
+            log.warning("[mine] spawn/tick failed: %s", _e, exc_info=True)
+
+        # Build the flat rep map for visibility checks.
+        try:
+            rep_full = await get_all_faction_reps(char, ctx.db)
+            char_rep_flat = {
+                fc: int(info.get("rep", 0)) if isinstance(info, dict) else int(info)
+                for fc, info in (rep_full or {}).items()
+            }
+        except Exception:
+            char_rep_flat = {}
+
+        args_stripped = (ctx.args or "").strip()
+
+        # ── mine (no arg) ─ list visible caches ────────────────────────────
+        if not args_stripped:
+            pool = get_cache_pool(zone_key)
+            if not pool:
+                await ctx.session.send_line(
+                    f"  {ansi.DIM}[MINE]{ansi.RESET} "
+                    "No cache nodes are registered for this zone. "
+                    "This is not a wildspace zone, or content hasn't shipped yet."
+                )
+                return
+
+            rows = await get_zone_caches(ctx.db, zone_key)
+            visible = [
+                r for r in rows
+                if r["state"] == "available" and is_cache_visible(r, char_rep_flat)
+            ]
+            cooling = [
+                r for r in rows
+                if r["state"] == "cooldown" and is_cache_visible(r, char_rep_flat)
+            ]
+
+            if not visible and not cooling:
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_YELLOW}[MINE]{ansi.RESET} "
+                    "No mining nodes visible in this zone. "
+                    "Nodes may be on cooldown or faction-gated."
+                )
+                return
+
+            lines = [
+                f"  {ansi.BRIGHT_CYAN}[MINE]{ansi.RESET} "
+                f"Cache nodes in {zone_key}:"
+            ]
+            for r in visible:
+                def_id = r["cache_def_id"]
+                inst_id = r["cache_instance_id"]
+                cdef = pool.get(def_id)
+                kind_hint = cdef.kind if cdef else "unknown"
+                lines.append(
+                    f"    #{inst_id:>4}  {def_id:<30}  [{kind_hint}]  READY"
+                )
+            for r in cooling:
+                def_id = r["cache_def_id"]
+                inst_id = r["cache_instance_id"]
+                import time as _time
+                remaining = int(r.get("next_available_at", 0) or 0) - int(_time.time())
+                mins = max(0, remaining) // 60
+                lines.append(
+                    f"    #{inst_id:>4}  {def_id:<30}  [cooldown]  {mins}m remaining"
+                )
+            lines.append(
+                f"  Use {ansi.BRIGHT_WHITE}mine <id>{ansi.RESET} to harvest a node."
+            )
+            for ln in lines:
+                await ctx.session.send_line(ln)
+            return
+
+        # ── mine <id> ─ harvest ─────────────────────────────────────────────
+        try:
+            cache_id = int(args_stripped)
+        except ValueError:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}[MINE]{ansi.RESET} "
+                f"Usage: mine <cache_id>  (use 'mine' to list nodes)"
+            )
+            return
+
+        # Confirm the instance belongs to this zone and is visible.
+        rows = await get_zone_caches(ctx.db, zone_key)
+        instance_in_zone = next(
+            (r for r in rows if r["cache_instance_id"] == cache_id), None
+        )
+        if instance_in_zone is None:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}[MINE]{ansi.RESET} "
+                f"Cache #{cache_id} is not in this zone. "
+                "Use 'mine' to see available nodes."
+            )
+            return
+        if not is_cache_visible(instance_in_zone, char_rep_flat):
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}[MINE]{ansi.RESET} "
+                f"Cache #{cache_id} is not detectable by your ship's sensors."
+            )
+            return
+
+        result = await harvest_mining(ctx.db, char, cache_id)
+
+        if result.on_cooldown:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_YELLOW}[MINE]{ansi.RESET} {result.message}"
+            )
+            return
+        if result.not_found or result.wrong_kind:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}[MINE]{ansi.RESET} {result.message}"
+            )
+            return
+        if result.fumble:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}[MINE]{ansi.RESET} {result.message}"
+            )
+            return
+        if not result.success:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_YELLOW}[MINE]{ansi.RESET} {result.message} "
+                f"(rolled {result.roll_total} vs diff {result.difficulty})"
+            )
+            return
+
+        # Success
+        crit_tag = f"{ansi.BRIGHT_GREEN}[CRITICAL]{ansi.RESET} " if result.critical else ""
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_GREEN}[MINE]{ansi.RESET} {crit_tag}"
+            f"Extracted {result.resource_qty}x {result.resource_type} "
+            f"(quality {result.resource_quality:.0f}). "
+            f"Node entering {ansi.DIM}cooldown{ansi.RESET}."
+        )
+        for fc, delta in (result.rep_rewards or {}).items():
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_CYAN}[REP]{ansi.RESET} "
+                f"+{delta} {fc} influence."
+            )
+
+        # Broadcast to bridge
+        if ship.get("bridge_room_id"):
+            await ctx.session_mgr.broadcast_to_room(
+                ship["bridge_room_id"],
+                f"  {ansi.BRIGHT_CYAN}[MINE]{ansi.RESET} "
+                f"{char['name']} initiates a mining run on a nearby cache node.",
+                exclude_session=ctx.session,
+            )
+
+
 def register_space_commands(registry):
     """Register all space commands.
 
@@ -6339,6 +6540,7 @@ def register_space_commands(registry):
         ShipRepairCommand(), MyShipsCommand(),
         LaunchCommand(), LandCommand(),
         ShipCommand(), ScanCommand(), DeepScanCommand(), SalvageCommand(),
+        MineCommand(),
         # MarketCommand intentionally NOT registered here. Both this
         # file and shop_commands.py defined a `market` key, which
         # silently clobbered each other (last-writer wins). The

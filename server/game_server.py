@@ -723,6 +723,15 @@ class GameServer:
         except Exception as _bldg_err:
             log.warning("Buildings schema init skipped: %s", _bldg_err)
 
+        # T3.16 Space Wildspace Drop 1a (2026-06-15): space_caches table.
+        # Idempotent CREATE TABLE IF NOT EXISTS + 2 indexes. No dependency
+        # on housing/territory beyond the characters table (already up).
+        try:
+            from engine.space_caches import ensure_schema as _sc_schema
+            await _sc_schema(self.db)
+        except Exception as _sc_err:
+            log.warning("Space caches schema init skipped: %s", _sc_err)
+
         # World lore schema + seed data
         try:
             from engine.world_lore import ensure_lore_schema, seed_lore
