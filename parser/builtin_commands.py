@@ -1005,7 +1005,11 @@ class LookCommand(BaseCommand):
 
 class MoveCommand(BaseCommand):
     key = "move"
-    aliases = ["repair"]
+    # No aliases: the stray "repair" alias was a copy-paste slip (a
+    # movement verb has no business owning "repair"; ship DamCon owns it
+    # at runtime via last-writer-wins). Removed so it can't shadow a real
+    # "repair" handler in any registry built without space commands.
+    aliases = []
     help_text = "Move in a direction."
     usage = "north/south/east/west/up/down (or abbreviations)"
 

@@ -180,8 +180,11 @@ class NewPasswordCommand(BaseCommand):
         if not target_name or not new_pass:
             await ctx.session.send_line("  Usage: @newpassword <player> = <new_password>")
             return
-        if len(new_pass) < 4:
-            await ctx.session.send_line("  Password must be at least 4 characters.")
+        # Parity with self-service account creation, which enforces
+        # server.config.Config.min_password_len (default 6). The reset
+        # path previously allowed a weaker 4-char floor.
+        if len(new_pass) < 6:
+            await ctx.session.send_line("  Password must be at least 6 characters.")
             return
         rows = await ctx.db.fetchall(
             "SELECT a.id, a.username FROM accounts a "
@@ -191,8 +194,12 @@ class NewPasswordCommand(BaseCommand):
             await ctx.session.send_line(f"  No character named '{target_name}' found.")
             return
         row = rows[0]
-        import hashlib
-        hashed = hashlib.sha256(new_pass.encode()).hexdigest()
+        # Hash with bcrypt — the SAME scheme db.create_account uses and
+        # db.authenticate verifies (bcrypt.checkpw). The old SHA-256 hex
+        # digest was unreadable by checkpw (it raises ValueError on a
+        # non-bcrypt hash), so every reset account became un-loginable.
+        import bcrypt
+        hashed = bcrypt.hashpw(new_pass.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
         await ctx.db.execute("UPDATE accounts SET password_hash = ? WHERE id = ?", (hashed, row["id"]))
         await ctx.db.commit()
         admin_name = ctx.session.character["name"] if ctx.session.character else "Admin"
