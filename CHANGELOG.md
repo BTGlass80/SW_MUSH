@@ -6,6 +6,12 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — T3.21 optimization: index the account → characters lookup (schema v46) — *drop t321-characters-account-index*
+Performance drop. Pure index addition; query results byte-for-byte identical, no behavior change.
+- **`db/database.py` schema v46.** The account → characters lookup had no supporting index. `Database.get_characters(account_id)` — run on every login and character-selection — did `SELECT * FROM characters WHERE account_id = ? AND is_active = 1`, a full `characters` scan that grows with every character in the game; the accounts↔characters JOINs in builder/mux tooling (`parser/building_tier2`, `parser/mux_commands`) join on `c.account_id`, also unindexed. Adds composite `CREATE INDEX idx_characters_account ON characters(account_id, is_active)` to BOTH the base `SCHEMA_SQL` (fresh DBs) and `MIGRATIONS[46]` (existing DBs, `IF NOT EXISTS` → idempotent). The composite fully covers the get_characters predicate (account_id + is_active) and serves the `account_id`-prefix JOINs.
+- **Verified:** `EXPLAIN QUERY PLAN` for the get_characters query now reports `SEARCH ... USING INDEX idx_characters_account` (no more `SCAN characters`).
+- **Files:** `db/database.py` (SCHEMA_VERSION 45→46, base-schema index, MIGRATIONS[46]), `tests/test_t321_characters_account_index.py` (new, 6 tests: schema-version floor, index present on fresh DB, migration recreates index, migration idempotent, query-plan uses index, get_characters results unchanged), `tests/test_t321_admin_audit.py` (de-pinned the brittle exact `SCHEMA_VERSION == 45` assertion → assert admin_audit landed at migration key 45 and version ≥ 45), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-16 — Help corpus batch 6: +finances, +buffs, +weapons, +armor, +threat, +weather, +repair, +soak — *drop help-corpus-batch6*
 Additive data-only drop — no engine changes. Adds 8 missing help entries for economy, gear, world, and combat commands.
 - **`data/help/commands/+finances.md` (new):** `+finances` / `+ledger` — credit flow ledger for the last hour/day/week. Documents faucet/sink breakdown, top-5 income and spending sources, and time window aliases.

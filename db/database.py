@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 #
 # v45 (T3.21 Blocker 3): admin_audit table — durable trail of every
 # elevated (BUILDER/ADMIN) command dispatch, written at the parser seam.
-SCHEMA_VERSION = 45
+SCHEMA_VERSION = 46
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -84,6 +84,14 @@ CREATE TABLE IF NOT EXISTS characters (
     created_at      TEXT DEFAULT (datetime('now')),
     is_active       INTEGER DEFAULT 1
 );
+
+-- v46 (T3.21 opt): the account->characters lookup (login, char-select, and the
+-- accounts<->characters JOINs in builder/mux tooling) keyed on account_id and
+-- previously did a full characters scan. Composite (account_id, is_active)
+-- fully covers get_characters' WHERE account_id=? AND is_active=1 and serves
+-- the account_id-prefix JOINs.
+CREATE INDEX IF NOT EXISTS idx_characters_account
+ON characters(account_id, is_active);
 
 -- Rooms
 CREATE TABLE IF NOT EXISTS rooms (
@@ -1538,6 +1546,19 @@ MIGRATIONS = {
         "ON admin_audit(account_id, created_at)",
         "CREATE INDEX IF NOT EXISTS idx_admin_audit_created "
         "ON admin_audit(created_at)",
+    ],
+
+    # ── v46 (T3.21 opt): index the account -> characters lookup ──────────────
+    # get_characters(account_id) (login + character selection hot path) and the
+    # accounts<->characters JOINs (parser/building_tier2, parser/mux_commands)
+    # filtered characters by account_id with no supporting index -> full table
+    # scan that grows with every character in the game. Composite
+    # (account_id, is_active) fully covers the WHERE account_id=? AND
+    # is_active=1 query and serves the account_id-prefix JOINs. Pure
+    # performance; no behavior change.
+    46: [
+        "CREATE INDEX IF NOT EXISTS idx_characters_account "
+        "ON characters(account_id, is_active)",
     ],
 
 }

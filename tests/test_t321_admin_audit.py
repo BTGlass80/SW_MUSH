@@ -96,9 +96,15 @@ def _parser(db):
 # 1. Schema (v45 admin_audit table)
 # ══════════════════════════════════════════════════════════════════════════
 class TestSchema(unittest.TestCase):
-    def test_schema_version_is_45(self):
-        from db.database import SCHEMA_VERSION
-        self.assertEqual(SCHEMA_VERSION, 45)
+    def test_admin_audit_landed_at_v45(self):
+        # admin_audit was introduced by migration v45; later schema bumps must
+        # not disturb that. Assert the migration is registered at key 45 and
+        # the live SCHEMA_VERSION is at or past it (don't pin the exact value —
+        # that breaks on every subsequent migration).
+        from db.database import SCHEMA_VERSION, MIGRATIONS
+        self.assertGreaterEqual(SCHEMA_VERSION, 45)
+        v45_sql = " ".join(MIGRATIONS.get(45, []))
+        self.assertIn("admin_audit", v45_sql)
 
     def test_admin_audit_table_exists_after_init(self):
         async def _go():
