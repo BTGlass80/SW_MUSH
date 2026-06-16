@@ -1515,6 +1515,11 @@ a { color: inherit; text-decoration: none; }
 }
 .rm-adj-vert:hover .rm-vert-badge circle { fill: var(--accent-bright); }
 .rm-adj-vert:hover .rm-vert-badge text   { fill: #0b0f08; }
+/* G3: far rooms (not current, not adjacent) — subtle depth dimming */
+.rm-far .rm-dot   { opacity: 0.38; }
+.rm-far .rm-label { opacity: 0.3; }
+/* G3: per-move fade-in after map re-render */
+#g-area-map-svg   { transition: opacity 0.12s ease-in-out; }
 .map-legend {
   font-size: 9px; letter-spacing: 1px; color: var(--accent-dim);
   margin-top: 8px;
@@ -7309,6 +7314,7 @@ function roomTypeGlyph(env, name) {
 function renderAreaMap(mapData) {
   var svg = $('g-area-map-svg');
   if (!svg) return;
+  svg.style.opacity = '0';
   while (svg.firstChild) svg.removeChild(svg.firstChild);
 
   var rooms = mapData.rooms || [];
@@ -7390,7 +7396,8 @@ function renderAreaMap(mapData) {
     var g = document.createElementNS(ns, 'g');
     var classes = ['rm', 'rm-sec-' + sec];
     if (isYou) classes.push('rm-current');
-    if (isAdj) classes.push('rm-adj');
+    else if (isAdj) classes.push('rm-adj');
+    else classes.push('rm-far');
     g.setAttribute('class', classes.join(' '));
     g.setAttribute('transform', 'translate(' + p.x + ',' + p.y + ')');
     g.setAttribute('data-room-id', String(r.id));
@@ -7453,6 +7460,7 @@ function renderAreaMap(mapData) {
 
     svg.appendChild(g);
   });
+  requestAnimationFrame(function() { svg.style.opacity = '1'; });
 }
 
 // Direction-reverse for adjacency lookup when an edge stored as B→A but A is current
