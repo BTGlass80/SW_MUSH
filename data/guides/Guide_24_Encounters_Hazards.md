@@ -186,7 +186,7 @@ Distinct from encounters, **anomalies** are persistent space-zone features that 
 | **Cache** | A hidden cache of cargo or credits. Find and recover. |
 | **Pirates** | A pirate base hidden in a zone — attack and loot. |
 | **Mineral Vein** | A deep-space resource node for mining. |
-| **CIS** | A small CIS forward observation post — investigate (cautiously). |
+| **Republic Dead Drop** | An encrypted intelligence cache. Slicing check (Difficult); failure triggers a Republic patrol. |
 | **Mynock** | A swarm of mynocks attached to a wreck or asteroid. (Combat-ish encounter.) |
 
 ### Discovery
@@ -210,7 +210,7 @@ Begins the anomaly's branching sequence. Each anomaly type has its own flow — 
 
 ### When to investigate
 
-Anomalies are **risk-and-reward**. Most pay out something — credits, salvage, resources, intel. Some carry real risk (the imperial outpost may be a trap). Investigation takes real-time minutes; if you're rushed, skip the anomalies and continue.
+Anomalies are **risk-and-reward**. Most pay out something — credits, salvage, resources, intel. Some carry real risk (the Republic Dead Drop can trigger a patrol if slicing fails). Investigation takes real-time minutes; if you're rushed, skip the anomalies and continue.
 
 For dedicated spacers, anomaly investigation is a regular income stream. Spending 10-15 minutes investigating two or three anomalies in a transit zone is often worth 1,000-3,000 cr plus interesting loot.
 
@@ -374,7 +374,7 @@ Five concrete pictures.
 | Bluff difficulty — lawless zone patrol | Easy (10) |
 | Pirate demand range | 500-3,000 cr |
 | Pirate negotiate difficulty | Moderate (15) |
-| Anomaly types | 7 (derelict, distress, cache, pirates, mineral vein, imperial, mynock) |
+| Anomaly types | 7 (derelict, distress, cache, pirates, mineral vein, republic dead drop, mynock) |
 | Dehydration stack cap | 3x |
 
 ---

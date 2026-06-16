@@ -6,6 +6,12 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Guide_05_Space_Systems + Guide_24_Encounters_Hazards rework (Sonnet loop) — *drop guide-05-24-rework*
+PRELAUNCH.help_guides_rework — Two guides updated. No engine changes.
+- **Guide_05 §11 Wildspace Ship Mods subsection added:** Documents all 5 Wildspace-specific ship mods shipped in T3.16 Drop 4 but missing from the guide. Mining Laser Mk1/Mk2 (+2D/+3D mining, -25%/-40% cooldown, Mk2 deep mining on crit, Hutt Cartel 25+ gate), Reinforced Salvage Arm Mk1/Mk2 (+2D/+3D salvage, +1/+2 components per run, Mk2 intact extraction, Republic 25+ gate), Onboard Refinery (enables `refine` mid-flight). Trainer: Venn Kator (Space Transports Repair). Craft diffs 16/20/16/20/18. One-slot-per-type limit; Mk2 replaces Mk1.
+- **Guide_24 era-cleanness fixes (B3):** §4 anomaly table had non-existent "CIS" type → corrected to "Republic Dead Drop" (matches the era-overlay display name for the `imperial` type key in Clone Wars era). Numbers-at-a-glance §10 listed "imperial" in the anomaly types → replaced with "republic dead drop". §4 narrative mentioned "the imperial outpost may be a trap" → replaced with era-clean Republic Dead Drop reference. All three were B3 era-cleanness violations in production player-facing strings.
+- **27 new tests green** (`tests/test_guide_05_24_rework.py`: 14 Guide_05 checks + 13 Guide_24 checks including era-violation guards).
+
 ### 2026-06-16 — Guide_06_Economy.md rework: commissary + creature spoils (Sonnet loop) — *drop guide-economy-rework*
 PRELAUNCH.help_guides_rework — Guide_06 extended to cover two shipped systems missing from the guide: the faction commissary and creature spoils. Frontmatter updated to remove stale "daily P2P transfer cap" reference (feature removed). No engine changes.
 - **Faction Commissary section (§9):** Documents the rank-gated faction gear requisition system. All 4 commissary factions (Republic, CIS, Hutt Cartel, Bounty Hunters' Guild) with tables of items, costs, and rank gates. Jedi Order no-commissary rationale. Commands: `+commissary`, `+commissary buy <key>`, `+commissary sell <key>`. Costs verified against `engine/commissary.py COMMISSARY_STOCK`.

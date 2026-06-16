@@ -262,6 +262,20 @@ Ships have **mod slots** (varies by template, typically 3–7). Crafted ship com
 
 Installation requires docking at a planet and passing a skill check. Stats are computed at read-time via `get_effective_stats()` — template stats are never permanently modified.
 
+### Wildspace Ship Mods
+
+Three additional mod types unlock Wildspace resource operations (`mine`, `salvage`, `refine` commands). All are crafted by **Venn Kator** (Space Transports Repair).
+
+| Mod | Effect | Craft Diff | Resources | Rep Gate |
+|-----|--------|-----------|-----------|---------|
+| **Mining Laser Mk1** | +2D mining check; -25% mine cooldown | 16 | 12 metal + 4 energy | None |
+| **Mining Laser Mk2** | +3D mining check; -40% cooldown; deep mining on critical | 20 | 24 metal + 8 energy + 2 rare | Hutt Cartel 25+ |
+| **Reinforced Salvage Arm Mk1** | +2D salvage check; +1 component per run | 16 | 8 metal + 4 composite | None |
+| **Reinforced Salvage Arm Mk2** | +3D salvage check; +2 components per run; intact extraction | 20 | 16 metal + 8 composite + 2 rare | Republic 25+ |
+| **Onboard Refinery** | Enables `refine` command mid-flight (raw → refined resources) | 18 | 10 metal + 6 energy + 4 composite | None |
+
+Mining Laser Mk2 enables **deep mining** — a critical success on the `mine` roll yields a bonus rare resource draw that Mk1 cannot reach. Salvage Arm Mk2 adds **intact extraction** — a chance to recover a complete undamaged component from a derelict. Mk2 mods require replacing the Mk1 first (one mod slot per type). Only one Mining Laser and one Salvage Arm can be installed simultaneously; the Onboard Refinery uses its own slot.
+
 ---
 
 ## 12. Ship's Log and Titles
