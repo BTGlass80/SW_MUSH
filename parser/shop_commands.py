@@ -928,6 +928,14 @@ def _init_shop_switch_impl():
 
     async def _admin(ctx, rest):
         cmd = AdminShopCommand()
+        # `+shop` is a PLAYER-level umbrella that forwards into execute()
+        # DIRECTLY, bypassing the dispatcher's check_access gate. Re-run the
+        # gate here or any player could reach the ADMIN shop verbs through
+        # `+shop admin <args>` even though @shop itself is ADMIN. (Mirrors the
+        # +home admin fix in housing_commands.py.)
+        if not await cmd.check_access(ctx):
+            await ctx.session.send_line("You don't have permission to do that.")
+            return
         ctx.args = rest
         await cmd.execute(ctx)
 

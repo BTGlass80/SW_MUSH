@@ -199,6 +199,13 @@ class WipeCommand(BaseCommand):
 class GetAttrUCommand(BaseCommand):
     key = "@getattr"
     aliases = []
+    # BUILDER, matching its write sibling @setattr and its list sibling @lattr.
+    # User-defined attributes are the builder namespace (room hooks
+    # AENTER/ALEAVE/ADESC, weather, custom messages); a player can't @setattr
+    # them, so there is no player read use case, and reading a room's hook
+    # action strings leaks builder logic. Shipped without an access_level
+    # (→ defaulted to PLAYER), inconsistent with its siblings.
+    access_level = AccessLevel.BUILDER
     help_text = "Read a user-defined attribute from a game object."
     usage = "@getattr <target>/<attr>"
 

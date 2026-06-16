@@ -26,7 +26,7 @@ from engine.housing import (
     housing_store, housing_retrieve,
     _storage,
 )
-from parser.commands import BaseCommand, CommandContext
+from parser.commands import BaseCommand, CommandContext, AccessLevel
 from server import ansi
 
 log = logging.getLogger(__name__)
@@ -865,6 +865,13 @@ class SetHomeCommand(BaseCommand):
 class AdminHousingCommand(BaseCommand):
     key = "@housing"
     aliases = []
+    # ADMIN-only: `@housing evict <player>` force-evicts any player and the
+    # list/inspect subs enumerate every player's housing record. Shipped
+    # without an access_level (→ defaulted to PLAYER), which let any logged-in
+    # player run the admin subs and evict arbitrary players. Gated to ADMIN to
+    # match the other player-state admin verbs (@city/@bond). The `+home admin`
+    # umbrella forward re-checks this gate too (see _init_home_switch_impl).
+    access_level = AccessLevel.ADMIN
     help_text = (
         "Admin housing management.\n"
         "  @housing list [planet]    — list all housing records\n"
@@ -1060,6 +1067,14 @@ def _init_home_switch_impl():
 
     async def _admin(ctx, rest):
         cmd = AdminHousingCommand()
+        # The umbrella (`+home`) is a PLAYER-level command that forwards into
+        # the command's execute() DIRECTLY, bypassing the dispatcher's
+        # check_access gate. Re-run that gate here or any player could reach
+        # the admin housing verbs (incl. `+home admin evict <player>`) through
+        # the umbrella even though @housing itself is ADMIN.
+        if not await cmd.check_access(ctx):
+            await ctx.session.send_line("You don't have permission to do that.")
+            return
         ctx.args = rest
         await cmd.execute(ctx)
 
