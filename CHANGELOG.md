@@ -6,6 +6,11 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — T3.21 optimization: kill the N+1 in the character directory — *drop t321-portal-characters-n1*
+Performance drop on a PUBLIC, unauthenticated endpoint. No schema change, behavior-preserving.
+- **`server/web_portal.py` `handle_characters` (GET /api/portal/characters).** The paginated directory fetched the page of rows, then looped and called `db.get_character(row["id"])` ONCE PER ROW solely to read the `faction` field out of the attributes JSON blob — up to `per_page` (capped 50) extra full-character DB round-trips per page request, on an open endpoint = a real load / DoS-amplification vector. The page query now SELECTs the `attributes` column inline and faction is parsed from that row, so a directory page costs exactly two queries (count + page) regardless of page size. Faction values, the faction filter, and the response shape are all unchanged; malformed/missing attributes still degrade to `"Neutral"` without crashing.
+- **Files:** `server/web_portal.py`, `tests/test_portal_characters_n1.py` (new, 6 tests: inline-faction parse, zero per-row get_character calls, malformed/missing-blob → Neutral, faction filter against the inline value, page SELECT carries attributes, response-shape preserved), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-16 — Help corpus batch 4: +roll, +check, +opposed, +party, +scene, +scenes, +events, +event, +cantina — *drop help-corpus-batch4*
 Additive data-only drop — no engine changes. Adds 9 missing help entries for dice, party, scene, and event commands.
 - **`data/help/commands/+roll.md` (new):** `+roll` / `roll` — raw D6 dice pool or character skill roll with Wild Die, plus optional ±ND modifier. Documents dice notation, skill name lookup, Wild Die explode/complication, and room broadcast behavior.

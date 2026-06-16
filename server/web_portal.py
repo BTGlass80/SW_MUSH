@@ -519,7 +519,7 @@ class PortalAPI:
 
             # Fetch page
             rows = await self._db.fetchall(
-                f"""SELECT id, name, species, template, description
+                f"""SELECT id, name, species, template, description, attributes
                     FROM characters WHERE {where_clause}
                     ORDER BY name ASC LIMIT ? OFFSET ?""",
                 tuple(params) + (per_page, offset),
@@ -539,17 +539,21 @@ class PortalAPI:
                 # Truncate description for snippet
                 snippet = desc[:120] + "..." if len(desc) > 120 else desc
 
-                # Faction from attributes
+                # Faction from attributes (selected inline in the page query
+                # above). Previously this re-fetched the full character per row
+                # via get_character() — an N+1 across the whole directory page.
                 char_faction = "Neutral"
                 try:
-                    full_char = await self._db.get_character(row["id"])
-                    if full_char:
-                        attrs = full_char.get("attributes", "{}")
-                        if isinstance(attrs, str):
-                            attrs = json.loads(attrs)
+                    attrs = row.get("attributes", "{}") or "{}"
+                    if isinstance(attrs, str):
+                        attrs = json.loads(attrs)
+                    if isinstance(attrs, dict):
                         char_faction = attrs.get("faction", "Neutral")
                 except Exception as _e:
-                    log.debug("silent except in server/web_portal.py:346: %s", _e, exc_info=True)
+                    log.debug(
+                        "portal characters: faction parse failed for char %s: %s",
+                        row.get("id"), _e, exc_info=True,
+                    )
 
                 # Apply faction filter
                 if faction_filter and char_faction != faction_filter:
