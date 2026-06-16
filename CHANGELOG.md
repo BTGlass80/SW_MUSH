@@ -6,6 +6,16 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-15 — Help corpus batch 3: say, emote, whisper, +who, +inv, +sheet — *drop help-corpus-batch3*
+Additive data-only drop — no engine changes. Adds 6 missing help entries for core social/utility commands every player uses on day one.
+- **`data/help/commands/say.md` (new):** `say` / `'` / `"` — speak aloud in the room. Documents speech shortcut syntax, scene logging hook, eavesdrop warning, and IC-channel web-client integration.
+- **`data/help/commands/emote.md` (new):** `emote` / `:` / `pose` / `em` — third-person action poses. Documents standard vs. possessive (`;`) shortcut, third-person-present-tense guidance, and scene capture.
+- **`data/help/commands/whisper.md` (new):** `whisper` / `wh` / `tell` — private same-room speech (`player = message` syntax). Documents range (same-room / co-located tile), the `=` separator requirement, and cross-room `page` alternative.
+- **`data/help/commands/+who.md` (new):** `+who` / `who` / `online` — online player list. Documents output columns (name / species / protocol / worn title) and in-game-only filter.
+- **`data/help/commands/+inv.md` (new):** `+inv` / `inventory` / `inv` / `i` — inventory view. Documents equipped (weapon/armor slots), carried items, credit balance, and web-client inventory panel.
+- **`data/help/commands/+sheet.md` (new):** `+sheet` / `score` / `stats` — WEG D6 character sheet with `/brief` / `/skills` / `/combat` switches. Documents all sheet sections (attributes, skills, wounds, advancement, Force) and die-code notation.
+- **Files:** `data/help/commands/say.md`, `emote.md`, `whisper.md`, `+who.md`, `+inv.md`, `+sheet.md` (all new), `tests/test_help_social_basics.py` (new, 40 tests), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-15 — Help corpus batch 2: anomalies, investigate, attune, breach, housing, rally, +den, +insure — *drop help-corpus-batch2*
 Additive data-only drop — no engine changes. Adds 8 missing help entries for recently-shipped commands.
 - **`data/help/commands/anomalies.md` (new):** `anomalies` / `anom` — lists active wilderness anomalies in the current region with IDs and time remaining. Crosslinks `investigate`.
