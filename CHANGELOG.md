@@ -6,6 +6,12 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — T3.21 HIGH: sanitize Director LLM headlines before player display — *drop t321-news-sanitize* (Opus lane)
+Closes the last T3.21 HIGH finding (Director output not sanitized before display). The Director's faction-turn `news_headline` is LLM-generated and reaches players verbatim via the `news` command (telnet) and `/api/portal/news` (web). A poisoned/erratic headline carrying ANSI/VT or control bytes could rewrite a telnet terminal (cursor moves, screen clears, colour spoofing) or smuggle control characters into the web feed.
+- **`server/ansi.py` (new helper):** `sanitize_for_display(text, max_len=200)` strips CSI/OSC/bare-ESC escape sequences and C0/C1 control chars (incl. DEL), collapses whitespace to a single line, and caps length. Precompiled patterns; dependency-free (only `re`).
+- **Applied at the display seams (not the avoid-lane producer):** `server/web_portal.py` `handle_news` and `parser/news_commands.py` `NewsCommand.execute` now route the stored `summary` through it before it reaches a client. Output-side sanitization keeps the fix entirely out of `engine/director.py` (avoid-lane) **and** also cleans any rows stored before this guard existed. The web SPA already HTML-escapes on render (`esc()`/`escapeHtml()`), so this is server-side defence in depth there; for telnet it closes a genuine terminal-injection gap.
+- **No schema change.** `tests/test_t321_news_sanitize.py` (12: CSI/OSC/bare-ESC/control-char/C1/CR-overwrite stripping, unicode + plain-text preservation, whitespace collapse, length cap, empty/None guard, + AST checks that both seams actually call the sanitizer).
+
 ### 2026-06-16 — Help corpus batch 7: +lead, +joinlead, +plots, +region, +commissary, +credits, +rpprefs, +recap, +quests, +intel, +roster, +pvp, +powers, +forcestatus, +meditate, +title — *drop help-corpus-batch7*
 Additive data-only drop — no engine changes. Adds 16 missing help entries for leadership, Force, espionage, economy, roleplay, and combat commands.
 - **`data/help/commands/+lead.md` (new):** `+lead` — lead a combined action; Command roll at diff 10/15/20 for +1D/+2D/+3D bonus to named followers. Documents difficulty table, 60s expiry, and cancel switch.

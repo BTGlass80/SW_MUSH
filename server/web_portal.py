@@ -431,11 +431,14 @@ class PortalAPI:
                    ORDER BY id DESC LIMIT ?""",
                 (limit,),
             )
+            from server.ansi import sanitize_for_display
             events = []
             for r in rows:
                 row = dict(r)
                 events.append({
-                    "text": row.get("summary", ""),
+                    # summary may be an LLM-generated Director headline — strip
+                    # ANSI/control sequences before it reaches the client.
+                    "text": sanitize_for_display(row.get("summary", "")),
                     "timestamp": row.get("timestamp", ""),
                     "event_type": row.get("event_type", ""),
                 })

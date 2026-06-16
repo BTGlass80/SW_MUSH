@@ -151,3 +151,41 @@ def strip_ansi(text: str) -> str:
     """Remove all ANSI escape codes from text."""
     import re
     return re.sub(r"\033\[[0-9;]*m", "", text)
+
+
+# Precompiled patterns for sanitize_for_display (untrusted-text display guard).
+import re as _re
+
+# CSI sequences: ESC [ ... final-byte (colors, cursor moves, screen clears, …).
+_CSI_RE = _re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+# OSC sequences: ESC ] ... terminated by BEL or ST (window title, hyperlinks, …).
+_OSC_RE = _re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)")
+# Any remaining C0/C1 control chars (incl. bare ESC and DEL); whitespace handled
+# separately so headlines collapse cleanly to a single line.
+_CTRL_RE = _re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]")
+_WS_RE = _re.compile(r"\s+")
+
+
+def sanitize_for_display(text: str, max_len: int = 200) -> str:
+    """Strip ANSI/VT escape sequences and control characters from untrusted text
+    before showing it to players.
+
+    The Director's faction-turn ``news_headline`` is LLM-generated and reaches
+    players verbatim via the ``news`` command (telnet) and ``/api/portal/news``
+    (web). An LLM (or a poisoned prompt) could emit ANSI/control sequences that
+    rewrite the telnet terminal (cursor moves, screen clears, colour spoofing)
+    or smuggle control bytes into the web feed. This collapses any such input to
+    a single safe line of printable text. (The web SPA also HTML-escapes on
+    render — this is server-side defence in depth, and it also cleans rows that
+    were stored before this guard existed.)
+    """
+    if not text:
+        return ""
+    text = _CSI_RE.sub("", text)
+    text = _OSC_RE.sub("", text)
+    text = text.replace("\x1b", "")           # any stray ESC left over
+    text = _CTRL_RE.sub("", text)             # other control chars
+    text = _WS_RE.sub(" ", text).strip()      # collapse whitespace to one line
+    if len(text) > max_len:
+        text = text[:max_len].rstrip()
+    return text

@@ -121,7 +121,9 @@ class NewsCommand(BaseCommand):
 
         for entry in entries:
             ts_str = entry.get("timestamp", "")
-            summary = entry.get("summary", "").strip()
+            # summary may be an LLM-generated Director headline — strip any
+            # ANSI/control sequences before it touches the terminal.
+            summary = ansi.sanitize_for_display(entry.get("summary", ""))
 
             time_label = _time_ago(ts_str)
             wrapped = _wrap_summary(summary, width=55)
