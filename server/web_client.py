@@ -235,6 +235,16 @@ class WebClient:
             height=50,
         )
 
+        # Capture the client IP for the pre-auth connect/create throttle,
+        # spoof-resistantly: _get_client_ip honors X-Forwarded-For only when
+        # the direct peer is a configured trusted proxy, otherwise the raw
+        # peer address (so a direct WS client can't forge it).
+        try:
+            from server.api import _get_client_ip
+            session.client_ip = _get_client_ip(request)
+        except Exception:
+            log.debug("ws: client_ip capture failed", exc_info=True)
+
         if self._game is None:
             await ws.close()
             return ws

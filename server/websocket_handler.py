@@ -56,6 +56,15 @@ class WebSocketHandler:
             height=50,
         )
 
+        # Capture the peer IP for the pre-auth connect/create throttle. The
+        # websockets library exposes the raw peer as `remote_address`.
+        try:
+            ra = getattr(websocket, "remote_address", None)
+            if ra:
+                session.client_ip = ra[0]
+        except Exception:
+            log.debug("ws: remote_address capture failed", exc_info=True)
+
         self.game.session_mgr.add(session)
 
         try:
