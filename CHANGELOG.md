@@ -6,6 +6,12 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Help corpus batch 9: +shipyard; portal.html era-fix (Clone Wars) — *drop help-corpus-batch9-era-fix*
+Additive data + pure-HTML fix — no engine changes. Closes the final non-T3.13 help-corpus gap and fixes a B3 era-cleanness violation in the web landing page.
+- **`data/help/commands/+shipyard.md` (new):** Kuat Drive Yards civilian brokerage — browse with `+shipyard` (works anywhere, shows catalog + affordability), buy with `+shipyard buy <hull> [name]` (must be at a KDY brokerage location). Covers the 6-hull civilian catalog (Z-95/Ghtroc-720/YT-1300/Firespray/YT-2400/Consular), location gating, 8-ship ownership cap, delivery-to-Kuat-landing-pad flow, credit safety (debit-then-refund-on-fail), and why military hulls are absent. Aliases: `shipyard`, `+broker`, `+buyship`.
+- **`static/portal.html:1543` (fixed):** Landing-page subtitle read `GALACTIC CIVIL WAR ERA` — a B3 era-cleanness violation in a production string (the game is Clone Wars ~20 BBY, not the Imperial/Rebel era). Changed to `CLONE WARS ERA`.
+- **15 tests green** (`tests/test_help_shipyard_era_fix.py` — 12 shipyard help + 3 portal era-string).
+
 ### 2026-06-16 — Help corpus batch 8: +char, +cpstatus, +kudos, +scenebonus, +building, +pcbounty, +spacedock, +shipcrew, +chargen_notes, +village, +counsel, +retreat, +return, +healrate — *drop help-corpus-batch8*
 Additive data-only drop — no engine changes. Adds 14 missing help entries covering character management, CP advancement, social recognition, economy, ship commands, Jedi Weight of War, and medic service.
 - **`data/help/commands/+char.md` (new):** Account alt-character management — +char/list (all alts), +char/switch (return to selection), +char/delete (permanent; confirmation required). Documents the 3-character-per-account limit and same-faction restriction.
