@@ -6,6 +6,12 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — T3.23 Phase 0: skill_gate anomaly-phase seam (pre-launch, inert) — *drop t3-23-skill-gate-phase0*
+Pre-launch seam for party skill challenges (T3.23). Same land-the-seam-early pattern as T3.22 ambient-life Phase 0. No engine behavior changes — all existing combat anomalies are unaffected; the field is INERT until the post-launch Phase 1 build wires skill-check resolution.
+- **`WildernessAnomaly.phase_skill_gate(phase_idx) → dict | None`** (new method): reader accessor for the `skill_gate` dict in an anomaly phase. Returns None when the key is absent or the index is out of range. Callers MUST NOT act on the returned dict until Phase 1 ships.
+- **`_advance_to_next_phase` (improved):** when a phase has `skill_gate` but no `combat_npcs`, now logs a T3.23-tagged `INFO` line ("skill_gate (T3.23 inert seam) — skipping phase advance") instead of the generic `WARNING` "has no combat_npcs" — avoids misleading log noise in post-launch anomaly templates.
+- **16 tests green** (`tests/test_t3_23_skill_gate_phase0.py` — accessor coverage, inert behavior, no-warning guard, combat phases unaffected, inertness guard).
+
 ### 2026-06-16 — Help corpus batch 9: +shipyard; portal.html era-fix (Clone Wars) — *drop help-corpus-batch9-era-fix*
 Additive data + pure-HTML fix — no engine changes. Closes the final non-T3.13 help-corpus gap and fixes a B3 era-cleanness violation in the web landing page.
 - **`data/help/commands/+shipyard.md` (new):** Kuat Drive Yards civilian brokerage — browse with `+shipyard` (works anywhere, shows catalog + affordability), buy with `+shipyard buy <hull> [name]` (must be at a KDY brokerage location). Covers the 6-hull civilian catalog (Z-95/Ghtroc-720/YT-1300/Firespray/YT-2400/Consular), location gating, 8-ship ownership cap, delivery-to-Kuat-landing-pad flow, credit safety (debit-then-refund-on-fail), and why military hulls are absent. Aliases: `shipyard`, `+broker`, `+buyship`.
