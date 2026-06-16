@@ -1875,6 +1875,20 @@ class WildernessAnomaly:
         """True if the active phase is the last one."""
         return self.current_phase >= self.total_phases - 1
 
+    def phase_skill_gate(self, phase_idx: int) -> "dict | None":
+        """Return the skill_gate dict for a phase, or None if absent.
+
+        T3.23 pre-launch seam: the ``skill_gate`` field is INERT until
+        the post-launch engine build (Phase 1) wires the skill-check
+        resolution. Existing combat-only phases are unaffected (no
+        ``skill_gate`` key → this returns None). Callers must NOT act
+        on the returned dict until Phase 1 ships.
+        """
+        phases = self.phases
+        if not phases or phase_idx < 0 or phase_idx >= len(phases):
+            return None
+        return phases[phase_idx].get("skill_gate") or None
+
     def is_expired(self, now: Optional[float] = None) -> bool:
         if now is None:
             now = time.time()
@@ -2796,10 +2810,19 @@ async def _advance_to_next_phase(
     next_phase = anomaly.phases[next_idx]
     npc_specs = next_phase.get("combat_npcs", []) or []
     if not npc_specs:
-        log.warning(
-            "[anomaly] phase %d of '%s' has no combat_npcs",
-            next_idx, anomaly.template_key,
-        )
+        if next_phase.get("skill_gate"):
+            # T3.23 pre-launch: skill_gate phases are INERT; the post-launch
+            # engine build (Phase 1) will wire skill-check resolution here.
+            log.info(
+                "[anomaly] phase %d of '%s' has skill_gate (T3.23 inert seam) "
+                "— no combat_npcs; skipping phase advance",
+                next_idx, anomaly.template_key,
+            )
+        else:
+            log.warning(
+                "[anomaly] phase %d of '%s' has no combat_npcs",
+                next_idx, anomaly.template_key,
+            )
         return False
 
     spawned = await _spawn_combat_npcs(db, anomaly, npc_specs)
