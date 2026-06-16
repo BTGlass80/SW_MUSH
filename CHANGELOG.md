@@ -6,6 +6,10 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-15 — Durable loop → flat-rate subscription auth (was metered API, $0-balance) — *drop loop-subscription-auth*
+Tooling fix (the autonomous-loop economics + the reason it produced nothing all day). The headless `claude -p` launcher inherited the user-scope `ANTHROPIC_API_KEY`, which (a) billed **pay-per-token Opus (~$31/day)** and (b) had a **$0 prepaid balance** → every hourly fire died "Credit balance is too low" (13 no-op fires 06-15). Fix: `build_launcher` now emits `set "ANTHROPIC_API_KEY="` after `setlocal`, so headless `claude -p` falls back to the logged-in **Claude Max subscription** (verified working headless on this box) — **flat rate, no per-token fees.** Combined with arming `--model sonnet` (the loop's work is mechanical; Opus reserved for interactive judgment), the all-day loop becomes economically viable.
+- **Files:** `tools/durable_loop.py`, `CHANGELOG.md`. (Tooling only — no game-code/schema change.)
+
 ### 2026-06-15 — T3.16 Space Wildspace Drop 4: equipment progression (mining/salvage mods) — *drop t316-wildspace-equipment*
 Fourth T3.16 slice (per `space_wildspace_design_v1.md` §5). Adds the three wildspace ship mods + their effect wiring. Used the LIVE mod system (`data/schematics.yaml` crafted components installed via `+ship/install`) — design §7 said `data/starships.yaml` but the real seam is schematics; extended it, no parallel system.
 - **Mining Laser Mk1/Mk2** (`stat_target: mining`): +2D/+3D to the mining skill check + −25%/−40% cache cooldown + Mk2 deep-mining (rare-resource roll on crit). Wired through `engine/starships.py::get_effective_stats` → `MineCommand` → `engine/space_caches.py::harvest_mining` (bonus pips as `lead_bonus`, cooldown reduction, crit deep-mining `add_resource`). Mk2 schematic Hutt-Cartel-rep-gated (rep ≥ 25).
