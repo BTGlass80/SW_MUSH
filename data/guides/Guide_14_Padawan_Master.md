@@ -9,7 +9,7 @@ tags: ["padawan", "master", "apprentice", "bond", "jedi", "training", "mentor"]
 
 **SW_MUSH — Star Wars D6 Revised & Expanded**
 **BTGlass80 — May 2026**
-**Guide Version 1.0**
+**Guide Version 1.1**
 
 ---
 
@@ -121,6 +121,36 @@ These show name, location, current wound level (so a Master knows if their Padaw
 **The trials path opens.** The Padawan can begin attempting the five Trials. Without a bond, Trial attempts auto-fail. See §7.
 
 **The bond appears in `+sheet`.** Your sheet now lists your bond status: "Padawan to Kael Voren since (date)," or "Master to Sila Vannik since (date)."
+
+**The pre-authorization channel opens.** Several Padawan actions are considered "approval-gated" by design — leaving Coruscant on unsanctioned missions, using Force powers in the field, and attempting the Trials without a fresh per-session endorsement. Rather than requiring per-action Master sign-off (which would create friction in real-time play), the system uses **standing pre-authorization**. The Master grants a category once; thereafter, routine activity in that category no longer needs approval. See §5 for the `+authorize` command.
+
+---
+
+## 4.1 Pre-Authorization — `+authorize`
+
+The pre-authorization system lets a Master grant standing permissions for approval-gated actions so day-to-day play isn't blocked waiting for a sign-off.
+
+**The command:**
+
+```
++authorize <padawan> <category>        Grant a category.
++authorize <padawan> <category> off    Revoke it.
++authorize <category> [off]            Shorthand if you have 1 Padawan.
++authorize <padawan>                   List a Padawan's current grants.
++authorize                             Show all your standing grants.
+```
+
+**Categories:**
+
+| Category | What it covers |
+|---|---|
+| `offworld` | Leave Coruscant for non-sanctioned missions |
+| `powers` | Use Force powers in the field unsupervised |
+| `trials` | Attempt the Trials without a fresh `+endorse` per attempt |
+
+**From the Padawan side:** run bare `+authorize` to see what your Master has pre-authorized for you. Seeing `trials` in that list means you can attempt any Trial without waiting for your Master to type `+endorse trials` first. The `+trials` display also shows "Endorsement: standing" when the `trials` category is granted.
+
+**Design rationale.** Pre-authorization doesn't replace the Master's oversight — it replaces the friction of real-time approval when both players aren't online at the same time. A Master who has authorized `offworld` is saying "I trust you to take assignments outside Coruscant; you don't have to find me before every mission." It's a posture of trust, not a relinquishment of oversight.
 
 ---
 
@@ -322,7 +352,13 @@ The bond dissolves. The Padawan is no longer bonded; they're still a Padawan (th
 
 Released Padawans are not punished — they're just no longer in this bond. They can keep their progress (Trial attestations remain, their Force powers remain), but they may need a new Master to continue toward Knight. Trial endorsement requires an active bond.
 
-**Padawans cannot release the bond unilaterally.** Only the Master can `+release`. This is a deliberate asymmetry — the Padawan is the subordinate in the relationship, and the system models that. Padawans who want out of a bond have to negotiate with their Master, take it to the Council, or wait for a story event that resolves the bond differently.
+**Padawans can also leave the bond voluntarily** using `+leave-master`. A reason is required — the system won't accept an empty reason, which discourages impulsive breaks and creates a record for both parties and staff:
+
+```
++leave-master <reason>
+```
+
+The bond dissolves immediately. The dissolution is logged on both sides, the Master is notified if online (offline: recorded for their next login), and the reason is preserved. Masters use `+release`; Padawans use `+leave-master`. The language differs intentionally: Masters *release*, Padawans *leave*. The initiative determines the framing.
 
 ---
 
@@ -405,7 +441,10 @@ The bond is meant to be permanent within its arc. The fact that it sometimes end
 | `+bond <padawan>` | Master | Propose a bond (10-min window) |
 | `+bond accept <master>` | Padawan | Accept a pending bond proposal |
 | `+bond decline <master>` | Padawan | Decline a pending bond proposal |
-| `+release [<padawan>] [= <reason>]` | Master | Dissolve an active bond |
+| `+release [<padawan>] [= <reason>]` | Master | Master-initiated bond dissolution |
+| `+leave-master <reason>` | Padawan | Padawan-initiated voluntary bond dissolution |
+| `+authorize <padawan> <category> [off]` | Master | Grant/revoke standing pre-authorization (offworld / powers / trials) |
+| `+authorize` | Either | List standing pre-authorization grants |
 | `+master` | Padawan | Show bonded Master's status |
 | `+padawan` | Master | Show bonded Padawan(s)' status |
 | `+teach <power>` | Master | Teach a Force power to your Padawan |
@@ -413,7 +452,7 @@ The bond is meant to be permanent within its arc. The fact that it sometimes end
 | `+learn <power> from <master>` | Padawan | Request instruction (5-min request) |
 | `+spar` | Either bonded character | Initiate a training duel (24h cooldown, +1 CP each) |
 | `+trials [<padawan>]` | Either | View Trial progress |
-| `+endorse trials <padawan>` | Master | Endorse Padawan's Trial attempts |
+| `+endorse trials <padawan>` | Master | One-shot endorsement for Trial attempts |
 | `+trial <name> [<padawan>]` | Master | Attest a Trial pass |
 | `+knight <padawan>` | Master | Promote Padawan to Knight (gated on 5 Trials) |
 | `@bond <master> = <padawan>` | Staff | Force-create a bond (no consent prompt) |
