@@ -6,6 +6,18 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Help corpus batch 6: +finances, +buffs, +weapons, +armor, +threat, +weather, +repair, +soak — *drop help-corpus-batch6*
+Additive data-only drop — no engine changes. Adds 8 missing help entries for economy, gear, world, and combat commands.
+- **`data/help/commands/+finances.md` (new):** `+finances` / `+ledger` — credit flow ledger for the last hour/day/week. Documents faucet/sink breakdown, top-5 income and spending sources, and time window aliases.
+- **`data/help/commands/+buffs.md` (new):** `+buffs` / `+effects` — active buffs and debuffs with D6 stat modifiers and time remaining. Documents positive (▲) vs negative (▼) symbols, stack counts, and common buff sources (stims, Force powers, combat conditions).
+- **`data/help/commands/+weapons.md` (new):** `+weapons` / `armory` — full weapon reference list with damage, governing skill, range bands (short/medium/long), and shop price or "craft" flag. Notes currently equipped weapon and condition bar.
+- **`data/help/commands/+armor.md` (new):** `+armor` / `armorlist` — armor reference with energy/physical protection, DEX penalty, and cost. Explains how WEG D6 armor adds to Strength soak; notes currently worn armor.
+- **`data/help/commands/+threat.md` (new):** `+threat` / `threat` — area threat band (Frontier/Settled/Contested Marches/Deep Wilds). Distinguishes threat (NPC power level) from security (combat/PvP permission), both independent axes.
+- **`data/help/commands/+weather.md` (new):** `+weather` / `+time` / `weather` — local time of day (in planet-specific idiom where defined, e.g. Tatooine's twin-sun vocabulary) plus any active weather with D6 Perception/ranged penalties.
+- **`data/help/commands/+repair.md` (new):** `+repair` — repair equipped weapon for credits. Documents the condition bar, max-condition-drop-by-5 mechanic (wear-out model), and the "worn out" end-state requiring replacement.
+- **`data/help/commands/+soak.md` (new):** `+soak <1-5>` / `soak` — pre-declare CP to boost Strength soak if hit this round. CP only spent if the character takes damage. Documents WEG R&E p.55 CP-to-pip conversion and the 5-CP-per-round cap.
+- **Files:** 8 new `data/help/commands/*.md` files, `tests/test_help_gear_economy_combat.py` (new, 96 tests green), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-16 — Help corpus batch 5: +finger, +where, +ooc, +channels, +freqs, +news, +reputation, +achievements, +background — *drop help-corpus-batch5*
 Additive data-only drop — no engine changes. Adds 9 missing help entries for player social and info commands.
 - **`data/help/commands/+finger.md` (new):** `+finger` / `finger` — view or set your player info card. Documents all 8 settable fields (fullname, position, rp-prefs, quote, alts, theme-song, plan, timezone), the `/set` switch, RP preferences display, and online status output.
