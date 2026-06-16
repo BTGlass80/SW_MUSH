@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import time
+from collections import defaultdict
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
@@ -36,6 +37,34 @@ if TYPE_CHECKING:
     from server.session import SessionManager
 
 log = logging.getLogger(__name__)
+
+
+# ── Portal login throttle ─────────────────────────────────────────────────────
+# Per-IP credential-stuffing guard. db.authenticate's lockout is PER-ACCOUNT
+# (5 fails / 5 min), so stuffing ACROSS many accounts from one IP is otherwise
+# unbounded. A dedicated bucket (not the shared api._check_rate_limit) keeps login
+# throttling independent of the general API budget. Keyed on api._get_client_ip,
+# which honors X-Forwarded-For: correct behind a trusted reverse proxy, spoofable
+# on a raw socket (tracked separately as the XFF-hardening item). Threshold is a
+# sensible candidate for the T3.19 tunables later.
+_login_attempts: dict[str, list[float]] = defaultdict(list)
+_LOGIN_RATE_WINDOW = 60   # seconds
+_LOGIN_RATE_MAX = 10      # login POSTs per window per IP
+
+
+def _login_rate_ok(ip: str) -> bool:
+    """True if this IP may attempt another login; False if throttled."""
+    now = time.time()
+    _login_attempts[ip] = [t for t in _login_attempts[ip] if now - t < _LOGIN_RATE_WINDOW]
+    if len(_login_attempts[ip]) >= _LOGIN_RATE_MAX:
+        return False
+    _login_attempts[ip].append(now)
+    return True
+
+
+def _reset_login_throttle() -> None:
+    """Test helper — clear the per-IP login attempt counters."""
+    _login_attempts.clear()
 
 
 # ── Guide loader ────────────────────────────────────────────────────────────
@@ -607,7 +636,7 @@ class PortalAPI:
                    FROM org_memberships m
                    JOIN organizations o ON m.org_id = o.id
                    LEFT JOIN org_ranks r ON m.rank_id = r.id
-                   WHERE m.character_id = ? AND o.org_type = 'faction'""",
+                   WHERE m.char_id = ? AND o.org_type = 'faction'""",
                 (char_id,),
             )
             if membership:
@@ -1223,6 +1252,10 @@ class PortalAPI:
 
     async def handle_login(self, request) -> web.Response:
         """POST /api/portal/login — authenticate and return token."""
+        from server.api import _get_client_ip
+        if not _login_rate_ok(_get_client_ip(request)):
+            return self._json(
+                {"error": "Too many login attempts. Please wait a minute and try again."}, 429)
         try:
             body = await request.json()
         except Exception:
