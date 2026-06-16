@@ -154,16 +154,53 @@ RATE_LIMIT_WINDOW = 60  # seconds
 RATE_LIMIT_MAX = 3  # max requests per window
 
 
-def _check_rate_limit(ip: str) -> bool:
-    """Returns True if the request is allowed, False if rate-limited."""
+def _sliding_window_allow(
+    bucket: dict[str, list[float]], ip: str, max_requests: int, window: float
+) -> bool:
+    """Generic per-IP sliding-window limiter. True = allowed, False = limited.
+
+    Prunes timestamps older than `window` for this IP, then admits the
+    request only if fewer than `max_requests` remain in the window.
+    """
     now = time.time()
-    timestamps = _rate_limits[ip]
     # Prune old entries
-    _rate_limits[ip] = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW]
-    if len(_rate_limits[ip]) >= RATE_LIMIT_MAX:
+    bucket[ip] = [t for t in bucket[ip] if now - t < window]
+    if len(bucket[ip]) >= max_requests:
         return False
-    _rate_limits[ip].append(now)
+    bucket[ip].append(now)
     return True
+
+
+def _check_rate_limit(ip: str) -> bool:
+    """Strict limiter for the expensive, account-creating chargen writes
+    (submit / create-character). Returns True if allowed, False if limited."""
+    return _sliding_window_allow(
+        _rate_limits, ip, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW
+    )
+
+
+# Soft limiter for the unauthenticated, work-performing *read* endpoints that
+# create no state but still touch the DB / CPU on every call:
+#   GET  /api/chargen/check-name/{name}  — one DB round-trip; name enumeration
+#   POST /api/chargen/validate           — registry validation; CPU-bound
+# Both are world-reachable with no token. Left unbounded, a single client can
+# flood them to enumerate character names or amplify load on the shared
+# aiosqlite connection (which serializes every query in the process). The
+# threshold is generous enough that the SPA's debounced name-check (one call
+# 500ms after the user stops typing) never trips it during legitimate chargen,
+# but caps a flooding/enumeration client to a sane sustained rate per IP. Kept
+# distinct from the strict create bucket so heavy name-checking can't burn a
+# legitimate user's create budget.
+_soft_rate_limits: dict[str, list[float]] = defaultdict(list)
+SOFT_RATE_LIMIT_WINDOW = 60  # seconds
+SOFT_RATE_LIMIT_MAX = 60  # max requests per window per IP
+
+
+def _check_soft_rate_limit(ip: str) -> bool:
+    """Returns True if allowed, False if rate-limited (soft read endpoints)."""
+    return _sliding_window_allow(
+        _soft_rate_limits, ip, SOFT_RATE_LIMIT_MAX, SOFT_RATE_LIMIT_WINDOW
+    )
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────
@@ -381,6 +418,17 @@ class ChargenAPI:
     # ── POST /api/chargen/validate ──────────────────────────────────────
 
     async def handle_validate(self, request: web.Request) -> web.Response:
+        # Unauthenticated + CPU-bound (registry validation). Throttle per IP
+        # before doing any work so a flood can't burn the process.
+        if not _check_soft_rate_limit(_get_client_ip(request)):
+            return web.json_response(
+                {
+                    "valid": False,
+                    "errors": ["Too many requests. Please slow down."],
+                },
+                status=429,
+            )
+
         try:
             data = await request.json()
         except (json.JSONDecodeError, Exception):
@@ -399,6 +447,22 @@ class ChargenAPI:
     # ── GET /api/chargen/check-name/{name} ──────────────────────────────
 
     async def handle_check_name(self, request: web.Request) -> web.Response:
+        # Unauthenticated + one DB round-trip per call (and a name-enumeration
+        # oracle). Throttle per IP *before* querying so a flood can't amplify
+        # load on the shared aiosqlite connection. The 429 body deliberately
+        # omits a matching `name`, so the SPA (which only updates its hint when
+        # d.name === the typed name) silently ignores it — a legitimate,
+        # debounced user never reaches the limit.
+        if not _check_soft_rate_limit(_get_client_ip(request)):
+            return web.json_response(
+                {
+                    "available": None,
+                    "name": None,
+                    "error": "Too many requests. Please slow down.",
+                },
+                status=429,
+            )
+
         name = request.match_info["name"]
         existing = await self.db.get_character_by_name(name)
         return web.json_response({
