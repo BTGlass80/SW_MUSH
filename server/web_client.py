@@ -30,6 +30,77 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+# ── Security hardening (T3.21 — public aiohttp surface) ──────────────────────
+# Defence-in-depth response headers applied app-wide. The SPA renders
+# server-provided strings and the API returns JSON to unauthenticated clients,
+# so these guard the whole surface (HTML, static assets, and JSON alike):
+#   * X-Content-Type-Options: nosniff — stop MIME-sniffing of API JSON as HTML.
+#   * X-Frame-Options + CSP frame-ancestors — clickjacking, belt-and-suspenders
+#     across legacy (XFO) and modern (CSP) browsers.
+#   * CSP base-uri/object-src — block <base>-tag hijack and plugin/object embeds.
+#   * Referrer-Policy — don't leak full URLs to cross-origin destinations.
+#   * Permissions-Policy — disable powerful APIs the game never uses.
+# The CSP is deliberately MINIMAL: the client relies on inline <script>, inline
+# onclick= handlers, and inline style= attributes, so a script-src/default-src
+# directive would break it. We restrict only the frame/base/object vectors the
+# SPA never uses. (HSTS is intentionally omitted — enabling it is an
+# HTTPS/deployment decision for the operator's TLS-terminating proxy, not for
+# this plain-HTTP origin.)
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Content-Security-Policy": "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+    "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+}
+
+
+def _resolve_max_request_bytes(default: int = 256 * 1024) -> int:
+    """Cap the request body the public endpoints will read. All client bodies
+    are small JSON (chargen/login are single-digit KB); aiohttp's own default
+    is 1 MiB. Default to 256 KiB — huge headroom over any real payload — so a
+    hostile client cannot stream a multi-megabyte body to amplify memory
+    pressure on the single shared DB worker. Operator-overridable (raise OR
+    lower) via SWMUSH_MAX_REQUEST_BYTES; garbage / non-positive falls back."""
+    raw = os.environ.get("SWMUSH_MAX_REQUEST_BYTES")
+    if not raw:
+        return default
+    try:
+        val = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return val if val > 0 else default
+
+
+_MAX_REQUEST_BYTES = _resolve_max_request_bytes()
+
+
+def _apply_security_headers(response) -> None:
+    """Add _SECURITY_HEADERS to a not-yet-sent response. Uses setdefault so a
+    value a handler set on purpose always wins; skips WebSocket upgrades (their
+    headers are already prepared/sent — mutating them is a no-op at best)."""
+    if getattr(response, "prepared", False):
+        return
+    headers = getattr(response, "headers", None)
+    if headers is None:
+        return
+    for name, value in _SECURITY_HEADERS.items():
+        headers.setdefault(name, value)
+
+
+@web.middleware
+async def _security_headers_middleware(request, handler):
+    """Apply the security headers to every response, including raised HTTP
+    errors (404/413/429/500) so error responses carry the same protections."""
+    try:
+        response = await handler(request)
+    except web.HTTPException as exc:
+        _apply_security_headers(exc)
+        raise
+    _apply_security_headers(response)
+    return response
+
+
 class WebClient:
     """Single aiohttp server: serves client.html + handles /ws WebSocket connections."""
 
@@ -57,7 +128,10 @@ class WebClient:
             log.warning("client.html not found in %s — web client disabled.", static_dir)
             return
 
-        self._app = web.Application()
+        self._app = web.Application(
+            client_max_size=_MAX_REQUEST_BYTES,
+            middlewares=[_security_headers_middleware],
+        )
 
         async def serve_client(request):
             resp = web.FileResponse(client_html)
