@@ -1,0 +1,16 @@
+# SW_MUSH game balance tunables  (T3.19 Phase 0)
+#
+# Dotted keys mirror the TUN.* comment conventions already in engine/*.py.
+# A missing key (or an empty / absent file) falls back to the hardcoded
+# default at each call site — so this file is always safe to leave empty.
+#
+# Format:  <namespace>.<knob>: <value>
+# Example: trade.price_demand_multiplier: 1.40
+#
+# Phase 0 (foundation): no knobs externalized yet.
+# Phase 1 will add the HIGH-priority economy cluster:
+#   trade.*, bounty.*, mission.*, p2p.*, commissary.*, insurance.*
+#
+# Edit via string-replacement only (never a yaml round-trip rewrite that
+# could reformat entries or collapse comments).
+{}

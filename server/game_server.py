@@ -602,6 +602,13 @@ class GameServer:
         await self.db.connect()
         await self.db.initialize()
 
+        # Load game balance tunables (T3.19 Phase 0) — fail-open
+        try:
+            from engine.tunables import load_tunables
+            load_tunables("data/tunables.yaml")
+        except Exception as _tun_err:
+            log.warning("[tunables] load skipped: %s", _tun_err)
+
         # Rehydrate the trade supply/demand pools from the DB (economy audit v2
         # §1.5) so a restart doesn't re-seed every market to full / clear demand
         # depression. Fail-open: empty pools = pre-persistence behaviour.
