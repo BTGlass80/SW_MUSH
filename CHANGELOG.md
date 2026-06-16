@@ -6,6 +6,16 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-15 — Help corpus: +holonet, mine, salvage, harvest — *drop help-wildspace-holonet*
+Adds four missing help entries for recently-shipped commands. Additive data-only drop — no engine changes.
+- **`data/help/commands/+holonet.md` (new):** Rich help for the `+holonet` / `holonet` commands. Describes the HoloNet browser modal (web-client only), the Telnet degradation path, and the live world-events data source. Crosslinks `news`, `channels`.
+- **`data/help/commands/mine.md` (new):** Rich help for the `mine` command (wildspace mining cache extraction). Documents bare listing vs. `mine <id>` yield run, resource types (metal/energy/composite/rare), ship-mod bonuses (Mining Resonator / Extended Drill / Deep-Core Array), per-node cooldowns, and wildspace-zone requirement.
+- **`data/help/commands/salvage.md` (new):** Rich help for the `salvage` command (derelict anomaly recovery). Documents the derelict → scan-to-resolve → salvage flow, Salvage Arm mod bonuses, derelict vs. combat-wreck loot tables, and preconditions (open space + fully-resolved anomaly).
+- **`data/help/commands/harvest.md` (new):** Rich help for the `harvest` command (dual-mode: faction caches in space; Survival check on ground). Documents mode resolution logic (space vs. ground context), faction rep grants (space), 30-minute ground cooldown, turf tax (15% to owning org), and yield modifiers (security tier, faction influence).
+- **`tests/test_help_wildspace_holonet.py` (new):** 26 targeted tests — file existence, load_help_file round-trip, key/title/category/access_level, aliases, see_also cross-links, body keyword coverage — for all four files.
+- **Verified:** 62 green single-process (test_help_wildspace_holonet.py + hygiene + smoke).
+- **Files:** `data/help/commands/+holonet.md` (new), `data/help/commands/mine.md` (new), `data/help/commands/salvage.md` (new), `data/help/commands/harvest.md` (new), `tests/test_help_wildspace_holonet.py` (new), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-15 — T3.19 Phase 0: tunables foundation — *drop t3-19-phase0*
 T3.19 Phase 0: infrastructure only — no knob is externalized yet. Establishes the runtime machinery and the empty-YAML boot path.
 - **`engine/tunables.py` (new):** `load_tunables(path)` reads a flat-namespace YAML (`trade.price_demand_multiplier: 1.40`, etc.) into a module-level dict; `get_tunable(key, default)` returns the loaded value or the caller's in-code default (absent key = byte-identical to today's hardcoded literal); `reset_tunables()` for test isolation. Missing file → INFO log + no-op; malformed YAML or non-mapping top-level → ERROR log + no-op. Mirrors `engine/director_config_loader.py` (YAML-overrides-with-in-code-default, fail-open). Call sites: `from engine.tunables import get_tunable` — placed in engine/, not server/, to avoid circular imports from engine code.
