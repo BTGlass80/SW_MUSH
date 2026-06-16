@@ -882,25 +882,36 @@ class GameServer:
                 return
 
             elif cmd == "__token_auth__" and len(parts) >= 2:
-                # Auto-login from web chargen — account already verified
-                # by token in web_client.py before this synthetic command
-                try:
-                    account_id = int(parts[1])
-                    account = await self.db.get_account(account_id)
-                    if account:
-                        existing = self.session_mgr.find_by_account(account["id"])
-                        if existing:
-                            await existing.close()
-                            self.session_mgr.remove(existing)
-                        session.account = account
-                        session.state = SessionState.AUTHENTICATED
-                        await session.send_line(
-                            ansi.success(f"Welcome, {account['username']}!")
-                        )
-                        await self._character_select(session)
-                    else:
-                        await session.send_prompt()
-                except (ValueError, Exception):
+                # Auto-login handoff from the web client (post-chargen / the
+                # "open in web" redirect). SECURITY: the argument is an
+                # HMAC-signed login token, NOT a bare account_id, and THIS
+                # branch is the authoritative verifier. Raw client input — the
+                # Telnet read loop AND the WebSocket {"input": ...} channel —
+                # is fed verbatim into this same login loop, so trusting a
+                # caller-supplied account_id here would let any unauthenticated
+                # client send `__token_auth__ <id>` and seize that account with
+                # no password. verify_login_token is total (never raises;
+                # returns None on any malformed/expired/forged token), so a
+                # forged or guessed argument simply fails to authenticate.
+                from server.api import verify_login_token
+                account_id = verify_login_token(parts[1])
+                account = (
+                    await self.db.get_account(account_id)
+                    if account_id is not None
+                    else None
+                )
+                if account:
+                    existing = self.session_mgr.find_by_account(account["id"])
+                    if existing:
+                        await existing.close()
+                        self.session_mgr.remove(existing)
+                    session.account = account
+                    session.state = SessionState.AUTHENTICATED
+                    await session.send_line(
+                        ansi.success(f"Welcome, {account['username']}!")
+                    )
+                    await self._character_select(session)
+                else:
                     await session.send_prompt()
 
             elif cmd == "connect" and len(parts) >= 3:

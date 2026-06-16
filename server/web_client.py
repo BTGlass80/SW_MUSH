@@ -256,23 +256,17 @@ class WebClient:
                                 session.width = w
                             continue
                         if data.get("type") == "token_auth":
-                            # Auto-login from web chargen redirect
+                            # Auto-login from web chargen redirect. Hand the
+                            # SIGNED token straight to the login loop, which is
+                            # the authoritative verifier (game_server's
+                            # __token_auth__ branch re-checks it). We deliberately
+                            # do NOT resolve the token to an account_id here:
+                            # feeding a bare id would let any WS client forge
+                            # `__token_auth__ <id>` via the {"input": ...} channel
+                            # and seize an account with no password.
                             token = data.get("token", "")
-                            try:
-                                from server.api import verify_login_token
-                                account_id = verify_login_token(token)
-                                if account_id and self._game:
-                                    account = await self._game.db.get_account(account_id)
-                                    if account:
-                                        # Feed a synthetic "connect" command
-                                        # that the login loop will process
-                                        session.feed_input(
-                                            f"__token_auth__ {account_id}"
-                                        )
-                                        continue
-                            except Exception as e:
-                                log.warning("Token auth failed: %s", e)
-                            # If token auth fails, just continue normally
+                            if token:
+                                session.feed_input(f"__token_auth__ {token}")
                             continue
                         text = data.get("input", data.get("text", ""))
                     except (json.JSONDecodeError, AttributeError):
