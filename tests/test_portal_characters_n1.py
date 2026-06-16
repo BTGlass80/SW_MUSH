@@ -69,6 +69,11 @@ class _FakeDB:
             return [{"c": len(self._page_rows)}]
         return [dict(r) for r in self._page_rows]
 
+    # The portal read endpoints route SELECTs through the read-only pool
+    # (db.read_fetchall); the fake serves them the same rows as fetchall.
+    async def read_fetchall(self, sql, params=()):
+        return await self.fetchall(sql, params)
+
     async def get_character(self, char_id):
         self.get_character_calls += 1
         return {"id": char_id, "attributes": "{}"}

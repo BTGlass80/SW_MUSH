@@ -374,7 +374,7 @@ class PortalAPI:
         execute_fetchall and takes the first row. Kept as an instance method
         so call sites read as `await self._fetchone(...)`.
         """
-        rows = await self._db.fetchall(sql, params)
+        rows = await self._db.read_fetchall(sql, params)
         return rows[0] if rows else None
 
     # ── Who's Online ─────────────────────────────────────────────────────
@@ -423,7 +423,7 @@ class PortalAPI:
         """GET /api/portal/news — recent Director events."""
         limit = min(int(request.query.get("limit", "20")), 50)
         try:
-            rows = await self._db.fetchall(
+            rows = await self._db.read_fetchall(
                 """SELECT timestamp, event_type, summary
                    FROM director_log
                    WHERE event_type IN ('news', 'era_milestone',
@@ -521,7 +521,7 @@ class PortalAPI:
             total = dict(count_row).get("c", 0) if count_row else 0
 
             # Fetch page
-            rows = await self._db.fetchall(
+            rows = await self._db.read_fetchall(
                 f"""SELECT id, name, species, template, description, attributes
                     FROM characters WHERE {where_clause}
                     ORDER BY name ASC LIMIT ? OFFSET ?""",
@@ -737,7 +737,7 @@ class PortalAPI:
             )
             total = dict(count_row).get("c", 0) if count_row else 0
 
-            rows = await self._db.fetchall(
+            rows = await self._db.read_fetchall(
                 f"""SELECT id, title, scene_type, location, started_at,
                            completed_at, summary
                     FROM scenes WHERE {where_clause}
@@ -751,7 +751,7 @@ class PortalAPI:
                 scene_id = row["id"]
 
                 # Get participants
-                parts = await self._db.fetchall(
+                parts = await self._db.read_fetchall(
                     """SELECT c.name FROM scene_participants sp
                        JOIN characters c ON sp.char_id = c.id
                        WHERE sp.scene_id = ?""",
@@ -813,7 +813,7 @@ class PortalAPI:
                 return self._json({"error": "Scene not shared"}, 404)
 
             # Participants
-            parts = await self._db.fetchall(
+            parts = await self._db.read_fetchall(
                 """SELECT c.name FROM scene_participants sp
                    JOIN characters c ON sp.char_id = c.id
                    WHERE sp.scene_id = ?""",
@@ -821,7 +821,7 @@ class PortalAPI:
             )
 
             # Poses
-            poses = await self._db.fetchall(
+            poses = await self._db.read_fetchall(
                 """SELECT sp.pose_type, sp.content, sp.created_at,
                           c.name as character_name
                    FROM scene_poses sp
@@ -1329,7 +1329,7 @@ class PortalAPI:
             for c in chars:
                 faction = "Neutral"
                 try:
-                    memberships = await self._db.fetchall(
+                    memberships = await self._db.read_fetchall(
                         "SELECT o.name FROM org_memberships m JOIN organizations o ON m.org_id=o.id WHERE m.char_id=?",
                         (c["id"],)
                     )

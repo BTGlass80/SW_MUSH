@@ -4,8 +4,11 @@ Database layer - SQLite with WAL mode, async via aiosqlite.
 Handles schema creation, migrations, and core CRUD operations.
 """
 import aiosqlite
+import asyncio
 import bcrypt
+import contextlib
 import logging
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1575,11 +1578,25 @@ class Database:
         # refreshed in-process by set_faucet_throttle_pct. None = not yet
         # loaded.
         self._faucet_throttle_pct: Optional[int] = None
+        # T3.21: lazy read-only connection pool for SELECT-heavy read endpoints.
+        # WAL lets these read a consistent snapshot CONCURRENTLY while the single
+        # writer connection (self._db) handles writes — relieving the
+        # serialize-everything-through-one-connection scale ceiling (the dominant
+        # perf item in the T3.21 audit). Each pool connection is opened mode=ro
+        # + PRAGMA query_only=ON, so it is PHYSICALLY incapable of writing — no
+        # corruption risk from this path. Built lazily on first read; pool size
+        # via SWMUSH_DB_READ_POOL (default 4), read at build time so it is
+        # boot-order-safe (load_tunables runs after connect()).
+        self._read_pool: Optional[asyncio.Queue] = None
+        self._read_conns: list = []
+        self._read_pool_lock = asyncio.Lock()
+        self._closed = False
 
     async def connect(self):
         """Open the database and enable WAL mode."""
         self._db = await aiosqlite.connect(self.db_path)
         self._db.row_factory = aiosqlite.Row
+        self._closed = False  # (re)opened — allow the read pool to (re)build
         await self._db.execute("PRAGMA journal_mode=WAL")
         await self._db.execute("PRAGMA foreign_keys=ON")
         # Review fix: prevent SQLITE_BUSY under write contention from the
@@ -1649,9 +1666,98 @@ class Database:
 
     async def close(self):
         """Gracefully close the database."""
+        # Flag closed FIRST so an in-flight _reader/_ensure_read_pool doesn't
+        # rebuild or hand out a connection we're about to tear down.
+        self._closed = True
         if self._db:
             await self._db.close()
+            self._db = None  # idempotent: a second close() is a no-op
             log.info("Database closed.")
+        # Tear down the read-only pool, if it was ever built.
+        for c in self._read_conns:
+            try:
+                await c.close()
+            except Exception:
+                log.warning("read-pool connection close failed", exc_info=True)
+        self._read_conns = []
+        self._read_pool = None
+
+    # -- Read-only connection pool (T3.21) --
+    # SELECT-heavy read endpoints (web portal directory / profiles / scenes)
+    # call read_fetchall / read_fetchone, drawing a read-only connection from a
+    # small pool instead of serializing behind the single writer connection.
+    # The pool connections are opened mode=ro + query_only=ON: they cannot
+    # write, so they can never corrupt the DB; WAL gives them consistent-snapshot
+    # concurrent reads.
+
+    async def _ensure_read_pool(self) -> None:
+        if self._read_pool is not None:
+            return
+        async with self._read_pool_lock:
+            if self._read_pool is not None:  # built while we awaited the lock
+                return
+            if self._closed:
+                raise RuntimeError("Database is closed; cannot build read pool")
+            size = max(1, int(os.environ.get("SWMUSH_DB_READ_POOL", "4")))
+            pool: asyncio.Queue = asyncio.Queue()
+            conns: list = []
+            uri = f"file:{Path(self.db_path).as_posix()}?mode=ro"
+            try:
+                for _ in range(size):
+                    conn = await aiosqlite.connect(uri, uri=True)
+                    conn.row_factory = aiosqlite.Row
+                    await conn.execute("PRAGMA query_only=ON")
+                    await conn.execute("PRAGMA busy_timeout=5000")
+                    conns.append(conn)
+                    pool.put_nowait(conn)
+            except Exception:
+                # Partial build (e.g. fd exhaustion mid-loop): close what we
+                # opened so nothing leaks, then re-raise (a later call retries).
+                for c in conns:
+                    try:
+                        await c.close()
+                    except Exception:
+                        pass
+                raise
+            self._read_conns = conns
+            self._read_pool = pool
+            log.info("DB read pool ready: %d read-only connection(s)", size)
+
+    @contextlib.asynccontextmanager
+    async def _reader(self):
+        """Hold a read-only pool connection for the block, then return it.
+
+        In-memory databases are per-connection (a 2nd connection is a DIFFERENT
+        empty DB), so for ``:memory:`` we fall back to the writer connection —
+        correctness over concurrency, which matters only for the file-backed
+        production DB anyway.
+        """
+        if ":memory:" in self.db_path:
+            yield self._db
+            return
+        await self._ensure_read_pool()
+        pool = self._read_pool
+        if pool is None:  # closed between _ensure and here (shutdown race)
+            raise RuntimeError("Database is closed")
+        conn = await pool.get()
+        try:
+            yield conn
+        finally:
+            # Only return the connection if the pool is still the live one —
+            # if close() swapped/nulled it mid-read, drop the (now-closed) conn.
+            if self._read_pool is pool:
+                pool.put_nowait(conn)
+
+    async def read_fetchall(self, sql: str, params: tuple = ()) -> list:
+        """Like fetchall(), but served by the read-only pool (SELECT-heavy read
+        endpoints). Reads a consistent WAL snapshot; physically cannot write."""
+        async with self._reader() as conn:
+            return await conn.execute_fetchall(sql, params)
+
+    async def read_fetchone(self, sql: str, params: tuple = ()):
+        """Like fetchone(), but served by the read-only pool."""
+        rows = await self.read_fetchall(sql, params)
+        return rows[0] if rows else None
 
     # -- Query Proxy Methods --
     # These proxy methods provide a stable public API for raw SQL queries.
