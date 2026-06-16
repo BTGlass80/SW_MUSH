@@ -6,6 +6,18 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-15 — Help corpus batch 2: anomalies, investigate, attune, breach, housing, rally, +den, +insure — *drop help-corpus-batch2*
+Additive data-only drop — no engine changes. Adds 8 missing help entries for recently-shipped commands.
+- **`data/help/commands/anomalies.md` (new):** `anomalies` / `anom` — lists active wilderness anomalies in the current region with IDs and time remaining. Crosslinks `investigate`.
+- **`data/help/commands/investigate.md` (new):** `investigate <id>` — resolve a specific wilderness anomaly at its anchor location. Describes skill-check and combat modes, multi-player rewards, and expiry behavior.
+- **`data/help/commands/attune.md` (new):** `attune` — Force-sensitive meditation at a force-resonant landmark to draw a kyber shard (quality 75–95, Scholar/Willpower DC 11, 24h per-landmark cooldown). Crosslinks `craft`.
+- **`data/help/commands/breach.md` (new):** `breach <obstacle>` — blow open a sealed obstacle with a breaching charge (consumed on use, Demolitions check, noise broadcast to adjacent rooms). Crosslinks `lockpick`, `forcedoor`.
+- **`data/help/commands/housing.md` (new):** `housing` / `+home` — comprehensive housing management: rent/buy/sell, storage, descriptions, trophies, shopfronts, guest access. Full subcommand reference with tier overview.
+- **`data/help/commands/rally.md` (new):** `rally` / `front` — view active uprising threat board and strike against it (~10m cooldown per character). Describes playstyle-based pool selection and Republic rep / status-flag rewards.
+- **`data/help/commands/+den.md` (new):** `+den` / `den` — Hutt cartel members establish sabacc dens in cantinas (rank 3+, 25,000cr setup, no refund). Documents house-rake rerouting and contested-den rules.
+- **`data/help/commands/+insure.md` (new):** `+insure` / `insure` — one-shot gear insurance policy protecting loose inventory on death in dangerous zones. Documents coverage scope, snapshot anti-exploit, and the no-cash-payout design.
+- **Files:** `data/help/commands/anomalies.md`, `investigate.md`, `attune.md`, `breach.md`, `housing.md`, `rally.md`, `+den.md`, `+insure.md` (all new), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-15 — T3.21 Blocker 3: admin authority re-validation + admin_audit trail (schema v45) — *drop t321-admin-audit*
 Closes the third (fork-free) T3.21 launch-blocker (`docs/design/HANDOFF_t3_21_security_optimization_2026-06-13.md`), re-audited against HEAD. Two related admin-authority gaps:
 - **Never-revalidated admin snapshot (`parser/commands.py` `check_access`).** The BUILDER/ADMIN tiers read `is_admin`/`is_builder` from `session.account` — a snapshot frozen at **login**. A privilege revoked mid-session kept working until the player disconnected. Fixed: `check_access` now re-reads the flag from the DB on **every** elevated dispatch via the new `Database.get_account_privileges(account_id) -> (is_admin, is_builder)`, and syncs **both** flags on the in-memory snapshot to match (one round-trip already fetched both, so other code reading `session.account` also sees the revocation). PLAYER/ANYONE tiers are untouched and incur **no** DB hit — only the rare elevated commands pay one indexed PK lookup. Falls back to the snapshot only when no DB handle is present or on a transient DB error (no worse than the pre-fix behavior).
