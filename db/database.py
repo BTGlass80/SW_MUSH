@@ -19,7 +19,10 @@ log = logging.getLogger(__name__)
 # nothing until the post-launch sim ships); landed now so the post-launch
 # build never migrates a live, populated DB. See
 # docs/design/ambient_npc_life_design_v1.md §5-6.
-SCHEMA_VERSION = 44
+#
+# v45 (T3.21 Blocker 3): admin_audit table — durable trail of every
+# elevated (BUILDER/ADMIN) command dispatch, written at the parser seam.
+SCHEMA_VERSION = 45
 
 SCHEMA_SQL = """
 -- Schema versioning
@@ -41,6 +44,23 @@ CREATE TABLE IF NOT EXISTS accounts (
     login_failures  INTEGER DEFAULT 0,
     locked_until    TEXT
 );
+
+-- Admin/builder audit trail (T3.21 Blocker 3): one row per elevated
+-- command dispatch, written at the parser seam. Secret-bearing args
+-- (e.g. @newpassword) are redacted before insert. Append-only.
+CREATE TABLE IF NOT EXISTS admin_audit (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id    INTEGER,
+    username      TEXT,
+    char_id       INTEGER,
+    char_name     TEXT,
+    access_level  INTEGER NOT NULL,
+    command       TEXT NOT NULL,
+    detail        TEXT,
+    created_at    TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_account ON admin_audit(account_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit(created_at);
 
 -- Characters (one account can own multiple characters)
 CREATE TABLE IF NOT EXISTS characters (
@@ -1498,6 +1518,28 @@ MIGRATIONS = {
         " PRIMARY KEY (npc_id_a, npc_id_b))",
     ],
 
+    # ── v45 (T3.21 Blocker 3): admin/builder command audit trail ────────────
+    # A durable, append-only record of who exercised elevated authority and
+    # when — written at the parser dispatch seam for every BUILDER/ADMIN
+    # command that passes the (now DB-revalidated) access gate. Secret-bearing
+    # arguments (@newpassword etc.) are redacted before the row is written.
+    45: [
+        "CREATE TABLE IF NOT EXISTS admin_audit ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " account_id INTEGER,"
+        " username TEXT,"
+        " char_id INTEGER,"
+        " char_name TEXT,"
+        " access_level INTEGER NOT NULL,"
+        " command TEXT NOT NULL,"
+        " detail TEXT,"
+        " created_at TEXT DEFAULT (datetime('now')))",
+        "CREATE INDEX IF NOT EXISTS idx_admin_audit_account "
+        "ON admin_audit(account_id, created_at)",
+        "CREATE INDEX IF NOT EXISTS idx_admin_audit_created "
+        "ON admin_audit(created_at)",
+    ],
+
 }
 
 
@@ -1726,6 +1768,49 @@ class Database:
             "SELECT * FROM accounts WHERE id = ?", (account_id,)
         )
         return dict(rows[0]) if rows else None
+
+    async def get_account_privileges(self, account_id: int) -> tuple[bool, bool]:
+        """Return live ``(is_admin, is_builder)`` for an account.
+
+        Returns ``(False, False)`` if the account no longer exists. Used by
+        the parser to re-validate elevated access on each BUILDER/ADMIN
+        command dispatch rather than trusting the cached login snapshot, so a
+        revoked privilege takes effect immediately (T3.21 Blocker 3).
+        """
+        rows = await self._db.execute_fetchall(
+            "SELECT is_admin, is_builder FROM accounts WHERE id = ?",
+            (account_id,),
+        )
+        if not rows:
+            return (False, False)
+        row = rows[0]
+        return (bool(row["is_admin"]), bool(row["is_builder"]))
+
+    async def record_admin_action(
+        self,
+        *,
+        account_id: Optional[int],
+        username: Optional[str],
+        char_id: Optional[int],
+        char_name: Optional[str],
+        access_level: int,
+        command: str,
+        detail: Optional[str],
+    ) -> None:
+        """Append a row to the admin_audit trail (T3.21 Blocker 3).
+
+        Best-effort: callers wrap this in try/except so an audit-write failure
+        never blocks the privileged command. ``detail`` MUST be pre-redacted
+        by the caller — secret-bearing args (e.g. @newpassword) are not
+        sanitized here.
+        """
+        await self._db.execute(
+            "INSERT INTO admin_audit "
+            "(account_id, username, char_id, char_name, access_level, command, detail) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (account_id, username, char_id, char_name, access_level, command, detail),
+        )
+        await self._db.commit()
 
     async def get_characters(self, account_id: int) -> list:
         """Get all characters for an account."""

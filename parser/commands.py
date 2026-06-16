@@ -80,22 +80,48 @@ class BaseCommand:
         await ctx.session.send_line("This command is not yet implemented.")
 
     async def check_access(self, ctx: CommandContext) -> bool:
-        """Check if the session has permission to run this command."""
+        """Check if the session has permission to run this command.
+
+        Elevated tiers (BUILDER/ADMIN) are re-validated against the DB on
+        every dispatch instead of trusting the cached login snapshot, so a
+        revoked privilege loses access immediately rather than persisting
+        until disconnect (T3.21 Blocker 3).
+        """
         if self.access_level == AccessLevel.ANYONE:
             return True
         if self.access_level == AccessLevel.PLAYER:
             return ctx.session.is_in_game
         if self.access_level == AccessLevel.BUILDER:
-            return (
-                ctx.session.account
-                and ctx.session.account.get("is_builder", 0)
-            )
+            return await self._live_account_flag(ctx, "is_builder")
         if self.access_level == AccessLevel.ADMIN:
-            return (
-                ctx.session.account
-                and ctx.session.account.get("is_admin", 0)
-            )
+            return await self._live_account_flag(ctx, "is_admin")
         return False
+
+    async def _live_account_flag(self, ctx: CommandContext, flag: str) -> bool:
+        """Re-read an elevated-privilege flag (``is_admin``/``is_builder``)
+        from the DB rather than trusting the login snapshot (T3.21 Blocker 3).
+
+        Keeps the in-memory ``session.account`` snapshot in sync as a side
+        effect so other code reading it sees a revocation too. Falls back to
+        the snapshot only when no DB handle is present (defensive — dispatch
+        always provides one) or on a transient DB error (no worse than the
+        pre-fix behaviour).
+        """
+        acct = ctx.session.account
+        if not acct:
+            return False
+        db = ctx.db
+        if db is None:
+            return bool(acct.get(flag, 0))
+        try:
+            is_admin, is_builder = await db.get_account_privileges(acct["id"])
+        except Exception:
+            log.warning("check_access: live privilege re-read failed", exc_info=True)
+            return bool(acct.get(flag, 0))
+        live = is_admin if flag == "is_admin" else is_builder
+        # Keep the snapshot consistent with the live DB state.
+        acct[flag] = 1 if live else 0
+        return live
 
 
 class CommandRegistry:
@@ -348,6 +374,13 @@ class CommandParser:
                 await ctx.session.send_prompt()
                 return
 
+        # ── Audit trail for elevated commands (T3.21 Blocker 3) ──
+        # Record every BUILDER/ADMIN command that passes the access gate so
+        # there is a durable trail of who exercised privilege. Best-effort:
+        # an audit failure must never block the command.
+        if cmd.access_level >= AccessLevel.BUILDER:
+            await self._audit_privileged(cmd, ctx)
+
         try:
             await asyncio.wait_for(cmd.execute(ctx), timeout=COMMAND_TIMEOUT)
             _cmd_succeeded = True
@@ -414,3 +447,52 @@ class CommandParser:
             await ctx.session.send_hud_update(db=ctx.db, session_mgr=ctx.session_mgr)
 
         await ctx.session.send_prompt()
+
+    # Commands whose argument string carries a secret that must NEVER reach
+    # the audit log (e.g. a plaintext password reset). Matched by command key;
+    # a content-based password guard in _redact_audit_detail catches the rest
+    # (e.g. a password reset smuggled through @force).
+    _AUDIT_REDACT_COMMANDS = frozenset({
+        "@newpassword", "@passwd", "@password", "@newpass",
+    })
+
+    def _redact_audit_detail(self, cmd_key: str, args: str) -> str:
+        """Sanitize a command's argument string for the audit trail.
+
+        Redacts secret-bearing commands wholesale and any argument string that
+        looks like it carries a password, then caps length to keep the audit
+        table lean.
+        """
+        if not args:
+            return ""
+        lowered = args.lower()
+        if (cmd_key.lower() in self._AUDIT_REDACT_COMMANDS
+                or "passwd" in lowered or "password" in lowered):
+            return "[redacted]"
+        return args[:500]
+
+    async def _audit_privileged(self, cmd: BaseCommand, ctx: CommandContext):
+        """Best-effort write of a privileged (BUILDER/ADMIN) command
+        invocation to the admin_audit trail (T3.21 Blocker 3).
+
+        Swallows all errors — an audit-write failure must never block the
+        command the operator is trying to run.
+        """
+        db = ctx.db
+        if db is None or not hasattr(db, "record_admin_action"):
+            return
+        sess = ctx.session
+        acct = sess.account or {}
+        char = sess.character or {}
+        try:
+            await db.record_admin_action(
+                account_id=acct.get("id"),
+                username=acct.get("username"),
+                char_id=char.get("id"),
+                char_name=char.get("name"),
+                access_level=cmd.access_level,
+                command=cmd.key,
+                detail=self._redact_audit_detail(cmd.key, ctx.args),
+            )
+        except Exception:
+            log.warning("admin_audit write failed for %s", cmd.key, exc_info=True)
