@@ -6,6 +6,19 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Help corpus batch 4: +roll, +check, +opposed, +party, +scene, +scenes, +events, +event, +cantina — *drop help-corpus-batch4*
+Additive data-only drop — no engine changes. Adds 9 missing help entries for dice, party, scene, and event commands.
+- **`data/help/commands/+roll.md` (new):** `+roll` / `roll` — raw D6 dice pool or character skill roll with Wild Die, plus optional ±ND modifier. Documents dice notation, skill name lookup, Wild Die explode/complication, and room broadcast behavior.
+- **`data/help/commands/+check.md` (new):** `+check` / `check` — roll a skill against a named difficulty or numeric target. Documents all six difficulty tiers (very_easy 5 through heroic 30), success/failure margins, and Wild Die interaction.
+- **`data/help/commands/+opposed.md` (new):** `+opposed` / `opposed` / `vs` — compare your skill roll against an explicit opposing dice pool. Documents the three-line output (your roll vs. opponent), WIN/LOSE margin, and when to use opposed vs. difficulty checks.
+- **`data/help/commands/+party.md` (new):** `+party` / `party` / `p` — form and manage a party (invite/accept/decline/leave/kick/list/chat). Documents the 6-member cap, leader transfer on leave, and the `pc` party-chat shortcut.
+- **`data/help/commands/+scene.md` (new):** `+scene` / `scene` — start, stop, and manage scene logs. Documents all subcommands (start/stop/title/type/summary/share/unshare/poseorder/drop/mode), scene types, logging scope, and the sharing workflow.
+- **`data/help/commands/+scenes.md` (new):** `+scenes` / `scenes` — list all your recent scenes with status (ACTIVE/COMPLETED/SHARED), type, location, time, and duration.
+- **`data/help/commands/+events.md` (new):** `+events` / `+calendar` — list upcoming calendar events with title, time, location, signup count, and creator.
+- **`data/help/commands/+event.md` (new):** `+event` — view event details and manage events via subcommands (create/time/location/signup/unsignup/cancel). Any player can create; only the creator can edit or cancel.
+- **`data/help/commands/+cantina.md` (new):** `+cantina` / `+cantinaroll` — BUILDER-only GM scene-seeding tool: roll the d66 Cantina Encounter Table and broadcast the result to the room. Documents d66 code format (11–66), world-event interaction (CANTINA_BRAWL), and access_level: 2.
+- **Files:** 9 new `data/help/commands/*.md` files, `tests/test_help_dice_party_scene.py` (new, 115 tests green), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-16 — T3.21 HIGH: api.py auth-surface hardening (token-secret persistence + XFF spoof-resistance) — *drop t321-api-auth-hardening*
 Security drop closing the two HIGH-severity findings from the T3.21 audit that both live on the `server/api.py` auth/rate-limit surface. No schema change. Default behavior is unchanged for the current single-box deployment; both fixes are inert until configured / first token use.
 - **Login-token secret now persists (`server/api.py`).** The HMAC secret was `os.urandom(32)` at import, so every server restart silently invalidated every outstanding login token (mass re-auth). It is now loaded-or-created from a gitignored 0600 key file (`token_secret.key`, overridable via `SWMUSH_TOKEN_SECRET_FILE`), lazily on first token use so merely importing the module never creates a file. On any IO/permission failure it degrades safely to an ephemeral in-process secret (the prior behavior) rather than failing closed.
