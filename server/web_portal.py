@@ -1269,6 +1269,11 @@ class PortalAPI:
         except Exception:
             return self._json({"error": "Invalid JSON"}, 400)
 
+        # A non-dict JSON body (array/string/number) would crash the
+        # body.get(...) calls below with an unhandled AttributeError -> 500.
+        if not isinstance(body, dict):
+            return self._json({"error": "Invalid request body"}, 400)
+
         username = (body.get("username") or "").strip()
         password = (body.get("password") or "").strip()
 

@@ -28,6 +28,18 @@ MIN_NAME_LEN = 2
 MAX_NAME_LEN = 30
 NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9 '\-\.]+$")
 
+# Free-text "background" -> Character.description storage cap. Matches the
+# 2000-char description norm used across the engine (housing DESC_MAX_LEN,
+# narrative, chargen_notes) — the storage seam truncates to this so an
+# unauthenticated chargen POST can't write a quarter-megabyte description
+# (the body size cap is 256 KiB).
+MAX_BACKGROUND_LEN = 2000
+
+# Account password upper bound (lower bound stays 6). Purely a sanity/DoS
+# guard at account creation; login is unaffected. bcrypt only consumes the
+# first 72 bytes, so anything beyond this is already meaningless.
+MAX_PASSWORD_LEN = 128
+
 # Forbidden name patterns (case-insensitive)
 FORBIDDEN_NAMES = {
     "admin", "administrator", "system", "server", "god", "gm",
@@ -41,6 +53,10 @@ FORBIDDEN_NAMES = {
 def validate_character_name(name: str) -> list[str]:
     """Validate a character name. Returns list of errors."""
     errors = []
+    if not isinstance(name, str):
+        # A non-string name (JSON number/array/object) would crash the
+        # length/regex checks below — reject it as malformed, never raise.
+        return ["Name must be text."]
     if not name or len(name.strip()) < MIN_NAME_LEN:
         errors.append(f"Name must be at least {MIN_NAME_LEN} characters.")
     elif len(name) > MAX_NAME_LEN:
@@ -77,6 +93,12 @@ def validate_chargen_submission(
     }
     """
     errors = []
+
+    # 0. Body must be a JSON object. A non-dict submission (array, string,
+    # number, null) would crash every data.get(...) below with an
+    # AttributeError -> unhandled 500. Reject it as malformed instead.
+    if not isinstance(data, dict):
+        return ["Character submission must be a JSON object."]
 
     # 1. Species exists
     species_name = data.get("species", "")
@@ -185,14 +207,20 @@ def validate_chargen_submission(
 def validate_account_fields(username: str, password: str) -> list[str]:
     """Validate account creation fields. Returns list of errors."""
     errors = []
-    if not username or len(username) < 3:
+    if not isinstance(username, str):
+        errors.append("Username must be text.")
+    elif not username or len(username) < 3:
         errors.append("Username must be at least 3 characters.")
     elif len(username) > 20:
         errors.append("Username must be at most 20 characters.")
     elif not re.match(r"^[A-Za-z0-9_]+$", username):
         errors.append("Username may only contain letters, numbers, and underscores.")
 
-    if not password or len(password) < 6:
+    if not isinstance(password, str):
+        errors.append("Password must be text.")
+    elif not password or len(password) < 6:
         errors.append("Password must be at least 6 characters.")
+    elif len(password) > MAX_PASSWORD_LEN:
+        errors.append(f"Password must be at most {MAX_PASSWORD_LEN} characters.")
 
     return errors

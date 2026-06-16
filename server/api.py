@@ -22,6 +22,7 @@ from aiohttp import web
 from engine.chargen_validator import (
     validate_chargen_submission,
     validate_account_fields,
+    MAX_BACKGROUND_LEN,
 )
 from engine.character import Character, ATTRIBUTE_NAMES
 from engine.creation import TEMPLATES
@@ -434,6 +435,18 @@ class ChargenAPI:
                 status=400,
             )
 
+        # Body must be a JSON object — a non-dict (array/string/number)
+        # would crash the data.get(...) calls below with an unhandled
+        # AttributeError -> 500. Reject as malformed.
+        if not isinstance(data, dict):
+            return web.json_response(
+                {
+                    "success": False,
+                    "errors": {"validation": ["Request body must be a JSON object."]},
+                },
+                status=400,
+            )
+
         # Extract fields
         username = data.get("username", "")
         password = data.get("password", "")
@@ -503,8 +516,12 @@ class ChargenAPI:
                 char_obj.set_attribute("sense", DicePool(0, 0))
                 char_obj.set_attribute("alter", DicePool(0, 0))
 
-            # Background → description
-            char_obj.description = char_data.get("background", "")
+            # Background → description (coerce + cap to bound the DB write;
+            # an unauthenticated POST could otherwise store a 256 KiB blob).
+            background = char_data.get("background", "") or ""
+            if not isinstance(background, str):
+                background = str(background)
+            char_obj.description = background[:MAX_BACKGROUND_LEN]
 
             # Chargen rationale notes (optional, separate from
             # description; defaults to '' for older clients).
@@ -707,6 +724,17 @@ class ChargenAPI:
                 status=400,
             )
 
+        # Body must be a JSON object — a non-dict body would crash the
+        # data.get(...) calls below with an unhandled AttributeError -> 500.
+        if not isinstance(data, dict):
+            return web.json_response(
+                {
+                    "success": False,
+                    "errors": {"validation": ["Request body must be a JSON object."]},
+                },
+                status=400,
+            )
+
         # Verify token
         token = data.get("token", "")
         account_id = verify_login_token(token)
@@ -763,6 +791,17 @@ class ChargenAPI:
         #     legacy Landing Pad placement.
         is_first_character = (len(existing_chars) == 0)
         chain_id = data.get("chain_id")
+        # chain_id feeds corpus.by_id().get(chain_id); an unhashable type
+        # (list/dict) would raise TypeError there -> unhandled 500. Reject
+        # any non-string chain_id as malformed before it reaches the lookup.
+        if chain_id is not None and not isinstance(chain_id, str):
+            return web.json_response(
+                {
+                    "success": False,
+                    "errors": {"chain": ["chain_id must be a string."]},
+                },
+                status=400,
+            )
         skip_tutorial = bool(data.get("skip_tutorial", False))
 
         if skip_tutorial and is_first_character:
@@ -816,7 +855,8 @@ class ChargenAPI:
             # Re-check lock status with the chargen sentinel — this
             # mirrors creation_wizard._select_chain_by_id's defense
             # against direct-id input bypassing the menu filter.
-            _char_body = data.get("character") or {}
+            _cb = data.get("character")
+            _char_body = _cb if isinstance(_cb, dict) else {}
             chargen_attrs = {
                 "chargen_complete": True,
                 "faction_intent": "__chargen_any__",
@@ -879,7 +919,11 @@ class ChargenAPI:
                 char_obj.set_attribute("sense", DicePool(0, 0))
                 char_obj.set_attribute("alter", DicePool(0, 0))
 
-            char_obj.description = char_data.get("background", "")
+            # Background → description (coerce + cap; mirrors handle_submit).
+            background = char_data.get("background", "") or ""
+            if not isinstance(background, str):
+                background = str(background)
+            char_obj.description = background[:MAX_BACKGROUND_LEN]
 
             # Chargen rationale notes (optional, mirrors handle_submit).
             cgn = char_data.get("chargen_notes", "") or ""

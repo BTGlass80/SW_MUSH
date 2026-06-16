@@ -6,6 +6,15 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — T3.21 input-validation sweep: type/length bounds on chargen + portal POST bodies (Opus loop) — *drop t3-21-input-validation*
+T3.21 security tail (MEDIUM). The unauthenticated chargen/portal JSON endpoints assumed the parsed body and several fields were well-typed; a malformed body crashed handlers with an unhandled `AttributeError`/`TypeError` (→ opaque 500) or wrote an unbounded blob into a character's `description`. All fixes are behavior-preserving for well-formed input. No schema change.
+- **Non-dict top-level body → clean 400, not 500.** `server/api.py handle_submit` + `handle_create_character` and `server/web_portal.py handle_login` now reject a non-object JSON body (array/string/number/null) before any `data.get(...)` call. `validate_chargen_submission` also guards `isinstance(data, dict)` at the top, so `POST /api/chargen/validate` returns a graceful error list instead of raising.
+- **Non-string field types never raise.** `validate_character_name` (non-str → "Name must be text.") and `validate_account_fields` (non-str username/password) guarded — they were called *before* the handlers' try-blocks, so a numeric `name` or list `username` previously 500'd at `len()`/`.strip()`/`re.match()`.
+- **`background` coerced + capped to `MAX_BACKGROUND_LEN` (2000, the engine description norm).** Both char-build paths truncate `background` before it becomes `Character.description` — an unauthenticated `/api/chargen/submit` could otherwise store a ~256 KiB description (bounded only by the request-size cap). Mirrors the existing `chargen_notes[:2000]` seam.
+- **Account password upper bound** (`MAX_PASSWORD_LEN = 128`) added at account creation (login unaffected; bcrypt only consumes 72 bytes). Non-dict `character` sub-body in the chain path coerced to `{}` so the force-sensitive probe can't `.get` on a non-dict.
+- **Non-string `chain_id` rejected with 400** (code-review catch): an unhashable `chain_id` (list/dict) fed `corpus.by_id().get(chain_id)` → `TypeError` → 500. Guarded before the lookup.
+- **15 new tests** (`tests/test_t321_input_validation.py`): validators never raise on malformed input, password bounds, non-dict login body → 400, non-string chain_id → 400, source-level guard + background-cap assertions at every seam. Regression sweep (chargen/portal/api/auth-hardening, 182 tests) green.
+
 ### 2026-06-16 — Guide_05_Space_Systems + Guide_24_Encounters_Hazards rework (Sonnet loop) — *drop guide-05-24-rework*
 PRELAUNCH.help_guides_rework — Two guides updated. No engine changes.
 - **Guide_05 §11 Wildspace Ship Mods subsection added:** Documents all 5 Wildspace-specific ship mods shipped in T3.16 Drop 4 but missing from the guide. Mining Laser Mk1/Mk2 (+2D/+3D mining, -25%/-40% cooldown, Mk2 deep mining on crit, Hutt Cartel 25+ gate), Reinforced Salvage Arm Mk1/Mk2 (+2D/+3D salvage, +1/+2 components per run, Mk2 intact extraction, Republic 25+ gate), Onboard Refinery (enables `refine` mid-flight). Trainer: Venn Kator (Space Transports Repair). Craft diffs 16/20/16/20/18. One-slot-per-type limit; Mk2 replaces Mk1.
