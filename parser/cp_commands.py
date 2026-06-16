@@ -10,8 +10,8 @@ Commands:
                       can manually trigger at scene close).
 
 Design:
-  - 300 ticks = 1 CP
-  - Weekly hard cap: 300 ticks
+  - 200 ticks = 1 CP  (v23; was 300)
+  - Weekly hard cap: 400 ticks  (v23; was 300)
   - train costs current_dice CP (doubled if above attribute) per the existing
     advance_skill() implementation in engine/character.py
   - kudos: 3 receivable per week, 35 ticks each, 7-day rolling giver→target lockout
@@ -88,7 +88,7 @@ class CPStatusCommand(BaseCommand):
             f"  {ansi.BRIGHT_YELLOW}Kudos received:{ansi.RESET}  {kudos_recv}/{KUDOS_PER_WEEK} this week  "
             f"({kudos_left} more receivable)",
             f"",
-            f"  {ansi.DIM}300 ticks = 1 CP.  Use {ansi.BRIGHT_CYAN}train <skill>{ansi.RESET}{ansi.DIM} to spend CP.{ansi.RESET}",
+            f"  {ansi.DIM}{TICKS_PER_CP} ticks = 1 CP.  Use {ansi.BRIGHT_CYAN}train <skill>{ansi.RESET}{ansi.DIM} to spend CP.{ansi.RESET}",
             f"  {ansi.DIM}Use {ansi.BRIGHT_CYAN}kudos <player>{ansi.RESET}{ansi.DIM} to recognise good RP.{ansi.RESET}",
         ]
 

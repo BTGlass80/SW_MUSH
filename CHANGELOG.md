@@ -6,6 +6,15 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Guide_09_CP_Progression.md accuracy fix: stale tick/cap constants + same-room kudos (Sonnet loop) — *drop guide-09-cp-progression-fix*
+PRELAUNCH.help_guides_rework — Guide_09 corrected four stale values that were updated in v23 of the CP engine but never propagated to the guide. No engine behavior changes; the engine constants were already correct.
+- **TICKS_PER_CP 300→200** (guide §1 + §2): The guide's core-loop sentence ("accumulate 300 ticks → receive 1 CP") and §2 header were stale. Engine constant `TICKS_PER_CP = 200` since v23.
+- **WEEKLY_CAP_TICKS 300→400** (guide §2 + §7): Guide said "weekly hard cap of 300 ticks (max 1 CP/week)"; engine runs at 400 ticks cap → max 2 CP/week.
+- **PASSIVE_TICKS_PER_DAY 5→10** (guide §2 Source 1): Guide said "5 ticks/day"; engine `PASSIVE_TICKS_PER_DAY = 10` since v23. Passive total corrected from "~35 ticks/week = 1 CP every 8.5 weeks" to "~70 ticks/week = 1 CP every ~3 weeks".
+- **Same-room kudos requirement removed** (guide §5): Guide still stated "Both players must be in the same room" but the same-room requirement was removed in v23 (cp_commands.py comment: "v23: removed same-room requirement to reduce bottleneck at small population sizes"). Bullet replaced with accurate statement.
+- **cp_commands.py display string fixed**: The player-visible `+cpstatus` output hard-coded `"300 ticks = 1 CP"` string (line 91). Fixed to use the `TICKS_PER_CP` constant so future constant changes propagate automatically.
+- **12 new tests green** (`tests/test_guide_09_cp_progression_rework.py`).
+
 ### 2026-06-16 — T3.21 admin-command access-gap fix: @housing/@shop privilege-escalation + umbrella check_access bypass (Opus loop) — *drop t321-admin-access-gaps*
 T3.21 security tail (AccessLevel-enforcement audit). Built the full command registry exactly as `game_server` does (339 commands) and audited every `@`-namespace command's declared `access_level`, plus swept every PLAYER umbrella that forwards into another command's `execute()`. Found four gaps across two vuln classes and closed them; added a guard test pinning the convention so the class can't regress.
 - **`@housing` (AdminHousingCommand) privilege-escalation — FIXED.** Shipped with **no `access_level`** → inherited `BaseCommand`'s default `PLAYER`, so any logged-in player could run the admin housing verbs: `@housing list` / `@housing inspect <player>` (enumerate + view every player's housing record) and **`@housing evict <player>` (force-evict any player)**. Gated to `AccessLevel.ADMIN`, matching the other player-state admin verbs (`@city`/`@bond`). `parser/housing_commands.py`.

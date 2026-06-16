@@ -17,18 +17,18 @@ tags: ["cp", "progression", "advancement", "improve", "leveling", "milestones"]
 
 Character Points (CP) are your advancement currency. You earn CP over time through a tick-based economy, then spend CP to improve your skills. The system is designed for long-term engagement — advancing a skill from 3D to 5D takes roughly 7 months of active play.
 
-**The core loop:** Earn ticks through roleplay → accumulate 300 ticks → receive 1 CP → spend CP to train skills.
+**The core loop:** Earn ticks through roleplay → accumulate 200 ticks → receive 1 CP → spend CP to train skills.
 
 ---
 
 ## 2. Earning CP: The Tick Economy
 
-**300 ticks = 1 Character Point.** There's a weekly hard cap of 300 ticks (max 1 CP/week from tick accumulation alone). Four income sources feed the tick pool:
+**200 ticks = 1 Character Point.** There's a weekly hard cap of 400 ticks (max 2 CP/week from tick accumulation alone). Four income sources feed the tick pool:
 
 **Source 1 — Passive Participation (Floor)**
-- 5 ticks/day just for being logged in
+- 10 ticks/day just for being logged in
 - Guaranteed floor income — you earn just by showing up
-- ~35 ticks/week at daily login = roughly 1 CP every 8.5 weeks from passive alone
+- ~70 ticks/week at daily login = roughly 1 CP every ~3 weeks from passive alone
 
 **Source 2 — Scene Completion Bonus**
 - Earn ticks when a roleplay scene ends based on how many poses you contributed
@@ -113,10 +113,10 @@ Kudos are the social recognition mechanic — the primary way players reward eac
 - Can't kudos yourself
 - 7-day rolling lockout per giver→target pair (you can kudos Tundra once per week)
 - Target can receive max 3 kudos per rolling 7-day window
-- Both players must be in the same room
+- Players do not need to be in the same room to give kudos
 - Each kudos = 35 ticks toward the recipient's CP
 
-**Why kudos matter:** At 35 ticks per kudos and 3 receivable per week, kudos are worth 105 ticks/week — over a third of the 300-tick weekly cap. A player who consistently receives kudos advances significantly faster than one who doesn't. This creates a positive feedback loop: good roleplay → kudos from peers → faster advancement.
+**Why kudos matter:** At 35 ticks per kudos and 3 receivable per week, kudos are worth 105 ticks/week — over a quarter of the 400-tick weekly cap. A player who consistently receives kudos advances significantly faster than one who doesn't. This creates a positive feedback loop: good roleplay → kudos from peers → faster advancement.
 
 ---
 
@@ -136,7 +136,7 @@ These bonuses give active, exploring players a significant CP advantage over pas
 
 Several design features prevent CP farming:
 
-- **Weekly hard cap (300 ticks):** No matter how active you are, you can't earn more than 1 CP/week from ticks
+- **Weekly hard cap (400 ticks):** No matter how active you are, you can't earn more than 2 CP/week from ticks
 - **Kudos lockout (7-day per pair):** Can't repeatedly kudos the same person
 - **Scene cooldown (10 minutes):** Can't spam short scenes for ticks
 - **Kudos receive cap (3/week):** Can't collect unlimited kudos
