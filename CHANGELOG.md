@@ -6,6 +6,13 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Guide_06_Economy.md rework: commissary + creature spoils (Sonnet loop) — *drop guide-economy-rework*
+PRELAUNCH.help_guides_rework — Guide_06 extended to cover two shipped systems missing from the guide: the faction commissary and creature spoils. Frontmatter updated to remove stale "daily P2P transfer cap" reference (feature removed). No engine changes.
+- **Faction Commissary section (§9):** Documents the rank-gated faction gear requisition system. All 4 commissary factions (Republic, CIS, Hutt Cartel, Bounty Hunters' Guild) with tables of items, costs, and rank gates. Jedi Order no-commissary rationale. Commands: `+commissary`, `+commissary buy <key>`, `+commissary sell <key>`. Costs verified against `engine/commissary.py COMMISSARY_STOCK`.
+- **Creature Spoils section (§10):** Documents the auto-triggered field-dressing system on wilderness creature kills. Survival skill, DC 8 default (DC 10 for Spor Crawler venom). Quality capped at 65 (below T5 min 75 — cannot feed premium recipes). Margin bonuses (+1 unit per 6 margin, cap base+2). Table of 7 creatures with spoils (Magus/Stalker Lizard/Tymp/Wrix/Voroos/Hitcher Crab/Spor Crawler). Clarifies spoils are resources, not credits.
+- **Commands table updated (§11):** Added Commissary row to the quick-reference table.
+- **15 tests green** (`tests/test_guide_06_economy_rework.py`: frontmatter, commissary section, 4 factions, Jedi no-commissary, 7 item costs, commands, spoils section, Survival DC, quality cap, no-credits note, creature list, ordering, resource types).
+
 ### 2026-06-16 — Guide_07_Crafting.md full rework (Sonnet loop) — *drop guide-crafting-rework*
 PRELAUNCH.help_guides_rework — Guide 07 rewritten to reflect the shipped crafting system (was last updated April 2026, missing all Gundark drops A–G, armor crafting, T5 master lane, Wildspace ship mods, and the 7th resource type). No engine changes.
 - **7 resource types documented** (metal/chemical/organic/energy/composite/rare + `electronic`, added in Gundark Drop A; was missing from the guide).

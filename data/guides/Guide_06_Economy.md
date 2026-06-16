@@ -1,7 +1,7 @@
 ---
 category: economy
 order: 1
-summary: "Credits, missions, bounties, smuggling, and the daily P2P transfer cap. How money moves."
+summary: "Credits, missions, bounties, smuggling, commissary, and creature spoils. How money moves."
 tags: ["economy", "credits", "money", "missions", "bounty", "smuggling", "trade"]
 ---
 
@@ -200,7 +200,82 @@ When buying, a positive margin means a cheaper price. When selling, it means a h
 
 ---
 
-## 9. Economy Commands Quick Reference
+## 9. Faction Commissary
+
+Sworn members of most factions can requisition gear from their faction's commissary — rank-appropriate equipment at below-market prices. This is a **credit sink**: you're spending earned credits on gear issued by the organization rather than buying from the open market.
+
+**Which factions have a commissary:**
+
+| Faction | Access |
+|---------|--------|
+| Republic | Rank 0+ (uniform + sidearm free issue; rifle + armor at Rank 1) |
+| CIS | Rank 0+ (comlink at Rank 0; operative kit + pistol at Rank 1) |
+| Hutt Cartel | Rank 0+ (pistol at Rank 0; heavy pistol + vest at Rank 1) |
+| Bounty Hunters' Guild | Rank 0+ (binder cuffs + license at Rank 0; tracking fob at Rank 1) |
+| Jedi Order | **No commissary** — the Order issues, it does not sell. |
+
+**Republic commissary:**
+
+| Item | Slot | Cost | Min Rank |
+|------|------|------|----------|
+| Republic Service Uniform | Armor | 150 cr | 0 |
+| DC-17 Hand Blaster | Weapon | 500 cr | 0 |
+| DC-15A Blaster Rifle | Weapon | 1,200 cr | 1 |
+| Republic Combat Plate | Armor | 900 cr | 1 |
+
+**Bounty Hunters' Guild commissary:**
+
+| Item | Slot | Cost | Min Rank |
+|------|------|------|----------|
+| Binder Cuffs | Misc | 200 cr | 0 |
+| Guild License | Misc | 100 cr | 0 |
+| Tracking Fob (+1D Search for targets) | Misc | 350 cr | 1 |
+
+CIS and Hutt Cartel commissaries follow the same pattern — a basic loadout at Rank 0, heavier kit at Rank 1. Use `+commissary` to see the catalog for your faction and rank.
+
+**Commands:**
+```
++commissary                  — Browse your faction's catalog
++commissary buy <key>        — Purchase an item (debits credits)
++commissary sell <key>       — Sell a commissary item back (partial refund)
+```
+
+Items bought via commissary behave identically to the same items acquired elsewhere. The `key` is shown in the catalog listing.
+
+---
+
+## 10. Creature Spoils
+
+Killing certain wilderness creatures triggers an automatic **field-dressing check** when the creature falls. No command needed — if you land the killing blow, the engine rolls Survival (DC 8, or 10 for some tougher creatures) against your character's Survival skill. Success yields a resource stack in your inventory.
+
+**How it works:**
+
+1. You defeat a creature that has spoils in the wilderness.
+2. The engine rolls `Survival vs. DC` automatically.
+3. **Success:** You receive a resource stack. Margin bonuses apply (+1 stack unit per 6 points of margin over DC, capped at base + 2 units). Quality scales with margin (base ~40, +3 per margin point, capped at 65).
+4. **Failure:** No resource. The carcass yields nothing.
+
+**What creatures drop:**
+
+| Creature | Material | Type | DC |
+|----------|----------|------|----|
+| Magus | Magus hide | Organic | 8 |
+| Stalker Lizard | Stalker hide | Organic | 8 |
+| Tymp | Tymp hide | Organic | 8 |
+| Wrix | Wrix pelt | Organic | 8 |
+| Voroos | Voroos hide (2 stacks) | Organic | 8 |
+| Hitcher Crab | Water sacs | Chemical | 8 |
+| Spor Crawler | Spor venom | Chemical | 10 |
+
+Small nuisance creatures (worrt, shredder bat, spor swarms) yield nothing — the field-dressing system rewards big-predator kills by contrast.
+
+**Economy note:** Spoils are **not credits**. They're crafting resources (organic or chemical) that go into the same inventory pool as wilderness-harvested materials. They're not bought by NPC vendors directly; they either go into your crafting queue or sell P2P via a vendor droid buy-order. This means spoils add no inflation to the credit economy — they feed directly into crafting demand.
+
+Quality is intentionally capped below T5 minimum (75), so creature spoils can supply basic and intermediate recipes but never replace the dedicated wilderness harvest economy for high-end materials.
+
+---
+
+## 11. Economy Commands Quick Reference
 
 | System | Commands |
 |--------|---------|
@@ -208,6 +283,7 @@ When buying, a positive margin means a cheaper price. When selling, it means a h
 | **Bounties** | `bounties`, `bounty claim <#>`, `bounty info <#>`, `bounty collect`, `bounty abandon`, `bountytrack` |
 | **Smuggling** | `smugjobs`, `smugaccept <#>`, `smugjob`, `smugdeliver`, `smugdump` |
 | **Trading** | `market`, `buy <good> <qty>`, `sell <good>` |
+| **Commissary** | `+commissary`, `+commissary buy <key>`, `+commissary sell <key>` |
 | **General** | `credits` (check balance), `sell` (sell weapons to NPC), `repair` (repair weapons at NPC) |
 
 ---
