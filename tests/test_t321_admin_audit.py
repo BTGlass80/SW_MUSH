@@ -243,6 +243,31 @@ class TestCheckAccessRevalidation(unittest.TestCase):
         self.assertFalse(allowed)
         self.assertEqual(synced_flag, 0)
 
+    def test_both_snapshot_flags_synced_on_revalidation(self):
+        """An ADMIN check syncs the WHOLE snapshot (both flags), not just
+        the one it was asked about — one DB round-trip already fetched both."""
+        async def _go():
+            db = await _fresh_db()
+            try:
+                acct = await db.create_account("boss", "pw123456")
+                snapshot = dict((await db.fetchall(
+                    "SELECT * FROM accounts WHERE id = ?", (acct,)))[0])
+                # Revoke BOTH in the DB after the snapshot was taken.
+                await db.execute_commit(
+                    "UPDATE accounts SET is_admin = 0, is_builder = 0 "
+                    "WHERE id = ?", (acct,))
+                sess = _FakeSession(account=snapshot)
+                ctx = _make_ctx(db, sess)
+                # An is_admin check should sync is_builder too.
+                await _admin_cmd().check_access(ctx)
+                return snapshot["is_admin"], snapshot["is_builder"]
+            finally:
+                await db.close()
+
+        is_admin, is_builder = _run(_go())
+        self.assertEqual(is_admin, 0)
+        self.assertEqual(is_builder, 0)
+
     def test_builder_command_uses_builder_flag(self):
         async def _go():
             db = await _fresh_db()
@@ -327,6 +352,14 @@ class TestRedaction(unittest.TestCase):
         self.assertEqual(
             self.parser._redact_audit_detail(
                 "@force", "Mace = @newpassword Yoda = leak"),
+            "[redacted]")
+
+    def test_redact_command_token_anywhere_is_redacted(self):
+        # A redact-set alias smuggled through @force that lacks the literal
+        # 'password'/'passwd' substring is still caught by the token check.
+        self.assertEqual(
+            self.parser._redact_audit_detail(
+                "@force", "Mace = @newpass Yoda = leakvalue"),
             "[redacted]")
 
     def test_ordinary_args_preserved(self):

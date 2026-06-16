@@ -118,10 +118,13 @@ class BaseCommand:
         except Exception:
             log.warning("check_access: live privilege re-read failed", exc_info=True)
             return bool(acct.get(flag, 0))
-        live = is_admin if flag == "is_admin" else is_builder
-        # Keep the snapshot consistent with the live DB state.
-        acct[flag] = 1 if live else 0
-        return live
+        # Keep the snapshot consistent with the live DB state. Sync BOTH
+        # flags — one DB round-trip already fetched both, so an is_admin
+        # check shouldn't leave a stale is_builder behind for any code
+        # reading session.account directly.
+        acct["is_admin"] = 1 if is_admin else 0
+        acct["is_builder"] = 1 if is_builder else 0
+        return is_admin if flag == "is_admin" else is_builder
 
 
 class CommandRegistry:
@@ -466,8 +469,15 @@ class CommandParser:
         if not args:
             return ""
         lowered = args.lower()
+        # Redact if: (a) the command itself is secret-bearing, (b) the args
+        # contain a password keyword (catches @newpassword/@passwd smuggled
+        # through @force), or (c) any whitespace token is a known redact
+        # command (catches a secret-bearing alias smuggled through @force
+        # even if it lacks the 'password' substring).
         if (cmd_key.lower() in self._AUDIT_REDACT_COMMANDS
-                or "passwd" in lowered or "password" in lowered):
+                or "passwd" in lowered or "password" in lowered
+                or any(tok in self._AUDIT_REDACT_COMMANDS
+                       for tok in lowered.split())):
             return "[redacted]"
         return args[:500]
 
