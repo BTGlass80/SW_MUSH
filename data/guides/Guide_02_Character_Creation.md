@@ -112,17 +112,21 @@ With only 7D, you need to prioritize. The WEG R&E recommends focusing on 4–6 s
 
 ## 5. Templates
 
-Don't want to build from scratch? Seven pre-built templates set up reasonable attribute and skill distributions for common character archetypes. You can apply a template and then customize it — change species, adjust attributes, add or remove skills.
+Don't want to build from scratch? Nine pre-built templates set up reasonable attribute and skill distributions for common character archetypes. You can apply a template and then customize it — change species, adjust attributes, add or remove skills.
 
 | Template | DEX | KNO | MEC | PER | STR | TEC | Key Skills |
 |----------|-----|-----|-----|-----|-----|-----|------------|
-| **Smuggler** | 3D+1 | 2D+1 | 4D | 3D+1 | 2D+2 | 2D+1 | Blaster +1D+1, Dodge +1D, Space Transports +1D+2, Gunnery +1D, Streetwise +1D, Bargain +1D |
+| **Smuggler** | 3D+1 | 2D+1 | 4D | 3D+1 | 2D+2 | 2D+1 | Blaster +1D+1, Dodge +1D, Space Transports +1D+2, Starship Gunnery +1D, Streetwise +1D, Bargain +1D |
 | **Bounty Hunter** | 3D+2 | 2D+1 | 2D+2 | 3D+1 | 3D+1 | 2D+2 | Blaster +2D, Dodge +1D, Brawling +1D, Search +1D, Sneak +1D, Security +1D |
-| **Separatist Pilot** | 3D | 2D+2 | 4D+1 | 2D+2 | 2D+2 | 2D+2 | Starfighter Piloting +2D, Gunnery +1D, Astrogation +1D, Sensors +1D, Starfighter Repair +1D, Blaster +1D |
-| **Scoundrel** | 3D | 3D | 2D+2 | 4D | 2D+2 | 2D+2 | Con +1D+2, Persuasion +1D, Gambling +1D, Sneak +1D+1, Blaster +1D, Dodge +1D |
-| **Technician** | 2D+1 | 3D | 2D+2 | 2D+2 | 2D+2 | 4D+2 | Comp Prog/Repair +1D+2, Space Transport Repair +1D+1, Droid Repair +1D, First Aid +1D, Security +1D, Blaster Repair +1D |
-| **Jedi Apprentice** | 3D+1 | 3D | 2D+1 | 3D+2 | 3D | 2D+2 | Lightsaber +1D+2, Dodge +1D, Scholar +1D, Willpower +1D, Sneak +1D, Climbing/Jumping +1D+1 |
-| **Soldier** | 3D+2 | 2D+2 | 2D+2 | 2D+2 | 3D+2 | 2D+2 | Blaster +1D+2, Dodge +1D, Brawling +1D, Grenade +1D, Tactics +1D, Stamina +1D+1 |
+| **Scoundrel** | 3D | 3D | 2D+2 | 4D | 2D+2 | 2D+2 | Con +1D+2, Sneak +1D+1, Blaster +1D, Dodge +1D, Persuasion +1D, Gambling +1D |
+| **Technician** | 2D+1 | 3D+2 | 2D+2 | 2D+2 | 2D+2 | 4D | Comp Prog/Repair +1D+2, Space Transport Repair +1D+1, Droid Repair +1D, First Aid +1D, Security +1D, Blaster Repair +1D |
+| **Clone Trooper** | 3D+2 | 2D | 3D | 2D+2 | 3D+2 | 2D+2 | Blaster +2D, Dodge +1D+1, Brawling +1D, Grenade +1D, Tactics +1D+1, Stamina +1D+2 |
+| **Republic Officer** | 3D | 3D+1 | 2D+2 | 3D+1 | 2D+2 | 2D+2 | Blaster +1D+1, Dodge +1D, Command +1D+2, Tactics +1D, Bureaucracy +1D, Persuasion +1D |
+| **Republic Pilot** | 3D | 2D+2 | 4D | 3D | 2D+2 | 2D+2 | Starfighter Piloting +2D, Blaster +1D, Starship Gunnery +1D, Astrogation +1D, Sensors +1D, Starfighter Repair +1D |
+| **Separatist Pilot** | 3D | 2D+2 | 4D | 3D | 2D+2 | 2D+2 | Starfighter Piloting +2D, Blaster +1D, Starship Gunnery +1D, Astrogation +1D, Sensors +1D, Starfighter Repair +1D |
+| **CIS Field Agent** | 3D | 2D+2 | 2D+1 | 3D+2 | 2D+2 | 3D+1 | Sneak +1D+2, Security +1D+1, Blaster +1D, Dodge +1D, Search +1D, Forgery +1D |
+
+**Notes:** The Jedi path is not available as a chargen template — Force sensitivity is unlocked through in-play content (see §6). The Clone Trooper, Republic Pilot, and Separatist Pilot templates are Human-only by archetype (clones are exclusively human; the pilot templates represent faction-specific training rather than species traits).
 
 **Using templates in-game:**
 ```
@@ -136,35 +140,30 @@ Applying a template sets the species to Human, distributes all 18D of attributes
 
 ## 6. Force Sensitivity
 
-During creation, you choose whether your character is **Force-sensitive**. This is a significant decision with lasting consequences:
+Force sensitivity is **not chosen at character creation.** All characters begin play as non-Force-sensitive with **1 Force Point.**
 
-**Force-sensitive (Yes):**
-- Start with **2 Force Points** instead of 1
-- Can learn Force skills (Control, Sense, Alter) and use Force powers
-- Must be played as morally upright — the dark side temptation is real, and evil actions earn Dark Side Points that can corrupt your character
-- Cannot be as mercenary or morally grey as a non-sensitive character
+The path to Force sensitivity is unlocked entirely through in-play content:
 
-**Not Force-sensitive (No):**
-- Start with **1 Force Point**
-- Cannot learn Force skills or use Force powers
-- Free to play a morally ambiguous character (smuggler, bounty hunter, etc.)
+- Travel to the **Jedi Village** on Coruscant and complete the **Village trials** (Path A).
+- Successfully completing the trials flips your Force-sensitive flag, grants access to the Force skills (Control, Sense, Alter), and raises your Force Points to 2.
+- Characters who do not pursue the Village path remain non-sensitive indefinitely — there is no chargen toggle.
 
-Per the WEG R&E rules: *"Force-sensitive characters can't be as mercenary as Han Solo is at the beginning of A New Hope. They must be moral, honest and honorable, like Luke Skywalker and Obi-Wan Kenobi, or the dark side will dominate them."*
+Force skills (Control, Sense, Alter) are trained and advanced in-play via Character Point spending once Force sensitivity is unlocked. They cannot be allocated at creation.
 
-Force skills (Control, Sense, Alter) cannot be added during initial creation unless they're already on your template. The Jedi Apprentice template is the primary path to starting with Force skills.
+The WEG R&E rule still applies once unlocked: *"Force-sensitive characters can't be as mercenary as Han Solo is at the beginning of A New Hope. They must be moral, honest and honorable, like Luke Skywalker and Obi-Wan Kenobi, or the dark side will dominate them."* Dark Side Points accumulate from evil or dishonourable actions and can corrupt a Force-sensitive character over time.
 
 ---
 
-## 7. Starting Equipment and Credits
+## 7. Starting Credits
 
-All characters start with **1,000 credits** and a basic equipment loadout. The WEG R&E rules say to pick "reasonable" starting equipment — the game provides defaults based on common sense for the setting:
+All characters start with **1,000 credits.** There is no default equipment at character creation — your loadout slots begin empty.
 
-- A blaster pistol (500 credits) or other sidearm
-- A comlink (100 credits)
-- Basic clothing
-- Remaining credits for supplies
+Gear comes from two sources:
 
-Specific starting equipment varies by how the character enters play. Credits can be spent at vendors, weapon shops, and other merchants in the game world once you're playing.
+- **Tutorial chains:** Each starter storyline grants archetype-appropriate equipment during or upon completion (blasters, tools, pilot gear, medpacs, etc.). First characters must complete a tutorial chain, so you will have gear by the time you reach the main game world.
+- **Vendors:** Credits can be spent at weapon shops, equipment vendors, and specialty merchants throughout the galaxy from the moment you enter play.
+
+Starting with 1,000 cr is enough to buy a decent blaster pistol (~500 cr), a comlink (~100 cr), and have spending money left over — but you choose what you want rather than receiving a fixed default kit.
 
 ---
 
@@ -176,8 +175,8 @@ When you create a character, the wizard walks you through these steps:
 2. **Template Selection** (template path) or **Species Selection** (scratch path) — Pick your template or species with full descriptions
 3. **Attributes** (scratch path only) — Distribute 18D across six attributes with real-time remaining count
 4. **Skills** — Distribute 7D across skills with descriptions from the WEG rulebook
-5. **Force Sensitivity** — Choose Yes or No with an explanation of consequences
-6. **Background** — Write free-text character background/backstory
+5. **Background** — Write free-text character background/backstory
+6. **Tutorial Chain** (first character only) — Select your starting storyline; first characters must pick one before advancing
 7. **Review & Confirm** — See the complete character sheet and finalize with `done`
 
 At any step, you can:
@@ -252,6 +251,12 @@ During creation, the sheet also shows species attribute ranges in dim text next 
 ---
 
 ## 11. Persistence: How Characters Are Saved
+
+Characters are saved to the game's SQLite database. Every step of the wizard — species choice, attribute allocations, skill spending, background text, tutorial chain selection — is committed to the database before the wizard exits. If your connection drops mid-creation the wizard can be resumed; your progress is not lost.
+
+Once you type `done` and the character is finalized, it is permanent. The character exists on your account alongside any alt characters you create later.
+
+You switch between characters with `+char` and can log in on any of your account's characters at any time. Character data — attributes, skills, credits, equipment, CP/FP, Dark Side Points, faction standing, Force state, quest progress — persists indefinitely across sessions. There is no character decay or expiry.
 
 ---
 
