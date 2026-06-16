@@ -6,6 +6,16 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Guide_19_Medical_Death.md rework: gear insurance section + equipped-gear accuracy fix (Sonnet loop) — *drop guide-19-medical-death-rework*
+PRELAUNCH.help_guides_rework — Guide_19 updated with the gear insurance (+insure) system added in Drop 3 B4 and a factual accuracy fix for equipped-gear behavior on death.
+- **Gear insurance section added (§4.5).** `+insure` / `+insure buy` / `+insure cancel` fully documented: 500 cr one-shot policy, protects loose inventory on next lawless/contested death (corpse still created but empty), consumed on use. No payout (restoration only — avoids suicide-faucet). Premium matches `engine/gear_insurance.GEAR_INSURANCE_PREMIUM`.
+- **Equipped-gear accuracy fix.** Previous guide claimed "Your equipped weapon stays equipped on the corpse." — incorrect. `engine/death.py` (Drop 2 / F12 / G2) intentionally leaves the `equipment` column untouched on death; equipped gear stays on the CHARACTER through death regardless of zone or insurance. Only loose inventory snapshots to the corpse. Corrected in §4 death sequence, added as pitfall #6.
+- **§5 Recovery Strategy** updated with gear-insurance guidance (when the 500 cr is worth it).
+- **§8 Commands Quick Reference** updated with +insure / +insure buy / +insure cancel rows.
+- **§9 Numbers At A Glance** updated with insurance premium, zone scope, and what it protects.
+- **Pitfall #7 added** (forgetting to rebuy after policy fires).
+- **14 new tests** (`tests/test_guide_19_medical_death_rework.py`); hygiene + smoke green.
+
 ### 2026-06-16 — T3.21 soft-endpoint per-IP throttle: unauthenticated check-name + validate (Opus loop) — *drop t321-soft-endpoint-throttle*
 T3.21 security tail. The expensive account-creating chargen writes (`/api/chargen/submit`, `/api/chargen/create-character`) were already behind the strict per-IP limiter, but the two unauthenticated chargen *read* endpoints that still do real work on every call were unthrottled. Closed that gap with a separate, more lenient per-IP sliding-window limiter applied before any DB/CPU work.
 - **`GET /api/chargen/check-name/{name}` throttled.** World-reachable with no token, it does one DB round-trip per call (and is a name-enumeration oracle). Left unbounded, a single client could flood it to enumerate character names or amplify load on the shared aiosqlite connection (which serializes every query in the process). Now `_check_soft_rate_limit(_get_client_ip(request))` runs *before* the DB query → the throttled call performs no DB work. The 429 body deliberately omits a matching `name`, so the SPA (which only updates its availability hint when `d.name === the typed name`) silently ignores it. The SPA's name-check is debounced 500ms after typing stops, so a legitimate user never reaches the limit.

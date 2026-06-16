@@ -1,8 +1,8 @@
 ---
 category: combat
 order: 2
-summary: "Wound levels, bacta, corpse decay, respawn, and the −1D post-death debuff."
-tags: ["medical", "death", "wounds", "bacta", "respawn", "loot", "healing"]
+summary: "Wound levels, bacta, corpse decay, respawn, the −1D post-death debuff, and gear insurance (+insure)."
+tags: ["medical", "death", "wounds", "bacta", "respawn", "loot", "healing", "gear insurance", "insure"]
 ---
 
 # Medical & Death
@@ -192,11 +192,12 @@ When you take enough damage to die, the **death loop** activates.
 
 1. **WoundLevel transitions to DEAD.**
 2. **The on_pc_death hook fires.** This determines what happens next based on the security tier of the death location.
-3. **Your inventory snapshots onto a corpse.** All carried items move from your character to the corpse row in the database. Your equipped weapon stays equipped on the corpse. Your credits **stay with you** (they're not transferred to the corpse).
-4. **A corpse is created at the death location** — unless you died in a secured zone, in which case no corpse and you instant-respawn with all gear.
-5. **Your `wound_state` is set to `wounded`** for 1 hour real-time. This is the **post-death debuff**: −1D to all rolls, separate from the in-combat wound ladder.
-6. **You're moved to a safe respawn location** — typically the nearest cantina or medical center. The engine picks the destination based on where you died.
-7. **A "blackout" message displays.** Then the respawn message. You're alive again, in a new location, wounded, and your gear is back at the death site.
+3. **Your equipped gear stays on your character.** Anything in the weapon/armor slots never drops — it remains on you through death regardless of zone or insurance.
+4. **Your loose inventory snapshots onto a corpse.** Unequipped carried items move from your character to a corpse row at the death location. Your credits **stay with you** (they're not transferred to the corpse). If you hold active gear insurance, your loose loadout stays on you instead (see §4.5 Gear Insurance).
+5. **A corpse is created at the death location** — unless you died in a secured zone, in which case no corpse and you instant-respawn with all gear. An insured death still creates a corpse, but it holds no gear.
+6. **Your `wound_state` is set to `wounded`** for 1 hour real-time. This is the **post-death debuff**: −1D to all rolls, separate from the in-combat wound ladder.
+7. **You're moved to a safe respawn location** — typically the nearest cantina or medical center. The engine picks the destination based on where you died.
+8. **A "blackout" message displays.** Then the respawn message. You're alive again, in a new location, wounded, and your loose gear is back at the death site (unless you were insured).
 
 ### The corpse persistence
 
@@ -216,7 +217,7 @@ loot <item> from corpse       — Take a specific item
 loot all from corpse          — Take everything
 ```
 
-The looting check has some friction. Bound items (Guide #19 — character-bound items that can't be looted) return to the owner automatically. Unbound items can be taken by anyone — fighters who killed you, third-party looters, your own friends who arrive to retrieve your gear.
+The looting check has some friction. Character-bound items that can't be looted return to the owner automatically. Unbound items can be taken by anyone — fighters who killed you, third-party looters, your own friends who arrive to retrieve your gear.
 
 **After the decay window**, the corpse and any unlooted items are gone permanently. Items bound to you may return automatically (the system tracks owner-bound items and tries to deliver them on decay).
 
@@ -251,6 +252,36 @@ If you can reach the corpse before decay (2 hours contested, 4 hours lawless), a
 
 **If you can't reach the corpse in time**, your gear is gone. This is the genuine cost of death in lawless zones — fail to recover, and you've lost everything you were carrying.
 
+### 4.5 Gear Insurance (`+insure`)
+
+Gear insurance is a **one-shot policy** that protects your loose loadout through one death in a lawless or contested zone.
+
+```
++insure            — Show your coverage status and premium
++insure buy        — Buy a policy (500 cr, debited immediately)
++insure cancel     — Drop coverage (no refund)
+```
+
+**What it protects:** When you die with an active policy, your loose inventory stays on your character instead of dropping to the corpse. The corpse is still created (body persists, wound-state applies), but it holds none of your gear. When you respawn, your full loadout is with you.
+
+**What it doesn't protect:** Nothing needs protecting — equipped gear (weapon, armor slots) always stays on you through death regardless. Insurance only matters for the loose items you're carrying.
+
+**One-shot:** The policy is consumed on the first lawless/contested death. You wake up with your gear, but your coverage is gone. Buy another if you head back into danger.
+
+**Premium:** 500 credits. This is a credit sink — there is no payout, only loadout restoration. The cost is calibrated to be meaningful enough to be a real decision, but not so high that it prices out active players. A 500-cr policy protecting 3,000-5,000 cr in crafting materials is usually worth it; protecting a 200-cr blaster is not.
+
+**Secured zones:** Insurance doesn't fire in secured zones — there's no corpse to drop gear to anyway. You instant-respawn with everything.
+
+**Not insurance against credits:** You never lose credits on death, insured or not. Credits stay with your character. Insurance only affects loose item drops.
+
+```
+Example: you're heading into lawless wilderness carrying 4,000 cr in
+rare ore from a mining run. Before leaving the safety of town:
+  +insure buy         → "Coverage: ACTIVE" (500 cr debited)
+You die to a creature ambush. Respawn at the cantina — loose ore intact.
++insure now shows Coverage: none. Buy again before the next run.
+```
+
 ---
 
 ## 5. Recovery Strategy
@@ -263,7 +294,9 @@ How active characters manage the medical layer:
 
 **Buy from vendor droids.** Many shopfronts (Guide #17) stock medical consumables. Build a habit of checking medical-focused shops as part of your loadout routine.
 
-**Don't carry valuables into lawless when you don't have to.** This is the biggest preventable medical-loss scenario: dying in lawless wilderness with expensive gear on. The corpse decay is 4 hours, and other players may loot before you can return. Carry your minimum loadout into risky terrain.
+**Don't carry valuables into lawless when you don't have to.** This is the biggest preventable medical-loss scenario: dying in lawless wilderness with expensive gear on. The corpse decay is 4 hours, and other players may loot before you can return. Carry your minimum loadout into risky terrain — or buy gear insurance (`+insure buy`, 500 cr) before you go.
+
+**Use gear insurance for high-value runs.** If you're carrying 3,000+ cr in crafting materials or rare resources into lawless territory, a 500-cr insurance policy is almost always worth it. One death recovers the cost many times over. The policy is one-shot — buy before each dangerous run.
 
 **Use the wound-state cost realistically.** If you're going to die in a contested zone with 50 cr of cargo, don't bacta-tank for 500 cr to clear the debuff. The math doesn't work. Wait the hour, play through the −1D.
 
@@ -339,6 +372,9 @@ Five concrete pictures.
 | `force control_pain` | Force-sensitive: mask wound penalties for the scene |
 | `+sheet` | View character sheet (includes wound level and wound_state) |
 | `+medical` | Medical dashboard / status |
+| `+insure` | Show gear insurance coverage status |
+| `+insure buy` | Buy a one-shot gear insurance policy (500 cr) |
+| `+insure cancel` | Drop coverage (no refund) |
 
 ---
 
@@ -363,6 +399,9 @@ Five concrete pictures.
 | Corpse decay — Secured | (no corpse, instant respawn) |
 | Corpse decay — Contested | 2 hours |
 | Corpse decay — Lawless | 4 hours |
+| Gear insurance premium | 500 cr (one-shot) |
+| Insurance triggers | lawless or contested zone deaths |
+| Insurance protects | loose inventory (not credits; equipped gear always kept) |
 | Accelerate Healing cooldown | once per day of rest |
 | Adrenaline shot failure consequence | +1 wound level on target |
 | Hazard check interval | 5 minutes (300 seconds) |
@@ -380,6 +419,10 @@ Five concrete pictures.
 **4. Carrying expensive gear into lawless without backup.** Death in lawless = 4-hour decay window. If you can't return within that window (you live elsewhere, you need to log off, you're traveling far), other players may loot the corpse. Carry only what you can afford to lose.
 
 **5. Forgetting that bacta packs are crafted.** They're not infinite at vendor droids; production depends on crafters. If the market is empty, you can't buy them. Stock up when supply is available.
+
+**6. Thinking your equipped weapon drops on death.** It doesn't — equipped gear (weapon and armor slots) always stays on your character through death. Only loose carried inventory drops to the corpse. You always respawn with your weapon and armor equipped.
+
+**7. Forgetting to rebuy insurance.** Gear insurance is one-shot. After it fires (you died and your gear was saved), your coverage shows "none." If you're heading back into lawless territory carrying valuables, buy again before you go.
 
 ---
 
