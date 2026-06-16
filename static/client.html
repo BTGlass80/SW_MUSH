@@ -12064,6 +12064,56 @@ function shopModalBackdropClick(evt) {
 }
 window.closeShopModal = closeShopModal;             // inline-onclick export
 window.shopModalBackdropClick = shopModalBackdropClick;
+function handleHolonetState(data) {
+  // Wire-up for +holonet command (GAME-1 / audit §B).
+  // Removes any existing modal, then opens M3Holonet browser modal with
+  // the fixture news stories merged with live world_events from the server.
+  var existing = document.querySelector('[data-holonet-browser="modal"]');
+  if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+  if (!window.M3Holonet) return;
+
+  // Tatooine palette — warm amber tones for a galaxy-wide news surface.
+  var p = (window.M3Palettes && window.M3Palettes.getPalette('tatooine'))
+    || { sky:'#1d1308', skyDeep:'#0c0703', ink:'#ffd07a', inkBright:'#ffe9b8',
+         inkDim:'#a87a32', inkFaint:'#6a4a1c', cyan:'#8de7ff', red:'#ff5a4a',
+         green:'#7ce068', amber:'#ffa640', gold:'#ffd56e' };
+
+  // Live world events from server; map to the fixture worldEvents format.
+  var live = (data.world_events || []).map(function(e) {
+    return {
+      kind: 'event',
+      name: e.name || e.type || 'Event',
+      loc: (e.zones || []).map(function(z) {
+        return z.replace(/_/g, ' ');
+      }).join(', ') || '—',
+      status: e.remaining_minutes ? (e.remaining_minutes + ' min') : 'ACTIVE',
+      color: 'amber',
+    };
+  });
+
+  var fixtureData = Object.assign({}, M3Holonet.HOLONET_DATA_FIXTURE);
+  if (live.length) {
+    fixtureData = Object.assign({}, fixtureData, { worldEvents: live });
+  }
+
+  function closeHolonet() {
+    var el = document.querySelector('[data-holonet-browser="modal"]');
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  }
+
+  var modal = M3Holonet.buildHolonetBrowserModal(p, {
+    data: fixtureData,
+    onClose: closeHolonet,
+  });
+
+  // Modal uses position:absolute inset:0 z-index:200 — attach to .app
+  // so it covers the cockpit/ground canvas but respects the top-bar frame.
+  var container = document.querySelector('.app') || document.body;
+  container.style.position = container.style.position || 'relative';
+  container.appendChild(modal);
+}
+
 function handleBoardState(data) {
   // Webify UI-5: render the board_state push (bounty contracts + the viewer's
   // claimed_id) in a modal. ACCEPT stages `bountyclaim <id>`, TRACK stages
@@ -12939,6 +12989,7 @@ function connect() {
           if (loginState !== 'done') return;
           classifyAndAppend(msg.data || '');
           return;
+        case 'holonet_state':          handleHolonetState(msg); return;
         case 'news_event':
           if (msg.text) appendEvent({ t: 'sys', text: msg.text });
           if (msg.data) classifyAndAppend(msg.data);

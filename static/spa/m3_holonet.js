@@ -38,15 +38,10 @@
        featured story explicitly tags '20 BBY' as the active year.
 
    Q1 canonical-character policy note (architecture v50 §6.2):
-     The fixture preserves the JSX source's Mace Windu reference (in
-     the featured deck "General Mace Windu en route" and a faction-
-     movements label "Static · M. Windu deployed"). Per v50 Q1 the
-     production swap-in must replace these strings — fictional original
-     NPCs ("General Var Velo en route"), or absence-framing ("Republic
-     command staff en route"). Flagged in the test suite + handoff for
-     pre-production cleanup. Drop 4.10 preserves source-fidelity at
-     the scaffold level; this is consistent with Drops 4.6 (sheet has
-     Jabba in connections) and 4.7 (holocron stat-block leaders).
+     RESOLVED (Drop t316-wildspace-webpanel / +holonet wire-up):
+     Mace Windu references replaced with fictional NPCs —
+     "Republic Jedi command en route" + "Jedi Vanguard deployed".
+     Era-clean; Q1 compliant.
 
    Dependencies (loaded earlier in the SPA load order):
      · window.M3AssetsIcons.FACTION_ICONS (m3_assets_icons.js Drop 4.1c)
@@ -189,9 +184,9 @@ var HOLONET_DATA_FIXTURE = {
     headline: 'REPUBLIC CRUISERS CONVERGE ON RYLOTH AS CIS GROUND ASSAULT STALLS',
     deck: 'Three Venator-class Star Destroyers arrive in Ryloth orbit with the 91st ' +
           'Reconnaissance Corps. CIS forces dug in at Lessu reportedly running low on ' +
-          'droid stockpiles. General Mace Windu en route.',
+          'droid stockpiles. Republic Jedi command en route.',
     location: 'RYLOTH · 12 ARKANIS HOURS AGO',
-    related: ['Ryloth', '91st Recon', 'Mace Windu', 'CIS Lessu Garrison'],
+    related: ['Ryloth', '91st Recon', 'Jedi Order', 'CIS Lessu Garrison'],
     image: 'gunship',
   },
   feed: [
@@ -248,7 +243,7 @@ var HOLONET_DATA_FIXTURE = {
     { faction: 'cis',       delta: -8,  label: 'Withdrawing from Lessu' },
     { faction: 'hutt',      delta: 6,   label: 'Tariff increase · spice' },
     { faction: 'bounty',    delta: 3,   label: 'Tatooine contracts surge' },
-    { faction: 'jedi',      delta: 0,   label: 'Static · M. Windu deployed' },
+    { faction: 'jedi',      delta: 0,   label: 'Static · Jedi Vanguard deployed' },
     { faction: 'black_sun', delta: 2,   label: 'Quiet expansion · Nar Shaddaa' },
   ],
 };

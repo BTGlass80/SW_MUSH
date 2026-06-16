@@ -148,8 +148,40 @@ class NewsCommand(BaseCommand):
         await ctx.session.send_line("")
 
 
+class HolonetCommand(BaseCommand):
+    """Open the HoloNet news browser (web client only).
+
+    Sends a ``holonet_state`` JSON event that the SPA handles by opening the
+    M3Holonet browser modal.  Live world-event data from ``world_events`` fills
+    the right-rail; the fixture news stories ship with the client module.
+    Telnet gets a brief text notice.
+    """
+    key = "+holonet"
+    aliases = ["holonet"]
+    access_level = AccessLevel.ANYONE
+    help_text = "Open the HoloNet galactic news browser (web client)."
+    usage = "+holonet"
+
+    async def execute(self, ctx: CommandContext) -> None:
+        from server.session import Protocol  # avoid circular at module level
+        if ctx.session.protocol != Protocol.WEBSOCKET:
+            await ctx.session.send_line(
+                ansi.header("=== HoloNet requires the web client ===")
+            )
+            return
+
+        try:
+            from engine.world_events import get_world_event_manager
+            live_events = get_world_event_manager().get_status()
+        except Exception:
+            live_events = []
+
+        await ctx.session.send_json("holonet_state", {"world_events": live_events})
+
+
 # ── Registration ───────────────────────────────────────────────────────────────
 
 def register_news_commands(registry) -> None:
-    """Register the news command."""
+    """Register the news and holonet commands."""
     registry.register(NewsCommand())
+    registry.register(HolonetCommand())
