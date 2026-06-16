@@ -6,6 +6,13 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-15 — T3.16 Space Wildspace Drop 5: wildspace web panel — *drop t316-wildspace-webpanel*
+Fifth and final T3.16 slice (per `space_wildspace_design_v1.md` §8 Drop 5). Adds the wildspace HUD panel to the cockpit right-panel.
+- **Server (`build_space_state`):** emits `is_wildspace` (bool), `wildspace_theater` (str|None), `wildspace_cache_summary` (list of {kind, count}), and seven `ship_mod_*` fields (mining pips/cd/deep, salvage pips/comp/intact, refinery). Derives from existing Zone dataclass `wildspace`/`wildspace_theater` fields + `get_cache_pool()` + `get_effective_stats()` — no new engine state.
+- **Client (`static/client.html`):** new `#wildspace-panel` section in the cockpit right-panel (below CREW ASSIGN), hidden when `is_wildspace=false`. Shows: theater badge (SIEGES / HUTT FRONTIER etc.), cache-type badges (mining / derelict / faction cache counts), mod loadout rows (Mining, Salvage, Refinery). `updateWildspacePanel(data)` called from `handleSpaceState`.
+- **Verified:** `tests/test_space_wildspace_panel.py` (13 new — payload fields, DOM elements, JS function, CSS classes, panel default-hidden) + hygiene + smoke = 27 green single-process.
+- **Files:** `parser/space_commands.py`, `static/client.html`, `tests/test_space_wildspace_panel.py` (new), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-15 — Durable loop → flat-rate subscription auth (was metered API, $0-balance) — *drop loop-subscription-auth*
 Tooling fix (the autonomous-loop economics + the reason it produced nothing all day). The headless `claude -p` launcher inherited the user-scope `ANTHROPIC_API_KEY`, which (a) billed **pay-per-token Opus (~$31/day)** and (b) had a **$0 prepaid balance** → every hourly fire died "Credit balance is too low" (13 no-op fires 06-15). Fix: `build_launcher` now emits `set "ANTHROPIC_API_KEY="` after `setlocal`, so headless `claude -p` falls back to the logged-in **Claude Max subscription** (verified working headless on this box) — **flat rate, no per-token fees.** Combined with arming `--model sonnet` (the loop's work is mechanical; Opus reserved for interactive judgment), the all-day loop becomes economically viable.
 - **Files:** `tools/durable_loop.py`, `CHANGELOG.md`. (Tooling only — no game-code/schema change.)

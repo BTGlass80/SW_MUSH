@@ -2114,6 +2114,33 @@ a { color: inherit; text-decoration: none; }
   font-size: 8px; letter-spacing: 1px; color: var(--cock-cyan-dim);
 }
 
+/* ── Wildspace panel (Drop 5) ─────────────────────────────────────── */
+#wildspace-panel { margin-top: 8px; }
+.wildspace-theater-badge {
+  font-size: 9px; letter-spacing: 1.5px; font-weight: 700;
+  color: var(--cock-amber); text-align: center;
+  border: 1px solid var(--cock-amber); border-radius: 3px;
+  padding: 2px 6px; margin-bottom: 6px;
+}
+.wildspace-cache-row {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 2px;
+}
+.wc-badge {
+  font-size: 9px; letter-spacing: 1px; padding: 1px 5px;
+  border-radius: 2px; border: 1px solid;
+}
+.wc-badge.mining  { color: var(--cock-cyan); border-color: var(--cock-cyan); }
+.wc-badge.derelict { color: #b0a090; border-color: #604040; }
+.wc-badge.faction_cache { color: #90c090; border-color: #406040; }
+.wildspace-mods { font-size: 10px; }
+.ws-mod-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1px 0; border-bottom: 1px solid rgba(110,232,255,0.07);
+}
+.ws-mod-key { color: var(--cock-cyan-dim); letter-spacing: 0.5px; }
+.ws-mod-val { color: var(--cock-cyan); font-weight: 600; }
+.ws-mod-val.none { color: #555; }
+
 /* ════════════════════════════════════════════════════════════════════
    BOTTOM CONTROL STRIP (both modes)
    ════════════════════════════════════════════════════════════════════ */
@@ -4478,6 +4505,15 @@ a { color: inherit; text-decoration: none; }
       <div class="section-label" style="color:var(--cock-cyan-dim);">▮▮ CREW ASSIGN</div>
       <div class="crew-list" id="crew-list">
         <div style="font-size:10px; color:var(--cock-cyan-dim); font-style:italic;">— No crew data —</div>
+      </div>
+
+      <!-- WILDSPACE PANEL — visible only in wildspace zones (Drop 5) -->
+      <div id="wildspace-panel" style="display:none;">
+        <div class="section-label" style="color:var(--cock-cyan-dim);">▮▮ WILDSPACE</div>
+        <div class="wildspace-theater-badge" id="ws-theater-badge"></div>
+        <div class="wildspace-cache-row" id="ws-cache-row"></div>
+        <div class="section-label" style="color:var(--cock-cyan-dim); margin-top:6px;">SHIP MODS</div>
+        <div class="wildspace-mods" id="ws-mods"></div>
       </div>
 
       <div class="indicator-row">
@@ -7622,6 +7658,67 @@ function handleSpaceState(data) {
 
   // Warn light
   setIndicator('ind-warn', !!(data.controls_frozen || data.boarding_party_active));
+
+  // Wildspace panel (Drop 5)
+  updateWildspacePanel(data);
+}
+
+function updateWildspacePanel(data) {
+  var panel = $('wildspace-panel');
+  if (!panel) return;
+  var isWild = !!data.is_wildspace;
+  panel.style.display = isWild ? '' : 'none';
+  if (!isWild) return;
+
+  // Theater badge
+  var badge = $('ws-theater-badge');
+  if (badge) badge.textContent = (data.wildspace_theater || 'WILDSPACE').toUpperCase().replace(/_/g, ' ');
+
+  // Cache summary
+  var cacheRow = $('ws-cache-row');
+  if (cacheRow) {
+    cacheRow.innerHTML = '';
+    var caches = data.wildspace_cache_summary || [];
+    if (!caches.length) {
+      var emp = document.createElement('span');
+      emp.className = 'ws-mod-key';
+      emp.textContent = '— no caches —';
+      cacheRow.appendChild(emp);
+    } else {
+      caches.forEach(function(c) {
+        var b = document.createElement('span');
+        b.className = 'wc-badge ' + (c.kind || 'mining');
+        b.textContent = (c.count || 0) + ' ' + (c.kind || 'cache').replace(/_/g, ' ').toUpperCase();
+        cacheRow.appendChild(b);
+      });
+    }
+  }
+
+  // Mod loadout
+  var modsEl = $('ws-mods');
+  if (modsEl) {
+    modsEl.innerHTML = '';
+    function wsRow(label, val) {
+      var row = document.createElement('div');
+      row.className = 'ws-mod-row';
+      var k = document.createElement('span');
+      k.className = 'ws-mod-key';
+      k.textContent = label;
+      var v = document.createElement('span');
+      v.className = 'ws-mod-val' + ((!val || val === '—') ? ' none' : '');
+      v.textContent = val;
+      row.appendChild(k);
+      row.appendChild(v);
+      modsEl.appendChild(row);
+    }
+    var mp = data.ship_mod_mining_pips || 0;
+    var mcd = data.ship_mod_mining_cd || 0;
+    wsRow('MINING', mp > 0 ? ('+' + mp + ' pip' + (mp > 1 ? 's' : '') + (mcd ? ', -' + mcd + '% CD' : '') + (data.ship_mod_deep_mining ? ', DEEP' : '')) : '—');
+    var sp = data.ship_mod_salvage_pips || 0;
+    var sc = data.ship_mod_salvage_comp || 0;
+    wsRow('SALVAGE', sp > 0 ? ('+' + sp + ' pip' + (sp > 1 ? 's' : '') + (sc ? ', +' + sc + ' comp' : '') + (data.ship_mod_intact_ext ? ', INTACT' : '')) : '—');
+    wsRow('REFINERY', data.ship_mod_refinery ? 'INSTALLED' : '—');
+  }
 }
 
 function setShield(id, val, poolMax) {

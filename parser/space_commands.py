@@ -148,6 +148,21 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
                     "security": get_space_security(adj_id),
                 })
 
+    # ── Wildspace panel data (Drop 5, space_wildspace_design_v1.md §8) ─────────
+    zone_is_wildspace    = getattr(zone_obj, "wildspace", False) if zone_obj else False
+    zone_wildspace_theater = getattr(zone_obj, "wildspace_theater", None) if zone_obj else None
+    wildspace_cache_summary: list[dict] = []
+    if zone_is_wildspace and zone_id:
+        try:
+            from engine.space_caches import get_cache_pool
+            _pool = get_cache_pool(zone_id)
+            _counts: dict[str, int] = {}
+            for _cd in _pool.values():
+                _counts[_cd.kind] = _counts.get(_cd.kind, 0) + 1
+            wildspace_cache_summary = [{"kind": k, "count": v} for k, v in _counts.items()]
+        except Exception:
+            pass
+
     # ── Hull & shields ────────────────────────────────────────────────────────
     # Use effective stats so mods, power allocation, and orders are reflected
     eff = get_effective_stats(tmpl, systems) if tmpl else None
@@ -522,6 +537,18 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
 
         # Active encounter (Drop 1: space encounters)
         "encounter":        _get_encounter_state(ship["id"]),
+
+        # Wildspace panel (Drop 5, space_wildspace_design_v1.md §8)
+        "is_wildspace":           zone_is_wildspace,
+        "wildspace_theater":      zone_wildspace_theater,
+        "wildspace_cache_summary": wildspace_cache_summary,
+        "ship_mod_mining_pips":   (eff or {}).get("mining_bonus_pips", 0),
+        "ship_mod_mining_cd":     (eff or {}).get("mining_cooldown_pct", 0),
+        "ship_mod_deep_mining":   (eff or {}).get("deep_mining", False),
+        "ship_mod_salvage_pips":  (eff or {}).get("salvage_bonus_pips", 0),
+        "ship_mod_salvage_comp":  (eff or {}).get("salvage_component_bonus", 0),
+        "ship_mod_intact_ext":    (eff or {}).get("intact_extraction", False),
+        "ship_mod_refinery":      (eff or {}).get("has_refinery", False),
     }
 
 
