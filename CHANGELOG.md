@@ -6,6 +6,24 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Help corpus batch 8: +char, +cpstatus, +kudos, +scenebonus, +building, +pcbounty, +spacedock, +shipcrew, +chargen_notes, +village, +counsel, +retreat, +return, +healrate — *drop help-corpus-batch8*
+Additive data-only drop — no engine changes. Adds 14 missing help entries covering character management, CP advancement, social recognition, economy, ship commands, Jedi Weight of War, and medic service.
+- **`data/help/commands/+char.md` (new):** Account alt-character management — +char/list (all alts), +char/switch (return to selection), +char/delete (permanent; confirmation required). Documents the 3-character-per-account limit and same-faction restriction.
+- **`data/help/commands/+cpstatus.md` (new):** CP advancement panel — ticks total/weekly/cap, CP available, ticks to next, kudos received/remaining. Explains tick sources (pose, scenebonus, kudos, missions/quests) and the `train` command for spending CP.
+- **`data/help/commands/+kudos.md` (new):** Peer RP recognition — +kudos <name> [reason] awards 35 ticks to target. 3/week give limit; per-giver 7-day recipient lockout; prefix name matching; optional reason displayed in notification.
+- **`data/help/commands/+scenebonus.md` (new):** Scene completion tick award — scales with pose count (1–3 / 4–9 / 10–19 / 20+ tiers); optional explicit count argument; stacks with kudos; one claim per scene.
+- **`data/help/commands/+building.md` (new):** Player-constructed structures on city-claimed wilderness landmarks — construct/demolish/list/inspect/store/take subcommands; 5 categories (residence/crafting_station/commerce_stall/garrison_annex/cultural_hall); rank-3+ org requirement; 24h construction; 25% demolish refund.
+- **`data/help/commands/+pcbounty.md` (new):** PC-to-PC bounty system — post/cancel/board/status/claim/release/debt/pay subcommands; min 1,000 / max 50,000 cr; 10% posting fee; 25% cancel fee; BH Guild board-only for non-posters; stacking bounties; insurance debt on kill. Distinguishes from +bounty (NPC system).
+- **`data/help/commands/+spacedock.md` (new):** Ship yard full repair — two-step (quote then +spacedock repair); fixes DESTROYED systems (field repair cannot); must be aboard + docked at a facility with yard services; cost scales with damage/ship class.
+- **`data/help/commands/+shipcrew.md` (new):** Ship crew authorization — list/add/remove subcommands; owner always authorized; gate applies to pilot seat and launch (not boarding); changes take effect immediately.
+- **`data/help/commands/+chargen_notes.md` (new):** Private chargen rationale notes — view/set/clear; 2,000-char limit; visible only to the owning player in the sheet panel; distinct from +background (which is public IC biography).
+- **`data/help/commands/+village.md` (new):** Village quest standing panel — village_standing score + tier label, 5-trial completion status, courage choice, chosen path (if committed at Step 10). Pre-visit placeholder message documented.
+- **`data/help/commands/+counsel.md` (new):** Jedi Weight of War counsel — -10 Weight, once/week, no FP cost; Padawan path (Master in room) vs Knight/Master path (Council Chamber); at-peace short-circuit preserves weekly slot. Jedi-only gate documented.
+- **`data/help/commands/+retreat.md` (new):** Jedi extended leave — -2 Weight/day, cap -30 per period (15 days); passive accumulation while offline; +return to end and apply decay; future combat-refusal noted as pending.
+- **`data/help/commands/+return.md` (new):** End Jedi retreat — applies min(days × 2, 30) Weight decay in a single step; must have an active retreat; cooldown prevents immediate re-retreat; examples with 3/5/12/16-day durations.
+- **`data/help/commands/+healrate.md` (new):** Medic service rate — view/set 0–100,000 cr/treatment; persists between sessions; advertised rate shown to patients before treatment consent; distinguishes from the actual credit transfer in +medical.
+- **149 tests green** (`tests/test_help_economy_social_ships_batch8.py`).
+
 ### 2026-06-16 — T3.21 HIGH: sanitize Director LLM headlines before player display — *drop t321-news-sanitize* (Opus lane)
 Closes the last T3.21 HIGH finding (Director output not sanitized before display). The Director's faction-turn `news_headline` is LLM-generated and reaches players verbatim via the `news` command (telnet) and `/api/portal/news` (web). A poisoned/erratic headline carrying ANSI/VT or control bytes could rewrite a telnet terminal (cursor moves, screen clears, colour spoofing) or smuggle control characters into the web feed.
 - **`server/ansi.py` (new helper):** `sanitize_for_display(text, max_len=200)` strips CSI/OSC/bare-ESC escape sequences and C0/C1 control chars (incl. DEL), collapses whitespace to a single line, and caps length. Precompiled patterns; dependency-free (only `re`).
