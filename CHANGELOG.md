@@ -6,6 +6,18 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-15 — T3.19 Phase 1: externalize the HIGH-priority economy knobs — *drop t319-phase1-econ-knobs*
+Builds on Phase 0's `engine/tunables.py` foundation. Externalizes the 8 highest-leverage economy balance values into `data/tunables.yaml` so they can be tuned post-launch without a code change. **Every knob is read at its USE SITE** via `get_tunable("<key>", <in-code default>)` — never at module import — because `load_tunables()` runs at boot (`game_server.py:607`) *after* the engine modules import, so a module-level read would freeze to the default (a silent phantom externalization). Each YAML value equals the in-code default, so the change is **behavior-identical** to the pre-drop state (empty/missing YAML → same values).
+- **`trade.price_source_multiplier` (0.70) / `trade.price_demand_multiplier` (1.40)** — `engine/trading.py` `get_planet_price`.
+- **`trade.supply_refresh_seconds` (2700)** — `engine/trading.py` `SupplyPool._refreshed` + `seconds_until_refresh`.
+- **`trade.supply_max_luxury_goods` (6)** — `engine/trading.py` `_max_units` (luxury_goods only; other goods untouched).
+- **`mission.reward_smuggling_max` (5000)** — `engine/missions.py` `_scale_reward` (SMUGGLING band top; other types untouched).
+- **`bounty.reward_superior_max` (10000)** — `engine/bounty_board.py` `_scale_reward` (SUPERIOR tier top; other tiers untouched).
+- **`p2p.tax_pct` (5)** — `parser/builtin_commands.py` credit-trade tax. Re-expressed `max(1, amount // 20)` as `max(1, amount * tax_pct // 100)`; with `pct=5` this is **integer-identical** to the old `amount // 20` for all amounts (verified by sweep — no float drift), so the 5% p2p sink is byte-for-byte preserved.
+- **`commissary.sellback_rate` (0.50)** — `engine/commissary.py` `_refund_amount`.
+- **Verified:** new `tests/test_t3_19_phase1_econ_knobs.py` (13 — default-then-override for each knob, band-collapse determinism for the RNG rewards, cross-type/tier non-interference, p2p integer-identity, YAML ships cluster) + Phase-0 `test_t3_19_tunables_foundation.py` updated for the now-populated YAML + trading/missions/bounty/commissary regression (258 green). Behavior-preserving; no funnel/era/schema change.
+- **Files:** `engine/trading.py`, `engine/missions.py`, `engine/bounty_board.py`, `engine/commissary.py`, `parser/builtin_commands.py`, `data/tunables.yaml`, `tests/test_t3_19_phase1_econ_knobs.py` (new), `tests/test_t3_19_tunables_foundation.py`, `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-15 — T3.19 Phase 0: tunables foundation — *drop t3-19-phase0*
 T3.19 Phase 0: infrastructure only — no knob is externalized yet. Establishes the runtime machinery and the empty-YAML boot path.
 - **`engine/tunables.py` (new):** `load_tunables(path)` reads a flat-namespace YAML (`trade.price_demand_multiplier: 1.40`, etc.) into a module-level dict; `get_tunable(key, default)` returns the loaded value or the caller's in-code default (absent key = byte-identical to today's hardcoded literal); `reset_tunables()` for test isolation. Missing file → INFO log + no-op; malformed YAML or non-mapping top-level → ERROR log + no-op. Mirrors `engine/director_config_loader.py` (YAML-overrides-with-in-code-default, fail-open). Call sites: `from engine.tunables import get_tunable` — placed in engine/, not server/, to avoid circular imports from engine code.

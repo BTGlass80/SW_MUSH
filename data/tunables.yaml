@@ -7,10 +7,29 @@
 # Format:  <namespace>.<knob>: <value>
 # Example: trade.price_demand_multiplier: 1.40
 #
-# Phase 0 (foundation): no knobs externalized yet.
-# Phase 1 will add the HIGH-priority economy cluster:
-#   trade.*, bounty.*, mission.*, p2p.*, commissary.*, insurance.*
+# Phase 1 (2026-06-15): HIGH-priority economy cluster externalized.
+# Each value below EQUALS the in-code default at its call site, so this
+# file is behavior-identical to omitting it — operators tune from here.
+# Every consumer reads via get_tunable("<key>", <in-code default>) at the
+# USE SITE (not module import), so edits take effect on the next load.
 #
 # Edit via string-replacement only (never a yaml round-trip rewrite that
 # could reformat entries or collapse comments).
-{}
+
+# ── Trade (engine/trading.py) ──
+trade.price_source_multiplier: 0.70   # sell price at a good's SOURCE planet (cheap)
+trade.price_demand_multiplier: 1.40   # sell price at a good's DEMAND planet (premium)
+trade.supply_refresh_seconds: 2700    # supply-pool refresh cadence (45 min)
+trade.supply_max_luxury_goods: 6      # luxury_goods units per refresh (tightest cap)
+
+# ── Mission rewards (engine/missions.py) ──
+mission.reward_smuggling_max: 5000    # top of the smuggling pay band (lo stays 500)
+
+# ── Bounty rewards (engine/bounty_board.py) ──
+bounty.reward_superior_max: 10000     # top of the superior-tier bounty band (lo stays 3000)
+
+# ── Player-to-player trade (parser/builtin_commands.py) ──
+p2p.tax_pct: 5                        # percent sink on consented credit trades (floor 1cr)
+
+# ── Faction commissary (engine/commissary.py) ──
+commissary.sellback_rate: 0.50        # refund fraction on commissary sellback (<=50%, net loss)

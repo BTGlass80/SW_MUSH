@@ -31,6 +31,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
+from engine.tunables import get_tunable
+
 log = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -469,6 +471,8 @@ def _scale_reward(mission_type: MissionType, skill_level: int = 3) -> int:
     skill_level 5-6 = hard missions (top 30%)
     """
     lo, hi = PAY_RANGES[mission_type]
+    if mission_type == MissionType.SMUGGLING:
+        hi = get_tunable("mission.reward_smuggling_max", hi)
     span = hi - lo
     # Position within range: clamp skill_level to 1-6
     sl = max(1, min(6, skill_level))

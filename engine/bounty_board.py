@@ -38,6 +38,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
+from engine.tunables import get_tunable
+
 log = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -314,6 +316,8 @@ def krayt_upgrade_tier(tier: BountyTier, krayt_active: bool) -> BountyTier:
 
 def _scale_reward(tier: BountyTier) -> int:
     lo, hi = PAY_RANGES[tier]
+    if tier == BountyTier.SUPERIOR:
+        hi = get_tunable("bounty.reward_superior_max", hi)
     raw = random.randint(lo, hi)
     # Round to nearest 50cr
     return int(round(raw / 50) * 50)

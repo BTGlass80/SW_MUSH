@@ -29,6 +29,8 @@ debits credits (existing ledger), and grants to inventory (existing).
 
 import logging
 
+from engine.tunables import get_tunable
+
 log = logging.getLogger(__name__)
 
 # Per-faction commissary stock. Era-clean CW gear only; keys match
@@ -278,7 +280,8 @@ def _refund_amount(item: dict, faction_code) -> int:
         stock = commissary_item(faction_code, item.get("key"))
         cost = stock["cost"] if stock else 0
     try:
-        return max(0, int(int(cost) * COMMISSARY_SELLBACK_RATE))
+        rate = get_tunable("commissary.sellback_rate", COMMISSARY_SELLBACK_RATE)
+        return max(0, int(int(cost) * rate))
     except (TypeError, ValueError):
         return 0
 

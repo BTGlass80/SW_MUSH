@@ -103,9 +103,12 @@ class TestLoadTunables(unittest.TestCase):
         default_path = PROJECT_ROOT / "data" / "tunables.yaml"
         self.assertTrue(default_path.exists(), "data/tunables.yaml must exist")
         load_tunables(str(default_path))
-        # Phase 0: file is empty dict — no knobs yet
-        self.assertIsNone(get_tunable("trade.price_demand_multiplier"),
-                          "Phase 0: no knobs should be externalized yet")
+        # Phase 1 (2026-06-15): the HIGH-priority economy cluster now ships in
+        # the YAML at its in-code defaults (behavior-identical to omitting it).
+        self.assertAlmostEqual(get_tunable("trade.price_demand_multiplier"), 1.40,
+                               msg="Phase 1: economy cluster externalized to the YAML")
+        self.assertEqual(get_tunable("p2p.tax_pct"), 5)
+        reset_tunables()  # don't leak the real file's knobs into later tests
 
 
 class TestGetTunable(unittest.TestCase):

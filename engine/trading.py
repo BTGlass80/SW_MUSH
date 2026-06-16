@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 import json
 import logging
 
+from engine.tunables import get_tunable
+
 log = logging.getLogger(__name__)
 
 # ── Trade good definitions ────────────────────────────────────────────────────
@@ -126,9 +128,9 @@ def get_planet_price(good: TradeGood, planet: str,
     by recent sales volume (DemandPool). Used for sell-side pricing.
     """
     if planet in good.source:
-        mult = PRICE_SOURCE
+        mult = get_tunable("trade.price_source_multiplier", PRICE_SOURCE)
     elif planet in good.demand:
-        mult = PRICE_DEMAND
+        mult = get_tunable("trade.price_demand_multiplier", PRICE_DEMAND)
         if include_demand_depression:
             depression = DEMAND_POOL.get_depression(planet, good.key)
             mult = max(PRICE_NORMAL, mult * (1.0 - depression))
@@ -200,7 +202,10 @@ MAX_UNITS_PER_REFRESH = {
 
 
 def _max_units(good_key: str) -> int:
-    return MAX_UNITS_PER_REFRESH.get(good_key, DEFAULT_MAX_UNITS_PER_REFRESH)
+    base = MAX_UNITS_PER_REFRESH.get(good_key, DEFAULT_MAX_UNITS_PER_REFRESH)
+    if good_key == "luxury_goods":
+        return get_tunable("trade.supply_max_luxury_goods", base)
+    return base
 
 
 class SupplyPool:
@@ -231,10 +236,11 @@ class SupplyPool:
             return max_units
         units, last = self._pools[key]
         elapsed = now - last
-        if elapsed >= SUPPLY_REFRESH_SECONDS:
-            refreshes = int(elapsed // SUPPLY_REFRESH_SECONDS)
+        refresh_s = get_tunable("trade.supply_refresh_seconds", SUPPLY_REFRESH_SECONDS)
+        if elapsed >= refresh_s:
+            refreshes = int(elapsed // refresh_s)
             units = min(cap, units + refreshes * max_units)
-            last = last + refreshes * SUPPLY_REFRESH_SECONDS
+            last = last + refreshes * refresh_s
             self._pools[key] = (units, last)
         return units
 
@@ -258,7 +264,8 @@ class SupplyPool:
         if key not in self._pools:
             return 0
         _, last = self._pools[key]
-        remaining = SUPPLY_REFRESH_SECONDS - (time.time() - last)
+        refresh_s = get_tunable("trade.supply_refresh_seconds", SUPPLY_REFRESH_SECONDS)
+        remaining = refresh_s - (time.time() - last)
         return max(0, int(remaining))
 
     # ── Persistence ──────────────────────────────────────────────────────────

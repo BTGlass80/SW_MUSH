@@ -5604,7 +5604,11 @@ class TradeCommand(BaseCommand):
             return
 
         # Execute transfer with 5% transaction tax (economy hardening v23)
-        tax = max(1, amount // 20)  # 5% floor of 1 credit
+        # T3.19: tax rate externalized as an integer percent. amount*pct//100
+        # with pct=5 is integer-identical to the prior amount//20 (no float drift).
+        from engine.tunables import get_tunable
+        tax_pct = get_tunable("p2p.tax_pct", 5)
+        tax = max(1, amount * tax_pct // 100)  # 5% floor of 1 credit
         received = amount - tax
 
         offerer["credits"] = await ctx.db.adjust_credits(offerer["id"], -amount, "p2p_transfer")
