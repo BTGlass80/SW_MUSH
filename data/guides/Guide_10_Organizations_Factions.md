@@ -62,7 +62,7 @@ Why so many faction HQs on Nar Shaddaa? Because Nar Shaddaa is the Smuggler's Mo
 
 The thousand-year-old democratic Republic is fighting for its survival against the Separatist insurgency. Joining the Republic means clone trooper logistics, Senate politics, and the weight of an institution that believes it is fighting for civilization. You'll work alongside clone troopers (NPCs), report through a military chain of command, and access the best equipment in the game once you make rank.
 
-The Republic recruits actively at the Nar Shaddaa Corellian Sector Promenade and on Coruscant. Joining is a `+faction join republic` away — there's no audition, no test, the war needs warm bodies. Distinguishing yourself in service is where the work begins.
+The Republic recruits actively at the Nar Shaddaa Corellian Sector Promenade and on Coruscant. Joining is a `faction join republic` away — there's no audition, no test, the war needs warm bodies. Distinguishing yourself in service is where the work begins.
 
 **Ranks** (each rank gates equipment, permissions, and certain mission types):
 
@@ -162,7 +162,7 @@ Many spacers run Independent for their entire career. The traders and freelancer
 
 ## 3. Equipment Issuance
 
-When you reach a new faction rank, the faction's quartermaster issues you the equipment listed in the rank table. You can claim it at the faction HQ via `+faction equipment`. The faction also reissues equipment on death (when you respawn), so promotion-tier gear is not lost permanently.
+When you reach a new faction rank, the faction's quartermaster **automatically issues** the equipment listed in the rank table — no command needed, it goes straight to your inventory. To request a replacement for lost or sold faction-issued gear, use `faction requisition <item description>`. The faction also reissues equipment on death (when you respawn), so promotion-tier gear is not lost permanently.
 
 Some things to know:
 
@@ -275,23 +275,26 @@ That's the texture of faction life. Choices have weight, the world reacts, and p
 
 | Command | Effect |
 |---|---|
-| `+faction list` | Show all factions and your standing in each |
-| `+faction info <faction>` | Detailed faction info |
-| `+faction join <faction>` | Apply to join a faction |
-| `+faction leave` | Resign from your current faction |
-| `+faction equipment` | View / claim issued equipment for your rank |
-| `+faction members` | View other members of your faction (rank-gated detail) |
-| `+faction missions` | Show available faction missions |
-| `+faction comm <message>` | Speak on faction comms (requires permission) |
-| `+rep` | Show your reputation in all factions and guilds |
-| `+rep <faction>` | Detailed reputation breakdown for a specific faction |
-| `+guild list` | Show all guilds and your membership status |
-| `+guild join <guild>` | Apply to join a guild |
-| `+guild leave <guild>` | Resign from a guild |
-| `+promote <character>` | Promote a subordinate (requires permission) |
-| `+discipline <character> <reason>` | Issue a faction discipline action (requires permission) |
-| `+treasury` | View faction treasury (rank-gated) |
-| `+treasury donate <amount>` | Donate credits to the faction treasury |
+| `faction list` | Show all factions and your standing in each |
+| `faction info <code>` | Detailed faction info |
+| `faction join <code>` | Apply to join a faction |
+| `faction leave` | Resign from your current faction |
+| `faction roster` | View other members of your faction (rank-gated detail) |
+| `faction missions` | Show available faction missions |
+| `faction channel <message>` | Speak on faction channel (requires `faction_comms` permission) |
+| `faction requisition <item>` | Request replacement for lost faction-issued equipment |
+| `faction invest <amount>` | Invest personal credits into zone influence |
+| `faction influence` | Show your faction's territory influence across zones |
+| `faction armory` | View shared faction armory (in claimed rooms) |
+| `+reputation` | Show your reputation in all factions and guilds (alias: `+rep`) |
+| `+reputation <code>` | Detailed reputation breakdown for a specific faction |
+| `guild list` | Show all guilds and your membership status |
+| `guild join <code>` | Apply to join a guild |
+| `guild leave <code>` | Resign from a guild |
+| `faction promote <character>` | Promote a subordinate (requires rank permission) |
+| `faction warn <character>` | Issue a warning (requires rank permission) |
+| `faction expel <character>` | Expel a member (requires rank permission) |
+| `faction treasury` | View faction treasury balance (leader-only) |
 
 ---
 

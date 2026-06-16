@@ -6,6 +6,13 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Guide_10_Organizations_Factions.md command accuracy fix: §10 Quick Reference + §3 Equipment Issuance (Sonnet loop) — *drop guide-10-organizations-rework*
+PRELAUNCH.help_guides_rework — Guide_10 §10 Commands Quick Reference had 7 wrong commands referencing nonexistent parser verbs; §3 Equipment Issuance falsely claimed `+faction equipment` existed. Both corrected against `parser/faction_commands.py`.
+- **§10 Quick Reference fully rewritten.** Removed 7 nonexistent commands and replaced with correct equivalents: `+faction members` → `faction roster`; `+faction comm <msg>` → `faction channel <message>`; `+faction equipment` (nonexistent) → removed; `+promote <char>` → `faction promote <character>`; `+discipline <char>` → `faction warn <character>` / `faction expel <character>`; `+treasury` → `faction treasury`; `+treasury donate <amount>` → `faction invest <amount>`. Added missing documented commands: `faction list`, `faction info <code>`, `faction leave`, `faction missions`, `faction invest <amount>`, `faction influence`, `faction armory`.
+- **§3 Equipment Issuance narrative corrected.** Removed false "`+faction equipment`" claim (no such command exists). Replaced with accurate description: the faction quartermaster automatically issues gear on promotion (no command needed); replacement for lost gear goes via `faction requisition <item description>`.
+- **Inline narrative fixed.** `+faction join republic` example in §5 corrected to `faction join republic` (matching the actual command key in `FactionCommand`).
+- **25 new tests** (`tests/test_guide_10_organizations_rework.py`): old wrong commands absent; correct commands present; equipment auto-issuance and requisition documented; era-clean.
+
 ### 2026-06-16 — Guide_02_Character_Creation.md accuracy pass: CW-era templates + Force gate + chargen wizard (Sonnet loop) — *drop guide-02-chargen-rework*
 PRELAUNCH.help_guides_rework — Guide_02 corrected against the live Clone Wars chargen engine, closing 5 accuracy errors introduced by CW-era redesigns that never propagated to the guide.
 - **§5 Templates rewritten for 9 CW-era templates.** Old guide listed 7 GCW-era templates including Jedi Apprentice (removed per CW village-gate policy) and Soldier (replaced by Clone Trooper). New table covers all 9 live templates from `data/worlds/clone_wars/chargen_templates.yaml`: Smuggler, Bounty Hunter, Scoundrel, Technician, Clone Trooper, Republic Officer, Republic Pilot, Separatist Pilot, CIS Field Agent. Also fixed two incorrect attribute distributions in the old rows: Separatist Pilot MEC was 4D+1 (YAML: 4D), PER was 2D+2 (YAML: 3D); Technician KNO was 3D (YAML: 3D+2), TEC was 4D+2 (YAML: 4D).
