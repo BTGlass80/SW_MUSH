@@ -6,6 +6,15 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-15 — T3.16 Space Wildspace Drop 4: equipment progression (mining/salvage mods) — *drop t316-wildspace-equipment*
+Fourth T3.16 slice (per `space_wildspace_design_v1.md` §5). Adds the three wildspace ship mods + their effect wiring. Used the LIVE mod system (`data/schematics.yaml` crafted components installed via `+ship/install`) — design §7 said `data/starships.yaml` but the real seam is schematics; extended it, no parallel system.
+- **Mining Laser Mk1/Mk2** (`stat_target: mining`): +2D/+3D to the mining skill check + −25%/−40% cache cooldown + Mk2 deep-mining (rare-resource roll on crit). Wired through `engine/starships.py::get_effective_stats` → `MineCommand` → `engine/space_caches.py::harvest_mining` (bonus pips as `lead_bonus`, cooldown reduction, crit deep-mining `add_resource`). Mk2 schematic Hutt-Cartel-rep-gated (rep ≥ 25).
+- **Reinforced Salvage Arm Mk1/Mk2** (`stat_target: salvage`): +2D/+3D salvage Technical + +1/+2 component recovery + Mk2 intact-extraction. Wired into `SalvageCommand`. Mk2 Republic-rep-gated.
+- **Onboard Refinery** (`stat_target: refinery`): mod installs + new `refine` command (registered) validates the ship has it — but the **conversion body is DEFERRED** (genuine fork: no "refined" resource types exist; refined rtypes + 3× sell-anchoring + recipes that consume them are design decisions). Logged `T3.16.D4.REFINE_RTYPE_DEFERRED`; the command messages "not yet available" rather than fake a conversion.
+- Funnels reused (perform_skill_check `lead_bonus`, add_resource; rep-gate via existing `gated_faction`/`gated_min_rep`; trainer Venn Kator). Era-clean; no new NPCs (rep gate IS the barrier — no phantom black-market trader).
+- **Verified:** new `tests/test_space_equipment.py` (30 — mod defs load, Mining Laser bonus+cooldown+deep-mining, Salvage Arm bonus+recovery, refine mod-gate, rep-gating) + space_caches + boot smoke = 57 green single-process.
+- **Files:** `data/schematics.yaml`, `engine/starships.py`, `engine/space_caches.py`, `parser/space_commands.py`, `tests/test_space_equipment.py` (new), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-15 — T3.16 Space Wildspace Drop 3: Hutt Frontier theater — *drop t316-wildspace-hutt*
 Third T3.16 slice (per `space_wildspace_design_v1.md` §3/§8 Drop 3). Adds the **Hutt Frontier** theater on the Drop 1a framework + Drop 2/2b mechanics (faction visibility + rep funnel). *(Content was built by an overnight loop fire that was credit-killed before it could write tests/commit; this drop recovers it — adds the test + lands it.)*
 - **`data/worlds/clone_wars/space_zones.yaml`:** two new wildspace zones — `jundland_drift` (off `tatooine_deep_space`) + `smugglers_run_periphery` (off `nar_shaddaa_deep_space`), `wildspace: true`, `wildspace_theater: hutt_frontier`, bidirectional adjacency to their parents only (§3.3), not in spawn_zones (no friendly traffic §6.2). Map-safe (adjacency-line edits only, no content deletions; geonosis map-safety + world-loader tests green).

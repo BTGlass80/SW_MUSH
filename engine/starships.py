@@ -1497,6 +1497,14 @@ def get_effective_stats(template: "ShipTemplate", systems: dict) -> dict:
     stealth_bonus  = 0   # difficulty penalty for scanners targeting this ship
     weapon_fc      = {}  # weapon_slot_index → extra pips
     cargo_used     = 0
+    # Wildspace equipment mod accumulators (Drop 4, space_wildspace_design_v1.md §5)
+    mining_bonus_pips    = 0   # extra pips on harvest_mining skill check
+    mining_cooldown_pct  = 0   # % reduction to mining cache cooldown (max 40)
+    deep_mining          = False   # Mk2: extra rare-roll on crit
+    salvage_bonus_pips   = 0   # extra pips on salvage Technical check
+    salvage_component_bonus = 0   # extra components per successful salvage
+    intact_extraction    = False   # Mk2: chance to recover schematics from derelicts
+    has_refinery         = False   # Onboard Refinery present
 
     for mod in mods:
         if not isinstance(mod, dict):
@@ -1551,6 +1559,28 @@ def get_effective_stats(template: "ShipTemplate", systems: dict) -> dict:
             reduction = effective_boost * 0.25
             hyperdrive_f = max(_MOD_MIN_HYPERDRIVE, hyperdrive_f - reduction)
 
+        # ── Wildspace equipment mods (Drop 4, space_wildspace_design_v1.md §5) ──
+        # These stat_targets do not modify ship combat stats; they're read by
+        # harvest_mining / SalvageCommand / RefineCommand via get_effective_stats().
+        # Only the highest installed tier takes effect (last-write wins in the loop,
+        # so install Mk2 after uninstalling Mk1 per normal slot rules).
+        elif stat_target == "mining":
+            mining_bonus_pips   = max(mining_bonus_pips,   int(stat_boost))
+            mining_cooldown_pct = max(mining_cooldown_pct,
+                                      int(mod.get("mining_cooldown_pct", 0)))
+            if mod.get("deep_mining"):
+                deep_mining = True
+
+        elif stat_target == "salvage":
+            salvage_bonus_pips      = max(salvage_bonus_pips,      int(stat_boost))
+            salvage_component_bonus = max(salvage_component_bonus,
+                                          int(mod.get("salvage_component_bonus", 0)))
+            if mod.get("intact_extraction"):
+                intact_extraction = True
+
+        elif stat_target == "refinery":
+            has_refinery = True
+
     # Clamp maneuverability/hull/shields to base (no negative mods reduce below base)
     maneuver_pips = max(_pip_count(template.maneuverability), maneuver_pips)
     hull_pips     = max(_pip_count(template.hull), hull_pips)
@@ -1596,6 +1626,14 @@ def get_effective_stats(template: "ShipTemplate", systems: dict) -> dict:
         "order_flags":        order_flags,
         "stealth_bonus":      stealth_bonus,
         "false_transponder":  systems.get("false_transponder"),
+        # Wildspace equipment mods (Drop 4, space_wildspace_design_v1.md §5)
+        "mining_bonus_pips":      mining_bonus_pips,
+        "mining_cooldown_pct":    mining_cooldown_pct,
+        "deep_mining":            deep_mining,
+        "salvage_bonus_pips":     salvage_bonus_pips,
+        "salvage_component_bonus":salvage_component_bonus,
+        "intact_extraction":      intact_extraction,
+        "has_refinery":           has_refinery,
     }
 
 

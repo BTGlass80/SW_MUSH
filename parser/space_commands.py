@@ -5967,6 +5967,21 @@ class SalvageCommand(BaseCommand):
         zone_id  = systems.get("current_zone", "")
         char     = ctx.session.character
 
+        # Read Salvage Arm mod stats (space_wildspace_design_v1.md §5.2).
+        _salv_bonus_pips    = 0
+        _salv_comp_bonus    = 0
+        _salv_intact_extract = False
+        try:
+            from engine.starships import get_ship_registry, get_effective_stats
+            _stmpl = get_ship_registry().get(ship.get("ship_type", ""))
+            if _stmpl is not None:
+                _eff = get_effective_stats(_stmpl, systems)
+                _salv_bonus_pips    = int(_eff.get("salvage_bonus_pips", 0) or 0)
+                _salv_comp_bonus    = int(_eff.get("salvage_component_bonus", 0) or 0)
+                _salv_intact_extract = bool(_eff.get("intact_extraction", False))
+        except Exception:
+            pass  # Defensive: no mod bonus if lookup fails
+
         # Find a salvageable anomaly in zone (derelict type, resolution >= scans_needed)
         anomalies = get_anomalies_for_zone(zone_id)
         target = None
@@ -5982,13 +5997,17 @@ class SalvageCommand(BaseCommand):
             )
             return
 
-        # Skill check: Technical, Easy (diff 8) for derelict, Moderate (diff 15) for wreck
+        # Skill check: Technical, Easy (diff 8) for derelict, Moderate (diff 15) for wreck.
+        # Salvage Arm pip bonus passed via lead_bonus (same seam as Mining Laser).
         diff = 15 if target.is_wreck else 8
         diff_label = "Moderate" if target.is_wreck else "Easy"
         try:
             sr     = SkillRegistry()
             sr.load_default()
-            result = perform_skill_check(char, "technical", diff, sr)
+            result = perform_skill_check(
+                char, "technical", diff, sr,
+                lead_bonus=_salv_bonus_pips if _salv_bonus_pips else None,
+            )
         except Exception:
             result = None  # graceful-drop → treat as success
 
@@ -6042,17 +6061,32 @@ class SalvageCommand(BaseCommand):
             )
         else:
             quality = float(_rnd.randint(*qual_range))
+            # Salvage Arm +N component bonus: extra qty on a resource roll.
+            if _salv_comp_bonus > 0:
+                qty += _salv_comp_bonus
             summary = add_resource(char, rtype, qty, quality)
             # CRAFT.P1: add_resource mutates char["inventory"] dict-side;
             # the no-kwargs save was a no-op — salvaged resources never
             # persisted across reload.
             await ctx.db.save_character(
                 char["id"], inventory=char["inventory"])
+            comp_note = (f" [+{_salv_comp_bonus} Salvage Arm]"
+                         if _salv_comp_bonus else "")
             await ctx.session.send_line(
                 f"  {ansi.BRIGHT_GREEN}[SALVAGE]{ansi.RESET} "
                 f"{'Critical find! ' if critical else ''}"
-                f"Recovered: {summary}"
+                f"Recovered: {summary}{comp_note}"
             )
+            # Intact extraction (Salvage Arm Mk2): chance to recover a
+            # schematic fragment from large derelicts on a critical hit.
+            # Currently surfaces as a flavor note; schematic-drop from
+            # derelicts is a future content drop (the hook is here).
+            if _salv_intact_extract and critical and not target.is_wreck:
+                await ctx.session.send_line(
+                    f"  {ansi.BRIGHT_CYAN}[SALVAGE]{ansi.RESET} "
+                    f"Intact extraction! Hull structure preserved — "
+                    f"schematic fragment may be recoverable (check logs)."
+                )
 
         # Broadcast to bridge crew
         if ship.get("bridge_room_id"):
@@ -6472,7 +6506,19 @@ class MineCommand(BaseCommand):
             )
             return
 
-        result = await harvest_mining(ctx.db, char, cache_id)
+        # Pass Mining Laser mod stats so harvest_mining can apply the pip bonus
+        # and cooldown reduction (space_wildspace_design_v1.md §5.1).
+        _mine_mod_stats = None
+        try:
+            from engine.starships import get_ship_registry, get_effective_stats
+            _tmpl = get_ship_registry().get(ship.get("ship_type", ""))
+            if _tmpl is not None:
+                _mine_mod_stats = get_effective_stats(_tmpl, systems)
+        except Exception:
+            pass  # Defensive: no mod bonus if lookup fails
+
+        result = await harvest_mining(ctx.db, char, cache_id,
+                                      ship_mod_stats=_mine_mod_stats)
 
         if result.on_cooldown:
             await ctx.session.send_line(
@@ -6700,6 +6746,75 @@ async def handle_space_harvest(ctx) -> bool:
     return True
 
 
+class RefineCommand(BaseCommand):
+    """Convert raw resources to refined mid-flight (requires Onboard Refinery mod).
+
+    Usage:
+      refine <resource_type> [quantity]
+
+    Requires the Onboard Refinery ship mod (space_wildspace_design_v1.md §5.3).
+    Converts raw resource at 2:1 (2 raw → 1 refined). Refined resource types
+    are a pending design decision: STOP — no "refined" rtypes exist in
+    engine.crafting.RESOURCE_TYPES yet. The command is registered and
+    validates preconditions; the conversion body is deferred pending the
+    rtype decision (see TODO.json: T3.20.D4.REFINE_RTYPE_DEFERRED).
+    """
+    key = "refine"
+    aliases = []
+    help_text = (
+        "Refine raw resources mid-flight using your ship's Onboard Refinery.\n"
+        "\n"
+        "  refine <resource>           — refine all of a resource type (2:1)\n"
+        "  refine <resource> <qty>     — refine a specific quantity\n"
+        "\n"
+        "Requires the Onboard Refinery mod installed on your active ship.\n"
+        "Refined resources sell for 3x raw and feed advanced crafting recipes."
+    )
+    usage = "refine <resource_type> [quantity]"
+
+    async def execute(self, ctx):
+        ship = await _get_ship_for_player(ctx)
+        if not ship:
+            await ctx.session.send_line("  You're not aboard a ship.")
+            return
+        if ship["docked_at"]:
+            await ctx.session.send_line(
+                "  Onboard Refinery requires open space. Launch first."
+            )
+            return
+
+        # Check for Onboard Refinery mod
+        systems = _get_systems(ship)
+        has_refinery = False
+        try:
+            from engine.starships import get_ship_registry, get_effective_stats
+            _rtmpl = get_ship_registry().get(ship.get("ship_type", ""))
+            if _rtmpl is not None:
+                _reff = get_effective_stats(_rtmpl, systems)
+                has_refinery = bool(_reff.get("has_refinery", False))
+        except Exception:
+            pass
+
+        if not has_refinery:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}[REFINE]{ansi.RESET} "
+                "Your ship has no Onboard Refinery installed. "
+                "Install one via +ship/install."
+            )
+            return
+
+        # Refinery mod is present — conversion body deferred pending
+        # refined resource rtype decision (T3.20.D4.REFINE_RTYPE_DEFERRED).
+        # The existing RESOURCE_TYPES set has no "refined_metal" etc.
+        # variants; adding them requires a design call on naming, sell-price
+        # anchoring, and which crafting recipes consume them.
+        await ctx.session.send_line(
+            f"  {ansi.BRIGHT_YELLOW}[REFINE]{ansi.RESET} "
+            "Onboard Refinery detected, but refined resource processing is not "
+            "yet available in this version. Coming in a follow-up drop."
+        )
+
+
 def register_space_commands(registry):
     """Register all space commands.
 
@@ -6753,7 +6868,7 @@ def register_space_commands(registry):
         ShipRepairCommand(), MyShipsCommand(),
         LaunchCommand(), LandCommand(),
         ShipCommand(), ScanCommand(), DeepScanCommand(), SalvageCommand(),
-        MineCommand(),
+        MineCommand(), RefineCommand(),
         # MarketCommand intentionally NOT registered here. Both this
         # file and shop_commands.py defined a `market` key, which
         # silently clobbered each other (last-writer wins). The

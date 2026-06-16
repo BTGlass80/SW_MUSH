@@ -1608,3 +1608,145 @@ schematics:
     output_type: consumable
     output_key: binders
     base_cost: 120
+
+  # ──────────────────────────────────────────────────────────────
+  # WILDSPACE SHIP MODS — Space Wildspace Drop 4
+  # Taught by Venn Kator at Docking Bay 94 (existing ship-component trainer).
+  # output_type: component — installed via +ship/install.
+  # stat_target "mining"  → get_effective_stats() → harvest_mining bonus.
+  # stat_target "salvage" → get_effective_stats() → SalvageCommand bonus.
+  # stat_target "refinery"→ get_effective_stats() → RefineCommand (enabled
+  #   when refined resource rtypes land; see space_wildspace_design_v1.md §5.3).
+  #
+  # Costs per §5.1 / §5.2 / §5.3.  Mk2 schematics are rep-gated:
+  #   Mining Mk2:  gated_faction: hutt_cartel, gated_min_rep: 25
+  #     (Geonosian black-market dealer fences through Hutt channels)
+  #   Salvage Mk2: gated_faction: republic,    gated_min_rep: 25
+  #     (Republic Engineering Corps connection)
+  # No questline gate — rep alone is the barrier, per design §5.1/§5.2.
+  # ──────────────────────────────────────────────────────────────
+
+  - key: mining_laser_mk1
+    name: "Mining Laser Mk1"
+    skill_required: space_transports_repair
+    difficulty: 16
+    trainer_npc: Venn Kator
+    components:
+      - type: metal
+        quantity: 12
+        min_quality: 40
+      - type: energy
+        quantity: 4
+        min_quality: 40
+    output_type: component
+    output_key: mining_laser_mk1
+    # stat_boost 6 = +2D (each pip = 1/3D; 6 pips = 2D).
+    # mining_cooldown_pct and deep_mining are read directly from the mod dict
+    # by get_effective_stats(); stat_boost is the skill pip bonus.
+    stat_target: mining
+    stat_boost: 6
+    mining_cooldown_pct: 25
+    deep_mining: false
+    cargo_weight: 15
+    base_cost: 4500
+
+  - key: mining_laser_mk2
+    name: "Mining Laser Mk2"
+    skill_required: space_transports_repair
+    difficulty: 20
+    trainer_npc: Venn Kator
+    components:
+      - type: metal
+        quantity: 24
+        min_quality: 45
+      - type: energy
+        quantity: 8
+        min_quality: 45
+      - type: rare
+        quantity: 2
+        min_quality: 55
+    output_type: component
+    output_key: mining_laser_mk2
+    # stat_boost 9 = +3D.  Replaces Mk1 in the slot (uninstall Mk1 first).
+    stat_target: mining
+    stat_boost: 9
+    mining_cooldown_pct: 40
+    deep_mining: true
+    cargo_weight: 18
+    base_cost: 12000
+    gated_faction: hutt_cartel
+    gated_min_rep: 25
+
+  - key: salvage_arm_mk1
+    name: "Reinforced Salvage Arm Mk1"
+    skill_required: space_transports_repair
+    difficulty: 16
+    trainer_npc: Venn Kator
+    components:
+      - type: metal
+        quantity: 8
+        min_quality: 40
+      - type: composite
+        quantity: 4
+        min_quality: 40
+    output_type: component
+    output_key: salvage_arm_mk1
+    # stat_boost 6 = +2D to salvage Technical check.
+    # salvage_component_bonus: extra components recovered per successful salvage.
+    stat_target: salvage
+    stat_boost: 6
+    salvage_component_bonus: 1
+    intact_extraction: false
+    cargo_weight: 18
+    base_cost: 5200
+
+  - key: salvage_arm_mk2
+    name: "Reinforced Salvage Arm Mk2"
+    skill_required: space_transports_repair
+    difficulty: 20
+    trainer_npc: Venn Kator
+    components:
+      - type: metal
+        quantity: 16
+        min_quality: 45
+      - type: composite
+        quantity: 8
+        min_quality: 45
+      - type: rare
+        quantity: 2
+        min_quality: 55
+    output_type: component
+    output_key: salvage_arm_mk2
+    # stat_boost 9 = +3D.  Replaces Mk1 in the slot.
+    stat_target: salvage
+    stat_boost: 9
+    salvage_component_bonus: 2
+    intact_extraction: true
+    cargo_weight: 22
+    base_cost: 14000
+    gated_faction: republic
+    gated_min_rep: 25
+
+  - key: onboard_refinery
+    name: "Onboard Refinery"
+    skill_required: space_transports_repair
+    difficulty: 18
+    trainer_npc: Venn Kator
+    components:
+      - type: metal
+        quantity: 10
+        min_quality: 45
+      - type: energy
+        quantity: 6
+        min_quality: 45
+      - type: composite
+        quantity: 4
+        min_quality: 50
+    output_type: component
+    output_key: onboard_refinery
+    # stat_boost unused (single-tier; the presence of the mod is the effect).
+    # The `refine` command checks has_refinery from get_effective_stats().
+    stat_target: refinery
+    stat_boost: 1
+    cargo_weight: 25
+    base_cost: 8500

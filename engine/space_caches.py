@@ -519,15 +519,27 @@ async def harvest_mining(
     db,
     char: dict,
     cache_instance_id: int,
+    *,
+    ship_mod_stats: Optional[dict] = None,
 ) -> MineResult:
     """Attempt to mine a space cache.
 
     Flow:
     1. Load the cache instance; validate state + kind.
-    2. Run perform_skill_check (primary: space transports).
-    3. On success: roll the yield table; call add_resource; set cooldown.
-       Rep reward (if any): adjust_territory_influence.
+    2. Run perform_skill_check (primary: space transports), with optional
+       Mining Laser pip bonus from installed ship mods.
+    3. On success: roll the yield table; call add_resource; set cooldown
+       (reduced by mining_cooldown_pct if Mining Laser installed).
+       Deep mining (Mk2): additional rare-resource roll on critical success.
+       Rep reward (if any): adjust_rep.
     4. Return a MineResult struct.
+
+    Args:
+        ship_mod_stats: dict from engine.starships.get_effective_stats(), or None.
+            If provided and has mining_bonus_pips > 0, those pips are passed as
+            lead_bonus to perform_skill_check (the existing pip-bonus seam).
+            mining_cooldown_pct reduces the respawn cooldown by that percentage.
+            deep_mining (Mk2) triggers an extra rare-resource roll on critical.
 
     Funnel callers:
     - Skill check  : engine.skill_checks.perform_skill_check
@@ -578,13 +590,25 @@ async def harvest_mining(
                           message=f"Cache #{cache_instance_id} is not a mining node "
                                   f"(kind='{cache_def.kind}'). Use the appropriate command.")
 
-    # 2. Skill check
+    # Read Mining Laser mod values from the caller's ship (if any).
+    _mod_mining_pips     = 0
+    _mod_cooldown_pct    = 0
+    _mod_deep_mining     = False
+    if ship_mod_stats:
+        _mod_mining_pips  = int(ship_mod_stats.get("mining_bonus_pips", 0) or 0)
+        _mod_cooldown_pct = int(ship_mod_stats.get("mining_cooldown_pct", 0) or 0)
+        _mod_deep_mining  = bool(ship_mod_stats.get("deep_mining", False))
+
+    # 2. Skill check  (lead_bonus carries Mining Laser pip bonus into the roll)
     from engine.skill_checks import perform_skill_check
     from engine.character import get_cached_skill_registry
     try:
         sr = get_cached_skill_registry()
-        result = perform_skill_check(char, _MINE_SKILL_PRIMARY, _MINE_DIFFICULTY, sr,
-                                     auto_consume_lead=False)
+        result = perform_skill_check(
+            char, _MINE_SKILL_PRIMARY, _MINE_DIFFICULTY, sr,
+            lead_bonus=_mod_mining_pips if _mod_mining_pips else None,
+            auto_consume_lead=False,
+        )
     except Exception as exc:
         log.warning("[space_caches] perform_skill_check failed: %s", exc, exc_info=True)
         result = None
@@ -632,11 +656,26 @@ async def harvest_mining(
     # Grant resource via funnel; persist via save_character (allowlisted write path).
     from engine.crafting import add_resource
     add_resource(char, rtype, qty, quality)
+
+    # Deep mining (Mk2 Mining Laser): extra rare-resource roll on critical success.
+    # The bonus roll uses `rare` (always) to represent exotic mineral seams
+    # that only the Mk2's deeper penetration can reach.
+    deep_mine_qty  = 0
+    if critical and _mod_deep_mining:
+        deep_mine_qty = random.randint(1, 2)
+        add_resource(char, "rare", deep_mine_qty, float(random.randint(55, 85)))
+
     await db.save_character(char["id"], inventory=char["inventory"])
 
-    # Set cooldown
+    # Set cooldown — Mining Laser reduces by mining_cooldown_pct (clamped 0-40).
+    effective_cooldown_minutes = cache_def.respawn_minutes
+    if _mod_cooldown_pct > 0:
+        pct = max(0, min(40, _mod_cooldown_pct))
+        effective_cooldown_minutes = max(
+            1, int(round(cache_def.respawn_minutes * (1.0 - pct / 100.0)))
+        )
     await set_cache_cooldown(db, cache_instance_id, char["id"],
-                             cache_def.respawn_minutes)
+                             effective_cooldown_minutes)
 
     # Rep reward via funnel
     rep_applied = await _apply_rep_rewards(db, char, cache_def.rep_reward,
@@ -655,6 +694,7 @@ async def harvest_mining(
         message=(
             f"{'Critical extraction! ' if critical else ''}"
             f"Extracted {qty}x {rtype} (quality {quality:.0f})."
+            + (f" Deep mining: +{deep_mine_qty}x rare." if deep_mine_qty else "")
         ),
     )
 
