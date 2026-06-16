@@ -6,6 +6,19 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Help corpus batch 5: +finger, +where, +ooc, +channels, +freqs, +news, +reputation, +achievements, +background — *drop help-corpus-batch5*
+Additive data-only drop — no engine changes. Adds 9 missing help entries for player social and info commands.
+- **`data/help/commands/+finger.md` (new):** `+finger` / `finger` — view or set your player info card. Documents all 8 settable fields (fullname, position, rp-prefs, quote, alts, theme-song, plan, timezone), the `/set` switch, RP preferences display, and online status output.
+- **`data/help/commands/+where.md` (new):** `+where` / `where` — show all online players grouped by location with idle times.
+- **`data/help/commands/+ooc.md` (new):** `+ooc` — LOCAL room-only OOC chat. Distinguishes clearly from global `ooc` channel; documents `[Local OOC]` tag and scope.
+- **`data/help/commands/+channels.md` (new):** `+channels` / `channels` — full comms channel overview: ooc/newbie (global), comlink (planet IC), fcomm (faction), commfreq (custom frequency), with syntax for each.
+- **`data/help/commands/+freqs.md` (new):** `+freqs` / `freqs` — list tuned custom frequencies; documents tune/untune/commfreq workflow and frequency range 1-9999.
+- **`data/help/commands/+news.md` (new):** `+news` / `news` — Galactic News Network board showing Director-authored world events. Distinguishes from `+holonet` (player-posted).
+- **`data/help/commands/+reputation.md` (new):** `+reputation` / `+rep` — faction standings overview and per-faction detail. Documents all faction codes, reputation tiers (Reviled→Champion), and how rep changes.
+- **`data/help/commands/+achievements.md` (new):** `+achievements` / `+ach` — achievement progress across all categories (combat, space, economy, crafting, social, exploration, smuggling, force). Documents CP awards and the completed/in-progress display format.
+- **`data/help/commands/+background.md` (new):** `+background` / `+bg` — view or set your character backstory. Notes NPC/Director AI use, third-person convention, and the 2000-char limit.
+- **Files:** 9 new `data/help/commands/*.md` files, `tests/test_help_social_info.py` (new, 114 tests green), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-16 — T3.21 optimization: kill the N+1 in the character directory — *drop t321-portal-characters-n1*
 Performance drop on a PUBLIC, unauthenticated endpoint. No schema change, behavior-preserving.
 - **`server/web_portal.py` `handle_characters` (GET /api/portal/characters).** The paginated directory fetched the page of rows, then looped and called `db.get_character(row["id"])` ONCE PER ROW solely to read the `faction` field out of the attributes JSON blob — up to `per_page` (capped 50) extra full-character DB round-trips per page request, on an open endpoint = a real load / DoS-amplification vector. The page query now SELECTs the `attributes` column inline and faction is parsed from that row, so a directory page costs exactly two queries (count + page) regardless of page size. Faction values, the faction filter, and the response shape are all unchanged; malformed/missing attributes still degrade to `"Neutral"` without crashing.
