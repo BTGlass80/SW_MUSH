@@ -6,6 +6,26 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Help corpus batch 7: +lead, +joinlead, +plots, +region, +commissary, +credits, +rpprefs, +recap, +quests, +intel, +roster, +pvp, +powers, +forcestatus, +meditate, +title — *drop help-corpus-batch7*
+Additive data-only drop — no engine changes. Adds 16 missing help entries for leadership, Force, espionage, economy, roleplay, and combat commands.
+- **`data/help/commands/+lead.md` (new):** `+lead` — lead a combined action; Command roll at diff 10/15/20 for +1D/+2D/+3D bonus to named followers. Documents difficulty table, 60s expiry, and cancel switch.
+- **`data/help/commands/+joinlead.md` (new):** `+joinlead` — accept a lead bonus staged by a leader in the same room. Bonus applies to next skill roll.
+- **`data/help/commands/+plots.md` (new):** `+plots` / `+arcs` — list and manage collaborative story arcs. Documents create/summary/link/unlink/close/reopen subcommands with examples.
+- **`data/help/commands/+region.md` (new):** `+region` / `+reg` — wilderness region info (ownership, influence, resource quality, active contests). No-arg = current region; slug = any region.
+- **`data/help/commands/+commissary.md` (new):** `+commissary` / `+requisition` — faction gear requisition; rank-gated catalog, buy/sell workflow, catalog key explained.
+- **`data/help/commands/+credits.md` (new):** `+credits` / `credits` / `balance` / `wallet` — quick credit balance check. All four aliases documented.
+- **`data/help/commands/+rpprefs.md` (new):** `+rpprefs` — RP preference flags (combat/romance/dark/scheduled/notes) displayed on +finger; set/clear workflow; yes/no/maybe values.
+- **`data/help/commands/+recap.md` (new):** `+recap` / `+history` — narrative recap (background + recent actions + active quests); explains Director AI usage.
+- **`data/help/commands/+quests.md` (new):** `+quests` / `+pq` — personal quests list (active/completed); questaccept/questcomplete/questabandon workflow; Director AI source explained.
+- **`data/help/commands/+intel.md` (new):** `+intel` — intelligence report workflow: create/add/seal/discard/read/give/handover; credits + influence reward from handover.
+- **`data/help/commands/+roster.md` (new):** `+roster` — NPC crew roster with station assignments, daily wages, days-of-funding remaining; related assign/unassign/dismiss commands.
+- **`data/help/commands/+pvp.md` (new):** `+pvp` — opt-in PvP flag; contested-zones-only; secured zone override rule; 5-min anti-tag-and-flee unflag cooldown; on/off/status subcommands.
+- **`data/help/commands/+powers.md` (new):** `+powers` / `powers` — Force power listing (available + locked); Control/Sense/Alter unlock mechanic; force <power> activation.
+- **`data/help/commands/+forcestatus.md` (new):** `+forcestatus` / `fstatus` — Force attribute sheet (Control/Sense/Alter dice, Force Points, Dark Side Points).
+- **`data/help/commands/+meditate.md` (new):** `+meditate` — Jedi Temple meditation; spends 1 FP, -5 Weight of War; Jedi-only/Temple-only/once per 24h; Weight=0 short-circuits without spending FP.
+- **`data/help/commands/+title.md` (new):** `+title` — decorative character titles; credit-purchase auto-equip model; buy/set/clear subcommands; catalog key explained.
+- **Files:** 16 new `data/help/commands/*.md` files, `tests/test_help_leadership_force_misc.py` (new, 138 tests green), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-16 — T3.21 optimization: index the account → characters lookup (schema v46) — *drop t321-characters-account-index*
 Performance drop. Pure index addition; query results byte-for-byte identical, no behavior change.
 - **`db/database.py` schema v46.** The account → characters lookup had no supporting index. `Database.get_characters(account_id)` — run on every login and character-selection — did `SELECT * FROM characters WHERE account_id = ? AND is_active = 1`, a full `characters` scan that grows with every character in the game; the accounts↔characters JOINs in builder/mux tooling (`parser/building_tier2`, `parser/mux_commands`) join on `c.account_id`, also unindexed. Adds composite `CREATE INDEX idx_characters_account ON characters(account_id, is_active)` to BOTH the base `SCHEMA_SQL` (fresh DBs) and `MIGRATIONS[46]` (existing DBs, `IF NOT EXISTS` → idempotent). The composite fully covers the get_characters predicate (account_id + is_active) and serves the `account_id`-prefix JOINs.
