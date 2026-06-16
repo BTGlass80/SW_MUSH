@@ -203,13 +203,42 @@ class CommandRegistry:
     def __init__(self):
         self._commands: dict[str, BaseCommand] = {}
         self._aliases: dict[str, str] = {}  # alias -> primary key
+        # Registration collisions, captured for the convention-invariant guard
+        # (tests/test_command_convention_invariant.py). Each entry:
+        #   (kind, token, prev_owner, new_owner)
+        # where kind in {"key", "alias", "alias_shadows_key"}. The registry's
+        # last-wins behaviour is silent by default; this records + warns so the
+        # command-syntax rework can drive the baseline to zero. See audit A3
+        # (DEV-3) and docs/design/command_syntax_rework_design_v2.md.
+        self._collisions: list[tuple[str, str, str, str]] = []
 
     def register(self, cmd: BaseCommand):
-        """Register a command instance."""
+        """Register a command instance.
+
+        Registration is last-wins. A genuine *collision* (a key re-registered
+        by a different command, or an alias pointing somewhere new, or an alias
+        shadowing an existing primary key) is recorded in ``self._collisions``
+        and logged at WARNING — silent last-wins is a real dead-routing hazard
+        (audit A3 / DEV-3). Re-pointing an alias to the same key is not a
+        collision.
+        """
         key = cmd.key.lower()
+        if key in self._commands and type(self._commands[key]) is not type(cmd):
+            prev = type(self._commands[key]).__name__
+            self._collisions.append(("key", key, prev, type(cmd).__name__))
+            log.warning("command key collision: %r re-registered (%s overrides %s)",
+                        key, type(cmd).__name__, prev)
         self._commands[key] = cmd
         for alias in cmd.aliases:
-            self._aliases[alias.lower()] = key
+            a = alias.lower()
+            if a in self._commands:
+                self._collisions.append(("alias_shadows_key", a, a, key))
+                log.warning("command alias %r shadows an existing primary key (alias ignored at lookup)", a)
+            elif a in self._aliases and self._aliases[a] != key:
+                self._collisions.append(("alias", a, self._aliases[a], key))
+                log.warning("command alias collision: %r re-aliased (%s -> %s)",
+                            a, self._aliases[a], key)
+            self._aliases[a] = key
         log.debug("Registered command: %s (aliases: %s)", key, cmd.aliases)
 
     def get(self, name: str) -> Optional[BaseCommand]:
