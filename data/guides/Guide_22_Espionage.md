@@ -253,18 +253,50 @@ When you `give`, the report transfers to the recipient. They can read it, file i
 
 The **value of intel** depends on:
 
-- **Specificity.** "Imperials are bad" is worthless; "Captain Vora replaced Colonel Drake on this date" is valuable.
+- **Specificity.** "The Separatists are up to something" is worthless; "Captain Vora replaced Colonel Drake on this date" is valuable.
 - **Recency.** Old intel decays in value fast. A report on patrol patterns from last week may already be obsolete.
 - **Exclusivity.** Common knowledge has no value. Information only a few characters could have gathered has high value.
 - **Actionability.** Intel that lets the recipient *do something* is more valuable than intel that's merely interesting.
 
 A good faction intelligence officer compiles reports that pay (or earn rep) when traded to interested parties. Intel about CIS movements has value to Republic Intelligence; intel about Republic supply convoys has value to CIS or Hutt buyers. The trade network emerges organically.
 
-### Trading intel for credits
+### Trading intel between players
 
-The trade itself happens through normal player-to-player exchange — you give the report, they pay you (or pay you in advance based on description). The system doesn't auto-broker intel transactions; the players negotiate.
+The basic trade happens through player-to-player exchange — you give the report, they pay you (or pay you in advance based on description). The system doesn't auto-broker intel transactions; the players negotiate. This is flexible: you can sell to rivals, gift to allies, or hold reports for personal use.
 
-Some factions have **intel handlers** — NPCs in faction HQs who accept intel and pay fixed prices based on content. Republic Intel might pay 500-2,000 cr per useful report; the Hutts might pay similarly for information about Republic operations. The price varies; the relationships are personal.
+### Handing over to a faction handler (`+intel handover`)
+
+The more mechanically rewarding path is delivering sealed intel directly to your **faction's intel handler NPC**, found in your faction's HQ. Handlers convert intel into credits **and** territory influence automatically.
+
+```
++intel handover          — hand over your first sealed report
++intel handover <id>     — hand over a specific report by ID
+```
+
+**Requirements:**
+- You must be a faction member (independent characters can't use handover).
+- A matching handler NPC must be in the same room as you.
+- The report must be sealed (not a draft) and not yet expired.
+
+**Quality tiers — how the handler rates your intel:**
+
+| Quality | Credits | Influence |
+|---|---|---|
+| **Low** | 200–500 cr | 1–3 |
+| **Medium** | 600–1,500 cr | 4–8 |
+| **High** | 2,000–5,000 cr | 10–20 |
+
+**What determines quality?** The handler's assessment is a heuristic:
+- **Line count** — more substantive entries (up to 5) score higher.
+- **Region specificity** — naming a known wilderness region in your report body grants a major quality boost and is required for the influence award to land. Reports that don't describe any specific region still pay credits, but yield zero influence.
+- **Freshness** — reports composed within the past 24 hours are worth more; reports older than 3 days are docked.
+- **Proper-noun density** — actionable reports naming specific people, places, or units ("Clone Captain Voss," "Dune Sea garrison") score better than vague observations.
+
+**Influence routing:** The influence delta routes into the region named in the report, applying SYN.3 contest multipliers if a contest is active. It flows through `adjust_territory_influence` — it counts toward your faction's foothold the same as a garrison garrison hold or territory action.
+
+**INTELLIGENCE_THAW world event:** When this Director-triggered event is active, credit payouts double. Influence rates are unaffected. If you see "Intelligence Thaw: double rates!" in the handler's response, the event is running — a good time to clear your sealed-report backlog.
+
+**Practical note:** To maximize quality, write reports that name a specific wilderness region your faction cares about, include at least 3–4 substantive lines naming real actors, and hand over within 24 hours of composing.
 
 ---
 
@@ -377,6 +409,8 @@ Five concrete pictures.
 | `+intel discard` | Discard the current draft |
 | `+intel read <id>` | Read a report |
 | `+intel give <player> <id>` | Give a sealed report to another player |
+| `+intel handover` | Hand first sealed report to faction handler (credits + influence) |
+| `+intel handover <id>` | Hand a specific sealed report to faction handler |
 | `+spy` | Umbrella for all the above |
 
 ---
@@ -397,8 +431,12 @@ Five concrete pictures.
 | Assess roll | Opposed Perception vs. Con |
 | Eavesdrop roll | Perception vs. distance-scaled difficulty |
 | Investigate roll | Search vs. room-scaled difficulty |
-| Intel report typical pay (faction handler) | 500-2,000 cr per useful report |
-| Intel report rep gain | +2 to +5 per significant report |
+| Intel handover pay — Low quality | 200–500 cr, 1–3 influence |
+| Intel handover pay — Medium quality | 600–1,500 cr, 4–8 influence |
+| Intel handover pay — High quality | 2,000–5,000 cr, 10–20 influence |
+| Intel handover — influence requirement | Report must name a known wilderness region |
+| Intel handover — freshness window | 24 hours (older reports score lower) |
+| Intel report rep gain | +2 to +5 per significant report (faction handler NPC) |
 
 ---
 

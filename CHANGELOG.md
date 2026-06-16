@@ -6,6 +6,14 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Guide_22_Espionage.md SYN.5 handover update (Sonnet loop) — *drop guide-22-espionage-syn5*
+PRELAUNCH.help_guides_rework — Guide_22 updated with the `+intel handover` (SYN.5 espionage-as-influence) mechanic. No engine changes.
+- **`+intel handover` documented (§6):** The SYN.5 command (shipped in `engine/intel_handlers.py`) was entirely absent from the guide. Added "Handing over to a faction handler" subsection: syntax (`+intel handover` / `+intel handover <id>`), faction-membership requirement, three quality tiers (LOW 200–500 cr + 1–3 inf, MEDIUM 600–1,500 cr + 4–8 inf, HIGH 2,000–5,000 cr + 10–20 inf), quality-scoring heuristic (line count, region specificity, freshness 24h, proper-noun density), influence routing through SYN.3 contest multipliers, INTELLIGENCE_THAW world event (doubles credit rates).
+- **Quick Reference (§12):** Added `+intel handover` and `+intel handover <id>` rows.
+- **Numbers At A Glance (§13):** Replaced stale "500-2,000 cr" estimate with the three accurate payout tiers from engine constants. Added freshness window and region requirement rows.
+- **B3 era-cleanness fix:** Example bad intel "Imperials are bad" → "The Separatists are up to something" (GCW-era → Clone Wars era).
+- **14 new tests green** (`tests/test_guide_22_espionage_rework.py`).
+
 ### 2026-06-16 — T3.21 input-validation sweep: type/length bounds on chargen + portal POST bodies (Opus loop) — *drop t3-21-input-validation*
 T3.21 security tail (MEDIUM). The unauthenticated chargen/portal JSON endpoints assumed the parsed body and several fields were well-typed; a malformed body crashed handlers with an unhandled `AttributeError`/`TypeError` (→ opaque 500) or wrote an unbounded blob into a character's `description`. All fixes are behavior-preserving for well-formed input. No schema change.
 - **Non-dict top-level body → clean 400, not 500.** `server/api.py handle_submit` + `handle_create_character` and `server/web_portal.py handle_login` now reject a non-object JSON body (array/string/number/null) before any `data.get(...)` call. `validate_chargen_submission` also guards `isinstance(data, dict)` at the top, so `POST /api/chargen/validate` returns a graceful error list instead of raising.
