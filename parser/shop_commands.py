@@ -26,7 +26,9 @@ Admin commands:
   @shop remove <id>        — force-remove a droid
 """
 import logging
-from parser.commands import BaseCommand, CommandContext, AccessLevel
+from parser.commands import (
+    BaseCommand, CommandContext, AccessLevel, audit_privileged_invocation,
+)
 
 log = logging.getLogger(__name__)
 
@@ -937,6 +939,11 @@ def _init_shop_switch_impl():
             await ctx.session.send_line("You don't have permission to do that.")
             return
         ctx.args = rest
+        # Forwards into the ADMIN command's execute() directly, bypassing the
+        # dispatcher's admin_audit seam — record the privileged invocation here
+        # so `+shop admin ...` leaves a trail like a direct `@shop ...`
+        # (T3.21 Blocker 3 follow-up; mirrors the +home admin fix).
+        await audit_privileged_invocation(cmd, ctx)
         await cmd.execute(ctx)
 
     _SHOP_SWITCH_IMPL["shop"] = _shop

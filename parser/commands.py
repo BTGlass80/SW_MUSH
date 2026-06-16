@@ -46,6 +46,74 @@ class AccessLevel:
     ADMIN = 3         # Has admin flag
 
 
+# ── Admin audit trail (T3.21 Blocker 3) ──
+# Shared by the dispatcher's _execute() privilege gate AND the PLAYER-level
+# umbrella forwards (+home admin / +shop admin) that invoke an ADMIN command's
+# execute() DIRECTLY — those bypass the dispatcher seam, so unless they record
+# the row themselves the who-exercised-privilege trail has a hole.
+
+# Commands whose argument string carries a secret that must NEVER reach the
+# audit log (e.g. a plaintext password reset). Matched by command key; a
+# content-based password guard in _redact_audit_detail catches the rest (e.g. a
+# password reset smuggled through @force).
+_AUDIT_REDACT_COMMANDS = frozenset({
+    "@newpassword", "@passwd", "@password", "@newpass",
+})
+
+
+def _redact_audit_detail(cmd_key: str, args: str) -> str:
+    """Sanitize a command's argument string for the audit trail.
+
+    Redacts secret-bearing commands wholesale and any argument string that
+    looks like it carries a password, then caps length to keep the audit
+    table lean.
+    """
+    if not args:
+        return ""
+    lowered = args.lower()
+    # Redact if: (a) the command itself is secret-bearing, (b) the args
+    # contain a password keyword (catches @newpassword/@passwd smuggled
+    # through @force), or (c) any whitespace token is a known redact
+    # command (catches a secret-bearing alias smuggled through @force
+    # even if it lacks the 'password' substring).
+    if (cmd_key.lower() in _AUDIT_REDACT_COMMANDS
+            or "passwd" in lowered or "password" in lowered
+            or any(tok in _AUDIT_REDACT_COMMANDS
+                   for tok in lowered.split())):
+        return "[redacted]"
+    return args[:500]
+
+
+async def audit_privileged_invocation(cmd, ctx) -> None:
+    """Best-effort write of a privileged (BUILDER/ADMIN) command invocation to
+    the admin_audit trail (T3.21 Blocker 3).
+
+    Used by the dispatcher gate in CommandParser._execute() AND by the
+    PLAYER-level umbrella admin forwards (+home admin / +shop admin), which
+    call an ADMIN command's execute() directly and would otherwise leave no
+    trail. Swallows all errors — an audit-write failure must never block the
+    operator's command.
+    """
+    db = ctx.db
+    if db is None or not hasattr(db, "record_admin_action"):
+        return
+    sess = ctx.session
+    acct = (sess.account if sess else None) or {}
+    char = (sess.character if sess else None) or {}
+    try:
+        await db.record_admin_action(
+            account_id=acct.get("id"),
+            username=acct.get("username"),
+            char_id=char.get("id"),
+            char_name=char.get("name"),
+            access_level=cmd.access_level,
+            command=cmd.key,
+            detail=_redact_audit_detail(cmd.key, ctx.args),
+        )
+    except Exception:
+        log.warning("admin_audit write failed for %s", cmd.key, exc_info=True)
+
+
 @dataclass
 class CommandContext:
     """
@@ -451,58 +519,17 @@ class CommandParser:
 
         await ctx.session.send_prompt()
 
-    # Commands whose argument string carries a secret that must NEVER reach
-    # the audit log (e.g. a plaintext password reset). Matched by command key;
-    # a content-based password guard in _redact_audit_detail catches the rest
-    # (e.g. a password reset smuggled through @force).
-    _AUDIT_REDACT_COMMANDS = frozenset({
-        "@newpassword", "@passwd", "@password", "@newpass",
-    })
-
     def _redact_audit_detail(self, cmd_key: str, args: str) -> str:
-        """Sanitize a command's argument string for the audit trail.
+        """Back-compat instance shim → module-level ``_redact_audit_detail``.
 
-        Redacts secret-bearing commands wholesale and any argument string that
-        looks like it carries a password, then caps length to keep the audit
-        table lean.
+        The implementation moved to module scope so the +home/+shop admin
+        umbrella forwards can share it; this preserves the existing
+        ``parser._redact_audit_detail(...)`` call surface (tests + callers).
         """
-        if not args:
-            return ""
-        lowered = args.lower()
-        # Redact if: (a) the command itself is secret-bearing, (b) the args
-        # contain a password keyword (catches @newpassword/@passwd smuggled
-        # through @force), or (c) any whitespace token is a known redact
-        # command (catches a secret-bearing alias smuggled through @force
-        # even if it lacks the 'password' substring).
-        if (cmd_key.lower() in self._AUDIT_REDACT_COMMANDS
-                or "passwd" in lowered or "password" in lowered
-                or any(tok in self._AUDIT_REDACT_COMMANDS
-                       for tok in lowered.split())):
-            return "[redacted]"
-        return args[:500]
+        return _redact_audit_detail(cmd_key, args)
 
     async def _audit_privileged(self, cmd: BaseCommand, ctx: CommandContext):
-        """Best-effort write of a privileged (BUILDER/ADMIN) command
-        invocation to the admin_audit trail (T3.21 Blocker 3).
-
-        Swallows all errors — an audit-write failure must never block the
-        command the operator is trying to run.
+        """Back-compat instance shim → module-level
+        ``audit_privileged_invocation``. See that function for behaviour.
         """
-        db = ctx.db
-        if db is None or not hasattr(db, "record_admin_action"):
-            return
-        sess = ctx.session
-        acct = sess.account or {}
-        char = sess.character or {}
-        try:
-            await db.record_admin_action(
-                account_id=acct.get("id"),
-                username=acct.get("username"),
-                char_id=char.get("id"),
-                char_name=char.get("name"),
-                access_level=cmd.access_level,
-                command=cmd.key,
-                detail=self._redact_audit_detail(cmd.key, ctx.args),
-            )
-        except Exception:
-            log.warning("admin_audit write failed for %s", cmd.key, exc_info=True)
+        await audit_privileged_invocation(cmd, ctx)

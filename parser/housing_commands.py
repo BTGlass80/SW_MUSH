@@ -26,7 +26,9 @@ from engine.housing import (
     housing_store, housing_retrieve,
     _storage,
 )
-from parser.commands import BaseCommand, CommandContext, AccessLevel
+from parser.commands import (
+    BaseCommand, CommandContext, AccessLevel, audit_privileged_invocation,
+)
 from server import ansi
 
 log = logging.getLogger(__name__)
@@ -1076,6 +1078,11 @@ def _init_home_switch_impl():
             await ctx.session.send_line("You don't have permission to do that.")
             return
         ctx.args = rest
+        # This umbrella forwards into the ADMIN command's execute() directly,
+        # bypassing the dispatcher's admin_audit seam — record the privileged
+        # invocation here so `+home admin ...` leaves a trail just like a direct
+        # `@housing ...` does (T3.21 Blocker 3 follow-up).
+        await audit_privileged_invocation(cmd, ctx)
         await cmd.execute(ctx)
 
     async def _prestige(ctx, rest):
