@@ -78,16 +78,25 @@ def load_tunables(path: str = "data/tunables.yaml") -> None:
 
 
 def get_tunable(key: str, default: Any = None) -> Any:
-    """Return a tunable by dotted key, or *default* if not set in YAML.
+    """Return a tunable by dotted key, or *default* if not usefully set in YAML.
 
     The caller supplies the hardcoded literal as *default* so the YAML is
     purely additive — omitting a key from the YAML is always safe.
+
+    A **present-but-null** value (``key:`` with no value, or ``key: null``)
+    is treated as "use the default", NOT propagated as ``None``. ``dict.get``
+    only falls back on an *absent* key, so an operator typo that leaves a key
+    valueless would otherwise feed ``None`` into the caller's arithmetic and
+    crash the call site. Coercing None → default here makes every knob
+    fail-safe against that misconfiguration. (Falsy-but-valid values like
+    ``0`` / ``0.0`` / ``False`` are preserved — only ``None`` coerces.)
 
     Example::
 
         PRICE_DEMAND = get_tunable("trade.price_demand_multiplier", 1.40)
     """
-    return _TUNABLES.get(key, default)
+    val = _TUNABLES.get(key, default)
+    return default if val is None else val
 
 
 def reset_tunables() -> None:

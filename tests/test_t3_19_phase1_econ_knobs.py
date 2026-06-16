@@ -18,7 +18,9 @@ import pytest
 import yaml
 
 from engine import tunables
-from engine.tunables import reset_tunables
+from engine.tunables import get_tunable, reset_tunables
+
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture(autouse=True)
@@ -143,15 +145,45 @@ def test_p2p_tax_externalized_formula_is_integer_identical_to_legacy():
 
 def test_p2p_tax_call_site_reads_tunable():
     # the credit-trade path is DB/session-heavy; assert the externalization is
-    # wired at the source (the formula equivalence is covered above).
-    src = pathlib.Path("parser/builtin_commands.py").read_text(encoding="utf-8")
+    # wired at the source (the formula equivalence is covered above). The
+    # old-form regression guard catches a revert to the hardcoded tax.
+    src = (PROJECT_ROOT / "parser" / "builtin_commands.py").read_text(encoding="utf-8")
     assert 'get_tunable("p2p.tax_pct", 5)' in src
     assert "amount * tax_pct // 100" in src
+    assert "max(1, amount // 20)" not in src  # the old hardcoded tax is gone
 
 
 # ── data/tunables.yaml ships the cluster at the in-code defaults ──────────────
+# ── operator-misconfig robustness (verification-driven hardening) ────────────
+def test_present_but_null_yaml_value_falls_back_to_default():
+    # dict.get only defaults on an ABSENT key; a present-but-null value
+    # (`key:` in YAML -> None) must coerce to the in-code default, not crash.
+    tunables._TUNABLES["trade.price_source_multiplier"] = None
+    assert get_tunable("trade.price_source_multiplier", 0.70) == 0.70
+    # falsy-but-valid values are preserved (only None coerces)
+    tunables._TUNABLES["p2p.tax_pct"] = 0
+    assert get_tunable("p2p.tax_pct", 5) == 0
+
+
+def test_null_knob_does_not_crash_call_site():
+    from engine.trading import TRADE_GOODS, get_planet_price
+    tunables._TUNABLES["trade.price_source_multiplier"] = None  # operator typo
+    lux = TRADE_GOODS["luxury_goods"]
+    assert get_planet_price(lux, "nar_shaddaa") == 280  # falls back to 0.70, no crash
+
+
+def test_bounty_superior_max_below_floor_does_not_crash():
+    from engine.bounty_board import BountyTier, _scale_reward
+    # an out-of-range value (< the tier's lo=3000) must not raise
+    # "empty range" in randint; the band clamps to lo.
+    _set(**{"bounty.reward_superior_max": 1000})
+    for s in range(5):
+        random.seed(s)
+        assert _scale_reward(BountyTier.SUPERIOR) == 3000  # clamped hi == lo
+
+
 def test_tunables_yaml_ships_cluster_at_defaults():
-    d = yaml.safe_load(pathlib.Path("data/tunables.yaml").read_text(encoding="utf-8"))
+    d = yaml.safe_load((PROJECT_ROOT / "data" / "tunables.yaml").read_text(encoding="utf-8"))
     assert d["trade.price_source_multiplier"] == 0.70
     assert d["trade.price_demand_multiplier"] == 1.40
     assert d["trade.supply_refresh_seconds"] == 2700

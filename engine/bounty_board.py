@@ -317,7 +317,10 @@ def krayt_upgrade_tier(tier: BountyTier, krayt_active: bool) -> BountyTier:
 def _scale_reward(tier: BountyTier) -> int:
     lo, hi = PAY_RANGES[tier]
     if tier == BountyTier.SUPERIOR:
-        hi = get_tunable("bounty.reward_superior_max", hi)
+        # clamp hi >= lo so an out-of-range operator value can't make
+        # random.randint raise "empty range" (mission._scale_reward is already
+        # min/max-guarded; bounty's randint is not).
+        hi = max(lo, get_tunable("bounty.reward_superior_max", hi))
     raw = random.randint(lo, hi)
     # Round to nearest 50cr
     return int(round(raw / 50) * 50)
