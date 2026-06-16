@@ -44,9 +44,10 @@ log = logging.getLogger(__name__)
 # (5 fails / 5 min), so stuffing ACROSS many accounts from one IP is otherwise
 # unbounded. A dedicated bucket (not the shared api._check_rate_limit) keeps login
 # throttling independent of the general API budget. Keyed on api._get_client_ip,
-# which honors X-Forwarded-For: correct behind a trusted reverse proxy, spoofable
-# on a raw socket (tracked separately as the XFF-hardening item). Threshold is a
-# sensible candidate for the T3.19 tunables later.
+# which honors X-Forwarded-For ONLY when the direct peer is a configured trusted
+# proxy (SWMUSH_TRUSTED_PROXIES) and otherwise uses the raw peer address, so the
+# bucket key is not spoofable from a direct socket. Threshold is a sensible
+# candidate for the T3.19 tunables later.
 _login_attempts: dict[str, list[float]] = defaultdict(list)
 _LOGIN_RATE_WINDOW = 60   # seconds
 _LOGIN_RATE_MAX = 10      # login POSTs per window per IP

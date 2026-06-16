@@ -55,6 +55,7 @@ logs/
 *.pem
 secrets.yaml
 config.local.yaml
+token_secret.key  # persisted HMAC login-token secret (server/api.py); also matched by *.key
 
 # WEG sourcebook PDFs + text sidecars — local only (size/copyright)
 docs/sourcebooks/

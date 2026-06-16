@@ -35,8 +35,87 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 # ── Token auth ──────────────────────────────────────────────────────────
+#
+# The HMAC secret for login tokens is persisted to a gitignored 0600 key file
+# so that a server restart does not silently invalidate every outstanding token
+# (which would force a mass re-auth). The path is overridable via env for tests
+# and multi-instance deploys. It is loaded lazily on first token use, so merely
+# importing this module (e.g. across the test suite) never creates the file.
 
-_TOKEN_SECRET = os.urandom(32)
+TOKEN_SECRET_ENV_VAR = "SWMUSH_TOKEN_SECRET_FILE"
+_DEFAULT_TOKEN_SECRET_FILE = "token_secret.key"
+_TOKEN_SECRET_BYTES = 32
+# Windows os.open defaults to TEXT mode, which would translate any 0x0A byte in
+# the random secret to 0x0D0A on write and corrupt it. O_BINARY is Windows-only
+# (0 elsewhere), so this is a no-op on POSIX.
+_O_BINARY = getattr(os, "O_BINARY", 0)
+
+_TOKEN_SECRET: Optional[bytes] = None
+
+
+def _load_or_create_token_secret() -> bytes:
+    """Return the 32-byte HMAC secret, persisting a fresh one on first run.
+
+    Restart-stable: outstanding login tokens survive a reboot. The file is
+    created 0600 (best-effort — Windows honors only the read-only bit). On any
+    IO/permission failure we fall back to an ephemeral in-process secret and
+    warn; auth still works, tokens just won't survive a restart (the prior
+    behavior), so this degrades safely rather than failing closed.
+    """
+    path = os.environ.get(TOKEN_SECRET_ENV_VAR) or _DEFAULT_TOKEN_SECRET_FILE
+    try:
+        with open(path, "rb") as fh:
+            raw = fh.read()
+        if len(raw) >= _TOKEN_SECRET_BYTES:
+            return raw[:_TOKEN_SECRET_BYTES]
+        log.warning(
+            "Token secret file %r too short (%d bytes); regenerating",
+            path, len(raw),
+        )
+    except FileNotFoundError:
+        pass
+    except OSError:
+        log.warning(
+            "Could not read token secret file %r; using an ephemeral secret",
+            path, exc_info=True,
+        )
+        return os.urandom(_TOKEN_SECRET_BYTES)
+    secret = os.urandom(_TOKEN_SECRET_BYTES)
+    # Write to a sibling temp file and atomically replace, so a failed or
+    # partial write never truncates an existing valid secret (which would loop
+    # token invalidation on every restart). os.replace is atomic on POSIX and
+    # Windows when src/dst share a directory.
+    tmp_path = path + ".tmp"
+    try:
+        fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | _O_BINARY, 0o600)
+        try:
+            os.write(fd, secret)
+        finally:
+            os.close(fd)
+        os.replace(tmp_path, path)
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
+    except OSError:
+        log.warning(
+            "Could not persist token secret to %r; using an ephemeral secret "
+            "(tokens will not survive a restart)",
+            path, exc_info=True,
+        )
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+    return secret
+
+
+def _get_token_secret() -> bytes:
+    """Lazily load (and process-cache) the persisted HMAC secret."""
+    global _TOKEN_SECRET
+    if _TOKEN_SECRET is None:
+        _TOKEN_SECRET = _load_or_create_token_secret()
+    return _TOKEN_SECRET
 
 
 def create_login_token(account_id: int, ttl: int = 300) -> str:
@@ -44,7 +123,7 @@ def create_login_token(account_id: int, ttl: int = 300) -> str:
     payload = json.dumps({"aid": account_id, "exp": int(time.time()) + ttl})
     payload_b64 = base64.urlsafe_b64encode(payload.encode()).decode()
     sig = _hmac.new(
-        _TOKEN_SECRET, payload_b64.encode(), hashlib.sha256
+        _get_token_secret(), payload_b64.encode(), hashlib.sha256
     ).hexdigest()[:16]
     return f"{payload_b64}.{sig}"
 
@@ -54,7 +133,7 @@ def verify_login_token(token: str) -> Optional[int]:
     try:
         payload_b64, sig = token.rsplit(".", 1)
         expected = _hmac.new(
-            _TOKEN_SECRET, payload_b64.encode(), hashlib.sha256
+            _get_token_secret(), payload_b64.encode(), hashlib.sha256
         ).hexdigest()[:16]
         if not _hmac.compare_digest(sig, expected):
             return None
@@ -88,13 +167,48 @@ def _check_rate_limit(ip: str) -> bool:
 
 # ── Helpers ─────────────────────────────────────────────────────────────
 
+# X-Forwarded-For is attacker-controlled unless the request actually arrives
+# through a reverse proxy we operate. Trusting the leading XFF entry blindly
+# lets a direct client spoof its source IP and defeat the per-IP rate limiters
+# (chargen create, portal login throttle). So XFF is honored ONLY when the
+# direct peer is an operator-configured trusted proxy; otherwise the direct peer
+# address is used. Default (no proxies configured) = direct connection =
+# peername only = un-spoofable. Configure via SWMUSH_TRUSTED_PROXIES (a
+# comma-separated allowlist of the proxy IPs that sit in front of the app).
+TRUSTED_PROXIES_ENV_VAR = "SWMUSH_TRUSTED_PROXIES"
+
+
+def _load_trusted_proxies() -> frozenset:
+    raw = os.environ.get(TRUSTED_PROXIES_ENV_VAR, "")
+    return frozenset(p.strip() for p in raw.split(",") if p.strip())
+
+
+_TRUSTED_PROXIES = _load_trusted_proxies()
+
+
 def _get_client_ip(request: web.Request) -> str:
-    """Get client IP, respecting X-Forwarded-For if present."""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    peername = request.transport.get_extra_info("peername")
-    return peername[0] if peername else "unknown"
+    """Resolve the client IP, spoof-resistant.
+
+    Honors X-Forwarded-For only when the direct peer is a configured trusted
+    proxy, in which case it returns the right-most XFF entry that is not itself
+    a trusted proxy (the real client at the edge of our trusted hop chain). With
+    no proxies configured (the default) XFF is ignored and the direct peer
+    address is returned, so a raw-socket client cannot spoof its source IP.
+    """
+    transport = request.transport
+    peername = transport.get_extra_info("peername") if transport else None
+    peer_ip = peername[0] if peername else "unknown"
+    if _TRUSTED_PROXIES and peer_ip in _TRUSTED_PROXIES:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            hops = [p.strip() for p in forwarded.split(",") if p.strip()]
+            for candidate in reversed(hops):
+                if candidate not in _TRUSTED_PROXIES:
+                    return candidate
+            # Every hop is itself a trusted proxy (or none present) — never
+            # trust attacker-suppliable XFF data; the direct peer is the
+            # un-spoofable answer. Falls through to `return peer_ip`.
+    return peer_ip
 
 
 def _species_to_json(species) -> dict:
