@@ -1644,13 +1644,13 @@
       "id": "T3.13",
       "title": "Padawan-Master post-launch expansion (council, lineage trees, re-assignment)",
       "design_doc": "padawan_master_system_design_v1.md",
-      "launch_ruling": "FULL BODY PRE-LAUNCH (Brian 2026-06-14, BRIAN_ROADMAP_DECISIONS decision 2 — supersedes the prior 'POST-LAUNCH body' reading). VERIFY-FIRST at build time: each is already substantially BUILT (T3.13 Padawan/Master = schema + ~14 cmds + trials; T3.14 Cities = engine/player_cities.py + parser/city_commands.py; T3.16 Wildspace = least-built). Run a real gap-check (per HANDOFF_t317_t318_gapcheck pattern), log design forks, close gaps cleanly — do NOT blind-build a TODO command list (several 'missing' items prove to be deliberate-design or need-infra)."
+      "launch_ruling": "POST-LAUNCH (Brian 2026-06-15 \u2014 descoped from launch; keep the launch world sized to the player count. The bond + trials CORE that already shipped STAYS as-is; do NOT build the council/lineage/re-assignment expansion pre-launch). [PRIOR 2026-06-14, now SUPERSEDED: FULL BODY PRE-LAUNCH (decision 2; superseded the earlier POST-LAUNCH body reading).]"
     },
     {
       "id": "T3.14",
       "title": "Cities post-launch expansion (multi-city-per-org, paged list sub-modals, P2P discovery)",
       "design_doc": "player_cities_design_v1_2.md",
-      "launch_ruling": "FULL BODY PRE-LAUNCH (Brian 2026-06-14, BRIAN_ROADMAP_DECISIONS decision 2 — supersedes the prior 'POST-LAUNCH body' reading). VERIFY-FIRST at build time: each is already substantially BUILT (T3.13 Padawan/Master = schema + ~14 cmds + trials; T3.14 Cities = engine/player_cities.py + parser/city_commands.py; T3.16 Wildspace = least-built). Run a real gap-check (per HANDOFF_t317_t318_gapcheck pattern), log design forks, close gaps cleanly — do NOT blind-build a TODO command list (several 'missing' items prove to be deliberate-design or need-infra)."
+      "launch_ruling": "POST-LAUNCH + OPTIONAL (Brian 2026-06-15 \u2014 descoped from launch; T3.14 is also OPTIONAL at launch \u2014 +city found likely behind a feature flag gated off at launch; enable post-launch only if player count warrants). Cities engine/parser core already shipped; no pre-launch expansion work. [PRIOR 2026-06-14, now SUPERSEDED: FULL BODY PRE-LAUNCH (decision 2).]"
     },
     {
       "id": "T3.15",

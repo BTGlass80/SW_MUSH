@@ -6,6 +6,10 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-15 — Scope: T3.13 + T3.14 → POST-LAUNCH (T3.14 optional) — *roadmap decision (Brian)*
+Brian descoped two big bodies from launch to keep the launch world sized to the player count: **T3.13 (Padawan/Master)** and **T3.14 (Cities)** are now **POST-LAUNCH**; **T3.14 is also OPTIONAL** (likely gated off at launch — `+city found` behind a feature flag — so player cities don't bloat the world; enable post-launch only if the population warrants). This *reverses* the 2026-06-14 "full body pre-launch" reading (decision 2) for those two only — **T3.16 Wildspace stays pre-launch.** Their already-shipped CORES stay as-is; no pre-launch expansion work. `tier_3_post_launch` `launch_ruling` fields updated for T3.13/T3.14. Remaining pre-launch: finish T3.16 (web panel + refinery-rtype), T3.19 tunables/telemetry, T3.21 optimization+security, T3.22/T3.23, the tier-2 tail, final hardening.
+- **Files:** `TODO.json`, `CHANGELOG.md`.
+
 ### 2026-06-15 — T3.16 Space Wildspace Drop 5: wildspace web panel — *drop t316-wildspace-webpanel*
 Fifth and final T3.16 slice (per `space_wildspace_design_v1.md` §8 Drop 5). Adds the wildspace HUD panel to the cockpit right-panel.
 - **Server (`build_space_state`):** emits `is_wildspace` (bool), `wildspace_theater` (str|None), `wildspace_cache_summary` (list of {kind, count}), and seven `ship_mod_*` fields (mining pips/cd/deep, salvage pips/comp/intact, refinery). Derives from existing Zone dataclass `wildspace`/`wildspace_theater` fields + `get_cache_pool()` + `get_effective_stats()` — no new engine state.
