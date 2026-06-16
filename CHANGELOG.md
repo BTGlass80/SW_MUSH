@@ -6,6 +6,20 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Guide_07_Crafting.md full rework (Sonnet loop) — *drop guide-crafting-rework*
+PRELAUNCH.help_guides_rework — Guide 07 rewritten to reflect the shipped crafting system (was last updated April 2026, missing all Gundark drops A–G, armor crafting, T5 master lane, Wildspace ship mods, and the 7th resource type). No engine changes.
+- **7 resource types documented** (metal/chemical/organic/energy/composite/rare + `electronic`, added in Gundark Drop A; was missing from the guide).
+- **T5 wilderness materials** (5 drop-only types: kyber_shard_minor / weapons_capacitor_core / scavenged_republic_tech / deep_dune_iron / composite_chitin) — sources, quality 75+ gate, drop-only framing.
+- **All 9 live trainer NPCs documented** with locations (Kayson, Sela Tarn, Heist, Doc Vashar, Vek Nurren, Venn Kator, Renna Dox, Gundark, T5 questline trainers).
+- **Armor crafting section** (Sela Tarn at Kayson's Weapon Shop — 11 armor types, `armor_repair` skill).
+- **Field gear & survival** (Vek Nurren at Lup's General Store — cooling units, breath masks, binders, etc.).
+- **Gundark restricted-weapons lane** (contraband: Disruptor Pistol / Predator Rifle / Anti-Vehicle Grenade, Nar Shaddaa Undercity Market).
+- **T5 master crafting section** (5 T5 schematics, questline-gated trainers, difficulty 25–28).
+- **Wildspace ship mods** (Mining Laser Mk1/Mk2, Salvage Arm Mk1/Mk2, Onboard Refinery — rep-gated Mk2 variants documented).
+- **Experimentation updated**: three axes (damage/accuracy/durability), breakdown dice, 3-experiment cap.
+- **`buyresources` command** added to commands reference (was missing from v1).
+- **31 tests green** (`tests/test_guide_07_crafting_rework.py` — frontmatter, 7 resource types, T5 materials, all trainers, Gundark lane, T5 section, experimentation, commands, era-cleanliness, Wildspace mods; plus existing guide-reorganization suite).
+
 ### 2026-06-16 — T3.21 security tail: public aiohttp surface hardening (headers + request-size cap) — *drop t321-web-security-headers*
 T3.21 MEDIUM tail (Opus lane) — the browser-facing aiohttp app (`server/web_client.py`) serves the SPA (which renders server-provided strings) and the chargen/portal JSON API to unauthenticated clients, but shipped with **zero security response headers** and aiohttp's default 1 MiB request-body limit. Closes the "aiohttp surface (CORS, headers, request-size/DoS limits)" + "web-client XSS/injection surface" scope items. No schema change; no behavior change for legitimate clients.
 - **App-wide security-headers middleware** (`_security_headers_middleware`): applies `X-Content-Type-Options: nosniff` (stop MIME-sniffing of API JSON as HTML), `X-Frame-Options: DENY` + CSP `frame-ancestors 'none'` (clickjacking, belt-and-suspenders across legacy + modern browsers), CSP `base-uri 'self'` / `object-src 'none'` (block `<base>`-tag hijack + plugin/object embeds), `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy: geolocation=(), microphone=(), camera=()`. Uses `setdefault` (a handler's own header always wins), applies to **raised** HTTPExceptions too (404/413/429/500 carry the protections), and **skips already-prepared WebSocket** upgrades.
