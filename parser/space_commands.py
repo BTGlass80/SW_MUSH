@@ -644,24 +644,11 @@ async def _resolve_target_ship(ctx, ship: dict) -> "Optional[dict]":
     return None
 
 
-class ShipsCommand(BaseCommand):
-    key = "+ships"
-    aliases = ["ships", "shiplist"]
-    help_text = "List available ship types. (Shortcut for +ship/list)"
-    usage = "+ships"
-    async def execute(self, ctx):
-        ctx.switches = ["list"]
-        await ShipCommand().execute(ctx)
-
-
-class ShipInfoCommand(BaseCommand):
-    key = "+shipinfo"
-    aliases = ["shipinfo", "si"]
-    help_text = "View ship type stats. (Shortcut for +ship/info)"
-    usage = "+shipinfo <name>"
-    async def execute(self, ctx):
-        ctx.switches = ["info"]
-        await ShipCommand().execute(ctx)
+# command-syntax rework DROP 5b — ShipsCommand (+ships) and
+# ShipInfoCommand (+shipinfo) were pure delegators into the `+ship`
+# umbrella; deleted. Reach the catalog/specs via `+ship/list` and
+# `+ship/info <name>` (switches PRIMARY, A1: OOC/query commands are
+# `+`-prefixed, no redundant standalone forms).
 
 
 class BoardCommand(BaseCommand):
@@ -852,7 +839,7 @@ class GunnerCommand(BaseCommand):
                         break
                 if target_idx is None:
                     await ctx.session.send_line(
-                        f"  No weapon matching '{arg}'. Use '+shipstatus' to see weapons.")
+                        f"  No weapon matching '{arg}'. Use '+ship' to see weapons.")
                     return
         else:
             # Auto-assign: first unoccupied station
@@ -1183,24 +1170,11 @@ class CoordinateCommand(BaseCommand):
             f"{ctx.session.character['name']}: {result['message']}")
 
 
-class ShipRepairCommand(BaseCommand):
-    key = "+shiprepair"
-    aliases = ["shiprepair", "srepair"]
-    help_text = "Engineer repair action. (Shortcut for +ship/repair)"
-    usage = "+shiprepair <s>"
-    async def execute(self, ctx):
-        ctx.switches = ["repair"]
-        await ShipCommand().execute(ctx)
-
-
-class MyShipsCommand(BaseCommand):
-    key = "+myships"
-    aliases = ["myships", "ownedships"]
-    help_text = "List your ships. (Shortcut for +ship/mine)"
-    usage = "+myships"
-    async def execute(self, ctx):
-        ctx.switches = ["mine"]
-        await ShipCommand().execute(ctx)
+# command-syntax rework DROP 5b — ShipRepairCommand (+shiprepair) and
+# MyShipsCommand (+myships) were pure delegators into the `+ship`
+# umbrella; deleted. Engineer in-flight repair is `+ship/repair`; your
+# owned fleet is `+ship/mine`. (Pay-the-dock full restore stays its own
+# command, `+spacedock`.)
 
 
 class LaunchCommand(BaseCommand):
@@ -1469,26 +1443,19 @@ class LandCommand(BaseCommand):
 
 
 class ShipCommand(BaseCommand):
-    # S57a — expanded umbrella: absorbs aliases from sibling classes
-    # (ShipsCommand, MyShipsCommand, ShipInfoCommand, ShipRepairCommand,
-    # ShipNameCommand). The sibling classes remain registered at their
-    # bare keys for backward compatibility, but the umbrella now owns
-    # every alias route.
+    # command-syntax rework DROP 5b — the sole canonical ship-admin
+    # command. Every ship verb is a switch under `+ship` (switches
+    # PRIMARY, MUSH idiom). The old standalone siblings (ShipsCommand,
+    # MyShipsCommand, ShipInfoCommand, ShipRepairCommand) were pure
+    # delegators and are deleted; their bare/`+`-shortcut aliases
+    # (ship/ss/ships/shiplist/myships/ownedships/shipinfo/si/shiprepair/
+    # srepair/shipname + the `+`-prefixed twins) are removed per A1
+    # (OOC/query → `+`-prefixed, no redundant forms). Reach each via its
+    # switch: +ship/list, +ship/info, +ship/mine, +ship/repair,
+    # +ship/rename. /rename still delegates to ShipNameCommand (which
+    # survives as the switch-impl, no longer separately registered).
     key = "+ship"
-    aliases = [
-        # Original ship-status aliases
-        "ship", "+shipstatus", "shipstatus", "ss", "+ss",
-        # From ShipsCommand (key=+ships) — ship catalog
-        "ships", "shiplist", "+ships",
-        # From MyShipsCommand (key=+myships) — owned fleet
-        "myships", "ownedships", "+myships",
-        # From ShipInfoCommand (key=+shipinfo) — template specs
-        "shipinfo", "si", "+shipinfo",
-        # From ShipRepairCommand (key=+shiprepair) — engineer repair
-        "shiprepair", "srepair", "+shiprepair",
-        # From ShipNameCommand (key=shipname) — rename owned ship
-        "shipname", "+shipname",
-    ]
+    aliases = []
     help_text = (
         "Your ship's status, info, and management.\n"
         "\n"
@@ -4529,7 +4496,11 @@ class SpacedockCommand(BaseCommand):
     """
 
     key = "+spacedock"
-    aliases = ["spacedock", "+yard", "+shiprepair", "+repairship"]
+    # DROP 5b — dropped the `+shiprepair` alias: it collided with the now
+    # deleted engineer-repair standalone and conflated two different
+    # actions (pay-the-dock full restore vs the free in-flight
+    # `+ship/repair` skill roll). The dock is `+spacedock`.
+    aliases = ["spacedock", "+yard", "+repairship"]
     help_text = (
         "Pay a spacedock to fully restore your docked ship — including "
         "DESTROYED systems that damcon can't touch. `+spacedock` quotes the "
@@ -6169,17 +6140,21 @@ class SalvageCommand(BaseCommand):
 
 
 class ShipNameCommand(BaseCommand):
-    key = "shipname"
-    aliases = ["+shipname"]
+    # DROP 5b — switch-impl ONLY: reached via `+ship/rename` (the umbrella
+    # delegates to ShipNameCommand().execute). No longer registered at a
+    # standalone key/alias; the bare `shipname` / `+shipname` forms are
+    # gone (A1: OOC/management verb → a switch under `+ship`).
+    key = "shipname"  # vestigial; class is not in the register list
+    aliases = []
     help_text = (
         "Rename your ship. You must be the owner.\n"
         "\n"
-        "Usage: shipname <new name>\n"
+        "Usage: +ship/rename <new name>\n"
         "\n"
         "The name must be 2–40 characters and contain only letters,\n"
         "numbers, spaces, hyphens, and apostrophes."
     )
-    usage = "shipname <new name>"
+    usage = "+ship/rename <new name>"
 
     async def execute(self, ctx: CommandContext):
         import re as _re
@@ -6187,7 +6162,7 @@ class ShipNameCommand(BaseCommand):
         char_id = str(char["id"])
 
         if not ctx.args:
-            await ctx.session.send_line("  Usage: shipname <new name>")
+            await ctx.session.send_line("  Usage: +ship/rename <new name>")
             return
 
         new_name = ctx.args.strip()
@@ -6231,11 +6206,11 @@ class ShipNameCommand(BaseCommand):
         log.info("[shipname] %s renamed ship %s → '%s'",
                  char.get("name"), ship.get("id"), new_name)
 
-        # FDTS hook: shipname command used
+        # FDTS hook: ship-rename used (DROP 5b: canonical command token)
         try:
             from engine.spacer_quest import check_spacer_quest
             await check_spacer_quest(
-                ctx.session, ctx.db, "use_command", command="shipname"
+                ctx.session, ctx.db, "use_command", command="+ship/rename"
             )
         except Exception:
             log.exception("[shipname] spacer_quest hook failed")
@@ -6916,19 +6891,17 @@ def register_space_commands(registry):
     for cmd in umbrella_cmds:
         registry.register(cmd)
 
-    # Per-verb classes register at their bare keys for backward
-    # compatibility. `ShipCommand` is the S57a-expanded umbrella for
-    # `+ship` — also registered here (alphabetically earlier in the
-    # list to match pre-S57b ordering).
+    # Per-verb classes register at their bare keys. `ShipCommand` is the
+    # `+ship` umbrella. DROP 5b deleted the pure-delegator ship siblings
+    # (ShipsCommand/ShipInfoCommand/ShipRepairCommand/MyShipsCommand) and
+    # unregistered ShipNameCommand (now the `+ship/rename` switch-impl).
     cmds = [
-        ShipsCommand(), ShipInfoCommand(),
         BoardCommand(), DisembarkCommand(),
         PilotCommand(), GunnerCommand(),
         CopilotCommand(), EngineerCommand(),
         NavigatorCommand(), CommanderCommand(),
         SensorsCommand(), VacateCommand(),
         AssistCommand(), CoordinateCommand(),
-        ShipRepairCommand(), MyShipsCommand(),
         LaunchCommand(), LandCommand(),
         ShipCommand(), ScanCommand(), DeepScanCommand(), SalvageCommand(),
         MineCommand(), RefineCommand(),
@@ -6957,7 +6930,8 @@ def register_space_commands(registry):
         CourseCommand(),
         JinkCommand(), BarrelRollCommand(),
         LoopCommand(), SlipCommand(),
-        ShipNameCommand(),
+        # ShipNameCommand intentionally NOT registered (DROP 5b) — it is
+        # the `+ship/rename` switch-impl, instantiated by the umbrella.
     ]
     for cmd in cmds:
         registry.register(cmd)

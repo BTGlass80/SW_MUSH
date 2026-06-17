@@ -3,7 +3,7 @@ key: +ship
 title: Ship — Status, Info, Fleet, Mods, and Maintenance
 category: "Commands: Ships"
 summary: All ship-admin verbs live under +ship/<switch>. View tactical status, browse the catalog, inspect template specs, manage your owned fleet, rename, repair, or modify your ship — every verb is a switch here.
-aliases: [ship, shipstatus, ss, +shipstatus, +ss, ships, shiplist, +ships, myships, ownedships, +myships, shipinfo, si, +shipinfo, shiprepair, srepair, +shiprepair, shipname, +shipname]
+aliases: [+ship]
 see_also: [ships, hyperspace, launch, land, crew, +crew, +pilot, +bridge, capital]
 tags: [ships, admin, command]
 access_level: 0
@@ -12,30 +12,16 @@ examples:
     description: "Show tactical status of your ship (default — /status)."
   - cmd: "+ship/status"
     description: "Same as bare +ship — hull, systems, shields, power, damaged systems."
-  - cmd: "ship"
-    description: "Same as +ship (bare alias preserved)."
-  - cmd: "ss"
-    description: "Short form for ship-status."
   - cmd: "+ship/list"
     description: "Browse the full ship catalog — every template the game supports."
-  - cmd: "ships"
-    description: "Same as +ship/list (bare alias preserved)."
-  - cmd: "shiplist"
-    description: "Another bare alias for /list."
   - cmd: "+ship/info arc-170"
     description: "Show stats for the ARC-170 template — speed, hull, weapons, crew slots."
-  - cmd: "shipinfo yt-1300"
-    description: "Same as +ship/info yt-1300 (bare alias preserved)."
-  - cmd: "si yt-1300"
-    description: "Short form — template specs for YT-1300."
+  - cmd: "+ship/info yt-1300"
+    description: "Template specs for the YT-1300 light freighter."
   - cmd: "+ship/mine"
     description: "List every ship you own. Shows name, template, current zone / dock."
-  - cmd: "myships"
-    description: "Same as +ship/mine (bare alias preserved)."
   - cmd: "+ship/rename Dusty Mynock"
-    description: "Rename your owned ship (S57a). You must own the ship; 2–40 chars, alphanumerics + spaces/hyphens/apostrophes."
-  - cmd: "shipname Dusty Mynock"
-    description: "Same as +ship/rename (bare alias preserved)."
+    description: "Rename your owned ship. You must own the ship; 2–40 chars, alphanumerics + spaces/hyphens/apostrophes."
   - cmd: "+ship/repair"
     description: "Engineer-station action — roll Space Transports Repair against a damaged system."
   - cmd: "+ship/mods"
@@ -50,11 +36,11 @@ examples:
     description: "View installed ship quirks — template-specific or crafted traits."
 ---
 
-All ship-admin verbs are switches under +ship. Bare forms
-(ship, ships, shipinfo, myships, shipname, shiprepair) still work
-as aliases — typing `myships` and `+ship/mine` reach the same code.
-The canonical form is +ship/<switch>; the rest of this page uses
-it everywhere.
+Every ship-admin verb is a switch under +ship — `+ship/<switch>` is
+the one canonical form, and this page uses it everywhere. (The old
+bare/standalone shorthands — `ships`, `shipinfo`, `myships`,
+`shipname`, `shiprepair`, and the `+ships`/`+shipinfo`/… twins — were
+retired in the command-syntax rework; use the switch instead.)
 
 See `+help ships` for the conceptual overview of ship types and
 rules. This page is the command reference.
@@ -129,7 +115,7 @@ Your owned fleet. Each entry:
 Most players own one ship, but there's no hard cap. Hoarding ships
 has upkeep costs — see '+help ships' for maintenance details.
 
-/rename <new-name>  (S57a — absorbs shipname command)
+/rename <new-name>
 
 Rename your owned ship. Rules:
   - You must OWN the ship (the first one in your /mine list)
@@ -141,8 +127,7 @@ Example:
   +ship/rename Dusty Mynock
   → "Ship renamed: Old Scrap → Dusty Mynock"
 
-Triggers the spacer-quest `use_command` hook with command=shipname
-(legacy trigger name preserved for FDTS progression).
+Advances the spacer-quest "Name Her" step (FDTS progression).
 
 /repair
 
@@ -243,30 +228,29 @@ EXAMPLES
   → "Engine Booster (Basic) removed."
 
 CHEAT SHEET
-  +ship              = view status (also: /status, ship, ss)
-  +ship/list         = catalog (also: ships, shiplist)
-  +ship/info <t>     = template specs (also: shipinfo, si)
-  +ship/mine         = your fleet (also: myships, ownedships)
-  +ship/rename <n>   = rename (also: shipname)
-  +ship/repair       = engineer repair (also: shiprepair, srepair)
+  +ship              = view status (default switch /status)
+  +ship/list         = catalog
+  +ship/info <t>     = template specs
+  +ship/mine         = your fleet
+  +ship/rename <n>   = rename your owned ship
+  +ship/repair       = engineer in-flight repair (free skill roll)
   +ship/mods         = installed modifications
   +ship/install <i>  = install crafted component
   +ship/uninstall <n>  = remove mod by slot
   +ship/log          = milestones record
   +ship/quirks       = template/crafted traits
 
-S57A NOTES
+NOTES
 
-The +ship umbrella now absorbs all sibling ship-admin commands:
-  - `+ships` → still works; routes to /list
-  - `+shipinfo <t>` → still works; routes to /info
-  - `+myships` → still works; routes to /mine
-  - `+shiprepair` → still works; routes to /repair
-  - `shipname <n>` → still works; routes to /rename (new)
+Every ship-admin verb is a switch under +ship — there are no bare or
+standalone ship-admin commands. The old shorthands (`ships`,
+`shipinfo`, `myships`, `shipname`, `shiprepair`, and the `+ships`/
+`+shipinfo`/… twins) were retired in the command-syntax rework; use
+the corresponding switch.
 
-The `gunnery` alias was also cleaned up in S57a — it used to be
-both a bare alias for `GunnerCommand` AND for `BoardCommand` (an
-obvious bug). It now unambiguously means "take the gunner seat".
+Don't confuse `+ship/repair` (the FREE engineer in-flight skill roll
+on a damaged system) with `+spacedock` (the paid yard that restores
+DESTROYED systems and full hull while docked) — they are separate.
 
 Sources: Ship template system is game-original, inspired by
 SWG and EVE. Skill rolls use standard R&E Space Transports

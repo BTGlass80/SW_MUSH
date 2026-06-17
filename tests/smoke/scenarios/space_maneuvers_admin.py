@@ -113,24 +113,24 @@ async def s23_npc_traffic_visible_on_scan(h):
 
 
 async def s28_shipname_displays(h):
-    """S28 — `shipname` (no args) displays the current ship name.
+    """S28 — `+ship/rename` (no args) returns the usage prompt.
 
-    Cheap admin command — exercises the ship-name resolver path.
-    Renaming a ship typically requires ownership; we don't actually
-    rename, just query.
+    Cheap admin command — exercises the ship-rename switch-dispatch path
+    (DROP 5b: bare `shipname` retired; `+ship/rename` is canonical). We
+    don't actually rename, just hit the no-args usage branch.
     """
     ship, dock_room, _ = await _get_target_ship(h)
     target_token = ship["name"].split()[0].lower()
     s = await _board_and_pilot(h, "S28Namer", target_token, dock_room)
 
-    out = await h.cmd(s, "shipname")
+    out = await h.cmd(s, "+ship/rename")
     assert "traceback" not in out.lower(), (
-        f"shipname raised: {out[:500]!r}"
+        f"+ship/rename raised: {out[:500]!r}"
     )
-    # Output should reference the ship name in some form.
+    # Output should reference the ship/usage in some form.
     assert ship["name"].lower() in out.lower() or "ship" in out.lower() \
            or "usage" in out.lower(), (
-        f"shipname output unexpected: {out[:300]!r}"
+        f"+ship/rename output unexpected: {out[:300]!r}"
     )
 
     await h.cmd(s, "vacate")

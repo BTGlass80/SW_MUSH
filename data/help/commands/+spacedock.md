@@ -3,7 +3,7 @@ key: +spacedock
 title: Spacedock — Full Ship Repair at a Yard
 category: "Commands: Ships"
 summary: Pay a spacedock facility to fully restore your docked ship — including DESTROYED systems that field repair (damcon) cannot fix. +spacedock quotes the job; +spacedock repair pays and applies it.
-aliases: [spacedock, "+yard", "+shiprepair", "+repairship"]
+aliases: [spacedock, "+yard", "+repairship"]
 see_also: [+ship, engineer, repair, +pilot, +bridge, damcon]
 tags: [ships, repair, economy, command]
 access_level: 0

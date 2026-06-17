@@ -161,7 +161,7 @@ The Phase 2→3 gate is arriving on Nar Shaddaa. The quest now lives in the unde
 16. **Star Roads.** Complete an astrogation check for a hyperspace jump. Pay: 500 cr.
 17. **Touch Down.** Land at a destination. Pay: 300 cr.
 18. **Your First Cargo Run.** Complete a legitimate cargo trade (buy at one port, sell at another). Pay: 800 cr.
-19. **When Things Break.** Repair a damaged system on the borrowed ship using `damcon` or `+shiprepair`. Pay: 400 cr.
+19. **When Things Break.** Repair a damaged system on the borrowed ship using `damcon` or `+ship/repair`. Pay: 400 cr.
 20. **The Grand Tour.** Visit each of the four planets via hyperspace. Pay: 1,000 cr.
 
 Phase 3 is the **flying-training phase**. The borrowed ship — typically a lower-tier freighter — is yours to use for these steps. You're learning launch/land, astrogation, cargo trade, repair, navigation. By Step 20, you've touched the entire galaxy map.
@@ -199,7 +199,7 @@ The Phase 4→5 gate is accepting the proposition.
 
 27. **The Down Payment.** Travel to Corellia, find **Lira Shan** at Coronet Starport, and pay 8,000 cr to complete the ship paperwork. Lira is a CEC-aligned registration officer; she handles the title transfer. Pay (from your wallet): 8,000 cr. Reward: ship registration document.
 28. **Settling Accounts.** Travel to Nar Shaddaa, find **Grek** (the Hutt debt manager), and acknowledge the 10,000-cr note. This **activates the Hutt debt** in your character data: 10,000 cr principal, 500 cr/week payments, accumulating until paid off. Reward: nothing (this is the cost).
-29. **Name Her.** Use `shipname <name>` to rename the Rusty Mynock to whatever you want. The default is "Rusty Mynock" but you can change it (and most players do). Pay: 300 cr.
+29. **Name Her.** Use `+ship/rename <name>` to rename the Rusty Mynock to whatever you want. The default is "Rusty Mynock" but you can change it (and most players do). Pay: 300 cr.
 30. **First Solo Jump.** Pilot your new ship through your first solo hyperspace jump. The chain completes when the jump succeeds. Final reward: title "Captain" + chain_complete flag + a small grand-completion celebration.
 
 By Step 30, you are:

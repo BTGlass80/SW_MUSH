@@ -877,12 +877,12 @@ QUEST_STEPS = [
         "phase": 5,
         "title": "Name Her",
         "objective_type": "use_command",
-        "objective_data": {"command": "shipname"},
-        "objective_desc": "Name your ship with the 'shipname' command.",
+        "objective_data": {"command": "+ship/rename"},
+        "objective_desc": "Name your ship with the '+ship/rename' command.",
         "briefing_source": "Mak Torvin",
         "briefing": (
             "One last thing. She needs a name. A real name — not 'Rusty "
-            "Mynock,' that was mine. Type 'shipname <name>' and give "
+            "Mynock,' that was mine. Type '+ship/rename <name>' and give "
             "her something she deserves. A ship's name is her soul."
         ),
         "completion_text": (
@@ -891,7 +891,7 @@ QUEST_STEPS = [
         "reward_credits": 500,
         "reward_title": "(Captain)",
         "reward_flags": {},
-        "hint": "While aboard your ship, type 'shipname <name>' to name her.",
+        "hint": "While aboard your ship, type '+ship/rename <name>' to name her.",
         "phase_gate": False,
     },
     {

@@ -155,7 +155,7 @@ async def s17_close_range_close_command(h):
 
 async def s20_ship_ownership_transfer(h):
     """S20 — A character can be granted ownership of a ship via DB
-    update; subsequent `+shipname` works (validating the owner check).
+    update; subsequent `+ship/rename` works (validating the owner check).
 
     This is the simplest possible smoke for the ownership system.
     The full +shipbuy flow has too many vendor-data dependencies to
@@ -190,12 +190,12 @@ async def s20_ship_ownership_transfer(h):
         f"S20: ownership grant did not persist. owner_id={rows[0]['owner_id']!r}"
     )
 
-    # Board and rename — `+shipname` requires owner.
+    # Board and rename — `+ship/rename` requires owner (DROP 5b canonical).
     await h.cmd(s, f"board {ship_name.split()[0].lower()}")
     new_name = "S20 Tester"
-    out = await h.cmd(s, f"+shipname {new_name}")
+    out = await h.cmd(s, f"+ship/rename {new_name}")
     assert "traceback" not in out.lower(), (
-        f"+shipname raised: {out[:500]!r}"
+        f"+ship/rename raised: {out[:500]!r}"
     )
 
     rows = await h.db.fetchall(

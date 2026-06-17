@@ -892,7 +892,7 @@ ELECTIVE_STEPS = {
             (
                 "\n  \033[2;36m[SPACE ACADEMY]\033[0m Commander Dex briefs you on the basics.\n"
                 "  Type \033[1;33mtalk dex\033[0m to get started.\n"
-                "  Try: \033[1;33m+ships\033[0m to browse available vessels."
+                "  Try: \033[1;33m+ship/list\033[0m to browse available vessels."
             ),
         ),
         (

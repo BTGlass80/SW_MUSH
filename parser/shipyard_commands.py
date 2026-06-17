@@ -290,7 +290,7 @@ async def purchase_ship(db, char, room_id, hull_token, ship_name=None):
            f"{price:,} cr. Balance: {char.get('credits', 0):,} cr.\n"
            f"  She's been delivered to "
            f"{dock_name or 'the Kuat landing pad'}; go there and "
-           f"'board {name}' to step aboard. Rename her any time with 'shipname'.")
+           f"'board {name}' to step aboard. Rename her any time with '+ship/rename'.")
     return {"ok": True, "message": msg, "ship_id": ship_id,
             "dock_room_id": dock_id, "hull": hull, "price": price}
 

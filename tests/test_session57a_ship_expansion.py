@@ -1,28 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-tests/test_session57a_ship_expansion.py -- Session 57a feature tests
+tests/test_session57a_ship_expansion.py -- ship umbrella tests
 
-S57a is the first half of the space rename sweep. Rather than
-creating a new umbrella class, S57a EXPANDS the existing
-`ShipCommand` umbrella (which was already partially umbrellafied
-pre-sweep with valid_switches = ["status", "info", "list", "mine",
-"repair", "mods", "install", "uninstall", "log", "quirks"]).
+ORIGINALLY S57a (the umbrella absorbed sibling ship aliases while the
+standalone sibling classes stayed registered for backward compat).
 
-S57a changes:
-  1. ShipCommand.aliases expanded from 5 → 19 to absorb sibling
-     class aliases (ShipsCommand, MyShipsCommand, ShipInfoCommand,
-     ShipRepairCommand, ShipNameCommand)
-  2. ShipCommand.valid_switches gains `/rename` (absorbs
-     ShipNameCommand functionality; delegates via class call)
-  3. Help file +ship.md authored with dense per-umbrella coverage
-  4. BoardCommand.aliases pruned — `gunnery` removed (it was a
-     collision with GunnerCommand.aliases = ["gunnery"])
+REFRAMED by command-syntax rework DROP 5b: the `+ship` umbrella is now
+the SOLE canonical ship-admin command. The pure-delegator siblings
+(ShipsCommand/+ships, ShipInfoCommand/+shipinfo, ShipRepairCommand/
++shiprepair, MyShipsCommand/+myships) were DELETED, and ShipNameCommand
+is no longer registered (it survives only as the `+ship/rename`
+switch-impl). The bare/`+`-shortcut forms are gone (A1: OOC/query
+commands are `+`-prefixed; switches are PRIMARY; no redundant forms).
 
-Sibling classes (ShipsCommand, MyShipsCommand, ShipInfoCommand,
-ShipRepairCommand, ShipNameCommand) remain registered at their
-bare keys for backward compatibility.
-
-Convention: +verb/switch [args], bare forms preserved as aliases.
+This file keeps the still-valid umbrella + help-file + gunnery
+assertions and flips the now-inverted backward-compat assertions to
+assert the clean end-state. The positive consolidation invariants live
+in tests/test_command_syntax_drop5b_ship_family.py.
 """
 import os
 import sys
@@ -35,11 +29,11 @@ if _PROJECT_ROOT not in sys.path:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 1. ShipCommand umbrella expansion
+# 1. ShipCommand umbrella — the sole canonical ship-admin command
 # ══════════════════════════════════════════════════════════════════════════════
 
-class TestShipUmbrellaExpansion(unittest.TestCase):
-    """Verify +ship now covers what ShipsCommand/MyShipsCommand/etc. did."""
+class TestShipUmbrella(unittest.TestCase):
+    """Verify +ship is the umbrella and carries every ship verb as a switch."""
 
     def test_ship_command_class_exists(self):
         from parser.space_commands import ShipCommand
@@ -50,81 +44,70 @@ class TestShipUmbrellaExpansion(unittest.TestCase):
         self.assertEqual(ShipCommand.key, "+ship")
 
     def test_valid_switches_includes_rename(self):
-        """S57a added /rename to the ShipCommand umbrella."""
         from parser.space_commands import ShipCommand
         self.assertIn("rename", ShipCommand.valid_switches)
 
-    def test_valid_switches_preserves_legacy(self):
-        """Pre-S57a switches must still be valid."""
+    def test_valid_switches_preserves_full_set(self):
+        """Every ship verb must remain reachable as a switch."""
         from parser.space_commands import ShipCommand
-        for sw in ["status", "info", "list", "mine", "repair",
+        for sw in ["status", "info", "list", "mine", "rename", "repair",
                    "mods", "install", "uninstall", "log", "quirks"]:
             self.assertIn(
                 sw, ShipCommand.valid_switches,
-                f"Pre-S57a switch /{sw} was removed"
+                f"ship switch /{sw} was removed"
             )
 
-    def test_aliases_include_ships_catalog(self):
-        """Aliases from ShipsCommand absorbed."""
+    def test_umbrella_has_no_dead_aliases(self):
+        """DROP 5b: the umbrella carries NO bare/shortcut aliases — the
+        switch form is the only way in."""
         from parser.space_commands import ShipCommand
-        for alias in ["ships", "shiplist"]:
-            self.assertIn(
-                alias, ShipCommand.aliases,
-                f"ShipCommand missing absorbed alias: {alias}"
-            )
-
-    def test_aliases_include_myships(self):
-        """Aliases from MyShipsCommand absorbed."""
-        from parser.space_commands import ShipCommand
-        for alias in ["myships", "ownedships"]:
-            self.assertIn(
-                alias, ShipCommand.aliases,
-                f"ShipCommand missing absorbed alias: {alias}"
-            )
-
-    def test_aliases_include_shipinfo(self):
-        """Aliases from ShipInfoCommand absorbed."""
-        from parser.space_commands import ShipCommand
-        for alias in ["shipinfo", "si"]:
-            self.assertIn(
-                alias, ShipCommand.aliases,
-                f"ShipCommand missing absorbed alias: {alias}"
-            )
-
-    def test_aliases_include_shiprepair(self):
-        """Aliases from ShipRepairCommand absorbed."""
-        from parser.space_commands import ShipCommand
-        for alias in ["shiprepair", "srepair"]:
-            self.assertIn(
-                alias, ShipCommand.aliases,
-                f"ShipCommand missing absorbed alias: {alias}"
-            )
-
-    def test_aliases_include_shipname(self):
-        """Aliases from ShipNameCommand absorbed (for /rename switch)."""
-        from parser.space_commands import ShipCommand
-        self.assertIn(
-            "shipname", ShipCommand.aliases,
-            "ShipCommand missing absorbed alias: shipname"
+        self.assertEqual(
+            ShipCommand.aliases, [],
+            f"ShipCommand should have no aliases after DROP 5b; got "
+            f"{ShipCommand.aliases!r}"
         )
 
-    def test_aliases_preserve_legacy_ship_status(self):
-        """Pre-S57a aliases must still be present."""
-        from parser.space_commands import ShipCommand
-        for alias in ["ship", "shipstatus", "ss"]:
-            self.assertIn(
-                alias, ShipCommand.aliases,
-                f"Pre-S57a ShipCommand alias '{alias}' was removed"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 2. The pure-delegator siblings are DELETED (DROP 5b)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestSiblingClassesDeleted(unittest.TestCase):
+    """ShipsCommand/MyShipsCommand/ShipInfoCommand/ShipRepairCommand were
+    pure delegators into +ship; DROP 5b deleted them entirely."""
+
+    def test_sibling_classes_no_longer_exist(self):
+        import parser.space_commands as sc
+        for name in ("ShipsCommand", "MyShipsCommand",
+                     "ShipInfoCommand", "ShipRepairCommand"):
+            self.assertFalse(
+                hasattr(sc, name),
+                f"{name} should be deleted (DROP 5b)"
+            )
+
+    def test_standalone_ship_keys_unbound(self):
+        """The old standalone keys/shortcuts no longer resolve at all."""
+        from parser.commands import CommandRegistry
+        from parser.space_commands import register_space_commands
+        r = CommandRegistry()
+        register_space_commands(r)
+        for name in ["+ships", "+shipinfo", "+shiprepair", "+myships",
+                     "+shipname", "shipname"]:
+            self.assertIsNone(
+                r.get(name),
+                f"'{name}' should be unbound after DROP 5b but resolved to "
+                f"{type(r.get(name)).__name__}"
             )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 2. Sibling classes still exist and register (backward compat)
+# 3. The bare ship shorthands are gone (no IC/OOC ambiguity)
 # ══════════════════════════════════════════════════════════════════════════════
 
-class TestSiblingClassesRemainRegistered(unittest.TestCase):
-    """The S54-S56 pattern: per-verb classes keep their bare keys as a
-    fallback even after the umbrella absorbs their aliases. Same here."""
+class TestBareFormsRetired(unittest.TestCase):
+    """A1: ship-admin is OOC/query → `+`-prefixed. The bare forms
+    (ship/ss/ships/shiplist/myships/ownedships/shipinfo/si/shiprepair/
+    srepair) no longer resolve."""
 
     def _build_registry(self):
         from parser.commands import CommandRegistry
@@ -133,130 +116,76 @@ class TestSiblingClassesRemainRegistered(unittest.TestCase):
         register_space_commands(r)
         return r
 
-    def test_plus_ships_still_reaches_shipscommand(self):
-        from parser.space_commands import ShipsCommand
+    def test_bare_forms_unbound(self):
         r = self._build_registry()
-        self.assertIsInstance(r.get("+ships"), ShipsCommand)
+        for name in ["ship", "ss", "shipstatus", "ships", "shiplist",
+                     "myships", "ownedships", "shipinfo", "si",
+                     "shiprepair", "srepair"]:
+            self.assertIsNone(
+                r.get(name),
+                f"bare '{name}' should be retired (DROP 5b) but resolved to "
+                f"{type(r.get(name)).__name__}"
+            )
 
-    def test_plus_myships_still_reaches_myshipscommand(self):
-        from parser.space_commands import MyShipsCommand
+    def test_plus_ship_still_canonical(self):
+        from parser.space_commands import ShipCommand
         r = self._build_registry()
-        self.assertIsInstance(r.get("+myships"), MyShipsCommand)
-
-    def test_plus_shipinfo_still_reaches_shipinfocommand(self):
-        from parser.space_commands import ShipInfoCommand
-        r = self._build_registry()
-        self.assertIsInstance(r.get("+shipinfo"), ShipInfoCommand)
-
-    def test_plus_shiprepair_still_reaches_shiprepaircommand(self):
-        from parser.space_commands import ShipRepairCommand
-        r = self._build_registry()
-        self.assertIsInstance(r.get("+shiprepair"), ShipRepairCommand)
-
-    def test_bare_shipname_still_reaches_shipnamecommand(self):
-        """ShipNameCommand.key = 'shipname' (bare). Bare `shipname` must
-        still reach the per-verb class directly — umbrella-absorbed
-        aliases do NOT overwrite the per-verb class's primary key."""
-        from parser.space_commands import ShipNameCommand
-        r = self._build_registry()
-        self.assertIsInstance(r.get("shipname"), ShipNameCommand)
+        self.assertIsInstance(r.get("+ship"), ShipCommand)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 3. Umbrella owns the common bare aliases (routes via umbrella)
-# ══════════════════════════════════════════════════════════════════════════════
-
-class TestUmbrellaOwnsBareAliases(unittest.TestCase):
-    """When a bare alias is both an alias on the umbrella AND
-    not a key on a per-verb class, the umbrella wins."""
-
-    def _build_registry(self):
-        from parser.commands import CommandRegistry
-        from parser.space_commands import register_space_commands
-        r = CommandRegistry()
-        register_space_commands(r)
-        return r
-
-    def test_bare_ships_routes_to_umbrella(self):
-        """'ships' is an alias on ShipCommand; ShipsCommand.key is '+ships'
-        (with plus). So bare 'ships' goes to the umbrella."""
-        from parser.space_commands import ShipCommand
-        r = self._build_registry()
-        self.assertIsInstance(r.get("ships"), ShipCommand)
-
-    def test_bare_myships_routes_to_umbrella(self):
-        from parser.space_commands import ShipCommand
-        r = self._build_registry()
-        self.assertIsInstance(r.get("myships"), ShipCommand)
-
-    def test_bare_shipinfo_routes_to_umbrella(self):
-        from parser.space_commands import ShipCommand
-        r = self._build_registry()
-        self.assertIsInstance(r.get("shipinfo"), ShipCommand)
-
-    def test_bare_shiprepair_routes_to_umbrella(self):
-        from parser.space_commands import ShipCommand
-        r = self._build_registry()
-        self.assertIsInstance(r.get("shiprepair"), ShipCommand)
-
-    def test_bare_ship_routes_to_umbrella(self):
-        from parser.space_commands import ShipCommand
-        r = self._build_registry()
-        self.assertIsInstance(r.get("ship"), ShipCommand)
-
-    def test_bare_ss_routes_to_umbrella(self):
-        from parser.space_commands import ShipCommand
-        r = self._build_registry()
-        self.assertIsInstance(r.get("ss"), ShipCommand)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 4. /rename switch dispatch
+# 4. /rename switch dispatch (delegates to the unregistered impl)
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestRenameSwitch(unittest.TestCase):
-    """/rename is a new switch on ShipCommand that delegates to
-    ShipNameCommand — same pattern as the S54–S56 umbrellas use
-    for every switch."""
+    """/rename is a switch on ShipCommand that delegates to ShipNameCommand,
+    which survives as a switch-impl only (not registered)."""
 
     def test_rename_in_valid_switches(self):
         from parser.space_commands import ShipCommand
         self.assertIn("rename", ShipCommand.valid_switches)
 
-    def test_shipname_class_still_exists(self):
-        """/rename delegates to ShipNameCommand; the class must remain."""
+    def test_shipname_class_survives_as_impl(self):
+        """/rename delegates to ShipNameCommand; the class must remain
+        importable even though it is no longer registered."""
         from parser.space_commands import ShipNameCommand
         self.assertTrue(hasattr(ShipNameCommand, "execute"))
-        self.assertEqual(ShipNameCommand.key, "shipname")
+
+    def test_shipname_class_not_registered(self):
+        from parser.commands import CommandRegistry
+        from parser.space_commands import register_space_commands
+        r = CommandRegistry()
+        register_space_commands(r)
+        self.assertIsNone(
+            r.get("shipname"),
+            "ShipNameCommand should not be registered after DROP 5b"
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 5. The gunnery alias collision fix
+# 5. The gunnery alias collision fix (unchanged from S57a)
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestGunneryAliasFix(unittest.TestCase):
-    """Pre-S57a: `gunnery` was an alias on both BoardCommand AND
-    GunnerCommand. Registration order decided. S57a removes it
-    from BoardCommand — `gunnery` unambiguously means 'take the
-    gunner seat'."""
+    """`gunnery` used to be an alias on both BoardCommand AND GunnerCommand.
+    S57a removed it from BoardCommand — `gunnery` means 'take the gunner
+    seat'."""
 
     def test_gunnery_not_in_board_aliases(self):
         from parser.space_commands import BoardCommand
         self.assertNotIn(
             "gunnery", BoardCommand.aliases,
-            "BoardCommand.aliases still contains 'gunnery' (S57a should remove it)"
+            "BoardCommand.aliases still contains 'gunnery'"
         )
 
     def test_gunnery_still_in_gunner_aliases(self):
         from parser.space_commands import GunnerCommand
         self.assertIn(
             "gunnery", GunnerCommand.aliases,
-            "GunnerCommand.aliases missing 'gunnery' (should remain)"
+            "GunnerCommand.aliases missing 'gunnery'"
         )
 
     def test_bare_gunnery_routes_to_gunner(self):
-        """With the collision fixed, `gunnery` must route to
-        GunnerCommand (take the gunner seat)."""
         from parser.commands import CommandRegistry
         from parser.space_commands import (
             register_space_commands, GunnerCommand,
@@ -306,11 +235,10 @@ class TestShipHelpFile(unittest.TestCase):
             self.assertIn("description", ex)
 
     def test_help_documents_rename_switch(self):
-        """The new /rename switch must appear in the help."""
         e = self._load_entry()
         self.assertIn(
             "/rename", e.body,
-            "+ship help does not document the new /rename switch"
+            "+ship help does not document the /rename switch"
         )
 
     def test_help_cites_canonical_form(self):
@@ -319,6 +247,17 @@ class TestShipHelpFile(unittest.TestCase):
             1 for ex in e.examples if ex["cmd"].startswith("+ship")
         )
         self.assertGreater(canonical_count, 8)
+
+    def test_help_examples_are_all_canonical(self):
+        """DROP 5b: no example should advertise a retired bare/shortcut
+        form — every example uses the +ship switch syntax."""
+        e = self._load_entry()
+        for ex in e.examples:
+            self.assertTrue(
+                ex["cmd"].startswith("+ship"),
+                f"+ship help example demonstrates a non-canonical form: "
+                f"{ex['cmd']!r}"
+            )
 
     def test_help_cross_references_ship_topic(self):
         e = self._load_entry()
@@ -330,9 +269,7 @@ class TestShipHelpFile(unittest.TestCase):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestAllUmbrellasStillShip(unittest.TestCase):
-    """The 7 umbrellas from S54+S55+S56 must still register cleanly.
-    S57a doesn't add a new umbrella — it expands an existing one —
-    but nothing should have regressed."""
+    """The 7 umbrellas from S54+S55+S56 plus +ship must still register."""
 
     def _build_registry(self):
         from parser.commands import CommandRegistry
@@ -358,7 +295,6 @@ class TestAllUmbrellasStillShip(unittest.TestCase):
         return r
 
     def test_all_umbrellas_resolve(self):
-        """Every +verb umbrella key must resolve to its umbrella class."""
         from parser.combat_commands import CombatCommand
         from parser.mission_commands import MissionCommand
         from parser.smuggling_commands import SmuggleCommand

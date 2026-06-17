@@ -28,10 +28,10 @@ Ships have 7 crew stations. Each grants different abilities.
 Type '+help crew' for details on each station.
 
 SHIP STATUS
-  +ship/status (ss)  Your current ship's status and crew
+  +ship              Your current ship's status and crew (default /status)
   +ship/info <n>     Detailed stats on a ship type
-  +ships             Browse all ships in the zone
-  +myships           Ships you own
+  +ship/list         Browse the full ship catalog
+  +ship/mine         Ships you own
 
 SPACE ACTIVITIES
   Combat: fire, evade, close, flee, tail — see '+help spacecombat'

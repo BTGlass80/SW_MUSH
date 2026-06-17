@@ -318,7 +318,7 @@ The web client provides a rich space interface:
 
 | Category | Commands |
 |----------|---------|
-| **Ship Management** | `ships`, `shipinfo`, `myships`, `board`, `disembark`, `pay` |
+| **Ship Management** | `+ship`, `+ship/list`, `+ship/info`, `+ship/mine`, `board`, `disembark`, `pay` |
 | **Crew Stations** | `pilot`, `copilot`, `gunner`, `engineer`, `navigator`, `commander`, `sensors`, `vacate` |
 | **Navigation** | `course`, `hyperspace`, `land`, `launch` |
 | **Combat** | `fire`, `lockon`, `close`, `flee`, `tail`, `outmaneuver`, `evade`, `jink`, `barrelroll`, `loop`, `slip` |
