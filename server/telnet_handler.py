@@ -70,6 +70,16 @@ class TelnetHandler:
             height=height,
         )
 
+        # Capture the peer IP for the pre-auth connect/create throttle. Telnet
+        # is a raw TCP socket (no X-Forwarded-For), so the transport peername
+        # is the authoritative, un-spoofable source address.
+        try:
+            peer = writer.get_extra_info("peername")
+            if peer:
+                session.client_ip = peer[0]
+        except Exception:
+            log.debug("telnet: peername capture failed", exc_info=True)
+
         self.game.session_mgr.add(session)
 
         try:

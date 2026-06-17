@@ -7,10 +7,12 @@ command parsing, and database. Handles the login flow and main input loop.
 """
 import asyncio
 import logging
+from collections import defaultdict
 from typing import Optional
 
 from server.config import Config
 from server.session import Session, SessionState, SessionManager, Protocol
+from server.api import _sliding_window_allow
 from server.telnet_handler import TelnetHandler
 from server.web_client import WebClient
 from server import ansi
@@ -174,6 +176,46 @@ from engine.creation import CreationEngine
 from engine.creation_wizard import CreationWizard
 
 log = logging.getLogger(__name__)
+
+
+# ── Pre-auth connect/create throttle (T3.21 Blocker 2 — protocol half) ──────
+# The PORTAL login path is already per-IP throttled (web_portal._login_rate_ok),
+# but the raw telnet/WebSocket protocol login loop (`connect` / `create` in
+# handle_new_session) was not. db.authenticate's lockout is PER-ACCOUNT (5
+# fails / 5 min), so credential-stuffing ACROSS many accounts from one socket —
+# and spamming `create` to burn bcrypt CPU on the shared event loop — is
+# otherwise unbounded. One shared per-IP sliding-window bucket gates BOTH verbs
+# before any DB / bcrypt work. Keyed on Session.client_ip, captured spoof-
+# resistantly at the transport seam (telnet/WS peername; the aiohttp web port
+# honors X-Forwarded-For only from a configured trusted proxy via
+# api._get_client_ip). 10/60s mirrors the established portal-login posture.
+_PREAUTH_RATE_WINDOW = 60   # seconds
+_PREAUTH_RATE_MAX = 10      # connect+create attempts per window per IP
+_preauth_attempts: dict[str, list[float]] = defaultdict(list)
+
+
+def _preauth_rate_ok(ip: str) -> bool:
+    """True if this IP may attempt another pre-auth connect/create; False if
+    throttled. Consumes one token per call (the established sliding-window
+    posture: every attempt, success or failure, counts).
+
+    The "unknown" sentinel (Session.client_ip's default, set only when a
+    transport seam genuinely fails to capture a peer address) is exempt and
+    always allowed: a live TCP socket always has a peername, so an attacker
+    cannot force "unknown", while failing OPEN here avoids bricking logins on a
+    rare capture error and keeps the limiter from coupling unrelated callers
+    through one shared sentinel bucket.
+    """
+    if not ip or ip == "unknown":
+        return True
+    return _sliding_window_allow(
+        _preauth_attempts, ip, _PREAUTH_RATE_MAX, _PREAUTH_RATE_WINDOW
+    )
+
+
+def _reset_preauth_throttle() -> None:
+    """Test helper — clear the per-IP pre-auth attempt counters."""
+    _preauth_attempts.clear()
 
 
 class GameServer:
@@ -915,6 +957,19 @@ class GameServer:
                     await session.send_prompt()
 
             elif cmd == "connect" and len(parts) >= 3:
+                # Per-IP throttle BEFORE the bcrypt-bearing authenticate() —
+                # bounds cross-account credential-stuffing on the raw protocol
+                # login loop (T3.21 Blocker 2, protocol half). Shared bucket
+                # with `create` below.
+                if not _preauth_rate_ok(session.client_ip):
+                    await session.send_line(
+                        ansi.error(
+                            "Too many login attempts from your location. "
+                            "Please wait a minute and try again."
+                        )
+                    )
+                    await session.send_prompt()
+                    continue
                 username = parts[1]
                 password = parts[2]
                 account = await self.db.authenticate(username, password)
@@ -941,6 +996,18 @@ class GameServer:
                     await session.send_prompt()
 
             elif cmd == "create" and len(parts) >= 3:
+                # Per-IP throttle BEFORE create_account() (also bcrypt-bearing)
+                # — bounds account-creation flooding / bcrypt-CPU abuse on the
+                # raw protocol login loop. Shared bucket with `connect` above.
+                if not _preauth_rate_ok(session.client_ip):
+                    await session.send_line(
+                        ansi.error(
+                            "Too many attempts from your location. "
+                            "Please wait a minute and try again."
+                        )
+                    )
+                    await session.send_prompt()
+                    continue
                 username = parts[1]
                 password = parts[2]
 

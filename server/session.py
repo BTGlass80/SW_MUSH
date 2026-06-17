@@ -369,6 +369,14 @@ class Session:
         self.connected_at = time.time()
         self.last_activity = time.time()
 
+        # Source IP of the connecting client, captured at the transport seam
+        # (telnet/WS peername; the aiohttp web port resolves it spoof-
+        # resistantly via api._get_client_ip, honoring X-Forwarded-For only
+        # from a configured trusted proxy). Used by the pre-auth connect/create
+        # per-IP throttle in handle_new_session (T3.21 Blocker 2, protocol
+        # half). Defaults to "unknown" until a handler sets it.
+        self.client_ip: str = "unknown"
+
         # Transport callbacks (set by protocol handler)
         self._send = send_callback
         self._close = close_callback

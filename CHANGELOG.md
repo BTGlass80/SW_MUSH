@@ -16,6 +16,34 @@ The last two deferred T3.18 ground-UX items + Brian's launch-decision #4. Both a
 - **Verified:** `tests/test_t318_g4_combat_feed.py` (17 — result-enum derivation incl. the melee-no-defense=miss case + no-op skip, ring-buffer cap, payload window, end-to-end resolved round, combat-ended schema, client contract) + `tests/test_t318_g13_zone_news.py` (16 — dominant-zone selection + drift guard, broadcast payload/zone/telnet-skip/offline-skip/dead-socket-resilient, logout-clear, client contract). Touched-module regression (combat mechanics, stun/KO, wilderness combat, m3 combat chips, drop-D client, director living-galaxy/event-dispatch, news-sanitize, idle-queue) + onclick-export sweep + hygiene + smoke (foundation + ground-combat) green.
 - **Files:** `engine/combat.py`, `engine/director.py`, `parser/combat_commands.py`, `static/client.html`, `tests/test_t318_g4_combat_feed.py` (new), `tests/test_t318_g13_zone_news.py` (new), `CHANGELOG.md`, `TODO.json`.
 
+### 2026-06-16 — Help corpus: Padawan-Master command cluster (14 files) — *drop help-pm-commands*
+Added help files for the full Padawan-Master command surface — the last cluster missing from the help corpus.
+- **`data/help/commands/+master.md`** — Padawan views bonded Master's status and Weight sense.
+- **`data/help/commands/+padawan.md`** — Master views bonded Padawan(s) and Trial progress.
+- **`data/help/commands/+bond.md`** — propose / accept / decline the two-step bond handshake.
+- **`data/help/commands/+release.md`** — Master dissolves a bond (with optional reason).
+- **`data/help/commands/+leave-master.md`** — Padawan leaves a bond (reason required).
+- **`data/help/commands/+trials.md`** — view Five Trials progress (Skill / Courage / Flesh / Spirit / Insight).
+- **`data/help/commands/+trial.md`** — Master attests a passed Trial.
+- **`data/help/commands/+endorse.md`** — Master one-shot endorsement for next Trial attempt.
+- **`data/help/commands/+authorize.md`** — Master standing pre-authorization (offworld / powers / trials).
+- **`data/help/commands/+knight.md`** — Knight promotion ceremony (all 5 Trials required; grants +1 FP).
+- **`data/help/commands/+learn.md`** — Padawan requests Force power training from bonded Master.
+- **`data/help/commands/+teach.md`** — Master teaches a Force power (CP auto-spent to reach 1D min).
+- **`data/help/commands/+spar.md`** — training duel between bond partners (1 CP each, 24h cooldown).
+- **`data/help/commands/+help.md`** — the help command itself (categories, topics, /search switch).
+- **`tests/test_help_pm_commands.py`** — 65 tests; era-clean; key-matches-filename checks.
+
+### 2026-06-16 — T3.21 Blocker 2 (protocol half): per-IP throttle on the raw telnet/WS pre-auth login loop — *drop t321-preauth-throttle*
+Closed the unshipped half of T3.21 Blocker 2 (the discovered follow-up under `7a4f4ee`). The PORTAL login path was already per-IP throttled (`web_portal._login_rate_ok`, 10/60s), but the raw protocol login loop in `game_server.handle_new_session` — fed verbatim by BOTH transports (telnet `_telnet_read_loop` and the public web port's WebSocket `{"input": ...}` channel) — was not. `db.authenticate`'s lockout is PER-ACCOUNT (5 fails / 5 min), so credential-stuffing ACROSS many accounts from one socket, and spamming `create` to burn bcrypt CPU on the shared event loop, were both unbounded.
+- **`server/session.py`:** new `Session.client_ip` field (default `"unknown"`), captured at the transport seam.
+- **`server/game_server.py`:** module-level `_preauth_rate_ok` / `_preauth_attempts` / `_reset_preauth_throttle` — one shared per-IP sliding-window bucket (10/60s, reusing `api._sliding_window_allow`) gating BOTH the `connect` and `create` branches BEFORE any DB / bcrypt work. Throttled attempts get a wait-and-retry message and never reach `authenticate()` / `create_account()`. The `"unknown"` sentinel (capture failure only — a live socket always has a peername) is exempt → fails open on the rare capture error and never couples unrelated callers through one bucket.
+- **`server/telnet_handler.py`:** captures the raw, un-spoofable TCP peername (`writer.get_extra_info("peername")[0]`).
+- **`server/web_client.py`** (production aiohttp WS): captures the client IP via the spoof-resistant `api._get_client_ip(request)` (honors X-Forwarded-For only from a configured trusted proxy).
+- **`server/websocket_handler.py`** (standalone, non-prod): captures `websocket.remote_address[0]` for parity.
+- `__token_auth__` deliberately left unthrottled (cheap HMAC verify, not a credential-stuffing vector; the legit web auto-login handoff fires exactly once).
+- No schema change, no faucet/sink, era-clean. `tests/test_t321_preauth_throttle.py` (12: limiter admit/block/reset/per-IP/sentinel-exempt + seam-wiring asserts + end-to-end against the real login loop — 11th connect from one IP rejected without reaching `authenticate`, a different IP unaffected, a legit single login still authenticates). Gate green single-process.
+
 ### 2026-06-16 — T3.21: read-only SELECT connection pool (DB scale ceiling) — *drop t321-read-pool*
 Brian decision #3 (2026-06-16, "do not defer — need it now"). The DB ran ALL queries through a single shared aiosqlite connection (`db/database.py`), serializing every read behind every write + the 1 Hz tick — the dominant scale ceiling the T3.21 audit named. Adds a **read-only connection pool** for SELECT-heavy read endpoints, leaving the single writer connection for writes (WAL already enabled, so readers see a consistent snapshot concurrently with the writer).
 - **`db/database.py`:** lazy pool (built on first read, under an `asyncio.Lock`) of `SWMUSH_DB_READ_POOL` (default 4) connections opened **`mode=ro` + `PRAGMA query_only=ON`** — they are *physically incapable of writing*, so this path **cannot corrupt the DB** (the stated risk). New `read_fetchall` / `read_fetchone` + a `_reader()` acquire/return context manager. Env-var pool size (read at build time) is **boot-order-safe** — `load_tunables()` runs after `connect()`, so a tunable would freeze to its default. `:memory:` DBs (per-connection) fall back to the writer. `close()` tears the pool down (sets a `_closed` flag first; nulls `self._db` → idempotent double-close).
