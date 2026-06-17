@@ -367,11 +367,14 @@ async def stock_droid(char: dict, droid_id: int,
             # Equipment is always qty 1
             quantity = 1
         elif source_type == "resource":
-            # Decrement resource stack in inventory JSON
-            char_inv = char.get("inventory", "{}")
-            if isinstance(char_inv, str):
-                char_inv = json.loads(char_inv) if char_inv else {}
-            resources = char_inv.get("resources", [])
+            # Decrement resource stack in inventory JSON. coerce_inventory
+            # normalizes a bare-list inventory (schema default '[]') into the
+            # canonical dict shape so .get() never raises on it (QA M3) — the
+            # write-back is dict-form, the same shape crafting/add_to_inventory
+            # already persist.
+            from engine.items import coerce_inventory
+            char_inv = coerce_inventory(char.get("inventory", "[]"))
+            resources = char_inv["resources"]
             stack = next((r for r in resources if r.get("type") == item_key), None)
             if not stack:
                 return False, f"'{item_name}' no longer in your inventory."
@@ -384,11 +387,10 @@ async def stock_droid(char: dict, droid_id: int,
             char["inventory"] = json.dumps(char_inv)
             await db.save_character(char["id"], inventory=char["inventory"])
         else:  # "item"
-            # Remove from items list in inventory JSON
-            char_inv = char.get("inventory", "{}")
-            if isinstance(char_inv, str):
-                char_inv = json.loads(char_inv) if char_inv else {}
-            items = char_inv.get("items", [])
+            # Remove from items list in inventory JSON (same bare-list fix).
+            from engine.items import coerce_inventory
+            char_inv = coerce_inventory(char.get("inventory", "[]"))
+            items = char_inv["items"]
             found = False
             new_items = []
             for it in items:
@@ -994,11 +996,8 @@ def format_shop_status(droids: list) -> str:
 def _is_faction_issued(char: dict, item_key: str) -> bool:
     """Return True if the item is faction-issued (cannot be sold)."""
     try:
-        import json as _j
-        inv = char.get("inventory", "{}")
-        if isinstance(inv, str):
-            inv = _j.loads(inv) if inv else {}
-        items = inv.get("items", [])
+        from engine.items import coerce_inventory
+        items = coerce_inventory(char.get("inventory", "[]"))["items"]
         for item in items:
             if item.get("key") == item_key and item.get("faction_issued"):
                 return True

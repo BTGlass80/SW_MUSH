@@ -199,8 +199,12 @@ class TestDropFSchematics(unittest.TestCase):
         # mention the exclusion.
         for s in _schematics():
             blob = (s["key"] + " " + s.get("name", "")).lower()
-            self.assertNotIn("force", blob.replace("force_pike", ""),
-                             s["key"])
+            # Exempt legitimate non-Force substrings that merely CONTAIN
+            # "force": the force_pike vibro-weapon and "reinforced" (e.g. the
+            # Reinforced Salvage Arm Wildspace mod). The ban targets a Force
+            # *detector*, not the letters f-o-r-c-e.
+            blob = blob.replace("force_pike", "").replace("reinforced", "")
+            self.assertNotIn("force", blob, s["key"])
         wr_data = yaml.safe_load(
             (REPO / "data" / "weapons.yaml").read_text(encoding="utf-8"))
         self.assertNotIn("force_detector", wr_data)
