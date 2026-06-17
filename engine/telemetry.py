@@ -223,6 +223,46 @@ def emit(event_type: str, fields: Optional[dict] = None, *,
         log.debug("telemetry.emit (module) failed", exc_info=True)
 
 
+def emit_objective(kind: str, phase: str, char_id: Any, *, oid: str = "",
+                   reward: int = 0, **extra: Any) -> None:
+    """Emit one objective-funnel event (T3.19 catalog C — missions/quests).
+
+    A SINGLE event type (``objective``) with ``kind`` + ``phase`` keeps the
+    offline funnel trivial: ``count(start)`` vs ``count(complete)`` vs
+    ``count(abandon)`` per ``kind``, plus the reward distribution per outcome
+    — exactly the post-launch balance signal Brian wants (do missions get
+    started but abandoned? is one tier's pay too low to bother finishing?).
+
+      kind   : the objective system — ``"mission"`` / ``"bounty"`` / ``"smuggling"``
+      phase  : the lifecycle transition — ``"start"`` / ``"complete"`` / ``"abandon"``
+      char_id: the acting character (coerced to ``int`` when it parses, so a
+               str-id system and an int-id system join on the same player)
+      oid    : the objective id (mission / contract / job id)
+      reward : credits at stake — the funnel value
+      extra  : kind-specific fields (mission_type, tier, cargo, target, …);
+               ``None`` values are dropped so the record stays clean.
+
+    Fail-open: this wraps the already-fail-open ``emit()`` and additionally
+    guards the field assembly, so a telemetry break can NEVER disturb the
+    accept/complete/abandon path it observes.
+    """
+    try:
+        try:
+            char_id = int(char_id)
+        except (TypeError, ValueError):
+            pass
+        fields: dict[str, Any] = {
+            "kind": kind, "phase": phase, "char_id": char_id,
+            "oid": oid, "reward": reward,
+        }
+        for k, v in extra.items():
+            if v is not None and k not in fields:
+                fields[k] = v
+        emit("objective", fields)
+    except Exception:
+        log.debug("telemetry.emit_objective failed", exc_info=True)
+
+
 def configure(*, path: Optional[str] = None, enabled: Optional[bool] = None,
               max_buffer: Optional[int] = None) -> TelemetrySink:
     """(Re)build the singleton with explicit settings. For boot + tests."""
