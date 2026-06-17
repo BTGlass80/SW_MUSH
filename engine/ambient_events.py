@@ -20,6 +20,7 @@ Files:
   engine/ambient_events.py   (this file)
   data/ambient_events.yaml   (static pool data)
 """
+import json
 import logging
 import os
 import random
@@ -139,6 +140,9 @@ class AmbientEventManager:
         self._idle_pool_ts: dict[str, float] = {}  # zone_key -> last gen time
         self._room_timers: dict[int, RoomTimer] = {}
         self._zone_cache: dict[int, str] = {}  # zone_id -> zone_key
+        # Per-room static ambient lines from wilderness_ambient_lines room property.
+        # Cached permanently (wilderness rooms never change their authored lines).
+        self._room_ambient_cache: dict[int, list] = {}
         self._loaded = False
 
     def _load_yaml(self):
@@ -272,11 +276,38 @@ class AmbientEventManager:
             return True
         return (time.time() - self._idle_pool_ts.get(zone_key, 0.0)) > max_age_secs
 
-    def _pick_line(self, zone_key: str) -> Optional[str]:
+    async def _get_room_ambient_lines(self, room_id: int, db) -> list:
+        """Return authored AmbientLine objects from a room's wilderness_ambient_lines property.
+
+        Result is cached permanently (wilderness rooms don't change their authored lines).
+        Returns an empty list for non-wilderness rooms or rooms with no authored lines.
+        """
+        if room_id in self._room_ambient_cache:
+            return self._room_ambient_cache[room_id]
+        lines: list[AmbientLine] = []
+        try:
+            room = await db.get_room(room_id)
+            if room:
+                raw_props = room.get("properties") or "{}"
+                try:
+                    props = json.loads(raw_props) if isinstance(raw_props, str) else (raw_props or {})
+                except Exception:
+                    props = {}
+                for text in (props.get("wilderness_ambient_lines") or []):
+                    text = str(text).strip()
+                    if text:
+                        lines.append(AmbientLine(text=text))
+        except Exception:
+            pass
+        self._room_ambient_cache[room_id] = lines
+        return lines
+
+    def _pick_line(self, zone_key: str, room_lines: Optional[list] = None) -> Optional[str]:
         """
         Pick a weighted random ambient line for a zone.
         70% chance static pool, 30% chance a LIVE line — the Director's dynamic
         pool and the Ollama idle pool combined — when any live line exists.
+        Per-room authored lines (room_lines) are merged into the static pool.
         """
         live = (self._dynamic_pool.get(zone_key, [])
                 + self._idle_pool.get(zone_key, []))
@@ -285,9 +316,9 @@ class AmbientEventManager:
         if use_live:
             pool = live
         else:
-            pool = self._static_pool.get(zone_key)
-            if not pool:
-                pool = self._static_pool.get("default")
+            pool = list(self._static_pool.get(zone_key) or self._static_pool.get("default") or [])
+            if room_lines:
+                pool = pool + list(room_lines)
             if not pool:
                 return None
 
@@ -360,7 +391,8 @@ class AmbientEventManager:
             # Timer expired — fire an ambient event
             try:
                 zone_key = await self._get_zone_key(room_id, db)
-                line = self._pick_line(zone_key)
+                room_lines = await self._get_room_ambient_lines(room_id, db)
+                line = self._pick_line(zone_key, room_lines=room_lines)
                 if line:
                     # Drop B: emit as typed pose_event (mode='ambient')
                     # to all clients in the room. WebSocket gets typed

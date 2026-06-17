@@ -514,6 +514,45 @@ def _resolve_inv_item(src, registry) -> dict:
     }
 
 
+def coerce_inventory(raw) -> dict:
+    """Coerce a character's raw ``inventory`` value into the canonical
+    ``{"items": [...], "resources": [...]}`` shape.
+
+    Two inventory shapes coexist on disk and both are valid:
+      * dict-form ``{"items": [...], "resources": [...]}`` — written by the
+        crafting resource helpers and ``db.add_to_inventory``;
+      * bare-list ``[item, item, ...]`` — the column's schema default is
+        ``'[]'``, so a fresh char (and any char that only ever held general
+        items) carries a bare list. The list *is* the general-items store;
+        there are no resources.
+
+    This mirrors ``db._get_inventory_raw`` but operates on an in-hand value
+    (the caller already has the char dict — no DB round-trip). Accepts a JSON
+    string, a dict, a bare list, or None/garbage and always returns the dict
+    shape with two guaranteed list values, so callers can ``inv["items"]`` /
+    ``inv["resources"]`` without a per-site ``isinstance`` guard. Calling
+    ``.get()`` on a bare-list inventory raised ``AttributeError`` at several
+    shop/vendor sites (swallowed → false "not found"); this is the single
+    source of truth that removes that class. (QA M3.)
+    """
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw) if raw else {}
+        except Exception:
+            raw = {}
+    if isinstance(raw, dict):
+        items = raw.get("items", [])
+        resources = raw.get("resources", [])
+    elif isinstance(raw, list):
+        items, resources = raw, []
+    else:
+        items, resources = [], []
+    return {
+        "items": items if isinstance(items, list) else [],
+        "resources": resources if isinstance(resources, list) else [],
+    }
+
+
 def build_inventory_state(equipment_raw, carried, registry=None) -> dict:
     """Assemble the ``inventory_state`` push for the web inventory panel.
 

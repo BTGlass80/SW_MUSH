@@ -8,9 +8,10 @@ marker as the inner-loop time lever, and deleted a small set of
 verified-dead test files. This module locks in that contract so it
 cannot silently regress:
 
-  * BOTH pytest configs (root `pytest.ini` + `tests/pytest.ini`)
-    deselect `slow` by default — if either drops `not slow`, the
-    inner loop silently re-runs the heavy tests.
+  * The SINGLE root `pytest.ini` deselects `slow` by default — if it
+    drops `not slow`, the inner loop silently re-runs the heavy tests.
+    `tests/pytest.ini` was removed (TD.DUAL_PYTEST_INI, 2026-06-17):
+    the root config now governs both no-arg and targeted runs.
   * `tests/spa/conftest.py` marks the SPA suite slow, and does so
     ONLY for tests under tests/spa/ (a naive
     `pytest_collection_modifyitems` would mark the whole suite).
@@ -21,7 +22,7 @@ cannot silently regress:
   * the f7c1 brittle whole-table NPC-count canary stays pruned.
 
 See CHANGELOG.md 2026-06-14 `test-suite-prune` and TODO.json
-TD.DUAL_PYTEST_INI / TD.TEST_FRAGMENT_PRUNES_DEFERRED.
+TD.DUAL_PYTEST_INI (RESOLVED) / TD.TEST_FRAGMENT_PRUNES_DEFERRED.
 """
 from __future__ import annotations
 
@@ -48,14 +49,14 @@ def test_root_pytest_ini_excludes_slow_by_default() -> None:
     )
 
 
-def test_tests_pytest_ini_excludes_slow_by_default() -> None:
-    ini = _read(os.path.join("tests", "pytest.ini"))
-    assert "addopts" in ini
-    assert "not slow" in ini, (
-        "tests/pytest.ini addopts must keep `not slow` — this is the "
-        "config that governs targeted `pytest tests/<module>` inner-loop "
-        "runs (pytest resolves the nearest inifile to the path arg). "
-        "See TD.DUAL_PYTEST_INI."
+def test_single_pytest_ini_no_duplicate() -> None:
+    """Tombstone guard: tests/pytest.ini was removed (TD.DUAL_PYTEST_INI,
+    2026-06-17). The root pytest.ini is now the sole config, governing
+    both no-arg and targeted runs. Ensure it stays that way."""
+    assert not os.path.exists(os.path.join(PROJECT_ROOT, "tests", "pytest.ini")), (
+        "tests/pytest.ini must not exist — the root pytest.ini is the "
+        "single config (TD.DUAL_PYTEST_INI RESOLVED). Delete any "
+        "reintroduced tests/pytest.ini to prevent inner-loop divergence."
     )
 
 

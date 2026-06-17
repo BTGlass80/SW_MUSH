@@ -689,7 +689,7 @@ def format_job_detail(j: SmugglingJob) -> list[str]:
         f"  {_BOLD}Risk:{_RESET}     {_RISK_DISPLAY.get(j.tier, 'Unknown')}",
         remaining,
         "",
-        f"  {_DIM}Launch your ship and make the run. Type 'smugdeliver' when docked{_RESET}",
+        f"  {_DIM}Launch your ship and make the run. Type '+smuggle/deliver' when docked{_RESET}",
         f"  {_DIM}at the destination. 'smugdump' jettisons the cargo (no fine, no pay).{_RESET}",
         f"{_BOLD}{'=' * 58}{_RESET}",
     ]

@@ -470,9 +470,25 @@ async def on_anomaly_salvaged(db, char_id: int, session=None):
 
 async def on_planet_visited(db, char_id: int, session=None,
                             planets_count: int = 0):
-    """Hook: player visited a new planet. Pass total planets visited."""
-    return await check_achievement(db, char_id, "planets_visited",
-                                   count=planets_count, session=session)
+    """Hook: player visited a new planet. Pass total unique planets visited.
+    Uses high-water-mark pattern (like on_room_visited) so repeated calls
+    with the same total don't double-count toward the trigger threshold."""
+    for ach in _BY_EVENT.get("planets_visited", []):
+        try:
+            row = await _get_progress_row(db, char_id, ach["key"])
+            if row and row.get("completed"):
+                continue
+            target = ach["trigger"].get("count", 1)
+            if planets_count >= target:
+                await _complete_achievement(db, char_id, ach, planets_count)
+                if session:
+                    await _notify_achievement(session, ach)
+            else:
+                await _upsert_progress(db, char_id, ach["key"],
+                                       planets_count, completed=False)
+        except Exception:
+            log.debug("Planet visit achievement check failed", exc_info=True)
+    return []
 
 async def on_room_visited(db, char_id: int, total_rooms: int,
                           session=None):

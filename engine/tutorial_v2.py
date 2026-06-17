@@ -99,7 +99,7 @@ CORE_ROOM_MESSAGES = {
     ),
     "Rocky Pass": (
         "\n  \033[2;36m[TUTORIAL]\033[0m Check what you're carrying: "
-        "\033[1;33m+inv\033[0m or \033[1;33minventory\033[0m.\n"
+        "\033[1;33m+inv\033[0m.\n"
         "  Something glints in the sand. Try: \033[1;33mlook south wall\033[0m"
     ),
     "Ambush Point": (
@@ -426,7 +426,7 @@ ROOM_HINTS: dict[str, list[str]] = {
         "[TUTORIAL] Check your character stats: \033[1;33m+sheet\033[0m",
     ],
     "rocky pass": [
-        "[TUTORIAL] Check your inventory: \033[1;33minventory\033[0m",
+        "[TUTORIAL] Check your inventory: \033[1;33m+inv\033[0m",
         "[TUTORIAL] Move east to continue.",
     ],
     "ambush point": [
@@ -1014,8 +1014,8 @@ ELECTIVE_STEPS = {
             4,
             (
                 "\n  \033[2;36m[TRADER\'S HALL]\033[0m The bounty income loop.\n"
-                "  Try: \033[1;33m+bounties\033[0m  \033[1;33mbountyclaim <id>\033[0m  "
-                "\033[1;33mbountytrack\033[0m  \033[1;33mbountycollect\033[0m"
+                "  Try: \033[1;33m+bounties\033[0m  \033[1;33m+bounty/claim <id>\033[0m  "
+                "\033[1;33m+bounty/track\033[0m  \033[1;33m+bounty/collect\033[0m"
             ),
         ),
         (
@@ -1079,7 +1079,7 @@ ELECTIVE_STEPS = {
             2,
             (
                 "\n  \033[2;36m[BOUNTY OFFICE]\033[0m Tracking exercise -- find your target.\n"
-                "  Try: \033[1;33mbountytrack\033[0m to locate the target by Search roll."
+                "  Try: \033[1;33m+bounty/track\033[0m to locate the target by Search roll."
             ),
         ),
         (
@@ -1088,7 +1088,7 @@ ELECTIVE_STEPS = {
             (
                 "\n  \033[2;36m[BOUNTY OFFICE]\033[0m Takedown -- close the contract.\n"
                 "  \033[1;33mattack\033[0m to engage, \033[1;33mrestrain\033[0m when incapacitated,\n"
-                "  then \033[1;33mbountycollect\033[0m to close. Alive pays 50% more."
+                "  then \033[1;33m+bounty/collect\033[0m to close. Alive pays 50% more."
             ),
         ),
         (
@@ -1444,7 +1444,7 @@ HUNTERS_MARK = [
             "  Your Guild credentials get you a location: warehouse district, Coronet City.\n"
             "  \033[3m\"They're holed up in Bay 7. Armed. Probably expecting trouble.\n"
             "  You'll want to go in fast or not at all.\"\033[0m\n"
-            "  \033[2mTask: Hunt and defeat the target. Claim the bounty with 'bountycollect'. Reward: 1,500cr.\033[0m"
+            "  \033[2mTask: Hunt and defeat the target. Claim the bounty with '+bounty/collect'. Reward: 1,500cr.\033[0m"
         ),
         "reward_credits": 0,
     },

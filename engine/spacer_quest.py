@@ -367,7 +367,7 @@ QUEST_STEPS = [
         "reward_credits": 500,
         "reward_title": None,
         "reward_flags": {},
-        "hint": "Use '+bounties' to see targets. 'bountytrack <id>' to track, then fight and 'bountycollect'.",
+        "hint": "Use '+bounties' to see targets. '+bounty/track' to track, then fight and '+bounty/collect'.",
         "phase_gate": False,
     },
     {

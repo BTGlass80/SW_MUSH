@@ -13,8 +13,8 @@
    reward_alive_bonus, status, chain_bounty_id, expires_in_secs.
 
    Real verbs only — the two staged actions are:
-     • ACCEPT       → `bountyclaim <id>`   (posted card, viewer unclaimed)
-     • TRACK TARGET → `bountytrack`        (the viewer's claimed card)
+     • ACCEPT       → `+bounty/claim <id>` (posted card, viewer unclaimed)
+     • TRACK TARGET → `+bounty/track`      (the viewer's claimed card)
    Both are STAGED into the input via the callback, never auto-sent.
    There is no abandon verb at HEAD, so none is offered. One claim at a
    time (enforced server-side; the UI hides ACCEPT while claimed).
@@ -200,13 +200,13 @@ function contractCard(c, claimedId){
     actions.push(el('button', {
       class: 'm3b-act primary', type: 'button',
       'data-act': 'track', 'data-cid': c.id,
-      text: 'TRACK TARGET \u00B7 bountytrack'
+      text: 'TRACK TARGET \u00B7 +bounty/track'
     }));
   } else if (claimedId == null && c.status === 'posted'){
     actions.push(el('button', {
       class: 'm3b-act accept', type: 'button',
       'data-act': 'claim', 'data-cid': c.id,
-      text: 'ACCEPT \u00B7 bountyclaim ' + c.id
+      text: 'ACCEPT \u00B7 +bounty/claim ' + c.id
     }));
   }
   actions.push(el('button', {
@@ -317,9 +317,9 @@ function redraw(){
       _expanded[cid] = !_expanded[cid];
       redraw();
     } else if (act === 'claim' && _stage){
-      _stage('bountyclaim ' + cid);
+      _stage('+bounty/claim ' + cid);
     } else if (act === 'track' && _stage){
-      _stage('bountytrack');
+      _stage('+bounty/track');
     }
   };
 }

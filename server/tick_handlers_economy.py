@@ -607,7 +607,7 @@ async def hazard_tick(ctx) -> None:
 # Cadence: hourly (interval=3600). The 1h window is the trigger; the 24h
 # figure rides along as context. All I/O is best-effort and fails open.
 
-async def _page_economy_alert_staff(session_mgr, line: str) -> None:
+async def page_economy_alert_staff(session_mgr, line: str) -> None:
     """Send a one-line economy alert to every online admin/builder session.
 
     Best-effort and per-session guarded: a single bad session never aborts
@@ -659,6 +659,6 @@ async def credit_velocity_alert_tick(ctx) -> None:
     except Exception:
         log.debug("credit_velocity_alert_tick: record/log failed", exc_info=True)
     try:
-        await _page_economy_alert_staff(ctx.session_mgr, line)
+        await page_economy_alert_staff(ctx.session_mgr, line)
     except Exception:
         log.debug("credit_velocity_alert_tick: staff page failed", exc_info=True)

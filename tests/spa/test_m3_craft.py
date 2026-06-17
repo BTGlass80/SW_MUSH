@@ -7,7 +7,7 @@ emits (protocol ledger v1_4 §1.9). Verifies: craftable-first sort + the
 CRAFT button staging the REAL `craft <name>` verb (and absent on blocked
 rows); the quantity-vs-quality component split (the P0.1 diagnostics)
 rendered as distinct states with both numbers named; SURVEY staging the
-real `survey` verb and BUY staging `buyresources <type> ` (trailing
+real `survey` verb and BUY staging `+craft/buyresources <type> ` (trailing
 space — quantity is the player's); the last_result banner classes; the
 invented-verb-never guard; and card expansion staging nothing.
 
@@ -108,12 +108,12 @@ def test_survey_buy_stage_real_verbs_and_nothing_else():
         // verb that exists in the parser registry at HEAD.
         var ok = cmds.every(function(c){
             return c === 'survey' || c.indexOf('craft ') === 0 ||
-                   c.indexOf('buyresources ') === 0;
+                   c.indexOf('+craft/buyresources ') === 0;
         });
         window.M3Craft.stop();
         result = { cmds: cmds, realVerbsOnly: ok };
     """)
-    assert out["cmds"] == ["survey", "buyresources electronic "]
+    assert out["cmds"] == ["survey", "+craft/buyresources electronic "]
     assert out["realVerbsOnly"] is True
 
 

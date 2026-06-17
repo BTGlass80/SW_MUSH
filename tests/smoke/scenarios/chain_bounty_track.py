@@ -5,7 +5,7 @@ binding (drop 26, 2026-06-13).
 
 Verifies that the bounty_hunter chain's tutorial contract
 (`tutorial_bhg_tarko_vinn`) binds its target NPC + room when spawned,
-so `bountytrack` works instead of hard-erroring "Contract data error —
+so `+bounty/track` works instead of hard-erroring "Contract data error —
 target NPC not found".
 
 Root cause (drop 26): `engine/chain_missions._materialize_bounty` left
@@ -23,7 +23,7 @@ import json
 
 async def cbt_1_bountytrack_works_on_tutorial_contract(h):
     """CBT-1 — Spawn the bounty_hunter step-2 tutorial contract, claim
-    it, and run `bountytrack`. It must investigate the bound target
+    it, and run `+bounty/track`. It must investigate the bound target
     (Tarko Vinn) rather than hit the unbound-target data error."""
     from engine.tutorial_chains import load_tutorial_chains
     from engine.chain_missions import maybe_spawn_for_step
@@ -57,29 +57,29 @@ async def cbt_1_bountytrack_works_on_tutorial_contract(h):
         f"expected tutorial bounty to spawn; got {spawned!r}"
     )
 
-    # Claim then track.
+    # Claim then track  (canonical +bounty/<switch> — run-on smashes deleted Drop 2).
     await h.cmd(s, "+bounties")
-    claim = await h.cmd(s, "bountyclaim chain_tutorial_bhg_tarko_vinn")
+    claim = await h.cmd(s, "+bounty/claim chain_tutorial_bhg_tarko_vinn")
     assert "traceback" not in claim.lower(), (
-        f"bountyclaim raised: {claim[:300]!r}"
+        f"+bounty/claim raised: {claim[:300]!r}"
     )
-    track = await h.cmd(s, "bountytrack")
+    track = await h.cmd(s, "+bounty/track")
     track_lc = track.lower()
     assert "traceback" not in track_lc, (
-        f"bountytrack raised: {track[:400]!r}"
+        f"+bounty/track raised: {track[:400]!r}"
     )
     assert "contract data error" not in track_lc, (
-        f"bountytrack still hits the unbound-target data error — the "
+        f"+bounty/track still hits the unbound-target data error — the "
         f"tutorial contract's target NPC was not bound. Output: "
         f"{track[:300]!r}"
     )
     assert "from_db_dict" not in track_lc and "positional argument" \
         not in track_lc, (
-        f"bountytrack hit the from_db_dict signature crash. Output: "
+        f"+bounty/track hit the from_db_dict signature crash. Output: "
         f"{track[:300]!r}"
     )
     # A working track names the target and shows a roll.
     assert "tarko vinn" in track_lc, (
-        f"bountytrack did not investigate the bound target Tarko Vinn. "
+        f"+bounty/track did not investigate the bound target Tarko Vinn. "
         f"Output: {track[:300]!r}"
     )

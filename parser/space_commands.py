@@ -1313,6 +1313,10 @@ class LandCommand(BaseCommand):
         if crew.get("pilot") != ctx.session.character["id"]:
             await ctx.session.send_line("  Only the pilot can land.")
             return
+        systems = _get_systems(ship)
+        if systems.get("in_hyperspace"):
+            await ctx.session.send_line("  Cannot land while in hyperspace!")
+            return
         # Planet-aware bay lookup: find docking bay for the planet we're orbiting
         _land_planet = None
         try:
@@ -1356,23 +1360,29 @@ class LandCommand(BaseCommand):
             pass
         char = ctx.session.character
         credits = char.get("credits", 0)
-        if credits < docking_fee:
+        actual_fee = min(credits, docking_fee)
+        if actual_fee < docking_fee:
             await ctx.session.send_line(
-                f"  Not enough credits for docking fee! Need {docking_fee}cr.")
-            return
-        char["credits"] = await ctx.db.adjust_credits(char["id"], -docking_fee, "docking_fee")
+                f"  Emergency landing! Insufficient credits for {docking_fee}cr docking fee.")
+        if actual_fee > 0:
+            char["credits"] = await ctx.db.adjust_credits(char["id"], -actual_fee, "docking_fee")
         await ctx.db.update_ship(ship["id"], docked_at=bay["id"])
         get_space_grid().remove_ship(ship["id"])
-        # Traffic: clear current_zone on land
-        import json as _lj
-        _lsys = _lj.loads(ship.get("systems") or "{}")
-        _lsys.pop("current_zone", None)
-        await ctx.db.update_ship(ship["id"], systems=_lj.dumps(_lsys))
+        # Traffic: a docked ship is already excluded from all space traffic /
+        # targeting by the `docked_at IS NOT NULL` filter (db.get_ships_in_space
+        # → npc_space_traffic), so its current_zone does NOT need clearing. We
+        # KEEP current_zone = the orbit zone we dropped from (== the planet whose
+        # bay we just docked at); `launch` overwrites it fresh on departure.
+        # Clearing it (the prior behaviour) broke docked trade: market/buy/sell
+        # resolve the current planet via current_zone → ZONES[..].planet, so an
+        # empty zone collapsed pricing to a flat 100% (no source-discount /
+        # demand-premium) AND bypassed the per-planet supply cap that prevents
+        # infinite cargo farming (QA finding H4, 2026-06-17).
         await ctx.session_mgr.broadcast_to_room(
             ship["bridge_room_id"],
             ansi.success(
                 f"  {ship['name']} docks at {bay['name']}. "
-                f"(Docking fee: {docking_fee}cr)"))
+                f"(Docking fee: {actual_fee}cr)"))
         await ctx.session_mgr.broadcast_to_room(
             bay["id"], f"  The {ship['name']} settles onto the landing pad.")
         # Space HUD: send inactive state so client reverts to ground mode
@@ -1417,6 +1427,20 @@ class LandCommand(BaseCommand):
             except Exception:
                 log.warning("execute: unhandled exception", exc_info=True)
                 pass
+        # Achievement: unique planet visits (QA M4 — on_planet_visited was never called)
+        if _land_planet and _land_planet != "tatooine":
+            try:
+                import json as _pv_json
+                _pv_attrs = _pv_json.loads(char.get("attributes") or "{}")
+                _pv_count = len(_pv_attrs.get("planets_visited", []))
+                if _pv_count > 0:
+                    from engine.achievements import on_planet_visited as _ach_on_pv
+                    await _ach_on_pv(ctx.db, char["id"], session=ctx.session,
+                                     planets_count=_pv_count)
+            except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
+                pass
+
         # Profession chain: planet arrival trigger
         if _land_planet:
             try:

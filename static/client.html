@@ -12329,8 +12329,8 @@ function handleHolonetState(data) {
 
 function handleBoardState(data) {
   // Webify UI-5: render the board_state push (bounty contracts + the viewer's
-  // claimed_id) in a modal. ACCEPT stages `bountyclaim <id>`, TRACK stages
-  // `bountytrack` — staged, never auto-sent. Claiming/abandoning resolution
+  // claimed_id) in a modal. ACCEPT stages `+bounty/claim <id>`, TRACK stages
+  // `+bounty/track` — staged, never auto-sent. Claiming/abandoning resolution
   // stays server-side; there is no abandon verb.
   if (!window.M3Board) return;
   M3Board.resetState();
@@ -12368,7 +12368,7 @@ function handleCraftingState(data) {
   // Renders the crafting_state push (known schematics with live
   // craftable/have-at-quality diagnostics + material stacks + the last
   // craft result). CRAFT stages `craft <name>`, BUY stages
-  // `buyresources <type> `, SURVEY stages `survey` — staged, never
+  // `+craft/buyresources <type> `, SURVEY stages `survey` — staged, never
   // auto-sent. Known schematics only; the panel cannot invent a recipe.
   if (!window.M3Craft) return;
   var t = $('craft-modal-title');

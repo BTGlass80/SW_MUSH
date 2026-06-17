@@ -313,49 +313,11 @@ class ChannelsCommand(BaseCommand):
         await ctx.session.send_line("  comms <ship> <msg>       ship-to-ship (space only)")
 
 
-# ── Who (enhanced) ────────────────────────────────────────────────────────────
-
-class WhoCommand(BaseCommand):
-    key = "who"
-    aliases = ["players", "online"]
-    help_text = "List online players with their current location and status."
-    usage = "who"
-
-    async def execute(self, ctx: CommandContext):
-        sessions = [s for s in ctx.session_mgr.all if s.character]
-        await ctx.session.send_line(ansi.header("=== Players Online ==="))
-        if not sessions:
-            await ctx.session.send_line("  No players online.")
-            return
-        for sess in sessions:
-            char = sess.character
-            room_id = char.get("room_id", 0)
-            room_name = "Unknown"
-            try:
-                room_row = await ctx.db.get_room(room_id)
-                if room_row:
-                    room_name = room_row.get("name", f"Room #{room_id}")
-            except Exception:
-                room_name = f"Room #{room_id}"
-            status = _get_player_status(sess, char["id"])
-            await ctx.session.send_line(
-                f"  {ansi.player_name(char['name']):<22}"
-                f"  {ansi.dim(room_name):<28}"
-                f"  {ansi.yellow('[' + status + ']')}"
-            )
-        await ctx.session.send_line(f"  {len(sessions)} player(s) online.")
-
-
-def _get_player_status(sess, char_id: int) -> str:
-    try:
-        from parser.combat_commands import _active_combats
-        for combat in _active_combats.values():
-            if combat.get_combatant(char_id):
-                return "In Combat"
-    except (ImportError, Exception):
-        log.debug("get_char_status: combat check failed", exc_info=True)
-        pass
-    return "Online"
+# NOTE: the bare `who` command formerly lived here. command-syntax rework
+# Drop 1 (command_syntax_rework_design_v2.md) made `+who` the single
+# canonical who-listing and folded this richer (location + combat status)
+# display into parser.builtin_commands.WhoCommand. Deleted here — no
+# back-compat alias.
 
 
 # ── Registration ───────────────────────────────────────────────────────────────
@@ -371,8 +333,7 @@ def register_channel_commands(registry):
     registry.register(FreqsCommand())
     registry.register(CommFreqCommand())
     registry.register(ChannelsCommand())
-    registry.register(WhoCommand())
     log.info(
         "[channels] Registered: ooc, comlink, fcomm, "
-        "tune, untune, freqs, commfreq, channels, who"
+        "tune, untune, freqs, commfreq, channels"
     )
