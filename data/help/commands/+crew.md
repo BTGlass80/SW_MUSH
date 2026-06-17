@@ -38,8 +38,8 @@ examples:
     description: "Another bare alias for /dismiss."
   - cmd: "+crew/order pilot evade"
     description: "Order the pilot NPC to take evasive maneuvers this round."
-  - cmd: "order gunner fire TIE-Alpha"
-    description: "Order the gunner NPC to fire at TIE-Alpha (bare alias preserved)."
+  - cmd: "order gunner fire Vulture-Alpha"
+    description: "Order the gunner NPC to fire at Vulture-Alpha (bare alias preserved)."
 ---
 
 All crew management verbs are switches under +crew. Bare forms

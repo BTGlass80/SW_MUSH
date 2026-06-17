@@ -331,15 +331,6 @@ def _build_ai_config(ai: dict, name: str) -> dict:
     if ai.get("is_intel_handler"):
         config["is_intel_handler"] = True
 
-    # Preserve the vendor marker (QA finding B2). An NPC tagged `vendor: true`
-    # in YAML sells weapons in its room — the buy command
-    # (space_commands.py: `if ai_cfg.get("vendor")`) reads it out of
-    # ai_config_json. Without this pass-through the marker was silently dropped
-    # by the fixed schema above, so EVERY yaml-seeded weapon vendor was dead
-    # ("No merchant here sells weapons", incl. Kayson's shop).
-    if ai.get("vendor"):
-        config["vendor"] = ai.get("vendor")
-
     # Preserve the CW tutorial-chain combat-enemy marker (F.8.c.2.b₂
     # combat templates; drop 25 fix, 2026-06-12). A combat-template NPC
     # tagged `chain_enemy_template: <id>` in YAML is recognized by the
@@ -354,6 +345,18 @@ def _build_ai_config(ai: dict, name: str) -> dict:
     # `is_intel_handler` above.
     if ai.get("chain_enemy_template"):
         config["chain_enemy_template"] = ai["chain_enemy_template"]
+
+    # Preserve the vendor flag (QA campaign blocker B2, 2026-06-16). An NPC
+    # tagged `vendor: true` in its ai_config sells open-market gear; the buy
+    # consumer in parser/space_commands.py gates on
+    # ai_config_json["vendor"] (the trainer-flag precedent applied to
+    # commerce). The fixed whitelist above silently dropped it at the
+    # DB-write seam — so EVERY weapon vendor was dead in production (incl.
+    # Kayson's shop and the mos_eisley/planet merchants that declare it),
+    # leaving the buy-gear credit SINK entirely inert. Same silent-drop
+    # class as `trainer` / `is_intel_handler` / `chain_enemy_template`.
+    if ai.get("vendor"):
+        config["vendor"] = True
 
     return config
 
