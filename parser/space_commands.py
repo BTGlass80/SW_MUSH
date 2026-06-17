@@ -6913,7 +6913,12 @@ def register_space_commands(registry):
         # prices output and handles `market search` for shopfronts.
         # Keep the class here as a callable helper.
         TransponderCommand(),
-        OrderCommand(),
+        # Command-syntax rework Drop 7 (type-3 genuine-conflict resolution):
+        # the space commander OrderCommand is NOT registered standalone — its
+        # bare 'order' key collided with the crew OrderCommand (NPC crew
+        # orders), which keeps the bare verb. The commander order is reachable
+        # via the +bridge umbrella (`+bridge/order`, _BRIDGE_SWITCH_IMPL["order"]
+        # = OrderCommand()); the class stays defined as that switch handler.
         PowerCommand(),
         FireCommand(), EvadeCommand(),
         LockOnCommand(),

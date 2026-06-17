@@ -48,7 +48,11 @@ def _find_online(ctx: CommandContext, name: str):
 
 class PartyInviteCommand(BaseCommand):
     key = "+party"
-    aliases = ["party", "p"]
+    # Command-syntax rework Drop 7 (type-3 genuine-conflict resolution): the 'p'
+    # alias is DELETED. By universal MU* convention `p` is page (private
+    # message) — owned by mux_commands.PageCommand — and having it resolve to
+    # the party umbrella was the collision. Party is reached via '+party'/'party'.
+    aliases = ["party"]
     help_text = (
         "Party system commands.\n"
         "  party invite <player>  -- invite a player\n"

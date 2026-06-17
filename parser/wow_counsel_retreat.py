@@ -324,7 +324,13 @@ class RetreatCommand(BaseCommand):
     accumulates weight decay until +return."""
 
     key = "+retreat"
-    aliases = ["retreat"]
+    # Command-syntax rework Drop 7 (type-3 genuine-conflict resolution): the
+    # bare 'retreat' alias is DELETED. `retreat` is overwhelmingly expected to
+    # mean combat-disengage (owned by the standalone FleeCommand, aliases
+    # run/retreat); having it resolve to this OOC leave-of-absence command was
+    # the collision (and a mis-resolution in combat). This command keeps its
+    # A1-correct OOC '+retreat' key.
+    aliases: list[str] = []
     help_text = (
         "Declare an extended leave of absence from the war.\n"
         "\n"

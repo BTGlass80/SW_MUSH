@@ -2908,15 +2908,23 @@ class CombatCommand(BaseCommand):
     # left intact (it drives +combat/<switch> + bare-verb dispatch through the
     # umbrella and is exercised by the S54 dispatch tests). 'cpose'/'crolls'
     # remain — they are genuine umbrella-only shorthands (no standalone owns
-    # them). 'retreat' stays (the cross-command key:retreat conflict with
-    # wow_counsel RetreatCommand is a separate type-3 decision).
+    # them).
+    # Command-syntax rework Drop 7 (type-3 genuine-conflict resolution):
+    # 'retreat' and 'accept' DELETED here. 'retreat' is the combat-disengage
+    # synonym already owned by the standalone FleeCommand (aliases run/retreat)
+    # — the bare verb now resolves there, and wow_counsel's leave-of-absence
+    # command keeps its A1-correct OOC '+retreat' key only. 'accept' (combat-
+    # challenge accept) is owned by AcceptMissionCommand's bare 'accept' (which
+    # smart-dispatches PC challenges to AcceptCommand) and by the +combat/accept
+    # switch — the dead bare alias is removed. _ALIAS_TO_SWITCH still maps both
+    # so +combat/<switch> dispatch is unchanged.
     aliases: list[str] = [
         "combat",
         "attack",
         "dodge", "fulldodge",
         "parry", "fullparry",
         "aim",
-        "flee", "retreat",
+        "flee",
         "pass", "disengage",
         "resolve",
         "range",
@@ -2924,7 +2932,7 @@ class CombatCommand(BaseCommand):
         "forcepoint",
         "cpose", "crolls",
         "challenge",
-        "accept", "decline",
+        "decline",
     ]
     help_text = (
         "Combat verbs. Canonical form '+combat/attack <target>', or "
@@ -2997,7 +3005,12 @@ def register_combat_commands(registry):
         CombatStatusCommand(), ResolveCommand(), DisengageCommand(),
         RangeCommand(), CoverCommand(), ForcePointCommand(),
         CombatPoseCommand(), CombatRollsCommand(),
-        ChallengeCommand(), AcceptCommand(), DeclineCommand(),
+        ChallengeCommand(), DeclineCommand(),
+        # Command-syntax rework Drop 7: AcceptCommand is NOT registered as a
+        # standalone top-level command — its bare 'accept' key collided with
+        # AcceptMissionCommand. The class lives on for the +combat/accept switch
+        # (_SWITCH_IMPL["accept"]) and the smart-dispatch delegation in
+        # AcceptMissionCommand (bare `accept <challenger>` → combat consent).
         PvpCommand(),   # v27 (May 18 2026): opt-in PvP flag
     ]
     for cmd in cmds:

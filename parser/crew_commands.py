@@ -537,14 +537,18 @@ class CrewCommand(BaseCommand):
     # firecrew→DismissCrewCommand, ord→OrderCommand) are DELETED — they were
     # dead duplicates (the standalone registers later and wins), so each still
     # resolves to the same handler. The _CREW_ALIAS_TO_SWITCH dispatch map is
-    # left intact. 'order' stays for now (part of the cross-command key:order
-    # conflict with space OrderCommand — a separate type-3 decision).
+    # left intact.
+    # Command-syntax rework Drop 7 (type-3 genuine-conflict resolution): the
+    # 'order' umbrella alias is DELETED — bare 'order' is owned by the standalone
+    # crew OrderCommand key, and +crew/order dispatches via the switch map +
+    # valid_switches, so the dead top-level alias is redundant. (The space
+    # commander OrderCommand that also wanted bare 'order' is now reachable only
+    # via +bridge/order — its standalone registration was dropped.)
     aliases: list[str] = [
         "crew", "mycrew",
         "hire",
         "assign", "unassign",
         "dismiss",
-        "order",
     ]
     help_text = (
         "Crew verbs: '+crew/roster', '+crew/hire <npc>', '+crew/assign "

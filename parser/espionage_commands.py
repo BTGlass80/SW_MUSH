@@ -4,8 +4,8 @@ parser/espionage_commands.py — Espionage Command Suite for SW_MUSH.
 
 Commands:
   scan <player>         — covert character assessment
-  eavesdrop [direction] — listen to adjacent room
-  investigate           — search room for hidden info
+  eavesdrop [direction] — listen to adjacent room (alias: listen)
+  search                — search room for hidden info (alias: inspect)
   +intel                — compose/manage intel reports
 
 All skill checks route through perform_skill_check() per invariant.
@@ -236,16 +236,24 @@ class EavesdropCommand(BaseCommand):
 # ── Investigate Command ───────────────────────────────────────────────────────
 
 class InvestigateCommand(BaseCommand):
-    key = "investigate"
-    aliases = ["search", "inspect"]
+    # Command-syntax rework Drop 7 (type-3 genuine-conflict resolution): this
+    # espionage room-search command's bare key was 'investigate', which
+    # collided with anomaly_commands.InvestigateCommand (`investigate <id>` —
+    # resolve a wilderness anomaly). The anomaly verb keeps bare 'investigate';
+    # this one is canonicalized to 'search' (it already aliased search/inspect,
+    # but those routed to the anomaly key while it was shadowed, so the room
+    # search was only reachable via +spy investigate). Now `search`/`inspect`
+    # cleanly reach it, and +spy investigate still dispatches it by class.
+    key = "search"
+    aliases = ["inspect"]
     help_text = (
         "Search the current room for hidden information.\n"
         "Uses Search skill. Finds clues based on room state.\n"
         "\n"
-        "USAGE: investigate\n"
+        "USAGE: search\n"
         "COOLDOWN: 30 minutes per room"
     )
-    usage = "investigate"
+    usage = "search"
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
@@ -266,7 +274,7 @@ class InvestigateCommand(BaseCommand):
         # Get room
         room = await ctx.db.get_room(room_id)
         if not room:
-            await ctx.session.send_line("  Nothing to investigate here.")
+            await ctx.session.send_line("  Nothing to search here.")
             return
 
         # Determine difficulty based on room type
@@ -756,11 +764,16 @@ class SpyCommand(BaseCommand):
     # wiretap/comtap→InterceptCommand) are DELETED — they were dead duplicates
     # (the standalone registers later and wins), so each still resolves to the
     # same handler. The _SPY_ALIAS_TO_SWITCH dispatch map is left intact (it
-    # drives the arg-keyed `+spy <verb>` form). 'listen'/'investigate' stay (the
-    # cross-command key:investigate (anomaly vs espionage) and alias:listen
-    # (espionage vs village_trial) conflicts are separate type-3 decisions).
+    # drives the arg-keyed `+spy <verb>` form).
+    # Command-syntax rework Drop 7 (type-3 genuine-conflict resolution):
+    # 'listen' and 'investigate' DELETED. 'listen' is owned by the standalone
+    # EavesdropCommand (bare 'listen' = listen to an adjacent room); 'investigate'
+    # is owned by anomaly_commands.InvestigateCommand (`investigate <id>`). The
+    # espionage room-search lives at bare 'search'/'inspect'. All three are still
+    # reachable through the umbrella: +spy eavesdrop / +spy investigate (the
+    # _SPY_SWITCH_IMPL forwards dispatch the espionage handlers by class).
     aliases: list[str] = [
-        "assess", "eavesdrop", "listen",
+        "assess", "eavesdrop",
         "investigate",
         "intercept",
     ]

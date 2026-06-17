@@ -75,7 +75,12 @@ async def _teleport(session, db, session_mgr, target_room_id: int,
 
 class TrainingCommand(BaseCommand):
     key = "training"
-    aliases = ["+training", "train"]
+    # Command-syntax rework Drop 7 (type-3 genuine-conflict resolution): the
+    # 'train' alias is DELETED. Bare `train` is owned by cp_commands.TrainCommand
+    # (spend CP to advance a skill) — the core progression verb — and the dead
+    # alias collided with it. The Training Grounds facility is reached via
+    # 'training'/'+training'.
+    aliases = ["+training"]
     help_text = (
         "Access the Training Grounds -- a persistent practice facility.\n"
         "\n"

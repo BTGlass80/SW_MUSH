@@ -217,7 +217,12 @@ class ExamineCommand(BaseCommand):
     interfere with future extensions.
     """
     key = "examine"
-    aliases = ["listen"]
+    # Command-syntax rework Drop 7 (type-3 genuine-conflict resolution): the
+    # 'listen' alias is DELETED. Globally `listen` is owned by the espionage
+    # EavesdropCommand (listen to an adjacent room) — the universal meaning;
+    # having it resolve to this trial-only examine was the collision. Trial
+    # players use the documented `examine fragment_<N>` form (see help below).
+    aliases: list[str] = []
     help_text = (
         "Examine an object in detail.\n\n"
         "TRIAL OF INSIGHT (F.7.c.1):\n"

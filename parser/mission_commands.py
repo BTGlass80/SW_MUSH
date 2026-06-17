@@ -832,11 +832,14 @@ class MissionCommand(BaseCommand):
     # dropmission/quitjob→AbandonMissionCommand) are DELETED — they were dead
     # duplicates (the standalone registers later and wins), so each still
     # resolves to the same handler. The _MISSION_ALIAS_TO_SWITCH dispatch map is
-    # left intact. 'accept' stays (part of the cross-command key:accept conflict
-    # with combat AcceptCommand — a separate type-3 decision); the bare-key
-    # aliases mission/complete/abandon are the per-verb command keys.
+    # left intact. The bare-key aliases mission/complete/abandon are the per-verb
+    # command keys.
+    # Command-syntax rework Drop 7 (type-3 genuine-conflict resolution): the
+    # 'accept' umbrella alias is DELETED — bare 'accept' is owned by the
+    # standalone AcceptMissionCommand key (which smart-dispatches PC challenges
+    # to combat AcceptCommand), and +mission/accept dispatches via the switch
+    # map + valid_switches, so the dead top-level alias is redundant.
     aliases: list[str] = [
-        "accept",
         "mission",
         "complete",
         "abandon",
