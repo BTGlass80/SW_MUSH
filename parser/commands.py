@@ -203,14 +203,54 @@ class CommandRegistry:
     def __init__(self):
         self._commands: dict[str, BaseCommand] = {}
         self._aliases: dict[str, str] = {}  # alias -> primary key
+        # Command-syntax rework Drop 0 (command_syntax_rework_design_v2.md §
+        # "Enforcement guard"): record every key/alias collision so the silent
+        # last-wins binding is no longer invisible. The binding still happens
+        # exactly as before (behaviour unchanged) — we only make it observable
+        # for the convention-invariant ratchet test and the boot summary. Each
+        # entry is a ``(kind, name)`` tuple where kind ∈ {"key", "alias"}.
+        self._collisions: list[tuple[str, str]] = []
 
     def register(self, cmd: BaseCommand):
-        """Register a command instance."""
+        """Register a command instance.
+
+        Last-wins on a duplicate key/alias (unchanged), but any collision — a
+        name already bound to a *different* command — is recorded in
+        ``self._collisions`` so the canonicalization phases can ratchet them to
+        zero instead of being bitten by a silent overwrite.
+        """
         key = cmd.key.lower()
+        prior = self._commands.get(key)
+        if prior is not None and prior is not cmd:
+            # A different command already owns this primary key; registering
+            # this one hides the prior command entirely.
+            self._collisions.append(("key", key))
         self._commands[key] = cmd
         for alias in cmd.aliases:
-            self._aliases[alias.lower()] = key
+            a = alias.lower()
+            prior_target = self._aliases.get(a)
+            if prior_target is not None and prior_target != key:
+                # The alias previously routed to a different command's key.
+                self._collisions.append(("alias", a))
+            elif a in self._commands and self._commands[a] is not cmd:
+                # The alias is shadowed by a different command's primary key —
+                # get() resolves primary keys first, so this alias is dead.
+                self._collisions.append(("alias", a))
+            self._aliases[a] = key
         log.debug("Registered command: %s (aliases: %s)", key, cmd.aliases)
+
+    @property
+    def collision_signatures(self) -> list[str]:
+        """Sorted, de-duplicated ``"kind:name"`` strings for every recorded
+        key/alias collision. The convention-invariant test and the game_server
+        boot summary both read this."""
+        return sorted({f"{kind}:{name}" for kind, name in self._collisions})
+
+    def has_exact(self, name: str) -> bool:
+        """True if ``name`` resolves as an exact primary key or alias (no
+        prefix matching). Used by the run-on regression ratchet."""
+        n = name.lower()
+        return n in self._commands or n in self._aliases
 
     def get(self, name: str) -> Optional[BaseCommand]:
         """Look up a command by name or alias."""

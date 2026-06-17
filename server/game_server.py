@@ -393,6 +393,23 @@ class GameServer:
         # SYN.10 (May 25 2026): +region surface per design §2.6.
         register_region_commands(self.registry)
 
+        # ── Command-convention collision summary (rework Drop 0) ────────────
+        # The registry records every key/alias collision (silent last-wins) in
+        # registry._collisions. Emit ONE summary line — never per-collision
+        # (135 lines would be boot spam) — so the known-baseline is visible at
+        # boot without flooding the log. The set is ratcheted to zero by the
+        # canonicalization phases; see command_syntax_rework_design_v2.md and
+        # tests/data/command_convention_baseline.json.
+        _collisions = self.registry.collision_signatures
+        if _collisions:
+            log.warning(
+                "Command registry: %d key/alias collision(s) at boot "
+                "(known baseline tracked in "
+                "tests/data/command_convention_baseline.json; "
+                "canonicalization drops shrink this to zero)",
+                len(_collisions),
+            )
+
         # ── Achievement System Init ──
         from engine.achievements import load_achievements
         _ach_count = load_achievements()
