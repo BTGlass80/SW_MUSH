@@ -484,7 +484,7 @@ class PortalAPI:
             "shared_scenes": dict(scene_count).get("c", 0) if scene_count else 0,
             "open_plots": dict(plot_count).get("c", 0) if plot_count else 0,
             "uptime_seconds": int(time.time() - self._start_time),
-            "planets": 4,
+            "planets": 6,
             "ship_templates": 19,
         })
 

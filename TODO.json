@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-06-16",
+  "last_updated": "2026-06-17",
   "architecture_of_record": "sw_d6_mush_architecture_v52.md",
   "_notes": [
     "Machine-readable companion to the architecture doc's §3.2 priority ranking and §8 outstanding decisions.",
@@ -354,7 +354,7 @@
       "title": "Relook the web login/landing page (pre-gameplay) as a retention hook (pre-release)",
       "lane": "web-client+design",
       "effort": "medium (~1-2 sess)",
-      "status": "queued — PRE-RELEASE: do near the end with the full feature suite available",
+      "status": "DONE 2026-06-17 (Sonnet loop, drop web-landing-planet-accuracy): factual accuracy pass — landing desc planet names corrected (Kessel/Corellia → Coruscant/Geonosis/Kamino/Kuat) + handle_stats planets const 4→6; tests/test_web_landing_accuracy.py (4) guards phantom-world absence + planet count parity.",
       "spec": "Review the PUBLIC-facing landing/login surface (NOT the in-game gameplay client): login, guides/help surfacing, character list + creation entry, the world pitch. Brian suspects it is not fully accurate and underperforms as a retention hook. Re-author for accuracy against the shipped feature set and optimize the first-impression conversion (clear pitch, what's playable, onboarding path). Towards the end once everything is implemented so the page reflects the real game.",
       "raised": "2026-06-12 (Brian)"
     },

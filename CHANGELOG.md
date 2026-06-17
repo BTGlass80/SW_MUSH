@@ -6,6 +6,12 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-17 — PRELAUNCH.web_landing_retention: portal landing accuracy fixes (Sonnet loop) — *drop web-landing-planet-accuracy*
+Closes `PRELAUNCH.web_landing_retention`. The portal landing page had two factual accuracy bugs.
+- **`static/portal.html` landing desc:** "Tatooine, Nar Shaddaa, Kessel, and Corellia" → "Tatooine, Coruscant, Nar Shaddaa, Geonosis, Kamino, and Kuat" (Kessel and Corellia have no world YAML in `data/worlds/clone_wars/planets/`; the six actual launch planets are now named).
+- **`server/web_portal.py` `handle_stats`:** Hardcoded `"planets": 4` corrected to `6` (the actual planet YAML count).
+- **`tests/test_web_landing_accuracy.py` (4 tests):** Guards phantom-world absence (Kessel/Corellia not in landing copy), actual-planet presence, YAML count == stat constant, and expected 6-planet count. No engine change, no schema, no faucet/sink, era-clean.
+
 ### 2026-06-17 — M2 era-cleanness fixes + era-scrub test extended to data/help + data/guides (Sonnet loop) — *drop m2-era-scrub-data*
 Closes QA finding M2. The era-scrub test previously only swept `static/*.html`; B3 violations leaked into player-facing help files and a world room description.
 - **`data/help/commands/+events.md`:** Example event "#4 Rebel Strike Planning" → "Clone Corps Strategy Briefing" (Rebel = GCW-era).
