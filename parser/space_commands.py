@@ -1427,6 +1427,20 @@ class LandCommand(BaseCommand):
             except Exception:
                 log.warning("execute: unhandled exception", exc_info=True)
                 pass
+        # Achievement: unique planet visits (QA M4 — on_planet_visited was never called)
+        if _land_planet and _land_planet != "tatooine":
+            try:
+                import json as _pv_json
+                _pv_attrs = _pv_json.loads(char.get("attributes") or "{}")
+                _pv_count = len(_pv_attrs.get("planets_visited", []))
+                if _pv_count > 0:
+                    from engine.achievements import on_planet_visited as _ach_on_pv
+                    await _ach_on_pv(ctx.db, char["id"], session=ctx.session,
+                                     planets_count=_pv_count)
+            except Exception:
+                log.warning("execute: unhandled exception", exc_info=True)
+                pass
+
         # Profession chain: planet arrival trigger
         if _land_planet:
             try:

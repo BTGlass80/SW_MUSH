@@ -604,8 +604,7 @@ class Character:
     def advance_skill(self, skill_name: str, skill_registry: SkillRegistry) -> int:
         """
         Advance a skill by 1 pip. Returns CP cost.
-        Cost = current number of dice in the skill.
-        If skill is above attribute, cost is doubled.
+        Cost = current total dice in the skill (attribute + bonus).
         """
         # 2026-06-11: store registry-canonical keys only — prevents the
         # split-key write ("blaster repair" from chargen + "blaster_repair"
@@ -619,10 +618,7 @@ class Character:
         attr_pool = self.get_attribute(skill_def.attribute)
         total_pool = attr_pool + current_bonus
 
-        # Cost = current dice count (doubled if above attribute)
         cost = total_pool.dice
-        if current_bonus.dice > 0:
-            cost = total_pool.dice  # Above attribute = full cost per die
 
         # Advance by 1 pip
         new_bonus = DicePool(current_bonus.dice, current_bonus.pips + 1)
