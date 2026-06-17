@@ -3,7 +3,7 @@ key: +retreat
 title: Retreat — Declare Extended Leave (Jedi)
 category: "Commands: Force"
 summary: Declare an extended leave of absence from the war. Accumulates -2 Weight of War per real-time day while in retreat, capped at -30 per retreat period. Use +return to end your retreat.
-aliases: [retreat]
+aliases: []
 see_also: ["+return", "+counsel", "+forcestatus", "+meditate", force, weight-of-war]
 tags: [force, jedi, weight-of-war, command]
 access_level: 0
@@ -17,6 +17,10 @@ examples:
 Withdraw from active duty and let time heal your wounds. A Jedi
 in retreat accumulates Weight of War reduction passively while
 away from the front lines.
+
+NOTE: The canonical form is `+retreat` (with the + prefix). Bare
+`retreat` routes to the combat disengage command (FleeCommand) —
+always use `+retreat` to declare a Jedi leave of absence.
 
 JEDI ONLY
 

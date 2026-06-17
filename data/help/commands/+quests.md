@@ -24,9 +24,9 @@ SYNTAX
 
 RELATED COMMANDS
 
-  questaccept <id>       Accept a pending quest offer
-  questcomplete <id>     Mark a quest as complete
-  questabandon <id>      Abandon an active quest
+  +quest/accept <id>     Accept a pending quest offer (also: acceptquest)
+  +quest/complete <id>   Mark a quest as complete (also: finishquest)
+  +quest/abandon <id>    Abandon an active quest (also: abandonquest)
 
   +quest <id>            View full details of a specific quest
 
@@ -34,11 +34,11 @@ HOW QUESTS WORK
 
   The Director AI monitors your play and generates quest offers
   suited to your character. Quests appear as offers first; type
-  questaccept <id> to start tracking one.
+  +quest/accept <id> to start tracking one (or: acceptquest <id>).
 
   As you complete quest objectives (usually through normal play),
-  type questcomplete <id> when done, or questabandon <id> to
-  drop one you no longer want.
+  type +quest/complete <id> when done (or: finishquest <id>), or
+  +quest/abandon <id> to drop one you no longer want.
 
   Completed quests grant XP, credits, or reputation depending
   on the quest type.
@@ -54,10 +54,10 @@ EXAMPLES
   +quests completed
   → Shows finished quests and their rewards.
 
-  questaccept 7
+  +quest/accept 7
   → Accepts the pending quest offer with ID 7.
 
-  questabandon 4
+  +quest/abandon 4
   → Abandons quest #4 (cannot be undone).
 
 SEE ALSO
@@ -66,8 +66,8 @@ SEE ALSO
   +recap       Your full narrative recap including quest hooks.
 
 CHEAT SHEET
-  +quests                  list active quests
-  +quests completed        show finished quests
-  questaccept <id>         accept a quest offer
-  questcomplete <id>       mark complete
-  questabandon <id>        abandon a quest
+  +quests                    list active quests
+  +quests completed          show finished quests
+  +quest/accept <id>         accept a quest offer (also: acceptquest)
+  +quest/complete <id>       mark complete (also: finishquest)
+  +quest/abandon <id>        abandon a quest (also: abandonquest)

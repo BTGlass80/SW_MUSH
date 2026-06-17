@@ -3,7 +3,7 @@ key: +bounty
 title: Bounty — Hunting Contracts & The Bounty Board
 category: "Commands: Economy"
 summary: All bounty-board verbs live under +bounty/<switch>. Browse the board, claim a contract, track your mark, collect the reward — every verb is a switch here.
-aliases: [bounty, mybounty, activebounty, myhunt, +myhunt, +mybounty, bounties, bboard, bountyboard, +bboard, +bounties, bountyclaim, claimbounty, acceptbounty, bountytrack, tracktarget, hunttrack, bountycollect, collectbounty, claimreward]
+aliases: [bounty, mybounty, activebounty, myhunt, +myhunt, +mybounty, bounties, bboard, bountyboard, +bboard, claimbounty, acceptbounty, tracktarget, hunttrack, collectbounty, claimreward]
 see_also: [bounty, +mission, +smuggle, economy, combat, streetwise, search]
 tags: [economy, bounty, hunting, command]
 access_level: 0
@@ -18,10 +18,8 @@ examples:
     description: "Board alias."
   - cmd: "+bounty/claim b-7e1f"
     description: "Claim contract b-7e1f. You are now hunting the target."
-  - cmd: "bountyclaim b-7e1f"
-    description: "Same as +bounty/claim (bare alias preserved)."
   - cmd: "claimbounty b-7e1f"
-    description: "Another bare alias for /claim."
+    description: "Shorthand alias for /claim (also: acceptbounty)."
   - cmd: "+bounty/view"
     description: "Show active contract. Same as bare +bounty."
   - cmd: "mybounty"
@@ -30,23 +28,19 @@ examples:
     description: "Another active-contract alias."
   - cmd: "+bounty/track"
     description: "Investigate the target's location. Rolls Search / Streetwise / Tracking (best)."
-  - cmd: "bountytrack"
-    description: "Same as +bounty/track (bare alias preserved)."
   - cmd: "tracktarget"
-    description: "Another bare alias for /track."
+    description: "Shorthand alias for /track (also: hunttrack)."
   - cmd: "+bounty/collect"
     description: "Turn in after defeating the target. Skill check determines pay quality (50–120%)."
-  - cmd: "bountycollect"
-    description: "Same as +bounty/collect (bare alias preserved)."
-  - cmd: "claimreward"
-    description: "Another bare alias for /collect."
+  - cmd: "collectbounty"
+    description: "Shorthand alias for /collect (also: claimreward)."
 ---
 
-All bounty-board verbs are switches under +bounty. Bare forms
-(bounties, bountyclaim, bountytrack, bountycollect) still work as
-aliases — typing `bountytrack` and `+bounty/track` reach the same
-code. The canonical form is +bounty/<switch>; the rest of this
-page uses it everywhere.
+All bounty-board verbs are switches under +bounty. The run-on forms
+(`bountyclaim`, `bountytrack`, `bountycollect`) were removed in the
+command-syntax rework — use the canonical `+bounty/<switch>` form or
+the surviving shorthands (`claimbounty`, `tracktarget`, `collectbounty`,
+`claimreward`, `hunttrack`, `acceptbounty`).
 
 See `+help bounty` for the conceptual overview of bounty hunting
 in the setting. This page is the command reference.
@@ -229,10 +223,10 @@ EXAMPLES
 
 CHEAT SHEET
   +bounty/board    = browse
-  +bounty/claim    = take a contract (prefix id matching)
+  +bounty/claim    = take a contract (also: claimbounty, acceptbounty)
   +bounty         = view active (also: /view, mybounty, myhunt)
-  +bounty/track    = investigate (also: bountytrack, tracktarget)
-  +bounty/collect  = turn in (also: bountycollect, claimreward)
+  +bounty/track    = investigate (also: tracktarget, hunttrack)
+  +bounty/collect  = turn in (also: collectbounty, claimreward)
 
 Sources: Galaxy Guide 10: Bounty Hunters for tier archetypes;
 R&E p.75 (Difficulty ladder), p.93 (Streetwise/Search).

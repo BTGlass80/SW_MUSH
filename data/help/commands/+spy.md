@@ -3,7 +3,7 @@ key: +spy
 title: Spy — Espionage, Assess, Eavesdrop, Investigate, Intel
 category: "Commands: Social"
 summary: All espionage verbs under +spy/<switch>. Assess a target's combat readiness, eavesdrop on nearby conversations, investigate a room for clues, manage intel reports, or intercept comms channels.
-aliases: [assess, size, eavesdrop, listen, investigate, search, inspect, intel, intercept, wiretap, comtap]
+aliases: [assess, size, eavesdrop, listen, search, inspect, intel, intercept, wiretap, comtap]
 see_also: [perception, search, streetwise, sensors, intel]
 tags: [social, espionage, stealth, command]
 access_level: 0
@@ -19,11 +19,11 @@ examples:
   - cmd: "+spy/eavesdrop"
     description: "Listen in on nearby conversations. Perception + Streetwise roll vs Difficulty."
   - cmd: "listen"
-    description: "Same as +spy/eavesdrop (bare alias preserved)."
+    description: "Same as +spy/eavesdrop (routes to standalone eavesdrop command)."
   - cmd: "+spy/investigate"
     description: "Search the current room for clues, hidden objects, evidence. Search skill roll."
   - cmd: "search"
-    description: "Same as +spy/investigate (bare alias preserved)."
+    description: "Same as +spy/investigate (bare alias; NOTE: bare 'investigate' routes to wilderness anomaly resolution, not here)."
   - cmd: "inspect"
     description: "Another bare alias for /investigate."
   - cmd: "+spy/intel"

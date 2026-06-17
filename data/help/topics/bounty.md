@@ -10,11 +10,12 @@ Bounty hunting is the pursuit and capture (or elimination) of targets
 with prices on their heads.
 
 HOW IT WORKS
-  '+bounties' shows the bounty board with active contracts.
-  'bountyclaim <id>' accepts a bounty. You become the hunter.
-  'bountytrack' uses your Search/Investigation skill to locate
-    the target. Track them to their location.
-  'bountycollect' turns in a completed bounty for payment.
+  '+bounty/board' shows the bounty board with active contracts.
+  '+bounty/claim <id>' accepts a contract (also: claimbounty <id>).
+  '+bounty/track' uses your Search/Investigation skill to locate
+    the target. Track them to their location (also: tracktarget).
+  '+bounty/collect' turns in a completed bounty for payment
+    (also: collectbounty).
 
 TRACKING
   Tracking rolls use Search or Investigation skill. Better rolls

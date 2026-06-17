@@ -3,7 +3,7 @@ key: +quest
 title: Quest — Personal Story Quests from the Director AI
 category: "Commands: Narrative"
 summary: All personal-quest verbs live under +quest/<switch>. List your quests, accept, complete, or abandon — every verb is a switch here. Personal quests are Director-AI-generated story hooks, distinct from the paid mission board.
-aliases: [quest, quests, +pq, personalquests, +quests, questaccept, acceptquest, pqaccept, questcomplete, finishquest, pqcomplete, completequest, questabandon, abandonquest, pqdrop]
+aliases: [quest, quests, +pq, personalquests, +quests, acceptquest, pqaccept, finishquest, pqcomplete, completequest, abandonquest, pqdrop]
 see_also: [+mission, +background, +recap, narrative, director]
 tags: [narrative, quests, story, command]
 access_level: 0
@@ -20,31 +20,24 @@ examples:
     description: "Short alias for +quests."
   - cmd: "+quest/accept 12"
     description: "Acknowledge accepting quest 12 (personal quests are active on creation; this is ceremonial)."
-  - cmd: "questaccept 12"
-    description: "Same as +quest/accept 12 (bare alias preserved)."
   - cmd: "acceptquest 12"
-    description: "Another bare alias for /accept."
+    description: "Shorthand alias for /accept (also: pqaccept)."
   - cmd: "+quest/complete 12"
     description: "Mark quest 12 complete. The Director will verify your progress."
-  - cmd: "questcomplete 12"
-    description: "Same as +quest/complete 12 (bare alias preserved)."
   - cmd: "finishquest 12"
-    description: "Another bare alias for /complete."
-  - cmd: "completequest 12"
-    description: "Another bare alias for /complete."
+    description: "Shorthand alias for /complete (also: completequest, pqcomplete)."
   - cmd: "+quest/abandon 12"
     description: "Drop quest 12. Some stories are left unfinished."
-  - cmd: "questabandon 12"
-    description: "Same as +quest/abandon 12 (bare alias preserved)."
-  - cmd: "pqdrop 12"
-    description: "Short alias for abandon."
+  - cmd: "abandonquest 12"
+    description: "Shorthand alias for /abandon (also: pqdrop)."
 ---
 
-All personal-quest verbs are switches under +quest. Bare forms
-(quests, questaccept, questcomplete, questabandon) still work as
-aliases — typing `questcomplete 12` and `+quest/complete 12` reach
-the same code. The canonical form is +quest/<switch>; the rest of
-this page uses it everywhere.
+All personal-quest verbs are switches under +quest. The run-on
+forms (`questaccept`, `questcomplete`, `questabandon`) were removed
+in the command-syntax rework — use the canonical `+quest/<switch>`
+form or the surviving shorthands (`acceptquest`, `finishquest`,
+`abandonquest`, `pqaccept`, `pqcomplete`, `pqdrop`). The canonical
+form is +quest/<switch>; the rest of this page uses it everywhere.
 
 Personal quests are DIFFERENT from the mission board.
   - +mission = paid jobs posted to the board (credits, skill checks,
@@ -176,6 +169,6 @@ See '+help @narrative' for details.
 CHEAT SHEET
   +quest            = list active (also: /list, quests, +pq)
   +quest/list completed = show completed
-  +quest/accept N   = acknowledge (also: questaccept, acceptquest)
-  +quest/complete N = mark done (also: questcomplete, finishquest)
-  +quest/abandon N  = drop (also: questabandon, pqdrop)
+  +quest/accept N   = acknowledge (also: acceptquest, pqaccept)
+  +quest/complete N = mark done (also: finishquest, completequest)
+  +quest/abandon N  = drop (also: abandonquest, pqdrop)

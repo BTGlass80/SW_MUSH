@@ -524,8 +524,10 @@ class TestRetreatHelp(unittest.TestCase):
     def test_access_level(self):
         self.assertEqual(self.entry.access_level, 0)
 
-    def test_aliases_include_retreat(self):
-        self.assertIn("retreat", self.entry.aliases)
+    def test_aliases_no_bare_retreat(self):
+        # bare 'retreat' → FleeCommand (combat disengage) after command-syntax DROP 7;
+        # canonical Jedi leave of absence is +retreat (key only, no bare alias)
+        self.assertNotIn("retreat", self.entry.aliases)
 
     def test_body_mentions_weight(self):
         self.assertIn("weight", self.entry.body.lower())

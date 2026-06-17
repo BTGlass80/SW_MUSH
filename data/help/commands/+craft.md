@@ -3,7 +3,7 @@ key: +craft
 title: Craft — Crafting, Surveying, Experimenting, Teaching
 category: "Commands: Economy"
 summary: All crafting verbs live under +craft/<switch>. Survey for resources, craft from schematics, experiment for masterwork quality, teach other players, or buy resources from an NPC vendor.
-aliases: [craft, survey, experiment, exp, resources, res, schematics, schem, teach, buyresources, buyres, +buyres]
+aliases: [craft, survey, experiment, exp, resources, res, schematics, schem, teach, buyres, +buyres]
 see_also: [crafting, survey, experimentation, resources, schematics, quality, economy]
 tags: [economy, crafting, command]
 access_level: 0
@@ -43,10 +43,12 @@ examples:
 ---
 
 All crafting verbs are switches under +craft. Bare forms
-(craft, survey, resources, schematics, experiment, teach,
-buyresources) still work as aliases — typing `survey` and
-`+craft/survey` reach the same code. The canonical form is
-+craft/<switch>; the rest of this page uses it everywhere.
+(craft, survey, resources, schematics, experiment, teach)
+still work as aliases — typing `survey` and `+craft/survey`
+reach the same code. The canonical form is +craft/<switch>;
+the rest of this page uses it everywhere. Note: `buyresources`
+was removed in the command-syntax rework — use `+craft/buyresources`
+or the short form `buyres`.
 
 See `+help crafting` for the conceptual overview of the crafting
 loop. This page is the command reference.

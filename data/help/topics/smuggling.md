@@ -10,9 +10,10 @@ Smuggling is high-risk, high-reward work. You transport illegal or
 restricted cargo between locations while avoiding security patrols.
 
 HOW IT WORKS
-  '+smugjobs' shows available smuggling contracts.
-  'smugaccept' takes a job. You receive contraband cargo.
-  Fly to the destination and 'smugdeliver' to collect payment.
+  '+smuggle/board' shows available smuggling contracts.
+  'smugaccept' (or '+smuggle/accept') takes a job. You receive
+  contraband cargo. Fly to the destination and '+smuggle/deliver'
+  (or 'deliver') to collect payment.
 
 RISKS
   Security patrols may intercept you on launch. A Perception check
