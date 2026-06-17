@@ -6,6 +6,13 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-17 — TD.AMBIENT_ERA_ADDITIONS_DEAD fix: era_additions loader (Sonnet loop) — *drop era-additions-loader*
+Closes `TD.AMBIENT_ERA_ADDITIONS_DEAD`. The `era_additions:` section in `data/worlds/clone_wars/ambient_events.yaml` had 29 authored war-flavored CW cantina/spaceport/streets/shops/jabba/government lines that never fired because `load_ambient_pools` only read `ambient_events:`.
+- **`engine/ambient_pools_loader.py`:** New `_load_era_additions(era_path)` parses `era_additions:` and returns a zone-keyed line dict. `get_ambient_pools()` APPENDs those lines to the merged pool (not replacing — era_additions augments existing pools). `raw_meta` gains `era_additions_count`/`era_additions_keys`.
+- **Result:** 29 CW war-flavor lines now surface in-game during Clone Wars play alongside the global pool.
+- **Tests:** `tests/test_era_additions_loader.py` (15). All prior `test_f6a4_ambient_pools_loader.py` tests pass unchanged.
+- **No schema change, no faucet/sink, era-clean.**
+
 ### 2026-06-16 — Command-syntax rework Drop 0: convention enforcement guard — *drop command-convention-guard*
 The FOUNDATION drop of the ratified command-syntax rework (`command_syntax_rework_design_v2.md` §"Enforcement guard"). Pure safety net — **no command renames** — so every later canonicalization phase (Drops 1-5) is guarded against silent collisions. This is the guardrail Brian asked for ("make future commands follow our updates").
 - **Registry collision instrumentation (`parser/commands.py`):** `CommandRegistry.register()` now records every key/alias collision (a name already bound to a *different* command) in `self._collisions` — the last-wins binding is unchanged (zero behaviour change), but the silent overwrite that bites during canonicalization is now observable. New `collision_signatures` property (sorted unique `"kind:name"`) and `has_exact()` helper (exact key/alias lookup, no prefix matching).

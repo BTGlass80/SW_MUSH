@@ -132,6 +132,16 @@ def get_ambient_pools(
     for zk, lines in era_pools.items():
         merged[zk] = list(lines)
 
+    # era_additions: APPEND to existing keys (war-flavored lines that
+    # supplement legacy generic pools like cantina/spaceport/streets rather
+    # than replacing them).
+    era_additions = _load_era_additions(era_path)
+    for zk, add_lines in era_additions.items():
+        if zk in merged:
+            merged[zk] = merged[zk] + add_lines
+        else:
+            merged[zk] = list(add_lines)
+
     return MergedAmbientPools(
         pools=merged,
         source=f"yaml-{era}+legacy",
@@ -143,6 +153,8 @@ def get_ambient_pools(
             "merged_zone_count": len(merged),
             "era": era,
             "collisions": sorted(set(legacy_pools) & set(era_pools)),
+            "era_additions_count": sum(len(v) for v in era_additions.values()),
+            "era_additions_keys": sorted(era_additions.keys()),
         },
     )
 
@@ -245,6 +257,60 @@ def _load_era_pool(
             AmbientLineTuple(text=ln.text, weight=ln.weight) for ln in lines
         ]
     return pools, manifest.ambient_events_path
+
+
+def _load_era_additions(
+    era_path: Optional[Path],
+) -> dict:
+    """Read the optional `era_additions:` section from an era ambient YAML.
+
+    Lines in era_additions are APPENDED to the merged pool (they never
+    replace existing legacy or era-specific entries — see the CW
+    era_additions: block comment in data/worlds/clone_wars/ambient_events.yaml
+    for the authoring intent). On any error or absence returns {}.
+
+    TD.AMBIENT_ERA_ADDITIONS_DEAD: this is the loader-side fix for the 29
+    CW cantina/spaceport/streets/shops/jabba/government war-flavored lines
+    that were authored but never fired because load_ambient_pools only reads
+    the ambient_events: section.
+    """
+    if era_path is None or not era_path.is_file():
+        return {}
+    try:
+        import yaml
+        raw = yaml.safe_load(era_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        log.debug(
+            "[ambient_pools_loader] era_additions: failed to read %s: %s",
+            era_path, e,
+        )
+        return {}
+
+    if not isinstance(raw, dict):
+        return {}
+    additions_raw = raw.get("era_additions")
+    if not isinstance(additions_raw, dict):
+        return {}
+
+    result: dict[str, list[AmbientLineTuple]] = {}
+    for zk, entries in additions_raw.items():
+        if not isinstance(entries, list):
+            continue
+        lines: list[AmbientLineTuple] = []
+        for entry in entries:
+            if isinstance(entry, str):
+                lines.append(AmbientLineTuple(text=entry, weight=1.0))
+            elif isinstance(entry, dict) and "text" in entry:
+                try:
+                    w = float(entry.get("weight", 1.0))
+                except (TypeError, ValueError):
+                    w = 1.0
+                text = str(entry["text"]).strip()
+                if text:
+                    lines.append(AmbientLineTuple(text=text, weight=w))
+        if lines:
+            result[zk] = lines
+    return result
 
 
 def pick_pool_for_zone(
