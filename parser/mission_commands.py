@@ -61,6 +61,11 @@ class MissionsCommand(BaseCommand):
 
         available = board.available_missions()
 
+        # H2 fix: faction missions are private — shown only on 'faction missions'
+        # board.  Strip them from the public board so they don't crowd out open
+        # jobs and so players without the required rep can't see them here.
+        available = [m for m in available if not getattr(m, "faction_code", None)]
+
         # F.8.c.2.b₃: Filter chain-tagged tutorial missions so only
         # the player whose active chain step expects them sees them
         # on the board. Open (non-chain) missions always pass through.
@@ -176,6 +181,23 @@ class AcceptMissionCommand(BaseCommand):
             await ctx.session.send_line(
                 f"  That mission is no longer available.")
             return
+
+        # H2 fix: enforce faction rep gate for faction missions.
+        # Open missions (faction_code is None/empty) always pass through.
+        fc = getattr(target, "faction_code", None)
+        if fc:
+            rep_required = getattr(target, "faction_rep_required", 0) or 0
+            try:
+                from engine.missions import _get_char_faction_rep
+                char_rep = await _get_char_faction_rep(char, fc, ctx.db)
+            except Exception:
+                char_rep = None
+            if char_rep is None or char_rep < rep_required:
+                await ctx.session.send_line(
+                    f"  Access denied. This {fc} mission requires reputation {rep_required}.")
+                await ctx.session.send_line(
+                    f"  Complete more work for the faction to raise your standing.")
+                return
 
         accepted = await board.accept(target.id, char_id, ctx.db)
         if not accepted:

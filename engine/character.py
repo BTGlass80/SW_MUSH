@@ -877,8 +877,10 @@ class Character:
         for force_attr in ("control", "sense", "alter"):
             if force_attr in attrs:
                 try:
-                    char.set_attribute(force_attr, DicePool.parse(attrs[force_attr]))
-                    char.force_sensitive = True
+                    pool = DicePool.parse(attrs[force_attr])
+                    char.set_attribute(force_attr, pool)
+                    if not pool.is_zero():
+                        char.force_sensitive = True
                 except (ValueError, TypeError, AttributeError) as _e:
                     log.warning("Malformed force attribute %r=%r for char %s: %s — skipped",
                                 force_attr, attrs.get(force_attr), data.get("id", "?"), _e)

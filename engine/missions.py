@@ -882,6 +882,33 @@ def get_mission_board() -> MissionBoard:
     return _board
 
 
+async def inject_faction_mission_into_board(db, row_id: int) -> None:
+    """H2: push a newly-posted faction mission into the live in-memory board.
+
+    Without this, the board only picks it up on the next 30-minute refresh.
+    Reads the DB row by integer id, deserialises the data blob, and injects
+    the Mission into ``board._missions`` keyed by its slug id. Failures are
+    logged and swallowed — the periodic board refresh eventually covers it.
+
+    Lives here (the board's own module) rather than in the parser layer so both
+    the leader command (parser) and the Director (engine) can call it without an
+    engine→parser import inversion.
+    """
+    try:
+        row = await db.get_mission(row_id)
+        if not row:
+            return
+        blob = json.loads(row.get("data") or "{}")
+        slug_id = blob.get("id", "")
+        if not slug_id:
+            return
+        m = Mission.from_dict(blob)
+        if m.status == MissionStatus.AVAILABLE:
+            get_mission_board()._missions[slug_id] = m
+    except Exception as _e:
+        log.debug("[missions] faction board inject failed for row %s: %s", row_id, _e)
+
+
 # ── Display helpers ────────────────────────────────────────────────────────────
 
 _TYPE_COLORS = {

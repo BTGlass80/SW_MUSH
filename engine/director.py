@@ -1429,6 +1429,50 @@ class DirectorAI:
             title        = f"{faction_code.title()} Directive: {mission_type.title()}"
             if zone:
                 title += f" ({zone})"
+
+            # H2 fix: resolve a destination room from the Director's target zone
+            # so post_faction_mission can build a complete Mission blob.
+            dest_room_id = None
+            dest_name    = zone or "Assigned zone"
+            if zone:
+                try:
+                    zone_row = await db.get_zone_by_name(zone)
+                    if zone_row:
+                        room_rows = await db.fetchall(
+                            "SELECT id, name FROM rooms WHERE zone_id = ? LIMIT 1",
+                            (zone_row["id"],),
+                        )
+                        if room_rows:
+                            dest_room_id = room_rows[0]["id"]
+                            dest_name    = room_rows[0]["name"]
+                except Exception as _ze:
+                    log.debug("[director] post_mission zone→room lookup failed: %s", _ze)
+
+            # Rep gate from FACTION_MISSION_CONFIG (graceful default 0 if unknown)
+            rep_required = 0
+            try:
+                from engine.missions import FACTION_MISSION_CONFIG
+                cfg = FACTION_MISSION_CONFIG.get(faction_code)
+                if cfg:
+                    rep_required = cfg.get("rep_required", 0)
+            except Exception as _rpe:
+                log.debug("[director] post_mission rep_required lookup failed: %s", _rpe)
+
+            # Skill hint (mirrors generate_faction_mission())
+            skill_hint = ""
+            try:
+                from engine.missions import MissionType as _MT, REQUIRED_SKILLS
+                import random as _rnd
+                try:
+                    _mtype = _MT(mission_type)
+                    _hints = REQUIRED_SKILLS.get(_mtype, [])
+                    if _hints:
+                        skill_hint = _rnd.choice(_hints)
+                except ValueError:
+                    log.debug("[director] post_mission unknown mission_type %r", mission_type)
+            except Exception as _she:
+                log.debug("[director] post_mission skill_hint lookup failed: %s", _she)
+
             mission_id = await db.post_faction_mission(
                 faction_code,
                 mission_type=mission_type,
@@ -1436,7 +1480,11 @@ class DirectorAI:
                 description=desc,
                 reward=reward,
                 difficulty="moderate",
-                skill_required="",
+                skill_required=skill_hint,
+                giver=f"{org['name']} Command",
+                destination=dest_name,
+                destination_room_id=dest_room_id,
+                faction_rep_required=rep_required,
             )
             await db.log_faction_action(
                 None, org["id"], "post_mission",
@@ -1444,6 +1492,13 @@ class DirectorAI:
             )
             log.info("[director] Posted faction mission #%d for %s",
                      mission_id, faction_code)
+            # H2 fix: push into in-memory board so 'accept <slug>' works
+            # immediately without waiting for the 30-minute board refresh.
+            try:
+                from engine.missions import inject_faction_mission_into_board
+                await inject_faction_mission_into_board(db, mission_id)
+            except Exception as _inj_e:
+                log.debug("[director] board inject failed: %s", _inj_e)
 
         # ── faction_announcement ───────────────────────────────────────────
         elif action == "faction_announcement":
