@@ -184,11 +184,11 @@ async def m6_who_lists_other_player(h):
     s1 = await h.login_as("M6Alpha", room_id=1)
     s2 = await h.login_as("M6Bravo", room_id=1)
 
-    out_a = await h.cmd(s1, "who")
+    out_a = await h.cmd(s1, "+who")
     assert "m6bravo" in out_a.lower() or "M6Bravo" in out_a, (
-        f"M6Alpha's `who` missing M6Bravo. Output: {out_a[:300]!r}"
+        f"M6Alpha's `+who` missing M6Bravo. Output: {out_a[:300]!r}"
     )
-    out_b = await h.cmd(s2, "who")
+    out_b = await h.cmd(s2, "+who")
     assert "m6alpha" in out_b.lower() or "M6Alpha" in out_b, (
-        f"M6Bravo's `who` missing M6Alpha. Output: {out_b[:300]!r}"
+        f"M6Bravo's `+who` missing M6Alpha. Output: {out_b[:300]!r}"
     )

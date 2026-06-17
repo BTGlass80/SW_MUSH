@@ -6,6 +6,22 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-17 — command-syntax rework DROP 1: prefix canonicalization (high-traffic OOC/HUD) (Opus loop) — *drop command-syntax-drop1*
+First canonicalization phase of the ratified rework (`docs/design/command_syntax_rework_design_v2.md` §"Phased build plan" Drop 1). Drop 0 (the convention enforcement guard, `ecfd070`/`90156af`) made collisions observable but renamed nothing; this is the first phase that **deletes** redundant forms. A1 prefix policy: OOC/meta/query/HUD commands take a single canonical `+`-prefixed form; the bare forms and `+`-synonyms are DELETED (CLEAN — no back-compat aliases, since nobody is playing yet).
+- **Canonicalized (canonical ← deleted forms):**
+  - `+who` ← `who`, `online`, `+online`, `players`
+  - `+inv` ← `inventory`, `inv`, `i`, `+inventory`
+  - `+sheet` ← `sheet`, `score`, `stats`, `+score`, `+stats`, `sc`
+  - `+finger` ← `finger`
+  - `+roll` ← `roll`
+  - `+check` ← `check`
+  - Movement is already A1-compliant (bare direction words route via `_MOVEMENT_DIRECTIONS`/`DIRECTION_ALIASES`) — no change.
+- **`who` dual-impl fork RESOLVED (feature-preserving merge):** there were two live "who's online" commands — `parser/builtin_commands.WhoCommand` (`+who`: name/species/`[PROTOCOL]`/title) and `parser/channel_commands.WhoCommand` (bare `who`: name/location/combat-status). The bare `who` shadowed the builtin `who` alias (channel registers after builtin; a primary key beats an alias). Merged: `+who` is now the single canonical who-listing and gained the channel version's richer per-player **location + combat status** (helper ported as `_who_player_status`). The channel `WhoCommand` and its now-orphaned `_get_player_status` are DELETED (no dead code). The low-value `[PROTOCOL]` column was dropped in the merge.
+- **`inv` prefix-match consequence (documented):** with the bare `inv` inventory alias deleted, typing `inv` now prefix-matches `investigate` (the only registered key starting with `inv`) rather than inventory — an intentional consequence of the CLEAN deletion; players use `+inv`.
+- **Onboarding updated to canonical:** `engine/tutorial_v2.py` (Rocky Pass hint + the tutorial-step list) now say `+inv` (were `inventory`).
+- **Baseline ratchet shrunk:** regenerated `tests/data/command_convention_baseline.json` via `tools/gen_command_convention_baseline.py` — **133→132 collisions** (`alias:online` is resolved by deleting the `online` synonym from both who-commands); the 9 run-on stems are unchanged; `tests/test_command_convention_invariant.py` stays green.
+- **`tests/test_command_syntax_drop1.py` (8 tests):** canonical `+`-forms resolve to their own key; every deleted form is gone (`registry.has_exact` — no prefix matching); bare `inv` no longer reaches the inventory command; `who` is a single canonical command (no stray `who` key); the merge preserves location+status (`_who_player_status` exists, help advertises location); the channel helper is removed; `alias:online` is no longer a live collision. Updated the 3 smoke scenarios that drove bare `who` → `+who` (`tests/smoke/scenarios/foundation.py`, `tests/smoke/scenarios/movement.py`). No schema change, no faucet/sink, era-clean.
+
 ### 2026-06-17 — QA L1: Insight trial requires Saro dialogue first (Sonnet loop) — *drop qa-l1-insight-saro-required*
 Closes QA finding **L1** from `docs/design/QA_FINDINGS_2026-06-16.md`.
 - **Root cause:** `engine/village_trials.py::accuse_insight_fragment` fell back to `correct = 2` (hardcoded) when `village_trial_insight_correct_fragment` was 0, meaning a player who skipped the Elder Saro Veck dialogue and guessed `accuse fragment_2` would instantly pass the Trial of Insight — no roleplay required.

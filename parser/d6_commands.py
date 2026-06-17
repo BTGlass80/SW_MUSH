@@ -30,8 +30,10 @@ def _get_skill_reg(ctx) -> SkillRegistry:
 
 
 class RollCommand(BaseCommand):
+    # A1: dice rolling is an OOC/meta query -> `+roll` canonical; the bare
+    # `roll` alias is DELETED (command_syntax_rework_design_v2.md Drop 1).
     key = "+roll"
-    aliases = ["roll"]
+    aliases = []
     help_text = (
         "Roll dice using D6 notation. Includes the Wild Die.\n"
         "\n"
@@ -125,8 +127,10 @@ class RollCommand(BaseCommand):
 
 
 class CheckCommand(BaseCommand):
+    # A1: a skill check is an OOC/meta query -> `+check` canonical; the bare
+    # `check` alias is DELETED (command_syntax_rework_design_v2.md Drop 1).
     key = "+check"
-    aliases = ["check"]
+    aliases = []
     help_text = (
         "Roll your skill against a difficulty number.\n"
         "Uses full skill pool (attribute + skill ranks).\n"

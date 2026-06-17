@@ -420,8 +420,11 @@ class PageCommand(BaseCommand):
 
 
 class FingerCommand(BaseCommand):
+    # A1: a player info-card lookup is an OOC/meta query -> `+finger`
+    # canonical; the bare `finger` alias is DELETED
+    # (command_syntax_rework_design_v2.md Drop 1).
     key = "+finger"
-    aliases = ["finger"]
+    aliases = []
     help_text = (
         "View a player's info card, or set your own info.\n\n"
         "USAGE:\n  +finger <player>\n  +finger/set <field> = <value>\n\n"

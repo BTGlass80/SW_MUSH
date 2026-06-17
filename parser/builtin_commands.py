@@ -2052,11 +2052,33 @@ class EmoteCommand(BaseCommand):
                                session_mgr=ctx.session_mgr)
 
 
+def _who_player_status(sess, char_id: int) -> str:
+    """In-combat marker for the +who list. Ported from the former
+    channel_commands.WhoCommand (the bare `who`), which command-syntax
+    rework Drop 1 folded into +who."""
+    try:
+        from parser.combat_commands import _active_combats
+        for combat in _active_combats.values():
+            if combat.get_combatant(char_id):
+                return "In Combat"
+    except Exception:
+        log.debug("_who_player_status: combat check failed", exc_info=True)
+    return "Online"
+
+
 class WhoCommand(BaseCommand):
+    # Canonical OOC who-listing (command_syntax_rework_design_v2.md Drop 1).
+    # A1 prefix policy: "who is online" is an OOC/HUD query, so the `+who`
+    # form is canonical and the bare `who` form plus the `online`/`+online`
+    # synonyms are DELETED (clean \u2014 no back-compat aliases). The former
+    # channel_commands.WhoCommand (the bare `who`, richer: per-player
+    # location + combat status) was folded in here so the merge loses
+    # nothing player-facing. (The old builtin's `[PROTOCOL]` column was
+    # dropped \u2014 low value vs. location/status.)
     key = "+who"
-    aliases = ["who", "online", "+online"]
-    help_text = "See who is online."
-    usage = "who"
+    aliases = []
+    help_text = "See who is online, with their location and status."
+    usage = "+who"
 
     async def execute(self, ctx: CommandContext):
         in_game = [
@@ -2070,14 +2092,26 @@ class WhoCommand(BaseCommand):
         else:
             from engine.titles import worn_title
             for s in in_game:
-                name = s.character["name"]
-                species = s.character.get("species", "Unknown")
-                proto = s.protocol.value.upper()
-                wt = worn_title(s.character)
+                char = s.character
+                name = char["name"]
+                species = char.get("species", "Unknown")
+                wt = worn_title(char)
                 title_suffix = ("  " + ansi.dim("\u2014 " + wt)) if wt else ""
+                # Location + combat status \u2014 ported from the former channel
+                # `who` so the merged +who keeps its richer display.
+                room_id = char.get("room_id", 0)
+                room_name = "Unknown"
+                try:
+                    room_row = await ctx.db.get_room(room_id)
+                    if room_row:
+                        room_name = room_row.get("name", f"Room #{room_id}")
+                except Exception:
+                    room_name = f"Room #{room_id}"
+                status = _who_player_status(s, char["id"])
                 await ctx.session.send_line(
-                    f"  {ansi.player_name(name):30s} {species:15s} "
-                    f"[{proto}]{title_suffix}"
+                    f"  {ansi.player_name(name):28s} {species:13s} "
+                    f"{ansi.dim(room_name):28s} "
+                    f"{ansi.yellow('[' + status + ']')}{title_suffix}"
                 )
         await ctx.session.send_line(
             f"  {ansi.dim(f'{len(in_game)} player(s) online.')}"
@@ -2264,10 +2298,13 @@ class UseCommand(BaseCommand):
 
 
 class InventoryCommand(BaseCommand):
+    # Canonical OOC inventory display (command_syntax_rework_design_v2.md
+    # Drop 1, A1): `+inv` only. The bare `inventory`/`inv`/`i` and the
+    # `+inventory` synonym are DELETED — no back-compat aliases.
     key = "+inv"
-    aliases = ["inventory", "inv", "i", "+inventory"]
+    aliases = []
     help_text = "View your inventory."
-    usage = "inventory"
+    usage = "+inv"
 
     async def execute(self, ctx: CommandContext):
         import json as _json
@@ -2354,8 +2391,11 @@ class InventoryCommand(BaseCommand):
 
 
 class SheetCommand(BaseCommand):
+    # Canonical OOC character sheet (command_syntax_rework_design_v2.md
+    # Drop 1, A1): `+sheet` only. The bare `sheet`/`score`/`stats`/`sc` and
+    # the `+score`/`+stats` synonyms are DELETED — no back-compat aliases.
     key = "+sheet"
-    aliases = ["sheet", "score", "stats", "+score", "+stats", "sc"]
+    aliases = []
     help_text = "View your character sheet."
     usage = "+sheet [/brief|/skills|/combat]"
     valid_switches = ["brief", "skills", "combat"]

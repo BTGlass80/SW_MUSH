@@ -99,7 +99,7 @@ CORE_ROOM_MESSAGES = {
     ),
     "Rocky Pass": (
         "\n  \033[2;36m[TUTORIAL]\033[0m Check what you're carrying: "
-        "\033[1;33m+inv\033[0m or \033[1;33minventory\033[0m.\n"
+        "\033[1;33m+inv\033[0m.\n"
         "  Something glints in the sand. Try: \033[1;33mlook south wall\033[0m"
     ),
     "Ambush Point": (
@@ -426,7 +426,7 @@ ROOM_HINTS: dict[str, list[str]] = {
         "[TUTORIAL] Check your character stats: \033[1;33m+sheet\033[0m",
     ],
     "rocky pass": [
-        "[TUTORIAL] Check your inventory: \033[1;33minventory\033[0m",
+        "[TUTORIAL] Check your inventory: \033[1;33m+inv\033[0m",
         "[TUTORIAL] Move east to continue.",
     ],
     "ambush point": [

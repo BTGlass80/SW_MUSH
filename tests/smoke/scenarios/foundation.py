@@ -42,15 +42,16 @@ async def f1_login_and_look(h):
 
 
 async def f1_who_lists_self(h):
-    """F1 (extended) — `who` shows the logged-in character.
+    """F1 (extended) — `+who` shows the logged-in character.
 
     Validates that the session is registered with the SessionManager
-    and the WhoCommand can find it.
+    and the WhoCommand can find it. (`+who` is the canonical form after
+    command-syntax rework Drop 1; the bare `who` alias was deleted.)
     """
     s = await h.login_as("F1Who")
-    out = await h.cmd(s, "who")
+    out = await h.cmd(s, "+who")
     assert "f1who" in out.lower() or s.character["name"].lower() in out.lower(), (
-        f"`who` did not show this session's character. Output: {out[:300]!r}"
+        f"`+who` did not show this session's character. Output: {out[:300]!r}"
     )
 
 
