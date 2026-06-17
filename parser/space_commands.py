@@ -7017,20 +7017,31 @@ class PilotStationCommand(BaseCommand):
     """
 
     key = "+pilot"
+    # Command-syntax rework Drop 5 (command_syntax_rework_design_v2.md): the
+    # per-verb DUPLICATE aliases each maneuver's standalone command already owns
+    # (evasive→EvadeCommand, broll→BarrelRollCommand, immelmann→LoopCommand,
+    # sideslip→SlipCommand, getbehind→TailCommand, shake→OutmaneuverCommand,
+    # approach→CloseRangeCommand, breakaway→FleeShipCommand,
+    # navigate/setcourse→CourseCommand) are DELETED — dead duplicates (the
+    # standalone registers later and wins the binding), so each still resolves
+    # to the EXACT same handler. The _PILOT_ALIAS_TO_SWITCH dispatch map is left
+    # intact (it drives +pilot/<switch> and is exercised by the dispatch tests).
+    # The bare verbs matching a standalone's KEY (evade/jink/.../course) stay,
+    # for parity with the +combat umbrella's kept verbs (Drop 4).
     aliases = [
         # Seat-claim default
         "pilot",
-        # Maneuvers (absorbed from per-verb class aliases)
-        "evade", "evasive",
+        # Maneuvers (canonical bare verb == the standalone command's key)
+        "evade",
         "jink",
-        "barrelroll", "broll",
-        "loop", "immelmann",
-        "slip", "sideslip",
-        "tail", "getbehind",
-        "outmaneuver", "shake",
-        "close", "approach",
-        "fleeship", "breakaway",
-        "course", "navigate", "setcourse",
+        "barrelroll",
+        "loop",
+        "slip",
+        "tail",
+        "outmaneuver",
+        "close",
+        "fleeship",
+        "course",
     ]
     help_text = (
         "All piloting verbs live under +pilot/<switch>. "
@@ -7109,10 +7120,15 @@ class GunnerStationCommand(BaseCommand):
     """
 
     key = "+gunner"
+    # Command-syntax rework Drop 5: gunnery→GunnerCommand (alias), lock/
+    # targetlock→LockOnCommand (aliases) are DELETED dead duplicates (the
+    # standalone wins the binding; each still resolves to the same handler).
+    # _GUNNER_ALIAS_TO_SWITCH left intact. Bare verbs matching a standalone
+    # KEY (gunner/fire/lockon) stay, for parity with +combat (Drop 4).
     aliases = [
-        "gunner", "gunnery",
+        "gunner",
         "fire",
-        "lockon", "lock", "targetlock",
+        "lockon",
     ]
     help_text = (
         "All gunner verbs live under +gunner/<switch>. "
@@ -7180,8 +7196,12 @@ class SensorsStationCommand(BaseCommand):
     """
 
     key = "+sensors"
+    # Command-syntax rework Drop 5: sensor→SensorsCommand (alias) is a DELETED
+    # dead duplicate (the standalone wins the binding; still resolves to the
+    # same handler). _SENSORS_ALIAS_TO_SWITCH left intact. Bare verbs matching
+    # a standalone KEY (sensors/scan/deepscan) stay, for parity with +combat.
     aliases = [
-        "sensors", "sensor",
+        "sensors",
         "scan",
         "deepscan",
     ]
@@ -7271,22 +7291,31 @@ class BridgeCommand(BaseCommand):
     """
 
     key = "+bridge"
+    # Command-syntax rework Drop 5: the per-verb DUPLICATE aliases each
+    # standalone command already owns (command/captain→CommanderCommand,
+    # comm/radio→CommsCommand, pwr→PowerCommand, transp→TransponderCommand,
+    # breakfree→ResistTractorCommand, damagecontrol/repair→DamConCommand,
+    # unstation→VacateCommand, coord→CoordinateCommand, order/orders→OrderCommand)
+    # are DELETED dead duplicates (the standalone wins the binding; each still
+    # resolves to the EXACT same handler — order/orders to the crew OrderCommand,
+    # unchanged). _BRIDGE_ALIAS_TO_SWITCH left intact (drives +bridge/<switch>).
+    # Bare verbs matching a standalone KEY (commander/hail/comms/.../coordinate)
+    # stay, for parity with the +combat umbrella (Drop 4).
     aliases = [
-        # Commander seat aliases
-        "commander", "command", "captain",
-        # Ship-wide actions
-        "order", "orders",
+        # Commander seat
+        "commander",
+        # Ship-wide actions (canonical bare verb == the standalone's key)
         "hail",
-        "comms", "comm", "radio",
+        "comms",
         "shields",
-        "power", "pwr",
-        "transponder", "transp",
-        "resist", "breakfree",
-        "damcon", "damagecontrol", "repair",
+        "power",
+        "transponder",
+        "resist",
+        "damcon",
         # Management
-        "vacate", "unstation",
+        "vacate",
         "assist",
-        "coordinate", "coord",
+        "coordinate",
     ]
     help_text = (
         "All commander / bridge-tier verbs live under +bridge/<switch>. "

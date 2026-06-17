@@ -5,16 +5,21 @@ tests/test_session57b_space_umbrellas.py -- Session 57b feature tests
 Covers the +pilot, +gunner, +sensors, +bridge umbrellas (S57b).
 
 S57b adds four new umbrella classes to parser/space_commands.py:
-  PilotStationCommand    — key="+pilot",   11 switches, 21 aliases
-  GunnerStationCommand   — key="+gunner",   3 switches,  6 aliases
-  SensorsStationCommand  — key="+sensors",  3 switches,  4 aliases
-  BridgeCommand          — key="+bridge",  12 switches, 24 aliases
+  PilotStationCommand    — key="+pilot",   11 switches, 11 aliases
+  GunnerStationCommand   — key="+gunner",   3 switches,  3 aliases
+  SensorsStationCommand  — key="+sensors",  3 switches,  3 aliases
+  BridgeCommand          — key="+bridge",  12 switches, 11 aliases
 
 Combined with S57a's expanded +ship umbrella, this completes the
-space rename sweep. All 51 space command classes now have canonical
-+verb/switch forms while preserving bare-word aliases.
+space rename sweep. All 51 space command classes have canonical
++verb/switch forms; the bare verbs continue to resolve through the
+registry to their per-verb standalone commands.
 
-Convention: +verb/switch [args], bare forms preserved as aliases.
+Convention: +verb/switch [args]. Command-syntax rework Drop 5a removed
+the per-verb DUPLICATE aliases each umbrella re-declared (they were dead
+duplicates — the standalone wins the registry binding); the kept aliases
+match a standalone's key (parity with the +combat umbrella, Drop 4). See
+tests/test_command_syntax_drop5_stations.py for the zero-behaviour proof.
 """
 import os
 import sys
@@ -46,24 +51,20 @@ class TestPilotUmbrellaRegistration(unittest.TestCase):
         actual = set(PilotStationCommand.valid_switches)
         self.assertFalse(required - actual)
 
-    def test_aliases_cover_bare_verbs(self):
+    def test_aliases_are_kept_canonical_verbs(self):
+        # Drop 5a: the umbrella keeps only the bare verbs matching a
+        # standalone's KEY; the duplicate aliases (evasive/broll/immelmann/
+        # sideslip/getbehind/shake/approach/breakaway/navigate/setcourse) were
+        # removed as dead duplicates. They STILL resolve via the registry to
+        # their standalone (see test_pilot_bare_aliases_route + the Drop 5a
+        # test for the zero-behaviour proof).
         from parser.space_commands import PilotStationCommand
-        required = {
-            "pilot",
-            "evade", "evasive",
-            "jink",
-            "barrelroll", "broll",
-            "loop", "immelmann",
-            "slip", "sideslip",
-            "tail", "getbehind",
-            "outmaneuver", "shake",
-            "close", "approach",
-            "fleeship", "breakaway",
-            "course", "navigate", "setcourse",
-        }
-        actual = set(PilotStationCommand.aliases)
-        missing = required - actual
-        self.assertFalse(missing, f"Missing aliases: {missing}")
+        kept = {"pilot", "evade", "jink", "barrelroll", "loop", "slip",
+                "tail", "outmaneuver", "close", "fleeship", "course"}
+        self.assertEqual(set(PilotStationCommand.aliases), kept)
+        removed = {"evasive", "broll", "immelmann", "sideslip", "getbehind",
+                   "shake", "approach", "breakaway", "navigate", "setcourse"}
+        self.assertFalse(removed & set(PilotStationCommand.aliases))
 
     def test_switch_impl_populated(self):
         from parser.space_commands import _PILOT_SWITCH_IMPL
@@ -179,11 +180,12 @@ class TestGunnerUmbrellaRegistration(unittest.TestCase):
         required = {"claim", "fire", "lockon"}
         self.assertFalse(required - set(GunnerStationCommand.valid_switches))
 
-    def test_aliases_cover_bare_verbs(self):
+    def test_aliases_are_kept_canonical_verbs(self):
+        # Drop 5a: gunnery/lock/targetlock removed as dead duplicates (they
+        # still resolve to GunnerCommand/LockOnCommand via the registry).
         from parser.space_commands import GunnerStationCommand
-        required = {"gunner", "gunnery", "fire", "lockon", "lock", "targetlock"}
-        missing = required - set(GunnerStationCommand.aliases)
-        self.assertFalse(missing, f"Missing: {missing}")
+        self.assertEqual(set(GunnerStationCommand.aliases),
+                         {"gunner", "fire", "lockon"})
 
     def test_switch_impl_populated(self):
         from parser.space_commands import _GUNNER_SWITCH_IMPL
@@ -258,8 +260,10 @@ class TestSensorsUmbrellaRegistration(unittest.TestCase):
 
     def test_aliases_cover_bare_verbs(self):
         from parser.space_commands import SensorsStationCommand
-        required = {"sensors", "sensor", "scan", "deepscan"}
-        self.assertFalse(required - set(SensorsStationCommand.aliases))
+        # Drop 5a: "sensor" removed as a dead duplicate (still resolves to
+        # SensorsCommand via the registry).
+        self.assertEqual(set(SensorsStationCommand.aliases),
+                         {"sensors", "scan", "deepscan"})
 
     def test_switch_impl_populated(self):
         from parser.space_commands import _SENSORS_SWITCH_IMPL
@@ -333,25 +337,21 @@ class TestBridgeUmbrellaRegistration(unittest.TestCase):
         actual = set(BridgeCommand.valid_switches)
         self.assertFalse(required - actual)
 
-    def test_aliases_cover_bare_verbs(self):
+    def test_aliases_are_kept_canonical_verbs(self):
+        # Drop 5a: the per-verb DUPLICATE aliases (command/captain/comm/radio/
+        # pwr/transp/breakfree/damagecontrol/repair/unstation/coord/order/orders)
+        # were removed as dead duplicates — each still resolves through the
+        # registry to its standalone (order/orders → the crew OrderCommand,
+        # unchanged). The kept aliases match a standalone's key.
         from parser.space_commands import BridgeCommand
-        required = {
-            "commander", "command", "captain",
-            "order", "orders",
-            "hail",
-            "comms", "comm", "radio",
-            "shields",
-            "power", "pwr",
-            "transponder", "transp",
-            "resist", "breakfree",
-            "damcon", "damagecontrol", "repair",
-            "vacate", "unstation",
-            "assist",
-            "coordinate", "coord",
-        }
-        actual = set(BridgeCommand.aliases)
-        missing = required - actual
-        self.assertFalse(missing, f"Missing aliases: {missing}")
+        kept = {"commander", "hail", "comms", "shields", "power",
+                "transponder", "resist", "damcon", "vacate", "assist",
+                "coordinate"}
+        self.assertEqual(set(BridgeCommand.aliases), kept)
+        removed = {"command", "captain", "comm", "radio", "pwr", "transp",
+                   "breakfree", "damagecontrol", "repair", "unstation",
+                   "coord", "order", "orders"}
+        self.assertFalse(removed & set(BridgeCommand.aliases))
 
     def test_switch_impl_populated(self):
         from parser.space_commands import _BRIDGE_SWITCH_IMPL
