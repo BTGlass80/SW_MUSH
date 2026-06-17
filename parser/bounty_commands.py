@@ -587,11 +587,13 @@ class BountyCommand(BaseCommand):
     key = "+bounty"
     # Run-on smashes (bountyclaim/bountytrack/bountycollect) DELETED in the
     # command-syntax rework Drop 2 — the canonical form is the +bounty/<switch>
-    # below. The remaining aliases are non-run-on legacy forms (Drops 3-4).
+    # below. Drop 3 deleted the dead board/view duplicate aliases
+    # (bounties/bboard/bountyboard/mybounty/activebounty/myhunt) — those names
+    # are owned by the standalone +bounties / +mybounty query commands, so they
+    # only ever shadowed the umbrella here. The remaining aliases are the verb
+    # shorthands that genuinely route through the umbrella to a switch.
     aliases: list[str] = [
-        "bounties", "bboard", "bountyboard",
         "claimbounty", "acceptbounty",
-        "mybounty", "activebounty", "myhunt",
         "tracktarget", "hunttrack",
         "collectbounty", "claimreward",
     ]

@@ -48,24 +48,44 @@ class TestCraftUmbrellaRegistration(unittest.TestCase):
         missing = required - actual
         self.assertFalse(missing, f"valid_switches missing: {missing}")
 
-    def test_aliases_cover_all_bare_verbs(self):
-        """Every pre-S56 bare verb must remain as an alias."""
+    def test_bare_verbs_still_resolve_after_drop3(self):
+        """Command-syntax rework Drop 3: the bare crafting verbs are no longer
+        DECLARED as +craft umbrella aliases (they were dead duplicates — the
+        standalone craft/survey/resources/... commands already won the binding).
+        The behavioural guarantee is unchanged: each bare verb still resolves
+        through the full registry to its standalone command, and `buyres` (the
+        genuine umbrella shorthand) still routes to the +craft umbrella."""
         from parser.crafting_commands import CraftingCommand
-        required_aliases = {
-            "survey",
-            "resources", "res",
-            "schematics", "schem",
-            "craft",
-            "experiment", "exp",
-            "teach",
-            "buyres",   # run-on 'buyresources' DELETED (Drop 2)
-        }
-        actual = set(CraftingCommand.aliases)
-        missing = required_aliases - actual
-        self.assertFalse(
-            missing,
-            f"CraftingCommand aliases missing bare verbs: {missing}"
+        from tests.test_t321_admin_command_access_invariant import (
+            _build_full_registry,
         )
+        # The umbrella must NOT re-declare the bare verbs anymore (Drop 3).
+        dead = {"survey", "resources", "res", "schematics", "schem", "craft",
+                "experiment", "exp", "teach"}
+        self.assertFalse(
+            dead & set(CraftingCommand.aliases),
+            f"+craft still declares dead bare-verb aliases: "
+            f"{dead & set(CraftingCommand.aliases)}"
+        )
+        # buyres is the surviving genuine umbrella shorthand.
+        self.assertIn("buyres", CraftingCommand.aliases)
+        # Every bare verb still resolves (now via its standalone command).
+        reg = _build_full_registry()
+        expected = {
+            "craft": "craft", "survey": "survey",
+            "resources": "resources", "res": "resources",
+            "schematics": "schematics", "schem": "schematics",
+            "experiment": "experiment", "exp": "experiment", "teach": "teach",
+        }
+        for verb, owner_key in expected.items():
+            cmd = reg.get(verb)
+            self.assertIsNotNone(cmd, f"bare verb {verb!r} no longer resolves")
+            self.assertEqual(
+                cmd.key, owner_key,
+                f"{verb!r} resolves to {cmd.key!r}, expected {owner_key!r}"
+            )
+        # buyres still reaches the +craft umbrella.
+        self.assertEqual(reg.get("buyres").key, "+craft")
 
     def test_switch_impl_dispatch_table_populated(self):
         from parser.crafting_commands import _CRAFT_SWITCH_IMPL

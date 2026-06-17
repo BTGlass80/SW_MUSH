@@ -524,10 +524,12 @@ class QuestCommand(BaseCommand):
     """`+quest` umbrella — full S55 dispatch over narrative quests."""
     key = "+quest"
     # Run-on smashes (questaccept/questcomplete/questabandon) DELETED in the
-    # command-syntax rework Drop 2 — canonical = +quest/<switch>. The remaining
-    # aliases are non-run-on legacy forms (Drops 3-4).
+    # command-syntax rework Drop 2 — canonical = +quest/<switch>. Drop 3 deleted
+    # the dead list duplicate aliases (quests/personalquests) — those names are
+    # owned by the standalone +quests query command, so they only ever shadowed
+    # the umbrella here. The remaining aliases are the verb shorthands that
+    # genuinely route through the umbrella to a switch.
     aliases: list[str] = [
-        "quests", "personalquests",
         "acceptquest", "pqaccept",
         "finishquest", "pqcomplete", "completequest",
         "abandonquest", "pqdrop",

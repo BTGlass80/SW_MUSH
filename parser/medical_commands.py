@@ -1207,9 +1207,13 @@ _MEDICAL_ALIAS_TO_SWITCH: dict[str, str] = {
 class MedicalCommand(BaseCommand):
     """`+medical` umbrella — heal/accept/rate/stim/stimaccept."""
     key = "+medical"
-    aliases: list[str] = [
-        "heal", "healaccept", "haccept", "healrate", "hrate",
-    ]
+    # Drop 3 (command-syntax rework) deleted the dead duplicate aliases
+    # (heal/healaccept/haccept/healrate/hrate) — those names are owned by the
+    # standalone heal / healaccept / +healrate commands, so they only ever
+    # shadowed the umbrella here. The umbrella is reached via its +medical key;
+    # `+medical <verb>` dispatch is driven by _MEDICAL_ALIAS_TO_SWITCH (arg-keyed),
+    # which is unaffected by the alias removal.
+    aliases: list[str] = []
     help_text = (
         "Medical verbs: 'heal <player>' (offer), 'healaccept' (haccept) "
         "to accept an offer, 'healrate <credits>' to set your rate, "

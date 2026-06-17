@@ -83,10 +83,27 @@ class TestPlaceUmbrella(unittest.TestCase):
         self.assertEqual(set(PlaceUmbrellaCommand.valid_switches),
                          {"view", "join", "depart"})
 
-    def test_aliases_cover_bare_verbs(self):
+    def test_bare_verbs_still_resolve_after_drop3(self):
+        """Command-syntax rework Drop 3: the bare place forms are no longer
+        DECLARED as +place aliases (they were dead duplicates of the standalone
+        PlacesCommand / JoinPlaceCommand / DepartPlaceCommand). Behaviour is
+        unchanged — each still resolves to its standalone command, and the
+        arg-keyed `+place <verb>` dispatch (_PLACE_ALIAS_TO_SWITCH) is untouched."""
         from parser.places_commands import PlaceUmbrellaCommand
-        required = {"places", "place", "join", "sit", "depart", "stand"}
-        self.assertFalse(required - set(PlaceUmbrellaCommand.aliases))
+        from tests.test_t321_admin_command_access_invariant import (
+            _build_full_registry,
+        )
+        dead = {"places", "place", "join", "sit", "depart", "stand"}
+        self.assertFalse(
+            dead & set(PlaceUmbrellaCommand.aliases),
+            f"+place still declares dead aliases: "
+            f"{dead & set(PlaceUmbrellaCommand.aliases)}",
+        )
+        reg = _build_full_registry()
+        owners = {"places": "places", "place": "places", "join": "join",
+                  "sit": "join", "depart": "depart", "stand": "depart"}
+        for verb, owner in owners.items():
+            self.assertEqual(reg.get(verb).key, owner, f"{verb!r} -> wrong owner")
 
     def test_switch_impl_populated(self):
         from parser.places_commands import _PLACE_SWITCH_IMPL
@@ -200,10 +217,27 @@ class TestMedicalUmbrella(unittest.TestCase):
                          {"heal", "accept", "rate",
                           "stim", "stimaccept"})
 
-    def test_aliases_cover_bare_verbs(self):
+    def test_bare_verbs_still_resolve_after_drop3(self):
+        """Command-syntax rework Drop 3: the bare medical forms are no longer
+        DECLARED as +medical aliases (they were dead duplicates of the standalone
+        heal / healaccept / +healrate commands). Behaviour is unchanged — each
+        still resolves to its standalone command, and the arg-keyed
+        `+medical <verb>` dispatch (_MEDICAL_ALIAS_TO_SWITCH) is untouched."""
         from parser.medical_commands import MedicalCommand
-        required = {"heal", "healaccept", "haccept", "healrate", "hrate"}
-        self.assertFalse(required - set(MedicalCommand.aliases))
+        from tests.test_t321_admin_command_access_invariant import (
+            _build_full_registry,
+        )
+        dead = {"heal", "healaccept", "haccept", "healrate", "hrate"}
+        self.assertFalse(
+            dead & set(MedicalCommand.aliases),
+            f"+medical still declares dead aliases: "
+            f"{dead & set(MedicalCommand.aliases)}",
+        )
+        reg = _build_full_registry()
+        owners = {"heal": "heal", "healaccept": "healaccept", "haccept": "healaccept",
+                  "healrate": "+healrate", "hrate": "+healrate"}
+        for verb, owner in owners.items():
+            self.assertEqual(reg.get(verb).key, owner, f"{verb!r} -> wrong owner")
 
     def test_switch_impl_populated(self):
         from parser.medical_commands import _MEDICAL_SWITCH_IMPL

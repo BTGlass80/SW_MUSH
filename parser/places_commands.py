@@ -770,9 +770,10 @@ async def auto_depart_place(db, char_id: int, room_id: int, session_mgr):
 # view (list places), join (sit at one), depart (stand up). Admin
 # commands (@places, @place, @osucc, @ofail, @odrop) intentionally stay
 # at their @-prefix native form per S58 design — they are NOT exposed
-# under +place. The aliases list below covers each player verb's bare
-# forms (places/place/join/sit/depart/stand) so muscle memory keeps
-# working when the umbrella owns the +place key.
+# under +place. The bare verb forms (places/place/join/sit/depart/stand)
+# are owned by their standalone PlacesCommand / JoinPlaceCommand /
+# DepartPlaceCommand; the umbrella owns only the +place key, and its
+# `+place <verb>` dispatch is driven by _PLACE_ALIAS_TO_SWITCH (arg-keyed).
 
 _PLACE_SWITCH_IMPL: dict = {}
 
@@ -791,9 +792,9 @@ _PLACE_ALIAS_TO_SWITCH: dict[str, str] = {
 class PlaceUmbrellaCommand(BaseCommand):
     """`+place` umbrella — player-only verbs (no admin)."""
     key = "+place"
-    aliases: list[str] = [
-        "places", "place", "join", "sit", "depart", "stand",
-    ]
+    # Drop 3 (command-syntax rework): the bare forms are owned by the standalone
+    # place commands (see module comment above); the umbrella keeps only +place.
+    aliases: list[str] = []
     help_text = (
         "Tables and seating in the current room. "
         "'+place' (list), '+place join <#>', '+place depart'. "

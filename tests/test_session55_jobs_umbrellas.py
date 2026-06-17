@@ -203,20 +203,36 @@ class TestSmuggleUmbrellaRegistration(unittest.TestCase):
         required = {"board", "accept", "view", "deliver", "dump"}
         self.assertFalse(required - set(SmuggleCommand.valid_switches))
 
-    def test_smuggle_aliases_cover_bare_verbs(self):
+    def test_smuggle_bare_verbs_still_resolve_after_drop3(self):
+        """Command-syntax rework Drop 3: the board/accept/view/dump bare forms
+        are no longer DECLARED as +smuggle aliases (they were dead duplicates of
+        the standalone +smugjobs / smugaccept / +smugjob / smugdump commands).
+        Behaviour is unchanged — each still resolves to its standalone command;
+        deliver/dropoff remain the genuine umbrella shorthands."""
         from parser.smuggling_commands import SmuggleCommand
-        required = {
-            "smugjobs", "smugboard", "underworld",
-            "smugjob", "myrun", "cargo",
-            "smugaccept", "takerun",
-            "deliver", "dropoff",   # run-on 'smugdeliver' DELETED (Drop 2)
-            "smugdump", "dumpcargo", "jettison",
-        }
-        actual = set(SmuggleCommand.aliases)
-        self.assertFalse(
-            required - actual,
-            f"SmuggleCommand aliases missing: {required - actual}",
+        from tests.test_t321_admin_command_access_invariant import (
+            _build_full_registry,
         )
+        dead = {
+            "smugjobs", "smugboard", "underworld", "smugjob", "myrun", "cargo",
+            "smugaccept", "takerun", "smugdump", "dumpcargo", "jettison",
+        }
+        self.assertFalse(
+            dead & set(SmuggleCommand.aliases),
+            f"+smuggle still declares dead aliases: {dead & set(SmuggleCommand.aliases)}",
+        )
+        self.assertEqual(set(SmuggleCommand.aliases), {"deliver", "dropoff"})
+        reg = _build_full_registry()
+        owners = {
+            "smugjobs": "+smugjobs", "smugboard": "+smugjobs", "underworld": "+smugjobs",
+            "smugjob": "+smugjob", "myrun": "+smugjob", "cargo": "+smugjob",
+            "smugaccept": "smugaccept", "takerun": "smugaccept",
+            "smugdump": "smugdump", "dumpcargo": "smugdump", "jettison": "smugdump",
+        }
+        for verb, owner in owners.items():
+            self.assertEqual(reg.get(verb).key, owner, f"{verb!r} -> wrong owner")
+        for verb in ("deliver", "dropoff"):
+            self.assertEqual(reg.get(verb).key, "+smuggle")
 
     def test_smuggle_switch_impl_populated(self):
         from parser.smuggling_commands import _SMUGGLE_SWITCH_IMPL
@@ -310,21 +326,35 @@ class TestBountyUmbrellaRegistration(unittest.TestCase):
         required = {"board", "claim", "view", "track", "collect"}
         self.assertFalse(required - set(BountyCommand.valid_switches))
 
-    def test_bounty_aliases_cover_bare_verbs(self):
+    def test_bounty_bare_verbs_still_resolve_after_drop3(self):
+        """Command-syntax rework Drop 3: the board/view bare forms are no longer
+        DECLARED as +bounty aliases (they were dead duplicates of the standalone
+        +bounties / +mybounty query commands). Behaviour is unchanged — each
+        still resolves to its standalone command; the claim/track/collect verb
+        shorthands remain the genuine umbrella aliases."""
         from parser.bounty_commands import BountyCommand
-        required = {
-            "bounties", "bboard", "bountyboard",
-            "mybounty", "activebounty", "myhunt",
-            # run-on smashes (bountyclaim/bountytrack/bountycollect) DELETED (Drop 2)
-            "claimbounty", "acceptbounty",
-            "tracktarget", "hunttrack",
-            "collectbounty", "claimreward",
-        }
-        actual = set(BountyCommand.aliases)
-        self.assertFalse(
-            required - actual,
-            f"BountyCommand aliases missing: {required - actual}",
+        from tests.test_t321_admin_command_access_invariant import (
+            _build_full_registry,
         )
+        dead = {"bounties", "bboard", "bountyboard",
+                "mybounty", "activebounty", "myhunt"}
+        self.assertFalse(
+            dead & set(BountyCommand.aliases),
+            f"+bounty still declares dead aliases: {dead & set(BountyCommand.aliases)}",
+        )
+        # Surviving genuine umbrella shorthands (verbs routed via switch).
+        survivors = {"claimbounty", "acceptbounty", "tracktarget", "hunttrack",
+                     "collectbounty", "claimreward"}
+        self.assertTrue(survivors <= set(BountyCommand.aliases))
+        reg = _build_full_registry()
+        owners = {
+            "bounties": "+bounties", "bboard": "+bounties", "bountyboard": "+bounties",
+            "mybounty": "+mybounty", "activebounty": "+mybounty", "myhunt": "+mybounty",
+        }
+        for verb, owner in owners.items():
+            self.assertEqual(reg.get(verb).key, owner, f"{verb!r} -> wrong owner")
+        for verb in survivors:
+            self.assertEqual(reg.get(verb).key, "+bounty")
 
     def test_bounty_switch_impl_populated(self):
         from parser.bounty_commands import _BOUNTY_SWITCH_IMPL
@@ -422,20 +452,29 @@ class TestQuestUmbrellaRegistration(unittest.TestCase):
         required = {"list", "accept", "complete", "abandon"}
         self.assertFalse(required - set(QuestCommand.valid_switches))
 
-    def test_quest_aliases_cover_bare_verbs(self):
+    def test_quest_bare_verbs_still_resolve_after_drop3(self):
+        """Command-syntax rework Drop 3: the list bare forms (quests/
+        personalquests) are no longer DECLARED as +quest aliases (they were dead
+        duplicates of the standalone +quests query command). Behaviour is
+        unchanged — they still resolve to +quests; the accept/complete/abandon
+        verb shorthands remain the genuine umbrella aliases."""
         from parser.narrative_commands import QuestCommand
-        required = {
-            "quests", "personalquests",
-            # run-on smashes (questaccept/questcomplete/questabandon) DELETED (Drop 2)
-            "acceptquest", "pqaccept",
-            "finishquest", "pqcomplete", "completequest",
-            "abandonquest", "pqdrop",
-        }
-        actual = set(QuestCommand.aliases)
-        self.assertFalse(
-            required - actual,
-            f"QuestCommand aliases missing: {required - actual}",
+        from tests.test_t321_admin_command_access_invariant import (
+            _build_full_registry,
         )
+        dead = {"quests", "personalquests"}
+        self.assertFalse(
+            dead & set(QuestCommand.aliases),
+            f"+quest still declares dead aliases: {dead & set(QuestCommand.aliases)}",
+        )
+        survivors = {"acceptquest", "pqaccept", "finishquest", "pqcomplete",
+                     "completequest", "abandonquest", "pqdrop"}
+        self.assertTrue(survivors <= set(QuestCommand.aliases))
+        reg = _build_full_registry()
+        for verb in dead:
+            self.assertEqual(reg.get(verb).key, "+quests", f"{verb!r} -> wrong owner")
+        for verb in survivors:
+            self.assertEqual(reg.get(verb).key, "+quest")
 
     def test_quest_switch_impl_populated(self):
         from parser.narrative_commands import _QUEST_SWITCH_IMPL

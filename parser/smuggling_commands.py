@@ -623,14 +623,14 @@ class SmuggleCommand(BaseCommand):
     """`+smuggle` umbrella — full S55 dispatch over smuggling jobs."""
     key = "+smuggle"
     # Run-on smash (smugdeliver) DELETED in the command-syntax rework Drop 2 —
-    # canonical = +smuggle/deliver. The remaining aliases are non-run-on legacy
-    # forms (Drops 3-4).
+    # canonical = +smuggle/deliver. Drop 3 deleted the dead board/accept/view/
+    # dump duplicate aliases (smugjobs/smugboard/underworld/smugaccept/takerun/
+    # smugjob/myrun/cargo/smugdump/dumpcargo/jettison) — those names are owned
+    # by the standalone +smugjobs / smugaccept / +smugjob / smugdump commands,
+    # so they only ever shadowed the umbrella here. deliver/dropoff are the verb
+    # shorthands that genuinely route through the umbrella to a switch.
     aliases: list[str] = [
-        "smugjobs", "smugboard", "underworld",
-        "smugaccept", "takerun",
-        "smugjob", "myrun", "cargo",
         "deliver", "dropoff",
-        "smugdump", "dumpcargo", "jettison",
     ]
     help_text = (
         "Smuggling job verbs: '+smuggle/board' (list), '+smuggle/accept "

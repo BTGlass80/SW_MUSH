@@ -1553,15 +1553,12 @@ class CraftingCommand(BaseCommand):
     """`+craft` umbrella — full S56 dispatch over crafting verbs."""
     key = "+craft"
     # Run-on smash (buyresources) DELETED in the command-syntax rework Drop 2 —
-    # canonical = +craft/buyresources. The remaining aliases are non-run-on
-    # legacy forms (Drops 3-4).
+    # canonical = +craft/buyresources. Drop 3 deleted the dead duplicate aliases
+    # (craft/survey/resources/res/schematics/schem/experiment/exp/teach) — those
+    # names are owned by the standalone craft / survey / resources / schematics /
+    # experiment / teach commands, so they only ever shadowed the umbrella here.
+    # buyres is the verb shorthand that genuinely routes through the umbrella.
     aliases: list[str] = [
-        "craft",
-        "survey",
-        "resources", "res",
-        "schematics", "schem",
-        "experiment", "exp",
-        "teach",
         "buyres",
     ]
     help_text = (
