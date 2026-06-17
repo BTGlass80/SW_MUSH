@@ -681,8 +681,16 @@ def _find_in_inventory(char: dict, name_arg: str):
       2. Crafting resources (engine/crafting.py resource list)
       3. General inventory items (list under 'items' key)
     """
-    import json as _j
+    from engine.items import coerce_inventory
     name_lower = name_arg.lower()
+
+    # Normalize the inventory ONCE to the canonical {"items", "resources"}
+    # shape. A bare-list inventory (schema default '[]', fresh/legacy chars)
+    # is the general-items list, not a dict — the old inline `.get()` calls
+    # raised AttributeError on it (swallowed by the per-branch except), so
+    # shop stock reported "not found" for items the char genuinely held even
+    # though the item was sitting right there in the list. (QA M3.)
+    inv = coerce_inventory(char.get("inventory", "[]"))
 
     # Check equipped weapon
     try:
@@ -708,10 +716,7 @@ def _find_in_inventory(char: dict, name_arg: str):
 
     # Check crafting resources
     try:
-        inv = char.get("inventory", "{}")
-        if isinstance(inv, str):
-            inv = _j.loads(inv) if inv else {}
-        resources = inv.get("resources", [])
+        resources = inv["resources"]
         for stack in resources:
             rtype = stack.get("type", "")
             if name_lower in rtype.lower():
@@ -728,10 +733,7 @@ def _find_in_inventory(char: dict, name_arg: str):
 
     # Check general inventory items
     try:
-        inv = char.get("inventory", "{}")
-        if isinstance(inv, str):
-            inv = _j.loads(inv) if inv else {}
-        items = inv.get("items", [])
+        items = inv["items"]
         for it in items:
             iname = it.get("name", it.get("key", ""))
             if name_lower in iname.lower():
