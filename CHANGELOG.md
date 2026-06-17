@@ -14,6 +14,15 @@ The FOUNDATION drop of the ratified command-syntax rework (`command_syntax_rewor
 - **Generated baseline + regenerator (`tests/data/command_convention_baseline.json`, `tools/gen_command_convention_baseline.py`):** the baseline **only shrinks** — regenerate it after each canonicalization drop deletes redundant forms; never add entries to silence a new collision.
 - No schema change, no faucet/sink, era-clean. Gate: 38 green single-process (convention + admin-access + hygiene + smoke foundation).
 
+### 2026-06-16 — DIFF.5: threat band tinting on area map (Sonnet loop) — *drop diff5-area-map-band*
+Closes the last deferred difficulty-tiers item (DIFF.5). The web area map now color-codes room name labels by threat band so players can tell at a glance whether a neighboring zone is safe or dangerous.
+- **Server (`engine/area_map.py`):** `build_area_map` now resolves and emits a `band` field on every room node, following the same room→zone inheritance chain as `sec` and `env`. Room-level `threat_band` overrides zone; falls back to zone `threat_band`; defaults to `"settled"` when neither carries the field. Additive, no behavior change to any existing field.
+- **Client (`static/client.html`, CSS):** Four new CSS rules add `rm-band-{band}` label coloring: frontier → teal-green (#5ec498); settled → default amber (no class emitted); contested-marches → orange (#ff9048); wilds → red (--warn). CSS cascade order: band rules follow `.rm-adj`, so adjacent rooms show zone difficulty; `.rm-current .rm-label` follows band rules, so the current room always stays accent-bright regardless of band. Far rooms show the band color at the existing 0.3 opacity from G3 dimming.
+- **Client (JS `renderAreaMap`):** Adds `rm-band-{band}` class to the room `<g>` (converts `contested_marches` underscores to hyphens for CSS; omits the class for `settled` to keep the default amber).
+- **Tests:** `tests/test_diff5_area_map_band.py` (9 tests): room-level frontier/settled/contested_marches/wilds, zone-fallback, room-beats-zone, no-band-defaults-to-settled, all rooms in neighborhood carry the field.
+- **No schema change, no faucet/sink, era-clean.**
+- **Files:** `engine/area_map.py`, `static/client.html`, `tests/test_diff5_area_map_band.py` (new), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-16 — Defect-sweep: achievement hooks + intercept fix + destination_slug — *drop defect-sweep-achievements*
 Fixes 3 categories of defects found in the June-14 adversarial defect-hunt (findings A1/A2/B1).
 - **A1 — 5 dead achievement hooks wired:** `on_item_crafted` (with `quality` arg for masterwork threshold) in `parser/crafting_commands.py` craft-success path; `on_experiment_success` in `ExperimentCommand._handle_success`; `on_trade_goods_sold` in `_handle_sell_cargo` after `adjust_credits`; `on_ship_launch` in `LaunchCommand.execute` after launch broadcast; `on_anomaly_salvaged` in `SalvageCommand.execute` after `remove_anomaly`. All wrapped in canonical try/except that log.debug-swallows. `on_dark_side_atoned` DEFERRED — no DSP-decrement seam exists in the codebase (see design_calls_pending_brian).
