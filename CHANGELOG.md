@@ -6,6 +6,15 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — DIFF.5: threat band tinting on area map (Sonnet loop) — *drop diff5-area-map-band*
+Closes the last deferred difficulty-tiers item (DIFF.5). The web area map now color-codes room name labels by threat band so players can tell at a glance whether a neighboring zone is safe or dangerous.
+- **Server (`engine/area_map.py`):** `build_area_map` now resolves and emits a `band` field on every room node, following the same room→zone inheritance chain as `sec` and `env`. Room-level `threat_band` overrides zone; falls back to zone `threat_band`; defaults to `"settled"` when neither carries the field. Additive, no behavior change to any existing field.
+- **Client (`static/client.html`, CSS):** Four new CSS rules add `rm-band-{band}` label coloring: frontier → teal-green (#5ec498); settled → default amber (no class emitted); contested-marches → orange (#ff9048); wilds → red (--warn). CSS cascade order: band rules follow `.rm-adj`, so adjacent rooms show zone difficulty; `.rm-current .rm-label` follows band rules, so the current room always stays accent-bright regardless of band. Far rooms show the band color at the existing 0.3 opacity from G3 dimming.
+- **Client (JS `renderAreaMap`):** Adds `rm-band-{band}` class to the room `<g>` (converts `contested_marches` underscores to hyphens for CSS; omits the class for `settled` to keep the default amber).
+- **Tests:** `tests/test_diff5_area_map_band.py` (9 tests): room-level frontier/settled/contested_marches/wilds, zone-fallback, room-beats-zone, no-band-defaults-to-settled, all rooms in neighborhood carry the field.
+- **No schema change, no faucet/sink, era-clean.**
+- **Files:** `engine/area_map.py`, `static/client.html`, `tests/test_diff5_area_map_band.py` (new), `CHANGELOG.md`, `TODO.json`.
+
 ### 2026-06-16 — T3.18 #4: G4 combat damage feed + G13 Director Zone-Intel feed (attended Opus) — *drop t318-g4-g13-feeds*
 The last two deferred T3.18 ground-UX items + Brian's launch-decision #4. Both are avoid-lane (`engine/combat.py` / `engine/director.py`) → attended-Opus lane-exception, surgical. Decisions confirmed with Brian 2026-06-16: build the compact feed (it complements, not duplicates, the per-hit `combat_resolution_event` inspector); **tag existing news only — no new LLM generation, zero new API spend.**
 - **G4 — compact damage feed (web combat panel).** New ring buffer `CombatInstance.recent_events` (cap `_FEED_RING_MAX=8`); `_resolve_attack` — the single dispatch chokepoint for both ranged/melee — captures one `{attacker,target,result,wound,weapon}` record per real attack roll via `_record_feed_event`. The `result` enum (`hit` / `soaked` / `miss` / `parried` / `dodged`) is derived from the outcome the resolver already computed; the gate skips validation no-ops (target gone / no ammo → empty `defense_display` → no record). `to_hud_dict` surfaces the trailing `_FEED_RING_SHOWN=4` on `combat_state.events`. Web-only (telnet ignores `combat_state`); zero text-path change.

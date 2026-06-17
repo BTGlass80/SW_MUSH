@@ -233,6 +233,16 @@ async def build_area_map(room_id: int, db, depth: int = 2,
         if not sec:
             sec = "contested"
 
+        # DIFF.5: threat band (room overrides zone; default settled)
+        band = (props.get("threat_band") or "").lower()
+        if not band and zone_id:
+            try:
+                band = (await _resolve_zone_prop(zone_id, "threat_band", "settled")).lower()
+            except Exception:
+                band = "settled"
+        if not band:
+            band = "settled"
+
         rooms.append({
             "id": rid,
             "name": name,
@@ -248,6 +258,7 @@ async def build_area_map(room_id: int, db, depth: int = 2,
             "depth": d,
             "env": env,
             "sec": sec,
+            "band": band,
         })
 
     # If we don't have hand-tuned coordinates, compute auto-layout
