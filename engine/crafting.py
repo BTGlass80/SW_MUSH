@@ -873,7 +873,7 @@ def survey_quality_from_margin(margin: int, is_outdoor: bool = False) -> float:
 # have / have_at_quality numbers are exactly the CRAFT.P0.1 check_resources
 # diagnostics, exposed structurally instead of as prose. No producer-less
 # fields; real verbs staged client-side (`craft <name>`, `survey`,
-# `buyresources <type> <qty>`), never auto-sent.
+# `+craft/buyresources <type> <qty>`), never auto-sent.
 
 def component_availability(char: dict, comp: dict) -> dict:
     """Per-component availability for one schematic requirement.

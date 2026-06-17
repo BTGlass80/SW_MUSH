@@ -3,13 +3,17 @@
 parser/bounty_commands.py  --  Bounty Board Commands
 SW_MUSH  |  Economy Phase 2
 
-Commands:
-  bounties          -- view the board
-  bountyclaim <id>  -- accept a contract
-  mybounty          -- view your active contract
-  bountytrack       -- investigate target location (Search/Streetwise roll)
-  bountycollect     -- collect reward after defeating target (auto-triggered by
-                       combat kill, but also available manually at target room)
+Commands (canonical = the +bounty umbrella with switches):
+  +bounties           -- view the board   (alias: +bounty/board)
+  +bounty/claim <id>  -- accept a contract
+  +mybounty           -- view your active contract  (alias: +bounty/view)
+  +bounty/track       -- investigate target location (Search/Streetwise roll)
+  +bounty/collect     -- collect reward after defeating target (auto-triggered by
+                         combat kill, but also available manually at target room)
+
+The run-on smashes (bountyclaim/bountytrack/bountycollect) were DELETED in the
+command-syntax rework Drop 2; their command classes survive only as switch
+implementations dispatched by BountyCommand.
 
 Register via: register_bounty_commands(registry)
 """
@@ -102,15 +106,17 @@ class BountiesCommand(BaseCommand):
 
 
 class BountyClaimCommand(BaseCommand):
+    # Switch-impl only — dispatched by BountyCommand as +bounty/claim.
+    # Not registered standalone (command-syntax rework Drop 2).
     key = "bountyclaim"
     aliases = ["claimbounty", "acceptbounty"]
     help_text = "Accept a bounty contract. One active contract at a time."
-    usage = "bountyclaim <contract-id>"
+    usage = "+bounty/claim <contract-id>"
 
     async def execute(self, ctx: CommandContext):
         if not ctx.args:
-            await ctx.session.send_line("  Usage: bountyclaim <contract-id>")
-            await ctx.session.send_line("  Type 'bounties' to see available contracts.")
+            await ctx.session.send_line("  Usage: +bounty/claim <contract-id>")
+            await ctx.session.send_line("  Type '+bounties' to see available contracts.")
             return
 
         char = ctx.session.character
@@ -176,7 +182,7 @@ class BountyClaimCommand(BaseCommand):
             )
         )
         await ctx.session.send_line(
-            f"  Type 'bountytrack' to get an investigative lead on their location."
+            f"  Type '+bounty/track' to get an investigative lead on their location."
         )
 
 
@@ -201,13 +207,15 @@ class MyBountyCommand(BaseCommand):
 
 
 class BountyTrackCommand(BaseCommand):
+    # Switch-impl only — dispatched by BountyCommand as +bounty/track.
+    # Not registered standalone (command-syntax rework Drop 2).
     key = "bountytrack"
     aliases = ["tracktarget", "hunttrack"]
     help_text = (
         "Use investigation skills to locate your bounty target. "
         "Rolls Search, Streetwise, or Tracking (best available)."
     )
-    usage = "bountytrack"
+    usage = "+bounty/track"
 
     # Difficulty by tier
     _DIFFICULTIES = {
@@ -323,13 +331,15 @@ class BountyTrackCommand(BaseCommand):
 
 
 class BountyCollectCommand(BaseCommand):
+    # Switch-impl only — dispatched by BountyCommand as +bounty/collect.
+    # Not registered standalone (command-syntax rework Drop 2).
     key = "bountycollect"
     aliases = ["collectbounty", "claimreward"]
     help_text = (
         "Collect your bounty reward. Must be in the same room as the defeated target, "
         "or the target must already be dead."
     )
-    usage = "bountycollect"
+    usage = "+bounty/collect"
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
@@ -375,7 +385,7 @@ class BountyCollectCommand(BaseCommand):
                         f"  {contract.target_name} hasn't been defeated yet."
                     )
                     await ctx.session.send_line(
-                        "  Use 'bountytrack' to find them, then engage."
+                        "  Use '+bounty/track' to find them, then engage."
                     )
                 return
 
@@ -479,7 +489,7 @@ class BountyCollectCommand(BaseCommand):
             f"  Posted by: {collected.posting_org}"
         )
         await ctx.session.send_line(
-            f"  {ansi.DIM}Type 'bounties' for your next contract.{ansi.RESET}"
+            f"  {ansi.DIM}Type '+bounties' for your next contract.{ansi.RESET}"
         )
 
         log.info(
@@ -552,8 +562,7 @@ _BOUNTY_ALIAS_TO_SWITCH: dict[str, str] = {
     "bboard":      "board",
     "bountyboard": "board",
     "board":       "board",
-    # claim
-    "bountyclaim":  "claim",
+    # claim  (run-on 'bountyclaim' DELETED — Drop 2; canonical = +bounty/claim)
     "claimbounty":  "claim",
     "acceptbounty": "claim",
     "claim":        "claim",
@@ -562,13 +571,11 @@ _BOUNTY_ALIAS_TO_SWITCH: dict[str, str] = {
     "activebounty": "view",
     "myhunt":       "view",
     "view":         "view",
-    # track
-    "bountytrack":  "track",
+    # track  (run-on 'bountytrack' DELETED — Drop 2; canonical = +bounty/track)
     "tracktarget":  "track",
     "hunttrack":    "track",
     "track":        "track",
-    # collect
-    "bountycollect": "collect",
+    # collect  (run-on 'bountycollect' DELETED — Drop 2; canonical = +bounty/collect)
     "collectbounty": "collect",
     "claimreward":   "collect",
     "collect":       "collect",
@@ -578,18 +585,20 @@ _BOUNTY_ALIAS_TO_SWITCH: dict[str, str] = {
 class BountyCommand(BaseCommand):
     """`+bounty` umbrella — full S55 dispatch over the bounty board."""
     key = "+bounty"
+    # Run-on smashes (bountyclaim/bountytrack/bountycollect) DELETED in the
+    # command-syntax rework Drop 2 — the canonical form is the +bounty/<switch>
+    # below. The remaining aliases are non-run-on legacy forms (Drops 3-4).
     aliases: list[str] = [
         "bounties", "bboard", "bountyboard",
-        "bountyclaim", "claimbounty", "acceptbounty",
+        "claimbounty", "acceptbounty",
         "mybounty", "activebounty", "myhunt",
-        "bountytrack", "tracktarget", "hunttrack",
-        "bountycollect", "collectbounty", "claimreward",
+        "tracktarget", "hunttrack",
+        "collectbounty", "claimreward",
     ]
     help_text = (
         "Bounty verbs: '+bounty/board' (list), '+bounty/claim <id>', "
         "'+bounty/view' (active), '+bounty/track', '+bounty/collect'. "
-        "Bare verbs (bounties/bountyclaim/...) still work. Type "
-        "'help +bounty' for the full reference."
+        "Type 'help +bounty' for the full reference."
     )
     usage = "+bounty[/<switch>] [args]  — see 'help +bounty'"
     valid_switches: list[str] = ["view", "board", "claim", "track", "collect"]
@@ -621,13 +630,16 @@ _init_bounty_switch_impl()
 
 
 def register_bounty_commands(registry) -> None:
-    """Register all bounty commands. Call from game_server.py __init__."""
+    """Register all bounty commands. Call from game_server.py __init__.
+
+    The claim/track/collect verbs are reachable ONLY through the +bounty
+    umbrella's switch dispatch (+bounty/claim|track|collect) — the run-on
+    standalone keys (bountyclaim/...) were deleted in the command-syntax
+    rework Drop 2, so those command classes are no longer registered here.
+    """
     for cmd in [
         BountyCommand(),
         BountiesCommand(),
-        BountyClaimCommand(),
         MyBountyCommand(),
-        BountyTrackCommand(),
-        BountyCollectCommand(),
     ]:
         registry.register(cmd)

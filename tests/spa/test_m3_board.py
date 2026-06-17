@@ -4,8 +4,8 @@ test_m3_board.py — Webify Drop UI-5 (bounty board) render contract.
 Loads static/spa/m3_board.js under jsdom and exercises M3Board.render()
 against the board_state shape engine/bounty_board.build_board_state
 emits. Verifies: claimed-first sort (then reward desc), the CLAIMED
-badge + TRACK staging the REAL `bountytrack` verb, ACCEPT staging the
-REAL `bountyclaim <id>` verb (and ACCEPT suppressed while the viewer
+badge + TRACK staging the REAL `+bounty/track` verb, ACCEPT staging the
+REAL `+bounty/claim <id>` verb (and ACCEPT suppressed while the viewer
 holds a claim), tier filtering, the urgent countdown class under 30
 minutes, the CHAIN tag on chain_bounty_id, and details expansion.
 
@@ -58,7 +58,7 @@ def test_render_sorts_and_accept_stages_real_claim_verb():
         var chainTags = box.querySelectorAll('.m3b-badge.chain').length;
         var openCount = box.querySelector('.m3b-open-count').textContent;
 
-        // ACCEPT on the top (highest-reward) card → bountyclaim <id>
+        // ACCEPT on the top (highest-reward) card → +bounty/claim <id>
         box.querySelector('.m3b-act.accept').click();
 
         window.M3Board.stop();
@@ -73,7 +73,7 @@ def test_render_sorts_and_accept_stages_real_claim_verb():
     assert out["names"] == ["T-b-high", "T-b-mid", "T-b-low"]   # reward desc
     assert out["chainTags"] == 1
     assert "3 open contracts" in out["openCount"]
-    assert out["cmds"] == ["bountyclaim b-high"]
+    assert out["cmds"] == ["+bounty/claim b-high"]
     # Real-verb guard: no invented verbs anywhere in staged output.
     assert "abandon" not in out["joined"]
     assert "breakfree" not in out["joined"]
@@ -96,7 +96,7 @@ def test_claimed_pins_first_with_track_and_no_accepts():
         var claimedBadges = box.querySelectorAll('.m3b-badge.claimed').length;
         var acceptBtns = box.querySelectorAll('.m3b-act.accept').length;
 
-        // TRACK on the claimed card → bountytrack (no id)
+        // TRACK on the claimed card → +bounty/track (no id)
         box.querySelector('.m3b-act.primary').click();
 
         window.M3Board.stop();
@@ -112,7 +112,7 @@ def test_claimed_pins_first_with_track_and_no_accepts():
     assert out["claimedBadges"] == 1
     # One claim at a time: ACCEPT suppressed everywhere while claimed.
     assert out["acceptBtns"] == 0
-    assert out["cmds"] == ["bountytrack"]
+    assert out["cmds"] == ["+bounty/track"]
 
 
 def test_tier_filter_and_details_expand():

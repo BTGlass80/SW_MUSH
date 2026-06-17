@@ -25,11 +25,12 @@ that mocks behave like mocks. Seeding the JSON column is the same
 thing the engine does at runtime.
 
 Command keying:
-  Spacer's canonical key is "spacerquest" (post-S57b umbrella
-  refactor). The "quest" alias points at it. The narrative
-  +quest command is a separate umbrella (S55 personal quests).
-  Scenarios use the unambiguous "spacerquest" key to avoid alias
-  drift if the narrative umbrella ever claims "quest" too.
+  Spacer's canonical key is "+spacerquest" (command-syntax rework
+  Drop 2 promoted the run-on "spacerquest" key to the + form). The
+  "quest" alias points at it. The narrative +quest command is a
+  separate umbrella (S55 personal quests). Scenarios use the
+  unambiguous "+spacerquest" key to avoid alias drift if the
+  narrative umbrella ever claims "quest" too.
 """
 from __future__ import annotations
 
@@ -110,7 +111,7 @@ async def sq1_quest_no_state(h):
     looks like. If this crashes, the new-player on-ramp is dead.
     """
     s = await h.login_as("SQ1Fresh", room_id=1)
-    out = await h.cmd(s, "spacerquest")
+    out = await h.cmd(s, "+spacerquest")
     assert out and out.strip(), "spacerquest produced no output"
     assert "traceback" not in out.lower(), (
         f"spacerquest raised: {out[:500]!r}"
@@ -142,7 +143,7 @@ async def sq2_quest_after_seed(h):
                              flags={"met_mak": True,
                                     "background_written": True})
 
-    out = await h.cmd(s, "spacerquest")
+    out = await h.cmd(s, "+spacerquest")
     assert "traceback" not in out.lower(), (
         f"spacerquest raised on seeded state: {out[:500]!r}"
     )
@@ -174,7 +175,7 @@ async def sq3_quest_log(h):
     await _seed_quest_state(h, s, phase=1, step=3,
                              completed_steps=[1, 2])
 
-    out = await h.cmd(s, "spacerquest log")
+    out = await h.cmd(s, "+spacerquest log")
     assert "traceback" not in out.lower(), (
         f"spacerquest log raised: {out[:500]!r}"
     )

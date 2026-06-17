@@ -16,7 +16,7 @@ pytestmark = pytest.mark.smoke
 
 
 class TestChainBountyTrack:
-    """Tutorial bounty contract binds its target so bountytrack works."""
+    """Tutorial bounty contract binds its target so +bounty/track works."""
 
     async def test_cbt_1_bountytrack_works_on_tutorial_contract(self, harness):
         await chain_bounty_track.cbt_1_bountytrack_works_on_tutorial_contract(

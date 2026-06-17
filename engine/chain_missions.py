@@ -395,7 +395,7 @@ async def _spawn_bounty(db, char: dict, entry: dict) -> Optional[str]:
         return None
 
     # drop 26 (2026-06-13): bind the tutorial bounty's target NPC + room
-    # so `bountytrack` works. `_materialize_bounty` leaves
+    # so `+bounty/track` works. `_materialize_bounty` leaves
     # target_npc_id / target_room_id None (it's sync, no DB); the
     # tutorial_bounties.yaml entry carries `target_room_slug`, and the
     # anchor NPC (e.g. Tarko Vinn) is placed in that room by the world
@@ -422,7 +422,7 @@ async def _spawn_bounty(db, char: dict, entry: dict) -> Optional[str]:
                 else:
                     log.info(
                         "[chain_missions] tutorial bounty %s: target NPC "
-                        "%r not found in room %s (slug %s) — bountytrack "
+                        "%r not found in room %s (slug %s) — +bounty/track "
                         "will be unavailable for this contract",
                         contract.id, contract.target_name, room_id,
                         target_slug,

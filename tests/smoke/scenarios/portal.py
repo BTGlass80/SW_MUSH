@@ -164,9 +164,10 @@ async def hx2_reference_search_finds_quest(h):
         keys = {r["key"] for r in results}
         # At least one of the quest-bearing commands must appear. We
         # accept a generous set because the canonical key has changed
-        # historically (FDtS used to be `+quest`; post-S57b it is
-        # `spacerquest` with `quest`/`+spacerquest` aliases).
-        quest_keys = {"+quest", "spacerquest", "quest", "+quests"}
+        # historically (FDtS used to be `+quest`; post-S57b it was
+        # `spacerquest`; command-syntax rework Drop 2 promoted it to
+        # `+spacerquest` with `quest`/`+dusttostars`/`+fdts` aliases).
+        quest_keys = {"+quest", "+spacerquest", "spacerquest", "quest", "+quests"}
         hit = quest_keys & keys
         assert hit, (
             f"search ?q=quest didn't return any quest command. "

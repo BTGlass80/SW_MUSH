@@ -1,7 +1,9 @@
 """
 parser/crafting_commands.py — SW_MUSH Crafting Commands (Phase 3)
 
-Commands: survey, resources, schematics, craft, experiment, teach, buyresources
+Commands: survey, resources, schematics, craft, experiment, teach,
+          +craft/buyresources  (run-on 'buyresources' DELETED in command-syntax
+          rework Drop 2; BuyResourcesCommand is now switch-impl only)
 
 All skill checks go through engine.skill_checks.perform_skill_check().
 Items created via engine.items.ItemInstance.new_crafted().
@@ -1513,7 +1515,9 @@ def register_crafting_commands(registry) -> None:
         ExperimentCommand(),
         TeachCommand(),
         LearnCommand(),
-        BuyResourcesCommand(),
+        # BuyResourcesCommand is reachable ONLY via +craft/buyresources — its
+        # run-on standalone key (buyresources) was deleted in the command-syntax
+        # rework Drop 2, so it is no longer registered standalone.
     ]:
         registry.register(cmd)
 
@@ -1538,8 +1542,8 @@ _CRAFT_ALIAS_TO_SWITCH: dict[str, str] = {
     "exp":           "experiment",
     # teach
     "teach":         "teach",
-    # buyresources
-    "buyresources":  "buyresources",
+    # buyresources  (run-on 'buyresources' DELETED — Drop 2;
+    # canonical = +craft/buyresources)
     "buyres":        "buyresources",
     "buy resources": "buyresources",
 }
@@ -1548,6 +1552,9 @@ _CRAFT_ALIAS_TO_SWITCH: dict[str, str] = {
 class CraftingCommand(BaseCommand):
     """`+craft` umbrella — full S56 dispatch over crafting verbs."""
     key = "+craft"
+    # Run-on smash (buyresources) DELETED in the command-syntax rework Drop 2 —
+    # canonical = +craft/buyresources. The remaining aliases are non-run-on
+    # legacy forms (Drops 3-4).
     aliases: list[str] = [
         "craft",
         "survey",
@@ -1555,13 +1562,13 @@ class CraftingCommand(BaseCommand):
         "schematics", "schem",
         "experiment", "exp",
         "teach",
-        "buyresources", "buyres",
+        "buyres",
     ]
     help_text = (
         "Crafting verbs: '+craft/start <schematic>', '+craft/survey', "
         "'+craft/resources', '+craft/schematics', '+craft/experiment', "
-        "'+craft/teach', '+craft/buyresources'. Bare verbs (craft/"
-        "survey/...) still work. Type 'help +craft' for the full reference."
+        "'+craft/teach', '+craft/buyresources'. Type 'help +craft' for the "
+        "full reference."
     )
     usage = "+craft[/<switch>] [args]  — see 'help +craft'"
     valid_switches: list[str] = [
@@ -1618,7 +1625,12 @@ NPC_RESOURCE_QUALITY = 50.0
 
 
 class BuyResourcesCommand(BaseCommand):
-    """Buy crafting resources from an NPC vendor."""
+    """Buy crafting resources from an NPC vendor.
+
+    Switch-impl only — dispatched by the +craft umbrella as
+    +craft/buyresources. Not registered standalone (command-syntax rework
+    Drop 2).
+    """
     key = "buyresources"
     aliases = ["buy resources", "buyres", "+buyres"]
     help_text = (
@@ -1629,16 +1641,16 @@ class BuyResourcesCommand(BaseCommand):
         "quality for free, but takes time and skill.\n"
         "\n"
         "USAGE:\n"
-        "  buyresources               — show prices\n"
-        "  buyresources <type> <qty>  — buy resources\n"
+        "  +craft/buyresources               — show prices\n"
+        "  +craft/buyresources <type> <qty>  — buy resources\n"
         "\n"
         "TYPES: metal, chemical, electronic, organic, composite, energy\n"
         "\n"
         "EXAMPLES:\n"
-        "  buyresources metal 10\n"
-        "  buyresources chemical 5"
+        "  +craft/buyresources metal 10\n"
+        "  +craft/buyresources chemical 5"
     )
-    usage = "buyresources [<type> <qty>]"
+    usage = "+craft/buyresources [<type> <qty>]"
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
@@ -1701,16 +1713,16 @@ class BuyResourcesCommand(BaseCommand):
             for rtype, price in sorted(NPC_RESOURCE_PRICES.items()):
                 lines.append(f"  {rtype:<14} {price:>6} cr/unit")
             lines.append("")
-            lines.append("  Usage: buyresources <type> <quantity>")
+            lines.append("  Usage: +craft/buyresources <type> <quantity>")
             lines.append("  \033[1;36m────────────────────────────────────────\033[0m")
             await ctx.session.send_line("\n".join(lines))
             return
 
         if len(args) < 2:
             await ctx.session.send_line(
-                "  Usage: buyresources <type> <quantity>\n"
-                "  Example: buyresources metal 10\n"
-                "  Type 'buyresources' to see prices."
+                "  Usage: +craft/buyresources <type> <quantity>\n"
+                "  Example: +craft/buyresources metal 10\n"
+                "  Type '+craft/buyresources' to see prices."
             )
             return
 

@@ -26,7 +26,7 @@ after being claimed if the target isn't defeated.
 Target archetypes that make sense as fugitives:
   thug, smuggler, bounty_hunter, scout, stormtrooper, imperial_officer
 
-Investigation: the `bountytrack` command uses Search/Streetwise/Tracking to
+Investigation: the `+bounty/track` command uses Search/Streetwise/Tracking to
 reveal the target's current room without direct combat commitment.
 """
 
@@ -660,7 +660,7 @@ def format_bounty_board(contracts: list[BountyContract]) -> list[str]:
                 + (f"  +{c.reward_alive_bonus:,}cr alive" if c.reward_alive_bonus else "")
             )
     lines.append(
-        f"{_DIM}  Type 'bountyclaim <id>' to accept. 'bountytrack' to hunt your target.{_RESET}"
+        f"{_DIM}  Type '+bounty/claim <id>' to accept. '+bounty/track' to hunt your target.{_RESET}"
     )
     lines.append(f"{_BOLD}{'='*58}{_RESET}")
     return lines
@@ -687,7 +687,7 @@ def format_contract_detail(c: BountyContract) -> list[str]:
             h, rem = divmod(remaining, 3600)
             mn = rem // 60
             lines.append(f"  {_YELLOW}Time remaining: {h}h {mn}m{_RESET}")
-        lines.append(f"  {_DIM}Use 'bountytrack' to locate your target.{_RESET}")
+        lines.append(f"  {_DIM}Use '+bounty/track' to locate your target.{_RESET}")
         lines.append(f"  {_DIM}Engage and defeat them to collect the reward.{_RESET}")
     lines.append(f"{_BOLD}{'='*58}{_RESET}")
     return lines

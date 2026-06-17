@@ -6,8 +6,11 @@ Commands:
   smugjobs   — View available smuggling contacts (must be in eligible room)
   smugaccept <id> — Take a smuggling job
   smugjob    — View your active run
-  smugdeliver — Deliver cargo at destination (must be docked)
+  +smuggle/deliver — Deliver cargo at destination (must be docked)
   smugdump   — Jettison cargo (no fine, no pay)
+
+The run-on smash (smugdeliver) was DELETED in the command-syntax rework Drop 2;
+SmugDeliverCommand survives only as the +smuggle/deliver switch implementation.
 
 Eligible rooms for viewing the board:
   Any room whose name contains "Jabba", "Cantina", or "Docking Bay"
@@ -169,11 +172,13 @@ class SmugJobCommand(BaseCommand):
 
 
 class SmugDeliverCommand(BaseCommand):
+    # Switch-impl only — dispatched by the +smuggle umbrella as +smuggle/deliver.
+    # Not registered standalone (command-syntax rework Drop 2).
     key = "smugdeliver"
     aliases = ["deliver", "dropoff"]
     access_level = AccessLevel.ANYONE
     help_text = "Deliver your smuggled cargo. Must be docked in a ship."
-    usage = "smugdeliver"
+    usage = "+smuggle/deliver"
 
     async def execute(self, ctx: CommandContext) -> None:
         char_id = ctx.session.character["id"]
@@ -603,8 +608,7 @@ _SMUGGLE_ALIAS_TO_SWITCH: dict[str, str] = {
     "activerun":  "view",
     "cargo":      "view",
     "view":       "view",
-    # deliver
-    "smugdeliver":"deliver",
+    # deliver  (run-on 'smugdeliver' DELETED — Drop 2; canonical = +smuggle/deliver)
     "deliver":    "deliver",
     "dropoff":    "deliver",
     # dump
@@ -618,18 +622,20 @@ _SMUGGLE_ALIAS_TO_SWITCH: dict[str, str] = {
 class SmuggleCommand(BaseCommand):
     """`+smuggle` umbrella — full S55 dispatch over smuggling jobs."""
     key = "+smuggle"
+    # Run-on smash (smugdeliver) DELETED in the command-syntax rework Drop 2 —
+    # canonical = +smuggle/deliver. The remaining aliases are non-run-on legacy
+    # forms (Drops 3-4).
     aliases: list[str] = [
         "smugjobs", "smugboard", "underworld",
         "smugaccept", "takerun",
         "smugjob", "myrun", "cargo",
-        "smugdeliver", "deliver", "dropoff",
+        "deliver", "dropoff",
         "smugdump", "dumpcargo", "jettison",
     ]
     help_text = (
         "Smuggling job verbs: '+smuggle/board' (list), '+smuggle/accept "
         "<id>', '+smuggle/view' (active), '+smuggle/deliver', "
-        "'+smuggle/dump'. Bare verbs (smugjobs/smugaccept/...) still "
-        "work. Type 'help +smuggle' for the full reference."
+        "'+smuggle/dump'. Type 'help +smuggle' for the full reference."
     )
     usage = "+smuggle[/<switch>] [args]  — see 'help +smuggle'"
     valid_switches: list[str] = ["view", "board", "deliver", "accept", "dump"]
@@ -661,13 +667,18 @@ _init_smuggle_switch_impl()
 
 
 def register_smuggling_commands(registry) -> None:
-    """Register all smuggling commands."""
+    """Register all smuggling commands.
+
+    The deliver verb is reachable ONLY through the +smuggle umbrella's switch
+    dispatch (+smuggle/deliver) — the run-on standalone key (smugdeliver) was
+    deleted in the command-syntax rework Drop 2, so SmugDeliverCommand is no
+    longer registered standalone.
+    """
     for cmd in [
         SmuggleCommand(),
         SmugJobsCommand(),
         SmugAcceptCommand(),
         SmugJobCommand(),
-        SmugDeliverCommand(),
         SmugDumpCommand(),
     ]:
         registry.register(cmd)

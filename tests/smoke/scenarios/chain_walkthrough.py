@@ -296,13 +296,14 @@ async def _drive_bounty(h, s, completion, get_step):
 
     The board lists the contract under id `chain_<bounty_id>` (e.g.
     `chain_tutorial_bhg_tarko_vinn`) and the accept verb is
-    `bountyclaim <id>` (aliases claimbounty / acceptbounty). The chain
+    `+bounty/claim <id>` (aliases claimbounty / acceptbounty; the run-on
+    `bountyclaim` was deleted in command-syntax rework Drop 2). The chain
     `bounty_accepted` hook fires synchronously from BountyClaimCommand
     after the claim succeeds — no AI settle needed."""
     chain_bid = (completion.get("bounty_id") or "").strip()
     board_id = f"chain_{chain_bid}"
     await h.cmd(s, "+bounties")
-    return await h.cmd(s, f"bountyclaim {board_id}")
+    return await h.cmd(s, f"+bounty/claim {board_id}")
 
 
 async def _drive_item_used(h, s, completion) -> str:

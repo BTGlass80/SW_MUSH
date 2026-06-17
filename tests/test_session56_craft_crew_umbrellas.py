@@ -58,7 +58,7 @@ class TestCraftUmbrellaRegistration(unittest.TestCase):
             "craft",
             "experiment", "exp",
             "teach",
-            "buyresources", "buyres",
+            "buyres",   # run-on 'buyresources' DELETED (Drop 2)
         }
         actual = set(CraftingCommand.aliases)
         missing = required_aliases - actual
@@ -119,7 +119,8 @@ class TestCraftSwitchDispatch(unittest.TestCase):
 
     def test_bare_buyresources_maps_to_buyresources(self):
         from parser.crafting_commands import _CRAFT_ALIAS_TO_SWITCH
-        self.assertEqual(_CRAFT_ALIAS_TO_SWITCH["buyresources"], "buyresources")
+        # run-on 'buyresources' DELETED (Drop 2); canonical = +craft/buyresources
+        self.assertNotIn("buyresources", _CRAFT_ALIAS_TO_SWITCH)
         self.assertEqual(_CRAFT_ALIAS_TO_SWITCH["buyres"], "buyresources")
         self.assertEqual(_CRAFT_ALIAS_TO_SWITCH["buy resources"], "buyresources")
 
@@ -393,11 +394,17 @@ class TestAllUmbrellasRegistry(unittest.TestCase):
 
     def test_bare_crafting_aliases_route(self):
         r = self._build_registry()
+        # run-on 'buyresources' DELETED (Drop 2) — canonical +craft/buyresources;
+        # the surviving bare alias is 'buyres'.
         for alias in ["survey", "craft", "experiment", "resources",
-                      "schematics", "teach", "buyresources",
+                      "schematics", "teach",
                       "res", "schem", "exp", "buyres"]:
             cmd = r.get(alias)
             self.assertIsNotNone(cmd, f"Bare alias '{alias}' did not resolve")
+        self.assertIsNone(
+            r.get("buyresources"),
+            "Run-on 'buyresources' still resolves — should be deleted",
+        )
 
     def test_bare_crew_aliases_route(self):
         r = self._build_registry()

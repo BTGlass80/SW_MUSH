@@ -578,7 +578,7 @@ async def build_training_grounds(db):
                 ),
                 (
                     "Teaches: buy, sell, +credits, Bargain skill, +missions, +smugjobs, "
-                    "+bounties, accept, complete, abandon, smugaccept, smugdeliver, "
+                    "+bounties, accept, complete, abandon, smugaccept, +smuggle/deliver, "
                     "risk tiers, the Traders Coalition, faction mission bonuses. "
                     "Explains how credits flow: missions -> ship -> more missions. "
                     "Points toward the Docking Bay for ship purchases."
@@ -726,8 +726,8 @@ async def build_training_grounds(db):
                     "zero-target-loss record."
                 ),
                 (
-                    "Teaches: +bounties, bountyclaim, bountytrack, bountycollect, "
-                    "bountyabandon, search skill, tracking, the Bounty Hunters Guild, "
+                    "Teaches: +bounties, +bounty/claim, +bounty/track, +bounty/collect, "
+                    "search skill, tracking, the Bounty Hunters Guild, "
                     "restraint equipment (binder cuffs), target alive vs dead "
                     "payout difference, warrant types, working with vs against "
                     "local law enforcement. Points to bounty board at Police Station."
@@ -1441,9 +1441,9 @@ async def build_traders_hall(db):
                 "A tutorial target NPC is in the adjacent holding room for practice.\n\n"
                 "This room teaches the bounty income loop.\n\n"
                 "Try: \033[1;33m+bounties\033[0m to see active contracts.\n"
-                "Try: \033[1;33mbountyclaim <id>\033[0m to accept one.\n"
-                "Try: \033[1;33mbountytrack\033[0m to locate your target.\n"
-                "Try: \033[1;33mbountycollect\033[0m once target is apprehended.\n"
+                "Try: \033[1;33m+bounty/claim <id>\033[0m to accept one.\n"
+                "Try: \033[1;33m+bounty/track\033[0m to locate your target.\n"
+                "Try: \033[1;33m+bounty/collect\033[0m once target is apprehended.\n"
                 "Exit \033[1;33mforward\033[0m for the summary."
             ),
         ),
@@ -1507,7 +1507,7 @@ async def build_traders_hall(db):
          "Tells player to head forward when ready."),
         (room_ids[2], "Smuggling Den",
          "Leaning back in a chair, looking very comfortable with the ambiguity.",
-         "Smuggling focus: +smugjobs, smugaccept, smugdeliver, smugdump, "
+         "Smuggling focus: +smugjobs, smugaccept, +smuggle/deliver, smugdump, "
          "risk tiers (Safe/Moderate/Risky/Extreme), patrol check skills "
          "(con or sneak), payout vs risk curve, Hutt Cartel connection. "
          "Notes the tutorial disables real patrol checks. "
@@ -1774,7 +1774,7 @@ async def build_bounty_office(db):
                 "crates, a false wall, a narrow corridor. Somewhere in here "
                 "is your practice target. They know you are coming.\n\n"
                 "This room teaches the tracking tools.\n\n"
-                "Try: \033[1;33mbountytrack\033[0m -- uses Search/Investigation, "
+                "Try: \033[1;33m+bounty/track\033[0m -- uses Search/Investigation, "
                 "result tells you direction or distance.\n"
                 "The target will try to hide. Your search roll opposes their stealth.\n"
                 "Head \033[1;33mforward\033[0m to the takedown room once you locate them."
@@ -1791,7 +1791,7 @@ async def build_bounty_office(db):
                 "Try: \033[1;33mattack <target>\033[0m to engage.\n"
                 "Try: \033[1;33mrestrain <target>\033[0m once incapacitated "
                 "(requires binder cuffs).\n"
-                "Try: \033[1;33mbountycollect\033[0m to close the contract.\n"
+                "Try: \033[1;33m+bounty/collect\033[0m to close the contract.\n"
                 "Head \033[1;33mforward\033[0m to debrief."
             ),
         ),
@@ -1836,12 +1836,12 @@ async def build_bounty_office(db):
     )
     ssk_rooms = [
         (room_ids[0], "Briefing Room",
-         "Briefing: +bounties, bountyclaim <id>, threat tiers (1-5), alive vs dead "
+         "Briefing: +bounties, +bounty/claim <id>, threat tiers (1-5), alive vs dead "
          "payout difference (50% more alive), warrant types (criminal/skip/political), "
          "Bounty Hunters Guild membership benefits (restricted contracts, Guild "
          "protection). Points forward to tracking exercise."),
         (room_ids[1], "Tracking Range",
-         "Tracking: bountytrack command, Search skill vs target Sneak/Hide, "
+         "Tracking: +bounty/track command, Search skill vs target Sneak/Hide, "
          "result tiers (cold/warm/hot/spotted), cooldown between uses, "
          "false leads (fumble result), how to use scan + streetwise to supplement."),
         (room_ids[3], "Debrief Room",

@@ -7,7 +7,7 @@ Coverage:
        renders the board header without crash; job ids appear in the listing.
   SL2: `smugaccept <id>` confirms job accepted; `+smugjob` then shows
        "ACTIVE SMUGGLING RUN" with cargo details.
-  SL3: `smugdeliver` from a character who HAS an active job but is NOT
+  SL3: `+smuggle/deliver` from a character who HAS an active job but is NOT
        aboard any ship returns the "aboard a docked ship" refusal.
   SL4: `+smugjobs` from a room whose name contains NONE of the board
        keywords returns the "near a cantina" refusal.
@@ -170,15 +170,16 @@ async def sl2_accept_and_view_active_run(h):
 # ── SL3 — deliver refusal when not aboard a docked ship (REAL PASS) ───────────
 
 async def sl3_deliver_refusal_not_docked(h):
-    """SL3 — `smugdeliver` refuses when the player has an active job but is NOT
-    aboard any ship.
+    """SL3 — `+smuggle/deliver` refuses when the player has an active job but is
+    NOT aboard any ship.
 
-    Independent of the `current_room` bug: `smugdeliver` gates on an active job
+    Independent of the `current_room` bug: deliver gates on an active job
     + a docked ship, never on `_in_board_room`. This is a real passing test.
 
     Strategy: inject a pre-accepted job directly into the board, then issue
-    `smugdeliver` from a character who owns no ship → `_get_player_ship` None →
-    "aboard a docked ship" refusal. Credits unchanged.
+    `+smuggle/deliver` from a character who owns no ship → `_get_player_ship`
+    None → "aboard a docked ship" refusal. Credits unchanged. (The run-on
+    `smugdeliver` was deleted in command-syntax rework Drop 2.)
     """
     _reset_board()
     s = await h.login_as("SL3DeliverRefuse", room_id=3, credits=500)
@@ -193,14 +194,14 @@ async def sl3_deliver_refusal_not_docked(h):
 
     credits_before = await h.get_credits(char_id)
 
-    out = await h.cmd(s, "smugdeliver")
+    out = await h.cmd(s, "+smuggle/deliver")
     low = out.lower()
 
-    assert "traceback" not in low, f"SL3: traceback in smugdeliver: {out[:500]!r}"
-    assert "error occurred" not in low, f"SL3: error in smugdeliver: {out[:500]!r}"
-    assert out and out.strip(), "SL3: smugdeliver produced no output (silent no-op)"
+    assert "traceback" not in low, f"SL3: traceback in +smuggle/deliver: {out[:500]!r}"
+    assert "error occurred" not in low, f"SL3: error in +smuggle/deliver: {out[:500]!r}"
+    assert out and out.strip(), "SL3: +smuggle/deliver produced no output (silent no-op)"
     assert "docked" in low, (
-        f"SL3: expected 'docked' refusal in smugdeliver output, got: {out[:400]!r}"
+        f"SL3: expected 'docked' refusal in +smuggle/deliver output, got: {out[:400]!r}"
     )
 
     credits_after = await h.get_credits(char_id)

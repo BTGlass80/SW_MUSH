@@ -20,7 +20,7 @@
    Real verbs only — staged via the callback, never auto-sent:
      • CRAFT      → `craft <name>`            (craftable rows)
      • SURVEY     → `survey`                  (footer)
-     • BUY <type> → `buyresources <type> `    (quantity left to the player)
+     • BUY <type> → `+craft/buyresources <type> `  (quantity left to the player)
    There is no web-exclusive verb; Telnet parity is the text listings the
    same commands just printed.
 
@@ -197,7 +197,7 @@ function render(bodyEl, data, stage){
   var buys = bodyEl.querySelectorAll('[data-m3c-buy]');
   for (var b = 0; b < buys.length; b++){
     buys[b].addEventListener('click', function(){
-      if (stage) stage('buyresources ' +
+      if (stage) stage('+craft/buyresources ' +
                        this.getAttribute('data-m3c-buy') + ' ');
     });
   }

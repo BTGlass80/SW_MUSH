@@ -14,6 +14,14 @@ canonical-switch rename for the four job-board / narrative modules:
 Convention: +verb/switch [args], bare forms preserved as aliases.
 Follows the S54 combat umbrella template.
 
+Command-syntax rework Drop 2 update: the run-on "smash" forms
+(bountyclaim/bountytrack/bountycollect, questaccept/questcomplete/
+questabandon, smugdeliver) were DELETED — they are no longer umbrella
+aliases or dispatch-map entries. The surviving non-run-on aliases
+(claimbounty, tracktarget, deliver, …) still route via the umbrella;
+tests/test_command_syntax_drop2.py asserts the run-on keys are gone and
+the +verb/switch canonical form resolves.
+
 Four umbrellas in this drop:
   +mission   -- board, accept, view, complete, abandon
   +smuggle   -- board, accept, view, deliver, dump
@@ -201,7 +209,7 @@ class TestSmuggleUmbrellaRegistration(unittest.TestCase):
             "smugjobs", "smugboard", "underworld",
             "smugjob", "myrun", "cargo",
             "smugaccept", "takerun",
-            "smugdeliver", "deliver", "dropoff",
+            "deliver", "dropoff",   # run-on 'smugdeliver' DELETED (Drop 2)
             "smugdump", "dumpcargo", "jettison",
         }
         actual = set(SmuggleCommand.aliases)
@@ -242,8 +250,10 @@ class TestSmuggleSwitchDispatch(unittest.TestCase):
 
     def test_smuggle_deliver_aliases(self):
         from parser.smuggling_commands import _SMUGGLE_ALIAS_TO_SWITCH
-        for a in ("smugdeliver", "deliver", "dropoff"):
+        # run-on 'smugdeliver' DELETED (Drop 2); canonical = +smuggle/deliver
+        for a in ("deliver", "dropoff"):
             self.assertEqual(_SMUGGLE_ALIAS_TO_SWITCH[a], "deliver")
+        self.assertNotIn("smugdeliver", _SMUGGLE_ALIAS_TO_SWITCH)
 
     def test_smuggle_dump_aliases(self):
         from parser.smuggling_commands import _SMUGGLE_ALIAS_TO_SWITCH
@@ -305,9 +315,10 @@ class TestBountyUmbrellaRegistration(unittest.TestCase):
         required = {
             "bounties", "bboard", "bountyboard",
             "mybounty", "activebounty", "myhunt",
-            "bountyclaim", "claimbounty", "acceptbounty",
-            "bountytrack", "tracktarget", "hunttrack",
-            "bountycollect", "collectbounty", "claimreward",
+            # run-on smashes (bountyclaim/bountytrack/bountycollect) DELETED (Drop 2)
+            "claimbounty", "acceptbounty",
+            "tracktarget", "hunttrack",
+            "collectbounty", "claimreward",
         }
         actual = set(BountyCommand.aliases)
         self.assertFalse(
@@ -337,8 +348,10 @@ class TestBountySwitchDispatch(unittest.TestCase):
 
     def test_bounty_claim_aliases(self):
         from parser.bounty_commands import _BOUNTY_ALIAS_TO_SWITCH
-        for a in ("bountyclaim", "claimbounty", "acceptbounty"):
+        # run-on 'bountyclaim' DELETED (Drop 2); canonical = +bounty/claim
+        for a in ("claimbounty", "acceptbounty"):
             self.assertEqual(_BOUNTY_ALIAS_TO_SWITCH[a], "claim")
+        self.assertNotIn("bountyclaim", _BOUNTY_ALIAS_TO_SWITCH)
 
     def test_bounty_view_aliases(self):
         from parser.bounty_commands import _BOUNTY_ALIAS_TO_SWITCH
@@ -347,13 +360,17 @@ class TestBountySwitchDispatch(unittest.TestCase):
 
     def test_bounty_track_aliases(self):
         from parser.bounty_commands import _BOUNTY_ALIAS_TO_SWITCH
-        for a in ("bountytrack", "tracktarget", "hunttrack"):
+        # run-on 'bountytrack' DELETED (Drop 2); canonical = +bounty/track
+        for a in ("tracktarget", "hunttrack"):
             self.assertEqual(_BOUNTY_ALIAS_TO_SWITCH[a], "track")
+        self.assertNotIn("bountytrack", _BOUNTY_ALIAS_TO_SWITCH)
 
     def test_bounty_collect_aliases(self):
         from parser.bounty_commands import _BOUNTY_ALIAS_TO_SWITCH
-        for a in ("bountycollect", "collectbounty", "claimreward"):
+        # run-on 'bountycollect' DELETED (Drop 2); canonical = +bounty/collect
+        for a in ("collectbounty", "claimreward"):
             self.assertEqual(_BOUNTY_ALIAS_TO_SWITCH[a], "collect")
+        self.assertNotIn("bountycollect", _BOUNTY_ALIAS_TO_SWITCH)
 
 
 class TestBountyHelpFile(unittest.TestCase):
@@ -409,9 +426,10 @@ class TestQuestUmbrellaRegistration(unittest.TestCase):
         from parser.narrative_commands import QuestCommand
         required = {
             "quests", "personalquests",
-            "questaccept", "acceptquest", "pqaccept",
-            "questcomplete", "finishquest", "pqcomplete", "completequest",
-            "questabandon", "abandonquest", "pqdrop",
+            # run-on smashes (questaccept/questcomplete/questabandon) DELETED (Drop 2)
+            "acceptquest", "pqaccept",
+            "finishquest", "pqcomplete", "completequest",
+            "abandonquest", "pqdrop",
         }
         actual = set(QuestCommand.aliases)
         self.assertFalse(
@@ -441,18 +459,24 @@ class TestQuestSwitchDispatch(unittest.TestCase):
 
     def test_quest_accept_aliases(self):
         from parser.narrative_commands import _QUEST_ALIAS_TO_SWITCH
-        for a in ("questaccept", "acceptquest", "pqaccept"):
+        # run-on 'questaccept' DELETED (Drop 2); canonical = +quest/accept
+        for a in ("acceptquest", "pqaccept"):
             self.assertEqual(_QUEST_ALIAS_TO_SWITCH[a], "accept")
+        self.assertNotIn("questaccept", _QUEST_ALIAS_TO_SWITCH)
 
     def test_quest_complete_aliases(self):
         from parser.narrative_commands import _QUEST_ALIAS_TO_SWITCH
-        for a in ("questcomplete", "finishquest", "pqcomplete", "completequest"):
+        # run-on 'questcomplete' DELETED (Drop 2); canonical = +quest/complete
+        for a in ("finishquest", "pqcomplete", "completequest"):
             self.assertEqual(_QUEST_ALIAS_TO_SWITCH[a], "complete")
+        self.assertNotIn("questcomplete", _QUEST_ALIAS_TO_SWITCH)
 
     def test_quest_abandon_aliases(self):
         from parser.narrative_commands import _QUEST_ALIAS_TO_SWITCH
-        for a in ("questabandon", "abandonquest", "pqdrop"):
+        # run-on 'questabandon' DELETED (Drop 2); canonical = +quest/abandon
+        for a in ("abandonquest", "pqdrop"):
             self.assertEqual(_QUEST_ALIAS_TO_SWITCH[a], "abandon")
+        self.assertNotIn("questabandon", _QUEST_ALIAS_TO_SWITCH)
 
 
 class TestQuestHelpFile(unittest.TestCase):
@@ -534,20 +558,32 @@ class TestCrossModuleRegistration(unittest.TestCase):
     def test_bare_verbs_route_correctly(self):
         """Every bare verb reaches some executable command."""
         r = self._build_registry()
+        # Drop 2 deleted the run-on smashes — these are the SURVIVING bare
+        # aliases that must still route via the umbrella.
         bare_verbs = [
             # mission
             "missions", "complete", "abandon",
             # smuggle
             "smugjobs", "smugaccept", "deliver", "jettison",
             # bounty
-            "bounties", "bountyclaim", "bountytrack", "bountycollect",
+            "bounties", "claimbounty", "tracktarget", "collectbounty",
             # quest
-            "quests", "questaccept", "questcomplete", "questabandon",
+            "quests", "acceptquest", "finishquest", "abandonquest",
         ]
         for verb in bare_verbs:
             cmd = r.get(verb)
             self.assertIsNotNone(
                 cmd, f"Bare verb '{verb}' did not resolve to a command"
+            )
+
+        # The run-on smashes are GONE (deleted in Drop 2) — they must not
+        # resolve to any command (no key, no alias, no prefix match).
+        for smash in ("bountyclaim", "bountytrack", "bountycollect",
+                      "questaccept", "questcomplete", "questabandon",
+                      "smugdeliver"):
+            self.assertIsNone(
+                r.get(smash),
+                f"Run-on smash '{smash}' still resolves — should be deleted",
             )
 
 
