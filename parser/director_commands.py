@@ -1076,9 +1076,11 @@ class AIStatusCommand(BaseCommand):
         "  @ai          — full dashboard (Ollama + idle queue + barks)\n"
         "  @ai queue    — pending idle queue tasks\n"
         "  @ai barks    — bark cache inventory\n"
-        "  @ai flush    — clear bark cache (forces regeneration)"
+        "  @ai flush    — clear bark cache (forces regeneration)\n"
+        "  @ai enable   — turn the AI subsystem on\n"
+        "  @ai disable  — turn the AI subsystem off"
     )
-    usage = "@ai [queue|barks|flush]"
+    usage = "@ai [queue|barks|flush|enable|disable]"
 
     async def execute(self, ctx: CommandContext):
         parts = (ctx.args or "").split()
@@ -1100,6 +1102,22 @@ class AIStatusCommand(BaseCommand):
         show_queue = sub in ("all", "queue")
         show_barks = sub in ("all", "barks")
         do_flush = sub == "flush"
+
+        # ── Enable / disable the AI subsystem ───────────────────────
+        # Folded in from the former duplicate npc_commands.AIStatusCommand
+        # (the command-syntax rework removed that dead @ai duplicate).
+        if sub in ("enable", "disable"):
+            ai_mgr = getattr(ctx.session_mgr, '_ai_manager', None)
+            if not ai_mgr:
+                lines.append(f"  {RED}AI manager not found.{RST}")
+            else:
+                ai_mgr.config.enabled = (sub == "enable")
+                state = (f"{GREEN}enabled{RST}" if sub == "enable"
+                         else f"{YELLOW}disabled{RST}")
+                lines.append(f"  AI subsystem {state}.")
+            lines.append(f"{CYAN}══════════════════════════════════════════{RST}")
+            await ctx.session.send_line("\n".join(lines))
+            return
 
         # ── Flush bark cache ────────────────────────────────────────
         if do_flush:

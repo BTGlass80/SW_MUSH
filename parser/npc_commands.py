@@ -1280,45 +1280,11 @@ class NPCManageCommand(BaseCommand):
             return 0
 
 
-class AIStatusCommand(BaseCommand):
-    key = "@ai"
-    aliases = []
-    access_level = AccessLevel.ADMIN
-    help_text = "Check AI provider status or toggle AI."
-    usage = "@ai status  |  @ai enable  |  @ai disable"
-
-    async def execute(self, ctx: CommandContext):
-        ai_manager = getattr(ctx.session_mgr, '_ai_manager', None)
-        if not ai_manager:
-            await ctx.session.send_line("  AI system not initialized.")
-            return
-
-        if not ctx.args or ctx.args.strip().lower() == "status":
-            status = await ai_manager.check_status()
-            await ctx.session.send_line(ansi.header("=== AI Status ==="))
-            await ctx.session.send_line(
-                f"  Enabled: {'Yes' if ai_manager.config.enabled else 'No'}"
-            )
-            await ctx.session.send_line(
-                f"  Default provider: {ai_manager.config.default_provider}"
-            )
-            await ctx.session.send_line(
-                f"  Default model: {ai_manager.config.default_model}"
-            )
-            for name, info in status.items():
-                avail = ansi.green("ONLINE") if info["available"] else ansi.red("OFFLINE")
-                await ctx.session.send_line(f"  Provider '{name}': {avail}")
-                if "models" in info:
-                    models = ", ".join(info["models"][:10])
-                    await ctx.session.send_line(f"    Models: {models}")
-        elif ctx.args.strip().lower() == "enable":
-            ai_manager.config.enabled = True
-            await ctx.session.send_line(ansi.success("  AI system enabled."))
-        elif ctx.args.strip().lower() == "disable":
-            ai_manager.config.enabled = False
-            await ctx.session.send_line(ansi.success("  AI system disabled."))
-        else:
-            await ctx.session.send_line("  Usage: @ai status  |  @ai enable  |  @ai disable")
+# NOTE: the @ai command formerly defined here was a duplicate of
+# parser.director_commands.AIStatusCommand (the richer AI-status dashboard,
+# which registers later and always shadowed this one). The command-syntax
+# rework removes this dead duplicate; its unique enable/disable toggle was
+# folded into the surviving dashboard (@ai enable | @ai disable).
 
 
 class GateCommand(BaseCommand):
@@ -1376,7 +1342,7 @@ def register_npc_commands(registry):
     """Register NPC and AI commands."""
     cmds = [
         TalkCommand(), AskCommand(),
-        NPCManageCommand(), AIStatusCommand(),
+        NPCManageCommand(),
         GateCommand(),
     ]
     for cmd in cmds:

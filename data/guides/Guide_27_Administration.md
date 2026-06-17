@@ -110,15 +110,16 @@ These bypass the normal consent/attestation gates — use them for Council-fiat 
 
 | Command | What it does |
 |---------|--------------|
-| `@getattr <player>` (`@ga`) | dump a character's attributes JSON keys |
-| `@setattr <player> = …` (`@sa`) | set a character attribute (raw debug write — be careful) |
+| `@getcharattr [key]` (`@gca`) | dump your character's attribute-JSON keys (optionally one key) |
+| `@setcharattr <key> = <value>` (`@sca`) | set one of your character's JSON attributes (raw debug write — be careful) |
 | `@shop` | vendor-droid management — list/inspect/remove |
 | `@setbounty <player>` | set a bounty flag and spawn a bounty hunter |
 | `@narrative` | PC narrative-memory system — status/view/update/reset/log/enable/disable/runnow |
 
-`@setattr` writes raw attribute JSON with no validation. It is the most dangerous admin
-verb — a malformed write can corrupt a character sheet. Prefer the purpose-built commands
-above it whenever one exists.
+`@setcharattr` writes raw character attribute-JSON with no validation. It is the most
+dangerous admin verb — a malformed write can corrupt a character sheet. Prefer the
+purpose-built commands above it whenever one exists. (Not to be confused with `@setattr`,
+the builder command that sets user-defined attributes on rooms/exits/objects.)
 
 ## 7. Server lifecycle
 

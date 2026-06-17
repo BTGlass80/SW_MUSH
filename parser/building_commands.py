@@ -32,7 +32,10 @@ def _resolve_dir(text):
 
 class DigCommand(BaseCommand):
     key = "@dig"
-    aliases = ["@tel"]
+    # NOTE: @tel belongs to @teleport (TeleportCommand) — it was a stray
+    # alias here that TeleportCommand's later registration always shadowed
+    # (dead alias). Removed in the command-syntax rework.
+    aliases = []
     access_level = AccessLevel.BUILDER
     help_text = "Create a new room, optionally linked to your current room."
     usage = "@dig <room name> [= <exit_there>[,<exit_back>]]"
@@ -139,7 +142,10 @@ class TunnelCommand(BaseCommand):
 
 class OpenCommand(BaseCommand):
     key = "@open"
-    aliases = ["@tun"]
+    # NOTE: @tun abbreviates @tunnel (TunnelCommand), not @open. This stray
+    # alias registered AFTER TunnelCommand, so it had wrongly captured @tun
+    # for @open. Removing it restores @tun -> @tunnel. (Command-syntax rework.)
+    aliases = []
     access_level = AccessLevel.BUILDER
     help_text = "Create an exit from here to a room."
     usage = "@open <direction> = <room #id> [,<return_direction>]"

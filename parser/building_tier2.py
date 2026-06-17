@@ -35,7 +35,10 @@ def _safe_json_loads(value, default=None):
 
 class SetCommand(BaseCommand):
     key = "@set"
-    aliases = ["@succ"]
+    # NOTE: @succ belongs to @success (SuccessCommand) — it was a stray
+    # copy-paste alias here that the later SuccessCommand registration always
+    # shadowed (dead alias). Removed in the command-syntax rework.
+    aliases = []
     access_level = AccessLevel.BUILDER
     help_text = "Set a property on the current room or an exit."
     usage = "@set <property> = <value>  |  @set [here] to show all"
@@ -495,12 +498,19 @@ def register_building_tier2(registry):
 
 
 class GetAttrCommand(BaseCommand):
-    """@getattr — show character attribute JSON keys (admin)."""
-    key = "@getattr"
-    aliases = ["@ga"]
+    """@getcharattr — show YOUR character's attribute-JSON keys (admin debug).
+
+    Distinct from @getattr (the universal object-attribute reader in
+    parser/attr_commands.py, which reads the object_attributes table). This
+    one dumps the executing character's raw ``attributes`` JSON blob (quest
+    flags etc.) for debugging. It owned the @getattr key historically but was
+    permanently shadowed by the universal reader; the command-syntax rework
+    moves it to its own collision-free key so it is reachable again."""
+    key = "@getcharattr"
+    aliases = ["@gca"]
     access_level = AccessLevel.ADMIN
-    help_text = "Show character attributes. Usage: @getattr [key]"
-    usage = "@getattr [key]"
+    help_text = "Show your character's attribute-JSON keys. Usage: @getcharattr [key]"
+    usage = "@getcharattr [key]"
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
@@ -519,19 +529,26 @@ class GetAttrCommand(BaseCommand):
 
 
 class SetAttrCommand(BaseCommand):
-    """@setattr — set a character attribute value (admin, for testing)."""
-    key = "@setattr"
-    aliases = ["@sa"]
+    """@setcharattr — set a character attribute-JSON value (admin debug).
+
+    Distinct from @setattr (the universal object-attribute writer in
+    parser/attr_commands.py). This one writes a key into the executing
+    character's raw ``attributes`` JSON blob (quest flags etc.) for testing —
+    e.g. ``@setcharattr starter_quest = 10``. It owned the @setattr key
+    historically but was permanently shadowed by the universal writer; the
+    command-syntax rework moves it to its own collision-free key."""
+    key = "@setcharattr"
+    aliases = ["@sca"]
     access_level = AccessLevel.ADMIN
-    help_text = "Set a character attribute. Usage: @setattr <key> = <json_value>"
-    usage = "@setattr <key> = <value>"
+    help_text = "Set a character attribute-JSON value. Usage: @setcharattr <key> = <json_value>"
+    usage = "@setcharattr <key> = <value>"
 
     async def execute(self, ctx: CommandContext):
         import json as _json
         if not ctx.args or "=" not in ctx.args:
-            await ctx.session.send_line("Usage: @setattr <key> = <json_value>")
-            await ctx.session.send_line("  e.g. @setattr starter_quest = 10")
-            await ctx.session.send_line("  e.g. @setattr spacer_quest = null")
+            await ctx.session.send_line("Usage: @setcharattr <key> = <json_value>")
+            await ctx.session.send_line("  e.g. @setcharattr starter_quest = 10")
+            await ctx.session.send_line("  e.g. @setcharattr spacer_quest = null")
             return
 
         key, raw = ctx.args.split("=", 1)

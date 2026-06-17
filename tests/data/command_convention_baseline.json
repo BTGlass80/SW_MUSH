@@ -2,18 +2,12 @@
   "_comment": "Command-syntax rework Drop 0 convention ratchet (command_syntax_rework_design_v2.md). These are the command-convention violations present at HEAD that canonicalization Drops 1-5 will remove. tests/test_command_convention_invariant.py asserts the LIVE registry introduces NOTHING beyond this set. This baseline ONLY SHRINKS: regenerate it with tools/gen_command_convention_baseline.py after a canonicalization drop removes violations. Do NOT add entries to silence a failing test -- fix the command instead.",
   "schema_version": 1,
   "collisions": [
-    "alias:@succ",
-    "alias:@tel",
-    "alias:@tun",
     "alias:accept",
     "alias:listen",
     "alias:order",
     "alias:p",
     "alias:retreat",
     "alias:train",
-    "key:@ai",
-    "key:@getattr",
-    "key:@setattr",
     "key:accept",
     "key:investigate",
     "key:order"
