@@ -372,6 +372,16 @@ class CraftCommand(BaseCommand):
                 await check_spacer_quest(ctx.session, ctx.db, "craft")
             except Exception:
                 pass  # graceful-drop
+            # Achievement: item_crafted (and craft_masterwork at quality>=90)
+            try:
+                from engine.achievements import on_item_crafted
+                await on_item_crafted(
+                    ctx.db, char["id"],
+                    quality=int(craft_result.get("quality", 0)),
+                    session=ctx.session,
+                )
+            except Exception as _e:
+                log.debug("silent except in parser/crafting_commands.py craft-ach: %s", _e, exc_info=True)
 
         # Webify UI-8: refresh the crafting panel with the resolved
         # outcome (stocks changed; last_result drives the result banner).
@@ -729,6 +739,13 @@ class ExperimentCommand(BaseCommand):
         except Exception:
             log.warning(
                 "ExperimentCommand: narrative log failed", exc_info=True)
+
+        # Achievement: experiment_success
+        try:
+            from engine.achievements import on_experiment_success
+            await on_experiment_success(ctx.db, char["id"], session=ctx.session)
+        except Exception as _e:
+            log.debug("silent except in parser/crafting_commands.py exp-ach: %s", _e, exc_info=True)
 
         await _save_char(ctx)
 

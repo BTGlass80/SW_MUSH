@@ -709,10 +709,10 @@ class InterceptCommand(BaseCommand):
             f"  \033[2mType 'intercept stop' to end or move to break.\033[0m"
         )
 
-        # Achievement hook
+        # Achievement hook — args fixed: db first, then char_id, then event
         try:
             from engine.achievements import check_achievement
-            await check_achievement(char, "intercept", ctx.db)
+            await check_achievement(ctx.db, char["id"], "intercept", session=ctx.session)
         except Exception as _e:
             log.debug("silent except in parser/espionage_commands.py:636: %s", _e, exc_info=True)
 
