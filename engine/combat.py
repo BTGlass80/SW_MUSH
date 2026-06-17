@@ -157,6 +157,13 @@ COVER_NAMES = {
     4: "Full Cover",
 }
 
+# G4 (T3.18 ground-UX): how many compact damage-feed records the Combat
+# instance retains. to_hud_dict surfaces the last _FEED_RING_SHOWN of these on
+# the combat_state push. Kept slightly larger than what we show so a late
+# combat_state still has a couple of records of history.
+_FEED_RING_MAX = 8
+_FEED_RING_SHOWN = 4
+
 # Room property key for max cover available
 # Set by builders via @set #room = cover_max:<level>
 # e.g. properties: {"cover_max": 2}  means 1/2 cover available
@@ -594,6 +601,16 @@ class CombatInstance:
         self.combatants: dict[int, Combatant] = {}
         self.initiative_order: list[int] = []
         self.events: list[CombatEvent] = []
+        # G4 (T3.18 ground-UX): compact damage-feed ring buffer. Each resolved
+        # attack appends a small {attacker,target,result,wound,weapon} record;
+        # to_hud_dict surfaces the most recent few on the combat_state push so
+        # the web combat panel can render an at-a-glance scrolling recap. This
+        # is the lightweight cousin of the full combat_resolution_event
+        # inspector (engine/combat_events.py) — the feed is a running glance,
+        # the inspector is a per-hit deep-dive. Telnet ignores combat_state, so
+        # this is web-only and costs nothing on the text path. Rolling across
+        # rounds (not cleared at start_round); discarded with the instance.
+        self.recent_events: list[dict] = []
         # Range tracking: default band for all pairs, overridable per-pair
         self.default_range = default_range
         self._range_overrides: dict[tuple[int, int], RangeBand] = {}
@@ -879,6 +896,9 @@ class CombatInstance:
             "your_actions": your_actions,
             "waiting_for": waiting_for,
             "pose_deadline": self.pose_deadline,
+            # G4: compact damage feed — most recent attack outcomes for the
+            # web combat panel's at-a-glance recap. Newest last (append order).
+            "events": list(self.recent_events[-_FEED_RING_SHOWN:]),
         }
 
     # ── Declaration ──
@@ -1175,18 +1195,72 @@ class CombatInstance:
         }
 
         if ranged:
-            return self._resolve_ranged_attack(
+            _result = self._resolve_ranged_attack(
                 actor, target_c, action, attack_pool, defense_action, num_actions,
                 _attacker_ctx=_attacker_ctx,
             )
-
-        # ═══════════════════════════════════════
-        # MELEE ATTACK -- Opposed roll
-        # ═══════════════════════════════════════
-        return self._resolve_melee_attack(
-            actor, target_c, action, attack_pool, defense_action, num_actions,
-            _attacker_ctx=_attacker_ctx,
+        else:
+            # ═══════════════════════════════════════
+            # MELEE ATTACK -- Opposed roll
+            # ═══════════════════════════════════════
+            _result = self._resolve_melee_attack(
+                actor, target_c, action, attack_pool, defense_action, num_actions,
+                _attacker_ctx=_attacker_ctx,
+            )
+        # G4: capture a compact damage-feed record at the single attack
+        # chokepoint (both sub-resolvers return through here).
+        self._record_feed_event(
+            actor, target_c, action, _result,
+            ranged=ranged, defense_action=defense_action,
         )
+        return _result
+
+    def _record_feed_event(
+        self, actor: Combatant, target_c: Combatant, action: CombatAction,
+        result: ActionResult, *, ranged: bool,
+        defense_action: Optional[CombatAction],
+    ) -> None:
+        """G4 (T3.18): append a compact damage-feed record for the web combat
+        panel's at-a-glance recap.
+
+        Only real attack ROLLS are recorded — validation no-ops (target gone,
+        out of ammo) return an ActionResult with an empty ``defense_display``
+        and are skipped, so they never pollute the feed. The ``result`` enum is
+        derived from the outcome the resolver already computed:
+
+          - hit landing a wound            → "hit"
+          - hit that the target soaked      → "soaked"
+          - failed melee (opposed) roll     → "parried"
+          - failed ranged roll, target dodging → "dodged"
+          - failed ranged roll, no dodge    → "miss"
+
+        The ring buffer keeps the last ``_FEED_RING_MAX`` records; to_hud_dict
+        surfaces the most recent few. Web-only — telnet ignores combat_state.
+        """
+        if not result.defense_display:
+            # No real attack roll happened (e.g. target gone / no ammo).
+            return
+        if result.success:
+            wound = (result.wound_inflicted or "").strip()
+            feed_result = "hit" if wound and wound.lower() != "no damage" else "soaked"
+        elif defense_action is not None:
+            # The attacker failed against an ACTIVE defense: a melee parry or a
+            # ranged dodge. Without a declared defense (e.g. a melee swing that
+            # missed a STATIC weapon difficulty), nobody parried — it's a miss.
+            feed_result = "parried" if not ranged else "dodged"
+        else:
+            feed_result = "miss"
+        weapon = (action.weapon_key or action.skill or "").replace("_", " ").strip()
+        self.recent_events.append({
+            "attacker": actor.name,
+            "target": target_c.name,
+            "result": feed_result,
+            "wound": result.wound_inflicted or "",
+            "weapon": weapon,
+        })
+        # Cap the ring buffer (keep a little history beyond what we surface).
+        if len(self.recent_events) > _FEED_RING_MAX:
+            del self.recent_events[:-_FEED_RING_MAX]
 
     def _resolve_ranged_attack(
         self, actor: Combatant, target_c: Combatant,

@@ -311,6 +311,22 @@ class AlertLevel(str, Enum):
     UNREST = "unrest"           # warfront >= 40
 
 
+# G13 (T3.18 ground-UX): how "newsworthy" each alert level is, for picking the
+# zone a Faction-Turn headline is centered on. STANDARD/LAX are the calm
+# baseline (rank 0 ⇒ the news is treated as galaxy-wide, not zone-scoped); the
+# disruptive states rank above it so the hottest zone wins. Used only to TAG
+# the news_event with a zone the web Zone-Intel panel can highlight — it never
+# changes what the Director generates (zero new API spend).
+_ALERT_NEWS_RANK = {
+    AlertLevel.LOCKDOWN.value:   4,
+    AlertLevel.UNDERWORLD.value: 4,
+    AlertLevel.UNREST.value:     3,
+    AlertLevel.HIGH_ALERT.value: 2,
+    AlertLevel.STANDARD.value:   0,
+    AlertLevel.LAX.value:        0,
+}
+
+
 @dataclass
 class ZoneState:
     """Computed state for a single zone.
@@ -1266,6 +1282,20 @@ class DirectorAI:
         except Exception:
             pass  # Non-critical
 
+        # G13 (T3.18): surface the live Director's headline to web clients.
+        # The API path already GENERATED news_headline (and logged it) but,
+        # unlike the local fallback, never pushed it to the live feed — so the
+        # Zone-Intel panel was empty under the funded Director. This pushes the
+        # already-generated text (no extra API call, zero new spend), zone-
+        # tagged with the hottest zone after the turn's deltas applied.
+        try:
+            await self._broadcast_news_event(
+                session_mgr, text=news_headline, tag="event",
+                zone=self._dominant_alert_zone(),
+            )
+        except Exception:
+            pass  # Non-critical — news just won't appear in feed
+
         return True
 
     async def _apply_faction_order(
@@ -1839,11 +1869,57 @@ class DirectorAI:
                             await s.send_json("news_event", {
                                 "tag": "era",
                                 "text": headline,
+                                "zone": None,  # G13: era beats are galaxy-wide
                             })
                         except Exception as _e:
                             log.debug("silent except in engine/director.py:1411: %s", _e, exc_info=True)
             except Exception:
                 log.warning("[director] Era broadcast failed", exc_info=True)
+
+    def _dominant_alert_zone(self) -> Optional[str]:
+        """G13 (T3.18): display name of the most-elevated zone, or None if
+        every zone is at its calm baseline (STANDARD/LAX).
+
+        Faction-Turn news is galaxy-wide by nature, but when a single zone is
+        clearly hot (lockdown / unrest / underworld / high-alert) the headline
+        is really *about* that zone. Tagging the news_event with that zone lets
+        the web Zone-Intel panel surface it to players standing there. None
+        ⇒ galaxy-wide (the panel shows it everywhere). Pure read of in-memory
+        zone state — no DB, no API.
+        """
+        best_zone = None
+        best_rank = 0
+        for zs in self._zones.values():
+            rank = _ALERT_NEWS_RANK.get(
+                getattr(zs.alert_level, "value", ""), 0)
+            if rank > best_rank:
+                best_rank = rank
+                best_zone = zs
+        if best_zone is None:
+            return None
+        return _zone_display(best_zone.zone_key)
+
+    async def _broadcast_news_event(
+        self, session_mgr, *, text: str, tag: str,
+        zone: Optional[str] = None,
+    ) -> None:
+        """G13 (T3.18): push a Director news_event to in-game web clients.
+
+        Carries an optional ``zone`` (display name, or None for galaxy-wide).
+        The web Zone-Intel panel highlights items whose zone matches the
+        viewer's current zone; None items show everywhere. Telnet sessions
+        ignore news_event (send_json no-ops it — the text path is unchanged),
+        so this is web-only and costs nothing on the text transport. Best
+        effort: a single dead socket never aborts the Faction Turn.
+        """
+        payload = {"tag": tag, "text": text, "zone": zone}
+        for s in session_mgr.all:
+            if not getattr(s, "is_in_game", False):
+                continue
+            try:
+                await s.send_json("news_event", payload)
+            except Exception as _e:
+                log.debug("[director] news_event push failed: %s", _e)
 
     async def faction_turn(self, db, session_mgr):
         """
@@ -1938,17 +2014,14 @@ class DirectorAI:
         except Exception as _era_exc:
             log.warning("[director] Era milestone check failed: %s", _era_exc)
 
-        # Broadcast headline to web clients as news_event
+        # Broadcast headline to web clients as news_event. G13: tag with the
+        # hottest zone so the Zone-Intel panel can surface it to players
+        # standing there (None ⇒ galaxy-wide, shown everywhere).
         try:
-            import json as _json
-            for _s in session_mgr.all:
-                if (_s.is_in_game and hasattr(_s, 'protocol')
-                        and _s.protocol.value == 'websocket'):
-                    await _s._send(_json.dumps({
-                        "type": "news_event",
-                        "tag": "event",
-                        "text": headline,
-                    }))
+            await self._broadcast_news_event(
+                session_mgr, text=headline, tag="event",
+                zone=self._dominant_alert_zone(),
+            )
         except Exception:
             pass  # Non-critical — news just won't appear in feed
 

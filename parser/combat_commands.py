@@ -311,7 +311,11 @@ async def _send_combat_ended(room_id, session_mgr, source_char=None):
     """
     for sess in session_mgr.sessions_in_room(
             room_id, source_char=source_char):
-        await sess.send_json("combat_state", {"active": False})
+        # G4: keep the combat_state schema uniform — the active push always
+        # carries `events`, so the termination push does too (empty). The
+        # client clears its feed on the active=False branch regardless, but a
+        # uniform shape keeps consumers from special-casing the sentinel.
+        await sess.send_json("combat_state", {"active": False, "events": []})
 
 
 async def _try_auto_resolve(combat, ctx):

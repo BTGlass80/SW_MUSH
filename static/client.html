@@ -142,6 +142,33 @@ a { color: inherit; text-decoration: none; }
 }
 @media (max-width: 1099px) { .combat-body { grid-template-columns: 1fr; } }
 
+/* G4 (T3.18 ground-UX): compact damage feed — at-a-glance recap of the last
+   few attack outcomes, below the combatant strip. Color buckets mirror the
+   text path: hits you LAND are green, hits you TAKE are red, everything else
+   (misses, parries, dodges, soaked) is dim. New rows fade in. */
+.combat-feed {
+  margin-top: 6px;
+  border-top: 1px solid var(--accent-dim);
+  padding-top: 5px;
+  display: flex; flex-direction: column; gap: 2px;
+  font-size: 10px; line-height: 1.4;
+  max-height: 64px; overflow-y: auto;
+}
+.cf-row {
+  display: flex; align-items: baseline; gap: 6px;
+  color: var(--accent-dim);
+  animation: cfFadeIn 0.32s ease-out;
+}
+.cf-row .cf-actors { color: inherit; }
+.cf-row .cf-outcome { font-weight: 700; letter-spacing: 0.3px; }
+.cf-row.cf-you-hit  { color: var(--self, #7ce068); }   /* you landed a hit */
+.cf-row.cf-you-took { color: var(--warn, #ff5a4a); }   /* you took a hit  */
+.cf-row.cf-miss     { color: var(--accent-dim); opacity: 0.8; }
+@keyframes cfFadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .combatant-strip {
   display: flex; gap: 4px; flex-wrap: wrap; align-items: stretch;
 }
@@ -1685,6 +1712,28 @@ a { color: inherit; text-decoration: none; }
 }
 .inf-fill  { position: absolute; inset: 0; transition: width .4s; }
 .inf-pct   { width: 30px; text-align: right; flex-shrink: 0; color: var(--text-dim); font-size: 9px; }
+
+/* ── G13 Ground-UX: Zone-Intel feed (Director story headlines) ── */
+.zi-row {
+  display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap;
+  padding: 4px 0; border-bottom: 1px dashed var(--accent-dim);
+  font-size: 10px; line-height: 1.4; color: var(--text-dim);
+}
+.zi-row:last-child { border-bottom: none; }
+.zi-text { flex: 1; min-width: 0; }
+.zi-row.zi-local { color: var(--text); }
+.zi-row.zi-local .zi-text { color: var(--accent-bright); }
+.zi-badge {
+  flex-shrink: 0; font-size: 8px; font-weight: 700; letter-spacing: 0.5px;
+  color: var(--self); border: 1px solid var(--self); border-radius: 2px;
+  padding: 0 3px; line-height: 1.5;
+}
+.zi-row.zi-era .zi-text { color: var(--pad-amber-bright); font-style: italic; }
+.zi-row.zi-new { animation: ziFadeIn 0.4s ease-out; }
+@keyframes ziFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* ── Ground-UX: HERE panel (room_contents — NPCs / players / vendor droids) ── */
 .here-entry {
@@ -4326,6 +4375,17 @@ a { color: inherit; text-decoration: none; }
           <div class="side-panel-body" id="influence-body"></div>
         </div>
 
+        <!-- G13 (T3.18 ground-UX): Director Zone-Intel feed. Collects the
+             Director's story headlines; items about the player's current zone
+             are highlighted as local intel, galaxy-wide beats show always. -->
+        <div class="side-panel" id="zoneintel-panel" style="display:none;">
+          <div class="side-panel-head" onclick="toggleSidePanel('zoneintel-panel')">
+            <span class="sp-title">ZONE INTEL</span>
+            <span class="sp-toggle">▾</span>
+          </div>
+          <div class="side-panel-body" id="zoneintel-body"></div>
+        </div>
+
         <!-- Ground-UX: HERE panel — persistent room occupants (G5) -->
         <div class="side-panel" id="here-panel" style="display:none;">
           <div class="side-panel-head" onclick="toggleSidePanel('here-panel')">
@@ -4554,6 +4614,11 @@ a { color: inherit; text-decoration: none; }
         </div>
       </div>
     </div>
+    <!-- G4 (T3.18 ground-UX): compact damage feed. Populated from
+         combat_state.events — the last few attack outcomes. Hits you land
+         render green, hits you take red, misses/parries/soaks dim. Hidden
+         until the first resolved attack arrives. -->
+    <div class="combat-feed" id="combat-feed" style="display:none;"></div>
     <!-- D-client.2: Declaration panel (theatre-conditional action buttons).
          Renders only when phase === 'declaration' AND viewer hasn't declared.
          Action set, tooltips, and button tones come from RE_DECL_ACTIONS in
@@ -6499,6 +6564,9 @@ function handleHudUpdate(data) {
   renderRoomDetailPanel(data);
   renderNearbyServices(data);
   renderZoneInfluence(data);
+  // G13: refresh Zone-Intel local highlights when the player's zone changes
+  // (no animation — nothing new arrived, the HERE badges just re-evaluate).
+  renderZoneIntel(false);
   // G5: persistent HERE panel (room_contents — NPCs/players/vendor droids)
   renderHerePanel(data);
   // G7: active jobs full-list panel
@@ -8348,6 +8416,67 @@ function renderZoneInfluence(data) {
     row.appendChild(orgLabel);
     row.appendChild(track);
     row.appendChild(pctEl);
+    body.appendChild(row);
+  }
+}
+
+// C2) Zone Intel feed (G13) — the Director's story headlines, surfaced in the
+// context panel. Each news_event carries an optional `zone`; items about the
+// player's CURRENT zone are highlighted as local intel ("◈ HERE"), while
+// galaxy-wide beats (zone null) and news about other zones still show — we
+// highlight + prioritize local rather than hide, so a vocabulary mismatch
+// between the Director's zone names and the room's zone_name can never make
+// the feed wrongly disappear. Fade-in is limited to the newest arrival.
+var _zoneIntel = [];                 // {text, zone, tag} — oldest first
+var ZONE_INTEL_MAX = 12;
+function pushZoneIntel(msg) {
+  if (!msg || !msg.text) return;
+  _zoneIntel.push({
+    text: String(msg.text),
+    zone: (msg.zone == null ? '' : String(msg.zone)),
+    tag:  String(msg.tag || 'event')
+  });
+  if (_zoneIntel.length > ZONE_INTEL_MAX) {
+    _zoneIntel.splice(0, _zoneIntel.length - ZONE_INTEL_MAX);
+  }
+  renderZoneIntel(true);
+}
+function zoneMatchesCurrent(zone) {
+  if (!zone) return false;
+  var cur = (lastHud && lastHud.zone_name) ? String(lastHud.zone_name) : '';
+  var z = zone.trim().toLowerCase(), c = cur.trim().toLowerCase();
+  if (!z || !c) return false;
+  // Robust either-direction substring match — director zone display names and
+  // room zone_name come from different vocabularies (e.g. "Spaceport" vs
+  // "Spaceport & Docking"), so exact equality alone would under-match.
+  return z === c || z.indexOf(c) !== -1 || c.indexOf(z) !== -1;
+}
+function renderZoneIntel(animateNewest) {
+  var panel = $('zoneintel-panel');
+  var body  = $('zoneintel-body');
+  if (!panel || !body) return;
+  if (_zoneIntel.length === 0) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  body.innerHTML = '';
+  var newestIdx = _zoneIntel.length - 1;
+  for (var i = newestIdx; i >= 0; i--) {          // newest first
+    var it = _zoneIntel[i];
+    var local = zoneMatchesCurrent(it.zone);
+    var row = document.createElement('div');
+    row.className = 'zi-row'
+      + (local ? ' zi-local' : '')
+      + (it.tag === 'era' ? ' zi-era' : '')
+      + (animateNewest && i === newestIdx ? ' zi-new' : '');
+    if (local) {
+      var badge = document.createElement('span');
+      badge.className = 'zi-badge';
+      badge.textContent = '◈ HERE';
+      row.appendChild(badge);
+    }
+    var txt = document.createElement('span');
+    txt.className = 'zi-text';
+    txt.textContent = it.text;
+    row.appendChild(txt);
     body.appendChild(row);
   }
 }
@@ -11860,6 +11989,9 @@ function handleCombatState(data) {
       posePanel.style.display = 'none';
       posePanel.classList.remove('urgent');
     }
+    // G4: clear the damage feed so it doesn't flash stale rows next fight.
+    var feedEl = $('combat-feed');
+    if (feedEl) { feedEl.innerHTML = ''; feedEl.style.display = 'none'; }
     _stopPosingPanelTimer();
     return;
   }
@@ -11990,6 +12122,9 @@ function handleCombatState(data) {
     waitBlock.style.display = 'none';
   }
 
+  // G4: compact damage feed (last few attack outcomes).
+  renderCombatFeed(data.events);
+
   // D-client.2: render or hide the declaration button panel based on
   // current phase + whether the viewer has declared.
   renderDeclarationPanel(data, theatre);
@@ -11997,6 +12132,68 @@ function handleCombatState(data) {
   // D-client.3: render or hide the posing panel based on phase. Starts
   // its own 500ms tick when visible; cleared when hidden.
   renderPosingPanel(data, theatre);
+}
+
+// G4 (T3.18 ground-UX): render the compact damage feed from combat_state.events.
+// Each event is {attacker, target, result, wound, weapon}. Color buckets:
+// hits YOU land → green, hits you TAKE → red, everything else → dim. Newest at
+// the bottom (server appends in resolution order); we scroll to the latest.
+var CF_OUTCOME_LABEL = {
+  hit:     'HIT',
+  soaked:  'SOAKED',
+  miss:    'MISS',
+  parried: 'PARRIED',
+  dodged:  'DODGED'
+};
+function renderCombatFeed(events) {
+  var feedEl = $('combat-feed');
+  if (!feedEl) return;
+  if (!Array.isArray(events) || events.length === 0) {
+    feedEl.innerHTML = '';
+    feedEl.style.display = 'none';
+    return;
+  }
+  feedEl.style.display = '';
+  feedEl.innerHTML = '';
+  events.forEach(function(ev) {
+    if (!ev || typeof ev !== 'object') return;
+    var attacker = String(ev.attacker || '');
+    var target   = String(ev.target || '');
+    var result   = String(ev.result || '').toLowerCase();
+    var youAttack = isSelfName(attacker);
+    var youTarget = isSelfName(target);
+    var isHit = (result === 'hit');
+
+    var row = document.createElement('div');
+    var rowCls = ['cf-row'];
+    if (isHit && youAttack)       rowCls.push('cf-you-hit');
+    else if (isHit && youTarget)  rowCls.push('cf-you-took');
+    else if (!isHit)              rowCls.push('cf-miss');
+    row.className = rowCls.join(' ');
+
+    // "You → Jawa Scrap Boss"  /  "Jawa Scrap Boss → You"
+    var aName = youAttack ? 'You' : attacker;
+    var tName = youTarget ? 'You' : target;
+    var actors = document.createElement('span');
+    actors.className = 'cf-actors';
+    actors.textContent = aName + ' → ' + tName + ':';
+
+    var outcome = document.createElement('span');
+    outcome.className = 'cf-outcome';
+    var label = CF_OUTCOME_LABEL[result] || result.toUpperCase();
+    // Append the wound on a landed hit, e.g. "HIT (Wounded)".
+    var wound = String(ev.wound || '').trim();
+    if (isHit && wound && wound.toLowerCase() !== 'no damage') {
+      label += ' (' + wound + ')';
+    }
+    outcome.textContent = label;
+
+    row.appendChild(actors);
+    row.appendChild(outcome);
+    feedEl.appendChild(row);
+  });
+  // Keep the newest row in view.
+  feedEl.scrollTop = feedEl.scrollHeight;
 }
 // ── Inventory panel (Webify UI-4a) ──────────────────────────────────────────
 // Opened by the inventory_state push (from `inventory`/`inv`/`i`, incl. the INV
@@ -12850,6 +13047,10 @@ function logout() {
   lastSpace = {};
   poseEvents = [];
   commsEvents = [];
+  // G13: drop the Zone-Intel feed so a re-login / character switch doesn't
+  // surface the previous session's Director headlines.
+  _zoneIntel = [];
+  renderZoneIntel(false);
   commsUnread = { ground: {all:0,ic:0,ooc:0,sys:0}, space: {all:0,ic:0,ooc:0,sys:0} };
   reRenderCommsPane('ground');
   reRenderCommsPane('space');
@@ -12999,6 +13200,7 @@ function connect() {
           return;
         case 'holonet_state':          handleHolonetState(msg); return;
         case 'news_event':
+          pushZoneIntel(msg);   // G13: Director Zone-Intel feed (context panel)
           if (msg.text) appendEvent({ t: 'sys', text: msg.text });
           if (msg.data) classifyAndAppend(msg.data);
           return;
