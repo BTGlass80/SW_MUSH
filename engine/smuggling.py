@@ -551,6 +551,14 @@ class SmugglingBoard:
         job.accepted_by = char_id
         job.expires_at = time.time() + JOB_ACTIVE_TTL
         await self._save_job(db, job)
+        # T3.19 telemetry: objective funnel (catalog C).
+        try:
+            from engine.telemetry import emit_objective as _tele_obj
+            _tele_obj("smuggling", "start", char_id, oid=job.id,
+                      reward=job.reward, tier=job.tier.value,
+                      cargo=job.cargo_type)
+        except Exception as _e:
+            log.debug("objective telemetry emit failed: %s", _e)
         return job
 
     async def complete(self, char_id: int, db) -> Optional[SmugglingJob]:
@@ -561,6 +569,15 @@ class SmugglingBoard:
         job.status = JobStatus.COMPLETE
         await self._save_job(db, job)
         del self._jobs[job.id]
+
+        # T3.19 telemetry: objective funnel (catalog C).
+        try:
+            from engine.telemetry import emit_objective as _tele_obj
+            _tele_obj("smuggling", "complete", char_id, oid=job.id,
+                      reward=job.reward, tier=job.tier.value,
+                      cargo=job.cargo_type)
+        except Exception as _e:
+            log.debug("objective telemetry emit failed: %s", _e)
 
         # Notify Director digest
         try:
@@ -580,6 +597,14 @@ class SmugglingBoard:
         job.status = JobStatus.FAILED
         await self._save_job(db, job)
         del self._jobs[job.id]
+        # T3.19 telemetry: objective funnel (catalog C) — abandon-by-bust.
+        try:
+            from engine.telemetry import emit_objective as _tele_obj
+            _tele_obj("smuggling", "abandon", char_id, oid=job.id,
+                      reward=job.reward, tier=job.tier.value,
+                      cargo=job.cargo_type, reason=reason, fine=job.fine)
+        except Exception as _e:
+            log.debug("objective telemetry emit failed: %s", _e)
         return job
 
     async def dump_cargo(self, char_id: int, db) -> Optional[SmugglingJob]:
@@ -590,6 +615,14 @@ class SmugglingBoard:
         job.status = JobStatus.FAILED
         await self._save_job(db, job)
         del self._jobs[job.id]
+        # T3.19 telemetry: objective funnel (catalog C) — abandon-by-jettison.
+        try:
+            from engine.telemetry import emit_objective as _tele_obj
+            _tele_obj("smuggling", "abandon", char_id, oid=job.id,
+                      reward=job.reward, tier=job.tier.value,
+                      cargo=job.cargo_type, reason="dumped")
+        except Exception as _e:
+            log.debug("objective telemetry emit failed: %s", _e)
         return job
 
 
