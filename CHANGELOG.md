@@ -6,6 +6,12 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-17 — QA L7: 5 empty space zones populated with anchor rooms — *drop qa-l7-space-zone-anchor-rooms* (Sonnet loop)
+QA finding L7 (`docs/design/QA_FINDINGS_2026-06-16.md`): 5 zone definitions in `zones.yaml` (`space_tatooine`, `space_coruscant`, `space_kuat`, `space_kamino`, `space_geonosis`) had no rooms assigned, generating validator warnings. `space_nar_shaddaa` was already covered by `smuggler_ship_cockpit` (id 618, tutorial chain).
+- **Fix:** Added 5 minimal tutorial-zone "ship approach" rooms (IDs 624–628) to `data/worlds/clone_wars/tutorials/rooms.yaml`, one per empty zone. Each is a brief in-cockpit atmospheric description appropriate for that planetary system. `tutorial_zone: true`, `cover_max: 1`, no exits (standalone, same pattern as the existing cockpit room).
+- **`tests/test_qa_l7_space_zone_anchor_rooms.py`** (7 tests): anchor slugs exist; each room assigned to its correct space zone; all 5 zones now have ≥1 room; no "has no rooms" warnings for those zones; `tutorial_zone` property set; `space_nar_shaddaa` regression guard; room IDs 624–628 unique. Updated `test_f8b_tutorial_rooms.py` room-count assertions 24→29.
+- No schema change, no faucet/sink, era-clean. Purely additive world YAML.
+
 ### 2026-06-17 — command-syntax rework DROP 3: service-family umbrella dead-alias cleanup (Opus loop) — *drop command-syntax-drop3*
 Third canonicalization phase of the ratified rework (`docs/design/command_syntax_rework_design_v2.md` §"Phased build plan" Drops 3-4 — the long tail, "in module-grouped batches"). First module-grouped batch: the six **service-family umbrellas** whose `aliases` lists re-declared verb/query names that a **standalone command in the same module already owned**. Because the standalone registers *after* the umbrella it WINS the binding, so every such umbrella alias was already **dead** (it never resolved to the umbrella). Deleting it is a **pure zero-behaviour-change cleanup** that drops the registry collision and removes the redundant form rule C calls for.
 - **Umbrellas trimmed (dead aliases deleted — each name is owned by the standalone command shown):**

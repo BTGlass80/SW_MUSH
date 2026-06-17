@@ -580,3 +580,94 @@ rooms:
     properties:
       tutorial_zone: true
       cover_max: 2
+
+  # ════════════════════════════════════════════════════════════════════
+  # SPACE ZONE ANCHOR ROOMS (one per empty space zone — satisfies zone
+  # validator; available as tutorial transit rooms for future chains)
+  # ════════════════════════════════════════════════════════════════════
+
+  - id: 624
+    slug: tatooine_system_ship_approach
+    name: "Ship - Tatooine System Approach"
+    short_desc: "A ship cockpit as it drops out of hyperspace into the Tatooine system."
+    description: >
+      The blue-white tunnel of hyperspace collapses and the Tatooine
+      system snaps into view — twin suns blazing against the void,
+      the amber crescent of the planet below. The navicomputer pings:
+      transit complete. Hutt-flagged transponders squawk on the comm
+      band. Neither the Republic nor the CIS pays much attention to
+      arrivals out here. Nobody files a flight plan into Tatooine
+      unless they have to.
+    zone: space_tatooine
+    properties:
+      tutorial_zone: true
+      cover_max: 1
+
+  - id: 625
+    slug: coruscant_system_ship_approach
+    name: "Ship - Coruscant System Approach"
+    short_desc: "A ship cockpit as it enters the Coruscant system's heavy Republic Navy presence."
+    description: >
+      Hyperspace dissolves into the blaze of Coruscant's city-light
+      from orbit — a single city, continent to continent, ringed by
+      the running lights of Republic Navy Venators holding station.
+      Republic traffic control hails the moment the ship exits the
+      lane. Approach vectors are assigned; escorts are implied rather
+      than offered. This is the heart of the Republic, and the
+      Republic counts everything that enters it.
+    zone: space_coruscant
+    properties:
+      tutorial_zone: true
+      cover_max: 1
+
+  - id: 626
+    slug: kuat_system_ship_approach
+    name: "Ship - Kuat System Approach"
+    short_desc: "A ship cockpit as it exits hyperspace into Kuat's orbital industrial ring."
+    description: >
+      Kuat resolves out of hyperspace — green planet wrapped in the
+      continuous metal ring of the Drive Yards, with Venators in
+      various stages of assembly visible even from this distance.
+      Kuati Security Forces challenge on a dedicated frequency
+      before the navicomputer finishes its post-jump check.
+      Nobody approaches Kuat unannounced, not with what they
+      build here.
+    zone: space_kuat
+    properties:
+      tutorial_zone: true
+      cover_max: 1
+
+  - id: 627
+    slug: kamino_system_ship_approach
+    name: "Ship - Kamino System Approach"
+    short_desc: "A ship cockpit on the classified Republic approach lane to Kamino."
+    description: >
+      Passive sensors flicker in the Rishi Maze's gravitational
+      shadow. The navicomputer took three corrections to thread
+      this lane — most charts don't show it. Below, the storm-wracked
+      ocean world of Kamino is a grey-blue disk, permanently shrouded
+      in cloud. Republic Navy interdictors are already broadcasting
+      on the clearance channel. The right codes go out; the right
+      response comes back. A ship without both does not land here.
+    zone: space_kamino
+    properties:
+      tutorial_zone: true
+      cover_max: 1
+
+  - id: 628
+    slug: geonosis_system_ship_approach
+    name: "Ship - Geonosis System Approach"
+    short_desc: "A ship cockpit emerging from hyperspace into contested Geonosis orbital space."
+    description: >
+      The Triellus Trade Route drops the ship into Geonosis space
+      without ceremony. The planet is rust-red below, pocked with
+      the craters of two battles and still counting. CIS Munificent
+      frigates hold station in a defensive ring; a Republic counter-
+      patrol is somewhere in the sensor noise, doing the same.
+      Wreckage from earlier engagements turns slowly in Geonosis's
+      sun. Transponder protocols here are whichever set gets you
+      shot at less.
+    zone: space_geonosis
+    properties:
+      tutorial_zone: true
+      cover_max: 1

@@ -143,9 +143,9 @@ class TestTutorialRoomsLoaded(unittest.TestCase):
         rooms = _load_rooms_yaml()
         self.assertEqual(rooms.get("planet"), "tutorial_chains")
 
-    def test_room_count_is_24(self):
+    def test_room_count_is_29(self):
         rooms = _load_rooms_yaml()
-        self.assertEqual(len(rooms.get("rooms") or []), 24)
+        self.assertEqual(len(rooms.get("rooms") or []), 29)
 
     def test_every_room_has_tutorial_zone_true(self):
         rooms = _load_rooms_yaml()
@@ -420,7 +420,7 @@ class TestWorldLoaderIntegration(unittest.TestCase):
 
         tutorial_rooms = [r for r in rooms.values()
                           if r.planet == "tutorial_chains"]
-        self.assertEqual(len(tutorial_rooms), 24)
+        self.assertEqual(len(tutorial_rooms), 29)
 
     def test_loader_validates_clean(self):
         from engine.world_loader import (
