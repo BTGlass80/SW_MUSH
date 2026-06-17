@@ -27,7 +27,7 @@ OUTPUT FORMAT
   ═══ UPCOMING EVENTS ═══
     #3  The Sabacc Tournament  [ACTIVE]
         2026-06-16 20:00 @ Mos Eisley Cantina · 7 signed up · by Kira
-    #4  Rebel Strike Planning
+    #4  Clone Corps Strategy Briefing
         TBD · 3 signed up · by Tundra Vehn
 
   Columns:

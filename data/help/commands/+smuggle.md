@@ -107,7 +107,7 @@ Two checks can trigger a patrol encounter:
   2. ARRIVAL CHECK — rolls on hyperspace arrival at the destination
      planet. Per-planet probability (PLANET_PATROL_FREQUENCY):
        Corellia     0.60  (Core World — heavy customs)
-       Nar Shaddaa  0.25  (Hutt space, but ISB cares)
+       Nar Shaddaa  0.25  (Hutt space, but Republic Intel monitors)
        Kessel       0.20  (Outer Rim — heavy corporate security)
        Tatooine     0.10  (Outer Rim — low patrol presence)
 

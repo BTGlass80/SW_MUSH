@@ -6,6 +6,15 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-17 — M2 era-cleanness fixes + era-scrub test extended to data/help + data/guides (Sonnet loop) — *drop m2-era-scrub-data*
+Closes QA finding M2. The era-scrub test previously only swept `static/*.html`; B3 violations leaked into player-facing help files and a world room description.
+- **`data/help/commands/+events.md`:** Example event "#4 Rebel Strike Planning" → "Clone Corps Strategy Briefing" (Rebel = GCW-era).
+- **`data/help/commands/+gunner.md`:** All `TIE-3` target examples → `Vulture-3`; `TIE Bomber` seating note → `Hyena Bomber` (TIE fighters are Empire-era).
+- **`data/help/commands/+crew.md`:** `TIE-Alpha` order example → `Vulture-Alpha`.
+- **`data/help/commands/+smuggle.md`:** `ISB cares` patrol note → `Republic Intel monitors` (ISB is Empire-era).
+- **`data/worlds/clone_wars/planets/coruscant.yaml` room 237:** `resistance organization` → `opposition network` (avoids Sequel-era "Resistance" faction echo).
+- **`tests/test_m2_era_scrub_data.py` (11 tests):** New era-scrub test sweeps `data/help/**/*.md` and `data/guides/**/*.md` for the same `ERA_CONTAMINATION_PATTERN` as the static scrub. Allowlists: `<!-- lint-era-ok -->` markers (deliberate CW-vantage foreshadowing in Guide_04) + the WEG D6 scale-18 `Death Star scale` mechanics table row in Guide_01 (clearly labelled "no such weapon exists in the Clone Wars era"). Regression guards for each specific M2 fix. No engine change, no schema, no faucet/sink. Gate: 21 green single-process.
+
 ### 2026-06-16 — Pre-launch QA campaign: findings doc (launch BLOCKED) + lorebook status correction — *drop qa-findings-doc*
 Ran a 12-agent QA-playthrough campaign (6 player-journey walks driving the live in-process harness + 4 content audits + 2 balance/era reviews → synthesis). 56 raw findings → ranked punch-list in **`docs/design/QA_FINDINGS_2026-06-16.md`**. **Launch readiness: BLOCKED.** Three blockers VERIFIED against HEAD (incl. an empirical `aiosqlite.Row.get()` repro): (B1) `sqlite3.Row` has no `.get()` and the `fetchall`/`fetchone` wrappers return raw Rows → a whole bug class (~163 `.get()`-on-row sites; the death/recovery arc — bacta, corpse-decay, wound-auto-recovery — is dead in production, test-invisible because stubs return dicts); (B2) the `vendor` flag is dropped in `_build_ai_config` → all weapon vendors dead; (B3) `get_faction` reads `char['faction']` not `char['faction_id']` → faction comms reach 0 recipients. Plus 4 HIGH / 7 MED / 7 LOW + coverage gaps (browser SPA, ticks, concurrency, balance-feel). Also corrected the stale `LORE.sourcebook_ingestion` TODO entry → DONE (`b9e2439`, 2,811-entry lorebook; the $30 API + proxy fix unblocked it). Doc-only + TODO; blocker fixes land in follow-up drops.
 
