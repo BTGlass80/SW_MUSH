@@ -6,6 +6,9 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-17 — portal.html meta/era fix + fan disclaimer — *drop portal-meta-era-disclaimer*
+Fixed 5 B3 era violations in `static/portal.html` that the existing era-scrub test did not cover (it checks for Imperial/Rebel/TIE but not "Galactic Civil War"): `<title>`, `<meta name="description">`, `<meta property="og:title">`, `<meta name="twitter:title">`, and the `<footer>` all still read "Galactic Civil War Era" — corrected to "Clone Wars Era". Meta descriptions updated from "four planets" → "six planets" (matching the T3.21 web-landing accuracy fix). Added fan-project disclaimer to the `<footer>` (from `PRELAUNCH.marketing_launch` task 2): "Unofficial fan project — not affiliated with Lucasfilm Ltd., The Walt Disney Company, or West End Games." New `tests/test_portal_meta_era_disclaimer.py` (11 tests) guards all six era-cleanness assertions + disclaimer presence + footer content. Existing `test_static_era_scrub.py` + `test_web_landing_accuracy.py` + smoke foundation all green (36 total).
+
 ### 2026-06-17 — Red-baseline cleanup (→ green full suite) + Claude Design / marketing slotted — *drop red-baseline-cleanup*
 Cleared the pre-existing red baseline the full-suite run surfaced (latent — the suite hadn't run clean since the overnight loop wave; NOT from the B1/B2/B3/H1/H2 work). The 12 raw reds were 7 suite-order flakes + 1 stray artifact + these 4 real issues, now fixed:
 - **`test_session38` silent-except invariant (7 sites):** production `except Exception: pass` blocks → logged (`db/database.py` ×3 [read-pool cleanup + 2 telemetry emits], `engine/ambient_events.py`, `engine/skill_checks.py`, `parser/space_commands.py` ×2). Swallow semantics preserved; a `log.debug` added at each so the fail-open paths aren't invisible.
