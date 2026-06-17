@@ -6,6 +6,12 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-17 — QA L6: P2P velocity alert now pages online staff (Sonnet loop) — *drop qa-l6-p2p-staff-page*
+Closes QA finding **L6** from `docs/design/QA_FINDINGS_2026-06-16.md`.
+- **Root cause:** the P2P trade-velocity alert (ECON.p2p_cap_review=a — the old 1,500 cr/24h cap threshold repurposed as telemetry) recorded breaches to the ring buffer (`record_alert`) and wrote to the server log, but unlike the server-wide `credit_velocity_alert_tick` it did NOT page online admin/builder sessions in real-time. Staff had to poll `@economy alerts` manually.
+- **Fix:** made `_page_economy_alert_staff` a public function (`page_economy_alert_staff`) in `server/tick_handlers_economy.py`; the P2P alert block in `parser/builtin_commands.py` now imports and calls it after `record_alert`/`log.info`. Wrapped in the existing fail-open `except Exception` guard so a page failure never disturbs a completed trade. `ctx.session_mgr` is already available at that call site (other code in the same handler uses it).
+- **`tests/test_qa_l6_p2p_velocity_staff_page.py` (9 tests):** alert below caution returns None; at caution returns correct dict; bad input is safe; `format_alert_line` renders correctly; ring buffer records and retrieves; `None` session_mgr is a no-op; pages admin+builder but not player or spectator; tolerates a broken session; public symbol importable. No schema change, no faucet/sink, era-clean.
+
 ### 2026-06-17 — command-syntax rework DROP 1: prefix canonicalization (high-traffic OOC/HUD) (Opus loop) — *drop command-syntax-drop1*
 First canonicalization phase of the ratified rework (`docs/design/command_syntax_rework_design_v2.md` §"Phased build plan" Drop 1). Drop 0 (the convention enforcement guard, `ecfd070`/`90156af`) made collisions observable but renamed nothing; this is the first phase that **deletes** redundant forms. A1 prefix policy: OOC/meta/query/HUD commands take a single canonical `+`-prefixed form; the bare forms and `+`-synonyms are DELETED (CLEAN — no back-compat aliases, since nobody is playing yet).
 - **Canonicalized (canonical ← deleted forms):**

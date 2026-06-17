@@ -5672,6 +5672,7 @@ class TradeCommand(BaseCommand):
                 evaluate_p2p_velocity_alert, record_alert,
                 format_alert_line,
             )
+            from server.tick_handlers_economy import page_economy_alert_staff
             rolling = await ctx.db.get_daily_p2p_outgoing(
                 offerer["id"], seconds=P2P_DAILY_WINDOW_SECONDS,
             )
@@ -5681,7 +5682,9 @@ class TradeCommand(BaseCommand):
             )
             if alert:
                 record_alert(alert)
-                log.info("p2p velocity alert: %s", format_alert_line(alert))
+                line = format_alert_line(alert)
+                log.info("p2p velocity alert: %s", line)
+                await page_economy_alert_staff(ctx.session_mgr, line)
         except Exception:
             log.debug("p2p velocity alert failed (trade unaffected)",
                       exc_info=True)
