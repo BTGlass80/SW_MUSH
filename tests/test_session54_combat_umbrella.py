@@ -52,32 +52,37 @@ class TestUmbrellaRegistration(unittest.TestCase):
         missing = required - actual
         self.assertFalse(missing, f"valid_switches missing: {missing}")
 
-    def test_aliases_cover_all_bare_verbs(self):
-        """Every pre-S54 bare verb must remain as an alias."""
+    def test_combat_bare_verbs_still_resolve_after_drop4(self):
+        """Command-syntax rework Drop 4: the per-verb DUPLICATE bare aliases are
+        no longer DECLARED on the +combat umbrella (they were dead duplicates of
+        the standalone per-verb commands). Behaviour is unchanged — each still
+        resolves to its standalone handler via the full registry; the
+        _ALIAS_TO_SWITCH dispatch map (which drives +combat/<switch> and the
+        umbrella's bare-verb dispatch) is untouched."""
         from parser.combat_commands import CombatCommand
-        required_aliases = {
-            "combat", "cs",
-            "attack", "att", "kill", "shoot", "hit",
-            "dodge", "fulldodge", "fdodge",
-            "parry", "fullparry", "fparry",
-            "soak", "aim",
-            "flee", "run", "retreat",
-            "pass", "disengage",
-            "resolve",
-            "range", "distance",
-            "cover", "hide",
-            "forcepoint", "fp",
-            "cpose", "combatpose",
-            "crolls",
-            "challenge", "duel",
-            "accept", "decline", "refuse",
-        }
-        actual = set(CombatCommand.aliases)
-        missing = required_aliases - actual
-        self.assertFalse(
-            missing,
-            f"CombatCommand aliases missing bare verbs: {missing}"
+        from tests.test_t321_admin_command_access_invariant import (
+            _build_full_registry,
         )
+        dead = {
+            "cs", "att", "kill", "shoot", "hit", "fdodge", "fparry", "soak",
+            "run", "distance", "hide", "fp", "combatpose", "duel", "refuse",
+        }
+        self.assertFalse(
+            dead & set(CombatCommand.aliases),
+            f"+combat still declares dead aliases: "
+            f"{dead & set(CombatCommand.aliases)}",
+        )
+        # Every removed bare verb still resolves to its standalone handler.
+        reg = _build_full_registry()
+        owners = {
+            "att": "attack", "kill": "attack", "shoot": "attack", "hit": "attack",
+            "cs": "combat", "fdodge": "fulldodge", "fparry": "fullparry",
+            "soak": "+soak", "run": "flee", "distance": "range",
+            "hide": "cover", "fp": "forcepoint", "combatpose": "cpose",
+            "duel": "challenge", "refuse": "decline",
+        }
+        for verb, owner in owners.items():
+            self.assertEqual(reg.get(verb).key, owner, f"{verb!r} -> wrong owner")
 
     def test_switch_impl_dispatch_table_populated(self):
         """_SWITCH_IMPL must be populated at module load."""

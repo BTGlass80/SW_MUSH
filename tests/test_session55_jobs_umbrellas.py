@@ -60,21 +60,35 @@ class TestMissionUmbrellaRegistration(unittest.TestCase):
         actual = set(MissionCommand.valid_switches)
         self.assertFalse(required - actual, f"missing: {required - actual}")
 
-    def test_mission_aliases_cover_bare_verbs(self):
-        """Every pre-S55 bare verb must remain as an umbrella alias."""
+    def test_mission_bare_verbs_still_resolve_after_drop4(self):
+        """Command-syntax rework Drop 4: the DUPLICATE bare aliases are no longer
+        DECLARED on the +mission umbrella (they were dead duplicates of the
+        standalone mission commands). Behaviour is unchanged — each still
+        resolves to its standalone handler via the full registry; the
+        _MISSION_ALIAS_TO_SWITCH dispatch map is untouched. 'accept' stays
+        (part of the cross-command key:accept conflict — a type-3 decision)."""
         from parser.mission_commands import MissionCommand
-        required = {
-            "missions", "mb", "jobs",
-            "mission", "myjob", "activemission",
-            "accept", "takejob",
-            "complete", "finishjob", "turnin",
-            "abandon", "dropmission", "quitjob",
-        }
-        actual = set(MissionCommand.aliases)
-        self.assertFalse(
-            required - actual,
-            f"MissionCommand aliases missing: {required - actual}",
+        from tests.test_t321_admin_command_access_invariant import (
+            _build_full_registry,
         )
+        dead = {
+            "missions", "mb", "jobs", "myjob", "activemission",
+            "takejob", "finishjob", "turnin", "dropmission", "quitjob",
+        }
+        self.assertFalse(
+            dead & set(MissionCommand.aliases),
+            f"+mission still declares dead aliases: "
+            f"{dead & set(MissionCommand.aliases)}",
+        )
+        reg = _build_full_registry()
+        owners = {
+            "missions": "+missions", "mb": "+missions", "jobs": "+missions",
+            "myjob": "mission", "activemission": "mission",
+            "takejob": "accept", "finishjob": "complete", "turnin": "complete",
+            "dropmission": "abandon", "quitjob": "abandon",
+        }
+        for verb, owner in owners.items():
+            self.assertEqual(reg.get(verb).key, owner, f"{verb!r} -> wrong owner")
 
     def test_mission_switch_impl_populated(self):
         """_MISSION_SWITCH_IMPL must be populated at module load."""

@@ -750,10 +750,19 @@ _SPY_ALIAS_TO_SWITCH: dict[str, str] = {
 class SpyCommand(BaseCommand):
     """`+spy` umbrella — espionage verbs."""
     key = "+spy"
+    # Command-syntax rework Drop 4 (command_syntax_rework_design_v2.md): the
+    # DUPLICATE aliases that a standalone command already owns
+    # (size→ScanCommand, search/inspect→InvestigateCommand, intel→IntelCommand,
+    # wiretap/comtap→InterceptCommand) are DELETED — they were dead duplicates
+    # (the standalone registers later and wins), so each still resolves to the
+    # same handler. The _SPY_ALIAS_TO_SWITCH dispatch map is left intact (it
+    # drives the arg-keyed `+spy <verb>` form). 'listen'/'investigate' stay (the
+    # cross-command key:investigate (anomaly vs espionage) and alias:listen
+    # (espionage vs village_trial) conflicts are separate type-3 decisions).
     aliases: list[str] = [
-        "assess", "size", "eavesdrop", "listen",
-        "investigate", "search", "inspect",
-        "intel", "intercept", "wiretap", "comtap",
+        "assess", "eavesdrop", "listen",
+        "investigate",
+        "intercept",
     ]
     help_text = (
         "Espionage verbs: '+spy assess <player>', '+spy eavesdrop', "

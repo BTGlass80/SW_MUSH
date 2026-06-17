@@ -215,28 +215,35 @@ class TestCrewUmbrellaRegistration(unittest.TestCase):
         missing = required - actual
         self.assertFalse(missing, f"valid_switches missing: {missing}")
 
-    def test_aliases_cover_all_bare_verbs(self):
+    def test_crew_bare_verbs_still_resolve_after_drop4(self):
+        """Command-syntax rework Drop 4: the DUPLICATE aliases are no longer
+        DECLARED on the +crew umbrella (they were dead duplicates of the
+        standalone crew commands). Behaviour is unchanged — each still resolves
+        to its standalone handler via the full registry; the
+        _CREW_ALIAS_TO_SWITCH dispatch map is untouched. 'crew'/'mycrew' (the
+        umbrella's own view shorthands) remain; 'order' stays (part of the
+        cross-command key:order conflict with space — a type-3 decision)."""
         from parser.crew_commands import CrewCommand
-        required_aliases = {
-            # Crew view (from old RosterCommand)
-            "crew", "mycrew",
-            # Hire
-            "hire", "recruiting", "hireboard",
-            # Roster
-            "roster",
-            # Assign / unassign
-            "assign", "unassign",
-            # Dismiss
-            "dismiss", "firecrew",
-            # Order
-            "order", "ord",
-        }
-        actual = set(CrewCommand.aliases)
-        missing = required_aliases - actual
-        self.assertFalse(
-            missing,
-            f"CrewCommand aliases missing bare verbs: {missing}"
+        from tests.test_t321_admin_command_access_invariant import (
+            _build_full_registry,
         )
+        dead = {"recruiting", "hireboard", "roster", "firecrew", "ord"}
+        self.assertFalse(
+            dead & set(CrewCommand.aliases),
+            f"+crew still declares dead aliases: "
+            f"{dead & set(CrewCommand.aliases)}",
+        )
+        # The umbrella's own view shorthands survive (resolve to +crew).
+        self.assertTrue({"crew", "mycrew"} <= set(CrewCommand.aliases))
+        reg = _build_full_registry()
+        self.assertEqual(reg.get("crew").key, "+crew")
+        self.assertEqual(reg.get("mycrew").key, "+crew")
+        owners = {
+            "recruiting": "hire", "hireboard": "hire", "roster": "+roster",
+            "firecrew": "dismiss", "ord": "order",
+        }
+        for verb, owner in owners.items():
+            self.assertEqual(reg.get(verb).key, owner, f"{verb!r} -> wrong owner")
 
     def test_switch_impl_dispatch_table_populated(self):
         from parser.crew_commands import _CREW_SWITCH_IMPL

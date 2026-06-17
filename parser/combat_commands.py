@@ -2896,22 +2896,35 @@ _ALIAS_TO_SWITCH: dict[str, str] = {
 class CombatCommand(BaseCommand):
     """`+combat` umbrella — see module docstring for dispatch rules."""
     key = "+combat"
+    # Command-syntax rework Drop 4 (command_syntax_rework_design_v2.md): the
+    # per-verb DUPLICATE aliases that a standalone combat command already owns
+    # (att/kill/shoot/hit→AttackCommand, cs→CombatStatusCommand,
+    # fdodge→FullDodgeCommand, fparry→FullParryCommand, soak→SoakCommand,
+    # run→FleeCommand, distance→RangeCommand, hide→CoverCommand,
+    # fp→ForcePointCommand, combatpose→CombatPoseCommand, duel→ChallengeCommand,
+    # refuse→DeclineCommand) are DELETED — they were dead duplicates (the
+    # standalone registers later and wins the binding), so every one still
+    # resolves to the EXACT same handler. The _ALIAS_TO_SWITCH dispatch map is
+    # left intact (it drives +combat/<switch> + bare-verb dispatch through the
+    # umbrella and is exercised by the S54 dispatch tests). 'cpose'/'crolls'
+    # remain — they are genuine umbrella-only shorthands (no standalone owns
+    # them). 'retreat' stays (the cross-command key:retreat conflict with
+    # wow_counsel RetreatCommand is a separate type-3 decision).
     aliases: list[str] = [
-        "combat", "cs",
-        "attack", "att", "kill", "shoot", "hit",
-        "dodge", "fulldodge", "fdodge",
-        "parry", "fullparry", "fparry",
-        "soak", "aim",
-        "flee", "run", "retreat",
+        "combat",
+        "attack",
+        "dodge", "fulldodge",
+        "parry", "fullparry",
+        "aim",
+        "flee", "retreat",
         "pass", "disengage",
         "resolve",
-        "range", "distance",
-        "cover", "hide",
-        "forcepoint", "fp",
-        "cpose", "combatpose",
-        "crolls",
-        "challenge", "duel",
-        "accept", "decline", "refuse",
+        "range",
+        "cover",
+        "forcepoint",
+        "cpose", "crolls",
+        "challenge",
+        "accept", "decline",
     ]
     help_text = (
         "Combat verbs. Canonical form '+combat/attack <target>', or "

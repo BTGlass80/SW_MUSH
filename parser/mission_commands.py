@@ -825,12 +825,21 @@ _MISSION_ALIAS_TO_SWITCH: dict[str, str] = {
 class MissionCommand(BaseCommand):
     """`+mission` umbrella — see module docstring; full S55 dispatch."""
     key = "+mission"
+    # Command-syntax rework Drop 4 (command_syntax_rework_design_v2.md): the
+    # DUPLICATE aliases that a standalone mission command already owns
+    # (missions/mb/jobs→MissionsCommand, myjob/activemission→ActiveMissionCommand,
+    # takejob→AcceptMissionCommand, finishjob/turnin→CompleteMissionCommand,
+    # dropmission/quitjob→AbandonMissionCommand) are DELETED — they were dead
+    # duplicates (the standalone registers later and wins), so each still
+    # resolves to the same handler. The _MISSION_ALIAS_TO_SWITCH dispatch map is
+    # left intact. 'accept' stays (part of the cross-command key:accept conflict
+    # with combat AcceptCommand — a separate type-3 decision); the bare-key
+    # aliases mission/complete/abandon are the per-verb command keys.
     aliases: list[str] = [
-        "missions", "mb", "jobs",
-        "accept", "takejob",
-        "mission", "myjob", "activemission",
-        "complete", "finishjob", "turnin",
-        "abandon", "dropmission", "quitjob",
+        "accept",
+        "mission",
+        "complete",
+        "abandon",
     ]
     help_text = (
         "Mission board verbs: '+mission/board' (list), '+mission/accept "

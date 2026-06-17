@@ -165,12 +165,31 @@ class TestSpyUmbrella(unittest.TestCase):
         required = {"assess", "eavesdrop", "investigate", "intel", "intercept"}
         self.assertFalse(required - set(SpyCommand.valid_switches))
 
-    def test_aliases_cover_bare_verbs(self):
+    def test_bare_verbs_still_resolve_after_drop4(self):
+        """Command-syntax rework Drop 4: the DUPLICATE aliases are no longer
+        DECLARED on the +spy umbrella (they were dead duplicates of the
+        standalone espionage/anomaly commands). Behaviour is unchanged — each
+        still resolves to its standalone handler via the full registry; the
+        _SPY_ALIAS_TO_SWITCH dispatch map (the arg-keyed `+spy <verb>` form) is
+        untouched. 'listen'/'investigate' stay (cross-command alias:listen /
+        key:investigate conflicts are separate type-3 decisions)."""
         from parser.espionage_commands import SpyCommand
-        required = {"assess", "size", "eavesdrop", "listen",
-                    "investigate", "search", "inspect",
-                    "intel", "intercept", "wiretap", "comtap"}
-        self.assertFalse(required - set(SpyCommand.aliases))
+        from tests.test_t321_admin_command_access_invariant import (
+            _build_full_registry,
+        )
+        dead = {"size", "search", "inspect", "intel", "wiretap", "comtap"}
+        self.assertFalse(
+            dead & set(SpyCommand.aliases),
+            f"+spy still declares dead aliases: "
+            f"{dead & set(SpyCommand.aliases)}",
+        )
+        reg = _build_full_registry()
+        owners = {
+            "size": "assess", "search": "investigate", "inspect": "investigate",
+            "intel": "+intel", "wiretap": "intercept", "comtap": "intercept",
+        }
+        for verb, owner in owners.items():
+            self.assertEqual(reg.get(verb).key, owner, f"{verb!r} -> wrong owner")
 
     def test_alias_map_covers_aliases(self):
         from parser.espionage_commands import SpyCommand, _SPY_ALIAS_TO_SWITCH

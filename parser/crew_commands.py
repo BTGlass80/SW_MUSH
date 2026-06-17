@@ -531,12 +531,20 @@ _CREW_ALIAS_TO_SWITCH: dict[str, str] = {
 class CrewCommand(BaseCommand):
     """`+crew` umbrella — full S56 dispatch over NPC crew management."""
     key = "+crew"
+    # Command-syntax rework Drop 4 (command_syntax_rework_design_v2.md): the
+    # DUPLICATE aliases that a standalone crew command already owns
+    # (roster→RosterCommand, recruiting/hireboard→HireCommand,
+    # firecrew→DismissCrewCommand, ord→OrderCommand) are DELETED — they were
+    # dead duplicates (the standalone registers later and wins), so each still
+    # resolves to the same handler. The _CREW_ALIAS_TO_SWITCH dispatch map is
+    # left intact. 'order' stays for now (part of the cross-command key:order
+    # conflict with space OrderCommand — a separate type-3 decision).
     aliases: list[str] = [
-        "crew", "mycrew", "roster",
-        "hire", "recruiting", "hireboard",
+        "crew", "mycrew",
+        "hire",
         "assign", "unassign",
-        "dismiss", "firecrew",
-        "order", "ord",
+        "dismiss",
+        "order",
     ]
     help_text = (
         "Crew verbs: '+crew/roster', '+crew/hire <npc>', '+crew/assign "
