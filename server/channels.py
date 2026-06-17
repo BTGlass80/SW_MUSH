@@ -104,7 +104,19 @@ def get_faction(char: dict) -> str:
     """Extract faction from character dict.  Defaults to 'independent'."""
     if not char:
         return "independent"
-    # Check top-level key first
+    # Membership lives in the `faction_id` column (QA campaign blocker B3,
+    # 2026-06-16): a DB-row-derived char dict carries `faction_id`
+    # (DEFAULT 'independent'), NOT a `faction` key. Checking `faction`
+    # first collapsed every real member to 'independent' here, so faction
+    # comms (`fcomm` / `faction channel` / leader `faction announce`)
+    # reached 0 same-faction recipients. Read faction_id first; the CW org
+    # codes (republic/cis/jedi_order) are in FACTIONS, so members now
+    # resolve correctly.
+    fid = char.get("faction_id")
+    if fid:
+        f = str(fid).lower()
+        return f if f in FACTIONS else "independent"
+    # Legacy/explicit top-level key (some callers pass a `faction` field).
     if "faction" in char:
         f = str(char["faction"]).lower()
         return f if f in FACTIONS else "independent"

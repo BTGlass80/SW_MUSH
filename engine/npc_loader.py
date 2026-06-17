@@ -346,6 +346,18 @@ def _build_ai_config(ai: dict, name: str) -> dict:
     if ai.get("chain_enemy_template"):
         config["chain_enemy_template"] = ai["chain_enemy_template"]
 
+    # Preserve the vendor flag (QA campaign blocker B2, 2026-06-16). An NPC
+    # tagged `vendor: true` in its ai_config sells open-market gear; the buy
+    # consumer in parser/space_commands.py gates on
+    # ai_config_json["vendor"] (the trainer-flag precedent applied to
+    # commerce). The fixed whitelist above silently dropped it at the
+    # DB-write seam — so EVERY weapon vendor was dead in production (incl.
+    # Kayson's shop and the mos_eisley/planet merchants that declare it),
+    # leaving the buy-gear credit SINK entirely inert. Same silent-drop
+    # class as `trainer` / `is_intel_handler` / `chain_enemy_template`.
+    if ai.get("vendor"):
+        config["vendor"] = True
+
     return config
 
 
