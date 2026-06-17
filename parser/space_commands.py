@@ -1363,11 +1363,16 @@ class LandCommand(BaseCommand):
         char["credits"] = await ctx.db.adjust_credits(char["id"], -docking_fee, "docking_fee")
         await ctx.db.update_ship(ship["id"], docked_at=bay["id"])
         get_space_grid().remove_ship(ship["id"])
-        # Traffic: clear current_zone on land
-        import json as _lj
-        _lsys = _lj.loads(ship.get("systems") or "{}")
-        _lsys.pop("current_zone", None)
-        await ctx.db.update_ship(ship["id"], systems=_lj.dumps(_lsys))
+        # Traffic: a docked ship is already excluded from all space traffic /
+        # targeting by the `docked_at IS NOT NULL` filter (db.get_ships_in_space
+        # → npc_space_traffic), so its current_zone does NOT need clearing. We
+        # KEEP current_zone = the orbit zone we dropped from (== the planet whose
+        # bay we just docked at); `launch` overwrites it fresh on departure.
+        # Clearing it (the prior behaviour) broke docked trade: market/buy/sell
+        # resolve the current planet via current_zone → ZONES[..].planet, so an
+        # empty zone collapsed pricing to a flat 100% (no source-discount /
+        # demand-premium) AND bypassed the per-planet supply cap that prevents
+        # infinite cargo farming (QA finding H4, 2026-06-17).
         await ctx.session_mgr.broadcast_to_room(
             ship["bridge_room_id"],
             ansi.success(

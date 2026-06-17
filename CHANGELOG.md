@@ -6,6 +6,13 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-17 — QA H4: planet-trade pricing/supply restored — `land` keeps `current_zone` (Opus loop) — *drop qa-h4-land-current-zone*
+Closes QA finding **H4** (loop-safe per `docs/design/QA_FINDINGS_2026-06-16.md`). The planet-trade economy was silently dead in production: `parser/space_commands.py` `LandCommand` popped `systems["current_zone"]` on every land, but the docked trade surface (`market` / cargo `buy` / cargo `sell`) resolves *which planet you're docked at* via `current_zone → ZONES[zone].planet`. With the zone gone, the next docked trade read an **empty** planet →
+- `get_planet_price(good, "")` collapsed to a flat base price (the source-discount + demand-premium that make trade routes profitable never applied — every market quoted a flat 100%); and
+- `SUPPLY_POOL.available("", key)` was gated behind `if planet:` → the per-planet supply cap (the anti-infinite-cargo-farming sink) was **bypassed**.
+- **Fix:** stop clearing `current_zone` on land. A docked ship is already excluded from all space traffic / targeting by the `docked_at IS NOT NULL` filter (`db.get_ships_in_space` feeds `engine/npc_space_traffic`), so the zone never needed clearing — and keeping it (= the orbit zone we dropped from, == the planet whose bay we docked at) lets docked trade resolve the planet. `launch` overwrites `current_zone` fresh on the next departure. No extra DB write on land, no redundant `docked_planet` state, no schema change, no faucet/sink, era-clean.
+- **`tests/test_qa_h4_land_preserves_current_zone.py` (5 tests):** live boarding→pilot→launch→land harness arc asserts the landed ship still carries a non-empty, planet-resolvable `current_zone`; plus a source drift-guard pinning that `LandCommand` never re-introduces a `current_zone` pop. This is the end-to-end land→trade coverage whose absence let the bug hide behind the green suite.
+
 ### 2026-06-17 — PRELAUNCH.web_landing_retention: portal landing accuracy fixes (Sonnet loop) — *drop web-landing-planet-accuracy*
 Closes `PRELAUNCH.web_landing_retention`. The portal landing page had two factual accuracy bugs.
 - **`static/portal.html` landing desc:** "Tatooine, Nar Shaddaa, Kessel, and Corellia" → "Tatooine, Coruscant, Nar Shaddaa, Geonosis, Kamino, and Kuat" (Kessel and Corellia have no world YAML in `data/worlds/clone_wars/planets/`; the six actual launch planets are now named).
