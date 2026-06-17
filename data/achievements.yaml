@@ -242,6 +242,14 @@ achievements:
     cp_reward: 3
     trigger: {event: "smuggling_complete", count: 5}
 
+  - key: signal_hunter
+    name: "Signal Hunter"
+    description: "Successfully intercept comlink chatter with your scanner"
+    category: social
+    icon: "📡"
+    cp_reward: 2
+    trigger: {event: "intercept", count: 1}
+
   # ══════════════════════════════════════════════════════════════
   # FORCE (4 achievements)
   # ══════════════════════════════════════════════════════════════

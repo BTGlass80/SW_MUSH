@@ -502,18 +502,57 @@ class CompleteMissionCommand(BaseCommand):
         at_destination = False
 
         if active.destination_room_id:
+            # Precise match on stored destination_room_id
             at_destination = (str(current_room) == str(active.destination_room_id))
         else:
+            # B1 fix: prefer slug-based precise match when mission_data carries
+            # destination_slug (chain missions written by chain_missions.py).
+            # Falls back to fuzzy name match for backwards compat (non-chain
+            # missions that never had a slug).
+            slug = None
             try:
-                room = await ctx.db.get_room(current_room)
-                if room:
-                    room_name = room.get("name", "")
-                    at_destination = (
-                        active.destination.lower() in room_name.lower()
-                        or room_name.lower() in active.destination.lower()
-                    )
+                mdata = getattr(active, "mission_data", None) or {}
+                slug = mdata.get("destination_slug") or ""
             except Exception:
-                log.warning("_check_ground_destination: room lookup failed", exc_info=True)
+                slug = ""
+
+            if slug:
+                try:
+                    resolved = await ctx.db.get_room_by_slug(slug)
+                    if resolved:
+                        at_destination = (
+                            str(current_room) == str(resolved["id"])
+                        )
+                    else:
+                        # Slug in data but no room found — fall through to fuzzy
+                        log.debug(
+                            "_check_ground_destination: slug %r resolved no room",
+                            slug,
+                        )
+                except Exception:
+                    log.warning(
+                        "_check_ground_destination: slug lookup failed",
+                        exc_info=True,
+                    )
+
+            if not at_destination:
+                # Fuzzy name match fallback — runs when there was no slug, OR
+                # the slug failed to resolve a room (so a malformed slug can't
+                # make a mission permanently uncompletable). Skipped harmlessly
+                # when a slug already matched (at_destination is True).
+                try:
+                    room = await ctx.db.get_room(current_room)
+                    if room:
+                        room_name = room.get("name", "")
+                        at_destination = (
+                            active.destination.lower() in room_name.lower()
+                            or room_name.lower() in active.destination.lower()
+                        )
+                except Exception:
+                    log.warning(
+                        "_check_ground_destination: room lookup failed",
+                        exc_info=True,
+                    )
 
         if not at_destination:
             await ctx.session.send_line(

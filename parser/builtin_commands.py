@@ -5215,6 +5215,12 @@ async def _handle_sell_cargo(ctx) -> None:
     )
     if city_tax_msg:
         await ctx.session.send_line(city_tax_msg)
+    # Achievement: trade_goods_sold (merchant_prince)
+    try:
+        from engine.achievements import on_trade_goods_sold
+        await on_trade_goods_sold(ctx.db, char["id"], session=ctx.session)
+    except Exception as _e:
+        log.debug("silent except in parser/builtin_commands.py sell-cargo-ach: %s", _e, exc_info=True)
 
 
 class TradeCommand(BaseCommand):

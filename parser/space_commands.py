@@ -1288,6 +1288,12 @@ class LaunchCommand(BaseCommand):
             await check_spacer_quest(ctx.session, ctx.db, "space_action", action="launch")
         except Exception as _e:
             log.debug("silent except in parser/space_commands.py:1089: %s", _e, exc_info=True)
+        # Achievement: ship_launch (first_flight → ace_pilot prereq)
+        try:
+            from engine.achievements import on_ship_launch
+            await on_ship_launch(ctx.db, char["id"], session=ctx.session)
+        except Exception as _e:
+            log.debug("silent except in parser/space_commands.py launch-ach: %s", _e, exc_info=True)
 
 
 class LandCommand(BaseCommand):
@@ -6130,6 +6136,12 @@ class SalvageCommand(BaseCommand):
             f"  {ansi.DIM}[SALVAGE]{ansi.RESET} "
             f"Wreck exhausted. Nothing more to recover."
         )
+        # Achievement: anomaly_salvaged (salvage_king)
+        try:
+            from engine.achievements import on_anomaly_salvaged
+            await on_anomaly_salvaged(ctx.db, char["id"], session=ctx.session)
+        except Exception as _e:
+            log.debug("silent except in parser/space_commands.py salvage-ach: %s", _e, exc_info=True)
 
 
 class ShipNameCommand(BaseCommand):
