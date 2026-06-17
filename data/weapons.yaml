@@ -765,3 +765,194 @@ anti_vehicle_grenade:
   stun_capable: false
   single_use: true
   notes: "Galentro Armaments shaped-charge grenade. The book waives scale reduction against speeder-class vehicles — lore until vehicle-scale combat exists. Restricted everywhere; carrying one past a patrol is a bad day."
+
+# ── H1 fix (2026-06-17): faction-issued & chain-reward combat gear ─────────
+# These 14 keys are GRANTED via issue_equipment / purchase_commissary /
+# chain graduation/step rewards but were absent from the registry —
+# find_carried_gear called registry.get(key)→None and silently skipped
+# them, making granted weapons/armor unusable in combat (equip/wear
+# replied "You aren't carrying a weapon/armor matching '...'").
+#
+# Authoring notes:
+#   - ALL rows: vendor_stocked: false — faction-issued / tutorial gear
+#     must never appear in the open `buy` vendor.
+#   - Weapons re-statted to WEG R&E D6 by weapon class:
+#       DC-17  → blaster_pistol class (4D, 3-10/30/120) — catalog confirms
+#       DC-15A → blaster_rifle class, heavier build + long effective range
+#       officers_sidearm → heavy_blaster_pistol class (5D, 3-7/25/50) — catalog confirms
+#       E-5    → blaster_rifle class (5D, 3-30/100/300) — CIS standard rifle
+#       concealed_blaster → hold_out_blaster class (3D+1, 3-4/8/12)
+#   - Armor protection values derived from EQUIPMENT_CATALOG stub descriptions
+#     and WEG40120 field armor template (+1D physical, +2 energy per
+#     line 19230-19231; bounty hunter +2D phys/+1D energy per p. 226
+#     equipment table). Uniform/robe rows carry no combat protection —
+#     they are identifier garments only (per catalog descriptions).
+#   - Era-clean: all Clone Wars (~20 BBY) kit — no Imperial/GCW strings.
+
+# ── WEAPONS ─────────────────────────────────────────────────────────────────
+
+dc17_pistol:
+  name: "DC-17 Hand Blaster"
+  type: blaster
+  skill: "blaster"
+  damage: "4D"
+  ranges: [3, 10, 30, 120]
+  ammo: 100
+  cost: 0
+  scale: character
+  stun_capable: true
+  vendor_stocked: false
+  notes: "Republic-issue clone trooper sidearm. Compact, reliable — the standard clone pistol. WEG D6: blaster_pistol class (4D, stun setting). Faction-issued only; not for sale."
+
+dc15_blaster_rifle:
+  name: "DC-15A Blaster Rifle"
+  type: blaster
+  skill: "blaster"
+  damage: "5D"
+  ranges: [3, 40, 120, 400]
+  ammo: 500
+  cost: 0
+  scale: character
+  stun_capable: true
+  vendor_stocked: false
+  notes: "Standard Republic clone trooper longarm. Heavier build than a civilian rifle; extended range for open-field engagements. WEG D6: blaster_rifle class (5D), range extended to match 'long effective range' catalog note. Faction-issued only."
+
+officers_sidearm:
+  name: "Officer's Blaster Pistol"
+  type: blaster
+  skill: "blaster"
+  damage: "5D"
+  ranges: [3, 7, 25, 50]
+  ammo: 25
+  cost: 0
+  scale: character
+  stun_capable: true
+  vendor_stocked: false
+  notes: "DL-44 variant issued to senior officers. Heavy-pistol stopping power in a sidearm frame. WEG D6: heavy_blaster_pistol class (5D, 3-7/25/50) — catalog confirms '5D damage'. Faction-issued only."
+
+e5_blaster_rifle:
+  name: "E-5 Blaster Rifle"
+  type: blaster
+  skill: "blaster"
+  damage: "5D"
+  ranges: [3, 30, 100, 300]
+  ammo: 100
+  cost: 0
+  scale: character
+  stun_capable: false
+  vendor_stocked: false
+  notes: "Standard CIS battle rifle, issued to droid infantry and organic CIS operatives. WEG D6: blaster_rifle class (5D). No stun setting (CIS line doctrine — lethal only). Faction-issued only."
+
+concealed_blaster:
+  name: "Concealed Blaster"
+  type: blaster
+  skill: "blaster"
+  damage: "3D+1"
+  ranges: [3, 4, 8, 12]
+  ammo: 6
+  cost: 0
+  scale: character
+  stun_capable: true
+  vendor_stocked: false
+  notes: "A palm-sized holdout blaster, standard kit for intelligence operatives. Easily hidden under civilian clothes. WEG D6: hold_out_blaster class (3D+1, 3-4/8/12, stun capable). Chain-reward only; not for open sale."
+
+# ── ARMOR ────────────────────────────────────────────────────────────────────
+
+republic_uniform:
+  name: "Republic Service Uniform"
+  type: armor
+  protection_energy: ""
+  protection_physical: ""
+  covers: ["torso"]
+  dexterity_penalty: ""
+  cost: 0
+  vendor_stocked: false
+  notes: "Off-white Republic-issue tunic and trousers. Worn by clones and conscripts off-duty. No combat protection — identifier/faction garment only. Faction-issued only."
+
+republic_light_armor:
+  name: "Republic Combat Plate"
+  type: armor
+  protection_energy: ""
+  protection_physical: "+1D+2"
+  covers: ["head", "torso", "arms", "legs"]
+  dexterity_penalty: ""
+  cost: 0
+  vendor_stocked: false
+  notes: "Phase II clone trooper armor segments adapted for non-clone wearers. Physical soak only (+1D+2) — catalog description confirmed. No Dexterity penalty at standard fit. Faction-issued only."
+
+improved_armor:
+  name: "Improved Body Armor"
+  type: armor
+  protection_energy: "+1D"
+  protection_physical: "+2D"
+  covers: ["head", "torso", "arms", "legs"]
+  dexterity_penalty: "-1D"
+  cost: 0
+  vendor_stocked: false
+  notes: "Officer-grade composite armor. WEG D6: +2D physical / +1D energy soak, full-body coverage, -1D Dexterity penalty (full-body composite carries the standard movement penalty per the WEG40120 p.226 armor table). Mid-tier between the blast vest and the bounty hunter plate (+3D/+2D). Faction-issued at rank 2; not for open sale."
+
+smuggler_vest:
+  name: "Smuggler's Vest"
+  type: armor
+  protection_energy: ""
+  protection_physical: "+1D"
+  covers: ["torso"]
+  dexterity_penalty: ""
+  cost: 0
+  vendor_stocked: false
+  notes: "Multi-pocket vest with concealed plating. Catalog: '+1D physical soak; +2 storage.' Physical-only protection, torso cover. Storage bonus is lore until an encumbrance/storage consumer exists. Faction-issued only."
+
+padawan_robes:
+  name: "Padawan Robes"
+  type: armor
+  protection_energy: ""
+  protection_physical: ""
+  covers: ["torso"]
+  dexterity_penalty: ""
+  cost: 0
+  vendor_stocked: false
+  notes: "Tan and brown Jedi robes worn by apprentices. No combat protection — identifier garment marking the wearer as a member of the Jedi Order. Faction-issued only."
+
+jedi_robes:
+  name: "Jedi Knight Robes"
+  type: armor
+  protection_energy: ""
+  protection_physical: ""
+  covers: ["torso"]
+  dexterity_penalty: ""
+  cost: 0
+  vendor_stocked: false
+  notes: "The earned robes of a Jedi Knight. Sturdy weave with internal pockets for a lightsaber clip. No mechanical combat protection — the Jedi rely on Force and skill, not plating (per WEG40120 Jedi templates which list robes without armor values). Faction-issued only."
+
+cis_field_armor:
+  name: "CIS Field Armor"
+  type: armor
+  protection_energy: "+2"
+  protection_physical: "+1D"
+  covers: ["head", "torso"]
+  dexterity_penalty: ""
+  cost: 0
+  vendor_stocked: false
+  notes: "Standard CIS-issue field plate for organic operatives. WEG D6: field armor class (+1D physical, +2 energy, head+torso — per the WEG40120 generic field-armor-and-helmet stat block, lines 19230-19231). Chain graduation reward; not for open sale."
+
+flight_suit_republic:
+  name: "Republic Pilot Flight Suit"
+  type: armor
+  protection_energy: ""
+  protection_physical: "+1D"
+  covers: ["torso"]
+  dexterity_penalty: ""
+  cost: 0
+  vendor_stocked: false
+  notes: "Sealed flight suit with life support and Republic comm rig. Catalog: '+1D physical soak.' Physical protection only — the suit's primary value is environmental (sealed cockpit, life support), not combat plate. Faction-issued only."
+
+officers_uniform_republic:
+  name: "Republic Officer's Uniform"
+  type: armor
+  protection_energy: ""
+  protection_physical: ""
+  covers: ["torso"]
+  dexterity_penalty: ""
+  cost: 0
+  vendor_stocked: false
+  notes: "Pressed Republic Navy dress uniform with junior-officer insignia. No combat protection — identifier/rank garment only. Faction-issued only."

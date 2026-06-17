@@ -140,18 +140,28 @@ def _build_graduation_item(item_key: str, chain_id: str,
                            chain_label: str) -> dict:
     """Build an item dict for a graduation reward.
 
-    The item registry doesn't exist yet; chain reward items are
-    stub dicts with key + name + description marker. Downstream
-    inventory display reads `name`; downstream item-system
-    consumers (none today) read `key`.
+    H1 fix (2026-06-17): prefer registry name/slot for weapon/armor keys
+    so find_carried_gear can match the item after it's in inventory.
+    Fall back to _humanize_item_key for narrative props that are
+    legitimately registry-less (comlink_basic, fake_republic_id, etc.).
 
     Marking each gift with `chain_grad: <chain_id>` lets a future
     item-rebalance pass identify graduation-gift items vs. items
     obtained through play.
     """
+    from engine.weapons import get_weapon_registry
+    wr = get_weapon_registry()
+    reg_entry = wr.get(item_key)
+    if reg_entry is not None:
+        item_name = reg_entry.name
+        item_slot = "armor" if reg_entry.is_armor else "weapon"
+    else:
+        item_name = _humanize_item_key(item_key)
+        item_slot = "misc"
     return {
         "key": item_key,
-        "name": _humanize_item_key(item_key),
+        "name": item_name,
+        "slot": item_slot,
         "description": (
             f"A graduation gift from your {chain_label} training. "
             "Standard issue."
@@ -164,16 +174,30 @@ def _build_graduation_item(item_key: str, chain_id: str,
 def _build_step_item(item_key: str, chain_id: str, step: int) -> dict:
     """Build an item dict for a per-step chain reward (F.8.c.2.b₄).
 
-    Mirrors ``_build_graduation_item`` but tags with
-    ``chain_step: <chain_id>:<step>`` for traceability. Per-key
-    overrides from ``_STEP_ITEM_PROPERTIES`` get shallow-merged
+    H1 fix (2026-06-17): prefer registry name/slot for weapon/armor keys
+    so find_carried_gear can match the item after it's in inventory.
+    Fall back to _humanize_item_key for narrative props that are
+    legitimately registry-less.
+
+    Per-key overrides from ``_STEP_ITEM_PROPERTIES`` get shallow-merged
     onto the base shape — that's where ``consumable: true``,
-    ``use_message: ...``, narrative ``description`` overrides
-    land.
+    ``use_message: ...``, narrative ``description`` overrides land.
+    The override's ``name`` field (if any) takes precedence over the
+    registry name, preserving existing narrative-prop behaviour.
     """
+    from engine.weapons import get_weapon_registry
+    wr = get_weapon_registry()
+    reg_entry = wr.get(item_key)
+    if reg_entry is not None:
+        item_name = reg_entry.name
+        item_slot = "armor" if reg_entry.is_armor else "weapon"
+    else:
+        item_name = _humanize_item_key(item_key)
+        item_slot = "misc"
     base = {
         "key": item_key,
-        "name": _humanize_item_key(item_key),
+        "name": item_name,
+        "slot": item_slot,
         "description": (
             f"Acquired during your tutorial training "
             f"({chain_id}, step {step})."

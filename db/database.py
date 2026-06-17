@@ -5397,19 +5397,83 @@ class Database:
         return [dict(r) for r in rows]
 
     async def post_faction_mission(self, faction_id: str, **fields) -> int:
-        """Create a faction-tagged mission. Returns mission id."""
-        allowed = {
-            "mission_type", "title", "description", "reward",
-            "difficulty", "skill_required", "expires_at",
+        """Create a faction-tagged mission with a full Mission data blob.
+
+        H2 fix: old version wrote data='{}' so the in-memory board could
+        never deserialise it and accept/complete were permanently broken.
+        This version builds a proper Mission.to_dict() blob — keyed by a
+        slug id — so the board loads it, displays the slug, and the accept→
+        travel→complete→reward chain works unchanged.
+
+        Expected kwargs (all optional with sensible defaults):
+          mission_type      str  e.g. "patrol"
+          title             str  human display name
+          description       str  objective text (maps to Mission.objective)
+          reward            int  credits on completion
+          difficulty        str  "easy" / "moderate" / "hard"
+          skill_required    str  primary skill hint
+          expires_at        float  unix timestamp; defaults to now + 1 hr
+          giver             str  NPC name shown on mission detail
+          destination       str  room display name
+          destination_room_id str|int  DB room id for precise location check
+          faction_rep_required int  rep gate threshold (default 0)
+        """
+        import json as _j
+        import time as _t
+        import uuid as _u
+        from engine.missions import MissionType, MissionStatus, MISSION_TTL
+
+        mtype_str  = fields.get("mission_type", "patrol")
+        title      = fields.get("title", f"{faction_id.title()} Mission")
+        objective  = fields.get("description", "Complete the faction directive.")
+        reward     = int(fields.get("reward", 500))
+        difficulty = fields.get("difficulty", "moderate")
+        skill_req  = fields.get("skill_required", "") or ""
+        giver      = fields.get("giver", f"{faction_id.title()} handler")
+        dest_name  = fields.get("destination", "Faction HQ")
+        dest_rid   = fields.get("destination_room_id")
+        rep_req    = int(fields.get("faction_rep_required", 0))
+
+        now        = _t.time()
+        expires_at = fields.get("expires_at") or (now + MISSION_TTL)
+
+        # Slug id: "fm-<faction>-<32hex>" — distinct from open-board "m-..." slugs.
+        # Full uuid4 hex (not truncated) so the accept-path `data LIKE '%"id":
+        # "<slug>"%'` match can never collide across rapidly-posted missions.
+        slug_id = f"fm-{faction_id[:8]}-" + _u.uuid4().hex
+
+        try:
+            mtype = MissionType(mtype_str)
+        except ValueError:
+            mtype = MissionType.DELIVERY
+
+        blob = {
+            "id":                   slug_id,
+            "mission_type":         mtype.value,
+            "title":                title,
+            "giver":                giver,
+            "objective":            objective,
+            "destination":          dest_name,
+            "destination_room_id":  str(dest_rid) if dest_rid is not None else None,
+            "reward":               reward,
+            "required_skill":       skill_req,
+            "status":               MissionStatus.AVAILABLE.value,
+            "accepted_by":          None,
+            "created_at":           now,
+            "accepted_at":          None,
+            "expires_at":           expires_at,
+            "mission_data":         {},
+            "faction_code":         faction_id,
+            "faction_rep_required": rep_req,
         }
-        fields = {k: v for k, v in fields.items() if k in allowed}
-        fields["faction_id"] = faction_id
-        fields["status"] = "available"
-        cols = ", ".join(fields.keys())
-        placeholders = ", ".join("?" for _ in fields)
+
         cursor = await self._db.execute(
-            f"INSERT INTO missions ({cols}) VALUES ({placeholders})",
-            list(fields.values()),
+            """INSERT INTO missions
+               (mission_type, title, description, reward, skill_required,
+                faction_id, status, expires_at, data)
+               VALUES (?, ?, ?, ?, ?, ?, 'available', ?, ?)""",
+            (mtype.value, title, objective, reward, skill_req,
+             faction_id, expires_at, _j.dumps(blob)),
         )
         await self._db.commit()
         return cursor.lastrowid

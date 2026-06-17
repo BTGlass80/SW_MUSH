@@ -333,12 +333,24 @@ class FactionCommand(BaseCommand):
             f"  \033[1;37m{org_name.upper()} — MISSION BOARD\033[0m",
             f"\033[1;36m──────────────────────────────────────────\033[0m",
         ]
+        import json as _j
         for m in missions:
             diff_label = _DIFFICULTY_LABELS.get(
                 m.get("difficulty", "easy"), "Easy"
             )
+            # H2 fix: display the slug id from the data blob (not the integer PK)
+            # so 'accept <id>' routes correctly through the mission board lookup.
+            display_id = str(m["id"])
+            try:
+                blob = _j.loads(m.get("data") or "{}")
+                slug = blob.get("id", "")
+                if slug:
+                    display_id = slug
+            except Exception as _sle:
+                log.debug("[faction] slug extract failed for row %s: %s",
+                          m.get("id"), _sle)
             lines.append(
-                f"  \033[1;37m[{m['id']}]\033[0m {m['title']:<36} "
+                f"  \033[1;37m[{display_id}]\033[0m {m['title']:<36} "
                 f"\033[1;33m{m.get('reward', 0):,}cr\033[0m  "
                 f"\033[2m{diff_label}\033[0m"
             )
@@ -348,7 +360,8 @@ class FactionCommand(BaseCommand):
             "\033[1;36m──────────────────────────────────────────\033[0m"
         )
         lines.append(
-            "  Type \033[1;33mmission accept <id>\033[0m to accept a mission."
+            # H2 fix: correct verb is 'accept <id>', not 'mission accept <id>'
+            "  Type \033[1;33maccept <id>\033[0m to accept a mission."
         )
         lines.append("\033[1;36m══════════════════════════════════════════\033[0m")
         await ctx.session.send_line("\n".join(lines))

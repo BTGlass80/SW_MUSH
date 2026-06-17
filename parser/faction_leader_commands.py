@@ -29,6 +29,11 @@ log = logging.getLogger(__name__)
 
 _MIN_LEADER_RANK = 5  # Minimum rank to use leader commands
 
+# H2: the board-inject helper lives in engine/missions.py (the board's own
+# module) so both this parser command and the Director (engine) can call it
+# without an engine→parser import inversion.
+from engine.missions import inject_faction_mission_into_board
+
 
 async def _require_leader(ctx: CommandContext, org=None) -> tuple[bool, dict, dict]:
     """
@@ -522,6 +527,44 @@ async def _handle_mission(ctx: CommandContext, rest: str):
     description = aparts[2]
     title = f"{org['name']}: {mission_type.title()} Mission"
 
+    # H2 fix: resolve destination + rep gate so post_faction_mission can build
+    # a complete Mission blob.  Leader-posted missions turn in at the faction HQ.
+    hq_room_id = org.get("hq_room_id")
+    hq_name    = "Faction HQ"
+    if hq_room_id:
+        try:
+            hq_room = await ctx.db.get_room(int(hq_room_id))
+            if hq_room:
+                hq_name = hq_room.get("name", hq_name)
+        except Exception as _hqe:
+            log.debug("[faction_leader] HQ room lookup failed: %s", _hqe)  # graceful: fall back to generic name
+
+    # Pull rep_required from FACTION_MISSION_CONFIG when available.
+    rep_required = 0
+    try:
+        from engine.missions import FACTION_MISSION_CONFIG
+        cfg = FACTION_MISSION_CONFIG.get(faction_id)
+        if cfg:
+            rep_required = cfg.get("rep_required", 0)
+    except Exception as _rpe:
+        log.debug("[faction_leader] rep_required lookup failed: %s", _rpe)
+
+    # Skill hint from REQUIRED_SKILLS table (faction missions are flavour,
+    # not a separate skill economy — mirrors generate_faction_mission()).
+    skill_hint = ""
+    try:
+        from engine.missions import MissionType as _MT, REQUIRED_SKILLS
+        import random as _rnd
+        try:
+            _mtype = _MT(mission_type)
+            skill_hints = REQUIRED_SKILLS.get(_mtype, [])
+            if skill_hints:
+                skill_hint = _rnd.choice(skill_hints)
+        except ValueError:
+            log.debug("[faction_leader] unknown mission_type %r", mission_type)
+    except Exception as _she:
+        log.debug("[faction_leader] skill_hint lookup failed: %s", _she)
+
     mission_id = await ctx.db.post_faction_mission(
         faction_id,
         mission_type=mission_type,
@@ -529,15 +572,24 @@ async def _handle_mission(ctx: CommandContext, rest: str):
         description=description,
         reward=reward,
         difficulty="moderate",
-        skill_required="",
+        skill_required=skill_hint,
+        giver=f"{org['name']} leader",
+        destination=hq_name,
+        destination_room_id=hq_room_id,
+        faction_rep_required=rep_required,
     )
     await ctx.db.log_faction_action(
         char["id"], org["id"], "post_mission",
         f"Posted mission #{mission_id}: {title} ({reward}cr)"
     )
+
+    # H2 fix: inject the new mission into the in-memory board immediately so
+    # 'accept <slug>' works without waiting for the 30-minute refresh cycle.
+    await inject_faction_mission_into_board(ctx.db, mission_id)
+
     await ctx.session.send_line(
-        f"  \033[1;32mMission #{mission_id} posted.\033[0m\n"
-        f"  {title} — {reward:,} credits\n"
+        f"  \033[1;32mMission posted.\033[0m\n"
+        f"  {title} — {reward:,} credits  (turn in: {hq_name})\n"
         f"  Members can accept it via \033[1;33mfaction missions\033[0m."
     )
 

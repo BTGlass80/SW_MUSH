@@ -274,27 +274,43 @@ async def issue_equipment(char: dict, org_code: str, db,
     Issue a list of items to a character. Adds to inventory and records in
     issued_equipment table. Returns list of item names issued.
     Graceful-drop: never raises.
+
+    H1 fix (2026-06-17): prefer registry name/slot when the key resolves
+    in WeaponRegistry (weapon/armor items). Fall back to EQUIPMENT_CATALOG
+    stub for narrative props (comlink_basic, slicing_kit, etc.) that are
+    legitimately registry-less.
     """
+    from engine.weapons import get_weapon_registry
     issued_names = []
     try:
         org = await db.get_organization(org_code)
         if not org:
             return issued_names
 
+        wr = get_weapon_registry()
         for key in item_keys:
             catalog_entry = EQUIPMENT_CATALOG.get(key)
             if not catalog_entry:
                 log.warning("[orgs] Unknown equipment key: %s", key)
                 continue
 
-            item_name = catalog_entry["name"]
+            # H1: prefer registry name/slot for weapon/armor keys so
+            # find_carried_gear can always match by display name.
+            reg_entry = wr.get(key)
+            if reg_entry is not None:
+                item_name = reg_entry.name
+                item_slot = "armor" if reg_entry.is_armor else "weapon"
+            else:
+                item_name = catalog_entry["name"]
+                item_slot = catalog_entry.get("slot", "misc")
+
             # Build the inventory payload; conditionally pass skill_bonus
             # when the catalog entry carries one (generic passthrough —
             # future tools need only the data field, not code changes).
             inv_item = {
                 "key":         key,
                 "name":        item_name,
-                "slot":        catalog_entry.get("slot", "misc"),
+                "slot":        item_slot,
                 "description": catalog_entry.get("description", ""),
                 "faction_issued": True,
                 "faction_code":   org_code,

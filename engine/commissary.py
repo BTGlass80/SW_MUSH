@@ -222,13 +222,25 @@ async def purchase_commissary(db, char: dict, faction_code, rank_level, key) -> 
         return {"ok": False, "reason": "charge_failed"}
 
     try:
+        # H1 fix (2026-06-17): prefer registry name/slot for weapon/armor
+        # keys so find_carried_gear can match by display name after purchase.
+        from engine.weapons import get_weapon_registry
+        wr = get_weapon_registry()
+        reg_entry = wr.get(item["key"])
+        if reg_entry is not None:
+            resolved_name = reg_entry.name
+            resolved_slot = "armor" if reg_entry.is_armor else "weapon"
+        else:
+            resolved_name = item["name"]
+            resolved_slot = item["slot"]
+
         # Build the inventory payload; conditionally pass skill_bonus
         # when the stock entry carries one (generic passthrough —
         # future tools need only the data field, not code changes).
         inv_item = {
             "key":            item["key"],
-            "name":           item["name"],
-            "slot":           item["slot"],
+            "name":           resolved_name,
+            "slot":           resolved_slot,
             "description":    item.get("desc", ""),
             "faction_issued": True,
             "faction_code":   str(faction_code).strip().lower(),
