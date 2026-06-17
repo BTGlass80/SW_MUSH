@@ -63,6 +63,44 @@ MOCK_HUD = {
     "cp_progress": {"current": 8, "this_week": 35, "cap": 400},
 }
 
+# A representative ground combat_state for the combat-strip (the combat HUD).
+MOCK_COMBAT = {
+    "active": True, "round": 2, "phase": "declaration", "theatre": "ground",
+    "combatants": [
+        {"id": 1, "name": "Tey Voss", "is_player": True, "wound_level": 0,
+         "wound_name": "Healthy", "initiative": 17, "declared": True,
+         "action_summary": "attack Jawa Scrap Boss", "cover": 1, "aim_bonus": 0, "is_fleeing": False},
+        {"id": 2, "name": "Jawa Scrap Boss", "is_player": False, "wound_level": 2,
+         "wound_name": "Wounded", "initiative": 10, "declared": False,
+         "action_summary": None, "cover": 0, "aim_bonus": 0, "is_fleeing": False},
+        {"id": 3, "name": "Gamorrean Thug", "is_player": False, "wound_level": 1,
+         "wound_name": "Stunned", "initiative": 8, "declared": True,
+         "action_summary": "attack Tey Voss", "cover": 2, "aim_bonus": 0, "is_fleeing": False},
+    ],
+    "your_actions": ["attack Jawa Scrap Boss with blaster"],
+    "waiting_for": ["Jawa Scrap Boss"],
+    "pose_deadline": None,
+    "events": [
+        {"attacker": "Tey Voss", "target": "Jawa Scrap Boss", "result": "hit", "wound": "Wounded", "weapon": "blaster"},
+        {"attacker": "Gamorrean Thug", "target": "Tey Voss", "result": "parried", "wound": "", "weapon": "vibro-axe"},
+        {"attacker": "Tey Voss", "target": "Gamorrean Thug", "result": "hit", "wound": "Stunned", "weapon": "blaster"},
+    ],
+}
+
+
+def _make_instrumented_client():
+    """Write a temp client copy that ALSO exposes handleCombatState on window so
+    we can drive the integrated ground-combat HUD (which the production client
+    only reaches via a live WebSocket)."""
+    src = open(os.path.join(os.path.dirname(__file__), "..", "static", "client.html"),
+               encoding="utf-8").read()
+    needle = "window.handleHudUpdate = handleHudUpdate;"
+    assert needle in src, "exposure anchor not found in client.html"
+    src = src.replace(needle, needle + "\n  window.handleCombatState = handleCombatState;", 1)
+    out = os.path.join(os.path.dirname(__file__), "..", "static", "_client_instrumented.html")
+    open(out, "w", encoding="utf-8", newline="").write(src)
+    return "/static/_client_instrumented.html"
+
 
 def _shoot(page, name, full=True):
     path = os.path.join(OUT, name + ".png")
@@ -127,11 +165,12 @@ def run():
             var fixture = spec.fixtureKey ? ns[spec.fixtureKey] : (spec.data || undefined);
             var noop = function(){};
             if (spec.mode === 'container') {
-              // render(container, data, onCommand) — renders INTO a container.
+              // render(container, data, ...) — renders INTO a container.
               var c = document.createElement('div');
               c.style.cssText = 'width:1180px;max-width:96vw;';
               document.body.appendChild(c);
-              fn(c, fixture, noop);
+              if (spec.stage !== undefined) fn(c, fixture, spec.stage, noop);
+              else fn(c, fixture, noop);
               return 'ok';
             }
             // build(p, data, hooks) → returns an element (or HTML string).
@@ -174,6 +213,31 @@ def run():
             ("06_sheet",   {"ns": "M3Sheet",   "fn": "buildCharacterSheetModal", "fixtureKey": "TEY_V2_FIXTURE", "mode": "build"}),
             ("07_shop",    {"ns": "M3Shop",    "fn": "render", "data": _shop_data, "mode": "container"}),
             ("08_inventory", {"ns": "M3Inventory", "fn": "render", "data": _inv_data, "mode": "container"}),
+            # Self-contained showcases/builders (use each module's internal fixtures):
+            ("11_space_cockpit", {"ns": "M3Cockpit", "fn": "buildCockpitView", "fixtureKey": None, "mode": "build"}),
+            ("12_skill_check", {"ns": "M3SkillCheck", "fn": "buildSkillCheckShowcase", "fixtureKey": None, "mode": "build"}),
+            ("13_holocron", {"ns": "M3Holocron", "fn": "buildHolocronModal", "fixtureKey": None, "mode": "build"}),
+            ("15_craft", {"ns": "M3Craft", "fn": "render", "data": {
+                "resources": [{"name": "Durasteel", "qty": 4, "quality": 62},
+                              {"name": "Power Cell", "qty": 3, "quality": 80},
+                              {"name": "Fiberplast", "qty": 2, "quality": 55}],
+                "schematics": [
+                    {"key": "dl44", "name": "DL-44 Heavy Blaster", "tier": 1, "difficulty": 12, "can_craft": True,
+                     "skill": "blaster repair", "materials": [{"name": "durasteel", "have": 4, "need": 3}, {"name": "power_cell", "have": 3, "need": 2}]},
+                    {"key": "blast_vest", "name": "Blast Vest", "tier": 1, "difficulty": 10, "can_craft": True,
+                     "skill": "armor repair", "materials": [{"name": "fiberplast", "have": 2, "need": 2}]},
+                    {"key": "vibroblade", "name": "Vibroblade", "tier": 2, "difficulty": 15, "can_craft": False,
+                     "skill": "melee repair", "materials": [{"name": "phrik", "have": 0, "need": 1}]}],
+                "last_result": {"success": True, "item": "DL-44 Heavy Blaster", "quality": 71}}, "mode": "container"}),
+            ("16_board", {"ns": "M3Board", "fn": "render", "data": {
+                "claimed_id": None,
+                "contracts": [
+                    {"id": 1, "target": "Vex Drago", "faction": "Hutt Cartel", "reward": 18000, "tier": "veteran",
+                     "desc": "Sullustan smuggler wanted alive for double-crossing Jabba on the Kessel run.", "status": "open"},
+                    {"id": 2, "target": "Renta Voss", "faction": "Bounty Guild", "reward": 6500, "tier": "standard",
+                     "desc": "Skipped bail in Mos Espa. Last seen near the podracing arena.", "status": "open"},
+                    {"id": 3, "target": "The Whisper", "faction": "Independent", "reward": 32000, "tier": "deadly",
+                     "desc": "Information broker. Dead or alive. Approach with extreme caution.", "status": "open"}]}, "mode": "container"}),
         ]
         for name, spec in modals:
             try:
@@ -189,6 +253,30 @@ def run():
                 page.close()
             except Exception as e:
                 results["fail"].append(f"{name}: {str(e)[:120]}")
+
+        # ── Ground combat HUD (instrumented client: hud_update then combat_state) ──
+        try:
+            inst_url = _make_instrumented_client()
+            page = ctx.new_page()
+            page.goto(BASE + inst_url, wait_until="networkidle", timeout=20000)
+            page.wait_for_timeout(700)
+            page.evaluate("(hud) => { try { window.handleHudUpdate(hud); } catch(e){} }", MOCK_HUD)
+            page.wait_for_timeout(400)
+            err = page.evaluate(
+                "(cs) => { try { window.handleCombatState(cs); return null; } catch(e){ return String(e); } }",
+                MOCK_COMBAT)
+            page.wait_for_timeout(900)
+            if err:
+                results["fail"].append(f"14_ground_combat: handleCombatState threw: {err[:100]}")
+            _shoot(page, "14_ground_combat", full=False)
+            results["ok"].append("14_ground_combat"); page.close()
+        except Exception as e:
+            results["fail"].append(f"14_ground_combat: {str(e)[:120]}")
+        finally:
+            try:
+                os.remove(os.path.join(os.path.dirname(__file__), "..", "static", "_client_instrumented.html"))
+            except Exception:
+                pass
 
         browser.close()
     print("\n=== CAPTURE SUMMARY ===")

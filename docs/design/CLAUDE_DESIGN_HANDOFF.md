@@ -63,15 +63,28 @@ about layout/visual design, not the specific values — e.g. shop prices show pl
 | 07 | `07_shop.png` | **Shop / vendor** panel (droid tabs + slot-tagged items + BUY) | the commerce surface |
 | 08 | `08_inventory.png` | **Inventory** panel (equipped + carried) | gear management |
 | 09 | `09_map_preview.png` | **Area map** renderer (standalone preview) | the spatial/navigation surface |
+| 14 | `14_ground_combat.png` | **Ground combat HUD** — the combat strip over the ground view (initiative cards w/ wound rungs + declared actions, YOUR ACTIONS / WAITING ON, and the color-coded damage feed) | the core combat experience |
+| 11 | `11_space_cockpit.png` | **Space cockpit / flight console** — the full space mode (tactical radar, target lock, hull/shields/systems, crew stations, hyperspace plot, comms, and the space combat declaration strip) | the whole space + space-combat experience |
+| 12 | `12_skill_check.png` | **Skill-check** showcase (unopposed + opposed rolls, dice pools, difficulty, result callouts) | the D6 dice-resolution UX |
+| 13 | `13_holocron.png` | **Holocron** in-game knowledge/lore browser (modal) | the codex/learning surface |
+| 15 | `15_craft.png` | **Crafting** panel (schematics + resource ledger + last-result) | the crafting system |
+| 16 | `16_board.png` | **Jobs / bounty board** (tier filter chips + contract cards + reward hierarchy) | the contract/mission surface |
 
 ## 5. Known gaps / caveats
-- **Combat panel is not in the set.** It's event-driven (renders from a live
-  `combat_resolution_event` / `combat_state` stream), so a faithful capture needs a live
-  in-combat session rather than a fixture. If combat UX is in scope, grab it from a live
-  game (engage an NPC) — flag and we'll capture it.
-- The **ground view (04)** shows representative mock data; the live game populates the
-  HERE/occupants panel + a real area map. The *layout* is faithful.
-- Shop **prices ("0 cr")** are a mock-data artifact, not a UI bug.
+- **All in-game surfaces show representative MOCK data** (sample char "Tey Voss" in Mos
+  Eisley / sample combat + ships). The review is about **layout / visual design / UX flow**,
+  not the values: e.g. the shop shows "0 cr" and the bounty board shows "?" target/faction
+  fields — those are mock-data field mismatches, not UI bugs. The *layouts* are faithful
+  (these are the real production components + CSS).
+- **Surfaces best captured from a LIVE session** (the definitive end-of-hardening pass will
+  re-capture everything live so it reflects the final UI + real data): the **combat-mechanics
+  inspector** (the collapsible per-hit dice/soak/wound breakdown — event-driven, no fixture),
+  the **region/territory** view, the **onboarding/tutorial overlay**, and the live-populated
+  **HERE/occupants** + **area-map** panels on the ground view (04). Nothing here blocks the
+  review — they round out coverage.
+- These 15 are a **current snapshot** for an early review. When the UI is locked (incl. the
+  new public name + landing changes), `python tools/capture_ui_screenshots.py` regenerates
+  the set; the final pass will be captured against a live server for full fidelity.
 
 ## 6. Where the code lives (if you want to inspect markup/CSS)
 - Main client + all CSS: `static/client.html` (single file, ~13k lines).
