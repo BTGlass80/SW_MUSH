@@ -6,6 +6,12 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-17 — QA M1 + L4: LandCommand safety — emergency landing + hyperspace guard (Sonnet loop) — *drop qa-m1-l4-land-safety*
+Closes QA findings **M1** and **L4** from `docs/design/QA_FINDINGS_2026-06-16.md`. Both are loop-safe `parser/space_commands.py` LandCommand fixes.
+- **M1 (pilot stranded in space):** LandCommand hard-refused landing when `credits < docking_fee` (25cr base), permanently stranding any pilot who spent credits while in orbit. Fixed with an emergency-landing path: `actual_fee = min(credits, docking_fee)`; if `actual_fee < docking_fee`, pilot gets a warning message and lands for free (or charges whatever is available); the success broadcast uses `actual_fee` so the fee is accurate. No pilot can ever be stranded in space by a lack of docking credits.
+- **L4 (hyperspace guard):** LandCommand had no `in_hyperspace` check; landing mid-jump would set `docked_at` while `in_hyperspace=True` simultaneously — an impossible ship state that would mis-teleport on the next tick. Fixed: `_get_systems(ship)` is called immediately after the pilot check, and `in_hyperspace=True` returns an error before any bay lookup or credit deduction.
+- **`tests/test_qa_m1_l4_land_safety.py` (9 tests):** Source-inspection drift guards (L4 guard present; M1 emergency-landing path present, no hard refusal; `actual_fee` variable present; success message uses `actual_fee`); plus a harness regression confirming the normal launch+land arc with sufficient credits still works. No schema change, no faucet/sink imbalance, era-clean.
+
 ### 2026-06-17 — QA H4: planet-trade pricing/supply restored — `land` keeps `current_zone` (Opus loop) — *drop qa-h4-land-current-zone*
 Closes QA finding **H4** (loop-safe per `docs/design/QA_FINDINGS_2026-06-16.md`). The planet-trade economy was silently dead in production: `parser/space_commands.py` `LandCommand` popped `systems["current_zone"]` on every land, but the docked trade surface (`market` / cargo `buy` / cargo `sell`) resolves *which planet you're docked at* via `current_zone → ZONES[zone].planet`. With the zone gone, the next docked trade read an **empty** planet →
 - `get_planet_price(good, "")` collapsed to a flat base price (the source-discount + demand-premium that make trade routes profitable never applied — every market quoted a flat 100%); and

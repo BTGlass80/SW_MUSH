@@ -1313,6 +1313,10 @@ class LandCommand(BaseCommand):
         if crew.get("pilot") != ctx.session.character["id"]:
             await ctx.session.send_line("  Only the pilot can land.")
             return
+        systems = _get_systems(ship)
+        if systems.get("in_hyperspace"):
+            await ctx.session.send_line("  Cannot land while in hyperspace!")
+            return
         # Planet-aware bay lookup: find docking bay for the planet we're orbiting
         _land_planet = None
         try:
@@ -1356,11 +1360,12 @@ class LandCommand(BaseCommand):
             pass
         char = ctx.session.character
         credits = char.get("credits", 0)
-        if credits < docking_fee:
+        actual_fee = min(credits, docking_fee)
+        if actual_fee < docking_fee:
             await ctx.session.send_line(
-                f"  Not enough credits for docking fee! Need {docking_fee}cr.")
-            return
-        char["credits"] = await ctx.db.adjust_credits(char["id"], -docking_fee, "docking_fee")
+                f"  Emergency landing! Insufficient credits for {docking_fee}cr docking fee.")
+        if actual_fee > 0:
+            char["credits"] = await ctx.db.adjust_credits(char["id"], -actual_fee, "docking_fee")
         await ctx.db.update_ship(ship["id"], docked_at=bay["id"])
         get_space_grid().remove_ship(ship["id"])
         # Traffic: a docked ship is already excluded from all space traffic /
@@ -1377,7 +1382,7 @@ class LandCommand(BaseCommand):
             ship["bridge_room_id"],
             ansi.success(
                 f"  {ship['name']} docks at {bay['name']}. "
-                f"(Docking fee: {docking_fee}cr)"))
+                f"(Docking fee: {actual_fee}cr)"))
         await ctx.session_mgr.broadcast_to_room(
             bay["id"], f"  The {ship['name']} settles onto the landing pad.")
         # Space HUD: send inactive state so client reverts to ground mode
