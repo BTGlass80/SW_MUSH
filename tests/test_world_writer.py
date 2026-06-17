@@ -327,10 +327,12 @@ class TestRoomsManifest:
     def test_manifest_room_count(self, write_result):
         _, result = write_result
         manifest = build_rooms_manifest(result)
-        # 287 = 280 pre-Lane-D + 7 Geonosis arc rooms (Gladiator Barracks
-        # interior zone + E'Y-Akh anchors), 2026-06-07 drop.
-        assert len(manifest["rooms"]) == 287
-        assert len(manifest["by_id"]) == 287
+        # 292 = 287 (280 pre-Lane-D + 7 Geonosis arc rooms: Gladiator Barracks
+        # interior zone + E'Y-Akh anchors, 2026-06-07 drop) + 5 space-zone
+        # anchor rooms (QA L7, commit c0798e6: one *_system_ship_approach
+        # anchor per previously-empty space zone).
+        assert len(manifest["rooms"]) == 292
+        assert len(manifest["by_id"]) == 292
 
     def test_manifest_round_trips(self, write_result):
         _, result = write_result
