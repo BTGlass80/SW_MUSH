@@ -6,6 +6,11 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-17 — QA L2: 0D force-attribute lockout fixed — *drop qa-l2-force-0d-lockout* (Sonnet loop)
+A character whose `attributes` JSON contained `control`/`sense`/`alter` = `'0D'` was incorrectly reconstructed as `force_sensitive=True` (key presence triggered the flag) but then **rejected by every Force command** (`list_powers_for_char` checks `pool.dice > 0 or pool.pips > 0` → False for 0D). The player was trapped: shown as Force-sensitive, locked out of all powers.
+- **`engine/character.py` `from_db_dict`:** refactored the force-attribute loop to capture the parsed `DicePool` first; `force_sensitive = True` is now only set if `not pool.is_zero()`. A `village_chosen_path`-committed Jedi with 0D attrs still gets the safety-net `force_sensitive=True` from the existing failsafe (intact). No behavior change for chars with 1D+ attrs.
+- **`tests/test_qa_l2_force_0d_lockout.py`** (8): all-zero attrs → not-force-sensitive; pip-only pool → force-sensitive; mixed 0D+non-zero → force-sensitive; committed path + 0D → failsafe preserves True.
+
 ### 2026-06-17 — QA H2: faction-mission reconciliation — live DB path made canonical + complete — *drop qa-h2-faction-missions*
 Resolves design call `H2.faction_mission_system_reconciliation` → **Option A** (Brian: best/most-complete). Two faction-mission systems coexisted and neither yielded an acceptable+completable mission. **Decision: make the LIVE leader/Director DB path canonical** (the unwired procedural `generate_faction_mission` would have *deleted* player-leadership + Director-authored faction missions — both author angles preserved instead).
 - **`db/database.py` `post_faction_mission`:** was writing `data='{}'` (board discarded it). Now writes a full slug-keyed `Mission.to_dict()` blob — slug id `fm-<faction>-<uuid4 hex>` (full hex so the accept-path `data LIKE` can't collide), `faction_code`, `faction_rep_required`, `objective`, reward, and a real **`destination_room_id` (the completion model)**.
