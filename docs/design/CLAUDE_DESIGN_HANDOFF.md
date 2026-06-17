@@ -47,16 +47,18 @@ actionable fixes. The dev side executes it.
   from the working title "SW_MUSH" to an original, non-trademarked name.)
 
 ## 4. Screenshot index
-Captured at 1440×900, 2× DPI, system Edge. *Note: the in-game surfaces are populated with
-representative MOCK data (a sample character "Tey Voss" in Mos Eisley) so the review is
-about layout/visual design, not the specific values — e.g. shop prices show placeholder
-"0 cr".*
+Captured at 1440×900, 2× DPI, system Edge. *Note: the **pre-login surfaces (01 landing, 02
+login, 03/03b chargen) are captured LIVE against the real backend** — real data, the actual
+new-player funnel. The **in-game** surfaces (04+) are populated with representative MOCK data
+(a sample character "Tey Voss" in Mos Eisley) so the review is about layout/visual design,
+not the specific values — e.g. shop prices show placeholder "0 cr".*
 
 | # | File | Surface | Notes |
 |---|------|---------|-------|
 | 01 | `01_landing_portal.png` | **Landing / portal** (pre-login marketing+pitch surface) | first impression; the conversion hook |
 | 02 | `02_login_boot.png` | **Login / boot** screen | the SPA boot + auth entry |
-| 03 | `03_chargen.png` | **Character creation** wizard | the onboarding funnel |
+| 03 | `03_chargen.png` | **Character creation** — step 1, *Choose Your Path* (9 era-correct templates + Build From Scratch) | the onboarding funnel entry; **captured live** (real backend data) |
+| 03b | `03b_chargen_attributes.png` | **Character creation** — step 3, *Allocate Attributes* (18D across the six D6 attributes w/ ± steppers, live remaining-dice counter) | the core chargen interaction; **captured live** |
 | 04 | `04_ground_play.png` | **Integrated ground client** — the core play view (sidebar: char/condition/attributes/credits/CP/loadout · center: room · context panel: map/zone-influence/recent · command bar) | the most-used surface; one minor sub-panel (HERE/occupants) was skipped by a mock-data gap — its layout slot is visible |
 | 05 | `05_holonet.png` | **Holonet** in-game news browser (modal) | the Director-AI news surface |
 | 06 | `06_sheet.png` | **Character sheet** (modal) | full D6 stats |
