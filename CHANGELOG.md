@@ -6,6 +6,12 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-17 — QA L1: Insight trial requires Saro dialogue first (Sonnet loop) — *drop qa-l1-insight-saro-required*
+Closes QA finding **L1** from `docs/design/QA_FINDINGS_2026-06-16.md`.
+- **Root cause:** `engine/village_trials.py::accuse_insight_fragment` fell back to `correct = 2` (hardcoded) when `village_trial_insight_correct_fragment` was 0, meaning a player who skipped the Elder Saro Veck dialogue and guessed `accuse fragment_2` would instantly pass the Trial of Insight — no roleplay required.
+- **Fix:** when `correct == 0` (Saro not yet consulted), the function now blocks with "Before making your accusation you must speak with Elder Saro Veck at the Council Hut." The Saro check is moved **before** the attempt counter so blocked attempts do not count against the player.
+- **`tests/test_qa_l1_insight_saro_required.py` (7 tests):** block without Saro (all three fragment choices); correct fragment not passing without Saro; attempt counter stays 0 when blocked; correct/wrong behavior unchanged after Saro consulted; drift guard asserting `correct = 2` fallback no longer exists in source. No schema change, no faucet/sink, era-clean, single-file change.
+
 ### 2026-06-17 — QA M4 + L3: on_planet_visited wired + advance_skill dead branch removed (Sonnet loop) — *drop qa-m4-l3-planet-achievement*
 Closes QA findings **M4** and **L3** from `docs/design/QA_FINDINGS_2026-06-16.md`.
 - **M4 (`on_planet_visited` never called):** The "Galaxy Traveler" achievement (visit 4 unique non-Tatooine planets, `data/achievements.yaml`) was permanently stuck at 0% — `engine/achievements.py::on_planet_visited` existed but was never called from anywhere. Additionally the hook used the additive `check_achievement` path with `count=planets_count` (the TOTAL), which would have accumulated counts multiplicatively on every landing, overshooting the trigger threshold. Fix (two parts): (1) `on_planet_visited` now uses the high-water-mark pattern (same as `on_room_visited`) — iterates `_BY_EVENT["planets_visited"]` directly, SETs progress to the total count, and awards/upserts correctly. (2) `parser/space_commands.py LandCommand.execute` now calls `on_planet_visited` (via a guarded block after the `on_planet_land` call) for all non-Tatooine landings, reading `planets_visited` count from `char["attributes"]` (already updated by `on_planet_land`). No schema change, no faucet/sink, era-clean.

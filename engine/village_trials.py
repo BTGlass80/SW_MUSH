@@ -2781,15 +2781,19 @@ async def accuse_insight_fragment(session, db, char: dict, fragment_arg: str) ->
         )
         return True
 
-    # Increment attempt counter
+    correct = get_insight_correct_fragment(char)
+    if correct == 0:
+        # Player skipped the Saro dialogue — block the accusation
+        await session.send_line(
+            "  Before making your accusation you must speak with "
+            "Elder Saro Veck at the Council Hut.\n"
+            "  His counsel will reveal which fragment bears the Sith taint."
+        )
+        return True
+
+    # Increment attempt counter (only for valid attempts after consulting Saro)
     attempts = int(char.get("village_trial_insight_attempts") or 0) + 1
     char["village_trial_insight_attempts"] = attempts
-
-    correct = get_insight_correct_fragment(char)
-    # If somehow not set (shouldn't happen if Saro hook ran first), set it now
-    if correct == 0:
-        correct = 2
-        char["village_trial_insight_correct_fragment"] = correct
 
     if fnum == correct:
         # ─── Correct ─────────────────────────────────────────────────
