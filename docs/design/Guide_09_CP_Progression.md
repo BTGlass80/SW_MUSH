@@ -11,9 +11,9 @@
 
 ### Player Rules
 
-Character Points (CP) are your advancement currency. You earn CP over time through a tick-based economy, then spend CP to improve your skills. The system is designed for long-term engagement — advancing a skill from 3D to 5D takes roughly 7 months of active play.
+Character Points (CP) are your advancement currency. You earn CP over time through a tick-based economy, then spend CP to improve your skills. The system is designed for long-term engagement — advancing a skill from 3D to 5D takes roughly 5 months of active play.
 
-**The core loop:** Earn ticks through roleplay → accumulate 300 ticks → receive 1 CP → spend CP to train skills.
+**The core loop:** Earn ticks through roleplay → accumulate 200 ticks → receive 1 CP → spend CP to train skills.
 
 ---
 
@@ -21,18 +21,18 @@ Character Points (CP) are your advancement currency. You earn CP over time throu
 
 ### Player Rules
 
-**300 ticks = 1 Character Point.** There's a weekly hard cap of 300 ticks (max 1 CP/week from tick accumulation alone). Four income sources feed the tick pool:
+**200 ticks = 1 Character Point.** There's a weekly hard cap of 400 ticks (max 2 CP/week from tick accumulation alone). Four income sources feed the tick pool:
 
 **Source 1 — Passive Participation (Floor)**
-- 5 ticks/day just for being logged in
+- 10 ticks/day just for being logged in
 - Guaranteed floor income — you earn just by showing up
-- ~35 ticks/week at daily login = roughly 1 CP every 8.5 weeks from passive alone
+- ~70 ticks/week at daily login = roughly 1 CP every ~3 weeks from passive alone
 
 **Source 2 — Scene Completion Bonus**
 - Earn ticks when a roleplay scene ends based on how many poses you contributed
 - 2 ticks per pose above a 3-pose minimum, capped at 60 ticks per scene
 - 10-minute cooldown between scene bonuses
-- A 30-pose scene earns the maximum 54 ticks
+- A 30-pose scene earns 54 ticks (the 60-tick cap is reached around 33 poses)
 
 **Source 3 — Kudos (Dominant Source)**
 - Other players award you kudos for good roleplay: `+kudos <player>`
@@ -46,7 +46,7 @@ Character Points (CP) are your advancement currency. You earn CP over time throu
 - Lowest priority; degrades gracefully when GPU is busy
 - Bonus, not something to rely on
 
-**Target progression:** ~1 CP per 10–12 days for an actively roleplaying player who receives regular kudos.
+**Target progression:** about **1 CP per week** for an actively roleplaying player who receives regular kudos — up to **2 CP/week** if you consistently hit the weekly tick cap.
 
 ### 🔧 Developer Internals
 
@@ -54,9 +54,9 @@ Character Points (CP) are your advancement currency. You earn CP over time throu
 
 **Constants:**
 ```
-TICKS_PER_CP = 300
-WEEKLY_CAP_TICKS = 300
-PASSIVE_TICKS_PER_DAY = 5
+TICKS_PER_CP = 200
+WEEKLY_CAP_TICKS = 400
+PASSIVE_TICKS_PER_DAY = 10
 SCENE_MIN_POSES = 3
 SCENE_TICKS_PER_POSE = 2
 SCENE_MAX_TICKS = 60
@@ -109,7 +109,7 @@ train space transports    — Advance Space Transports by 1 pip
 | 5D+1 → 5D+2 | 5 CP | 18 CP |
 | 5D+2 → 6D | 5 CP | 23 CP |
 
-So going from 4D+1 to 6D costs 23 CP total. At ~1 CP per 10–12 days, that's roughly 7–9 months. This is intentionally slow — skill advancement is the long-term progression carrot.
+So going from 4D+1 to 6D costs 23 CP total. At about 1 CP/week that's roughly 5–6 months — closer to 3 months if you consistently hit the weekly cap. This is intentionally slow — skill advancement is the long-term progression carrot.
 
 **Three pips = one die.** Each pip costs the same (the current dice count), and every third pip rolls up to a new die. The cost increases at each die boundary.
 
@@ -173,10 +173,10 @@ Kudos are the social recognition mechanic — the primary way players reward eac
 - Can't kudos yourself
 - 7-day rolling lockout per giver→target pair (you can kudos Tundra once per week)
 - Target can receive max 3 kudos per rolling 7-day window
-- Both players must be in the same room
+- Players do not need to be in the same room to give kudos
 - Each kudos = 35 ticks toward the recipient's CP
 
-**Why kudos matter:** At 35 ticks per kudos and 3 receivable per week, kudos are worth 105 ticks/week — over a third of the 300-tick weekly cap. A player who consistently receives kudos advances significantly faster than one who doesn't. This creates a positive feedback loop: good roleplay → kudos from peers → faster advancement.
+**Why kudos matter:** At 35 ticks per kudos and 3 receivable per week, kudos are worth 105 ticks/week — over a quarter of the 400-tick weekly cap. A player who consistently receives kudos advances significantly faster than one who doesn't. This creates a positive feedback loop: good roleplay → kudos from peers → faster advancement.
 
 ### 🔧 Developer Internals
 
@@ -209,7 +209,7 @@ These bonuses give active, exploring players a significant CP advantage over pas
 
 Several design features prevent CP farming:
 
-- **Weekly hard cap (300 ticks):** No matter how active you are, you can't earn more than 1 CP/week from ticks
+- **Weekly hard cap (400 ticks):** No matter how active you are, you can't earn more than 2 CP/week from ticks
 - **Kudos lockout (7-day per pair):** Can't repeatedly kudos the same person
 - **Scene cooldown (10 minutes):** Can't spam short scenes for ticks
 - **Kudos receive cap (3/week):** Can't collect unlimited kudos
@@ -225,15 +225,15 @@ Several design features prevent CP farming:
 
 ### Player Rules
 
-Realistic advancement timeline for an active player (~1 CP every 10–12 days):
+Realistic advancement timeline for an active player at the **~1 CP/week** target (times roughly halve if you consistently hit the 2 CP/week cap):
 
 | Goal | CP Needed | Time |
 |------|-----------|------|
-| One pip (e.g., 4D → 4D+1) | 4 CP (at 4D) | ~6 weeks |
-| One die (4D → 5D) | 12 CP (4+4+4) | ~4 months |
-| Two dice (3D → 5D) | 21 CP (3+3+3+4+4+4) | ~7 months |
-| Three dice (3D → 6D) | 36 CP | ~12 months |
-| Specialist peak (3D → 7D) | 57 CP | ~19 months |
+| One pip (e.g., 4D → 4D+1) | 4 CP (at 4D) | ~4 weeks |
+| One die (4D → 5D) | 12 CP (4+4+4) | ~3 months |
+| Two dice (3D → 5D) | 21 CP (3+3+3+4+4+4) | ~5 months |
+| Three dice (3D → 6D) | 36 CP | ~8 months |
+| Specialist peak (3D → 7D) | 54 CP | ~12 months |
 
 This pacing is designed so that character advancement is meaningful but never a wall. A dedicated player sees steady, visible progress without anyone becoming overpowered quickly. The spread between a new character (3D–4D skills) and a veteran (~6D–7D) is significant but not insurmountable.
 

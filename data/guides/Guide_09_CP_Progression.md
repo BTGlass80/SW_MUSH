@@ -15,7 +15,7 @@ tags: ["cp", "progression", "advancement", "improve", "leveling", "milestones"]
 
 ## 1. Overview
 
-Character Points (CP) are your advancement currency. You earn CP over time through a tick-based economy, then spend CP to improve your skills. The system is designed for long-term engagement — advancing a skill from 3D to 5D takes roughly 7 months of active play.
+Character Points (CP) are your advancement currency. You earn CP over time through a tick-based economy, then spend CP to improve your skills. The system is designed for long-term engagement — advancing a skill from 3D to 5D takes roughly 5 months of active play.
 
 **The core loop:** Earn ticks through roleplay → accumulate 200 ticks → receive 1 CP → spend CP to train skills.
 
@@ -34,7 +34,7 @@ Character Points (CP) are your advancement currency. You earn CP over time throu
 - Earn ticks when a roleplay scene ends based on how many poses you contributed
 - 2 ticks per pose above a 3-pose minimum, capped at 60 ticks per scene
 - 10-minute cooldown between scene bonuses
-- A 30-pose scene earns the maximum 54 ticks
+- A 30-pose scene earns 54 ticks (the 60-tick cap is reached around 33 poses)
 
 **Source 3 — Kudos (Dominant Source)**
 - Other players award you kudos for good roleplay: `+kudos <player>`
@@ -48,7 +48,7 @@ Character Points (CP) are your advancement currency. You earn CP over time throu
 - Lowest priority; degrades gracefully when GPU is busy
 - Bonus, not something to rely on
 
-**Target progression:** ~1 CP per 10–12 days for an actively roleplaying player who receives regular kudos.
+**Target progression:** about **1 CP per week** for an actively roleplaying player who receives regular kudos — up to **2 CP/week** if you consistently hit the weekly tick cap.
 
 ---
 
@@ -73,7 +73,7 @@ train space transports    — Advance Space Transports by 1 pip
 | 5D+1 → 5D+2 | 5 CP | 18 CP |
 | 5D+2 → 6D | 5 CP | 23 CP |
 
-So going from 4D+1 to 6D costs 23 CP total. At ~1 CP per 10–12 days, that's roughly 7–9 months. This is intentionally slow — skill advancement is the long-term progression carrot.
+So going from 4D+1 to 6D costs 23 CP total. At about 1 CP/week that's roughly 5–6 months — closer to 3 months if you consistently hit the weekly cap. This is intentionally slow — skill advancement is the long-term progression carrot.
 
 **Three pips = one die.** Each pip costs the same (the current dice count), and every third pip rolls up to a new die. The cost increases at each die boundary.
 
@@ -146,15 +146,15 @@ Several design features prevent CP farming:
 
 ## 8. Advancement Timeline
 
-Realistic advancement timeline for an active player (~1 CP every 10–12 days):
+Realistic advancement timeline for an active player at the **~1 CP/week** target (times roughly halve if you consistently hit the 2 CP/week cap):
 
 | Goal | CP Needed | Time |
 |------|-----------|------|
-| One pip (e.g., 4D → 4D+1) | 4 CP (at 4D) | ~6 weeks |
-| One die (4D → 5D) | 12 CP (4+4+4) | ~4 months |
-| Two dice (3D → 5D) | 21 CP (3+3+3+4+4+4) | ~7 months |
-| Three dice (3D → 6D) | 36 CP | ~12 months |
-| Specialist peak (3D → 7D) | 57 CP | ~19 months |
+| One pip (e.g., 4D → 4D+1) | 4 CP (at 4D) | ~4 weeks |
+| One die (4D → 5D) | 12 CP (4+4+4) | ~3 months |
+| Two dice (3D → 5D) | 21 CP (3+3+3+4+4+4) | ~5 months |
+| Three dice (3D → 6D) | 36 CP | ~8 months |
+| Specialist peak (3D → 7D) | 54 CP | ~12 months |
 
 This pacing is designed so that character advancement is meaningful but never a wall. A dedicated player sees steady, visible progress without anyone becoming overpowered quickly. The spread between a new character (3D–4D skills) and a veteran (~6D–7D) is significant but not insurmountable.
 
