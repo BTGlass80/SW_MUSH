@@ -145,46 +145,48 @@ class TestTextureEncounterTick:
     @pytest.mark.slow  # heavy
     async def test_security_scaling(self):
         """Secured zones should have much lower trigger chance."""
+        import random as _rng
         from server.tick_handlers_ships import texture_encounter_tick
 
         triggered_secured = 0
         triggered_lawless = 0
         iterations = 5000
 
-        # drop 30 (2026-06-13): retargeted from the GCW zones
-        # corellia_orbit / kessel_approach — those are NOT in the CW
-        # engine.npc_space_traffic.ZONES map (post GCW-retirement), so
-        # _texture_trigger_probability fell back to _TEXTURE_BASE_PROB
-        # for BOTH, making this a pure RNG coin-flip that failed
-        # consistently. coruscant_orbit (Republic core, prob 0.005) vs
-        # nar_shaddaa_orbit (Hutt space, prob 0.010) are real CW zones
-        # with a 2× probability gap, so the assertion is now
-        # deterministic over 5000 iterations.
-        for security, zone in [("secured", "coruscant_orbit"),
-                               ("lawless", "nar_shaddaa_orbit")]:
-            ship = self._make_ship(sublight=True, zone=zone)
-            mock_session = MagicMock()
-            mock_session.character = {"id": 1}
-            ctx = self._make_ctx([ship], sessions_by_room={100: [mock_session]})
+        # Seed the global RNG so this statistical test is deterministic
+        # (seed=0 gives ~24 secured vs ~58 lawless over 5000 iters).
+        # Restore original state afterward so we don't affect other tests.
+        _saved_state = _rng.getstate()
+        _rng.seed(0)
+        try:
+            # coruscant_orbit (Republic core) → neutral security → prob 0.005
+            # nar_shaddaa_orbit (Hutt space) → lawless → prob 0.010 (2× gap)
+            for security, zone in [("secured", "coruscant_orbit"),
+                                   ("lawless", "nar_shaddaa_orbit")]:
+                ship = self._make_ship(sublight=True, zone=zone)
+                mock_session = MagicMock()
+                mock_session.character = {"id": 1}
+                ctx = self._make_ctx([ship], sessions_by_room={100: [mock_session]})
 
-            with patch("engine.space_encounters.get_encounter_manager") as mock_mgr_fn:
-                mock_mgr = MagicMock()
-                mock_mgr.create_encounter = AsyncMock(return_value=MagicMock())
-                mock_mgr_fn.return_value = mock_mgr
+                with patch("engine.space_encounters.get_encounter_manager") as mock_mgr_fn:
+                    mock_mgr = MagicMock()
+                    mock_mgr.create_encounter = AsyncMock(return_value=MagicMock())
+                    mock_mgr_fn.return_value = mock_mgr
 
-                for _ in range(iterations):
-                    await texture_encounter_tick(ctx)
+                    for _ in range(iterations):
+                        await texture_encounter_tick(ctx)
 
-                count = mock_mgr.create_encounter.call_count
-                if security == "secured":
-                    triggered_secured = count
-                else:
-                    triggered_lawless = count
+                    count = mock_mgr.create_encounter.call_count
+                    if security == "secured":
+                        triggered_secured = count
+                    else:
+                        triggered_lawless = count
 
-        # Lawless should trigger significantly more than secured
-        assert triggered_lawless > triggered_secured, (
-            f"lawless={triggered_lawless} should exceed secured={triggered_secured}"
-        )
+            # Lawless should trigger significantly more than secured
+            assert triggered_lawless > triggered_secured, (
+                f"lawless={triggered_lawless} should exceed secured={triggered_secured}"
+            )
+        finally:
+            _rng.setstate(_saved_state)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
