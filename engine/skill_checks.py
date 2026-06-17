@@ -255,6 +255,28 @@ def perform_skill_check(
     success = roll.total >= difficulty
     margin = roll.total - difficulty
 
+    # T3.19 telemetry: this is the single funnel for ALL out-of-combat dice,
+    # so one emit captures skill-check success rates by skill + difficulty band
+    # (catalog D — are DCs calibrated). Fail-open + buffer-only (non-blocking).
+    # Skill checks are the highest-frequency of the instrumented chokepoints,
+    # so the keep-rate is a tunable (read at use-site per the T3.19 contract):
+    # 1.0 = capture everything at launch's small population; dial down later.
+    try:
+        from engine.telemetry import emit as _tele_emit
+        from engine.tunables import get_tunable
+        _tele_emit("skill_check", {
+            "char_id": char.get("id"),
+            "skill": skill_name,
+            "difficulty": difficulty,
+            "roll": roll.total,
+            "success": success,
+            "margin": margin,
+            "crit": roll.exploded and success,
+            "fumble": roll.complication,
+        }, sample=float(get_tunable("telemetry.skill_check_sample", 1.0)))
+    except Exception:
+        pass
+
     return SkillCheckResult(
         roll=roll.total,
         difficulty=difficulty,

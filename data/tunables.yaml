@@ -33,3 +33,9 @@ p2p.tax_pct: 5                        # percent sink on consented credit trades 
 
 # ── Faction commissary (engine/commissary.py) ──
 commissary.sellback_rate: 0.50        # refund fraction on commissary sellback (<=50%, net loss)
+
+# ── Telemetry sampling (engine/telemetry.py / skill_checks.py) ──
+# Keep-rate for the highest-frequency telemetry chokepoint. 1.0 = capture
+# every out-of-combat skill check (fine at launch's small population); lower
+# it (e.g. 0.25) post-launch if the skill_check event stream gets noisy.
+telemetry.skill_check_sample: 1.0     # fraction of skill checks emitted (0..1]

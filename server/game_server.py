@@ -65,6 +65,7 @@ from server.tick_handlers_progression import (
     dsp_hunter_tick,
     communal_objective_tick,
 )
+from server.tick_handlers_telemetry import flush_telemetry_tick
 # ── S40 boarding party encounter wiring ────────────────────────────────────
 # ``boarding_encounter_tick`` is the periodic check; it takes (db, session_mgr)
 # rather than the standard TickContext so we wrap it below for the scheduler.
@@ -514,6 +515,9 @@ class GameServer:
         # ── missions & boards (every tick) ──
         self._tick_scheduler.register("space_mission_patrol", space_mission_patrol_tick, interval=1)
         self._tick_scheduler.register("board_housekeeping",   board_housekeeping_tick,   interval=60)
+        # T3.19 telemetry: drain the in-memory event buffer to the JSON-line
+        # sink off the hot path (write offloaded to a thread executor).
+        self._tick_scheduler.register("telemetry_flush",      flush_telemetry_tick,      interval=30, offset=11)
         # ── world simulation (every tick) ──
         self._tick_scheduler.register("ambient_events",    ambient_events_tick,    interval=1)
         self._tick_scheduler.register("world_events",      world_events_tick,      interval=1)

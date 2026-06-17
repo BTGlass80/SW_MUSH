@@ -2903,6 +2903,16 @@ class Database:
         except Exception:
             # credit_log table may not exist yet (pre-v12 DB)
             log.debug("log_credit: table may not exist yet", exc_info=True)
+        # T3.19 telemetry: log_credit is the single chokepoint every credit
+        # movement (system / faucet-throttled / normal) funnels through, so one
+        # emit here captures the whole economy by tag (catalog B: per-faucet
+        # inflow + per-sink outflow). Fail-open + non-blocking (buffer only).
+        try:
+            from engine.telemetry import emit as _tele_emit
+            _tele_emit("credit_flow", {"char_id": char_id, "delta": delta,
+                                       "tag": source, "balance": balance})
+        except Exception:
+            pass
 
     async def adjust_credits(self, char_id: int, delta: int, source: str,
                              *, allow_negative: bool = True) -> Optional[int]:
@@ -3858,6 +3868,14 @@ class Database:
             (amount, char_id),
         )
         await self._db.commit()
+        # T3.19 telemetry: the chokepoint for every CP balance move — a
+        # positive amount is an earn (milestone/AI-trickle/kudos), a negative
+        # one a spend (skill advance). Captures catalog B's CP earn-vs-spend.
+        try:
+            from engine.telemetry import emit as _tele_emit
+            _tele_emit("cp_award", {"char_id": char_id, "amount": amount})
+        except Exception:
+            pass
 
     async def kudos_log(self, giver_id: int, target_id: int, ticks: int, ts: float) -> None:
         """Record a kudos event."""
