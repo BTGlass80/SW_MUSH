@@ -6,6 +6,24 @@ drop. Companion to `TODO.json` (forward-looking) and
 
 ---
 
+### 2026-06-16 — Help corpus: Padawan-Master command cluster (14 files) — *drop help-pm-commands*
+Added help files for the full Padawan-Master command surface — the last cluster missing from the help corpus.
+- **`data/help/commands/+master.md`** — Padawan views bonded Master's status and Weight sense.
+- **`data/help/commands/+padawan.md`** — Master views bonded Padawan(s) and Trial progress.
+- **`data/help/commands/+bond.md`** — propose / accept / decline the two-step bond handshake.
+- **`data/help/commands/+release.md`** — Master dissolves a bond (with optional reason).
+- **`data/help/commands/+leave-master.md`** — Padawan leaves a bond (reason required).
+- **`data/help/commands/+trials.md`** — view Five Trials progress (Skill / Courage / Flesh / Spirit / Insight).
+- **`data/help/commands/+trial.md`** — Master attests a passed Trial.
+- **`data/help/commands/+endorse.md`** — Master one-shot endorsement for next Trial attempt.
+- **`data/help/commands/+authorize.md`** — Master standing pre-authorization (offworld / powers / trials).
+- **`data/help/commands/+knight.md`** — Knight promotion ceremony (all 5 Trials required; grants +1 FP).
+- **`data/help/commands/+learn.md`** — Padawan requests Force power training from bonded Master.
+- **`data/help/commands/+teach.md`** — Master teaches a Force power (CP auto-spent to reach 1D min).
+- **`data/help/commands/+spar.md`** — training duel between bond partners (1 CP each, 24h cooldown).
+- **`data/help/commands/+help.md`** — the help command itself (categories, topics, /search switch).
+- **`tests/test_help_pm_commands.py`** — 65 tests; era-clean; key-matches-filename checks.
+
 ### 2026-06-16 — T3.21 Blocker 2 (protocol half): per-IP throttle on the raw telnet/WS pre-auth login loop — *drop t321-preauth-throttle*
 Closed the unshipped half of T3.21 Blocker 2 (the discovered follow-up under `7a4f4ee`). The PORTAL login path was already per-IP throttled (`web_portal._login_rate_ok`, 10/60s), but the raw protocol login loop in `game_server.handle_new_session` — fed verbatim by BOTH transports (telnet `_telnet_read_loop` and the public web port's WebSocket `{"input": ...}` channel) — was not. `db.authenticate`'s lockout is PER-ACCOUNT (5 fails / 5 min), so credential-stuffing ACROSS many accounts from one socket, and spamming `create` to burn bcrypt CPU on the shared event loop, were both unbounded.
 - **`server/session.py`:** new `Session.client_ip` field (default `"unknown"`), captured at the transport seam.
