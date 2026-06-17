@@ -76,8 +76,11 @@ async def scan_integrity(db) -> IntegrityReport:
     report = IntegrityReport()
 
     # --- corruption: integrity_check returns one or more rows; "ok" means clean ---
+    # Rows come back as dicts (db row_factory, QA_FINDINGS B1); PRAGMA column
+    # names vary, so read positionally via values() to stay name-agnostic.
     for row in await db.fetchall("PRAGMA integrity_check"):
-        val = row[0]
+        vals = list(row.values())
+        val = vals[0] if vals else None
         if val is not None and str(val).strip().lower() != "ok":
             report.corruption.append(str(val))
 
@@ -85,11 +88,12 @@ async def scan_integrity(db) -> IntegrityReport:
     #     violating row across EVERY declared FK; no rows == fully referentially
     #     intact. Works regardless of whether foreign_keys enforcement is ON. ---
     for row in await db.fetchall("PRAGMA foreign_key_check"):
+        vals = list(row.values())
         report.orphans.append(OrphanFinding(
-            table=row[0],
-            rowid=row[1],
-            parent_table=row[2],
-            fk_index=row[3],
+            table=vals[0],
+            rowid=vals[1],
+            parent_table=vals[2],
+            fk_index=vals[3],
         ))
 
     return report

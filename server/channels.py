@@ -101,9 +101,24 @@ BOLD  = "\033[1m"
 
 
 def get_faction(char: dict) -> str:
-    """Extract faction from character dict.  Defaults to 'independent'."""
+    """Extract faction from character dict.  Defaults to 'independent'.
+
+    QA finding B3: membership is stored in the ``faction_id`` column (schema
+    default ``'independent'``), but this only read a top-level ``faction`` key
+    and the ``attributes`` blob — neither of which carries membership — so every
+    real member resolved as ``'independent'`` and faction comms reached 0
+    recipients. ``faction_id`` is now checked FIRST.
+    """
     if not char:
         return "independent"
+    # Canonical membership column (preferred). Only short-circuit on a REAL
+    # faction; 'independent'/unknown falls through to the legacy paths below so
+    # existing behavior is otherwise unchanged.
+    fid = char.get("faction_id")
+    if fid:
+        f = str(fid).lower()
+        if f in FACTIONS and f != "independent":
+            return f
     # Check top-level key first
     if "faction" in char:
         f = str(char["faction"]).lower()

@@ -479,7 +479,7 @@ class SmugglingBoard:
                 "SELECT data FROM smuggling_jobs WHERE status IN ('available','accepted')"
             )
             for row in rows:
-                d = json.loads(row[0])
+                d = json.loads(row["data"])
                 job = SmugglingJob.from_dict(d)
                 self._jobs[job.id] = job
             log.info("[smuggling] Loaded %d jobs from DB", len(self._jobs))

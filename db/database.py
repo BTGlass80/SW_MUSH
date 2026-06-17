@@ -1567,6 +1567,21 @@ MIGRATIONS = {
 }
 
 
+def _dict_row_factory(cursor, row):
+    """Row factory yielding plain ``dict`` rows.
+
+    ``aiosqlite.Row`` (== ``sqlite3.Row``) has **no ``.get()``**, yet the codebase
+    reads rows with ``row.get("col")`` in ~163 places and the ``fetchall`` /
+    ``fetchone`` wrappers return raw rows — so those reads raise ``AttributeError``
+    in production while the dict-stubbed test suite stays green (QA campaign
+    finding B1, ``docs/design/QA_FINDINGS_2026-06-16.md``). Returning plain dicts
+    makes ``.get()`` / ``["col"]`` named access work uniformly. The only access
+    pattern this changes is positional ``row[0]`` / ``for x in row`` on a DB row
+    (dicts key by name, not position) — those sites were audited and converted.
+    """
+    return {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
+
+
 class Database:
     """Async SQLite database manager."""
 
@@ -1595,7 +1610,7 @@ class Database:
     async def connect(self):
         """Open the database and enable WAL mode."""
         self._db = await aiosqlite.connect(self.db_path)
-        self._db.row_factory = aiosqlite.Row
+        self._db.row_factory = _dict_row_factory  # dicts, not raw Rows (B1)
         self._closed = False  # (re)opened — allow the read pool to (re)build
         await self._db.execute("PRAGMA journal_mode=WAL")
         await self._db.execute("PRAGMA foreign_keys=ON")
@@ -1705,7 +1720,7 @@ class Database:
             try:
                 for _ in range(size):
                     conn = await aiosqlite.connect(uri, uri=True)
-                    conn.row_factory = aiosqlite.Row
+                    conn.row_factory = _dict_row_factory  # dicts, not raw Rows (B1)
                     await conn.execute("PRAGMA query_only=ON")
                     await conn.execute("PRAGMA busy_timeout=5000")
                     conns.append(conn)
