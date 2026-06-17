@@ -56,7 +56,11 @@ class TestCapRemovedFromTradePath(unittest.TestCase):
         self.assertIn("alternate characters", self.code)
 
     def test_tax_survives(self):
-        self.assertIn("tax = max(1, amount // 20)", self.code)
+        # T3.19 externalized the tax rate as a tunable (p2p.tax_pct, default 5).
+        # The expression amount*pct//100 with pct=5 is integer-identical to the
+        # prior amount//20; the old literal no longer exists.
+        self.assertIn("p2p.tax_pct", self.code)
+        self.assertIn('tax = max(1, amount * tax_pct // 100)', self.code)
         self.assertIn('"p2p_tax"', self.code)
         self.assertIn('"p2p_transfer"', self.code)
 

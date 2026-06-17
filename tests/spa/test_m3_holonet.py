@@ -209,26 +209,27 @@ def test_fixture_feed_eight_entries():
 # production swap-in
 # ════════════════════════════════════════════════════════════════════
 
-def test_canonical_character_references_preserved_from_source():
-    """The JSX source has Mace Windu in two places (featured deck +
-    factionMovements label). The vanilla port preserves this verbatim;
-    per architecture v50 Q1, production swap-in must replace with
-    fictional original NPCs or absence framing. This test asserts the
-    references are present (i.e. source-fidelity preserved) and
-    documents the Q1 cleanup item."""
+def test_canonical_figure_cleanup_complete():
+    """Architecture v50 Q1 + the B3 era invariant: canonical Clone Wars figures
+    never appear as open-world references. The two Mace Windu references the
+    vanilla port inherited from the JSX source (featured deck + factionMovements
+    label) have been REPLACED with era-clean content (Ryloth featured story,
+    Order-level framing). This guards the completed cleanup against regression —
+    a re-introduction of Mace Windu (or 'M. Windu deployed') must fail here."""
     src = HOLONET_MODULE.read_text(encoding="utf-8")
     fixture = _extract_block(src, "var HOLONET_DATA_FIXTURE = {")
     assert fixture
-    # Both Mace Windu mentions are preserved from JSX source.
-    assert "Mace Windu" in fixture, (
-        "Source fidelity: Mace Windu featured-deck reference removed"
+    # B3 cleanup done: the canonical-figure references are gone.
+    assert "Mace Windu" not in fixture, (
+        "B3 regression: Mace Windu re-introduced into the holonet featured deck"
     )
-    assert "M. Windu deployed" in fixture, (
-        "Source fidelity: M. Windu faction-movements label removed"
+    assert "M. Windu deployed" not in fixture, (
+        "B3 regression: 'M. Windu deployed' faction-movements label re-introduced"
     )
-    # Q1 flag: a Q1 hardening drop should replace these with original
-    # NPCs ("General Var Velo en route") or absence framing
-    # ("Republic command staff en route"). Tracked in HANDOFF §12.
+    # The era-clean replacement content is present (Ryloth front + Order framing).
+    assert "RYLOTH" in fixture or "Ryloth" in fixture, (
+        "era-clean Ryloth featured story missing from fixture"
+    )
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -453,7 +454,11 @@ def test_runtime_featured_story_renders_ryloth():
     assert out["tagCount"] == 4
     assert "Ryloth" in out["tagTexts"]
     assert "91st Recon" in out["tagTexts"]
-    assert "Mace Windu" in out["tagTexts"]
+    # B3 cleanup: the 4th related tag was 'Mace Windu' in the JSX source; the
+    # era-clean port uses Order/garrison-level framing instead.
+    assert "Jedi Order" in out["tagTexts"]
+    assert "CIS Lessu Garrison" in out["tagTexts"]
+    assert "Mace Windu" not in out["tagTexts"]
     assert out["hasSketch"]
     assert out["hasLAATShape"]
 

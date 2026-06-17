@@ -1731,8 +1731,8 @@ class Database:
                 for c in conns:
                     try:
                         await c.close()
-                    except Exception:
-                        pass
+                    except Exception as _e:
+                        log.debug("read-pool cleanup: connection close failed: %s", _e)
                 raise
             self._read_conns = conns
             self._read_pool = pool
@@ -2911,8 +2911,8 @@ class Database:
             from engine.telemetry import emit as _tele_emit
             _tele_emit("credit_flow", {"char_id": char_id, "delta": delta,
                                        "tag": source, "balance": balance})
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("credit_flow telemetry emit failed: %s", _e)
 
     async def adjust_credits(self, char_id: int, delta: int, source: str,
                              *, allow_negative: bool = True) -> Optional[int]:
@@ -3874,8 +3874,8 @@ class Database:
         try:
             from engine.telemetry import emit as _tele_emit
             _tele_emit("cp_award", {"char_id": char_id, "amount": amount})
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("cp_award telemetry emit failed: %s", _e)
 
     async def kudos_log(self, giver_id: int, target_id: int, ticks: int, ts: float) -> None:
         """Record a kudos event."""

@@ -297,8 +297,8 @@ class AmbientEventManager:
                     text = str(text).strip()
                     if text:
                         lines.append(AmbientLine(text=text))
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("_get_room_ambient_lines: failed to load room %s ambient lines: %s", room_id, _e)
         self._room_ambient_cache[room_id] = lines
         return lines
 

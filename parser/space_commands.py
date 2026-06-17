@@ -160,8 +160,8 @@ async def build_space_state(ship: dict, char_id: int, db, session_mgr) -> dict:
             for _cd in _pool.values():
                 _counts[_cd.kind] = _counts.get(_cd.kind, 0) + 1
             wildspace_cache_summary = [{"kind": k, "count": v} for k, v in _counts.items()]
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("ship status: wildspace cache summary unavailable for zone %s: %s", zone_id, _e)
 
     # ── Hull & shields ────────────────────────────────────────────────────────
     # Use effective stats so mods, power allocation, and orders are reflected
@@ -6830,8 +6830,9 @@ class RefineCommand(BaseCommand):
             if _rtmpl is not None:
                 _reff = get_effective_stats(_rtmpl, systems)
                 has_refinery = bool(_reff.get("has_refinery", False))
-        except Exception:
-            pass
+        except Exception as _e:
+            log.debug("refine: could not determine refinery capability for ship type %r: %s",
+                      ship.get("ship_type", ""), _e)
 
         if not has_refinery:
             await ctx.session.send_line(

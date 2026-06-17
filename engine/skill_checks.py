@@ -274,8 +274,8 @@ def perform_skill_check(
             "crit": roll.exploded and success,
             "fumble": roll.complication,
         }, sample=float(get_tunable("telemetry.skill_check_sample", 1.0)))
-    except Exception:
-        pass
+    except Exception as _e:
+        log.debug("skill_check telemetry emit failed: %s", _e)
 
     return SkillCheckResult(
         roll=roll.total,
