@@ -3,7 +3,8 @@
 
 SELECT-heavy read endpoints draw a read-only connection from a small pool
 (mode=ro + PRAGMA query_only=ON) instead of serializing behind the single
-writer connection. WAL gives the pool consistent-snapshot concurrent reads.
+writer connection. WAL lets the pool read concurrently with the writer
+(autocommit conns: each read sees the latest committed state).
 The pool connections are PHYSICALLY read-only, so this path cannot corrupt the
 DB. (Brian decision #3, 2026-06-16 — "do not defer, need it now".)
 """
@@ -52,6 +53,35 @@ async def test_read_pool_is_physically_read_only(tmp_path):
         assert rows[0]["c"] == 0
     finally:
         await db.close()
+
+
+async def test_rejected_write_does_not_poison_pool_conn(tmp_path):
+    # verify-fix 2026-06-18: a query_only-rejected write must NOT leave the pooled
+    # conn in an open transaction pinning a stale WAL snapshot (which served stale
+    # reads + grew the -wal file unbounded). Size-1 pool forces conn reuse so the
+    # bug, if present, shows as a stale read.
+    prev = os.environ.get("SWMUSH_DB_READ_POOL")
+    os.environ["SWMUSH_DB_READ_POOL"] = "1"
+    try:
+        db = await _mkdb(tmp_path)
+        try:
+            await db.read_fetchall("SELECT COUNT(*) AS c FROM accounts")  # build + use the conn
+            with pytest.raises(Exception):
+                await db.read_fetchall(
+                    "INSERT INTO accounts (username, password_hash) VALUES ('x','y')")
+            # a committed writer change AFTER the rejected write must be visible
+            # through the SAME (size-1) pool conn — not a stale pre-write snapshot.
+            await db.create_account("freshuser", "password123")
+            rows = await db.read_fetchall(
+                "SELECT COUNT(*) AS c FROM accounts WHERE username='freshuser'")
+            assert rows[0]["c"] == 1, "pool conn served a stale snapshot (poisoned by the rejected write)"
+        finally:
+            await db.close()
+    finally:
+        if prev is None:
+            os.environ.pop("SWMUSH_DB_READ_POOL", None)
+        else:
+            os.environ["SWMUSH_DB_READ_POOL"] = prev
 
 
 async def test_concurrent_reads_exceed_pool_size(tmp_path):

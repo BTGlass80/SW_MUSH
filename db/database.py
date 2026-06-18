@@ -1701,9 +1701,10 @@ class Database:
     # SELECT-heavy read endpoints (web portal directory / profiles / scenes)
     # call read_fetchall / read_fetchone, drawing a read-only connection from a
     # small pool instead of serializing behind the single writer connection.
-    # The pool connections are opened mode=ro + query_only=ON: they cannot
-    # write, so they can never corrupt the DB; WAL gives them consistent-snapshot
-    # concurrent reads.
+    # The pool connections are opened mode=ro + query_only=ON + autocommit: they
+    # cannot write, so they can never corrupt the DB; WAL lets them read
+    # concurrently with the writer, each read seeing the latest committed state
+    # (autocommit — not a pinned cross-call snapshot).
 
     async def _ensure_read_pool(self) -> None:
         if self._read_pool is not None:
@@ -1719,7 +1720,12 @@ class Database:
             uri = f"file:{Path(self.db_path).as_posix()}?mode=ro"
             try:
                 for _ in range(size):
-                    conn = await aiosqlite.connect(uri, uri=True)
+                    # isolation_level=None → autocommit: SELECTs never auto-BEGIN a
+                    # transaction, so a (query_only-rejected) write can't leave the
+                    # conn stuck in_transaction and pin a stale WAL snapshot / block
+                    # WAL checkpointing. (verify-fix 2026-06-18: reproduced stale
+                    # reads + unbounded -wal growth after a rejected pool write.)
+                    conn = await aiosqlite.connect(uri, uri=True, isolation_level=None)
                     conn.row_factory = _dict_row_factory  # dicts, not raw Rows (B1)
                     await conn.execute("PRAGMA query_only=ON")
                     await conn.execute("PRAGMA busy_timeout=5000")
@@ -1758,6 +1764,13 @@ class Database:
         try:
             yield conn
         finally:
+            # Never hand a connection back with an open transaction. With the
+            # autocommit conns this is a cheap no-op; it self-heals the pool if a
+            # read ever leaves a transaction open (defense in depth).
+            try:
+                await conn.rollback()
+            except Exception as _e:
+                log.debug("read-pool: rollback on release failed: %s", _e)
             # Only return the connection if the pool is still the live one —
             # if close() swapped/nulled it mid-read, drop the (now-closed) conn.
             if self._read_pool is pool:
@@ -1765,7 +1778,7 @@ class Database:
 
     async def read_fetchall(self, sql: str, params: tuple = ()) -> list:
         """Like fetchall(), but served by the read-only pool (SELECT-heavy read
-        endpoints). Reads a consistent WAL snapshot; physically cannot write."""
+        endpoints). Reads the latest committed state (autocommit); cannot write."""
         async with self._reader() as conn:
             return await conn.execute_fetchall(sql, params)
 
