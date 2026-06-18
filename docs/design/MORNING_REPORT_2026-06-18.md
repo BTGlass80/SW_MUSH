@@ -115,10 +115,10 @@ Per the marketing plan's guardrails: **original + non-trademarked** — no "Star
 
 ---
 
-## 10. Wind-down log  *(filled at 6 AM)*
+## 10. Wind-down log  *(filled at 6 AM — disarms executed by Sonnet loop 2026-06-18)*
 
-- [ ] `SWMUSH-DurableLoop` (Sonnet content loop) disarmed
-- [ ] `SWMUSH-OpusLoop` (Opus quality loop) disarmed
+- [x] `SWMUSH-DurableLoop` (Sonnet content loop) disarmed ✅ 2026-06-18
+- [x] `SWMUSH-OpusLoop` (Opus quality loop) disarmed ✅ 2026-06-18
 - [ ] Overnight delta captured (§5)
 - [ ] Confirmation gate result folded in (§7)
 - [ ] This attended session closed
