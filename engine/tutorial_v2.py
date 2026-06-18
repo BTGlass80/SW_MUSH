@@ -468,12 +468,14 @@ def start_hint_timer(session, room_name: str):
     """Start the hint timer for a tutorial room. Cancels any existing timer."""
     cancel_hint_timer(session)
     task = asyncio.create_task(_hint_loop(session, room_name))
-    _hint_tasks[id(session)] = task
+    # Key on the monotonic session.id, NOT id(session) — a memory address is
+    # reused after a session is GC'd, so id(session) can collide across sessions.
+    _hint_tasks[session.id] = task
 
 
 def cancel_hint_timer(session):
     """Cancel the hint timer for a session (call on any player input)."""
-    task = _hint_tasks.pop(id(session), None)
+    task = _hint_tasks.pop(session.id, None)
     if task and not task.done():
         task.cancel()
 

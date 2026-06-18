@@ -2205,6 +2205,15 @@ class SessionManager:
 
     def remove(self, session: Session):
         self._sessions.pop(session.id, None)
+        # Cancel any tutorial hint-timer for this session — every disconnect path
+        # funnels through here, so this stops the per-session _hint_loop task from
+        # leaking and spinning send_line() on a dead transport (verify-fix
+        # 2026-06-18). Local import avoids a session <-> tutorial_v2 import cycle.
+        try:
+            from engine.tutorial_v2 import cancel_hint_timer
+            cancel_hint_timer(session)
+        except Exception as _e:
+            log.debug("session teardown: cancel_hint_timer failed: %s", _e)
         log.info("Session removed: %s (total: %d)", session, len(self._sessions))
 
     def get(self, session_id: int) -> Optional[Session]:
