@@ -25,7 +25,7 @@ This is a new guide. There was no earlier version.
 
 ## 1. The Communication Layers
 
-Five communication layers, from intimate to galactic:
+Nine communication layers, from intimate to galactic:
 
 | Layer | Scope | Latency | Lifespan |
 |---|---|---|---|
@@ -181,13 +181,13 @@ channels (or +channels)
 
 Shows you what channels you're listening on, plus the online count for each.
 
-### `who` — Online players
+### `+who` — Online players
 
 ```
-who
++who
 ```
 
-Lists currently online players with their locations and statuses. Useful for finding who's around to interact with.
+Lists currently online players with their locations and statuses. Useful for finding who's around to interact with. (It carries the `+` prefix because it's an out-of-character meta command — the same convention as `+channels`, `+news`, and `+freqs`.)
 
 ---
 
@@ -437,7 +437,7 @@ Five concrete pictures.
 | `untune <freq>` | Untune from a frequency |
 | `freqs` (or `+freqs`) | List your tuned frequencies |
 | `channels` (or `+channels`) | Show channel overview |
-| `who` | List online players |
+| `+who` | List online players |
 
 ### Mail (persistent)
 
@@ -479,7 +479,7 @@ Five concrete pictures.
 | News bulletin | 10 most recent events |
 | Time-ago formatting | "just now" / "X minutes ago" / "X hours ago" / "yesterday" / "X days ago" |
 | Faction prefixes in fcomm | Republic / CIS / Hutt / etc. |
-| `who` displays | Player name + location + status |
+| `+who` displays | Player name + location + status |
 
 ---
 
@@ -507,7 +507,7 @@ For social roleplayers, comms become **the medium of relationship** — long-dis
 
 For plotrunners and faction leaders, comms are **the organizational layer** — the fcomm channel where you coordinate, the mail you send to assemble teams, the news bulletin that shapes the world your plot operates in.
 
-If you're starting out: send your first `ooc` greeting. Try `who` to see who's online. Read `+news`. Send `@mail` to someone interesting. Within a few sessions, the comms layer is just part of how you play. The system rewards engagement — the more you use it, the more connected your character becomes to the wider game world.
+If you're starting out: send your first `ooc` greeting. Try `+who` to see who's online. Read `+news`. Send `@mail` to someone interesting. Within a few sessions, the comms layer is just part of how you play. The system rewards engagement — the more you use it, the more connected your character becomes to the wider game world.
 
 ---
 

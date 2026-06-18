@@ -292,7 +292,7 @@ The ship's log tracks 17 milestones across categories: zones visited, ships scan
 | Ace Smuggler | 50 smuggling runs | 50 CP |
 | Merchant Prince | 50 profitable trade runs | 30 CP |
 
-Titles display on your character sheet and in the `who` list.
+Titles display on your character sheet and in the `+who` list.
 
 ---
 
