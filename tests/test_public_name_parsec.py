@@ -30,8 +30,10 @@ def test_config_game_name_is_parsec():
 def test_portal_wordmark_and_meta_are_parsec():
     assert "<h1>PARSEC</h1>" in PORTAL
     assert '<meta property="og:site_name" content="Parsec">' in PORTAL
-    # The old working title is gone from every portal surface.
+    # The old working title is gone from EVERY portal surface — including the
+    # nav logo (which used a middot: "SW · D6 MUSH"). No "MUSH" anywhere.
     assert "Star Wars D6 MUSH" not in PORTAL
+    assert "MUSH" not in PORTAL
 
 
 def test_client_branding_is_parsec():
