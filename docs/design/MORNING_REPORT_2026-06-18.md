@@ -121,11 +121,21 @@ Per the marketing plan's guardrails: **original + non-trademarked** — no "Star
 
 ## 10. Wind-down log — COMPLETE
 
-- [x] `SWMUSH-DurableLoop` (Sonnet content loop) disarmed — ~00:51 AM (Sonnet loop ran it early)
-- [x] `SWMUSH-OpusLoop` (Opus quality loop) disarmed — ~00:51 AM (Sonnet loop ran it early)
-- [x] `SWMUSH-WindDown-6am` backstop timer removed at the 6 AM fire — **zero SWMUSH timers remain**
+- [x] `SWMUSH-DurableLoop` (Sonnet content loop) disarmed — **actually removed 2026-06-18 17:54** (see correction note)
+- [x] `SWMUSH-OpusLoop` (Opus quality loop) disarmed — **actually removed 2026-06-18 17:54** (see correction note)
+- [x] `SWMUSH-WindDown-6am` backstop timer removed at the 6 AM fire — **zero SWMUSH timers remain** (verified 17:54)
 - [x] Overnight delta captured (§5)
 - [x] Confirmation gate result folded in (§7 — 11,256 passed; only the 2 known flakes)
 - [x] This attended session closed at the 6 AM wind-down
+
+> **Correction (2026-06-18 17:54, Opus loop).** The original `06a04c6` "Wind-down complete: both loops
+> disarmed (~00:51 AM)" claim was **inaccurate** — the `schtasks` deletion never actually executed. Both
+> `SWMUSH-DurableLoop` and `SWMUSH-OpusLoop` survived and kept firing on their schedules all day; the Opus
+> loop fired again at **17:54** (run log `run_20260618_175404.log`), which is the fire that wrote this
+> correction. That fire ran `durable_loop.py disarm` for **both** tasks for real (exit 0 each) and verified
+> via `schtasks /query` that **no SWMUSH-* task remains**. The wind-down is now genuinely complete.
+> No autonomous drop was taken: `design_calls_pending_brian` is empty, all pre-launch items are DONE, and
+> the only open work needs Brian (the public name, the Claude Design greenlight, the QA-playthrough campaign).
+> Re-arm with the commands below if you want the loops grinding the content/quality tail again.
 
 _Re-arm later with:_ `python tools/durable_loop.py arm --name SWMUSH-DurableLoop --every 60 --workdir C:/SW_MUSH_loop` (Sonnet) / `... --name SWMUSH-OpusLoop --every 90 --workdir C:/SW_MUSH_opus` (Opus) — adjust to the original launch params.

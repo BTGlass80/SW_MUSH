@@ -1010,6 +1010,14 @@ class TestParserPhasePlaceholders(unittest.TestCase):
 
 
 class TestParserFoundDispatch(unittest.TestCase):
+    def setUp(self):
+        import engine.tunables as _t
+        _t._TUNABLES["cities.found_enabled"] = True
+
+    def tearDown(self):
+        import engine.tunables as _t
+        _t._TUNABLES.pop("cities.found_enabled", None)
+
     def test_found_happy_path_writes_to_db(self):
         async def _t():
             from parser.city_commands import CityCommand

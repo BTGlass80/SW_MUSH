@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import logging
 
+from engine.tunables import get_tunable
 from parser.commands import AccessLevel, BaseCommand, CommandContext
 from server import ansi
 
@@ -220,6 +221,11 @@ class CityCommand(BaseCommand):
         the legacy syntax is preserved so the 520 existing cities tests
         and any cached-fixture admin flows keep working.
         """
+        if not get_tunable("cities.found_enabled", False):
+            await ctx.session.send_line(
+                "  City founding is not available at launch. Check back soon."
+            )
+            return
         if not args:
             await ctx.session.send_line(
                 "  Usage: +city found <name>\n"
