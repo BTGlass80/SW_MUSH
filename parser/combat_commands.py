@@ -1490,7 +1490,7 @@ async def _apply_combat_wear(combat, ctx):
         elif item.condition <= 0:
             await sess.send_line(
                 f"  {ansi.BRIGHT_RED}Your weapon has BROKEN! "
-                f"Type 'repair' to fix it.{ansi.RESET}")
+                f"Type '+repair' to fix it.{ansi.RESET}")
 
 
 class AttackCommand(BaseCommand):

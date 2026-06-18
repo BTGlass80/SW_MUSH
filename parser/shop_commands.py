@@ -232,7 +232,7 @@ class ShopCommand(BaseCommand):
         if not item_key:
             await ctx.session.send_line(
                 f"  '{item_name}' not found in your inventory.\n"
-                f"  Use 'inventory' to see your items."
+                f"  Use '+inv' to see your items."
             )
             return
 

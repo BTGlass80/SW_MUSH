@@ -293,7 +293,7 @@ class TutorialManager:
             )
             await session.send_line(
                 _guide("One more thing — combat. Mos Eisley can be dangerous. "
-                       "Type 'score' to see your character sheet, and "
+                       "Type '+sheet' to see your character sheet, and "
                        "'help combat' for combat commands.")
             )
             await session.send_line("")

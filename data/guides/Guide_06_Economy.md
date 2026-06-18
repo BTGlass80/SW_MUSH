@@ -57,16 +57,17 @@ The mission board is the primary reliable income source. It holds **5–8 proced
 
 **Mission lifecycle:** AVAILABLE → ACCEPTED → COMPLETE/EXPIRED/FAILED. One active mission per character at a time. Unclaimed missions expire after 1 hour; accepted missions expire after 2 hours.
 
-**Commands:**
+**Commands** — every mission verb lives under the `+mission/<switch>` umbrella:
 ```
-missions                  — View the mission board
-mission accept <#>        — Accept a mission
-mission info <#>          — View mission details
-mission complete          — Complete your active mission (skill check)
-mission abandon           — Abandon your active mission
++mission/board            — View the mission board
++mission/accept <id>      — Accept a mission by its board id (e.g. m-4f3a; prefix match works)
++mission/view             — View your active mission's details
++mission/complete         — Complete your active mission at the destination (skill check)
++mission/abandon          — Abandon your active mission (no penalty)
 ```
+Bare shorthands still resolve: `missions` (= `/board`), `accept <id>`, `complete`/`turnin`, `abandon`/`dropmission`.
 
-**Completion:** When you type `mission complete` at the appropriate location, the game rolls the relevant skill against a difficulty scaled by the reward amount. Full success pays full reward. Partial success (miss by ≤4) pays a fraction. Failure pays nothing. Critical success (Wild Die exploded) gives a bonus. Fumble (Wild Die = 1) may impose a penalty.
+**Completion:** When you type `+mission/complete` at the appropriate location, the game rolls the relevant skill against a difficulty scaled by the reward amount. Full success pays full reward. Partial success (miss by ≤4) pays a fraction. Failure pays nothing. Critical success (Wild Die exploded) gives a bonus. Fumble (Wild Die = 1) may impose a penalty.
 
 ---
 
@@ -88,18 +89,19 @@ The bounty board offers **hunting contracts** — targets are actual NPCs spawne
 
 **Investigation phase:** Before engaging, you can track your target:
 ```
-bountytrack               — Use Search/Streetwise to locate your target
++bounty/track             — Use Search/Streetwise to locate your target
 ```
 This reveals the target's current room without requiring direct combat.
 
-**Commands:**
+**Commands** — every bounty verb lives under the `+bounty/<switch>` umbrella:
 ```
-bounties                  — View the bounty board
-bounty claim <#>          — Claim a bounty contract
-bounty info <#>           — View bounty details
-bounty collect            — Collect reward after defeating target
-bounty abandon            — Abandon your claimed bounty
++bounty/board             — View the bounty board
++bounty/claim <id>        — Claim a bounty contract (e.g. b-7e1f; prefix match works)
++bounty/view              — View your active contract's details
++bounty/track             — Locate your target (Search/Streetwise)
++bounty/collect           — Collect the reward after defeating the target
 ```
+Bare shorthands still resolve: `bounties` (= `/board`), `claimbounty`, `tracktarget`, `collectbounty`. A claimed contract you don't finish in time simply expires — there is no manual abandon.
 
 **Target archetypes:** Thugs, smugglers, bounty hunters, scouts, B1 droids, CIS agents, Hutt enforcers — procedurally generated with appropriate stats and equipment for their tier.
 
@@ -134,14 +136,15 @@ Smuggling is the high-risk, high-reward income path. You pick up contraband carg
 
 **Planet arrival checks:** Extra patrol check on hyperspace arrival, stacking with launch check. Corellia (Core World) has 60% patrol frequency; Tatooine (Outer Rim) only 10%.
 
-**Commands:**
+**Commands** — every smuggling verb lives under the `+smuggle/<switch>` umbrella (you must be near a criminal contact to browse or accept):
 ```
-smugjobs                  — View available smuggling jobs
-smugaccept <#>            — Accept a smuggling job
-smugjob                   — View your active job details
-smugdeliver               — Deliver cargo at the dropoff
-smugdump                  — Dump contraband (avoid fines, lose cargo)
++smuggle/board            — View available smuggling jobs
++smuggle/accept <id>      — Accept a job by its board id (e.g. smug-2c4b; prefix match works)
++smuggle/view             — View your active run's details
++smuggle/deliver          — Deliver cargo at the dropoff (must be docked there)
++smuggle/dump             — Dump contraband before a patrol (no pay, no fine)
 ```
+Bare shorthands still resolve: `smugjobs`/`underworld` (= `/board`), `takerun`, `cargo`, `deliver`, `jettison`.
 
 ---
 
@@ -279,12 +282,12 @@ Quality is intentionally capped below T5 minimum (75), so creature spoils can su
 
 | System | Commands |
 |--------|---------|
-| **Missions** | `missions`, `mission accept <#>`, `mission info <#>`, `mission complete`, `mission abandon` |
-| **Bounties** | `bounties`, `bounty claim <#>`, `bounty info <#>`, `bounty collect`, `bounty abandon`, `bountytrack` |
-| **Smuggling** | `smugjobs`, `smugaccept <#>`, `smugjob`, `smugdeliver`, `smugdump` |
+| **Missions** | `+mission/board`, `+mission/accept <id>`, `+mission/view`, `+mission/complete`, `+mission/abandon` |
+| **Bounties** | `+bounty/board`, `+bounty/claim <id>`, `+bounty/view`, `+bounty/track`, `+bounty/collect` |
+| **Smuggling** | `+smuggle/board`, `+smuggle/accept <id>`, `+smuggle/view`, `+smuggle/deliver`, `+smuggle/dump` |
 | **Trading** | `market`, `buy <good> <qty>`, `sell <good>` |
 | **Commissary** | `+commissary`, `+commissary buy <key>`, `+commissary sell <key>` |
-| **General** | `credits` (check balance), `sell` (sell weapons to NPC), `repair` (repair weapons at NPC) |
+| **General** | `+credits` (check balance), `sell` (sell weapons to NPC), `+repair` (repair an equipped weapon at an NPC) |
 
 ---
 

@@ -1657,7 +1657,7 @@ class ShipCommand(BaseCommand):
         if not item_name:
             await ctx.session.send_line(
                 "  Usage: +ship/install <component name>\n"
-                "  Use 'inventory' to see your items.")
+                "  Use '+inv' to see your items.")
             return
 
         # Find matching component in character inventory
@@ -1686,7 +1686,7 @@ class ShipCommand(BaseCommand):
         if not component:
             await ctx.session.send_line(
                 f"  No ship component matching '{item_name}' in your inventory.\n"
-                f"  Use 'inventory' to see your items. Components must be crafted first.")
+                f"  Use '+inv' to see your items. Components must be crafted first.")
             return
 
         systems = _get_systems(ship)

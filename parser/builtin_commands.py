@@ -3277,7 +3277,7 @@ class EquipCommand(BaseCommand):
                     f"  Equipped: {wname} -- {item.condition_bar}{crafter}")
             elif item and item.is_broken:
                 await ctx.session.send_line(
-                    f"  Equipped: {item.key} -- BROKEN. Type 'repair' to fix it.")
+                    f"  Equipped: {item.key} -- BROKEN. Type '+repair' to fix it.")
             else:
                 await ctx.session.send_line("  Nothing equipped. Type 'weapons' to see options.")
             return
@@ -3320,7 +3320,7 @@ class EquipCommand(BaseCommand):
             else:
                 await ctx.session.send_line(
                     f"  You aren't carrying a weapon matching "
-                    f"'{ctx.args}'. Type 'inventory' to see what you have.")
+                    f"'{ctx.args}'. Type '+inv' to see what you have.")
             return
 
         item = carried_to_instance(gear_dict)
@@ -3466,7 +3466,7 @@ class WearCommand(BaseCommand):
             else:
                 await ctx.session.send_line(
                     f"  You aren't carrying armor matching '{ctx.args}'. "
-                    f"Type 'inventory' to see what you have.")
+                    f"Type '+inv' to see what you have.")
             return
 
         item = carried_to_instance(gear_dict)
@@ -5352,7 +5352,7 @@ class TradeCommand(BaseCommand):
             if not matched_item:
                 await ctx.session.send_line(
                     f"  You don't have '{item_name}' in your inventory.\n"
-                    f"  Use 'inventory' to see your items."
+                    f"  Use '+inv' to see your items."
                 )
                 return
 

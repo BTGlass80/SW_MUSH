@@ -33,7 +33,7 @@ Crafted items have a **quality rating (1–100)** determined by your materials a
 
 ### Standard Materials (7 types)
 
-These drop from the `survey` command and from `buyresources` vendors:
+These drop from the `survey` command and from `+craft/buyresources` vendors:
 
 | Resource | Found In | Common Uses |
 |----------|----------|-------------|
@@ -74,11 +74,11 @@ Rolls a **Search** skill check vs. difficulty 8. Outdoor areas yield metal and o
 
 ### Buy from a Vendor (credits; standard quality 50)
 ```
-buyresources                — Show vendor prices
-buyresources <type> <qty>   — Buy resources
-buyres metal 10             — Example
++craft/buyresources               — Show vendor prices
++craft/buyresources <type> <qty>  — Buy resources
++craft/buyresources metal 10      — Example
 ```
-Available in rooms with a mechanic, engineer, or crafting station. Standard quality (50) — surveying is better for quality but costs time. Cannot buy Rare, T5, or electronic from standard vendors.
+The bare `buyres` shorthand still resolves to `+craft/buyresources`. Available in rooms with a mechanic, engineer, or crafting station. Standard quality (50) — surveying is better for quality but costs time. Cannot buy Rare, T5, or electronic from standard vendors.
 
 ---
 
@@ -328,7 +328,7 @@ T5 schematics are rare, the trainers are hard to find, and the materials are gat
 
 ## 11. The Complete Crafting Loop
 
-1. **Gather** — `survey` in outdoor or tech zones for free materials (15-minute cooldown); `buyresources` for quick standardquality stock
+1. **Gather** — `survey` in outdoor or tech zones for free materials (15-minute cooldown); `+craft/buyresources` for quick standard-quality stock
 2. **Learn** — find the right trainer NPC and `talk` to them for the schematic
 3. **Craft** — `craft <schematic>` once you have the materials
 4. **Experiment** — `experiment <axis>` to push quality toward Masterwork tier (up to 3 times per weapon)
@@ -348,5 +348,7 @@ The quality system creates a genuine player economy: a crafter with high Blaster
 | `craft <schematic>` | Craft an item (consumes materials) |
 | `experiment [list\|<axis>]` | Tune an equipped crafted weapon (damage/accuracy/durability) |
 | `teach <player> <schematic>` | Teach a schematic to another player |
-| `buyresources [<type> <qty>]` | Buy standard-quality resources from a vendor |
-| `buyres` | Alias for buyresources |
+| `+craft/buyresources [<type> <qty>]` | Buy standard-quality resources from a vendor |
+| `buyres` | Bare shorthand for `+craft/buyresources` |
+
+Every crafting verb is also reachable under the canonical `+craft/<switch>` umbrella — `+craft/survey`, `+craft/resources`, `+craft/schematics`, `+craft/start <schematic>`, `+craft/experiment`, `+craft/teach`, `+craft/buyresources`. The bare forms above are preserved aliases.
