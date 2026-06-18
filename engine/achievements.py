@@ -267,8 +267,8 @@ async def notify_room_achievement(db, char_id: int, ach: dict,
             f"{ach['icon']} {ach['name']}\033[0m"
         )
         # Broadcast to room via session manager
-        if session_manager and hasattr(session_manager, "sessions"):
-            for s in session_manager.sessions.values():
+        if session_manager:
+            for s in session_manager.all:
                 if (hasattr(s, "character") and s.character
                         and s.character.get("current_room") == room_id
                         and s.character.get("id") != char_id):

@@ -62,7 +62,7 @@ async def process_all_debts(db, session_mgr):
             # Find the player's session (for comlink messages)
             sess = None
             if session_mgr:
-                for s in session_mgr.sessions:
+                for s in session_mgr.all:
                     if (s.is_in_game and s.character
                             and s.character.get("id") == char_id):
                         sess = s

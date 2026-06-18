@@ -74,7 +74,7 @@ async def wound_recovery_tick(ctx: "TickContext") -> None:
     # to check wound_state, then transition. We expect O(few) wounded
     # online players at any time.
     sessions = []
-    for s in getattr(sm, "sessions", []):
+    for s in sm.all:
         if getattr(s, "character", None):
             sessions.append(s)
 

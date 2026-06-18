@@ -1135,7 +1135,7 @@ class DirectorAI:
             try:
                 online_names = {
                     s.char_name.lower()
-                    for s in session_mgr.sessions.values()
+                    for s in session_mgr.all
                     if getattr(s, "char_name", None)
                 }
             except Exception:
