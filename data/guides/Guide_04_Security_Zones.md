@@ -7,7 +7,7 @@ tags: ["security", "pvp", "zones", "republic", "lawless", "safe", "wildspace", "
 
 # Security Zones
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 
 ---
 
@@ -265,4 +265,4 @@ That's the security system in motion. Three tiers, dynamic shifts driven by Dire
 
 ---
 
-*This guide is part of the SW_MUSH Game Guides. See also: [Ground Combat](#/guide/ground-combat), [Space Systems](#/guide/space-systems), [Territory Control](#/guide/territory-control), [Organizations & Factions](#/guide/organizations-factions), [Medical & Death](#/guide/medical-death).*
+*This guide is part of the Parsec Game Guides. See also: [Ground Combat](#/guide/ground-combat), [Space Systems](#/guide/space-systems), [Territory Control](#/guide/territory-control), [Organizations & Factions](#/guide/organizations-factions), [Medical & Death](#/guide/medical-death).*

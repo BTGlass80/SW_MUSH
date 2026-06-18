@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-data/help_topics.py — Help system for SW_MUSH
+data/help_topics.py — Help system for Parsec
 
 Provides:
   - HelpEntry: a single help entry (command or topic)
@@ -838,7 +838,7 @@ TYPICAL ADVANCEMENT TIME
         aliases=["spaceflight", "travel"],
         see_also=["spacecombat", "crew", "hyperdrive", "+ship"],
         body="""\
-Space travel in SW_MUSH uses a zone-based model. Ships move between
+Space travel in Parsec uses a zone-based model. Ships move between
 named zones rather than tracking exact coordinates. Four planets are
 connected by three hyperspace lanes across 16 zones.
 
@@ -1246,7 +1246,7 @@ IC vs. OOC
         aliases=["newplayer", "getting started", "tutorial", "start"],
         see_also=["rp", "commands", "attributes", "combat"],
         body="""\
-Welcome to Star Wars D6 MUSH! Here's how to get started.
+Welcome to Parsec! Here's how to get started.
 
 FIRST STEPS
   1. Create your character during login (choose species, allocate

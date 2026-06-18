@@ -19,7 +19,9 @@ def _read(*parts):
 
 PORTAL = _read("static", "portal.html")
 CLIENT = _read("static", "client.html")
+CHARGEN = _read("static", "chargen.html")
 CONFIG = _read("server", "config.py")
+BUILTINS = _read("parser", "builtin_commands.py")
 
 
 def test_config_game_name_is_parsec():
@@ -40,6 +42,18 @@ def test_client_branding_is_parsec():
     assert "<title>Parsec</title>" in CLIENT
     assert "PARSEC · AUTH" in CLIENT
     assert "SW MUSH" not in CLIENT
+
+
+def test_chargen_branding_is_parsec():
+    assert "<h1>PARSEC</h1>" in CHARGEN
+    assert "Star Wars D6 MUSH" not in CHARGEN
+    assert "MUSH" not in CHARGEN
+
+
+def test_command_reference_header_is_parsec():
+    # The `commands` reference header is player-facing text.
+    assert "PARSEC — Command Reference" in BUILTINS
+    assert "STAR WARS D6 MUSH" not in BUILTINS
 
 
 def test_telnet_banner_detrademarked_and_rebranded():

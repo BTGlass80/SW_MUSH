@@ -7,7 +7,7 @@ tags: ["faction", "organization", "republic", "cis", "jedi", "hutt", "bounty hun
 
 # Organizations & Factions
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 
 ---
 
@@ -298,4 +298,4 @@ That's the texture of faction life. Choices have weight, the world reacts, and p
 
 ---
 
-*This guide is part of the SW_MUSH Game Guides. See also: [Security Zones](#/guide/security-zones), [Territory Control](#/guide/territory-control), [The Jedi Village](#/guide/jedi-village), [Padawan-Master](#/guide/padawan-master), [The Director AI](#/guide/director-ai), [Tutorial Chains](#/guide/tutorial-chains).*
+*This guide is part of the Parsec Game Guides. See also: [Security Zones](#/guide/security-zones), [Territory Control](#/guide/territory-control), [The Jedi Village](#/guide/jedi-village), [Padawan-Master](#/guide/padawan-master), [The Director AI](#/guide/director-ai), [Tutorial Chains](#/guide/tutorial-chains).*

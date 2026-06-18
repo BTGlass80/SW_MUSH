@@ -7,7 +7,7 @@ tags: ["cities", "settlement", "governance", "build", "infrastructure", "town"]
 
 # Player Cities
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
 **Guide Version 1.0**
 

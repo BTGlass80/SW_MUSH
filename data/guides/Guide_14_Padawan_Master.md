@@ -7,7 +7,7 @@ tags: ["padawan", "master", "apprentice", "bond", "jedi", "training", "mentor"]
 
 # The Padawan-Master Bond
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
 **Guide Version 1.1**
 
@@ -482,7 +482,7 @@ The bond is meant to be permanent within its arc. The fact that it sometimes end
 
 ## 16. A Final Word
 
-The Padawan-Master bond is one of the most demanding systems in SW_MUSH because it's a real two-person relationship that plays out over weeks. Both characters have to commit. Both have to show up. Both have to be willing to play the slow scenes that build the bond's substance — the teaching scene, the mission, the disagreement, the Trial.
+The Padawan-Master bond is one of the most demanding systems in Parsec because it's a real two-person relationship that plays out over weeks. Both characters have to commit. Both have to show up. Both have to be willing to play the slow scenes that build the bond's substance — the teaching scene, the mission, the disagreement, the Trial.
 
 When it works, it's the heart of Jedi play on the server. A bonded pair has texture that a solo Jedi character doesn't have. The Master sees their Padawan grow; the Padawan sees their Master in close detail; the relationship accrues a private vocabulary of shared scenes and references. The Knighting at the end (when it comes) is genuinely earned.
 

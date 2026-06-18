@@ -7,7 +7,7 @@ tags: ["chargen", "species", "template", "build", "starting", "skills", "attribu
 
 # Character Creation
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — April 2026**
 **Guide Version 1.0**
 
@@ -15,7 +15,7 @@ tags: ["chargen", "species", "template", "build", "starting", "skills", "attribu
 
 ## 1. Overview
 
-Character creation in SW_MUSH follows the WEG D6 Revised & Expanded rules. You choose a species, distribute attribute dice within species-defined ranges, spend skill dice on the skills you want, optionally declare Force sensitivity, write a background, and finalize. The entire process happens through typed commands in a dedicated creation mode.
+Character creation in Parsec follows the WEG D6 Revised & Expanded rules. You choose a species, distribute attribute dice within species-defined ranges, spend skill dice on the skills you want, optionally declare Force sensitivity, write a background, and finalize. The entire process happens through typed commands in a dedicated creation mode.
 
 Two paths are available: a **guided wizard** that walks you through each step with descriptions and prompts, or a **free-form editor** where you can set any field in any order. Both paths produce the same result — a complete character saved to the database.
 

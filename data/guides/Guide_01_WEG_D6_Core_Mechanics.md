@@ -7,7 +7,7 @@ tags: ["d6", "dice", "rolls", "attributes", "skills", "wild die", "rules"]
 
 # WEG D6 Core Mechanics
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — April 2026**
 **Guide Version 1.0**
 

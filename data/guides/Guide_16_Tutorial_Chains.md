@@ -7,7 +7,7 @@ tags: ["tutorial", "onboarding", "new player", "chain", "first character"]
 
 # Tutorial Chains & First Character
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
 **Guide Version 1.0**
 

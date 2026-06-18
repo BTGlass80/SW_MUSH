@@ -7,7 +7,7 @@ tags: ["spacer", "quest", "ship", "captain", "tatooine", "story arc"]
 
 # The Spacer Quest — "From Dust to Stars"
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
 **Guide Version 1.0**
 

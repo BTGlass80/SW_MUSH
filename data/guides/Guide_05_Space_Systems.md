@@ -7,7 +7,7 @@ tags: ["space", "ship", "starship", "pilot", "hyperspace", "navigation", "freigh
 
 # Space Systems
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — April 2026**
 **Guide Version 1.0**
 

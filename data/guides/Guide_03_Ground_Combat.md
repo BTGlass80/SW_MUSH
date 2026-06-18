@@ -7,7 +7,7 @@ tags: ["combat", "fighting", "attack", "damage", "blasters", "melee", "initiativ
 
 # Ground Combat
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 
 ---
 
@@ -459,4 +459,4 @@ A particularly important affordance: the panel shows you, in real time, which co
 
 ---
 
-*This guide is part of the SW_MUSH Game Guides. See also: [Core Mechanics](#/guide/weg-d6-core-mechanics), [Security Zones](#/guide/security-zones), [Medical & Death](#/guide/medical-death), [Force Powers](#/guide/force-powers), [Encounters & Hazards](#/guide/encounters-hazards).*
+*This guide is part of the Parsec Game Guides. See also: [Core Mechanics](#/guide/weg-d6-core-mechanics), [Security Zones](#/guide/security-zones), [Medical & Death](#/guide/medical-death), [Force Powers](#/guide/force-powers), [Encounters & Hazards](#/guide/encounters-hazards).*

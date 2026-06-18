@@ -7,7 +7,7 @@ tags: ["force", "jedi", "sith", "powers", "lightsaber", "control", "sense", "alt
 
 # Force Powers
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — April 2026**
 **Guide Version 1.0**
 

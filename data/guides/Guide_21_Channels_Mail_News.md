@@ -7,7 +7,7 @@ tags: ["channels", "mail", "news", "communication", "chat", "message"]
 
 # Channels, Mail & News
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
 **Guide Version 1.0**
 
@@ -499,7 +499,7 @@ Five concrete pictures.
 
 ## 12. A Final Word
 
-The communication infrastructure of SW_MUSH is what turns the room-graph into a **social network**. Without it, two characters in different rooms couldn't easily interact; the spacer running cargo at Kessel couldn't know what's happening at Mos Eisley; the faction couldn't coordinate operations across planets. With it, the galaxy becomes a connected place where information flows, plans are made, and stories form.
+The communication infrastructure of Parsec is what turns the room-graph into a **social network**. Without it, two characters in different rooms couldn't easily interact; the spacer running cargo at Kessel couldn't know what's happening at Mos Eisley; the faction couldn't coordinate operations across planets. With it, the galaxy becomes a connected place where information flows, plans are made, and stories form.
 
 For most players, the communication layers become **invisible infrastructure** — you use `ooc` to chat, `comlink` to coordinate, `@mail` to follow up, `+news` to check the world. The commands are second nature within a few sessions.
 

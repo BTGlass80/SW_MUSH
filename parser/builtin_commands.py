@@ -2582,7 +2582,7 @@ class HelpCommand(BaseCommand):
         await ctx.session.send_line("")
         await ctx.session.send_line(ansi.header(bar))
         await ctx.session.send_line(
-            ansi.header("  STAR WARS D6 MUSH — Command Reference"))
+            ansi.header("  PARSEC — Command Reference"))
         await ctx.session.send_line(ansi.header(bar))
         await ctx.session.send_line("")
 
@@ -4495,7 +4495,7 @@ class GetTakeCommand(BaseCommand):
     key = "get"
     aliases = ["take", "pickup", "grab"]
     help_text = (
-        "SW_MUSH has no loose ground items to `get`. Items come from:\n"
+        "Parsec has no loose ground items to `get`. Items come from:\n"
         "  • examining the world — `examine <thing>` can turn up gear\n"
         "  • commissaries & shops — `buy` from a vendor or commissary\n"
         "  • loot — `loot` a defeated enemy\n"
@@ -4507,7 +4507,7 @@ class GetTakeCommand(BaseCommand):
 
     async def execute(self, ctx: CommandContext):
         await ctx.session.send_line(
-            "  There's nothing here to pick up — SW_MUSH has no loose "
+            "  There's nothing here to pick up — Parsec has no loose "
             "ground items.")
         await ctx.session.send_line(
             "  Gear comes from: \033[1;33mexamine\033[0m-ing the world, "
@@ -4521,7 +4521,7 @@ class DropStubCommand(BaseCommand):
     key = "drop"
     aliases = ["discard"]
     help_text = (
-        "SW_MUSH has no ground to `drop` items onto. Instead:\n"
+        "Parsec has no ground to `drop` items onto. Instead:\n"
         "  • `sell <item>` at a vendor to turn gear into credits\n"
         "  • `unequip <item>` to take off something you're wearing/wielding\n"
         "  • `give <item> to <player>` to hand it to someone\n"

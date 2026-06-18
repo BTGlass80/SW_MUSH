@@ -8,7 +8,7 @@ access_level: 3
 
 # Administration
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **Game administration reference — ADMIN ONLY**
 
 ---

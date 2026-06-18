@@ -7,7 +7,7 @@ tags: ["crafting", "mining", "resources", "recipes", "build", "manufacture", "ar
 
 # Crafting System
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **Guide Version 2.0 — updated June 2026**
 
 ---

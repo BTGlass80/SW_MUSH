@@ -7,7 +7,7 @@ tags: ["territory", "control", "faction", "claim", "war", "contest"]
 
 # Territory Control
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — June 2026**
 **Guide Version 2.0**
 

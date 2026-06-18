@@ -7,7 +7,7 @@ tags: ["director", "ai", "npc", "events", "ambient", "story", "emergent"]
 
 # The Director AI
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 
 ---
 
@@ -313,4 +313,4 @@ When you log in, that's the world you're stepping into. When you log out, the wo
 
 ---
 
-*This guide is part of the SW_MUSH Game Guides. See also: [Organizations & Factions](#/guide/organizations-factions), [Security Zones](#/guide/security-zones), [Territory Control](#/guide/territory-control), [Channels, Mail & News](#/guide/channels-mail-news), [Scenes, Plots & Places](#/guide/scenes-plots-places).*
+*This guide is part of the Parsec Game Guides. See also: [Organizations & Factions](#/guide/organizations-factions), [Security Zones](#/guide/security-zones), [Territory Control](#/guide/territory-control), [Channels, Mail & News](#/guide/channels-mail-news), [Scenes, Plots & Places](#/guide/scenes-plots-places).*

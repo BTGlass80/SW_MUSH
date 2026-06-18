@@ -2,11 +2,11 @@
 key: space
 title: Space Travel
 category: "Rules: Space"
-summary: Space travel in SW_MUSH uses a zone-based model.
+summary: Space travel in Parsec uses a zone-based model.
 aliases: [spaceflight, travel]
 see_also: [spacecombat, crew, hyperdrive, +ship]
 ---
-Space travel in SW_MUSH uses a zone-based model. Ships move between
+Space travel in Parsec uses a zone-based model. Ships move between
 named zones rather than tracking exact coordinates. Four planets are
 connected by three hyperspace lanes across 16 zones.
 

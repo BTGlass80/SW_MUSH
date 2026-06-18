@@ -2,11 +2,11 @@
 key: newbie
 title: New Player Guide
 category: MUSH Basics
-summary: "Welcome to Star Wars D6 MUSH!"
+summary: "Welcome to Parsec!"
 aliases: [newplayer, getting started, tutorial, start]
 see_also: [rp, commands, attributes, combat]
 ---
-Welcome to Star Wars D6 MUSH! Here's how to get started.
+Welcome to Parsec! Here's how to get started.
 
 FIRST STEPS
   1. Create your character during login (choose species, allocate

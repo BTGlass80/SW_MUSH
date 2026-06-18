@@ -7,7 +7,7 @@ tags: ["shops", "store", "merchant", "trading", "vendor", "retail", "pricing"]
 
 # Player Shops & Trading
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
 **Guide Version 1.0**
 
@@ -15,7 +15,7 @@ tags: ["shops", "store", "merchant", "trading", "vendor", "retail", "pricing"]
 
 ## How to Read This Guide
 
-Player shops are the **passive-revenue commerce layer** of SW_MUSH. You buy a vendor droid, place it in a public room, stock it with goods, set prices, and walk away. The droid sells to customers automatically. Revenue accumulates in escrow; you collect it when you check in.
+Player shops are the **passive-revenue commerce layer** of Parsec. You buy a vendor droid, place it in a public room, stock it with goods, set prices, and walk away. The droid sells to customers automatically. Revenue accumulates in escrow; you collect it when you check in.
 
 This is the entrepreneur's system. It pairs naturally with crafting (Guide #7) and shopfront housing (Guide #13). Players who run shops successfully treat them as a sideline to their main play — the shop generates credits in the background while they run missions, do RP, or chase bounties.
 
@@ -449,7 +449,7 @@ Five concrete pictures.
 
 ## 16. A Final Word
 
-Player shops are how SW_MUSH's economy becomes a real ecosystem rather than just a series of NPC transactions. When you can buy a masterwork blaster signed by a Wookiee crafter you've never met, when you can sell your excess salvage to a Bothan broker's buy order without ever seeing her, when the cantina at Mos Eisley has three player-run shops competing for medpac customers — that's when the world starts to feel inhabited.
+Player shops are how Parsec's economy becomes a real ecosystem rather than just a series of NPC transactions. When you can buy a masterwork blaster signed by a Wookiee crafter you've never met, when you can sell your excess salvage to a Bothan broker's buy order without ever seeing her, when the cantina at Mos Eisley has three player-run shops competing for medpac customers — that's when the world starts to feel inhabited.
 
 For shop-owners, the system is **passive revenue that pairs with active play**. You don't have to be at the shop for sales to happen. You craft or stock or post buy orders, and then you go run missions, do RP scenes, chase a PC bounty — and meanwhile your shop is generating credits in the background. A well-run shop generates more revenue per week than most active income streams, with the catch that it takes weeks of setup and stocking to reach that level.
 

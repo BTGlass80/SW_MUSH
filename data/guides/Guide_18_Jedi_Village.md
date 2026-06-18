@@ -7,7 +7,7 @@ tags: ["jedi", "village", "monastery", "path", "force-sensitive", "training"]
 
 # The Jedi Village & Path A/B/C
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — May 2026**
 **Guide Version 1.0**
 
@@ -15,7 +15,7 @@ tags: ["jedi", "village", "monastery", "path", "force-sensitive", "training"]
 
 ## How to Read This Guide
 
-The Jedi Village is the **most committed-to story arc** in SW_MUSH. It's the route from "non-Jedi character with hidden potential" to "recognized Jedi" — through the deep desert of Tatooine, five trials, and a final choice between three paths. It is multi-week real-time content.
+The Jedi Village is the **most committed-to story arc** in Parsec. It's the route from "non-Jedi character with hidden potential" to "recognized Jedi" — through the deep desert of Tatooine, five trials, and a final choice between three paths. It is multi-week real-time content.
 
 Most players will never run the Village arc. The ones who do are typically committing months of play to a Jedi story, and the system is designed to honor that commitment. The Village isn't a fast unlock; it's a slow recognition of dedicated play.
 
@@ -341,7 +341,7 @@ The hiddenness is the design. The Village arc is supposed to feel like discovery
 
 ## 11. The Roleplay of the Village
 
-The mechanics are scaffolding. The Village is, more than any other system in SW_MUSH, a **roleplay arc**. The scenes you play in the Forge with Daro, the slow conversation with Mira about courage, the silent sit in the Caves with Korvas, the temptation scene in the Sealed Sanctum, the holocron examination with Saro — these are the substance of the arc. The dice rolls are minor compared to what you write in `cpose`.
+The mechanics are scaffolding. The Village is, more than any other system in Parsec, a **roleplay arc**. The scenes you play in the Forge with Daro, the slow conversation with Mira about courage, the silent sit in the Caves with Korvas, the temptation scene in the Sealed Sanctum, the holocron examination with Saro — these are the substance of the arc. The dice rolls are minor compared to what you write in `cpose`.
 
 Players who run the Village well treat it as a months-long story arc, not a series of mechanical hurdles. They:
 

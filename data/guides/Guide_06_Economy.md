@@ -7,7 +7,7 @@ tags: ["economy", "credits", "money", "missions", "bounty", "smuggling", "trade"
 
 # Economy: Missions, Bounties, Smuggling & Trade
 
-**SW_MUSH — Star Wars D6 Revised & Expanded**
+**Parsec — WEG D6 Revised & Expanded**
 **BTGlass80 — April 2026**
 **Guide Version 1.0**
 
