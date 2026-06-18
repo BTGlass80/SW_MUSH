@@ -7,7 +7,8 @@ that actually convert a curious visitor into a retained player: **a clean first 
 minutes** and a **credible landing page**.
 
 Screenshots live in [`docs/design/ui_screenshots/`](ui_screenshots/). Regenerate any time
-with `python tools/capture_ui_screenshots.py` (drives system Edge via Playwright).
+with `python tools/capture_ui_screenshots.py` — it boots the live game server (cost-safe, the
+paid Director disabled) and drives system Edge via Playwright.
 
 ---
 
@@ -47,11 +48,12 @@ actionable fixes. The dev side executes it.
   from the working title "SW_MUSH" to an original, non-trademarked name.)
 
 ## 4. Screenshot index
-Captured at 1440×900, 2× DPI, system Edge. *Note: the **pre-login surfaces (01 landing, 02
-login, 03/03b chargen) are captured LIVE against the real backend** — real data, the actual
-new-player funnel. The **in-game** surfaces (04+) are populated with representative MOCK data
-(a sample character "Tey Voss" in Mos Eisley) so the review is about layout/visual design,
-not the specific values — e.g. shop prices show placeholder "0 cr".*
+Captured at 1440×900, 2× DPI, system Edge, **against a live game server** (`main.py`, with the
+paid Director disabled so it's cost-free). *Note: the **pre-login surfaces (01 landing, 02 login,
+03/03b chargen)** show real backend data — the actual new-player funnel. The **in-game** surfaces
+(04+) are driven by injected representative MOCK state (a sample character "Tey Voss" in Mos
+Eisley) so the review is about layout/visual design, not the specific values — e.g. the shop shows
+placeholder "0 cr".*
 
 | # | File | Surface | Notes |
 |---|------|---------|-------|
@@ -59,34 +61,42 @@ not the specific values — e.g. shop prices show placeholder "0 cr".*
 | 02 | `02_login_boot.png` | **Login / boot** screen | the SPA boot + auth entry |
 | 03 | `03_chargen.png` | **Character creation** — step 1, *Choose Your Path* (9 era-correct templates + Build From Scratch) | the onboarding funnel entry; **captured live** (real backend data) |
 | 03b | `03b_chargen_attributes.png` | **Character creation** — step 3, *Allocate Attributes* (18D across the six D6 attributes w/ ± steppers, live remaining-dice counter) | the core chargen interaction; **captured live** |
-| 04 | `04_ground_play.png` | **Integrated ground client** — the core play view (sidebar: char/condition/attributes/credits/CP/loadout · center: room · context panel: map/zone-influence/recent · command bar) | the most-used surface; one minor sub-panel (HERE/occupants) was skipped by a mock-data gap — its layout slot is visible |
+| 04 | `04_ground_play.png` | **Integrated ground client** — the core play view (left sidebar: char/condition/attributes/credits/loadout · center: room + **populated comms pane** (IC/OOC/SYS chat) · right context panel: room / **faction standing** / **achievements** / mail / places · command bar w/ direction chips) | the most-used surface — the full populated sidebar + the social/chat core |
 | 05 | `05_holonet.png` | **Holonet** in-game news browser (modal) | the Director-AI news surface |
 | 06 | `06_sheet.png` | **Character sheet** (modal) | full D6 stats |
 | 07 | `07_shop.png` | **Shop / vendor** panel (droid tabs + slot-tagged items + BUY) | the commerce surface |
 | 08 | `08_inventory.png` | **Inventory** panel (equipped + carried) | gear management |
-| 09 | `09_map_preview.png` | **Area map** renderer (standalone preview) | the spatial/navigation surface |
-| 14 | `14_ground_combat.png` | **Ground combat HUD** — the combat strip over the ground view (initiative cards w/ wound rungs + declared actions, YOUR ACTIONS / WAITING ON, and the color-coded damage feed) | the core combat experience |
+| 09 | `09_map_preview.png` | **Area map** renderer — local tactical tiers (planet → city → district → site) | the local spatial/navigation surface |
+| 10 | `10_galaxy_navigator.png` | **Holocarta galaxy navigator** — the wide GALAXY tier (hyperlanes, faction territory, notable systems; the GALAXY→SYSTEM→PLANET→CITY→DISTRICT tier rail) | how a player navigates the *wider galaxy* (distinct from 09's local map) |
 | 11 | `11_space_cockpit.png` | **Space cockpit / flight console** — the full space mode (tactical radar, target lock, hull/shields/systems, crew stations, hyperspace plot, comms, and the space combat declaration strip) | the whole space + space-combat experience |
 | 12 | `12_skill_check.png` | **Skill-check** showcase (unopposed + opposed rolls, dice pools, difficulty, result callouts) | the D6 dice-resolution UX |
 | 13 | `13_holocron.png` | **Holocron** in-game knowledge/lore browser (modal) | the codex/learning surface |
+| 14 | `14_ground_combat.png` | **Ground combat HUD** — the combat strip over the ground view (initiative cards w/ wound rungs + declared actions, YOUR ACTIONS / WAITING ON, and the color-coded damage feed) | the core combat experience |
 | 15 | `15_craft.png` | **Crafting** panel (schematics + resource ledger + last-result) | the crafting system |
 | 16 | `16_board.png` | **Jobs / bounty board** (tier filter chips + contract cards + reward hierarchy) | the contract/mission surface |
 
 ## 5. Known gaps / caveats
-- **All in-game surfaces show representative MOCK data** (sample char "Tey Voss" in Mos
-  Eisley / sample combat + ships). The review is about **layout / visual design / UX flow**,
-  not the values: e.g. the shop shows "0 cr" and the bounty board shows "?" target/faction
-  fields — those are mock-data field mismatches, not UI bugs. The *layouts* are faithful
-  (these are the real production components + CSS).
-- **Surfaces best captured from a LIVE session** (the definitive end-of-hardening pass will
-  re-capture everything live so it reflects the final UI + real data): the **combat-mechanics
+- **In-game surfaces show representative MOCK state** (sample char "Tey Voss" in Mos Eisley /
+  sample combat + ships / sample comms + mail + standings). The review is about **layout /
+  visual design / UX flow**, not the values: e.g. the shop shows "0 cr" and the bounty board
+  shows "?" target/faction fields — mock-data field mismatches, not UI bugs. The *layouts* are
+  faithful (real production components + CSS).
+- **Surfaces still best captured from a LIVE multiplayer session** (the definitive
+  end-of-hardening pass re-captures everything live with real data): the **combat-mechanics
   inspector** (the collapsible per-hit dice/soak/wound breakdown — event-driven, no fixture),
-  the **region/territory** view, the **onboarding/tutorial overlay**, and the live-populated
-  **HERE/occupants** + **area-map** panels on the ground view (04). Nothing here blocks the
-  review — they round out coverage.
-- These 15 are a **current snapshot** for an early review. When the UI is locked (incl. the
-  new public name + landing changes), `python tools/capture_ui_screenshots.py` regenerates
-  the set; the final pass will be captured against a live server for full fidelity.
+  the **wilderness REGION CONTROL** panel (needs a wilderness-region context; distinct from the
+  faction-standing panel now shown in 04), the **onboarding/tutorial overlay**, and the
+  **embedded ground-view area-map mini** (needs live area geometry — the standalone renderer is
+  at 09, the galaxy tier at 10). Nothing here blocks the review.
+- **Bug found + fixed while assembling this set:** the ground sidebar **Mail** and
+  **Achievements** panels were silently dead on real data — the M3 client read `recent` /
+  `unlocked` but the server emits `messages` / `achievements` (a producer/consumer key mismatch
+  the legacy client never had). Fixed (consumer realigned to the canonical producer shape) and
+  pinned by `tests/test_sidebar_panel_contract.py`; the 04 capture shows both panels rendering.
+- These **17** are a **current snapshot** for an early review. `python tools/capture_ui_screenshots.py`
+  regenerates the whole set — it boots the live game server (cost-safe) so chargen + the
+  API-backed surfaces render correctly. The final pass will re-capture against the locked UI
+  (incl. the new public name + landing changes) for full fidelity.
 
 ## 6. Where the code lives (if you want to inspect markup/CSS)
 - Main client + all CSS: `static/client.html` (single file, ~13k lines).

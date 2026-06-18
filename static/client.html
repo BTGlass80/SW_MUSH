@@ -8131,24 +8131,43 @@ function setIndicator(id, on) {
    SIDE PANEL HANDLERS — achievements, mail, places, rep
    ════════════════════════════════════════════════════════════════════ */
 function handleAchievementsStatus(data) {
-  var unlocked = data.unlocked || [];
-  if (unlocked.length === 0) { $('ach-panel').style.display = 'none'; return; }
+  // Canonical key is `achievements` — matches the server producers
+  // (server/session.py _hud_sidebar_achievements, parser/achievement_commands.py)
+  // AND the legacy client. The M3 rewrite regressed to `unlocked`, which the
+  // producers never send, so this panel rendered empty on real data. `unlocked`
+  // is kept only as a defensive fallback.
+  var achs = data.achievements || data.unlocked || [];
+  if (achs.length === 0) { $('ach-panel').style.display = 'none'; return; }
+  // In-progress first, then completed, then locked/untouched — top 6 (legacy order).
+  var inProgress = achs.filter(function(a) { return !a.completed && !a.locked && (a.progress | 0) > 0; });
+  var done = achs.filter(function(a) { return a.completed; });
+  var locked = achs.filter(function(a) { return a.locked || (!a.completed && (a.progress | 0) === 0); });
+  var display = inProgress.concat(done).concat(locked).slice(0, 6);
   $('ach-panel').style.display = '';
-  $('ach-count').textContent = '· ' + unlocked.length;
+  $('ach-count').textContent = '· ' + done.length + '/' + achs.length;
   var body = $('ach-body');
   body.innerHTML = '';
-  unlocked.slice(-6).reverse().forEach(function(a) {
+  display.forEach(function(a) {
     var d = document.createElement('div');
-    d.className = 'ach-item';
-    d.innerHTML = '<div class="ach-name">🏆 ' + escapeHtml(a.name || a.id) + '</div>' +
-                  (a.description ? '<div class="ach-desc">' + escapeHtml(a.description) + '</div>' : '');
+    d.className = 'ach-item' + (a.locked ? ' locked' : '') + (a.completed ? ' complete' : '');
+    // Producers vary: the parser path sends `description`; the session path sends
+    // progress/target. Prefer description, else show a progress readout.
+    var sub = a.description ? escapeHtml(a.description)
+            : (a.target ? ((a.completed ? '✓ ' : '') + (a.progress | 0) + '/' + a.target)
+                        : (a.completed ? '✓' : ''));
+    d.innerHTML = '<div class="ach-name">' + (a.icon || '🏆') + ' ' + escapeHtml(a.name || a.key || '') + '</div>' +
+                  (sub ? '<div class="ach-desc">' + sub + '</div>' : '');
     body.appendChild(d);
   });
 }
 
 function handleMailStatus(data) {
+  // Canonical shape is `messages` with per-item `from_name` — matches
+  // server/session.py _hud_sidebar_mail AND the legacy client. The M3 rewrite
+  // regressed to `recent`/`from`, which the producer never sends, so the message
+  // previews never rendered. `recent`/`from` kept only as defensive fallbacks.
   var unread = data.unread || 0;
-  var msgs = data.recent || [];
+  var msgs = data.messages || data.recent || [];
   if (unread === 0 && msgs.length === 0) { $('mail-panel').style.display = 'none'; return; }
   $('mail-panel').style.display = '';
   $('mail-count').textContent = unread > 0 ? ('· ' + unread + ' unread') : '';
@@ -8156,8 +8175,8 @@ function handleMailStatus(data) {
   body.innerHTML = '';
   msgs.slice(0, 5).forEach(function(m) {
     var d = document.createElement('div');
-    d.className = 'mail-item';
-    d.innerHTML = '<div class="mail-from">' + escapeHtml(m.from || '?') + '</div>' +
+    d.className = 'mail-item' + (m.is_read ? ' read' : '');
+    d.innerHTML = '<div class="mail-from">' + escapeHtml(m.from_name || m.from || '?') + '</div>' +
                   '<div class="mail-subj">' + escapeHtml(m.subject || '(no subject)') + '</div>';
     body.appendChild(d);
   });
@@ -8173,8 +8192,13 @@ function handlePlacesStatus(data) {
   places.slice(0, 6).forEach(function(p) {
     var d = document.createElement('div');
     d.className = 'place-item';
+    // Producer (server/session.py _hud_sidebar_places) sends `occupants` (names);
+    // `zone` is a consumer-only fallback. Show occupants when present.
+    var sub = (p.occupants && p.occupants.length)
+      ? (p.occupants.length + ' here: ' + p.occupants.slice(0, 3).join(', '))
+      : (p.zone || '');
     d.innerHTML = '<div class="place-name">' + escapeHtml(p.name || '?') + '</div>' +
-                  (p.zone ? '<div class="place-zone">' + escapeHtml(p.zone) + '</div>' : '');
+                  (sub ? '<div class="place-zone">' + escapeHtml(sub) + '</div>' : '');
     body.appendChild(d);
   });
 }
