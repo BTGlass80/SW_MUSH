@@ -39,3 +39,8 @@ commissary.sellback_rate: 0.50        # refund fraction on commissary sellback (
 # every out-of-combat skill check (fine at launch's small population); lower
 # it (e.g. 0.25) post-launch if the skill_check event stream gets noisy.
 telemetry.skill_check_sample: 1.0     # fraction of skill checks emitted (0..1]
+
+# ── Feature flags (parser/city_commands.py) ──
+# Gate `+city found` off at launch; set true when city founding opens.
+# Brian decision #7 (2026-06-16): T3.14 cities are OPTIONAL at launch.
+cities.found_enabled: false
