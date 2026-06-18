@@ -836,6 +836,15 @@ class MissionBoard:
         m.expires_at = now + MISSION_ACTIVE_TTL
 
         await db.accept_mission(mission_id, character_id, m.expires_at, m.to_dict())
+        # T3.19 telemetry: the objective funnel (catalog C). Emitted only after
+        # the DB mutation lands, so the record reflects a real transition.
+        try:
+            from engine.telemetry import emit_objective as _tele_obj
+            _tele_obj("mission", "start", character_id, oid=mission_id,
+                      reward=m.reward, mission_type=m.mission_type.value,
+                      faction=m.faction_code)
+        except Exception as _e:
+            log.debug("objective telemetry emit failed: %s", _e)
         return m
 
     async def complete(self, mission_id: str, db) -> Optional[Mission]:
@@ -849,6 +858,13 @@ class MissionBoard:
 
         m.status = MissionStatus.COMPLETE
         await db.complete_mission(mission_id, m.to_dict())
+        try:
+            from engine.telemetry import emit_objective as _tele_obj
+            _tele_obj("mission", "complete", m.accepted_by, oid=mission_id,
+                      reward=m.reward, mission_type=m.mission_type.value,
+                      faction=m.faction_code)
+        except Exception as _e:
+            log.debug("objective telemetry emit failed: %s", _e)
         del self._missions[mission_id]
 
         # Immediately spawn a replacement
@@ -861,12 +877,20 @@ class MissionBoard:
             return None
 
         now = time.time()
+        prev_char = m.accepted_by   # captured before clearing for telemetry
         m.status = MissionStatus.AVAILABLE
         m.accepted_by = None
         m.accepted_at = None
         m.expires_at = now + MISSION_TTL   # reset TTL
 
         await db.abandon_mission(mission_id, m.to_dict())
+        try:
+            from engine.telemetry import emit_objective as _tele_obj
+            _tele_obj("mission", "abandon", prev_char, oid=mission_id,
+                      reward=m.reward, mission_type=m.mission_type.value,
+                      faction=m.faction_code)
+        except Exception as _e:
+            log.debug("objective telemetry emit failed: %s", _e)
         return m
 
 

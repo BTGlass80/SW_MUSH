@@ -555,6 +555,13 @@ class BountyBoard:
         c.expires_at = now + CLAIMED_TTL
 
         await db.update_bounty(contract_id, c.to_dict())
+        # T3.19 telemetry: objective funnel (catalog C).
+        try:
+            from engine.telemetry import emit_objective as _tele_obj
+            _tele_obj("bounty", "start", character_id, oid=contract_id,
+                      reward=c.reward, target=c.target_name)
+        except Exception as _e:
+            log.debug("objective telemetry emit failed: %s", _e)
         return c
 
     async def collect(self, contract_id: str, alive: bool, db) -> Optional[BountyContract]:
@@ -570,6 +577,16 @@ class BountyBoard:
         c.status = BountyStatus.COLLECTED
         c.collected_at = time.time()
         await db.update_bounty(contract_id, c.to_dict())
+        # T3.19 telemetry: objective funnel (catalog C). collect() is the sole
+        # completion chokepoint — the auto-collect on kill (notify_target_killed)
+        # also routes through here, so one emit covers both paths.
+        try:
+            from engine.telemetry import emit_objective as _tele_obj
+            _tele_obj("bounty", "complete", c.claimed_by, oid=contract_id,
+                      reward=c.reward + (c.reward_alive_bonus if alive else 0),
+                      alive=bool(alive), target=c.target_name)
+        except Exception as _e:
+            log.debug("objective telemetry emit failed: %s", _e)
         del self._contracts[contract_id]
         return c
 
