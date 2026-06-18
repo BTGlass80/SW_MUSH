@@ -214,12 +214,12 @@ def _stop_server(proc):
     try:
         subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20)
-    except Exception:
-        pass
+    except Exception as e:
+        print("  (warn: taskkill on capture server pid %s failed: %s)" % (proc.pid, e))
     try:
         proc.kill()
-    except Exception:
-        pass
+    except Exception as e:
+        print("  (warn: proc.kill on capture server failed: %s)" % e)
 
 
 def _make_instrumented_client():
@@ -512,8 +512,8 @@ def run():
         if inst_written:
             try:
                 os.remove(os.path.join(ROOT, "static", "_client_instrumented.html"))
-            except Exception:
-                pass
+            except Exception as e:
+                print("  (warn: could not remove temp instrumented client: %s)" % e)
         _stop_server(proc)
 
     print("\n=== CAPTURE SUMMARY ===")

@@ -63,8 +63,9 @@ _REMOVED = {
         "coord": "coordinate", "damagecontrol": "damcon", "repair": "damcon",
         "pwr": "power", "transp": "transponder", "unstation": "vacate",
         "breakfree": "resist",
-        # order/orders still resolve to the crew OrderCommand (key="order").
-        "order": "order", "orders": "order",
+        # `order` still resolves to the crew OrderCommand (key="order"); the
+        # transient `orders` bridge dup is unbound after DROP 7 (terminal state).
+        "order": "order",
     },
 }
 
@@ -137,13 +138,14 @@ class TestZeroBehaviourResolution(unittest.TestCase):
                     f"{alias!r} unexpectedly resolves to the umbrella")
 
     def test_order_aliases_resolve_to_crew_order_command(self):
-        # Precise zero-behaviour check: order/orders route to the CREW
-        # OrderCommand (unchanged — crew_commands wasn't touched).
+        # Precise zero-behaviour check: bare `order` routes to the CREW
+        # OrderCommand (unchanged — crew_commands wasn't touched). The `orders`
+        # alias is unbound after DROP 7 (it was a transient bridge dup).
         from tests.test_t321_admin_command_access_invariant import (
             _build_full_registry,
         )
         reg = _build_full_registry()
-        for alias in ("order", "orders"):
+        for alias in ("order",):
             cmd = reg.get(alias)
             self.assertIsNotNone(cmd)
             self.assertEqual(type(cmd).__module__, "parser.crew_commands")
@@ -219,7 +221,9 @@ class TestBaselineRatchetShrank(unittest.TestCase):
     def test_orders_cleared_order_remains(self):
         baseline = set(self._baseline()["collisions"])
         self.assertNotIn("alias:orders", baseline)
-        self.assertIn("alias:order", baseline)  # deferred type-3 (key:order)
+        # DROP 7 (terminal baseline ZERO) also cleared `alias:order`; the final
+        # collision-free baseline is asserted authoritatively by
+        # test_command_syntax_drop7.py.
 
     def test_live_registry_within_baseline(self):
         from tests.test_t321_admin_command_access_invariant import (

@@ -185,7 +185,9 @@ class TestSpyUmbrella(unittest.TestCase):
         )
         reg = _build_full_registry()
         owners = {
-            "size": "assess", "search": "investigate", "inspect": "investigate",
+            # DROP 7 re-homed the espionage room-search to key `search`
+            # (alias `inspect`); see CHANGELOG DROP 7 + test_command_syntax_drop7.py.
+            "size": "assess", "search": "search", "inspect": "search",
             "intel": "+intel", "wiretap": "intercept", "comtap": "intercept",
         }
         for verb, owner in owners.items():

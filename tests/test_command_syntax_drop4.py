@@ -54,7 +54,9 @@ _REMOVED = {
         "dropmission": "abandon", "quitjob": "abandon",
     },
     "+spy": {
-        "size": "assess", "search": "investigate", "inspect": "investigate",
+        # DROP 7 re-canonicalized the espionage room-search to key `search`
+        # (alias `inspect`) — see CHANGELOG DROP 7 + test_command_syntax_drop7.py.
+        "size": "assess", "search": "search", "inspect": "search",
         "intel": "+intel", "wiretap": "intercept", "comtap": "intercept",
     },
 }
