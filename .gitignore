@@ -62,3 +62,7 @@ docs/sourcebooks/
 
 # Claude Code local settings — per-machine (holds the unattended bypassPermissions mode); never commit
 .claude/settings.local.json
+
+# Nano map-paint candidate batches — generated test output; only the SELECTED
+# substrate (static/maps/*_substrate.png) is committed, never the candidate runs.
+static/tools/batches/
