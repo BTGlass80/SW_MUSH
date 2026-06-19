@@ -123,11 +123,17 @@ The Skill Trial typically takes **two to four real-time hours** of play, spread 
 
 **Location:** Common Square. **NPC:** Elder Mira Delen. **Tests:** Resolve in the face of difficulty.
 
-Mira is the Village's elder of grief — an older woman who lost her own apprentice years ago. She does not ask easy questions. The Courage Trial is a dialogue-driven scene where Mira presents you with a situation — a moral choice, a difficult question about what you'd do — and asks you to answer with conviction. The mechanic is a **multi-turn dialogue completion**: you and Mira go back and forth several times, and your responses (selected from menu options) reveal whether you understand what courage means.
+Mira is the Village's elder of grief — an older woman who lost her own apprentice years ago. She does not ask easy questions. You open the Trial with `trial courage`. Mira delivers a short recital — she names, plainly, **the thing you carry**: a grief, a guilt, a weight your character has been holding. The Square goes quiet around her while she speaks. Then she asks for your response, and gives you exactly three:
 
-Courage in the Village's sense is not "willingness to fight." It's **willingness to act when acting will cost you something**. The Trial's dialogue tests this — Mira presents scenarios where the right answer involves loss (giving up a victory, refusing to use violence when violence would work, telling a hard truth). Players who choose the easy answers fail the Trial. Players who choose the costly answers pass.
+```
+trial courage 1     "I won't deny it."     → pass
+trial courage 2     "How did you know?"    → pass (a deeper nod)
+trial courage 3     walk away              → fail; 24-hour cooldown
+```
 
-There is no skill check on Courage; it is pure roleplay. The dialogue tree has multiple paths; the engine notes which path you took. You can fail the Trial and reattempt after the 14-day cooldown, but most players who fail Courage do so deliberately, because the costly answers are genuinely costly — they're committing to RP positions they may not have wanted to commit to. The Trial is unusually transparent that way: you know what the right answer is, and the question is whether you'll say it.
+Courage in the Village's sense is not "willingness to fight." It's **willingness to face the thing you carry instead of turning from it**. That is the whole of the mechanic: the two responses that *meet* the recital — owning it (`1`) or asking how she saw it (`2`) — both pass. Only walking away (`3`) fails. There is no "wrong words" trap; choices `1` and `2` are mechanically equivalent (choice `2` earns a warmer reaction but the same result). The Trial isn't testing whether you pick the clever line — it's testing whether you'll stand in the Square and not flinch.
+
+There is no skill check on Courage; it is pure roleplay around a single choice. If you walk away (`3`), Mira lets you go — "Come back tomorrow. The Square is patient." — and locks the Trial for **24 real-time hours** (`village_trial_courage_lockout_until`), after which you may reattempt. That 24-hour fail-lockout is *not* the 14-day inter-trial cooldown; the 14 days only gate the gap between *successful* Trials. Passing grants a small amount of hidden Village standing.
 
 ---
 
@@ -135,11 +141,11 @@ There is no skill check on Courage; it is pure roleplay. The dialogue tree has m
 
 **Location:** Meditation Caves. **NPC:** Elder Korvas. **Tests:** Endurance, the body's discipline.
 
-Korvas is an ancient Trandoshan elder, scarred and slow-moving. He leads you into the meditation caves and sits you down on cold stone. The Trial is a **timed room dwell**: you must remain in the meditation chamber for an extended period without leaving. The duration is calibrated to be uncomfortable but not impossible — long enough that the body wants out, short enough that the mind can hold.
+Korvas is an ancient Trandoshan elder, scarred and slow-moving. He leads you into the meditation caves and sits you down on cold stone. "You will sit. Six hours. Not five, not seven." The Trial is a **six-hour wall-clock dwell**, and the clock is the whole of it. The moment you first **enter the Meditation Caves** the timer is anchored (`village_trial_flesh_started_at`). Six real-time hours later, the Trial completes — and you collect it by returning to the caves (or running `trial flesh`, which reports elapsed and remaining time).
 
-During the dwell, ambient flavor lines surface periodically — the cold, the silence, the small physical discomforts. You can `cpose` your character's experience. You cannot leave; if you leave the room, the Trial fails and you wait the 14-day cooldown.
+Here is the part players most often get wrong: the six hours are **wall-clock from entry, not continuous presence**. You do not have to sit in the room the whole time. Korvas's own words: *"You may leave the caves; the discipline continues. You may log out; the discipline continues."* Leave, run other content, log off for the night — the six hours pass regardless, and there is **no fail-on-leave and no cooldown**. The discipline is patience, measured in real time, not a vigil you can break.
 
-The mechanic is straightforward but the experience is real: sitting in the same room for that long, watching the ambient flavor surface, posing the slow internal process. It's the Trial that most players find both easiest (no skill check) and hardest (it requires actually staying present). The Trial of Flesh isn't about combat injury; it's about the body's capacity to hold still when it wants to move.
+The mechanic is straightforward; the framing is the substance. Players who treat the dwell as roleplay — posing their character's experience with `cpose` while the hours pass, returning to the caves to feel the silence — get the meaning the Trial is reaching for. The Trial of Flesh isn't about combat injury; it's about the body's capacity to wait. (There is no skill check.)
 
 ---
 
@@ -147,18 +153,23 @@ The mechanic is straightforward but the experience is real: sitting in the same 
 
 **Location:** Sealed Sanctum. **NPC:** Master Yarael Kett. **Tests:** Resistance to dark-side temptation. **Also: the gate to Path C.**
 
-This is the Trial that decides the Path A/B/C choice. Master Yarael takes you into the Sealed Sanctum — a chamber set apart from the rest of the Village, kept locked. Inside, the air is heavier. He sits you down and presents you with **the temptation**.
+This is the Trial that decides the Path A/B/C choice. Master Yarael takes you into the Sealed Sanctum — a chamber set apart from the rest of the Village, kept locked. Inside, the air is heavier. He withdraws, and you run `trial spirit` to begin. What you face is not a hypothetical scenario Yarael narrates — it is **your dark-future self**: a figure across the chamber in deep robes, wearing your own face lined with years you have not yet lived, speaking with your voice gone harder. It claims you are the same person at two points along one line, and that the road to becoming it is shorter than you think. (The apparition's argument is tailored to your faction — a Republic officer's future self talks of clean orders and better soldiers sent to die; a Separatist's, of complicity rationalized by the numbers. The moral shape is the same: *you are already walking toward me.*)
 
-The temptation is presented as a multi-turn dialogue. Yarael walks you through a scenario where dark-side power would solve a real problem you face — power to save someone you love, power to undo a regret, power to set right a wrong that was done to you. The framing is sympathetic; Yarael does not condemn you for being tempted, because the temptation is *meant* to test you. The dialogue offers escalating choices: each turn, Yarael asks if you're sure, and gives you a chance to refuse or to lean further in.
+The confrontation runs **up to seven turns**. Each turn the dark-future-self speaks; you answer with one of three responses:
 
-**Two outcomes are possible:**
+```
+trial spirit 1     reject     "I am not him."        (pushback)
+trial spirit 2     waver      "I don't know."        (neutral)
+trial spirit 3     lean in    "Maybe he's right."    (the pull)
+```
 
-- **Refuse the temptation.** You complete the Trial cleanly. `village_trial_spirit_done = 1`. Yarael nods, sad and proud, and dismisses you. You may now attempt the Insight Trial. Path A and Path B remain open.
-- **Accept the temptation.** You complete the Trial — but not cleanly. The system records `village_trial_spirit_done = 1` AND `village_trial_spirit_path_c_locked = 1`. Yarael's framing in the final scene is **sadness, not anger**. You have not been expelled; you have made a choice the Village will honor by acknowledging it. Path C becomes available at the final choice. Path A and Path B are now closed.
+**Three outcomes are possible** — and they're driven by *counts*, not a single decisive line:
 
-This is the only Trial where you can "pass" by accepting the dark. It is also the only Trial that mechanically alters the final choice menu. Once Path C is locked in, you cannot retake the Spirit Trial to undo it. The choice is irrevocable.
+- **Pass clean — reject it.** Accumulate **four rejections** (`trial spirit 1`) at any point within the seven turns and the Trial completes cleanly. `village_trial_spirit_done = 1`. Yarael returns, sad and proud, and dismisses you. You may now attempt the Insight Trial. Path A and Path B remain open.
+- **Lock Path C — lean in.** Choose the pull (`trial spirit 3`) **three times** and the Trial ends — recorded as done (`village_trial_spirit_done = 1`) **and** `village_trial_spirit_path_c_locked = 1`. Yarael's framing is **sadness, not anger**. You have not been expelled; you have made a choice the Village will honor by acknowledging it. Path C opens at the final choice; Path A and Path B are now closed. This is irrevocable — you cannot retake the Spirit Trial to undo it.
+- **Soft fail — neither.** If you reach the end of turn seven having neither rejected four times nor leaned in three times (too much wavering), the Trial simply ends *unfinished* — `village_trial_spirit_done` is **not** set, and nothing is locked. There is **no real-time cooldown**: re-enter the Sealed Sanctum, run `trial spirit` again, and the confrontation restarts from turn one. The Trial is patient; it only asks that you eventually take a clear stance.
 
-Many players — the vast majority — refuse the temptation. Path C is a rare path. Players who take it are explicitly committing to a dark-side arc; the Village's response is to acknowledge the choice and let them walk it out.
+This is the only Trial where leaning into the dark counts as a "pass," and the only Trial that mechanically alters the final-choice menu. Most players — the vast majority — reject the future self and keep Paths A and B. Path C is a rare road, chosen deliberately by players committing to a dark-side arc; the Village's response is to acknowledge the choice and let them walk it out.
 
 ---
 
@@ -291,9 +302,12 @@ A summary of the time gates in the Village arc, because they're the largest desi
 | **Playtime gate** | 50 real-time hours | Must be passed before any Force-signs fire |
 | **Sign accumulation** | Variable (~10–30 hours of play after gate) | 5 signs must accrue before invitation eligibility |
 | **Act 1 → Act 2 cooldown** | 7 real-time days | After invitation, must wait before entering Trials |
-| **Inter-Trial cooldown** | 14 real-time days | Between each successful Trial |
-| **Skill Trial attempt cooldown** | 1 real-time hour | After failure on Skill Trial step (not full cooldown reset) |
-| **Total minimum Village time** | ~2 months real-time | Even running everything optimally |
+| **Inter-Trial cooldown** | 14 real-time days | Between each *successful* Trial |
+| **Skill Trial attempt cooldown** | 1 real-time hour | After failure on a Skill Trial step (step counter is *not* reset) |
+| **Courage Trial fail lockout** | 24 real-time hours | After walking away from the Courage recital (`trial courage 3`) |
+| **Flesh Trial dwell** | 6 real-time hours | Wall-clock from first cave entry; passes even if you leave or log out |
+| **Spirit Trial soft-fail** | None | Reach turn 7 unresolved → re-enter and restart, no cooldown |
+| **Total minimum Village time** | ~2 months real-time | Even running everything optimally (7-day Act gate + four 14-day inter-Trial gates) |
 
 The 14-day inter-trial cooldown is the single largest behavioral lever. It means you cannot run the Village in a marathon weekend. You will be back to ordinary play between Trials — and that's the point. The Village isn't a discrete quest you finish; it's an arc that runs in the background of your ordinary play.
 
@@ -305,7 +319,7 @@ Many players treat the inter-trial weeks as a chance to develop other parts of t
 
 A few things that can go wrong:
 
-**You fail a Trial.** Most Trials forgive failure: you wait the cooldown (or the Skill Trial's 1-hour) and retry. Your progress in the Trial isn't lost (the Skill Trial step counter persists across failed attempts), and you don't lose any prior Trial completions. Only the Spirit Trial has a "soft failure" that's actually a Path C lock-in — see §4.
+**You fail a Trial.** Every Trial forgives failure; the only thing that varies is the wait. The Skill Trial's per-step failure costs a **1-hour** retry cooldown, and the step counter persists (a failed difficulty-15 step doesn't send you back to 8). Walking away from Courage costs a **24-hour** lockout. The Flesh dwell can't really be "failed" — leaving doesn't break it. The Spirit Trial's soft-fail (reaching turn 7 unresolved) has **no cooldown at all** — you re-enter and restart. None of these is the 14-day inter-Trial cooldown, which only governs the gap between *successful* Trials. You never lose a prior Trial completion. (The one irreversible outcome in the whole arc is leaning into the Spirit Trial's dark-future self three times — that locks Path C, and §4 covers it. That is a deliberate choice, not a "failure.")
 
 **You never accumulate signs.** Your character may have a low `force_predisposition` value (set at chargen — some characters are simply less Force-attuned than others). If signs are accumulating very slowly, you can speed it up by deliberately visiting the four force-resonant landmarks (Anchor Stones, Ruined Obelisk, Bantha Graveyard, Forgotten Jedi Shrine). Each landmark visit is a sign trigger.
 
@@ -329,7 +343,7 @@ A few things the system tracks but doesn't display:
 
 **Your `force_predisposition` value.** Set at chargen. You can't see it. You won't be told whether you're a high-predisposition or low-predisposition character. The Village's Trials are the same regardless — you just take longer or shorter to be invited.
 
-**The Spirit Trial path-lock.** When you fail Spirit into Path C, the engine sets `village_trial_spirit_path_c_locked = 1`, but you don't see this flag. You learn the outcome at the final audience when the menu only offers Path C.
+**The Spirit Trial path-lock.** When you lean into the dark-future self three times, the engine sets `village_trial_spirit_path_c_locked = 1`, but you don't see this flag. You learn the outcome at the final audience when the menu only offers Path C.
 
 **The Insight Trial's correct holocron.** Set deterministically per character. You can't get told which one is right; you have to discern it yourself.
 
@@ -362,13 +376,17 @@ The Village is also where the **Director AI** (Guide #26, forthcoming) tends to 
 | `talk Yarael` (at Master's Chamber) | First audience (Act 2 Step 4); later, final-choice menu |
 | `talk Daro` (at Forge) | Engages Smith Daro for the Skill Trial |
 | `trial skill` | Attempt one step of the Skill Trial |
-| `talk Mira` (at Common Square) | Courage Trial dialogue |
+| `talk Mira` (at Common Square) | Courage Trial briefing |
+| `trial courage` | Begin the Courage recital and present the three responses |
+| `trial courage 1\|2\|3` | Commit a Courage response (1 & 2 pass; 3 walks away — fail, 24h) |
 | `talk Korvas` (at Meditation Caves) | Flesh Trial briefing |
-| `trial flesh` | (Implicit — Korvas initiates) |
-| `talk Yarael` (at Sealed Sanctum) | Spirit Trial scene |
-| `talk Saro` (at Council Hut) | Insight Trial — examine the holocron fragments |
-| `examine <fragment>` | Examine a specific holocron fragment |
-| `accuse <fragment>` | Identify the forgery (Insight completion) |
+| `trial flesh` | Show Flesh dwell progress (elapsed / remaining); the 6h clock starts on cave entry |
+| `talk Yarael` (at Sealed Sanctum) | Spirit Trial briefing |
+| `trial spirit` | Begin the Spirit confrontation with your dark-future self |
+| `trial spirit 1\|2\|3` | Commit a Spirit response (1 reject / 2 waver / 3 lean in) |
+| `talk Saro` (at Council Hut) | Insight Trial — presents the three holocron fragments |
+| `examine fragment_<N>` (or `listen fragment_<N>`) | Play a specific holocron fragment |
+| `accuse fragment_<N>` | Identify the forgery (Insight completion) |
 | `path` | Show the final-choice menu |
 | `path a` (or `a`) | Commit to Path A — Order |
 | `path b` (or `b`) | Commit to Path B — Independent |
