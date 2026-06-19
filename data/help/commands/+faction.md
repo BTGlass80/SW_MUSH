@@ -3,7 +3,7 @@ key: +faction
 title: Faction — Allegiance, Guild, Specialization, Reputation
 category: "Commands: Social"
 summary: All faction verbs under +faction/<switch>. View your faction, manage guild membership, choose a specialization, or check reputation standings. Includes forwarding for faction subcommands (join, leave, list, roster, missions, claim, etc.).
-aliases: [fac, guild, "+guild", specialize, specialise, reputation, rep, "+rep", "+reputation"]
+aliases: [fac, guild, "+guild", specialize, specialise, reputation, rep, "+rep", "+reputation", "+factions", factions]
 see_also: [factions, guilds, reputation, territory, organizations]
 tags: [social, faction, guild, reputation, command]
 access_level: 0

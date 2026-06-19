@@ -3,7 +3,7 @@ key: board
 title: Board / Disembark — Enter and Leave Ships
 category: "Commands: Space"
 summary: Board a ship docked in the current bay, or disembark back to the docking bay.
-aliases: [disembark, deboard, leave_ship]
+aliases: [disembark, deboard, leave_ship, boardship, boardlink]
 see_also: [+pilot, launch, land, +ship]
 tags: [space, ships, travel, command]
 access_level: 0

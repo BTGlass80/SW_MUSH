@@ -3,7 +3,7 @@ key: anomalies
 title: Space Anomaly Scanning
 category: "Rules: Space"
 summary: "Anomalies are hidden points of interest in space — derelict ships, distress signals, pirate nests, and more."
-aliases: [anomaly, deepscan, deepscanning]
+aliases: [anomaly, deepscan, deepscanning, anom]
 see_also: [sensors, salvage, navigation]
 ---
 Anomalies are hidden points of interest in space — derelict ships,
