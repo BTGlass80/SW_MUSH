@@ -3,7 +3,7 @@ key: hyperdrive
 title: Hyperspace Travel
 category: "Rules: Space"
 summary: Hyperspace allows faster-than-light travel between star systems.
-aliases: [hyperspace, astrogation, jump]
+aliases: [hyperspace, astrogation, jump, hyper]
 see_also: [space, crew]
 ---
 Hyperspace allows faster-than-light travel between star systems.

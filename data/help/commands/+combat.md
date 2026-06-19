@@ -3,7 +3,7 @@ key: +combat
 title: Combat — All Ground Combat Verbs
 category: "Commands: Combat"
 summary: All ground combat verbs live under +combat/<switch>. Attack, dodge, parry, aim, cover, flee, Force Points, PvP challenges — every combat action is a switch here.
-aliases: [combat, cs, +cs, attack, att, kill, shoot, hit, dodge, fulldodge, fdodge, parry, fullparry, fparry, soak, aim, flee, run, retreat, pass, disengage, resolve, range, distance, cover, hide, forcepoint, fp, +fp, cpose, combatpose, crolls, challenge, duel, accept, decline, refuse]
+aliases: [combat, cs, +cs, attack, att, kill, shoot, hit, dodge, fulldodge, fdodge, parry, fullparry, fparry, soak, aim, flee, run, retreat, pass, disengage, resolve, range, distance, cover, hide, forcepoint, fp, +fp, cpose, combatpose, crolls, challenge, duel, accept, decline, refuse, "full dodge", "full parry", "combat rolls"]
 see_also: [combat, dodge, melee, ranged, wounds, cover, multiaction, dice, scale, forcepoints, darkside, cpose]
 tags: [combat, core, command]
 access_level: 0

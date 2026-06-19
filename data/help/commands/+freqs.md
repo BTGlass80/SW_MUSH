@@ -3,7 +3,7 @@ key: +freqs
 title: +Freqs — Tuned Comlink Frequencies
 category: "Commands: Social"
 summary: List the custom comlink frequencies you are currently subscribed to.
-aliases: [freqs, frequencies, myfreqs]
+aliases: [freqs, frequencies, myfreqs, tune, tunein, untune, tuneout, commfreq, cf, freq]
 see_also: [+channels, +ooc, say]
 tags: [social, comms, frequency, command]
 access_level: 0

@@ -341,7 +341,7 @@ QUEST_STEPS = [
         "reward_credits": 150,
         "reward_title": None,
         "reward_flags": {},
-        "hint": "Type 'factions' to see who operates in this sector.",
+        "hint": "Type '+factions' to see who operates in this sector.",
         "phase_gate": False,
     },
     {

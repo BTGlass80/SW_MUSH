@@ -39,7 +39,7 @@ Vendor droids come in three tiers. Each is a one-time purchase that you place in
 
 **Listing fee** is the per-transaction cost — a percentage of the sale price that is **destroyed** (not paid to anyone, removed from the economy) on every successful sale. A 1,000 cr sale on a Tier 1 droid pays the seller 980 cr and removes 20 cr from circulation. The fee is small but real, and it's lower on higher tiers.
 
-**Bargain pool** is the droid's negotiation skill. When a customer haggles via the `bargain` command, the droid rolls Bargain against the customer's Bargain. A Tier 1 droid has no Bargain — customers can always haggle prices down. A Tier 2 droid has +2D Bargain — usually beats casual haggling. A Tier 3 droid has +3D+1 Bargain — strong enough to hold prices against most customers.
+**Bargain pool** is the droid's negotiation skill, applied **automatically when a customer buys** — there is no separate `bargain` command. A **Tier 1** droid has no Bargain pool, so it doesn't negotiate at all: it sells at the listed price (after any faction or city-tax modifiers). A **Tier 2** (+2D) or **Tier 3** (+3D+1) droid runs a quick opposed Bargain roll on each sale — a customer with a strong Bargain skill can talk the price down a little, but the droid's pool resists, so the discount stays small and is never guaranteed. **The haggle is capped at 10% either way** (±2% per 4 points of roll margin) — nobody walks off with a quarter of your margin.
 
 **Buy orders** (Tier 3 only) let your droid actively *purchase* items from passing customers. You set a buy price for a category of items; customers who have those items can sell them to the droid. The droid then resells at your set price. This is the high-end feature — turns your droid into both a shop *and* a passive sourcing channel for items you don't have to craft yourself.
 
@@ -47,11 +47,13 @@ Vendor droids come in three tiers. Each is a one-time purchase that you place in
 
 A new shop-owner's typical arc:
 
-- **Tier 1 (GN-4)** for the first month or two. It's cheap, has enough slots for a focused niche, and pays back its cost within a couple of weeks of regular sales. The 2% listing fee adds up over time, but it's not catastrophic.
-- **Tier 2 (GN-7)** when you've outgrown Tier 1 and want more slots. The 25-slot capacity supports a broader inventory. The Bargain pool protects pricing. The 1.5% listing fee is modestly better.
+- **Tier 1 (GN-4)** for the first month or two. It's cheap, has enough slots for a focused niche, and pays back its cost within a couple of weeks of regular sales. It sells at sticker price (no haggling). The 2% listing fee adds up over time, but it's not catastrophic.
+- **Tier 2 (GN-7)** when you've outgrown Tier 1 and want more slots. The 25-slot capacity supports a broader inventory; the 1.5% listing fee is modestly better. The +2D Bargain pool keeps the (now-enabled) customer haggle small.
 - **Tier 3 (GN-12)** for committed merchants running serious operations. The 50-slot capacity, the +3D+1 Bargain, and especially the buy-order capability make this the tool for the full-time merchant character. The 12,000 cr entry cost is significant but justified by the long-run revenue.
 
-**You can upgrade tiers later.** Buy a higher-tier droid, transfer your inventory between them. The lower-tier droid can be sold back (with some refund) or repurposed for a second location.
+The real reasons to climb tiers are **slots** and (at Tier 3) **buy orders** — the inventory headroom and the passive sourcing channel, not the listing fee.
+
+**You can upgrade tiers later** with `shop upgrade <tier>`. Recall the droid first, then upgrade in place — all stocked inventory is preserved and only the price difference is charged (gn4→gn7 is 3,000 cr, gn7→gn12 is 7,000 cr, gn4→gn12 is 10,000 cr). There is no separate "buy a new droid and sell the old one back" path; you upgrade the droid you have.
 
 ---
 
@@ -128,7 +130,7 @@ After this, the droid has 3 blaster pistols at 500 cr each, 10 medpacs at 200 cr
 
 **Step 7 — Check your dashboard.** Type `+shop` to see your shop status: where each droid is placed, what's stocked, total revenue in escrow, time since last sale, etc.
 
-**Step 8 — Wait.** Customers will discover your shop through the market directory or by entering the room. They `browse Voss Arms` to see your inventory, then `buy <slot>` to purchase. The credit flows automatically — into the droid's escrow.
+**Step 8 — Wait.** Customers will discover your shop through the market directory or by entering the room. They `browse Voss Arms` to see your inventory, then `buy <slot#> from Voss Arms` to purchase. The credit flows automatically — into the droid's escrow.
 
 **Step 9 — Collect revenue.** Periodically (daily, weekly, whenever):
 
@@ -154,7 +156,9 @@ Pricing is the most important active decision for shop-owners. Some patterns:
 
 **Volume matters.** A shop with 5 of an item at 500 cr sells faster than a shop with 1 of an item at 500 cr — customers feel the supply confidence. Stock in moderate quantities to signal supply.
 
-**The bargain factor.** If you're on a Tier 1 droid with no Bargain pool, customers who `bargain` your prices can often knock 10-25% off. Either price higher to absorb the haggling, or upgrade to Tier 2+ to protect your prices.
+**The bargain factor.** Haggling is automatic on the customer's `buy` — there is no `bargain` command, and it only happens on Tier 2+ droids. A Tier 1 droid sells at your listed price, full stop. On a Tier 2 (+2D) or Tier 3 (+3D+1) droid, a customer with a high Bargain skill may negotiate the price down, but the haggle is **capped at 10%** and the droid's pool resists it. Price with that thin band in mind — you're never giving up more than a tenth.
+
+**The slow drip of relisting.** A listed item that sits unsold for more than **30 days** starts paying a small recurring relisting fee — 1% of the slot's total listed value (minimum 10 cr), charged on a daily economy tick as a credit sink (`vendor_relist_fee` on your ledger). It's deliberately small, but it punishes "stock it and forget it" on dead inventory: a slot full of overpriced goods that never moves slowly bleeds you. Keep prices realistic, or unstock what isn't selling.
 
 ### Adjusting prices
 
@@ -179,36 +183,37 @@ From the customer side:
 market search                    — list shopfronts on the current planet
 market search <planet>           — list shopfronts on a specific planet
 market search all                — list every shopfront, all planets
+browse                           — list vendor droids in this room
 browse <shop name>               — view a shop's inventory
-buy <slot> [quantity]            — purchase from the shop you're browsing
-bargain <slot>                   — attempt to haggle a price down
+buy <slot#> from <shop name>     — purchase a slot from that shop
+buy <item> from <shop name>      — purchase by item name instead of slot
 ```
 
-**`market search`** is the directory. It shows all player-run shopfronts in the queried area, with shop names, owners, locations, and (if set) taglines. This is how customers find your shop.
+**`market search`** is the directory. It shows all player-run shopfronts in the queried area, with shop names, owners, locations, and (if set) taglines. This is how customers find your shop. (Note: bare `market` shows cargo trade-good prices, not shops — you need the `search` keyword.)
 
-**`browse`** shows your droid's full inventory: each slot with item name, quality (if applicable), quantity, and price. Customers see what you're selling at what price.
+**`browse`** shows the droids in the room, and `browse <shop name>` shows one droid's full inventory: each slot with item name, quality (if applicable), quantity, and price. Customers see what you're selling at what price.
 
-**`buy <slot> [quantity]`** completes the transaction. The customer's wallet debits; the droid's escrow credits; the item moves to the customer's inventory. The listing fee is deducted from your payout.
+**`buy <slot#> from <shop name>`** completes the transaction (you can also name the item instead of the slot number). Each `buy` purchases a single unit — there is no quantity argument. The customer's wallet debits; the droid's escrow credits; the item moves to the customer's inventory. The listing fee is deducted from your payout.
 
-**`bargain <slot>`** is the customer's negotiation move. They roll Bargain against your droid's Bargain pool. If they beat the droid's roll, they get a discount (typically 10-25%). Tier 1 droids with no Bargain auto-lose to any positive Bargain roll. Tier 2 (+2D) and Tier 3 (+3D+1) droids win most contests.
+**The haggle is automatic.** When a customer buys from a **Tier 2+** droid, the engine rolls the customer's Bargain against the droid's Bargain pool right there in the `buy` — there is no separate `bargain` command. If the customer wins the opposed roll they shave a little off (±2% per 4 points of margin, **capped at 10%**); the droid's +2D / +3D+1 pool keeps that small. A **Tier 1** droid has no pool, so it never haggles — it sells at the listed price.
 
 ---
 
 ## 6. The Buy-Order System (Tier 3 Only)
 
-A Tier 3 GN-12 Commerce Droid can do something the lower tiers can't: **actively buy items from passing customers**.
+A Tier 3 GN-12 Commerce Droid can do something the lower tiers can't: **actively buy crafting resources from passing customers**.
 
-You set a buy order:
+Buy orders target **crafting resources** (the raw materials the crafting system recognizes — metal, chemicals, organics, and the rest), not finished items. You set one with four arguments:
 
 ```
-shop order <item> <max_price> [quantity]
+shop order <resource> <min_quality> <qty> <price_per>
 ```
 
-Example: `shop order metal 50 100` posts an order to buy up to 100 units of metal at up to 50 cr per unit. Customers carrying metal can `sell <quantity> to <shop>` to fulfill the order. The droid pays them; the metal goes into your inventory (or into a pending-resale slot).
+Example: `shop order metal 30 100 50` posts an order to buy up to 100 units of metal of quality 30 or better at 50 cr per unit. **The full escrow is deducted from your wallet the moment you post** — here that's 100 × 50 = 5,000 cr, held until the order fills or you cancel it. You can't post an order you can't currently afford. Customers carrying matching resources fulfill it with `sell <resource> to <shop name>` (the quantity is automatic — they sell as much as the order still wants, up to what they're carrying). The droid pays them out of the escrow, and the resource goes into your inventory.
 
 ### Why this matters
 
-Buy orders let your shop *source* items without you having to craft or survey for them. A merchant who buys raw materials from passing characters can resell them as crafted items (or as just-the-resource) at markup. Or buy completed items from other crafters at wholesale and resell at retail.
+Buy orders let your shop *source* raw materials without you having to survey or harvest for them. A merchant who buys resources from passing characters can resell them as crafted items (or as just-the-resource) at markup. (Buy orders only accept crafting resources — you can't post one for a finished blaster or a completed crafted item; to acquire those, buy them from another shop the normal way.)
 
 **The classic shop pattern with buy orders:**
 
@@ -222,9 +227,7 @@ A well-run buy-order shop can be more profitable than a pure craft-and-sell shop
 
 ### Buy-order limits
 
-- **Max simultaneous orders per droid: 5.** Limit the breadth of your buying.
-- **Quantities are capped per order.** No "buy 10,000 metal at 1 cr each" cheese strategies.
-- **Buy prices must be sensible.** The system rejects clearly-broken prices (1 cr for a masterwork weapon, etc.) — you can't extract free goods from naive customers.
+There is no hard cap on how many orders you can run at once — **escrow is the real limiter.** Every order locks its full `qty × price_per` out of your wallet the instant you post it, so your available credits cap how many orders, and how large, you can have open. Each order also validates: the resource must be a recognized crafting resource, `min_quality` must be 1–100, `qty` must be at least 1, and `price_per` must be at least 1 cr. That's the whole guardrail — there's no separate "is this price sensible?" check, so the discipline is on you: don't tie up credits in orders you don't actually want filled.
 
 ### Cancelling an order
 
@@ -232,7 +235,7 @@ A well-run buy-order shop can be more profitable than a pure craft-and-sell shop
 shop cancel <order_id>
 ```
 
-Removes the buy order. Pending fulfillments aren't affected (if a customer is mid-transaction, it completes); future fulfillments stop.
+Removes the buy order and **refunds the unspent escrow** (the portion that hasn't already paid out to sellers) to your wallet. Already-completed fulfillments aren't reversed.
 
 ---
 
@@ -293,6 +296,8 @@ A 5,000 cr sale on a Tier 1 droid pays the seller 4,900 cr and removes 100 cr fr
 2. **Discourage churn-trading** between alts. If you "sell" items to your own alt through a vendor droid, you lose the listing fee on every transaction. Spinning items in circles for laundering purposes burns credits.
 
 The total economic impact of listing fees scales with shop volume. A high-volume shop (50+ sales/week at average 1,000 cr each) pays roughly 1,000-2,000 cr/week in destroyed credits — meaningful but absorbable.
+
+There's a second, smaller sink aimed at the opposite problem: **stale inventory.** A listing that sits unsold for more than 30 days pays a recurring relisting fee (1% of the slot's listed value, minimum 10 cr) on a daily tick, also a credit sink. Active shops barely notice it; abandoned-but-still-placed inventory slowly bleeds. Both fees pull credits out of circulation to offset the faucets (mission payouts, bounties, NPC sales) that pump them in.
 
 ---
 
@@ -395,15 +400,16 @@ Five concrete pictures.
 | `shop price <slot> <new_price>` | Update a slot's price |
 | `shop collect [id]` | Collect escrow revenue to your wallet |
 | `shop sales [id]` | View recent sales history |
-| `shop order <item> <max_price> [qty]` | Post a buy order (Tier 3 only) |
-| `shop cancel <order_id>` | Cancel a posted buy order |
+| `shop order <resource> <min_q> <qty> <price>` | Post a buy order (Tier 3 only; resources only) |
+| `shop cancel <order_id>` | Cancel a buy order (refunds unspent escrow) |
 | `shop upgrade <tier>` | Upgrade droid tier (droid must be recalled) |
 | `+shop` | Dashboard view of all your shops |
-| `market search [planet \| all]` | Search shopfront directory |
-| `browse <shop name>` | View a shop's inventory (customer side) |
-| `buy <slot> [qty]` | Purchase from a browsed shop (customer side) |
-| `bargain <slot>` | Haggle for a discount (customer side) |
-| `sell <qty> to <shop>` | Sell to a shop's buy order (customer side) |
+| `market search [planet \| all]` | Search the shopfront directory |
+| `browse [shop name]` | List room droids / view one shop's inventory (customer side) |
+| `buy <slot#> from <shop>` | Buy a slot from a shop in the room (customer side) |
+| `sell <resource> to <shop>` | Fill a shop's buy order with a resource (customer side) |
+
+The haggle on `buy` is automatic (Tier 2+ only) — there is no `bargain` command.
 
 ---
 
@@ -427,9 +433,12 @@ Five concrete pictures.
 | **Max droids per owner (base)** | 3 |
 | **Shopfront ownership cap bonus** | +1 per shopfront owned |
 | **Price floor** | 50% of NPC vendor buy-back value |
+| **Bargain discount cap** | 10% (Tier 2+ only; Tier 1 never haggles) |
 | **Inactivity warning** | 30 days |
 | **Auto-recall** | 60 days |
-| **Max active buy orders per droid** | 5 |
+| **Relisting fee** | 1% of slot value (min 10 cr), on listings idle > 30 days |
+| **Buy orders** | no hard count cap — limited by escrow (full value locked per order) |
+| **Upgrade cost** | gn4→gn7 3,000 cr · gn7→gn12 7,000 cr · gn4→gn12 10,000 cr |
 
 ---
 
@@ -443,7 +452,7 @@ Five concrete pictures.
 
 **4. Ignoring the auto-recall warning.** If you get the 30-day inactivity message, take a moment to interact with the droid (any `shop` command will reset the timer). Otherwise you'll come back to a recalled droid and lost shop placement.
 
-**5. Treating buy orders as risk-free.** A Tier 3 buy order can drain your wallet if a flood of customers sells you the item. Don't post buy orders you can't afford to fulfill in volume. The cap on order quantity helps, but you can still get cleaned out if your max-price is too generous.
+**5. Forgetting that buy-order escrow is paid up front.** When you post a buy order, the **entire** `qty × price_per` is pulled from your wallet immediately and held in escrow — not drained gradually as customers sell to you. Posting a 100-unit order at 50 cr each locks 5,000 cr the moment you hit enter. That money is tied up until the order fills or you `shop cancel` it (which refunds whatever hasn't paid out). Don't lock up credits you need for crafting, housing, or your next droid in an order that may sit half-filled for weeks.
 
 ---
 

@@ -3,7 +3,7 @@ key: rally
 title: Rally — Community Uprising Response
 category: "Commands: Social"
 summary: View the active dark-side cult uprising threat board and make a strike against it. Collaborative community event — every player's strike pushes the menace meter down. Strike cooldown ~10 minutes. Rewards Republic rep and a status flag on victory.
-aliases: [front]
+aliases: [front, +rally]
 see_also: [+faction, +reputation, +threat, +events]
 tags: [social, faction, community, command]
 access_level: 0

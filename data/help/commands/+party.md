@@ -3,7 +3,7 @@ key: +party
 title: +Party — Group Party System
 category: "Commands: Social"
 summary: Form and manage an adventuring party with other online players. Share party chat and coordinate group activity.
-aliases: [party]
+aliases: [party, pc]
 see_also: [+who, say, channels, pc]
 tags: [party, group, social, command]
 access_level: 0

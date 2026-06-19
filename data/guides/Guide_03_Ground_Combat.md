@@ -379,11 +379,13 @@ You can scan a combat log purely by color and know who's in trouble.
 
 ## 13. The Posing System
 
-After resolution, there's a short **pose window** before the next round begins. During this window, you can write a custom narrative description of what your character did:
+After resolution, there's a short **pose window** before the next round begins. During this window, type **`cpose <text>`** to write a custom narrative description of what your character did:
 
 ```
-> pose Kaelin ducks behind the cargo crate, snapping off two quick shots at the B1. The first goes wide but the second catches it in the optical sensor.
+> cpose Kaelin ducks behind the cargo crate, snapping off two quick shots at the B1. The first goes wide but the second catches it in the optical sensor.
 ```
+
+The combat-pose command is **`cpose`** (not the bare `pose`/`:` emote — that broadcasts an ordinary room emote and will *not* register as your round's pose, leaving you with the auto-pose instead).
 
 If you don't write a pose within the grace period, the system generates an **auto-pose** from a flavor matrix — verb variety based on your weapon skill, miss/graze/solid/devastating tier based on the damage margin, color-coded based on the wound result. The auto-pose is competent prose, not a placeholder.
 
@@ -444,17 +446,18 @@ A particularly important affordance: the panel shows you, in real time, which co
 | `parry` | `parry` | Normal melee parry |
 | `fullparry` | `fullparry` | Full melee parry |
 | `aim` | `aim` | +1D to next attack (max +3D) |
-| `cover` | `cover [half\|full\|quarter]` | Take cover |
+| `cover` | `cover [quarter\|half\|3/4\|full]` | Take cover (defaults to half) |
 | `flee` | `flee` | Attempt to escape combat |
 | `pass` | `pass` | Skip posing, use auto-pose |
+| `cpose` | `cpose <text>` | Submit your narrative pose this round |
 | `combat` | `combat` | Show combat status |
-| `combat rolls` | `combat rolls` | Show detailed dice for this round |
+| `crolls` | `crolls` (or `combat rolls`) | Show detailed dice for this round |
 | `range` | `range <target>` | Check range to a target |
 | `challenge` | `challenge <player>` | Request PvP in a contested zone |
 | `accept` | `accept` | Accept a PvP challenge |
 | `decline` | `decline` | Decline a PvP challenge |
 | `soak` | `soak <n>` | Pre-declare CP for damage resistance |
-| `force-point` | `force-point` | Activate Force Point (Force-sensitives only) |
+| `forcepoint` | `forcepoint` (or `fp`) | Activate Force Point (Force-sensitives only) |
 | `disengage` | `disengage` | Leave combat once it's over |
 
 ---

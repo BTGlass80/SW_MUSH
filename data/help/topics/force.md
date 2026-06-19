@@ -3,7 +3,7 @@ key: force
 title: The Force
 category: "Rules: Force"
 summary: The Force is an energy field that binds the galaxy together.
-aliases: [theforce, jedi]
+aliases: [theforce, jedi, useforce]
 see_also: [forcepoints, darkside, lightsaber, +powers]
 ---
 The Force is an energy field that binds the galaxy together. Some

@@ -72,12 +72,14 @@ After that first warning, you're on your own. Lawless zones are where the highes
 
 The security tag you see on a room isn't always its baseline value. The effective level can shift based on a few things working in sequence — admin overrides, Director AI events, faction influence, and your own organization's territorial claims. As a player you don't need to think about the resolution chain; you just see the result. But knowing it exists explains why the Mos Eisley spaceport sometimes flips from contested to lawless overnight, or why the Coruscant Senate District stays SECURED even when criminal activity spikes everywhere else.
 
-The four things that can change a zone's effective security:
+The things that can change a zone's effective security:
 
 1. **Director AI events.** When the Director runs a "criminal surge" arc — usually triggered by player actions (a series of successful Hutt missions, a CIS infiltration plot landing, the bounty board filling with claimable contracts) — contested zones in the affected area downgrade one tier. Contested becomes Lawless, Secured becomes Contested. When the Director runs a "Republic crackdown" arc, it goes the other way. The shifts are temporary and revert when the underlying influence changes.
-2. **Faction influence thresholds.** Sustained Republic dominance in a zone (75+ influence) upgrades it one tier. Sustained criminal dominance (80+ Hutt or syndicate influence) downgrades it. At 90+ Republic, the zone goes to martial law — forced SECURED regardless of base level, clone garrisons deploy, you'll see Republic banners everywhere. Both rules apply in sequence, so a zone in crisis can have a criminal surge AND a crackdown partially canceling each other out.
+2. **Faction influence thresholds.** Sustained Republic dominance in a zone (authority influence 75+) upgrades it one tier. Sustained criminal dominance (underworld influence 80+) downgrades it. At authority 90+, the zone goes to martial law — forced SECURED regardless of base level, clone garrisons deploy, you'll see Republic banners everywhere. The surge and the crackdown apply in sequence, so a zone in crisis can have a criminal surge AND a crackdown partially canceling each other out.
 3. **Builder-set baseline.** Every zone has a default security set when it was built. The Mos Eisley Cantina is Contested by default; the Senate District is Secured; Jundland is Lawless. These defaults represent the zone's character in normal Clone Wars conditions.
-4. **Territory claims.** If your organization claims a room in a lawless zone, that room is treated as Contested **for your org's members** — you get PvP consent protection on your own turf. Non-members still see Lawless. See §7.
+4. **Territory claims.** If your organization holds the wilderness region you're standing in, its lawless rooms are treated as Contested **for your org's members** — you get PvP consent protection on your own turf. Non-members still see Lawless. See §7.
+5. **Faction strongholds.** A room can be tagged as belonging to a faction. If you're *hostile or unfriendly* to that faction, a normally-Secured stronghold room reads as **Lawless** to you specifically — walking into your enemy's headquarters means walking somewhere they can cut you down with no consent rule to protect you. Everyone else sees the room's normal tier. (Staff set these tags with `@security override`; see §8.)
+6. **Your own city.** If you're a citizen of a player-run city, that city's rooms are safer *for you*: a contested city room reads as Secured, and a lawless one reads as Contested. Non-citizens — including guests and the banished — get no such upgrade. This is the most generous modifier in the chain; a citizen at home is as safe as the system can make them, even if a hostile-faction tag (#5) would otherwise have downgraded the room. See [Player Cities](#/guide/player-cities).
 
 You can monitor current influence in any zone via the Director's zone reports on the web client. When a zone is mid-shift, the HoloNet News feed will usually call it out: "Republic crackdown announced for Mos Eisley spaceport — clone patrols deploying" or "Hutt unrest spreads through Nar Shaddaa lower levels." The world tells you what's happening; you don't have to dig.
 
@@ -111,6 +113,24 @@ A few things worth knowing:
 - **The challenge is visible to the room.** The whole point is that PvP is a public, opt-in event in contested space. Bystanders can see "Tundra challenges Vex" and react however they want — flee, call for help, take cover, place bets.
 - **In secured zones, the challenge command itself is blocked.** No PvP, period, in those zones. Asking the Senate Guard to politely look the other way is not on the menu.
 - **In lawless zones, no challenge is needed.** If you're somewhere lawless, anyone can shoot you with no preamble. The Coruscant Underworld's lower levels are full of Twi'lek pickpockets and Trandoshan muggers who will skip the formality.
+
+### Flagging for open PvP
+
+If you'd rather skip the challenge/accept dance entirely — say you're a duelist who wants all comers, or you're running an open-brawl scene — you can flag yourself:
+
+```
+> +pvp on        — open yourself to PvP in contested zones
+> +pvp off       — close yourself again
+> +pvp status    — show your flag and any cooldown
+> +pvp           — same as +pvp status
+```
+
+While your flag is on, anyone in a **contested** zone can attack you without a challenge, and you can attack any other flagged player the same way. If *either* the attacker or the target is flagged, the fight starts with no challenge needed. The flag is your standing consent.
+
+Two limits keep it honest:
+
+- **It never overrides a SECURED zone.** Flagging yourself in the Jedi Temple or the Senate District does nothing — those zones stay absolute. The flag only matters in contested space (in lawless space everyone is effectively flagged already).
+- **You can't flag-and-flee.** Once your flag has actually been used in a fight, you can't switch it off for five minutes. This stops griefers from flagging, ambushing someone, and immediately un-flagging to dodge the consequences. `+pvp status` shows how much of the cooldown remains.
 
 ### Common questions
 
@@ -185,9 +205,9 @@ For the full ship combat mechanics, see [Space Systems](#/guide/space-systems).
 
 Why would anyone willingly go to a lawless zone if any player can murder them there? Because the rewards are dramatically higher. The game deliberately concentrates valuable content in dangerous space — risk and reward run together.
 
-**Economy.** Rare crafting resources only spawn in lawless zones — phrik ore in the Jundland Wastes, biological reagents in the Coruscant Underworld's chemical sumps, salvageable wreckage on Geonosis. The mission board offers higher-paying jobs that require lawless travel — Hutt contracts, CIS espionage runs, Republic black-ops insertions through Separatist territory. Smuggling routes pass through lawless territory for the biggest payouts; spice runs from Kessel and the Outer Rim into the Inner Worlds are the classic case. Black market vendors selling restricted gear without markup are found in lawless underworlds — Cad Bane's old contacts in the Nar Shaddaa Warrens, the back rooms of cantinas in Mos Eisley, the Twi'lek fences in the Coruscant Underworld.
+**Economy.** The harvest yield tables run richest in lawless zones. The same node type that drops one unit of metal in a contested zone can drop several units plus chemicals and a tier-5 rare in a lawless zone under a dominant org — phrik ore in the Jundland Wastes, biological reagents in the Coruscant Underworld's chemical sumps, salvageable wreckage on Geonosis. (Contested zones aren't dry — a contested zone held under tight organizational control still carries a chance at a T5 rare — but the biggest, most reliable hauls are out in the wilds.) The mission board offers higher-paying jobs that require lawless travel — Hutt contracts, CIS espionage runs, Republic black-ops insertions through Separatist territory. Smuggling routes pass through lawless territory for the biggest payouts; spice runs from Kessel and the Outer Rim into the Inner Worlds are the classic case. Black-market dealing concentrates in the lawless underworlds — the Nar Shaddaa Warrens, the back rooms of Mos Eisley cantinas, the Twi'lek fences in the Coruscant Underworld.
 
-**Progression.** Certain advanced NPC trainers only operate in lawless zones. The Mos Eisley cantina has a half-dozen specialists who'll train you for credits — sharpshooting, slicing, demolitions — without asking what you intend to do with the skills. A few Force-sensitive hermits in the Jundland Wastes will teach you Force basics if you can find them and survive the trip out. Ruins, crash sites, and hidden caches — the discovery content — only spawn in lawless zones. Your CP tick rate (the slow drip of advancement currency) gets a **+25% bonus** while you're actively in a lawless zone, on top of whatever you earn from missions and combat.
+**Progression.** Much of the world's reward density lives where the Republic can't reach. The higher-paying contracts route you through lawless space; the richest crafting hauls come off lawless nodes; the discovery content — ruins, crash sites, hidden caches — clusters out past the patrols. Advancement (CP) doesn't come from *standing* in a lawless zone — there's no idle bonus for loitering somewhere dangerous — it comes from the play that dangerous zones make possible: the missions you complete, the scenes you run, the kudos you earn for memorable play. (See [CP Progression](#/guide/cp-progression) for exactly how CP accrues.) Lawless zones don't pay you to be there; they're where the better-paying work *is*.
 
 **Faction work.** Most criminal-faction missions require lawless travel. Most CIS sympathizer missions, by definition, take place in territory the Republic doesn't control. If you're aligned with anyone other than the Republic, your job's going to take you somewhere dangerous sooner rather than later. Even Republic missions sometimes require lawless travel — a clone intelligence officer doesn't ask a player to extract a witness from the Senate District; they ask you to go pull someone out of the Nar Shaddaa Undercity.
 
@@ -207,29 +227,34 @@ If you're new to a lawless zone, a few practices reduce your odds of dying ignom
 
 ## 7. Territory Claims and Security Upgrades
 
-When a player organization claims a room in a **lawless** zone (the only zone where claims are permitted), that room is treated as **contested for the organization's members**. You get PvP consent protection on your own turf. Enemies still have to challenge you to start a fight; they can't just walk in and shoot.
+Territory is claimed at the **region** level, not room by room. When a player organization claims a contestable **wilderness region** (via `faction claim`, once the org holds a foothold there), every lawless room inside that region is treated as **contested for the organization's members** — the "citadel upgrade." You get PvP consent protection across your whole holding, not just one spot. Enemies still have to challenge you to start a fight; they can't just walk in and shoot.
 
-Non-members entering the same claimed room see the room as Lawless, because for them it is — they have no claim, and no protection. So you can defend your claimed territory aggressively while still benefiting from the consent rule against rival player organizations trying to take it.
+Non-members entering the same region see its rooms as Lawless, because for them they are — they have no claim, and no protection. So you can defend your claimed territory aggressively while still benefiting from the consent rule against rival player organizations trying to take it. (One caveat: only an org member who is *not* independent gets the upgrade. A factionless PC traveling with the org gets the base lawless tier — the protection follows organization membership, not company.)
 
-This is the first benefit of the territory control system. It means a Hutt syndicate's claimed warehouse in the Nar Shaddaa Warrens is dangerous for rival players but safe for its own members — the same room, viewed by different characters, with different consequences. There are more benefits as the territory system fills out — guard NPCs, resource nodes, vendor stalls, passive income — see [Territory Control](#/guide/territory-control) for the full picture.
+This is the first benefit of the territory control system. It means a syndicate's held stretch of frontier is dangerous for rival players but safe for its own members — the same ground, viewed by different characters, with different consequences. There are more benefits as the territory system fills out — guard NPCs, resource nodes, passive income — see [Territory Control](#/guide/territory-control) for the full picture.
 
-A worked example: the **Falleen Syndicate** (player-run, Coruscant Underworld-based) claims a warehouse room in the Nar Shaddaa Warrens. A Falleen Syndicate member walks in and sees **[CONTESTED]**. A Black Sun rival walks in and sees **[LAWLESS]**. Both can attack the Falleen member, but the Black Sun has to challenge first if they want a fair fight — meanwhile a non-aligned Trandoshan thug in the same room could just open fire on the Falleen member because, to the thug, the room is still lawless and PvP needs no consent. Territory protects you from rivals who care about appearances; it doesn't protect you from sociopaths who don't.
+A worked example: the **Falleen Syndicate** (player-run) holds a contestable wilderness region. A Falleen Syndicate member crosses into it and sees its rooms as **[CONTESTED]**. A Black Sun rival sees the same rooms as **[LAWLESS]**. Both can attack the Falleen member, but the Black Sun has to challenge first if they want a fair fight — meanwhile a non-aligned Trandoshan thug in the same room could just open fire, because to the thug the region is still lawless and PvP needs no consent. Territory protects you from rivals who care about appearances; it doesn't protect you from sociopaths who don't. (Note the ceiling: the citadel upgrade only lifts LAWLESS to CONTESTED — wilderness never becomes fully SECURED, so there is no zero-risk turf out in the wilds.)
 
 ---
 
 ## 8. Admin Commands (Staff Only)
 
-These commands let staff inspect or override security levels for testing, narrative events, or emergency fixes:
+The `@security` command (ADMIN-only) has four forms, split between *zone-level* security and *per-room faction* overrides:
 
 ```
-@security <zone>                  — Show effective security level
-@security <zone> = <level>        — Set zone security (secured/contested/lawless)
-@security override <room> = none  — Clear any override on a room
+@security <zone>                        — Show a zone's base security level
+@security <zone> = <level>              — Set zone security (secured/contested/lawless)
+@security override <room> = <faction>   — Set a room's faction override
+@security override <room> = none        — Clear a room's faction override
 ```
 
-Changes take effect immediately — there's no restart needed, and the next `attack` attempt in the affected zone reads the new value from the database. The override flow is intentionally non-persistent across server restarts when set via the Director (since those are narrative effects), but admin sets via `@security` are persistent.
+The first two forms work on whole zones. `@security <zone> = lawless` writes the zone's baseline tier to the database, so it **persists across restarts**; the read form shows that stored base value (not the dynamic, per-character effective level a player actually sees, since that depends on Director arcs and faction influence). `<level>` is one of secured / contested / lawless and is case-insensitive; `<zone>` is matched by exact name.
 
-If you're staff running an event and need a normally-Secured zone to allow PvP for the duration of a scene — say, a duel arc set in the Senate District plaza, or a CIS infiltration that compromises the Jedi Temple lobby — `@security` is the tool. Don't forget to reset it after the scene ends; lingering overrides have caused player confusion.
+The `override` form is a different tool. It doesn't set a security tier — it tags a single room (by id or slug) with a **faction override**: hostile or unfriendly PCs of the named faction then see that room as **LAWLESS instead of SECURED** (the §2 rule that lets a faction stronghold turn dangerous for its enemies). `@security override <room> = none` clears the tag. The faction code must be a real organization (`faction list` shows valid codes).
+
+Changes take effect immediately — no restart needed; the resolver re-reads the database on every effective-security check. (Note: transient *Director-driven* security shifts — criminal surges, crackdowns — are held in memory and reset on restart by design, because they're narrative effects; only the admin `@security` writes above are durable.)
+
+If you're staff running an event and need a normally-Secured zone to allow combat for the duration of a scene — say, a duel arc in the Senate District plaza, or a CIS infiltration that compromises the Jedi Temple lobby — set the zone with `@security <zone> = contested` (or `lawless`) and reset it after. Don't forget to reset it; lingering overrides have caused player confusion.
 
 ---
 
@@ -246,7 +271,7 @@ You walk a few rooms toward the Undercity entrance. The tag changes to **[LAWLES
   *** Players can attack you freely here. ***
 ```
 
-From here on, anyone in the room can shoot at you without warning. The mission board entry that paid 4,000 credits to deliver this package made sense now — the danger is real. You're earning the +25% CP bonus just by being here.
+From here on, anyone in the room can shoot at you without warning. The mission board entry that paid 4,000 credits to deliver this package makes sense now — the danger is real, and the pay tracks the danger.
 
 You take the contract. Halfway through the run, the news ticker on the web client flashes: "Republic strike team deploys to Nar Shaddaa Levels 89-91 — Hutt cartel asset suspected." Your zone's effective security upgrades one tier — the rooms you're moving through go from Lawless to Contested. A pair of clone troopers in dark recon armor materialize from the next room. The deployment isn't your friend (Republic clones in the area will challenge any obviously criminal player), but it means random PvP gankers can no longer touch you mid-run.
 
