@@ -3,7 +3,7 @@ key: +pilot
 title: Pilot — The Pilot Station & Piloting Maneuvers
 category: "Commands: Ships"
 summary: All piloting verbs live under +pilot/<switch>. Take the pilot seat, or perform maneuvers — evade, jink, barrelroll, loop, slip, tail, close, flee, course. Every pilot verb is a switch here.
-aliases: [pilot, evade, evasive, jink, barrelroll, broll, loop, immelmann, slip, sideslip, tail, getbehind, outmaneuver, shake, close, approach, fleeship, breakaway, course, navigate, setcourse]
+aliases: [pilot, evade, evasive, jink, barrelroll, broll, loop, immelmann, slip, sideslip, tail, getbehind, outmaneuver, shake, close, approach, fleeship, breakaway, course, navigate, setcourse, launch, takeoff, land, dock, copilot, copiloting, navigator, nav]
 see_also: [+gunner, +sensors, +bridge, +ship, stations, combat, maneuver]
 tags: [ships, pilot, combat, command]
 access_level: 0
@@ -109,6 +109,40 @@ nearby (sensor tell).
 
 Hyperspace jumps are NOT a pilot switch — they go through the
 navigator station (bare `hyperspace` or `jump`).
+
+LAUNCH / LAND
+
+These are pilot-only commands (you must be seated at the pilot station):
+
+  launch (also: takeoff)  — Take off from a docking bay. Costs fuel credits;
+                            fee deducted automatically on departure.
+  land (also: dock)       — Land at the planet below. Only available in an
+                            orbit or dock zone. Docking fee applies.
+
+Must be in space to land; must be docked to launch. The ship must be YOUR
+ship or you must be an authorized crew member (+shipcrew).
+
+HYPERSPACE
+
+  hyperspace <destination>   — Jump to a destination planet or zone. Requires
+                               a functioning hyperdrive and a navigator or
+                               astrogation roll. Usage: `hyperspace list` to
+                               see valid destinations; `jump <dest>` is an alias.
+  hyper / jump               — Short aliases for hyperspace.
+
+Hyperspace is routed through the navigator station. If you have no navigator,
+the pilot rolls Astrogation directly (higher difficulty). See `+help hyperdrive`
+for jump times and fuel rules.
+
+CREW STATIONS
+
+Taking a station makes you active crew — you contribute your skill to that
+station's rolls and can issue station-specific commands.
+
+  copilot (also: copiloting) — Assist the pilot. Grants +1D to pilot's
+                               maneuver and fire-control rolls while seated.
+  navigator (also: nav)      — Plot hyperspace courses. Enables `hyperspace`
+                               command with full Astrogation skill (no penalty).
 
 FACTION / DARK-SIDE
 

@@ -3,7 +3,7 @@ key: +bridge
 title: Bridge — Commander Station, Captain Orders, Ship-Wide Actions
 category: "Commands: Ships"
 summary: All commander / bridge-tier verbs live under +bridge/<switch>. Take the commander seat, issue tactical orders, hail / open comms, manage shields / power / transponder / damage control. Also station management (vacate, assist, coordinate). Every bridge verb is a switch here.
-aliases: [commander, command, captain, order, orders, hail, comms, comm, radio, shields, power, pwr, transponder, transp, resist, breakfree, damcon, damagecontrol, repair, vacate, unstation, assist, coordinate, coord]
+aliases: [commander, command, captain, order, orders, hail, comms, comm, radio, shields, power, pwr, transponder, transp, resist, breakfree, damcon, damagecontrol, repair, vacate, unstation, assist, coordinate, coord, engineer, eng]
 see_also: [+pilot, +gunner, +sensors, +ship, +crew, captainorders, stations, combat]
 tags: [ships, commander, bridge, command]
 access_level: 0
@@ -143,6 +143,14 @@ any) to prioritize repairing a specific system. Without an assigned
 engineer, damage-control uses an NPC auto-priority. With an
 engineer PC at the station, the PC does the work via ship-admin
 `/repair`.
+
+ENGINEER STATION
+
+  engineer (also: eng) — Take the engineer station. Enables full damage
+                         control (damcon) and power management on behalf of
+                         the commander. Without an engineer PC, damage control
+                         is handled automatically by any NPC crew assigned to
+                         the role.
 
 SHIP MANAGEMENT
 
