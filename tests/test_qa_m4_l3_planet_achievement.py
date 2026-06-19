@@ -40,6 +40,18 @@ if PROJECT_ROOT not in sys.path:
 
 # ── L3: advance_skill source guards ─────────────────────────────────────────
 
+class TestL3CpCommandsDocstring:
+    """cp_commands.py module docstring must not claim cost doubling (QA L3 artifact)."""
+
+    def test_no_doubled_claim_in_module_docstring(self):
+        import parser.cp_commands as cp_mod
+        src = cp_mod.__doc__ or ""
+        assert "doubled" not in src.lower(), (
+            "parser/cp_commands.py module docstring still claims 'doubled if above "
+            "attribute' — WEG R&E advance_skill cost is total-dice only, no doubling "
+            "(QA L3 artifact)")
+
+
 class TestL3AdvanceSkillDeadBranchRemoved:
     """advance_skill must not claim doubling or contain the dead if-branch."""
 

@@ -12,8 +12,8 @@ Commands:
 Design:
   - 200 ticks = 1 CP  (v23; was 300)
   - Weekly hard cap: 400 ticks  (v23; was 300)
-  - train costs current_dice CP (doubled if above attribute) per the existing
-    advance_skill() implementation in engine/character.py
+  - train costs total_dice CP (WEG R&E rule: current total dice, no doubling)
+    per advance_skill() in engine/character.py
   - kudos: 3 receivable per week, 35 ticks each, 7-day rolling giver→target lockout
 """
 
