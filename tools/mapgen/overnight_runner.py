@@ -82,7 +82,8 @@ SWEEP_ORDER = [
     "mos_eisley",           # Tatooine (more samples)
 ]
 
-BUDGET_CENTS = 500.0          # $5 hard cap — the BINDING stop ("Gemini until $5")
+BUDGET_CENTS = 900.0          # $9 hard cap — the BINDING stop (Brian raised $5->$9;
+                              # $10 funded, $1 buffer). Real spend ~per-image*images.
 PER_IMAGE_CENTS = 4.0         # conservative (real ~3.9¢) -> we under-spend
 MAX_ROUNDS = 8                # high backstop only; the $5 cap stops it first
 N_PER_CITY = 6
