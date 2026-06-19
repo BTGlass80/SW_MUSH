@@ -25,6 +25,21 @@ except Exception:
     _AIOHTTP_AVAILABLE = False
 
 
+def _build_ssl_context():
+    """Norton Antivirus' "Web/Mail Shield" MITM re-signs HTTPS certs with a root
+    in the Windows store, which Python's certifi doesn't read → CERTIFICATE_
+    VERIFY_FAILED. truststore makes ssl read the OS store so the Norton (and any
+    real) root is trusted. Returns None if truststore is unavailable (certifi
+    default). Mirrors ai/claude_provider._build_ssl_context (the same box).
+    """
+    try:
+        import ssl
+        import truststore
+        return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    except Exception:
+        return None
+
+
 # A real 1x1 transparent PNG — what MockNanoClient returns so downstream code
 # (PIL open, byte length, file write) all work without a live API.
 _PLACEHOLDER_PNG = bytes.fromhex(
@@ -119,7 +134,9 @@ class NanoClient:
 
         try:
             timeout = aiohttp.ClientTimeout(total=self.timeout)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            ssl_ctx = _build_ssl_context()
+            connector = aiohttp.TCPConnector(ssl=ssl_ctx) if ssl_ctx else None
+            async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
                 async with session.post(self.ENDPOINT, json=payload,
                                         headers=headers) as resp:
                     text = await resp.text()
