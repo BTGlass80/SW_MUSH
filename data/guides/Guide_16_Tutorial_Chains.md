@@ -69,7 +69,7 @@ Eight chains ship at launch. They divide along three axes: era-aligned factions 
 
 (That's nine entries — the Jedi path splits at chargen-time into Order and Independent variants based on Village quest outcome. Both are locked at standard chargen.)
 
-The **first six** are unlocked at chargen, gated only by faction intent. The **Shipwright/Trader chain** is also unlocked at chargen for characters with the right guild intent. The **two Jedi chains** are locked at chargen — they unlock via the Village quest (see Guide #18) and run after Village completion as a separate experience.
+The **first six** are unlocked at chargen, gated by faction intent — except **Smuggler**, which has no gate and is open to everyone. The **Shipwright/Trader chain** is also unlocked at chargen for characters with the right guild intent. The **two Jedi chains** are locked at chargen — they unlock via the Village quest (see Guide #18) and run after Village completion as a separate experience.
 
 ---
 
@@ -93,20 +93,20 @@ If you have a clearer character idea (you want to be a Clone Trooper / Republic 
 
 A concrete example. The Republic Soldier chain takes you from Tipoca City on Kamino to Coruscant Works, ready to take Republic missions. Here's the arc, step by step.
 
-**Step 1 — Reporting In (Tipoca Briefing Room).** A Kaminoan officer named Major Tarrn meets you in a cold white briefing room. He tells you to look around, check your sheet with `+sheet`, then come back to him. *Commands taught: `look`, `+sheet`.* When you've done both and `talk Tarrn`, the major confirms your records and tells you the combat sim is east.
+**Step 1 — Reporting In (Tipoca Briefing Room).** A Republic officer named Major Tarrn meets you in a cold white briefing room. He tells you to look around, check your sheet with `+sheet`, then come back to him. *Commands taught: `look`, `+sheet`.* When you've done both and `talk Tarrn`, the major confirms your records and tells you the combat sim is next.
 
 **Step 2 — Combat Sim Drill (Tipoca Combat Sim).** A Clone Trooper sim operator briefs you on the drill: two simulated B1 battle droids, weapons set to non-lethal for them, live-fire for you. *Commands taught: `attack`, `dodge`.* You fight the droids; the engine drives you through declaration → resolution → posing. When the droids are down, the operator clears you for the next stage.
 
 **Step 3 — Briefing on the Mission (Tipoca Briefing Room).** Back to Major Tarrn. He explains the mission cycle — you're being deployed to Coruscant Works to assist with a Republic supply convoy. *Commands taught: `+missions`, `accept`.* You browse the mission board, accept a Republic mission, and Tarrn nods approval.
 
-**Step 4 — Shipping Out (Tipoca Hangar Bay).** A Pilot NPC waits at the hangar bay. You're catching a transport to Coruscant. *Commands taught: `board`, `launch` (basic ship interaction).* You board the transport; the chain advances you through a brief takeoff sequence.
+**Step 4 — Transit to Coruscant (Tipoca Transport Pad).** Pilot CT-7567 waits at the transport pad. You're catching a transport to Coruscant. *Command taught: `talk`.* You `talk` to the pilot to ship out; the chain handles the takeoff and hyperspace jump for you and relocates you to Coruscant. (Tutorial rooms have no walkable exits — the chain moves you between step rooms, so you never `board`/`launch` here yourself.)
 
-**Step 5 — Landing at Coruscant (Coruscant Works Landing Zone).** You arrive. A duty officer briefs you on what comes next: the Republic mission board, your faction comlink, your priorities for the active war. *Commands taught: `+missions republic`, `comlink`.* You learn how to read the mission board for Republic-specific work.
+**Step 5 — First Day on Coruscant (Coruscant Works Landing Zone).** You arrive. Sergeant Drix, a 212th clone, welcomes you and tells you to confirm your faction standing with `+factions` — it'll change as you do work. *Commands taught: `talk`, `+factions`.* Drix points you at the Republic mission board (`+missions republic`) as your source of work.
 
-**Step 6 — Graduation.** The chain completes. The engine pays out:
-- **500 cr** to your wallet.
+**Graduation.** After Step 5 the chain completes. The engine pays out:
+- **500 cr** to your wallet (plus a 100-cr advance earned during the chain).
 - **DC-15 blaster rifle, Republic light armor, basic comlink** to your inventory.
-- **+50 Republic reputation** (you're a vetted, known Republic soldier).
+- **A starting bump to your Republic reputation** — a handful of points (around ten) on the 0–100 faction-standing scale, enough to register you as a recognized face rather than a veteran. (Reputation is a ladder you climb through play; graduating puts your foot on the first rung.)
 - **Achievement: "Sworn to the Republic"** appears in your achievements list.
 - You're standing in Coruscant Works, the live world all around you.
 
@@ -118,19 +118,19 @@ That's it. 22 minutes of structured onboarding, and you're a Clone Trooper or Na
 
 ## 5. The Other Chains in Brief
 
-**Republic Intelligence.** Starts in the Senate District. Your handler is a Republic Intelligence officer who briefs you on the shadow side of the war — internal investigations, anti-Separatist intelligence, Senate security. Steps include passing an intake interview, running a covert surveillance exercise, slicing into a low-stakes file, and being assigned to a Coruscant precinct. Graduates with +50 Republic rep, encrypted datapads, lockpick toolkit, and a contact in Republic Intelligence.
+**Republic Intelligence.** Starts in a safehouse in Coruscant's Monumental District (the Senate quarter). Your handler, Director Naya Vell, recruits you through back channels and walks you through the shadow side of the war — surveillance, tailing a CIS sympathizer, filing a clean intercept. Steps include accepting the quiet recruitment, a surveillance exercise at Dex's Diner, a `chain attempt` Sneak roll to tail the contact, completing your intercept mission, and a formal induction at the Judicial Plaza. Graduates with 600 credits, a starting bump to Republic reputation, and a concealed blaster, a civilian disguise kit, and an encrypted comlink.
 
-**Separatist Commando.** Starts at a Separatist outpost on Geonosis. Your superior officer briefs you on the cause — the CIS as a legitimate Confederacy of disenfranchised systems pushing back against Republic overreach. Steps include weapons familiarization, a small combat exercise against Republic-themed sim droids, and an assignment to a Geonosis-based unit. Graduates with +50 CIS rep, a CIS-issued blaster, light armor, and an introduction to a CIS field officer.
+**Separatist Commando.** Starts on the Geonosis foundry floor. A tactical droid briefs you on the cause — the CIS as a legitimate Confederacy of disenfranchised systems pushing back against Republic overreach. Steps include the briefing, a joint-operations drill against Republic-themed sim droids (you fight alongside droid allies), an assignment from the tactical droid, and insertion at a covert Tatooine cell run by Cell Leader Mira Kavin. Graduates with 500 credits, a starting bump to CIS reputation, and an E-5 blaster rifle, CIS field armor, and a basic comlink.
 
-**Separatist Agent.** Starts in the Coruscant Underworld — you're a CIS sleeper operating in the heart of the Republic. Steps include meeting your handler at a contact point, learning the dead-drop system, running a small reconnaissance exercise on a Republic facility, and being added to the active-asset roster. Graduates with +50 CIS rep, encrypted comlink, false-ident papers, and a network of safe houses you can use.
+**Separatist Agent.** Starts in the Coruscant underworld at the Crystal Jewel Cantina — you're a CIS sleeper operating in the heart of the Republic. Steps include the cantina recruitment by your handler Sevra Toryn, decrypting a sealed packet, a `chain attempt` Sneak roll to make a dead drop, a tense close call with Republic Security (talk your way past with a Con roll or fight), and operational confirmation. Graduates with 600 credits, a starting bump to CIS reputation, and a concealed blaster, a civilian disguise kit, a fake Republic ID, and an encrypted comlink.
 
-**Bounty Hunter.** Starts at the BHG Chapter House on Nar Shaddaa. An adjudicator vets you — looks at your skills, asks you why you want a Guild license, and runs you through the BHG's professional standards. Steps include passing the intake, taking a low-tier contract, capturing or killing the target (combat or stealth, your choice), and being formally licensed. Graduates with +50 BHG rep, a BHG license card, tracking fob, stun baton, and 700 credits — the higher cash because your first contract paid out.
+**Bounty Hunter.** Starts at the BHG Chapter House on Nar Shaddaa. Adjudicator Kaeleth Voss vets you — looks at your skills, runs you through the Guild's professional standards. Steps include passing the intake, accepting a tier-1 contract off the board, a `chain attempt` Search roll to track your mark through the warrens, subduing him (`attack <target> stun` pays better than killing), and collecting the bounty for your Guild card. Graduates with 700 credits — the higher cash because your first contract paid out — a starting bump to BHG reputation, and a BHG license card, tracking fob, and stun baton.
 
-**Smuggler.** Starts at Mos Eisley Dock 94. Captain Reggi Voss runs a YT-1300 freighter called the *Mynock's Promise* and is looking for a new junior crew member. Steps include signing on, picking up cargo from a Hutt broker in the bazaar, learning the cargo system, taking the run to Nar Shaddaa, and being paid out as a member of the crew. Graduates with +30 independent rep, +15 Hutt Cartel rep, a spacer ident, comlink, smuggler's baffle kit, and 800 credits — the highest payout, but no faction backing.
+**Smuggler.** Starts at Docking Bay 94 on Tatooine. Captain Reggi Voss runs a YT-1300 freighter called the *Mynock's Promise* and is looking for a new junior crew member. Steps include signing on, picking up spice cargo from Hutt Broker Vresh in the bazaar, lifting off, a `chain attempt` Con roll to bluff past Nar Shaddaa customs (or have Voss outfly them), and delivering the cargo. Graduates with 800 credits — the highest payout — a *split* starting reputation across **Independent** and **Hutt Cartel** standing, and a spacer ident, basic comlink, and smuggler's baffle kit. No single-faction backing, but two underworld relationships to build on.
 
-**Shipwright / Trader.** Starts at the Kuat Drive Yards Apprentice Dock. A Kuati master shipwright takes you on as an apprentice. Steps include touring the foundry, learning the crafting system through a small repair job, completing a junior commission, and being inducted into the Shipwrights Guild. Graduates with +50 Shipwrights Guild rep, basic crafting tools, schematics for entry-level items, and 500 credits.
+**Shipwright / Trader.** Starts at the Kuat Drive Yards apprentice bay. Foreman Andrim Purkis takes you on as an apprentice. Steps include intake, diagnosing a damaged hyperdrive subsystem (`scan` + `examine`), requisitioning a part from the parts crib, a `chain attempt` Repair roll to fix the subsystem, and signing the Guild register. Graduates with 400 credits — the lowest cash, but the most gear — a starting bump to Shipwrights' Guild reputation (and a touch of Mechanics' Guild standing), and a shipwright toolkit, diagnostic scanner, and KDY apprentice pass.
 
-Each chain has its own NPC personalities, room descriptions, and small narrative moments. The Bounty Hunter adjudicator Voss is a different voice from the Smuggler captain Reggi from the Kaminoan Major Tarrn. Players who run multiple chains across multiple characters notice the texture — these aren't templates with names swapped, they're distinct opening situations.
+Each chain has its own NPC personalities, room descriptions, and small narrative moments. Adjudicator Kaeleth Voss is a different voice from Captain Reggi Voss, who is different again from Major Tarrn or the modulated drone of Tactical Droid TQ-89. Players who run multiple chains across multiple characters notice the texture — these aren't templates with names swapped, they're distinct opening situations.
 
 ---
 
@@ -162,12 +162,10 @@ Beyond the steps themselves, a few things happen automatically while you're in a
 
 ```
 chain
-   You're on: Republic Soldier (Step 2 of 6)
-   Step:      Combat Sim Drill
-   Objective: Defeat two simulated B1 battle droids.
-   Completes by: Combat won (no friendly KO required).
-   Currently in: Tipoca Combat Sim
-   Next: After resolution, return to Major Tarrn.
+   Republic Soldier  (step 2)
+   Combat Sim Drill
+     Defeat two simulated B1 battle droids.
+   Completes when: combat_won
 ```
 
 **NPCs are aware of your chain progress.** The chain's NPCs know you're at their step. They greet you with the step's opening line. They acknowledge your completion. If you try to skip ahead and `talk` to a step-3 NPC while you're at step 1, that NPC has a polite "you should finish your business with Major Tarrn first" response. You can't gracefully out-of-order yourself through a chain.
@@ -200,7 +198,7 @@ Examples of skill-check steps:
 - The Shipwright chain's commission-completion step (relevant Repair check).
 - The Jedi paths' opening Force-sign check (Sense check, post-Village unlock).
 
-The chain status will tell you when you're at a `chain attempt` step. You don't have to remember the rule — it'll show "Completes by: Skill check (chain attempt)."
+The chain status will tell you when you're at a `chain attempt` step. You don't have to remember the rule — it shows `Completes when: skill_check_passed`, followed by a prompt line telling you exactly which skill to roll and against what difficulty (e.g. "When ready, type `chain attempt` to roll sneak vs difficulty 8").
 
 ---
 
@@ -210,7 +208,7 @@ When you finish your final chain step, the graduation event runs:
 
 1. **Credits credit to your wallet.**
 2. **Items appear in your inventory.** Faction gear, basic tools, comlinks, weapons.
-3. **Faction reputation updates.** +50 in your aligned faction (or +30/+15 split for the Smuggler chain's dual-faction pattern).
+3. **Faction reputation updates.** A starting bump in your aligned faction — a handful of points (around ten) on the 0–100 standing scale, accumulated across the chain's steps plus a graduation bonus. The Smuggler chain splits its bump across Independent and Hutt Cartel standing.
 4. **Achievement unlocks.** Visible in `+achievements`. These are persistent and show up forever.
 5. **You teleport to your drop room.** The chain's pre-set destination in the live world.
 6. **A follow-up hint prints.** A one-line pointer at what to do next.
@@ -233,7 +231,7 @@ If you create a second character on the same account, chargen offers a **skip-ch
 
 **Reasons to take the chain again:**
 - The starter gear is meaningful. A new character starting from scratch is at 0 credits with no equipment; the chain's payout (500–800 cr, gear, faction rep) is a real boost.
-- The faction reputation matters. +50 in your faction at the start of play means missions and NPCs treat you as a known quantity, not a stranger.
+- The faction reputation matters. A starting standing bump in your faction means missions and NPCs treat you as a known quantity, not a stranger — and skip-chain alts get no reputation at all.
 - The first scene is curated. Even on a repeat run, the chain's opening scene is good. It's a structured first hour rather than an unstructured one.
 - Different chains have different content. Running Bounty Hunter once and Smuggler once gives you very different opening experiences.
 
@@ -242,7 +240,7 @@ If you create a second character on the same account, chargen offers a **skip-ch
 - You're making a one-off alt that doesn't need full onboarding.
 - You're an experienced player who has the credits and gear to bootstrap quickly.
 
-Skip-chain characters start with no graduation payout — no credits, no items, no reputation, no achievement. They spawn in a neutral starting room (typically a cantina) with the same chargen sheet they confirmed. From there, they have to bootstrap themselves through normal play.
+Skip-chain characters don't get the chain graduation bundle — no faction reputation, no achievement, and none of the chain-specific gear (no DC-15, no license card, no toolkit). Instead they get a small fixed **skip starter kit**: **300 credits, a medpac, a basic comlink, and a hold-out blaster**. It's the "naked but not destitute" baseline — lean enough that running a real chain stays the stronger path, rich enough that skipping isn't punitive. They drop straight into the live galaxy with the chargen sheet they confirmed and bootstrap from there through normal play.
 
 **For most players, even on a fifth character, running the chain is worth it.** The 15–25 minutes of structured play pays off in the credits, gear, and reputation you get out the other side.
 
@@ -264,8 +262,9 @@ training crew       (go to the Crew Quarters)
 training economy    (go to the Trader's Hall)
 training list       (show your training module progress)
 training return     (go back to where you were before training)
-training skip       (skip the core tutorial — for experienced players)
 ```
+
+(`training skip` exists but no longer skips anything — your tutorial path is chosen at character creation, so it just explains that and points alt characters at the chargen skip option. See §10.)
 
 The Training Grounds are a separate space from the live world — a tutorial zone with NPC instructors who explain systems in detail. You can visit any time during your career. New players who finished their chain often go to the Combat Arena to drill more before their first real fight. Veterans don't typically use it.
 
@@ -335,7 +334,7 @@ By the end of that first hour, you've completed your chargen → chain → first
 
 | Command | What it does |
 |---|---|
-| (chargen) `chain <name>` | Set tutorial chain during character creation |
+| (chargen) pick a chain by number | Select your tutorial chain during character creation (alts may also skip) |
 | `chain` (or `chain status`) | Show current chain progress |
 | `chain attempt` | Trigger a skill-check step's roll |
 | `talk <NPC>` | Talk to an NPC (advances NPC-completion steps) |
@@ -346,7 +345,7 @@ By the end of that first hour, you've completed your chargen → chain → first
 | `training <module>` | Go to a specific training module |
 | `training list` | Show training module progress |
 | `training return` | Return to where you were before training |
-| `training skip` | Skip the core tutorial (experienced players) |
+| `training skip` | Deprecated — explains the chargen skip path (no longer skips) |
 | `+help <topic>` | Reference documentation |
 | `ooc <message>` | Out-of-character chat (good for asking for help) |
 | `page <player> = <message>` | Direct private message |
