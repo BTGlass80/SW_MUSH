@@ -849,6 +849,31 @@ class GameServer:
         except Exception as _narr_err:
             log.warning("Narrative scheduler skipped: %s", _narr_err)
 
+        # SpaceGrid boot rehydration — undocked, realspace ships are absent from
+        # the combat/range grid after a restart until they relaunch without this.
+        # Mirrors the hyperspace_arrival_tick add_ship pattern; hyperspace ships
+        # stay absent until they arrive (correct — hyperspace_arrival_tick adds them).
+        try:
+            import json as _json
+            _boot_ships = await self.db.get_ships_in_space()
+            _rehydrated = 0
+            for _s in _boot_ships:
+                _raw = _s.get("systems")
+                try:
+                    _sys = _json.loads(_raw) if isinstance(_raw, str) else (_raw or {})
+                except (_json.JSONDecodeError, TypeError):
+                    _sys = {}
+                if _sys.get("in_hyperspace"):
+                    continue
+                _tmpl = self.ship_registry.get(_s.get("template"))
+                _spd = _tmpl.speed if _tmpl else 5
+                self.space_grid.add_ship(_s["id"], _spd)
+                _rehydrated += 1
+            if _rehydrated:
+                log.info("SpaceGrid: boot-rehydrated %d realspace ship(s)", _rehydrated)
+        except Exception as _sgr_err:
+            log.warning("SpaceGrid rehydration skipped: %s", _sgr_err)
+
         # Network listeners
         await self.telnet.start(self.config.telnet_host, self.config.telnet_port)
 
