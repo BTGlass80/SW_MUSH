@@ -2,7 +2,7 @@ name: "Mon Calamari"
 description: >
   Amphibious beings from the ocean world of Mon Cala. Known for their
   brilliant engineering and leadership, Mon Calamari designed many of
-  the Rebel Alliance's finest capital ships. They are thoughtful,
+  some of the galaxy's most celebrated capital warships. They are thoughtful,
   artistic, and deeply committed to justice.
 homeworld: Mon Cala
 
@@ -32,5 +32,5 @@ move: 9
 swim: 12
 
 story_factors:
-  - "Mon Calamari are among the Rebel Alliance's strongest supporters."
+  - "Mon Calamari broadly favor the Galactic Republic, valuing its ideals of democracy and justice."
   - "They share their homeworld with the Quarren, with whom relations are often tense."
