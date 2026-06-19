@@ -110,6 +110,82 @@ STYLE_PREAMBLE = (
     "----- city brief follows -----\n"
 )
 
+# ── per-city TUNING: muted seed (the (a) pass) ─────────────────────────────────
+# The generic sweep's worst artifact is the tight-seed's near-WHITE road
+# centerlines + bright GOLD landmark markers rendering as glowing schematic
+# streaks / token icons. Muting them (hue-PRESERVING for districts) lets the
+# style anchor pull a painting instead of a battle-map. deblue additionally
+# neutralises cool/blue district fills (Gemini paints them as water) for
+# non-ocean cities. These mirror make_substrate_seed's globals.
+MUTED_STREET = (150, 142, 128)   # was near-white (252,250,245)
+MUTED_CASING = (74, 70, 64)      # was near-black (12,13,16) — soften the contrast
+MUTED_LM_DIST = (172, 142, 104)  # was bright gold (255,196,96)
+MUTED_LM_GEN = (150, 140, 126)   # was cool grey-blue (150,170,190)
+
+
+def _warm_neutral(rgb):
+    """Cool/blue district hue -> a warm-grey of similar luminance (kills the
+    'water' read); warm hues pass through unchanged."""
+    r, g, b = rgb
+    if b > r:
+        L = (r + g + b) // 3
+        return (min(L + 14, 255), min(L + 6, 255), max(L - 10, 0))
+    return tuple(rgb)
+
+
+def regenerate_muted_seed(area_key: str, era: str = "clone_wars",
+                          long_edge: int = 2048, deblue: bool = True) -> None:
+    """Overwrite the city tight-seed with muted streets+markers (+ optional
+    de-blue), by monkeypatching make_substrate_seed's globals around one
+    render(). Caller backs up + restores the seed file (non-destructive)."""
+    import tools.make_substrate_seed as mss
+    base = area_key.rsplit(".", 1)[-1] if "." in area_key else area_key
+    saved = (mss.TIGHT_STREET, mss.ROAD_CASING, mss.LM_DIST, mss.LM_GEN,
+             mss.DISTRICT_HUES)
+    try:
+        mss.TIGHT_STREET = MUTED_STREET
+        mss.ROAD_CASING = MUTED_CASING
+        mss.LM_DIST = MUTED_LM_DIST
+        mss.LM_GEN = MUTED_LM_GEN
+        if deblue:
+            mss.DISTRICT_HUES = [_warm_neutral(h) for h in mss.DISTRICT_HUES]
+        mss.render(base, era=era, root="data/worlds", out=str(paths.SEEDS_DIR),
+                   long_edge=long_edge, tight=True)
+    finally:
+        (mss.TIGHT_STREET, mss.ROAD_CASING, mss.LM_DIST, mss.LM_GEN,
+         mss.DISTRICT_HUES) = saved
+
+
+def _backup_seed(area_key: str):
+    """Back up the tight seed + keymap so a muted regen is reversible. Returns
+    (bakdir, {target: backup-or-None}); a None backup means the target did NOT
+    exist before, so restore must DELETE it if the regen freshly created it
+    (most cities ship no committed keymap)."""
+    base = area_key.rsplit(".", 1)[-1] if "." in area_key else area_key
+    bakdir = Path(tempfile.mkdtemp(prefix="onseed_"))
+    mapping = {}
+    for name in (f"{base}_tight_seed.png", f"{base}_tight_keymap.png"):
+        f = paths.SEEDS_DIR / name
+        if f.exists():
+            b = bakdir / name
+            shutil.copy2(f, b)
+            mapping[f] = b
+        else:
+            mapping[f] = None
+    return bakdir, mapping
+
+
+def _restore_seed(bakdir, mapping) -> None:
+    for f, b in mapping.items():
+        try:
+            if b is not None:
+                shutil.copy2(b, f)            # restore the original
+            elif f.exists():
+                f.unlink()                    # delete a freshly-created file
+        except OSError:
+            pass
+    shutil.rmtree(bakdir, ignore_errors=True)
+
 
 # ── ledger ───────────────────────────────────────────────────────────────────
 
@@ -144,8 +220,10 @@ def _wrap_brief(area_key: str) -> tuple[Path, Optional[Path]]:
     return brief, bak
 
 
-async def _run_city(area_key: str, nano, round_id: str, n: int) -> int:
-    """Generate n style-ref candidates for one city. Returns images produced."""
+async def _run_city(area_key: str, nano, round_id: str, n: int,
+                    muted: bool = False, deblue: bool = True) -> int:
+    """Generate n style-ref candidates for one city. Returns images produced.
+    muted=True regenerates a muted seed (tuning pass) first, restoring it after."""
     seed = paths.seed_for(area_key)
     if not seed.exists():
         print(f"[overnight]   skip {area_key}: no seed {seed.name}")
@@ -155,6 +233,17 @@ async def _run_city(area_key: str, nano, round_id: str, n: int) -> int:
     if plate and not plate.exists():
         print(f"[overnight]   {area_key}: plate {plate_name} missing — no anchor")
         plate = None
+
+    seed_bakdir, seed_bak = None, None
+    if muted:
+        seed_bakdir, seed_bak = _backup_seed(area_key)
+        try:
+            regenerate_muted_seed(area_key, deblue=deblue)
+        except Exception as e:  # fall back to the stock seed on any render failure
+            print(f"[overnight]   {area_key}: muted-seed regen failed ({e}); "
+                  f"using stock seed")
+            _restore_seed(seed_bakdir, seed_bak)
+            seed_bakdir = None
 
     brief, bak = _wrap_brief(area_key)
     try:
@@ -168,12 +257,14 @@ async def _run_city(area_key: str, nano, round_id: str, n: int) -> int:
         made = len(result.candidates)
         print(f"[overnight]   {area_key}: {made} candidate(s) -> "
               f"{paths.batch_dir(area_key, round_id).name}/  "
-              f"(anchor={'yes' if plate else 'NONE'})")
+              f"(anchor={'yes' if plate else 'NONE'}{', muted-seed' if muted else ''})")
         return made
     finally:
         if bak is not None:
             shutil.copy2(bak, brief)
             shutil.rmtree(bak.parent, ignore_errors=True)
+        if seed_bakdir is not None:
+            _restore_seed(seed_bakdir, seed_bak)
 
 
 # ── sweep ─────────────────────────────────────────────────────────────────────
@@ -271,6 +362,78 @@ async def _sweep(use_mock: bool, n: int, loop: bool = False,
     return 0
 
 
+# ── per-city tuning pass (a) ───────────────────────────────────────────────────
+
+TUNE_LEDGER = paths.BATCHES_DIR / "_tune" / "ledger.json"
+OCEAN_CITIES = ("tipoca_city",)   # Kamino: keep water — do NOT de-blue its seed
+# worst-first: the structured cities whose stock seed most needs muting (the
+# open/desert cities already came out well generic).
+TUNE_WORST_FIRST = ["kuat_city", "senate_district", "stalgasin_hive",
+                    "smugglers_moon", "tipoca_city"]
+
+
+def _load_tune() -> dict:
+    if TUNE_LEDGER.exists():
+        try:
+            return json.loads(TUNE_LEDGER.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {"cents_spent": 0.0, "images": 0, "round": 0,
+            "per_image_cents": PER_IMAGE_CENTS, "history": []}
+
+
+def _save_tune(d: dict) -> None:
+    TUNE_LEDGER.parent.mkdir(parents=True, exist_ok=True)
+    TUNE_LEDGER.write_text(json.dumps(d, indent=2) + "\n", encoding="utf-8")
+
+
+async def _tune(use_mock: bool, n: int, budget_cents: float,
+                cities: list, prefix: str = "tune") -> int:
+    """Per-city tuning pass: muted seed (+ de-blue for non-ocean) + style anchor,
+    worst-first, budget-gated. Resumable (the tune ledger persists spend, so a
+    small validation run then a full run accumulate to the same cap)."""
+    led = _load_tune()
+    led["budget_cents"] = budget_cents
+    nano, tag = _make_nano(use_mock)
+    print(f"[tune] {tag} | Screen=OFF | budget=${budget_cents/100:.2f} | "
+          f"spent=${led['cents_spent']/100:.2f} | cities={cities}")
+    if nano is None:
+        print("[tune] ERROR: no GEMINI_API_KEY/GOOGLE_API_KEY in env (or --mock).",
+              file=sys.stderr)
+        return 1
+    if not _acquire_lock():
+        return 0
+    try:
+        while led["cents_spent"] < led["budget_cents"]:
+            round_id = f"{prefix}_r{led['round']}"
+            print(f"[tune] === ROUND {led['round']} ({round_id}), n={n}/city ===")
+            progressed = False
+            for area in cities:
+                if led["cents_spent"] >= led["budget_cents"]:
+                    print("[tune] budget cap reached — stopping.")
+                    break
+                deblue = area not in OCEAN_CITIES
+                made = await _run_city(area, nano, round_id, n,
+                                       muted=True, deblue=deblue)
+                led["images"] += made
+                led["cents_spent"] += made * led["per_image_cents"]
+                led["history"].append({"round": led["round"], "area": area,
+                                       "images": made, "muted": True})
+                _save_tune(led)
+                LOCKFILE.touch()
+                progressed = progressed or made > 0
+            led["round"] += 1
+            if not progressed:
+                print("[tune] nothing generated this round — stopping.")
+                break
+        print(f"[tune] *** TUNE PASS DONE *** spent ~${led['cents_spent']/100:.2f} "
+              f"over {led['images']} images / {led['round']} rounds.")
+        _save_tune(led)
+    finally:
+        _release_lock()
+    return 0
+
+
 # ── status / scheduling ────────────────────────────────────────────────────────
 
 def _status() -> int:
@@ -352,6 +515,14 @@ def main(argv=None) -> int:
                     help="keep running rounds in THIS process until the $5 cap "
                          "(in-session run); scheduled fires omit it for resumability")
     sw.add_argument("--prefix", default="on", help="round-id namespace (default 'on')")
+    tn = sub.add_parser("tune", help="per-city tuning pass (muted seed + anchor)")
+    tn.add_argument("--cities", default=",".join(TUNE_WORST_FIRST),
+                    help="comma-separated, worst-first")
+    tn.add_argument("--n", type=int, default=N_PER_CITY)
+    tn.add_argument("--budget", type=float, default=384.0,
+                    help="cents (default 384 = remaining ~$3.84)")
+    tn.add_argument("--prefix", default="tune")
+    tn.add_argument("--mock", action="store_true", help="offline smoke (no key/cost)")
     sub.add_parser("status", help="print the budget ledger")
     sub.add_parser("reset", help="clear the ledger + DONE marker")
     ar = sub.add_parser("arm", help="schedule durable recurring fires")
@@ -365,6 +536,10 @@ def main(argv=None) -> int:
     if args.cmd == "sweep":
         return asyncio.run(_sweep(args.mock, args.n, loop=args.loop,
                                   prefix=args.prefix))
+    if args.cmd == "tune":
+        cities = [c.strip() for c in args.cities.split(",") if c.strip()]
+        return asyncio.run(_tune(args.mock, args.n, args.budget, cities,
+                                 prefix=args.prefix))
     if args.cmd == "status":
         return _status()
     if args.cmd == "reset":

@@ -103,5 +103,57 @@ class TestLockAndLedger(unittest.TestCase):
         self.assertTrue(OR._load_ledger()["done"], "budget cap must set DONE")
 
 
+class TestMutedSeedTuning(unittest.TestCase):
+    """The (a) per-city tuning recipe: muted streets+markers, de-blue, and a
+    fully non-destructive seed backup/restore (most cities ship no keymap, so a
+    freshly-rendered one must be deleted, not left behind)."""
+
+    def test_warm_neutral_kills_blue_keeps_warm(self):
+        r, g, b = OR._warm_neutral((96, 116, 138))  # slate blue
+        self.assertGreaterEqual(r, b, "cool hue must become warm (r>=b)")
+        self.assertEqual(OR._warm_neutral((158, 134, 96)), (158, 134, 96),
+                         "an already-warm hue passes through unchanged")
+
+    def test_muted_constants_are_not_bright(self):
+        self.assertLess(sum(OR.MUTED_STREET), sum((252, 250, 245)),
+                        "muted street must be darker than the near-white default")
+        self.assertNotEqual(OR.MUTED_LM_DIST, (255, 196, 96),
+                            "landmark marker must be muted off bright gold")
+
+    def test_restore_deletes_freshly_created_keymap(self):
+        orig = P.SEEDS_DIR
+        tmp = Path(tempfile.mkdtemp(prefix="onseed_t_"))
+        P.SEEDS_DIR = tmp
+        try:
+            seed = tmp / "foo_tight_seed.png"
+            seed.write_bytes(b"ORIGINAL")          # exists; no keymap
+            bakdir, mapping = OR._backup_seed("foo")
+            seed.write_bytes(b"MUTED")             # simulate the regen
+            (tmp / "foo_tight_keymap.png").write_bytes(b"FRESH")
+            OR._restore_seed(bakdir, mapping)
+            self.assertEqual(seed.read_bytes(), b"ORIGINAL", "seed restored")
+            self.assertFalse((tmp / "foo_tight_keymap.png").exists(),
+                             "a freshly-created keymap must be removed (non-destructive)")
+        finally:
+            P.SEEDS_DIR = orig
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_regenerate_muted_seed_has_no_bright_white_roads(self):
+        orig = P.SEEDS_DIR
+        tmp = Path(tempfile.mkdtemp(prefix="onseed_r_"))
+        P.SEEDS_DIR = tmp
+        try:
+            OR.regenerate_muted_seed("mos_eisley", long_edge=256, deblue=True)
+            from PIL import Image
+            img = Image.open(tmp / "mos_eisley_tight_seed.png").convert("RGB")
+            px = list(img.getdata())
+            white = sum(1 for (r, g, b) in px if r > 235 and g > 235 and b > 225)
+            self.assertLess(white / len(px), 0.01,
+                            "muted seed must have ~no near-white road centerlines")
+        finally:
+            P.SEEDS_DIR = orig
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()
