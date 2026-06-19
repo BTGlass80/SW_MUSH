@@ -3606,7 +3606,11 @@ class SpawnShipCommand(BaseCommand):
         reg = get_ship_registry()
         template = reg.get(template_key) or reg.find_by_name(template_key)
         if not template:
-            await ctx.session.send_line(f"  Unknown template: '{template_key}'. Type 'ships'.")
+            available = ", ".join(sorted(t.key for t in reg.all_templates()))
+            await ctx.session.send_line(
+                f"  Unknown template: '{template_key}'. "
+                f"Available templates: {available}"
+            )
             return
         char = ctx.session.character
         room_id = char["room_id"]
