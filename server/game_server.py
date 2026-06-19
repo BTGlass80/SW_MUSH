@@ -421,6 +421,9 @@ class GameServer:
         help_mgr = HelpManager()
         help_mgr.auto_register_commands(self.registry)
         help_mgr.register_topics()
+        # Layer rich markdown content on top of auto-stubs and inline topics.
+        # data/help/commands/ and data/help/topics/ .md files override stubs.
+        help_mgr.load_markdown_files()
         from parser.builtin_commands import HelpCommand
         HelpCommand._help_mgr = help_mgr
         # Bind to the GameServer instance so the web portal's
