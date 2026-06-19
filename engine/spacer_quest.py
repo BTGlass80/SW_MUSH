@@ -1586,7 +1586,7 @@ async def _maybe_start_chain(session, db, trigger: str, **kw):
         f"\n  {_QUEST} {_BOLD}Quest chain started: "
         f"\"From Dust to Stars\"{_RESET}")
     await session.send_line(
-        f"  {_DIM}Type '+quest' to see your current objective.{_RESET}")
+        f"  {_DIM}Type '+spacerquest' to see your current objective.{_RESET}")
 
     if step1:
         await _send_comlink(session, step1["briefing_source"],

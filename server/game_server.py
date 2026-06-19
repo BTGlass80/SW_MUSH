@@ -172,7 +172,6 @@ from ai.providers import AIManager, AIConfig
 from db.database import Database
 from engine.species import SpeciesRegistry
 from engine.character import SkillRegistry, Character
-from engine.tutorial import TutorialManager
 from engine.creation import CreationEngine
 from engine.creation_wizard import CreationWizard
 
@@ -452,9 +451,6 @@ class GameServer:
         self.web_client = WebClient()
         self.web_client.set_game(self)
 
-
-        # Tutorial system
-        self.tutorial = TutorialManager()
 
         # ── Singleton manager bindings (cw_preflight_checklist §A.2) ─────
         # These expose engine singletons on the GameServer instance so
