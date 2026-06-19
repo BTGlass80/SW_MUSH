@@ -3,7 +3,7 @@ key: encounter
 title: Encounter — Space Encounter Status and Response
 category: "Commands: Space"
 summary: Commands for handling active space encounters — customs patrols, pirate demands, distress signals, and multi-crew events. View status, respond to choices, or act from your station.
-aliases: [enc, respond, resp, stationact, sa]
+aliases: [enc, respond, resp, stationact, sa, encounters]
 see_also: [+pilot, +sensors, pay, +bridge, +gunner]
 tags: [space, encounter, command]
 access_level: 0

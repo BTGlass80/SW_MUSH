@@ -3,7 +3,7 @@ key: +craft
 title: Craft — Crafting, Surveying, Experimenting, Teaching
 category: "Commands: Economy"
 summary: All crafting verbs live under +craft/<switch>. Survey for resources, craft from schematics, experiment for masterwork quality, teach other players, or buy resources from an NPC vendor.
-aliases: [craft, survey, experiment, exp, resources, res, schematics, schem, teach, buyres, +buyres]
+aliases: [craft, survey, experiment, exp, resources, res, schematics, schem, teach, buyres, +buyres, trainers]
 see_also: [crafting, survey, experimentation, resources, schematics, quality, economy]
 tags: [economy, crafting, command]
 access_level: 0
