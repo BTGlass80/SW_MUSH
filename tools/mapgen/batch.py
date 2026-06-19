@@ -224,7 +224,11 @@ def select_painting(result: BatchResult, candidate_id: str, *,
     chosen = next((c for c in result.candidates if c.id == candidate_id), None)
     if chosen is None:
         return None
-    slug = slug or result.area_key.replace(".", "_")
+    # Substrate files are named by the CITY slug (mos_eisley_substrate.png), so a
+    # dotted area key takes its LAST segment — not a dot->underscore flatten that
+    # would write tatooine_mos_eisley_substrate.png and miss the YAML seam.
+    slug = slug or (result.area_key.rsplit(".", 1)[-1] if "." in result.area_key
+                    else result.area_key)
     dest = paths.substrate_dest(slug)
     paths.ensure_dir(dest.parent)
     shutil.copyfile(chosen.image_path, dest)
