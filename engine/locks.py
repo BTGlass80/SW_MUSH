@@ -70,7 +70,16 @@ class LockFlag(LockNode):
         elif self.flag == "builder":
             return bool(context and context.get("is_builder"))
         elif self.flag == "force_sensitive":
-            return bool(char.get("force_sensitive"))
+            # DERIVED state: use the parsed Character's property; for a raw char
+            # dict, derive from control/sense/alter — never the stale raw key.
+            fs = getattr(char, "force_sensitive", None)
+            if fs is None and isinstance(char, dict):
+                try:
+                    from engine.character import Character
+                    fs = Character.from_db_dict(char).force_sensitive
+                except Exception:
+                    fs = bool(char.get("force_sensitive"))  # last-resort raw
+            return bool(fs)
         elif self.flag == "is_npc":
             return bool(char.get("is_npc"))
         return False

@@ -45,6 +45,14 @@ log = logging.getLogger(__name__)
 # Per-era cache. Key: era code; value: dict with t1/t3/t4/t5 lists of tuples.
 _lots_cache: dict[str, dict] = {}
 
+# Per-era DB id cache. Key: era code; value: slug → DB AUTOINCREMENT id.
+# Populated by prime_lots_db_ids() at seed time so that _build_tier_tuples_from_yaml
+# can substitute real DB ids for the YAML positional ids (which are not the same
+# as the DB AUTOINCREMENT ids produced by create_room). When empty, the builder
+# falls back to the YAML id — correct for dry-run / test environments where no
+# live DB exists.
+_db_id_cache: dict[str, dict[str, int]] = {}
+
 
 # ── Zone → security mapping (derived from cw_housing_design_v1.md §4) ──────
 # When the YAML lot record's host_room zone is in this mapping, we use the
@@ -147,7 +155,8 @@ def _load_yaml_corpus(era: str):
         return None
 
 
-def _build_tier_tuples_from_yaml(lots: list, world, t1: bool = False) -> list:
+def _build_tier_tuples_from_yaml(lots: list, world, t1: bool = False,
+                                  slug_to_db: Optional[dict] = None) -> list:
     """Convert YAML lot records to legacy 5-tuple shape.
 
     Returns list of (room_id, planet, label, security, max_homes) tuples.
@@ -164,8 +173,15 @@ def _build_tier_tuples_from_yaml(lots: list, world, t1: bool = False) -> list:
     the legacy GCW constants (which the auto-derived label/security
     couldn't reproduce). When unset, falls back to derived defaults
     (preserving CW behavior, where authors don't specify these).
+
+    B5 fix (2026-06-19): ``slug_to_db`` maps room slug → DB AUTOINCREMENT id.
+    When provided (after prime_lots_db_ids() runs at seed time), the tuple's
+    room_id is the real DB id rather than the YAML positional id.  Without it
+    (dry-run / test contexts) the YAML id is used as before.
     """
     rooms_by_slug = {r.slug: r for r in world.rooms.values()}
+    if slug_to_db is None:
+        slug_to_db = {}
     out: list = []
     for lot in lots:
         host = rooms_by_slug.get(lot.host_room)
@@ -175,7 +191,9 @@ def _build_tier_tuples_from_yaml(lots: list, world, t1: bool = False) -> list:
                 "in world; skipping.", lot.id, lot.host_room,
             )
             continue
-        room_id = host.id
+        # B5 fix: prefer the DB AUTOINCREMENT id resolved from the room's slug;
+        # fall back to the YAML positional id for dry-run / test environments.
+        room_id = slug_to_db.get(host.slug, host.id)
         planet = lot.planet
 
         # F.5b.3.b: prefer explicit override; fall back to derivation.
@@ -246,27 +264,34 @@ def _resolve_corpus_for_era(era: str) -> dict:
     corpus, world = loaded
     rooms_by_slug = {r.slug: r for r in world.rooms.values()}
 
+    # B5 fix: use the DB id map if prime_lots_db_ids() has been called for
+    # this era; otherwise empty dict → falls back to YAML positional ids.
+    slug_to_db = _db_id_cache.get(era, {})
+
     result["t1"] = _build_tier_tuples_from_yaml(
-        corpus.tier1_rentals, world, t1=True,
+        corpus.tier1_rentals, world, t1=True, slug_to_db=slug_to_db,
     )
     result["t3"] = _build_tier_tuples_from_yaml(
-        corpus.tier3_lots, world,
+        corpus.tier3_lots, world, slug_to_db=slug_to_db,
     )
     result["t4"] = _build_tier_tuples_from_yaml(
-        corpus.tier4_lots, world,
+        corpus.tier4_lots, world, slug_to_db=slug_to_db,
     )
     result["t5"] = _build_tier_tuples_from_yaml(
-        corpus.tier5_lots, world,
+        corpus.tier5_lots, world, slug_to_db=slug_to_db,
     )
 
     # Build rep_gate lookup keyed by room_id (the runtime works in
     # room_ids; YAML works in slugs). Only T3 supports rep_gate per
     # cw_housing_design_v1.md §7.1.
+    # B5 fix: key by real DB id (via slug_to_db) so the runtime's
+    # is_lot_rep_visible() lookup matches the DB ids in housing_lots.
     for lot in corpus.tier3_lots:
         if lot.rep_gate:
             host = rooms_by_slug.get(lot.host_room)
             if host is not None:
-                result["rep_gates"][host.id] = dict(lot.rep_gate)
+                rep_room_id = slug_to_db.get(host.slug, host.id)
+                result["rep_gates"][rep_room_id] = dict(lot.rep_gate)
 
     _lots_cache[era] = result
     return result
@@ -374,10 +399,70 @@ def get_tier3_lots_filtered(char_rep: dict,
     ]
 
 
+async def prime_lots_db_ids(db, era: str) -> None:
+    """Resolve host-room slugs → real DB AUTOINCREMENT ids for an era.
+
+    B5 fix (2026-06-19): called by seed_lots() before seeding so that
+    housing_lots.room_id rows carry real rooms(id) values rather than
+    YAML positional ids.  After resolving, the _lots_cache entry for
+    this era is invalidated so the next get_tier*_lots() call re-builds
+    tuples using the fresh DB ids.
+
+    Requires that the world has already been written to the DB (i.e.
+    write_world_bundle / seed phase has completed) so that
+    db.get_room_by_slug() can find each room.  Slugs that don't resolve
+    (room not yet written) are skipped with a WARNING — matching the
+    existing drop-with-warning policy in _build_tier_tuples_from_yaml.
+    """
+    loaded = _load_yaml_corpus(era)
+    if loaded is None:
+        log.warning(
+            "[housing_lots_provider] prime_lots_db_ids: cannot load YAML "
+            "corpus for %r; DB id resolution skipped.", era,
+        )
+        return
+
+    corpus, world = loaded
+    # Collect every unique host_room slug across all tiers.
+    all_slugs: set[str] = set()
+    for tier_lots in (
+        corpus.tier1_rentals,
+        corpus.tier3_lots,
+        corpus.tier4_lots,
+        corpus.tier5_lots,
+    ):
+        for lot in tier_lots:
+            if lot.host_room:
+                all_slugs.add(lot.host_room)
+
+    slug_to_db: dict[str, int] = {}
+    for slug in all_slugs:
+        row = await db.get_room_by_slug(slug)
+        if row is None:
+            log.warning(
+                "[housing_lots_provider] prime_lots_db_ids: slug %r not found "
+                "in DB for era %r; lot(s) using this room will fall back to "
+                "YAML id.", slug, era,
+            )
+        else:
+            slug_to_db[slug] = int(row["id"])
+
+    _db_id_cache[era] = slug_to_db
+    # Invalidate the tuple cache so the next get_tier*_lots() call
+    # re-resolves with the freshly-populated DB ids.
+    _lots_cache.pop(era, None)
+    log.info(
+        "[housing_lots_provider] prime_lots_db_ids: resolved %d/%d slugs "
+        "to DB ids for era %r.",
+        len(slug_to_db), len(all_slugs), era,
+    )
+
+
 def clear_lots_cache() -> None:
-    """Clear the per-era resolved-corpus cache.
+    """Clear the per-era resolved-corpus cache and DB id cache.
 
     Call after switching active era, or in test setup/teardown to ensure
     a fresh resolution.
     """
     _lots_cache.clear()
+    _db_id_cache.clear()

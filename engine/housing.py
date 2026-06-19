@@ -619,10 +619,19 @@ async def seed_lots(db) -> None:
     to the era-aware provider. GCW boots see byte-equivalent behavior
     (the provider returns the legacy constants verbatim). CW boots see
     the YAML-derived lot inventory from data/worlds/clone_wars/housing_lots.yaml.
+
+    B5 fix (2026-06-19): prime_lots_db_ids() resolves each host-room slug
+    to its real DB AUTOINCREMENT id before the provider builds tuples, so
+    housing_lots.room_id carries the correct FK value rather than the YAML
+    positional id (which differs from the DB id on every boot).
     """
+    from engine.era_state import get_active_era
     from engine.housing_lots_provider import (
         get_tier1_lots, get_tier3_lots, get_tier4_lots, get_tier5_lots,
+        prime_lots_db_ids,
     )
+    era = get_active_era()
+    await prime_lots_db_ids(db, era)
     all_lots = (
         get_tier1_lots() + get_tier3_lots()
         + get_tier4_lots() + get_tier5_lots()

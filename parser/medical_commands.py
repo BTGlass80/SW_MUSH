@@ -269,7 +269,9 @@ class HealAcceptCommand(BaseCommand):
             await ctx.session.send_line("  The healer is no longer nearby.")
             return
 
-        # Verify credits
+        # Verify credits (best-effort early exit against session cache;
+        # the authoritative guard is the allow_negative=False DB call below
+        # which re-reads the live balance atomically).
         rate = offer["rate"]
         credits = char.get("credits", 0)
         if credits < rate:
@@ -311,18 +313,28 @@ class HealAcceptCommand(BaseCommand):
 
             new_wound_name = _WOUND_NAMES.get(new_wound, "Healthy")
 
-            # Transfer credits
-            new_patient_credits = credits - rate
-            healer_credits = healer_char.get("credits", 0) + rate
-            char["credits"] = new_patient_credits
-            char["wound_level"] = new_wound
-            healer_char["credits"] = healer_credits
+            # Ledger chokepoint (F1): charge the patient first with
+            # allow_negative=False so the DB-level atomic guard fires even
+            # if the session cache was stale (concurrent credit event during
+            # the 60s offer window).  Only pay the healer on a successful
+            # deduction — keeps faucet and sink balanced.
+            new_balance = await ctx.db.adjust_credits(
+                char_id, -rate, "medical", allow_negative=False
+            )
+            if new_balance is None:
+                # Fresh DB read confirmed insufficient funds; abort cleanly.
+                await ctx.session.send_line(
+                    "  Insufficient credits — the healer has not been paid."
+                )
+                return
 
-            # Ledger chokepoint (F1): the patient->healer payment as two
-            # logged legs (sink + faucet) instead of raw credit writes.
+            # Patient charged successfully; update session cache and
+            # persist the wound improvement, then pay the healer.
+            char["credits"] = new_balance
+            char["wound_level"] = new_wound
             await ctx.db.save_character(char_id, wound_level=new_wound)
-            await ctx.db.adjust_credits(char_id, -rate, "medical")
             await ctx.db.adjust_credits(healer_char["id"], rate, "medical")
+            healer_char["credits"] = healer_char.get("credits", 0) + rate
 
             # Notify
             await ctx.session.send_line(

@@ -1847,10 +1847,21 @@ class CombatInstance:
         if drama:
             narrative += "\n" + _ansi.color(drama, _ansi.DIM)
 
+        # B2/B3 fix: `wound` is bound ONLY on the damage_margin>0 branch; the
+        # stun-KO branch and the fully-soaked branch leave it unbound, so the
+        # incapacitation lines below crashed (UnboundLocalError) on a stun-KO or
+        # a soaked hit on an already-down target. Use the always-set wound_text,
+        # falling back to the target's CURRENT condition when this hit did no
+        # damage (so a soaked hit reads "is INCAPACITATED!", not "is NO DAMAGE!").
+        incap_word = (
+            target.wound_level.display_name if wound_text == "No Damage"
+            else wound_text
+        ).upper()
+
         if not target.can_act_now():
             incap_line = (
                 _ansi.BOLD + _ansi.BRIGHT_RED
-                + f"  {target_c.name} is {wound.display_name.upper()}!"
+                + f"  {target_c.name} is {incap_word}!"
                 + _ansi.RESET
             )
             narrative += "\n" + incap_line
@@ -1869,7 +1880,7 @@ class CombatInstance:
         if not target.can_act_now():
             you_narrative += "\n" + (
                 _ansi.BOLD + _ansi.BRIGHT_RED
-                + "  YOU are " + wound.display_name.upper() + "!"
+                + "  YOU are " + incap_word + "!"
                 + _ansi.RESET
             )
 

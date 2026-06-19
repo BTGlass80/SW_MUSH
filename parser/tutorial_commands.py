@@ -153,7 +153,9 @@ class TrainingCommand(BaseCommand):
         # -- training <module> ------------------------------------------------
         if args and args in _MODULE_ROOMS:
             module = args
-            if module == "force" and not char.get("force_sensitive", False):
+            # force_sensitive is DERIVED (control/sense/alter), not the raw key.
+            from engine.character import Character as _Char
+            if module == "force" and not _Char.from_db_dict(char).force_sensitive:
                 await ctx.session.send_line(
                     "  The Jedi Enclave is only accessible to Force-sensitive individuals.\n"
                     "  You feel... nothing as you approach the door."

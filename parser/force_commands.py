@@ -165,7 +165,10 @@ def _npc_ai(npc_row: dict) -> dict:
 
 def _is_force_being(row: dict, is_npc: bool) -> bool:
     if not is_npc:
-        return bool(row.get("force_sensitive"))
+        # force_sensitive is DERIVED (control/sense/alter) — read it off a parsed
+        # Character, not the stale/absent raw row key.
+        from engine.character import Character
+        return bool(Character.from_db_dict(row).force_sensitive)
     sheet = _npc_sheet(row)
     return bool(sheet.get("force_sensitive") or sheet.get("is_jedi")
                 or sheet.get("force_user"))

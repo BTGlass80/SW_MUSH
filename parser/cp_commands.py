@@ -154,7 +154,7 @@ class TrainCommand(BaseCommand):
             await ctx.session.send_line(ansi.error("Could not load character data."))
             return
 
-        character = Character.from_db_row(char_row)
+        character = Character.from_db_dict(char_row)
         cp_available = character.character_points
 
         # Calculate cost without committing (peek)

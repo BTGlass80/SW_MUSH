@@ -546,12 +546,21 @@ class Session:
         # list); active_stun_count is a derived property. Lazily fetched via
         # cached get_char_obj() — no extra DB hit.
         active_stun_count = 0
+        # B4: force_sensitive is DERIVED state (from control/sense/alter in the
+        # attributes blob) — the raw char dict's key is stale/absent, so reading
+        # it there made every web HUD show force_sensitive=False (Force PCs lost
+        # their Force UI after any logout). Read it off the parsed Character
+        # (get_char_obj() -> Character.from_db_dict, which derives it), never
+        # off char.get("force_sensitive").
+        force_sensitive = False
         try:
             char_obj = self.get_char_obj()
             if char_obj is not None:
                 active_stun_count = char_obj.active_stun_count
+                force_sensitive = bool(char_obj.force_sensitive)
         except Exception:
             active_stun_count = 0  # fail open — strip just stays hidden
+            force_sensitive = False
         hud = {
             "character_id": char.get("id"),
             "name": char.get("name", ""),
@@ -563,7 +572,7 @@ class Session:
             "force_points": char.get("force_points", 0),
             "character_points": char.get("character_points", 0),
             "dark_side_points": char.get("dark_side_points", 0),
-            "force_sensitive": bool(char.get("force_sensitive", False)),
+            "force_sensitive": force_sensitive,
             "active_stun_count": active_stun_count,
             "exits": [],
             "zone_name": "",

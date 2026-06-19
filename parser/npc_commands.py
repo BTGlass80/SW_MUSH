@@ -117,7 +117,7 @@ async def _handle_skill_trainer(ctx, npc_data, char) -> bool:
     char_row = await ctx.db.get_character(char["id"])
     if not char_row:
         return False
-    character = Character.from_db_row(char_row)
+    character = Character.from_db_dict(char_row)
     skill_reg = _get_skill_reg()
     cp = character.character_points
 
