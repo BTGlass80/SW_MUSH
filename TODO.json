@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-06-18",
+  "last_updated": "2026-06-19",
   "architecture_of_record": "sw_d6_mush_architecture_v52.md",
   "_notes": [
     "Machine-readable companion to the architecture doc's §3.2 priority ranking and §8 outstanding decisions.",
@@ -1787,7 +1787,7 @@
       "raised_date": "2026-06-18",
       "related": "memory maps-quality-automation-future (MAP DEPTH layers: landmark min/max_zoom tiering, building-interior tiers, click-to-walk); map_tier_cohesion_spec_v1.md (7 zoom tiers; only city+wilderness can render a painting today; outer tiers procedural); NANO_MAP_PACKAGE §4(d-f); MAP_NAV_OVERLAY_DROP_20260529.md; tools/mapgen/ (style-ref pipeline, PROVEN on city tier 2026-06-18); tools/make_substrate_seed.py (renders ONLY city+wilderness seeds today)",
       "severity": "design/test (post-current-pass; NOT launch-blocking). TENSION to flag for Brian: prior tier-cohesion call D1=B recommended KEEPING outer tiers procedural (clean holo-schematic > painting where Nano is weakest); this ask tests painting them anyway so Brian decides with evidence. PREREQ: new seed generators for interior + planet/system/galaxy tiers (make_substrate_seed only does city+wilderness) before the style-ref pipeline can run on them.",
-      "status": "PENDING Brian (queued for when compute returns). Plan: (1) build interior-seed + outer-tier-seed generators in tools/make_substrate_seed.py (extend, don't add), (2) author per-tier nameless+style briefs, (3) run the style_ref pipeline on a sample of each new tier with its tier-appropriate anchor, (4) Brian adjudicates depth-recovery vs the procedural baseline."
+      "status": "TESTED 2026-06-19 — ANSWERED. (1) LOWER level (building INTERIOR): FEASIBLE + proven — painted the Jedi Temple interior from its real 11-room map_x/map_y grid via a per-building zone-map + the existing seed tool + style-ref; 4 candidates read as faithful painterly temple interiors (static/tools/batches/jedi_temple/jt1/; montage _review/jedi_temple_test.png). (2) HIGHER levels (planet/system/galaxy): DATA-BLOCKED — decorative hardcoded JS fixtures with no backing coordinates; seeding would paint phantom places (invariant violation), so the data AFFIRMS the prior D1=B keep-procedural call. Full analysis: docs/design/nano_tier_depth_feasibility_2026-06-19.md. REMAINING DECISION for Brian (paused per his 'b' — hold map spend pending QA): ADOPT interior maps as a feature? = wire jedi_temple.yaml into data/worlds + substrate_image + interior renderer, and author more interior zone-maps (Senate building is the other rich one). Capability proven; ~$10 Gemini left."
     }
   ],
   "design_calls_resolved_recent": [
