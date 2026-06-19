@@ -305,11 +305,15 @@ class CommandParser:
         # Per-session rate limit state: {session_id: (tokens, last_refill_time)}
         self._rate_buckets: dict[int, list] = {}
 
+    def clear_session(self, session_id: int) -> None:
+        """Remove rate-bucket entry for a disconnected session (prevent leak)."""
+        self._rate_buckets.pop(session_id, None)
+
     def _check_rate_limit(self, session: Session) -> bool:
         """
         Token bucket rate limiter. Returns True if command is allowed.
         """
-        sid = id(session)
+        sid = session.id  # was id(session): memory address reused after GC → cross-session bleed
         now = time.monotonic()
 
         if sid not in self._rate_buckets:

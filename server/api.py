@@ -161,13 +161,17 @@ def _sliding_window_allow(
 
     Prunes timestamps older than `window` for this IP, then admits the
     request only if fewer than `max_requests` remain in the window.
+    Deletes the key when pruning leaves it empty to prevent unbounded dict
+    growth across distinct IPs over time (verify-fix 2026-06-19).
     """
     now = time.time()
-    # Prune old entries
-    bucket[ip] = [t for t in bucket[ip] if now - t < window]
-    if len(bucket[ip]) >= max_requests:
+    recent = [t for t in bucket.get(ip, []) if now - t < window]
+    if not recent:
+        bucket.pop(ip, None)
+    if len(recent) >= max_requests:
         return False
-    bucket[ip].append(now)
+    recent.append(now)
+    bucket[ip] = recent
     return True
 
 

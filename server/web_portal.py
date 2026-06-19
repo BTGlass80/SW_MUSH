@@ -56,10 +56,13 @@ _LOGIN_RATE_MAX = 10      # login POSTs per window per IP
 def _login_rate_ok(ip: str) -> bool:
     """True if this IP may attempt another login; False if throttled."""
     now = time.time()
-    _login_attempts[ip] = [t for t in _login_attempts[ip] if now - t < _LOGIN_RATE_WINDOW]
-    if len(_login_attempts[ip]) >= _LOGIN_RATE_MAX:
+    recent = [t for t in _login_attempts.get(ip, []) if now - t < _LOGIN_RATE_WINDOW]
+    if not recent:
+        _login_attempts.pop(ip, None)
+    if len(recent) >= _LOGIN_RATE_MAX:
         return False
-    _login_attempts[ip].append(now)
+    recent.append(now)
+    _login_attempts[ip] = recent
     return True
 
 

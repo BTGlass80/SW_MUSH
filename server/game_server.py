@@ -968,6 +968,7 @@ class GameServer:
                     if existing:
                         await existing.close()
                         self.session_mgr.remove(existing)
+                        self.parser.clear_session(existing.id)
                     session.account = account
                     session.state = SessionState.AUTHENTICATED
                     await session.send_line(
@@ -1003,6 +1004,7 @@ class GameServer:
                         )
                         await existing.close()
                         self.session_mgr.remove(existing)
+                        self.parser.clear_session(existing.id)
 
                     session.account = account
                     session.state = SessionState.AUTHENTICATED
@@ -1824,6 +1826,7 @@ class GameServer:
                                 log.debug("silent except in server/game_server.py:1005: %s", _e, exc_info=True)
                     await session.close()
                     self.session_mgr.remove(session)
+                    self.parser.clear_session(session.id)
 
             # ── Scheduler dispatch ────────────────────────────────────────────
             try:
