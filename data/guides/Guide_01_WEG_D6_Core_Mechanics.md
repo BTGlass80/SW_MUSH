@@ -42,7 +42,7 @@ A starting Human character distributes **18D** across these six attributes, with
 
 ## 2. Skills and Skill Resolution
 
-Skills are built on top of their parent attribute. The game has **75 skills** spread across the six attributes. When you train a skill, you're adding bonus dice above your attribute's base.
+Skills are built on top of their parent attribute. The game has **76 skills** spread across the six attributes. When you train a skill, you're adding bonus dice above your attribute's base.
 
 **Example:** Your Dexterity is 3D+1. You train 1D in Blaster. Your effective Blaster skill is 4D+1 (the attribute plus the skill bonus). If you haven't trained Blaster at all, you just roll your raw Dexterity — 3D+1.
 
@@ -64,7 +64,7 @@ Three commands let you roll dice directly:
 **`+roll <dice or skill>`** — Roll a dice pool or your skill, with Wild Die.
 ```
 > +roll 4D+2
-  [4D+2] 3, 5, 2, W:4 (+2) = 16
+  [4D+2] 5, 3, 2, W:4 (+2) = 16
 
 > +roll blaster
   Blaster (DEX): [4D+1] 5, 3, 1, W:6->3 (+1) = 19
@@ -114,7 +114,7 @@ When you attempt something, the game sets a target number based on how hard it i
 
 You roll your dice pool and compare the total to the target. Meet or beat it and you succeed. Miss it and you fail. How much you succeed or fail by (the **margin**) matters — a huge margin means a spectacular result, while barely scraping by is a narrow success.
 
-**Partial success:** In many systems (missions, repairs, bounties), missing the target by 4 or fewer points gives a **partial success** — you don't fully succeed, but you don't completely fail either. You might earn partial pay on a mission or stabilize a damaged ship system without fully repairing it.
+**Partial success:** Some systems award a **partial success** on a near miss — you don't fully succeed, but you don't completely fail either. The window is system-specific: a ship or equipment **repair** that misses by up to 4 stabilizes the system without fully fixing it, while a **mission** that misses by up to 2 still earns partial pay. A near miss is always better than a clean failure.
 
 ---
 
@@ -134,10 +134,10 @@ Not everything in Star Wars is the same size. A blaster pistol and a turbolaser 
 |-------|-------|----------|
 | Character | 0 | People, droids, personal weapons |
 | Speeder | 2 | Landspeeders, swoops |
-| Walker | 4 | AT-ST, AT-AT |
+| Walker | 4 | AT-TE, AT-RT |
 | Starfighter | 6 | ARC-170 Starfighter, Vulture Droid Starfighter |
 | Corvette | 9 | Corellian Corvette, gunships |
-| Capital | 12 | Star Destroyer, Mon Calamari cruiser |
+| Capital | 12 | Venator-class Star Destroyer, Acclamator-class assault ship |
 | Death Star scale | 18 | (Canonical scale-18 reference; no such weapon exists in the Clone Wars era) |
 
 When something at a smaller scale attacks something at a larger scale, the smaller attacker gets **bonus dice to hit** equal to the scale difference (the bigger target is easier to hit) but does **reduced damage** (the target's armor is massive relative to your weapon). The reverse also applies — a turbolaser has a hard time hitting a starfighter, but if it connects, the fighter is dust.
@@ -227,7 +227,7 @@ Weapons have a **damage code** — another dice pool. When you hit a target, you
 |-------|-------------------|---------------------|---------|
 | Blast Vest | +1D | +1D | None |
 | Blast Helmet | +1D | +1D | None |
-| Clone Trooper Armor | +1D | +2D | −1D Dexterity |
+| Improved Body Armor | +1D | +2D | −1D Dexterity |
 | Bounty Hunter Armor | +2D | +3D | −1D Dexterity |
 
 **Range bands** affect hit difficulty:
