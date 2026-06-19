@@ -42,12 +42,6 @@ _EXCLUDED_FILES = {
     # commands are guarded separately against those handlers.
     "engine/creation.py",
     "engine/creation_wizard.py",
-    # engine/tutorial.py is the v1 TutorialManager: instantiated at
-    # server/game_server.py but NEVER driven (no start/advance/skip call site
-    # anywhere) — superseded by the chain-tutorial system selected at chargen.
-    # Its "Type 'skip tutorial'" hints are unreachable dead code; flagged for
-    # removal (TODO TECH_DEBT.tutorial_v1_dead_code), excluded pending that.
-    "engine/tutorial.py",
 }
 
 # ── Hint tokens that are legitimately NOT command-registry entries ────────────

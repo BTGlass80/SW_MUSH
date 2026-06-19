@@ -133,7 +133,6 @@ def test_guides_teach_canonical_umbrella_forms():
 _HINT_FILES = [
     ("parser/builtin_commands.py", "Type '+repair' to fix it", "Type 'repair' to fix it"),
     ("parser/combat_commands.py", "Type '+repair' to fix it", "Type 'repair' to fix it"),
-    ("engine/tutorial.py", "Type '+sheet'", "Type 'score'"),
 ]
 
 
