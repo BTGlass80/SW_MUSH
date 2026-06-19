@@ -85,18 +85,20 @@ def space_commands_src() -> str:
 # ─────────────────────────────────────────────────────────────────────
 
 class TestTitleBar:
-    """The browser-tab title should not say 'Field Kit' — that was the
-    original mock name from /mocks/screens/field-kit.jsx.
+    """The browser-tab title should carry the product brand ("Parsec") and
+    NOT the legacy mock name 'Field Kit' (from /mocks/screens/field-kit.jsx).
+    The user-facing brand is "Parsec" (the Clone Wars WEG-D6 galaxy); SW_MUSH
+    remains the internal repo codename only.
     """
 
-    def test_title_is_sw_mush_only(self, client_html):
+    def test_title_is_parsec_brand(self, client_html):
         m = re.search(r"<title>([^<]+)</title>", client_html)
         assert m is not None, "static/client.html missing <title>"
         title = m.group(1)
         assert "Field Kit" not in title, (
             f"Title still references legacy mock name: {title!r}"
         )
-        assert "SW MUSH" in title, f"Title lost SW MUSH brand: {title!r}"
+        assert "Parsec" in title, f"Title lost Parsec brand: {title!r}"
 
 
 # ─────────────────────────────────────────────────────────────────────
