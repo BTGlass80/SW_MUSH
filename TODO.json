@@ -87,6 +87,10 @@
   ],
   "tier_1_active": [
     {
+      "id": "QA.playthrough_2026-06-19",
+      "status": "OPEN — pre-launch QA campaign (2026-06-19, 9/10 lanes, 25 agents) surfaced 6 confirmed BLOCKERS + 8 HIGHs, all reproduced in-process AND re-verified against HEAD. Doc: docs/design/QA_PLAYTHROUGH_FINDINGS_2026-06-19.md. BLOCKERS: B1 train + NPC-trainer crash (Character.from_db_row->from_db_dict @ parser/cp_commands.py:157 + parser/npc_commands.py:120); B2/B3 combat UnboundLocalError 'wound' (engine/combat.py:1853/1872 — soaked-hit-on-incap + stun-KO margin>3); B4 web HUD force_sensitive=False (server/session.py:566, derived-state read off raw dict); B5 housing-lot seeder 37/40 wrong room + 4 dropped (engine/housing_lots_provider.py:178 YAML-id vs DB-AUTOINCREMENT, CW era); B6 healaccept drives credits negative (parser/medical_commands.py:274 stale session-cache + adjust_credits allow_negative). THEMES (root-fix kills several): force_sensitive-raw-dict family (session.py:566/tutorial_commands.py:156/force_commands.py:168/locks.py:73), stale-session-cache (heal x2), funnel-bypass of perform_skill_check (BountyTrack/communal-strike/Force-powers), phantom imports (_parse_dice_str x4, _pool_to_str). GAP: onboarding_chains lane did NOT run (session limit) — re-run. REFUTED: tutorial 0-exit rooms = working-as-designed. NEXT: fix 6 blockers, then highs (batch the families), then re-run the campaign."
+    },
+    {
       "id": "CHAIN.questline_graduation_refire",
       "title": "Questline graduation infinite re-fire: clear pending flag from the correct slot",
       "status": "DELIVERED 2026-06-13 (parallel session; full-suite gated + pushed)",
