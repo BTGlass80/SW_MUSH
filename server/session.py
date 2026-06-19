@@ -2114,6 +2114,14 @@ class Session:
             await self._send(json.dumps({"type": "hud_update", **hud}))
         except Exception as e:
             log.warning("HUD update failed on %s: %s", self, e)
+            # The area-geometry memo (_last_sent_area_key) is advanced when the
+            # geometry is STAGED into the hud — but this send failed, so the
+            # client never got it. Reset the memo so the geometry is re-sent on
+            # the next hud instead of being suppressed (the map would otherwise
+            # stay blank until the player left + re-entered the area).
+            # (verify-fix 2026-06-18)
+            if "area_geometry" in hud:
+                self._last_sent_area_key = None
             return  # Don't attempt sidebar panels if main HUD failed
 
         # ── 19. Sidebar panels (separate lightweight messages) ──
@@ -2397,6 +2405,10 @@ class SessionManager:
                     continue
                 await s.send_json("chat", payload)
         else:
-            # Broadcast to all connected sessions
-            for s in self._sessions:
-                await s.send_json("chat", payload)
+            # Broadcast to all connected sessions (global/system chat). Iterate
+            # .values() — `for s in self._sessions` yields dict KEYS (ints), so
+            # `s.send_json` would AttributeError. Guard on character to match the
+            # other all-sessions broadcasters. (verify-fix 2026-06-18)
+            for s in self._sessions.values():
+                if s.character:
+                    await s.send_json("chat", payload)

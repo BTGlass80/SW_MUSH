@@ -295,11 +295,14 @@ async def _send_combat_state(combat, session_mgr):
     room_id = combat.room_id
     sessions = session_mgr.sessions_in_room(
         room_id, source_char=combat.broadcast_source())
-    for sess in sessions:
+    async def _one(sess):
         char = getattr(sess, "character", None)
         viewer_id = char["id"] if char else None
         payload = combat.to_hud_dict(viewer_id=viewer_id)
         await sess.send_json("combat_state", payload)
+    # Send to all viewers concurrently so one slow/backpressured WS client can't
+    # head-of-line-block the combat round + the tick loop (verify-fix 2026-06-18).
+    await asyncio.gather(*[_one(s) for s in sessions], return_exceptions=True)
 
 
 async def _send_combat_ended(room_id, session_mgr, source_char=None):

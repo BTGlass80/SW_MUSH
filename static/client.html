@@ -13218,7 +13218,6 @@ function connect() {
         case 'char_select':           handleCharSelect(msg); return;
         case 'ambient_bark':          handleAmbientBark(msg); return;
         case 'chat':                  handleChatMsg(msg); return;
-        case 'pose_event':            handlePoseEvent(msg); return;
         case 'text':
           // During login state, intercept server error text to surface in the form
           if (loginState === 'login' && awaitingAuth) {
