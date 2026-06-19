@@ -3,7 +3,7 @@ key: +channels
 title: +Channels — Communication Channel Overview
 category: "Commands: Social"
 summary: Show all available communication channels and how to use them.
-aliases: [channels, chan, channellist]
+aliases: [channels, chan, channellist, comlink, cl, clink, fcomm, fc, faction-comm, oocsay]
 see_also: [+freqs, +ooc, say, +who]
 tags: [social, comms, channels, command]
 access_level: 0

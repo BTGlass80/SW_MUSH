@@ -3,7 +3,7 @@ key: +place
 title: Place — Seating, Tables, Booths in Cantina-Style Rooms
 category: "Commands: Social"
 summary: Player places verbs under +place/<switch>. View places in the current room, sit at a table or booth, or stand up to leave. RP shortcuts (tt, ttooc, mutter) stay bare. Admin place configuration uses @places / @place (native @-prefix form).
-aliases: [places, place, join, sit, depart, stand]
+aliases: [places, place, join, sit, depart, stand, tt, tabletalk, ttooc, mutter]
 see_also: [tt, ttooc, mutter, places, "@places", "@place", social]
 tags: [social, seating, rp, command]
 access_level: 0

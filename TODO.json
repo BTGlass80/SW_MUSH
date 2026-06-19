@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "last_updated": "2026-06-18",
+  "last_updated": "2026-06-19",
   "architecture_of_record": "sw_d6_mush_architecture_v52.md",
   "_notes": [
     "Machine-readable companion to the architecture doc's §3.2 priority ranking and §8 outstanding decisions.",
