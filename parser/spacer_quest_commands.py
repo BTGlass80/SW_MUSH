@@ -80,7 +80,7 @@ class QuestCommand(BaseCommand):
                 f"  You will lose all step progress but keep earned "
                 f"credits, titles, and items.")
             await ctx.session.send_line(
-                f"  Type '\033[1;33m+quest abandon confirm\033[0m' to proceed.")
+                f"  Type '\033[1;33m+spacerquest abandon confirm\033[0m' to proceed.")
             return
 
         # Return borrowed ship before clearing quest state
@@ -266,16 +266,16 @@ class DebtCommand(BaseCommand):
 _DOCKING_NAME_FRAGMENTS = {
     "tatooine":    "Docking Bay 94",
     "nar_shaddaa": "Nar Shaddaa - Docking Bay",
-    "kessel":      "Kessel - Spaceport",
-    "corellia":    "Coronet City - Starport Docking",
+    "kuat":        "Kuat - Spaceport",
+    "coruscant":   "Coruscant - Westport",
 }
 
 _LANDING_NAME_FRAGMENTS = {
     "tatooine":    "Docking Bay 94 - Pit Floor",
     "narshaddaa":  "Nar Shaddaa - Landing Platform",
     "nar_shaddaa": "Nar Shaddaa - Landing Platform",
-    "kessel":      "Kessel - Spaceport Landing",
-    "corellia":    "Coronet City - Starport Docking Bay",
+    "kuat":        "Kuat - Main Spaceport Arrivals",
+    "coruscant":   "Coruscant - Westport Spaceport",
 }
 
 async def _find_room_id_by_name(db, name_fragment: str):
@@ -303,7 +303,7 @@ class TravelCommand(BaseCommand):
     key = "travel"
     aliases = ["passage", "bookpassage"]
     help_text = "Book passage to another planet (quest passengers only)."
-    usage = "travel <planet>  — tatooine, narshaddaa, kessel, corellia"
+    usage = "travel <planet>  — tatooine, narshaddaa, kuat, coruscant"
 
     async def execute(self, ctx: CommandContext):
         char = ctx.session.character
@@ -335,7 +335,7 @@ class TravelCommand(BaseCommand):
             await ctx.session.send_line(
                 "  Usage: travel <planet>")
             await ctx.session.send_line(
-                "  Destinations: tatooine, narshaddaa, kessel, corellia")
+                "  Destinations: tatooine, narshaddaa, kuat, coruscant")
             return
 
         landing_room = await _find_room_id_by_name(
@@ -345,7 +345,7 @@ class TravelCommand(BaseCommand):
             await ctx.session.send_line(
                 f"  Unknown destination: {dest}")
             await ctx.session.send_line(
-                "  Destinations: tatooine, narshaddaa, kessel, corellia")
+                "  Destinations: tatooine, narshaddaa, kuat, coruscant")
             return
 
         # Check player is in a docking area
