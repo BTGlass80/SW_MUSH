@@ -3318,9 +3318,20 @@ class EquipCommand(BaseCommand):
                 await ctx.session.send_line(
                     f"  {known.name} is armor, not a weapon. Use 'wear'.")
             else:
-                await ctx.session.send_line(
-                    f"  You aren't carrying a weapon matching "
-                    f"'{ctx.args}'. Type '+inv' to see what you have.")
+                needle = (ctx.args or "").strip().lower()
+                in_inv = bool(needle) and any(
+                    (needle in d.get("key", "").lower()
+                     or needle in d.get("name", "").lower())
+                    for d in carried if isinstance(d, dict) and d.get("key")
+                )
+                if in_inv:
+                    await ctx.session.send_line(
+                        f"  You have an item matching '{ctx.args}' but it "
+                        f"can't be equipped — contact an admin.")
+                else:
+                    await ctx.session.send_line(
+                        f"  You aren't carrying a weapon matching "
+                        f"'{ctx.args}'. Type '+inv' to see what you have.")
             return
 
         item = carried_to_instance(gear_dict)
@@ -3464,9 +3475,20 @@ class WearCommand(BaseCommand):
                 await ctx.session.send_line(
                     f"  {known.name} is a weapon, not armor. Use 'equip' instead.")
             else:
-                await ctx.session.send_line(
-                    f"  You aren't carrying armor matching '{ctx.args}'. "
-                    f"Type '+inv' to see what you have.")
+                needle = (ctx.args or "").strip().lower()
+                in_inv = bool(needle) and any(
+                    (needle in d.get("key", "").lower()
+                     or needle in d.get("name", "").lower())
+                    for d in carried if isinstance(d, dict) and d.get("key")
+                )
+                if in_inv:
+                    await ctx.session.send_line(
+                        f"  You have an item matching '{ctx.args}' but it "
+                        f"can't be equipped — contact an admin.")
+                else:
+                    await ctx.session.send_line(
+                        f"  You aren't carrying armor matching '{ctx.args}'. "
+                        f"Type '+inv' to see what you have.")
             return
 
         item = carried_to_instance(gear_dict)
