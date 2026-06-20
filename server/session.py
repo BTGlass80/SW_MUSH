@@ -1874,10 +1874,11 @@ class Session:
     async def _hud_sidebar_mail(self, db, char_id) -> None:
         """Send mail_status sidebar message."""
         mail_rows = await db.fetchall(
-            """SELECT m.id, m.subject, m.sender_name as from_name,
+            """SELECT m.id, m.subject, c.name as from_name,
                       mr.is_read
                FROM mail_recipients mr
-               JOIN mail_messages m ON m.id = mr.message_id
+               JOIN mail m ON m.id = mr.mail_id
+               LEFT JOIN characters c ON c.id = m.sender_id
                WHERE mr.char_id = ? AND mr.is_deleted = 0
                ORDER BY mr.is_read ASC, m.sent_at DESC
                LIMIT 5""",
