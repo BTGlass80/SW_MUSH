@@ -33,7 +33,6 @@ from engine.npc_generator import (
     format_npc_sheet, NPCTier,
 )
 from server import ansi
-from engine.skill_checks import perform_skill_check
 from engine.character import Character
 from engine.dice import DicePool
 
@@ -308,8 +307,17 @@ class TalkCommand(BaseCommand):
             return ""
 
         try:
-            result = perform_skill_check(
-                char, "persuasion", _PERSUASION_DIFFICULTY)
+            # SRB.2 morale aura: a live entertainer performance in this room
+            # (e.g. a cantina) lowers the difficulty of morale-flavored rolls
+            # for everyone present. Persuasion is morale-flavored, so route the
+            # talk-to-NPC check through the aura-aware variant — the entertainer's
+            # craft now has real mechanical reach (see Guide_23 §5). In a room
+            # with no aura the magnitude is 0, so this is byte-identical to the
+            # bare perform_skill_check; failure-tolerant on any DB issue.
+            from engine.skill_checks import perform_morale_aware_check
+            result = await perform_morale_aware_check(
+                char, "persuasion", _PERSUASION_DIFFICULTY,
+                db=ctx.db, room_id=char.get("room_id"))
             if result.fumble:
                 await ctx.session.send_line(
                     f"  {ansi.DIM}[Persuasion: {result.pool_str} vs {_PERSUASION_DIFFICULTY} "

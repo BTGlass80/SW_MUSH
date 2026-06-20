@@ -108,7 +108,7 @@ Heard by every online player. Use for:
 OOC speech is bracketed clearly in display:
 
 ```
-<OOC> Trill: Anyone know how to start a scene?
+[OOC] Trill: Anyone know how to start a scene?
 ```
 
 The brackets and prefix make OOC unambiguous from in-character speech.
@@ -127,7 +127,7 @@ Common uses:
 - IC "broadcast" announcements that aren't faction-secret.
 
 ```
-<COMLINK> Trill: Anyone seen Mara recently? I need to talk to her about the convoy.
+[Comlink] Trill: Anyone seen Mara recently? I need to talk to her about the convoy.
 ```
 
 The comlink transmission is **public** to anyone tuned in — Republic, CIS, Hutt, neutral. Treat it as the IC equivalent of a public radio frequency. Sensitive operational chatter shouldn't go here.
@@ -144,7 +144,7 @@ Heard only by other members of your faction. The faction's internal communicatio
 - Operational chatter that shouldn't go on the comlink.
 
 ```
-<FCOMM Republic> Trill: All units, status report.
+[Republic] Trill: All units, status report.
 ```
 
 The channel announces your faction prefix so members know which faction's channel is being used. Players outside the faction don't see the message at all.
@@ -333,7 +333,7 @@ Reading the news before you act on a plan is **smart spacing**. If there's a Rep
 
 The Director AI generates news entries when:
 - **Faction influence crosses thresholds** (e.g., Republic dominance reaching lockdown level).
-- **World events activate** (the 12 standard event types: Republic crackdown, checkpoint, bounty surge, merchant arrival, sandstorm, cantina brawl, distress signal, pirate surge, Hutt auction, krayt sighting, CIS propaganda, trade boom).
+- **World events activate** (17 standard event types: security crackdown, security checkpoint, bounty surge, merchant arrival, sandstorm, gravel storm, sandwhirl, cantina brawl, distress signal, pirate surge, Hutt auction, krayt sighting, separatist agitation, trade boom, intelligence thaw, spice demand, flood).
 - **Story events fire** (the era milestone system).
 - **Player actions** with global narrative significance (rare — usually faction-driven).
 
@@ -478,7 +478,7 @@ Five concrete pictures.
 | Inbox sort | Unread first, then by date |
 | News bulletin | 10 most recent events |
 | Time-ago formatting | "just now" / "X minutes ago" / "X hours ago" / "yesterday" / "X days ago" |
-| Faction prefixes in fcomm | Republic / CIS / Hutt / etc. |
+| Faction prefixes in fcomm | Republic / Separatist / Hutt / Bounty Hunter / Jedi / etc. |
 | `+who` displays | Player name + location + status |
 
 ---
