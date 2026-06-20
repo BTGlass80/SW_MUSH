@@ -46,7 +46,10 @@ class _FakeVendorDB:
             "data": json.dumps({"tier_key": "gn12", "buy_orders": []}),
         }
 
-    async def adjust_credits(self, char_id, delta, tag):
+    async def adjust_credits(self, char_id, delta, tag, *, allow_negative=True):
+        # Mirrors the real db.adjust_credits keyword-only allow_negative (QA
+        # re-run added allow_negative=False at the escrow site); this fake
+        # models a funded owner, so it always succeeds.
         self.adjust_calls.append((char_id, delta, tag))
         return 1_000_000 + delta  # arbitrary post-balance
 

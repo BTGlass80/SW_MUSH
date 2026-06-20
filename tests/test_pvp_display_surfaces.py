@@ -160,6 +160,12 @@ class _FakeSessionMgr:
         # Keyed by id like the real manager
         self._sessions = {id(s): s for s in sessions}
 
+    @property
+    def all(self):
+        # _build_area_contacts now iterates session_mgr.all (the real
+        # SessionManager.all @property), not _sessions.values() directly.
+        return list(self._sessions.values())
+
 
 class _FakeAreaEntry:
     """Stand-in for AreaGeometry entry — has .x and .y."""

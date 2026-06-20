@@ -187,7 +187,10 @@ class _FeeStubDB:
     async def fetchall(self, sql, params=None):
         return list(self._droids)
 
-    async def adjust_credits(self, cid, delta, source):
+    async def adjust_credits(self, cid, delta, source, *, allow_negative=True):
+        # Mirrors db.adjust_credits keyword-only allow_negative (QA re-run added
+        # allow_negative=False at the relist-fee site). A broke owner raises (the
+        # caller treats that as "not charged"); a funded owner is charged.
         if self.broke:
             raise RuntimeError("insufficient funds")
         self.credit_log.append((cid, delta, source))
