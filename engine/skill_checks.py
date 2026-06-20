@@ -75,6 +75,17 @@ def _parse_dice_str(val) -> tuple:
         return (0, 0)
 
 
+def _pool_to_str(dice: int, pips: int) -> str:
+    """Format a (dice, pips) pool as a WEG D6 string: '4D', '4D+2'.
+
+    Inverse of _parse_dice_str. Canonical home is skill_checks so callers
+    can import both from one place without a circular dependency.
+    """
+    if pips == 0:
+        return f"{dice}D"
+    return f"{dice}D+{pips}"
+
+
 # ── Module-level SkillRegistry singleton ──────────────────────────────────────
 # Loaded once on first use, not per call.  Eliminates S1 from the audit.
 
