@@ -506,6 +506,47 @@ def resolve_force_power(
                 )
 
     result.narrative = "\n".join(narrative_parts)
+
+    # ── Funnel: out-of-combat dice telemetry (T3.19) ──────────────────────────
+    # CLAUDE.md funnel invariant: all out-of-combat dice route through the
+    # canonical engine. Force powers deliberately do NOT call
+    # perform_skill_check — three resolution rules forbid it: (a) combination
+    # powers roll the WEAKEST of several skills (perform_skill_check takes one
+    # skill); (b) Force-power rolls are explicitly EXEMPT from the morale-aura
+    # / buff path (engine.skill_checks §MORALE_FLAVORED_SKILLS comment), which
+    # perform_skill_check applies unconditionally; (c) the wound penalty is
+    # applied here (line ~378) but perform_skill_check has no wound stage.
+    # The dice still go through the ONE canonical engine (roll_d6_pool, which
+    # is exactly what perform_skill_check rolls with), so the only piece of the
+    # funnel that was missing is the telemetry emit — added here so Force usage
+    # is captured in the same sink as every other skill check (catalog D: are
+    # power difficulties calibrated, what is the DSP fall-rate). Fail-open +
+    # sample-tunable, identical posture to perform_skill_check's emit.
+    try:
+        from engine.telemetry import emit as _tele_emit
+        from engine.tunables import get_tunable
+        _fp_fields = {
+            "char_id": char.id,
+            "power": power_key,
+            "skills": "/".join(power.skills),
+            "dark_side": bool(power.dark_side),
+            "difficulty": result.difficulty,
+            "roll": result.roll,
+            "success": result.success,
+            "margin": result.margin,
+            "dsp_gained": result.dsp_gained,
+            "fall_check": result.fall_check,
+            "fall_failed": result.fall_failed,
+        }
+        if mind_resist_total is not None:
+            _fp_fields["mind_resist"] = mind_resist_total
+        _tele_emit(
+            "force_power", _fp_fields,
+            sample=float(get_tunable("telemetry.force_power_sample", 1.0)),
+        )
+    except Exception as _e:
+        log.debug("force_power telemetry emit failed: %s", _e)
+
     return result
 
 
