@@ -1179,8 +1179,14 @@ async def _apply_combat_wear(combat, ctx):
         sess = ctx.session_mgr.find_by_character(c.id)
         if sess and sess.character:
             sess.character["wound_level"] = c.char.wound_level.value
+            # M-fix (combat CP not persisted): the sync was wound_level-only, so
+            # CP spent on combat bonuses was refunded on reconnect (a CP-dup
+            # exploit). c.char.character_points is the authoritative post-spend
+            # value (floored at 0 by the H8 fix); persist it alongside wound_level.
+            sess.character["character_points"] = c.char.character_points
             await ctx.db.save_character(
-                c.id, wound_level=c.char.wound_level.value
+                c.id, wound_level=c.char.wound_level.value,
+                character_points=c.char.character_points,
             )
 
             # ── PG.1.death (Drop 2c, May 19 2026 evening) ──

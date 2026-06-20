@@ -963,8 +963,15 @@ class CombatInstance:
         if action.cp_spend > 0:
             if c.force_point_active:
                 return "Cannot spend Character Points in the same round as a Force Point."
-            if action.cp_spend > c.char.character_points:
-                return f"Not enough Character Points (have {c.char.character_points}, want {action.cp_spend})."
+            # H8: validate the RUNNING SUM of CP across ALL actions declared this
+            # round, not just this one — otherwise two 5-CP actions with 5 CP on
+            # hand both pass and the resolvers drive character_points negative.
+            already = sum(a.cp_spend for a in c.actions)
+            if action.cp_spend + already > c.char.character_points:
+                remaining = max(0, c.char.character_points - already)
+                return (f"Not enough Character Points (have {c.char.character_points}; "
+                        f"{already} already committed this round; {remaining} left; "
+                        f"want {action.cp_spend}).")
 
         c.actions.append(action)
         return None
@@ -1404,7 +1411,7 @@ class CombatInstance:
         if action.cp_spend > 0 and actor.char:
             cp_bonus, cp_rolls = roll_cp_dice(action.cp_spend)
             attack_total += cp_bonus
-            actor.char.character_points -= action.cp_spend
+            actor.char.character_points = max(0, actor.char.character_points - action.cp_spend)  # H8: never persist negative CP
             cp_text = f" +CP({'+'.join(str(r) for r in cp_rolls)}={cp_bonus})"
 
         hit = attack_total >= total_difficulty
@@ -1539,7 +1546,7 @@ class CombatInstance:
         if action.cp_spend > 0 and actor.char:
             cp_bonus, cp_rolls = roll_cp_dice(action.cp_spend)
             attack_total += cp_bonus
-            actor.char.character_points -= action.cp_spend
+            actor.char.character_points = max(0, actor.char.character_points - action.cp_spend)  # H8: never persist negative CP
             cp_text = f" +CP({'+'.join(str(r) for r in cp_rolls)}={cp_bonus})"
 
         attacker_wins = attack_total > def_total
