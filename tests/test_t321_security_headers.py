@@ -42,7 +42,9 @@ def _run(coro):
 
 def test_core_security_headers_present():
     assert _SECURITY_HEADERS["X-Content-Type-Options"] == "nosniff"
-    assert _SECURITY_HEADERS["X-Frame-Options"] == "DENY"
+    # SAMEORIGIN, not DENY: the SPA frames its own /chargen page (see
+    # test_same_origin_framing_is_allowed_for_the_embedded_chargen_iframe).
+    assert _SECURITY_HEADERS["X-Frame-Options"] == "SAMEORIGIN"
     assert "Referrer-Policy" in _SECURITY_HEADERS
     assert "Content-Security-Policy" in _SECURITY_HEADERS
     assert "Permissions-Policy" in _SECURITY_HEADERS
@@ -56,9 +58,24 @@ def test_csp_is_minimal_so_it_does_not_break_the_inline_spa():
     assert "script-src" not in csp
     assert "default-src" not in csp
     assert "style-src" not in csp
-    assert "frame-ancestors 'none'" in csp
+    assert "frame-ancestors 'self'" in csp
     assert "base-uri 'self'" in csp
     assert "object-src 'none'" in csp
+
+
+def test_same_origin_framing_is_allowed_for_the_embedded_chargen_iframe():
+    # REGRESSION GUARD: the embedded character-creation flow loads
+    # /chargen?embedded=1 into a same-origin <iframe> inside /play
+    # (static/client.html #chargen-iframe). DENY / frame-ancestors 'none'
+    # blocked that iframe and made character creation impossible. The headers
+    # must permit SAME-origin framing while still blocking cross-origin
+    # (the clickjacking vector that matters).
+    assert _SECURITY_HEADERS["X-Frame-Options"] == "SAMEORIGIN"
+    csp = _SECURITY_HEADERS["Content-Security-Policy"]
+    assert "frame-ancestors 'self'" in csp
+    # And must NOT be the framing-killing values that broke chargen.
+    assert _SECURITY_HEADERS["X-Frame-Options"] != "DENY"
+    assert "frame-ancestors 'none'" not in csp
 
 
 def test_hsts_is_intentionally_omitted():

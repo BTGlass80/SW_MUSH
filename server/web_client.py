@@ -36,7 +36,11 @@ log = logging.getLogger(__name__)
 # so these guard the whole surface (HTML, static assets, and JSON alike):
 #   * X-Content-Type-Options: nosniff — stop MIME-sniffing of API JSON as HTML.
 #   * X-Frame-Options + CSP frame-ancestors — clickjacking, belt-and-suspenders
-#     across legacy (XFO) and modern (CSP) browsers.
+#     across legacy (XFO) and modern (CSP) browsers. SAMEORIGIN / 'self' (NOT
+#     DENY / 'none'): the SPA embeds its own /chargen page in a same-origin
+#     iframe (the embedded character-creation flow), so DENY/'none' would block
+#     chargen entirely. 'self'/SAMEORIGIN still blocks all CROSS-origin framing,
+#     which is the clickjacking vector that matters.
 #   * CSP base-uri/object-src — block <base>-tag hijack and plugin/object embeds.
 #   * Referrer-Policy — don't leak full URLs to cross-origin destinations.
 #   * Permissions-Policy — disable powerful APIs the game never uses.
@@ -48,9 +52,9 @@ log = logging.getLogger(__name__)
 # this plain-HTTP origin.)
 _SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
-    "X-Frame-Options": "DENY",
+    "X-Frame-Options": "SAMEORIGIN",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Content-Security-Policy": "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+    "Content-Security-Policy": "frame-ancestors 'self'; base-uri 'self'; object-src 'none'",
     "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
 }
 
