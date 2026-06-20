@@ -485,6 +485,20 @@ skills:
       priority: low
       tip: "Very niche. Repulsorlift Operation covers most common hover craft."
 
+    powersuit_operation:
+      description: >
+        Powersuit operation covers wearing and maneuvering in powered
+        exo-armor suits — servo-assisted battlesuits and work frames
+        that enhance the wearer's strength and protection through
+        powered movement. Operating an unpowered suit without training
+        imposes penalties; this skill lets you move naturally in one.
+        Like other operation skills, it can be used as a reaction skill
+        to dodge enemy fire while suited.
+      game_use: "Wearing powered armor suits without penalty. Reaction dodge while in a powersuit."
+      tags: [combat]
+      priority: low
+      tip: "Only needed if you wear a powered exo-armor suit. Most characters rely on passive armor that requires no skill."
+
     repulsorlift_operation:
       description: >
         Repulsorlift operation covers the piloting of all common

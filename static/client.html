@@ -13189,8 +13189,15 @@ function connect() {
   };
 
   ws.onmessage = function(evt) {
+    var msg;
     try {
-      var msg = JSON.parse(evt.data);
+      msg = JSON.parse(evt.data);
+    } catch (e) {
+      // Genuinely not JSON — render as raw text.
+      classifyAndAppend(evt.data);
+      return;
+    }
+    try {
       switch (msg.type) {
         case 'hud_update':            handleHudUpdate(msg); return;
         case 'space_state':           handleSpaceState(msg); return;
@@ -13247,8 +13254,15 @@ function connect() {
           if (msg.data || msg.text) classifyAndAppend(msg.data || msg.text);
       }
     } catch (e) {
-      // Not JSON — treat as raw text
-      classifyAndAppend(evt.data);
+      // A message handler threw on a VALID, parsed message. Do NOT fall back to
+      // dumping the raw JSON payload into the player's log — that is exactly how
+      // a full combat_resolution_event blob leaked when the inspector renderer
+      // threw on a string `difficulty.breakdown`. Log it for diagnosis and
+      // swallow, so one bad message can never break the message stream or spill
+      // protocol internals to the player.
+      if (window.console && console.error) {
+        console.error('WS handler error for type=' + (msg && msg.type) + ':', e);
+      }
     }
   };
 

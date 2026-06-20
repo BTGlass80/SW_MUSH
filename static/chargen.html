@@ -1363,11 +1363,16 @@ function renderStep3() {
       const total = attrPips + bonus;
       const canDec = bonus > 0;
       const canInc = bonus < 6 && remaining > 0; // 2D = 6 pips max
-      // Build tooltip from description, game_use, tip
+      // Build tooltip from description, game_use, tip. The R&E description is
+      // the PRIMARY content — every skill carries one. Previously only
+      // game_use+tip were used, so skills with a terse game_use (e.g. Walker
+      // Operation) read as having "no tooltip" even though a full description
+      // existed. (NPE: skill tooltips, 2026-06-20.)
       const tipParts = [];
+      if (sk.description) tipParts.push(sk.description.trim());
       if (sk.game_use) tipParts.push(sk.game_use.trim());
       if (sk.tip) tipParts.push(sk.tip.trim());
-      const skillTip = escAttr(tipParts.join(' '));
+      const skillTip = escAttr(tipParts.join(' — '));
       const specStr = sk.specializations && sk.specializations.length > 0
         ? ' (Specs: ' + sk.specializations.join(', ') + ')'
         : '';

@@ -257,12 +257,20 @@ async def _drive_combat_won(h, s, completion, room_id, get_step):
         f"Room NPCs: {[r['name'] for r in rows]}"
     )
     out = ""
+    # Drive the RECOMMENDED capture mode. When a step rewards a non-lethal
+    # take (stun_bonus_credits — e.g. the Bounty Hunter "Capture" step:
+    # "attack <t> stun pays more"), walk it via STUN, not lethal damage. A
+    # stun-KO leaves wound_level at STUNNED (the kill path bumps it to
+    # Incapacitated+), so attacking lethally hid the bug where combat_won only
+    # counted wound_level>=4 and stranded the player who followed the in-game
+    # advice. (QA live finding 2026-06-20.)
+    attack_mode = " stun" if completion.get("stun_bonus_credits") else ""
     for tname in targets:
         token = tname.split()[-1].lower()
         for _ in range(_ATTACK_BUDGET):
             # Make sure the PC can act before swinging.
             await _clear_pc_combat_block(h, s)
-            out = await h.cmd(s, f"attack {token}")
+            out = await h.cmd(s, f"attack {token}{attack_mode}")
             info = get_step()
             if info is None or info.get("step") != start_step:
                 return out

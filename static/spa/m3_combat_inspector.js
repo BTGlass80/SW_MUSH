@@ -329,13 +329,28 @@ function buildDifficultySection(msg) {
       '<span class="cri-diff-num">' + (diff.number != null ? diff.number : '—') + '</span>' +
       '<span class="cri-diff-label">' + _escapeHtml(diff.label || '') + '</span>' +
     '</div>';
-  if (diff.breakdown && diff.breakdown.length > 1) {
+  // breakdown: the engine emits this as a PRE-FORMATTED STRING (combat.py ->
+  // ctx defense_display, e.g. "Short(10) = 10"). Also tolerate an array of
+  // {name, mod} in case a future producer emits structured modifiers. The
+  // old code assumed an array unconditionally and called .map() on the string
+  // — a non-empty string passes `.length > 1`, so .map() threw a TypeError,
+  // the whole inspector render aborted, and ws.onmessage's catch dumped the
+  // raw event JSON into the player's log.
+  var bkText = '';
+  if (Array.isArray(diff.breakdown)) {
+    if (diff.breakdown.length > 1) {
+      bkText = diff.breakdown.map(function(b) {
+        var sign = (b.mod != null && b.mod >= 0) ? '+' : '';
+        return (b.name || '') + ' ' + sign + (b.mod != null ? b.mod : '');
+      }).join(' · ');
+    }
+  } else if (typeof diff.breakdown === 'string') {
+    bkText = diff.breakdown;
+  }
+  if (bkText) {
     var bk = document.createElement('div');
     bk.className = 'cri-diff-breakdown';
-    bk.textContent = diff.breakdown.map(function(b) {
-      var sign = (b.mod != null && b.mod >= 0) ? '+' : '';
-      return (b.name || '') + ' ' + sign + (b.mod != null ? b.mod : '');
-    }).join(' · ');
+    bk.textContent = bkText;
     sec.appendChild(bk);
   }
   return sec;

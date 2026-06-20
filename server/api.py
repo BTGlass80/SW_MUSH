@@ -735,6 +735,14 @@ class ChargenAPI:
         }
         chains_json = []
         for chain in corpus.chains:
+            # Only ONBOARDING chains (kind="tutorial") belong in the chargen
+            # picker. "questline" chains — the master-trainer crafting/end-game
+            # trials (The Hermit's Trial, The Pit Boss's Favor, etc.) — are
+            # started mid-game via the `quests`/`mastery start` surface and must
+            # NEVER appear at character creation. See
+            # engine.tutorial_chains.TutorialChain.kind (default "tutorial").
+            if getattr(chain, "kind", "tutorial") != "tutorial":
+                continue
             is_locked, reason = is_chain_locked_for_character(
                 chain, chargen_attrs,
             )

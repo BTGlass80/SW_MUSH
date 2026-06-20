@@ -388,7 +388,17 @@ async def _try_auto_resolve(combat, ctx):
                 for c in combat.combatants.values():
                     if not c.is_npc or not c.char:
                         continue
-                    if c.char.wound_level.value < 4:
+                    # "Defeated" = OUT OF THE FIGHT, using combat's own
+                    # elimination predicate (active_combatants filters on
+                    # can_act_now). can_act_now() is False for Incapacitated+
+                    # (wound_level >= 4) AND for a STUN-KO (unconscious_until
+                    # set while wound_level stays STUNNED, per R&E p83). The old
+                    # `wound_level.value < 4` check missed the stun case — so
+                    # capturing a target by STUN, which the Bounty Hunter chain
+                    # EXPLICITLY recommends ("attack <t> stun pays more"), never
+                    # fired combat_won and stranded the player on the capture
+                    # step. (QA live finding 2026-06-20.)
+                    if c.char.can_act_now():
                         continue
                     try:
                         _npc_row = await ctx.db.get_npc(c.id)
