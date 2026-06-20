@@ -122,30 +122,11 @@ def is_construction_failed(char: Mapping) -> bool:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _parse_dice_str(val) -> tuple:
-    """Parse a skill-bonus string like '3D', '3D+1', '3D+2' into
-    (dice, pips). Returns (0, 0) on any anomaly."""
-    if not val:
-        return (0, 0)
-    s = str(val).strip().upper()
-    if not s:
-        return (0, 0)
-    # Strip a leading '+' if present (some sheets store '+2D')
-    s = s.lstrip("+")
-    try:
-        if "D" in s:
-            d_part, _, p_part = s.partition("D")
-            dice = int(d_part) if d_part else 0
-            pips = 0
-            if p_part:
-                p_part = p_part.strip().lstrip("+")
-                if p_part:
-                    pips = int(p_part)
-            return (dice, pips)
-        # Bare integer — treat as dice
-        return (int(s), 0)
-    except (TypeError, ValueError):
-        return (0, 0)
+# _parse_dice_str now lives canonically in engine.skill_checks (its
+# expected home — four NPC bargain/gambling call sites import it from
+# there). Re-exported here for the local skill-floor use below and any
+# `from engine.lightsaber_construction import _parse_dice_str` callers.
+from engine.skill_checks import _parse_dice_str  # noqa: F401,E402
 
 
 def _format_dice(dice: int, pips: int) -> str:
