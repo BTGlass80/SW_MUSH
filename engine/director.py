@@ -960,6 +960,27 @@ class DirectorAI:
         if not await claude.is_available():
             return False
 
+        # Durable monthly-budget backstop: the ClaudeProvider's spend counter is
+        # IN-MEMORY and resets on restart, so an unattended crash-loop could
+        # bypass the $20 cap. Gate on the DURABLE month-to-date summed from
+        # director_log (the source of truth) at the same 90% breaker threshold
+        # before spending. Fail-open: a check error never blocks (the provider's
+        # own in-process breaker still applies as the second gate).
+        try:
+            _stats = await self.get_budget_stats(db)
+            _spent_cents = float(_stats.get("estimated_cost_usd", 0.0)) * 100.0
+            _cap_cents = float(getattr(claude, "monthly_budget_cents", 2000.0))
+            if _spent_cents >= _cap_cents * 0.9:
+                log.warning(
+                    "[director] durable monthly-budget backstop hit "
+                    "(%.2f / %.2f cents from director_log) — skipping API turn.",
+                    _spent_cents, _cap_cents,
+                )
+                return False
+        except Exception:
+            log.debug("[director] durable budget pre-check failed (non-fatal)",
+                      exc_info=True)
+
         # Build the director system prompt (static, cacheable).
         # F.6a.3-int: resolved through the director_config_loader seam.
         # When use_yaml_director_data is off (default), the seam returns
