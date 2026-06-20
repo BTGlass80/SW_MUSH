@@ -916,11 +916,16 @@ class _LiveHarness:
         row = await self.get_char(char_id)
         if not row:
             raise ValueError(f"give_item: no character with id={char_id}")
-        try:
-            inv = json.loads(row.get("inventory") or "[]")
-        except Exception:
-            inv = []
-        inv.append(item)
+        # QA H14 (2026-06-20): inventory has two valid on-disk shapes — the
+        # canonical dict-form ``{"items": [...], "resources": [...]}`` (written
+        # by db.add_to_inventory / the crafting helpers) and the bare-list
+        # default. The old ``inv.append(item)`` crashed on dict-form (dicts
+        # have no .append), masking real defects by killing test runs. Mirror
+        # db.add_to_inventory: coerce to the canonical shape and append to
+        # ``items``, so the harness works on either shape.
+        from engine.items import coerce_inventory
+        inv = coerce_inventory(row.get("inventory"))
+        inv["items"].append(item)
         await self.db._db.execute(
             "UPDATE characters SET inventory = ? WHERE id = ?",
             (json.dumps(inv), char_id),

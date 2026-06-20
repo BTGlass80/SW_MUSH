@@ -508,9 +508,15 @@ class CommandParser:
             )
         except Exception as e:
             _cmd_succeeded = False
+            # QA H13 (2026-06-20): never leak raw Python/SQL/JSON exception
+            # text to the player channel — it surfaces internals (table
+            # names, attribute errors, stack-adjacent detail) and made B1's
+            # AttributeError player-visible. The full detail is captured
+            # server-side by log.exception; the player gets a generic line.
             log.exception("Command error (%s): %s", ctx.command, e)
             await ctx.session.send_line(
-                f"An error occurred processing your command. ({e})"
+                "An error occurred processing your command. "
+                "If this persists, please report it."
             )
 
         # ── F.8.c.2.b: CW tutorial chain — command_executed completion ──

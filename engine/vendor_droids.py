@@ -1067,8 +1067,12 @@ async def post_buy_order(
             "Upgrade your droid first."
         )
 
-    # Validate resource type
-    valid_types = list(RESOURCE_TYPES.keys()) if hasattr(RESOURCE_TYPES, "keys") else []
+    # Validate resource type. QA H9 (2026-06-20): RESOURCE_TYPES is a set,
+    # so the prior `.keys()`/hasattr guard produced [] → the check was dead
+    # and a buy order for any garbage string escrowed real credits into an
+    # unfillable order. list() yields the elements of a set/frozenset/list
+    # (and the keys of a dict), so this works regardless of the shape.
+    valid_types = list(RESOURCE_TYPES)
     if resource_type not in valid_types and valid_types:
         return False, (
             f"Unknown resource type '{resource_type}'. "

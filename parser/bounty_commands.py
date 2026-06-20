@@ -250,8 +250,8 @@ class BountyTrackCommand(BaseCommand):
             return
 
         # Roll investigation skill — use best available
-        from engine.dice import DicePool, roll_d6_pool
         from engine.character import Character
+        from engine.skill_checks import perform_skill_check
 
         # Load character for skill lookup
         char_row = await ctx.db.get_character(char["id"])
@@ -269,34 +269,37 @@ class BountyTrackCommand(BaseCommand):
         # surfaced this latent crash.
         char_obj = Character.from_db_dict(char_row)
 
-        # Try search, streetwise, tracking — take the best pool
+        # QA H10 (2026-06-20): rank search/streetwise/tracking by the
+        # character's pool (untrained → governing attribute fallback),
+        # then resolve through the dice chokepoint. The prior path called
+        # get_skill_pool() with no registry (TypeError swallowed → flat
+        # 2D floor) and rolled the pool directly, bypassing the funnel
+        # (wound penalties, lead/tool bonuses, telemetry). Now routed via
+        # perform_skill_check, mirroring the sister BountyCollectCommand.
         investigation_skills = ["search", "streetwise", "tracking"]
-        best_pool = None
         best_skill = "search"
+        best_pips = -1
         for sk in investigation_skills:
             try:
                 pool = char_obj.get_skill_pool(sk)
-                if best_pool is None or pool.total_pips > best_pool.total_pips:
-                    best_pool = pool
+                if pool.total_pips > best_pips:
+                    best_pips = pool.total_pips
                     best_skill = sk
             except Exception:
                 log.warning("execute: unhandled exception", exc_info=True)
                 continue
 
-        if best_pool is None:
-            best_pool = DicePool(2, 0)   # 2D fallback
-            best_skill = "search"
-
         difficulty = self._DIFFICULTIES.get(contract.tier.value, 10)
-        result = roll_d6_pool(best_pool)
-        success = result.total >= difficulty
+        check = perform_skill_check(char, best_skill, difficulty)
+        success = check.success
+        result_total = check.roll
 
         await ctx.session.send_line(
             f"  {ansi.BOLD}Investigating:{ansi.RESET} {contract.target_name} "
             f"({contract.tier.value.title()} target)"
         )
         await ctx.session.send_line(
-            f"  {best_skill.title()} roll: {result.display()}  "
+            f"  {best_skill.title()} roll: {check.roll} ({check.pool_str})  "
             f"vs Difficulty {difficulty}"
         )
 
@@ -317,7 +320,7 @@ class BountyTrackCommand(BaseCommand):
             contract.target_room_id = target_npc["room_id"]
             await ctx.db.update_bounty(contract.id, contract.to_dict())
         else:
-            margin = difficulty - result.total
+            margin = difficulty - result_total
             if margin <= 5:
                 await ctx.session.send_line(
                     f"  Close, but not enough. You pick up a cold trail near "
