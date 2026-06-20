@@ -125,7 +125,8 @@ PRE_EXISTING_BINDINGS = [
     "registry",
     "help_mgr",
     "ai_manager",
-    "tutorial",
+    # "tutorial" removed: the v1 TutorialManager binding was deleted as dead code
+    # (drop 371c521, TD.TUTORIAL_V1_DEAD_CODE) — game_server no longer binds it.
 ]
 
 
