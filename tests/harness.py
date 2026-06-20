@@ -367,6 +367,23 @@ class _LiveHarness:
         except Exception:
             log.warning("smoke harness: world lore init failed", exc_info=True)
 
+        # ── Achievements (QA re-run: was NOT loaded in-harness, so chain-
+        # graduation achievement delivery silently false-passed) ──
+        try:
+            from engine.achievements import load_achievements
+            load_achievements()
+        except Exception:
+            log.warning("smoke harness: achievements load failed", exc_info=True)
+
+        # ── Area-geometry registry (QA re-run: was NOT attached, so the
+        # interior-map HUD path bailed and was untestable in-process) ──
+        try:
+            from engine.area_loader import AreaGeometryRegistry
+            srv.session_mgr._area_registry = AreaGeometryRegistry.load_era(
+                srv.config.active_era)
+        except Exception:
+            log.warning("smoke harness: area registry load failed", exc_info=True)
+
         # ── Tutorial auto-build ──
         try:
             from build_tutorial import auto_build_if_needed as tb_auto

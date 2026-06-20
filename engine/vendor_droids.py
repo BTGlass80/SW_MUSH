@@ -218,8 +218,13 @@ async def purchase_droid(char: dict, tier_key: str, db) -> tuple[bool, str]:
             f"Own a shopfront to increase this limit."
         )
 
-    # Deduct credits (through the credit chokepoint)
-    new_credits = await db.adjust_credits(char["id"], -cost, "vendor_droid_deploy")
+    # Deduct credits (through the credit chokepoint). allow_negative=False +
+    # None-abort: a stale session-cache pre-check could otherwise drive credits
+    # negative if the live DB balance dropped since (QA re-run, credit-integrity).
+    new_credits = await db.adjust_credits(char["id"], -cost, "vendor_droid_deploy",
+                                          allow_negative=False)
+    if new_credits is None:
+        return False, "Insufficient credits to deploy that droid."
     char["credits"] = new_credits
 
     # Create droid object (room_id=None = in inventory)
@@ -753,8 +758,14 @@ async def buy_from_droid(buyer: dict, droid_id: int,
     except Exception:
         log.warning("[shops] city tax hook failed", exc_info=True)
 
-    # Deduct buyer credits (through the credit chokepoint)
-    buyer["credits"] = await db.adjust_credits(buyer["id"], -final_price, "vendor_purchase")
+    # Deduct buyer credits (through the credit chokepoint). allow_negative=False
+    # + None-abort: the city-tax yield above + a stale cache could otherwise
+    # drive the buyer negative (QA re-run, credit-integrity).
+    _bal = await db.adjust_credits(buyer["id"], -final_price, "vendor_purchase",
+                                   allow_negative=False)
+    if _bal is None:
+        return False, "Insufficient credits for that purchase."
+    buyer["credits"] = _bal
 
     # ── Add purchased item to buyer's inventory ──
     try:
@@ -1093,8 +1104,18 @@ async def post_buy_order(
             f"({qty_wanted} × {price_per:,} cr)."
         )
 
-    # Deduct escrow from owner (through the credit chokepoint)
-    char["credits"] = await db.adjust_credits(char["id"], -escrow_needed, "vendor_buy_order_escrow")
+    # Deduct escrow from owner (through the credit chokepoint). allow_negative=False
+    # + None-abort: the pre-check above reads the (possibly stale) session cache,
+    # so a background drain could otherwise drive credits negative (QA re-run,
+    # demonstrated -20cr). The atomic DB guard is the real backstop.
+    _bal = await db.adjust_credits(char["id"], -escrow_needed, "vendor_buy_order_escrow",
+                                   allow_negative=False)
+    if _bal is None:
+        return False, (
+            f"Insufficient credits. Escrow required: {escrow_needed:,} cr "
+            f"({qty_wanted} × {price_per:,} cr)."
+        )
+    char["credits"] = _bal
 
     # Add order to droid data
     orders = data.get("buy_orders", [])
@@ -1482,7 +1503,13 @@ async def tick_listing_fees(db, session_mgr=None) -> None:
             charged = True
             if owner_id:
                 try:
-                    await db.adjust_credits(owner_id, -fee, "vendor_relist_fee")
+                    # allow_negative=False so the recurring fee never drives a
+                    # broke owner negative (docstring intent: warn, don't bill
+                    # into the red). None return = couldn't charge -> not charged.
+                    _r = await db.adjust_credits(owner_id, -fee, "vendor_relist_fee",
+                                                 allow_negative=False)
+                    if _r is None:
+                        charged = False
                 except Exception:
                     # Can't charge (broke / transient) — warn, never delete.
                     charged = False

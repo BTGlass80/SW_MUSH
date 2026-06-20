@@ -1188,9 +1188,14 @@ async def _apply_combat_wear(combat, ctx):
             # exploit). c.char.character_points is the authoritative post-spend
             # value (floored at 0 by the H8 fix); persist it alongside wound_level.
             sess.character["character_points"] = c.char.character_points
+            # FP-persist (QA re-run finding): the same gap as CP — a FORCE POINT
+            # spent in combat (declare_force_point) was refunded on reconnect
+            # (FP-dup). Persist force_points alongside CP/wound.
+            sess.character["force_points"] = c.char.force_points
             await ctx.db.save_character(
                 c.id, wound_level=c.char.wound_level.value,
                 character_points=c.char.character_points,
+                force_points=c.char.force_points,
             )
 
             # ── PG.1.death (Drop 2c, May 19 2026 evening) ──
