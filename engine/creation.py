@@ -261,6 +261,13 @@ class CreationEngine:
 
         if bonus.total_pips() <= 0:
             return "  Bonus must be at least +1 pip.", "create> ", False
+        # H7: enforce the WEG R&E 2D creation cap on per-skill bonus. The web
+        # chargen path (chargen_validator) enforced it; the telnet/in-game wizard
+        # did NOT, letting players persist illegal >2D skills at creation.
+        from engine.chargen_validator import MAX_SKILL_BONUS_PIPS
+        if bonus.total_pips() > MAX_SKILL_BONUS_PIPS:
+            return (f"  Skill bonus may not exceed +2D at creation "
+                    f"(got +{bonus}; cap is 2D).", "create> ", False)
 
         self._push_undo(f"skill {sd.name} {bonus}")
         self.state.skills[sd.key] = bonus
@@ -490,6 +497,14 @@ class CreationEngine:
                         errors.append(f"{attr.capitalize()} below minimum ({pool} < {r.min_pool})")
                     if pool.total_pips() > r.max_pool.total_pips():
                         errors.append(f"{attr.capitalize()} above maximum ({pool} > {r.max_pool})")
+
+        # H7: per-skill 2D creation cap (mirrors the web chargen_validator path).
+        from engine.chargen_validator import MAX_SKILL_BONUS_PIPS
+        for _sk_key, _sk_bonus in self.state.skills.items():
+            if _sk_bonus.total_pips() > MAX_SKILL_BONUS_PIPS:
+                errors.append(
+                    f"Skill '{_sk_key}' bonus {_sk_bonus} exceeds the 2D creation cap"
+                )
 
         return errors
 
