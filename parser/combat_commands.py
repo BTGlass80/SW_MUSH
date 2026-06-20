@@ -176,6 +176,10 @@ def _remove_combat(char_or_combat):
         key = _combat_key_for(char_or_combat)
     combat = _active_combats.pop(key, None)
     if combat:
+        # Cancel any pending pose-grace timer so it doesn't fire into dead combat.
+        handle = getattr(combat, '_grace_timer_handle', None)
+        if handle and not handle.done():
+            handle.cancel()
         # Clean up NPC behaviors for this combat's combatants
         for cid in list(combat.combatants.keys()):
             _npc_behaviors.pop(cid, None)

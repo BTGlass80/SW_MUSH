@@ -1492,7 +1492,7 @@ class Session:
         if session_mgr is not None:
             try:
                 self_id = (self.character or {}).get("id")
-                for sess in session_mgr._sessions.values():
+                for sess in session_mgr.all:
                     if not getattr(sess, "is_in_game", False):
                         continue
                     sc = sess.character

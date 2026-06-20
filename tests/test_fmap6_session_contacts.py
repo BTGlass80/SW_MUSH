@@ -117,6 +117,9 @@ def _make_session_mgr(registry, other_sessions: list = None):
     sm = MagicMock()
     sm._area_registry = registry
     sm._sessions = {s.id: s for s in (other_sessions or [])}
+    # .all is a @property on SessionManager that returns a snapshot list.
+    # MagicMock won't auto-derive it from _sessions, so set it explicitly.
+    sm.all = list(sm._sessions.values())
     return sm
 
 
