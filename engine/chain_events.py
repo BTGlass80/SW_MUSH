@@ -1088,6 +1088,13 @@ async def _try_advance(db, char: dict, *, event_type: str,
         )
         return False
 
+    # Snapshot BEFORE the advance so the final merge-persist can tell which keys
+    # THIS function mutates (chain state + teleport/graduation flags) apart from
+    # the keys the reward-delivery calls below write straight into
+    # char["attributes"] (faction_rep, via adjust_rep).
+    import copy as _copy
+    _attrs_at_entry = _copy.deepcopy(attrs)
+
     # Advance
     from engine.tutorial_chains import advance_step
     new_step, graduated = advance_step(attrs, corpus, state_key)
@@ -1169,7 +1176,21 @@ async def _try_advance(db, char: dict, *, event_type: str,
             log.warning("[chain_events] inter-step teleport failed: %s",
                         e, exc_info=True)
 
-    await _persist_attrs(db, char, attrs)
+    # Merge-persist (QA onboarding fix, 2026-06-20): the reward-delivery calls
+    # above (apply_step_rewards / apply_graduation_rewards -> adjust_rep) write
+    # into char["attributes"] DIRECTLY (faction_rep), NOT into this function's
+    # local `attrs` dict — so the old blanket `_persist_attrs(db, char, attrs)`
+    # silently CLOBBERED every chain's authored faction_rep (step + graduation).
+    # Re-read the post-reward attrs and re-apply only the keys THIS function
+    # changed (chain-state advance + pending teleport/graduation flags) on top,
+    # so both the rep awards and the advance survive.
+    _merged = _load_attrs(char)
+    for _k, _v in attrs.items():
+        if _k not in _attrs_at_entry or _attrs_at_entry[_k] != _v:
+            _merged[_k] = _v
+    for _k in [k for k in _merged if k in _attrs_at_entry and k not in attrs]:
+        del _merged[_k]
+    await _persist_attrs(db, char, _merged)
 
     log.info("[chain_events] char %s advanced chain %r past step %d "
              "(event=%s); graduated=%s",

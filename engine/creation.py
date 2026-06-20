@@ -14,6 +14,11 @@ from engine.dice import DicePool
 from engine.character import Character, SkillRegistry, ATTRIBUTE_NAMES
 from engine.species import Species, SpeciesRegistry
 from engine.sheet_renderer import render_creation_sheet, render_status_line
+# H7: the telnet/in-game chargen wizard must enforce the same WEG R&E
+# 2D-per-skill creation cap the web validator does. Single source of truth
+# lives in chargen_validator (no circular import: it pulls only
+# dice/character/species, which this module already imports).
+from engine.chargen_validator import MAX_SKILL_BONUS_PIPS
 
 log = logging.getLogger(__name__)
 
@@ -262,6 +267,17 @@ class CreationEngine:
         if bonus.total_pips() <= 0:
             return "  Bonus must be at least +1 pip.", "create> ", False
 
+        # H7: WEG R&E creation cap — no single skill may take more than 2D
+        # added. The web path enforces this; the in-game wizard must too,
+        # or illegal stats persist via the telnet route.
+        if bonus.total_pips() > MAX_SKILL_BONUS_PIPS:
+            return (
+                f"  {sd.name}: {bonus} exceeds the creation cap of 2D "
+                f"(max +{MAX_SKILL_BONUS_PIPS} pips per skill).",
+                "create> ",
+                False,
+            )
+
         self._push_undo(f"skill {sd.name} {bonus}")
         self.state.skills[sd.key] = bonus
 
@@ -479,6 +495,17 @@ class CreationEngine:
         skill_left = self._skill_pips_total() - self._skill_pips_spent()
         if skill_left < 0:
             errors.append(f"Skill points overspent by {-skill_left} pips")
+
+        # H7: per-skill 2D creation cap. _cmd_skill blocks it at entry, but
+        # validate is the authority a finalize() trusts — guard the paths
+        # that set skills directly (templates, undo) too.
+        for skill_key, bonus in self.state.skills.items():
+            if bonus.total_pips() > MAX_SKILL_BONUS_PIPS:
+                sd = self.skill_reg.get(skill_key)
+                label = sd.name if sd else skill_key
+                errors.append(
+                    f"Skill '{label}': {bonus} exceeds creation cap of 2D"
+                )
 
         # Attribute range check
         if self.state.species:
