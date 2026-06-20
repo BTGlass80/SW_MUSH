@@ -36,6 +36,45 @@ from engine.dice import DicePool, roll_d6_pool
 log = logging.getLogger(__name__)
 
 
+# ── Dice-string parser (canonical home) ───────────────────────────────────────
+# QA HIGH (phantom-import family, 2026-06-19): four call sites
+# (sabacc_commands, builtin_commands ×2, space_commands) all did
+# `from engine.skill_checks import _parse_dice_str` to read an NPC's
+# bargain/gambling dice off its char_sheet_json — but the function lived
+# ONLY in engine.lightsaber_construction, so every import raised
+# ImportError, was swallowed by the surrounding `except Exception`, and
+# the NPC pool silently fell back to a flat default. The callers were
+# right; the function just wasn't here. This is its canonical home
+# (lightsaber_construction now imports it from here — one source of truth).
+# Unlike DicePool.parse(), this is total: it returns (0, 0) on any
+# anomaly instead of raising, which is exactly what the swallow-prone
+# call sites expect.
+def _parse_dice_str(val) -> tuple:
+    """Parse a skill-bonus string like '3D', '3D+1', '3D+2' into
+    (dice, pips). Returns (0, 0) on any anomaly (None, empty, garbage)."""
+    if not val:
+        return (0, 0)
+    s = str(val).strip().upper()
+    if not s:
+        return (0, 0)
+    # Strip a leading '+' if present (some sheets store '+2D')
+    s = s.lstrip("+")
+    try:
+        if "D" in s:
+            d_part, _, p_part = s.partition("D")
+            dice = int(d_part) if d_part else 0
+            pips = 0
+            if p_part:
+                p_part = p_part.strip().lstrip("+")
+                if p_part:
+                    pips = int(p_part)
+            return (dice, pips)
+        # Bare integer — treat as dice
+        return (int(s), 0)
+    except (TypeError, ValueError):
+        return (0, 0)
+
+
 # ── Module-level SkillRegistry singleton ──────────────────────────────────────
 # Loaded once on first use, not per call.  Eliminates S1 from the audit.
 
