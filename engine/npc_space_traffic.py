@@ -1735,8 +1735,14 @@ class NpcSpaceTrafficManager:
             return False, (f"You don't have enough credits. "
                            f"Demand: {demand:,} cr, You have: {credits:,} cr.")
 
-        # Deduct credits
-        player_char["credits"] = await db.adjust_credits(player_char["id"], -demand, "npc_pirate_extortion")
+        # Deduct credits — allow_negative=False refuses a concurrent overdraw
+        # atomically; None means insufficient, mirror the pre-check return shape.
+        new_balance = await db.adjust_credits(
+            player_char["id"], -demand, "npc_pirate_extortion", allow_negative=False)
+        if new_balance is None:
+            return False, (f"You don't have enough credits. "
+                           f"Demand: {demand:,} cr, You have: {player_char.get('credits', 0):,} cr.")
+        player_char["credits"] = new_balance
 
         ts.pirate_paid = True
         ts.hail_sent = False

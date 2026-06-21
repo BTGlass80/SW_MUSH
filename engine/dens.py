@@ -157,13 +157,18 @@ async def establish_den(db, char: dict, *,
         return elig
 
     # Debit the setup cost (sink) FIRST, then write the den; refund on failure.
+    # allow_negative=False refuses a concurrent overdraw atomically; None return
+    # means insufficient funds — treat identically to the balance pre-check above.
     try:
-        char["credits"] = await db.adjust_credits(
-            char["id"], -cost, DEN_SETUP_SOURCE)
+        new_balance = await db.adjust_credits(
+            char["id"], -cost, DEN_SETUP_SOURCE, allow_negative=False)
     except Exception:
         log.warning("[dens] setup debit failed for char %s", char.get("id"),
                     exc_info=True)
         return {"ok": False, "reason": "charge_failed"}
+    if new_balance is None:
+        return {"ok": False, "reason": "insufficient"}
+    char["credits"] = new_balance
 
     try:
         await db._db.execute(  # noqa: SLF001

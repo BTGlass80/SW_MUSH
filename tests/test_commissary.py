@@ -117,7 +117,7 @@ class _StubDB:
         self.granted = []      # item dicts
         self.fail_grant = fail_grant
 
-    async def adjust_credits(self, cid, delta, source):
+    async def adjust_credits(self, cid, delta, source, *, allow_negative=True):
         self.credit_log.append((delta, source))
         return 100_000 + delta
 

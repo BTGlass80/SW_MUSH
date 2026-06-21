@@ -105,12 +105,19 @@ async def purchase_gear_insurance(db, char: dict) -> dict:
 
     # Debit FIRST (the sink), then persist; refund on failure so a failed buy
     # never eats credits.
+    # allow_negative=False refuses a concurrent overdraw atomically; None return
+    # means insufficient funds — treat identically to the balance pre-check above.
     try:
-        char["credits"] = await db.adjust_credits(char["id"], -cost, PREMIUM_SOURCE)
+        new_balance = await db.adjust_credits(
+            char["id"], -cost, PREMIUM_SOURCE, allow_negative=False)
     except Exception:
         log.warning("[gear_insurance] premium debit failed for char %s",
                     char.get("id"), exc_info=True)
         return {"ok": False, "reason": "charge_failed"}
+    if new_balance is None:
+        return {"ok": False, "reason": "insufficient", "cost": cost,
+                "short": cost - int(char.get("credits") or 0)}
+    char["credits"] = new_balance
 
     try:
         await db.save_character(char["id"], gear_insured=1)

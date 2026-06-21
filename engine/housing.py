@@ -762,12 +762,19 @@ async def purchase_home_prestige(db, char: dict, housing: dict) -> dict:
 
     # Debit FIRST (the sink), then persist the new level; refund on failure so a
     # failed upgrade never eats credits.
+    # allow_negative=False refuses a concurrent overdraw atomically; None return
+    # means insufficient funds — treat identically to the balance pre-check above.
     try:
-        char["credits"] = await db.adjust_credits(char["id"], -cost, "home_prestige")
+        new_balance = await db.adjust_credits(
+            char["id"], -cost, "home_prestige", allow_negative=False)
     except Exception:
         log.warning("[housing] prestige debit failed for char %s",
                     char.get("id"), exc_info=True)
         return {"ok": False, "reason": "charge_failed"}
+    if new_balance is None:
+        return {"ok": False, "reason": "insufficient", "cost": cost,
+                "short": cost - int(char.get("credits") or 0), "label": nxt["label"]}
+    char["credits"] = new_balance
 
     new_level = level + 1
     try:
@@ -1377,7 +1384,15 @@ async def set_room_name(db, char: dict, housing_id: int, new_name: str) -> dict:
             return {"ok": False,
                     "msg": f"Renaming again costs {DESC_RENAME_COST:,}cr. "
                            f"You have {char.get('credits', 0):,}cr."}
-        char["credits"] = await db.adjust_credits(char["id"], -DESC_RENAME_COST, "housing_rename")
+        # allow_negative=False refuses a concurrent overdraw atomically; None return
+        # means insufficient funds — abort before the rename takes effect.
+        new_balance = await db.adjust_credits(
+            char["id"], -DESC_RENAME_COST, "housing_rename", allow_negative=False)
+        if new_balance is None:
+            return {"ok": False,
+                    "msg": f"Renaming again costs {DESC_RENAME_COST:,}cr. "
+                           f"You have {char.get('credits', 0):,}cr."}
+        char["credits"] = new_balance
 
     props["rename_count"] = rename_count + 1
     old_name = room_row.get("name", "your room")

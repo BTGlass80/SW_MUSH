@@ -160,7 +160,9 @@ class _StubDB:
     async def get_ship_by_bridge(self, room_id):
         return self._ship if room_id == self._ship.get("bridge_room_id") else None
 
-    async def adjust_credits(self, cid, delta, source):
+    async def adjust_credits(self, cid, delta, source, *, allow_negative=True):
+        if not allow_negative and self.bal + delta < 0:
+            return None
         self.bal += delta
         self.credit_log.append((delta, source))
         return self.bal
@@ -322,7 +324,9 @@ class TestStructuralPins(unittest.TestCase):
         self.assertIn('"ship_repair"', self.spacedock_src)
 
     def test_debit_precedes_ship_write(self):
-        debit = self.spacedock_src.index('adjust_credits(char["id"], -cost, "ship_repair")')
+        # QA 2026-06-21: the debit now carries allow_negative=False (multi-line);
+        # pin the guarded form and that it still precedes the ship write.
+        debit = self.spacedock_src.index('-cost, "ship_repair", allow_negative=False')
         write = self.spacedock_src.index("update_ship(")
         self.assertLess(debit, write,
                         "the ledger debit must precede the ship write (refund-safe order)")

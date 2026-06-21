@@ -222,13 +222,23 @@ class DebtCommand(BaseCommand):
                 f"You have {credits:,}.")
             return
 
+        # Debit FIRST — allow_negative=False refuses the overdraw atomically;
+        # only persist the cleared-debt state on a confirmed non-None debit
+        # so a concurrent drain can't clear the debt for free.
+        # (QA 2026-06-21, credit-integrity hardening.)
+        new_bal = await ctx.db.adjust_credits(
+            char["id"], -principal, "debt_payment", allow_negative=False)
+        if new_bal is None:
+            await ctx.session.send_line(
+                f"  You need {principal:,} credits to pay off the debt. "
+                f"You have {credits:,}.")
+            return
+        char["credits"] = new_bal
+
         debt["principal"] = 0
         debt["total_paid"] = debt.get("total_paid", 0) + principal
         attrs["hutt_debt"] = debt
         char["attributes"] = json.dumps(attrs)
-        # Ledger chokepoint (F1): debt payoff as a logged sink.
-        char["credits"] = await ctx.db.adjust_credits(
-            char["id"], -principal, "debt_payment")
         await ctx.db.save_character(char["id"],
                                      attributes=char["attributes"])
 

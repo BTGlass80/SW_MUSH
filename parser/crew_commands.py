@@ -173,11 +173,20 @@ class HireCommand(BaseCommand):
                 f"You have {credits:,}.")
             return
 
-        # Hire the NPC
-        await ctx.db.hire_npc(npc["id"], char_id, wage)
-        # Deduct first day's wage immediately (through the credit chokepoint)
-        new_credits = await ctx.db.adjust_credits(char_id, -wage, "crew_wage")
+        # Debit FIRST — allow_negative=False refuses an overdraw atomically;
+        # only hire the NPC on a confirmed non-None debit so a concurrent
+        # drain can't give free crew. (QA 2026-06-21, credit-integrity.)
+        new_credits = await ctx.db.adjust_credits(
+            char_id, -wage, "crew_wage", allow_negative=False)
+        if new_credits is None:
+            await ctx.session.send_line(
+                f"  Can't afford {npc['name']}'s first day wage of {wage:,} credits. "
+                f"You have {credits:,}.")
+            return
         char["credits"] = new_credits
+
+        # Hire the NPC (after confirmed payment)
+        await ctx.db.hire_npc(npc["id"], char_id, wage)
 
         await ctx.session.send_line(
             ansi.success(

@@ -129,7 +129,7 @@ class _SellStubDB:
     async def add_to_inventory(self, cid, item):
         self.added.append(item)
 
-    async def adjust_credits(self, cid, delta, source):
+    async def adjust_credits(self, cid, delta, source, *, allow_negative=True):
         self.credit_log.append((delta, source))
         return 100_000 + delta
 

@@ -1221,7 +1221,15 @@ class LaunchCommand(BaseCommand):
             await ctx.session.send_line(
                 f"  Not enough credits for fuel! Need {fuel_cost:,}cr, have {credits:,}cr.")
             return
-        char["credits"] = await ctx.db.adjust_credits(char["id"], -fuel_cost, "ship_refuel")
+        # allow_negative=False refuses the overdraw atomically; on None abort
+        # the launch so the ship stays docked. (QA 2026-06-21.)
+        new_bal = await ctx.db.adjust_credits(
+            char["id"], -fuel_cost, "ship_refuel", allow_negative=False)
+        if new_bal is None:
+            await ctx.session.send_line(
+                f"  Not enough credits for fuel! Need {fuel_cost:,}cr, have {credits:,}cr.")
+            return
+        char["credits"] = new_bal
         bay_id = ship["docked_at"]
         bay = await ctx.db.get_room(bay_id)
         bay_name = bay["name"] if bay else "the docking bay"
@@ -3913,8 +3921,14 @@ class HyperspaceCommand(BaseCommand):
             from engine.npc_space_traffic import ZONES as _TZ
             misjump_zones = [z for z in _TZ if "deep_space" in z or "orbit" in z]
             misjump_zone = _rnd.choice(misjump_zones) if misjump_zones else "tatooine_deep_space"
-            # Charge full fuel for the botched jump
-            char["credits"] = await ctx.db.adjust_credits(char["id"], -fuel_cost, "ship_refuel")
+            # Charge full fuel for the botched jump. allow_negative=False
+            # refuses the overdraw atomically; on None skip the charge but
+            # the misjump still happens — the jump was botched regardless.
+            # (QA 2026-06-21, credit-integrity hardening.)
+            _mj_bal = await ctx.db.adjust_credits(
+                char["id"], -fuel_cost, "ship_refuel", allow_negative=False)
+            if _mj_bal is not None:
+                char["credits"] = _mj_bal
             # Move ship to random zone
             get_space_grid().remove_ship(ship["id"])
             systems["current_zone"] = misjump_zone
@@ -3961,8 +3975,19 @@ class HyperspaceCommand(BaseCommand):
         crit_note = " (critical — efficient jump!)" if (
             nav_result and nav_result.critical_success) else ""
 
-        # Charge fuel
-        char["credits"] = await ctx.db.adjust_credits(char["id"], -fuel_cost, "ship_refuel")
+        # Charge fuel — allow_negative=False refuses the overdraw atomically;
+        # on None abort the jump entirely (grid removal happens below this).
+        # (QA 2026-06-21, credit-integrity hardening.)
+        _jmp_bal = await ctx.db.adjust_credits(
+            char["id"], -fuel_cost, "ship_refuel", allow_negative=False)
+        if _jmp_bal is None:
+            await ctx.session_mgr.broadcast_to_room(
+                ship["bridge_room_id"],
+                f"  {ansi.BRIGHT_RED}[NAV]{ansi.RESET} Jump aborted — "
+                f"insufficient credits for fuel ({fuel_cost:,}cr required)."
+            )
+            return
+        char["credits"] = _jmp_bal
 
         # ── Travel time: ticks = hyperdrive_multiplier × 3, clamped 2–12 ──────
         # x1 drive = 3 ticks (~30s), x2 = 6 ticks (~60s), x1/2 = 2 ticks
@@ -4263,6 +4288,23 @@ class BuyCommand(BaseCommand):
             return
         item = ItemInstance.new_from_vendor(weapon.key)
         _slots = read_equipment(char.get("equipment", "{}"))
+
+        # Debit FIRST — allow_negative=False refuses the overdraw atomically.
+        # Only equip/save on a confirmed non-None debit so a concurrent drain
+        # can't give away free weapons. (QA 2026-06-21, credit-integrity.)
+        # Tag renamed from "ship_weapon_purchase" — this path now only sells
+        # character-scale ground commons (vendor_stocked Avail-1 personal
+        # weapons). Historical ledger rows stay under the old tag; only
+        # forward ground buys carry the new tag (no data migration — intended).
+        _gwp_bal = await ctx.db.adjust_credits(
+            char["id"], -price, "ground_weapon_purchase", allow_negative=False)
+        if _gwp_bal is None:
+            await ctx.session.send_line(
+                f"  Not enough credits! {weapon.name} costs {price:,} credits "
+                f"(base {base_price:,}), you have {current_credits:,}.")
+            return
+        char["credits"] = _gwp_bal
+
         # CRAFT.P0.9: a purchase that displaces an equipped weapon returns
         # it to carried inventory (the old write destroyed it).
         if _slots["weapon"] is not None:
@@ -4275,11 +4317,6 @@ class BuyCommand(BaseCommand):
                     name=(_d_w.name if _d_w else _slots["weapon"].key)))
         char["equipment"] = write_equipment(weapon=item, armor=_slots["armor"])
         await ctx.db.save_character(char["id"], equipment=char["equipment"])
-        # Tag renamed from "ship_weapon_purchase" — this path now only sells
-        # character-scale ground commons (vendor_stocked Avail-1 personal
-        # weapons). Historical ledger rows stay under the old tag; only
-        # forward ground buys carry the new tag (no data migration — intended).
-        char["credits"] = await ctx.db.adjust_credits(char["id"], -price, "ground_weapon_purchase")
 
         # ── Player Cities Phase 4b (May 22 2026): city tax ──────────────
         # NPC vendor buy: per Phase 4b design call #2, the player's
@@ -4587,14 +4624,25 @@ class SpacedockCommand(BaseCommand):
         # Debit FIRST through the ledger chokepoint (the sink); if persisting the
         # repair fails, refund — a failed yard job must never eat the player's
         # credits or leave them paid-but-broken.
+        # allow_negative=False refuses an overdraw atomically — returns None
+        # (not a raise), so the except only fires on genuine DB errors.
+        # (QA 2026-06-21, credit-integrity hardening.)
         try:
-            char["credits"] = await ctx.db.adjust_credits(char["id"], -cost, "ship_repair")
+            new_bal = await ctx.db.adjust_credits(
+                char["id"], -cost, "ship_repair", allow_negative=False)
         except Exception:
             log.warning("[spacedock] debit failed for char %s", char.get("id"), exc_info=True)
             await ctx.session.send_line(
                 "  Payment could not be processed. Nothing was charged."
             )
             return
+        if new_bal is None:
+            await ctx.session.send_line(
+                f"  The yard quotes {ansi.BRIGHT_YELLOW}{cost:,} cr{ansi.RESET} "
+                f"for the job — you have {bal:,} cr ({cost - bal:,} short)."
+            )
+            return
+        char["credits"] = new_bal
 
         new_systems = apply_yard_repair(systems)
         try:
@@ -5899,13 +5947,23 @@ async def _handle_buy_cargo(ctx) -> None:
         )
         return
 
-    # Commit
+    # Commit — debit FIRST so a concurrent drain can't give free cargo.
+    # allow_negative=False refuses the overdraw atomically; on None abort
+    # before the update_ship write. (QA 2026-06-21, credit-integrity.)
     import json as _j
     cargo = get_ship_cargo(ship)
     cargo = add_cargo(cargo, good.key, quantity, per_ton)
-    await ctx.db.update_ship(ship["id"], cargo=_j.dumps(cargo))
 
-    char["credits"] = await ctx.db.adjust_credits(char["id"], -total_price, "trade_goods")
+    _tg_bal = await ctx.db.adjust_credits(
+        char["id"], -total_price, "trade_goods", allow_negative=False)
+    if _tg_bal is None:
+        await ctx.session.send_line(
+            f"  Not enough credits. {quantity}t of {good.name} costs "
+            f"{total_price:,}cr, you have {current_credits:,}cr."
+        )
+        return
+    char["credits"] = _tg_bal
+    await ctx.db.update_ship(ship["id"], cargo=_j.dumps(cargo))
 
     # Drain supply pool AFTER commit so a DB failure doesn't burn
     # supply. (Review fix v1)

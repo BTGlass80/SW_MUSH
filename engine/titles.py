@@ -230,12 +230,19 @@ async def purchase_title(db, char: dict, key) -> dict:
 
     # Debit FIRST (the sink), then persist; refund on failure so a failed buy
     # never eats credits.
+    # allow_negative=False refuses a concurrent overdraw atomically; None return
+    # means insufficient funds — treat identically to the balance pre-check above.
     try:
-        char["credits"] = await db.adjust_credits(char["id"], -cost, "vanity_title")
+        new_balance = await db.adjust_credits(
+            char["id"], -cost, "vanity_title", allow_negative=False)
     except Exception:
         log.warning("[titles] vanity debit failed for char %s",
                     char.get("id"), exc_info=True)
         return {"ok": False, "reason": "charge_failed"}
+    if new_balance is None:
+        return {"ok": False, "reason": "insufficient", "cost": cost,
+                "short": cost - int(char.get("credits") or 0), "label": t["label"]}
+    char["credits"] = new_balance
 
     owned = owned_title_keys(char)
     owned.append(t["key"])

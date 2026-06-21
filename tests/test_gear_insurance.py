@@ -83,7 +83,7 @@ class _StubDB:
         self.saves = []        # list of field dicts
         self.fail_persist = fail_persist
 
-    async def adjust_credits(self, cid, delta, source):
+    async def adjust_credits(self, cid, delta, source, *, allow_negative=True):
         self.credit_log.append((delta, source))
         return 1_000_000 + delta
 

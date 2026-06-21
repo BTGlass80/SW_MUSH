@@ -75,12 +75,22 @@ async def pirate_pay(encounter, manager, db, session_mgr, **kwargs):
                     f"  {RED}[ALERT]{RST} {pirate_name} opens fire!", session_mgr)
                 await _start_pirate_combat(encounter, manager, db, session_mgr)
                 return
-            await db.adjust_credits(char_id, -demand, "space_pirate_extortion")
+            # allow_negative=False refuses a concurrent overdraw atomically;
+            # None means the debit failed — fall through to combat exactly as
+            # the insufficient-funds branch above does.
+            new_balance = await db.adjust_credits(
+                char_id, -demand, "space_pirate_extortion", allow_negative=False)
+            if new_balance is None:
+                await manager.broadcast_to_bridge(encounter,
+                    f"\n  {RED}[COMMS]{RST} \"Not enough credits? Unfortunate.\"\n"
+                    f"  {RED}[ALERT]{RST} {pirate_name} opens fire!", session_mgr)
+                await _start_pirate_combat(encounter, manager, db, session_mgr)
+                return
             await manager.broadcast_to_bridge(encounter,
                 f"\n  {AMBER}[COMMS]{RST} You transfer {demand:,} credits.\n"
                 f"  {DIM}\"Pleasure doing business.\"{RST}\n"
                 f"  {GREEN}[SENSORS]{RST} {pirate_name} breaks off.\n"
-                f"  {DIM}Balance: {credits - demand:,}cr.{RST}", session_mgr)
+                f"  {DIM}Balance: {new_balance:,}cr.{RST}", session_mgr)
             manager.resolve(encounter, outcome="pay_success")
     except Exception as e:
         log.warning("[pirate] pay error: %s", e)

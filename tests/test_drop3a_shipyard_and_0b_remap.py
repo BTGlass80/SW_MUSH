@@ -208,7 +208,9 @@ class _StubDB:
             return {"id": self.DOCK[slug]}
         return None
 
-    async def adjust_credits(self, cid, delta, source):
+    async def adjust_credits(self, cid, delta, source, *, allow_negative=True):
+        if not allow_negative and self.bal + delta < 0:
+            return None
         self.bal += delta
         self.log.append((delta, source))
         return self.bal

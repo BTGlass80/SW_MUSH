@@ -1010,7 +1010,16 @@ async def _complete_step(session, db, qs: dict, step: dict):
     # Special: Phase 5 Step 27 — deduct 8000 credits for ship purchase
     if step_id == 27:
         cost = step["objective_data"].get("cost", 8000)
-        char["credits"] = await db.adjust_credits(char["id"], -cost, "spacer_quest_ship")
+        # allow_negative=False refuses an overdraw atomically; None means the
+        # player can't afford it — do NOT transfer the ship.
+        new_balance = await db.adjust_credits(
+            char["id"], -cost, "spacer_quest_ship", allow_negative=False)
+        if new_balance is None:
+            await session.send_line(
+                f"  \033[1;33m[QUEST]\033[0m You need {cost:,} credits to purchase "
+                f"the ship. Earn more credits and return to complete this step.")
+            return
+        char["credits"] = new_balance
         await session.send_line(
             f"  \033[1;31m-{cost:,} credits (ship purchase).{_RESET}")
         transferred = await _transfer_ship_ownership(session, db)

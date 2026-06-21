@@ -221,10 +221,17 @@ async def purchase_ship(db, char, room_id, hull_token, ship_name=None):
     # If anything downstream fails we refund, so a failed delivery never eats
     # the player's credits.
     try:
-        char["credits"] = await db.adjust_credits(char["id"], -price, "ship_purchase")
+        # allow_negative=False refuses an overdraw atomically — returns None
+        # rather than raising, so the except only fires on genuine DB errors.
+        # (QA 2026-06-21, credit-integrity hardening.)
+        new_bal = await db.adjust_credits(
+            char["id"], -price, "ship_purchase", allow_negative=False)
     except Exception as e:
         log.warning("[shipyard] debit failed for char %s: %s", char.get("id"), e)
         return {"ok": False, "message": "Payment could not be processed. Nothing was charged."}
+    if new_bal is None:
+        return {"ok": False, "message": "Insufficient credits. Nothing was charged."}
+    char["credits"] = new_bal
 
     async def _refund(reason):
         try:

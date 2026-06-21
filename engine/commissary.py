@@ -213,13 +213,19 @@ async def purchase_commissary(db, char: dict, faction_code, rank_level, key) -> 
 
     # Debit FIRST (the sink), then grant; refund on failure so a failed
     # requisition never eats credits.
+    # allow_negative=False refuses a concurrent overdraw atomically; None return
+    # means insufficient funds — treat identically to the balance pre-check above.
     try:
-        char["credits"] = await db.adjust_credits(
-            char["id"], -cost, "commissary_purchase")
+        new_balance = await db.adjust_credits(
+            char["id"], -cost, "commissary_purchase", allow_negative=False)
     except Exception:
         log.warning("[commissary] debit failed for char %s", char.get("id"),
                     exc_info=True)
         return {"ok": False, "reason": "charge_failed"}
+    if new_balance is None:
+        return {"ok": False, "reason": "insufficient", "cost": cost,
+                "short": cost - int(char.get("credits") or 0), "name": item["name"]}
+    char["credits"] = new_balance
 
     try:
         # H1 fix (2026-06-17): prefer registry name/slot for weapon/armor

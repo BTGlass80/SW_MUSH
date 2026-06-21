@@ -380,8 +380,18 @@ async def construct_building(
             f"Missing: {lack_str}."
         )
 
-    # Deduct.
-    char["credits"] = await db.adjust_credits(char["id"], -credit_cost, "player_building_construct")
+    # Debit FIRST against the live DB balance (the cache check above is advisory).
+    # allow_negative=False refuses the overdraw atomically; None means a concurrent
+    # drain beat us — treat it identically to the affordability pre-check failure.
+    new_balance = await db.adjust_credits(
+        char["id"], -credit_cost, "player_building_construct", allow_negative=False
+    )
+    if new_balance is None:
+        return _fail(
+            f"You need {credit_cost:,} credits to start construction "
+            f"(you have {int(char.get('credits', 0)):,})."
+        )
+    char["credits"] = new_balance
 
     _deduct_materials(char, material_costs)
     await db.save_character(char["id"], inventory=char["inventory"])

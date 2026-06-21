@@ -3088,8 +3088,17 @@ class BactaTankCommand(BaseCommand):
         # Deduct first, then transition. Either-order would work,
         # but charging first means a transient DB blip during
         # apply_bacta_tank doesn't leave the player healed-for-free.
-        new_credits = credits - BACTA_TANK_PRICE
-        char["credits"] = await ctx.db.adjust_credits(char["id"], -BACTA_TANK_PRICE, "bacta_tank")
+        # allow_negative=False refuses the overdraw atomically (QA 2026-06-21).
+        new_balance = await ctx.db.adjust_credits(
+            char["id"], -BACTA_TANK_PRICE, "bacta_tank", allow_negative=False)
+        if new_balance is None:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}Bacta tank costs "
+                f"{BACTA_TANK_PRICE} credits — you have {credits:,}."
+                f"{ansi.RESET}"
+            )
+            return
+        char["credits"] = new_balance
 
         cleared = await apply_bacta_tank(ctx.db, char["id"])
         if cleared:
@@ -3101,7 +3110,7 @@ class BactaTankCommand(BaseCommand):
             )
             balance_line = (
                 f"-{BACTA_TANK_PRICE} credits. "
-                f"Balance: {new_credits:,}."
+                f"Balance: {char['credits']:,}."
             )
             await ctx.session.send_line(
                 f"  {ansi.dim(balance_line)}"
@@ -3631,13 +3640,22 @@ class RepairCommand(BaseCommand):
                 f"  {ansi.BRIGHT_RED}Not enough credits!{ansi.RESET}")
             return
 
+        # Debit FIRST — allow_negative=False refuses an overdraw atomically
+        # (QA 2026-06-21). Only repair+save on a confirmed debit so a
+        # concurrent drain can't give free repairs.
+        new_balance = await ctx.db.adjust_credits(
+            char["id"], -cost, "repair", allow_negative=False)
+        if new_balance is None:
+            await ctx.session.send_line(
+                f"  {ansi.BRIGHT_RED}Not enough credits!{ansi.RESET}")
+            return
+        char["credits"] = new_balance
+
         # Apply repair
         item.repair()
         # Canonical per-slot write — preserve worn armor (the old
         # serialize_equipment(item) clobbered the armor slot).
         char["equipment"] = write_equipment(weapon=item, armor=_slots["armor"])
-        # Ledger chokepoint (F1): repair cost as a logged sink.
-        char["credits"] = await ctx.db.adjust_credits(char["id"], -cost, "repair")
         await ctx.db.save_character(
             char["id"], equipment=char["equipment"])
         # Equipment condition changed → invalidate the cached Character snapshot.
@@ -5684,7 +5702,22 @@ class TradeCommand(BaseCommand):
         tax = max(1, amount * tax_pct // 100)  # 5% floor of 1 credit
         received = amount - tax
 
-        offerer["credits"] = await ctx.db.adjust_credits(offerer["id"], -amount, "p2p_transfer")
+        # Guard the offerer debit atomically — allow_negative=False prevents a
+        # concurrent drain from minting credits to the recipient from nothing.
+        # Abort the ENTIRE transfer on None (before recipient credit or tax).
+        # (QA 2026-06-21, credit-integrity hardening.)
+        offerer_new_bal = await ctx.db.adjust_credits(
+            offerer["id"], -amount, "p2p_transfer", allow_negative=False)
+        if offerer_new_bal is None:
+            _pending_trades.pop(offer_key, None)
+            await ctx.session.send_line(
+                f"  {offerer['name']} no longer has enough credits. Trade cancelled."
+            )
+            await offerer_sess.send_line(
+                f"  Trade with {char['name']} cancelled — insufficient credits."
+            )
+            return
+        offerer["credits"] = offerer_new_bal
         char["credits"] = await ctx.db.adjust_credits(char["id"], received, "p2p_transfer")
         await ctx.db.adjust_credits(0, -tax, "p2p_tax")
 
