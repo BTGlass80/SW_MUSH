@@ -289,6 +289,48 @@ DIRECTION_ALIASES = {
 }
 
 
+def _emit_command_telemetry(ctx: "CommandContext", cmd: str, *,
+                            matched: bool) -> None:
+    """T3.19 telemetry: command-frequency histogram + 'huh?' friction.
+
+    One fail-open, buffer-only emit at the single command chokepoint, so the
+    offline funnel can build the command-frequency histogram (catalog C — a
+    dead feature shows up as ~0 use), the per-system engagement split (map
+    cmd->system offline), alias-vs-canonical usage, and the unknown-command
+    'huh?' friction rate (catalog D — which verbs confuse). ``cmd`` is the
+    canonical command key for a resolved command (so aliases + glued prefixes
+    group together) or the typed word for an unknown one. Fires at dispatch
+    (before the access/dead checks) so it measures invocation INTENT, which is
+    what utilization wants.
+
+    Commands are a high-frequency chokepoint, so the keep-rate is the
+    ``telemetry.command_sample`` tunable, read at the use-site per the T3.19
+    contract (1.0 = capture everything at launch's small population; dial it
+    down later if the stream gets noisy). Never raises — telemetry must never
+    disturb command dispatch.
+    """
+    try:
+        from engine.telemetry import emit as _tele_emit
+        from engine.tunables import get_tunable
+        fields: dict = {"matched": matched, "cmd": cmd}
+        char = ctx.session.character if ctx.session else None
+        if char is not None:
+            cid = char.get("id") if hasattr(char, "get") else None
+            if cid is not None:
+                fields["char_id"] = cid
+        # Typed form only when it differs from the canonical key (alias / glued
+        # prefix / direction word) — keeps the matched-record lean.
+        typed = ctx.command
+        if typed and typed != cmd:
+            fields["typed"] = typed
+        if ctx.switches:
+            fields["sw"] = list(ctx.switches)
+        _tele_emit("command", fields,
+                   sample=float(get_tunable("telemetry.command_sample", 1.0)))
+    except Exception:
+        log.debug("command telemetry emit failed", exc_info=True)
+
+
 class CommandParser:
     """
     Processes raw input into CommandContext and dispatches to handlers.
@@ -442,6 +484,7 @@ class CommandParser:
                 if handled:
                     return
 
+            _emit_command_telemetry(ctx, cmd_name, matched=False)
             await session.send_line(f"Huh? Unknown command: '{cmd_name}'")
             await session.send_prompt()
             return
@@ -457,6 +500,11 @@ class CommandParser:
 
     async def _execute(self, cmd: BaseCommand, ctx: CommandContext):
         """Check access, dead-state, and run the command with timeout."""
+        # T3.19 telemetry: command-frequency histogram at the single resolved
+        # chokepoint (covers the normal + movement-direction dispatch paths).
+        # Canonical key groups aliases/glued-prefixes/directions together.
+        _emit_command_telemetry(ctx, cmd.key, matched=True)
+
         if not await cmd.check_access(ctx):
             await ctx.session.send_line("You don't have permission to do that.")
             await ctx.session.send_prompt()
