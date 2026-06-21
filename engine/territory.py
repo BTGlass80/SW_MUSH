@@ -395,6 +395,32 @@ async def adjust_territory_influence(db, org_code: str, zone_id: int,
                  org_code, zone_id, current, new_score,
                  "+" if delta > 0 else "", delta, reason)
 
+        # T3.19 telemetry: adjust_territory_influence is the SINGLE funnel for
+        # ALL territory-control movement (the influence analog of credit_flow
+        # riding log_credit), so one emit here captures every influence change
+        # by org / zone / source — the post-launch "who is contesting or holding
+        # which zones, and what drives it" balance signal. Fail-open +
+        # buffer-only: it can NEVER block or disturb the influence path it
+        # observes. ``clamped`` flags a delta that hit the floor (0) or the
+        # INFLUENCE_CAP ceiling, so a zone pinned at cap is visible offline.
+        # Keep-rate is a use-site tunable per the T3.19 contract (1.0 at
+        # launch's small population; dial down later).
+        try:
+            from engine.telemetry import emit as _tele_emit
+            from engine.tunables import get_tunable
+            _tele_emit("influence", {
+                "org": org_code,
+                "zone_id": zone_id,
+                "delta": int(delta),
+                "score": int(new_score),
+                "prev": int(current),
+                "clamped": (current + delta) != new_score,
+                "reason": reason or "",
+                "region": region_slug or "",
+            }, sample=float(get_tunable("telemetry.influence_sample", 1.0)))
+        except Exception as _e:
+            log.debug("influence telemetry emit failed: %s", _e)
+
     # SYN.3: region-contest auto-trigger on positive deltas, when the
     # caller supplied a region slug. The legacy zone-keyed
     # check_and_declare_contests was removed in SYN.3 along with the
