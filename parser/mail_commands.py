@@ -27,7 +27,7 @@ DB Tables (migration v14):
 import logging
 import time
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from parser.commands import BaseCommand, CommandContext, AccessLevel
 from server import ansi
@@ -330,7 +330,8 @@ class MailCommand(BaseCommand):
         subject = state["subject"]
         to_ids = state["to"]
         to_names = state["to_names"]
-        now = datetime.utcnow().isoformat()
+        # naive-UTC ISO (byte-identical to the stored format); no deprecated utcnow().
+        now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
 
         # Insert the mail message
         cursor = await ctx.db.execute(

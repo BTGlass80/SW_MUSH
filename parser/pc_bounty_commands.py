@@ -61,7 +61,7 @@ from __future__ import annotations
 import json
 import logging
 import time as _time
-from datetime import datetime
+from datetime import datetime, timezone
 
 from parser.commands import BaseCommand, CommandContext, AccessLevel
 from server import ansi
@@ -236,7 +236,8 @@ async def _send_system_mail(
     bounty state mutation.
     """
     try:
-        now = datetime.utcnow().isoformat()
+        # naive-UTC ISO (byte-identical to the stored format); no deprecated utcnow().
+        now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         cur = await ctx.db._db.execute(
             "INSERT INTO mail (sender_id, subject, body, sent_at) "
             "VALUES (?, ?, ?, ?)",

@@ -25,7 +25,7 @@ NPC/system economy. Player-facing display can show "from System" or
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 log = logging.getLogger(__name__)
@@ -66,7 +66,10 @@ async def send_system_mail(
     regardless of whether the courtesy mail succeeded.
     """
     try:
-        now = datetime.utcnow().isoformat()
+        # naive-UTC ISO (byte-identical to the long-stored format); the
+        # deprecated datetime.utcnow() is gone (slated for removal in a
+        # future Python — this box runs 3.14).
+        now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         cursor = await db.execute(
             "INSERT INTO mail (sender_id, subject, body, sent_at) "
             "VALUES (?, ?, ?, ?)",
