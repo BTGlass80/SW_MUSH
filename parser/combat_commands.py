@@ -1265,22 +1265,33 @@ async def _apply_combat_wear(combat, ctx):
 
         # Sync player wound level back to session + DB
         sess = ctx.session_mgr.find_by_character(c.id)
-        if sess and sess.character:
-            sess.character["wound_level"] = c.char.wound_level.value
-            # M-fix (combat CP not persisted): the sync was wound_level-only, so
-            # CP spent on combat bonuses was refunded on reconnect (a CP-dup
-            # exploit). c.char.character_points is the authoritative post-spend
-            # value (floored at 0 by the H8 fix); persist it alongside wound_level.
-            sess.character["character_points"] = c.char.character_points
-            # FP-persist (QA re-run finding): the same gap as CP — a FORCE POINT
-            # spent in combat (declare_force_point) was refunded on reconnect
-            # (FP-dup). Persist force_points alongside CP/wound.
-            sess.character["force_points"] = c.char.force_points
+        # Persist the AUTHORITATIVE post-round state to the DB ALWAYS — even if
+        # the session is gone (player disconnected mid-round). QA 2026-06-20:
+        # gating this DB write on the session refunded FORCE/CHARACTER points
+        # spent in combat + lost the wound on reconnect (an FP/CP-dup via
+        # disconnect). c.char.{character_points,force_points,wound_level} are the
+        # authoritative post-spend values (CP/FP floored at 0 by the H8 fix). The
+        # in-memory session sync + the PC-death hook below still need a session.
+        try:
             await ctx.db.save_character(
                 c.id, wound_level=c.char.wound_level.value,
                 character_points=c.char.character_points,
                 force_points=c.char.force_points,
             )
+        except Exception:
+            log.warning("combat: failed to persist player %s post-round state",
+                        c.id, exc_info=True)
+        if sess and sess.character:
+            sess.character["wound_level"] = c.char.wound_level.value
+            # M-fix (combat CP not persisted): the sync was wound_level-only, so
+            # CP spent on combat bonuses was refunded on reconnect (a CP-dup
+            # exploit). c.char.character_points is the authoritative post-spend
+            # value (floored at 0 by the H8 fix); mirror it into the session.
+            sess.character["character_points"] = c.char.character_points
+            # FP-persist (QA re-run finding): the same gap as CP — a FORCE POINT
+            # spent in combat (declare_force_point) was refunded on reconnect
+            # (FP-dup). Mirror force_points into the session alongside CP/wound.
+            sess.character["force_points"] = c.char.force_points
 
             # ── PG.1.death (Drop 2c, May 19 2026 evening) ──
             # If the PC just died, run the death-side-effects hook:
