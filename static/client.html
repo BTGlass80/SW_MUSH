@@ -12673,13 +12673,27 @@ var ONBOARD_TOUR_KEY = 'm3_onboard_tour_done';
 var _onboardTourSteps = [
   { sel: '#cmd-bar-ground',  text: 'Commands live here. Type, then Enter — the galaxy listens.' },
   { sel: '#qa-row',          text: 'Quick actions stage common commands into the input for you.' },
+  { sel: '.guide-qa-btn',    text: 'Stuck on anything? GUIDES (or just type help) opens the field guides — combat, the Force, crafting, travel — right here, without leaving the game.' },
   { sel: '#g-objective',     text: 'Your current objective. It updates as you progress.' },
   { sel: '#onboard-panel',   text: 'Your training chain. Tap a command chip to stage it, then send.' }
 ];
 var _onboardTourIdx = -1;
 
+// Per-CHARACTER tour gate (was once-per-browser): each new character sees the
+// interface tour once, so a returning player making a fresh character — and a
+// dev cycling test characters — gets it again instead of it being suppressed
+// forever by a single global flag. Falls back to 'anon' before the first HUD.
+function _tourKey() {
+  var id = (lastHud && lastHud.character_id != null) ? lastHud.character_id : 'anon';
+  return ONBOARD_TOUR_KEY + '_' + id;
+}
 function _tourSeen() {
-  try { return localStorage.getItem(ONBOARD_TOUR_KEY) === '1'; }
+  try {
+    // Honour the legacy global flag too, so an existing player who already
+    // dismissed the tour on their main character isn't re-shown it on that
+    // same character; new characters key off the per-character flag.
+    return localStorage.getItem(_tourKey()) === '1';
+  }
   catch (_) { return true; }   // storage unavailable → never loop the tour
 }
 function maybeShowOnboardTour() {
@@ -12738,7 +12752,7 @@ function endOnboardTour() {
   var ov = $('m3o-tour-overlay');
   if (ov) ov.classList.remove('show');
   _onboardTourIdx = -1;
-  try { localStorage.setItem(ONBOARD_TOUR_KEY, '1'); } catch (_) {}
+  try { localStorage.setItem(_tourKey(), '1'); } catch (_) {}
 }
 // UI-7 tour controls live on inline onclick (NEXT / SKIP TOUR / the
 // TRAINING-head ? replay) — they were dead until exported.
