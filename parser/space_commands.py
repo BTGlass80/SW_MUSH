@@ -1349,13 +1349,22 @@ class LandCommand(BaseCommand):
             log.warning("execute: unhandled exception", exc_info=True)
             pass
         char = ctx.session.character
-        credits = char.get("credits", 0)
-        actual_fee = min(credits, docking_fee)
-        if actual_fee < docking_fee:
+        # Credit-integrity: debit against the authoritative DB with
+        # allow_negative=False so a concurrent drain (multi-session, admin
+        # @economy transfer, p2p) cannot drive the real balance negative.
+        # On None (overdraw refused) treat as emergency landing — the player
+        # still docks (landing is never blocked by an inability to pay the
+        # fee; the fee is waived, not a landing-gate).
+        _fee_bal = await ctx.db.adjust_credits(
+            char["id"], -docking_fee, "docking_fee", allow_negative=False)
+        if _fee_bal is None:
+            # DB refused: stale cache had credits but real balance is too low.
             await ctx.session.send_line(
                 f"  Emergency landing! Insufficient credits for {docking_fee}cr docking fee.")
-        if actual_fee > 0:
-            char["credits"] = await ctx.db.adjust_credits(char["id"], -actual_fee, "docking_fee")
+            actual_fee = 0
+        else:
+            char["credits"] = _fee_bal
+            actual_fee = docking_fee
         await ctx.db.update_ship(ship["id"], docked_at=bay["id"])
         get_space_grid().remove_ship(ship["id"])
         # Traffic: a docked ship is already excluded from all space traffic /
@@ -1900,7 +1909,7 @@ class ShipCommand(BaseCommand):
             )
         )
         await ctx.session.send_line(
-            f"  Slots remaining: {template.mod_slots - len(mods)}/{template.mod_slots}."
+            f"  Slots remaining: {t.mod_slots - len(mods)}/{t.mod_slots}."
             if (reg := get_ship_registry()) and (t := reg.get(ship["template"]))
             else ""
         )
@@ -5509,10 +5518,18 @@ async def _run_customs_check(ctx, ship, planet: str) -> None:
                 f"  Fine: {final_fine:,}cr."
             )
 
-        # Deduct fine
-        credits = char.get("credits", 0)
-        paid = min(credits, final_fine)
-        char["credits"] = await ctx.db.adjust_credits(char["id"], -paid, "space_fine")
+        # Deduct fine — credit-integrity: debit against the authoritative DB
+        # with allow_negative=False so a concurrent drain cannot drive the
+        # real balance negative. On None (overdraw refused) treat as partial:
+        # the player owes what they can't pay (same partial-fine behaviour as
+        # before, but without the stale-cache TOCTOU that drove balance < 0).
+        _fine_bal = await ctx.db.adjust_credits(
+            char["id"], -final_fine, "space_fine", allow_negative=False)
+        if _fine_bal is None:
+            paid = 0
+        else:
+            char["credits"] = _fine_bal
+            paid = final_fine
 
         if paid < final_fine:
             await ctx.session.send_line(
@@ -5904,23 +5921,32 @@ async def _handle_buy_cargo(ctx) -> None:
 
     # Supply pool cap (review fix v1) — prevents the unlimited-trade
     # exploit that let a YT-1300 loop generate ~240,000 cr/hr.
+    # Economy-integrity: no planet (never-launched ship or zone with
+    # planet=None) means there is no local market to draw supply from —
+    # block the buy so the supply cap can never be bypassed by parking
+    # at a zone that doesn't resolve to a real planet.
+    if not planet:
+        await ctx.session.send_line(
+            "  No active cargo market at this location. "
+            "Launch and dock at a planet to access trade goods."
+        )
+        return
     avail = 0
-    if planet:
-        avail = SUPPLY_POOL.available(planet, good.key)
-        if avail <= 0:
-            wait = SUPPLY_POOL.seconds_until_refresh(planet, good.key)
-            await ctx.session.send_line(
-                f"  The {good.name} market on {planet.title()} is picked "
-                f"clean. Check back in ~{max(1, wait // 60)} min."
-            )
-            return
-        if quantity > avail:
-            await ctx.session.send_line(
-                f"  Only {avail}t of {good.name} available on "
-                f"{planet.title()} right now. "
-                f"(Local supply refills every 45 min.)"
-            )
-            return
+    avail = SUPPLY_POOL.available(planet, good.key)
+    if avail <= 0:
+        wait = SUPPLY_POOL.seconds_until_refresh(planet, good.key)
+        await ctx.session.send_line(
+            f"  The {good.name} market on {planet.title()} is picked "
+            f"clean. Check back in ~{max(1, wait // 60)} min."
+        )
+        return
+    if quantity > avail:
+        await ctx.session.send_line(
+            f"  Only {avail}t of {good.name} available on "
+            f"{planet.title()} right now. "
+            f"(Local supply refills every 45 min.)"
+        )
+        return
 
     # Bulk-purchase premium (P3 §3.2.D) — large orders relative to current
     # supply pay more per ton. Applied to the per-ton base price BEFORE

@@ -531,8 +531,17 @@ class Session:
                     await self.send_line(text)
             elif msg_type in ("combat_state", "hud_update", "world_event",
                               "news_event", "space_state", "rep_change",
-                              "rank_up", "chargen_start"):
-                pass  # Telnet clients ignore structured JSON messages
+                              "rank_up", "chargen_start",
+                              "space_choices", "space_choices_dismiss",
+                              "space_choices_countdown"):
+                # Telnet clients ignore structured JSON messages.
+                # space_choices* are web-only choice panels; present_choices()
+                # already sends a formatted telnet text menu via
+                # _send_telnet_choices() before this send_json call fires,
+                # and _send_deadline_warning sends its own plain-text line.
+                # Silently dropping these prevents the raw Python repr leak
+                # that the catch-all `str(data)` would emit to telnet players.
+                pass
             else:
                 await self.send_line(str(data))
 

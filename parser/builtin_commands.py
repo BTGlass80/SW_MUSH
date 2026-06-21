@@ -5197,6 +5197,11 @@ async def _handle_sell_cargo(ctx) -> None:
 
     if quantity is None:
         quantity = held
+    elif quantity < 1:
+        # Guard: mirrors the buy-cargo path (space_commands.py). Prevents
+        # ZeroDivisionError on `per_ton = max(1, total_revenue // quantity)`.
+        await ctx.session.send_line("  Quantity must be at least 1 ton.")
+        return
     elif quantity > held:
         await ctx.session.send_line(
             f"  Only {held}t of {good.name} in hold. "
@@ -5210,6 +5215,15 @@ async def _handle_sell_cargo(ctx) -> None:
     from engine.npc_space_traffic import ZONES
     zone_obj = ZONES.get(zone_id)
     planet = zone_obj.planet if zone_obj else ""
+    # Economy-integrity: no planet (never-launched ship or planet=None zone)
+    # means there is no local demand market — block the sell so the demand
+    # pool can never be bypassed. Mirrors the supply-cap block on the buy path.
+    if not planet:
+        await ctx.session.send_line(
+            "  No active cargo market at this location. "
+            "Launch and dock at a planet to sell trade goods."
+        )
+        return
     # Apply demand depression to the sell price (economy audit v2 §1.5 latent
     # fix): a saturated market pays less per ton. Previously this passed the
     # base price and the depression mechanic was inert in production despite the
