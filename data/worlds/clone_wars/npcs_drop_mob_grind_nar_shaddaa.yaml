@@ -1,0 +1,302 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_nar_shaddaa.yaml
+#
+# Nar Shaddaa Hostile Mob Grind Batch (2026-06-21)
+#
+# Six roaming hostile NPCs seeded across Nar Shaddaa lower-level rooms
+# to populate the solo-PvE mob-grind reward loop (engine/hunting_rewards.py).
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone: Nar Shaddaa lower criminal belt — Enforcer Alley, the Warrens
+# (Entry Shaft, Reactor Core Access, Squat Block), Undercity Depths.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF unavailable in this tree; stats
+# grounded in sibling CW NPC patterns (G2/H/GG7 baselines).
+# Tatooine density directive does NOT apply here (Nar Shaddaa).
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # ENFORCER ALLEY — 2 NPCs
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Karrga Enforcer
+    room: "Nar Shaddaa - Enforcer Alley"
+    species: Gamorrean
+    description: >-
+      A broad-shouldered Gamorrean in scarred plasteel shoulder guards,
+      carrying a vibroaxe strapped across its back. Its tusked snout
+      twitches at the smell of credits — or the chance of a fight. It
+      has been hired muscle for three different Hutt-aligned street outfits
+      in the past six months; the current one pays in advance.
+    char_sheet:
+      attributes:
+        dexterity: 2D+1
+        knowledge: 1D+2
+        mechanical: 1D+2
+        perception: 2D
+        strength: 4D+2
+        technical: 1D+2
+      skills:
+        brawling: 5D+2
+        melee_combat: 4D+2
+        intimidation: 3D
+        search: 2D+1
+      weapon: vibroaxe
+      move: 8
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A hired Gamorrean muscle-for-credit, territorial and combative.
+        Attacks anyone who enters its patrol turf without a visible
+        Cartel marker. Grunts and charges; no negotiation.
+      knowledge: []
+      faction: hutt_cartel
+      dialogue_style: "Guttural grunts and low, aggressive snorts."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Gamorrean's tusks snap together in a threatening clack.*"
+        - "*It grips the vibroaxe tighter and takes a step forward.*"
+        - "A low rumble of warning escapes its throat."
+
+  - name: Alley Gunman
+    room: "Nar Shaddaa - Enforcer Alley"
+    species: Human
+    description: >-
+      A lean Human in a scuffed synth-leather jacket, blaster pistol
+      already in hand. He stands in the middle of the alley with the
+      casual menace of someone who has shot people here before and
+      expects to do so again. His eyes track exits before they track faces.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 4D
+        intimidation: 3D+1
+        streetwise_nar_shaddaa: 3D+2
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        Alley-hardened Human enforcer. Shoots first when strangers enter
+        his stretch without credentials. Not impulsive — just practical.
+        Violence is a professional tool and he uses it efficiently.
+      knowledge: []
+      faction: hutt_cartel
+      dialogue_style: "Flat, brief. Identifies threats, not conversations."
+      hostile: true
+      combat_behavior: tactical
+      fallback_lines:
+        - "*He raises the blaster without looking away from you.* 'Wrong alley.'"
+        - "*The enforcer tracks you with his weapon, expression blank.*"
+        - "'Credits or consequence. Those are your options here.'"
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE WARRENS — 3 NPCs
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Warrens Pack Raider
+    room: "Nar Shaddaa - The Warrens - Entry Shaft"
+    species: Rodian
+    description: >-
+      A wiry Rodian crouched near the Entry Shaft ladder, head-fins
+      fanned wide in threat display. Its overlarge eyes track movement
+      with practiced ease; it has lived in the Warrens long enough to
+      know every shadow. The modified blaster at its hip looks well-used.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D+1
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 5D
+        dodge: 4D+2
+        hide: 4D
+        sneak: 4D+1
+        search: 4D+1
+        melee_combat: 4D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 4
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        Rodian ambush predator — holds territory in the Warrens Entry
+        Shaft with a loose pack of fellow raiders. Attacks anything
+        that looks like it carries credits. Retreats into shadows if
+        losing, then re-engages from cover.
+      knowledge: []
+      faction: independent
+      dialogue_style: "Clicks and hisses in Rodese; occasional broken Basic."
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*The Rodian's head-fins snap open and it drops into a combat crouch.*"
+        - "*It hisses something in Rodese and reaches for its blaster.*"
+        - "*The Warrens raider edges toward the shadows, watching you.*"
+
+  - name: Reactor Core Scavenger
+    room: "Nar Shaddaa - The Warrens - Reactor Core Access"
+    species: Devaronian
+    description: >-
+      A Devaronian with filed-down horns and radiation burns across
+      one cheek — the price of long years scavenging the Reactor Core
+      access tunnels. He carries a scrap-metal club and a stolen blaster
+      and has survived here by being more violent than the competition.
+      The burns did something to his patience.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D+2
+        mechanical: 2D+2
+        perception: 3D
+        strength: 3D+1
+        technical: 2D+1
+      skills:
+        blaster: 4D
+        brawling: 4D+2
+        dodge: 4D
+        streetwise_nar_shaddaa: 3D+2
+        stamina: 4D
+        melee_combat: 4D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        Long-term Warrens scavenger ground down by radiation and
+        hard years into something feral. Territorial over the Core
+        Access tunnels; attacks trespassers reflexively. Was once
+        smarter. Now he's just durable and mean.
+      knowledge: []
+      faction: independent
+      dialogue_style: "Short, damaged Basic. Repeats himself under stress."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Devaronian's burned face twists into a snarl.* 'Core is mine.'"
+        - "*He raises his weapon, eyes bright with damaged intensity.*"
+        - "'No one comes here. No one. Get out or get hurt.'"
+
+  - name: Squat Block Territory Boss
+    room: "Nar Shaddaa - The Warrens - Squat Block"
+    species: Weequay
+    description: >-
+      A scarred Weequay who controls the Squat Block through sheer
+      durability — he has absorbed more punishment than anyone in
+      the Warrens and keeps walking. A vibroblade rides on his hip
+      and he carries it loosely, the way people do when they have
+      never needed to hurry with it.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 1D+2
+        mechanical: 2D
+        perception: 2D+2
+        strength: 4D
+        technical: 2D
+      skills:
+        brawling: 5D
+        melee_combat: 4D+2
+        dodge: 3D+2
+        intimidation: 3D+2
+        streetwise_nar_shaddaa: 2D+2
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 4
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        Weequay pack-dominant who has held the Squat Block through
+        violence and durability. Challenges anyone who enters without
+        acknowledgement. Responds to disrespect with immediate force.
+        His authority is entirely physical; he maintains it the same way.
+      knowledge: []
+      faction: independent
+      dialogue_style: "Slow, deliberate Weequay-accented Basic. Speaks last."
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The Weequay turns slowly, one hand dropping to the vibroblade.*"
+        - "'You come in here, you show respect. You haven't.'"
+        - "*He draws the vibroblade with unhurried ease.* 'Last chance.'"
+
+  # ══════════════════════════════════════════════════════════════════
+  # UNDERCITY DEPTHS — 1 NPC
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Undercity Cutthroat
+    room: "Nar Shaddaa - Undercity Depths"
+    species: Human
+    description: >-
+      A Human of indeterminate age in Undercity grays, built lean and
+      fast, who appears in dim light the way bad decisions do — by
+      the time you notice, it's too late to reconsider. The vibrodagger
+      in her hand is custom-weighted for close work. She has been robbing
+      travelers in the Undercity Depths since before the war started.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 3D
+        technical: 2D
+      skills:
+        melee_combat: 4D+2
+        brawling: 4D
+        dodge: 4D+2
+        hide: 4D
+        sneak: 4D
+        streetwise_nar_shaddaa: 3D
+      weapon: vibrodagger_talon
+      move: 10
+      force_points: 1
+      character_points: 4
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        Undercity mugger with too many years in the dark. Strikes fast
+        from concealment; professional, not sadistic. Targets anyone
+        who looks like they have something worth taking. Breaks off if
+        the fight goes badly — dead is the one outcome she avoids.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Quiet. Almost conversational. The blade does the talking.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*She steps from the shadow with the blade already out.* 'Wallet first.'"
+        - "*The cutthroat circles, watching your hands.* 'Don't make this complicated.'"
+        - "*She doesn't threaten. She just closes the distance.*"

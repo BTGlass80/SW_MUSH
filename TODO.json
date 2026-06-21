@@ -3,6 +3,7 @@
   "last_updated": "2026-06-21",
   "architecture_of_record": "sw_d6_mush_architecture_v52.md",
   "_notes": [
+    "2026-06-21 (mob-grind-nar-shaddaa, Sonnet loop): world-content-breadth drop — 6 roaming hostile mobs seeded across Nar Shaddaa lower criminal belt (Enforcer Alley, Warrens x3, Undercity Depths); all satisfy is_huntable_mob(); wired into era.yaml. Pure content, no engine change.",
     "Machine-readable companion to the architecture doc's §3.2 priority ranking and §8 outstanding decisions.",
     "Architecture doc is authoritative on narrative/rationale; this file is authoritative on what to grep on session pickup.",
     "Update at end of every drop alongside CHANGELOG.md. See architecture §5 (drop discipline).",
