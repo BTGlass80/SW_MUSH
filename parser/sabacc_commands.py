@@ -253,7 +253,15 @@ class SabaccCommand(BaseCommand):
         den_rake = 0
         if outcome in ("win", "critical"):
             gross_win = bet
-            house_rake = max(5, int(gross_win * HOUSE_CUT))
+            # SABACC.crit_payout_bonus (Brian 2026-06-21): the legendary
+            # Idiot's Array (a critical) WAIVES the 10% house cut — the house
+            # honors the rarest hand. A win still pays Bet - rake (~x0.9); a
+            # crit pays the full Bet (x1.0). A deliberately small bonus, only
+            # on the rarest outcome, so the faucet delta is negligible.
+            if outcome == "critical":
+                house_rake = 0
+            else:
+                house_rake = max(5, int(gross_win * HOUSE_CUT))
             net_win    = gross_win - house_rake
 
             # ── Player Cities Phase 4b (May 22 2026): city tax on rake ──
@@ -303,9 +311,14 @@ class SabaccCommand(BaseCommand):
 
             new_credits = credits + net_win
             flavour = random.choice(_CRIT_LINES if outcome == "critical" else _WIN_LINES)
+            if outcome == "critical":
+                _rake_msg = "the house waives its cut on the Idiot's Array!"
+            else:
+                _rake_msg = (f"house takes {house_rake:,}cr"
+                             f"{city_rake_msg}{den_msg}")
             result_line = (
                 f"  {ansi.BRIGHT_GREEN}YOU WIN{ansi.RESET}  "
-                f"+{net_win:,}cr  (house takes {house_rake:,}cr{city_rake_msg}{den_msg})"
+                f"+{net_win:,}cr  ({_rake_msg})"
             )
             cooldown_ts = now  # Full WIN_COOLDOWN
         else:

@@ -70,7 +70,7 @@ A single hand resolves in one exchange:
 
 | Outcome | Net result |
 |---|---|
-| **Critical success** (wild die exploded, and you beat the dealer) | Same credits as a Win (**+Bet × 0.9**), plus the `[CRITICAL]` recognition, special flavor, and the sabacc-win achievement |
+| **Critical success** (wild die exploded, and you beat the dealer) | **Full bet (+Bet × 1.0)** — the house **waives its 10% cut** to honor the rarest hand — plus the `[CRITICAL]` recognition, special flavor, and the sabacc-win achievement |
 | **Win** | **+Bet × 0.9** (10% house cut on the winnings) |
 | **Tie** | Bet lost (dealer wins ties) |
 | **Loss** | Bet lost |
@@ -78,7 +78,7 @@ A single hand resolves in one exchange:
 
 Your stake is never escrowed — a hand resolves as a single net swing. **Win and you gain 90% of the bet** (the house keeps a 10% cut of the winnings, floored at 5 cr); **lose, tie, or fumble and you lose the bet.** So a 100 cr bet won nets you **+90 cr**; a 1,000 cr bet won nets **+900 cr**.
 
-A **critical** (an exploding wild die on a winning hand — the "Idiot's Array") pays the **same credits as an ordinary win** — there is no cash bonus for a crit. What you get is the recognition: the dramatic `[CRITICAL]` line, the rare flavor text, and the win still counts toward the sabacc achievement. The hand is a story, not a jackpot.
+A **critical** (an exploding wild die on a winning hand — the "Idiot's Array") pays a small premium over an ordinary win: the house **waives its 10% cut**, so a crit pays the **full bet** (Bet × 1.0) instead of a win's Bet × 0.9. On a 200 cr bet that's **+200 cr** versus a win's +180 — a modest bonus that honors the rarest hand in the game. You also get the recognition: the dramatic `[CRITICAL]` line, the rare flavor text, and the win counts toward the sabacc achievement. The hand is both the story *and* a small jackpot.
 
 > **Den & city note.** If the cantina is a Hutt-cartel **den**, the house's 10% rake flows to the cartel's treasury (the criminal-empire loop); if a player **city** taxes the room, the city takes a slice of that rake first. Either way your net winnings are unchanged — the rake is the *house's* edge, not money out of your pocket.
 

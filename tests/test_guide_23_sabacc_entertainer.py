@@ -94,17 +94,17 @@ class TestSabaccNumbers:
         assert "5-minute cooldown" in guide_text or "5 minutes" in guide_text
         assert "2-minute cooldown" in guide_text or "2 minutes" in guide_text
 
-    def test_crit_pays_same_as_win_in_code(self):
-        """Win and Critical share ONE payout branch — a crit is no jackpot."""
+    def test_crit_waives_the_house_cut(self):
+        """SABACC.crit_payout_bonus (Brian 2026-06-21): the rare crit WAIVES
+        the 10% house rake (Bet x 1.0 vs a win's x 0.9) — a small bonus on the
+        rarest hand, NOT a payout multiplier/doubling."""
         src = _read(SABACC_SRC)
-        assert 'outcome in ("win", "critical")' in src, (
-            "Sabacc crit/win payout branches diverged — re-verify Guide_23's "
-            "claim that a crit pays the same credits as a win"
+        assert 'if outcome == "critical":' in src and "house_rake = 0" in src, (
+            "the sabacc crit must WAIVE the house cut (house_rake = 0 on a crit)"
         )
-        # There must be no dedicated crit-payout multiplier constant.
-        assert not re.search(r"CRIT.*=.*2\b", src), (
-            "A crit-payout multiplier appeared in sabacc — Guide_23 says a crit "
-            "carries no cash bonus"
+        # It is a cut-WAIVE, not a runaway payout multiplier.
+        assert not re.search(r"CRIT.*=.*[2-9]\b", src), (
+            "the crit bonus must be a house-cut waive, not a payout multiplier"
         )
 
     def test_guide_drops_the_crit_double_phantom(self, guide_text):

@@ -184,7 +184,10 @@ class SabaccTelemetryTests(unittest.TestCase):
         evs = _events()
         self.assertEqual(evs[0]["outcome"], "critical")
         self.assertTrue(evs[0]["critical"])
-        self.assertEqual(evs[0]["net"], 90)        # crit pays same as win (no jackpot)
+        # SABACC.crit_payout_bonus: a crit WAIVES the 10% house cut, so it pays
+        # the full bet (100) vs a win's 90. The rake is 0 on a crit.
+        self.assertEqual(evs[0]["net"], 100)
+        self.assertEqual(evs[0]["rake"], 0)
 
     def test_fumble_outcome_recorded(self):
         self._run(player_roll=25, dealer_roll=5, fumble=True)
