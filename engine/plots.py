@@ -70,6 +70,20 @@ async def get_open_plots(db, limit: int = 30) -> list:
     return [dict(r) for r in rows]
 
 
+async def get_closed_plots(db, limit: int = 30) -> list:
+    """Get closed (resolved) plots, most recently updated first.
+
+    Powers `+plots closed` — browsing finished story arcs in the archive."""
+    rows = await db.fetchall(
+        """SELECT * FROM plots
+           WHERE status = ?
+           ORDER BY updated_at DESC
+           LIMIT ?""",
+        (STATUS_CLOSED, limit)
+    )
+    return [dict(r) for r in rows]
+
+
 async def get_all_plots(db, limit: int = 50, include_closed: bool = True) -> list:
     """Get all plots for portal display."""
     if include_closed:
