@@ -30,8 +30,8 @@ MULTIPLE CORPSES
   If several corpses are in the room, loot matches the first
   whose owner-name starts with the string you type.
 
-  loot storm    — matches "Stormtrooper" if it is the only one
-  loot storm blaster_pistol   — take only the blaster
+  loot battle   — matches "Battle Droid" if it is the only one
+  loot battle blaster_pistol   — take only the blaster
 
 ITEM KEYS
 
