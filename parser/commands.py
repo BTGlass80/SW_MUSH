@@ -547,6 +547,23 @@ class CommandParser:
                 log.debug("chain_events command hook error: %s", _ce,
                           exc_info=True)
 
+            # ── NPE-C2: first-hit contextual help nudge ──
+            # The first time this character uses a major subsystem
+            # (combat / shop / craft / inter-world travel), surface a
+            # one-line pointer to the relevant in-game field guide. Fires
+            # at most once per subsystem per character (a 'seen_hints' map
+            # in the attributes blob). Match on the resolved cmd.key so
+            # aliases (kill/att/shoot/dock) normalize. Best-effort: a hint
+            # failure must never break the command.
+            try:
+                from engine.contextual_hints import maybe_emit_first_hit_hint
+                await maybe_emit_first_hit_hint(
+                    ctx.session, ctx.db, ctx.session.character, cmd.key,
+                )
+            except Exception as _he:
+                log.debug("contextual hint hook error: %s", _he,
+                          exc_info=True)
+
         # ── HUD update for WebSocket clients ──
         # Send structured state after every command so the browser
         # sidebar stays current without regex-parsing output text.

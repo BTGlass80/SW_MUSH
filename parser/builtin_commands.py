@@ -815,18 +815,23 @@ class LookCommand(BaseCommand):
                     f"{ansi.RESET}"
                 )
             else:
-                # Few NPCs: show full descriptions
+                # Few NPCs: name + physical description. Keep "<Name> is
+                # here." on its OWN line and push the description to a
+                # separate wrapped line (mirroring LookCommand._look_at).
+                # A combined "<Name> is here. <desc>" single line gets
+                # mis-classified by the web client's pose matcher
+                # (static/client.html simplePoseMatch) as a loud NPC *pose*
+                # once the NPC is a known actor — e.g. it posed during
+                # combat — re-rendering the full description in the bright
+                # pose style instead of the dim desc style. Splitting the
+                # lines keeps the description where it belongs.
                 for npc in npcs:
+                    await session.send_line(
+                        f"  {ansi.npc_name(npc['name'])} is here."
+                    )
                     desc = npc.get("description", "")
                     if desc and not desc.startswith("["):
-                        await session.send_line(
-                            f"  {ansi.npc_name(npc['name'])} is here."
-                            f" {desc}"
-                        )
-                    else:
-                        await session.send_line(
-                            f"  {ansi.npc_name(npc['name'])} is here."
-                        )
+                        await session.send_prose(desc, indent="    ")
 
         await session.send_line("")
 

@@ -5986,7 +5986,16 @@ function classifyAndAppend(rawText) {
     // current room occupants from `present` events). Unknown capitalized
     // first words fall through to plain text (correct for prose).
     var simplePoseMatch = stripped.match(/^([A-Z][\w'-]*(?:\s[A-Z][\w'-]*){0,3})\s+([a-z][a-z'-]+(?:s|es|ed)?)\s+(.{8,})$/);
-    if (simplePoseMatch && !looksLikeSysLine(stripped) &&
+    // GUARD 2 (room-presence): a "<Name> is here. <description>" line from
+    // look / room-contents parses as name="Name", verb="is", rest="here. <desc>".
+    // It is NOT a pose — without this guard the trailing physical description
+    // renders in the loud .pose-body style instead of dim desc once the NPC is
+    // a known actor (e.g. it posed during combat). The server now splits the
+    // line too, but keep this as defense-in-depth for any other emitter.
+    var isPresenceLine = simplePoseMatch &&
+        /^(?:is|are|was|were)$/.test(simplePoseMatch[2]) &&
+        /^here\b/.test(simplePoseMatch[3]);
+    if (simplePoseMatch && !isPresenceLine && !looksLikeSysLine(stripped) &&
         isKnownActor(simplePoseMatch[1])) {
       appendEvent({
         t: isSelfName(simplePoseMatch[1]) ? 'pose-self' : 'pose',
