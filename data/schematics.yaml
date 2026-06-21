@@ -853,7 +853,7 @@ schematics:
       - type: organic
         quantity: 2
         min_quality: 50
-    output_type: weapon
+    output_type: armor
     output_key: bounty_hunter_armor
     base_cost: 8500
 

@@ -706,17 +706,26 @@ class FactionCommand(BaseCommand):
             return
         room_id = char.get("room_id")
         from engine.territory import (
-            is_room_claimed_by, get_armory_lines,
+            is_region_owned_by, get_armory_lines,
             armory_deposit_item, armory_withdraw_item,
             armory_withdraw_resources,
         )
 
-        # Must be in a claimed room for this faction
-        if not await is_room_claimed_by(ctx.db, room_id, faction_id):
+        # Must be standing in a wilderness region this faction OWNS. SYN.1.b
+        # (2026-05-24) retired per-room claims; armory access is region-scoped.
+        # This mirrors the gate the deposit/withdraw engine fns already enforce
+        # — and crucially protects the `view` path below, which has no gate of
+        # its own. The prior `is_room_claimed_by` call hit a retired stub that
+        # always returned False, so the armory (view + deposit + withdraw) was
+        # unreachable for EVERY player in EVERY room. (QA 2026-06-21.)
+        _room = await ctx.db.get_room(room_id) if room_id else None
+        _region_slug = (_room or {}).get("wilderness_region_id")
+        if not _region_slug or not await is_region_owned_by(
+                ctx.db, _region_slug, faction_id):
             await ctx.session.send_line(
-                "  You must be standing in one of your faction's claimed rooms "
-                "to access the armory.\n"
-                "  Use \033[1;37mfaction territory\033[0m to see your claimed rooms."
+                "  You must be standing in one of your faction's owned "
+                "wilderness regions to access the armory.\n"
+                "  Use \033[1;37mfaction territory\033[0m to see your owned regions."
             )
             return
 

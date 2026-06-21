@@ -460,9 +460,23 @@ def resolve_force_power(
         result.effect_payload["resist_roll"] = mind_resist_total
 
     # ── DSP award ─────────────────────────────────────────────────────────────
+    # A dark-side power stains the caller for the ACT of reaching into the dark
+    # side: "calling upon the dark side" (WEG40120 p.81 — a DSP is for *doing
+    # evil*, the action, not the dice result) is the corruption, so the DSP
+    # attaches to the attempt, not the mechanical success of the roll. This
+    # matches the existing extra_dsp_on_fail design. On a FAILED cast we add a
+    # connective narrative line so the message reads coherently instead of
+    # "...the power has no effect." immediately followed by an unexplained
+    # DSP gain. (QA 2026-06-21 — a message-contradiction fix, NOT a balance
+    # change: DSP accrual is unchanged.)
     if power.dark_side:
         result.dsp_gained = 1
         char.dark_side_points += 1
+        if not result.success:
+            narrative_parts.append(
+                "  Yet you reached into the dark side to do it — and the "
+                "reaching itself leaves its mark."
+            )
         narrative_parts.append(
             f"  {_dsp_warning(char.dark_side_points)}"
         )

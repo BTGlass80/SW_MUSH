@@ -13,6 +13,7 @@ attributes, force_points, dark_side_points) without touching combat_commands.py.
 """
 import json
 import logging
+import os
 
 from parser.commands import BaseCommand, CommandContext, AccessLevel
 from engine.character import Character, SkillRegistry
@@ -41,7 +42,13 @@ def _get_skill_reg() -> SkillRegistry:
     global _SKILL_REG_CACHE
     if _SKILL_REG_CACHE is None:
         _SKILL_REG_CACHE = SkillRegistry()
-        _SKILL_REG_CACHE.load_file("data/skills.yaml")
+        # __file__-anchored absolute path (mirrors engine.character.
+        # get_cached_skill_registry) so force/powers/forcestatus work no matter
+        # the server's CWD. The bare relative "data/skills.yaml" raised
+        # FileNotFoundError when launched from a non-root CWD, which the parser
+        # surfaced to the player as a generic "An error occurred". (QA 2026-06-21.)
+        _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        _SKILL_REG_CACHE.load_file(os.path.join(_root, "data", "skills.yaml"))
     return _SKILL_REG_CACHE
 
 
