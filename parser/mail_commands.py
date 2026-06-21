@@ -34,6 +34,13 @@ from server import ansi
 
 log = logging.getLogger(__name__)
 
+# QA 2026-06-20: in-game mail had NO server-side body cap, so a single
+# @mail/quick could persist a 262 KB body (and ten of them ~2.6 MB) into the
+# mail table — a cheap storage-DoS. Cap at the storage seam (the chargen
+# background norm is 2000; mail is allowed a generous multi-page 8000). The
+# body is TRUNCATED (not rejected) so a legitimately long letter still sends.
+MAX_MAIL_BODY_LEN = 8000
+
 
 # ── Compose state per session ─────────────────────────────────────────────────
 # {session_id: {"to": [char_id, ...], "to_names": [...], "subject": str, "lines": [str]}}
@@ -327,6 +334,16 @@ class MailCommand(BaseCommand):
     async def _do_send(self, ctx, state: dict):
         char_id = ctx.session.character["id"]
         body = "\n".join(state["lines"])
+        # Storage-seam cap (QA 2026-06-20): the single chokepoint for every
+        # player mail path (compose, @mail/quick, @mail/reply all route here).
+        if len(body) > MAX_MAIL_BODY_LEN:
+            body = body[:MAX_MAIL_BODY_LEN]
+            try:
+                await ctx.session.send_line(
+                    f"  (Your message was truncated to "
+                    f"{MAX_MAIL_BODY_LEN:,} characters.)")
+            except Exception:
+                pass
         subject = state["subject"]
         to_ids = state["to"]
         to_names = state["to_names"]
