@@ -122,7 +122,8 @@ chains:
         npc: "Major Tarrn"
         npc_role: instructor
         teaches: ["look", "+sheet"]
-        objective: "Look around, check your sheet, and report to Major Tarrn."
+        objective: "Type 'look' to get your bearings and '+sheet' to check your gear, then 'talk Major Tarrn' to report in."
+        command_to_type: "talk Major Tarrn"
         npc_intro: >
           "Stand at attention, trooper. I'm Major Tarrn, your CO for this
           briefing cycle. Look around, confirm your gear with +sheet,
@@ -149,6 +150,7 @@ chains:
         npc_role: instructor
         teaches: ["attack", "dodge"]
         objective: "Defeat two simulated B1 battle droids."
+        command_to_type: "attack"
         npc_intro: >
           "Trooper. Drill ration: two B1 droids, weapons set to non-lethal.
           Your DC-15 stays on full live-fire — they don't. Standard
@@ -173,6 +175,7 @@ chains:
         npc_role: instructor
         teaches: ["+missions", "accept"]
         objective: "Accept your first deployment from the mission board."
+        command_to_type: "+missions"
         npc_intro: >
           "Sims passed. Congratulations, you're now overqualified for
           everything you'll actually do. Your assignment's on the board
@@ -278,7 +281,8 @@ chains:
         npc: "Director Naya Vell"
         npc_role: instructor
         teaches: ["look", "+sheet", "say"]
-        objective: "Listen to the recruitment pitch and accept the role."
+        objective: "When Director Vell finishes the pitch, type 'say I accept' to take the job."
+        command_to_type: "say I accept"
         npc_intro: >
           "You weren't supposed to find this address. The fact that you
           did is exactly why you're here. Look around. Check your sheet
@@ -305,6 +309,7 @@ chains:
         npc_role: antagonist
         teaches: ["look", "examine"]
         objective: "Locate Bren Kost without being noticed."
+        command_to_type: "examine Kost"
         npc_intro: >
           [Director Vell on comlink]: "He's there. Booth in the back.
           Don't talk to him. Use `examine` on the booth area to confirm
@@ -575,7 +580,8 @@ chains:
         npc: "Tactical Droid TQ-89"
         npc_role: instructor
         teaches: ["look", "+sheet"]
-        objective: "Acknowledge the briefing and check your gear."
+        objective: "Type '+sheet' to confirm your equipment for Tactical Droid TQ-89."
+        command_to_type: "+sheet"
         npc_intro: >
           "[TQ-89, modulated]: Designation accepted. You are a sentient
           unit assigned to Battalion Verdant. Look around. Confirm your
@@ -602,6 +608,7 @@ chains:
         # to reflect only the real player command used here.
         teaches: ["attack"]
         objective: "Defeat two republic combat sims with droid support."
+        command_to_type: "attack"
         npc_intro: >
           "[B2-7745]: Sentient unit, move in alongside droid units.
           Engage hostiles on contact. Two Republic clone-troop simulants.
@@ -626,6 +633,7 @@ chains:
         npc_role: instructor
         teaches: ["+missions", "accept"]
         objective: "Accept your first CIS field deployment."
+        command_to_type: "+missions"
         npc_intro: >
           "[TQ-89]: Sentient unit cleared for field assignment. The
           mission file is loaded. Use `+missions` and accept assignment
@@ -722,7 +730,8 @@ chains:
         npc: "Sevra Toryn"
         npc_role: instructor
         teaches: ["look", "say"]
-        objective: "Listen to the offer and signal your interest."
+        objective: "Hear Sevra out, then type 'say Geonosis' to signal you're in."
+        command_to_type: "say Geonosis"
         npc_intro: >
           "You're alone. That's good. Sit. I've been watching you. The
           Republic has not been kind. The Confederacy is recruiting.
@@ -749,6 +758,7 @@ chains:
         npc_role: contact
         teaches: ["examine", "use"]
         objective: "Decrypt the sealed packet."
+        command_to_type: "use sealed_data_packet"
         npc_intro: >
           [Comlink, Sevra]: "Use the packet. It's keyed to your bio-sig.
           Inside is your handler ID and the dead-drop location. Memorize
@@ -889,7 +899,8 @@ chains:
         npc: "Adjudicator Kaeleth Voss"
         npc_role: instructor
         teaches: ["look", "+sheet"]
-        objective: "Pass the Guild's intake interview."
+        objective: "Type '+sheet' to show Adjudicator Voss your record and pass intake."
+        command_to_type: "+sheet"
         npc_intro: >
           "Another one. Sit down. I'm Voss, BHG adjudicator for this
           chapter. I'll vet you. Look around — this is where you'll
@@ -912,6 +923,7 @@ chains:
         npc_role: instructor
         teaches: ["+bounties", "accept"]
         objective: "Accept a tier-1 contract from the board."
+        command_to_type: "+bounties"
         npc_intro: >
           "Lowest tier. Don't get cute. The smart money on your first
           contract is `Tarko Vinn` — petty smuggler, last seen in the
@@ -1042,7 +1054,8 @@ chains:
         npc: "Captain Reggi Voss"
         npc_role: instructor
         teaches: ["look", "+sheet"]
-        objective: "Sign on as crew with Captain Voss."
+        objective: "Type '+sheet' so Captain Voss can size you up and sign you on."
+        command_to_type: "+sheet"
         npc_intro: >
           "You're the new hand? Look you over — `+sheet` if you don't
           mind. I run a YT-1300 called the *Mynock's Promise*. Crew of
@@ -1066,6 +1079,7 @@ chains:
         npc_role: contact
         teaches: ["examine", "talk"]
         objective: "Take delivery of the cargo from Vresh."
+        command_to_type: "examine crate"
         npc_intro: >
           "[Vresh, in Huttese-laced Basic]: Voss sent you. Crate is
           there. Examine it — you must know what you carry, even if
@@ -1088,6 +1102,7 @@ chains:
         npc_role: instructor
         teaches: ["talk"]
         objective: "Report to Captain Voss to lift off for Nar Shaddaa."
+        command_to_type: "talk Captain Reggi Voss"
         npc_intro: >
           "Cargo aboard? Good. Strap in. I'll handle the controls — you
           watch the sensor board. Tell me when you're set and we'll
@@ -1215,7 +1230,8 @@ chains:
         npc: "Foreman Andrim Purkis"
         npc_role: instructor
         teaches: ["look", "+sheet"]
-        objective: "Report to Foreman Purkis and check your gear."
+        objective: "Type '+sheet' to show Foreman Purkis your starting tools."
+        command_to_type: "+sheet"
         npc_intro: >
           "You're the new apprentice. I'm Purkis — Shipwrights' Guild,
           KDY contracted. House Andrim runs this bay. Look around. Use
@@ -1264,6 +1280,7 @@ chains:
         npc_role: contact
         teaches: ["survey", "+craft"]
         objective: "Requisition a capacitor coil from the parts crib."
+        command_to_type: "+craft"
         npc_intro: >
           [Comlink, Purkis]: "`survey` shows what's in stock. The part
           you want is a capacitor coil. Type `+craft` to open the

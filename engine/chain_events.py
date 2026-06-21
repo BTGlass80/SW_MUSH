@@ -1276,6 +1276,10 @@ def get_active_step_info(char: dict, era: Optional[str] = None,
         # web onboarding panel can render a NEXT line under the
         # objective (it was authored in the corpus but never sent).
         "next_hint": step.next_hint or "",
+        # NPE-A (2026-06-20): the spotlight command for the web panel's
+        # "TYPE" chip (additive; "" = no spotlight). getattr-guarded so an
+        # older corpus dataclass without the field still works.
+        "command_to_type": getattr(step, "command_to_type", "") or "",
         "completed_steps": list(
             (attrs.get(state_key) or {}).get("completed_steps") or []
         ),
@@ -1508,6 +1512,10 @@ def build_onboarding_state(char: dict, era: Optional[str] = None
                 # step / graduation, rendered as a NEXT line in the
                 # web panel.
                 "next_hint": info.get("next_hint", ""),
+                # NPE-A (2026-06-20): the single canonical command to type
+                # for this step, rendered as a spotlight "TYPE" chip
+                # (additive; "" suppresses it).
+                "command_to_type": info.get("command_to_type", ""),
             }
 
         # No ACTIVE chain — distinguish "graduated" from "never had one".

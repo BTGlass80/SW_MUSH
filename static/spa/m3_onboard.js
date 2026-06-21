@@ -8,9 +8,16 @@
 
      active    → { active:true, chain_id, chain_name, step, total_steps,
                    completed_steps:[int], title, objective, location,
-                   npc, npc_role, npc_intro, teaches:[str], completion_type }
+                   npc, npc_role, npc_intro, teaches:[str], completion_type,
+                   next_hint, command_to_type }
      graduated → { active:false, graduated:true, chain_id, chain_name }
                  (pushed once, on the active→graduated transition only)
+
+   NPE-A (2026-06-20): `command_to_type` (optional) is the single
+   canonical command for this step; when present it renders as a
+   spotlight "TYPE" chip above the teach chips, staging the FULL runnable
+   command. Empty/absent → no spotlight (the honest rail holds: the panel
+   renders only the corpus-authored literal; it cannot invent a verb).
 
    Three honest rails:
    • Every staged string is either a corpus-authored `teaches` token
@@ -218,6 +225,32 @@ function render(bodyEl, data, stage, onDismiss){
       el('span', {class: 'm3o-next-text', text: data.next_hint})
     ]));
   }
+  // NPE-A (2026-06-20): spotlight the single "type this next" command
+  // above the teach chips when the corpus authored one. Reuses the
+  // .m3o-chips row + .m3o-chip.attempt prominent style (no new CSS) and
+  // stages the FULL runnable command via the data-teach-cmd path.
+  // skill_check_passed steps carry no command_to_type — teachChips
+  // already renders their dedicated ATTEMPT chip, so there is no overlap.
+  if (data.command_to_type){
+    var spotRow = el('div', {class: 'm3o-chips'});
+    spotRow.appendChild(el('button', {
+      class: 'm3o-chip attempt', type: 'button',
+      'data-teach-cmd': data.command_to_type,
+      text: 'TYPE · ' + data.command_to_type
+    }));
+    spotRow.onclick = function(ev){
+      var t = ev.target;
+      while (t && t !== spotRow &&
+             !(t.getAttribute && t.getAttribute('data-teach-cmd'))){
+        t = t.parentNode;
+      }
+      if (t && t !== spotRow && stage){
+        stage(t.getAttribute('data-teach-cmd'));
+      }
+    };
+    bodyEl.appendChild(spotRow);
+  }
+
   bodyEl.appendChild(teachChips(data, stage));
 
   pulseQuickActions(data.teaches);

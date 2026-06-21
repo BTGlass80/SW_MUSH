@@ -107,6 +107,13 @@ class TutorialStep:
     npc_complete: str
     reward: dict
     next_hint: str
+    # NPE-A (2026-06-20): the single canonical command a player types to
+    # make progress on THIS step, rendered as a spotlight "TYPE" chip in
+    # the web onboarding panel. Optional/additive — "" = no spotlight (the
+    # panel falls back to the teach chips). skill_check_passed steps are
+    # left "" because the panel already renders a dedicated ATTEMPT chip
+    # (`chain attempt`). Never a phantom verb — guarded by a corpus test.
+    command_to_type: str = ""
 
 
 @dataclass
@@ -473,6 +480,8 @@ def _parse_step(sb: dict, cid: str, sidx: int) -> tuple:
             npc_complete=str(sb["npc_complete"]),
             reward=dict(sb.get("reward") or {}),
             next_hint=str(sb["next_hint"]),
+            # NPE-A: optional spotlight command (additive; missing -> "").
+            command_to_type=str(sb.get("command_to_type") or ""),
         ),
         errors,
     )
