@@ -79,7 +79,7 @@ class RoomTimer:
 # but we resolve via DB zone names since that's what rooms store.
 
 _ZONE_NAME_TO_KEY: dict[str, str] = {
-    # These are the zone names created by build_mos_eisley.py
+    # GCW-era zone names (build_mos_eisley.py descriptive names → short keys)
     "spaceport district": "spaceport",
     "spaceport": "spaceport",
     "central streets": "streets",
@@ -98,22 +98,49 @@ _ZONE_NAME_TO_KEY: dict[str, str] = {
     "industrial": "shops",
     "outskirts": "default",
     "docking": "spaceport",
+    # CW-era zone slugs (zones.yaml key → ambient_events.yaml pool key).
+    # Only needed where slug != pool key; same-name slugs fall through to
+    # the direct-name fallback in _resolve_zone_key.
+    "kamino_tipoca_city": "kamino_tipoca",
+    "kamino_cloning_halls": "kamino_training",
+    "kamino_ocean_platform": "kamino_ocean",
+    "geonosis_petranaki": "geonosis_arena",
+    "geonosis_surface": "geonosis_wastes",
+    "geonosis_deep_hive": "geonosis_tunnels",
+    "geonosis_barracks": "geonosis_arena",    # gladiator barracks ≈ arena tone
+    "geonosis_ey_akh": "geonosis_wastes",    # open desert ≈ wastes tone
+    "kdy_orbital_ring": "kuat_orbital",
+    "kuat_city_embassy": "kuat_surface",
+    "kuat_main_spaceport": "kuat_transit",
+    "coruscant_underworld": "southern_underground",
+    "entertainment_district": "commercial_district",
 }
 
 
 def _resolve_zone_key(zone_name: Optional[str]) -> str:
-    """Map a DB zone name to a YAML ambient pool key."""
+    """Map a DB zone name to a YAML ambient pool key.
+
+    Tries in order:
+    1. Explicit lookup in _ZONE_NAME_TO_KEY (handles GCW descriptive names
+       and CW slug→key mismatches).
+    2. Substring fallback against _ZONE_NAME_TO_KEY keys.
+    3. Return the normalized zone name directly — CW zone slugs whose slug
+       equals their ambient pool key (senate_district, jedi_temple, space_*)
+       are resolved this way; _pick_line falls back to "default" if the key
+       has no pool entry.
+    """
     if not zone_name:
         return "default"
-    key = _ZONE_NAME_TO_KEY.get(zone_name.lower().strip())
+    normalized = zone_name.lower().strip()
+    key = _ZONE_NAME_TO_KEY.get(normalized)
     if key:
         return key
-    # Try substring match as last resort
-    name_lower = zone_name.lower()
+    # Substring fallback (handles partial GCW zone name variants)
     for pattern, mapped_key in _ZONE_NAME_TO_KEY.items():
-        if pattern in name_lower:
+        if pattern in normalized:
             return mapped_key
-    return "default"
+    # Direct name fallback: CW zone slugs that match their pool key verbatim
+    return normalized
 
 
 # ── Manager ──
