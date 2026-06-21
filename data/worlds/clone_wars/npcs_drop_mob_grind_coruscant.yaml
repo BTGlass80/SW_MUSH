@@ -1,0 +1,362 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_coruscant.yaml
+#
+# Coruscant Underworld Hostile Mob Grind Batch (2026-06-21)
+#
+# Six roaming hostile NPCs seeded across Coruscant lower-city and
+# underworld rooms to populate the solo-PvE mob-grind reward loop
+# (engine/hunting_rewards.py).
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread: Invisible Sector - Main Street, The Ice Crypts,
+# Lower City Black Market, Factory District,
+# Southern Underground, Coruscant Works - Industrial Sublevel.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats grounded in sibling CW NPC patterns
+#   (npcs_drop_mob_grind_nar_shaddaa.yaml, npcs_drop_mob_grind_geonosis.yaml);
+#   sourcebooks absent in this tree — stats UNVERIFIED against WEG40120 PDF.
+# Weapons: blaster_pistol, vibroblade, heavy_blaster_pistol, vibrodagger_talon,
+#   vibroaxe — all keys confirmed in data/weapons.yaml.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # INVISIBLE SECTOR - MAIN STREET — 1 NPC
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Sector Enforcer
+    room: "Coruscant - Invisible Sector - Main Street"
+    species: Twi'lek
+    description: >-
+      A Twi'lek woman in close-fitted dark clothing, lekku wrapped
+      tight against her shoulders — practical street armor against
+      anything that might grab them. She stands at the edge of a
+      pool of amber light with the stillness of someone who has
+      claimed this stretch for years and defended it enough times
+      that claiming it now requires only presence. A blaster sits
+      loose on her thigh. She is looking at you in a way that
+      establishes a question she will only ask once.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 4D+1
+        hide: 4D
+        sneak: 4D
+        streetwise_coruscant: 3D+2
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        Invisible Sector territorial who has held this stretch through
+        calculated violence and a reputation for not missing. She
+        does not challenge strangers — she watches them cross the
+        threshold and decides in the first five seconds whether
+        they belong here. When she decides they do not, the
+        conversation is already over.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Quiet, measured Basic with a faint Ryloth cadence. One
+        sentence before the blaster clears the holster.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*She holds very still, watching you.* 'Wrong street.'"
+        - "*The blaster rises in one smooth motion.* 'You had your chance.'"
+        - "*Her lekku twitch — the only warning before she moves.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # THE ICE CRYPTS — 1 NPC
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Crypt Stalker
+    room: "Coruscant - The Ice Crypts"
+    species: Aqualish
+    description: >-
+      A blocky Aqualish with two of his four eyes filmed over by
+      scar tissue — a past that did not end badly for him, evidently,
+      since he is still here. The Ice Crypts have kept him fed for
+      three years, preying on travelers who take the shortcut and
+      discover the reason most people do not. He carries a vibroblade
+      in the lower-right hand and keeps the upper pair free for
+      grappling. Up close, there is no gap between these two facts.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 1D+2
+        mechanical: 2D
+        perception: 2D+1
+        strength: 3D+2
+        technical: 2D
+      skills:
+        brawling: 4D+2
+        melee_combat: 4D+1
+        dodge: 3D+2
+        intimidation: 3D+2
+        search: 3D
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        Predatory Aqualish who has made the Ice Crypts his hunting
+        ground. He is not angry — violence is simply the method
+        that has worked. He moves to cut off exits before
+        announcing himself and is already in position before
+        you realize he has been tracking you.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Low, wet Aqualish gurgling with occasional broken Basic.
+        He speaks after he has already moved into position.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*A wet, low sound — and then he is much closer than he was.*"
+        - "*The Aqualish blocks the passage behind you without seeming to hurry.*"
+        - "'No through traffic.' *The vibroblade hums to life.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # LOWER CITY BLACK MARKET — 1 NPC
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Market Bruiser
+    room: "Coruscant - Lower City Black Market"
+    species: Nikto
+    description: >-
+      A Nikto in a short-cut jacket that does not try to conceal
+      the heavy blaster at his hip — concealment is not the point.
+      The point is the market behind him and the clear, wordless
+      message that the distance between him and it is not something
+      you will cover without his agreement. His species' natural
+      expression sits somewhere between indifferent and ready;
+      today it is closer to ready. He has been working this post
+      for a Hutt-adjacent enterprise long enough that the stance
+      is unconscious.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 2D
+      skills:
+        brawling: 4D+2
+        blaster: 3D+2
+        dodge: 3D
+        intimidation: 4D
+        search: 3D
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        Cartel-aligned muscle whose job is to deter access, not
+        have conversations. He sizes up arrivals by threat and
+        credit potential and acts accordingly. Strangers who
+        look like trouble get one second of consideration before
+        he acts on the answer he already has.
+      knowledge: []
+      faction: hutt_cartel
+      dialogue_style: >-
+        Short Basic, no wasted syllables. 'No' is the most he
+        offers before the heavy blaster clears leather.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He shifts his weight, one hand dropping to the blaster.* 'Market's closed.'"
+        - "*A flat look, then the heavy blaster is in his hand.* 'Last chance.'"
+        - "'Not today.' *The blaster is already leveled.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # FACTORY DISTRICT — 1 NPC
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Factory Block Boss
+    room: "Coruscant - Factory District"
+    species: Human
+    description: >-
+      A heavyset Human in work-hardened clothing that started as
+      factory coveralls and has since accumulated modifications —
+      reinforced shoulders, hidden plates, a blaster mount that
+      was not part of the original design. He runs the block through
+      a combination of size, longevity, and a willingness to collect
+      protection fees personally from anyone who disputes the
+      arrangement. Three shifts of factory workers know his face and
+      walk a wide arc around it.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 3D+1
+        technical: 2D
+      skills:
+        blaster: 4D+1
+        brawling: 4D
+        dodge: 4D
+        intimidation: 4D+1
+        streetwise_coruscant: 3D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 4
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        Factory district strongman who has run his block long enough
+        to have stopped explaining himself. He challenges strangers
+        once — a look, a step forward — and reads the response.
+        He has no patience for people who do not read the situation
+        correctly, and considerable experience extracting the price
+        of that failure.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat, lower-city Coruscant Basic. Minimal. The words
+        are mostly for formality; the blaster is the argument.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*He steps into the middle of the path.* 'You're in my district.'"
+        - "*The blaster clears the holster with practiced ease.* 'Wrong block.'"
+        - "'Pay or leave.' *He is raising the blaster before he finishes saying it.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # SOUTHERN UNDERGROUND — 1 NPC
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Underground Slasher
+    room: "Coruscant - Southern Underground"
+    species: Zabrak
+    description: >-
+      A lean Zabrak with facial tattoos worn faint by years underground,
+      where the lighting never quite shows you anything clearly. He
+      moves through the Southern Underground like water through rock —
+      finding the fastest line from cover to cover without appearing
+      to hurry. The vibrodagger is custom-weighted for the distances
+      he works at. He has been working those distances here for a
+      long time.
+    char_sheet:
+      attributes:
+        dexterity: 3D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D
+        technical: 2D
+      skills:
+        melee_combat: 4D+2
+        brawling: 4D
+        dodge: 4D+2
+        hide: 4D
+        sneak: 4D
+        streetwise_coruscant: 3D
+      weapon: vibrodagger_talon
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        Zabrak close-combat specialist who has carved out survival
+        in the Southern Underground through speed and positioning.
+        He does not rob loudly. He places himself between a target
+        and their exit and becomes unavoidable before the target
+        realizes he was there. The fight, if it happens, is already
+        at melee range when it starts.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Almost silent. Communicates in proximity and body language.
+        If he says anything, it is one word.
+      hostile: true
+      combat_behavior: guerrilla
+      fallback_lines:
+        - "*You notice him a half-second too late — he is already inside your reach.*"
+        - "*The Zabrak materializes from shadow, vibrodagger humming.*"
+        - "*He says nothing. The vibrodagger says everything.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # CORUSCANT WORKS - INDUSTRIAL SUBLEVEL — 1 NPC
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Sublevel Wrecker
+    room: "Coruscant Works - Industrial Sublevel"
+    species: Besalisk
+    description: >-
+      A Besalisk who fills the service corridor the way heavy
+      machinery fills a maintenance bay — technically there is
+      room to get past, but only in theory. Three of his four
+      arms carry tool scars from years of actual industrial work;
+      the fourth grips a vibroaxe with the comfortable familiarity
+      of something he did not pick up recently. He controls access
+      to a section of the sublevel that Coruscant Works has
+      officially written off as maintenance dead space. He has
+      not written it off. He lives here.
+    char_sheet:
+      attributes:
+        dexterity: 2D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D
+        strength: 4D+2
+        technical: 2D
+      skills:
+        brawling: 5D+2
+        melee_combat: 4D+2
+        dodge: 3D
+        intimidation: 4D+1
+        stamina: 4D+2
+      weapon: vibroaxe
+      move: 8
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Besalisk of few words and uncomplicated methods. He
+        has established a territorial claim through the industrial
+        sublevel on the basis of being substantially harder to
+        move than anything the Works has sent down to move him.
+        He challenges trespassers by physically occupying the
+        corridor and waiting to see what they do next. Most make
+        a poor decision.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Deep Besalisk rumble. Two or three words at most.
+        Mostly just the vibroaxe.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*Four arms spread wide, the Besalisk fills the corridor.* 'This is mine.'"
+        - "*The vibroaxe comes up slowly, held in a two-handed grip.* 'Turn around.'"
+        - "*A deep, resonant growl — warning at the edge of action.*"
