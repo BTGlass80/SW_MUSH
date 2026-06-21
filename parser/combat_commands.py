@@ -350,7 +350,7 @@ async def _try_auto_resolve(combat, ctx):
         events = combat.resolve_round()
         # Don't broadcast events to room yet — they go in the Action Log
         # But we DO need to apply wear and persist wounds immediately
-        await _apply_combat_wear(combat, ctx)
+        await _apply_combat_wear(combat, ctx, _pre_npcs)
         await _award_mob_grind_rewards(combat, ctx, _pre_npcs)
 
         # Phase 7c (May 23 2026): city-guard combat-round triggers.
@@ -956,12 +956,31 @@ async def _award_mob_grind_rewards(combat, ctx, pre_npcs):
                         getattr(c, "id", None), _e, exc_info=True)
 
 
-async def _apply_combat_wear(combat, ctx):
-    """Apply weapon condition wear and persist wound states after resolution."""
+async def _apply_combat_wear(combat, ctx, pre_npcs=None):
+    """Apply weapon condition wear and persist wound states after resolution.
+
+    `pre_npcs` is the pre-resolution NPC-combatant snapshot (taken at the
+    resolve_round call site). resolve_round()'s _cleanup() REMOVES dead
+    combatants before this runs, so a just-killed NPC is no longer in
+    combat.combatants — its DEAD-gated reward hooks below (bounty / anomaly /
+    WoW.3a Jedi-weight) would never fire. We therefore also iterate the
+    snapshot NPCs that LEFT combat this round at wound_level DEAD (killed, not
+    fled), so those hooks reach them. The NPC db row survives death
+    (room_id=None), so get_npc + ai_config are still readable; the per-hook
+    DEAD gate still correctly skips the live combatants in the same loop.
+    Fixes COMBAT.dead_gated_hooks_inert (2026-06-21).
+    """
     from engine.items import read_equipment, write_equipment
+    from engine.character import WoundLevel as _WLdead
     import json as _json
 
-    for c in combat.combatants.values():
+    _newly_dead = [
+        c for c in (pre_npcs or [])
+        if getattr(c, "is_npc", False) and c.char
+        and c.id not in combat.combatants
+        and c.char.wound_level.value >= _WLdead.DEAD.value
+    ]
+    for c in list(combat.combatants.values()) + _newly_dead:
         if not c.char:
             continue
 
@@ -1236,15 +1255,13 @@ async def _apply_combat_wear(combat, ctx):
                             "NPC %s: %s", c.id, _we, exc_info=True,
                         )
                     # ── End WoW.3a kill credit ───────────────────────────
-                    # NOTE: DEAD-gated reward hooks must NOT be added in this
-                    # loop — combat.resolve_round() runs _cleanup() which
-                    # REMOVES dead combatants before _apply_combat_wear is
-                    # called, so a DEAD NPC is never present here. The solo-PvE
-                    # mob-grind reward instead fires from
-                    # _award_mob_grind_rewards() at the resolve_round call
-                    # site, which snapshots NPC combatants BEFORE resolution.
-                    # (The pre-existing bounty/anomaly/WoW.3a hooks above share
-                    # this inertness — logged as a separate finding.)
+                    # NOTE: the DEAD-gated hooks above (bounty / anomaly /
+                    # WoW.3a) now reach just-killed NPCs because the function
+                    # also iterates the pre-resolution `_newly_dead` snapshot
+                    # (a DEAD NPC has already been removed from combat.combatants
+                    # by resolve_round's _cleanup). The solo-PvE mob-grind
+                    # trickle fires separately from _award_mob_grind_rewards()
+                    # on the same snapshot. COMBAT.dead_gated_hooks_inert fix.
                     # ── Dead NPC combatant cleanup ───────────────────────
                     from engine.character import WoundLevel as _WL2
                     if c.char.wound_level.value >= _WL2.DEAD.value:
@@ -2539,7 +2556,7 @@ class ResolveCommand(BaseCommand):
         events = combat.resolve_round()
 
         # Admin resolve skips posing — auto-generate all poses and flush
-        await _apply_combat_wear(combat, ctx)
+        await _apply_combat_wear(combat, ctx, _pre_npcs)
         await _award_mob_grind_rewards(combat, ctx, _pre_npcs)
 
         # Phase 7c: city-guard combat-round triggers (also fires
