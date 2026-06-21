@@ -45,6 +45,11 @@ telemetry.skill_check_sample: 1.0     # fraction of skill checks emitted (0..1]
 # the command stream gets noisy — the relative histogram is preserved under
 # uniform sampling.
 telemetry.command_sample: 1.0         # fraction of dispatched commands emitted (0..1]
+# Keep-rate for the gambling-outcome stream (parser/sabacc_commands.py). Each
+# resolved Sabacc hand emits one 'gamble' event with the win/loss split, bet,
+# and rake breakdown — the house-edge tuning signal. Cooldown-bounded per
+# player so 1.0 is fine at launch; lower it if the stream gets noisy.
+telemetry.gamble_sample: 1.0          # fraction of gambling hands emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.

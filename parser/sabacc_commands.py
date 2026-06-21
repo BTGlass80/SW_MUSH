@@ -245,6 +245,12 @@ class SabaccCommand(BaseCommand):
             outcome = "loss"
 
         # ── Apply credits ─────────────────────────────────────────────────────
+        # Telemetry accounting — the rake breakdown is scoped to the win branch;
+        # hoist 0-defaults so the post-mutation `gamble` emit (below) sees them
+        # on every outcome (a loss/tie/fumble takes no rake).
+        house_rake = 0
+        city_take = 0
+        den_rake = 0
         if outcome in ("win", "critical"):
             gross_win = bet
             house_rake = max(5, int(gross_win * HOUSE_CUT))
@@ -288,6 +294,7 @@ class SabaccCommand(BaseCommand):
                 if den and rake_to_org > 0:
                     await ctx.db.adjust_org_treasury(den["org_id"], rake_to_org)
                     await ctx.db.adjust_credits(0, rake_to_org, "sabacc_rake")
+                    den_rake = rake_to_org
                     den_msg = (
                         f" ({rake_to_org:,}cr to {den.get('org_code', 'the cartel')})"
                     )
@@ -323,6 +330,37 @@ class SabaccCommand(BaseCommand):
         # (delta = net change; the loss branch already clamps at 0 above).
         await ctx.db.adjust_credits(char["id"], new_credits - credits, "sabacc")
         await ctx.db.save_character(char["id"], attributes=new_attrs)
+
+        # ── T3.19 telemetry: the gambling outcome distribution + house edge ───
+        # `credit_flow` (db.log_credit) captures the net delta tagged "sabacc"
+        # and the gambling skill roll rides `skill_check`, but neither can
+        # reconstruct the win/critical/tie/loss/fumble split, the bet size, or
+        # the rake breakdown (house / city tax / cartel-den) — the direct tuning
+        # signal for HOUSE_CUT, the win/loss cooldowns, and the bet bounds. One
+        # fail-open, sample-tunable `gamble` emit at the post-mutation seam
+        # closes that economy-depth gap. Buffer-only + offline-flushed → it can
+        # never disturb the hand it observes.
+        try:
+            from engine.telemetry import emit as _tele_emit
+            from engine.tunables import get_tunable
+            _tele_emit("gamble", {
+                "game": "sabacc",
+                "char_id": int(char.get("id") or 0),
+                "zone": zone_name,
+                "bet": int(bet),
+                "outcome": outcome,
+                "net": int(new_credits - credits),
+                "rake": int(house_rake),
+                "city_take": int(city_take),
+                "den_rake": int(den_rake),
+                "margin": int(player_roll - dealer_roll),
+                "player_roll": int(player_roll),
+                "dealer_roll": int(dealer_roll),
+                "critical": bool(player_result.critical_success),
+                "fumble": bool(player_result.fumble),
+            }, sample=float(get_tunable("telemetry.gamble_sample", 1.0)))
+        except Exception as _e:
+            log.debug("sabacc telemetry emit failed: %s", _e)
 
         # ── Output ────────────────────────────────────────────────────────────
         margin = player_roll - dealer_roll
