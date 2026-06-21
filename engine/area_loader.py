@@ -241,6 +241,12 @@ class AreaGeometry:
     # and keeps labels, entities, weather, and chrome on top. Absent =>
     # fully procedural rendering (the default for every area today).
     substrate_image: Optional[str] = None
+    # Marks a building-INTERIOR map (vs a city overview). On a slug collision —
+    # an interior room slug also claimed by its parent city-overview map, which
+    # is additive-only so the slug can't be removed there — the interior wins the
+    # registry binding deterministically, so a player IN the interior is bound to
+    # the interior map, not the city overview. See AreaGeometryRegistry._add.
+    is_interior: bool = False
 
     def to_dict(self, *, include_player: bool = False,
                 player: Optional[dict] = None,
@@ -424,6 +430,7 @@ def _parse_area_geometry(raw: dict, *, path: Path) -> AreaGeometry:
         landmarks=landmarks,
         substrate_image=(str(raw["substrate_image"])
                          if raw.get("substrate_image") else None),
+        is_interior=bool(raw.get("is_interior", False)),
     )
 
 
@@ -786,24 +793,39 @@ class AreaGeometryRegistry:
         return registry
 
     def _add(self, geom: AreaGeometry) -> None:
-        """Insert an AreaGeometry into the registry. Slug collisions
-        across areas are logged and the second occurrence wins
-        (deterministic but rare — different areas shouldn't share
-        room slugs in the first place)."""
+        """Insert an AreaGeometry into the registry.
+
+        Slug-collision precedence: a building-INTERIOR area (``is_interior``)
+        wins over a city-overview area for a shared slug — so a player IN an
+        interior room is bound to the interior map, not the parent city overview
+        that (additive-only) also lists that room. Otherwise the second
+        occurrence wins (the prior deterministic-but-arbitrary behavior;
+        collisions among same-kind areas remain rare and shouldn't happen)."""
         self._areas[geom.area_key] = geom
         for r in geom.rooms:
             if r.slug is None:
                 continue
-            if r.slug in self._slug_index:
-                prior = self._slug_index[r.slug]
-                if prior.area_key != geom.area_key:
-                    log.warning(
-                        "[area_loader] registry: slug %r appears in "
-                        "both %s (room %d) and %s (room %d); the "
-                        "second wins",
-                        r.slug, prior.area_key, prior.render_room_id,
-                        geom.area_key, r.id,
+            prior = self._slug_index.get(r.slug)
+            if prior is not None and prior.area_key != geom.area_key:
+                prior_geom = self._areas.get(prior.area_key)
+                prior_interior = bool(prior_geom and prior_geom.is_interior)
+                new_interior = bool(geom.is_interior)
+                if prior_interior and not new_interior:
+                    # An interior already holds this slug — a city overview must
+                    # not steal it. Keep the prior (interior) binding.
+                    log.info(
+                        "[area_loader] registry: slug %r kept on interior %s "
+                        "over %s", r.slug, prior.area_key, geom.area_key,
                     )
+                    continue
+                log.warning(
+                    "[area_loader] registry: slug %r appears in both %s "
+                    "(room %d) and %s (room %d); %s wins",
+                    r.slug, prior.area_key, prior.render_room_id,
+                    geom.area_key, r.id,
+                    "interior" if (new_interior and not prior_interior)
+                    else "second",
+                )
             self._slug_index[r.slug] = _RoomLookupEntry(
                 area_key=geom.area_key,
                 render_room_id=r.id,
