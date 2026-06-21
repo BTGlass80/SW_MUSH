@@ -1,0 +1,351 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_tatooine.yaml
+#
+# Tatooine Jundland Wastes Hostile Mob Grind Batch (2026-06-21)
+#
+# Six roaming hostile NPCs seeded across Jundland Wastes rooms to populate
+# the solo-PvE mob-grind reward loop (engine/hunting_rewards.py).
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread: Canyon Mouth x2, Beggar's Canyon x2,
+#              Tusken Camp Overlook x1, Dune Sea Edge x1.
+# Existing room occupants avoided: Hidden Cave (Master Vehn Tasaal, trainer),
+# Krayt Dragon Graveyard (Canyon Krayt-Spawn, chain_enemy_template).
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF unavailable in this tree;
+#   stats are UNVERIFIED against the PDF. Grounded in CW sibling
+#   NPC patterns (Geonosian warrior, Drop H baselines).
+# Weapons: gaderffii (Tusken melee), blaster_rifle (sniper),
+#   blaster_pistol (drifter), blaster_carbine (prowler) —
+#   all keys confirmed in data/weapons.yaml. Womp Rat uses no
+#   weapon key (empty string); combat engine falls back to
+#   brawling + STR, consistent with creature-type NPCs.
+# Tusken Raider Density note: these are hostile combat mobs for
+#   the grind loop, NOT flavor/civilian NPCs. Tatooine density
+#   directive (civilian NPCs) does not apply here.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # CANYON MOUTH — 2 NPCs (Tusken Raider territorial patrol)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Tusken Canyon Sentinel
+    room: "Jundland Wastes - Canyon Mouth"
+    species: Tusken Raider
+    description: >-
+      A Sand Person standing in the shadow of the canyon wall, gaderffii
+      held low and across the body in the ready position. The wrapped
+      goggles track you with the slow patience of something that has been
+      standing here, or somewhere exactly like here, for a very long time.
+      The canyon behind it belongs to the tribe, and you walked into it
+      without a tribal escort — a detail the sentinel has already processed
+      and resolved.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 2D+2
+        technical: 1D+2
+      skills:
+        melee_combat: 3D+2
+        dodge: 3D
+        sneak: 3D
+        intimidation: 2D+2
+        search: 2D+2
+      weapon: gaderffii
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A Tusken warrior on territorial patrol. It does not parley. The
+        canyon entrance is tribal land; any unauthorized presence is a
+        provocation to be met with immediate violence. It fights with
+        the economical aggression of someone who has done this hundreds
+        of times. It does not bluster — it acts.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Guttural Tusken vocalization — no Basic. Clicks, resonant tones,
+        and the scrape of wrappings against stone.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The sentinel raises its gaderffii and advances without a sound.*"
+        - "*A resonant warning tone — then it stops waiting.*"
+        - "*The wrapped goggles fix on you. The gaderffii swings up.*"
+
+  - name: Tusken Marksman
+    room: "Jundland Wastes - Canyon Mouth"
+    species: Tusken Raider
+    description: >-
+      A Tusken Raider kneeling on a rock shelf above the canyon floor,
+      blaster rifle resting across a natural parapet of sandstone. The
+      goggles scan the canyon below in slow, methodical arcs. Someone
+      taught it trigger discipline; it waits for the moment rather than
+      firing on instinct, which makes it considerably more dangerous than
+      a Tusken who panics. A second set of wrappings hangs at its belt
+      — trophies or signaling flags; from below, it is hard to tell which.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 1D+2
+      skills:
+        blaster: 4D
+        dodge: 3D
+        sneak: 3D+2
+        search: 3D+1
+      weapon: blaster_rifle
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A Tusken sniper who has learned to use offworld weapons. It
+        holds the high ground and fires from cover before an intruder
+        reaches optimal gaderffii range. Not a diplomat of any kind;
+        it engages at first sight of an unauthorized contact, patiently,
+        from the ledge. The patience is the dangerous part.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Silent. No vocalizations during a fight from the elevated position.
+        The crack of a blaster bolt is the only announcement.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*A blaster bolt chips the rock at your feet — a ranging shot.*"
+        - "*The Tusken shifts position on the ledge, tracking you.*"
+        - "*Another shot — closer. The marksman is not missing.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # BEGGAR'S CANYON — 2 NPCs (creature + outlaw)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Giant Womp Rat
+    room: "Jundland Wastes - Beggar's Canyon"
+    species: Creature
+    description: >-
+      A canyon womp rat that has reached the upper end of the two-meter
+      range mentioned in local legend — and then kept growing. Its coat
+      is the red-brown of Beggar's Canyon sandstone and it blends
+      into the rock faces with unnerving ease. The crevice it emerged
+      from was not obviously large enough to contain something this size.
+      Its incisors are the color of aged bone. It is not afraid of you.
+      Nothing that lives here is.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D+2
+        strength: 2D+2
+        technical: 1D
+      skills:
+        brawling: 4D
+        sneak: 3D
+        search: 2D+2
+      weapon: ""
+      move: 12
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A territorial canyon predator. Pure instinct — no agenda beyond
+        defense of its feeding ground. It does not negotiate and does not
+        retreat unless driven well past its threshold. It attacks fast,
+        goes for the legs first, and uses the canyon walls to cut off
+        escape routes the way its ancestors learned to over generations
+        of canyon hunting.
+      knowledge: []
+      faction: wildlife
+      dialogue_style: >-
+        Beast vocalizations only. Rasping chittering that echoes oddly
+        off the canyon walls. No Basic.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The womp rat lunges from the shadow, incisors first.*"
+        - "*It circles low, using the rock wall to cut off your angle.*"
+        - "*A chittering shriek bounces off the canyon walls.*"
+
+  - name: Jundland Drifter
+    room: "Jundland Wastes - Beggar's Canyon"
+    species: Human
+    description: >-
+      A lean Human in canyon-dusted clothing, blaster pistol already
+      in hand when you rounded the bend. There is an occupational
+      logic to using Beggar's Canyon as an operating base: it is
+      a natural choke point for speeders, the acoustics mask approach
+      noise, and the rocks provide cover. He has been doing this long
+      enough to stop feeling bad about it. You are the fifth traveler
+      this week. The canyon provides.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+1
+        strength: 2D+1
+        technical: 2D
+      skills:
+        blaster: 3D+2
+        dodge: 3D
+        brawling: 2D+2
+        streetwise: 2D+2
+        sneak: 2D+2
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A highway bandit who has made the canyon his hunting ground.
+        He moves fast and acts before targets can recover from surprise.
+        No particular ideology — it is a living. He challenges only
+        because hesitation wastes time; the moment you don't comply,
+        the blaster comes up. He is not cruel but he is not hesitant
+        either.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Short, flat Basic. "Credits. Now." If you don't reach for
+        credits, you get the blaster instead.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Wrong answer.' *The pistol comes up.*"
+        - "*He fires without further warning, stepping sideways into cover.*"
+        - "*He tracks you across the canyon floor, blaster leveled.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # TUSKEN CAMP OVERLOOK — 1 NPC
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Tusken War Scout
+    room: "Jundland Wastes - Tusken Camp Overlook"
+    species: Tusken Raider
+    description: >-
+      A Tusken Raider in the heavier wrappings of a war-party scout, moving
+      along the ridge in the crouched, low-profile gait Sand People use on
+      exposed terrain. It is not patrolling the camp below — it is patrolling
+      the approaches to it, which is where you currently are. Its gaderffii
+      is slung across its back in travel position; when the grip changes,
+      the swing will follow in under a second. It has already spotted you.
+      It was watching before you saw it.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 2D+2
+        technical: 1D+2
+      skills:
+        melee_combat: 3D+2
+        dodge: 3D+1
+        sneak: 4D
+        search: 3D
+        intimidation: 3D
+      weapon: gaderffii
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A war-party advance scout — the eyes of the camp's outer defense
+        ring. Its job is to detect, assess, and neutralize threats before
+        they reach the camp itself. It is the best at stealth of any Sand
+        Person in this formation, and it does not give up a position
+        advantage once it has one. It attacks when you are still reacting
+        to having been seen.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        No words. A sharp click, a resonant hoot — warning signals to
+        the camp below — and then it is already moving.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The scout drops from the ridge and charges, gaderffii raised.*"
+        - "*A sharp clicking call — and then it is already on you.*"
+        - "*It closes the distance in three strides, striking at your guard.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # DUNE SEA EDGE — 1 NPC (wilds zone, slightly tougher)
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Desert Prowler
+    room: "Jundland Wastes - Dune Sea Edge"
+    species: Human
+    description: >-
+      A Human in heat-bleached clothing and a full-face wrap against the
+      blown sand, blaster carbine slung at a diagonal that says "not
+      decorative." She has been out here long enough that her water
+      discipline is automatic and her situational awareness has settled
+      into something calmer than vigilance — more like the background
+      processing of a predator in its own environment. The deep desert
+      is her territory. You arrived from the direction of the wastes,
+      which means you are either lost or a competitor, and she handles
+      both the same way.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 2D
+        perception: 3D
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        survival: 3D+2
+        search: 3D
+        brawling: 3D
+        sneak: 3D+1
+      weapon: blaster_carbine
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A hardened desert operative — part scavenger, part territorial
+        predator, full professional. She has survived the deep Dune Sea
+        long enough to know that hesitation is a cause of death. She acts
+        on threat assessment in seconds. She is not unnecessarily cruel
+        but she is completely ruthless, and the deep desert taught her
+        the difference. She does not leave a problem standing.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat, economy-of-words Basic with a Tatooine back-country
+        drawl. "You've come far enough." Then she fires.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'You've come far enough.' *The carbine comes up.*"
+        - "*She fires from a half-crouch, already stepping sideways.*"
+        - "*She circles wide, keeping the sun at her back.*"
