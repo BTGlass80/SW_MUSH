@@ -173,6 +173,16 @@ async def maybe_post(db, session_mgr, now_ms: "int | None" = None) -> "dict | No
         f"Citizens are called to rally.",
     )
     log.info("[communal_rt] posted uprising: %s (rotation %d)", cult.key, rotation)
+    # T3.19 telemetry: the objective funnel (catalog C) for the communal lane.
+    # char_id=0 — a zone-wide uprising has no single actor; the per-contributor
+    # signal rides on the per-strike event in record_strike. Emitted only after
+    # the row lands, so the record reflects a real posting.
+    try:
+        from engine.telemetry import emit_objective as _tele_obj
+        _tele_obj("communal", "start", 0, oid=cult.key, reward=0,
+                  rotation=int(rotation), zone=cult.world_key)
+    except Exception as _e:
+        log.debug("communal objective telemetry emit failed: %s", _e)
     return await get_active(db)
 
 
@@ -262,6 +272,24 @@ async def record_strike(db, session_mgr, char: dict,
     if outcome.success:
         await _broadcast(session_mgr, CO.strike_success_line(cult, outcome))
     # (a miss gets only the direct command reply, not a room/global broadcast)
+
+    # T3.19 telemetry: per-strike participation + difficulty signal. Strikes are
+    # cooldown-gated (bounded frequency) and there is at most one active uprising,
+    # so emit at full rate — the success/total/difficulty distribution is the
+    # direct input to tuning strike_difficulty/DEADLINE_HOURS post-launch.
+    try:
+        from engine.telemetry import emit as _tele_emit
+        _tele_emit("communal_strike", {
+            "char_id": int(char["id"]),
+            "cult": active.get("cult_key", ""),
+            "success": bool(outcome.success),
+            "difficulty": int(difficulty),
+            "total": int(total),
+            "menace_after": round(float(new_menace), 1),
+            "pips": int(pips),
+        })
+    except Exception as _e:
+        log.debug("communal_strike telemetry emit failed: %s", _e)
 
     state = CO.resolve_state(new_menace, now, int(float(active.get("deadline_at") or 0)))
     if state == CO.STATE_WON:
@@ -361,6 +389,22 @@ async def _finalize(db, session_mgr, active: dict, contribs: dict,
 
     if changed == 0:
         return  # someone else already resolved this uprising
+
+    # T3.19 telemetry: the objective-funnel close for the communal lane. The
+    # state UPDATE above is the single-writer race guard (rowcount==0 returns
+    # early), so this emits EXACTLY once per uprising. Phase is always
+    # "complete" (an uprising always resolves); the ``won`` flag carries
+    # win-vs-loss and ``contributors`` measures engagement. No credits change
+    # hands (rep-only payout), so reward=0.
+    try:
+        from engine.telemetry import emit_objective as _tele_obj
+        _tele_obj("communal", "complete", 0,
+                  oid=active.get("cult_key", ""), reward=0,
+                  won=bool(won), contributors=len(contribs or {}),
+                  menace=round(float(active.get("menace") or 0), 1),
+                  rotation=int(active.get("rotation") or 0))
+    except Exception as _e:
+        log.debug("communal objective telemetry emit failed: %s", _e)
 
     if cult is not None:
         if won:
