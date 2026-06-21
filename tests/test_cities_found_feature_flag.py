@@ -190,7 +190,7 @@ class TestOtherSubcmdsUnaffected(unittest.TestCase):
 
 class TestTunableInFile(unittest.TestCase):
     def test_tunables_yaml_contains_cities_found_enabled_false(self):
-        with open("data/tunables.yaml") as fh:
+        with open("data/tunables.yaml", encoding="utf-8") as fh:
             content = fh.read()
         self.assertIn("cities.found_enabled", content, "Key not in tunables.yaml")
         self.assertIn("cities.found_enabled: false", content,

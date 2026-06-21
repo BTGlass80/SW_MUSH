@@ -338,12 +338,9 @@ class MailCommand(BaseCommand):
         # player mail path (compose, @mail/quick, @mail/reply all route here).
         if len(body) > MAX_MAIL_BODY_LEN:
             body = body[:MAX_MAIL_BODY_LEN]
-            try:
-                await ctx.session.send_line(
-                    f"  (Your message was truncated to "
-                    f"{MAX_MAIL_BODY_LEN:,} characters.)")
-            except Exception:
-                pass
+            await ctx.session.send_line(
+                f"  (Your message was truncated to "
+                f"{MAX_MAIL_BODY_LEN:,} characters.)")
         subject = state["subject"]
         to_ids = state["to"]
         to_names = state["to_names"]

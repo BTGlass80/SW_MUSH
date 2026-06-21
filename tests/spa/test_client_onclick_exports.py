@@ -173,6 +173,11 @@ def test_tour_buttons_click_through_real_onclick_path():
         Object.defineProperty(w.HTMLElement.prototype, 'offsetParent',
             {{ get() {{ return this.parentElement; }}, configurable: true }});
         w.eval('function $(id) {{ return document.getElementById(id); }}');
+        // The tour's _tourKey() reads the client global `lastHud` (per-
+        // character tour gate, commit ce02900); the extracted snippet
+        // doesn't declare it. Provide it so endOnboardTour() can persist
+        // the flag instead of swallowing a ReferenceError.
+        w.eval('var lastHud = null;');
         w.eval({json.dumps(tour_js)});
 
         var out = {{}};
@@ -192,7 +197,9 @@ def test_tour_buttons_click_through_real_onclick_path():
         // REAL click on SKIP TOUR.
         w.document.querySelector('.m3o-tour-btn.skip').click();
         out.hidden_after_skip = !ov.classList.contains('show');
-        out.ls = w.localStorage.getItem('m3_onboard_tour_done');
+        // Tour gate is per-character now (commit ce02900); with no HUD
+        // pushed, _tourKey() falls back to the 'anon' suffix.
+        out.ls = w.localStorage.getItem('m3_onboard_tour_done_anon');
 
         // maybeShow must now be a no-op (seen flag) …
         w.maybeShowOnboardTour();
@@ -212,8 +219,8 @@ def test_tour_buttons_click_through_real_onclick_path():
     assert out["typeof_end"] == "function"
     assert out["typeof_show"] == "function"
     assert out["shown"] is True
-    assert out["step1"] == "1 / 4"
-    assert out["step2"] == "2 / 4", (
+    assert out["step1"] == "1 / 5"
+    assert out["step2"] == "2 / 5", (
         "NEXT click did not advance the tour — the exact bug Brian hit")
     assert out["hidden_after_skip"] is True
     assert out["ls"] == "1"

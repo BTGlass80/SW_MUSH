@@ -124,14 +124,28 @@ class TestRegistryLoadsProductionFixtures(unittest.TestCase):
         self.assertEqual(me_slugs, 53)
 
     def test_mos_eisley_anchor_rooms_resolve(self):
-        # Spot-check: rooms the player is most likely to start in.
+        # Spot-check: exterior anchor rooms the player is most likely to
+        # start in still resolve to the Mos Eisley city overview. The
+        # cantina main-bar slug is intentionally excluded here — it now
+        # binds to the Chalmun's Cantina INTERIOR (see the dedicated
+        # interior-precedence test below).
         for slug in ("docking_bay_94_pit", "docking_bay_94_entrance",
-                     "chalmuans_cantina_main_bar",
                      "mos_eisley_spaceport_row"):
             entry = self.registry.lookup(slug)
             self.assertIsNotNone(entry,
                 f"slug {slug!r} should resolve in registry")
             self.assertEqual(entry.area_key, "tatooine.mos_eisley")
+
+    def test_cantina_main_bar_binds_to_interior(self):
+        # The Chalmun's Cantina interior map (is_interior=True) deliberately
+        # WINS the slug collision over the additive-only Mos Eisley
+        # city-overview anchor that also lists the room: a player IN the
+        # cantina is bound to the interior map, not the city overview.
+        # See AreaGeometry.is_interior / AreaGeometryRegistry._add.
+        entry = self.registry.lookup("chalmuans_cantina_main_bar")
+        self.assertIsNotNone(entry,
+            "cantina main-bar slug should resolve in registry")
+        self.assertEqual(entry.area_key, "tatooine.chalmuns_cantina")
 
     def test_lookup_returns_world_coords_not_render_coords(self):
         # docking_bay_94_pit is at world (4.38, 0.0) per the relaid YAML.
