@@ -1310,6 +1310,14 @@ class LandCommand(BaseCommand):
             "nar_shaddaa": "Nar Shaddaa - Docking",
             "coruscant": "Coruscant - Westport Spaceport",
             "geonosis": "Geonosis - Separatist Landing Platform",
+            # QA 2026-06-20: kuat + kamino were missing, so landing from
+            # kuat_orbit/kamino_orbit fell back to the generic "Docking Bay"
+            # query and dumped the ship on Tatooine (Bay 94). These room
+            # names carry the planet token, so the reverse get_orbit_zone_for_room
+            # mapping (bay_planet_map: kuat->kuat_orbit, kamino/tipoca->kamino_orbit)
+            # round-trips correctly on the next launch.
+            "kuat": "Kuat - Main Spaceport Arrivals",
+            "kamino": "Kamino - Landing Platform Alpha",
         }
         _bay_query = _BAY_SEARCH.get(_land_planet, "Docking Bay")
         rooms = await ctx.db.find_rooms(_bay_query)
