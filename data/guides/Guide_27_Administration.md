@@ -21,7 +21,7 @@ world-building has its own in-game help: `help building`. City moderation has `h
 
 ## 1. Access levels & granting access
 
-Three tiers (`parser/commands.py::AccessLevel`):
+Three player-facing tiers (`parser/commands.py::AccessLevel`):
 
 | Level | Name | Flag | Can do |
 |-------|------|------|--------|
@@ -29,8 +29,9 @@ Three tiers (`parser/commands.py::AccessLevel`):
 | 2 | BUILDER | `accounts.is_builder` | world-building commands (`@dig`, `@open`, …) |
 | 3 | ADMIN | `accounts.is_admin` | everything below |
 
-Each command checks the caller's level via `BaseCommand.check_access()`, which reads the
-account's `is_admin` / `is_builder` flag.
+(`AccessLevel` also defines `ANYONE = 0` — a connection that hasn't logged in yet; it never
+reaches a gated command.) Each command checks the caller's level via
+`BaseCommand.check_access()`, which reads the account's `is_admin` / `is_builder` flag.
 
 **Granting access — `@grant`:**
 ```
@@ -48,7 +49,9 @@ The full builder toolkit lives behind `help building`. The core verbs: `@dig` (n
 `@rname` (room text), `@destroy` (delete a room), `@teleport` (go to a room), `@examine`
 (inspect), `@rooms` / `@find` / `@entrances` (locate), `@set` / `@lock` / `@success` /
 `@fail` (properties & locks), `@zone` (zones), `@create` (in-game objects), `@emit` /
-`@name` / `@pemit` (room/object text & messaging).
+`@name` / `@pemit` (room/object text & messaging). `@spawn <template> <ship name>` (BUILDER)
+spawns a flyable ship hull + bridge in the current docking bay — a builder/testing tool, not
+an NPC or player summon.
 
 ⚠️ **Map-safety invariant:** the painted exterior surface rooms are pinned by a coordinate
 golden snapshot, and world YAML is edited additively. Live `@`-building of those surfaces
@@ -65,6 +68,7 @@ The Director is the Claude-backed world-orchestration layer. Admin controls:
 | `@director enable` / `disable` | turn the AI orchestration on/off |
 | `@director trigger` | force a faction turn / Director pass now |
 | `@director budget` | inspect/adjust the Claude spend circuit-breaker |
+| `@director fidelity` | view/pin the cadence governor (`eco`/`standard`/`high`/`max`, or `auto`) |
 | `@director influence` | inspect/adjust territory influence |
 | `@director log` / `reset` / `narrative` / `cult` | run log, state reset, narrative & cult subforms |
 | `@economy` | economy dashboard — shops/credits/zones/velocity/alerts/throttle |
@@ -83,17 +87,18 @@ still runs; you just lose live NPC dialogue / Director narration.
 |---------|--------------|
 | `@wall <msg>` | broadcast to every connected player |
 | `@force <player> = <command>` | run a command as that player (use sparingly) |
-| `@newpassword <player>` | reset an account password |
+| `@newpassword <player> = <new_password>` | reset an account password |
 | `@pcbounty void / review / fulfill` | moderate PC-placed bounties (refund / inspect / assign) |
 | `@city` | player-city moderation — list/inspect/void-banish/set-rate-cap/dissolve/rename (`help @city`) |
 | `@security` | zone security — show/set, faction room override set/clear |
 | `@faction` | faction admin — leader handoff, Director enable/disable, treasury add/remove |
 
-**Note on what does NOT exist:** there is no `@ban`, `@boot`/`@kick`, `@mute`, `@slay`, or
-generic `@spawn` verb. Player removal is handled through city banishment (`@city`) and
-account-level controls, not a global kick. NPCs are data-driven / auto-spawned (e.g. a
-bounty hunter via `@setbounty`), not hand-summoned. Don't promise players a moderation
-verb that isn't here.
+**Note on what does NOT exist:** there is no `@ban`, `@boot`/`@kick`, `@mute`, or `@slay`
+verb, and no `@revoke` (to demote, clear the account flag directly — see §1). Player removal
+is handled through city banishment (`@city`) and account-level controls, not a global kick.
+There is **no NPC- or player-summon verb** — NPCs are data-driven / auto-spawned (e.g. a
+bounty hunter via `@setbounty`); the `@spawn` verb that does exist only spawns a **ship** hull
+(§2), not a creature. Don't promise players a moderation verb that isn't here.
 
 ## 5. Jedi & progression overrides (ADMIN)
 
