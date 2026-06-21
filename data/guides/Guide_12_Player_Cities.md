@@ -8,8 +8,6 @@ tags: ["cities", "settlement", "governance", "build", "infrastructure", "town"]
 # Player Cities
 
 **Parsec — WEG D6 Revised & Expanded**
-**BTGlass80 — May 2026**
-**Guide Version 1.0**
 
 ---
 
@@ -51,10 +49,12 @@ You can found exactly one city per organization. Dissolving it returns half the 
 
 ## 2. Founding a City
 
+> **Launch availability.** City *founding* is switched **off at launch** (the `cities.found_enabled` tunable defaults to off). If you run `+city found` before it's enabled, you'll see *"City founding is not available at launch. Check back soon."* Everything in this guide is fully built and goes live when the founding flag is flipped in a post-launch update — until then, treat this as the reference for what's coming, not something you can do on day one. Existing-city commands (info, list, map) work the moment any city exists.
+
 Founding a city is a high-bar action. You need, in order:
 
 1. To be the **organization leader** (rank 5 — top of your org's rank ladder).
-2. Your org must already have a **tier-5 HQ** placed somewhere on the map. Tier-5 is the top of the housing tree; getting there is its own project (see Guide #13 — Housing).
+2. Your org must already have a **tier-5 HQ** placed somewhere on the map. Tier-5 is the top of the housing tree; getting there is its own project (see the housing system — `@housing`).
 3. That HQ must be in a zone with **declared contested or lawless security**. Cities cannot be founded in Republic-secured zones — by design, the system is for frontier and underworld governance. Neither the Galactic Republic nor the CIS permits private cities inside their controlled territory.
 4. Your org must have at least **50 influence** in that zone (the same threshold as a foothold territory claim — you've already established yourself there).
 5. The org treasury must hold the **founding cost**.
@@ -74,6 +74,14 @@ Once those check out, you type:
 ```
 +city found Dust City
 ```
+
+You can also pin the founding to a specific wilderness region instead of the room you're standing in:
+
+```
++city found Dust City in vertical_bazaar
+```
+
+The `in <region_slug>` form founds the city anchored to that region (useful when your tier-5 HQ and your influence are in a frontier region you want the city centered on). The plain form anchors to your current HQ. Both routes enforce the same rank, influence, and treasury gates.
 
 The name must be 3–32 characters, mostly alphanumeric, and **not on the reserved list** — Mos Eisley, Theed, Coruscant, Tipoca City, Kachirho, Sundari, "Jedi Temple," "Senate Building," and roughly 30 other canonical Star Wars locations are off-limits. The list exists so player cities don't muddy the canon-faithful place names; you can't found "Coruscant Heights" and then have new players confused about where Coruscant is.
 
@@ -110,7 +118,7 @@ The maximum total expansion is set by your HQ tier:
 | Chapter House | 10 |
 | Fortress | 20 |
 
-So an Outpost city tops out at HQ + 5 expansion = a small compound. A Fortress city at HQ + 20 expansion = a substantial neighborhood. If you want more rooms, you upgrade your HQ to the next tier (which has its own significant cost and requirements — Guide #13).
+So an Outpost city tops out at HQ + 5 expansion = a small compound. A Fortress city at HQ + 20 expansion = a substantial neighborhood. If you want more rooms, you upgrade your HQ to the next tier (which has its own significant cost and requirements — see `@housing`).
 
 You claim by **direction from your current room**, or by room ID for scripted/admin work:
 
@@ -287,7 +295,40 @@ Use guests deliberately. A guest is "this person is welcome to walk through our 
 
 ---
 
-## 10. Dissolution
+## 10. City Guards
+
+A city can station **NPC guards** in its rooms. Guards are the active-defense complement to the citizen security upgrade (§6): the upgrade makes a room safer by *rule*, guards make it safer by *presence* — a functioning guard challenges non-citizens who enter and engages hostiles who start trouble.
+
+**The commands** (all under `+city guards`):
+
+```
++city guards                    List the guards stationed in your city
++city guards assign <room_id>   Station a guard in a city room
++city guards remove <npc_id>    Remove a stationed guard
+```
+
+- **Listing** (bare `+city guards`) is open to anyone standing in the city — like `+city info`, it's public-facing.
+- **Assigning and removing** are **Mayor or Founder** only.
+
+**Stationing a guard** costs a **one-time 500 cr** from the org treasury and consumes a city guard slot. The target must be a city room (you can't garrison the HQ center — HQ guards are a separate pool managed by your housing tier), and a room holds **at most one** city guard. If the treasury can't cover the 500 cr, or there's no free slot, the assignment is refused before anything is debited.
+
+**Guard slots scale with HQ tier:**
+
+| HQ Tier | City Guard Slots |
+|---|---|
+| Outpost | 3 |
+| Chapter House | 6 |
+| Fortress | 14 |
+
+(This is the *city-level* pool; your HQ has its own separate guard slots on top of these.)
+
+**Guards cost upkeep.** Each stationed guard draws **200 cr per week** from the treasury. This is the quiet running cost of a defended city — a Fortress at full guard strength is a real line item. If the treasury runs dry, guards **stop functioning**: they stay assigned (the slots are still spent, the rows still there) but they no longer challenge anyone, until the treasury refills and the upkeep can be paid again. A broke city is an undefended city, even if it still has guards on paper.
+
+**The strategic shape.** Guards turn the citadel logic of §6 from passive to active. The security upgrade keeps *citizens* safe; guards make the city dangerous for *intruders* — a non-citizen wandering into a guarded room gets challenged, and a raider who opens fire gets a fight. Pair guard placement with your citizen-only flags: the rooms you most want private (the vault, the strategy room) are the rooms worth a guard on the door. But watch the upkeep — 200 cr/week each adds up, and a guard you can't afford to feed is a guard that isn't really guarding.
+
+---
+
+## 11. Dissolution
 
 The Founder can dissolve the city:
 
@@ -309,7 +350,7 @@ Dissolving is a serious decision. Most cities never dissolve; they're built to o
 
 ---
 
-## 11. The Look Output and What People See
+## 12. The Look Output and What People See
 
 City rooms show the city's name as a tag in `look`:
 
@@ -331,7 +372,7 @@ The MOTD shows on first entry per session. If you walk into a city room for the 
 
 ---
 
-## 12. `+city info` and `+city list`
+## 13. `+city info` and `+city list`
 
 **`+city info`** with no argument shows the city you're currently standing in (or your org's city if you're a member of one). **`+city info <name>`** shows any city by name. Output includes:
 
@@ -352,7 +393,7 @@ The MOTD shows on first entry per session. If you walk into a city room for the 
 
 ---
 
-## 13. A Founding Walkthrough
+## 14. A Founding Walkthrough
 
 A concrete worked example, start to finish.
 
@@ -384,7 +425,7 @@ That's the arc. It takes real time. It's meant to. Cities are slow-burn structur
 
 ---
 
-## 14. Living in Someone Else's City
+## 15. Living in Someone Else's City
 
 Most players will spend more time as **citizens of** a city than as the Founder/Mayor of one. Here's what that experience looks like.
 
@@ -402,7 +443,7 @@ That's the daily texture of citizenship: small conveniences, public benefits, a 
 
 ---
 
-## 15. Numbers At A Glance
+## 16. Numbers At A Glance
 
 | Quantity | Value |
 |---|---|
@@ -427,15 +468,19 @@ That's the daily texture of citizenship: small conveniences, public benefits, a 
 | MOTD max length | 240 characters |
 | `+city home` cooldown | 60 minutes |
 | Citizen-only room cap | 30% of non-HQ expansion |
+| City guard slots — Outpost / Chapter House / Fortress | 3 / 6 / 14 (city pool, separate from HQ) |
+| Cost to station a guard | 500 cr (one-time) |
+| Guard upkeep | 200 cr per guard per week |
 | Eligible founding zones | contested or lawless only |
+| Founding at launch | disabled (`cities.found_enabled` off) |
 
 ---
 
-## 16. Player Commands Quick Reference
+## 17. Player Commands Quick Reference
 
 | Command | Syntax | Who |
 |---|---|---|
-| `+city found` | `+city found <name>` | Org leader (rank 5) |
+| `+city found` | `+city found <name> [in <region>]` | Org leader (rank 5) |
 | `+city dissolve` | `+city dissolve <name>` | Founder |
 | `+city claim` | `+city claim <direction\|room_id>` | Org leader (rank 5) |
 | `+city release` | `+city release [room_id]` | Mayor or Founder |
@@ -450,6 +495,9 @@ That's the daily texture of citizenship: small conveniences, public benefits, a 
 | `+city banish` | `+city banish <player> [reason]` | Mayor or Founder |
 | `+city unbanish` | `+city unbanish <player>` | Mayor or Founder |
 | `+city citizenroom` | `+city citizenroom on\|off` | Mayor or Founder |
+| `+city guards` | `+city guards` | Anyone (in city) |
+| `+city guards assign` | `+city guards assign <room_id>` | Mayor or Founder |
+| `+city guards remove` | `+city guards remove <npc_id>` | Mayor or Founder |
 | `+city tax view` | `+city tax view` | Citizens |
 | `+city tax set` | `+city tax set <decimal>` | Mayor or Founder |
 | `+city tax ratecap` | `+city tax ratecap <decimal>` | Founder |
@@ -457,7 +505,7 @@ That's the daily texture of citizenship: small conveniences, public benefits, a 
 
 ---
 
-## 17. A Final Word — Why Cities
+## 18. A Final Word — Why Cities
 
 The player city system exists because organizations needed something to grow into.
 
