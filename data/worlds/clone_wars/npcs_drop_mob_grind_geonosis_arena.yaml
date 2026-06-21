@@ -1,0 +1,382 @@
+# data/worlds/clone_wars/npcs_drop_mob_grind_geonosis_arena.yaml
+#
+# Geonosis Petranaki Arena & Gladiator Barracks Hostile Mob Grind Batch (2026-06-21)
+#
+# Six roaming hostile NPCs seeded across the Petranaki Arena and Gladiator
+# Barracks rooms to populate the solo-PvE mob-grind reward loop
+# (engine/hunting_rewards.py).
+# All six satisfy engine/hunting_rewards.is_huntable_mob():
+#   - ai_config.hostile = true
+#   - NONE of the special-reward markers present:
+#     (is_bounty_target / is_anomaly_target / is_wilderness_encounter /
+#      is_dsp_hunter / is_intel_handler / chain_enemy_template / vendor)
+#
+# Zone spread: Petranaki Arena Floor x2, Creature Pens x1,
+#              Gladiator Barracks Training Pit x1, Muster Yard x1,
+#              Slavemaster's Den x1.
+#
+# These rooms had zero NPC occupants before this drop (verified against
+# all data/worlds/clone_wars/npcs_*.yaml files at HEAD).
+#
+# Era note (~20 BBY): Two years after the Clone Wars began, the Petranaki
+# Arena continues low-key operations under Geonosian control; the Republic
+# bombardment disrupted the arena district but did not fully shut it down.
+# Geonosian hive authority runs a reduced gladiatorial program for internal
+# enforcement and creature-culling. No canon figures appear.
+#
+# ── Policy ────────────────────────────────────────────────────────────
+# Q1 (no canon figures): all characters are original.
+# Era (~20 BBY): no Imperial/Empire/Rebel/TIE strings.
+# WEG R&E D6 stats. WEG40120 PDF unavailable in this tree;
+#   stats are UNVERIFIED against the PDF. Grounded in sibling
+#   NPC patterns (npcs_drop_mob_grind_geonosis.yaml baselines,
+#   npcs_drop_h_combat.yaml).
+# Weapons: blaster_pistol, heavy_blaster_pistol, vibroblade —
+#   all keys confirmed in data/weapons.yaml. Creature NPCs use
+#   empty weapon string; combat engine falls back to brawling + STR.
+# Loaded by: engine/npc_loader.py via era.yaml content_refs.npcs.
+# ──────────────────────────────────────────────────────────────────────
+
+schema_version: 1
+
+npcs:
+
+  # ══════════════════════════════════════════════════════════════════
+  # PETRANAKI ARENA - FLOOR — 2 NPCs
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Escaped Acklay Spawn
+    room: "Geonosis - Petranaki Arena - Floor"
+    species: Creature
+    description: >-
+      A juvenile acklay — not yet the full seven-meter horror of a mature
+      specimen, but already far past the point where "juvenile" means
+      anything comforting. Its carapace is the dull grey-green of an
+      animal that has not yet hardened into its adult coloration, and the
+      six legs move with the over-quick precision of something that has
+      not learned to pace itself yet. A broken tether drags from one of
+      the middle limbs. Someone opened the wrong pen, or the wrong pen
+      opened itself. The result is the same either way.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 1D
+        mechanical: 1D
+        perception: 3D
+        strength: 4D+1
+        technical: 1D
+      skills:
+        brawling: 5D+1
+        dodge: 3D+2
+        sneak: 2D+2
+        search: 3D
+      weapon: ""
+      move: 12
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A young acklay running on instinct after escaping its pen —
+        terrified and dangerous in equal measure. It strikes at anything
+        that moves and treats the open floor as contested territory.
+        No plan, no tactics: pure predator threat-response. It is
+        fast, it is strong, and the broken tether only adds unpredictability
+        to its movement pattern.
+      knowledge: []
+      faction: wildlife
+      dialogue_style: >-
+        Chittering shrieks and the percussion of six legs on stone.
+        No language. No hesitation.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The acklay spawn lunges across the arena floor, tether whipping behind it.*"
+        - "*A shriek bounces off the arena walls — and then it is already moving.*"
+        - "*It rears back on its four rear legs, claws raking the air above your head.*"
+
+  - name: Geonosian Arena Pit Master
+    room: "Geonosis - Petranaki Arena - Floor"
+    species: Geonosian
+    description: >-
+      A Geonosian in the darker-plated livery of arena personnel —
+      a pit master responsible for the floor between bouts, which today
+      means managing the aftermath of whatever went wrong with the
+      acklay pens. It carries a blaster at its hip and a restraint pike
+      on its back, and it is currently more angry than alarmed, which
+      tells you something about how often it deals with escaped animals.
+      Its compound eyes fix on you with the specific hostility of someone
+      who has had a very bad shift and has decided you are part of the
+      problem.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 2D
+        mechanical: 1D+2
+        perception: 3D
+        strength: 3D
+        technical: 1D+2
+      skills:
+        blaster: 4D+1
+        dodge: 3D+2
+        melee_combat: 4D
+        flying: 4D
+        intimidation: 3D+1
+        search: 3D
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Geonosian arena official who has run the pit floor long enough
+        to stop being surprised by anything. When something unauthorized
+        enters the arena space — a creature, a person, a problem — the
+        response is immediate and forceful. It doesn't ask questions in
+        the arena; questions happen after whatever is on the floor is
+        no longer a problem. It prefers blaster range but will use the
+        restraint pike if something closes the distance.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Sharp Geonosian commands — the kind used to stop workers mid-task.
+        A few words of Basic for anyone off-world: "Unauthorized. Leave.
+        Now." If you are still there by the third word, the blaster comes
+        out before the fourth.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Unauthorized. Leave—' *The blaster is already drawn before the word ends.*"
+        - "*Rapid Geonosian commands crack across the arena floor — and then it fires.*"
+        - "*It drops into a shooter's crouch, wings half-spread for balance.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # PETRANAKI ARENA - CREATURE PENS — 1 NPC
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Maddened Reek Calf
+    room: "Geonosis - Petranaki Arena - Creature Pens"
+    species: Creature
+    description: >-
+      A reek calf — still smaller than the full-grown specimens the
+      arena is famous for, but already massing enough to be a serious
+      problem in a confined space. It has been kept in this pen too long
+      without sufficient feeding, and the white-crusted horn and the
+      reddened hide tell a story of stress and hunger that the Geonosian
+      handlers have been ignoring on purpose. The reek's small dark eyes
+      track you as you enter. Its nostrils flare. It stamps once —
+      a decision being made — and then it charges.
+    char_sheet:
+      attributes:
+        dexterity: 2D+2
+        knowledge: 1D
+        mechanical: 1D
+        perception: 2D+2
+        strength: 4D+2
+        technical: 1D
+      skills:
+        brawling: 5D+2
+        dodge: 2D+2
+        search: 2D+2
+      weapon: ""
+      move: 14
+      force_points: 0
+      character_points: 0
+      dark_side_points: 0
+    ai_config:
+      personality: >-
+        A hungry, stressed animal in a too-small pen — the ideal
+        conditions for a dangerous animal to become a lethal one.
+        It charges at anything that enters its space. No threat
+        assessment, no warning beyond the one stamp. Once it commits,
+        it does not disengage. The pen walls give it no room to circle;
+        it just drives forward with everything it has.
+      knowledge: []
+      faction: wildlife
+      dialogue_style: >-
+        A low rumbling grunt, one stamp, then the impact.
+        No further communication.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "*The reek stamps twice and charges — the pen floor shakes.*"
+        - "*It hits like a mass-driver, driving forward with its head down.*"
+        - "*A grunt, a pivot, and it swings its horned head toward your legs.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # GLADIATOR BARRACKS - TRAINING PIT — 1 NPC
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Arena Pit Gladiator
+    room: "Geonosis - Gladiator Barracks - Training Pit"
+    species: Human
+    description: >-
+      A Human in training wraps — the coarse linen of someone who
+      has been in the pit long enough to lose count of the bouts —
+      running a blade form against an imaginary opponent when you
+      enter. He stops. His eyes measure you with the particular
+      efficiency of someone who has been paid in survival long enough
+      to make the calculation instantly. The Geonosian handlers are not
+      here right now. Which means the rules they enforce are also not
+      here right now. He decides what that means before you finish
+      taking in the room.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D
+        mechanical: 2D
+        perception: 2D+2
+        strength: 3D+2
+        technical: 2D
+      skills:
+        melee_combat: 4D+2
+        dodge: 3D+2
+        brawling: 4D
+        intimidation: 3D
+        sneak: 2D+2
+      weapon: vibroblade
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 2
+    ai_config:
+      personality: >-
+        A gladiator who has survived long enough in the arena system
+        to become genuinely dangerous outside its rules. He does not
+        grandstand. He does not explain himself. When the Geonosian
+        overseers are absent, the only law in the training pit is
+        whatever he decides it is. He has killed in the pit and out
+        of it, and the distinction between the two stopped mattering
+        some time ago. He is calm. Calm is the worst sign.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Flat Basic, minimal words. He does not threaten — he
+        states what he is about to do. "Shouldn't have come in here."
+        Then he acts.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Shouldn't have come in here.' *The vibroblade comes to guard.*"
+        - "*He closes the distance in two steps, blade angled low.*"
+        - "*No warning — he was already moving when you saw him move.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # GLADIATOR BARRACKS - MUSTER YARD — 1 NPC
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Geonosian Barracks Warden
+    room: "Geonosis - Gladiator Barracks - Muster Yard"
+    species: Geonosian
+    description: >-
+      A Geonosian in the heavier wing-casing worn by gladiatorial
+      personnel — additional chitin plating along the ventral thorax
+      that the arena operators favor for anyone who spends time in the
+      muster yard. It carries a blaster at the hip and uses the threat
+      of it more than the blaster itself; the gladiators here know the
+      cost of resistance better than any lecture could teach. It studies
+      you from the yard's far edge the way a Geonosian does: completely,
+      for one long moment, and then it moves.
+    char_sheet:
+      attributes:
+        dexterity: 3D
+        knowledge: 1D+2
+        mechanical: 1D
+        perception: 3D+1
+        strength: 3D+1
+        technical: 1D+2
+      skills:
+        blaster: 4D
+        dodge: 3D+2
+        melee_combat: 4D+1
+        flying: 4D
+        intimidation: 3D+2
+        search: 3D+1
+      weapon: blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 2
+      dark_side_points: 1
+    ai_config:
+      personality: >-
+        A Geonosian barracks warden who keeps the gladiator population
+        controlled with a combination of blaster credibility and thorough
+        follow-through. Unauthorized visitors to the muster yard are not
+        a category it has rules for — they fall under the same standing
+        order as a gladiator attempting to escape. The warden acts on
+        that order without waiting for a policy clarification.
+      knowledge: []
+      faction: cis
+      dialogue_style: >-
+        Geonosian authority clicks — the kind that make even other
+        Geonosians step back. One word of Basic it reserves for
+        off-worlders: "Out." If you are still in the yard after that,
+        the blaster is already clearing the holster.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Out.' *The blaster is drawn before the echo fades.*"
+        - "*It spreads its wings and drops into a shooter's stance.*"
+        - "*A sharp Geonosian command — and it fires without waiting for a reply.*"
+
+  # ══════════════════════════════════════════════════════════════════
+  # GLADIATOR BARRACKS - SLAVEMASTER'S DEN — 1 NPC
+  # ══════════════════════════════════════════════════════════════════
+
+  - name: Arena Slavemaster
+    room: "Geonosis - Gladiator Barracks - Slavemaster's Den"
+    species: Nikto
+    description: >-
+      A heavyset Nikto seated at a records table when you push open
+      the den door, with the look of someone who ran the arithmetic
+      on how this day could go wrong and missed this particular entry
+      in the ledger. The heavy blaster pistol on the table was already
+      in reach before you knocked — before you arrived, in fact.
+      He coordinates the gladiator intake manifest for the arena
+      operators. He is very good at his work, and part of that work
+      is ensuring that what enters his den does not leave it unless
+      he decides it should.
+    char_sheet:
+      attributes:
+        dexterity: 3D+1
+        knowledge: 2D+1
+        mechanical: 2D
+        perception: 3D
+        strength: 3D
+        technical: 2D
+      skills:
+        blaster: 4D+2
+        dodge: 3D+2
+        brawling: 3D+1
+        intimidation: 3D+2
+        streetwise: 3D
+        persuasion: 2D+2
+      weapon: heavy_blaster_pistol
+      move: 10
+      force_points: 0
+      character_points: 3
+      dark_side_points: 3
+    ai_config:
+      personality: >-
+        A career slavemaster who has operated on multiple worlds before
+        settling into the Geonosian arena system. He is not impulsive —
+        he thinks two moves ahead and acts on the third. He will speak
+        first, assess, and then decide. The decision is usually the
+        blaster. He does not raise his voice. He has worked in places
+        where raising your voice got you killed, and the habit stuck.
+        He is the most dangerous person in the barracks for exactly
+        that reason.
+      knowledge: []
+      faction: independent
+      dialogue_style: >-
+        Low, even Basic — the voice of someone who has negotiated
+        with people at their worst for twenty years and is not impressed
+        by any of it. "Shut the door. Sit. Or don't — the other option
+        is faster." Then the heavy blaster comes off the table.
+      hostile: true
+      combat_behavior: aggressive
+      fallback_lines:
+        - "'Shut the door.' *The heavy blaster is off the table before you answer.*"
+        - "*He fires from a seated position, unhurried, like he's done it before.*"
+        - "*He stands, pushing the table aside with one hand, blaster leveled with the other.*"
