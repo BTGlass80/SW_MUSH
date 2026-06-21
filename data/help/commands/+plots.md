@@ -10,6 +10,10 @@ access_level: 0
 examples:
   - cmd: "+plots"
     description: "List all open story arcs."
+  - cmd: "+plots closed"
+    description: "Browse the archive of completed plots."
+  - cmd: "+plots all"
+    description: "List every plot, open and closed."
   - cmd: "+plot 3"
     description: "View the details and linked scenes for plot #3."
   - cmd: "+plot/create The Missing Cargo=Shipment vanished near Nar Shaddaa"
@@ -21,7 +25,9 @@ ongoing storylines and link them to scenes for narrative continuity.
 
 SYNTAX
 
-  +plots                               List all open plots
+  +plots                               List all open (active) plots
+  +plots closed                        Browse the archive of closed plots
+  +plots all                           List every plot, open and closed
   +plot <id>                           View plot details and linked scenes
   +plot/create <title>=<summary>       Start a new plot
   +plot/summary <id>=<text>            Update the summary of a plot
@@ -45,6 +51,12 @@ EXAMPLES
   +plots
   → Shows all open arcs: title, status, scene count, last update.
 
+  +plots closed
+  → The archive: resolved storylines in amber, most recently updated first.
+
+  +plots all
+  → Every arc regardless of status — useful for cross-era browsing.
+
   +plot 5
   → Full detail: summary, creator, all linked scenes.
 
@@ -64,6 +76,8 @@ SEE ALSO
 
 CHEAT SHEET
   +plots                           list open arcs
+  +plots closed                    archive of finished arcs
+  +plots all                       every arc
   +plot <id>                       view arc detail
   +plot/create <title>=<summary>   start a new arc
   +plot/link <arc>=<scene>         link a scene

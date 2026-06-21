@@ -4,7 +4,7 @@ title: +Help — Command Reference
 category: "Commands: Info"
 summary: Display the command category overview, look up a specific command or topic, or search for help entries by keyword.
 aliases: [help, "?", commands, +commands]
-see_also: [+who, +sheet, +inv]
+see_also: [+who, +sheet, +inv, +guide]
 tags: [help, commands, reference, meta, command]
 access_level: 0
 examples:
@@ -16,10 +16,16 @@ examples:
     description: "Show help on D6 dice mechanics."
   - cmd: "+help/search bounty"
     description: "Search all help text for 'bounty'."
+  - cmd: "help"
+    description: "Bare 'help' (no argument) opens the in-game guide browser."
 ---
 
 The primary help system. Shows the command category overview or
 looks up a specific command, topic, or keyword. Usable before login.
+
+  TIP: Bare 'help' (no argument) opens the in-game GUIDE BROWSER —
+  25+ long-form field guides on combat, the Force, crafting, and more.
+  Use 'help <topic>' with an argument to query this command reference.
 
 SYNTAX
 
