@@ -50,6 +50,12 @@ telemetry.command_sample: 1.0         # fraction of dispatched commands emitted 
 # and rake breakdown — the house-edge tuning signal. Cooldown-bounded per
 # player so 1.0 is fine at launch; lower it if the stream gets noisy.
 telemetry.gamble_sample: 1.0          # fraction of gambling hands emitted (0..1]
+# Keep-rate for the faction-reputation stream (engine/organizations.py). Each
+# landed rep change (member rep_score + non-member faction_rep, incl. the
+# cross-faction penalty recursion) emits one 'faction_rep' event with the
+# delta, tier transition, and clamp flag — the progression/affiliation tuning
+# signal. Bounded by player action so 1.0 is fine at launch; lower it if noisy.
+telemetry.faction_rep_sample: 1.0     # fraction of rep changes emitted (0..1]
 
 # ── Feature flags (parser/city_commands.py) ──
 # Gate `+city found` off at launch; set true when city founding opens.
